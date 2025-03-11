@@ -1,4 +1,4 @@
-# Logs
+﻿# Logs
 logs
 *.log
 npm-debug.log*
@@ -128,3 +128,39 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+# Additional common patterns for JavaScript/TypeScript projects
+
+# Build artifacts
+dist/
+build/
+
+# Temporary files
+tmp/
+temp/
+
+# IDE-specific files
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# MacOS system files
+.DS_Store
+
+# Windows system files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux system files
+*~
+
+# Visual Studio specific files
+.vs/
+
+# Build artifacts
+obj/

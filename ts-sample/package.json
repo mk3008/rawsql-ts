@@ -1,0 +1,19 @@
+{
+  "name": "nodeconsoleapp1",
+  "version": "1.0.0",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc --build",
+    "clean": "tsc --build --clean"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "eslint": "^9.22.0",
+    "typescript": "^5.8.2"
+  }
+}
