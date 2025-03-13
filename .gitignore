@@ -164,3 +164,6 @@ Desktop.ini
 
 # Build artifacts
 obj/
+
+# Source maps
+*.map
