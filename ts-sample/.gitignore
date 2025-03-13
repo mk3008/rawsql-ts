@@ -1,2 +1,5 @@
 ﻿# Ignore map files
 *.map
+
+# Ignore output directories
+/dist
