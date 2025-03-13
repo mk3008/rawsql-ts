@@ -3,3 +3,8 @@
 
 # Ignore output directories
 /dist
+
+# Ignore project files
+*.esproj
+
+CHANGELOG.md
