@@ -4,7 +4,7 @@ const SqlTokenizer_1 = require("./SqlTokenizer");
 console.log('Hello world');
 const tokenizer = new SqlTokenizer_1.SqlTokenizer('a.id');
 let token;
-while ((token = tokenizer.getNextToken()) !== null) {
+while ((token = tokenizer.readLexme()) !== null) {
     console.log(token);
 }
 process.stdin.resume();

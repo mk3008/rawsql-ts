@@ -5,7 +5,7 @@ console.log('Hello world');
 
 const tokenizer = new SqlTokenizer('a.id');
 let token;
-while ((token = tokenizer.getNextToken()) !== null) {
+while ((token = tokenizer.readLexme()) !== null) {
     console.log(token);
 }
 
