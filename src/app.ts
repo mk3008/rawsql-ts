@@ -1,4 +1,4 @@
-﻿import { SqlTokenizer } from './SqlTokenizer';
+﻿import { SqlTokenizer } from './sqlTokenizer'; 
 
 console.log('Hello world');
 

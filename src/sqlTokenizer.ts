@@ -1,4 +1,4 @@
-﻿import { TokenType } from './enums/TokenType';
+﻿import { TokenType } from './enums/tokenType';
 
 interface Lexeme {
     type: TokenType;
