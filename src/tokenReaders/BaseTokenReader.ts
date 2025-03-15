@@ -9,7 +9,7 @@ export abstract class BaseTokenReader {
     protected input: string;
     protected position: number;
 
-    constructor(input: string, position: number) {
+    constructor(input: string, position: number = 0) {
         this.input = input;
         this.position = position;
     }

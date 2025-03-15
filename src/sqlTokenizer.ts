@@ -3,6 +3,7 @@ import { IdentifierTokenReader } from './tokenReaders/IdentifierTokenReader';
 import { LiteralTokenReader } from './tokenReaders/LiteralTokenReader';
 import { ParameterTokenReader } from './tokenReaders/ParameterTokenReader';
 import { SymbolTokenReader } from './tokenReaders/SymbolTokenReader';
+import { TokenReaderManager } from './tokenReaders/TokenReaderManager';
 
 export class SqlTokenizer {
     /// <summary>
@@ -15,9 +16,21 @@ export class SqlTokenizer {
     /// </summary>
     private position: number;
 
+    /// <summary>
+    /// Token reader manager
+    /// </summary>
+    private readerManager: TokenReaderManager;
+
     constructor(input: string) {
         this.input = input;
         this.position = 0;
+        
+        // Initialize the token reader manager and register all readers
+        this.readerManager = new TokenReaderManager(input)
+            .register(new ParameterTokenReader(input))
+            .register(new LiteralTokenReader(input))
+            .register(new IdentifierTokenReader(input))
+            .register(new SymbolTokenReader(input));
     }
 
     private isEndOfInput(shift: number = 0): boolean {
@@ -34,37 +47,13 @@ export class SqlTokenizer {
         // Skip whitespace and comments at the start
         this.skipWhiteSpacesAndComments();
 
-        // Initialize each token reader
-        const symbolReader = new SymbolTokenReader(this.input, this.position);
-        const identifierReader = new IdentifierTokenReader(this.input, this.position);
-        const literalReader = new LiteralTokenReader(this.input, this.position);
-        const parameterReader = new ParameterTokenReader(this.input, this.position);
-
         // Track the previous token
         let previous: Lexeme | null = null;
 
         // Read tokens until the end of the input is reached
         while (this.canRead()) {
-            let lexeme: Lexeme | null = null;
-
-            // Attempt to read with each reader in order
-            parameterReader.setPosition(this.position);
-            lexeme = parameterReader.tryRead(previous);
-
-            if (!lexeme) {
-                literalReader.setPosition(this.position);
-                lexeme = literalReader.tryRead(previous);
-            }
-
-            if (!lexeme) {
-                identifierReader.setPosition(this.position);
-                lexeme = identifierReader.tryRead(previous);
-            }
-
-            if (!lexeme) {
-                symbolReader.setPosition(this.position);
-                lexeme = symbolReader.tryRead(previous);
-            }
+            // Try to read with the reader manager
+            const lexeme = this.readerManager.tryRead(this.position, previous);
 
             // If a token is read by any reader
             if (lexeme) {
@@ -72,13 +61,7 @@ export class SqlTokenizer {
                 previous = lexeme;
 
                 // Update position
-                const newPos = Math.max(
-                    symbolReader.getPosition(),
-                    literalReader.getPosition(),
-                    identifierReader.getPosition(),
-                    parameterReader.getPosition()
-                );
-                this.position = newPos;
+                this.position = this.readerManager.getMaxPosition();
 
                 // Skip whitespace and comments after the token
                 this.skipWhiteSpacesAndComments();
