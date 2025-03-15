@@ -9,6 +9,7 @@ test('tokenizes integer number', () => {
 
     // Assert
     expect(tokens.length).toBe(1);
+    expect(tokens[0].type).toBe(1); // TokenType.Literal
     expect(tokens[0].value).toBe('123');
 });
 
@@ -21,6 +22,7 @@ test('tokenizes positive number', () => {
 
     // Assert
     expect(tokens.length).toBe(1);
+    expect(tokens[0].type).toBe(1); // TokenType.Literal
     expect(tokens[0].value).toBe('123');
 });
 
@@ -33,6 +35,7 @@ test('tokenizes decimal number', () => {
 
     // Assert
     expect(tokens.length).toBe(1);
+    expect(tokens[0].type).toBe(1); // TokenType.Literal
     expect(tokens[0].value).toBe('123.456');
 });
 
@@ -45,6 +48,7 @@ test('tokenizes number starting with dot', () => {
 
     // Assert
     expect(tokens.length).toBe(1);
+    expect(tokens[0].type).toBe(1); // TokenType.Literal
     expect(tokens[0].value).toBe('0.456');
 });
 
@@ -57,6 +61,7 @@ test('tokenizes hexadecimal number', () => {
 
     // Assert
     expect(tokens.length).toBe(1);
+    expect(tokens[0].type).toBe(1); // TokenType.Literal
     expect(tokens[0].value).toBe('0x1A3F');
 });
 
@@ -69,6 +74,8 @@ test('tokenizes exponential notation', () => {
 
     // Assert
     expect(tokens.length).toBe(1);
+    expect(tokens[0].type).toBe(1); // TokenType.Literal
+    expect(tokens[0].value).toBe('1.23e+10');
 });
 
 test('tokenizes negative integer number', () => {
@@ -80,6 +87,7 @@ test('tokenizes negative integer number', () => {
 
     // Assert
     expect(tokens.length).toBe(1);
+    expect(tokens[0].type).toBe(1); // TokenType.Literal
     expect(tokens[0].value).toBe('-123');
 });
 
@@ -92,6 +100,7 @@ test('tokenizes negative decimal number', () => {
 
     // Assert
     expect(tokens.length).toBe(1);
+    expect(tokens[0].type).toBe(1); // TokenType.Literal
     expect(tokens[0].value).toBe('-123.456');
 });
 
@@ -104,6 +113,7 @@ test('tokenizes negative number starting with dot', () => {
 
     // Assert
     expect(tokens.length).toBe(1);
+    expect(tokens[0].type).toBe(1); // TokenType.Literal
     expect(tokens[0].value).toBe('-0.456');
 });
 
@@ -116,6 +126,7 @@ test('tokenizes negative exponential notation', () => {
 
     // Assert
     expect(tokens.length).toBe(1);
+    expect(tokens[0].type).toBe(1); // TokenType.Literal
     expect(tokens[0].value).toBe('-1.23e+10');
 });
 
@@ -220,5 +231,6 @@ test('tokenizes empty escaped string literal', () => {
 
     // Assert
     expect(tokens.length).toBe(1);
+    expect(tokens[0].type).toBe(1); // TokenType.Literal
     expect(tokens[0].value).toBe("E''");
 });
