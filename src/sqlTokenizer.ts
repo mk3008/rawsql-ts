@@ -66,19 +66,22 @@ export class SqlTokenizer {
         const lexemes: Lexeme[] = [];
 
         let lexeme: Lexeme | null = null;
+
+        this.skipWhiteSpacesAndComments();
+
         while ((lexeme = this.readLexme(lexeme)) !== null) {
             lexemes.push(lexeme);
+            this.skipWhiteSpacesAndComments();
         }
+
         return lexemes;
     }
 
-    public readLexme(previous: Lexeme | null = null): Lexeme | null {
+    private readLexme(previous: Lexeme | null = null): Lexeme | null {
         // end of input
         if (this.isEndOfInput()) {
             return null;
         }
-
-        this.skipWhiteSpacesAndComments();
 
         // current character
         const char = this.input[this.position];
