@@ -51,6 +51,16 @@ export class SqlTokenizer {
         ')': TokenType.CloseParen,
     };
 
+    private getDebugPositionInfo(errPosition: number): string {
+        // Get 5 characters before and after the error
+        // If the start and end points are out of the string range, keep them within the range
+        // Display ^ at the error position on the next line
+        const start = Math.max(0, errPosition - 5);
+        const end = Math.min(this.input.length, errPosition + 5);
+        const debugInfo = this.input.slice(start, end);
+        const caret = ' '.repeat(errPosition - start) + '^';
+        return `${debugInfo}\n${caret}`;
+    }
 
     public readLexmes(): Lexeme[] {
         const lexemes: Lexeme[] = [];
@@ -73,63 +83,220 @@ export class SqlTokenizer {
         // current character
         const char = this.input[this.position];
 
-        // digit tokens (prioritize dot for decimal point and delimiter)
-        if (char === '.' && this.canRead(1) && /[0-9]/.test(this.input[this.position + 1])) {
-            return { type: TokenType.Literal, value: this.readDigit() };
+        // Try each token type handler in order
+        const lexeme = this.tryReadDecimalToken(char) ||
+            this.tryReadSymbolToken(char) ||
+            this.tryReadEscapedIdentifier(char, previous) ||
+            this.tryReadParameter(char) ||
+            this.tryReadStringLiteral(char) ||
+            this.tryReadDigit(char) ||
+            this.tryReadSignedNumber(char, previous) ||
+            this.tryReadEscapedLiteral(char);
+
+        if (lexeme) {
+            return lexeme;
         }
 
+        // Default to reading an identifier if no other token type matches
+        const identifier = this.readIdentifier();
+        return {
+            type: TokenType.Identifier,
+            value: identifier
+        };
+    }
+
+    private tryReadDecimalToken(char: string): Lexeme | null {
+        // digit tokens (prioritize dot for decimal point and delimiter)
+        if (char === '.' && this.canRead(1) && /[0-9]/.test(this.input[this.position + 1])) {
+            return {
+                type: TokenType.Literal,
+                value: this.readDigit()
+            };
+        }
+        return null;
+    }
+
+    private tryReadSymbolToken(char: string): Lexeme | null {
         // symbol tokens
         if (char in SqlTokenizer.SYMBOL_TOKENS) {
             this.position++;
-            return { type: SqlTokenizer.SYMBOL_TOKENS[char], value: char, command: char.toLowerCase() };
+            return {
+                type: SqlTokenizer.SYMBOL_TOKENS[char],
+                value: char,
+                command: char.toLowerCase()
+            };
         }
+        return null;
+    }
 
+    private tryReadEscapedIdentifier(char: string, previous: Lexeme | null): Lexeme | null {
         // MySQL escaped identifier (escape character is backtick)
         if (char === '`') {
-            this.position++;
-            const identifier = this.readIdentifier();
-            this.read('`');
-            return { type: TokenType.Identifier, value: identifier, command: identifier.toLowerCase() };
+            const identifier = this.readEscapedIdentifier('`');
+            return {
+                type: TokenType.Identifier,
+                value: identifier
+            };
         }
 
         // Postgres escaped identifier (escape character is double quote)
         if (char === '"') {
-            this.position++;
-            const identifier = this.readIdentifier();
-            this.read('"');
-            return { type: TokenType.Identifier, value: identifier, command: identifier.toLowerCase() };
+            const identifier = this.readEscapedIdentifier('"');
+            return {
+                type: TokenType.Identifier,
+                value: identifier
+            };
         }
 
         // SQLServer escaped identifier (escape character is square bracket)
         if (char === '[' && (previous === null || previous.command !== "array")) {
-            this.position++;
-            const identifier = this.readIdentifier();
-            this.read(']');
-            return { type: TokenType.Identifier, value: identifier, command: identifier.toLowerCase() };
+            const identifier = this.readEscapedIdentifier(']');
+            return {
+                type: TokenType.Identifier,
+                value: identifier,
+            };
         }
 
+        return null;
+    }
+
+    private tryReadParameter(char: string): Lexeme | null {
         // named parameter
         const namedParameterPrefix = new Set(['@', ':', '$']);
         if (namedParameterPrefix.has(char)) {
             this.position++;
             const value = char + this.readIdentifier();
-            return { type: TokenType.Parameter, value, command: value.toLowerCase() };
+            return {
+                type: TokenType.Parameter,
+                value
+            };
         }
 
         // nameless parameter
         if (char === '?') {
             this.position++;
-            return { type: TokenType.Parameter, value: char, command: char.toLowerCase() };
+            return {
+                type: TokenType.Parameter,
+                value: char
+            };
         }
 
+        return null;
+    }
+
+    private tryReadStringLiteral(char: string): Lexeme | null {
         // string literal
         if (char === '\'') {
             const value = this.readSingleQuotedString();
-            return { type: TokenType.Literal, value, command: value.toLowerCase() };
+            return {
+                type: TokenType.Literal,
+                value
+            };
         }
 
-        const identifier = this.readIdentifier();
-        return { type: TokenType.Identifier, value: identifier };
+        return null;
+    }
+
+    private tryReadDigit(char: string): Lexeme | null {
+        // digit tokens
+        if (/[0-9]/.test(char)) {
+            return {
+                type: TokenType.Literal,
+                value: this.readDigit()
+            };
+        }
+
+        return null;
+    }
+
+    private tryReadSignedNumber(char: string, previous: Lexeme | null): Lexeme | null {
+        // Check if this could be a signed number (not after a literal/identifier)
+        const isValidNumericPrefix = previous === null ||
+            (previous.type !== TokenType.Literal &&
+                previous.type !== TokenType.Identifier);
+
+        // positive number
+        if (char === '+' && isValidNumericPrefix) {
+            this.position++;
+            this.skipWhiteSpacesAndComments();
+            // removed positive sign
+            return {
+                type: TokenType.Literal,
+                value: this.readDigit()
+            };
+        }
+
+        // negative number
+        if (char === '-' && isValidNumericPrefix) {
+            this.position++;
+            this.skipWhiteSpacesAndComments();
+            // include negative sign
+            return {
+                type: TokenType.Literal,
+                value: char + this.readDigit()
+            };
+        }
+
+        return null;
+    }
+
+    private tryReadEscapedLiteral(char: string): Lexeme | null {
+        // E', U&', X' B'
+        const start = this.position;
+
+        const prefix = new Set(['e', 'x', 'b']);
+
+        // e'...', x'...', b'...'
+        if (this.canRead(1) && prefix.has(char.toLowerCase()) && this.input[this.position + 1] === '\'') {
+            this.position += 2;
+
+            while (this.canRead()) {
+                if (this.input[this.position] === '\\' && this.canRead(1) && this.input[this.position + 1] === '\'') {
+                    this.position += 2;
+                    continue;
+                }
+                else if (this.input[this.position] === '\'') {
+                    this.position++;
+                    break;
+                }
+                this.position++;
+            }
+
+            if (this.position - 2 === start) {
+                throw new Error(`Closing delimiter is not found. position: ${start}`);
+            };
+
+            return {
+                type: TokenType.Literal,
+                value: this.input.slice(start, this.position)
+            };
+        }
+
+        //u& '...', 
+        if (this.canRead(2) && char.toLowerCase() === 'u' && this.input[this.position + 1] === '&' && this.input[this.position + 2] === '\'') {
+            this.position += 3;
+
+            while (this.canRead()) {
+                if (this.input[this.position] === '\\' && this.canRead(1) && this.input[this.position + 1] === '\'') {
+                    this.position += 2;
+                    continue;
+                }
+                else if (this.input[this.position] === '\'') {
+                    this.position++;
+                    break;
+                }
+                this.position++;
+            }
+            if (this.position - 2 === start) {
+                throw new Error(`Closing delimiter is not found. position: ${start}`);
+            };
+            return {
+                type: TokenType.Literal,
+                value: this.input.slice(start, this.position)
+            }
+        }
+
+        return null;
     }
 
     private readDigit(): string {
@@ -138,15 +305,16 @@ export class SqlTokenizer {
         let hasExponent = false;
 
         // Consider 0x, 0b, 0o
-        if (this.input[this.position] === '0' && this.canRead(1)) {
-            const nextChar = this.input[this.position + 1].toLowerCase();
-            if (nextChar === 'x' || nextChar === 'b' || nextChar === 'o') {
-                this.position += 2;
-                while (this.canRead() && /[0-9a-f]/i.test(this.input[this.position])) {
-                    this.position++;
-                }
-                return this.input.slice(start, this.position);
+        const prefix = new Set(['0x', '0b', '0o']);
+        if (this.canRead(1) && prefix.has(this.input.slice(start, 2).toLocaleLowerCase())) {
+            this.position += 2;
+
+            // Continue to get numeric and hexadecimal notation strings
+            while (this.canRead() && /[0-9a-f]/i.test(this.input[this.position])) {
+                this.position++;
             }
+
+            return this.input.slice(start, this.position);
         }
 
         // Consider decimal point and exponential notation
@@ -168,14 +336,42 @@ export class SqlTokenizer {
         }
 
         if (start === this.position) {
-            throw new Error(`Unexpected character at position ${start}`);
+            throw new Error(`Unexpected character. position: ${start}`);
+        }
+
+        if (this.input[start] === '.') {
+            // If the number starts with a dot, add 0 to the front
+            return '0' + this.input.slice(start, this.position);
         }
 
         return this.input.slice(start, this.position);
     }
 
+    private readEscapedIdentifier(delimiter: string): string {
+        const start = this.position;
+
+        // Skip the opening delimiter
+        this.position++;
+
+        while (this.canRead()) {
+            if (this.input[this.position] === delimiter) {
+                break;
+            }
+            this.position++;
+        }
+        if (start === this.position) {
+            throw new Error(`Closing delimiter is not found. position: ${start}, delimiter: ${delimiter}`);
+        }
+
+        // Skip the closing delimiter
+        this.position++;
+
+        // exclude the delimiter
+        return this.input.slice(start + 1, this.position - 1);
+    }
+
     private readSingleQuotedString(): string {
-        let start = this.position;
+        const start = this.position;
 
         this.read('\'');
 
@@ -194,7 +390,7 @@ export class SqlTokenizer {
         }
 
         if (this.isEndOfInput()) {
-            throw new Error(`Syntax error: String is not closed. position: ${start}`);
+            throw new Error(`Single quote is not closed. position: ${start}`);
         }
 
         const value = this.input.slice(start, this.position);
@@ -218,7 +414,7 @@ export class SqlTokenizer {
         }
 
         if (start === this.position) {
-            throw new Error(`Unexpected character at position ${start}`);
+            throw new Error(`Unexpected character. position: ${start}\n${this.getDebugPositionInfo(start)}`);
         }
 
         return this.input.slice(start, this.position);
@@ -295,9 +491,7 @@ export class SqlTokenizer {
                 this.position++;
             }
 
-            const errorMessage = "Syntax error: Block comment is not closed.";
-            const errorVariable = `position: ${start}`;
-            throw new Error(`${errorMessage} ${errorVariable}`);
+            throw new Error(`Block comment is not closed. position: ${start}`);
         }
 
         return false;

@@ -2,6 +2,8 @@
 
 console.log('Hello world');
 
+const tokenizer2 =new SqlTokenizer('0x1A3F');
+tokenizer2.readLexme()
 
 const tokenizer = new SqlTokenizer('a.id');
 let token;
