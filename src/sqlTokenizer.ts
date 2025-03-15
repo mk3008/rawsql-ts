@@ -241,62 +241,49 @@ export class SqlTokenizer {
     }
 
     private tryReadEscapedLiteral(char: string): Lexeme | null {
-        // E', U&', X' B'
         const start = this.position;
 
-        const prefix = new Set(['e', 'x', 'b']);
-
-        // e'...', x'...', b'...'
-        if (this.canRead(1) && prefix.has(char.toLowerCase()) && this.input[this.position + 1] === '\'') {
-            this.position += 2;
-
-            while (this.canRead()) {
-                if (this.input[this.position] === '\\' && this.canRead(1) && this.input[this.position + 1] === '\'') {
-                    this.position += 2;
-                    continue;
-                }
-                else if (this.input[this.position] === '\'') {
-                    this.position++;
-                    break;
-                }
-                this.position++;
-            }
-
-            if (this.position - 2 === start) {
-                throw new Error(`Closing delimiter is not found. position: ${start}`);
-            };
-
-            return {
-                type: TokenType.Literal,
-                value: this.input.slice(start, this.position)
-            };
+        // Check for prefixed literals: e', x', b'
+        const prefix = new Set(['e\'', 'x\'', 'b\'']);
+        if (this.canRead(1) && prefix.has(this.input.slice(start, start + 2).toLocaleLowerCase())) {
+            return this.readPrefixedLiteral(start, 2);
         }
 
-        //u& '...', 
-        if (this.canRead(2) && char.toLowerCase() === 'u' && this.input[this.position + 1] === '&' && this.input[this.position + 2] === '\'') {
-            this.position += 3;
-
-            while (this.canRead()) {
-                if (this.input[this.position] === '\\' && this.canRead(1) && this.input[this.position + 1] === '\'') {
-                    this.position += 2;
-                    continue;
-                }
-                else if (this.input[this.position] === '\'') {
-                    this.position++;
-                    break;
-                }
-                this.position++;
-            }
-            if (this.position - 2 === start) {
-                throw new Error(`Closing delimiter is not found. position: ${start}`);
-            };
-            return {
-                type: TokenType.Literal,
-                value: this.input.slice(start, this.position)
-            }
+        // Check for unicode literal: u&'
+        if (this.canRead(2) && this.input.slice(start, start + 3).toLocaleLowerCase() === 'u&\'') {
+            return this.readPrefixedLiteral(start, 3);
         }
 
         return null;
+    }
+
+    private readPrefixedLiteral(start: number, prefixLength: number): Lexeme {
+        // Skip the prefix
+        this.position += prefixLength;
+
+        // Read until the closing quote
+        while (this.canRead()) {
+            if (this.input[this.position] === '\\' && this.canRead(1) && this.input[this.position + 1] === '\'') {
+                // Skip escaped single quote
+                this.position += 2;
+                continue;
+            }
+            else if (this.input[this.position] === '\'') {
+                // Found closing quote
+                this.position++;
+                break;
+            }
+            this.position++;
+        }
+
+        if (this.position <= start + prefixLength) {
+            throw new Error(`Closing delimiter is not found. position: ${start}`);
+        }
+
+        return {
+            type: TokenType.Literal,
+            value: this.input.slice(start, this.position)
+        };
     }
 
     private readDigit(): string {
