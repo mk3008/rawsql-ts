@@ -2,5 +2,5 @@
 
 console.log('Hello world');
 
-const tokenizer2 =new SqlTokenizer('0x1A3F');
+const tokenizer2 =new SqlTokenizer('.456');
 tokenizer2.readLexmes()
