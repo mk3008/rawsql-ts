@@ -52,6 +52,11 @@ export class SqlTokenizer {
 
         // Read tokens until the end of the input is reached
         while (this.canRead()) {
+            // semicolon is a delimiter
+            if (this.input[this.position] === ';') {
+                return lexemes;
+            }
+
             // Try to read with the reader manager
             const lexeme = this.readerManager.tryRead(this.position, previous);
 
