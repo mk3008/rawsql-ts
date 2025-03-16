@@ -2,6 +2,22 @@
 import { TokenType } from '../enums/tokenType';
 import { Lexeme } from '../models/Lexeme';
 import { StringUtils } from '../utils/stringUtils';
+import { KeywordTrie } from '../models/KeywordTrie';
+import { KeywordParser } from '../KeywordParser';
+
+
+// 型を正確に判定するのは難しいので、indentifiers として扱う。
+// 複数語で構成されるキーワードは、KeywordTrie を使用して判定する。
+const trie = new KeywordTrie([
+    // type
+    ["double", "precision"],
+    ["character", "varying"],
+    ["time", "without", "time", "zone"],
+    ["time", "with", "time", "zone"],
+    ["timestamp", "without", "time", "zone"],
+    ["timestamp", "with", "time", "zone"],
+]);
+const parser = new KeywordParser(trie);
 
 /**
  * Reads SQL identifier tokens
@@ -46,6 +62,13 @@ export class IdentifierTokenReader extends BaseTokenReader {
         if (char === '[' && (previous === null || previous.command !== "array")) {
             const identifier = this.readEscapedIdentifier(']');
             return this.createLexeme(TokenType.Identifier, identifier);
+        }
+
+        // Check for keyword identifiers
+        const keyword = parser.parse(this.input, this.position);
+        if (keyword !== null) {
+            this.position = keyword.newPosition;
+            return this.createLexeme(TokenType.Identifier, keyword.keyword);
         }
 
         // Regular identifier

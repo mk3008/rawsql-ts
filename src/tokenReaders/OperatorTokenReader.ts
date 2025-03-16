@@ -12,6 +12,12 @@ const trie = new KeywordTrie([
     ["or"],
     ["like"],
     ["not", "like"],
+    ["in"],
+    ["not", "in"],
+    ["exists"],
+    ["not", "exists"],
+    ["is", "distinct", "from"],
+    ["is", "not", "distinct", "from"],
 ]);
 
 const parser = new KeywordParser(trie);
@@ -33,7 +39,6 @@ export class OperatorTokenReader extends BaseTokenReader {
         }
 
         // Logical operators
-
         const result = parser.parse(this.input, this.position);
         if (result !== null) {
             this.position = result.newPosition;

@@ -27,7 +27,7 @@ const keywords = [
     ["nfc"],
     ["nfd"],
     ["nfkc"],
-    ["nfkd"]
+    ["nfkd"],
 ];
 const trie = new KeywordTrie(keywords);
 const parser = new KeywordParser(trie);
