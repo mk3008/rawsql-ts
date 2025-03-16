@@ -30,16 +30,15 @@ export class SqlTokenizer {
         // Initialize the token reader manager and register all readers
         //
         // NOTE: The execution order of token readers is important.
-        //       LiteralTokenReader <  SpecialSymbolTokenReader
-        //       LiteralTokenReader <  OperatorTokenReader
+        //       LiteralTokenReader < SpecialSymbolTokenReader
+        //       LiteralTokenReader < OperatorTokenReader
         // - Since LiteralTokenReader has a process to read numeric literals starting with a dot,
         //   it needs to be registered before SpecialSymbolTokenReader.
         // - Since LiteralTokenReader has a process to read numeric literals starting with a sign,
         //   it needs to be registered before OperatorTokenReader.
         //
         // NOTE: The execution order of token readers is important.
-        //       IdentifierTokenReader <  SpecialSymbolTokenReader
-        //       IdentifierTokenReader <  OperatorTokenReader
+        //       IdentifierTokenReader は一番最後に登録する
         this.readerManager = new TokenReaderManager(input)
             .register(new ParameterTokenReader(input))
             .register(new LiteralTokenReader(input))            

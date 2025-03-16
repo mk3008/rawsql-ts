@@ -234,3 +234,55 @@ test('tokenizes bitwise OR operator', () => {
     expect(tokens[1].type).toBe(TokenType.Operator);
     expect(tokens[1].value).toBe('|');
 });
+
+test('tokenizes "is" operator', () => {
+    // Arrange
+    const tokenizer = new SqlTokenizer('1 is 1');
+
+    // Act
+    const tokens = tokenizer.readLexmes();
+
+    // Assert
+    expect(tokens.length).toBe(3);
+    expect(tokens[1].type).toBe(TokenType.Operator);
+    expect(tokens[1].value).toBe('is');
+});
+
+test('tokenizes "is not" operator', () => {
+    // Arrange
+    const tokenizer = new SqlTokenizer('1 is not 1');
+
+    // Act
+    const tokens = tokenizer.readLexmes();
+
+    // Assert
+    expect(tokens.length).toBe(4);
+    expect(tokens[1].type).toBe(TokenType.Operator);
+    expect(tokens[1].value).toBe('is not');
+});
+
+test('tokenizes "and" operator', () => {
+    // Arrange
+    const tokenizer = new SqlTokenizer('1 and 1');
+
+    // Act
+    const tokens = tokenizer.readLexmes();
+
+    // Assert
+    expect(tokens.length).toBe(3);
+    expect(tokens[1].type).toBe(TokenType.Operator);
+    expect(tokens[1].value).toBe('and');
+});
+
+test('tokenizes "or" operator', () => {
+    // Arrange
+    const tokenizer = new SqlTokenizer('1 or 1');
+
+    // Act
+    const tokens = tokenizer.readLexmes();
+
+    // Assert
+    expect(tokens.length).toBe(3);
+    expect(tokens[1].type).toBe(TokenType.Operator);
+    expect(tokens[1].value).toBe('or');
+});
