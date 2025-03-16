@@ -1,4 +1,4 @@
-﻿import { KeywordMatchResult } from "./KeywordParser";
+﻿import { KeywordMatchResult } from "../KeywordParser";
 
 
 export class KeywordTrie {

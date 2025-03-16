@@ -2,8 +2,8 @@
 import { TokenType } from '../enums/tokenType';
 import { Lexeme } from '../models/Lexeme';
 import { CharLookupTable } from '../utils/charLookupTable';
-import { KeywordParser } from '../utils/KeywordParser';
-import { KeywordTrie } from "../utils/KeywordTrie";
+import { KeywordParser } from '../KeywordParser';
+import { KeywordTrie } from '../models/KeywordTrie';
 
 const trie = new KeywordTrie([
     ["is"],

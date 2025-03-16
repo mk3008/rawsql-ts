@@ -1,5 +1,5 @@
-﻿import { KeywordTrie } from "./KeywordTrie";
-import { StringUtils } from "./stringUtils";
+﻿import { KeywordTrie } from "./models/KeywordTrie";
+import { StringUtils } from "./utils/stringUtils";
 
 export enum KeywordMatchResult {
     NotAKeyword,     // "Not recognized as a keyword"
