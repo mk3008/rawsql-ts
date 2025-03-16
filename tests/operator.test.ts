@@ -256,7 +256,7 @@ test('tokenizes "is not" operator', () => {
     const tokens = tokenizer.readLexmes();
 
     // Assert
-    expect(tokens.length).toBe(4);
+    expect(tokens.length).toBe(3);
     expect(tokens[1].type).toBe(TokenType.Operator);
     expect(tokens[1].value).toBe('is not');
 });

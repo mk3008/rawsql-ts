@@ -2,5 +2,5 @@
 
 console.log('Hello world');
 
-const tokenizer = new SqlTokenizer('1|1');
+const tokenizer = new SqlTokenizer('1 and 1');
 tokenizer.readLexmes()

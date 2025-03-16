@@ -2,10 +2,33 @@
 import { TokenType } from '../enums/tokenType';
 import { Lexeme } from '../models/Lexeme';
 import { CharLookupTable } from '../utils/charLookupTable';
+import { KeywordTrie, KeywordTrieReader } from '../utils/KeywordTrie';
 
 /**
  * Reads SQL literal tokens (numbers, strings)
  */
+
+const keywords = [
+    ["null"],
+    ["true"],
+    ["false"],
+    ["current_date"],
+    ["current_time"],
+    ["current_timestamp"],
+    ["localtime"],
+    ["localtimestamp"],
+    ["unbounded"],
+    ["normalized"],
+    ["nfc", "normalized"],
+    ["nfd", "normalized"],
+    ["nfkc", "normalized"],
+    ["nfkd", "normalized"],
+    ["nfc"],
+    ["nfd"],
+    ["nfkc"],
+    ["nfkd"]
+];
+
 export class LiteralTokenReader extends BaseTokenReader {
     /**
      * Try to read a literal token
@@ -16,6 +39,15 @@ export class LiteralTokenReader extends BaseTokenReader {
         }
 
         const char = this.input[this.position];
+
+        // Check for keyword literals
+        const keywordTrie = new KeywordTrie(keywords);
+        const keywordReader = new KeywordTrieReader(this.input, this.position, keywordTrie);
+        const keywordResult = keywordReader.readKeyword();
+        if (keywordResult) {
+            this.position = keywordResult.newPosition;
+            return this.createLexeme(TokenType.Literal, keywordResult.keyword);
+        }
 
         // Decimal token starting with a dot
         if (char === '.' && this.canRead(1) && CharLookupTable.isDigit(this.input[this.position + 1])) {

@@ -32,7 +32,11 @@ export class KeywordTrieReader {
             return null;
         }
 
-        const result = StringUtils.readRegularIdentifier(this.input, this.position);
+        const result = StringUtils.tryReadRegularIdentifier(this.input, this.position);
+
+        if (result === null) {
+            return null;
+        }
 
         let matchResult = this.trie.pushLexeme(result.identifier);
 
@@ -54,24 +58,31 @@ export class KeywordTrieReader {
         this.position = StringUtils.skipWhiteSpacesAndComments(this.input, result.newPosition);
 
         while (this.canRead()) {
-            const result = StringUtils.readRegularIdentifier(this.input, this.position);
-
             const previousMatchResult = matchResult;
-            matchResult = this.trie.pushLexeme(result.identifier);
 
-            if (matchResult === KeywordMatchResult.NotAKeyword) {
-                if (previousMatchResult === KeywordMatchResult.PartialOrFinal) {
-                    break;
-                } else {
-                    return null;
+            const result = StringUtils.tryReadRegularIdentifier(this.input, this.position);
+
+            if (result !== null) {
+                matchResult = this.trie.pushLexeme(result.identifier);
+
+                if (matchResult === KeywordMatchResult.NotAKeyword) {
+                    if (previousMatchResult === KeywordMatchResult.PartialOrFinal) {
+                        break;
+                    } else {
+                        return null;
+                    }
                 }
-            }
 
-            lexeme += ' ' + result.identifier;
-            this.position = StringUtils.skipWhiteSpacesAndComments(this.input, result.newPosition);
+                lexeme += ' ' + result.identifier;
+                this.position = StringUtils.skipWhiteSpacesAndComments(this.input, result.newPosition);
 
-            if (matchResult === KeywordMatchResult.Final) {
+                if (matchResult === KeywordMatchResult.Final) {
+                    break;
+                }
+            } else if (previousMatchResult === KeywordMatchResult.PartialOrFinal) {
                 break;
+            } else {
+                return null;
             }
         }
         return {

@@ -102,6 +102,16 @@ export class StringUtils {
      * Read a regular identifier.
      */
     public static readRegularIdentifier(input: string, position: number): { identifier: string, newPosition: number } {
+        const result = this.tryReadRegularIdentifier(input, position);
+
+        if (!result) {
+            throw new Error(`Unexpected character. position: ${position}\n${StringUtils.getDebugPositionInfo(input, position)}`);
+        }
+
+        return result;
+    }
+
+    public static tryReadRegularIdentifier(input: string, position: number): { identifier: string, newPosition: number } | null{
         const start = position;
 
         while (position < input.length) {
@@ -112,7 +122,7 @@ export class StringUtils {
         }
 
         if (start === position) {
-            throw new Error(`Unexpected character. position: ${start}\n${StringUtils.getDebugPositionInfo(input, start)}`);
+            return null;
         }
 
         return {
