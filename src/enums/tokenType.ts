@@ -7,10 +7,10 @@
     Comma,
     Dot,
     Identifier,
-    Command,
+    Command, // select, from, where as, on, etc.
     Parameter,
     OpenBracket,
     CloseBracket,
     Comment,
-    EscapedStringConstant,
+    Function, // count, sum, etc.
 }

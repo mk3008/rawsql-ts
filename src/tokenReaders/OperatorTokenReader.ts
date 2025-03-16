@@ -9,7 +9,9 @@ const trie = new KeywordTrie([
     ["is"],
     ["is", "not"],
     ["and"],
-    ["or"]
+    ["or"],
+    ["like"],
+    ["not", "like"],
 ]);
 
 const parser = new KeywordParser(trie);

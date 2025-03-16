@@ -286,3 +286,29 @@ test('tokenizes "or" operator', () => {
     expect(tokens[1].type).toBe(TokenType.Operator);
     expect(tokens[1].value).toBe('or');
 });
+
+test('tokenizes "like" operator', () => {
+    // Arrange
+    const tokenizer = new SqlTokenizer('1 like 1');
+
+    // Act
+    const tokens = tokenizer.readLexmes();
+
+    // Assert
+    expect(tokens.length).toBe(3);
+    expect(tokens[1].type).toBe(TokenType.Operator);
+    expect(tokens[1].value).toBe('like');
+});
+
+test('tokenizes "not like" operator', () => {
+    // Arrange
+    const tokenizer = new SqlTokenizer('1 not like 1');
+
+    // Act
+    const tokens = tokenizer.readLexmes();
+
+    // Assert
+    expect(tokens.length).toBe(3);
+    expect(tokens[1].type).toBe(TokenType.Operator);
+    expect(tokens[1].value).toBe('not like');
+});
