@@ -5,12 +5,14 @@ import { Lexeme } from '../models/Lexeme';
 /**
  * Reads SQL symbol tokens (., ,, (, ))
  */
-export class SymbolTokenReader extends BaseTokenReader {
-    private static readonly SYMBOL_TOKENS: Record<string, TokenType> = {
+export class SpecialSymbolTokenReader extends BaseTokenReader {
+    private static readonly SPECIAL_SYMBOL_TOKENS: Record<string, TokenType> = {
         '.': TokenType.Dot,
         ',': TokenType.Comma,
         '(': TokenType.OpenParen,
         ')': TokenType.CloseParen,
+        '[': TokenType.OpenBracket,
+        ']': TokenType.CloseBracket,
     };
 
     /**
@@ -24,10 +26,10 @@ export class SymbolTokenReader extends BaseTokenReader {
         const char = this.input[this.position];
         
         // symbol tokens
-        if (char in SymbolTokenReader.SYMBOL_TOKENS) {
+        if (char in SpecialSymbolTokenReader.SPECIAL_SYMBOL_TOKENS) {
             this.position++;
             return this.createLexeme(
-                SymbolTokenReader.SYMBOL_TOKENS[char],
+                SpecialSymbolTokenReader.SPECIAL_SYMBOL_TOKENS[char],
                 char,
                 char.toLowerCase()
             );

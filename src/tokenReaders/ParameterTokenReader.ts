@@ -19,6 +19,12 @@ export class ParameterTokenReader extends BaseTokenReader {
 
         // named parameter (@param, :param, $param)
         if (CharLookupTable.isNamedParameterPrefix(char)) {
+
+            // しかし、その次の文字が演算子記号である場合、パラメータとして認識しない
+            if (this.canRead(1) && CharLookupTable.isOperator(this.input[this.position + 1])) {
+                return null;
+            }
+
             this.position++;
 
             // Read the identifier part after the prefix

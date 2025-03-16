@@ -2,8 +2,10 @@
 import { IdentifierTokenReader } from './tokenReaders/IdentifierTokenReader';
 import { LiteralTokenReader } from './tokenReaders/LiteralTokenReader';
 import { ParameterTokenReader } from './tokenReaders/ParameterTokenReader';
-import { SymbolTokenReader } from './tokenReaders/SymbolTokenReader';
+import { SpecialSymbolTokenReader } from './tokenReaders/SymbolTokenReader';
 import { TokenReaderManager } from './tokenReaders/TokenReaderManager';
+import { OperatorTokenReader } from './tokenReaders/OperatorTokenReader';
+import { StringUtils } from './utils/stringUtils';
 
 export class SqlTokenizer {
     /// <summary>
@@ -26,11 +28,17 @@ export class SqlTokenizer {
         this.position = 0;
         
         // Initialize the token reader manager and register all readers
+        // NOTE: The execution order of token readers is important.
+        // - Since LiteralTokenReader has a process to read numeric literals starting with a dot,
+        //   it needs to be registered before SpecialSymbolTokenReader.
+        // - Since LiteralTokenReader has a process to read numeric literals starting with a sign,
+        //   it needs to be registered before OperatorTokenReader.
         this.readerManager = new TokenReaderManager(input)
             .register(new ParameterTokenReader(input))
             .register(new LiteralTokenReader(input))
             .register(new IdentifierTokenReader(input))
-            .register(new SymbolTokenReader(input));
+            .register(new SpecialSymbolTokenReader(input))
+            .register(new OperatorTokenReader(input));
     }
 
     private isEndOfInput(shift: number = 0): boolean {
@@ -72,7 +80,7 @@ export class SqlTokenizer {
                 this.skipWhiteSpacesAndComments();
             } else {
                 // Exception
-                throw new Error(`Unexpected character. actual: ${this.input[this.position]}, position: ${this.position}`);
+                throw new Error(`Unexpected character. actual: ${this.input[this.position]}, position: ${this.position}\n${this.getDebugPositionInfo(this.position)}`);
             }
         }
 
@@ -154,5 +162,12 @@ export class SqlTokenizer {
         }
 
         return false;
+    }
+
+    /**
+     * Get debug info for error reporting
+     */
+    private getDebugPositionInfo(errPosition: number): string {
+        return StringUtils.getDebugPositionInfo(this.input, errPosition);
     }
 }
