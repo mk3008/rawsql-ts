@@ -1,5 +1,4 @@
 ﻿export enum TokenType {
-    Unknown,
     Literal,
     Operator,
     OpenParen,
@@ -11,7 +10,6 @@
     Parameter,
     OpenBracket,
     CloseBracket,
-    Comment,
     Function, // count, sum, etc.
 }
 
