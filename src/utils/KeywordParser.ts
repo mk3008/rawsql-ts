@@ -13,7 +13,6 @@ export class KeywordParser {
 
     constructor(trie: KeywordTrie) {
         this.trie = trie;
-        this.trie.reset();
     }
 
     private isEndOfInput(input: string, position: number, shift: number = 0): boolean {

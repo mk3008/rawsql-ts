@@ -5,7 +5,7 @@ export class KeywordTrie {
     private root: Map<string, any> = new Map();
     private currentNode: Map<string, any>;
 
-    // Add a caching property to avoid regex pattern creation for each check
+    // cache properties
     private hasEndProperty: boolean = false;
     private hasMoreProperties: boolean = false;
 

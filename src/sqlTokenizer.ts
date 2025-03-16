@@ -7,54 +7,73 @@ import { TokenReaderManager } from './tokenReaders/TokenReaderManager';
 import { OperatorTokenReader } from './tokenReaders/OperatorTokenReader';
 import { StringUtils } from './utils/stringUtils';
 
+/**
+ * Class responsible for tokenizing SQL input.
+ */
 export class SqlTokenizer {
-    /// <summary>
-    /// Input string.
-    /// </summary>
+    /**
+     * The input SQL string to be tokenized.
+     */
     private input: string;
 
-    /// <summary>
-    /// Current position in the input string.
-    /// </summary>
+    /**
+     * Current position within the input string.
+     */
     private position: number;
 
-    /// <summary>
-    /// Token reader manager
-    /// </summary>
+    /**
+     * Manager responsible for handling token readers.
+     */
     private readerManager: TokenReaderManager;
 
+    /**
+     * Initializes a new instance of the SqlTokenizer.
+     * 
+     * @param input - The SQL input string to be tokenized.
+     * @remarks The execution order of token readers is important.
+     * - `LiteralTokenReader` should be registered before `SpecialSymbolTokenReader` and `OperatorTokenReader`
+     *   because `LiteralTokenReader` processes numeric literals starting with a dot or sign.
+     * - `IdentifierTokenReader` should be registered last.
+     */
     constructor(input: string) {
         this.input = input;
         this.position = 0;
-        
+
         // Initialize the token reader manager and register all readers
-        //
-        // NOTE: The execution order of token readers is important.
-        //       LiteralTokenReader < SpecialSymbolTokenReader
-        //       LiteralTokenReader < OperatorTokenReader
-        // - Since LiteralTokenReader has a process to read numeric literals starting with a dot,
-        //   it needs to be registered before SpecialSymbolTokenReader.
-        // - Since LiteralTokenReader has a process to read numeric literals starting with a sign,
-        //   it needs to be registered before OperatorTokenReader.
-        //
-        // NOTE: The execution order of token readers is important.
-        //       IdentifierTokenReader は一番最後に登録する
         this.readerManager = new TokenReaderManager(input)
             .register(new ParameterTokenReader(input))
-            .register(new LiteralTokenReader(input))            
+            .register(new LiteralTokenReader(input))
             .register(new SpecialSymbolTokenReader(input))
             .register(new OperatorTokenReader(input))
             .register(new IdentifierTokenReader(input));
     }
 
+    /**
+     * Checks if the end of input is reached.
+     * 
+     * @param shift - The shift to consider beyond the current position.
+     * @returns True if the end of input is reached; otherwise, false.
+     */
     private isEndOfInput(shift: number = 0): boolean {
         return this.position + shift >= this.input.length;
     }
 
+    /**
+     * Checks if more input can be read.
+     * 
+     * @param shift - The shift to consider beyond the current position.
+     * @returns True if more input can be read; otherwise, false.
+     */
     private canRead(shift: number = 0): boolean {
         return !this.isEndOfInput(shift);
     }
 
+    /**
+     * Reads the lexemes from the input string.
+     * 
+     * @returns An array of lexemes extracted from the input string.
+     * @throws Error if an unexpected character is encountered.
+     */
     public readLexmes(): Lexeme[] {
         const lexemes: Lexeme[] = [];
 
@@ -76,9 +95,6 @@ export class SqlTokenizer {
 
             // If a token is read by any reader
             if (lexeme) {
-
-
-
                 lexemes.push(lexeme);
                 previous = lexeme;
 
@@ -96,15 +112,20 @@ export class SqlTokenizer {
         return lexemes;
     }
 
-    /// <summary>
-    /// Skip white space characters and sql comments.
-    /// </summary>
+    /**
+     * Skips whitespace characters and SQL comments in the input.
+     * 
+     * @remarks This method updates the position pointer.
+     */
     private skipWhiteSpacesAndComments(): void {
         this.position = StringUtils.skipWhiteSpacesAndComments(this.input, this.position);
     }
 
     /**
-     * Get debug info for error reporting
+     * Gets debug information for error reporting.
+     * 
+     * @param errPosition - The position where the error occurred.
+     * @returns A string containing the debug position information.
      */
     private getDebugPositionInfo(errPosition: number): string {
         return StringUtils.getDebugPositionInfo(this.input, errPosition);
