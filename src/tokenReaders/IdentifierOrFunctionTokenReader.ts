@@ -21,7 +21,7 @@ const parser = new KeywordParser(trie);
 /**
  * Reads SQL identifier tokens
  */
-export class IdentifierTokenReader extends BaseTokenReader {
+export class IdentifierOrFunctionTokenReader extends BaseTokenReader {
     /**
      * Try to read an identifier token
      */
@@ -73,6 +73,13 @@ export class IdentifierTokenReader extends BaseTokenReader {
         // Regular identifier
         const result = StringUtils.readRegularIdentifier(this.input, this.position);
         this.position = result.newPosition;
+
+        // check
+        var shift = StringUtils.skipWhiteSpacesAndComments(this.input, this.position) - this.position;
+
+        if (this.canRead(shift) && this.input[this.position + shift] === '(') {
+            return this.createLexeme(TokenType.Function, result.identifier);
+        }
         return this.createLexeme(TokenType.Identifier, result.identifier);
     }
 
@@ -91,7 +98,7 @@ export class IdentifierTokenReader extends BaseTokenReader {
             }
             this.position++;
         }
-        
+
         if (start === this.position) {
             throw new Error(`Closing delimiter is not found. position: ${start}, delimiter: ${delimiter}\n${this.getDebugPositionInfo(start)}}`);
         }

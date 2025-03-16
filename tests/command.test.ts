@@ -1,7 +1,7 @@
 ﻿import { TokenType } from "../src/models/Lexeme";
 import { SqlTokenizer } from "../src/sqlTokenizer";
 
-test('tokenizes integer number', () => {
+test('tokenizes SQL command', () => {
     // Arrange
     const tokenizer = new SqlTokenizer('select');
 
