@@ -2,7 +2,8 @@
 import { TokenType } from '../enums/tokenType';
 import { Lexeme } from '../models/Lexeme';
 import { CharLookupTable } from '../utils/charLookupTable';
-import { KeywordTrie, KeywordTrieReader } from '../utils/KeywordTrie';
+import { KeywordParser } from '../utils/KeywordParser';
+import { KeywordTrie } from "../utils/KeywordTrie";
 
 /**
  * Reads SQL literal tokens (numbers, strings)
@@ -28,9 +29,11 @@ const keywords = [
     ["nfkc"],
     ["nfkd"]
 ];
+const trie = new KeywordTrie(keywords);
+const parser = new KeywordParser(trie);
 
 // Prefix sets for quick checks
-const SINGLE_CHAR_ESCAPED_PREFIX = new Set(['e\'', 'E\'', 'x\'', 'X\'', 'b\'',  'B\'']);
+const SINGLE_CHAR_ESCAPED_PREFIX = new Set(['e\'', 'E\'', 'x\'', 'X\'', 'b\'', 'B\'']);
 const UNICODE_ESCAPED_PREFIX = new Set(['u&\'', 'U&\'']);
 
 export class LiteralTokenReader extends BaseTokenReader {
@@ -44,13 +47,10 @@ export class LiteralTokenReader extends BaseTokenReader {
 
         const char = this.input[this.position];
 
-        // Check for keyword literals
-        const keywordTrie = new KeywordTrie(keywords);
-        const keywordReader = new KeywordTrieReader(this.input, this.position, keywordTrie);
-        const keywordResult = keywordReader.readKeyword();
-        if (keywordResult) {
-            this.position = keywordResult.newPosition;
-            return this.createLexeme(TokenType.Literal, keywordResult.keyword);
+        // Check for keyword literals    
+        const keyword = this.tryReadKeyword();
+        if (keyword) {
+            return keyword;
         }
 
         // Decimal token starting with a dot
@@ -98,6 +98,16 @@ export class LiteralTokenReader extends BaseTokenReader {
 
         // Check for prefixed literals
         return this.tryReadEscapedLiteral();
+    }
+
+    private tryReadKeyword(): Lexeme | null {
+        // Check for keyword literals
+        const result = parser.parse(this.input, this.position);
+        if (result) {
+            this.position = result.newPosition;
+            return this.createLexeme(TokenType.Literal, result.keyword);
+        }
+        return null;
     }
 
     /**
@@ -218,7 +228,7 @@ export class LiteralTokenReader extends BaseTokenReader {
         }
 
         // Check for unicode literal: u&'
-        if (this.canRead(2) && UNICODE_ESCAPED_PREFIX.has( this.input.slice(start, start + 3))) {
+        if (this.canRead(2) && UNICODE_ESCAPED_PREFIX.has(this.input.slice(start, start + 3))) {
             return this.readPrefixedLiteral(start, 3);
         }
 

@@ -1,101 +1,10 @@
-﻿import { StringUtils } from "./stringUtils";
+﻿import { KeywordMatchResult } from "./KeywordParser";
 
-export enum KeywordMatchResult {
-    NotAKeyword,     // "キーワードではない"
-    PartialOnly,     // "途中（ここで終わることはない）"
-    PartialOrFinal,  // "途中または終端（ここで止まることはある）"
-    Final            // "終端（これ以上長いキーワードはない）"
-}
-
-export class KeywordTrieReader {
-    private input: string;
-    private position: number;
-    private trie: KeywordTrie;
-
-    constructor(input: string, position: number, trie: KeywordTrie) {
-        this.input = input;
-        this.position = position;
-        this.trie = trie;
-        this.trie.reset();
-    }
-
-    private isEndOfInput(shift: number = 0): boolean {
-        return this.position + shift >= this.input.length;
-    }
-
-    private canRead(shift: number = 0): boolean {
-        return !this.isEndOfInput(shift);
-    }
-
-    public readKeyword(): { keyword: string, newPosition: number } | null {
-        if (this.isEndOfInput()) {
-            return null;
-        }
-
-        const result = StringUtils.tryReadRegularIdentifier(this.input, this.position);
-
-        if (result === null) {
-            return null;
-        }
-
-        let matchResult = this.trie.pushLexeme(result.identifier);
-
-        if (matchResult === KeywordMatchResult.NotAKeyword) {
-            return null;
-        }
-
-        if (matchResult === KeywordMatchResult.Final) {
-            this.position = result.newPosition;
-            return {
-                keyword: result.identifier,
-                newPosition: this.position
-            };
-        }
-
-        // multi-word keyword
-        let lexeme = result.identifier;
-
-        this.position = StringUtils.skipWhiteSpacesAndComments(this.input, result.newPosition);
-
-        while (this.canRead()) {
-            const previousMatchResult = matchResult;
-
-            const result = StringUtils.tryReadRegularIdentifier(this.input, this.position);
-
-            if (result !== null) {
-                matchResult = this.trie.pushLexeme(result.identifier);
-
-                if (matchResult === KeywordMatchResult.NotAKeyword) {
-                    if (previousMatchResult === KeywordMatchResult.PartialOrFinal) {
-                        break;
-                    } else {
-                        return null;
-                    }
-                }
-
-                lexeme += ' ' + result.identifier;
-                this.position = StringUtils.skipWhiteSpacesAndComments(this.input, result.newPosition);
-
-                if (matchResult === KeywordMatchResult.Final) {
-                    break;
-                }
-            } else if (previousMatchResult === KeywordMatchResult.PartialOrFinal) {
-                break;
-            } else {
-                return null;
-            }
-        }
-        return {
-            keyword: lexeme,
-            newPosition: this.position
-        };
-    }
-}
 
 export class KeywordTrie {
     private root: Map<string, any> = new Map();
     private currentNode: Map<string, any>;
-    
+
     // Add a caching property to avoid regex pattern creation for each check
     private hasEndProperty: boolean = false;
     private hasMoreProperties: boolean = false;
@@ -133,7 +42,7 @@ export class KeywordTrie {
 
         // move to next node
         this.currentNode = this.currentNode.get(lexeme);
-        
+
         // Cache property checks to avoid repeated operations
         this.hasEndProperty = this.currentNode.has("__end__");
         this.hasMoreProperties = this.currentNode.size > (this.hasEndProperty ? 1 : 0);

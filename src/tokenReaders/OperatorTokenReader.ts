@@ -2,18 +2,19 @@
 import { TokenType } from '../enums/tokenType';
 import { Lexeme } from '../models/Lexeme';
 import { CharLookupTable } from '../utils/charLookupTable';
-import { StringUtils } from '../utils/stringUtils';
-import { KeywordMatchResult, KeywordTrie, KeywordTrieReader } from '../utils/KeywordTrie';
+import { KeywordParser } from '../utils/KeywordParser';
+import { KeywordTrie } from "../utils/KeywordTrie";
+
+const trie = new KeywordTrie([
+    ["is"],
+    ["is", "not"],
+    ["and"],
+    ["or"]
+]);
+
+const parser = new KeywordParser(trie);
 
 export class OperatorTokenReader extends BaseTokenReader {
-
-    private trie = new KeywordTrie([
-        ["is"],
-        ["is", "not"],
-        ["and"],
-        ["or"]
-    ]);
-
     public tryRead(previous: Lexeme | null): Lexeme | null {
         if (this.isEndOfInput()) {
             return null;
@@ -30,8 +31,8 @@ export class OperatorTokenReader extends BaseTokenReader {
         }
 
         // Logical operators
-        const reader = new KeywordTrieReader(this.input, this.position, this.trie);
-        const result = reader.readKeyword();
+
+        const result = parser.parse(this.input, this.position);
         if (result !== null) {
             this.position = result.newPosition;
             return this.createLexeme(TokenType.Operator, result.keyword);
