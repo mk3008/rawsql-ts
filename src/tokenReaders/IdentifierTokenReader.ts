@@ -1,6 +1,5 @@
 ﻿import { BaseTokenReader } from './BaseTokenReader';
-import { TokenType } from '../enums/tokenType';
-import { Lexeme } from '../models/Lexeme';
+import { Lexeme, TokenType } from '../models/Lexeme';
 import { StringUtils } from '../utils/stringUtils';
 import { KeywordTrie } from '../models/KeywordTrie';
 import { KeywordParser } from '../KeywordParser';

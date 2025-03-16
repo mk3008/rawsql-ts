@@ -1,4 +1,5 @@
-﻿import { SqlTokenizer } from "../src/sqlTokenizer";
+﻿import { TokenType } from "../src/models/Lexeme";
+import { SqlTokenizer } from "../src/sqlTokenizer";
 
 test('tokenizes named parameter in SQLServer', () => {
     // Arrange
@@ -9,7 +10,7 @@ test('tokenizes named parameter in SQLServer', () => {
 
     // Assert
     expect(tokens.length).toBe(1);
-    expect(tokens[0].type).toBe(9); // Parameter
+    expect(tokens[0].type).toBe(TokenType.Parameter);
     expect(tokens[0].value).toBe('@param1');
 });
 
@@ -22,7 +23,7 @@ test('tokenizes positional parameter in PostgreSQL', () => {
 
     // Assert
     expect(tokens.length).toBe(1);
-    expect(tokens[0].type).toBe(9); // Parameter
+    expect(tokens[0].type).toBe(TokenType.Parameter);
     expect(tokens[0].value).toBe('$1');
 });
 
@@ -35,7 +36,7 @@ test('tokenizes unnamed parameter in MySQL', () => {
 
     // Assert
     expect(tokens.length).toBe(1);
-    expect(tokens[0].type).toBe(9); // Parameter
+    expect(tokens[0].type).toBe(TokenType.Parameter);
     expect(tokens[0].value).toBe('?');
 });
 
@@ -48,6 +49,6 @@ test('tokenizes named parameter with colon prefix in PostgreSQL', () => {
 
     // Assert
     expect(tokens.length).toBe(1);
-    expect(tokens[0].type).toBe(9); // Parameter
+    expect(tokens[0].type).toBe(TokenType.Parameter);
     expect(tokens[0].value).toBe(':param1');
 });

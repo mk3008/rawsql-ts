@@ -1,4 +1,4 @@
-﻿import { TokenType } from "../src/enums/tokenType";
+﻿import { TokenType } from "../src/models/Lexeme";
 import { SqlTokenizer } from "../src/sqlTokenizer";
 
 test('tokenizes integer number', () => {

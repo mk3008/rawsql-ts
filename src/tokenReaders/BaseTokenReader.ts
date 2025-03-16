@@ -1,5 +1,4 @@
-﻿import { Lexeme } from '../models/Lexeme';
-import { TokenType } from '../enums/tokenType';
+﻿import { Lexeme, TokenType } from '../models/Lexeme';
 import { StringUtils } from '../utils/stringUtils';
 
 /**
