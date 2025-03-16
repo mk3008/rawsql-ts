@@ -29,6 +29,10 @@ const keywords = [
     ["nfkd"]
 ];
 
+// Prefix sets for quick checks
+const SINGLE_CHAR_ESCAPED_PREFIX = new Set(['e\'', 'E\'', 'x\'', 'X\'', 'b\'',  'B\'']);
+const UNICODE_ESCAPED_PREFIX = new Set(['u&\'', 'U&\'']);
+
 export class LiteralTokenReader extends BaseTokenReader {
     /**
      * Try to read a literal token
@@ -209,13 +213,12 @@ export class LiteralTokenReader extends BaseTokenReader {
         const start = this.position;
 
         // Check for prefixed literals: e', x', b'
-        const prefix = new Set(['e\'', 'x\'', 'b\'']);
-        if (this.canRead(1) && prefix.has(this.input.slice(start, start + 2).toLocaleLowerCase())) {
+        if (this.canRead(1) && SINGLE_CHAR_ESCAPED_PREFIX.has(this.input.slice(start, start + 2))) {
             return this.readPrefixedLiteral(start, 2);
         }
 
         // Check for unicode literal: u&'
-        if (this.canRead(2) && this.input.slice(start, start + 3).toLocaleLowerCase() === 'u&\'') {
+        if (this.canRead(2) && UNICODE_ESCAPED_PREFIX.has( this.input.slice(start, start + 3))) {
             return this.readPrefixedLiteral(start, 3);
         }
 

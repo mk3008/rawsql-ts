@@ -95,6 +95,10 @@ export class KeywordTrieReader {
 export class KeywordTrie {
     private root: Map<string, any> = new Map();
     private currentNode: Map<string, any>;
+    
+    // Add a caching property to avoid regex pattern creation for each check
+    private hasEndProperty: boolean = false;
+    private hasMoreProperties: boolean = false;
 
     constructor(keywords: string[][]) {
         // initialize root node
@@ -117,7 +121,9 @@ export class KeywordTrie {
     }
 
     public reset(): void {
-        this.currentNode = this.root
+        this.currentNode = this.root;
+        this.hasEndProperty = false;
+        this.hasMoreProperties = false;
     }
 
     public pushLexeme(lexeme: string): KeywordMatchResult {
@@ -127,14 +133,15 @@ export class KeywordTrie {
 
         // move to next node
         this.currentNode = this.currentNode.get(lexeme);
+        
+        // Cache property checks to avoid repeated operations
+        this.hasEndProperty = this.currentNode.has("__end__");
+        this.hasMoreProperties = this.currentNode.size > (this.hasEndProperty ? 1 : 0);
 
-        const hasEnd = this.currentNode.has("__end__");
-        const hasMore = this.currentNode.size > (hasEnd ? 1 : 0);
-
-        if (hasEnd && !hasMore) {
+        if (this.hasEndProperty && !this.hasMoreProperties) {
             return KeywordMatchResult.Final;
         }
-        if (hasEnd && hasMore) {
+        if (this.hasEndProperty && this.hasMoreProperties) {
             return KeywordMatchResult.PartialOrFinal;
         }
 
