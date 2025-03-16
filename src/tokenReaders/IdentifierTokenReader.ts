@@ -2,6 +2,7 @@
 import { TokenType } from '../enums/tokenType';
 import { Lexeme } from '../models/Lexeme';
 import { CharLookupTable } from '../utils/charLookupTable';
+import { StringUtils } from '../utils/stringUtils';
 
 /**
  * Reads SQL identifier tokens
@@ -49,22 +50,9 @@ export class IdentifierTokenReader extends BaseTokenReader {
         }
 
         // Regular identifier
-        const start = this.position;
-        while (this.canRead()) {
-            if (CharLookupTable.isDelimiter(this.input[this.position])) {
-                break;
-            }
-            this.position++;
-        }
-
-        if (start === this.position) {
-            return null;
-        }
-
-        return this.createLexeme(
-            TokenType.Identifier,
-            this.input.slice(start, this.position)
-        );
+        const result = StringUtils.readRegularIdentifier(this.input, this.position);
+        this.position = result.newPosition;
+        return this.createLexeme(TokenType.Identifier, result.identifier);
     }
 
     /**

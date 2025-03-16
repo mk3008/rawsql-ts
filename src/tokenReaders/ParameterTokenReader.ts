@@ -21,7 +21,7 @@ export class ParameterTokenReader extends BaseTokenReader {
         if (CharLookupTable.isNamedParameterPrefix(char)) {
 
             // しかし、その次の文字が演算子記号である場合、パラメータとして認識しない
-            if (this.canRead(1) && CharLookupTable.isOperator(this.input[this.position + 1])) {
+            if (this.canRead(1) && CharLookupTable.isOperatorSymbol(this.input[this.position + 1])) {
                 return null;
             }
 

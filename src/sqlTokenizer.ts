@@ -28,17 +28,24 @@ export class SqlTokenizer {
         this.position = 0;
         
         // Initialize the token reader manager and register all readers
+        //
         // NOTE: The execution order of token readers is important.
+        //       LiteralTokenReader <  SpecialSymbolTokenReader
+        //       LiteralTokenReader <  OperatorTokenReader
         // - Since LiteralTokenReader has a process to read numeric literals starting with a dot,
         //   it needs to be registered before SpecialSymbolTokenReader.
         // - Since LiteralTokenReader has a process to read numeric literals starting with a sign,
         //   it needs to be registered before OperatorTokenReader.
+        //
+        // NOTE: The execution order of token readers is important.
+        //       IdentifierTokenReader <  SpecialSymbolTokenReader
+        //       IdentifierTokenReader <  OperatorTokenReader
         this.readerManager = new TokenReaderManager(input)
             .register(new ParameterTokenReader(input))
-            .register(new LiteralTokenReader(input))
-            .register(new IdentifierTokenReader(input))
+            .register(new LiteralTokenReader(input))            
             .register(new SpecialSymbolTokenReader(input))
-            .register(new OperatorTokenReader(input));
+            .register(new OperatorTokenReader(input))
+            .register(new IdentifierTokenReader(input));
     }
 
     private isEndOfInput(shift: number = 0): boolean {
@@ -70,6 +77,9 @@ export class SqlTokenizer {
 
             // If a token is read by any reader
             if (lexeme) {
+
+
+
                 lexemes.push(lexeme);
                 previous = lexeme;
 
@@ -91,77 +101,7 @@ export class SqlTokenizer {
     /// Skip white space characters and sql comments.
     /// </summary>
     private skipWhiteSpacesAndComments(): void {
-        while (true) {
-            if (this.skipWhiteSpace()) {
-                continue;
-            }
-            if (this.skipLineComment()) {
-                continue;
-            }
-            if (this.skipBlockComment()) {
-                continue;
-            }
-            break;
-        }
-    }
-
-    private skipWhiteSpace(): boolean {
-        const start = this.position;
-
-        // Skip tab, newline, and space characters
-        const whitespace = new Set([' ', '\r', '\n', '\t']);
-
-        while (this.canRead()) {
-            if (!whitespace.has(this.input[this.position])) {
-                break;
-            }
-            this.position++;
-        }
-        return start !== this.position;
-    }
-
-    private skipLineComment(): boolean {
-        // At least 2 characters are needed. '--'
-        if (this.isEndOfInput(1)) {
-            return false;
-        }
-
-        if (this.input[this.position] === '-' && this.input[this.position + 1] === '-') {
-            this.position += 2;
-
-            while (this.canRead() && this.input[this.position] !== '\n') {
-                this.position++;
-            }
-            return true;
-        }
-
-        return false;
-    }
-
-    private skipBlockComment(): boolean {
-        // At least 4 characters are needed. '/**/'
-        if (this.isEndOfInput(3)) {
-            return false;
-        }
-
-        // Record the start position of the comment to track error location
-        const start = this.position;
-
-        if (this.input[this.position] === '/' && this.input[this.position + 1] === '*') {
-            this.position += 2;
-
-            while (this.canRead(1)) {
-                if (this.input[this.position] === '*' && this.input[this.position + 1] === '/') {
-                    this.position += 2;
-                    return true;
-                }
-                this.position++;
-            }
-
-            throw new Error(`Block comment is not closed. position: ${start}`);
-        }
-
-        return false;
+        this.position = StringUtils.skipWhiteSpacesAndComments(this.input, this.position);
     }
 
     /**

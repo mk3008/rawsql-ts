@@ -16,7 +16,7 @@ export class CharLookupTable {
         ':', // Oracle, PostgreSQL
         '$', // PostgreSQL, MySQL  
     ]);
-    private static readonly OPERATORS = new Set([
+    private static readonly OPERATOR_SYMBOLS = new Set([
         '+', // Addition operator (Common)
         '-', // Subtraction operator (Common)
         '*', // Multiplication operator (Common)
@@ -35,6 +35,12 @@ export class CharLookupTable {
         '|', // Bitwise OR operator (Common)
     ]);
 
+    private static readonly OPERATOR_KEYWORDS = new Set([
+        'and', // Logical AND operator (Common)
+        'or', // Logical OR operator (Common)
+        'is', // Comparison operator (Common)
+    ]);
+
     public static isWhitespace(char: string): boolean {
         return CharLookupTable.WHITESPACE.has(char);
     }
@@ -47,8 +53,8 @@ export class CharLookupTable {
         return CharLookupTable.HEX_CHARS.has(char);
     }
 
-    public static isOperator(char: string): boolean {
-        return CharLookupTable.OPERATORS.has(char);
+    public static isOperatorSymbol(char: string): boolean {
+        return CharLookupTable.OPERATOR_SYMBOLS.has(char);
     }
 
     public static isDelimiter(char: string): boolean {
@@ -58,7 +64,7 @@ export class CharLookupTable {
         else if (CharLookupTable.isWhitespace(char)) {
             return true;
         }
-        else if (CharLookupTable.isOperator(char)) {
+        else if (CharLookupTable.isOperatorSymbol(char)) {
             return true;
         }
         return false;
