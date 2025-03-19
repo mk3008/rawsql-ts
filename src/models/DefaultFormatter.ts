@@ -1,3 +1,4 @@
+import { DatasourceExpression, FromClause, FuncionSource, JoinClause, JoinCollection, SubQuerySource, TableSource } from "./FromClause";
 import { OrderByClause, OrderByCollection, OrderExpression as OrderByExpression, SortDirection, NullsSortDirection } from "./OrderByClause";
 import { SelectExpression, SelectClause, SelectCollection } from "./SelectClause";
 import { SelectQuery } from "./SelectQuery";
@@ -6,31 +7,7 @@ import { LiteralValue, RawString, IdentifierString, TrimArgument, ExtractArgumen
 import { WhereClause } from "./WhereClause";
 import { PartitionByClause, OverClause, WindowFrameClause } from "./WindowClause";
 
-export class SelectQueryFormatter implements SqlComponentVisitor<string> {
-    private handlers = new Map<symbol, (expr: SqlComponent) => string>();
-
-    config: SqlDialectConfiguration;
-
-    constructor(config: SqlDialectConfiguration) {
-        this.config = config;
-        //this.handlers.set(ColumnReference.kind, expr => this.decodeColumnReference(expr as ColumnReference));
-        //this.handlers.set(FunctionCall.kind, expr => this.decodeFunctionCall(expr as FunctionCall));
-        //this.handlers.set(UnaryExpression.kind, expr => this.decodeUnaryExpression(expr as UnaryExpression));
-        //this.handlers.set(BinaryExpression.kind, expr => this.decodeBinaryExpression(expr as BinaryExpression));
-        //this.handlers.set(LiteralValue.kind, expr => this.decodeLiteralExpression(expr as LiteralValue));
-        //this.handlers.set(ParameterExpression.kind, expr => this.decodeParameterExpression(expr as ParameterExpression));
-        //this.handlers.set(SelectExpression.kind, expr => this.decodeSelectExpression(expr as SelectExpression));
-        //this.handlers.set(SelectClause.kind, expr => this.decodeSelectClause(expr as SelectClause));
-        //this.handlers.set(SelectQuery.kind, expr => this.decodeSelectQuery(expr as SelectQuery));
-    }
-
-    visit(expr: SqlComponent): string {
-        const handler = this.handlers.get(expr.getKind());
-        return handler ? handler(expr) : `Unknown Expression`;
-    }
-}
-
-export class ValueExpressionFormatter implements SqlComponentVisitor<string> {
+export class DefaultFormatter implements SqlComponentVisitor<string> {
     private handlers = new Map<symbol, (expr: SqlComponent) => string>();
 
     config: SqlDialectConfiguration;
@@ -64,6 +41,15 @@ export class ValueExpressionFormatter implements SqlComponentVisitor<string> {
         this.handlers.set(SubstringSimilarEscapeArgument.kind, (expr) => this.decodeSubstringSimilarEscapeArgument(expr as SubstringSimilarEscapeArgument));
         this.handlers.set(OverlayPlacingFromForArgument.kind, (expr) => this.decodeOverlayPlacingFromForArgument(expr as OverlayPlacingFromForArgument));
 
+        // from
+        this.handlers.set(FromClause.kind, (expr) => this.decodeFromClause(expr as FromClause));
+        this.handlers.set(JoinClause.kind, (expr) => this.decodeJoinClause(expr as JoinClause));
+        this.handlers.set(JoinCollection.kind, (expr) => this.decodeJoinCollection(expr as JoinCollection));
+        this.handlers.set(DatasourceExpression.kind, (expr) => this.decodeDatasourceExpression(expr as DatasourceExpression));
+        this.handlers.set(SubQuerySource.kind, (expr) => this.decodeSubQuerySource(expr as SubQuerySource));
+        this.handlers.set(FuncionSource.kind, (expr) => this.decodeFunctionSource(expr as FuncionSource));
+        this.handlers.set(TableSource.kind, (expr) => this.decodeTableSource(expr as TableSource));
+
         // order by
         this.handlers.set(OrderByClause.kind, (expr) => this.decodeOrderByClause(expr as OrderByClause));
         this.handlers.set(OrderByCollection.kind, (expr) => this.decodeOrderByCollection(expr as OrderByCollection));
@@ -81,6 +67,48 @@ export class ValueExpressionFormatter implements SqlComponentVisitor<string> {
         this.handlers.set(SelectCollection.kind, (expr) => this.decodeSelectCollection(expr as SelectCollection));
         this.handlers.set(SelectClause.kind, (expr) => this.decodeSelectClause(expr as SelectClause));
         this.handlers.set(SelectQuery.kind, (expr) => this.decodeSelectQuery(expr as SelectQuery));
+    }
+
+    decodeFromClause(expr: FromClause): string {
+        if (expr.join !== null) {
+            return `from ${expr.datasource.accept(this)} ${expr.join.accept(this)}`;
+        }
+        return `from ${expr.datasource.accept(this)}`;
+    }
+
+    decodeJoinClause(expr: JoinClause): string {
+        const joinType = `${expr.joinType.accept(this)}`;
+        const lateral = expr.lateral ? " lateral" : "";
+        const condition = expr.condition !== null ? ` on ${expr.condition.accept(this)}` : "";
+        return `${joinType}${lateral} ${expr.datasource.accept(this)}${condition}`;
+    }
+
+    decodeJoinCollection(expr: JoinCollection): string {
+        return `${expr.collection.map((e) => e.accept(this)).join(" ")}`;
+    }
+
+    decodeDatasourceExpression(expr: DatasourceExpression): string {
+        if (expr.alias !== null) {
+            return `${expr.datasource.accept(this)} as ${expr.alias.accept(this)}`;
+        }
+        return expr.datasource.accept(this);
+    }
+
+    decodeSubQuerySource(expr: SubQuerySource): string {
+        return `(${expr.query.accept(this)})`;
+    }
+
+    decodeFunctionSource(expr: FuncionSource): string {
+        if (expr.argument !== null) {
+            return `${expr.function.accept(this)}(${expr.argument.accept(this)})`;
+        }
+        return `${expr.function.accept(this)}()`;
+    }
+    decodeTableSource(expr: TableSource): string {
+        if (expr.namespaces !== null) {
+            return `${expr.namespaces.map((ns) => `${ns.accept(this)}`).join(".")}.${expr.table.accept(this)}`;
+        }
+        return `${expr.table.accept(this)}`;
     }
 
     decodeSelectCollection(expr: SelectCollection): string {
@@ -143,7 +171,7 @@ export class ValueExpressionFormatter implements SqlComponentVisitor<string> {
     }
 
     decodeColumnReference(expr: ColumnReference): string {
-        if (expr.namespaces.length > 0) {
+        if (expr.namespaces != null) {
             return `${expr.namespaces.map((ns) => `${ns.accept(this)}`).join(".")}.${expr.column.accept(this)}`;
         }
         return `${expr.column.accept(this)}`;

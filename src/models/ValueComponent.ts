@@ -15,12 +15,12 @@ export class ValueCollection extends ValueComponent {
 export class ColumnReference extends ValueComponent {
     static kind = Symbol("ColumnReferenceExpression");
     // Use the string type instead of the RawString type because it has its own escaping process.
-    namespaces: IdentifierString[];
+    namespaces: IdentifierString[] | null;
     // Use the string type instead of the RawString type because it has its own escaping process.
     column: IdentifierString;
-    constructor(namespaces: string[], column: string) {
+    constructor(namespaces: string[] | null, column: string) {
         super();
-        this.namespaces = namespaces.map((ns) => new IdentifierString(ns));
+        this.namespaces = namespaces !== null ? namespaces.map((namespace) => new IdentifierString(namespace)) : null;
         this.column = new IdentifierString(column);
     }
 }
