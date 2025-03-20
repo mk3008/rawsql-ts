@@ -1,9 +1,43 @@
+import { SelectQuery } from "./SelectQuery";
 import { SqlComponent } from "./SqlComponent";
 
-export abstract class ValueComponent extends SqlComponent {
+export type ValueComponent = ValueCollection |
+    ColumnReference |
+    FunctionCall |
+    UnaryExpression |
+    BinaryExpression |
+    LiteralValue |
+    ParameterExpression |
+    JsonStructureArgument |
+    JsonKeyValuePair |
+    SwitchCaseArgument |
+    CaseKeyValuePair |
+    OverlayPlacingFromForArgument |
+    SubstringFromForArgument |
+    SubstringSimilarEscapeArgument |
+    ExtractArgument |
+    RawString |
+    IdentifierString |
+    TrimArgument |
+    ParenExpression |
+    CastExpression |
+    JsonExpression |
+    CaseExpression |
+    ArrayExpression |
+    PositionExpression |
+    BetweenExpression |
+    InlineQuery;
+
+export class InlineQuery extends SqlComponent {
+    static kind = Symbol("InlineQuery");
+    selectQuery: SelectQuery;
+    constructor(selectQuery: SelectQuery) {
+        super();
+        this.selectQuery = selectQuery;
+    }
 }
 
-export class ValueCollection extends ValueComponent {
+export class ValueCollection extends SqlComponent {
     static kind = Symbol("ValueCollection");
     values: SqlComponent[];
     constructor(values: SqlComponent[]) {
@@ -12,7 +46,7 @@ export class ValueCollection extends ValueComponent {
     }
 }
 
-export class ColumnReference extends ValueComponent {
+export class ColumnReference extends SqlComponent {
     static kind = Symbol("ColumnReferenceExpression");
     // Use the string type instead of the RawString type because it has its own escaping process.
     namespaces: IdentifierString[] | null;
@@ -25,7 +59,7 @@ export class ColumnReference extends ValueComponent {
     }
 }
 
-export class FunctionCall extends ValueComponent {
+export class FunctionCall extends SqlComponent {
     static kind = Symbol("FunctionCall");
     name: RawString;
     argument: ValueComponent | null;
@@ -36,7 +70,7 @@ export class FunctionCall extends ValueComponent {
     }
 }
 
-export class UnaryExpression extends ValueComponent {
+export class UnaryExpression extends SqlComponent {
     static kind = Symbol("UnaryExpression");
     operator: RawString;
     expression: ValueComponent;
@@ -47,7 +81,7 @@ export class UnaryExpression extends ValueComponent {
     }
 }
 
-export class BinaryExpression extends ValueComponent {
+export class BinaryExpression extends SqlComponent {
     static kind = Symbol("BinaryExpression");
     left: ValueComponent;
     operator: RawString;
@@ -60,7 +94,7 @@ export class BinaryExpression extends ValueComponent {
     }
 }
 
-export class LiteralValue extends ValueComponent {
+export class LiteralValue extends SqlComponent {
     static kind = Symbol("LiteralExpression");
     // Use the string type instead of the RawString type because it has its own escaping process.
     value: string | number | boolean | null;
@@ -73,7 +107,7 @@ export class LiteralValue extends ValueComponent {
     }
 }
 
-export class ParameterExpression extends ValueComponent {
+export class ParameterExpression extends SqlComponent {
     static kind = Symbol("ParameterExpression");
     name: RawString;
     constructor(name: string) {
@@ -82,7 +116,7 @@ export class ParameterExpression extends ValueComponent {
     }
 }
 
-export class JsonStructureArgument extends ValueComponent {
+export class JsonStructureArgument extends SqlComponent {
     static kind = Symbol("JsonStructureArgument");
     keyValuePairs: JsonKeyValuePair[];
     constructor(values: JsonKeyValuePair[]) {
@@ -91,18 +125,18 @@ export class JsonStructureArgument extends ValueComponent {
     }
 }
 
-export class JsonKeyValuePair extends ValueComponent {
+export class JsonKeyValuePair extends SqlComponent {
     static kind = Symbol("JsonKeyValuePair");
     key: ValueComponent;
     value: ValueComponent;
-    constructor(key: SqlComponent, value: ValueComponent) {
+    constructor(key: ValueComponent, value: ValueComponent) {
         super();
         this.key = key;
         this.value = value;
     }
 }
 
-export class SwitchCaseArgument extends ValueComponent {
+export class SwitchCaseArgument extends SqlComponent {
     static kind = Symbol("SwitchCaseArgument");
     caseKeyValuePairs: CaseKeyValuePair[];
     casePairs: any;
@@ -113,7 +147,7 @@ export class SwitchCaseArgument extends ValueComponent {
     }
 }
 
-export class CaseKeyValuePair extends ValueComponent {
+export class CaseKeyValuePair extends SqlComponent {
     static kind = Symbol("CaseKeyValuePair");
     key: ValueComponent;
     value: ValueComponent;
@@ -124,7 +158,7 @@ export class CaseKeyValuePair extends ValueComponent {
     }
 }
 
-export class OverlayPlacingFromForArgument extends ValueComponent {
+export class OverlayPlacingFromForArgument extends SqlComponent {
     static kind = Symbol("OverlayPlacingFromForArgument");
     input: ValueComponent;
     replacement: ValueComponent;
@@ -140,7 +174,7 @@ export class OverlayPlacingFromForArgument extends ValueComponent {
     }
 }
 
-export class SubstringFromForArgument extends ValueComponent {
+export class SubstringFromForArgument extends SqlComponent {
     static kind = Symbol("SubstringFromForExpression");
     input: ValueComponent;
     start: ValueComponent | null;
@@ -154,7 +188,7 @@ export class SubstringFromForArgument extends ValueComponent {
     }
 }
 
-export class SubstringSimilarEscapeArgument extends ValueComponent {
+export class SubstringSimilarEscapeArgument extends SqlComponent {
     static kind = Symbol("SubstringSimilarEscapeExpression");
     input: ValueComponent;
     pattern: ValueComponent;
@@ -168,7 +202,7 @@ export class SubstringSimilarEscapeArgument extends ValueComponent {
     }
 }
 
-export class ExtractArgument extends ValueComponent {
+export class ExtractArgument extends SqlComponent {
     static kind = Symbol("ExtractArgument");
     field: RawString;
     source: ValueComponent;
@@ -183,7 +217,7 @@ export class ExtractArgument extends ValueComponent {
  * Values ​​that must be hard-coded, such as type names and function names.
  * A simple check is performed when decoding.
  */
-export class RawString extends ValueComponent {
+export class RawString extends SqlComponent {
     static kind = Symbol("RawString");
     keyword: string;
     constructor(keyword: string) {
@@ -192,7 +226,7 @@ export class RawString extends ValueComponent {
     }
 }
 
-export class IdentifierString extends ValueComponent {
+export class IdentifierString extends SqlComponent {
     static kind = Symbol("IdentifierString");
     // Use the string type instead of the RawString type because it has its own escaping process.
     alias: string;
@@ -202,7 +236,7 @@ export class IdentifierString extends ValueComponent {
     }
 }
 
-export class TrimArgument extends ValueComponent {
+export class TrimArgument extends SqlComponent {
     static kind = Symbol("TrimArgument");
     modifier: RawString | null;
     character: ValueComponent;
@@ -215,7 +249,7 @@ export class TrimArgument extends ValueComponent {
     }
 }
 
-export class ParenExpression extends ValueComponent {
+export class ParenExpression extends SqlComponent {
     static kind = Symbol("ParenExpression");
     expression: ValueComponent;
     constructor(expression: ValueComponent) {
@@ -224,7 +258,7 @@ export class ParenExpression extends ValueComponent {
     }
 }
 
-export class CastExpression extends ValueComponent {
+export class CastExpression extends SqlComponent {
     static kind = Symbol("CastExpression");
     expression: ValueComponent;
     castType: RawString;
@@ -235,7 +269,7 @@ export class CastExpression extends ValueComponent {
     }
 }
 
-export class JsonExpression extends ValueComponent {
+export class JsonExpression extends SqlComponent {
     static kind = Symbol("JsonExpression");
     structureArgument: JsonStructureArgument;
     constructor(structureArgument: JsonStructureArgument) {
@@ -244,7 +278,7 @@ export class JsonExpression extends ValueComponent {
     }
 }
 
-export class CaseExpression extends ValueComponent {
+export class CaseExpression extends SqlComponent {
     static kind = Symbol("CaseExpression");
     condition: ValueComponent | null;
     switchCase: SwitchCaseArgument;
@@ -259,7 +293,7 @@ export class CaseExpression extends ValueComponent {
     }
 }
 
-export class ArrayExpression extends ValueComponent {
+export class ArrayExpression extends SqlComponent {
     static kind = Symbol("ArrayExpression");
     expression: ValueComponent;
     constructor(expression: ValueComponent) {
@@ -269,7 +303,7 @@ export class ArrayExpression extends ValueComponent {
 }
 
 
-export class PositionExpression extends ValueComponent {
+export class PositionExpression extends SqlComponent {
     static kind = Symbol("PositionExpression");
     haystack: ValueComponent;
     needle: ValueComponent;
@@ -280,7 +314,7 @@ export class PositionExpression extends ValueComponent {
     }
 }
 
-export class BetweenExpression extends ValueComponent {
+export class BetweenExpression extends SqlComponent {
     static kind = Symbol("BetweenExpression");
     expression: ValueComponent;
     lower: ValueComponent;

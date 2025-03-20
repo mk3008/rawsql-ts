@@ -1,5 +1,5 @@
-﻿import { DefaultFormatter } from "../src/models/DefaultFormatter";
-import { SelectClause, SelectCollection, SelectExpression } from "../src/models/SelectClause";
+﻿import { SelectClause, SelectList, SelectItem } from "../src/models/Clause";
+import { DefaultFormatter } from "../src/models/DefaultFormatter";
 import { SelectQuery } from "../src/models/SelectQuery";
 import { ColumnReference, LiteralValue, BinaryExpression } from "../src/models/ValueComponent";
 
@@ -35,9 +35,20 @@ test('BinaryExpression', () => {
 
 test('SelectQuery', () => {
     const formatter = new DefaultFormatter();
-    const sql = formatter.visit(new SelectQuery(new SelectClause(new SelectCollection([
-        new SelectExpression(new ColumnReference(['a'], 'id'), null),
-        new SelectExpression(new ColumnReference(['a'], 'value'), null),
-    ]))));
+    const sql = formatter.visit(new SelectQuery(
+        null,
+        new SelectClause(new SelectList([
+            new SelectItem(new ColumnReference(['a'], 'id'), null),
+            new SelectItem(new ColumnReference(['a'], 'value'), null),
+        ],
+        )),
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null));
     expect(sql).toBe('select "a"."id", "a"."value"');
 });
