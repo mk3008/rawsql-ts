@@ -28,7 +28,7 @@ describe('ValueParser', () => {
         expect(sql).toBe('"a"."id"');
     });
 
-    test('LiteralValue - 数値', () => {
+    test('LiteralValue - Numeric', () => {
         // Arrange
         const text = '123';
 
@@ -39,7 +39,7 @@ describe('ValueParser', () => {
         expect(sql).toBe('123');
     });
 
-    test('LiteralValue - 文字列', () => {
+    test('LiteralValue - String', () => {
         // Arrange
         const text = "'テスト文字列'";
 
@@ -50,7 +50,7 @@ describe('ValueParser', () => {
         expect(sql).toBe("'テスト文字列'");
     });
 
-    test('BinaryExpression - 算術演算', () => {
+    test('BinaryExpression - Arithmetic operation', () => {
         // Arrange
         const text = 'a.id + 10';
 
@@ -61,7 +61,7 @@ describe('ValueParser', () => {
         expect(sql).toBe('"a"."id" + 10');
     });
 
-    test('BinaryExpression - 複数の演算子', () => {
+    test('BinaryExpression - Multiple operators', () => {
         // Arrange
         const text = 'price * quantity - discount';
 
@@ -72,7 +72,7 @@ describe('ValueParser', () => {
         expect(sql).toBe('"price" * "quantity" - "discount"');
     });
 
-    test('UnaryExpression - NOT演算子', () => {
+    test('UnaryExpression - NOT operator', () => {
         // Arrange
         const text = 'NOT is_active';
 
@@ -83,7 +83,7 @@ describe('ValueParser', () => {
         expect(sql).toBe('NOT "is_active"');
     });
 
-    test('ParenExpression - 括弧で囲まれた式', () => {
+    test('ParenExpression - Expression enclosed in parentheses', () => {
         // Arrange
         const text = '(a + b) * c';
 
@@ -94,7 +94,7 @@ describe('ValueParser', () => {
         expect(sql).toBe('("a" + "b") * "c"');
     });
 
-    test('FunctionCall - 単一引数', () => {
+    test('FunctionCall - Single argument', () => {
         // Arrange
         const text = 'COUNT(id)';
 
@@ -105,7 +105,7 @@ describe('ValueParser', () => {
         expect(sql).toBe('COUNT("id")');
     });
 
-    test('FunctionCall - 複数引数', () => {
+    test('FunctionCall - Multiple arguments', () => {
         // Arrange
         const text = 'SUBSTRING(name, 1, 3)';
 
@@ -116,7 +116,7 @@ describe('ValueParser', () => {
         expect(sql).toBe('SUBSTRING("name", 1, 3)');
     });
 
-    test('ParameterExpression - パラメータ', () => {
+    test('ParameterExpression - Parameter', () => {
         // Arrange
         const text = '@userId';
 
@@ -124,12 +124,12 @@ describe('ValueParser', () => {
         const sql = parseFromText(text);
 
         // Assert
-        // デフォルトはPostgresのformatterであるため、`:userId`で出力されます
-        // これは仕様を変更するかもしれません
+        // The default formatter is for Postgres, so it outputs `:userId`
+        // This may change in the future
         expect(sql).toBe(':userId');
     });
 
-    test('ArrayExpression - 配列', () => {
+    test('ArrayExpression - Array', () => {
         // Arrange
         const text = 'ARRAY[1, 2, 3]';
 
@@ -137,11 +137,11 @@ describe('ValueParser', () => {
         const sql = parseFromText(text);
 
         // Assert
-        // デフォルトではコマンドトークンは小文字で出力されます
+        // By default, command tokens are output in lowercase
         expect(sql).toBe('array[1, 2, 3]');
     });
 
-    test('CASE - 単純なCASE式', () => {
+    test('CASE - Simple CASE expression', () => {
         // Arrange
         const text = "CASE age WHEN 18 THEN 'young' WHEN 65 THEN 'senior' ELSE 'adult' END";
 
@@ -152,7 +152,7 @@ describe('ValueParser', () => {
         expect(sql).toBe("case \"age\" when 18 then 'young' when 65 then 'senior' else 'adult' end");
     });
 
-    test('CASE WHEN - 条件分岐', () => {
+    test('CASE WHEN - Conditional branching', () => {
         // Arrange
         const text = "CASE WHEN age > 18 THEN 'adult' ELSE 'minor' END";
 
@@ -163,7 +163,7 @@ describe('ValueParser', () => {
         expect(sql).toBe("case when \"age\" > 18 then 'adult' else 'minor' end");
     });
 
-    test('BETWEEN - 範囲指定', () => {
+    test('BETWEEN - Range specification', () => {
         // Arrange
         const text = 'age BETWEEN 20 AND 30';
 
@@ -174,7 +174,7 @@ describe('ValueParser', () => {
         expect(sql).toBe('"age" BETWEEN 20 AND 30');
     });
 
-    test('複雑な式 - 複数の要素の組み合わせ', () => {
+    test('Complex expression - combination of multiple elements', () => {
         // Arrange
         const text = 'CASE WHEN a.status = 1 THEN upper(a.name) ELSE a.code || \'-\' || @suffix END';
 
@@ -182,12 +182,12 @@ describe('ValueParser', () => {
         const sql = parseFromText(text);
 
         // Assert
-        // NOTE: デフォルトフォーマッターではコマンドは小文字になります
-        // NOTE: デフォルトフォーマッターでは、パラメータ記号が':'に変換されます
+        // NOTE: In the default formatter, commands are converted to lowercase
+        // NOTE: In the default formatter, parameter symbols are converted to ':'
         expect(sql).toBe('case when "a"."status" = 1 then upper("a"."name") else "a"."code" || \'-\' || :suffix end');
     });
 
-    test('論理演算子 - AND/OR', () => {
+    test('Logical operators - AND/OR', () => {
         // Arrange
         const text = 'a.flag = true AND (b.value > 10 OR c.status != 0)';
 
@@ -198,7 +198,7 @@ describe('ValueParser', () => {
         expect(sql).toBe('"a"."flag" = true AND ("b"."value" > 10 OR "c"."status" != 0)');
     });
 
-    test('IN演算子', () => {
+    test('IN operator', () => {
         // Arrange
         const text = 'category_id IN (1, 2, 3)';
 

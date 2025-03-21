@@ -121,6 +121,7 @@ export class ValueParser {
         return { value: result, newPosition };
     }
 
+    // ParseSwitchCaseArgument method processes the WHEN, ELSE, and END clauses of a CASE expression.
     static ParseSwitchCaseArgument(
         lexemes: Lexeme[],
         position: number,
