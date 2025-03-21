@@ -1,6 +1,5 @@
 ﻿import { KeywordMatchResult } from "../KeywordParser";
 
-
 export class KeywordTrie {
     private root: Map<string, any> = new Map();
     private currentNode: Map<string, any>;

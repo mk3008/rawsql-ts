@@ -10,7 +10,7 @@ export class CharLookupTable {
         'a', 'b', 'c', 'd', 'e', 'f',
         'A', 'B', 'C', 'D', 'E', 'F'
     ]);
-    private static readonly DELIMITERS = new Set(['.', ',', '(', ')']);
+    private static readonly DELIMITERS = new Set(['.', ',', '(', ')', '[', ']', '{', '}', ';']);
     private static readonly NAMED_PARAMETER_PREFIX = new Set([
         '@', // SQL Server
         ':', // Oracle, PostgreSQL

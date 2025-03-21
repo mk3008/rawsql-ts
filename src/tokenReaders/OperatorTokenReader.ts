@@ -5,6 +5,7 @@ import { KeywordParser } from '../KeywordParser';
 import { KeywordTrie } from '../models/KeywordTrie';
 
 const trie = new KeywordTrie([
+    ["not"],
     ["is"],
     ["is", "not"],
     ["and"],
@@ -17,6 +18,8 @@ const trie = new KeywordTrie([
     ["not", "exists"],
     ["is", "distinct", "from"],
     ["is", "not", "distinct", "from"],
+    ["between"],
+    ["not", "between"],
 ]);
 
 const parser = new KeywordParser(trie);

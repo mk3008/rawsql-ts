@@ -1,6 +1,19 @@
 ﻿import { TokenType } from "../src/models/Lexeme";
 import { SqlTokenizer } from "../src/sqlTokenizer";
 
+test('tokenizes string', () => {
+    // Arrange
+    const tokenizer = new SqlTokenizer("'test string'");
+
+    // Act
+    const tokens = tokenizer.readLexmes();
+
+    // Assert
+    expect(tokens.length).toBe(1);
+    expect(tokens[0].type).toBe(TokenType.Literal);
+    expect(tokens[0].value).toBe("'test string'");
+});
+
 test('tokenizes integer number', () => {
     // Arrange
     const tokenizer = new SqlTokenizer('123');

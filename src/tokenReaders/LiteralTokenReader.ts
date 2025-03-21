@@ -189,7 +189,7 @@ export class LiteralTokenReader extends BaseTokenReader {
      */
     private readSingleQuotedString(): string {
         const start = this.position;
-
+        let closed = false;
         this.read('\'');
 
         while (this.canRead()) {
@@ -201,12 +201,14 @@ export class LiteralTokenReader extends BaseTokenReader {
                 continue;
             }
             else if (char === '\'') {
+                this.position++;
+                closed = true;
                 break;
             }
             this.position++;
         }
 
-        if (this.isEndOfInput()) {
+        if (closed === false) {
             throw new Error(`Single quote is not closed. position: ${start}\n${this.getDebugPositionInfo(start)}`);
         }
 

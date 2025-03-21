@@ -2,7 +2,6 @@ import { SelectQuery } from "./SelectQuery";
 import { SqlComponent, SqlComponentVisitor, SqlDialectConfiguration } from "./SqlComponent";
 import { LiteralValue, RawString, IdentifierString, TrimArgument, ExtractArgument, SubstringFromForArgument, SubstringSimilarEscapeArgument, OverlayPlacingFromForArgument, ColumnReference, FunctionCall, UnaryExpression, BinaryExpression, ParameterExpression, ArrayExpression, CaseExpression, CastExpression, ParenExpression, BetweenExpression, PositionExpression, JsonKeyValuePair, SwitchCaseArgument, ValueCollection, JsonStructureArgument, CaseKeyValuePair } from "./ValueComponent";
 import { ColumnAliasItem, ColumnAliasList, CommonTableItem, CommonTableList, CommonTableSource, Cube, Distinct, DistinctOn, FromClause, FunctionSource, GroupByClause, GroupByItem, GroupByList, GroupingSet, HavingClause, JoinItem, JoinList, NullsSortDirection, OrderByClause, OrderByItem, OrderByList, OverClause, PartitionByClause, PartitionByItem, PartitionByList, Rollup, SelectClause, SelectItem, SelectList, SortDirection, SourceExpression, SubQuerySource, TableSource, WhereClause, WindowFrameClause, WithClause } from "./Clause";
-import { table } from "console";
 
 export class DefaultFormatter implements SqlComponentVisitor<string> {
     private handlers = new Map<symbol, (arg: SqlComponent) => string>();
@@ -235,12 +234,12 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
     }
 
     decodeValueCollection(arg: ValueCollection): string {
-        return `(${arg.values.map((v) => v.accept(this)).join(", ")})`;
+        return `${arg.values.map((v) => v.accept(this)).join(", ")}`;
     }
 
     decodeSwitchCaseArgument(arg: SwitchCaseArgument): string {
-        const casePart = arg.casePairs.map((kv: CaseKeyValuePair) => `when ${kv.key.accept(this)} then ${kv.value.accept(this)} `).join(" ");
-        const elsePart = arg.elseValue ? ` else ${arg.elseValue.accept(this)} ` : "";
+        const casePart = arg.casePairs.map((kv: CaseKeyValuePair) => `when ${kv.key.accept(this)} then ${kv.value.accept(this)}`).join(" ");
+        const elsePart = arg.elseValue ? ` else ${arg.elseValue.accept(this)}` : "";
         return `${casePart}${elsePart}`;
     }
 
@@ -284,9 +283,9 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
 
     decodeFunctionCall(arg: FunctionCall): string {
         if (arg.argument !== null) {
-            return `${arg.name.accept(this)} (${arg.argument.accept(this)})`;
+            return `${arg.name.accept(this)}(${arg.argument.accept(this)})`;
         }
-        return `${arg.name.accept(this)} ()`;
+        return `${arg.name.accept(this)}()`;
     }
 
     decodeUnaryExpression(arg: UnaryExpression): string {
@@ -332,19 +331,10 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
     }
 
     decodeCaseExpression(arg: CaseExpression): string {
-        const casePart = arg.casePairs.accept(this);
-        const elsePart = arg.elseValue ? ` else ${arg.elseValue.accept(this)} ` : "";
         if (arg.condition !== null) {
-            if (arg.elseValue !== null) {
-                return `case ${arg.condition.accept(this)} ${casePart}${elsePart} end`;
-            }
-            return `case ${arg.condition.accept(this)} ${casePart} end`;
-        } else {
-            if (arg.elseValue !== null) {
-                return `case ${casePart}${elsePart} end`;
-            }
-            return `case ${casePart} end`;
+            return `case ${arg.condition.accept(this)} ${arg.switchCase.accept(this)} end`;
         }
+        return `case ${arg.switchCase.accept(this)} end`;
     }
 
     decodeCastExpression(arg: CastExpression): string {
@@ -356,6 +346,9 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
     }
 
     decodeBetweenExpression(arg: BetweenExpression): string {
+        if (arg.negated) {
+            return `${arg.expression.accept(this)} not between ${arg.lower.accept(this)} and ${arg.upper.accept(this)}`;
+        }
         return `${arg.expression.accept(this)} between ${arg.lower.accept(this)} and ${arg.upper.accept(this)}`;
     }
 

@@ -36,7 +36,7 @@ export class KeywordParser {
             return null;
         }
 
-        let matchResult = this.trie.pushLexeme(result.identifier);
+        let matchResult = this.trie.pushLexeme(result.identifier.toLowerCase());
 
         if (matchResult === KeywordMatchResult.NotAKeyword) {
             return null;
@@ -59,7 +59,7 @@ export class KeywordParser {
             const result = StringUtils.tryReadRegularIdentifier(input, position);
 
             if (result !== null) {
-                matchResult = this.trie.pushLexeme(result.identifier);
+                matchResult = this.trie.pushLexeme(result.identifier.toLowerCase());
 
                 if (matchResult === KeywordMatchResult.NotAKeyword) {
                     if (previousMatchResult === KeywordMatchResult.PartialOrFinal) {

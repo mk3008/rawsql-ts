@@ -138,12 +138,12 @@ export class JsonKeyValuePair extends SqlComponent {
 
 export class SwitchCaseArgument extends SqlComponent {
     static kind = Symbol("SwitchCaseArgument");
-    caseKeyValuePairs: CaseKeyValuePair[];
-    casePairs: any;
-    elseValue: any;
-    constructor(values: CaseKeyValuePair[]) {
+    casePairs: CaseKeyValuePair[];
+    elseValue: ValueComponent | null;
+    constructor(casePairs: CaseKeyValuePair[], elseValue: ValueComponent | null = null) {
         super();
-        this.caseKeyValuePairs = values;
+        this.casePairs = casePairs;
+        this.elseValue = elseValue;
     }
 }
 
@@ -282,14 +282,11 @@ export class CaseExpression extends SqlComponent {
     static kind = Symbol("CaseExpression");
     condition: ValueComponent | null;
     switchCase: SwitchCaseArgument;
-    elseValue: ValueComponent | null;
-    casePairs: any;
 
-    constructor(condition: ValueComponent | null, switchCase: SwitchCaseArgument, elseValue: ValueComponent | null = null) {
+    constructor(condition: ValueComponent | null, switchCase: SwitchCaseArgument) {
         super();
         this.condition = condition;
         this.switchCase = switchCase;
-        this.elseValue = elseValue;
     }
 }
 
@@ -319,10 +316,12 @@ export class BetweenExpression extends SqlComponent {
     expression: ValueComponent;
     lower: ValueComponent;
     upper: ValueComponent;
-    constructor(expression: ValueComponent, lower: ValueComponent, upper: ValueComponent) {
+    negated: boolean;
+    constructor(expression: ValueComponent, lower: ValueComponent, upper: ValueComponent, negated: boolean) {
         super();
         this.expression = expression;
         this.lower = lower;
         this.upper = upper;
+        this.negated = negated;
     }
 }

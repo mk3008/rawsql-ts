@@ -62,7 +62,7 @@ const trie = new KeywordTrie([
     ["leading", "from"],
     ["trailing", "from"],
     ["both", "leading"],
-    ["both", "trailing"],    
+    ["both", "trailing"],
     // date, time, extract
     ["year", "from"],
     ["month", "from"],
@@ -81,6 +81,7 @@ const trie = new KeywordTrie([
     // case 
     ["case"],
     ["case", "when"],
+    ["when"],
     ["then"],
     ["else"],
     ["end"],
@@ -117,7 +118,7 @@ export class CommandTokenReader extends BaseTokenReader {
         const keyword = parser.parse(this.input, this.position);
         if (keyword !== null) {
             this.position = keyword.newPosition;
-            return this.createLexeme(TokenType.Command, keyword.keyword);
+            return this.createLexeme(TokenType.Command, keyword.keyword, keyword.keyword.toLowerCase());
         }
 
         return null;
