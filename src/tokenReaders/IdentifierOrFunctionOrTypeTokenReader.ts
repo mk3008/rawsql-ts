@@ -86,7 +86,7 @@ export class IdentifierOrFunctionTokenReader extends BaseTokenReader {
         }
 
         if (this.canRead(shift) && this.input[this.position + shift] === '(') {
-            return this.createLexeme(TokenType.Function, result.identifier);
+            return this.createLexeme(TokenType.Function, result.identifier, result.identifier.toLowerCase());
         }
         return this.createLexeme(TokenType.Identifier, result.identifier);
     }

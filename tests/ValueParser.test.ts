@@ -45,6 +45,12 @@ describe('ValueParser', () => {
         // ["SUBSTRING - basic substring", "SUBSTRING('abcdef' FROM 2 FOR 3)", "SUBSTRING('abcdef' FROM 2 FOR 3)"],
         // ["SUBSTRING - with position and length", "SUBSTRING('abcdef' FROM 3)", "SUBSTRING('abcdef' FROM 3)"],
         // ["SUBSTRING - with regular expression", "SUBSTRING('abcdef' FROM '[a-z]+')", "SUBSTRING('abcdef' FROM '[a-z]+')"],
+        ["SUBSTRING", "substring('Thomas', 2, 3)", "substring('Thomas', 2, 3)"],
+        ["SUBSTRING with FROM and FOR", "substring('Thomas' from 2 for 3)", "substring('Thomas' from 2 for 3)"],
+        ["SUBSTRING with only FROM", "substring('Thomas' from 3)", "substring('Thomas' from 3)"],
+        ["SUBSTRING with only FOR", "substring('Thomas' for 2)", "substring('Thomas' for 2)"],
+        ["SUBSTRING with FROM using regex pattern", "substring('Thomas' from '...$')", "substring('Thomas' from '...$')"],
+        ["SUBSTRING with SIMILAR pattern", "substring('Thomas' similar '%#\"o_a#\"_' escape '#')", "substring('Thomas' similar '%#\"o_a#\"_' escape '#')"]
     ])('%s', (_, text, expected) => {
         const value = ValueParser.ParseFromText(text);
         const sql = formatter.visit(value);

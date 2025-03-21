@@ -14,7 +14,7 @@ export type ValueComponent = ValueCollection |
     CaseKeyValuePair |
     OverlayPlacingFromForArgument |
     SubstringFromForArgument |
-    SubstringSimilarEscapeArgument |
+    SubstringSimilarArgument |
     ExtractArgument |
     RawString |
     IdentifierString |
@@ -187,17 +187,15 @@ export class SubstringFromForArgument extends SqlComponent {
     }
 }
 
-export class SubstringSimilarEscapeArgument extends SqlComponent {
-    static kind = Symbol("SubstringSimilarEscapeExpression");
+export class SubstringSimilarArgument extends SqlComponent {
+    static kind = Symbol("SubstringSimilarArgument");
     input: ValueComponent;
     pattern: ValueComponent;
-    escape: ValueComponent;
 
-    constructor(input: ValueComponent, pattern: ValueComponent, escape: ValueComponent) {
+    constructor(input: ValueComponent, pattern: ValueComponent) {
         super();
         this.input = input;
         this.pattern = pattern;
-        this.escape = escape;
     }
 }
 

@@ -1,5 +1,5 @@
 import { Lexeme, TokenType } from "../models/Lexeme";
-import { ColumnReference, ValueComponent, LiteralValue, BinaryExpression, ParenExpression, FunctionCall, ValueCollection, UnaryExpression, ParameterExpression, ArrayExpression, CaseExpression, SwitchCaseArgument, CaseKeyValuePair as CaseConditionValuePair, BetweenExpression, StringSpecifierExpression, ModifierExpression, TypeValue, CastExpression } from "../models/ValueComponent";
+import { ColumnReference, ValueComponent, LiteralValue, BinaryExpression, ParenExpression, FunctionCall, ValueCollection, UnaryExpression, ParameterExpression, ArrayExpression, CaseExpression, SwitchCaseArgument, CaseKeyValuePair as CaseConditionValuePair, BetweenExpression, StringSpecifierExpression, ModifierExpression, TypeValue, CastExpression, SubstringFromForArgument, SubstringSimilarArgument } from "../models/ValueComponent";
 import { SqlTokenizer } from "../sqlTokenizer";
 
 export class ValueParser {
@@ -93,34 +93,98 @@ export class ValueParser {
             throw new Error(`Unexpected end of lexemes at position ${position}`);
         }
 
-        if (lexemes[p].type === TokenType.Identifier) {
+        const current = lexemes[p];
+
+        if (current.type === TokenType.Identifier) {
             return this.ParseIdentifier(lexemes, p);
-        } else if (lexemes[p].type === TokenType.Literal) {
+        } else if (current.type === TokenType.Literal) {
             return this.ParseLiteralValue(lexemes, p);
-        } else if (lexemes[p].type === TokenType.OpenParen) {
+        } else if (current.type === TokenType.OpenParen) {
             return this.ParseParenExpression(lexemes, p);
-        } else if (lexemes[p].type === TokenType.Function) {
+        } else if (current.type === TokenType.Function) {
+            if (current.command === "substring") {
+                return this.ParseSubstringFunction(lexemes, p);
+            }
             return this.ParseFunctionCall(lexemes, p);
-        } else if (lexemes[p].type === TokenType.Operator) {
+        } else if (current.type === TokenType.Operator) {
             return this.ParseUnaryExpression(lexemes, p);
-        } else if (lexemes[p].type === TokenType.Parameter) {
+        } else if (current.type === TokenType.Parameter) {
             return this.ParseParameterExpression(lexemes, p);
-        } else if (lexemes[p].type === TokenType.StringSpecifier) {
+        } else if (current.type === TokenType.StringSpecifier) {
             return this.ParseStringSpecifierExpression(lexemes, p);
-        } else if (lexemes[p].type === TokenType.Command) {
-            const command = lexemes[p];
+        } else if (current.type === TokenType.Command) {
             p++;
-            if (command.command === "case") {
+            if (current.command === "case") {
                 return this.ParseCaseExpression(lexemes, p);
-            } else if (command.command === "case when") {
+            } else if (current.command === "case when") {
                 return this.ParseCaseWhenExpression(lexemes, p);
-            } else if (command.command === "array") {
+            } else if (current.command === "array") {
                 return this.ParseArrayExpression(lexemes, p);
             }
-            return this.ParseModifierExpression(lexemes, p, command);
+            return this.ParseModifierExpression(lexemes, p, current);
         }
 
         throw new Error(`Invalid lexeme. position: ${position}, type: ${lexemes[position].type}, value: ${lexemes[position].value}`);
+    }
+
+    static ParseSubstringFunction(lexemes: Lexeme[], position: number): { value: ValueComponent; newPosition: number; } {
+        let p = position;
+
+        // Get function name
+        const result = lexemes[p];
+        const functionName = result.value;
+        p++;
+
+        if (p < lexemes.length && lexemes[p].type === TokenType.OpenParen) {
+            p++;
+
+            const input = this.Parse(lexemes, p);
+            p = input.newPosition;
+
+            // Check for comma
+            if (p < lexemes.length && lexemes[p].type === TokenType.Comma) {
+                return this.ParseFunctionCall(lexemes, position);
+            }
+
+            // check for similar
+            if (p < lexemes.length && lexemes[p].type === TokenType.Command && lexemes[p].command === "similar") {
+                p++;
+                const pattern = this.Parse(lexemes, p);
+                p = pattern.newPosition;
+
+                if (p < lexemes.length && lexemes[p].type === TokenType.CloseParen) {
+                    p++;
+                    // Create SUBSTRING function
+                    const arg = new SubstringSimilarArgument(input.value, pattern.value);
+                    return { value: new FunctionCall(functionName, arg), newPosition: p };
+                } else {
+                    throw new Error(`Expected closing parenthesis after function name '${functionName}' at position ${p}`);
+                }
+            }
+
+            let startArg;
+            let lengthArg;
+            if (p < lexemes.length && lexemes[p].type === TokenType.Command && lexemes[p].command === "from") {
+                p++;
+                startArg = this.Parse(lexemes, p);
+                p = startArg.newPosition;
+            }
+            if (p < lexemes.length && lexemes[p].type === TokenType.Command && lexemes[p].command === "for") {
+                p++;
+                lengthArg = this.Parse(lexemes, p);
+                p = lengthArg.newPosition;
+            }
+            if (p < lexemes.length && lexemes[p].type === TokenType.CloseParen) {
+                p++;
+                // Create SUBSTRING function
+                const arg = new SubstringFromForArgument(input.value, startArg?.value ?? null, lengthArg?.value ?? null);
+                return { value: new FunctionCall(functionName, arg), newPosition: p };
+            } else {
+                throw new Error(`Expected closing parenthesis after function name '${functionName}' at position ${p}`);
+            }
+        } else {
+            throw new Error(`Expected opening parenthesis after function name '${functionName}' at position ${p}`);
+        }
     }
 
     static ParseModifierExpression(lexemes: Lexeme[], position: number, command: Lexeme): { value: ValueComponent; newPosition: number; } {

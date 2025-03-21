@@ -103,6 +103,8 @@ const trie = new KeywordTrie([
     ["array"],
     // cast
     ["as"],
+    // substring
+    ["similar"],
 ]);
 const parser = new KeywordParser(trie);
 

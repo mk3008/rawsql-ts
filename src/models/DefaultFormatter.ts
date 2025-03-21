@@ -1,6 +1,6 @@
 import { SelectQuery } from "./SelectQuery";
 import { SqlComponent, SqlComponentVisitor, SqlDialectConfiguration } from "./SqlComponent";
-import { LiteralValue, RawString, IdentifierString, TrimArgument, ExtractArgument, SubstringFromForArgument, SubstringSimilarEscapeArgument, OverlayPlacingFromForArgument, ColumnReference, FunctionCall, UnaryExpression, BinaryExpression, ParameterExpression, ArrayExpression, CaseExpression, CastExpression, ParenExpression, BetweenExpression, PositionExpression, JsonKeyValuePair, SwitchCaseArgument, ValueCollection, JsonStructureArgument, CaseKeyValuePair, StringSpecifierExpression, ModifierExpression, TypeValue as TypeValue } from "./ValueComponent";
+import { LiteralValue, RawString, IdentifierString, TrimArgument, ExtractArgument, SubstringFromForArgument, SubstringSimilarArgument, OverlayPlacingFromForArgument, ColumnReference, FunctionCall, UnaryExpression, BinaryExpression, ParameterExpression, ArrayExpression, CaseExpression, CastExpression, ParenExpression, BetweenExpression, PositionExpression, JsonKeyValuePair, SwitchCaseArgument, ValueCollection, JsonStructureArgument, CaseKeyValuePair, StringSpecifierExpression, ModifierExpression, TypeValue as TypeValue } from "./ValueComponent";
 import { ColumnAliasItem, ColumnAliasList, CommonTableItem, CommonTableList, CommonTableSource, Cube, Distinct, DistinctOn, FromClause, FunctionSource, GroupByClause, GroupByItem, GroupByList, GroupingSet, HavingClause, JoinItem, JoinList, NullsSortDirection, OrderByClause, OrderByItem, OrderByList, OverClause, PartitionByClause, PartitionByItem, PartitionByList, Rollup, SelectClause, SelectItem, SelectList, SortDirection, SourceExpression, SubQuerySource, TableSource, WhereClause, WindowFrameClause, WithClause } from "./Clause";
 
 export class DefaultFormatter implements SqlComponentVisitor<string> {
@@ -35,7 +35,7 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
         this.handlers.set(ParenExpression.kind, (expr) => this.decodeBracketExpression(expr as ParenExpression));
         this.handlers.set(BetweenExpression.kind, (expr) => this.decodeBetweenExpression(expr as BetweenExpression));
         this.handlers.set(PositionExpression.kind, (expr) => this.decodePositionExpression(expr as PositionExpression));
-        this.handlers.set(SubstringSimilarEscapeArgument.kind, (expr) => this.decodeSubstringSimilarEscapeArgument(expr as SubstringSimilarEscapeArgument));
+        this.handlers.set(SubstringSimilarArgument.kind, (expr) => this.decodeSubstringSimilarEscapeArgument(expr as SubstringSimilarArgument));
         this.handlers.set(OverlayPlacingFromForArgument.kind, (expr) => this.decodeOverlayPlacingFromForArgument(expr as OverlayPlacingFromForArgument));
         this.handlers.set(ModifierExpression.kind, (expr) => this.decodeModifierExpression(expr as ModifierExpression));
         this.handlers.set(TypeValue.kind, (expr) => this.decodeTypeValue(expr as TypeValue));
@@ -272,20 +272,20 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
         return `${arg.input.accept(this)} overlay(${arg.replacement.accept(this)})`;
     }
 
-    decodeSubstringSimilarEscapeArgument(arg: SubstringSimilarEscapeArgument): string {
-        return `${arg.input.accept(this)} similar escape ${arg.escape.accept(this)} ${arg.pattern.accept(this)}`;
+    decodeSubstringSimilarEscapeArgument(arg: SubstringSimilarArgument): string {
+        return `${arg.input.accept(this)} similar ${arg.pattern.accept(this)}`;
     }
 
     // Add the missing method
     decodeSubstringFromForArgument(arg: SubstringFromForArgument): string {
-        const start = arg.start ? `start ${arg.start.accept(this)} ` : "";
-        const length = arg.length ? `length ${arg.length.accept(this)} ` : "";
+        const start = arg.start ? `from ${arg.start.accept(this)}` : "";
+        const length = arg.length ? `for ${arg.length.accept(this)}` : "";
         if (start && length) {
             return `${arg.input.accept(this)} ${start} ${length}`;
         } else if (start) {
-            return `${arg.input.accept(this)} ${start})`;
+            return `${arg.input.accept(this)} ${start}`;
         } else if (length) {
-            return `${arg.input.accept(this)} ${length})`;
+            return `${arg.input.accept(this)} ${length}`;
         }
         return `${arg.input.accept(this)}`;
     }
