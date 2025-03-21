@@ -4,7 +4,7 @@ import { SqlTokenizer } from './sqlTokenizer';
 
 console.log('Hello world');
 
-const tokenizer = new SqlTokenizer("CASE age WHEN 18 THEN 'young' WHEN 65 THEN 'senior' ELSE 'adult' END");
+const tokenizer = new SqlTokenizer("'a_b' LIKE 'a\\_b' ESCAPE '\\'");
 const lexemes = tokenizer.readLexmes();
 
 console.log(lexemes);

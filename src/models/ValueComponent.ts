@@ -26,7 +26,8 @@ export type ValueComponent = ValueCollection |
     ArrayExpression |
     PositionExpression |
     BetweenExpression |
-    InlineQuery;
+    InlineQuery |
+    StringSpecifierExpression;
 
 export class InlineQuery extends SqlComponent {
     static kind = Symbol("InlineQuery");
@@ -98,12 +99,9 @@ export class LiteralValue extends SqlComponent {
     static kind = Symbol("LiteralExpression");
     // Use the string type instead of the RawString type because it has its own escaping process.
     value: string | number | boolean | null;
-    // Use the string type instead of the RawString type because it has its own escaping process.
-    escapeOption: string | null;
-    constructor(value: string | number | boolean | null, escapeOption: string | null = null) {
+    constructor(value: string | number | boolean | null) {
         super();
         this.value = value;
-        this.escapeOption = escapeOption;
     }
 }
 
@@ -323,5 +321,17 @@ export class BetweenExpression extends SqlComponent {
         this.lower = lower;
         this.upper = upper;
         this.negated = negated;
+    }
+}
+
+export class StringSpecifierExpression extends SqlComponent {
+    static kind = Symbol("StringSpecifierExpression");
+    // e.g. 'E', 'X', 'U&'
+    specifier: RawString;
+    value: ValueComponent;
+    constructor(specifier: string, value: string) {
+        super();
+        this.specifier = new RawString(specifier);
+        this.value = new LiteralValue(value);
     }
 }

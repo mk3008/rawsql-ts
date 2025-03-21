@@ -85,9 +85,6 @@ const trie = new KeywordTrie([
     ["then"],
     ["else"],
     ["end"],
-    // escape
-    ["escape"],
-    ["uescape"],
     // others
     ["insert", "into"],
     ["update"],

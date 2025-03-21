@@ -3,6 +3,7 @@ import { Lexeme, TokenType } from '../models/Lexeme';
 import { CharLookupTable } from '../utils/charLookupTable';
 import { KeywordParser } from '../KeywordParser';
 import { KeywordTrie } from '../models/KeywordTrie';
+import { WindowFrameClause } from '../models/Clause';
 
 /**
  * Reads SQL literal tokens (numbers, strings)
@@ -31,10 +32,6 @@ const keywords = [
 const trie = new KeywordTrie(keywords);
 const parser = new KeywordParser(trie);
 
-// Prefix sets for quick checks
-const SINGLE_CHAR_ESCAPED_PREFIX = new Set(['e\'', 'E\'', 'x\'', 'X\'', 'b\'', 'B\'']);
-const UNICODE_ESCAPED_PREFIX = new Set(['u&\'', 'U&\'']);
-
 export class LiteralTokenReader extends BaseTokenReader {
     /**
      * Try to read a literal token
@@ -59,7 +56,7 @@ export class LiteralTokenReader extends BaseTokenReader {
 
         // String literal
         if (char === '\'') {
-            const value = this.readSingleQuotedString();
+            const value = this.readSingleQuotedString(false);
             return this.createLexeme(TokenType.Literal, value);
         }
 
@@ -95,8 +92,7 @@ export class LiteralTokenReader extends BaseTokenReader {
             this.position = pos - 1; // Adjust for the increment at the beginning
         }
 
-        // Check for prefixed literals
-        return this.tryReadEscapedLiteral();
+        return null;
     }
 
     private tryReadKeyword(): Lexeme | null {
@@ -187,81 +183,36 @@ export class LiteralTokenReader extends BaseTokenReader {
     /**
      * Read a string literal
      */
-    private readSingleQuotedString(): string {
+    private readSingleQuotedString(includeSingleQuote: boolean): string {
         const start = this.position;
         let closed = false;
-        this.read('\'');
+        this.read("'");
 
         while (this.canRead()) {
             const char = this.input[this.position];
+            this.position++;
 
             // escape character check
-            if (char === '\\' && this.canRead(1) && this.input[this.position + 1] === '\'') {
-                this.position += 2;
+            if (char === "\\" && this.canRead(1)) {
+                this.position++;
                 continue;
             }
             else if (char === '\'') {
-                this.position++;
                 closed = true;
                 break;
             }
-            this.position++;
         }
 
         if (closed === false) {
             throw new Error(`Single quote is not closed. position: ${start}\n${this.getDebugPositionInfo(start)}`);
         }
 
-        const value = this.input.slice(start, this.position);
-        this.position++;
-        return value;
-    }
-
-    /**
-     * Try to read an escaped literal like e'...', x'...', etc.
-     */
-    private tryReadEscapedLiteral(): Lexeme | null {
-        const start = this.position;
-
-        // Check for prefixed literals: e', x', b'
-        if (this.canRead(1) && SINGLE_CHAR_ESCAPED_PREFIX.has(this.input.slice(start, start + 2))) {
-            return this.readPrefixedLiteral(start, 2);
+        if (includeSingleQuote) {
+            const value = this.input.slice(start, this.position);
+            return value;
+        } else {
+            const value = this.input.slice(start + 1, this.position - 1);
+            return value;
         }
-
-        // Check for unicode literal: u&'
-        if (this.canRead(2) && UNICODE_ESCAPED_PREFIX.has(this.input.slice(start, start + 3))) {
-            return this.readPrefixedLiteral(start, 3);
-        }
-
-        return null;
-    }
-
-    private readPrefixedLiteral(start: number, prefixLength: number): Lexeme {
-        // Skip the prefix
-        this.position += prefixLength;
-
-        // Read until the closing quote
-        while (this.canRead()) {
-            if (this.input[this.position] === '\\' && this.canRead(1) && this.input[this.position + 1] === '\'') {
-                // Skip escaped single quote
-                this.position += 2;
-                continue;
-            }
-            else if (this.input[this.position] === '\'') {
-                // Found closing quote
-                this.position++;
-                break;
-            }
-            this.position++;
-        }
-
-        if (this.position <= start + prefixLength) {
-            throw new Error(`Closing delimiter is not found. position: ${start}\n${this.getDebugPositionInfo(start)}`);
-        }
-
-        return {
-            type: TokenType.Literal,
-            value: this.input.slice(start, this.position)
-        };
     }
 }

@@ -6,11 +6,12 @@
     Comma,
     Dot,
     Identifier,
-    Command, // select, from, where as, on, etc.
+    Command, // select, from, where as, on, array etc
     Parameter,
     OpenBracket,
     CloseBracket,
-    Function, // count, sum, etc.
+    Function, // next token is open paren
+    StringSpecifier, // next token is string literal
 }
 
 /**

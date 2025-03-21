@@ -7,6 +7,7 @@ import { TokenReaderManager } from './tokenReaders/TokenReaderManager';
 import { OperatorTokenReader } from './tokenReaders/OperatorTokenReader';
 import { StringUtils } from './utils/stringUtils';
 import { CommandTokenReader } from './tokenReaders/CommandTokenReader';
+import { StringSpecifierTokenReader } from './tokenReaders/StringSpecifierTokenReader';
 
 /**
  * Class responsible for tokenizing SQL input.
@@ -43,6 +44,7 @@ export class SqlTokenizer {
         // Initialize the token reader manager and register all readers
         this.readerManager = new TokenReaderManager(input)
             .register(new ParameterTokenReader(input))
+            .register(new StringSpecifierTokenReader(input))
             .register(new LiteralTokenReader(input))
             .register(new SpecialSymbolTokenReader(input))
             .register(new OperatorTokenReader(input))

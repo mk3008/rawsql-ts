@@ -29,10 +29,26 @@ describe('ValueParser', () => {
         ["IS operator", "a.value IS NULL", '"a"."value" IS null'],
         ["IS DISTINCT FROM operator", "a.value IS DISTINCT FROM b.value", '"a"."value" IS DISTINCT FROM "b"."value"'],
         ["IS NOT DISTINCT FROM operator", "a.value IS NOT DISTINCT FROM b.value", '"a"."value" IS NOT DISTINCT FROM "b"."value"'],
+        ["Unicode escape (U&'')", "U&'\\0041\\0042\\0043\\0044'", "U&'\\0041\\0042\\0043\\0044'"],
+        ["LIKE escape - percent", "'a_b' LIKE 'a\\_b' ESCAPE '\\'", "'a_b' LIKE 'a\\_b' ESCAPE '\\'"],
+        // ["POSITION function", "POSITION('b' IN 'abc')", 'POSITION(\'b\' IN \'abc\')'],
+        // ["TRIM - leading/trailing spaces", "TRIM('  abc  ')", "TRIM('  abc  ')"],
+        // ["TRIM LEADING - Remove leading spaces", "TRIM(LEADING FROM '   Hello World')", "TRIM(LEADING FROM '   Hello World')"],
+        // ["TRIM LEADING - Remove leading specific character", "TRIM(LEADING '0' FROM '000123')", "TRIM(LEADING '0' FROM '000123')"],
+        // ["TRIM LEADING - Remove leading spaces with string", "TRIM(LEADING FROM '   Hello  ')", "TRIM(LEADING FROM '   Hello  ')"],
+        // ["TRIM TRAILING - Remove trailing spaces", "TRIM(TRAILING FROM 'Hello World   ')", "TRIM(TRAILING FROM 'Hello World   ')"],
+        // ["TRIM TRAILING - Remove trailing specific character", "TRIM(TRAILING '0' FROM '123000')", "TRIM(TRAILING '0' FROM '123000')"],
+        // ["TRIM TRAILING - Remove trailing spaces with string", "TRIM(TRAILING FROM '   Hello  ')", "TRIM(TRAILING FROM '   Hello  ')"],
+        // ["TRIM - remove specific characters", "TRIM('x' FROM 'xxxabcxxx')", "TRIM('x' FROM 'xxxabcxxx')"],
+        // ["SUBSTRING - basic substring", "SUBSTRING('abcdef' FROM 2 FOR 3)", "SUBSTRING('abcdef' FROM 2 FOR 3)"],
+        // ["SUBSTRING - with position and length", "SUBSTRING('abcdef' FROM 3)", "SUBSTRING('abcdef' FROM 3)"],
+        // ["SUBSTRING - with regular expression", "SUBSTRING('abcdef' FROM '[a-z]+')", "SUBSTRING('abcdef' FROM '[a-z]+')"],
+        // ["EXTRACT - Extract month from timestamp", "EXTRACT(MONTH FROM '2025-03-21 12:34:56'::timestamp)", "EXTRACT(MONTH FROM '2025-03-21 12:34:56'::timestamp)"],
+        // ["INTERVAL - Adding time interval", "INTERVAL '2 days' + INTERVAL '3 hours'", "INTERVAL '2 days' + INTERVAL '3 hours'"],
     ])('%s', (_, text, expected) => {
         const value = ValueParser.ParseFromText(text);
         const sql = formatter.visit(value);
-        console.log(`text: ${text}\n sql: ${sql}`);
+        //console.log(`plain   : ${text}\nexpected: ${expected}\nsql     : ${sql}`);
         expect(sql).toBe(expected);
     });
 });

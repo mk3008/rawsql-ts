@@ -23,14 +23,13 @@ export class SpecialSymbolTokenReader extends BaseTokenReader {
         }
 
         const char = this.input[this.position];
-        
+
         // symbol tokens
         if (char in SpecialSymbolTokenReader.SPECIAL_SYMBOL_TOKENS) {
             this.position++;
             return this.createLexeme(
                 SpecialSymbolTokenReader.SPECIAL_SYMBOL_TOKENS[char],
-                char,
-                char.toLowerCase()
+                char
             );
         }
         return null;

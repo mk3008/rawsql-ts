@@ -11,7 +11,7 @@ test('tokenizes string', () => {
     // Assert
     expect(tokens.length).toBe(1);
     expect(tokens[0].type).toBe(TokenType.Literal);
-    expect(tokens[0].value).toBe("'test string'");
+    expect(tokens[0].value).toBe("test string");
 });
 
 test('tokenizes integer number', () => {
@@ -142,111 +142,6 @@ test('tokenizes negative exponential notation', () => {
     expect(tokens.length).toBe(1);
     expect(tokens[0].type).toBe(TokenType.Literal);
     expect(tokens[0].value).toBe('-1.23e+10');
-});
-
-// EscapedLiteral tests
-test('tokenizes E escaped string literal', () => {
-    // Arrange
-    const tokenizer = new SqlTokenizer("E'test string'");
-
-    // Act
-    const tokens = tokenizer.readLexmes();
-
-    // Assert
-    expect(tokens.length).toBe(1);
-    expect(tokens[0].type).toBe(TokenType.Literal);
-    expect(tokens[0].value).toBe("E'test string'");
-});
-
-test('tokenizes e escaped string literal (lowercase)', () => {
-    // Arrange
-    const tokenizer = new SqlTokenizer("e'test string'");
-
-    // Act
-    const tokens = tokenizer.readLexmes();
-
-    // Assert
-    expect(tokens.length).toBe(1);
-    expect(tokens[0].type).toBe(TokenType.Literal);
-    expect(tokens[0].value).toBe("e'test string'");
-});
-
-test('tokenizes X escaped binary literal', () => {
-    // Arrange
-    const tokenizer = new SqlTokenizer("X'DEADBEEF'");
-
-    // Act
-    const tokens = tokenizer.readLexmes();
-
-    // Assert
-    expect(tokens.length).toBe(1);
-    expect(tokens[0].type).toBe(TokenType.Literal);
-    expect(tokens[0].value).toBe("X'DEADBEEF'");
-});
-
-test('tokenizes B escaped bit string literal', () => {
-    // Arrange
-    const tokenizer = new SqlTokenizer("B'10101'");
-
-    // Act
-    const tokens = tokenizer.readLexmes();
-
-    // Assert
-    expect(tokens.length).toBe(1);
-    expect(tokens[0].type).toBe(TokenType.Literal);
-    expect(tokens[0].value).toBe("B'10101'");
-});
-
-test('tokenizes U& unicode string literal', () => {
-    // Arrange
-    const tokenizer = new SqlTokenizer("U&'unicode string'");
-
-    // Act
-    const tokens = tokenizer.readLexmes();
-
-    // Assert
-    expect(tokens.length).toBe(1);
-    expect(tokens[0].type).toBe(TokenType.Literal);
-    expect(tokens[0].value).toBe("U&'unicode string'");
-});
-
-test('tokenizes u& unicode string literal (lowercase)', () => {
-    // Arrange
-    const tokenizer = new SqlTokenizer("u&'unicode string'");
-
-    // Act
-    const tokens = tokenizer.readLexmes();
-
-    // Assert
-    expect(tokens.length).toBe(1);
-    expect(tokens[0].type).toBe(TokenType.Literal);
-    expect(tokens[0].value).toBe("u&'unicode string'");
-});
-
-test('tokenizes escaped string with escaped quote', () => {
-    // Arrange
-    const tokenizer = new SqlTokenizer("E'It\\'s a test'");
-
-    // Act
-    const tokens = tokenizer.readLexmes();
-
-    // Assert
-    expect(tokens.length).toBe(1);
-    expect(tokens[0].type).toBe(TokenType.Literal);
-    expect(tokens[0].value).toBe("E'It\\'s a test'");
-});
-
-test('tokenizes empty escaped string literal', () => {
-    // Arrange
-    const tokenizer = new SqlTokenizer("E''");
-
-    // Act
-    const tokens = tokenizer.readLexmes();
-
-    // Assert
-    expect(tokens.length).toBe(1);
-    expect(tokens[0].type).toBe(TokenType.Literal);
-    expect(tokens[0].value).toBe("E''");
 });
 
 test('tokenizes keyword null', () => {

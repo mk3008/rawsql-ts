@@ -20,6 +20,8 @@ const trie = new KeywordTrie([
     ["is", "not", "distinct", "from"],
     ["between"],
     ["not", "between"],
+    ["escape"],
+    ["uescape"],
 ]);
 
 const parser = new KeywordParser(trie);
