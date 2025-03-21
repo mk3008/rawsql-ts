@@ -4,7 +4,7 @@ import { SqlTokenizer } from './sqlTokenizer';
 
 console.log('Hello world');
 
-const tokenizer = new SqlTokenizer("POSITION('b' IN 'abc')");
+const tokenizer = new SqlTokenizer("INTERVAL '2 days' + INTERVAL '3 hours'");
 const lexemes = tokenizer.readLexmes();
 
 console.log(lexemes);

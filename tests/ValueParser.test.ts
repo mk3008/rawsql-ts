@@ -33,6 +33,7 @@ describe('ValueParser', () => {
         ["LIKE escape - percent", "'a_b' LIKE 'a\\_b' ESCAPE '\\'", "'a_b' like 'a\\_b' escape '\\'"],
         ["EXTRACT - Extract month from timestamp", "EXTRACT(MONTH FROM '2025-03-21 12:34:56'::timestamp)", "EXTRACT(MONTH FROM '2025-03-21 12:34:56'::timestamp)"],
         ["POSITION function", "POSITION('b' IN 'abc')", 'POSITION(\'b\' in \'abc\')'],
+        ["INTERVAL - Adding time interval", "INTERVAL '2 days' + INTERVAL '3 hours'", "INTERVAL '2 days' + INTERVAL '3 hours'"],
         // ["TRIM - leading/trailing spaces", "TRIM('  abc  ')", "TRIM('  abc  ')"],
         // ["TRIM LEADING - Remove leading spaces", "TRIM(LEADING FROM '   Hello World')", "TRIM(LEADING FROM '   Hello World')"],
         // ["TRIM LEADING - Remove leading specific character", "TRIM(LEADING '0' FROM '000123')", "TRIM(LEADING '0' FROM '000123')"],
@@ -44,7 +45,6 @@ describe('ValueParser', () => {
         // ["SUBSTRING - basic substring", "SUBSTRING('abcdef' FROM 2 FOR 3)", "SUBSTRING('abcdef' FROM 2 FOR 3)"],
         // ["SUBSTRING - with position and length", "SUBSTRING('abcdef' FROM 3)", "SUBSTRING('abcdef' FROM 3)"],
         // ["SUBSTRING - with regular expression", "SUBSTRING('abcdef' FROM '[a-z]+')", "SUBSTRING('abcdef' FROM '[a-z]+')"],
-        // ["INTERVAL - Adding time interval", "INTERVAL '2 days' + INTERVAL '3 hours'", "INTERVAL '2 days' + INTERVAL '3 hours'"],
     ])('%s', (_, text, expected) => {
         const value = ValueParser.ParseFromText(text);
         const sql = formatter.visit(value);
