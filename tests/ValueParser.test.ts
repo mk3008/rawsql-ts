@@ -32,7 +32,7 @@ describe('ValueParser', () => {
         ["Unicode escape (U&'')", "U&'\\0041\\0042\\0043\\0044'", "U&'\\0041\\0042\\0043\\0044'"],
         ["LIKE escape - percent", "'a_b' LIKE 'a\\_b' ESCAPE '\\'", "'a_b' like 'a\\_b' escape '\\'"],
         ["EXTRACT - Extract month from timestamp", "EXTRACT(MONTH FROM '2025-03-21 12:34:56'::timestamp)", "EXTRACT(MONTH FROM '2025-03-21 12:34:56'::timestamp)"],
-        // ["POSITION function", "POSITION('b' IN 'abc')", 'POSITION(\'b\' IN \'abc\')'],
+        ["POSITION function", "POSITION('b' IN 'abc')", 'POSITION(\'b\' in \'abc\')'],
         // ["TRIM - leading/trailing spaces", "TRIM('  abc  ')", "TRIM('  abc  ')"],
         // ["TRIM LEADING - Remove leading spaces", "TRIM(LEADING FROM '   Hello World')", "TRIM(LEADING FROM '   Hello World')"],
         // ["TRIM LEADING - Remove leading specific character", "TRIM(LEADING '0' FROM '000123')", "TRIM(LEADING '0' FROM '000123')"],
