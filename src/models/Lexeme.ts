@@ -12,6 +12,7 @@
     CloseBracket,
     Function, // next token is open paren
     StringSpecifier, // next token is string literal
+    Type, // column type
 }
 
 /**

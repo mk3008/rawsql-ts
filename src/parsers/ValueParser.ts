@@ -1,5 +1,5 @@
 import { Lexeme, TokenType } from "../models/Lexeme";
-import { ColumnReference, ValueComponent, LiteralValue, BinaryExpression, ParenExpression, FunctionCall, ValueCollection, UnaryExpression, ParameterExpression, ArrayExpression, CaseExpression, SwitchCaseArgument, CaseKeyValuePair as CaseConditionValuePair, BetweenExpression, StringSpecifierExpression } from "../models/ValueComponent";
+import { ColumnReference, ValueComponent, LiteralValue, BinaryExpression, ParenExpression, FunctionCall, ValueCollection, UnaryExpression, ParameterExpression, ArrayExpression, CaseExpression, SwitchCaseArgument, CaseKeyValuePair as CaseConditionValuePair, BetweenExpression, StringSpecifierExpression, ModifierExpression, TypeValue, CastExpression } from "../models/ValueComponent";
 import { SqlTokenizer } from "../sqlTokenizer";
 
 export class ValueParser {
@@ -18,14 +18,19 @@ export class ValueParser {
         return result.value;
     }
 
-    public static Parse(lexemes: Lexeme[], position: number): { value: ValueComponent; newPosition: number } {
+    public static Parse(lexemes: Lexeme[], position: number, allowAndOperator: boolean = true): { value: ValueComponent; newPosition: number } {
         let p = position;
         const result = this.ParseItem(lexemes, p);
         p = result.newPosition;
 
         // If the next element is an operator, process it as a binary expression
         if (p < lexemes.length && lexemes[p].type === TokenType.Operator) {
-            const operator = lexemes[p].value;
+            if (!allowAndOperator && lexemes[p].command === "and") {
+                // Handle special case for "and" operator
+                return { value: result.value, newPosition: p };
+            }
+
+            const operator = lexemes[p].command as string;
             p++;
 
             // between
@@ -33,6 +38,11 @@ export class ValueParser {
                 return this.ParseBetweenExpression(lexemes, p, result.value, false);
             } else if (operator === "not between") {
                 return this.ParseBetweenExpression(lexemes, p, result.value, true);
+            }
+
+            // ::
+            if (operator === "::") {
+                return this.ParseTypeValue(lexemes, p, result.value);
             }
 
             // Get the right-hand side value
@@ -47,14 +57,27 @@ export class ValueParser {
         return { value: result.value, newPosition: p };
     }
 
+    static ParseTypeValue(lexemes: Lexeme[], position: number, value: ValueComponent): { value: ValueComponent; newPosition: number; } {
+        let p = position;
+        // Check for type value
+        if (p < lexemes.length && lexemes[p].type === TokenType.Type) {
+            const typeValue = new TypeValue(lexemes[p].value);
+            p++;
+            const result = new CastExpression(value, typeValue);
+            return { value: result, newPosition: p };
+        }
+        throw new Error(`Expected type value at position ${p}`);
+    }
+
     static ParseBetweenExpression(lexemes: Lexeme[], position: number, value: ValueComponent, negated: boolean): { value: ValueComponent; newPosition: number; } {
         let p = position;
-        const lower = this.Parse(lexemes, p);
+        const lower = this.Parse(lexemes, p, false);
         p = lower.newPosition;
 
         if (p < lexemes.length && lexemes[p].type === TokenType.Operator && lexemes[p].command !== "and") {
             throw new Error(`Expected 'and' after 'between' at position ${p}`);
         }
+        p++;
 
         const upper = this.Parse(lexemes, p);
         p = upper.newPosition;
@@ -94,9 +117,18 @@ export class ValueParser {
             } else if (command.command === "array") {
                 return this.ParseArrayExpression(lexemes, p);
             }
+            return this.ParseModifierExpression(lexemes, p, command);
         }
 
         throw new Error(`Invalid lexeme. position: ${position}, type: ${lexemes[position].type}, value: ${lexemes[position].value}`);
+    }
+
+    static ParseModifierExpression(lexemes: Lexeme[], position: number, command: Lexeme): { value: ValueComponent; newPosition: number; } {
+        let p = position;
+        const value = this.Parse(lexemes, p);
+        p = value.newPosition;
+        const result = new ModifierExpression(command.value, value.value);
+        return { value: result, newPosition: p };
     }
 
     static ParseStringSpecifierExpression(lexemes: Lexeme[], position: number): { value: ValueComponent; newPosition: number; } {

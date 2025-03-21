@@ -39,14 +39,15 @@ export class OperatorTokenReader extends BaseTokenReader {
             while (this.canRead() && CharLookupTable.isOperatorSymbol(this.input[this.position])) {
                 this.position++;
             }
-            return this.createLexeme(TokenType.Operator, this.input.slice(start, this.position));
+            const resut = this.input.slice(start, this.position);
+            return this.createLexeme(TokenType.Operator, resut, resut.toLowerCase());
         }
 
         // Logical operators
         const result = parser.parse(this.input, this.position);
         if (result !== null) {
             this.position = result.newPosition;
-            return this.createLexeme(TokenType.Operator, result.keyword);
+            return this.createLexeme(TokenType.Operator, result.keyword, result.keyword.toLowerCase());
         }
 
         return null;

@@ -100,7 +100,9 @@ const trie = new KeywordTrie([
     ["create", "table"],
     ["create", "temporary", "table"],
     ["tablesample"],
-    ["array"]
+    ["array"],
+    // cast
+    ["as"],
 ]);
 const parser = new KeywordParser(trie);
 

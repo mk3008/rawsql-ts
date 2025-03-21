@@ -27,7 +27,8 @@ export type ValueComponent = ValueCollection |
     PositionExpression |
     BetweenExpression |
     InlineQuery |
-    StringSpecifierExpression;
+    StringSpecifierExpression |
+    ModifierExpression;
 
 export class InlineQuery extends SqlComponent {
     static kind = Symbol("InlineQuery");
@@ -259,11 +260,11 @@ export class ParenExpression extends SqlComponent {
 export class CastExpression extends SqlComponent {
     static kind = Symbol("CastExpression");
     expression: ValueComponent;
-    castType: RawString;
-    constructor(expression: ValueComponent, castType: string) {
+    castType: TypeValue;
+    constructor(expression: ValueComponent, castType: TypeValue) {
         super();
         this.expression = expression;
-        this.castType = new RawString(castType);
+        this.castType = castType;
     }
 }
 
@@ -333,5 +334,28 @@ export class StringSpecifierExpression extends SqlComponent {
         super();
         this.specifier = new RawString(specifier);
         this.value = new LiteralValue(value);
+    }
+}
+
+export class ModifierExpression extends SqlComponent {
+    static kind = Symbol("ModifierExpression");
+    // e.g. year from
+    modifier: RawString;
+    value: ValueComponent;
+    constructor(specifier: string, value: ValueComponent) {
+        super();
+        this.modifier = new RawString(specifier);
+        this.value = value;
+    }
+}
+
+// other
+
+export class TypeValue extends SqlComponent {
+    static kind = Symbol("TypeValue");
+    type: RawString;
+    constructor(type: string) {
+        super();
+        this.type = new RawString(type);
     }
 }

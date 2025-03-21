@@ -1,5 +1,5 @@
 ﻿import { Lexeme } from './models/Lexeme';
-import { IdentifierOrFunctionTokenReader } from './tokenReaders/IdentifierOrFunctionTokenReader';
+import { IdentifierOrFunctionTokenReader } from './tokenReaders/IdentifierOrFunctionOrTypeTokenReader';
 import { LiteralTokenReader } from './tokenReaders/LiteralTokenReader';
 import { ParameterTokenReader } from './tokenReaders/ParameterTokenReader';
 import { SpecialSymbolTokenReader } from './tokenReaders/SymbolTokenReader';
@@ -47,8 +47,8 @@ export class SqlTokenizer {
             .register(new StringSpecifierTokenReader(input))
             .register(new LiteralTokenReader(input))
             .register(new SpecialSymbolTokenReader(input))
-            .register(new OperatorTokenReader(input))
             .register(new CommandTokenReader(input))
+            .register(new OperatorTokenReader(input))
             .register(new IdentifierOrFunctionTokenReader(input));
     }
 

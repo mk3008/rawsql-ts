@@ -4,7 +4,7 @@ import { SqlTokenizer } from './sqlTokenizer';
 
 console.log('Hello world');
 
-const tokenizer = new SqlTokenizer("'a_b' LIKE 'a\\_b' ESCAPE '\\'");
+const tokenizer = new SqlTokenizer("age BETWEEN 20 AND 30");
 const lexemes = tokenizer.readLexmes();
 
 console.log(lexemes);

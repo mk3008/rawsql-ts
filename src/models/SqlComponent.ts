@@ -1,4 +1,6 @@
-﻿export abstract class SqlComponent {
+﻿import { TypeValue } from "./ValueComponent";
+
+export abstract class SqlComponent {
     // `kind` is declared abstractly and defined concretely in a subclass.
     static kind: symbol;
 

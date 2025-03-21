@@ -77,6 +77,14 @@ export class IdentifierOrFunctionTokenReader extends BaseTokenReader {
         // check
         var shift = StringUtils.skipWhiteSpacesAndComments(this.input, this.position) - this.position;
 
+        if (previous !== null && previous.type === TokenType.Operator && previous.command === "::") {
+            return this.createLexeme(TokenType.Type, result.identifier);
+        }
+
+        if (previous !== null && previous.type === TokenType.Command && previous.command === "as") {
+            return this.createLexeme(TokenType.Type, result.identifier);
+        }
+
         if (this.canRead(shift) && this.input[this.position + shift] === '(') {
             return this.createLexeme(TokenType.Function, result.identifier);
         }
