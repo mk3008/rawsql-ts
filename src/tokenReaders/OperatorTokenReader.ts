@@ -5,7 +5,6 @@ import { KeywordParser } from '../KeywordParser';
 import { KeywordTrie } from '../models/KeywordTrie';
 
 const trie = new KeywordTrie([
-    ["not"],
     ["is"],
     ["is", "not"],
     ["and"],
@@ -20,8 +19,20 @@ const trie = new KeywordTrie([
     ["is", "not", "distinct", "from"],
     ["between"],
     ["not", "between"],
-    ["escape"],
-    ["uescape"],
+    ["escape"], // e.g. '10% OFF on all items' like '10\%%' escape '\'
+    ["uescape"], // e.g. U&'d!0061t!+000061' uescape '!'
+    ["similar"], // e.g. substring('abcdef' similar '%#"cd#"%' escape '#')
+    // unary
+    ["not"],
+    ["both"],
+    ["leading"],
+    ["leading", "from"], // Postgres
+    ["trailing"],
+    ["trailing", "from"], // Postgres
+    ["interval"],
+    // The following are not considered operators.
+    // ["from"], can be used as an operator only within the substring function, but it cannot be distinguished from the Form Clause. This will be resolved with a dedicated substring parser.
+    // ["for"], can be used as an operator only within the substring function, but it cannot be distinguished from the For Clause. This will be resolved with a dedicated substring parser.
 ]);
 
 const parser = new KeywordParser(trie);

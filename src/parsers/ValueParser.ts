@@ -103,7 +103,12 @@ export class ValueParser {
             return this.ParseParenExpression(lexemes, p);
         } else if (current.type === TokenType.Function) {
             if (current.command === "substring") {
+                // Use a dedicated parser for substring as it uses special tokens (from, for) within the function.
                 return this.ParseSubstringFunction(lexemes, p);
+            }
+            else if (current.command === "trim") {
+                // Use a dedicated parser for trim as it uses special tokens (from) within the function.
+                return this.ParseTrimFunction(lexemes, p);
             }
             return this.ParseFunctionCall(lexemes, p);
         } else if (current.type === TokenType.Operator) {
@@ -125,6 +130,40 @@ export class ValueParser {
         }
 
         throw new Error(`Invalid lexeme. position: ${position}, type: ${lexemes[position].type}, value: ${lexemes[position].value}`);
+    }
+
+    static ParseTrimFunction(lexemes: Lexeme[], position: number): { value: ValueComponent; newPosition: number; } {
+        let p = position;
+
+        // Get function name
+        const result = lexemes[p];
+        const functionName = result.value;
+        p++;
+
+        if (p < lexemes.length && lexemes[p].type === TokenType.OpenParen) {
+            p++;
+            const arg1 = this.Parse(lexemes, p);
+            p = arg1.newPosition;
+            if (p < lexemes.length && lexemes[p].command === "from") {
+                p++;
+                const arg2 = this.Parse(lexemes, p);
+                p = arg2.newPosition;
+                if (p < lexemes.length && lexemes[p].type === TokenType.CloseParen) {
+                    p++;
+                    const arg = new BinaryExpression(arg1.value, "from", arg2.value);
+                    const value = new FunctionCall(functionName, arg);
+                    return { value, newPosition: p };
+                } else {
+                    throw new Error(`Expected closing parenthesis after function name '${functionName}' at position ${p}`);
+                }
+            }
+            else {
+                return this.ParseFunctionCall(lexemes, position);
+            }
+        }
+        else {
+            throw new Error(`Expected opening parenthesis after function name '${functionName}' at position ${p}`);
+        }
     }
 
     static ParseSubstringFunction(lexemes: Lexeme[], position: number): { value: ValueComponent; newPosition: number; } {

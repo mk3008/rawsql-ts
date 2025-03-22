@@ -54,15 +54,6 @@ const trie = new KeywordTrie([
     ["right", "outer", "join"],
     ["full", "join"],
     ["lateral"],
-    // trim
-    ["leading"],
-    ["trailing"],
-    ["both"],
-    ["both", "from"],
-    ["leading", "from"],
-    ["trailing", "from"],
-    ["both", "leading"],
-    ["both", "trailing"],
     // date, time, extract
     ["year", "from"],
     ["month", "from"],
@@ -103,13 +94,10 @@ const trie = new KeywordTrie([
     ["array"],
     // cast
     ["as"],
-    // substring
-    ["similar"],
 ]);
-const parser = new KeywordParser(trie);
+export const parser = new KeywordParser(trie);
 
 export class CommandTokenReader extends BaseTokenReader {
-
     public tryRead(previous: Lexeme | null): Lexeme | null {
         if (this.isEndOfInput()) {
             return null;
