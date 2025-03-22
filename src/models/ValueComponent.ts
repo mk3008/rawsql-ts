@@ -18,7 +18,6 @@ export type ValueComponent = ValueCollection |
     ExtractArgument |
     RawString |
     IdentifierString |
-    TrimArgument |
     ParenExpression |
     CastExpression |
     JsonExpression |
@@ -230,19 +229,6 @@ export class IdentifierString extends SqlComponent {
     constructor(alias: string) {
         super();
         this.alias = alias;
-    }
-}
-
-export class TrimArgument extends SqlComponent {
-    static kind = Symbol("TrimArgument");
-    modifier: RawString | null;
-    character: ValueComponent;
-    input: ValueComponent;
-    constructor(modifier: string | null, character: ValueComponent, input: ValueComponent) {
-        super();
-        this.modifier = modifier !== null ? new RawString(modifier) : null;
-        this.character = character;
-        this.input = input;
     }
 }
 

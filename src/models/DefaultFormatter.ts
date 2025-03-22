@@ -1,6 +1,6 @@
 import { SelectQuery } from "./SelectQuery";
 import { SqlComponent, SqlComponentVisitor, SqlDialectConfiguration } from "./SqlComponent";
-import { LiteralValue, RawString, IdentifierString, TrimArgument, ExtractArgument, SubstringFromForArgument, SubstringSimilarArgument, OverlayPlacingFromForArgument, ColumnReference, FunctionCall, UnaryExpression, BinaryExpression, ParameterExpression, ArrayExpression, CaseExpression, CastExpression, ParenExpression, BetweenExpression, PositionExpression, JsonKeyValuePair, SwitchCaseArgument, ValueCollection, JsonStructureArgument, CaseKeyValuePair, StringSpecifierExpression, ModifierExpression, TypeValue as TypeValue } from "./ValueComponent";
+import { LiteralValue, RawString, IdentifierString, ExtractArgument, SubstringFromForArgument, SubstringSimilarArgument, OverlayPlacingFromForArgument, ColumnReference, FunctionCall, UnaryExpression, BinaryExpression, ParameterExpression, ArrayExpression, CaseExpression, CastExpression, ParenExpression, BetweenExpression, PositionExpression, JsonKeyValuePair, SwitchCaseArgument, ValueCollection, JsonStructureArgument, CaseKeyValuePair, StringSpecifierExpression, ModifierExpression, TypeValue as TypeValue } from "./ValueComponent";
 import { ColumnAliasItem, ColumnAliasList, CommonTableItem, CommonTableList, CommonTableSource, Cube, Distinct, DistinctOn, FromClause, FunctionSource, GroupByClause, GroupByItem, GroupByList, GroupingSet, HavingClause, JoinItem, JoinList, NullsSortDirection, OrderByClause, OrderByItem, OrderByList, OverClause, PartitionByClause, PartitionByItem, PartitionByList, Rollup, SelectClause, SelectItem, SelectList, SortDirection, SourceExpression, SubQuerySource, TableSource, WhereClause, WindowFrameClause, WithClause } from "./Clause";
 
 export class DefaultFormatter implements SqlComponentVisitor<string> {
@@ -20,7 +20,6 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
         this.handlers.set(SwitchCaseArgument.kind, (expr) => this.decodeSwitchCaseArgument(expr as SwitchCaseArgument));
         this.handlers.set(ValueCollection.kind, (expr) => this.decodeValueCollection(expr as ValueCollection));
         this.handlers.set(JsonStructureArgument.kind, (expr) => this.decodeJsonStructureArgument(expr as JsonStructureArgument));
-        this.handlers.set(TrimArgument.kind, (expr) => this.decodeTrimArgument(expr as TrimArgument));
         this.handlers.set(ExtractArgument.kind, (expr) => this.decodeExtractArgument(expr as ExtractArgument));
         this.handlers.set(SubstringFromForArgument.kind, (expr) => this.decodeSubstringFromForArgument(expr as SubstringFromForArgument));
         this.handlers.set(ColumnReference.kind, (expr) => this.decodeColumnReference(expr as ColumnReference));
@@ -408,19 +407,6 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
             return `over(${arg.orderByClause.accept(this)})`;
         }
         return "over ()";
-    }
-
-    decodeTrimArgument(arg: TrimArgument): string {
-        const modifier = arg.modifier !== null ? arg.modifier.accept(this) : null;
-
-        if (modifier !== null && arg.character != null) {
-            // e.g. leading 'xyz' from 'yxTomxx'
-            return `${modifier} ${arg.character.accept(this)} from ${arg.input.accept(this)}`;
-        } else if (arg.character !== null) {
-            // e.g. 'xyz' from 'yxTomxx'
-            return `${arg.character.accept(this)} from ${arg.input.accept(this)}`;
-        }
-        throw new Error("Invalid TrimArgument");
     }
 
     decodeWindowFrameClause(arg: WindowFrameClause): string {
