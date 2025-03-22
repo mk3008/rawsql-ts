@@ -4,9 +4,7 @@ import { StringUtils } from '../utils/stringUtils';
 import { KeywordTrie } from '../models/KeywordTrie';
 import { KeywordParser } from '../parsers/KeywordParser';
 
-
-// 型を正確に判定するのは難しいので、indentifiers として扱う。
-// 複数語で構成されるキーワードは、KeywordTrie を使用して判定する。
+// Use KeywordTrie to identify type names composed of multiple words.
 const trie = new KeywordTrie([
     // type
     ["double", "precision"],

@@ -1,6 +1,6 @@
 import { SelectQuery } from "./SelectQuery";
 import { SqlComponent, SqlComponentVisitor, SqlDialectConfiguration } from "./SqlComponent";
-import { LiteralValue, RawString, IdentifierString, ColumnReference, FunctionCall, UnaryExpression, BinaryExpression, ParameterExpression, ArrayExpression, CaseExpression, CastExpression, ParenExpression, BetweenExpression, JsonKeyValuePair, SwitchCaseArgument, ValueCollection, JsonStructureArgument, CaseKeyValuePair, StringSpecifierExpression, ModifierExpression, TypeValue as TypeValue } from "./ValueComponent";
+import { LiteralValue, RawString, IdentifierString, ColumnReference, FunctionCall, UnaryExpression, BinaryExpression, ParameterExpression, ArrayExpression, CaseExpression, CastExpression, ParenExpression, BetweenExpression, JsonKeyValuePair, SwitchCaseArgument, ValueList, JsonStructureArgument, CaseKeyValuePair, StringSpecifierExpression, ModifierExpression, TypeValue as TypeValue } from "./ValueComponent";
 import { ColumnAliasItem, ColumnAliasList, CommonTableItem, CommonTableList, CommonTableSource, Cube, Distinct, DistinctOn, FromClause, FunctionSource, GroupByClause, GroupByItem, GroupByList, GroupingSet, HavingClause, JoinItem, JoinList, NullsSortDirection, OrderByClause, OrderByItem, OrderByList, OverClause, PartitionByClause, PartitionByItem, PartitionByList, Rollup, SelectClause, SelectItem, SelectList, SortDirection, SourceExpression, SubQuerySource, TableSource, WhereClause, WindowFrameClause, WithClause } from "./Clause";
 
 export class DefaultFormatter implements SqlComponentVisitor<string> {
@@ -18,7 +18,7 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
         this.handlers.set(IdentifierString.kind, (expr) => this.decodeIdentifierString(expr as IdentifierString));
         this.handlers.set(JsonKeyValuePair.kind, (expr) => this.decodeJsonKeyValuePair(expr as JsonKeyValuePair));
         this.handlers.set(SwitchCaseArgument.kind, (expr) => this.decodeSwitchCaseArgument(expr as SwitchCaseArgument));
-        this.handlers.set(ValueCollection.kind, (expr) => this.decodeValueCollection(expr as ValueCollection));
+        this.handlers.set(ValueList.kind, (expr) => this.decodeValueCollection(expr as ValueList));
         this.handlers.set(JsonStructureArgument.kind, (expr) => this.decodeJsonStructureArgument(expr as JsonStructureArgument));
         this.handlers.set(ColumnReference.kind, (expr) => this.decodeColumnReference(expr as ColumnReference));
         this.handlers.set(FunctionCall.kind, (expr) => this.decodeFunctionCall(expr as FunctionCall));
@@ -246,7 +246,7 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
         return `${key}, ${value}`;
     }
 
-    decodeValueCollection(arg: ValueCollection): string {
+    decodeValueCollection(arg: ValueList): string {
         return `${arg.values.map((v) => v.accept(this)).join(", ")}`;
     }
 

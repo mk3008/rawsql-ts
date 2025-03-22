@@ -1,6 +1,4 @@
-﻿import { TypeValue } from "./ValueComponent";
-
-export abstract class SqlComponent {
+﻿export abstract class SqlComponent {
     // `kind` is declared abstractly and defined concretely in a subclass.
     static kind: symbol;
 
@@ -14,7 +12,7 @@ export abstract class SqlComponent {
 
     toString(formatter: SqlComponentVisitor<string> | null = null): string {
         if (formatter === null) {
-            // 動的インポートを使用して循環参照を回避
+            // Use dynamic import to avoid circular reference
             const { DefaultFormatter } = require('./DefaultFormatter');
             formatter = new DefaultFormatter();
         }

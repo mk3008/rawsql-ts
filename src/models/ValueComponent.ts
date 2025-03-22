@@ -1,7 +1,7 @@
 import { SelectQuery } from "./SelectQuery";
 import { SqlComponent } from "./SqlComponent";
 
-export type ValueComponent = ValueCollection |
+export type ValueComponent = ValueList |
     ColumnReference |
     FunctionCall |
     UnaryExpression |
@@ -34,7 +34,7 @@ export class InlineQuery extends SqlComponent {
     }
 }
 
-export class ValueCollection extends SqlComponent {
+export class ValueList extends SqlComponent {
     static kind = Symbol("ValueCollection");
     values: SqlComponent[];
     constructor(values: SqlComponent[]) {

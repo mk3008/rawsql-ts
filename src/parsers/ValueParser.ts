@@ -1,5 +1,5 @@
 import { Lexeme, TokenType } from "../models/Lexeme";
-import { ColumnReference, ValueComponent, LiteralValue, BinaryExpression, ParenExpression, FunctionCall, ValueCollection, UnaryExpression, ParameterExpression, ArrayExpression, CaseExpression, SwitchCaseArgument, CaseKeyValuePair as CaseConditionValuePair, BetweenExpression, StringSpecifierExpression, ModifierExpression, TypeValue, CastExpression } from "../models/ValueComponent";
+import { ColumnReference, ValueComponent, LiteralValue, BinaryExpression, ParenExpression, FunctionCall, ValueList, UnaryExpression, ParameterExpression, ArrayExpression, CaseExpression, SwitchCaseArgument, CaseKeyValuePair as CaseConditionValuePair, BetweenExpression, StringSpecifierExpression, ModifierExpression, TypeValue, CastExpression } from "../models/ValueComponent";
 import { SqlTokenizer } from "./sqlTokenizer";
 
 export class ValueParser {
@@ -549,7 +549,7 @@ export class ValueParser {
                     return { value: args[0], newPosition: p };
                 }
                 // Create ValueCollection if there are multiple arguments
-                const value = new ValueCollection(args);
+                const value = new ValueList(args);
                 return { value, newPosition: p };
             } else {
                 throw new Error(`Missing closing parenthesis at position ${p}`);

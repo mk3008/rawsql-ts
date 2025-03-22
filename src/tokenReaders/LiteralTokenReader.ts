@@ -3,7 +3,6 @@ import { Lexeme, TokenType } from '../models/Lexeme';
 import { CharLookupTable } from '../utils/charLookupTable';
 import { KeywordParser } from '../parsers/KeywordParser';
 import { KeywordTrie } from '../models/KeywordTrie';
-import { WindowFrameClause } from '../models/Clause';
 
 /**
  * Reads SQL literal tokens (numbers, strings)

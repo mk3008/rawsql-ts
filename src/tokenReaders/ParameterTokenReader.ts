@@ -19,7 +19,8 @@ export class ParameterTokenReader extends BaseTokenReader {
         // named parameter (@param, :param, $param)
         if (CharLookupTable.isNamedParameterPrefix(char)) {
 
-            // しかし、その次の文字が演算子記号である場合、パラメータとして認識しない
+            // However, do not recognize as a parameter if the next character is an operator symbol
+            // To avoid postgres `::`
             if (this.canRead(1) && CharLookupTable.isOperatorSymbol(this.input[this.position + 1])) {
                 return null;
             }
