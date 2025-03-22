@@ -20,7 +20,6 @@ export type ValueComponent = ValueCollection |
     JsonExpression |
     CaseExpression |
     ArrayExpression |
-    PositionExpression |
     BetweenExpression |
     InlineQuery |
     StringSpecifierExpression |
@@ -239,18 +238,6 @@ export class ArrayExpression extends SqlComponent {
     constructor(expression: ValueComponent) {
         super();
         this.expression = expression;
-    }
-}
-
-
-export class PositionExpression extends SqlComponent {
-    static kind = Symbol("PositionExpression");
-    haystack: ValueComponent;
-    needle: ValueComponent;
-    constructor(haystack: ValueComponent, subExpression: ValueComponent) {
-        super();
-        this.haystack = haystack;
-        this.needle = subExpression;
     }
 }
 
