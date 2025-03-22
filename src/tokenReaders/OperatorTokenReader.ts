@@ -22,6 +22,7 @@ const trie = new KeywordTrie([
     ["escape"], // e.g. '10% OFF on all items' like '10\%%' escape '\'
     ["uescape"], // e.g. U&'d!0061t!+000061' uescape '!'
     ["similar"], // e.g. substring('abcdef' similar '%#"cd#"%' escape '#')
+    ["placing"], // e.g. overlay('abcdef' placing 'cd' from 3 for 2)
     // unary
     ["not"],
     ["both"],

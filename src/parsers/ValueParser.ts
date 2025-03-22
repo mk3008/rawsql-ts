@@ -115,16 +115,19 @@ export class ValueParser {
         } else if (current.type === TokenType.OpenParen) {
             return this.ParseParenExpression(lexemes, p);
         } else if (current.type === TokenType.Function) {
-            if (current.command === "substring") {
-                // Use a dedicated parser for substring as it uses special tokens (from, for) within the function.
-                return this.ParseSubstringFunction(lexemes, p);
-            }
-            else if (current.command === "trim") {
-                // Use a dedicated parser for trim as it uses special tokens (from) within the function.
-                return this.ParseTrimFunction(lexemes, p);
+            if (current.command === "substring" || current.command === "overlay") {
+                return this.ParseKeywordFunction(lexemes, p, [
+                    { key: "from", required: false },
+                    { key: "for", required: false }
+                ]);
             } else if (current.command === "cast") {
-                // Use a dedicated parser for cast as it uses special tokens (as) within the function.
-                return this.ParseCastFunction(lexemes, p);
+                return this.ParseKeywordFunction(lexemes, p, [
+                    { key: "as", required: true }
+                ]);
+            } else if (current.command === "trim") {
+                return this.ParseKeywordFunction(lexemes, p, [
+                    { key: "from", required: false }
+                ]);
             }
             return this.ParseFunctionCall(lexemes, p);
         } else if (current.type === TokenType.Operator) {
@@ -220,7 +223,7 @@ export class ValueParser {
         }
     }
 
-    static ParseSubstringFunction(lexemes: Lexeme[], position: number): { value: ValueComponent; newPosition: number; } {
+    static ParseFunctionCall_FromFor(lexemes: Lexeme[], position: number): { value: ValueComponent; newPosition: number; } {
         let p = position;
 
         // Get function name
@@ -554,5 +557,57 @@ export class ValueParser {
         }
 
         throw new Error(`Expected opening parenthesis at position ${position}`);
+    }
+
+    private static ParseKeywordFunction(
+        lexemes: Lexeme[],
+        position: number,
+        keywords: { key: string, required: boolean }[]
+    ): { value: ValueComponent; newPosition: number; } {
+        let p = position;
+        const functionName = lexemes[p].value;
+        p++;
+
+        if (p < lexemes.length && lexemes[p].type === TokenType.OpenParen) {
+            p++;
+
+            const input = this.Parse(lexemes, p);
+            let arg = input.value;
+            p = input.newPosition;
+
+            // コンマでパースする場合は標準の関数パーサーに処理委譲
+            if (p < lexemes.length && lexemes[p].type === TokenType.Comma) {
+                return this.ParseFunctionCall(lexemes, position);
+            }
+
+            // キーワードをチェック
+            for (const { key, required } of keywords) {
+                if (p < lexemes.length && lexemes[p].type === TokenType.Command && lexemes[p].command === key) {
+                    p++;
+
+                    if (p < lexemes.length && lexemes[p].type === TokenType.Type) {
+                        const typeValue = this.ParseTypeValue(lexemes, p);
+                        arg = new BinaryExpression(arg, key, typeValue.value);
+                        p = typeValue.newPosition;
+                    } else {
+                        const right = this.Parse(lexemes, p);
+                        arg = new BinaryExpression(arg, key, right.value);
+                        p = right.newPosition;
+                    }
+
+                } else if (required) {
+                    throw new Error(`キーワード '${key}' が必要です: ${p}`);
+                }
+            }
+
+            if (p < lexemes.length && lexemes[p].type === TokenType.CloseParen) {
+                p++;
+                return { value: new FunctionCall(functionName, arg), newPosition: p };
+            } else {
+                throw new Error(`関数 '${functionName}' の閉じカッコがありません: ${p}`);
+            }
+        } else {
+            throw new Error(`関数 '${functionName}' の開きカッコがありません: ${p}`);
+        }
     }
 }

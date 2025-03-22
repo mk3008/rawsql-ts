@@ -49,9 +49,9 @@ describe('ValueParser', () => {
         ["Postgres TRIM with TRAILING from and characters", "trim(trailing from 'yxTomxx', 'xyz')", "trim(trailing from 'yxTomxx', 'xyz')"],
         ["Postgres TRIM with explicit BOTH from and characters", "trim(both from 'yxTomxx', 'xyz')", "trim(both from 'yxTomxx', 'xyz')"],
         ["Postgres TRIM with default BOTH and characters", "trim('yxTomxx', 'xyz')", "trim('yxTomxx', 'xyz')"],
-        ["CAST with AS syntax", "CAST(id AS INTEGER)", "\"id\"::INTEGER"],
-        ["CAST with precision", "CAST(price AS NUMERIC(10,2))", "\"price\"::NUMERIC(10, 2)"],
-        ["CAST with length", "CAST(name AS VARCHAR(50))", "\"name\"::VARCHAR(50)"],
+        ["CAST with AS syntax", "CAST(id AS INTEGER)", "CAST(\"id\" as INTEGER)"],
+        ["CAST with precision", "CAST(price AS NUMERIC(10,2))", "CAST(\"price\" as NUMERIC(10, 2))"],
+        ["CAST with length", "CAST(name AS VARCHAR(50))", "CAST(\"name\" as VARCHAR(50))"],
         ["Postgres CAST with AS syntax", "id::INTEGER", "\"id\"::INTEGER"],
         ["Postgres CAST with precision", "price::NUMERIC(10,2)", "\"price\"::NUMERIC(10, 2)"],
         ["Postgres CAST with length", "name::VARCHAR(50)", "\"name\"::VARCHAR(50)"],
@@ -59,7 +59,8 @@ describe('ValueParser', () => {
         ["CAST with CHARACTER VARYING", "text::CHARACTER VARYING(100)", "\"text\"::CHARACTER VARYING(100)"],
         ["CAST with TIME WITH TIME ZONE", "ts::TIME WITH TIME ZONE", "\"ts\"::TIME WITH TIME ZONE"],
         ["CAST with TIMESTAMP WITHOUT TIME ZONE", "date::TIMESTAMP WITHOUT TIME ZONE", "\"date\"::TIMESTAMP WITHOUT TIME ZONE"],
-
+        ["OVERLAY function - basic", "OVERLAY('abcdef' PLACING 'xyz' FROM 2)", "OVERLAY('abcdef' placing 'xyz' from 2)"],
+        ["OVERLAY function - with FOR", "OVERLAY('abcdef' PLACING 'xyz' FROM 2 FOR 3)", "OVERLAY('abcdef' placing 'xyz' from 2 for 3)"],
     ])('%s', (_, text, expected) => {
         const value = ValueParser.ParseFromText(text);
         const sql = formatter.visit(value);

@@ -12,7 +12,6 @@ export type ValueComponent = ValueCollection |
     JsonKeyValuePair |
     SwitchCaseArgument |
     CaseKeyValuePair |
-    OverlayPlacingFromForArgument |
     RawString |
     IdentifierString |
     ParenExpression |
@@ -23,7 +22,8 @@ export type ValueComponent = ValueCollection |
     BetweenExpression |
     InlineQuery |
     StringSpecifierExpression |
-    ModifierExpression;
+    ModifierExpression |
+    TypeValue;
 
 export class InlineQuery extends SqlComponent {
     static kind = Symbol("InlineQuery");
@@ -149,22 +149,6 @@ export class CaseKeyValuePair extends SqlComponent {
         super();
         this.key = key;
         this.value = value;
-    }
-}
-
-export class OverlayPlacingFromForArgument extends SqlComponent {
-    static kind = Symbol("OverlayPlacingFromForArgument");
-    input: ValueComponent;
-    replacement: ValueComponent;
-    start: ValueComponent;
-    length: ValueComponent | null;
-
-    constructor(input: ValueComponent, replacement: ValueComponent, start: ValueComponent, length: ValueComponent | null) {
-        super();
-        this.input = input;
-        this.replacement = replacement;
-        this.start = start;
-        this.length = length;
     }
 }
 

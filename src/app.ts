@@ -4,7 +4,7 @@ import { SqlTokenizer } from './sqlTokenizer';
 
 console.log('Hello world');
 
-const tokenizer = new SqlTokenizer("CAST(price AS NUMERIC(10,2))");
+const tokenizer = new SqlTokenizer("CAST(id AS INTEGER)");
 const lexemes = tokenizer.readLexmes();
 
 console.log(lexemes);
