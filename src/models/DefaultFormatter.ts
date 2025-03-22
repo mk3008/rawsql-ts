@@ -98,6 +98,9 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
     }
 
     decodeTypeValue(arg: TypeValue): string {
+        if (arg.argument !== null) {
+            return `${arg.type.accept(this)}(${arg.argument.accept(this)})`;
+        }
         return `${arg.type.accept(this)}`;
     }
 

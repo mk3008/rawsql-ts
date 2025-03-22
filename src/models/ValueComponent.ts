@@ -298,8 +298,10 @@ export class ModifierExpression extends SqlComponent {
 export class TypeValue extends SqlComponent {
     static kind = Symbol("TypeValue");
     type: RawString;
-    constructor(type: string) {
+    argument: ValueComponent | null
+    constructor(type: string, argument: ValueComponent | null = null) {
         super();
         this.type = new RawString(type);
+        this.argument = argument;
     }
 }

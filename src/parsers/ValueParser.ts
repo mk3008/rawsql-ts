@@ -64,9 +64,20 @@ export class ValueParser {
         let p = position;
         // Check for type value
         if (p < lexemes.length && lexemes[p].type === TokenType.Type) {
-            const typeValue = new TypeValue(lexemes[p].value);
+            const typeName = lexemes[p].value;
             p++;
-            return { value: typeValue, newPosition: p };
+
+            // Check for array type
+            if (p < lexemes.length && lexemes[p].type === TokenType.OpenParen) {
+                const arg = this.ParseArgument(TokenType.OpenParen, TokenType.CloseParen, lexemes, p);
+                p = arg.newPosition;
+                const value = new TypeValue(typeName, arg.value);
+                return { value, newPosition: p };
+            } else {
+                // Create TypeValue
+                const value = new TypeValue(typeName);
+                return { value, newPosition: p };
+            }
         }
         throw new Error(`Expected type value at position ${p}`);
     }
@@ -155,7 +166,7 @@ export class ValueParser {
                 p++;
 
                 const castType = this.ParseTypeValue(lexemes, p);
-                p++;
+                p = castType.newPosition;
 
                 if (p < lexemes.length && lexemes[p].type === TokenType.CloseParen) {
                     p++;

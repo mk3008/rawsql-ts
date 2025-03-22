@@ -16,7 +16,7 @@ const trie = new KeywordTrie([
     ["timestamp", "without", "time", "zone"],
     ["timestamp", "with", "time", "zone"],
 ]);
-const parser = new KeywordParser(trie);
+const typeParser = new KeywordParser(trie);
 
 /**
  * Reads SQL identifier tokens
@@ -64,10 +64,10 @@ export class IdentifierOrFunctionTokenReader extends BaseTokenReader {
         }
 
         // Check for keyword identifiers
-        const keyword = parser.parse(this.input, this.position);
+        const keyword = typeParser.parse(this.input, this.position);
         if (keyword !== null) {
             this.position = keyword.newPosition;
-            return this.createLexeme(TokenType.Identifier, keyword.keyword);
+            return this.createLexeme(TokenType.Type, keyword.keyword);
         }
 
         // Regular identifier
