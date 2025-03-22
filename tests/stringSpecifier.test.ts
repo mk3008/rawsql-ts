@@ -1,5 +1,5 @@
 import { TokenType } from "../src/models/Lexeme";
-import { SqlTokenizer } from "../src/sqlTokenizer";
+import { SqlTokenizer } from "../src/parsers/sqlTokenizer";
 
 // EscapedLiteral tests
 test('tokenizes E escaped string literal', () => {

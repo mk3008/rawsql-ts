@@ -2,7 +2,7 @@
 import { Lexeme, TokenType } from '../models/Lexeme';
 import { StringUtils } from '../utils/stringUtils';
 import { KeywordTrie } from '../models/KeywordTrie';
-import { KeywordParser } from '../KeywordParser';
+import { KeywordParser } from '../parsers/KeywordParser';
 
 
 // 型を正確に判定するのは難しいので、indentifiers として扱う。

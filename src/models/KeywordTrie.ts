@@ -1,4 +1,4 @@
-﻿import { KeywordMatchResult } from "../KeywordParser";
+﻿import { KeywordMatchResult } from "../parsers/KeywordParser";
 
 export class KeywordTrie {
     private root: Map<string, any> = new Map();

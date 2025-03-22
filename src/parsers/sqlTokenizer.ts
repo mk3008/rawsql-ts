@@ -1,13 +1,13 @@
-﻿import { Lexeme } from './models/Lexeme';
-import { IdentifierOrFunctionTokenReader } from './tokenReaders/IdentifierOrFunctionOrTypeTokenReader';
-import { LiteralTokenReader } from './tokenReaders/LiteralTokenReader';
-import { ParameterTokenReader } from './tokenReaders/ParameterTokenReader';
-import { SpecialSymbolTokenReader } from './tokenReaders/SymbolTokenReader';
-import { TokenReaderManager } from './tokenReaders/TokenReaderManager';
-import { OperatorTokenReader } from './tokenReaders/OperatorTokenReader';
-import { StringUtils } from './utils/stringUtils';
-import { CommandTokenReader } from './tokenReaders/CommandTokenReader';
-import { StringSpecifierTokenReader } from './tokenReaders/StringSpecifierTokenReader';
+﻿import { Lexeme } from '../models/Lexeme';
+import { IdentifierOrFunctionTokenReader } from '../tokenReaders/IdentifierOrFunctionOrTypeTokenReader';
+import { LiteralTokenReader } from '../tokenReaders/LiteralTokenReader';
+import { ParameterTokenReader } from '../tokenReaders/ParameterTokenReader';
+import { SpecialSymbolTokenReader } from '../tokenReaders/SymbolTokenReader';
+import { TokenReaderManager } from '../tokenReaders/TokenReaderManager';
+import { OperatorTokenReader } from '../tokenReaders/OperatorTokenReader';
+import { StringUtils } from '../utils/stringUtils';
+import { CommandTokenReader } from '../tokenReaders/CommandTokenReader';
+import { StringSpecifierTokenReader } from '../tokenReaders/StringSpecifierTokenReader';
 
 /**
  * Class responsible for tokenizing SQL input.

@@ -1,4 +1,4 @@
-﻿import { SqlTokenizer } from "../src/sqlTokenizer";
+﻿import { SqlTokenizer } from "../src/parsers/sqlTokenizer";
 
 test('skip line comment', () => {
     // Arrange

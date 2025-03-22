@@ -1,7 +1,7 @@
 ﻿import { BaseTokenReader } from "./BaseTokenReader";
 import { Lexeme, TokenType } from '../models/Lexeme';
 import { KeywordTrie } from "../models/KeywordTrie";
-import { KeywordParser } from "../KeywordParser";
+import { KeywordParser } from "../parsers/KeywordParser";
 
 // Commands are those that require a dedicated parser.
 // Keywords composed of multiple words are also considered commands.

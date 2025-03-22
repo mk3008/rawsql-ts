@@ -1,7 +1,7 @@
 ﻿import { BaseTokenReader } from './BaseTokenReader';
 import { Lexeme, TokenType } from '../models/Lexeme';
 import { CharLookupTable } from '../utils/charLookupTable';
-import { KeywordParser } from '../KeywordParser';
+import { KeywordParser } from '../parsers/KeywordParser';
 import { KeywordTrie } from '../models/KeywordTrie';
 import { WindowFrameClause } from '../models/Clause';
 

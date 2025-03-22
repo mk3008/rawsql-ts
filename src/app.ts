@@ -1,6 +1,6 @@
 ﻿import { DefaultFormatter } from './models/DefaultFormatter';
 import { ValueParser } from './parsers/ValueParser';
-import { SqlTokenizer } from './sqlTokenizer';
+import { SqlTokenizer } from './parsers/sqlTokenizer';
 
 console.log('Hello world');
 
