@@ -1,6 +1,6 @@
 import { SelectQuery } from "./SelectQuery";
 import { SqlComponent, SqlComponentVisitor, SqlDialectConfiguration } from "./SqlComponent";
-import { LiteralValue, RawString, IdentifierString, ColumnReference, FunctionCall, UnaryExpression, BinaryExpression, ParameterExpression, ArrayExpression, CaseExpression, CastExpression, ParenExpression, BetweenExpression, SwitchCaseArgument, ValueList, CaseKeyValuePair, StringSpecifierExpression, ModifierExpression, TypeValue } from "./ValueComponent";
+import { LiteralValue, RawString, IdentifierString, ColumnReference, FunctionCall, UnaryExpression, BinaryExpression, ParameterExpression, ArrayExpression, CaseExpression, CastExpression, ParenExpression, BetweenExpression, SwitchCaseArgument, ValueList, CaseKeyValuePair, StringSpecifierExpression, TypeValue } from "./ValueComponent";
 import { ColumnAliasItem, ColumnAliasList, CommonTableItem, CommonTableList, CommonTableSource, Cube, Distinct, DistinctOn, FromClause, FunctionSource, GroupByClause, GroupByItem, GroupByList, GroupingSet, HavingClause, JoinItem, JoinList, NullsSortDirection, OrderByClause, OrderByItem, OrderByList, OverClause, PartitionByClause, PartitionByItem, PartitionByList, Rollup, SelectClause, SelectItem, SelectList, SortDirection, SourceExpression, SubQuerySource, TableSource, WhereClause, WindowFrameClause, WithClause } from "./Clause";
 
 export class DefaultFormatter implements SqlComponentVisitor<string> {
@@ -29,7 +29,6 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
         this.handlers.set(CastExpression.kind, (expr) => this.decodeCastExpression(expr as CastExpression));
         this.handlers.set(ParenExpression.kind, (expr) => this.decodeBracketExpression(expr as ParenExpression));
         this.handlers.set(BetweenExpression.kind, (expr) => this.decodeBetweenExpression(expr as BetweenExpression));
-        this.handlers.set(ModifierExpression.kind, (expr) => this.decodeModifierExpression(expr as ModifierExpression));
         this.handlers.set(TypeValue.kind, (expr) => this.decodeTypeValue(expr as TypeValue));
 
         // column alias
@@ -98,11 +97,6 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
             return `${arg.type.accept(this)}(${arg.argument.accept(this)})`;
         }
         return `${arg.type.accept(this)}`;
-    }
-
-    decodeModifierExpression(arg: ModifierExpression): string {
-        // e.g. year from '2023-01-01'
-        return `${arg.modifier.accept(this)} ${arg.value.accept(this)}`;
     }
 
     decodeStringSpecifierExpression(arg: StringSpecifierExpression): string {

@@ -1,5 +1,5 @@
 import { Lexeme, TokenType } from "../models/Lexeme";
-import { ColumnReference, ValueComponent, LiteralValue, BinaryExpression, ParenExpression, FunctionCall, ValueList, UnaryExpression, ParameterExpression, ArrayExpression, CaseExpression, SwitchCaseArgument, CaseKeyValuePair as CaseConditionValuePair, BetweenExpression, StringSpecifierExpression, ModifierExpression, TypeValue, CastExpression } from "../models/ValueComponent";
+import { ColumnReference, ValueComponent, LiteralValue, BinaryExpression, ParenExpression, FunctionCall, ValueList, UnaryExpression, ParameterExpression, ArrayExpression, CaseExpression, SwitchCaseArgument, CaseKeyValuePair as CaseConditionValuePair, BetweenExpression, StringSpecifierExpression, TypeValue, CastExpression } from "../models/ValueComponent";
 import { SqlTokenizer } from "./sqlTokenizer";
 
 export class ValueParser {
@@ -145,10 +145,21 @@ export class ValueParser {
             } else if (current.command === "array") {
                 return this.ParseArrayExpression(lexemes, p);
             }
-            return this.ParseModifierExpression(lexemes, p, current);
+            return this.ParseModifierUnaryExpression(lexemes, p);
         }
 
         throw new Error(`Invalid lexeme. position: ${position}, type: ${lexemes[position].type}, value: ${lexemes[position].value}`);
+    }
+
+    static ParseModifierUnaryExpression(lexemes: Lexeme[], p: number): { value: ValueComponent; newPosition: number; } {
+        // Check for modifier unary expression
+        if (p < lexemes.length && lexemes[p].type === TokenType.Command) {
+            const command = lexemes[p].command;
+            p++;
+            const result = this.Parse(lexemes, p);
+            return { value: new UnaryExpression(command!, result.value), newPosition: result.newPosition };
+        }
+        throw new Error(`Invalid modifier unary expression at position ${p}`);
     }
 
     static ParseCastFunction(lexemes: Lexeme[], position: number): { value: ValueComponent; newPosition: number; } {
@@ -266,14 +277,6 @@ export class ValueParser {
         } else {
             throw new Error(`Expected opening parenthesis after function name '${functionName}' at position ${p}`);
         }
-    }
-
-    static ParseModifierExpression(lexemes: Lexeme[], position: number, command: Lexeme): { value: ValueComponent; newPosition: number; } {
-        let p = position;
-        const value = this.Parse(lexemes, p);
-        p = value.newPosition;
-        const result = new ModifierExpression(command.value, value.value);
-        return { value: result, newPosition: p };
     }
 
     static ParseStringSpecifierExpression(lexemes: Lexeme[], position: number): { value: ValueComponent; newPosition: number; } {
