@@ -13,8 +13,6 @@ export type ValueComponent = ValueCollection |
     SwitchCaseArgument |
     CaseKeyValuePair |
     OverlayPlacingFromForArgument |
-    SubstringFromForArgument |
-    ExtractArgument |
     RawString |
     IdentifierString |
     ParenExpression |
@@ -168,31 +166,6 @@ export class OverlayPlacingFromForArgument extends SqlComponent {
         this.replacement = replacement;
         this.start = start;
         this.length = length;
-    }
-}
-
-export class SubstringFromForArgument extends SqlComponent {
-    static kind = Symbol("SubstringFromForExpression");
-    input: ValueComponent;
-    start: ValueComponent | null;
-    length: ValueComponent | null;
-
-    constructor(input: ValueComponent, start: ValueComponent | null, length: ValueComponent | null) {
-        super();
-        this.input = input;
-        this.start = start;
-        this.length = length;
-    }
-}
-
-export class ExtractArgument extends SqlComponent {
-    static kind = Symbol("ExtractArgument");
-    field: RawString;
-    source: ValueComponent;
-    constructor(field: string, source: ValueComponent) {
-        super();
-        this.field = new RawString(field);
-        this.source = source;
     }
 }
 
