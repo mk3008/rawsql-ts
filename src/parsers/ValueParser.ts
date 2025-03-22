@@ -42,7 +42,10 @@ export class ValueParser {
 
             // ::
             if (operator === "::") {
-                return this.ParseTypeValue(lexemes, p, result.value);
+                const typeValue = this.ParseTypeValue(lexemes, p);
+                p = typeValue.newPosition;
+                const exp = new CastExpression(result.value, typeValue.value);
+                return { value: exp, newPosition: p };
             }
 
             // Get the right-hand side value
@@ -57,14 +60,13 @@ export class ValueParser {
         return { value: result.value, newPosition: p };
     }
 
-    static ParseTypeValue(lexemes: Lexeme[], position: number, value: ValueComponent): { value: ValueComponent; newPosition: number; } {
+    static ParseTypeValue(lexemes: Lexeme[], position: number): { value: TypeValue; newPosition: number; } {
         let p = position;
         // Check for type value
         if (p < lexemes.length && lexemes[p].type === TokenType.Type) {
             const typeValue = new TypeValue(lexemes[p].value);
             p++;
-            const result = new CastExpression(value, typeValue);
-            return { value: result, newPosition: p };
+            return { value: typeValue, newPosition: p };
         }
         throw new Error(`Expected type value at position ${p}`);
     }
@@ -109,6 +111,9 @@ export class ValueParser {
             else if (current.command === "trim") {
                 // Use a dedicated parser for trim as it uses special tokens (from) within the function.
                 return this.ParseTrimFunction(lexemes, p);
+            } else if (current.command === "cast") {
+                // Use a dedicated parser for cast as it uses special tokens (as) within the function.
+                return this.ParseCastFunction(lexemes, p);
             }
             return this.ParseFunctionCall(lexemes, p);
         } else if (current.type === TokenType.Operator) {
@@ -130,6 +135,44 @@ export class ValueParser {
         }
 
         throw new Error(`Invalid lexeme. position: ${position}, type: ${lexemes[position].type}, value: ${lexemes[position].value}`);
+    }
+
+    static ParseCastFunction(lexemes: Lexeme[], position: number): { value: ValueComponent; newPosition: number; } {
+        let p = position;
+
+        // Get function name
+        const result = lexemes[p];
+        const functionName = result.value;
+        p++;
+
+        if (p < lexemes.length && lexemes[p].type === TokenType.OpenParen) {
+            p++;
+
+            const input = this.Parse(lexemes, p);
+            p = input.newPosition;
+
+            if (p < lexemes.length && lexemes[p].type === TokenType.Command && lexemes[p].command === "as") {
+                p++;
+
+                const castType = this.ParseTypeValue(lexemes, p);
+                p++;
+
+                if (p < lexemes.length && lexemes[p].type === TokenType.CloseParen) {
+                    p++;
+                    const value = new CastExpression(input.value, castType.value);
+                    return { value, newPosition: p };
+                } else {
+                    throw new Error(`Expected closing parenthesis after function name '${functionName}' at position ${p}`);
+                }
+            }
+            else {
+                return this.ParseFunctionCall(lexemes, position);
+            }
+        }
+        else {
+            throw new Error(`Expected opening parenthesis after function name '${functionName}' at position ${p}`);
+        }
+
     }
 
     static ParseTrimFunction(lexemes: Lexeme[], position: number): { value: ValueComponent; newPosition: number; } {

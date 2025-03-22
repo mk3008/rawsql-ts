@@ -330,7 +330,7 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
     }
 
     decodeCastExpression(arg: CastExpression): string {
-        return `${arg.expression.accept(this)}::${arg.castType.accept(this)}`;
+        return `${arg.input.accept(this)}::${arg.castType.accept(this)}`;
     }
 
     decodeBracketExpression(arg: ParenExpression): string {

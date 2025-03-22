@@ -203,11 +203,11 @@ export class ParenExpression extends SqlComponent {
 
 export class CastExpression extends SqlComponent {
     static kind = Symbol("CastExpression");
-    expression: ValueComponent;
+    input: ValueComponent;
     castType: TypeValue;
-    constructor(expression: ValueComponent, castType: TypeValue) {
+    constructor(input: ValueComponent, castType: TypeValue) {
         super();
-        this.expression = expression;
+        this.input = input;
         this.castType = castType;
     }
 }

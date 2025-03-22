@@ -49,6 +49,7 @@ describe('ValueParser', () => {
         ["Postgres TRIM with TRAILING from and characters", "trim(trailing from 'yxTomxx', 'xyz')", "trim(trailing from 'yxTomxx', 'xyz')"],
         ["Postgres TRIM with explicit BOTH from and characters", "trim(both from 'yxTomxx', 'xyz')", "trim(both from 'yxTomxx', 'xyz')"],
         ["Postgres TRIM with default BOTH and characters", "trim('yxTomxx', 'xyz')", "trim('yxTomxx', 'xyz')"],
+        ["CAST with AS syntax", "CAST(id AS INTEGER)", "\"id\"::INTEGER"],
     ])('%s', (_, text, expected) => {
         const value = ValueParser.ParseFromText(text);
         const sql = formatter.visit(value);
