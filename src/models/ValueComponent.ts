@@ -8,15 +8,12 @@ export type ValueComponent = ValueList |
     BinaryExpression |
     LiteralValue |
     ParameterExpression |
-    JsonStructureArgument |
-    JsonKeyValuePair |
     SwitchCaseArgument |
     CaseKeyValuePair |
     RawString |
     IdentifierString |
     ParenExpression |
     CastExpression |
-    JsonExpression |
     CaseExpression |
     ArrayExpression |
     BetweenExpression |
@@ -35,7 +32,7 @@ export class InlineQuery extends SqlComponent {
 }
 
 export class ValueList extends SqlComponent {
-    static kind = Symbol("ValueCollection");
+    static kind = Symbol("ValueList");
     values: SqlComponent[];
     constructor(values: SqlComponent[]) {
         super();
@@ -110,26 +107,6 @@ export class ParameterExpression extends SqlComponent {
     }
 }
 
-export class JsonStructureArgument extends SqlComponent {
-    static kind = Symbol("JsonStructureArgument");
-    keyValuePairs: JsonKeyValuePair[];
-    constructor(values: JsonKeyValuePair[]) {
-        super();
-        this.keyValuePairs = values;
-    }
-}
-
-export class JsonKeyValuePair extends SqlComponent {
-    static kind = Symbol("JsonKeyValuePair");
-    key: ValueComponent;
-    value: ValueComponent;
-    constructor(key: ValueComponent, value: ValueComponent) {
-        super();
-        this.key = key;
-        this.value = value;
-    }
-}
-
 export class SwitchCaseArgument extends SqlComponent {
     static kind = Symbol("SwitchCaseArgument");
     casePairs: CaseKeyValuePair[];
@@ -192,15 +169,6 @@ export class CastExpression extends SqlComponent {
         super();
         this.input = input;
         this.castType = castType;
-    }
-}
-
-export class JsonExpression extends SqlComponent {
-    static kind = Symbol("JsonExpression");
-    structureArgument: JsonStructureArgument;
-    constructor(structureArgument: JsonStructureArgument) {
-        super();
-        this.structureArgument = structureArgument;
     }
 }
 
