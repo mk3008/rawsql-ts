@@ -1,5 +1,5 @@
 import { Lexeme, TokenType } from "../models/Lexeme";
-import { ColumnReference, ValueComponent, LiteralValue, BinaryExpression, ParenExpression, FunctionCall, ValueCollection, UnaryExpression, ParameterExpression, ArrayExpression, CaseExpression, SwitchCaseArgument, CaseKeyValuePair as CaseConditionValuePair, BetweenExpression, StringSpecifierExpression, ModifierExpression, TypeValue, CastExpression, SubstringFromForArgument } from "../models/ValueComponent";
+import { ColumnReference, ValueComponent, LiteralValue, BinaryExpression, ParenExpression, FunctionCall, ValueCollection, UnaryExpression, ParameterExpression, ArrayExpression, CaseExpression, SwitchCaseArgument, CaseKeyValuePair as CaseConditionValuePair, BetweenExpression, StringSpecifierExpression, ModifierExpression, TypeValue, CastExpression } from "../models/ValueComponent";
 import { SqlTokenizer } from "../sqlTokenizer";
 
 export class ValueParser {
@@ -170,14 +170,14 @@ export class ValueParser {
         let p = position;
 
         // Get function name
-        const result = lexemes[p];
-        const functionName = result.value;
+        const functionName = lexemes[p].value;
         p++;
 
         if (p < lexemes.length && lexemes[p].type === TokenType.OpenParen) {
             p++;
 
             const input = this.Parse(lexemes, p);
+            let arg = input.value;
             p = input.newPosition;
 
             // Check for comma
@@ -185,22 +185,23 @@ export class ValueParser {
                 return this.ParseFunctionCall(lexemes, position);
             }
 
-            let startArg;
-            let lengthArg;
             if (p < lexemes.length && lexemes[p].type === TokenType.Command && lexemes[p].command === "from") {
                 p++;
-                startArg = this.Parse(lexemes, p);
-                p = startArg.newPosition;
+                const right = this.Parse(lexemes, p);
+                arg = new BinaryExpression(arg, "from", right.value);
+                p = right.newPosition;
             }
+
             if (p < lexemes.length && lexemes[p].type === TokenType.Command && lexemes[p].command === "for") {
                 p++;
-                lengthArg = this.Parse(lexemes, p);
-                p = lengthArg.newPosition;
+                const right = this.Parse(lexemes, p);
+                arg = new BinaryExpression(arg, "for", right.value);
+                p = right.newPosition;
             }
+
             if (p < lexemes.length && lexemes[p].type === TokenType.CloseParen) {
                 p++;
                 // Create SUBSTRING function
-                const arg = new SubstringFromForArgument(input.value, startArg?.value ?? null, lengthArg?.value ?? null);
                 return { value: new FunctionCall(functionName, arg), newPosition: p };
             } else {
                 throw new Error(`Expected closing parenthesis after function name '${functionName}' at position ${p}`);
