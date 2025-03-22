@@ -1,6 +1,6 @@
 import { SelectQuery } from "./SelectQuery";
 import { SqlComponent, SqlComponentVisitor, SqlDialectConfiguration } from "./SqlComponent";
-import { LiteralValue, RawString, IdentifierString, ExtractArgument, SubstringFromForArgument, SubstringSimilarArgument, OverlayPlacingFromForArgument, ColumnReference, FunctionCall, UnaryExpression, BinaryExpression, ParameterExpression, ArrayExpression, CaseExpression, CastExpression, ParenExpression, BetweenExpression, PositionExpression, JsonKeyValuePair, SwitchCaseArgument, ValueCollection, JsonStructureArgument, CaseKeyValuePair, StringSpecifierExpression, ModifierExpression, TypeValue as TypeValue } from "./ValueComponent";
+import { LiteralValue, RawString, IdentifierString, ExtractArgument, SubstringFromForArgument, OverlayPlacingFromForArgument, ColumnReference, FunctionCall, UnaryExpression, BinaryExpression, ParameterExpression, ArrayExpression, CaseExpression, CastExpression, ParenExpression, BetweenExpression, PositionExpression, JsonKeyValuePair, SwitchCaseArgument, ValueCollection, JsonStructureArgument, CaseKeyValuePair, StringSpecifierExpression, ModifierExpression, TypeValue as TypeValue } from "./ValueComponent";
 import { ColumnAliasItem, ColumnAliasList, CommonTableItem, CommonTableList, CommonTableSource, Cube, Distinct, DistinctOn, FromClause, FunctionSource, GroupByClause, GroupByItem, GroupByList, GroupingSet, HavingClause, JoinItem, JoinList, NullsSortDirection, OrderByClause, OrderByItem, OrderByList, OverClause, PartitionByClause, PartitionByItem, PartitionByList, Rollup, SelectClause, SelectItem, SelectList, SortDirection, SourceExpression, SubQuerySource, TableSource, WhereClause, WindowFrameClause, WithClause } from "./Clause";
 
 export class DefaultFormatter implements SqlComponentVisitor<string> {
@@ -34,7 +34,6 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
         this.handlers.set(ParenExpression.kind, (expr) => this.decodeBracketExpression(expr as ParenExpression));
         this.handlers.set(BetweenExpression.kind, (expr) => this.decodeBetweenExpression(expr as BetweenExpression));
         this.handlers.set(PositionExpression.kind, (expr) => this.decodePositionExpression(expr as PositionExpression));
-        this.handlers.set(SubstringSimilarArgument.kind, (expr) => this.decodeSubstringSimilarEscapeArgument(expr as SubstringSimilarArgument));
         this.handlers.set(OverlayPlacingFromForArgument.kind, (expr) => this.decodeOverlayPlacingFromForArgument(expr as OverlayPlacingFromForArgument));
         this.handlers.set(ModifierExpression.kind, (expr) => this.decodeModifierExpression(expr as ModifierExpression));
         this.handlers.set(TypeValue.kind, (expr) => this.decodeTypeValue(expr as TypeValue));
@@ -269,10 +268,6 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
             return `${arg.input.accept(this)} overlay(${arg.replacement.accept(this)}) ${length})`;
         }
         return `${arg.input.accept(this)} overlay(${arg.replacement.accept(this)})`;
-    }
-
-    decodeSubstringSimilarEscapeArgument(arg: SubstringSimilarArgument): string {
-        return `${arg.input.accept(this)} similar ${arg.pattern.accept(this)}`;
     }
 
     // Add the missing method

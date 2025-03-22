@@ -1,5 +1,5 @@
 import { Lexeme, TokenType } from "../models/Lexeme";
-import { ColumnReference, ValueComponent, LiteralValue, BinaryExpression, ParenExpression, FunctionCall, ValueCollection, UnaryExpression, ParameterExpression, ArrayExpression, CaseExpression, SwitchCaseArgument, CaseKeyValuePair as CaseConditionValuePair, BetweenExpression, StringSpecifierExpression, ModifierExpression, TypeValue, CastExpression, SubstringFromForArgument, SubstringSimilarArgument } from "../models/ValueComponent";
+import { ColumnReference, ValueComponent, LiteralValue, BinaryExpression, ParenExpression, FunctionCall, ValueCollection, UnaryExpression, ParameterExpression, ArrayExpression, CaseExpression, SwitchCaseArgument, CaseKeyValuePair as CaseConditionValuePair, BetweenExpression, StringSpecifierExpression, ModifierExpression, TypeValue, CastExpression, SubstringFromForArgument } from "../models/ValueComponent";
 import { SqlTokenizer } from "../sqlTokenizer";
 
 export class ValueParser {
@@ -183,22 +183,6 @@ export class ValueParser {
             // Check for comma
             if (p < lexemes.length && lexemes[p].type === TokenType.Comma) {
                 return this.ParseFunctionCall(lexemes, position);
-            }
-
-            // check for similar
-            if (p < lexemes.length && lexemes[p].type === TokenType.Command && lexemes[p].command === "similar") {
-                p++;
-                const pattern = this.Parse(lexemes, p);
-                p = pattern.newPosition;
-
-                if (p < lexemes.length && lexemes[p].type === TokenType.CloseParen) {
-                    p++;
-                    // Create SUBSTRING function
-                    const arg = new SubstringSimilarArgument(input.value, pattern.value);
-                    return { value: new FunctionCall(functionName, arg), newPosition: p };
-                } else {
-                    throw new Error(`Expected closing parenthesis after function name '${functionName}' at position ${p}`);
-                }
             }
 
             let startArg;

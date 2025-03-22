@@ -4,7 +4,7 @@ import { SqlTokenizer } from './sqlTokenizer';
 
 console.log('Hello world');
 
-const tokenizer = new SqlTokenizer("trim('xyz' from 'yxTomxx')");
+const tokenizer = new SqlTokenizer("substring('Thomas' similar '%#\"o_a#\"_' escape '#')");
 const lexemes = tokenizer.readLexmes();
 
 console.log(lexemes);

@@ -14,7 +14,6 @@ export type ValueComponent = ValueCollection |
     CaseKeyValuePair |
     OverlayPlacingFromForArgument |
     SubstringFromForArgument |
-    SubstringSimilarArgument |
     ExtractArgument |
     RawString |
     IdentifierString |
@@ -183,18 +182,6 @@ export class SubstringFromForArgument extends SqlComponent {
         this.input = input;
         this.start = start;
         this.length = length;
-    }
-}
-
-export class SubstringSimilarArgument extends SqlComponent {
-    static kind = Symbol("SubstringSimilarArgument");
-    input: ValueComponent;
-    pattern: ValueComponent;
-
-    constructor(input: ValueComponent, pattern: ValueComponent) {
-        super();
-        this.input = input;
-        this.pattern = pattern;
     }
 }
 
