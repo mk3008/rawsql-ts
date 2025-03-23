@@ -1,0 +1,58 @@
+﻿import { BaseTokenReader } from './BaseTokenReader';
+import { Lexeme, TokenType } from '../models/Lexeme';
+import { StringUtils } from '../utils/stringUtils';
+import { KeywordTrie } from '../models/KeywordTrie';
+import { KeywordParser } from '../parsers/KeywordParser';
+
+// Use KeywordTrie to identify type names composed of multiple words.
+const trie = new KeywordTrie([
+    // type
+    ["double", "precision"],
+    ["character", "varying"],
+    ["time", "without", "time", "zone"],
+    ["time", "with", "time", "zone"],
+    ["timestamp", "without", "time", "zone"],
+    ["timestamp", "with", "time", "zone"],
+]);
+const typeParser = new KeywordParser(trie);
+
+/**
+ * Reads SQL identifier tokens
+ */
+export class TypeTokenReader extends BaseTokenReader {
+    /**
+     * Try to read an identifier token
+     */
+    public tryRead(previous: Lexeme | null): Lexeme | null {
+        if (this.isEndOfInput()) {
+            return null;
+        }
+
+        // Check for keyword identifiers
+        const keyword = typeParser.parse(this.input, this.position);
+        if (keyword !== null) {
+            this.position = keyword.newPosition;
+            return this.createLexeme(TokenType.Type, keyword.keyword);
+        }
+
+        // check pervious token
+        if (previous === null) {
+            return null;
+        }
+
+        const result = StringUtils.readRegularIdentifier(this.input, this.position);
+        this.position = result.newPosition;
+
+        // type cast command
+        if (previous.type === TokenType.Command && previous.command === "as") {
+            return this.createLexeme(TokenType.Type, result.identifier);
+        }
+
+        // postgres type conversion
+        if (previous.type === TokenType.Operator && previous.command === "::") {
+            return this.createLexeme(TokenType.Type, result.identifier);
+        }
+
+        return null;
+    }
+}

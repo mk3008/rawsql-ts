@@ -4,7 +4,7 @@ import { SqlTokenizer } from './parsers/sqlTokenizer';
 
 console.log('Hello world');
 
-const tokenizer = new SqlTokenizer("CAST(id AS INTEGER)");
+const tokenizer = new SqlTokenizer("price::NUMERIC(10,2)");
 const lexemes = tokenizer.readLexmes();
 
 console.log(lexemes);

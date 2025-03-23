@@ -1,5 +1,5 @@
 ﻿import { Lexeme } from '../models/Lexeme';
-import { IdentifierOrFunctionTokenReader } from '../tokenReaders/IdentifierOrFunctionOrTypeTokenReader';
+import { IdentifierTokenReader } from '../tokenReaders/IdentifierTokenReader';
 import { LiteralTokenReader } from '../tokenReaders/LiteralTokenReader';
 import { ParameterTokenReader } from '../tokenReaders/ParameterTokenReader';
 import { SpecialSymbolTokenReader } from '../tokenReaders/SymbolTokenReader';
@@ -8,6 +8,8 @@ import { OperatorTokenReader } from '../tokenReaders/OperatorTokenReader';
 import { StringUtils } from '../utils/stringUtils';
 import { CommandTokenReader } from '../tokenReaders/CommandTokenReader';
 import { StringSpecifierTokenReader } from '../tokenReaders/StringSpecifierTokenReader';
+import { FunctionTokenReader } from '../tokenReaders/FunctionTokenReader';
+import { TypeTokenReader } from '../tokenReaders/TypeTokenReader';
 
 /**
  * Class responsible for tokenizing SQL input.
@@ -30,12 +32,6 @@ export class SqlTokenizer {
 
     /**
      * Initializes a new instance of the SqlTokenizer.
-     * 
-     * @param input - The SQL input string to be tokenized.
-     * @remarks The execution order of token readers is important.
-     * - `LiteralTokenReader` should be registered before `SpecialSymbolTokenReader` and `OperatorTokenReader`
-     *   because `LiteralTokenReader` processes numeric literals starting with a dot or sign.
-     * - `IdentifierTokenReader` should be registered last.
      */
     constructor(input: string) {
         this.input = input;
@@ -45,11 +41,20 @@ export class SqlTokenizer {
         this.readerManager = new TokenReaderManager(input)
             .register(new ParameterTokenReader(input))
             .register(new StringSpecifierTokenReader(input))
+            // LiteralTokenReader should be registered before SpecialSymbolTokenReader and OperatorTokenReader
+            // Reason: To prevent numeric literals starting with a dot or sign from being misrecognized as operators
+            // e.g. `1.0` is a literal, not an operator
             .register(new LiteralTokenReader(input))
             .register(new SpecialSymbolTokenReader(input))
             .register(new CommandTokenReader(input))
             .register(new OperatorTokenReader(input))
-            .register(new IdentifierOrFunctionTokenReader(input));
+            // TypeTokenReader should be registered before FunctionTokenReader
+            // Reason: To prevent types containing parentheses from being misrecognized as functions
+            // e.g. `numeric(10, 2)` is a type, not a function
+            .register(new TypeTokenReader(input))
+            .register(new FunctionTokenReader(input))
+            .register(new IdentifierTokenReader(input)) // IdentifierTokenReader should be registered last
+            ;
     }
 
     /**

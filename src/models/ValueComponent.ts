@@ -19,7 +19,6 @@ export type ValueComponent = ValueList |
     BetweenExpression |
     InlineQuery |
     StringSpecifierExpression |
-    ModifierExpression |
     TypeValue;
 
 export class InlineQuery extends SqlComponent {
@@ -217,18 +216,6 @@ export class StringSpecifierExpression extends SqlComponent {
         super();
         this.specifier = new RawString(specifier);
         this.value = new LiteralValue(value);
-    }
-}
-
-export class ModifierExpression extends SqlComponent {
-    static kind = Symbol("ModifierExpression");
-    // e.g. year from
-    modifier: RawString;
-    value: ValueComponent;
-    constructor(specifier: string, value: ValueComponent) {
-        super();
-        this.modifier = new RawString(specifier);
-        this.value = value;
     }
 }
 

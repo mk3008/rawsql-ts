@@ -1,25 +1,11 @@
 ﻿import { BaseTokenReader } from './BaseTokenReader';
 import { Lexeme, TokenType } from '../models/Lexeme';
 import { StringUtils } from '../utils/stringUtils';
-import { KeywordTrie } from '../models/KeywordTrie';
-import { KeywordParser } from '../parsers/KeywordParser';
-
-// Use KeywordTrie to identify type names composed of multiple words.
-const trie = new KeywordTrie([
-    // type
-    ["double", "precision"],
-    ["character", "varying"],
-    ["time", "without", "time", "zone"],
-    ["time", "with", "time", "zone"],
-    ["timestamp", "without", "time", "zone"],
-    ["timestamp", "with", "time", "zone"],
-]);
-const typeParser = new KeywordParser(trie);
 
 /**
  * Reads SQL identifier tokens
  */
-export class IdentifierOrFunctionTokenReader extends BaseTokenReader {
+export class IdentifierTokenReader extends BaseTokenReader {
     /**
      * Try to read an identifier token
      */
@@ -61,31 +47,9 @@ export class IdentifierOrFunctionTokenReader extends BaseTokenReader {
             return this.createLexeme(TokenType.Identifier, identifier);
         }
 
-        // Check for keyword identifiers
-        const keyword = typeParser.parse(this.input, this.position);
-        if (keyword !== null) {
-            this.position = keyword.newPosition;
-            return this.createLexeme(TokenType.Type, keyword.keyword);
-        }
-
         // Regular identifier
         const result = StringUtils.readRegularIdentifier(this.input, this.position);
         this.position = result.newPosition;
-
-        // check
-        var shift = StringUtils.skipWhiteSpacesAndComments(this.input, this.position) - this.position;
-
-        if (previous !== null && previous.type === TokenType.Operator && previous.command === "::") {
-            return this.createLexeme(TokenType.Type, result.identifier);
-        }
-
-        if (previous !== null && previous.type === TokenType.Command && previous.command === "as") {
-            return this.createLexeme(TokenType.Type, result.identifier);
-        }
-
-        if (this.canRead(shift) && this.input[this.position + shift] === '(') {
-            return this.createLexeme(TokenType.Function, result.identifier, result.identifier.toLowerCase());
-        }
         return this.createLexeme(TokenType.Identifier, result.identifier);
     }
 
