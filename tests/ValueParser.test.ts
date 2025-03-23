@@ -1,5 +1,4 @@
 import { ValueParser } from "../src/parsers/ValueParser";
-import { SqlTokenizer } from "../src/parsers/sqlTokenizer";
 import { DefaultFormatter } from "../src/models/DefaultFormatter";
 
 describe('ValueParser', () => {

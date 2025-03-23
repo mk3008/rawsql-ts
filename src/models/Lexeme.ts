@@ -21,5 +21,5 @@
 export interface Lexeme {
     type: TokenType;
     value: string;
-    //comments: string[] | null;
+    comments: string[] | null;
 }

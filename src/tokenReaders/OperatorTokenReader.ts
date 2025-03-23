@@ -65,7 +65,18 @@ export class OperatorTokenReader extends BaseTokenReader {
 
         if (CharLookupTable.isOperatorSymbol(char)) {
             const start = this.position;
+
             while (this.canRead() && CharLookupTable.isOperatorSymbol(this.input[this.position])) {
+                // check for `--` and `/*` comments
+                if (this.canRead(1)) {
+                    const current = this.input[this.position];
+                    if (current === '-' && this.input[this.position + 1] === '-') {
+                        break;
+                    } else if (current === '/' && this.input[this.position + 1] === '*') {
+                        break; // end of operator
+                    }
+                }
+
                 this.position++;
             }
             const resut = this.input.slice(start, this.position);

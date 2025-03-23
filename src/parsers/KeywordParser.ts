@@ -51,7 +51,7 @@ export class KeywordParser {
 
         // multi-word keyword
         let lexeme = result.identifier;
-        position = StringUtils.skipWhiteSpacesAndComments(input, result.newPosition);
+        position = StringUtils.readComments(input, result.newPosition).position;
 
         while (this.canParse(input, position)) {
             const previousMatchResult = matchResult;
@@ -70,7 +70,7 @@ export class KeywordParser {
                 }
 
                 lexeme += ' ' + result.identifier;
-                position = StringUtils.skipWhiteSpacesAndComments(input, result.newPosition);
+                position = StringUtils.readComments(input, result.newPosition).position;
 
                 if (matchResult === KeywordMatchResult.Final) {
                     break;

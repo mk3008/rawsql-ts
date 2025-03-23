@@ -18,10 +18,9 @@ export class FunctionTokenReader extends BaseTokenReader {
         const result = StringUtils.readRegularIdentifier(this.input, this.position);
         this.position = result.newPosition;
 
-        // check
-        var shift = StringUtils.skipWhiteSpacesAndComments(this.input, this.position) - this.position;
-
         // peek next token 
+        var shift = StringUtils.readComments(this.input, this.position).position - this.position;
+
         if (this.canRead(shift) && this.input[this.position + shift] === '(') {
             return this.createLexeme(TokenType.Function, result.identifier);
         }

@@ -87,7 +87,8 @@ export class SqlTokenizer {
         const lexemes: Lexeme[] = [];
 
         // Skip whitespace and comments at the start
-        this.skipWhiteSpacesAndComments();
+        let prevComment = this.readComments();
+        this.position = prevComment.position;
 
         // Track the previous token
         let previous: Lexeme | null = null;
@@ -104,14 +105,24 @@ export class SqlTokenizer {
 
             // If a token is read by any reader
             if (lexeme) {
-                lexemes.push(lexeme);
-                previous = lexeme;
-
                 // Update position
                 this.position = this.readerManager.getMaxPosition();
 
+                // lexeme.commentsの先頭に追加する
+                if (prevComment.comments) {
+                    if (lexeme.comments) {
+                        lexeme.comments.unshift(...prevComment.comments);
+                    } else {
+                        lexeme.comments = prevComment.comments;
+                    }
+                }
+
                 // Skip whitespace and comments after the token
-                this.skipWhiteSpacesAndComments();
+                prevComment = this.readComments();
+                this.position = prevComment.position;
+
+                lexemes.push(lexeme);
+                previous = lexeme;
             } else {
                 // Exception
                 throw new Error(`Unexpected character. actual: ${this.input[this.position]}, position: ${this.position}\n${this.getDebugPositionInfo(this.position)}`);
@@ -126,8 +137,8 @@ export class SqlTokenizer {
      * 
      * @remarks This method updates the position pointer.
      */
-    private skipWhiteSpacesAndComments(): void {
-        this.position = StringUtils.skipWhiteSpacesAndComments(this.input, this.position);
+    private readComments(): { position: number, comments: string[] | null } {
+        return StringUtils.readComments(this.input, this.position);
     }
 
     /**
