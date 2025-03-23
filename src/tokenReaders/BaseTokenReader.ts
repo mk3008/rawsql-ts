@@ -19,7 +19,7 @@ export abstract class BaseTokenReader {
     public getPosition(): number {
         return this.position;
     }
-    
+
     /**
      * Set the position in the input
      */
@@ -61,11 +61,16 @@ export abstract class BaseTokenReader {
     /**
      * Create a lexeme with the specified type and value
      */
-    protected createLexeme(type: TokenType, value: string, command?: string): Lexeme {
+    protected createLexeme(type: TokenType, value: string): Lexeme {
+        if (type === TokenType.Command || type === TokenType.Operator || type === TokenType.Function) {
+            return {
+                type,
+                value: value.toLowerCase(),
+            };
+        }
         return {
             type,
             value,
-            command
         };
     }
 

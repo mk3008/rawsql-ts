@@ -42,7 +42,7 @@ export class IdentifierTokenReader extends BaseTokenReader {
         }
 
         // SQLServer escaped identifier (escape character is square bracket)
-        if (char === '[' && (previous === null || previous.command !== "array")) {
+        if (char === '[' && (previous === null || previous.value !== "array")) {
             const identifier = this.readEscapedIdentifier(']');
             return this.createLexeme(TokenType.Identifier, identifier);
         }

@@ -92,7 +92,7 @@ export class CommandTokenReader extends BaseTokenReader {
         const keyword = keywordParser.parse(this.input, this.position);
         if (keyword !== null) {
             this.position = keyword.newPosition;
-            return this.createLexeme(TokenType.Command, keyword.keyword, keyword.keyword.toLowerCase());
+            return this.createLexeme(TokenType.Command, keyword.keyword);
         }
 
         return null;

@@ -25,12 +25,12 @@ export class ValueParser {
 
         // If the next element is an operator, process it as a binary expression
         if (p < lexemes.length && lexemes[p].type === TokenType.Operator) {
-            if (!allowAndOperator && lexemes[p].command === "and") {
+            if (!allowAndOperator && lexemes[p].value === "and") {
                 // Handle special case for "and" operator
                 return { value: result.value, newPosition: p };
             }
 
-            const operator = lexemes[p].command as string;
+            const operator = lexemes[p].value as string;
             p++;
 
             // between
@@ -87,7 +87,7 @@ export class ValueParser {
         const lower = this.Parse(lexemes, p, false);
         p = lower.newPosition;
 
-        if (p < lexemes.length && lexemes[p].type === TokenType.Operator && lexemes[p].command !== "and") {
+        if (p < lexemes.length && lexemes[p].type === TokenType.Operator && lexemes[p].value !== "and") {
             throw new Error(`Expected 'and' after 'between' at position ${p}`);
         }
         p++;
@@ -115,16 +115,16 @@ export class ValueParser {
         } else if (current.type === TokenType.OpenParen) {
             return this.ParseParenExpression(lexemes, p);
         } else if (current.type === TokenType.Function) {
-            if (current.command === "substring" || current.command === "overlay") {
+            if (current.value === "substring" || current.value === "overlay") {
                 return this.ParseKeywordFunction(lexemes, p, [
                     { key: "from", required: false },
                     { key: "for", required: false }
                 ]);
-            } else if (current.command === "cast") {
+            } else if (current.value === "cast") {
                 return this.ParseKeywordFunction(lexemes, p, [
                     { key: "as", required: true }
                 ]);
-            } else if (current.command === "trim") {
+            } else if (current.value === "trim") {
                 return this.ParseKeywordFunction(lexemes, p, [
                     { key: "from", required: false }
                 ]);
@@ -138,11 +138,11 @@ export class ValueParser {
             return this.ParseStringSpecifierExpression(lexemes, p);
         } else if (current.type === TokenType.Command) {
             p++;
-            if (current.command === "case") {
+            if (current.value === "case") {
                 return this.ParseCaseExpression(lexemes, p);
-            } else if (current.command === "case when") {
+            } else if (current.value === "case when") {
                 return this.ParseCaseWhenExpression(lexemes, p);
-            } else if (current.command === "array") {
+            } else if (current.value === "array") {
                 return this.ParseArrayExpression(lexemes, p);
             }
             return this.ParseModifierUnaryExpression(lexemes, p);
@@ -154,7 +154,7 @@ export class ValueParser {
     static ParseModifierUnaryExpression(lexemes: Lexeme[], p: number): { value: ValueComponent; newPosition: number; } {
         // Check for modifier unary expression
         if (p < lexemes.length && lexemes[p].type === TokenType.Command) {
-            const command = lexemes[p].command;
+            const command = lexemes[p].value;
             p++;
             const result = this.Parse(lexemes, p);
             return { value: new UnaryExpression(command!, result.value), newPosition: result.newPosition };
@@ -176,7 +176,7 @@ export class ValueParser {
             const input = this.Parse(lexemes, p);
             p = input.newPosition;
 
-            if (p < lexemes.length && lexemes[p].type === TokenType.Command && lexemes[p].command === "as") {
+            if (p < lexemes.length && lexemes[p].type === TokenType.Command && lexemes[p].value === "as") {
                 p++;
 
                 const castType = this.ParseTypeValue(lexemes, p);
@@ -212,7 +212,7 @@ export class ValueParser {
             p++;
             const arg1 = this.Parse(lexemes, p);
             p = arg1.newPosition;
-            if (p < lexemes.length && lexemes[p].command === "from") {
+            if (p < lexemes.length && lexemes[p].value === "from") {
                 p++;
                 const arg2 = this.Parse(lexemes, p);
                 p = arg2.newPosition;
@@ -253,14 +253,14 @@ export class ValueParser {
                 return this.ParseFunctionCall(lexemes, position);
             }
 
-            if (p < lexemes.length && lexemes[p].type === TokenType.Command && lexemes[p].command === "from") {
+            if (p < lexemes.length && lexemes[p].type === TokenType.Command && lexemes[p].value === "from") {
                 p++;
                 const right = this.Parse(lexemes, p);
                 arg = new BinaryExpression(arg, "from", right.value);
                 p = right.newPosition;
             }
 
-            if (p < lexemes.length && lexemes[p].type === TokenType.Command && lexemes[p].command === "for") {
+            if (p < lexemes.length && lexemes[p].type === TokenType.Command && lexemes[p].value === "for") {
                 p++;
                 const right = this.Parse(lexemes, p);
                 arg = new BinaryExpression(arg, "for", right.value);
@@ -333,7 +333,7 @@ export class ValueParser {
         let elseValue: ValueComponent | null = null;
 
         // Process WHEN clauses
-        while (p < lexemes.length && lexemes[p].type === TokenType.Command && lexemes[p].command === "when") {
+        while (p < lexemes.length && lexemes[p].type === TokenType.Command && lexemes[p].value === "when") {
             p++;
             const whenResult = this.ParseCaseConditionValuePair(lexemes, p);
             p = whenResult.newPosition;
@@ -341,7 +341,7 @@ export class ValueParser {
         }
 
         // Process ELSE
-        if (p < lexemes.length && lexemes[p].type === TokenType.Command && lexemes[p].command === "else") {
+        if (p < lexemes.length && lexemes[p].type === TokenType.Command && lexemes[p].value === "else") {
             p++;
             const elseResult = this.Parse(lexemes, p);
             elseValue = elseResult.value;
@@ -349,7 +349,7 @@ export class ValueParser {
         }
 
         // Process END
-        if (p < lexemes.length && lexemes[p].type === TokenType.Command && lexemes[p].command === "end") {
+        if (p < lexemes.length && lexemes[p].type === TokenType.Command && lexemes[p].value === "end") {
             p++;
         } else {
             throw new Error(`Expected 'end' after CASE at position ${p}`);
@@ -369,7 +369,7 @@ export class ValueParser {
         const condition = this.Parse(lexemes, position);
         p = condition.newPosition;
 
-        if (p >= lexemes.length || lexemes[p].type !== TokenType.Command || lexemes[p].command !== "then") {
+        if (p >= lexemes.length || lexemes[p].type !== TokenType.Command || lexemes[p].value !== "then") {
             throw new Error(`Expected 'then' after 'case when' at position ${p}`);
         }
         p++;
@@ -585,7 +585,7 @@ export class ValueParser {
 
             // キーワードをチェック
             for (const { key, required } of keywords) {
-                if (p < lexemes.length && lexemes[p].type === TokenType.Command && lexemes[p].command === key) {
+                if (p < lexemes.length && lexemes[p].type === TokenType.Command && lexemes[p].value === key) {
                     p++;
 
                     if (p < lexemes.length && lexemes[p].type === TokenType.Type) {
