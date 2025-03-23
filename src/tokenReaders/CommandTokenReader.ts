@@ -95,6 +95,20 @@ export class CommandTokenReader extends BaseTokenReader {
             return this.createLexeme(TokenType.Command, keyword.keyword);
         }
 
+        // check hint clause
+        if (this.canRead(2) && this.input[this.position] === '/' && this.input[this.position + 1] === '*' && this.input[this.position + 2] === '+') {
+            this.position += 3;
+            const start = this.position;
+            while (this.position + 1 < this.input.length) {
+                if (this.input[this.position] === '*' && this.input[this.position + 1] === '/') {
+                    this.position += 2;
+                    return this.createLexeme(TokenType.Command, '/*+ ' + this.input.slice(start, this.position - 2).trim() + ' */');
+                }
+                this.position++;
+            }
+            throw new Error(`Block comment is not closed. position: ${this.position}`);
+        }
+
         return null;
     }
 }

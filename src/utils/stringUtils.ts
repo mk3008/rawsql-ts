@@ -64,7 +64,9 @@ export class StringUtils {
         if (position + 3 >= input.length) {
             return { newPosition: position, comments: null };
         }
-        if (input[position] === '/' && input[position + 1] === '*') {
+
+        // Check for block comment start (/*) and not a special case (/*+)
+        if (input[position] === '/' && input[position + 1] === '*' && input[position + 2] !== '+') {
             const start = position;
             position += 2;
             while (position + 1 < input.length) {

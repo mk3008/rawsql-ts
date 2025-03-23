@@ -103,3 +103,18 @@ test('Empty lines within block comments are not removed', () => {
     expect(lexemes[0].comments?.[3]).toBe('line comment 3');
     expect(lexemes[0].comments?.[4]).toBe('line comment 4');
 });
+
+test('hint comment', () => {
+    // Arrange
+    const tokenizer = new SqlTokenizer(`
+   /*+ hint comment */
+   'test'
+    `);
+
+    // Act
+    const lexemes = tokenizer.readLexmes();
+
+    // Assert
+    expect(lexemes.length).toBe(1);
+    expect(lexemes[0].comments).toBeNull();
+});
