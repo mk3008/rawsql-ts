@@ -29,33 +29,4 @@ export class StringSpecifierTokenReader extends BaseTokenReader {
 
         return null;
     }
-
-    private readPrefixedLiteral(start: number, prefixLength: number): Lexeme {
-        // Skip the prefix
-        this.position += prefixLength;
-
-        // Read until the closing quote
-        while (this.canRead()) {
-            if (this.input[this.position] === '\\' && this.canRead(1) && this.input[this.position + 1] === '\'') {
-                // Skip escaped single quote
-                this.position += 2;
-                continue;
-            }
-            else if (this.input[this.position] === '\'') {
-                // Found closing quote
-                this.position++;
-                break;
-            }
-            this.position++;
-        }
-
-        if (this.position <= start + prefixLength) {
-            throw new Error(`Closing delimiter is not found. position: ${start}\n${this.getDebugPositionInfo(start)}`);
-        }
-
-        return {
-            type: TokenType.StringSpecifier,
-            value: this.input.slice(start, this.position)
-        };
-    }
 }

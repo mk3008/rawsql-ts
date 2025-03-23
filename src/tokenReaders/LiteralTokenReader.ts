@@ -29,7 +29,7 @@ const keywords = [
     ["nfkd"],
 ];
 const trie = new KeywordTrie(keywords);
-const parser = new KeywordParser(trie);
+const keywordParser = new KeywordParser(trie);
 
 export class LiteralTokenReader extends BaseTokenReader {
     /**
@@ -96,7 +96,7 @@ export class LiteralTokenReader extends BaseTokenReader {
 
     private tryReadKeyword(): Lexeme | null {
         // Check for keyword literals
-        const result = parser.parse(this.input, this.position);
+        const result = keywordParser.parse(this.input, this.position);
         if (result) {
             this.position = result.newPosition;
             return this.createLexeme(TokenType.Literal, result.keyword);

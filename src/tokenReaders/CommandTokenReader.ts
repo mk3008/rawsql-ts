@@ -80,7 +80,7 @@ const trie = new KeywordTrie([
     // cast
     ["as"],
 ]);
-export const parser = new KeywordParser(trie);
+export const keywordParser = new KeywordParser(trie);
 
 export class CommandTokenReader extends BaseTokenReader {
     public tryRead(previous: Lexeme | null): Lexeme | null {
@@ -89,7 +89,7 @@ export class CommandTokenReader extends BaseTokenReader {
         }
 
         // Check for keyword identifiers
-        const keyword = parser.parse(this.input, this.position);
+        const keyword = keywordParser.parse(this.input, this.position);
         if (keyword !== null) {
             this.position = keyword.newPosition;
             return this.createLexeme(TokenType.Command, keyword.keyword, keyword.keyword.toLowerCase());

@@ -14,8 +14,6 @@ export class FunctionTokenReader extends BaseTokenReader {
             return null;
         }
 
-        const char = this.input[this.position];
-
         // Regular identifier
         const result = StringUtils.readRegularIdentifier(this.input, this.position);
         this.position = result.newPosition;
