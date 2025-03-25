@@ -380,6 +380,6 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
     }
 
     decodeIdentifierString(arg: IdentifierString): string {
-        return `${this.config.identifierEscape.start}${arg.alias}${this.config.identifierEscape.end}`;
+        return `${this.config.identifierEscape.start}${arg.name}${this.config.identifierEscape.end}`;
     }
 }

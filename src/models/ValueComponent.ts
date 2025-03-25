@@ -143,11 +143,10 @@ export class RawString extends SqlComponent {
 
 export class IdentifierString extends SqlComponent {
     static kind = Symbol("IdentifierString");
-    // Use the string type instead of the RawString type because it has its own escaping process.
-    alias: string;
+    name: string;
     constructor(alias: string) {
         super();
-        this.alias = alias;
+        this.name = alias;
     }
 }
 
