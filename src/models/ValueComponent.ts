@@ -32,8 +32,8 @@ export class InlineQuery extends SqlComponent {
 
 export class ValueList extends SqlComponent {
     static kind = Symbol("ValueList");
-    values: SqlComponent[];
-    constructor(values: SqlComponent[]) {
+    values: ValueComponent[];
+    constructor(values: ValueComponent[]) {
         super();
         this.values = values;
     }
