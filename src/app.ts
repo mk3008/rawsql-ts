@@ -1,5 +1,5 @@
 ﻿import { DefaultFormatter } from './models/DefaultFormatter';
-import { SqlTokenizer } from './parsers/sqlTokenizer';
+import { SqlTokenizer } from './parsers/SqlTokenizer';
 import { WhereClauseParser } from './parsers/WhereClauseParser';
 
 const formatter = new DefaultFormatter();

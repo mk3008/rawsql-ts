@@ -1,6 +1,6 @@
 import { WhereClause } from "../models/Clause";
 import { Lexeme } from "../models/Lexeme";
-import { SqlTokenizer } from "./sqlTokenizer";
+import { SqlTokenizer } from "./SqlTokenizer";
 import { ValueParser } from "./ValueParser";
 
 export class WhereClauseParser {

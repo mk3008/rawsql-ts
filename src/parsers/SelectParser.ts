@@ -1,7 +1,7 @@
 import { SelectClause, SelectItem, SelectList } from "../models/Clause";
 import { Lexeme, TokenType } from "../models/Lexeme";
 import { ColumnReference } from "../models/ValueComponent";
-import { SqlTokenizer } from "./sqlTokenizer";
+import { SqlTokenizer } from "./SqlTokenizer";
 import { ValueParser } from "./ValueParser";
 
 export class SelectClauseParser {

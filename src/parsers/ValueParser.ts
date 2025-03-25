@@ -1,6 +1,6 @@
 import { Lexeme, TokenType } from "../models/Lexeme";
 import { ColumnReference, ValueComponent, LiteralValue, BinaryExpression, ParenExpression, FunctionCall, ValueList, UnaryExpression, ParameterExpression, ArrayExpression, CaseExpression, SwitchCaseArgument, CaseKeyValuePair as CaseConditionValuePair, BetweenExpression, StringSpecifierExpression, TypeValue, CastExpression } from "../models/ValueComponent";
-import { SqlTokenizer } from "./sqlTokenizer";
+import { SqlTokenizer } from "./SqlTokenizer";
 
 export class ValueParser {
     public static ParseFromText(query: string): ValueComponent {

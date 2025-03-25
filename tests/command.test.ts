@@ -1,5 +1,5 @@
 ﻿import { TokenType } from "../src/models/Lexeme";
-import { SqlTokenizer } from "../src/parsers/sqlTokenizer";
+import { SqlTokenizer } from "../src/parsers/SqlTokenizer";
 
 test('tokenizes SQL command', () => {
     // Arrange
