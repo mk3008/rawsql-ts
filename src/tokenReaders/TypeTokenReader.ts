@@ -45,6 +45,7 @@ export class TypeTokenReader extends BaseTokenReader {
 
         // type cast command
         if (previous.type === TokenType.Command && previous.value === "as") {
+            // If the previous token is the `as` keyword, it could be a type cast or an identifier
             return this.createLexeme(TokenType.Identifier, result.identifier, true);
         }
 
