@@ -17,11 +17,11 @@ export class SelectItem extends SqlComponent {
 
 export class SelectClause extends SqlComponent {
     static kind = Symbol("SelectClause");
-    select: SelectComponent[];
+    items: SelectComponent[];
     distinct: DistinctComponent | null;
-    constructor(expression: SelectComponent[], distinct: DistinctComponent | null = null) {
+    constructor(items: SelectComponent[], distinct: DistinctComponent | null = null) {
         super();
-        this.select = expression;
+        this.items = items;
         this.distinct = distinct;
     }
 }
