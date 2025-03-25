@@ -2,7 +2,7 @@ import { SelectQuery } from "./SelectQuery";
 import { SqlComponent } from "./SqlComponent";
 import { IdentifierString, RawString, ValueComponent } from "./ValueComponent";
 
-export type SelectComponent = SelectItem | SelectList;
+export type SelectComponent = SelectItem | ValueComponent;
 
 export class SelectItem extends SqlComponent {
     static kind = Symbol("SelectItem");
@@ -15,20 +15,11 @@ export class SelectItem extends SqlComponent {
     }
 }
 
-export class SelectList extends SqlComponent {
-    static kind = Symbol("SelectList");
-    items: SelectItem[];
-    constructor(items: SelectItem[]) {
-        super();
-        this.items = items;
-    }
-}
-
 export class SelectClause extends SqlComponent {
     static kind = Symbol("SelectClause");
-    select: SelectComponent;
+    select: SelectComponent[];
     distinct: DistinctComponent | null;
-    constructor(expression: SelectComponent, distinct: DistinctComponent | null = null) {
+    constructor(expression: SelectComponent[], distinct: DistinctComponent | null = null) {
         super();
         this.select = expression;
         this.distinct = distinct;

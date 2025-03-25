@@ -1,4 +1,4 @@
-﻿import { SelectClause, SelectList, SelectItem } from "../src/models/Clause";
+﻿import { SelectClause, SelectItem } from "../src/models/Clause";
 import { DefaultFormatter } from "../src/models/DefaultFormatter";
 import { SelectQuery } from "../src/models/SelectQuery";
 import { ColumnReference, LiteralValue, BinaryExpression } from "../src/models/ValueComponent";
@@ -37,11 +37,10 @@ test('SelectQuery', () => {
     const formatter = new DefaultFormatter();
     const sql = formatter.visit(new SelectQuery(
         null,
-        new SelectClause(new SelectList([
-            new SelectItem(new ColumnReference(['a'], 'id'), null),
-            new SelectItem(new ColumnReference(['a'], 'value'), null),
-        ],
-        )),
+        new SelectClause([
+            new ColumnReference(['a'], 'id'),
+            new ColumnReference(['a'], 'value'),
+        ]),
         null,
         null,
         null,

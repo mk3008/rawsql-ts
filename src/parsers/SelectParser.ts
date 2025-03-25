@@ -1,4 +1,4 @@
-import { SelectClause, SelectItem, SelectList } from "../models/Clause";
+import { SelectClause, SelectItem } from "../models/Clause";
 import { Lexeme, TokenType } from "../models/Lexeme";
 import { ColumnReference } from "../models/ValueComponent";
 import { SqlTokenizer } from "./SqlTokenizer";
@@ -42,11 +42,8 @@ export class SelectClauseParser {
 
         if (items.length === 0) {
             throw new Error(`No select items found at index ${index}`);
-        } else if (items.length === 1) {
-            const clause = new SelectClause(items[0]);
-            return { value: clause, newIndex: idx };
         } else {
-            const clause = new SelectClause(new SelectList(items));
+            const clause = new SelectClause(items);
             return { value: clause, newIndex: idx };
         }
     }

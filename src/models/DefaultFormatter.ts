@@ -1,7 +1,7 @@
 import { SelectQuery } from "./SelectQuery";
 import { SqlComponent, SqlComponentVisitor, SqlDialectConfiguration } from "./SqlComponent";
 import { LiteralValue, RawString, IdentifierString, ColumnReference, FunctionCall, UnaryExpression, BinaryExpression, ParameterExpression, ArrayExpression, CaseExpression, CastExpression, ParenExpression, BetweenExpression, SwitchCaseArgument, ValueList, CaseKeyValuePair, StringSpecifierExpression, TypeValue } from "./ValueComponent";
-import { ColumnAliasItem, ColumnAliasList, CommonTableItem, CommonTableList, CommonTableSource, Cube, Distinct, DistinctOn, FromClause, FunctionSource, GroupByClause, GroupByItem, GroupByList, GroupingSet, HavingClause, JoinItem, JoinList, NullsSortDirection, OrderByClause, OrderByItem, OrderByList, OverClause, PartitionByClause, PartitionByItem, PartitionByList, Rollup, SelectClause, SelectItem, SelectList, SortDirection, SourceExpression, SubQuerySource, TableSource, WhereClause, WindowFrameClause, WithClause } from "./Clause";
+import { ColumnAliasItem, ColumnAliasList, CommonTableItem, CommonTableList, CommonTableSource, Cube, Distinct, DistinctOn, FromClause, FunctionSource, GroupByClause, GroupByItem, GroupByList, GroupingSet, HavingClause, JoinItem, JoinList, NullsSortDirection, OrderByClause, OrderByItem, OrderByList, OverClause, PartitionByClause, PartitionByItem, PartitionByList, Rollup, SelectClause, SelectItem, SortDirection, SourceExpression, SubQuerySource, TableSource, WhereClause, WindowFrameClause, WithClause } from "./Clause";
 
 export class DefaultFormatter implements SqlComponentVisitor<string> {
     private handlers = new Map<symbol, (arg: SqlComponent) => string>();
@@ -78,7 +78,6 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
 
         // select
         this.handlers.set(SelectItem.kind, (expr) => this.decodeSelectExpression(expr as SelectItem));
-        this.handlers.set(SelectList.kind, (expr) => this.decodeSelectCollection(expr as SelectList));
         this.handlers.set(SelectClause.kind, (expr) => this.decodeSelectClause(expr as SelectClause));
         this.handlers.set(Distinct.kind, (expr) => this.decodeDistinct(expr as Distinct));
         this.handlers.set(DistinctOn.kind, (expr) => this.decodeDistinctOn(expr as DistinctOn));
@@ -225,10 +224,6 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
         return `${arg.table.accept(this)}`;
     }
 
-    decodeSelectCollection(arg: SelectList): string {
-        return `${arg.items.map((e) => e.accept(this)).join(", ")}`;
-    }
-
     decodeValueList(arg: ValueList): string {
         return `${arg.values.map((v) => v.accept(this)).join(", ")}`;
     }
@@ -290,7 +285,8 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
     }
 
     decodeSelectClause(arg: SelectClause): string {
-        return `select ${arg.select.accept(this)}`;
+        const part = arg.select.map((e) => e.accept(this)).join(", ");
+        return `select ${part}`;
     }
 
     decodeSelectQuery(arg: SelectQuery): string {
