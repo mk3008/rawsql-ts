@@ -1,4 +1,4 @@
-import { SelectClause, SelectComponent, SelectItem, SelectList } from "../models/Clause";
+import { SelectClause, SelectItem, SelectList } from "../models/Clause";
 import { Lexeme, TokenType } from "../models/Lexeme";
 import { ColumnReference } from "../models/ValueComponent";
 import { SqlTokenizer } from "./sqlTokenizer";
@@ -14,7 +14,7 @@ export class SelectClauseParser {
 
         // Error if there are remaining tokens
         if (result.newIndex < lexemes.length) {
-            throw new Error(`Unexpected token at position ${result.newIndex}: ${lexemes[result.newIndex].value}`);
+            throw new Error(`Unexpected token at index ${result.newIndex}: ${lexemes[result.newIndex].value}`);
         }
 
         return result.value;
@@ -24,7 +24,7 @@ export class SelectClauseParser {
         let idx = index;
 
         if (lexemes[idx].value !== 'select') {
-            throw new Error(`Expected 'SELECT' at position ${idx}`);
+            throw new Error(`Expected 'SELECT' at index ${idx}`);
         }
         idx++;
 
@@ -41,7 +41,7 @@ export class SelectClauseParser {
         }
 
         if (items.length === 0) {
-            throw new Error(`No select items found at position ${index}`);
+            throw new Error(`No select items found at index ${index}`);
         } else if (items.length === 1) {
             const clause = new SelectClause(items[0]);
             return { value: clause, newIndex: idx };
@@ -80,6 +80,6 @@ export class SelectClauseParser {
             };
         }
 
-        throw new Error(`Column name not found at position ${index}`);
+        throw new Error(`Column name not found at index ${index}`);
     }
 }
