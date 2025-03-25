@@ -12,7 +12,7 @@
     CloseBracket,
     Function, // next token is open paren
     StringSpecifier, // next token is string literal
-    Type, // column type
+    Type,
 }
 
 /**
@@ -22,4 +22,5 @@ export interface Lexeme {
     type: TokenType;
     value: string;
     comments: string[] | null;
+    maybeType: boolean | null;
 }

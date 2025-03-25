@@ -61,18 +61,20 @@ export abstract class BaseTokenReader {
     /**
      * Create a lexeme with the specified type and value
      */
-    protected createLexeme(type: TokenType, value: string, comments: string[] | null = null): Lexeme {
+    protected createLexeme(type: TokenType, value: string, maybeType: boolean | null = null, comments: string[] | null = null): Lexeme {
         if (type === TokenType.Command || type === TokenType.Operator || type === TokenType.Function) {
             return {
                 type,
                 value: value.toLowerCase(),
                 comments: comments,
+                maybeType: maybeType,
             };
         }
         return {
             type,
             value,
             comments: comments,
+            maybeType: maybeType,
         };
     }
 

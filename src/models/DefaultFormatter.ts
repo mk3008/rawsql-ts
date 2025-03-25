@@ -276,17 +276,25 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
 
     decodeSelectExpression(arg: SelectItem): string {
         if (arg.alias !== null) {
+            if (arg.value instanceof ColumnReference) {
+                const c = arg.value as ColumnReference;
+                if (c.column.name === arg.alias.name) {
+                    return `${arg.value.accept(this)}`;
+                } else {
+                    return `${arg.value.accept(this)} as ${arg.alias}`;
+                }
+            }
             return `${arg.value.accept(this)} as ${arg.alias}`;
         }
         return arg.value.accept(this);
     }
 
     decodeSelectClause(arg: SelectClause): string {
-        return arg.select.accept(this);
+        return `select ${arg.select.accept(this)}`;
     }
 
     decodeSelectQuery(arg: SelectQuery): string {
-        return `select ${arg.selectClause.accept(this)}`;
+        return arg.selectClause.accept(this);
     }
 
     decodeArrayExpression(arg: ArrayExpression): string {
@@ -380,6 +388,10 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
     }
 
     decodeIdentifierString(arg: IdentifierString): string {
+        // No need to escape wildcards
+        if (arg.name === '*') {
+            return arg.name;
+        }
         return `${this.config.identifierEscape.start}${arg.name}${this.config.identifierEscape.end}`;
     }
 }

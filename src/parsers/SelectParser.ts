@@ -29,17 +29,15 @@ export class SelectClauseParser {
         p++;
 
         const items: SelectItem[] = [];
+        const item = this.ParseItem(lexemes, p);
+        items.push(item.value);
+        p = item.newPosition;
 
-        while (p < lexemes.length && lexemes[p].type !== TokenType.Command) {
+        while (p < lexemes.length && lexemes[p].type === TokenType.Comma) {
+            p++;
             const item = this.ParseItem(lexemes, p);
             items.push(item.value);
             p = item.newPosition;
-
-            if (p < lexemes.length && lexemes[p].type === TokenType.Comma) {
-                p++;
-            } else {
-                break;
-            }
         }
 
         if (items.length === 0) {
@@ -55,29 +53,29 @@ export class SelectClauseParser {
 
     private static ParseItem(lexemes: Lexeme[], position: number): { value: SelectItem; newPosition: number } {
         let p = position;
-        const comment = lexemes[p].comments;
 
-        const value = ValueParser.Parse(lexemes, p);
-        p = value.newPosition;
+        const parsedValue = ValueParser.Parse(lexemes, p);
+        const value = parsedValue.value;
+        p = parsedValue.newPosition;
 
         if (p < lexemes.length && lexemes[p].value === 'as') {
             p++;
         }
 
         const defaultName = value instanceof ColumnReference
-            ? (value as unknown as ColumnReference).column.name
+            ? value.column.name
             : null;
 
         if (p < lexemes.length && lexemes[p].type === TokenType.Identifier) {
             const alias = lexemes[p].value;
             p++;
             return {
-                value: new SelectItem(value.value, alias),
+                value: new SelectItem(value, alias),
                 newPosition: p,
             };
         } else if (defaultName) {
             return {
-                value: new SelectItem(value.value, defaultName),
+                value: new SelectItem(value, defaultName),
                 newPosition: p,
             };
         }

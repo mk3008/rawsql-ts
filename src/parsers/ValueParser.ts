@@ -71,7 +71,7 @@ export class ValueParser {
     static ParseTypeValue(lexemes: Lexeme[], position: number): { value: TypeValue; newPosition: number; } {
         let p = position;
         // Check for type value
-        if (p < lexemes.length && lexemes[p].type === TokenType.Type) {
+        if (p < lexemes.length && (lexemes[p].type === TokenType.Type || lexemes[p].maybeType === true)) {
             const typeName = lexemes[p].value;
             p++;
 
@@ -531,13 +531,26 @@ export class ValueParser {
         return this.ParseArgument(TokenType.OpenBracket, TokenType.CloseBracket, lexemes, position);
     }
 
-    private static ParseArgument(oepnToken: TokenType, closeToken: TokenType, lexemes: Lexeme[], position: number): { value: ValueComponent; newPosition: number } {
+    private static ParseArgument(openToken: TokenType, closeToken: TokenType, lexemes: Lexeme[], position: number): { value: ValueComponent; newPosition: number } {
         let p = position;
         let args: ValueComponent[] = [];
 
         // Check for opening parenthesis
-        if (p < lexemes.length && lexemes[p].type === oepnToken) {
+        if (p < lexemes.length && lexemes[p].type === openToken) {
             p++;
+
+            // If the next element is `*`, treat `*` as an Identifier
+            if (p < lexemes.length && lexemes[p].value === "*") {
+                const wildcard = new ColumnReference(null, "*");
+                p++;
+                // The next element must be closeToken
+                if (p < lexemes.length && lexemes[p].type === closeToken) {
+                    p++;
+                    return { value: wildcard, newPosition: p };
+                } else {
+                    throw new Error(`Expected closing parenthesis at position ${p}`);
+                }
+            }
 
             // Parse the value inside
             const result = this.Parse(lexemes, p);
@@ -596,7 +609,7 @@ export class ValueParser {
                 if (p < lexemes.length && lexemes[p].type === TokenType.Command && lexemes[p].value === key) {
                     p++;
 
-                    if (p < lexemes.length && lexemes[p].type === TokenType.Type) {
+                    if (p < lexemes.length && (lexemes[p].type === TokenType.Type || lexemes[p].maybeType === true)) {
                         const typeValue = this.ParseTypeValue(lexemes, p);
                         arg = new BinaryExpression(arg, key, typeValue.value);
                         p = typeValue.newPosition;

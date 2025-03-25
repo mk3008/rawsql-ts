@@ -100,7 +100,7 @@ export class StringUtils {
      * Skip white space characters and SQL comments.
      * @returns Object containing the new position and an array of skipped comments
      */
-    public static readComment(input: string, position: number): { position: number, lines: string[] } {
+    public static readWhiteSpaceAndComment(input: string, position: number): { position: number, lines: string[] } {
         const lines: string[] = [];
 
         while (true) {

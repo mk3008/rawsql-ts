@@ -176,7 +176,7 @@ export class SqlTokenizer {
      * @remarks This method updates the position pointer.
      */
     private readComment(): { position: number, lines: string[] } {
-        return StringUtils.readComment(this.input, this.position);
+        return StringUtils.readWhiteSpaceAndComment(this.input, this.position);
     }
 
     /**
