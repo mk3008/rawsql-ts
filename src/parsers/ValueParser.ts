@@ -11,395 +11,396 @@ export class ValueParser {
         const result = this.Parse(lexemes, 0);
 
         // Error if there are remaining tokens
-        if (result.newPosition < lexemes.length) {
-            throw new Error(`Unexpected token at position ${result.newPosition}: ${lexemes[result.newPosition].value}`);
+        if (result.newIndex < lexemes.length) {
+            throw new Error(`Unexpected token at index ${result.newIndex}: ${lexemes[result.newIndex].value}`);
         }
 
         return result.value;
     }
 
-    public static Parse(lexemes: Lexeme[], position: number, allowAndOperator: boolean = true): { value: ValueComponent; newPosition: number } {
+    public static Parse(lexemes: Lexeme[], index: number, allowAndOperator: boolean = true): { value: ValueComponent; newIndex: number } {
         // support comments
-        const comment = lexemes[position].comments;
-        const result = this.ParseCore(lexemes, position, allowAndOperator);
+        const comment = lexemes[index].comments;
+        const result = this.ParseCore(lexemes, index, allowAndOperator);
         result.value.comments = comment;
         return result;
     }
 
-    private static ParseCore(lexemes: Lexeme[], position: number, allowAndOperator: boolean = true): { value: ValueComponent; newPosition: number } {
-        let p = position;
-        const result = this.ParseItem(lexemes, p);
-        p = result.newPosition;
+    private static ParseCore(lexemes: Lexeme[], index: number, allowAndOperator: boolean = true): { value: ValueComponent; newIndex: number } {
+        let idx = index;
+        const result = this.ParseItem(lexemes, idx);
+        idx = result.newIndex;
 
         // If the next element is an operator, process it as a binary expression
-        if (p < lexemes.length && lexemes[p].type === TokenType.Operator) {
-            if (!allowAndOperator && lexemes[p].value === "and") {
+        if (idx < lexemes.length && lexemes[idx].type === TokenType.Operator) {
+            if (!allowAndOperator && lexemes[idx].value === "and") {
                 // Handle special case for "and" operator
-                return { value: result.value, newPosition: p };
+                return { value: result.value, newIndex: idx };
             }
 
-            const operator = lexemes[p].value as string;
-            p++;
+            const operator = lexemes[idx].value as string;
+            idx++;
 
             // between
             if (operator === "between") {
-                return this.ParseBetweenExpression(lexemes, p, result.value, false);
+                return this.ParseBetweenExpression(lexemes, idx, result.value, false);
             } else if (operator === "not between") {
-                return this.ParseBetweenExpression(lexemes, p, result.value, true);
+                return this.ParseBetweenExpression(lexemes, idx, result.value, true);
             }
 
             // ::
             if (operator === "::") {
-                const typeValue = this.ParseTypeValue(lexemes, p);
-                p = typeValue.newPosition;
+                const typeValue = this.ParseTypeValue(lexemes, idx);
+                idx = typeValue.newIndex;
                 const exp = new CastExpression(result.value, typeValue.value);
-                return { value: exp, newPosition: p };
+                return { value: exp, newIndex: idx };
             }
 
             // Get the right-hand side value
-            const rightResult = this.Parse(lexemes, p);
-            p = rightResult.newPosition;
+            const rightResult = this.Parse(lexemes, idx);
+            idx = rightResult.newIndex;
 
             // Create binary expression
             const value = new BinaryExpression(result.value, operator, rightResult.value);
-            return { value, newPosition: p };
+            return { value, newIndex: idx };
         }
 
-        return { value: result.value, newPosition: p };
+        return { value: result.value, newIndex: idx };
     }
 
-    static ParseTypeValue(lexemes: Lexeme[], position: number): { value: TypeValue; newPosition: number; } {
-        let p = position;
+    static ParseTypeValue(lexemes: Lexeme[], index: number): { value: TypeValue; newIndex: number; } {
+        let idx = index;
         // Check for type value
-        if (p < lexemes.length && (lexemes[p].type === TokenType.Type || lexemes[p].maybeType === true)) {
-            const typeName = lexemes[p].value;
-            p++;
+        if (idx < lexemes.length && (lexemes[idx].type === TokenType.Type || lexemes[idx].maybeType === true)) {
+            const typeName = lexemes[idx].value;
+            idx++;
 
             // Check for array type
-            if (p < lexemes.length && lexemes[p].type === TokenType.OpenParen) {
-                const arg = this.ParseArgument(TokenType.OpenParen, TokenType.CloseParen, lexemes, p);
-                p = arg.newPosition;
+            if (idx < lexemes.length && lexemes[idx].type === TokenType.OpenParen) {
+                const arg = this.ParseArgument(TokenType.OpenParen, TokenType.CloseParen, lexemes, idx);
+                idx = arg.newIndex;
                 const value = new TypeValue(typeName, arg.value);
-                return { value, newPosition: p };
+                return { value, newIndex: idx };
             } else {
                 // Create TypeValue
                 const value = new TypeValue(typeName);
-                return { value, newPosition: p };
+                return { value, newIndex: idx };
             }
         }
-        throw new Error(`Expected type value at position ${p}`);
+        throw new Error(`Expected type value at index ${idx}`);
     }
 
-    static ParseBetweenExpression(lexemes: Lexeme[], position: number, value: ValueComponent, negated: boolean): { value: ValueComponent; newPosition: number; } {
-        let p = position;
-        const lower = this.Parse(lexemes, p, false);
-        p = lower.newPosition;
+    static ParseBetweenExpression(lexemes: Lexeme[], index: number, value: ValueComponent, negated: boolean): { value: ValueComponent; newIndex: number; } {
+        let idx = index;
+        const lower = this.Parse(lexemes, idx, false);
+        idx = lower.newIndex;
 
-        if (p < lexemes.length && lexemes[p].type === TokenType.Operator && lexemes[p].value !== "and") {
-            throw new Error(`Expected 'and' after 'between' at position ${p}`);
+        if (idx < lexemes.length && lexemes[idx].type === TokenType.Operator && lexemes[idx].value !== "and") {
+            throw new Error(`Expected 'and' after 'between' at index ${idx}`);
         }
-        p++;
+        idx++;
 
-        const upper = this.Parse(lexemes, p);
-        p = upper.newPosition;
+        const upper = this.Parse(lexemes, idx);
+        idx = upper.newIndex;
         const result = new BetweenExpression(value, lower.value, upper.value, negated);
-        return { value: result, newPosition: p };
+        return { value: result, newIndex: idx };
     }
 
-    private static ParseItem(lexemes: Lexeme[], position: number): { value: ValueComponent; newPosition: number } {
-        let p = position;
+    private static ParseItem(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number } {
+        let idx = index;
 
         // Range check
-        if (p >= lexemes.length) {
-            throw new Error(`Unexpected end of lexemes at position ${position}`);
+        if (idx >= lexemes.length) {
+            throw new Error(`Unexpected end of lexemes at index ${index}`);
         }
 
-        const current = lexemes[p];
+        const current = lexemes[idx];
 
         if (current.type === TokenType.Identifier) {
-            return this.ParseIdentifier(lexemes, p);
+            return this.ParseIdentifier(lexemes, idx);
         } else if (current.type === TokenType.Literal) {
-            return this.ParseLiteralValue(lexemes, p);
+            return this.ParseLiteralValue(lexemes, idx);
         } else if (current.type === TokenType.OpenParen) {
-            return this.ParseParenExpression(lexemes, p);
+            return this.ParseParenExpression(lexemes, idx);
         } else if (current.type === TokenType.Function) {
             if (current.value === "substring" || current.value === "overlay") {
-                return this.ParseKeywordFunction(lexemes, p, [
+                return this.ParseKeywordFunction(lexemes, idx, [
                     { key: "from", required: false },
                     { key: "for", required: false }
                 ]);
             } else if (current.value === "cast") {
-                return this.ParseKeywordFunction(lexemes, p, [
+                return this.ParseKeywordFunction(lexemes, idx, [
                     { key: "as", required: true }
                 ]);
             } else if (current.value === "trim") {
-                return this.ParseKeywordFunction(lexemes, p, [
+                return this.ParseKeywordFunction(lexemes, idx, [
                     { key: "from", required: false }
                 ]);
             }
-            return this.ParseFunctionCall(lexemes, p);
+            return this.ParseFunctionCall(lexemes, idx);
         } else if (current.type === TokenType.Operator) {
-            return this.ParseUnaryExpression(lexemes, p);
+            return this.ParseUnaryExpression(lexemes, idx);
         } else if (current.type === TokenType.Parameter) {
-            return this.ParseParameterExpression(lexemes, p);
+            return this.ParseParameterExpression(lexemes, idx);
         } else if (current.type === TokenType.StringSpecifier) {
-            return this.ParseStringSpecifierExpression(lexemes, p);
+            return this.ParseStringSpecifierExpression(lexemes, idx);
         } else if (current.type === TokenType.Command) {
-            p++;
+            idx++;
             if (current.value === "case") {
-                return this.ParseCaseExpression(lexemes, p);
+                return this.ParseCaseExpression(lexemes, idx);
             } else if (current.value === "case when") {
-                return this.ParseCaseWhenExpression(lexemes, p);
+                return this.ParseCaseWhenExpression(lexemes, idx);
             } else if (current.value === "array") {
-                return this.ParseArrayExpression(lexemes, p);
+                return this.ParseArrayExpression(lexemes, idx);
             }
-            return this.ParseModifierUnaryExpression(lexemes, p);
+            return this.ParseModifierUnaryExpression(lexemes, idx);
         }
 
-        throw new Error(`Invalid lexeme. position: ${position}, type: ${lexemes[position].type}, value: ${lexemes[position].value}`);
+        throw new Error(`Invalid lexeme. index: ${idx}, type: ${lexemes[idx].type}, value: ${lexemes[idx].value}`);
     }
 
-    static ParseModifierUnaryExpression(lexemes: Lexeme[], p: number): { value: ValueComponent; newPosition: number; } {
+    static ParseModifierUnaryExpression(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number; } {
+        let idx = index;
         // Check for modifier unary expression
-        if (p < lexemes.length && lexemes[p].type === TokenType.Command) {
-            const command = lexemes[p].value;
-            p++;
-            const result = this.Parse(lexemes, p);
-            return { value: new UnaryExpression(command!, result.value), newPosition: result.newPosition };
+        if (idx < lexemes.length && lexemes[idx].type === TokenType.Command) {
+            const command = lexemes[idx].value;
+            idx++;
+            const result = this.Parse(lexemes, idx);
+            return { value: new UnaryExpression(command!, result.value), newIndex: result.newIndex };
         }
-        throw new Error(`Invalid modifier unary expression at position ${p}`);
+        throw new Error(`Invalid modifier unary expression at index ${idx}`);
     }
 
-    static ParseCastFunction(lexemes: Lexeme[], position: number): { value: ValueComponent; newPosition: number; } {
-        let p = position;
+    static ParseCastFunction(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number; } {
+        let idx = index;
 
         // Get function name
-        const result = lexemes[p];
+        const result = lexemes[idx];
         const functionName = result.value;
-        p++;
+        idx++;
 
-        if (p < lexemes.length && lexemes[p].type === TokenType.OpenParen) {
-            p++;
+        if (idx < lexemes.length && lexemes[idx].type === TokenType.OpenParen) {
+            idx++;
 
-            const input = this.Parse(lexemes, p);
-            p = input.newPosition;
+            const input = this.Parse(lexemes, idx);
+            idx = input.newIndex;
 
-            if (p < lexemes.length && lexemes[p].type === TokenType.Command && lexemes[p].value === "as") {
-                p++;
+            if (idx < lexemes.length && lexemes[idx].type === TokenType.Command && lexemes[idx].value === "as") {
+                idx++;
 
-                const castType = this.ParseTypeValue(lexemes, p);
-                p = castType.newPosition;
+                const castType = this.ParseTypeValue(lexemes, idx);
+                idx = castType.newIndex;
 
-                if (p < lexemes.length && lexemes[p].type === TokenType.CloseParen) {
-                    p++;
+                if (idx < lexemes.length && lexemes[idx].type === TokenType.CloseParen) {
+                    idx++;
                     const value = new CastExpression(input.value, castType.value);
-                    return { value, newPosition: p };
+                    return { value, newIndex: idx };
                 } else {
-                    throw new Error(`Expected closing parenthesis after function name '${functionName}' at position ${p}`);
+                    throw new Error(`Expected closing parenthesis after function name '${functionName}' at index ${idx}`);
                 }
             }
             else {
-                return this.ParseFunctionCall(lexemes, position);
+                return this.ParseFunctionCall(lexemes, index);
             }
         }
         else {
-            throw new Error(`Expected opening parenthesis after function name '${functionName}' at position ${p}`);
+            throw new Error(`Expected opening parenthesis after function name '${functionName}' at index ${idx}`);
         }
 
     }
 
-    static ParseTrimFunction(lexemes: Lexeme[], position: number): { value: ValueComponent; newPosition: number; } {
-        let p = position;
+    static ParseTrimFunction(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number; } {
+        let idx = index;
 
         // Get function name
-        const result = lexemes[p];
+        const result = lexemes[idx];
         const functionName = result.value;
-        p++;
+        idx++;
 
-        if (p < lexemes.length && lexemes[p].type === TokenType.OpenParen) {
-            p++;
-            const arg1 = this.Parse(lexemes, p);
-            p = arg1.newPosition;
-            if (p < lexemes.length && lexemes[p].value === "from") {
-                p++;
-                const arg2 = this.Parse(lexemes, p);
-                p = arg2.newPosition;
-                if (p < lexemes.length && lexemes[p].type === TokenType.CloseParen) {
-                    p++;
+        if (idx < lexemes.length && lexemes[idx].type === TokenType.OpenParen) {
+            idx++;
+            const arg1 = this.Parse(lexemes, idx);
+            idx = arg1.newIndex;
+            if (idx < lexemes.length && lexemes[idx].value === "from") {
+                idx++;
+                const arg2 = this.Parse(lexemes, idx);
+                idx = arg2.newIndex;
+                if (idx < lexemes.length && lexemes[idx].type === TokenType.CloseParen) {
+                    idx++;
                     const arg = new BinaryExpression(arg1.value, "from", arg2.value);
                     const value = new FunctionCall(functionName, arg);
-                    return { value, newPosition: p };
+                    return { value, newIndex: idx };
                 } else {
-                    throw new Error(`Expected closing parenthesis after function name '${functionName}' at position ${p}`);
+                    throw new Error(`Expected closing parenthesis after function name '${functionName}' at index ${idx}`);
                 }
             }
             else {
-                return this.ParseFunctionCall(lexemes, position);
+                return this.ParseFunctionCall(lexemes, index);
             }
         }
         else {
-            throw new Error(`Expected opening parenthesis after function name '${functionName}' at position ${p}`);
+            throw new Error(`Expected opening parenthesis after function name '${functionName}' at index ${idx}`);
         }
     }
 
-    static ParseFunctionCall_FromFor(lexemes: Lexeme[], position: number): { value: ValueComponent; newPosition: number; } {
-        let p = position;
+    static ParseFunctionCall_FromFor(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number; } {
+        let idx = index;
 
         // Get function name
-        const functionName = lexemes[p].value;
-        p++;
+        const functionName = lexemes[idx].value;
+        idx++;
 
-        if (p < lexemes.length && lexemes[p].type === TokenType.OpenParen) {
-            p++;
+        if (idx < lexemes.length && lexemes[idx].type === TokenType.OpenParen) {
+            idx++;
 
-            const input = this.Parse(lexemes, p);
+            const input = this.Parse(lexemes, idx);
             let arg = input.value;
-            p = input.newPosition;
+            idx = input.newIndex;
 
             // Check for comma
-            if (p < lexemes.length && lexemes[p].type === TokenType.Comma) {
-                return this.ParseFunctionCall(lexemes, position);
+            if (idx < lexemes.length && lexemes[idx].type === TokenType.Comma) {
+                return this.ParseFunctionCall(lexemes, index);
             }
 
-            if (p < lexemes.length && lexemes[p].type === TokenType.Command && lexemes[p].value === "from") {
-                p++;
-                const right = this.Parse(lexemes, p);
+            if (idx < lexemes.length && lexemes[idx].type === TokenType.Command && lexemes[idx].value === "from") {
+                idx++;
+                const right = this.Parse(lexemes, idx);
                 arg = new BinaryExpression(arg, "from", right.value);
-                p = right.newPosition;
+                idx = right.newIndex;
             }
 
-            if (p < lexemes.length && lexemes[p].type === TokenType.Command && lexemes[p].value === "for") {
-                p++;
-                const right = this.Parse(lexemes, p);
+            if (idx < lexemes.length && lexemes[idx].type === TokenType.Command && lexemes[idx].value === "for") {
+                idx++;
+                const right = this.Parse(lexemes, idx);
                 arg = new BinaryExpression(arg, "for", right.value);
-                p = right.newPosition;
+                idx = right.newIndex;
             }
 
-            if (p < lexemes.length && lexemes[p].type === TokenType.CloseParen) {
-                p++;
+            if (idx < lexemes.length && lexemes[idx].type === TokenType.CloseParen) {
+                idx++;
                 // Create SUBSTRING function
-                return { value: new FunctionCall(functionName, arg), newPosition: p };
+                return { value: new FunctionCall(functionName, arg), newIndex: idx };
             } else {
-                throw new Error(`Expected closing parenthesis after function name '${functionName}' at position ${p}`);
+                throw new Error(`Expected closing parenthesis after function name '${functionName}' at index ${idx}`);
             }
         } else {
-            throw new Error(`Expected opening parenthesis after function name '${functionName}' at position ${p}`);
+            throw new Error(`Expected opening parenthesis after function name '${functionName}' at index ${idx}`);
         }
     }
 
-    static ParseStringSpecifierExpression(lexemes: Lexeme[], position: number): { value: ValueComponent; newPosition: number; } {
-        let p = position;
-        const specifer = lexemes[p].value;
-        p++;
-        if (p >= lexemes.length || lexemes[p].type !== TokenType.Literal) {
-            throw new Error(`Expected string literal after string specifier at position ${p}`);
+    static ParseStringSpecifierExpression(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number; } {
+        let idx = index;
+        const specifer = lexemes[idx].value;
+        idx++;
+        if (idx >= lexemes.length || lexemes[idx].type !== TokenType.Literal) {
+            throw new Error(`Expected string literal after string specifier at index ${idx}`);
         }
-        const value = lexemes[p].value;
-        p++;
+        const value = lexemes[idx].value;
+        idx++;
         // Create StringSpecifierExpression
         const result = new StringSpecifierExpression(specifer, value);
 
-        return { value: result, newPosition: p };
+        return { value: result, newIndex: idx };
 
     }
 
-    static ParseCaseExpression(lexemes: Lexeme[], position: number): { value: ValueComponent; newPosition: number; } {
-        let p = position;
-        const condition = this.Parse(lexemes, p);
-        p = condition.newPosition;
+    static ParseCaseExpression(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number; } {
+        let idx = index;
+        const condition = this.Parse(lexemes, idx);
+        idx = condition.newIndex;
 
-        const switchCaseResult = this.ParseSwitchCaseArgument(lexemes, p, []);
-        p = switchCaseResult.newPosition;
+        const switchCaseResult = this.ParseSwitchCaseArgument(lexemes, idx, []);
+        idx = switchCaseResult.newIndex;
 
         // Create CASE expression
         const result = new CaseExpression(condition.value, switchCaseResult.value);
-        return { value: result, newPosition: p };
+        return { value: result, newIndex: idx };
     }
 
-    static ParseCaseWhenExpression(lexemes: Lexeme[], position: number): { value: ValueComponent; newPosition: number; } {
-        let p = position;
-        const casewhenResult = this.ParseCaseConditionValuePair(lexemes, p);
-        p = casewhenResult.newPosition;
+    static ParseCaseWhenExpression(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number; } {
+        let idx = index;
+        const casewhenResult = this.ParseCaseConditionValuePair(lexemes, idx);
+        idx = casewhenResult.newIndex;
 
         const caseWhenList: CaseConditionValuePair[] = [casewhenResult.value];
-        const switchCaseResult = this.ParseSwitchCaseArgument(lexemes, p, caseWhenList);
-        p = switchCaseResult.newPosition;
+        const switchCaseResult = this.ParseSwitchCaseArgument(lexemes, idx, caseWhenList);
+        idx = switchCaseResult.newIndex;
 
         // Create CASE WHEN expression
         const result = new CaseExpression(null, switchCaseResult.value);
-        return { value: result, newPosition: p };
+        return { value: result, newIndex: idx };
     }
 
     // ParseSwitchCaseArgument method processes the WHEN, ELSE, and END clauses of a CASE expression.
     static ParseSwitchCaseArgument(
         lexemes: Lexeme[],
-        position: number,
+        index: number,
         initialWhenThenList: CaseConditionValuePair[]
-    ): { value: SwitchCaseArgument; newPosition: number; } {
-        let p = position;
+    ): { value: SwitchCaseArgument; newIndex: number; } {
+        let idx = index;
         const whenThenList = [...initialWhenThenList];
         let elseValue: ValueComponent | null = null;
 
         // Process WHEN clauses
-        while (p < lexemes.length && lexemes[p].type === TokenType.Command && lexemes[p].value === "when") {
-            p++;
-            const whenResult = this.ParseCaseConditionValuePair(lexemes, p);
-            p = whenResult.newPosition;
+        while (idx < lexemes.length && lexemes[idx].type === TokenType.Command && lexemes[idx].value === "when") {
+            idx++;
+            const whenResult = this.ParseCaseConditionValuePair(lexemes, idx);
+            idx = whenResult.newIndex;
             whenThenList.push(whenResult.value);
         }
 
         // Process ELSE
-        if (p < lexemes.length && lexemes[p].type === TokenType.Command && lexemes[p].value === "else") {
-            p++;
-            const elseResult = this.Parse(lexemes, p);
+        if (idx < lexemes.length && lexemes[idx].type === TokenType.Command && lexemes[idx].value === "else") {
+            idx++;
+            const elseResult = this.Parse(lexemes, idx);
             elseValue = elseResult.value;
-            p = elseResult.newPosition;
+            idx = elseResult.newIndex;
         }
 
         // Process END
-        if (p < lexemes.length && lexemes[p].type === TokenType.Command && lexemes[p].value === "end") {
-            p++;
+        if (idx < lexemes.length && lexemes[idx].type === TokenType.Command && lexemes[idx].value === "end") {
+            idx++;
         } else {
-            throw new Error(`Expected 'end' after CASE at position ${p}`);
+            throw new Error(`Expected 'end' after CASE at index ${idx}`);
         }
 
         if (whenThenList.length === 0) {
-            throw new Error(`CASE expression requires at least one WHEN clause at position ${p}`);
+            throw new Error(`CASE expression requires at least one WHEN clause at index ${idx}`);
         }
 
         // Create SwitchCaseArgument
         const value = new SwitchCaseArgument(whenThenList, elseValue);
-        return { value, newPosition: p };
+        return { value, newIndex: idx };
     }
 
-    static ParseCaseConditionValuePair(lexemes: Lexeme[], position: number): { value: CaseConditionValuePair; newPosition: number; } {
-        let p = position;
-        const condition = this.Parse(lexemes, position);
-        p = condition.newPosition;
+    static ParseCaseConditionValuePair(lexemes: Lexeme[], index: number): { value: CaseConditionValuePair; newIndex: number; } {
+        let idx = index;
+        const condition = this.Parse(lexemes, index);
+        idx = condition.newIndex;
 
-        if (p >= lexemes.length || lexemes[p].type !== TokenType.Command || lexemes[p].value !== "then") {
-            throw new Error(`Expected 'then' after 'case when' at position ${p}`);
+        if (idx >= lexemes.length || lexemes[idx].type !== TokenType.Command || lexemes[idx].value !== "then") {
+            throw new Error(`Expected 'then' after 'case when' at index ${idx}`);
         }
-        p++;
-        const value = this.Parse(lexemes, p);
+        idx++;
+        const value = this.Parse(lexemes, idx);
 
         const result = new CaseConditionValuePair(condition.value, value.value);
-        p = value.newPosition;
-        return { value: result, newPosition: p };
+        idx = value.newIndex;
+        return { value: result, newIndex: idx };
     }
 
-    private static ParseParameterExpression(lexemes: Lexeme[], newPosition: number): { value: ValueComponent; newPosition: number; } {
-        let p = newPosition;
+    private static ParseParameterExpression(lexemes: Lexeme[], newIndex: number): { value: ValueComponent; newIndex: number; } {
+        let idx = newIndex;
         // Exclude the parameter symbol (first character)
-        const value = new ParameterExpression(lexemes[p].value.slice(1));
-        p++;
-        return { value, newPosition: p };
+        const value = new ParameterExpression(lexemes[idx].value.slice(1));
+        idx++;
+        return { value, newIndex: idx };
     }
 
-    private static ParseLiteralValue(lexemes: Lexeme[], position: number): { value: ValueComponent; newPosition: number } {
+    private static ParseLiteralValue(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number } {
         // Process literal value
-        let p = position;
-        const valueText = lexemes[p].value;
+        let idx = index;
+        const valueText = lexemes[idx].value;
         let parsedValue: string | number | boolean | null;
 
         // Check if it is a number
@@ -426,212 +427,212 @@ export class ValueParser {
                 parsedValue = valueText;
             }
         }
-        p++
+        idx++
         const value = new LiteralValue(parsedValue);
-        return { value, newPosition: p };
+        return { value, newIndex: idx };
     }
 
-    private static ParseUnaryExpression(lexemes: Lexeme[], position: number): { value: ValueComponent; newPosition: number } {
-        let p = position;
+    private static ParseUnaryExpression(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number } {
+        let idx = index;
 
         // Process unary operator
-        if (p < lexemes.length && lexemes[p].type === TokenType.Operator) {
-            const operator = lexemes[p].value;
-            p++;
+        if (idx < lexemes.length && lexemes[idx].type === TokenType.Operator) {
+            const operator = lexemes[idx].value;
+            idx++;
 
             // Get the right-hand side value of the unary operator
-            const result = this.Parse(lexemes, p);
-            p = result.newPosition;
+            const result = this.Parse(lexemes, idx);
+            idx = result.newIndex;
 
             // Create unary expression
             const value = new UnaryExpression(operator, result.value);
-            return { value, newPosition: p };
+            return { value, newIndex: idx };
         }
 
-        throw new Error(`Invalid unary expression at position ${position}: ${lexemes[position].value}`);
+        throw new Error(`Invalid unary expression at index ${index}: ${lexemes[index].value}`);
     }
 
-    private static ParseIdentifier(lexemes: Lexeme[], position: number): { value: ValueComponent; newPosition: number } {
+    private static ParseIdentifier(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number } {
         // Check for column reference pattern ([identifier dot] * n + identifier)
-        let p = position;
+        let idx = index;
         const identifiers: string[] = [];
 
         // Add the first identifier
-        identifiers.push(lexemes[p].value);
-        p++;
+        identifiers.push(lexemes[idx].value);
+        idx++;
 
         // Look for dot and identifier pattern
         while (
-            p < lexemes.length &&
-            p + 1 < lexemes.length &&
-            lexemes[p].type === TokenType.Dot &&
-            lexemes[p + 1].type === TokenType.Identifier
+            idx < lexemes.length &&
+            idx + 1 < lexemes.length &&
+            lexemes[idx].type === TokenType.Dot &&
+            lexemes[idx + 1].type === TokenType.Identifier
         ) {
             // Skip the dot and add the next identifier
-            p++;
-            identifiers.push(lexemes[p].value);
-            p++;
+            idx++;
+            identifiers.push(lexemes[idx].value);
+            idx++;
         }
 
         if (identifiers.length > 1) {
             // If there are multiple identifiers, treat it as a column reference
             const lastIdentifier = identifiers.pop() || '';
             const value = new ColumnReference(identifiers, lastIdentifier);
-            return { value, newPosition: p };
+            return { value, newIndex: idx };
         } else {
             // If there is a single identifier, treat it as a simple identifier
             const value = new ColumnReference(null, identifiers[0]);
-            return { value, newPosition: p };
+            return { value, newIndex: idx };
         }
     }
 
-    private static ParseArrayExpression(lexemes: Lexeme[], position: number): { value: ValueComponent; newPosition: number } {
-        let p = position;
+    private static ParseArrayExpression(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number } {
+        let idx = index;
         // Array function is enclosed in []
-        const arg = this.ParseBracket(lexemes, p);
-        p = arg.newPosition;
+        const arg = this.ParseBracket(lexemes, idx);
+        idx = arg.newIndex;
         const value = new ArrayExpression(arg.value);
-        return { value, newPosition: p };
+        return { value, newIndex: idx };
     }
 
-    private static ParseFunctionCall(lexemes: Lexeme[], position: number): { value: ValueComponent; newPosition: number } {
-        let p = position;
+    private static ParseFunctionCall(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number } {
+        let idx = index;
 
         // Get function name
-        const result = lexemes[p];
+        const result = lexemes[idx];
         const functionName = result.value;
-        p++;
+        idx++;
 
-        if (p < lexemes.length && lexemes[p].type === TokenType.OpenParen) {
+        if (idx < lexemes.length && lexemes[idx].type === TokenType.OpenParen) {
             // General argument parsing
-            const arg = this.ParseParen(lexemes, p);
-            p = arg.newPosition;
+            const arg = this.ParseParen(lexemes, idx);
+            idx = arg.newIndex;
             const value = new FunctionCall(functionName, arg.value);
-            return { value, newPosition: p };
+            return { value, newIndex: idx };
         } else {
-            throw new Error(`Expected opening parenthesis after function name '${functionName}' at position ${p}`);
+            throw new Error(`Expected opening parenthesis after function name '${functionName}' at index ${idx}`);
         }
     }
 
-    private static ParseParenExpression(lexemes: Lexeme[], position: number): { value: ParenExpression; newPosition: number } {
-        let p = position;
+    private static ParseParenExpression(lexemes: Lexeme[], index: number): { value: ParenExpression; newIndex: number } {
+        let idx = index;
 
-        const result = this.ParseParen(lexemes, p);
-        p = result.newPosition;
+        const result = this.ParseParen(lexemes, idx);
+        idx = result.newIndex;
 
         const value = new ParenExpression(result.value);
-        return { value, newPosition: p };
+        return { value, newIndex: idx };
     }
 
-    private static ParseParen(lexemes: Lexeme[], position: number): { value: ValueComponent; newPosition: number } {
-        return this.ParseArgument(TokenType.OpenParen, TokenType.CloseParen, lexemes, position);
+    private static ParseParen(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number } {
+        return this.ParseArgument(TokenType.OpenParen, TokenType.CloseParen, lexemes, index);
     }
 
-    private static ParseBracket(lexemes: Lexeme[], position: number): { value: ValueComponent; newPosition: number } {
-        return this.ParseArgument(TokenType.OpenBracket, TokenType.CloseBracket, lexemes, position);
+    private static ParseBracket(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number } {
+        return this.ParseArgument(TokenType.OpenBracket, TokenType.CloseBracket, lexemes, index);
     }
 
-    private static ParseArgument(openToken: TokenType, closeToken: TokenType, lexemes: Lexeme[], position: number): { value: ValueComponent; newPosition: number } {
-        let p = position;
+    private static ParseArgument(openToken: TokenType, closeToken: TokenType, lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number } {
+        let idx = index;
         let args: ValueComponent[] = [];
 
         // Check for opening parenthesis
-        if (p < lexemes.length && lexemes[p].type === openToken) {
-            p++;
+        if (idx < lexemes.length && lexemes[idx].type === openToken) {
+            idx++;
 
             // If the next element is `*`, treat `*` as an Identifier
-            if (p < lexemes.length && lexemes[p].value === "*") {
+            if (idx < lexemes.length && lexemes[idx].value === "*") {
                 const wildcard = new ColumnReference(null, "*");
-                p++;
+                idx++;
                 // The next element must be closeToken
-                if (p < lexemes.length && lexemes[p].type === closeToken) {
-                    p++;
-                    return { value: wildcard, newPosition: p };
+                if (idx < lexemes.length && lexemes[idx].type === closeToken) {
+                    idx++;
+                    return { value: wildcard, newIndex: idx };
                 } else {
-                    throw new Error(`Expected closing parenthesis at position ${p}`);
+                    throw new Error(`Expected closing parenthesis at index ${idx}`);
                 }
             }
 
             // Parse the value inside
-            const result = this.Parse(lexemes, p);
-            p = result.newPosition;
+            const result = this.Parse(lexemes, idx);
+            idx = result.newIndex;
             args.push(result.value);
 
             // Continue reading if the next element is a comma
-            while (p < lexemes.length && lexemes[p].type === TokenType.Comma) {
-                p++;
-                const argResult = this.Parse(lexemes, p);
-                p = argResult.newPosition;
+            while (idx < lexemes.length && lexemes[idx].type === TokenType.Comma) {
+                idx++;
+                const argResult = this.Parse(lexemes, idx);
+                idx = argResult.newIndex;
                 args.push(argResult.value);
             }
 
             // Check for closing parenthesis
-            if (p < lexemes.length && lexemes[p].type === closeToken) {
-                p++;
+            if (idx < lexemes.length && lexemes[idx].type === closeToken) {
+                idx++;
                 if (args.length === 1) {
                     // Return as is if there is only one argument
-                    return { value: args[0], newPosition: p };
+                    return { value: args[0], newIndex: idx };
                 }
                 // Create ValueCollection if there are multiple arguments
                 const value = new ValueList(args);
-                return { value, newPosition: p };
+                return { value, newIndex: idx };
             } else {
-                throw new Error(`Missing closing parenthesis at position ${p}`);
+                throw new Error(`Missing closing parenthesis at index ${idx}`);
             }
         }
 
-        throw new Error(`Expected opening parenthesis at position ${position}`);
+        throw new Error(`Expected opening parenthesis at index ${index}`);
     }
 
     private static ParseKeywordFunction(
         lexemes: Lexeme[],
-        position: number,
+        index: number,
         keywords: { key: string, required: boolean }[]
-    ): { value: ValueComponent; newPosition: number; } {
-        let p = position;
-        const functionName = lexemes[p].value;
-        p++;
+    ): { value: ValueComponent; newIndex: number; } {
+        let idx = index;
+        const functionName = lexemes[idx].value;
+        idx++;
 
-        if (p < lexemes.length && lexemes[p].type === TokenType.OpenParen) {
-            p++;
+        if (idx < lexemes.length && lexemes[idx].type === TokenType.OpenParen) {
+            idx++;
 
-            const input = this.Parse(lexemes, p);
+            const input = this.Parse(lexemes, idx);
             let arg = input.value;
-            p = input.newPosition;
+            idx = input.newIndex;
 
             // Delegate to the standard function parser if parsing by comma
-            if (p < lexemes.length && lexemes[p].type === TokenType.Comma) {
-                return this.ParseFunctionCall(lexemes, position);
+            if (idx < lexemes.length && lexemes[idx].type === TokenType.Comma) {
+                return this.ParseFunctionCall(lexemes, index);
             }
 
             // Check keywords
             for (const { key, required } of keywords) {
-                if (p < lexemes.length && lexemes[p].type === TokenType.Command && lexemes[p].value === key) {
-                    p++;
+                if (idx < lexemes.length && lexemes[idx].type === TokenType.Command && lexemes[idx].value === key) {
+                    idx++;
 
-                    if (p < lexemes.length && (lexemes[p].type === TokenType.Type || lexemes[p].maybeType === true)) {
-                        const typeValue = this.ParseTypeValue(lexemes, p);
+                    if (idx < lexemes.length && (lexemes[idx].type === TokenType.Type || lexemes[idx].maybeType === true)) {
+                        const typeValue = this.ParseTypeValue(lexemes, idx);
                         arg = new BinaryExpression(arg, key, typeValue.value);
-                        p = typeValue.newPosition;
+                        idx = typeValue.newIndex;
                     } else {
-                        const right = this.Parse(lexemes, p);
+                        const right = this.Parse(lexemes, idx);
                         arg = new BinaryExpression(arg, key, right.value);
-                        p = right.newPosition;
+                        idx = right.newIndex;
                     }
 
                 } else if (required) {
-                    throw new Error(`Keyword '${key}' is required at position ${p}`);
+                    throw new Error(`Keyword '${key}' is required at index ${idx}`);
                 }
             }
 
-            if (p < lexemes.length && lexemes[p].type === TokenType.CloseParen) {
-                p++;
-                return { value: new FunctionCall(functionName, arg), newPosition: p };
+            if (idx < lexemes.length && lexemes[idx].type === TokenType.CloseParen) {
+                idx++;
+                return { value: new FunctionCall(functionName, arg), newIndex: idx };
             } else {
-                throw new Error(`Missing closing parenthesis for function '${functionName}' at position ${p}`);
+                throw new Error(`Missing closing parenthesis for function '${functionName}' at index ${idx}`);
             }
         } else {
-            throw new Error(`Missing opening parenthesis for function '${functionName}' at position ${p}`);
+            throw new Error(`Missing opening parenthesis for function '${functionName}' at index ${idx}`);
         }
     }
 }

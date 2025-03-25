@@ -13,73 +13,73 @@ export class SelectClauseParser {
         const result = this.Parse(lexemes, 0);
 
         // Error if there are remaining tokens
-        if (result.newPosition < lexemes.length) {
-            throw new Error(`Unexpected token at position ${result.newPosition}: ${lexemes[result.newPosition].value}`);
+        if (result.newIndex < lexemes.length) {
+            throw new Error(`Unexpected token at position ${result.newIndex}: ${lexemes[result.newIndex].value}`);
         }
 
         return result.value;
     }
 
-    private static Parse(lexemes: Lexeme[], position: number): { value: SelectClause; newPosition: number } {
-        let p = position;
+    private static Parse(lexemes: Lexeme[], index: number): { value: SelectClause; newIndex: number } {
+        let idx = index;
 
-        if (lexemes[p].value !== 'select') {
-            throw new Error(`Expected 'SELECT' at position ${p}`);
+        if (lexemes[idx].value !== 'select') {
+            throw new Error(`Expected 'SELECT' at position ${idx}`);
         }
-        p++;
+        idx++;
 
         const items: SelectItem[] = [];
-        const item = this.ParseItem(lexemes, p);
+        const item = this.ParseItem(lexemes, idx);
         items.push(item.value);
-        p = item.newPosition;
+        idx = item.newIndex;
 
-        while (p < lexemes.length && lexemes[p].type === TokenType.Comma) {
-            p++;
-            const item = this.ParseItem(lexemes, p);
+        while (idx < lexemes.length && lexemes[idx].type === TokenType.Comma) {
+            idx++;
+            const item = this.ParseItem(lexemes, idx);
             items.push(item.value);
-            p = item.newPosition;
+            idx = item.newIndex;
         }
 
         if (items.length === 0) {
-            throw new Error(`No select items found at position ${position}`);
+            throw new Error(`No select items found at position ${index}`);
         } else if (items.length === 1) {
             const clause = new SelectClause(items[0]);
-            return { value: clause, newPosition: p };
+            return { value: clause, newIndex: idx };
         } else {
             const clause = new SelectClause(new SelectList(items));
-            return { value: clause, newPosition: p };
+            return { value: clause, newIndex: idx };
         }
     }
 
-    private static ParseItem(lexemes: Lexeme[], position: number): { value: SelectItem; newPosition: number } {
-        let p = position;
+    private static ParseItem(lexemes: Lexeme[], index: number): { value: SelectItem; newIndex: number } {
+        let idx = index;
 
-        const parsedValue = ValueParser.Parse(lexemes, p);
+        const parsedValue = ValueParser.Parse(lexemes, idx);
         const value = parsedValue.value;
-        p = parsedValue.newPosition;
+        idx = parsedValue.newIndex;
 
-        if (p < lexemes.length && lexemes[p].value === 'as') {
-            p++;
+        if (idx < lexemes.length && lexemes[idx].value === 'as') {
+            idx++;
         }
 
         const defaultName = value instanceof ColumnReference
             ? value.column.name
             : null;
 
-        if (p < lexemes.length && lexemes[p].type === TokenType.Identifier) {
-            const alias = lexemes[p].value;
-            p++;
+        if (idx < lexemes.length && lexemes[idx].type === TokenType.Identifier) {
+            const alias = lexemes[idx].value;
+            idx++;
             return {
                 value: new SelectItem(value, alias),
-                newPosition: p,
+                newIndex: idx,
             };
         } else if (defaultName) {
             return {
                 value: new SelectItem(value, defaultName),
-                newPosition: p,
+                newIndex: idx,
             };
         }
 
-        throw new Error(`Column name not found at position ${position}`);
+        throw new Error(`Column name not found at position ${index}`);
     }
 }
