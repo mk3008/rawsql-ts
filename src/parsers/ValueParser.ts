@@ -19,6 +19,14 @@ export class ValueParser {
     }
 
     public static Parse(lexemes: Lexeme[], position: number, allowAndOperator: boolean = true): { value: ValueComponent; newPosition: number } {
+        // support comments
+        const comment = lexemes[position].comments;
+        const result = this.ParseCore(lexemes, position, allowAndOperator);
+        result.value.comments = comment;
+        return result;
+    }
+
+    private static ParseCore(lexemes: Lexeme[], position: number, allowAndOperator: boolean = true): { value: ValueComponent; newPosition: number } {
         let p = position;
         const result = this.ParseItem(lexemes, p);
         p = result.newPosition;
@@ -578,12 +586,12 @@ export class ValueParser {
             let arg = input.value;
             p = input.newPosition;
 
-            // コンマでパースする場合は標準の関数パーサーに処理委譲
+            // Delegate to the standard function parser if parsing by comma
             if (p < lexemes.length && lexemes[p].type === TokenType.Comma) {
                 return this.ParseFunctionCall(lexemes, position);
             }
 
-            // キーワードをチェック
+            // Check keywords
             for (const { key, required } of keywords) {
                 if (p < lexemes.length && lexemes[p].type === TokenType.Command && lexemes[p].value === key) {
                     p++;
@@ -599,7 +607,7 @@ export class ValueParser {
                     }
 
                 } else if (required) {
-                    throw new Error(`キーワード '${key}' が必要です: ${p}`);
+                    throw new Error(`Keyword '${key}' is required at position ${p}`);
                 }
             }
 
@@ -607,10 +615,10 @@ export class ValueParser {
                 p++;
                 return { value: new FunctionCall(functionName, arg), newPosition: p };
             } else {
-                throw new Error(`関数 '${functionName}' の閉じカッコがありません: ${p}`);
+                throw new Error(`Missing closing parenthesis for function '${functionName}' at position ${p}`);
             }
         } else {
-            throw new Error(`関数 '${functionName}' の開きカッコがありません: ${p}`);
+            throw new Error(`Missing opening parenthesis for function '${functionName}' at position ${p}`);
         }
     }
 }

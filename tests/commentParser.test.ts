@@ -104,7 +104,7 @@ test('Empty lines within block comments are not removed', () => {
     expect(lexemes[0].comments?.[4]).toBe('line comment 4');
 });
 
-test('hint comment', () => {
+test('hint clause(not comment)', () => {
     // Arrange
     const tokenizer = new SqlTokenizer(`
    /*+ hint comment */
@@ -115,6 +115,22 @@ test('hint comment', () => {
     const lexemes = tokenizer.readLexmes();
 
     // Assert
-    expect(lexemes.length).toBe(1);
+    expect(lexemes.length).toBe(2);
     expect(lexemes[0].comments).toBeNull();
+    expect(lexemes[0].value).toBe('/*+ hint comment */');
+});
+
+test('現実的なサンプル', () => {
+    // Arrange
+    const tokenizer = new SqlTokenizer(`
+    FLOOR(price * 1.1) -- Calculate total price (including tax) and round down
+    `);
+
+    // Act
+    const lexemes = tokenizer.readLexmes();
+
+    // Assert
+    expect(lexemes.length).toBe(2);
+    expect(lexemes[0].comments).toBeNull();
+    expect(lexemes[0].value).toBe('/*+ hint comment */');
 });

@@ -100,8 +100,8 @@ export class StringUtils {
      * Skip white space characters and SQL comments.
      * @returns Object containing the new position and an array of skipped comments
      */
-    public static readComments(input: string, position: number): { position: number, comments: string[] | null } {
-        const comments: string[] = [];
+    public static readComment(input: string, position: number): { position: number, lines: string[] } {
+        const lines: string[] = [];
 
         while (true) {
             const newPosition = StringUtils.skipWhiteSpace(input, position);
@@ -114,7 +114,7 @@ export class StringUtils {
             if (lineCommentResult.newPosition !== position) {
                 position = lineCommentResult.newPosition;
                 if (lineCommentResult.comment) {
-                    comments.push(lineCommentResult.comment.trim());
+                    lines.push(lineCommentResult.comment.trim());
                 }
                 continue;
             }
@@ -124,7 +124,7 @@ export class StringUtils {
                 position = blockCommentResult.newPosition;
                 if (blockCommentResult.comments) {
                     for (let i = 0; i < blockCommentResult.comments.length; i++) {
-                        comments.push(blockCommentResult.comments[i].trim());
+                        lines.push(blockCommentResult.comments[i].trim());
                     }
                 }
                 continue;
@@ -133,10 +133,7 @@ export class StringUtils {
             break;
         }
 
-        if (comments.length > 0) {
-            return { position, comments: comments };
-        }
-        return { position, comments: null };
+        return { position, lines: lines };
     }
 
     /**

@@ -19,7 +19,7 @@ export class FunctionTokenReader extends BaseTokenReader {
         this.position = result.newPosition;
 
         // peek next token 
-        var shift = StringUtils.readComments(this.input, this.position).position - this.position;
+        var shift = StringUtils.readComment(this.input, this.position).position - this.position;
 
         if (this.canRead(shift) && this.input[this.position + shift] === '(') {
             return this.createLexeme(TokenType.Function, result.identifier);

@@ -1,4 +1,4 @@
-﻿import { Lexeme } from '../models/Lexeme';
+﻿import { Lexeme, TokenType } from '../models/Lexeme';
 import { IdentifierTokenReader } from '../tokenReaders/IdentifierTokenReader';
 import { LiteralTokenReader } from '../tokenReaders/LiteralTokenReader';
 import { ParameterTokenReader } from '../tokenReaders/ParameterTokenReader';
@@ -86,50 +86,88 @@ export class SqlTokenizer {
     public readLexmes(): Lexeme[] {
         const lexemes: Lexeme[] = [];
 
-        // Skip whitespace and comments at the start
-        let prevComment = this.readComments();
-        this.position = prevComment.position;
+        // Read initial prefix comments
+        const comment = this.readComment();
+        let pendingComments = comment.lines;
+        this.position = comment.position;
 
         // Track the previous token
         let previous: Lexeme | null = null;
 
-        // Read tokens until the end of the input is reached
+        // Read tokens until the end of input is reached
         while (this.canRead()) {
-            // semicolon is a delimiter
+            // Semicolon is a delimiter, so stop reading
             if (this.input[this.position] === ';') {
-                return lexemes;
+                break;
             }
 
-            // Try to read with the reader manager
+            // Read using the token reader manager
             const lexeme = this.readerManager.tryRead(this.position, previous);
 
-            // If a token is read by any reader
-            if (lexeme) {
-                // Update position
-                this.position = this.readerManager.getMaxPosition();
-
-                // lexeme.commentsの先頭に追加する
-                if (prevComment.comments) {
-                    if (lexeme.comments) {
-                        lexeme.comments.unshift(...prevComment.comments);
-                    } else {
-                        lexeme.comments = prevComment.comments;
-                    }
-                }
-
-                // Skip whitespace and comments after the token
-                prevComment = this.readComments();
-                this.position = prevComment.position;
-
-                lexemes.push(lexeme);
-                previous = lexeme;
-            } else {
-                // Exception
+            if (lexeme === null) {
                 throw new Error(`Unexpected character. actual: ${this.input[this.position]}, position: ${this.position}\n${this.getDebugPositionInfo(this.position)}`);
             }
+
+            // Update position
+            this.position = this.readerManager.getMaxPosition();
+
+            // Read suffix comments
+            const currentComment = this.readComment();
+            this.position = currentComment.position;
+
+            if (lexeme.type === TokenType.Comma || lexeme.type === TokenType.Operator) {
+                // Carry over comments after commas or operators
+                pendingComments.push(...currentComment.lines);
+            } else {
+                // Add comments to the current token if any
+                this.addCommentsToToken(lexeme, pendingComments, currentComment.lines);
+                pendingComments = []; // Clear as they are processed
+            }
+
+            lexemes.push(lexeme);
+            previous = lexeme;
         }
 
+        // Add any pending comments to the last token
+        this.addPendingCommentsToLastToken(lexemes, pendingComments);
+
         return lexemes;
+    }
+
+    /**
+     * Adds pending comments to the last token.
+     */
+    private addPendingCommentsToLastToken(lexemes: Lexeme[], pendingComments: string[]): void {
+        if (pendingComments.length > 0 && lexemes.length > 0) {
+            const lastToken = lexemes[lexemes.length - 1];
+            if (lastToken.comments === null) {
+                lastToken.comments = [];
+            }
+            lastToken.comments.push(...pendingComments);
+        }
+    }
+
+    /**
+     * Adds comments to the token.
+     */
+    private addCommentsToToken(lexeme: Lexeme, prefixComments: string[], suffixComments: string[]): void {
+        const hasComments = prefixComments.length > 0 || suffixComments.length > 0;
+
+        if (hasComments) {
+            if (lexeme.comments === null) {
+                lexeme.comments = [];
+            }
+
+            // Add prefix comments to the beginning.
+            if (prefixComments.length > 0) {
+                lexeme.comments.unshift(...prefixComments);
+            }
+
+            // Add suffix comments to the end.
+            if (suffixComments.length > 0) {
+                lexeme.comments.push(...suffixComments);
+            }
+        }
     }
 
     /**
@@ -137,8 +175,8 @@ export class SqlTokenizer {
      * 
      * @remarks This method updates the position pointer.
      */
-    private readComments(): { position: number, comments: string[] | null } {
-        return StringUtils.readComments(this.input, this.position);
+    private readComment(): { position: number, lines: string[] } {
+        return StringUtils.readComment(this.input, this.position);
     }
 
     /**

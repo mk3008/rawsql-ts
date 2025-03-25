@@ -21,6 +21,8 @@
         }
         return this.accept(formatter);
     }
+
+    comments: string[] | null = null;
 }
 
 export interface SqlComponentVisitor<T> {
@@ -28,6 +30,7 @@ export interface SqlComponentVisitor<T> {
 }
 
 export class SqlDialectConfiguration {
-    public parameterSymbol = ":";
+    public parameterSymbol: string = ":";
     public identifierEscape = { start: '"', end: '"' };
+    public exportComment: boolean = true;
 }
