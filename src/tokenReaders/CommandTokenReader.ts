@@ -79,6 +79,11 @@ const trie = new KeywordTrie([
     ["array"],
     // cast
     ["as"],
+    // odrder
+    ["asc"],
+    ["desc"],
+    ["nulls", "first"],
+    ["nulls", "last"],
 ]);
 export const keywordParser = new KeywordParser(trie);
 

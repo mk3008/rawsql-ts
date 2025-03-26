@@ -1,4 +1,4 @@
-import { SelectClause, SelectItem } from "../models/Clause";
+import { SelectClause, SelectComponent, SelectItem } from "../models/Clause";
 import { Lexeme, TokenType } from "../models/Lexeme";
 import { ColumnReference } from "../models/ValueComponent";
 import { SqlTokenizer } from "./SqlTokenizer";
@@ -28,7 +28,7 @@ export class SelectClauseParser {
         }
         idx++;
 
-        const items: SelectItem[] = [];
+        const items: SelectComponent[] = [];
         const item = this.ParseItem(lexemes, idx);
         items.push(item.value);
         idx = item.newIndex;
@@ -48,7 +48,7 @@ export class SelectClauseParser {
         }
     }
 
-    private static ParseItem(lexemes: Lexeme[], index: number): { value: SelectItem; newIndex: number } {
+    private static ParseItem(lexemes: Lexeme[], index: number): { value: SelectComponent; newIndex: number } {
         let idx = index;
 
         const parsedValue = ValueParser.Parse(lexemes, idx);
@@ -59,10 +59,6 @@ export class SelectClauseParser {
             idx++;
         }
 
-        const defaultName = value instanceof ColumnReference
-            ? value.column.name
-            : null;
-
         if (idx < lexemes.length && lexemes[idx].type === TokenType.Identifier) {
             const alias = lexemes[idx].value;
             idx++;
@@ -70,13 +66,12 @@ export class SelectClauseParser {
                 value: new SelectItem(value, alias),
                 newIndex: idx,
             };
-        } else if (defaultName) {
+        } else {
+            // alias nameless
             return {
-                value: new SelectItem(value, defaultName),
+                value,
                 newIndex: idx,
             };
         }
-
-        throw new Error(`Column name not found at index ${index}`);
     }
 }

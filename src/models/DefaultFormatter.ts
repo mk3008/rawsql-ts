@@ -1,7 +1,7 @@
 import { SelectQuery } from "./SelectQuery";
 import { SqlComponent, SqlComponentVisitor, SqlDialectConfiguration } from "./SqlComponent";
 import { LiteralValue, RawString, IdentifierString, ColumnReference, FunctionCall, UnaryExpression, BinaryExpression, ParameterExpression, ArrayExpression, CaseExpression, CastExpression, ParenExpression, BetweenExpression, SwitchCaseArgument, ValueList, CaseKeyValuePair, StringSpecifierExpression, TypeValue } from "./ValueComponent";
-import { ColumnAliasItem, ColumnAliasList, CommonTableItem, CommonTableList, CommonTableSource, Cube, Distinct, DistinctOn, FromClause, FunctionSource, GroupByClause, GroupByItem, GroupByList, GroupingSet, HavingClause, JoinItem, JoinList, NullsSortDirection, OrderByClause, OrderByItem, OrderByList, OverClause, PartitionByClause, PartitionByItem, PartitionByList, Rollup, SelectClause, SelectItem, SortDirection, SourceExpression, SubQuerySource, TableSource, WhereClause, WindowFrameClause, WithClause } from "./Clause";
+import { ColumnAliasItem, ColumnAliasList, CommonTableItem, CommonTableList, CommonTableSource, Cube, Distinct, DistinctOn, FromClause, FunctionSource, GroupByClause, GroupByItem, GroupByList, GroupingSet, HavingClause, JoinItem, JoinList, NullsSortDirection, OrderByClause, OrderByItem, OverClause, PartitionByClause, PartitionByItem, PartitionByList, Rollup, SelectClause, SelectItem, SortDirection, SourceExpression, SubQuerySource, TableSource, WhereClause, WindowFrameClause, WithClause } from "./Clause";
 
 export class DefaultFormatter implements SqlComponentVisitor<string> {
     private handlers = new Map<symbol, (arg: SqlComponent) => string>();
@@ -47,7 +47,6 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
 
         // order by
         this.handlers.set(OrderByClause.kind, (expr) => this.decodeOrderByClause(expr as OrderByClause));
-        this.handlers.set(OrderByList.kind, (expr) => this.decodeOrderByCollection(expr as OrderByList));
         this.handlers.set(OrderByItem.kind, (expr) => this.decodeOrderByItem(expr as OrderByItem));
 
         // partition by
@@ -324,11 +323,8 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
     }
 
     decodeOrderByClause(arg: OrderByClause): string {
-        return `order by ${arg.orderBy.accept(this)}`;
-    }
-
-    decodeOrderByCollection(arg: OrderByList): string {
-        return `${arg.items.map((e) => e.accept(this)).join(", ")}`;
+        const part = arg.orderBy.map((e) => e.accept(this)).join(", ");
+        return `order by ${part}`;
     }
 
     decodeOrderByItem(arg: OrderByItem): string {

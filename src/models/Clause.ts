@@ -119,36 +119,27 @@ export enum NullsSortDirection {
     Last = "last",
 }
 
+export type OrderByComponent = OrderByItem | ValueComponent;
+
 export class OrderByClause extends SqlComponent {
     static kind = Symbol("OrderByClause");
-    orderBy: OrderByComponent;
-    constructor(expression: OrderByComponent) {
+    orderBy: OrderByComponent[];
+    constructor(items: OrderByComponent[]) {
         super();
-        this.orderBy = expression;
+        this.orderBy = items;
     }
 }
-
-export type OrderByComponent = OrderByItem | OrderByList;
 
 export class OrderByItem extends SqlComponent {
     static kind = Symbol("OrderByItem");
     value: ValueComponent;
     sortDirection: SortDirection;
     nullsPosition: NullsSortDirection | null;
-    constructor(expression: ValueComponent, sortDirection: SortDirection = SortDirection.Ascending, nullsPosition: NullsSortDirection | null) {
+    constructor(expression: ValueComponent, sortDirection: SortDirection | null, nullsPosition: NullsSortDirection | null) {
         super();
         this.value = expression;
-        this.sortDirection = sortDirection;
+        this.sortDirection = sortDirection === null ? SortDirection.Ascending : sortDirection;
         this.nullsPosition = nullsPosition;
-    }
-}
-
-export class OrderByList extends SqlComponent {
-    static kind = Symbol("OrderByList");
-    items: OrderByItem[];
-    constructor(items: OrderByItem[]) {
-        super();
-        this.items = items;
     }
 }
 

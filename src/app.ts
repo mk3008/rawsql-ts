@@ -1,17 +1,17 @@
 ﻿import { DefaultFormatter } from './models/DefaultFormatter';
+import { OrderByClauseParser } from './parsers/OrderByClauseParser';
 import { SqlTokenizer } from './parsers/SqlTokenizer';
-import { WhereClauseParser } from './parsers/WhereClauseParser';
 
 const formatter = new DefaultFormatter();
 
-const text = `where 1=1 and a.id = 1`;
+const text = `order by 1=1, a.id, a.name nulls first, a.created_at desc`;
 
 const lexemes = new SqlTokenizer(text).readLexmes();
 console.log(JSON.stringify(lexemes, (_, value) => {
     return value === null ? undefined : value;
 }, 2));
 
-const clause = WhereClauseParser.ParseFromText(text);
+const clause = OrderByClauseParser.ParseFromText(text);
 console.log(JSON.stringify(clause, (_, value) => {
     return value === null ? undefined : value;
 }, 2));
