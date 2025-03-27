@@ -99,3 +99,51 @@ test('with column alias without as keyword', () => {
     // Assert
     expect(sql).toEqual(`select \"a\".\"id\" as \"user_id\", \"a\".\"name\" as \"user_name\"`);
 });
+
+test('with distinct keyword', () => {
+    // Arrange
+    const text = `select distinct a.category, a.region`;
+
+    // Act
+    const clause = SelectClauseParser.ParseFromText(text);
+    const sql = formatter.visit(clause);
+
+    // Assert
+    expect(sql).toEqual(`select distinct \"a\".\"category\", \"a\".\"region\"`);
+});
+
+test('with distinct and function', () => {
+    // Arrange
+    const text = `select distinct lower(a.email) as email_lower`;
+
+    // Act
+    const clause = SelectClauseParser.ParseFromText(text);
+    const sql = formatter.visit(clause);
+
+    // Assert
+    expect(sql).toEqual(`select distinct lower(\"a\".\"email\") as \"email_lower\"`);
+});
+
+test('with distinct on single column', () => {
+    // Arrange
+    const text = `select distinct on (a.department_id) a.employee_id, a.department_id, a.salary`;
+
+    // Act
+    const clause = SelectClauseParser.ParseFromText(text);
+    const sql = formatter.visit(clause);
+
+    // Assert
+    expect(sql).toEqual(`select distinct on(\"a\".\"department_id\") \"a\".\"employee_id\", \"a\".\"department_id\", \"a\".\"salary\"`);
+});
+
+test('with distinct on multiple columns', () => {
+    // Arrange
+    const text = `select distinct on (a.department_id, a.job_title) a.employee_id, a.salary, a.hire_date`;
+
+    // Act
+    const clause = SelectClauseParser.ParseFromText(text);
+    const sql = formatter.visit(clause);
+
+    // Assert
+    expect(sql).toEqual(`select distinct on(\"a\".\"department_id\", \"a\".\"job_title\") \"a\".\"employee_id\", \"a\".\"salary\", \"a\".\"hire_date\"`);
+});

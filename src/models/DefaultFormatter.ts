@@ -265,8 +265,9 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
     }
 
     decodeSelectClause(arg: SelectClause): string {
-        const part = arg.items.map((e) => e.accept(this)).join(", ");
-        return `select ${part}`;
+        const distinct = arg.distinct !== null ? " " + arg.distinct.accept(this) : "";
+        const colum = arg.items.map((e) => e.accept(this)).join(", ");
+        return `select${distinct} ${colum}`;
     }
 
     decodeSelectQuery(arg: SelectQuery): string {

@@ -1,6 +1,5 @@
-import { SelectClause, SelectComponent, SelectItem } from "../models/Clause";
+import { Distinct, DistinctComponent, DistinctOn, SelectClause, SelectComponent, SelectItem } from "../models/Clause";
 import { Lexeme, TokenType } from "../models/Lexeme";
-import { ColumnReference } from "../models/ValueComponent";
 import { SqlTokenizer } from "./SqlTokenizer";
 import { ValueParser } from "./ValueParser";
 
@@ -22,11 +21,22 @@ export class SelectClauseParser {
 
     private static Parse(lexemes: Lexeme[], index: number): { value: SelectClause; newIndex: number } {
         let idx = index;
+        let distinct: DistinctComponent | null = null;
 
         if (lexemes[idx].value !== 'select') {
             throw new Error(`Expected 'SELECT' at index ${idx}`);
         }
         idx++;
+
+        if (idx < lexemes.length && lexemes[idx].value === 'distinct') {
+            idx++;
+            distinct = new Distinct();
+        } else if (idx < lexemes.length && lexemes[idx].value === 'distinct on') {
+            idx++;
+            const argument = ValueParser.ParseArgument(TokenType.OpenParen, TokenType.CloseParen, lexemes, idx);
+            distinct = new DistinctOn(argument.value);
+            idx = argument.newIndex;
+        }
 
         const items: SelectComponent[] = [];
         const item = this.ParseItem(lexemes, idx);
@@ -43,7 +53,7 @@ export class SelectClauseParser {
         if (items.length === 0) {
             throw new Error(`No select items found at index ${index}`);
         } else {
-            const clause = new SelectClause(items);
+            const clause = new SelectClause(items, distinct);
             return { value: clause, newIndex: idx };
         }
     }

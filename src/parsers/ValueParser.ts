@@ -68,7 +68,7 @@ export class ValueParser {
         return { value: result.value, newIndex: idx };
     }
 
-    static ParseTypeValue(lexemes: Lexeme[], index: number): { value: TypeValue; newIndex: number; } {
+    private static ParseTypeValue(lexemes: Lexeme[], index: number): { value: TypeValue; newIndex: number; } {
         let idx = index;
         // Check for type value
         if (idx < lexemes.length && (lexemes[idx].type === TokenType.Type || lexemes[idx].maybeType === true)) {
@@ -90,7 +90,7 @@ export class ValueParser {
         throw new Error(`Expected type value at index ${idx}`);
     }
 
-    static ParseBetweenExpression(lexemes: Lexeme[], index: number, value: ValueComponent, negated: boolean): { value: ValueComponent; newIndex: number; } {
+    private static ParseBetweenExpression(lexemes: Lexeme[], index: number, value: ValueComponent, negated: boolean): { value: ValueComponent; newIndex: number; } {
         let idx = index;
         const lower = this.Parse(lexemes, idx, false);
         idx = lower.newIndex;
@@ -161,7 +161,7 @@ export class ValueParser {
         throw new Error(`Invalid lexeme. index: ${idx}, type: ${lexemes[idx].type}, value: ${lexemes[idx].value}`);
     }
 
-    static ParseModifierUnaryExpression(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number; } {
+    private static ParseModifierUnaryExpression(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number; } {
         let idx = index;
         // Check for modifier unary expression
         if (idx < lexemes.length && lexemes[idx].type === TokenType.Command) {
@@ -173,7 +173,7 @@ export class ValueParser {
         throw new Error(`Invalid modifier unary expression at index ${idx}, Lexeme: ${lexemes[idx].value}`);
     }
 
-    static ParseCastFunction(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number; } {
+    private static ParseCastFunction(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number; } {
         let idx = index;
 
         // Get function name
@@ -211,7 +211,7 @@ export class ValueParser {
 
     }
 
-    static ParseTrimFunction(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number; } {
+    private static ParseTrimFunction(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number; } {
         let idx = index;
 
         // Get function name
@@ -245,7 +245,7 @@ export class ValueParser {
         }
     }
 
-    static ParseFunctionCall_FromFor(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number; } {
+    private static ParseFunctionCall_FromFor(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number; } {
         let idx = index;
 
         // Get function name
@@ -290,7 +290,7 @@ export class ValueParser {
         }
     }
 
-    static ParseStringSpecifierExpression(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number; } {
+    private static ParseStringSpecifierExpression(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number; } {
         let idx = index;
         const specifer = lexemes[idx].value;
         idx++;
@@ -306,7 +306,7 @@ export class ValueParser {
 
     }
 
-    static ParseCaseExpression(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number; } {
+    private static ParseCaseExpression(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number; } {
         let idx = index;
         const condition = this.Parse(lexemes, idx);
         idx = condition.newIndex;
@@ -319,7 +319,7 @@ export class ValueParser {
         return { value: result, newIndex: idx };
     }
 
-    static ParseCaseWhenExpression(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number; } {
+    private static ParseCaseWhenExpression(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number; } {
         let idx = index;
         const casewhenResult = this.ParseCaseConditionValuePair(lexemes, idx);
         idx = casewhenResult.newIndex;
@@ -334,7 +334,7 @@ export class ValueParser {
     }
 
     // ParseSwitchCaseArgument method processes the WHEN, ELSE, and END clauses of a CASE expression.
-    static ParseSwitchCaseArgument(
+    private static ParseSwitchCaseArgument(
         lexemes: Lexeme[],
         index: number,
         initialWhenThenList: CaseConditionValuePair[]
@@ -375,7 +375,7 @@ export class ValueParser {
         return { value, newIndex: idx };
     }
 
-    static ParseCaseConditionValuePair(lexemes: Lexeme[], index: number): { value: CaseConditionValuePair; newIndex: number; } {
+    private static ParseCaseConditionValuePair(lexemes: Lexeme[], index: number): { value: CaseConditionValuePair; newIndex: number; } {
         let idx = index;
         const condition = this.Parse(lexemes, index);
         idx = condition.newIndex;
@@ -534,7 +534,7 @@ export class ValueParser {
         return this.ParseArgument(TokenType.OpenBracket, TokenType.CloseBracket, lexemes, index);
     }
 
-    private static ParseArgument(openToken: TokenType, closeToken: TokenType, lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number } {
+    public static ParseArgument(openToken: TokenType, closeToken: TokenType, lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number } {
         let idx = index;
         let args: ValueComponent[] = [];
 
