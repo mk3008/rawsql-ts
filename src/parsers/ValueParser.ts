@@ -145,12 +145,14 @@ export class ValueParser {
         } else if (current.type === TokenType.StringSpecifier) {
             return this.ParseStringSpecifierExpression(lexemes, idx);
         } else if (current.type === TokenType.Command) {
-            idx++;
             if (current.value === "case") {
+                idx++;
                 return this.ParseCaseExpression(lexemes, idx);
             } else if (current.value === "case when") {
+                idx++;
                 return this.ParseCaseWhenExpression(lexemes, idx);
             } else if (current.value === "array") {
+                idx++;
                 return this.ParseArrayExpression(lexemes, idx);
             }
             return this.ParseModifierUnaryExpression(lexemes, idx);
@@ -168,7 +170,7 @@ export class ValueParser {
             const result = this.Parse(lexemes, idx);
             return { value: new UnaryExpression(command!, result.value), newIndex: result.newIndex };
         }
-        throw new Error(`Invalid modifier unary expression at index ${idx}`);
+        throw new Error(`Invalid modifier unary expression at index ${idx}, Lexeme: ${lexemes[idx].value}`);
     }
 
     static ParseCastFunction(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number; } {

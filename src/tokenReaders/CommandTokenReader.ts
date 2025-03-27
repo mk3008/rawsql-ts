@@ -85,7 +85,7 @@ const trie = new KeywordTrie([
     ["nulls", "first"],
     ["nulls", "last"],
 ]);
-export const keywordParser = new KeywordParser(trie);
+const keywordParser = new KeywordParser(trie);
 
 export class CommandTokenReader extends BaseTokenReader {
     public tryRead(previous: Lexeme | null): Lexeme | null {

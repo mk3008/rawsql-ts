@@ -1,6 +1,13 @@
 ﻿import { BaseTokenReader } from './BaseTokenReader';
 import { Lexeme, TokenType } from '../models/Lexeme';
 import { StringUtils } from '../utils/stringUtils';
+import { KeywordTrie } from '../models/KeywordTrie';
+import { KeywordParser } from '../parsers/KeywordParser';
+
+const trie = new KeywordTrie([
+    ["grouping", "sets"],
+]);
+const keywordParser = new KeywordParser(trie);
 
 /**
  * Reads SQL identifier tokens
@@ -12,6 +19,13 @@ export class FunctionTokenReader extends BaseTokenReader {
     public tryRead(previous: Lexeme | null): Lexeme | null {
         if (this.isEndOfInput()) {
             return null;
+        }
+
+        // Check for keyword identifiers
+        const keyword = keywordParser.parse(this.input, this.position);
+        if (keyword !== null) {
+            this.position = keyword.newPosition;
+            return this.createLexeme(TokenType.Function, keyword.keyword);
         }
 
         // Regular identifier

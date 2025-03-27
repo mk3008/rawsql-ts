@@ -1,7 +1,7 @@
 import { SelectQuery } from "./SelectQuery";
 import { SqlComponent, SqlComponentVisitor, SqlDialectConfiguration } from "./SqlComponent";
 import { LiteralValue, RawString, IdentifierString, ColumnReference, FunctionCall, UnaryExpression, BinaryExpression, ParameterExpression, ArrayExpression, CaseExpression, CastExpression, ParenExpression, BetweenExpression, SwitchCaseArgument, ValueList, CaseKeyValuePair, StringSpecifierExpression, TypeValue } from "./ValueComponent";
-import { ColumnAliasItem, ColumnAliasList, CommonTableItem, CommonTableList, CommonTableSource, Cube, Distinct, DistinctOn, FromClause, FunctionSource, GroupByClause, GroupByItem, GroupByList, GroupingSet, HavingClause, JoinItem, JoinList, NullsSortDirection, OrderByClause, OrderByItem, OverClause, PartitionByClause, PartitionByItem, PartitionByList, Rollup, SelectClause, SelectItem, SortDirection, SourceExpression, SubQuerySource, TableSource, WhereClause, WindowFrameClause, WithClause } from "./Clause";
+import { ColumnAliasItem, ColumnAliasList, CommonTableItem, CommonTableList, CommonTableSource, Distinct, DistinctOn, FromClause, FunctionSource, GroupByClause, HavingClause, JoinItem, JoinList, NullsSortDirection, OrderByClause, OrderByItem, OverClause, PartitionByClause, PartitionByItem, PartitionByList, SelectClause, SelectItem, SortDirection, SourceExpression, SubQuerySource, TableSource, WhereClause, WindowFrameClause, WithClause } from "./Clause";
 
 export class DefaultFormatter implements SqlComponentVisitor<string> {
     private handlers = new Map<symbol, (arg: SqlComponent) => string>();
@@ -63,12 +63,7 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
 
         // group by
         this.handlers.set(GroupByClause.kind, (expr) => this.decodeGroupByClause(expr as GroupByClause));
-        this.handlers.set(GroupByList.kind, (expr) => this.decodeGroupByCollection(expr as GroupByList));
-        this.handlers.set(GroupByItem.kind, (expr) => this.decodeGroupByItem(expr as GroupByItem));
         this.handlers.set(HavingClause.kind, (expr) => this.decodeHavingClause(expr as HavingClause));
-        this.handlers.set(GroupingSet.kind, (expr) => this.decodeGroupingSet(expr as GroupingSet));
-        this.handlers.set(Cube.kind, (expr) => this.decodeCube(expr as Cube));
-        this.handlers.set(Rollup.kind, (expr) => this.decodeRollup(expr as Rollup));
 
         // with
         this.handlers.set(CommonTableItem.kind, (expr) => this.decodeCommonTableItem(expr as CommonTableItem));
@@ -101,15 +96,6 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
         return `${arg.specifier.accept(this)}${arg.value.accept(this)}`;
     }
 
-    decodeRollup(arg: Rollup): string {
-        return `rollup(${arg.value.accept(this)})`;
-    }
-    decodeCube(arg: Cube): string {
-        return `rollup(${arg.value.accept(this)})`;
-    }
-    decodeGroupingSet(arg: GroupingSet): string {
-        return `grouping sets ${arg.value.accept(this)}`;
-    }
     decodeWithClause(arg: WithClause): string {
         return `with ${arg.recursive ? 'recursive' : ''} ${arg.commonTable.accept(this)}`;
     }
@@ -146,14 +132,9 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
     decodeHavingClause(arg: HavingClause): string {
         return `having ${arg.condition.accept(this)}`;
     }
-    decodeGroupByItem(arg: GroupByItem): string {
-        return `${arg.value.accept(this)}`;
-    }
-    decodeGroupByCollection(arg: GroupByList): string {
-        return `${arg.items.map((e) => e.accept(this)).join(", ")}`;
-    }
     decodeGroupByClause(arg: GroupByClause): string {
-        return `group by ${arg.grouping.accept(this)}`;
+        const part = arg.grouping.map((e) => e.accept(this)).join(", ");
+        return `group by ${part}`;
     }
 
     decodeCommonTableSource(arg: CommonTableSource): string {

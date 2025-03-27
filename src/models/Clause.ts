@@ -54,7 +54,6 @@ export class WhereClause extends SqlComponent {
     }
 }
 
-
 export type PartitionByComponent = PartitionByItem | PartitionByList;
 
 export class PartitionByItem extends SqlComponent {
@@ -143,56 +142,10 @@ export class OrderByItem extends SqlComponent {
     }
 }
 
-export type GroupByComponent = GroupByItem | GroupByList | GroupingSet | Cube | Rollup;
-
-export class Rollup extends SqlComponent {
-    static kind = Symbol("Rollup");
-    value: ValueComponent;
-    constructor(value: ValueComponent) {
-        super();
-        this.value = value;
-    }
-}
-
-export class Cube extends SqlComponent {
-    static kind = Symbol("Cube");
-    value: ValueComponent;
-    constructor(value: ValueComponent) {
-        super();
-        this.value = value;
-    }
-}
-export class GroupingSet extends SqlComponent {
-    static kind = Symbol("GroupingSet");
-    value: ValueComponent;
-    constructor(value: ValueComponent) {
-        super();
-        this.value = value;
-    }
-}
-
-export class GroupByItem extends SqlComponent {
-    static kind = Symbol("GroupByItem");
-    value: ValueComponent;
-    constructor(value: ValueComponent) {
-        super();
-        this.value = value;
-    }
-}
-
-export class GroupByList extends SqlComponent {
-    static kind = Symbol("GroupByList");
-    items: GroupByItem[];
-    constructor(items: GroupByItem[]) {
-        super();
-        this.items = items;
-    }
-}
-
 export class GroupByClause extends SqlComponent {
     static kind = Symbol("GroupByClause");
-    grouping: GroupByComponent;
-    constructor(expression: GroupByComponent) {
+    grouping: ValueComponent[];
+    constructor(expression: ValueComponent[]) {
         super();
         this.grouping = expression;
     }
