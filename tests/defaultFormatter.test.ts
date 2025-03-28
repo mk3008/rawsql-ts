@@ -1,3 +1,4 @@
+import { describe, expect, test } from 'vitest';
 ﻿import { SelectClause, SelectItem } from "../src/models/Clause";
 import { DefaultFormatter } from "../src/models/DefaultFormatter";
 import { SelectQuery } from "../src/models/SelectQuery";

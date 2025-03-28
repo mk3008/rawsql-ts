@@ -1,9 +1,10 @@
+import { describe, expect, test } from 'vitest';
 import { ValueParser } from "../src/parsers/ValueParser";
-import { DefaultFormatter } from "../src/models/DefaultFormatter";
+import { DefaultFormatter } from '../src/models/DefaultFormatter';
 
+// テスト中の循環参照問題を回避するために、テストの焦点を変更
 describe('ValueParser', () => {
     const formatter = new DefaultFormatter();
-
     test.each([
         ["ColumnReference", "a.id", '"a"."id"'],
         ["LiteralValue - Numeric", "123", "123"],
@@ -64,7 +65,7 @@ describe('ValueParser', () => {
         ["AT TIME ZONE - column reference", "created_at AT TIME ZONE 'UTC'", "\"created_at\" at time zone 'UTC'"],
         ["AT TIME ZONE - timestamp literal", "'2025-03-28 15:30:00'::timestamp AT TIME ZONE 'America/New_York'", "'2025-03-28 15:30:00'::timestamp at time zone 'America/New_York'"],
         ["AT TIME ZONE - nested", "('2025-03-28 15:30:00'::timestamp AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Tokyo'", "('2025-03-28 15:30:00'::timestamp at time zone 'UTC') at time zone 'Asia/Tokyo'"],
-    ])('%s', (_, text, expected) => {
+    ])('%s', (_, text, expected = text) => {
         const value = ValueParser.ParseFromText(text);
         const sql = formatter.visit(value);
         //console.log(`plain   : ${text}\nexpected: ${expected}\nsql     : ${sql}`);

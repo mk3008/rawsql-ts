@@ -10,15 +10,7 @@
         return visitor.visit(this);
     }
 
-    toString(formatter: SqlComponentVisitor<string> | null = null): string {
-        if (formatter === null) {
-            // Use dynamic import to avoid circular reference
-            const { DefaultFormatter } = require('./DefaultFormatter');
-            formatter = new DefaultFormatter();
-        }
-        if (formatter === null) {
-            throw new Error("Formatter cannot be null");
-        }
+    toSqlString(formatter: SqlComponentVisitor<string>): string {
         return this.accept(formatter);
     }
 

@@ -1,3 +1,4 @@
+import { describe, expect, test } from 'vitest';
 import { TokenType } from "../src/models/Lexeme";
 import { SqlTokenizer } from "../src/parsers/SqlTokenizer";
 

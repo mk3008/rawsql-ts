@@ -1,3 +1,4 @@
+import { describe, expect, test } from 'vitest';
 ﻿import { SqlTokenizer } from "../src/parsers/SqlTokenizer";
 
 test('skip white space', () => {

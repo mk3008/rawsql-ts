@@ -1,3 +1,4 @@
+import { describe, expect, test } from 'vitest';
 import { DefaultFormatter } from "../src/models/DefaultFormatter";
 import { HavingClauseParser } from "../src/parsers/HavingParser";
 

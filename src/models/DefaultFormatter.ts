@@ -246,7 +246,7 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
     }
 
     decodeParameterExpression(arg: ParameterExpression): string {
-        return `${this.config.parameterSymbol}${arg.name}`;
+        return `${this.config.parameterSymbol}${arg.name.accept(this)}`;
     }
 
     decodeSelectExpression(arg: SelectItem): string {
@@ -256,10 +256,10 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
                 if (c.column.name === arg.alias.name) {
                     return `${arg.value.accept(this)}`;
                 } else {
-                    return `${arg.value.accept(this)} as ${arg.alias}`;
+                    return `${arg.value.accept(this)} as ${arg.alias.accept(this)}`;
                 }
             }
-            return `${arg.value.accept(this)} as ${arg.alias}`;
+            return `${arg.value.accept(this)} as ${arg.alias.accept(this)}`;
         }
         return arg.value.accept(this);
     }
