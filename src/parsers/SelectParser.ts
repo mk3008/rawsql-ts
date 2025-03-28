@@ -4,12 +4,12 @@ import { SqlTokenizer } from "./SqlTokenizer";
 import { ValueParser } from "./ValueParser";
 
 export class SelectClauseParser {
-    public static ParseFromText(query: string): SelectClause {
+    public static parseFromText(query: string): SelectClause {
         const tokenizer = new SqlTokenizer(query); // Initialize tokenizer
         const lexemes = tokenizer.readLexmes(); // Get tokens
 
         // Parse
-        const result = this.Parse(lexemes, 0);
+        const result = this.parse(lexemes, 0);
 
         // Error if there are remaining tokens
         if (result.newIndex < lexemes.length) {
@@ -19,7 +19,7 @@ export class SelectClauseParser {
         return result.value;
     }
 
-    private static Parse(lexemes: Lexeme[], index: number): { value: SelectClause; newIndex: number } {
+    private static parse(lexemes: Lexeme[], index: number): { value: SelectClause; newIndex: number } {
         let idx = index;
         let distinct: DistinctComponent | null = null;
 
@@ -33,19 +33,19 @@ export class SelectClauseParser {
             distinct = new Distinct();
         } else if (idx < lexemes.length && lexemes[idx].value === 'distinct on') {
             idx++;
-            const argument = ValueParser.ParseArgument(TokenType.OpenParen, TokenType.CloseParen, lexemes, idx);
+            const argument = ValueParser.parseArgument(TokenType.OpenParen, TokenType.CloseParen, lexemes, idx);
             distinct = new DistinctOn(argument.value);
             idx = argument.newIndex;
         }
 
         const items: SelectComponent[] = [];
-        const item = this.ParseItem(lexemes, idx);
+        const item = this.parseItem(lexemes, idx);
         items.push(item.value);
         idx = item.newIndex;
 
         while (idx < lexemes.length && lexemes[idx].type === TokenType.Comma) {
             idx++;
-            const item = this.ParseItem(lexemes, idx);
+            const item = this.parseItem(lexemes, idx);
             items.push(item.value);
             idx = item.newIndex;
         }
@@ -58,10 +58,10 @@ export class SelectClauseParser {
         }
     }
 
-    private static ParseItem(lexemes: Lexeme[], index: number): { value: SelectComponent; newIndex: number } {
+    private static parseItem(lexemes: Lexeme[], index: number): { value: SelectComponent; newIndex: number } {
         let idx = index;
 
-        const parsedValue = ValueParser.Parse(lexemes, idx);
+        const parsedValue = ValueParser.parse(lexemes, idx);
         const value = parsedValue.value;
         idx = parsedValue.newIndex;
 

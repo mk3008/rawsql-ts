@@ -4,12 +4,12 @@ import { SqlTokenizer } from "./SqlTokenizer";
 import { ValueParser } from "./ValueParser";
 
 export class HavingClauseParser {
-    public static ParseFromText(query: string): HavingClause {
+    public static parseFromText(query: string): HavingClause {
         const tokenizer = new SqlTokenizer(query); // Initialize tokenizer
         const lexemes = tokenizer.readLexmes(); // Get tokens
 
         // Parse
-        const result = this.Parse(lexemes, 0);
+        const result = this.parse(lexemes, 0);
 
         // Error if there are remaining tokens
         if (result.newIndex < lexemes.length) {
@@ -19,7 +19,7 @@ export class HavingClauseParser {
         return result.value;
     }
 
-    private static Parse(lexemes: Lexeme[], index: number): { value: HavingClause; newIndex: number } {
+    private static parse(lexemes: Lexeme[], index: number): { value: HavingClause; newIndex: number } {
         let idx = index;
 
         if (lexemes[idx].value !== 'having') {
@@ -27,7 +27,7 @@ export class HavingClauseParser {
         }
         idx++;
 
-        const item = ValueParser.Parse(lexemes, idx);
+        const item = ValueParser.parse(lexemes, idx);
         const clause = new HavingClause(item.value);
 
         return { value: clause, newIndex: item.newIndex };

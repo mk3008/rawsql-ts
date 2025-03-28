@@ -4,12 +4,12 @@ import { SqlTokenizer } from "./SqlTokenizer";
 import { ValueParser } from "./ValueParser";
 
 export class WhereClauseParser {
-    public static ParseFromText(query: string): WhereClause {
+    public static parseFromText(query: string): WhereClause {
         const tokenizer = new SqlTokenizer(query); // Initialize tokenizer
         const lexemes = tokenizer.readLexmes(); // Get tokens
 
         // Parse
-        const result = this.Parse(lexemes, 0);
+        const result = this.parse(lexemes, 0);
 
         // Error if there are remaining tokens
         if (result.newIndex < lexemes.length) {
@@ -19,7 +19,7 @@ export class WhereClauseParser {
         return result.value;
     }
 
-    private static Parse(lexemes: Lexeme[], index: number): { value: WhereClause; newIndex: number } {
+    private static parse(lexemes: Lexeme[], index: number): { value: WhereClause; newIndex: number } {
         let idx = index;
 
         if (lexemes[idx].value !== 'where') {
@@ -27,7 +27,7 @@ export class WhereClauseParser {
         }
         idx++;
 
-        const item = ValueParser.Parse(lexemes, idx);
+        const item = ValueParser.parse(lexemes, idx);
         const clause = new WhereClause(item.value);
 
         return { value: clause, newIndex: item.newIndex };
