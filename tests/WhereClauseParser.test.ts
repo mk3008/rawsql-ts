@@ -9,7 +9,7 @@ test('simple where', () => {
     const text = `where id = 1`;
 
     // Act
-    const clause = WhereClauseParser.ParseFromText(text);
+    const clause = WhereClauseParser.parseFromText(text);
     const sql = formatter.visit(clause);
 
     // Assert
@@ -21,7 +21,7 @@ test('with and operator', () => {
     const text = `where id = 1 and name = 'test'`;
 
     // Act
-    const clause = WhereClauseParser.ParseFromText(text);
+    const clause = WhereClauseParser.parseFromText(text);
     const sql = formatter.visit(clause);
 
     // Assert
@@ -33,7 +33,7 @@ test('with or operator', () => {
     const text = `where id = 1 or name = 'test'`;
 
     // Act
-    const clause = WhereClauseParser.ParseFromText(text);
+    const clause = WhereClauseParser.parseFromText(text);
     const sql = formatter.visit(clause);
 
     // Assert
@@ -45,7 +45,7 @@ test('with comparison operators', () => {
     const text = `where id > 1 and price < 100 and quantity >= 5 and discount <= 0.1`;
 
     // Act
-    const clause = WhereClauseParser.ParseFromText(text);
+    const clause = WhereClauseParser.parseFromText(text);
     const sql = formatter.visit(clause);
 
     // Assert
@@ -57,7 +57,7 @@ test('with in operator', () => {
     const text = `where status in ('active', 'pending')`;
 
     // Act
-    const clause = WhereClauseParser.ParseFromText(text);
+    const clause = WhereClauseParser.parseFromText(text);
     const sql = formatter.visit(clause);
 
     // Assert
@@ -69,7 +69,7 @@ test('with not in operator', () => {
     const text = `where status not in ('deleted', 'inactive')`;
 
     // Act
-    const clause = WhereClauseParser.ParseFromText(text);
+    const clause = WhereClauseParser.parseFromText(text);
     const sql = formatter.visit(clause);
 
     // Assert
@@ -81,7 +81,7 @@ test('with between operator', () => {
     const text = `where price between 10 and 100`;
 
     // Act
-    const clause = WhereClauseParser.ParseFromText(text);
+    const clause = WhereClauseParser.parseFromText(text);
     const sql = formatter.visit(clause);
 
     // Assert
@@ -93,7 +93,7 @@ test('with is null', () => {
     const text = `where deleted_at is null`;
 
     // Act
-    const clause = WhereClauseParser.ParseFromText(text);
+    const clause = WhereClauseParser.parseFromText(text);
     const sql = formatter.visit(clause);
 
     // Assert
@@ -105,7 +105,7 @@ test('with is not null', () => {
     const text = `where created_at is not null`;
 
     // Act
-    const clause = WhereClauseParser.ParseFromText(text);
+    const clause = WhereClauseParser.parseFromText(text);
     const sql = formatter.visit(clause);
 
     // Assert
@@ -117,7 +117,7 @@ test('with like operator', () => {
     const text = `where name like '%test%'`;
 
     // Act
-    const clause = WhereClauseParser.ParseFromText(text);
+    const clause = WhereClauseParser.parseFromText(text);
     const sql = formatter.visit(clause);
 
     // Assert
@@ -129,7 +129,7 @@ test('with nested conditions', () => {
     const text = `where (id = 1 or id = 2) and (status = 'active' or status = 'pending')`;
 
     // Act
-    const clause = WhereClauseParser.ParseFromText(text);
+    const clause = WhereClauseParser.parseFromText(text);
     const sql = formatter.visit(clause);
 
     // Assert
@@ -141,7 +141,7 @@ test('with function', () => {
     const text = `where lower(name) = 'test' and date_part('year', created_at) = 2023`;
 
     // Act
-    const clause = WhereClauseParser.ParseFromText(text);
+    const clause = WhereClauseParser.parseFromText(text);
     const sql = formatter.visit(clause);
 
     // Assert

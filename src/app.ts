@@ -13,7 +13,7 @@ console.log(JSON.stringify(lexemes, (_, value) => {
     return value === null ? undefined : value;
 }, 2));
 
-const clause = ValueParser.ParseFromText(text);
+const clause = ValueParser.parseFromText(text);
 console.log(JSON.stringify(clause, (_, value) => {
     return value === null ? undefined : value;
 }, 2));

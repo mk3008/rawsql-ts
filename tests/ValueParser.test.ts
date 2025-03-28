@@ -66,7 +66,7 @@ describe('ValueParser', () => {
         ["AT TIME ZONE - timestamp literal", "'2025-03-28 15:30:00'::timestamp AT TIME ZONE 'America/New_York'", "'2025-03-28 15:30:00'::timestamp at time zone 'America/New_York'"],
         ["AT TIME ZONE - nested", "('2025-03-28 15:30:00'::timestamp AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Tokyo'", "('2025-03-28 15:30:00'::timestamp at time zone 'UTC') at time zone 'Asia/Tokyo'"],
     ])('%s', (_, text, expected = text) => {
-        const value = ValueParser.ParseFromText(text);
+        const value = ValueParser.parseFromText(text);
         const sql = formatter.visit(value);
         //console.log(`plain   : ${text}\nexpected: ${expected}\nsql     : ${sql}`);
         expect(sql).toBe(expected);
