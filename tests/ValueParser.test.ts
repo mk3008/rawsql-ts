@@ -60,6 +60,10 @@ describe('ValueParser', () => {
         ["CAST with TIMESTAMP WITHOUT TIME ZONE", "date::TIMESTAMP WITHOUT TIME ZONE", "\"date\"::TIMESTAMP WITHOUT TIME ZONE"],
         ["OVERLAY function - basic", "OVERLAY('abcdef' PLACING 'xyz' FROM 2)", "overlay('abcdef' placing 'xyz' from 2)"],
         ["OVERLAY function - with FOR", "OVERLAY('abcdef' PLACING 'xyz' FROM 2 FOR 3)", "overlay('abcdef' placing 'xyz' from 2 for 3)"],
+        ["AT TIME ZONE - basic", "current_timestamp AT TIME ZONE 'JST'", "current_timestamp at time zone 'JST'"],
+        ["AT TIME ZONE - column reference", "created_at AT TIME ZONE 'UTC'", "\"created_at\" at time zone 'UTC'"],
+        ["AT TIME ZONE - timestamp literal", "'2025-03-28 15:30:00'::timestamp AT TIME ZONE 'America/New_York'", "'2025-03-28 15:30:00'::timestamp at time zone 'America/New_York'"],
+        ["AT TIME ZONE - nested", "('2025-03-28 15:30:00'::timestamp AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Tokyo'", "('2025-03-28 15:30:00'::timestamp at time zone 'UTC') at time zone 'Asia/Tokyo'"],
     ])('%s', (_, text, expected) => {
         const value = ValueParser.ParseFromText(text);
         const sql = formatter.visit(value);
