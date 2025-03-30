@@ -66,6 +66,7 @@ export class SelectClauseParser {
         idx = parsedValue.newIndex;
 
         if (idx < lexemes.length && lexemes[idx].value === 'as') {
+            // Skip 'AS' keyword
             idx++;
         }
 

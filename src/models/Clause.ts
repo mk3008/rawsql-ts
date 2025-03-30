@@ -163,7 +163,8 @@ export class HavingClause extends SqlComponent {
 export type SourceComponent = TableSource |
     FunctionSource |
     SubQuerySource |
-    CommonTableSource;
+    CommonTableSource |
+    ParenSource;
 
 export class CommonTableSource extends SqlComponent {
     static kind = Symbol("CommonTableSource");
@@ -179,9 +180,9 @@ export class TableSource extends SqlComponent {
     namespaces: IdentifierString[] | null;
     table: IdentifierString;
     name: IdentifierString;
-    constructor(namespaces: IdentifierString[] | null, table: string) {
+    constructor(namespaces: string[] | null, table: string) {
         super();
-        this.namespaces = namespaces;
+        this.namespaces = namespaces !== null ? namespaces.map((namespace) => new IdentifierString(namespace)) : null;;
         this.table = new IdentifierString(table);
         this.name = this.table;
     }
@@ -198,10 +199,18 @@ export class FunctionSource extends SqlComponent {
     }
 }
 
+export class ParenSource extends SqlComponent {
+    static kind = Symbol("ParenSource");
+    source: SourceComponent;
+    constructor(source: SourceComponent) {
+        super();
+        this.source = source;
+    }
+}
+
 export class SubQuerySource extends SqlComponent {
     static kind = Symbol("SubQuerySource");
     query: SelectQuery;
-    name: IdentifierString | null = null;
     constructor(query: SelectQuery) {
         super();
         this.query = query;
@@ -211,106 +220,85 @@ export class SubQuerySource extends SqlComponent {
 export class SourceExpression extends SqlComponent {
     static kind = Symbol("SourceExpression");
     datasource: SourceComponent;
-    alias: IdentifierString | null;
-    columnAlias: ColumnAliasComponent | null;
-    constructor(datasource: SourceComponent, alias: string | null, columnAlias: ColumnAliasComponent | null) {
+    alias: SourceAliasExpression | null;
+    constructor(datasource: SourceComponent, alias: SourceAliasExpression | null) {
         super();
         this.datasource = datasource;
-        this.alias = alias !== null ? new IdentifierString(alias) : null;
-        this.columnAlias = columnAlias;
+        this.alias = alias;
     }
 }
 
-export type JoinComponent = JoinItem | JoinList;
+export type JoinConditionComponent = JoinOnClause | JoinUsingClause;
 
-export class JoinItem extends SqlComponent {
+export class JoinOnClause extends SqlComponent {
+    static kind = Symbol("JoinOnClause");
+    condition: ValueComponent;
+    constructor(condition: ValueComponent) {
+        super();
+        this.condition = condition;
+    }
+}
+
+export class JoinUsingClause extends SqlComponent {
+    static kind = Symbol("JoinUsingClause");
+    condition: ValueComponent;
+    constructor(condition: ValueComponent) {
+        super();
+        this.condition = condition;
+    }
+}
+
+export class JoinClause extends SqlComponent {
     static kind = Symbol("JoinItem");
     joinType: RawString;
     source: SourceExpression;
-    condition: ValueComponent | null;
+    condition: JoinConditionComponent | null;
     lateral: boolean;
-    constructor(joinType: string, datasourceExpression: SourceExpression, condition: ValueComponent | null, lateral: boolean) {
+    constructor(joinType: string, source: SourceExpression, condition: JoinConditionComponent | null, lateral: boolean) {
         super();
         this.joinType = new RawString(joinType);
-        this.source = datasourceExpression;
+        this.source = source;
         this.condition = condition;
         this.lateral = lateral;
-    }
-}
-
-export class JoinList extends SqlComponent {
-    static kind = Symbol("JoinList");
-    items: JoinItem[];
-    constructor(items: JoinItem[]) {
-        super();
-        this.items = items;
     }
 }
 
 export class FromClause extends SqlComponent {
     static kind = Symbol("FromClause");
     source: SourceExpression;
-    join: JoinComponent | null;
-    constructor(source: SourceExpression, join: JoinComponent | null) {
+    joins: JoinClause[] | null;
+    constructor(source: SourceExpression, join: JoinClause[] | null) {
         super();
         this.source = source;
-        this.join = join;
+        this.joins = join;
     }
 }
 
-export type CommonTableComponent = CommonTableItem | CommonTableList;
-
-export type ColumnAliasComponent = ColumnAliasItem | ColumnAliasList;
-
-export class ColumnAliasList extends SqlComponent {
-    static kind = Symbol("ColumnAliasList");
-    items: ColumnAliasItem[];
-    constructor(items: ColumnAliasItem[]) {
-        super();
-        this.items = items;
-    }
-}
-export class ColumnAliasItem extends SqlComponent {
-    static kind = Symbol("ColumnAliasItem");
-    name: IdentifierString
-    constructor(name: string) {
-        super();
-        this.name = new IdentifierString(name);
-    }
-}
-
-export class CommonTableItem extends SqlComponent {
+export class CommonTable extends SqlComponent {
     static kind = Symbol("CommonTable");
-    name: IdentifierString;
     query: SelectQuery;
     materialized: boolean | null;
-    columnAlias: ColumnAliasComponent | null;
-    constructor(name: string, query: SelectQuery, materialized: boolean | null, columnAlias: ColumnAliasComponent | null) {
+    alias: SourceAliasExpression;
+    constructor(query: SelectQuery, alias: SourceAliasExpression | string, materialized: boolean | null) {
         super();
-        this.name = new IdentifierString(name);
         this.query = query;
         this.materialized = materialized;
-        this.columnAlias = columnAlias;
-    }
-}
-
-export class CommonTableList extends SqlComponent {
-    static kind = Symbol("CommonTableList");
-    items: CommonTableItem[];
-    constructor(items: CommonTableItem[]) {
-        super();
-        this.items = items;
+        if (typeof alias === "string") {
+            this.alias = new SourceAliasExpression(alias, null);
+        } else {
+            this.alias = alias;
+        }
     }
 }
 
 export class WithClause extends SqlComponent {
     static kind = Symbol("WithClause");
     recursive: boolean;
-    commonTable: CommonTableComponent;
-    constructor(recursive: boolean, commonTable: CommonTableComponent) {
+    tables: CommonTable[];
+    constructor(recursive: boolean, tables: CommonTable[]) {
         super();
         this.recursive = recursive;
-        this.commonTable = commonTable;
+        this.tables = tables;
     }
 }
 
@@ -367,3 +355,13 @@ export class ForClause extends SqlComponent {
     }
 }
 
+export class SourceAliasExpression extends SqlComponent {
+    static kind = Symbol("SourceAliasExpression");
+    table: IdentifierString;
+    columns: IdentifierString[] | null;
+    constructor(alias: string, columnAlias: string[] | null) {
+        super();
+        this.table = new IdentifierString(alias);
+        this.columns = columnAlias !== null ? columnAlias.map((alias) => new IdentifierString(alias)) : null;
+    }
+}

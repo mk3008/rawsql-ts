@@ -7,7 +7,8 @@
         "test:watch": "vitest",
         "coverage": "vitest run --coverage",
         "build": "tsc --build",
-        "clean": "tsc --build --clean"
+        "clean": "tsc --build --clean",
+        "lint": "eslint . --ext .ts,.tsx --fix"
     },
     "keywords": [],
     "author": "",

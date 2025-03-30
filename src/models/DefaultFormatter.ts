@@ -1,7 +1,7 @@
 import { SelectQuery } from "./SelectQuery";
 import { SqlComponent, SqlComponentVisitor, SqlDialectConfiguration } from "./SqlComponent";
 import { LiteralValue, RawString, IdentifierString, ColumnReference, FunctionCall, UnaryExpression, BinaryExpression, ParameterExpression, ArrayExpression, CaseExpression, CastExpression, ParenExpression, BetweenExpression, SwitchCaseArgument, ValueList, CaseKeyValuePair, StringSpecifierExpression, TypeValue } from "./ValueComponent";
-import { ColumnAliasItem, ColumnAliasList, CommonTableItem, CommonTableList, CommonTableSource, Distinct, DistinctOn, FromClause, FunctionSource, GroupByClause, HavingClause, JoinItem, JoinList, NullsSortDirection, OrderByClause, OrderByItem, OverClause, PartitionByClause, PartitionByItem, PartitionByList, SelectClause, SelectItem, SortDirection, SourceExpression, SubQuerySource, TableSource, WhereClause, WindowFrameClause, WithClause } from "./Clause";
+import { CommonTable, CommonTableSource, Distinct, DistinctOn, FromClause, FunctionSource, GroupByClause, HavingClause, JoinClause, JoinOnClause, JoinUsingClause, NullsSortDirection, OrderByClause, OrderByItem, OverClause, PartitionByClause, PartitionByItem, PartitionByList, SelectClause, SelectItem, SortDirection, SourceAliasExpression, SourceExpression, SubQuerySource, TableSource, WhereClause, WindowFrameClause, WithClause } from "./Clause";
 
 export class DefaultFormatter implements SqlComponentVisitor<string> {
     private handlers = new Map<symbol, (arg: SqlComponent) => string>();
@@ -31,14 +31,15 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
         this.handlers.set(BetweenExpression.kind, (expr) => this.decodeBetweenExpression(expr as BetweenExpression));
         this.handlers.set(TypeValue.kind, (expr) => this.decodeTypeValue(expr as TypeValue));
 
-        // column alias
-        this.handlers.set(ColumnAliasList.kind, (expr) => this.decodeColumnAliasList(expr as ColumnAliasList));
-        this.handlers.set(ColumnAliasItem.kind, (expr) => this.decodeColumnAliasItem(expr as ColumnAliasItem));
+        // source alias
+        this.handlers.set(SourceAliasExpression.kind, (expr) => this.decodeSourceAliasExpression(expr as SourceAliasExpression));
 
         // from
         this.handlers.set(FromClause.kind, (expr) => this.decodeFromClause(expr as FromClause));
-        this.handlers.set(JoinItem.kind, (expr) => this.decodeJoinClause(expr as JoinItem));
-        this.handlers.set(JoinList.kind, (expr) => this.decodeJoinCollection(expr as JoinList));
+        this.handlers.set(JoinClause.kind, (expr) => this.decodeJoinClause(expr as JoinClause));
+        this.handlers.set(JoinOnClause.kind, (expr) => this.decodeJoinOnClause(expr as JoinOnClause));
+        this.handlers.set(JoinUsingClause.kind, (expr) => this.decodeJoinUsingClause(expr as JoinUsingClause));
+
         this.handlers.set(SourceExpression.kind, (expr) => this.decodeSourceExpression(expr as SourceExpression));
         this.handlers.set(SubQuerySource.kind, (expr) => this.decodeSubQuerySource(expr as SubQuerySource));
         this.handlers.set(FunctionSource.kind, (expr) => this.decodeFunctionSource(expr as FunctionSource));
@@ -66,8 +67,7 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
         this.handlers.set(HavingClause.kind, (expr) => this.decodeHavingClause(expr as HavingClause));
 
         // with
-        this.handlers.set(CommonTableItem.kind, (expr) => this.decodeCommonTableItem(expr as CommonTableItem));
-        this.handlers.set(CommonTableList.kind, (expr) => this.decodeCCommonTableList(expr as CommonTableList));
+        this.handlers.set(CommonTable.kind, (expr) => this.decodeCommonTable(expr as CommonTable));
         this.handlers.set(WithClause.kind, (expr) => this.decodeWithClause(expr as WithClause));
 
         // select
@@ -85,6 +85,17 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
         return handler ? handler(arg) : `Unknown Expression`;
     }
 
+    decodeJoinUsingClause(arg: JoinUsingClause): string {
+        return `using (${arg.condition.accept(this)})`;
+    }
+
+    decodeJoinOnClause(arg: JoinOnClause): string {
+        if (arg.condition !== null) {
+            return `on ${arg.condition.accept(this)}`;
+        }
+        return `on`;
+    }
+
     decodeTypeValue(arg: TypeValue): string {
         if (arg.argument !== null) {
             return `${arg.type.accept(this)}(${arg.argument.accept(this)})`;
@@ -97,31 +108,22 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
     }
 
     decodeWithClause(arg: WithClause): string {
-        return `with ${arg.recursive ? 'recursive' : ''} ${arg.commonTable.accept(this)}`;
+        const part = arg.tables.map((e) => e.accept(this)).join(", ");
+        return `with ${arg.recursive ? 'recursive' : ''} ${part}`;
     }
-    decodeCCommonTableList(arg: CommonTableList): string {
-        return `${arg.items.map((e) => e.accept(this)).join(", ")}`;
-    }
-    decodeCommonTableItem(arg: CommonTableItem): string {
-        const columnAlias = arg.columnAlias === null ? '' : `(${arg.columnAlias.accept(this)})`;
+
+    decodeCommonTable(arg: CommonTable): string {
+        const alias = arg.alias.accept(this);
         const materil = arg.materialized === null
             ? ''
-            : arg.materialized ? ' materialized' : ' not materialized';
-        if (columnAlias && materil) {
-            return `${arg.name.accept(this)} (${columnAlias})${materil} as(${arg.query.accept(this)})`;
-        } else if (columnAlias) {
-            return `${arg.name.accept(this)} (${columnAlias}) as(${arg.query.accept(this)})`;
-        } else if (materil) {
-            return `${arg.name.accept(this)}${materil} as(${arg.query.accept(this)})`;
+            : arg.materialized ? 'materialized' : 'not materialized';
+
+        if (alias && materil) {
+            return `${alias} ${materil} as(${arg.query.accept(this)})`;
         }
-        return `${arg.name.accept(this)} as(${arg.query.accept(this)})`;
+        return `${alias} as(${arg.query.accept(this)})`;
     }
-    decodeColumnAliasItem(arg: ColumnAliasItem): string {
-        return `${arg.name.accept(this)}`;
-    }
-    decodeColumnAliasList(arg: ColumnAliasList): string {
-        return `${arg.items.map((e) => e.accept(this)).join(", ")}`;
-    }
+
     decodeDistinctOn(arg: DistinctOn): string {
         return `distinct on(${arg.value.accept(this)})`;
     }
@@ -149,40 +151,46 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
     }
 
     decodeFromClause(arg: FromClause): string {
-        if (arg.join !== null) {
-            return `from ${arg.source.accept(this)} ${arg.join.accept(this)}`;
+        if (arg.joins !== null && arg.joins.length > 0) {
+            const part = arg.joins.map((e) => e.accept(this)).join(" ");
+            return `from ${arg.source.accept(this)} ${part}`;
         }
         return `from ${arg.source.accept(this)}`;
     }
 
-    decodeJoinClause(arg: JoinItem): string {
+    decodeJoinClause(arg: JoinClause): string {
         const joinType = `${arg.joinType.accept(this)}`;
-        const lateral = arg.lateral ? " lateral" : "";
-        const condition = arg.condition !== null ? ` on ${arg.condition.accept(this)} ` : "";
-        return `${joinType}${lateral} ${arg.source.accept(this)}${condition}`;
+        const lateral = arg.lateral === true ? ` lateral` : "";
+        const joinSource = arg.source.accept(this);
+        const condition = arg.condition !== null ? ` ${arg.condition.accept(this)}` : "";
+        return `${joinType}${lateral} ${joinSource}${condition}`;
     }
 
-    decodeJoinCollection(arg: JoinList): string {
-        return `${arg.items.map((e) => e.accept(this)).join(" ")}`;
+    decodeSourceAliasExpression(arg: SourceAliasExpression): string {
+        const columnAlias = arg.columns !== null ? `(${arg.columns.map((e) => e.accept(this)).join(", ")})` : null;
+        const tableAlias = arg.table !== null ? `${arg.table.accept(this)}` : "";
+
+        if (columnAlias && tableAlias) {
+            return `${tableAlias}${columnAlias}`;
+        }
+        if (tableAlias) {
+            return tableAlias;
+        }
+        throw new Error("Invalid SourceAliasExpression: tableAlias is null");
     }
 
     decodeSourceExpression(arg: SourceExpression): string {
-        const columnAlias = arg.columnAlias !== null ? `(${arg.columnAlias.accept(this)})` : "";
-        let tableAlias = arg.alias !== null ? `(${arg.alias.accept(this)})` : "";
+        let alias = arg.alias !== null ? `${arg.alias.accept(this)}` : "";
 
         // Avoid duplicate alias if the name is the same as the alias
-        if (arg.datasource.name !== null && arg.datasource.name.accept(this) === tableAlias) {
-            tableAlias = "";
+        if (arg.datasource instanceof TableSource) {
+            if (arg.alias !== null && arg.datasource.name !== null && arg.datasource.name.accept(this) === arg.alias.accept(this)) {
+                alias = "";
+            }
         }
 
-        if (columnAlias && tableAlias) {
-            return `${arg.datasource.accept(this)}${columnAlias} as ${tableAlias}`;
-        }
-        if (columnAlias) {
-            return `${arg.datasource.accept(this)}${columnAlias}`;
-        }
-        if (tableAlias) {
-            return `${arg.datasource.accept(this)} as ${tableAlias}`;
+        if (alias) {
+            return `${arg.datasource.accept(this)} as ${alias}`;
         }
         return `${arg.datasource.accept(this)}`;
     }
@@ -193,9 +201,9 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
 
     decodeFunctionSource(arg: FunctionSource): string {
         if (arg.argument !== null) {
-            return `${arg.name.accept(this)} (${arg.argument.accept(this)})`;
+            return `${arg.name.accept(this)}(${arg.argument.accept(this)})`;
         }
-        return `${arg.name.accept(this)} ()`;
+        return `${arg.name.accept(this)}()`;
     }
     decodeTableSource(arg: TableSource): string {
         if (arg.namespaces !== null) {

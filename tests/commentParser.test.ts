@@ -1,7 +1,5 @@
-import { describe, expect, test } from 'vitest';
-import { TokenType } from "../src/models/Lexeme";
+import { expect, test } from 'vitest';
 import { SqlTokenizer } from "../src/parsers/SqlTokenizer";
-import { ValueParser } from "../src/parsers/ValueParser";
 
 test('prefix comment', () => {
     // Arrange

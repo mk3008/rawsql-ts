@@ -6,7 +6,28 @@ import { KeywordParser } from "../parsers/KeywordParser";
 // Commands are those that require a dedicated parser.
 // Keywords composed of multiple words are also considered commands.
 // The exception is "type". Since types can be user-defined and cannot be accurately identified, they are treated as Identifiers.
-const trie = new KeywordTrie([
+
+const joinTrie = new KeywordTrie([
+    ["join"],
+    ["inner", "join"],
+    ["cross", "join"],
+    ["left", "join"],
+    ["left", "outer", "join"],
+    ["right", "join"],
+    ["right", "outer", "join"],
+    ["full", "join"],
+    ["full", "outer", "join"],
+
+    ["natural", "join"],
+    ["natural", "inner", "join"],
+    ["natural", "left", "join"],
+    ["natural", "left", "outer", "join"],
+    ["natural", "right", "join"],
+    ["natural", "right", "outer", "join"],
+    ["natural", "full", "join"],
+    ["natural", "full", "outer", "join"],
+]);
+const keywordTrie = new KeywordTrie([
     ["with"],
     ["recursive"],
     ["materialized"],
@@ -44,15 +65,6 @@ const trie = new KeywordTrie([
     // table join commands
     ["on"],
     ["using"],
-    ["natural"],
-    ["join"],
-    ["inner", "join"],
-    ["cross", "join"],
-    ["left", "join"],
-    ["left", "outer", "join"],
-    ["right", "join"],
-    ["right", "outer", "join"],
-    ["full", "join"],
     ["lateral"],
     // case 
     ["case"],
@@ -85,12 +97,19 @@ const trie = new KeywordTrie([
     ["nulls", "first"],
     ["nulls", "last"],
 ]);
-const keywordParser = new KeywordParser(trie);
+const keywordParser = new KeywordParser(keywordTrie);
+export const joinkeywordParser = new KeywordParser(joinTrie);
 
 export class CommandTokenReader extends BaseTokenReader {
     public tryRead(previous: Lexeme | null): Lexeme | null {
         if (this.isEndOfInput()) {
             return null;
+        }
+
+        const keywordJoin = joinkeywordParser.parse(this.input, this.position);
+        if (keywordJoin !== null) {
+            this.position = keywordJoin.newPosition;
+            return this.createLexeme(TokenType.Command, keywordJoin.keyword);
         }
 
         // Check for keyword identifiers

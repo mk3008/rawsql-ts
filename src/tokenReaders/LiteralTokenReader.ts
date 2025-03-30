@@ -70,7 +70,7 @@ export class LiteralTokenReader extends BaseTokenReader {
             this.position++;
 
             // Skip whitespace after sign
-            let pos = this.position;
+            const pos = this.position;
             while (this.canRead() && CharLookupTable.isWhitespace(this.input[this.position])) {
                 this.position++;
             }

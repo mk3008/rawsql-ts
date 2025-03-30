@@ -24,7 +24,7 @@ export class ValueParser {
 
         // support comments
         const comment = lexemes[index].comments;
-        let left = this.parseItem(lexemes, index);
+        const left = this.parseItem(lexemes, index);
         left.value.comments = comment;
         idx = left.newIndex;
 
@@ -452,7 +452,7 @@ export class ValueParser {
 
     public static parseArgument(openToken: TokenType, closeToken: TokenType, lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number } {
         let idx = index;
-        let args: ValueComponent[] = [];
+        const args: ValueComponent[] = [];
 
         // Check for opening parenthesis
         if (idx < lexemes.length && lexemes[idx].type === openToken) {
