@@ -20,7 +20,7 @@ export class FromClauseParser {
         return result.value;
     }
 
-    private static parse(lexemes: Lexeme[], index: number): { value: FromClause; newIndex: number } {
+    public static parse(lexemes: Lexeme[], index: number): { value: FromClause; newIndex: number } {
         let idx = index;
 
         if (lexemes[idx].value !== 'from') {

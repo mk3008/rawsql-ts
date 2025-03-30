@@ -19,7 +19,7 @@ export class SelectClauseParser {
         return result.value;
     }
 
-    private static parse(lexemes: Lexeme[], index: number): { value: SelectClause; newIndex: number } {
+    public static parse(lexemes: Lexeme[], index: number): { value: SelectClause; newIndex: number } {
         let idx = index;
         let distinct: DistinctComponent | null = null;
 

@@ -68,14 +68,63 @@ export class FunctionCall extends SqlComponent {
 
 export type OverExpression = WindowFrameExpression | IdentifierString;
 
+export enum WindowFrameType {
+    Rows = "rows",
+    Range = "range",
+    Groups = "groups",
+}
+
+export enum WindowFrameBound {
+    UnboundedPreceding = "unbounded preceding",
+    UnboundedFollowing = "unbounded following",
+    CurrentRow = "current row",
+}
+
+export type FrameBoundaryComponent = WindowFrameBoundStatic | WindowFrameBoundaryValue;
+
+export class WindowFrameBoundStatic extends SqlComponent {
+    static kind = Symbol("WindowFrameStaticBound");
+    bound: WindowFrameBound;
+    constructor(bound: WindowFrameBound) {
+        super();
+        this.bound = bound;
+    }
+}
+
+export class WindowFrameBoundaryValue extends SqlComponent {
+    static kind = Symbol("WindowFrameBoundary");
+    value: ValueComponent;
+    isFollowing: boolean; // true for "FOLLOWING", false for "PRECEDING"
+    constructor(value: ValueComponent, isFollowing: boolean) {
+        super();
+        this.value = value;
+        this.isFollowing = isFollowing;
+    }
+}
+
+export class WindowFrameSpec extends SqlComponent {
+    static kind = Symbol("WindowFrameSpec");
+    frameType: WindowFrameType;
+    startBound: FrameBoundaryComponent;
+    endBound: FrameBoundaryComponent | null; // null for single boundary specification
+    constructor(frameType: WindowFrameType, startBound: FrameBoundaryComponent, endBound: FrameBoundaryComponent | null) {
+        super();
+        this.frameType = frameType;
+        this.startBound = startBound;
+        this.endBound = endBound;
+    }
+}
+
 export class WindowFrameExpression extends SqlComponent {
     static kind = Symbol("WindowFrameExpression");
     partition: PartitionByClause | null;
     order: OrderByClause | null;
-    constructor(partition: PartitionByClause | null, order: OrderByClause | null) {
+    frameSpec: WindowFrameSpec | null;
+    constructor(partition: PartitionByClause | null, order: OrderByClause | null, frameSpec: WindowFrameSpec | null = null) {
         super();
         this.partition = partition;
         this.order = order;
+        this.frameSpec = frameSpec;
     }
 }
 

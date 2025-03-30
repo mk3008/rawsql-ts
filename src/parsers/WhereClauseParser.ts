@@ -19,7 +19,7 @@ export class WhereClauseParser {
         return result.value;
     }
 
-    private static parse(lexemes: Lexeme[], index: number): { value: WhereClause; newIndex: number } {
+    public static parse(lexemes: Lexeme[], index: number): { value: WhereClause; newIndex: number } {
         let idx = index;
 
         if (lexemes[idx].value !== 'where') {

@@ -1,9 +1,7 @@
-import { OrderByClause, PartitionByClause } from "../models/Clause";
 import { Lexeme, TokenType } from "../models/Lexeme";
-import { IdentifierString, OverExpression as OverExpression, WindowFrameExpression } from "../models/ValueComponent";
-import { OrderByClauseParser } from "./OrderByClauseParser";
-import { PartitionByParser } from "./PartitionByParser";
+import { IdentifierString, OverExpression } from "../models/ValueComponent";
 import { SqlTokenizer } from "./SqlTokenizer";
+import { WindowExpressionParser } from "./WindowExpressionParser";
 
 export class OverExpressionParser {
     public static parseFromText(query: string): OverExpression {
@@ -41,26 +39,9 @@ export class OverExpressionParser {
         }
 
         if (lexemes[idx].type === TokenType.OpenParen) {
-            idx++;
-
-            let partition: PartitionByClause | null = null;
-            let order: OrderByClause | null = null;
-            if (idx < lexemes.length && lexemes[idx].value === 'partition by') {
-                const partitionResult = PartitionByParser.parse(lexemes, idx);
-                partition = partitionResult.value;
-                idx = partitionResult.newIndex;
-            }
-            if (idx < lexemes.length && lexemes[idx].value === 'order by') {
-                const orderResult = OrderByClauseParser.parse(lexemes, idx);
-                order = orderResult.value;
-                idx = orderResult.newIndex;
-            }
-            if (idx >= lexemes.length || lexemes[idx].type !== TokenType.CloseParen) {
-                throw new Error(`Syntax error at position ${idx}: Missing closing parenthesis ')' for OVER clause. Each opening parenthesis must have a matching closing parenthesis.`);
-            }
-            // read close paren
-            idx++;
-            return { value: new WindowFrameExpression(partition, order), newIndex: idx };
+            // WindowFrameExpressionParserに処理を委譲
+            const result = WindowExpressionParser.parse(lexemes, idx);
+            return result;
         }
 
         throw new Error(`Syntax error at position ${idx}: Expected a window name or opening parenthesis '(' after OVER keyword, but found "${lexemes[idx].value}".`);

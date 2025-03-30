@@ -1,15 +1,56 @@
 import { SelectQuery } from "./SelectQuery";
-import { SqlComponent, SqlComponentVisitor, SqlDialectConfiguration } from "./SqlComponent";
-import { LiteralValue, RawString, IdentifierString, ColumnReference, FunctionCall, UnaryExpression, BinaryExpression, ParameterExpression, ArrayExpression, CaseExpression, CastExpression, ParenExpression, BetweenExpression, SwitchCaseArgument, ValueList, CaseKeyValuePair, StringSpecifierExpression, TypeValue, WindowFrameExpression } from "./ValueComponent";
+import { SqlComponent, SqlComponentVisitor } from "./SqlComponent";
+import {
+    LiteralValue,
+    RawString,
+    IdentifierString,
+    ColumnReference,
+    FunctionCall,
+    UnaryExpression,
+    BinaryExpression,
+    ParameterExpression,
+    ArrayExpression,
+    CaseExpression,
+    CastExpression,
+    ParenExpression,
+    BetweenExpression,
+    SwitchCaseArgument,
+    ValueList,
+    CaseKeyValuePair,
+    StringSpecifierExpression,
+    TypeValue,
+    WindowFrameExpression,
+    WindowFrameSpec,
+    WindowFrameBound,
+    WindowFrameBoundaryValue,
+    WindowFrameType,
+    WindowFrameBoundStatic
+} from "./ValueComponent";
 import { CommonTable, CommonTableSource, Distinct, DistinctOn, FetchSpecification, FetchType, ForClause, FromClause, FunctionSource, GroupByClause, HavingClause, JoinClause, JoinOnClause, JoinUsingClause, LimitClause, NullsSortDirection, OrderByClause, OrderByItem, PartitionByClause, SelectClause, SelectItem, SortDirection, SourceAliasExpression, SourceExpression, SubQuerySource, TableSource, WhereClause, WindowFrameClause, WithClause } from "./Clause";
 
+interface FormatterConfig {
+    identifierEscape: {
+        start: string;
+        end: string;
+    };
+    parameterSymbol: string;
+}
+
 export class DefaultFormatter implements SqlComponentVisitor<string> {
-    private handlers = new Map<symbol, (arg: SqlComponent) => string>();
+    private handlers: Map<symbol, (arg: any) => string>;
+    private config: FormatterConfig;
 
-    config: SqlDialectConfiguration;
+    constructor() {
+        this.handlers = new Map<symbol, (arg: any) => string>();
 
-    constructor(config: SqlDialectConfiguration | null = null) {
-        this.config = config !== null ? config : new SqlDialectConfiguration();
+        // デフォルト設定
+        this.config = {
+            identifierEscape: {
+                start: '"',
+                end: '"'
+            },
+            parameterSymbol: ':' // PostgreSQLスタイルをデフォルトに
+        };
 
         // value
         this.handlers.set(LiteralValue.kind, (expr) => this.decodeLiteralExpression(expr as LiteralValue));
@@ -55,7 +96,9 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
 
         // window frame
         this.handlers.set(WindowFrameExpression.kind, (expr) => this.decodeWindowFrameExpression(expr as WindowFrameExpression));
-        this.handlers.set(WindowFrameClause.kind, (expr) => this.decodeWindowFrameClause(expr as WindowFrameClause));
+        this.handlers.set(WindowFrameSpec.kind, (arg) => this.decodeWindowFrameSpec(arg));
+        this.handlers.set(WindowFrameBoundStatic.kind, (arg) => this.decodeWindowFrameBoundStatic(arg as WindowFrameBoundStatic));
+        this.handlers.set(WindowFrameBoundaryValue.kind, (arg) => this.decodeWindowFrameBoundaryValue(arg as WindowFrameBoundaryValue));
 
         // where
         this.handlers.set(WhereClause.kind, (expr) => this.decodeWhereClause(expr as WhereClause));
@@ -87,22 +130,57 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
 
     visit(arg: SqlComponent): string {
         const handler = this.handlers.get(arg.getKind());
-        return handler ? handler(arg) : `Unknown Expression`;
+        if (handler) {
+            return handler(arg);
+        }
+        throw new Error(`No handler ${arg}`);
+    }
+
+    decodeWindowFrameBoundaryValue(arg: WindowFrameBoundaryValue): string {
+        const value = arg.value.accept(this);
+        const following = arg.isFollowing ? "following" : "preceding";
+        return `${value} ${following}`;
+    }
+
+    decodeWindowFrameBoundStatic(arg: WindowFrameBoundStatic): string {
+        switch (arg.bound) {
+            case WindowFrameBound.UnboundedPreceding:
+                return "unbounded preceding";
+            case WindowFrameBound.CurrentRow:
+                return "current row";
+            case WindowFrameBound.UnboundedFollowing:
+                return "unbounded following";
+            default:
+                throw new Error(`Unknown WindowFrameBound: ${arg.bound}`);
+        }
     }
 
     decodeWindowFrameExpression(arg: WindowFrameExpression): string {
         const partitionBy = arg.partition !== null ? arg.partition.accept(this) : null;
         const orderBy = arg.order !== null ? arg.order.accept(this) : null;
-        if (partitionBy && orderBy) {
-            return `(${partitionBy} ${orderBy})`;
-        }
-        if (partitionBy) {
-            return `(${partitionBy})`;
-        }
-        if (orderBy) {
-            return `(${orderBy})`;
+        const frameSpec = arg.frameSpec !== null ? arg.frameSpec.accept(this) : null;
+
+        const parts: string[] = [];
+        if (partitionBy) parts.push(partitionBy);
+        if (orderBy) parts.push(orderBy);
+        if (frameSpec) parts.push(frameSpec);
+
+        if (parts.length > 0) {
+            return `(${parts.join(" ")})`;
         }
         return `()`;
+    }
+
+    decodeWindowFrameSpec(arg: WindowFrameSpec): string {
+        const frameType = arg.frameType;
+        const startBound = arg.startBound.accept(this);
+
+        if (arg.endBound === null) {
+            return `${frameType} ${startBound}`;
+        } else {
+            const endBound = arg.endBound.accept(this);
+            return `${frameType} between ${startBound} and ${endBound}`;
+        }
     }
 
     decodeJoinUsingClause(arg: JoinUsingClause): string {
@@ -133,7 +211,7 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
     }
 
     decodeCommonTable(arg: CommonTable): string {
-        const alias = arg.alias.accept(this);
+        const alias = arg.name.accept(this);
         const materil = arg.materialized === null
             ? ''
             : arg.materialized ? 'materialized' : 'not materialized';
@@ -193,11 +271,11 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
     }
 
     decodeSourceExpression(arg: SourceExpression): string {
-        let alias = arg.alias !== null ? `${arg.alias.accept(this)}` : "";
+        let alias = arg.name !== null ? `${arg.name.accept(this)}` : "";
 
         // Avoid duplicate alias if the name is the same as the alias
         if (arg.datasource instanceof TableSource) {
-            if (arg.alias !== null && arg.datasource.name !== null && arg.datasource.name.accept(this) === arg.alias.accept(this)) {
+            if (arg.name !== null && arg.datasource.name !== null && arg.datasource.name.accept(this) === arg.name.accept(this)) {
                 alias = "";
             }
         }
@@ -282,16 +360,16 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
     }
 
     decodeSelectExpression(arg: SelectItem): string {
-        if (arg.alias !== null) {
+        if (arg.name !== null) {
             if (arg.value instanceof ColumnReference) {
                 const c = arg.value as ColumnReference;
-                if (c.column.name === arg.alias.name) {
+                if (c.column.name === arg.name.name) {
                     return `${arg.value.accept(this)}`;
                 } else {
-                    return `${arg.value.accept(this)} as ${arg.alias.accept(this)}`;
+                    return `${arg.value.accept(this)} as ${arg.name.accept(this)}`;
                 }
             }
-            return `${arg.value.accept(this)} as ${arg.alias.accept(this)}`;
+            return `${arg.value.accept(this)} as ${arg.name.accept(this)}`;
         }
         return arg.value.accept(this);
     }
@@ -333,12 +411,11 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
     }
 
     decodePartitionByClause(arg: PartitionByClause): string {
-        const part = arg.partitionBy.map((e) => e.accept(this)).join(", ");
-        return `partition by ${part}`;
+        return `partition by ${arg.value.accept(this)}`;
     }
 
     decodeOrderByClause(arg: OrderByClause): string {
-        const part = arg.orderBy.map((e) => e.accept(this)).join(", ");
+        const part = arg.order.map((e) => e.accept(this)).join(", ");
         return `order by ${part}`;
     }
 
@@ -357,14 +434,8 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
     }
 
     decodeWindowFrameClause(arg: WindowFrameClause): string {
-        if (arg.partitionBy !== null && arg.orderBy !== null) {
-            return `window ${arg.alias.accept(this)} as(${arg.partitionBy.accept(this)} ${arg.orderBy.accept(this)})`;
-        } else if (arg.partitionBy !== null) {
-            return `window ${arg.alias.accept(this)} as(${arg.partitionBy.accept(this)})`;
-        } else if (arg.orderBy !== null) {
-            return `window ${arg.alias.accept(this)} as(${arg.orderBy.accept(this)})`;
-        }
-        throw new Error("Invalid WindowFrameClause");
+        const partExpr = arg.expression.accept(this);
+        return `${arg.name.accept(this)} as ${partExpr}`;
     }
 
     decodeLimitClause(arg: LimitClause): string {

@@ -18,7 +18,7 @@ export class ForClauseParser {
         return result.value;
     }
 
-    private static parse(lexemes: Lexeme[], index: number): { value: ForClause; newIndex: number } {
+    public static parse(lexemes: Lexeme[], index: number): { value: ForClause; newIndex: number } {
         let idx = index;
 
         // Check for FOR keyword

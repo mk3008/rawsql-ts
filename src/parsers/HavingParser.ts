@@ -19,7 +19,7 @@ export class HavingClauseParser {
         return result.value;
     }
 
-    private static parse(lexemes: Lexeme[], index: number): { value: HavingClause; newIndex: number } {
+    public static parse(lexemes: Lexeme[], index: number): { value: HavingClause; newIndex: number } {
         let idx = index;
 
         if (lexemes[idx].value !== 'having') {

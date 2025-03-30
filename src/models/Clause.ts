@@ -1,17 +1,17 @@
 import { SelectQuery } from "./SelectQuery";
 import { SqlComponent } from "./SqlComponent";
-import { IdentifierString, RawString, ValueComponent } from "./ValueComponent";
+import { IdentifierString, RawString, ValueComponent, WindowFrameExpression } from "./ValueComponent";
 
 export type SelectComponent = SelectItem | ValueComponent;
 
 export class SelectItem extends SqlComponent {
     static kind = Symbol("SelectItem");
     value: ValueComponent;
-    alias: IdentifierString | null;
-    constructor(value: ValueComponent, alias: string | null) {
+    name: IdentifierString | null;
+    constructor(value: ValueComponent, name: string | null) {
         super();
         this.value = value;
-        this.alias = alias !== null ? new IdentifierString(alias) : null;
+        this.name = name !== null ? new IdentifierString(name) : null;
     }
 }
 
@@ -56,23 +56,21 @@ export class WhereClause extends SqlComponent {
 
 export class PartitionByClause extends SqlComponent {
     static kind = Symbol("PartitionByClause");
-    partitionBy: ValueComponent[];
-    constructor(partitionBy: ValueComponent[]) {
+    value: ValueComponent;
+    constructor(value: ValueComponent) {
         super();
-        this.partitionBy = partitionBy;
+        this.value = value;
     }
 }
 
 export class WindowFrameClause extends SqlComponent {
     static kind = Symbol("WindowFrameClause");
-    alias: IdentifierString;
-    partitionBy: PartitionByClause | null;
-    orderBy: OrderByClause | null;
-    constructor(alias: string, partitionBy: PartitionByClause | null, orderBy: OrderByClause | null) {
+    name: IdentifierString;
+    expression: WindowFrameExpression;
+    constructor(name: string, expression: WindowFrameExpression) {
         super();
-        this.alias = new IdentifierString(alias);
-        this.partitionBy = partitionBy;
-        this.orderBy = orderBy;
+        this.name = new IdentifierString(name);
+        this.expression = expression;
     }
 }
 
@@ -89,10 +87,10 @@ export type OrderByComponent = OrderByItem | ValueComponent;
 
 export class OrderByClause extends SqlComponent {
     static kind = Symbol("OrderByClause");
-    orderBy: OrderByComponent[];
+    order: OrderByComponent[];
     constructor(items: OrderByComponent[]) {
         super();
-        this.orderBy = items;
+        this.order = items;
     }
 }
 
@@ -187,11 +185,11 @@ export class SubQuerySource extends SqlComponent {
 export class SourceExpression extends SqlComponent {
     static kind = Symbol("SourceExpression");
     datasource: SourceComponent;
-    alias: SourceAliasExpression | null;
-    constructor(datasource: SourceComponent, alias: SourceAliasExpression | null) {
+    name: SourceAliasExpression | null;
+    constructor(datasource: SourceComponent, name: SourceAliasExpression | null) {
         super();
         this.datasource = datasource;
-        this.alias = alias;
+        this.name = name;
     }
 }
 
@@ -245,15 +243,15 @@ export class CommonTable extends SqlComponent {
     static kind = Symbol("CommonTable");
     query: SelectQuery;
     materialized: boolean | null;
-    alias: SourceAliasExpression;
-    constructor(query: SelectQuery, alias: SourceAliasExpression | string, materialized: boolean | null) {
+    name: SourceAliasExpression;
+    constructor(query: SelectQuery, name: SourceAliasExpression | string, materialized: boolean | null) {
         super();
         this.query = query;
         this.materialized = materialized;
-        if (typeof alias === "string") {
-            this.alias = new SourceAliasExpression(alias, null);
+        if (typeof name === "string") {
+            this.name = new SourceAliasExpression(name, null);
         } else {
-            this.alias = alias;
+            this.name = name;
         }
     }
 }

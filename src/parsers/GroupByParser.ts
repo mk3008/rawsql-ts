@@ -20,7 +20,7 @@ export class GroupByClauseParser {
         return result.value;
     }
 
-    private static parse(lexemes: Lexeme[], index: number): { value: GroupByClause; newIndex: number } {
+    public static parse(lexemes: Lexeme[], index: number): { value: GroupByClause; newIndex: number } {
         let idx = index;
 
         if (lexemes[idx].value !== 'group by') {
