@@ -33,10 +33,10 @@ export class SourceAliasExpressionParser {
                     // Skip the closing parenthesis
                     idx++;
                 } else {
-                    throw new Error(`Expected ')' at index ${idx}`);
+                    throw new Error(`Syntax error at position ${idx}: Missing closing parenthesis ')' for column alias list. Each opening parenthesis must have a matching closing parenthesis.`);
                 }
                 if (columns.length === 0) {
-                    throw new Error(`No column aliases found at index ${index}`);
+                    throw new Error(`Syntax error at position ${index}: No column aliases found. Column alias declarations must contain at least one column name.`);
                 }
 
                 return { value: new SourceAliasExpression(table, columns), newIndex: idx };
@@ -45,6 +45,6 @@ export class SourceAliasExpressionParser {
             return { value: new SourceAliasExpression(table, null), newIndex: idx };
         }
 
-        throw new Error(`Expected identifier at index ${index}`);
+        throw new Error(`Syntax error at position ${index}: Expected an identifier for table alias but found "${lexemes[index]?.value || 'end of input'}".`);
     }
 }

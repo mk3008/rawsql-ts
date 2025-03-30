@@ -73,7 +73,7 @@ export class SourceParser {
         // skip the open parenthesis
         idx++;
         if (idx >= lexemes.length) {
-            throw new Error(`Unexpected end of input at index ${idx}`);
+            throw new Error(`Syntax error: Unexpected end of input at position ${idx}. Expected a subquery or nested expression after opening parenthesis.`);
         }
 
         if (lexemes[idx].value == "select") {
@@ -83,7 +83,7 @@ export class SourceParser {
                 // skip the closing parenthesis
                 idx++;
             } else {
-                throw new Error(`Expected closing parenthesis at index ${idx}`);
+                throw new Error(`Syntax error at position ${idx}: Missing closing parenthesis. Each opening parenthesis must have a matching closing parenthesis.`);
             }
             return { value: result.value, newIndex: idx };
         } else if (lexemes[idx].type == TokenType.OpenParen) {
@@ -93,12 +93,12 @@ export class SourceParser {
                 // skip the closing parenthesis
                 idx++;
             } else {
-                throw new Error(`Expected closing parenthesis at index ${idx}`);
+                throw new Error(`Syntax error at position ${idx}: Missing closing parenthesis. Each opening parenthesis must have a matching closing parenthesis.`);
             }
             return { value: result.value, newIndex: idx };
         }
 
-        throw new Error(`Expected 'SELECT' or '(' at index ${idx}`);
+        throw new Error(`Syntax error at position ${idx}: Expected 'SELECT' keyword or opening parenthesis '(' but found "${lexemes[idx].value}".`);
     }
 
     private static parseSubQuerySource(lexemes: Lexeme[], index: number): { value: SubQuerySource; newIndex: number } {

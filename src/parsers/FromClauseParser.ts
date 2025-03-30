@@ -14,7 +14,7 @@ export class FromClauseParser {
 
         // Error if there are remaining tokens
         if (result.newIndex < lexemes.length) {
-            throw new Error(`Unexpected token at position ${result.newIndex}: ${lexemes[result.newIndex].value}`);
+            throw new Error(`Syntax error: Unexpected token "${lexemes[result.newIndex].value}" at position ${result.newIndex}. The FROM clause is complete but there are additional tokens.`);
         }
 
         return result.value;
@@ -24,9 +24,13 @@ export class FromClauseParser {
         let idx = index;
 
         if (lexemes[idx].value !== 'from') {
-            throw new Error(`Expected 'FROM' at index ${idx}`);
+            throw new Error(`Syntax error at position ${idx}: Expected 'FROM' keyword but found "${lexemes[idx].value}". FROM clauses must start with the FROM keyword.`);
         }
         idx++;
+
+        if (idx >= lexemes.length) {
+            throw new Error(`Syntax error: Unexpected end of input after 'FROM' keyword. The FROM clause requires a table reference.`);
+        }
 
         // Parse the main source expression
         const sourceExpression = SourceExpressionParser.parse(lexemes, idx);

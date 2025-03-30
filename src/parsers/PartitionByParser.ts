@@ -14,7 +14,7 @@ export class PartitionByParser {
 
         // Error if there are remaining tokens
         if (result.newIndex < lexemes.length) {
-            throw new Error(`Unexpected token at position ${result.newIndex}: ${lexemes[result.newIndex].value}`);
+            throw new Error(`Syntax error: Unexpected token "${lexemes[result.newIndex].value}" at position ${result.newIndex}. The PARTITION BY clause is complete but there are additional tokens.`);
         }
 
         return result.value;
@@ -24,7 +24,7 @@ export class PartitionByParser {
         let idx = index;
 
         if (lexemes[idx].value !== 'partition by') {
-            throw new Error(`Expected 'PARTITION BY' at index ${idx}`);
+            throw new Error(`Syntax error at position ${idx}: Expected 'PARTITION BY' keyword but found "${lexemes[idx].value}". PARTITION BY clauses must start with the PARTITION BY keywords.`);
         }
         idx++;
 
@@ -41,7 +41,7 @@ export class PartitionByParser {
         }
 
         if (items.length === 0) {
-            throw new Error(`No select items found at index ${index}`);
+            throw new Error(`Syntax error at position ${index}: No partition expressions found. The PARTITION BY clause requires at least one expression to partition by.`);
         } else {
             const clause = new PartitionByClause(items);
             return { value: clause, newIndex: idx };

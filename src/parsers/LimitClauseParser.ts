@@ -13,7 +13,7 @@ export class LimitClauseParser {
 
         // Error if there are remaining tokens
         if (result.newIndex < lexemes.length) {
-            throw new Error(`Unexpected token at position ${result.newIndex}: ${lexemes[result.newIndex].value}`);
+            throw new Error(`Syntax error: Unexpected token "${lexemes[result.newIndex].value}" at position ${result.newIndex}. The LIMIT clause is complete but there are additional tokens.`);
         }
 
         return result.value;
@@ -23,9 +23,13 @@ export class LimitClauseParser {
         let idx = index;
 
         if (lexemes[idx].value !== 'limit') {
-            throw new Error(`Expected 'LIMIT' at index ${idx}`);
+            throw new Error(`Syntax error at position ${idx}: Expected 'LIMIT' keyword but found "${lexemes[idx].value}". LIMIT clauses must start with the LIMIT keyword.`);
         }
         idx++;
+
+        if (idx >= lexemes.length) {
+            throw new Error(`Syntax error: Unexpected end of input after 'LIMIT' keyword. The LIMIT clause requires a numeric expression.`);
+        }
 
         // Parse LIMIT value
         const limitItem = ValueParser.parse(lexemes, idx);
@@ -36,6 +40,10 @@ export class LimitClauseParser {
         // Check if there is an OFFSET clause
         if (idx < lexemes.length && lexemes[idx].value === 'offset') {
             idx++;
+
+            if (idx >= lexemes.length) {
+                throw new Error(`Syntax error: Unexpected end of input after 'OFFSET' keyword. The OFFSET clause requires a numeric expression.`);
+            }
 
             // Parse OFFSET value
             const offsetValueItem = ValueParser.parse(lexemes, idx);

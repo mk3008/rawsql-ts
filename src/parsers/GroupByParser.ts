@@ -14,7 +14,7 @@ export class GroupByClauseParser {
 
         // Error if there are remaining tokens
         if (result.newIndex < lexemes.length) {
-            throw new Error(`Unexpected token at position ${result.newIndex}: ${lexemes[result.newIndex].value}`);
+            throw new Error(`Syntax error: Unexpected token "${lexemes[result.newIndex].value}" at position ${result.newIndex}. The GROUP BY clause is complete but there are additional tokens.`);
         }
 
         return result.value;
@@ -24,9 +24,13 @@ export class GroupByClauseParser {
         let idx = index;
 
         if (lexemes[idx].value !== 'group by') {
-            throw new Error(`Expected 'GROUP BY' at index ${idx}`);
+            throw new Error(`Syntax error at position ${idx}: Expected 'GROUP BY' keyword but found "${lexemes[idx].value}". GROUP BY clauses must start with the GROUP BY keywords.`);
         }
         idx++;
+
+        if (idx >= lexemes.length) {
+            throw new Error(`Syntax error: Unexpected end of input after 'GROUP BY' keyword. The GROUP BY clause requires at least one expression to group by.`);
+        }
 
         const items: ValueComponent[] = [];
         const item = this.parseItem(lexemes, idx);
@@ -41,7 +45,7 @@ export class GroupByClauseParser {
         }
 
         if (items.length === 0) {
-            throw new Error(`No group by items found at index ${index}`);
+            throw new Error(`Syntax error at position ${index}: No grouping expressions found. The GROUP BY clause requires at least one expression to group by.`);
         } else {
             const clause = new GroupByClause(items);
             return { value: clause, newIndex: idx };

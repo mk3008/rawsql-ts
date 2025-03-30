@@ -13,7 +13,7 @@ export class WhereClauseParser {
 
         // Error if there are remaining tokens
         if (result.newIndex < lexemes.length) {
-            throw new Error(`Unexpected token at position ${result.newIndex}: ${lexemes[result.newIndex].value}`);
+            throw new Error(`Syntax error: Unexpected token "${lexemes[result.newIndex].value}" at position ${result.newIndex}. The WHERE clause is complete but there are additional tokens.`);
         }
 
         return result.value;
@@ -23,9 +23,13 @@ export class WhereClauseParser {
         let idx = index;
 
         if (lexemes[idx].value !== 'where') {
-            throw new Error(`Expected 'WHERE' at index ${idx}`);
+            throw new Error(`Syntax error at position ${idx}: Expected 'WHERE' keyword but found "${lexemes[idx].value}". WHERE clauses must start with the WHERE keyword.`);
         }
         idx++;
+
+        if (idx >= lexemes.length) {
+            throw new Error(`Syntax error: Unexpected end of input after 'WHERE' keyword. The WHERE clause requires a condition expression.`);
+        }
 
         const item = ValueParser.parse(lexemes, idx);
         const clause = new WhereClause(item.value);

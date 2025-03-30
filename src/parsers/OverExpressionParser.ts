@@ -15,7 +15,7 @@ export class OverExpressionParser {
 
         // Error if there are remaining tokens
         if (result.newIndex < lexemes.length) {
-            throw new Error(`Unexpected token at position ${result.newIndex}: ${lexemes[result.newIndex].value}`);
+            throw new Error(`Syntax error: Unexpected token "${lexemes[result.newIndex].value}" at position ${result.newIndex}. The OVER expression is complete but there are additional tokens.`);
         }
 
         return result.value;
@@ -25,12 +25,12 @@ export class OverExpressionParser {
         let idx = index;
 
         if (lexemes[idx].value !== 'over') {
-            throw new Error(`Expected 'OVER' at index ${idx}`);
+            throw new Error(`Syntax error at position ${idx}: Expected 'OVER' keyword but found "${lexemes[idx].value}". OVER expressions must start with the OVER keyword.`);
         }
         idx++;
 
         if (idx >= lexemes.length) {
-            throw new Error(`Expected 'OVER' at index ${idx}`);
+            throw new Error(`Syntax error: Unexpected end of input after 'OVER' keyword. Expected either a window name or an opening parenthesis '('.`);
         }
 
         if (lexemes[idx].type === TokenType.Identifier) {
@@ -56,13 +56,13 @@ export class OverExpressionParser {
                 idx = orderResult.newIndex;
             }
             if (idx >= lexemes.length || lexemes[idx].type !== TokenType.CloseParen) {
-                throw new Error(`Expected CloseParen at index ${idx}`);
+                throw new Error(`Syntax error at position ${idx}: Missing closing parenthesis ')' for OVER clause. Each opening parenthesis must have a matching closing parenthesis.`);
             }
             // read close paren
             idx++;
             return { value: new WindowFrameExpression(partition, order), newIndex: idx };
         }
 
-        throw new Error(`Expected Idenfier or OpenParen at index ${idx}`);
+        throw new Error(`Syntax error at position ${idx}: Expected a window name or opening parenthesis '(' after OVER keyword, but found "${lexemes[idx].value}".`);
     }
 }

@@ -12,7 +12,7 @@ export class ForClauseParser {
 
         // Error if there are remaining tokens
         if (result.newIndex < lexemes.length) {
-            throw new Error(`Unexpected token at position ${result.newIndex}: ${lexemes[result.newIndex].value}`);
+            throw new Error(`Syntax error: Unexpected token "${lexemes[result.newIndex].value}" at position ${result.newIndex}. The FOR clause is complete but there are additional tokens.`);
         }
 
         return result.value;
@@ -23,12 +23,12 @@ export class ForClauseParser {
 
         // Check for FOR keyword
         if (lexemes[idx].value.toLowerCase() !== 'for') {
-            throw new Error(`Expected 'FOR' at index ${idx}`);
+            throw new Error(`Syntax error at position ${idx}: Expected 'FOR' keyword but found "${lexemes[idx].value}". FOR clauses must start with the FOR keyword.`);
         }
         idx++;
 
         if (idx >= lexemes.length) {
-            throw new Error(`Expected lock mode after FOR keyword`);
+            throw new Error(`Syntax error: Unexpected end of input after 'FOR' keyword. The FOR clause requires a lock mode specification.`);
         }
 
         // ロックモードの解析
@@ -53,7 +53,7 @@ export class ForClauseParser {
                 idx++;
                 break;
             default:
-                throw new Error(`Invalid lock mode: ${lockModeValue}`);
+                throw new Error(`Syntax error at position ${idx}: Invalid lock mode "${lockModeValue}". Valid lock modes are: UPDATE, SHARE, KEY SHARE, NO KEY UPDATE.`);
         }
 
         const clause = new ForClause(lockMode);

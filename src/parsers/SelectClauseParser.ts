@@ -13,7 +13,7 @@ export class SelectClauseParser {
 
         // Error if there are remaining tokens
         if (result.newIndex < lexemes.length) {
-            throw new Error(`Unexpected token at index ${result.newIndex}: ${lexemes[result.newIndex].value}`);
+            throw new Error(`Syntax error: Unexpected token "${lexemes[result.newIndex].value}" at position ${result.newIndex}. The SELECT clause is complete but there are additional tokens.`);
         }
 
         return result.value;
@@ -24,7 +24,7 @@ export class SelectClauseParser {
         let distinct: DistinctComponent | null = null;
 
         if (lexemes[idx].value !== 'select') {
-            throw new Error(`Expected 'SELECT' at index ${idx}`);
+            throw new Error(`Syntax error at position ${idx}: Expected 'SELECT' keyword but found "${lexemes[idx].value}". SELECT clauses must start with the SELECT keyword.`);
         }
         idx++;
 
@@ -51,7 +51,7 @@ export class SelectClauseParser {
         }
 
         if (items.length === 0) {
-            throw new Error(`No select items found at index ${index}`);
+            throw new Error(`Syntax error at position ${index}: No select items found. The SELECT clause requires at least one expression to select.`);
         } else {
             const clause = new SelectClause(items, distinct);
             return { value: clause, newIndex: idx };

@@ -32,5 +32,3 @@ export class SourceExpressionParser {
         return { value: expr, newIndex: idx };
     }
 }
-
-

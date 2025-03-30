@@ -13,7 +13,7 @@ export class OrderByClauseParser {
 
         // Error if there are remaining tokens
         if (result.newIndex < lexemes.length) {
-            throw new Error(`Unexpected token at position ${result.newIndex}: ${lexemes[result.newIndex].value}`);
+            throw new Error(`Syntax error: Unexpected token "${lexemes[result.newIndex].value}" at position ${result.newIndex}. The ORDER BY clause is complete but there are additional tokens.`);
         }
 
         return result.value;
@@ -23,7 +23,7 @@ export class OrderByClauseParser {
         let idx = index;
 
         if (lexemes[idx].value !== 'order by') {
-            throw new Error(`Expected 'ORDER BY' at index ${idx}`);
+            throw new Error(`Syntax error at position ${idx}: Expected 'ORDER BY' keyword but found "${lexemes[idx].value}". ORDER BY clauses must start with the ORDER BY keywords.`);
         }
         idx++;
 
@@ -40,7 +40,7 @@ export class OrderByClauseParser {
         }
 
         if (items.length === 0) {
-            throw new Error(`No select items found at index ${index}`);
+            throw new Error(`Syntax error at position ${index}: No ordering expressions found. The ORDER BY clause requires at least one expression to order by.`);
         } else {
             const clause = new OrderByClause(items);
             return { value: clause, newIndex: idx };
