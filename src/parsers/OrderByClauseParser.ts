@@ -19,7 +19,7 @@ export class OrderByClauseParser {
         return result.value;
     }
 
-    private static parse(lexemes: Lexeme[], index: number): { value: OrderByClause; newIndex: number } {
+    public static parse(lexemes: Lexeme[], index: number): { value: OrderByClause; newIndex: number } {
         let idx = index;
 
         if (lexemes[idx].value !== 'order by') {

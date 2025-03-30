@@ -1,3 +1,4 @@
+import { PartitionByClause, OrderByClause } from "./Clause";
 import { SelectQuery } from "./SelectQuery";
 import { SqlComponent } from "./SqlComponent";
 
@@ -56,10 +57,25 @@ export class FunctionCall extends SqlComponent {
     static kind = Symbol("FunctionCall");
     name: RawString;
     argument: ValueComponent | null;
-    constructor(name: string, argument: ValueComponent | null) {
+    over: OverExpression | null;
+    constructor(name: string, argument: ValueComponent | null, over: OverExpression | null) {
         super();
         this.name = new RawString(name);
         this.argument = argument;
+        this.over = over;
+    }
+}
+
+export type OverExpression = WindowFrameExpression | IdentifierString;
+
+export class WindowFrameExpression extends SqlComponent {
+    static kind = Symbol("WindowFrameExpression");
+    partition: PartitionByClause | null;
+    order: OrderByClause | null;
+    constructor(partition: PartitionByClause | null, order: OrderByClause | null) {
+        super();
+        this.partition = partition;
+        this.order = order;
     }
 }
 

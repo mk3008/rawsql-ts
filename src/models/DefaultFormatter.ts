@@ -1,7 +1,7 @@
 import { SelectQuery } from "./SelectQuery";
 import { SqlComponent, SqlComponentVisitor, SqlDialectConfiguration } from "./SqlComponent";
-import { LiteralValue, RawString, IdentifierString, ColumnReference, FunctionCall, UnaryExpression, BinaryExpression, ParameterExpression, ArrayExpression, CaseExpression, CastExpression, ParenExpression, BetweenExpression, SwitchCaseArgument, ValueList, CaseKeyValuePair, StringSpecifierExpression, TypeValue } from "./ValueComponent";
-import { CommonTable, CommonTableSource, Distinct, DistinctOn, FetchSpecification, FetchType, ForClause, FromClause, FunctionSource, GroupByClause, HavingClause, JoinClause, JoinOnClause, JoinUsingClause, LimitClause, NullsSortDirection, OrderByClause, OrderByItem, OverClause, PartitionByClause, PartitionByItem, PartitionByList, SelectClause, SelectItem, SortDirection, SourceAliasExpression, SourceExpression, SubQuerySource, TableSource, WhereClause, WindowFrameClause, WithClause } from "./Clause";
+import { LiteralValue, RawString, IdentifierString, ColumnReference, FunctionCall, UnaryExpression, BinaryExpression, ParameterExpression, ArrayExpression, CaseExpression, CastExpression, ParenExpression, BetweenExpression, SwitchCaseArgument, ValueList, CaseKeyValuePair, StringSpecifierExpression, TypeValue, WindowFrameExpression } from "./ValueComponent";
+import { CommonTable, CommonTableSource, Distinct, DistinctOn, FetchSpecification, FetchType, ForClause, FromClause, FunctionSource, GroupByClause, HavingClause, JoinClause, JoinOnClause, JoinUsingClause, LimitClause, NullsSortDirection, OrderByClause, OrderByItem, PartitionByClause, SelectClause, SelectItem, SortDirection, SourceAliasExpression, SourceExpression, SubQuerySource, TableSource, WhereClause, WindowFrameClause, WithClause } from "./Clause";
 
 export class DefaultFormatter implements SqlComponentVisitor<string> {
     private handlers = new Map<symbol, (arg: SqlComponent) => string>();
@@ -52,11 +52,9 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
 
         // partition by
         this.handlers.set(PartitionByClause.kind, (expr) => this.decodePartitionByClause(expr as PartitionByClause));
-        this.handlers.set(PartitionByList.kind, (expr) => this.decodePartitionByList(expr as PartitionByList));
-        this.handlers.set(PartitionByItem.kind, (expr) => this.decodePartitionByItem(expr as PartitionByItem));
 
         // window frame
-        this.handlers.set(OverClause.kind, (expr) => this.decodeOverClause(expr as OverClause));
+        this.handlers.set(WindowFrameExpression.kind, (expr) => this.decodeWindowFrameExpression(expr as WindowFrameExpression));
         this.handlers.set(WindowFrameClause.kind, (expr) => this.decodeWindowFrameClause(expr as WindowFrameClause));
 
         // where
@@ -90,6 +88,21 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
     visit(arg: SqlComponent): string {
         const handler = this.handlers.get(arg.getKind());
         return handler ? handler(arg) : `Unknown Expression`;
+    }
+
+    decodeWindowFrameExpression(arg: WindowFrameExpression): string {
+        const partitionBy = arg.partition !== null ? arg.partition.accept(this) : null;
+        const orderBy = arg.order !== null ? arg.order.accept(this) : null;
+        if (partitionBy && orderBy) {
+            return `(${partitionBy} ${orderBy})`;
+        }
+        if (partitionBy) {
+            return `(${partitionBy})`;
+        }
+        if (orderBy) {
+            return `(${orderBy})`;
+        }
+        return `()`;
     }
 
     decodeJoinUsingClause(arg: JoinUsingClause): string {
@@ -148,13 +161,6 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
 
     decodeCommonTableSource(arg: CommonTableSource): string {
         return `${arg.name.accept(this)}`;
-    }
-
-    decodePartitionByItem(arg: PartitionByItem): string {
-        return `${arg.value.accept(this)}`;
-    }
-    decodePartitionByList(arg: PartitionByList): string {
-        return `${arg.items.map((e) => e.accept(this)).join(", ")}`;
     }
 
     decodeFromClause(arg: FromClause): string {
@@ -237,10 +243,21 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
     }
 
     decodeFunctionCall(arg: FunctionCall): string {
-        if (arg.argument !== null) {
-            return `${arg.name.accept(this)}(${arg.argument.accept(this)})`;
+        const partArg = arg.argument !== null ? arg.argument.accept(this) : "";
+
+        if (arg.over === null) {
+            return `${arg.name.accept(this)}(${partArg})`;
+        } else {
+            let partOver = arg.over !== null ? `${arg.over.accept(this)}` : "";
+            if (partOver) {
+                if (partOver.startsWith("(")) {
+                    partOver = ` over${partOver}`;
+                } else {
+                    partOver = ` over ${partOver}`;
+                }
+            }
+            return `${arg.name.accept(this)}(${partArg})${partOver}`;
         }
-        return `${arg.name.accept(this)}()`;
     }
 
     decodeUnaryExpression(arg: UnaryExpression): string {
@@ -316,7 +333,8 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
     }
 
     decodePartitionByClause(arg: PartitionByClause): string {
-        return `partition by ${arg.partitionBy.accept(this)}`;
+        const part = arg.partitionBy.map((e) => e.accept(this)).join(", ");
+        return `partition by ${part}`;
     }
 
     decodeOrderByClause(arg: OrderByClause): string {
@@ -336,19 +354,6 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
             return `${arg.value.accept(this)} ${nullsOption}`;
         }
         return arg.value.accept(this);
-    }
-
-    decodeOverClause(arg: OverClause): string {
-        if (arg.windowFrameAlias !== null) {
-            return `over ${arg.windowFrameAlias}`;
-        } else if (arg.partitionByClause !== null && arg.orderByClause) {
-            return `over(${arg.partitionByClause.accept(this)} ${arg.orderByClause.accept(this)})`;
-        } else if (arg.partitionByClause !== null) {
-            return `over(${arg.partitionByClause.accept(this)})`;
-        } else if (arg.orderByClause !== null) {
-            return `over(${arg.orderByClause.accept(this)})`;
-        }
-        return "over ()";
     }
 
     decodeWindowFrameClause(arg: WindowFrameClause): string {

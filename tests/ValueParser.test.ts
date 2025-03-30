@@ -65,6 +65,11 @@ describe('ValueParser', () => {
         ["AT TIME ZONE - column reference", "created_at AT TIME ZONE 'UTC'", "\"created_at\" at time zone 'UTC'"],
         ["AT TIME ZONE - timestamp literal", "'2025-03-28 15:30:00'::timestamp AT TIME ZONE 'America/New_York'", "'2025-03-28 15:30:00'::timestamp at time zone 'America/New_York'"],
         ["AT TIME ZONE - nested", "('2025-03-28 15:30:00'::timestamp AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Tokyo'", "('2025-03-28 15:30:00'::timestamp at time zone 'UTC') at time zone 'Asia/Tokyo'"],
+        ["Window function - simple OVER()", "row_number() OVER()", "row_number() over()"],
+        ["Window function - with PARTITION BY", "rank() OVER(PARTITION BY department_id)", "rank() over(partition by \"department_id\")"],
+        ["Window function - with ORDER BY", "dense_rank() OVER(ORDER BY salary DESC)", "dense_rank() over(order by \"salary\" desc)"],
+        ["Window function - with PARTITION BY and ORDER BY", "sum(salary) OVER(PARTITION BY department_id ORDER BY hire_date)", "sum(\"salary\") over(partition by \"department_id\" order by \"hire_date\")"],
+        ["Window function - with named window", "avg(salary) OVER w", "avg(\"salary\") over \"w\""],
     ])('%s', (_, text, expected = text) => {
         const value = ValueParser.parseFromText(text);
         const sql = formatter.visit(value);

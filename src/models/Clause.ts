@@ -54,23 +54,12 @@ export class WhereClause extends SqlComponent {
     }
 }
 
-export type PartitionByComponent = PartitionByItem | PartitionByList;
-
-export class PartitionByItem extends SqlComponent {
-    static kind = Symbol("PartitionByItem");
-    value: ValueComponent;
-    constructor(value: ValueComponent) {
+export class PartitionByClause extends SqlComponent {
+    static kind = Symbol("PartitionByClause");
+    partitionBy: ValueComponent[];
+    constructor(partitionBy: ValueComponent[]) {
         super();
-        this.value = value;
-    }
-}
-
-export class PartitionByList extends SqlComponent {
-    static kind = Symbol("PartitionByList");
-    items: PartitionByItem[];
-    constructor(items: PartitionByItem[]) {
-        super();
-        this.items = items;
+        this.partitionBy = partitionBy;
     }
 }
 
@@ -84,28 +73,6 @@ export class WindowFrameClause extends SqlComponent {
         this.alias = new IdentifierString(alias);
         this.partitionBy = partitionBy;
         this.orderBy = orderBy;
-    }
-}
-
-export class OverClause extends SqlComponent {
-    static kind = Symbol("OverClause");
-    partitionByClause: PartitionByClause | null;
-    orderByClause: OrderByClause | null;
-    windowFrameAlias: IdentifierString | null;
-    constructor(partitionByClause: PartitionByClause | null, orderByClause: OrderByClause | null, windowFrameAlias: string | null) {
-        super();
-        this.partitionByClause = partitionByClause;
-        this.orderByClause = orderByClause;
-        this.windowFrameAlias = windowFrameAlias !== null ? new IdentifierString(windowFrameAlias) : null;
-    }
-}
-
-export class PartitionByClause extends SqlComponent {
-    static kind = Symbol("PartitionByClause");
-    partitionBy: PartitionByComponent;
-    constructor(partitionBy: PartitionByComponent) {
-        super();
-        this.partitionBy = partitionBy;
     }
 }
 

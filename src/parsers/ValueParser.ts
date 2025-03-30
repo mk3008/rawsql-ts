@@ -1,7 +1,8 @@
 import { Lexeme, TokenType } from "../models/Lexeme";
-import { ColumnReference, ValueComponent, LiteralValue, BinaryExpression, ParenExpression, FunctionCall, ValueList, UnaryExpression, ParameterExpression, ArrayExpression, CaseExpression, SwitchCaseArgument, CaseKeyValuePair as CaseConditionValuePair, BetweenExpression, StringSpecifierExpression, TypeValue, CastExpression, RawString } from "../models/ValueComponent";
+import { ColumnReference, ValueComponent, LiteralValue, BinaryExpression, ParenExpression, FunctionCall, ValueList, UnaryExpression, ParameterExpression, ArrayExpression, CaseExpression, SwitchCaseArgument, CaseKeyValuePair as CaseConditionValuePair, BetweenExpression, StringSpecifierExpression, TypeValue, CastExpression, RawString, OverExpression, IdentifierString } from "../models/ValueComponent";
 import { literalKeywordParser } from "../tokenReaders/LiteralTokenReader";
 import { SqlTokenizer } from "./SqlTokenizer";
+import { OverExpressionParser } from "./OverExpressionParser";
 
 export class ValueParser {
     public static parseFromText(query: string): ValueComponent {
@@ -425,8 +426,16 @@ export class ValueParser {
             // General argument parsing
             const arg = this.parseParen(lexemes, idx);
             idx = arg.newIndex;
-            const value = new FunctionCall(functionName, arg.value);
-            return { value, newIndex: idx };
+
+            if (idx < lexemes.length && lexemes[idx].value === "over") {
+                const over = OverExpressionParser.parse(lexemes, idx);
+                idx = over.newIndex;
+                const value = new FunctionCall(functionName, arg.value, over.value);
+                return { value, newIndex: idx };
+            } else {
+                const value = new FunctionCall(functionName, arg.value, null);
+                return { value, newIndex: idx };
+            }
         } else {
             throw new Error(`Expected opening parenthesis after function name '${functionName}' at index ${idx}`);
         }
@@ -457,6 +466,12 @@ export class ValueParser {
         // Check for opening parenthesis
         if (idx < lexemes.length && lexemes[idx].type === openToken) {
             idx++;
+
+            if (idx < lexemes.length && lexemes[idx].type === closeToken) {
+                // If there are no arguments, return an empty ValueList
+                idx++;
+                return { value: new ValueList([]), newIndex: idx };
+            }
 
             // If the next element is `*`, treat `*` as an Identifier
             if (idx < lexemes.length && lexemes[idx].value === "*") {
@@ -545,7 +560,16 @@ export class ValueParser {
 
             if (idx < lexemes.length && lexemes[idx].type === TokenType.CloseParen) {
                 idx++;
-                return { value: new FunctionCall(functionName, arg), newIndex: idx };
+                if (idx < lexemes.length && lexemes[idx].value === "over") {
+                    idx++;
+                    const over = OverExpressionParser.parse(lexemes, idx);
+                    idx = over.newIndex;
+                    const value = new FunctionCall(functionName, arg, over.value);
+                    return { value, newIndex: idx };
+                } else {
+                    const value = new FunctionCall(functionName, arg, null);
+                    return { value, newIndex: idx };
+                }
             } else {
                 throw new Error(`Missing closing parenthesis for function '${functionName}' at index ${idx}`);
             }
