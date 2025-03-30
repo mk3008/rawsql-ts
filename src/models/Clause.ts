@@ -302,7 +302,7 @@ export class WithClause extends SqlComponent {
     }
 }
 
-export type RowLimitComponent = LimitOffset | FetchSpecification;
+//export type RowLimitComponent = LimitOffset | FetchSpecification;
 
 export class LimitOffset extends SqlComponent {
     static kind = Symbol("LimitOffset");
@@ -349,7 +349,7 @@ export enum LockMode {
 export class ForClause extends SqlComponent {
     static kind = Symbol("ForClause");
     lockMode: LockMode;
-    constructor(lockMode: LockMode) {
+    constructor(lockMode: LockModeFor
         super();
         this.lockMode = lockMode;
     }
