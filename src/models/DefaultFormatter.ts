@@ -1,7 +1,7 @@
 import { SelectQuery } from "./SelectQuery";
 import { SqlComponent, SqlComponentVisitor, SqlDialectConfiguration } from "./SqlComponent";
 import { LiteralValue, RawString, IdentifierString, ColumnReference, FunctionCall, UnaryExpression, BinaryExpression, ParameterExpression, ArrayExpression, CaseExpression, CastExpression, ParenExpression, BetweenExpression, SwitchCaseArgument, ValueList, CaseKeyValuePair, StringSpecifierExpression, TypeValue } from "./ValueComponent";
-import { CommonTable, CommonTableSource, Distinct, DistinctOn, FetchSpecification, FetchType, FromClause, FunctionSource, GroupByClause, HavingClause, JoinClause, JoinOnClause, JoinUsingClause, LimitOffset, NullsSortDirection, OrderByClause, OrderByItem, OverClause, PartitionByClause, PartitionByItem, PartitionByList, SelectClause, SelectItem, SortDirection, SourceAliasExpression, SourceExpression, SubQuerySource, TableSource, WhereClause, WindowFrameClause, WithClause } from "./Clause";
+import { CommonTable, CommonTableSource, Distinct, DistinctOn, FetchSpecification, FetchType, ForClause, FromClause, FunctionSource, GroupByClause, HavingClause, JoinClause, JoinOnClause, JoinUsingClause, LimitClause, NullsSortDirection, OrderByClause, OrderByItem, OverClause, PartitionByClause, PartitionByItem, PartitionByList, SelectClause, SelectItem, SortDirection, SourceAliasExpression, SourceExpression, SubQuerySource, TableSource, WhereClause, WindowFrameClause, WithClause } from "./Clause";
 
 export class DefaultFormatter implements SqlComponentVisitor<string> {
     private handlers = new Map<symbol, (arg: SqlComponent) => string>();
@@ -77,8 +77,11 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
         this.handlers.set(DistinctOn.kind, (expr) => this.decodeDistinctOn(expr as DistinctOn));
 
         // row limit
-        this.handlers.set(LimitOffset.kind, (expr) => this.decodeLimitOffset(expr as LimitOffset));
+        this.handlers.set(LimitClause.kind, (expr) => this.decodeLimitClause(expr as LimitClause));
         this.handlers.set(FetchSpecification.kind, (expr) => this.decodeFetchSpecification(expr as FetchSpecification));
+
+        // for clause
+        this.handlers.set(ForClause.kind, (expr) => this.decodeForClause(expr as ForClause));
 
         // select query
         this.handlers.set(SelectQuery.kind, (expr) => this.decodeSelectQuery(expr as SelectQuery));
@@ -359,7 +362,7 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
         throw new Error("Invalid WindowFrameClause");
     }
 
-    decodeLimitOffset(arg: LimitOffset): string {
+    decodeLimitClause(arg: LimitClause): string {
         if (arg.offset !== null) {
             return `limit ${arg.limit.accept(this)} offset ${arg.offset.accept(this)}`;
         }
@@ -374,6 +377,10 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
             return `fetch ${type} ${count} ${arg.unit}`;
         }
         return `fetch ${type} ${count}`;
+    }
+
+    decodeForClause(arg: ForClause): string {
+        return `for ${arg.lockMode}`;
     }
 
     decodeWhereClause(arg: WhereClause): string {

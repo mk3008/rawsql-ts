@@ -1,10 +1,10 @@
-import { LimitOffset } from "../models/Clause";
+import { LimitClause as LimitClause } from "../models/Clause";
 import { Lexeme } from "../models/Lexeme";
 import { SqlTokenizer } from "./SqlTokenizer";
 import { ValueParser } from "./ValueParser";
 
-export class LimitOffsetParser {
-    public static parseFromText(query: string): LimitOffset {
+export class LimitClauseParser {
+    public static parseFromText(query: string): LimitClause {
         const tokenizer = new SqlTokenizer(query); // Initialize tokenizer
         const lexemes = tokenizer.readLexmes(); // Get tokens
 
@@ -19,7 +19,7 @@ export class LimitOffsetParser {
         return result.value;
     }
 
-    private static parse(lexemes: Lexeme[], index: number): { value: LimitOffset; newIndex: number } {
+    private static parse(lexemes: Lexeme[], index: number): { value: LimitClause; newIndex: number } {
         let idx = index;
 
         if (lexemes[idx].value !== 'limit') {
@@ -43,7 +43,7 @@ export class LimitOffsetParser {
             idx = offsetValueItem.newIndex;
         }
 
-        const clause = new LimitOffset(limitItem.value, offsetItem);
+        const clause = new LimitClause(limitItem.value, offsetItem);
 
         return { value: clause, newIndex: idx };
     }

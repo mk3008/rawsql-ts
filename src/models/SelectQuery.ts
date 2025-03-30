@@ -1,5 +1,5 @@
 import { SqlComponent } from "./SqlComponent";
-import { ForClause, FromClause, GroupByClause, HavingClause, OrderByClause, RowLimitComponent as rowLimitClause, SelectClause, WhereClause, WindowFrameClause, WithClause } from "./Clause";
+import { ForClause, FromClause, GroupByClause, HavingClause, LimitClause, OrderByClause, SelectClause, WhereClause, WindowFrameClause, WithClause } from "./Clause";
 
 export class SelectQuery extends SqlComponent {
     static kind = Symbol("SelectQuery");
@@ -11,7 +11,7 @@ export class SelectQuery extends SqlComponent {
     havingClause: HavingClause | null;
     orderByClause: OrderByClause | null;
     windowFrameClause: WindowFrameClause | null;
-    rowLimitClause: rowLimitClause | null;
+    rowLimitClause: LimitClause | null;
     forClause: ForClause | null;
 
     constructor(
@@ -23,7 +23,7 @@ export class SelectQuery extends SqlComponent {
         havingClause: HavingClause | null,
         orderByClause: OrderByClause | null,
         windowFrameClause: WindowFrameClause | null,
-        rowLimitClause: rowLimitClause | null,
+        rowLimitClause: LimitClause | null,
         forClause: ForClause | null
     ) {
         super();

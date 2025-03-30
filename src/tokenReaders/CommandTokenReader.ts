@@ -41,8 +41,13 @@ const keywordTrie = new KeywordTrie([
     ["having"],
     ["order", "by"],
     ["limit"],
-    ["for"],
     ["offset"],
+    // for
+    ["for"],
+    ["update"],
+    ["share"],
+    ["key", "share"],
+    ["no", "key", "update"],
     // set operations
     ["union"],
     ["union", "all"],
