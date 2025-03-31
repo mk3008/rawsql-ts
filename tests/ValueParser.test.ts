@@ -7,6 +7,8 @@ describe('ValueParser', () => {
     const formatter = new DefaultFormatter();
     test.each([
         ["ColumnReference", "a.id", '"a"."id"'],
+        ["ColumnReference - Wildcard", "*", "*"],
+        ["ColumnReference - Table Wildcard", "c.*", '"c".*'],
         ["LiteralValue - Numeric", "123", "123"],
         ["LiteralValue - String", "'テスト文字列'", "'テスト文字列'"],
         ["LiteralValue - TRUE", "TRUE", "true"],

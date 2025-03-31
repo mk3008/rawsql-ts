@@ -7,7 +7,8 @@ export class SourceAliasExpressionParser {
     public static parse(lexemes: Lexeme[], index: number): { value: SourceAliasExpression; newIndex: number; } {
         let idx = index;
 
-        if (idx < lexemes.length && lexemes[idx].type === TokenType.Identifier) {
+        // If there is a column alias, it may be detected as a function, so functions are also processed.
+        if (idx < lexemes.length && (lexemes[idx].type === TokenType.Identifier || lexemes[idx].type === TokenType.Function)) {
             // Check for alias
             const table = lexemes[idx].value;
             idx++;

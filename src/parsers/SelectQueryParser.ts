@@ -10,6 +10,7 @@ import { WindowClauseParser } from "./WindowClauseParser";
 import { LimitClauseParser } from "./LimitClauseParser";
 import { ForClauseParser } from "./ForClauseParser";
 import { SqlTokenizer } from "./SqlTokenizer";
+import { WithClauseParser } from "./WithClauseParser";
 
 export class SelectQueryParser {
     public static parseFromText(query: string): SelectQuery {
@@ -29,9 +30,16 @@ export class SelectQueryParser {
 
     public static parse(lexemes: Lexeme[], index: number): { value: SelectQuery; newIndex: number } {
         let idx = index;
+        let withClauseResult = null;
+
+        // Parse optional WITH clause
+        if (idx < lexemes.length && lexemes[idx].value.toLowerCase() === 'with') {
+            withClauseResult = WithClauseParser.parse(lexemes, idx);
+            idx = withClauseResult.newIndex;
+        }
 
         // Parse SELECT clause (required)
-        if (idx >= lexemes.length || lexemes[idx].value !== 'select') {
+        if (idx >= lexemes.length || lexemes[idx].value.toLowerCase() !== 'select') {
             throw new Error(`Syntax error at position ${idx}: Expected 'SELECT' keyword but found "${idx < lexemes.length ? lexemes[idx].value : 'end of input'}". SELECT queries must start with the SELECT keyword.`);
         }
 
@@ -40,71 +48,70 @@ export class SelectQueryParser {
 
         // Parse FROM clause (optional)
         let fromClauseResult = null;
-        if (idx < lexemes.length && lexemes[idx].value === 'from') {
+        if (idx < lexemes.length && lexemes[idx].value.toLowerCase() === 'from') {
             fromClauseResult = FromClauseParser.parse(lexemes, idx);
             idx = fromClauseResult.newIndex;
         }
 
         // Parse WHERE clause (optional)
         let whereClauseResult = null;
-        if (idx < lexemes.length && lexemes[idx].value === 'where') {
+        if (idx < lexemes.length && lexemes[idx].value.toLowerCase() === 'where') {
             whereClauseResult = WhereClauseParser.parse(lexemes, idx);
             idx = whereClauseResult.newIndex;
         }
 
         // Parse GROUP BY clause (optional)
         let groupByClauseResult = null;
-        if (idx < lexemes.length && lexemes[idx].value === 'group by') {
+        if (idx < lexemes.length && lexemes[idx].value.toLowerCase() === 'group by') {
             groupByClauseResult = GroupByClauseParser.parse(lexemes, idx);
             idx = groupByClauseResult.newIndex;
         }
 
         // Parse HAVING clause (optional)
         let havingClauseResult = null;
-        if (idx < lexemes.length && lexemes[idx].value === 'having') {
+        if (idx < lexemes.length && lexemes[idx].value.toLowerCase() === 'having') {
             havingClauseResult = HavingClauseParser.parse(lexemes, idx);
             idx = havingClauseResult.newIndex;
         }
 
         // Parse WINDOW clause (optional)
         let windowFrameClauseResult = null;
-        if (idx < lexemes.length && lexemes[idx].value === 'window') {
+        if (idx < lexemes.length && lexemes[idx].value.toLowerCase() === 'window') {
             windowFrameClauseResult = WindowClauseParser.parse(lexemes, idx);
             idx = windowFrameClauseResult.newIndex;
         }
 
         // Parse ORDER BY clause (optional)
         let orderByClauseResult = null;
-        if (idx < lexemes.length && lexemes[idx].value === 'order by') {
+        if (idx < lexemes.length && lexemes[idx].value.toLowerCase() === 'order by') {
             orderByClauseResult = OrderByClauseParser.parse(lexemes, idx);
             idx = orderByClauseResult.newIndex;
         }
 
         // Parse LIMIT clause (optional)
         let limitClauseResult = null;
-        if (idx < lexemes.length && lexemes[idx].value === 'limit') {
+        if (idx < lexemes.length && lexemes[idx].value.toLowerCase() === 'limit') {
             limitClauseResult = LimitClauseParser.parse(lexemes, idx);
             idx = limitClauseResult.newIndex;
         }
 
         // Parse FOR clause (optional)
         let forClauseResult = null;
-        if (idx < lexemes.length && lexemes[idx].value === 'for') {
+        if (idx < lexemes.length && lexemes[idx].value.toLowerCase() === 'for') {
             forClauseResult = ForClauseParser.parse(lexemes, idx);
             idx = forClauseResult.newIndex;
         }
 
         // Create and return the SelectQuery object
-        // WithClauseは無視するようにnullを設定
         const selectQuery = new SelectQuery(
-            null, // WithClause
+            withClauseResult ? withClauseResult.value : null,
             selectClauseResult.value,
             fromClauseResult ? fromClauseResult.value : null,
             whereClauseResult ? whereClauseResult.value : null,
             groupByClauseResult ? groupByClauseResult.value : null,
             havingClauseResult ? havingClauseResult.value : null,
             orderByClauseResult ? orderByClauseResult.value : null,
-            windowFrameClauseResult ? windowFrameClauseResult.value : null, // WindowFrameClauseを追加
+            windowFrameClauseResult ? windowFrameClauseResult.value : null,
             limitClauseResult ? limitClauseResult.value : null,
             forClauseResult ? forClauseResult.value : null
         );

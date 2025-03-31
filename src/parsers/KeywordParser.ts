@@ -53,6 +53,20 @@ export class KeywordParser {
         let lexeme = result.identifier;
         position = StringUtils.readWhiteSpaceAndComment(input, result.newPosition).position;
 
+        // end of input
+        if (this.isEndOfInput(input, position)) {
+            if (matchResult === KeywordMatchResult.PartialOrFinal) {
+                // if the last match was partial or final, it means that the keyword is finished
+                return {
+                    keyword: lexeme,
+                    newPosition: position
+                };
+            } else {
+
+                return null;
+            }
+        }
+
         while (this.canParse(input, position)) {
             const previousMatchResult = matchResult;
 
@@ -81,6 +95,7 @@ export class KeywordParser {
                 return null;
             }
         }
+
         return {
             keyword: lexeme,
             newPosition: position

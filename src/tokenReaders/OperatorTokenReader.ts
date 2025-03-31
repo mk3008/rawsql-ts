@@ -63,6 +63,11 @@ export class OperatorTokenReader extends BaseTokenReader {
 
         const char = this.input[this.position];
 
+        // check for `*` wildcard
+        if (char === '*' && !OperatorTokenReader.isValidAsteriskContext(previous)) {
+            return null;
+        }
+
         if (CharLookupTable.isOperatorSymbol(char)) {
             const start = this.position;
 
@@ -91,5 +96,19 @@ export class OperatorTokenReader extends BaseTokenReader {
         }
 
         return null;
+    }
+
+    private static isValidAsteriskContext(previous: Lexeme | null): boolean {
+        const nonOperatorKeywords = new Set(["select", "from", "on", "where", "group by", "having", "order by", "limit", "offset", "("]);
+        if (previous === null) {
+            return false;
+        }
+        if (previous.type === TokenType.Dot || previous.type === TokenType.Comma) {
+            return false;
+        }
+        if (nonOperatorKeywords.has(previous.value)) {
+            return false;
+        }
+        return true;
     }
 }

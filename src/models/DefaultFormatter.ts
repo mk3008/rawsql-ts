@@ -209,7 +209,10 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
 
     decodeWithClause(arg: WithClause): string {
         const part = arg.tables.map((e) => e.accept(this)).join(", ");
-        return `with ${arg.recursive ? 'recursive' : ''} ${part}`;
+        if (arg.recursive) {
+            return `with recursive ${part}`;
+        }
+        return `with ${part}`;
     }
 
     decodeCommonTable(arg: CommonTable): string {
@@ -386,9 +389,9 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
         const parts: string[] = [];
 
         // WITH
-        // if (arg.withClause !== null) {
-        //     parts.push(arg.withClause.accept(this));
-        // }
+        if (arg.WithClause !== null) {
+            parts.push(arg.WithClause.accept(this));
+        }
 
         parts.push(arg.selectClause.accept(this));
 

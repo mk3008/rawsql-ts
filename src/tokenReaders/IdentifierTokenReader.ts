@@ -17,16 +17,12 @@ export class IdentifierTokenReader extends BaseTokenReader {
         const char = this.input[this.position];
 
         // wildcard identifier
-        if (char === '*' && previous !== null) {
-            if (previous.type === TokenType.Dot) {
-                // Treat as a wildcard if it follows a dot
-                this.position++;
-                return this.createLexeme(TokenType.Identifier, char);
-            } else if (previous.type !== TokenType.Literal && previous.type !== TokenType.Identifier) {
-                // Treat as a wildcard if it is not an operator
-                this.position++;
-                return this.createLexeme(TokenType.Identifier, char);
-            }
+        if (char === '*') {
+            // Assume that the OperatorTokenReader is executed before the IdentifierTokenReader.
+            // Since we have determined that the OperatorTokenReader is not an Operator,
+            // we treat '*' here as a wildcard identifier.
+            this.position++;
+            return this.createLexeme(TokenType.Identifier, char);
         }
 
         // MySQL escaped identifier (escape character is backtick)

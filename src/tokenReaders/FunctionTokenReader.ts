@@ -29,7 +29,10 @@ export class FunctionTokenReader extends BaseTokenReader {
         }
 
         // Regular identifier
-        const result = StringUtils.readRegularIdentifier(this.input, this.position);
+        const result = StringUtils.tryReadRegularIdentifier(this.input, this.position);
+        if (!result) {
+            return null;
+        }
         this.position = result.newPosition;
 
         // peek next token 
