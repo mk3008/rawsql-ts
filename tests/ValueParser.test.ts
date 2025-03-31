@@ -70,6 +70,10 @@ describe('ValueParser', () => {
         ["Window function - with ORDER BY", "dense_rank() OVER(ORDER BY salary DESC)", "dense_rank() over(order by \"salary\" desc)"],
         ["Window function - with PARTITION BY and ORDER BY", "sum(salary) OVER(PARTITION BY department_id ORDER BY hire_date)", "sum(\"salary\") over(partition by \"department_id\" order by \"hire_date\")"],
         ["Window function - with named window", "avg(salary) OVER w", "avg(\"salary\") over \"w\""],
+        ["InlineQuery - Simple SELECT", "(SELECT id FROM users)", "(select \"id\" from \"users\")"],
+        ["InlineQuery - With WHERE clause", "(SELECT name FROM products WHERE price > 100)", "(select \"name\" from \"products\" where \"price\" > 100)"],
+        ["InlineQuery - In comparison", "user_id = (SELECT id FROM users WHERE name = 'Alice')", "\"user_id\" = (select \"id\" from \"users\" where \"name\" = 'Alice')"],
+        ["InlineQuery - With aggregation", "department_id IN (SELECT dept_id FROM departments WHERE active = TRUE)", "\"department_id\" in (select \"dept_id\" from \"departments\" where \"active\" = true)"],
     ])('%s', (_, text, expected = text) => {
         const value = ValueParser.parseFromText(text);
         const sql = formatter.visit(value);

@@ -2,19 +2,21 @@
 import { FromClauseParser } from './parsers/FromClauseParser';
 import { GroupByClauseParser } from './parsers/GroupByParser';
 import { HavingClauseParser } from './parsers/HavingParser';
+import { SelectQueryParser } from './parsers/SelectQueryParser';
 import { SqlTokenizer } from './parsers/SqlTokenizer';
 import { ValueParser } from './parsers/ValueParser';
+import { WhereClauseParser } from './parsers/WhereClauseParser';
 
 const formatter = new DefaultFormatter();
 
-const text = "from employees natural join departments";
+const text = "select id, name from users where active = true";
 
 const lexemes = new SqlTokenizer(text).readLexmes();
 console.log(JSON.stringify(lexemes, (_, value) => {
     return value === null ? undefined : value;
 }, 2));
 
-const clause = FromClauseParser.parseFromText(text);
+const clause = SelectQueryParser.parseFromText(text);
 console.log(JSON.stringify(clause, (_, value) => {
     return value === null ? undefined : value;
 }, 2));

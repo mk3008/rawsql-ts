@@ -20,17 +20,6 @@ export class LiteralParser {
         if (/^[+-]?\d+(\.\d+)?([eE][+-]?\d+)?$/.test(valueText)) {
             parsedValue = Number(valueText);
         }
-        // Check if it is a boolean
-        else if (valueText.toLowerCase() === 'true') {
-            parsedValue = true;
-        }
-        else if (valueText.toLowerCase() === 'false') {
-            parsedValue = false;
-        }
-        // Check if it is null
-        else if (valueText.toLowerCase() === 'null') {
-            parsedValue = null;
-        }
         // Otherwise, treat it as a string
         else {
             // Remove single quotes if enclosed

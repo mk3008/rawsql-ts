@@ -24,7 +24,8 @@ import {
     WindowFrameBound,
     WindowFrameBoundaryValue,
     WindowFrameType,
-    WindowFrameBoundStatic
+    WindowFrameBoundStatic,
+    InlineQuery
 } from "./ValueComponent";
 import { CommonTable, CommonTableSource, Distinct, DistinctOn, FetchSpecification, FetchType, ForClause, FromClause, FunctionSource, GroupByClause, HavingClause, JoinClause, JoinOnClause, JoinUsingClause, LimitClause, NullsSortDirection, OrderByClause, OrderByItem, PartitionByClause, SelectClause, SelectItem, SortDirection, SourceAliasExpression, SourceExpression, SubQuerySource, TableSource, WhereClause, WindowFrameClause, WithClause } from "./Clause";
 
@@ -71,6 +72,7 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
         this.handlers.set(ParenExpression.kind, (expr) => this.decodeBracketExpression(expr as ParenExpression));
         this.handlers.set(BetweenExpression.kind, (expr) => this.decodeBetweenExpression(expr as BetweenExpression));
         this.handlers.set(TypeValue.kind, (expr) => this.decodeTypeValue(expr as TypeValue));
+        this.handlers.set(InlineQuery.kind, (expr) => this.decodeInlineQuery(expr as InlineQuery));
 
         // source alias
         this.handlers.set(SourceAliasExpression.kind, (expr) => this.decodeSourceAliasExpression(expr as SourceAliasExpression));
@@ -99,7 +101,7 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
         this.handlers.set(WindowFrameSpec.kind, (arg) => this.decodeWindowFrameSpec(arg));
         this.handlers.set(WindowFrameBoundStatic.kind, (arg) => this.decodeWindowFrameBoundStatic(arg as WindowFrameBoundStatic));
         this.handlers.set(WindowFrameBoundaryValue.kind, (arg) => this.decodeWindowFrameBoundaryValue(arg as WindowFrameBoundaryValue));
-
+        this.handlers.set(WindowFrameClause.kind, (arg) => this.decodeWindowFrameClause(arg as WindowFrameClause));
         // where
         this.handlers.set(WhereClause.kind, (expr) => this.decodeWhereClause(expr as WhereClause));
 
@@ -381,7 +383,48 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
     }
 
     decodeSelectQuery(arg: SelectQuery): string {
-        return arg.selectClause.accept(this);
+        const parts: string[] = [];
+
+        // WITH
+        // if (arg.withClause !== null) {
+        //     parts.push(arg.withClause.accept(this));
+        // }
+
+        parts.push(arg.selectClause.accept(this));
+
+        if (arg.fromClause !== null) {
+            parts.push(arg.fromClause.accept(this));
+        }
+
+        if (arg.whereClause !== null) {
+            parts.push(arg.whereClause.accept(this));
+        }
+
+        if (arg.groupByClause !== null) {
+            parts.push(arg.groupByClause.accept(this));
+        }
+
+        if (arg.havingClause !== null) {
+            parts.push(arg.havingClause.accept(this));
+        }
+
+        if (arg.windowFrameClause !== null) {
+            parts.push(arg.windowFrameClause.accept(this));
+        }
+
+        if (arg.orderByClause !== null) {
+            parts.push(arg.orderByClause.accept(this));
+        }
+
+        if (arg.rowLimitClause !== null) {
+            parts.push(arg.rowLimitClause.accept(this));
+        }
+
+        if (arg.forClause !== null) {
+            parts.push(arg.forClause.accept(this));
+        }
+
+        return parts.join(" ");
     }
 
     decodeArrayExpression(arg: ArrayExpression): string {
@@ -435,7 +478,7 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
 
     decodeWindowFrameClause(arg: WindowFrameClause): string {
         const partExpr = arg.expression.accept(this);
-        return `${arg.name.accept(this)} as ${partExpr}`;
+        return `window ${arg.name.accept(this)} as ${partExpr}`;
     }
 
     decodeLimitClause(arg: LimitClause): string {
@@ -461,6 +504,10 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
 
     decodeWhereClause(arg: WhereClause): string {
         return `where ${arg.condition.accept(this)}`;
+    }
+
+    decodeInlineQuery(arg: InlineQuery): string {
+        return `(${arg.selectQuery.accept(this)})`;
     }
 
     decodeRawString(arg: RawString): string {

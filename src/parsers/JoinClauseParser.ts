@@ -22,9 +22,13 @@ export class JoinClauseParser {
     }
 
     private static isJoinKeyword(value: string): boolean {
-        // Although performance is not ideal, 
+        // Although performance is not ideal,
         // we use keyword token reader to centralize keyword management
-        return joinkeywordParser.parse(value, 0)?.newPosition === 0 ? false : true;
+        const result = joinkeywordParser.parse(value, 0);
+        if (result) {
+            return true;
+        }
+        return false;
     }
 
     private static parseLateral(lexemes: Lexeme[], index: number): { value: boolean; newIndex: number } {
@@ -54,7 +58,7 @@ export class JoinClauseParser {
         let idx = index;
 
         // Get the join type
-        const joinType = lexemes[idx].value;
+        const joinType = lexemes[idx].value === "," ? "cross join" : lexemes[idx].value;
         idx++;
 
         // Check for lateral join

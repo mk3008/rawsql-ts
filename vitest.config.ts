@@ -8,5 +8,6 @@ export default defineConfig({
         include: ['tests/**/*.test.[jt]s'],
         exclude: ['dist/**'],
         root: resolve(__dirname),
+        testTimeout: 3000,
     },
 })

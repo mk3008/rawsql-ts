@@ -157,7 +157,7 @@ test('from with lateral join', () => {
     const sql = formatter.visit(clause);
 
     // Assert
-    expect(sql).toEqual(`from "users" as "u", lateral (select * from "orders" where "user_id" = "u"."id" limit 3) as "recent_orders"`);
+    expect(sql).toEqual(`from "users" as "u" cross join lateral (select * from "orders" where "user_id" = "u"."id" limit 3) as "recent_orders"`);
 });
 
 test('from with column alias list', () => {
