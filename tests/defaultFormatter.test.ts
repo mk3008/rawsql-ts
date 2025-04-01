@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
-﻿import { SelectClause, SelectItem } from "../src/models/Clause";
+import { SelectClause, SelectItem } from "../src/models/Clause";
 import { DefaultFormatter } from "../src/models/DefaultFormatter";
-import { SelectQuery } from "../src/models/SelectQuery";
+import { SelectQuery, SimpleSelectQuery } from "../src/models/SelectQuery";
 import { ColumnReference, LiteralValue, BinaryExpression } from "../src/models/ValueComponent";
 
 test('ColumnReference', () => {
@@ -36,7 +36,7 @@ test('BinaryExpression', () => {
 
 test('SelectQuery', () => {
     const formatter = new DefaultFormatter();
-    const sql = formatter.visit(new SelectQuery(
+    const sql = formatter.visit(new SimpleSelectQuery(
         null,
         new SelectClause([
             new ColumnReference(['a'], 'id'),

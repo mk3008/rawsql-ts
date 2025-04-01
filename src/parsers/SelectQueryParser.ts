@@ -1,5 +1,5 @@
 import { Lexeme } from "../models/Lexeme";
-import { SelectQuery } from "../models/SelectQuery";
+import { BinarySelectQuery, SelectQuery, SimpleSelectQuery } from "../models/SelectQuery";
 import { SelectClauseParser } from "./SelectClauseParser";
 import { FromClauseParser } from "./FromClauseParser";
 import { WhereClauseParser } from "./WhereClauseParser";
@@ -28,7 +28,59 @@ export class SelectQueryParser {
         return result.value;
     }
 
+    private static unionCommandSet = new Set<string>([
+        "union",
+        "union all",
+        "intersect",
+        "intersect all",
+        "except",
+        "except all",
+    ]);
+    private static selectCommandSet = new Set<string>(["with", "select"]);
+
     public static parse(lexemes: Lexeme[], index: number): { value: SelectQuery; newIndex: number } {
+        let idx = index;
+
+        if (idx >= lexemes.length) {
+            throw new Error(`Syntax error: Unexpected end of input at position ${index}.`);
+        }
+
+        // Check if the first token is a SELECT keyword
+        if (!this.selectCommandSet.has(lexemes[idx].value) && lexemes[idx].value !== 'values') {
+            throw new Error(`Syntax error at position ${idx}: Expected 'SELECT' keyword but found "${lexemes[idx].value}".`);
+        }
+
+        let firstResult = this.selectCommandSet.has(lexemes[idx].value)
+            ? this.parseSimpleSelectQuery(lexemes, idx)
+            : this.parseValuesQuery(lexemes, idx);
+
+        let query: SelectQuery = firstResult.value;
+        idx = firstResult.newIndex;
+
+        // check 'union'
+        while (idx < lexemes.length && this.unionCommandSet.has(lexemes[idx].value)) {
+            const operator = lexemes[idx].value;
+            idx++;
+            if (idx >= lexemes.length) {
+                throw new Error(`Syntax error at position ${idx}: Expected a query after 'UNION' but found end of input.`);
+            }
+            if (this.selectCommandSet.has(lexemes[idx].value)) {
+                const result = this.parseSimpleSelectQuery(lexemes, idx);
+                query = new BinarySelectQuery(query, operator, result.value);
+                idx = result.newIndex;
+            } else if (lexemes[idx].value === 'values') {
+                const result = this.parseValuesQuery(lexemes, idx);
+                query = new BinarySelectQuery(query, operator, result.value);
+                idx = result.newIndex;
+            } else {
+                throw new Error(`Syntax error at position ${idx}: Expected a query after 'UNION' but found "${lexemes[idx].value}".`);
+            }
+        }
+
+        return { value: query, newIndex: idx };
+    }
+
+    private static parseSimpleSelectQuery(lexemes: Lexeme[], index: number): { value: SimpleSelectQuery; newIndex: number } {
         let idx = index;
         let withClauseResult = null;
 
@@ -103,7 +155,7 @@ export class SelectQueryParser {
         }
 
         // Create and return the SelectQuery object
-        const selectQuery = new SelectQuery(
+        const selectQuery = new SimpleSelectQuery(
             withClauseResult ? withClauseResult.value : null,
             selectClauseResult.value,
             fromClauseResult ? fromClauseResult.value : null,
@@ -117,5 +169,9 @@ export class SelectQueryParser {
         );
 
         return { value: selectQuery, newIndex: idx };
+    }
+
+    private static parseValuesQuery(lexemes: Lexeme[], index: number): { value: SimpleSelectQuery; newIndex: number } {
+        throw new Error("Method not implemented.");
     }
 }

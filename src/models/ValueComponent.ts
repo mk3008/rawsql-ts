@@ -1,5 +1,5 @@
 import { PartitionByClause, OrderByClause } from "./Clause";
-import { SelectQuery } from "./SelectQuery";
+import { SelectQuery, SimpleSelectQuery } from "./SelectQuery";
 import { SqlComponent } from "./SqlComponent";
 
 export type ValueComponent = ValueList |

@@ -1,4 +1,4 @@
-import { SelectQuery } from "./SelectQuery";
+import { SelectQuery, SimpleSelectQuery } from "./SelectQuery";
 import { SqlComponent } from "./SqlComponent";
 import { IdentifierString, RawString, ValueComponent, WindowFrameExpression } from "./ValueComponent";
 

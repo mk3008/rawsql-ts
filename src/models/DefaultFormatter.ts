@@ -1,4 +1,4 @@
-import { SelectQuery } from "./SelectQuery";
+import { BinarySelectQuery, SimpleSelectQuery } from "./SelectQuery";
 import { SqlComponent, SqlComponentVisitor } from "./SqlComponent";
 import {
     LiteralValue,
@@ -127,7 +127,8 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
         this.handlers.set(ForClause.kind, (expr) => this.decodeForClause(expr as ForClause));
 
         // select query
-        this.handlers.set(SelectQuery.kind, (expr) => this.decodeSelectQuery(expr as SelectQuery));
+        this.handlers.set(SimpleSelectQuery.kind, (expr) => this.decodeSelectQuery(expr as SimpleSelectQuery));
+        this.handlers.set(BinarySelectQuery.kind, (expr) => this.decodeBinarySelectQuery(expr as BinarySelectQuery));
     }
 
     visit(arg: SqlComponent): string {
@@ -136,6 +137,13 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
             return handler(arg);
         }
         throw new Error(`No handler ${arg}`);
+    }
+
+    decodeBinarySelectQuery(arg: BinarySelectQuery): string {
+        const left = arg.left.accept(this);
+        const operator = arg.operator.accept(this);
+        const right = arg.right.accept(this);
+        return `${left} ${operator} ${right}`;
     }
 
     decodeWindowFrameBoundaryValue(arg: WindowFrameBoundaryValue): string {
@@ -385,7 +393,7 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
         return `select${distinct} ${colum}`;
     }
 
-    decodeSelectQuery(arg: SelectQuery): string {
+    decodeSelectQuery(arg: SimpleSelectQuery): string {
         const parts: string[] = [];
 
         // WITH

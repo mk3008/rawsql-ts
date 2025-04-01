@@ -1,7 +1,10 @@
 import { SqlComponent } from "./SqlComponent";
 import { ForClause, FromClause, GroupByClause, HavingClause, LimitClause, OrderByClause, SelectClause, WhereClause, WindowFrameClause, WithClause } from "./Clause";
+import { RawString } from "./ValueComponent";
 
-export class SelectQuery extends SqlComponent {
+export type SelectQuery = SimpleSelectQuery | BinarySelectQuery;
+
+export class SimpleSelectQuery extends SqlComponent {
     static kind = Symbol("SelectQuery");
     WithClause: WithClause | null = null;
     selectClause: SelectClause;
@@ -37,5 +40,19 @@ export class SelectQuery extends SqlComponent {
         this.windowFrameClause = windowFrameClause;
         this.rowLimitClause = rowLimitClause;
         this.forClause = forClause;
+    }
+}
+
+export class BinarySelectQuery extends SqlComponent {
+    static kind = Symbol("BinarySelectQuery");
+    left: SelectQuery;
+    operator: RawString; // e.g. UNION, INTERSECT, EXCEPT
+    right: SelectQuery;
+
+    constructor(left: SelectQuery, operator: string, right: SelectQuery) {
+        super();
+        this.left = left;
+        this.operator = new RawString(operator);
+        this.right = right;
     }
 }
