@@ -61,12 +61,14 @@ export class OperatorTokenReader extends BaseTokenReader {
             return null;
         }
 
-        const char = this.input[this.position];
+        /*
+            NOTE:
+            Asterisks could potentially be wildcard identifiers,
+            but since they're indistinguishable at this stage, they're treated as Operators at the token level.
+            The Parser needs to determine whether they are appropriate Operators or Identifiers.
+        */
 
-        // check for `*` wildcard
-        if (char === '*' && !OperatorTokenReader.isValidAsteriskContext(previous)) {
-            return null;
-        }
+        const char = this.input[this.position];
 
         if (CharLookupTable.isOperatorSymbol(char)) {
             const start = this.position;
@@ -96,19 +98,5 @@ export class OperatorTokenReader extends BaseTokenReader {
         }
 
         return null;
-    }
-
-    private static isValidAsteriskContext(previous: Lexeme | null): boolean {
-        const nonOperatorKeywords = new Set(["select", "from", "on", "where", "group by", "having", "order by", "limit", "offset", "("]);
-        if (previous === null) {
-            return false;
-        }
-        if (previous.type === TokenType.Dot || previous.type === TokenType.Comma) {
-            return false;
-        }
-        if (nonOperatorKeywords.has(previous.value)) {
-            return false;
-        }
-        return true;
     }
 }

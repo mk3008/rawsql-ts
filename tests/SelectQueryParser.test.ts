@@ -5,7 +5,6 @@ import { SelectQueryParser } from '../src/parsers/SelectQueryParser';
 const formatter = new DefaultFormatter();
 
 describe('SelectQueryParser', () => {
-    // テスト向けに各種クエリを実行し、その結果をチェックする
     test.each([
         ["Simple SELECT",
             "select id, name from users",

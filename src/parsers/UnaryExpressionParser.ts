@@ -1,5 +1,5 @@
 import { Lexeme, TokenType } from "../models/Lexeme";
-import { UnaryExpression, ValueComponent } from "../models/ValueComponent";
+import { IdentifierString, UnaryExpression, ValueComponent } from "../models/ValueComponent";
 import { ValueParser } from "./ValueParser";
 
 export class UnaryExpressionParser {
@@ -10,6 +10,12 @@ export class UnaryExpressionParser {
         if (idx < lexemes.length && lexemes[idx].type === TokenType.Operator) {
             const operator = lexemes[idx].value;
             idx++;
+
+            // Treat the asterisk as an Identifier, not as a unary operator
+            if (operator === '*') {
+                const v = new IdentifierString('*');
+                return { value: v, newIndex: idx };
+            }
 
             // Get the right-hand side value of the unary operator
             const result = ValueParser.parse(lexemes, idx);

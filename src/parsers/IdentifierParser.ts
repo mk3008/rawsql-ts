@@ -12,11 +12,12 @@ export class IdentifierParser {
         idx++;
 
         // Look for dot and identifier pattern
+        // support wildcard '*' as identifier (e.g. select t.* from t)
         while (
             idx < lexemes.length &&
             idx + 1 < lexemes.length &&
             lexemes[idx].type === TokenType.Dot &&
-            lexemes[idx + 1].type === TokenType.Identifier
+            (lexemes[idx + 1].type === TokenType.Identifier || lexemes[idx + 1].value === "*")
         ) {
             // Skip the dot and add the next identifier
             idx++;
