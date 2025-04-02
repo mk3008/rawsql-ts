@@ -54,7 +54,6 @@ This project includes benchmarking functionality.
 To run benchmarks:
 
 ```bash
-# Run the benchmarks directly from the project root
 npm run benchmark
 ```
 
@@ -80,30 +79,30 @@ Node.js v22.14.0
 ### Tokens20
 | Method                            | Mean       | Error     | StdDev    |
 |---------------------------------- |-----------:|----------:|----------:|
-| carbunqlex-ts                  |    0.033 ms |  0.0030 ms |  0.0015 ms |
-| node-sql-parser                |    0.177 ms |  0.0640 ms |  0.0327 ms |
-| sql-formatter                  |    0.215 ms |  0.0347 ms |  0.0177 ms |
+| carbunqlex-ts                  |    0.028 ms |  0.0028 ms |  0.0014 ms |
+| node-sql-parser                |    0.175 ms |  0.0706 ms |  0.0360 ms |
+| sql-formatter                  |    0.215 ms |  0.0359 ms |  0.0183 ms |
 
 ### Tokens70
 | Method                            | Mean       | Error     | StdDev    |
 |---------------------------------- |-----------:|----------:|----------:|
-| carbunqlex-ts                  |    0.085 ms |  0.0085 ms |  0.0043 ms |
-| node-sql-parser                |    0.239 ms |  0.1297 ms |  0.0662 ms |
-| sql-formatter                  |    0.539 ms |  0.0695 ms |  0.0355 ms |
+| carbunqlex-ts                  |    0.071 ms |  0.0057 ms |  0.0029 ms |
+| node-sql-parser                |    0.221 ms |  0.0340 ms |  0.0173 ms |
+| sql-formatter                  |    0.543 ms |  0.0793 ms |  0.0404 ms |
 
 ### Tokens140
 | Method                            | Mean       | Error     | StdDev    |
 |---------------------------------- |-----------:|----------:|----------:|
-| carbunqlex-ts                  |    0.170 ms |  0.0234 ms |  0.0120 ms |
-| node-sql-parser                |    0.422 ms |  0.0605 ms |  0.0309 ms |
-| sql-formatter                  |    1.031 ms |  0.0842 ms |  0.0430 ms |
+| carbunqlex-ts                  |    0.154 ms |  0.0324 ms |  0.0165 ms |
+| node-sql-parser                |    0.432 ms |  0.0574 ms |  0.0293 ms |
+| sql-formatter                  |    1.101 ms |  0.2124 ms |  0.1084 ms |
 
 ### Tokens230
 | Method                            | Mean       | Error     | StdDev    |
 |---------------------------------- |-----------:|----------:|----------:|
-| carbunqlex-ts                  |    0.285 ms |  0.0344 ms |  0.0176 ms |
-| node-sql-parser                |    0.872 ms |  0.1366 ms |  0.0697 ms |
-| sql-formatter                  |    1.781 ms |  0.1566 ms |  0.0799 ms |
+| carbunqlex-ts                  |    0.250 ms |  0.0646 ms |  0.0330 ms |
+| node-sql-parser                |    0.871 ms |  0.1234 ms |  0.0629 ms |
+| sql-formatter                  |    1.790 ms |  0.1754 ms |  0.0895 ms |
 
 ### Performance Summary
 

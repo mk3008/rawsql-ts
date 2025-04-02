@@ -25,14 +25,17 @@ export class StringUtils {
      * Skip white space characters.
      */
     private static skipWhiteSpace(input: string, position: number): number {
-        const start = position;
-        const whitespace = new Set([' ', '\r', '\n', '\t']);
-        while (position < input.length) {
-            if (!whitespace.has(input[position])) {
+        const length = input.length;
+
+        while (position < length) {
+            const charCode = input.charCodeAt(position);
+            // ' '=32, '\t'=9, '\n'=10, '\r'=13
+            if (charCode !== 32 && charCode !== 9 && charCode !== 10 && charCode !== 13) {
                 break;
             }
             position++;
         }
+
         return position;
     }
 
@@ -43,10 +46,14 @@ export class StringUtils {
         if (position + 1 >= input.length) {
             return { newPosition: position, comment: null };
         }
-        if (input[position] === '-' && input[position + 1] === '-') {
+
+        // '-'=45
+        if (input.charCodeAt(position) === 45 && input.charCodeAt(position + 1) === 45) {
             const start = position;
             position += 2;
-            while (position < input.length && input[position] !== '\n') {
+
+            // '\n'=10
+            while (position < input.length && input.charCodeAt(position) !== 10) {
                 position++;
             }
 
@@ -65,21 +72,23 @@ export class StringUtils {
             return { newPosition: position, comments: null };
         }
 
-        // Check for block comment start (/*) and not a special case (/*+)
-        if (input[position] === '/' && input[position + 1] === '*' && input[position + 2] !== '+') {
+        // '/'=47, '*'=42, '+'=43
+        if (input.charCodeAt(position) === 47 && input.charCodeAt(position + 1) === 42 && input.charCodeAt(position + 2) !== 43) {
             const start = position;
             position += 2;
+
             while (position + 1 < input.length) {
-                if (input[position] === '*' && input[position + 1] === '/') {
+                // '*'=42, '/'=47
+                if (input.charCodeAt(position) === 42 && input.charCodeAt(position + 1) === 47) {
                     position += 2;
 
-                    // Return the trimmed comment content (excluding /* */ tokens)
+                    // Process the comment content
                     const lines = input.slice(start + 2, position - 2).replace(/\r/g, '').split('\n');
                     for (let i = 0; i < lines.length; i++) {
                         lines[i] = lines[i].trim();
                     }
 
-                    // 空行はのぞく。ただし、のぞくのは、最初と最後だけ
+                    // Remove empty lines, but only at the beginning and end
                     while (lines.length > 0 && lines[0] === '') {
                         lines.shift();
                     }
@@ -102,34 +111,45 @@ export class StringUtils {
      */
     public static readWhiteSpaceAndComment(input: string, position: number): { position: number, lines: string[] } {
         const lines: string[] = [];
+        const length = input.length;
 
-        while (true) {
-            const newPosition = StringUtils.skipWhiteSpace(input, position);
-            if (newPosition !== position) {
-                position = newPosition;
+        while (position < length) {
+            // Store current position
+            const oldPosition = position;
+
+            // Skip whitespace first
+            position = StringUtils.skipWhiteSpace(input, position);
+            if (position !== oldPosition) {
                 continue;
             }
 
-            const lineCommentResult = StringUtils.readLineComment(input, position);
-            if (lineCommentResult.newPosition !== position) {
-                position = lineCommentResult.newPosition;
-                if (lineCommentResult.comment) {
-                    lines.push(lineCommentResult.comment.trim());
-                }
-                continue;
-            }
+            // Fast character code check
+            const charCode = input.charCodeAt(position);
 
-            const blockCommentResult = StringUtils.readBlockComment(input, position);
-            if (blockCommentResult.newPosition !== position) {
-                position = blockCommentResult.newPosition;
-                if (blockCommentResult.comments) {
-                    for (let i = 0; i < blockCommentResult.comments.length; i++) {
-                        lines.push(blockCommentResult.comments[i].trim());
+            // '-'=45 (Line comment)
+            if (charCode === 45) {
+                const lineCommentResult = StringUtils.readLineComment(input, position);
+                if (lineCommentResult.newPosition !== position) {
+                    position = lineCommentResult.newPosition;
+                    if (lineCommentResult.comment) {
+                        lines.push(lineCommentResult.comment.trim());
                     }
+                    continue;
                 }
-                continue;
+            }
+            // '/'=47 (Block comment)
+            else if (charCode === 47) {
+                const blockCommentResult = StringUtils.readBlockComment(input, position);
+                if (blockCommentResult.newPosition !== position) {
+                    position = blockCommentResult.newPosition;
+                    if (blockCommentResult.comments) {
+                        lines.push(...blockCommentResult.comments);
+                    }
+                    continue;
+                }
             }
 
+            // No more whitespace or comments found
             break;
         }
 
