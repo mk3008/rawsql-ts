@@ -57,58 +57,59 @@ To run benchmarks:
 npm run benchmark
 ```
 
-### Benchmark Details
+## Benchmark Details
 
-The benchmarks measure the performance of SQL parsing and formatting against popular libraries like `sql-formatter` and `node-sql-parser`. We test queries of varying complexity:
+This benchmark evaluates the SQL parsing and formatting performance of `carbunqlex-ts` against popular libraries: `sql-formatter` and `node-sql-parser`. We test queries of varying complexity:
 
-- **Tokens20**: Simple SELECT query with basic WHERE condition (~20 tokens)
-- **Tokens70**: Medium complexity query with JOINs and multiple conditions (~70 tokens)
-- **Tokens140**: Complex query with CTEs and aggregations (~140 tokens)
-- **Tokens230**: Very complex query with multiple CTEs, subqueries, and window functions (~230 tokens)
+- **Tokens20**: Simple `SELECT` query with a basic `WHERE` condition (~20 tokens)
+- **Tokens70**: Medium complexity query with `JOIN`s and multiple conditions (~70 tokens)
+- **Tokens140**: Complex query with `CTE`s and aggregations (~140 tokens)
+- **Tokens230**: Very complex query with multiple `CTE`s, subqueries, and window functions (~230 tokens)
 
-### Results
-
-Here are the performance results from a sample benchmark run:
+## Benchmark Environment
 
 ```
-benchmark.js v2.1.4, Windows_NT 10.0.26100
-AMD Ryzen 7 7800X3D 8-Core Processor, 16 logical cores
+benchmark.js v2.1.4  
+Windows 10.0.26100  
+AMD Ryzen 7 7800X3D (8C/16T)  
 Node.js v22.14.0
 ```
 
+## Results
+
 ### Tokens20
-| Method                            | Mean       | Error     | StdDev    |
-|---------------------------------- |-----------:|----------:|----------:|
-| carbunqlex-ts                  |    0.028 ms |  0.0028 ms |  0.0014 ms |
-| node-sql-parser                |    0.175 ms |  0.0706 ms |  0.0360 ms |
-| sql-formatter                  |    0.215 ms |  0.0359 ms |  0.0183 ms |
+| Method            | Mean     | Error    | StdDev   |
+|------------------|---------:|---------:|---------:|
+| `carbunqlex-ts` | 0.018 ms | 0.0041 ms | 0.0021 ms |
+| `node-sql-parser` | 0.180 ms | 0.0983 ms | 0.0502 ms |
+| `sql-formatter` | 0.221 ms | 0.1295 ms | 0.0661 ms |
 
 ### Tokens70
-| Method                            | Mean       | Error     | StdDev    |
-|---------------------------------- |-----------:|----------:|----------:|
-| carbunqlex-ts                  |    0.071 ms |  0.0057 ms |  0.0029 ms |
-| node-sql-parser                |    0.221 ms |  0.0340 ms |  0.0173 ms |
-| sql-formatter                  |    0.543 ms |  0.0793 ms |  0.0404 ms |
+| Method            | Mean     | Error    | StdDev   |
+|------------------|---------:|---------:|---------:|
+| `carbunqlex-ts` | 0.050 ms | 0.0114 ms | 0.0058 ms |
+| `node-sql-parser` | 0.225 ms | 0.0899 ms | 0.0459 ms |
+| `sql-formatter` | 0.540 ms | 0.1947 ms | 0.0993 ms |
 
 ### Tokens140
-| Method                            | Mean       | Error     | StdDev    |
-|---------------------------------- |-----------:|----------:|----------:|
-| carbunqlex-ts                  |    0.154 ms |  0.0324 ms |  0.0165 ms |
-| node-sql-parser                |    0.432 ms |  0.0574 ms |  0.0293 ms |
-| sql-formatter                  |    1.101 ms |  0.2124 ms |  0.1084 ms |
+| Method            | Mean     | Error    | StdDev   |
+|------------------|---------:|---------:|---------:|
+| `carbunqlex-ts` | 0.102 ms | 0.0533 ms | 0.0272 ms |
+| `node-sql-parser` | 0.416 ms | 0.1864 ms | 0.0951 ms |
+| `sql-formatter` | 1.036 ms | 0.4597 ms | 0.2345 ms |
 
 ### Tokens230
-| Method                            | Mean       | Error     | StdDev    |
-|---------------------------------- |-----------:|----------:|----------:|
-| carbunqlex-ts                  |    0.250 ms |  0.0646 ms |  0.0330 ms |
-| node-sql-parser                |    0.871 ms |  0.1234 ms |  0.0629 ms |
-| sql-formatter                  |    1.790 ms |  0.1754 ms |  0.0895 ms |
+| Method            | Mean     | Error    | StdDev   |
+|------------------|---------:|---------:|---------:|
+| `carbunqlex-ts` | 0.176 ms | 0.1572 ms | 0.0802 ms |
+| `node-sql-parser` | 0.858 ms | 0.2193 ms | 0.1119 ms |
+| `sql-formatter` | 1.765 ms | 0.4169 ms | 0.2127 ms |
 
-### Performance Summary
+## Performance Summary
 
-- **carbunqlex-ts** consistently outperforms both `node-sql-parser` and `sql-formatter` across all test cases
-- 2-3x faster than `node-sql-parser`
-- 5-6x faster than `sql-formatter` 
-- The performance gap increases with query complexity
+- `carbunqlex-ts` **consistently outperforms** both `node-sql-parser` and `sql-formatter` in all tested cases.
+- **Up to 4x faster** than `node-sql-parser`.
+- **Up to 10x faster** than `sql-formatter`.
+- Maintains **full SQL parsing capabilities** while significantly improving performance.
 
-The benchmarks show that this library is substantially faster than popular alternatives while maintaining full SQL parsing capabilities.
+> ⚠️ **Note:** These benchmarks are based on a specific hardware and software environment. Actual performance may vary depending on system configuration and workload.

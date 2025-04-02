@@ -1,76 +1,72 @@
 ﻿/**
-    // No changes needed in this file as the OPERATORS set already exists
  * Fast character classification utilities for SQL tokenization
  */
 export class CharLookupTable {
-    private static readonly WHITESPACE = new Set([' ', '\t', '\r', '\n']);
-    private static readonly DIGITS = new Set(['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']);
-    private static readonly HEX_CHARS = new Set([
-        '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
-        'a', 'b', 'c', 'd', 'e', 'f',
-        'A', 'B', 'C', 'D', 'E', 'F'
-    ]);
-    private static readonly DELIMITERS = new Set(['.', ',', '(', ')', '[', ']', '{', '}', ';']);
-    private static readonly NAMED_PARAMETER_PREFIX = new Set([
-        '@', // SQL Server
-        ':', // Oracle, PostgreSQL
-        '$', // PostgreSQL, MySQL  
-    ]);
-    private static readonly OPERATOR_SYMBOLS = new Set([
-        '+', // Addition operator (Common)
-        '-', // Subtraction operator (Common)
-        '*', // Multiplication operator (Common)
-        '/', // Division operator (Common)
-        '%', // Modulus operator (Common)
-        '~', // Bitwise NOT operator / Regular expression match (PostgreSQL, MySQL)
-        '@', // Euclidean distance / Array operations (SQL Server, PostgreSQL)
-        '#', // JSON operations (PostgreSQL, MySQL)
-        '^', // Exponentiation / XOR operator (PostgreSQL, MySQL)
-        '&', // Bitwise AND operator (Common)
-        ':', // Postgres type cast operator :: (PostgreSQL)
-        '!', // Logical NOT operator (Common)
-        '<', // Less than operator (Common)
-        '>', // Greater than operator (Common)
-        '=', // Assignment or equality operator (Common)
-        '|', // Bitwise OR operator (Common)
-    ]);
-
-    private static readonly OPERATOR_KEYWORDS = new Set([
-        'and', // Logical AND operator (Common)
-        'or', // Logical OR operator (Common)
-        'is', // Comparison operator (Common)
-    ]);
-
     public static isWhitespace(char: string): boolean {
-        return CharLookupTable.WHITESPACE.has(char);
+        if (char.length !== 1) return false;
+        const code = char.charCodeAt(0);
+        // Check for space(32), tab(9), line feed(10), carriage return(13)
+        return code === 32 || code === 9 || code === 10 || code === 13;
     }
 
     public static isDigit(char: string): boolean {
-        return CharLookupTable.DIGITS.has(char);
+        if (char.length !== 1) return false;
+        const code = char.charCodeAt(0);
+        // Check if within '0'(48) to '9'(57) range
+        return code >= 48 && code <= 57;
     }
 
     public static isHexChar(char: string): boolean {
-        return CharLookupTable.HEX_CHARS.has(char);
+        if (char.length !== 1) return false;
+        const code = char.charCodeAt(0);
+        // Check if '0'(48) to '9'(57) or 'a'(97) to 'f'(102) or 'A'(65) to 'F'(70)
+        return (code >= 48 && code <= 57) ||
+            (code >= 97 && code <= 102) ||
+            (code >= 65 && code <= 70);
     }
 
     public static isOperatorSymbol(char: string): boolean {
-        return CharLookupTable.OPERATOR_SYMBOLS.has(char);
+        if (char.length !== 1) return false;
+        const code = char.charCodeAt(0);
+
+        // Check for specific operator character codes
+        // '+'=43, '-'=45, '*'=42, '/'=47, '%'=37, '~'=126, '@'=64, '#'=35, '^'=94, 
+        // '&'=38, ':'=58, '!'=33, '<'=60, '>'=62, '='=61, '|'=124
+        return code === 43 || code === 45 || code === 42 || code === 47 ||
+            code === 37 || code === 126 || code === 64 || code === 35 ||
+            code === 94 || code === 38 || code === 58 || code === 33 ||
+            code === 60 || code === 62 || code === 61 || code === 124;
     }
 
     public static isDelimiter(char: string): boolean {
-        if (CharLookupTable.DELIMITERS.has(char)) {
+        if (char.length !== 1) return false;
+        const code = char.charCodeAt(0);
+
+        // First check delimiters: '.'=46, ','=44, '('=40, ')'=41, '['=91, ']'=93, '{'=123, '}'=125, ';'=59
+        if (code === 46 || code === 44 || code === 40 || code === 41 ||
+            code === 91 || code === 93 || code === 123 || code === 125 || code === 59) {
             return true;
         }
-        else if (CharLookupTable.isWhitespace(char)) {
+
+        // Then check for whitespace: ' '=32, '\t'=9, '\n'=10, '\r'=13
+        if (code === 32 || code === 9 || code === 10 || code === 13) {
             return true;
         }
-        else if (CharLookupTable.isOperatorSymbol(char)) {
-            return true;
-        }
-        return false;
+
+        // Finally check for operator symbols
+        // '+'=43, '-'=45, '*'=42, '/'=47, '%'=37, '~'=126, '@'=64, '#'=35, '^'=94, 
+        // '&'=38, ':'=58, '!'=33, '<'=60, '>'=62, '='=61, '|'=124
+        return code === 43 || code === 45 || code === 42 || code === 47 ||
+            code === 37 || code === 126 || code === 64 || code === 35 ||
+            code === 94 || code === 38 || code === 58 || code === 33 ||
+            code === 60 || code === 62 || code === 61 || code === 124;
     }
 
     public static isNamedParameterPrefix(char: string): boolean {
-        return CharLookupTable.NAMED_PARAMETER_PREFIX.has(char);
+        if (char.length !== 1) return false;
+        const code = char.charCodeAt(0);
+
+        // Check for parameter prefix characters: '@'=64, ':'=58, '$'=36
+        return code === 64 || code === 58 || code === 36;
     }
 }
