@@ -78,38 +78,38 @@ Node.js v22.14.0
 ## Results
 
 ### Tokens20
-| Method            | Mean     | Error    | StdDev   |
-|------------------|---------:|---------:|---------:|
-| `carbunqlex-ts` | 0.018 ms | 0.0041 ms | 0.0021 ms |
-| `node-sql-parser` | 0.180 ms | 0.0983 ms | 0.0502 ms |
-| `sql-formatter` | 0.221 ms | 0.1295 ms | 0.0661 ms |
+| Method                            | Mean       | Error     | StdDev    |
+|---------------------------------- |-----------:|----------:|----------:|
+| `carbunqlex-ts`                |    0.018 ms |  0.0041 ms |  0.0021 ms |
+| `node-sql-parser`              |    0.190 ms |  0.1433 ms |  0.0731 ms |
+| `sql-formatter`                |    0.211 ms |  0.0513 ms |  0.0262 ms |
 
 ### Tokens70
-| Method            | Mean     | Error    | StdDev   |
-|------------------|---------:|---------:|---------:|
-| `carbunqlex-ts` | 0.050 ms | 0.0114 ms | 0.0058 ms |
-| `node-sql-parser` | 0.225 ms | 0.0899 ms | 0.0459 ms |
-| `sql-formatter` | 0.540 ms | 0.1947 ms | 0.0993 ms |
+| Method                            | Mean       | Error     | StdDev    |
+|---------------------------------- |-----------:|----------:|----------:|
+| `carbunqlex-ts`                |    0.048 ms |  0.0125 ms |  0.0064 ms |
+| `node-sql-parser`              |    0.226 ms |  0.1837 ms |  0.0937 ms |
+| `sql-formatter`                |    0.517 ms |  0.1240 ms |  0.0633 ms |
 
 ### Tokens140
-| Method            | Mean     | Error    | StdDev   |
-|------------------|---------:|---------:|---------:|
-| `carbunqlex-ts` | 0.102 ms | 0.0533 ms | 0.0272 ms |
-| `node-sql-parser` | 0.416 ms | 0.1864 ms | 0.0951 ms |
-| `sql-formatter` | 1.036 ms | 0.4597 ms | 0.2345 ms |
+| Method                            | Mean       | Error     | StdDev    |
+|---------------------------------- |-----------:|----------:|----------:|
+| `carbunqlex-ts`                |    0.092 ms |  0.0194 ms |  0.0099 ms |
+| `node-sql-parser`              |    0.415 ms |  0.1106 ms |  0.0564 ms |
+| `sql-formatter`                |    1.017 ms |  0.2119 ms |  0.1081 ms |
 
 ### Tokens230
-| Method            | Mean     | Error    | StdDev   |
-|------------------|---------:|---------:|---------:|
-| `carbunqlex-ts` | 0.176 ms | 0.1572 ms | 0.0802 ms |
-| `node-sql-parser` | 0.858 ms | 0.2193 ms | 0.1119 ms |
-| `sql-formatter` | 1.765 ms | 0.4169 ms | 0.2127 ms |
+| Method                            | Mean       | Error     | StdDev    |
+|---------------------------------- |-----------:|----------:|----------:|
+| `carbunqlex-ts`                |    0.180 ms |  0.1397 ms |  0.0713 ms |
+| `node-sql-parser`              |    0.846 ms |  0.2805 ms |  0.1431 ms |
+| `sql-formatter`                |    1.767 ms |  0.3475 ms |  0.1773 ms |
 
 ## Performance Summary
 
 - `carbunqlex-ts` **consistently outperforms** both `node-sql-parser` and `sql-formatter` in all tested cases.
-- **Up to 4x faster** than `node-sql-parser`.
-- **Up to 10x faster** than `sql-formatter`.
+- **4x faster** than `node-sql-parser`.
+- **9-10x faster** than `sql-formatter`.
 - Maintains **full SQL parsing capabilities** while significantly improving performance.
 
 > ⚠️ **Note:** These benchmarks are based on a specific hardware and software environment. Actual performance may vary depending on system configuration and workload.

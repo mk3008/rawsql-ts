@@ -158,11 +158,11 @@ function getSystemInfo() {
 // Add benchmarks for individual queries
 queries.forEach((query, index) => {
     // Set label using query name
-    suite.add(`carbunqlex-ts ${query.name}`, parseQuery(query.sql));
+    suite.add(`\`carbunqlex-ts\` ${query.name}`, parseQuery(query.sql));
     // Add node-sql-parser benchmark for comparison
-    suite.add(`node-sql-parser ${query.name}`, parseWithNodeSqlParser(query.sql));
+    suite.add(`\`node-sql-parser\` ${query.name}`, parseWithNodeSqlParser(query.sql));
     // Add sql-formatter benchmark for comparison
-    suite.add(`sql-formatter ${query.name}`, formatWithSqlFormatter(query.sql));
+    suite.add(`\`sql-formatter\` ${query.name}`, formatWithSqlFormatter(query.sql));
 });
 
 // Function to display header and system information
