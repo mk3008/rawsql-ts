@@ -2,17 +2,19 @@ import * as Benchmark from 'benchmark';
 import * as os from 'os';
 import { DefaultFormatter } from '../src/models/DefaultFormatter';
 import { SelectQueryParser } from '../src/parsers/SelectQueryParser';
+import { format as sqlFormat } from 'sql-formatter';
+import { Parser as NodeSqlParser } from 'node-sql-parser';
 
 // Set of SQL queries for benchmarking
 const queries = [
     {
-        name: 'carbunqlex-ts Tokens20',
+        name: 'Tokens20',
         sql: `SELECT id, name, email, age, created_at, updated_at, status, role, last_login, country
               FROM users
               WHERE id = 1;`
     },
     {
-        name: 'carbunqlex-ts Tokens70',
+        name: 'Tokens70',
         sql: `SELECT
                 u.id, u.name, u.email, u.age, u.status, u.role,
                 o.id AS order_id, o.total, o.order_date, o.status AS order_status
@@ -22,7 +24,7 @@ const queries = [
               ORDER BY o.order_date DESC;`
     },
     {
-        name: 'carbunqlex-ts Tokens140',
+        name: 'Tokens140',
         sql: `WITH recent_orders AS (
                 SELECT user_id, MAX(order_date) AS last_order
                 FROM orders
@@ -40,7 +42,7 @@ const queries = [
               ORDER BY total_spent DESC;`
     },
     {
-        name: 'carbunqlex-ts Tokens230',
+        name: 'Tokens230',
         sql: `with
                 detail as (
                     select
@@ -109,20 +111,27 @@ const queries = [
 
 // Create formatter instance (use if needed)
 const formatter = new DefaultFormatter();
+const nodeSqlParser = new NodeSqlParser();
 
 // Create benchmark suite
 const suite = new Benchmark.Suite;
 
-// Create functions for testing
-function parseAllQueries() {
-    for (const query of queries) {
-        SelectQueryParser.parseFromText(query.sql);
-    }
-}
-
 function parseQuery(sql: string) {
     return () => {
-        SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parseFromText(sql);
+        query.accept(formatter);
+    };
+}
+
+function formatWithSqlFormatter(sql: string) {
+    return () => {
+        sqlFormat(sql, { language: 'postgresql' });
+    };
+}
+
+function parseWithNodeSqlParser(sql: string) {
+    return () => {
+        nodeSqlParser.parse(sql);
     };
 }
 
@@ -148,7 +157,11 @@ function getSystemInfo() {
 // Add benchmarks for individual queries
 queries.forEach((query, index) => {
     // Set label using query name
-    suite.add(`${query.name}`, parseQuery(query.sql));
+    suite.add(`carbunqlex-ts ${query.name}`, parseQuery(query.sql));
+    // Add sql-formatter benchmark for comparison
+    suite.add(`sql-formatter ${query.name}`, formatWithSqlFormatter(query.sql));
+    // Add node-sql-parser benchmark for comparison
+    suite.add(`node-sql-parser ${query.name}`, parseWithNodeSqlParser(query.sql));
 });
 
 // Function to display header and system information
