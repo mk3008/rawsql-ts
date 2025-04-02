@@ -77,26 +77,39 @@ AMD Ryzen 7 7800X3D 8-Core Processor, 16 logical cores
 Node.js v22.14.0
 ```
 
-| Method                      | Mean       | Error     | StdDev    |
-|----------------------------|----------:|----------:|----------:|
-| carbunqlex-ts Tokens20     |   0.032 ms |  0.0037 ms |  0.0019 ms |
-| carbunqlex-ts Tokens70     |   0.085 ms |  0.0096 ms |  0.0049 ms |
-| node-sql-parser Tokens20   |   0.166 ms |  0.0561 ms |  0.0286 ms |
-| carbunqlex-ts Tokens140    |   0.170 ms |  0.0189 ms |  0.0096 ms |
-| node-sql-parser Tokens70   |   0.214 ms |  0.0609 ms |  0.0311 ms |
-| sql-formatter Tokens20     |   0.216 ms |  0.0263 ms |  0.0134 ms |
-| carbunqlex-ts Tokens230    |   0.291 ms |  0.0307 ms |  0.0156 ms |
-| node-sql-parser Tokens140  |   0.396 ms |  0.0410 ms |  0.0209 ms |
-| sql-formatter Tokens70     |   0.540 ms |  0.0947 ms |  0.0483 ms |
-| node-sql-parser Tokens230  |   0.788 ms |  0.0823 ms |  0.0420 ms |
-| sql-formatter Tokens140    |   1.050 ms |  0.3101 ms |  0.1582 ms |
-| sql-formatter Tokens230    |   1.780 ms |  0.1356 ms |  0.0692 ms |
+### Tokens20
+| Method                            | Mean       | Error     | StdDev    |
+|---------------------------------- |-----------:|----------:|----------:|
+| carbunqlex-ts                  |    0.033 ms |  0.0030 ms |  0.0015 ms |
+| node-sql-parser                |    0.177 ms |  0.0640 ms |  0.0327 ms |
+| sql-formatter                  |    0.215 ms |  0.0347 ms |  0.0177 ms |
+
+### Tokens70
+| Method                            | Mean       | Error     | StdDev    |
+|---------------------------------- |-----------:|----------:|----------:|
+| carbunqlex-ts                  |    0.085 ms |  0.0085 ms |  0.0043 ms |
+| node-sql-parser                |    0.239 ms |  0.1297 ms |  0.0662 ms |
+| sql-formatter                  |    0.539 ms |  0.0695 ms |  0.0355 ms |
+
+### Tokens140
+| Method                            | Mean       | Error     | StdDev    |
+|---------------------------------- |-----------:|----------:|----------:|
+| carbunqlex-ts                  |    0.170 ms |  0.0234 ms |  0.0120 ms |
+| node-sql-parser                |    0.422 ms |  0.0605 ms |  0.0309 ms |
+| sql-formatter                  |    1.031 ms |  0.0842 ms |  0.0430 ms |
+
+### Tokens230
+| Method                            | Mean       | Error     | StdDev    |
+|---------------------------------- |-----------:|----------:|----------:|
+| carbunqlex-ts                  |    0.285 ms |  0.0344 ms |  0.0176 ms |
+| node-sql-parser                |    0.872 ms |  0.1366 ms |  0.0697 ms |
+| sql-formatter                  |    1.781 ms |  0.1566 ms |  0.0799 ms |
 
 ### Performance Summary
 
 - **carbunqlex-ts** consistently outperforms both `node-sql-parser` and `sql-formatter` across all test cases
-- 2.5-3x faster than `node-sql-parser`
-- 3-6x faster than `sql-formatter`
+- 2-3x faster than `node-sql-parser`
+- 5-6x faster than `sql-formatter` 
 - The performance gap increases with query complexity
 
 The benchmarks show that this library is substantially faster than popular alternatives while maintaining full SQL parsing capabilities.

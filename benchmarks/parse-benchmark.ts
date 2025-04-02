@@ -131,7 +131,8 @@ function formatWithSqlFormatter(sql: string) {
 
 function parseWithNodeSqlParser(sql: string) {
     return () => {
-        nodeSqlParser.parse(sql);
+        const ast = nodeSqlParser.astify(sql);
+        nodeSqlParser.sqlify(ast);
     };
 }
 
@@ -158,10 +159,10 @@ function getSystemInfo() {
 queries.forEach((query, index) => {
     // Set label using query name
     suite.add(`carbunqlex-ts ${query.name}`, parseQuery(query.sql));
-    // Add sql-formatter benchmark for comparison
-    suite.add(`sql-formatter ${query.name}`, formatWithSqlFormatter(query.sql));
     // Add node-sql-parser benchmark for comparison
     suite.add(`node-sql-parser ${query.name}`, parseWithNodeSqlParser(query.sql));
+    // Add sql-formatter benchmark for comparison
+    suite.add(`sql-formatter ${query.name}`, formatWithSqlFormatter(query.sql));
 });
 
 // Function to display header and system information
@@ -170,33 +171,51 @@ function printHeader() {
     const currentDate = new Date().toISOString().split('T')[0];
 
     console.log('```');
-    console.log(`BenchmarkTS, ${info.osName}`);
+    console.log(`benchmark.js, ${info.osName}`);
     console.log(`${info.cpuModel}, ${info.logicalCores} logical cores`);
     console.log(`Node.js ${info.nodeVersion}`);
     console.log('```');
     console.log('');
 }
 
-// Display report in markdown table format
+// Display report in markdown table format - grouped by token size
 function printResults(results: any[]) {
-    console.log('| Method                            | Mean       | Error     | StdDev    |');
-    console.log('|---------------------------------- |-----------:|----------:|----------:|');
+    // Group results by token size (based on query name)
+    const queryNames = queries.map(q => q.name);
+    const groupedResults: Record<string, any[]> = {};
 
-    results.forEach(result => {
-        // Format name field (up to 30 characters)
-        const name = result.name.padEnd(30).substring(0, 30);
-
-        // Display average time in milliseconds (3 decimal places)
-        const mean = (result.mean * 1000).toFixed(3).padStart(8);
-
-        // Display error rate in milliseconds (4 decimal places)
-        const error = ((result.stats.deviation * 1000) * 1.96).toFixed(4).padStart(7);
-
-        // Display standard deviation in milliseconds (4 decimal places)
-        const stddev = (result.stats.deviation * 1000).toFixed(4).padStart(7);
-
-        console.log(`| ${name} | ${mean} ms | ${error} ms | ${stddev} ms |`);
+    queryNames.forEach(name => {
+        groupedResults[name] = results.filter(r => r.name.includes(name));
     });
+
+    // Print a table for each token group
+    Object.keys(groupedResults).forEach(groupName => {
+        console.log(`\n### ${groupName}`);
+        console.log('| Method                            | Mean       | Error     | StdDev    |');
+        console.log('|---------------------------------- |-----------:|----------:|----------:|');
+
+        const groupResults = groupedResults[groupName];
+
+        // Display in original order (don't sort by time)
+        groupResults.forEach(result => {
+            // Format method name (extract library name)
+            const methodMatch = result.name.match(/^([^]+)\s+Tokens\d+$/);
+            const methodName = methodMatch ? methodMatch[1] : result.name;
+            const name = methodName.padEnd(30).substring(0, 30);
+
+            // Display average time in milliseconds (3 decimal places)
+            const mean = (result.mean * 1000).toFixed(3).padStart(8);
+
+            // Display error rate in milliseconds (4 decimal places)
+            const error = ((result.stats.deviation * 1000) * 1.96).toFixed(4).padStart(7);
+
+            // Display standard deviation in milliseconds (4 decimal places)
+            const stddev = (result.stats.deviation * 1000).toFixed(4).padStart(7);
+
+            console.log(`| ${name} | ${mean} ms | ${error} ms | ${stddev} ms |`);
+        });
+    });
+
     console.log('')
 }
 
@@ -217,14 +236,12 @@ suite.on('complete', function (this: any) {
         samples: benchmark.stats.sample.length
     }));
 
-    // Sort by execution time (ascending)
-    const sortedByTime = [...results].sort((a: any, b: any) => a.mean - b.mean);
-
+    // No longer sorting results
     // Display header and system information
     printHeader();
 
-    // Display results in markdown table
-    printResults(sortedByTime);
+    // Display results grouped by token size
+    printResults(results);
 });
 
 // Run benchmark
