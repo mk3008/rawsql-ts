@@ -72,7 +72,7 @@ The benchmarks measure the performance of SQL parsing and formatting against pop
 Here are the performance results from a sample benchmark run:
 
 ```
-BenchmarkTS, Windows_NT 10.0.26100
+benchmark.js v2.1.4, Windows_NT 10.0.26100
 AMD Ryzen 7 7800X3D 8-Core Processor, 16 logical cores
 Node.js v22.14.0
 ```

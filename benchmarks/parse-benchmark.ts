@@ -169,10 +169,12 @@ queries.forEach((query, index) => {
 function printHeader() {
     const info = getSystemInfo();
     const currentDate = new Date().toISOString().split('T')[0];
+    // benchmarkのバージョン情報を取得
+    const benchmarkVersion = require('benchmark/package.json').version;
 
     console.log('```');
-    console.log(`benchmark.js, ${info.osName}`);
-    console.log(`${info.cpuModel}, ${info.logicalCores} logical cores`);
+    console.log(`benchmark.js v${benchmarkVersion}, ${info.osName}`);
+    console.log(`${info.cpuModel.trim()}, ${info.logicalCores} logical cores`);
     console.log(`Node.js ${info.nodeVersion}`);
     console.log('```');
     console.log('');
