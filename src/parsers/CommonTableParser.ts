@@ -1,4 +1,4 @@
-import { CommonTable, SourceAliasExpression } from "../models/Clause";
+import { CommonTable } from "../models/Clause";
 import { Lexeme, TokenType } from "../models/Lexeme";
 import { SqlTokenizer } from "./SqlTokenizer";
 import { SelectQueryParser } from "./SelectQueryParser";
@@ -23,6 +23,8 @@ export class CommonTableParser {
     public static parse(lexemes: Lexeme[], index: number): { value: CommonTable; newIndex: number } {
         let idx = index;
 
+        // Parse alias and optional column aliases
+        // SourceAliasExpressionParser already handles column aliases if present
         const aliasResult = SourceAliasExpressionParser.parse(lexemes, idx);
         idx = aliasResult.newIndex;
 

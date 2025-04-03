@@ -11,6 +11,7 @@ import { LimitClauseParser } from "./LimitClauseParser";
 import { ForClauseParser } from "./ForClauseParser";
 import { SqlTokenizer } from "./SqlTokenizer";
 import { WithClauseParser } from "./WithClauseParser";
+import { ValuesQueryParser } from "./ValuesQueryParser";
 
 export class SelectQueryParser {
     public static parseFromText(query: string): SelectQuery {
@@ -45,12 +46,13 @@ export class SelectQueryParser {
             throw new Error(`Syntax error: Unexpected end of input at position ${index}.`);
         }
 
-        // Check if the first token is a SELECT keyword
-        if (!this.selectCommandSet.has(lexemes[idx].value) && lexemes[idx].value !== 'values') {
-            throw new Error(`Syntax error at position ${idx}: Expected 'SELECT' keyword but found "${lexemes[idx].value}".`);
+        // Check if the first token is a SELECT keyword or VALUES
+        const firstToken = lexemes[idx].value.toLowerCase();
+        if (!this.selectCommandSet.has(firstToken) && firstToken !== 'values') {
+            throw new Error(`Syntax error at position ${idx}: Expected 'SELECT' or 'VALUES' keyword but found "${lexemes[idx].value}".`);
         }
 
-        let firstResult = this.selectCommandSet.has(lexemes[idx].value)
+        let firstResult = this.selectCommandSet.has(firstToken)
             ? this.parseSimpleSelectQuery(lexemes, idx)
             : this.parseValuesQuery(lexemes, idx);
 
@@ -58,22 +60,24 @@ export class SelectQueryParser {
         idx = firstResult.newIndex;
 
         // check 'union'
-        while (idx < lexemes.length && this.unionCommandSet.has(lexemes[idx].value)) {
-            const operator = lexemes[idx].value;
+        while (idx < lexemes.length && this.unionCommandSet.has(lexemes[idx].value.toLowerCase())) {
+            const operator = lexemes[idx].value.toLowerCase();
             idx++;
             if (idx >= lexemes.length) {
-                throw new Error(`Syntax error at position ${idx}: Expected a query after 'UNION' but found end of input.`);
+                throw new Error(`Syntax error at position ${idx}: Expected a query after '${operator.toUpperCase()}' but found end of input.`);
             }
-            if (this.selectCommandSet.has(lexemes[idx].value)) {
+
+            const nextToken = lexemes[idx].value.toLowerCase();
+            if (this.selectCommandSet.has(nextToken)) {
                 const result = this.parseSimpleSelectQuery(lexemes, idx);
                 query = new BinarySelectQuery(query, operator, result.value);
                 idx = result.newIndex;
-            } else if (lexemes[idx].value === 'values') {
+            } else if (nextToken === 'values') {
                 const result = this.parseValuesQuery(lexemes, idx);
                 query = new BinarySelectQuery(query, operator, result.value);
                 idx = result.newIndex;
             } else {
-                throw new Error(`Syntax error at position ${idx}: Expected a query after 'UNION' but found "${lexemes[idx].value}".`);
+                throw new Error(`Syntax error at position ${idx}: Expected 'SELECT' or 'VALUES' after '${operator.toUpperCase()}' but found "${lexemes[idx].value}".`);
             }
         }
 
@@ -171,7 +175,11 @@ export class SelectQueryParser {
         return { value: selectQuery, newIndex: idx };
     }
 
-    private static parseValuesQuery(lexemes: Lexeme[], index: number): { value: SimpleSelectQuery; newIndex: number } {
-        throw new Error("Method not implemented.");
+    private static parseValuesQuery(lexemes: Lexeme[], index: number): { value: SelectQuery; newIndex: number } {
+        // ValuesQueryParserを使用してVALUES句をパースする
+        const result = ValuesQueryParser.parse(lexemes, index);
+
+        // ValuesQueryParserの結果をそのまま返す
+        return { value: result.value, newIndex: result.newIndex };
     }
 }

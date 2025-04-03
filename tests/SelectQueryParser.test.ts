@@ -127,7 +127,55 @@ describe('SelectQueryParser', () => {
 
         ["SELECT with recursive CTE",
             "WITH RECURSIVE employee_hierarchy AS (SELECT id, name, manager_id, 1 AS level FROM employees WHERE manager_id IS NULL UNION ALL SELECT e.id, e.name, e.manager_id, eh.level + 1 FROM employees e JOIN employee_hierarchy eh ON e.manager_id = eh.id) SELECT * FROM employee_hierarchy ORDER BY level, name",
-            'with recursive "employee_hierarchy" as(select "id", "name", "manager_id", 1 as "level" from "employees" where "manager_id" is null union all select "e"."id", "e"."name", "e"."manager_id", "eh"."level" + 1 from "employees" as "e" join "employee_hierarchy" as "eh" on "e"."manager_id" = "eh"."id") select * from "employee_hierarchy" order by "level", "name"']
+            'with recursive "employee_hierarchy" as(select "id", "name", "manager_id", 1 as "level" from "employees" where "manager_id" is null union all select "e"."id", "e"."name", "e"."manager_id", "eh"."level" + 1 from "employees" as "e" join "employee_hierarchy" as "eh" on "e"."manager_id" = "eh"."id") select * from "employee_hierarchy" order by "level", "name"'],
+
+        ["Simple VALUES query",
+            "values (1, 'test', true)",
+            "values (1, 'test', true)"],
+
+        ["VALUES with multiple tuples",
+            "values (1, 'apple', 0.99), (2, 'banana', 0.59), (3, 'orange', 0.79)",
+            "values (1, 'apple', 0.99), (2, 'banana', 0.59), (3, 'orange', 0.79)"],
+
+        ["VALUES with expressions",
+            "values (1 + 2, concat('hello', ' ', 'world'), 5 * 10)",
+            "values (1 + 2, concat('hello', ' ', 'world'), 5 * 10)"],
+
+        ["SELECT UNION VALUES",
+            "select id, name, price from products union values (100, 'New Product', 29.99)",
+            'select "id", "name", "price" from "products" union values (100, \'New Product\', 29.99)'],
+
+        ["VALUES UNION VALUES",
+            "values (1, 'first'), (2, 'second') union values (3, 'third'), (4, 'fourth')",
+            "values (1, 'first'), (2, 'second') union values (3, 'third'), (4, 'fourth')"],
+
+        ["VALUES UNION SELECT",
+            "values (1, 'test'), (2, 'sample') union select id, name from products where featured = true",
+            'values (1, \'test\'), (2, \'sample\') union select "id", "name" from "products" where "featured" = true'],
+
+        ["WITH clause with VALUES",
+            "with sample_data as (values (1, 'apple'), (2, 'orange'), (3, 'banana')) select * from sample_data order by 2",
+            'with "sample_data" as(values (1, \'apple\'), (2, \'orange\'), (3, \'banana\')) select * from "sample_data" order by 2'],
+
+        ["WITH multiple CTEs with VALUES",
+            "with fruits as (values (1, 'apple'), (2, 'orange')), vegetables as (values (3, 'carrot'), (4, 'potato')) select * from fruits union select * from vegetables",
+            'with "fruits" as(values (1, \'apple\'), (2, \'orange\')), "vegetables" as(values (3, \'carrot\'), (4, \'potato\')) select * from "fruits" union select * from "vegetables"'],
+
+        ["Subquery with VALUES in FROM",
+            "select t.id, t.name from (values (1, 'apple'), (2, 'orange')) as t(id, name) where t.id > 1",
+            'select "t"."id", "t"."name" from (values (1, \'apple\'), (2, \'orange\')) as "t"("id", "name") where "t"."id" > 1'],
+
+        ["Subquery with VALUES in WHERE clause",
+            "select id, name from products where (id, category) in (values (1, 'fruit'), (2, 'vegetable'))",
+            'select "id", "name" from "products" where ("id", "category") in (values (1, \'fruit\'), (2, \'vegetable\'))'],
+
+        ["WITH clause with VALUES and column aliases",
+            "with sample_data(id, name) as (values (1, 'apple'), (2, 'orange'), (3, 'banana')) select * from sample_data order by 2",
+            'with "sample_data"("id", "name") as(values (1, \'apple\'), (2, \'orange\'), (3, \'banana\')) select * from "sample_data" order by 2'],
+
+        ["WITH multiple CTEs with VALUES and column aliases",
+            "with fruits(id, name) as (values (1, 'apple'), (2, 'orange')), vegetables(id, name) as (values (3, 'carrot'), (4, 'potato')) select * from fruits union select * from vegetables",
+            'with "fruits"("id", "name") as(values (1, \'apple\'), (2, \'orange\')), "vegetables"("id", "name") as(values (3, \'carrot\'), (4, \'potato\')) select * from "fruits" union select * from "vegetables"']
 
     ])('%s', (_, text, expected) => {
         // Parse the query
@@ -136,5 +184,36 @@ describe('SelectQueryParser', () => {
         const sql = formatter.visit(query);
         // Verify it matches our expected output
         expect(sql).toBe(expected);
+    });
+});
+
+// VALUES専用のテストを追加
+describe('SelectQueryParser with VALUES', () => {
+    test('should throw an error when VALUES is malformed', () => {
+        // Arrange
+        const text = `values 1, 2, 3`;
+
+        // Act & Assert
+        expect(() => SelectQueryParser.parseFromText(text)).toThrow(/Expected opening parenthesis/);
+    });
+
+    test('should throw an error when mixing VALUES and SELECT incorrectly', () => {
+        // Arrange
+        const text = `values (1, 2) select * from users`;
+
+        // Act & Assert
+        expect(() => SelectQueryParser.parseFromText(text)).toThrow();
+    });
+
+    test('should handle complex UNION between VALUES and SELECT', () => {
+        // Arrange
+        const text = `values (1, 'Product A'), (2, 'Product B') union all select id, name from featured_products order by name`;
+
+        // Act
+        const query = SelectQueryParser.parseFromText(text);
+        const sql = formatter.visit(query);
+
+        // Assert
+        expect(sql).toBe('values (1, \'Product A\'), (2, \'Product B\') union all select "id", "name" from "featured_products" order by "name"');
     });
 });

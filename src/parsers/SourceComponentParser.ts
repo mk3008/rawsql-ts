@@ -76,7 +76,9 @@ export class SourceParser {
             throw new Error(`Syntax error: Unexpected end of input at position ${idx}. Expected a subquery or nested expression after opening parenthesis.`);
         }
 
-        if (lexemes[idx].value == "select") {
+        // Support both SELECT and VALUES in subqueries
+        const keyword = lexemes[idx].value;
+        if (keyword === "select" || keyword === "values") {
             const result = this.parseSubQuerySource(lexemes, idx);
             idx = result.newIndex;
             if (idx < lexemes.length && lexemes[idx].type == TokenType.CloseParen) {
@@ -98,7 +100,7 @@ export class SourceParser {
             return { value: result.value, newIndex: idx };
         }
 
-        throw new Error(`Syntax error at position ${idx}: Expected 'SELECT' keyword or opening parenthesis '(' but found "${lexemes[idx].value}".`);
+        throw new Error(`Syntax error at position ${idx}: Expected 'SELECT' keyword, 'VALUES' keyword, or opening parenthesis '(' but found "${lexemes[idx].value}".`);
     }
 
     private static parseSubQuerySource(lexemes: Lexeme[], index: number): { value: SubQuerySource; newIndex: number } {
