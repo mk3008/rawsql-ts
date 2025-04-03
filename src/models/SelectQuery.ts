@@ -1,8 +1,17 @@
 import { SqlComponent } from "./SqlComponent";
 import { ForClause, FromClause, GroupByClause, HavingClause, LimitClause, OrderByClause, SelectClause, WhereClause, WindowFrameClause, WithClause } from "./Clause";
-import { RawString } from "./ValueComponent";
+import { RawString, TupleExpression } from "./ValueComponent";
 
-export type SelectQuery = SimpleSelectQuery | BinarySelectQuery;
+export type SelectQuery = SimpleSelectQuery | BinarySelectQuery | ValuesQuery;
+
+export class ValuesQuery extends SqlComponent {
+    static kind = Symbol("ValuesQuery");
+    tuples: TupleExpression[];
+    constructor(tuples: TupleExpression[]) {
+        super();
+        this.tuples = tuples;
+    }
+}
 
 export class SimpleSelectQuery extends SqlComponent {
     static kind = Symbol("SelectQuery");

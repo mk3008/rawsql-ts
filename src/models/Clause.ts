@@ -1,6 +1,6 @@
 import { SelectQuery, SimpleSelectQuery } from "./SelectQuery";
 import { SqlComponent } from "./SqlComponent";
-import { IdentifierString, RawString, ValueComponent, WindowFrameExpression } from "./ValueComponent";
+import { IdentifierString, RawString, TupleExpression, ValueComponent, WindowFrameExpression } from "./ValueComponent";
 
 export type SelectComponent = SelectItem | ValueComponent;
 

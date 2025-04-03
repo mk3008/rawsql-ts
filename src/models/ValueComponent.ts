@@ -20,7 +20,8 @@ export type ValueComponent = ValueList |
     BetweenExpression |
     InlineQuery |
     StringSpecifierExpression |
-    TypeValue;
+    TypeValue |
+    TupleExpression;
 
 export class InlineQuery extends SqlComponent {
     static kind = Symbol("InlineQuery");
@@ -293,5 +294,14 @@ export class TypeValue extends SqlComponent {
         super();
         this.type = new RawString(type);
         this.argument = argument;
+    }
+}
+
+export class TupleExpression extends SqlComponent {
+    static kind = Symbol("TupleExpression");
+    values: ValueComponent[];
+    constructor(values: ValueComponent[]) {
+        super();
+        this.values = values;
     }
 }

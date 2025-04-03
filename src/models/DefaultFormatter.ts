@@ -1,4 +1,4 @@
-import { BinarySelectQuery, SimpleSelectQuery } from "./SelectQuery";
+import { BinarySelectQuery, SimpleSelectQuery, ValuesQuery } from "./SelectQuery";
 import { SqlComponent, SqlComponentVisitor } from "./SqlComponent";
 import {
     LiteralValue,
@@ -23,9 +23,9 @@ import {
     WindowFrameSpec,
     WindowFrameBound,
     WindowFrameBoundaryValue,
-    WindowFrameType,
     WindowFrameBoundStatic,
-    InlineQuery
+    InlineQuery,
+    TupleExpression
 } from "./ValueComponent";
 import { CommonTable, CommonTableSource, Distinct, DistinctOn, FetchSpecification, FetchType, ForClause, FromClause, FunctionSource, GroupByClause, HavingClause, JoinClause, JoinOnClause, JoinUsingClause, LimitClause, NullsSortDirection, OrderByClause, OrderByItem, PartitionByClause, SelectClause, SelectItem, SortDirection, SourceAliasExpression, SourceExpression, SubQuerySource, TableSource, WhereClause, WindowFrameClause, WithClause } from "./Clause";
 
@@ -125,6 +125,10 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
 
         // for clause
         this.handlers.set(ForClause.kind, (expr) => this.decodeForClause(expr as ForClause));
+
+        // values clause
+        this.handlers.set(ValuesQuery.kind, (expr) => this.decodeValuesQuery(expr as ValuesQuery));
+        this.handlers.set(TupleExpression.kind, (expr) => this.decodeTupleExpression(expr as TupleExpression));
 
         // select query
         this.handlers.set(SimpleSelectQuery.kind, (expr) => this.decodeSelectQuery(expr as SimpleSelectQuery));
@@ -537,5 +541,15 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
             return arg.name;
         }
         return `${this.config.identifierEscape.start}${arg.name}${this.config.identifierEscape.end}`;
+    }
+
+    decodeValuesQuery(arg: ValuesQuery): string {
+        const tuples = arg.tuples.map((tuple) => tuple.accept(this)).join(", ");
+        return `values ${tuples}`;
+    }
+
+    decodeTupleExpression(arg: TupleExpression): string {
+        const values = arg.values.map((value) => value.accept(this)).join(", ");
+        return `(${values})`;
     }
 }
