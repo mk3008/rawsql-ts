@@ -1,8 +1,8 @@
 import { expect, test } from 'vitest';
-import { DefaultFormatter } from "../src/models/DefaultFormatter";
+import { Formatter } from "../src/models/Formatter";
 import { WindowExpressionParser } from "../src/parsers/WindowExpressionParser";
 
-const formatter = new DefaultFormatter();
+const formatter = new Formatter();
 
 test('empty window frame', () => {
     // Arrange
@@ -117,7 +117,7 @@ test('error on invalid order in window frame', () => {
     const text = `(order by department_id partition by salary)`;
 
     // Act & Assert
-    // partition byはorder byの後には来れないのでエラーになる
+    // partition by cannot come after order by and will cause an error
     expect(() => WindowExpressionParser.parseFromText(text)).toThrow();
 });
 

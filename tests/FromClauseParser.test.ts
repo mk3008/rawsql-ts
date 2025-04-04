@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'vitest';
-import { DefaultFormatter } from "../src/models/DefaultFormatter";
+import { Formatter } from "../src/models/Formatter";
 import { FromClauseParser } from "../src/parsers/FromClauseParser";
 
-const formatter = new DefaultFormatter();
+const formatter = new Formatter();
 
 test('simple from', () => {
     // Arrange

@@ -78,7 +78,7 @@ export class SourceParser {
 
         // Support both SELECT and VALUES in subqueries
         const keyword = lexemes[idx].value;
-        if (keyword === "select" || keyword === "values") {
+        if (keyword === "select" || keyword === "values" || keyword === "with") {
             const result = this.parseSubQuerySource(lexemes, idx);
             idx = result.newIndex;
             if (idx < lexemes.length && lexemes[idx].type == TokenType.CloseParen) {

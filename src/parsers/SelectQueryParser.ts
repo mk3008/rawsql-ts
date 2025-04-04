@@ -176,10 +176,10 @@ export class SelectQueryParser {
     }
 
     private static parseValuesQuery(lexemes: Lexeme[], index: number): { value: SelectQuery; newIndex: number } {
-        // ValuesQueryParserを使用してVALUES句をパースする
+        // Use ValuesQueryParser to parse VALUES clause
         const result = ValuesQueryParser.parse(lexemes, index);
 
-        // ValuesQueryParserの結果をそのまま返す
+        // Return the result from ValuesQueryParser directly
         return { value: result.value, newIndex: result.newIndex };
     }
 }

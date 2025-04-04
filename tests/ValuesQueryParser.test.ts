@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'vitest';
-import { DefaultFormatter } from "../src/models/DefaultFormatter";
+import { Formatter } from "../src/models/Formatter";
 import { ValuesQueryParser } from "../src/parsers/ValuesQueryParser";
 
-const formatter = new DefaultFormatter();
+const formatter = new Formatter();
 
 test('simple values clause with single tuple', () => {
     // Arrange

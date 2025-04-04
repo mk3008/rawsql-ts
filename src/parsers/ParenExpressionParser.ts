@@ -8,7 +8,9 @@ export class ParenExpressionParser {
         let idx = index;
 
         // check inline query
-        if (idx + 1 < lexemes.length && lexemes[idx].type === TokenType.OpenParen && lexemes[idx + 1].value === "select") {
+        if (idx + 1 < lexemes.length && lexemes[idx].type === TokenType.OpenParen && (
+            lexemes[idx + 1].value === "select" || lexemes[idx + 1].value === "values" || lexemes[idx + 1].value === "with"
+        )) {
             idx += 1; // Skip the '(' token
             const result = SelectQueryParser.parse(lexemes, idx);
             idx = result.newIndex;

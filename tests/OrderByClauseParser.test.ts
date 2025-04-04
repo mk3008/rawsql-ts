@@ -1,9 +1,9 @@
 import { describe, expect, test } from 'vitest';
-import { DefaultFormatter } from "../src/models/DefaultFormatter";
+import { Formatter } from "../src/models/Formatter";
 import { OrderByClauseParser } from "../src/parsers/OrderByClauseParser";
 import { SortDirection, NullsSortDirection } from "../src/models/Clause";
 
-const formatter = new DefaultFormatter();
+const formatter = new Formatter();
 
 test('simple order by', () => {
     // Arrange

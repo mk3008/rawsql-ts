@@ -1,9 +1,9 @@
 import { describe, expect, test } from 'vitest';
-import { DefaultFormatter } from "../src/models/DefaultFormatter";
+import { Formatter } from "../src/models/Formatter";
 import { ForClauseParser } from "../src/parsers/ForClauseParser";
 import { LockMode } from '../src/models/Clause';
 
-const formatter = new DefaultFormatter();
+const formatter = new Formatter();
 
 test('for update', () => {
     // Arrange

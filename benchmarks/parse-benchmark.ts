@@ -1,6 +1,6 @@
 import * as Benchmark from 'benchmark';
 import * as os from 'os';
-import { DefaultFormatter } from '../src/models/DefaultFormatter';
+import { Formatter } from '../src/models/Formatter';
 import { SelectQueryParser } from '../src/parsers/SelectQueryParser';
 import { format as sqlFormat } from 'sql-formatter';
 import { Parser as NodeSqlParser } from 'node-sql-parser';
@@ -110,7 +110,7 @@ const queries = [
 ];
 
 // Create formatter instance (use if needed)
-const formatter = new DefaultFormatter();
+const formatter = new Formatter();
 const nodeSqlParser = new NodeSqlParser();
 
 // Create benchmark suite

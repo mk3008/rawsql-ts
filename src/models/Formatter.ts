@@ -37,20 +37,20 @@ interface FormatterConfig {
     parameterSymbol: string;
 }
 
-export class DefaultFormatter implements SqlComponentVisitor<string> {
+export class Formatter implements SqlComponentVisitor<string> {
     private handlers: Map<symbol, (arg: any) => string>;
     private config: FormatterConfig;
 
     constructor() {
         this.handlers = new Map<symbol, (arg: any) => string>();
 
-        // デフォルト設定
+        // Default settings
         this.config = {
             identifierEscape: {
                 start: '"',
                 end: '"'
             },
-            parameterSymbol: ':' // PostgreSQLスタイルをデフォルトに
+            parameterSymbol: ':' // Use PostgreSQL style as default
         };
 
         // value
@@ -140,7 +140,11 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
         if (handler) {
             return handler(arg);
         }
-        throw new Error(`No handler ${arg}`);
+
+        // Provide more detailed error message
+        const kindSymbol = arg.getKind()?.toString() || 'unknown';
+        const constructor = arg.constructor?.name || 'unknown';
+        throw new Error(`No handler for ${constructor} with kind ${kindSymbol}. Consider adding a handler for this type.`);
     }
 
     decodeBinarySelectQuery(arg: BinarySelectQuery): string {
@@ -325,7 +329,7 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
     }
 
     decodeSwitchCaseArgument(arg: SwitchCaseArgument): string {
-        const casePart = arg.casePairs.map((kv: CaseKeyValuePair) => `when ${kv.key.accept(this)} then ${kv.value.accept(this)}`).join(" ");
+        const casePart = arg.cases.map((kv: CaseKeyValuePair) => `when ${kv.key.accept(this)} then ${kv.value.accept(this)}`).join(" ");
         const elsePart = arg.elseValue ? ` else ${arg.elseValue.accept(this)}` : "";
         return `${casePart}${elsePart}`;
     }
@@ -527,12 +531,12 @@ export class DefaultFormatter implements SqlComponentVisitor<string> {
 
     decodeRawString(arg: RawString): string {
         const invalidChars = new Set(["'", '"', ",", ";", ":", ".", "--", "/*"]);
-        if (invalidChars.has(arg.keyword)) {
-            throw new Error(`invalid keyword: ${arg.keyword} `);
-        } else if (arg.keyword.trim() === "") {
+        if (invalidChars.has(arg.value)) {
+            throw new Error(`invalid keyword: ${arg.value} `);
+        } else if (arg.value.trim() === "") {
             throw new Error("invalid keyword: empty string");
         }
-        return arg.keyword.trim();
+        return arg.value.trim();
     }
 
     decodeIdentifierString(arg: IdentifierString): string {

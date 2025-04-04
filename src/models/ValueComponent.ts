@@ -174,11 +174,11 @@ export class ParameterExpression extends SqlComponent {
 
 export class SwitchCaseArgument extends SqlComponent {
     static kind = Symbol("SwitchCaseArgument");
-    casePairs: CaseKeyValuePair[];
+    cases: CaseKeyValuePair[];
     elseValue: ValueComponent | null;
-    constructor(casePairs: CaseKeyValuePair[], elseValue: ValueComponent | null = null) {
+    constructor(cases: CaseKeyValuePair[], elseValue: ValueComponent | null = null) {
         super();
-        this.casePairs = casePairs;
+        this.cases = cases;
         this.elseValue = elseValue;
     }
 }
@@ -200,10 +200,10 @@ export class CaseKeyValuePair extends SqlComponent {
  */
 export class RawString extends SqlComponent {
     static kind = Symbol("RawString");
-    keyword: string;
-    constructor(keyword: string) {
+    value: string;
+    constructor(value: string) {
         super();
-        this.keyword = keyword;
+        this.value = value;
     }
 }
 

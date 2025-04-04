@@ -39,7 +39,7 @@ export class OverExpressionParser {
         }
 
         if (lexemes[idx].type === TokenType.OpenParen) {
-            // WindowFrameExpressionParserに処理を委譲
+            // Delegate processing to WindowFrameExpressionParser
             const result = WindowExpressionParser.parse(lexemes, idx);
             return result;
         }

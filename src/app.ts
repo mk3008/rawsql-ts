@@ -1,4 +1,4 @@
-﻿import { DefaultFormatter } from './models/DefaultFormatter';
+﻿import { Formatter } from './models/Formatter';
 import { FromClauseParser } from './parsers/FromClauseParser';
 import { GroupByClauseParser } from './parsers/GroupByParser';
 import { HavingClauseParser } from './parsers/HavingParser';
@@ -8,7 +8,7 @@ import { SqlTokenizer } from './parsers/SqlTokenizer';
 import { ValueParser } from './parsers/ValueParser';
 import { WhereClauseParser } from './parsers/WhereClauseParser';
 
-const formatter = new DefaultFormatter();
+const formatter = new Formatter();
 
 const text = "c.*";
 

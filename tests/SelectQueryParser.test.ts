@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'vitest';
-import { DefaultFormatter } from '../src/models/DefaultFormatter';
 import { SelectQueryParser } from '../src/parsers/SelectQueryParser';
+import { Formatter } from '../src/models/Formatter';
 
-const formatter = new DefaultFormatter();
+const formatter = new Formatter();
 
 describe('SelectQueryParser', () => {
     test.each([
@@ -187,7 +187,7 @@ describe('SelectQueryParser', () => {
     });
 });
 
-// VALUES専用のテストを追加
+// Add dedicated tests for VALUES clause
 describe('SelectQueryParser with VALUES', () => {
     test('should throw an error when VALUES is malformed', () => {
         // Arrange

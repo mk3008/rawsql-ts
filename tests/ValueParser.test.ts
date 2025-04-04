@@ -1,10 +1,10 @@
 import { describe, expect, test } from 'vitest';
 import { ValueParser } from "../src/parsers/ValueParser";
-import { DefaultFormatter } from '../src/models/DefaultFormatter';
+import { Formatter } from '../src/models/Formatter';
 
-// テスト中の循環参照問題を回避するために、テストの焦点を変更
+// Changed test focus to avoid circular references during testing
 describe('ValueParser', () => {
-    const formatter = new DefaultFormatter();
+    const formatter = new Formatter();
     test.each([
         ["ColumnReference", "a.id", '"a"."id"'],
         ["ColumnReference - Wildcard", "*", "*"],
