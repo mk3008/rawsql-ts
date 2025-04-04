@@ -31,7 +31,7 @@ export class ForClauseParser {
             throw new Error(`Syntax error: Unexpected end of input after 'FOR' keyword. The FOR clause requires a lock mode specification.`);
         }
 
-        // ロックモードの解析
+        // Parse lock mode
         const lockModeValue = lexemes[idx].value;
         let lockMode: LockMode;
 

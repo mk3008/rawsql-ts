@@ -63,6 +63,9 @@ export abstract class BaseTokenReader {
      */
     protected createLexeme(type: TokenType, value: string, maybeType: boolean | null = null, comments: string[] | null = null): Lexeme {
         if (type === TokenType.Command || type === TokenType.Operator || type === TokenType.Function) {
+            // Benchmark tests showed that directly calling toLowerCase() is ~5x faster
+            // than first checking if the string is already lowercase.
+            // See benchmarks/lowercase-benchmark.js for detailed performance analysis.
             return {
                 type,
                 value: value.toLowerCase(),

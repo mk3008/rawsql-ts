@@ -169,7 +169,7 @@ queries.forEach((query, index) => {
 function printHeader() {
     const info = getSystemInfo();
     const currentDate = new Date().toISOString().split('T')[0];
-    // benchmarkのバージョン情報を取得
+    // Get benchmark version information
     const benchmarkVersion = require('benchmark/package.json').version;
 
     console.log('```');

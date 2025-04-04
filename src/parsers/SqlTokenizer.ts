@@ -84,7 +84,10 @@ export class SqlTokenizer {
      * @throws Error if an unexpected character is encountered.
      */
     public readLexmes(): Lexeme[] {
-        const lexemes: Lexeme[] = [];
+        // Pre-allocate array with estimated capacity for better performance
+        const estimatedTokens = Math.ceil(this.input.length / 8); // Assuming average token length of 8 chars
+        const lexemes: Lexeme[] = new Array(estimatedTokens);
+        let lexemeCount = 0;
 
         // Read initial prefix comments
         const comment = this.readComment();
@@ -117,21 +120,33 @@ export class SqlTokenizer {
 
             if (lexeme.type === TokenType.Comma || lexeme.type === TokenType.Operator) {
                 // Carry over comments after commas or operators
-                pendingComments.push(...currentComment.lines);
+                if (currentComment.lines.length > 0) {
+                    pendingComments.push(...currentComment.lines);
+                }
             } else {
                 // Add comments to the current token if any
-                this.addCommentsToToken(lexeme, pendingComments, currentComment.lines);
+                const hasComments = pendingComments.length > 0 || currentComment.lines.length > 0;
+                if (hasComments) {
+                    this.addCommentsToToken(lexeme, pendingComments, currentComment.lines);
+                }
                 pendingComments = []; // Clear as they are processed
             }
 
-            lexemes.push(lexeme);
+            lexemes[lexemeCount++] = lexeme;
             previous = lexeme;
         }
 
         // Add any pending comments to the last token
-        this.addPendingCommentsToLastToken(lexemes, pendingComments);
+        if (pendingComments.length > 0 && lexemeCount > 0) {
+            const lastToken = lexemes[lexemeCount - 1];
+            if (lastToken.comments === null) {
+                lastToken.comments = [];
+            }
+            lastToken.comments.push(...pendingComments);
+        }
 
-        return lexemes;
+        // Trim the array to actual size used
+        return lexemeCount === estimatedTokens ? lexemes : lexemes.slice(0, lexemeCount);
     }
 
     /**

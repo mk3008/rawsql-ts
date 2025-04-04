@@ -1,5 +1,5 @@
 ﻿import { BaseTokenReader } from './BaseTokenReader';
-import { Lexeme } from '../models/Lexeme';
+import { Lexeme, TokenType } from '../models/Lexeme';
 
 /**
  * Manages and coordinates multiple token readers
@@ -8,11 +8,15 @@ export class TokenReaderManager {
     private readers: BaseTokenReader[];
     private input: string;
     private position: number;
+    private tokenCache: Map<number, Lexeme | null>;
+    private cacheHits: number = 0;
+    private cacheMisses: number = 0;
 
     constructor(input: string, position: number = 0) {
         this.input = input;
         this.position = position;
         this.readers = [];
+        this.tokenCache = new Map();
     }
 
     /**
@@ -47,18 +51,41 @@ export class TokenReaderManager {
 
     /**
      * Try to read a token using all registered readers
+     * @param position The position to read from
      * @param previous The previous token, if any
      * @returns The lexeme if a reader could read it, null otherwise
      */
     public tryRead(position: number, previous: Lexeme | null): Lexeme | null {
+        // Check cache - using position as the key
+        if (this.tokenCache.has(position)) {
+            // Cache hit
+            this.cacheHits++;
+            const lexeme = this.tokenCache.get(position) || null;
+            return lexeme;
+        }
+
+        // Cache miss - create new entry
+        this.cacheMisses++;
         this.setPosition(position);
+
+        // Try to read with each reader
+        let lexeme: Lexeme | null = null;
         for (const reader of this.readers) {
-            const lexeme = reader.tryRead(previous);
+            lexeme = reader.tryRead(previous);
             if (lexeme) {
-                return lexeme;
+                this.position = reader.getPosition();
+                break;
             }
         }
-        return null;
+
+        // Update all readers' positions
+        for (const reader of this.readers) {
+            reader.setPosition(this.position);
+        }
+
+        // Save to cache (even if null)
+        this.tokenCache.set(position, lexeme);
+        return lexeme;
     }
 
     /**
@@ -80,5 +107,18 @@ export class TokenReaderManager {
      */
     public getInput(): string {
         return this.input;
+    }
+
+    /**
+     * Get cache statistics
+     */
+    public getCacheStats(): { hits: number, misses: number, ratio: number } {
+        const total = this.cacheHits + this.cacheMisses;
+        const ratio = total > 0 ? this.cacheHits / total : 0;
+        return {
+            hits: this.cacheHits,
+            misses: this.cacheMisses,
+            ratio: ratio
+        };
     }
 }
