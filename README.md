@@ -80,30 +80,30 @@ Node.js v22.14.0
 ### Tokens20
 | Method                            | Mean       | Error     | StdDev    |
 |---------------------------------- |-----------:|----------:|----------:|
-| `carbunqlex-ts`                |    0.018 ms |  0.0041 ms |  0.0021 ms |
-| `node-sql-parser`              |    0.190 ms |  0.1433 ms |  0.0731 ms |
-| `sql-formatter`                |    0.211 ms |  0.0513 ms |  0.0262 ms |
+| carbunqlex-ts                  |    0.021 ms |  0.0044 ms |  0.0023 ms |
+| node-sql-parser                |    0.169 ms |  0.0695 ms |  0.0355 ms |
+| sql-formatter                  |    0.208 ms |  0.0556 ms |  0.0284 ms |
 
 ### Tokens70
 | Method                            | Mean       | Error     | StdDev    |
 |---------------------------------- |-----------:|----------:|----------:|
-| carbunqlex-ts                |    0.048 ms |  0.0125 ms |  0.0064 ms |
-| node-sql-parser              |    0.226 ms |  0.1837 ms |  0.0937 ms |
-| sql-formatter                |    0.517 ms |  0.1240 ms |  0.0633 ms |
+| carbunqlex-ts                  |    0.057 ms |  0.0143 ms |  0.0073 ms |
+| node-sql-parser                |    0.216 ms |  0.0780 ms |  0.0398 ms |
+| sql-formatter                  |    0.512 ms |  0.1251 ms |  0.0638 ms |
 
 ### Tokens140
 | Method                            | Mean       | Error     | StdDev    |
 |---------------------------------- |-----------:|----------:|----------:|
-| carbunqlex-ts                |    0.092 ms |  0.0194 ms |  0.0099 ms |
-| node-sql-parser              |    0.415 ms |  0.1106 ms |  0.0564 ms |
-| sql-formatter                |    1.017 ms |  0.2119 ms |  0.1081 ms |
+| carbunqlex-ts                  |    0.112 ms |  0.0236 ms |  0.0120 ms |
+| node-sql-parser                |    0.404 ms |  0.0926 ms |  0.0472 ms |
+| sql-formatter                  |    1.004 ms |  0.3027 ms |  0.1545 ms |
 
 ### Tokens230
 | Method                            | Mean       | Error     | StdDev    |
 |---------------------------------- |-----------:|----------:|----------:|
-| carbunqlex-ts                |    0.180 ms |  0.1397 ms |  0.0713 ms |
-| node-sql-parser              |    0.846 ms |  0.2805 ms |  0.1431 ms |
-| sql-formatter                |    1.767 ms |  0.3475 ms |  0.1773 ms |
+| carbunqlex-ts                  |    0.182 ms |  0.0371 ms |  0.0189 ms |
+| node-sql-parser                |    0.865 ms |  0.3325 ms |  0.1696 ms |
+| sql-formatter                  |    1.696 ms |  0.2754 ms |  0.1405 ms |
 
 ## Performance Summary
 
