@@ -135,52 +135,52 @@ export class CommonTableCollector implements SqlComponentVisitor<void> {
     }
 
     visitSimpleSelectQuery(query: SimpleSelectQuery): void {
-        // Check WITH clause
-        if (query.WithClause) {
-            query.WithClause.accept(this);
+        // The order matters here!
+        // First, visit all clauses that might contain nested CTEs
+        // to ensure inner CTEs are collected before outer CTEs
+
+        // Check FROM clause first (can contain subqueries with nested CTEs)
+        if (query.fromClause) {
+            query.fromClause.accept(this);
+        }
+
+        // Check WHERE clause (can contain subqueries with WITH clauses)
+        if (query.whereClause) {
+            query.whereClause.accept(this);
+        }
+
+        // Check other clauses that might contain CTEs
+        if (query.groupByClause) {
+            query.groupByClause.accept(this);
+        }
+
+        if (query.havingClause) {
+            query.havingClause.accept(this);
+        }
+
+        if (query.orderByClause) {
+            query.orderByClause.accept(this);
+        }
+
+        if (query.windowFrameClause) {
+            query.windowFrameClause.accept(this);
+        }
+
+        if (query.rowLimitClause) {
+            query.rowLimitClause.accept(this);
+        }
+
+        if (query.forClause) {
+            query.forClause.accept(this);
         }
 
         // Check SELECT clause
         query.selectClause.accept(this);
 
-        // Check FROM clause
-        if (query.fromClause) {
-            query.fromClause.accept(this);
-        }
-
-        // Check WHERE clause
-        if (query.whereClause) {
-            query.whereClause.accept(this);
-        }
-
-        // Check GROUP BY clause
-        if (query.groupByClause) {
-            query.groupByClause.accept(this);
-        }
-
-        // Check HAVING clause
-        if (query.havingClause) {
-            query.havingClause.accept(this);
-        }
-
-        // Check ORDER BY clause
-        if (query.orderByClause) {
-            query.orderByClause.accept(this);
-        }
-
-        // Check WINDOW clause
-        if (query.windowFrameClause) {
-            query.windowFrameClause.accept(this);
-        }
-
-        // Check LIMIT clause
-        if (query.rowLimitClause) {
-            query.rowLimitClause.accept(this);
-        }
-
-        // Check FOR clause
-        if (query.forClause) {
-            query.forClause.accept(this);
+        // Finally check the WITH clause after all nested CTEs have been collected
+        // This ensures inner CTEs are collected before outer CTEs
+        if (query.WithClause) {
+            query.WithClause.accept(this);
         }
     }
 
@@ -198,18 +198,22 @@ export class CommonTableCollector implements SqlComponentVisitor<void> {
     }
 
     visitWithClause(withClause: WithClause): void {
-        // Add all common tables from this WITH clause
-        for (const commonTable of withClause.tables) {
-            this.commonTables.push(commonTable);
-
-            // Also check for nested CommonTables within the CommonTable's query
+        // 各CommonTableを訪問する
+        // 直接テーブルを順番に処理するだけ
+        // 注：visitCommonTableが既にネストされたCTEを処理してくれる
+        for (let i = 0; i < withClause.tables.length; i++) {
+            const commonTable = withClause.tables[i];
             commonTable.accept(this);
         }
     }
 
     visitCommonTable(commonTable: CommonTable): void {
-        // Check for CommonTables in the query definition
+        // クエリ内のCommonTableを直接処理する
+        // 別のCollectorインスタンスを作成する代わりに、同じインスタンスを使ってクエリを処理
         commonTable.query.accept(this);
+
+        // すべてのネストされたCTEが追加された後で現在のCTEを追加
+        this.commonTables.push(commonTable);
     }
 
     visitSelectClause(clause: SelectClause): void {

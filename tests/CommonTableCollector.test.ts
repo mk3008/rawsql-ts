@@ -1,7 +1,6 @@
 import { describe, expect, test } from 'vitest';
-import { CommonTableCollector } from '../src/models/CommonTableCollector';
+import { CommonTableCollector } from '../src/visitors/CommonTableCollector';
 import { SelectQueryParser } from '../src/parsers/SelectQueryParser';
-import { CommonTable } from '../src/models/Clause';
 
 describe('CommonTableCollector', () => {
     test('collects simple WITH clause common tables', () => {
@@ -51,6 +50,7 @@ describe('CommonTableCollector', () => {
 
         // Assert
         expect(commonTables.length).toBe(2);
+        // 改良された実装では、深さが同じなら元の順序を保持する
         expect(commonTables[0].name.table.name).toBe('sales_2024');
         expect(commonTables[1].name.table.name).toBe('top_products');
     });
@@ -182,6 +182,96 @@ describe('CommonTableCollector', () => {
         expect(commonTables[0].name.table.name).toBe('top_departments');
     });
 
+    test('collects deeply nested WITH clauses (with_a -> with_b -> with_c)', () => {
+        // Arrange
+        const sql = `
+            WITH with_a AS (
+                SELECT * FROM (
+                    WITH with_b AS (
+                        SELECT * FROM (
+                            WITH with_c AS (
+                                SELECT id, value FROM deep_data WHERE status = 'active'
+                            )
+                            SELECT c.id, c.value, 'level_c' as level
+                            FROM with_c c
+                        )
+                    )
+                    SELECT b.id, b.value, b.level, 'level_b' as parent_level
+                    FROM with_b b
+                )
+            )
+            SELECT a.id, a.value, a.level, a.parent_level, 'level_a' as root_level
+            FROM with_a a
+        `;
+        const query = SelectQueryParser.parseFromText(sql);
+        const collector = new CommonTableCollector();
+
+        // Act
+        collector.visit(query);
+        const commonTables = collector.getCommonTables();
+
+        // Assert
+        expect(commonTables.length).toBe(3);
+
+        // All three CTEs should be collected
+        const tableNames = commonTables.map(ct => ct.name.table.name);
+        expect(tableNames).toContain('with_a');
+        expect(tableNames).toContain('with_b');
+        expect(tableNames).toContain('with_c');
+
+        // Optional: Check the order (though order is not guaranteed by the collector)
+        // expect(tableNames[0]).toBe('with_a');
+        // expect(tableNames[1]).toBe('with_b');
+        // expect(tableNames[2]).toBe('with_c');
+    });
+
+    test('collects deeply nested WITH clauses in correct order (inner to outer)', () => {
+        // Arrange
+        const sql = `
+            WITH with_a AS (
+                SELECT * FROM (
+                    WITH with_b AS (
+                        SELECT * FROM (
+                            WITH with_c AS (
+                                SELECT id, value FROM deep_data WHERE status = 'active'
+                            )
+                            SELECT c.id, c.value, 'level_c' as level
+                            FROM with_c c
+                        )
+                    )
+                    SELECT b.id, b.value, b.level, 'level_b' as parent_level
+                    FROM with_b b
+                )
+            )
+            SELECT a.id, a.value, a.level, a.parent_level, 'level_a' as root_level
+            FROM with_a a
+        `;
+        const query = SelectQueryParser.parseFromText(sql);
+        const collector = new CommonTableCollector();
+
+        // Act
+        collector.visit(query);
+        const commonTables = collector.getCommonTables();
+
+        // Assert
+        expect(commonTables.length).toBe(3);
+
+        // Check exact order to ensure inner CTEs are collected before outer CTEs
+        // The expected order should be with_c (innermost), with_b (middle), with_a (outermost)
+        const tableNames = commonTables.map(ct => ct.name.table.name);
+
+        // Log actual order for debugging
+        console.log('CTE collection order:', tableNames);
+
+        // Verify inner CTEs are collected before outer CTEs
+        const indexC = tableNames.indexOf('with_c');
+        const indexB = tableNames.indexOf('with_b');
+        const indexA = tableNames.indexOf('with_a');
+
+        expect(indexC).toBeLessThan(indexB);
+        expect(indexB).toBeLessThan(indexA);
+    });
+
     test('resets collection between visits', () => {
         // Arrange
         const sql1 = `WITH cte1 AS (SELECT 1) SELECT * FROM cte1`;
@@ -206,6 +296,7 @@ describe('CommonTableCollector', () => {
 
         // Assert - Second collection
         expect(tables2.length).toBe(2);
+        // 改良された実装では同じ深さのCTEは元のSQL順序を保持する
         expect(tables2[0].name.table.name).toBe('cte2');
         expect(tables2[1].name.table.name).toBe('cte3');
     });
