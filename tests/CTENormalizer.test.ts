@@ -205,4 +205,59 @@ describe('CTENormalizer', () => {
         // Ensure the original query structure (especially SELECT statements) is preserved
         expect(result).toContain('select "a"."id", "a"."value", "a"."level", "a"."parent_level", \'level_a\' as "root_level" from "with_a" as "a"');
     });
+
+    test('normalizes CTEs in JOIN subqueries', () => {
+        // Arrange
+        const sql = `
+            WITH a AS (
+                SELECT id, name FROM table_a
+            )
+            SELECT * FROM a 
+            INNER JOIN (
+                WITH b AS (
+                    SELECT id, value FROM table_b
+                )
+                SELECT * FROM b
+            ) AS sub ON a.id = sub.id
+        `;
+        const query = SelectQueryParser.parseFromText(sql);
+        const normalizer = new CTENormalizer();
+
+        // Act
+        const normalizedQuery = normalizer.normalize(query);
+        const result = formatter.visit(normalizedQuery);
+
+        // Assert
+        // CTEs are ordered by inner-to-outer dependency, so 'b' should come first
+        expect(result).toBe('with "b" as (select "id", "value" from "table_b"), "a" as (select "id", "name" from "table_a") select * from "a" inner join (select * from "b") as "sub" on "a"."id" = "sub"."id"');
+    });
+
+    test('prioritizes recursive CTEs in JOIN subqueries', () => {
+        // Arrange
+        const sql = `
+            WITH a AS (
+                SELECT id, name FROM table_a
+            )
+            SELECT * FROM a 
+            INNER JOIN (
+                WITH RECURSIVE b AS (
+                    SELECT id, parent_id FROM table_b WHERE parent_id IS NULL
+                    UNION ALL
+                    SELECT t.id, t.parent_id FROM table_b t
+                    JOIN b ON t.parent_id = b.id
+                )
+                SELECT * FROM b
+            ) AS sub ON a.id = sub.id
+        `;
+        const query = SelectQueryParser.parseFromText(sql);
+        const normalizer = new CTENormalizer();
+
+        // Act
+        const normalizedQuery = normalizer.normalize(query);
+        const result = formatter.visit(normalizedQuery);
+
+        // Assert
+        // Recursive CTE 'b' should come before non-recursive CTE 'a'
+        expect(result).toBe('with recursive "b" as (select "id", "parent_id" from "table_b" where "parent_id" is null union all select "t"."id", "t"."parent_id" from "table_b" as "t" join "b" on "t"."parent_id" = "b"."id"), "a" as (select "id", "name" from "table_a") select * from "a" inner join (select * from "b") as "sub" on "a"."id" = "sub"."id"');
+    });
 });

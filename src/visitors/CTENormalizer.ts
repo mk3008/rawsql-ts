@@ -1,6 +1,7 @@
 import { CommonTable, WithClause } from "../models/Clause";
 import { BinarySelectQuery, SelectQuery, SimpleSelectQuery, ValuesQuery } from "../models/SelectQuery";
 import { CommonTableCollector } from "./CommonTableCollector";
+import { TableSourceCollector } from "./TableSourceCollector";
 import { WithClauseDisabler } from "./WithClauseDisabler";
 
 /**
@@ -85,7 +86,9 @@ export class CTENormalizer {
 
     /**
      * Resolves name conflicts among CommonTables by renaming duplicates.
-     * Also sorts the tables so that inner (deeper) CTEs come before outer CTEs.
+     * Also sorts the tables so that:
+     * 1. Recursive CTEs come first (CTEs that reference themselves)
+     * 2. Then remaining tables are sorted so inner (deeper) CTEs come before outer CTEs
      * 
      * @param commonTables The list of CommonTables to check for name conflicts
      * @returns A new list of CommonTables with resolved name conflicts and proper order
@@ -95,6 +98,26 @@ export class CTENormalizer {
         const tableMap = new Map<string, CommonTable>();
         for (const table of commonTables) {
             tableMap.set(table.name.table.name, table);
+        }
+
+        // Identify recursive CTEs (those that reference themselves)
+        const recursiveCTEs = new Set<string>();
+        for (const table of commonTables) {
+            const tableName = table.name.table.name;
+
+            // Use TableSourceCollector to find self-references
+            const collector = new TableSourceCollector(true);
+            collector.reset();
+            table.query.accept(collector);
+            const referencedTables = collector.getTableSources();
+
+            // Check if this CTE references itself
+            for (const referencedTable of referencedTables) {
+                if (referencedTable.table.name === tableName) {
+                    recursiveCTEs.add(tableName);
+                    break;
+                }
+            }
         }
 
         // Build dependency graph: which tables reference which other tables
@@ -129,9 +152,12 @@ export class CTENormalizer {
             }
         }
 
-        // Sort tables so inner CTEs come before outer CTEs
+        // Sort tables so:
+        // 1. Recursive CTEs come first
+        // 2. Inner CTEs come before outer CTEs
         // This uses a topological sort
-        const result: CommonTable[] = [];
+        const recursiveResult: CommonTable[] = [];
+        const nonRecursiveResult: CommonTable[] = [];
         const visited = new Set<string>();
         const visiting = new Set<string>();
 
@@ -153,7 +179,12 @@ export class CTENormalizer {
             visited.add(tableName);
 
             // Add this table after its dependencies
-            result.push(tableMap.get(tableName)!);
+            // Recursive CTEs go to recursiveResult, others to nonRecursiveResult
+            if (recursiveCTEs.has(tableName)) {
+                recursiveResult.push(tableMap.get(tableName)!);
+            } else {
+                nonRecursiveResult.push(tableMap.get(tableName)!);
+            }
         }
 
         // Process all tables
@@ -161,18 +192,39 @@ export class CTENormalizer {
             visit(table.name.table.name);
         }
 
-        return result;
+        // Combine the results: recursive CTEs first, then non-recursive CTEs
+        return [...recursiveResult, ...nonRecursiveResult];
     }
 
     /**
      * Checks if any of the common tables need a recursive WITH clause.
+     * A recursive WITH clause is needed when a CTE references itself.
      * 
      * @param commonTables The list of CommonTables to check
      * @returns True if a recursive WITH clause is needed
      */
     private needsRecursiveWithClause(commonTables: CommonTable[]): boolean {
-        // For now, we'll assume no recursion is needed
-        // A more sophisticated implementation would analyze the query structure
+        // For each common table, check if it references itself
+        for (const table of commonTables) {
+            // Get the CTE name
+            const cteName = table.name.table.name;
+
+            // Use TableSourceCollector to find all tables referenced in the CTE's query
+            const collector = new TableSourceCollector(true); // selectableOnly=true to focus on FROM/JOIN tables
+            collector.reset();
+            table.query.accept(collector);
+            const referencedTables = collector.getTableSources();
+
+            // Check if any of the referenced tables have the same name as this CTE
+            for (const referencedTable of referencedTables) {
+                if (referencedTable.table.name === cteName) {
+                    // Found self-reference, need a recursive WITH clause
+                    return true;
+                }
+            }
+        }
+
+        // No self-references found
         return false;
     }
 }
