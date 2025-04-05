@@ -260,4 +260,54 @@ describe('CTENormalizer', () => {
         // Recursive CTE 'b' should come before non-recursive CTE 'a'
         expect(result).toBe('with recursive "b" as (select "id", "parent_id" from "table_b" where "parent_id" is null union all select "t"."id", "t"."parent_id" from "table_b" as "t" join "b" on "t"."parent_id" = "b"."id"), "a" as (select "id", "name" from "table_a") select * from "a" inner join (select * from "b") as "sub" on "a"."id" = "sub"."id"');
     });
+
+    test('handles duplicate CTE names with identical definitions', () => {
+        // Arrange
+        const sql = `
+            WITH a AS (
+                SELECT id, name FROM table_x
+            )
+            SELECT * FROM a 
+            INNER JOIN (
+                WITH a AS (
+                    SELECT id, name FROM table_x
+                )
+                SELECT * FROM a
+            ) AS sub ON a.id = sub.id
+        `;
+        const query = SelectQueryParser.parseFromText(sql);
+        const normalizer = new CTENormalizer(); // デフォルトはIGNORE_IF_IDENTICAL
+
+        // Act
+        const normalizedQuery = normalizer.normalize(query);
+        const result = formatter.visit(normalizedQuery);
+
+        // Assert - 同じ定義なら無視するので、1つのCTEだけになるはず
+        expect(result).toBe('with "a" as (select "id", "name" from "table_x") select * from "a" inner join (select * from "a") as "sub" on "a"."id" = "sub"."id"');
+    });
+
+    test('throws error on duplicate CTE names with different definitions', () => {
+        // Arrange
+        const sql = `
+            WITH a AS (
+                SELECT id, name FROM table_x
+            )
+            SELECT * FROM a 
+            INNER JOIN (
+                WITH a AS (
+                    SELECT id, name FROM table_y -- 違うテーブル！
+                )
+                SELECT * FROM a
+            ) AS sub ON a.id = sub.id
+        `;
+        const query = SelectQueryParser.parseFromText(sql);
+
+        // デフォルトがIGNORE_IF_IDENTICALなので、定義が異なればエラーのはず
+        const normalizer = new CTENormalizer();
+
+        // Act & Assert
+        expect(() => {
+            normalizer.normalize(query);
+        }).toThrow('CTE name conflict detected: \'a\' has multiple different definitions');
+    });
 });

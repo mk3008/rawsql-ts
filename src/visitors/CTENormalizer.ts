@@ -3,6 +3,7 @@ import { BinarySelectQuery, SelectQuery, SimpleSelectQuery, ValuesQuery } from "
 import { CommonTableCollector } from "./CommonTableCollector";
 import { TableSourceCollector } from "./TableSourceCollector";
 import { WithClauseDisabler } from "./WithClauseDisabler";
+import { Formatter } from "./Formatter";
 
 /**
  * CTENormalizer is responsible for normalizing Common Table Expressions (CTEs) within SQL queries.
@@ -16,10 +17,12 @@ import { WithClauseDisabler } from "./WithClauseDisabler";
 export class CTENormalizer {
     private collector: CommonTableCollector;
     private disabler: WithClauseDisabler;
+    private formatter: Formatter;
 
     constructor() {
         this.collector = new CommonTableCollector();
         this.disabler = new WithClauseDisabler();
+        this.formatter = new Formatter();
     }
 
     /**
@@ -85,24 +88,65 @@ export class CTENormalizer {
     }
 
     /**
-     * Resolves name conflicts among CommonTables by renaming duplicates.
+     * Resolves name conflicts among CommonTables.
+     * If there are duplicate CTE names, they must have identical definitions.
      * Also sorts the tables so that:
      * 1. Recursive CTEs come first (CTEs that reference themselves)
      * 2. Then remaining tables are sorted so inner (deeper) CTEs come before outer CTEs
      * 
      * @param commonTables The list of CommonTables to check for name conflicts
      * @returns A new list of CommonTables with resolved name conflicts and proper order
+     * @throws Error if there are duplicate CTE names with different definitions
      */
     private resolveNameConflicts(commonTables: CommonTable[]): CommonTable[] {
+        // If empty or only one table, no conflicts to resolve
+        if (commonTables.length <= 1) {
+            return commonTables;
+        }
+
+        // Group CTEs by their names
+        const ctesByName = new Map<string, CommonTable[]>();
+        for (const table of commonTables) {
+            const tableName = table.name.table.name;
+            if (!ctesByName.has(tableName)) {
+                ctesByName.set(tableName, []);
+            }
+            ctesByName.get(tableName)!.push(table);
+        }
+
+        // Resolve name duplications
+        const resolvedTables: CommonTable[] = [];
+        for (const [name, tables] of ctesByName.entries()) {
+            if (tables.length === 1) {
+                // No duplication
+                resolvedTables.push(tables[0]);
+                continue;
+            }
+
+            // For duplicate names, check if definitions are identical
+            const definitions = tables.map(table => this.formatter.visit(table.query));
+            const uniqueDefinitions = new Set(definitions);
+
+            if (uniqueDefinitions.size === 1) {
+                // If all definitions are identical, use only the first one
+                resolvedTables.push(tables[0]);
+            } else {
+                // Error if definitions differ
+                throw new Error(`CTE name conflict detected: '${name}' has multiple different definitions`);
+            }
+        }
+
+        // From here, use the original logic to sort tables
+
         // Create a map of table names for quick lookup
         const tableMap = new Map<string, CommonTable>();
-        for (const table of commonTables) {
+        for (const table of resolvedTables) {
             tableMap.set(table.name.table.name, table);
         }
 
         // Identify recursive CTEs (those that reference themselves)
         const recursiveCTEs = new Set<string>();
-        for (const table of commonTables) {
+        for (const table of resolvedTables) {
             const tableName = table.name.table.name;
 
             // Use TableSourceCollector to find self-references
@@ -124,14 +168,13 @@ export class CTENormalizer {
         const dependencies = new Map<string, Set<string>>();
         const referencedBy = new Map<string, Set<string>>();
 
-        for (const table of commonTables) {
+        for (const table of resolvedTables) {
             const tableName = table.name.table.name;
             if (!dependencies.has(tableName)) {
                 dependencies.set(tableName, new Set<string>());
             }
 
             // Find any references to other CTEs in this table's query
-            // Reuse the existing collector instance to improve memory efficiency and performance
             this.collector.reset();
             table.query.accept(this.collector);
             const referencedTables = this.collector.getCommonTables();
@@ -188,8 +231,11 @@ export class CTENormalizer {
         }
 
         // Process all tables
-        for (const table of commonTables) {
-            visit(table.name.table.name);
+        for (const table of resolvedTables) {
+            const tableName = table.name.table.name;
+            if (!visited.has(tableName)) {
+                visit(tableName);
+            }
         }
 
         // Combine the results: recursive CTEs first, then non-recursive CTEs
