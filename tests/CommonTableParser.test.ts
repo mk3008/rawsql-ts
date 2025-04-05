@@ -13,7 +13,7 @@ test('simple common table', () => {
     const sql = formatter.visit(commonTable);
 
     // Assert
-    expect(sql).toEqual(`"temp_sales" as(select * from "sales" where "date" >= '2024-01-01')`);
+    expect(sql).toEqual(`"temp_sales" as (select * from "sales" where "date" >= '2024-01-01')`);
 });
 
 test('common table with column aliases', () => {
@@ -25,7 +25,7 @@ test('common table with column aliases', () => {
     const sql = formatter.visit(commonTable);
 
     // Assert
-    expect(sql).toEqual(`"temp_users"("user_id", "name", "email") as(select "id", "full_name", "email_address" from "users")`);
+    expect(sql).toEqual(`"temp_users"("user_id", "name", "email") as (select "id", "full_name", "email_address" from "users")`);
 });
 
 test('common table with MATERIALIZED', () => {
@@ -37,7 +37,7 @@ test('common table with MATERIALIZED', () => {
     const sql = formatter.visit(commonTable);
 
     // Assert
-    expect(sql).toEqual(`"expensive_calc" materialized as(select "user_id", count(*) as "count" from "orders" group by "user_id")`);
+    expect(sql).toEqual(`"expensive_calc" materialized as (select "user_id", count(*) as "count" from "orders" group by "user_id")`);
 });
 
 test('common table with NOT MATERIALIZED', () => {
@@ -49,7 +49,7 @@ test('common table with NOT MATERIALIZED', () => {
     const sql = formatter.visit(commonTable);
 
     // Assert
-    expect(sql).toEqual(`"summary" not materialized as(select "department", avg("salary") from "employees" group by "department")`);
+    expect(sql).toEqual(`"summary" not materialized as (select "department", avg("salary") from "employees" group by "department")`);
 });
 
 test('common table with complex query', () => {
@@ -68,5 +68,5 @@ test('common table with complex query', () => {
     const sql = formatter.visit(commonTable);
 
     // Assert
-    expect(sql).toEqual(`"filtered_data" as(select "p"."id", "p"."name", "c"."name" as "category" from "products" as "p" join "categories" as "c" on "p"."category_id" = "c"."id" where "p"."price" > 100 order by "p"."name" limit 10)`);
+    expect(sql).toEqual(`"filtered_data" as (select "p"."id", "p"."name", "c"."name" as "category" from "products" as "p" join "categories" as "c" on "p"."category_id" = "c"."id" where "p"."price" > 100 order by "p"."name" limit 10)`);
 });

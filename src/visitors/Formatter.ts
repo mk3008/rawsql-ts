@@ -238,9 +238,9 @@ export class Formatter implements SqlComponentVisitor<string> {
             : arg.materialized ? 'materialized' : 'not materialized';
 
         if (alias && materil) {
-            return `${alias} ${materil} as(${arg.query.accept(this)})`;
+            return `${alias} ${materil} as (${arg.query.accept(this)})`;
         }
-        return `${alias} as(${arg.query.accept(this)})`;
+        return `${alias} as (${arg.query.accept(this)})`;
     }
 
     decodeDistinctOn(arg: DistinctOn): string {

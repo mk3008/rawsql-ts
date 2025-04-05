@@ -119,15 +119,15 @@ describe('SelectQueryParser', () => {
 
         ["SELECT with WITH clause (CTE)",
             "WITH monthly_sales AS (SELECT DATE_TRUNC('month', order_date) AS month, SUM(amount) AS total FROM orders GROUP BY month) SELECT month, total FROM monthly_sales ORDER BY month",
-            'with "monthly_sales" as(select date_trunc(\'month\', "order_date") as "month", sum("amount") as "total" from "orders" group by "month") select "month", "total" from "monthly_sales" order by "month"'],
+            'with "monthly_sales" as (select date_trunc(\'month\', "order_date") as "month", sum("amount") as "total" from "orders" group by "month") select "month", "total" from "monthly_sales" order by "month"'],
 
         ["SELECT with multiple CTEs",
             "WITH customers_2023 AS (SELECT * FROM customers WHERE join_date >= '2023-01-01'), customer_orders AS (SELECT c.id, c.name, COUNT(o.id) AS order_count FROM customers_2023 c LEFT JOIN orders o ON c.id = o.customer_id GROUP BY c.id, c.name) SELECT * FROM customer_orders WHERE order_count > 0 ORDER BY order_count DESC",
-            'with "customers_2023" as(select * from "customers" where "join_date" >= \'2023-01-01\'), "customer_orders" as(select "c"."id", "c"."name", count("o"."id") as "order_count" from "customers_2023" as "c" left join "orders" as "o" on "c"."id" = "o"."customer_id" group by "c"."id", "c"."name") select * from "customer_orders" where "order_count" > 0 order by "order_count" desc'],
+            'with "customers_2023" as (select * from "customers" where "join_date" >= \'2023-01-01\'), "customer_orders" as (select "c"."id", "c"."name", count("o"."id") as "order_count" from "customers_2023" as "c" left join "orders" as "o" on "c"."id" = "o"."customer_id" group by "c"."id", "c"."name") select * from "customer_orders" where "order_count" > 0 order by "order_count" desc'],
 
         ["SELECT with recursive CTE",
             "WITH RECURSIVE employee_hierarchy AS (SELECT id, name, manager_id, 1 AS level FROM employees WHERE manager_id IS NULL UNION ALL SELECT e.id, e.name, e.manager_id, eh.level + 1 FROM employees e JOIN employee_hierarchy eh ON e.manager_id = eh.id) SELECT * FROM employee_hierarchy ORDER BY level, name",
-            'with recursive "employee_hierarchy" as(select "id", "name", "manager_id", 1 as "level" from "employees" where "manager_id" is null union all select "e"."id", "e"."name", "e"."manager_id", "eh"."level" + 1 from "employees" as "e" join "employee_hierarchy" as "eh" on "e"."manager_id" = "eh"."id") select * from "employee_hierarchy" order by "level", "name"'],
+            'with recursive "employee_hierarchy" as (select "id", "name", "manager_id", 1 as "level" from "employees" where "manager_id" is null union all select "e"."id", "e"."name", "e"."manager_id", "eh"."level" + 1 from "employees" as "e" join "employee_hierarchy" as "eh" on "e"."manager_id" = "eh"."id") select * from "employee_hierarchy" order by "level", "name"'],
 
         ["Simple VALUES query",
             "values (1, 'test', true)",
@@ -155,11 +155,11 @@ describe('SelectQueryParser', () => {
 
         ["WITH clause with VALUES",
             "with sample_data as (values (1, 'apple'), (2, 'orange'), (3, 'banana')) select * from sample_data order by 2",
-            'with "sample_data" as(values (1, \'apple\'), (2, \'orange\'), (3, \'banana\')) select * from "sample_data" order by 2'],
+            'with "sample_data" as (values (1, \'apple\'), (2, \'orange\'), (3, \'banana\')) select * from "sample_data" order by 2'],
 
         ["WITH multiple CTEs with VALUES",
             "with fruits as (values (1, 'apple'), (2, 'orange')), vegetables as (values (3, 'carrot'), (4, 'potato')) select * from fruits union select * from vegetables",
-            'with "fruits" as(values (1, \'apple\'), (2, \'orange\')), "vegetables" as(values (3, \'carrot\'), (4, \'potato\')) select * from "fruits" union select * from "vegetables"'],
+            'with "fruits" as (values (1, \'apple\'), (2, \'orange\')), "vegetables" as (values (3, \'carrot\'), (4, \'potato\')) select * from "fruits" union select * from "vegetables"'],
 
         ["Subquery with VALUES in FROM",
             "select t.id, t.name from (values (1, 'apple'), (2, 'orange')) as t(id, name) where t.id > 1",
@@ -171,11 +171,11 @@ describe('SelectQueryParser', () => {
 
         ["WITH clause with VALUES and column aliases",
             "with sample_data(id, name) as (values (1, 'apple'), (2, 'orange'), (3, 'banana')) select * from sample_data order by 2",
-            'with "sample_data"("id", "name") as(values (1, \'apple\'), (2, \'orange\'), (3, \'banana\')) select * from "sample_data" order by 2'],
+            'with "sample_data"("id", "name") as (values (1, \'apple\'), (2, \'orange\'), (3, \'banana\')) select * from "sample_data" order by 2'],
 
         ["WITH multiple CTEs with VALUES and column aliases",
             "with fruits(id, name) as (values (1, 'apple'), (2, 'orange')), vegetables(id, name) as (values (3, 'carrot'), (4, 'potato')) select * from fruits union select * from vegetables",
-            'with "fruits"("id", "name") as(values (1, \'apple\'), (2, \'orange\')), "vegetables"("id", "name") as(values (3, \'carrot\'), (4, \'potato\')) select * from "fruits" union select * from "vegetables"']
+            'with "fruits"("id", "name") as (values (1, \'apple\'), (2, \'orange\')), "vegetables"("id", "name") as (values (3, \'carrot\'), (4, \'potato\')) select * from "fruits" union select * from "vegetables"']
 
     ])('%s', (_, text, expected) => {
         // Parse the query

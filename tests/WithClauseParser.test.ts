@@ -13,7 +13,7 @@ test('simple with clause', () => {
     const sql = formatter.visit(withClause);
 
     // Assert
-    expect(sql).toEqual(`with "temp_sales" as(select * from "sales" where "date" >= '2024-01-01')`);
+    expect(sql).toEqual(`with "temp_sales" as (select * from "sales" where "date" >= '2024-01-01')`);
 });
 
 test('with clause with multiple CTEs', () => {
@@ -28,7 +28,7 @@ test('with clause with multiple CTEs', () => {
     const sql = formatter.visit(withClause);
 
     // Assert
-    expect(sql).toEqual(`with "sales_2024" as(select * from "sales" where "year" = 2024), "top_products" as(select "product_id", sum("quantity") as "total" from "sales_2024" group by "product_id" order by "total" desc limit 10)`);
+    expect(sql).toEqual(`with "sales_2024" as (select * from "sales" where "year" = 2024), "top_products" as (select "product_id", sum("quantity") as "total" from "sales_2024" group by "product_id" order by "total" desc limit 10)`);
 });
 
 test('with recursive clause', () => {
@@ -45,7 +45,7 @@ test('with recursive clause', () => {
     const sql = formatter.visit(withClause);
 
     // Assert
-    expect(sql).toEqual(`with recursive "employees_path"("id", "name", "path") as(select "id", "name", cast("id" as TEXT) as "path" from "employees" where "manager_id" is null union all select "e"."id", "e"."name", "ep"."path" || '->' || cast("e"."id" as TEXT) from "employees" as "e" join "employees_path" as "ep" on "e"."manager_id" = "ep"."id")`);
+    expect(sql).toEqual(`with recursive "employees_path"("id", "name", "path") as (select "id", "name", cast("id" as TEXT) as "path" from "employees" where "manager_id" is null union all select "e"."id", "e"."name", "ep"."path" || '->' || cast("e"."id" as TEXT) from "employees" as "e" join "employees_path" as "ep" on "e"."manager_id" = "ep"."id")`);
 });
 
 test('with clause with materialized CTEs', () => {
@@ -68,5 +68,5 @@ test('with clause with materialized CTEs', () => {
     const sql = formatter.visit(withClause);
 
     // Assert
-    expect(sql).toEqual(`with "sales_summary" materialized as(select "customer_id", sum("amount") as "total" from "sales" group by "customer_id"), "customer_data" not materialized as(select "c".*, "s"."total" from "customers" as "c" join "sales_summary" as "s" on "c"."id" = "s"."customer_id")`);
+    expect(sql).toEqual(`with "sales_summary" materialized as (select "customer_id", sum("amount") as "total" from "sales" group by "customer_id"), "customer_data" not materialized as (select "c".*, "s"."total" from "customers" as "c" join "sales_summary" as "s" on "c"."id" = "s"."customer_id")`);
 });
