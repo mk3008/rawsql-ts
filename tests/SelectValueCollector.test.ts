@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { SelectComponentCollector } from '../src/visitors/SelectComponentCollector';
+import { SelectComponentCollector } from '../src/visitors/SelectValueCollector';
 import { SelectQueryParser } from '../src/parsers/SelectQueryParser';
 import { SelectItem } from '../src/models/Clause';
 
@@ -64,8 +64,9 @@ describe('SelectItemCollector', () => {
         const selectItems = collector.getSelectItems();
 
         // Assert
-        expect(selectItems.length).toBe(4); // 2 from each side of the UNION
-        expect(selectItems.map(item => item.name)).toEqual(['id', 'name', 'id', 'username']);
+        expect(selectItems.length).toBe(2); // 2 from each side of the UNION
+        // left side only
+        expect(selectItems.map(item => item.name)).toEqual(['id', 'name']);
     });
 
     test('collects select items from query with subquery', () => {
