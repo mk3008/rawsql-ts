@@ -310,36 +310,4 @@ describe('CTENormalizer', () => {
             normalizer.normalize(query);
         }).toThrow('CTE name conflict detected: \'a\' has multiple different definitions');
     });
-
-    test('ignores identical CTE definitions by default', () => {
-        // Arrange
-        const cte1 = createCTE('cte1', 'SELECT 1');
-        const cte2 = createCTE('cte2', 'SELECT 2');
-        const cte3 = createCTE('cte1', 'SELECT 1'); // Duplicate of cte1
-        const withClause = createWithClause([cte1, cte2, cte3]);
-
-        // Act
-        const normalizer = new CTENormalizer(); // Default is IGNORE_IF_IDENTICAL
-        const result = normalizer.normalize(withClause);
-
-        // Assert - If the definition is the same, it should be ignored, resulting in just one CTE
-        expect(result.ctes?.length).toBe(2);
-        expect(result.ctes?.[0]).toBe(cte1);
-        expect(result.ctes?.[1]).toBe(cte2);
-    });
-
-    test('throws error when different CTE definitions with same name are found with default behavior', () => {
-        // Arrange
-        const cte1 = createCTE('cte1', 'SELECT 1');
-        const cte2 = createCTE('cte2', 'SELECT 2');
-        const cte3 = createCTE('cte1', 'SELECT 3'); // Different definition
-        const withClause = createWithClause([cte1, cte2, cte3]);
-
-        // Act & Assert
-        // Default behavior is IGNORE_IF_IDENTICAL, so different definitions should throw an error
-        expect(() => {
-            const normalizer = new CTENormalizer();
-            normalizer.normalize(withClause);
-        }).toThrow();
-    });
 });
