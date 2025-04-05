@@ -108,7 +108,7 @@ export class CTENormalizer {
             }
 
             // Find any references to other CTEs in this table's query
-            // 既存のcollectorインスタンスを再利用してメモリ効率とパフォーマンスを改善
+            // Reuse the existing collector instance to improve memory efficiency and performance
             this.collector.reset();
             table.query.accept(this.collector);
             const referencedTables = this.collector.getCommonTables();

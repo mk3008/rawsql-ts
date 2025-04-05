@@ -68,7 +68,7 @@ describe('CTENormalizer', () => {
         const result = formatter.visit(normalizedQuery);
 
         // Assert
-        // 実際の出力に合わせたテスト期待値
+        // Test expected value adjusted to match the actual output
         expect(result).toBe('with "inner_cte" as (select "id", "name" from "users"), "outer_cte" as (select * from (with "inner_cte" as (select "id", "name" from "users") select * from "inner_cte") as "nested") select * from "outer_cte"');
     });
 
@@ -194,15 +194,15 @@ describe('CTENormalizer', () => {
         const result = formatter.visit(normalizedQuery);
 
         // Assert
-        // CTEが順番にソートされていることを確認
+        // Confirm that CTEs are sorted in order
         expect(result.indexOf('with "with_c"')).toBe(0);
 
-        // CTEが結果クエリに含まれていることを確認
+        // Confirm that CTEs are included in the result query
         expect(result).toContain('"with_a"');
         expect(result).toContain('"with_b"');
         expect(result).toContain('"with_c"');
 
-        // 元のクエリ構造（特にSELECT文）は保持されていること
+        // Ensure the original query structure (especially SELECT statements) is preserved
         expect(result).toContain('select "a"."id", "a"."value", "a"."level", "a"."parent_level", \'level_a\' as "root_level" from "with_a" as "a"');
     });
 });

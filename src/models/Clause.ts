@@ -128,17 +128,7 @@ export class HavingClause extends SqlComponent {
 export type SourceComponent = TableSource |
     FunctionSource |
     SubQuerySource |
-    CommonTableSource |
     ParenSource;
-
-export class CommonTableSource extends SqlComponent {
-    static kind = Symbol("CommonTableSource");
-    name: IdentifierString;
-    constructor(name: string) {
-        super();
-        this.name = new IdentifierString(name);
-    }
-}
 
 export class TableSource extends SqlComponent {
     static kind = Symbol("TableSource");

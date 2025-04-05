@@ -27,7 +27,7 @@ import {
     InlineQuery,
     TupleExpression
 } from "../models/ValueComponent";
-import { CommonTable, CommonTableSource, Distinct, DistinctOn, FetchSpecification, FetchType, ForClause, FromClause, FunctionSource, GroupByClause, HavingClause, JoinClause, JoinOnClause, JoinUsingClause, LimitClause, NullsSortDirection, OrderByClause, OrderByItem, PartitionByClause, SelectClause, SelectItem, SortDirection, SourceAliasExpression, SourceExpression, SubQuerySource, TableSource, WhereClause, WindowFrameClause, WithClause } from "../models/Clause";
+import { CommonTable, Distinct, DistinctOn, FetchSpecification, FetchType, ForClause, FromClause, FunctionSource, GroupByClause, HavingClause, JoinClause, JoinOnClause, JoinUsingClause, LimitClause, NullsSortDirection, OrderByClause, OrderByItem, PartitionByClause, SelectClause, SelectItem, SortDirection, SourceAliasExpression, SourceExpression, SubQuerySource, TableSource, WhereClause, WindowFrameClause, WithClause } from "../models/Clause";
 
 interface FormatterConfig {
     identifierEscape: {
@@ -87,7 +87,6 @@ export class Formatter implements SqlComponentVisitor<string> {
         this.handlers.set(SubQuerySource.kind, (expr) => this.decodeSubQuerySource(expr as SubQuerySource));
         this.handlers.set(FunctionSource.kind, (expr) => this.decodeFunctionSource(expr as FunctionSource));
         this.handlers.set(TableSource.kind, (expr) => this.decodeTableSource(expr as TableSource));
-        this.handlers.set(CommonTableSource.kind, (expr) => this.decodeCommonTableSource(expr as CommonTableSource));
 
         // order by
         this.handlers.set(OrderByClause.kind, (expr) => this.decodeOrderByClause(expr as OrderByClause));
@@ -256,10 +255,6 @@ export class Formatter implements SqlComponentVisitor<string> {
     decodeGroupByClause(arg: GroupByClause): string {
         const part = arg.grouping.map((e) => e.accept(this)).join(", ");
         return `group by ${part}`;
-    }
-
-    decodeCommonTableSource(arg: CommonTableSource): string {
-        return `${arg.name.accept(this)}`;
     }
 
     decodeFromClause(arg: FromClause): string {

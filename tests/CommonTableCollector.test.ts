@@ -50,7 +50,7 @@ describe('CommonTableCollector', () => {
 
         // Assert
         expect(commonTables.length).toBe(2);
-        // 改良された実装では、深さが同じなら元の順序を保持する
+        // The improved implementation preserves the original order for CTEs at the same depth
         expect(commonTables[0].name.table.name).toBe('sales_2024');
         expect(commonTables[1].name.table.name).toBe('top_products');
     });
@@ -296,7 +296,7 @@ describe('CommonTableCollector', () => {
 
         // Assert - Second collection
         expect(tables2.length).toBe(2);
-        // 改良された実装では同じ深さのCTEは元のSQL順序を保持する
+        // The improved implementation preserves the original order for CTEs at the same depth
         expect(tables2[0].name.table.name).toBe('cte2');
         expect(tables2[1].name.table.name).toBe('cte3');
     });

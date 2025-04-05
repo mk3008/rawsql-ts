@@ -1,4 +1,4 @@
-import { CommonTable, CommonTableSource, ForClause, FromClause, GroupByClause, HavingClause, JoinClause, JoinOnClause, JoinUsingClause, LimitClause, OrderByClause, OrderByItem, ParenSource, PartitionByClause, SelectClause, SelectItem, SourceExpression, SubQuerySource, TableSource, WhereClause, WindowFrameClause, WithClause } from "../models/Clause";
+import { CommonTable, ForClause, FromClause, GroupByClause, HavingClause, JoinClause, JoinOnClause, JoinUsingClause, LimitClause, OrderByClause, OrderByItem, ParenSource, PartitionByClause, SelectClause, SelectItem, SourceExpression, SubQuerySource, TableSource, WhereClause, WindowFrameClause, WithClause } from "../models/Clause";
 import { BinarySelectQuery, SimpleSelectQuery, SelectQuery, ValuesQuery } from "../models/SelectQuery";
 import { SqlComponent, SqlComponentVisitor } from "../models/SqlComponent";
 import {
@@ -52,7 +52,6 @@ export class CommonTableCollector implements SqlComponentVisitor<void> {
         // Source components
         this.handlers.set(SourceExpression.kind, (expr) => this.visitSourceExpression(expr as SourceExpression));
         this.handlers.set(TableSource.kind, (expr) => this.visitTableSource(expr as TableSource));
-        this.handlers.set(CommonTableSource.kind, (expr) => this.visitCommonTableSource(expr as CommonTableSource));
         this.handlers.set(ParenSource.kind, (expr) => this.visitParenSource(expr as ParenSource));
 
         // Subqueries and inline queries
@@ -198,9 +197,9 @@ export class CommonTableCollector implements SqlComponentVisitor<void> {
     }
 
     visitWithClause(withClause: WithClause): void {
-        // 各CommonTableを訪問する
-        // 直接テーブルを順番に処理するだけ
-        // 注：visitCommonTableが既にネストされたCTEを処理してくれる
+        // Visit each CommonTable
+        // Simply process tables in sequence
+        // Note: visitCommonTable already handles nested CTEs
         for (let i = 0; i < withClause.tables.length; i++) {
             const commonTable = withClause.tables[i];
             commonTable.accept(this);
@@ -208,11 +207,11 @@ export class CommonTableCollector implements SqlComponentVisitor<void> {
     }
 
     visitCommonTable(commonTable: CommonTable): void {
-        // クエリ内のCommonTableを直接処理する
-        // 別のCollectorインスタンスを作成する代わりに、同じインスタンスを使ってクエリを処理
+        // Process CommonTable directly within the query
+        // Use the same instance to process the query instead of creating another Collector
         commonTable.query.accept(this);
 
-        // すべてのネストされたCTEが追加された後で現在のCTEを追加
+        // Add current CTE after all nested CTEs have been added
         this.commonTables.push(commonTable);
     }
 
@@ -247,10 +246,6 @@ export class CommonTableCollector implements SqlComponentVisitor<void> {
 
     visitTableSource(source: TableSource): void {
         // Table sources don't contain subqueries, nothing to do
-    }
-
-    visitCommonTableSource(source: CommonTableSource): void {
-        // CTE sources themselves don't contain further CommonTables
     }
 
     visitParenSource(source: ParenSource): void {

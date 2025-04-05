@@ -1,4 +1,4 @@
-import { CommonTable, CommonTableSource, ForClause, FromClause, GroupByClause, HavingClause, JoinClause, JoinConditionComponent, JoinOnClause, JoinUsingClause, LimitClause, OrderByClause, OrderByComponent, OrderByItem, ParenSource, PartitionByClause, SelectClause, SelectComponent, SelectItem, SourceAliasExpression, SourceComponent, SourceExpression, SubQuerySource, TableSource, WhereClause, WindowFrameClause, WithClause } from "../models/Clause";
+import { CommonTable, ForClause, FromClause, GroupByClause, HavingClause, JoinClause, JoinConditionComponent, JoinOnClause, JoinUsingClause, LimitClause, OrderByClause, OrderByComponent, OrderByItem, ParenSource, PartitionByClause, SelectClause, SelectComponent, SelectItem, SourceAliasExpression, SourceComponent, SourceExpression, SubQuerySource, TableSource, WhereClause, WindowFrameClause, WithClause } from "../models/Clause";
 import { BinarySelectQuery, SimpleSelectQuery, SelectQuery, ValuesQuery } from "../models/SelectQuery";
 import { SqlComponent, SqlComponentVisitor } from "../models/SqlComponent";
 import {
@@ -49,7 +49,6 @@ export class WithClauseDisabler implements SqlComponentVisitor<SqlComponent> {
         // Source components
         this.handlers.set(SourceExpression.kind, (expr) => this.visitSourceExpression(expr as SourceExpression));
         this.handlers.set(TableSource.kind, (expr) => this.visitTableSource(expr as TableSource));
-        this.handlers.set(CommonTableSource.kind, (expr) => this.visitCommonTableSource(expr as CommonTableSource));
         this.handlers.set(ParenSource.kind, (expr) => this.visitParenSource(expr as ParenSource));
 
         // Subqueries and inline queries
@@ -333,11 +332,6 @@ export class WithClauseDisabler implements SqlComponentVisitor<SqlComponent> {
 
     visitTableSource(source: TableSource): SqlComponent {
         // Table sources don't contain subqueries, so just return as-is
-        return source;
-    }
-
-    visitCommonTableSource(source: CommonTableSource): SqlComponent {
-        // CTE sources don't contain further WITH clauses, so just return as-is
         return source;
     }
 
