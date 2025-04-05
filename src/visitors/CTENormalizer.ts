@@ -1,5 +1,5 @@
-import { CommonTable, WithClause } from "./Clause";
-import { BinarySelectQuery, SelectQuery, SimpleSelectQuery, ValuesQuery } from "./SelectQuery";
+import { CommonTable, WithClause } from "../models/Clause";
+import { BinarySelectQuery, SelectQuery, SimpleSelectQuery, ValuesQuery } from "../models/SelectQuery";
 import { CommonTableCollector } from "./CommonTableCollector";
 import { WithClauseDisabler } from "./WithClauseDisabler";
 

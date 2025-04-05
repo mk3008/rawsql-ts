@@ -1,5 +1,5 @@
-import { BinarySelectQuery, SimpleSelectQuery, ValuesQuery } from "./SelectQuery";
-import { SqlComponent, SqlComponentVisitor } from "./SqlComponent";
+import { BinarySelectQuery, SimpleSelectQuery, ValuesQuery } from "../models/SelectQuery";
+import { SqlComponent, SqlComponentVisitor } from "../models/SqlComponent";
 import {
     LiteralValue,
     RawString,
@@ -26,8 +26,8 @@ import {
     WindowFrameBoundStatic,
     InlineQuery,
     TupleExpression
-} from "./ValueComponent";
-import { CommonTable, CommonTableSource, Distinct, DistinctOn, FetchSpecification, FetchType, ForClause, FromClause, FunctionSource, GroupByClause, HavingClause, JoinClause, JoinOnClause, JoinUsingClause, LimitClause, NullsSortDirection, OrderByClause, OrderByItem, PartitionByClause, SelectClause, SelectItem, SortDirection, SourceAliasExpression, SourceExpression, SubQuerySource, TableSource, WhereClause, WindowFrameClause, WithClause } from "./Clause";
+} from "../models/ValueComponent";
+import { CommonTable, CommonTableSource, Distinct, DistinctOn, FetchSpecification, FetchType, ForClause, FromClause, FunctionSource, GroupByClause, HavingClause, JoinClause, JoinOnClause, JoinUsingClause, LimitClause, NullsSortDirection, OrderByClause, OrderByItem, PartitionByClause, SelectClause, SelectItem, SortDirection, SourceAliasExpression, SourceExpression, SubQuerySource, TableSource, WhereClause, WindowFrameClause, WithClause } from "../models/Clause";
 
 interface FormatterConfig {
     identifierEscape: {

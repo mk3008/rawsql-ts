@@ -1,6 +1,6 @@
-import { CommonTable, CommonTableSource, ForClause, FromClause, GroupByClause, HavingClause, JoinClause, JoinOnClause, JoinUsingClause, LimitClause, OrderByClause, OrderByItem, ParenSource, PartitionByClause, SelectClause, SelectItem, SourceExpression, SubQuerySource, TableSource, WhereClause, WindowFrameClause, WithClause } from "./Clause";
-import { BinarySelectQuery, SimpleSelectQuery, SelectQuery, ValuesQuery } from "./SelectQuery";
-import { SqlComponent, SqlComponentVisitor } from "./SqlComponent";
+import { CommonTable, CommonTableSource, ForClause, FromClause, GroupByClause, HavingClause, JoinClause, JoinOnClause, JoinUsingClause, LimitClause, OrderByClause, OrderByItem, ParenSource, PartitionByClause, SelectClause, SelectItem, SourceExpression, SubQuerySource, TableSource, WhereClause, WindowFrameClause, WithClause } from "../models/Clause";
+import { BinarySelectQuery, SimpleSelectQuery, SelectQuery, ValuesQuery } from "../models/SelectQuery";
+import { SqlComponent, SqlComponentVisitor } from "../models/SqlComponent";
 import {
     ArrayExpression, BetweenExpression, BinaryExpression, CaseExpression, CaseKeyValuePair,
     CastExpression, ColumnReference, FunctionCall, InlineQuery, ParenExpression,
@@ -9,7 +9,7 @@ import {
     WindowFrameSpec,
     LiteralValue,
     TypeValue
-} from "./ValueComponent";
+} from "../models/ValueComponent";
 
 /**
  * A visitor that collects all CommonTable instances from a SQL query structure.

@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
-import { WithClauseDisabler } from '../src/models/WithClauseDisabler';
+import { WithClauseDisabler } from '../src/visitors/WithClauseDisabler';
 import { SelectQueryParser } from '../src/parsers/SelectQueryParser';
-import { Formatter } from '../src/models/Formatter';
+import { Formatter } from '../src/visitors/Formatter';
 
 const formatter = new Formatter();
 

@@ -1,6 +1,6 @@
-import { CommonTable, CommonTableSource, ForClause, FromClause, GroupByClause, HavingClause, JoinClause, JoinConditionComponent, JoinOnClause, JoinUsingClause, LimitClause, OrderByClause, OrderByComponent, OrderByItem, ParenSource, PartitionByClause, SelectClause, SelectComponent, SelectItem, SourceAliasExpression, SourceComponent, SourceExpression, SubQuerySource, TableSource, WhereClause, WindowFrameClause, WithClause } from "./Clause";
-import { BinarySelectQuery, SimpleSelectQuery, SelectQuery, ValuesQuery } from "./SelectQuery";
-import { SqlComponent, SqlComponentVisitor } from "./SqlComponent";
+import { CommonTable, CommonTableSource, ForClause, FromClause, GroupByClause, HavingClause, JoinClause, JoinConditionComponent, JoinOnClause, JoinUsingClause, LimitClause, OrderByClause, OrderByComponent, OrderByItem, ParenSource, PartitionByClause, SelectClause, SelectComponent, SelectItem, SourceAliasExpression, SourceComponent, SourceExpression, SubQuerySource, TableSource, WhereClause, WindowFrameClause, WithClause } from "../models/Clause";
+import { BinarySelectQuery, SimpleSelectQuery, SelectQuery, ValuesQuery } from "../models/SelectQuery";
+import { SqlComponent, SqlComponentVisitor } from "../models/SqlComponent";
 import {
     ArrayExpression, BetweenExpression, BinaryExpression, CaseExpression, CaseKeyValuePair,
     CastExpression, ColumnReference, FunctionCall, InlineQuery, ParenExpression,
@@ -9,7 +9,7 @@ import {
     WindowFrameSpec,
     LiteralValue,
     TypeValue
-} from "./ValueComponent";
+} from "../models/ValueComponent";
 
 /**
  * A visitor that disables all WITH clauses in a SQL query structure.
