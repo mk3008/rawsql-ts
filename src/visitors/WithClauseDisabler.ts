@@ -25,6 +25,7 @@ import {
 export class WithClauseDisabler implements SqlComponentVisitor<SqlComponent> {
     private handlers: Map<symbol, (arg: any) => SqlComponent>;
     private visitedNodes: Set<SqlComponent> = new Set();
+    private isRootVisit: boolean = true;
 
     constructor() {
         this.handlers = new Map<symbol, (arg: any) => SqlComponent>();
@@ -94,14 +95,37 @@ export class WithClauseDisabler implements SqlComponentVisitor<SqlComponent> {
     /**
      * Reset the visited nodes tracking
      */
-    reset(): void {
+    public reset(): void {
         this.visitedNodes.clear();
     }
 
     /**
-     * Main entry point for the visitor pattern
+     * Main entry point for the visitor pattern.
+     * Implements the shallow visit pattern to distinguish between root and recursive visits.
      */
-    visit(arg: SqlComponent): SqlComponent {
+    public visit(arg: SqlComponent): SqlComponent {
+        // If not a root visit, just visit the node and return
+        if (!this.isRootVisit) {
+            return this.visitNode(arg);
+        }
+
+        // If this is a root visit, we need to reset the state
+        this.reset();
+        this.isRootVisit = false;
+
+        try {
+            return this.visitNode(arg);
+        } finally {
+            // Regardless of success or failure, reset the root visit flag
+            this.isRootVisit = true;
+        }
+    }
+
+    /**
+     * Internal visit method used for all nodes.
+     * This separates the visit flag management from the actual node visitation logic.
+     */
+    private visitNode(arg: SqlComponent): SqlComponent {
         // Check for circular references - if node already visited, return as is
         if (this.visitedNodes.has(arg)) {
             return arg;
