@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
-import { CommonTableCollector } from '../src/visitors/CommonTableCollector';
-import { SelectQueryParser } from '../src/parsers/SelectQueryParser';
+import { CommonTableCollector } from '../../src/visitors/CommonTableCollector';
+import { SelectQueryParser } from '../../src/parsers/SelectQueryParser';
 
 describe('CommonTableCollector', () => {
     test('collects simple WITH clause common tables', () => {

@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
-import { TableSourceCollector } from '../src/visitors/TableSourceCollector';
-import { SelectQueryParser } from '../src/parsers/SelectQueryParser';
-import { TableSource } from '../src/models/Clause';
+import { TableSourceCollector } from '../../src/visitors/TableSourceCollector';
+import { SelectQueryParser } from '../../src/parsers/SelectQueryParser';
+import { TableSource } from '../../src/models/Clause';
 
 describe('TableSourceCollector', () => {
     test('collects table sources from simple SELECT query', () => {

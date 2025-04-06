@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'vitest';
-import { SelectClause, SelectItem } from "../src/models/Clause";
-import { Formatter } from "../src/visitors/Formatter";
-import { SelectQuery, SimpleSelectQuery } from "../src/models/SelectQuery";
-import { ColumnReference, LiteralValue, BinaryExpression } from "../src/models/ValueComponent";
+import { SelectClause, SelectItem } from "../../src/models/Clause";
+import { Formatter } from "../../src/visitors/Formatter";
+import { SelectQuery, SimpleSelectQuery } from "../../src/models/SelectQuery";
+import { ColumnReference, LiteralValue, BinaryExpression } from "../../src/models/ValueComponent";
 
 test('ColumnReference', () => {
     const formatter = new Formatter();

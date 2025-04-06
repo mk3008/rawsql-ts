@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
-import { SelectComponentCollector } from '../src/visitors/SelectValueCollector';
-import { SelectQueryParser } from '../src/parsers/SelectQueryParser';
-import { SelectItem } from '../src/models/Clause';
+import { SelectComponentCollector } from '../../src/visitors/SelectValueCollector';
+import { SelectQueryParser } from '../../src/parsers/SelectQueryParser';
+import { SelectItem } from '../../src/models/Clause';
 
 describe('SelectItemCollector', () => {
     test('collects select items from simple SELECT query', () => {

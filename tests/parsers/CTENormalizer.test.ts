@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
-import { CTENormalizer } from '../src/visitors/CTENormalizer';
-import { SelectQueryParser } from '../src/parsers/SelectQueryParser';
-import { Formatter } from "../src/visitors/Formatter";
+import { CTENormalizer } from '../../src/visitors/CTENormalizer';
+import { SelectQueryParser } from '../../src/parsers/SelectQueryParser';
+import { Formatter } from "../../src/visitors/Formatter";
 
 const formatter = new Formatter();
 
