@@ -54,84 +54,84 @@ export class Formatter implements SqlComponentVisitor<string> {
         };
 
         // value
-        this.handlers.set(LiteralValue.kind, (expr) => this.decodeLiteralExpression(expr as LiteralValue));
-        this.handlers.set(RawString.kind, (expr) => this.decodeRawString(expr as RawString));
-        this.handlers.set(StringSpecifierExpression.kind, (expr) => this.decodeStringSpecifierExpression(expr as StringSpecifierExpression));
-        this.handlers.set(IdentifierString.kind, (expr) => this.decodeIdentifierString(expr as IdentifierString));
-        this.handlers.set(SwitchCaseArgument.kind, (expr) => this.decodeSwitchCaseArgument(expr as SwitchCaseArgument));
-        this.handlers.set(ValueList.kind, (expr) => this.decodeValueList(expr as ValueList));
-        this.handlers.set(ColumnReference.kind, (expr) => this.decodeColumnReference(expr as ColumnReference));
-        this.handlers.set(FunctionCall.kind, (expr) => this.decodeFunctionCall(expr as FunctionCall));
-        this.handlers.set(UnaryExpression.kind, (expr) => this.decodeUnaryExpression(expr as UnaryExpression));
-        this.handlers.set(BinaryExpression.kind, (expr) => this.decodeBinaryExpression(expr as BinaryExpression));
-        this.handlers.set(ParameterExpression.kind, (expr) => this.decodeParameterExpression(expr as ParameterExpression));
-        this.handlers.set(SelectItem.kind, (expr) => this.decodeSelectExpression(expr as SelectItem));
-        this.handlers.set(ArrayExpression.kind, (expr) => this.decodeArrayExpression(expr as ArrayExpression));
-        this.handlers.set(CaseExpression.kind, (expr) => this.decodeCaseExpression(expr as CaseExpression));
-        this.handlers.set(CastExpression.kind, (expr) => this.decodeCastExpression(expr as CastExpression));
-        this.handlers.set(ParenExpression.kind, (expr) => this.decodeBracketExpression(expr as ParenExpression));
-        this.handlers.set(BetweenExpression.kind, (expr) => this.decodeBetweenExpression(expr as BetweenExpression));
-        this.handlers.set(TypeValue.kind, (expr) => this.decodeTypeValue(expr as TypeValue));
-        this.handlers.set(InlineQuery.kind, (expr) => this.decodeInlineQuery(expr as InlineQuery));
+        this.handlers.set(LiteralValue.kind, (expr) => this.visitLiteralExpression(expr as LiteralValue));
+        this.handlers.set(RawString.kind, (expr) => this.visitRawString(expr as RawString));
+        this.handlers.set(StringSpecifierExpression.kind, (expr) => this.visitStringSpecifierExpression(expr as StringSpecifierExpression));
+        this.handlers.set(IdentifierString.kind, (expr) => this.visitIdentifierString(expr as IdentifierString));
+        this.handlers.set(SwitchCaseArgument.kind, (expr) => this.visitSwitchCaseArgument(expr as SwitchCaseArgument));
+        this.handlers.set(ValueList.kind, (expr) => this.visitValueList(expr as ValueList));
+        this.handlers.set(ColumnReference.kind, (expr) => this.visitColumnReference(expr as ColumnReference));
+        this.handlers.set(FunctionCall.kind, (expr) => this.visitFunctionCall(expr as FunctionCall));
+        this.handlers.set(UnaryExpression.kind, (expr) => this.visitUnaryExpression(expr as UnaryExpression));
+        this.handlers.set(BinaryExpression.kind, (expr) => this.visitBinaryExpression(expr as BinaryExpression));
+        this.handlers.set(ParameterExpression.kind, (expr) => this.visitParameterExpression(expr as ParameterExpression));
+        this.handlers.set(SelectItem.kind, (expr) => this.visitSelectExpression(expr as SelectItem));
+        this.handlers.set(ArrayExpression.kind, (expr) => this.visitArrayExpression(expr as ArrayExpression));
+        this.handlers.set(CaseExpression.kind, (expr) => this.visitCaseExpression(expr as CaseExpression));
+        this.handlers.set(CastExpression.kind, (expr) => this.visitCastExpression(expr as CastExpression));
+        this.handlers.set(ParenExpression.kind, (expr) => this.visitBracketExpression(expr as ParenExpression));
+        this.handlers.set(BetweenExpression.kind, (expr) => this.visitBetweenExpression(expr as BetweenExpression));
+        this.handlers.set(TypeValue.kind, (expr) => this.visitTypeValue(expr as TypeValue));
+        this.handlers.set(InlineQuery.kind, (expr) => this.visitInlineQuery(expr as InlineQuery));
 
         // source alias
-        this.handlers.set(SourceAliasExpression.kind, (expr) => this.decodeSourceAliasExpression(expr as SourceAliasExpression));
+        this.handlers.set(SourceAliasExpression.kind, (expr) => this.visitSourceAliasExpression(expr as SourceAliasExpression));
 
         // from
-        this.handlers.set(FromClause.kind, (expr) => this.decodeFromClause(expr as FromClause));
-        this.handlers.set(JoinClause.kind, (expr) => this.decodeJoinClause(expr as JoinClause));
-        this.handlers.set(JoinOnClause.kind, (expr) => this.decodeJoinOnClause(expr as JoinOnClause));
-        this.handlers.set(JoinUsingClause.kind, (expr) => this.decodeJoinUsingClause(expr as JoinUsingClause));
+        this.handlers.set(FromClause.kind, (expr) => this.visitFromClause(expr as FromClause));
+        this.handlers.set(JoinClause.kind, (expr) => this.visitJoinClause(expr as JoinClause));
+        this.handlers.set(JoinOnClause.kind, (expr) => this.visitJoinOnClause(expr as JoinOnClause));
+        this.handlers.set(JoinUsingClause.kind, (expr) => this.visitJoinUsingClause(expr as JoinUsingClause));
 
-        this.handlers.set(SourceExpression.kind, (expr) => this.decodeSourceExpression(expr as SourceExpression));
-        this.handlers.set(SubQuerySource.kind, (expr) => this.decodeSubQuerySource(expr as SubQuerySource));
-        this.handlers.set(FunctionSource.kind, (expr) => this.decodeFunctionSource(expr as FunctionSource));
-        this.handlers.set(TableSource.kind, (expr) => this.decodeTableSource(expr as TableSource));
+        this.handlers.set(SourceExpression.kind, (expr) => this.visitSourceExpression(expr as SourceExpression));
+        this.handlers.set(SubQuerySource.kind, (expr) => this.visitSubQuerySource(expr as SubQuerySource));
+        this.handlers.set(FunctionSource.kind, (expr) => this.visitFunctionSource(expr as FunctionSource));
+        this.handlers.set(TableSource.kind, (expr) => this.visitTableSource(expr as TableSource));
 
         // order by
-        this.handlers.set(OrderByClause.kind, (expr) => this.decodeOrderByClause(expr as OrderByClause));
-        this.handlers.set(OrderByItem.kind, (expr) => this.decodeOrderByItem(expr as OrderByItem));
+        this.handlers.set(OrderByClause.kind, (expr) => this.visitOrderByClause(expr as OrderByClause));
+        this.handlers.set(OrderByItem.kind, (expr) => this.visitOrderByItem(expr as OrderByItem));
 
         // partition by
-        this.handlers.set(PartitionByClause.kind, (expr) => this.decodePartitionByClause(expr as PartitionByClause));
+        this.handlers.set(PartitionByClause.kind, (expr) => this.visitPartitionByClause(expr as PartitionByClause));
 
         // window frame
-        this.handlers.set(WindowFrameExpression.kind, (expr) => this.decodeWindowFrameExpression(expr as WindowFrameExpression));
-        this.handlers.set(WindowFrameSpec.kind, (arg) => this.decodeWindowFrameSpec(arg));
-        this.handlers.set(WindowFrameBoundStatic.kind, (arg) => this.decodeWindowFrameBoundStatic(arg as WindowFrameBoundStatic));
-        this.handlers.set(WindowFrameBoundaryValue.kind, (arg) => this.decodeWindowFrameBoundaryValue(arg as WindowFrameBoundaryValue));
-        this.handlers.set(WindowFrameClause.kind, (arg) => this.decodeWindowFrameClause(arg as WindowFrameClause));
+        this.handlers.set(WindowFrameExpression.kind, (expr) => this.visitWindowFrameExpression(expr as WindowFrameExpression));
+        this.handlers.set(WindowFrameSpec.kind, (arg) => this.visitWindowFrameSpec(arg));
+        this.handlers.set(WindowFrameBoundStatic.kind, (arg) => this.visitWindowFrameBoundStatic(arg as WindowFrameBoundStatic));
+        this.handlers.set(WindowFrameBoundaryValue.kind, (arg) => this.visitWindowFrameBoundaryValue(arg as WindowFrameBoundaryValue));
+        this.handlers.set(WindowFrameClause.kind, (arg) => this.visitWindowFrameClause(arg as WindowFrameClause));
         // where
-        this.handlers.set(WhereClause.kind, (expr) => this.decodeWhereClause(expr as WhereClause));
+        this.handlers.set(WhereClause.kind, (expr) => this.visitWhereClause(expr as WhereClause));
 
         // group by
-        this.handlers.set(GroupByClause.kind, (expr) => this.decodeGroupByClause(expr as GroupByClause));
-        this.handlers.set(HavingClause.kind, (expr) => this.decodeHavingClause(expr as HavingClause));
+        this.handlers.set(GroupByClause.kind, (expr) => this.visitGroupByClause(expr as GroupByClause));
+        this.handlers.set(HavingClause.kind, (expr) => this.visitHavingClause(expr as HavingClause));
 
         // with
-        this.handlers.set(CommonTable.kind, (expr) => this.decodeCommonTable(expr as CommonTable));
-        this.handlers.set(WithClause.kind, (expr) => this.decodeWithClause(expr as WithClause));
+        this.handlers.set(CommonTable.kind, (expr) => this.visitCommonTable(expr as CommonTable));
+        this.handlers.set(WithClause.kind, (expr) => this.visitWithClause(expr as WithClause));
 
         // select
-        this.handlers.set(SelectItem.kind, (expr) => this.decodeSelectExpression(expr as SelectItem));
-        this.handlers.set(SelectClause.kind, (expr) => this.decodeSelectClause(expr as SelectClause));
-        this.handlers.set(Distinct.kind, (expr) => this.decodeDistinct(expr as Distinct));
-        this.handlers.set(DistinctOn.kind, (expr) => this.decodeDistinctOn(expr as DistinctOn));
+        this.handlers.set(SelectItem.kind, (expr) => this.visitSelectExpression(expr as SelectItem));
+        this.handlers.set(SelectClause.kind, (expr) => this.visitSelectClause(expr as SelectClause));
+        this.handlers.set(Distinct.kind, (expr) => this.visitDistinct(expr as Distinct));
+        this.handlers.set(DistinctOn.kind, (expr) => this.visitDistinctOn(expr as DistinctOn));
 
         // row limit
-        this.handlers.set(LimitClause.kind, (expr) => this.decodeLimitClause(expr as LimitClause));
-        this.handlers.set(FetchSpecification.kind, (expr) => this.decodeFetchSpecification(expr as FetchSpecification));
+        this.handlers.set(LimitClause.kind, (expr) => this.visitLimitClause(expr as LimitClause));
+        this.handlers.set(FetchSpecification.kind, (expr) => this.visitFetchSpecification(expr as FetchSpecification));
 
         // for clause
-        this.handlers.set(ForClause.kind, (expr) => this.decodeForClause(expr as ForClause));
+        this.handlers.set(ForClause.kind, (expr) => this.visitForClause(expr as ForClause));
 
         // values clause
-        this.handlers.set(ValuesQuery.kind, (expr) => this.decodeValuesQuery(expr as ValuesQuery));
-        this.handlers.set(TupleExpression.kind, (expr) => this.decodeTupleExpression(expr as TupleExpression));
+        this.handlers.set(ValuesQuery.kind, (expr) => this.visitValuesQuery(expr as ValuesQuery));
+        this.handlers.set(TupleExpression.kind, (expr) => this.visitTupleExpression(expr as TupleExpression));
 
         // select query
-        this.handlers.set(SimpleSelectQuery.kind, (expr) => this.decodeSelectQuery(expr as SimpleSelectQuery));
-        this.handlers.set(BinarySelectQuery.kind, (expr) => this.decodeBinarySelectQuery(expr as BinarySelectQuery));
+        this.handlers.set(SimpleSelectQuery.kind, (expr) => this.visitSelectQuery(expr as SimpleSelectQuery));
+        this.handlers.set(BinarySelectQuery.kind, (expr) => this.visitBinarySelectQuery(expr as BinarySelectQuery));
     }
 
     visit(arg: SqlComponent): string {
@@ -146,20 +146,20 @@ export class Formatter implements SqlComponentVisitor<string> {
         throw new Error(`No handler for ${constructor} with kind ${kindSymbol}. Consider adding a handler for this type.`);
     }
 
-    decodeBinarySelectQuery(arg: BinarySelectQuery): string {
+    private visitBinarySelectQuery(arg: BinarySelectQuery): string {
         const left = arg.left.accept(this);
         const operator = arg.operator.accept(this);
         const right = arg.right.accept(this);
         return `${left} ${operator} ${right}`;
     }
 
-    decodeWindowFrameBoundaryValue(arg: WindowFrameBoundaryValue): string {
+    private visitWindowFrameBoundaryValue(arg: WindowFrameBoundaryValue): string {
         const value = arg.value.accept(this);
         const following = arg.isFollowing ? "following" : "preceding";
         return `${value} ${following}`;
     }
 
-    decodeWindowFrameBoundStatic(arg: WindowFrameBoundStatic): string {
+    private visitWindowFrameBoundStatic(arg: WindowFrameBoundStatic): string {
         switch (arg.bound) {
             case WindowFrameBound.UnboundedPreceding:
                 return "unbounded preceding";
@@ -172,7 +172,7 @@ export class Formatter implements SqlComponentVisitor<string> {
         }
     }
 
-    decodeWindowFrameExpression(arg: WindowFrameExpression): string {
+    private visitWindowFrameExpression(arg: WindowFrameExpression): string {
         const partitionBy = arg.partition !== null ? arg.partition.accept(this) : null;
         const orderBy = arg.order !== null ? arg.order.accept(this) : null;
         const frameSpec = arg.frameSpec !== null ? arg.frameSpec.accept(this) : null;
@@ -188,7 +188,7 @@ export class Formatter implements SqlComponentVisitor<string> {
         return `()`;
     }
 
-    decodeWindowFrameSpec(arg: WindowFrameSpec): string {
+    private visitWindowFrameSpec(arg: WindowFrameSpec): string {
         const frameType = arg.frameType;
         const startBound = arg.startBound.accept(this);
 
@@ -200,29 +200,29 @@ export class Formatter implements SqlComponentVisitor<string> {
         }
     }
 
-    decodeJoinUsingClause(arg: JoinUsingClause): string {
+    private visitJoinUsingClause(arg: JoinUsingClause): string {
         return `using (${arg.condition.accept(this)})`;
     }
 
-    decodeJoinOnClause(arg: JoinOnClause): string {
+    private visitJoinOnClause(arg: JoinOnClause): string {
         if (arg.condition !== null) {
             return `on ${arg.condition.accept(this)}`;
         }
         return `on`;
     }
 
-    decodeTypeValue(arg: TypeValue): string {
+    private visitTypeValue(arg: TypeValue): string {
         if (arg.argument !== null) {
             return `${arg.type.accept(this)}(${arg.argument.accept(this)})`;
         }
         return `${arg.type.accept(this)}`;
     }
 
-    decodeStringSpecifierExpression(arg: StringSpecifierExpression): string {
+    private visitStringSpecifierExpression(arg: StringSpecifierExpression): string {
         return `${arg.specifier.accept(this)}${arg.value.accept(this)}`;
     }
 
-    decodeWithClause(arg: WithClause): string {
+    private visitWithClause(arg: WithClause): string {
         const part = arg.tables.map((e) => e.accept(this)).join(", ");
         if (arg.recursive) {
             return `with recursive ${part}`;
@@ -230,7 +230,7 @@ export class Formatter implements SqlComponentVisitor<string> {
         return `with ${part}`;
     }
 
-    decodeCommonTable(arg: CommonTable): string {
+    private visitCommonTable(arg: CommonTable): string {
         const alias = arg.name.accept(this);
         const materil = arg.materialized === null
             ? ''
@@ -242,22 +242,24 @@ export class Formatter implements SqlComponentVisitor<string> {
         return `${alias} as (${arg.query.accept(this)})`;
     }
 
-    decodeDistinctOn(arg: DistinctOn): string {
+    private visitDistinctOn(arg: DistinctOn): string {
         return `distinct on(${arg.value.accept(this)})`;
     }
-    decodeDistinct(arg: Distinct): string {
+
+    private visitDistinct(arg: Distinct): string {
         return `distinct`;
     }
 
-    decodeHavingClause(arg: HavingClause): string {
+    private visitHavingClause(arg: HavingClause): string {
         return `having ${arg.condition.accept(this)}`;
     }
-    decodeGroupByClause(arg: GroupByClause): string {
+
+    private visitGroupByClause(arg: GroupByClause): string {
         const part = arg.grouping.map((e) => e.accept(this)).join(", ");
         return `group by ${part}`;
     }
 
-    decodeFromClause(arg: FromClause): string {
+    private visitFromClause(arg: FromClause): string {
         if (arg.joins !== null && arg.joins.length > 0) {
             const part = arg.joins.map((e) => e.accept(this)).join(" ");
             return `from ${arg.source.accept(this)} ${part}`;
@@ -265,7 +267,7 @@ export class Formatter implements SqlComponentVisitor<string> {
         return `from ${arg.source.accept(this)}`;
     }
 
-    decodeJoinClause(arg: JoinClause): string {
+    private visitJoinClause(arg: JoinClause): string {
         const joinType = `${arg.joinType.accept(this)}`;
         const lateral = arg.lateral === true ? ` lateral` : "";
         const joinSource = arg.source.accept(this);
@@ -273,7 +275,7 @@ export class Formatter implements SqlComponentVisitor<string> {
         return `${joinType}${lateral} ${joinSource}${condition}`;
     }
 
-    decodeSourceAliasExpression(arg: SourceAliasExpression): string {
+    private visitSourceAliasExpression(arg: SourceAliasExpression): string {
         const columnAlias = arg.columns !== null ? `(${arg.columns.map((e) => e.accept(this)).join(", ")})` : null;
         const tableAlias = arg.table !== null ? `${arg.table.accept(this)}` : "";
 
@@ -286,7 +288,7 @@ export class Formatter implements SqlComponentVisitor<string> {
         throw new Error("Invalid SourceAliasExpression: tableAlias is null");
     }
 
-    decodeSourceExpression(arg: SourceExpression): string {
+    private visitSourceExpression(arg: SourceExpression): string {
         let alias = arg.name !== null ? `${arg.name.accept(this)}` : "";
 
         // Avoid duplicate alias if the name is the same as the alias
@@ -302,41 +304,42 @@ export class Formatter implements SqlComponentVisitor<string> {
         return `${arg.datasource.accept(this)}`;
     }
 
-    decodeSubQuerySource(arg: SubQuerySource): string {
+    private visitSubQuerySource(arg: SubQuerySource): string {
         return `(${arg.query.accept(this)})`;
     }
 
-    decodeFunctionSource(arg: FunctionSource): string {
+    private visitFunctionSource(arg: FunctionSource): string {
         if (arg.argument !== null) {
             return `${arg.name.accept(this)}(${arg.argument.accept(this)})`;
         }
         return `${arg.name.accept(this)}()`;
     }
-    decodeTableSource(arg: TableSource): string {
+
+    private visitTableSource(arg: TableSource): string {
         if (arg.namespaces !== null) {
             return `${arg.namespaces.map((ns) => `${ns.accept(this)}`).join(".")}.${arg.table.accept(this)}`;
         }
         return `${arg.table.accept(this)}`;
     }
 
-    decodeValueList(arg: ValueList): string {
+    private visitValueList(arg: ValueList): string {
         return `${arg.values.map((v) => v.accept(this)).join(", ")}`;
     }
 
-    decodeSwitchCaseArgument(arg: SwitchCaseArgument): string {
+    private visitSwitchCaseArgument(arg: SwitchCaseArgument): string {
         const casePart = arg.cases.map((kv: CaseKeyValuePair) => `when ${kv.key.accept(this)} then ${kv.value.accept(this)}`).join(" ");
         const elsePart = arg.elseValue ? ` else ${arg.elseValue.accept(this)}` : "";
         return `${casePart}${elsePart}`;
     }
 
-    decodeColumnReference(arg: ColumnReference): string {
+    private visitColumnReference(arg: ColumnReference): string {
         if (arg.namespaces != null) {
             return `${arg.namespaces.map((ns) => `${ns.accept(this)}`).join(".")}.${arg.column.accept(this)}`;
         }
         return `${arg.column.accept(this)}`;
     }
 
-    decodeFunctionCall(arg: FunctionCall): string {
+    private visitFunctionCall(arg: FunctionCall): string {
         const partArg = arg.argument !== null ? arg.argument.accept(this) : "";
 
         if (arg.over === null) {
@@ -354,15 +357,15 @@ export class Formatter implements SqlComponentVisitor<string> {
         }
     }
 
-    decodeUnaryExpression(arg: UnaryExpression): string {
+    private visitUnaryExpression(arg: UnaryExpression): string {
         return `${arg.operator.accept(this)} ${arg.expression.accept(this)}`;
     }
 
-    decodeBinaryExpression(arg: BinaryExpression): string {
+    private visitBinaryExpression(arg: BinaryExpression): string {
         return `${arg.left.accept(this)} ${arg.operator.accept(this)} ${arg.right.accept(this)}`;
     }
 
-    decodeLiteralExpression(arg: LiteralValue): string {
+    private visitLiteralExpression(arg: LiteralValue): string {
         if (typeof arg.value === "string") {
             return `'${arg.value.replace(/'/g, "''")}'`;
         } else if (arg.value === null) {
@@ -371,11 +374,11 @@ export class Formatter implements SqlComponentVisitor<string> {
         return arg.value.toString();
     }
 
-    decodeParameterExpression(arg: ParameterExpression): string {
+    private visitParameterExpression(arg: ParameterExpression): string {
         return `${this.config.parameterSymbol}${arg.name.accept(this)}`;
     }
 
-    decodeSelectExpression(arg: SelectItem): string {
+    private visitSelectExpression(arg: SelectItem): string {
         if (arg.name !== null) {
             if (arg.value instanceof ColumnReference) {
                 const c = arg.value as ColumnReference;
@@ -390,13 +393,13 @@ export class Formatter implements SqlComponentVisitor<string> {
         return arg.value.accept(this);
     }
 
-    decodeSelectClause(arg: SelectClause): string {
+    private visitSelectClause(arg: SelectClause): string {
         const distinct = arg.distinct !== null ? " " + arg.distinct.accept(this) : "";
         const colum = arg.items.map((e) => e.accept(this)).join(", ");
         return `select${distinct} ${colum}`;
     }
 
-    decodeSelectQuery(arg: SimpleSelectQuery): string {
+    private visitSelectQuery(arg: SimpleSelectQuery): string {
         const parts: string[] = [];
 
         // WITH
@@ -441,42 +444,42 @@ export class Formatter implements SqlComponentVisitor<string> {
         return parts.join(" ");
     }
 
-    decodeArrayExpression(arg: ArrayExpression): string {
+    private visitArrayExpression(arg: ArrayExpression): string {
         return `array[${arg.expression.accept(this)}]`;
     }
 
-    decodeCaseExpression(arg: CaseExpression): string {
+    private visitCaseExpression(arg: CaseExpression): string {
         if (arg.condition !== null) {
             return `case ${arg.condition.accept(this)} ${arg.switchCase.accept(this)} end`;
         }
         return `case ${arg.switchCase.accept(this)} end`;
     }
 
-    decodeCastExpression(arg: CastExpression): string {
+    private visitCastExpression(arg: CastExpression): string {
         return `${arg.input.accept(this)}::${arg.castType.accept(this)}`;
     }
 
-    decodeBracketExpression(arg: ParenExpression): string {
+    private visitBracketExpression(arg: ParenExpression): string {
         return `(${arg.expression.accept(this)})`;
     }
 
-    decodeBetweenExpression(arg: BetweenExpression): string {
+    private visitBetweenExpression(arg: BetweenExpression): string {
         if (arg.negated) {
             return `${arg.expression.accept(this)} not between ${arg.lower.accept(this)} and ${arg.upper.accept(this)}`;
         }
         return `${arg.expression.accept(this)} between ${arg.lower.accept(this)} and ${arg.upper.accept(this)}`;
     }
 
-    decodePartitionByClause(arg: PartitionByClause): string {
+    private visitPartitionByClause(arg: PartitionByClause): string {
         return `partition by ${arg.value.accept(this)}`;
     }
 
-    decodeOrderByClause(arg: OrderByClause): string {
+    private visitOrderByClause(arg: OrderByClause): string {
         const part = arg.order.map((e) => e.accept(this)).join(", ");
         return `order by ${part}`;
     }
 
-    decodeOrderByItem(arg: OrderByItem): string {
+    private visitOrderByItem(arg: OrderByItem): string {
         const direction = arg.sortDirection === SortDirection.Ascending ? null : "desc";
         const nullsOption = arg.nullsPosition !== null ? (arg.nullsPosition === NullsSortDirection.First ? "nulls first" : "nulls last") : null;
 
@@ -490,19 +493,19 @@ export class Formatter implements SqlComponentVisitor<string> {
         return arg.value.accept(this);
     }
 
-    decodeWindowFrameClause(arg: WindowFrameClause): string {
+    private visitWindowFrameClause(arg: WindowFrameClause): string {
         const partExpr = arg.expression.accept(this);
         return `window ${arg.name.accept(this)} as ${partExpr}`;
     }
 
-    decodeLimitClause(arg: LimitClause): string {
+    private visitLimitClause(arg: LimitClause): string {
         if (arg.offset !== null) {
             return `limit ${arg.limit.accept(this)} offset ${arg.offset.accept(this)}`;
         }
         return `limit ${arg.limit.accept(this)}`;
     }
 
-    decodeFetchSpecification(arg: FetchSpecification): string {
+    private visitFetchSpecification(arg: FetchSpecification): string {
         const type = arg.type === FetchType.First ? 'first' : 'next';
         const count = arg.count.accept(this);
 
@@ -512,19 +515,19 @@ export class Formatter implements SqlComponentVisitor<string> {
         return `fetch ${type} ${count}`;
     }
 
-    decodeForClause(arg: ForClause): string {
+    private visitForClause(arg: ForClause): string {
         return `for ${arg.lockMode}`;
     }
 
-    decodeWhereClause(arg: WhereClause): string {
+    private visitWhereClause(arg: WhereClause): string {
         return `where ${arg.condition.accept(this)}`;
     }
 
-    decodeInlineQuery(arg: InlineQuery): string {
+    private visitInlineQuery(arg: InlineQuery): string {
         return `(${arg.selectQuery.accept(this)})`;
     }
 
-    decodeRawString(arg: RawString): string {
+    private visitRawString(arg: RawString): string {
         const invalidChars = new Set(["'", '"', ",", ";", ":", ".", "--", "/*"]);
         if (invalidChars.has(arg.value)) {
             throw new Error(`invalid keyword: ${arg.value} `);
@@ -534,7 +537,7 @@ export class Formatter implements SqlComponentVisitor<string> {
         return arg.value.trim();
     }
 
-    decodeIdentifierString(arg: IdentifierString): string {
+    private visitIdentifierString(arg: IdentifierString): string {
         // No need to escape wildcards
         if (arg.name === '*') {
             return arg.name;
@@ -542,12 +545,12 @@ export class Formatter implements SqlComponentVisitor<string> {
         return `${this.config.identifierEscape.start}${arg.name}${this.config.identifierEscape.end}`;
     }
 
-    decodeValuesQuery(arg: ValuesQuery): string {
+    private visitValuesQuery(arg: ValuesQuery): string {
         const tuples = arg.tuples.map((tuple) => tuple.accept(this)).join(", ");
         return `values ${tuples}`;
     }
 
-    decodeTupleExpression(arg: TupleExpression): string {
+    private visitTupleExpression(arg: TupleExpression): string {
         const values = arg.values.map((value) => value.accept(this)).join(", ");
         return `(${values})`;
     }
