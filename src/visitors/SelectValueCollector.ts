@@ -11,6 +11,7 @@ export class SelectComponentCollector implements SqlComponentVisitor<void> {
     private handlers: Map<symbol, (arg: any) => void>;
     private selectItems: { name: string, value: SelectComponent }[] = [];
     private visitedNodes: Set<SqlComponent> = new Set();
+    private isRootVisit: boolean = true;
 
     constructor() {
         this.handlers = new Map<symbol, (arg: any) => void>();
@@ -31,22 +32,46 @@ export class SelectComponentCollector implements SqlComponentVisitor<void> {
      * Get all collected SelectItems as an array of objects with name and value properties
      * @returns An array of objects with name (string) and value (SelectComponent) properties
      */
-    getSelectItems(): { name: string, value: SelectComponent }[] {
+    public getSelectItems(): { name: string, value: SelectComponent }[] {
         return this.selectItems;
     }
 
     /**
      * Reset the collection of SelectItems
      */
-    reset(): void {
+    private reset(): void {
         this.selectItems = [];
         this.visitedNodes.clear();
     }
 
     /**
-     * Main entry point for the visitor pattern
+     * Main entry point for the visitor pattern.
+     * Implements the shallow visit pattern to distinguish between root and recursive visits.
      */
-    visit(arg: SqlComponent): void {
+    public visit(arg: SqlComponent): void {
+        // If not a root visit, just visit the node and return
+        if (!this.isRootVisit) {
+            this.visitNode(arg);
+            return;
+        }
+
+        // If this is a root visit, we need to reset the state
+        this.reset();
+        this.isRootVisit = false;
+
+        try {
+            this.visitNode(arg);
+        } finally {
+            // Regardless of success or failure, reset the root visit flag
+            this.isRootVisit = true;
+        }
+    }
+
+    /**
+     * Internal visit method used for all nodes.
+     * This separates the visit flag management from the actual node visitation logic.
+     */
+    private visitNode(arg: SqlComponent): void {
         // Skip if we've already visited this node to prevent infinite recursion
         if (this.visitedNodes.has(arg)) {
             return;
@@ -62,25 +87,25 @@ export class SelectComponentCollector implements SqlComponentVisitor<void> {
         }
     }
 
-    visitSimpleSelectQuery(query: SimpleSelectQuery): void {
+    private visitSimpleSelectQuery(query: SimpleSelectQuery): void {
         // Visit the SELECT clause which contains the items we want to collect
         if (query.selectClause) {
             query.selectClause.accept(this);
         }
     }
 
-    visitBinarySelectQuery(query: BinarySelectQuery): void {
+    private visitBinarySelectQuery(query: BinarySelectQuery): void {
         // check left only
         if (query.left) {
             query.left.accept(this);
         }
     }
 
-    visitValuesQuery(query: ValuesQuery): void {
+    private visitValuesQuery(query: ValuesQuery): void {
         // VALUES queries don't contain SelectItems, so nothing to do
     }
 
-    visitSelectClause(clause: SelectClause): void {
+    private visitSelectClause(clause: SelectClause): void {
         if (clause.items) {
             for (const item of clause.items) {
                 if (item instanceof SelectItem) {
@@ -102,7 +127,7 @@ export class SelectComponentCollector implements SqlComponentVisitor<void> {
         }
     }
 
-    visitInlineQuery(inlineQuery: InlineQuery): void {
+    private visitInlineQuery(inlineQuery: InlineQuery): void {
         // Process the inline query's select query
         if (inlineQuery && inlineQuery.selectQuery) {
             inlineQuery.selectQuery.accept(this);

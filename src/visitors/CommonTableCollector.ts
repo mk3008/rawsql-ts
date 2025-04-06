@@ -24,6 +24,7 @@ export class CommonTableCollector implements SqlComponentVisitor<void> {
     private handlers: Map<symbol, (arg: any) => void>;
     private commonTables: CommonTable[] = [];
     private visitedNodes: Set<SqlComponent> = new Set();
+    private isRootVisit: boolean = true;
 
     constructor() {
         this.handlers = new Map<symbol, (arg: any) => void>();
@@ -97,22 +98,46 @@ export class CommonTableCollector implements SqlComponentVisitor<void> {
     /**
      * Get all collected CommonTables
      */
-    getCommonTables(): CommonTable[] {
+    public getCommonTables(): CommonTable[] {
         return this.commonTables;
     }
 
     /**
      * Reset the collection of CommonTables
      */
-    reset(): void {
+    public reset(): void {
         this.commonTables = [];
         this.visitedNodes.clear();
     }
 
     /**
-     * Main entry point for the visitor pattern
+     * Main entry point for the visitor pattern.
+     * Implements the shallow visit pattern to distinguish between root and recursive visits.
      */
-    visit(arg: SqlComponent): void {
+    public visit(arg: SqlComponent): void {
+        // If not a root visit, just visit the node and return
+        if (!this.isRootVisit) {
+            this.visitNode(arg);
+            return;
+        }
+
+        // If this is a root visit, we need to reset the state
+        this.reset();
+        this.isRootVisit = false;
+
+        try {
+            this.visitNode(arg);
+        } finally {
+            // Regardless of success or failure, reset the root visit flag
+            this.isRootVisit = true;
+        }
+    }
+
+    /**
+     * Internal visit method used for all nodes.
+     * This separates the visit flag management from the actual node visitation logic.
+     */
+    private visitNode(arg: SqlComponent): void {
         // Skip if we've already visited this node to prevent infinite recursion
         if (this.visitedNodes.has(arg)) {
             return;
@@ -133,7 +158,7 @@ export class CommonTableCollector implements SqlComponentVisitor<void> {
         throw new Error(`No handler for ${constructor} with kind ${kindSymbol}. Consider adding a handler for this type.`);
     }
 
-    visitSimpleSelectQuery(query: SimpleSelectQuery): void {
+    private visitSimpleSelectQuery(query: SimpleSelectQuery): void {
         // The order matters here!
         // First, visit all clauses that might contain nested CTEs
         // to ensure inner CTEs are collected before outer CTEs
@@ -183,20 +208,20 @@ export class CommonTableCollector implements SqlComponentVisitor<void> {
         }
     }
 
-    visitBinarySelectQuery(query: BinarySelectQuery): void {
+    private visitBinarySelectQuery(query: BinarySelectQuery): void {
         // Visit both sides of the binary query (UNION, EXCEPT, etc.)
         query.left.accept(this);
         query.right.accept(this);
     }
 
-    visitValuesQuery(query: ValuesQuery): void {
+    private visitValuesQuery(query: ValuesQuery): void {
         // VALUES queries might contain subqueries in tuple expressions
         for (const tuple of query.tuples) {
             tuple.accept(this);
         }
     }
 
-    visitWithClause(withClause: WithClause): void {
+    private visitWithClause(withClause: WithClause): void {
         // Visit each CommonTable
         // Simply process tables in sequence
         // Note: visitCommonTable already handles nested CTEs
@@ -206,7 +231,7 @@ export class CommonTableCollector implements SqlComponentVisitor<void> {
         }
     }
 
-    visitCommonTable(commonTable: CommonTable): void {
+    private visitCommonTable(commonTable: CommonTable): void {
         // Process CommonTable directly within the query
         // Use the same instance to process the query instead of creating another Collector
         commonTable.query.accept(this);
@@ -215,19 +240,19 @@ export class CommonTableCollector implements SqlComponentVisitor<void> {
         this.commonTables.push(commonTable);
     }
 
-    visitSelectClause(clause: SelectClause): void {
+    private visitSelectClause(clause: SelectClause): void {
         // Check each item in the select clause
         for (const item of clause.items) {
             item.accept(this);
         }
     }
 
-    visitSelectItem(item: SelectItem): void {
+    private visitSelectItem(item: SelectItem): void {
         // Select items might contain subqueries
         item.value.accept(this);
     }
 
-    visitFromClause(fromClause: FromClause): void {
+    private visitFromClause(fromClause: FromClause): void {
         // Check the source
         fromClause.source.accept(this);
 
@@ -239,28 +264,28 @@ export class CommonTableCollector implements SqlComponentVisitor<void> {
         }
     }
 
-    visitSourceExpression(source: SourceExpression): void {
+    private visitSourceExpression(source: SourceExpression): void {
         source.datasource.accept(this);
         // The alias part doesn't contain subqueries so we skip it
     }
 
-    visitTableSource(source: TableSource): void {
+    private visitTableSource(source: TableSource): void {
         // Table sources don't contain subqueries, nothing to do
     }
 
-    visitParenSource(source: ParenSource): void {
+    private visitParenSource(source: ParenSource): void {
         source.source.accept(this);
     }
 
-    visitSubQuerySource(subQuery: SubQuerySource): void {
+    private visitSubQuerySource(subQuery: SubQuerySource): void {
         subQuery.query.accept(this);
     }
 
-    visitInlineQuery(inlineQuery: InlineQuery): void {
+    private visitInlineQuery(inlineQuery: InlineQuery): void {
         inlineQuery.selectQuery.accept(this);
     }
 
-    visitJoinClause(joinClause: JoinClause): void {
+    private visitJoinClause(joinClause: JoinClause): void {
         // Check join source
         joinClause.source.accept(this);
 
@@ -270,74 +295,74 @@ export class CommonTableCollector implements SqlComponentVisitor<void> {
         }
     }
 
-    visitJoinOnClause(joinOn: JoinOnClause): void {
+    private visitJoinOnClause(joinOn: JoinOnClause): void {
         joinOn.condition.accept(this);
     }
 
-    visitJoinUsingClause(joinUsing: JoinUsingClause): void {
+    private visitJoinUsingClause(joinUsing: JoinUsingClause): void {
         joinUsing.condition.accept(this);
     }
 
-    visitWhereClause(whereClause: WhereClause): void {
+    private visitWhereClause(whereClause: WhereClause): void {
         whereClause.condition.accept(this);
     }
 
-    visitGroupByClause(clause: GroupByClause): void {
+    private visitGroupByClause(clause: GroupByClause): void {
         for (const item of clause.grouping) {
             item.accept(this);
         }
     }
 
-    visitHavingClause(clause: HavingClause): void {
+    private visitHavingClause(clause: HavingClause): void {
         clause.condition.accept(this);
     }
 
-    visitOrderByClause(clause: OrderByClause): void {
+    private visitOrderByClause(clause: OrderByClause): void {
         for (const item of clause.order) {
             item.accept(this);
         }
     }
 
-    visitWindowFrameClause(clause: WindowFrameClause): void {
+    private visitWindowFrameClause(clause: WindowFrameClause): void {
         clause.expression.accept(this);
     }
 
-    visitLimitClause(clause: LimitClause): void {
+    private visitLimitClause(clause: LimitClause): void {
         clause.limit.accept(this);
         if (clause.offset) {
             clause.offset.accept(this);
         }
     }
 
-    visitForClause(clause: ForClause): void {
+    private visitForClause(clause: ForClause): void {
         // FOR clause doesn't contain subqueries
     }
 
-    visitOrderByItem(item: OrderByItem): void {
+    private visitOrderByItem(item: OrderByItem): void {
         item.value.accept(this);
     }
 
-    visitParenExpression(expr: ParenExpression): void {
+    private visitParenExpression(expr: ParenExpression): void {
         expr.expression.accept(this);
     }
 
-    visitBinaryExpression(expr: BinaryExpression): void {
+    private visitBinaryExpression(expr: BinaryExpression): void {
         expr.left.accept(this);
         expr.right.accept(this);
     }
 
-    visitUnaryExpression(expr: UnaryExpression): void {
+    private visitUnaryExpression(expr: UnaryExpression): void {
         expr.expression.accept(this);
     }
 
-    visitCaseExpression(expr: CaseExpression): void {
+    private visitCaseExpression(expr: CaseExpression): void {
         if (expr.condition) {
             expr.condition.accept(this);
         }
         expr.switchCase.accept(this);
     }
 
-    visitSwitchCaseArgument(switchCase: SwitchCaseArgument): void {
+    private visitSwitchCaseArgument(switchCase: SwitchCaseArgument): void {
         // Check all case expressions
         for (const caseItem of switchCase.cases) {
             caseItem.accept(this);
@@ -349,20 +374,20 @@ export class CommonTableCollector implements SqlComponentVisitor<void> {
         }
     }
 
-    visitCaseKeyValuePair(pair: CaseKeyValuePair): void {
+    private visitCaseKeyValuePair(pair: CaseKeyValuePair): void {
         // Check the WHEN condition
         pair.key.accept(this);
         // Check the THEN value
         pair.value.accept(this);
     }
 
-    visitBetweenExpression(expr: BetweenExpression): void {
+    private visitBetweenExpression(expr: BetweenExpression): void {
         expr.expression.accept(this);
         expr.lower.accept(this);
         expr.upper.accept(this);
     }
 
-    visitFunctionCall(func: FunctionCall): void {
+    private visitFunctionCall(func: FunctionCall): void {
         if (func.argument) {
             func.argument.accept(this);
         }
@@ -373,25 +398,25 @@ export class CommonTableCollector implements SqlComponentVisitor<void> {
         }
     }
 
-    visitArrayExpression(expr: ArrayExpression): void {
+    private visitArrayExpression(expr: ArrayExpression): void {
         expr.expression.accept(this);
     }
 
-    visitTupleExpression(expr: TupleExpression): void {
+    private visitTupleExpression(expr: TupleExpression): void {
         // Check each value in the tuple for possible subqueries
         for (const value of expr.values) {
             value.accept(this);
         }
     }
 
-    visitCastExpression(expr: CastExpression): void {
+    private visitCastExpression(expr: CastExpression): void {
         // Check the input expression
         expr.input.accept(this);
         // Check the type expression
         expr.castType.accept(this);
     }
 
-    visitTypeValue(expr: TypeValue): void {
+    private visitTypeValue(expr: TypeValue): void {
         // Visit the argument if present
         if (expr.argument) {
             expr.argument.accept(this);
@@ -399,7 +424,7 @@ export class CommonTableCollector implements SqlComponentVisitor<void> {
         // The type itself doesn't contain subqueries
     }
 
-    visitWindowFrameExpression(expr: WindowFrameExpression): void {
+    private visitWindowFrameExpression(expr: WindowFrameExpression): void {
         if (expr.partition) {
             expr.partition.accept(this);
         }
@@ -411,27 +436,27 @@ export class CommonTableCollector implements SqlComponentVisitor<void> {
         }
     }
 
-    visitWindowFrameSpec(spec: WindowFrameSpec): void {
+    private visitWindowFrameSpec(spec: WindowFrameSpec): void {
         // WindowFrameSpec is a simple value object, nothing to traverse
     }
 
-    visitIdentifierString(ident: IdentifierString): void {
+    private visitIdentifierString(ident: IdentifierString): void {
         // Leaf node, nothing to traverse
     }
 
-    visitRawString(raw: RawString): void {
+    private visitRawString(raw: RawString): void {
         // Leaf node, nothing to traverse
     }
 
-    visitColumnReference(column: ColumnReference): void {
+    private visitColumnReference(column: ColumnReference): void {
         // Column references don't have subqueries
     }
 
-    visitParameterExpression(param: ParameterExpression): void {
+    private visitParameterExpression(param: ParameterExpression): void {
         // Parameter expressions don't have child components
     }
 
-    visitLiteralValue(value: LiteralValue): void {
+    private visitLiteralValue(value: LiteralValue): void {
         // Literal values are leaf nodes
     }
 }

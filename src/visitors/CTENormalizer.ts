@@ -151,7 +151,6 @@ export class CTENormalizer {
 
             // Use TableSourceCollector to find self-references
             const collector = new TableSourceCollector(true);
-            collector.reset();
             table.query.accept(collector);
             const referencedTables = collector.getTableSources();
 
@@ -257,7 +256,6 @@ export class CTENormalizer {
 
             // Use TableSourceCollector to find all tables referenced in the CTE's query
             const collector = new TableSourceCollector(true); // selectableOnly=true to focus on FROM/JOIN tables
-            collector.reset();
             table.query.accept(collector);
             const referencedTables = collector.getTableSources();
 
