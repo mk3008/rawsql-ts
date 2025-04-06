@@ -72,6 +72,13 @@ export class ColumnReferenceCollector implements SqlComponentVisitor<void> {
         return columnRef.toSqlString(this.formatter);
     }
 
+    public collect(arg: SqlComponent): ColumnReference[] {
+        // Visit the component and return the collected column references
+        this.visit(arg);
+        const columns = this.getColumnReferences();
+        return columns;
+    }
+
     /**
      * Main entry point for the visitor pattern.
      * Implements the shallow visit pattern to distinguish between root and recursive visits.

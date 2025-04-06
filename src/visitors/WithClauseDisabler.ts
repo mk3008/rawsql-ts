@@ -95,8 +95,14 @@ export class WithClauseDisabler implements SqlComponentVisitor<SqlComponent> {
     /**
      * Reset the visited nodes tracking
      */
-    public reset(): void {
+    private reset(): void {
         this.visitedNodes.clear();
+    }
+
+    public execute(arg: SqlComponent): SelectQuery {
+        // Reset the visited nodes before starting the visit
+        this.reset();
+        return this.visit(arg) as SelectQuery;
     }
 
     /**

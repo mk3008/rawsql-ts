@@ -134,7 +134,14 @@ export class Formatter implements SqlComponentVisitor<string> {
         this.handlers.set(BinarySelectQuery.kind, (expr) => this.visitBinarySelectQuery(expr as BinarySelectQuery));
     }
 
-    visit(arg: SqlComponent): string {
+    public execute(arg: SqlComponent, config: FormatterConfig | null = null): string {
+        if (config) {
+            this.config = config;
+        }
+        return this.visit(arg);
+    }
+
+    public visit(arg: SqlComponent): string {
         const handler = this.handlers.get(arg.getKind());
         if (handler) {
             return handler(arg);

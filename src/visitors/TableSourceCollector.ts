@@ -118,6 +118,12 @@ export class TableSourceCollector implements SqlComponentVisitor<void> {
         return identifier;
     }
 
+    public collect(query: SqlComponent): TableSource[] {
+        // Visit the SQL component to collect table sources
+        this.visit(query);
+        return this.getTableSources();
+    }
+
     /**
      * Main entry point for the visitor pattern.
      * Implements the shallow visit pattern to distinguish between root and recursive visits.

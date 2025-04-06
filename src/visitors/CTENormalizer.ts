@@ -15,12 +15,14 @@ import { Formatter } from "./Formatter";
  * 2. WithClauseDisabler - to remove all original WITH clauses from the query
  */
 export class CTENormalizer {
-    private collector: CommonTableCollector;
+    private cteCollector: CommonTableCollector;
+    private sourceCollector: TableSourceCollector;
     private disabler: WithClauseDisabler;
     private formatter: Formatter;
 
     constructor() {
-        this.collector = new CommonTableCollector();
+        this.cteCollector = new CommonTableCollector();
+        this.sourceCollector = new TableSourceCollector(true); // selectableOnly=true to focus on FROM/JOIN tables
         this.disabler = new WithClauseDisabler();
         this.formatter = new Formatter();
     }
@@ -34,9 +36,7 @@ export class CTENormalizer {
      */
     normalize(query: SelectQuery): SelectQuery {
         // No need to normalize if the query doesn't have any CTEs
-        this.collector.reset();
-        query.accept(this.collector);
-        const allCommonTables = this.collector.getCommonTables();
+        const allCommonTables = this.cteCollector.collect(query);
 
         if (allCommonTables.length === 0) {
             return query;
@@ -46,8 +46,7 @@ export class CTENormalizer {
         const uniqueCommonTables = this.resolveNameConflicts(allCommonTables);
 
         // Remove all WITH clauses from the original query
-        this.disabler.reset();
-        const queryWithoutCTEs = this.disabler.visit(query) as SelectQuery;
+        const queryWithoutCTEs = this.disabler.execute(query) as SelectQuery;
 
         // Create a new query with a single WITH clause at the root
         return this.addWithClauseToQuery(queryWithoutCTEs, uniqueCommonTables);
@@ -104,6 +103,25 @@ export class CTENormalizer {
             return commonTables;
         }
 
+        // Step 1: Resolve name conflicts
+        const resolvedTables = this.resolveDuplicateNames(commonTables);
+
+        // Step 2: Identify recursive CTEs and build dependency graph
+        const { tableMap, recursiveCTEs, dependencies } = this.buildDependencyGraph(resolvedTables);
+
+        // Step 3: Sort tables according to dependencies and recursiveness
+        return this.sortCommonTables(resolvedTables, tableMap, recursiveCTEs, dependencies);
+    }
+
+    /**
+     * Resolves duplicate CTE names by checking if they have identical definitions.
+     * If definitions differ, throws an error.
+     * 
+     * @param commonTables The list of CTEs to check for duplicates
+     * @returns A list of CTEs with duplicates removed
+     * @throws Error if there are duplicate CTE names with different definitions
+     */
+    private resolveDuplicateNames(commonTables: CommonTable[]): CommonTable[] {
         // Group CTEs by their names
         const ctesByName = new Map<string, CommonTable[]>();
         for (const table of commonTables) {
@@ -136,23 +154,38 @@ export class CTENormalizer {
             }
         }
 
-        // From here, use the original logic to sort tables
+        return resolvedTables;
+    }
 
+    /**
+     * Builds a dependency graph of CTEs and identifies recursive CTEs.
+     * 
+     * @param tables The list of CTEs to analyze
+     * @returns Object containing the table map, set of recursive CTEs, and dependency map
+     */
+    private buildDependencyGraph(tables: CommonTable[]): {
+        tableMap: Map<string, CommonTable>,
+        recursiveCTEs: Set<string>,
+        dependencies: Map<string, Set<string>>
+    } {
         // Create a map of table names for quick lookup
         const tableMap = new Map<string, CommonTable>();
-        for (const table of resolvedTables) {
+        for (const table of tables) {
             tableMap.set(table.name.table.name, table);
         }
 
         // Identify recursive CTEs (those that reference themselves)
         const recursiveCTEs = new Set<string>();
-        for (const table of resolvedTables) {
+
+        // Build dependency graph: which tables reference which other tables
+        const dependencies = new Map<string, Set<string>>();
+        const referencedBy = new Map<string, Set<string>>();
+
+        for (const table of tables) {
             const tableName = table.name.table.name;
 
-            // Use TableSourceCollector to find self-references
-            const collector = new TableSourceCollector(true);
-            table.query.accept(collector);
-            const referencedTables = collector.getTableSources();
+            // Check for self-references (recursive CTEs)
+            const referencedTables = this.sourceCollector.collect(table.query);
 
             // Check if this CTE references itself
             for (const referencedTable of referencedTables) {
@@ -161,25 +194,17 @@ export class CTENormalizer {
                     break;
                 }
             }
-        }
 
-        // Build dependency graph: which tables reference which other tables
-        const dependencies = new Map<string, Set<string>>();
-        const referencedBy = new Map<string, Set<string>>();
-
-        for (const table of resolvedTables) {
-            const tableName = table.name.table.name;
+            // Setup dependencies
             if (!dependencies.has(tableName)) {
                 dependencies.set(tableName, new Set<string>());
             }
 
             // Find any references to other CTEs in this table's query
-            this.collector.reset();
-            table.query.accept(this.collector);
-            const referencedTables = this.collector.getCommonTables();
+            const referencedCTEs = this.cteCollector.collect(table.query);
 
-            for (const referencedTable of referencedTables) {
-                const referencedName = referencedTable.name.table.name;
+            for (const referencedCTE of referencedCTEs) {
+                const referencedName = referencedCTE.name.table.name;
 
                 // Only consider references to tables in our collection
                 if (tableMap.has(referencedName)) {
@@ -194,16 +219,32 @@ export class CTENormalizer {
             }
         }
 
-        // Sort tables so:
-        // 1. Recursive CTEs come first
-        // 2. Inner CTEs come before outer CTEs
-        // This uses a topological sort
+        return { tableMap, recursiveCTEs, dependencies };
+    }
+
+    /**
+     * Sorts the CTEs using topological sort, with recursive CTEs coming first.
+     * 
+     * @param tables The list of CTEs to sort
+     * @param tableMap Map of table names to their CommonTable objects
+     * @param recursiveCTEs Set of table names that are recursive (self-referential)
+     * @param dependencies Map of table dependencies
+     * @returns Sorted list of CTEs
+     * @throws Error if a circular reference is detected
+     */
+    private sortCommonTables(
+        tables: CommonTable[],
+        tableMap: Map<string, CommonTable>,
+        recursiveCTEs: Set<string>,
+        dependencies: Map<string, Set<string>>
+    ): CommonTable[] {
         const recursiveResult: CommonTable[] = [];
         const nonRecursiveResult: CommonTable[] = [];
         const visited = new Set<string>();
         const visiting = new Set<string>();
 
-        function visit(tableName: string) {
+        // Topological sort function
+        const visit = (tableName: string) => {
             if (visited.has(tableName)) return;
             if (visiting.has(tableName)) {
                 throw new Error(`Circular reference detected in CTE: ${tableName}`);
@@ -227,10 +268,10 @@ export class CTENormalizer {
             } else {
                 nonRecursiveResult.push(tableMap.get(tableName)!);
             }
-        }
+        };
 
         // Process all tables
-        for (const table of resolvedTables) {
+        for (const table of tables) {
             const tableName = table.name.table.name;
             if (!visited.has(tableName)) {
                 visit(tableName);
@@ -255,9 +296,7 @@ export class CTENormalizer {
             const cteName = table.name.table.name;
 
             // Use TableSourceCollector to find all tables referenced in the CTE's query
-            const collector = new TableSourceCollector(true); // selectableOnly=true to focus on FROM/JOIN tables
-            table.query.accept(collector);
-            const referencedTables = collector.getTableSources();
+            const referencedTables = this.sourceCollector.collect(table.query);
 
             // Check if any of the referenced tables have the same name as this CTE
             for (const referencedTable of referencedTables) {

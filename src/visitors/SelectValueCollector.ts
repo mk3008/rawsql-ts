@@ -44,6 +44,14 @@ export class SelectComponentCollector implements SqlComponentVisitor<void> {
         this.visitedNodes.clear();
     }
 
+    public collect(arg: SqlComponent): { name: string, value: SelectComponent }[] {
+        // Visit the component and return the collected select items
+        this.visit(arg);
+        const items = this.getSelectItems();
+        this.reset(); // Reset after collection
+        return items;
+    }
+
     /**
      * Main entry point for the visitor pattern.
      * Implements the shallow visit pattern to distinguish between root and recursive visits.

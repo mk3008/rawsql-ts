@@ -105,9 +105,15 @@ export class CommonTableCollector implements SqlComponentVisitor<void> {
     /**
      * Reset the collection of CommonTables
      */
-    public reset(): void {
+    private reset(): void {
         this.commonTables = [];
         this.visitedNodes.clear();
+    }
+
+    public collect(query: SelectQuery): CommonTable[] {
+        // Visit the query to collect all CommonTables
+        this.visit(query);
+        return this.getCommonTables();
     }
 
     /**
