@@ -15,6 +15,7 @@ export class ColumnReferenceCollector implements SqlComponentVisitor<void> {
     private columnReferenceMap: Map<string, ColumnReference> = new Map();
     private visitedNodes: Set<SqlComponent> = new Set();
     private formatter: Formatter;
+    private isRootVisit: boolean = true;
 
     constructor() {
         this.formatter = new Formatter();
@@ -50,14 +51,14 @@ export class ColumnReferenceCollector implements SqlComponentVisitor<void> {
      * Get all collected ColumnReferences as an array
      * @returns An array of unique ColumnReference objects
      */
-    getColumnReferences(): ColumnReference[] {
+    public getColumnReferences(): ColumnReference[] {
         return Array.from(this.columnReferenceMap.values());
     }
 
     /**
      * Reset the collection of ColumnReferences
      */
-    reset(): void {
+    private reset(): void {
         this.columnReferenceMap.clear();
         this.visitedNodes.clear();
     }
@@ -72,9 +73,33 @@ export class ColumnReferenceCollector implements SqlComponentVisitor<void> {
     }
 
     /**
-     * Main entry point for the visitor pattern
+     * Main entry point for the visitor pattern.
+     * Implements the shallow visit pattern to distinguish between root and recursive visits.
      */
-    visit(arg: SqlComponent): void {
+    public visit(arg: SqlComponent): void {
+        // If not a root visit, just visit the node and return
+        if (!this.isRootVisit) {
+            this.visitNode(arg);
+            return;
+        }
+
+        // If this is a root visit, we need to reset the state
+        this.reset();
+        this.isRootVisit = false;
+
+        try {
+            this.visitNode(arg);
+        } finally {
+            // Regardless of success or failure, reset the root visit flag
+            this.isRootVisit = true;
+        }
+    }
+
+    /**
+     * Internal visit method used for all nodes.
+     * This separates the visit flag management from the actual node visitation logic.
+     */
+    private visitNode(arg: SqlComponent): void {
         // Skip if we've already visited this node to prevent infinite recursion
         if (this.visitedNodes.has(arg)) {
             return;
@@ -95,7 +120,7 @@ export class ColumnReferenceCollector implements SqlComponentVisitor<void> {
     /**
      * Process a SimpleSelectQuery to collect ColumnReferences from all its clauses
      */
-    visitSimpleSelectQuery(query: SimpleSelectQuery): void {
+    private visitSimpleSelectQuery(query: SimpleSelectQuery): void {
         // Visit all clauses that might contain column references
         if (query.selectClause) {
             query.selectClause.accept(this);
@@ -124,11 +149,11 @@ export class ColumnReferenceCollector implements SqlComponentVisitor<void> {
         if (query.orderByClause) {
             query.orderByClause.accept(this);
         }
-        
+
         if (query.rowLimitClause) {
             query.rowLimitClause.accept(this);
         }
-        
+
         if (query.forClause) {
             query.forClause.accept(this);
         }
@@ -137,7 +162,7 @@ export class ColumnReferenceCollector implements SqlComponentVisitor<void> {
     }
 
     // Clause handlers
-    visitSelectClause(clause: SelectClause): void {
+    private visitSelectClause(clause: SelectClause): void {
         if (clause.items) {
             for (const item of clause.items) {
                 item.accept(this);
@@ -145,11 +170,11 @@ export class ColumnReferenceCollector implements SqlComponentVisitor<void> {
         }
     }
 
-    visitFromClause(clause: FromClause): void {
+    private visitFromClause(clause: FromClause): void {
         if (clause.source) {
             clause.source.accept(this);
         }
-        
+
         if (clause.joins) {
             for (const join of clause.joins) {
                 join.accept(this);
@@ -157,13 +182,13 @@ export class ColumnReferenceCollector implements SqlComponentVisitor<void> {
         }
     }
 
-    visitWhereClause(clause: WhereClause): void {
+    private visitWhereClause(clause: WhereClause): void {
         if (clause.condition) {
             clause.condition.accept(this);
         }
     }
 
-    visitGroupByClause(clause: GroupByClause): void {
+    private visitGroupByClause(clause: GroupByClause): void {
         if (clause.grouping) {
             for (const item of clause.grouping) {
                 item.accept(this);
@@ -171,13 +196,13 @@ export class ColumnReferenceCollector implements SqlComponentVisitor<void> {
         }
     }
 
-    visitHavingClause(clause: HavingClause): void {
+    private visitHavingClause(clause: HavingClause): void {
         if (clause.condition) {
             clause.condition.accept(this);
         }
     }
 
-    visitOrderByClause(clause: OrderByClause): void {
+    private visitOrderByClause(clause: OrderByClause): void {
         if (clause.order) {
             for (const item of clause.order) {
                 item.accept(this);
@@ -185,28 +210,28 @@ export class ColumnReferenceCollector implements SqlComponentVisitor<void> {
         }
     }
 
-    visitWindowFrameClause(clause: WindowFrameClause): void {
+    private visitWindowFrameClause(clause: WindowFrameClause): void {
         if (clause.expression) {
             clause.expression.accept(this);
         }
     }
 
-    visitLimitClause(clause: LimitClause): void {
+    private visitLimitClause(clause: LimitClause): void {
         if (clause.limit) {
             clause.limit.accept(this);
         }
-        
+
         if (clause.offset) {
             clause.offset.accept(this);
         }
     }
 
-    visitForClause(clause: ForClause): void {
+    private visitForClause(clause: ForClause): void {
         // For clause typically doesn't contain column references
     }
 
     // Value component handlers
-    visitColumnReference(columnRef: ColumnReference): void {
+    private visitColumnReference(columnRef: ColumnReference): void {
         // Add the column reference to our collection using string representation as key
         const key = this.getColumnReferenceKey(columnRef);
         if (!this.columnReferenceMap.has(key)) {
@@ -214,77 +239,77 @@ export class ColumnReferenceCollector implements SqlComponentVisitor<void> {
         }
     }
 
-    visitBinaryExpression(expr: BinaryExpression): void {
+    private visitBinaryExpression(expr: BinaryExpression): void {
         // Visit both sides of the expression
         if (expr.left) {
             expr.left.accept(this);
         }
-        
+
         if (expr.right) {
             expr.right.accept(this);
         }
     }
 
-    visitUnaryExpression(expr: UnaryExpression): void {
+    private visitUnaryExpression(expr: UnaryExpression): void {
         if (expr.expression) {
             expr.expression.accept(this);
         }
     }
 
-    visitFunctionCall(func: FunctionCall): void {
+    private visitFunctionCall(func: FunctionCall): void {
         if (func.argument) {
             func.argument.accept(this);
         }
-        
+
         if (func.over) {
             func.over.accept(this);
         }
     }
 
-    visitParenExpression(expr: ParenExpression): void {
+    private visitParenExpression(expr: ParenExpression): void {
         if (expr.expression) {
             expr.expression.accept(this);
         }
     }
 
-    visitCaseExpression(expr: CaseExpression): void {
+    private visitCaseExpression(expr: CaseExpression): void {
         if (expr.condition) {
             expr.condition.accept(this);
         }
-        
+
         if (expr.switchCase) {
             expr.switchCase.accept(this);
         }
     }
 
-    visitCastExpression(expr: CastExpression): void {
+    private visitCastExpression(expr: CastExpression): void {
         if (expr.input) {
             expr.input.accept(this);
         }
     }
 
-    visitBetweenExpression(expr: BetweenExpression): void {
+    private visitBetweenExpression(expr: BetweenExpression): void {
         if (expr.expression) {
             expr.expression.accept(this);
         }
-        
+
         if (expr.lower) {
             expr.lower.accept(this);
         }
-        
+
         if (expr.upper) {
             expr.upper.accept(this);
         }
     }
 
-    visitArrayExpression(expr: ArrayExpression): void {
+    private visitArrayExpression(expr: ArrayExpression): void {
         if (expr.expression) {
             expr.expression.accept(this);
         }
     }
 
     // Helper to process any value component
-    processValueComponent(value: ValueComponent | null): void {
+    private processValueComponent(value: ValueComponent | null): void {
         if (value) {
             value.accept(this);
         }
