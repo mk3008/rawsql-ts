@@ -1,6 +1,6 @@
 import { describe, test, expect } from 'vitest';
-import { Formatter } from "../src/visitors/Formatter";
-import { WhereClauseParser } from "../src/parsers/WhereClauseParser";
+import { Formatter } from "../../src/visitors/Formatter";
+import { WhereClauseParser } from "../../src/parsers/WhereClauseParser";
 
 const formatter = new Formatter();
 

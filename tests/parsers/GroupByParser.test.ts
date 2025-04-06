@@ -1,6 +1,6 @@
 import { describe, test, expect } from 'vitest';
-import { Formatter } from "../src/visitors/Formatter";
-import { GroupByClauseParser } from "../src/parsers/GroupByParser";
+import { Formatter } from "../../src/visitors/Formatter";
+import { GroupByClauseParser } from "../../src/parsers/GroupByParser";
 
 const formatter = new Formatter();
 

@@ -1,6 +1,6 @@
 import { describe, test, expect } from 'vitest';
-import { SelectQueryParser } from '../src/parsers/SelectQueryParser';
-import { Formatter } from '../src/visitors/Formatter';
+import { SelectQueryParser } from '../../src/parsers/SelectQueryParser';
+import { Formatter } from '../../src/visitors/Formatter';
 
 const formatter = new Formatter();
 

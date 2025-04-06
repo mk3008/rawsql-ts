@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
-import { Formatter } from "../src/visitors/Formatter";
-import { ForClauseParser } from "../src/parsers/ForClauseParser";
-import { LockMode } from '../src/models/Clause';
+import { Formatter } from "../../src/visitors/Formatter";
+import { ForClauseParser } from "../../src/parsers/ForClauseParser";
+import { LockMode } from '../../src/models/Clause';
 
 const formatter = new Formatter();
 

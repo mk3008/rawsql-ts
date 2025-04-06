@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
-import { ValueParser } from "../src/parsers/ValueParser";
-import { Formatter } from '../src/visitors/Formatter';
+import { ValueParser } from "../../src/parsers/ValueParser";
+import { Formatter } from '../../src/visitors/Formatter';
 
 // Changed test focus to avoid circular references during testing
 describe('ValueParser', () => {

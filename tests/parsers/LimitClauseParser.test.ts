@@ -1,6 +1,6 @@
 import { describe, test, expect } from 'vitest';
-import { Formatter } from "../src/visitors/Formatter";
-import { LimitClauseParser } from "../src/parsers/LimitClauseParser";
+import { Formatter } from "../../src/visitors/Formatter";
+import { LimitClauseParser } from "../../src/parsers/LimitClauseParser";
 
 const formatter = new Formatter();
 

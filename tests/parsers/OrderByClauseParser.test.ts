@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
-import { Formatter } from "../src/visitors/Formatter";
-import { OrderByClauseParser } from "../src/parsers/OrderByClauseParser";
-import { SortDirection, NullsSortDirection } from "../src/models/Clause";
+import { Formatter } from "../../src/visitors/Formatter";
+import { OrderByClauseParser } from "../../src/parsers/OrderByClauseParser";
+import { SortDirection, NullsSortDirection } from "../../src/models/Clause";
 
 const formatter = new Formatter();
 

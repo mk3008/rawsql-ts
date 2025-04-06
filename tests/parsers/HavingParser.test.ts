@@ -1,6 +1,6 @@
 import { describe, test, expect } from 'vitest';
-import { Formatter } from "../src/visitors/Formatter";
-import { HavingClauseParser } from "../src/parsers/HavingParser";
+import { Formatter } from "../../src/visitors/Formatter";
+import { HavingClauseParser } from "../../src/parsers/HavingParser";
 
 const formatter = new Formatter();
 

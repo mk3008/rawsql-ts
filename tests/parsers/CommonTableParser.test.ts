@@ -1,6 +1,6 @@
 import { describe, test, expect } from 'vitest';
-import { Formatter } from '../src/visitors/Formatter';
-import { CommonTableParser } from '../src/parsers/CommonTableParser';
+import { Formatter } from '../../src/visitors/Formatter';
+import { CommonTableParser } from '../../src/parsers/CommonTableParser';
 
 const formatter = new Formatter();
 
