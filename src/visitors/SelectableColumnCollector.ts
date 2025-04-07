@@ -1,24 +1,34 @@
 // filepath: c:\Users\mssgm\Documents\GitHub\carbunqlex-ts\src\visitors\ColumnReferenceCollector.ts
-import { CommonTable, ForClause, FromClause, GroupByClause, HavingClause, LimitClause, OrderByClause, SelectClause, WhereClause, WindowFrameClause } from "../models/Clause";
+import { CommonTable, ForClause, FromClause, GroupByClause, HavingClause, LimitClause, OrderByClause, SelectClause, WhereClause, WindowFrameClause, JoinClause, JoinOnClause, JoinUsingClause, TableSource, SubQuerySource, SourceExpression } from "../models/Clause";
 import { SimpleSelectQuery } from "../models/SelectQuery";
 import { SqlComponent, SqlComponentVisitor } from "../models/SqlComponent";
 import { ArrayExpression, BetweenExpression, BinaryExpression, CaseExpression, CastExpression, ColumnReference, FunctionCall, InlineQuery, ParenExpression, UnaryExpression, ValueComponent } from "../models/ValueComponent";
+import { CommonTableCollector } from "./CommonTableCollector";
 import { Formatter } from "./Formatter";
+import { SelectValueCollector } from "./SelectValueCollector";
 
 /**
  * A visitor that collects all ColumnReference instances from a SQL query structure.
  * This visitor scans through all clauses and collects all unique ColumnReference objects.
  * It does not scan Common Table Expressions (CTEs) or subqueries.
+ * 
+ * Important: Only collects column references to tables defined in the root FROM/JOIN clauses,
+ * as these are the only columns that can be directly referenced in the query.
  */
-export class ColumnReferenceCollector implements SqlComponentVisitor<void> {
+export class SelectableColumnCollector implements SqlComponentVisitor<void> {
     private handlers: Map<symbol, (arg: any) => void>;
     private columnReferenceMap: Map<string, ColumnReference> = new Map();
     private visitedNodes: Set<SqlComponent> = new Set();
     private formatter: Formatter;
     private isRootVisit: boolean = true;
+    private commonTableCollector: CommonTableCollector;
+    private selectValueCollector: SelectValueCollector;
+    private commonTables: CommonTable[] = [];
 
     constructor() {
         this.formatter = new Formatter();
+        this.selectValueCollector = new SelectValueCollector();
+        this.commonTableCollector = new CommonTableCollector();
         this.handlers = new Map<symbol, (arg: any) => void>();
 
         // Main entry point is the SimpleSelectQuery
@@ -35,6 +45,13 @@ export class ColumnReferenceCollector implements SqlComponentVisitor<void> {
         this.handlers.set(LimitClause.kind, (expr) => this.visitLimitClause(expr as LimitClause));
         this.handlers.set(ForClause.kind, (expr) => this.visitForClause(expr as ForClause));
 
+        this.handlers.set(SourceExpression.kind, (expr) => this.visitSourceExpression(expr as SourceExpression));
+
+        // Add handlers for JOIN conditions
+        this.handlers.set(JoinClause.kind, (expr) => this.visitJoinClause(expr as JoinClause));
+        this.handlers.set(JoinOnClause.kind, (expr) => this.visitJoinOnClause(expr as JoinOnClause));
+        this.handlers.set(JoinUsingClause.kind, (expr) => this.visitJoinUsingClause(expr as JoinUsingClause));
+
         // For value components that might contain column references
         this.handlers.set(ColumnReference.kind, (expr) => this.visitColumnReference(expr as ColumnReference));
         this.handlers.set(BinaryExpression.kind, (expr) => this.visitBinaryExpression(expr as BinaryExpression));
@@ -45,6 +62,9 @@ export class ColumnReferenceCollector implements SqlComponentVisitor<void> {
         this.handlers.set(CastExpression.kind, (expr) => this.visitCastExpression(expr as CastExpression));
         this.handlers.set(BetweenExpression.kind, (expr) => this.visitBetweenExpression(expr as BetweenExpression));
         this.handlers.set(ArrayExpression.kind, (expr) => this.visitArrayExpression(expr as ArrayExpression));
+
+        // Add handler for InlineQuery to process subqueries
+        this.handlers.set(InlineQuery.kind, (expr) => this.visitInlineQuery(expr as InlineQuery));
     }
 
     /**
@@ -61,6 +81,7 @@ export class ColumnReferenceCollector implements SqlComponentVisitor<void> {
     private reset(): void {
         this.columnReferenceMap.clear();
         this.visitedNodes.clear();
+        this.commonTables = [];
     }
 
     /**
@@ -90,9 +111,14 @@ export class ColumnReferenceCollector implements SqlComponentVisitor<void> {
             return;
         }
 
+        if (!(arg instanceof SimpleSelectQuery)) {
+            throw new Error("Root visit must be a SimpleSelectQuery");
+        }
+
         // If this is a root visit, we need to reset the state
         this.reset();
         this.isRootVisit = false;
+        this.commonTables = this.commonTableCollector.collect(arg);
 
         try {
             this.visitNode(arg);
@@ -122,6 +148,60 @@ export class ColumnReferenceCollector implements SqlComponentVisitor<void> {
         }
 
         // For any other component types, we don't need to do anything
+    }
+
+    visitSourceExpression(arg: SourceExpression): void {
+        if (arg.datasource instanceof TableSource) {
+            // If the source is a table, we need to scan it for column references
+            this.scanTableSource(arg.datasource);
+        } else if (arg.datasource instanceof SubQuerySource) {
+            const sourceName = arg.name?.table.name;
+            if (sourceName) {
+                const columns = this.selectValueCollector.collect(arg.datasource.query);
+                this.addVirtualColumns(sourceName, columns);
+            }
+        }
+    }
+
+    private scanTableSource(arg: TableSource): void {
+        // Find the matching CTE in a single pass instead of scanning twice
+        const matchingCte = this.commonTables.find(cte =>
+            cte.name.table && cte.name.table.name === arg.name.name
+        );
+
+        // If a matching CTE was found, visit the query inside the CTE
+        if (matchingCte && matchingCte.query) {
+            const columns = this.selectValueCollector.collect(matchingCte.query);
+            if (columns.length > 0) {
+                const sourceName = matchingCte.name.table.name;
+                this.addVirtualColumns(sourceName, columns);
+            }
+        }
+
+        // If it's not a CTE, it's a physical table which can't be processed offline
+        // So we do nothing and exit
+    }
+
+    /**
+     * Adds virtual columns from a source (CTE or subquery) to the column reference map
+     * @param sourceName The name of the source
+     * @param columns The columns to add
+     */
+    private addVirtualColumns(sourceName: string, columns: { name: string, value: SqlComponent }[]): void {
+        // Use column names as keys to create a Map and eliminate duplicates
+        const uniqueColumns = new Map<string, { name: string, value: SqlComponent }>();
+        for (const column of columns) {
+            uniqueColumns.set(column.name, column);
+        }
+
+        // Add deduplicated columns
+        for (const column of uniqueColumns.values()) {
+            const key = sourceName + '.' + column.name;
+            if (!this.columnReferenceMap.has(key)) {
+                const val = new ColumnReference([sourceName], column.name);
+                this.columnReferenceMap.set(key, val);
+            }
+        }
     }
 
     /**
@@ -237,6 +317,32 @@ export class ColumnReferenceCollector implements SqlComponentVisitor<void> {
         // For clause typically doesn't contain column references
     }
 
+    private visitJoinClause(joinClause: JoinClause): void {
+        // Visit the source being joined
+        if (joinClause.source) {
+            joinClause.source.accept(this);
+        }
+
+        // Visit the join condition if it exists
+        if (joinClause.condition) {
+            joinClause.condition.accept(this);
+        }
+    }
+
+    private visitJoinOnClause(joinOnClause: JoinOnClause): void {
+        // Visit the join condition
+        if (joinOnClause.condition) {
+            joinOnClause.condition.accept(this);
+        }
+    }
+
+    private visitJoinUsingClause(joinUsingClause: JoinUsingClause): void {
+        // Visit the columns in the USING clause
+        if (joinUsingClause.condition) {
+            joinUsingClause.condition.accept(this);
+        }
+    }
+
     // Value component handlers
     private visitColumnReference(columnRef: ColumnReference): void {
         // Add the column reference to our collection using string representation as key
@@ -315,10 +421,21 @@ export class ColumnReferenceCollector implements SqlComponentVisitor<void> {
         }
     }
 
-    // Helper to process any value component
-    private processValueComponent(value: ValueComponent | null): void {
-        if (value) {
-            value.accept(this);
-        }
+    private visitInlineQuery(expr: InlineQuery): void {
+        // Do not process the InlineQuery's content (subquery content)
+        // We only care about column references from tables defined in the root FROM/JOIN clauses
+
+        // Don't collect virtual columns from subqueries anymore
+        // This prevents columns like 'user_id' from being collected when they're not part of root tables
+
+        // The only time we should process a subquery's column references is when they reference
+        // tables from the main query (like u.id in a WHERE clause inside the subquery)
+        // but those will be handled elsewhere when processing the main query context
+
+        // Important: We should NOT collect the subquery's output columns automatically
+        // Using SelectComponentCollector was causing extra columns to be collected
+
+        // DELIBERATELY EMPTY - No processing of subquery content
+        // This ensures we only collect column references from the main query context
     }
 }
