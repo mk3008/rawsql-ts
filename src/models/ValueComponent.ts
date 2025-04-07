@@ -52,6 +52,14 @@ export class ColumnReference extends SqlComponent {
         this.namespaces = namespaces !== null ? namespaces.map((namespace) => new IdentifierString(namespace)) : null;
         this.column = new IdentifierString(column);
     }
+
+    public toString(): string {
+        if (this.namespaces) {
+            return this.namespaces.map((namespace) => namespace.name).join(".") + "." + this.column.name;
+        } else {
+            return this.column.name;
+        }
+    }
 }
 
 export class FunctionCall extends SqlComponent {
