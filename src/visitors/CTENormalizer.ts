@@ -34,7 +34,7 @@ export class CTENormalizer {
      * @param query The query to normalize
      * @returns A new normalized query with all CTEs at the root level
      */
-    normalize(query: SelectQuery): SelectQuery {
+    public normalize(query: SelectQuery): SelectQuery {
         // No need to normalize if the query doesn't have any CTEs
         const allCommonTables = this.cteCollector.collect(query);
 
