@@ -122,7 +122,7 @@ test('hint clause(not comment)', () => {
     expect(lexemes[0].value).toBe('/*+ hint comment */');
 });
 
-test('現実的なサンプル', () => {
+test('Realistic example', () => {
     // Arrange
     const tokenizer = new SqlTokenizer(`
     FLOOR(price * 1.1) -- Calculate total price (including tax) and round down
