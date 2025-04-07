@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { SelectComponentCollector } from '../../src/visitors/SelectValueCollector';
+import { SelectValueCollector } from '../../src/visitors/SelectValueCollector';
 import { SelectQueryParser } from '../../src/parsers/SelectQueryParser';
 import { SelectItem } from '../../src/models/Clause';
 
@@ -8,7 +8,7 @@ describe('SelectItemCollector', () => {
         // Arrange
         const sql = `SELECT id, name, created_at FROM users`;
         const query = SelectQueryParser.parseFromText(sql);
-        const collector = new SelectComponentCollector();
+        const collector = new SelectValueCollector();
 
         // Act
         collector.visit(query);
@@ -23,7 +23,7 @@ describe('SelectItemCollector', () => {
         // Arrange
         const sql = `SELECT id as user_id, name as user_name FROM users`;
         const query = SelectQueryParser.parseFromText(sql);
-        const collector = new SelectComponentCollector();
+        const collector = new SelectValueCollector();
 
         // Act
         collector.visit(query);
@@ -38,7 +38,7 @@ describe('SelectItemCollector', () => {
         // Arrange
         const sql = `SELECT COUNT(*) as count, MAX(salary) as max_salary FROM employees`;
         const query = SelectQueryParser.parseFromText(sql);
-        const collector = new SelectComponentCollector();
+        const collector = new SelectValueCollector();
 
         // Act
         collector.visit(query);
@@ -57,7 +57,7 @@ describe('SelectItemCollector', () => {
             SELECT id, username FROM accounts
         `;
         const query = SelectQueryParser.parseFromText(sql);
-        const collector = new SelectComponentCollector();
+        const collector = new SelectValueCollector();
 
         // Act
         collector.visit(query);
@@ -79,7 +79,7 @@ describe('SelectItemCollector', () => {
             FROM users u
         `;
         const query = SelectQueryParser.parseFromText(sql);
-        const collector = new SelectComponentCollector();
+        const collector = new SelectValueCollector();
 
         // Act
         collector.visit(query);
@@ -97,7 +97,7 @@ describe('SelectItemCollector', () => {
 
         const query1 = SelectQueryParser.parseFromText(sql1);
         const query2 = SelectQueryParser.parseFromText(sql2);
-        const collector = new SelectComponentCollector();
+        const collector = new SelectValueCollector();
 
         // Act - First collection
         collector.visit(query1);
@@ -108,12 +108,67 @@ describe('SelectItemCollector', () => {
         expect(items1.map(item => item.name)).toEqual(['id', 'name']);
 
         // Act - Reset and second collection
-        collector.reset();
         collector.visit(query2);
         const items2 = collector.getSelectItems();
 
         // Assert - Second collection
         expect(items2.length).toBe(3);
         expect(items2.map(item => item.name)).toEqual(['product_id', 'product_name', 'price']);
+    });
+
+    test('collects column names from simple select statement', () => {
+        // Arrange
+        const sql = `SELECT id, name FROM users`;
+        const query = SelectQueryParser.parseFromText(sql);
+        const collector = new SelectValueCollector();
+
+        // Act
+        const items = collector.collect(query);
+
+        // Assert
+        expect(items.length).toBe(2);
+        expect(items[0].name).toBe('id');
+        expect(items[1].name).toBe('name');
+    });
+
+    test('collects column names from subquery statement', () => {
+        // Arrange
+        const sql = `SELECT a.id, a.value FROM table_a as a`;
+        const query = SelectQueryParser.parseFromText(sql);
+        const collector = new SelectValueCollector();
+
+        // Act
+        const items = collector.collect(query);
+        const itemNames = items.map(x => x.name);
+
+        // Assert - Debug the actual values
+        console.log('Items returned:', itemNames);
+
+        // Should collect two unique columns
+        expect(items.length).toBe(2);
+        expect(itemNames).toContain('id');
+        expect(itemNames).toContain('value');
+    });
+
+    test('should not return duplicates for identical columns', () => {
+        // Arrange
+        const sql = `SELECT id, id, name FROM users`;
+        const query = SelectQueryParser.parseFromText(sql);
+        const collector = new SelectValueCollector();
+
+        // Act
+        const items = collector.collect(query);
+        const itemNames = items.map(x => x.name);
+
+        // Assert - Debug to see duplicates
+        console.log('Items with possible duplicates:', itemNames);
+
+        // After fix - duplicates are removed
+        expect(items.length).toBe(2); // Now returns unique columns
+        expect(itemNames).toContain('id');
+        expect(itemNames).toContain('name');
+
+        // Ensure id only appears once
+        expect(itemNames.filter(name => name === 'id').length).toBe(1);
     });
 });

@@ -7,7 +7,7 @@ import { ColumnReference, InlineQuery } from "../models/ValueComponent";
  * A visitor that collects all SelectItem instances from a SQL query structure.
  * This visitor scans through select clauses and collects all the SelectItem objects.
  */
-export class SelectComponentCollector implements SqlComponentVisitor<void> {
+export class SelectValueCollector implements SqlComponentVisitor<void> {
     private handlers: Map<symbol, (arg: any) => void>;
     private selectItems: { name: string, value: SelectComponent }[] = [];
     private visitedNodes: Set<SqlComponent> = new Set();
@@ -114,25 +114,65 @@ export class SelectComponentCollector implements SqlComponentVisitor<void> {
     }
 
     private visitSelectClause(clause: SelectClause): void {
-        if (clause.items) {
-            for (const item of clause.items) {
-                if (item instanceof SelectItem) {
-                    const sitem = item as SelectItem;
-                    this.selectItems.push({
-                        name: sitem.name?.name || '',
-                        value: item
-                    });
-                } else if (item instanceof ColumnReference) {
-                    // Handle ColumnReference if needed
-                    const citem = item as ColumnReference;
-                    this.selectItems.push({
-                        name: citem.column.name,
-                        value: item
-                    });
-                }
-                // Ignore items that don't have a retrievable name
-            }
+        if (!clause.items || clause.items.length === 0) {
+            return; // Do nothing (no items)
         }
+
+        // Create a map with names as keys to store unique items
+        const uniqueItems = this.collectUniqueSelectItems(clause.items);
+
+        // Convert map to array and set as result
+        this.selectItems = Array.from(uniqueItems.values());
+    }
+
+    /**
+     * Collects unique items from a collection of select components based on their names
+     * @param items The list of SelectComponent to process
+     * @returns A map of unique items keyed by name
+     */
+    private collectUniqueSelectItems(items: SelectComponent[]): Map<string, { name: string, value: SelectComponent }> {
+        const uniqueItems = new Map<string, { name: string, value: SelectComponent }>();
+
+        for (const item of items) {
+            // For SelectItem (named selection items)
+            if (item instanceof SelectItem) {
+                this.processSelectItem(item, uniqueItems);
+            }
+            // For ColumnReference
+            else if (item instanceof ColumnReference) {
+                this.processColumnReference(item, uniqueItems);
+            }
+            // Other types are ignored as they don't have retrievable names
+        }
+
+        return uniqueItems;
+    }
+
+    /**
+     * Processes a SelectItem and adds it to the unique items map
+     */
+    private processSelectItem(item: SelectItem, uniqueItems: Map<string, { name: string, value: SelectComponent }>): void {
+        const name = item.name?.name || '';
+
+        // Only add to map if name is not empty
+        if (name) {
+            uniqueItems.set(name, {
+                name: name,
+                value: item
+            });
+        }
+    }
+
+    /**
+     * Processes a ColumnReference and adds it to the unique items map
+     */
+    private processColumnReference(item: ColumnReference, uniqueItems: Map<string, { name: string, value: SelectComponent }>): void {
+        const name = item.column.name;
+
+        uniqueItems.set(name, {
+            name: name,
+            value: item
+        });
     }
 
     private visitInlineQuery(inlineQuery: InlineQuery): void {
