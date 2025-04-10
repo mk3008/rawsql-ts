@@ -22,13 +22,13 @@ export class SelectValueCollector implements SqlComponentVisitor<void> {
     private tableColumnResolver?: TableColumnResolver;
     private commonTableCollector: CommonTableCollector;
     private commonTables: CommonTable[];
-    public rootQuery: SelectQuery | null = null;
+    public initialCommonTables: CommonTable[] | null;
 
-    constructor(tableColumnResolver?: TableColumnResolver, rootQuery: SelectQuery | null = null) {
+    constructor(tableColumnResolver?: TableColumnResolver, initialCommonTables: CommonTable[] | null = null) {
         this.tableColumnResolver = tableColumnResolver;
         this.commonTableCollector = new CommonTableCollector();
         this.commonTables = [];
-        this.rootQuery = rootQuery;
+        this.initialCommonTables = initialCommonTables;
 
         this.handlers = new Map<symbol, (arg: any) => void>();
 
@@ -51,8 +51,10 @@ export class SelectValueCollector implements SqlComponentVisitor<void> {
     private reset(): void {
         this.selectValues = [];
         this.visitedNodes.clear();
-        if (this.rootQuery) {
-            this.commonTables = this.commonTableCollector.collect(this.rootQuery);
+        if (this.initialCommonTables) {
+            this.commonTables = this.initialCommonTables;
+        } else {
+            this.commonTables = [];
         }
     }
 
@@ -111,8 +113,7 @@ export class SelectValueCollector implements SqlComponentVisitor<void> {
      * Process a SimpleSelectQuery to collect data and store the current context
      */
     private visitSimpleSelectQuery(query: SimpleSelectQuery): void {
-        if (this.rootQuery === null) {
-            this.rootQuery = query;
+        if (this.commonTables.length === 0) {
             this.commonTables = this.commonTableCollector.collect(query);
         }
 
@@ -182,13 +183,13 @@ export class SelectValueCollector implements SqlComponentVisitor<void> {
         // check common table
         const commonTable = this.commonTables.find(item => item.alias.table.name === sourceName);
         if (commonTable) {
-            const innerCollector = new SelectValueCollector(this.tableColumnResolver, this.rootQuery);
+            const innerCollector = new SelectValueCollector(this.tableColumnResolver, this.commonTables);
             const innerSelected = innerCollector.collect(commonTable.query);
             innerSelected.forEach(item => {
                 this.addSelectValueAsUnique(item.name, new ColumnReference(sourceName ? [sourceName] : null, item.name));
             });
         } else {
-            const innerCollector = new SelectValueCollector(this.tableColumnResolver, this.rootQuery);
+            const innerCollector = new SelectValueCollector(this.tableColumnResolver, this.commonTables);
             const innerSelected = innerCollector.collect(source);
             innerSelected.forEach(item => {
                 this.addSelectValueAsUnique(item.name, new ColumnReference(sourceName ? [sourceName] : null, item.name));
@@ -211,26 +212,25 @@ export class SelectValueCollector implements SqlComponentVisitor<void> {
     }
 
     private processValueComponent(value: ValueComponent): void {
-        if (value instanceof ColumnReference) {
-            // Handle column reference
-            // columnName は '*' になることがある
+        if (value instanceof ColumnReference) {            // Handle column reference
+            // columnName can be '*'
             const columnName = value.column.name;
             if (columnName === '*') {
-                // 強制追加
+                // Force add without checking duplicates
                 this.selectValues.push({ name: columnName, value: value });
             }
             else {
-                // 重複考慮して追加
+                // Add with duplicate checking
                 this.addSelectValueAsUnique(columnName, value);
             }
         }
     }
 
     private visitSourceExpression(source: SourceExpression): void {
-        // 列エイリアスがある場合、それが最優先される
-        // 物理テーブルの場合、外部関数を使用して列名を得る。
-        // サブクエリの場合、コレクターをあたらにインスタンスし、サブクエリの列名を得る
-        // 括弧で囲まれた場合、サブクエリと同じように扱う
+        // Column aliases have the highest priority if present
+        // For physical tables, use external function to get column names
+        // For subqueries, instantiate a new collector and get column names from the subquery
+        // For parenthesized expressions, treat them the same as subqueries
 
         if (source.aliasExpression && source.aliasExpression.columns) {
             const sourceName = source.getAliasName();
@@ -248,7 +248,7 @@ export class SelectValueCollector implements SqlComponentVisitor<void> {
             return;
         } else if (source.datasource instanceof SubQuerySource) {
             const sourceName = source.getAliasName();
-            const innerCollector = new SelectValueCollector(this.tableColumnResolver, this.rootQuery);
+            const innerCollector = new SelectValueCollector(this.tableColumnResolver, this.commonTables);
             const innerSelected = innerCollector.collect(source.datasource.query);
             innerSelected.forEach(item => {
                 this.addSelectValueAsUnique(item.name, new ColumnReference(sourceName ? [sourceName] : null, item.name));
