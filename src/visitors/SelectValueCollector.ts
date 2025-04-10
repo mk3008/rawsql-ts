@@ -113,7 +113,7 @@ export class SelectValueCollector implements SqlComponentVisitor<void> {
      * Process a SimpleSelectQuery to collect data and store the current context
      */
     private visitSimpleSelectQuery(query: SimpleSelectQuery): void {
-        if (this.commonTables.length === 0) {
+        if (this.commonTables.length === 0 && this.initialCommonTables === null) {
             this.commonTables = this.commonTableCollector.collect(query);
         }
 
@@ -183,7 +183,10 @@ export class SelectValueCollector implements SqlComponentVisitor<void> {
         // check common table
         const commonTable = this.commonTables.find(item => item.alias.table.name === sourceName);
         if (commonTable) {
-            const innerCollector = new SelectValueCollector(this.tableColumnResolver, this.commonTables);
+            // Exclude this CTE from consideration to prevent self-reference
+            const innerCommonTables = this.commonTables.filter(item => item.alias.table.name !== sourceName);
+
+            const innerCollector = new SelectValueCollector(this.tableColumnResolver, innerCommonTables);
             const innerSelected = innerCollector.collect(commonTable.query);
             innerSelected.forEach(item => {
                 this.addSelectValueAsUnique(item.name, new ColumnReference(sourceName ? [sourceName] : null, item.name));
