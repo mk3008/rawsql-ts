@@ -47,7 +47,7 @@ export class SelectQueryParser {
         }
 
         // Check if the first token is a SELECT keyword or VALUES
-        const firstToken = lexemes[idx].value.toLowerCase();
+        const firstToken = lexemes[idx].value;
         if (!this.selectCommandSet.has(firstToken) && firstToken !== 'values') {
             throw new Error(`Syntax error at position ${idx}: Expected 'SELECT' or 'VALUES' keyword but found "${lexemes[idx].value}".`);
         }

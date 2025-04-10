@@ -1,31 +1,32 @@
-import { SelectClause, SelectComponent, SelectItem } from "../models/Clause";
+import { FromClause, JoinClause, ParenSource, SelectClause, SelectComponent, SelectItem, SourceExpression, SubQuerySource, TableSource } from "../models/Clause";
 import { BinarySelectQuery, SimpleSelectQuery, SelectQuery, ValuesQuery } from "../models/SelectQuery";
 import { SqlComponent, SqlComponentVisitor } from "../models/SqlComponent";
-import { ColumnReference, InlineQuery } from "../models/ValueComponent";
+import { ColumnReference, InlineQuery, LiteralValue, ValueComponent } from "../models/ValueComponent";
+
+/**
+ * Type definition for a function that resolves column names from a table name
+ */
+export type TableColumnResolver = (tableName: string) => string[];
 
 /**
  * A visitor that collects all SelectItem instances from a SQL query structure.
  * This visitor scans through select clauses and collects all the SelectItem objects.
+ * It can also resolve wildcard selectors (table.* or *) using a provided table column resolver.
  */
 export class SelectValueCollector implements SqlComponentVisitor<void> {
     private handlers: Map<symbol, (arg: any) => void>;
-    private selectItems: { name: string, value: SelectComponent }[] = [];
+    private selectValues: { name: string, value: ValueComponent }[] = [];
     private visitedNodes: Set<SqlComponent> = new Set();
     private isRootVisit: boolean = true;
+    private tableColumnResolver?: TableColumnResolver;
 
-    constructor() {
+    constructor(tableColumnResolver?: TableColumnResolver) {
+        this.tableColumnResolver = tableColumnResolver;
         this.handlers = new Map<symbol, (arg: any) => void>();
 
-        // Setup handlers for query types that contain SelectItems
         this.handlers.set(SimpleSelectQuery.kind, (expr) => this.visitSimpleSelectQuery(expr as SimpleSelectQuery));
-        this.handlers.set(BinarySelectQuery.kind, (expr) => this.visitBinarySelectQuery(expr as BinarySelectQuery));
-        this.handlers.set(ValuesQuery.kind, (expr) => this.visitValuesQuery(expr as ValuesQuery));
-
-        // The core handler for select clauses
         this.handlers.set(SelectClause.kind, (expr) => this.visitSelectClause(expr as SelectClause));
-
-        // For handling subqueries that may contain select items
-        this.handlers.set(InlineQuery.kind, (expr) => this.visitInlineQuery(expr as InlineQuery));
+        this.handlers.set(SourceExpression.kind, (expr) => this.visitSourceExpression(expr as SourceExpression));
     }
 
     /**
@@ -33,14 +34,14 @@ export class SelectValueCollector implements SqlComponentVisitor<void> {
      * @returns An array of objects with name (string) and value (SelectComponent) properties
      */
     public getSelectItems(): { name: string, value: SelectComponent }[] {
-        return this.selectItems;
+        return this.selectValues;
     }
 
     /**
      * Reset the collection of SelectItems
      */
     private reset(): void {
-        this.selectItems = [];
+        this.selectValues = [];
         this.visitedNodes.clear();
     }
 
@@ -95,90 +96,147 @@ export class SelectValueCollector implements SqlComponentVisitor<void> {
         }
     }
 
+    /**
+     * Process a SimpleSelectQuery to collect data and store the current context
+     */
     private visitSimpleSelectQuery(query: SimpleSelectQuery): void {
-        // Visit the SELECT clause which contains the items we want to collect
         if (query.selectClause) {
             query.selectClause.accept(this);
         }
-    }
 
-    private visitBinarySelectQuery(query: BinarySelectQuery): void {
-        // check left only
-        if (query.left) {
-            query.left.accept(this);
-        }
-    }
-
-    private visitValuesQuery(query: ValuesQuery): void {
-        // VALUES queries don't contain SelectItems, so nothing to do
-    }
-
-    private visitSelectClause(clause: SelectClause): void {
-        if (!clause.items || clause.items.length === 0) {
-            return; // Do nothing (no items)
+        // no wildcard 
+        const wildcards = this.selectValues.filter(item => item.name === '*');
+        if (wildcards.length === 0) {
+            return;
         }
 
-        // Create a map with names as keys to store unique items
-        const uniqueItems = this.collectUniqueSelectItems(clause.items);
-
-        // Convert map to array and set as result
-        this.selectItems = Array.from(uniqueItems.values());
-    }
-
-    /**
-     * Collects unique items from a collection of select components based on their names
-     * @param items The list of SelectComponent to process
-     * @returns A map of unique items keyed by name
-     */
-    private collectUniqueSelectItems(items: SelectComponent[]): Map<string, { name: string, value: SelectComponent }> {
-        const uniqueItems = new Map<string, { name: string, value: SelectComponent }>();
-
-        for (const item of items) {
-            // For SelectItem (named selection items)
-            if (item instanceof SelectItem) {
-                this.processSelectItem(item, uniqueItems);
+        // full wildcard
+        if (this.selectValues.some(item => item.value instanceof ColumnReference && item.value.namespaces === null)) {
+            if (query.fromClause) {
+                this.processFromClause(query.fromClause, true);
             }
-            // For ColumnReference
-            else if (item instanceof ColumnReference) {
-                this.processColumnReference(item, uniqueItems);
+            // remove wildcard
+            this.selectValues = this.selectValues.filter(item => item.name !== '*');
+            return;
+        };
+
+        // table wildcard
+        const wildSourceNames = wildcards.filter(item => item.value instanceof ColumnReference && item.value.namespaces)
+            .map(item => (item.value as ColumnReference).getNamespace());
+
+        if (query.fromClause) {
+            const fromSourceName = query.fromClause.getAliasSourceName();
+            if (fromSourceName && wildSourceNames.includes(fromSourceName)) {
+                this.processFromClause(query.fromClause, false);
             }
-            // Other types are ignored as they don't have retrievable names
+            if (query.fromClause.joins) {
+                for (const join of query.fromClause.joins) {
+                    const joinSourceName = join.getAliasSourceName();
+                    if (joinSourceName && wildSourceNames.includes(joinSourceName)) {
+                        this.processJoinClause(join);
+                    }
+                }
+            }
         }
-
-        return uniqueItems;
+        // remove wildcard
+        this.selectValues = this.selectValues.filter(item => item.name !== '*');
+        return;
     }
 
-    /**
-     * Processes a SelectItem and adds it to the unique items map
-     */
-    private processSelectItem(item: SelectItem, uniqueItems: Map<string, { name: string, value: SelectComponent }>): void {
-        const name = item.name?.name || '';
+    private processFromClause(clause: FromClause, joinCascade: boolean): void {
+        if (clause) {
+            const fromSourceName = clause.getAliasSourceName();
+            this.processSourceExpression(fromSourceName, clause.source);
 
-        // Only add to map if name is not empty
-        if (name) {
-            uniqueItems.set(name, {
-                name: name,
-                value: item
-            });
+            if (clause.joins && joinCascade) {
+                for (const join of clause.joins) {
+                    this.processJoinClause(join);
+                }
+            }
         }
+        return;
     }
 
-    /**
-     * Processes a ColumnReference and adds it to the unique items map
-     */
-    private processColumnReference(item: ColumnReference, uniqueItems: Map<string, { name: string, value: SelectComponent }>): void {
-        const name = item.column.name;
+    private processJoinClause(clause: JoinClause): void {
+        const sourceName = clause.getAliasSourceName();
+        this.processSourceExpression(sourceName, clause.source);
+    }
 
-        uniqueItems.set(name, {
-            name: name,
-            value: item
+    private processSourceExpression(sourceName: string | null, source: SourceExpression) {
+        const innerCollector = new SelectValueCollector(this.tableColumnResolver);
+        const innerSelected = innerCollector.collect(source);
+        innerSelected.forEach(item => {
+            this.addSelectValueAsUnique(item.name, new ColumnReference(sourceName ? [sourceName] : null, item.name));
         });
     }
 
-    private visitInlineQuery(inlineQuery: InlineQuery): void {
-        // Process the inline query's select query
-        if (inlineQuery && inlineQuery.selectQuery) {
-            inlineQuery.selectQuery.accept(this);
+    private visitSelectClause(clause: SelectClause): void {
+        for (const item of clause.items) {
+            if (item instanceof SelectItem) {
+                this.processSelectItem(item); // Process SelectItem
+            } else {
+                this.processValueComponent(item); // Process ValueComponent
+            }
+        }
+    }
+
+    private processSelectItem(item: SelectItem): void {
+        this.addSelectValueAsUnique(item.identifier.name, item.value);
+    }
+
+    private processValueComponent(value: ValueComponent): void {
+        if (value instanceof ColumnReference) {
+            // Handle column reference
+            // columnName は '*' になることがある
+            const columnName = value.column.name;
+            if (columnName === '*') {
+                // 強制追加
+                this.selectValues.push({ name: columnName, value: value });
+            }
+            else {
+                // 重複考慮して追加
+                this.addSelectValueAsUnique(columnName, value);
+            }
+        }
+    }
+
+    private visitSourceExpression(source: SourceExpression): void {
+        // 列エイリアスがある場合、それが最優先される
+        // 物理テーブルの場合、外部関数を使用して列名を得る。
+        // サブクエリの場合、コレクターをあたらにインスタンスし、サブクエリの列名を得る
+        // 括弧で囲まれた場合、サブクエリと同じように扱う
+
+        if (source.aliasExpression && source.aliasExpression.columns) {
+            const sourceName = source.getAliasName();
+            source.aliasExpression.columns.forEach(column => {
+                this.addSelectValueAsUnique(column.name, new ColumnReference(sourceName ? [sourceName] : null, column.name));
+            });
+            return;
+        } else if (source.datasource instanceof TableSource) {
+            if (this.tableColumnResolver) {
+                const sourceName = source.datasource.getSourceName();
+                this.tableColumnResolver(sourceName).forEach(column => {
+                    this.addSelectValueAsUnique(column, new ColumnReference([sourceName], column));
+                });
+            }
+            return;
+        } else if (source.datasource instanceof SubQuerySource) {
+            const sourceName = source.getAliasName();
+            const innerCollector = new SelectValueCollector(this.tableColumnResolver);
+            const innerSelected = innerCollector.collect(source.datasource.query);
+            innerSelected.forEach(item => {
+                this.addSelectValueAsUnique(item.name, new ColumnReference(sourceName ? [sourceName] : null, item.name));
+            });
+            return;
+        } else if (source.datasource instanceof ParenSource) {
+            return this.visit(source.datasource.source);
+        }
+    }
+
+    private addSelectValueAsUnique(name: string, value: ValueComponent): void {
+        // Check if a select value with the same name already exists before adding
+        if (!this.selectValues.some(item => item.name === name)) {
+            this.selectValues.push({ name, value });
         }
     }
 }

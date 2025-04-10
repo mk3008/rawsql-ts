@@ -125,7 +125,7 @@ export class CTENormalizer {
         // Group CTEs by their names
         const ctesByName = new Map<string, CommonTable[]>();
         for (const table of commonTables) {
-            const tableName = table.name.table.name;
+            const tableName = table.alias.table.name;
             if (!ctesByName.has(tableName)) {
                 ctesByName.set(tableName, []);
             }
@@ -171,7 +171,7 @@ export class CTENormalizer {
         // Create a map of table names for quick lookup
         const tableMap = new Map<string, CommonTable>();
         for (const table of tables) {
-            tableMap.set(table.name.table.name, table);
+            tableMap.set(table.alias.table.name, table);
         }
 
         // Identify recursive CTEs (those that reference themselves)
@@ -182,7 +182,7 @@ export class CTENormalizer {
         const referencedBy = new Map<string, Set<string>>();
 
         for (const table of tables) {
-            const tableName = table.name.table.name;
+            const tableName = table.alias.table.name;
 
             // Check for self-references (recursive CTEs)
             const referencedTables = this.sourceCollector.collect(table.query);
@@ -204,7 +204,7 @@ export class CTENormalizer {
             const referencedCTEs = this.cteCollector.collect(table.query);
 
             for (const referencedCTE of referencedCTEs) {
-                const referencedName = referencedCTE.name.table.name;
+                const referencedName = referencedCTE.alias.table.name;
 
                 // Only consider references to tables in our collection
                 if (tableMap.has(referencedName)) {
@@ -272,7 +272,7 @@ export class CTENormalizer {
 
         // Process all tables
         for (const table of tables) {
-            const tableName = table.name.table.name;
+            const tableName = table.alias.table.name;
             if (!visited.has(tableName)) {
                 visit(tableName);
             }
@@ -293,7 +293,7 @@ export class CTENormalizer {
         // For each common table, check if it references itself
         for (const table of commonTables) {
             // Get the CTE name
-            const cteName = table.name.table.name;
+            const cteName = table.alias.table.name;
 
             // Use TableSourceCollector to find all tables referenced in the CTE's query
             const referencedTables = this.sourceCollector.collect(table.query);

@@ -55,9 +55,16 @@ export class ColumnReference extends SqlComponent {
 
     public toString(): string {
         if (this.namespaces) {
-            return this.namespaces.map((namespace) => namespace.name).join(".") + "." + this.column.name;
+            return this.getNamespace() + "." + this.column.name;
         } else {
             return this.column.name;
+        }
+    }
+    public getNamespace(): string {
+        if (this.namespaces) {
+            return this.namespaces.map((namespace) => namespace.name).join(".");
+        } else {
+            return '';
         }
     }
 }

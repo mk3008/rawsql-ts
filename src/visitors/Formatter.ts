@@ -238,7 +238,7 @@ export class Formatter implements SqlComponentVisitor<string> {
     }
 
     private visitCommonTable(arg: CommonTable): string {
-        const alias = arg.name.accept(this);
+        const alias = arg.alias.accept(this);
         const materil = arg.materialized === null
             ? ''
             : arg.materialized ? 'materialized' : 'not materialized';
@@ -296,11 +296,11 @@ export class Formatter implements SqlComponentVisitor<string> {
     }
 
     private visitSourceExpression(arg: SourceExpression): string {
-        let alias = arg.name !== null ? `${arg.name.accept(this)}` : "";
+        let alias = arg.aliasExpression !== null ? `${arg.aliasExpression.accept(this)}` : "";
 
         // Avoid duplicate alias if the name is the same as the alias
         if (arg.datasource instanceof TableSource) {
-            if (arg.name !== null && arg.datasource.name !== null && arg.datasource.name.accept(this) === arg.name.accept(this)) {
+            if (arg.aliasExpression !== null && arg.datasource.identifier !== null && arg.datasource.identifier.accept(this) === arg.aliasExpression.accept(this)) {
                 alias = "";
             }
         }
@@ -386,16 +386,16 @@ export class Formatter implements SqlComponentVisitor<string> {
     }
 
     private visitSelectExpression(arg: SelectItem): string {
-        if (arg.name !== null) {
+        if (arg.identifier !== null) {
             if (arg.value instanceof ColumnReference) {
                 const c = arg.value as ColumnReference;
-                if (c.column.name === arg.name.name) {
+                if (c.column.name === arg.identifier.name) {
                     return `${arg.value.accept(this)}`;
                 } else {
-                    return `${arg.value.accept(this)} as ${arg.name.accept(this)}`;
+                    return `${arg.value.accept(this)} as ${arg.identifier.accept(this)}`;
                 }
             }
-            return `${arg.value.accept(this)} as ${arg.name.accept(this)}`;
+            return `${arg.value.accept(this)} as ${arg.identifier.accept(this)}`;
         }
         return arg.value.accept(this);
     }

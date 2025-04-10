@@ -7,11 +7,11 @@ export type SelectComponent = SelectItem | ValueComponent;
 export class SelectItem extends SqlComponent {
     static kind = Symbol("SelectItem");
     value: ValueComponent;
-    name: IdentifierString | null;
-    constructor(value: ValueComponent, name: string | null) {
+    identifier: IdentifierString;
+    constructor(value: ValueComponent, name: string) {
         super();
         this.value = value;
-        this.name = name !== null ? new IdentifierString(name) : null;
+        this.identifier = new IdentifierString(name);
     }
 }
 
@@ -134,12 +134,19 @@ export class TableSource extends SqlComponent {
     static kind = Symbol("TableSource");
     namespaces: IdentifierString[] | null;
     table: IdentifierString;
-    name: IdentifierString;
+    identifier: IdentifierString;
     constructor(namespaces: string[] | null, table: string) {
         super();
         this.namespaces = namespaces !== null ? namespaces.map((namespace) => new IdentifierString(namespace)) : null;;
         this.table = new IdentifierString(table);
-        this.name = this.table;
+        this.identifier = this.table;
+    }
+    public getSourceName(): string {
+        if (this.namespaces) {
+            return this.namespaces.map((namespace) => namespace.name).join(".") + "." + this.table.name;
+        } else {
+            return this.table.name;
+        }
     }
 }
 
@@ -175,11 +182,20 @@ export class SubQuerySource extends SqlComponent {
 export class SourceExpression extends SqlComponent {
     static kind = Symbol("SourceExpression");
     datasource: SourceComponent;
-    name: SourceAliasExpression | null;
-    constructor(datasource: SourceComponent, name: SourceAliasExpression | null) {
+    aliasExpression: SourceAliasExpression | null;
+    constructor(datasource: SourceComponent, aliasExpression: SourceAliasExpression | null) {
         super();
         this.datasource = datasource;
-        this.name = name;
+        this.aliasExpression = aliasExpression;
+    }
+    public getAliasName(): string | null {
+        if (this.aliasExpression) {
+            return this.aliasExpression.table.name;
+        }
+        else if (this.datasource instanceof TableSource) {
+            return this.datasource.getSourceName();
+        }
+        return null;
     }
 }
 
@@ -216,6 +232,15 @@ export class JoinClause extends SqlComponent {
         this.condition = condition;
         this.lateral = lateral;
     }
+    public getAliasSourceName(): string | null {
+        if (this.source.aliasExpression) {
+            return this.source.aliasExpression.table.name;
+        }
+        else if (this.source instanceof TableSource) {
+            return this.source.table.name;
+        }
+        return null;
+    }
 }
 
 export class FromClause extends SqlComponent {
@@ -227,21 +252,30 @@ export class FromClause extends SqlComponent {
         this.source = source;
         this.joins = join;
     }
+    public getAliasSourceName(): string | null {
+        if (this.source.aliasExpression) {
+            return this.source.aliasExpression.table.name;
+        }
+        else if (this.source.datasource instanceof TableSource) {
+            return this.source.datasource.table.name;
+        }
+        return null;
+    }
 }
 
 export class CommonTable extends SqlComponent {
     static kind = Symbol("CommonTable");
     query: SelectQuery;
     materialized: boolean | null;
-    name: SourceAliasExpression;
+    alias: SourceAliasExpression;
     constructor(query: SelectQuery, name: SourceAliasExpression | string, materialized: boolean | null) {
         super();
         this.query = query;
         this.materialized = materialized;
         if (typeof name === "string") {
-            this.name = new SourceAliasExpression(name, null);
+            this.alias = new SourceAliasExpression(name, null);
         } else {
-            this.name = name;
+            this.alias = name;
         }
     }
 }

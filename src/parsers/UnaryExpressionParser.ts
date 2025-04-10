@@ -1,5 +1,5 @@
 import { Lexeme, TokenType } from "../models/Lexeme";
-import { IdentifierString, UnaryExpression, ValueComponent } from "../models/ValueComponent";
+import { ColumnReference, IdentifierString, UnaryExpression, ValueComponent } from "../models/ValueComponent";
 import { ValueParser } from "./ValueParser";
 
 export class UnaryExpressionParser {
@@ -13,7 +13,7 @@ export class UnaryExpressionParser {
 
             // Treat the asterisk as an Identifier, not as a unary operator
             if (operator === '*') {
-                const v = new IdentifierString('*');
+                const v = new ColumnReference(null, '*');
                 return { value: v, newIndex: idx };
             }
 

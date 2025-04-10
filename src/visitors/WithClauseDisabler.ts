@@ -335,7 +335,7 @@ export class WithClauseDisabler implements SqlComponentVisitor<SqlComponent> {
 
     visitSelectItem(item: SelectItem): SqlComponent {
         const newValue = this.visit(item.value) as ValueComponent;
-        return new SelectItem(newValue, item.name ? item.name.name : null);
+        return new SelectItem(newValue, item.identifier ? item.identifier.name : null);
     }
 
     visitIdentifierString(ident: IdentifierString): SqlComponent {
@@ -356,7 +356,7 @@ export class WithClauseDisabler implements SqlComponentVisitor<SqlComponent> {
     visitSourceExpression(source: SourceExpression): SqlComponent {
         const newSource = this.visit(source.datasource) as SourceComponent;
         // SourceAliasEpression don't contain subqueries, so just return as-is
-        const newAlias = source.name ? source.name : null;
+        const newAlias = source.aliasExpression;
         return new SourceExpression(newSource, newAlias);
     }
 

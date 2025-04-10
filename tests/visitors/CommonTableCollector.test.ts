@@ -20,7 +20,7 @@ describe('CommonTableCollector', () => {
 
         // Assert
         expect(commonTables.length).toBe(1);
-        expect(commonTables[0].name.table.name).toBe('temp_sales');
+        expect(commonTables[0].alias.table.name).toBe('temp_sales');
     });
 
     test('collects multiple WITH clause common tables', () => {
@@ -51,8 +51,8 @@ describe('CommonTableCollector', () => {
         // Assert
         expect(commonTables.length).toBe(2);
         // The improved implementation preserves the original order for CTEs at the same depth
-        expect(commonTables[0].name.table.name).toBe('sales_2024');
-        expect(commonTables[1].name.table.name).toBe('top_products');
+        expect(commonTables[0].alias.table.name).toBe('sales_2024');
+        expect(commonTables[1].alias.table.name).toBe('top_products');
     });
 
     test('collects recursive WITH clause common tables', () => {
@@ -78,7 +78,7 @@ describe('CommonTableCollector', () => {
 
         // Assert
         expect(commonTables.length).toBe(1);
-        expect(commonTables[0].name.table.name).toBe('employees_path');
+        expect(commonTables[0].alias.table.name).toBe('employees_path');
     });
 
     test('collects nested WITH clauses in subqueries', () => {
@@ -101,7 +101,7 @@ describe('CommonTableCollector', () => {
 
         // Assert
         expect(commonTables.length).toBe(1);
-        expect(commonTables[0].name.table.name).toBe('nested_cte');
+        expect(commonTables[0].alias.table.name).toBe('nested_cte');
     });
 
     test('collects WITH clauses in both parts of UNION queries', () => {
@@ -122,8 +122,8 @@ describe('CommonTableCollector', () => {
 
         // Assert
         expect(commonTables.length).toBe(2);
-        expect(commonTables[0].name.table.name).toBe('cte1');
-        expect(commonTables[1].name.table.name).toBe('cte2');
+        expect(commonTables[0].alias.table.name).toBe('cte1');
+        expect(commonTables[1].alias.table.name).toBe('cte2');
     });
 
     test('collects WITH clauses in complex query with multiple nesting levels', () => {
@@ -155,7 +155,7 @@ describe('CommonTableCollector', () => {
 
         // Assert
         expect(commonTables.length).toBe(3);
-        expect(new Set(commonTables.map(ct => ct.name.table.name))).toEqual(new Set(['outer_cte', 'inner_cte', 'deepest_cte']));
+        expect(new Set(commonTables.map(ct => ct.alias.table.name))).toEqual(new Set(['outer_cte', 'inner_cte', 'deepest_cte']));
     });
 
     test('collects WITH clauses in WHERE clause subqueries', () => {
@@ -179,7 +179,7 @@ describe('CommonTableCollector', () => {
 
         // Assert
         expect(commonTables.length).toBe(1);
-        expect(commonTables[0].name.table.name).toBe('top_departments');
+        expect(commonTables[0].alias.table.name).toBe('top_departments');
     });
 
     test('collects deeply nested WITH clauses (with_a -> with_b -> with_c)', () => {
@@ -214,7 +214,7 @@ describe('CommonTableCollector', () => {
         expect(commonTables.length).toBe(3);
 
         // All three CTEs should be collected
-        const tableNames = commonTables.map(ct => ct.name.table.name);
+        const tableNames = commonTables.map(ct => ct.alias.table.name);
         expect(tableNames).toContain('with_a');
         expect(tableNames).toContain('with_b');
         expect(tableNames).toContain('with_c');
@@ -258,7 +258,7 @@ describe('CommonTableCollector', () => {
 
         // Check exact order to ensure inner CTEs are collected before outer CTEs
         // The expected order should be with_c (innermost), with_b (middle), with_a (outermost)
-        const tableNames = commonTables.map(ct => ct.name.table.name);
+        const tableNames = commonTables.map(ct => ct.alias.table.name);
 
         // Log actual order for debugging
         console.log('CTE collection order:', tableNames);
@@ -287,17 +287,16 @@ describe('CommonTableCollector', () => {
 
         // Assert - First collection
         expect(tables1.length).toBe(1);
-        expect(tables1[0].name.table.name).toBe('cte1');
+        expect(tables1[0].alias.table.name).toBe('cte1');
 
         // Act - Reset and second collection
-        collector.reset();
         collector.visit(query2);
         const tables2 = collector.getCommonTables();
 
         // Assert - Second collection
         expect(tables2.length).toBe(2);
         // The improved implementation preserves the original order for CTEs at the same depth
-        expect(tables2[0].name.table.name).toBe('cte2');
-        expect(tables2[1].name.table.name).toBe('cte3');
+        expect(tables2[0].alias.table.name).toBe('cte2');
+        expect(tables2[1].alias.table.name).toBe('cte3');
     });
 });
