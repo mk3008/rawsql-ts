@@ -335,7 +335,7 @@ export class WithClauseDisabler implements SqlComponentVisitor<SqlComponent> {
 
     visitSelectItem(item: SelectItem): SqlComponent {
         const newValue = this.visit(item.value) as ValueComponent;
-        return new SelectItem(newValue, item.identifier ? item.identifier.name : null);
+        return new SelectItem(newValue, item.identifier.name);
     }
 
     visitIdentifierString(ident: IdentifierString): SqlComponent {
