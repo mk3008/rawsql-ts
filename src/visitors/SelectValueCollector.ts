@@ -1,7 +1,8 @@
-import { FromClause, JoinClause, ParenSource, SelectClause, SelectComponent, SelectItem, SourceExpression, SubQuerySource, TableSource } from "../models/Clause";
+import { CommonTable, FromClause, JoinClause, ParenSource, SelectClause, SelectComponent, SelectItem, SourceExpression, SubQuerySource, TableSource } from "../models/Clause";
 import { BinarySelectQuery, SimpleSelectQuery, SelectQuery, ValuesQuery } from "../models/SelectQuery";
 import { SqlComponent, SqlComponentVisitor } from "../models/SqlComponent";
 import { ColumnReference, InlineQuery, LiteralValue, ValueComponent } from "../models/ValueComponent";
+import { CommonTableCollector } from "./CommonTableCollector";
 
 /**
  * Type definition for a function that resolves column names from a table name
@@ -19,9 +20,14 @@ export class SelectValueCollector implements SqlComponentVisitor<void> {
     private visitedNodes: Set<SqlComponent> = new Set();
     private isRootVisit: boolean = true;
     private tableColumnResolver?: TableColumnResolver;
+    private commonTableCollector: CommonTableCollector;
+    private commonTables: CommonTable[];
 
     constructor(tableColumnResolver?: TableColumnResolver) {
         this.tableColumnResolver = tableColumnResolver;
+        this.commonTableCollector = new CommonTableCollector();
+        this.commonTables = [];
+
         this.handlers = new Map<symbol, (arg: any) => void>();
 
         this.handlers.set(SimpleSelectQuery.kind, (expr) => this.visitSimpleSelectQuery(expr as SimpleSelectQuery));
@@ -42,6 +48,7 @@ export class SelectValueCollector implements SqlComponentVisitor<void> {
      */
     private reset(): void {
         this.selectValues = [];
+        this.commonTables = [];
         this.visitedNodes.clear();
     }
 
@@ -100,6 +107,10 @@ export class SelectValueCollector implements SqlComponentVisitor<void> {
      * Process a SimpleSelectQuery to collect data and store the current context
      */
     private visitSimpleSelectQuery(query: SimpleSelectQuery): void {
+        if (this.commonTables.length === 0) {
+            this.commonTables = this.commonTableCollector.collect(query);
+        }
+
         if (query.selectClause) {
             query.selectClause.accept(this);
         }
@@ -163,11 +174,21 @@ export class SelectValueCollector implements SqlComponentVisitor<void> {
     }
 
     private processSourceExpression(sourceName: string | null, source: SourceExpression) {
-        const innerCollector = new SelectValueCollector(this.tableColumnResolver);
-        const innerSelected = innerCollector.collect(source);
-        innerSelected.forEach(item => {
-            this.addSelectValueAsUnique(item.name, new ColumnReference(sourceName ? [sourceName] : null, item.name));
-        });
+        // check common table
+        const commonTable = this.commonTables.find(item => item.alias.table.name === sourceName);
+        if (commonTable) {
+            const innerCollector = new SelectValueCollector(this.tableColumnResolver);
+            const innerSelected = innerCollector.collect(commonTable.query);
+            innerSelected.forEach(item => {
+                this.addSelectValueAsUnique(item.name, new ColumnReference(sourceName ? [sourceName] : null, item.name));
+            });
+        } else {
+            const innerCollector = new SelectValueCollector(this.tableColumnResolver);
+            const innerSelected = innerCollector.collect(source);
+            innerSelected.forEach(item => {
+                this.addSelectValueAsUnique(item.name, new ColumnReference(sourceName ? [sourceName] : null, item.name));
+            });
+        }
     }
 
     private visitSelectClause(clause: SelectClause): void {

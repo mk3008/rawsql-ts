@@ -162,4 +162,29 @@ describe('SelectValueCollectorWildcard', () => {
         expect(expressions).toContain('"u"."email"');
         expect(expressions).toContain('"u"."created_at"');
     });
+
+    test('Wildcard expansion from CTE', () => {
+        // Arrange - * wildcard in CTE
+        const sql = `WITH cte AS (SELECT * FROM users) SELECT * FROM cte`;
+        const query = SelectQueryParser.parseFromText(sql);
+        const collector = new SelectValueCollector(mockTableResolver);
+
+        // Act
+        const items = collector.collect(query);
+        const columnNames = items.map(item => item.name);
+        const expressions = items.map(item => formatter.visit(item.value));
+
+        // Assert
+        expect(items.length).toBe(4); // all columns from users table via CTE
+        expect(columnNames).toContain('id');
+        expect(columnNames).toContain('name');
+        expect(columnNames).toContain('email');
+        expect(columnNames).toContain('created_at');
+
+        // Verify expression content
+        expect(expressions).toContain('"cte"."id"');
+        expect(expressions).toContain('"cte"."name"');
+        expect(expressions).toContain('"cte"."email"');
+        expect(expressions).toContain('"cte"."created_at"');
+    });
 });
