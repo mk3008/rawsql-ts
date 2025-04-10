@@ -22,11 +22,13 @@ export class SelectValueCollector implements SqlComponentVisitor<void> {
     private tableColumnResolver?: TableColumnResolver;
     private commonTableCollector: CommonTableCollector;
     private commonTables: CommonTable[];
+    public rootQuery: SelectQuery | null = null;
 
-    constructor(tableColumnResolver?: TableColumnResolver) {
+    constructor(tableColumnResolver?: TableColumnResolver, rootQuery: SelectQuery | null = null) {
         this.tableColumnResolver = tableColumnResolver;
         this.commonTableCollector = new CommonTableCollector();
         this.commonTables = [];
+        this.rootQuery = rootQuery;
 
         this.handlers = new Map<symbol, (arg: any) => void>();
 
@@ -48,8 +50,10 @@ export class SelectValueCollector implements SqlComponentVisitor<void> {
      */
     private reset(): void {
         this.selectValues = [];
-        this.commonTables = [];
         this.visitedNodes.clear();
+        if (this.rootQuery) {
+            this.commonTables = this.commonTableCollector.collect(this.rootQuery);
+        }
     }
 
     public collect(arg: SqlComponent): { name: string, value: SelectComponent }[] {
@@ -107,7 +111,8 @@ export class SelectValueCollector implements SqlComponentVisitor<void> {
      * Process a SimpleSelectQuery to collect data and store the current context
      */
     private visitSimpleSelectQuery(query: SimpleSelectQuery): void {
-        if (this.commonTables.length === 0) {
+        if (this.rootQuery === null) {
+            this.rootQuery = query;
             this.commonTables = this.commonTableCollector.collect(query);
         }
 
@@ -177,13 +182,13 @@ export class SelectValueCollector implements SqlComponentVisitor<void> {
         // check common table
         const commonTable = this.commonTables.find(item => item.alias.table.name === sourceName);
         if (commonTable) {
-            const innerCollector = new SelectValueCollector(this.tableColumnResolver);
+            const innerCollector = new SelectValueCollector(this.tableColumnResolver, this.rootQuery);
             const innerSelected = innerCollector.collect(commonTable.query);
             innerSelected.forEach(item => {
                 this.addSelectValueAsUnique(item.name, new ColumnReference(sourceName ? [sourceName] : null, item.name));
             });
         } else {
-            const innerCollector = new SelectValueCollector(this.tableColumnResolver);
+            const innerCollector = new SelectValueCollector(this.tableColumnResolver, this.rootQuery);
             const innerSelected = innerCollector.collect(source);
             innerSelected.forEach(item => {
                 this.addSelectValueAsUnique(item.name, new ColumnReference(sourceName ? [sourceName] : null, item.name));
@@ -243,7 +248,7 @@ export class SelectValueCollector implements SqlComponentVisitor<void> {
             return;
         } else if (source.datasource instanceof SubQuerySource) {
             const sourceName = source.getAliasName();
-            const innerCollector = new SelectValueCollector(this.tableColumnResolver);
+            const innerCollector = new SelectValueCollector(this.tableColumnResolver, this.rootQuery);
             const innerSelected = innerCollector.collect(source.datasource.query);
             innerSelected.forEach(item => {
                 this.addSelectValueAsUnique(item.name, new ColumnReference(sourceName ? [sourceName] : null, item.name));

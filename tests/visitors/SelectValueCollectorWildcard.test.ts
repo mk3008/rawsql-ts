@@ -187,4 +187,29 @@ describe('SelectValueCollectorWildcard', () => {
         expect(expressions).toContain('"cte"."email"');
         expect(expressions).toContain('"cte"."created_at"');
     });
+
+    test('Wildcard expansion from nested CTEs', () => {
+        // Arrange - * wildcard in nested CTEs
+        const sql = `WITH cte1 AS (SELECT * FROM users), cte2 AS (SELECT * FROM cte1) SELECT * FROM cte2`;
+        const query = SelectQueryParser.parseFromText(sql);
+        const collector = new SelectValueCollector(mockTableResolver);
+
+        // Act
+        const items = collector.collect(query);
+        const columnNames = items.map(item => item.name);
+        const expressions = items.map(item => formatter.visit(item.value));
+
+        // Assert
+        expect(items.length).toBe(4); // all columns from users table via nested CTEs
+        expect(columnNames).toContain('id');
+        expect(columnNames).toContain('name');
+        expect(columnNames).toContain('email');
+        expect(columnNames).toContain('created_at');
+
+        // Verify expression content - columns should reference the final CTE (cte2)
+        expect(expressions).toContain('"cte2"."id"');
+        expect(expressions).toContain('"cte2"."name"');
+        expect(expressions).toContain('"cte2"."email"');
+        expect(expressions).toContain('"cte2"."created_at"');
+    });
 });
