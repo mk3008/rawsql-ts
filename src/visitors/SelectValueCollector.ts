@@ -35,13 +35,14 @@ export class SelectValueCollector implements SqlComponentVisitor<void> {
         this.handlers.set(SimpleSelectQuery.kind, (expr) => this.visitSimpleSelectQuery(expr as SimpleSelectQuery));
         this.handlers.set(SelectClause.kind, (expr) => this.visitSelectClause(expr as SelectClause));
         this.handlers.set(SourceExpression.kind, (expr) => this.visitSourceExpression(expr as SourceExpression));
+        this.handlers.set(FromClause.kind, (expr) => this.visitFromClause(expr as FromClause));
     }
 
     /**
      * Get all collected SelectItems as an array of objects with name and value properties
-     * @returns An array of objects with name (string) and value (SelectComponent) properties
+     * @returns An array of objects with name (string) and value (ValueComponent) properties
      */
-    public getSelectItems(): { name: string, value: SelectComponent }[] {
+    public getValues(): { name: string, value: ValueComponent }[] {
         return this.selectValues;
     }
 
@@ -58,10 +59,10 @@ export class SelectValueCollector implements SqlComponentVisitor<void> {
         }
     }
 
-    public collect(arg: SqlComponent): { name: string, value: SelectComponent }[] {
+    public collect(arg: SqlComponent): { name: string, value: ValueComponent }[] {
         // Visit the component and return the collected select items
         this.visit(arg);
-        const items = this.getSelectItems();
+        const items = this.getValues();
         this.reset(); // Reset after collection
         return items;
     }
@@ -259,6 +260,12 @@ export class SelectValueCollector implements SqlComponentVisitor<void> {
             return;
         } else if (source.datasource instanceof ParenSource) {
             return this.visit(source.datasource.source);
+        }
+    }
+
+    private visitFromClause(clause: FromClause): void {
+        if (clause) {
+            this.processFromClause(clause, true);
         }
     }
 

@@ -1,11 +1,11 @@
 // filepath: c:\Users\mssgm\Documents\GitHub\carbunqlex-ts\src\visitors\ColumnReferenceCollector.ts
-import { CommonTable, ForClause, FromClause, GroupByClause, HavingClause, LimitClause, OrderByClause, SelectClause, WhereClause, WindowFrameClause, JoinClause, JoinOnClause, JoinUsingClause, TableSource, SubQuerySource, SourceExpression } from "../models/Clause";
+import { CommonTable, ForClause, FromClause, GroupByClause, HavingClause, LimitClause, OrderByClause, SelectClause, WhereClause, WindowFrameClause, JoinClause, JoinOnClause, JoinUsingClause, TableSource, SubQuerySource, SourceExpression, SelectItem } from "../models/Clause";
 import { SimpleSelectQuery } from "../models/SelectQuery";
 import { SqlComponent, SqlComponentVisitor } from "../models/SqlComponent";
-import { ArrayExpression, BetweenExpression, BinaryExpression, CaseExpression, CastExpression, ColumnReference, FunctionCall, InlineQuery, ParenExpression, UnaryExpression, ValueComponent } from "../models/ValueComponent";
+import { ArrayExpression, BetweenExpression, BinaryExpression, CaseExpression, CastExpression, ColumnReference, FunctionCall, InlineQuery, ParenExpression, UnaryExpression, ValueComponent, ValueList } from "../models/ValueComponent";
 import { CommonTableCollector } from "./CommonTableCollector";
 import { Formatter } from "./Formatter";
-import { SelectValueCollector } from "./SelectValueCollector";
+import { SelectValueCollector, TableColumnResolver } from "./SelectValueCollector";
 
 /**
  * A visitor that collects all ColumnReference instances from a SQL query structure.
@@ -17,18 +17,23 @@ import { SelectValueCollector } from "./SelectValueCollector";
  */
 export class SelectableColumnCollector implements SqlComponentVisitor<void> {
     private handlers: Map<symbol, (arg: any) => void>;
-    private columnReferenceMap: Map<string, ColumnReference> = new Map();
+    private selectValues: { name: string, value: ValueComponent }[] = [];
     private visitedNodes: Set<SqlComponent> = new Set();
     private formatter: Formatter;
     private isRootVisit: boolean = true;
+    private tableColumnResolver?: TableColumnResolver;
     private commonTableCollector: CommonTableCollector;
     private selectValueCollector: SelectValueCollector;
     private commonTables: CommonTable[] = [];
 
-    constructor() {
-        this.formatter = new Formatter();
+    constructor(tableColumnResolver?: TableColumnResolver) {
+        this.tableColumnResolver = tableColumnResolver;
         this.selectValueCollector = new SelectValueCollector();
         this.commonTableCollector = new CommonTableCollector();
+        this.commonTables = [];
+
+        this.formatter = new Formatter();
+
         this.handlers = new Map<symbol, (arg: any) => void>();
 
         // Main entry point is the SimpleSelectQuery
@@ -43,12 +48,8 @@ export class SelectableColumnCollector implements SqlComponentVisitor<void> {
         this.handlers.set(OrderByClause.kind, (expr) => this.visitOrderByClause(expr as OrderByClause));
         this.handlers.set(WindowFrameClause.kind, (expr) => this.visitWindowFrameClause(expr as WindowFrameClause));
         this.handlers.set(LimitClause.kind, (expr) => this.visitLimitClause(expr as LimitClause));
-        this.handlers.set(ForClause.kind, (expr) => this.visitForClause(expr as ForClause));
-
-        this.handlers.set(SourceExpression.kind, (expr) => this.visitSourceExpression(expr as SourceExpression));
 
         // Add handlers for JOIN conditions
-        this.handlers.set(JoinClause.kind, (expr) => this.visitJoinClause(expr as JoinClause));
         this.handlers.set(JoinOnClause.kind, (expr) => this.visitJoinOnClause(expr as JoinOnClause));
         this.handlers.set(JoinUsingClause.kind, (expr) => this.visitJoinUsingClause(expr as JoinUsingClause));
 
@@ -62,42 +63,35 @@ export class SelectableColumnCollector implements SqlComponentVisitor<void> {
         this.handlers.set(CastExpression.kind, (expr) => this.visitCastExpression(expr as CastExpression));
         this.handlers.set(BetweenExpression.kind, (expr) => this.visitBetweenExpression(expr as BetweenExpression));
         this.handlers.set(ArrayExpression.kind, (expr) => this.visitArrayExpression(expr as ArrayExpression));
-
-        // Add handler for InlineQuery to process subqueries
-        this.handlers.set(InlineQuery.kind, (expr) => this.visitInlineQuery(expr as InlineQuery));
+        this.handlers.set(ValueList.kind, (expr) => this.visitValueList(expr as ValueList));
     }
 
-    /**
-     * Get all collected ColumnReferences as an array
-     * @returns An array of unique ColumnReference objects
-     */
-    public getColumnReferences(): ColumnReference[] {
-        return Array.from(this.columnReferenceMap.values());
+    public getValues(): { name: string, value: ValueComponent }[] {
+        return this.selectValues;
+    }
+
+    public collect(arg: SqlComponent): { name: string, value: ValueComponent }[] {
+        // Visit the component and return the collected select items
+        this.visit(arg);
+        const items = this.getValues();
+        this.reset(); // Reset after collection
+        return items;
     }
 
     /**
      * Reset the collection of ColumnReferences
      */
     private reset(): void {
-        this.columnReferenceMap.clear();
+        this.selectValues = []
         this.visitedNodes.clear();
         this.commonTables = [];
     }
 
-    /**
-     * Gets a unique string representation of a ColumnReference using the formatter
-     * @param columnRef The column reference to convert to string
-     * @returns A string representation of the column reference
-     */
-    private getColumnReferenceKey(columnRef: ColumnReference): string {
-        return columnRef.toSqlString(this.formatter);
-    }
-
-    public collect(arg: SqlComponent): ColumnReference[] {
-        // Visit the component and return the collected column references
-        this.visit(arg);
-        const columns = this.getColumnReferences();
-        return columns;
+    private addSelectValueAsUnique(name: string, value: ValueComponent): void {
+        // Check if a select value with the same name already exists before adding
+        if (!this.selectValues.some(item => item.name === name)) {
+            this.selectValues.push({ name, value });
+        }
     }
 
     /**
@@ -150,63 +144,9 @@ export class SelectableColumnCollector implements SqlComponentVisitor<void> {
         // For any other component types, we don't need to do anything
     }
 
-    visitSourceExpression(arg: SourceExpression): void {
-        if (arg.datasource instanceof TableSource) {
-            // If the source is a table, we need to scan it for column references
-            this.scanTableSource(arg.datasource);
-        } else if (arg.datasource instanceof SubQuerySource) {
-            const sourceName = arg.name?.table.name;
-            if (sourceName) {
-                const columns = this.selectValueCollector.collect(arg.datasource.query);
-                this.addVirtualColumns(sourceName, columns);
-            }
-        }
-    }
-
-    private scanTableSource(arg: TableSource): void {
-        // Find the matching CTE in a single pass instead of scanning twice
-        const matchingCte = this.commonTables.find(cte =>
-            cte.name.table && cte.name.table.name === arg.name.name
-        );
-
-        // If a matching CTE was found, visit the query inside the CTE
-        if (matchingCte && matchingCte.query) {
-            const columns = this.selectValueCollector.collect(matchingCte.query);
-            if (columns.length > 0) {
-                const sourceName = matchingCte.name.table.name;
-                this.addVirtualColumns(sourceName, columns);
-            }
-        }
-
-        // If it's not a CTE, it's a physical table which can't be processed offline
-        // So we do nothing and exit
-    }
-
     /**
-     * Adds virtual columns from a source (CTE or subquery) to the column reference map
-     * @param sourceName The name of the source
-     * @param columns The columns to add
-     */
-    private addVirtualColumns(sourceName: string, columns: { name: string, value: SqlComponent }[]): void {
-        // Use column names as keys to create a Map and eliminate duplicates
-        const uniqueColumns = new Map<string, { name: string, value: SqlComponent }>();
-        for (const column of columns) {
-            uniqueColumns.set(column.name, column);
-        }
-
-        // Add deduplicated columns
-        for (const column of uniqueColumns.values()) {
-            const key = sourceName + '.' + column.name;
-            if (!this.columnReferenceMap.has(key)) {
-                const val = new ColumnReference([sourceName], column.name);
-                this.columnReferenceMap.set(key, val);
-            }
-        }
-    }
-
-    /**
-     * Process a SimpleSelectQuery to collect ColumnReferences from all its clauses
-     */
+      * Process a SimpleSelectQuery to collect ColumnReferences from all its clauses
+      */
     private visitSimpleSelectQuery(query: SimpleSelectQuery): void {
         // Visit all clauses that might contain column references
         if (query.selectClause) {
@@ -252,19 +192,29 @@ export class SelectableColumnCollector implements SqlComponentVisitor<void> {
     private visitSelectClause(clause: SelectClause): void {
         if (clause.items) {
             for (const item of clause.items) {
-                item.accept(this);
+                if (item instanceof SelectItem) {
+                    this.addSelectValueAsUnique(item.identifier.name, item.value);
+                } else {
+                    item.accept(this);
+                }
             }
         }
     }
 
     private visitFromClause(clause: FromClause): void {
-        if (clause.source) {
-            clause.source.accept(this);
+        // import source values
+        const collector = new SelectValueCollector(this.tableColumnResolver, this.commonTables);
+        const sourceValues = collector.collect(clause);
+        for (const item of sourceValues) {
+            // Add the select value as unique to avoid duplicates
+            this.addSelectValueAsUnique(item.name, item.value);
         }
 
         if (clause.joins) {
             for (const join of clause.joins) {
-                join.accept(this);
+                if (join.condition) {
+                    join.condition.accept(this);
+                }
             }
         }
     }
@@ -307,25 +257,8 @@ export class SelectableColumnCollector implements SqlComponentVisitor<void> {
         if (clause.limit) {
             clause.limit.accept(this);
         }
-
         if (clause.offset) {
             clause.offset.accept(this);
-        }
-    }
-
-    private visitForClause(clause: ForClause): void {
-        // For clause typically doesn't contain column references
-    }
-
-    private visitJoinClause(joinClause: JoinClause): void {
-        // Visit the source being joined
-        if (joinClause.source) {
-            joinClause.source.accept(this);
-        }
-
-        // Visit the join condition if it exists
-        if (joinClause.condition) {
-            joinClause.condition.accept(this);
         }
     }
 
@@ -345,10 +278,9 @@ export class SelectableColumnCollector implements SqlComponentVisitor<void> {
 
     // Value component handlers
     private visitColumnReference(columnRef: ColumnReference): void {
-        // Add the column reference to our collection using string representation as key
-        const key = this.getColumnReferenceKey(columnRef);
-        if (!this.columnReferenceMap.has(key)) {
-            this.columnReferenceMap.set(key, columnRef);
+        // Wildcards are ignored because they cannot be reused even if detected
+        if (columnRef.column.name !== "*") {
+            this.addSelectValueAsUnique(columnRef.column.name, columnRef);
         }
     }
 
@@ -357,7 +289,6 @@ export class SelectableColumnCollector implements SqlComponentVisitor<void> {
         if (expr.left) {
             expr.left.accept(this);
         }
-
         if (expr.right) {
             expr.right.accept(this);
         }
@@ -373,7 +304,6 @@ export class SelectableColumnCollector implements SqlComponentVisitor<void> {
         if (func.argument) {
             func.argument.accept(this);
         }
-
         if (func.over) {
             func.over.accept(this);
         }
@@ -421,21 +351,11 @@ export class SelectableColumnCollector implements SqlComponentVisitor<void> {
         }
     }
 
-    private visitInlineQuery(expr: InlineQuery): void {
-        // Do not process the InlineQuery's content (subquery content)
-        // We only care about column references from tables defined in the root FROM/JOIN clauses
-
-        // Don't collect virtual columns from subqueries anymore
-        // This prevents columns like 'user_id' from being collected when they're not part of root tables
-
-        // The only time we should process a subquery's column references is when they reference
-        // tables from the main query (like u.id in a WHERE clause inside the subquery)
-        // but those will be handled elsewhere when processing the main query context
-
-        // Important: We should NOT collect the subquery's output columns automatically
-        // Using SelectComponentCollector was causing extra columns to be collected
-
-        // DELIBERATELY EMPTY - No processing of subquery content
-        // This ensures we only collect column references from the main query context
+    private visitValueList(expr: ValueList): void {
+        if (expr.values) {
+            for (const value of expr.values) {
+                value.accept(this);
+            }
+        }
     }
 }

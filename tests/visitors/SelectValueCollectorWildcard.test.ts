@@ -30,6 +30,7 @@ describe('SelectValueCollectorWildcard', () => {
         const items = collector.collect(query);
         const columnNames = items.map(item => item.name);
         const expressions = items.map(item => formatter.visit(item.value));
+
         // Assert
         expect(items.length).toBe(4); // all columns from users table
         expect(columnNames).toContain('id');

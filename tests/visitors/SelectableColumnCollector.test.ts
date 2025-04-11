@@ -2,7 +2,9 @@
 import { describe, expect, test } from 'vitest';
 import { SelectableColumnCollector } from '../../src/visitors/SelectableColumnCollector';
 import { SelectQueryParser } from '../../src/parsers/SelectQueryParser';
-import { ColumnReference } from '../../src/models/ValueComponent';
+import { Formatter } from '../../src/visitors/Formatter';
+
+const formatter = new Formatter();
 
 describe('SelectableColumnCollector', () => {
     test('collects basic column references', () => {
@@ -13,15 +15,17 @@ describe('SelectableColumnCollector', () => {
 
         // Act
         collector.visit(query);
-        const columns = collector.getColumnReferences().map(x => x.toString());
+        const items = collector.collect(query);
+        const columnNames = items.map(item => item.name);
+        const expressions = items.map(item => formatter.visit(item.value));
 
         // Assert
-        expect(columns.length).toBe(3); // id, name, active
+        expect(items.length).toBe(3); // id, name, active
 
         // Check that columns are included
-        expect(columns).toContain('id');
-        expect(columns).toContain('name');
-        expect(columns).toContain('active');
+        expect(columnNames).toContain('id');
+        expect(columnNames).toContain('name');
+        expect(columnNames).toContain('active');
     });
 
     test('collects column references with table qualifiers', () => {
@@ -32,15 +36,17 @@ describe('SelectableColumnCollector', () => {
 
         // Act
         collector.visit(query);
-        const columns = collector.getColumnReferences().map(x => x.toString());
+        const items = collector.collect(query);
+        const columnNames = items.map(item => item.name);
+        const expressions = items.map(item => formatter.visit(item.value));
 
         // Assert
-        expect(columns.length).toBe(3); // u.id, u.name, u.active
+        expect(items.length).toBe(3); // u.id, u.name, u.active
 
         // Check that qualified columns are included
-        expect(columns).toContain('u.id');
-        expect(columns).toContain('u.name');
-        expect(columns).toContain('u.active');
+        expect(columnNames).toContain('id');
+        expect(columnNames).toContain('name');
+        expect(columnNames).toContain('active');
     });
 
     test('collects column references from complex WHERE clauses', () => {
@@ -57,18 +63,20 @@ describe('SelectableColumnCollector', () => {
 
         // Act
         collector.visit(query);
-        const columns = collector.getColumnReferences().map(x => x.toString());
+        const items = collector.collect(query);
+        const columnNames = items.map(item => item.name);
+        const expressions = items.map(item => formatter.visit(item.value));
 
         // Assert
-        expect(columns.length).toBe(6); // id, name, age, status, role, created_at
+        expect(items.length).toBe(6); // id, name, age, status, role, created_at
 
         // Check that all columns are included
-        expect(columns).toContain('id');
-        expect(columns).toContain('name');
-        expect(columns).toContain('age');
-        expect(columns).toContain('status');
-        expect(columns).toContain('role');
-        expect(columns).toContain('created_at');
+        expect(columnNames).toContain('id');
+        expect(columnNames).toContain('name');
+        expect(columnNames).toContain('age');
+        expect(columnNames).toContain('status');
+        expect(columnNames).toContain('role');
+        expect(columnNames).toContain('created_at');
     });
 
     test('collects column references from queries with JOINs', () => {
@@ -85,20 +93,21 @@ describe('SelectableColumnCollector', () => {
 
         // Act
         collector.visit(query);
-        const columns = collector.getColumnReferences().map(x => x.toString());
+        const items = collector.collect(query);
+        const columnNames = items.map(item => item.name);
+        const expressions = items.map(item => formatter.visit(item.value));
 
         // Assert
-        expect(columns.length).toBe(8);
+        expect(items.length).toBe(7);
 
         // Check that main columns are included
-        expect(columns).toContain('u.id');
-        expect(columns).toContain('u.name');
-        expect(columns).toContain('u.active');
-        expect(columns).toContain('p.phone');
-        expect(columns).toContain('p.user_id');
-        expect(columns).toContain('p.verified');
-        expect(columns).toContain('a.user_id');
-        expect(columns).toContain('a.street');
+        expect(columnNames).toContain('id');
+        expect(columnNames).toContain('name');
+        expect(columnNames).toContain('active');
+        expect(columnNames).toContain('phone');
+        expect(columnNames).toContain('user_id');
+        expect(columnNames).toContain('verified');
+        expect(columnNames).toContain('street');
     });
 
     test('collects column references from queries with GROUP BY and ORDER BY', () => {
@@ -119,15 +128,19 @@ describe('SelectableColumnCollector', () => {
 
         // Act
         collector.visit(query);
-        const columns = collector.getColumnReferences().map(x => x.toString());
+        const items = collector.collect(query);
+        const columnNames = items.map(item => item.name);
+        const expressions = items.map(item => formatter.visit(item.value));
 
         // Assert
-        expect(columns.length).toBe(3);
+        expect(items.length).toBe(5);
 
         // Check that all columns are included
-        expect(columns).toContain('department_id');
-        expect(columns).toContain('salary');
-        expect(columns).toContain('hire_date');
+        expect(columnNames).toContain('department_id');
+        expect(columnNames).toContain('salary');
+        expect(columnNames).toContain('hire_date');
+        expect(columnNames).toContain('count');
+        expect(columnNames).toContain('avg_salary');
     });
 
     test('should not collect wildcard (*) as a column reference', () => {
@@ -138,10 +151,12 @@ describe('SelectableColumnCollector', () => {
 
         // Act
         collector.visit(query);
-        const columns = collector.getColumnReferences().map(x => x.toString());
+        const items = collector.collect(query);
+        const columnNames = items.map(item => item.name);
+        const expressions = items.map(item => formatter.visit(item.value));
 
         // Assert
-        expect(columns.length).toBe(0);
+        expect(items.length).toBe(0);
         // Wildcard * is not collected as a column reference
     });
 
@@ -160,16 +175,17 @@ describe('SelectableColumnCollector', () => {
 
         // Act
         collector.visit(query);
-        const columns = collector.getColumnReferences().map(x => x.toString());
+        const items = collector.collect(query);
+        const columnNames = items.map(item => item.name);
+        const expressions = items.map(item => formatter.visit(item.value));
 
-        // Assert - Only columns exposed from the subquery are collected
-        expect(columns).toContain('sub.id');
-        expect(columns).toContain('sub.custom_name');
-        expect(columns).toContain('sub.calculated_value');
+        // Assert - Only columns exposed from the subquery are collected        expect(columnNames).toContain('id');
+        expect(columnNames).toContain('custom_name');
+        expect(columnNames).toContain('calculated_value');
         // Internal table columns cannot be referenced directly and are not included
-        expect(columns).not.toContain('u.id');
-        expect(columns).not.toContain('u.name');
-        expect(columns).not.toContain('u.age');
+        expect(columnNames).not.toContain('u.id');
+        expect(columnNames).not.toContain('u.name');
+        expect(columnNames).not.toContain('u.age');
     });
 
     test('should collect available columns from CTE sources', () => {
@@ -193,16 +209,17 @@ describe('SelectableColumnCollector', () => {
 
         // Act
         collector.visit(query);
-        const columns = collector.getColumnReferences().map(x => x.toString());
+        const items = collector.collect(query);
+        const columnNames = items.map(item => item.name);
+        const expressions = items.map(item => formatter.visit(item.value));
 
-        // Assert - Only columns exposed from the CTE are collected
-        expect(columns).toContain('us.id');
-        expect(columns).toContain('us.name');
-        expect(columns).toContain('us.order_count');
+        // Assert - Only columns exposed from the CTE are collected        expect(columnNames).toContain('id');
+        expect(columnNames).toContain('name');
+        expect(columnNames).toContain('order_count');
         // Internal table columns from CTE cannot be referenced directly and are not included
-        expect(columns).not.toContain('u.id');
-        expect(columns).not.toContain('u.name');
-        expect(columns).not.toContain('o.user_id');
+        expect(columnNames).not.toContain('u.id');
+        expect(columnNames).not.toContain('u.name');
+        expect(columnNames).not.toContain('o.user_id');
     });
 
     test('collects column references from subqueries but not from CTEs', () => {
@@ -223,25 +240,26 @@ describe('SelectableColumnCollector', () => {
 
         // Act
         collector.visit(query);
-        const columns = collector.getColumnReferences().map(x => x.toString());
+        const items = collector.collect(query);
+        const columnNames = items.map(item => item.name);
+        const expressions = items.map(item => formatter.visit(item.value));
 
         // Assert
         // Only references from the data source defined in the root FROM clause (users u) are targeted
-        expect(columns.length).toBe(2);
+        expect(items.length).toBe(3);
 
-        // Confirm that the main query columns are included (data source defined in the root FROM clause)
-        expect(columns).toContain('u.id');    // Column of the data source 'users u' in the root FROM clause, so targeted
-        expect(columns).toContain('u.name');  // Column of the data source 'users u' in the root FROM clause, so targeted
+        // Confirm that the main query columns are included (data source defined in the root FROM clause)        expect(columnNames).toContain('id');    // Column of the data source 'users u' in the root FROM clause, so targeted
+        expect(columnNames).toContain('name');  // Column of the data source 'users u' in the root FROM clause, so targeted
 
         // Confirm that subquery columns are not included
-        expect(columns).not.toContain('o.user_id'); // Column within the subquery, not a data source in the root FROM clause, so excluded
-        expect(columns).not.toContain('user_id');   // Column of the permissions table, so excluded
-        expect(columns).not.toContain('role');      // Column of the permissions table, so excluded
+        expect(columnNames).not.toContain('o.user_id'); // Column within the subquery, not a data source in the root FROM clause, so excluded
+        expect(columnNames).not.toContain('user_id');   // Column of the permissions table, so excluded
+        expect(columnNames).not.toContain('role');      // Column of the permissions table, so excluded
 
         // Confirm that CTE columns are not included
-        expect(columns).not.toContain('status');       // Column in the WHERE clause of the CTE, so excluded
-        expect(columns).not.toContain('temp_table.id'); // Column in the SELECT clause of the CTE, so excluded
-        expect(columns).not.toContain('temp_table.name'); // Column in the SELECT clause of the CTE, so excluded
+        expect(columnNames).not.toContain('status');       // Column in the WHERE clause of the CTE, so excluded
+        expect(columnNames).not.toContain('temp_table.id'); // Column in the SELECT clause of the CTE, so excluded
+        expect(columnNames).not.toContain('temp_table.name'); // Column in the SELECT clause of the CTE, so excluded
     });
 
     test('removes duplicate column references', () => {
@@ -256,18 +274,20 @@ describe('SelectableColumnCollector', () => {
 
         // Act
         collector.visit(query);
-        const columns = collector.getColumnReferences().map(x => x.toString());
+        const items = collector.collect(query);
+        const columnNames = items.map(item => item.name);
+        const expressions = items.map(item => formatter.visit(item.value));
 
         // Assert
         // Note: Using the formatter for deduplication, references to the same table/column become a single instance
-        expect(columns.length).toBe(2); // id (after deduplication), name
+        expect(items.length).toBe(2); // id (after deduplication), name
 
         // Check that all columns are included
-        expect(columns).toContain('id');
-        expect(columns).toContain('name');
+        expect(columnNames).toContain('id');
+        expect(columnNames).toContain('name');
 
         // Check that there is only one column reference with name 'id' (confirming deduplication)
-        const idColumns = columns.filter(col => col === 'id');
+        const idColumns = columnNames.filter(col => col === 'id');
         expect(idColumns.length).toBe(1);
     });
 
@@ -281,8 +301,7 @@ describe('SelectableColumnCollector', () => {
         const collector = new SelectableColumnCollector();
 
         // Act - First collection
-        collector.visit(query1);
-        const firstColumns = collector.getColumnReferences().map(x => x.toString());
+        const firstColumns = collector.collect(query1).map(x => x.name);
 
         // Assert - First collection results
         expect(firstColumns.length).toBe(2);
@@ -290,8 +309,7 @@ describe('SelectableColumnCollector', () => {
         expect(firstColumns).toContain('name');
 
         // Act - Reset and do second collection
-        collector.visit(query2);
-        const secondColumns = collector.getColumnReferences().map(x => x.toString());
+        const secondColumns = collector.collect(query2).map(x => x.name);
 
         // Assert - Second collection results (should not contain items from first collection)
         expect(secondColumns.length).toBe(2);
@@ -313,14 +331,15 @@ describe('SelectableColumnCollector', () => {
 
         // Act
         collector.visit(query);
-        const columns = collector.getColumnReferences().map(x => x.toString());
+        const items = collector.collect(query);
+        const columnNames = items.map(item => item.name);
+        const expressions = items.map(item => formatter.visit(item.value));
 
         // Assert
-        expect(columns.length).toBeGreaterThan(0);
+        expect(items.length).toBeGreaterThan(0);
 
-        // Check that virtual columns from subquery are included
-        expect(columns).toContain('sub.column_name');
-        expect(columns).toContain('sub.another_col');
+        // Check that virtual columns from subquery are included        expect(columnNames).toContain('column_name');
+        expect(columnNames).toContain('another_col');
 
         // Note: Current implementation doesn't access inner subquery columns directly
         // Original columns are not exposed outside the subquery context
@@ -341,18 +360,19 @@ describe('SelectableColumnCollector', () => {
 
         // Act
         collector.visit(query);
-        const columns = collector.getColumnReferences().map(x => x.toString());
+        const items = collector.collect(query);
+        const columnNames = items.map(item => item.name);
+        const expressions = items.map(item => formatter.visit(item.value));
 
-        // Assert
-        expect(columns.length).toBeGreaterThan(0);
+        // Assert        expect(items.length).toBeGreaterThan(0);
 
         // Check main table columns
-        expect(columns).toContain('u.id');
-        expect(columns).toContain('u.name');
+        expect(columnNames).toContain('id');
+        expect(columnNames).toContain('name');
 
         // Check virtual columns from JOIN subquery
-        expect(columns).toContain('s.product_count');
-        expect(columns).toContain('s.user_id'); // Joined column
+        expect(columnNames).toContain('product_count');
+        expect(columnNames).toContain('user_id'); // Joined column
 
         // Note: Current implementation may not handle all subquery columns consistently
     });
@@ -373,14 +393,16 @@ describe('SelectableColumnCollector', () => {
 
         // Act
         collector.visit(query);
-        const columns = collector.getColumnReferences().map(x => x.toString());
+        const items = collector.collect(query);
+        const columnNames = items.map(item => item.name);
+        const expressions = items.map(item => formatter.visit(item.value));
 
         // Assert
-        expect(columns.length).toBeGreaterThan(0);
-
-        // Check virtual columns from outer subquery
-        expect(columns).toContain('outer_sub.dept_name');
-        expect(columns).toContain('outer_sub.avg_salary');
+        expect(items.length).toBe(4);        // Check virtual columns from outer subquery
+        expect(columnNames).toContain('user_name');
+        expect(columnNames).toContain('total');
+        expect(columnNames).toContain('dept_name');
+        expect(columnNames).toContain('avg_salary');
 
         // Note: Internal subquery columns aren't directly accessible in current implementation
         // The internal column references are only used within their subquery context
@@ -397,17 +419,16 @@ describe('SelectableColumnCollector', () => {
 
         // Act
         collector.visit(query);
-        const columns = collector.getColumnReferences().map(x => x.toString());
+        const items = collector.collect(query);
+        const columnNames = items.map(item => item.name);
+        const expressions = items.map(item => formatter.visit(item.value));        // Debug output
+        console.log('Debug - actual columns returned:', columnNames);
 
-        // Debug output
-        console.log('Debug - actual columns returned:', columns);
-
-        // Assert
-        // Both columns defined in the subquery's SELECT clause should be available
+        // Assert        // Both columns defined in the subquery's SELECT clause should be available
         // Length check is temporarily disabled
-        // expect(columns.length).toBe(2);
-        expect(columns).toContain('b.id');
-        expect(columns).toContain('b.value');
+        expect(items.length).toBe(2);
+        expect(columnNames).toContain('id');
+        expect(columnNames).toContain('value');
     });
 
     test('collects complex columns from nested subqueries', () => {
@@ -437,17 +458,18 @@ describe('SelectableColumnCollector', () => {
 
         // Act
         collector.visit(query);
-        const columns = collector.getColumnReferences().map(x => x.toString());
+        const items = collector.collect(query);
+        const columnNames = items.map(item => item.name);
+        const expressions = items.map(item => formatter.visit(item.value));
 
-        // Assert
-        // Columns defined in the outer subquery are available
-        expect(columns).toContain('outer_query.user_name');
-        expect(columns).toContain('outer_query.total');
-        expect(columns).toContain('outer_query.user_email');
+        // Assert        // Columns defined in the outer subquery are available
+        expect(columnNames).toContain('user_name');
+        expect(columnNames).toContain('total');
+        expect(columnNames).toContain('user_email');
 
         // Inner subquery columns cannot be directly referenced and are not included
-        expect(columns).not.toContain('user_data.name');
-        expect(columns).not.toContain('user_data.id');
+        expect(columnNames).not.toContain('user_data.name');
+        expect(columnNames).not.toContain('user_data.id');
     });
 
     test('collects columns from both CTE and subqueries correctly', () => {
@@ -482,18 +504,111 @@ describe('SelectableColumnCollector', () => {
 
         // Act
         collector.visit(query);
-        const columns = collector.getColumnReferences().map(x => x.toString());
+        const items = collector.collect(query);
+        const columnNames = items.map(item => item.name);
+        const expressions = items.map(item => formatter.visit(item.value));
 
-        // Assert
-        // Columns from the subquery are collected
-        expect(columns).toContain('report.customer_name');
-        expect(columns).toContain('report.region');
-        expect(columns).toContain('report.total_purchases');
-        expect(columns).toContain('report.order_count');
+        // Assert        // Columns from the subquery are collected
+        expect(columnNames).toContain('customer_name');
+        expect(columnNames).toContain('region');
+        expect(columnNames).toContain('total_purchases');
+        expect(columnNames).toContain('order_count');
 
         // Internal columns from CTE and subqueries are not included
-        expect(columns).not.toContain('cd.customer_name');
-        expect(columns).not.toContain('cd.id');
-        expect(columns).not.toContain('o.amount');
+        expect(columnNames).not.toContain('cd.customer_name');
+        expect(columnNames).not.toContain('cd.id');
+        expect(columnNames).not.toContain('o.amount');
+    });
+
+    test('collects columns from deeply nested subqueries with wildcards', () => {
+        // Arrange - Test case for deeply nested subqueries with multiple layers
+        const sql = `
+            SELECT * FROM (
+                SELECT * FROM (
+                    SELECT a.id FROM table_a as a
+                ) AS b
+            ) AS c
+        `;
+        const query = SelectQueryParser.parseFromText(sql);
+        const collector = new SelectableColumnCollector();
+
+        // Act
+        collector.visit(query);
+        const items = collector.collect(query);
+        const columnNames = items.map(item => item.name);
+        const expressions = items.map(item => formatter.visit(item.value));        // Debug output
+        console.log('Deeply nested subquery columns:', columnNames);
+
+        // Assert        expect(items.length).toBe(1);
+
+        // Only the column from the outermost subquery is accessible
+        expect(columnNames).toContain('id');
+
+        // Inner subquery columns are not accessible from outside
+        expect(columnNames).not.toContain('a.id');
+        expect(columnNames).not.toContain('b.id');
+    });
+
+    test('handles nested subquery with wildcard but no underlying column information', () => {
+        // Arrange - Test case for nested subqueries where the innermost source doesn't provide column information
+        const sql = `
+            SELECT * FROM (SELECT * FROM a) AS b
+        `;
+        const query = SelectQueryParser.parseFromText(sql);
+        const collector = new SelectableColumnCollector();
+
+        // Act
+        collector.visit(query);
+        const items = collector.collect(query);
+        const columnNames = items.map(item => item.name);
+        const expressions = items.map(item => formatter.visit(item.value));        // Debug output
+        console.log('Nested subquery with unknown source columns:', columnNames);
+
+        // Assert
+        // Since 'a' is just a table name with no column info available statically
+        // we can't determine what columns are available through the subquery
+        expect(items.length).toBe(0);
+    });
+
+    test('handles multi-level nested subqueries with unknown columns', () => {
+        // Arrange - Multiple levels where column info is lost
+        const sql = `
+            SELECT * FROM (
+                SELECT * FROM (
+                    SELECT * FROM unknown_table
+                ) AS inner_query
+            ) AS outer_query
+        `;
+        const query = SelectQueryParser.parseFromText(sql);
+        const collector = new SelectableColumnCollector();
+
+        // Act
+        collector.visit(query);
+        const items = collector.collect(query);
+        const columnNames = items.map(item => item.name);
+        const expressions = items.map(item => formatter.visit(item.value));        // Debug output
+        console.log('Multi-level nested with unknown columns:', columnNames);
+
+        // Assert
+        // No column information is available since the base table's structure is unknown
+        expect(items.length).toBe(0);
+    });
+
+    test('tableColumnResolver is optional and backward compatible', () => {
+        // Arrange - Use original behavior without resolver
+        const sql = `SELECT * FROM users WHERE active = TRUE`;
+        const query = SelectQueryParser.parseFromText(sql);
+        const collector = new SelectableColumnCollector(); // No resolver passed in
+
+        // Act
+        collector.visit(query);
+        const items = collector.collect(query);
+        const columnNames = items.map(item => item.name);
+        const expressions = items.map(item => formatter.visit(item.value));
+
+        // Assert
+        // Should behave like before - not resolving wildcard columns from physical tables
+        expect(items.length).toBe(1); // Only 'active' from WHERE clause, wildcard not expanded
+        expect(columnNames).toContain('active');
     });
 });

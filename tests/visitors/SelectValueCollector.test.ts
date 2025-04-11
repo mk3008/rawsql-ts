@@ -10,8 +10,7 @@ describe('SelectItemCollector', () => {
         const collector = new SelectValueCollector();
 
         // Act
-        collector.visit(query);
-        const selectItems = collector.getSelectItems();
+        const selectItems = collector.collect(query);
 
         // Assert
         expect(selectItems.length).toBe(3);
@@ -25,8 +24,7 @@ describe('SelectItemCollector', () => {
         const collector = new SelectValueCollector();
 
         // Act
-        collector.visit(query);
-        const selectItems = collector.getSelectItems();
+        const selectItems = collector.collect(query);
 
         // Assert
         expect(selectItems.length).toBe(2);
@@ -40,8 +38,7 @@ describe('SelectItemCollector', () => {
         const collector = new SelectValueCollector();
 
         // Act
-        collector.visit(query);
-        const selectItems = collector.getSelectItems();
+        const selectItems = collector.collect(query);
 
         // Assert
         expect(selectItems.length).toBe(2);
@@ -59,8 +56,7 @@ describe('SelectItemCollector', () => {
         const collector = new SelectValueCollector();
 
         // Act
-        collector.visit(query);
-        const selectItems = collector.getSelectItems();
+        const selectItems = collector.collect(query);
 
         // Assert
         // Union queries are not currently supported.
@@ -80,8 +76,7 @@ describe('SelectItemCollector', () => {
         const collector = new SelectValueCollector();
 
         // Act
-        collector.visit(query);
-        const selectItems = collector.getSelectItems();
+        const selectItems = collector.collect(query);
 
         // Assert
         expect(selectItems.length).toBe(3);
@@ -98,16 +93,14 @@ describe('SelectItemCollector', () => {
         const collector = new SelectValueCollector();
 
         // Act - First collection
-        collector.visit(query1);
-        const items1 = collector.getSelectItems();
+        const items1 = collector.collect(query1);
 
         // Assert - First collection
         expect(items1.length).toBe(2);
         expect(items1.map(item => item.name)).toEqual(['id', 'name']);
 
         // Act - Reset and second collection
-        collector.visit(query2);
-        const items2 = collector.getSelectItems();
+        const items2 = collector.collect(query2);
 
         // Assert - Second collection
         expect(items2.length).toBe(3);
