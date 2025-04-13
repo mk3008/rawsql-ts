@@ -1,6 +1,8 @@
 import { SqlComponent } from "./SqlComponent";
 import { ForClause, FromClause, GroupByClause, HavingClause, LimitClause, OrderByClause, SelectClause, WhereClause, WindowFrameClause, WithClause } from "./Clause";
-import { RawString, TupleExpression } from "./ValueComponent";
+import { BinaryExpression, RawString, TupleExpression, ValueComponent } from "./ValueComponent";
+import { SelectQueryParser } from "../parsers/SelectQueryParser";
+import { ValueParser } from "../parsers/ValueParser";
 
 export type SelectQuery = SimpleSelectQuery | BinarySelectQuery | ValuesQuery;
 
@@ -50,6 +52,71 @@ export class SimpleSelectQuery extends SqlComponent {
         this.rowLimitClause = rowLimitClause;
         this.forClause = forClause;
     }
+
+    /**
+     * Appends a new condition to the query's WHERE clause using AND logic.
+     * The condition is provided as a raw SQL string which is parsed internally.
+     * 
+     * @param rawCondition Raw SQL string representing the condition (e.g. "status = 'active'")
+     */
+    public appendWhereRaw(rawCondition: string): void {
+        // Parse the raw condition string into a ValueComponent
+        const parsedCondition = ValueParser.parseFromText(rawCondition);
+        this.appendWhere(parsedCondition);
+    }
+
+    /**
+     * Appends a new condition to the query's WHERE clause using AND logic.
+     * The condition is provided as a ValueComponent object.
+     * 
+     * @param condition ValueComponent representing the condition
+     */
+    public appendWhere(condition: ValueComponent): void {
+        if (!this.whereClause) {
+            // No existing WHERE clause, create a new one with the condition
+            this.whereClause = new WhereClause(condition);
+        } else {
+            // Existing WHERE clause, wrap with AND expression
+            this.whereClause.condition = new BinaryExpression(
+                this.whereClause.condition,
+                'and',
+                condition
+            );
+        }
+    }
+
+    /**
+     * Appends a new condition to the query's HAVING clause using AND logic.
+     * The condition is provided as a raw SQL string which is parsed internally.
+     * 
+     * @param rawCondition Raw SQL string representing the condition (e.g. "count(*) > 5")
+     */
+    public appendHavingRaw(rawCondition: string): void {
+        // Parse the raw condition string into a ValueComponent
+        const parsedCondition = ValueParser.parseFromText(rawCondition);
+        this.appendHaving(parsedCondition);
+    }
+
+    /**
+     * Appends a new condition to the query's HAVING clause using AND logic.
+     * The condition is provided as a ValueComponent object.
+     * 
+     * @param condition ValueComponent representing the condition
+     */
+    public appendHaving(condition: ValueComponent): void {
+        if (!this.havingClause) {
+            // No existing HAVING clause, create a new one with the condition
+            this.havingClause = new HavingClause(condition);
+        } else {
+            // Existing HAVING clause, wrap with AND expression
+            this.havingClause.condition = new BinaryExpression(
+                this.havingClause.condition,
+                'and',
+                condition
+            );
+        }
+    }
+
 }
 
 export class BinarySelectQuery extends SqlComponent {
