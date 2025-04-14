@@ -16,7 +16,7 @@ describe('SelectQuery Binary Operations', () => {
 
         // Assert
         expect(unionQuery).toBeInstanceOf(BinarySelectQuery);
-        expect(formatter.visit(unionQuery)).toBe('select "left".* from "dual" as "left" union select "right".* from "dual" as "right"');
+        expect(formatter.visit(unionQuery)).toBe('select "id", "value" from "left" union select "id", "value" from "right"');
     });
 
     test('toUnionAll creates BinarySelectQuery with UNION ALL operator', () => {
@@ -180,7 +180,7 @@ describe('SelectQuery Binary Operations', () => {
         `) as SimpleSelectQuery;
 
         // Act - WITH句を含む2つのクエリをUNION
-        const unionQuery = leftWithQuery.(rightWithQuery);
+        const unionQuery = leftWithQuery.toUnion(rightWithQuery);
 
         // Assert
         expect(unionQuery).toBeInstanceOf(BinarySelectQuery);
