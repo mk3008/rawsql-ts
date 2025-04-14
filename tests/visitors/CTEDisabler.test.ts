@@ -1,11 +1,11 @@
 import { describe, expect, test } from 'vitest';
-import { WithClauseDisabler } from '../../src/visitors/WithClauseDisabler';
+import { CTEDisabler } from '../../src/visitors/CTEDisabler';
 import { SelectQueryParser } from '../../src/parsers/SelectQueryParser';
 import { Formatter } from '../../src/visitors/Formatter';
 
 const formatter = new Formatter();
 
-describe('WithClauseDisabler', () => {
+describe('CTEDisabler', () => {
     test('disables simple WITH clause', () => {
         // Arrange
         const sql = `
@@ -15,7 +15,7 @@ describe('WithClauseDisabler', () => {
             SELECT * FROM temp_sales
         `;
         const query = SelectQueryParser.parseFromText(sql);
-        const disabler = new WithClauseDisabler();
+        const disabler = new CTEDisabler();
 
         // Act
         const disabledQuery = disabler.visit(query);
@@ -44,7 +44,7 @@ describe('WithClauseDisabler', () => {
             JOIN top_products tp ON p.id = tp.product_id
         `;
         const query = SelectQueryParser.parseFromText(sql);
-        const disabler = new WithClauseDisabler();
+        const disabler = new CTEDisabler();
 
         // Act
         const disabledQuery = disabler.visit(query);
@@ -69,7 +69,7 @@ describe('WithClauseDisabler', () => {
             SELECT * FROM employees_path
         `;
         const query = SelectQueryParser.parseFromText(sql);
-        const disabler = new WithClauseDisabler();
+        const disabler = new CTEDisabler();
 
         // Act
         const disabledQuery = disabler.visit(query);
@@ -91,7 +91,7 @@ describe('WithClauseDisabler', () => {
             ) AS subquery
         `;
         const query = SelectQueryParser.parseFromText(sql);
-        const disabler = new WithClauseDisabler();
+        const disabler = new CTEDisabler();
 
         // Act
         const disabledQuery = disabler.visit(query);
@@ -111,7 +111,7 @@ describe('WithClauseDisabler', () => {
             SELECT * FROM cte2
         `;
         const query = SelectQueryParser.parseFromText(sql);
-        const disabler = new WithClauseDisabler();
+        const disabler = new CTEDisabler();
 
         // Act
         const disabledQuery = disabler.visit(query);
@@ -142,7 +142,7 @@ describe('WithClauseDisabler', () => {
             SELECT * FROM outer_cte
         `;
         const query = SelectQueryParser.parseFromText(sql);
-        const disabler = new WithClauseDisabler();
+        const disabler = new CTEDisabler();
 
         // Act
         const disabledQuery = disabler.visit(query);
@@ -165,7 +165,7 @@ describe('WithClauseDisabler', () => {
             )
         `;
         const query = SelectQueryParser.parseFromText(sql);
-        const disabler = new WithClauseDisabler();
+        const disabler = new CTEDisabler();
 
         // Act
         const disabledQuery = disabler.visit(query);
@@ -192,7 +192,7 @@ describe('WithClauseDisabler', () => {
             LIMIT 5
         `;
         const query = SelectQueryParser.parseFromText(sql);
-        const disabler = new WithClauseDisabler();
+        const disabler = new CTEDisabler();
 
         // Act
         const disabledQuery = disabler.visit(query);
@@ -215,7 +215,7 @@ describe('WithClauseDisabler', () => {
             )
         `;
         const query = SelectQueryParser.parseFromText(sql);
-        const disabler = new WithClauseDisabler();
+        const disabler = new CTEDisabler();
 
         // Act
         const disabledQuery = disabler.visit(query);

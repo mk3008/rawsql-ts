@@ -2,7 +2,7 @@ import { CommonTable, FromClause, JoinClause, ParenSource, SelectClause, SelectC
 import { BinarySelectQuery, SimpleSelectQuery, SelectQuery, ValuesQuery } from "../models/SelectQuery";
 import { SqlComponent, SqlComponentVisitor } from "../models/SqlComponent";
 import { ColumnReference, InlineQuery, LiteralValue, ValueComponent } from "../models/ValueComponent";
-import { CommonTableCollector } from "./CommonTableCollector";
+import { CTECollector } from "./CTECollector";
 
 /**
  * Type definition for a function that resolves column names from a table name
@@ -20,13 +20,13 @@ export class SelectValueCollector implements SqlComponentVisitor<void> {
     private visitedNodes: Set<SqlComponent> = new Set();
     private isRootVisit: boolean = true;
     private tableColumnResolver?: TableColumnResolver;
-    private commonTableCollector: CommonTableCollector;
+    private commonTableCollector: CTECollector;
     private commonTables: CommonTable[];
     public initialCommonTables: CommonTable[] | null;
 
     constructor(tableColumnResolver?: TableColumnResolver, initialCommonTables: CommonTable[] | null = null) {
         this.tableColumnResolver = tableColumnResolver;
-        this.commonTableCollector = new CommonTableCollector();
+        this.commonTableCollector = new CTECollector();
         this.commonTables = [];
         this.initialCommonTables = initialCommonTables;
 

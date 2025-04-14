@@ -2,7 +2,7 @@ import { FromClause, SelectClause, SelectItem, SourceAliasExpression, SourceExpr
 import { BinarySelectQuery, SelectQuery, SimpleSelectQuery, ValuesQuery } from "../models/SelectQuery";
 import { SqlComponent } from "../models/SqlComponent";
 import { ColumnReference, IdentifierString, RawString } from "../models/ValueComponent";
-import { CommonTableCollector } from "./CommonTableCollector";
+import { CTECollector } from "./CTECollector";
 import { CTENormalizer } from "./CTENormalizer";
 
 /**

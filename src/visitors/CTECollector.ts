@@ -20,7 +20,7 @@ import {
  * - UNION queries
  * - Value components that may contain queries
  */
-export class CommonTableCollector implements SqlComponentVisitor<void> {
+export class CTECollector implements SqlComponentVisitor<void> {
     private handlers: Map<symbol, (arg: any) => void>;
     private commonTables: CommonTable[] = [];
     private visitedNodes: Set<SqlComponent> = new Set();

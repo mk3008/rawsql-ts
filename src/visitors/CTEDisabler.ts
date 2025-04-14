@@ -22,7 +22,7 @@ import {
  * It maintains the CTE queries themselves but restructures the query to not use
  * the WITH clause syntactical construct.
  */
-export class WithClauseDisabler implements SqlComponentVisitor<SqlComponent> {
+export class CTEDisabler implements SqlComponentVisitor<SqlComponent> {
     private handlers: Map<symbol, (arg: any) => SqlComponent>;
     private visitedNodes: Set<SqlComponent> = new Set();
     private isRootVisit: boolean = true;

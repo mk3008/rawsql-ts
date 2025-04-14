@@ -10,7 +10,7 @@ import {
     LiteralValue,
     TypeValue
 } from "../models/ValueComponent";
-import { CommonTableCollector } from "./CommonTableCollector";
+import { CTECollector } from "./CTECollector";
 
 /**
  * A visitor that collects all table source names from a SQL query structure.
@@ -178,7 +178,7 @@ export class TableSourceCollector implements SqlComponentVisitor<void> {
      */
     private collectCTEs(query: SqlComponent): void {
         // Use CommonTableCollector to get all CTEs
-        const cteCollector = new CommonTableCollector();
+        const cteCollector = new CTECollector();
         cteCollector.visit(query);
         const commonTables = cteCollector.getCommonTables();
 
