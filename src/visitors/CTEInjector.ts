@@ -12,11 +12,11 @@ import { CTEBuilder } from "./CTEBuilder";
  */
 export class CTEInjector {
     private nameConflictResolver: CTEBuilder;
-    private cteCollectolr: CTECollector;
+    private cteCollector: CTECollector;
 
     constructor() {
         this.nameConflictResolver = new CTEBuilder();
-        this.cteCollectolr = new CTECollector();
+        this.cteCollector = new CTECollector();
     }
 
     /**
@@ -33,7 +33,7 @@ export class CTEInjector {
         }
 
         // Collect CTEs from the query
-        commonTables.push(...this.cteCollectolr.collect(query));
+        commonTables.push(...this.cteCollector.collect(query));
 
         // Use CTENameConflictResolver to resolve duplicates and sort in appropriate order
         const resolvedWithCaluse = this.nameConflictResolver.build(commonTables);
