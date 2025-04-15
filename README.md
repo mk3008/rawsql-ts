@@ -1,4 +1,4 @@
-# carbunqlex-ts
+# rawsql-ts
 
 A TypeScript SQL parser project that performs AST (Abstract Syntax Tree) analysis.
 
@@ -50,7 +50,7 @@ npm test
 
 ## Visitor Pattern Utilities
 
-carbunqlex-ts includes powerful visitor pattern utilities to analyze and transform SQL ASTs:
+rawsql-ts includes powerful visitor pattern utilities to analyze and transform SQL ASTs:
 
 ### Formatter
 
@@ -252,7 +252,7 @@ npm run benchmark
 
 ## Benchmark Details
 
-This benchmark evaluates the SQL parsing and formatting performance of `carbunqlex-ts` against popular libraries: `sql-formatter` and `node-sql-parser`. We test queries of varying complexity:
+This benchmark evaluates the SQL parsing and formatting performance of `rawsql-ts` against popular libraries: `sql-formatter` and `node-sql-parser`. We test queries of varying complexity:
 
 - **Tokens20**: Simple `SELECT` query with a basic `WHERE` condition (~20 tokens)
 - **Tokens70**: Medium complexity query with `JOIN`s and multiple conditions (~70 tokens)
@@ -273,34 +273,34 @@ Node.js v22.14.0
 ### Tokens20
 | Method                            | Mean       | Error     | StdDev    |
 |---------------------------------- |-----------:|----------:|----------:|
-| carbunqlex-ts                  |    0.021 ms |  0.0044 ms |  0.0023 ms |
+| rawsql-ts                  |    0.021 ms |  0.0044 ms |  0.0023 ms |
 | node-sql-parser                |    0.169 ms |  0.0695 ms |  0.0355 ms |
 | sql-formatter                  |    0.208 ms |  0.0556 ms |  0.0284 ms |
 
 ### Tokens70
 | Method                            | Mean       | Error     | StdDev    |
 |---------------------------------- |-----------:|----------:|----------:|
-| carbunqlex-ts                  |    0.057 ms |  0.0143 ms |  0.0073 ms |
+| rawsql-ts                  |    0.057 ms |  0.0143 ms |  0.0073 ms |
 | node-sql-parser                |    0.216 ms |  0.0780 ms |  0.0398 ms |
 | sql-formatter                  |    0.512 ms |  0.1251 ms |  0.0638 ms |
 
 ### Tokens140
 | Method                            | Mean       | Error     | StdDev    |
 |---------------------------------- |-----------:|----------:|----------:|
-| carbunqlex-ts                  |    0.112 ms |  0.0236 ms |  0.0120 ms |
+| rawsql-ts                  |    0.112 ms |  0.0236 ms |  0.0120 ms |
 | node-sql-parser                |    0.404 ms |  0.0926 ms |  0.0472 ms |
 | sql-formatter                  |    1.004 ms |  0.3027 ms |  0.1545 ms |
 
 ### Tokens230
 | Method                            | Mean       | Error     | StdDev    |
 |---------------------------------- |-----------:|----------:|----------:|
-| carbunqlex-ts                  |    0.182 ms |  0.0371 ms |  0.0189 ms |
+| rawsql-ts                  |    0.182 ms |  0.0371 ms |  0.0189 ms |
 | node-sql-parser                |    0.865 ms |  0.3325 ms |  0.1696 ms |
 | sql-formatter                  |    1.696 ms |  0.2754 ms |  0.1405 ms |
 
 ## Performance Summary
 
-- `carbunqlex-ts` **consistently outperforms** both `node-sql-parser` and `sql-formatter` in all tested cases.
+- `rawsql-ts` **consistently outperforms** both `node-sql-parser` and `sql-formatter` in all tested cases.
 - **4x faster** than `node-sql-parser`.
 - **9-10x faster** than `sql-formatter`.
 - Maintains **full SQL parsing capabilities** while significantly improving performance.
