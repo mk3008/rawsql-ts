@@ -3,6 +3,9 @@ import { ForClause, FromClause, GroupByClause, HavingClause, LimitClause, OrderB
 import { BinaryExpression, RawString, TupleExpression, ValueComponent } from "./ValueComponent";
 import { SelectQueryParser } from "../parsers/SelectQueryParser";
 import { ValueParser } from "../parsers/ValueParser";
+import { CTECollector } from "../visitors/CTECollector";
+import { CTEDisabler } from "../visitors/CTEDisabler";
+import { CTEInjector } from "../visitors/CTEInjector";
 
 export type SelectQuery = SimpleSelectQuery | BinarySelectQuery | ValuesQuery;
 
@@ -292,6 +295,17 @@ export class BinarySelectQuery extends SqlComponent {
      * @returns A new BinarySelectQuery representing "(this) [operator] query"
      */
     public appendSelectQuery(operator: string, query: SelectQuery): BinarySelectQuery {
-        return new BinarySelectQuery(this, operator, query);
+        const collector = new CTECollector();
+        let allCommonTables = collector.collect(this);
+        allCommonTables.push(...collector.collect(query));
+
+        const disabler = new CTEDisabler();
+        const injector = new CTEInjector();
+
+        this.left = injector.inject(disabler.execute(this), allCommonTables);
+        this.operator = new RawString(operator);
+        this.right = disabler.execute(query);
+
+        return this;
     }
 }

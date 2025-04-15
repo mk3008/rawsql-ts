@@ -99,54 +99,56 @@ describe('SelectQuery Binary Operations', () => {
     });
 
     test('appendUnion adds a query with UNION operator to existing BinarySelectQuery', () => {
-        // Arrange - 実際のクエリを使って作成
+        // Arrange - Create with actual queries
         const query1 = SelectQueryParser.parseFromText('SELECT id FROM users') as SimpleSelectQuery;
         const query2 = SelectQueryParser.parseFromText('SELECT id FROM admins') as SimpleSelectQuery;
         const query3 = SelectQueryParser.parseFromText('SELECT id FROM guests') as SimpleSelectQuery;
 
-        // Act - バイナリクエリを作成して別のクエリを追加
+        // Act - Create a binary query and append another query
         const binaryQuery = query1.toUnion(query2);
         const resultQuery = binaryQuery.appendUnion(query3);
 
-        // Assert - SQLテキストで結果を確認
+        // Assert
         expect(resultQuery).toBeInstanceOf(BinarySelectQuery);
         expect(formatter.visit(resultQuery)).toBe('select "id" from "users" union select "id" from "admins" union select "id" from "guests"');
-    }); test('complex query chain works correctly', () => {
-        // Arrange - 実際のクエリを使用
+    });
+
+    test('complex query chain works correctly', () => {
+        // Arrange - Use actual queries
         const query1 = SelectQueryParser.parseFromText('SELECT id FROM users') as SimpleSelectQuery;
         const query2 = SelectQueryParser.parseFromText('SELECT id FROM admins') as SimpleSelectQuery;
         const query3 = SelectQueryParser.parseFromText('SELECT id FROM guests') as SimpleSelectQuery;
         const query4 = SelectQueryParser.parseFromText('SELECT id FROM managers') as SimpleSelectQuery;
 
-        // Act - 複数の操作を連鎖させる
+        // Act - Chain multiple operations
         const result = query1
             .toUnion(query2)
             .appendIntersect(query3)
             .appendExcept(query4);
 
-        // Assert - SQLテキストで結果を確認
+        // Assert - Check the result as SQL text
         expect(result).toBeInstanceOf(BinarySelectQuery);
         expect(formatter.visit(result)).toBe('select "id" from "users" union select "id" from "admins" intersect select "id" from "guests" except select "id" from "managers"');
     });
 
     test('appendSelectQuery allows custom operator', () => {
-        // Arrange - 実際のクエリを使用
+        // Arrange - Use actual queries
         const query1 = SelectQueryParser.parseFromText('SELECT id FROM users') as SimpleSelectQuery;
         const query2 = SelectQueryParser.parseFromText('SELECT id FROM admins') as SimpleSelectQuery;
         const binaryQuery = query1.toUnion(query2);
         const query3 = SelectQueryParser.parseFromText('SELECT id FROM managers');
         const customOperator = 'custom operator';
 
-        // Act - カスタムオペレータでクエリを追加
+        // Act - Add a query with custom operator
         const result = binaryQuery.appendSelectQuery(customOperator, query3);
 
-        // Assert - SQLテキストで結果を確認
+        // Assert - Check the result as SQL text
         expect(result).toBeInstanceOf(BinarySelectQuery);
         expect(formatter.visit(result)).toBe('select "id" from "users" union select "id" from "admins" custom operator select "id" from "managers"');
     });
 
     test('BinaryQuery can append another BinaryQuery', () => {
-        // Arrange - 2つのBinaryQueryを作成
+        // Arrange - Create two BinaryQuery instances
         const query1 = SelectQueryParser.parseFromText('SELECT id FROM users') as SimpleSelectQuery;
         const query2 = SelectQueryParser.parseFromText('SELECT id FROM admins') as SimpleSelectQuery;
         const leftBinary = query1.toUnion(query2);  // (users UNION admins)
@@ -155,16 +157,16 @@ describe('SelectQuery Binary Operations', () => {
         const query4 = SelectQueryParser.parseFromText('SELECT id FROM managers') as SimpleSelectQuery;
         const rightBinary = query3.toIntersect(query4);  // (guests INTERSECT managers)
 
-        // Act - appendSelectQueryでBinaryQueryを追加
+        // Act - Add a BinaryQuery using appendSelectQuery
         const combinedQuery = leftBinary.appendSelectQuery('except', rightBinary);  // (users UNION admins) EXCEPT (guests INTERSECT managers)
 
-        // Assert - SQLテキストで結果を確認
+        // Assert - Check the result as SQL text
         expect(combinedQuery).toBeInstanceOf(BinarySelectQuery);
         expect(formatter.visit(combinedQuery)).toBe('select "id" from "users" union select "id" from "admins" except select "id" from "guests" intersect select "id" from "managers"');
     });
 
     test('toUnion works with queries containing WITH clause', () => {
-        // Arrange - WITH句を含むクエリを作成
+        // Arrange - Create queries with WITH clauses
         const leftWithQuery = SelectQueryParser.parseFromText(`
             WITH active_users AS (
                 SELECT id, name FROM users WHERE active = true
@@ -179,7 +181,7 @@ describe('SelectQuery Binary Operations', () => {
             SELECT id, name FROM inactive_users
         `) as SimpleSelectQuery;
 
-        // Act - WITH句を含む2つのクエリをUNION
+        // Act - Union two queries with WITH clauses
         const unionQuery = leftWithQuery.toUnion(rightWithQuery);
 
         // Assert
@@ -188,7 +190,7 @@ describe('SelectQuery Binary Operations', () => {
     });
 
     test('appendUnion works with queries containing WITH clause', () => {
-        // Arrange - 既存のバイナリクエリと追加するWITH句クエリを作成
+        // Arrange - Create existing binary query and a WITH clause query to append
         const query1 = SelectQueryParser.parseFromText('SELECT id, name FROM staff') as SimpleSelectQuery;
         const query2 = SelectQueryParser.parseFromText('SELECT id, name FROM contractors') as SimpleSelectQuery;
         const binaryQuery = query1.toUnion(query2);
@@ -200,11 +202,11 @@ describe('SelectQuery Binary Operations', () => {
             SELECT id, name FROM vip_customers
         `);
 
-        // Act - WITH句を含むクエリをappendUnionで追加
+        // Act - Append a query with WITH clause using appendUnion
         const resultQuery = binaryQuery.appendUnion(withQuery);
 
         // Assert
         expect(resultQuery).toBeInstanceOf(BinarySelectQuery);
-        expect(formatter.visit(resultQuery)).toBe('select "id", "name" from "staff" union select "id", "name" from "contractors" union with "vip_customers" as (select "id", "name" from "customers" where "vip" = true) select "id", "name" from "vip_customers"');
+        expect(formatter.visit(resultQuery)).toBe('with "vip_customers" as (select "id", "name" from "customers" where "vip" = true) select "id", "name" from "staff" union select "id", "name" from "contractors" union select "id", "name" from "vip_customers"');
     });
 });

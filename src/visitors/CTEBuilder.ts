@@ -1,4 +1,4 @@
-import { CommonTable } from "../models/Clause";
+import { CommonTable, WithClause } from "../models/Clause";
 import { CTECollector } from "./CTECollector";
 import { TableSourceCollector } from "./TableSourceCollector";
 import { Formatter } from "./Formatter";
@@ -7,13 +7,13 @@ import { Formatter } from "./Formatter";
  * CTENameConflictResolver is responsible for resolving name conflicts among Common Table Expressions (CTEs).
  * It also sorts the tables in the proper order based on dependencies and recursiveness.
  */
-export class CTENameConflictResolver {
+export class CTEBuilder {
     private sourceCollector: TableSourceCollector;
     private cteCollector: CTECollector;
     private formatter: Formatter;
 
     constructor() {
-        this.sourceCollector = new TableSourceCollector(true); // selectableOnly=true to focus on FROM/JOIN tables
+        this.sourceCollector = new TableSourceCollector(true);
         this.cteCollector = new CTECollector();
         this.formatter = new Formatter();
     }
@@ -26,13 +26,19 @@ export class CTENameConflictResolver {
      * 2. Then remaining tables are sorted so inner (deeper) CTEs come before outer CTEs
      * 
      * @param commonTables The list of CommonTables to check for name conflicts
-     * @returns A new list of CommonTables with resolved name conflicts and proper order
+     * @returns An object containing:
+     *          - needRecursive: boolean indicating if any recursive CTEs are present
+     *          - commonTables: A new list of CommonTables with resolved name conflicts and proper order
      * @throws Error if there are duplicate CTE names with different definitions
      */
-    public resolveNameConflicts(commonTables: CommonTable[]): CommonTable[] {
+    public build(commonTables: CommonTable[]): WithClause {
         // If empty or only one table, no conflicts to resolve
         if (commonTables.length <= 1) {
-            return commonTables;
+            // No recursion possible with 0 or 1 table
+            return new WithClause(
+                false,
+                commonTables
+            );
         }
 
         // Step 1: Resolve name conflicts
@@ -42,7 +48,12 @@ export class CTENameConflictResolver {
         const { tableMap, recursiveCTEs, dependencies } = this.buildDependencyGraph(resolvedTables);
 
         // Step 3: Sort tables according to dependencies and recursiveness
-        return this.sortCommonTables(resolvedTables, tableMap, recursiveCTEs, dependencies);
+        const sortedTables = this.sortCommonTables(resolvedTables, tableMap, recursiveCTEs, dependencies);
+
+        return new WithClause(
+            recursiveCTEs.size > 0,
+            sortedTables
+        );
     }
 
     /**
