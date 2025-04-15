@@ -204,60 +204,75 @@ export class SimpleSelectQuery extends SqlComponent {
 
     /**
      * Appends an INNER JOIN clause to the query.
-     * @param joinSourceText The table source text to join (e.g., "my_table", "schema.my_table")
+     * @param joinSourceRawText The table source text to join (e.g., "my_table", "schema.my_table")
      * @param alias The alias for the joined table
      * @param columns The columns to use for the join condition (e.g. ["user_id"])
      */
-    public innerJoin(joinSourceText: string, alias: string, columns: string[]): void {
-        this.appendJoin('inner join', joinSourceText, alias, columns);
+    public innerJoinRaw(joinSourceRawText: string, alias: string, columns: string[]): void {
+        this.appendRawSource('inner join', joinSourceRawText, alias, columns);
     }
 
     /**
      * Appends a LEFT JOIN clause to the query.
-     * @param joinSourceText The table source text to join
+     * @param joinSourceRawText The table source text to join
      * @param alias The alias for the joined table
      * @param columns The columns to use for the join condition
      */
-    public leftJoin(joinSourceText: string, alias: string, columns: string[]): void {
-        this.appendJoin('left join', joinSourceText, alias, columns);
+    public leftJoinRaw(joinSourceRawText: string, alias: string, columns: string[]): void {
+        this.appendRawSource('left join', joinSourceRawText, alias, columns);
     }
 
     /**
      * Appends a RIGHT JOIN clause to the query.
-     * @param joinSourceText The table source text to join
+     * @param joinSourceRawText The table source text to join
      * @param alias The alias for the joined table
      * @param columns The columns to use for the join condition
      */
-    public rightJoin(joinSourceText: string, alias: string, columns: string[]): void {
-        this.appendJoin('right join', joinSourceText, alias, columns);
+    public rightJoinRaw(joinSourceRawText: string, alias: string, columns: string[]): void {
+        this.appendRawSource('right join', joinSourceRawText, alias, columns);
     }    /**
      * Internal helper to append a JOIN clause.
      * Parses the table source, finds the corresponding columns in the existing query context,
      * and builds the JOIN condition.
      * @param joinType Type of join (e.g., 'inner join', 'left join')
-     * @param joinSourceText Raw text for the table/source to join (e.g., "my_table", "schema.another_table")
+     * @param joinSourceRawText Raw text for the table/source to join (e.g., "my_table", "schema.another_table")
      * @param alias Alias for the table/source being joined
      * @param columns Array of column names to join on
      */
-    private appendJoin(joinType: string, joinSourceRawText: string, alias: string, columns: string[]): void {
+    private appendRawSource(joinType: string, joinSourceRawText: string, alias: string, columns: string[]): void {
+        const tableSource = SourceParser.parseFromText(joinSourceRawText);
+        const sourceExpr = new SourceExpression(tableSource, new SourceAliasExpression(alias, null));
+        this.appendSource(joinType, sourceExpr, columns);
+    }
+
+    private appendSource(joinType: string, sourceExpr: SourceExpression, columns: string[]): void {
+        if (!this.fromClause) {
+            throw new Error('A FROM clause is required to add a JOIN condition.');
+        }
+
         const collector = new SelectableColumnCollector();
-        // 一致するカラムを取得する
+        // Collect columns that match the join condition
         const valueSets = collector.collect(this);
-        let joinCondition: ValueComponent | null = null; // JOIN条件を初期化
+        let joinCondition: ValueComponent | null = null; // Initialize JOIN condition
         let count = 0;
+
+        const sourceAlias = sourceExpr.getAliasName();
+        if (!sourceAlias) {
+            throw new Error('An alias is required for the source expression to add a JOIN condition.');
+        }
 
         for (const valueSet of valueSets) {
             if (columns.some(col => col == valueSet.name)) {
-                // カラムが一致した場合、JOIN条件を作成する
+                // If the column matches, create the JOIN condition
                 const expr = new BinaryExpression(
                     valueSet.value,
-                    "=",
-                    new ColumnReference([alias], valueSet.name)
+                    '=',
+                    new ColumnReference([sourceAlias], valueSet.name)
                 );
                 if (joinCondition) {
                     joinCondition = new BinaryExpression(
                         joinCondition,
-                        "and",
+                        'and',
                         expr
                     );
                 } else {
@@ -267,12 +282,10 @@ export class SimpleSelectQuery extends SqlComponent {
             }
         }
 
-        if (!this.fromClause || !joinCondition || count !== columns.length) {
-            throw new Error(`JOIN条件が正しくありません。指定されたカラムが見つかりません: ${columns.join(", ")}`);
+        if (!joinCondition || count !== columns.length) {
+            throw new Error(`Invalid JOIN condition. The specified columns were not found: ${columns.join(', ')}`);
         }
 
-        const tableSource = SourceParser.parseFromText(joinSourceRawText);
-        const sourceExpr = new SourceExpression(tableSource, new SourceAliasExpression(alias, null));
         const joinOnClause = new JoinOnClause(joinCondition);
         const joinClause = new JoinClause(joinType, sourceExpr, joinOnClause, false);
 

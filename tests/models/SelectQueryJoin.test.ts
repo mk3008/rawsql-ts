@@ -10,7 +10,7 @@ describe('SimpleSelectQuery JOIN API', () => {
         // Arrange
         const sql = 'SELECT u.id, u.name FROM users u';
         const query = SelectQueryParser.parseFromText(sql) as SimpleSelectQuery;
-        query.innerJoin('orders', 'o', ['id']);
+        query.innerJoinRaw('orders', 'o', ['id']);
 
         // Act
         const result = formatter.visit(query);
@@ -24,7 +24,7 @@ describe('SimpleSelectQuery JOIN API', () => {
         // Arrange
         const sql = 'SELECT u.id, u.name FROM users u';
         const query = SelectQueryParser.parseFromText(sql) as SimpleSelectQuery;
-        query.leftJoin('orders', 'o', ['id', 'name']);
+        query.leftJoinRaw('orders', 'o', ['id', 'name']);
 
         // Act
         const result = formatter.visit(query);
@@ -38,7 +38,7 @@ describe('SimpleSelectQuery JOIN API', () => {
         // Arrange
         const sql = 'SELECT u.id FROM users u';
         const query = SelectQueryParser.parseFromText(sql) as SimpleSelectQuery;
-        query.rightJoin('public.orders', 'o', ['id']);
+        query.rightJoinRaw('public.orders', 'o', ['id']);
 
         // Act
         const result = formatter.visit(query);
@@ -53,7 +53,7 @@ describe('SimpleSelectQuery JOIN API', () => {
         const sql = 'SELECT u.id FROM users u';
         const query = SelectQueryParser.parseFromText(sql) as SimpleSelectQuery;
         // Act & Assert
-        expect(() => query.innerJoin('orders', 'o', ['not_exist'])).toThrow();
+        expect(() => query.innerJoinRaw('orders', 'o', ['not_exist'])).toThrow();
     });
 
     test('throws if FROM clause is missing', () => {
@@ -61,6 +61,6 @@ describe('SimpleSelectQuery JOIN API', () => {
         const sql = 'SELECT 1 as id';
         const query = SelectQueryParser.parseFromText(sql) as SimpleSelectQuery;
         // Act & Assert
-        expect(() => query.innerJoin('orders', 'o', ['id'])).toThrow();
+        expect(() => query.innerJoinRaw('orders', 'o', ['id'])).toThrow();
     });
 });
