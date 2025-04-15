@@ -1,11 +1,15 @@
 import { SqlComponent } from "./SqlComponent";
-import { ForClause, FromClause, GroupByClause, HavingClause, LimitClause, OrderByClause, SelectClause, WhereClause, WindowFrameClause, WithClause } from "./Clause";
-import { BinaryExpression, RawString, TupleExpression, ValueComponent } from "./ValueComponent";
-import { SelectQueryParser } from "../parsers/SelectQueryParser";
+// Add JoinClause, JoinOnClause, SourceExpression, SourceAliasExpression, TableSource
+import { ForClause, FromClause, GroupByClause, HavingClause, JoinClause, JoinOnClause, LimitClause, OrderByClause, SelectClause, SourceAliasExpression, SourceExpression, TableSource, WhereClause, WindowFrameClause, WithClause, JoinConditionComponent } from "./Clause";
+// Add ColumnReference
+import { BinaryExpression, ColumnReference, RawString, TupleExpression, ValueComponent } from "./ValueComponent";
 import { ValueParser } from "../parsers/ValueParser";
 import { CTECollector } from "../visitors/CTECollector";
 import { CTEDisabler } from "../visitors/CTEDisabler";
 import { CTEInjector } from "../visitors/CTEInjector";
+import { SelectableColumnCollector } from "../visitors/SelectableColumnCollector";
+import { SourceParser } from "../parsers/SourceParser";
+import { join } from "path";
 
 export type SelectQuery = SimpleSelectQuery | BinarySelectQuery | ValuesQuery;
 
@@ -198,6 +202,88 @@ export class SimpleSelectQuery extends SqlComponent {
         }
     }
 
+    /**
+     * Appends an INNER JOIN clause to the query.
+     * @param joinSourceText The table source text to join (e.g., "my_table", "schema.my_table")
+     * @param alias The alias for the joined table
+     * @param columns The columns to use for the join condition (e.g. ["user_id"])
+     */
+    public innerJoin(joinSourceText: string, alias: string, columns: string[]): void {
+        this.appendJoin('inner join', joinSourceText, alias, columns);
+    }
+
+    /**
+     * Appends a LEFT JOIN clause to the query.
+     * @param joinSourceText The table source text to join
+     * @param alias The alias for the joined table
+     * @param columns The columns to use for the join condition
+     */
+    public leftJoin(joinSourceText: string, alias: string, columns: string[]): void {
+        this.appendJoin('left join', joinSourceText, alias, columns);
+    }
+
+    /**
+     * Appends a RIGHT JOIN clause to the query.
+     * @param joinSourceText The table source text to join
+     * @param alias The alias for the joined table
+     * @param columns The columns to use for the join condition
+     */
+    public rightJoin(joinSourceText: string, alias: string, columns: string[]): void {
+        this.appendJoin('right join', joinSourceText, alias, columns);
+    }    /**
+     * Internal helper to append a JOIN clause.
+     * Parses the table source, finds the corresponding columns in the existing query context,
+     * and builds the JOIN condition.
+     * @param joinType Type of join (e.g., 'inner join', 'left join')
+     * @param joinSourceText Raw text for the table/source to join (e.g., "my_table", "schema.another_table")
+     * @param alias Alias for the table/source being joined
+     * @param columns Array of column names to join on
+     */
+    private appendJoin(joinType: string, joinSourceRawText: string, alias: string, columns: string[]): void {
+        const collector = new SelectableColumnCollector();
+        // 一致するカラムを取得する
+        const valueSets = collector.collect(this);
+        let joinCondition: ValueComponent | null = null; // JOIN条件を初期化
+        let count = 0;
+
+        for (const valueSet of valueSets) {
+            if (columns.some(col => col == valueSet.name)) {
+                // カラムが一致した場合、JOIN条件を作成する
+                const expr = new BinaryExpression(
+                    valueSet.value,
+                    "=",
+                    new ColumnReference([alias], valueSet.name)
+                );
+                if (joinCondition) {
+                    joinCondition = new BinaryExpression(
+                        joinCondition,
+                        "and",
+                        expr
+                    );
+                } else {
+                    joinCondition = expr;
+                }
+                count++;
+            }
+        }
+
+        if (!this.fromClause || !joinCondition || count !== columns.length) {
+            throw new Error(`JOIN条件が正しくありません。指定されたカラムが見つかりません: ${columns.join(", ")}`);
+        }
+
+        const tableSource = SourceParser.parseFromText(joinSourceRawText);
+        const sourceExpr = new SourceExpression(tableSource, new SourceAliasExpression(alias, null));
+        const joinOnClause = new JoinOnClause(joinCondition);
+        const joinClause = new JoinClause(joinType, sourceExpr, joinOnClause, false);
+
+        if (this.fromClause) {
+            if (this.fromClause.joins) {
+                this.fromClause.joins.push(joinClause);
+            } else {
+                this.fromClause.joins = [joinClause];
+            }
+        }
+    }
 }
 
 export class BinarySelectQuery extends SqlComponent {

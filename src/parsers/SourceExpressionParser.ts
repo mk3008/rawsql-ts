@@ -1,6 +1,6 @@
 import { SourceAliasExpression, SourceExpression, TableSource } from "../models/Clause";
 import { Lexeme, TokenType } from "../models/Lexeme";
-import { SourceParser } from "./SourceComponentParser";
+import { SourceParser } from "./SourceParser";
 import { SourceAliasExpressionParser } from "./SourceAliasExpressionParser";
 
 export class SourceExpressionParser {
