@@ -127,15 +127,11 @@ describe('CTENormalizer', () => {
         const normalizer = new CTENormalizer();
 
         // Act
-        try {
-            const normalizedQuery = normalizer.normalize(query);
-            const result = formatter.visit(normalizedQuery);
-            expect(result).toContain('with'); // This should fail as binary queries are not supported yet
-        } catch (e) {
-            // Assert
-            expect(e).toBeInstanceOf(Error);
-            expect((e as Error).message).toBe('Unsupported query type for CTE normalization');
-        }
+        const normalizedQuery = normalizer.normalize(query);
+        const result = formatter.visit(normalizedQuery);
+
+        // Assert
+        expect(result).toBe('with "cte1" as (select "id" from "table1"), "cte2" as (select "id" from "table2") select * from "cte1" union select * from "cte2"');
     });
 
     test('preserves query semantics after normalizing WITH clauses', () => {

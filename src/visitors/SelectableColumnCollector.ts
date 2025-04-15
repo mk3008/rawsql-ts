@@ -3,7 +3,7 @@ import { CommonTable, ForClause, FromClause, GroupByClause, HavingClause, LimitC
 import { SimpleSelectQuery } from "../models/SelectQuery";
 import { SqlComponent, SqlComponentVisitor } from "../models/SqlComponent";
 import { ArrayExpression, BetweenExpression, BinaryExpression, CaseExpression, CastExpression, ColumnReference, FunctionCall, InlineQuery, ParenExpression, UnaryExpression, ValueComponent, ValueList } from "../models/ValueComponent";
-import { CommonTableCollector } from "./CommonTableCollector";
+import { CTECollector } from "./CTECollector";
 import { Formatter } from "./Formatter";
 import { SelectValueCollector, TableColumnResolver } from "./SelectValueCollector";
 
@@ -22,14 +22,14 @@ export class SelectableColumnCollector implements SqlComponentVisitor<void> {
     private formatter: Formatter;
     private isRootVisit: boolean = true;
     private tableColumnResolver?: TableColumnResolver;
-    private commonTableCollector: CommonTableCollector;
+    private commonTableCollector: CTECollector;
     private selectValueCollector: SelectValueCollector;
     private commonTables: CommonTable[] = [];
 
     constructor(tableColumnResolver?: TableColumnResolver) {
         this.tableColumnResolver = tableColumnResolver;
         this.selectValueCollector = new SelectValueCollector();
-        this.commonTableCollector = new CommonTableCollector();
+        this.commonTableCollector = new CTECollector();
         this.commonTables = [];
 
         this.formatter = new Formatter();

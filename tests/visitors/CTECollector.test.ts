@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'vitest';
-import { CommonTableCollector } from '../../src/visitors/CommonTableCollector';
+import { CTECollector } from '../../src/visitors/CTECollector';
 import { SelectQueryParser } from '../../src/parsers/SelectQueryParser';
 
-describe('CommonTableCollector', () => {
+describe('CTECollector', () => {
     test('collects simple WITH clause common tables', () => {
         // Arrange
         const sql = `
@@ -12,7 +12,7 @@ describe('CommonTableCollector', () => {
             SELECT * FROM temp_sales
         `;
         const query = SelectQueryParser.parseFromText(sql);
-        const collector = new CommonTableCollector();
+        const collector = new CTECollector();
 
         // Act
         collector.visit(query);
@@ -42,7 +42,7 @@ describe('CommonTableCollector', () => {
             JOIN top_products tp ON p.id = tp.product_id
         `;
         const query = SelectQueryParser.parseFromText(sql);
-        const collector = new CommonTableCollector();
+        const collector = new CTECollector();
 
         // Act
         collector.visit(query);
@@ -70,7 +70,7 @@ describe('CommonTableCollector', () => {
             SELECT * FROM employees_path
         `;
         const query = SelectQueryParser.parseFromText(sql);
-        const collector = new CommonTableCollector();
+        const collector = new CTECollector();
 
         // Act
         collector.visit(query);
@@ -93,7 +93,7 @@ describe('CommonTableCollector', () => {
             ) AS subquery
         `;
         const query = SelectQueryParser.parseFromText(sql);
-        const collector = new CommonTableCollector();
+        const collector = new CTECollector();
 
         // Act
         collector.visit(query);
@@ -114,7 +114,7 @@ describe('CommonTableCollector', () => {
             SELECT * FROM cte2
         `;
         const query = SelectQueryParser.parseFromText(sql);
-        const collector = new CommonTableCollector();
+        const collector = new CTECollector();
 
         // Act
         collector.visit(query);
@@ -147,7 +147,7 @@ describe('CommonTableCollector', () => {
             SELECT * FROM outer_cte
         `;
         const query = SelectQueryParser.parseFromText(sql);
-        const collector = new CommonTableCollector();
+        const collector = new CTECollector();
 
         // Act
         collector.visit(query);
@@ -171,7 +171,7 @@ describe('CommonTableCollector', () => {
             )
         `;
         const query = SelectQueryParser.parseFromText(sql);
-        const collector = new CommonTableCollector();
+        const collector = new CTECollector();
 
         // Act
         collector.visit(query);
@@ -204,7 +204,7 @@ describe('CommonTableCollector', () => {
             FROM with_a a
         `;
         const query = SelectQueryParser.parseFromText(sql);
-        const collector = new CommonTableCollector();
+        const collector = new CTECollector();
 
         // Act
         collector.visit(query);
@@ -247,7 +247,7 @@ describe('CommonTableCollector', () => {
             FROM with_a a
         `;
         const query = SelectQueryParser.parseFromText(sql);
-        const collector = new CommonTableCollector();
+        const collector = new CTECollector();
 
         // Act
         collector.visit(query);
@@ -279,7 +279,7 @@ describe('CommonTableCollector', () => {
 
         const query1 = SelectQueryParser.parseFromText(sql1);
         const query2 = SelectQueryParser.parseFromText(sql2);
-        const collector = new CommonTableCollector();
+        const collector = new CTECollector();
 
         // Act - First collection
         collector.visit(query1);

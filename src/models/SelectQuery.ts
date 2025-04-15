@@ -3,6 +3,9 @@ import { ForClause, FromClause, GroupByClause, HavingClause, LimitClause, OrderB
 import { BinaryExpression, RawString, TupleExpression, ValueComponent } from "./ValueComponent";
 import { SelectQueryParser } from "../parsers/SelectQueryParser";
 import { ValueParser } from "../parsers/ValueParser";
+import { CTECollector } from "../visitors/CTECollector";
+import { CTEDisabler } from "../visitors/CTEDisabler";
+import { CTEInjector } from "../visitors/CTEInjector";
 
 export type SelectQuery = SimpleSelectQuery | BinarySelectQuery | ValuesQuery;
 
@@ -51,6 +54,84 @@ export class SimpleSelectQuery extends SqlComponent {
         this.windowFrameClause = windowFrameClause;
         this.rowLimitClause = rowLimitClause;
         this.forClause = forClause;
+    }
+
+    /**
+     * Creates a new BinarySelectQuery with this query as the left side and the provided query as the right side,
+     * using UNION as the operator.
+     * 
+     * @param rightQuery The right side of the UNION
+     * @returns A new BinarySelectQuery representing "this UNION rightQuery"
+     */
+    public toUnion(rightQuery: SelectQuery): BinarySelectQuery {
+        return this.toBinaryQuery('union', rightQuery);
+    }
+
+    /**
+     * Creates a new BinarySelectQuery with this query as the left side and the provided query as the right side,
+     * using UNION ALL as the operator.
+     * 
+     * @param rightQuery The right side of the UNION ALL
+     * @returns A new BinarySelectQuery representing "this UNION ALL rightQuery"
+     */
+    public toUnionAll(rightQuery: SelectQuery): BinarySelectQuery {
+        return this.toBinaryQuery('union all', rightQuery);
+    }
+
+    /**
+     * Creates a new BinarySelectQuery with this query as the left side and the provided query as the right side,
+     * using INTERSECT as the operator.
+     * 
+     * @param rightQuery The right side of the INTERSECT
+     * @returns A new BinarySelectQuery representing "this INTERSECT rightQuery"
+     */
+    public toIntersect(rightQuery: SelectQuery): BinarySelectQuery {
+        return this.toBinaryQuery('intersect', rightQuery);
+    }
+
+    /**
+     * Creates a new BinarySelectQuery with this query as the left side and the provided query as the right side,
+     * using INTERSECT ALL as the operator.
+     * 
+     * @param rightQuery The right side of the INTERSECT ALL
+     * @returns A new BinarySelectQuery representing "this INTERSECT ALL rightQuery"
+     */
+    public toIntersectAll(rightQuery: SelectQuery): BinarySelectQuery {
+        return this.toBinaryQuery('intersect all', rightQuery);
+    }
+
+    /**
+     * Creates a new BinarySelectQuery with this query as the left side and the provided query as the right side,
+     * using EXCEPT as the operator.
+     * 
+     * @param rightQuery The right side of the EXCEPT
+     * @returns A new BinarySelectQuery representing "this EXCEPT rightQuery"
+     */
+    public toExcept(rightQuery: SelectQuery): BinarySelectQuery {
+        return this.toBinaryQuery('except', rightQuery);
+    }
+
+    /**
+     * Creates a new BinarySelectQuery with this query as the left side and the provided query as the right side,
+     * using EXCEPT ALL as the operator.
+     * 
+     * @param rightQuery The right side of the EXCEPT ALL
+     * @returns A new BinarySelectQuery representing "this EXCEPT ALL rightQuery"
+     */
+    public toExceptAll(rightQuery: SelectQuery): BinarySelectQuery {
+        return this.toBinaryQuery('except all', rightQuery);
+    }
+
+    /**
+     * Creates a new BinarySelectQuery with this query as the left side and the provided query as the right side,
+     * using the specified operator.
+     * 
+     * @param operator SQL operator to use (e.g. 'union', 'union all', 'intersect', 'except')
+     * @param rightQuery The right side of the binary operation
+     * @returns A new BinarySelectQuery representing "this [operator] rightQuery"
+     */
+    public toBinaryQuery(operator: string, rightQuery: SelectQuery): BinarySelectQuery {
+        return new BinarySelectQuery(this, operator, rightQuery);
     }
 
     /**
@@ -130,5 +211,101 @@ export class BinarySelectQuery extends SqlComponent {
         this.left = left;
         this.operator = new RawString(operator);
         this.right = right;
+    }
+
+    /**
+     * Appends another query to this binary query using UNION as the operator.
+     * This creates a new BinarySelectQuery where the left side is this binary query
+     * and the right side is the provided query.
+     * 
+     * @param query The query to append with UNION
+     * @returns A new BinarySelectQuery representing "(this) UNION query"
+     */
+    public appendUnion(query: SelectQuery): BinarySelectQuery {
+        return this.appendSelectQuery('union', query);
+    }
+
+    /**
+     * Appends another query to this binary query using UNION ALL as the operator.
+     * This creates a new BinarySelectQuery where the left side is this binary query
+     * and the right side is the provided query.
+     * 
+     * @param query The query to append with UNION ALL
+     * @returns A new BinarySelectQuery representing "(this) UNION ALL query"
+     */
+    public appendUnionAll(query: SelectQuery): BinarySelectQuery {
+        return this.appendSelectQuery('union all', query);
+    }
+
+    /**
+     * Appends another query to this binary query using INTERSECT as the operator.
+     * This creates a new BinarySelectQuery where the left side is this binary query
+     * and the right side is the provided query.
+     * 
+     * @param query The query to append with INTERSECT
+     * @returns A new BinarySelectQuery representing "(this) INTERSECT query"
+     */
+    public appendIntersect(query: SelectQuery): BinarySelectQuery {
+        return this.appendSelectQuery('intersect', query);
+    }
+
+    /**
+     * Appends another query to this binary query using INTERSECT ALL as the operator.
+     * This creates a new BinarySelectQuery where the left side is this binary query
+     * and the right side is the provided query.
+     * 
+     * @param query The query to append with INTERSECT ALL
+     * @returns A new BinarySelectQuery representing "(this) INTERSECT ALL query"
+     */
+    public appendIntersectAll(query: SelectQuery): BinarySelectQuery {
+        return this.appendSelectQuery('intersect all', query);
+    }
+
+    /**
+     * Appends another query to this binary query using EXCEPT as the operator.
+     * This creates a new BinarySelectQuery where the left side is this binary query
+     * and the right side is the provided query.
+     * 
+     * @param query The query to append with EXCEPT
+     * @returns A new BinarySelectQuery representing "(this) EXCEPT query"
+     */
+    public appendExcept(query: SelectQuery): BinarySelectQuery {
+        return this.appendSelectQuery('except', query);
+    }
+
+    /**
+     * Appends another query to this binary query using EXCEPT ALL as the operator.
+     * This creates a new BinarySelectQuery where the left side is this binary query
+     * and the right side is the provided query.
+     * 
+     * @param query The query to append with EXCEPT ALL
+     * @returns A new BinarySelectQuery representing "(this) EXCEPT ALL query"
+     */
+    public appendExceptAll(query: SelectQuery): BinarySelectQuery {
+        return this.appendSelectQuery('except all', query);
+    }
+
+    /**
+     * Appends another query to this binary query using the specified operator.
+     * This creates a new BinarySelectQuery where the left side is this binary query
+     * and the right side is the provided query.
+     * 
+     * @param operator SQL operator to use (e.g. 'union', 'union all', 'intersect', 'except')
+     * @param query The query to append with the specified operator
+     * @returns A new BinarySelectQuery representing "(this) [operator] query"
+     */
+    public appendSelectQuery(operator: string, query: SelectQuery): BinarySelectQuery {
+        const collector = new CTECollector();
+        let allCommonTables = collector.collect(this);
+        allCommonTables.push(...collector.collect(query));
+
+        const disabler = new CTEDisabler();
+        const injector = new CTEInjector();
+
+        this.left = injector.inject(disabler.execute(this), allCommonTables);
+        this.operator = new RawString(operator);
+        this.right = disabler.execute(query);
+
+        return this;
     }
 }
