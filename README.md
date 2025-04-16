@@ -48,9 +48,9 @@ npm test
 - **One-line Formatting**: Currently only supports single-line (compact) output formatting
 - **Beta Status**: API may change without notice until v1.0 release
 
-## Visitor Pattern Utilities
+## Transformer Utilities
 
-rawsql-ts includes powerful visitor pattern utilities to analyze and transform SQL ASTs:
+rawsql-ts includes powerful transformer utilities to analyze and transform SQL ASTs. These utilities let you format, analyze, and extract information from SQL queries in a super flexible way!
 
 ### Formatter
 
