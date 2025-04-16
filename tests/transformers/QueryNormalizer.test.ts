@@ -1,6 +1,6 @@
-import { QueryNormalizer } from "../../src/visitors/QueryNormalizer";
+import { QueryNormalizer } from "../../src/transformers/QueryNormalizer";
 import { SelectQueryParser } from "../../src/parsers/SelectQueryParser";
-import { Formatter } from "../../src/visitors/Formatter";
+import { Formatter } from "../../src/transformers/Formatter";
 import { BinarySelectQuery, SimpleSelectQuery, ValuesQuery } from "../../src/models/SelectQuery";
 import { describe, expect, test } from 'vitest';
 

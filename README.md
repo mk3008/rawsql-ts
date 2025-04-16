@@ -58,7 +58,7 @@ The Formatter transforms SQL ASTs into clean, standardized SQL text output. It h
 
 ```typescript
 import { SelectQueryParser } from './parsers/SelectQueryParser';
-import { Formatter } from './visitors/Formatter';
+import { Formatter } from './transformers/Formatter';
 
 // Example complex query with subquery and functions
 const sql = `
@@ -108,8 +108,8 @@ The SelectValueCollector extracts all column items from a SELECT clause, includi
 
 ```typescript
 import { SelectQueryParser } from './parsers/SelectQueryParser';
-import { SelectValueCollector } from './visitors/SelectValueCollector';
-import { Formatter } from './visitors/Formatter';
+import { SelectValueCollector } from './transformers/SelectValueCollector';
+import { Formatter } from './transformers/Formatter';
 
 // Example query with column references and expressions
 const sql = `
@@ -154,8 +154,8 @@ The SelectableColumnCollector identifies all column references throughout a quer
 
 ```typescript
 import { SelectQueryParser } from './parsers/SelectQueryParser';
-import { SelectableColumnCollector } from './visitors/SelectableColumnCollector';
-import { Formatter } from './visitors/Formatter';
+import { SelectableColumnCollector } from './transformers/SelectableColumnCollector';
+import { Formatter } from './transformers/Formatter';
 
 // Example query
 const sql = `
@@ -196,8 +196,8 @@ To use this feature, simply provide a `TableColumnResolver` function when creati
 
 ```typescript
 import { SelectQueryParser } from './parsers/SelectQueryParser';
-import { SelectValueCollector } from './visitors/SelectValueCollector';
-import { Formatter } from './visitors/Formatter';
+import { SelectValueCollector } from './transformers/SelectValueCollector';
+import { Formatter } from './transformers/Formatter';
 
 // Define a function to resolve column names from table names
 const tableColumnResolver = (tableName: string): string[] => {

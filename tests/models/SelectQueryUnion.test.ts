@@ -1,7 +1,7 @@
 import { describe, test, expect } from 'vitest';
 import { BinarySelectQuery, SelectQuery, SimpleSelectQuery } from '../../src/models/SelectQuery';
 import { SelectQueryParser } from '../../src/parsers/SelectQueryParser';
-import { Formatter } from '../../src/visitors/Formatter';
+import { Formatter } from '../../src/transformers/Formatter';
 
 describe('SelectQuery Binary Operations', () => {
     const formatter = new Formatter();

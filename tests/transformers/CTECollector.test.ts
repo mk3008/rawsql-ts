@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { CTECollector } from '../../src/visitors/CTECollector';
+import { CTECollector } from '../../src/transformers/CTECollector';
 import { SelectQueryParser } from '../../src/parsers/SelectQueryParser';
 
 describe('CTECollector', () => {

@@ -1,8 +1,7 @@
-// filepath: c:\Users\mssgm\Documents\GitHub\carbunqlex-ts\tests\visitors\columnReferenceCollector.test.ts
 import { describe, expect, test } from 'vitest';
-import { SelectableColumnCollector } from '../../src/visitors/SelectableColumnCollector';
+import { SelectableColumnCollector } from '../../src/transformers/SelectableColumnCollector';
 import { SelectQueryParser } from '../../src/parsers/SelectQueryParser';
-import { Formatter } from '../../src/visitors/Formatter';
+import { Formatter } from '../../src/transformers/Formatter';
 
 const formatter = new Formatter();
 

@@ -4,7 +4,7 @@ import { ValuesQuery } from "./ValuesQuery";
 import type { SelectQuery } from "./SelectQuery";
 import { SqlComponent } from "./SqlComponent";
 import { RawString } from "./ValueComponent";
-import { CTENormalizer } from "../visitors/CTENormalizer";
+import { CTENormalizer } from "../transformers/CTENormalizer";
 import { SelectQueryParser } from "../parsers/SelectQueryParser";
 
 /**

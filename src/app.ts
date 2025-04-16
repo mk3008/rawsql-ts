@@ -1,4 +1,4 @@
-﻿import { Formatter } from './visitors/Formatter';
+﻿import { Formatter } from './transformers/Formatter';
 import { FromClauseParser } from './parsers/FromClauseParser';
 import { GroupByClauseParser } from './parsers/GroupByParser';
 import { HavingClauseParser } from './parsers/HavingParser';

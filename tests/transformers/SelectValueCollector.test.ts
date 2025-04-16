@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { SelectValueCollector } from '../../src/visitors/SelectValueCollector';
+import { SelectValueCollector } from '../../src/transformers/SelectValueCollector';
 import { SelectQueryParser } from '../../src/parsers/SelectQueryParser';
 
 describe('SelectItemCollector', () => {

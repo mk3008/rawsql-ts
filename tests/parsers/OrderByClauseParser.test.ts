@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { Formatter } from "../../src/visitors/Formatter";
+import { Formatter } from "../../src/transformers/Formatter";
 import { OrderByClauseParser } from "../../src/parsers/OrderByClauseParser";
 import { SortDirection, NullsSortDirection } from "../../src/models/Clause";
 
