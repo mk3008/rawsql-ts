@@ -1,3 +1,4 @@
+import { SourceExpression, SubQuerySource, SourceAliasExpression } from "./Clause";
 import { SimpleSelectQuery } from "./SimpleSelectQuery";
 import { ValuesQuery } from "./ValuesQuery";
 import type { SelectQuery } from "./SelectQuery";
@@ -143,5 +144,14 @@ export class BinarySelectQuery extends SqlComponent {
     public exceptAllRaw(sql: string): BinarySelectQuery {
         const parsedQuery = SelectQueryParser.parseFromText(sql);
         return this.exceptAll(parsedQuery);
+    }
+
+    // Returns a SourceExpression wrapping this query as a subquery source.
+    // Optionally takes an alias name (default: "subq")
+    public toSource(alias: string = "subq"): SourceExpression {
+        return new SourceExpression(
+            new SubQuerySource(this),
+            new SourceAliasExpression(alias, null)
+        );
     }
 }

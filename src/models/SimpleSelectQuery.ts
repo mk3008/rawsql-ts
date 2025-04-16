@@ -1,5 +1,5 @@
 import { SqlComponent } from "./SqlComponent";
-import { ForClause, FromClause, GroupByClause, HavingClause, JoinClause, JoinOnClause, LimitClause, OrderByClause, SelectClause, SourceAliasExpression, SourceExpression, WhereClause, WindowFrameClause, WithClause } from "./Clause";
+import { ForClause, FromClause, GroupByClause, HavingClause, JoinClause, JoinOnClause, LimitClause, OrderByClause, SelectClause, SourceExpression, SubQuerySource, SourceAliasExpression, WhereClause, WindowFrameClause, WithClause } from "./Clause";
 import { BinaryExpression, ColumnReference, ValueComponent } from "./ValueComponent";
 import { ValueParser } from "../parsers/ValueParser";
 import { CTENormalizer } from "../visitors/CTENormalizer";
@@ -216,6 +216,33 @@ export class SimpleSelectQuery extends SqlComponent {
     }
 
     /**
+     * Appends an INNER JOIN clause to the query using a SourceExpression.
+     * @param sourceExpr The source expression to join
+     * @param columns The columns to use for the join condition
+     */
+    public innerJoin(sourceExpr: SourceExpression, columns: string[]): void {
+        this.joinSource('inner join', sourceExpr, columns);
+    }
+
+    /**
+     * Appends a LEFT JOIN clause to the query using a SourceExpression.
+     * @param sourceExpr The source expression to join
+     * @param columns The columns to use for the join condition
+     */
+    public leftJoin(sourceExpr: SourceExpression, columns: string[]): void {
+        this.joinSource('left join', sourceExpr, columns);
+    }
+
+    /**
+     * Appends a RIGHT JOIN clause to the query using a SourceExpression.
+     * @param sourceExpr The source expression to join
+     * @param columns The columns to use for the join condition
+     */
+    public rightJoin(sourceExpr: SourceExpression, columns: string[]): void {
+        this.joinSource('right join', sourceExpr, columns);
+    }
+
+    /**
      * Internal helper to append a JOIN clause.
      * Parses the table source, finds the corresponding columns in the existing query context,
      * and builds the JOIN condition.
@@ -282,5 +309,17 @@ export class SimpleSelectQuery extends SqlComponent {
 
         const normalizer = new CTENormalizer();
         normalizer.normalize(this);
+    }
+
+    // Returns a SourceExpression wrapping this query as a subquery source.
+    // Alias is required for correct SQL generation and join logic.
+    public toSource(alias: string): SourceExpression {
+        if (!alias || alias.trim() === "") {
+            throw new Error("Alias is required for toSource(). Please specify a non-empty alias name.");
+        }
+        return new SourceExpression(
+            new SubQuerySource(this),
+            new SourceAliasExpression(alias, null)
+        );
     }
 }

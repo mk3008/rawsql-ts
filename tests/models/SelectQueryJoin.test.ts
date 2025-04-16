@@ -96,4 +96,20 @@ describe('SimpleSelectQuery JOIN API', () => {
         // Assert
         expect(result.replace(/\s+/g, ' ').trim()).toBe(expected);
     });
+
+    test('innerJoin: join with subquery using toSource', () => {
+        // Arrange
+        const subquery = SelectQueryParser.parseFromText('SELECT id, name FROM orders WHERE status = "active"') as SimpleSelectQuery;
+        const sql = 'SELECT u.id, u.name FROM users u';
+        const query = SelectQueryParser.parseFromText(sql) as SimpleSelectQuery;
+        // Use toSource to wrap subquery as a source
+        query.innerJoin(subquery.toSource('o'), ['id']);
+
+        // Act
+        const result = formatter.visit(query);
+        const expected = 'select "u"."id", "u"."name" from "users" as "u" inner join (select "id", "name" from "orders" where "status" = "active") as "o" on "u"."id" = "o"."id"';
+
+        // Assert
+        expect(result.replace(/\s+/g, ' ').trim()).toBe(expected);
+    });
 });
