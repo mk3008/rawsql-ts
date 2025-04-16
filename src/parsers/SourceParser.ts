@@ -1,9 +1,25 @@
 import { FunctionSource, SourceComponent, SubQuerySource, TableSource } from "../models/Clause";
 import { Lexeme, TokenType } from "../models/Lexeme";
 import { SelectQueryParser } from "./SelectQueryParser";
+import { SqlTokenizer } from "./SqlTokenizer";
 import { ValueParser } from "./ValueParser";
 
 export class SourceParser {
+
+    public static parseFromText(query: string): SourceComponent {
+        const tokenizer = new SqlTokenizer(query); // Initialize tokenizer
+        const lexemes = tokenizer.readLexmes(); // Get tokens
+
+        // Parse
+        const result = this.parse(lexemes, 0);
+
+        // Error if there are remaining tokens
+        if (result.newIndex < lexemes.length) {
+            throw new Error(`Syntax error: Unexpected token "${lexemes[result.newIndex].value}" at position ${result.newIndex}. The source component is complete but there are additional tokens.`);
+        }
+
+        return result.value;
+    }
 
     public static parse(lexemes: Lexeme[], index: number): { value: SourceComponent; newIndex: number } {
         const idx = index;

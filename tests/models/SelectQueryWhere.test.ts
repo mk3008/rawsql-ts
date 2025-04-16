@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest';
-import { Formatter } from '../src/visitors/Formatter';
-import { SelectQueryParser } from '../src/parsers/SelectQueryParser';
-import { SimpleSelectQuery } from '../src/models/SelectQuery';
+import { Formatter } from '../../src/visitors/Formatter';
+import { SelectQueryParser } from '../../src/parsers/SelectQueryParser';
+import { SimpleSelectQuery } from '../../src/models/SelectQuery';
 
 const formatter = new Formatter();
 

@@ -152,27 +152,25 @@ export class CTEDisabler implements SqlComponentVisitor<SqlComponent> {
     }
 
     visitSimpleSelectQuery(arg: SimpleSelectQuery): SqlComponent {
-        return new SimpleSelectQuery(
-            null, // Explicitly remove WITH clause
-            this.visit(arg.selectClause) as SelectClause,
-            arg.fromClause ? this.visit(arg.fromClause) as FromClause : null,
-            arg.whereClause ? this.visit(arg.whereClause) as WhereClause : null,
-            arg.groupByClause ? this.visit(arg.groupByClause) as GroupByClause : null,
-            arg.havingClause ? this.visit(arg.havingClause) as HavingClause : null,
-            arg.orderByClause ? this.visit(arg.orderByClause) as OrderByClause : null,
-            arg.windowFrameClause ? this.visit(arg.windowFrameClause) as WindowFrameClause : null,
-            arg.rowLimitClause ? this.visit(arg.rowLimitClause) as LimitClause : null,
-            arg.forClause ? this.visit(arg.forClause) as ForClause : null,
-        );
+        arg.WithClause = null; // Explicitly remove WITH clause
+
+        // Visit the components of the SimpleSelectQuery
+        arg.selectClause = this.visit(arg.selectClause) as SelectClause;
+        arg.fromClause = arg.fromClause ? this.visit(arg.fromClause) as FromClause : null;
+        arg.whereClause = arg.whereClause ? this.visit(arg.whereClause) as WhereClause : null;
+        arg.groupByClause = arg.groupByClause ? this.visit(arg.groupByClause) as GroupByClause : null;
+        arg.havingClause = arg.havingClause ? this.visit(arg.havingClause) as HavingClause : null;
+        arg.orderByClause = arg.orderByClause ? this.visit(arg.orderByClause) as OrderByClause : null;
+        arg.windowFrameClause = arg.windowFrameClause ? this.visit(arg.windowFrameClause) as WindowFrameClause : null;
+        arg.rowLimitClause = arg.rowLimitClause ? this.visit(arg.rowLimitClause) as LimitClause : null;
+        arg.forClause = arg.forClause ? this.visit(arg.forClause) as ForClause : null;
+        return arg;
     }
 
     visitBinarySelectQuery(query: BinarySelectQuery): SqlComponent {
-        // Visit both sides of the binary query (UNION, EXCEPT, etc.)
-        return new BinarySelectQuery(
-            this.visit(query.left) as SelectQuery,
-            query.operator.value,
-            this.visit(query.right) as SelectQuery
-        );
+        query.left = this.visit(query.left) as SelectQuery;
+        query.right = this.visit(query.right) as SelectQuery;
+        return query;
     }
 
     visitValuesQuery(query: ValuesQuery): SqlComponent {
