@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { TableSourceCollector } from '../../src/visitors/TableSourceCollector';
+import { TableSourceCollector } from '../../src/transformers/TableSourceCollector';
 import { SelectQueryParser } from '../../src/parsers/SelectQueryParser';
 import { TableSource } from '../../src/models/Clause';
 
@@ -185,7 +185,6 @@ describe('TableSourceCollector', () => {
         expect(tables1[0].table.name).toBe('table1');
 
         // Act - Reset and second collection
-        collector.reset();
         collector.visit(query2);
         const tables2 = collector.getTableSources();
 

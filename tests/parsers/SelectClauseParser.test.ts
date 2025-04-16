@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'vitest';
-import { Formatter } from "../../src/visitors/Formatter";
+import { Formatter } from "../../src/transformers/Formatter";
 import { SelectClauseParser } from "../../src/parsers/SelectClauseParser";
 
 const formatter = new Formatter();

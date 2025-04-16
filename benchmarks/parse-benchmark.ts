@@ -1,6 +1,6 @@
 import * as Benchmark from 'benchmark';
 import * as os from 'os';
-import { Formatter } from '../src/visitors/Formatter';
+import { Formatter } from '../src/transformers/Formatter';
 import { SelectQueryParser } from '../src/parsers/SelectQueryParser';
 import { format as sqlFormat } from 'sql-formatter';
 import { Parser as NodeSqlParser } from 'node-sql-parser';

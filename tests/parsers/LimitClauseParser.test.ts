@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'vitest';
-import { Formatter } from "../../src/visitors/Formatter";
+import { Formatter } from "../../src/transformers/Formatter";
 import { LimitClauseParser } from "../../src/parsers/LimitClauseParser";
 
 const formatter = new Formatter();

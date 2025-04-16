@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { Formatter } from '../../src/visitors/Formatter';
+import { Formatter } from '../../src/transformers/Formatter';
 import { SelectQueryParser } from '../../src/parsers/SelectQueryParser';
 import { SimpleSelectQuery } from '../../src/models/SelectQuery';
 
