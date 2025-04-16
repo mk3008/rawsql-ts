@@ -44,8 +44,8 @@ export class CTENormalizer {
         }
 
         // Remove all WITH clauses from the original query
-        const queryWithoutCTEs = this.cteDisabler.execute(query);
+        this.cteDisabler.execute(query);
 
-        return this.injector.inject(queryWithoutCTEs, allCommonTables);
+        return this.injector.inject(query, allCommonTables);
     }
 }

@@ -58,19 +58,12 @@ export class CTEInjector {
      * @returns A new SimpleSelectQuery with the injected CTEs
      */
     private injectIntoSimpleQuery(query: SimpleSelectQuery, withClause: WithClause): SimpleSelectQuery {
-        // Return a new SimpleSelectQuery instance with the WithClause
-        return new SimpleSelectQuery(
-            withClause,
-            query.selectClause,
-            query.fromClause,
-            query.whereClause,
-            query.groupByClause,
-            query.havingClause,
-            query.orderByClause,
-            query.windowFrameClause,
-            query.rowLimitClause,
-            query.forClause
-        );
+        if (query.WithClause) {
+            throw new Error("The query already has a WITH clause. Please remove it before injecting new CTEs.");
+        }
+        // If the query doesn't have a WITH clause, set the new one
+        query.WithClause = withClause;
+        return query;
     }
 
     /**
@@ -84,7 +77,7 @@ export class CTEInjector {
     private injectIntoBinaryQuery(query: BinarySelectQuery, withClause: WithClause): BinarySelectQuery {
         // Insert CTEs into the left query
         if (query.left instanceof SimpleSelectQuery) {
-            query.left = this.injectIntoSimpleQuery(query.left, withClause);
+            this.injectIntoSimpleQuery(query.left, withClause);
             return query;
         } else if (query.left instanceof BinarySelectQuery) {
             this.injectIntoBinaryQuery(query.left, withClause);

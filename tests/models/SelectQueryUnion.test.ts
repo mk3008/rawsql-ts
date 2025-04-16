@@ -106,7 +106,7 @@ describe('SelectQuery Binary Operations', () => {
 
         // Act - Create a binary query and append another query
         const binaryQuery = query1.toUnion(query2);
-        const resultQuery = binaryQuery.appendUnion(query3);
+        const resultQuery = binaryQuery.union(query3);
 
         // Assert
         expect(resultQuery).toBeInstanceOf(BinarySelectQuery);
@@ -123,8 +123,8 @@ describe('SelectQuery Binary Operations', () => {
         // Act - Chain multiple operations
         const result = query1
             .toUnion(query2)
-            .appendIntersect(query3)
-            .appendExcept(query4);
+            .intersect(query3)
+            .except(query4);
 
         // Assert - Check the result as SQL text
         expect(result).toBeInstanceOf(BinarySelectQuery);
@@ -203,7 +203,7 @@ describe('SelectQuery Binary Operations', () => {
         `);
 
         // Act - Append a query with WITH clause using appendUnion
-        const resultQuery = binaryQuery.appendUnion(withQuery);
+        const resultQuery = binaryQuery.union(withQuery);
 
         // Assert
         expect(resultQuery).toBeInstanceOf(BinarySelectQuery);
