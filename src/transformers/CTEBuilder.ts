@@ -32,15 +32,6 @@ export class CTEBuilder {
      * @throws Error if there are duplicate CTE names with different definitions
      */
     public build(commonTables: CommonTable[]): WithClause {
-        // If empty or only one table, no conflicts to resolve
-        if (commonTables.length <= 1) {
-            // No recursion possible with 0 or 1 table
-            return new WithClause(
-                false,
-                commonTables
-            );
-        }
-
         // Step 1: Resolve name conflicts
         const resolvedTables = this.resolveDuplicateNames(commonTables);
 

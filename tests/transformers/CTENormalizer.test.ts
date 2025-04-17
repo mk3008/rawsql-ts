@@ -69,7 +69,7 @@ describe('CTENormalizer', () => {
 
         // Assert
         // Test expected value adjusted to match the actual output
-        expect(result).toBe('with "inner_cte" as (select "id", "name" from "users"), "outer_cte" as (select * from (with "inner_cte" as (select "id", "name" from "users") select * from "inner_cte") as "nested") select * from "outer_cte"');
+        expect(result).toBe('with "inner_cte" as (select "id", "name" from "users"), "outer_cte" as (select * from (select * from "inner_cte") as "nested") select * from "outer_cte"');
     });
 
     test('normalizes WITH clauses in WHERE clause subqueries', () => {

@@ -1,5 +1,5 @@
 import { SqlComponent } from "./SqlComponent";
-import { ForClause, FromClause, GroupByClause, HavingClause, JoinClause, JoinOnClause, LimitClause, OrderByClause, SelectClause, SourceExpression, SubQuerySource, SourceAliasExpression, WhereClause, WindowFrameClause, WithClause } from "./Clause";
+import { ForClause, FromClause, GroupByClause, HavingClause, JoinClause, JoinOnClause, LimitClause, OrderByClause, SelectClause, SourceExpression, SubQuerySource, SourceAliasExpression, WhereClause, WindowFrameClause, WithClause, CommonTable } from "./Clause";
 import { BinaryExpression, ColumnReference, ValueComponent } from "./ValueComponent";
 import { ValueParser } from "../parsers/ValueParser";
 import { CTENormalizer } from "../transformers/CTENormalizer";
@@ -7,6 +7,8 @@ import { SelectableColumnCollector } from "../transformers/SelectableColumnColle
 import { SourceParser } from "../parsers/SourceParser";
 import { BinarySelectQuery } from "./BinarySelectQuery";
 import type { SelectQuery } from "./SelectQuery";
+import { CommonTableParser } from "../parsers/CommonTableParser";
+import { SelectQueryParser } from "../parsers/SelectQueryParser";
 
 /**
  * Represents a simple SELECT query in SQL.
@@ -321,5 +323,31 @@ export class SimpleSelectQuery extends SqlComponent {
             new SubQuerySource(this),
             new SourceAliasExpression(alias, null)
         );
+    }
+
+    public appendWith(commonTable: CommonTable | CommonTable[]): void {
+        // Always treat as array for simplicity
+        const tables = Array.isArray(commonTable) ? commonTable : [commonTable];
+        if (!this.WithClause) {
+            this.WithClause = new WithClause(false, tables);
+        } else {
+            this.WithClause.tables.push(...tables);
+        }
+
+        const normalizer = new CTENormalizer();
+        normalizer.normalize(this);
+    }
+
+    /**
+     * Appends a CommonTable (CTE) to the WITH clause from raw SQL text and alias.
+     * If alias is provided, it will be used as the CTE name.
+     *
+     * @param rawText Raw SQL string representing the CTE body (e.g. '(SELECT ...)')
+     * @param alias Optional alias for the CTE (e.g. 'cte_name')
+     */
+    public appendWithRaw(rawText: string, alias: string): void {
+        const query = SelectQueryParser.parseFromText(rawText);
+        const commonTable = new CommonTable(query, alias, null);
+        this.appendWith(commonTable);
     }
 }
