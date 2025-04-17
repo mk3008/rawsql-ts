@@ -238,7 +238,7 @@ export class Formatter implements SqlComponentVisitor<string> {
     }
 
     private visitCommonTable(arg: CommonTable): string {
-        const alias = arg.alias.accept(this);
+        const alias = arg.aliasExpression.accept(this);
         const materil = arg.materialized === null
             ? ''
             : arg.materialized ? 'materialized' : 'not materialized';

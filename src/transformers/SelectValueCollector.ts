@@ -182,10 +182,10 @@ export class SelectValueCollector implements SqlComponentVisitor<void> {
 
     private processSourceExpression(sourceName: string | null, source: SourceExpression) {
         // check common table
-        const commonTable = this.commonTables.find(item => item.alias.table.name === sourceName);
+        const commonTable = this.commonTables.find(item => item.aliasExpression.table.name === sourceName);
         if (commonTable) {
             // Exclude this CTE from consideration to prevent self-reference
-            const innerCommonTables = this.commonTables.filter(item => item.alias.table.name !== sourceName);
+            const innerCommonTables = this.commonTables.filter(item => item.aliasExpression.table.name !== sourceName);
 
             const innerCollector = new SelectValueCollector(this.tableColumnResolver, innerCommonTables);
             const innerSelected = innerCollector.collect(commonTable.query);

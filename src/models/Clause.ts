@@ -261,22 +261,37 @@ export class FromClause extends SqlComponent {
         }
         return null;
     }
+    /**
+     * Returns all SourceExpression objects in this FROM clause, including main source and all JOIN sources.
+     */
+    public getSources(): SourceExpression[] {
+        const sources: SourceExpression[] = [this.source];
+        if (this.joins) {
+            for (const join of this.joins) {
+                sources.push(join.source);
+            }
+        }
+        return sources;
+    }
 }
 
 export class CommonTable extends SqlComponent {
     static kind = Symbol("CommonTable");
     query: SelectQuery;
     materialized: boolean | null;
-    alias: SourceAliasExpression;
-    constructor(query: SelectQuery, name: SourceAliasExpression | string, materialized: boolean | null) {
+    aliasExpression: SourceAliasExpression;
+    constructor(query: SelectQuery, aliasExpression: SourceAliasExpression | string, materialized: boolean | null) {
         super();
         this.query = query;
         this.materialized = materialized;
-        if (typeof name === "string") {
-            this.alias = new SourceAliasExpression(name, null);
+        if (typeof aliasExpression === "string") {
+            this.aliasExpression = new SourceAliasExpression(aliasExpression, null);
         } else {
-            this.alias = name;
+            this.aliasExpression = aliasExpression;
         }
+    }
+    public getAliasSourceName(): string {
+        return this.aliasExpression.table.name;
     }
 }
 
