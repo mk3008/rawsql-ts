@@ -184,7 +184,7 @@ export class TableSourceCollector implements SqlComponentVisitor<void> {
 
         // Add CTE names to the set
         for (const cte of commonTables) {
-            this.cteNames.add(cte.alias.table.name);
+            this.cteNames.add(cte.aliasExpression.table.name);
         }
     }
 

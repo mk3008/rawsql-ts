@@ -68,7 +68,7 @@ export class CTEBuilder {
         // Group CTEs by their names
         const ctesByName = new Map<string, CommonTable[]>();
         for (const table of commonTables) {
-            const tableName = table.alias.table.name;
+            const tableName = table.aliasExpression.table.name;
             if (!ctesByName.has(tableName)) {
                 ctesByName.set(tableName, []);
             }
@@ -114,7 +114,7 @@ export class CTEBuilder {
         // Create a map of table names for quick lookup
         const tableMap = new Map<string, CommonTable>();
         for (const table of tables) {
-            tableMap.set(table.alias.table.name, table);
+            tableMap.set(table.aliasExpression.table.name, table);
         }
 
         // Identify recursive CTEs (those that reference themselves)
@@ -125,7 +125,7 @@ export class CTEBuilder {
         const referencedBy = new Map<string, Set<string>>();
 
         for (const table of tables) {
-            const tableName = table.alias.table.name;
+            const tableName = table.aliasExpression.table.name;
 
             // Check for self-references (recursive CTEs)
             const referencedTables = this.sourceCollector.collect(table.query);
@@ -147,7 +147,7 @@ export class CTEBuilder {
             const referencedCTEs = this.cteCollector.collect(table.query);
 
             for (const referencedCTE of referencedCTEs) {
-                const referencedName = referencedCTE.alias.table.name;
+                const referencedName = referencedCTE.aliasExpression.table.name;
 
                 // Only consider references to tables in our collection
                 if (tableMap.has(referencedName)) {
@@ -215,7 +215,7 @@ export class CTEBuilder {
 
         // Process all tables
         for (const table of tables) {
-            const tableName = table.alias.table.name;
+            const tableName = table.aliasExpression.table.name;
             if (!visited.has(tableName)) {
                 visit(tableName);
             }
