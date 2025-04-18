@@ -32,6 +32,18 @@ export class CTEBuilder {
      * @throws Error if there are duplicate CTE names with different definitions
      */
     public build(commonTables: CommonTable[]): WithClause {
+        // Early return for empty CTEs
+        // Note:
+        // Although it may seem reasonable to return early when there is only one element,
+        // the 'recursive' property is determined dynamically. Therefore, if there is at least one element,
+        // the CTEs must be rebuilt to ensure correct recursive detection.
+        if (commonTables.length === 0) {
+            return new WithClause(
+                false,
+                commonTables
+            );
+        }
+
         // Step 1: Resolve name conflicts
         const resolvedTables = this.resolveDuplicateNames(commonTables);
 
