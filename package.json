@@ -1,7 +1,9 @@
 {
-    "name": "nodeconsoleapp1",
-    "version": "1.0.0",
-    "main": "app.js",
+    "name": "rawsql-ts",
+    "version": "0.1.0",
+    "description": "High-performance SQL parser and AST analyzer written in TypeScript. Provides fast parsing and advanced transformation capabilities.",
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
     "scripts": {
         "test": "vitest run",
         "test:watch": "vitest",
@@ -14,7 +16,6 @@
     "keywords": [],
     "author": "",
     "license": "ISC",
-    "description": "",
     "devDependencies": {
         "@types/benchmark": "^2.1.5",
         "@types/node": "^22.13.10",

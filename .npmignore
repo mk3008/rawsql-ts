@@ -1,0 +1,32 @@
+# Ignore test files and folders
+/tests/
+coverage/
+benchmarks/
+
+# Ignore TypeScript source files (only ship compiled JS)
+src/
+*.ts
+*.tsx
+
+# Ignore config and misc files
+.vscode/
+*.log
+*.md
+*.yml
+*.yaml
+*.mjs
+vitest.config.ts
+tsconfig.json
+.eslintrc*
+.prettierrc*
+
+# Ignore local environment files
+.env
+.env.*
+
+# Node modules (just in case)
+node_modules/
+
+# OS junk files
+.DS_Store
+Thumbs.db
