@@ -109,8 +109,9 @@ export class BinarySelectQuery extends SqlComponent {
         this.operator = new RawString(operator);
         this.right = query;
 
-        const normalizer = new CTENormalizer();
-        normalizer.normalize(this);
+        // const normalizer = new CTENormalizer();
+        // normalizer.normalize(this);
+        CTENormalizer.normalize(this);
 
         return this;
     }

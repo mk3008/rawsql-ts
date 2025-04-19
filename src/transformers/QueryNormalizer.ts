@@ -13,23 +13,30 @@ import { CTENormalizer } from "./CTENormalizer";
  */
 export class QueryNormalizer {
     /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
+    private constructor() {
+        // This class is not meant to be instantiated.
+    }
+
+    /**
      * Normalizes a SELECT query to a standard form
      * 
      * @param query The query to normalize
      * @returns A normalized SimpleSelectQuery
      */
-    public normalize(query: SelectQuery): SimpleSelectQuery {
+    public static normalize(query: SelectQuery): SimpleSelectQuery {
         if (query instanceof SimpleSelectQuery) {
             // Simple queries are already in the desired format
             return query;
         }
         else if (query instanceof BinarySelectQuery) {
             // Wrap binary queries as subqueries
-            return this.normalizeBinaryQuery(query);
+            return QueryNormalizer.normalizeBinaryQuery(query);
         }
         else if (query instanceof ValuesQuery) {
             // Convert VALUES queries to simple queries with column names
-            return this.normalizeValuesQuery(query);
+            return QueryNormalizer.normalizeValuesQuery(query);
         }
 
         // Fallback case, should not be reached with the current type system
@@ -43,7 +50,7 @@ export class QueryNormalizer {
      * @param query The binary query to normalize
      * @returns A normalized SimpleSelectQuery
      */
-    private normalizeBinaryQuery(query: BinarySelectQuery): SimpleSelectQuery {
+    private static normalizeBinaryQuery(query: BinarySelectQuery): SimpleSelectQuery {
         // Create a subquery source from the binary query
         const subQuerySource = new SubQuerySource(query);
 
@@ -57,7 +64,7 @@ export class QueryNormalizer {
         const fromClause = new FromClause(sourceExpr, null);
 
         // Create SELECT clause with * (all columns)
-        const selectClause = this.createSelectAllClause();
+        const selectClause = QueryNormalizer.createSelectAllClause();
 
         // Create the final simple select query
         const q = new SimpleSelectQuery(
@@ -73,8 +80,7 @@ export class QueryNormalizer {
             null  // No FOR
         );
 
-        const cteNormalizer = new CTENormalizer();
-        return cteNormalizer.normalize(q) as SimpleSelectQuery;
+        return CTENormalizer.normalize(q) as SimpleSelectQuery;
     }
 
     /**
@@ -83,7 +89,7 @@ export class QueryNormalizer {
      * @param query The VALUES query to normalize
      * @returns A normalized SimpleSelectQuery
      */
-    private normalizeValuesQuery(query: ValuesQuery): SimpleSelectQuery {
+    private static normalizeValuesQuery(query: ValuesQuery): SimpleSelectQuery {
         // Determine how many columns are in the VALUES clause
         // by checking the first tuple (if available)
         const columnCount = query.tuples.length > 0 ? query.tuples[0].values.length : 0;
@@ -106,7 +112,7 @@ export class QueryNormalizer {
         const fromClause = new FromClause(sourceExpr, null);
 
         // Create SELECT clause with * (all columns)
-        const selectClause = this.createSelectAllClause();
+        const selectClause = QueryNormalizer.createSelectAllClause();
 
         // Create the final simple select query
         return new SimpleSelectQuery(
@@ -128,7 +134,7 @@ export class QueryNormalizer {
      * 
      * @returns A SELECT clause with *
      */
-    private createSelectAllClause(): SelectClause {
+    private static createSelectAllClause(): SelectClause {
         // Create a column reference for *
         const columnRef = new ColumnReference(null, "*");
 

@@ -18,16 +18,12 @@ import { CTEInjector } from "./CTEInjector";
  * 3. CTENameConflictResolver - to resolve name conflicts among CTEs and sort them properly
  */
 export class CTENormalizer {
-    private cteCollector: CTECollector;
-    private cteDisabler: CTEDisabler;
-    private injector: CTEInjector;
-
-    constructor() {
-        this.cteCollector = new CTECollector();
-        this.cteDisabler = new CTEDisabler();
-        this.injector = new CTEInjector();
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
+    private constructor() {
+        // This class is not meant to be instantiated.
     }
-
     /**
      * Normalizes a SQL query by consolidating all CTEs into a single WITH clause
      * at the root level of the query.
@@ -35,17 +31,20 @@ export class CTENormalizer {
      * @param query The query to normalize
      * @returns A new normalized query with all CTEs at the root level
      */
-    public normalize(query: SelectQuery): SelectQuery {
+    public static normalize(query: SelectQuery): SelectQuery {
         // No need to normalize if the query doesn't have any CTEs
-        const allCommonTables = this.cteCollector.collect(query);
+        const cteCollector = new CTECollector();
+        const allCommonTables = cteCollector.collect(query);
 
         if (allCommonTables.length === 0) {
             return query;
         }
 
         // Remove all WITH clauses from the original query
-        this.cteDisabler.execute(query);
+        const cteDisabler = new CTEDisabler();
+        cteDisabler.execute(query);
 
-        return this.injector.inject(query, allCommonTables);
+        const injector = new CTEInjector();
+        return injector.inject(query, allCommonTables);
     }
 }

@@ -15,10 +15,9 @@ describe('CTENormalizer', () => {
             SELECT * FROM temp_sales
         `;
         const query = SelectQueryParser.parse(sql);
-        const normalizer = new CTENormalizer();
 
         // Act
-        const normalizedQuery = normalizer.normalize(query);
+        const normalizedQuery = CTENormalizer.normalize(query);
         const result = formatter.format(normalizedQuery);
 
         // Assert
@@ -37,10 +36,9 @@ describe('CTENormalizer', () => {
             ) AS subquery
         `;
         const query = SelectQueryParser.parse(sql);
-        const normalizer = new CTENormalizer();
 
         // Act
-        const normalizedQuery = normalizer.normalize(query);
+        const normalizedQuery = CTENormalizer.normalize(query);
         const result = formatter.format(normalizedQuery);
 
         // Assert
@@ -61,10 +59,9 @@ describe('CTENormalizer', () => {
             SELECT * FROM outer_cte
         `;
         const query = SelectQueryParser.parse(sql);
-        const normalizer = new CTENormalizer();
 
         // Act
-        const normalizedQuery = normalizer.normalize(query);
+        const normalizedQuery = CTENormalizer.normalize(query);
         const result = formatter.format(normalizedQuery);
 
         // Assert
@@ -85,10 +82,9 @@ describe('CTENormalizer', () => {
             )
         `;
         const query = SelectQueryParser.parse(sql);
-        const normalizer = new CTENormalizer();
 
         // Act
-        const normalizedQuery = normalizer.normalize(query);
+        const normalizedQuery = CTENormalizer.normalize(query);
         const result = formatter.format(normalizedQuery);
 
         // Assert
@@ -104,10 +100,9 @@ describe('CTENormalizer', () => {
             ORDER BY name
         `;
         const query = SelectQueryParser.parse(sql);
-        const normalizer = new CTENormalizer();
 
         // Act
-        const normalizedQuery = normalizer.normalize(query);
+        const normalizedQuery = CTENormalizer.normalize(query);
         const result = formatter.format(normalizedQuery);
 
         // Assert
@@ -124,10 +119,9 @@ describe('CTENormalizer', () => {
             SELECT * FROM cte2
         `;
         const query = SelectQueryParser.parse(sql);
-        const normalizer = new CTENormalizer();
 
         // Act
-        const normalizedQuery = normalizer.normalize(query);
+        const normalizedQuery = CTENormalizer.normalize(query);
         const result = formatter.format(normalizedQuery);
 
         // Assert
@@ -151,10 +145,9 @@ describe('CTENormalizer', () => {
             LIMIT 5
         `;
         const query = SelectQueryParser.parse(sql);
-        const normalizer = new CTENormalizer();
 
         // Act
-        const normalizedQuery = normalizer.normalize(query);
+        const normalizedQuery = CTENormalizer.normalize(query);
         const result = formatter.format(normalizedQuery);
 
         // Assert
@@ -183,10 +176,9 @@ describe('CTENormalizer', () => {
             FROM with_a a
         `;
         const query = SelectQueryParser.parse(sql);
-        const normalizer = new CTENormalizer();
 
         // Act
-        const normalizedQuery = normalizer.normalize(query);
+        const normalizedQuery = CTENormalizer.normalize(query);
         const result = formatter.format(normalizedQuery);
 
         // Assert
@@ -217,10 +209,9 @@ describe('CTENormalizer', () => {
             ) AS sub ON a.id = sub.id
         `;
         const query = SelectQueryParser.parse(sql);
-        const normalizer = new CTENormalizer();
 
         // Act
-        const normalizedQuery = normalizer.normalize(query);
+        const normalizedQuery = CTENormalizer.normalize(query);
         const result = formatter.format(normalizedQuery);
 
         // Assert
@@ -246,10 +237,9 @@ describe('CTENormalizer', () => {
             ) AS sub ON a.id = sub.id
         `;
         const query = SelectQueryParser.parse(sql);
-        const normalizer = new CTENormalizer();
 
         // Act
-        const normalizedQuery = normalizer.normalize(query);
+        const normalizedQuery = CTENormalizer.normalize(query);
         const result = formatter.format(normalizedQuery);
 
         // Assert
@@ -272,10 +262,9 @@ describe('CTENormalizer', () => {
             ) AS sub ON a.id = sub.id
         `;
         const query = SelectQueryParser.parse(sql);
-        const normalizer = new CTENormalizer(); // Default is IGNORE_IF_IDENTICAL
 
         // Act
-        const normalizedQuery = normalizer.normalize(query);
+        const normalizedQuery = CTENormalizer.normalize(query);
         const result = formatter.format(normalizedQuery);
 
         // Assert - If the definition is the same, it should be ignored, resulting in just one CTE
@@ -298,12 +287,9 @@ describe('CTENormalizer', () => {
         `;
         const query = SelectQueryParser.parse(sql);
 
-        // Default is IGNORE_IF_IDENTICAL, so different definitions should throw an error
-        const normalizer = new CTENormalizer();
-
         // Act & Assert
         expect(() => {
-            normalizer.normalize(query);
+            CTENormalizer.normalize(query);
         }).toThrow('CTE name conflict detected: \'a\' has multiple different definitions');
     });
 });

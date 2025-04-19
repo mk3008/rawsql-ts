@@ -309,8 +309,9 @@ export class SimpleSelectQuery extends SqlComponent {
             }
         }
 
-        const normalizer = new CTENormalizer();
-        normalizer.normalize(this);
+        // const normalizer = new CTENormalizer();
+        // normalizer.normalize(this);
+        CTENormalizer.normalize(this);
     }
 
     // Returns a SourceExpression wrapping this query as a subquery source.
@@ -334,8 +335,9 @@ export class SimpleSelectQuery extends SqlComponent {
             this.WithClause.tables.push(...tables);
         }
 
-        const normalizer = new CTENormalizer();
-        normalizer.normalize(this);
+        // const normalizer = new CTENormalizer();
+        // normalizer.normalize(this);
+        CTENormalizer.normalize(this);
     }
 
     /**
