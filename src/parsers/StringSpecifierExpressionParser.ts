@@ -2,7 +2,7 @@ import { Lexeme, TokenType } from "../models/Lexeme";
 import { StringSpecifierExpression, ValueComponent } from "../models/ValueComponent";
 
 export class StringSpecifierExpressionParser {
-    public static parse(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number } {
+    public static parseFromLexeme(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number } {
         let idx = index;
         const specifer = lexemes[idx].value;
         idx++;

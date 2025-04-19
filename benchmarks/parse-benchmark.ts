@@ -118,7 +118,7 @@ const suite = new Benchmark.Suite;
 
 function parseQuery(sql: string) {
     return () => {
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         query.accept(formatter);
     };
 }

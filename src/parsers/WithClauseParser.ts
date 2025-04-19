@@ -4,12 +4,13 @@ import { SqlTokenizer } from "./SqlTokenizer";
 import { CommonTableParser } from "./CommonTableParser";
 
 export class WithClauseParser {
-    public static parseFromText(query: string): WithClause {
+    // Parse SQL string to AST (was: parse)
+    public static parse(query: string): WithClause {
         const tokenizer = new SqlTokenizer(query); // Initialize tokenizer
         const lexemes = tokenizer.readLexmes(); // Get tokens
 
         // Parse
-        const result = this.parse(lexemes, 0);
+        const result = this.parseFromLexeme(lexemes, 0);
 
         // Error if there are remaining tokens
         if (result.newIndex < lexemes.length) {
@@ -19,7 +20,8 @@ export class WithClauseParser {
         return result.value;
     }
 
-    public static parse(lexemes: Lexeme[], index: number): { value: WithClause; newIndex: number } {
+    // Parse from lexeme array (was: parse)
+    public static parseFromLexeme(lexemes: Lexeme[], index: number): { value: WithClause; newIndex: number } {
         let idx = index;
 
         // Expect WITH keyword
@@ -39,14 +41,14 @@ export class WithClauseParser {
         const tables: CommonTable[] = [];
 
         // Parse first CTE (required)
-        const firstCte = CommonTableParser.parse(lexemes, idx);
+        const firstCte = CommonTableParser.parseFromLexeme(lexemes, idx);
         tables.push(firstCte.value);
         idx = firstCte.newIndex;
 
         // Parse additional CTEs (optional)
         while (idx < lexemes.length && lexemes[idx].type === TokenType.Comma) {
             idx++; // Skip comma
-            const cteResult = CommonTableParser.parse(lexemes, idx);
+            const cteResult = CommonTableParser.parseFromLexeme(lexemes, idx);
             tables.push(cteResult.value);
             idx = cteResult.newIndex;
         }

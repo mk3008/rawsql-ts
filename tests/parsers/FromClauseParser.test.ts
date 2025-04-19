@@ -9,7 +9,7 @@ test('simple from', () => {
     const text = `from users`;
 
     // Act
-    const clause = FromClauseParser.parseFromText(text);
+    const clause = FromClauseParser.parse(text);
     const sql = formatter.visit(clause);
 
     // Assert
@@ -21,7 +21,7 @@ test('from with table alias', () => {
     const text = `from users u`;
 
     // Act
-    const clause = FromClauseParser.parseFromText(text);
+    const clause = FromClauseParser.parse(text);
     const sql = formatter.visit(clause);
 
     // Assert
@@ -33,7 +33,7 @@ test('from with schema qualified table', () => {
     const text = `from public.users`;
 
     // Act
-    const clause = FromClauseParser.parseFromText(text);
+    const clause = FromClauseParser.parse(text);
     const sql = formatter.visit(clause);
 
     // Assert
@@ -45,7 +45,7 @@ test('from with schema and alias', () => {
     const text = `from public.users as u`;
 
     // Act
-    const clause = FromClauseParser.parseFromText(text);
+    const clause = FromClauseParser.parse(text);
     const sql = formatter.visit(clause);
 
     // Assert
@@ -57,7 +57,7 @@ test('from with inner join', () => {
     const text = `from users u inner join orders o on u.id = o.user_id`;
 
     // Act
-    const clause = FromClauseParser.parseFromText(text);
+    const clause = FromClauseParser.parse(text);
     const sql = formatter.visit(clause);
 
     // Assert
@@ -69,7 +69,7 @@ test('from with left join', () => {
     const text = `from users u left join orders o on u.id = o.user_id`;
 
     // Act
-    const clause = FromClauseParser.parseFromText(text);
+    const clause = FromClauseParser.parse(text);
     const sql = formatter.visit(clause);
 
     // Assert
@@ -81,7 +81,7 @@ test('from with right join', () => {
     const text = `from orders o right join users u on o.user_id = u.id`;
 
     // Act
-    const clause = FromClauseParser.parseFromText(text);
+    const clause = FromClauseParser.parse(text);
     const sql = formatter.visit(clause);
 
     // Assert
@@ -93,7 +93,7 @@ test('from with full outer join', () => {
     const text = `from users u full outer join orders o on u.id = o.user_id`;
 
     // Act
-    const clause = FromClauseParser.parseFromText(text);
+    const clause = FromClauseParser.parse(text);
     const sql = formatter.visit(clause);
 
     // Assert
@@ -105,7 +105,7 @@ test('from with cross join', () => {
     const text = `from products cross join categories`;
 
     // Act
-    const clause = FromClauseParser.parseFromText(text);
+    const clause = FromClauseParser.parse(text);
     const sql = formatter.visit(clause);
 
     // Assert
@@ -117,7 +117,7 @@ test('from with natural join', () => {
     const text = `from employees natural join departments`;
 
     // Act
-    const clause = FromClauseParser.parseFromText(text);
+    const clause = FromClauseParser.parse(text);
     const sql = formatter.visit(clause);
 
     // Assert
@@ -129,7 +129,7 @@ test('from with multiple joins', () => {
     const text = `from orders o join users u on o.user_id = u.id join products p on o.product_id = p.id`;
 
     // Act
-    const clause = FromClauseParser.parseFromText(text);
+    const clause = FromClauseParser.parse(text);
     const sql = formatter.visit(clause);
 
     // Assert
@@ -141,7 +141,7 @@ test('from with multiple joins', () => {
 //     const text = `from (select * from users where active = true) as active_users`;
 
 //     // Act
-//     const clause = FromClauseParser.parseFromText(text);
+//     const clause = FromClauseParser.parse(text);
 //     const sql = formatter.visit(clause);
 
 //     // Assert
@@ -153,7 +153,7 @@ test('from with lateral join', () => {
     const text = `from users u, lateral (select * from orders where user_id = u.id limit 3) as recent_orders`;
 
     // Act
-    const clause = FromClauseParser.parseFromText(text);
+    const clause = FromClauseParser.parse(text);
     const sql = formatter.visit(clause);
 
     // Assert
@@ -165,7 +165,7 @@ test('from with column alias list', () => {
     const text = `from users as u(user_id, username, email)`;
 
     // Act
-    const clause = FromClauseParser.parseFromText(text);
+    const clause = FromClauseParser.parse(text);
     const sql = formatter.visit(clause);
 
     // Assert
@@ -177,7 +177,7 @@ test('from with function', () => {
     const text = `from generate_series(1, 10) as numbers`;
 
     // Act
-    const clause = FromClauseParser.parseFromText(text);
+    const clause = FromClauseParser.parse(text);
     const sql = formatter.visit(clause);
 
     // Assert
@@ -189,7 +189,7 @@ test('from with join using syntax', () => {
     const text = `from users join orders using (id)`;
 
     // Act
-    const clause = FromClauseParser.parseFromText(text);
+    const clause = FromClauseParser.parse(text);
     const sql = formatter.visit(clause);
 
     // Assert
@@ -201,7 +201,7 @@ test('from with multiple columns in using clause', () => {
     const text = `from users join orders using (user_id, order_date)`;
 
     // Act
-    const clause = FromClauseParser.parseFromText(text);
+    const clause = FromClauseParser.parse(text);
     const sql = formatter.visit(clause);
 
     // Assert
@@ -213,7 +213,7 @@ test('from with left join lateral', () => {
     const text = `from users u left join lateral (select * from orders o where o.user_id = u.id order by o.created_at desc limit 5) as recent_orders on true`;
 
     // Act
-    const clause = FromClauseParser.parseFromText(text);
+    const clause = FromClauseParser.parse(text);
     const sql = formatter.visit(clause);
 
     // Assert
@@ -225,7 +225,7 @@ test('from with left join lateral without on clause', () => {
     const text = `from users u left join lateral unnest(u.order_ids) as o(order_id)`;
 
     // Act
-    const clause = FromClauseParser.parseFromText(text);
+    const clause = FromClauseParser.parse(text);
     const sql = formatter.visit(clause);
 
     // Assert

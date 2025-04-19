@@ -4,23 +4,24 @@ import { SourceParser } from "./SourceParser";
 import { SourceAliasExpressionParser } from "./SourceAliasExpressionParser";
 
 export class SourceExpressionParser {
-    public static parse(lexemes: Lexeme[], index: number): { value: SourceExpression; newIndex: number; } {
+    // Parse from lexeme array (was: parse)
+    public static parseFromLexeme(lexemes: Lexeme[], index: number): { value: SourceExpression; newIndex: number; } {
         let idx = index;
 
-        const sourceResult = SourceParser.parse(lexemes, idx);
+        const sourceResult = SourceParser.parseFromLexeme(lexemes, idx);
         idx = sourceResult.newIndex;
 
         if (idx < lexemes.length) {
             if (lexemes[idx].value === "as") {
                 idx++;
-                const aliasResult = SourceAliasExpressionParser.parse(lexemes, idx);
+                const aliasResult = SourceAliasExpressionParser.parseFromLexeme(lexemes, idx);
                 idx = aliasResult.newIndex;
                 const sourceExpr = new SourceExpression(sourceResult.value, aliasResult.value);
                 return { value: sourceExpr, newIndex: idx };
             }
 
             if (lexemes[idx].type === TokenType.Identifier) {
-                const aliasResult = SourceAliasExpressionParser.parse(lexemes, idx);
+                const aliasResult = SourceAliasExpressionParser.parseFromLexeme(lexemes, idx);
                 idx = aliasResult.newIndex;
                 const sourceExpr = new SourceExpression(sourceResult.value, aliasResult.value);
                 return { value: sourceExpr, newIndex: idx };

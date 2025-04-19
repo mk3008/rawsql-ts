@@ -9,7 +9,7 @@ describe('SimpleSelectQuery JOIN API', () => {
     test('innerJoin: basic usage', () => {
         // Arrange
         const sql = 'SELECT u.id, u.name FROM users u';
-        const query = SelectQueryParser.parseFromText(sql) as SimpleSelectQuery;
+        const query = SelectQueryParser.parse(sql) as SimpleSelectQuery;
         query.innerJoinRaw('orders', 'o', ['id']);
 
         // Act
@@ -23,7 +23,7 @@ describe('SimpleSelectQuery JOIN API', () => {
     test('leftJoin: multi-column', () => {
         // Arrange
         const sql = 'SELECT u.id, u.name FROM users u';
-        const query = SelectQueryParser.parseFromText(sql) as SimpleSelectQuery;
+        const query = SelectQueryParser.parse(sql) as SimpleSelectQuery;
         query.leftJoinRaw('orders', 'o', ['id', 'name']);
 
         // Act
@@ -37,7 +37,7 @@ describe('SimpleSelectQuery JOIN API', () => {
     test('rightJoin: schema qualified', () => {
         // Arrange
         const sql = 'SELECT u.id FROM users u';
-        const query = SelectQueryParser.parseFromText(sql) as SimpleSelectQuery;
+        const query = SelectQueryParser.parse(sql) as SimpleSelectQuery;
         query.rightJoinRaw('public.orders', 'o', ['id']);
 
         // Act
@@ -51,7 +51,7 @@ describe('SimpleSelectQuery JOIN API', () => {
     test('throws if join column not found', () => {
         // Arrange
         const sql = 'SELECT u.id FROM users u';
-        const query = SelectQueryParser.parseFromText(sql) as SimpleSelectQuery;
+        const query = SelectQueryParser.parse(sql) as SimpleSelectQuery;
         // Act & Assert
         expect(() => query.innerJoinRaw('orders', 'o', ['not_exist'])).toThrow();
     });
@@ -59,7 +59,7 @@ describe('SimpleSelectQuery JOIN API', () => {
     test('throws if FROM clause is missing', () => {
         // Arrange
         const sql = 'SELECT 1 as id';
-        const query = SelectQueryParser.parseFromText(sql) as SimpleSelectQuery;
+        const query = SelectQueryParser.parse(sql) as SimpleSelectQuery;
         // Act & Assert
         expect(() => query.innerJoinRaw('orders', 'o', ['id'])).toThrow();
     });
@@ -68,7 +68,7 @@ describe('SimpleSelectQuery JOIN API', () => {
         // Arrange
         const subquery = 'SELECT id, name FROM orders WHERE status = \'active\'';
         const sql = 'SELECT u.id, u.name FROM users u';
-        const query = SelectQueryParser.parseFromText(sql) as SimpleSelectQuery;
+        const query = SelectQueryParser.parse(sql) as SimpleSelectQuery;
         // Pass a subquery as a string wrapped in parentheses (alias is o)
         query.innerJoinRaw(`(${subquery})`, 'o', ['id']);
 
@@ -84,7 +84,7 @@ describe('SimpleSelectQuery JOIN API', () => {
         // Arrange
         const subquery = `WITH sub_orders AS (SELECT id, name FROM orders WHERE status = 'active') SELECT id, name FROM sub_orders`;
         const sql = `WITH sub_users AS (SELECT id, name FROM users WHERE active = true) SELECT u.id, u.name FROM sub_users u`;
-        const query = SelectQueryParser.parseFromText(sql) as SimpleSelectQuery;
+        const query = SelectQueryParser.parse(sql) as SimpleSelectQuery;
         // Join with subquery (with its own WITH clause)
         query.innerJoinRaw(`(${subquery})`, 'o', ['id']);
 
@@ -99,9 +99,9 @@ describe('SimpleSelectQuery JOIN API', () => {
 
     test('innerJoin: join with subquery using toSource', () => {
         // Arrange
-        const subquery = SelectQueryParser.parseFromText('SELECT id, name FROM orders WHERE status = "active"') as SimpleSelectQuery;
+        const subquery = SelectQueryParser.parse('SELECT id, name FROM orders WHERE status = "active"') as SimpleSelectQuery;
         const sql = 'SELECT u.id, u.name FROM users u';
-        const query = SelectQueryParser.parseFromText(sql) as SimpleSelectQuery;
+        const query = SelectQueryParser.parse(sql) as SimpleSelectQuery;
         // Use toSource to wrap subquery as a source
         query.innerJoin(subquery.toSource('o'), ['id']);
 

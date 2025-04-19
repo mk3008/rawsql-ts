@@ -67,7 +67,7 @@ export class JoinClauseParser {
         idx = lateralResult.newIndex;
 
         // Parse the source expression to join with
-        const sourceResult = SourceExpressionParser.parse(lexemes, idx);
+        const sourceResult = SourceExpressionParser.parseFromLexeme(lexemes, idx);
         idx = sourceResult.newIndex;
 
         if (idx < lexemes.length) {
@@ -92,7 +92,7 @@ export class JoinClauseParser {
             idx++; // Skip 'on' keyword
 
             // Parse the condition expression
-            const condition = ValueParser.parse(lexemes, idx);
+            const condition = ValueParser.parseFromLexeme(lexemes, idx);
             idx = condition.newIndex;
             const joinOn = new JoinOnClause(condition.value);
             const joinClause = new JoinClause(joinType, source, joinOn, lateral);

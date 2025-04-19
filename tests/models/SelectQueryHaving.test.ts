@@ -8,7 +8,7 @@ const formatter = new Formatter();
 
 test('should add a HAVING condition when none exists using raw string', () => {
     // Arrange
-    const baseQuery = SelectQueryParser.parseFromText('SELECT COUNT(*) FROM users GROUP BY department') as SimpleSelectQuery;
+    const baseQuery = SelectQueryParser.parse('SELECT COUNT(*) FROM users GROUP BY department') as SimpleSelectQuery;
 
     // Act
     baseQuery.appendHavingRaw("COUNT(*) > 5");
@@ -20,7 +20,7 @@ test('should add a HAVING condition when none exists using raw string', () => {
 
 test('should add multiple HAVING conditions with AND logic using raw strings', () => {
     // Arrange
-    const baseQuery = SelectQueryParser.parseFromText('SELECT COUNT(*), SUM(amount) FROM orders GROUP BY status') as SimpleSelectQuery;
+    const baseQuery = SelectQueryParser.parse('SELECT COUNT(*), SUM(amount) FROM orders GROUP BY status') as SimpleSelectQuery;
 
     // Act
     baseQuery.appendHavingRaw("COUNT(*) > 10");
@@ -33,7 +33,7 @@ test('should add multiple HAVING conditions with AND logic using raw strings', (
 
 test('should handle complex HAVING conditions with raw strings', () => {
     // Arrange
-    const baseQuery = SelectQueryParser.parseFromText('SELECT department, AVG(salary) FROM employees GROUP BY department') as SimpleSelectQuery;
+    const baseQuery = SelectQueryParser.parse('SELECT department, AVG(salary) FROM employees GROUP BY department') as SimpleSelectQuery;
 
     // Act
     baseQuery.appendHavingRaw("(COUNT(*) >= 5 AND MAX(salary) < 100000)");
@@ -46,7 +46,7 @@ test('should handle complex HAVING conditions with raw strings', () => {
 
 test('should add a HAVING condition using ValueComponent', () => {
     // Arrange
-    const baseQuery = SelectQueryParser.parseFromText('SELECT product, SUM(sales) FROM transactions GROUP BY product') as SimpleSelectQuery;
+    const baseQuery = SelectQueryParser.parse('SELECT product, SUM(sales) FROM transactions GROUP BY product') as SimpleSelectQuery;
 
     // Create ValueComponent for condition: SUM(sales) > 500
     const sumFunction = new FunctionCall('sum', new ColumnReference(null, 'sales'), null);
@@ -62,7 +62,7 @@ test('should add a HAVING condition using ValueComponent', () => {
 
 test('should add multiple HAVING conditions with AND logic using ValueComponents', () => {
     // Arrange
-    const baseQuery = SelectQueryParser.parseFromText('SELECT category, COUNT(*), AVG(price) FROM products GROUP BY category') as SimpleSelectQuery;
+    const baseQuery = SelectQueryParser.parse('SELECT category, COUNT(*), AVG(price) FROM products GROUP BY category') as SimpleSelectQuery;
 
     // Create first condition: COUNT(*) > 10
     const countFunction = new FunctionCall('count', new ColumnReference(null, '*'), null);
@@ -83,7 +83,7 @@ test('should add multiple HAVING conditions with AND logic using ValueComponents
 
 test('should combine raw string and ValueComponent conditions in HAVING clause', () => {
     // Arrange
-    const baseQuery = SelectQueryParser.parseFromText('SELECT region, SUM(sales) FROM sales_data GROUP BY region') as SimpleSelectQuery;
+    const baseQuery = SelectQueryParser.parse('SELECT region, SUM(sales) FROM sales_data GROUP BY region') as SimpleSelectQuery;
 
     // Add first condition using raw string
     baseQuery.appendHavingRaw("COUNT(*) > 20");

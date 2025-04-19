@@ -14,7 +14,7 @@ describe('CTENormalizer', () => {
             )
             SELECT * FROM temp_sales
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const normalizer = new CTENormalizer();
 
         // Act
@@ -36,7 +36,7 @@ describe('CTENormalizer', () => {
                 SELECT * FROM nested_cte
             ) AS subquery
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const normalizer = new CTENormalizer();
 
         // Act
@@ -60,7 +60,7 @@ describe('CTENormalizer', () => {
             )
             SELECT * FROM outer_cte
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const normalizer = new CTENormalizer();
 
         // Act
@@ -84,7 +84,7 @@ describe('CTENormalizer', () => {
                 SELECT id FROM top_departments
             )
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const normalizer = new CTENormalizer();
 
         // Act
@@ -103,7 +103,7 @@ describe('CTENormalizer', () => {
             WHERE status = 'active'
             ORDER BY name
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const normalizer = new CTENormalizer();
 
         // Act
@@ -123,7 +123,7 @@ describe('CTENormalizer', () => {
             WITH cte2 AS (SELECT id FROM table2)
             SELECT * FROM cte2
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const normalizer = new CTENormalizer();
 
         // Act
@@ -150,7 +150,7 @@ describe('CTENormalizer', () => {
             ORDER BY total_count DESC
             LIMIT 5
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const normalizer = new CTENormalizer();
 
         // Act
@@ -182,7 +182,7 @@ describe('CTENormalizer', () => {
             SELECT a.id, a.value, a.level, a.parent_level, 'level_a' as root_level
             FROM with_a a
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const normalizer = new CTENormalizer();
 
         // Act
@@ -216,7 +216,7 @@ describe('CTENormalizer', () => {
                 SELECT * FROM b
             ) AS sub ON a.id = sub.id
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const normalizer = new CTENormalizer();
 
         // Act
@@ -245,7 +245,7 @@ describe('CTENormalizer', () => {
                 SELECT * FROM b
             ) AS sub ON a.id = sub.id
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const normalizer = new CTENormalizer();
 
         // Act
@@ -271,7 +271,7 @@ describe('CTENormalizer', () => {
                 SELECT * FROM a
             ) AS sub ON a.id = sub.id
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const normalizer = new CTENormalizer(); // Default is IGNORE_IF_IDENTICAL
 
         // Act
@@ -296,7 +296,7 @@ describe('CTENormalizer', () => {
                 SELECT * FROM a
             ) AS sub ON a.id = sub.id
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
 
         // Default is IGNORE_IF_IDENTICAL, so different definitions should throw an error
         const normalizer = new CTENormalizer();

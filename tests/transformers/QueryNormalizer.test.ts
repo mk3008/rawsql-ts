@@ -11,7 +11,7 @@ describe('QueryNormalizer', () => {
     test('it returns SimpleSelectQuery unchanged', () => {
         // Arrange
         const sql = "SELECT id, name FROM users WHERE active = true";
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
 
         // Act
         const normalizedQuery = normalizer.normalize(query);
@@ -24,7 +24,7 @@ describe('QueryNormalizer', () => {
     test('it converts BinarySelectQuery to subquery format', () => {
         // Arrange
         const sql = "SELECT id, name FROM users UNION SELECT id, name FROM admins";
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         expect(query).toBeInstanceOf(BinarySelectQuery);
 
         // Act
@@ -38,7 +38,7 @@ describe('QueryNormalizer', () => {
     test('it converts ValuesQuery to subquery with column names', () => {
         // Arrange
         const sql = "VALUES (1, 'one'), (2, 'two'), (3, 'three')";
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         expect(query).toBeInstanceOf(ValuesQuery);
 
         // Act
@@ -53,7 +53,7 @@ describe('QueryNormalizer', () => {
     test('it handles nested binary queries', () => {
         // Arrange
         const sql = "SELECT id FROM users UNION SELECT id FROM customers UNION SELECT id FROM guests";
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
 
         // Act
         const normalizedQuery = normalizer.normalize(query);
@@ -67,7 +67,7 @@ describe('QueryNormalizer', () => {
         // This test is skipped as some SQL parsers might not accept the empty VALUES syntax
         // Arrange - Note: Using empty VALUES syntax
         const sql = "VALUES ()";
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
 
         // Act
         const normalizedQuery = normalizer.normalize(query);
@@ -80,7 +80,7 @@ describe('QueryNormalizer', () => {
         // Arrange
         const sql = "WITH active_users AS (SELECT id, name FROM users WHERE active = true) " +
             "SELECT id, name FROM active_users UNION SELECT id, name FROM admins";
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
 
         // Act
         const normalizedQuery = normalizer.normalize(query);

@@ -9,7 +9,7 @@ test('simple values clause with single tuple', () => {
     const text = `values (1, 'test', true)`;
 
     // Act
-    const clause = ValuesQueryParser.parseFromText(text);
+    const clause = ValuesQueryParser.parse(text);
     const sql = formatter.visit(clause);
 
     // Assert
@@ -21,7 +21,7 @@ test('values clause with multiple tuples', () => {
     const text = `values (1, 'apple', 0.99), (2, 'banana', 0.59), (3, 'orange', 0.79)`;
 
     // Act
-    const clause = ValuesQueryParser.parseFromText(text);
+    const clause = ValuesQueryParser.parse(text);
     const sql = formatter.visit(clause);
 
     // Assert
@@ -33,7 +33,7 @@ test('values clause with expressions', () => {
     const text = `values (1 + 2, concat('hello', ' ', 'world'), 5 * 10)`;
 
     // Act
-    const clause = ValuesQueryParser.parseFromText(text);
+    const clause = ValuesQueryParser.parse(text);
     const sql = formatter.visit(clause);
 
     // Assert
@@ -45,7 +45,7 @@ test('values clause with null values', () => {
     const text = `values (1, null, 'test'), (null, 'value', null)`;
 
     // Act
-    const clause = ValuesQueryParser.parseFromText(text);
+    const clause = ValuesQueryParser.parse(text);
     const sql = formatter.visit(clause);
 
     // Assert
@@ -57,7 +57,7 @@ test('values clause with empty tuple', () => {
     const text = `values ()`;
 
     // Act
-    const clause = ValuesQueryParser.parseFromText(text);
+    const clause = ValuesQueryParser.parse(text);
     const sql = formatter.visit(clause);
 
     // Assert
@@ -69,7 +69,7 @@ test('values clause with nested expressions', () => {
     const text = `values ((1 + 2) * 3, (select max(id) from users), case when x > 0 then 'positive' else 'negative' end)`;
 
     // Act
-    const clause = ValuesQueryParser.parseFromText(text);
+    const clause = ValuesQueryParser.parse(text);
     const sql = formatter.visit(clause);
 
     // Assert
@@ -81,7 +81,7 @@ test('values clause with function calls', () => {
     const text = `values (now(), upper('text'), random())`;
 
     // Act
-    const clause = ValuesQueryParser.parseFromText(text);
+    const clause = ValuesQueryParser.parse(text);
     const sql = formatter.visit(clause);
 
     // Assert
@@ -93,7 +93,7 @@ test('error on missing VALUES keyword', () => {
     const text = `(1, 2, 3)`;
 
     // Act & Assert
-    expect(() => ValuesQueryParser.parseFromText(text)).toThrow(/Expected 'VALUES' keyword/);
+    expect(() => ValuesQueryParser.parse(text)).toThrow(/Expected 'VALUES' keyword/);
 });
 
 test('error on malformed tuple', () => {
@@ -101,7 +101,7 @@ test('error on malformed tuple', () => {
     const text = `values 1, 2, 3`;
 
     // Act & Assert
-    expect(() => ValuesQueryParser.parseFromText(text)).toThrow(/Expected opening parenthesis/);
+    expect(() => ValuesQueryParser.parse(text)).toThrow(/Expected opening parenthesis/);
 });
 
 test('error on unclosed tuple', () => {
@@ -109,7 +109,7 @@ test('error on unclosed tuple', () => {
     const text = `values (1, 2, 3`;
 
     // Act & Assert
-    expect(() => ValuesQueryParser.parseFromText(text)).toThrow(/Expected closing parenthesis/);
+    expect(() => ValuesQueryParser.parse(text)).toThrow(/Expected closing parenthesis/);
 });
 
 test('error on unexpected end after comma', () => {
@@ -117,5 +117,5 @@ test('error on unexpected end after comma', () => {
     const text = `values (1, 2), `;
 
     // Act & Assert
-    expect(() => ValuesQueryParser.parseFromText(text)).toThrow();
+    expect(() => ValuesQueryParser.parse(text)).toThrow();
 });

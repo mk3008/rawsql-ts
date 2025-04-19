@@ -4,12 +4,13 @@ import { SqlTokenizer } from "./SqlTokenizer";
 import { ValueParser } from "./ValueParser";
 
 export class OrderByClauseParser {
-    public static parseFromText(query: string): OrderByClause {
+    // Parse SQL string to AST (was: parse)
+    public static parse(query: string): OrderByClause {
         const tokenizer = new SqlTokenizer(query); // Initialize tokenizer
         const lexemes = tokenizer.readLexmes(); // Get tokens
 
         // Parse
-        const result = this.parse(lexemes, 0);
+        const result = this.parseFromLexeme(lexemes, 0);
 
         // Error if there are remaining tokens
         if (result.newIndex < lexemes.length) {
@@ -19,7 +20,8 @@ export class OrderByClauseParser {
         return result.value;
     }
 
-    public static parse(lexemes: Lexeme[], index: number): { value: OrderByClause; newIndex: number } {
+    // Parse from lexeme array (was: parse)
+    public static parseFromLexeme(lexemes: Lexeme[], index: number): { value: OrderByClause; newIndex: number } {
         let idx = index;
 
         if (lexemes[idx].value !== 'order by') {
@@ -49,11 +51,9 @@ export class OrderByClauseParser {
 
     private static parseItem(lexemes: Lexeme[], index: number): { value: OrderByComponent; newIndex: number } {
         let idx = index;
-
-        const parsedValue = ValueParser.parse(lexemes, idx);
+        const parsedValue = ValueParser.parseFromLexeme(lexemes, idx);
         const value = parsedValue.value;
         idx = parsedValue.newIndex;
-
         if (idx >= lexemes.length) {
             return { value: value, newIndex: idx };
         }

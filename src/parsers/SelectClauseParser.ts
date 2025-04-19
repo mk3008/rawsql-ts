@@ -4,12 +4,13 @@ import { SqlTokenizer } from "./SqlTokenizer";
 import { ValueParser } from "./ValueParser";
 
 export class SelectClauseParser {
-    public static parseFromText(query: string): SelectClause {
+    // Parse SQL string to AST (was: parse)
+    public static parse(query: string): SelectClause {
         const tokenizer = new SqlTokenizer(query); // Initialize tokenizer
         const lexemes = tokenizer.readLexmes(); // Get tokens
 
         // Parse
-        const result = this.parse(lexemes, 0);
+        const result = this.parseFromLexeme(lexemes, 0);
 
         // Error if there are remaining tokens
         if (result.newIndex < lexemes.length) {
@@ -19,7 +20,8 @@ export class SelectClauseParser {
         return result.value;
     }
 
-    public static parse(lexemes: Lexeme[], index: number): { value: SelectClause; newIndex: number } {
+    // Parse from lexeme array (was: parse)
+    public static parseFromLexeme(lexemes: Lexeme[], index: number): { value: SelectClause; newIndex: number } {
         let idx = index;
         let distinct: DistinctComponent | null = null;
 
@@ -61,7 +63,7 @@ export class SelectClauseParser {
     private static parseItem(lexemes: Lexeme[], index: number): { value: SelectComponent; newIndex: number } {
         let idx = index;
 
-        const parsedValue = ValueParser.parse(lexemes, idx);
+        const parsedValue = ValueParser.parseFromLexeme(lexemes, idx);
         const value = parsedValue.value;
         idx = parsedValue.newIndex;
 

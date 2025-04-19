@@ -9,7 +9,7 @@ test('simple having with equality', () => {
     const text = `having count(*) > 5`;
 
     // Act
-    const clause = HavingClauseParser.parseFromText(text);
+    const clause = HavingClauseParser.parse(text);
     const sql = formatter.visit(clause);
 
     // Assert
@@ -21,7 +21,7 @@ test('having with sum function', () => {
     const text = `having sum(salary) > 50000`;
 
     // Act
-    const clause = HavingClauseParser.parseFromText(text);
+    const clause = HavingClauseParser.parse(text);
     const sql = formatter.visit(clause);
 
     // Assert
@@ -33,7 +33,7 @@ test('having with avg function and comparison', () => {
     const text = `having avg(price) >= 100.50`;
 
     // Act
-    const clause = HavingClauseParser.parseFromText(text);
+    const clause = HavingClauseParser.parse(text);
     const sql = formatter.visit(clause);
 
     // Assert
@@ -45,7 +45,7 @@ test('having with multiple conditions', () => {
     const text = `having count(*) > 5 and max(salary) < 100000`;
 
     // Act
-    const clause = HavingClauseParser.parseFromText(text);
+    const clause = HavingClauseParser.parse(text);
     const sql = formatter.visit(clause);
 
     // Assert
@@ -57,7 +57,7 @@ test('having with complex expression', () => {
     const text = `having count(distinct product_id) > 3 and sum(quantity * price) > 1000`;
 
     // Act
-    const clause = HavingClauseParser.parseFromText(text);
+    const clause = HavingClauseParser.parse(text);
     const sql = formatter.visit(clause);
 
     // Assert
@@ -69,7 +69,7 @@ test('having with or condition', () => {
     const text = `having min(salary) < 30000 or max(salary) > 150000`;
 
     // Act
-    const clause = HavingClauseParser.parseFromText(text);
+    const clause = HavingClauseParser.parse(text);
     const sql = formatter.visit(clause);
 
     // Assert
@@ -81,7 +81,7 @@ test('having with nested expressions', () => {
     const text = `having (count(*) > 10 and sum(amount) > 1000) or avg(price) > 50`;
 
     // Act
-    const clause = HavingClauseParser.parseFromText(text);
+    const clause = HavingClauseParser.parse(text);
     const sql = formatter.visit(clause);
 
     // Assert
@@ -93,7 +93,7 @@ test('having with case expression', () => {
     const text = `having sum(case when status = 'completed' then 1 else 0 end) > 5`;
 
     // Act
-    const clause = HavingClauseParser.parseFromText(text);
+    const clause = HavingClauseParser.parse(text);
     const sql = formatter.visit(clause);
 
     // Assert

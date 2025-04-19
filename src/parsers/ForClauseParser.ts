@@ -3,12 +3,13 @@ import { Lexeme } from "../models/Lexeme";
 import { SqlTokenizer } from "./SqlTokenizer";
 
 export class ForClauseParser {
-    public static parseFromText(query: string): ForClause {
+    // Parse SQL string to AST (was: parse)
+    public static parse(query: string): ForClause {
         const tokenizer = new SqlTokenizer(query);
         const lexemes = tokenizer.readLexmes();
 
         // Parse
-        const result = this.parse(lexemes, 0);
+        const result = this.parseFromLexeme(lexemes, 0);
 
         // Error if there are remaining tokens
         if (result.newIndex < lexemes.length) {
@@ -18,7 +19,8 @@ export class ForClauseParser {
         return result.value;
     }
 
-    public static parse(lexemes: Lexeme[], index: number): { value: ForClause; newIndex: number } {
+    // Parse from lexeme array (was: parse)
+    public static parseFromLexeme(lexemes: Lexeme[], index: number): { value: ForClause; newIndex: number } {
         let idx = index;
 
         // Check for FOR keyword

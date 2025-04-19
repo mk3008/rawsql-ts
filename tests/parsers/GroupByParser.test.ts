@@ -9,7 +9,7 @@ test('simple group by', () => {
     const text = `group by id`;
 
     // Act
-    const clause = GroupByClauseParser.parseFromText(text);
+    const clause = GroupByClauseParser.parse(text);
     const sql = formatter.visit(clause);
 
     // Assert
@@ -21,7 +21,7 @@ test('group by multiple columns', () => {
     const text = `group by department_id, job_id`;
 
     // Act
-    const clause = GroupByClauseParser.parseFromText(text);
+    const clause = GroupByClauseParser.parse(text);
     const sql = formatter.visit(clause);
 
     // Assert
@@ -33,7 +33,7 @@ test('group by with expression', () => {
     const text = `group by extract(year from hire_date)`;
 
     // Act
-    const clause = GroupByClauseParser.parseFromText(text);
+    const clause = GroupByClauseParser.parse(text);
     const sql = formatter.visit(clause);
 
     // Assert
@@ -45,7 +45,7 @@ test('group by with function', () => {
     const text = `group by substr(last_name, 1, 3)`;
 
     // Act
-    const clause = GroupByClauseParser.parseFromText(text);
+    const clause = GroupByClauseParser.parse(text);
     const sql = formatter.visit(clause);
 
     // Assert
@@ -57,7 +57,7 @@ test('group by with case expression', () => {
     const text = `group by case when salary > 10000 then 'High' else 'Low' end`;
 
     // Act
-    const clause = GroupByClauseParser.parseFromText(text);
+    const clause = GroupByClauseParser.parse(text);
     const sql = formatter.visit(clause);
 
     // Assert
@@ -69,7 +69,7 @@ test('group by with multiple expressions', () => {
     const text = `group by department_id, extract(year from hire_date), job_id`;
 
     // Act
-    const clause = GroupByClauseParser.parseFromText(text);
+    const clause = GroupByClauseParser.parse(text);
     const sql = formatter.visit(clause);
 
     // Assert
@@ -81,7 +81,7 @@ test('group by with table qualified column', () => {
     const text = `group by employees.department_id`;
 
     // Act
-    const clause = GroupByClauseParser.parseFromText(text);
+    const clause = GroupByClauseParser.parse(text);
     const sql = formatter.visit(clause);
 
     // Assert
@@ -93,7 +93,7 @@ test('group by with grouping set', () => {
     const text = `group by grouping sets ((department_id), (job_id), (department_id, job_id))`;
 
     // Act
-    const clause = GroupByClauseParser.parseFromText(text);
+    const clause = GroupByClauseParser.parse(text);
     const sql = formatter.visit(clause);
 
     // Assert
@@ -105,7 +105,7 @@ test('group by with cube', () => {
     const text = `group by cube (department_id, job_id)`;
 
     // Act
-    const clause = GroupByClauseParser.parseFromText(text);
+    const clause = GroupByClauseParser.parse(text);
     const sql = formatter.visit(clause);
 
     // Assert
@@ -117,7 +117,7 @@ test('group by with rollup', () => {
     const text = `group by rollup (department_id, job_id)`;
 
     // Act
-    const clause = GroupByClauseParser.parseFromText(text);
+    const clause = GroupByClauseParser.parse(text);
     const sql = formatter.visit(clause);
 
     // Assert
@@ -129,7 +129,7 @@ test('group by with mix of columns and aggregations', () => {
     const text = `group by department_id, rollup(job_id, manager_id)`;
 
     // Act
-    const clause = GroupByClauseParser.parseFromText(text);
+    const clause = GroupByClauseParser.parse(text);
     const sql = formatter.visit(clause);
 
     // Assert

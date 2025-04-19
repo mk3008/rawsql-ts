@@ -136,7 +136,7 @@ export class SimpleSelectQuery extends SqlComponent {
      * @param rawCondition Raw SQL string representing the condition (e.g. "status = 'active'")
      */
     public appendWhereRaw(rawCondition: string): void {
-        const parsedCondition = ValueParser.parseFromText(rawCondition);
+        const parsedCondition = ValueParser.parse(rawCondition);
         this.appendWhere(parsedCondition);
     }
 
@@ -165,7 +165,7 @@ export class SimpleSelectQuery extends SqlComponent {
      * @param rawCondition Raw SQL string representing the condition (e.g. "count(*) > 5")
      */
     public appendHavingRaw(rawCondition: string): void {
-        const parsedCondition = ValueParser.parseFromText(rawCondition);
+        const parsedCondition = ValueParser.parse(rawCondition);
         this.appendHaving(parsedCondition);
     }
 
@@ -254,7 +254,7 @@ export class SimpleSelectQuery extends SqlComponent {
      * @param columns Array of column names to join on
      */
     private joinSourceRaw(joinType: string, joinSourceRawText: string, alias: string, columns: string[]): void {
-        const tableSource = SourceParser.parseFromText(joinSourceRawText);
+        const tableSource = SourceParser.parse(joinSourceRawText);
         const sourceExpr = new SourceExpression(tableSource, new SourceAliasExpression(alias, null));
         this.joinSource(joinType, sourceExpr, columns);
     }
@@ -346,7 +346,7 @@ export class SimpleSelectQuery extends SqlComponent {
      * @param alias Optional alias for the CTE (e.g. 'cte_name')
      */
     public appendWithRaw(rawText: string, alias: string): void {
-        const query = SelectQueryParser.parseFromText(rawText);
+        const query = SelectQueryParser.parse(rawText);
         const commonTable = new CommonTable(query, alias, null);
         this.appendWith(commonTable);
     }

@@ -3,8 +3,8 @@ import { Lexeme, TokenType } from "../models/Lexeme";
 
 
 export class SourceAliasExpressionParser {
-
-    public static parse(lexemes: Lexeme[], index: number): { value: SourceAliasExpression; newIndex: number; } {
+    // Parse from lexeme array (was: parse)
+    public static parseFromLexeme(lexemes: Lexeme[], index: number): { value: SourceAliasExpression; newIndex: number; } {
         let idx = index;
 
         // If there is a column alias, it may be detected as a function, so functions are also processed.

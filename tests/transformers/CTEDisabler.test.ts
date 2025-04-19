@@ -14,7 +14,7 @@ describe('CTEDisabler', () => {
             )
             SELECT * FROM temp_sales
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const disabler = new CTEDisabler();
 
         // Act
@@ -43,7 +43,7 @@ describe('CTEDisabler', () => {
             FROM products p
             JOIN top_products tp ON p.id = tp.product_id
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const disabler = new CTEDisabler();
 
         // Act
@@ -68,7 +68,7 @@ describe('CTEDisabler', () => {
             )
             SELECT * FROM employees_path
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const disabler = new CTEDisabler();
 
         // Act
@@ -90,7 +90,7 @@ describe('CTEDisabler', () => {
                 SELECT * FROM nested_cte
             ) AS subquery
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const disabler = new CTEDisabler();
 
         // Act
@@ -110,7 +110,7 @@ describe('CTEDisabler', () => {
             WITH cte2 AS (SELECT id FROM table2)
             SELECT * FROM cte2
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const disabler = new CTEDisabler();
 
         // Act
@@ -141,7 +141,7 @@ describe('CTEDisabler', () => {
             )
             SELECT * FROM outer_cte
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const disabler = new CTEDisabler();
 
         // Act
@@ -164,7 +164,7 @@ describe('CTEDisabler', () => {
                 SELECT id FROM top_departments
             )
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const disabler = new CTEDisabler();
 
         // Act
@@ -191,7 +191,7 @@ describe('CTEDisabler', () => {
             ORDER BY total_count DESC
             LIMIT 5
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const disabler = new CTEDisabler();
 
         // Act
@@ -214,7 +214,7 @@ describe('CTEDisabler', () => {
                 SELECT id FROM cte1 WHERE name = 'test'
             )
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const disabler = new CTEDisabler();
 
         // Act

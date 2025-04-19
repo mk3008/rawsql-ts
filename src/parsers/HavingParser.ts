@@ -4,12 +4,13 @@ import { SqlTokenizer } from "./SqlTokenizer";
 import { ValueParser } from "./ValueParser";
 
 export class HavingClauseParser {
-    public static parseFromText(query: string): HavingClause {
+    // Parse SQL string to AST (was: parse)
+    public static parse(query: string): HavingClause {
         const tokenizer = new SqlTokenizer(query); // Initialize tokenizer
         const lexemes = tokenizer.readLexmes(); // Get tokens
 
         // Parse
-        const result = this.parse(lexemes, 0);
+        const result = this.parseFromLexeme(lexemes, 0);
 
         // Error if there are remaining tokens
         if (result.newIndex < lexemes.length) {
@@ -19,7 +20,8 @@ export class HavingClauseParser {
         return result.value;
     }
 
-    public static parse(lexemes: Lexeme[], index: number): { value: HavingClause; newIndex: number } {
+    // Parse from lexeme array (was: parse)
+    public static parseFromLexeme(lexemes: Lexeme[], index: number): { value: HavingClause; newIndex: number } {
         let idx = index;
 
         if (lexemes[idx].value !== 'having') {
@@ -31,7 +33,7 @@ export class HavingClauseParser {
             throw new Error(`Syntax error: Unexpected end of input after 'HAVING' keyword. The HAVING clause requires a condition expression.`);
         }
 
-        const item = ValueParser.parse(lexemes, idx);
+        const item = ValueParser.parseFromLexeme(lexemes, idx);
         const clause = new HavingClause(item.value);
 
         return { value: clause, newIndex: item.newIndex };

@@ -4,12 +4,12 @@ import { SqlTokenizer } from "./SqlTokenizer";
 import { WindowExpressionParser } from "./WindowExpressionParser";
 
 export class OverExpressionParser {
-    public static parseFromText(query: string): OverExpression {
+    public static parse(query: string): OverExpression {
         const tokenizer = new SqlTokenizer(query); // Initialize tokenizer
         const lexemes = tokenizer.readLexmes(); // Get tokens
 
         // Parse
-        const result = this.parse(lexemes, 0);
+        const result = this.parseFromLexeme(lexemes, 0);
 
         // Error if there are remaining tokens
         if (result.newIndex < lexemes.length) {
@@ -19,7 +19,7 @@ export class OverExpressionParser {
         return result.value;
     }
 
-    public static parse(lexemes: Lexeme[], index: number): { value: OverExpression; newIndex: number } {
+    public static parseFromLexeme(lexemes: Lexeme[], index: number): { value: OverExpression; newIndex: number } {
         let idx = index;
 
         if (lexemes[idx].value !== 'over') {
@@ -40,7 +40,7 @@ export class OverExpressionParser {
 
         if (lexemes[idx].type === TokenType.OpenParen) {
             // Delegate processing to WindowFrameExpressionParser
-            const result = WindowExpressionParser.parse(lexemes, idx);
+            const result = WindowExpressionParser.parseFromLexeme(lexemes, idx);
             return result;
         }
 

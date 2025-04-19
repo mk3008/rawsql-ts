@@ -21,7 +21,7 @@ import { SelectQueryParser } from 'rawsql-ts';
 import { Formatter } from 'rawsql-ts';
 
 const sql = `SELECT id, name FROM users WHERE active = TRUE`;
-const query = SelectQueryParser.parseFromText(sql);
+const query = SelectQueryParser.parse(sql);
 const formatter = new Formatter();
 const formattedSql = formatter.visit(query);
 console.log(formattedSql);
@@ -38,7 +38,7 @@ rawsql-ts provides the following main parser class for converting SQL text into 
   Parses complete SELECT and VALUES queries, including support for CTEs (WITH), UNION/INTERSECT/EXCEPT, subqueries, and all major SQL clauses. Handles PostgreSQL-specific syntax and advanced query structures.
 
  **Key methods:**
-  - `parseFromText(sql: string): SelectQuery`  
+  - `parse(sql: string): SelectQuery`  
     Parses a SQL string and returns the root AST node for the query. Throws an error if the SQL is invalid or contains extra tokens.
   - `parse(lexemes: Lexeme[], index: number): { value: SelectQuery; newIndex: number }`  
     Parses a tokenized SQL query from the given index and returns the AST node and the new index. Used internally for advanced parsing scenarios.
@@ -145,7 +145,7 @@ import { SelectQueryParser } from 'rawsql-ts';
 import { SelectableColumnCollector } from 'rawsql-ts/transformers/SelectableColumnCollector';
 
 const sql = `SELECT u.id, u.name FROM users u JOIN posts p ON u.id = p.user_id`;
-const query = SelectQueryParser.parseFromText(sql);
+const query = SelectQueryParser.parse(sql);
 
 const collector = new SelectableColumnCollector();
 const columns = collector.collect(query);
@@ -230,8 +230,8 @@ import { SelectQueryParser } from 'rawsql-ts';
 import { Formatter } from 'rawsql-ts';
 
 // Parse two separate queries
-const userQuery = SelectQueryParser.parseFromText('SELECT user_id, user_name FROM users');
-const postQuery = SelectQueryParser.parseFromText('SELECT post_id, user_id, title FROM posts');
+const userQuery = SelectQueryParser.parse('SELECT user_id, user_name FROM users');
+const postQuery = SelectQueryParser.parse('SELECT post_id, user_id, title FROM posts');
 
 // Join the two queries using innerJoin
 // Just pass the join key(s) as an array, and the ON clause will be generated automatically!

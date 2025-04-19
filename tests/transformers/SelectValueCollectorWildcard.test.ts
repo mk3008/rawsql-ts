@@ -23,7 +23,7 @@ describe('SelectValueCollectorWildcard', () => {
     test('Simple wildcard expansion for SELECT * FROM table', () => {
         // Arrange - simple * wildcard
         const sql = `SELECT * FROM users`;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new SelectValueCollector(mockTableResolver);
 
         // Act
@@ -48,7 +48,7 @@ describe('SelectValueCollectorWildcard', () => {
     test('Wildcard expansion from subquery', () => {
         // Arrange - * wildcard in subquery
         const sql = `SELECT * FROM (SELECT id, name FROM users)`;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new SelectValueCollector(mockTableResolver);
 
         // Act
@@ -68,7 +68,7 @@ describe('SelectValueCollectorWildcard', () => {
     test('Wildcard expansion with table alias', () => {
         // Arrange - u.* wildcard with table alias
         const sql = `SELECT u.* FROM users u`;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new SelectValueCollector(mockTableResolver);
 
         // Act
@@ -91,7 +91,7 @@ describe('SelectValueCollectorWildcard', () => {
     test('Multiple table join with specific columns from one table and all columns from another', () => {
         // Arrange - JOIN query with combination of p.id, p.title, u.*
         const sql = `SELECT p.id, p.title, u.* FROM posts p INNER JOIN users u ON p.user_id = u.id`;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new SelectValueCollector(mockTableResolver);
 
         // Act
@@ -119,7 +119,7 @@ describe('SelectValueCollectorWildcard', () => {
     test('Wildcard expansion with column aliases', () => {
         // Arrange - * wildcard with column aliases
         const sql = `SELECT * FROM (SELECT * FROM users) AS u(user_id, user_name, user_email, user_created_at)`;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new SelectValueCollector(mockTableResolver);
 
         // Act
@@ -142,7 +142,7 @@ describe('SelectValueCollectorWildcard', () => {
     test('Combination of computed columns and * wildcard', () => {
         // Arrange - combination of expression and *
         const sql = `SELECT u.id + 100 AS id_plus_100, u.* FROM users u`;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new SelectValueCollector(mockTableResolver);
 
         // Act
@@ -167,7 +167,7 @@ describe('SelectValueCollectorWildcard', () => {
     test('Wildcard expansion from CTE', () => {
         // Arrange - * wildcard in CTE
         const sql = `WITH cte AS (SELECT * FROM users) SELECT * FROM cte`;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new SelectValueCollector(mockTableResolver);
 
         // Act
@@ -192,7 +192,7 @@ describe('SelectValueCollectorWildcard', () => {
     test('Wildcard expansion from nested CTEs', () => {
         // Arrange - * wildcard in nested CTEs
         const sql = `WITH cte1 AS (SELECT * FROM users), cte2 AS (SELECT * FROM cte1) SELECT * FROM cte2`;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new SelectValueCollector(mockTableResolver);
 
         // Act

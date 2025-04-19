@@ -7,7 +7,7 @@ const formatter = new Formatter();
 
 test('should add a WHERE condition when none exists', () => {
     // Arrange
-    const baseQuery = SelectQueryParser.parseFromText('SELECT id FROM users') as SimpleSelectQuery;
+    const baseQuery = SelectQueryParser.parse('SELECT id FROM users') as SimpleSelectQuery;
 
     // Act
     baseQuery.appendWhereRaw("status = 'active'");
@@ -19,7 +19,7 @@ test('should add a WHERE condition when none exists', () => {
 
 test('should add multiple WHERE conditions with AND logic', () => {
     // Arrange
-    const baseQuery = SelectQueryParser.parseFromText('SELECT id FROM users') as SimpleSelectQuery;
+    const baseQuery = SelectQueryParser.parse('SELECT id FROM users') as SimpleSelectQuery;
 
     // Act
     baseQuery.appendWhereRaw("status = 'active'");
@@ -32,7 +32,7 @@ test('should add multiple WHERE conditions with AND logic', () => {
 
 test('should handle complex conditions', () => {
     // Arrange
-    const baseQuery = SelectQueryParser.parseFromText('SELECT id FROM users') as SimpleSelectQuery;
+    const baseQuery = SelectQueryParser.parse('SELECT id FROM users') as SimpleSelectQuery;
 
     // Act
     baseQuery.appendWhereRaw("(age > 18 AND verified = true)");

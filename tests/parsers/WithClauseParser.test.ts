@@ -9,7 +9,7 @@ test('simple with clause', () => {
     const text = `WITH temp_sales AS (SELECT * FROM sales WHERE date >= '2024-01-01')`;
 
     // Act
-    const withClause = WithClauseParser.parseFromText(text);
+    const withClause = WithClauseParser.parse(text);
     const sql = formatter.visit(withClause);
 
     // Assert
@@ -24,7 +24,7 @@ test('with clause with multiple CTEs', () => {
     `;
 
     // Act
-    const withClause = WithClauseParser.parseFromText(text);
+    const withClause = WithClauseParser.parse(text);
     const sql = formatter.visit(withClause);
 
     // Assert
@@ -41,7 +41,7 @@ test('with recursive clause', () => {
     )`;
 
     // Act
-    const withClause = WithClauseParser.parseFromText(text);
+    const withClause = WithClauseParser.parse(text);
     const sql = formatter.visit(withClause);
 
     // Assert
@@ -64,7 +64,7 @@ test('with clause with materialized CTEs', () => {
     `;
 
     // Act
-    const withClause = WithClauseParser.parseFromText(text);
+    const withClause = WithClauseParser.parse(text);
     const sql = formatter.visit(withClause);
 
     // Assert

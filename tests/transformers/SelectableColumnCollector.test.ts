@@ -9,7 +9,7 @@ describe('SelectableColumnCollector', () => {
     test('collects basic column references', () => {
         // Arrange
         const sql = `SELECT id, name FROM users WHERE active = TRUE`;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new SelectableColumnCollector();
 
         // Act
@@ -30,7 +30,7 @@ describe('SelectableColumnCollector', () => {
     test('collects column references with table qualifiers', () => {
         // Arrange
         const sql = `SELECT u.id, u.name FROM users u WHERE u.active = TRUE`;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new SelectableColumnCollector();
 
         // Act
@@ -57,7 +57,7 @@ describe('SelectableColumnCollector', () => {
                 (age > 18 AND status = 'active') 
                 OR (role = 'admin' AND created_at > '2023-01-01')
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new SelectableColumnCollector();
 
         // Act
@@ -87,7 +87,7 @@ describe('SelectableColumnCollector', () => {
             LEFT JOIN addresses a ON u.id = a.user_id
             WHERE u.active = TRUE AND p.verified = TRUE
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new SelectableColumnCollector();
 
         // Act
@@ -122,7 +122,7 @@ describe('SelectableColumnCollector', () => {
             HAVING AVG(salary) > 50000
             ORDER BY avg_salary DESC
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new SelectableColumnCollector();
 
         // Act
@@ -145,7 +145,7 @@ describe('SelectableColumnCollector', () => {
     test('should not collect wildcard (*) as a column reference', () => {
         // Arrange
         const sql = `SELECT * FROM users`;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new SelectableColumnCollector();
 
         // Act
@@ -169,7 +169,7 @@ describe('SelectableColumnCollector', () => {
             ) AS sub
             WHERE sub.calculated_value > 50
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new SelectableColumnCollector();
 
         // Act
@@ -203,7 +203,7 @@ describe('SelectableColumnCollector', () => {
             FROM user_summary us
             WHERE us.order_count > 0
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new SelectableColumnCollector();
 
         // Act
@@ -234,7 +234,7 @@ describe('SelectableColumnCollector', () => {
             FROM users u
             WHERE u.id IN (SELECT user_id FROM permissions WHERE role = 'admin')
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new SelectableColumnCollector();
 
         // Act
@@ -268,7 +268,7 @@ describe('SelectableColumnCollector', () => {
     FROM users
     WHERE id = 1 AND id > 0
 `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new SelectableColumnCollector();
 
         // Act
@@ -295,8 +295,8 @@ describe('SelectableColumnCollector', () => {
         const sql1 = `SELECT id, name FROM users`;
         const sql2 = `SELECT product_id, price FROM products`;
 
-        const query1 = SelectQueryParser.parseFromText(sql1);
-        const query2 = SelectQueryParser.parseFromText(sql2);
+        const query1 = SelectQueryParser.parse(sql1);
+        const query2 = SelectQueryParser.parse(sql2);
         const collector = new SelectableColumnCollector();
 
         // Act - First collection
@@ -325,7 +325,7 @@ describe('SelectableColumnCollector', () => {
     FROM (SELECT id AS column_name, name AS another_col FROM users) AS sub
     WHERE sub.column_name > 10
 `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new SelectableColumnCollector();
 
         // Act
@@ -354,7 +354,7 @@ describe('SelectableColumnCollector', () => {
           GROUP BY user_id) AS s ON u.id = s.user_id
     WHERE s.product_count > 5
 `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new SelectableColumnCollector();
 
         // Act
@@ -387,7 +387,7 @@ describe('SelectableColumnCollector', () => {
     ) AS outer_sub
     WHERE outer_sub.avg_salary > 50000
 `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new SelectableColumnCollector();
 
         // Act
@@ -413,7 +413,7 @@ describe('SelectableColumnCollector', () => {
             SELECT b.id 
             FROM (SELECT a.id, a.value FROM table_a as a) AS b
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new SelectableColumnCollector();
 
         // Act
@@ -452,7 +452,7 @@ describe('SelectableColumnCollector', () => {
             ) as outer_query
             WHERE outer_query.total > 1000
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new SelectableColumnCollector();
 
         // Act
@@ -498,7 +498,7 @@ describe('SelectableColumnCollector', () => {
             ) AS report
             WHERE report.total_purchases > 5000
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new SelectableColumnCollector();
 
         // Act
@@ -528,7 +528,7 @@ describe('SelectableColumnCollector', () => {
                 ) AS b
             ) AS c
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new SelectableColumnCollector();
 
         // Act
@@ -553,7 +553,7 @@ describe('SelectableColumnCollector', () => {
         const sql = `
             SELECT * FROM (SELECT * FROM a) AS b
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new SelectableColumnCollector();
 
         // Act
@@ -578,7 +578,7 @@ describe('SelectableColumnCollector', () => {
                 ) AS inner_query
             ) AS outer_query
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new SelectableColumnCollector();
 
         // Act
@@ -596,7 +596,7 @@ describe('SelectableColumnCollector', () => {
     test('tableColumnResolver is optional and backward compatible', () => {
         // Arrange - Use original behavior without resolver
         const sql = `SELECT * FROM users WHERE active = TRUE`;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new SelectableColumnCollector(); // No resolver passed in
 
         // Act

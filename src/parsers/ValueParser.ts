@@ -11,12 +11,13 @@ import { CommandExpressionParser } from "./CommandExpressionParser";
 import { FunctionExpressionParser } from "./FunctionExpressionParser";
 
 export class ValueParser {
-    public static parseFromText(query: string): ValueComponent {
+    // Parse SQL string to AST (was: parse)
+    public static parse(query: string): ValueComponent {
         const tokenizer = new SqlTokenizer(query); // Initialize tokenizer
         const lexemes = tokenizer.readLexmes(); // Get tokens
 
         // Parse
-        const result = this.parse(lexemes, 0);
+        const result = this.parseFromLexeme(lexemes, 0);
 
         // Error if there are remaining tokens
         if (result.newIndex < lexemes.length) {
@@ -26,7 +27,8 @@ export class ValueParser {
         return result.value;
     }
 
-    public static parse(lexemes: Lexeme[], index: number, allowAndOperator: boolean = true): { value: ValueComponent; newIndex: number } {
+    // Parse from lexeme array (was: parse)
+    public static parseFromLexeme(lexemes: Lexeme[], index: number, allowAndOperator: boolean = true): { value: ValueComponent; newIndex: number } {
         let idx = index;
 
         // support comments
@@ -60,21 +62,21 @@ export class ValueParser {
         const current = lexemes[idx];
 
         if (current.type === TokenType.Identifier) {
-            return IdentifierParser.parse(lexemes, idx);
+            return IdentifierParser.parseFromLexeme(lexemes, idx);
         } else if (current.type === TokenType.Literal) {
-            return LiteralParser.parse(lexemes, idx);
+            return LiteralParser.parseFromLexeme(lexemes, idx);
         } else if (current.type === TokenType.OpenParen) {
-            return ParenExpressionParser.parse(lexemes, idx);
+            return ParenExpressionParser.parseFromLexeme(lexemes, idx);
         } else if (current.type === TokenType.Function) {
-            return FunctionExpressionParser.parse(lexemes, idx);
+            return FunctionExpressionParser.parseFromLexeme(lexemes, idx);
         } else if (current.type === TokenType.Operator) {
-            return UnaryExpressionParser.parse(lexemes, idx);
+            return UnaryExpressionParser.parseFromLexeme(lexemes, idx);
         } else if (current.type === TokenType.Parameter) {
-            return ParameterExpressionParser.parse(lexemes, idx);
+            return ParameterExpressionParser.parseFromLexeme(lexemes, idx);
         } else if (current.type === TokenType.StringSpecifier) {
-            return StringSpecifierExpressionParser.parse(lexemes, idx);
+            return StringSpecifierExpressionParser.parseFromLexeme(lexemes, idx);
         } else if (current.type === TokenType.Command) {
-            return CommandExpressionParser.parse(lexemes, idx);
+            return CommandExpressionParser.parseFromLexeme(lexemes, idx);
         }
 
         throw new Error(`Invalid lexeme. index: ${idx}, type: ${lexemes[idx].type}, value: ${lexemes[idx].value}`);
@@ -108,14 +110,14 @@ export class ValueParser {
             }
 
             // Parse the value inside
-            const result = this.parse(lexemes, idx);
+            const result = this.parseFromLexeme(lexemes, idx);
             idx = result.newIndex;
             args.push(result.value);
 
             // Continue reading if the next element is a comma
             while (idx < lexemes.length && lexemes[idx].type === TokenType.Comma) {
                 idx++;
-                const argResult = this.parse(lexemes, idx);
+                const argResult = this.parseFromLexeme(lexemes, idx);
                 idx = argResult.newIndex;
                 args.push(argResult.value);
             }

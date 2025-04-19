@@ -9,7 +9,7 @@ test('simple', () => {
     const text = `select a.id`;
 
     // act
-    const clause = SelectClauseParser.parseFromText(text);
+    const clause = SelectClauseParser.parse(text);
     const sql = formatter.visit(clause);
 
     // Assert
@@ -21,7 +21,7 @@ test('multiple columns', () => {
     const text = `select a.id, a.name, a.created_at`;
 
     // Act
-    const clause = SelectClauseParser.parseFromText(text);
+    const clause = SelectClauseParser.parse(text);
     const sql = formatter.visit(clause);
 
     // Assert
@@ -33,7 +33,7 @@ test('with column alias', () => {
     const text = `select a.id as user_id, a.name as user_name`;
 
     // Act
-    const clause = SelectClauseParser.parseFromText(text);
+    const clause = SelectClauseParser.parse(text);
     const sql = formatter.visit(clause);
 
     // Assert
@@ -45,7 +45,7 @@ test('with identical column alias', () => {
     const text = `select a.id as id, a.name as name`;
 
     // Act
-    const clause = SelectClauseParser.parseFromText(text);
+    const clause = SelectClauseParser.parse(text);
     const sql = formatter.visit(clause);
 
     // Assert
@@ -57,7 +57,7 @@ test('with function call', () => {
     const text = `select count(*) as count, max(a.value) as max_value`;
 
     // Act
-    const clause = SelectClauseParser.parseFromText(text);
+    const clause = SelectClauseParser.parse(text);
     const sql = formatter.visit(clause);
 
     // Assert
@@ -69,7 +69,7 @@ test('with expression', () => {
     const text = `select a.price * a.quantity as total`;
 
     // Act
-    const clause = SelectClauseParser.parseFromText(text);
+    const clause = SelectClauseParser.parse(text);
     const sql = formatter.visit(clause);
 
     // Assert
@@ -81,7 +81,7 @@ test('with case expression', () => {
     const text = `select case when a.status = 'active' then 1 else 0 end as is_active`;
 
     // Act
-    const clause = SelectClauseParser.parseFromText(text);
+    const clause = SelectClauseParser.parse(text);
     const sql = formatter.visit(clause);
 
     // Assert
@@ -93,7 +93,7 @@ test('with column alias without as keyword', () => {
     const text = `select a.id user_id, a.name user_name`;
 
     // Act
-    const clause = SelectClauseParser.parseFromText(text);
+    const clause = SelectClauseParser.parse(text);
     const sql = formatter.visit(clause);
 
     // Assert
@@ -105,7 +105,7 @@ test('with distinct keyword', () => {
     const text = `select distinct a.category, a.region`;
 
     // Act
-    const clause = SelectClauseParser.parseFromText(text);
+    const clause = SelectClauseParser.parse(text);
     const sql = formatter.visit(clause);
 
     // Assert
@@ -117,7 +117,7 @@ test('with distinct and function', () => {
     const text = `select distinct lower(a.email) as email_lower`;
 
     // Act
-    const clause = SelectClauseParser.parseFromText(text);
+    const clause = SelectClauseParser.parse(text);
     const sql = formatter.visit(clause);
 
     // Assert
@@ -129,7 +129,7 @@ test('with distinct on single column', () => {
     const text = `select distinct on (a.department_id) a.employee_id, a.department_id, a.salary`;
 
     // Act
-    const clause = SelectClauseParser.parseFromText(text);
+    const clause = SelectClauseParser.parse(text);
     const sql = formatter.visit(clause);
 
     // Assert
@@ -141,7 +141,7 @@ test('with distinct on multiple columns', () => {
     const text = `select distinct on (a.department_id, a.job_title) a.employee_id, a.salary, a.hire_date`;
 
     // Act
-    const clause = SelectClauseParser.parseFromText(text);
+    const clause = SelectClauseParser.parse(text);
     const sql = formatter.visit(clause);
 
     // Assert

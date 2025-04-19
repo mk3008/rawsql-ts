@@ -7,7 +7,7 @@ const formatter = new Formatter();
 
 test('should add a CTE with appendWithRaw', () => {
     // Arrange
-    const baseQuery = SelectQueryParser.parseFromText('SELECT id FROM users') as SimpleSelectQuery;
+    const baseQuery = SelectQueryParser.parse('SELECT id FROM users') as SimpleSelectQuery;
 
     // Act
     baseQuery.appendWithRaw('SELECT id FROM users WHERE status = \'active\'', 'active_users');
@@ -19,7 +19,7 @@ test('should add a CTE with appendWithRaw', () => {
 
 test('should add multiple CTEs with appendWithRaw', () => {
     // Arrange
-    const baseQuery = SelectQueryParser.parseFromText('SELECT id FROM result') as SimpleSelectQuery;
+    const baseQuery = SelectQueryParser.parse('SELECT id FROM result') as SimpleSelectQuery;
 
     // Act
     baseQuery.appendWithRaw('SELECT id FROM t1', 'cte1');
@@ -32,7 +32,7 @@ test('should add multiple CTEs with appendWithRaw', () => {
 
 test('should add CTE and WHERE together', () => {
     // Arrange
-    const baseQuery = SelectQueryParser.parseFromText('SELECT id FROM users') as SimpleSelectQuery;
+    const baseQuery = SelectQueryParser.parse('SELECT id FROM users') as SimpleSelectQuery;
 
     // Act
     baseQuery.appendWithRaw('SELECT id FROM users WHERE status = \'active\'', 'active_users');
@@ -45,7 +45,7 @@ test('should add CTE and WHERE together', () => {
 
 test('should add a recursive CTE with appendWithRaw (auto-detect)', () => {
     // Arrange
-    const baseQuery = SelectQueryParser.parseFromText('SELECT id FROM employees_path') as SimpleSelectQuery;
+    const baseQuery = SelectQueryParser.parse('SELECT id FROM employees_path') as SimpleSelectQuery;
 
     // Act
     baseQuery.appendWithRaw(`with employees_path as (
@@ -67,7 +67,7 @@ test('should add a recursive CTE with appendWithRaw (auto-detect)', () => {
 
 test('should add a recursive CTE with appendWithRaw (auto-detect)2', () => {
     // Arrange
-    const baseQuery = SelectQueryParser.parseFromText('SELECT id FROM employees_path') as SimpleSelectQuery;
+    const baseQuery = SelectQueryParser.parse('SELECT id FROM employees_path') as SimpleSelectQuery;
 
     // Act
     baseQuery.appendWithRaw(`

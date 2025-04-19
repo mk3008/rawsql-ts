@@ -122,27 +122,27 @@ export class BinarySelectQuery extends SqlComponent {
      * @returns A new BinarySelectQuery representing "(this) UNION (parsed query)"
      */
     public unionRaw(sql: string): BinarySelectQuery {
-        const parsedQuery = SelectQueryParser.parseFromText(sql);
+        const parsedQuery = SelectQueryParser.parse(sql);
         return this.union(parsedQuery);
     }
     public unionAllRaw(sql: string): BinarySelectQuery {
-        const parsedQuery = SelectQueryParser.parseFromText(sql);
+        const parsedQuery = SelectQueryParser.parse(sql);
         return this.unionAll(parsedQuery);
     }
     public intersectRaw(sql: string): BinarySelectQuery {
-        const parsedQuery = SelectQueryParser.parseFromText(sql);
+        const parsedQuery = SelectQueryParser.parse(sql);
         return this.intersect(parsedQuery);
     }
     public intersectAllRaw(sql: string): BinarySelectQuery {
-        const parsedQuery = SelectQueryParser.parseFromText(sql);
+        const parsedQuery = SelectQueryParser.parse(sql);
         return this.intersectAll(parsedQuery);
     }
     public exceptRaw(sql: string): BinarySelectQuery {
-        const parsedQuery = SelectQueryParser.parseFromText(sql);
+        const parsedQuery = SelectQueryParser.parse(sql);
         return this.except(parsedQuery);
     }
     public exceptAllRaw(sql: string): BinarySelectQuery {
-        const parsedQuery = SelectQueryParser.parseFromText(sql);
+        const parsedQuery = SelectQueryParser.parse(sql);
         return this.exceptAll(parsedQuery);
     }
 

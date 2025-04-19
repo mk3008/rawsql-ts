@@ -18,7 +18,7 @@ describe('UpstreamSelectQueryFinder Demo', () => {
             )
             SELECT * FROM temp_sales
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const finder = new UpstreamSelectQueryFinder();
 
         // Act
@@ -42,7 +42,7 @@ describe('UpstreamSelectQueryFinder Demo', () => {
             )
             SELECT * FROM outer_cte
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const finder = new UpstreamSelectQueryFinder();
 
         // Act
@@ -66,7 +66,7 @@ describe('UpstreamSelectQueryFinder Demo', () => {
                 ) AS inner_sub
             ) AS outer_sub
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const finder = new UpstreamSelectQueryFinder();
 
         // Act
@@ -87,7 +87,7 @@ describe('UpstreamSelectQueryFinder Demo', () => {
             UNION ALL
             VALUES (1, 'dummy')
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const finder = new UpstreamSelectQueryFinder();
 
         // Act
@@ -115,7 +115,7 @@ describe('UpstreamSelectQueryFinder Demo', () => {
                 SELECT id, val FROM cte_b WHERE val < 100
             ) AS unioned_sub
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const finder = new UpstreamSelectQueryFinder();
 
         // Act
@@ -142,7 +142,7 @@ describe('UpstreamSelectQueryFinder Demo', () => {
             if (tableName === 'posts') return ['id', 'title', 'content', 'user_id', 'created_at'];
             return [];
         };
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const finder = new UpstreamSelectQueryFinder(tableColumnResolver);
 
         // Act
@@ -167,7 +167,7 @@ describe('UpstreamSelectQueryFinder Demo', () => {
             if (tableName === 'users') return ['id', 'name', 'email'];
             return [];
         };
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const finder = new UpstreamSelectQueryFinder(tableColumnResolver);
 
         // Act
@@ -189,7 +189,7 @@ describe('UpstreamSelectQueryFinder Demo', () => {
                 SELECT id FROM data
             ) AS data
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const finder = new UpstreamSelectQueryFinder();
 
         // Act
@@ -208,7 +208,7 @@ describe('UpstreamSelectQueryFinder Demo', () => {
             UNION ALL
             SELECT id FROM admins
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const finder = new UpstreamSelectQueryFinder();
 
         // Act
@@ -228,7 +228,7 @@ describe('UpstreamSelectQueryFinder Demo', () => {
             UNION ALL
             SELECT id, name FROM admins
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const finder = new UpstreamSelectQueryFinder();
 
         // Act
@@ -251,7 +251,7 @@ describe('UpstreamSelectQueryFinder Demo', () => {
                 SELECT id, name, 0 as age FROM admins
             ) d
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const finder = new UpstreamSelectQueryFinder();
 
         // Act
@@ -275,7 +275,7 @@ describe('UpstreamSelectQueryFinder Demo', () => {
             )
             SELECT * FROM org
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const finder = new UpstreamSelectQueryFinder();
 
         // Act
@@ -294,7 +294,7 @@ describe('UpstreamSelectQueryFinder Demo', () => {
             SELECT u.id AS user_id
             FROM users AS u
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const finder = new UpstreamSelectQueryFinder();
 
         // Act

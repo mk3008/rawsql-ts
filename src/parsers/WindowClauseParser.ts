@@ -4,12 +4,13 @@ import { SqlTokenizer } from "./SqlTokenizer";
 import { WindowExpressionParser } from "./WindowExpressionParser";
 
 export class WindowClauseParser {
-    public static parseFromText(query: string): WindowFrameClause {
+    // Parse SQL string to AST (was: parse)
+    public static parse(query: string): WindowFrameClause {
         const tokenizer = new SqlTokenizer(query);
         const lexemes = tokenizer.readLexmes();
 
         // Parse
-        const result = this.parse(lexemes, 0);
+        const result = this.parseFromLexeme(lexemes, 0);
 
         // Error if there are remaining tokens
         if (result.newIndex < lexemes.length) {
@@ -19,7 +20,8 @@ export class WindowClauseParser {
         return result.value;
     }
 
-    public static parse(lexemes: Lexeme[], index: number): { value: WindowFrameClause; newIndex: number } {
+    // Parse from lexeme array (was: parse)
+    public static parseFromLexeme(lexemes: Lexeme[], index: number): { value: WindowFrameClause; newIndex: number } {
         let idx = index;
 
         if (lexemes[idx].value !== 'window') {
@@ -40,7 +42,7 @@ export class WindowClauseParser {
         }
         idx++;
 
-        const expr = WindowExpressionParser.parse(lexemes, idx);
+        const expr = WindowExpressionParser.parseFromLexeme(lexemes, idx);
         idx = expr.newIndex;
 
         const windowFrame = new WindowFrameClause(name, expr.value);
