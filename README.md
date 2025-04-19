@@ -1,8 +1,17 @@
 # rawsql-ts
 
+![No external dependencies](https://img.shields.io/badge/dependencies-none-brightgreen)
+
 rawsql-ts is a TypeScript SQL parser that performs Abstract Syntax Tree (AST) analysis for advanced SQL processing and transformation.
 
 > **Note:** This library is currently in beta. The API may change without notice until the v1.0 release.
+
+## Main Features
+
+- No external dependencies: Fully self-contained, zero dependency implementation! 🎉
+- High-performance SQL parsing and AST analysis
+- Advanced SQL transformation utilities
+- Designed for PostgreSQL syntax
 
 ## Installation
 
@@ -104,7 +113,7 @@ Represents a SQL `VALUES` clause, such as `VALUES (1, 'a'), (2, 'b')`, which is 
 
 These classes are designed to be flexible and allow for robust construction, combination, and transformation of SQL queries. For further details, please refer to the source code.
 
----
+--- 
 
 ## 🛠️ Transformer Features (AST Transformers)
 
