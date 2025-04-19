@@ -5,12 +5,12 @@ import { SqlTokenizer } from "./SqlTokenizer";
 import { ValueParser } from "./ValueParser";
 
 export class ValuesQueryParser {
-    public static parseFromText(query: string): ValuesQuery {
+    public static parse(query: string): ValuesQuery {
         const tokenizer = new SqlTokenizer(query); // Initialize tokenizer
         const lexemes = tokenizer.readLexmes(); // Get tokens
 
         // Parse
-        const result = this.parse(lexemes, 0);
+        const result = this.parseFromLexeme(lexemes, 0);
 
         // Error if there are remaining tokens
         if (result.newIndex < lexemes.length) {
@@ -20,7 +20,7 @@ export class ValuesQueryParser {
         return result.value;
     }
 
-    public static parse(lexemes: Lexeme[], index: number): { value: ValuesQuery; newIndex: number } {
+    public static parseFromLexeme(lexemes: Lexeme[], index: number): { value: ValuesQuery; newIndex: number } {
         let idx = index;
 
         if (lexemes[idx].value.toLowerCase() !== 'values') {
@@ -75,7 +75,7 @@ export class ValuesQueryParser {
         }
 
         // Parse the first value
-        const firstValue = ValueParser.parse(lexemes, idx);
+        const firstValue = ValueParser.parseFromLexeme(lexemes, idx);
         values.push(firstValue.value);
         idx = firstValue.newIndex;
 
@@ -87,7 +87,7 @@ export class ValuesQueryParser {
                 throw new Error(`Syntax error: Unexpected end of input after comma in tuple expression.`);
             }
 
-            const value = ValueParser.parse(lexemes, idx);
+            const value = ValueParser.parseFromLexeme(lexemes, idx);
             values.push(value.value);
             idx = value.newIndex;
         }

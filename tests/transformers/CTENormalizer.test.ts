@@ -14,12 +14,11 @@ describe('CTENormalizer', () => {
             )
             SELECT * FROM temp_sales
         `;
-        const query = SelectQueryParser.parseFromText(sql);
-        const normalizer = new CTENormalizer();
+        const query = SelectQueryParser.parse(sql);
 
         // Act
-        const normalizedQuery = normalizer.normalize(query);
-        const result = formatter.visit(normalizedQuery);
+        const normalizedQuery = CTENormalizer.normalize(query);
+        const result = formatter.format(normalizedQuery);
 
         // Assert
         expect(result).toBe('with "temp_sales" as (select * from "sales" where "date" >= \'2024-01-01\') select * from "temp_sales"');
@@ -36,12 +35,11 @@ describe('CTENormalizer', () => {
                 SELECT * FROM nested_cte
             ) AS subquery
         `;
-        const query = SelectQueryParser.parseFromText(sql);
-        const normalizer = new CTENormalizer();
+        const query = SelectQueryParser.parse(sql);
 
         // Act
-        const normalizedQuery = normalizer.normalize(query);
-        const result = formatter.visit(normalizedQuery);
+        const normalizedQuery = CTENormalizer.normalize(query);
+        const result = formatter.format(normalizedQuery);
 
         // Assert
         expect(result).toBe('with "nested_cte" as (select "id", "value" from "data" where "type" = \'important\') select * from (select * from "nested_cte") as "subquery"');
@@ -60,12 +58,11 @@ describe('CTENormalizer', () => {
             )
             SELECT * FROM outer_cte
         `;
-        const query = SelectQueryParser.parseFromText(sql);
-        const normalizer = new CTENormalizer();
+        const query = SelectQueryParser.parse(sql);
 
         // Act
-        const normalizedQuery = normalizer.normalize(query);
-        const result = formatter.visit(normalizedQuery);
+        const normalizedQuery = CTENormalizer.normalize(query);
+        const result = formatter.format(normalizedQuery);
 
         // Assert
         // Test expected value adjusted to match the actual output
@@ -84,12 +81,11 @@ describe('CTENormalizer', () => {
                 SELECT id FROM top_departments
             )
         `;
-        const query = SelectQueryParser.parseFromText(sql);
-        const normalizer = new CTENormalizer();
+        const query = SelectQueryParser.parse(sql);
 
         // Act
-        const normalizedQuery = normalizer.normalize(query);
-        const result = formatter.visit(normalizedQuery);
+        const normalizedQuery = CTENormalizer.normalize(query);
+        const result = formatter.format(normalizedQuery);
 
         // Assert
         expect(result).toBe('with "top_departments" as (select "id" from "departments" where "budget" > 1000000) select * from "users" where "department_id" in (select "id" from "top_departments")');
@@ -103,12 +99,11 @@ describe('CTENormalizer', () => {
             WHERE status = 'active'
             ORDER BY name
         `;
-        const query = SelectQueryParser.parseFromText(sql);
-        const normalizer = new CTENormalizer();
+        const query = SelectQueryParser.parse(sql);
 
         // Act
-        const normalizedQuery = normalizer.normalize(query);
-        const result = formatter.visit(normalizedQuery);
+        const normalizedQuery = CTENormalizer.normalize(query);
+        const result = formatter.format(normalizedQuery);
 
         // Assert
         expect(result).toBe('select "id", "name", "status" from "customers" where "status" = \'active\' order by "name"');
@@ -123,12 +118,11 @@ describe('CTENormalizer', () => {
             WITH cte2 AS (SELECT id FROM table2)
             SELECT * FROM cte2
         `;
-        const query = SelectQueryParser.parseFromText(sql);
-        const normalizer = new CTENormalizer();
+        const query = SelectQueryParser.parse(sql);
 
         // Act
-        const normalizedQuery = normalizer.normalize(query);
-        const result = formatter.visit(normalizedQuery);
+        const normalizedQuery = CTENormalizer.normalize(query);
+        const result = formatter.format(normalizedQuery);
 
         // Assert
         expect(result).toBe('with "cte1" as (select "id" from "table1"), "cte2" as (select "id" from "table2") select * from "cte1" union select * from "cte2"');
@@ -150,12 +144,11 @@ describe('CTENormalizer', () => {
             ORDER BY total_count DESC
             LIMIT 5
         `;
-        const query = SelectQueryParser.parseFromText(sql);
-        const normalizer = new CTENormalizer();
+        const query = SelectQueryParser.parse(sql);
 
         // Act
-        const normalizedQuery = normalizer.normalize(query);
-        const result = formatter.visit(normalizedQuery);
+        const normalizedQuery = CTENormalizer.normalize(query);
+        const result = formatter.format(normalizedQuery);
 
         // Assert
         expect(result).toBe('with "filtered_data" as (select * from "raw_data" where "status" = \'active\') select "id", "name", count(*) as "total_count" from "filtered_data" group by "id", "name" having count(*) > 10 order by "total_count" desc limit 5');
@@ -182,12 +175,11 @@ describe('CTENormalizer', () => {
             SELECT a.id, a.value, a.level, a.parent_level, 'level_a' as root_level
             FROM with_a a
         `;
-        const query = SelectQueryParser.parseFromText(sql);
-        const normalizer = new CTENormalizer();
+        const query = SelectQueryParser.parse(sql);
 
         // Act
-        const normalizedQuery = normalizer.normalize(query);
-        const result = formatter.visit(normalizedQuery);
+        const normalizedQuery = CTENormalizer.normalize(query);
+        const result = formatter.format(normalizedQuery);
 
         // Assert
         // Confirm that CTEs are sorted in order
@@ -216,12 +208,11 @@ describe('CTENormalizer', () => {
                 SELECT * FROM b
             ) AS sub ON a.id = sub.id
         `;
-        const query = SelectQueryParser.parseFromText(sql);
-        const normalizer = new CTENormalizer();
+        const query = SelectQueryParser.parse(sql);
 
         // Act
-        const normalizedQuery = normalizer.normalize(query);
-        const result = formatter.visit(normalizedQuery);
+        const normalizedQuery = CTENormalizer.normalize(query);
+        const result = formatter.format(normalizedQuery);
 
         // Assert
         // CTEs are ordered by inner-to-outer dependency, so 'b' should come first
@@ -245,12 +236,11 @@ describe('CTENormalizer', () => {
                 SELECT * FROM b
             ) AS sub ON a.id = sub.id
         `;
-        const query = SelectQueryParser.parseFromText(sql);
-        const normalizer = new CTENormalizer();
+        const query = SelectQueryParser.parse(sql);
 
         // Act
-        const normalizedQuery = normalizer.normalize(query);
-        const result = formatter.visit(normalizedQuery);
+        const normalizedQuery = CTENormalizer.normalize(query);
+        const result = formatter.format(normalizedQuery);
 
         // Assert
         // Recursive CTE 'b' should come before non-recursive CTE 'a'
@@ -271,12 +261,11 @@ describe('CTENormalizer', () => {
                 SELECT * FROM a
             ) AS sub ON a.id = sub.id
         `;
-        const query = SelectQueryParser.parseFromText(sql);
-        const normalizer = new CTENormalizer(); // Default is IGNORE_IF_IDENTICAL
+        const query = SelectQueryParser.parse(sql);
 
         // Act
-        const normalizedQuery = normalizer.normalize(query);
-        const result = formatter.visit(normalizedQuery);
+        const normalizedQuery = CTENormalizer.normalize(query);
+        const result = formatter.format(normalizedQuery);
 
         // Assert - If the definition is the same, it should be ignored, resulting in just one CTE
         expect(result).toBe('with "a" as (select "id", "name" from "table_x") select * from "a" inner join (select * from "a") as "sub" on "a"."id" = "sub"."id"');
@@ -296,14 +285,11 @@ describe('CTENormalizer', () => {
                 SELECT * FROM a
             ) AS sub ON a.id = sub.id
         `;
-        const query = SelectQueryParser.parseFromText(sql);
-
-        // Default is IGNORE_IF_IDENTICAL, so different definitions should throw an error
-        const normalizer = new CTENormalizer();
+        const query = SelectQueryParser.parse(sql);
 
         // Act & Assert
         expect(() => {
-            normalizer.normalize(query);
+            CTENormalizer.normalize(query);
         }).toThrow('CTE name conflict detected: \'a\' has multiple different definitions');
     });
 });

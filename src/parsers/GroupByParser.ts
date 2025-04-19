@@ -5,12 +5,13 @@ import { SqlTokenizer } from "./SqlTokenizer";
 import { ValueParser } from "./ValueParser";
 
 export class GroupByClauseParser {
-    public static parseFromText(query: string): GroupByClause {
+    // Parse SQL string to AST (was: parse)
+    public static parse(query: string): GroupByClause {
         const tokenizer = new SqlTokenizer(query); // Initialize tokenizer
         const lexemes = tokenizer.readLexmes(); // Get tokens
 
         // Parse
-        const result = this.parse(lexemes, 0);
+        const result = this.parseFromLexeme(lexemes, 0);
 
         // Error if there are remaining tokens
         if (result.newIndex < lexemes.length) {
@@ -20,7 +21,8 @@ export class GroupByClauseParser {
         return result.value;
     }
 
-    public static parse(lexemes: Lexeme[], index: number): { value: GroupByClause; newIndex: number } {
+    // Parse from lexeme array (was: parse)
+    public static parseFromLexeme(lexemes: Lexeme[], index: number): { value: GroupByClause; newIndex: number } {
         let idx = index;
 
         if (lexemes[idx].value !== 'group by') {
@@ -54,11 +56,9 @@ export class GroupByClauseParser {
 
     private static parseItem(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number } {
         let idx = index;
-
-        const parsedValue = ValueParser.parse(lexemes, idx);
+        const parsedValue = ValueParser.parseFromLexeme(lexemes, idx);
         const value = parsedValue.value;
         idx = parsedValue.newIndex;
-
         return { value, newIndex: idx };
     }
 }

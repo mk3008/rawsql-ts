@@ -88,7 +88,7 @@ export class CTEBuilder {
             }
 
             // For duplicate names, check if definitions are identical
-            const definitions = tables.map(table => this.formatter.visit(table.query));
+            const definitions = tables.map(table => this.formatter.format(table.query));
             const uniqueDefinitions = new Set(definitions);
 
             if (uniqueDefinitions.size === 1) {

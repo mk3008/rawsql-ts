@@ -4,12 +4,13 @@ import { SqlTokenizer } from "./SqlTokenizer";
 import { ValueParser } from "./ValueParser";
 
 export class LimitClauseParser {
-    public static parseFromText(query: string): LimitClause {
+    // Parse SQL string to AST (was: parse)
+    public static parse(query: string): LimitClause {
         const tokenizer = new SqlTokenizer(query); // Initialize tokenizer
         const lexemes = tokenizer.readLexmes(); // Get tokens
 
         // Parse
-        const result = this.parse(lexemes, 0);
+        const result = this.parseFromLexeme(lexemes, 0);
 
         // Error if there are remaining tokens
         if (result.newIndex < lexemes.length) {
@@ -19,7 +20,8 @@ export class LimitClauseParser {
         return result.value;
     }
 
-    public static parse(lexemes: Lexeme[], index: number): { value: LimitClause; newIndex: number } {
+    // Parse from lexeme array (was: parse)
+    public static parseFromLexeme(lexemes: Lexeme[], index: number): { value: LimitClause; newIndex: number } {
         let idx = index;
 
         if (lexemes[idx].value !== 'limit') {
@@ -32,7 +34,7 @@ export class LimitClauseParser {
         }
 
         // Parse LIMIT value
-        const limitItem = ValueParser.parse(lexemes, idx);
+        const limitItem = ValueParser.parseFromLexeme(lexemes, idx);
         idx = limitItem.newIndex;
 
         let offsetItem = null;
@@ -46,7 +48,7 @@ export class LimitClauseParser {
             }
 
             // Parse OFFSET value
-            const offsetValueItem = ValueParser.parse(lexemes, idx);
+            const offsetValueItem = ValueParser.parseFromLexeme(lexemes, idx);
             offsetItem = offsetValueItem.value;
             idx = offsetValueItem.newIndex;
         }

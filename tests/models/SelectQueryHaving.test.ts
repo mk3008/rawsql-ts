@@ -8,11 +8,11 @@ const formatter = new Formatter();
 
 test('should add a HAVING condition when none exists using raw string', () => {
     // Arrange
-    const baseQuery = SelectQueryParser.parseFromText('SELECT COUNT(*) FROM users GROUP BY department') as SimpleSelectQuery;
+    const baseQuery = SelectQueryParser.parse('SELECT COUNT(*) FROM users GROUP BY department') as SimpleSelectQuery;
 
     // Act
     baseQuery.appendHavingRaw("COUNT(*) > 5");
-    const sql = formatter.visit(baseQuery);
+    const sql = formatter.format(baseQuery);
 
     // Assert
     expect(sql).toEqual(`select count(*) from "users" group by "department" having count(*) > 5`);
@@ -20,12 +20,12 @@ test('should add a HAVING condition when none exists using raw string', () => {
 
 test('should add multiple HAVING conditions with AND logic using raw strings', () => {
     // Arrange
-    const baseQuery = SelectQueryParser.parseFromText('SELECT COUNT(*), SUM(amount) FROM orders GROUP BY status') as SimpleSelectQuery;
+    const baseQuery = SelectQueryParser.parse('SELECT COUNT(*), SUM(amount) FROM orders GROUP BY status') as SimpleSelectQuery;
 
     // Act
     baseQuery.appendHavingRaw("COUNT(*) > 10");
     baseQuery.appendHavingRaw("SUM(amount) > 1000");
-    const sql = formatter.visit(baseQuery);
+    const sql = formatter.format(baseQuery);
 
     // Assert
     expect(sql).toEqual(`select count(*), sum("amount") from "orders" group by "status" having count(*) > 10 and sum("amount") > 1000`);
@@ -33,12 +33,12 @@ test('should add multiple HAVING conditions with AND logic using raw strings', (
 
 test('should handle complex HAVING conditions with raw strings', () => {
     // Arrange
-    const baseQuery = SelectQueryParser.parseFromText('SELECT department, AVG(salary) FROM employees GROUP BY department') as SimpleSelectQuery;
+    const baseQuery = SelectQueryParser.parse('SELECT department, AVG(salary) FROM employees GROUP BY department') as SimpleSelectQuery;
 
     // Act
     baseQuery.appendHavingRaw("(COUNT(*) >= 5 AND MAX(salary) < 100000)");
     baseQuery.appendHavingRaw("AVG(salary) > 50000");
-    const sql = formatter.visit(baseQuery);
+    const sql = formatter.format(baseQuery);
 
     // Assert
     expect(sql).toEqual(`select "department", avg("salary") from "employees" group by "department" having (count(*) >= 5 and max("salary") < 100000) and avg("salary") > 50000`);
@@ -46,7 +46,7 @@ test('should handle complex HAVING conditions with raw strings', () => {
 
 test('should add a HAVING condition using ValueComponent', () => {
     // Arrange
-    const baseQuery = SelectQueryParser.parseFromText('SELECT product, SUM(sales) FROM transactions GROUP BY product') as SimpleSelectQuery;
+    const baseQuery = SelectQueryParser.parse('SELECT product, SUM(sales) FROM transactions GROUP BY product') as SimpleSelectQuery;
 
     // Create ValueComponent for condition: SUM(sales) > 500
     const sumFunction = new FunctionCall('sum', new ColumnReference(null, 'sales'), null);
@@ -54,7 +54,7 @@ test('should add a HAVING condition using ValueComponent', () => {
 
     // Act
     baseQuery.appendHaving(condition);
-    const sql = formatter.visit(baseQuery);
+    const sql = formatter.format(baseQuery);
 
     // Assert
     expect(sql).toEqual(`select "product", sum("sales") from "transactions" group by "product" having sum("sales") > 500`);
@@ -62,7 +62,7 @@ test('should add a HAVING condition using ValueComponent', () => {
 
 test('should add multiple HAVING conditions with AND logic using ValueComponents', () => {
     // Arrange
-    const baseQuery = SelectQueryParser.parseFromText('SELECT category, COUNT(*), AVG(price) FROM products GROUP BY category') as SimpleSelectQuery;
+    const baseQuery = SelectQueryParser.parse('SELECT category, COUNT(*), AVG(price) FROM products GROUP BY category') as SimpleSelectQuery;
 
     // Create first condition: COUNT(*) > 10
     const countFunction = new FunctionCall('count', new ColumnReference(null, '*'), null);
@@ -75,7 +75,7 @@ test('should add multiple HAVING conditions with AND logic using ValueComponents
     // Act
     baseQuery.appendHaving(firstCondition);
     baseQuery.appendHaving(secondCondition);
-    const sql = formatter.visit(baseQuery);
+    const sql = formatter.format(baseQuery);
 
     // Assert
     expect(sql).toEqual(`select "category", count(*), avg("price") from "products" group by "category" having count(*) > 10 and avg("price") > 50`);
@@ -83,7 +83,7 @@ test('should add multiple HAVING conditions with AND logic using ValueComponents
 
 test('should combine raw string and ValueComponent conditions in HAVING clause', () => {
     // Arrange
-    const baseQuery = SelectQueryParser.parseFromText('SELECT region, SUM(sales) FROM sales_data GROUP BY region') as SimpleSelectQuery;
+    const baseQuery = SelectQueryParser.parse('SELECT region, SUM(sales) FROM sales_data GROUP BY region') as SimpleSelectQuery;
 
     // Add first condition using raw string
     baseQuery.appendHavingRaw("COUNT(*) > 20");
@@ -94,7 +94,7 @@ test('should combine raw string and ValueComponent conditions in HAVING clause',
 
     // Act
     baseQuery.appendHaving(secondCondition);
-    const sql = formatter.visit(baseQuery);
+    const sql = formatter.format(baseQuery);
 
     // Assert
     expect(sql).toEqual(`select "region", sum("sales") from "sales_data" group by "region" having count(*) > 20 and sum("sales") > 10000`);

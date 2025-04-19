@@ -5,12 +5,13 @@ import { SelectQueryParser } from "./SelectQueryParser";
 import { SourceAliasExpressionParser } from "./SourceAliasExpressionParser";
 
 export class CommonTableParser {
-    public static parseFromText(query: string): CommonTable {
+    // Parse SQL string to AST (was: parse)
+    public static parse(query: string): CommonTable {
         const tokenizer = new SqlTokenizer(query); // Initialize tokenizer
         const lexemes = tokenizer.readLexmes(); // Get tokens
 
         // Parse
-        const result = this.parse(lexemes, 0);
+        const result = this.parseFromLexeme(lexemes, 0);
 
         // Error if there are remaining tokens
         if (result.newIndex < lexemes.length) {
@@ -20,12 +21,13 @@ export class CommonTableParser {
         return result.value;
     }
 
-    public static parse(lexemes: Lexeme[], index: number): { value: CommonTable; newIndex: number } {
+    // Parse from lexeme array (was: parse)
+    public static parseFromLexeme(lexemes: Lexeme[], index: number): { value: CommonTable; newIndex: number } {
         let idx = index;
 
         // Parse alias and optional column aliases
         // SourceAliasExpressionParser already handles column aliases if present
-        const aliasResult = SourceAliasExpressionParser.parse(lexemes, idx);
+        const aliasResult = SourceAliasExpressionParser.parseFromLexeme(lexemes, idx);
         idx = aliasResult.newIndex;
 
         if (idx < lexemes.length && lexemes[idx].value !== "as") {
@@ -53,7 +55,7 @@ export class CommonTableParser {
         }
         idx++; // Skip opening parenthesis
 
-        const queryResult = SelectQueryParser.parse(lexemes, idx);
+        const queryResult = SelectQueryParser.parseFromLexeme(lexemes, idx);
         idx = queryResult.newIndex;
 
         if (idx < lexemes.length && lexemes[idx].type !== TokenType.CloseParen) {

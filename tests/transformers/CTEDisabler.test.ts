@@ -14,12 +14,12 @@ describe('CTEDisabler', () => {
             )
             SELECT * FROM temp_sales
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const disabler = new CTEDisabler();
 
         // Act
         const disabledQuery = disabler.visit(query);
-        const result = formatter.visit(disabledQuery);
+        const result = formatter.format(disabledQuery);
 
         // Assert
         expect(result).toBe('select * from "temp_sales"');
@@ -43,12 +43,12 @@ describe('CTEDisabler', () => {
             FROM products p
             JOIN top_products tp ON p.id = tp.product_id
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const disabler = new CTEDisabler();
 
         // Act
         const disabledQuery = disabler.visit(query);
-        const result = formatter.visit(disabledQuery);
+        const result = formatter.format(disabledQuery);
 
         // Assert
         expect(result).toBe('select "p"."name", "tp"."total" from "products" as "p" join "top_products" as "tp" on "p"."id" = "tp"."product_id"');
@@ -68,12 +68,12 @@ describe('CTEDisabler', () => {
             )
             SELECT * FROM employees_path
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const disabler = new CTEDisabler();
 
         // Act
         const disabledQuery = disabler.visit(query);
-        const result = formatter.visit(disabledQuery);
+        const result = formatter.format(disabledQuery);
 
         // Assert
         expect(result).toBe('select * from "employees_path"');
@@ -90,12 +90,12 @@ describe('CTEDisabler', () => {
                 SELECT * FROM nested_cte
             ) AS subquery
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const disabler = new CTEDisabler();
 
         // Act
         const disabledQuery = disabler.visit(query);
-        const result = formatter.visit(disabledQuery);
+        const result = formatter.format(disabledQuery);
 
         // Assert
         expect(result).toBe('select * from (select * from "nested_cte") as "subquery"');
@@ -110,12 +110,12 @@ describe('CTEDisabler', () => {
             WITH cte2 AS (SELECT id FROM table2)
             SELECT * FROM cte2
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const disabler = new CTEDisabler();
 
         // Act
         const disabledQuery = disabler.visit(query);
-        const result = formatter.visit(disabledQuery);
+        const result = formatter.format(disabledQuery);
 
         // Assert
         expect(result).toBe('select * from "cte1" union select * from "cte2"');
@@ -141,12 +141,12 @@ describe('CTEDisabler', () => {
             )
             SELECT * FROM outer_cte
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const disabler = new CTEDisabler();
 
         // Act
         const disabledQuery = disabler.visit(query);
-        const result = formatter.visit(disabledQuery);
+        const result = formatter.format(disabledQuery);
 
         // Assert
         expect(result).toBe('select * from "outer_cte"');
@@ -164,12 +164,12 @@ describe('CTEDisabler', () => {
                 SELECT id FROM top_departments
             )
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const disabler = new CTEDisabler();
 
         // Act
         const disabledQuery = disabler.visit(query);
-        const result = formatter.visit(disabledQuery);
+        const result = formatter.format(disabledQuery);
 
         // Assert
         expect(result).toBe('select * from "users" where "department_id" in (select "id" from "top_departments")');
@@ -191,12 +191,12 @@ describe('CTEDisabler', () => {
             ORDER BY total_count DESC
             LIMIT 5
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const disabler = new CTEDisabler();
 
         // Act
         const disabledQuery = disabler.visit(query);
-        const result = formatter.visit(disabledQuery);
+        const result = formatter.format(disabledQuery);
 
         // Assert
         expect(result).toBe('select "id", "name", count(*) as "total_count" from "filtered_data" group by "id", "name" having count(*) > 10 order by "total_count" desc limit 5');
@@ -214,12 +214,12 @@ describe('CTEDisabler', () => {
                 SELECT id FROM cte1 WHERE name = 'test'
             )
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const disabler = new CTEDisabler();
 
         // Act
         const disabledQuery = disabler.visit(query);
-        const result = formatter.visit(disabledQuery);
+        const result = formatter.format(disabledQuery);
 
         // Assert
         expect(result).toBe('select * from "cte1" where "id" in (select "id" from "cte1" where "name" = \'test\')');

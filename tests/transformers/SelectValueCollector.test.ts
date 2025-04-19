@@ -6,7 +6,7 @@ describe('SelectItemCollector', () => {
     test('collects select items from simple SELECT query', () => {
         // Arrange
         const sql = `SELECT id, name, created_at FROM users`;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new SelectValueCollector();
 
         // Act
@@ -20,7 +20,7 @@ describe('SelectItemCollector', () => {
     test('collects select items with aliases', () => {
         // Arrange
         const sql = `SELECT id as user_id, name as user_name FROM users`;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new SelectValueCollector();
 
         // Act
@@ -34,7 +34,7 @@ describe('SelectItemCollector', () => {
     test('collects select items from query with functions', () => {
         // Arrange
         const sql = `SELECT COUNT(*) as count, MAX(salary) as max_salary FROM employees`;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new SelectValueCollector();
 
         // Act
@@ -52,7 +52,7 @@ describe('SelectItemCollector', () => {
             UNION
             SELECT id, username FROM accounts
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new SelectValueCollector();
 
         // Act
@@ -72,7 +72,7 @@ describe('SelectItemCollector', () => {
                 (SELECT COUNT(*) FROM orders o WHERE o.user_id = u.id) as order_count
             FROM users u
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new SelectValueCollector();
 
         // Act
@@ -88,8 +88,8 @@ describe('SelectItemCollector', () => {
         const sql1 = `SELECT id, name FROM table1`;
         const sql2 = `SELECT product_id, product_name, price FROM products`;
 
-        const query1 = SelectQueryParser.parseFromText(sql1);
-        const query2 = SelectQueryParser.parseFromText(sql2);
+        const query1 = SelectQueryParser.parse(sql1);
+        const query2 = SelectQueryParser.parse(sql2);
         const collector = new SelectValueCollector();
 
         // Act - First collection
@@ -110,7 +110,7 @@ describe('SelectItemCollector', () => {
     test('collects column names from simple select statement', () => {
         // Arrange
         const sql = `SELECT id, name FROM users`;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new SelectValueCollector();
 
         // Act
@@ -125,7 +125,7 @@ describe('SelectItemCollector', () => {
     test('collects column names from subquery statement', () => {
         // Arrange
         const sql = `SELECT a.id, a.value FROM table_a as a`;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new SelectValueCollector();
 
         // Act
@@ -144,7 +144,7 @@ describe('SelectItemCollector', () => {
     test('should not return duplicates for identical columns', () => {
         // Arrange
         const sql = `SELECT id, id, name FROM users`;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new SelectValueCollector();
 
         // Act

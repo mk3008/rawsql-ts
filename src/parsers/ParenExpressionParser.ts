@@ -4,7 +4,7 @@ import { SelectQueryParser } from "./SelectQueryParser";
 import { ValueParser } from "./ValueParser";
 
 export class ParenExpressionParser {
-    public static parse(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number } {
+    public static parseFromLexeme(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number } {
         let idx = index;
 
         // check inline query
@@ -12,7 +12,7 @@ export class ParenExpressionParser {
             lexemes[idx + 1].value === "select" || lexemes[idx + 1].value === "values" || lexemes[idx + 1].value === "with"
         )) {
             idx += 1; // Skip the '(' token
-            const result = SelectQueryParser.parse(lexemes, idx);
+            const result = SelectQueryParser.parseFromLexeme(lexemes, idx);
             idx = result.newIndex;
 
             // Check for closing parenthesis

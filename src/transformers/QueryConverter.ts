@@ -6,44 +6,51 @@ import { CTECollector } from "./CTECollector";
 import { CTENormalizer } from "./CTENormalizer";
 
 /**
- * Normalizes SELECT queries by converting different query types to a standard SimpleSelectQuery format.
- * - Simple SELECT queries are returned as-is
- * - Binary queries (UNION, etc.) are wrapped in a subquery: SELECT * FROM (original) AS bq
- * - VALUES queries are given sequentially numbered columns: SELECT * FROM (original) AS vq(column1, column2, ...)
+ * Converts various SELECT query types to a standard SimpleSelectQuery format.
+ * - SimpleSelectQuery is returned as-is
+ * - BinarySelectQuery (UNION, etc.) is wrapped in a subquery: SELECT * FROM (original) AS bq
+ * - ValuesQuery is wrapped with sequentially numbered columns: SELECT * FROM (original) AS vq(column1, column2, ...)
  */
-export class QueryNormalizer {
+export class QueryConverter {
     /**
-     * Normalizes a SELECT query to a standard form
-     * 
-     * @param query The query to normalize
-     * @returns A normalized SimpleSelectQuery
+     * Private constructor to prevent instantiation of this utility class.
      */
-    public normalize(query: SelectQuery): SimpleSelectQuery {
-        if (query instanceof SimpleSelectQuery) {
-            // Simple queries are already in the desired format
-            return query;
-        }
-        else if (query instanceof BinarySelectQuery) {
-            // Wrap binary queries as subqueries
-            return this.normalizeBinaryQuery(query);
-        }
-        else if (query instanceof ValuesQuery) {
-            // Convert VALUES queries to simple queries with column names
-            return this.normalizeValuesQuery(query);
-        }
-
-        // Fallback case, should not be reached with the current type system
-        throw new Error("Unsupported query type for normalization");
+    private constructor() {
+        // This class is not meant to be instantiated.
     }
 
     /**
-     * Converts a binary query (UNION, EXCEPT, etc.) to a simple query
-     * by wrapping it in a SELECT * FROM (original) AS bq
+     * Converts a SELECT query to a standard SimpleSelectQuery form.
      * 
-     * @param query The binary query to normalize
-     * @returns A normalized SimpleSelectQuery
+     * @param query The query to convert
+     * @returns A SimpleSelectQuery
      */
-    private normalizeBinaryQuery(query: BinarySelectQuery): SimpleSelectQuery {
+    public static toSimple(query: SelectQuery): SimpleSelectQuery {
+        if (query instanceof SimpleSelectQuery) {
+            // Already a simple query, just return it
+            return query;
+        }
+        else if (query instanceof BinarySelectQuery) {
+            // Convert binary queries to a simple query
+            return QueryConverter.toSimpleBinaryQuery(query);
+        }
+        else if (query instanceof ValuesQuery) {
+            // Convert VALUES queries to a simple query
+            return QueryConverter.toSimpleValuesQuery(query);
+        }
+
+        // Should not reach here with current type system
+        throw new Error("Unsupported query type for toSimple");
+    }
+
+    /**
+     * Converts a BinarySelectQuery (UNION, EXCEPT, etc.) to a SimpleSelectQuery
+     * by wrapping it in SELECT * FROM (original) AS bq
+     * 
+     * @param query The binary query to convert
+     * @returns A SimpleSelectQuery
+     */
+    private static toSimpleBinaryQuery(query: BinarySelectQuery): SimpleSelectQuery {
         // Create a subquery source from the binary query
         const subQuerySource = new SubQuerySource(query);
 
@@ -57,7 +64,7 @@ export class QueryNormalizer {
         const fromClause = new FromClause(sourceExpr, null);
 
         // Create SELECT clause with * (all columns)
-        const selectClause = this.createSelectAllClause();
+        const selectClause = QueryConverter.createSelectAllClause();
 
         // Create the final simple select query
         const q = new SimpleSelectQuery(
@@ -73,18 +80,17 @@ export class QueryNormalizer {
             null  // No FOR
         );
 
-        const cteNormalizer = new CTENormalizer();
-        return cteNormalizer.normalize(q) as SimpleSelectQuery;
+        return CTENormalizer.normalize(q) as SimpleSelectQuery;
     }
 
     /**
-     * Converts a VALUES query to a simple query with sequentially numbered columns
+     * Converts a ValuesQuery to a SimpleSelectQuery with sequentially numbered columns
      * 
-     * @param query The VALUES query to normalize
-     * @returns A normalized SimpleSelectQuery
+     * @param query The VALUES query to convert
+     * @returns A SimpleSelectQuery
      */
-    private normalizeValuesQuery(query: ValuesQuery): SimpleSelectQuery {
-        // Determine how many columns are in the VALUES clause
+    private static toSimpleValuesQuery(query: ValuesQuery): SimpleSelectQuery {
+        // Figure out how many columns are in the VALUES clause
         // by checking the first tuple (if available)
         const columnCount = query.tuples.length > 0 ? query.tuples[0].values.length : 0;
 
@@ -106,7 +112,7 @@ export class QueryNormalizer {
         const fromClause = new FromClause(sourceExpr, null);
 
         // Create SELECT clause with * (all columns)
-        const selectClause = this.createSelectAllClause();
+        const selectClause = QueryConverter.createSelectAllClause();
 
         // Create the final simple select query
         return new SimpleSelectQuery(
@@ -128,7 +134,7 @@ export class QueryNormalizer {
      * 
      * @returns A SELECT clause with *
      */
-    private createSelectAllClause(): SelectClause {
+    private static createSelectAllClause(): SelectClause {
         // Create a column reference for *
         const columnRef = new ColumnReference(null, "*");
 

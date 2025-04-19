@@ -134,13 +134,28 @@ export class Formatter implements SqlComponentVisitor<string> {
         this.handlers.set(BinarySelectQuery.kind, (expr) => this.visitBinarySelectQuery(expr as BinarySelectQuery));
     }
 
-    public execute(arg: SqlComponent, config: FormatterConfig | null = null): string {
+    /**
+     * Formats the given SQL AST node into a SQL string.
+     * This is the recommended public API for users.
+     * @param arg The root SQL AST node to format.
+     * @param config (Optional) Formatter configuration.
+     * @returns The formatted SQL string.
+     */
+    public format(arg: SqlComponent, config: FormatterConfig | null = null): string {
         if (config) {
             this.config = config;
         }
         return this.visit(arg);
     }
 
+    /**
+     * Visitor entry point for SQL AST nodes.
+     * Note: This method is public only for interface compatibility.
+     *       Users should call the format() method instead of visit() directly.
+     *       (If you call visit() directly, you are basically breaking the abstraction, so don't do it!)
+     * @param arg The SQL AST node to visit.
+     * @returns The formatted SQL string for the node.
+     */
     public visit(arg: SqlComponent): string {
         const handler = this.handlers.get(arg.getKind());
         if (handler) {

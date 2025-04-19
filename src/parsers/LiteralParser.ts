@@ -3,7 +3,7 @@ import { LiteralValue, RawString, ValueComponent } from "../models/ValueComponen
 import { literalKeywordParser } from "../tokenReaders/LiteralTokenReader";
 
 export class LiteralParser {
-    public static parse(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number } {
+    public static parseFromLexeme(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number } {
         // Process literal value
         let idx = index;
         const valueText = lexemes[idx].value;

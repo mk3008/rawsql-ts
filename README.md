@@ -1,250 +1,213 @@
 # rawsql-ts
 
-A TypeScript SQL parser project that performs AST (Abstract Syntax Tree) analysis.
+rawsql-ts is a TypeScript SQL parser that performs Abstract Syntax Tree (AST) analysis for advanced SQL processing and transformation.
+
+> **Note:** This library is currently in beta. The API may change without notice until the v1.0 release.
 
 ## Installation
 
-Install the main project:
+Install the package from npm as follows:
 
 ```bash
-npm install
+npm install rawsql-ts
 ```
 
 ## Usage
 
-Build the project:
-
-```bash
-npm run build
-```
-
-Run tests:
-
-```bash
-npm test
-```
-
-## ✅ Supported Features
-
-**Main features included in this parser:**
-
-- **CTE Support**: Full Common Table Expression parsing
-  - PostgreSQL `MATERIALIZED`/`NOT MATERIALIZED` options
-  - Nested and recursive CTEs
-- **UNION Queries**: Handles UNION, UNION ALL, INTERSECT and EXCEPT
-- **Complex Subqueries**: Supports subqueries and inline queries
-- **Window Functions**: Complete WINDOW clause and function support
-- **PostgreSQL Optimized**: Deep support for PostgreSQL syntax
-  - `DISTINCT ON (columns)` expressions
-  - Array and range operators
-
-## ⚠️ Important Notes
-
-**Under development with the following limitations:**
-
-- **PostgreSQL Only**: Only PostgreSQL syntax is currently supported
-- **Comments Stripped**: SQL comments are removed during parsing
-- **SELECT Queries Only**: Currently only handles SELECT queries (no INSERT/UPDATE/DELETE)
-- **One-line Formatting**: Currently only supports single-line (compact) output formatting
-- **Beta Status**: API may change without notice until v1.0 release
-
-## Transformer Utilities
-
-rawsql-ts includes powerful transformer utilities to analyze and transform SQL ASTs. These utilities let you format, analyze, and extract information from SQL queries in a super flexible way!
-
-### Formatter
-
-The Formatter transforms SQL ASTs into clean, standardized SQL text output. It handles all SQL components, ensuring proper escaping and consistent formatting regardless of the complexity of your queries.
+Basic usage example:
 
 ```typescript
-import { SelectQueryParser } from './parsers/SelectQueryParser';
-import { Formatter } from './transformers/Formatter';
+import { SelectQueryParser } from 'rawsql-ts';
+import { Formatter } from 'rawsql-ts';
 
-// Example complex query with subquery and functions
-const sql = `
-SELECT
-    p.product_id
-    , p.name
-    , SUM(o.quantity) AS total_ordered
-    , CASE
-        WHEN SUM(o.quantity) > 1000 THEN 'High Demand'
-        WHEN SUM(o.quantity) > 500 THEN 'Medium Demand'
-        ELSE 'Low Demand'
-    END AS demand_category
-FROM
-    products AS p
-    JOIN order_items AS o ON p.product_id = o.product_id
-WHERE
-    p.category IN (
-        SELECT
-            category
-        FROM
-            featured_categories
-        WHERE
-            active = TRUE
-    )
-GROUP BY
-    p.product_id
-    , p.name
-HAVING
-    SUM(o.quantity) > 100
-ORDER BY
-    total_ordered DESC`;
-
-// Parse the query into an AST
-const query = SelectQueryParser.parseFromText(sql);
-
-// Format the AST back to SQL
+const sql = `SELECT id, name FROM users WHERE active = TRUE`;
+const query = SelectQueryParser.parse(sql);
 const formatter = new Formatter();
-const formattedSql = formatter.visit(query);
-
+const formattedSql = formatter.format(query);
 console.log(formattedSql);
-// Outputs clean, consistently formatted SQL with proper identifiers
+// => select "id", "name" from "users" where "active" = true
 ```
 
-### SelectValueCollector
+---
 
-The SelectValueCollector extracts all column items from a SELECT clause, including their aliases and expressions. It provides access to both column names and their corresponding value expressions, making it perfect for analyzing the output structure of SQL queries. For information on wildcard resolution (like `*` or `table.*`), see the Wildcard Resolution section below.
+## 🧩 Parsing Features
+
+rawsql-ts provides the following main parser class for converting SQL text into an Abstract Syntax Tree (AST):
+
+- **SelectQueryParser**  
+  Parses complete SELECT and VALUES queries, including support for CTEs (WITH), UNION/INTERSECT/EXCEPT, subqueries, and all major SQL clauses. Handles PostgreSQL-specific syntax and advanced query structures.
+
+ **Key methods:**
+  - `parse(sql: string): SelectQuery`  
+    Parses a SQL string and returns the root AST node for the query. Throws an error if the SQL is invalid or contains extra tokens.
+
+  **Notes:**
+  - Only PostgreSQL syntax is supported at this time.
+  - Only SELECT and VALUES queries are supported (INSERT/UPDATE/DELETE are not yet implemented).
+  - All SQL comments are removed during parsing.
+
+  This class is designed to handle all practical SQL parsing needs for SELECT/VALUES queries in PostgreSQL, including:
+  - CTEs (WITH), including recursive and materialized options
+  - UNION, INTERSECT, EXCEPT, and subqueries
+  - Window functions and analytic clauses
+  - Complex expressions, functions, and operators
+  - Robust error handling with detailed messages
+  - Accurate tokenization, including comments and special literals
+
+---
+
+## Core SQL Query Classes
+
+The following classes are the primary building blocks for representing and manipulating SQL queries in rawsql-ts:
+
+### SimpleSelectQuery
+
+Represents a single, standard SQL SELECT statement (not a UNION or VALUES). This class encapsulates all major clauses such as SELECT, FROM, WHERE, GROUP BY, HAVING, ORDER BY, and more.
+
+**Key methods:**
+- `toUnion`, `toUnionAll`, `toIntersect`, `toExcept`, etc.
+  - Combine this query with another using UNION, INTERSECT, EXCEPT, etc., returning a BinarySelectQuery.
+- `appendWhere`, `appendWhereRaw`
+  - Add a new condition to the WHERE clause (as AST or raw SQL string).
+- `appendHaving`, `appendHavingRaw`
+  - Add a new condition to the HAVING clause.
+- `innerJoin`, `leftJoin`, `rightJoin`, `innerJoinRaw`, etc.
+  - Add JOIN clauses to the query, either as AST or from raw SQL.
+- `toSource`
+  - Wrap this query as a subquery (for use in FROM/JOIN, etc.).
+- `appendWith`, `appendWithRaw`
+  - Add CTEs (WITH clause) to the query.
+
+### BinarySelectQuery
+
+Represents a binary SQL query, such as `SELECT ... UNION SELECT ...`, `INTERSECT`, or `EXCEPT`. This class holds a left and right query and the operator between them.
+
+**Key methods:**
+- `union`, `unionAll`, `intersect`, `intersectAll`, `except`, `exceptAll`
+  - Chain additional queries to the current binary query.
+- `appendSelectQuery`
+  - Add a new query with a custom operator.
+- `toSource`
+  - Wrap this binary query as a subquery (for use in FROM/JOIN, etc.).
+- `unionRaw`, `intersectRaw`, etc.
+  - Add a new query by parsing a raw SQL string and combining it.
+
+### ValuesQuery
+
+Represents a SQL `VALUES` clause, such as `VALUES (1, 'a'), (2, 'b')`, which is used for inline data tables.
+
+**Key methods:**
+- (Primarily the constructor and tuple access)
+- This class can be used as a subquery source or wrapped with QueryNormalizer to convert it into a standard SELECT query.
+
+---
+
+These classes are designed to be flexible and allow for robust construction, combination, and transformation of SQL queries. For further details, please refer to the source code.
+
+---
+
+## 🛠️ Transformer Features (AST Transformers)
+
+rawsql-ts provides a suite of AST (Abstract Syntax Tree) transformers for advanced SQL analysis and manipulation. These utilities are intended for engineers who require programmatic extraction, analysis, or transformation of SQL query structures.
+
+### Main Transformers
+
+- **Formatter**  
+  Converts SQL ASTs into standardized SQL text, handling identifier escaping and formatting for all SQL components.  
+  **Note:** Output formatting is currently limited to single-line (compact) style.
+
+- **SelectValueCollector**  
+  Extracts all columns, including aliases and expressions, from SELECT clauses. Supports wildcard expansion (e.g., `*`, `table.*`) when table structure information is provided.
+
+- **SelectableColumnCollector**  
+  Collects all column references in a query that can be included in a SELECT clause. Gathers all columns available from root FROM/JOIN sources.
+
+- **TableSourceCollector**  
+  Collects all table and subquery sources from the FROM and JOIN clauses. This utility helps you extract all logical sources (tables, subqueries, CTEs, etc.) referenced in the root query, including their aliases. Useful for schema analysis, join logic, and query visualization.
+
+- **CTECollector**  
+  Collects all Common Table Expressions (CTEs) from WITH clauses, subqueries, and UNION queries. Supports both nested and recursive CTEs.
+
+- **UpstreamSelectQueryFinder**  
+  Identifies upstream SELECT queries that provide specific columns by traversing CTEs, subqueries, and UNION branches.
+
+- **CTENormalizer**  
+  Consolidates all Common Table Expressions (CTEs) from any part of a query (including nested subqueries, JOINs, and UNIONs) into a single root-level WITH clause. If duplicate CTE names with different definitions are detected, an error is thrown to prevent ambiguity.
+
+- **QueryNormalizer**  
+  Converts any SELECT query (including UNION, EXCEPT, or VALUES queries) into a standard SimpleSelectQuery format. For UNION or EXCEPT, the query is wrapped as a subquery with an alias (e.g., SELECT * FROM (...)). For VALUES, sequential column names (column1, column2, ...) are generated and the VALUES are wrapped in a subquery. This ensures a predictable query structure for downstream processing.
+
+--- 
+
+### Example Usage
 
 ```typescript
-import { SelectQueryParser } from './parsers/SelectQueryParser';
-import { SelectValueCollector } from './transformers/SelectValueCollector';
-import { Formatter } from './transformers/Formatter';
+import { SelectQueryParser } from 'rawsql-ts';
+import { SelectableColumnCollector } from 'rawsql-ts/transformers/SelectableColumnCollector';
+import { SelectValueCollector } from 'rawsql-ts/transformers/SelectValueCollector';
+import { TableSourceCollector } from 'rawsql-ts/transformers/TableSourceCollector';
 
-// Example query with column references and expressions
-const sql = `
-SELECT
-    id
-    , name
-    , price * quantity AS total
-    , (
-        SELECT
-            COUNT(*)
-        FROM
-            orders AS o
-        WHERE
-            o.customer_id = c.id
-    ) AS order_count
-FROM
-    customers AS c
-WHERE
-    status = 'active'`;
+const sql = `SELECT u.id, u.name FROM users u JOIN posts p ON u.id = p.user_id`;
+const query = SelectQueryParser.parse(sql);
 
-const query = SelectQueryParser.parseFromText(sql);
+// Collects all selectable columns from the query (from FROM/JOIN sources)
+const selectableColumnCollector = new SelectableColumnCollector();
+const selectableColumns = selectableColumnCollector.collect(query);
+ // ["id", "name", "user_id", ...]
+console.log(selectableColumns.map(col => col.name));
 
-// Collect all select values
-const collector = new SelectValueCollector();
-const items = collector.collect(query);
+// Collects all values and aliases from the SELECT clause
+const selectValueCollector = new SelectValueCollector();
+const selectValues = selectValueCollector.collect(query);
+ // ["id", "name"]
+console.log(selectValues.map(val => val.alias || val.expression.toString()));
 
-// Format expressions for display
-const formatter = new Formatter();
-
-// Output column names
-console.log(items.map(item => item.name));
-// ["id", "name", "total", "order_count"]
-
-// Output column expressions to show full value components
-console.log(items.map(item => formatter.visit(item.value)));
-// ["id", "name", "price * quantity", "(SELECT COUNT(*) FROM orders AS o WHERE o.customer_id = c.id)"]
+// Collects all table and subquery sources from the FROM/JOIN clauses
+const tableSourceCollector = new TableSourceCollector();
+const sources = tableSourceCollector.collect(query);
+// ["u", "p"]
+console.log(sources.map(src => src.alias || src.name)); 
 ```
 
-### SelectableColumnCollector
+---
 
-The SelectableColumnCollector identifies all column references throughout a query that could potentially be included in a SELECT clause. It scans the entire query structure and extracts columns with their full context, making it ideal for query builders. For information on wildcard resolution (like `*` or `table.*`), see the Wildcard Resolution section below.
+## Practical Example: Table Join
+
+The following example demonstrates how to join two tables using rawsql-ts. It is not necessary to understand the internal structure of the SelectQuery class or manage alias names manually. By specifying the join key(s), the library automatically generates the ON clause and handles all aliasing and subquery details.
 
 ```typescript
-import { SelectQueryParser } from './parsers/SelectQueryParser';
-import { SelectableColumnCollector } from './transformers/SelectableColumnCollector';
-import { Formatter } from './transformers/Formatter';
+import { SelectQueryParser } from 'rawsql-ts';
+import { Formatter } from 'rawsql-ts';
 
-// Example query
-const sql = `
-SELECT
-    u.id
-    , u.name
-FROM
-    users AS u
-    JOIN profiles AS p ON u.id = p.user_id
-WHERE
-    u.active = TRUE
-    AND p.verified = TRUE`;
+// Parse two separate queries
+const userQuery = SelectQueryParser.parse('SELECT user_id, user_name FROM users');
+const postQuery = SelectQueryParser.parse('SELECT post_id, user_id, title FROM posts');
 
-const query = SelectQueryParser.parseFromText(sql);
-const collector = new SelectableColumnCollector();
+// Join the two queries using innerJoin
+// Provide the join key(s) as an array; the ON clause will be generated automatically.
+const joinedQuery = userQuery.innerJoin(postQuery, ['user_id']);
 
-// Collect all column references from data sources
-collector.visit(query);
-const columns = collector.collect(query);
-
-// Format column references for display
+// Format the joined query back to SQL
 const formatter = new Formatter();
-const columnNames = columns.map(item => item.name);
-console.log(columnNames);
-// ["id", "name", "active", "user_id", "verified"]
-
-// Get the original column expressions with their full context
-const expressions = columns.map(item => formatter.visit(item.value));
-console.log(expressions);
-// ["u.id", "u.name", "u.active", "p.user_id", "p.verified"]
+const sql = formatter.format(joinedQuery);
+console.log(sql);
+// Output:
+// select "user_id", "user_name", "post_id", "title" from "users" inner join (select "post_id", "user_id", "title" from "posts") on "users"."user_id" = "posts"."user_id"
 ```
 
-### Wildcard Resolution
+**Key Points:**
+- It is not necessary to understand the internal implementation of SelectQuery to perform join operations.
+- Only the join key(s) (e.g., `['user_id']`) need to be specified. The ON clause is generated automatically.
+- Alias names and subquery handling are managed by the library, eliminating the need for manual intervention.
+- This approach enables straightforward joining of queries, even without detailed knowledge of the SQL structure or AST internals.
 
-The wildcard resolution feature enhances both collectors by supporting the expansion of wildcard expressions (`*` and `table.*`). Since SQL AST analysis alone cannot determine actual column names from wildcards, this feature allows you to provide table structure information through a custom resolver.
+---
 
-To use this feature, simply provide a `TableColumnResolver` function when creating a collector. This resolver maps table names to their column definitions, allowing the collectors to fully expand wildcard expressions into individual columns with proper context.
-
-```typescript
-import { SelectQueryParser } from './parsers/SelectQueryParser';
-import { SelectValueCollector } from './transformers/SelectValueCollector';
-import { Formatter } from './transformers/Formatter';
-
-// Define a function to resolve column names from table names
-const tableColumnResolver = (tableName: string): string[] => {
-  // In real applications, this would fetch from database metadata or schema information
-  const tableColumns: Record<string, string[]> = {
-    'users': ['id', 'name', 'email', 'created_at'],
-    'posts': ['id', 'title', 'content', 'user_id', 'created_at'],
-    'comments': ['id', 'post_id', 'user_id', 'content', 'created_at']
-  };
-  
-  return tableColumns[tableName] || [];
-};
-
-// Query containing wildcards
-const sql = `
-SELECT
-    u.*
-    , p.title
-    , p.content
-FROM
-    users AS u
-    JOIN posts AS p ON u.id = p.user_id
-WHERE
-    u.created_at > '2023-01-01'`;
-
-const query = SelectQueryParser.parseFromText(sql);
-
-// Pass the TableColumnResolver to resolve wildcards
-const collector = new SelectValueCollector(tableColumnResolver);
-const items = collector.collect(query);
-
-// Display results
-const formatter = new Formatter();
-console.log(items.map(item => item.name));
-// ["id", "name", "email", "created_at", "title", "content"]
-
-// Show full reference expressions for each column
-console.log(items.map(item => formatter.visit(item.value)));
-// ["u.id", "u.name", "u.email", "u.created_at", "p.title", "p.content"]
-```
-
-This capability allows you to parse queries containing wildcards and understand exactly which columns are being referenced. It also supports expansion of wildcards from multiple tables and subqueries.
+By utilizing these transformer utilities, you can perform advanced SQL analysis and manipulation with reliability and consistency.
 
 ## Benchmarks
 
-This project includes benchmarking functionality.
-To run benchmarks:
+This project includes benchmarking functionality. To run benchmarks, execute:
 
 ```bash
 npm run benchmark
@@ -252,12 +215,12 @@ npm run benchmark
 
 ## Benchmark Details
 
-This benchmark evaluates the SQL parsing and formatting performance of `rawsql-ts` against popular libraries: `sql-formatter` and `node-sql-parser`. We test queries of varying complexity:
+The benchmark suite evaluates the SQL parsing and formatting performance of `rawsql-ts` in comparison to popular libraries such as `sql-formatter` and `node-sql-parser`. Queries of varying complexity are tested:
 
 - **Tokens20**: Simple `SELECT` query with a basic `WHERE` condition (~20 tokens)
 - **Tokens70**: Medium complexity query with `JOIN`s and multiple conditions (~70 tokens)
 - **Tokens140**: Complex query with `CTE`s and aggregations (~140 tokens)
-- **Tokens230**: Very complex query with multiple `CTE`s, subqueries, and window functions (~230 tokens)
+- **Tokens230**: Highly complex query with multiple `CTE`s, subqueries, and window functions (~230 tokens)
 
 ## Benchmark Environment
 
@@ -300,9 +263,10 @@ Node.js v22.14.0
 
 ## Performance Summary
 
-- `rawsql-ts` **consistently outperforms** both `node-sql-parser` and `sql-formatter` in all tested cases.
-- **4x faster** than `node-sql-parser`.
-- **9-10x faster** than `sql-formatter`.
-- Maintains **full SQL parsing capabilities** while significantly improving performance.
+- `rawsql-ts` consistently outperforms both `node-sql-parser` and `sql-formatter` in all tested scenarios.
+- Approximately 4x faster than `node-sql-parser`.
+- Approximately 9-10x faster than `sql-formatter`.
+- Maintains comprehensive SQL parsing capabilities while delivering significant performance improvements.
 
-> ⚠️ **Note:** These benchmarks are based on a specific hardware and software environment. Actual performance may vary depending on system configuration and workload.
+> **Note:** These benchmarks are based on a specific hardware and software environment. Actual performance may vary depending on system configuration and workload.
+

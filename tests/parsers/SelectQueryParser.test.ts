@@ -179,9 +179,9 @@ describe('SelectQueryParser', () => {
 
     ])('%s', (_, text, expected) => {
         // Parse the query
-        const query = SelectQueryParser.parseFromText(text);
+        const query = SelectQueryParser.parse(text);
         // Format it back to SQL
-        const sql = formatter.visit(query);
+        const sql = formatter.format(query);
         // Verify it matches our expected output
         expect(sql).toBe(expected);
     });
@@ -194,7 +194,7 @@ describe('SelectQueryParser with VALUES', () => {
         const text = `values 1, 2, 3`;
 
         // Act & Assert
-        expect(() => SelectQueryParser.parseFromText(text)).toThrow(/Expected opening parenthesis/);
+        expect(() => SelectQueryParser.parse(text)).toThrow(/Expected opening parenthesis/);
     });
 
     test('should throw an error when mixing VALUES and SELECT incorrectly', () => {
@@ -202,7 +202,7 @@ describe('SelectQueryParser with VALUES', () => {
         const text = `values (1, 2) select * from users`;
 
         // Act & Assert
-        expect(() => SelectQueryParser.parseFromText(text)).toThrow();
+        expect(() => SelectQueryParser.parse(text)).toThrow();
     });
 
     test('should handle complex UNION between VALUES and SELECT', () => {
@@ -210,8 +210,8 @@ describe('SelectQueryParser with VALUES', () => {
         const text = `values (1, 'Product A'), (2, 'Product B') union all select id, name from featured_products order by name`;
 
         // Act
-        const query = SelectQueryParser.parseFromText(text);
-        const sql = formatter.visit(query);
+        const query = SelectQueryParser.parse(text);
+        const sql = formatter.format(query);
 
         // Assert
         expect(sql).toBe('values (1, \'Product A\'), (2, \'Product B\') union all select "id", "name" from "featured_products" order by "name"');

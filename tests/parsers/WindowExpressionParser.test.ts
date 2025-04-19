@@ -9,8 +9,8 @@ test('empty window frame', () => {
     const text = `()`;
 
     // Act
-    const expression = WindowExpressionParser.parseFromText(text);
-    const sql = formatter.visit(expression);
+    const expression = WindowExpressionParser.parse(text);
+    const sql = formatter.format(expression);
 
     // Assert
     expect(sql).toEqual(`()`);
@@ -23,8 +23,8 @@ test('window frame with partition by', () => {
     const text = `(partition by department_id)`;
 
     // Act
-    const expression = WindowExpressionParser.parseFromText(text);
-    const sql = formatter.visit(expression);
+    const expression = WindowExpressionParser.parse(text);
+    const sql = formatter.format(expression);
 
     // Assert
     expect(sql).toEqual(`(partition by "department_id")`);
@@ -37,8 +37,8 @@ test('window frame with order by', () => {
     const text = `(order by salary desc)`;
 
     // Act
-    const expression = WindowExpressionParser.parseFromText(text);
-    const sql = formatter.visit(expression);
+    const expression = WindowExpressionParser.parse(text);
+    const sql = formatter.format(expression);
 
     // Assert
     expect(sql).toEqual(`(order by "salary" desc)`);
@@ -51,8 +51,8 @@ test('window frame with partition by and order by', () => {
     const text = `(partition by department_id order by salary desc)`;
 
     // Act
-    const expression = WindowExpressionParser.parseFromText(text);
-    const sql = formatter.visit(expression);
+    const expression = WindowExpressionParser.parse(text);
+    const sql = formatter.format(expression);
 
     // Assert
     expect(sql).toEqual(`(partition by "department_id" order by "salary" desc)`);
@@ -65,8 +65,8 @@ test('window frame with multiple partition by columns', () => {
     const text = `(partition by department_id, location_id)`;
 
     // Act
-    const expression = WindowExpressionParser.parseFromText(text);
-    const sql = formatter.visit(expression);
+    const expression = WindowExpressionParser.parse(text);
+    const sql = formatter.format(expression);
 
     // Assert
     expect(sql).toEqual(`(partition by "department_id", "location_id")`);
@@ -77,8 +77,8 @@ test('window frame with multiple order by columns', () => {
     const text = `(order by department_id, salary desc)`;
 
     // Act
-    const expression = WindowExpressionParser.parseFromText(text);
-    const sql = formatter.visit(expression);
+    const expression = WindowExpressionParser.parse(text);
+    const sql = formatter.format(expression);
 
     // Assert
     expect(sql).toEqual(`(order by "department_id", "salary" desc)`);
@@ -89,8 +89,8 @@ test('window frame with expression in partition by', () => {
     const text = `(partition by extract(year from hire_date))`;
 
     // Act
-    const expression = WindowExpressionParser.parseFromText(text);
-    const sql = formatter.visit(expression);
+    const expression = WindowExpressionParser.parse(text);
+    const sql = formatter.format(expression);
 
     // Assert
     expect(sql).toEqual(`(partition by extract(year from "hire_date"))`);
@@ -101,7 +101,7 @@ test('error on missing opening parenthesis', () => {
     const text = `partition by department_id)`;
 
     // Act & Assert
-    expect(() => WindowExpressionParser.parseFromText(text)).toThrow();
+    expect(() => WindowExpressionParser.parse(text)).toThrow();
 });
 
 test('error on missing closing parenthesis', () => {
@@ -109,7 +109,7 @@ test('error on missing closing parenthesis', () => {
     const text = `(partition by department_id`;
 
     // Act & Assert
-    expect(() => WindowExpressionParser.parseFromText(text)).toThrow();
+    expect(() => WindowExpressionParser.parse(text)).toThrow();
 });
 
 test('error on invalid order in window frame', () => {
@@ -118,7 +118,7 @@ test('error on invalid order in window frame', () => {
 
     // Act & Assert
     // partition by cannot come after order by and will cause an error
-    expect(() => WindowExpressionParser.parseFromText(text)).toThrow();
+    expect(() => WindowExpressionParser.parse(text)).toThrow();
 });
 
 test('window frame with rows specification', () => {
@@ -126,8 +126,8 @@ test('window frame with rows specification', () => {
     const text = `(rows current row)`;
 
     // Act
-    const expression = WindowExpressionParser.parseFromText(text);
-    const sql = formatter.visit(expression);
+    const expression = WindowExpressionParser.parse(text);
+    const sql = formatter.format(expression);
 
     // Assert
     expect(sql).toEqual(`(rows current row)`);
@@ -139,8 +139,8 @@ test('window frame with range specification', () => {
     const text = `(range unbounded preceding)`;
 
     // Act
-    const expression = WindowExpressionParser.parseFromText(text);
-    const sql = formatter.visit(expression);
+    const expression = WindowExpressionParser.parse(text);
+    const sql = formatter.format(expression);
 
     // Assert
     expect(sql).toEqual(`(range unbounded preceding)`);
@@ -152,8 +152,8 @@ test('window frame with groups specification', () => {
     const text = `(groups 3 preceding)`;
 
     // Act
-    const expression = WindowExpressionParser.parseFromText(text);
-    const sql = formatter.visit(expression);
+    const expression = WindowExpressionParser.parse(text);
+    const sql = formatter.format(expression);
 
     // Assert
     expect(sql).toEqual(`(groups 3 preceding)`);
@@ -165,8 +165,8 @@ test('window frame with rows between specification', () => {
     const text = `(rows between unbounded preceding and current row)`;
 
     // Act
-    const expression = WindowExpressionParser.parseFromText(text);
-    const sql = formatter.visit(expression);
+    const expression = WindowExpressionParser.parse(text);
+    const sql = formatter.format(expression);
 
     // Assert
     expect(sql).toEqual(`(rows between unbounded preceding and current row)`);
@@ -178,8 +178,8 @@ test('window frame with range between specification', () => {
     const text = `(range between 3 preceding and 3 following)`;
 
     // Act
-    const expression = WindowExpressionParser.parseFromText(text);
-    const sql = formatter.visit(expression);
+    const expression = WindowExpressionParser.parse(text);
+    const sql = formatter.format(expression);
 
     // Assert
     expect(sql).toEqual(`(range between 3 preceding and 3 following)`);
@@ -191,8 +191,8 @@ test('window frame with complete window specification', () => {
     const text = `(partition by department_id order by salary desc rows between unbounded preceding and current row)`;
 
     // Act
-    const expression = WindowExpressionParser.parseFromText(text);
-    const sql = formatter.visit(expression);
+    const expression = WindowExpressionParser.parse(text);
+    const sql = formatter.format(expression);
 
     // Assert
     expect(sql).toEqual(`(partition by "department_id" order by "salary" desc rows between unbounded preceding and current row)`);
@@ -206,7 +206,7 @@ test('error on invalid frame boundary', () => {
     const text = `(rows unknown_boundary)`;
 
     // Act & Assert
-    expect(() => WindowExpressionParser.parseFromText(text)).toThrow();
+    expect(() => WindowExpressionParser.parse(text)).toThrow();
 });
 
 test('error on missing AND in BETWEEN clause', () => {
@@ -214,5 +214,5 @@ test('error on missing AND in BETWEEN clause', () => {
     const text = `(rows between unbounded preceding current row)`;
 
     // Act & Assert
-    expect(() => WindowExpressionParser.parseFromText(text)).toThrow();
+    expect(() => WindowExpressionParser.parse(text)).toThrow();
 });

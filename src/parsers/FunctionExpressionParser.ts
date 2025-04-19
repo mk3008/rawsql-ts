@@ -4,7 +4,7 @@ import { OverExpressionParser } from "./OverExpressionParser";
 import { ValueParser } from "./ValueParser";
 
 export class FunctionExpressionParser {
-    public static parse(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number } {
+    public static parseFromLexeme(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number } {
         let idx = index;
         const current = lexemes[idx];
 
@@ -55,7 +55,7 @@ export class FunctionExpressionParser {
             }
 
             // Get the right-hand side value
-            const rightResult = ValueParser.parse(lexemes, idx);
+            const rightResult = ValueParser.parseFromLexeme(lexemes, idx);
             idx = rightResult.newIndex;
 
             // Create binary expression
@@ -68,7 +68,7 @@ export class FunctionExpressionParser {
 
     public static parseBetweenExpression(lexemes: Lexeme[], index: number, value: ValueComponent, negated: boolean): { value: ValueComponent; newIndex: number; } {
         let idx = index;
-        const lower = ValueParser.parse(lexemes, idx, false);
+        const lower = ValueParser.parseFromLexeme(lexemes, idx, false);
         idx = lower.newIndex;
 
         if (idx < lexemes.length && lexemes[idx].type === TokenType.Operator && lexemes[idx].value !== "and") {
@@ -76,7 +76,7 @@ export class FunctionExpressionParser {
         }
         idx++;
 
-        const upper = ValueParser.parse(lexemes, idx);
+        const upper = ValueParser.parseFromLexeme(lexemes, idx);
         idx = upper.newIndex;
         const result = new BetweenExpression(value, lower.value, upper.value, negated);
         return { value: result, newIndex: idx };
@@ -96,7 +96,7 @@ export class FunctionExpressionParser {
             idx = arg.newIndex;
 
             if (idx < lexemes.length && lexemes[idx].value === "over") {
-                const over = OverExpressionParser.parse(lexemes, idx);
+                const over = OverExpressionParser.parseFromLexeme(lexemes, idx);
                 idx = over.newIndex;
                 const value = new FunctionCall(functionName, arg.value, over.value);
                 return { value, newIndex: idx };
@@ -121,7 +121,7 @@ export class FunctionExpressionParser {
         if (idx < lexemes.length && lexemes[idx].type === TokenType.OpenParen) {
             idx++;
 
-            const input = ValueParser.parse(lexemes, idx);
+            const input = ValueParser.parseFromLexeme(lexemes, idx);
             let arg = input.value;
             idx = input.newIndex;
 
@@ -140,7 +140,7 @@ export class FunctionExpressionParser {
                         arg = new BinaryExpression(arg, key, typeValue.value);
                         idx = typeValue.newIndex;
                     } else {
-                        const right = ValueParser.parse(lexemes, idx);
+                        const right = ValueParser.parseFromLexeme(lexemes, idx);
                         arg = new BinaryExpression(arg, key, right.value);
                         idx = right.newIndex;
                     }
@@ -154,7 +154,7 @@ export class FunctionExpressionParser {
                 idx++;
                 if (idx < lexemes.length && lexemes[idx].value === "over") {
                     idx++;
-                    const over = OverExpressionParser.parse(lexemes, idx);
+                    const over = OverExpressionParser.parseFromLexeme(lexemes, idx);
                     idx = over.newIndex;
                     const value = new FunctionCall(functionName, arg, over.value);
                     return { value, newIndex: idx };

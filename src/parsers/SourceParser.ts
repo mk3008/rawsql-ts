@@ -5,13 +5,13 @@ import { SqlTokenizer } from "./SqlTokenizer";
 import { ValueParser } from "./ValueParser";
 
 export class SourceParser {
-
-    public static parseFromText(query: string): SourceComponent {
+    // Parse SQL string to AST (was: parse)
+    public static parse(query: string): SourceComponent {
         const tokenizer = new SqlTokenizer(query); // Initialize tokenizer
         const lexemes = tokenizer.readLexmes(); // Get tokens
 
         // Parse
-        const result = this.parse(lexemes, 0);
+        const result = this.parseFromLexeme(lexemes, 0);
 
         // Error if there are remaining tokens
         if (result.newIndex < lexemes.length) {
@@ -21,7 +21,8 @@ export class SourceParser {
         return result.value;
     }
 
-    public static parse(lexemes: Lexeme[], index: number): { value: SourceComponent; newIndex: number } {
+    // Parse from lexeme array (was: parse)
+    public static parseFromLexeme(lexemes: Lexeme[], index: number): { value: SourceComponent; newIndex: number } {
         const idx = index;
 
         // Handle subquery
@@ -122,10 +123,11 @@ export class SourceParser {
     private static parseSubQuerySource(lexemes: Lexeme[], index: number): { value: SubQuerySource; newIndex: number } {
         let idx = index;
 
-        const selectQuery = SelectQueryParser.parse(lexemes, idx);
-        idx = selectQuery.newIndex;
+        // Use the new parseFromLexeme method and destructure the result
+        const { value: selectQuery, newIndex } = SelectQueryParser.parseFromLexeme(lexemes, idx);
+        idx = newIndex;
 
-        const subQuerySource = new SubQuerySource(selectQuery.value);
+        const subQuerySource = new SubQuerySource(selectQuery);
         return { value: subQuerySource, newIndex: idx };
     }
 }

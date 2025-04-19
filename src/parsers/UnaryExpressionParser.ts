@@ -3,7 +3,7 @@ import { ColumnReference, IdentifierString, UnaryExpression, ValueComponent } fr
 import { ValueParser } from "./ValueParser";
 
 export class UnaryExpressionParser {
-    public static parse(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number } {
+    public static parseFromLexeme(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number } {
         let idx = index;
 
         // Process unary operator
@@ -18,7 +18,7 @@ export class UnaryExpressionParser {
             }
 
             // Get the right-hand side value of the unary operator
-            const result = ValueParser.parse(lexemes, idx);
+            const result = ValueParser.parseFromLexeme(lexemes, idx);
             idx = result.newIndex;
 
             // Create unary expression

@@ -2,7 +2,7 @@ import { Lexeme, TokenType } from "../models/Lexeme";
 import { ColumnReference, ValueComponent } from "../models/ValueComponent";
 
 export class IdentifierParser {
-    public static parse(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number } {
+    public static parseFromLexeme(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number } {
         // Check for column reference pattern ([identifier dot] * n + identifier)
         let idx = index;
         const identifiers: string[] = [];

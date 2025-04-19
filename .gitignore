@@ -167,3 +167,5 @@ obj/
 
 # Source maps
 *.map
+demo/package.json
+demo/package-lock.json

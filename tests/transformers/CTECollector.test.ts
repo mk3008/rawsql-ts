@@ -11,7 +11,7 @@ describe('CTECollector', () => {
             )
             SELECT * FROM temp_sales
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new CTECollector();
 
         // Act
@@ -41,7 +41,7 @@ describe('CTECollector', () => {
             FROM products p
             JOIN top_products tp ON p.id = tp.product_id
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new CTECollector();
 
         // Act
@@ -69,7 +69,7 @@ describe('CTECollector', () => {
             )
             SELECT * FROM employees_path
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new CTECollector();
 
         // Act
@@ -92,7 +92,7 @@ describe('CTECollector', () => {
                 SELECT * FROM nested_cte
             ) AS subquery
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new CTECollector();
 
         // Act
@@ -113,7 +113,7 @@ describe('CTECollector', () => {
             WITH cte2 AS (SELECT id FROM table2)
             SELECT * FROM cte2
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new CTECollector();
 
         // Act
@@ -146,7 +146,7 @@ describe('CTECollector', () => {
             )
             SELECT * FROM outer_cte
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new CTECollector();
 
         // Act
@@ -170,7 +170,7 @@ describe('CTECollector', () => {
                 SELECT id FROM top_departments
             )
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new CTECollector();
 
         // Act
@@ -203,7 +203,7 @@ describe('CTECollector', () => {
             SELECT a.id, a.value, a.level, a.parent_level, 'level_a' as root_level
             FROM with_a a
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new CTECollector();
 
         // Act
@@ -246,7 +246,7 @@ describe('CTECollector', () => {
             SELECT a.id, a.value, a.level, a.parent_level, 'level_a' as root_level
             FROM with_a a
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new CTECollector();
 
         // Act
@@ -277,8 +277,8 @@ describe('CTECollector', () => {
         const sql1 = `WITH cte1 AS (SELECT 1) SELECT * FROM cte1`;
         const sql2 = `WITH cte2 AS (SELECT 2), cte3 AS (SELECT 3) SELECT * FROM cte2, cte3`;
 
-        const query1 = SelectQueryParser.parseFromText(sql1);
-        const query2 = SelectQueryParser.parseFromText(sql2);
+        const query1 = SelectQueryParser.parse(sql1);
+        const query2 = SelectQueryParser.parse(sql2);
         const collector = new CTECollector();
 
         // Act - First collection

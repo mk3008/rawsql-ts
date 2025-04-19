@@ -10,8 +10,8 @@ test('simple order by', () => {
     const text = `order by id`;
 
     // Act
-    const clause = OrderByClauseParser.parseFromText(text);
-    const sql = formatter.visit(clause);
+    const clause = OrderByClauseParser.parse(text);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`order by "id"`);
@@ -22,8 +22,8 @@ test('multiple columns', () => {
     const text = `order by id, name, created_at`;
 
     // Act
-    const clause = OrderByClauseParser.parseFromText(text);
-    const sql = formatter.visit(clause);
+    const clause = OrderByClauseParser.parse(text);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`order by "id", "name", "created_at"`);
@@ -34,8 +34,8 @@ test('with asc/desc', () => {
     const text = `order by id asc, name desc`;
 
     // Act
-    const clause = OrderByClauseParser.parseFromText(text);
-    const sql = formatter.visit(clause);
+    const clause = OrderByClauseParser.parse(text);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`order by "id", "name" desc`);
@@ -46,8 +46,8 @@ test('with qualified column', () => {
     const text = `order by a.id, b.name desc`;
 
     // Act
-    const clause = OrderByClauseParser.parseFromText(text);
-    const sql = formatter.visit(clause);
+    const clause = OrderByClauseParser.parse(text);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`order by "a"."id", "b"."name" desc`);
@@ -58,8 +58,8 @@ test('with nulls first/last', () => {
     const text = `order by id nulls first, name desc nulls last`;
 
     // Act
-    const clause = OrderByClauseParser.parseFromText(text);
-    const sql = formatter.visit(clause);
+    const clause = OrderByClauseParser.parse(text);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`order by "id" nulls first, "name" desc nulls last`);
@@ -70,8 +70,8 @@ test('with expression', () => {
     const text = `order by price * quantity desc`;
 
     // Act
-    const clause = OrderByClauseParser.parseFromText(text);
-    const sql = formatter.visit(clause);
+    const clause = OrderByClauseParser.parse(text);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`order by "price" * "quantity" desc`);
@@ -82,8 +82,8 @@ test('with function', () => {
     const text = `order by lower(name), max(price) desc`;
 
     // Act
-    const clause = OrderByClauseParser.parseFromText(text);
-    const sql = formatter.visit(clause);
+    const clause = OrderByClauseParser.parse(text);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`order by lower("name"), max("price") desc`);

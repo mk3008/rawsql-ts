@@ -10,8 +10,8 @@ test('for update', () => {
     const text = `for update`;
 
     // Act
-    const clause = ForClauseParser.parseFromText(text);
-    const sql = formatter.visit(clause);
+    const clause = ForClauseParser.parse(text);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`for update`);
@@ -23,8 +23,8 @@ test('for share', () => {
     const text = `for share`;
 
     // Act
-    const clause = ForClauseParser.parseFromText(text);
-    const sql = formatter.visit(clause);
+    const clause = ForClauseParser.parse(text);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`for share`);
@@ -36,8 +36,8 @@ test('for key share', () => {
     const text = `for key share`;
 
     // Act
-    const clause = ForClauseParser.parseFromText(text);
-    const sql = formatter.visit(clause);
+    const clause = ForClauseParser.parse(text);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`for key share`);
@@ -49,8 +49,8 @@ test('for no key update', () => {
     const text = `for no key update`;
 
     // Act
-    const clause = ForClauseParser.parseFromText(text);
-    const sql = formatter.visit(clause);
+    const clause = ForClauseParser.parse(text);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`for no key update`);
@@ -62,8 +62,8 @@ test('case insensitive keywords', () => {
     const text = `FOR UPDATE`;
 
     // Act
-    const clause = ForClauseParser.parseFromText(text);
-    const sql = formatter.visit(clause);
+    const clause = ForClauseParser.parse(text);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`for update`);
@@ -75,7 +75,7 @@ test('error on missing lock mode', () => {
     const text = `for`;
 
     // Act & Assert
-    expect(() => ForClauseParser.parseFromText(text)).toThrow();
+    expect(() => ForClauseParser.parse(text)).toThrow();
 });
 
 test('error on invalid lock mode', () => {
@@ -83,7 +83,7 @@ test('error on invalid lock mode', () => {
     const text = `for invalid`;
 
     // Act & Assert
-    expect(() => ForClauseParser.parseFromText(text)).toThrow();
+    expect(() => ForClauseParser.parse(text)).toThrow();
 });
 
 test('error on unexpected token after lock mode', () => {
@@ -91,5 +91,5 @@ test('error on unexpected token after lock mode', () => {
     const text = `for update extra`;
 
     // Act & Assert
-    expect(() => ForClauseParser.parseFromText(text)).toThrow();
+    expect(() => ForClauseParser.parse(text)).toThrow();
 });

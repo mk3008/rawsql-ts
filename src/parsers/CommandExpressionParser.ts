@@ -3,7 +3,7 @@ import { ArrayExpression, CaseExpression, CaseKeyValuePair, SwitchCaseArgument, 
 import { ValueParser } from "./ValueParser";
 
 export class CommandExpressionParser {
-    public static parse(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number } {
+    public static parseFromLexeme(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number } {
         let idx = index;
         const current = lexemes[idx];
 
@@ -27,7 +27,7 @@ export class CommandExpressionParser {
         if (idx < lexemes.length && lexemes[idx].type === TokenType.Command) {
             const command = lexemes[idx].value;
             idx++;
-            const result = ValueParser.parse(lexemes, idx);
+            const result = ValueParser.parseFromLexeme(lexemes, idx);
             return { value: new UnaryExpression(command!, result.value), newIndex: result.newIndex };
         }
         throw new Error(`Invalid modifier unary expression at index ${idx}, Lexeme: ${lexemes[idx].value}`);
@@ -35,7 +35,7 @@ export class CommandExpressionParser {
 
     private static parseCaseExpression(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number; } {
         let idx = index;
-        const condition = ValueParser.parse(lexemes, idx);
+        const condition = ValueParser.parseFromLexeme(lexemes, idx);
         idx = condition.newIndex;
 
         const switchCaseResult = this.parseSwitchCaseArgument(lexemes, idx, []);
@@ -86,7 +86,7 @@ export class CommandExpressionParser {
         // Process ELSE
         if (idx < lexemes.length && this.isCommandWithValue(lexemes[idx], "else")) {
             idx++;
-            const elseResult = ValueParser.parse(lexemes, idx);
+            const elseResult = ValueParser.parseFromLexeme(lexemes, idx);
             elseValue = elseResult.value;
             idx = elseResult.newIndex;
         }
@@ -114,7 +114,7 @@ export class CommandExpressionParser {
 
     private static parseCaseConditionValuePair(lexemes: Lexeme[], index: number): { value: CaseKeyValuePair; newIndex: number; } {
         let idx = index;
-        const condition = ValueParser.parse(lexemes, idx);
+        const condition = ValueParser.parseFromLexeme(lexemes, idx);
         idx = condition.newIndex;
 
         // Check for the existence of the THEN keyword
@@ -124,7 +124,7 @@ export class CommandExpressionParser {
         idx++; // Skip the THEN keyword
 
         // Parse the value after THEN
-        const value = ValueParser.parse(lexemes, idx);
+        const value = ValueParser.parseFromLexeme(lexemes, idx);
         idx = value.newIndex;
 
         return { value: new CaseKeyValuePair(condition.value, value.value), newIndex: idx };

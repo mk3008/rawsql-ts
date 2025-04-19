@@ -7,7 +7,7 @@ describe('TableSourceCollector', () => {
     test('collects table sources from simple SELECT query', () => {
         // Arrange
         const sql = `SELECT * FROM users`;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new TableSourceCollector();
 
         // Act
@@ -27,7 +27,7 @@ describe('TableSourceCollector', () => {
             JOIN orders o ON u.id = o.user_id
             LEFT JOIN payments p ON o.id = p.order_id
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new TableSourceCollector();
 
         // Act
@@ -48,7 +48,7 @@ describe('TableSourceCollector', () => {
                 SELECT id FROM departments WHERE budget > 1000000
             )
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new TableSourceCollector(true); // explicitly set selectableOnly to true
 
         // Act
@@ -70,7 +70,7 @@ describe('TableSourceCollector', () => {
                 SELECT id FROM departments WHERE budget > 1000000
             )
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new TableSourceCollector(false); // set selectableOnly to false for full scan
 
         // Act
@@ -89,7 +89,7 @@ describe('TableSourceCollector', () => {
             UNION
             SELECT * FROM inactive_users
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new TableSourceCollector();
 
         // Act
@@ -104,7 +104,7 @@ describe('TableSourceCollector', () => {
     test('handles schema-qualified table names', () => {
         // Arrange
         const sql = `SELECT * FROM public.users`;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new TableSourceCollector();
 
         // Act
@@ -122,7 +122,7 @@ describe('TableSourceCollector', () => {
         const sql = `
             SELECT * FROM (VALUES (1, 'a'), (2, 'b')) AS v(id, name)
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new TableSourceCollector();
 
         // Act
@@ -139,7 +139,7 @@ describe('TableSourceCollector', () => {
         const sql = `
             SELECT * FROM (SELECT * FROM users) AS u
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new TableSourceCollector();
 
         // Act
@@ -155,7 +155,7 @@ describe('TableSourceCollector', () => {
         const sql = `
             SELECT * FROM (SELECT * FROM users) AS u
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new TableSourceCollector(false);
 
         // Act
@@ -172,8 +172,8 @@ describe('TableSourceCollector', () => {
         const sql1 = `SELECT * FROM table1`;
         const sql2 = `SELECT * FROM table2 JOIN table3 ON table2.id = table3.id`;
 
-        const query1 = SelectQueryParser.parseFromText(sql1);
-        const query2 = SelectQueryParser.parseFromText(sql2);
+        const query1 = SelectQueryParser.parse(sql1);
+        const query2 = SelectQueryParser.parse(sql2);
         const collector = new TableSourceCollector();
 
         // Act - First collection
@@ -202,7 +202,7 @@ describe('TableSourceCollector', () => {
             SELECT * FROM cte_data
             JOIN other_table ON cte_data.id = other_table.id
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
 
         // Default collector (selectableOnly = true)
         const defaultCollector = new TableSourceCollector();
@@ -241,7 +241,7 @@ describe('TableSourceCollector', () => {
                 SELECT status FROM status_codes WHERE status = 'active'
             )
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new TableSourceCollector(false); // Full scan mode
 
         // Act
@@ -276,7 +276,7 @@ describe('TableSourceCollector', () => {
             HAVING COUNT(rd.sale_id) > (SELECT AVG(sale_count) FROM sales_stats)
             ORDER BY (SELECT MAX(created_at) FROM user_actions WHERE user_id = u.id) DESC
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new TableSourceCollector(false); // Full scan mode
 
         // Act
@@ -303,7 +303,7 @@ describe('TableSourceCollector', () => {
             SELECT * FROM cte_data
             JOIN other_table ON cte_data.id = other_table.id
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
 
         // Full scan collector with CTE exclusion
         const collector = new TableSourceCollector(false);
@@ -332,7 +332,7 @@ describe('TableSourceCollector', () => {
             FROM outer_cte o
             JOIN projects p ON o.id = p.user_id
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
 
         // Full scan collector with CTE exclusion
         const collector = new TableSourceCollector(false);

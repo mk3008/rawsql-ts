@@ -9,14 +9,14 @@ describe('SelectableColumnCollector', () => {
     test('collects basic column references', () => {
         // Arrange
         const sql = `SELECT id, name FROM users WHERE active = TRUE`;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new SelectableColumnCollector();
 
         // Act
         collector.visit(query);
         const items = collector.collect(query);
         const columnNames = items.map(item => item.name);
-        const expressions = items.map(item => formatter.visit(item.value));
+        const expressions = items.map(item => formatter.format(item.value));
 
         // Assert
         expect(items.length).toBe(3); // id, name, active
@@ -30,14 +30,14 @@ describe('SelectableColumnCollector', () => {
     test('collects column references with table qualifiers', () => {
         // Arrange
         const sql = `SELECT u.id, u.name FROM users u WHERE u.active = TRUE`;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new SelectableColumnCollector();
 
         // Act
         collector.visit(query);
         const items = collector.collect(query);
         const columnNames = items.map(item => item.name);
-        const expressions = items.map(item => formatter.visit(item.value));
+        const expressions = items.map(item => formatter.format(item.value));
 
         // Assert
         expect(items.length).toBe(3); // u.id, u.name, u.active
@@ -57,14 +57,14 @@ describe('SelectableColumnCollector', () => {
                 (age > 18 AND status = 'active') 
                 OR (role = 'admin' AND created_at > '2023-01-01')
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new SelectableColumnCollector();
 
         // Act
         collector.visit(query);
         const items = collector.collect(query);
         const columnNames = items.map(item => item.name);
-        const expressions = items.map(item => formatter.visit(item.value));
+        const expressions = items.map(item => formatter.format(item.value));
 
         // Assert
         expect(items.length).toBe(6); // id, name, age, status, role, created_at
@@ -87,14 +87,14 @@ describe('SelectableColumnCollector', () => {
             LEFT JOIN addresses a ON u.id = a.user_id
             WHERE u.active = TRUE AND p.verified = TRUE
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new SelectableColumnCollector();
 
         // Act
         collector.visit(query);
         const items = collector.collect(query);
         const columnNames = items.map(item => item.name);
-        const expressions = items.map(item => formatter.visit(item.value));
+        const expressions = items.map(item => formatter.format(item.value));
 
         // Assert
         expect(items.length).toBe(7);
@@ -122,14 +122,14 @@ describe('SelectableColumnCollector', () => {
             HAVING AVG(salary) > 50000
             ORDER BY avg_salary DESC
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new SelectableColumnCollector();
 
         // Act
         collector.visit(query);
         const items = collector.collect(query);
         const columnNames = items.map(item => item.name);
-        const expressions = items.map(item => formatter.visit(item.value));
+        const expressions = items.map(item => formatter.format(item.value));
 
         // Assert
         expect(items.length).toBe(5);
@@ -145,14 +145,14 @@ describe('SelectableColumnCollector', () => {
     test('should not collect wildcard (*) as a column reference', () => {
         // Arrange
         const sql = `SELECT * FROM users`;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new SelectableColumnCollector();
 
         // Act
         collector.visit(query);
         const items = collector.collect(query);
         const columnNames = items.map(item => item.name);
-        const expressions = items.map(item => formatter.visit(item.value));
+        const expressions = items.map(item => formatter.format(item.value));
 
         // Assert
         expect(items.length).toBe(0);
@@ -169,14 +169,14 @@ describe('SelectableColumnCollector', () => {
             ) AS sub
             WHERE sub.calculated_value > 50
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new SelectableColumnCollector();
 
         // Act
         collector.visit(query);
         const items = collector.collect(query);
         const columnNames = items.map(item => item.name);
-        const expressions = items.map(item => formatter.visit(item.value));
+        const expressions = items.map(item => formatter.format(item.value));
 
         // Assert - Only columns exposed from the subquery are collected        expect(columnNames).toContain('id');
         expect(columnNames).toContain('custom_name');
@@ -203,14 +203,14 @@ describe('SelectableColumnCollector', () => {
             FROM user_summary us
             WHERE us.order_count > 0
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new SelectableColumnCollector();
 
         // Act
         collector.visit(query);
         const items = collector.collect(query);
         const columnNames = items.map(item => item.name);
-        const expressions = items.map(item => formatter.visit(item.value));
+        const expressions = items.map(item => formatter.format(item.value));
 
         // Assert - Only columns exposed from the CTE are collected        expect(columnNames).toContain('id');
         expect(columnNames).toContain('name');
@@ -234,14 +234,14 @@ describe('SelectableColumnCollector', () => {
             FROM users u
             WHERE u.id IN (SELECT user_id FROM permissions WHERE role = 'admin')
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new SelectableColumnCollector();
 
         // Act
         collector.visit(query);
         const items = collector.collect(query);
         const columnNames = items.map(item => item.name);
-        const expressions = items.map(item => formatter.visit(item.value));
+        const expressions = items.map(item => formatter.format(item.value));
 
         // Assert
         // Only references from the data source defined in the root FROM clause (users u) are targeted
@@ -268,14 +268,14 @@ describe('SelectableColumnCollector', () => {
     FROM users
     WHERE id = 1 AND id > 0
 `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new SelectableColumnCollector();
 
         // Act
         collector.visit(query);
         const items = collector.collect(query);
         const columnNames = items.map(item => item.name);
-        const expressions = items.map(item => formatter.visit(item.value));
+        const expressions = items.map(item => formatter.format(item.value));
 
         // Assert
         // Note: Using the formatter for deduplication, references to the same table/column become a single instance
@@ -295,8 +295,8 @@ describe('SelectableColumnCollector', () => {
         const sql1 = `SELECT id, name FROM users`;
         const sql2 = `SELECT product_id, price FROM products`;
 
-        const query1 = SelectQueryParser.parseFromText(sql1);
-        const query2 = SelectQueryParser.parseFromText(sql2);
+        const query1 = SelectQueryParser.parse(sql1);
+        const query2 = SelectQueryParser.parse(sql2);
         const collector = new SelectableColumnCollector();
 
         // Act - First collection
@@ -325,14 +325,14 @@ describe('SelectableColumnCollector', () => {
     FROM (SELECT id AS column_name, name AS another_col FROM users) AS sub
     WHERE sub.column_name > 10
 `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new SelectableColumnCollector();
 
         // Act
         collector.visit(query);
         const items = collector.collect(query);
         const columnNames = items.map(item => item.name);
-        const expressions = items.map(item => formatter.visit(item.value));
+        const expressions = items.map(item => formatter.format(item.value));
 
         // Assert
         expect(items.length).toBeGreaterThan(0);
@@ -354,14 +354,14 @@ describe('SelectableColumnCollector', () => {
           GROUP BY user_id) AS s ON u.id = s.user_id
     WHERE s.product_count > 5
 `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new SelectableColumnCollector();
 
         // Act
         collector.visit(query);
         const items = collector.collect(query);
         const columnNames = items.map(item => item.name);
-        const expressions = items.map(item => formatter.visit(item.value));
+        const expressions = items.map(item => formatter.format(item.value));
 
         // Assert        expect(items.length).toBeGreaterThan(0);
 
@@ -387,14 +387,14 @@ describe('SelectableColumnCollector', () => {
     ) AS outer_sub
     WHERE outer_sub.avg_salary > 50000
 `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new SelectableColumnCollector();
 
         // Act
         collector.visit(query);
         const items = collector.collect(query);
         const columnNames = items.map(item => item.name);
-        const expressions = items.map(item => formatter.visit(item.value));
+        const expressions = items.map(item => formatter.format(item.value));
 
         // Assert
         expect(items.length).toBe(4);        // Check virtual columns from outer subquery
@@ -413,14 +413,14 @@ describe('SelectableColumnCollector', () => {
             SELECT b.id 
             FROM (SELECT a.id, a.value FROM table_a as a) AS b
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new SelectableColumnCollector();
 
         // Act
         collector.visit(query);
         const items = collector.collect(query);
         const columnNames = items.map(item => item.name);
-        const expressions = items.map(item => formatter.visit(item.value));        // Debug output
+        const expressions = items.map(item => formatter.format(item.value));        // Debug output
         console.log('Debug - actual columns returned:', columnNames);
 
         // Assert        // Both columns defined in the subquery's SELECT clause should be available
@@ -452,14 +452,14 @@ describe('SelectableColumnCollector', () => {
             ) as outer_query
             WHERE outer_query.total > 1000
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new SelectableColumnCollector();
 
         // Act
         collector.visit(query);
         const items = collector.collect(query);
         const columnNames = items.map(item => item.name);
-        const expressions = items.map(item => formatter.visit(item.value));
+        const expressions = items.map(item => formatter.format(item.value));
 
         // Assert        // Columns defined in the outer subquery are available
         expect(columnNames).toContain('user_name');
@@ -498,14 +498,14 @@ describe('SelectableColumnCollector', () => {
             ) AS report
             WHERE report.total_purchases > 5000
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new SelectableColumnCollector();
 
         // Act
         collector.visit(query);
         const items = collector.collect(query);
         const columnNames = items.map(item => item.name);
-        const expressions = items.map(item => formatter.visit(item.value));
+        const expressions = items.map(item => formatter.format(item.value));
 
         // Assert        // Columns from the subquery are collected
         expect(columnNames).toContain('customer_name');
@@ -528,14 +528,14 @@ describe('SelectableColumnCollector', () => {
                 ) AS b
             ) AS c
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new SelectableColumnCollector();
 
         // Act
         collector.visit(query);
         const items = collector.collect(query);
         const columnNames = items.map(item => item.name);
-        const expressions = items.map(item => formatter.visit(item.value));        // Debug output
+        const expressions = items.map(item => formatter.format(item.value));        // Debug output
         console.log('Deeply nested subquery columns:', columnNames);
 
         // Assert        expect(items.length).toBe(1);
@@ -553,14 +553,14 @@ describe('SelectableColumnCollector', () => {
         const sql = `
             SELECT * FROM (SELECT * FROM a) AS b
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new SelectableColumnCollector();
 
         // Act
         collector.visit(query);
         const items = collector.collect(query);
         const columnNames = items.map(item => item.name);
-        const expressions = items.map(item => formatter.visit(item.value));        // Debug output
+        const expressions = items.map(item => formatter.format(item.value));        // Debug output
         console.log('Nested subquery with unknown source columns:', columnNames);
 
         // Assert
@@ -578,14 +578,14 @@ describe('SelectableColumnCollector', () => {
                 ) AS inner_query
             ) AS outer_query
         `;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new SelectableColumnCollector();
 
         // Act
         collector.visit(query);
         const items = collector.collect(query);
         const columnNames = items.map(item => item.name);
-        const expressions = items.map(item => formatter.visit(item.value));        // Debug output
+        const expressions = items.map(item => formatter.format(item.value));        // Debug output
         console.log('Multi-level nested with unknown columns:', columnNames);
 
         // Assert
@@ -596,14 +596,14 @@ describe('SelectableColumnCollector', () => {
     test('tableColumnResolver is optional and backward compatible', () => {
         // Arrange - Use original behavior without resolver
         const sql = `SELECT * FROM users WHERE active = TRUE`;
-        const query = SelectQueryParser.parseFromText(sql);
+        const query = SelectQueryParser.parse(sql);
         const collector = new SelectableColumnCollector(); // No resolver passed in
 
         // Act
         collector.visit(query);
         const items = collector.collect(query);
         const columnNames = items.map(item => item.name);
-        const expressions = items.map(item => formatter.visit(item.value));
+        const expressions = items.map(item => formatter.format(item.value));
 
         // Assert
         // Should behave like before - not resolving wildcard columns from physical tables

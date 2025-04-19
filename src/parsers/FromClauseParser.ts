@@ -5,12 +5,13 @@ import { JoinClauseParser } from "./JoinClauseParser";
 import { SourceExpressionParser } from "./SourceExpressionParser";
 
 export class FromClauseParser {
-    public static parseFromText(query: string): FromClause {
+    // Parse SQL string to AST (was: parse)
+    public static parse(query: string): FromClause {
         const tokenizer = new SqlTokenizer(query); // Initialize tokenizer
         const lexemes = tokenizer.readLexmes(); // Get tokens
 
         // Parse
-        const result = this.parse(lexemes, 0);
+        const result = this.parseFromLexeme(lexemes, 0);
 
         // Error if there are remaining tokens
         if (result.newIndex < lexemes.length) {
@@ -20,7 +21,8 @@ export class FromClauseParser {
         return result.value;
     }
 
-    public static parse(lexemes: Lexeme[], index: number): { value: FromClause; newIndex: number } {
+    // Parse from lexeme array (was: parse)
+    public static parseFromLexeme(lexemes: Lexeme[], index: number): { value: FromClause; newIndex: number } {
         let idx = index;
 
         if (lexemes[idx].value !== 'from') {
@@ -33,7 +35,7 @@ export class FromClauseParser {
         }
 
         // Parse the main source expression
-        const sourceExpression = SourceExpressionParser.parse(lexemes, idx);
+        const sourceExpression = SourceExpressionParser.parseFromLexeme(lexemes, idx);
         idx = sourceExpression.newIndex;
 
         const join = JoinClauseParser.tryParse(lexemes, idx);
