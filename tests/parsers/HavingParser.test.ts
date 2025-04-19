@@ -10,7 +10,7 @@ test('simple having with equality', () => {
 
     // Act
     const clause = HavingClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`having count(*) > 5`);
@@ -22,7 +22,7 @@ test('having with sum function', () => {
 
     // Act
     const clause = HavingClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`having sum("salary") > 50000`);
@@ -34,7 +34,7 @@ test('having with avg function and comparison', () => {
 
     // Act
     const clause = HavingClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`having avg("price") >= 100.5`);
@@ -46,7 +46,7 @@ test('having with multiple conditions', () => {
 
     // Act
     const clause = HavingClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`having count(*) > 5 and max("salary") < 100000`);
@@ -58,7 +58,7 @@ test('having with complex expression', () => {
 
     // Act
     const clause = HavingClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`having count(distinct "product_id") > 3 and sum("quantity" * "price") > 1000`);
@@ -70,7 +70,7 @@ test('having with or condition', () => {
 
     // Act
     const clause = HavingClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`having min("salary") < 30000 or max("salary") > 150000`);
@@ -82,7 +82,7 @@ test('having with nested expressions', () => {
 
     // Act
     const clause = HavingClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`having (count(*) > 10 and sum("amount") > 1000) or avg("price") > 50`);
@@ -94,7 +94,7 @@ test('having with case expression', () => {
 
     // Act
     const clause = HavingClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`having sum(case when "status" = 'completed' then 1 else 0 end) > 5`);

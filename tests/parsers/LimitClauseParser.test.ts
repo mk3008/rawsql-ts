@@ -10,7 +10,7 @@ test('simple limit', () => {
 
     // Act
     const clause = LimitClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`limit 10`);
@@ -22,7 +22,7 @@ test('limit with offset', () => {
 
     // Act
     const clause = LimitClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`limit 10 offset 5`);
@@ -34,7 +34,7 @@ test('limit with variable', () => {
 
     // Act
     const clause = LimitClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`limit :limit_count`);
@@ -46,7 +46,7 @@ test('limit with variable and offset', () => {
 
     // Act
     const clause = LimitClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`limit :limit_count offset :offset_count`);
@@ -58,7 +58,7 @@ test('limit with expression', () => {
 
     // Act
     const clause = LimitClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`limit 5 * 2`);
@@ -70,7 +70,7 @@ test('limit with parenthesized expression', () => {
 
     // Act
     const clause = LimitClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`limit (5 + 5)`);
@@ -82,7 +82,7 @@ test('case insensitive keywords', () => {
 
     // Act
     const clause = LimitClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`limit 10 offset 5`);

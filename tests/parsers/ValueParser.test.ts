@@ -78,7 +78,7 @@ describe('ValueParser', () => {
         ["InlineQuery - With aggregation", "department_id IN (SELECT dept_id FROM departments WHERE active = TRUE)", "\"department_id\" in (select \"dept_id\" from \"departments\" where \"active\" = true)"],
     ])('%s', (_, text, expected = text) => {
         const value = ValueParser.parse(text);
-        const sql = formatter.visit(value);
+        const sql = formatter.format(value);
         //console.log(`plain   : ${text}\nexpected: ${expected}\nsql     : ${sql}`);
         expect(sql).toBe(expected);
     });

@@ -10,7 +10,7 @@ test('simple where', () => {
 
     // Act
     const clause = WhereClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`where "id" = 1`);
@@ -22,7 +22,7 @@ test('with and operator', () => {
 
     // Act
     const clause = WhereClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`where "id" = 1 and "name" = 'test'`);
@@ -34,7 +34,7 @@ test('with or operator', () => {
 
     // Act
     const clause = WhereClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`where "id" = 1 or "name" = 'test'`);
@@ -46,7 +46,7 @@ test('with comparison operators', () => {
 
     // Act
     const clause = WhereClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`where "id" > 1 and "price" < 100 and "quantity" >= 5 and "discount" <= 0.1`);
@@ -58,7 +58,7 @@ test('with in operator', () => {
 
     // Act
     const clause = WhereClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`where "status" in ('active', 'pending')`);
@@ -70,7 +70,7 @@ test('with not in operator', () => {
 
     // Act
     const clause = WhereClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`where "status" not in ('deleted', 'inactive')`);
@@ -82,7 +82,7 @@ test('with between operator', () => {
 
     // Act
     const clause = WhereClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`where "price" between 10 and 100`);
@@ -94,7 +94,7 @@ test('with is null', () => {
 
     // Act
     const clause = WhereClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`where "deleted_at" is null`);
@@ -106,7 +106,7 @@ test('with is not null', () => {
 
     // Act
     const clause = WhereClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`where "created_at" is not null`);
@@ -118,7 +118,7 @@ test('with like operator', () => {
 
     // Act
     const clause = WhereClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`where "name" like '%test%'`);
@@ -130,7 +130,7 @@ test('with nested conditions', () => {
 
     // Act
     const clause = WhereClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`where ("id" = 1 or "id" = 2) and ("status" = 'active' or "status" = 'pending')`);
@@ -142,7 +142,7 @@ test('with function', () => {
 
     // Act
     const clause = WhereClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`where lower("name") = 'test' and date_part('year', "created_at") = 2023`);

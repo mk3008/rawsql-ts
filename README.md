@@ -23,7 +23,7 @@ import { Formatter } from 'rawsql-ts';
 const sql = `SELECT id, name FROM users WHERE active = TRUE`;
 const query = SelectQueryParser.parse(sql);
 const formatter = new Formatter();
-const formattedSql = formatter.visit(query);
+const formattedSql = formatter.format(query);
 console.log(formattedSql);
 // => select "id", "name" from "users" where "active" = true
 ```
@@ -239,7 +239,7 @@ const joinedQuery = userQuery.innerJoin(postQuery, ['user_id']);
 
 // Format the joined query back to SQL
 const formatter = new Formatter();
-const sql = formatter.visit(joinedQuery);
+const sql = formatter.format(joinedQuery);
 console.log(sql);
 // Output:
 // select "user_id", "user_name", "post_id", "title" from "users" inner join (select "post_id", "user_id", "title" from "posts") on "users"."user_id" = "posts"."user_id"

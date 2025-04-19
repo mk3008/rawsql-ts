@@ -16,7 +16,7 @@ describe('SelectQuery Binary Operations', () => {
 
         // Assert
         expect(unionQuery).toBeInstanceOf(BinarySelectQuery);
-        expect(formatter.visit(unionQuery)).toBe('select "id", "value" from "left" union select "id", "value" from "right"');
+        expect(formatter.format(unionQuery)).toBe('select "id", "value" from "left" union select "id", "value" from "right"');
     });
 
     test('toUnionAll creates BinarySelectQuery with UNION ALL operator', () => {
@@ -29,7 +29,7 @@ describe('SelectQuery Binary Operations', () => {
 
         // Assert
         expect(unionAllQuery).toBeInstanceOf(BinarySelectQuery);
-        expect(formatter.visit(unionAllQuery)).toBe('select "id", "value" from "left" union all select "id", "value" from "right"');
+        expect(formatter.format(unionAllQuery)).toBe('select "id", "value" from "left" union all select "id", "value" from "right"');
     });
 
     test('toIntersect creates BinarySelectQuery with INTERSECT operator', () => {
@@ -42,7 +42,7 @@ describe('SelectQuery Binary Operations', () => {
 
         // Assert
         expect(intersectQuery).toBeInstanceOf(BinarySelectQuery);
-        expect(formatter.visit(intersectQuery)).toBe('select "id", "value" from "left" intersect select "id", "value" from "right"');
+        expect(formatter.format(intersectQuery)).toBe('select "id", "value" from "left" intersect select "id", "value" from "right"');
     });
 
     test('toIntersectAll creates BinarySelectQuery with INTERSECT ALL operator', () => {
@@ -55,7 +55,7 @@ describe('SelectQuery Binary Operations', () => {
 
         // Assert
         expect(intersectAllQuery).toBeInstanceOf(BinarySelectQuery);
-        expect(formatter.visit(intersectAllQuery)).toBe('select "id", "value" from "left" intersect all select "id", "value" from "right"');
+        expect(formatter.format(intersectAllQuery)).toBe('select "id", "value" from "left" intersect all select "id", "value" from "right"');
     });
 
     test('toExcept creates BinarySelectQuery with EXCEPT operator', () => {
@@ -68,7 +68,7 @@ describe('SelectQuery Binary Operations', () => {
 
         // Assert
         expect(exceptQuery).toBeInstanceOf(BinarySelectQuery);
-        expect(formatter.visit(exceptQuery)).toBe('select "id", "value" from "left" except select "id", "value" from "right"');
+        expect(formatter.format(exceptQuery)).toBe('select "id", "value" from "left" except select "id", "value" from "right"');
     });
 
     test('toExceptAll creates BinarySelectQuery with EXCEPT ALL operator', () => {
@@ -81,7 +81,7 @@ describe('SelectQuery Binary Operations', () => {
 
         // Assert
         expect(exceptAllQuery).toBeInstanceOf(BinarySelectQuery);
-        expect(formatter.visit(exceptAllQuery)).toBe('select "id", "value" from "left" except all select "id", "value" from "right"');
+        expect(formatter.format(exceptAllQuery)).toBe('select "id", "value" from "left" except all select "id", "value" from "right"');
     });
 
     test('toBinaryQuery creates BinarySelectQuery with custom operator', () => {
@@ -95,7 +95,7 @@ describe('SelectQuery Binary Operations', () => {
 
         // Assert
         expect(customQuery).toBeInstanceOf(BinarySelectQuery);
-        expect(formatter.visit(customQuery)).toBe('select "id", "value" from "left" custom operator select "id", "value" from "right"');
+        expect(formatter.format(customQuery)).toBe('select "id", "value" from "left" custom operator select "id", "value" from "right"');
     });
 
     test('appendUnion adds a query with UNION operator to existing BinarySelectQuery', () => {
@@ -110,7 +110,7 @@ describe('SelectQuery Binary Operations', () => {
 
         // Assert
         expect(resultQuery).toBeInstanceOf(BinarySelectQuery);
-        expect(formatter.visit(resultQuery)).toBe('select "id" from "users" union select "id" from "admins" union select "id" from "guests"');
+        expect(formatter.format(resultQuery)).toBe('select "id" from "users" union select "id" from "admins" union select "id" from "guests"');
     });
 
     test('complex query chain works correctly', () => {
@@ -128,7 +128,7 @@ describe('SelectQuery Binary Operations', () => {
 
         // Assert - Check the result as SQL text
         expect(result).toBeInstanceOf(BinarySelectQuery);
-        expect(formatter.visit(result)).toBe('select "id" from "users" union select "id" from "admins" intersect select "id" from "guests" except select "id" from "managers"');
+        expect(formatter.format(result)).toBe('select "id" from "users" union select "id" from "admins" intersect select "id" from "guests" except select "id" from "managers"');
     });
 
     test('appendSelectQuery allows custom operator', () => {
@@ -144,7 +144,7 @@ describe('SelectQuery Binary Operations', () => {
 
         // Assert - Check the result as SQL text
         expect(result).toBeInstanceOf(BinarySelectQuery);
-        expect(formatter.visit(result)).toBe('select "id" from "users" union select "id" from "admins" custom operator select "id" from "managers"');
+        expect(formatter.format(result)).toBe('select "id" from "users" union select "id" from "admins" custom operator select "id" from "managers"');
     });
 
     test('BinaryQuery can append another BinaryQuery', () => {
@@ -162,7 +162,7 @@ describe('SelectQuery Binary Operations', () => {
 
         // Assert - Check the result as SQL text
         expect(combinedQuery).toBeInstanceOf(BinarySelectQuery);
-        expect(formatter.visit(combinedQuery)).toBe('select "id" from "users" union select "id" from "admins" except select "id" from "guests" intersect select "id" from "managers"');
+        expect(formatter.format(combinedQuery)).toBe('select "id" from "users" union select "id" from "admins" except select "id" from "guests" intersect select "id" from "managers"');
     });
 
     test('toUnion works with queries containing WITH clause', () => {
@@ -186,7 +186,7 @@ describe('SelectQuery Binary Operations', () => {
 
         // Assert
         expect(unionQuery).toBeInstanceOf(BinarySelectQuery);
-        expect(formatter.visit(unionQuery)).toBe('with "active_users" as (select "id", "name" from "users" where "active" = true) select "id", "name" from "active_users" union with "inactive_users" as (select "id", "name" from "users" where "active" = false) select "id", "name" from "inactive_users"');
+        expect(formatter.format(unionQuery)).toBe('with "active_users" as (select "id", "name" from "users" where "active" = true) select "id", "name" from "active_users" union with "inactive_users" as (select "id", "name" from "users" where "active" = false) select "id", "name" from "inactive_users"');
     });
 
     test('appendUnion works with queries containing WITH clause', () => {
@@ -207,6 +207,6 @@ describe('SelectQuery Binary Operations', () => {
 
         // Assert
         expect(resultQuery).toBeInstanceOf(BinarySelectQuery);
-        expect(formatter.visit(resultQuery)).toBe('with "vip_customers" as (select "id", "name" from "customers" where "vip" = true) select "id", "name" from "staff" union select "id", "name" from "contractors" union select "id", "name" from "vip_customers"');
+        expect(formatter.format(resultQuery)).toBe('with "vip_customers" as (select "id", "name" from "customers" where "vip" = true) select "id", "name" from "staff" union select "id", "name" from "contractors" union select "id", "name" from "vip_customers"');
     });
 });

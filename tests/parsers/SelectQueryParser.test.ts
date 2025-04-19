@@ -181,7 +181,7 @@ describe('SelectQueryParser', () => {
         // Parse the query
         const query = SelectQueryParser.parse(text);
         // Format it back to SQL
-        const sql = formatter.visit(query);
+        const sql = formatter.format(query);
         // Verify it matches our expected output
         expect(sql).toBe(expected);
     });
@@ -211,7 +211,7 @@ describe('SelectQueryParser with VALUES', () => {
 
         // Act
         const query = SelectQueryParser.parse(text);
-        const sql = formatter.visit(query);
+        const sql = formatter.format(query);
 
         // Assert
         expect(sql).toBe('values (1, \'Product A\'), (2, \'Product B\') union all select "id", "name" from "featured_products" order by "name"');

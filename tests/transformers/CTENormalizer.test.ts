@@ -19,7 +19,7 @@ describe('CTENormalizer', () => {
 
         // Act
         const normalizedQuery = normalizer.normalize(query);
-        const result = formatter.visit(normalizedQuery);
+        const result = formatter.format(normalizedQuery);
 
         // Assert
         expect(result).toBe('with "temp_sales" as (select * from "sales" where "date" >= \'2024-01-01\') select * from "temp_sales"');
@@ -41,7 +41,7 @@ describe('CTENormalizer', () => {
 
         // Act
         const normalizedQuery = normalizer.normalize(query);
-        const result = formatter.visit(normalizedQuery);
+        const result = formatter.format(normalizedQuery);
 
         // Assert
         expect(result).toBe('with "nested_cte" as (select "id", "value" from "data" where "type" = \'important\') select * from (select * from "nested_cte") as "subquery"');
@@ -65,7 +65,7 @@ describe('CTENormalizer', () => {
 
         // Act
         const normalizedQuery = normalizer.normalize(query);
-        const result = formatter.visit(normalizedQuery);
+        const result = formatter.format(normalizedQuery);
 
         // Assert
         // Test expected value adjusted to match the actual output
@@ -89,7 +89,7 @@ describe('CTENormalizer', () => {
 
         // Act
         const normalizedQuery = normalizer.normalize(query);
-        const result = formatter.visit(normalizedQuery);
+        const result = formatter.format(normalizedQuery);
 
         // Assert
         expect(result).toBe('with "top_departments" as (select "id" from "departments" where "budget" > 1000000) select * from "users" where "department_id" in (select "id" from "top_departments")');
@@ -108,7 +108,7 @@ describe('CTENormalizer', () => {
 
         // Act
         const normalizedQuery = normalizer.normalize(query);
-        const result = formatter.visit(normalizedQuery);
+        const result = formatter.format(normalizedQuery);
 
         // Assert
         expect(result).toBe('select "id", "name", "status" from "customers" where "status" = \'active\' order by "name"');
@@ -128,7 +128,7 @@ describe('CTENormalizer', () => {
 
         // Act
         const normalizedQuery = normalizer.normalize(query);
-        const result = formatter.visit(normalizedQuery);
+        const result = formatter.format(normalizedQuery);
 
         // Assert
         expect(result).toBe('with "cte1" as (select "id" from "table1"), "cte2" as (select "id" from "table2") select * from "cte1" union select * from "cte2"');
@@ -155,7 +155,7 @@ describe('CTENormalizer', () => {
 
         // Act
         const normalizedQuery = normalizer.normalize(query);
-        const result = formatter.visit(normalizedQuery);
+        const result = formatter.format(normalizedQuery);
 
         // Assert
         expect(result).toBe('with "filtered_data" as (select * from "raw_data" where "status" = \'active\') select "id", "name", count(*) as "total_count" from "filtered_data" group by "id", "name" having count(*) > 10 order by "total_count" desc limit 5');
@@ -187,7 +187,7 @@ describe('CTENormalizer', () => {
 
         // Act
         const normalizedQuery = normalizer.normalize(query);
-        const result = formatter.visit(normalizedQuery);
+        const result = formatter.format(normalizedQuery);
 
         // Assert
         // Confirm that CTEs are sorted in order
@@ -221,7 +221,7 @@ describe('CTENormalizer', () => {
 
         // Act
         const normalizedQuery = normalizer.normalize(query);
-        const result = formatter.visit(normalizedQuery);
+        const result = formatter.format(normalizedQuery);
 
         // Assert
         // CTEs are ordered by inner-to-outer dependency, so 'b' should come first
@@ -250,7 +250,7 @@ describe('CTENormalizer', () => {
 
         // Act
         const normalizedQuery = normalizer.normalize(query);
-        const result = formatter.visit(normalizedQuery);
+        const result = formatter.format(normalizedQuery);
 
         // Assert
         // Recursive CTE 'b' should come before non-recursive CTE 'a'
@@ -276,7 +276,7 @@ describe('CTENormalizer', () => {
 
         // Act
         const normalizedQuery = normalizer.normalize(query);
-        const result = formatter.visit(normalizedQuery);
+        const result = formatter.format(normalizedQuery);
 
         // Assert - If the definition is the same, it should be ignored, resulting in just one CTE
         expect(result).toBe('with "a" as (select "id", "name" from "table_x") select * from "a" inner join (select * from "a") as "sub" on "a"."id" = "sub"."id"');

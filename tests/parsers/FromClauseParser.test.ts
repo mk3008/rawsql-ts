@@ -10,7 +10,7 @@ test('simple from', () => {
 
     // Act
     const clause = FromClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`from "users"`);
@@ -22,7 +22,7 @@ test('from with table alias', () => {
 
     // Act
     const clause = FromClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`from "users" as "u"`);
@@ -34,7 +34,7 @@ test('from with schema qualified table', () => {
 
     // Act
     const clause = FromClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`from "public"."users"`);
@@ -46,7 +46,7 @@ test('from with schema and alias', () => {
 
     // Act
     const clause = FromClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`from "public"."users" as "u"`);
@@ -58,7 +58,7 @@ test('from with inner join', () => {
 
     // Act
     const clause = FromClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`from "users" as "u" inner join "orders" as "o" on "u"."id" = "o"."user_id"`);
@@ -70,7 +70,7 @@ test('from with left join', () => {
 
     // Act
     const clause = FromClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`from "users" as "u" left join "orders" as "o" on "u"."id" = "o"."user_id"`);
@@ -82,7 +82,7 @@ test('from with right join', () => {
 
     // Act
     const clause = FromClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`from "orders" as "o" right join "users" as "u" on "o"."user_id" = "u"."id"`);
@@ -94,7 +94,7 @@ test('from with full outer join', () => {
 
     // Act
     const clause = FromClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`from "users" as "u" full outer join "orders" as "o" on "u"."id" = "o"."user_id"`);
@@ -106,7 +106,7 @@ test('from with cross join', () => {
 
     // Act
     const clause = FromClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`from "products" cross join "categories"`);
@@ -118,7 +118,7 @@ test('from with natural join', () => {
 
     // Act
     const clause = FromClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`from "employees" natural join "departments"`);
@@ -130,7 +130,7 @@ test('from with multiple joins', () => {
 
     // Act
     const clause = FromClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`from "orders" as "o" join "users" as "u" on "o"."user_id" = "u"."id" join "products" as "p" on "o"."product_id" = "p"."id"`);
@@ -142,7 +142,7 @@ test('from with multiple joins', () => {
 
 //     // Act
 //     const clause = FromClauseParser.parse(text);
-//     const sql = formatter.visit(clause);
+//     const sql = formatter.format(clause);
 
 //     // Assert
 //     expect(sql).toEqual(`from (select * from "users" where "active" = true) as "active_users"`);
@@ -154,7 +154,7 @@ test('from with lateral join', () => {
 
     // Act
     const clause = FromClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`from "users" as "u" cross join lateral (select * from "orders" where "user_id" = "u"."id" limit 3) as "recent_orders"`);
@@ -166,7 +166,7 @@ test('from with column alias list', () => {
 
     // Act
     const clause = FromClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`from "users" as "u"("user_id", "username", "email")`);
@@ -178,7 +178,7 @@ test('from with function', () => {
 
     // Act
     const clause = FromClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`from generate_series(1, 10) as "numbers"`);
@@ -190,7 +190,7 @@ test('from with join using syntax', () => {
 
     // Act
     const clause = FromClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`from "users" join "orders" using ("id")`);
@@ -202,7 +202,7 @@ test('from with multiple columns in using clause', () => {
 
     // Act
     const clause = FromClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`from "users" join "orders" using ("user_id", "order_date")`);
@@ -214,7 +214,7 @@ test('from with left join lateral', () => {
 
     // Act
     const clause = FromClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`from "users" as "u" left join lateral (select * from "orders" as "o" where "o"."user_id" = "u"."id" order by "o"."created_at" desc limit 5) as "recent_orders" on true`);
@@ -226,7 +226,7 @@ test('from with left join lateral without on clause', () => {
 
     // Act
     const clause = FromClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`from "users" as "u" left join lateral unnest("u"."order_ids") as "o"("order_id")`);

@@ -6,37 +6,37 @@ import { ColumnReference, LiteralValue, BinaryExpression } from "../../src/model
 
 test('ColumnReference', () => {
     const formatter = new Formatter();
-    const sql = formatter.visit(new ColumnReference(['a'], 'id'));
+    const sql = formatter.format(new ColumnReference(['a'], 'id'));
     expect(sql).toBe('"a"."id"');
 });
 
 test('LiteralExpression escape', () => {
     const formatter = new Formatter();
-    const sql = formatter.visit(new LiteralValue("O'Reilly"));
+    const sql = formatter.format(new LiteralValue("O'Reilly"));
     expect(sql).toBe("'O''Reilly'");
 });
 
 test('LiteralExpression num?', () => {
     const formatter = new Formatter();
-    const sql = formatter.visit(new LiteralValue('1'));
+    const sql = formatter.format(new LiteralValue('1'));
     expect(sql).toBe("'1'");
 });
 
 test('LiteralExpression num?', () => {
     const formatter = new Formatter();
-    const sql = formatter.visit(new LiteralValue(1));
+    const sql = formatter.format(new LiteralValue(1));
     expect(sql).toBe('1');
 });
 
 test('BinaryExpression', () => {
     const formatter = new Formatter();
-    const sql = formatter.visit(new BinaryExpression(new ColumnReference(['a'], 'id'), '+', new LiteralValue(1)));
+    const sql = formatter.format(new BinaryExpression(new ColumnReference(['a'], 'id'), '+', new LiteralValue(1)));
     expect(sql).toBe('"a"."id" + 1');
 });
 
 test('SelectQuery', () => {
     const formatter = new Formatter();
-    const sql = formatter.visit(new SimpleSelectQuery(
+    const sql = formatter.format(new SimpleSelectQuery(
         null,
         new SelectClause([
             new ColumnReference(['a'], 'id'),

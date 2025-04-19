@@ -11,7 +11,7 @@ test('for update', () => {
 
     // Act
     const clause = ForClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`for update`);
@@ -24,7 +24,7 @@ test('for share', () => {
 
     // Act
     const clause = ForClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`for share`);
@@ -37,7 +37,7 @@ test('for key share', () => {
 
     // Act
     const clause = ForClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`for key share`);
@@ -50,7 +50,7 @@ test('for no key update', () => {
 
     // Act
     const clause = ForClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`for no key update`);
@@ -63,7 +63,7 @@ test('case insensitive keywords', () => {
 
     // Act
     const clause = ForClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`for update`);

@@ -10,7 +10,7 @@ test('simple group by', () => {
 
     // Act
     const clause = GroupByClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`group by "id"`);
@@ -22,7 +22,7 @@ test('group by multiple columns', () => {
 
     // Act
     const clause = GroupByClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`group by "department_id", "job_id"`);
@@ -34,7 +34,7 @@ test('group by with expression', () => {
 
     // Act
     const clause = GroupByClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`group by extract(year from "hire_date")`);
@@ -46,7 +46,7 @@ test('group by with function', () => {
 
     // Act
     const clause = GroupByClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`group by substr("last_name", 1, 3)`);
@@ -58,7 +58,7 @@ test('group by with case expression', () => {
 
     // Act
     const clause = GroupByClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`group by case when "salary" > 10000 then 'High' else 'Low' end`);
@@ -70,7 +70,7 @@ test('group by with multiple expressions', () => {
 
     // Act
     const clause = GroupByClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`group by "department_id", extract(year from "hire_date"), "job_id"`);
@@ -82,7 +82,7 @@ test('group by with table qualified column', () => {
 
     // Act
     const clause = GroupByClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`group by "employees"."department_id"`);
@@ -94,7 +94,7 @@ test('group by with grouping set', () => {
 
     // Act
     const clause = GroupByClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`group by grouping sets(("department_id"), ("job_id"), ("department_id", "job_id"))`);
@@ -106,7 +106,7 @@ test('group by with cube', () => {
 
     // Act
     const clause = GroupByClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`group by cube("department_id", "job_id")`);
@@ -118,7 +118,7 @@ test('group by with rollup', () => {
 
     // Act
     const clause = GroupByClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`group by rollup("department_id", "job_id")`);
@@ -130,7 +130,7 @@ test('group by with mix of columns and aggregations', () => {
 
     // Act
     const clause = GroupByClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`group by "department_id", rollup("job_id", "manager_id")`);

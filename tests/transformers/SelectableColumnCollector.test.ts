@@ -16,7 +16,7 @@ describe('SelectableColumnCollector', () => {
         collector.visit(query);
         const items = collector.collect(query);
         const columnNames = items.map(item => item.name);
-        const expressions = items.map(item => formatter.visit(item.value));
+        const expressions = items.map(item => formatter.format(item.value));
 
         // Assert
         expect(items.length).toBe(3); // id, name, active
@@ -37,7 +37,7 @@ describe('SelectableColumnCollector', () => {
         collector.visit(query);
         const items = collector.collect(query);
         const columnNames = items.map(item => item.name);
-        const expressions = items.map(item => formatter.visit(item.value));
+        const expressions = items.map(item => formatter.format(item.value));
 
         // Assert
         expect(items.length).toBe(3); // u.id, u.name, u.active
@@ -64,7 +64,7 @@ describe('SelectableColumnCollector', () => {
         collector.visit(query);
         const items = collector.collect(query);
         const columnNames = items.map(item => item.name);
-        const expressions = items.map(item => formatter.visit(item.value));
+        const expressions = items.map(item => formatter.format(item.value));
 
         // Assert
         expect(items.length).toBe(6); // id, name, age, status, role, created_at
@@ -94,7 +94,7 @@ describe('SelectableColumnCollector', () => {
         collector.visit(query);
         const items = collector.collect(query);
         const columnNames = items.map(item => item.name);
-        const expressions = items.map(item => formatter.visit(item.value));
+        const expressions = items.map(item => formatter.format(item.value));
 
         // Assert
         expect(items.length).toBe(7);
@@ -129,7 +129,7 @@ describe('SelectableColumnCollector', () => {
         collector.visit(query);
         const items = collector.collect(query);
         const columnNames = items.map(item => item.name);
-        const expressions = items.map(item => formatter.visit(item.value));
+        const expressions = items.map(item => formatter.format(item.value));
 
         // Assert
         expect(items.length).toBe(5);
@@ -152,7 +152,7 @@ describe('SelectableColumnCollector', () => {
         collector.visit(query);
         const items = collector.collect(query);
         const columnNames = items.map(item => item.name);
-        const expressions = items.map(item => formatter.visit(item.value));
+        const expressions = items.map(item => formatter.format(item.value));
 
         // Assert
         expect(items.length).toBe(0);
@@ -176,7 +176,7 @@ describe('SelectableColumnCollector', () => {
         collector.visit(query);
         const items = collector.collect(query);
         const columnNames = items.map(item => item.name);
-        const expressions = items.map(item => formatter.visit(item.value));
+        const expressions = items.map(item => formatter.format(item.value));
 
         // Assert - Only columns exposed from the subquery are collected        expect(columnNames).toContain('id');
         expect(columnNames).toContain('custom_name');
@@ -210,7 +210,7 @@ describe('SelectableColumnCollector', () => {
         collector.visit(query);
         const items = collector.collect(query);
         const columnNames = items.map(item => item.name);
-        const expressions = items.map(item => formatter.visit(item.value));
+        const expressions = items.map(item => formatter.format(item.value));
 
         // Assert - Only columns exposed from the CTE are collected        expect(columnNames).toContain('id');
         expect(columnNames).toContain('name');
@@ -241,7 +241,7 @@ describe('SelectableColumnCollector', () => {
         collector.visit(query);
         const items = collector.collect(query);
         const columnNames = items.map(item => item.name);
-        const expressions = items.map(item => formatter.visit(item.value));
+        const expressions = items.map(item => formatter.format(item.value));
 
         // Assert
         // Only references from the data source defined in the root FROM clause (users u) are targeted
@@ -275,7 +275,7 @@ describe('SelectableColumnCollector', () => {
         collector.visit(query);
         const items = collector.collect(query);
         const columnNames = items.map(item => item.name);
-        const expressions = items.map(item => formatter.visit(item.value));
+        const expressions = items.map(item => formatter.format(item.value));
 
         // Assert
         // Note: Using the formatter for deduplication, references to the same table/column become a single instance
@@ -332,7 +332,7 @@ describe('SelectableColumnCollector', () => {
         collector.visit(query);
         const items = collector.collect(query);
         const columnNames = items.map(item => item.name);
-        const expressions = items.map(item => formatter.visit(item.value));
+        const expressions = items.map(item => formatter.format(item.value));
 
         // Assert
         expect(items.length).toBeGreaterThan(0);
@@ -361,7 +361,7 @@ describe('SelectableColumnCollector', () => {
         collector.visit(query);
         const items = collector.collect(query);
         const columnNames = items.map(item => item.name);
-        const expressions = items.map(item => formatter.visit(item.value));
+        const expressions = items.map(item => formatter.format(item.value));
 
         // Assert        expect(items.length).toBeGreaterThan(0);
 
@@ -394,7 +394,7 @@ describe('SelectableColumnCollector', () => {
         collector.visit(query);
         const items = collector.collect(query);
         const columnNames = items.map(item => item.name);
-        const expressions = items.map(item => formatter.visit(item.value));
+        const expressions = items.map(item => formatter.format(item.value));
 
         // Assert
         expect(items.length).toBe(4);        // Check virtual columns from outer subquery
@@ -420,7 +420,7 @@ describe('SelectableColumnCollector', () => {
         collector.visit(query);
         const items = collector.collect(query);
         const columnNames = items.map(item => item.name);
-        const expressions = items.map(item => formatter.visit(item.value));        // Debug output
+        const expressions = items.map(item => formatter.format(item.value));        // Debug output
         console.log('Debug - actual columns returned:', columnNames);
 
         // Assert        // Both columns defined in the subquery's SELECT clause should be available
@@ -459,7 +459,7 @@ describe('SelectableColumnCollector', () => {
         collector.visit(query);
         const items = collector.collect(query);
         const columnNames = items.map(item => item.name);
-        const expressions = items.map(item => formatter.visit(item.value));
+        const expressions = items.map(item => formatter.format(item.value));
 
         // Assert        // Columns defined in the outer subquery are available
         expect(columnNames).toContain('user_name');
@@ -505,7 +505,7 @@ describe('SelectableColumnCollector', () => {
         collector.visit(query);
         const items = collector.collect(query);
         const columnNames = items.map(item => item.name);
-        const expressions = items.map(item => formatter.visit(item.value));
+        const expressions = items.map(item => formatter.format(item.value));
 
         // Assert        // Columns from the subquery are collected
         expect(columnNames).toContain('customer_name');
@@ -535,7 +535,7 @@ describe('SelectableColumnCollector', () => {
         collector.visit(query);
         const items = collector.collect(query);
         const columnNames = items.map(item => item.name);
-        const expressions = items.map(item => formatter.visit(item.value));        // Debug output
+        const expressions = items.map(item => formatter.format(item.value));        // Debug output
         console.log('Deeply nested subquery columns:', columnNames);
 
         // Assert        expect(items.length).toBe(1);
@@ -560,7 +560,7 @@ describe('SelectableColumnCollector', () => {
         collector.visit(query);
         const items = collector.collect(query);
         const columnNames = items.map(item => item.name);
-        const expressions = items.map(item => formatter.visit(item.value));        // Debug output
+        const expressions = items.map(item => formatter.format(item.value));        // Debug output
         console.log('Nested subquery with unknown source columns:', columnNames);
 
         // Assert
@@ -585,7 +585,7 @@ describe('SelectableColumnCollector', () => {
         collector.visit(query);
         const items = collector.collect(query);
         const columnNames = items.map(item => item.name);
-        const expressions = items.map(item => formatter.visit(item.value));        // Debug output
+        const expressions = items.map(item => formatter.format(item.value));        // Debug output
         console.log('Multi-level nested with unknown columns:', columnNames);
 
         // Assert
@@ -603,7 +603,7 @@ describe('SelectableColumnCollector', () => {
         collector.visit(query);
         const items = collector.collect(query);
         const columnNames = items.map(item => item.name);
-        const expressions = items.map(item => formatter.visit(item.value));
+        const expressions = items.map(item => formatter.format(item.value));
 
         // Assert
         // Should behave like before - not resolving wildcard columns from physical tables

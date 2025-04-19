@@ -10,7 +10,7 @@ test('simple common table', () => {
 
     // Act
     const commonTable = CommonTableParser.parse(text);
-    const sql = formatter.visit(commonTable);
+    const sql = formatter.format(commonTable);
 
     // Assert
     expect(sql).toEqual(`"temp_sales" as (select * from "sales" where "date" >= '2024-01-01')`);
@@ -22,7 +22,7 @@ test('common table with column aliases', () => {
 
     // Act
     const commonTable = CommonTableParser.parse(text);
-    const sql = formatter.visit(commonTable);
+    const sql = formatter.format(commonTable);
 
     // Assert
     expect(sql).toEqual(`"temp_users"("user_id", "name", "email") as (select "id", "full_name", "email_address" from "users")`);
@@ -34,7 +34,7 @@ test('common table with MATERIALIZED', () => {
 
     // Act
     const commonTable = CommonTableParser.parse(text);
-    const sql = formatter.visit(commonTable);
+    const sql = formatter.format(commonTable);
 
     // Assert
     expect(sql).toEqual(`"expensive_calc" materialized as (select "user_id", count(*) as "count" from "orders" group by "user_id")`);
@@ -46,7 +46,7 @@ test('common table with NOT MATERIALIZED', () => {
 
     // Act
     const commonTable = CommonTableParser.parse(text);
-    const sql = formatter.visit(commonTable);
+    const sql = formatter.format(commonTable);
 
     // Assert
     expect(sql).toEqual(`"summary" not materialized as (select "department", avg("salary") from "employees" group by "department")`);
@@ -65,7 +65,7 @@ test('common table with complex query', () => {
 
     // Act
     const commonTable = CommonTableParser.parse(text);
-    const sql = formatter.visit(commonTable);
+    const sql = formatter.format(commonTable);
 
     // Assert
     expect(sql).toEqual(`"filtered_data" as (select "p"."id", "p"."name", "c"."name" as "category" from "products" as "p" join "categories" as "c" on "p"."category_id" = "c"."id" where "p"."price" > 100 order by "p"."name" limit 10)`);

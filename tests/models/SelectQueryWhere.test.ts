@@ -11,7 +11,7 @@ test('should add a WHERE condition when none exists', () => {
 
     // Act
     baseQuery.appendWhereRaw("status = 'active'");
-    const sql = formatter.visit(baseQuery);
+    const sql = formatter.format(baseQuery);
 
     // Assert
     expect(sql).toEqual(`select "id" from "users" where "status" = 'active'`);
@@ -26,7 +26,7 @@ test('should add multiple WHERE conditions with AND logic', () => {
     baseQuery.appendWhereRaw("created_at > '2023-01-01'");
 
     // Assert
-    const sql = formatter.visit(baseQuery);
+    const sql = formatter.format(baseQuery);
     expect(sql).toEqual(`select "id" from "users" where "status" = 'active' and "created_at" > '2023-01-01'`);
 });
 
@@ -37,7 +37,7 @@ test('should handle complex conditions', () => {
     // Act
     baseQuery.appendWhereRaw("(age > 18 AND verified = true)");
     baseQuery.appendWhereRaw("status = 'active'");
-    const sql = formatter.visit(baseQuery);
+    const sql = formatter.format(baseQuery);
 
     // Assert
     expect(sql).toEqual(`select "id" from "users" where ("age" > 18 and "verified" = true) and "status" = 'active'`);

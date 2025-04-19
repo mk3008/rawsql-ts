@@ -10,7 +10,7 @@ test('simple values clause with single tuple', () => {
 
     // Act
     const clause = ValuesQueryParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`values (1, 'test', true)`);
@@ -22,7 +22,7 @@ test('values clause with multiple tuples', () => {
 
     // Act
     const clause = ValuesQueryParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`values (1, 'apple', 0.99), (2, 'banana', 0.59), (3, 'orange', 0.79)`);
@@ -34,7 +34,7 @@ test('values clause with expressions', () => {
 
     // Act
     const clause = ValuesQueryParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`values (1 + 2, concat('hello', ' ', 'world'), 5 * 10)`);
@@ -46,7 +46,7 @@ test('values clause with null values', () => {
 
     // Act
     const clause = ValuesQueryParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`values (1, null, 'test'), (null, 'value', null)`);
@@ -58,7 +58,7 @@ test('values clause with empty tuple', () => {
 
     // Act
     const clause = ValuesQueryParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`values ()`);
@@ -70,7 +70,7 @@ test('values clause with nested expressions', () => {
 
     // Act
     const clause = ValuesQueryParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`values ((1 + 2) * 3, (select max("id") from "users"), case when "x" > 0 then 'positive' else 'negative' end)`);
@@ -82,7 +82,7 @@ test('values clause with function calls', () => {
 
     // Act
     const clause = ValuesQueryParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`values (now(), upper('text'), random())`);

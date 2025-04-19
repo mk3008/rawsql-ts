@@ -6,7 +6,7 @@ import { Formatter } from '../../src/transformers/Formatter';
 function getRawSQL(query: any): string {
     // Use Formatter to convert SelectQuery to SQL string
     const formatter = new Formatter();
-    return formatter.visit(query).trim();
+    return formatter.format(query).trim();
 }
 
 describe('UpstreamSelectQueryFinder Demo', () => {

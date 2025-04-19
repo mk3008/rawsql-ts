@@ -12,7 +12,7 @@ test('should add a HAVING condition when none exists using raw string', () => {
 
     // Act
     baseQuery.appendHavingRaw("COUNT(*) > 5");
-    const sql = formatter.visit(baseQuery);
+    const sql = formatter.format(baseQuery);
 
     // Assert
     expect(sql).toEqual(`select count(*) from "users" group by "department" having count(*) > 5`);
@@ -25,7 +25,7 @@ test('should add multiple HAVING conditions with AND logic using raw strings', (
     // Act
     baseQuery.appendHavingRaw("COUNT(*) > 10");
     baseQuery.appendHavingRaw("SUM(amount) > 1000");
-    const sql = formatter.visit(baseQuery);
+    const sql = formatter.format(baseQuery);
 
     // Assert
     expect(sql).toEqual(`select count(*), sum("amount") from "orders" group by "status" having count(*) > 10 and sum("amount") > 1000`);
@@ -38,7 +38,7 @@ test('should handle complex HAVING conditions with raw strings', () => {
     // Act
     baseQuery.appendHavingRaw("(COUNT(*) >= 5 AND MAX(salary) < 100000)");
     baseQuery.appendHavingRaw("AVG(salary) > 50000");
-    const sql = formatter.visit(baseQuery);
+    const sql = formatter.format(baseQuery);
 
     // Assert
     expect(sql).toEqual(`select "department", avg("salary") from "employees" group by "department" having (count(*) >= 5 and max("salary") < 100000) and avg("salary") > 50000`);
@@ -54,7 +54,7 @@ test('should add a HAVING condition using ValueComponent', () => {
 
     // Act
     baseQuery.appendHaving(condition);
-    const sql = formatter.visit(baseQuery);
+    const sql = formatter.format(baseQuery);
 
     // Assert
     expect(sql).toEqual(`select "product", sum("sales") from "transactions" group by "product" having sum("sales") > 500`);
@@ -75,7 +75,7 @@ test('should add multiple HAVING conditions with AND logic using ValueComponents
     // Act
     baseQuery.appendHaving(firstCondition);
     baseQuery.appendHaving(secondCondition);
-    const sql = formatter.visit(baseQuery);
+    const sql = formatter.format(baseQuery);
 
     // Assert
     expect(sql).toEqual(`select "category", count(*), avg("price") from "products" group by "category" having count(*) > 10 and avg("price") > 50`);
@@ -94,7 +94,7 @@ test('should combine raw string and ValueComponent conditions in HAVING clause',
 
     // Act
     baseQuery.appendHaving(secondCondition);
-    const sql = formatter.visit(baseQuery);
+    const sql = formatter.format(baseQuery);
 
     // Assert
     expect(sql).toEqual(`select "region", sum("sales") from "sales_data" group by "region" having count(*) > 20 and sum("sales") > 10000`);

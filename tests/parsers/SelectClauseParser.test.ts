@@ -10,7 +10,7 @@ test('simple', () => {
 
     // act
     const clause = SelectClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`select \"a\".\"id\"`);
@@ -22,7 +22,7 @@ test('multiple columns', () => {
 
     // Act
     const clause = SelectClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`select \"a\".\"id\", \"a\".\"name\", \"a\".\"created_at\"`);
@@ -34,7 +34,7 @@ test('with column alias', () => {
 
     // Act
     const clause = SelectClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`select \"a\".\"id\" as \"user_id\", \"a\".\"name\" as \"user_name\"`);
@@ -46,7 +46,7 @@ test('with identical column alias', () => {
 
     // Act
     const clause = SelectClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`select \"a\".\"id\", \"a\".\"name\"`);
@@ -58,7 +58,7 @@ test('with function call', () => {
 
     // Act
     const clause = SelectClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`select count(*) as \"count\", max(\"a\".\"value\") as \"max_value\"`);
@@ -70,7 +70,7 @@ test('with expression', () => {
 
     // Act
     const clause = SelectClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`select \"a\".\"price\" * \"a\".\"quantity\" as \"total\"`);
@@ -82,7 +82,7 @@ test('with case expression', () => {
 
     // Act
     const clause = SelectClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`select case when \"a\".\"status\" = 'active' then 1 else 0 end as \"is_active\"`);
@@ -94,7 +94,7 @@ test('with column alias without as keyword', () => {
 
     // Act
     const clause = SelectClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`select \"a\".\"id\" as \"user_id\", \"a\".\"name\" as \"user_name\"`);
@@ -106,7 +106,7 @@ test('with distinct keyword', () => {
 
     // Act
     const clause = SelectClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`select distinct \"a\".\"category\", \"a\".\"region\"`);
@@ -118,7 +118,7 @@ test('with distinct and function', () => {
 
     // Act
     const clause = SelectClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`select distinct lower(\"a\".\"email\") as \"email_lower\"`);
@@ -130,7 +130,7 @@ test('with distinct on single column', () => {
 
     // Act
     const clause = SelectClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`select distinct on(\"a\".\"department_id\") \"a\".\"employee_id\", \"a\".\"department_id\", \"a\".\"salary\"`);
@@ -142,7 +142,7 @@ test('with distinct on multiple columns', () => {
 
     // Act
     const clause = SelectClauseParser.parse(text);
-    const sql = formatter.visit(clause);
+    const sql = formatter.format(clause);
 
     // Assert
     expect(sql).toEqual(`select distinct on(\"a\".\"department_id\", \"a\".\"job_title\") \"a\".\"employee_id\", \"a\".\"salary\", \"a\".\"hire_date\"`);

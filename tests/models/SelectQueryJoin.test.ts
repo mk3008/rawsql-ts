@@ -13,7 +13,7 @@ describe('SimpleSelectQuery JOIN API', () => {
         query.innerJoinRaw('orders', 'o', ['id']);
 
         // Act
-        const result = formatter.visit(query);
+        const result = formatter.format(query);
         const expected = 'select "u"."id", "u"."name" from "users" as "u" inner join "orders" as "o" on "u"."id" = "o"."id"';
 
         // Assert
@@ -27,7 +27,7 @@ describe('SimpleSelectQuery JOIN API', () => {
         query.leftJoinRaw('orders', 'o', ['id', 'name']);
 
         // Act
-        const result = formatter.visit(query);
+        const result = formatter.format(query);
         const expected = 'select "u"."id", "u"."name" from "users" as "u" left join "orders" as "o" on "u"."id" = "o"."id" and "u"."name" = "o"."name"';
 
         // Assert
@@ -41,7 +41,7 @@ describe('SimpleSelectQuery JOIN API', () => {
         query.rightJoinRaw('public.orders', 'o', ['id']);
 
         // Act
-        const result = formatter.visit(query);
+        const result = formatter.format(query);
         const expected = 'select "u"."id" from "users" as "u" right join "public"."orders" as "o" on "u"."id" = "o"."id"';
 
         // Assert
@@ -73,7 +73,7 @@ describe('SimpleSelectQuery JOIN API', () => {
         query.innerJoinRaw(`(${subquery})`, 'o', ['id']);
 
         // Act
-        const result = formatter.visit(query);
+        const result = formatter.format(query);
         const expected = 'select "u"."id", "u"."name" from "users" as "u" inner join (select "id", "name" from "orders" where "status" = \'active\') as "o" on "u"."id" = "o"."id"';
 
         // Assert
@@ -89,7 +89,7 @@ describe('SimpleSelectQuery JOIN API', () => {
         query.innerJoinRaw(`(${subquery})`, 'o', ['id']);
 
         // Act
-        const result = formatter.visit(query);
+        const result = formatter.format(query);
         // The expected SQL should have both WITH clauses merged at the top level
         const expected = 'with "sub_orders" as (select "id", "name" from "orders" where "status" = \'active\'), "sub_users" as (select "id", "name" from "users" where "active" = true) select "u"."id", "u"."name" from "sub_users" as "u" inner join (select "id", "name" from "sub_orders") as "o" on "u"."id" = "o"."id"';
 
@@ -106,7 +106,7 @@ describe('SimpleSelectQuery JOIN API', () => {
         query.innerJoin(subquery.toSource('o'), ['id']);
 
         // Act
-        const result = formatter.visit(query);
+        const result = formatter.format(query);
         const expected = 'select "u"."id", "u"."name" from "users" as "u" inner join (select "id", "name" from "orders" where "status" = "active") as "o" on "u"."id" = "o"."id"';
 
         // Assert
