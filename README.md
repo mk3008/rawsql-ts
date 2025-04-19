@@ -40,8 +40,6 @@ rawsql-ts provides the following main parser class for converting SQL text into 
  **Key methods:**
   - `parse(sql: string): SelectQuery`  
     Parses a SQL string and returns the root AST node for the query. Throws an error if the SQL is invalid or contains extra tokens.
-  - `parse(lexemes: Lexeme[], index: number): { value: SelectQuery; newIndex: number }`  
-    Parses a tokenized SQL query from the given index and returns the AST node and the new index. Used internally for advanced parsing scenarios.
 
   **Notes:**
   - Only PostgreSQL syntax is supported at this time.
@@ -124,6 +122,9 @@ rawsql-ts provides a suite of AST (Abstract Syntax Tree) transformers for advanc
 - **SelectableColumnCollector**  
   Collects all column references in a query that can be included in a SELECT clause. Gathers all columns available from root FROM/JOIN sources.
 
+- **TableSourceCollector**  
+  Collects all table and subquery sources from the FROM and JOIN clauses. This utility helps you extract all logical sources (tables, subqueries, CTEs, etc.) referenced in the root query, including their aliases. Useful for schema analysis, join logic, and query visualization.
+
 - **CTECollector**  
   Collects all Common Table Expressions (CTEs) from WITH clauses, subqueries, and UNION queries. Supports both nested and recursive CTEs.
 
@@ -143,14 +144,62 @@ rawsql-ts provides a suite of AST (Abstract Syntax Tree) transformers for advanc
 ```typescript
 import { SelectQueryParser } from 'rawsql-ts';
 import { SelectableColumnCollector } from 'rawsql-ts/transformers/SelectableColumnCollector';
+import { SelectValueCollector } from 'rawsql-ts/transformers/SelectValueCollector';
+import { TableSourceCollector } from 'rawsql-ts/transformers/TableSourceCollector';
 
 const sql = `SELECT u.id, u.name FROM users u JOIN posts p ON u.id = p.user_id`;
 const query = SelectQueryParser.parse(sql);
 
-const collector = new SelectableColumnCollector();
-const columns = collector.collect(query);
-console.log(columns.map(col => col.name)); // ["id", "name", "user_id", ...]
+// Collects all selectable columns from the query (from FROM/JOIN sources)
+const selectableColumnCollector = new SelectableColumnCollector();
+const selectableColumns = selectableColumnCollector.collect(query);
+ // ["id", "name", "user_id", ...]
+console.log(selectableColumns.map(col => col.name));
+
+// Collects all values and aliases from the SELECT clause
+const selectValueCollector = new SelectValueCollector();
+const selectValues = selectValueCollector.collect(query);
+ // ["id", "name"]
+console.log(selectValues.map(val => val.alias || val.expression.toString()));
+
+// Collects all table and subquery sources from the FROM/JOIN clauses
+const tableSourceCollector = new TableSourceCollector();
+const sources = tableSourceCollector.collect(query);
+// ["u", "p"]
+console.log(sources.map(src => src.alias || src.name)); 
 ```
+
+---
+
+## Practical Example: Table Join
+
+The following example demonstrates how to join two tables using rawsql-ts. It is not necessary to understand the internal structure of the SelectQuery class or manage alias names manually. By specifying the join key(s), the library automatically generates the ON clause and handles all aliasing and subquery details.
+
+```typescript
+import { SelectQueryParser } from 'rawsql-ts';
+import { Formatter } from 'rawsql-ts';
+
+// Parse two separate queries
+const userQuery = SelectQueryParser.parse('SELECT user_id, user_name FROM users');
+const postQuery = SelectQueryParser.parse('SELECT post_id, user_id, title FROM posts');
+
+// Join the two queries using innerJoin
+// Provide the join key(s) as an array; the ON clause will be generated automatically.
+const joinedQuery = userQuery.innerJoin(postQuery, ['user_id']);
+
+// Format the joined query back to SQL
+const formatter = new Formatter();
+const sql = formatter.format(joinedQuery);
+console.log(sql);
+// Output:
+// select "user_id", "user_name", "post_id", "title" from "users" inner join (select "post_id", "user_id", "title" from "posts") on "users"."user_id" = "posts"."user_id"
+```
+
+**Key Points:**
+- It is not necessary to understand the internal implementation of SelectQuery to perform join operations.
+- Only the join key(s) (e.g., `['user_id']`) need to be specified. The ON clause is generated automatically.
+- Alias names and subquery handling are managed by the library, eliminating the need for manual intervention.
+- This approach enables straightforward joining of queries, even without detailed knowledge of the SQL structure or AST internals.
 
 ---
 
@@ -221,32 +270,3 @@ Node.js v22.14.0
 
 > **Note:** These benchmarks are based on a specific hardware and software environment. Actual performance may vary depending on system configuration and workload.
 
-## Practical Example: Table Join
-
-Let's see how easy it is to join two tables using rawsql-ts! You don't need to know the internal structure of SelectQuery or worry about alias names—just specify the join key(s) and the library will generate the ON clause for you automatically.
-
-```typescript
-import { SelectQueryParser } from 'rawsql-ts';
-import { Formatter } from 'rawsql-ts';
-
-// Parse two separate queries
-const userQuery = SelectQueryParser.parse('SELECT user_id, user_name FROM users');
-const postQuery = SelectQueryParser.parse('SELECT post_id, user_id, title FROM posts');
-
-// Join the two queries using innerJoin
-// Just pass the join key(s) as an array, and the ON clause will be generated automatically!
-const joinedQuery = userQuery.innerJoin(postQuery, ['user_id']);
-
-// Format the joined query back to SQL
-const formatter = new Formatter();
-const sql = formatter.format(joinedQuery);
-console.log(sql);
-// Output:
-// select "user_id", "user_name", "post_id", "title" from "users" inner join (select "post_id", "user_id", "title" from "posts") on "users"."user_id" = "posts"."user_id"
-```
-
-**Point:**
-- You do not need to understand the internal code of SelectQuery to perform joins.
-- You only need to specify the join key(s) (e.g., `['user_id']`). The ON clause is generated for you.
-- Alias names and subquery details are handled automatically by the library, so you never have to worry about them!
-- This makes it super easy to join queries, even if you don't know the full structure of the SQL or the internal AST.
