@@ -9,7 +9,7 @@ export * from './models/ValuesQuery';
 export * from './transformers/CTECollector';
 export * from './transformers/CTENormalizer';
 export * from './transformers/Formatter';
-export * from './transformers/QueryNormalizer';
+export * from './transformers/QueryConverter';
 export * from './transformers/SelectValueCollector';
 export * from './transformers/SelectableColumnCollector';
 export * from './transformers/TableSourceCollector';

@@ -1,4 +1,4 @@
-import { QueryNormalizer } from "../../src/transformers/QueryNormalizer";
+import { QueryConverter } from "../../src/transformers/QueryConverter";
 import { SelectQueryParser } from "../../src/parsers/SelectQueryParser";
 import { Formatter } from "../../src/transformers/Formatter";
 import { BinarySelectQuery, SimpleSelectQuery, ValuesQuery } from "../../src/models/SelectQuery";
@@ -13,7 +13,7 @@ describe('QueryNormalizer', () => {
         const query = SelectQueryParser.parse(sql);
 
         // Act
-        const normalizedQuery = QueryNormalizer.normalize(query);
+        const normalizedQuery = QueryConverter.toSimple(query);
 
         // Assert
         expect(normalizedQuery).toBe(query); // Should be the same object instance
@@ -27,7 +27,7 @@ describe('QueryNormalizer', () => {
         expect(query).toBeInstanceOf(BinarySelectQuery);
 
         // Act
-        const normalizedQuery = QueryNormalizer.normalize(query);
+        const normalizedQuery = QueryConverter.toSimple(query);
 
         // Assert
         expect(normalizedQuery).toBeInstanceOf(SimpleSelectQuery);
@@ -41,7 +41,7 @@ describe('QueryNormalizer', () => {
         expect(query).toBeInstanceOf(ValuesQuery);
 
         // Act
-        const normalizedQuery = QueryNormalizer.normalize(query);
+        const normalizedQuery = QueryConverter.toSimple(query);
 
         // Assert
         expect(normalizedQuery).toBeInstanceOf(SimpleSelectQuery);
@@ -54,7 +54,7 @@ describe('QueryNormalizer', () => {
         const query = SelectQueryParser.parse(sql);
 
         // Act
-        const normalizedQuery = QueryNormalizer.normalize(query);
+        const normalizedQuery = QueryConverter.toSimple(query);
 
         // Assert
         expect(normalizedQuery).toBeInstanceOf(SimpleSelectQuery);
@@ -67,7 +67,7 @@ describe('QueryNormalizer', () => {
         const query = SelectQueryParser.parse(sql);
 
         // Act
-        const normalizedQuery = QueryNormalizer.normalize(query);
+        const normalizedQuery = QueryConverter.toSimple(query);
 
         // Assert
         expect(normalizedQuery).toBeInstanceOf(SimpleSelectQuery);
@@ -80,7 +80,7 @@ describe('QueryNormalizer', () => {
         const query = SelectQueryParser.parse(sql);
 
         // Act
-        const normalizedQuery = QueryNormalizer.normalize(query);
+        const normalizedQuery = QueryConverter.toSimple(query);
 
         // Assert
         expect(normalizedQuery).toBeInstanceOf(SimpleSelectQuery);
