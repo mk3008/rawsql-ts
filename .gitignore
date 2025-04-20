@@ -169,3 +169,4 @@ obj/
 *.map
 demo/package.json
 demo/package-lock.json
+demo/formatter/node_modules/
