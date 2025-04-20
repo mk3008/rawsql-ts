@@ -3,11 +3,7 @@ import { BinarySelectQuery, SimpleSelectQuery, SelectQuery, ValuesQuery } from "
 import { SqlComponent, SqlComponentVisitor } from "../models/SqlComponent";
 import { ColumnReference, InlineQuery, LiteralValue, ValueComponent } from "../models/ValueComponent";
 import { CTECollector } from "./CTECollector";
-
-/**
- * Type definition for a function that resolves column names from a table name
- */
-export type TableColumnResolver = (tableName: string) => string[];
+import { TableColumnResolver } from "./TableColumnResolver";
 
 /**
  * A visitor that collects all SelectItem instances from a SQL query structure.
@@ -276,3 +272,5 @@ export class SelectValueCollector implements SqlComponentVisitor<void> {
         }
     }
 }
+
+export { TableColumnResolver };
