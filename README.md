@@ -26,14 +26,15 @@ npm install rawsql-ts
 Basic usage example:
 
 ```typescript
-import { SelectQueryParser } from 'rawsql-ts';
-import { Formatter } from 'rawsql-ts';
+import { SelectQueryParser, Formatter } from 'rawsql-ts';
 
 const sql = `SELECT id, name FROM users WHERE active = TRUE`;
 const query = SelectQueryParser.parse(sql);
 const formatter = new Formatter();
 const formattedSql = formatter.format(query);
-console.log(formattedSql);
+
+console.log(formattedSql); 
+
 // => select "id", "name" from "users" where "active" = true
 ```
 
