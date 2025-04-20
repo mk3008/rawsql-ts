@@ -21,6 +21,10 @@
     ],
     "author": "msugiura",
     "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/mk3008/rawsql-ts.git"
+    },
     "devDependencies": {
         "@types/benchmark": "^2.1.5",
         "@types/node": "^22.13.10",

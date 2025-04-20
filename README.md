@@ -21,6 +21,8 @@ Install the package from npm as follows:
 npm install rawsql-ts
 ```
 
+You can find the source code and contribute to the project on [GitHub](https://github.com/mk3008/rawsql-ts).
+
 ## Usage
 
 Basic usage example:
