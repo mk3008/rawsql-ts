@@ -12,6 +12,7 @@ export * from './transformers/Formatter';
 export * from './transformers/QueryConverter';
 export * from './transformers/SelectValueCollector';
 export * from './transformers/SelectableColumnCollector';
+export * from './transformers/TableColumnResolver';
 export * from './transformers/TableSourceCollector';
 export * from './transformers/UpstreamSelectQueryFinder';
 // Add more exports here if you want to expose additional public API
