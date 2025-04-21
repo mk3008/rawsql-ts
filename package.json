@@ -1,14 +1,25 @@
 {
     "name": "rawsql-ts",
-    "version": "0.1.0-beta.11",
+    "version": "0.1.0-beta.12",
     "description": "[beta]High-performance SQL parser and AST analyzer written in TypeScript. Provides fast parsing and advanced transformation capabilities.",
     "main": "dist/index.js",
+    "module": "dist/esm/index.js",
     "types": "dist/index.d.ts",
+    "exports": {
+        ".": {
+            "require": "./dist/index.js",
+            "import": "./dist/esm/index.js",
+            "types": "./dist/index.d.ts",
+            "browser": "./dist/esm/index.js"
+        }
+    },
+    "browser": "dist/esm/index.js",
     "scripts": {
         "test": "vitest run",
         "test:watch": "vitest",
         "coverage": "vitest run --coverage",
         "build": "tsc --build",
+        "build:browser": "tsc --project tsconfig.browser.json",
         "clean": "tsc --build --clean",
         "lint": "eslint . --ext .ts,.tsx --fix",
         "benchmark": "ts-node benchmarks/parse-benchmark.ts"
