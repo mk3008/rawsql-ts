@@ -28,48 +28,75 @@
 
 <body>
     <h1>rawsql-ts CDN Demo</h1>
-    <p>Type your SQL below and see the formatted result using <b>rawsql-ts</b> from CDN!</p>
+    <p>Type your SQL below and see the formatted and analyzed result using <b>rawsql-ts</b> from CDN!</p>
     <textarea id="sql-input">SELECT u.user_id, u.user_name FROM users as u WHERE u.active = true</textarea>
     <br>
-    <button id="run-btn">Format SQL</button>
+    <button id="run-btn">Analyze SQL</button>
     <div class="result">
         <h2>Formatted SQL</h2>
         <pre id="output"></pre>
+        <h2>Select Values</h2>
+        <pre id="select-values"></pre>
+        <h2>Selectable Columns</h2>
+        <pre id="selectable-columns"></pre>
+        <h2>Table Sources</h2>
+        <pre id="table-sources"></pre>
     </div>
     <script type="module">
-        import { SelectQueryParser, Formatter } from "https://unpkg.com/rawsql-ts/dist/esm/index.js";
+        import { SelectQueryParser, Formatter, SelectValueCollector, SelectableColumnCollector, TableSourceCollector } from "https://unpkg.com/rawsql-ts/dist/esm/index.js";
         const input = document.getElementById('sql-input');
         const output = document.getElementById('output');
         const btn = document.getElementById('run-btn');
+        const selectValuesEl = document.getElementById('select-values');
+        const selectableColumnsEl = document.getElementById('selectable-columns');
+        const tableSourcesEl = document.getElementById('table-sources');
 
         // Debounce timer for auto-format
         let debounceTimer = null;
         const DEBOUNCE_DELAY = 750; // ms
 
         /**
-         * Format the SQL in the textarea and display the result.
+         * Format and analyze the SQL in the textarea and display the results.
          */
-        function formatSql() {
+        function analyzeSql() {
             try {
                 const query = SelectQueryParser.parse(input.value);
                 const formatter = new Formatter();
                 output.textContent = formatter.format(query);
+
+                // Select values
+                const selectValueCollector = new SelectValueCollector();
+                const selectValues = selectValueCollector.collect(query);
+                selectValuesEl.textContent = selectValues.map(val => `name: ${val.name}, value: ${formatter.format(val.value)}`).join('\n');
+
+                // Selectable columns
+                const selectableColumnCollector = new SelectableColumnCollector();
+                const selectableColumns = selectableColumnCollector.collect(query);
+                selectableColumnsEl.textContent = selectableColumns.map(val => `name: ${val.name}, value: ${formatter.format(val.value)}`).join('\n');
+
+                // Table sources
+                const tableSourceCollector = new TableSourceCollector(false);
+                const sources = tableSourceCollector.collect(query);
+                tableSourcesEl.textContent = sources.map(src => `name: ${src.getSourceName()}`).join('\n');
             } catch (e) {
                 output.textContent = 'Error: ' + e.message;
+                selectValuesEl.textContent = '';
+                selectableColumnsEl.textContent = '';
+                tableSourcesEl.textContent = '';
             }
         }
 
-        // Button click: manual format
-        btn.onclick = formatSql;
+        // Button click: manual analyze
+        btn.onclick = analyzeSql;
 
-        // Auto-format after user stops typing
+        // Auto-analyze after user stops typing
         input.addEventListener('input', () => {
             if (debounceTimer) clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(formatSql, DEBOUNCE_DELAY);
+            debounceTimer = setTimeout(analyzeSql, DEBOUNCE_DELAY);
         });
 
         // Run once on load
-        formatSql();
+        analyzeSql();
     </script>
 </body>
 
