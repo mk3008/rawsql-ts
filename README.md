@@ -20,6 +20,28 @@ With rawsql-ts, raw SQL can be represented as objects, enabling flexible manipul
 - High-speed SQL parsing and AST analysis
 - Rich utilities for SQL structure transformation and analysis
 
+## ✨ Browser & CDN Ready!
+
+You can use rawsql-ts directly in modern browsers via CDN (unpkg/jsdelivr)!
+No Node.js dependencies, no build tools required.
+Just import it like this:
+
+```html
+<!-- Always get the latest version -->
+<script type="module">
+  import { parse } from "https://unpkg.com/rawsql-ts/dist/esm/index.js";
+</script>
+```
+
+```html
+<!-- Pin a specific version for stability -->
+<script type="module">
+  import { parse } from "https://unpkg.com/rawsql-ts@0.1.0-beta.12/dist/esm/index.js";
+</script>
+```
+
+---
+
 ## Installation
 
 ```bash
