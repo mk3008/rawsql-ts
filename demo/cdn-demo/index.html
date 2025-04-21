@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>rawsql-ts CDN Demo</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 2rem;
+        }
+
+        textarea {
+            width: 100%;
+            height: 100px;
+        }
+
+        pre {
+            background: #f4f4f4;
+            padding: 1em;
+        }
+
+        .result {
+            margin-top: 1em;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>rawsql-ts CDN Demo</h1>
+    <p>Type your SQL below and see the formatted result using <b>rawsql-ts</b> from CDN!</p>
+    <textarea id="sql-input">SELECT u.user_id, u.user_name FROM users as u WHERE u.active = true</textarea>
+    <br>
+    <button id="run-btn">Format SQL</button>
+    <div class="result">
+        <h2>Formatted SQL</h2>
+        <pre id="output"></pre>
+    </div>
+    <script type="module">
+        import { SelectQueryParser, Formatter } from "https://unpkg.com/rawsql-ts/dist/esm/index.js";
+        const input = document.getElementById('sql-input');
+        const output = document.getElementById('output');
+        const btn = document.getElementById('run-btn');
+
+        // Debounce timer for auto-format
+        let debounceTimer = null;
+        const DEBOUNCE_DELAY = 750; // ms
+
+        /**
+         * Format the SQL in the textarea and display the result.
+         */
+        function formatSql() {
+            try {
+                const query = SelectQueryParser.parse(input.value);
+                const formatter = new Formatter();
+                output.textContent = formatter.format(query);
+            } catch (e) {
+                output.textContent = 'Error: ' + e.message;
+            }
+        }
+
+        // Button click: manual format
+        btn.onclick = formatSql;
+
+        // Auto-format after user stops typing
+        input.addEventListener('input', () => {
+            if (debounceTimer) clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(formatSql, DEBOUNCE_DELAY);
+        });
+
+        // Run once on load
+        formatSql();
+    </script>
+</body>
+
+</html>
