@@ -299,4 +299,94 @@ describe('CTECollector', () => {
         expect(tables2[0].aliasExpression.table.name).toBe('cte2');
         expect(tables2[1].aliasExpression.table.name).toBe('cte3');
     });
+
+    test('handles a super complex query with multiple CTEs and FROM after WITH (issue #47)', () => {
+        // Arrange
+        const sql = `
+with
+dat(line_id, name, unit_price, quantity, tax_rate) as (
+    values
+    (1, 'apple' , 105, 5, 0.07),
+    (2, 'orange', 203, 3, 0.07),
+    (3, 'banana', 233, 9, 0.07),
+    (4, 'tea'   , 309, 7, 0.08),
+    (5, 'coffee', 555, 9, 0.08),
+    (6, 'cola'  , 456, 2, 0.08)
+),
+detail as (
+    select
+        q.*,
+        trunc(q.price * (1 + q.tax_rate)) - q.price as tax,
+        q.price * (1 + q.tax_rate) - q.price as raw_tax
+    from
+        (
+            select
+                dat.*,
+                (dat.unit_price * dat.quantity) as price
+            from
+                dat
+        ) q
+),
+tax_summary as (
+    select
+        d.tax_rate,
+        trunc(sum(raw_tax)) as total_tax
+    from
+        detail d
+    group by
+        d.tax_rate
+)
+select
+    line_id,
+    name,
+    unit_price,
+    quantity,
+    tax_rate,
+    price,
+    price + tax as tax_included_price,
+    tax
+from
+    (
+        select
+            line_id,
+            name,
+            unit_price,
+            quantity,
+            tax_rate,
+            price,
+            tax + adjust_tax as tax
+        from
+            (
+                select
+                    q.*,
+                    case when q.total_tax - q.cumulative >= q.priority then 1 else 0 end as adjust_tax
+                from
+                    (
+                        select
+                            d.*,
+                            s.total_tax,
+                            sum(d.tax) over (partition by d.tax_rate) as cumulative,
+                            row_number() over (partition by d.tax_rate order by d.raw_tax % 1 desc, d.line_id) as priority
+                        from
+                            detail d
+                            inner join tax_summary s on d.tax_rate = s.tax_rate
+                    ) q
+            ) q
+    ) q
+order by
+    line_id
+        `;
+        const query = SelectQueryParser.parse(sql);
+        const collector = new CTECollector();
+
+        // Act
+        collector.visit(query);
+        const commonTables = collector.getCommonTables();
+
+        // Assert
+        expect(commonTables.length).toBe(3);
+        expect(commonTables[0].getAliasSourceName()).toBe('dat');
+        expect(commonTables[1].getAliasSourceName()).toBe('detail');
+        expect(commonTables[2].getAliasSourceName()).toBe('tax_summary');
+    });
 });
