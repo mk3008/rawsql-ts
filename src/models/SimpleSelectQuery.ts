@@ -191,9 +191,9 @@ export class SimpleSelectQuery extends SqlComponent {
      * Appends an INNER JOIN clause to the query.
      * @param joinSourceRawText The table source text to join (e.g., "my_table", "schema.my_table")
      * @param alias The alias for the joined table
-     * @param columns The columns to use for the join condition (e.g. ["user_id"])
+     * @param columns The columns to use for the join condition (e.g. ["user_id"] or "user_id")
      */
-    public innerJoinRaw(joinSourceRawText: string, alias: string, columns: string[]): void {
+    public innerJoinRaw(joinSourceRawText: string, alias: string, columns: string | string[]): void {
         this.joinSourceRaw('inner join', joinSourceRawText, alias, columns);
     }
 
@@ -203,7 +203,7 @@ export class SimpleSelectQuery extends SqlComponent {
      * @param alias The alias for the joined table
      * @param columns The columns to use for the join condition
      */
-    public leftJoinRaw(joinSourceRawText: string, alias: string, columns: string[]): void {
+    public leftJoinRaw(joinSourceRawText: string, alias: string, columns: string | string[]): void {
         this.joinSourceRaw('left join', joinSourceRawText, alias, columns);
     }
 
@@ -213,7 +213,7 @@ export class SimpleSelectQuery extends SqlComponent {
      * @param alias The alias for the joined table
      * @param columns The columns to use for the join condition
      */
-    public rightJoinRaw(joinSourceRawText: string, alias: string, columns: string[]): void {
+    public rightJoinRaw(joinSourceRawText: string, alias: string, columns: string | string[]): void {
         this.joinSourceRaw('right join', joinSourceRawText, alias, columns);
     }
 
@@ -222,7 +222,7 @@ export class SimpleSelectQuery extends SqlComponent {
      * @param sourceExpr The source expression to join
      * @param columns The columns to use for the join condition
      */
-    public innerJoin(sourceExpr: SourceExpression, columns: string[]): void {
+    public innerJoin(sourceExpr: SourceExpression, columns: string | string[]): void {
         this.joinSource('inner join', sourceExpr, columns);
     }
 
@@ -231,7 +231,7 @@ export class SimpleSelectQuery extends SqlComponent {
      * @param sourceExpr The source expression to join
      * @param columns The columns to use for the join condition
      */
-    public leftJoin(sourceExpr: SourceExpression, columns: string[]): void {
+    public leftJoin(sourceExpr: SourceExpression, columns: string | string[]): void {
         this.joinSource('left join', sourceExpr, columns);
     }
 
@@ -240,7 +240,7 @@ export class SimpleSelectQuery extends SqlComponent {
      * @param sourceExpr The source expression to join
      * @param columns The columns to use for the join condition
      */
-    public rightJoin(sourceExpr: SourceExpression, columns: string[]): void {
+    public rightJoin(sourceExpr: SourceExpression, columns: string | string[]): void {
         this.joinSource('right join', sourceExpr, columns);
     }
 
@@ -251,18 +251,27 @@ export class SimpleSelectQuery extends SqlComponent {
      * @param joinType Type of join (e.g., 'inner join', 'left join')
      * @param joinSourceRawText Raw text for the table/source to join (e.g., "my_table", "schema.another_table")
      * @param alias Alias for the table/source being joined
-     * @param columns Array of column names to join on
+     * @param columns Array or string of column names to join on
      */
-    private joinSourceRaw(joinType: string, joinSourceRawText: string, alias: string, columns: string[]): void {
+    private joinSourceRaw(joinType: string, joinSourceRawText: string, alias: string, columns: string | string[]): void {
         const tableSource = SourceParser.parse(joinSourceRawText);
         const sourceExpr = new SourceExpression(tableSource, new SourceAliasExpression(alias, null));
         this.joinSource(joinType, sourceExpr, columns);
     }
 
-    private joinSource(joinType: string, sourceExpr: SourceExpression, columns: string[]): void {
+    /**
+     * Internal helper to append a JOIN clause using a SourceExpression.
+     * @param joinType Type of join (e.g., 'inner join', 'left join')
+     * @param sourceExpr The source expression to join
+     * @param columns Array or string of column names to join on
+     */
+    private joinSource(joinType: string, sourceExpr: SourceExpression, columns: string | string[]): void {
         if (!this.fromClause) {
             throw new Error('A FROM clause is required to add a JOIN condition.');
         }
+
+        // Always treat columns as array
+        const columnsArr = Array.isArray(columns) ? columns : [columns];
 
         const collector = new SelectableColumnCollector();
         const valueSets = collector.collect(this);
@@ -275,7 +284,7 @@ export class SimpleSelectQuery extends SqlComponent {
         }
 
         for (const valueSet of valueSets) {
-            if (columns.some(col => col == valueSet.name)) {
+            if (columnsArr.some(col => col == valueSet.name)) {
                 const expr = new BinaryExpression(
                     valueSet.value,
                     '=',
@@ -294,8 +303,8 @@ export class SimpleSelectQuery extends SqlComponent {
             }
         }
 
-        if (!joinCondition || count !== columns.length) {
-            throw new Error(`Invalid JOIN condition. The specified columns were not found: ${columns.join(', ')}`);
+        if (!joinCondition || count !== columnsArr.length) {
+            throw new Error(`Invalid JOIN condition. The specified columns were not found: ${columnsArr.join(', ')}`);
         }
 
         const joinOnClause = new JoinOnClause(joinCondition);
@@ -309,8 +318,6 @@ export class SimpleSelectQuery extends SqlComponent {
             }
         }
 
-        // const normalizer = new CTENormalizer();
-        // normalizer.normalize(this);
         CTENormalizer.normalize(this);
     }
 
@@ -335,8 +342,6 @@ export class SimpleSelectQuery extends SqlComponent {
             this.WithClause.tables.push(...tables);
         }
 
-        // const normalizer = new CTENormalizer();
-        // normalizer.normalize(this);
         CTENormalizer.normalize(this);
     }
 
