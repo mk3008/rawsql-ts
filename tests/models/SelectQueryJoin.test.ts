@@ -112,4 +112,62 @@ describe('SimpleSelectQuery JOIN API', () => {
         // Assert
         expect(result.replace(/\s+/g, ' ').trim()).toBe(expected);
     });
+
+    test('innerJoinRaw: single string column', () => {
+        const sql = 'SELECT u.id, u.name FROM users u';
+        const query = SelectQueryParser.parse(sql) as SimpleSelectQuery;
+        query.innerJoinRaw('orders', 'o', 'id');
+        const result = formatter.format(query);
+        const expected = 'select "u"."id", "u"."name" from "users" as "u" inner join "orders" as "o" on "u"."id" = "o"."id"';
+        expect(result.replace(/\s+/g, ' ').trim()).toBe(expected);
+    });
+
+    test('leftJoinRaw: single string column', () => {
+        const sql = 'SELECT u.id, u.name FROM users u';
+        const query = SelectQueryParser.parse(sql) as SimpleSelectQuery;
+        query.leftJoinRaw('orders', 'o', 'id');
+        const result = formatter.format(query);
+        const expected = 'select "u"."id", "u"."name" from "users" as "u" left join "orders" as "o" on "u"."id" = "o"."id"';
+        expect(result.replace(/\s+/g, ' ').trim()).toBe(expected);
+    });
+
+    test('rightJoinRaw: single string column', () => {
+        const sql = 'SELECT u.id FROM users u';
+        const query = SelectQueryParser.parse(sql) as SimpleSelectQuery;
+        query.rightJoinRaw('public.orders', 'o', 'id');
+        const result = formatter.format(query);
+        const expected = 'select "u"."id" from "users" as "u" right join "public"."orders" as "o" on "u"."id" = "o"."id"';
+        expect(result.replace(/\s+/g, ' ').trim()).toBe(expected);
+    });
+
+    test('innerJoin: single string column', () => {
+        const sql = 'SELECT u.id, u.name FROM users u';
+        const query = SelectQueryParser.parse(sql) as SimpleSelectQuery;
+        // SourceExpressionバージョン
+        const subquery = SelectQueryParser.parse('SELECT id, name FROM orders') as SimpleSelectQuery;
+        query.innerJoin(subquery.toSource('o'), 'id');
+        const result = formatter.format(query);
+        const expected = 'select "u"."id", "u"."name" from "users" as "u" inner join (select "id", "name" from "orders") as "o" on "u"."id" = "o"."id"';
+        expect(result.replace(/\s+/g, ' ').trim()).toBe(expected);
+    });
+
+    test('leftJoin: single string column', () => {
+        const sql = 'SELECT u.id, u.name FROM users u';
+        const query = SelectQueryParser.parse(sql) as SimpleSelectQuery;
+        const subquery = SelectQueryParser.parse('SELECT id, name FROM orders') as SimpleSelectQuery;
+        query.leftJoin(subquery.toSource('o'), 'id');
+        const result = formatter.format(query);
+        const expected = 'select "u"."id", "u"."name" from "users" as "u" left join (select "id", "name" from "orders") as "o" on "u"."id" = "o"."id"';
+        expect(result.replace(/\s+/g, ' ').trim()).toBe(expected);
+    });
+
+    test('rightJoin: single string column', () => {
+        const sql = 'SELECT u.id FROM users u';
+        const query = SelectQueryParser.parse(sql) as SimpleSelectQuery;
+        const subquery = SelectQueryParser.parse('SELECT id FROM orders') as SimpleSelectQuery;
+        query.rightJoin(subquery.toSource('o'), 'id');
+        const result = formatter.format(query);
+        const expected = 'select "u"."id" from "users" as "u" right join (select "id" from "orders") as "o" on "u"."id" = "o"."id"';
+        expect(result.replace(/\s+/g, ' ').trim()).toBe(expected);
+    });
 });
