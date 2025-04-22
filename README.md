@@ -6,6 +6,8 @@
 ![npm downloads](https://img.shields.io/npm/dm/rawsql-ts)
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 
+🌐 [Online Demo (GitHub Pages)](https://mk3008.github.io/rawsql-ts/)
+
 rawsql-ts is a high-performance SQL parser and AST transformer library written in TypeScript. It is designed for extensibility and advanced SQL analysis, with initial focus on PostgreSQL syntax but not limited to it. The library enables easy SQL parsing, transformation, and analysis for a wide range of SQL dialects.
 
 > **Note:** This library is currently in beta. The API may change until the v1.0 release.
