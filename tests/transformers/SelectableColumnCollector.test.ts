@@ -610,4 +610,21 @@ describe('SelectableColumnCollector', () => {
         expect(items.length).toBe(1); // Only 'active' from WHERE clause, wildcard not expanded
         expect(columnNames).toContain('active');
     });
+
+    test('collects column references from window function with PARTITION BY', () => {
+        // Arrange
+        const sql = `SELECT sum(tax) OVER(PARTITION BY user_id) FROM sales`;
+        const query = SelectQueryParser.parse(sql);
+        const collector = new SelectableColumnCollector();
+
+        // Act
+        collector.visit(query);
+        const items = collector.collect(query);
+        const columnNames = items.map(item => item.name);
+        const expressions = items.map(item => formatter.format(item.value));
+
+        // Assert
+        expect(columnNames).toContain('user_id');
+        expect(columnNames).toContain('tax');
+    });
 });

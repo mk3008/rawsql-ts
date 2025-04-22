@@ -59,30 +59,50 @@
          * Format and analyze the SQL in the textarea and display the results.
          */
         function analyzeSql() {
+            // Clear previous results
+            output.textContent = '';
+            selectValuesEl.textContent = '';
+            selectableColumnsEl.textContent = '';
+            tableSourcesEl.textContent = '';
+
+            // Format SQL
             try {
                 const query = SelectQueryParser.parse(input.value);
                 const formatter = new Formatter();
-                output.textContent = formatter.format(query);
+                try {
+                    output.textContent = formatter.format(query);
+                } catch (e) {
+                    output.textContent = '[Formatter Error] ' + e.message;
+                }
 
                 // Select values
-                const selectValueCollector = new SelectValueCollector();
-                const selectValues = selectValueCollector.collect(query);
-                selectValuesEl.textContent = selectValues.map(val => `name: ${val.name}, value: ${formatter.format(val.value)}`).join('\n');
+                try {
+                    const selectValueCollector = new SelectValueCollector();
+                    const selectValues = selectValueCollector.collect(query);
+                    selectValuesEl.textContent = selectValues.map(val => `name: ${val.name}, value: ${formatter.format(val.value)}`).join('\n');
+                } catch (e) {
+                    selectValuesEl.textContent = '[SelectValueCollector Error] ' + e.message;
+                }
 
                 // Selectable columns
-                const selectableColumnCollector = new SelectableColumnCollector();
-                const selectableColumns = selectableColumnCollector.collect(query);
-                selectableColumnsEl.textContent = selectableColumns.map(val => `name: ${val.name}, value: ${formatter.format(val.value)}`).join('\n');
+                try {
+                    const selectableColumnCollector = new SelectableColumnCollector();
+                    const selectableColumns = selectableColumnCollector.collect(query);
+                    selectableColumnsEl.textContent = selectableColumns.map(val => `name: ${val.name}, value: ${formatter.format(val.value)}`).join('\n');
+                } catch (e) {
+                    selectableColumnsEl.textContent = '[SelectableColumnCollector Error] ' + e.message;
+                }
 
                 // Table sources
-                const tableSourceCollector = new TableSourceCollector(false);
-                const sources = tableSourceCollector.collect(query);
-                tableSourcesEl.textContent = sources.map(src => `name: ${src.getSourceName()}`).join('\n');
+                try {
+                    const tableSourceCollector = new TableSourceCollector(false);
+                    const sources = tableSourceCollector.collect(query);
+                    tableSourcesEl.textContent = sources.map(src => `name: ${src.getSourceName()}`).join('\n');
+                } catch (e) {
+                    tableSourcesEl.textContent = '[TableSourceCollector Error] ' + e.message;
+                }
             } catch (e) {
-                output.textContent = 'Error: ' + e.message;
-                selectValuesEl.textContent = '';
-                selectableColumnsEl.textContent = '';
-                tableSourcesEl.textContent = '';
+                output.textContent = '[Parse Error] ' + e.message;
             }
         }
 

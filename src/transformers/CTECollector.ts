@@ -93,6 +93,7 @@ export class CTECollector implements SqlComponentVisitor<void> {
         this.handlers.set(LimitClause.kind, (expr) => this.visitLimitClause(expr as LimitClause));
         this.handlers.set(ForClause.kind, (expr) => this.visitForClause(expr as ForClause));
         this.handlers.set(OrderByItem.kind, (expr) => this.visitOrderByItem(expr as OrderByItem));
+        this.handlers.set(PartitionByClause.kind, (expr) => this.visitPartitionByClause(expr as PartitionByClause));
     }
 
     /**
@@ -464,5 +465,9 @@ export class CTECollector implements SqlComponentVisitor<void> {
 
     private visitLiteralValue(value: LiteralValue): void {
         // Literal values are leaf nodes
+    }
+
+    public visitPartitionByClause(partitionBy: PartitionByClause): void {
+        // don't have subqueries
     }
 }

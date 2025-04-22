@@ -162,4 +162,19 @@ describe('SelectItemCollector', () => {
         // Ensure id only appears once
         expect(itemNames.filter(name => name === 'id').length).toBe(1);
     });
+
+    test('collects select items from window function with PARTITION BY', () => {
+        // Arrange
+        const sql = `SELECT sum(tax) OVER(PARTITION BY user_id) as total_tax FROM sales`;
+        const query = SelectQueryParser.parse(sql);
+        const collector = new SelectValueCollector();
+
+        // Act
+        const selectItems = collector.collect(query);
+
+        // Assert
+        // The select item should be 'total_tax'
+        expect(selectItems.length).toBe(1);
+        expect(selectItems[0].name).toBe('total_tax');
+    });
 });

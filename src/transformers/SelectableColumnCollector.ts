@@ -1,8 +1,7 @@
-// filepath: c:\Users\mssgm\Documents\GitHub\carbunqlex-ts\src\visitors\ColumnReferenceCollector.ts
-import { CommonTable, ForClause, FromClause, GroupByClause, HavingClause, LimitClause, OrderByClause, SelectClause, WhereClause, WindowFrameClause, JoinClause, JoinOnClause, JoinUsingClause, TableSource, SubQuerySource, SourceExpression, SelectItem } from "../models/Clause";
+import { CommonTable, ForClause, FromClause, GroupByClause, HavingClause, LimitClause, OrderByClause, SelectClause, WhereClause, WindowFrameClause, JoinClause, JoinOnClause, JoinUsingClause, TableSource, SubQuerySource, SourceExpression, SelectItem, PartitionByClause } from "../models/Clause";
 import { SimpleSelectQuery } from "../models/SelectQuery";
 import { SqlComponent, SqlComponentVisitor } from "../models/SqlComponent";
-import { ArrayExpression, BetweenExpression, BinaryExpression, CaseExpression, CastExpression, ColumnReference, FunctionCall, InlineQuery, ParenExpression, UnaryExpression, ValueComponent, ValueList } from "../models/ValueComponent";
+import { ArrayExpression, BetweenExpression, BinaryExpression, CaseExpression, CastExpression, ColumnReference, FunctionCall, InlineQuery, ParenExpression, UnaryExpression, ValueComponent, ValueList, WindowFrameExpression } from "../models/ValueComponent";
 import { CTECollector } from "./CTECollector";
 import { Formatter } from "./Formatter";
 import { SelectValueCollector, TableColumnResolver } from "./SelectValueCollector";
@@ -64,6 +63,9 @@ export class SelectableColumnCollector implements SqlComponentVisitor<void> {
         this.handlers.set(BetweenExpression.kind, (expr) => this.visitBetweenExpression(expr as BetweenExpression));
         this.handlers.set(ArrayExpression.kind, (expr) => this.visitArrayExpression(expr as ArrayExpression));
         this.handlers.set(ValueList.kind, (expr) => this.visitValueList(expr as ValueList));
+        this.handlers.set(WindowFrameClause.kind, (expr) => this.visitWindowFrameClause(expr as WindowFrameClause));
+        this.handlers.set(WindowFrameExpression.kind, (expr) => this.visitWindowFrameExpression(expr as WindowFrameExpression));
+        this.handlers.set(PartitionByClause.kind, (expr) => this.visitPartitionByClause(expr as PartitionByClause));
     }
 
     public getValues(): { name: string, value: ValueComponent }[] {
@@ -248,8 +250,18 @@ export class SelectableColumnCollector implements SqlComponentVisitor<void> {
     }
 
     private visitWindowFrameClause(clause: WindowFrameClause): void {
-        if (clause.expression) {
-            clause.expression.accept(this);
+        clause.expression.accept(this);
+    }
+
+    private visitWindowFrameExpression(expr: WindowFrameExpression): void {
+        if (expr.partition) {
+            expr.partition.accept(this);
+        }
+        if (expr.order) {
+            expr.order.accept(this);
+        }
+        if (expr.frameSpec) {
+            expr.frameSpec.accept(this);
         }
     }
 
@@ -357,5 +369,9 @@ export class SelectableColumnCollector implements SqlComponentVisitor<void> {
                 value.accept(this);
             }
         }
+    }
+
+    private visitPartitionByClause(clause: PartitionByClause): void {
+        clause.value.accept(this);
     }
 }
