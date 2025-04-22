@@ -28,30 +28,61 @@ import {
     TupleExpression
 } from "../models/ValueComponent";
 import { CommonTable, Distinct, DistinctOn, FetchSpecification, FetchType, ForClause, FromClause, FunctionSource, GroupByClause, HavingClause, JoinClause, JoinOnClause, JoinUsingClause, LimitClause, NullsSortDirection, OrderByClause, OrderByItem, PartitionByClause, SelectClause, SelectItem, SortDirection, SourceAliasExpression, SourceExpression, SubQuerySource, TableSource, WhereClause, WindowFrameClause, WithClause } from "../models/Clause";
-
-interface FormatterConfig {
-    identifierEscape: {
-        start: string;
-        end: string;
-    };
-    parameterSymbol: string;
-}
+import { FormatterConfig } from "./FormatterConfig";
+import { DatabaseEnvConfig } from "./DatabaseEnvConfig";
 
 export class Formatter implements SqlComponentVisitor<string> {
     private handlers: Map<symbol, (arg: any) => string>;
     private config: FormatterConfig;
+    private dbEnv: DatabaseEnvConfig;
+    private indentLevel: number = 0;
 
-    constructor() {
+    /**
+     * Returns the current indentation string based on config and indentLevel.
+     */
+    private getIndent(): string {
+        const type = this.config.indentType ?? "space";
+        const size = this.config.indentSize ?? 4;
+        if (type === "tab") {
+            return "\t".repeat(this.indentLevel);
+        } else {
+            return " ".repeat(this.indentLevel * size);
+        }
+    }
+
+    /**
+     * Formatter constructor.
+     * You can pass only the options you want to override; defaults will be merged automatically.
+     */
+    constructor(
+        dbEnv: Partial<DatabaseEnvConfig> = {},
+        config: Partial<FormatterConfig> = {}
+    ) {
         this.handlers = new Map<symbol, (arg: any) => string>();
-
-        // Default settings
-        this.config = {
-            identifierEscape: {
-                start: '"',
-                end: '"'
-            },
-            parameterSymbol: ':' // Use PostgreSQL style as default
+        // Default DB environment config
+        const defaultDbEnv: DatabaseEnvConfig = {
+            identifierEscape: { start: '"', end: '"' },
+            parameterSymbol: ':',
         };
+        // Default formatter config
+        const defaultConfig: FormatterConfig = {
+            oneLiner: true,
+            clauseIndent: {
+                select: true,
+                from: true,
+                where: true,
+                groupBy: true,
+                having: true,
+                orderBy: true,
+                window: true,
+                with: true,
+                values: true
+            },
+            andNewline: true,
+            keywordCase: "lower"
+        };
+        this.dbEnv = { ...defaultDbEnv, ...dbEnv, identifierEscape: { ...defaultDbEnv.identifierEscape, ...(dbEnv.identifierEscape || {}) } };
+        this.config = { ...defaultConfig, ...config, clauseIndent: { ...defaultConfig.clauseIndent, ...(config.clauseIndent || {}) } };
 
         // value
         this.handlers.set(LiteralValue.kind, (expr) => this.visitLiteralExpression(expr as LiteralValue));
@@ -141,10 +172,7 @@ export class Formatter implements SqlComponentVisitor<string> {
      * @param config (Optional) Formatter configuration.
      * @returns The formatted SQL string.
      */
-    public format(arg: SqlComponent, config: FormatterConfig | null = null): string {
-        if (config) {
-            this.config = config;
-        }
+    public format(arg: SqlComponent): string {
         return this.visit(arg);
     }
 
@@ -273,6 +301,15 @@ export class Formatter implements SqlComponentVisitor<string> {
     }
 
     private visitHavingClause(arg: HavingClause): string {
+        // Pretty print if oneLiner is false and clauseIndent.having is true
+        if (!this.config.oneLiner && this.config.clauseIndent?.having) {
+            this.indentLevel++;
+            let result = 'having\n';
+            result += this.getIndent() + arg.condition.accept(this);
+            this.indentLevel--;
+            return result;
+        }
+        // One-liner: no indent
         return `having ${arg.condition.accept(this)}`;
     }
 
@@ -282,6 +319,22 @@ export class Formatter implements SqlComponentVisitor<string> {
     }
 
     private visitFromClause(arg: FromClause): string {
+        // Pretty print if oneLiner is false and clauseIndent.from is true
+        if (!this.config.oneLiner && this.config.clauseIndent?.from) {
+            this.indentLevel++;
+            const indent = this.getIndent();
+            let result = 'from\n';
+            // from source
+            result += indent + arg.source.accept(this);
+            // joins
+            if (arg.joins !== null && arg.joins.length > 0) {
+                for (const join of arg.joins) {
+                    result += '\n' + indent + join.accept(this);
+                }
+            }
+            this.indentLevel--;
+            return result;
+        }
         if (arg.joins !== null && arg.joins.length > 0) {
             const part = arg.joins.map((e) => e.accept(this)).join(" ");
             return `from ${arg.source.accept(this)} ${part}`;
@@ -384,7 +437,17 @@ export class Formatter implements SqlComponentVisitor<string> {
     }
 
     private visitBinaryExpression(arg: BinaryExpression): string {
-        return `${arg.left.accept(this)} ${arg.operator.accept(this)} ${arg.right.accept(this)}`;
+        // If the operator is AND and config.andNewline is true, break line and indent
+        const operatorStr = arg.operator.accept(this);
+        if (!this.config.oneLiner && this.config.andNewline && operatorStr.trim().toLowerCase() === 'and') {
+            const indent = this.getIndent();
+            const left = arg.left.accept(this);
+            const right = arg.right.accept(this);
+            // Place AND at the beginning of the new line
+            return `${left}\n${indent}and ${right}`;
+        }
+        // Default: one line
+        return `${arg.left.accept(this)} ${operatorStr} ${arg.right.accept(this)}`;
     }
 
     private visitLiteralExpression(arg: LiteralValue): string {
@@ -397,7 +460,7 @@ export class Formatter implements SqlComponentVisitor<string> {
     }
 
     private visitParameterExpression(arg: ParameterExpression): string {
-        return `${this.config.parameterSymbol}${arg.name.accept(this)}`;
+        return `${this.dbEnv.parameterSymbol}${arg.name.accept(this)}`;
     }
 
     private visitSelectExpression(arg: SelectItem): string {
@@ -417,53 +480,84 @@ export class Formatter implements SqlComponentVisitor<string> {
 
     private visitSelectClause(arg: SelectClause): string {
         const distinct = arg.distinct !== null ? " " + arg.distinct.accept(this) : "";
-        const colum = arg.items.map((e) => e.accept(this)).join(", ");
-        return `select${distinct} ${colum}`;
+        // Pretty print if oneLiner is false and clauseIndent.select is true
+        if (!this.config.oneLiner && this.config.clauseIndent?.select) {
+            this.indentLevel++;
+            const indent = this.getIndent();
+            let items: string[] = [];
+            for (let i = 0; i < arg.items.length; i++) {
+                const value = arg.items[i].accept(this);
+                if (i === 0) {
+                    items.push(indent + value);
+                } else if (this.config.commaPosition === "before") {
+                    // Comma before, indent before comma
+                    items.push(indent + ", " + value);
+                } else {
+                    // Comma after, indent before value
+                    items[items.length - 1] += ",";
+                    items.push(indent + value);
+                }
+            }
+            this.indentLevel--;
+            // Remove trailing newline for pretty print
+            return `select${distinct}\n${items.join("\n")}`;
+        } else {
+            // One-liner or no select indent
+            const colum = arg.items.map((e) => e.accept(this)).join(", ");
+            return `select${distinct} ${colum}`;
+        }
     }
 
     private visitSelectQuery(arg: SimpleSelectQuery): string {
+        // If oneLiner, keep old logic
+        if (this.config.oneLiner) {
+            const parts: string[] = [];
+            if (arg.WithClause !== null) parts.push(arg.WithClause.accept(this));
+            parts.push(arg.selectClause.accept(this));
+            if (arg.fromClause !== null) parts.push(arg.fromClause.accept(this));
+            if (arg.whereClause !== null) parts.push(arg.whereClause.accept(this));
+            if (arg.groupByClause !== null) parts.push(arg.groupByClause.accept(this));
+            if (arg.havingClause !== null) parts.push(arg.havingClause.accept(this));
+            if (arg.windowFrameClause !== null) parts.push(arg.windowFrameClause.accept(this));
+            if (arg.orderByClause !== null) parts.push(arg.orderByClause.accept(this));
+            if (arg.rowLimitClause !== null) parts.push(arg.rowLimitClause.accept(this));
+            if (arg.forClause !== null) parts.push(arg.forClause.accept(this));
+            return parts.join(" ");
+        }
+
+        // Pretty print: add newlines for each clause except the first
         const parts: string[] = [];
-
-        // WITH
-        if (arg.WithClause !== null) {
-            parts.push(arg.WithClause.accept(this));
-        }
-
-        parts.push(arg.selectClause.accept(this));
-
-        if (arg.fromClause !== null) {
-            parts.push(arg.fromClause.accept(this));
-        }
-
-        if (arg.whereClause !== null) {
-            parts.push(arg.whereClause.accept(this));
-        }
-
-        if (arg.groupByClause !== null) {
-            parts.push(arg.groupByClause.accept(this));
-        }
-
-        if (arg.havingClause !== null) {
-            parts.push(arg.havingClause.accept(this));
-        }
-
-        if (arg.windowFrameClause !== null) {
-            parts.push(arg.windowFrameClause.accept(this));
-        }
-
-        if (arg.orderByClause !== null) {
-            parts.push(arg.orderByClause.accept(this));
-        }
-
-        if (arg.rowLimitClause !== null) {
-            parts.push(arg.rowLimitClause.accept(this));
-        }
-
-        if (arg.forClause !== null) {
-            parts.push(arg.forClause.accept(this));
-        }
-
-        return parts.join(" ");
+        let isFirst = true;
+        const pushClause = (clause: SqlComponent | null, forceOneLiner = false) => {
+            if (!clause) return;
+            let str: string;
+            if (forceOneLiner) {
+                // Temporarily override oneLiner for selectClause
+                const prev = this.config.oneLiner;
+                this.config.oneLiner = true;
+                str = clause.accept(this);
+                this.config.oneLiner = prev;
+            } else {
+                str = clause.accept(this);
+            }
+            if (isFirst) {
+                parts.push(str);
+                isFirst = false;
+            } else {
+                parts.push("\n" + str);
+            }
+        };
+        pushClause(arg.WithClause);
+        pushClause(arg.selectClause, true); // force oneLiner for selectClause
+        pushClause(arg.fromClause);
+        pushClause(arg.whereClause);
+        pushClause(arg.groupByClause);
+        pushClause(arg.havingClause);
+        pushClause(arg.windowFrameClause);
+        pushClause(arg.orderByClause);
+        pushClause(arg.rowLimitClause);
+        pushClause(arg.forClause);
+        return parts.join("");
     }
 
     private visitArrayExpression(arg: ArrayExpression): string {
@@ -542,6 +636,15 @@ export class Formatter implements SqlComponentVisitor<string> {
     }
 
     private visitWhereClause(arg: WhereClause): string {
+        // Pretty print if clauseIndent.where is true
+        if (!this.config.oneLiner && this.config.clauseIndent?.where) {
+            this.indentLevel++;
+            let result = 'where\n';
+            result += this.getIndent() + arg.condition.accept(this);
+            this.indentLevel--;
+            return result;
+        }
+        // One-liner: no indent
         return `where ${arg.condition.accept(this)}`;
     }
 
@@ -564,7 +667,7 @@ export class Formatter implements SqlComponentVisitor<string> {
         if (arg.name === '*') {
             return arg.name;
         }
-        return `${this.config.identifierEscape.start}${arg.name}${this.config.identifierEscape.end}`;
+        return `${this.dbEnv.identifierEscape.start}${arg.name}${this.dbEnv.identifierEscape.end}`;
     }
 
     private visitValuesQuery(arg: ValuesQuery): string {
