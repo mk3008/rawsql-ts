@@ -165,7 +165,7 @@ export class Formatter implements SqlComponentVisitor<string> {
         // Provide more detailed error message
         const kindSymbol = arg.getKind()?.toString() || 'unknown';
         const constructor = arg.constructor?.name || 'unknown';
-        throw new Error(`No handler for ${constructor} with kind ${kindSymbol}. Consider adding a handler for this type.`);
+        throw new Error(`[Formatter] No handler for ${constructor} with kind ${kindSymbol}.`);
     }
 
     private visitBinarySelectQuery(arg: BinarySelectQuery): string {

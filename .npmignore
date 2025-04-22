@@ -31,5 +31,6 @@ node_modules/
 .DS_Store
 Thumbs.db
 
-# Ignore demo folder
+# Ignore demo, docs folder
 demo/
+docs/
