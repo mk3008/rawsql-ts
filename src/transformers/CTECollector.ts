@@ -8,7 +8,8 @@ import {
     OverExpression, WindowFrameExpression, IdentifierString, RawString,
     WindowFrameSpec,
     LiteralValue,
-    TypeValue
+    TypeValue,
+    ValueList
 } from "../models/ValueComponent";
 
 /**
@@ -83,6 +84,7 @@ export class CTECollector implements SqlComponentVisitor<void> {
         this.handlers.set(WindowFrameExpression.kind, (expr) => this.visitWindowFrameExpression(expr as WindowFrameExpression));
         this.handlers.set(WindowFrameSpec.kind, (expr) => this.visitWindowFrameSpec(expr as WindowFrameSpec));
         this.handlers.set(TypeValue.kind, (expr) => this.visitTypeValue(expr as TypeValue));
+        this.handlers.set(ValueList.kind, (expr) => this.visitValueList(expr as ValueList));
 
         // Add handlers for other clause types
         this.handlers.set(SelectClause.kind, (expr) => this.visitSelectClause(expr as SelectClause));
@@ -469,5 +471,11 @@ export class CTECollector implements SqlComponentVisitor<void> {
 
     public visitPartitionByClause(partitionBy: PartitionByClause): void {
         // don't have subqueries
+    }
+
+    public visitValueList(valueList: ValueList): void {
+        for (const value of valueList.values) {
+            value.accept(this);
+        }
     }
 }
