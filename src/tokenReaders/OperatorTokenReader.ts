@@ -94,6 +94,13 @@ export class OperatorTokenReader extends BaseTokenReader {
         const result = keywordParser.parse(this.input, this.position);
         if (result !== null) {
             this.position = result.newPosition;
+            if (result.keyword === "interval") {
+                // Special handling for interval
+                // Treated as an operator in cases like `interval '2 days'`,
+                // but can also be used as a type in expressions like `'1 month'::interval`,
+                // so we return it with maybeType = true.
+                return this.createLexeme(TokenType.Operator, result.keyword, true);
+            }
             return this.createLexeme(TokenType.Operator, result.keyword);
         }
 
