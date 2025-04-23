@@ -49,7 +49,6 @@
     <h1 style="display: flex; align-items: center; gap: 0.5em;">
         rawsql-ts
         <!-- GitHub icon and link -->
-        <!-- This section adds a GitHub icon with a link to the repository. -->
         <a href="https://github.com/mk3008/rawsql-ts" target="_blank" class="github-link"
             aria-label="GitHub Repository">
             <svg viewBox="0 0 16 16" aria-hidden="true">
@@ -59,6 +58,15 @@
             </svg>
         </a>
     </h1>
+    <!-- Installation section with npm link -->
+    <!-- This section provides installation instructions and links 'npm' to the official package page. -->
+    <section style="margin-bottom: 1.5em;">
+        <h2 style="font-size:1.1em; margin-bottom:0.3em;">Installation</h2>
+        <div style="font-size:0.98em;">
+            <a href="https://www.npmjs.com/package/rawsql-ts" target="_blank"
+                style="color:#cb3837; font-weight:bold; text-decoration:none;">npm</a> install rawsql-ts
+        </div>
+    </section>
     <p>Type your SQL below and see the formatted and analyzed result using <b>rawsql-ts</b> from CDN!</p>
     <textarea id="sql-input">SELECT u.user_id, u.user_name FROM users as u WHERE u.active = true</textarea>
     <br>
@@ -72,15 +80,18 @@
         <pre id="selectable-columns"></pre>
         <h2>Table Sources</h2>
         <pre id="table-sources"></pre>
+        <h2>CTEs (Common Tables)</h2>
+        <pre id="ctes"></pre>
     </div>
     <script type="module">
-        import { SelectQueryParser, Formatter, SelectValueCollector, SelectableColumnCollector, TableSourceCollector } from "https://unpkg.com/rawsql-ts/dist/esm/index.js";
+        import { SelectQueryParser, Formatter, SelectValueCollector, SelectableColumnCollector, TableSourceCollector, CTECollector } from "https://unpkg.com/rawsql-ts/dist/esm/index.js";
         const input = document.getElementById('sql-input');
         const output = document.getElementById('output');
         const btn = document.getElementById('run-btn');
         const selectValuesEl = document.getElementById('select-values');
         const selectableColumnsEl = document.getElementById('selectable-columns');
         const tableSourcesEl = document.getElementById('table-sources');
+        const ctesEl = document.getElementById('ctes');
 
         // Debounce timer for auto-format
         let debounceTimer = null;
@@ -95,6 +106,7 @@
             selectValuesEl.textContent = '';
             selectableColumnsEl.textContent = '';
             tableSourcesEl.textContent = '';
+            ctesEl.textContent = '';
 
             // Format SQL
             try {
@@ -131,6 +143,16 @@
                     tableSourcesEl.textContent = sources.map(src => `name: ${src.getSourceName()}`).join('\n');
                 } catch (e) {
                     tableSourcesEl.textContent = '[TableSourceCollector Error] ' + e.message;
+                }
+
+                // CTEs (Common Tables)
+                try {
+                    const cteCollector = new CTECollector();
+                    cteCollector.visit(query);
+                    const ctes = cteCollector.getCommonTables();
+                    ctesEl.textContent = ctes.map(cte => `name: ${cte.getAliasSourceName()}, query: ${formatter.format(cte.query)}`).join('\n');
+                } catch (e) {
+                    ctesEl.textContent = '[CTECollector Error] ' + e.message;
                 }
             } catch (e) {
                 output.textContent = '[Parse Error] ' + e.message;
