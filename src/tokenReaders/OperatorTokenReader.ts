@@ -55,6 +55,9 @@ const trie = new KeywordTrie([
 
 const keywordParser = new KeywordParser(trie);
 
+// Indicates the token may also represent a type (e.g., 'interval')
+const MAYBE_TYPE = true;
+
 export class OperatorTokenReader extends BaseTokenReader {
     public tryRead(previous: Lexeme | null): Lexeme | null {
         if (this.isEndOfInput()) {
@@ -99,7 +102,7 @@ export class OperatorTokenReader extends BaseTokenReader {
                 // Treated as an operator in cases like `interval '2 days'`,
                 // but can also be used as a type in expressions like `'1 month'::interval`,
                 // so we return it with maybeType = true.
-                return this.createLexeme(TokenType.Operator, result.keyword, true);
+                return this.createLexeme(TokenType.Operator, result.keyword, MAYBE_TYPE);
             }
             return this.createLexeme(TokenType.Operator, result.keyword);
         }
