@@ -61,6 +61,7 @@ describe('ValueParser', () => {
         ["CAST with CHARACTER VARYING", "text::CHARACTER VARYING(100)", "\"text\"::CHARACTER VARYING(100)"],
         ["CAST with TIME WITH TIME ZONE", "ts::TIME WITH TIME ZONE", "\"ts\"::TIME WITH TIME ZONE"],
         ["CAST with TIMESTAMP WITHOUT TIME ZONE", "date::TIMESTAMP WITHOUT TIME ZONE", "\"date\"::TIMESTAMP WITHOUT TIME ZONE"],
+        ["Postgres CAST with INTERVAL", "'1 month'::interval", "'1 month'::interval"],
         ["OVERLAY function - basic", "OVERLAY('abcdef' PLACING 'xyz' FROM 2)", "overlay('abcdef' placing 'xyz' from 2)"],
         ["OVERLAY function - with FOR", "OVERLAY('abcdef' PLACING 'xyz' FROM 2 FOR 3)", "overlay('abcdef' placing 'xyz' from 2 for 3)"],
         ["AT TIME ZONE - basic", "current_timestamp AT TIME ZONE 'JST'", "current_timestamp at time zone 'JST'"],
