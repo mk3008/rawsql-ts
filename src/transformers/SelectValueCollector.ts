@@ -1,4 +1,4 @@
-import { CommonTable, FromClause, JoinClause, ParenSource, SelectClause, SelectComponent, SelectItem, SourceExpression, SubQuerySource, TableSource } from "../models/Clause";
+import { CommonTable, FromClause, JoinClause, ParenSource, SelectClause, SelectItem, SourceExpression, SubQuerySource, TableSource } from "../models/Clause";
 import { BinarySelectQuery, SimpleSelectQuery, SelectQuery, ValuesQuery } from "../models/SelectQuery";
 import { SqlComponent, SqlComponentVisitor } from "../models/SqlComponent";
 import { ColumnReference, InlineQuery, LiteralValue, ValueComponent } from "../models/ValueComponent";
@@ -199,29 +199,24 @@ export class SelectValueCollector implements SqlComponentVisitor<void> {
 
     private visitSelectClause(clause: SelectClause): void {
         for (const item of clause.items) {
-            if (item instanceof SelectItem) {
-                this.processSelectItem(item); // Process SelectItem
-            } else {
-                this.processValueComponent(item); // Process ValueComponent
-            }
+            this.processSelectItem(item);
         }
     }
 
     private processSelectItem(item: SelectItem): void {
-        this.addSelectValueAsUnique(item.identifier.name, item.value);
-    }
-
-    private processValueComponent(value: ValueComponent): void {
-        if (value instanceof ColumnReference) {            // Handle column reference
+        if (item.identifier) {
+            this.addSelectValueAsUnique(item.identifier.name, item.value);
+        }
+        else if (item.value instanceof ColumnReference) {            // Handle column reference
             // columnName can be '*'
-            const columnName = value.column.name;
+            const columnName = item.value.column.name;
             if (columnName === '*') {
                 // Force add without checking duplicates
-                this.selectValues.push({ name: columnName, value: value });
+                this.selectValues.push({ name: columnName, value: item.value });
             }
             else {
                 // Add with duplicate checking
-                this.addSelectValueAsUnique(columnName, value);
+                this.addSelectValueAsUnique(columnName, item.value);
             }
         }
     }
@@ -272,5 +267,3 @@ export class SelectValueCollector implements SqlComponentVisitor<void> {
         }
     }
 }
-
-export { TableColumnResolver };

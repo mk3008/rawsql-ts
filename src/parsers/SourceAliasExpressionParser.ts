@@ -8,29 +8,29 @@ export class SourceAliasExpressionParser {
         let idx = index;
 
         // If there is a column alias, it may be detected as a function, so functions are also processed.
-        if (idx < lexemes.length && (lexemes[idx].type === TokenType.Identifier || lexemes[idx].type === TokenType.Function)) {
+        if (idx < lexemes.length && ((lexemes[idx].type & TokenType.Identifier) || (lexemes[idx].type & TokenType.Function))) {
             // Check for alias
             const table = lexemes[idx].value;
             idx++;
 
-            if (idx < lexemes.length && lexemes[idx].type === TokenType.OpenParen) {
+            if (idx < lexemes.length && (lexemes[idx].type & TokenType.OpenParen)) {
                 // Check for column alias
                 const columns: string[] = [];
 
                 // Skip the open parenthesis
                 idx++;
 
-                while (idx < lexemes.length && lexemes[idx].type === TokenType.Identifier) {
+                while (idx < lexemes.length && (lexemes[idx].type & TokenType.Identifier)) {
                     columns.push(lexemes[idx].value);
                     idx++;
-                    if (idx < lexemes.length && lexemes[idx].type === TokenType.Comma) {
+                    if (idx < lexemes.length && (lexemes[idx].type & TokenType.Comma)) {
                         idx++;
                     } else {
                         break; // Exit loop if not a comma
                     }
                 }
 
-                if (lexemes[idx].type === TokenType.CloseParen) {
+                if (lexemes[idx].type & TokenType.CloseParen) {
                     // Skip the closing parenthesis
                     idx++;
                 } else {

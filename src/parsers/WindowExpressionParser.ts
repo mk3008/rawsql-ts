@@ -126,7 +126,7 @@ export class WindowExpressionParser {
     private static parseFrameBoundary(lexemes: Lexeme[], index: number): { value: FrameBoundaryComponent, newIndex: number } {
         let idx = index;
         // Check for predefined boundaries
-        if (idx < lexemes.length && lexemes[idx].type === TokenType.Command) {
+        if (idx < lexemes.length && (lexemes[idx].type & TokenType.Command)) {
             const currentValue = lexemes[idx].value;
             let frameBound: WindowFrameBound;
             switch (currentValue) {
@@ -144,12 +144,12 @@ export class WindowExpressionParser {
             }
             const bound = new WindowFrameBoundStatic(frameBound);
             return { value: bound, newIndex: idx + 1 };
-        } else if (idx < lexemes.length && lexemes[idx].type === TokenType.Literal) {
+        } else if (idx < lexemes.length && (lexemes[idx].type & TokenType.Literal)) {
             // Parse the numeric/literal value
             const valueResult = ValueParser.parseFromLexeme(lexemes, idx);
             idx = valueResult.newIndex;
             // Next token must be 'preceding' or 'following'
-            if (idx < lexemes.length && lexemes[idx].type === TokenType.Command) {
+            if (idx < lexemes.length && (lexemes[idx].type & TokenType.Command)) {
                 const direction = lexemes[idx].value;
                 let isFollowing: boolean;
                 if (direction === 'preceding') {

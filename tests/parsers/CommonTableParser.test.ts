@@ -6,7 +6,7 @@ const formatter = new Formatter();
 
 test('simple common table', () => {
     // Arrange
-    const text = `temp_sales AS (SELECT * FROM sales WHERE date >= '2024-01-01')`;
+    const text = `temp_sales AS (SELECT * FROM sales WHERE "date" >= '2024-01-01')`;
 
     // Act
     const commonTable = CommonTableParser.parse(text);

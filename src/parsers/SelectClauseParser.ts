@@ -1,5 +1,6 @@
-import { Distinct, DistinctComponent, DistinctOn, SelectClause, SelectComponent, SelectItem } from "../models/Clause";
+import { Distinct, DistinctComponent, DistinctOn, SelectClause, SelectItem } from "../models/Clause";
 import { Lexeme, TokenType } from "../models/Lexeme";
+import { ColumnReference } from "../models/ValueComponent";
 import { SqlTokenizer } from "./SqlTokenizer";
 import { ValueParser } from "./ValueParser";
 
@@ -40,12 +41,12 @@ export class SelectClauseParser {
             idx = argument.newIndex;
         }
 
-        const items: SelectComponent[] = [];
+        const items: SelectItem[] = [];
         const item = this.parseItem(lexemes, idx);
         items.push(item.value);
         idx = item.newIndex;
 
-        while (idx < lexemes.length && lexemes[idx].type === TokenType.Comma) {
+        while (idx < lexemes.length && (lexemes[idx].type & TokenType.Comma)) {
             idx++;
             const item = this.parseItem(lexemes, idx);
             items.push(item.value);
@@ -60,9 +61,8 @@ export class SelectClauseParser {
         }
     }
 
-    private static parseItem(lexemes: Lexeme[], index: number): { value: SelectComponent; newIndex: number } {
+    private static parseItem(lexemes: Lexeme[], index: number): { value: SelectItem; newIndex: number } {
         let idx = index;
-
         const parsedValue = ValueParser.parseFromLexeme(lexemes, idx);
         const value = parsedValue.value;
         idx = parsedValue.newIndex;
@@ -72,19 +72,24 @@ export class SelectClauseParser {
             idx++;
         }
 
-        if (idx < lexemes.length && lexemes[idx].type === TokenType.Identifier) {
+        if (idx < lexemes.length && (lexemes[idx].type & TokenType.Identifier)) {
             const alias = lexemes[idx].value;
             idx++;
             return {
                 value: new SelectItem(value, alias),
                 newIndex: idx,
             };
-        } else {
-            // alias nameless
+        } else if (value instanceof ColumnReference && value.column.name !== "*") {
+            // nameless select item
             return {
-                value,
+                value: new SelectItem(value, value.column.name),
                 newIndex: idx,
             };
         }
+        // nameless select item
+        return {
+            value: new SelectItem(value),
+            newIndex: idx,
+        };
     }
 }

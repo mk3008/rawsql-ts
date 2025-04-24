@@ -24,7 +24,7 @@ export class CommandExpressionParser {
     private static parseModifierUnaryExpression(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number; } {
         let idx = index;
         // Check for modifier unary expression
-        if (idx < lexemes.length && lexemes[idx].type === TokenType.Command) {
+        if (idx < lexemes.length && (lexemes[idx].type & TokenType.Command)) {
             const command = lexemes[idx].value;
             idx++;
             const result = ValueParser.parseFromLexeme(lexemes, idx);
@@ -109,7 +109,7 @@ export class CommandExpressionParser {
 
     // Helper method: Check if a lexeme is a Command token with the specified value
     private static isCommandWithValue(lexeme: Lexeme, value: string): boolean {
-        return lexeme.type === TokenType.Command && lexeme.value === value;
+        return ((lexeme.type & TokenType.Command) !== 0) && lexeme.value === value;
     }
 
     private static parseCaseConditionValuePair(lexemes: Lexeme[], index: number): { value: CaseKeyValuePair; newIndex: number; } {
@@ -118,7 +118,7 @@ export class CommandExpressionParser {
         idx = condition.newIndex;
 
         // Check for the existence of the THEN keyword
-        if (idx >= lexemes.length || lexemes[idx].type !== TokenType.Command || lexemes[idx].value !== "then") {
+        if (idx >= lexemes.length || !(lexemes[idx].type & TokenType.Command) || lexemes[idx].value !== "then") {
             throw new Error(`Expected 'then' after WHEN condition at index ${idx}`);
         }
         idx++; // Skip the THEN keyword
@@ -133,7 +133,7 @@ export class CommandExpressionParser {
     private static parseArrayExpression(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number } {
         let idx = index;
         // Array function is enclosed in []
-        if (idx < lexemes.length && lexemes[idx].type === TokenType.OpenBracket) {
+        if (idx < lexemes.length && (lexemes[idx].type & TokenType.OpenBracket)) {
             const arg = ValueParser.parseArgument(TokenType.OpenBracket, TokenType.CloseBracket, lexemes, idx);
             idx = arg.newIndex;
             const value = new ArrayExpression(arg.value);
