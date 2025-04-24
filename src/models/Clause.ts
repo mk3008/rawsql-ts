@@ -2,24 +2,22 @@ import { SelectQuery, SimpleSelectQuery } from "./SelectQuery";
 import { SqlComponent } from "./SqlComponent";
 import { IdentifierString, RawString, TupleExpression, ValueComponent, WindowFrameExpression } from "./ValueComponent";
 
-export type SelectComponent = SelectItem | ValueComponent;
-
 export class SelectItem extends SqlComponent {
     static kind = Symbol("SelectItem");
     value: ValueComponent;
-    identifier: IdentifierString;
-    constructor(value: ValueComponent, name: string) {
+    identifier: IdentifierString | null;
+    constructor(value: ValueComponent, name: string | null = null) {
         super();
         this.value = value;
-        this.identifier = new IdentifierString(name);
+        this.identifier = name ? new IdentifierString(name) : null;
     }
 }
 
 export class SelectClause extends SqlComponent {
     static kind = Symbol("SelectClause");
-    items: SelectComponent[];
+    items: SelectItem[];
     distinct: DistinctComponent | null;
-    constructor(items: SelectComponent[], distinct: DistinctComponent | null = null) {
+    constructor(items: SelectItem[], distinct: DistinctComponent | null = null) {
         super();
         this.items = items;
         this.distinct = distinct;

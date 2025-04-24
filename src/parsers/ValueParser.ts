@@ -1,5 +1,5 @@
 import { Lexeme, TokenType } from "../models/Lexeme";
-import { ColumnReference, ValueComponent, ValueList } from "../models/ValueComponent";
+import { ColumnReference, LiteralValue, UnaryExpression, ValueComponent, ValueList } from "../models/ValueComponent";
 import { SqlTokenizer } from "./SqlTokenizer";
 import { IdentifierParser } from "./IdentifierParser";
 import { LiteralParser } from "./LiteralParser";
@@ -21,7 +21,7 @@ export class ValueParser {
 
         // Error if there are remaining tokens
         if (result.newIndex < lexemes.length) {
-            throw new Error(`Unexpected token at index ${result.newIndex}: ${lexemes[result.newIndex].value}`);
+            throw new Error(`[ValueParser] Unexpected token at index ${result.newIndex}: ${lexemes[result.newIndex].value}`);
         }
 
         return result.value;
@@ -37,7 +37,7 @@ export class ValueParser {
         left.value.comments = comment;
         idx = left.newIndex;
 
-        while (idx < lexemes.length && lexemes[idx].type === TokenType.Operator) {
+        while (idx < lexemes.length && (lexemes[idx].type & TokenType.Operator)) {
             const binaryResult = FunctionExpressionParser.tryParseBinaryExpression(lexemes, idx, left.value, allowAndOperator);
             if (binaryResult) {
                 left.value = binaryResult.value;
@@ -61,21 +61,36 @@ export class ValueParser {
 
         const current = lexemes[idx];
 
-        if (current.type === TokenType.Identifier) {
+        if (current.type & TokenType.Identifier && current.type & TokenType.Operator && current.type & TokenType.Type) {
+            // Typed literal format pattern
+            // e.g., `interval '2 days'`
+            const first = IdentifierParser.parseFromLexeme(lexemes, idx);
+            if (first.newIndex >= lexemes.length) {
+                return first;
+            }
+            const next = lexemes[first.newIndex];
+            if (next.type & TokenType.Literal) {
+                // Typed literal format
+                const second = LiteralParser.parseFromLexeme(lexemes, first.newIndex);
+                const result = new UnaryExpression(lexemes[idx].value, second.value);
+                return { value: result, newIndex: second.newIndex };
+            }
+            return first;
+        } else if (current.type & TokenType.Identifier) {
             return IdentifierParser.parseFromLexeme(lexemes, idx);
-        } else if (current.type === TokenType.Literal) {
+        } else if (current.type & TokenType.Literal) {
             return LiteralParser.parseFromLexeme(lexemes, idx);
-        } else if (current.type === TokenType.OpenParen) {
+        } else if (current.type & TokenType.OpenParen) {
             return ParenExpressionParser.parseFromLexeme(lexemes, idx);
-        } else if (current.type === TokenType.Function) {
+        } else if (current.type & TokenType.Function) {
             return FunctionExpressionParser.parseFromLexeme(lexemes, idx);
-        } else if (current.type === TokenType.Operator) {
+        } else if (current.type & TokenType.Operator) {
             return UnaryExpressionParser.parseFromLexeme(lexemes, idx);
-        } else if (current.type === TokenType.Parameter) {
+        } else if (current.type & TokenType.Parameter) {
             return ParameterExpressionParser.parseFromLexeme(lexemes, idx);
-        } else if (current.type === TokenType.StringSpecifier) {
+        } else if (current.type & TokenType.StringSpecifier) {
             return StringSpecifierExpressionParser.parseFromLexeme(lexemes, idx);
-        } else if (current.type === TokenType.Command) {
+        } else if (current.type & TokenType.Command) {
             return CommandExpressionParser.parseFromLexeme(lexemes, idx);
         }
 
@@ -115,7 +130,7 @@ export class ValueParser {
             args.push(result.value);
 
             // Continue reading if the next element is a comma
-            while (idx < lexemes.length && lexemes[idx].type === TokenType.Comma) {
+            while (idx < lexemes.length && (lexemes[idx].type & TokenType.Comma)) {
                 idx++;
                 const argResult = this.parseFromLexeme(lexemes, idx);
                 idx = argResult.newIndex;

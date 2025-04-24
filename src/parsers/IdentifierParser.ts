@@ -16,8 +16,8 @@ export class IdentifierParser {
         while (
             idx < lexemes.length &&
             idx + 1 < lexemes.length &&
-            lexemes[idx].type === TokenType.Dot &&
-            (lexemes[idx + 1].type === TokenType.Identifier || lexemes[idx + 1].value === "*")
+            (lexemes[idx].type & TokenType.Dot) &&
+            ((lexemes[idx + 1].type & TokenType.Identifier) || lexemes[idx + 1].value === "*")
         ) {
             // Skip the dot and add the next identifier
             idx++;

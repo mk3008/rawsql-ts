@@ -46,7 +46,7 @@ export class WithClauseParser {
         idx = firstCte.newIndex;
 
         // Parse additional CTEs (optional)
-        while (idx < lexemes.length && lexemes[idx].type === TokenType.Comma) {
+        while (idx < lexemes.length && (lexemes[idx].type & TokenType.Comma)) {
             idx++; // Skip comma
             const cteResult = CommonTableParser.parseFromLexeme(lexemes, idx);
             tables.push(cteResult.value);

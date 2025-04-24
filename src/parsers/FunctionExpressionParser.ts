@@ -30,7 +30,7 @@ export class FunctionExpressionParser {
         let idx = index;
 
         // If the next element is an operator, process it as a binary expression
-        if (idx < lexemes.length && lexemes[idx].type === TokenType.Operator) {
+        if (idx < lexemes.length && (lexemes[idx].type & TokenType.Operator)) {
             if (!allowAndOperator && lexemes[idx].value === "and") {
                 // Handle special case for "and" operator
                 return null;
@@ -71,7 +71,7 @@ export class FunctionExpressionParser {
         const lower = ValueParser.parseFromLexeme(lexemes, idx, false);
         idx = lower.newIndex;
 
-        if (idx < lexemes.length && lexemes[idx].type === TokenType.Operator && lexemes[idx].value !== "and") {
+        if (idx < lexemes.length && (lexemes[idx].type & TokenType.Operator) && lexemes[idx].value !== "and") {
             throw new Error(`Expected 'and' after 'between' at index ${idx}`);
         }
         idx++;
@@ -90,7 +90,7 @@ export class FunctionExpressionParser {
         const functionName = result.value;
         idx++;
 
-        if (idx < lexemes.length && lexemes[idx].type === TokenType.OpenParen) {
+        if (idx < lexemes.length && (lexemes[idx].type & TokenType.OpenParen)) {
             // General argument parsing
             const arg = ValueParser.parseArgument(TokenType.OpenParen, TokenType.CloseParen, lexemes, idx);
             idx = arg.newIndex;
@@ -118,7 +118,7 @@ export class FunctionExpressionParser {
         const functionName = lexemes[idx].value;
         idx++;
 
-        if (idx < lexemes.length && lexemes[idx].type === TokenType.OpenParen) {
+        if (idx < lexemes.length && (lexemes[idx].type & TokenType.OpenParen)) {
             idx++;
 
             const input = ValueParser.parseFromLexeme(lexemes, idx);
@@ -126,16 +126,16 @@ export class FunctionExpressionParser {
             idx = input.newIndex;
 
             // Delegate to the standard function parser if parsing by comma
-            if (idx < lexemes.length && lexemes[idx].type === TokenType.Comma) {
+            if (idx < lexemes.length && (lexemes[idx].type & TokenType.Comma)) {
                 return this.parseFunctionCall(lexemes, index);
             }
 
             // Check keywords
             for (const { key, required } of keywords) {
-                if (idx < lexemes.length && lexemes[idx].type === TokenType.Command && lexemes[idx].value === key) {
+                if (idx < lexemes.length && (lexemes[idx].type & TokenType.Command) && lexemes[idx].value === key) {
                     idx++;
 
-                    if (idx < lexemes.length && (lexemes[idx].type === TokenType.Type || lexemes[idx].maybeType === true)) {
+                    if (idx < lexemes.length && (lexemes[idx].type & TokenType.Type)) {
                         const typeValue = this.parseTypeValue(lexemes, idx);
                         arg = new BinaryExpression(arg, key, typeValue.value);
                         idx = typeValue.newIndex;
@@ -150,7 +150,7 @@ export class FunctionExpressionParser {
                 }
             }
 
-            if (idx < lexemes.length && lexemes[idx].type === TokenType.CloseParen) {
+            if (idx < lexemes.length && (lexemes[idx].type & TokenType.CloseParen)) {
                 idx++;
                 if (idx < lexemes.length && lexemes[idx].value === "over") {
                     idx++;
@@ -173,12 +173,12 @@ export class FunctionExpressionParser {
     public static parseTypeValue(lexemes: Lexeme[], index: number): { value: TypeValue; newIndex: number; } {
         let idx = index;
         // Check for type value
-        if (idx < lexemes.length && (lexemes[idx].type === TokenType.Type || lexemes[idx].maybeType === true)) {
+        if (idx < lexemes.length && (lexemes[idx].type & TokenType.Type)) {
             const typeName = lexemes[idx].value;
             idx++;
 
             // Check for array type
-            if (idx < lexemes.length && lexemes[idx].type === TokenType.OpenParen) {
+            if (idx < lexemes.length && (lexemes[idx].type & TokenType.OpenParen)) {
                 const arg = ValueParser.parseArgument(TokenType.OpenParen, TokenType.CloseParen, lexemes, idx);
                 idx = arg.newIndex;
                 const value = new TypeValue(typeName, arg.value);

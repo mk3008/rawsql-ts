@@ -20,7 +20,7 @@ export class SourceExpressionParser {
                 return { value: sourceExpr, newIndex: idx };
             }
 
-            if (lexemes[idx].type === TokenType.Identifier) {
+            if (lexemes[idx].type & TokenType.Identifier) {
                 const aliasResult = SourceAliasExpressionParser.parseFromLexeme(lexemes, idx);
                 idx = aliasResult.newIndex;
                 const sourceExpr = new SourceExpression(sourceResult.value, aliasResult.value);

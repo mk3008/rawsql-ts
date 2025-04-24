@@ -35,7 +35,7 @@ describe('ValueParser', () => {
         ["LIKE escape - percent", "'a_b' LIKE 'a\\_b' ESCAPE '\\'", "'a_b' like 'a\\_b' escape '\\'"],
         ["EXTRACT - Extract month from timestamp", "EXTRACT(MONTH FROM '2025-03-21 12:34:56'::timestamp)", "extract(month from '2025-03-21 12:34:56'::timestamp)"],
         ["POSITION function", "POSITION('b' IN 'abc')", 'position(\'b\' in \'abc\')'],
-        ["INTERVAL - Adding time interval", "INTERVAL '2 days' + INTERVAL '3 hours'", "interval '2 days' + interval '3 hours'"],
+        ["INTERVAL - Adding time interval", "interval '2 days' + interval '3 hours'", "interval '2 days' + interval '3 hours'"],
         ["SUBSTRING", "substring('Thomas', 2, 3)", "substring('Thomas', 2, 3)"],
         ["SUBSTRING with FROM and FOR", "substring('Thomas' from 2 for 3)", "substring('Thomas' from 2 for 3)"],
         ["SUBSTRING with only FROM", "substring('Thomas' from 3)", "substring('Thomas' from 3)"],

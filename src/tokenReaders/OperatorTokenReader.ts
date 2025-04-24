@@ -47,13 +47,37 @@ const trie = new KeywordTrie([
     ["week", "from"],
     ["epoch", "from"],
     ["at", "time", "zone"],
-    ["interval"],
     // The following are not considered operators.
     // ["from"], can be used as an operator only within the substring function, but it cannot be distinguished from the Form Clause. This will be resolved with a dedicated substring parser.
     // ["for"], can be used as an operator only within the substring function, but it cannot be distinguished from the For Clause. This will be resolved with a dedicated substring parser.
 ]);
 
+// Typed literal format
+const operatorOrTypeTrie = new KeywordTrie([
+    ["date"],
+    ["time"],
+    ["timestamp"],
+    ["timestamptz"],// timestamp with time zone
+    ["timetz"],     // time with time zone
+    ["interval"],
+    ["boolean"],
+    ["integer"],
+    ["bigint"],
+    ["smallint"],
+    ["numeric"],
+    ["decimal"],
+    ["real"],
+    ["double", "precision"],
+    ["double", "precision"],
+    ["character", "varying"],
+    ["time", "without", "time", "zone"],
+    ["time", "with", "time", "zone"],
+    ["timestamp", "without", "time", "zone"],
+    ["timestamp", "with", "time", "zone"],
+]);
+
 const keywordParser = new KeywordParser(trie);
+const operatorOrTypeParser = new KeywordParser(operatorOrTypeTrie);
 
 // Indicates the token may also represent a type (e.g., 'interval')
 const MAYBE_TYPE = true;
@@ -94,16 +118,19 @@ export class OperatorTokenReader extends BaseTokenReader {
         }
 
         // Logical operators
-        const result = keywordParser.parse(this.input, this.position);
+        let result = operatorOrTypeParser.parse(this.input, this.position);
+        if (result !== null) {
+            // Special handling for typed literal format.
+            // Treated as an operator in cases like `interval '2 days'`,
+            // but can also be used as a type in expressions like `'1 month'::interval`,
+            // so we return it as both Operator and Type.
+            this.position = result.newPosition;
+            return this.createLexeme(TokenType.Operator | TokenType.Type | TokenType.Identifier, result.keyword);
+        }
+
+        result = keywordParser.parse(this.input, this.position);
         if (result !== null) {
             this.position = result.newPosition;
-            if (result.keyword === "interval") {
-                // Special handling for interval
-                // Treated as an operator in cases like `interval '2 days'`,
-                // but can also be used as a type in expressions like `'1 month'::interval`,
-                // so we return it with maybeType = true.
-                return this.createLexeme(TokenType.Operator, result.keyword, MAYBE_TYPE);
-            }
             return this.createLexeme(TokenType.Operator, result.keyword);
         }
 

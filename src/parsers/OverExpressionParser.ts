@@ -31,14 +31,14 @@ export class OverExpressionParser {
             throw new Error(`Syntax error: Unexpected end of input after 'OVER' keyword. Expected either a window name or an opening parenthesis '('.`);
         }
 
-        if (lexemes[idx].type === TokenType.Identifier) {
+        if (lexemes[idx].type & TokenType.Identifier) {
             // named window frame
             const name = lexemes[idx].value;
             idx++;
             return { value: new IdentifierString(name), newIndex: idx };
         }
 
-        if (lexemes[idx].type === TokenType.OpenParen) {
+        if (lexemes[idx].type & TokenType.OpenParen) {
             // Delegate processing to WindowFrameExpressionParser
             const result = WindowExpressionParser.parseFromLexeme(lexemes, idx);
             return result;

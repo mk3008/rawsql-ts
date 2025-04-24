@@ -40,7 +40,7 @@ export class ValuesQueryParser {
         idx = firstTuple.newIndex;
 
         // Parse additional tuples if they exist
-        while (idx < lexemes.length && lexemes[idx].type === TokenType.Comma) {
+        while (idx < lexemes.length && (lexemes[idx].type & TokenType.Comma)) {
             idx++; // Skip comma
             const tuple = this.parseTuple(lexemes, idx);
             tuples.push(tuple.value);
@@ -69,7 +69,7 @@ export class ValuesQueryParser {
         }
 
         // Check for empty tuple case
-        if (lexemes[idx].type === TokenType.CloseParen) {
+        if (lexemes[idx].type & TokenType.CloseParen) {
             idx++; // Skip closing parenthesis
             return { value: new TupleExpression([]), newIndex: idx };
         }
@@ -80,7 +80,7 @@ export class ValuesQueryParser {
         idx = firstValue.newIndex;
 
         // Parse additional values
-        while (idx < lexemes.length && lexemes[idx].type === TokenType.Comma) {
+        while (idx < lexemes.length && (lexemes[idx].type & TokenType.Comma)) {
             idx++; // Skip comma
 
             if (idx >= lexemes.length) {

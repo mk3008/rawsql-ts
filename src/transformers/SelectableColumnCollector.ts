@@ -4,7 +4,8 @@ import { SqlComponent, SqlComponentVisitor } from "../models/SqlComponent";
 import { ArrayExpression, BetweenExpression, BinaryExpression, CaseExpression, CastExpression, ColumnReference, FunctionCall, InlineQuery, ParenExpression, UnaryExpression, ValueComponent, ValueList, WindowFrameExpression } from "../models/ValueComponent";
 import { CTECollector } from "./CTECollector";
 import { Formatter } from "./Formatter";
-import { SelectValueCollector, TableColumnResolver } from "./SelectValueCollector";
+import { SelectValueCollector } from "./SelectValueCollector";
+import { TableColumnResolver } from "./TableColumnResolver";
 
 /**
  * A visitor that collects all ColumnReference instances from a SQL query structure.
@@ -192,14 +193,11 @@ export class SelectableColumnCollector implements SqlComponentVisitor<void> {
 
     // Clause handlers
     private visitSelectClause(clause: SelectClause): void {
-        if (clause.items) {
-            for (const item of clause.items) {
-                if (item instanceof SelectItem) {
-                    this.addSelectValueAsUnique(item.identifier.name, item.value);
-                } else {
-                    item.accept(this);
-                }
+        for (const item of clause.items) {
+            if (item.identifier) {
+                this.addSelectValueAsUnique(item.identifier.name, item.value);
             }
+            item.value.accept(this);
         }
     }
 

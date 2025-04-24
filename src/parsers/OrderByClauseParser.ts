@@ -34,7 +34,7 @@ export class OrderByClauseParser {
         items.push(item.value);
         idx = item.newIndex;
 
-        while (idx < lexemes.length && lexemes[idx].type === TokenType.Comma) {
+        while (idx < lexemes.length && (lexemes[idx].type & TokenType.Comma)) {
             idx++;
             const item = this.parseItem(lexemes, idx);
             items.push(item.value);

@@ -26,12 +26,12 @@ export class SourceParser {
         const idx = index;
 
         // Handle subquery
-        if (idx < lexemes.length && lexemes[idx].type === TokenType.OpenParen) {
+        if (idx < lexemes.length && (lexemes[idx].type & TokenType.OpenParen)) {
             return this.parseParenSource(lexemes, idx);
         }
 
         // Handle function-based source
-        if (idx < lexemes.length && lexemes[idx].type === TokenType.Function) {
+        if (idx < lexemes.length && (lexemes[idx].type & TokenType.Function)) {
             return this.parseFunctionSource(lexemes, idx);
         }
 
@@ -52,8 +52,8 @@ export class SourceParser {
         while (
             idx < lexemes.length &&
             idx + 1 < lexemes.length &&
-            lexemes[idx].type === TokenType.Dot &&
-            lexemes[idx + 1].type === TokenType.Identifier
+            (lexemes[idx].type & TokenType.Dot) &&
+            (lexemes[idx + 1].type & TokenType.Identifier)
         ) {
             // Skip the dot and add the next identifier
             idx++;

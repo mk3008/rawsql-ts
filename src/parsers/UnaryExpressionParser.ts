@@ -7,7 +7,7 @@ export class UnaryExpressionParser {
         let idx = index;
 
         // Process unary operator
-        if (idx < lexemes.length && lexemes[idx].type === TokenType.Operator) {
+        if (idx < lexemes.length && (lexemes[idx].type & TokenType.Operator)) {
             const operator = lexemes[idx].value;
             idx++;
 
