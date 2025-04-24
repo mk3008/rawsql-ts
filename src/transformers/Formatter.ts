@@ -113,7 +113,6 @@ export class Formatter implements SqlComponentVisitor<string> {
         this.handlers.set(WithClause.kind, (expr) => this.visitWithClause(expr as WithClause));
 
         // select
-        this.handlers.set(SelectItem.kind, (expr) => this.visitSelectItemExpression(expr as SelectItem));
         this.handlers.set(SelectClause.kind, (expr) => this.visitSelectClause(expr as SelectClause));
         this.handlers.set(Distinct.kind, (expr) => this.visitDistinct(expr as Distinct));
         this.handlers.set(DistinctOn.kind, (expr) => this.visitDistinctOn(expr as DistinctOn));
