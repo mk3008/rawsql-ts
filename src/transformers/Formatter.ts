@@ -65,7 +65,7 @@ export class Formatter implements SqlComponentVisitor<string> {
         this.handlers.set(UnaryExpression.kind, (expr) => this.visitUnaryExpression(expr as UnaryExpression));
         this.handlers.set(BinaryExpression.kind, (expr) => this.visitBinaryExpression(expr as BinaryExpression));
         this.handlers.set(ParameterExpression.kind, (expr) => this.visitParameterExpression(expr as ParameterExpression));
-        this.handlers.set(SelectItem.kind, (expr) => this.visitSelectExpression(expr as SelectItem));
+        this.handlers.set(SelectItem.kind, (expr) => this.visitSelectItemExpression(expr as SelectItem));
         this.handlers.set(ArrayExpression.kind, (expr) => this.visitArrayExpression(expr as ArrayExpression));
         this.handlers.set(CaseExpression.kind, (expr) => this.visitCaseExpression(expr as CaseExpression));
         this.handlers.set(CastExpression.kind, (expr) => this.visitCastExpression(expr as CastExpression));
@@ -113,7 +113,7 @@ export class Formatter implements SqlComponentVisitor<string> {
         this.handlers.set(WithClause.kind, (expr) => this.visitWithClause(expr as WithClause));
 
         // select
-        this.handlers.set(SelectItem.kind, (expr) => this.visitSelectExpression(expr as SelectItem));
+        this.handlers.set(SelectItem.kind, (expr) => this.visitSelectItemExpression(expr as SelectItem));
         this.handlers.set(SelectClause.kind, (expr) => this.visitSelectClause(expr as SelectClause));
         this.handlers.set(Distinct.kind, (expr) => this.visitDistinct(expr as Distinct));
         this.handlers.set(DistinctOn.kind, (expr) => this.visitDistinctOn(expr as DistinctOn));
@@ -400,8 +400,8 @@ export class Formatter implements SqlComponentVisitor<string> {
         return `${this.config.parameterSymbol}${arg.name.accept(this)}`;
     }
 
-    private visitSelectExpression(arg: SelectItem): string {
-        if (arg.identifier !== null) {
+    private visitSelectItemExpression(arg: SelectItem): string {
+        if (arg.identifier) {
             if (arg.value instanceof ColumnReference) {
                 const c = arg.value as ColumnReference;
                 if (c.column.name === arg.identifier.name) {

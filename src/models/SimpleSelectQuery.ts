@@ -9,6 +9,7 @@ import { BinarySelectQuery } from "./BinarySelectQuery";
 import type { SelectQuery } from "./SelectQuery";
 import { CommonTableParser } from "../parsers/CommonTableParser";
 import { SelectQueryParser } from "../parsers/SelectQueryParser";
+import { Formatter } from "../transformers/Formatter";
 
 /**
  * Represents a simple SELECT query in SQL.
@@ -356,5 +357,31 @@ export class SimpleSelectQuery extends SqlComponent {
         const query = SelectQueryParser.parse(rawText);
         const commonTable = new CommonTable(query, alias, null);
         this.appendWith(commonTable);
+    }
+
+    /**
+     * Overrides a select item using a template literal function.
+     * The callback receives the SQL string of the original expression and must return a new SQL string.
+     * The result is parsed and set as the new select item value.
+     *
+     * Example usage:
+     *   query.overrideSelectItemRaw("journal_date", expr => `greatest(${expr}, DATE '2025-01-01')`)
+     *
+     * @param columnName The name of the column to override
+     * @param fn Callback that receives the SQL string of the original expression and returns a new SQL string
+     */
+    public overrideSelectItemRaw(columnName: string, fn: (expr: string) => string): void {
+        const items = this.selectClause.items.filter(item => item.identifier?.name === columnName);
+        if (items.length === 0) {
+            throw new Error(`Column ${columnName} not found in the query`);
+        }
+        if (items.length > 1) {
+            throw new Error(`Duplicate column name ${columnName} found in the query`);
+        }
+        const item = items[0];
+        const formatter = new Formatter();
+        const exprSql = formatter.visit(item.value);
+        const newValue = fn(exprSql);
+        item.value = ValueParser.parse(newValue);
     }
 }
