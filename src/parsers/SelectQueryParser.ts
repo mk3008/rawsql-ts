@@ -30,6 +30,17 @@ export class SelectQueryParser {
         return result.value;
     }
 
+    /**
+     * Asynchronously parse SQL string to AST.
+     * This method wraps the synchronous parse logic in a Promise for future extensibility.
+     * @param query SQL string to parse
+     * @returns Promise<SelectQuery>
+     */
+    public static async parseAsync(query: string): Promise<SelectQuery> {
+        // For now, just wrap the sync parse in a resolved Promise
+        return Promise.resolve(this.parse(query));
+    }
+
     private static unionCommandSet = new Set<string>([
         "union",
         "union all",
