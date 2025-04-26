@@ -15,13 +15,13 @@ export class SelectValueCollector implements SqlComponentVisitor<void> {
     private selectValues: { name: string, value: ValueComponent }[] = [];
     private visitedNodes: Set<SqlComponent> = new Set();
     private isRootVisit: boolean = true;
-    private tableColumnResolver?: TableColumnResolver;
+    private tableColumnResolver: TableColumnResolver | null;
     private commonTableCollector: CTECollector;
     private commonTables: CommonTable[];
     public initialCommonTables: CommonTable[] | null;
 
-    constructor(tableColumnResolver?: TableColumnResolver, initialCommonTables: CommonTable[] | null = null) {
-        this.tableColumnResolver = tableColumnResolver;
+    constructor(tableColumnResolver: TableColumnResolver | null = null, initialCommonTables: CommonTable[] | null = null) {
+        this.tableColumnResolver = tableColumnResolver ?? null;
         this.commonTableCollector = new CTECollector();
         this.commonTables = [];
         this.initialCommonTables = initialCommonTables;

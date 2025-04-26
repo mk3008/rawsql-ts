@@ -52,6 +52,7 @@ describe('SimpleSelectQuery JOIN API', () => {
         // Arrange
         const sql = 'SELECT u.id FROM users u';
         const query = SelectQueryParser.parse(sql) as SimpleSelectQuery;
+
         // Act & Assert
         expect(() => query.innerJoinRaw('orders', 'o', ['not_exist'])).toThrow();
     });
@@ -60,6 +61,7 @@ describe('SimpleSelectQuery JOIN API', () => {
         // Arrange
         const sql = 'SELECT 1 as id';
         const query = SelectQueryParser.parse(sql) as SimpleSelectQuery;
+
         // Act & Assert
         expect(() => query.innerJoinRaw('orders', 'o', ['id'])).toThrow();
     });
@@ -69,14 +71,13 @@ describe('SimpleSelectQuery JOIN API', () => {
         const subquery = 'SELECT id, name FROM orders WHERE status = \'active\'';
         const sql = 'SELECT u.id, u.name FROM users u';
         const query = SelectQueryParser.parse(sql) as SimpleSelectQuery;
-        // Pass a subquery as a string wrapped in parentheses (alias is o)
-        query.innerJoinRaw(`(${subquery})`, 'o', ['id']);
 
         // Act
+        query.innerJoinRaw(`(${subquery})`, 'o', ['id']);
         const result = formatter.format(query);
-        const expected = 'select "u"."id", "u"."name" from "users" as "u" inner join (select "id", "name" from "orders" where "status" = \'active\') as "o" on "u"."id" = "o"."id"';
 
         // Assert
+        const expected = 'select "u"."id", "u"."name" from "users" as "u" inner join (select "id", "name" from "orders" where "status" = \'active\') as "o" on "u"."id" = "o"."id"';
         expect(result.replace(/\s+/g, ' ').trim()).toBe(expected);
     });
 
@@ -85,15 +86,13 @@ describe('SimpleSelectQuery JOIN API', () => {
         const subquery = `WITH sub_orders AS (SELECT id, name FROM orders WHERE status = 'active') SELECT id, name FROM sub_orders`;
         const sql = `WITH sub_users AS (SELECT id, name FROM users WHERE active = true) SELECT u.id, u.name FROM sub_users u`;
         const query = SelectQueryParser.parse(sql) as SimpleSelectQuery;
-        // Join with subquery (with its own WITH clause)
-        query.innerJoinRaw(`(${subquery})`, 'o', ['id']);
 
         // Act
+        query.innerJoinRaw(`(${subquery})`, 'o', ['id']);
         const result = formatter.format(query);
-        // The expected SQL should have both WITH clauses merged at the top level
-        const expected = 'with "sub_orders" as (select "id", "name" from "orders" where "status" = \'active\'), "sub_users" as (select "id", "name" from "users" where "active" = true) select "u"."id", "u"."name" from "sub_users" as "u" inner join (select "id", "name" from "sub_orders") as "o" on "u"."id" = "o"."id"';
 
         // Assert
+        const expected = 'with "sub_orders" as (select "id", "name" from "orders" where "status" = \'active\'), "sub_users" as (select "id", "name" from "users" where "active" = true) select "u"."id", "u"."name" from "sub_users" as "u" inner join (select "id", "name" from "sub_orders") as "o" on "u"."id" = "o"."id"';
         expect(result.replace(/\s+/g, ' ').trim()).toBe(expected);
     });
 
@@ -102,14 +101,15 @@ describe('SimpleSelectQuery JOIN API', () => {
         const subquery = SelectQueryParser.parse('SELECT id, name FROM orders WHERE status = "active"') as SimpleSelectQuery;
         const sql = 'SELECT u.id, u.name FROM users u';
         const query = SelectQueryParser.parse(sql) as SimpleSelectQuery;
+
         // Use toSource to wrap subquery as a source
         query.innerJoin(subquery.toSource('o'), ['id']);
 
         // Act
         const result = formatter.format(query);
-        const expected = 'select "u"."id", "u"."name" from "users" as "u" inner join (select "id", "name" from "orders" where "status" = "active") as "o" on "u"."id" = "o"."id"';
 
         // Assert
+        const expected = 'select "u"."id", "u"."name" from "users" as "u" inner join (select "id", "name" from "orders" where "status" = "active") as "o" on "u"."id" = "o"."id"';
         expect(result.replace(/\s+/g, ' ').trim()).toBe(expected);
     });
 
@@ -132,42 +132,90 @@ describe('SimpleSelectQuery JOIN API', () => {
     });
 
     test('rightJoinRaw: single string column', () => {
+        // Arrange
         const sql = 'SELECT u.id FROM users u';
         const query = SelectQueryParser.parse(sql) as SimpleSelectQuery;
+
+        // Act
         query.rightJoinRaw('public.orders', 'o', 'id');
         const result = formatter.format(query);
+
+        // Assert
         const expected = 'select "u"."id" from "users" as "u" right join "public"."orders" as "o" on "u"."id" = "o"."id"';
         expect(result.replace(/\s+/g, ' ').trim()).toBe(expected);
     });
 
     test('innerJoin: single string column', () => {
+        // Arrange
         const sql = 'SELECT u.id, u.name FROM users u';
         const query = SelectQueryParser.parse(sql) as SimpleSelectQuery;
-        // SourceExpressionバージョン
         const subquery = SelectQueryParser.parse('SELECT id, name FROM orders') as SimpleSelectQuery;
+
+        // Act
         query.innerJoin(subquery.toSource('o'), 'id');
         const result = formatter.format(query);
+
+        // Assert
         const expected = 'select "u"."id", "u"."name" from "users" as "u" inner join (select "id", "name" from "orders") as "o" on "u"."id" = "o"."id"';
         expect(result.replace(/\s+/g, ' ').trim()).toBe(expected);
     });
 
     test('leftJoin: single string column', () => {
+        // Arrange
         const sql = 'SELECT u.id, u.name FROM users u';
         const query = SelectQueryParser.parse(sql) as SimpleSelectQuery;
         const subquery = SelectQueryParser.parse('SELECT id, name FROM orders') as SimpleSelectQuery;
+
+        // Act
         query.leftJoin(subquery.toSource('o'), 'id');
         const result = formatter.format(query);
+
+        // Assert
         const expected = 'select "u"."id", "u"."name" from "users" as "u" left join (select "id", "name" from "orders") as "o" on "u"."id" = "o"."id"';
         expect(result.replace(/\s+/g, ' ').trim()).toBe(expected);
     });
 
     test('rightJoin: single string column', () => {
+        // Arrange
         const sql = 'SELECT u.id FROM users u';
         const query = SelectQueryParser.parse(sql) as SimpleSelectQuery;
         const subquery = SelectQueryParser.parse('SELECT id FROM orders') as SimpleSelectQuery;
+
+        // Act
         query.rightJoin(subquery.toSource('o'), 'id');
         const result = formatter.format(query);
+
+        // Assert
         const expected = 'select "u"."id" from "users" as "u" right join (select "id" from "orders") as "o" on "u"."id" = "o"."id"';
+        expect(result.replace(/\s+/g, ' ').trim()).toBe(expected);
+    });
+
+    test('innerJoinRaw: throws if join column not found with wildcard select', () => {
+        // Arrange
+        const sql = 'SELECT * FROM users as u';
+        const query = SelectQueryParser.parse(sql) as SimpleSelectQuery;
+
+        // Act & Assert
+        expect(() => query.innerJoinRaw('posts', 'p', 'user_id')).toThrow('Invalid JOIN condition');
+    });
+
+    test('innerJoinRaw: resolves join column with wildcard select using TableColumnResolver', () => {
+        // Arrange
+        const sql = 'SELECT * FROM users as u';
+        const query = SelectQueryParser.parse(sql) as SimpleSelectQuery;
+        const resolver = (tableName: string) => {
+            if (tableName === 'users') return ['user_id', 'name'];
+            if (tableName === 'posts') return ['post_id', 'user_id', 'title'];
+            return [];
+        };
+
+        // Act
+        query.innerJoinRaw('posts', 'p', 'user_id', resolver);
+        const formatter = new Formatter();
+        const result = formatter.format(query);
+
+        // Assert
+        const expected = 'select * from "users" as "u" inner join "posts" as "p" on "u"."user_id" = "p"."user_id"';
         expect(result.replace(/\s+/g, ' ').trim()).toBe(expected);
     });
 });
