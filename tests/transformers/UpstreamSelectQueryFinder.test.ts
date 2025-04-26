@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest';
 import { SelectQueryParser } from '../../src/parsers/SelectQueryParser';
 import { UpstreamSelectQueryFinder } from '../../src/transformers/UpstreamSelectQueryFinder';
 import { Formatter } from '../../src/transformers/Formatter';
+import { SelectableColumnCollector } from '../../src/transformers/SelectableColumnCollector';
 
 function getRawSQL(query: any): string {
     // Use Formatter to convert SelectQuery to SQL string
@@ -339,23 +340,36 @@ describe('UpstreamSelectQueryFinder Demo', () => {
         const finder = new UpstreamSelectQueryFinder();
 
         // Act
+        const collector = new SelectableColumnCollector();
         const queries = finder.find(query, ['amount']);
-        queries.forEach((q) => q.appendWhereRaw('amount > 100'));
+        queries.forEach((q) => {
+            const exprs = collector.collect(q).filter(item => item.name == 'amount').map(item => item.value);
+            if (exprs.length !== 1) {
+                throw new Error('Expected exactly one expression for "amount" column');
+            }
+            const f = new Formatter();
+            const expr = f.format(exprs[0]);
+            q.appendWhereRaw(`${expr} > 100`);
+        });
 
         // Assert
         const formatter = new Formatter();
         const actual = formatter.format(query);
 
         // Assert
+        // NOTE: sales_transactions will be filtered by amount.
+        // NOTE: support_transactions will be filtered by fee (alias: amount).
         const excepted = `with "sales_transactions" as (
             select "transaction_id", "customer_id", "amount", "transaction_date", 'sales' as "source"
             from "sales_schema"."transactions"
-            where "transaction_date" >= current_date - INTERVAL '90 days' and "amount" > 100
+            where "transaction_date" >= current_date - INTERVAL '90 days'
+                and "amount" > 100
         ),
         "support_transactions" as (
             select "support_id" as "transaction_id", "user_id" as "customer_id", "fee" as "amount", "support_date" as "transaction_date", 'support' as "source"
             from "support_schema"."support_fees"
-            where "support_date" >= current_date - INTERVAL '90 days' and "amount" > 100
+            where "support_date" >= current_date - INTERVAL '90 days'
+                and "fee" > 100
         )
         select *
         from "sales_transactions"
