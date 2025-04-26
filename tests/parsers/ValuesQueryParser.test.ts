@@ -88,6 +88,18 @@ test('values clause with function calls', () => {
     expect(sql).toEqual(`values (now(), upper('text'), random())`);
 });
 
+test('values clause with column aliases', () => {
+    // Arrange
+    const text = `values (1, 'test', true) as vq(column1, column2, column3)`;
+
+    // Act
+    const clause = ValuesQueryParser.parse(text);
+    const sql = formatter.format(clause);
+
+    // Assert
+    expect(sql).toEqual(`values (1, 'test', true) as vq(column1, column2, column3)`);
+});
+
 test('error on missing VALUES keyword', () => {
     // Arrange
     const text = `(1, 2, 3)`;

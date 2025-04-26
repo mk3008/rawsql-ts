@@ -8,8 +8,11 @@ import { TupleExpression } from "./ValueComponent";
 export class ValuesQuery extends SqlComponent {
     static kind = Symbol("ValuesQuery");
     tuples: TupleExpression[];
-    constructor(tuples: TupleExpression[]) {
+    columnAliases: string[] | null;
+
+    constructor(tuples: TupleExpression[], columnAliases: string[] | null = null) {
         super();
         this.tuples = tuples;
+        this.columnAliases = columnAliases;
     }
 }

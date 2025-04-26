@@ -95,10 +95,12 @@ export class QueryConverter {
         // by checking the first tuple (if available)
         const columnCount = query.tuples.length > 0 ? query.tuples[0].values.length : 0;
 
-        // Generate column names (column1, column2, ...)
-        const columnNames: string[] = [];
-        for (let i = 1; i <= columnCount; i++) {
-            columnNames.push(`column${i}`);
+        // Use provided column aliases if available, otherwise generate column names (column1, column2, ...)
+        const columnNames: string[] = query.columnAliases ?? [];
+        if (columnNames.length === 0) {
+            for (let i = 1; i <= columnCount; i++) {
+                columnNames.push(`column${i}`);
+            }
         }
 
         // Create a subquery source from the VALUES query
