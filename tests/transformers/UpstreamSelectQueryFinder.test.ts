@@ -367,7 +367,7 @@ describe('UpstreamSelectQueryFinder Demo', () => {
         // Assert
         // NOTE: sales_transactions will be filtered by amount.
         // NOTE: support_transactions will be filtered by fee (alias: amount).
-        const excepted = `with "sales_transactions" as (
+        const expected = `with "sales_transactions" as (
             select "transaction_id", "customer_id", "amount", "transaction_date", 'sales' as "source"
             from "sales_schema"."transactions"
             where "transaction_date" >= current_date - INTERVAL '90 days'
