@@ -372,7 +372,7 @@ export class SimpleSelectQuery extends SqlComponent {
      * @param columnName The name of the column to override
      * @param fn Callback that receives the SQL string of the original expression and returns a new SQL string
      */
-    public overrideSelectItemRaw(columnName: string, fn: (expr: string) => string): void {
+    public overrideSelectItemExpr(columnName: string, fn: (expr: string) => string): void {
         const items = this.selectClause.items.filter(item => item.identifier?.name === columnName);
         if (items.length === 0) {
             throw new Error(`Column ${columnName} not found in the query`);
