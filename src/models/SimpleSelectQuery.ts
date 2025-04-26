@@ -10,6 +10,7 @@ import type { SelectQuery } from "./SelectQuery";
 import { CommonTableParser } from "../parsers/CommonTableParser";
 import { SelectQueryParser } from "../parsers/SelectQueryParser";
 import { Formatter } from "../transformers/Formatter";
+import { TableColumnResolver } from "../transformers/TableColumnResolver";
 
 /**
  * Represents a simple SELECT query in SQL.
@@ -194,8 +195,8 @@ export class SimpleSelectQuery extends SqlComponent {
      * @param alias The alias for the joined table
      * @param columns The columns to use for the join condition (e.g. ["user_id"] or "user_id")
      */
-    public innerJoinRaw(joinSourceRawText: string, alias: string, columns: string | string[]): void {
-        this.joinSourceRaw('inner join', joinSourceRawText, alias, columns);
+    public innerJoinRaw(joinSourceRawText: string, alias: string, columns: string | string[], resolver: TableColumnResolver | null = null): void {
+        this.joinSourceRaw('inner join', joinSourceRawText, alias, columns, resolver);
     }
 
     /**
@@ -204,8 +205,8 @@ export class SimpleSelectQuery extends SqlComponent {
      * @param alias The alias for the joined table
      * @param columns The columns to use for the join condition
      */
-    public leftJoinRaw(joinSourceRawText: string, alias: string, columns: string | string[]): void {
-        this.joinSourceRaw('left join', joinSourceRawText, alias, columns);
+    public leftJoinRaw(joinSourceRawText: string, alias: string, columns: string | string[], resolver: TableColumnResolver | null = null): void {
+        this.joinSourceRaw('left join', joinSourceRawText, alias, columns, resolver);
     }
 
     /**
@@ -214,8 +215,8 @@ export class SimpleSelectQuery extends SqlComponent {
      * @param alias The alias for the joined table
      * @param columns The columns to use for the join condition
      */
-    public rightJoinRaw(joinSourceRawText: string, alias: string, columns: string | string[]): void {
-        this.joinSourceRaw('right join', joinSourceRawText, alias, columns);
+    public rightJoinRaw(joinSourceRawText: string, alias: string, columns: string | string[], resolver: TableColumnResolver | null = null): void {
+        this.joinSourceRaw('right join', joinSourceRawText, alias, columns, resolver);
     }
 
     /**
@@ -223,8 +224,8 @@ export class SimpleSelectQuery extends SqlComponent {
      * @param sourceExpr The source expression to join
      * @param columns The columns to use for the join condition
      */
-    public innerJoin(sourceExpr: SourceExpression, columns: string | string[]): void {
-        this.joinSource('inner join', sourceExpr, columns);
+    public innerJoin(sourceExpr: SourceExpression, columns: string | string[], resolver: TableColumnResolver | null = null): void {
+        this.joinSource('inner join', sourceExpr, columns, resolver);
     }
 
     /**
@@ -232,8 +233,8 @@ export class SimpleSelectQuery extends SqlComponent {
      * @param sourceExpr The source expression to join
      * @param columns The columns to use for the join condition
      */
-    public leftJoin(sourceExpr: SourceExpression, columns: string | string[]): void {
-        this.joinSource('left join', sourceExpr, columns);
+    public leftJoin(sourceExpr: SourceExpression, columns: string | string[], resolver: TableColumnResolver | null = null): void {
+        this.joinSource('left join', sourceExpr, columns, resolver);
     }
 
     /**
@@ -241,8 +242,8 @@ export class SimpleSelectQuery extends SqlComponent {
      * @param sourceExpr The source expression to join
      * @param columns The columns to use for the join condition
      */
-    public rightJoin(sourceExpr: SourceExpression, columns: string | string[]): void {
-        this.joinSource('right join', sourceExpr, columns);
+    public rightJoin(sourceExpr: SourceExpression, columns: string | string[], resolver: TableColumnResolver | null = null): void {
+        this.joinSource('right join', sourceExpr, columns, resolver);
     }
 
     /**
@@ -254,10 +255,10 @@ export class SimpleSelectQuery extends SqlComponent {
      * @param alias Alias for the table/source being joined
      * @param columns Array or string of column names to join on
      */
-    private joinSourceRaw(joinType: string, joinSourceRawText: string, alias: string, columns: string | string[]): void {
+    private joinSourceRaw(joinType: string, joinSourceRawText: string, alias: string, columns: string | string[], resolver: TableColumnResolver | null = null): void {
         const tableSource = SourceParser.parse(joinSourceRawText);
         const sourceExpr = new SourceExpression(tableSource, new SourceAliasExpression(alias, null));
-        this.joinSource(joinType, sourceExpr, columns);
+        this.joinSource(joinType, sourceExpr, columns, resolver);
     }
 
     /**
@@ -266,7 +267,7 @@ export class SimpleSelectQuery extends SqlComponent {
      * @param sourceExpr The source expression to join
      * @param columns Array or string of column names to join on
      */
-    private joinSource(joinType: string, sourceExpr: SourceExpression, columns: string | string[]): void {
+    private joinSource(joinType: string, sourceExpr: SourceExpression, columns: string | string[], resolver: TableColumnResolver | null = null): void {
         if (!this.fromClause) {
             throw new Error('A FROM clause is required to add a JOIN condition.');
         }
@@ -274,7 +275,7 @@ export class SimpleSelectQuery extends SqlComponent {
         // Always treat columns as array
         const columnsArr = Array.isArray(columns) ? columns : [columns];
 
-        const collector = new SelectableColumnCollector();
+        const collector = new SelectableColumnCollector(resolver);
         const valueSets = collector.collect(this);
         let joinCondition: ValueComponent | null = null;
         let count = 0;

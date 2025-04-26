@@ -21,13 +21,13 @@ export class SelectableColumnCollector implements SqlComponentVisitor<void> {
     private visitedNodes: Set<SqlComponent> = new Set();
     private formatter: Formatter;
     private isRootVisit: boolean = true;
-    private tableColumnResolver?: TableColumnResolver;
+    private tableColumnResolver: TableColumnResolver | null = null;
     private commonTableCollector: CTECollector;
     private selectValueCollector: SelectValueCollector;
     private commonTables: CommonTable[] = [];
 
-    constructor(tableColumnResolver?: TableColumnResolver) {
-        this.tableColumnResolver = tableColumnResolver;
+    constructor(tableColumnResolver?: TableColumnResolver | null) {
+        this.tableColumnResolver = tableColumnResolver ?? null;
         this.selectValueCollector = new SelectValueCollector();
         this.commonTableCollector = new CTECollector();
         this.commonTables = [];
