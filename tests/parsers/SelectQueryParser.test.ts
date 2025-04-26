@@ -217,3 +217,26 @@ describe('SelectQueryParser with VALUES', () => {
         expect(sql).toBe('values (1, \'Product A\'), (2, \'Product B\') union all select "id", "name" from "featured_products" order by "name"');
     });
 });
+
+describe('SelectQueryParser async', () => {
+    test('parseAsync should resolve to same result as parse', async () => {
+        // Arrange
+        const sql = 'select id, name from users where active = TRUE';
+        const expected = 'select "id", "name" from "users" where "active" = true';
+
+        // Act
+        const query = await SelectQueryParser.parseAsync(sql);
+        const formatted = formatter.format(query);
+
+        // Assert
+        expect(formatted).toBe(expected);
+    });
+
+    test('parseAsync should reject on syntax error', async () => {
+        // Arrange
+        const sql = 'select from';
+
+        // Act & Assert
+        await expect(SelectQueryParser.parseAsync(sql)).rejects.toThrow();
+    });
+});
