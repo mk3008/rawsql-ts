@@ -91,6 +91,8 @@ console.log(formattedSql);
   Represents a standard SELECT statement. Supports all major clauses such as WHERE, GROUP BY, JOIN, and CTE.
   - `toUnion`, `toUnionAll`, ... for UNION operations
   - `appendWhere`, `appendWhereRaw` to add WHERE conditions
+  - `appendWhereExpr` to add a WHERE condition using the column's SQL expression (see below)
+  - `overrideSelectItemExpr` to override a SELECT item using its SQL expression (see below)
   - `innerJoin`, `leftJoin`, ... to add JOINs
   - `toSource` to wrap as a subquery
   - `appendWith`, `appendWithRaw` to add CTEs
@@ -104,6 +106,126 @@ console.log(formattedSql);
 - **ValuesQuery**  
   For inline tables like `VALUES (1, 'a'), (2, 'b')`.
   - Can be used as a subquery or converted to SELECT with QueryNormalizer
+---
+
+## Advanced Expression-based Methods
+
+### appendWhereExpr
+`appendWhereExpr` is a highly important feature that enables you to add WHERE conditions using the SQL expression of a column, regardless of whether it is a direct column, an alias, a table alias, or even a calculated expression.
+
+- **Basic Column**
+  - SQL: `select amount from sales`
+  - API: `query.appendWhereExpr('amount', expr => `${expr} > 100`)`
+  - Result: `where amount > 100`
+
+- **Alias**
+  - SQL: `select fee as amount from sales`
+  - API: `query.appendWhereExpr('amount', expr => `${expr} > 100`)`
+  - Result: `where fee > 100`
+
+- **Table Alias**
+  - SQL: `select s.fee as amount from sales as s`
+  - API: `query.appendWhereExpr('amount', expr => `${expr} > 100`)`
+  - Result: `where s.fee > 100`
+
+- **Expression**
+  - SQL: `select quantity * pack_size as amount from sales`
+  - API: `query.appendWhereExpr('amount', expr => `${expr} > 100`)`
+  - Result: `where quantity * pack_size > 100`
+
+As long as the column is named (or aliased) as `amount`, `appendWhereExpr` will detect and use the correct SQL expression for the WHERE clause—even if it is a complex calculation or uses table aliases.
+
+```typescript
+// Works for any alias, table alias, or expression!
+query.appendWhereExpr('amount', expr => `${expr} > 100`);
+```
+
+#### Upstream Query Support
+
+`Upstream Query Support` is a powerful extension of `appendWhereExpr` that allows you to add WHERE conditions to all relevant upstream queries that provide a specific column, regardless of the query structure. This means you can target columns defined in subqueries, CTEs (WITH clauses), or even branches of UNION/INTERSECT/EXCEPT, and the condition will be automatically inserted at the correct place in the SQL tree.
+
+**What does this mean in practice?**
+- If the column is defined in a subquery, the WHERE condition is added inside that subquery.
+- If the column is defined in a CTE (WITH clause), the WHERE condition is added inside the CTE.
+- If the column is provided by multiple upstream queries (e.g., UNION branches), the condition is added to all relevant branches.
+- You do not need to know or traverse the query structure yourself—just specify the column name, and `appendWhereExpr` with `{ upstream: true }` will do the rest.
+
+##### Example: Filtering a CTE
+
+```typescript
+const query = SelectQueryParser.parse(`
+  WITH temp_sales AS (
+    SELECT id, amount, date FROM sales WHERE date >= '2024-01-01'
+  )
+  SELECT * FROM temp_sales
+`) as SimpleSelectQuery;
+
+// Add a filter to the CTE using upstream support
+query.appendWhereExpr('amount', expr => `${expr} > 100`, { upstream: true });
+
+const sql = new Formatter().format(query);
+console.log(sql);
+// => with "temp_sales" as (select "id", "amount", "date" from "sales" where "date" >= '2024-01-01' and "amount" > 100) select * from "temp_sales"
+```
+
+##### Example: Filtering All Branches of a UNION
+
+```typescript
+const query = SelectQueryParser.parse(`
+  WITH sales_transactions AS (
+    SELECT transaction_id, customer_id, amount, transaction_date FROM sales_schema.transactions WHERE transaction_date >= CURRENT_DATE - INTERVAL '90 days'
+  ),
+  support_transactions AS (
+    SELECT support_id AS transaction_id, user_id AS customer_id, fee AS amount, support_date AS transaction_date FROM support_schema.support_fees WHERE support_date >= CURRENT_DATE - INTERVAL '90 days'
+  )
+  SELECT * FROM (
+    SELECT * FROM sales_transactions
+    UNION ALL
+    SELECT * FROM support_transactions
+  ) d
+  ORDER BY transaction_date DESC
+`) as SimpleSelectQuery;
+
+// Add a filter to all upstream queries that provide 'amount'
+query.appendWhereExpr('amount', expr => `${expr} > 100`, { upstream: true });
+
+const sql = new Formatter().format(query);
+console.log(sql);
+// => with "sales_transactions" as (select ... where ... and "amount" > 100),
+//        "support_transactions" as (select ... where ... and "fee" > 100)
+//    select * from (... union all ...) as "d" order by "transaction_date" desc
+```
+
+### appendWhereExpr Use Cases
+
+`appendWhereExpr` is especially useful in the following scenarios:
+
+- **Dynamic Search Conditions for Complex Reports**  
+  Easily inject arbitrary search filters into deeply nested or highly complex queries, such as those used in reporting or analytics dashboards. This enables flexible, user-driven filtering without manual SQL string manipulation.
+
+- **Performance-Critical Query Construction**  
+  Build high-performance queries by programmatically adding WHERE conditions only when needed, ensuring that unnecessary filters are not included and that the generated SQL remains as efficient as possible.
+
+- **Generic Access Control and Security Filters**  
+  Apply reusable access control or security-related WHERE clauses (e.g., tenant isolation, user-based restrictions) across all relevant queries, regardless of their internal structure. This helps enforce consistent data access policies throughout your application.
+
+> [!TIP] 
+> Upstream Query Support is especially useful for large, complex SQL with multiple layers of subqueries, CTEs, or set operations. You can add filters or conditions without worrying about the internal structure—just specify the column name!
+>
+> You can focus on developing and maintaining RawSQL itself, without being bothered by troublesome variable search conditions.
+
+---
+
+### overrideSelectItemExpr
+Overrides a SELECT item using its SQL expression. The callback receives the original SQL expression as a string and returns a new SQL string.
+
+```typescript
+// Override the SELECT item 'journal_date' to use greatest(journal_date, DATE '2025-01-01')
+query.overrideSelectItemExpr('journal_date', expr => `greatest(${expr}, DATE '2025-01-01')`);
+```
+---
+
+
 
 ---
 

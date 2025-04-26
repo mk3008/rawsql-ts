@@ -12,7 +12,7 @@ describe('overrideSelectColumnExpression', () => {
         const query = SelectQueryParser.parse(`SELECT j.journal_date FROM journals j`) as SimpleSelectQuery;
 
         // Act
-        query.overrideSelectItemRaw('journal_date', expr => `greatest(${expr}, DATE '2025-01-01')`);
+        query.overrideSelectItemExpr('journal_date', expr => `greatest(${expr}, DATE '2025-01-01')`);
 
         // Assert
         const formatter = new Formatter();
