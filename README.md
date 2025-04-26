@@ -196,7 +196,23 @@ console.log(sql);
 //    select * from (... union all ...) as "d" order by "transaction_date" desc
 ```
 
-> **Tip:** Upstream Query Support is especially useful for large, complex SQL with multiple layers of subqueries, CTEs, or set operations. You can add filters or conditions without worrying about the internal structure—just specify the column name!
+### appendWhereExpr Use Cases
+
+`appendWhereExpr` is especially useful in the following scenarios:
+
+- **Dynamic Search Conditions for Complex Reports**  
+  Easily inject arbitrary search filters into deeply nested or highly complex queries, such as those used in reporting or analytics dashboards. This enables flexible, user-driven filtering without manual SQL string manipulation.
+
+- **Performance-Critical Query Construction**  
+  Build high-performance queries by programmatically adding WHERE conditions only when needed, ensuring that unnecessary filters are not included and that the generated SQL remains as efficient as possible.
+
+- **Generic Access Control and Security Filters**  
+  Apply reusable access control or security-related WHERE clauses (e.g., tenant isolation, user-based restrictions) across all relevant queries, regardless of their internal structure. This helps enforce consistent data access policies throughout your application.
+
+> [!TIP] 
+> Upstream Query Support is especially useful for large, complex SQL with multiple layers of subqueries, CTEs, or set operations. You can add filters or conditions without worrying about the internal structure—just specify the column name!
+>
+> You can focus on developing and maintaining RawSQL itself, without being bothered by troublesome variable search conditions.
 
 ---
 
