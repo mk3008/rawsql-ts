@@ -22,13 +22,13 @@ describe('QueryConverter.toInsertQuery', () => {
         expect(sql).toBe('insert into "users" ("id", "name") select "vq"."id", "vq"."name" from (values (1, \'Alice\'), (2, \'Bob\')) as "vq"("id", "name")');
     });
 
-    it('throws if columns cannot be inferred', () => {
+    it('throws if columns cannot be inferred from wildcard select (SELECT *)', () => {
         // Should throw if column names cannot be inferred (e.g. select *)
         const select = SelectQueryParser.parse('SELECT * FROM users_old') as SimpleSelectQuery;
         expect(() => QueryConverter.toInsertQuery(select, 'users')).toThrow();
     });
 
-    it('throws if columns cannot be inferred', () => {
+    it('throws if columns cannot be inferred from constant select (SELECT 1)', () => {
         // Should throw if there are no column names (e.g. SELECT 1)
         const select = SelectQueryParser.parse('SELECT 1') as SimpleSelectQuery;
         expect(() => QueryConverter.toInsertQuery(select, 'users')).toThrow();

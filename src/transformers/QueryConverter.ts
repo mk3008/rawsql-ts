@@ -39,7 +39,7 @@ export class QueryConverter {
             return QueryConverter.toSimpleBinaryQuery(query);
         }
         else if (query instanceof ValuesQuery) {
-            // Convert VALUES queries to a simple query, columns指定対応
+            // Convert VALUES queries to a simple query, support for column specification
             return QueryConverter.toSimpleValuesQuery(query, columns);
         }
 
