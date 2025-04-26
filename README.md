@@ -251,6 +251,11 @@ A suite of utilities for transforming and analyzing SQL ASTs.
   Consolidates all CTEs into a single root-level WITH clause. Throws an error if duplicate CTE names with different definitions are found.
 - **QueryNormalizer**  
   Converts any SELECT/UNION/VALUES query into a standard SimpleSelectQuery. Handles subquery wrapping and automatic column name generation.
+- **QueryConverter**  
+  Converts any SELECT/UNION/VALUES query into a standard SimpleSelectQuery. Handles subquery wrapping and automatic column name generation.
+  Supports CREATE TABLE ... AS SELECT ... conversion:
+  - `QueryConverter.toCreateTableQuery(query, tableName, isTemporary?)` creates a `CreateTableQuery` from any SELECT query.
+
 - **TableColumnResolver**  
   A function type for resolving column names from a table name, mainly used for wildcard expansion (e.g., `table.*`). Used by analyzers like SelectValueCollector.
   ```typescript
@@ -291,7 +296,9 @@ Select values:
   name: user_name, value: "u"."user_name"
   name: email, value: "u"."email"
 */
+```
 
+```typescript
 // Collects selectable columns from the FROM/JOIN clauses.
 // You can get accurate information by specifying a TableColumnResolver.
 // If omitted, the information will be inferred from the query content.
@@ -312,7 +319,25 @@ Selectable columns:
   name: title, value: "p"."title"
   name: content, value: "p"."content"
 */
+```
 
+```typescript
+// Create Table from SELECT Example
+import { QueryConverter, SelectQueryParser, Formatter } from 'rawsql-ts';
+
+const select = SelectQueryParser.parse('SELECT id, name FROM users');
+const create = QueryConverter.toCreateTableQuery(select, 'my_table');
+const sqlCreate = new Formatter().format(create);
+console.log(sqlCreate);
+// => create table "my_table" as select "id", "name" from "users"
+
+const createTemp = QueryConverter.toCreateTableQuery(select, 'tmp_table', true);
+const sqlTemp = new Formatter().format(createTemp);
+console.log(sqlTemp);
+// => create temporary table "tmp_table" as select "id", "name" from "users"
+```
+
+```typescript
 // Retrieves physical table sources.
 const tableSourceCollector = new TableSourceCollector();
 const sources = tableSourceCollector.collect(query);
