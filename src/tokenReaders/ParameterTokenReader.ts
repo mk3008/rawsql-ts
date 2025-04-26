@@ -3,9 +3,16 @@ import { Lexeme, TokenType } from '../models/Lexeme';
 import { CharLookupTable } from '../utils/charLookupTable';
 
 /**
- * Reads SQL parameter tokens (@param, :param, $param, ?)
+ * Reads SQL parameter tokens (@param, :param, $param, ?, ${param})
  */
 export class ParameterTokenReader extends BaseTokenReader {
+    private supportSuffixes: boolean;
+
+    constructor(input: string, supportSuffixes: boolean = true) {
+        super(input);
+        this.supportSuffixes = supportSuffixes;
+    }
+
     /**
      * Try to read a parameter token
      */
@@ -41,6 +48,25 @@ export class ParameterTokenReader extends BaseTokenReader {
         if (char === '?') {
             this.position++;
             return this.createLexeme(TokenType.Parameter, char);
+        }
+
+        // parameter with suffix (${param})
+        if (this.supportSuffixes && char === '$' && this.canRead(2) && this.input[this.position + 1] === '{') {
+            this.position += 2; // Skip ${
+
+            const start = this.position;
+            while (this.canRead() && this.input[this.position] !== '}') {
+                this.position++;
+            }
+
+            if (this.isEndOfInput()) {
+                throw new Error(`Unexpected end of input. Expected closing '}' for parameter at position ${start}`);
+            }
+
+            const identifier = this.input.slice(start, this.position);
+            this.position++; // Skip }
+
+            return this.createLexeme(TokenType.Parameter, '${' + identifier + '}');
         }
 
         return null;
