@@ -11,6 +11,7 @@ import {
     TypeValue
 } from "../models/ValueComponent";
 import { CTECollector } from "./CTECollector";
+import { SelectableColumnCollector } from "./SelectableColumnCollector";
 
 /**
  * A visitor that collects all table source names from a SQL query structure.
@@ -287,6 +288,15 @@ export class TableSourceCollector implements SqlComponentVisitor<void> {
         // Check if this is a table managed by a CTE
         if (!this.tableNameMap.has(identifier) && !this.isCTETable(source.table.name)) {
             this.tableNameMap.set(identifier, true);
+
+            // Collect referenced columns using SelectableColumnCollector
+            const columnCollector = new SelectableColumnCollector();
+            const referencedColumns = columnCollector.collect(source);
+
+            // Add the query and referenced columns to the table source
+            source.query = source;
+            source.referencedColumns = referencedColumns.map(col => col.name);
+
             this.tableSources.push(source);
         }
     }
