@@ -24,7 +24,7 @@ export class UpstreamSelectQueryFinder {
      * @param columnNames Array of column names to check for.
      * @returns An array of SelectQuery objects, or an empty array if not found.
      */
-    public find(query: SelectQuery, columnNames: string[]): SelectQuery[] {
+    public find(query: SelectQuery, columnNames: string[]): SimpleSelectQuery[] {
         // Use CTECollector to collect CTEs from the root query only once and reuse
         const cteCollector = new CTECollector();
         const ctes = cteCollector.collect(query);
@@ -35,7 +35,7 @@ export class UpstreamSelectQueryFinder {
         return this.findUpstream(query, columnNames, cteMap);
     }
 
-    private handleTableSource(src: TableSource, columnNames: string[], cteMap: Map<string, CommonTable>): SelectQuery[] | null {
+    private handleTableSource(src: TableSource, columnNames: string[], cteMap: Map<string, CommonTable>): SimpleSelectQuery[] | null {
         // Handles the logic for TableSource in findUpstream
         const cte = cteMap.get(src.table.name);
         if (cte) {
@@ -51,7 +51,7 @@ export class UpstreamSelectQueryFinder {
         return null;
     }
 
-    private handleSubQuerySource(src: SubQuerySource, columnNames: string[], cteMap: Map<string, WithClause["tables"][number]>): SelectQuery[] | null {
+    private handleSubQuerySource(src: SubQuerySource, columnNames: string[], cteMap: Map<string, WithClause["tables"][number]>): SimpleSelectQuery[] | null {
         // Handles the logic for SubQuerySource in findUpstream
         const result = this.findUpstream(src.query, columnNames, cteMap);
         if (result.length === 0) {
@@ -68,17 +68,17 @@ export class UpstreamSelectQueryFinder {
         fromClause: any,
         columnNames: string[],
         cteMap: Map<string, CommonTable>
-    ): SelectQuery[] | null {
+    ): SimpleSelectQuery[] | null {
         const sources = fromClause.getSources();
         if (sources.length === 0) return null;
 
-        let allBranchResults: SelectQuery[][] = [];
+        let allBranchResults: SimpleSelectQuery[][] = [];
         let allBranchesOk = true;
         let validBranchCount = 0; // Count only filterable branches
 
         for (const sourceExpr of sources) {
             const src = sourceExpr.datasource;
-            let branchResult: SelectQuery[] | null = null;
+            let branchResult: SimpleSelectQuery[] | null = null;
             if (src instanceof TableSource) {
                 branchResult = this.handleTableSource(src, columnNames, cteMap);
                 validBranchCount++;
@@ -109,7 +109,7 @@ export class UpstreamSelectQueryFinder {
         return null;
     }
 
-    private findUpstream(query: SelectQuery, columnNames: string[], cteMap: Map<string, CommonTable>): SelectQuery[] {
+    private findUpstream(query: SelectQuery, columnNames: string[], cteMap: Map<string, CommonTable>): SimpleSelectQuery[] {
         if (query instanceof SimpleSelectQuery) {
             // Check upstream sources first: prioritize searching upstream branches for the required columns.
             const fromClause = query.fromClause;

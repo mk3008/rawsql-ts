@@ -305,4 +305,66 @@ describe('UpstreamSelectQueryFinder Demo', () => {
         // Should find the query with the alias user_id
         expect(foundSQLs[0]).toBe('select "u"."id" as "user_id" from "users" as "u"');
     });
+
+    test('should work correctly with appendWhereRaw on upstream queries', () => {
+        // Arrange
+        const sql = `
+            WITH sales_transactions AS (
+                SELECT
+                    transaction_id,
+                    customer_id,
+                    amount,
+                    transaction_date,
+                    'sales' AS source
+                FROM sales_schema.transactions
+                WHERE transaction_date >= CURRENT_DATE - INTERVAL '90 days'
+            ),
+            support_transactions AS (
+                SELECT
+                    support_id AS transaction_id,
+                    user_id AS customer_id,
+                    fee AS amount,
+                    support_date AS transaction_date,
+                    'support' AS source
+                FROM support_schema.support_fees
+                WHERE support_date >= CURRENT_DATE - INTERVAL '90 days'
+            )
+            SELECT *
+            FROM sales_transactions
+            UNION ALL
+            SELECT *
+            FROM support_transactions
+            ORDER BY transaction_date DESC`;
+        const query = SelectQueryParser.parse(sql);
+        const finder = new UpstreamSelectQueryFinder();
+
+        // Act
+        const queries = finder.find(query, ['amount']);
+        queries.forEach((q) => q.appendWhereRaw('amount > 100'));
+
+        // Assert
+        const formatter = new Formatter();
+        const actual = formatter.format(query);
+
+        // Assert
+        const excepted = `with "sales_transactions" as (
+            select "transaction_id", "customer_id", "amount", "transaction_date", 'sales' as "source"
+            from "sales_schema"."transactions"
+            where "transaction_date" >= current_date - INTERVAL '90 days' and "amount" > 100
+        ),
+        "support_transactions" as (
+            select "support_id" as "transaction_id", "user_id" as "customer_id", "fee" as "amount", "support_date" as "transaction_date", 'support' as "source"
+            from "support_schema"."support_fees"
+            where "support_date" >= current_date - INTERVAL '90 days' and "amount" > 100
+        )
+        select *
+        from "sales_transactions"
+        union all
+        select * from
+        "support_transactions"
+        order by "transaction_date" desc`;
+        // Compare ignoring whitespace, newlines, and tabs
+        const normalize = (str: string) => str.replace(/\s+/g, '');
+        expect(normalize(actual)).toBe(normalize(excepted));
+    });
 });
