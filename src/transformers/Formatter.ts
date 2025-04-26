@@ -28,6 +28,7 @@ import {
     TupleExpression
 } from "../models/ValueComponent";
 import { CommonTable, Distinct, DistinctOn, FetchSpecification, FetchType, ForClause, FromClause, FunctionSource, GroupByClause, HavingClause, JoinClause, JoinOnClause, JoinUsingClause, LimitClause, NullsSortDirection, OrderByClause, OrderByItem, PartitionByClause, SelectClause, SelectItem, SortDirection, SourceAliasExpression, SourceExpression, SubQuerySource, TableSource, WhereClause, WindowFrameClause, WithClause } from "../models/Clause";
+import { CreateTableQuery } from "../models/CreateTableQuery";
 
 interface FormatterConfig {
     identifierEscape: {
@@ -131,6 +132,7 @@ export class Formatter implements SqlComponentVisitor<string> {
         // select query
         this.handlers.set(SimpleSelectQuery.kind, (expr) => this.visitSelectQuery(expr as SimpleSelectQuery));
         this.handlers.set(BinarySelectQuery.kind, (expr) => this.visitBinarySelectQuery(expr as BinarySelectQuery));
+        this.handlers.set(CreateTableQuery.kind, (expr) => this.visitCreateTableQuery(expr as CreateTableQuery));
     }
 
     /**
@@ -574,5 +576,17 @@ export class Formatter implements SqlComponentVisitor<string> {
     private visitTupleExpression(arg: TupleExpression): string {
         const values = arg.values.map((value) => value.accept(this)).join(", ");
         return `(${values})`;
+    }
+
+    /**
+     * Formats a CreateTableQuery into SQL string.
+     */
+    private visitCreateTableQuery(arg: CreateTableQuery): string {
+        const temp = arg.isTemporary ? "temporary " : "";
+        let sql = `create ${temp}table ${arg.tableName.accept(this)}`;
+        if (arg.asSelectQuery) {
+            sql += ` as ${this.visit(arg.asSelectQuery)}`;
+        }
+        return sql;
     }
 }

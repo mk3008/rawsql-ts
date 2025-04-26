@@ -389,7 +389,7 @@ describe('UpstreamSelectQueryFinder Demo', () => {
         order by "transaction_date" desc`;
         // Compare ignoring whitespace, newlines, and tabs
         const normalize = (str: string) => str.replace(/\s+/g, '');
-        expect(normalize(actual)).toBe(normalize(excepted));
+        expect(normalize(actual)).toBe(normalize(expected));
     });
 
     test('appendWhereExpr', () => {
@@ -457,6 +457,6 @@ describe('UpstreamSelectQueryFinder Demo', () => {
         order by "transaction_date" desc`;
         // Compare ignoring whitespace, newlines, and tabs
         const normalize = (str: string) => str.replace(/\s+/g, '');
-        expect(normalize(actual)).toBe(normalize(excepted));
+        expect(normalize(actual)).toBe(normalize(expected));
     });
 });

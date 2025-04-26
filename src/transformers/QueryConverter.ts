@@ -4,6 +4,7 @@ import { SqlComponent } from "../models/SqlComponent";
 import { ColumnReference, IdentifierString, RawString } from "../models/ValueComponent";
 import { CTECollector } from "./CTECollector";
 import { CTENormalizer } from "./CTENormalizer";
+import { CreateTableQuery } from "../models/CreateTableQuery";
 
 /**
  * Converts various SELECT query types to a standard SimpleSelectQuery format.
@@ -143,5 +144,20 @@ export class QueryConverter {
 
         // Create and return a SelectClause with the item
         return new SelectClause([selectItem], null);
+    }
+
+    /**
+     * Converts a SELECT query to a CREATE TABLE query (CREATE [TEMPORARY] TABLE ... AS SELECT ...)
+     * @param query The SELECT query to use as the source
+     * @param tableName The name of the table to create
+     * @param isTemporary If true, creates a temporary table
+     * @returns A CreateTableQuery instance
+     */
+    public static toCreateTableQuery(query: SelectQuery, tableName: string, isTemporary: boolean = false): CreateTableQuery {
+        return new CreateTableQuery({
+            tableName,
+            isTemporary,
+            asSelectQuery: query
+        });
     }
 }

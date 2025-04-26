@@ -1,0 +1,90 @@
+import { SqlComponent } from "./SqlComponent";
+import type { SelectQuery } from "./SelectQuery";
+import { ColumnReference, FunctionCall, IdentifierString, RawString } from "./ValueComponent";
+import { SimpleSelectQuery } from "./SimpleSelectQuery";
+import { SelectClause, SelectItem, FromClause, TableSource, SourceExpression } from "./Clause";
+import { SelectValueCollector } from "../transformers/SelectValueCollector";
+
+// Represents a CREATE TABLE query model
+// Supports temporary tables and AS SELECT ...
+export class CreateTableQuery extends SqlComponent {
+    /** SqlComponent kind symbol for visitor pattern */
+    static kind = Symbol("CreateTableQuery");
+    /** Table name (with optional schema) */
+    tableName: IdentifierString;
+    /** If true, this is a temporary table */
+    isTemporary: boolean;
+    /** Optional: SELECT query for AS SELECT ... */
+    asSelectQuery?: SelectQuery;
+
+    constructor(params: {
+        tableName: string;
+        isTemporary?: boolean;
+        asSelectQuery?: SelectQuery;
+    }) {
+        super();
+        this.tableName = new IdentifierString(params.tableName);
+        this.isTemporary = params.isTemporary ?? false;
+        this.asSelectQuery = params.asSelectQuery;
+    }
+
+    /**
+     * Returns a SelectQuery that selects all columns from this table.
+     */
+    getSelectQuery(): SimpleSelectQuery {
+        let selectItems: SelectItem[];
+        if (this.asSelectQuery) {
+            // Use SelectValueCollector to get columns from asSelectQuery
+            const collector = new SelectValueCollector();
+            const values = collector.collect(this.asSelectQuery);
+            selectItems = values.map(val => new SelectItem(val.value, val.name));
+        } else {
+            // fallback: wildcard
+            selectItems = [new SelectItem(new RawString("*"))];
+        }
+        return new SimpleSelectQuery(
+            null, // withClause
+            new SelectClause(selectItems),
+            new FromClause(
+                new SourceExpression(
+                    new TableSource(null, this.tableName.name),
+                    null
+                ),
+                null // joins
+            ),
+            null, // whereClause
+            null, // groupByClause
+            null, // havingClause
+            null, // orderByClause
+            null, // windowFrameClause
+            null, // rowLimitClause
+            null  // forClause
+        );
+    }
+
+    /**
+     * Returns a SelectQuery that counts all rows in this table.
+     */
+    getCountQuery(): SimpleSelectQuery {
+        return new SimpleSelectQuery(
+            null, // withClause
+            new SelectClause([
+                new SelectItem(new FunctionCall("count", new ColumnReference(null, "*"), null))
+            ]),
+            new FromClause(
+                new SourceExpression(
+                    new TableSource(null, this.tableName.name),
+                    null
+                ),
+                null // joins
+            ),
+            null, // whereClause
+            null, // groupByClause
+            null, // havingClause
+            null, // orderByClause
+            null, // windowFrameClause
+            null, // rowLimitClause
+            null  // forClause
+        );
+    }
+}
