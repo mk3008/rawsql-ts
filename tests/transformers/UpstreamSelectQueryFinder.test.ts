@@ -3,6 +3,7 @@ import { SelectQueryParser } from '../../src/parsers/SelectQueryParser';
 import { UpstreamSelectQueryFinder } from '../../src/transformers/UpstreamSelectQueryFinder';
 import { Formatter } from '../../src/transformers/Formatter';
 import { SelectableColumnCollector } from '../../src/transformers/SelectableColumnCollector';
+import { SimpleSelectQuery } from '../../src/models/SimpleSelectQuery';
 
 function getRawSQL(query: any): string {
     // Use Formatter to convert SelectQuery to SQL string
@@ -330,25 +331,32 @@ describe('UpstreamSelectQueryFinder Demo', () => {
                 FROM support_schema.support_fees
                 WHERE support_date >= CURRENT_DATE - INTERVAL '90 days'
             )
-            SELECT *
-            FROM sales_transactions
-            UNION ALL
-            SELECT *
-            FROM support_transactions
+            SELECT * FROM (
+                SELECT *
+                FROM sales_transactions
+                UNION ALL
+                SELECT *
+                FROM support_transactions
+            ) d
             ORDER BY transaction_date DESC`;
         const query = SelectQueryParser.parse(sql);
         const finder = new UpstreamSelectQueryFinder();
 
         // Act
+        // Find upstream queries that contain the column "amount".
         const collector = new SelectableColumnCollector();
         const queries = finder.find(query, ['amount']);
+        // For each upstream query, retrieve the expression for the "amount" column.
         queries.forEach((q) => {
             const exprs = collector.collect(q).filter(item => item.name == 'amount').map(item => item.value);
+            // Ensure exactly one expression is found for the "amount" column.
             if (exprs.length !== 1) {
                 throw new Error('Expected exactly one expression for "amount" column');
             }
+            // Convert the expression back to a string representation.
             const f = new Formatter();
             const expr = f.format(exprs[0]);
+            // Add a search condition using the "amount" expression to the upstream query.
             q.appendWhereRaw(`${expr} > 100`);
         });
 
@@ -371,11 +379,81 @@ describe('UpstreamSelectQueryFinder Demo', () => {
             where "support_date" >= current_date - INTERVAL '90 days'
                 and "fee" > 100
         )
-        select *
-        from "sales_transactions"
-        union all
-        select * from
-        "support_transactions"
+        select * from (
+            select *
+            from "sales_transactions"
+            union all
+            select * from
+            "support_transactions"
+        ) as "d"
+        order by "transaction_date" desc`;
+        // Compare ignoring whitespace, newlines, and tabs
+        const normalize = (str: string) => str.replace(/\s+/g, '');
+        expect(normalize(actual)).toBe(normalize(excepted));
+    });
+
+    test('appendWhereExpr', () => {
+        // Arrange
+        const sql = `
+            WITH sales_transactions AS (
+                SELECT
+                    transaction_id,
+                    customer_id,
+                    amount,
+                    transaction_date,
+                    'sales' AS source
+                FROM sales_schema.transactions
+                WHERE transaction_date >= CURRENT_DATE - INTERVAL '90 days'
+            ),
+            support_transactions AS (
+                SELECT
+                    support_id AS transaction_id,
+                    user_id AS customer_id,
+                    fee AS amount,
+                    support_date AS transaction_date,
+                    'support' AS source
+                FROM support_schema.support_fees
+                WHERE support_date >= CURRENT_DATE - INTERVAL '90 days'
+            )
+            SELECT * FROM (
+                SELECT *
+                FROM sales_transactions
+                UNION ALL
+                SELECT *
+                FROM support_transactions
+            ) d
+            ORDER BY transaction_date DESC`;
+        const query = SelectQueryParser.parse(sql) as SimpleSelectQuery;
+
+        // Act
+        query.appendWhereExpr('amount', expr => `${expr} > 100`, { upstream: true });
+
+        // Assert
+        const formatter = new Formatter();
+        const actual = formatter.format(query);
+
+        // Assert
+        // NOTE: sales_transactions will be filtered by amount.
+        // NOTE: support_transactions will be filtered by fee (alias: amount).
+        const excepted = `with "sales_transactions" as (
+            select "transaction_id", "customer_id", "amount", "transaction_date", 'sales' as "source"
+            from "sales_schema"."transactions"
+            where "transaction_date" >= current_date - INTERVAL '90 days'
+                and "amount" > 100
+        ),
+        "support_transactions" as (
+            select "support_id" as "transaction_id", "user_id" as "customer_id", "fee" as "amount", "support_date" as "transaction_date", 'support' as "source"
+            from "support_schema"."support_fees"
+            where "support_date" >= current_date - INTERVAL '90 days'
+                and "fee" > 100
+        )
+        select * from (
+            select *
+            from "sales_transactions"
+            union all
+            select * from
+            "support_transactions"
+        ) as "d"
         order by "transaction_date" desc`;
         // Compare ignoring whitespace, newlines, and tabs
         const normalize = (str: string) => str.replace(/\s+/g, '');

@@ -11,6 +11,7 @@ import { CommonTableParser } from "../parsers/CommonTableParser";
 import { SelectQueryParser } from "../parsers/SelectQueryParser";
 import { Formatter } from "../transformers/Formatter";
 import { TableColumnResolver } from "../transformers/TableColumnResolver";
+import { UpstreamSelectQueryFinder } from "../transformers/UpstreamSelectQueryFinder";
 
 /**
  * Represents a simple SELECT query in SQL.
@@ -384,5 +385,48 @@ export class SimpleSelectQuery extends SqlComponent {
         const exprSql = formatter.visit(item.value);
         const newValue = fn(exprSql);
         item.value = ValueParser.parse(newValue);
+    }
+
+    /**
+     * Appends a WHERE clause using the expression for the specified column.
+     * If `options.upstream` is true, applies to all upstream queries containing the column.
+     * If false or omitted, applies only to the current query.
+     *
+     * @param columnName The name of the column to target.
+     * @param exprBuilder Function that receives the column expression as a string and returns the WHERE condition string.
+     * @param options Optional settings. If `upstream` is true, applies to upstream queries.
+     */
+    public appendWhereExpr(
+        columnName: string,
+        exprBuilder: (expr: string) => string,
+        options?: { upstream?: boolean }
+    ): void {
+        // If upstream option is true, find all upstream queries containing the column
+        if (options && options.upstream) {
+            // Use UpstreamSelectQueryFinder to find all relevant queries
+            // (Assume UpstreamSelectQueryFinder is imported)
+            const finder = new UpstreamSelectQueryFinder();
+            const queries = finder.find(this, [columnName]);
+            const collector = new SelectableColumnCollector();
+            const formatter = new Formatter();
+            for (const q of queries) {
+                const exprs = collector.collect(q).filter(item => item.name === columnName).map(item => item.value);
+                if (exprs.length !== 1) {
+                    throw new Error(`Expected exactly one expression for column '${columnName}'`);
+                }
+                const exprStr = formatter.format(exprs[0]);
+                q.appendWhereRaw(exprBuilder(exprStr));
+            }
+        } else {
+            // Only apply to the current query
+            const collector = new SelectableColumnCollector();
+            const formatter = new Formatter();
+            const exprs = collector.collect(this).filter(item => item.name === columnName).map(item => item.value);
+            if (exprs.length !== 1) {
+                throw new Error(`Expected exactly one expression for column '${columnName}'`);
+            }
+            const exprStr = formatter.format(exprs[0]);
+            this.appendWhereRaw(exprBuilder(exprStr));
+        }
     }
 }
