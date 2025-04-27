@@ -47,9 +47,15 @@ export class ColumnReference extends SqlComponent {
     namespaces: IdentifierString[] | null;
     // Use the string type instead of the RawString type because it has its own escaping process.
     column: IdentifierString;
-    constructor(namespaces: string[] | null, column: string) {
+    constructor(namespaces: string | string[] | null, column: string) {
         super();
-        this.namespaces = namespaces !== null ? namespaces.map((namespace) => new IdentifierString(namespace)) : null;
+        if (typeof namespaces === "string") {
+            this.namespaces = [new IdentifierString(namespaces)];
+        } else if (Array.isArray(namespaces)) {
+            this.namespaces = namespaces.map((namespace) => new IdentifierString(namespace));
+        } else {
+            this.namespaces = null;
+        }
         this.column = new IdentifierString(column);
     }
 
