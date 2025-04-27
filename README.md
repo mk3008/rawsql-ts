@@ -10,7 +10,8 @@
 
 rawsql-ts is a high-performance SQL parser and AST transformer library written in TypeScript. It is designed for extensibility and advanced SQL analysis, with initial focus on PostgreSQL syntax but not limited to it. The library enables easy SQL parsing, transformation, and analysis for a wide range of SQL dialects.
 
-> **Note:** This library is currently in beta. The API may change until the v1.0 release.
+> [!Note]
+> This library is currently in beta. The API may change until the v1.0 release.
 
 ---
 
@@ -72,16 +73,26 @@ console.log(formattedSql);
 
 ## Main Parser Features
 
+- All parsers automatically remove SQL comments before parsing.
+- Detailed error messages are provided for all parsing errors.
+- Highly accurate and advanced tokenization is used for robust SQL analysis.
+
+> [!Note]
+> All parsers in rawsql-ts have been tested with PostgreSQL syntax, but they are capable of parsing any generic SQL statement that does not use a DBMS-specific dialect.
+
 - **SelectQueryParser**  
-  The main class for converting SELECT and VALUES statements into AST. Fully supports CTEs (WITH), UNION/INTERSECT/EXCEPT, subqueries, and PostgreSQL-specific syntax.
+  The main class for converting SELECT and VALUES statements into AST. Fully supports CTEs (WITH), UNION/INTERSECT/EXCEPT, subqueries, and PostgreSQL-style syntax.
   - `parse(sql: string): SelectQuery`  
     Converts a SQL string to an AST. Throws an exception on error.
-  - Supports only PostgreSQL syntax
-  - Only SELECT and VALUES are supported (INSERT/UPDATE/DELETE are not yet implemented)
-  - SQL comments are automatically removed
-  - Handles CTEs (WITH), UNION/INTERSECT/EXCEPT, subqueries, window functions, complex expressions, and functions
-  - Provides detailed error messages
-  - Highly accurate tokenization
+  - In this library, a "select query" is represented as one of the following types:
+    - `SimpleSelectQuery`: A standard SELECT statement with all major clauses (WHERE, GROUP BY, JOIN, etc.)
+    - `BinarySelectQuery`: A set operation query such as UNION, INTERSECT, or EXCEPT
+    - `ValuesQuery`: An inline VALUES table (e.g., `VALUES (1, 'a'), (2, 'b')`)
+
+- **InsertQueryParser**  
+  The main class for parsing `INSERT INTO` statements and converting them into AST. Supports PostgreSQL-style INSERT with or without column lists, as well as `INSERT ... SELECT` and `INSERT ... VALUES` forms.
+  - `parse(sql: string): InsertQuery`  
+    Converts an INSERT SQL string to an AST. Throws an exception on error.
 
 ---
 
