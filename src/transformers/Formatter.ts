@@ -31,11 +31,11 @@ import { CommonTable, Distinct, DistinctOn, FetchSpecification, FetchType, ForCl
 import { CreateTableQuery } from "../models/CreateTableQuery";
 
 interface FormatterConfig {
-    identifierEscape: {
+    identifierEscape?: {
         start: string;
         end: string;
     };
-    parameterSymbol: string;
+    parameterSymbol?: string | { start: string; end: string };
 }
 
 export class Formatter implements SqlComponentVisitor<string> {
@@ -51,7 +51,7 @@ export class Formatter implements SqlComponentVisitor<string> {
                 start: '"',
                 end: '"'
             },
-            parameterSymbol: ':' // Use PostgreSQL style as default
+            parameterSymbol: ':',
         };
 
         // value
@@ -144,7 +144,12 @@ export class Formatter implements SqlComponentVisitor<string> {
      */
     public format(arg: SqlComponent, config: FormatterConfig | null = null): string {
         if (config) {
-            this.config = config;
+            // Always reset to default before merging user config
+            this.config = {
+                identifierEscape: { start: '"', end: '"' },
+                parameterSymbol: ':',
+                ...config
+            };
         }
         return this.visit(arg);
     }
@@ -398,7 +403,12 @@ export class Formatter implements SqlComponentVisitor<string> {
     }
 
     private visitParameterExpression(arg: ParameterExpression): string {
-        return `${this.config.parameterSymbol}${arg.name.accept(this)}`;
+        // New: support parameterSymbol as string or {start, end}
+        if (typeof this.config.parameterSymbol === 'object' && this.config.parameterSymbol !== null) {
+            return `${this.config.parameterSymbol.start}${arg.name.accept(this)}${this.config.parameterSymbol.end}`;
+        }
+        // fallback (string or undefined)
+        return `${this.config.parameterSymbol ?? ':'}${arg.name.accept(this)}`;
     }
 
     private visitSelectItemExpression(arg: SelectItem): string {
@@ -565,7 +575,8 @@ export class Formatter implements SqlComponentVisitor<string> {
         if (arg.name === '*') {
             return arg.name;
         }
-        return `${this.config.identifierEscape.start}${arg.name}${this.config.identifierEscape.end}`;
+        const escape = this.config.identifierEscape ?? { start: '"', end: '"' };
+        return `${escape.start}${arg.name}${escape.end}`;
     }
 
     private visitValuesQuery(arg: ValuesQuery): string {
