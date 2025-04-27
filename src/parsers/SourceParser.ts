@@ -4,6 +4,7 @@ import { SelectQueryParser } from "./SelectQueryParser";
 import { SqlTokenizer } from "./SqlTokenizer";
 import { ValueParser } from "./ValueParser";
 import { extractNamespacesAndName } from "../utils/extractNamespacesAndName";
+import { parseEscapedOrDotSeparatedIdentifiers } from "../utils/parseEscapedOrDotSeparatedIdentifiers";
 
 export class SourceParser {
     // Parse SQL string to AST (was: parse)
@@ -41,23 +42,13 @@ export class SourceParser {
     }
 
     private static parseTableSource(lexemes: Lexeme[], index: number): { value: TableSource; newIndex: number } {
-        let idx = index;
-        const identifiers: string[] = [];
-        identifiers.push(lexemes[idx].value);
-        idx++;
-        while (
-            idx < lexemes.length &&
-            idx + 1 < lexemes.length &&
-            (lexemes[idx].type & TokenType.Dot) &&
-            (lexemes[idx + 1].type & TokenType.Identifier)
-        ) {
-            idx++;
-            identifiers.push(lexemes[idx].value);
-            idx++;
+        const { identifiers, newIndex } = parseEscapedOrDotSeparatedIdentifiers(lexemes, index);
+        if (identifiers.length === 0) {
+            throw new Error(`No table identifier found at position ${index}`);
         }
         const { namespaces, name } = extractNamespacesAndName(identifiers);
         const value = new TableSource(namespaces, name);
-        return { value, newIndex: idx };
+        return { value, newIndex };
     }
 
     private static parseFunctionSource(lexemes: Lexeme[], index: number): { value: FunctionSource; newIndex: number } {

@@ -71,6 +71,91 @@ console.log(formattedSql);
 
 ---
 
+## Formatter Functionality
+
+The `Formatter` class in rawsql-ts converts a parsed query object (AST) back into a formatted SQL string. This is useful for programmatically manipulating SQL and then generating a string for execution or display.
+
+### Preset Configurations (Formatter.PRESETS)
+
+The `Formatter` class provides preset configurations for common SQL dialects. Use these presets to quickly format queries for MySQL, PostgreSQL, SQL Server, or SQLite without manually specifying options each time.
+
+```typescript
+const mysqlSql = formatter.format(query, Formatter.PRESETS.mysql);
+const pgSql = formatter.format(query, Formatter.PRESETS.postgres);
+const mssqlSql = formatter.format(query, Formatter.PRESETS.sqlserver);
+const sqliteSql = formatter.format(query, Formatter.PRESETS.sqlite);
+```
+
+**Preset Details:**
+- `Formatter.PRESETS.mysql`: Backtick identifier, `?` parameter, no named parameters
+- `Formatter.PRESETS.postgres`: Double quote identifier, `:` parameter, named parameters supported
+- `Formatter.PRESETS.sqlserver`: Square bracket identifier, `@` parameter, named parameters supported
+- `Formatter.PRESETS.sqlite`: Double quote identifier, `:` parameter, named parameters supported
+
+### How to Customize Presets
+
+You can override any preset option as needed. For example, to use variable-style parameters (`${name}`):
+
+```typescript
+const variableSql = formatter.format(query, {
+  ...Formatter.PRESETS.postgres,
+  parameterSymbol: { start: '${', end: '}' },
+});
+// => select "user_id", "name" from "users" where "active" = ${active}
+```
+
+Or to change only the identifier escape style:
+
+```typescript
+const customSql = formatter.format(query, {
+  ...Formatter.PRESETS.mysql,
+  identifierEscape: { start: '"', end: '"' }
+});
+```
+
+### Configurable Options
+
+Formatting options are provided as the second argument to the `format()` method. You can customize:
+- `identifierEscape`: How identifiers are escaped (e.g., `"`, `[`, `` ` ``)
+- `parameterSymbol`: The symbol or pattern for parameters (e.g., `:`, `@`, `?`, or `{ start: '${', end: '}' }`)
+- `supportNamedParameter`: If false, parameter names are omitted (for MySQL-style `?` only)
+
+### Usage Example
+
+#### Using a Preset
+
+```typescript
+import { SelectQueryParser, Formatter } from 'rawsql-ts';
+
+const sql = `SELECT user_id, name FROM users WHERE active = TRUE`;
+const query = SelectQueryParser.parse(sql);
+const formatter = new Formatter();
+const formattedSql = formatter.format(query, Formatter.PRESETS.postgres);
+console.log(formattedSql);
+// => select "user_id", "name" from "users" where "active" = true
+```
+
+#### Using Manual Configuration
+
+```typescript
+import { SelectQueryParser, Formatter } from 'rawsql-ts';
+
+const sql = `SELECT user_id, name FROM users WHERE active = TRUE`;
+const query = SelectQueryParser.parse(sql);
+const formatter = new Formatter();
+const formattedSql = formatter.format(query, {
+  identifierEscape: { start: '`', end: '`' },
+  parameterSymbol: '?',
+  supportNamedParameter: false,
+});
+console.log(formattedSql);
+// => select `user_id`, `name` from `users` where `active` = ?
+```
+
+rawsql-ts is designed to be flexible and support various SQL dialects. The `Formatter` class can be customized to handle different dialects by adjusting the identifier escape characters, parameter symbols, and named parameter support. This makes it easy to work with SQL queries for different database systems using a consistent API.
+
+---
+
 ## Main Parser Features
 
 - All parsers automatically remove SQL comments before parsing.

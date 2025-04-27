@@ -260,11 +260,11 @@ describe('SelectQueryParser async', () => {
     test('Dialect conversion: Postgres to MySQL', async () => {
         // Arrange
         const sql = 'select "id", "name" from "users" where "id" = :userId';
-        const expected = 'select `id`, `name` from `users` where `id` = :userId';
+        const expected = 'select `id`, `name` from `users` where `id` = ?';
 
         // Act
         const query = await SelectQueryParser.parseAsync(sql);
-        const formatted = formatter.format(query, { identifierEscape: { start: '`', end: '`' }, parameterSymbol: ':' });
+        const formatted = formatter.format(query, { identifierEscape: { start: '`', end: '`' }, parameterSymbol: '?', supportNamedParameter: false });
 
         // Assert
         expect(formatted).toBe(expected);
@@ -297,6 +297,45 @@ describe('SelectQueryParser async', () => {
             identifierEscape: { start: '', end: '' },
             parameterSymbol: ':'
         });
+
+        // Assert
+        expect(formatted).toBe(expected);
+    });
+
+    test('Dialect conversion: SQL Server to Postgres', async () => {
+        // Arrange
+        const sql = 'select [id], [name] from [users] where [id] = @userId';
+        const expected = 'select "id", "name" from "users" where "id" = :userId';
+
+        // Act
+        const query = await SelectQueryParser.parseAsync(sql);
+        const formatted = formatter.format(query, { identifierEscape: { start: '"', end: '"' }, parameterSymbol: ':' });
+
+        // Assert
+        expect(formatted).toBe(expected);
+    });
+
+    test('Dialect conversion: SQL Server to MySQL', async () => {
+        // Arrange
+        const sql = 'select [id], [name] from [users] where [id] = @userId';
+        const expected = 'select `id`, `name` from `users` where `id` = ?';
+
+        // Act
+        const query = await SelectQueryParser.parseAsync(sql);
+        const formatted = formatter.format(query, { identifierEscape: { start: '`', end: '`' }, parameterSymbol: '?', supportNamedParameter: false });
+
+        // Assert
+        expect(formatted).toBe(expected);
+    });
+
+    test('Dialect conversion: SQL Server to MySQL (using preset)', async () => {
+        // Arrange
+        const sql = 'select [id], [name] from [users] where [id] = @userId';
+        const expected = 'select `id`, `name` from `users` where `id` = ?';
+
+        // Act
+        const query = await SelectQueryParser.parseAsync(sql);
+        const formatted = formatter.format(query, Formatter.PRESETS.mysql);
 
         // Assert
         expect(formatted).toBe(expected);
