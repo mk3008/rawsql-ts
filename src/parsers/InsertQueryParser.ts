@@ -42,7 +42,7 @@ export class InsertQueryParser {
         if (lexemes[idx].value !== "insert into") {
             throw new Error(`Syntax error at position ${idx}: Expected 'INSERT INTO' but found '${lexemes[idx].value}'.`);
         }
-        idx++;;
+        idx++;
 
         // 完全名を取得
         const { namespaces, table, newIndex: idxAfterName } = this.parseFullQualifiedName(lexemes, idx);
