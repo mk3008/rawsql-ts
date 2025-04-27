@@ -29,7 +29,7 @@ export class QueryConverter {
      * @param columns Optional: column names for VALUES query
      * @returns A SimpleSelectQuery
      */
-    public static toSimple(query: SelectQuery, columns?: string[]): SimpleSelectQuery {
+    public static toSimple(query: SelectQuery): SimpleSelectQuery {
         if (query instanceof SimpleSelectQuery) {
             // Already a simple query, just return it
             return query;
@@ -40,7 +40,7 @@ export class QueryConverter {
         }
         else if (query instanceof ValuesQuery) {
             // Convert VALUES queries to a simple query, support for column specification
-            return QueryConverter.toSimpleValuesQuery(query, columns);
+            return QueryConverter.toSimpleValuesQuery(query);
         }
 
         // Should not reach here with current type system
@@ -94,34 +94,31 @@ export class QueryConverter {
      * @param columns Optional: column names
      * @returns A SimpleSelectQuery
      */
-    private static toSimpleValuesQuery(query: ValuesQuery, columns?: string[]): SimpleSelectQuery {
+    private static toSimpleValuesQuery(query: ValuesQuery): SimpleSelectQuery {
         // Figure out how many columns are in the VALUES clause
         const columnCount = query.tuples.length > 0 ? query.tuples[0].values.length : 0;
-        let columnNames: string[];
-        if (columns && columns.length > 0) {
-            if (columns.length !== columnCount) {
-                throw new Error(`Column count mismatch: got ${columns.length} names for ${columnCount} values`);
-            }
-            columnNames = columns;
-        } else {
-            columnNames = [];
-            for (let i = 1; i <= columnCount; i++) {
-                columnNames.push(`column${i}`);
-            }
+        if (query.tuples.length === 0) {
+            throw new Error("Empty VALUES clause cannot be converted to a SimpleSelectQuery");
+        }
+        if (!query.columnAliases) {
+            throw new Error("Column aliases are required to convert a VALUES clause to SimpleSelectQuery. Please specify column aliases.");
+        }
+        if (query.columnAliases.length !== columnCount) {
+            throw new Error(`The number of column aliases (${query.columnAliases.length}) does not match the number of columns in the first tuple (${columnCount}).`);
         }
 
         // Create a subquery source from the VALUES query
         const subQuerySource = new SubQuerySource(query);
         const sourceExpr = new SourceExpression(
             subQuerySource,
-            new SourceAliasExpression("vq", columnNames)
+            new SourceAliasExpression("vq", query.columnAliases)
         );
 
         // Create FROM clause with the source expression
         const fromClause = new FromClause(sourceExpr, null);
 
         // Create SELECT clause with all columns
-        const selectItems = columnNames.map(name => new SelectItem(new ColumnReference(["vq"], name), name));
+        const selectItems = query.columnAliases.map(name => new SelectItem(new ColumnReference("vq", name), name));
         const selectClause = new SelectClause(selectItems, null);
 
         // Create the final simple select query
