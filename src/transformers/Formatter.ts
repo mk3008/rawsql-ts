@@ -37,9 +37,40 @@ interface FormatterConfig {
         end: string;
     };
     parameterSymbol?: string | { start: string; end: string };
+    /**
+     * If false, named parameters are not supported (e.g. MySQL: use only '?').
+     * If true (default), named parameters are output (e.g. :userId, @userId).
+     */
+    supportNamedParameter?: boolean;
 }
 
 export class Formatter implements SqlComponentVisitor<string> {
+    /**
+     * Preset configs for common DB dialects.
+     */
+    public static readonly PRESETS: Record<string, FormatterConfig> = {
+        mysql: {
+            identifierEscape: { start: '`', end: '`' },
+            parameterSymbol: '?',
+            supportNamedParameter: false,
+        },
+        postgres: {
+            identifierEscape: { start: '"', end: '"' },
+            parameterSymbol: ':',
+            supportNamedParameter: true,
+        },
+        sqlserver: {
+            identifierEscape: { start: '[', end: ']' },
+            parameterSymbol: '@',
+            supportNamedParameter: true,
+        },
+        sqlite: {
+            identifierEscape: { start: '"', end: '"' },
+            parameterSymbol: ':',
+            supportNamedParameter: true,
+        },
+    };
+
     private handlers: Map<symbol, (arg: any) => string>;
     private config: FormatterConfig;
 
@@ -406,6 +437,10 @@ export class Formatter implements SqlComponentVisitor<string> {
 
     private visitParameterExpression(arg: ParameterExpression): string {
         // New: support parameterSymbol as string or {start, end}
+        if (this.config.supportNamedParameter === false && this.config.parameterSymbol === '?') {
+            // MySQL style: only output '?', ignore name
+            return '?';
+        }
         if (typeof this.config.parameterSymbol === 'object' && this.config.parameterSymbol !== null) {
             return `${this.config.parameterSymbol.start}${arg.name.accept(this)}${this.config.parameterSymbol.end}`;
         }
