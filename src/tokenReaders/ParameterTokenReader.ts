@@ -28,7 +28,12 @@ export class ParameterTokenReader extends BaseTokenReader {
             if (this.isEndOfInput()) {
                 throw new Error(`Unexpected end of input. Expected closing '}' for parameter at position ${start}`);
             }
+
             const identifier = this.input.slice(start, this.position);
+            if (identifier.length === 0) {
+                throw new Error('Empty parameter name is not allowed: found ${} at position ' + (start - 2));
+            }
+
             this.position++; // Skip }
             return this.createLexeme(TokenType.Parameter, '${' + identifier + '}');
         }
