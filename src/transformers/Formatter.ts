@@ -594,7 +594,10 @@ export class Formatter implements SqlComponentVisitor<string> {
 
     private visitInsertQuery(arg: InsertQuery): string {
         // Format: INSERT INTO table (col1, col2, ...) SELECT .../VALUES ...
-        const table = arg.table.accept(this);
+        let table = arg.table.accept(this);
+        if (arg.namespaces && arg.namespaces.length > 0) {
+            table = `${arg.namespaces.map(ns => ns.accept(this)).join('.')}.${table}`;
+        }
         const columns = arg.columns.map(col => col.accept(this)).join(", ");
         let sql = `insert into ${table}`;
         if (arg.columns.length > 0) {

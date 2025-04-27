@@ -7,6 +7,7 @@ import { SelectQuery } from "./SelectQuery";
 
 export class InsertQuery extends SqlComponent {
     static kind = Symbol("InsertQuery");
+    namespaces: IdentifierString[] | null;
     table: IdentifierString;
     columns: IdentifierString[];
     selectQuery: SelectQuery | null;
@@ -17,11 +18,15 @@ export class InsertQuery extends SqlComponent {
      * @param params.selectQuery SELECT/VALUES query (required)
      */
     constructor(params: {
-        table: string | IdentifierString,
+        namespaces: (string | IdentifierString)[] | null;
+        table: string | IdentifierString;
         columns: (string | IdentifierString)[],
         selectQuery?: SelectQuery | null
     }) {
         super();
+        this.namespaces = params.namespaces
+            ? params.namespaces.map(ns => typeof ns === "string" ? new IdentifierString(ns) : ns)
+            : null;
         this.table = typeof params.table === "string" ? new IdentifierString(params.table) : params.table;
         this.columns = params.columns.map(c => typeof c === "string" ? new IdentifierString(c) : c);
         this.selectQuery = params.selectQuery ?? null;

@@ -187,10 +187,17 @@ export class QueryConverter {
         const items = collector.collect(selectQuery);
         cols = items.map(item => item.name);
         if (!cols.length || count !== cols.length) {
-            throw new Error("Cannot infer columns from selectQuery. Please specify columns explicitly.");
+            throw new Error(
+                `Columns cannot be inferred from the selectQuery. ` +
+                `Make sure you are not using wildcards or unnamed columns.\n` +
+                `Select clause column count: ${count}, ` +
+                `Columns with valid names: ${cols.length}\n` +
+                `Detected column names: [${cols.join(", ")}]`
+            );
         }
 
         return new InsertQuery({
+            namespaces: null,
             table: tableName,
             columns: cols,
             selectQuery: selectQuery
