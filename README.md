@@ -10,7 +10,8 @@
 
 rawsql-ts is a high-performance SQL parser and AST transformer library written in TypeScript. It is designed for extensibility and advanced SQL analysis, with initial focus on PostgreSQL syntax but not limited to it. The library enables easy SQL parsing, transformation, and analysis for a wide range of SQL dialects.
 
-> **Note:** This library is currently in beta. The API may change until the v1.0 release.
+> [!Note]
+> This library is currently in beta. The API may change until the v1.0 release.
 
 ---
 
@@ -70,18 +71,113 @@ console.log(formattedSql);
 
 ---
 
+## Formatter Functionality
+
+The `Formatter` class in rawsql-ts converts a parsed query object (AST) back into a formatted SQL string. This is useful for programmatically manipulating SQL and then generating a string for execution or display.
+
+### Preset Configurations (Formatter.PRESETS)
+
+The `Formatter` class provides preset configurations for common SQL dialects. Use these presets to quickly format queries for MySQL, PostgreSQL, SQL Server, or SQLite without manually specifying options each time.
+
+```typescript
+const mysqlSql = formatter.format(query, Formatter.PRESETS.mysql);
+const pgSql = formatter.format(query, Formatter.PRESETS.postgres);
+const mssqlSql = formatter.format(query, Formatter.PRESETS.sqlserver);
+const sqliteSql = formatter.format(query, Formatter.PRESETS.sqlite);
+```
+
+**Preset Details:**
+- `Formatter.PRESETS.mysql`: Backtick identifier, `?` parameter, no named parameters
+- `Formatter.PRESETS.postgres`: Double quote identifier, `:` parameter, named parameters supported
+- `Formatter.PRESETS.sqlserver`: Square bracket identifier, `@` parameter, named parameters supported
+- `Formatter.PRESETS.sqlite`: Double quote identifier, `:` parameter, named parameters supported
+
+### How to Customize Presets
+
+You can override any preset option as needed. For example, to use variable-style parameters (`${name}`):
+
+```typescript
+const variableSql = formatter.format(query, {
+  ...Formatter.PRESETS.postgres,
+  parameterSymbol: { start: '${', end: '}' },
+});
+// => select "user_id", "name" from "users" where "active" = ${active}
+```
+
+Or to change only the identifier escape style:
+
+```typescript
+const customSql = formatter.format(query, {
+  ...Formatter.PRESETS.mysql,
+  identifierEscape: { start: '"', end: '"' }
+});
+```
+
+### Configurable Options
+
+Formatting options are provided as the second argument to the `format()` method. You can customize:
+- `identifierEscape`: How identifiers are escaped (e.g., `"`, `[`, `` ` ``)
+- `parameterSymbol`: The symbol or pattern for parameters (e.g., `:`, `@`, `?`, or `{ start: '${', end: '}' }`)
+- `supportNamedParameter`: If false, parameter names are omitted (for MySQL-style `?` only)
+
+### Usage Example
+
+#### Using a Preset
+
+```typescript
+import { SelectQueryParser, Formatter } from 'rawsql-ts';
+
+const sql = `SELECT user_id, name FROM users WHERE active = TRUE`;
+const query = SelectQueryParser.parse(sql);
+const formatter = new Formatter();
+const formattedSql = formatter.format(query, Formatter.PRESETS.postgres);
+console.log(formattedSql);
+// => select "user_id", "name" from "users" where "active" = true
+```
+
+#### Using Manual Configuration
+
+```typescript
+import { SelectQueryParser, Formatter } from 'rawsql-ts';
+
+const sql = `SELECT user_id, name FROM users WHERE active = TRUE`;
+const query = SelectQueryParser.parse(sql);
+const formatter = new Formatter();
+const formattedSql = formatter.format(query, {
+  identifierEscape: { start: '`', end: '`' },
+  parameterSymbol: '?',
+  supportNamedParameter: false,
+});
+console.log(formattedSql);
+// => select `user_id`, `name` from `users` where `active` = ?
+```
+
+rawsql-ts is designed to be flexible and support various SQL dialects. The `Formatter` class can be customized to handle different dialects by adjusting the identifier escape characters, parameter symbols, and named parameter support. This makes it easy to work with SQL queries for different database systems using a consistent API.
+
+---
+
 ## Main Parser Features
 
+- All parsers automatically remove SQL comments before parsing.
+- Detailed error messages are provided for all parsing errors.
+- Highly accurate and advanced tokenization is used for robust SQL analysis.
+
+> [!Note]
+> All parsers in rawsql-ts have been tested with PostgreSQL syntax, but they are capable of parsing any generic SQL statement that does not use a DBMS-specific dialect.
+
 - **SelectQueryParser**  
-  The main class for converting SELECT and VALUES statements into AST. Fully supports CTEs (WITH), UNION/INTERSECT/EXCEPT, subqueries, and PostgreSQL-specific syntax.
+  The main class for converting SELECT and VALUES statements into AST. Fully supports CTEs (WITH), UNION/INTERSECT/EXCEPT, subqueries, and PostgreSQL-style syntax.
   - `parse(sql: string): SelectQuery`  
     Converts a SQL string to an AST. Throws an exception on error.
-  - Supports only PostgreSQL syntax
-  - Only SELECT and VALUES are supported (INSERT/UPDATE/DELETE are not yet implemented)
-  - SQL comments are automatically removed
-  - Handles CTEs (WITH), UNION/INTERSECT/EXCEPT, subqueries, window functions, complex expressions, and functions
-  - Provides detailed error messages
-  - Highly accurate tokenization
+  - In this library, a "select query" is represented as one of the following types:
+    - `SimpleSelectQuery`: A standard SELECT statement with all major clauses (WHERE, GROUP BY, JOIN, etc.)
+    - `BinarySelectQuery`: A set operation query such as UNION, INTERSECT, or EXCEPT
+    - `ValuesQuery`: An inline VALUES table (e.g., `VALUES (1, 'a'), (2, 'b')`)
+
+- **InsertQueryParser**  
+  The main class for parsing `INSERT INTO` statements and converting them into AST. Supports PostgreSQL-style INSERT with or without column lists, as well as `INSERT ... SELECT` and `INSERT ... VALUES` forms.
+  - `parse(sql: string): InsertQuery`  
+    Converts an INSERT SQL string to an AST. Throws an exception on error.
 
 ---
 

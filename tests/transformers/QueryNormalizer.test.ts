@@ -45,7 +45,7 @@ describe('QueryNormalizer', () => {
 
         // Assert
         expect(normalizedQuery).toBeInstanceOf(SimpleSelectQuery);
-        expect(formatter.format(normalizedQuery)).toBe('select * from (values (1, \'one\'), (2, \'two\'), (3, \'three\')) as "vq"("column1", "column2")');
+        expect(formatter.format(normalizedQuery)).toBe('select "vq"."column1", "vq"."column2" from (values (1, \'one\'), (2, \'two\'), (3, \'three\')) as "vq"("column1", "column2")');
     });
 
     test('it handles nested binary queries', () => {

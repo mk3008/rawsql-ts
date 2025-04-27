@@ -9,6 +9,8 @@ import { ParameterExpressionParser } from "./ParameterExpressionParser";
 import { StringSpecifierExpressionParser } from "./StringSpecifierExpressionParser";
 import { CommandExpressionParser } from "./CommandExpressionParser";
 import { FunctionExpressionParser } from "./FunctionExpressionParser";
+import { parseEscapedOrDotSeparatedIdentifiers } from "../utils/parseEscapedOrDotSeparatedIdentifiers";
+import { extractNamespacesAndName } from "../utils/extractNamespacesAndName";
 
 export class ValueParser {
     // Parse SQL string to AST (was: parse)
@@ -92,9 +94,19 @@ export class ValueParser {
             return StringSpecifierExpressionParser.parseFromLexeme(lexemes, idx);
         } else if (current.type & TokenType.Command) {
             return CommandExpressionParser.parseFromLexeme(lexemes, idx);
+        } else if (current.type & TokenType.OpenBracket) {
+            // SQLServer escape identifier format. e.g. [dbo] or [dbo].[table]
+            const { identifiers, newIndex } = parseEscapedOrDotSeparatedIdentifiers(lexemes, idx);
+            if (identifiers.length === 0) {
+                throw new Error(`[ValueParser] No identifier found after '[' at index ${idx}`);
+            }
+            // Use the same logic as IdentifierParser for dot-separated identifiers
+            const { namespaces, name } = extractNamespacesAndName(identifiers);
+            const value = new ColumnReference(namespaces, name);
+            return { value, newIndex };
         }
 
-        throw new Error(`Invalid lexeme. index: ${idx}, type: ${lexemes[idx].type}, value: ${lexemes[idx].value}`);
+        throw new Error(`[ValueParser] Invalid lexeme. index: ${idx}, type: ${lexemes[idx].type}, value: ${lexemes[idx].value}`);
     }
 
     public static parseArgument(openToken: TokenType, closeToken: TokenType, lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number } {
