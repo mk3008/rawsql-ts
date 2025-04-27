@@ -6,8 +6,7 @@ import { CharLookupTable } from '../utils/charLookupTable';
  * Reads SQL parameter tokens (@param, :param, $param, ?, ${param})
  */
 export class ParameterTokenReader extends BaseTokenReader {
-
-    constructor(input: string, supportSuffixes: boolean = true) {
+    constructor(input: string) {
         super(input);
     }
 
@@ -19,7 +18,7 @@ export class ParameterTokenReader extends BaseTokenReader {
             return null;
         }
 
-        // parameter with suffix (${param}) - check this first!
+        // parameter with suffix (${param}) - check this first
         if (this.canRead(1) && this.input[this.position] === '$' && this.input[this.position + 1] === '{') {
             this.position += 2; // Skip ${
             const start = this.position;
