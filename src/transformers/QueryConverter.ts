@@ -103,6 +103,9 @@ export class QueryConverter {
         if (!query.columnAliases) {
             throw new Error("Column aliases are required to convert a VALUES clause to SimpleSelectQuery. Please specify column aliases.");
         }
+        if (query.columnAliases.length !== columnCount) {
+            throw new Error(`The number of column aliases (${query.columnAliases.length}) does not match the number of columns in the first tuple (${columnCount}).`);
+        }
 
         // Create a subquery source from the VALUES query
         const subQuerySource = new SubQuerySource(query);
