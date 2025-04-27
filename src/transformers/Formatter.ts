@@ -29,6 +29,7 @@ import {
 } from "../models/ValueComponent";
 import { CommonTable, Distinct, DistinctOn, FetchSpecification, FetchType, ForClause, FromClause, FunctionSource, GroupByClause, HavingClause, JoinClause, JoinOnClause, JoinUsingClause, LimitClause, NullsSortDirection, OrderByClause, OrderByItem, PartitionByClause, SelectClause, SelectItem, SortDirection, SourceAliasExpression, SourceExpression, SubQuerySource, TableSource, WhereClause, WindowFrameClause, WithClause } from "../models/Clause";
 import { CreateTableQuery } from "../models/CreateTableQuery";
+import { InsertQuery } from "../models/InsertQuery";
 
 interface FormatterConfig {
     identifierEscape: {
@@ -133,6 +134,7 @@ export class Formatter implements SqlComponentVisitor<string> {
         this.handlers.set(SimpleSelectQuery.kind, (expr) => this.visitSelectQuery(expr as SimpleSelectQuery));
         this.handlers.set(BinarySelectQuery.kind, (expr) => this.visitBinarySelectQuery(expr as BinarySelectQuery));
         this.handlers.set(CreateTableQuery.kind, (expr) => this.visitCreateTableQuery(expr as CreateTableQuery));
+        this.handlers.set(InsertQuery.kind, (expr) => this.visitInsertQuery(expr as InsertQuery));
     }
 
     /**
@@ -586,6 +588,25 @@ export class Formatter implements SqlComponentVisitor<string> {
         let sql = `create ${temp}table ${arg.tableName.accept(this)}`;
         if (arg.asSelectQuery) {
             sql += ` as ${this.visit(arg.asSelectQuery)}`;
+        }
+        return sql;
+    }
+
+    private visitInsertQuery(arg: InsertQuery): string {
+        // Format: INSERT INTO table (col1, col2, ...) SELECT .../VALUES ...
+        let table = arg.table.accept(this);
+        if (arg.namespaces && arg.namespaces.length > 0) {
+            table = `${arg.namespaces.map(ns => ns.accept(this)).join('.')}.${table}`;
+        }
+        const columns = arg.columns.map(col => col.accept(this)).join(", ");
+        let sql = `insert into ${table}`;
+        if (arg.columns.length > 0) {
+            sql += ` (${columns})`;
+        }
+        if (arg.selectQuery) {
+            sql += ` ${this.visit(arg.selectQuery)}`;
+        } else {
+            throw new Error("InsertQuery must have selectQuery (SELECT or VALUES)");
         }
         return sql;
     }

@@ -1,3 +1,4 @@
+import { extractNamespacesAndName } from "../utils/extractNamespacesAndName";
 import { Lexeme, TokenType } from "../models/Lexeme";
 import { ColumnReference, ValueComponent } from "../models/ValueComponent";
 
@@ -27,8 +28,8 @@ export class IdentifierParser {
 
         if (identifiers.length > 1) {
             // If there are multiple identifiers, treat it as a column reference
-            const lastIdentifier = identifiers.pop() || '';
-            const value = new ColumnReference(identifiers, lastIdentifier);
+            const { namespaces, name } = extractNamespacesAndName(identifiers);
+            const value = new ColumnReference(namespaces, name);
             return { value, newIndex: idx };
         } else {
             // If there is a single identifier, treat it as a simple identifier
