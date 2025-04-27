@@ -71,6 +71,103 @@ console.log(formattedSql);
 
 ---
 
+## Formatter Functionality
+
+The `Formatter` class in rawsql-ts is used to convert a parsed query object back into a formatted SQL string. This is particularly useful when you need to manipulate SQL queries programmatically and then convert them back to a string format for execution or display.
+
+### Usage
+
+To use the `Formatter` class, you first need to parse a SQL query into an AST (Abstract Syntax Tree) using the `SelectQueryParser` class. Then, you can use the `Formatter` class to convert the AST back into a SQL string.
+
+```typescript
+import { SelectQueryParser, Formatter } from 'rawsql-ts';
+
+const sql = `SELECT user_id, name FROM users WHERE active = TRUE`;
+const query = SelectQueryParser.parse(sql);
+const formatter = new Formatter();
+const formattedSql = formatter.format(query);
+
+console.log(formattedSql);
+// => select "user_id", "name" from "users" where "active" = true
+```
+
+### Configurable Options
+
+The `Formatter` class provides configurable options for customizing the formatting of SQL strings. These options include identifier escape characters and parameter symbols.
+
+#### Identifier Escape Characters
+
+By default, the `Formatter` class uses double quotes (`"`) to escape identifiers. You can customize this behavior by providing a different escape character.
+
+```typescript
+const formatter = new Formatter({
+  identifierEscape: {
+    start: '[',
+    end: ']'
+  }
+});
+```
+
+#### Parameter Symbols
+
+By default, the `Formatter` class uses a colon (`:`) as the parameter symbol. You can customize this behavior by providing a different symbol.
+
+```typescript
+const formatter = new Formatter({
+  parameterSymbol: '@'
+});
+```
+
+### Examples with Different SQL Dialects
+
+The `Formatter` class can be used with different SQL dialects by customizing the identifier escape characters and parameter symbols. Here are some examples:
+
+#### SQLServer
+
+```typescript
+import { SelectQueryParser, Formatter } from 'rawsql-ts';
+
+const sql = `SELECT user_id, name FROM users WHERE active = @active`;
+const query = SelectQueryParser.parse(sql);
+const formatter = new Formatter({
+  identifierEscape: {
+    start: '[',
+    end: ']'
+  },
+  parameterSymbol: '@'
+});
+const formattedSql = formatter.format(query);
+
+console.log(formattedSql);
+// => select [user_id], [name] from [users] where [active] = @active
+```
+
+#### MySQL
+
+```typescript
+import { SelectQueryParser, Formatter } from 'rawsql-ts';
+
+const sql = `SELECT user_id, name FROM users WHERE active = ?`;
+const query = SelectQueryParser.parse(sql);
+const formatter = new Formatter({
+  identifierEscape: {
+    start: '`',
+    end: '`'
+  },
+  parameterSymbol: '?'
+});
+const formattedSql = formatter.format(query);
+
+console.log(formattedSql);
+// => select `user_id`, `name` from `users` where `active` = ?
+```
+
+### Note on SQL Dialect Support
+
+rawsql-ts is designed to be flexible and support various SQL dialects. The `Formatter` class can be customized to handle different dialects by adjusting the identifier escape characters and parameter symbols. This makes it easy to work with SQL queries for different database systems using a consistent API.
+
+---
+
 ## Main Parser Features
 
 - All parsers automatically remove SQL comments before parsing.
