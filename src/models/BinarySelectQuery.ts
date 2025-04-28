@@ -1,6 +1,4 @@
 import { SourceExpression, SubQuerySource, SourceAliasExpression } from "./Clause";
-import { SimpleSelectQuery } from "./SimpleSelectQuery";
-import { ValuesQuery } from "./ValuesQuery";
 import type { SelectQuery } from "./SelectQuery";
 import { SqlComponent } from "./SqlComponent";
 import { RawString } from "./ValueComponent";
@@ -109,8 +107,6 @@ export class BinarySelectQuery extends SqlComponent {
         this.operator = new RawString(operator);
         this.right = query;
 
-        // const normalizer = new CTENormalizer();
-        // normalizer.normalize(this);
         CTENormalizer.normalize(this);
 
         return this;

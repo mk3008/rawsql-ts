@@ -9,52 +9,59 @@ import { InsertQuery } from "../models/InsertQuery";
 import { SelectValueCollector } from "./SelectValueCollector";
 
 /**
- * Converts various SELECT query types to a standard SimpleSelectQuery format.
- * - SimpleSelectQuery is returned as-is
- * - BinarySelectQuery (UNION, etc.) is wrapped in a subquery: SELECT * FROM (original) AS bq
- * - ValuesQuery is wrapped with sequentially numbered columns: SELECT * FROM (original) AS vq(column1, column2, ...)
+ * QueryBuilder provides static methods to build or convert various SQL query objects.
  */
-export class QueryConverter {
+export class QueryBuilder {
     /**
-     * Private constructor to prevent instantiation of this utility class.
+     * Builds a BinarySelectQuery by combining an array of SelectQuery using the specified operator.
+     * Throws if less than two queries are provided.
+     * @param queries Array of SelectQuery to combine
+     * @param operator SQL operator to use (e.g. 'union', 'union all', 'intersect', 'except')
+     * @returns BinarySelectQuery
      */
+    public static buildBinaryQuery(queries: SelectQuery[], operator: string): BinarySelectQuery {
+        if (!queries || queries.length === 0) {
+            throw new Error("No queries provided to combine.");
+        }
+        if (queries.length === 1) {
+            throw new Error("At least two queries are required to create a BinarySelectQuery.");
+        }
+
+        // Always create a new BinarySelectQuery instance (never mutate input)
+        const wrap = (q: SelectQuery) => q instanceof ValuesQuery ? QueryBuilder.buildSimpleQuery(q) : q;
+        let result: BinarySelectQuery = new BinarySelectQuery(wrap(queries[0]), operator, wrap(queries[1]));
+        CTENormalizer.normalize(result);
+
+        for (let i = 2; i < queries.length; i++) {
+            result.appendSelectQuery(operator, wrap(queries[i]));
+        }
+
+        return result;
+    }
+
     private constructor() {
         // This class is not meant to be instantiated.
     }
 
     /**
      * Converts a SELECT query to a standard SimpleSelectQuery form.
-     * 
      * @param query The query to convert
-     * @param columns Optional: column names for VALUES query
      * @returns A SimpleSelectQuery
      */
-    public static toSimple(query: SelectQuery): SimpleSelectQuery {
+    public static buildSimpleQuery(query: SelectQuery): SimpleSelectQuery {
         if (query instanceof SimpleSelectQuery) {
-            // Already a simple query, just return it
             return query;
         }
         else if (query instanceof BinarySelectQuery) {
-            // Convert binary queries to a simple query
-            return QueryConverter.toSimpleBinaryQuery(query);
+            return QueryBuilder.buildSimpleBinaryQuery(query);
         }
         else if (query instanceof ValuesQuery) {
-            // Convert VALUES queries to a simple query, support for column specification
-            return QueryConverter.toSimpleValuesQuery(query);
+            return QueryBuilder.buildSimpleValuesQuery(query);
         }
-
-        // Should not reach here with current type system
-        throw new Error("Unsupported query type for toSimple");
+        throw new Error("Unsupported query type for buildSimpleQuery");
     }
 
-    /**
-     * Converts a BinarySelectQuery (UNION, EXCEPT, etc.) to a SimpleSelectQuery
-     * by wrapping it in SELECT * FROM (original) AS bq
-     * 
-     * @param query The binary query to convert
-     * @returns A SimpleSelectQuery
-     */
-    private static toSimpleBinaryQuery(query: BinarySelectQuery): SimpleSelectQuery {
+    private static buildSimpleBinaryQuery(query: BinarySelectQuery): SimpleSelectQuery {
         // Create a subquery source from the binary query
         const subQuerySource = new SubQuerySource(query);
 
@@ -68,7 +75,7 @@ export class QueryConverter {
         const fromClause = new FromClause(sourceExpr, null);
 
         // Create SELECT clause with * (all columns)
-        const selectClause = QueryConverter.createSelectAllClause();
+        const selectClause = QueryBuilder.createSelectAllClause();
 
         // Create the final simple select query
         const q = new SimpleSelectQuery(
@@ -94,7 +101,7 @@ export class QueryConverter {
      * @param columns Optional: column names
      * @returns A SimpleSelectQuery
      */
-    private static toSimpleValuesQuery(query: ValuesQuery): SimpleSelectQuery {
+    private static buildSimpleValuesQuery(query: ValuesQuery): SimpleSelectQuery {
         // Figure out how many columns are in the VALUES clause
         const columnCount = query.tuples.length > 0 ? query.tuples[0].values.length : 0;
         if (query.tuples.length === 0) {
@@ -159,7 +166,7 @@ export class QueryConverter {
      * @param isTemporary If true, creates a temporary table
      * @returns A CreateTableQuery instance
      */
-    public static toCreateTableQuery(query: SelectQuery, tableName: string, isTemporary: boolean = false): CreateTableQuery {
+    public static buildCreateTableQuery(query: SelectQuery, tableName: string, isTemporary: boolean = false): CreateTableQuery {
         return new CreateTableQuery({
             tableName,
             isTemporary,
@@ -174,7 +181,7 @@ export class QueryConverter {
      * @param columns Optional: array of column names. If omitted, columns are inferred from the selectQuery
      * @returns An InsertQuery instance
      */
-    public static toInsertQuery(selectQuery: SimpleSelectQuery, tableName: string): InsertQuery {
+    public static buildInsertQuery(selectQuery: SimpleSelectQuery, tableName: string): InsertQuery {
         let cols: string[];
 
         const count = selectQuery.selectClause.items.length;
