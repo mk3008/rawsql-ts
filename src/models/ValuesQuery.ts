@@ -1,3 +1,5 @@
+import { QueryBuilder } from "../transformers/QueryBuilder";
+import { SimpleSelectQuery } from "./SimpleSelectQuery";
 import { SqlComponent } from "./SqlComponent";
 import { TupleExpression } from "./ValueComponent";
 
@@ -18,5 +20,9 @@ export class ValuesQuery extends SqlComponent {
         super();
         this.tuples = tuples;
         this.columnAliases = columnAliases;
+    }
+
+    public toSimpleSelectQuery(): SimpleSelectQuery {
+        return QueryBuilder.buildSimpleQuery(this);
     }
 }

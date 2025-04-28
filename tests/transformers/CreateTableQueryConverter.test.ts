@@ -1,17 +1,17 @@
 import { describe, it, expect } from 'vitest';
 import { SelectQueryParser } from '../../src/parsers/SelectQueryParser';
-import { QueryConverter } from '../../src/transformers/QueryConverter';
+import { QueryBuilder } from '../../src/transformers/QueryBuilder';
 import { Formatter } from '../../src/transformers/Formatter';
 import { CreateTableQuery } from '../../src/models/CreateTableQuery';
 
 
-describe('QueryConverter.toCreateTableQuery', () => {
+describe('QueryBuilder.toCreateTableQuery', () => {
     it('should convert a simple SELECT to CREATE TABLE ... AS SELECT', () => {
         // Arrange
         const select = SelectQueryParser.parse('SELECT id, name FROM users');
 
         // Act
-        const create = QueryConverter.toCreateTableQuery(select, 'my_table');
+        const create = QueryBuilder.buildCreateTableQuery(select, 'my_table');
         const sql = new Formatter().format(create);
 
         // Assert
@@ -24,7 +24,7 @@ describe('QueryConverter.toCreateTableQuery', () => {
         const select = SelectQueryParser.parse('SELECT id FROM users');
 
         // Act
-        const create = QueryConverter.toCreateTableQuery(select, 'tmp_table', true);
+        const create = QueryBuilder.buildCreateTableQuery(select, 'tmp_table', true);
         const sql = new Formatter().format(create);
 
         // Assert

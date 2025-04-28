@@ -319,9 +319,6 @@ Overrides a SELECT item using its SQL expression. The callback receives the orig
 // Override the SELECT item 'journal_date' to use greatest(journal_date, DATE '2025-01-01')
 query.overrideSelectItemExpr('journal_date', expr => `greatest(${expr}, DATE '2025-01-01')`);
 ```
----
-
-
 
 ---
 
@@ -347,16 +344,21 @@ A suite of utilities for transforming and analyzing SQL ASTs.
   Consolidates all CTEs into a single root-level WITH clause. Throws an error if duplicate CTE names with different definitions are found.
 - **QueryNormalizer**  
   Converts any SELECT/UNION/VALUES query into a standard SimpleSelectQuery. Handles subquery wrapping and automatic column name generation.
-- **QueryConverter**  
+- **QueryBuilder**  
   Converts any SELECT/UNION/VALUES query into a standard SimpleSelectQuery. Handles subquery wrapping and automatic column name generation.
   Supports CREATE TABLE ... AS SELECT ... conversion:
-  - `QueryConverter.toCreateTableQuery(query, tableName, isTemporary?)` creates a `CreateTableQuery` from any SELECT query.
+  - `QueryBuilder.buildCreateTableQuery(query, tableName, isTemporary?)` creates a `CreateTableQuery` from any SELECT query.
+  Supports combining multiple queries:
+  - `QueryBuilder.buildBinaryQuery(queries, operator)` combines an array of SelectQuery objects into a single BinarySelectQuery using the specified set operator (e.g., 'union', 'intersect', 'except').
 
 - **TableColumnResolver**  
   A function type for resolving column names from a table name, mainly used for wildcard expansion (e.g., `table.*`). Used by analyzers like SelectValueCollector.
   ```typescript
   export type TableColumnResolver = (tableName: string) => string[];
   ```
+
+> [!NOTE]
+> As of version 0.4.0-beta, the class previously named `QueryConverter` has been renamed to `QueryBuilder`, and its methods have been updated for consistency. The new `buildBinaryQuery` method was also introduced, allowing you to combine multiple `SelectQuery` objects into a single set operation query. These are breaking changes. If you were using `QueryConverter` in earlier versions, please update your code to use `QueryBuilder` and the new method names (e.g., `buildCreateTableQuery`, `buildBinaryQuery`).
 
 ---
 
@@ -419,15 +421,15 @@ Selectable columns:
 
 ```typescript
 // Create Table from SELECT Example
-import { QueryConverter, SelectQueryParser, Formatter } from 'rawsql-ts';
+import { QueryBuilder, SelectQueryParser, Formatter } from 'rawsql-ts';
 
 const select = SelectQueryParser.parse('SELECT id, name FROM users');
-const create = QueryConverter.toCreateTableQuery(select, 'my_table');
+const create = QueryBuilder.buildCreateTableQuery(select, 'my_table');
 const sqlCreate = new Formatter().format(create);
 console.log(sqlCreate);
 // => create table "my_table" as select "id", "name" from "users"
 
-const createTemp = QueryConverter.toCreateTableQuery(select, 'tmp_table', true);
+const createTemp = QueryBuilder.buildCreateTableQuery(select, 'tmp_table', true);
 const sqlTemp = new Formatter().format(createTemp);
 console.log(sqlTemp);
 // => create temporary table "tmp_table" as select "id", "name" from "users"
