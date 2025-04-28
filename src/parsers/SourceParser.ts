@@ -3,6 +3,8 @@ import { Lexeme, TokenType } from "../models/Lexeme";
 import { SelectQueryParser } from "./SelectQueryParser";
 import { SqlTokenizer } from "./SqlTokenizer";
 import { ValueParser } from "./ValueParser";
+import { extractNamespacesAndName } from "../utils/extractNamespacesAndName";
+import { parseEscapedOrDotSeparatedIdentifiers } from "../utils/parseEscapedOrDotSeparatedIdentifiers";
 
 export class SourceParser {
     // Parse SQL string to AST (was: parse)
@@ -40,37 +42,13 @@ export class SourceParser {
     }
 
     private static parseTableSource(lexemes: Lexeme[], index: number): { value: TableSource; newIndex: number } {
-        // Check for column reference pattern ([identifier dot] * n + identifier)
-        let idx = index;
-        const identifiers: string[] = [];
-
-        // Add the first identifier
-        identifiers.push(lexemes[idx].value);
-        idx++;
-
-        // Look for dot and identifier pattern
-        while (
-            idx < lexemes.length &&
-            idx + 1 < lexemes.length &&
-            (lexemes[idx].type & TokenType.Dot) &&
-            (lexemes[idx + 1].type & TokenType.Identifier)
-        ) {
-            // Skip the dot and add the next identifier
-            idx++;
-            identifiers.push(lexemes[idx].value);
-            idx++;
+        const { identifiers, newIndex } = parseEscapedOrDotSeparatedIdentifiers(lexemes, index);
+        if (identifiers.length === 0) {
+            throw new Error(`No table identifier found at position ${index}`);
         }
-
-        if (identifiers.length > 1) {
-            // If there are multiple identifiers, treat it as a column reference
-            const lastIdentifier = identifiers.pop() || '';
-            const value = new TableSource(identifiers, lastIdentifier);
-            return { value, newIndex: idx };
-        } else {
-            // If there is a single identifier, treat it as a simple identifier
-            const value = new TableSource(null, identifiers[0]);
-            return { value, newIndex: idx };
-        }
+        const { namespaces, name } = extractNamespacesAndName(identifiers);
+        const value = new TableSource(namespaces, name);
+        return { value, newIndex };
     }
 
     private static parseFunctionSource(lexemes: Lexeme[], index: number): { value: FunctionSource; newIndex: number } {

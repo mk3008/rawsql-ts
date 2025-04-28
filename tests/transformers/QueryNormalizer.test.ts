@@ -1,4 +1,4 @@
-import { QueryConverter } from "../../src/transformers/QueryConverter";
+import { QueryBuilder } from "../../src/transformers/QueryBuilder";
 import { SelectQueryParser } from "../../src/parsers/SelectQueryParser";
 import { Formatter } from "../../src/transformers/Formatter";
 import { BinarySelectQuery, SimpleSelectQuery, ValuesQuery } from "../../src/models/SelectQuery";
@@ -13,7 +13,7 @@ describe('QueryNormalizer', () => {
         const query = SelectQueryParser.parse(sql);
 
         // Act
-        const normalizedQuery = QueryConverter.toSimple(query);
+        const normalizedQuery = QueryBuilder.buildSimpleQuery(query);
 
         // Assert
         expect(normalizedQuery).toBe(query); // Should be the same object instance
@@ -27,25 +27,38 @@ describe('QueryNormalizer', () => {
         expect(query).toBeInstanceOf(BinarySelectQuery);
 
         // Act
-        const normalizedQuery = QueryConverter.toSimple(query);
+        const normalizedQuery = QueryBuilder.buildSimpleQuery(query);
 
         // Assert
         expect(normalizedQuery).toBeInstanceOf(SimpleSelectQuery);
     });
 
+    test('throws error if ValuesQuery has no columnAliases', () => {
+        // Arrange
+        const sql = "VALUES (1, 'one'), (2, 'two'), (3, 'three')";
+        const query = SelectQueryParser.parse(sql) as ValuesQuery;
+        expect(query).toBeInstanceOf(ValuesQuery);
+
+        // Act & Assert
+        expect(() => {
+            QueryBuilder.buildSimpleQuery(query);
+        }).toThrow();
+    });
+
     test('it converts ValuesQuery to subquery with column names', () => {
         // Arrange
         const sql = "VALUES (1, 'one'), (2, 'two'), (3, 'three')";
-        const query = SelectQueryParser.parse(sql);
+        const query = SelectQueryParser.parse(sql) as ValuesQuery;
         expect(query).toBeInstanceOf(ValuesQuery);
         expect(query).toBeInstanceOf(ValuesQuery);
 
-        // Act
-        const normalizedQuery = QueryConverter.toSimple(query);
+        // Act   
+        query.columnAliases = ["id", "value"]; //set column aliases
+        const normalizedQuery = QueryBuilder.buildSimpleQuery(query);
 
         // Assert
         expect(normalizedQuery).toBeInstanceOf(SimpleSelectQuery);
-        expect(formatter.format(normalizedQuery)).toBe('select * from (values (1, \'one\'), (2, \'two\'), (3, \'three\')) as "vq"("column1", "column2")');
+        expect(formatter.format(normalizedQuery)).toBe('select "vq"."id", "vq"."value" from (values (1, \'one\'), (2, \'two\'), (3, \'three\')) as "vq"("id", "value")');
     });
 
     test('it handles nested binary queries', () => {
@@ -54,7 +67,7 @@ describe('QueryNormalizer', () => {
         const query = SelectQueryParser.parse(sql);
 
         // Act
-        const normalizedQuery = QueryConverter.toSimple(query);
+        const normalizedQuery = QueryBuilder.buildSimpleQuery(query);
 
         // Assert
         expect(normalizedQuery).toBeInstanceOf(SimpleSelectQuery);
@@ -67,7 +80,7 @@ describe('QueryNormalizer', () => {
         const query = SelectQueryParser.parse(sql);
 
         // Act
-        const normalizedQuery = QueryConverter.toSimple(query);
+        const normalizedQuery = QueryBuilder.buildSimpleQuery(query);
 
         // Assert
         expect(normalizedQuery).toBeInstanceOf(SimpleSelectQuery);
@@ -80,7 +93,7 @@ describe('QueryNormalizer', () => {
         const query = SelectQueryParser.parse(sql);
 
         // Act
-        const normalizedQuery = QueryConverter.toSimple(query);
+        const normalizedQuery = QueryBuilder.buildSimpleQuery(query);
 
         // Assert
         expect(normalizedQuery).toBeInstanceOf(SimpleSelectQuery);

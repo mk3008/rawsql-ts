@@ -29,16 +29,48 @@ import {
 } from "../models/ValueComponent";
 import { CommonTable, Distinct, DistinctOn, FetchSpecification, FetchType, ForClause, FromClause, FunctionSource, GroupByClause, HavingClause, JoinClause, JoinOnClause, JoinUsingClause, LimitClause, NullsSortDirection, OrderByClause, OrderByItem, PartitionByClause, SelectClause, SelectItem, SortDirection, SourceAliasExpression, SourceExpression, SubQuerySource, TableSource, WhereClause, WindowFrameClause, WithClause } from "../models/Clause";
 import { CreateTableQuery } from "../models/CreateTableQuery";
+import { InsertQuery } from "../models/InsertQuery";
 
 interface FormatterConfig {
-    identifierEscape: {
+    identifierEscape?: {
         start: string;
         end: string;
     };
-    parameterSymbol: string;
+    parameterSymbol?: string | { start: string; end: string };
+    /**
+     * If false, named parameters are not supported (e.g. MySQL: use only '?').
+     * If true (default), named parameters are output (e.g. :userId, @userId).
+     */
+    supportNamedParameter?: boolean;
 }
 
 export class Formatter implements SqlComponentVisitor<string> {
+    /**
+     * Preset configs for common DB dialects.
+     */
+    public static readonly PRESETS: Record<string, FormatterConfig> = {
+        mysql: {
+            identifierEscape: { start: '`', end: '`' },
+            parameterSymbol: '?',
+            supportNamedParameter: false,
+        },
+        postgres: {
+            identifierEscape: { start: '"', end: '"' },
+            parameterSymbol: ':',
+            supportNamedParameter: true,
+        },
+        sqlserver: {
+            identifierEscape: { start: '[', end: ']' },
+            parameterSymbol: '@',
+            supportNamedParameter: true,
+        },
+        sqlite: {
+            identifierEscape: { start: '"', end: '"' },
+            parameterSymbol: ':',
+            supportNamedParameter: true,
+        },
+    };
+
     private handlers: Map<symbol, (arg: any) => string>;
     private config: FormatterConfig;
 
@@ -51,7 +83,7 @@ export class Formatter implements SqlComponentVisitor<string> {
                 start: '"',
                 end: '"'
             },
-            parameterSymbol: ':' // Use PostgreSQL style as default
+            parameterSymbol: ':',
         };
 
         // value
@@ -133,6 +165,7 @@ export class Formatter implements SqlComponentVisitor<string> {
         this.handlers.set(SimpleSelectQuery.kind, (expr) => this.visitSelectQuery(expr as SimpleSelectQuery));
         this.handlers.set(BinarySelectQuery.kind, (expr) => this.visitBinarySelectQuery(expr as BinarySelectQuery));
         this.handlers.set(CreateTableQuery.kind, (expr) => this.visitCreateTableQuery(expr as CreateTableQuery));
+        this.handlers.set(InsertQuery.kind, (expr) => this.visitInsertQuery(expr as InsertQuery));
     }
 
     /**
@@ -144,7 +177,12 @@ export class Formatter implements SqlComponentVisitor<string> {
      */
     public format(arg: SqlComponent, config: FormatterConfig | null = null): string {
         if (config) {
-            this.config = config;
+            // Always reset to default before merging user config
+            this.config = {
+                identifierEscape: { start: '"', end: '"' },
+                parameterSymbol: ':',
+                ...config
+            };
         }
         return this.visit(arg);
     }
@@ -398,7 +436,16 @@ export class Formatter implements SqlComponentVisitor<string> {
     }
 
     private visitParameterExpression(arg: ParameterExpression): string {
-        return `${this.config.parameterSymbol}${arg.name.accept(this)}`;
+        // New: support parameterSymbol as string or {start, end}
+        if (this.config.supportNamedParameter === false && this.config.parameterSymbol === '?') {
+            // MySQL style: only output '?', ignore name
+            return '?';
+        }
+        if (typeof this.config.parameterSymbol === 'object' && this.config.parameterSymbol !== null) {
+            return `${this.config.parameterSymbol.start}${arg.name.accept(this)}${this.config.parameterSymbol.end}`;
+        }
+        // fallback (string or undefined)
+        return `${this.config.parameterSymbol ?? ':'}${arg.name.accept(this)}`;
     }
 
     private visitSelectItemExpression(arg: SelectItem): string {
@@ -565,7 +612,8 @@ export class Formatter implements SqlComponentVisitor<string> {
         if (arg.name === '*') {
             return arg.name;
         }
-        return `${this.config.identifierEscape.start}${arg.name}${this.config.identifierEscape.end}`;
+        const escape = this.config.identifierEscape ?? { start: '"', end: '"' };
+        return `${escape.start}${arg.name}${escape.end}`;
     }
 
     private visitValuesQuery(arg: ValuesQuery): string {
@@ -586,6 +634,25 @@ export class Formatter implements SqlComponentVisitor<string> {
         let sql = `create ${temp}table ${arg.tableName.accept(this)}`;
         if (arg.asSelectQuery) {
             sql += ` as ${this.visit(arg.asSelectQuery)}`;
+        }
+        return sql;
+    }
+
+    private visitInsertQuery(arg: InsertQuery): string {
+        // Format: INSERT INTO table (col1, col2, ...) SELECT .../VALUES ...
+        let table = arg.table.accept(this);
+        if (arg.namespaces && arg.namespaces.length > 0) {
+            table = `${arg.namespaces.map(ns => ns.accept(this)).join('.')}.${table}`;
+        }
+        const columns = arg.columns.map(col => col.accept(this)).join(", ");
+        let sql = `insert into ${table}`;
+        if (arg.columns.length > 0) {
+            sql += ` (${columns})`;
+        }
+        if (arg.selectQuery) {
+            sql += ` ${this.visit(arg.selectQuery)}`;
+        } else {
+            throw new Error("InsertQuery must have selectQuery (SELECT or VALUES)");
         }
         return sql;
     }

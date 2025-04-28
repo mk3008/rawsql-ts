@@ -12,6 +12,7 @@ import { SelectQueryParser } from "../parsers/SelectQueryParser";
 import { Formatter } from "../transformers/Formatter";
 import { TableColumnResolver } from "../transformers/TableColumnResolver";
 import { UpstreamSelectQueryFinder } from "../transformers/UpstreamSelectQueryFinder";
+import { QueryBuilder } from "../transformers/QueryBuilder";
 
 /**
  * Represents a simple SELECT query in SQL.
@@ -129,7 +130,7 @@ export class SimpleSelectQuery extends SqlComponent {
      * @returns A new BinarySelectQuery representing "this [operator] rightQuery"
      */
     public toBinaryQuery(operator: string, rightQuery: SelectQuery): BinarySelectQuery {
-        return new BinarySelectQuery(this, operator, rightQuery);
+        return QueryBuilder.buildBinaryQuery([this, rightQuery], operator);
     }
 
     /**
