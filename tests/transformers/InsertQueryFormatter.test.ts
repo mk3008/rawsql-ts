@@ -12,12 +12,13 @@ describe('Formatter: InsertQuery', () => {
             new TupleExpression([new LiteralValue(1), new LiteralValue('Alice')])
         ]);
         const query = new InsertQuery({
+            namespaces: null,
             table: 'users',
             columns: ['id', 'name'],
             selectQuery: valuesQuery
         });
         const sql = new Formatter().format(query);
-        expect(sql).toBe('insert into "users" ("id", "name") values (1, \'Alice\')');
+        expect(sql).toBe('insert into "users"("id", "name") values (1, \'Alice\')');
     });
 
     it('formats multi-row VALUES insert', () => {
@@ -26,27 +27,30 @@ describe('Formatter: InsertQuery', () => {
             new TupleExpression([new LiteralValue(2), new LiteralValue('Bob')])
         ]);
         const query = new InsertQuery({
+            namespaces: null,
             table: 'users',
             columns: ['id', 'name'],
             selectQuery: valuesQuery
         });
         const sql = new Formatter().format(query);
-        expect(sql).toBe('insert into "users" ("id", "name") values (1, \'Alice\'), (2, \'Bob\')');
+        expect(sql).toBe('insert into "users"("id", "name") values (1, \'Alice\'), (2, \'Bob\')');
     });
 
     it('formats INSERT ... SELECT', () => {
         const select = SelectQueryParser.parse('SELECT id, name FROM users_old');
         const query = new InsertQuery({
+            namespaces: null,
             table: 'users',
             columns: ['id', 'name'],
             selectQuery: select
         });
         const sql = new Formatter().format(query);
-        expect(sql).toBe('insert into "users" ("id", "name") select "id", "name" from "users_old"');
+        expect(sql).toBe('insert into "users"("id", "name") select "id", "name" from "users_old"');
     });
 
     it('throws if neither values nor selectQuery is set', () => {
         const query = new InsertQuery({
+            namespaces: null,
             table: 'users',
             columns: ['id', 'name']
         });

@@ -6,9 +6,8 @@ import { SqlTokenizer } from "./SqlTokenizer";
 import { SelectQueryParser } from "./SelectQueryParser";
 import { WithClause } from "../models/Clause";
 import { WithClauseParser } from "./WithClauseParser";
-import { IdentifierString } from "../models/ValueComponent";
 import { SimpleSelectQuery } from "../models/SimpleSelectQuery";
-import { extractNamespacesAndName } from "../utils/extractNamespacesAndName";
+import { FullNameParser } from "./FullNameParser";
 
 export class InsertQueryParser {
     /**
@@ -44,8 +43,8 @@ export class InsertQueryParser {
         }
         idx++;
 
-        // 完全名を取得
-        const { namespaces, table, newIndex: idxAfterName } = this.parseFullQualifiedName(lexemes, idx);
+        // Get fully qualified name
+        const { namespaces, name, newIndex: idxAfterName } = FullNameParser.parse(lexemes, idx);
         idx = idxAfterName;
 
         // Optional columns
@@ -80,30 +79,11 @@ export class InsertQueryParser {
         return {
             value: new InsertQuery({
                 namespaces,
-                table,
+                table: name,
                 columns,
                 selectQuery: selectResult.value
             }),
             newIndex: idx
         };
-    }
-
-    // Get fully qualified name and split into namespaces/table
-    private static parseFullQualifiedName(lexemes: Lexeme[], index: number): { namespaces: string[] | null, table: IdentifierString, newIndex: number } {
-        let idx = index;
-        const fullname: string[] = [];
-        fullname.push(lexemes[index].value);
-        idx++;
-        while (idx < lexemes.length && lexemes[idx].type === TokenType.Dot) {
-            idx++; // Skip dot
-            if (idx < lexemes.length) {
-                fullname.push(lexemes[idx].value);
-                idx++;
-            } else {
-                throw new Error(`Syntax error at position ${idx}: Expected identifier after '.' but found end of input.`);
-            }
-        }
-        const { namespaces, name } = extractNamespacesAndName(fullname);
-        return { namespaces, table: new IdentifierString(name), newIndex: idx };
     }
 }

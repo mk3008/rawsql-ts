@@ -10,7 +10,7 @@ describe('QueryBuilder.toInsertQuery', () => {
         const select = SelectQueryParser.parse('SELECT id, name FROM users_old') as SimpleSelectQuery;
         const insert = QueryBuilder.buildInsertQuery(select, 'users');
         const sql = new Formatter().format(insert);
-        expect(sql).toBe('insert into "users" ("id", "name") select "id", "name" from "users_old"');
+        expect(sql).toBe('insert into "users"("id", "name") select "id", "name" from "users_old"');
     });
 
     it('supports VALUES query via SelectQueryParser', () => {
@@ -20,7 +20,7 @@ describe('QueryBuilder.toInsertQuery', () => {
 
         const insert = QueryBuilder.buildInsertQuery(select, 'users');
         const sql = new Formatter().format(insert);
-        expect(sql).toBe('insert into "users" ("id", "name") select "vq"."id", "vq"."name" from (values (1, \'Alice\'), (2, \'Bob\')) as "vq"("id", "name")');
+        expect(sql).toBe('insert into "users"("id", "name") select "vq"."id", "vq"."name" from (values (1, \'Alice\'), (2, \'Bob\')) as "vq"("id", "name")');
     });
 
     it('throws if columns cannot be inferred from wildcard select (SELECT *)', () => {

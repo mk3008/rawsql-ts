@@ -27,9 +27,10 @@ import {
     InlineQuery,
     TupleExpression
 } from "../models/ValueComponent";
-import { CommonTable, Distinct, DistinctOn, FetchSpecification, FetchType, ForClause, FromClause, FunctionSource, GroupByClause, HavingClause, JoinClause, JoinOnClause, JoinUsingClause, LimitClause, NullsSortDirection, OrderByClause, OrderByItem, PartitionByClause, SelectClause, SelectItem, SortDirection, SourceAliasExpression, SourceExpression, SubQuerySource, TableSource, WhereClause, WindowFrameClause, WithClause } from "../models/Clause";
+import { CommonTable, Distinct, DistinctOn, FetchSpecification, FetchType, ForClause, FromClause, FunctionSource, GroupByClause, HavingClause, JoinClause, JoinOnClause, JoinUsingClause, LimitClause, NullsSortDirection, OrderByClause, OrderByItem, PartitionByClause, ReturningClause, SelectClause, SelectItem, SetClause, SortDirection, SourceAliasExpression, SourceExpression, SubQuerySource, TableSource, WhereClause, WindowFrameClause, WithClause } from "../models/Clause";
 import { CreateTableQuery } from "../models/CreateTableQuery";
 import { InsertQuery } from "../models/InsertQuery";
+import { UpdateQuery } from "../models/UpdateQuery";
 import { ParameterCollector } from "./ParameterCollector";
 
 export enum ParameterStyle {
@@ -174,6 +175,11 @@ export class Formatter implements SqlComponentVisitor<string> {
         this.handlers.set(BinarySelectQuery.kind, (expr) => this.visitBinarySelectQuery(expr as BinarySelectQuery));
         this.handlers.set(CreateTableQuery.kind, (expr) => this.visitCreateTableQuery(expr as CreateTableQuery));
         this.handlers.set(InsertQuery.kind, (expr) => this.visitInsertQuery(expr as InsertQuery));
+
+        // update query
+        this.handlers.set(UpdateQuery.kind, (expr) => this.visitUpdateQuery(expr as UpdateQuery));
+        this.handlers.set(SetClause.kind, (expr) => this.visitSetClause(expr as SetClause));
+        this.handlers.set(ReturningClause.kind, (expr) => this.visitReturningClause(expr));
     }
 
     /**
@@ -694,16 +700,64 @@ export class Formatter implements SqlComponentVisitor<string> {
         if (arg.namespaces && arg.namespaces.length > 0) {
             table = `${arg.namespaces.map(ns => ns.accept(this)).join('.')}.${table}`;
         }
+        const parts: string[] = [];
+
         const columns = arg.columns.map(col => col.accept(this)).join(", ");
-        let sql = `insert into ${table}`;
         if (arg.columns.length > 0) {
-            sql += ` (${columns})`;
+            parts.push(`insert into ${table}(${columns})`);
+        } else {
+            parts.push(`insert into ${table}`);
         }
+
         if (arg.selectQuery) {
-            sql += ` ${this.visit(arg.selectQuery)}`;
+            parts.push(this.visit(arg.selectQuery));
         } else {
             throw new Error("InsertQuery must have selectQuery (SELECT or VALUES)");
         }
-        return sql;
+        return parts.join(" ");
+    }
+
+    private visitUpdateQuery(arg: UpdateQuery): string {
+        // Format: UPDATE [schema.]table SET ... [FROM ...] [WHERE ...] [RETURNING ...]
+        let table = arg.table.accept(this);
+        if (arg.namespaces && arg.namespaces.length > 0) {
+            table = `${arg.namespaces.map(ns => ns.accept(this)).join('.')}.${table}`;
+        }
+
+        const parts: string[] = [];
+
+        parts.push(`update ${table}`);
+
+        if (arg.setClause.items.length === 0) {
+            throw new Error("UpdateQuery must have setClause");
+        }
+
+        parts.push(arg.setClause.accept(this));
+
+        if (arg.from) {
+            parts.push(arg.from.accept(this));
+        }
+
+        if (arg.where) {
+            parts.push(arg.where.accept(this));
+        }
+
+        if (arg.returning) {
+            parts.push(arg.returning.accept(this));
+        }
+
+        return parts.join(" ");
+    }
+
+    private visitSetClause(arg: SetClause): string {
+        // Format: SET col1 = val1, col2 = val2, ...
+        const items = arg.items.map(item => `${item.column.accept(this)} = ${item.value.accept(this)}`).join(", ");
+        return `set ${items}`;
+    }
+
+    private visitReturningClause(arg: ReturningClause): string {
+        // Format: RETURNING col1, col2, ...
+        const columns = arg.columns.map(col => col.accept(this)).join(", ");
+        return `returning ${columns}`;
     }
 }

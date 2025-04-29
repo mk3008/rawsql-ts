@@ -367,3 +367,38 @@ export class SourceAliasExpression extends SqlComponent {
         this.columns = columnAlias !== null ? columnAlias.map((alias) => new IdentifierString(alias)) : null;
     }
 }
+
+export class ReturningClause extends SqlComponent {
+    static kind = Symbol("ReturningClause");
+    columns: IdentifierString[];
+    /**
+     * Constructs a ReturningClause.
+     * @param columns Array of IdentifierString or string representing column names.
+     */
+    constructor(columns: (IdentifierString | string)[]) {
+        super();
+        this.columns = columns.map(col => typeof col === "string" ? new IdentifierString(col) : col);
+    }
+}
+
+
+export class SetClause extends SqlComponent {
+    static kind = Symbol("SetClause");
+    items: SetClauseItem[];
+    constructor(items: (SetClauseItem | { column: string | IdentifierString, value: ValueComponent })[]) {
+        super();
+        this.items = items.map(item => item instanceof SetClauseItem ? item : new SetClauseItem(item.column, item.value));
+    }
+}
+
+/**
+ * Represents a single SET clause item in an UPDATE statement.
+ */
+export class SetClauseItem {
+    column: IdentifierString;
+    value: ValueComponent;
+    constructor(column: string | IdentifierString, value: ValueComponent) {
+        this.column = typeof column === "string" ? new IdentifierString(column) : column;
+        this.value = value;
+    }
+}
