@@ -64,15 +64,7 @@ export class FullNameParser {
             throw new Error("Identifier list is empty");
         }
         if (identifiers.length === 1) {
-            // Handle wildcard as a valid name
-            if (identifiers[0] === "*") {
-                return { namespaces: null, name: "*" };
-            }
             return { namespaces: null, name: identifiers[0] };
-        }
-        // Handle wildcard as a valid name in multi-part
-        if (identifiers[identifiers.length - 1] === "*") {
-            return { namespaces: identifiers.slice(0, -1), name: "*" };
         }
         return { namespaces: identifiers.slice(0, -1), name: identifiers[identifiers.length - 1] };
     }

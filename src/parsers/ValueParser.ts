@@ -1,5 +1,5 @@
 import { Lexeme, TokenType } from "../models/Lexeme";
-import { ColumnReference, LiteralValue, UnaryExpression, ValueComponent, ValueList } from "../models/ValueComponent";
+import { ColumnReference, UnaryExpression, ValueComponent, ValueList } from "../models/ValueComponent";
 import { SqlTokenizer } from "./SqlTokenizer";
 import { IdentifierParser } from "./IdentifierParser";
 import { LiteralParser } from "./LiteralParser";
@@ -9,8 +9,6 @@ import { ParameterExpressionParser } from "./ParameterExpressionParser";
 import { StringSpecifierExpressionParser } from "./StringSpecifierExpressionParser";
 import { CommandExpressionParser } from "./CommandExpressionParser";
 import { FunctionExpressionParser } from "./FunctionExpressionParser";
-import { parseEscapedOrDotSeparatedIdentifiers } from "../utils/parseEscapedOrDotSeparatedIdentifiers";
-import { extractNamespacesAndName } from "../utils/extractNamespacesAndName";
 import { FullNameParser } from "./FullNameParser";
 
 export class ValueParser {
@@ -86,7 +84,8 @@ export class ValueParser {
             if (lexemes[newIndex - 1].type & TokenType.Function) {
                 return FunctionExpressionParser.parseFromLexeme(lexemes, idx);
             }
-            return IdentifierParser.parseFromLexeme(lexemes, idx);
+            const value = new ColumnReference(namespaces, name);
+            return { value, newIndex };
         } else if (current.type & TokenType.Literal) {
             return LiteralParser.parseFromLexeme(lexemes, idx);
         } else if (current.type & TokenType.OpenParen) {

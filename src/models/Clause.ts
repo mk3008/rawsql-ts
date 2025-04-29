@@ -133,10 +133,18 @@ export class TableSource extends SqlComponent {
     namespaces: IdentifierString[] | null;
     table: IdentifierString;
     identifier: IdentifierString;
-    constructor(namespaces: string[] | null, table: string) {
+    constructor(namespaces: string[] | IdentifierString[] | null, table: string | IdentifierString) {
         super();
-        this.namespaces = namespaces !== null ? namespaces.map((namespace) => new IdentifierString(namespace)) : null;;
-        this.table = new IdentifierString(table);
+        // Accept both string[] and IdentifierString[] for namespaces
+        if (namespaces === null) {
+            this.namespaces = null;
+        } else if (typeof namespaces[0] === "string") {
+            this.namespaces = (namespaces as string[]).map(ns => new IdentifierString(ns));
+        } else {
+            this.namespaces = namespaces as IdentifierString[];
+        }
+        // Accept both string and IdentifierString for table
+        this.table = typeof table === "string" ? new IdentifierString(table) : table;
         this.identifier = this.table;
     }
     public getSourceName(): string {

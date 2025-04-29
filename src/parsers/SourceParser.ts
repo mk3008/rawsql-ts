@@ -1,10 +1,9 @@
+import { FullNameParser } from "./FullNameParser";
 import { FunctionSource, SourceComponent, SubQuerySource, TableSource } from "../models/Clause";
 import { Lexeme, TokenType } from "../models/Lexeme";
 import { SelectQueryParser } from "./SelectQueryParser";
 import { SqlTokenizer } from "./SqlTokenizer";
 import { ValueParser } from "./ValueParser";
-import { extractNamespacesAndName } from "../utils/extractNamespacesAndName";
-import { parseEscapedOrDotSeparatedIdentifiers } from "../utils/parseEscapedOrDotSeparatedIdentifiers";
 
 export class SourceParser {
     // Parse SQL string to AST (was: parse)
@@ -41,13 +40,9 @@ export class SourceParser {
         return this.parseTableSource(lexemes, idx);
     }
 
-    private static parseTableSource(lexemes: Lexeme[], index: number): { value: TableSource; newIndex: number } {
-        const { identifiers, newIndex } = parseEscapedOrDotSeparatedIdentifiers(lexemes, index);
-        if (identifiers.length === 0) {
-            throw new Error(`No table identifier found at position ${index}`);
-        }
-        const { namespaces, name } = extractNamespacesAndName(identifiers);
-        const value = new TableSource(namespaces, name);
+    private static parseTableSource(lexemes: Lexeme[], index: number): { value: TableSource; newIndex: number } {        // Use FullNameParser to robustly parse qualified table names, including escaped and namespaced identifiers.
+        const { namespaces, name, newIndex } = FullNameParser.parse(lexemes, index);
+        const value = new TableSource(namespaces, name.name);
         return { value, newIndex };
     }
 
