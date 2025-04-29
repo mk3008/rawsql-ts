@@ -1,6 +1,6 @@
 import { describe, test, expect } from 'vitest';
 import { SelectQueryParser } from '../../src/parsers/SelectQueryParser';
-import { Formatter } from '../../src/transformers/Formatter';
+import { Formatter, ParameterStyle } from '../../src/transformers/Formatter';
 
 const formatter = new Formatter();
 
@@ -264,7 +264,7 @@ describe('SelectQueryParser async', () => {
 
         // Act
         const query = await SelectQueryParser.parseAsync(sql);
-        const formatted = formatter.format(query, { identifierEscape: { start: '`', end: '`' }, parameterSymbol: '?', supportNamedParameter: false });
+        const formatted = formatter.format(query, { identifierEscape: { start: '`', end: '`' }, parameterSymbol: '?', parameterStyle: ParameterStyle.Anonymous });
 
         // Assert
         expect(formatted).toBe(expected);
@@ -322,7 +322,7 @@ describe('SelectQueryParser async', () => {
 
         // Act
         const query = await SelectQueryParser.parseAsync(sql);
-        const formatted = formatter.format(query, { identifierEscape: { start: '`', end: '`' }, parameterSymbol: '?', supportNamedParameter: false });
+        const formatted = formatter.format(query, { identifierEscape: { start: '`', end: '`' }, parameterSymbol: '?', parameterStyle: ParameterStyle.Anonymous });
 
         // Assert
         expect(formatted).toBe(expected);

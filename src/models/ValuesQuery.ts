@@ -1,4 +1,7 @@
+import { ParameterHelper } from "../utils/ParameterHelper";
+import { ParameterCollector } from "../transformers/ParameterCollector";
 import { QueryBuilder } from "../transformers/QueryBuilder";
+import { SelectQuery } from "./SelectQuery";
 import { SimpleSelectQuery } from "./SimpleSelectQuery";
 import { SqlComponent } from "./SqlComponent";
 import { TupleExpression } from "./ValueComponent";
@@ -6,7 +9,7 @@ import { TupleExpression } from "./ValueComponent";
 /**
  * Represents a VALUES query in SQL.
  */
-export class ValuesQuery extends SqlComponent {
+export class ValuesQuery extends SqlComponent implements SelectQuery {
     static kind = Symbol("ValuesQuery");
     tuples: TupleExpression[];
     /**
@@ -24,5 +27,15 @@ export class ValuesQuery extends SqlComponent {
 
     public toSimpleSelectQuery(): SimpleSelectQuery {
         return QueryBuilder.buildSimpleQuery(this);
+    }
+
+    /**
+       * Sets the value of a parameter by name in this query.
+       * @param name Parameter name
+       * @param value Value to set
+       */
+    public setParameter(name: string, value: any): this {
+        ParameterHelper.set(this, name, value);
+        return this;
     }
 }
