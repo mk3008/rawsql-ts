@@ -187,9 +187,17 @@ export class LiteralValue extends SqlComponent {
 export class ParameterExpression extends SqlComponent {
     static kind = Symbol("ParameterExpression");
     name: RawString;
-    constructor(name: string) {
+    value: any | null; // Holds the parameter value, default is null
+    /**
+     * The index assigned by the formatter when generating parameterized queries.
+     * This is used for naming parameters like $1, $2, ...
+     */
+    index: number | null;
+    constructor(name: string, value: any | null = null) {
         super();
         this.name = new RawString(name);
+        this.value = value;
+        this.index = null;
     }
 }
 

@@ -4,11 +4,13 @@ import { SqlComponent } from "./SqlComponent";
 import { RawString } from "./ValueComponent";
 import { CTENormalizer } from "../transformers/CTENormalizer";
 import { SelectQueryParser } from "../parsers/SelectQueryParser";
+import { ParameterCollector } from "../transformers/ParameterCollector";
+import { ParameterHelper } from "../utils/ParameterHelper";
 
 /**
  * Represents a binary SELECT query (e.g., UNION, INTERSECT, EXCEPT).
  */
-export class BinarySelectQuery extends SqlComponent {
+export class BinarySelectQuery extends SqlComponent implements SelectQuery {
     static kind = Symbol("BinarySelectQuery");
     left: SelectQuery;
     operator: RawString;
@@ -150,5 +152,15 @@ export class BinarySelectQuery extends SqlComponent {
             new SubQuerySource(this),
             new SourceAliasExpression(alias, null)
         );
+    }
+
+    /**
+     * Sets the value of a parameter by name in this query.
+     * @param name Parameter name
+     * @param value Value to set
+     */
+    public setParameter(name: string, value: any): this {
+        ParameterHelper.set(this, name, value);
+        return this;
     }
 }

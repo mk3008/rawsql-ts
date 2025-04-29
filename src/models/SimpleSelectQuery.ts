@@ -13,11 +13,13 @@ import { Formatter } from "../transformers/Formatter";
 import { TableColumnResolver } from "../transformers/TableColumnResolver";
 import { UpstreamSelectQueryFinder } from "../transformers/UpstreamSelectQueryFinder";
 import { QueryBuilder } from "../transformers/QueryBuilder";
+import { ParameterCollector } from '../transformers/ParameterCollector';
+import { ParameterHelper } from "../utils/ParameterHelper";
 
 /**
  * Represents a simple SELECT query in SQL.
  */
-export class SimpleSelectQuery extends SqlComponent {
+export class SimpleSelectQuery extends SqlComponent implements SelectQuery {
     static kind = Symbol("SelectQuery");
     WithClause: WithClause | null = null;
     selectClause: SelectClause;
@@ -429,5 +431,15 @@ export class SimpleSelectQuery extends SqlComponent {
             const exprStr = formatter.format(exprs[0]);
             this.appendWhereRaw(exprBuilder(exprStr));
         }
+    }
+
+    /**
+     * Sets the value of a parameter by name in this query.
+     * @param name Parameter name
+     * @param value Value to set
+     */
+    public setParameter(name: string, value: any): this {
+        ParameterHelper.set(this, name, value);
+        return this;
     }
 }

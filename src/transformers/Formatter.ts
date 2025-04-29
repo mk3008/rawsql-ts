@@ -30,6 +30,13 @@ import {
 import { CommonTable, Distinct, DistinctOn, FetchSpecification, FetchType, ForClause, FromClause, FunctionSource, GroupByClause, HavingClause, JoinClause, JoinOnClause, JoinUsingClause, LimitClause, NullsSortDirection, OrderByClause, OrderByItem, PartitionByClause, SelectClause, SelectItem, SortDirection, SourceAliasExpression, SourceExpression, SubQuerySource, TableSource, WhereClause, WindowFrameClause, WithClause } from "../models/Clause";
 import { CreateTableQuery } from "../models/CreateTableQuery";
 import { InsertQuery } from "../models/InsertQuery";
+import { ParameterCollector } from "./ParameterCollector";
+
+export enum ParameterStyle {
+    Anonymous = "anonymous", // ?
+    Indexed = "indexed",     // $1, $2, ...
+    Named = "named",         // :name, @name, $name
+}
 
 interface FormatterConfig {
     identifierEscape?: {
@@ -38,10 +45,9 @@ interface FormatterConfig {
     };
     parameterSymbol?: string | { start: string; end: string };
     /**
-     * If false, named parameters are not supported (e.g. MySQL: use only '?').
-     * If true (default), named parameters are output (e.g. :userId, @userId).
+     * Parameter style: anonymous (?), indexed ($1), or named (:name)
      */
-    supportNamedParameter?: boolean;
+    parameterStyle?: ParameterStyle;
 }
 
 export class Formatter implements SqlComponentVisitor<string> {
@@ -52,27 +58,28 @@ export class Formatter implements SqlComponentVisitor<string> {
         mysql: {
             identifierEscape: { start: '`', end: '`' },
             parameterSymbol: '?',
-            supportNamedParameter: false,
+            parameterStyle: ParameterStyle.Anonymous,
         },
         postgres: {
             identifierEscape: { start: '"', end: '"' },
             parameterSymbol: ':',
-            supportNamedParameter: true,
+            parameterStyle: ParameterStyle.Indexed,
         },
         sqlserver: {
             identifierEscape: { start: '[', end: ']' },
             parameterSymbol: '@',
-            supportNamedParameter: true,
+            parameterStyle: ParameterStyle.Named,
         },
         sqlite: {
             identifierEscape: { start: '"', end: '"' },
             parameterSymbol: ':',
-            supportNamedParameter: true,
+            parameterStyle: ParameterStyle.Named,
         },
     };
 
     private handlers: Map<symbol, (arg: any) => string>;
     private config: FormatterConfig;
+    private parameterIndex: number = 0;
 
     constructor() {
         this.handlers = new Map<symbol, (arg: any) => string>();
@@ -84,6 +91,7 @@ export class Formatter implements SqlComponentVisitor<string> {
                 end: '"'
             },
             parameterSymbol: ':',
+            parameterStyle: ParameterStyle.Named,
         };
 
         // value
@@ -176,6 +184,7 @@ export class Formatter implements SqlComponentVisitor<string> {
      * @returns The formatted SQL string.
      */
     public format(arg: SqlComponent, config: FormatterConfig | null = null): string {
+        this.parameterIndex = 0; // Reset counter for each format
         if (config) {
             // Always reset to default before merging user config
             this.config = {
@@ -185,6 +194,40 @@ export class Formatter implements SqlComponentVisitor<string> {
             };
         }
         return this.visit(arg);
+    }
+
+    public formatWithParameters(arg: SqlComponent, config: FormatterConfig | null = null): { sql: string, params: any[] | Record<string, any>[] | Record<string, any> } {
+        const sql = this.format(arg, config);        // Sort parameters by index
+        const paramsRaw = ParameterCollector.collect(arg).sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
+
+        const style = (this.config.parameterStyle ?? ParameterStyle.Named);
+        if (style === ParameterStyle.Named) {
+            // Named: { name: value, ... }
+            const paramsObj: Record<string, any> = {};
+            for (const p of paramsRaw) {
+                const key = p.name.value;
+                if (paramsObj.hasOwnProperty(key)) {
+                    if (paramsObj[key] !== p.value) {
+                        throw new Error(`Duplicate parameter name '${key}' with different values detected during query composition.`);
+                    }
+                    // If value is the same, skip (already set)
+                    continue;
+                }
+                paramsObj[key] = p.value;
+            }
+            return { sql, params: paramsObj };
+        } else if (style === ParameterStyle.Indexed) {
+            // Indexed: [value1, value2, ...] (sorted by index)
+            const paramsArr = paramsRaw.map(p => p.value);
+            return { sql, params: paramsArr };
+        } else if (style === ParameterStyle.Anonymous) {
+            // Anonymous: [value1, value2, ...] (sorted by index, name is empty)
+            const paramsArr = paramsRaw.map(p => p.value);
+            return { sql, params: paramsArr };
+        }
+
+        // Fallback (just in case)
+        return { sql, params: [] };
     }
 
     /**
@@ -436,15 +479,22 @@ export class Formatter implements SqlComponentVisitor<string> {
     }
 
     private visitParameterExpression(arg: ParameterExpression): string {
-        // New: support parameterSymbol as string or {start, end}
-        if (this.config.supportNamedParameter === false && this.config.parameterSymbol === '?') {
-            // MySQL style: only output '?', ignore name
+        // update index
+        arg.index = this.parameterIndex;
+        this.parameterIndex++;
+
+        // Decide output style based on config
+        const style = this.config.parameterStyle ?? ParameterStyle.Named;
+        if (style === ParameterStyle.Anonymous) {
             return '?';
         }
+        if (style === ParameterStyle.Indexed) {
+            return `$${arg.index + 1}`; // 0-based to 1-based
+        }
+        // Named (default)
         if (typeof this.config.parameterSymbol === 'object' && this.config.parameterSymbol !== null) {
             return `${this.config.parameterSymbol.start}${arg.name.accept(this)}${this.config.parameterSymbol.end}`;
         }
-        // fallback (string or undefined)
         return `${this.config.parameterSymbol ?? ':'}${arg.name.accept(this)}`;
     }
 
