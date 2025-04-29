@@ -2,6 +2,7 @@ import { Lexeme, TokenType } from "../models/Lexeme";
 import { FunctionCall, ValueComponent, BinaryExpression, TypeValue, CastExpression, BetweenExpression } from "../models/ValueComponent";
 import { OverExpressionParser } from "./OverExpressionParser";
 import { ValueParser } from "./ValueParser";
+import { FullNameParser } from "./FullNameParser";
 
 export class FunctionExpressionParser {
     public static parseFromLexeme(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number } {
@@ -85,10 +86,12 @@ export class FunctionExpressionParser {
     private static parseFunctionCall(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number } {
         let idx = index;
 
-        // Get function name
-        const result = lexemes[idx];
-        const functionName = result.value;
-        idx++;
+        // Parse namespaced function name (e.g., myschema.myfunc, dbo.util.myfunc)
+        // Use FullNameParser to get namespaces and function name
+        const fullNameResult = FullNameParser.parse(lexemes, idx);
+        const namespaces = fullNameResult.namespaces;
+        const name = fullNameResult.name;
+        idx = fullNameResult.newIndex;
 
         if (idx < lexemes.length && (lexemes[idx].type & TokenType.OpenParen)) {
             // General argument parsing
@@ -98,14 +101,14 @@ export class FunctionExpressionParser {
             if (idx < lexemes.length && lexemes[idx].value === "over") {
                 const over = OverExpressionParser.parseFromLexeme(lexemes, idx);
                 idx = over.newIndex;
-                const value = new FunctionCall(functionName, arg.value, over.value);
+                const value = new FunctionCall(namespaces, name.name, arg.value, over.value);
                 return { value, newIndex: idx };
             } else {
-                const value = new FunctionCall(functionName, arg.value, null);
+                const value = new FunctionCall(namespaces, name.name, arg.value, null);
                 return { value, newIndex: idx };
             }
         } else {
-            throw new Error(`Expected opening parenthesis after function name '${functionName}' at index ${idx}`);
+            throw new Error(`Expected opening parenthesis after function name '${name.name}' at index ${idx}`);
         }
     }
 
@@ -156,10 +159,10 @@ export class FunctionExpressionParser {
                     idx++;
                     const over = OverExpressionParser.parseFromLexeme(lexemes, idx);
                     idx = over.newIndex;
-                    const value = new FunctionCall(functionName, arg, over.value);
+                    const value = new FunctionCall(null, functionName, arg, over.value);
                     return { value, newIndex: idx };
                 } else {
-                    const value = new FunctionCall(functionName, arg, null);
+                    const value = new FunctionCall(null, functionName, arg, null);
                     return { value, newIndex: idx };
                 }
             } else {

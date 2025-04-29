@@ -451,9 +451,14 @@ export class Formatter implements SqlComponentVisitor<string> {
 
     private visitFunctionCall(arg: FunctionCall): string {
         const partArg = arg.argument !== null ? arg.argument.accept(this) : "";
-
+        let funcName: string;
+        if (arg.namespaces && arg.namespaces.length > 0) {
+            funcName = arg.namespaces.map(ns => ns.accept(this)).join(".") + "." + arg.name.accept(this);
+        } else {
+            funcName = arg.name.accept(this);
+        }
         if (arg.over === null) {
-            return `${arg.name.accept(this)}(${partArg})`;
+            return `${funcName}(${partArg})`;
         } else {
             let partOver = arg.over !== null ? `${arg.over.accept(this)}` : "";
             if (partOver) {
@@ -463,7 +468,7 @@ export class Formatter implements SqlComponentVisitor<string> {
                     partOver = ` over ${partOver}`;
                 }
             }
-            return `${arg.name.accept(this)}(${partArg})${partOver}`;
+            return `${funcName}(${partArg})${partOver}`;
         }
     }
 

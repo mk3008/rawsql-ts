@@ -313,7 +313,7 @@ export class CTEDisabler implements SqlComponentVisitor<SqlComponent> {
     visitFunctionCall(func: FunctionCall): SqlComponent {
         const newArgument = func.argument ? this.visit(func.argument) as ValueComponent : null;
         const newOver = func.over ? this.visit(func.over) as OverExpression : null;
-        return new FunctionCall(func.name.value, newArgument, newOver);
+        return new FunctionCall(func.namespaces, func.name, newArgument, newOver);
     }
 
     visitArrayExpression(expr: ArrayExpression): SqlComponent {

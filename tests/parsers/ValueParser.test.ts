@@ -20,6 +20,8 @@ describe('ValueParser', () => {
         ["ParenExpression - Expression enclosed in parentheses", "(a + b) * c", '("a" + "b") * "c"'],
         ["FunctionCall - Single argument", "COUNT(id)", 'count("id")'],
         ["FunctionCall - Multiple arguments", "SUBSTRING(name, 1, 3)", 'substring("name", 1, 3)'],
+        ["FunctionCall - Namespaced (schema)", "myschema.myfunc(1, 2)", '"myschema".myfunc(1, 2)'],
+        ["FunctionCall - Namespaced (multiple)", "dbo.util.myfunc(5)", '"dbo"."util".myfunc(5)'],
         ["ParameterExpression - Parameter", "@userId", ":userId"],
         ["ArrayExpression - Array", "ARRAY[1, 2, 3]", "array[1, 2, 3]"],
         ["CASE - Simple CASE expression", "CASE age WHEN 18 THEN 'young' WHEN 65 THEN 'senior' ELSE 'adult' END", "case \"age\" when 18 then 'young' when 65 then 'senior' else 'adult' end"],

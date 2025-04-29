@@ -11,6 +11,7 @@ import { CommandExpressionParser } from "./CommandExpressionParser";
 import { FunctionExpressionParser } from "./FunctionExpressionParser";
 import { parseEscapedOrDotSeparatedIdentifiers } from "../utils/parseEscapedOrDotSeparatedIdentifiers";
 import { extractNamespacesAndName } from "../utils/extractNamespacesAndName";
+import { FullNameParser } from "./FullNameParser";
 
 export class ValueParser {
     // Parse SQL string to AST (was: parse)
@@ -79,6 +80,12 @@ export class ValueParser {
             }
             return first;
         } else if (current.type & TokenType.Identifier) {
+            const { namespaces, name, newIndex } = FullNameParser.parse(lexemes, idx);
+            // In the case of an identifier, 
+            // there is a possibility that it represents a function with a specified namespace.
+            if (lexemes[newIndex - 1].type & TokenType.Function) {
+                return FunctionExpressionParser.parseFromLexeme(lexemes, idx);
+            }
             return IdentifierParser.parseFromLexeme(lexemes, idx);
         } else if (current.type & TokenType.Literal) {
             return LiteralParser.parseFromLexeme(lexemes, idx);
