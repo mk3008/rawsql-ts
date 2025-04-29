@@ -15,12 +15,12 @@ export class FullNameParser {
         return { namespaces, name: new IdentifierString(name), newIndex };
     }
 
-    // Parses SQL Server-style escaped identifiers ([table]) and dot-separated identifiers.
+    // Parses SQL Server-style escaped identifiers ([table]) and dot-separated identifiers, including namespaced wildcards (e.g., db.schema.*, [db].[schema].*)
     private static parseEscapedOrDotSeparatedIdentifiers(lexemes: Lexeme[], index: number): { identifiers: string[]; newIndex: number } {
         let idx = index;
         const identifiers: string[] = [];
         while (idx < lexemes.length) {
-            if (lexemes[idx].type & TokenType.OpenBracket) { // TokenType.OpenBracket = 1 << 9
+            if (lexemes[idx].type & TokenType.OpenBracket) {
                 idx++; // skip [
                 if (idx >= lexemes.length || !((lexemes[idx].type & TokenType.Identifier) || (lexemes[idx].type & TokenType.Command))) {
                     throw new Error(`Expected identifier after '[' at position ${idx}`);
@@ -31,12 +31,20 @@ export class FullNameParser {
                     throw new Error(`Expected closing ']' after identifier at position ${idx}`);
                 }
                 idx++; // skip ]
-            } else if ((lexemes[idx].type & TokenType.Identifier) || (lexemes[idx].type & TokenType.Function)) {
-                // In the case of an INSERT statement, such as `insert into users (`, the table name `users` may be mistakenly recognized as a Function token.
-                // Therefore, FullNameParser treats such tokens as identifiers and ignores the Function type in this context.
+            } else if (lexemes[idx].type & TokenType.Identifier) {
                 identifiers.push(lexemes[idx].value);
                 idx++;
-            } else {
+            } else if (lexemes[idx].type & TokenType.Function) {
+                // The function token is always treated as the terminal part of a qualified name in SQL (e.g., db.schema.myfunc or [db].[schema].[myfunc]).
+                // No valid SQL syntax allows a function token in the middle of a multi-part name.
+                identifiers.push(lexemes[idx].value);
+                idx++;
+                break;
+            } else if (lexemes[idx].value === "*") {
+                // The wildcard '*' is always treated as the terminal part of a qualified name in SQL (e.g., db.schema.* or [db].[schema].*).
+                // No valid SQL syntax allows a wildcard in the middle of a multi-part name.
+                identifiers.push(lexemes[idx].value);
+                idx++;
                 break;
             }
             // Handle dot for schema.table or db.schema.table
@@ -56,11 +64,16 @@ export class FullNameParser {
             throw new Error("Identifier list is empty");
         }
         if (identifiers.length === 1) {
+            // Handle wildcard as a valid name
+            if (identifiers[0] === "*") {
+                return { namespaces: null, name: "*" };
+            }
             return { namespaces: null, name: identifiers[0] };
         }
-        return {
-            namespaces: identifiers.slice(0, -1),
-            name: identifiers[identifiers.length - 1]
-        };
+        // Handle wildcard as a valid name in multi-part
+        if (identifiers[identifiers.length - 1] === "*") {
+            return { namespaces: identifiers.slice(0, -1), name: "*" };
+        }
+        return { namespaces: identifiers.slice(0, -1), name: identifiers[identifiers.length - 1] };
     }
 }

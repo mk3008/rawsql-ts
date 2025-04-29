@@ -35,8 +35,8 @@ export class ValueParser {
         let idx = index;
 
         // support comments
-        const comment = lexemes[index].comments;
-        const left = this.parseItem(lexemes, index);
+        const comment = lexemes[idx].comments;
+        const left = this.parseItem(lexemes, idx);
         left.value.comments = comment;
         idx = left.newIndex;
 
@@ -103,12 +103,7 @@ export class ValueParser {
             return CommandExpressionParser.parseFromLexeme(lexemes, idx);
         } else if (current.type & TokenType.OpenBracket) {
             // SQLServer escape identifier format. e.g. [dbo] or [dbo].[table]
-            const { identifiers, newIndex } = parseEscapedOrDotSeparatedIdentifiers(lexemes, idx);
-            if (identifiers.length === 0) {
-                throw new Error(`[ValueParser] No identifier found after '[' at index ${idx}`);
-            }
-            // Use the same logic as IdentifierParser for dot-separated identifiers
-            const { namespaces, name } = extractNamespacesAndName(identifiers);
+            const { namespaces, name, newIndex } = FullNameParser.parse(lexemes, idx);
             const value = new ColumnReference(namespaces, name);
             return { value, newIndex };
         }
