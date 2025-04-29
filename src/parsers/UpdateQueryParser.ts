@@ -7,8 +7,9 @@ import { FullNameParser } from "./FullNameParser";
 import { WhereClauseParser } from "./WhereClauseParser";
 import { ReturningClauseParser } from "./ReturningClauseParser";
 import { FromClauseParser } from "./FromClauseParser";
-import { FromClause, ReturningClause, SetClause, WhereClause } from "../models/Clause";
+import { FromClause, ReturningClause, SetClause, WhereClause, WithClause } from "../models/Clause";
 import { SetClauseParser } from "./SetClauseParser";
+import { WithClauseParser } from "./WithClauseParser";
 
 export class UpdateQueryParser {
     /**
@@ -30,6 +31,14 @@ export class UpdateQueryParser {
      */
     public static parseFromLexeme(lexemes: Lexeme[], index: number): { value: UpdateQuery; newIndex: number } {
         let idx = index;
+
+        // Parse optional WITH clause (CTE)
+        let withClause: WithClause | null = null;
+        if (lexemes[idx]?.value?.toLowerCase() === "with") {
+            const withResult = WithClauseParser.parseFromLexeme(lexemes, idx);
+            withClause = withResult.value;
+            idx = withResult.newIndex;
+        }
 
         // Expect UPDATE
         if (lexemes[idx].value !== "update") {
@@ -72,6 +81,7 @@ export class UpdateQueryParser {
 
         return {
             value: new UpdateQuery({
+                withClause,
                 namespaces,
                 table,
                 setClause,

@@ -718,13 +718,18 @@ export class Formatter implements SqlComponentVisitor<string> {
     }
 
     private visitUpdateQuery(arg: UpdateQuery): string {
-        // Format: UPDATE [schema.]table SET ... [FROM ...] [WHERE ...] [RETURNING ...]
+        // Format: [WITH ...] UPDATE [schema.]table SET ... [FROM ...] [WHERE ...] [RETURNING ...]
         let table = arg.table.accept(this);
         if (arg.namespaces && arg.namespaces.length > 0) {
             table = `${arg.namespaces.map(ns => ns.accept(this)).join('.')}.${table}`;
         }
 
         const parts: string[] = [];
+
+        // Add WITH clause if present
+        if (arg.withClause) {
+            parts.push(arg.withClause.accept(this));
+        }
 
         parts.push(`update ${table}`);
 

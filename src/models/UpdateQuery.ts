@@ -3,9 +3,11 @@
 import { SqlComponent } from "./SqlComponent";
 import { IdentifierString, ValueComponent } from "./ValueComponent";
 import { FromClause, ReturningClause, SetClause, WhereClause } from "./Clause";
+import { WithClause } from "./Clause";
 
 export class UpdateQuery extends SqlComponent {
     static kind = Symbol("UpdateQuery");
+    withClause: WithClause | null;
     namespaces: IdentifierString[] | null;
     table: IdentifierString;
     setClause: SetClause;
@@ -21,6 +23,7 @@ export class UpdateQuery extends SqlComponent {
      * @param params.returning RETURNING clause (optional)
      */
     constructor(params: {
+        withClause?: WithClause | null;
         namespaces: (string | IdentifierString)[] | null;
         table: string | IdentifierString;
         setClause: SetClause | { column: string | IdentifierString, value: ValueComponent }[];
@@ -29,6 +32,7 @@ export class UpdateQuery extends SqlComponent {
         returning?: ReturningClause | null;
     }) {
         super();
+        this.withClause = params.withClause ?? null;
         this.namespaces = params.namespaces
             ? params.namespaces.map(ns => typeof ns === "string" ? new IdentifierString(ns) : ns)
             : null;
