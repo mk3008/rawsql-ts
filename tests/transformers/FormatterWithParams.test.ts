@@ -129,4 +129,26 @@ describe('Formatter.formatWithParams', () => {
         expect(unionResult.sql.replace(/\s+/g, ' ')).toContain('select * from "users" where "id" = $1 union all select * from "users" where "id" = $2');
         expect(unionResult.params).toEqual([100, 200]);
     });
+
+    it('should merge named parameters with the same name and value, and throw if values differ (named, union)', () => {
+        // Arrange
+        const sql1 = 'select * from users where id = :id';
+        const sql2 = 'select * from users where id = :id';
+        const query1 = SelectQueryParser.parse(sql1);
+        const query2 = SelectQueryParser.parse(sql2);
+        query1.setParameter('id', 100);
+        query2.setParameter('id', 100);
+
+        // Act: merge with same name and value
+        const unionQuery = QueryBuilder.buildBinaryQuery([query1, query2], 'union all');
+        const unionResult = new Formatter().formatWithParameters(unionQuery, Formatter.PRESETS.sqlserver);
+        // Assert: only one param in the result
+        expect(unionResult.sql.replace(/\s+/g, ' ')).toContain('select * from [users] where [id] = @id union all select * from [users] where [id] = @id');
+        expect(unionResult.params).toEqual({ id: 100 });
+
+        // Act & Assert: merge with same name but different value should throw
+        query2.setParameter('id', 200);
+        const unionQuery2 = QueryBuilder.buildBinaryQuery([query1, query2], 'union all');
+        expect(() => new Formatter().formatWithParameters(unionQuery2, Formatter.PRESETS.sqlserver)).toThrowError(/Duplicate parameter name 'id' with different values/);
+    });
 });

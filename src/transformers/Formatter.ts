@@ -205,7 +205,15 @@ export class Formatter implements SqlComponentVisitor<string> {
             // Named: { name: value, ... }
             const paramsObj: Record<string, any> = {};
             for (const p of paramsRaw) {
-                paramsObj[p.name.value] = p.value;
+                const key = p.name.value;
+                if (paramsObj.hasOwnProperty(key)) {
+                    if (paramsObj[key] !== p.value) {
+                        throw new Error(`Duplicate parameter name '${key}' with different values detected during query composition.`);
+                    }
+                    // If value is the same, skip (already set)
+                    continue;
+                }
+                paramsObj[key] = p.value;
             }
             return { sql, params: paramsObj };
         } else if (style === ParameterStyle.Indexed) {

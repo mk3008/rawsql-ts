@@ -115,10 +115,13 @@ const customSql = formatter.format(query, {
 
 ### Configurable Options
 
-Formatting options are provided as the second argument to the `format()` method. You can customize:
+Formatting options are provided as the second argument to the `formatWithParameters()` method. You can customize:
 - `identifierEscape`: How identifiers are escaped (e.g., `"`, `[`, `` ` ``)
 - `parameterSymbol`: The symbol or pattern for parameters (e.g., `:`, `@`, `?`, or `{ start: '${', end: '}' }`)
-- `supportNamedParameter`: If false, parameter names are omitted (for MySQL-style `?` only)
+- `parameterStyle`: Controls the parameter style (anonymous, indexed, or named)
+
+> [!Note]
+> The traditional `format()` method is also available. If you only need the SQL string without parameter information, use the `format` method instead of `formatWithParameters()`.
 
 ### Usage Example
 
@@ -130,9 +133,11 @@ import { SelectQueryParser, Formatter } from 'rawsql-ts';
 const sql = `SELECT user_id, name FROM users WHERE active = TRUE`;
 const query = SelectQueryParser.parse(sql);
 const formatter = new Formatter();
-const formattedSql = formatter.format(query, Formatter.PRESETS.postgres);
-console.log(formattedSql);
+const formatted = formatter.formatWithParameters(query, Formatter.PRESETS.postgres);
+console.log(formatted.sql);
 // => select "user_id", "name" from "users" where "active" = true
+console.log(formatted.params);
+// => { ... } (parameters object or array depending on style)
 ```
 
 #### Using Manual Configuration
@@ -143,16 +148,66 @@ import { SelectQueryParser, Formatter } from 'rawsql-ts';
 const sql = `SELECT user_id, name FROM users WHERE active = TRUE`;
 const query = SelectQueryParser.parse(sql);
 const formatter = new Formatter();
-const formattedSql = formatter.format(query, {
+const formatted = formatter.formatWithParameters(query, {
   identifierEscape: { start: '`', end: '`' },
   parameterSymbol: '?',
-  supportNamedParameter: false,
+  parameterStyle: 'anonymous',
 });
-console.log(formattedSql);
+console.log(formatted.sql);
 // => select `user_id`, `name` from `users` where `active` = ?
+console.log(formatted.params);
+// => [ ... ] (parameters array)
 ```
 
-rawsql-ts is designed to be flexible and support various SQL dialects. The `Formatter` class can be customized to handle different dialects by adjusting the identifier escape characters, parameter symbols, and named parameter support. This makes it easy to work with SQL queries for different database systems using a consistent API.
+rawsql-ts is designed to be flexible and support various SQL dialects. The `Formatter` class can be customized to handle different dialects by adjusting the identifier escape characters, parameter symbols, and parameter style. This makes it easy to work with SQL queries for different database systems using a consistent API.
+
+---
+
+### Advanced Parameterized Query Formatting
+
+rawsql-ts's `Formatter` class supports advanced parameterized query formatting for all major SQL dialects. You can output SQL with parameters in three styles:
+
+- **Anonymous** (`?`): For MySQL and similar drivers. Parameters are output as `?` and values are provided as an array.
+- **Indexed** (`$1`, `$2`, ...): For PostgreSQL and compatible drivers. Parameters are output as `$1`, `$2`, ... and values are provided as an array in the correct order.
+- **Named** (`:name`, `@name`, `$name`): For SQL Server, SQLite, and ORMs that support named parameters. Parameters are output as `:name`, `@name`, or `$name` and values are provided as an object (dictionary).
+
+You can control the parameter style using the `parameterStyle` option in the Formatter configuration, or by using one of the built-in presets. **In most cases, you do not need to set this manually—just use the appropriate preset (e.g., `Formatter.PRESETS.mysql`, `Formatter.PRESETS.postgres`, etc.) and the correct parameter style will be applied automatically.**
+
+#### Example: Parameterized Query Output
+
+```typescript
+import { SelectQueryParser, Formatter, ParameterStyle } from 'rawsql-ts';
+
+const sql = 'SELECT * FROM users WHERE id = :id AND status = :status';
+const query = SelectQueryParser.parse(sql);
+query.setParameter('id', 123);
+query.setParameter('status', 'active');
+const formatter = new Formatter();
+
+// Anonymous style (MySQL)
+const anon = formatter.formatWithParameters(query, { parameterStyle: ParameterStyle.Anonymous });
+// anon.sql: 'select * from "users" where "id" = ? and "status" = ?'
+// anon.params: [123, 'active']
+
+// Indexed style (PostgreSQL)
+const indexed = formatter.formatWithParameters(query, { parameterStyle: ParameterStyle.Indexed });
+// indexed.sql: 'select * from "users" where "id" = $1 and "status" = $2'
+// indexed.params: [123, 'active']
+
+// Named style (SQL Server, SQLite, ORMs)
+const named = formatter.formatWithParameters(query, { parameterStyle: ParameterStyle.Named });
+// named.sql: 'select * from "users" where "id" = :id and "status" = :status'
+// named.params: { id: 123, status: 'active' }
+```
+
+The formatter automatically assigns parameter indexes in the order they appear in the query, even for complex queries with CTEs, subqueries, or set operations (UNION, INTERSECT, etc.). When combining queries, parameter indexes are always reassigned to ensure correct binding order for your database client.
+
+This makes rawsql-ts ideal for building safe, maintainable, and highly portable SQL in TypeScript, with zero risk of SQL injection and maximum compatibility across database systems.
+
+A unique feature of rawsql-ts is the `setParameter` method. Instead of passing parameter values at formatting time, you assign values directly to the query object using `setParameter`. This makes your code highly portable and decouples query construction from parameter binding. Parameter indexes (for indexed or anonymous styles) are always assigned at formatting time, so even if you modify or combine queries (e.g., with UNION, CTEs, or subqueries), the parameter order and binding will always be correct and never break.
+
+> [!Tip]
+> While rawsql-ts supports anonymous and indexed parameters, it is highly recommended to use named parameters in your source code. Using names makes your queries much more readable and maintainable, and the setParameter method assigns values by name, reducing the risk of mistakes. You can always output the final SQL and parameters in the style required by your database client (e.g., anonymous or indexed) at formatting time. This approach lets you write clear, maintainable code during development, while still generating the exact parameter style needed for your production environment.
 
 ---
 
@@ -554,4 +609,3 @@ Node.js v22.14.0
 ---
 
 Feel free to try rawsql-ts! Questions, requests, and bug reports are always welcome.
-
