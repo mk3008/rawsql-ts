@@ -246,7 +246,7 @@ export class QueryBuilder {
 
         const from = new FromClause(selectQuery.toSource(selectSourceName), null);
 
-        let where: any = null;
+        let where: BinaryExpression | null = null;
         for (const pk of pkArray) {
             const cond = new BinaryExpression(
                 new ColumnReference(updateSourceName, pk),
