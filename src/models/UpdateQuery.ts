@@ -33,7 +33,6 @@ export class UpdateQuery extends SqlComponent {
         super();
         this.withClause = params.withClause ?? null;
         this.updateClause = params.updateClause;
-        this.updateClause = params.updateClause;
         this.setClause = params.setClause instanceof SetClause ? params.setClause : new SetClause(params.setClause);
         this.whereClause = params.whereClause ?? null;
         this.fromClause = params.fromClause ?? null;
