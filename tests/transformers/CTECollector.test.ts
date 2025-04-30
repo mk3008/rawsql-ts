@@ -385,8 +385,8 @@ order by
 
         // Assert
         expect(commonTables.length).toBe(3);
-        expect(commonTables[0].getAliasSourceName()).toBe('dat');
-        expect(commonTables[1].getAliasSourceName()).toBe('detail');
-        expect(commonTables[2].getAliasSourceName()).toBe('tax_summary');
+        expect(commonTables[0].getSourceAliasName()).toBe('dat');
+        expect(commonTables[1].getSourceAliasName()).toBe('detail');
+        expect(commonTables[2].getSourceAliasName()).toBe('tax_summary');
     });
 });

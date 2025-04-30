@@ -1,5 +1,6 @@
 import { Lexeme, TokenType } from "../models/Lexeme";
 import { IdentifierString } from "../models/ValueComponent";
+import { SqlTokenizer } from "./SqlTokenizer";
 
 /**
  * Utility class for parsing fully qualified names (e.g. db.schema.table or db.schema.table.column_name)
@@ -13,6 +14,18 @@ export class FullNameParser {
         const { identifiers, newIndex } = FullNameParser.parseEscapedOrDotSeparatedIdentifiers(lexemes, index);
         const { namespaces, name } = FullNameParser.extractNamespacesAndName(identifiers);
         return { namespaces, name: new IdentifierString(name), newIndex };
+    }
+
+    /**
+     * Parses a fully qualified name from a string (e.g. 'db.schema.table')
+     * Returns { namespaces, name }
+     */
+    public static parseString(str: string): { namespaces: string[] | null, name: IdentifierString } {
+        const tokenizer = new SqlTokenizer(str);
+        const lexemes = tokenizer.readLexmes();
+        // Use the existing parse method
+        const { namespaces, name } = FullNameParser.parse(lexemes, 0);
+        return { namespaces, name };
     }
 
     // Parses SQL Server-style escaped identifiers ([table]) and dot-separated identifiers, including namespaced wildcards (e.g., db.schema.*, [db].[schema].*)

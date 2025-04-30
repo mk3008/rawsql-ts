@@ -238,7 +238,7 @@ export class JoinClause extends SqlComponent {
         this.condition = condition;
         this.lateral = lateral;
     }
-    public getAliasSourceName(): string | null {
+    public getSourceAliasName(): string | null {
         if (this.source.aliasExpression) {
             return this.source.aliasExpression.table.name;
         }
@@ -258,7 +258,7 @@ export class FromClause extends SqlComponent {
         this.source = source;
         this.joins = join;
     }
-    public getAliasSourceName(): string | null {
+    public getSourceAliasName(): string | null {
         if (this.source.aliasExpression) {
             return this.source.aliasExpression.table.name;
         }
@@ -296,7 +296,7 @@ export class CommonTable extends SqlComponent {
             this.aliasExpression = aliasExpression;
         }
     }
-    public getAliasSourceName(): string {
+    public getSourceAliasName(): string {
         return this.aliasExpression.table.name;
     }
 }
@@ -402,11 +402,31 @@ export class SetClause extends SqlComponent {
 /**
  * Represents a single SET clause item in an UPDATE statement.
  */
-export class SetClauseItem {
+export class SetClauseItem extends SqlComponent {
+    static kind = Symbol("SetClauseItem");
     column: IdentifierString;
     value: ValueComponent;
     constructor(column: string | IdentifierString, value: ValueComponent) {
+        super();
         this.column = typeof column === "string" ? new IdentifierString(column) : column;
         this.value = value;
+    }
+}
+
+export class UpdateClause extends SqlComponent {
+    static kind = Symbol("UpdateClause");
+    source: SourceExpression;
+    constructor(source: SourceExpression) {
+        super();
+        this.source = source;
+    }
+    public getSourceAliasName() {
+        if (this.source.aliasExpression) {
+            return this.source.aliasExpression.table.name;
+        }
+        else if (this.source.datasource instanceof TableSource) {
+            return this.source.datasource.table.name;
+        }
+        return null;
     }
 }

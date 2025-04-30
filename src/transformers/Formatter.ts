@@ -27,7 +27,7 @@ import {
     InlineQuery,
     TupleExpression
 } from "../models/ValueComponent";
-import { CommonTable, Distinct, DistinctOn, FetchSpecification, FetchType, ForClause, FromClause, FunctionSource, GroupByClause, HavingClause, JoinClause, JoinOnClause, JoinUsingClause, LimitClause, NullsSortDirection, OrderByClause, OrderByItem, PartitionByClause, ReturningClause, SelectClause, SelectItem, SetClause, SortDirection, SourceAliasExpression, SourceExpression, SubQuerySource, TableSource, WhereClause, WindowFrameClause, WithClause } from "../models/Clause";
+import { CommonTable, Distinct, DistinctOn, FetchSpecification, FetchType, ForClause, FromClause, FunctionSource, GroupByClause, HavingClause, JoinClause, JoinOnClause, JoinUsingClause, LimitClause, NullsSortDirection, OrderByClause, OrderByItem, PartitionByClause, ReturningClause, SelectClause, SelectItem, SetClause, SetClauseItem, SortDirection, SourceAliasExpression, SourceExpression, SubQuerySource, TableSource, UpdateClause, WhereClause, WindowFrameClause, WithClause } from "../models/Clause";
 import { CreateTableQuery } from "../models/CreateTableQuery";
 import { InsertQuery } from "../models/InsertQuery";
 import { UpdateQuery } from "../models/UpdateQuery";
@@ -178,7 +178,9 @@ export class Formatter implements SqlComponentVisitor<string> {
 
         // update query
         this.handlers.set(UpdateQuery.kind, (expr) => this.visitUpdateQuery(expr as UpdateQuery));
+        this.handlers.set(UpdateClause.kind, (expr) => this.visitUpdateClause(expr as UpdateClause));
         this.handlers.set(SetClause.kind, (expr) => this.visitSetClause(expr as SetClause));
+        this.handlers.set(SetClauseItem.kind, (expr) => this.visitSetClauseItem(expr as SetClauseItem));
         this.handlers.set(ReturningClause.kind, (expr) => this.visitReturningClause(expr));
     }
 
@@ -723,12 +725,7 @@ export class Formatter implements SqlComponentVisitor<string> {
     }
 
     private visitUpdateQuery(arg: UpdateQuery): string {
-        // Format: [WITH ...] UPDATE [schema.]table SET ... [FROM ...] [WHERE ...] [RETURNING ...]
-        let table = arg.table.accept(this);
-        if (arg.namespaces && arg.namespaces.length > 0) {
-            table = `${arg.namespaces.map(ns => ns.accept(this)).join('.')}.${table}`;
-        }
-
+        // Format: [WITH ...] UPDATE [source] SET ... [FROM ...] [WHERE ...] [RETURNING ...]
         const parts: string[] = [];
 
         // Add WITH clause if present
@@ -736,33 +733,46 @@ export class Formatter implements SqlComponentVisitor<string> {
             parts.push(arg.withClause.accept(this));
         }
 
-        parts.push(`update ${table}`);
+        // updateClause (SourceExpression) を使う
+        parts.push(arg.updateClause.accept(this));
 
         if (arg.setClause.items.length === 0) {
             throw new Error("UpdateQuery must have setClause");
         }
-
         parts.push(arg.setClause.accept(this));
 
-        if (arg.from) {
-            parts.push(arg.from.accept(this));
+        if (arg.fromClause) {
+            parts.push(arg.fromClause.accept(this));
         }
 
-        if (arg.where) {
-            parts.push(arg.where.accept(this));
+        if (arg.whereClause) {
+            parts.push(arg.whereClause.accept(this));
         }
 
-        if (arg.returning) {
-            parts.push(arg.returning.accept(this));
+        if (arg.returningClause) {
+            parts.push(arg.returningClause.accept(this));
         }
 
         return parts.join(" ");
     }
 
+    private visitUpdateClause(arg: UpdateClause): string {
+        // Format: UPDATE table [AS alias]
+        const table = arg.source.accept(this);
+        return `update ${table}`;
+    }
+
     private visitSetClause(arg: SetClause): string {
         // Format: SET col1 = val1, col2 = val2, ...
-        const items = arg.items.map(item => `${item.column.accept(this)} = ${item.value.accept(this)}`).join(", ");
+        const items = arg.items.map(item => item.accept(this)).join(", ");
         return `set ${items}`;
+    }
+
+    private visitSetClauseItem(arg: SetClauseItem): string {
+        // Format: col1 = val1
+        const column = arg.column.accept(this);
+        const value = arg.value.accept(this);
+        return `${column} = ${value}`;
     }
 
     private visitReturningClause(arg: ReturningClause): string {

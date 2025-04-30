@@ -3,7 +3,7 @@ import { UpdateQuery } from "../models/UpdateQuery";
 import { Lexeme } from "../models/Lexeme";
 import { SqlTokenizer } from "./SqlTokenizer";
 import { ValueComponent } from "../models/ValueComponent";
-import { FullNameParser } from "./FullNameParser";
+import { UpdateClauseParser } from "./UpdateClauseParser";
 import { WhereClauseParser } from "./WhereClauseParser";
 import { ReturningClauseParser } from "./ReturningClauseParser";
 import { FromClauseParser } from "./FromClauseParser";
@@ -30,6 +30,7 @@ export class UpdateQueryParser {
      * Parse from lexeme array (for internal use and tests)
      */
     public static parseFromLexeme(lexemes: Lexeme[], index: number): { value: UpdateQuery; newIndex: number } {
+
         let idx = index;
 
         // Parse optional WITH clause (CTE)
@@ -46,9 +47,10 @@ export class UpdateQueryParser {
         }
         idx++;
 
-        // Get fully qualified table name
-        const { namespaces, name: table, newIndex } = FullNameParser.parse(lexemes, idx);
-        idx = newIndex;
+        // Parse updateClause (table or source expression)
+        const updateClauseResult = UpdateClauseParser.parseFromLexeme(lexemes, idx);
+        const updateClause = updateClauseResult.value;
+        idx = updateClauseResult.newIndex;
 
         // Parse set clause (including 'SET' keyword check)
         const setClauseResult = SetClauseParser.parseFromLexeme(lexemes, idx);
@@ -82,11 +84,10 @@ export class UpdateQueryParser {
         return {
             value: new UpdateQuery({
                 withClause,
-                namespaces,
-                table,
+                updateClause,
                 setClause,
-                where,
-                from,
+                whereClause: where,
+                fromClause: from,
                 returning
             }),
             newIndex: idx

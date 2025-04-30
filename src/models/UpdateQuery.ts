@@ -2,44 +2,41 @@
 // Supports SET, WHERE, and optional FROM/RETURNING clauses.
 import { SqlComponent } from "./SqlComponent";
 import { IdentifierString, ValueComponent } from "./ValueComponent";
-import { FromClause, ReturningClause, SetClause, WhereClause } from "./Clause";
+import { FromClause, ReturningClause, SetClause, WhereClause, SourceExpression, UpdateClause } from "./Clause";
 import { WithClause } from "./Clause";
 
 export class UpdateQuery extends SqlComponent {
     static kind = Symbol("UpdateQuery");
     withClause: WithClause | null;
-    namespaces: IdentifierString[] | null;
-    table: IdentifierString;
+    updateClause: UpdateClause;
     setClause: SetClause;
-    where: WhereClause | null;
-    from: FromClause | null;
-    returning: ReturningClause | null;
+    whereClause: WhereClause | null;
+    fromClause: FromClause | null;
+    returningClause: ReturningClause | null;
 
     /**
-     * @param params.table Table name (string or IdentifierString)
+     * @param params.source SourceExpression (table or subquery with optional alias)
      * @param params.setClause SetClause instance or array of {column, value} pairs
      * @param params.where WHERE clause (optional)
      * @param params.from FROM clause (optional)
      * @param params.returning RETURNING clause (optional)
      */
+
     constructor(params: {
         withClause?: WithClause | null;
-        namespaces: (string | IdentifierString)[] | null;
-        table: string | IdentifierString;
+        updateClause: UpdateClause;
         setClause: SetClause | { column: string | IdentifierString, value: ValueComponent }[];
-        where?: WhereClause | null;
-        from?: FromClause | null;
+        whereClause?: WhereClause | null;
+        fromClause?: FromClause | null;
         returning?: ReturningClause | null;
     }) {
         super();
         this.withClause = params.withClause ?? null;
-        this.namespaces = params.namespaces
-            ? params.namespaces.map(ns => typeof ns === "string" ? new IdentifierString(ns) : ns)
-            : null;
-        this.table = typeof params.table === "string" ? new IdentifierString(params.table) : params.table;
+        this.updateClause = params.updateClause;
+        this.updateClause = params.updateClause;
         this.setClause = params.setClause instanceof SetClause ? params.setClause : new SetClause(params.setClause);
-        this.where = params.where ?? null;
-        this.from = params.from ?? null;
-        this.returning = params.returning ?? null;
+        this.whereClause = params.whereClause ?? null;
+        this.fromClause = params.fromClause ?? null;
+        this.returningClause = params.returning ?? null;
     }
 }
