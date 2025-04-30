@@ -118,8 +118,11 @@ export class FunctionExpressionParser {
         keywords: { key: string, required: boolean }[]
     ): { value: ValueComponent; newIndex: number; } {
         let idx = index;
-        const functionName = lexemes[idx].value;
-        idx++;
+        // Parse function name and namespaces at the beginning for consistent usage
+        const fullNameResult = FullNameParser.parse(lexemes, idx);
+        const namespaces = fullNameResult.namespaces;
+        const name = fullNameResult.name;
+        idx = fullNameResult.newIndex;
 
         if (idx < lexemes.length && (lexemes[idx].type & TokenType.OpenParen)) {
             idx++;
@@ -133,7 +136,7 @@ export class FunctionExpressionParser {
                 return this.parseFunctionCall(lexemes, index);
             }
 
-            // Check keywords
+            // Check for required/optional keywords in function arguments
             for (const { key, required } of keywords) {
                 if (idx < lexemes.length && (lexemes[idx].type & TokenType.Command) && lexemes[idx].value === key) {
                     idx++;
@@ -155,8 +158,7 @@ export class FunctionExpressionParser {
 
             if (idx < lexemes.length && (lexemes[idx].type & TokenType.CloseParen)) {
                 idx++;
-                // Use FullNameParser to extract namespaces and function name for consistency
-                const { namespaces, name } = FullNameParser.parse(lexemes, index);
+                // Use the previously parsed namespaces and function name for consistency
                 if (idx < lexemes.length && lexemes[idx].value === "over") {
                     idx++;
                     const over = OverExpressionParser.parseFromLexeme(lexemes, idx);
@@ -168,10 +170,10 @@ export class FunctionExpressionParser {
                     return { value, newIndex: idx };
                 }
             } else {
-                throw new Error(`Missing closing parenthesis for function '${functionName}' at index ${idx}`);
+                throw new Error(`Missing closing parenthesis for function '${name.name}' at index ${idx}`);
             }
         } else {
-            throw new Error(`Missing opening parenthesis for function '${functionName}' at index ${idx}`);
+            throw new Error(`Missing opening parenthesis for function '${name.name}' at index ${idx}`);
         }
     }
 
