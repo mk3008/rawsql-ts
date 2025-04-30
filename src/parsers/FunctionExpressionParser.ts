@@ -155,14 +155,16 @@ export class FunctionExpressionParser {
 
             if (idx < lexemes.length && (lexemes[idx].type & TokenType.CloseParen)) {
                 idx++;
+                // Use FullNameParser to extract namespaces and function name for consistency
+                const { namespaces, name } = FullNameParser.parse(lexemes, index);
                 if (idx < lexemes.length && lexemes[idx].value === "over") {
                     idx++;
                     const over = OverExpressionParser.parseFromLexeme(lexemes, idx);
                     idx = over.newIndex;
-                    const value = new FunctionCall(null, functionName, arg, over.value);
+                    const value = new FunctionCall(namespaces, name.name, arg, over.value);
                     return { value, newIndex: idx };
                 } else {
-                    const value = new FunctionCall(null, functionName, arg, null);
+                    const value = new FunctionCall(namespaces, name.name, arg, null);
                     return { value, newIndex: idx };
                 }
             } else {

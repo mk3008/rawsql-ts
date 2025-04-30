@@ -2,12 +2,11 @@
 import { UpdateQuery } from "../models/UpdateQuery";
 import { Lexeme } from "../models/Lexeme";
 import { SqlTokenizer } from "./SqlTokenizer";
-import { ValueComponent } from "../models/ValueComponent";
 import { UpdateClauseParser } from "./UpdateClauseParser";
 import { WhereClauseParser } from "./WhereClauseParser";
 import { ReturningClauseParser } from "./ReturningClauseParser";
 import { FromClauseParser } from "./FromClauseParser";
-import { FromClause, ReturningClause, SetClause, WhereClause, WithClause } from "../models/Clause";
+import { FromClause, ReturningClause, WhereClause, WithClause } from "../models/Clause";
 import { SetClauseParser } from "./SetClauseParser";
 import { WithClauseParser } from "./WithClauseParser";
 
@@ -92,7 +91,5 @@ export class UpdateQueryParser {
             }),
             newIndex: idx
         };
-    }    // Get fully qualified name and split into namespaces/table
+    }
 }
-
-
