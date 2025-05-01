@@ -69,7 +69,7 @@ export class CreateTableQuery extends SqlComponent {
         return new SimpleSelectQuery(
             null, // withClause
             new SelectClause([
-                new SelectItem(new FunctionCall("count", new ColumnReference(null, "*"), null))
+                new SelectItem(new FunctionCall(null, "count", new ColumnReference(null, "*"), null))
             ]),
             new FromClause(
                 new SourceExpression(

@@ -1,12 +1,14 @@
-import { FromClause, SelectClause, SelectItem, SourceAliasExpression, SourceExpression, SubQuerySource, WithClause } from "../models/Clause";
+import { SetClause, SetClauseItem, FromClause, WhereClause, SelectClause, SelectItem, SourceAliasExpression, SourceExpression, SubQuerySource, WithClause, TableSource, UpdateClause, InsertClause } from '../models/Clause';
+import { UpdateQuery } from '../models/UpdateQuery';
+import { BinaryExpression, ColumnReference } from '../models/ValueComponent';
+import { SelectValueCollector } from './SelectValueCollector';
 import { BinarySelectQuery, SelectQuery, SimpleSelectQuery, ValuesQuery } from "../models/SelectQuery";
-import { SqlComponent } from "../models/SqlComponent";
-import { ColumnReference, IdentifierString, RawString } from "../models/ValueComponent";
 import { CTECollector } from "./CTECollector";
 import { CTENormalizer } from "./CTENormalizer";
 import { CreateTableQuery } from "../models/CreateTableQuery";
 import { InsertQuery } from "../models/InsertQuery";
-import { SelectValueCollector } from "./SelectValueCollector";
+import { CTEDisabler } from './CTEDisabler';
+import { SourceExpressionParser } from '../parsers/SourceExpressionParser';
 
 /**
  * QueryBuilder provides static methods to build or convert various SQL query objects.
@@ -200,11 +202,68 @@ export class QueryBuilder {
             );
         }
 
+        // Generate SourceExpression (supports only table name, does not support alias or schema)
+        const sourceExpr = SourceExpressionParser.parse(tableName);
         return new InsertQuery({
-            namespaces: null,
-            table: tableName,
-            columns: cols,
+            insertClause: new InsertClause(sourceExpr, cols),
             selectQuery: selectQuery
         });
+    }
+
+    /**
+     * Builds an UPDATE query from a SELECT query, table name, and primary key(s).
+     * @param selectQuery The SELECT query providing new values (must select all columns to update and PKs)
+     * @param updateTableExprRaw The table name to update
+     * @param primaryKeys The primary key column name(s)
+     * @returns UpdateQuery instance
+     */
+    public static buildUpdateQuery(selectQuery: SimpleSelectQuery, selectSourceName: string, updateTableExprRaw: string, primaryKeys: string | string[]) {
+        const updateClause = new UpdateClause(SourceExpressionParser.parse(updateTableExprRaw));
+
+        const pkArray = Array.isArray(primaryKeys) ? primaryKeys : [primaryKeys];
+        const selectCollector = new SelectValueCollector();
+        const selectItems = selectCollector.collect(selectQuery);
+
+        const cteCollector = new CTECollector();
+        const collectedCTEs = cteCollector.collect(selectQuery);
+        const cteDisabler = new CTEDisabler();
+        cteDisabler.execute(selectQuery);
+
+        for (const pk of pkArray) {
+            if (!selectItems.some(item => item.name === pk)) {
+                throw new Error(`Primary key column '${pk}' is not present in selectQuery select list.`);
+            }
+        }
+
+        const updateSourceName = updateClause.getSourceAliasName();
+        if (!updateSourceName) {
+            throw new Error(`Source expression does not have an alias. Please provide an alias for the source expression.`);
+        }
+
+        const setColumns = selectItems.filter(item => !pkArray.includes(item.name));
+        const setItems = setColumns.map(col => new SetClauseItem(col.name, new ColumnReference(updateSourceName, col.name)));
+        const setClause = new SetClause(setItems);
+
+        const from = new FromClause(selectQuery.toSource(selectSourceName), null);
+
+        let where: BinaryExpression | null = null;
+        for (const pk of pkArray) {
+            const cond = new BinaryExpression(
+                new ColumnReference(updateSourceName, pk),
+                '=',
+                new ColumnReference(selectSourceName, pk)
+            );
+            where = where ? new BinaryExpression(where, 'and', cond) : cond;
+        }
+        const whereClause = new WhereClause(where!);
+
+        const updateQuery = new UpdateQuery({
+            updateClause: updateClause,
+            setClause: setClause,
+            fromClause: from,
+            whereClause: whereClause,
+            withClause: collectedCTEs.length > 0 ? new WithClause(false, collectedCTEs) : undefined,
+        });
+        return updateQuery;
     }
 }

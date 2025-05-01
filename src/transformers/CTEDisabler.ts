@@ -313,7 +313,7 @@ export class CTEDisabler implements SqlComponentVisitor<SqlComponent> {
     visitFunctionCall(func: FunctionCall): SqlComponent {
         const newArgument = func.argument ? this.visit(func.argument) as ValueComponent : null;
         const newOver = func.over ? this.visit(func.over) as OverExpression : null;
-        return new FunctionCall(func.name.value, newArgument, newOver);
+        return new FunctionCall(func.namespaces, func.name, newArgument, newOver);
     }
 
     visitArrayExpression(expr: ArrayExpression): SqlComponent {
@@ -334,7 +334,7 @@ export class CTEDisabler implements SqlComponentVisitor<SqlComponent> {
 
     visitTypeValue(typeValue: TypeValue): SqlComponent {
         const newArgument = typeValue.argument ? this.visit(typeValue.argument) as ValueComponent : null;
-        return new TypeValue(typeValue.type.value, newArgument);
+        return new TypeValue(typeValue.namespaces, typeValue.name, newArgument);
     }
 
     visitSelectItem(item: SelectItem): SqlComponent {

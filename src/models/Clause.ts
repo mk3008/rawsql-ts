@@ -133,10 +133,18 @@ export class TableSource extends SqlComponent {
     namespaces: IdentifierString[] | null;
     table: IdentifierString;
     identifier: IdentifierString;
-    constructor(namespaces: string[] | null, table: string) {
+    constructor(namespaces: string[] | IdentifierString[] | null, table: string | IdentifierString) {
         super();
-        this.namespaces = namespaces !== null ? namespaces.map((namespace) => new IdentifierString(namespace)) : null;;
-        this.table = new IdentifierString(table);
+        // Accept both string[] and IdentifierString[] for namespaces
+        if (namespaces === null) {
+            this.namespaces = null;
+        } else if (typeof namespaces[0] === "string") {
+            this.namespaces = (namespaces as string[]).map(ns => new IdentifierString(ns));
+        } else {
+            this.namespaces = namespaces as IdentifierString[];
+        }
+        // Accept both string and IdentifierString for table
+        this.table = typeof table === "string" ? new IdentifierString(table) : table;
         this.identifier = this.table;
     }
     public getSourceName(): string {
@@ -230,7 +238,7 @@ export class JoinClause extends SqlComponent {
         this.condition = condition;
         this.lateral = lateral;
     }
-    public getAliasSourceName(): string | null {
+    public getSourceAliasName(): string | null {
         if (this.source.aliasExpression) {
             return this.source.aliasExpression.table.name;
         }
@@ -250,7 +258,7 @@ export class FromClause extends SqlComponent {
         this.source = source;
         this.joins = join;
     }
-    public getAliasSourceName(): string | null {
+    public getSourceAliasName(): string | null {
         if (this.source.aliasExpression) {
             return this.source.aliasExpression.table.name;
         }
@@ -288,7 +296,7 @@ export class CommonTable extends SqlComponent {
             this.aliasExpression = aliasExpression;
         }
     }
-    public getAliasSourceName(): string {
+    public getSourceAliasName(): string {
         return this.aliasExpression.table.name;
     }
 }
@@ -365,5 +373,108 @@ export class SourceAliasExpression extends SqlComponent {
         super();
         this.table = new IdentifierString(alias);
         this.columns = columnAlias !== null ? columnAlias.map((alias) => new IdentifierString(alias)) : null;
+    }
+}
+
+export class ReturningClause extends SqlComponent {
+    static kind = Symbol("ReturningClause");
+    columns: IdentifierString[];
+    /**
+     * Constructs a ReturningClause.
+     * @param columns Array of IdentifierString or string representing column names.
+     */
+    constructor(columns: (IdentifierString | string)[]) {
+        super();
+        this.columns = columns.map(col => typeof col === "string" ? new IdentifierString(col) : col);
+    }
+}
+
+
+export class SetClause extends SqlComponent {
+    static kind = Symbol("SetClause");
+    items: SetClauseItem[];
+    constructor(items: (SetClauseItem | { column: string | IdentifierString, value: ValueComponent })[]) {
+        super();
+        this.items = items.map(item => item instanceof SetClauseItem ? item : new SetClauseItem(item.column, item.value));
+    }
+}
+
+/**
+ * Represents a single SET clause item in an UPDATE statement.
+ */
+/**
+ * Represents a single SET clause item in an UPDATE statement.
+ * Now supports namespaces for fully qualified column names (e.g. schema.table.column).
+ */
+export class SetClauseItem extends SqlComponent {
+    static kind = Symbol("SetClauseItem");
+    namespaces: IdentifierString[] | null;
+    column: IdentifierString;
+    value: ValueComponent;
+    constructor(
+        column: string | IdentifierString | { namespaces: string[] | IdentifierString[] | null, column: string | IdentifierString },
+        value: ValueComponent
+    ) {
+        super();
+        if (typeof column === "object" && column !== null && "column" in column) {
+            // Accepts { namespaces, column }
+            const colObj = column as { namespaces: string[] | IdentifierString[] | null, column: string | IdentifierString };
+            if (colObj.namespaces == null) {
+                this.namespaces = null;
+            } else if (typeof colObj.namespaces[0] === "string") {
+                this.namespaces = (colObj.namespaces as string[]).map(ns => new IdentifierString(ns));
+            } else {
+                this.namespaces = colObj.namespaces as IdentifierString[];
+            }
+            this.column = typeof colObj.column === "string" ? new IdentifierString(colObj.column) : colObj.column;
+        } else {
+            this.namespaces = null;
+            this.column = typeof column === "string" ? new IdentifierString(column) : column as IdentifierString;
+        }
+        this.value = value;
+    }
+    /**
+     * Returns the fully qualified column name as a string.
+     */
+    public getFullName(): string {
+        if (this.namespaces && this.namespaces.length > 0) {
+            return this.namespaces.map(ns => ns.name).join(".") + "." + this.column.name;
+        } else {
+            return this.column.name;
+        }
+    }
+}
+
+export class UpdateClause extends SqlComponent {
+    static kind = Symbol("UpdateClause");
+    source: SourceExpression;
+    constructor(source: SourceExpression) {
+        super();
+        this.source = source;
+    }
+    public getSourceAliasName() {
+        if (this.source.aliasExpression) {
+            return this.source.aliasExpression.table.name;
+        }
+        else if (this.source.datasource instanceof TableSource) {
+            return this.source.datasource.table.name;
+        }
+        return null;
+    }
+}
+
+/**
+ * Represents the target table (with optional alias/schema) and columns for an INSERT statement.
+ * @param source The target table as a SourceExpression (can include schema, alias, etc.)
+ * @param columns Array of column names (as strings)
+ */
+export class InsertClause extends SqlComponent {
+    source: SourceExpression;
+    columns: string[];
+
+    constructor(source: SourceExpression, columns: string[]) {
+        super();
+        this.source = source;
+        this.columns = columns;
     }
 }
