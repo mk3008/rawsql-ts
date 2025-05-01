@@ -770,8 +770,13 @@ export class Formatter implements SqlComponentVisitor<string> {
     }
 
     private visitSetClauseItem(arg: SetClauseItem): string {
-        // Format: col1 = val1
-        const column = arg.column.accept(this);
+        // Format: col1 = val1 (with optional namespaces)
+        let column: string;
+        if (arg.namespaces && arg.namespaces.length > 0) {
+            column = arg.namespaces.map(ns => ns.accept(this)).join(".") + "." + arg.column.accept(this);
+        } else {
+            column = arg.column.accept(this);
+        }
         const value = arg.value.accept(this);
         return `${column} = ${value}`;
     }

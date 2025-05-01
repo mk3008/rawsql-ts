@@ -402,14 +402,46 @@ export class SetClause extends SqlComponent {
 /**
  * Represents a single SET clause item in an UPDATE statement.
  */
+/**
+ * Represents a single SET clause item in an UPDATE statement.
+ * Now supports namespaces for fully qualified column names (e.g. schema.table.column).
+ */
 export class SetClauseItem extends SqlComponent {
     static kind = Symbol("SetClauseItem");
+    namespaces: IdentifierString[] | null;
     column: IdentifierString;
     value: ValueComponent;
-    constructor(column: string | IdentifierString, value: ValueComponent) {
+    constructor(
+        column: string | IdentifierString | { namespaces: string[] | IdentifierString[] | null, column: string | IdentifierString },
+        value: ValueComponent
+    ) {
         super();
-        this.column = typeof column === "string" ? new IdentifierString(column) : column;
+        if (typeof column === "object" && column !== null && "column" in column) {
+            // Accepts { namespaces, column }
+            const colObj = column as { namespaces: string[] | IdentifierString[] | null, column: string | IdentifierString };
+            if (colObj.namespaces == null) {
+                this.namespaces = null;
+            } else if (typeof colObj.namespaces[0] === "string") {
+                this.namespaces = (colObj.namespaces as string[]).map(ns => new IdentifierString(ns));
+            } else {
+                this.namespaces = colObj.namespaces as IdentifierString[];
+            }
+            this.column = typeof colObj.column === "string" ? new IdentifierString(colObj.column) : colObj.column;
+        } else {
+            this.namespaces = null;
+            this.column = typeof column === "string" ? new IdentifierString(column) : column as IdentifierString;
+        }
         this.value = value;
+    }
+    /**
+     * Returns the fully qualified column name as a string.
+     */
+    public getFullName(): string {
+        if (this.namespaces && this.namespaces.length > 0) {
+            return this.namespaces.map(ns => ns.name).join(".") + "." + this.column.name;
+        } else {
+            return this.column.name;
+        }
     }
 }
 

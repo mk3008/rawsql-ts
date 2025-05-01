@@ -2,6 +2,7 @@
 import { Lexeme, TokenType } from "../models/Lexeme";
 import { SetClause, SetClauseItem } from "../models/Clause";
 import { ValueParser } from "./ValueParser";
+import { FullNameParser } from "./FullNameParser";
 
 /**
  * Parse SET clause from lexemes (including 'SET' keyword check).
@@ -15,17 +16,18 @@ export class SetClauseParser {
         idx++;
         let setClauseItems: SetClauseItem[] = [];
         while (idx < lexemes.length && lexemes[idx].type === TokenType.Identifier) {
-            const column = lexemes[idx].value;
-            idx++;
+            // Parse fully qualified column name (e.g. table.column, schema.table.column)
+            const { namespaces, name, newIndex } = FullNameParser.parseFromLexeme(lexemes, idx);
+            idx = newIndex;
 
             if (lexemes[idx]?.type !== TokenType.Operator || lexemes[idx].value !== "=") {
                 throw new Error(`Syntax error at position ${idx}: Expected '=' after column name in SET clause.`);
             }
             idx++;
 
-            // Value expression (for now, just take the next identifier/literal)
+            // Parse value expression
             const value = ValueParser.parseFromLexeme(lexemes, idx);
-            setClauseItems.push(new SetClauseItem(column, value.value));
+            setClauseItems.push(new SetClauseItem({ namespaces, column: name }, value.value));
             idx = value.newIndex;
 
             if (lexemes[idx]?.type === TokenType.Comma) {
