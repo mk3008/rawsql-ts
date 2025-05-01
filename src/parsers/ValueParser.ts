@@ -82,7 +82,7 @@ export class ValueParser {
             // Namespace is also recognized as Identifier.
             // Since functions and types, as well as columns (tables), can have namespaces,
             // it is necessary to determine by the last element of the identifier.
-            if (lexemes[newIndex - 1].type & (TokenType.Function || TokenType.Type)) {
+            if (lexemes[newIndex - 1].type & (TokenType.Function | TokenType.Type)) {
                 return FunctionExpressionParser.parseFromLexeme(lexemes, idx);
             }
             const value = new ColumnReference(namespaces, name);
