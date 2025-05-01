@@ -150,7 +150,7 @@
                     const cteCollector = new CTECollector();
                     cteCollector.visit(query);
                     const ctes = cteCollector.getCommonTables();
-                    ctesEl.textContent = ctes.map(cte => `name: ${cte.getAliasSourceName()}, query: ${formatter.format(cte.query)}`).join('\n');
+                    ctesEl.textContent = ctes.map(cte => `name: ${cte.getSourceAliasName()}, query: ${formatter.format(cte.query)}`).join('\n');
                 } catch (e) {
                     ctesEl.textContent = '[CTECollector Error] ' + e.message;
                 }

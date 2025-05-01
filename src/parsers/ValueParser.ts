@@ -1,5 +1,5 @@
 import { Lexeme, TokenType } from "../models/Lexeme";
-import { ColumnReference, LiteralValue, UnaryExpression, ValueComponent, ValueList } from "../models/ValueComponent";
+import { ColumnReference, TypeValue, UnaryExpression, ValueComponent, ValueList } from "../models/ValueComponent";
 import { SqlTokenizer } from "./SqlTokenizer";
 import { IdentifierParser } from "./IdentifierParser";
 import { LiteralParser } from "./LiteralParser";
@@ -9,8 +9,7 @@ import { ParameterExpressionParser } from "./ParameterExpressionParser";
 import { StringSpecifierExpressionParser } from "./StringSpecifierExpressionParser";
 import { CommandExpressionParser } from "./CommandExpressionParser";
 import { FunctionExpressionParser } from "./FunctionExpressionParser";
-import { parseEscapedOrDotSeparatedIdentifiers } from "../utils/parseEscapedOrDotSeparatedIdentifiers";
-import { extractNamespacesAndName } from "../utils/extractNamespacesAndName";
+import { FullNameParser } from "./FullNameParser";
 
 export class ValueParser {
     // Parse SQL string to AST (was: parse)
@@ -34,8 +33,8 @@ export class ValueParser {
         let idx = index;
 
         // support comments
-        const comment = lexemes[index].comments;
-        const left = this.parseItem(lexemes, index);
+        const comment = lexemes[idx].comments;
+        const left = this.parseItem(lexemes, idx);
         left.value.comments = comment;
         idx = left.newIndex;
 
@@ -79,7 +78,15 @@ export class ValueParser {
             }
             return first;
         } else if (current.type & TokenType.Identifier) {
-            return IdentifierParser.parseFromLexeme(lexemes, idx);
+            const { namespaces, name, newIndex } = FullNameParser.parseFromLexeme(lexemes, idx);
+            // Namespace is also recognized as Identifier.
+            // Since functions and types, as well as columns (tables), can have namespaces,
+            // it is necessary to determine by the last element of the identifier.
+            if (lexemes[newIndex - 1].type & (TokenType.Function | TokenType.Type)) {
+                return FunctionExpressionParser.parseFromLexeme(lexemes, idx);
+            }
+            const value = new ColumnReference(namespaces, name);
+            return { value, newIndex };
         } else if (current.type & TokenType.Literal) {
             return LiteralParser.parseFromLexeme(lexemes, idx);
         } else if (current.type & TokenType.OpenParen) {
@@ -96,12 +103,7 @@ export class ValueParser {
             return CommandExpressionParser.parseFromLexeme(lexemes, idx);
         } else if (current.type & TokenType.OpenBracket) {
             // SQLServer escape identifier format. e.g. [dbo] or [dbo].[table]
-            const { identifiers, newIndex } = parseEscapedOrDotSeparatedIdentifiers(lexemes, idx);
-            if (identifiers.length === 0) {
-                throw new Error(`[ValueParser] No identifier found after '[' at index ${idx}`);
-            }
-            // Use the same logic as IdentifierParser for dot-separated identifiers
-            const { namespaces, name } = extractNamespacesAndName(identifiers);
+            const { namespaces, name, newIndex } = FullNameParser.parseFromLexeme(lexemes, idx);
             const value = new ColumnReference(namespaces, name);
             return { value, newIndex };
         }

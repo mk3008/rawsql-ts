@@ -27,9 +27,10 @@ import {
     InlineQuery,
     TupleExpression
 } from "../models/ValueComponent";
-import { CommonTable, Distinct, DistinctOn, FetchSpecification, FetchType, ForClause, FromClause, FunctionSource, GroupByClause, HavingClause, JoinClause, JoinOnClause, JoinUsingClause, LimitClause, NullsSortDirection, OrderByClause, OrderByItem, PartitionByClause, SelectClause, SelectItem, SortDirection, SourceAliasExpression, SourceExpression, SubQuerySource, TableSource, WhereClause, WindowFrameClause, WithClause } from "../models/Clause";
+import { CommonTable, Distinct, DistinctOn, FetchSpecification, FetchType, ForClause, FromClause, FunctionSource, GroupByClause, HavingClause, InsertClause, JoinClause, JoinOnClause, JoinUsingClause, LimitClause, NullsSortDirection, OrderByClause, OrderByItem, PartitionByClause, ReturningClause, SelectClause, SelectItem, SetClause, SetClauseItem, SortDirection, SourceAliasExpression, SourceExpression, SubQuerySource, TableSource, UpdateClause, WhereClause, WindowFrameClause, WithClause } from "../models/Clause";
 import { CreateTableQuery } from "../models/CreateTableQuery";
 import { InsertQuery } from "../models/InsertQuery";
+import { UpdateQuery } from "../models/UpdateQuery";
 import { ParameterCollector } from "./ParameterCollector";
 
 export enum ParameterStyle {
@@ -172,8 +173,20 @@ export class Formatter implements SqlComponentVisitor<string> {
         // select query
         this.handlers.set(SimpleSelectQuery.kind, (expr) => this.visitSelectQuery(expr as SimpleSelectQuery));
         this.handlers.set(BinarySelectQuery.kind, (expr) => this.visitBinarySelectQuery(expr as BinarySelectQuery));
+
+        // create table query
         this.handlers.set(CreateTableQuery.kind, (expr) => this.visitCreateTableQuery(expr as CreateTableQuery));
+
+        // update query
+        this.handlers.set(UpdateQuery.kind, (expr) => this.visitUpdateQuery(expr as UpdateQuery));
+        this.handlers.set(UpdateClause.kind, (expr) => this.visitUpdateClause(expr as UpdateClause));
+        this.handlers.set(SetClause.kind, (expr) => this.visitSetClause(expr as SetClause));
+        this.handlers.set(SetClauseItem.kind, (expr) => this.visitSetClauseItem(expr as SetClauseItem));
+        this.handlers.set(ReturningClause.kind, (expr) => this.visitReturningClause(expr));
+
+        // insert query
         this.handlers.set(InsertQuery.kind, (expr) => this.visitInsertQuery(expr as InsertQuery));
+        this.handlers.set(InsertClause.kind, (expr) => this.visitInsertClause(expr as InsertClause));
     }
 
     /**
@@ -316,10 +329,16 @@ export class Formatter implements SqlComponentVisitor<string> {
     }
 
     private visitTypeValue(arg: TypeValue): string {
-        if (arg.argument !== null) {
-            return `${arg.type.accept(this)}(${arg.argument.accept(this)})`;
+        let typeStr = '';
+        if (arg.namespaces && arg.namespaces.length > 0) {
+            typeStr = arg.namespaces.map(ns => ns.accept(this)).join('.') + '.' + arg.name.accept(this);
+        } else {
+            typeStr = arg.name.accept(this);
         }
-        return `${arg.type.accept(this)}`;
+        if (arg.argument !== null) {
+            return `${typeStr}(${arg.argument.accept(this)})`;
+        }
+        return `${typeStr}`;
     }
 
     private visitStringSpecifierExpression(arg: StringSpecifierExpression): string {
@@ -445,9 +464,14 @@ export class Formatter implements SqlComponentVisitor<string> {
 
     private visitFunctionCall(arg: FunctionCall): string {
         const partArg = arg.argument !== null ? arg.argument.accept(this) : "";
-
+        let funcName: string;
+        if (arg.namespaces && arg.namespaces.length > 0) {
+            funcName = arg.namespaces.map(ns => ns.accept(this)).join(".") + "." + arg.name.accept(this);
+        } else {
+            funcName = arg.name.accept(this);
+        }
         if (arg.over === null) {
-            return `${arg.name.accept(this)}(${partArg})`;
+            return `${funcName}(${partArg})`;
         } else {
             let partOver = arg.over !== null ? `${arg.over.accept(this)}` : "";
             if (partOver) {
@@ -457,7 +481,7 @@ export class Formatter implements SqlComponentVisitor<string> {
                     partOver = ` over ${partOver}`;
                 }
             }
-            return `${arg.name.accept(this)}(${partArg})${partOver}`;
+            return `${funcName}(${partArg})${partOver}`;
         }
     }
 
@@ -689,21 +713,87 @@ export class Formatter implements SqlComponentVisitor<string> {
     }
 
     private visitInsertQuery(arg: InsertQuery): string {
-        // Format: INSERT INTO table (col1, col2, ...) SELECT .../VALUES ...
-        let table = arg.table.accept(this);
-        if (arg.namespaces && arg.namespaces.length > 0) {
-            table = `${arg.namespaces.map(ns => ns.accept(this)).join('.')}.${table}`;
-        }
-        const columns = arg.columns.map(col => col.accept(this)).join(", ");
-        let sql = `insert into ${table}`;
-        if (arg.columns.length > 0) {
-            sql += ` (${columns})`;
-        }
+        const parts: string[] = [];
+
+        parts.push(arg.insertClause.accept(this));
+
         if (arg.selectQuery) {
-            sql += ` ${this.visit(arg.selectQuery)}`;
+            parts.push(arg.selectQuery.accept(this));
         } else {
             throw new Error("InsertQuery must have selectQuery (SELECT or VALUES)");
         }
-        return sql;
+        return parts.join(" ");
+    }
+
+    private visitUpdateQuery(arg: UpdateQuery): string {
+        // Format: [WITH ...] UPDATE [source] SET ... [FROM ...] [WHERE ...] [RETURNING ...]
+        const parts: string[] = [];
+
+        // Add WITH clause if present
+        if (arg.withClause) {
+            parts.push(arg.withClause.accept(this));
+        }
+
+        // updateClause (SourceExpression) を使う
+        parts.push(arg.updateClause.accept(this));
+
+        if (arg.setClause.items.length === 0) {
+            throw new Error("UpdateQuery must have setClause");
+        }
+        parts.push(arg.setClause.accept(this));
+
+        if (arg.fromClause) {
+            parts.push(arg.fromClause.accept(this));
+        }
+
+        if (arg.whereClause) {
+            parts.push(arg.whereClause.accept(this));
+        }
+
+        if (arg.returningClause) {
+            parts.push(arg.returningClause.accept(this));
+        }
+
+        return parts.join(" ");
+    }
+
+    private visitUpdateClause(arg: UpdateClause): string {
+        // Format: UPDATE table [AS alias]
+        const table = arg.source.accept(this);
+        return `update ${table}`;
+    }
+
+    private visitSetClause(arg: SetClause): string {
+        // Format: SET col1 = val1, col2 = val2, ...
+        const items = arg.items.map(item => item.accept(this)).join(", ");
+        return `set ${items}`;
+    }
+
+    private visitSetClauseItem(arg: SetClauseItem): string {
+        // Format: col1 = val1 (with optional namespaces)
+        let column: string;
+        if (arg.namespaces && arg.namespaces.length > 0) {
+            column = arg.namespaces.map(ns => ns.accept(this)).join(".") + "." + arg.column.accept(this);
+        } else {
+            column = arg.column.accept(this);
+        }
+        const value = arg.value.accept(this);
+        return `${column} = ${value}`;
+    }
+
+    private visitReturningClause(arg: ReturningClause): string {
+        // Format: RETURNING col1, col2, ...
+        const columns = arg.columns.map(col => col.accept(this)).join(", ");
+        return `returning ${columns}`;
+    }
+
+    private visitInsertClause(arg: InsertClause): string {
+        const table = arg.source.accept(this);
+        const columns = arg.columns.map(col => new IdentifierString(col).accept(this)).join(", ");
+        if (arg.columns.length > 0) {
+            return `insert into ${table}(${columns})`;
+        } else {
+            return `insert into ${table}`;
+        }
     }
 }

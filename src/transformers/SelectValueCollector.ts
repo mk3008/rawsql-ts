@@ -139,13 +139,13 @@ export class SelectValueCollector implements SqlComponentVisitor<void> {
             .map(item => (item.value as ColumnReference).getNamespace());
 
         if (query.fromClause) {
-            const fromSourceName = query.fromClause.getAliasSourceName();
+            const fromSourceName = query.fromClause.getSourceAliasName();
             if (fromSourceName && wildSourceNames.includes(fromSourceName)) {
                 this.processFromClause(query.fromClause, false);
             }
             if (query.fromClause.joins) {
                 for (const join of query.fromClause.joins) {
-                    const joinSourceName = join.getAliasSourceName();
+                    const joinSourceName = join.getSourceAliasName();
                     if (joinSourceName && wildSourceNames.includes(joinSourceName)) {
                         this.processJoinClause(join);
                     }
@@ -159,7 +159,7 @@ export class SelectValueCollector implements SqlComponentVisitor<void> {
 
     private processFromClause(clause: FromClause, joinCascade: boolean): void {
         if (clause) {
-            const fromSourceName = clause.getAliasSourceName();
+            const fromSourceName = clause.getSourceAliasName();
             this.processSourceExpression(fromSourceName, clause.source);
 
             if (clause.joins && joinCascade) {
@@ -172,7 +172,7 @@ export class SelectValueCollector implements SqlComponentVisitor<void> {
     }
 
     private processJoinClause(clause: JoinClause): void {
-        const sourceName = clause.getAliasSourceName();
+        const sourceName = clause.getSourceAliasName();
         this.processSourceExpression(sourceName, clause.source);
     }
 

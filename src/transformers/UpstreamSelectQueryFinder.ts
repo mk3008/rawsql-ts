@@ -30,7 +30,7 @@ export class UpstreamSelectQueryFinder {
         const ctes = cteCollector.collect(query);
         const cteMap: Map<string, CommonTable> = new Map();
         for (const cte of ctes) {
-            cteMap.set(cte.getAliasSourceName(), cte);
+            cteMap.set(cte.getSourceAliasName(), cte);
         }
         return this.findUpstream(query, columnNames, cteMap);
     }

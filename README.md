@@ -234,6 +234,11 @@ A unique feature of rawsql-ts is the `setParameter` method. Instead of passing p
   - `parse(sql: string): InsertQuery`  
     Converts an INSERT SQL string to an AST. Throws an exception on error.
 
+- **UpdateQueryParser**  
+  The main class for parsing `UPDATE` statements and converting them into AST. Supports PostgreSQL-style UPDATE with optional CTE (WITH clause), table alias, SET, WHERE, FROM, and RETURNING clauses.
+  - `parse(sql: string): UpdateQuery`  
+    Converts an UPDATE SQL string to an AST. Throws an exception on error.
+
 ---
 
 ## Core SQL Query Classes
@@ -399,12 +404,18 @@ A suite of utilities for transforming and analyzing SQL ASTs.
   Consolidates all CTEs into a single root-level WITH clause. Throws an error if duplicate CTE names with different definitions are found.
 - **QueryNormalizer**  
   Converts any SELECT/UNION/VALUES query into a standard SimpleSelectQuery. Handles subquery wrapping and automatic column name generation.
+
 - **QueryBuilder**  
   Converts any SELECT/UNION/VALUES query into a standard SimpleSelectQuery. Handles subquery wrapping and automatic column name generation.
   Supports CREATE TABLE ... AS SELECT ... conversion:
   - `QueryBuilder.buildCreateTableQuery(query, tableName, isTemporary?)` creates a `CreateTableQuery` from any SELECT query.
   Supports combining multiple queries:
   - `QueryBuilder.buildBinaryQuery(queries, operator)` combines an array of SelectQuery objects into a single BinarySelectQuery using the specified set operator (e.g., 'union', 'intersect', 'except').
+  Supports INSERT and UPDATE statement generation from SELECT:
+  - `QueryBuilder.buildInsertQuery(selectQuery, tableName)` creates an `InsertQuery` from a `SimpleSelectQuery` and a target table name.  
+    The columns are inferred from the select query. Throws if columns cannot be determined.
+  - `QueryBuilder.buildUpdateQuery(selectQuery, selectSourceName, updateTableExprRaw, primaryKeys)` creates an `UpdateQuery` from a `SimpleSelectQuery`, the source alias, the update target table, and primary key(s).  
+    This generates an UPDATE ... SET ... FROM ... WHERE ... statement using the SELECT as the value source. Throws if PK columns are missing or ambiguous.
 
 - **TableColumnResolver**  
   A function type for resolving column names from a table name, mainly used for wildcard expansion (e.g., `table.*`). Used by analyzers like SelectValueCollector.

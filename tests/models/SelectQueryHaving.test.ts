@@ -49,7 +49,7 @@ test('should add a HAVING condition using ValueComponent', () => {
     const baseQuery = SelectQueryParser.parse('SELECT product, SUM(sales) FROM transactions GROUP BY product') as SimpleSelectQuery;
 
     // Create ValueComponent for condition: SUM(sales) > 500
-    const sumFunction = new FunctionCall('sum', new ColumnReference(null, 'sales'), null);
+    const sumFunction = new FunctionCall(null, 'sum', new ColumnReference(null, 'sales'), null);
     const condition = new BinaryExpression(sumFunction, '>', new LiteralValue(500));
 
     // Act
@@ -65,11 +65,11 @@ test('should add multiple HAVING conditions with AND logic using ValueComponents
     const baseQuery = SelectQueryParser.parse('SELECT category, COUNT(*), AVG(price) FROM products GROUP BY category') as SimpleSelectQuery;
 
     // Create first condition: COUNT(*) > 10
-    const countFunction = new FunctionCall('count', new ColumnReference(null, '*'), null);
+    const countFunction = new FunctionCall(null, 'count', new ColumnReference(null, '*'), null);
     const firstCondition = new BinaryExpression(countFunction, '>', new LiteralValue(10));
 
     // Create second condition: AVG(price) > 50
-    const avgFunction = new FunctionCall('avg', new ColumnReference(null, 'price'), null);
+    const avgFunction = new FunctionCall(null, 'avg', new ColumnReference(null, 'price'), null);
     const secondCondition = new BinaryExpression(avgFunction, '>', new LiteralValue(50));
 
     // Act
@@ -89,7 +89,7 @@ test('should combine raw string and ValueComponent conditions in HAVING clause',
     baseQuery.appendHavingRaw("COUNT(*) > 20");
 
     // Create second condition using ValueComponent: SUM(sales) > 10000
-    const sumFunction = new FunctionCall('sum', new ColumnReference(null, 'sales'), null);
+    const sumFunction = new FunctionCall(null, 'sum', new ColumnReference(null, 'sales'), null);
     const secondCondition = new BinaryExpression(sumFunction, '>', new LiteralValue(10000));
 
     // Act

@@ -47,16 +47,10 @@ export class ColumnReference extends SqlComponent {
     namespaces: IdentifierString[] | null;
     // Use the string type instead of the RawString type because it has its own escaping process.
     column: IdentifierString;
-    constructor(namespaces: string | string[] | null, column: string) {
+    constructor(namespaces: string | string[] | IdentifierString[] | null, column: string | IdentifierString) {
         super();
-        if (typeof namespaces === "string") {
-            this.namespaces = [new IdentifierString(namespaces)];
-        } else if (Array.isArray(namespaces)) {
-            this.namespaces = namespaces.map((namespace) => new IdentifierString(namespace));
-        } else {
-            this.namespaces = null;
-        }
-        this.column = new IdentifierString(column);
+        this.namespaces = toIdentifierStringArray(namespaces);
+        this.column = typeof column === "string" ? new IdentifierString(column) : column;
     }
 
     public toString(): string {
@@ -77,12 +71,19 @@ export class ColumnReference extends SqlComponent {
 
 export class FunctionCall extends SqlComponent {
     static kind = Symbol("FunctionCall");
+    namespaces: IdentifierString[] | null;
     name: RawString;
     argument: ValueComponent | null;
     over: OverExpression | null;
-    constructor(name: string, argument: ValueComponent | null, over: OverExpression | null) {
+    constructor(
+        namespaces: string[] | IdentifierString[] | null,
+        name: string | RawString,
+        argument: ValueComponent | null,
+        over: OverExpression | null
+    ) {
         super();
-        this.name = new RawString(name);
+        this.namespaces = toIdentifierStringArray(namespaces);
+        this.name = typeof name === "string" ? new RawString(name) : name;
         this.argument = argument;
         this.over = over;
     }
@@ -317,12 +318,21 @@ export class StringSpecifierExpression extends SqlComponent {
 
 export class TypeValue extends SqlComponent {
     static kind = Symbol("TypeValue");
-    type: RawString;
-    argument: ValueComponent | null
-    constructor(type: string, argument: ValueComponent | null = null) {
+    namespaces: IdentifierString[] | null;
+    name: RawString;
+    argument: ValueComponent | null;
+    constructor(namespaces: string[] | IdentifierString[] | null, name: string | RawString, argument: ValueComponent | null = null) {
         super();
-        this.type = new RawString(type);
+        this.namespaces = toIdentifierStringArray(namespaces);
+        this.name = typeof name === "string" ? new RawString(name) : name;
         this.argument = argument;
+    }
+    public getTypeName(): string {
+        if (this.namespaces && this.namespaces.length > 0) {
+            return this.namespaces.map(ns => ns.name).join(".") + "." + this.name.value;
+        } else {
+            return this.name.value;
+        }
     }
 }
 
@@ -333,4 +343,17 @@ export class TupleExpression extends SqlComponent {
         super();
         this.values = values;
     }
+}
+
+function toIdentifierStringArray(input: string | string[] | IdentifierString[] | null): IdentifierString[] | null {
+    if (input == null) return null;
+    if (typeof input === "string") return [new IdentifierString(input)];
+    if (Array.isArray(input)) {
+        if (typeof input[0] === "string") {
+            return (input as string[]).map(ns => new IdentifierString(ns));
+        } else {
+            return input as IdentifierString[];
+        }
+    }
+    return null;
 }

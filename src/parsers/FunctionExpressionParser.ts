@@ -1,7 +1,8 @@
 import { Lexeme, TokenType } from "../models/Lexeme";
-import { FunctionCall, ValueComponent, BinaryExpression, TypeValue, CastExpression, BetweenExpression } from "../models/ValueComponent";
+import { FunctionCall, ValueComponent, BinaryExpression, TypeValue, CastExpression, BetweenExpression, RawString } from "../models/ValueComponent";
 import { OverExpressionParser } from "./OverExpressionParser";
 import { ValueParser } from "./ValueParser";
+import { FullNameParser } from "./FullNameParser";
 
 export class FunctionExpressionParser {
     public static parseFromLexeme(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number } {
@@ -85,10 +86,12 @@ export class FunctionExpressionParser {
     private static parseFunctionCall(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number } {
         let idx = index;
 
-        // Get function name
-        const result = lexemes[idx];
-        const functionName = result.value;
-        idx++;
+        // Parse namespaced function name (e.g., myschema.myfunc, dbo.util.myfunc)
+        // Use FullNameParser to get namespaces and function name
+        const fullNameResult = FullNameParser.parseFromLexeme(lexemes, idx);
+        const namespaces = fullNameResult.namespaces;
+        const name = fullNameResult.name;
+        idx = fullNameResult.newIndex;
 
         if (idx < lexemes.length && (lexemes[idx].type & TokenType.OpenParen)) {
             // General argument parsing
@@ -98,14 +101,14 @@ export class FunctionExpressionParser {
             if (idx < lexemes.length && lexemes[idx].value === "over") {
                 const over = OverExpressionParser.parseFromLexeme(lexemes, idx);
                 idx = over.newIndex;
-                const value = new FunctionCall(functionName, arg.value, over.value);
+                const value = new FunctionCall(namespaces, name.name, arg.value, over.value);
                 return { value, newIndex: idx };
             } else {
-                const value = new FunctionCall(functionName, arg.value, null);
+                const value = new FunctionCall(namespaces, name.name, arg.value, null);
                 return { value, newIndex: idx };
             }
         } else {
-            throw new Error(`Expected opening parenthesis after function name '${functionName}' at index ${idx}`);
+            throw new Error(`Expected opening parenthesis after function name '${name.name}' at index ${idx}`);
         }
     }
 
@@ -115,8 +118,11 @@ export class FunctionExpressionParser {
         keywords: { key: string, required: boolean }[]
     ): { value: ValueComponent; newIndex: number; } {
         let idx = index;
-        const functionName = lexemes[idx].value;
-        idx++;
+        // Parse function name and namespaces at the beginning for consistent usage
+        const fullNameResult = FullNameParser.parseFromLexeme(lexemes, idx);
+        const namespaces = fullNameResult.namespaces;
+        const name = fullNameResult.name;
+        idx = fullNameResult.newIndex;
 
         if (idx < lexemes.length && (lexemes[idx].type & TokenType.OpenParen)) {
             idx++;
@@ -130,7 +136,7 @@ export class FunctionExpressionParser {
                 return this.parseFunctionCall(lexemes, index);
             }
 
-            // Check keywords
+            // Check for required/optional keywords in function arguments
             for (const { key, required } of keywords) {
                 if (idx < lexemes.length && (lexemes[idx].type & TokenType.Command) && lexemes[idx].value === key) {
                     idx++;
@@ -152,43 +158,39 @@ export class FunctionExpressionParser {
 
             if (idx < lexemes.length && (lexemes[idx].type & TokenType.CloseParen)) {
                 idx++;
+                // Use the previously parsed namespaces and function name for consistency
                 if (idx < lexemes.length && lexemes[idx].value === "over") {
                     idx++;
                     const over = OverExpressionParser.parseFromLexeme(lexemes, idx);
                     idx = over.newIndex;
-                    const value = new FunctionCall(functionName, arg, over.value);
+                    const value = new FunctionCall(namespaces, name.name, arg, over.value);
                     return { value, newIndex: idx };
                 } else {
-                    const value = new FunctionCall(functionName, arg, null);
+                    const value = new FunctionCall(namespaces, name.name, arg, null);
                     return { value, newIndex: idx };
                 }
             } else {
-                throw new Error(`Missing closing parenthesis for function '${functionName}' at index ${idx}`);
+                throw new Error(`Missing closing parenthesis for function '${name.name}' at index ${idx}`);
             }
         } else {
-            throw new Error(`Missing opening parenthesis for function '${functionName}' at index ${idx}`);
+            throw new Error(`Missing opening parenthesis for function '${name.name}' at index ${idx}`);
         }
     }
 
     public static parseTypeValue(lexemes: Lexeme[], index: number): { value: TypeValue; newIndex: number; } {
         let idx = index;
-        // Check for type value
-        if (idx < lexemes.length && (lexemes[idx].type & TokenType.Type)) {
-            const typeName = lexemes[idx].value;
-            idx++;
 
-            // Check for array type
-            if (idx < lexemes.length && (lexemes[idx].type & TokenType.OpenParen)) {
-                const arg = ValueParser.parseArgument(TokenType.OpenParen, TokenType.CloseParen, lexemes, idx);
-                idx = arg.newIndex;
-                const value = new TypeValue(typeName, arg.value);
-                return { value, newIndex: idx };
-            } else {
-                // Create TypeValue
-                const value = new TypeValue(typeName);
-                return { value, newIndex: idx };
-            }
+        const { namespaces, name, newIndex } = FullNameParser.parseFromLexeme(lexemes, idx);
+        idx = newIndex;
+
+        if (idx < lexemes.length && (lexemes[idx].type & TokenType.OpenParen)) {
+            const arg = ValueParser.parseArgument(TokenType.OpenParen, TokenType.CloseParen, lexemes, idx);
+            idx = arg.newIndex;
+            const value = new TypeValue(namespaces, new RawString(name.name), arg.value);
+            return { value, newIndex: idx };
+        } else {
+            const value = new TypeValue(namespaces, new RawString(name.name));
+            return { value, newIndex: idx };
         }
-        throw new Error(`Expected type value at index ${idx}`);
     }
 }
