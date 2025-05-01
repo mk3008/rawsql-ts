@@ -22,6 +22,20 @@ export class SourceParser {
         return result.value;
     }
 
+    /**
+     * Parses only a TableSource from the given lexemes, regardless of the presence of parentheses after the identifier.
+     * This method is specifically used for cases like INSERT queries (e.g., "insert into table_name (col1, col2)")
+     * where a parenthesis immediately following the table name could otherwise be misinterpreted as a function call.
+     * By using this method, the parser forcibly treats the source as a TableSource.
+     *
+     * @param lexemes The array of lexemes to parse.
+     * @param index The starting index in the lexeme array.
+     * @returns An object containing the parsed TableSource and the new index.
+     */
+    public static parseTableSourceFromLexemes(lexemes: Lexeme[], index: number): { value: SourceComponent; newIndex: number } {
+        return this.parseTableSource(lexemes, index);
+    }
+
     // Parse from lexeme array (was: parse)
     public static parseFromLexeme(lexemes: Lexeme[], index: number): { value: SourceComponent; newIndex: number } {
         const idx = index;
@@ -41,7 +55,7 @@ export class SourceParser {
     }
 
     private static parseTableSource(lexemes: Lexeme[], index: number): { value: TableSource; newIndex: number } {        // Use FullNameParser to robustly parse qualified table names, including escaped and namespaced identifiers.
-        const { namespaces, name, newIndex } = FullNameParser.parse(lexemes, index);
+        const { namespaces, name, newIndex } = FullNameParser.parseFromLexeme(lexemes, index);
         const value = new TableSource(namespaces, name.name);
         return { value, newIndex };
     }

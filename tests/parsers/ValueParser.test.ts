@@ -61,6 +61,8 @@ describe('ValueParser', () => {
         ["Postgres CAST with precision", "price::NUMERIC(10,2)", "\"price\"::NUMERIC(10, 2)"],
         ["Postgres CAST with length", "name::VARCHAR(50)", "\"name\"::VARCHAR(50)"],
         ["CAST with DOUBLE PRECISION", "value::DOUBLE PRECISION", "\"value\"::DOUBLE PRECISION"],
+        ["CAST with AS syntax and namespaced type", "CAST(id AS myschema.INTEGER)", "cast(\"id\" as \"myschema\".INTEGER)"],
+        ["Postgres CAST with :: and namespaced type", "id::myschema.INTEGER", "\"id\"::\"myschema\".INTEGER"],
         ["CAST with CHARACTER VARYING", "text::CHARACTER VARYING(100)", "\"text\"::CHARACTER VARYING(100)"],
         ["CAST with TIME WITH TIME ZONE", "ts::TIME WITH TIME ZONE", "\"ts\"::TIME WITH TIME ZONE"],
         ["CAST with TIMESTAMP WITHOUT TIME ZONE", "date::TIMESTAMP WITHOUT TIME ZONE", "\"date\"::TIMESTAMP WITHOUT TIME ZONE"],

@@ -1,4 +1,4 @@
-import { SetClause, SetClauseItem, FromClause, WhereClause, SelectClause, SelectItem, SourceAliasExpression, SourceExpression, SubQuerySource, WithClause, TableSource, UpdateClause } from '../models/Clause';
+import { SetClause, SetClauseItem, FromClause, WhereClause, SelectClause, SelectItem, SourceAliasExpression, SourceExpression, SubQuerySource, WithClause, TableSource, UpdateClause, InsertClause } from '../models/Clause';
 import { UpdateQuery } from '../models/UpdateQuery';
 import { BinaryExpression, ColumnReference } from '../models/ValueComponent';
 import { SelectValueCollector } from './SelectValueCollector';
@@ -202,10 +202,10 @@ export class QueryBuilder {
             );
         }
 
+        // Generate SourceExpression (supports only table name, does not support alias or schema)
+        const sourceExpr = SourceExpressionParser.parse(tableName);
         return new InsertQuery({
-            namespaces: null,
-            table: tableName,
-            columns: cols,
+            insertClause: new InsertClause(sourceExpr, cols),
             selectQuery: selectQuery
         });
     }

@@ -7,7 +7,8 @@ import { SelectQueryParser } from "./SelectQueryParser";
 import { WithClause } from "../models/Clause";
 import { WithClauseParser } from "./WithClauseParser";
 import { SimpleSelectQuery } from "../models/SimpleSelectQuery";
-import { FullNameParser } from "./FullNameParser";
+import { SourceExpressionParser } from "./SourceExpressionParser";
+import { InsertClause } from "../models/Clause";
 
 export class InsertQueryParser {
     /**
@@ -43,9 +44,9 @@ export class InsertQueryParser {
         }
         idx++;
 
-        // Get fully qualified name
-        const { namespaces, name, newIndex: idxAfterName } = FullNameParser.parse(lexemes, idx);
-        idx = idxAfterName;
+        // Parse table and optional alias/schema using SourceExpressionParser
+        const sourceResult = SourceExpressionParser.parseTableSourceFromLexemes(lexemes, idx);
+        idx = sourceResult.newIndex;
 
         // Optional columns
         let columns: string[] = [];
@@ -78,9 +79,7 @@ export class InsertQueryParser {
         idx = selectResult.newIndex;
         return {
             value: new InsertQuery({
-                namespaces,
-                table: name,
-                columns,
+                insertClause: new InsertClause(sourceResult.value, columns),
                 selectQuery: selectResult.value
             }),
             newIndex: idx

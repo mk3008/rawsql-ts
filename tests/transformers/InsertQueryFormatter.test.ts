@@ -5,16 +5,22 @@ import { IdentifierString, LiteralValue } from '../../src/models/ValueComponent'
 import { SelectQueryParser } from '../../src/parsers/SelectQueryParser';
 import { ValuesQuery } from '../../src/models/ValuesQuery';
 import { TupleExpression } from '../../src/models/ValueComponent';
+import { InsertClause, SourceExpression, TableSource } from '../../src/models/Clause';
 
 describe('Formatter: InsertQuery', () => {
     it('formats simple single-row VALUES insert', () => {
         const valuesQuery = new ValuesQuery([
             new TupleExpression([new LiteralValue(1), new LiteralValue('Alice')])
         ]);
+        const insertClause = new InsertClause(
+            new SourceExpression(
+                new TableSource(null, 'users'),
+                null
+            ),
+            ['id', 'name']
+        );
         const query = new InsertQuery({
-            namespaces: null,
-            table: 'users',
-            columns: ['id', 'name'],
+            insertClause,
             selectQuery: valuesQuery
         });
         const sql = new Formatter().format(query);
@@ -26,10 +32,15 @@ describe('Formatter: InsertQuery', () => {
             new TupleExpression([new LiteralValue(1), new LiteralValue('Alice')]),
             new TupleExpression([new LiteralValue(2), new LiteralValue('Bob')])
         ]);
+        const insertClause = new InsertClause(
+            new SourceExpression(
+                new TableSource(null, 'users'),
+                null
+            ),
+            ['id', 'name']
+        );
         const query = new InsertQuery({
-            namespaces: null,
-            table: 'users',
-            columns: ['id', 'name'],
+            insertClause,
             selectQuery: valuesQuery
         });
         const sql = new Formatter().format(query);
@@ -38,10 +49,15 @@ describe('Formatter: InsertQuery', () => {
 
     it('formats INSERT ... SELECT', () => {
         const select = SelectQueryParser.parse('SELECT id, name FROM users_old');
+        const insertClause = new InsertClause(
+            new SourceExpression(
+                new TableSource(null, 'users'),
+                null
+            ),
+            ['id', 'name']
+        );
         const query = new InsertQuery({
-            namespaces: null,
-            table: 'users',
-            columns: ['id', 'name'],
+            insertClause,
             selectQuery: select
         });
         const sql = new Formatter().format(query);
@@ -49,10 +65,15 @@ describe('Formatter: InsertQuery', () => {
     });
 
     it('throws if neither values nor selectQuery is set', () => {
+        const insertClause = new InsertClause(
+            new SourceExpression(
+                new TableSource(null, 'users'),
+                null
+            ),
+            ['id', 'name']
+        );
         const query = new InsertQuery({
-            namespaces: null,
-            table: 'users',
-            columns: ['id', 'name']
+            insertClause
         });
         const formatter = new Formatter();
         expect(() => formatter.format(query)).toThrow();

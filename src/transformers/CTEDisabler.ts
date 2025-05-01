@@ -334,7 +334,7 @@ export class CTEDisabler implements SqlComponentVisitor<SqlComponent> {
 
     visitTypeValue(typeValue: TypeValue): SqlComponent {
         const newArgument = typeValue.argument ? this.visit(typeValue.argument) as ValueComponent : null;
-        return new TypeValue(typeValue.type.value, newArgument);
+        return new TypeValue(typeValue.namespaces, typeValue.name, newArgument);
     }
 
     visitSelectItem(item: SelectItem): SqlComponent {

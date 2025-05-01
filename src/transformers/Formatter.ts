@@ -27,7 +27,7 @@ import {
     InlineQuery,
     TupleExpression
 } from "../models/ValueComponent";
-import { CommonTable, Distinct, DistinctOn, FetchSpecification, FetchType, ForClause, FromClause, FunctionSource, GroupByClause, HavingClause, JoinClause, JoinOnClause, JoinUsingClause, LimitClause, NullsSortDirection, OrderByClause, OrderByItem, PartitionByClause, ReturningClause, SelectClause, SelectItem, SetClause, SetClauseItem, SortDirection, SourceAliasExpression, SourceExpression, SubQuerySource, TableSource, UpdateClause, WhereClause, WindowFrameClause, WithClause } from "../models/Clause";
+import { CommonTable, Distinct, DistinctOn, FetchSpecification, FetchType, ForClause, FromClause, FunctionSource, GroupByClause, HavingClause, InsertClause, JoinClause, JoinOnClause, JoinUsingClause, LimitClause, NullsSortDirection, OrderByClause, OrderByItem, PartitionByClause, ReturningClause, SelectClause, SelectItem, SetClause, SetClauseItem, SortDirection, SourceAliasExpression, SourceExpression, SubQuerySource, TableSource, UpdateClause, WhereClause, WindowFrameClause, WithClause } from "../models/Clause";
 import { CreateTableQuery } from "../models/CreateTableQuery";
 import { InsertQuery } from "../models/InsertQuery";
 import { UpdateQuery } from "../models/UpdateQuery";
@@ -173,8 +173,9 @@ export class Formatter implements SqlComponentVisitor<string> {
         // select query
         this.handlers.set(SimpleSelectQuery.kind, (expr) => this.visitSelectQuery(expr as SimpleSelectQuery));
         this.handlers.set(BinarySelectQuery.kind, (expr) => this.visitBinarySelectQuery(expr as BinarySelectQuery));
+
+        // create table query
         this.handlers.set(CreateTableQuery.kind, (expr) => this.visitCreateTableQuery(expr as CreateTableQuery));
-        this.handlers.set(InsertQuery.kind, (expr) => this.visitInsertQuery(expr as InsertQuery));
 
         // update query
         this.handlers.set(UpdateQuery.kind, (expr) => this.visitUpdateQuery(expr as UpdateQuery));
@@ -182,6 +183,10 @@ export class Formatter implements SqlComponentVisitor<string> {
         this.handlers.set(SetClause.kind, (expr) => this.visitSetClause(expr as SetClause));
         this.handlers.set(SetClauseItem.kind, (expr) => this.visitSetClauseItem(expr as SetClauseItem));
         this.handlers.set(ReturningClause.kind, (expr) => this.visitReturningClause(expr));
+
+        // insert query
+        this.handlers.set(InsertQuery.kind, (expr) => this.visitInsertQuery(expr as InsertQuery));
+        this.handlers.set(InsertClause.kind, (expr) => this.visitInsertClause(expr as InsertClause));
     }
 
     /**
@@ -324,10 +329,16 @@ export class Formatter implements SqlComponentVisitor<string> {
     }
 
     private visitTypeValue(arg: TypeValue): string {
-        if (arg.argument !== null) {
-            return `${arg.type.accept(this)}(${arg.argument.accept(this)})`;
+        let typeStr = '';
+        if (arg.namespaces && arg.namespaces.length > 0) {
+            typeStr = arg.namespaces.map(ns => ns.accept(this)).join('.') + '.' + arg.name.accept(this);
+        } else {
+            typeStr = arg.name.accept(this);
         }
-        return `${arg.type.accept(this)}`;
+        if (arg.argument !== null) {
+            return `${typeStr}(${arg.argument.accept(this)})`;
+        }
+        return `${typeStr}`;
     }
 
     private visitStringSpecifierExpression(arg: StringSpecifierExpression): string {
@@ -702,22 +713,12 @@ export class Formatter implements SqlComponentVisitor<string> {
     }
 
     private visitInsertQuery(arg: InsertQuery): string {
-        // Format: INSERT INTO table (col1, col2, ...) SELECT .../VALUES ...
-        let table = arg.table.accept(this);
-        if (arg.namespaces && arg.namespaces.length > 0) {
-            table = `${arg.namespaces.map(ns => ns.accept(this)).join('.')}.${table}`;
-        }
         const parts: string[] = [];
 
-        const columns = arg.columns.map(col => col.accept(this)).join(", ");
-        if (arg.columns.length > 0) {
-            parts.push(`insert into ${table}(${columns})`);
-        } else {
-            parts.push(`insert into ${table}`);
-        }
+        parts.push(arg.insertClause.accept(this));
 
         if (arg.selectQuery) {
-            parts.push(this.visit(arg.selectQuery));
+            parts.push(arg.selectQuery.accept(this));
         } else {
             throw new Error("InsertQuery must have selectQuery (SELECT or VALUES)");
         }
@@ -779,5 +780,15 @@ export class Formatter implements SqlComponentVisitor<string> {
         // Format: RETURNING col1, col2, ...
         const columns = arg.columns.map(col => col.accept(this)).join(", ");
         return `returning ${columns}`;
+    }
+
+    private visitInsertClause(arg: InsertClause): string {
+        const table = arg.source.accept(this);
+        const columns = arg.columns.map(col => new IdentifierString(col).accept(this)).join(", ");
+        if (arg.columns.length > 0) {
+            return `insert into ${table}(${columns})`;
+        } else {
+            return `insert into ${table}`;
+        }
     }
 }

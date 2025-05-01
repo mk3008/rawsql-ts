@@ -430,3 +430,19 @@ export class UpdateClause extends SqlComponent {
         return null;
     }
 }
+
+/**
+ * Represents the target table (with optional alias/schema) and columns for an INSERT statement.
+ * @param source The target table as a SourceExpression (can include schema, alias, etc.)
+ * @param columns Array of column names (as strings)
+ */
+export class InsertClause extends SqlComponent {
+    source: SourceExpression;
+    columns: string[];
+
+    constructor(source: SourceExpression, columns: string[]) {
+        super();
+        this.source = source;
+        this.columns = columns;
+    }
+}

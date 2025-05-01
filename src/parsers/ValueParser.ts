@@ -1,5 +1,5 @@
 import { Lexeme, TokenType } from "../models/Lexeme";
-import { ColumnReference, UnaryExpression, ValueComponent, ValueList } from "../models/ValueComponent";
+import { ColumnReference, TypeValue, UnaryExpression, ValueComponent, ValueList } from "../models/ValueComponent";
 import { SqlTokenizer } from "./SqlTokenizer";
 import { IdentifierParser } from "./IdentifierParser";
 import { LiteralParser } from "./LiteralParser";
@@ -78,10 +78,11 @@ export class ValueParser {
             }
             return first;
         } else if (current.type & TokenType.Identifier) {
-            const { namespaces, name, newIndex } = FullNameParser.parse(lexemes, idx);
-            // In the case of an identifier, 
-            // there is a possibility that it represents a function with a specified namespace.
-            if (lexemes[newIndex - 1].type & TokenType.Function) {
+            const { namespaces, name, newIndex } = FullNameParser.parseFromLexeme(lexemes, idx);
+            // Namespace is also recognized as Identifier.
+            // Since functions and types, as well as columns (tables), can have namespaces,
+            // it is necessary to determine by the last element of the identifier.
+            if (lexemes[newIndex - 1].type & (TokenType.Function || TokenType.Type)) {
                 return FunctionExpressionParser.parseFromLexeme(lexemes, idx);
             }
             const value = new ColumnReference(namespaces, name);
@@ -102,7 +103,7 @@ export class ValueParser {
             return CommandExpressionParser.parseFromLexeme(lexemes, idx);
         } else if (current.type & TokenType.OpenBracket) {
             // SQLServer escape identifier format. e.g. [dbo] or [dbo].[table]
-            const { namespaces, name, newIndex } = FullNameParser.parse(lexemes, idx);
+            const { namespaces, name, newIndex } = FullNameParser.parseFromLexeme(lexemes, idx);
             const value = new ColumnReference(namespaces, name);
             return { value, newIndex };
         }

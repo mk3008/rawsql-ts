@@ -18,6 +18,13 @@ export class SourceExpressionParser {
         return result.value;
     }
 
+    public static parseTableSourceFromLexemes(lexemes: Lexeme[], index: number): { value: SourceExpression; newIndex: number } {
+        const result = SourceParser.parseTableSourceFromLexemes(lexemes, index);
+        // No alias for table source
+        const sourceExpr = new SourceExpression(result.value, null);
+        return { value: sourceExpr, newIndex: result.newIndex };
+    }
+
     // Parse from lexeme array (was: parse)
     public static parseFromLexeme(lexemes: Lexeme[], index: number): { value: SourceExpression; newIndex: number; } {
         let idx = index;

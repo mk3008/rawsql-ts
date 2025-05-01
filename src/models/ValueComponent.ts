@@ -344,12 +344,27 @@ export class StringSpecifierExpression extends SqlComponent {
 
 export class TypeValue extends SqlComponent {
     static kind = Symbol("TypeValue");
-    type: RawString;
-    argument: ValueComponent | null
-    constructor(type: string, argument: ValueComponent | null = null) {
+    namespaces: IdentifierString[] | null;
+    name: RawString;
+    argument: ValueComponent | null;
+    constructor(namespaces: string[] | IdentifierString[] | null, name: string | RawString, argument: ValueComponent | null = null) {
         super();
-        this.type = new RawString(type);
+        if (namespaces == null) {
+            this.namespaces = null;
+        } else if (typeof namespaces[0] === "string") {
+            this.namespaces = (namespaces as string[]).map(ns => new IdentifierString(ns));
+        } else {
+            this.namespaces = namespaces as IdentifierString[];
+        }
+        this.name = typeof name === "string" ? new RawString(name) : name;
         this.argument = argument;
+    }
+    public getTypeName(): string {
+        if (this.namespaces && this.namespaces.length > 0) {
+            return this.namespaces.map(ns => ns.name).join(".") + "." + this.name.value;
+        } else {
+            return this.name.value;
+        }
     }
 }
 

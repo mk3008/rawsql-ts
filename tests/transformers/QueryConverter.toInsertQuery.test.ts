@@ -7,31 +7,44 @@ import { ValuesQuery } from '../../src/models/ValuesQuery';
 
 describe('QueryBuilder.toInsertQuery', () => {
     it('infers columns from SELECT and generates correct InsertQuery', () => {
+        // Arrange
         const select = SelectQueryParser.parse('SELECT id, name FROM users_old') as SimpleSelectQuery;
+
+        // Act
         const insert = QueryBuilder.buildInsertQuery(select, 'users');
         const sql = new Formatter().format(insert);
+
+        // Assert
         expect(sql).toBe('insert into "users"("id", "name") select "id", "name" from "users_old"');
     });
 
     it('supports VALUES query via SelectQueryParser', () => {
+        // Arrange
         const query = SelectQueryParser.parse("VALUES (1, 'Alice'), (2, 'Bob')") as ValuesQuery;
-        query.columnAliases = ["id", "name"]; //set column aliases
+        query.columnAliases = ["id", "name"];
         const select = QueryBuilder.buildSimpleQuery(query);
 
+        // Act
         const insert = QueryBuilder.buildInsertQuery(select, 'users');
         const sql = new Formatter().format(insert);
+
+        // Assert
         expect(sql).toBe('insert into "users"("id", "name") select "vq"."id", "vq"."name" from (values (1, \'Alice\'), (2, \'Bob\')) as "vq"("id", "name")');
     });
 
     it('throws if columns cannot be inferred from wildcard select (SELECT *)', () => {
-        // Should throw if column names cannot be inferred (e.g. select *)
+        // Arrange
         const select = SelectQueryParser.parse('SELECT * FROM users_old') as SimpleSelectQuery;
+
+        // Act & Assert
         expect(() => QueryBuilder.buildInsertQuery(select, 'users')).toThrow();
     });
 
     it('throws if columns cannot be inferred from constant select (SELECT 1)', () => {
-        // Should throw if there are no column names (e.g. SELECT 1)
+        // Arrange
         const select = SelectQueryParser.parse('SELECT 1') as SimpleSelectQuery;
+
+        // Act & Assert
         expect(() => QueryBuilder.buildInsertQuery(select, 'users')).toThrow();
     });
 });

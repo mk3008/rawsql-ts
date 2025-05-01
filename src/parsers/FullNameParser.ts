@@ -10,7 +10,7 @@ export class FullNameParser {
     /**
      * Parses a fully qualified name from lexemes, returning namespaces, table, and new index.
      */
-    public static parse(lexemes: Lexeme[], index: number): { namespaces: string[] | null, name: IdentifierString, newIndex: number } {
+    public static parseFromLexeme(lexemes: Lexeme[], index: number): { namespaces: string[] | null, name: IdentifierString, newIndex: number } {
         const { identifiers, newIndex } = FullNameParser.parseEscapedOrDotSeparatedIdentifiers(lexemes, index);
         const { namespaces, name } = FullNameParser.extractNamespacesAndName(identifiers);
         return { namespaces, name: new IdentifierString(name), newIndex };
@@ -20,12 +20,14 @@ export class FullNameParser {
      * Parses a fully qualified name from a string (e.g. 'db.schema.table')
      * Returns { namespaces, name }
      */
-    public static parseString(str: string): { namespaces: string[] | null, name: IdentifierString } {
+    public static parse(str: string): { namespaces: string[] | null, name: IdentifierString } {
         const tokenizer = new SqlTokenizer(str);
         const lexemes = tokenizer.readLexmes();
-        // Use the existing parse method
-        const { namespaces, name } = FullNameParser.parse(lexemes, 0);
-        return { namespaces, name };
+        const result = this.parseFromLexeme(lexemes, 0);
+        if (result.newIndex < lexemes.length) {
+            throw new Error(`Syntax error: Unexpected token "${lexemes[result.newIndex].value}" at position ${result.newIndex}. The INSERT query is complete but there are additional tokens.`);
+        }
+        return { namespaces: result.namespaces, name: result.name };
     }
 
     // Parses SQL Server-style escaped identifiers ([table]) and dot-separated identifiers, including namespaced wildcards (e.g., db.schema.*, [db].[schema].*)
@@ -48,11 +50,11 @@ export class FullNameParser {
                 identifiers.push(lexemes[idx].value);
                 idx++;
             } else if (lexemes[idx].type & TokenType.Function) {
-                // The function token is always treated as the terminal part of a qualified name in SQL (e.g., db.schema.myfunc or [db].[schema].[myfunc]).
-                // No valid SQL syntax allows a function token in the middle of a multi-part name.
                 identifiers.push(lexemes[idx].value);
                 idx++;
-                break;
+            } else if (lexemes[idx].type & TokenType.Type) {
+                identifiers.push(lexemes[idx].value);
+                idx++;
             } else if (lexemes[idx].value === "*") {
                 // The wildcard '*' is always treated as the terminal part of a qualified name in SQL (e.g., db.schema.* or [db].[schema].*).
                 // No valid SQL syntax allows a wildcard in the middle of a multi-part name.
