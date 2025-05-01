@@ -4,6 +4,7 @@ import { Formatter } from '../src/transformers/Formatter';
 import { SelectQueryParser } from '../src/parsers/SelectQueryParser';
 import { format as sqlFormat } from 'sql-formatter';
 import { Parser as NodeSqlParser } from 'node-sql-parser';
+import { parse as cstParse } from 'sql-parser-cst'; // P62eb
 
 // Set of SQL queries for benchmarking
 const queries = [
@@ -136,6 +137,12 @@ function parseWithNodeSqlParser(sql: string) {
     };
 }
 
+function parseWithCstParser(sql: string) { // Pd00c
+    return () => {
+        cstParse(sql);
+    };
+}
+
 // Get system information
 function getSystemInfo() {
     const cpus = os.cpus();
@@ -163,6 +170,8 @@ queries.forEach((query, index) => {
     suite.add(`node-sql-parser ${query.name}`, parseWithNodeSqlParser(query.sql));
     // Add sql-formatter benchmark for comparison
     suite.add(`sql-formatter ${query.name}`, formatWithSqlFormatter(query.sql));
+    // Add sql-parser-cst benchmark for comparison // Pd00c
+    suite.add(`sql-parser-cst ${query.name}`, parseWithCstParser(query.sql)); // Pd00c
 });
 
 // Function to display header and system information

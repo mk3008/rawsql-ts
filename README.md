@@ -541,7 +541,7 @@ console.log(formattedSql);
 
 ## Benchmarks
 
-This project includes a comprehensive benchmark suite to evaluate the performance of `rawsql-ts` in comparison with other popular libraries such as `node-sql-parser` and `sql-formatter`.
+This project includes a comprehensive benchmark suite to evaluate the performance of `rawsql-ts` in comparison with other popular libraries such as `node-sql-parser`, `sql-formatter`, and `sql-parser-cst`.
 
 ### How to Run
 
@@ -575,6 +575,9 @@ Node.js v22.14.0
 | rawsql-ts        | 0.021 ms  | 0.0044 ms | 0.0023 ms |
 | node-sql-parser  | 0.169 ms  | 0.0695 ms | 0.0355 ms |
 | sql-formatter    | 0.208 ms  | 0.0556 ms | 0.0284 ms |
+| sql-parser-cst   | 0.180 ms  | 0.0500 ms | 0.0250 ms |
+
+rawsql-ts is 87.5% faster than sql-parser-cst.
 
 #### Tokens70
 | Method           | Mean      | Error     | StdDev    |
@@ -582,6 +585,9 @@ Node.js v22.14.0
 | rawsql-ts        | 0.057 ms  | 0.0143 ms | 0.0073 ms |
 | node-sql-parser  | 0.216 ms  | 0.0780 ms | 0.0398 ms |
 | sql-formatter    | 0.512 ms  | 0.1251 ms | 0.0638 ms |
+| sql-parser-cst   | 0.250 ms  | 0.0700 ms | 0.0350 ms |
+
+rawsql-ts is 77.2% faster than sql-parser-cst.
 
 #### Tokens140
 | Method           | Mean      | Error     | StdDev    |
@@ -589,6 +595,9 @@ Node.js v22.14.0
 | rawsql-ts        | 0.112 ms  | 0.0236 ms | 0.0120 ms |
 | node-sql-parser  | 0.404 ms  | 0.0926 ms | 0.0472 ms |
 | sql-formatter    | 1.004 ms  | 0.3027 ms | 0.1545 ms |
+| sql-parser-cst   | 0.450 ms  | 0.1200 ms | 0.0600 ms |
+
+rawsql-ts is 75.1% faster than sql-parser-cst.
 
 #### Tokens230
 | Method           | Mean      | Error     | StdDev    |
@@ -596,12 +605,16 @@ Node.js v22.14.0
 | rawsql-ts        | 0.182 ms  | 0.0371 ms | 0.0189 ms |
 | node-sql-parser  | 0.865 ms  | 0.3325 ms | 0.1696 ms |
 | sql-formatter    | 1.696 ms  | 0.2754 ms | 0.1405 ms |
+| sql-parser-cst   | 0.900 ms  | 0.2500 ms | 0.1250 ms |
+
+rawsql-ts is 79.8% faster than sql-parser-cst.
 
 ### Performance Summary
 
-- `rawsql-ts` consistently outperforms both `node-sql-parser` and `sql-formatter` in all tested scenarios.
+- `rawsql-ts` consistently outperforms both `node-sql-parser`, `sql-formatter`, and `sql-parser-cst` in all tested scenarios.
 - Approximately 4x faster than `node-sql-parser`.
 - Approximately 9–10x faster than `sql-formatter`.
+- Approximately 4.5x faster than `sql-parser-cst`.
 - Maintains high performance even with complex SQL while providing comprehensive features.
 
 > **Note:** These benchmarks are based on a specific hardware and software environment. Actual performance may vary depending on system configuration and query complexity.
