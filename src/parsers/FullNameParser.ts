@@ -25,7 +25,8 @@ export class FullNameParser {
         const lexemes = tokenizer.readLexmes();
         const result = this.parseFromLexeme(lexemes, 0);
         if (result.newIndex < lexemes.length) {
-            throw new Error(`Syntax error: Unexpected token "${lexemes[result.newIndex].value}" at position ${result.newIndex}. The INSERT query is complete but there are additional tokens.`);
+            // Use a context-agnostic error message since FullNameParser is used in multiple query types
+            throw new Error(`Syntax error: Unexpected token "${lexemes[result.newIndex].value}" at position ${result.newIndex}. The name is complete but additional tokens were found.`);
         }
         return { namespaces: result.namespaces, name: result.name };
     }
