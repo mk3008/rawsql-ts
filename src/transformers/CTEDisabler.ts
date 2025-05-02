@@ -1,4 +1,4 @@
-import { CommonTable, ForClause, FromClause, GroupByClause, HavingClause, JoinClause, JoinConditionComponent, JoinOnClause, JoinUsingClause, LimitClause, OrderByClause, OrderByComponent, OrderByItem, ParenSource, PartitionByClause, SelectClause, SelectComponent, SelectItem, SourceAliasExpression, SourceComponent, SourceExpression, SubQuerySource, TableSource, WhereClause, WindowFrameClause, WithClause } from "../models/Clause";
+import { CommonTable, ForClause, FromClause, GroupByClause, HavingClause, JoinClause, JoinConditionComponent, JoinOnClause, JoinUsingClause, LimitClause, OrderByClause, OrderByComponent, OrderByItem, ParenSource, PartitionByClause, SelectClause, SelectItem, SourceAliasExpression, SourceComponent, SourceExpression, SubQuerySource, TableSource, WhereClause, WindowFrameClause, WithClause } from "../models/Clause";
 import { BinarySelectQuery, SimpleSelectQuery, SelectQuery, ValuesQuery } from "../models/SelectQuery";
 import { SqlComponent, SqlComponentVisitor } from "../models/SqlComponent";
 import {
@@ -186,7 +186,7 @@ export class CTEDisabler implements SqlComponentVisitor<SqlComponent> {
 
     visitSelectClause(clause: SelectClause): SqlComponent {
         const newItems = clause.items.map(item => {
-            return this.visit(item) as SelectComponent;
+            return this.visit(item) as SelectItem;
         });
 
         return new SelectClause(
@@ -313,7 +313,7 @@ export class CTEDisabler implements SqlComponentVisitor<SqlComponent> {
     visitFunctionCall(func: FunctionCall): SqlComponent {
         const newArgument = func.argument ? this.visit(func.argument) as ValueComponent : null;
         const newOver = func.over ? this.visit(func.over) as OverExpression : null;
-        return new FunctionCall(func.name.value, newArgument, newOver);
+        return new FunctionCall(func.namespaces, func.name, newArgument, newOver);
     }
 
     visitArrayExpression(expr: ArrayExpression): SqlComponent {
@@ -334,12 +334,12 @@ export class CTEDisabler implements SqlComponentVisitor<SqlComponent> {
 
     visitTypeValue(typeValue: TypeValue): SqlComponent {
         const newArgument = typeValue.argument ? this.visit(typeValue.argument) as ValueComponent : null;
-        return new TypeValue(typeValue.type.value, newArgument);
+        return new TypeValue(typeValue.namespaces, typeValue.name, newArgument);
     }
 
     visitSelectItem(item: SelectItem): SqlComponent {
         const newValue = this.visit(item.value) as ValueComponent;
-        return new SelectItem(newValue, item.identifier.name);
+        return new SelectItem(newValue, item.identifier?.name);
     }
 
     visitIdentifierString(ident: IdentifierString): SqlComponent {

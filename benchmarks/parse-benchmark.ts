@@ -4,6 +4,7 @@ import { Formatter } from '../src/transformers/Formatter';
 import { SelectQueryParser } from '../src/parsers/SelectQueryParser';
 import { format as sqlFormat } from 'sql-formatter';
 import { Parser as NodeSqlParser } from 'node-sql-parser';
+import { parse as cstParse } from 'sql-parser-cst';
 
 // Set of SQL queries for benchmarking
 const queries = [
@@ -136,6 +137,12 @@ function parseWithNodeSqlParser(sql: string) {
     };
 }
 
+function parseWithSqlParserCst(sql: string) {
+    return () => {
+        cstParse(sql, { dialect: 'postgresql' });
+    };
+}
+
 // Get system information
 function getSystemInfo() {
     const cpus = os.cpus();
@@ -158,9 +165,11 @@ function getSystemInfo() {
 // Add benchmarks for individual queries
 queries.forEach((query, index) => {
     // Set label using query name
-    suite.add(`carbunqlex-ts ${query.name}`, parseQuery(query.sql));
+    suite.add(`rawsql-ts ${query.name}`, parseQuery(query.sql));
     // Add node-sql-parser benchmark for comparison
     suite.add(`node-sql-parser ${query.name}`, parseWithNodeSqlParser(query.sql));
+    // Add sql-parser-cst benchmark for comparison
+    suite.add(`sql-parser-cst ${query.name}`, parseWithSqlParserCst(query.sql));
     // Add sql-formatter benchmark for comparison
     suite.add(`sql-formatter ${query.name}`, formatWithSqlFormatter(query.sql));
 });
@@ -193,10 +202,15 @@ function printResults(results: any[]) {
     // Print a table for each token group
     Object.keys(groupedResults).forEach(groupName => {
         console.log(`\n### ${groupName}`);
-        console.log('| Method                            | Mean       | Error     | StdDev    |');
-        console.log('|---------------------------------- |-----------:|----------:|----------:|');
+        // Add new column header for rawsql-ts comparison
+        console.log('| Method                            | Mean       | Error     | StdDev    | Times slower vs rawsql-ts |');
+        console.log('|---------------------------------- |-----------:|----------:|----------:|--------------------------:|');
 
         const groupResults = groupedResults[groupName];
+
+        // Find the mean value for rawsql-ts in this group
+        const rawsqlResult = groupResults.find(r => r.name.startsWith('rawsql-ts'));
+        const rawsqlMean = rawsqlResult ? rawsqlResult.mean : null;
 
         // Display in original order (don't sort by time)
         groupResults.forEach(result => {
@@ -214,7 +228,18 @@ function printResults(results: any[]) {
             // Display standard deviation in milliseconds (4 decimal places)
             const stddev = (result.stats.deviation * 1000).toFixed(4).padStart(7);
 
-            console.log(`| ${name} | ${mean} ms | ${error} ms | ${stddev} ms |`);
+            // Calculate ratio vs rawsql-ts (how many times slower)
+            let ratioStr = '-';
+            if (rawsqlMean && !result.name.startsWith('rawsql-ts')) {
+                const ratio = result.mean / rawsqlMean;
+                if (ratio >= 1.01) {
+                    ratioStr = ratio.toFixed(1) + 'x';
+                } else {
+                    ratioStr = '<1x';
+                }
+            }
+
+            console.log(`| ${name} | ${mean} ms | ${error} ms | ${stddev} ms | ${ratioStr.padStart(16)} |`);
         });
     });
 

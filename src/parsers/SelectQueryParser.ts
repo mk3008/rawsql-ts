@@ -24,10 +24,21 @@ export class SelectQueryParser {
 
         // Error if there are remaining tokens
         if (result.newIndex < lexemes.length) {
-            throw new Error(`Syntax error: Unexpected token "${lexemes[result.newIndex].value}" at position ${result.newIndex}. The SELECT query is complete but there are additional tokens.`);
+            throw new Error(`[SelectQueryParser] Syntax error: Unexpected token "${lexemes[result.newIndex].value}" at position ${result.newIndex}. The SELECT query is complete but there are additional tokens.`);
         }
 
         return result.value;
+    }
+
+    /**
+     * Asynchronously parse SQL string to AST.
+     * This method wraps the synchronous parse logic in a Promise for future extensibility.
+     * @param query SQL string to parse
+     * @returns Promise<SelectQuery>
+     */
+    public static async parseAsync(query: string): Promise<SelectQuery> {
+        // For now, just wrap the sync parse in a resolved Promise
+        return Promise.resolve(this.parse(query));
     }
 
     private static unionCommandSet = new Set<string>([

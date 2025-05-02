@@ -1,3 +1,4 @@
+import { FullNameParser } from "./FullNameParser";
 import { FunctionSource, SourceComponent, SubQuerySource, TableSource } from "../models/Clause";
 import { Lexeme, TokenType } from "../models/Lexeme";
 import { SelectQueryParser } from "./SelectQueryParser";
@@ -21,17 +22,31 @@ export class SourceParser {
         return result.value;
     }
 
+    /**
+     * Parses only a TableSource from the given lexemes, regardless of the presence of parentheses after the identifier.
+     * This method is specifically used for cases like INSERT queries (e.g., "insert into table_name (col1, col2)")
+     * where a parenthesis immediately following the table name could otherwise be misinterpreted as a function call.
+     * By using this method, the parser forcibly treats the source as a TableSource.
+     *
+     * @param lexemes The array of lexemes to parse.
+     * @param index The starting index in the lexeme array.
+     * @returns An object containing the parsed TableSource and the new index.
+     */
+    public static parseTableSourceFromLexemes(lexemes: Lexeme[], index: number): { value: SourceComponent; newIndex: number } {
+        return this.parseTableSource(lexemes, index);
+    }
+
     // Parse from lexeme array (was: parse)
     public static parseFromLexeme(lexemes: Lexeme[], index: number): { value: SourceComponent; newIndex: number } {
         const idx = index;
 
         // Handle subquery
-        if (idx < lexemes.length && lexemes[idx].type === TokenType.OpenParen) {
+        if (idx < lexemes.length && (lexemes[idx].type & TokenType.OpenParen)) {
             return this.parseParenSource(lexemes, idx);
         }
 
         // Handle function-based source
-        if (idx < lexemes.length && lexemes[idx].type === TokenType.Function) {
+        if (idx < lexemes.length && (lexemes[idx].type & TokenType.Function)) {
             return this.parseFunctionSource(lexemes, idx);
         }
 
@@ -39,38 +54,10 @@ export class SourceParser {
         return this.parseTableSource(lexemes, idx);
     }
 
-    private static parseTableSource(lexemes: Lexeme[], index: number): { value: TableSource; newIndex: number } {
-        // Check for column reference pattern ([identifier dot] * n + identifier)
-        let idx = index;
-        const identifiers: string[] = [];
-
-        // Add the first identifier
-        identifiers.push(lexemes[idx].value);
-        idx++;
-
-        // Look for dot and identifier pattern
-        while (
-            idx < lexemes.length &&
-            idx + 1 < lexemes.length &&
-            lexemes[idx].type === TokenType.Dot &&
-            lexemes[idx + 1].type === TokenType.Identifier
-        ) {
-            // Skip the dot and add the next identifier
-            idx++;
-            identifiers.push(lexemes[idx].value);
-            idx++;
-        }
-
-        if (identifiers.length > 1) {
-            // If there are multiple identifiers, treat it as a column reference
-            const lastIdentifier = identifiers.pop() || '';
-            const value = new TableSource(identifiers, lastIdentifier);
-            return { value, newIndex: idx };
-        } else {
-            // If there is a single identifier, treat it as a simple identifier
-            const value = new TableSource(null, identifiers[0]);
-            return { value, newIndex: idx };
-        }
+    private static parseTableSource(lexemes: Lexeme[], index: number): { value: TableSource; newIndex: number } {        // Use FullNameParser to robustly parse qualified table names, including escaped and namespaced identifiers.
+        const { namespaces, name, newIndex } = FullNameParser.parseFromLexeme(lexemes, index);
+        const value = new TableSource(namespaces, name.name);
+        return { value, newIndex };
     }
 
     private static parseFunctionSource(lexemes: Lexeme[], index: number): { value: FunctionSource; newIndex: number } {

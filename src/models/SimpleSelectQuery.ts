@@ -9,11 +9,17 @@ import { BinarySelectQuery } from "./BinarySelectQuery";
 import type { SelectQuery } from "./SelectQuery";
 import { CommonTableParser } from "../parsers/CommonTableParser";
 import { SelectQueryParser } from "../parsers/SelectQueryParser";
+import { Formatter } from "../transformers/Formatter";
+import { TableColumnResolver } from "../transformers/TableColumnResolver";
+import { UpstreamSelectQueryFinder } from "../transformers/UpstreamSelectQueryFinder";
+import { QueryBuilder } from "../transformers/QueryBuilder";
+import { ParameterCollector } from '../transformers/ParameterCollector';
+import { ParameterHelper } from "../utils/ParameterHelper";
 
 /**
  * Represents a simple SELECT query in SQL.
  */
-export class SimpleSelectQuery extends SqlComponent {
+export class SimpleSelectQuery extends SqlComponent implements SelectQuery {
     static kind = Symbol("SelectQuery");
     WithClause: WithClause | null = null;
     selectClause: SelectClause;
@@ -126,7 +132,7 @@ export class SimpleSelectQuery extends SqlComponent {
      * @returns A new BinarySelectQuery representing "this [operator] rightQuery"
      */
     public toBinaryQuery(operator: string, rightQuery: SelectQuery): BinarySelectQuery {
-        return new BinarySelectQuery(this, operator, rightQuery);
+        return QueryBuilder.buildBinaryQuery([this, rightQuery], operator);
     }
 
     /**
@@ -193,8 +199,8 @@ export class SimpleSelectQuery extends SqlComponent {
      * @param alias The alias for the joined table
      * @param columns The columns to use for the join condition (e.g. ["user_id"] or "user_id")
      */
-    public innerJoinRaw(joinSourceRawText: string, alias: string, columns: string | string[]): void {
-        this.joinSourceRaw('inner join', joinSourceRawText, alias, columns);
+    public innerJoinRaw(joinSourceRawText: string, alias: string, columns: string | string[], resolver: TableColumnResolver | null = null): void {
+        this.joinSourceRaw('inner join', joinSourceRawText, alias, columns, resolver);
     }
 
     /**
@@ -203,8 +209,8 @@ export class SimpleSelectQuery extends SqlComponent {
      * @param alias The alias for the joined table
      * @param columns The columns to use for the join condition
      */
-    public leftJoinRaw(joinSourceRawText: string, alias: string, columns: string | string[]): void {
-        this.joinSourceRaw('left join', joinSourceRawText, alias, columns);
+    public leftJoinRaw(joinSourceRawText: string, alias: string, columns: string | string[], resolver: TableColumnResolver | null = null): void {
+        this.joinSourceRaw('left join', joinSourceRawText, alias, columns, resolver);
     }
 
     /**
@@ -213,8 +219,8 @@ export class SimpleSelectQuery extends SqlComponent {
      * @param alias The alias for the joined table
      * @param columns The columns to use for the join condition
      */
-    public rightJoinRaw(joinSourceRawText: string, alias: string, columns: string | string[]): void {
-        this.joinSourceRaw('right join', joinSourceRawText, alias, columns);
+    public rightJoinRaw(joinSourceRawText: string, alias: string, columns: string | string[], resolver: TableColumnResolver | null = null): void {
+        this.joinSourceRaw('right join', joinSourceRawText, alias, columns, resolver);
     }
 
     /**
@@ -222,8 +228,8 @@ export class SimpleSelectQuery extends SqlComponent {
      * @param sourceExpr The source expression to join
      * @param columns The columns to use for the join condition
      */
-    public innerJoin(sourceExpr: SourceExpression, columns: string | string[]): void {
-        this.joinSource('inner join', sourceExpr, columns);
+    public innerJoin(sourceExpr: SourceExpression, columns: string | string[], resolver: TableColumnResolver | null = null): void {
+        this.joinSource('inner join', sourceExpr, columns, resolver);
     }
 
     /**
@@ -231,8 +237,8 @@ export class SimpleSelectQuery extends SqlComponent {
      * @param sourceExpr The source expression to join
      * @param columns The columns to use for the join condition
      */
-    public leftJoin(sourceExpr: SourceExpression, columns: string | string[]): void {
-        this.joinSource('left join', sourceExpr, columns);
+    public leftJoin(sourceExpr: SourceExpression, columns: string | string[], resolver: TableColumnResolver | null = null): void {
+        this.joinSource('left join', sourceExpr, columns, resolver);
     }
 
     /**
@@ -240,8 +246,8 @@ export class SimpleSelectQuery extends SqlComponent {
      * @param sourceExpr The source expression to join
      * @param columns The columns to use for the join condition
      */
-    public rightJoin(sourceExpr: SourceExpression, columns: string | string[]): void {
-        this.joinSource('right join', sourceExpr, columns);
+    public rightJoin(sourceExpr: SourceExpression, columns: string | string[], resolver: TableColumnResolver | null = null): void {
+        this.joinSource('right join', sourceExpr, columns, resolver);
     }
 
     /**
@@ -253,10 +259,10 @@ export class SimpleSelectQuery extends SqlComponent {
      * @param alias Alias for the table/source being joined
      * @param columns Array or string of column names to join on
      */
-    private joinSourceRaw(joinType: string, joinSourceRawText: string, alias: string, columns: string | string[]): void {
+    private joinSourceRaw(joinType: string, joinSourceRawText: string, alias: string, columns: string | string[], resolver: TableColumnResolver | null = null): void {
         const tableSource = SourceParser.parse(joinSourceRawText);
         const sourceExpr = new SourceExpression(tableSource, new SourceAliasExpression(alias, null));
-        this.joinSource(joinType, sourceExpr, columns);
+        this.joinSource(joinType, sourceExpr, columns, resolver);
     }
 
     /**
@@ -265,7 +271,7 @@ export class SimpleSelectQuery extends SqlComponent {
      * @param sourceExpr The source expression to join
      * @param columns Array or string of column names to join on
      */
-    private joinSource(joinType: string, sourceExpr: SourceExpression, columns: string | string[]): void {
+    private joinSource(joinType: string, sourceExpr: SourceExpression, columns: string | string[], resolver: TableColumnResolver | null = null): void {
         if (!this.fromClause) {
             throw new Error('A FROM clause is required to add a JOIN condition.');
         }
@@ -273,7 +279,7 @@ export class SimpleSelectQuery extends SqlComponent {
         // Always treat columns as array
         const columnsArr = Array.isArray(columns) ? columns : [columns];
 
-        const collector = new SelectableColumnCollector();
+        const collector = new SelectableColumnCollector(resolver);
         const valueSets = collector.collect(this);
         let joinCondition: ValueComponent | null = null;
         let count = 0;
@@ -356,5 +362,84 @@ export class SimpleSelectQuery extends SqlComponent {
         const query = SelectQueryParser.parse(rawText);
         const commonTable = new CommonTable(query, alias, null);
         this.appendWith(commonTable);
+    }
+
+    /**
+     * Overrides a select item using a template literal function.
+     * The callback receives the SQL string of the original expression and must return a new SQL string.
+     * The result is parsed and set as the new select item value.
+     *
+     * Example usage:
+     *   query.overrideSelectItemRaw("journal_date", expr => `greatest(${expr}, DATE '2025-01-01')`)
+     *
+     * @param columnName The name of the column to override
+     * @param fn Callback that receives the SQL string of the original expression and returns a new SQL string
+     */
+    public overrideSelectItemExpr(columnName: string, fn: (expr: string) => string): void {
+        const items = this.selectClause.items.filter(item => item.identifier?.name === columnName);
+        if (items.length === 0) {
+            throw new Error(`Column ${columnName} not found in the query`);
+        }
+        if (items.length > 1) {
+            throw new Error(`Duplicate column name ${columnName} found in the query`);
+        }
+        const item = items[0];
+        const formatter = new Formatter();
+        const exprSql = formatter.visit(item.value);
+        const newValue = fn(exprSql);
+        item.value = ValueParser.parse(newValue);
+    }
+
+    /**
+     * Appends a WHERE clause using the expression for the specified column.
+     * If `options.upstream` is true, applies to all upstream queries containing the column.
+     * If false or omitted, applies only to the current query.
+     *
+     * @param columnName The name of the column to target.
+     * @param exprBuilder Function that receives the column expression as a string and returns the WHERE condition string.
+     * @param options Optional settings. If `upstream` is true, applies to upstream queries.
+     */
+    public appendWhereExpr(
+        columnName: string,
+        exprBuilder: (expr: string) => string,
+        options?: { upstream?: boolean }
+    ): void {
+        // If upstream option is true, find all upstream queries containing the column
+        if (options && options.upstream) {
+            // Use UpstreamSelectQueryFinder to find all relevant queries
+            // (Assume UpstreamSelectQueryFinder is imported)
+            const finder = new UpstreamSelectQueryFinder();
+            const queries = finder.find(this, [columnName]);
+            const collector = new SelectableColumnCollector();
+            const formatter = new Formatter();
+            for (const q of queries) {
+                const exprs = collector.collect(q).filter(item => item.name === columnName).map(item => item.value);
+                if (exprs.length !== 1) {
+                    throw new Error(`Expected exactly one expression for column '${columnName}'`);
+                }
+                const exprStr = formatter.format(exprs[0]);
+                q.appendWhereRaw(exprBuilder(exprStr));
+            }
+        } else {
+            // Only apply to the current query
+            const collector = new SelectableColumnCollector();
+            const formatter = new Formatter();
+            const exprs = collector.collect(this).filter(item => item.name === columnName).map(item => item.value);
+            if (exprs.length !== 1) {
+                throw new Error(`Expected exactly one expression for column '${columnName}'`);
+            }
+            const exprStr = formatter.format(exprs[0]);
+            this.appendWhereRaw(exprBuilder(exprStr));
+        }
+    }
+
+    /**
+     * Sets the value of a parameter by name in this query.
+     * @param name Parameter name
+     * @param value Value to set
+     */
+    public setParameter(name: string, value: any): this {
+        ParameterHelper.set(this, name, value);
+        return this;
     }
 }

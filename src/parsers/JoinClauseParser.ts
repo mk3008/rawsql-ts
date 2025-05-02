@@ -48,7 +48,7 @@ export class JoinClauseParser {
             return false;
         }
 
-        if (lexemes[index].type === TokenType.Comma || this.isJoinKeyword(lexemes[index].value) === true) {
+        if (lexemes[index].type & TokenType.Comma || this.isJoinKeyword(lexemes[index].value) === true) {
             return true;
         }
         return false;

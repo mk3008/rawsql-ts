@@ -27,6 +27,24 @@ export class StringUtils {
     private static skipWhiteSpace(input: string, position: number): number {
         const length = input.length;
 
+        /*
+         * Optimization: Try to skip 4 spaces at once (for 4-space indents).
+         * This is effective when SQL is deeply nested and uses 4-space indentation.
+         * In typical cases, charCodeAt in a loop is fastest, but for large/indented SQL,
+         * this can reduce the number of iterations and improve stability (lower error/deviation in benchmarks).
+         * If indentation is not 4 spaces, this check is skipped quickly, so overhead is minimal.
+         *
+         * Even for 2-space indents or mixed indents (2, 4, tab),
+         * the remaining whitespace is handled by the following loop, so there is no performance loss.
+         *
+         * Benchmark results show that this optimization does not slow down short queries,
+         * and can make long/indented queries more stable and slightly faster.
+         */
+        while (position + 4 <= length && input.slice(position, position + 4) === '    ') {
+            position += 4;
+        }
+
+        // Then skip remaining whitespace one by one (space, tab, newline, carriage return)
         while (position < length) {
             const charCode = input.charCodeAt(position);
             // ' '=32, '\t'=9, '\n'=10, '\r'=13

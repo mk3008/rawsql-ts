@@ -27,62 +27,73 @@ import {
     InlineQuery,
     TupleExpression
 } from "../models/ValueComponent";
-import { CommonTable, Distinct, DistinctOn, FetchSpecification, FetchType, ForClause, FromClause, FunctionSource, GroupByClause, HavingClause, JoinClause, JoinOnClause, JoinUsingClause, LimitClause, NullsSortDirection, OrderByClause, OrderByItem, PartitionByClause, SelectClause, SelectItem, SortDirection, SourceAliasExpression, SourceExpression, SubQuerySource, TableSource, WhereClause, WindowFrameClause, WithClause } from "../models/Clause";
-import { FormatterConfig } from "./FormatterConfig";
-import { DatabaseEnvConfig } from "./DatabaseEnvConfig";
+import { CommonTable, Distinct, DistinctOn, FetchSpecification, FetchType, ForClause, FromClause, FunctionSource, GroupByClause, HavingClause, InsertClause, JoinClause, JoinOnClause, JoinUsingClause, LimitClause, NullsSortDirection, OrderByClause, OrderByItem, PartitionByClause, ReturningClause, SelectClause, SelectItem, SetClause, SetClauseItem, SortDirection, SourceAliasExpression, SourceExpression, SubQuerySource, TableSource, UpdateClause, WhereClause, WindowFrameClause, WithClause } from "../models/Clause";
+import { CreateTableQuery } from "../models/CreateTableQuery";
+import { InsertQuery } from "../models/InsertQuery";
+import { UpdateQuery } from "../models/UpdateQuery";
+import { ParameterCollector } from "./ParameterCollector";
+
+export enum ParameterStyle {
+    Anonymous = "anonymous", // ?
+    Indexed = "indexed",     // $1, $2, ...
+    Named = "named",         // :name, @name, $name
+}
+
+interface FormatterConfig {
+    identifierEscape?: {
+        start: string;
+        end: string;
+    };
+    parameterSymbol?: string | { start: string; end: string };
+    /**
+     * Parameter style: anonymous (?), indexed ($1), or named (:name)
+     */
+    parameterStyle?: ParameterStyle;
+}
 
 export class Formatter implements SqlComponentVisitor<string> {
-    private handlers: Map<symbol, (arg: any) => string>;
-    private config: FormatterConfig;
-    private dbEnv: DatabaseEnvConfig;
-    private indentLevel: number = 0;
-
     /**
-     * Returns the current indentation string based on config and indentLevel.
+     * Preset configs for common DB dialects.
      */
-    private getIndent(): string {
-        const type = this.config.indentType ?? "space";
-        const size = this.config.indentSize ?? 4;
-        if (type === "tab") {
-            return "\t".repeat(this.indentLevel);
-        } else {
-            return " ".repeat(this.indentLevel * size);
-        }
-    }
-
-    /**
-     * Formatter constructor.
-     * You can pass only the options you want to override; defaults will be merged automatically.
-     */
-    constructor(
-        dbEnv: Partial<DatabaseEnvConfig> = {},
-        config: Partial<FormatterConfig> = {}
-    ) {
-        this.handlers = new Map<symbol, (arg: any) => string>();
-        // Default DB environment config
-        const defaultDbEnv: DatabaseEnvConfig = {
+    public static readonly PRESETS: Record<string, FormatterConfig> = {
+        mysql: {
+            identifierEscape: { start: '`', end: '`' },
+            parameterSymbol: '?',
+            parameterStyle: ParameterStyle.Anonymous,
+        },
+        postgres: {
             identifierEscape: { start: '"', end: '"' },
             parameterSymbol: ':',
-        };
-        // Default formatter config
-        const defaultConfig: FormatterConfig = {
-            oneLiner: true,
-            clauseIndent: {
-                select: true,
-                from: true,
-                where: true,
-                groupBy: true,
-                having: true,
-                orderBy: true,
-                window: true,
-                with: true,
-                values: true
+            parameterStyle: ParameterStyle.Indexed,
+        },
+        sqlserver: {
+            identifierEscape: { start: '[', end: ']' },
+            parameterSymbol: '@',
+            parameterStyle: ParameterStyle.Named,
+        },
+        sqlite: {
+            identifierEscape: { start: '"', end: '"' },
+            parameterSymbol: ':',
+            parameterStyle: ParameterStyle.Named,
+        },
+    };
+
+    private handlers: Map<symbol, (arg: any) => string>;
+    private config: FormatterConfig;
+    private parameterIndex: number = 0;
+
+    constructor() {
+        this.handlers = new Map<symbol, (arg: any) => string>();
+
+        // Default settings
+        this.config = {
+            identifierEscape: {
+                start: '"',
+                end: '"'
             },
-            andNewline: true,
-            keywordCase: "lower"
+            parameterSymbol: ':',
+            parameterStyle: ParameterStyle.Named,
         };
-        this.dbEnv = { ...defaultDbEnv, ...dbEnv, identifierEscape: { ...defaultDbEnv.identifierEscape, ...(dbEnv.identifierEscape || {}) } };
-        this.config = { ...defaultConfig, ...config, clauseIndent: { ...defaultConfig.clauseIndent, ...(config.clauseIndent || {}) } };
 
         // value
         this.handlers.set(LiteralValue.kind, (expr) => this.visitLiteralExpression(expr as LiteralValue));
@@ -96,7 +107,7 @@ export class Formatter implements SqlComponentVisitor<string> {
         this.handlers.set(UnaryExpression.kind, (expr) => this.visitUnaryExpression(expr as UnaryExpression));
         this.handlers.set(BinaryExpression.kind, (expr) => this.visitBinaryExpression(expr as BinaryExpression));
         this.handlers.set(ParameterExpression.kind, (expr) => this.visitParameterExpression(expr as ParameterExpression));
-        this.handlers.set(SelectItem.kind, (expr) => this.visitSelectExpression(expr as SelectItem));
+        this.handlers.set(SelectItem.kind, (expr) => this.visitSelectItemExpression(expr as SelectItem));
         this.handlers.set(ArrayExpression.kind, (expr) => this.visitArrayExpression(expr as ArrayExpression));
         this.handlers.set(CaseExpression.kind, (expr) => this.visitCaseExpression(expr as CaseExpression));
         this.handlers.set(CastExpression.kind, (expr) => this.visitCastExpression(expr as CastExpression));
@@ -144,7 +155,6 @@ export class Formatter implements SqlComponentVisitor<string> {
         this.handlers.set(WithClause.kind, (expr) => this.visitWithClause(expr as WithClause));
 
         // select
-        this.handlers.set(SelectItem.kind, (expr) => this.visitSelectExpression(expr as SelectItem));
         this.handlers.set(SelectClause.kind, (expr) => this.visitSelectClause(expr as SelectClause));
         this.handlers.set(Distinct.kind, (expr) => this.visitDistinct(expr as Distinct));
         this.handlers.set(DistinctOn.kind, (expr) => this.visitDistinctOn(expr as DistinctOn));
@@ -163,6 +173,20 @@ export class Formatter implements SqlComponentVisitor<string> {
         // select query
         this.handlers.set(SimpleSelectQuery.kind, (expr) => this.visitSelectQuery(expr as SimpleSelectQuery));
         this.handlers.set(BinarySelectQuery.kind, (expr) => this.visitBinarySelectQuery(expr as BinarySelectQuery));
+
+        // create table query
+        this.handlers.set(CreateTableQuery.kind, (expr) => this.visitCreateTableQuery(expr as CreateTableQuery));
+
+        // update query
+        this.handlers.set(UpdateQuery.kind, (expr) => this.visitUpdateQuery(expr as UpdateQuery));
+        this.handlers.set(UpdateClause.kind, (expr) => this.visitUpdateClause(expr as UpdateClause));
+        this.handlers.set(SetClause.kind, (expr) => this.visitSetClause(expr as SetClause));
+        this.handlers.set(SetClauseItem.kind, (expr) => this.visitSetClauseItem(expr as SetClauseItem));
+        this.handlers.set(ReturningClause.kind, (expr) => this.visitReturningClause(expr));
+
+        // insert query
+        this.handlers.set(InsertQuery.kind, (expr) => this.visitInsertQuery(expr as InsertQuery));
+        this.handlers.set(InsertClause.kind, (expr) => this.visitInsertClause(expr as InsertClause));
     }
 
     /**
@@ -172,8 +196,51 @@ export class Formatter implements SqlComponentVisitor<string> {
      * @param config (Optional) Formatter configuration.
      * @returns The formatted SQL string.
      */
-    public format(arg: SqlComponent): string {
+    public format(arg: SqlComponent, config: FormatterConfig | null = null): string {
+        this.parameterIndex = 0; // Reset counter for each format
+        if (config) {
+            // Always reset to default before merging user config
+            this.config = {
+                identifierEscape: { start: '"', end: '"' },
+                parameterSymbol: ':',
+                ...config
+            };
+        }
         return this.visit(arg);
+    }
+
+    public formatWithParameters(arg: SqlComponent, config: FormatterConfig | null = null): { sql: string, params: any[] | Record<string, any>[] | Record<string, any> } {
+        const sql = this.format(arg, config);        // Sort parameters by index
+        const paramsRaw = ParameterCollector.collect(arg).sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
+
+        const style = (this.config.parameterStyle ?? ParameterStyle.Named);
+        if (style === ParameterStyle.Named) {
+            // Named: { name: value, ... }
+            const paramsObj: Record<string, any> = {};
+            for (const p of paramsRaw) {
+                const key = p.name.value;
+                if (paramsObj.hasOwnProperty(key)) {
+                    if (paramsObj[key] !== p.value) {
+                        throw new Error(`Duplicate parameter name '${key}' with different values detected during query composition.`);
+                    }
+                    // If value is the same, skip (already set)
+                    continue;
+                }
+                paramsObj[key] = p.value;
+            }
+            return { sql, params: paramsObj };
+        } else if (style === ParameterStyle.Indexed) {
+            // Indexed: [value1, value2, ...] (sorted by index)
+            const paramsArr = paramsRaw.map(p => p.value);
+            return { sql, params: paramsArr };
+        } else if (style === ParameterStyle.Anonymous) {
+            // Anonymous: [value1, value2, ...] (sorted by index, name is empty)
+            const paramsArr = paramsRaw.map(p => p.value);
+            return { sql, params: paramsArr };
+        }
+
+        // Fallback (just in case)
+        return { sql, params: [] };
     }
 
     /**
@@ -262,10 +329,16 @@ export class Formatter implements SqlComponentVisitor<string> {
     }
 
     private visitTypeValue(arg: TypeValue): string {
-        if (arg.argument !== null) {
-            return `${arg.type.accept(this)}(${arg.argument.accept(this)})`;
+        let typeStr = '';
+        if (arg.namespaces && arg.namespaces.length > 0) {
+            typeStr = arg.namespaces.map(ns => ns.accept(this)).join('.') + '.' + arg.name.accept(this);
+        } else {
+            typeStr = arg.name.accept(this);
         }
-        return `${arg.type.accept(this)}`;
+        if (arg.argument !== null) {
+            return `${typeStr}(${arg.argument.accept(this)})`;
+        }
+        return `${typeStr}`;
     }
 
     private visitStringSpecifierExpression(arg: StringSpecifierExpression): string {
@@ -416,9 +489,14 @@ export class Formatter implements SqlComponentVisitor<string> {
 
     private visitFunctionCall(arg: FunctionCall): string {
         const partArg = arg.argument !== null ? arg.argument.accept(this) : "";
-
+        let funcName: string;
+        if (arg.namespaces && arg.namespaces.length > 0) {
+            funcName = arg.namespaces.map(ns => ns.accept(this)).join(".") + "." + arg.name.accept(this);
+        } else {
+            funcName = arg.name.accept(this);
+        }
         if (arg.over === null) {
-            return `${arg.name.accept(this)}(${partArg})`;
+            return `${funcName}(${partArg})`;
         } else {
             let partOver = arg.over !== null ? `${arg.over.accept(this)}` : "";
             if (partOver) {
@@ -428,7 +506,7 @@ export class Formatter implements SqlComponentVisitor<string> {
                     partOver = ` over ${partOver}`;
                 }
             }
-            return `${arg.name.accept(this)}(${partArg})${partOver}`;
+            return `${funcName}(${partArg})${partOver}`;
         }
     }
 
@@ -460,11 +538,27 @@ export class Formatter implements SqlComponentVisitor<string> {
     }
 
     private visitParameterExpression(arg: ParameterExpression): string {
-        return `${this.dbEnv.parameterSymbol}${arg.name.accept(this)}`;
+        // update index
+        arg.index = this.parameterIndex;
+        this.parameterIndex++;
+
+        // Decide output style based on config
+        const style = this.config.parameterStyle ?? ParameterStyle.Named;
+        if (style === ParameterStyle.Anonymous) {
+            return '?';
+        }
+        if (style === ParameterStyle.Indexed) {
+            return `$${arg.index + 1}`; // 0-based to 1-based
+        }
+        // Named (default)
+        if (typeof this.config.parameterSymbol === 'object' && this.config.parameterSymbol !== null) {
+            return `${this.config.parameterSymbol.start}${arg.name.accept(this)}${this.config.parameterSymbol.end}`;
+        }
+        return `${this.config.parameterSymbol ?? ':'}${arg.name.accept(this)}`;
     }
 
-    private visitSelectExpression(arg: SelectItem): string {
-        if (arg.identifier !== null) {
+    private visitSelectItemExpression(arg: SelectItem): string {
+        if (arg.identifier) {
             if (arg.value instanceof ColumnReference) {
                 const c = arg.value as ColumnReference;
                 if (c.column.name === arg.identifier.name) {
@@ -480,32 +574,9 @@ export class Formatter implements SqlComponentVisitor<string> {
 
     private visitSelectClause(arg: SelectClause): string {
         const distinct = arg.distinct !== null ? " " + arg.distinct.accept(this) : "";
-        // Pretty print if oneLiner is false and clauseIndent.select is true
-        if (!this.config.oneLiner && this.config.clauseIndent?.select) {
-            this.indentLevel++;
-            const indent = this.getIndent();
-            let items: string[] = [];
-            for (let i = 0; i < arg.items.length; i++) {
-                const value = arg.items[i].accept(this);
-                if (i === 0) {
-                    items.push(indent + value);
-                } else if (this.config.commaPosition === "before") {
-                    // Comma before, indent before comma
-                    items.push(indent + ", " + value);
-                } else {
-                    // Comma after, indent before value
-                    items[items.length - 1] += ",";
-                    items.push(indent + value);
-                }
-            }
-            this.indentLevel--;
-            // Remove trailing newline for pretty print
-            return `select${distinct}\n${items.join("\n")}`;
-        } else {
-            // One-liner or no select indent
-            const colum = arg.items.map((e) => e.accept(this)).join(", ");
-            return `select${distinct} ${colum}`;
-        }
+        // Directly call visitSelectItemExpression for each SelectItem (faster than visitor indirection)
+        const colum = arg.items.map((e) => this.visitSelectItemExpression(e)).join(", ");
+        return `select${distinct} ${colum}`;
     }
 
     private visitSelectQuery(arg: SimpleSelectQuery): string {
@@ -667,7 +738,8 @@ export class Formatter implements SqlComponentVisitor<string> {
         if (arg.name === '*') {
             return arg.name;
         }
-        return `${this.dbEnv.identifierEscape.start}${arg.name}${this.dbEnv.identifierEscape.end}`;
+        const escape = this.config.identifierEscape ?? { start: '"', end: '"' };
+        return `${escape.start}${arg.name}${escape.end}`;
     }
 
     private visitValuesQuery(arg: ValuesQuery): string {
@@ -678,5 +750,102 @@ export class Formatter implements SqlComponentVisitor<string> {
     private visitTupleExpression(arg: TupleExpression): string {
         const values = arg.values.map((value) => value.accept(this)).join(", ");
         return `(${values})`;
+    }
+
+    /**
+     * Formats a CreateTableQuery into SQL string.
+     */
+    private visitCreateTableQuery(arg: CreateTableQuery): string {
+        const temp = arg.isTemporary ? "temporary " : "";
+        let sql = `create ${temp}table ${arg.tableName.accept(this)}`;
+        if (arg.asSelectQuery) {
+            sql += ` as ${this.visit(arg.asSelectQuery)}`;
+        }
+        return sql;
+    }
+
+    private visitInsertQuery(arg: InsertQuery): string {
+        const parts: string[] = [];
+
+        parts.push(arg.insertClause.accept(this));
+
+        if (arg.selectQuery) {
+            parts.push(arg.selectQuery.accept(this));
+        } else {
+            throw new Error("InsertQuery must have selectQuery (SELECT or VALUES)");
+        }
+        return parts.join(" ");
+    }
+
+    private visitUpdateQuery(arg: UpdateQuery): string {
+        // Format: [WITH ...] UPDATE [source] SET ... [FROM ...] [WHERE ...] [RETURNING ...]
+        const parts: string[] = [];
+
+        // Add WITH clause if present
+        if (arg.withClause) {
+            parts.push(arg.withClause.accept(this));
+        }
+
+        // updateClause (SourceExpression) を使う
+        parts.push(arg.updateClause.accept(this));
+
+        if (arg.setClause.items.length === 0) {
+            throw new Error("UpdateQuery must have setClause");
+        }
+        parts.push(arg.setClause.accept(this));
+
+        if (arg.fromClause) {
+            parts.push(arg.fromClause.accept(this));
+        }
+
+        if (arg.whereClause) {
+            parts.push(arg.whereClause.accept(this));
+        }
+
+        if (arg.returningClause) {
+            parts.push(arg.returningClause.accept(this));
+        }
+
+        return parts.join(" ");
+    }
+
+    private visitUpdateClause(arg: UpdateClause): string {
+        // Format: UPDATE table [AS alias]
+        const table = arg.source.accept(this);
+        return `update ${table}`;
+    }
+
+    private visitSetClause(arg: SetClause): string {
+        // Format: SET col1 = val1, col2 = val2, ...
+        const items = arg.items.map(item => item.accept(this)).join(", ");
+        return `set ${items}`;
+    }
+
+    private visitSetClauseItem(arg: SetClauseItem): string {
+        // Format: col1 = val1 (with optional namespaces)
+        let column: string;
+        if (arg.namespaces && arg.namespaces.length > 0) {
+            column = arg.namespaces.map(ns => ns.accept(this)).join(".") + "." + arg.column.accept(this);
+        } else {
+            column = arg.column.accept(this);
+        }
+        const value = arg.value.accept(this);
+        return `${column} = ${value}`;
+    }
+
+    private visitReturningClause(arg: ReturningClause): string {
+        // Format: RETURNING col1, col2, ...
+        const columns = arg.columns.map(col => col.accept(this)).join(", ");
+        return `returning ${columns}`;
+    }
+
+    private visitInsertClause(arg: InsertClause): string {
+        const table = arg.source.accept(this);
+        const columns = arg.columns.map(col => new IdentifierString(col).accept(this)).join(", ");
+        if (arg.columns.length > 0) {
+            return `insert into ${table}(${columns})`;
+        } else {
+            return `insert into ${table}`;
+        }
     }
 }

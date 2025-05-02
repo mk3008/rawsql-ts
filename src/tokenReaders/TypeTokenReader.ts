@@ -47,13 +47,13 @@ export class TypeTokenReader extends BaseTokenReader {
         this.position = result.newPosition;
 
         // type cast command
-        if (previous.type === TokenType.Command && previous.value === "as") {
+        if (previous.type & TokenType.Command && previous.value === "as") {
             // If the previous token is the `as` keyword, it could be a type cast or an identifier
-            return this.createLexeme(TokenType.Identifier, result.identifier, true);
+            return this.createLexeme(TokenType.Identifier | TokenType.Type, result.identifier);
         }
 
         // postgres type conversion
-        if (previous.type === TokenType.Operator && previous.value === "::") {
+        if (previous.type & TokenType.Operator && previous.value === "::") {
             return this.createLexeme(TokenType.Type, result.identifier);
         }
 

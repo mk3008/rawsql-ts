@@ -1,4 +1,4 @@
-import { CommonTable, FromClause, JoinClause, ParenSource, SelectClause, SelectComponent, SelectItem, SourceExpression, SubQuerySource, TableSource } from "../models/Clause";
+import { CommonTable, FromClause, JoinClause, ParenSource, SelectClause, SelectItem, SourceExpression, SubQuerySource, TableSource } from "../models/Clause";
 import { BinarySelectQuery, SimpleSelectQuery, SelectQuery, ValuesQuery } from "../models/SelectQuery";
 import { SqlComponent, SqlComponentVisitor } from "../models/SqlComponent";
 import { ColumnReference, InlineQuery, LiteralValue, ValueComponent } from "../models/ValueComponent";
@@ -15,13 +15,13 @@ export class SelectValueCollector implements SqlComponentVisitor<void> {
     private selectValues: { name: string, value: ValueComponent }[] = [];
     private visitedNodes: Set<SqlComponent> = new Set();
     private isRootVisit: boolean = true;
-    private tableColumnResolver?: TableColumnResolver;
+    private tableColumnResolver: TableColumnResolver | null;
     private commonTableCollector: CTECollector;
     private commonTables: CommonTable[];
     public initialCommonTables: CommonTable[] | null;
 
-    constructor(tableColumnResolver?: TableColumnResolver, initialCommonTables: CommonTable[] | null = null) {
-        this.tableColumnResolver = tableColumnResolver;
+    constructor(tableColumnResolver: TableColumnResolver | null = null, initialCommonTables: CommonTable[] | null = null) {
+        this.tableColumnResolver = tableColumnResolver ?? null;
         this.commonTableCollector = new CTECollector();
         this.commonTables = [];
         this.initialCommonTables = initialCommonTables;
@@ -139,13 +139,13 @@ export class SelectValueCollector implements SqlComponentVisitor<void> {
             .map(item => (item.value as ColumnReference).getNamespace());
 
         if (query.fromClause) {
-            const fromSourceName = query.fromClause.getAliasSourceName();
+            const fromSourceName = query.fromClause.getSourceAliasName();
             if (fromSourceName && wildSourceNames.includes(fromSourceName)) {
                 this.processFromClause(query.fromClause, false);
             }
             if (query.fromClause.joins) {
                 for (const join of query.fromClause.joins) {
-                    const joinSourceName = join.getAliasSourceName();
+                    const joinSourceName = join.getSourceAliasName();
                     if (joinSourceName && wildSourceNames.includes(joinSourceName)) {
                         this.processJoinClause(join);
                     }
@@ -159,7 +159,7 @@ export class SelectValueCollector implements SqlComponentVisitor<void> {
 
     private processFromClause(clause: FromClause, joinCascade: boolean): void {
         if (clause) {
-            const fromSourceName = clause.getAliasSourceName();
+            const fromSourceName = clause.getSourceAliasName();
             this.processSourceExpression(fromSourceName, clause.source);
 
             if (clause.joins && joinCascade) {
@@ -172,7 +172,7 @@ export class SelectValueCollector implements SqlComponentVisitor<void> {
     }
 
     private processJoinClause(clause: JoinClause): void {
-        const sourceName = clause.getAliasSourceName();
+        const sourceName = clause.getSourceAliasName();
         this.processSourceExpression(sourceName, clause.source);
     }
 
@@ -199,29 +199,24 @@ export class SelectValueCollector implements SqlComponentVisitor<void> {
 
     private visitSelectClause(clause: SelectClause): void {
         for (const item of clause.items) {
-            if (item instanceof SelectItem) {
-                this.processSelectItem(item); // Process SelectItem
-            } else {
-                this.processValueComponent(item); // Process ValueComponent
-            }
+            this.processSelectItem(item);
         }
     }
 
     private processSelectItem(item: SelectItem): void {
-        this.addSelectValueAsUnique(item.identifier.name, item.value);
-    }
-
-    private processValueComponent(value: ValueComponent): void {
-        if (value instanceof ColumnReference) {            // Handle column reference
+        if (item.identifier) {
+            this.addSelectValueAsUnique(item.identifier.name, item.value);
+        }
+        else if (item.value instanceof ColumnReference) {            // Handle column reference
             // columnName can be '*'
-            const columnName = value.column.name;
+            const columnName = item.value.column.name;
             if (columnName === '*') {
                 // Force add without checking duplicates
-                this.selectValues.push({ name: columnName, value: value });
+                this.selectValues.push({ name: columnName, value: item.value });
             }
             else {
                 // Add with duplicate checking
-                this.addSelectValueAsUnique(columnName, value);
+                this.addSelectValueAsUnique(columnName, item.value);
             }
         }
     }
@@ -272,5 +267,3 @@ export class SelectValueCollector implements SqlComponentVisitor<void> {
         }
     }
 }
-
-export { TableColumnResolver };

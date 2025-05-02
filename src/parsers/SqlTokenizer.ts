@@ -118,7 +118,7 @@ export class SqlTokenizer {
             const currentComment = this.readComment();
             this.position = currentComment.position;
 
-            if (lexeme.type === TokenType.Comma || lexeme.type === TokenType.Operator) {
+            if ((lexeme.type & TokenType.Comma) || (lexeme.type & TokenType.Operator)) {
                 // Carry over comments after commas or operators
                 if (currentComment.lines.length > 0) {
                     pendingComments.push(...currentComment.lines);

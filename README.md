@@ -10,7 +10,8 @@
 
 rawsql-ts is a high-performance SQL parser and AST transformer library written in TypeScript. It is designed for extensibility and advanced SQL analysis, with initial focus on PostgreSQL syntax but not limited to it. The library enables easy SQL parsing, transformation, and analysis for a wide range of SQL dialects.
 
-> **Note:** This library is currently in beta. The API may change until the v1.0 release.
+> [!Note]
+> This library is currently in beta. The API may change until the v1.0 release.
 
 ---
 
@@ -70,18 +71,173 @@ console.log(formattedSql);
 
 ---
 
+## Formatter Functionality
+
+The `Formatter` class in rawsql-ts converts a parsed query object (AST) back into a formatted SQL string. This is useful for programmatically manipulating SQL and then generating a string for execution or display.
+
+### Preset Configurations (Formatter.PRESETS)
+
+The `Formatter` class provides preset configurations for common SQL dialects. Use these presets to quickly format queries for MySQL, PostgreSQL, SQL Server, or SQLite without manually specifying options each time.
+
+```typescript
+const mysqlSql = formatter.format(query, Formatter.PRESETS.mysql);
+const pgSql = formatter.format(query, Formatter.PRESETS.postgres);
+const mssqlSql = formatter.format(query, Formatter.PRESETS.sqlserver);
+const sqliteSql = formatter.format(query, Formatter.PRESETS.sqlite);
+```
+
+**Preset Details:**
+- `Formatter.PRESETS.mysql`: Backtick identifier, `?` parameter, no named parameters
+- `Formatter.PRESETS.postgres`: Double quote identifier, `:` parameter, named parameters supported
+- `Formatter.PRESETS.sqlserver`: Square bracket identifier, `@` parameter, named parameters supported
+- `Formatter.PRESETS.sqlite`: Double quote identifier, `:` parameter, named parameters supported
+
+### How to Customize Presets
+
+You can override any preset option as needed. For example, to use variable-style parameters (`${name}`):
+
+```typescript
+const variableSql = formatter.format(query, {
+  ...Formatter.PRESETS.postgres,
+  parameterSymbol: { start: '${', end: '}' },
+});
+// => select "user_id", "name" from "users" where "active" = ${active}
+```
+
+Or to change only the identifier escape style:
+
+```typescript
+const customSql = formatter.format(query, {
+  ...Formatter.PRESETS.mysql,
+  identifierEscape: { start: '"', end: '"' }
+});
+```
+
+### Configurable Options
+
+Formatting options are provided as the second argument to the `formatWithParameters()` method. You can customize:
+- `identifierEscape`: How identifiers are escaped (e.g., `"`, `[`, `` ` ``)
+- `parameterSymbol`: The symbol or pattern for parameters (e.g., `:`, `@`, `?`, or `{ start: '${', end: '}' }`)
+- `parameterStyle`: Controls the parameter style (anonymous, indexed, or named)
+
+> [!Note]
+> The traditional `format()` method is also available. If you only need the SQL string without parameter information, use the `format` method instead of `formatWithParameters()`.
+
+### Usage Example
+
+#### Using a Preset
+
+```typescript
+import { SelectQueryParser, Formatter } from 'rawsql-ts';
+
+const sql = `SELECT user_id, name FROM users WHERE active = TRUE`;
+const query = SelectQueryParser.parse(sql);
+const formatter = new Formatter();
+const formatted = formatter.formatWithParameters(query, Formatter.PRESETS.postgres);
+console.log(formatted.sql);
+// => select "user_id", "name" from "users" where "active" = true
+console.log(formatted.params);
+// => { ... } (parameters object or array depending on style)
+```
+
+#### Using Manual Configuration
+
+```typescript
+import { SelectQueryParser, Formatter } from 'rawsql-ts';
+
+const sql = `SELECT user_id, name FROM users WHERE active = TRUE`;
+const query = SelectQueryParser.parse(sql);
+const formatter = new Formatter();
+const formatted = formatter.formatWithParameters(query, {
+  identifierEscape: { start: '`', end: '`' },
+  parameterSymbol: '?',
+  parameterStyle: 'anonymous',
+});
+console.log(formatted.sql);
+// => select `user_id`, `name` from `users` where `active` = ?
+console.log(formatted.params);
+// => [ ... ] (parameters array)
+```
+
+rawsql-ts is designed to be flexible and support various SQL dialects. The `Formatter` class can be customized to handle different dialects by adjusting the identifier escape characters, parameter symbols, and parameter style. This makes it easy to work with SQL queries for different database systems using a consistent API.
+
+---
+
+### Advanced Parameterized Query Formatting
+
+rawsql-ts's `Formatter` class supports advanced parameterized query formatting for all major SQL dialects. You can output SQL with parameters in three styles:
+
+- **Anonymous** (`?`): For MySQL and similar drivers. Parameters are output as `?` and values are provided as an array.
+- **Indexed** (`$1`, `$2`, ...): For PostgreSQL and compatible drivers. Parameters are output as `$1`, `$2`, ... and values are provided as an array in the correct order.
+- **Named** (`:name`, `@name`, `$name`): For SQL Server, SQLite, and ORMs that support named parameters. Parameters are output as `:name`, `@name`, or `$name` and values are provided as an object (dictionary).
+
+You can control the parameter style using the `parameterStyle` option in the Formatter configuration, or by using one of the built-in presets. **In most cases, you do not need to set this manually—just use the appropriate preset (e.g., `Formatter.PRESETS.mysql`, `Formatter.PRESETS.postgres`, etc.) and the correct parameter style will be applied automatically.**
+
+#### Example: Parameterized Query Output
+
+```typescript
+import { SelectQueryParser, Formatter, ParameterStyle } from 'rawsql-ts';
+
+const sql = 'SELECT * FROM users WHERE id = :id AND status = :status';
+const query = SelectQueryParser.parse(sql);
+query.setParameter('id', 123);
+query.setParameter('status', 'active');
+const formatter = new Formatter();
+
+// Anonymous style (MySQL)
+const anon = formatter.formatWithParameters(query, { parameterStyle: ParameterStyle.Anonymous });
+// anon.sql: 'select * from "users" where "id" = ? and "status" = ?'
+// anon.params: [123, 'active']
+
+// Indexed style (PostgreSQL)
+const indexed = formatter.formatWithParameters(query, { parameterStyle: ParameterStyle.Indexed });
+// indexed.sql: 'select * from "users" where "id" = $1 and "status" = $2'
+// indexed.params: [123, 'active']
+
+// Named style (SQL Server, SQLite, ORMs)
+const named = formatter.formatWithParameters(query, { parameterStyle: ParameterStyle.Named });
+// named.sql: 'select * from "users" where "id" = :id and "status" = :status'
+// named.params: { id: 123, status: 'active' }
+```
+
+The formatter automatically assigns parameter indexes in the order they appear in the query, even for complex queries with CTEs, subqueries, or set operations (UNION, INTERSECT, etc.). When combining queries, parameter indexes are always reassigned to ensure correct binding order for your database client.
+
+This makes rawsql-ts ideal for building safe, maintainable, and highly portable SQL in TypeScript, with zero risk of SQL injection and maximum compatibility across database systems.
+
+A unique feature of rawsql-ts is the `setParameter` method. Instead of passing parameter values at formatting time, you assign values directly to the query object using `setParameter`. This makes your code highly portable and decouples query construction from parameter binding. Parameter indexes (for indexed or anonymous styles) are always assigned at formatting time, so even if you modify or combine queries (e.g., with UNION, CTEs, or subqueries), the parameter order and binding will always be correct and never break.
+
+> [!Tip]
+> While rawsql-ts supports anonymous and indexed parameters, it is highly recommended to use named parameters in your source code. Using names makes your queries much more readable and maintainable, and the setParameter method assigns values by name, reducing the risk of mistakes. You can always output the final SQL and parameters in the style required by your database client (e.g., anonymous or indexed) at formatting time. This approach lets you write clear, maintainable code during development, while still generating the exact parameter style needed for your production environment.
+
+---
+
 ## Main Parser Features
 
+- All parsers automatically remove SQL comments before parsing.
+- Detailed error messages are provided for all parsing errors.
+- Highly accurate and advanced tokenization is used for robust SQL analysis.
+
+> [!Note]
+> All parsers in rawsql-ts have been tested with PostgreSQL syntax, but they are capable of parsing any generic SQL statement that does not use a DBMS-specific dialect.
+
 - **SelectQueryParser**  
-  The main class for converting SELECT and VALUES statements into AST. Fully supports CTEs (WITH), UNION/INTERSECT/EXCEPT, subqueries, and PostgreSQL-specific syntax.
+  The main class for converting SELECT and VALUES statements into AST. Fully supports CTEs (WITH), UNION/INTERSECT/EXCEPT, subqueries, and PostgreSQL-style syntax.
   - `parse(sql: string): SelectQuery`  
     Converts a SQL string to an AST. Throws an exception on error.
-  - Supports only PostgreSQL syntax
-  - Only SELECT and VALUES are supported (INSERT/UPDATE/DELETE are not yet implemented)
-  - SQL comments are automatically removed
-  - Handles CTEs (WITH), UNION/INTERSECT/EXCEPT, subqueries, window functions, complex expressions, and functions
-  - Provides detailed error messages
-  - Highly accurate tokenization
+  - In this library, a "select query" is represented as one of the following types:
+    - `SimpleSelectQuery`: A standard SELECT statement with all major clauses (WHERE, GROUP BY, JOIN, etc.)
+    - `BinarySelectQuery`: A set operation query such as UNION, INTERSECT, or EXCEPT
+    - `ValuesQuery`: An inline VALUES table (e.g., `VALUES (1, 'a'), (2, 'b')`)
+
+- **InsertQueryParser**  
+  The main class for parsing `INSERT INTO` statements and converting them into AST. Supports PostgreSQL-style INSERT with or without column lists, as well as `INSERT ... SELECT` and `INSERT ... VALUES` forms.
+  - `parse(sql: string): InsertQuery`  
+    Converts an INSERT SQL string to an AST. Throws an exception on error.
+
+- **UpdateQueryParser**  
+  The main class for parsing `UPDATE` statements and converting them into AST. Supports PostgreSQL-style UPDATE with optional CTE (WITH clause), table alias, SET, WHERE, FROM, and RETURNING clauses.
+  - `parse(sql: string): UpdateQuery`  
+    Converts an UPDATE SQL string to an AST. Throws an exception on error.
 
 ---
 
@@ -91,6 +247,8 @@ console.log(formattedSql);
   Represents a standard SELECT statement. Supports all major clauses such as WHERE, GROUP BY, JOIN, and CTE.
   - `toUnion`, `toUnionAll`, ... for UNION operations
   - `appendWhere`, `appendWhereRaw` to add WHERE conditions
+  - `appendWhereExpr` to add a WHERE condition using the column's SQL expression (see below)
+  - `overrideSelectItemExpr` to override a SELECT item using its SQL expression (see below)
   - `innerJoin`, `leftJoin`, ... to add JOINs
   - `toSource` to wrap as a subquery
   - `appendWith`, `appendWithRaw` to add CTEs
@@ -104,6 +262,123 @@ console.log(formattedSql);
 - **ValuesQuery**  
   For inline tables like `VALUES (1, 'a'), (2, 'b')`.
   - Can be used as a subquery or converted to SELECT with QueryNormalizer
+---
+
+## Advanced Expression-based Methods
+
+### appendWhereExpr
+`appendWhereExpr` is a highly important feature that enables you to add WHERE conditions using the SQL expression of a column, regardless of whether it is a direct column, an alias, a table alias, or even a calculated expression.
+
+- **Basic Column**
+  - SQL: `select amount from sales`
+  - API: `query.appendWhereExpr('amount', expr => `${expr} > 100`)`
+  - Result: `where amount > 100`
+
+- **Alias**
+  - SQL: `select fee as amount from sales`
+  - API: `query.appendWhereExpr('amount', expr => `${expr} > 100`)`
+  - Result: `where fee > 100`
+
+- **Table Alias**
+  - SQL: `select s.fee as amount from sales as s`
+  - API: `query.appendWhereExpr('amount', expr => `${expr} > 100`)`
+  - Result: `where s.fee > 100`
+
+- **Expression**
+  - SQL: `select quantity * pack_size as amount from sales`
+  - API: `query.appendWhereExpr('amount', expr => `${expr} > 100`)`
+  - Result: `where quantity * pack_size > 100`
+
+As long as the column is named (or aliased) as `amount`, `appendWhereExpr` will detect and use the correct SQL expression for the WHERE clause—even if it is a complex calculation or uses table aliases.
+
+```typescript
+// Works for any alias, table alias, or expression!
+query.appendWhereExpr('amount', expr => `${expr} > 100`);
+```
+
+#### Upstream Query Support
+
+`Upstream Query Support` is a powerful extension of `appendWhereExpr` that allows you to add WHERE conditions to all relevant upstream queries that provide a specific column, regardless of the query structure. This means you can target columns defined in subqueries, CTEs (WITH clauses), or even branches of UNION/INTERSECT/EXCEPT, and the condition will be automatically inserted at the correct place in the SQL tree.
+
+**What does this mean in practice?**
+- If the column is defined in a subquery, the WHERE condition is added inside that subquery.
+- If the column is defined in a CTE (WITH clause), the WHERE condition is added inside the CTE.
+- If the column is provided by multiple upstream queries (e.g., UNION branches), the condition is added to all relevant branches.
+- You do not need to know or traverse the query structure yourself—just specify the column name, and `appendWhereExpr` with `{ upstream: true }` will do the rest.
+
+##### Example: Filtering a CTE
+
+```typescript
+const query = SelectQueryParser.parse(`
+  WITH temp_sales AS (
+    SELECT id, amount, date FROM sales WHERE date >= '2024-01-01'
+  )
+  SELECT * FROM temp_sales
+`) as SimpleSelectQuery;
+
+// Add a filter to the CTE using upstream support
+query.appendWhereExpr('amount', expr => `${expr} > 100`, { upstream: true });
+
+const sql = new Formatter().format(query);
+console.log(sql);
+// => with "temp_sales" as (select "id", "amount", "date" from "sales" where "date" >= '2024-01-01' and "amount" > 100) select * from "temp_sales"
+```
+
+##### Example: Filtering All Branches of a UNION
+
+```typescript
+const query = SelectQueryParser.parse(`
+  WITH sales_transactions AS (
+    SELECT transaction_id, customer_id, amount, transaction_date FROM sales_schema.transactions WHERE transaction_date >= CURRENT_DATE - INTERVAL '90 days'
+  ),
+  support_transactions AS (
+    SELECT support_id AS transaction_id, user_id AS customer_id, fee AS amount, support_date AS transaction_date FROM support_schema.support_fees WHERE support_date >= CURRENT_DATE - INTERVAL '90 days'
+  )
+  SELECT * FROM (
+    SELECT * FROM sales_transactions
+    UNION ALL
+    SELECT * FROM support_transactions
+  ) d
+  ORDER BY transaction_date DESC
+`) as SimpleSelectQuery;
+
+// Add a filter to all upstream queries that provide 'amount'
+query.appendWhereExpr('amount', expr => `${expr} > 100`, { upstream: true });
+
+const sql = new Formatter().format(query);
+console.log(sql);
+// => with "sales_transactions" as (select ... where ... and "amount" > 100),
+//        "support_transactions" as (select ... where ... and "fee" > 100)
+//    select * from (... union all ...) as "d" order by "transaction_date" desc
+```
+
+### appendWhereExpr Use Cases
+
+`appendWhereExpr` is especially useful in the following scenarios:
+
+- **Dynamic Search Conditions for Complex Reports**  
+  Easily inject arbitrary search filters into deeply nested or highly complex queries, such as those used in reporting or analytics dashboards. This enables flexible, user-driven filtering without manual SQL string manipulation.
+
+- **Performance-Critical Query Construction**  
+  Build high-performance queries by programmatically adding WHERE conditions only when needed, ensuring that unnecessary filters are not included and that the generated SQL remains as efficient as possible.
+
+- **Generic Access Control and Security Filters**  
+  Apply reusable access control or security-related WHERE clauses (e.g., tenant isolation, user-based restrictions) across all relevant queries, regardless of their internal structure. This helps enforce consistent data access policies throughout your application.
+
+> [!TIP] 
+> Upstream Query Support is especially useful for large, complex SQL with multiple layers of subqueries, CTEs, or set operations. You can add filters or conditions without worrying about the internal structure—just specify the column name!
+>
+> You can focus on developing and maintaining RawSQL itself, without being bothered by troublesome variable search conditions.
+
+---
+
+### overrideSelectItemExpr
+Overrides a SELECT item using its SQL expression. The callback receives the original SQL expression as a string and returns a new SQL string.
+
+```typescript
+// Override the SELECT item 'journal_date' to use greatest(journal_date, DATE '2025-01-01')
+query.overrideSelectItemExpr('journal_date', expr => `greatest(${expr}, DATE '2025-01-01')`);
+```
 
 ---
 
@@ -129,11 +404,27 @@ A suite of utilities for transforming and analyzing SQL ASTs.
   Consolidates all CTEs into a single root-level WITH clause. Throws an error if duplicate CTE names with different definitions are found.
 - **QueryNormalizer**  
   Converts any SELECT/UNION/VALUES query into a standard SimpleSelectQuery. Handles subquery wrapping and automatic column name generation.
+
+- **QueryBuilder**  
+  Converts any SELECT/UNION/VALUES query into a standard SimpleSelectQuery. Handles subquery wrapping and automatic column name generation.
+  Supports CREATE TABLE ... AS SELECT ... conversion:
+  - `QueryBuilder.buildCreateTableQuery(query, tableName, isTemporary?)` creates a `CreateTableQuery` from any SELECT query.
+  Supports combining multiple queries:
+  - `QueryBuilder.buildBinaryQuery(queries, operator)` combines an array of SelectQuery objects into a single BinarySelectQuery using the specified set operator (e.g., 'union', 'intersect', 'except').
+  Supports INSERT and UPDATE statement generation from SELECT:
+  - `QueryBuilder.buildInsertQuery(selectQuery, tableName)` creates an `InsertQuery` from a `SimpleSelectQuery` and a target table name.  
+    The columns are inferred from the select query. Throws if columns cannot be determined.
+  - `QueryBuilder.buildUpdateQuery(selectQuery, selectSourceName, updateTableExprRaw, primaryKeys)` creates an `UpdateQuery` from a `SimpleSelectQuery`, the source alias, the update target table, and primary key(s).  
+    This generates an UPDATE ... SET ... FROM ... WHERE ... statement using the SELECT as the value source. Throws if PK columns are missing or ambiguous.
+
 - **TableColumnResolver**  
   A function type for resolving column names from a table name, mainly used for wildcard expansion (e.g., `table.*`). Used by analyzers like SelectValueCollector.
   ```typescript
   export type TableColumnResolver = (tableName: string) => string[];
   ```
+
+> [!NOTE]
+> As of version 0.4.0-beta, the class previously named `QueryConverter` has been renamed to `QueryBuilder`, and its methods have been updated for consistency. The new `buildBinaryQuery` method was also introduced, allowing you to combine multiple `SelectQuery` objects into a single set operation query. These are breaking changes. If you were using `QueryConverter` in earlier versions, please update your code to use `QueryBuilder` and the new method names (e.g., `buildCreateTableQuery`, `buildBinaryQuery`).
 
 ---
 
@@ -169,7 +460,9 @@ Select values:
   name: user_name, value: "u"."user_name"
   name: email, value: "u"."email"
 */
+```
 
+```typescript
 // Collects selectable columns from the FROM/JOIN clauses.
 // You can get accurate information by specifying a TableColumnResolver.
 // If omitted, the information will be inferred from the query content.
@@ -190,7 +483,25 @@ Selectable columns:
   name: title, value: "p"."title"
   name: content, value: "p"."content"
 */
+```
 
+```typescript
+// Create Table from SELECT Example
+import { QueryBuilder, SelectQueryParser, Formatter } from 'rawsql-ts';
+
+const select = SelectQueryParser.parse('SELECT id, name FROM users');
+const create = QueryBuilder.buildCreateTableQuery(select, 'my_table');
+const sqlCreate = new Formatter().format(create);
+console.log(sqlCreate);
+// => create table "my_table" as select "id", "name" from "users"
+
+const createTemp = QueryBuilder.buildCreateTableQuery(select, 'tmp_table', true);
+const sqlTemp = new Formatter().format(createTemp);
+console.log(sqlTemp);
+// => create temporary table "tmp_table" as select "id", "name" from "users"
+```
+
+```typescript
 // Retrieves physical table sources.
 const tableSourceCollector = new TableSourceCollector();
 const sources = tableSourceCollector.collect(query);
@@ -269,44 +580,50 @@ Node.js v22.14.0
 
 ### Results
 
-#### Tokens20
-| Method           | Mean      | Error     | StdDev    |
-|------------------|----------:|----------:|----------:|
-| rawsql-ts        | 0.021 ms  | 0.0044 ms | 0.0023 ms |
-| node-sql-parser  | 0.169 ms  | 0.0695 ms | 0.0355 ms |
-| sql-formatter    | 0.208 ms  | 0.0556 ms | 0.0284 ms |
+### Tokens20
+| Method                            | Mean       | Error     | StdDev    | Times slower vs rawsql-ts |
+|---------------------------------- |-----------:|----------:|----------:|--------------------------:|
+| rawsql-ts                      |    0.023 ms |  0.0106 ms |  0.0054 ms |                - |
+| node-sql-parser                |    0.173 ms |  0.0714 ms |  0.0364 ms |             7.5x |
+| sql-parser-cst                 |    0.218 ms |  0.0986 ms |  0.0503 ms |             9.4x |
+| sql-formatter                  |    0.209 ms |  0.0282 ms |  0.0144 ms |             9.1x |
 
-#### Tokens70
-| Method           | Mean      | Error     | StdDev    |
-|------------------|----------:|----------:|----------:|
-| rawsql-ts        | 0.057 ms  | 0.0143 ms | 0.0073 ms |
-| node-sql-parser  | 0.216 ms  | 0.0780 ms | 0.0398 ms |
-| sql-formatter    | 0.512 ms  | 0.1251 ms | 0.0638 ms |
+> [!Note] When the token count is extremely low, `rawsql-ts` becomes disproportionately fast. However, such small queries are rare in real-world scenarios, so this result is excluded from the overall performance summary.
 
-#### Tokens140
-| Method           | Mean      | Error     | StdDev    |
-|------------------|----------:|----------:|----------:|
-| rawsql-ts        | 0.112 ms  | 0.0236 ms | 0.0120 ms |
-| node-sql-parser  | 0.404 ms  | 0.0926 ms | 0.0472 ms |
-| sql-formatter    | 1.004 ms  | 0.3027 ms | 0.1545 ms |
+### Tokens70
+| Method                            | Mean       | Error     | StdDev    | Times slower vs rawsql-ts |
+|---------------------------------- |-----------:|----------:|----------:|--------------------------:|
+| rawsql-ts                      |    0.064 ms |  0.0062 ms |  0.0031 ms |                - |
+| node-sql-parser                |    0.220 ms |  0.0532 ms |  0.0271 ms |             3.4x |
+| sql-parser-cst                 |    0.293 ms |  0.0519 ms |  0.0265 ms |             4.6x |
+| sql-formatter                  |    0.521 ms |  0.0387 ms |  0.0198 ms |             8.1x |
 
-#### Tokens230
-| Method           | Mean      | Error     | StdDev    |
-|------------------|----------:|----------:|----------:|
-| rawsql-ts        | 0.182 ms  | 0.0371 ms | 0.0189 ms |
-| node-sql-parser  | 0.865 ms  | 0.3325 ms | 0.1696 ms |
-| sql-formatter    | 1.696 ms  | 0.2754 ms | 0.1405 ms |
+### Tokens140
+| Method                            | Mean       | Error     | StdDev    | Times slower vs rawsql-ts |
+|---------------------------------- |-----------:|----------:|----------:|--------------------------:|
+| rawsql-ts                      |    0.125 ms |  0.0142 ms |  0.0072 ms |                - |
+| node-sql-parser                |    0.420 ms |  0.0371 ms |  0.0189 ms |             3.4x |
+| sql-parser-cst                 |    0.558 ms |  0.0483 ms |  0.0246 ms |             4.5x |
+| sql-formatter                  |    1.018 ms |  0.0923 ms |  0.0471 ms |             8.2x |
+
+### Tokens230
+| Method                            | Mean       | Error     | StdDev    | Times slower vs rawsql-ts |
+|---------------------------------- |-----------:|----------:|----------:|--------------------------:|
+| rawsql-ts                      |    0.202 ms |  0.0201 ms |  0.0103 ms |                - |
+| node-sql-parser                |    0.868 ms |  0.1625 ms |  0.0829 ms |             4.3x |
+| sql-parser-cst                 |    1.005 ms |  0.1679 ms |  0.0857 ms |             5.0x |
+| sql-formatter                  |    1.771 ms |  0.2276 ms |  0.1161 ms |             8.8x |
 
 ### Performance Summary
 
-- `rawsql-ts` consistently outperforms both `node-sql-parser` and `sql-formatter` in all tested scenarios.
-- Approximately 4x faster than `node-sql-parser`.
-- Approximately 9–10x faster than `sql-formatter`.
-- Maintains high performance even with complex SQL while providing comprehensive features.
+- `rawsql-ts` is consistently the fastest parser in all tested scenarios, outperforming `node-sql-parser`, `sql-parser-cst`, and `sql-formatter`.
+- About 3–4x faster than `node-sql-parser`.
+- About 4–5x faster than `sql-parser-cst`.
+- About 8–9x faster than `sql-formatter`.
+- Maintains high performance even for complex SQL, while providing comprehensive features.
 
 > **Note:** These benchmarks are based on a specific hardware and software environment. Actual performance may vary depending on system configuration and query complexity.
 
 ---
 
 Feel free to try rawsql-ts! Questions, requests, and bug reports are always welcome.
-

@@ -1,6 +1,6 @@
 import { describe, test, expect } from 'vitest';
 import { SelectQueryParser } from '../../src/parsers/SelectQueryParser';
-import { Formatter } from '../../src/transformers/Formatter';
+import { Formatter, ParameterStyle } from '../../src/transformers/Formatter';
 
 const formatter = new Formatter();
 
@@ -175,7 +175,11 @@ describe('SelectQueryParser', () => {
 
         ["WITH multiple CTEs with VALUES and column aliases",
             "with fruits(id, name) as (values (1, 'apple'), (2, 'orange')), vegetables(id, name) as (values (3, 'carrot'), (4, 'potato')) select * from fruits union select * from vegetables",
-            'with "fruits"("id", "name") as (values (1, \'apple\'), (2, \'orange\')), "vegetables"("id", "name") as (values (3, \'carrot\'), (4, \'potato\')) select * from "fruits" union select * from "vegetables"']
+            'with "fruits"("id", "name") as (values (1, \'apple\'), (2, \'orange\')), "vegetables"("id", "name") as (values (3, \'carrot\'), (4, \'potato\')) select * from "fruits" union select * from "vegetables"'],
+
+        ["SELECT with template variable",
+            "select ${name}",
+            'select :name'],
 
     ])('%s', (_, text, expected) => {
         // Parse the query
@@ -215,5 +219,125 @@ describe('SelectQueryParser with VALUES', () => {
 
         // Assert
         expect(sql).toBe('values (1, \'Product A\'), (2, \'Product B\') union all select "id", "name" from "featured_products" order by "name"');
+    });
+});
+
+describe('SelectQueryParser async', () => {
+    test('parseAsync should resolve to same result as parse', async () => {
+        // Arrange
+        const sql = 'select id, name from users where active = TRUE';
+        const expected = 'select "id", "name" from "users" where "active" = true';
+
+        // Act
+        const query = await SelectQueryParser.parseAsync(sql);
+        const formatted = formatter.format(query);
+
+        // Assert
+        expect(formatted).toBe(expected);
+    });
+
+    test('parseAsync should reject on syntax error', async () => {
+        // Arrange
+        const sql = 'select from';
+
+        // Act & Assert
+        await expect(SelectQueryParser.parseAsync(sql)).rejects.toThrow();
+    });
+
+    test('Dialect conversion: Postgres to SQL Server', async () => {
+        // Arrange
+        const sql = 'select "id", "name" from "users" where "id" = :userId';
+        const expected = 'select [id], [name] from [users] where [id] = @userId';
+
+        // Act
+        const query = await SelectQueryParser.parseAsync(sql);
+        const formatted = formatter.format(query, { identifierEscape: { start: '[', end: ']' }, parameterSymbol: '@' });
+
+        // Assert
+        expect(formatted).toBe(expected);
+    });
+
+    test('Dialect conversion: Postgres to MySQL', async () => {
+        // Arrange
+        const sql = 'select "id", "name" from "users" where "id" = :userId';
+        const expected = 'select `id`, `name` from `users` where `id` = ?';
+
+        // Act
+        const query = await SelectQueryParser.parseAsync(sql);
+        const formatted = formatter.format(query, { identifierEscape: { start: '`', end: '`' }, parameterSymbol: '?', parameterStyle: ParameterStyle.Anonymous });
+
+        // Assert
+        expect(formatted).toBe(expected);
+    });
+
+    test('Dialect conversion: Postgres to Variable', async () => {
+        // Arrange
+        const sql = 'select "id", "name" from "users" where "id" = :userId';
+        const expected = 'select "id", "name" from "users" where "id" = ${userId}';
+
+        // Act
+        const query = await SelectQueryParser.parseAsync(sql);
+        // identifierEscape: { start: '"', end: '"' } is applied by default (Postgres style) if omitted
+        const formatted = formatter.format(query, {
+            parameterSymbol: { start: '${', end: '}' },
+        });
+
+        // Assert
+        expect(formatted).toBe(expected);
+    });
+
+    test('Dialect conversion: Postgres to No Escape', async () => {
+        // Arrange
+        const sql = 'select "id", "name" from "users" where "id" = :userId';
+        const expected = 'select id, name from users where id = :userId';
+
+        // Act
+        const query = await SelectQueryParser.parseAsync(sql);
+        const formatted = formatter.format(query, {
+            identifierEscape: { start: '', end: '' },
+            parameterSymbol: ':'
+        });
+
+        // Assert
+        expect(formatted).toBe(expected);
+    });
+
+    test('Dialect conversion: SQL Server to Postgres', async () => {
+        // Arrange
+        const sql = 'select [id], [name] from [users] where [id] = @userId';
+        const expected = 'select "id", "name" from "users" where "id" = :userId';
+
+        // Act
+        const query = await SelectQueryParser.parseAsync(sql);
+        const formatted = formatter.format(query, { identifierEscape: { start: '"', end: '"' }, parameterSymbol: ':' });
+
+        // Assert
+        expect(formatted).toBe(expected);
+    });
+
+    test('Dialect conversion: SQL Server to MySQL', async () => {
+        // Arrange
+        const sql = 'select [id], [name] from [users] where [id] = @userId';
+        const expected = 'select `id`, `name` from `users` where `id` = ?';
+
+        // Act
+        const query = await SelectQueryParser.parseAsync(sql);
+        const formatted = formatter.format(query, { identifierEscape: { start: '`', end: '`' }, parameterSymbol: '?', parameterStyle: ParameterStyle.Anonymous });
+
+        // Assert
+        expect(formatted).toBe(expected);
+    });
+
+    test('Dialect conversion: SQL Server to MySQL (using preset)', async () => {
+        // Arrange
+        const sql = 'select [id], [name] from [users] where [id] = @userId';
+        const expected = 'select `id`, `name` from `users` where `id` = ?';
+
+        // Act
+        const query = await SelectQueryParser.parseAsync(sql);
+        const formatted = formatter.format(query, Formatter.PRESETS.mysql);
+
+        // Assert
+        expect(formatted).toBe(expected);
     });
 });
