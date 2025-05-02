@@ -45,6 +45,7 @@
         "node-sql-parser": "^5.3.8",
         "rawsql-ts": "^0.1.0-beta.10",
         "sql-formatter": "^15.5.2",
+        "sql-parser-cst": "^0.33.1",
         "ts-node": "^10.9.2",
         "typescript": "^5.8.2",
         "vitest": "^1.5.2"

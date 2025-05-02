@@ -1,5 +1,8 @@
 ﻿import { KeywordMatchResult } from "../parsers/KeywordParser";
 
+// Note: An object-based trie (string-keyed object) was tested, but benchmark results showed no improvement and sometimes worse performance for long queries.
+// Therefore, the original Map-based implementation is retained for best stability and speed.
+
 export class KeywordTrie {
     private root: Map<string, any> = new Map();
     private currentNode: Map<string, any>;

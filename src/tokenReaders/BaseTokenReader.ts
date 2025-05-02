@@ -49,11 +49,11 @@ export abstract class BaseTokenReader {
             throw new Error(`Unexpected character. expect: ${expectChar}, actual: EndOfInput, position: ${this.position}`);
         }
 
-        if (this.input[this.position] !== expectChar) {
-            throw new Error(`Unexpected character. expect: ${expectChar}, actual: ${this.input[this.position]}, position: ${this.position}`);
+        const char = this.input[this.position];
+        if (char !== expectChar) {
+            throw new Error(`Unexpected character. expect: ${expectChar}, actual: ${char}, position: ${this.position}`);
         }
 
-        const char = this.input[this.position];
         this.position++;
         return char;
     }
