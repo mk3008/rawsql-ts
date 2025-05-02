@@ -39,8 +39,8 @@ test('SelectQuery', () => {
     const sql = formatter.format(new SimpleSelectQuery(
         null,
         new SelectClause([
-            new ColumnReference(['a'], 'id'),
-            new ColumnReference(['a'], 'value'),
+            new SelectItem(new ColumnReference(['a'], 'id')),
+            new SelectItem(new ColumnReference(['a'], 'value')),
         ]),
         null,
         null,

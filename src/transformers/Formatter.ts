@@ -539,8 +539,7 @@ export class Formatter implements SqlComponentVisitor<string> {
 
     private visitSelectClause(arg: SelectClause): string {
         const distinct = arg.distinct !== null ? " " + arg.distinct.accept(this) : "";
-        // Directly call visitSelectItemExpression for each SelectItem (faster than visitor indirection)
-        const colum = arg.items.map((e) => this.visitSelectItemExpression(e)).join(", ");
+        const colum = arg.items.map((e) => e.accept(this)).join(", ");
         return `select${distinct} ${colum}`;
     }
 
