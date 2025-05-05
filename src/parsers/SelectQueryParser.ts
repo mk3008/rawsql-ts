@@ -160,10 +160,10 @@ export class SelectQueryParser {
         }
 
         // Parse LIMIT clause (optional)
-        let limitClausResult = null;
+        let limitClauseResult = null;
         if (idx < lexemes.length && lexemes[idx].value === 'limit') {
-            limitClausResult = LimitClauseParser.parseFromLexeme(lexemes, idx);
-            idx = limitClausResult.newIndex;
+            limitClauseResult = LimitClauseParser.parseFromLexeme(lexemes, idx);
+            idx = limitClauseResult.newIndex;
         }
 
         // Parse OFFSET clause (optional)
@@ -197,7 +197,7 @@ export class SelectQueryParser {
             havingClause: havingClauseResult ? havingClauseResult.value : null,
             orderByClause: orderByClauseResult ? orderByClauseResult.value : null,
             windowsClause: windowClauseResult ? windowClauseResult.value : null,
-            limitClause: limitClausResult ? limitClausResult.value : null,
+            limitClause: limitClauseResult ? limitClauseResult.value : null,
             offsetClause: offsetClausResult ? offsetClausResult.value : null,
             fetchClause: fetchClauseResult ? fetchClauseResult.value : null,
             forClause: forClauseResult ? forClauseResult.value : null
