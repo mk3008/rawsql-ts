@@ -27,7 +27,7 @@ import {
     InlineQuery,
     TupleExpression
 } from "../models/ValueComponent";
-import { CommonTable, Distinct, DistinctOn, FetchSpecification, FetchType, ForClause, FromClause, FunctionSource, GroupByClause, HavingClause, InsertClause, JoinClause, JoinOnClause, JoinUsingClause, LimitClause, NullsSortDirection, OrderByClause, OrderByItem, PartitionByClause, ReturningClause, SelectClause, SelectItem, SetClause, SetClauseItem, SortDirection, SourceAliasExpression, SourceExpression, SubQuerySource, TableSource, UpdateClause, WhereClause, WindowFrameClause, WithClause } from "../models/Clause";
+import { CommonTable, Distinct, DistinctOn, FetchExpression, FetchClause, FetchType, ForClause, FromClause, FunctionSource, GroupByClause, HavingClause, InsertClause, JoinClause, JoinOnClause, JoinUsingClause, LimitClause, NullsSortDirection, OffsetClause, OrderByClause, OrderByItem, PartitionByClause, ReturningClause, SelectClause, SelectItem, SetClause, SetClauseItem, SortDirection, SourceAliasExpression, SourceExpression, SubQuerySource, TableSource, UpdateClause, WhereClause, WindowFrameClause, WindowsClause, WithClause } from "../models/Clause";
 import { CreateTableQuery } from "../models/CreateTableQuery";
 import { InsertQuery } from "../models/InsertQuery";
 import { UpdateQuery } from "../models/UpdateQuery";
@@ -138,6 +138,7 @@ export class Formatter implements SqlComponentVisitor<string> {
         this.handlers.set(PartitionByClause.kind, (expr) => this.visitPartitionByClause(expr as PartitionByClause));
 
         // window frame
+        this.handlers.set(WindowsClause.kind, (expr) => this.visitWindowsClause(expr as WindowsClause));
         this.handlers.set(WindowFrameExpression.kind, (expr) => this.visitWindowFrameExpression(expr as WindowFrameExpression));
         this.handlers.set(WindowFrameSpec.kind, (arg) => this.visitWindowFrameSpec(arg));
         this.handlers.set(WindowFrameBoundStatic.kind, (arg) => this.visitWindowFrameBoundStatic(arg as WindowFrameBoundStatic));
@@ -161,7 +162,9 @@ export class Formatter implements SqlComponentVisitor<string> {
 
         // row limit
         this.handlers.set(LimitClause.kind, (expr) => this.visitLimitClause(expr as LimitClause));
-        this.handlers.set(FetchSpecification.kind, (expr) => this.visitFetchSpecification(expr as FetchSpecification));
+        this.handlers.set(OffsetClause.kind, (expr) => this.visitOffsetClause(expr as OffsetClause));
+        this.handlers.set(FetchClause.kind, (expr) => this.visitFetchClause(expr as FetchClause));
+        this.handlers.set(FetchExpression.kind, (expr) => this.visitFetchExpression(expr as FetchExpression));
 
         // for clause
         this.handlers.set(ForClause.kind, (expr) => this.visitForClause(expr as ForClause));
@@ -569,16 +572,24 @@ export class Formatter implements SqlComponentVisitor<string> {
             parts.push(arg.havingClause.accept(this));
         }
 
-        if (arg.windowFrameClause !== null) {
-            parts.push(arg.windowFrameClause.accept(this));
+        if (arg.windowsClause !== null) {
+            parts.push(arg.windowsClause.accept(this));
         }
 
         if (arg.orderByClause !== null) {
             parts.push(arg.orderByClause.accept(this));
         }
 
-        if (arg.rowLimitClause !== null) {
-            parts.push(arg.rowLimitClause.accept(this));
+        if (arg.limitClause !== null) {
+            parts.push(arg.limitClause.accept(this));
+        }
+
+        if (arg.offsetClause !== null) {
+            parts.push(arg.offsetClause.accept(this));
+        }
+
+        if (arg.fetchClause !== null) {
+            parts.push(arg.fetchClause.accept(this));
         }
 
         if (arg.forClause !== null) {
@@ -637,26 +648,36 @@ export class Formatter implements SqlComponentVisitor<string> {
         return arg.value.accept(this);
     }
 
+    private visitWindowsClause(arg: WindowsClause): string {
+        const part = arg.windows.map((e) => e.accept(this)).join(", ");
+        return `window ${part}`;
+    }
+
+
     private visitWindowFrameClause(arg: WindowFrameClause): string {
         const partExpr = arg.expression.accept(this);
-        return `window ${arg.name.accept(this)} as ${partExpr}`;
+        return `${arg.name.accept(this)} as ${partExpr}`;
     }
 
     private visitLimitClause(arg: LimitClause): string {
-        if (arg.offset !== null) {
-            return `limit ${arg.limit.accept(this)} offset ${arg.offset.accept(this)}`;
-        }
-        return `limit ${arg.limit.accept(this)}`;
+        return `limit ${arg.value.accept(this)}`;
     }
 
-    private visitFetchSpecification(arg: FetchSpecification): string {
+    private visitOffsetClause(arg: OffsetClause): string {
+        return `offset ${arg.value.accept(this)}`;
+    }
+
+    private visitFetchClause(arg: FetchClause): string {
+        return `fetch ${arg.expression.accept(this)}`;
+    }
+
+    private visitFetchExpression(arg: FetchExpression): string {
         const type = arg.type === FetchType.First ? 'first' : 'next';
         const count = arg.count.accept(this);
-
         if (arg.unit !== null) {
-            return `fetch ${type} ${count} ${arg.unit}`;
+            return `${type} ${count} ${arg.unit}`;
         }
-        return `fetch ${type} ${count}`;
+        return `${type} ${count}`;
     }
 
     private visitForClause(arg: ForClause): string {

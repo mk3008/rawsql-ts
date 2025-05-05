@@ -1,4 +1,4 @@
-import { CommonTable, ForClause, FromClause, GroupByClause, HavingClause, JoinClause, JoinOnClause, JoinUsingClause, LimitClause, OrderByClause, OrderByItem, ParenSource, PartitionByClause, SelectClause, SelectItem, SourceExpression, SubQuerySource, TableSource, WhereClause, WindowFrameClause, WithClause } from "../models/Clause";
+import { CommonTable, ForClause, FromClause, GroupByClause, HavingClause, JoinClause, JoinOnClause, JoinUsingClause, LimitClause, OrderByClause, OrderByItem, ParenSource, PartitionByClause, SelectClause, SelectItem, SourceExpression, SubQuerySource, TableSource, WhereClause, WindowFrameClause, WindowsClause, WithClause } from "../models/Clause";
 import { BinarySelectQuery, SimpleSelectQuery, SelectQuery, ValuesQuery } from "../models/SelectQuery";
 import { SqlComponent, SqlComponentVisitor } from "../models/SqlComponent";
 import {
@@ -195,12 +195,14 @@ export class CTECollector implements SqlComponentVisitor<void> {
             query.orderByClause.accept(this);
         }
 
-        if (query.windowFrameClause) {
-            query.windowFrameClause.accept(this);
+        if (query.windowsClause) {
+            for (const win of query.windowsClause.windows) {
+                win.accept(this);
+            }
         }
 
-        if (query.rowLimitClause) {
-            query.rowLimitClause.accept(this);
+        if (query.limitClause) {
+            query.limitClause.accept(this);
         }
 
         if (query.forClause) {
@@ -215,6 +217,7 @@ export class CTECollector implements SqlComponentVisitor<void> {
         if (query.WithClause) {
             query.WithClause.accept(this);
         }
+
     }
 
     private visitBinarySelectQuery(query: BinarySelectQuery): void {
@@ -337,10 +340,7 @@ export class CTECollector implements SqlComponentVisitor<void> {
     }
 
     private visitLimitClause(clause: LimitClause): void {
-        clause.limit.accept(this);
-        if (clause.offset) {
-            clause.offset.accept(this);
-        }
+        clause.value.accept(this);
     }
 
     private visitForClause(clause: ForClause): void {

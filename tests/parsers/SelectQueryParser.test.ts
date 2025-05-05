@@ -1,3 +1,4 @@
+// --- FETCH句のテストケースは下のtest.each配列に追加するよ！ ---
 import { describe, test, expect } from 'vitest';
 import { SelectQueryParser } from '../../src/parsers/SelectQueryParser';
 import { Formatter, ParameterStyle } from '../../src/transformers/Formatter';
@@ -180,6 +181,27 @@ describe('SelectQueryParser', () => {
         ["SELECT with template variable",
             "select ${name}",
             'select :name'],
+
+
+        ["SELECT with FETCH FIRST ROW ONLY",
+            "select id, name from users fetch first row only",
+            'select "id", "name" from "users" fetch first 1 rows only'],
+
+        ["SELECT with FETCH NEXT 5 ROWS ONLY",
+            "select * from products fetch next 5 rows only",
+            'select * from "products" fetch next 5 rows only'],
+
+        ["SELECT with ORDER BY and FETCH",
+            "select id, name from users order by id fetch first 10 rows only",
+            'select "id", "name" from "users" order by "id" fetch first 10 rows only'],
+
+        ["SELECT with OFFSET and FETCH",
+            "select * from logs offset 20 rows fetch next 10 rows only",
+            'select * from "logs" offset 20 fetch next 10 rows only'],
+
+        ["SELECT with multiple named WINDOW clauses",
+            "select id, value, avg(value) over w1, sum(value) over w2 from measurements window w1 as (partition by id), w2 as (order by value)",
+            'select "id", "value", avg("value") over "w1", sum("value") over "w2" from "measurements" window "w1" as (partition by "id"), "w2" as (order by "value")'],
 
     ])('%s', (_, text, expected) => {
         // Parse the query

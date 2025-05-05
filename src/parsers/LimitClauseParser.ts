@@ -37,23 +37,7 @@ export class LimitClauseParser {
         const limitItem = ValueParser.parseFromLexeme(lexemes, idx);
         idx = limitItem.newIndex;
 
-        let offsetItem = null;
-
-        // Check if there is an OFFSET clause
-        if (idx < lexemes.length && lexemes[idx].value === 'offset') {
-            idx++;
-
-            if (idx >= lexemes.length) {
-                throw new Error(`Syntax error: Unexpected end of input after 'OFFSET' keyword. The OFFSET clause requires a numeric expression.`);
-            }
-
-            // Parse OFFSET value
-            const offsetValueItem = ValueParser.parseFromLexeme(lexemes, idx);
-            offsetItem = offsetValueItem.value;
-            idx = offsetValueItem.newIndex;
-        }
-
-        const clause = new LimitClause(limitItem.value, offsetItem);
+        const clause = new LimitClause(limitItem.value);
 
         return { value: clause, newIndex: idx };
     }

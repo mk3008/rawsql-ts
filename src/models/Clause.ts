@@ -72,6 +72,19 @@ export class WindowFrameClause extends SqlComponent {
     }
 }
 
+/**
+ * Represents a collection of window definitions (WINDOW clause in SQL).
+ * @param windows Array of WindowFrameClause
+ */
+export class WindowsClause extends SqlComponent {
+    static kind = Symbol("WindowsClause");
+    windows: WindowFrameClause[];
+    constructor(windows: WindowFrameClause[]) {
+        super();
+        this.windows = windows;
+    }
+}
+
 export enum SortDirection {
     Ascending = "asc",
     Descending = "desc",
@@ -312,16 +325,12 @@ export class WithClause extends SqlComponent {
     }
 }
 
-//export type RowLimitComponent = LimitOffset | FetchSpecification;
-
 export class LimitClause extends SqlComponent {
     static kind = Symbol("LimitClause");
-    limit: ValueComponent;
-    offset: ValueComponent | null;
-    constructor(limit: ValueComponent, offset: ValueComponent | null) {
+    value: ValueComponent;
+    constructor(limit: ValueComponent) {
         super();
-        this.limit = limit;
-        this.offset = offset;
+        this.value = limit;
     }
 }
 
@@ -336,8 +345,27 @@ export enum FetchUnit {
     PercentWithTies = "percent with ties",
 }
 
-export class FetchSpecification extends SqlComponent {
-    static kind = Symbol("FetchSpecification");
+
+export class OffsetClause extends SqlComponent {
+    static kind = Symbol("OffsetClause");
+    value: ValueComponent;
+    constructor(value: ValueComponent) {
+        super();
+        this.value = value;
+    }
+}
+
+export class FetchClause extends SqlComponent {
+    static kind = Symbol("FetchClause");
+    expression: FetchExpression;
+    constructor(expression: FetchExpression) {
+        super();
+        this.expression = expression;
+    }
+}
+
+export class FetchExpression extends SqlComponent {
+    static kind = Symbol("FetchExpression");
     type: FetchType;
     count: ValueComponent;
     unit: FetchUnit | null;

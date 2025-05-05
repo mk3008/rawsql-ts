@@ -81,16 +81,10 @@ export class QueryBuilder {
 
         // Create the final simple select query
         const q = new SimpleSelectQuery(
-            null, // No WITH clause
-            selectClause,
-            fromClause,
-            null, // No WHERE
-            null, // No GROUP BY
-            null, // No HAVING
-            null, // No ORDER BY
-            null, // No WINDOW
-            null, // No LIMIT
-            null  // No FOR
+            {
+                selectClause,
+                fromClause
+            }
         );
 
         return CTENormalizer.normalize(q) as SimpleSelectQuery;
@@ -132,16 +126,10 @@ export class QueryBuilder {
 
         // Create the final simple select query
         return new SimpleSelectQuery(
-            null, // No WITH clause
-            selectClause,
-            fromClause,
-            null, // No WHERE
-            null, // No GROUP BY
-            null, // No HAVING
-            null, // No ORDER BY
-            null, // No WINDOW
-            null, // No LIMIT
-            null  // No FOR
+            {
+                selectClause,
+                fromClause
+            }
         );
     }
 

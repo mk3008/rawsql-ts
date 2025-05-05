@@ -42,49 +42,33 @@ export class CreateTableQuery extends SqlComponent {
             // fallback: wildcard
             selectItems = [new SelectItem(new RawString("*"))];
         }
-        return new SimpleSelectQuery(
-            null, // withClause
-            new SelectClause(selectItems),
-            new FromClause(
+        return new SimpleSelectQuery({
+            selectClause: new SelectClause(selectItems),
+            fromClause: new FromClause(
                 new SourceExpression(
                     new TableSource(null, this.tableName.name),
                     null
                 ),
                 null // joins
             ),
-            null, // whereClause
-            null, // groupByClause
-            null, // havingClause
-            null, // orderByClause
-            null, // windowFrameClause
-            null, // rowLimitClause
-            null  // forClause
-        );
+        });
     }
 
     /**
      * Returns a SelectQuery that counts all rows in this table.
      */
     getCountQuery(): SimpleSelectQuery {
-        return new SimpleSelectQuery(
-            null, // withClause
-            new SelectClause([
+        return new SimpleSelectQuery({
+            selectClause: new SelectClause([
                 new SelectItem(new FunctionCall(null, "count", new ColumnReference(null, "*"), null))
             ]),
-            new FromClause(
+            fromClause: new FromClause(
                 new SourceExpression(
                     new TableSource(null, this.tableName.name),
                     null
                 ),
                 null // joins
             ),
-            null, // whereClause
-            null, // groupByClause
-            null, // havingClause
-            null, // orderByClause
-            null, // windowFrameClause
-            null, // rowLimitClause
-            null  // forClause
-        );
+        });
     }
 }

@@ -36,19 +36,11 @@ test('BinaryExpression', () => {
 
 test('SelectQuery', () => {
     const formatter = new Formatter();
-    const sql = formatter.format(new SimpleSelectQuery(
-        null,
-        new SelectClause([
+    const sql = formatter.format(new SimpleSelectQuery({
+        selectClause: new SelectClause([
             new SelectItem(new ColumnReference(['a'], 'id')),
             new SelectItem(new ColumnReference(['a'], 'value')),
         ]),
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null));
+    }));
     expect(sql).toBe('select "a"."id", "a"."value"');
 });
