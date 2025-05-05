@@ -70,8 +70,8 @@ export class TableSourceCollector implements SqlComponentVisitor<void> {
             this.handlers.set(OrderByClause.kind, (expr) => this.visitOrderByClause(expr as OrderByClause));
             this.handlers.set(WindowFrameClause.kind, (expr) => this.visitWindowFrameClause(expr as WindowFrameClause));
             this.handlers.set(LimitClause.kind, (expr) => this.visitLimitClause(expr as LimitClause));
-            this.handlers.set(OffsetClause.kind, (expr) => this.visitOffsetClause(expr as any));
-            this.handlers.set(FetchClause.kind, (expr) => this.visitFetchClause(expr as any));
+            this.handlers.set(OffsetClause.kind, (expr) => this.visitOffsetClause(expr as OffsetClause));
+            this.handlers.set(FetchClause.kind, (expr) => this.visitFetchClause(expr as FetchClause));
             this.handlers.set(ForClause.kind, (expr) => this.visitForClause(expr as ForClause));
             this.handlers.set(OrderByItem.kind, (expr) => this.visitOrderByItem(expr as OrderByItem));
             this.handlers.set(SelectClause.kind, (expr) => this.visitSelectClause(expr as SelectClause));
