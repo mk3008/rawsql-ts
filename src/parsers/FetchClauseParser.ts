@@ -1,5 +1,5 @@
 import { off } from "process";
-import { FetchClause, FetchType, FetchUnit, FecthExpression } from "../models/Clause";
+import { FetchClause, FetchType, FetchUnit, FetchExpression } from "../models/Clause";
 import { Lexeme } from "../models/Lexeme";
 import { LiteralValue, ValueComponent } from "../models/ValueComponent";
 import { ValueParser } from "./ValueParser";
@@ -22,7 +22,7 @@ export class FetchClauseParser {
             throw new Error(`Syntax error: Unexpected end of input after 'FETCH' keyword.`);
         }
 
-        const fetchExprResult = FecthExpressionParser.parseFromLexeme(lexemes, idx);
+        const fetchExprResult = FetchExpressionParser.parseFromLexeme(lexemes, idx);
         const fetchExpr = fetchExprResult.value;
         idx = fetchExprResult.newIndex;
 
@@ -30,12 +30,12 @@ export class FetchClauseParser {
     }
 }
 
-// FecthExpressionParser: parses FETCH [FIRST|NEXT] <count> ROWS ONLY ...
-export class FecthExpressionParser {
+// FetchExpressionParser: parses FETCH [FIRST|NEXT] <count> ROWS ONLY ...
+export class FetchExpressionParser {
     /**
      * Parses a FETCH expression (not the whole clause, just the fetch part)
      */
-    public static parseFromLexeme(lexemes: Lexeme[], index: number): { value: FecthExpression; newIndex: number } {
+    public static parseFromLexeme(lexemes: Lexeme[], index: number): { value: FetchExpression; newIndex: number } {
         let idx = index;
         let type: FetchType;
         const typeToken = lexemes[idx].value;
@@ -59,7 +59,7 @@ export class FecthExpressionParser {
             count = new LiteralValue(1);
             unit = FetchUnit.RowsOnly;
             idx++;
-            return { value: new FecthExpression(type, count, unit), newIndex: idx };
+            return { value: new FetchExpression(type, count, unit), newIndex: idx };
         }
 
         // <count>
@@ -84,6 +84,6 @@ export class FecthExpressionParser {
         if (!unit) {
             throw new Error(`Syntax error: Expected 'ROWS ONLY', 'PERCENT', or 'PERCENT WITH TIES' after 'FETCH FIRST|NEXT <count>'.`);
         }
-        return { value: new FecthExpression(type, count, unit), newIndex: idx };
+        return { value: new FetchExpression(type, count, unit), newIndex: idx };
     }
 }

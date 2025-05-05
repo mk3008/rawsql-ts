@@ -27,7 +27,7 @@ import {
     InlineQuery,
     TupleExpression
 } from "../models/ValueComponent";
-import { CommonTable, Distinct, DistinctOn, FecthExpression, FetchClause, FetchType, ForClause, FromClause, FunctionSource, GroupByClause, HavingClause, InsertClause, JoinClause, JoinOnClause, JoinUsingClause, LimitClause, NullsSortDirection, OffsetClause, OrderByClause, OrderByItem, PartitionByClause, ReturningClause, SelectClause, SelectItem, SetClause, SetClauseItem, SortDirection, SourceAliasExpression, SourceExpression, SubQuerySource, TableSource, UpdateClause, WhereClause, WindowFrameClause, WindowsClause, WithClause } from "../models/Clause";
+import { CommonTable, Distinct, DistinctOn, FetchExpression, FetchClause, FetchType, ForClause, FromClause, FunctionSource, GroupByClause, HavingClause, InsertClause, JoinClause, JoinOnClause, JoinUsingClause, LimitClause, NullsSortDirection, OffsetClause, OrderByClause, OrderByItem, PartitionByClause, ReturningClause, SelectClause, SelectItem, SetClause, SetClauseItem, SortDirection, SourceAliasExpression, SourceExpression, SubQuerySource, TableSource, UpdateClause, WhereClause, WindowFrameClause, WindowsClause, WithClause } from "../models/Clause";
 import { CreateTableQuery } from "../models/CreateTableQuery";
 import { InsertQuery } from "../models/InsertQuery";
 import { UpdateQuery } from "../models/UpdateQuery";
@@ -164,7 +164,7 @@ export class Formatter implements SqlComponentVisitor<string> {
         this.handlers.set(LimitClause.kind, (expr) => this.visitLimitClause(expr as LimitClause));
         this.handlers.set(OffsetClause.kind, (expr) => this.visitOffsetClause(expr as OffsetClause));
         this.handlers.set(FetchClause.kind, (expr) => this.visitFetchClause(expr as FetchClause));
-        this.handlers.set(FecthExpression.kind, (expr) => this.visitFecthExpression(expr as FecthExpression));
+        this.handlers.set(FetchExpression.kind, (expr) => this.visitFetchExpression(expr as FetchExpression));
 
         // for clause
         this.handlers.set(ForClause.kind, (expr) => this.visitForClause(expr as ForClause));
@@ -671,8 +671,7 @@ export class Formatter implements SqlComponentVisitor<string> {
         return `fetch ${arg.expression.accept(this)}`;
     }
 
-    private visitFecthExpression(arg: any): string {
-        // arg: FecthExpression
+    private visitFetchExpression(arg: FetchExpression): string {
         const type = arg.type === FetchType.First ? 'first' : 'next';
         const count = arg.count.accept(this);
         if (arg.unit !== null) {

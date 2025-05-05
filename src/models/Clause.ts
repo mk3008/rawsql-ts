@@ -357,15 +357,15 @@ export class OffsetClause extends SqlComponent {
 
 export class FetchClause extends SqlComponent {
     static kind = Symbol("FetchClause");
-    expression: FecthExpression;
-    constructor(expression: FecthExpression) {
+    expression: FetchExpression;
+    constructor(expression: FetchExpression) {
         super();
         this.expression = expression;
     }
 }
 
-export class FecthExpression extends SqlComponent {
-    static kind = Symbol("FecthExpression");
+export class FetchExpression extends SqlComponent {
+    static kind = Symbol("FetchExpression");
     type: FetchType;
     count: ValueComponent;
     unit: FetchUnit | null;
