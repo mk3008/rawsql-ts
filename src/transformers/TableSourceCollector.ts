@@ -1,4 +1,4 @@
-import { CommonTable, ForClause, FromClause, GroupByClause, HavingClause, JoinClause, JoinOnClause, JoinUsingClause, LimitClause, OrderByClause, OrderByItem, ParenSource, PartitionByClause, SelectClause, SelectItem, SourceExpression, SubQuerySource, TableSource, WhereClause, WindowFrameClause, WithClause } from "../models/Clause";
+import { CommonTable, ForClause, FromClause, GroupByClause, HavingClause, JoinClause, JoinOnClause, JoinUsingClause, LimitClause, OrderByClause, OrderByItem, ParenSource, PartitionByClause, SelectClause, SelectItem, SourceExpression, SubQuerySource, TableSource, WhereClause, WindowFrameClause, WindowsClause, WithClause } from "../models/Clause";
 import { BinarySelectQuery, SelectQuery, SimpleSelectQuery, ValuesQuery } from "../models/SelectQuery";
 import { SqlComponent, SqlComponentVisitor } from "../models/SqlComponent";
 import {
@@ -216,8 +216,10 @@ export class TableSourceCollector implements SqlComponentVisitor<void> {
                 query.orderByClause.accept(this);
             }
 
-            if (query.windowFrameClause) {
-                query.windowFrameClause.accept(this);
+            if (query.windowsClause) {
+                for (const win of query.windowsClause.windows) {
+                    win.accept(this);
+                }
             }
 
             if (query.rowLimitClause) {

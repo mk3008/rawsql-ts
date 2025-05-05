@@ -42,6 +42,12 @@ const keywordTrie = new KeywordTrie([
     ["order", "by"],
     ["limit"],
     ["offset"],
+    ["fetch"],
+    ["first"],
+    ["next"],
+    ["rows", "only"],
+    ["percent"],
+    ["percent", "with", "ties"],
     // for
     ["for"],
     ["update"],

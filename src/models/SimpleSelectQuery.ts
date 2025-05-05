@@ -1,5 +1,5 @@
 import { SqlComponent } from "./SqlComponent";
-import { ForClause, FromClause, GroupByClause, HavingClause, JoinClause, JoinOnClause, LimitClause, OrderByClause, SelectClause, SourceExpression, SubQuerySource, SourceAliasExpression, WhereClause, WindowFrameClause, WithClause, CommonTable } from "./Clause";
+import { ForClause, FromClause, GroupByClause, HavingClause, JoinClause, JoinOnClause, LimitClause, OrderByClause, SelectClause, SourceExpression, SubQuerySource, SourceAliasExpression, WhereClause, WindowFrameClause, WindowsClause, WithClause, CommonTable, RowLimitClause } from "./Clause";
 import { BinaryExpression, ColumnReference, ValueComponent } from "./ValueComponent";
 import { ValueParser } from "../parsers/ValueParser";
 import { CTENormalizer } from "../transformers/CTENormalizer";
@@ -28,8 +28,8 @@ export class SimpleSelectQuery extends SqlComponent implements SelectQuery {
     groupByClause: GroupByClause | null;
     havingClause: HavingClause | null;
     orderByClause: OrderByClause | null;
-    windowFrameClause: WindowFrameClause | null;
-    rowLimitClause: LimitClause | null;
+    windowsClause: WindowsClause | null;
+    rowLimitClause: RowLimitClause | null;
     forClause: ForClause | null;
 
     constructor(
@@ -40,8 +40,8 @@ export class SimpleSelectQuery extends SqlComponent implements SelectQuery {
         groupByClause: GroupByClause | null,
         havingClause: HavingClause | null,
         orderByClause: OrderByClause | null,
-        windowFrameClause: WindowFrameClause | null,
-        rowLimitClause: LimitClause | null,
+        windowsClause: WindowsClause | null,
+        rowLimitClause: RowLimitClause | null,
         forClause: ForClause | null
     ) {
         super();
@@ -52,7 +52,7 @@ export class SimpleSelectQuery extends SqlComponent implements SelectQuery {
         this.groupByClause = groupByClause;
         this.havingClause = havingClause;
         this.orderByClause = orderByClause;
-        this.windowFrameClause = windowFrameClause;
+        this.windowsClause = windowsClause;
         this.rowLimitClause = rowLimitClause;
         this.forClause = forClause;
     }
@@ -385,7 +385,7 @@ export class SimpleSelectQuery extends SqlComponent implements SelectQuery {
         }
         const item = items[0];
         const formatter = new Formatter();
-        const exprSql = formatter.visit(item.value);
+        const exprSql = formatter.visit(item.value).join("\n");
         const newValue = fn(exprSql);
         item.value = ValueParser.parse(newValue);
     }

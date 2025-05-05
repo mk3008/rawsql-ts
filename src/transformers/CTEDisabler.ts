@@ -1,4 +1,4 @@
-import { CommonTable, ForClause, FromClause, GroupByClause, HavingClause, JoinClause, JoinConditionComponent, JoinOnClause, JoinUsingClause, LimitClause, OrderByClause, OrderByComponent, OrderByItem, ParenSource, PartitionByClause, SelectClause, SelectItem, SourceAliasExpression, SourceComponent, SourceExpression, SubQuerySource, TableSource, WhereClause, WindowFrameClause, WithClause } from "../models/Clause";
+import { CommonTable, ForClause, FromClause, GroupByClause, HavingClause, JoinClause, JoinConditionComponent, JoinOnClause, JoinUsingClause, LimitClause, OrderByClause, OrderByComponent, OrderByItem, ParenSource, PartitionByClause, SelectClause, SelectItem, SourceAliasExpression, SourceComponent, SourceExpression, SubQuerySource, TableSource, WhereClause, WindowFrameClause, WindowsClause, WithClause } from "../models/Clause";
 import { BinarySelectQuery, SimpleSelectQuery, SelectQuery, ValuesQuery } from "../models/SelectQuery";
 import { SqlComponent, SqlComponentVisitor } from "../models/SqlComponent";
 import {
@@ -167,7 +167,9 @@ export class CTEDisabler implements SqlComponentVisitor<SqlComponent> {
         arg.groupByClause = arg.groupByClause ? this.visit(arg.groupByClause) as GroupByClause : null;
         arg.havingClause = arg.havingClause ? this.visit(arg.havingClause) as HavingClause : null;
         arg.orderByClause = arg.orderByClause ? this.visit(arg.orderByClause) as OrderByClause : null;
-        arg.windowFrameClause = arg.windowFrameClause ? this.visit(arg.windowFrameClause) as WindowFrameClause : null;
+        if (arg.windowsClause) {
+            arg.windowsClause = new WindowsClause(arg.windowsClause.windows.map(w => this.visit(w) as WindowFrameClause));
+        }
         arg.rowLimitClause = arg.rowLimitClause ? this.visit(arg.rowLimitClause) as LimitClause : null;
         arg.forClause = arg.forClause ? this.visit(arg.forClause) as ForClause : null;
         return arg;

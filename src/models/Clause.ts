@@ -72,6 +72,19 @@ export class WindowFrameClause extends SqlComponent {
     }
 }
 
+/**
+ * Represents a collection of window definitions (WINDOW clause in SQL).
+ * @param windows Array of WindowFrameClause
+ */
+export class WindowsClause extends SqlComponent {
+    static kind = Symbol("WindowsClause");
+    windows: WindowFrameClause[];
+    constructor(windows: WindowFrameClause[]) {
+        super();
+        this.windows = windows;
+    }
+}
+
 export enum SortDirection {
     Ascending = "asc",
     Descending = "desc",
@@ -312,7 +325,7 @@ export class WithClause extends SqlComponent {
     }
 }
 
-//export type RowLimitComponent = LimitOffset | FetchSpecification;
+export type RowLimitClause = LimitClause | FetchClause;
 
 export class LimitClause extends SqlComponent {
     static kind = Symbol("LimitClause");
@@ -336,7 +349,7 @@ export enum FetchUnit {
     PercentWithTies = "percent with ties",
 }
 
-export class FetchSpecification extends SqlComponent {
+export class FetchClause extends SqlComponent {
     static kind = Symbol("FetchSpecification");
     type: FetchType;
     count: ValueComponent;
