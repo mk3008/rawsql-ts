@@ -12,6 +12,8 @@ import { ForClauseParser } from "./ForClauseParser";
 import { SqlTokenizer } from "./SqlTokenizer";
 import { WithClauseParser } from "./WithClauseParser";
 import { ValuesQueryParser } from "./ValuesQueryParser";
+import { FetchClauseParser } from "./FetchClauseParser";
+import { OffsetClauseParser } from "./OffsetClauseParser";
 
 export class SelectQueryParser {
     // Parse SQL string to AST (was: parse)
@@ -102,13 +104,13 @@ export class SelectQueryParser {
         let withClauseResult = null;
 
         // Parse optional WITH clause
-        if (idx < lexemes.length && lexemes[idx].value.toLowerCase() === 'with') {
+        if (idx < lexemes.length && lexemes[idx].value === 'with') {
             withClauseResult = WithClauseParser.parseFromLexeme(lexemes, idx);
             idx = withClauseResult.newIndex;
         }
 
         // Parse SELECT clause (required)
-        if (idx >= lexemes.length || lexemes[idx].value.toLowerCase() !== 'select') {
+        if (idx >= lexemes.length || lexemes[idx].value !== 'select') {
             throw new Error(`Syntax error at position ${idx}: Expected 'SELECT' keyword but found "${idx < lexemes.length ? lexemes[idx].value : 'end of input'}". SELECT queries must start with the SELECT keyword.`);
         }
 
@@ -117,51 +119,65 @@ export class SelectQueryParser {
 
         // Parse FROM clause (optional)
         let fromClauseResult = null;
-        if (idx < lexemes.length && lexemes[idx].value.toLowerCase() === 'from') {
+        if (idx < lexemes.length && lexemes[idx].value === 'from') {
             fromClauseResult = FromClauseParser.parseFromLexeme(lexemes, idx);
             idx = fromClauseResult.newIndex;
         }
 
         // Parse WHERE clause (optional)
         let whereClauseResult = null;
-        if (idx < lexemes.length && lexemes[idx].value.toLowerCase() === 'where') {
+        if (idx < lexemes.length && lexemes[idx].value === 'where') {
             whereClauseResult = WhereClauseParser.parseFromLexeme(lexemes, idx);
             idx = whereClauseResult.newIndex;
         }
 
         // Parse GROUP BY clause (optional)
         let groupByClauseResult = null;
-        if (idx < lexemes.length && lexemes[idx].value.toLowerCase() === 'group by') {
+        if (idx < lexemes.length && lexemes[idx].value === 'group by') {
             groupByClauseResult = GroupByClauseParser.parseFromLexeme(lexemes, idx);
             idx = groupByClauseResult.newIndex;
         }
 
         // Parse HAVING clause (optional)
         let havingClauseResult = null;
-        if (idx < lexemes.length && lexemes[idx].value.toLowerCase() === 'having') {
+        if (idx < lexemes.length && lexemes[idx].value === 'having') {
             havingClauseResult = HavingClauseParser.parseFromLexeme(lexemes, idx);
             idx = havingClauseResult.newIndex;
         }
 
         // Parse WINDOW clause (optional)
-        let windowFrameClauseResult = null;
-        if (idx < lexemes.length && lexemes[idx].value.toLowerCase() === 'window') {
-            windowFrameClauseResult = WindowClauseParser.parseFromLexeme(lexemes, idx);
-            idx = windowFrameClauseResult.newIndex;
+        let windowClauseResult = null;
+        if (idx < lexemes.length && lexemes[idx].value === 'window') {
+            windowClauseResult = WindowClauseParser.parseFromLexeme(lexemes, idx);
+            idx = windowClauseResult.newIndex;
         }
 
         // Parse ORDER BY clause (optional)
         let orderByClauseResult = null;
-        if (idx < lexemes.length && lexemes[idx].value.toLowerCase() === 'order by') {
+        if (idx < lexemes.length && lexemes[idx].value === 'order by') {
             orderByClauseResult = OrderByClauseParser.parseFromLexeme(lexemes, idx);
             idx = orderByClauseResult.newIndex;
         }
 
         // Parse LIMIT clause (optional)
-        let limitClauseResult = null;
-        if (idx < lexemes.length && lexemes[idx].value.toLowerCase() === 'limit') {
-            limitClauseResult = LimitClauseParser.parseFromLexeme(lexemes, idx);
-            idx = limitClauseResult.newIndex;
+        let limitClausResult = null;
+        if (idx < lexemes.length && lexemes[idx].value === 'limit') {
+            limitClausResult = LimitClauseParser.parseFromLexeme(lexemes, idx);
+            idx = limitClausResult.newIndex;
+        }
+
+        // Parse OFFSET clause (optional)
+        let offsetClausResult = null;
+        if (idx < lexemes.length && lexemes[idx].value === 'offset') {
+            offsetClausResult = OffsetClauseParser.parseFromLexeme(lexemes, idx);
+            idx = offsetClausResult.newIndex;
+        }
+
+        // Parse FETCH clause (optional)
+        let fetchClauseResult = null;
+        if (idx < lexemes.length && lexemes[idx].value === 'fetch') {
+            fetchClauseResult = FetchClauseParser.parseFromLexeme(lexemes, idx);
+            idx = fetchClauseResult.newIndex;
         }
 
         // Parse FOR clause (optional)
@@ -172,18 +188,20 @@ export class SelectQueryParser {
         }
 
         // Create and return the SelectQuery object
-        const selectQuery = new SimpleSelectQuery(
-            withClauseResult ? withClauseResult.value : null,
-            selectClauseResult.value,
-            fromClauseResult ? fromClauseResult.value : null,
-            whereClauseResult ? whereClauseResult.value : null,
-            groupByClauseResult ? groupByClauseResult.value : null,
-            havingClauseResult ? havingClauseResult.value : null,
-            orderByClauseResult ? orderByClauseResult.value : null,
-            windowFrameClauseResult ? windowFrameClauseResult.value : null,
-            limitClauseResult ? limitClauseResult.value : null,
-            forClauseResult ? forClauseResult.value : null
-        );
+        const selectQuery = new SimpleSelectQuery({
+            withClause: withClauseResult ? withClauseResult.value : null,
+            selectClause: selectClauseResult.value,
+            fromClause: fromClauseResult ? fromClauseResult.value : null,
+            whereClause: whereClauseResult ? whereClauseResult.value : null,
+            groupByClause: groupByClauseResult ? groupByClauseResult.value : null,
+            havingClause: havingClauseResult ? havingClauseResult.value : null,
+            orderByClause: orderByClauseResult ? orderByClauseResult.value : null,
+            windowsClause: windowClauseResult ? windowClauseResult.value : null,
+            limitClause: limitClausResult ? limitClausResult.value : null,
+            offsetClause: offsetClausResult ? offsetClausResult.value : null,
+            fetchClause: fetchClauseResult ? fetchClauseResult.value : null,
+            forClause: forClauseResult ? forClauseResult.value : null
+        });
 
         return { value: selectQuery, newIndex: idx };
     }

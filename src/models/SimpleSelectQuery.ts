@@ -1,5 +1,5 @@
 import { SqlComponent } from "./SqlComponent";
-import { ForClause, FromClause, GroupByClause, HavingClause, JoinClause, JoinOnClause, LimitClause, OrderByClause, SelectClause, SourceExpression, SubQuerySource, SourceAliasExpression, WhereClause, WindowFrameClause, WindowsClause, WithClause, CommonTable, RowLimitClause } from "./Clause";
+import { ForClause, FromClause, GroupByClause, HavingClause, JoinClause, JoinOnClause, LimitClause, OrderByClause, SelectClause, SourceExpression, SubQuerySource, SourceAliasExpression, WhereClause, WindowsClause, WithClause, CommonTable, OffsetClause, FetchClause } from "./Clause";
 import { BinaryExpression, ColumnReference, ValueComponent } from "./ValueComponent";
 import { ValueParser } from "../parsers/ValueParser";
 import { CTENormalizer } from "../transformers/CTENormalizer";
@@ -7,13 +7,11 @@ import { SelectableColumnCollector } from "../transformers/SelectableColumnColle
 import { SourceParser } from "../parsers/SourceParser";
 import { BinarySelectQuery } from "./BinarySelectQuery";
 import type { SelectQuery } from "./SelectQuery";
-import { CommonTableParser } from "../parsers/CommonTableParser";
 import { SelectQueryParser } from "../parsers/SelectQueryParser";
 import { Formatter } from "../transformers/Formatter";
 import { TableColumnResolver } from "../transformers/TableColumnResolver";
 import { UpstreamSelectQueryFinder } from "../transformers/UpstreamSelectQueryFinder";
 import { QueryBuilder } from "../transformers/QueryBuilder";
-import { ParameterCollector } from '../transformers/ParameterCollector';
 import { ParameterHelper } from "../utils/ParameterHelper";
 
 /**
@@ -21,7 +19,7 @@ import { ParameterHelper } from "../utils/ParameterHelper";
  */
 export class SimpleSelectQuery extends SqlComponent implements SelectQuery {
     static kind = Symbol("SelectQuery");
-    WithClause: WithClause | null = null;
+    WithClause: WithClause | null;
     selectClause: SelectClause;
     fromClause: FromClause | null;
     whereClause: WhereClause | null;
@@ -29,32 +27,38 @@ export class SimpleSelectQuery extends SqlComponent implements SelectQuery {
     havingClause: HavingClause | null;
     orderByClause: OrderByClause | null;
     windowsClause: WindowsClause | null;
-    rowLimitClause: RowLimitClause | null;
+    limitClause: LimitClause | null;
+    offsetClause: OffsetClause | null;
+    fetchClause: FetchClause | null;
     forClause: ForClause | null;
 
-    constructor(
-        withClause: WithClause | null,
+    constructor(params: {
         selectClause: SelectClause,
-        fromClause: FromClause | null,
-        whereClause: WhereClause | null,
-        groupByClause: GroupByClause | null,
-        havingClause: HavingClause | null,
-        orderByClause: OrderByClause | null,
-        windowsClause: WindowsClause | null,
-        rowLimitClause: RowLimitClause | null,
-        forClause: ForClause | null
-    ) {
+        fromClause?: FromClause | null,
+        whereClause?: WhereClause | null,
+        groupByClause?: GroupByClause | null,
+        havingClause?: HavingClause | null,
+        orderByClause?: OrderByClause | null,
+        windowsClause?: WindowsClause | null,
+        limitClause?: LimitClause | null,
+        offsetClause?: OffsetClause | null,
+        fetchClause?: FetchClause | null,
+        forClause?: ForClause | null,
+        withClause?: WithClause | null,
+    }) {
         super();
-        this.WithClause = withClause;
-        this.selectClause = selectClause;
-        this.fromClause = fromClause;
-        this.whereClause = whereClause;
-        this.groupByClause = groupByClause;
-        this.havingClause = havingClause;
-        this.orderByClause = orderByClause;
-        this.windowsClause = windowsClause;
-        this.rowLimitClause = rowLimitClause;
-        this.forClause = forClause;
+        this.WithClause = params.withClause ?? null;
+        this.selectClause = params.selectClause;
+        this.fromClause = params.fromClause ?? null;
+        this.whereClause = params.whereClause ?? null;
+        this.groupByClause = params.groupByClause ?? null;
+        this.havingClause = params.havingClause ?? null;
+        this.orderByClause = params.orderByClause ?? null;
+        this.windowsClause = params.windowsClause ?? null;
+        this.limitClause = params.limitClause ?? null;
+        this.offsetClause = params.offsetClause ?? null;
+        this.fetchClause = params.fetchClause ?? null;
+        this.forClause = params.forClause ?? null;
     }
 
     /**
@@ -385,7 +389,7 @@ export class SimpleSelectQuery extends SqlComponent implements SelectQuery {
         }
         const item = items[0];
         const formatter = new Formatter();
-        const exprSql = formatter.visit(item.value).join("\n");
+        const exprSql = formatter.visit(item.value);
         const newValue = fn(exprSql);
         item.value = ValueParser.parse(newValue);
     }

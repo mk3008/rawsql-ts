@@ -45,6 +45,8 @@ const keywordTrie = new KeywordTrie([
     ["fetch"],
     ["first"],
     ["next"],
+    ["row"],
+    ["row", "only"],
     ["rows", "only"],
     ["percent"],
     ["percent", "with", "ties"],
@@ -68,9 +70,7 @@ const keywordTrie = new KeywordTrie([
     ["over"],
     ["partition", "by"],
     ["range"],
-    ["range"],
     ["rows"],
-    ["groups"],
     ["groups"],
     // window frame
     ["current", "row"],

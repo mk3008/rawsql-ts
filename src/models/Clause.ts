@@ -325,16 +325,12 @@ export class WithClause extends SqlComponent {
     }
 }
 
-export type RowLimitClause = LimitClause | FetchClause;
-
 export class LimitClause extends SqlComponent {
     static kind = Symbol("LimitClause");
-    limit: ValueComponent;
-    offset: ValueComponent | null;
-    constructor(limit: ValueComponent, offset: ValueComponent | null) {
+    value: ValueComponent;
+    constructor(limit: ValueComponent) {
         super();
-        this.limit = limit;
-        this.offset = offset;
+        this.value = limit;
     }
 }
 
@@ -349,8 +345,27 @@ export enum FetchUnit {
     PercentWithTies = "percent with ties",
 }
 
+
+export class OffsetClause extends SqlComponent {
+    static kind = Symbol("OffsetClause");
+    value: ValueComponent;
+    constructor(value: ValueComponent) {
+        super();
+        this.value = value;
+    }
+}
+
 export class FetchClause extends SqlComponent {
-    static kind = Symbol("FetchSpecification");
+    static kind = Symbol("FetchClause");
+    expression: FecthExpression;
+    constructor(expression: FecthExpression) {
+        super();
+        this.expression = expression;
+    }
+}
+
+export class FecthExpression extends SqlComponent {
+    static kind = Symbol("FecthExpression");
     type: FetchType;
     count: ValueComponent;
     unit: FetchUnit | null;

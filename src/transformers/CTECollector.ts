@@ -201,8 +201,8 @@ export class CTECollector implements SqlComponentVisitor<void> {
             }
         }
 
-        if (query.rowLimitClause) {
-            query.rowLimitClause.accept(this);
+        if (query.limitClause) {
+            query.limitClause.accept(this);
         }
 
         if (query.forClause) {
@@ -217,6 +217,7 @@ export class CTECollector implements SqlComponentVisitor<void> {
         if (query.WithClause) {
             query.WithClause.accept(this);
         }
+
     }
 
     private visitBinarySelectQuery(query: BinarySelectQuery): void {
@@ -339,10 +340,7 @@ export class CTECollector implements SqlComponentVisitor<void> {
     }
 
     private visitLimitClause(clause: LimitClause): void {
-        clause.limit.accept(this);
-        if (clause.offset) {
-            clause.offset.accept(this);
-        }
+        clause.value.accept(this);
     }
 
     private visitForClause(clause: ForClause): void {

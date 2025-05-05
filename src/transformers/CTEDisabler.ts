@@ -170,7 +170,7 @@ export class CTEDisabler implements SqlComponentVisitor<SqlComponent> {
         if (arg.windowsClause) {
             arg.windowsClause = new WindowsClause(arg.windowsClause.windows.map(w => this.visit(w) as WindowFrameClause));
         }
-        arg.rowLimitClause = arg.rowLimitClause ? this.visit(arg.rowLimitClause) as LimitClause : null;
+        arg.limitClause = arg.limitClause ? this.visit(arg.limitClause) as LimitClause : null;
         arg.forClause = arg.forClause ? this.visit(arg.forClause) as ForClause : null;
         return arg;
     }
@@ -262,9 +262,8 @@ export class CTEDisabler implements SqlComponentVisitor<SqlComponent> {
     }
 
     visitLimitClause(clause: LimitClause): SqlComponent {
-        const newLimit = this.visit(clause.limit) as ValueComponent;
-        const newOffset = clause.offset ? this.visit(clause.offset) as ValueComponent : null;
-        return new LimitClause(newLimit, newOffset);
+        const newLimit = this.visit(clause.value) as ValueComponent;
+        return new LimitClause(newLimit);
     }
 
     visitForClause(clause: ForClause): SqlComponent {

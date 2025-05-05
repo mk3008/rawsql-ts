@@ -1,5 +1,7 @@
-import { FetchClause, FetchType, FetchUnit } from "../models/Clause";
+import { off } from "process";
+import { FetchClause, FetchType, FetchUnit, FecthExpression } from "../models/Clause";
 import { Lexeme } from "../models/Lexeme";
+import { LiteralValue, ValueComponent } from "../models/ValueComponent";
 import { ValueParser } from "./ValueParser";
 
 export class FetchClauseParser {
@@ -19,7 +21,22 @@ export class FetchClauseParser {
         if (idx >= lexemes.length) {
             throw new Error(`Syntax error: Unexpected end of input after 'FETCH' keyword.`);
         }
-        // [FIRST|NEXT]
+
+        const fetchExprResult = FecthExpressionParser.parseFromLexeme(lexemes, idx);
+        const fetchExpr = fetchExprResult.value;
+        idx = fetchExprResult.newIndex;
+
+        return { value: new FetchClause(fetchExpr), newIndex: idx };
+    }
+}
+
+// FecthExpressionParser: parses FETCH [FIRST|NEXT] <count> ROWS ONLY ...
+export class FecthExpressionParser {
+    /**
+     * Parses a FETCH expression (not the whole clause, just the fetch part)
+     */
+    public static parseFromLexeme(lexemes: Lexeme[], index: number): { value: FecthExpression; newIndex: number } {
+        let idx = index;
         let type: FetchType;
         const typeToken = lexemes[idx].value;
         if (typeToken === 'first') {
@@ -33,15 +50,27 @@ export class FetchClauseParser {
         if (idx >= lexemes.length) {
             throw new Error(`Syntax error: Unexpected end of input after 'FETCH FIRST|NEXT'.`);
         }
+
+        let count: ValueComponent | null = null;
+        let unit: FetchUnit | null = null;
+
+        // Omitted count notation
+        if (lexemes[idx].value === 'row only' || lexemes[idx].value === 'rows only') {
+            count = new LiteralValue(1);
+            unit = FetchUnit.RowsOnly;
+            idx++;
+            return { value: new FecthExpression(type, count, unit), newIndex: idx };
+        }
+
         // <count>
         const countResult = ValueParser.parseFromLexeme(lexemes, idx);
-        const count = countResult.value;
+        count = countResult.value;
         idx = countResult.newIndex;
         if (idx >= lexemes.length) {
             throw new Error(`Syntax error: Unexpected end of input after 'FETCH FIRST|NEXT <count>'.`);
         }
         // ROWS ONLY (or other unit)
-        let unit: FetchUnit | null = null;
+
         if (lexemes[idx].value === 'rows only') {
             unit = FetchUnit.RowsOnly;
             idx++;
@@ -55,6 +84,6 @@ export class FetchClauseParser {
         if (!unit) {
             throw new Error(`Syntax error: Expected 'ROWS ONLY', 'PERCENT', or 'PERCENT WITH TIES' after 'FETCH FIRST|NEXT <count>'.`);
         }
-        return { value: new FetchClause(type, count, unit), newIndex: idx };
+        return { value: new FecthExpression(type, count, unit), newIndex: idx };
     }
 }

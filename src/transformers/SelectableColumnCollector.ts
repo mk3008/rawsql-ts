@@ -1,4 +1,5 @@
-import { CommonTable, ForClause, FromClause, GroupByClause, HavingClause, LimitClause, OrderByClause, SelectClause, WhereClause, WindowFrameClause, WindowsClause, JoinClause, JoinOnClause, JoinUsingClause, TableSource, SubQuerySource, SourceExpression, SelectItem, PartitionByClause } from "../models/Clause";
+import { off } from "process";
+import { CommonTable, ForClause, FromClause, GroupByClause, HavingClause, LimitClause, OrderByClause, SelectClause, WhereClause, WindowFrameClause, WindowsClause, JoinClause, JoinOnClause, JoinUsingClause, TableSource, SubQuerySource, SourceExpression, SelectItem, PartitionByClause, FetchClause, OffsetClause } from "../models/Clause";
 import { SimpleSelectQuery } from "../models/SelectQuery";
 import { SqlComponent, SqlComponentVisitor } from "../models/SqlComponent";
 import { ArrayExpression, BetweenExpression, BinaryExpression, CaseExpression, CastExpression, ColumnReference, FunctionCall, InlineQuery, ParenExpression, UnaryExpression, ValueComponent, ValueList, WindowFrameExpression } from "../models/ValueComponent";
@@ -48,6 +49,8 @@ export class SelectableColumnCollector implements SqlComponentVisitor<void> {
         this.handlers.set(OrderByClause.kind, (expr) => this.visitOrderByClause(expr as OrderByClause));
         this.handlers.set(WindowFrameClause.kind, (expr) => this.visitWindowFrameClause(expr as WindowFrameClause));
         this.handlers.set(LimitClause.kind, (expr) => this.visitLimitClause(expr as LimitClause));
+        this.handlers.set(OffsetClause.kind, (expr) => this.offsetClause(expr as OffsetClause));
+        this.handlers.set(FetchClause.kind, (expr) => this.visitFetchClause(expr as FetchClause));
 
         // Add handlers for JOIN conditions
         this.handlers.set(JoinOnClause.kind, (expr) => this.visitJoinOnClause(expr as JoinOnClause));
@@ -182,8 +185,16 @@ export class SelectableColumnCollector implements SqlComponentVisitor<void> {
             query.orderByClause.accept(this);
         }
 
-        if (query.rowLimitClause) {
-            query.rowLimitClause.accept(this);
+        if (query.limitClause) {
+            query.limitClause.accept(this);
+        }
+
+        if (query.offsetClause) {
+            query.offsetClause.accept(this);
+        }
+
+        if (query.fetchClause) {
+            query.fetchClause.accept(this);
         }
 
         if (query.forClause) {
@@ -266,11 +277,20 @@ export class SelectableColumnCollector implements SqlComponentVisitor<void> {
     }
 
     private visitLimitClause(clause: LimitClause): void {
-        if (clause.limit) {
-            clause.limit.accept(this);
+        if (clause.value) {
+            clause.value.accept(this);
         }
-        if (clause.offset) {
-            clause.offset.accept(this);
+    }
+
+    private offsetClause(clause: OffsetClause): void {
+        if (clause.value) {
+            clause.value.accept(this);
+        }
+    }
+
+    private visitFetchClause(clause: FetchClause): void {
+        if (clause.expression) {
+            clause.expression.accept(this);
         }
     }
 
