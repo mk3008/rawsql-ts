@@ -20,12 +20,12 @@ export class WindowClauseParser {
         let idx = index;
 
         if (lexemes[idx].value !== 'window') {
-            throw new Error(`Syntax error at position ${idx}: Expected 'HAVING' keyword but found "${lexemes[idx].value}". HAVING clauses must start with the HAVING keyword.`);
+            throw new Error(`Syntax error at position ${idx}: Expected 'WINDOW' keyword but found "${lexemes[idx].value}". WINDOW clauses must start with the WINDOW keyword.`);
         }
         idx++;
 
         if (idx >= lexemes.length) {
-            throw new Error(`Syntax error: Unexpected end of input after 'HAVING' keyword. The HAVING clause requires a condition expression.`);
+            throw new Error(`Syntax error: Unexpected end of input after 'WINDOW' keyword. The WINDOW clause requires at least one window definition.`);
         }
 
         const windows: WindowFrameClause[] = [];
