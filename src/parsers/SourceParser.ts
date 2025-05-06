@@ -50,7 +50,7 @@ export class SourceParser {
         const fullNameResult = FullNameParser.parseFromLexeme(lexemes, idx);
 
         // Handle function-based source (determine by lastTokenType)
-        if (idx < lexemes.length && (fullNameResult.lastTokenType & TokenType.Function)) {
+        if (fullNameResult.lastTokenType & TokenType.Function) {
             // Also use fullNameResult as argument for parseFunctionSource
             return SourceParser.parseFunctionSource(lexemes, fullNameResult);
         }
