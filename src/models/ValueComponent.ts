@@ -346,20 +346,31 @@ export class StringSpecifierExpression extends SqlComponent {
 
 export class TypeValue extends SqlComponent {
     static kind = Symbol("TypeValue");
-    namespaces: IdentifierString[] | null;
-    name: RawString;
+    qualifiedName: QualifiedName;
     argument: ValueComponent | null;
-    constructor(namespaces: string[] | IdentifierString[] | null, name: string | RawString, argument: ValueComponent | null = null) {
+    constructor(namespaces: string[] | IdentifierString[] | null, name: string | RawString | IdentifierString, argument: ValueComponent | null = null) {
         super();
-        this.namespaces = toIdentifierStringArray(namespaces);
-        this.name = typeof name === "string" ? new RawString(name) : name;
+        this.qualifiedName = new QualifiedName(namespaces, name);
         this.argument = argument;
     }
+    /**
+     * For backward compatibility: returns the namespaces as IdentifierString[] | null (readonly)
+     */
+    get namespaces(): IdentifierString[] | null {
+        return this.qualifiedName.namespaces;
+    }
+    /**
+     * For backward compatibility: returns the type name as RawString | IdentifierString (readonly)
+     */
+    get name(): RawString | IdentifierString {
+        return this.qualifiedName.name;
+    }
     public getTypeName(): string {
-        if (this.namespaces && this.namespaces.length > 0) {
-            return this.namespaces.map(ns => ns.name).join(".") + "." + this.name.value;
+        const nameValue = this.qualifiedName.name instanceof RawString ? this.qualifiedName.name.value : this.qualifiedName.name.name;
+        if (this.qualifiedName.namespaces && this.qualifiedName.namespaces.length > 0) {
+            return this.qualifiedName.namespaces.map(ns => ns.name).join(".") + "." + nameValue;
         } else {
-            return this.name.value;
+            return nameValue;
         }
     }
 }

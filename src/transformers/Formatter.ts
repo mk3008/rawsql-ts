@@ -334,12 +334,8 @@ export class Formatter implements SqlComponentVisitor<string> {
     }
 
     private visitTypeValue(arg: TypeValue): string {
-        let typeStr = '';
-        if (arg.namespaces && arg.namespaces.length > 0) {
-            typeStr = arg.namespaces.map(ns => ns.accept(this)).join('.') + '.' + arg.name.accept(this);
-        } else {
-            typeStr = arg.name.accept(this);
-        }
+        const typeStr = arg.qualifiedName.accept(this);
+
         if (arg.argument !== null) {
             return `${typeStr}(${arg.argument.accept(this)})`;
         }
