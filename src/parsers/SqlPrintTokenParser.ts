@@ -1,6 +1,6 @@
-import { PartitionByClause, OrderByClause, OrderByItem, SelectClause, SelectItem, Distinct, DistinctOn, SortDirection, NullsSortDirection, TableSource, SourceExpression } from "../models/Clause";
+import { PartitionByClause, OrderByClause, OrderByItem, SelectClause, SelectItem, Distinct, DistinctOn, SortDirection, NullsSortDirection, TableSource, SourceExpression, FromClause, JoinClause, JoinOnClause, JoinUsingClause, FunctionSource, SourceAliasExpression } from "../models/Clause";
 import { SqlComponent, SqlComponentVisitor } from "../models/SqlComponent";
-import { SqlPrintToken, SqlPrintTokenType } from "../models/SqlPrintToken";
+import { SqlPrintToken, SqlPrintTokenType, SqlPrintTokenContainerType } from "../models/SqlPrintToken";
 import {
     ValueList,
     ColumnReference,
@@ -73,12 +73,21 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         this.handlers.set(OrderByClause.kind, (expr) => this.visitOrderByClause(expr as OrderByClause));
         this.handlers.set(OrderByItem.kind, (expr) => this.visitOrderByItem(expr));
 
+        // select
         this.handlers.set(SelectItem.kind, (expr) => this.visitSelectItem(expr as SelectItem));
         this.handlers.set(SelectClause.kind, (expr) => this.visitSelectClause(expr as SelectClause));
         this.handlers.set(Distinct.kind, (expr) => this.visitDistinct(expr as Distinct));
         this.handlers.set(DistinctOn.kind, (expr) => this.visitDistinctOn(expr as DistinctOn));
+
+        // from
         this.handlers.set(TableSource.kind, (expr) => this.visitTableSource(expr as TableSource));
+        this.handlers.set(FunctionSource.kind, (expr) => this.visitFunctionSource(expr as FunctionSource));
         this.handlers.set(SourceExpression.kind, (expr) => this.visitSourceExpression(expr as SourceExpression));
+        this.handlers.set(SourceAliasExpression.kind, (expr) => this.visitSourceAliasExpression(expr as SourceAliasExpression));
+        this.handlers.set(FromClause.kind, (expr) => this.visitFromClause(expr as FromClause));
+        this.handlers.set(JoinClause.kind, (expr) => this.visitJoinClause(expr as JoinClause));
+        this.handlers.set(JoinOnClause.kind, (expr) => this.visitJoinOnClause(expr as JoinOnClause));
+        this.handlers.set(JoinUsingClause.kind, (expr) => this.visitJoinUsingClause(expr as JoinUsingClause));
     }
 
     /**
@@ -92,18 +101,18 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     private visitPartitionByClause(arg: PartitionByClause): SqlPrintToken {
         // Print as: partition by ...
         const token = new SqlPrintToken(SqlPrintTokenType.keyword, 'partition by');
-        token.tokens.push(SqlPrintTokenParser.SPACE_TOKEN);
-        token.tokens.push(this.visit(arg.value));
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(this.visit(arg.value));
         return token;
     }
 
     private visitOrderByClause(arg: OrderByClause): SqlPrintToken {
         // Print as: order by ...
         const token = new SqlPrintToken(SqlPrintTokenType.keyword, 'order by');
-        token.tokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
         for (let i = 0; i < arg.order.length; i++) {
-            if (i > 0) token.tokens.push(SqlPrintTokenParser.COMMA_TOKEN);
-            token.tokens.push(this.visit(arg.order[i]));
+            if (i > 0) token.innerTokens.push(SqlPrintTokenParser.COMMA_TOKEN);
+            token.innerTokens.push(this.visit(arg.order[i]));
         }
         return token;
     }
@@ -113,21 +122,21 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
      */
     private visitOrderByItem(arg: OrderByItem): SqlPrintToken {
         // arg: OrderByItem
-        const token = new SqlPrintToken(SqlPrintTokenType.container, '');
-        token.tokens.push(this.visit(arg.value));
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.OrderByItem);
+        token.innerTokens.push(this.visit(arg.value));
 
         if (arg.sortDirection && arg.sortDirection !== SortDirection.Ascending) {
-            token.tokens.push(SqlPrintTokenParser.SPACE_TOKEN);
-            token.tokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'desc'));
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'desc'));
         }
 
         if (arg.nullsPosition) {
             if (arg.nullsPosition === NullsSortDirection.First) {
-                token.tokens.push(SqlPrintTokenParser.SPACE_TOKEN);
-                token.tokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'nulls first'));
+                token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+                token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'nulls first'));
             } else if (arg.nullsPosition === NullsSortDirection.Last) {
-                token.tokens.push(SqlPrintTokenParser.SPACE_TOKEN);
-                token.tokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, ' nulls last'));
+                token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+                token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, ' nulls last'));
             }
         }
         return token;
@@ -143,12 +152,12 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
     // ValueComponent系の各ノードのvisitメソッド
     private visitValueList(arg: ValueList): SqlPrintToken {
-        const token = new SqlPrintToken(SqlPrintTokenType.container, '');
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.ValueList);
         for (let i = 0; i < arg.values.length; i++) {
             if (i > 0) {
-                token.tokens.push(...SqlPrintTokenParser.commaSpaceTokens());
+                token.innerTokens.push(...SqlPrintTokenParser.commaSpaceTokens());
             }
-            token.tokens.push(this.visit(arg.values[i]));
+            token.innerTokens.push(this.visit(arg.values[i]));
         }
         return token;
     }
@@ -172,42 +181,46 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
     private visitColumnReference(arg: ColumnReference): SqlPrintToken {
         const fullName = this.getFullNameWithNamespaces({ namespaces: arg.namespaces, column: arg.column });
-        return new SqlPrintToken(SqlPrintTokenType.value, fullName);
+        return new SqlPrintToken(
+            SqlPrintTokenType.value,
+            fullName,
+            SqlPrintTokenContainerType.ColumnReference
+        );
     }
 
     private visitFunctionCall(arg: FunctionCall): SqlPrintToken {
-        const token = new SqlPrintToken(SqlPrintTokenType.container, '');
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.FunctionCall);
         const fullName = this.getFullNameWithNamespaces({ namespaces: arg.namespaces, name: arg.name });
-        token.tokens.push(new SqlPrintToken(SqlPrintTokenType.value, fullName));
-        token.tokens.push(SqlPrintTokenParser.PAREN_OPEN_TOKEN);
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.value, fullName));
+        token.innerTokens.push(SqlPrintTokenParser.PAREN_OPEN_TOKEN);
         if (arg.argument) {
-            token.tokens.push(this.visit(arg.argument));
+            token.innerTokens.push(this.visit(arg.argument));
         }
-        token.tokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
+        token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
         if (arg.over) {
-            token.tokens.push(this.visit(arg.over));
+            token.innerTokens.push(this.visit(arg.over));
         }
         return token;
     }
 
     private visitUnaryExpression(arg: UnaryExpression): SqlPrintToken {
-        const token = new SqlPrintToken(SqlPrintTokenType.container, '');
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.UnaryExpression);
 
-        token.tokens.push(this.visit(arg.operator));
-        token.tokens.push(SqlPrintTokenParser.SPACE_TOKEN);
-        token.tokens.push(this.visit(arg.expression));
+        token.innerTokens.push(this.visit(arg.operator));
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(this.visit(arg.expression));
 
         return token;
     }
 
     private visitBinaryExpression(arg: BinaryExpression): SqlPrintToken {
-        const token = new SqlPrintToken(SqlPrintTokenType.container, '');
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.BinaryExpression);
 
-        token.tokens.push(this.visit(arg.left));
-        token.tokens.push(SqlPrintTokenParser.SPACE_TOKEN);
-        token.tokens.push(this.visit(arg.operator));
-        token.tokens.push(SqlPrintTokenParser.SPACE_TOKEN);
-        token.tokens.push(this.visit(arg.right));
+        token.innerTokens.push(this.visit(arg.left));
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(this.visit(arg.operator));
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(this.visit(arg.right));
 
         return token;
     }
@@ -221,7 +234,11 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         } else {
             text = arg.value.toString();
         }
-        return new SqlPrintToken(SqlPrintTokenType.value, text);
+        return new SqlPrintToken(
+            SqlPrintTokenType.value,
+            text,
+            SqlPrintTokenContainerType.LiteralValue
+        );
     }
 
     private visitParameterExpression(arg: ParameterExpression): SqlPrintToken {
@@ -235,14 +252,14 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     }
 
     private visitSwitchCaseArgument(arg: SwitchCaseArgument): SqlPrintToken {
-        const token = new SqlPrintToken(SqlPrintTokenType.container, '');
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.SwitchCaseArgument);
 
         for (const kv of arg.cases) {
-            token.tokens.push(kv.accept(this));
+            token.innerTokens.push(kv.accept(this));
         }
         if (arg.elseValue) {
-            token.tokens.push(SqlPrintTokenParser.SPACE_TOKEN);
-            token.tokens.push(this.createElseToken(arg.elseValue));
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(this.createElseToken(arg.elseValue));
         }
 
         return token;
@@ -250,182 +267,199 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
     private createElseToken(elseValue: SqlComponent): SqlPrintToken {
         // Creates a token for the ELSE clause in a CASE expression.
-        const elseToken = new SqlPrintToken(SqlPrintTokenType.container, '');
-        elseToken.tokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'else'));
-        elseToken.tokens.push(SqlPrintTokenParser.SPACE_TOKEN);
-        elseToken.tokens.push(this.visit(elseValue));
+        const elseToken = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.ElseClause);
+        elseToken.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'else'));
+        elseToken.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        elseToken.innerTokens.push(this.visit(elseValue));
         return elseToken;
     }
 
     private visitCaseKeyValuePair(arg: CaseKeyValuePair): SqlPrintToken {
-        const token = new SqlPrintToken(SqlPrintTokenType.container, '');
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.CaseKeyValuePair);
 
-        token.tokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'when'));
-        token.tokens.push(SqlPrintTokenParser.SPACE_TOKEN);
-        token.tokens.push(this.visit(arg.key));
-        token.tokens.push(SqlPrintTokenParser.SPACE_TOKEN);
-        token.tokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'then'));
-        token.tokens.push(SqlPrintTokenParser.SPACE_TOKEN);
-        token.tokens.push(this.visit(arg.value));
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'when'));
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(this.visit(arg.key));
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'then'));
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(this.visit(arg.value));
 
         return token;
 
     }
 
     private visitRawString(arg: RawString): SqlPrintToken {
-        return new SqlPrintToken(SqlPrintTokenType.value, arg.value);
+        // Even for non-container tokens, set the container type for context
+        return new SqlPrintToken(
+            SqlPrintTokenType.value,
+            arg.value,
+            SqlPrintTokenContainerType.RawString
+        );
     }
 
     private visitIdentifierString(arg: IdentifierString): SqlPrintToken {
         // Create an identifier token and decorate it using the identifierDecorator
         const text = this.identifierDecorator.decorate(arg.name)
-        return new SqlPrintToken(SqlPrintTokenType.value, text);
+        return new SqlPrintToken(
+            SqlPrintTokenType.value,
+            text,
+            SqlPrintTokenContainerType.IdentifierString
+        );
     }
 
     private visitParenExpression(arg: ParenExpression): SqlPrintToken {
-        const token = new SqlPrintToken(SqlPrintTokenType.container, '');
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.ParenExpression);
 
-        token.tokens.push(SqlPrintTokenParser.PAREN_OPEN_TOKEN);
-        token.tokens.push(this.visit(arg.expression));
-        token.tokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
+        token.innerTokens.push(SqlPrintTokenParser.PAREN_OPEN_TOKEN);
+        token.innerTokens.push(this.visit(arg.expression));
+        token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
 
         return token;
     }
 
     private visitCastExpression(arg: CastExpression): SqlPrintToken {
-        const token = new SqlPrintToken(SqlPrintTokenType.container, '');
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.CastExpression);
 
-        token.tokens.push(this.visit(arg.input));
-        token.tokens.push(new SqlPrintToken(SqlPrintTokenType.operator, '::'));
-        token.tokens.push(this.visit(arg.castType));
+        token.innerTokens.push(this.visit(arg.input));
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.operator, '::'));
+        token.innerTokens.push(this.visit(arg.castType));
 
         return token;
     }
 
     private visitCaseExpression(arg: CaseExpression): SqlPrintToken {
-        const token = new SqlPrintToken(SqlPrintTokenType.container, '');
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.CaseExpression);
 
-        token.tokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'case'));
-        token.tokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'case'));
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
         if (arg.condition) {
-            token.tokens.push(this.visit(arg.condition));
-            token.tokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(this.visit(arg.condition));
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
         }
-        token.tokens.push(this.visit(arg.switchCase));
-        token.tokens.push(SqlPrintTokenParser.SPACE_TOKEN);
-        token.tokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'end'));
+        token.innerTokens.push(this.visit(arg.switchCase));
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'end'));
 
         return token;
     }
 
     private visitArrayExpression(arg: ArrayExpression): SqlPrintToken {
-        const token = new SqlPrintToken(SqlPrintTokenType.container, '');
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.ArrayExpression);
 
-        token.tokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'array'));
-        token.tokens.push(new SqlPrintToken(SqlPrintTokenType.parenthesis, '['));
-        token.tokens.push(this.visit(arg.expression));
-        token.tokens.push(new SqlPrintToken(SqlPrintTokenType.parenthesis, ']'));
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'array'));
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.parenthesis, '['));
+        token.innerTokens.push(this.visit(arg.expression));
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.parenthesis, ']'));
 
         return token;
     }
 
     private visitBetweenExpression(arg: BetweenExpression): SqlPrintToken {
-        const token = new SqlPrintToken(SqlPrintTokenType.container, '');
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.BetweenExpression);
 
-        token.tokens.push(this.visit(arg.expression));
-        token.tokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(this.visit(arg.expression));
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
         if (arg.negated) {
-            token.tokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'not'));
-            token.tokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'not'));
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
         }
-        token.tokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'between'));
-        token.tokens.push(SqlPrintTokenParser.SPACE_TOKEN);
-        token.tokens.push(this.visit(arg.lower));
-        token.tokens.push(SqlPrintTokenParser.SPACE_TOKEN);
-        token.tokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'and'));
-        token.tokens.push(SqlPrintTokenParser.SPACE_TOKEN);
-        token.tokens.push(this.visit(arg.upper));
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'between'));
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(this.visit(arg.lower));
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'and'));
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(this.visit(arg.upper));
 
         return token;
     }
 
     private visitInlineQuery(arg: InlineQuery): SqlPrintToken {
         // サブクエリは一旦空で返す（SelectQuery対応時に実装）
-        return new SqlPrintToken(SqlPrintTokenType.value, '');
+        return new SqlPrintToken(
+            SqlPrintTokenType.value,
+            '',
+            SqlPrintTokenContainerType.InlineQuery
+        );
     }
 
     private visitStringSpecifierExpression(arg: StringSpecifierExpression): SqlPrintToken {
         // Combine specifier and value into a single token
         const specifier = arg.specifier.accept(this).text;
         const value = arg.value.accept(this).text;
-        return new SqlPrintToken(SqlPrintTokenType.value, specifier + value);
+        return new SqlPrintToken(
+            SqlPrintTokenType.value,
+            specifier + value,
+            SqlPrintTokenContainerType.StringSpecifierExpression
+        );
     }
 
     private visitTypeValue(arg: TypeValue): SqlPrintToken {
         // Compose full type name (with namespaces) as a single token
         const fullName = this.getFullNameWithNamespaces({ namespaces: arg.namespaces, name: arg.name });
-        const token = new SqlPrintToken(SqlPrintTokenType.container, '');
-        token.tokens.push(new SqlPrintToken(SqlPrintTokenType.type, fullName));
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.TypeValue);
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.type, fullName));
         // inner tokens (arguments)
         if (arg.argument) {
-            token.tokens.push(SqlPrintTokenParser.PAREN_OPEN_TOKEN);
-            token.tokens.push(this.visit(arg.argument));
-            token.tokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
+            token.innerTokens.push(SqlPrintTokenParser.PAREN_OPEN_TOKEN);
+            token.innerTokens.push(this.visit(arg.argument));
+            token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
         }
         return token;
     }
 
     private visitTupleExpression(arg: TupleExpression): SqlPrintToken {
-        const token = new SqlPrintToken(SqlPrintTokenType.container, '');
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.TupleExpression);
 
-        token.tokens.push(SqlPrintTokenParser.PAREN_OPEN_TOKEN);
+        token.innerTokens.push(SqlPrintTokenParser.PAREN_OPEN_TOKEN);
         for (let i = 0; i < arg.values.length; i++) {
             if (i > 0) {
-                token.tokens.push(...SqlPrintTokenParser.commaSpaceTokens());
+                token.innerTokens.push(...SqlPrintTokenParser.commaSpaceTokens());
             }
-            token.tokens.push(this.visit(arg.values[i]));
+            token.innerTokens.push(this.visit(arg.values[i]));
         }
-        token.tokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
+        token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
 
         return token;
     }
 
     private visitWindowFrameExpression(arg: WindowFrameExpression): SqlPrintToken {
         // Compose window frame expression: over(partition by ... order by ... rows ...)
-        const token = new SqlPrintToken(SqlPrintTokenType.container, '');
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.WindowFrameExpression);
 
-        token.tokens.push(SqlPrintTokenParser.SPACE_TOKEN);
-        token.tokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'over'));
-        token.tokens.push(SqlPrintTokenParser.PAREN_OPEN_TOKEN);
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'over'));
+        token.innerTokens.push(SqlPrintTokenParser.PAREN_OPEN_TOKEN);
 
         let first = true;
         if (arg.partition) {
-            token.tokens.push(this.visit(arg.partition));
+            token.innerTokens.push(this.visit(arg.partition));
             first = false;
         }
         if (arg.order) {
             if (!first) {
-                token.tokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+                token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
                 first = false;
             }
-            token.tokens.push(this.visit(arg.order));
+            token.innerTokens.push(this.visit(arg.order));
         }
         if (arg.frameSpec) {
             if (!first) {
-                token.tokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+                token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
                 first = false;
             }
-            token.tokens.push(this.visit(arg.frameSpec));
+            token.innerTokens.push(this.visit(arg.frameSpec));
         }
-        token.tokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
+        token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
 
         return token;
     }
 
     private visitSelectItem(arg: SelectItem): SqlPrintToken {
-        const token = new SqlPrintToken(SqlPrintTokenType.container, '');
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.SelectItem);
 
-        token.tokens.push(this.visit(arg.value));
+        token.innerTokens.push(this.visit(arg.value));
 
         if (!arg.identifier) {
             return token;
@@ -440,29 +474,29 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         }
 
         // Add alias if it is different from the default name
-        token.tokens.push(SqlPrintTokenParser.SPACE_TOKEN);
-        token.tokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'as'));
-        token.tokens.push(SqlPrintTokenParser.SPACE_TOKEN);
-        token.tokens.push(this.visit(arg.identifier));
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'as'));
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(this.visit(arg.identifier));
         return token;
     }
 
     private visitSelectClause(arg: SelectClause): SqlPrintToken {
-        const token = new SqlPrintToken(SqlPrintTokenType.container, '');
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.SelectClause);
 
-        token.tokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'select'));
-        token.tokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'select'));
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
 
         if (arg.distinct) {
-            token.tokens.push(arg.distinct.accept(this));
-            token.tokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(arg.distinct.accept(this));
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
         }
 
         for (let i = 0; i < arg.items.length; i++) {
             if (i > 0) {
-                token.tokens.push(...SqlPrintTokenParser.commaSpaceTokens());
+                token.innerTokens.push(...SqlPrintTokenParser.commaSpaceTokens());
             }
-            token.tokens.push(this.visit(arg.items[i]));
+            token.innerTokens.push(this.visit(arg.items[i]));
         }
 
         return token;
@@ -474,12 +508,12 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     }
 
     private visitDistinctOn(arg: DistinctOn): SqlPrintToken {
-        const token = new SqlPrintToken(SqlPrintTokenType.container, '');
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.DistinctOn);
 
-        token.tokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'distinct on'));
-        token.tokens.push(SqlPrintTokenParser.PAREN_OPEN_TOKEN);
-        token.tokens.push(arg.value.accept(this));
-        token.tokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'distinct on'));
+        token.innerTokens.push(SqlPrintTokenParser.PAREN_OPEN_TOKEN);
+        token.innerTokens.push(arg.value.accept(this));
+        token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
 
         return token;
     }
@@ -501,8 +535,8 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
     private visitSourceExpression(arg: SourceExpression): SqlPrintToken {
         // Print source expression (e.g. "table", "table as t", "schema.table t")
-        const token = new SqlPrintToken(SqlPrintTokenType.container, '');
-        token.tokens.push(arg.datasource.accept(this));
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.SourceExpression);
+        token.innerTokens.push(arg.datasource.accept(this));
 
         if (!arg.aliasExpression) {
             return token;
@@ -514,20 +548,116 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
             if (arg.aliasExpression.table.name === defaultName) {
                 return token;
             }
-            token.tokens.push(SqlPrintTokenParser.SPACE_TOKEN);
-            token.tokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'as'));
-            token.tokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'as'));
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
             // exclude column aliases
-            token.tokens.push(arg.aliasExpression.table.accept(this));
+            token.innerTokens.push(arg.aliasExpression.table.accept(this));
             return token;
         } else {
             // For other source types, just print the alias
-            token.tokens.push(SqlPrintTokenParser.SPACE_TOKEN);
-            token.tokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'as'));
-            token.tokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'as'));
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
             // included column aliases
-            token.tokens.push(arg.aliasExpression.accept(this));
+            token.innerTokens.push(arg.aliasExpression.accept(this));
             return token;
         }
+    }
+
+    public visitFromClause(arg: FromClause): SqlPrintToken {
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.FromClause);
+
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'from'));
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(this.visit(arg.source));
+
+        if (arg.joins) {
+            for (let i = 0; i < arg.joins.length; i++) {
+                token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+                token.innerTokens.push(this.visit(arg.joins[i]));
+            }
+        }
+
+        return token;
+    }
+
+    public visitJoinClause(arg: JoinClause): SqlPrintToken {
+        // Print join clause: [joinType] [lateral] [source] [on/using ...]
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.JoinClause);
+
+        // join type (e.g. inner join, left join, etc)
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, arg.joinType.value));
+        if (arg.lateral) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'lateral'));
+        }
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(this.visit(arg.source));
+
+        if (arg.condition) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(this.visit(arg.condition));
+        }
+
+        return token;
+    }
+
+    public visitJoinOnClause(arg: JoinOnClause): SqlPrintToken {
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.JoinOnClause);
+
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'on'));
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(this.visit(arg.condition));
+
+        return token;
+    }
+
+    public visitJoinUsingClause(arg: JoinUsingClause): SqlPrintToken {
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.JoinUsingClause);
+
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'using'));
+        token.innerTokens.push(SqlPrintTokenParser.PAREN_OPEN_TOKEN);
+        token.innerTokens.push(this.visit(arg.condition));
+        token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
+
+        return token;
+    }
+
+    public visitFunctionSource(arg: FunctionSource): SqlPrintToken {
+        // Print function source: [functionName]([args])
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.FunctionSource);
+
+        token.innerTokens.push(this.visit(arg.name));
+        token.innerTokens.push(SqlPrintTokenParser.PAREN_OPEN_TOKEN);
+        if (arg.argument) {
+            token.innerTokens.push(this.visit(arg.argument));
+        }
+        token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
+        return token;
+    }
+
+    public visitSourceAliasExpression(arg: SourceAliasExpression): SqlPrintToken {
+        // Print source alias expression: [source] as [alias]
+        const token = new SqlPrintToken(
+            SqlPrintTokenType.container,
+            '',
+            SqlPrintTokenContainerType.SourceAliasExpression
+        );
+
+        token.innerTokens.push(this.visit(arg.table));
+
+        if (arg.columns) {
+            token.innerTokens.push(SqlPrintTokenParser.PAREN_OPEN_TOKEN);
+            for (let i = 0; i < arg.columns.length; i++) {
+                if (i > 0) {
+                    token.innerTokens.push(...SqlPrintTokenParser.commaSpaceTokens());
+                }
+                token.innerTokens.push(this.visit(arg.columns[i]));
+            }
+            token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
+        }
+
+        return token;
     }
 }

@@ -91,7 +91,7 @@ export class SqlPrinter {
     }
 
     private appendLine(token: SqlPrintToken, level: number, prefix: string) {
-        if (!token.tokens || token.tokens.length === 0) {
+        if (!token.innerTokens || token.innerTokens.length === 0) {
             if (token.text === '') {
                 return;
             }
@@ -128,8 +128,8 @@ export class SqlPrinter {
             this.lines.push(new SqlPrintLine(level, prefix + token.text));
         }
 
-        for (let i = 0; i < token.tokens.length; i++) {
-            const child = token.tokens[i];
+        for (let i = 0; i < token.innerTokens.length; i++) {
+            const child = token.innerTokens[i];
             this.appendLine(child, level, nextPrefix);
         }
     }
