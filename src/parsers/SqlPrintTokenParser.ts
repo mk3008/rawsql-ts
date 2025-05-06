@@ -1,4 +1,5 @@
-import { PartitionByClause, OrderByClause, OrderByItem, SelectClause, SelectItem, Distinct, DistinctOn, SortDirection, NullsSortDirection, TableSource, SourceExpression, FromClause, JoinClause, JoinOnClause, JoinUsingClause, FunctionSource, SourceAliasExpression } from "../models/Clause";
+import { PartitionByClause, OrderByClause, OrderByItem, SelectClause, SelectItem, Distinct, DistinctOn, SortDirection, NullsSortDirection, TableSource, SourceExpression, FromClause, JoinClause, JoinOnClause, JoinUsingClause, FunctionSource, SourceAliasExpression, WhereClause } from "../models/Clause";
+import { SimpleSelectQuery } from "../models/SelectQuery";
 import { SqlComponent, SqlComponentVisitor } from "../models/SqlComponent";
 import { SqlPrintToken, SqlPrintTokenType, SqlPrintTokenContainerType } from "../models/SqlPrintToken";
 import {
@@ -91,6 +92,12 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         this.handlers.set(JoinClause.kind, (expr) => this.visitJoinClause(expr as JoinClause));
         this.handlers.set(JoinOnClause.kind, (expr) => this.visitJoinOnClause(expr as JoinOnClause));
         this.handlers.set(JoinUsingClause.kind, (expr) => this.visitJoinUsingClause(expr as JoinUsingClause));
+
+        // where
+        this.handlers.set(WhereClause.kind, (expr) => this.visitWhereClause(expr as WhereClause));
+
+        // Query
+        this.handlers.set(SimpleSelectQuery.kind, (expr) => this.visitSimpleQuery(expr as SimpleSelectQuery));
     }
 
     /**
@@ -298,7 +305,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
     private visitIdentifierString(arg: IdentifierString): SqlPrintToken {
         // Create an identifier token and decorate it using the identifierDecorator
-        const text = this.identifierDecorator.decorate(arg.name)
+        const text = arg.name === "*" ? arg.name : this.identifierDecorator.decorate(arg.name)
         return new SqlPrintToken(
             SqlPrintTokenType.value,
             text,
@@ -653,6 +660,37 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
                 token.innerTokens.push(this.visit(arg.columns[i]));
             }
             token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
+        }
+
+        return token;
+    }
+
+    public visitWhereClause(arg: WhereClause): SqlPrintToken {
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.WhereClause);
+
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'where'));
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(this.visit(arg.condition));
+
+        return token;
+    }
+
+    // query
+    public visitSimpleQuery(arg: SimpleSelectQuery): SqlPrintToken {
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.SimpleSelectQuery);
+
+        token.innerTokens.push(arg.selectClause.accept(this));
+
+        if (!arg.fromClause) {
+            return token;
+        }
+
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(arg.fromClause.accept(this));
+
+        if (arg.whereClause) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(arg.whereClause.accept(this));
         }
 
         return token;

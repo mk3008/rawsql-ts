@@ -48,6 +48,8 @@ export enum SqlPrintTokenContainerType {
     SourceAliasExpression = 'SourceAliasExpression',
     RawString = 'RawString',
     QualifiedName = "QualifiedName",
+    WhereClause = "WhereClause",
+    SimpleSelectQuery = "SimpleSelectQuery",
     // Add more as needed
 }
 
