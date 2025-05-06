@@ -25,7 +25,8 @@ import {
     WindowFrameBoundaryValue,
     WindowFrameBoundStatic,
     InlineQuery,
-    TupleExpression
+    TupleExpression,
+    QualifiedName
 } from "../models/ValueComponent";
 import { CommonTable, Distinct, DistinctOn, FetchExpression, FetchClause, FetchType, ForClause, FromClause, FunctionSource, GroupByClause, HavingClause, InsertClause, JoinClause, JoinOnClause, JoinUsingClause, LimitClause, NullsSortDirection, OffsetClause, OrderByClause, OrderByItem, PartitionByClause, ReturningClause, SelectClause, SelectItem, SetClause, SetClauseItem, SortDirection, SourceAliasExpression, SourceExpression, SubQuerySource, TableSource, UpdateClause, WhereClause, WindowFrameClause, WindowsClause, WithClause } from "../models/Clause";
 import { CreateTableQuery } from "../models/CreateTableQuery";
@@ -96,6 +97,7 @@ export class Formatter implements SqlComponentVisitor<string> {
         };
 
         // value
+        this.handlers.set(QualifiedName.kind, (expr) => this.visitQualifiedName(expr as QualifiedName));
         this.handlers.set(LiteralValue.kind, (expr) => this.visitLiteralExpression(expr as LiteralValue));
         this.handlers.set(RawString.kind, (expr) => this.visitRawString(expr as RawString));
         this.handlers.set(StringSpecifierExpression.kind, (expr) => this.visitStringSpecifierExpression(expr as StringSpecifierExpression));
@@ -466,10 +468,15 @@ export class Formatter implements SqlComponentVisitor<string> {
     }
 
     private visitColumnReference(arg: ColumnReference): string {
-        if (arg.namespaces != null) {
-            return `${arg.namespaces.map((ns) => `${ns.accept(this)}`).join(".")}.${arg.column.accept(this)}`;
+        return arg.qualifiedName.accept(this);
+    }
+
+    private visitQualifiedName(arg: QualifiedName): string {
+        if (arg.namespaces && arg.namespaces.length > 0) {
+            return `${arg.namespaces.map(ns => ns.accept(this)).join(".")}.${arg.name.accept(this)}`;
+        } else {
+            return `${arg.name.accept(this)}`;
         }
-        return `${arg.column.accept(this)}`;
     }
 
     private visitFunctionCall(arg: FunctionCall): string {
