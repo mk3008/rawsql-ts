@@ -184,6 +184,18 @@ test('from with function', () => {
     expect(sql).toEqual(`from generate_series(1, 10) as "numbers"`);
 });
 
+test('from with namespaced function', () => {
+    // Arrange
+    const text = `from pg_catalog.generate_series(1, 10) as numbers`;
+
+    // Act
+    const clause = FromClauseParser.parse(text);
+    const sql = formatter.format(clause);
+
+    // Assert
+    expect(sql).toEqual(`from "pg_catalog".generate_series(1, 10) as "numbers"`);
+});
+
 test('from with join using syntax', () => {
     // Arrange
     const text = `from users join orders using (id)`;

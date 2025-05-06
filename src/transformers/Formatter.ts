@@ -435,10 +435,17 @@ export class Formatter implements SqlComponentVisitor<string> {
     }
 
     private visitFunctionSource(arg: FunctionSource): string {
-        if (arg.argument !== null) {
-            return `${arg.name.accept(this)}(${arg.argument.accept(this)})`;
+        let funcName: string;
+        if (arg.namespaces !== null) {
+            funcName = `${arg.namespaces.map((ns) => `${ns.accept(this)}`).join(".")}.${arg.name.accept(this)}`;
+        } else {
+            funcName = `${arg.name.accept(this)}`;
         }
-        return `${arg.name.accept(this)}()`;
+
+        if (arg.argument !== null) {
+            return `${funcName}(${arg.argument.accept(this)})`;
+        }
+        return `${funcName}()`;
     }
 
     private visitTableSource(arg: TableSource): string {
