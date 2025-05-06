@@ -47,6 +47,7 @@ export enum SqlPrintTokenContainerType {
     FunctionSource = 'FunctionSource',
     SourceAliasExpression = 'SourceAliasExpression',
     RawString = 'RawString',
+    QualifiedName = "QualifiedName",
     // Add more as needed
 }
 

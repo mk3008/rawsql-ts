@@ -22,7 +22,8 @@ import {
     StringSpecifierExpression,
     TypeValue,
     TupleExpression,
-    WindowFrameExpression
+    WindowFrameExpression,
+    QualifiedName
 } from "../models/ValueComponent";
 import { IdentifierDecorator } from "./IdentifierDecorator";
 import { ParameterDecorator } from "./ParameterDecorator";
@@ -34,6 +35,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     private static readonly COMMA_TOKEN = new SqlPrintToken(SqlPrintTokenType.commna, ',');
     private static readonly PAREN_OPEN_TOKEN = new SqlPrintToken(SqlPrintTokenType.parenthesis, '(');
     private static readonly PAREN_CLOSE_TOKEN = new SqlPrintToken(SqlPrintTokenType.parenthesis, ')');
+    private static readonly DOT_TOKEN = new SqlPrintToken(SqlPrintTokenType.dot, '.');
 
     private handlers: Map<symbol, (arg: any) => SqlPrintToken> = new Map();
     parameterDecorator: ParameterDecorator;
@@ -49,6 +51,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
         this.handlers.set(ValueList.kind, (expr) => this.visitValueList(expr as ValueList));
         this.handlers.set(ColumnReference.kind, (expr) => this.visitColumnReference(expr as ColumnReference));
+        this.handlers.set(QualifiedName.kind, (expr) => this.visitQualifiedName(expr as QualifiedName));
         this.handlers.set(FunctionCall.kind, (expr) => this.visitFunctionCall(expr as FunctionCall));
         this.handlers.set(UnaryExpression.kind, (expr) => this.visitUnaryExpression(expr as UnaryExpression));
         this.handlers.set(BinaryExpression.kind, (expr) => this.visitBinaryExpression(expr as BinaryExpression));
@@ -96,6 +99,20 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
      */
     private static commaSpaceTokens(): SqlPrintToken[] {
         return [SqlPrintTokenParser.COMMA_TOKEN, SqlPrintTokenParser.SPACE_TOKEN];
+    }
+
+    private visitQualifiedName(arg: QualifiedName): SqlPrintToken {
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.QualifiedName);
+
+        if (arg.namespaces) {
+            for (let i = 0; i < arg.namespaces.length; i++) {
+                token.innerTokens.push(arg.namespaces[i].accept(this));
+                token.innerTokens.push(SqlPrintTokenParser.DOT_TOKEN);
+            }
+        }
+        token.innerTokens.push(arg.name.accept(this));
+
+        return token;
     }
 
     private visitPartitionByClause(arg: PartitionByClause): SqlPrintToken {
@@ -162,36 +179,16 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         return token;
     }
 
-    /**
-     * Returns a fully qualified name (with namespaces) for a given object with namespaces and a name property.
-     * The object must have: namespaces?: SqlComponent[], name: SqlComponent | column: SqlComponent
-     */
-    private getFullNameWithNamespaces(obj: { namespaces?: SqlComponent[] | null, name?: SqlComponent, column?: SqlComponent }): string {
-        let fullName = '';
-        if (Array.isArray(obj.namespaces) && obj.namespaces.length > 0) {
-            fullName = obj.namespaces.map(ns => ns.accept(this).text).join('.') + '.';
-        }
-        if (obj.name) {
-            fullName += obj.name.accept(this).text;
-        } else if (obj.column) {
-            fullName += obj.column.accept(this).text;
-        }
-        return fullName;
-    }
-
     private visitColumnReference(arg: ColumnReference): SqlPrintToken {
-        const fullName = this.getFullNameWithNamespaces({ namespaces: arg.namespaces, column: arg.column });
-        return new SqlPrintToken(
-            SqlPrintTokenType.value,
-            fullName,
-            SqlPrintTokenContainerType.ColumnReference
-        );
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.ColumnReference);
+        token.innerTokens.push(arg.qualifiedName.accept(this));
+        return token;
     }
 
     private visitFunctionCall(arg: FunctionCall): SqlPrintToken {
         const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.FunctionCall);
-        const fullName = this.getFullNameWithNamespaces({ namespaces: arg.namespaces, name: arg.name });
-        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.value, fullName));
+
+        token.innerTokens.push(arg.qualifiedName.accept(this));
         token.innerTokens.push(SqlPrintTokenParser.PAREN_OPEN_TOKEN);
         if (arg.argument) {
             token.innerTokens.push(this.visit(arg.argument));
@@ -200,6 +197,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         if (arg.over) {
             token.innerTokens.push(this.visit(arg.over));
         }
+
         return token;
     }
 
@@ -396,16 +394,15 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     }
 
     private visitTypeValue(arg: TypeValue): SqlPrintToken {
-        // Compose full type name (with namespaces) as a single token
-        const fullName = this.getFullNameWithNamespaces({ namespaces: arg.namespaces, name: arg.name });
         const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.TypeValue);
-        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.type, fullName));
-        // inner tokens (arguments)
+
+        token.innerTokens.push(arg.qualifiedName.accept(this));
         if (arg.argument) {
             token.innerTokens.push(SqlPrintTokenParser.PAREN_OPEN_TOKEN);
             token.innerTokens.push(this.visit(arg.argument));
             token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
         }
+
         return token;
     }
 
