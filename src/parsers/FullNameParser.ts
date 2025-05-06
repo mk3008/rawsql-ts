@@ -10,10 +10,15 @@ export class FullNameParser {
     /**
      * Parses a fully qualified name from lexemes, returning namespaces, table, and new index.
      */
-    public static parseFromLexeme(lexemes: Lexeme[], index: number): { namespaces: string[] | null, name: IdentifierString, newIndex: number } {
+    public static parseFromLexeme(lexemes: Lexeme[], index: number): { namespaces: string[] | null, name: IdentifierString, newIndex: number, lastTokenType: number } {
         const { identifiers, newIndex } = FullNameParser.parseEscapedOrDotSeparatedIdentifiers(lexemes, index);
         const { namespaces, name } = FullNameParser.extractNamespacesAndName(identifiers);
-        return { namespaces, name: new IdentifierString(name), newIndex };
+        // Returns the type of the last token in the identifier sequence
+        let lastTokenType = 0;
+        if (newIndex > index) {
+            lastTokenType = lexemes[newIndex - 1].type;
+        }
+        return { namespaces, name: new IdentifierString(name), newIndex, lastTokenType };
     }
 
     /**
