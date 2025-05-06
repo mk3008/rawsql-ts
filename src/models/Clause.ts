@@ -171,11 +171,26 @@ export class TableSource extends SqlComponent {
 
 export class FunctionSource extends SqlComponent {
     static kind = Symbol("FunctionSource");
+    namespaces: IdentifierString[] | null;
     name: RawString;
     argument: ValueComponent | null;
-    constructor(functionName: string, argument: ValueComponent | null) {
+    constructor(name: string | IdentifierString | { namespaces: string[] | IdentifierString[] | null, name: string | RawString }, argument: ValueComponent | null) {
         super();
-        this.name = new RawString(functionName);
+        if (typeof name === "object" && name !== null && "name" in name) {
+            // Accepts { namespaces, name }
+            const nameObj = name as { namespaces: string[] | IdentifierString[] | null, name: string | IdentifierString };
+            if (nameObj.namespaces == null) {
+                this.namespaces = null;
+            } else if (typeof nameObj.namespaces[0] === "string") {
+                this.namespaces = (nameObj.namespaces as string[]).map(ns => new IdentifierString(ns));
+            } else {
+                this.namespaces = nameObj.namespaces as IdentifierString[];
+            }
+            this.name = typeof nameObj.name === "string" ? new RawString(nameObj.name) : new RawString(nameObj.name.name);
+        } else {
+            this.namespaces = null;
+            this.name = typeof name === "string" ? new RawString(name) : name;
+        }
         this.argument = argument;
     }
 }
