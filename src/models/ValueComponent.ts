@@ -306,7 +306,7 @@ export class StringSpecifierExpression extends SqlComponent {
     static kind = Symbol("StringSpecifierExpression");
     // e.g. 'E', 'X', 'U&'
     specifier: RawString;
-    value: ValueComponent;
+    value: LiteralValue;
     constructor(specifier: string, value: string) {
         super();
         this.specifier = new RawString(specifier);
