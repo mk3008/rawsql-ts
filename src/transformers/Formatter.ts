@@ -481,12 +481,8 @@ export class Formatter implements SqlComponentVisitor<string> {
 
     private visitFunctionCall(arg: FunctionCall): string {
         const partArg = arg.argument !== null ? arg.argument.accept(this) : "";
-        let funcName: string;
-        if (arg.namespaces && arg.namespaces.length > 0) {
-            funcName = arg.namespaces.map(ns => ns.accept(this)).join(".") + "." + arg.name.accept(this);
-        } else {
-            funcName = arg.name.accept(this);
-        }
+        const funcName = arg.qualifiedName.accept(this);
+
         if (arg.over === null) {
             return `${funcName}(${partArg})`;
         } else {

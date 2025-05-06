@@ -87,10 +87,10 @@ export class ColumnReference extends SqlComponent {
 
 export class FunctionCall extends SqlComponent {
     static kind = Symbol("FunctionCall");
-    namespaces: IdentifierString[] | null;
-    name: RawString | IdentifierString;
+    qualifiedName: QualifiedName;
     argument: ValueComponent | null;
     over: OverExpression | null;
+
     constructor(
         namespaces: string[] | IdentifierString[] | null,
         name: string | RawString | IdentifierString,
@@ -98,14 +98,22 @@ export class FunctionCall extends SqlComponent {
         over: OverExpression | null
     ) {
         super();
-        this.namespaces = toIdentifierStringArray(namespaces);
-        if (typeof name === "string") {
-            this.name = new RawString(name);
-        } else {
-            this.name = name;
-        }
+        this.qualifiedName = new QualifiedName(namespaces, name);
         this.argument = argument;
         this.over = over;
+    }
+
+    /**
+     * For backward compatibility: returns the namespaces as IdentifierString[] | null (readonly)
+     */
+    get namespaces(): IdentifierString[] | null {
+        return this.qualifiedName.namespaces;
+    }
+    /**
+     * For backward compatibility: returns the function name as RawString | IdentifierString (readonly)
+     */
+    get name(): RawString | IdentifierString {
+        return this.qualifiedName.name;
     }
 }
 
