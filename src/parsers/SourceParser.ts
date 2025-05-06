@@ -33,42 +33,50 @@ export class SourceParser {
      * @returns An object containing the parsed TableSource and the new index.
      */
     public static parseTableSourceFromLexemes(lexemes: Lexeme[], index: number): { value: SourceComponent; newIndex: number } {
-        return this.parseTableSource(lexemes, index);
+        const fullNameResult = FullNameParser.parseFromLexeme(lexemes, index);
+        return this.parseTableSource(fullNameResult);
     }
 
     // Parse from lexeme array (was: parse)
     public static parseFromLexeme(lexemes: Lexeme[], index: number): { value: SourceComponent; newIndex: number } {
-        const idx = index;
+        let idx = index;
 
         // Handle subquery
         if (idx < lexemes.length && (lexemes[idx].type & TokenType.OpenParen)) {
             return this.parseParenSource(lexemes, idx);
         }
 
-        // Handle function-based source
-        if (idx < lexemes.length && (lexemes[idx].type & TokenType.Function)) {
-            return this.parseFunctionSource(lexemes, idx);
+        // Retrieve the full name only once and reuse the result
+        const fullNameResult = FullNameParser.parseFromLexeme(lexemes, idx);
+
+        // Handle function-based source (determine by lastTokenType)
+        if (fullNameResult.lastTokenType & TokenType.Function) {
+            // Also use fullNameResult as argument for parseFunctionSource
+            return SourceParser.parseFunctionSource(lexemes, fullNameResult);
         }
 
         // Handle table source (regular table, potentially schema-qualified)
-        return this.parseTableSource(lexemes, idx);
+        return SourceParser.parseTableSource(fullNameResult);
     }
 
-    private static parseTableSource(lexemes: Lexeme[], index: number): { value: TableSource; newIndex: number } {        // Use FullNameParser to robustly parse qualified table names, including escaped and namespaced identifiers.
-        const { namespaces, name, newIndex } = FullNameParser.parseFromLexeme(lexemes, index);
+    private static parseTableSource(fullNameResult: { namespaces: string[] | null, name: any, newIndex: number }): { value: TableSource; newIndex: number } {
+        const { namespaces, name, newIndex } = fullNameResult;
         const value = new TableSource(namespaces, name.name);
         return { value, newIndex };
     }
 
-    private static parseFunctionSource(lexemes: Lexeme[], index: number): { value: FunctionSource; newIndex: number } {
-        let idx = index;
-        const functionName = lexemes[idx].value;
-        idx++;
+    private static parseFunctionSource(
+        lexemes: Lexeme[],
+        fullNameResult: { namespaces: string[] | null, name: any, newIndex: number }
+    ): { value: FunctionSource; newIndex: number } {
+        let idx = fullNameResult.newIndex;
+        const { namespaces, name } = fullNameResult;
 
         const argument = ValueParser.parseArgument(TokenType.OpenParen, TokenType.CloseParen, lexemes, idx);
         idx = argument.newIndex;
 
-        const result = new FunctionSource(functionName, argument.value);
+        const functionName = name.name;
+        const result = new FunctionSource({ namespaces: namespaces, name: functionName }, argument.value);
         return { value: result, newIndex: idx };
     }
 
