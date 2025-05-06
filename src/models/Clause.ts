@@ -186,7 +186,14 @@ export class FunctionSource extends SqlComponent {
             } else {
                 this.namespaces = nameObj.namespaces as IdentifierString[];
             }
-            this.name = typeof nameObj.name === "string" ? new RawString(nameObj.name) : new RawString(nameObj.name.name);
+
+            if (typeof nameObj.name === "string") {
+                this.name = new RawString(nameObj.name);
+            } else if (nameObj.name && typeof nameObj.name.name === "string") {
+                this.name = new RawString(nameObj.name.name);
+            } else {
+                throw new Error("Invalid structure for nameObj.name");
+            }
         } else {
             this.namespaces = null;
             this.name = typeof name === "string" ? new RawString(name) : name;
