@@ -1,6 +1,6 @@
 import { SelectQuery, SimpleSelectQuery } from "./SelectQuery";
 import { SqlComponent } from "./SqlComponent";
-import { IdentifierString, RawString, TupleExpression, ValueComponent, WindowFrameExpression } from "./ValueComponent";
+import { IdentifierString, RawString, TupleExpression, ValueComponent, WindowFrameExpression, QualifiedName } from "./ValueComponent";
 
 export class SelectItem extends SqlComponent {
     static kind = Symbol("SelectItem");
@@ -171,34 +171,34 @@ export class TableSource extends SqlComponent {
 
 export class FunctionSource extends SqlComponent {
     static kind = Symbol("FunctionSource");
-    namespaces: IdentifierString[] | null;
-    name: RawString;
+    qualifiedName: QualifiedName;
     argument: ValueComponent | null;
-    constructor(name: string | IdentifierString | { namespaces: string[] | IdentifierString[] | null, name: string | RawString }, argument: ValueComponent | null) {
+    constructor(
+        name: string | IdentifierString | { namespaces: string[] | IdentifierString[] | null, name: string | RawString | IdentifierString },
+        argument: ValueComponent | null
+    ) {
         super();
         if (typeof name === "object" && name !== null && "name" in name) {
             // Accepts { namespaces, name }
-            const nameObj = name as { namespaces: string[] | IdentifierString[] | null, name: string | IdentifierString };
-            if (nameObj.namespaces == null) {
-                this.namespaces = null;
-            } else if (typeof nameObj.namespaces[0] === "string") {
-                this.namespaces = (nameObj.namespaces as string[]).map(ns => new IdentifierString(ns));
-            } else {
-                this.namespaces = nameObj.namespaces as IdentifierString[];
-            }
-
-            if (typeof nameObj.name === "string") {
-                this.name = new RawString(nameObj.name);
-            } else if (nameObj.name && typeof nameObj.name.name === "string") {
-                this.name = new RawString(nameObj.name.name);
-            } else {
-                throw new Error("Invalid structure for nameObj.name");
-            }
+            const nameObj = name as { namespaces: string[] | IdentifierString[] | null, name: string | RawString | IdentifierString };
+            this.qualifiedName = new QualifiedName(nameObj.namespaces, nameObj.name);
         } else {
-            this.namespaces = null;
-            this.name = typeof name === "string" ? new RawString(name) : name;
+            this.qualifiedName = new QualifiedName(null, name as string | RawString | IdentifierString);
         }
         this.argument = argument;
+    }
+
+    /**
+     * For backward compatibility: returns the namespaces as IdentifierString[] | null (readonly)
+     */
+    get namespaces(): IdentifierString[] | null {
+        return this.qualifiedName.namespaces;
+    }
+    /**
+     * For backward compatibility: returns the function name as RawString | IdentifierString (readonly)
+     */
+    get name(): RawString | IdentifierString {
+        return this.qualifiedName.name;
     }
 }
 
