@@ -1,7 +1,8 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest'; // Added beforeAll
 import { SqlPrintTokenParser } from '../../src/parsers/SqlPrintTokenParser';
 import { SqlPrinter } from '../../src/transformers/SqlPrinter';
 import { SelectQueryParser } from '../../src/parsers/SelectQueryParser';
+import { SqlPrintToken } from '../../src/models/SqlPrintToken'; // Added import for SqlPrintToken
 
 // This test class is for SimpleSelectQuery printing only.
 describe('SqlPrintTokenParser + SqlPrinter (SimpleSelectQuery)', () => {
@@ -19,18 +20,143 @@ describe('SqlPrintTokenParser + SqlPrinter (SimpleSelectQuery)', () => {
         expect(sql).toBe('select * from "users"');
     });
 
-    it('should print SELECT with columns', () => {
-        // Arrange
-        const node = SelectQueryParser.parse('select id, name from users');
+    // Removed the original 'should print SELECT with columns' test as it's refactored below
+
+    describe('Formatting "select id, name from users where age > 18 and (status = \'active\' or type = \'admin\')" with different styles', () => {
+        const sqlInput = 'select id, name from users where age > 18 and (status = \'active\' or type = \'admin\')';
+        let token: SqlPrintToken;
+
+        beforeAll(() => {
+            const node = SelectQueryParser.parse(sqlInput);
+            const parser = new SqlPrintTokenParser();
+            token = parser.visit(node);
+        });
+
+        it('should print as one-liner with appropriate options', () => {
+            const printer = new SqlPrinter({
+                newline: ' ', // Use space as newline for one-liner effect
+                indentSize: 0, // No indentation for one-liner
+                commaBreak: 'none' // Default, but explicit for clarity
+            });
+            const sql = printer.print(token);
+            expect(sql).toBe('select "id", "name" from "users" where "age" > 18 and ("status" = \'active\' or "type" = \'admin\')');
+        });
+
+        it('should print with leading commas', () => {
+            const printer = new SqlPrinter({
+                commaBreak: 'before',
+                indentSize: 2,
+                indentChar: ' ',
+                newline: '\r\n',
+                keywordCase: 'upper',
+                andBreak: 'before'
+            });
+            const sql = printer.print(token);
+            expect(sql).toBe([
+                'SELECT',
+                '  "id"',
+                '  , "name"',
+                'FROM',
+                '  "users"',
+                'WHERE',
+                '  "age" > 18',
+                '  AND ("status" = \'active\' or "type" = \'admin\')'
+            ].join('\r\n'));
+        });
+
+        it('should print with trailing commas', () => {
+            const printer = new SqlPrinter({
+                commaBreak: 'after',
+                indentSize: 2,
+                indentChar: ' ',
+                newline: '\r\n',
+                keywordCase: 'upper',
+                andBreak: 'after'
+            });
+            const sql = printer.print(token);
+            expect(sql).toBe([
+                'SELECT',
+                '  "id",',
+                '  "name"',
+                'FROM',
+                '  "users"',
+                'WHERE',
+                '  "age" > 18 AND',
+                '  ("status" = \'active\' or "type" = \'admin\')'
+            ].join('\r\n'));
+        });
+    });
+
+    // New describe block for DISTINCT queries
+    describe('Formatting SELECT DISTINCT queries with specific style (leading comma, upper case, andBreak before)', () => {
+        const printer = new SqlPrinter({
+            commaBreak: 'before',
+            indentSize: 2,
+            indentChar: ' ',
+            newline: '\r\n',
+            keywordCase: 'upper',
+            andBreak: 'before'
+        });
         const parser = new SqlPrintTokenParser();
-        const token = parser.visit(node);
 
-        // Act
-        const printer = new SqlPrinter();
-        const sql = printer.print(token);
+        it('should format SELECT DISTINCT columns with WHERE clause', () => {
+            const sqlInput = 'select distinct id, name from users where age > 18 and type = \'user\'';
+            const node = SelectQueryParser.parse(sqlInput);
+            const token = parser.visit(node);
+            const sql = printer.print(token);
+            expect(sql).toBe([
+                'SELECT DISTINCT',
+                '  "id"',
+                '  , "name"',
+                'FROM',
+                '  "users"',
+                'WHERE',
+                '  "age" > 18',
+                '  AND "type" = \'user\''
+            ].join('\r\n'));
+        });
 
-        // Assert
-        expect(sql).toBe('select "id", "name" from "users"');
+        it('should format SELECT DISTINCT ON (column) columns with ORDER BY', () => {
+            // Note: This test depends on the parser\'s ability to handle DISTINCT ON.
+            // If the parser does not specifically support DISTINCT ON, the output might differ.
+            const sqlInput = 'select distinct on (status) id, name, status from users where age > 18 order by status, id desc';
+            const node = SelectQueryParser.parse(sqlInput);
+            const token = parser.visit(node);
+            const sql = printer.print(token);
+            // Expected output assumes DISTINCT ON is parsed and handled as a special construct.
+            // The actual output will depend on how SqlPrintTokenParser structures tokens for DISTINCT ON.
+            expect(sql).toBe([
+                'SELECT DISTINCT ON("status")',
+                '  "id"',
+                '  , "name"',
+                '  , "status"',
+                'FROM',
+                '  "users"',
+                'WHERE',
+                '  "age" > 18',
+                'ORDER BY',
+                '  "status"',
+                '  , "id" DESC'
+            ].join('\r\n'));
+        });
+
+        it('should format SELECT DISTINCT with a function call and GROUP BY/HAVING', () => {
+            const sqlInput = 'select distinct count(id), status from users group by status having count(id) > 10';
+            const node = SelectQueryParser.parse(sqlInput);
+            const token = parser.visit(node);
+            const sql = printer.print(token);
+            expect(sql).toBe([
+                'SELECT DISTINCT',
+                '  count("id")',
+                '  , "status"',
+                'FROM',
+                '  "users"',
+                'GROUP BY',
+                '  "status"',
+                'HAVING',
+                '  count("id") > 10'
+            ].join('\r\n'));
+        });
     });
 
     it('should print SELECT with WHERE', () => {

@@ -1,19 +1,5 @@
 import { SqlPrintToken, SqlPrintTokenType } from "../models/SqlPrintToken";
-
-/**
- * Represents a single line in the pretty-printed SQL output.
- */
-export class SqlPrintLine {
-    /** Indentation level for this line */
-    level: number;
-    /** Text content of the line */
-    text: string;
-
-    constructor(level: number, text: string) {
-        this.level = level;
-        this.text = text;
-    }
-}
+import { IndentCharOption, LinePrinter, NewlineOption } from "./LinePrinter";
 
 /**
  * CommaBreakStyle determines how commas are placed in formatted SQL output.
@@ -31,53 +17,57 @@ export type CommaBreakStyle = 'none' | 'before' | 'after';
  */
 export type AndBreakStyle = 'none' | 'before' | 'after';
 
-
 /**
  * SqlPrinter formats a SqlPrintToken tree into a SQL string with flexible style options.
  */
 export class SqlPrinter {
-    /** Indent character (e.g., ' ' or '\t') */
-    indentChar: string;
+    /** Indent character (e.g., ' ' or '\\t') */
+    indentChar: IndentCharOption; // Changed type from string
     /** Indent size (number of indentChar repetitions per level) */
     indentSize: number;
-    /** Newline character (e.g., '\n' or '\r\n') */
-    newline: string;
+    /** Newline character (e.g., '\\n' or '\\r\\n') */
+    newline: NewlineOption; // Changed type from string
     /** Comma break style: 'none', 'before', or 'after' */
     commaBreak: CommaBreakStyle;
     /** AND break style: 'none', 'before', or 'after' */
     andBreak: AndBreakStyle;
 
-    /** Keyword case style: 'none', 'upper', or 'lower' */
+    /** Keyword case style: 'none', 'upper' | 'lower' */
     keywordCase: 'none' | 'upper' | 'lower';
+
+    private linePrinter: LinePrinter;
+    private indentIncrementContainers: Set<string>; // New property
 
     /**
      * @param options Optional style settings for pretty printing
      */
     constructor(options?: {
-        indentChar?: string;
+        indentChar?: IndentCharOption;
         indentSize?: number;
-        newline?: string;
+        newline?: NewlineOption;
         commaBreak?: CommaBreakStyle;
         andBreak?: AndBreakStyle;
         keywordCase?: 'none' | 'upper' | 'lower';
+        indentIncrementContainerTypes?: string[]; // Option to customize
     }) {
-        this.indentChar = options?.indentChar ?? ' ';
+        this.indentChar = options?.indentChar ?? '';
         this.indentSize = options?.indentSize ?? 0;
-        this.newline = options?.newline ?? '';
+        this.newline = options?.newline ?? ' ';
         this.commaBreak = options?.commaBreak ?? 'none';
         this.andBreak = options?.andBreak ?? 'none';
         this.keywordCase = options?.keywordCase ?? 'none';
-    }
+        this.linePrinter = new LinePrinter(this.indentChar, this.indentSize, this.newline);
 
-    /**
-     * Converts a SqlPrintToken tree to a formatted SQL string.
-     * @param token The root SqlPrintToken
-     * @param level Indentation level (default: 0)
-     */
-    /**
-     * Stores the lines generated during pretty printing.
-     */
-    lines: SqlPrintLine[] = [];
+        // Initialize
+        this.indentIncrementContainers = new Set(options?.indentIncrementContainerTypes ?? [
+            "SelectClause",
+            "FromClause",
+            "WhereClause",
+            "GroupByClause",
+            "HavingClause",
+            "OrderByClause",
+        ]);
+    }
 
     /**
      * Converts a SqlPrintToken tree to a formatted SQL string.
@@ -85,19 +75,24 @@ export class SqlPrinter {
      * @param level Indentation level (default: 0)
      */
     print(token: SqlPrintToken, level: number = 0): string {
-        this.lines = [];
-        this.appendLine(token, level, '');
-        return this.lines.map(line => this.indent(line.level) + line.text).join(this.newline).trim();
+        // initialize
+        this.linePrinter = new LinePrinter(this.indentChar, this.indentSize, this.newline);
+        if (this.linePrinter.lines.length > 0 && level !== this.linePrinter.lines[0].level) {
+            this.linePrinter.lines[0].level = level;
+        }
+
+        this.appendToken(token, level);
+
+        return this.linePrinter.print();
     }
 
-    private appendLine(token: SqlPrintToken, level: number, prefix: string) {
+    private appendToken(token: SqlPrintToken, level: number) {
         if (!token.innerTokens || token.innerTokens.length === 0) {
             if (token.text === '') {
                 return;
             }
         }
 
-        let nextPrefix: string = '';
         if (token.type === SqlPrintTokenType.keyword) {
             let text = token.text;
             if (this.keywordCase === 'upper') {
@@ -105,39 +100,63 @@ export class SqlPrinter {
             } else if (this.keywordCase === 'lower') {
                 text = text.toLowerCase();
             }
-            this.lines.push(new SqlPrintLine(level, prefix + text));
+            this.linePrinter.appendText(text);
         } else if (token.type === SqlPrintTokenType.commna) {
+            let text = token.text;
             if (this.commaBreak === 'before') {
-                nextPrefix = token.text + ' ';
+                this.linePrinter.appendNewline(level);
+                this.linePrinter.appendText(text);
+            } else if (this.commaBreak === 'after') {
+                this.linePrinter.appendText(text);
+                this.linePrinter.appendNewline(level);
             } else {
-                // 直前行に挿入
-                if (this.lines.length > 0) {
-                    this.lines[this.lines.length - 1].text += prefix + token.text;
-                }
+                this.linePrinter.appendText(text);
             }
         } else if (token.type === SqlPrintTokenType.operator && token.text.toLowerCase() === 'and') {
+            let text = token.text;
+            if (this.keywordCase === 'upper') {
+                text = text.toUpperCase();
+            } else if (this.keywordCase === 'lower') {
+                text = text.toLowerCase();
+            }
+
             if (this.andBreak === 'before') {
-                nextPrefix = token.text + ' ';
+                this.linePrinter.appendNewline(level);
+                this.linePrinter.appendText(text);
+            } else if (this.andBreak === 'after') {
+                this.linePrinter.appendText(text);
+                this.linePrinter.appendNewline(level);
             } else {
-                // 直前行に挿入
-                if (this.lines.length > 0) {
-                    this.lines[this.lines.length - 1].text += prefix + token.text;
-                }
+                this.linePrinter.appendText(text);
             }
         } else {
-            this.lines.push(new SqlPrintLine(level, prefix + token.text));
+            this.linePrinter.appendText(token.text);
+        }
+
+        // append keyword tokens(not indented)
+        if (token.keywordTokens && token.keywordTokens.length > 0) {
+            for (let i = 0; i < token.keywordTokens.length; i++) {
+                const keywordToken = token.keywordTokens[i];
+                this.appendToken(keywordToken, level);
+            }
+        }
+
+        let innerLevel = level;
+
+        // indnet level up
+        if (this.indentIncrementContainers.has(token.containerType)) { // Changed condition
+            innerLevel++;
+            this.linePrinter.appendNewline(innerLevel);
         }
 
         for (let i = 0; i < token.innerTokens.length; i++) {
             const child = token.innerTokens[i];
-            this.appendLine(child, level, nextPrefix);
+            this.appendToken(child, innerLevel);
         }
-    }
 
-    /**
-     * Returns the indent string for a given level.
-     */
-    private indent(level: number): string {
-        return this.indentChar.repeat(this.indentSize * level);
+        // indnet level down
+        if (innerLevel !== level) {
+            this.linePrinter.appendNewline(level);
+        }
     }
 }

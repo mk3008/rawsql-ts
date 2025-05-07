@@ -50,6 +50,9 @@ export enum SqlPrintTokenContainerType {
     QualifiedName = "QualifiedName",
     WhereClause = "WhereClause",
     SimpleSelectQuery = "SimpleSelectQuery",
+    OrderByClause = "OrderByClause",
+    GroupByClause = "GroupByClause",
+    HavingClause = "HavingClause",
     // Add more as needed
 }
 
@@ -66,6 +69,12 @@ export class SqlPrintToken {
      * The type of the container this token belongs to. Used for clauses, functions, or other groupings.
      */
     containerType: SqlPrintTokenContainerType;
+
+    /**
+     * Optional. Keywords that are part of this token, like DISTINCT in a SELECT clause.
+     * These should typically be processed before innerTokens.
+     */
+    keywordTokens?: SqlPrintToken[];
 
     /**
      * Child tokens that belong to this container.

@@ -1,4 +1,4 @@
-import { PartitionByClause, OrderByClause, OrderByItem, SelectClause, SelectItem, Distinct, DistinctOn, SortDirection, NullsSortDirection, TableSource, SourceExpression, FromClause, JoinClause, JoinOnClause, JoinUsingClause, FunctionSource, SourceAliasExpression, WhereClause } from "../models/Clause";
+import { PartitionByClause, OrderByClause, OrderByItem, SelectClause, SelectItem, Distinct, DistinctOn, SortDirection, NullsSortDirection, TableSource, SourceExpression, FromClause, JoinClause, JoinOnClause, JoinUsingClause, FunctionSource, SourceAliasExpression, WhereClause, GroupByClause, HavingClause } from "../models/Clause";
 import { SimpleSelectQuery } from "../models/SelectQuery";
 import { SqlComponent, SqlComponentVisitor } from "../models/SqlComponent";
 import { SqlPrintToken, SqlPrintTokenType, SqlPrintTokenContainerType } from "../models/SqlPrintToken";
@@ -96,6 +96,10 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         // where
         this.handlers.set(WhereClause.kind, (expr) => this.visitWhereClause(expr as WhereClause));
 
+        // group
+        this.handlers.set(GroupByClause.kind, (expr) => this.visitGroupByClause(expr as GroupByClause));
+        this.handlers.set(HavingClause.kind, (expr) => this.visitHavingClause(expr as HavingClause));
+
         // Query
         this.handlers.set(SimpleSelectQuery.kind, (expr) => this.visitSimpleQuery(expr as SimpleSelectQuery));
     }
@@ -132,10 +136,10 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
     private visitOrderByClause(arg: OrderByClause): SqlPrintToken {
         // Print as: order by ...
-        const token = new SqlPrintToken(SqlPrintTokenType.keyword, 'order by');
+        const token = new SqlPrintToken(SqlPrintTokenType.keyword, 'order by', SqlPrintTokenContainerType.OrderByClause);
         token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
         for (let i = 0; i < arg.order.length; i++) {
-            if (i > 0) token.innerTokens.push(SqlPrintTokenParser.COMMA_TOKEN);
+            if (i > 0) token.innerTokens.push(...SqlPrintTokenParser.commaSpaceTokens());
             token.innerTokens.push(this.visit(arg.order[i]));
         }
         return token;
@@ -223,7 +227,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
         token.innerTokens.push(this.visit(arg.left));
         token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
-        token.innerTokens.push(this.visit(arg.operator));
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.operator, arg.operator.value));
         token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
         token.innerTokens.push(this.visit(arg.right));
 
@@ -486,14 +490,14 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     }
 
     private visitSelectClause(arg: SelectClause): SqlPrintToken {
-        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.SelectClause);
+        const token = new SqlPrintToken(SqlPrintTokenType.keyword, 'select', SqlPrintTokenContainerType.SelectClause);
 
-        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'select'));
         token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
 
         if (arg.distinct) {
-            token.innerTokens.push(arg.distinct.accept(this));
-            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.keywordTokens = [];
+            token.keywordTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.keywordTokens.push(arg.distinct.accept(this));
         }
 
         for (let i = 0; i < arg.items.length; i++) {
@@ -570,9 +574,8 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     }
 
     public visitFromClause(arg: FromClause): SqlPrintToken {
-        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.FromClause);
+        const token = new SqlPrintToken(SqlPrintTokenType.keyword, 'from', SqlPrintTokenContainerType.FromClause);
 
-        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'from'));
         token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
         token.innerTokens.push(this.visit(arg.source));
 
@@ -666,9 +669,31 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     }
 
     public visitWhereClause(arg: WhereClause): SqlPrintToken {
-        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.WhereClause);
+        const token = new SqlPrintToken(SqlPrintTokenType.keyword, 'where', SqlPrintTokenContainerType.WhereClause);
 
-        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'where'));
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(this.visit(arg.condition));
+
+        return token;
+    }
+
+    public visitGroupByClause(arg: GroupByClause): SqlPrintToken {
+        const token = new SqlPrintToken(SqlPrintTokenType.keyword, 'group by', SqlPrintTokenContainerType.GroupByClause);
+
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        for (let i = 0; i < arg.grouping.length; i++) {
+            if (i > 0) {
+                token.innerTokens.push(...SqlPrintTokenParser.commaSpaceTokens());
+            }
+            token.innerTokens.push(this.visit(arg.grouping[i]));
+        }
+
+        return token;
+    }
+
+    public visitHavingClause(arg: HavingClause): SqlPrintToken {
+        const token = new SqlPrintToken(SqlPrintTokenType.keyword, 'having', SqlPrintTokenContainerType.HavingClause);
+
         token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
         token.innerTokens.push(this.visit(arg.condition));
 
@@ -691,6 +716,21 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         if (arg.whereClause) {
             token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
             token.innerTokens.push(arg.whereClause.accept(this));
+        }
+
+        if (arg.groupByClause) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(arg.groupByClause.accept(this));
+        }
+
+        if (arg.havingClause) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(arg.havingClause.accept(this));
+        }
+
+        if (arg.orderByClause) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(arg.orderByClause.accept(this));
         }
 
         return token;
