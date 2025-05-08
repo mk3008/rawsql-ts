@@ -76,6 +76,14 @@ export class LinePrinter {
             throw new Error('No tokens to append to.');
         }
     }
+
+    getCurrentText(): string {
+        if (this.lines.length > 0) {
+            return this.lines[this.lines.length - 1].text;
+        } else {
+            throw new Error('No tokens to get text from.');
+        }
+    }
 }
 
 export class PrintLine {

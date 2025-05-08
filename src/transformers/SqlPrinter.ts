@@ -93,6 +93,8 @@ export class SqlPrinter {
             }
         }
 
+        const currentText = this.linePrinter.getCurrentText();
+
         if (token.type === SqlPrintTokenType.keyword) {
             let text = token.text;
             if (this.keywordCase === 'upper') {
@@ -144,7 +146,7 @@ export class SqlPrinter {
         let innerLevel = level;
 
         // indnet level up
-        if (this.indentIncrementContainers.has(token.containerType)) { // Changed condition
+        if (currentText === '' && this.indentIncrementContainers.has(token.containerType)) { // Changed condition
             innerLevel++;
             this.linePrinter.appendNewline(innerLevel);
         }
