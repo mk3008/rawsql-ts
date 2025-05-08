@@ -114,7 +114,7 @@ export class SqlPrinter {
                 text = text.toLowerCase();
             }
             this.linePrinter.appendText(text);
-        } else if (token.type === SqlPrintTokenType.commna) {
+        } else if (token.type === SqlPrintTokenType.comma) {
             let text = token.text;
             if (this.commaBreak === 'before') {
                 this.linePrinter.appendNewline(level);

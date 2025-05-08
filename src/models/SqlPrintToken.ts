@@ -2,7 +2,7 @@ export enum SqlPrintTokenType {
     container = 0,
     keyword,
     value, // Represents non-keyword elements such as table names
-    commna, // Represents comma ','
+    comma, // Represents comma ','
     parenthesis, // Represents parentheses: ( ) { } [ ]
     operator, // Represents operators such as +, -, *, /
     comment,

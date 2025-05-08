@@ -31,7 +31,7 @@ import { ParameterDecorator } from "./ParameterDecorator";
 export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     // Static tokens for common symbols
     private static readonly SPACE_TOKEN = new SqlPrintToken(SqlPrintTokenType.space, ' ');
-    private static readonly COMMA_TOKEN = new SqlPrintToken(SqlPrintTokenType.commna, ',');
+    private static readonly COMMA_TOKEN = new SqlPrintToken(SqlPrintTokenType.comma, ',');
     private static readonly PAREN_OPEN_TOKEN = new SqlPrintToken(SqlPrintTokenType.parenthesis, '(');
     private static readonly PAREN_CLOSE_TOKEN = new SqlPrintToken(SqlPrintTokenType.parenthesis, ')');
     private static readonly DOT_TOKEN = new SqlPrintToken(SqlPrintTokenType.dot, '.');
