@@ -167,8 +167,8 @@ export class CTEDisabler implements SqlComponentVisitor<SqlComponent> {
         arg.groupByClause = arg.groupByClause ? this.visit(arg.groupByClause) as GroupByClause : null;
         arg.havingClause = arg.havingClause ? this.visit(arg.havingClause) as HavingClause : null;
         arg.orderByClause = arg.orderByClause ? this.visit(arg.orderByClause) as OrderByClause : null;
-        if (arg.windowsClause) {
-            arg.windowsClause = new WindowsClause(arg.windowsClause.windows.map(w => this.visit(w) as WindowFrameClause));
+        if (arg.windowClause) {
+            arg.windowClause = new WindowsClause(arg.windowClause.windows.map(w => this.visit(w) as WindowFrameClause));
         }
         arg.limitClause = arg.limitClause ? this.visit(arg.limitClause) as LimitClause : null;
         arg.forClause = arg.forClause ? this.visit(arg.forClause) as ForClause : null;

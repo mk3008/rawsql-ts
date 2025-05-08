@@ -1,4 +1,4 @@
-import { PartitionByClause, OrderByClause, OrderByItem, SelectClause, SelectItem, Distinct, DistinctOn, SortDirection, NullsSortDirection, TableSource, SourceExpression, FromClause, JoinClause, JoinOnClause, JoinUsingClause, FunctionSource, SourceAliasExpression, WhereClause, GroupByClause, HavingClause, SubQuerySource } from "../models/Clause";
+import { PartitionByClause, OrderByClause, OrderByItem, SelectClause, SelectItem, Distinct, DistinctOn, SortDirection, NullsSortDirection, TableSource, SourceExpression, FromClause, JoinClause, JoinOnClause, JoinUsingClause, FunctionSource, SourceAliasExpression, WhereClause, GroupByClause, HavingClause, SubQuerySource, WindowFrameClause, LimitClause, ForClause, OffsetClause, WindowsClause as WindowClause } from "../models/Clause";
 import { SimpleSelectQuery } from "../models/SelectQuery";
 import { SqlComponent, SqlComponentVisitor } from "../models/SqlComponent";
 import { SqlPrintToken, SqlPrintTokenType, SqlPrintTokenContainerType } from "../models/SqlPrintToken";
@@ -99,6 +99,12 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         // group
         this.handlers.set(GroupByClause.kind, (expr) => this.visitGroupByClause(expr as GroupByClause));
         this.handlers.set(HavingClause.kind, (expr) => this.visitHavingClause(expr as HavingClause));
+
+        this.handlers.set(WindowClause.kind, (expr) => this.visitWindowClause(expr as WindowClause));
+        this.handlers.set(WindowFrameClause.kind, (expr) => this.visitWindowFrameClause(expr as WindowFrameClause));
+        this.handlers.set(LimitClause.kind, (expr) => this.visitLimitClause(expr as LimitClause));
+        this.handlers.set(OffsetClause.kind, (expr) => this.visitOffsetClause(expr as OffsetClause));
+        this.handlers.set(ForClause.kind, (expr) => this.visitForClause(expr as ForClause));
 
         // Query
         this.handlers.set(SimpleSelectQuery.kind, (expr) => this.visitSimpleQuery(expr as SimpleSelectQuery));
@@ -207,7 +213,18 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         }
         token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
         if (arg.over) {
-            token.innerTokens.push(this.visit(arg.over));
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'over'));
+
+            if (arg.over instanceof IdentifierString) {
+                token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+                token.innerTokens.push(arg.over.accept(this));
+            }
+            else {
+                token.innerTokens.push(SqlPrintTokenParser.PAREN_OPEN_TOKEN);
+                token.innerTokens.push(this.visit(arg.over));
+                token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
+            }
         }
 
         return token;
@@ -437,47 +454,28 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         // Compose window frame expression: over(partition by ... order by ... rows ...)
         const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.WindowFrameExpression);
 
-        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
-        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'over'));
-        token.innerTokens.push(SqlPrintTokenParser.PAREN_OPEN_TOKEN);
-
-        const overArgument = this.createOverClauseArgument(arg);
-        if (overArgument) {
-            token.innerTokens.push(overArgument);
-        }
-
-        token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
-
-        return token;
-    }
-
-    private createOverClauseArgument(arg: WindowFrameExpression): SqlPrintToken | null {
-        const overArgument = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.OverClauseArgument);
         let first = true;
         if (arg.partition) {
-            overArgument.innerTokens.push(this.visit(arg.partition));
+            token.innerTokens.push(this.visit(arg.partition));
             first = false;
         }
         if (arg.order) {
             if (!first) {
-                overArgument.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+                token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
                 first = false;
             }
-            overArgument.innerTokens.push(this.visit(arg.order));
+            token.innerTokens.push(this.visit(arg.order));
         }
         if (arg.frameSpec) {
             if (!first) {
-                overArgument.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+                token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
                 first = false;
             }
-            overArgument.innerTokens.push(this.visit(arg.frameSpec));
+            token.innerTokens.push(this.visit(arg.frameSpec));
         }
-        if (first) {
-            return null; // No arguments to print
-        }
-        return overArgument;
-    }
 
+        return token;
+    }
 
     private visitSelectItem(arg: SelectItem): SqlPrintToken {
         const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.SelectItem);
@@ -715,6 +713,61 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         return token;
     }
 
+    public visitWindowClause(arg: WindowClause): SqlPrintToken {
+        const token = new SqlPrintToken(SqlPrintTokenType.keyword, 'window', SqlPrintTokenContainerType.WindowClause);
+
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        for (let i = 0; i < arg.windows.length; i++) {
+            if (i > 0) {
+                token.innerTokens.push(...SqlPrintTokenParser.commaSpaceTokens());
+            }
+            token.innerTokens.push(this.visit(arg.windows[i]));
+        }
+
+        return token;
+    }
+
+    public visitWindowFrameClause(arg: WindowFrameClause): SqlPrintToken {
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.WindowFrameClause);
+
+        token.innerTokens.push(arg.name.accept(this));
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'as'));
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(SqlPrintTokenParser.PAREN_OPEN_TOKEN);
+        token.innerTokens.push(this.visit(arg.expression));
+        token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
+
+        return token;
+    }
+
+    public visitLimitClause(arg: LimitClause): SqlPrintToken {
+        const token = new SqlPrintToken(SqlPrintTokenType.keyword, 'limit', SqlPrintTokenContainerType.LimitClause);
+
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(this.visit(arg.value));
+
+        return token;
+    }
+
+    public visitOffsetClause(arg: OffsetClause): SqlPrintToken {
+        const token = new SqlPrintToken(SqlPrintTokenType.keyword, 'offset', SqlPrintTokenContainerType.OffsetClause);
+
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(this.visit(arg.value));
+
+        return token;
+    }
+
+    public visitForClause(arg: ForClause): SqlPrintToken {
+        const token = new SqlPrintToken(SqlPrintTokenType.keyword, 'for', SqlPrintTokenContainerType.ForClause);
+
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, arg.lockMode));
+
+        return token;
+    }
+
     // query
     public visitSimpleQuery(arg: SimpleSelectQuery): SqlPrintToken {
         const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.SimpleSelectQuery);
@@ -746,6 +799,26 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         if (arg.orderByClause) {
             token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
             token.innerTokens.push(arg.orderByClause.accept(this));
+        }
+
+        if (arg.windowClause) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(arg.windowClause.accept(this));
+        }
+
+        if (arg.limitClause) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(arg.limitClause.accept(this));
+        }
+
+        if (arg.offsetClause) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(arg.offsetClause.accept(this));
+        }
+
+        if (arg.forClause) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(arg.forClause.accept(this));
         }
 
         return token;

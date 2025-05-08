@@ -1,5 +1,5 @@
 import { SqlComponent } from "./SqlComponent";
-import { ForClause, FromClause, GroupByClause, HavingClause, JoinClause, JoinOnClause, LimitClause, OrderByClause, SelectClause, SourceExpression, SubQuerySource, SourceAliasExpression, WhereClause, WindowsClause, WithClause, CommonTable, OffsetClause, FetchClause } from "./Clause";
+import { ForClause, FromClause, GroupByClause, HavingClause, JoinClause, JoinOnClause, LimitClause, OrderByClause, SelectClause, SourceExpression, SubQuerySource, SourceAliasExpression, WhereClause, WindowsClause as WindowClause, WithClause, CommonTable, OffsetClause, FetchClause } from "./Clause";
 import { BinaryExpression, ColumnReference, ValueComponent } from "./ValueComponent";
 import { ValueParser } from "../parsers/ValueParser";
 import { CTENormalizer } from "../transformers/CTENormalizer";
@@ -26,7 +26,7 @@ export class SimpleSelectQuery extends SqlComponent implements SelectQuery {
     groupByClause: GroupByClause | null;
     havingClause: HavingClause | null;
     orderByClause: OrderByClause | null;
-    windowsClause: WindowsClause | null;
+    windowClause: WindowClause | null;
     limitClause: LimitClause | null;
     offsetClause: OffsetClause | null;
     fetchClause: FetchClause | null;
@@ -39,7 +39,7 @@ export class SimpleSelectQuery extends SqlComponent implements SelectQuery {
         groupByClause?: GroupByClause | null,
         havingClause?: HavingClause | null,
         orderByClause?: OrderByClause | null,
-        windowsClause?: WindowsClause | null,
+        windowClause?: WindowClause | null,
         limitClause?: LimitClause | null,
         offsetClause?: OffsetClause | null,
         fetchClause?: FetchClause | null,
@@ -54,7 +54,7 @@ export class SimpleSelectQuery extends SqlComponent implements SelectQuery {
         this.groupByClause = params.groupByClause ?? null;
         this.havingClause = params.havingClause ?? null;
         this.orderByClause = params.orderByClause ?? null;
-        this.windowsClause = params.windowsClause ?? null;
+        this.windowClause = params.windowClause ?? null;
         this.limitClause = params.limitClause ?? null;
         this.offsetClause = params.offsetClause ?? null;
         this.fetchClause = params.fetchClause ?? null;

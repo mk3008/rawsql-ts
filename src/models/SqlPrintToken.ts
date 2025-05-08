@@ -55,7 +55,11 @@ export enum SqlPrintTokenContainerType {
     HavingClause = "HavingClause",
     SubQuerySource = "SubQuerySource",
     PartitionByClause = "PartitionByClause",
-    OverClauseArgument = "OverClauseArgument",
+    WindowFrameClause = "WindowFrameClause",
+    LimitClause = "LimitClause",
+    OffsetClause = "OffsetClause",
+    ForClause = "ForClause",
+    WindowClause = "WindowClause",
     // Add more as needed
 }
 

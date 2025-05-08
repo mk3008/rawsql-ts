@@ -66,9 +66,12 @@ export class SqlPrinter {
                 SqlPrintTokenContainerType.WhereClause,
                 SqlPrintTokenContainerType.GroupByClause,
                 SqlPrintTokenContainerType.HavingClause,
-                SqlPrintTokenContainerType.OverClauseArgument,
+                SqlPrintTokenContainerType.WindowFrameExpression,
                 SqlPrintTokenContainerType.PartitionByClause,
                 SqlPrintTokenContainerType.OrderByClause,
+                SqlPrintTokenContainerType.WindowClause,
+                SqlPrintTokenContainerType.LimitClause,
+                SqlPrintTokenContainerType.OffsetClause,
                 SqlPrintTokenContainerType.SimpleSelectQuery,
             ]
         );

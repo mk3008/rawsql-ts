@@ -220,8 +220,8 @@ export class TableSourceCollector implements SqlComponentVisitor<void> {
                 query.orderByClause.accept(this);
             }
 
-            if (query.windowsClause) {
-                for (const win of query.windowsClause.windows) {
+            if (query.windowClause) {
+                for (const win of query.windowClause.windows) {
                     win.accept(this);
                 }
             }

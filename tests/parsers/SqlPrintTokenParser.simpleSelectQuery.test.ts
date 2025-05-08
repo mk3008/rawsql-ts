@@ -1,8 +1,7 @@
-it('should print SELECT with OVER clause (window function, indent 2, leading comma)', () => {
+it('should print SELECT with named window clause (indent 2, leading comma)', () => {
     // Arrange
     const node = SelectQueryParser.parse(
-        'select id, salary, sum(salary) over (partition by department_id order by id) as total_salary ' +
-        'from employees'
+        'select id, salary, sum(salary) over w as total_salary from employees window w as (partition by department_id order by id)'
     );
     const parser = new SqlPrintTokenParser();
     const token = parser.visit(node);
@@ -23,14 +22,16 @@ it('should print SELECT with OVER clause (window function, indent 2, leading com
         'SELECT',
         '  "id"',
         '  , "salary"',
-        '  , sum("salary") OVER(',
+        '  , sum("salary") OVER "w" AS "total_salary"',
+        'FROM',
+        '  "employees"',
+        'WINDOW',
+        '  "w" AS (',
         '    PARTITION BY',
         '      "department_id"',
         '    ORDER BY',
         '      "id"',
-        '  ) AS "total_salary"',
-        'FROM',
-        '  "employees"'
+        '  )'
     ].join('\r\n'));
 });
 import { describe, it, expect, beforeAll } from 'vitest'; // Added beforeAll
@@ -325,6 +326,105 @@ describe('SqlPrintTokenParser + SqlPrinter (SimpleSelectQuery)', () => {
             '    WHERE',
             '      "o"."user_id" = "u"."id"',
             '  ) AS "t" ON true'
+        ].join('\r\n'));
+    });
+
+    it('should print SELECT with OVER clause (window function, indent 2, leading comma)', () => {
+        // Arrange
+        const node = SelectQueryParser.parse(
+            'select id, salary, sum(salary) over (partition by department_id order by id) as total_salary ' +
+            'from employees'
+        );
+        const parser = new SqlPrintTokenParser();
+        const token = parser.visit(node);
+
+        // Act
+        const printer = new SqlPrinter({
+            indentSize: 2,
+            indentChar: ' ',
+            newline: '\r\n',
+            keywordCase: 'upper',
+            commaBreak: 'before',
+            andBreak: 'before'
+        });
+        const sql = printer.print(token);
+
+        // Assert
+        expect(sql).toBe([
+            'SELECT',
+            '  "id"',
+            '  , "salary"',
+            '  , sum("salary") OVER(',
+            '    PARTITION BY',
+            '      "department_id"',
+            '    ORDER BY',
+            '      "id"',
+            '  ) AS "total_salary"',
+            'FROM',
+            '  "employees"'
+        ].join('\r\n'));
+    });
+
+    it('should print SELECT with LIMIT and OFFSET (indent 2, leading comma)', () => {
+        // Arrange
+        const node = SelectQueryParser.parse(
+            'select id, name from users limit 10 offset 5'
+        );
+        const parser = new SqlPrintTokenParser();
+        const token = parser.visit(node);
+
+        // Act
+        const printer = new SqlPrinter({
+            indentSize: 2,
+            indentChar: ' ',
+            newline: '\r\n',
+            keywordCase: 'upper',
+            commaBreak: 'before',
+            andBreak: 'before'
+        });
+        const sql = printer.print(token);
+
+        // Assert
+        expect(sql).toBe([
+            'SELECT',
+            '  "id"',
+            '  , "name"',
+            'FROM',
+            '  "users"',
+            'LIMIT',
+            '  10',
+            'OFFSET',
+            '  5'
+        ].join('\r\n'));
+    });
+
+    it('should print SELECT with FOR UPDATE (indent 2, leading comma)', () => {
+        // Arrange
+        const node = SelectQueryParser.parse(
+            'select id, name from users for update'
+        );
+        const parser = new SqlPrintTokenParser();
+        const token = parser.visit(node);
+
+        // Act
+        const printer = new SqlPrinter({
+            indentSize: 2,
+            indentChar: ' ',
+            newline: '\r\n',
+            keywordCase: 'upper',
+            commaBreak: 'before',
+            andBreak: 'before'
+        });
+        const sql = printer.print(token);
+
+        // Assert
+        expect(sql).toBe([
+            'SELECT',
+            '  "id"',
+            '  , "name"',
+            'FROM',
+            '  "users"',
+            'FOR UPDATE'
         ].join('\r\n'));
     });
 });

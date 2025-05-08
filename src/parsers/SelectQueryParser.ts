@@ -196,7 +196,7 @@ export class SelectQueryParser {
             groupByClause: groupByClauseResult ? groupByClauseResult.value : null,
             havingClause: havingClauseResult ? havingClauseResult.value : null,
             orderByClause: orderByClauseResult ? orderByClauseResult.value : null,
-            windowsClause: windowClauseResult ? windowClauseResult.value : null,
+            windowClause: windowClauseResult ? windowClauseResult.value : null,
             limitClause: limitClauseResult ? limitClauseResult.value : null,
             offsetClause: offsetClausResult ? offsetClausResult.value : null,
             fetchClause: fetchClauseResult ? fetchClauseResult.value : null,

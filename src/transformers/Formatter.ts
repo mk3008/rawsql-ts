@@ -570,8 +570,8 @@ export class Formatter implements SqlComponentVisitor<string> {
             parts.push(arg.havingClause.accept(this));
         }
 
-        if (arg.windowsClause !== null) {
-            parts.push(arg.windowsClause.accept(this));
+        if (arg.windowClause !== null) {
+            parts.push(arg.windowClause.accept(this));
         }
 
         if (arg.orderByClause !== null) {
