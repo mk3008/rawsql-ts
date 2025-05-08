@@ -1,5 +1,5 @@
 import { PartitionByClause, OrderByClause, OrderByItem, SelectClause, SelectItem, Distinct, DistinctOn, SortDirection, NullsSortDirection, TableSource, SourceExpression, FromClause, JoinClause, JoinOnClause, JoinUsingClause, FunctionSource, SourceAliasExpression, WhereClause, GroupByClause, HavingClause, SubQuerySource, WindowFrameClause, LimitClause, ForClause, OffsetClause, WindowsClause as WindowClause } from "../models/Clause";
-import { SimpleSelectQuery } from "../models/SelectQuery";
+import { BinarySelectQuery, SimpleSelectQuery } from "../models/SelectQuery";
 import { SqlComponent, SqlComponentVisitor } from "../models/SqlComponent";
 import { SqlPrintToken, SqlPrintTokenType, SqlPrintTokenContainerType } from "../models/SqlPrintToken";
 import {
@@ -109,6 +109,25 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         // Query
         this.handlers.set(SimpleSelectQuery.kind, (expr) => this.visitSimpleQuery(expr as SimpleSelectQuery));
         this.handlers.set(SubQuerySource.kind, (expr) => this.visitSubQuerySource(expr as SubQuerySource));
+        this.handlers.set(BinarySelectQuery.kind, (expr) => this.visitBinarySelectQuery(expr));
+    }
+    /**
+     * Pretty-prints a BinarySelectQuery (e.g., UNION, INTERSECT, EXCEPT).
+     * This will recursively print left and right queries, separated by the operator.
+     * @param arg BinarySelectQuery
+     */
+    private visitBinarySelectQuery(arg: BinarySelectQuery): SqlPrintToken {
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '');
+
+        token.innerTokens.push(this.visit(arg.left));
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, arg.operator.value, SqlPrintTokenContainerType.BinarySelectQueryOperator));
+
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(this.visit(arg.right));
+
+        return token;
     }
 
     /**
@@ -825,10 +844,14 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     }
 
     public visitSubQuerySource(arg: SubQuerySource): SqlPrintToken {
-        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.SubQuerySource);
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '');
 
         token.innerTokens.push(SqlPrintTokenParser.PAREN_OPEN_TOKEN);
-        token.innerTokens.push(arg.query.accept(this));
+
+        const subQuery = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.SubQuerySource);
+        subQuery.innerTokens.push(arg.query.accept(this));
+
+        token.innerTokens.push(subQuery);
         token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
 
         return token;

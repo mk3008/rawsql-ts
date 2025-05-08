@@ -427,4 +427,39 @@ describe('SqlPrintTokenParser + SqlPrinter (SimpleSelectQuery)', () => {
             'FOR UPDATE'
         ].join('\r\n'));
     });
+
+    it('should print UNION query (indent 2, leading comma)', () => {
+        // Arrange
+        const node = SelectQueryParser.parse(
+            'select id, name from users union select id, name from admins'
+        );
+        const parser = new SqlPrintTokenParser();
+        const token = parser.visit(node);
+
+        // Act
+        const printer = new SqlPrinter({
+            indentSize: 2,
+            indentChar: ' ',
+            newline: '\r\n',
+            keywordCase: 'upper',
+            commaBreak: 'before',
+            andBreak: 'before'
+        });
+        const sql = printer.print(token);
+
+        // Assert
+        expect(sql).toBe([
+            'SELECT',
+            '  "id"',
+            '  , "name"',
+            'FROM',
+            '  "users"',
+            'UNION',
+            'SELECT',
+            '  "id"',
+            '  , "name"',
+            'FROM',
+            '  "admins"'
+        ].join('\r\n'));
+    });
 });

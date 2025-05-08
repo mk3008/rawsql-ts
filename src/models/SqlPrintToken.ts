@@ -60,6 +60,7 @@ export enum SqlPrintTokenContainerType {
     OffsetClause = "OffsetClause",
     ForClause = "ForClause",
     WindowClause = "WindowClause",
+    BinarySelectQueryOperator = "BinarySelectQueryOperator",
     // Add more as needed
 }
 

@@ -72,7 +72,8 @@ export class SqlPrinter {
                 SqlPrintTokenContainerType.WindowClause,
                 SqlPrintTokenContainerType.LimitClause,
                 SqlPrintTokenContainerType.OffsetClause,
-                SqlPrintTokenContainerType.SimpleSelectQuery,
+                SqlPrintTokenContainerType.SubQuerySource,
+                SqlPrintTokenContainerType.BinarySelectQueryOperator,
             ]
         );
     }
