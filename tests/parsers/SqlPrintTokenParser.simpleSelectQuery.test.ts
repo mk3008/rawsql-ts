@@ -1,3 +1,41 @@
+it('should print SELECT with LATERAL JOIN (indent 2, leading comma)', () => {
+    // Arrange
+    const node = SelectQueryParser.parse(
+        'select u.id, t.max_total ' +
+        'from users u ' +
+        'left join lateral (select max(total) as max_total from orders o where o.user_id = u.id) t on true'
+    );
+    const parser = new SqlPrintTokenParser();
+    const token = parser.visit(node);
+
+    // Act
+    const printer = new SqlPrinter({
+        indentSize: 2,
+        indentChar: ' ',
+        newline: '\r\n',
+        keywordCase: 'upper',
+        commaBreak: 'before',
+        andBreak: 'before'
+    });
+    const sql = printer.print(token);
+
+    // Assert
+    expect(sql).toBe([
+        'SELECT',
+        '  "u"."id"',
+        '  , "t"."max_total"',
+        'FROM',
+        '  "users" AS "u"',
+        '  LEFT JOIN LATERAL (',
+        '    SELECT',
+        '      max("total") AS "max_total"',
+        '    FROM',
+        '      "orders" AS "o"',
+        '    WHERE',
+        '      "o"."user_id" = "u"."id"',
+        '  ) AS "t" ON true'
+    ].join('\r\n'));
+});
 import { describe, it, expect, beforeAll } from 'vitest'; // Added beforeAll
 import { SqlPrintTokenParser } from '../../src/parsers/SqlPrintTokenParser';
 import { SqlPrinter } from '../../src/transformers/SqlPrinter';
@@ -18,6 +56,39 @@ describe('SqlPrintTokenParser + SqlPrinter (SimpleSelectQuery)', () => {
 
         // Assert
         expect(sql).toBe('select * from "users"');
+    });
+
+    it('should print SELECT with JOIN using USING clause (indent 2, leading comma)', () => {
+        // Arrange
+        const node = SelectQueryParser.parse(
+            'select u.id, u.name, o.total ' +
+            'from users u ' +
+            'inner join orders o using (id)'
+        );
+        const parser = new SqlPrintTokenParser();
+        const token = parser.visit(node);
+
+        // Act
+        const printer = new SqlPrinter({
+            indentSize: 2,
+            indentChar: ' ',
+            newline: '\r\n',
+            keywordCase: 'upper',
+            commaBreak: 'before',
+            andBreak: 'before'
+        });
+        const sql = printer.print(token);
+
+        // Assert
+        expect(sql).toBe([
+            'SELECT',
+            '  "u"."id"',
+            '  , "u"."name"',
+            '  , "o"."total"',
+            'FROM',
+            '  "users" AS "u"',
+            '  INNER JOIN "orders" AS "o" USING("id")'
+        ].join('\r\n'));
     });
 
     // Removed the original 'should print SELECT with columns' test as it's refactored below
@@ -166,10 +237,58 @@ describe('SqlPrintTokenParser + SqlPrinter (SimpleSelectQuery)', () => {
         const token = parser.visit(node);
 
         // Act
-        const printer = new SqlPrinter();
+        const printer = new SqlPrinter({
+            indentSize: 2,
+            indentChar: ' ',
+            newline: '\r\n',
+            keywordCase: 'upper',
+        });
         const sql = printer.print(token);
 
         // Assert
-        expect(sql).toBe('select "id" from "users" where "id" = 1');
+        expect(sql).toBe([
+            'SELECT',
+            '  "id"',
+            'FROM',
+            '  "users"',
+            'WHERE',
+            '  "id" = 1'
+        ].join('\r\n'));
+    });
+
+    it('should print SELECT with multiple JOINs (indent 2)', () => {
+        // Arrange
+        const node = SelectQueryParser.parse(
+            'select u.id, u.name, o.total, a.city ' +
+            'from users u ' +
+            'inner join orders o on u.id = o.user_id ' +
+            'left join addresses a on u.id = a.user_id'
+        );
+        const parser = new SqlPrintTokenParser();
+        const token = parser.visit(node);
+
+        // Act
+        const printer = new SqlPrinter({
+            indentSize: 2,
+            indentChar: ' ',
+            newline: '\r\n',
+            keywordCase: 'upper',
+            commaBreak: 'before',
+            andBreak: 'before'
+        });
+        const sql = printer.print(token);
+
+        // Assert
+        expect(sql).toBe([
+            'SELECT',
+            '  "u"."id"',
+            '  , "u"."name"',
+            '  , "o"."total"',
+            '  , "a"."city"',
+            'FROM',
+            '  "users" AS "u"',
+            '  INNER JOIN "orders" AS "o" ON "u"."id" = "o"."user_id"',
+            '  LEFT JOIN "addresses" AS "a" ON "u"."id" = "a"."user_id"'
+        ].join('\r\n'));
     });
 });

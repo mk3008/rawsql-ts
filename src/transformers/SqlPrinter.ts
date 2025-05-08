@@ -65,7 +65,9 @@ export class SqlPrinter {
             "WhereClause",
             "GroupByClause",
             "HavingClause",
+            "PartitionByClause",
             "OrderByClause",
+            "SimpleSelectQuery",
         ]);
     }
 
@@ -93,7 +95,7 @@ export class SqlPrinter {
             }
         }
 
-        const currentText = this.linePrinter.getCurrentText();
+        const current = this.linePrinter.getCurrentLine();
 
         if (token.type === SqlPrintTokenType.keyword) {
             let text = token.text;
@@ -131,6 +133,16 @@ export class SqlPrinter {
             } else {
                 this.linePrinter.appendText(text);
             }
+        } else if (token.containerType === "JoinClause") {
+            let text = token.text;
+            if (this.keywordCase === 'upper') {
+                text = text.toUpperCase();
+            } else if (this.keywordCase === 'lower') {
+                text = text.toLowerCase();
+            }
+            // before join clause, add newline
+            this.linePrinter.appendNewline(level);
+            this.linePrinter.appendText(text);
         } else {
             this.linePrinter.appendText(token.text);
         }
@@ -146,7 +158,7 @@ export class SqlPrinter {
         let innerLevel = level;
 
         // indnet level up
-        if (currentText === '' && this.indentIncrementContainers.has(token.containerType)) { // Changed condition
+        if (this.newline !== ' ' && current.text !== '' && this.indentIncrementContainers.has(token.containerType)) { // Changed condition
             innerLevel++;
             this.linePrinter.appendNewline(innerLevel);
         }

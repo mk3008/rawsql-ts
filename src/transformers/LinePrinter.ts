@@ -77,11 +77,11 @@ export class LinePrinter {
         }
     }
 
-    getCurrentText(): string {
+    getCurrentLine(): PrintLine {
         if (this.lines.length > 0) {
-            return this.lines[this.lines.length - 1].text;
+            return this.lines[this.lines.length - 1];
         } else {
-            throw new Error('No tokens to get text from.');
+            throw new Error('No tokens to get current line from.');
         }
     }
 }

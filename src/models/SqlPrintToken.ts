@@ -53,6 +53,7 @@ export enum SqlPrintTokenContainerType {
     OrderByClause = "OrderByClause",
     GroupByClause = "GroupByClause",
     HavingClause = "HavingClause",
+    SubQuerySource = "SubQuerySource",
     // Add more as needed
 }
 
