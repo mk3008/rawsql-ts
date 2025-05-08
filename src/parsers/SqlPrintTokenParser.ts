@@ -1,4 +1,4 @@
-import { PartitionByClause, OrderByClause, OrderByItem, SelectClause, SelectItem, Distinct, DistinctOn, SortDirection, NullsSortDirection, TableSource, SourceExpression, FromClause, JoinClause, JoinOnClause, JoinUsingClause, FunctionSource, SourceAliasExpression, WhereClause, GroupByClause, HavingClause, SubQuerySource, WindowFrameClause, LimitClause, ForClause, OffsetClause, WindowsClause as WindowClause } from "../models/Clause";
+import { PartitionByClause, OrderByClause, OrderByItem, SelectClause, SelectItem, Distinct, DistinctOn, SortDirection, NullsSortDirection, TableSource, SourceExpression, FromClause, JoinClause, JoinOnClause, JoinUsingClause, FunctionSource, SourceAliasExpression, WhereClause, GroupByClause, HavingClause, SubQuerySource, WindowFrameClause, LimitClause, ForClause, OffsetClause, WindowsClause as WindowClause, CommonTable, WithClause } from "../models/Clause";
 import { BinarySelectQuery, SimpleSelectQuery, ValuesQuery } from "../models/SelectQuery";
 import { SqlComponent, SqlComponentVisitor } from "../models/SqlComponent";
 import { SqlPrintToken, SqlPrintTokenType, SqlPrintTokenContainerType } from "../models/SqlPrintToken";
@@ -19,7 +19,6 @@ import {
     CaseExpression,
     ArrayExpression,
     BetweenExpression,
-    InlineQuery,
     StringSpecifierExpression,
     TypeValue,
     TupleExpression,
@@ -28,7 +27,6 @@ import {
 } from "../models/ValueComponent";
 import { IdentifierDecorator } from "./IdentifierDecorator";
 import { ParameterDecorator } from "./ParameterDecorator";
-
 
 export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     // Static tokens for common symbols
@@ -67,7 +65,6 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         this.handlers.set(CaseExpression.kind, (expr) => this.visitCaseExpression(expr as CaseExpression));
         this.handlers.set(ArrayExpression.kind, (expr) => this.visitArrayExpression(expr as ArrayExpression));
         this.handlers.set(BetweenExpression.kind, (expr) => this.visitBetweenExpression(expr as BetweenExpression));
-        this.handlers.set(InlineQuery.kind, (expr) => this.visitInlineQuery(expr as InlineQuery));
         this.handlers.set(StringSpecifierExpression.kind, (expr) => this.visitStringSpecifierExpression(expr as StringSpecifierExpression));
         this.handlers.set(TypeValue.kind, (expr) => this.visitTypeValue(expr as TypeValue));
         this.handlers.set(TupleExpression.kind, (expr) => this.visitTupleExpression(expr as TupleExpression));
@@ -105,6 +102,10 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         this.handlers.set(LimitClause.kind, (expr) => this.visitLimitClause(expr as LimitClause));
         this.handlers.set(OffsetClause.kind, (expr) => this.visitOffsetClause(expr as OffsetClause));
         this.handlers.set(ForClause.kind, (expr) => this.visitForClause(expr as ForClause));
+
+        // With
+        this.handlers.set(WithClause.kind, (expr) => this.visitWithClause(expr as WithClause));
+        this.handlers.set(CommonTable.kind, (expr) => this.visitCommonTable(expr as CommonTable));
 
         // Query
         this.handlers.set(SimpleSelectQuery.kind, (expr) => this.visitSimpleQuery(expr as SimpleSelectQuery));
@@ -421,15 +422,6 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         token.innerTokens.push(this.visit(arg.upper));
 
         return token;
-    }
-
-    private visitInlineQuery(arg: InlineQuery): SqlPrintToken {
-        // サブクエリは一旦空で返す（SelectQuery対応時に実装）
-        return new SqlPrintToken(
-            SqlPrintTokenType.value,
-            '',
-            SqlPrintTokenContainerType.InlineQuery
-        );
     }
 
     private visitStringSpecifierExpression(arg: StringSpecifierExpression): SqlPrintToken {
@@ -790,9 +782,60 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         return token;
     }
 
+    public visitWithClause(arg: WithClause): SqlPrintToken {
+        const token = new SqlPrintToken(SqlPrintTokenType.keyword, 'with', SqlPrintTokenContainerType.WithClause);
+
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        if (arg.recursive) {
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'recursive'));
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        }
+
+        for (let i = 0; i < arg.tables.length; i++) {
+            if (i > 0) {
+                token.innerTokens.push(...SqlPrintTokenParser.commaSpaceTokens());
+            }
+            token.innerTokens.push(arg.tables[i].accept(this));
+        }
+
+        return token;
+    }
+
+    public visitCommonTable(arg: CommonTable): SqlPrintToken {
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.CommonTable);
+
+        token.innerTokens.push(arg.aliasExpression.accept(this));
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'as'));
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+
+        if (arg.materialized !== null) {
+            if (arg.materialized) {
+                token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'materialized'));
+            } else {
+                token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'not materialized'));
+            }
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        }
+
+        token.innerTokens.push(SqlPrintTokenParser.PAREN_OPEN_TOKEN);
+
+        const query = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.SubQuerySource);
+        query.innerTokens.push(arg.query.accept(this));
+
+        token.innerTokens.push(query);
+        token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
+
+        return token;
+    }
+
     // query
     public visitSimpleQuery(arg: SimpleSelectQuery): SqlPrintToken {
         const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.SimpleSelectQuery);
+
+        if (arg.withClause) {
+            token.innerTokens.push(arg.withClause.accept(this));
+        }
 
         token.innerTokens.push(arg.selectClause.accept(this));
 

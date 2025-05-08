@@ -200,8 +200,8 @@ export class TableSourceCollector implements SqlComponentVisitor<void> {
 
         // If in full scan mode, visit all other clauses too
         if (!this.selectableOnly) {
-            if (query.WithClause) {
-                query.WithClause.accept(this);
+            if (query.withClause) {
+                query.withClause.accept(this);
             }
 
             if (query.whereClause) {

@@ -64,6 +64,8 @@ export enum SqlPrintTokenContainerType {
     BinarySelectQueryOperator = "BinarySelectQueryOperator",
     Values = "Values",
     ValuesQuery = "ValuesQuery",
+    WithClause = "WithClause",
+    CommonTable = "CommonTable",
     // Add more as needed
 }
 

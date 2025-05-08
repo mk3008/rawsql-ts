@@ -152,13 +152,13 @@ export class CTEDisabler implements SqlComponentVisitor<SqlComponent> {
     }
 
     visitSimpleSelectQuery(arg: SimpleSelectQuery): SqlComponent {
-        if (arg.WithClause) {
-            arg.WithClause.tables.forEach(table => {
+        if (arg.withClause) {
+            arg.withClause.tables.forEach(table => {
                 this.visit(table.query);
             });
         }
 
-        arg.WithClause = null; // Explicitly remove WITH clause
+        arg.withClause = null; // Explicitly remove WITH clause
 
         // Visit the components of the SimpleSelectQuery
         arg.selectClause = this.visit(arg.selectClause) as SelectClause;

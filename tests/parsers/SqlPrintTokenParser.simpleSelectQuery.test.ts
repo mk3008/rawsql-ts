@@ -1,65 +1,4 @@
-it('should print VALUES query (indent 2, leading comma)', () => {
-    // Arrange
-    const node = SelectQueryParser.parse(
-        'values (1, 2), (3, 4)'
-    );
-    const parser = new SqlPrintTokenParser();
-    const token = parser.visit(node);
 
-    // Act
-    const printer = new SqlPrinter({
-        indentSize: 2,
-        indentChar: ' ',
-        newline: '\r\n',
-        keywordCase: 'upper',
-        commaBreak: 'before',
-        andBreak: 'before'
-    });
-    const sql = printer.print(token);
-
-    // Assert
-    expect(sql).toBe([
-        'VALUES',
-        '  (1, 2)',
-        '  , (3, 4)'
-    ].join('\r\n'));
-});
-it('should print SELECT with named window clause (indent 2, leading comma)', () => {
-    // Arrange
-    const node = SelectQueryParser.parse(
-        'select id, salary, sum(salary) over w as total_salary from employees window w as (partition by department_id order by id)'
-    );
-    const parser = new SqlPrintTokenParser();
-    const token = parser.visit(node);
-
-    // Act
-    const printer = new SqlPrinter({
-        indentSize: 2,
-        indentChar: ' ',
-        newline: '\r\n',
-        keywordCase: 'upper',
-        commaBreak: 'before',
-        andBreak: 'before'
-    });
-    const sql = printer.print(token);
-
-    // Assert
-    expect(sql).toBe([
-        'SELECT',
-        '  "id"',
-        '  , "salary"',
-        '  , sum("salary") OVER "w" AS "total_salary"',
-        'FROM',
-        '  "employees"',
-        'WINDOW',
-        '  "w" AS (',
-        '    PARTITION BY',
-        '      "department_id"',
-        '    ORDER BY',
-        '      "id"',
-        '  )'
-    ].join('\r\n'));
-});
 import { describe, it, expect, beforeAll } from 'vitest'; // Added beforeAll
 import { SqlPrintTokenParser } from '../../src/parsers/SqlPrintTokenParser';
 import { SqlPrinter } from '../../src/transformers/SqlPrinter';
@@ -486,6 +425,140 @@ describe('SqlPrintTokenParser + SqlPrinter (SimpleSelectQuery)', () => {
             '  , "name"',
             'FROM',
             '  "admins"'
+        ].join('\r\n'));
+    });
+
+    it('should print WITH clause (indent 2, leading comma)', () => {
+        // Arrange
+        const node = SelectQueryParser.parse(
+            'with t as (select id, name from users) select * from t'
+        );
+        const parser = new SqlPrintTokenParser();
+        const token = parser.visit(node);
+
+        // Act
+        const printer = new SqlPrinter({
+            indentSize: 2,
+            indentChar: ' ',
+            newline: '\r\n',
+            keywordCase: 'upper',
+            commaBreak: 'before',
+            andBreak: 'before'
+        });
+        const sql = printer.print(token);
+
+        // Assert
+        expect(sql).toBe([
+            'WITH',
+            '  "t" AS (',
+            '    SELECT',
+            '      "id"',
+            '      , "name"',
+            '    FROM',
+            '      "users"',
+            '  )',
+            'SELECT',
+            '  *',
+            'FROM',
+            '  "t"'
+        ].join('\r\n'));
+    });
+
+    it('should print WITH MATERIALIZED clause (indent 2, leading comma)', () => {
+        // Arrange
+        const node = SelectQueryParser.parse(
+            'with t as materialized (select id, name from users) select * from t'
+        );
+        const parser = new SqlPrintTokenParser();
+        const token = parser.visit(node);
+
+        // Act
+        const printer = new SqlPrinter({
+            indentSize: 2,
+            indentChar: ' ',
+            newline: '\r\n',
+            keywordCase: 'upper',
+            commaBreak: 'before',
+            andBreak: 'before'
+        });
+        const sql = printer.print(token);
+
+        // Assert
+        expect(sql).toBe([
+            'WITH',
+            '  "t" AS MATERIALIZED (',
+            '    SELECT',
+            '      "id"',
+            '      , "name"',
+            '    FROM',
+            '      "users"',
+            '  )',
+            'SELECT',
+            '  *',
+            'FROM',
+            '  "t"'
+        ].join('\r\n'));
+    });
+    it('should print VALUES query (indent 2, leading comma)', () => {
+        // Arrange
+        const node = SelectQueryParser.parse(
+            'values (1, 2), (3, 4)'
+        );
+        const parser = new SqlPrintTokenParser();
+        const token = parser.visit(node);
+
+        // Act
+        const printer = new SqlPrinter({
+            indentSize: 2,
+            indentChar: ' ',
+            newline: '\r\n',
+            keywordCase: 'upper',
+            commaBreak: 'before',
+            andBreak: 'before'
+        });
+        const sql = printer.print(token);
+
+        // Assert
+        expect(sql).toBe([
+            'VALUES',
+            '  (1, 2)',
+            '  , (3, 4)'
+        ].join('\r\n'));
+    });
+    it('should print SELECT with named window clause (indent 2, leading comma)', () => {
+        // Arrange
+        const node = SelectQueryParser.parse(
+            'select id, salary, sum(salary) over w as total_salary from employees window w as (partition by department_id order by id)'
+        );
+        const parser = new SqlPrintTokenParser();
+        const token = parser.visit(node);
+
+        // Act
+        const printer = new SqlPrinter({
+            indentSize: 2,
+            indentChar: ' ',
+            newline: '\r\n',
+            keywordCase: 'upper',
+            commaBreak: 'before',
+            andBreak: 'before'
+        });
+        const sql = printer.print(token);
+
+        // Assert
+        expect(sql).toBe([
+            'SELECT',
+            '  "id"',
+            '  , "salary"',
+            '  , sum("salary") OVER "w" AS "total_salary"',
+            'FROM',
+            '  "employees"',
+            'WINDOW',
+            '  "w" AS (',
+            '    PARTITION BY',
+            '      "department_id"',
+            '    ORDER BY',
+            '      "id"',
+            '  )'
         ].join('\r\n'));
     });
 });

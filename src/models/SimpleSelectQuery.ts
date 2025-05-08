@@ -19,7 +19,7 @@ import { ParameterHelper } from "../utils/ParameterHelper";
  */
 export class SimpleSelectQuery extends SqlComponent implements SelectQuery {
     static kind = Symbol("SelectQuery");
-    WithClause: WithClause | null;
+    withClause: WithClause | null;
     selectClause: SelectClause;
     fromClause: FromClause | null;
     whereClause: WhereClause | null;
@@ -47,7 +47,7 @@ export class SimpleSelectQuery extends SqlComponent implements SelectQuery {
         withClause?: WithClause | null,
     }) {
         super();
-        this.WithClause = params.withClause ?? null;
+        this.withClause = params.withClause ?? null;
         this.selectClause = params.selectClause;
         this.fromClause = params.fromClause ?? null;
         this.whereClause = params.whereClause ?? null;
@@ -346,10 +346,10 @@ export class SimpleSelectQuery extends SqlComponent implements SelectQuery {
     public appendWith(commonTable: CommonTable | CommonTable[]): void {
         // Always treat as array for simplicity
         const tables = Array.isArray(commonTable) ? commonTable : [commonTable];
-        if (!this.WithClause) {
-            this.WithClause = new WithClause(false, tables);
+        if (!this.withClause) {
+            this.withClause = new WithClause(false, tables);
         } else {
-            this.WithClause.tables.push(...tables);
+            this.withClause.tables.push(...tables);
         }
 
         CTENormalizer.normalize(this);

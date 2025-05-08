@@ -548,8 +548,8 @@ export class Formatter implements SqlComponentVisitor<string> {
         const parts: string[] = [];
 
         // WITH
-        if (arg.WithClause !== null) {
-            parts.push(arg.WithClause.accept(this));
+        if (arg.withClause !== null) {
+            parts.push(arg.withClause.accept(this));
         }
 
         parts.push(arg.selectClause.accept(this));
