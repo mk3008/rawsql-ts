@@ -1,5 +1,5 @@
 import { PartitionByClause, OrderByClause, OrderByItem, SelectClause, SelectItem, Distinct, DistinctOn, SortDirection, NullsSortDirection, TableSource, SourceExpression, FromClause, JoinClause, JoinOnClause, JoinUsingClause, FunctionSource, SourceAliasExpression, WhereClause, GroupByClause, HavingClause, SubQuerySource, WindowFrameClause, LimitClause, ForClause, OffsetClause, WindowsClause as WindowClause } from "../models/Clause";
-import { BinarySelectQuery, SimpleSelectQuery } from "../models/SelectQuery";
+import { BinarySelectQuery, SimpleSelectQuery, ValuesQuery } from "../models/SelectQuery";
 import { SqlComponent, SqlComponentVisitor } from "../models/SqlComponent";
 import { SqlPrintToken, SqlPrintTokenType, SqlPrintTokenContainerType } from "../models/SqlPrintToken";
 import {
@@ -110,6 +110,8 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         this.handlers.set(SimpleSelectQuery.kind, (expr) => this.visitSimpleQuery(expr as SimpleSelectQuery));
         this.handlers.set(SubQuerySource.kind, (expr) => this.visitSubQuerySource(expr as SubQuerySource));
         this.handlers.set(BinarySelectQuery.kind, (expr) => this.visitBinarySelectQuery(expr));
+        this.handlers.set(ValuesQuery.kind, (expr) => this.visitValuesQuery(expr as ValuesQuery));
+        this.handlers.set(TupleExpression.kind, (expr) => this.visitTupleExpression(expr as TupleExpression));
     }
     /**
      * Pretty-prints a BinarySelectQuery (e.g., UNION, INTERSECT, EXCEPT).
@@ -460,7 +462,8 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         token.innerTokens.push(SqlPrintTokenParser.PAREN_OPEN_TOKEN);
         for (let i = 0; i < arg.values.length; i++) {
             if (i > 0) {
-                token.innerTokens.push(...SqlPrintTokenParser.commaSpaceTokens());
+                token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.argumentSplitter, ','));
+                token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
             }
             token.innerTokens.push(this.visit(arg.values[i]));
         }
@@ -854,6 +857,22 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         token.innerTokens.push(subQuery);
         token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
 
+        return token;
+    }
+
+    public visitValuesQuery(arg: ValuesQuery): SqlPrintToken {
+        const token = new SqlPrintToken(SqlPrintTokenType.keyword, 'values', SqlPrintTokenContainerType.ValuesQuery);
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+
+        const values = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.Values);
+        for (let i = 0; i < arg.tuples.length; i++) {
+            if (i > 0) {
+                values.innerTokens.push(...SqlPrintTokenParser.commaSpaceTokens());
+            }
+            values.innerTokens.push(arg.tuples[i].accept(this));
+        }
+
+        token.innerTokens.push(values);
         return token;
     }
 }

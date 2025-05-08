@@ -10,6 +10,7 @@ export enum SqlPrintTokenType {
     dot,
     type,
     space,
+    argumentSplitter,
 }
 
 // Enum for container type, used for formatting and context
@@ -61,6 +62,8 @@ export enum SqlPrintTokenContainerType {
     ForClause = "ForClause",
     WindowClause = "WindowClause",
     BinarySelectQueryOperator = "BinarySelectQueryOperator",
+    Values = "Values",
+    ValuesQuery = "ValuesQuery",
     // Add more as needed
 }
 

@@ -1,3 +1,29 @@
+it('should print VALUES query (indent 2, leading comma)', () => {
+    // Arrange
+    const node = SelectQueryParser.parse(
+        'values (1, 2), (3, 4)'
+    );
+    const parser = new SqlPrintTokenParser();
+    const token = parser.visit(node);
+
+    // Act
+    const printer = new SqlPrinter({
+        indentSize: 2,
+        indentChar: ' ',
+        newline: '\r\n',
+        keywordCase: 'upper',
+        commaBreak: 'before',
+        andBreak: 'before'
+    });
+    const sql = printer.print(token);
+
+    // Assert
+    expect(sql).toBe([
+        'VALUES',
+        '  (1, 2)',
+        '  , (3, 4)'
+    ].join('\r\n'));
+});
 it('should print SELECT with named window clause (indent 2, leading comma)', () => {
     // Arrange
     const node = SelectQueryParser.parse(

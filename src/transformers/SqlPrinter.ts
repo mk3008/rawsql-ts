@@ -74,6 +74,7 @@ export class SqlPrinter {
                 SqlPrintTokenContainerType.OffsetClause,
                 SqlPrintTokenContainerType.SubQuerySource,
                 SqlPrintTokenContainerType.BinarySelectQueryOperator,
+                SqlPrintTokenContainerType.Values,
             ]
         );
     }
