@@ -1,4 +1,4 @@
-import { SqlPrintToken, SqlPrintTokenType } from "../models/SqlPrintToken";
+import { SqlPrintToken, SqlPrintTokenType, SqlPrintTokenContainerType } from "../models/SqlPrintToken";
 import { IndentCharOption, LinePrinter, NewlineOption } from "./LinePrinter";
 
 /**
@@ -36,7 +36,7 @@ export class SqlPrinter {
     keywordCase: 'none' | 'upper' | 'lower';
 
     private linePrinter: LinePrinter;
-    private indentIncrementContainers: Set<string>; // New property
+    private indentIncrementContainers: Set<SqlPrintTokenContainerType>;
 
     /**
      * @param options Optional style settings for pretty printing
@@ -59,17 +59,19 @@ export class SqlPrinter {
         this.linePrinter = new LinePrinter(this.indentChar, this.indentSize, this.newline);
 
         // Initialize
-        this.indentIncrementContainers = new Set(options?.indentIncrementContainerTypes ?? [
-            "SelectClause",
-            "FromClause",
-            "WhereClause",
-            "GroupByClause",
-            "HavingClause",
-            "OverClauseArgument",
-            "PartitionByClause",
-            "OrderByClause",
-            "SimpleSelectQuery",
-        ]);
+        this.indentIncrementContainers = new Set(
+            (options?.indentIncrementContainerTypes as SqlPrintTokenContainerType[] | undefined) ?? [
+                SqlPrintTokenContainerType.SelectClause,
+                SqlPrintTokenContainerType.FromClause,
+                SqlPrintTokenContainerType.WhereClause,
+                SqlPrintTokenContainerType.GroupByClause,
+                SqlPrintTokenContainerType.HavingClause,
+                SqlPrintTokenContainerType.OverClauseArgument,
+                SqlPrintTokenContainerType.PartitionByClause,
+                SqlPrintTokenContainerType.OrderByClause,
+                SqlPrintTokenContainerType.SimpleSelectQuery,
+            ]
+        );
     }
 
     /**
