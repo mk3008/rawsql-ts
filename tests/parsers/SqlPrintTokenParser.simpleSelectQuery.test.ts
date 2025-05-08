@@ -1,9 +1,8 @@
-it('should print SELECT with LATERAL JOIN (indent 2, leading comma)', () => {
+it('should print SELECT with OVER clause (window function, indent 2, leading comma)', () => {
     // Arrange
     const node = SelectQueryParser.parse(
-        'select u.id, t.max_total ' +
-        'from users u ' +
-        'left join lateral (select max(total) as max_total from orders o where o.user_id = u.id) t on true'
+        'select id, salary, sum(salary) over (partition by department_id order by id) as total_salary ' +
+        'from employees'
     );
     const parser = new SqlPrintTokenParser();
     const token = parser.visit(node);
@@ -22,18 +21,16 @@ it('should print SELECT with LATERAL JOIN (indent 2, leading comma)', () => {
     // Assert
     expect(sql).toBe([
         'SELECT',
-        '  "u"."id"',
-        '  , "t"."max_total"',
+        '  "id"',
+        '  , "salary"',
+        '  , sum("salary") OVER(',
+        '    PARTITION BY',
+        '      "department_id"',
+        '    ORDER BY',
+        '      "id"',
+        '  ) AS "total_salary"',
         'FROM',
-        '  "users" AS "u"',
-        '  LEFT JOIN LATERAL (',
-        '    SELECT',
-        '      max("total") AS "max_total"',
-        '    FROM',
-        '      "orders" AS "o"',
-        '    WHERE',
-        '      "o"."user_id" = "u"."id"',
-        '  ) AS "t" ON true'
+        '  "employees"'
     ].join('\r\n'));
 });
 import { describe, it, expect, beforeAll } from 'vitest'; // Added beforeAll
@@ -289,6 +286,45 @@ describe('SqlPrintTokenParser + SqlPrinter (SimpleSelectQuery)', () => {
             '  "users" AS "u"',
             '  INNER JOIN "orders" AS "o" ON "u"."id" = "o"."user_id"',
             '  LEFT JOIN "addresses" AS "a" ON "u"."id" = "a"."user_id"'
+        ].join('\r\n'));
+    });
+
+    it('should print SELECT with LATERAL JOIN (indent 2, leading comma)', () => {
+        // Arrange
+        const node = SelectQueryParser.parse(
+            'select u.id, t.max_total ' +
+            'from users u ' +
+            'left join lateral (select max(total) as max_total from orders o where o.user_id = u.id) t on true'
+        );
+        const parser = new SqlPrintTokenParser();
+        const token = parser.visit(node);
+
+        // Act
+        const printer = new SqlPrinter({
+            indentSize: 2,
+            indentChar: ' ',
+            newline: '\r\n',
+            keywordCase: 'upper',
+            commaBreak: 'before',
+            andBreak: 'before'
+        });
+        const sql = printer.print(token);
+
+        // Assert
+        expect(sql).toBe([
+            'SELECT',
+            '  "u"."id"',
+            '  , "t"."max_total"',
+            'FROM',
+            '  "users" AS "u"',
+            '  LEFT JOIN LATERAL (',
+            '    SELECT',
+            '      max("total") AS "max_total"',
+            '    FROM',
+            '      "orders" AS "o"',
+            '    WHERE',
+            '      "o"."user_id" = "u"."id"',
+            '  ) AS "t" ON true'
         ].join('\r\n'));
     });
 });

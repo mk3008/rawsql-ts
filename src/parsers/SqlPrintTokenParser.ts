@@ -129,7 +129,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
     private visitPartitionByClause(arg: PartitionByClause): SqlPrintToken {
         // Print as: partition by ...
-        const token = new SqlPrintToken(SqlPrintTokenType.keyword, 'partition by');
+        const token = new SqlPrintToken(SqlPrintTokenType.keyword, 'partition by', SqlPrintTokenContainerType.PartitionByClause);
         token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
         token.innerTokens.push(this.visit(arg.value));
         return token;
@@ -441,29 +441,43 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'over'));
         token.innerTokens.push(SqlPrintTokenParser.PAREN_OPEN_TOKEN);
 
-        let first = true;
-        if (arg.partition) {
-            token.innerTokens.push(this.visit(arg.partition));
-            first = false;
+        const overArgument = this.createOverClauseArgument(arg);
+        if (overArgument) {
+            token.innerTokens.push(overArgument);
         }
-        if (arg.order) {
-            if (!first) {
-                token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
-                first = false;
-            }
-            token.innerTokens.push(this.visit(arg.order));
-        }
-        if (arg.frameSpec) {
-            if (!first) {
-                token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
-                first = false;
-            }
-            token.innerTokens.push(this.visit(arg.frameSpec));
-        }
+
         token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
 
         return token;
     }
+
+    private createOverClauseArgument(arg: WindowFrameExpression): SqlPrintToken | null {
+        const overArgument = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.OverClauseArgument);
+        let first = true;
+        if (arg.partition) {
+            overArgument.innerTokens.push(this.visit(arg.partition));
+            first = false;
+        }
+        if (arg.order) {
+            if (!first) {
+                overArgument.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+                first = false;
+            }
+            overArgument.innerTokens.push(this.visit(arg.order));
+        }
+        if (arg.frameSpec) {
+            if (!first) {
+                overArgument.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+                first = false;
+            }
+            overArgument.innerTokens.push(this.visit(arg.frameSpec));
+        }
+        if (first) {
+            return null; // No arguments to print
+        }
+        return overArgument;
+    }
+
 
     private visitSelectItem(arg: SelectItem): SqlPrintToken {
         const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.SelectItem);

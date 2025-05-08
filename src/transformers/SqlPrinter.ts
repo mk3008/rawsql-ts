@@ -65,6 +65,7 @@ export class SqlPrinter {
             "WhereClause",
             "GroupByClause",
             "HavingClause",
+            "OverClauseArgument",
             "PartitionByClause",
             "OrderByClause",
             "SimpleSelectQuery",
