@@ -32,6 +32,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     // Static tokens for common symbols
     private static readonly SPACE_TOKEN = new SqlPrintToken(SqlPrintTokenType.space, ' ');
     private static readonly COMMA_TOKEN = new SqlPrintToken(SqlPrintTokenType.comma, ',');
+    private static readonly ARGUMENT_SPLIT_COMMA_TOKEN = new SqlPrintToken(SqlPrintTokenType.argumentSplitter, ',');
     private static readonly PAREN_OPEN_TOKEN = new SqlPrintToken(SqlPrintTokenType.parenthesis, '(');
     private static readonly PAREN_CLOSE_TOKEN = new SqlPrintToken(SqlPrintTokenType.parenthesis, ')');
     private static readonly DOT_TOKEN = new SqlPrintToken(SqlPrintTokenType.dot, '.');
@@ -141,6 +142,11 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         return [SqlPrintTokenParser.COMMA_TOKEN, SqlPrintTokenParser.SPACE_TOKEN];
     }
 
+    private static argumentCommaSpaceTokens(): SqlPrintToken[] {
+        return [SqlPrintTokenParser.ARGUMENT_SPLIT_COMMA_TOKEN, SqlPrintTokenParser.SPACE_TOKEN];
+    }
+
+
     private visitQualifiedName(arg: QualifiedName): SqlPrintToken {
         const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.QualifiedName);
 
@@ -207,12 +213,11 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         throw new Error(`[SqlPrintTokenParser] No handler for kind: ${arg.getKind().toString()}`);
     }
 
-    // ValueComponent系の各ノードのvisitメソッド
     private visitValueList(arg: ValueList): SqlPrintToken {
         const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.ValueList);
         for (let i = 0; i < arg.values.length; i++) {
             if (i > 0) {
-                token.innerTokens.push(...SqlPrintTokenParser.commaSpaceTokens());
+                token.innerTokens.push(...SqlPrintTokenParser.argumentCommaSpaceTokens());
             }
             token.innerTokens.push(this.visit(arg.values[i]));
         }
@@ -454,8 +459,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         token.innerTokens.push(SqlPrintTokenParser.PAREN_OPEN_TOKEN);
         for (let i = 0; i < arg.values.length; i++) {
             if (i > 0) {
-                token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.argumentSplitter, ','));
-                token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+                token.innerTokens.push(...SqlPrintTokenParser.argumentCommaSpaceTokens());
             }
             token.innerTokens.push(this.visit(arg.values[i]));
         }
@@ -685,7 +689,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
             token.innerTokens.push(SqlPrintTokenParser.PAREN_OPEN_TOKEN);
             for (let i = 0; i < arg.columns.length; i++) {
                 if (i > 0) {
-                    token.innerTokens.push(...SqlPrintTokenParser.commaSpaceTokens());
+                    token.innerTokens.push(...SqlPrintTokenParser.argumentCommaSpaceTokens());
                 }
                 token.innerTokens.push(this.visit(arg.columns[i]));
             }
