@@ -1,8 +1,9 @@
 import { describe, it, expect, beforeAll } from 'vitest'; // Added beforeAll
-import { SqlPrintTokenParser } from '../../src/parsers/SqlPrintTokenParser';
+import { PRESETS, SqlPrintTokenParser } from '../../src/parsers/SqlPrintTokenParser';
 import { SqlPrinter } from '../../src/transformers/SqlPrinter';
 import { SelectQueryParser } from '../../src/parsers/SelectQueryParser';
 import { SqlPrintToken } from '../../src/models/SqlPrintToken'; // Added import for SqlPrintToken
+import { Formatter } from '../../src/transformers/Formatter';
 
 // This test class is for SimpleSelectQuery printing only.
 describe('SqlPrintTokenParser + SqlPrinter (SimpleSelectQuery)', () => {
@@ -764,6 +765,92 @@ order by
             '  ) AS "q"',
             'ORDER BY',
             '  "line_id"'
+        ].join('\r\n'));
+    });
+
+    it('should print SELECT with parameterized query using postgres style', () => {
+        // Arrange
+        const sqlText = 'select id, name from users where id = :id and status = :status';
+
+        // Act
+        const sql = SelectQueryParser.parse(sqlText);
+        sql.setParameter('id', 1);
+        sql.setParameter('status', 'active');
+
+        const parser = new SqlPrintTokenParser({
+            parameterSymbol: '@',
+            identifierEscape: { start: '[', end: ']' },
+            parameterStyle: "named"
+        });
+        const { token, params } = parser.parse(sql);
+
+        const printer = new SqlPrinter({
+            indentSize: 2,
+            indentChar: ' ',
+            newline: '\r\n',
+            keywordCase: 'upper',
+            commaBreak: 'before',
+            andBreak: 'before',
+        });
+        const formattedSqlText = printer.print(token);
+
+        // Assert
+        expect(params).toEqual({
+            id: 1,
+            status: 'active'
+        });
+
+        expect(formattedSqlText).toBe([
+            'SELECT',
+            '  [id]',
+            '  , [name]',
+            'FROM',
+            '  [users]',
+            'WHERE',
+            '  [id] = @id',
+            '  AND [status] = @status'
+        ].join('\r\n'));
+    });
+
+    it('should print SELECT with parameterized query using postgres style', () => {
+        // Arrange
+        const sqlText = 'select id, name from users where id = :id and status = :status';
+
+        // Act
+        const sql = SelectQueryParser.parse(sqlText);
+        sql.setParameter('id', 1);
+        sql.setParameter('status', 'active');
+
+        const parser = new SqlPrintTokenParser({
+            preset: PRESETS.sqlserver,
+        });
+        const { token, params } = parser.parse(sql);
+
+        const printer = new SqlPrinter({
+            indentSize: 2,
+            indentChar: ' ',
+            newline: '\r\n',
+            keywordCase: 'upper',
+            commaBreak: 'before',
+            andBreak: 'before',
+        });
+        const formattedSqlText = printer.print(token);
+
+        // Assert
+        expect(params).toEqual({
+            id: 1,
+            status: 'active'
+        });
+
+        expect(formattedSqlText).toBe([
+            'SELECT',
+            '  [id]',
+            '  , [name]',
+            'FROM',
+            '  [users]',
+            'WHERE',
+            '  [id] = @id',
+            '  AND [status] = @status'
         ].join('\r\n'));
     });
 });

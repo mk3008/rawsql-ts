@@ -25,8 +25,45 @@ import {
     WindowFrameExpression,
     QualifiedName
 } from "../models/ValueComponent";
+import { ParameterStyle } from "../transformers/Formatter";
+import { ParameterCollector } from "../transformers/ParameterCollector";
 import { IdentifierDecorator } from "./IdentifierDecorator";
 import { ParameterDecorator } from "./ParameterDecorator";
+
+interface FormatterConfig {
+    identifierEscape?: {
+        start: string;
+        end: string;
+    };
+    parameterSymbol?: string | { start: string; end: string };
+    /**
+     * Parameter style: anonymous (?), indexed ($1), or named (:name)
+     */
+    parameterStyle?: ParameterStyle;
+}
+
+export const PRESETS: Record<string, FormatterConfig> = {
+    mysql: {
+        identifierEscape: { start: '`', end: '`' },
+        parameterSymbol: '?',
+        parameterStyle: ParameterStyle.Anonymous,
+    },
+    postgres: {
+        identifierEscape: { start: '"', end: '"' },
+        parameterSymbol: ':',
+        parameterStyle: ParameterStyle.Indexed,
+    },
+    sqlserver: {
+        identifierEscape: { start: '[', end: ']' },
+        parameterSymbol: '@',
+        parameterStyle: ParameterStyle.Named,
+    },
+    sqlite: {
+        identifierEscape: { start: '"', end: '"' },
+        parameterSymbol: ':',
+        parameterStyle: ParameterStyle.Named,
+    },
+};
 
 export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     // Static tokens for common symbols
@@ -43,11 +80,26 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     index: number = 1;
 
     constructor(options?: {
-        parameterDecorator?: ParameterDecorator,
-        identifierDecorator?: IdentifierDecorator
+        preset?: FormatterConfig,
+        identifierEscape?: { start: string; end: string },
+        parameterSymbol?: string | { start: string; end: string },
+        parameterStyle?: 'anonymous' | 'indexed' | 'named'
     }) {
-        this.parameterDecorator = options?.parameterDecorator ?? new ParameterDecorator();
-        this.identifierDecorator = options?.identifierDecorator ?? new IdentifierDecorator();
+        if (options?.preset) {
+            const preset = options.preset
+            options = { ...preset, ...options };
+        }
+
+        this.parameterDecorator = new ParameterDecorator({
+            prefix: typeof options?.parameterSymbol === 'string' ? options.parameterSymbol : options?.parameterSymbol?.start ?? ':',
+            suffix: typeof options?.parameterSymbol === 'object' ? options.parameterSymbol.end : '',
+            style: options?.parameterStyle ?? 'named'
+        });
+
+        this.identifierDecorator = new IdentifierDecorator({
+            start: options?.identifierEscape?.start ?? '"',
+            end: options?.identifierEscape?.end ?? '"'
+        });
 
         this.handlers.set(ValueList.kind, (expr) => this.visitValueList(expr as ValueList));
         this.handlers.set(ColumnReference.kind, (expr) => this.visitColumnReference(expr as ColumnReference));
@@ -203,6 +255,40 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
             }
         }
         return token;
+    }
+
+    public parse(arg: SqlComponent): { token: SqlPrintToken, params: any[] | Record<string, any>[] | Record<string, any> } {
+        const token = this.visit(arg);
+        const paramsRaw = ParameterCollector.collect(arg).sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
+
+        const style = this.parameterDecorator.style;
+        if (style === ParameterStyle.Named) {
+            // Named: { name: value, ... }
+            const paramsObj: Record<string, any> = {};
+            for (const p of paramsRaw) {
+                const key = p.name.value;
+                if (paramsObj.hasOwnProperty(key)) {
+                    if (paramsObj[key] !== p.value) {
+                        throw new Error(`Duplicate parameter name '${key}' with different values detected during query composition.`);
+                    }
+                    // If value is the same, skip (already set)
+                    continue;
+                }
+                paramsObj[key] = p.value;
+            }
+            return { token, params: paramsObj };
+        } else if (style === ParameterStyle.Indexed) {
+            // Indexed: [value1, value2, ...] (sorted by index)
+            const paramsArr = paramsRaw.map(p => p.value);
+            return { token, params: paramsArr };
+        } else if (style === ParameterStyle.Anonymous) {
+            // Anonymous: [value1, value2, ...] (sorted by index, name is empty)
+            const paramsArr = paramsRaw.map(p => p.value);
+            return { token, params: paramsArr };
+        }
+
+        // Fallback (just in case)
+        return { token, params: [] };
     }
 
     public visit(arg: SqlComponent): SqlPrintToken {
