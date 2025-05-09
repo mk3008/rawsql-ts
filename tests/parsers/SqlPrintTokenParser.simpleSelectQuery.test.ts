@@ -3,7 +3,7 @@ import { PRESETS, SqlPrintTokenParser } from '../../src/parsers/SqlPrintTokenPar
 import { SqlPrinter } from '../../src/transformers/SqlPrinter';
 import { SelectQueryParser } from '../../src/parsers/SelectQueryParser';
 import { SqlPrintToken } from '../../src/models/SqlPrintToken'; // Added import for SqlPrintToken
-import { Formatter } from '../../src/transformers/Formatter';
+import { SqlFormatter } from '../../src/transformers/SqlFormatter';
 
 // This test class is for SimpleSelectQuery printing only.
 describe('SqlPrintTokenParser + SqlPrinter (SimpleSelectQuery)', () => {
@@ -812,7 +812,7 @@ order by
         ].join('\r\n'));
     });
 
-    it('should print SELECT with parameterized query using postgres style', () => {
+    it('SqlFormatter(default)', () => {
         // Arrange
         const sqlText = 'select id, name from users where id = :id and status = :status';
 
@@ -821,12 +821,30 @@ order by
         sql.setParameter('id', 1);
         sql.setParameter('status', 'active');
 
-        const parser = new SqlPrintTokenParser({
-            preset: PRESETS.sqlserver,
-        });
-        const { token, params } = parser.parse(sql);
+        const formatter = new SqlFormatter();
 
-        const printer = new SqlPrinter({
+        const result = formatter.format(sql);
+
+        // Assert
+        expect(result.params).toEqual({
+            id: 1,
+            status: 'active'
+        });
+
+        expect(result.formattedSql).toBe('select "id", "name" from "users" where "id" = :id and "status" = :status');
+    });
+
+    it('SqlFormatter(default)', () => {
+        // Arrange
+        const sqlText = 'select id, name from users where id = :id and status = :status';
+
+        // Act
+        const sql = SelectQueryParser.parse(sqlText);
+        sql.setParameter('id', 1);
+        sql.setParameter('status', 'active');
+
+        const formatter = new SqlFormatter({
+            preset: `sqlserver`, // Replace invalid PRESETS.SQLL with a valid preset name
             indentSize: 2,
             indentChar: ' ',
             newline: '\r\n',
@@ -834,15 +852,16 @@ order by
             commaBreak: 'before',
             andBreak: 'before',
         });
-        const formattedSqlText = printer.print(token);
+
+        const result = formatter.format(sql);
 
         // Assert
-        expect(params).toEqual({
+        expect(result.params).toEqual({
             id: 1,
             status: 'active'
         });
 
-        expect(formattedSqlText).toBe([
+        expect(result.formattedSql).toBe([
             'SELECT',
             '  [id]',
             '  , [name]',

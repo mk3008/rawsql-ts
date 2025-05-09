@@ -30,7 +30,7 @@ import { ParameterCollector } from "../transformers/ParameterCollector";
 import { IdentifierDecorator } from "./IdentifierDecorator";
 import { ParameterDecorator } from "./ParameterDecorator";
 
-interface FormatterConfig {
+export interface FormatterConfig {
     identifierEscape?: {
         start: string;
         end: string;
@@ -441,11 +441,12 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     private visitIdentifierString(arg: IdentifierString): SqlPrintToken {
         // Create an identifier token and decorate it using the identifierDecorator
         const text = arg.name === "*" ? arg.name : this.identifierDecorator.decorate(arg.name)
-        return new SqlPrintToken(
+        const token = new SqlPrintToken(
             SqlPrintTokenType.value,
             text,
             SqlPrintTokenContainerType.IdentifierString
         );
+        return token;
     }
 
     private visitParenExpression(arg: ParenExpression): SqlPrintToken {
