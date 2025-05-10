@@ -400,6 +400,7 @@ export class FetchClause extends SqlComponent {
 
 export class FetchExpression extends SqlComponent {
     static kind = Symbol("FetchExpression");
+    // type count unit
     type: FetchType;
     count: ValueComponent;
     unit: FetchUnit | null;

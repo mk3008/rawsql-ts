@@ -66,6 +66,11 @@ export enum SqlPrintTokenContainerType {
     ValuesQuery = "ValuesQuery",
     WithClause = "WithClause",
     CommonTable = "CommonTable",
+    WindowFrameSpec = "WindowFrameSpec",
+    WindowFrameBoundStatic = "WindowFrameBoundStatic",
+    WindowFrameBoundaryValue = "WindowFrameBoundaryValue",
+    FetchClause = "FetchClause",
+    FetchExpression = "FetchExpression",
     // Add more as needed
 }
 

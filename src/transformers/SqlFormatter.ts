@@ -2,6 +2,7 @@ import { SqlPrintTokenParser, FormatterConfig, PRESETS } from '../parsers/SqlPri
 import { SqlPrinter, CommaBreakStyle, AndBreakStyle } from './SqlPrinter';
 import { IndentCharOption, NewlineOption } from './LinePrinter'; // Import types for compatibility
 import { SelectQuery } from '../models/SelectQuery';
+import { SqlComponent } from '../models/SqlComponent';
 
 // Define valid preset names as a union type
 export const VALID_PRESETS = ['mysql', 'postgres', 'sqlserver', 'sqlite'] as const;
@@ -50,7 +51,7 @@ export class SqlFormatter {
      * @param parameters A dictionary of parameters to replace in the query.
      * @returns An object containing the formatted SQL string and the parameters.
      */
-    format(sql: SelectQuery): { formattedSql: string; params: Record<string, any> } {
+    format(sql: SqlComponent): { formattedSql: string; params: Record<string, any> } {
         const { token, params } = this.parser.parse(sql);
         const formattedSql = this.printer.print(token);
 

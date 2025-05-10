@@ -1,4 +1,4 @@
-import { PartitionByClause, OrderByClause, OrderByItem, SelectClause, SelectItem, Distinct, DistinctOn, SortDirection, NullsSortDirection, TableSource, SourceExpression, FromClause, JoinClause, JoinOnClause, JoinUsingClause, FunctionSource, SourceAliasExpression, WhereClause, GroupByClause, HavingClause, SubQuerySource, WindowFrameClause, LimitClause, ForClause, OffsetClause, WindowsClause as WindowClause, CommonTable, WithClause } from "../models/Clause";
+import { PartitionByClause, OrderByClause, OrderByItem, SelectClause, SelectItem, Distinct, DistinctOn, SortDirection, NullsSortDirection, TableSource, SourceExpression, FromClause, JoinClause, JoinOnClause, JoinUsingClause, FunctionSource, SourceAliasExpression, WhereClause, GroupByClause, HavingClause, SubQuerySource, WindowFrameClause, LimitClause, ForClause, OffsetClause, WindowsClause as WindowClause, CommonTable, WithClause, FetchClause, FetchExpression } from "../models/Clause";
 import { BinarySelectQuery, SimpleSelectQuery, ValuesQuery } from "../models/SelectQuery";
 import { SqlComponent, SqlComponentVisitor } from "../models/SqlComponent";
 import { SqlPrintToken, SqlPrintTokenType, SqlPrintTokenContainerType } from "../models/SqlPrintToken";
@@ -23,12 +23,21 @@ import {
     TypeValue,
     TupleExpression,
     WindowFrameExpression,
-    QualifiedName
+    QualifiedName,
+    InlineQuery,
+    WindowFrameSpec,
+    WindowFrameBoundStatic,
+    WindowFrameBoundaryValue
 } from "../models/ValueComponent";
-import { ParameterStyle } from "../transformers/Formatter";
 import { ParameterCollector } from "../transformers/ParameterCollector";
 import { IdentifierDecorator } from "./IdentifierDecorator";
 import { ParameterDecorator } from "./ParameterDecorator";
+
+export enum ParameterStyle {
+    Anonymous = 'anonymous',
+    Indexed = 'indexed',
+    Named = 'named'
+}
 
 export interface FormatterConfig {
     identifierEscape?: {
@@ -121,8 +130,12 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         this.handlers.set(StringSpecifierExpression.kind, (expr) => this.visitStringSpecifierExpression(expr as StringSpecifierExpression));
         this.handlers.set(TypeValue.kind, (expr) => this.visitTypeValue(expr as TypeValue));
         this.handlers.set(TupleExpression.kind, (expr) => this.visitTupleExpression(expr as TupleExpression));
+        this.handlers.set(InlineQuery.kind, (expr) => this.visitInlineQuery(expr as InlineQuery));
 
         this.handlers.set(WindowFrameExpression.kind, (expr) => this.visitWindowFrameExpression(expr as WindowFrameExpression));
+        this.handlers.set(WindowFrameSpec.kind, (expr) => this.visitWindowFrameSpec(expr as WindowFrameSpec));
+        this.handlers.set(WindowFrameBoundStatic.kind, (expr) => this.visitWindowFrameBoundStatic(expr as WindowFrameBoundStatic));
+        this.handlers.set(WindowFrameBoundaryValue.kind, (expr) => this.visitWindowFrameBoundaryValue(expr as WindowFrameBoundaryValue));
         this.handlers.set(PartitionByClause.kind, (expr) => this.visitPartitionByClause(expr as PartitionByClause));
         this.handlers.set(OrderByClause.kind, (expr) => this.visitOrderByClause(expr as OrderByClause));
         this.handlers.set(OrderByItem.kind, (expr) => this.visitOrderByItem(expr));
@@ -154,6 +167,8 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         this.handlers.set(WindowFrameClause.kind, (expr) => this.visitWindowFrameClause(expr as WindowFrameClause));
         this.handlers.set(LimitClause.kind, (expr) => this.visitLimitClause(expr as LimitClause));
         this.handlers.set(OffsetClause.kind, (expr) => this.visitOffsetClause(expr as OffsetClause));
+        this.handlers.set(FetchClause.kind, (expr) => this.visitFetchClause(expr as FetchClause));
+        this.handlers.set(FetchExpression.kind, (expr) => this.visitFetchExpression(expr as FetchExpression));
         this.handlers.set(ForClause.kind, (expr) => this.visitForClause(expr as ForClause));
 
         // With
@@ -251,7 +266,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
                 token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'nulls first'));
             } else if (arg.nullsPosition === NullsSortDirection.Last) {
                 token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
-                token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, ' nulls last'));
+                token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'nulls last'));
             }
         }
         return token;
@@ -395,6 +410,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.SwitchCaseArgument);
 
         for (const kv of arg.cases) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
             token.innerTokens.push(kv.accept(this));
         }
         if (arg.elseValue) {
@@ -473,10 +489,9 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.CaseExpression);
 
         token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'case'));
-        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
         if (arg.condition) {
-            token.innerTokens.push(this.visit(arg.condition));
             token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(this.visit(arg.condition));
         }
         token.innerTokens.push(this.visit(arg.switchCase));
         token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
@@ -567,6 +582,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         if (arg.order) {
             if (!first) {
                 token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            } else {
                 first = false;
             }
             token.innerTokens.push(this.visit(arg.order));
@@ -574,11 +590,62 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         if (arg.frameSpec) {
             if (!first) {
                 token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            } else {
                 first = false;
             }
             token.innerTokens.push(this.visit(arg.frameSpec));
         }
 
+        return token;
+    }
+
+    private visitWindowFrameSpec(arg: WindowFrameSpec): SqlPrintToken {
+        // This method prints a window frame specification, such as "rows between ... and ..." or "range ...".
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.WindowFrameSpec);
+
+        // Add frame type (e.g., "rows", "range", "groups")
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, arg.frameType));
+
+        if (arg.endBound === null) {
+            // Only start bound: e.g., "rows unbounded preceding"
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(arg.startBound.accept(this));
+        } else {
+            // Between: e.g., "rows between unbounded preceding and current row"
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'between'));
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(arg.startBound.accept(this));
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'and'));
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(arg.endBound.accept(this));
+        }
+
+        return token;
+    }
+
+    /**
+     * Prints a window frame boundary value, such as "5 preceding" or "3 following".
+     * @param arg WindowFrameBoundaryValue
+     */
+    private visitWindowFrameBoundaryValue(arg: WindowFrameBoundaryValue): SqlPrintToken {
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.WindowFrameBoundaryValue);
+
+        token.innerTokens.push(arg.value.accept(this));
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        //  true for "FOLLOWING", false for "PRECEDING"
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, arg.isFollowing ? 'following' : 'preceding'));
+
+        return token;
+    }
+
+    /**
+     * Prints a static window frame bound, such as "unbounded preceding", "current row", or "unbounded following".
+     * @param arg WindowFrameBoundStatic
+     */
+    private visitWindowFrameBoundStatic(arg: WindowFrameBoundStatic): SqlPrintToken {
+        const token = new SqlPrintToken(SqlPrintTokenType.keyword, arg.bound);
         return token;
     }
 
@@ -678,7 +745,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
             token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'as'));
             token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
             // exclude column aliases
-            token.innerTokens.push(arg.aliasExpression.table.accept(this));
+            token.innerTokens.push(arg.aliasExpression.accept(this));
             return token;
         } else {
             // For other source types, just print the alias
@@ -753,7 +820,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         // Print function source: [functionName]([args])
         const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.FunctionSource);
 
-        token.innerTokens.push(this.visit(arg.name));
+        token.innerTokens.push(arg.qualifiedName.accept(this));
         token.innerTokens.push(SqlPrintTokenParser.PAREN_OPEN_TOKEN);
         if (arg.argument) {
             token.innerTokens.push(this.visit(arg.argument));
@@ -864,6 +931,30 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         return token;
     }
 
+    public visitFetchClause(arg: FetchClause): SqlPrintToken {
+        const token = new SqlPrintToken(SqlPrintTokenType.keyword, 'fetch', SqlPrintTokenContainerType.FetchClause);
+
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(this.visit(arg.expression));
+
+        return token;
+    }
+
+    public visitFetchExpression(arg: FetchExpression): SqlPrintToken {
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.FetchExpression);
+
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, arg.type));
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(arg.count.accept(this));
+
+        if (arg.unit) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, arg.unit));
+        }
+
+        return token;
+    }
+
     public visitForClause(arg: ForClause): SqlPrintToken {
         const token = new SqlPrintToken(SqlPrintTokenType.keyword, 'for', SqlPrintTokenContainerType.ForClause);
 
@@ -889,6 +980,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
             token.innerTokens.push(arg.tables[i].accept(this));
         }
 
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
         return token;
     }
 
@@ -972,6 +1064,11 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
             token.innerTokens.push(arg.offsetClause.accept(this));
         }
 
+        if (arg.fetchClause) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(arg.fetchClause.accept(this));
+        }
+
         if (arg.forClause) {
             token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
             token.innerTokens.push(arg.forClause.accept(this));
@@ -1007,6 +1104,16 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         }
 
         token.innerTokens.push(values);
+        return token;
+    }
+
+    public visitInlineQuery(arg: InlineQuery): SqlPrintToken {
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.InlineQuery);
+
+        token.innerTokens.push(SqlPrintTokenParser.PAREN_OPEN_TOKEN);
+        token.innerTokens.push(arg.selectQuery.accept(this));
+        token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
+
         return token;
     }
 }
