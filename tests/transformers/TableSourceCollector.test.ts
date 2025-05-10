@@ -436,4 +436,52 @@ order by
         // Assert
         expect(tableNames.length).toBe(0);
     });
+
+    test('includes the query the table belongs to in the return value', () => {
+        // Arrange
+        const sql = `SELECT * FROM users`;
+        const query = SelectQueryParser.parse(sql);
+        const collector = new TableSourceCollector();
+
+        // Act
+        collector.visit(query);
+        const tableSources = collector.getTableSources();
+
+        // Assert
+        expect(tableSources.length).toBe(1);
+        expect(tableSources[0].table.name).toBe('users');
+        expect(tableSources[0].query).toBeDefined();
+    });
+
+    test('includes the list of column names referenced from the table in the return value', () => {
+        // Arrange
+        const sql = `SELECT id, name FROM users`;
+        const query = SelectQueryParser.parse(sql);
+        const collector = new TableSourceCollector();
+
+        // Act
+        collector.visit(query);
+        const tableSources = collector.getTableSources();
+
+        // Assert
+        expect(tableSources.length).toBe(1);
+        expect(tableSources[0].table.name).toBe('users');
+        expect(tableSources[0].referencedColumns).toEqual(['id', 'name']);
+    });
+
+    test('handles wildcard columns correctly', () => {
+        // Arrange
+        const sql = `SELECT * FROM users`;
+        const query = SelectQueryParser.parse(sql);
+        const collector = new TableSourceCollector();
+
+        // Act
+        collector.visit(query);
+        const tableSources = collector.getTableSources();
+
+        // Assert
+        expect(tableSources.length).toBe(1);
+        expect(tableSources[0].table.name).toBe('users');
+        expect(tableSources[0].referencedColumns).toEqual([]);
+    });
 });
