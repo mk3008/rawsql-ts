@@ -52,7 +52,11 @@ export class SqlPrinter {
     }) {
         this.indentChar = options?.indentChar ?? '';
         this.indentSize = options?.indentSize ?? 0;
+
+        // The default newline character is set to a blank space (' ') to enable one-liner formatting.
+        // This is intentional and differs from the LinePrinter default of '\r\n'.
         this.newline = options?.newline ?? ' ';
+
         this.commaBreak = options?.commaBreak ?? 'none';
         this.andBreak = options?.andBreak ?? 'none';
         this.keywordCase = options?.keywordCase ?? 'none';
