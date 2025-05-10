@@ -171,7 +171,7 @@ export class SqlPrinter {
 
         let innerLevel = level;
 
-        // indnet level up
+        // indent level up
         if (this.newline !== ' ' && current.text !== '' && this.indentIncrementContainers.has(token.containerType)) { // Changed condition
             innerLevel++;
             this.linePrinter.appendNewline(innerLevel);
@@ -182,7 +182,7 @@ export class SqlPrinter {
             this.appendToken(child, innerLevel);
         }
 
-        // indnet level down
+        // indent level down
         if (innerLevel !== level) {
             this.linePrinter.appendNewline(level);
         }
