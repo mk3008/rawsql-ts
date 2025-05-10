@@ -72,6 +72,11 @@ export enum SqlPrintTokenContainerType {
     FetchClause = "FetchClause",
     FetchExpression = "FetchExpression",
     InsertQuery = "InsertQuery",
+    UpdateQuery = "UpdateQuery",
+    UpdateClause = "UpdateClause",
+    ReturningClause = "ReturningClause",
+    SetClauseItem = "SetClauseItem",
+    CreateTableQuery = "CreateTableQuery",
     // Add more as needed
 }
 

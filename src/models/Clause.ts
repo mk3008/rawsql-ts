@@ -452,7 +452,6 @@ export class ReturningClause extends SqlComponent {
     }
 }
 
-
 export class SetClause extends SqlComponent {
     static kind = Symbol("SetClause");
     items: SetClauseItem[];

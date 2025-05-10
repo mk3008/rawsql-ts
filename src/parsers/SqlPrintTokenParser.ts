@@ -1,4 +1,4 @@
-import { PartitionByClause, OrderByClause, OrderByItem, SelectClause, SelectItem, Distinct, DistinctOn, SortDirection, NullsSortDirection, TableSource, SourceExpression, FromClause, JoinClause, JoinOnClause, JoinUsingClause, FunctionSource, SourceAliasExpression, WhereClause, GroupByClause, HavingClause, SubQuerySource, WindowFrameClause, LimitClause, ForClause, OffsetClause, WindowsClause as WindowClause, CommonTable, WithClause, FetchClause, FetchExpression, InsertClause } from "../models/Clause";
+import { PartitionByClause, OrderByClause, OrderByItem, SelectClause, SelectItem, Distinct, DistinctOn, SortDirection, NullsSortDirection, TableSource, SourceExpression, FromClause, JoinClause, JoinOnClause, JoinUsingClause, FunctionSource, SourceAliasExpression, WhereClause, GroupByClause, HavingClause, SubQuerySource, WindowFrameClause, LimitClause, ForClause, OffsetClause, WindowsClause as WindowClause, CommonTable, WithClause, FetchClause, FetchExpression, InsertClause, UpdateClause, SetClause, ReturningClause, SetClauseItem } from "../models/Clause";
 import { BinarySelectQuery, SimpleSelectQuery, ValuesQuery } from "../models/SelectQuery";
 import { SqlComponent, SqlComponentVisitor } from "../models/SqlComponent";
 import { SqlPrintToken, SqlPrintTokenType, SqlPrintTokenContainerType } from "../models/SqlPrintToken";
@@ -33,6 +33,8 @@ import { ParameterCollector } from "../transformers/ParameterCollector";
 import { IdentifierDecorator } from "./IdentifierDecorator";
 import { ParameterDecorator } from "./ParameterDecorator";
 import { InsertQuery } from "../models/InsertQuery";
+import { UpdateQuery } from "../models/UpdateQuery";
+import { CreateTableQuery } from "../models/CreateTableQuery";
 
 export enum ParameterStyle {
     Anonymous = 'anonymous',
@@ -109,6 +111,46 @@ export const PRESETS: Record<string, FormatterConfig> = {
         parameterStyle: ParameterStyle.Named,
     },
     duckdb: {
+        identifierEscape: { start: '"', end: '"' },
+        parameterSymbol: '?',
+        parameterStyle: ParameterStyle.Anonymous,
+    },
+    cockroachdb: {
+        identifierEscape: { start: '"', end: '"' },
+        parameterSymbol: '$',
+        parameterStyle: ParameterStyle.Indexed,
+    },
+    athena: {
+        identifierEscape: { start: '"', end: '"' },
+        parameterSymbol: '?',
+        parameterStyle: ParameterStyle.Anonymous,
+    },
+    bigquery: {
+        identifierEscape: { start: '`', end: '`' },
+        parameterSymbol: '@',
+        parameterStyle: ParameterStyle.Named,
+    },
+    hive: {
+        identifierEscape: { start: '`', end: '`' },
+        parameterSymbol: '?',
+        parameterStyle: ParameterStyle.Anonymous,
+    },
+    mariadb: {
+        identifierEscape: { start: '`', end: '`' },
+        parameterSymbol: '?',
+        parameterStyle: ParameterStyle.Anonymous,
+    },
+    redshift: {
+        identifierEscape: { start: '"', end: '"' },
+        parameterSymbol: '$',
+        parameterStyle: ParameterStyle.Indexed,
+    },
+    flinksql: {
+        identifierEscape: { start: '`', end: '`' },
+        parameterSymbol: '?',
+        parameterStyle: ParameterStyle.Anonymous,
+    },
+    mongodb: {
         identifierEscape: { start: '"', end: '"' },
         parameterSymbol: '?',
         parameterStyle: ParameterStyle.Anonymous,
@@ -225,7 +267,14 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
         this.handlers.set(InsertQuery.kind, (expr) => this.visitInsertQuery(expr as InsertQuery));
         this.handlers.set(InsertClause.kind, (expr) => this.visitInsertClause(expr as InsertClause));
+        this.handlers.set(UpdateQuery.kind, (expr) => this.visitUpdateQuery(expr as UpdateQuery));
+        this.handlers.set(UpdateClause.kind, (expr) => this.visitUpdateClause(expr as UpdateClause));
+        this.handlers.set(SetClause.kind, (expr) => this.visitSetClause(expr as SetClause));
+        this.handlers.set(SetClauseItem.kind, (expr) => this.visitSetClauseItem(expr as SetClauseItem));
+        this.handlers.set(ReturningClause.kind, (expr) => this.visitReturningClause(expr as ReturningClause));
+        this.handlers.set(CreateTableQuery.kind, (expr) => this.visitCreateTableQuery(expr as CreateTableQuery));
     }
+
     /**
      * Pretty-prints a BinarySelectQuery (e.g., UNION, INTERSECT, EXCEPT).
      * This will recursively print left and right queries, separated by the operator.
@@ -1196,6 +1245,99 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         }
 
         return token;
+    }
 
+    private visitUpdateQuery(arg: UpdateQuery): SqlPrintToken {
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.UpdateQuery);
+
+        if (arg.withClause) {
+            token.innerTokens.push(arg.withClause.accept(this));
+        }
+
+        token.innerTokens.push(arg.updateClause.accept(this));
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(arg.setClause.accept(this));
+
+        if (arg.fromClause) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(arg.fromClause.accept(this));
+        }
+
+        if (arg.whereClause) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(arg.whereClause.accept(this));
+        }
+
+        if (arg.returningClause) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(arg.returningClause.accept(this));
+        }
+
+        return token;
+    }
+
+    public visitUpdateClause(arg: UpdateClause): SqlPrintToken {
+        const token = new SqlPrintToken(SqlPrintTokenType.keyword, 'update', SqlPrintTokenContainerType.UpdateClause);
+
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(arg.source.accept(this));
+
+        return token;
+    }
+
+    public visitSetClause(arg: SetClause): SqlPrintToken {
+        const token = new SqlPrintToken(SqlPrintTokenType.keyword, 'set', SqlPrintTokenContainerType.SelectClause);
+
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        for (let i = 0; i < arg.items.length; i++) {
+            if (i > 0) {
+                token.innerTokens.push(...SqlPrintTokenParser.commaSpaceTokens());
+            }
+            token.innerTokens.push(this.visit(arg.items[i]));
+        }
+
+        return token;
+    }
+
+    public visitSetClauseItem(arg: SetClauseItem): SqlPrintToken {
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.SetClauseItem);
+
+        token.innerTokens.push(arg.column.accept(this));
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.operator, '='));
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(arg.value.accept(this));
+
+        return token;
+    }
+
+    public visitReturningClause(arg: ReturningClause): SqlPrintToken {
+        const token = new SqlPrintToken(SqlPrintTokenType.keyword, 'returning', SqlPrintTokenContainerType.ReturningClause);
+
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        for (let i = 0; i < arg.columns.length; i++) {
+            if (i > 0) {
+                token.innerTokens.push(...SqlPrintTokenParser.commaSpaceTokens());
+            }
+            token.innerTokens.push(this.visit(arg.columns[i]));
+        }
+
+        return token;
+    }
+
+    public visitCreateTableQuery(arg: CreateTableQuery): SqlPrintToken {
+        const token = new SqlPrintToken(SqlPrintTokenType.keyword, arg.isTemporary ? 'create temporary table' : 'create table', SqlPrintTokenContainerType.CreateTableQuery);
+
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(arg.tableName.accept(this));
+
+        if (arg.asSelectQuery) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'as'));
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(arg.asSelectQuery.accept(this));
+        }
+
+        return token;
     }
 }
