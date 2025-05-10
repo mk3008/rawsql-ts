@@ -167,10 +167,10 @@ export class SelectQueryParser {
         }
 
         // Parse OFFSET clause (optional)
-        let offsetClausResult = null;
+        let offsetClauseResult = null;
         if (idx < lexemes.length && lexemes[idx].value === 'offset') {
-            offsetClausResult = OffsetClauseParser.parseFromLexeme(lexemes, idx);
-            idx = offsetClausResult.newIndex;
+            offsetClauseResult = OffsetClauseParser.parseFromLexeme(lexemes, idx);
+            idx = offsetClauseResult.newIndex;
         }
 
         // Parse FETCH clause (optional)
@@ -198,7 +198,7 @@ export class SelectQueryParser {
             orderByClause: orderByClauseResult ? orderByClauseResult.value : null,
             windowClause: windowClauseResult ? windowClauseResult.value : null,
             limitClause: limitClauseResult ? limitClauseResult.value : null,
-            offsetClause: offsetClausResult ? offsetClausResult.value : null,
+            offsetClause: offsetClauseResult ? offsetClauseResult.value : null,
             fetchClause: fetchClauseResult ? fetchClauseResult.value : null,
             forClause: forClauseResult ? forClauseResult.value : null
         });
