@@ -543,11 +543,11 @@ export class UpdateClause extends SqlComponent {
  */
 export class InsertClause extends SqlComponent {
     source: SourceExpression;
-    columns: string[];
+    columns: IdentifierString[];
 
     constructor(source: SourceExpression, columns: string[]) {
         super();
         this.source = source;
-        this.columns = columns;
+        this.columns = columns.map((col) => new IdentifierString(col));
     }
 }

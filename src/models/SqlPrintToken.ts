@@ -71,6 +71,7 @@ export enum SqlPrintTokenContainerType {
     WindowFrameBoundaryValue = "WindowFrameBoundaryValue",
     FetchClause = "FetchClause",
     FetchExpression = "FetchExpression",
+    InsertQuery = "InsertQuery",
     // Add more as needed
 }
 

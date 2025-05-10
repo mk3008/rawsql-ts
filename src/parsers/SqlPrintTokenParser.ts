@@ -1,4 +1,4 @@
-import { PartitionByClause, OrderByClause, OrderByItem, SelectClause, SelectItem, Distinct, DistinctOn, SortDirection, NullsSortDirection, TableSource, SourceExpression, FromClause, JoinClause, JoinOnClause, JoinUsingClause, FunctionSource, SourceAliasExpression, WhereClause, GroupByClause, HavingClause, SubQuerySource, WindowFrameClause, LimitClause, ForClause, OffsetClause, WindowsClause as WindowClause, CommonTable, WithClause, FetchClause, FetchExpression } from "../models/Clause";
+import { PartitionByClause, OrderByClause, OrderByItem, SelectClause, SelectItem, Distinct, DistinctOn, SortDirection, NullsSortDirection, TableSource, SourceExpression, FromClause, JoinClause, JoinOnClause, JoinUsingClause, FunctionSource, SourceAliasExpression, WhereClause, GroupByClause, HavingClause, SubQuerySource, WindowFrameClause, LimitClause, ForClause, OffsetClause, WindowsClause as WindowClause, CommonTable, WithClause, FetchClause, FetchExpression, InsertClause } from "../models/Clause";
 import { BinarySelectQuery, SimpleSelectQuery, ValuesQuery } from "../models/SelectQuery";
 import { SqlComponent, SqlComponentVisitor } from "../models/SqlComponent";
 import { SqlPrintToken, SqlPrintTokenType, SqlPrintTokenContainerType } from "../models/SqlPrintToken";
@@ -32,6 +32,7 @@ import {
 import { ParameterCollector } from "../transformers/ParameterCollector";
 import { IdentifierDecorator } from "./IdentifierDecorator";
 import { ParameterDecorator } from "./ParameterDecorator";
+import { InsertQuery } from "../models/InsertQuery";
 
 export enum ParameterStyle {
     Anonymous = 'anonymous',
@@ -59,8 +60,13 @@ export const PRESETS: Record<string, FormatterConfig> = {
     },
     postgres: {
         identifierEscape: { start: '"', end: '"' },
-        parameterSymbol: ':',
+        parameterSymbol: '$',
         parameterStyle: ParameterStyle.Indexed,
+    },
+    postgresWithNamedParams: {
+        identifierEscape: { start: '"', end: '"' },
+        parameterSymbol: ':',
+        parameterStyle: ParameterStyle.Named,
     },
     sqlserver: {
         identifierEscape: { start: '[', end: ']' },
@@ -71,6 +77,41 @@ export const PRESETS: Record<string, FormatterConfig> = {
         identifierEscape: { start: '"', end: '"' },
         parameterSymbol: ':',
         parameterStyle: ParameterStyle.Named,
+    },
+    oracle: {
+        identifierEscape: { start: '"', end: '"' },
+        parameterSymbol: ':',
+        parameterStyle: ParameterStyle.Named,
+    },
+    clickhouse: {
+        identifierEscape: { start: '`', end: '`' },
+        parameterSymbol: '?',
+        parameterStyle: ParameterStyle.Anonymous,
+    },
+    firebird: {
+        identifierEscape: { start: '"', end: '"' },
+        parameterSymbol: '?',
+        parameterStyle: ParameterStyle.Anonymous,
+    },
+    db2: {
+        identifierEscape: { start: '"', end: '"' },
+        parameterSymbol: '?',
+        parameterStyle: ParameterStyle.Anonymous,
+    },
+    snowflake: {
+        identifierEscape: { start: '"', end: '"' },
+        parameterSymbol: '?',
+        parameterStyle: ParameterStyle.Anonymous,
+    },
+    cloudspanner: {
+        identifierEscape: { start: '`', end: '`' },
+        parameterSymbol: '@',
+        parameterStyle: ParameterStyle.Named,
+    },
+    duckdb: {
+        identifierEscape: { start: '"', end: '"' },
+        parameterSymbol: '?',
+        parameterStyle: ParameterStyle.Anonymous,
     },
 };
 
@@ -181,6 +222,9 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         this.handlers.set(BinarySelectQuery.kind, (expr) => this.visitBinarySelectQuery(expr));
         this.handlers.set(ValuesQuery.kind, (expr) => this.visitValuesQuery(expr as ValuesQuery));
         this.handlers.set(TupleExpression.kind, (expr) => this.visitTupleExpression(expr as TupleExpression));
+
+        this.handlers.set(InsertQuery.kind, (expr) => this.visitInsertQuery(expr as InsertQuery));
+        this.handlers.set(InsertClause.kind, (expr) => this.visitInsertClause(expr as InsertClause));
     }
     /**
      * Pretty-prints a BinarySelectQuery (e.g., UNION, INTERSECT, EXCEPT).
@@ -1115,5 +1159,43 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
 
         return token;
+    }
+
+    private visitInsertQuery(arg: InsertQuery): SqlPrintToken {
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.InsertQuery);
+
+        // Process the insert clause
+        token.innerTokens.push(this.visit(arg.insertClause));
+
+        // Process the select query if present
+        if (arg.selectQuery) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(this.visit(arg.selectQuery));
+        }
+
+        return token;
+    }
+
+    private visitInsertClause(arg: InsertClause): SqlPrintToken {
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '');
+
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'insert into'));
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(arg.source.accept(this));
+
+        if (arg.columns.length > 0) {
+            token.innerTokens.push(SqlPrintTokenParser.PAREN_OPEN_TOKEN);
+            for (let i = 0; i < arg.columns.length; i++) {
+                if (i > 0) {
+                    token.innerTokens.push(...SqlPrintTokenParser.commaSpaceTokens());
+                }
+                token.innerTokens.push(arg.columns[i].accept(this));
+            }
+            token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
+        }
+
+        return token;
+
     }
 }
