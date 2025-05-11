@@ -1,6 +1,5 @@
 import * as Benchmark from 'benchmark';
 import * as os from 'os';
-import { Formatter } from '../src/transformers/Formatter';
 import { SelectQueryParser } from '../src/parsers/SelectQueryParser';
 import { format as sqlFormat } from 'sql-formatter';
 import { Parser as NodeSqlParser } from 'node-sql-parser';
@@ -169,8 +168,11 @@ queries.forEach((query, index) => {
     suite.add(`rawsql-ts ${query.name}`, formatWithRawSql(query.sql));
     // Add node-sql-parser benchmark for comparison
     suite.add(`node-sql-parser ${query.name}`, formatWithNodeSqlParser(query.sql));
-    // Add sql-parser-cst benchmark for comparison
-    suite.add(`sql-parser-cst ${query.name}`, formatWithSqlParserCst(query.sql));
+
+    // NOTE: Omitted because it is generally slightly slower than node-sql-parser
+    //// Add sql-parser-cst benchmark for comparison
+    //suite.add(`sql-parser-cst ${query.name}`, formatWithSqlParserCst(query.sql));
+
     // Add sql-formatter benchmark for comparison
     suite.add(`sql-formatter ${query.name}`, formatWithSqlFormatter(query.sql));
 });
@@ -202,9 +204,9 @@ function printResults(results: any[]) {
 
     // Print a table for each token group
     Object.keys(groupedResults).forEach(groupName => {
-        console.log(`\n### ${groupName}`);
+        console.log(`\n#### ${groupName}`);
         // Add new column header for rawsql-ts comparison
-        console.log('| Method                            | Mean       | Error     | StdDev    | Times slower vs rawsql-ts |');
+        console.log('| Method                            | Mean (ms)  | Error (ms) | StdDev (ms) | Times slower vs rawsql-ts |');
         console.log('|---------------------------------- |-----------:|----------:|----------:|--------------------------:|');
 
         const groupResults = groupedResults[groupName];
@@ -240,7 +242,7 @@ function printResults(results: any[]) {
                 }
             }
 
-            console.log(`| ${name} | ${mean} ms | ${error} ms | ${stddev} ms | ${ratioStr.padStart(16)} |`);
+            console.log(`| ${name} | ${mean} | ${error} | ${stddev} | ${ratioStr.padStart(16)} |`);
         });
     });
 

@@ -28,7 +28,7 @@ With rawsql-ts, raw SQL can be represented as objects, enabling flexible manipul
 - Rich utilities for SQL structure transformation and analysis
 - Advanced SQL formatting capabilities, including multi-line formatting and customizable styles
 
-![Benchmark Results](https://quickchart.io/chart?c={type:'bar',data:{labels:['Tokens20','Tokens70','Tokens140','Tokens230'],datasets:[{label:'rawsql-ts',data:[0.029,0.075,0.140,0.242],backgroundColor:'rgba(54,162,235,0.8)',borderColor:'rgba(54,162,235,1)',borderWidth:1},{label:'node-sql-parser',data:[0.182,0.251,0.427,0.899],backgroundColor:'rgba(255,206,86,0.8)',borderColor:'rgba(255,206,86,1)',borderWidth:1},{label:'sql-formatter',data:[0.215,0.529,1.114,1.754],backgroundColor:'rgba(255,99,132,0.8)',borderColor:'rgba(255,99,132,1)',borderWidth:1}]},options:{plugins:{legend:{labels:{color:'black'}}},scales:{x:{ticks:{color:'black'}},y:{ticks:{color:'black'}}},backgroundColor:'white'}})
+![Benchmark Results](https://quickchart.io/chart?c={type:'bar',data:{labels:['Tokens20','Tokens70','Tokens140','Tokens230'],datasets:[{label:'rawsql-ts',data:[0.029,0.075,0.137,0.239],backgroundColor:'rgba(54,162,235,0.8)',borderColor:'rgba(54,162,235,1)',borderWidth:1},{label:'node-sql-parser',data:[0.210,0.223,0.420,0.871],backgroundColor:'rgba(255,206,86,0.8)',borderColor:'rgba(255,206,86,1)',borderWidth:1},{label:'sql-formatter',data:[0.228,0.547,1.057,1.906],backgroundColor:'rgba(255,99,132,0.8)',borderColor:'rgba(255,99,132,1)',borderWidth:1}]},options:{plugins:{legend:{labels:{color:'black'}}},scales:{x:{ticks:{color:'black'}},y:{ticks:{color:'black'}}},backgroundColor:'white'}})
 
 > [!Note]
 > The "Mean" column represents the average time taken to process a query. Lower values indicate faster performance. For more details, see the [Benchmark](#benchmarks).
@@ -597,39 +597,35 @@ Node.js v22.14.0
 
 ### Results
 
-### Tokens20
-| Method                            | Mean       | Error     | StdDev    | Times slower vs rawsql-ts |
+#### Tokens20
+| Method                            | Mean (ms)  | Error (ms) | StdDev (ms) | Times slower vs rawsql-ts |
 |---------------------------------- |-----------:|----------:|----------:|--------------------------:|
-| rawsql-ts                      |    0.029 ms |  0.0065 ms |  0.0033 ms |                - |
-| node-sql-parser                |    0.182 ms |  0.0807 ms |  0.0412 ms |             6.3x |
-| sql-parser-cst                 |    0.228 ms |  0.1228 ms |  0.0626 ms |             7.9x |
-| sql-formatter                  |    0.215 ms |  0.0676 ms |  0.0345 ms |             7.4x |
+| rawsql-ts                      |    0.029 |  0.0087 |  0.0044 |                - |
+| node-sql-parser                |    0.210 |  0.4505 |  0.2298 |             7.3x |
+| sql-formatter                  |    0.228 |  0.1598 |  0.0815 |             8.0x |
 
 > [!Note] When the token count is extremely low, `rawsql-ts` becomes disproportionately fast. However, such small queries are rare in real-world scenarios, so this result is excluded from the overall performance summary.
 
-### Tokens70
-| Method                            | Mean       | Error     | StdDev    | Times slower vs rawsql-ts |
+#### Tokens70
+| Method                            | Mean (ms)  | Error (ms) | StdDev (ms) | Times slower vs rawsql-ts |
 |---------------------------------- |-----------:|----------:|----------:|--------------------------:|
-| rawsql-ts                      |    0.075 ms |  0.0532 ms |  0.0271 ms |                - |
-| node-sql-parser                |    0.251 ms |  0.1049 ms |  0.0535 ms |             3.3x |
-| sql-parser-cst                 |    0.350 ms |  0.1186 ms |  0.0605 ms |             4.6x |
-| sql-formatter                  |    0.529 ms |  0.1033 ms |  0.0527 ms |             7.0x |
+| rawsql-ts                      |    0.075 |  0.0541 |  0.0276 |                - |
+| node-sql-parser                |    0.223 |  0.0848 |  0.0432 |             3.0x |
+| sql-formatter                  |    0.547 |  0.1432 |  0.0731 |             7.3x |
 
-### Tokens140
-| Method                            | Mean       | Error     | StdDev    | Times slower vs rawsql-ts |
+#### Tokens140
+| Method                            | Mean (ms)  | Error (ms) | StdDev (ms) | Times slower vs rawsql-ts |
 |---------------------------------- |-----------:|----------:|----------:|--------------------------:|
-| rawsql-ts                      |    0.140 ms |  0.0393 ms |  0.0200 ms |                - |
-| node-sql-parser                |    0.427 ms |  0.1147 ms |  0.0585 ms |             3.0x |
-| sql-parser-cst                 |    0.621 ms |  0.1903 ms |  0.0971 ms |             4.4x |
-| sql-formatter                  |    1.114 ms |  0.4292 ms |  0.2190 ms |             7.9x |
+| rawsql-ts                      |    0.137 |  0.0175 |  0.0089 |                - |
+| node-sql-parser                |    0.420 |  0.1030 |  0.0526 |             3.1x |
+| sql-formatter                  |    1.057 |  0.2390 |  0.1220 |             7.7x |
 
-### Tokens230
-| Method                            | Mean       | Error     | StdDev    | Times slower vs rawsql-ts |
+#### Tokens230
+| Method                            | Mean (ms)  | Error (ms) | StdDev (ms) | Times slower vs rawsql-ts |
 |---------------------------------- |-----------:|----------:|----------:|--------------------------:|
-| rawsql-ts                      |    0.242 ms |  0.1087 ms |  0.0555 ms |                - |
-| node-sql-parser                |    0.899 ms |  0.3979 ms |  0.2030 ms |             3.7x |
-| sql-parser-cst                 |    1.053 ms |  0.4713 ms |  0.2405 ms |             4.3x |
-| sql-formatter                  |    1.754 ms |  0.3102 ms |  0.1583 ms |             7.2x |
+| rawsql-ts                      |    0.239 |  0.0577 |  0.0294 |                - |
+| node-sql-parser                |    0.871 |  0.2042 |  0.1042 |             3.6x |
+| sql-formatter                  |    1.906 |  1.4631 |  0.7465 |             8.0x |
 
 ### Performance Summary
 
