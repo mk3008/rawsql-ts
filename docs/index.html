@@ -8,6 +8,7 @@
         body {
             font-family: sans-serif;
             margin: 2rem;
+            background-color: #f0f0f0;
         }
 
         textarea {
@@ -16,7 +17,7 @@
         }
 
         pre {
-            background: #f4f4f4;
+            background: #e0e0e0;
             padding: 1em;
         }
 
@@ -68,23 +69,61 @@
         </div>
     </section>
     <p>Type your SQL below and see the formatted and analyzed result using <b>rawsql-ts</b> from CDN!</p>
-    <textarea id="sql-input">SELECT u.user_id, u.user_name FROM users as u WHERE u.active = true</textarea>
+    <textarea id="sql-input">SELECT u.user_id, u.user_name FROM users as u WHERE u.user_id = :user_id</textarea>
     <br>
     <button id="run-btn">Analyze SQL</button>
     <div class="result">
         <h2>Formatted SQL</h2>
-        <pre id="output"></pre>
-        <h2>Select Values</h2>
-        <pre id="select-values"></pre>
-        <h2>Selectable Columns</h2>
-        <pre id="selectable-columns"></pre>
-        <h2>Table Sources</h2>
-        <pre id="table-sources"></pre>
-        <h2>CTEs (Common Tables)</h2>
-        <pre id="ctes"></pre>
+        <!-- Preset selection dropdown -->
+        <label for="preset-select">Select SQL Dialect Preset:</label>
+        <select id="preset-select">
+            <option value="postgres">PostgreSQL</option>
+            <option value="mysql">MySQL</option>
+            <option value="sqlserver">SQL Server</option>
+            <option value="sqlite">SQLite</option>
+            <option value="custom">custom</option>
+        </select>
+        <!-- Custom preset input field -->
+        <div id="custom-preset-section">
+            <h3>Custom SQL Dialect Preset</h3>
+            <p>
+                Here you can define your custom SQL dialect preset. The <code>parameterSymbol</code> field supports two
+                formats:
+            <ul>
+                <li>As a simple string, e.g., <code>":"</code></li>
+                <li>As an object with <code>start</code> and <code>end</code> properties, e.g.,
+                    <code>{ "start": "${", "end": "}" }</code>
+                </li>
+            </ul>
+            This allows for flexible parameter formatting in your SQL queries. </p>
+            <textarea id="custom-preset" placeholder="Enter your custom SQL preset here..."
+                style="width: 500px; height: 200px;"></textarea>
+            <br>
+            <button id="save-custom-preset">Save Custom Preset</button>
+            <button id="reset-custom-preset">Reset to Default</button>
+        </div>
+    </div>
+    <pre id="output"></pre>
+    <button id="copy-output-btn">Copy</button>
+    <h2>Select Values</h2>
+    <pre id="select-values"></pre>
+    <button id="copy-select-values-btn">Copy</button>
+    <h2>Selectable Columns</h2>
+    <pre id="selectable-columns"></pre>
+    <button id="copy-selectable-columns-btn">Copy</button>
+    <h2>Table Sources</h2>
+    <pre id="table-sources"></pre>
+    <button id="copy-table-sources-btn">Copy</button>
+    <h2>CTEs (Common Tables)</h2>
+    <pre id="ctes"></pre>
+    <button id="copy-ctes-btn">Copy</button>
+    <div id="log-list"
+        style="margin-top: 1em; background: #f9f9f9; padding: 1em; border: 1px solid #ddd; max-height: 150px; overflow-y: auto; font-size: 0.9em;">
+        <!-- Log messages will appear here -->
     </div>
     <script type="module">
-        import { SelectQueryParser, Formatter, SelectValueCollector, SelectableColumnCollector, TableSourceCollector, CTECollector } from "https://unpkg.com/rawsql-ts/dist/esm/index.js";
+        import { SelectQueryParser, SqlFormatter, SelectValueCollector, SelectableColumnCollector, TableSourceCollector, CTECollector } from "https://unpkg.com/rawsql-ts/dist/esm/index.js";
+
         const input = document.getElementById('sql-input');
         const output = document.getElementById('output');
         const btn = document.getElementById('run-btn');
@@ -92,6 +131,47 @@
         const selectableColumnsEl = document.getElementById('selectable-columns');
         const tableSourcesEl = document.getElementById('table-sources');
         const ctesEl = document.getElementById('ctes');
+        const presetSelect = document.getElementById('preset-select');
+        const customPresetInput = document.getElementById('custom-preset');
+        const saveCustomPresetBtn = document.getElementById('save-custom-preset');
+
+        // Define the SQL dialect preset as a JavaScript object
+        const defaultSqlPreset = {
+            identifierEscape: { start: "\"", end: "\"" },
+            parameterSymbol: ":",
+            parameterStyle: "named",
+            indentSize: 4,
+            indentChar: " ",
+            newline: "\n",
+            keywordCase: "upper",
+            commaBreak: "before",
+            andBreak: "before"
+        };
+
+        // Populate the custom preset textarea with the default preset or cookie value
+        const savedCustomPresetValue = document.cookie.split('; ').find(row => row.startsWith('customSqlPreset='))?.split('=')[1];
+        if (savedCustomPresetValue) {
+            customPresetInput.value = decodeURIComponent(savedCustomPresetValue);
+        } else {
+            customPresetInput.value = JSON.stringify(defaultSqlPreset, null, 4); // Pretty-print JSON
+        }
+
+        // Load preset from cookies
+        const savedPreset = document.cookie.split('; ').find(row => row.startsWith('sqlPreset='))?.split('=')[1];
+        if (savedPreset) {
+            presetSelect.value = savedPreset;
+        }
+
+        // Save preset to cookies
+        presetSelect.addEventListener('change', () => {
+            document.cookie = `sqlPreset=${presetSelect.value}; path=/; max-age=31536000`; // 1 year
+        });
+
+        // Load custom preset from cookies
+        const savedCustomPreset = document.cookie.split('; ').find(row => row.startsWith('customSqlPreset='))?.split('=')[1];
+        if (savedCustomPreset) {
+            customPresetInput.value = decodeURIComponent(savedCustomPreset);
+        }
 
         // Debounce timer for auto-format
         let debounceTimer = null;
@@ -108,12 +188,26 @@
             tableSourcesEl.textContent = '';
             ctesEl.textContent = '';
 
+            // Determine formatter options
+            let formatterOptions;
+            if (presetSelect.value === 'custom') {
+                try {
+                    formatterOptions = JSON.parse(customPresetInput.value);
+                } catch (e) {
+                    output.textContent = '[Custom Preset Error] Invalid JSON format';
+                    return;
+                }
+            } else {
+                formatterOptions = { preset: presetSelect.value };
+            }
+
             // Format SQL
             try {
                 const query = SelectQueryParser.parse(input.value);
-                const formatter = new Formatter();
+                const formatter = new SqlFormatter(formatterOptions);
+
                 try {
-                    output.textContent = formatter.format(query);
+                    output.textContent = formatter.format(query).formattedSql;
                 } catch (e) {
                     output.textContent = '[Formatter Error] ' + e.message;
                 }
@@ -122,7 +216,7 @@
                 try {
                     const selectValueCollector = new SelectValueCollector();
                     const selectValues = selectValueCollector.collect(query);
-                    selectValuesEl.textContent = selectValues.map(val => `name: ${val.name}, value: ${formatter.format(val.value)}`).join('\n');
+                    selectValuesEl.textContent = selectValues.map(val => `name: ${val.name}, value: ${formatter.format(val.value).formattedSql}`).join('\n');
                 } catch (e) {
                     selectValuesEl.textContent = '[SelectValueCollector Error] ' + e.message;
                 }
@@ -131,7 +225,7 @@
                 try {
                     const selectableColumnCollector = new SelectableColumnCollector();
                     const selectableColumns = selectableColumnCollector.collect(query);
-                    selectableColumnsEl.textContent = selectableColumns.map(val => `name: ${val.name}, value: ${formatter.format(val.value)}`).join('\n');
+                    selectableColumnsEl.textContent = selectableColumns.map(val => `name: ${val.name}, value: ${formatter.format(val.value).formattedSql}`).join('\n');
                 } catch (e) {
                     selectableColumnsEl.textContent = '[SelectableColumnCollector Error] ' + e.message;
                 }
@@ -150,7 +244,7 @@
                     const cteCollector = new CTECollector();
                     cteCollector.visit(query);
                     const ctes = cteCollector.getCommonTables();
-                    ctesEl.textContent = ctes.map(cte => `name: ${cte.getSourceAliasName()}, query: ${formatter.format(cte.query)}`).join('\n');
+                    ctesEl.textContent = ctes.map(cte => `name: ${cte.getSourceAliasName()}, query: ${formatter.format(cte.query).formattedSql}`).join('\n');
                 } catch (e) {
                     ctesEl.textContent = '[CTECollector Error] ' + e.message;
                 }
@@ -168,8 +262,94 @@
             debounceTimer = setTimeout(analyzeSql, DEBOUNCE_DELAY);
         });
 
+        // Trigger analyzeSql when preset-select changes
+        presetSelect.addEventListener('change', analyzeSql);
+
+        // Save custom preset button click
+        saveCustomPresetBtn.addEventListener('click', () => {
+            const customPreset = customPresetInput.value.trim();
+            if (customPreset) {
+                // Save to cookie
+                document.cookie = `customSqlPreset=${encodeURIComponent(customPreset)}; path=/; max-age=31536000`; // 1 year
+                alert('Custom preset saved!');
+            }
+        });
+
+        // Reset custom preset to default
+        document.getElementById('reset-custom-preset').addEventListener('click', () => {
+            if (confirm('Are you sure you want to reset the custom preset to its default values?')) {
+                customPresetInput.value = JSON.stringify(defaultSqlPreset, null, 4); // Pretty-print JSON
+                addLogMessage('Custom preset reset to default.');
+            }
+        });
+
+        // Trigger analyzeSql when custom preset is edited
+        customPresetInput.addEventListener('input', () => {
+            if (presetSelect.value === 'custom') {
+                analyzeSql();
+            }
+        });
+
+        // Show or hide the custom preset section based on the selected preset
+        function toggleCustomPresetVisibility() {
+            const customPresetSection = document.getElementById('custom-preset-section');
+            if (presetSelect.value === 'custom') {
+                customPresetSection.style.display = 'block';
+            } else {
+                customPresetSection.style.display = 'none';
+            }
+        }
+
+        // Add event listener to toggle visibility on preset change
+        presetSelect.addEventListener('change', toggleCustomPresetVisibility);
+
+        // Initialize visibility on page load
+        toggleCustomPresetVisibility();
+
         // Run once on load
         analyzeSql();
+    </script>
+    <script>
+        function copyToClipboard(content, message) {
+            navigator.clipboard.writeText(content).then(() => {
+                addLogMessage(message);
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+            });
+        }
+
+        function addLogMessage(message) {
+            const logList = document.getElementById('log-list');
+            const logEntry = document.createElement('div');
+            logEntry.textContent = message;
+            logList.appendChild(logEntry);
+            logList.scrollTop = logList.scrollHeight; // Auto-scroll to the latest log
+        }
+
+        document.getElementById('copy-output-btn').addEventListener('click', () => {
+            const content = document.getElementById('output').textContent;
+            copyToClipboard(content, 'Output copied to clipboard!');
+        });
+
+        document.getElementById('copy-select-values-btn').addEventListener('click', () => {
+            const content = document.getElementById('select-values').textContent;
+            copyToClipboard(content, 'Select Values copied to clipboard!');
+        });
+
+        document.getElementById('copy-selectable-columns-btn').addEventListener('click', () => {
+            const content = document.getElementById('selectable-columns').textContent;
+            copyToClipboard(content, 'Selectable Columns copied to clipboard!');
+        });
+
+        document.getElementById('copy-table-sources-btn').addEventListener('click', () => {
+            const content = document.getElementById('table-sources').textContent;
+            copyToClipboard(content, 'Table Sources copied to clipboard!');
+        });
+
+        document.getElementById('copy-ctes-btn').addEventListener('click', () => {
+            const content = document.getElementById('ctes').textContent;
+            copyToClipboard(content, 'CTEs copied to clipboard!');
+        });
     </script>
 </body>
 
