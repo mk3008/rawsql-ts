@@ -149,7 +149,7 @@ The `parameterStyle` option in `SqlFormatter` allows you to control the paramete
 #### Using a Preset
 
 ```typescript
-import { SqlFormatter, SqlFormatter } from 'rawsql-ts';
+import { SqlFormatter } from 'rawsql-ts';
 
 const sql = `SELECT user_id, name FROM users WHERE active = TRUE`;
 const query = SelectQueryParser.parse(sql);

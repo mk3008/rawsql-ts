@@ -36,3 +36,5 @@ export class Formatter implements SqlComponentVisitor<string> {
         return this.format(arg);
     }
 }
+
+export { SqlFormatter };

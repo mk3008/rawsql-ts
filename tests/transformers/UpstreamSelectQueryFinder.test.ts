@@ -1,14 +1,14 @@
 import { describe, expect, test } from 'vitest';
 import { SelectQueryParser } from '../../src/parsers/SelectQueryParser';
 import { UpstreamSelectQueryFinder } from '../../src/transformers/UpstreamSelectQueryFinder';
-import { Formatter } from '../../src/transformers/Formatter';
+import { SqlFormatter } from '../../src/transformers/Formatter';
 import { SelectableColumnCollector } from '../../src/transformers/SelectableColumnCollector';
 import { SimpleSelectQuery } from '../../src/models/SimpleSelectQuery';
 
 function getRawSQL(query: any): string {
     // Use Formatter to convert SelectQuery to SQL string
-    const formatter = new Formatter();
-    return formatter.format(query).trim();
+    const formatter = new SqlFormatter();
+    return formatter.format(query).formattedSql.trim();
 }
 
 describe('UpstreamSelectQueryFinder Demo', () => {
@@ -354,15 +354,15 @@ describe('UpstreamSelectQueryFinder Demo', () => {
                 throw new Error('Expected exactly one expression for "amount" column');
             }
             // Convert the expression back to a string representation.
-            const f = new Formatter();
-            const expr = f.format(exprs[0]);
+            const f = new SqlFormatter();
+            const expr = f.format(exprs[0]).formattedSql;
             // Add a search condition using the "amount" expression to the upstream query.
             q.appendWhereRaw(`${expr} > 100`);
         });
 
         // Assert
-        const formatter = new Formatter();
-        const actual = formatter.format(query);
+        const formatter = new SqlFormatter();
+        const actual = formatter.format(query).formattedSql;
 
         // Assert
         // NOTE: sales_transactions will be filtered by amount.
@@ -429,8 +429,8 @@ describe('UpstreamSelectQueryFinder Demo', () => {
         query.appendWhereExpr('amount', expr => `${expr} > 100`, { upstream: true });
 
         // Assert
-        const formatter = new Formatter();
-        const actual = formatter.format(query);
+        const formatter = new SqlFormatter();
+        const actual = formatter.format(query).formattedSql;
 
         // Assert
         // NOTE: sales_transactions will be filtered by amount.

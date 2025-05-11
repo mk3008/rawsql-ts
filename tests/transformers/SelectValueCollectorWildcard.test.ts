@@ -1,9 +1,9 @@
 import { describe, expect, test } from 'vitest';
 import { SelectValueCollector } from '../../src/transformers/SelectValueCollector';
 import { SelectQueryParser } from '../../src/parsers/SelectQueryParser';
-import { Formatter } from '../../src/transformers/Formatter';
+import { SqlFormatter } from '../../src/transformers/Formatter';
 
-const formatter = new Formatter();
+const formatter = new SqlFormatter();
 
 // Definition of test suite
 describe('SelectValueCollectorWildcard', () => {
@@ -29,7 +29,7 @@ describe('SelectValueCollectorWildcard', () => {
         // Act
         const items = collector.collect(query);
         const columnNames = items.map(item => item.name);
-        const expressions = items.map(item => formatter.format(item.value));
+        const expressions = items.map(item => formatter.format(item.value).formattedSql);
 
         // Assert
         expect(items.length).toBe(4); // all columns from users table
@@ -54,7 +54,9 @@ describe('SelectValueCollectorWildcard', () => {
         // Act
         const items = collector.collect(query);
         const columnNames = items.map(item => item.name);
-        const expressions = items.map(item => formatter.format(item.value));        // Assert - only columns explicitly selected in the subquery are expanded
+        const expressions = items.map(item => formatter.format(item.value).formattedSql);
+
+        // Assert - only columns explicitly selected in the subquery are expanded
         expect(columnNames).toContain('id');
         expect(columnNames).toContain('name');
         expect(columnNames).not.toContain('email'); // non-selected column
@@ -74,7 +76,9 @@ describe('SelectValueCollectorWildcard', () => {
         // Act
         const items = collector.collect(query);
         const columnNames = items.map(item => item.name);
-        const expressions = items.map(item => formatter.format(item.value));        // Assert
+        const expressions = items.map(item => formatter.format(item.value).formattedSql);
+
+        // Assert
         expect(items.length).toBe(4); // all columns from users table
         expect(columnNames).toContain('id');
         expect(columnNames).toContain('name');
@@ -97,7 +101,9 @@ describe('SelectValueCollectorWildcard', () => {
         // Act
         const items = collector.collect(query);
         const columnNames = items.map(item => item.name);
-        const expressions = items.map(item => formatter.format(item.value));        // Assert
+        const expressions = items.map(item => formatter.format(item.value).formattedSql);
+
+        // Assert
         expect(items.length).toBe(5); // posts(2) + users(4) - duplicate id is excluded(1)
 
         // Specific columns from posts table
@@ -125,7 +131,9 @@ describe('SelectValueCollectorWildcard', () => {
         // Act
         const items = collector.collect(query);
         const columnNames = items.map(item => item.name);
-        const expressions = items.map(item => formatter.format(item.value));        // Assert
+        const expressions = items.map(item => formatter.format(item.value).formattedSql);
+
+        // Assert
         expect(items.length).toBe(4); // all columns from users table (with aliases)
         expect(columnNames).toContain('user_id');
         expect(columnNames).toContain('user_name');
@@ -148,7 +156,9 @@ describe('SelectValueCollectorWildcard', () => {
         // Act
         const items = collector.collect(query);
         const columnNames = items.map(item => item.name);
-        const expressions = items.map(item => formatter.format(item.value));        // Assert
+        const expressions = items.map(item => formatter.format(item.value).formattedSql);
+
+        // Assert
         expect(items.length).toBe(5); // 1 expression + 4 columns from users table
         expect(columnNames).toContain('id_plus_100');
         expect(columnNames).toContain('id');
@@ -173,7 +183,7 @@ describe('SelectValueCollectorWildcard', () => {
         // Act
         const items = collector.collect(query);
         const columnNames = items.map(item => item.name);
-        const expressions = items.map(item => formatter.format(item.value));
+        const expressions = items.map(item => formatter.format(item.value).formattedSql);
 
         // Assert
         expect(items.length).toBe(4); // all columns from users table via CTE
@@ -198,7 +208,7 @@ describe('SelectValueCollectorWildcard', () => {
         // Act
         const items = collector.collect(query);
         const columnNames = items.map(item => item.name);
-        const expressions = items.map(item => formatter.format(item.value));
+        const expressions = items.map(item => formatter.format(item.value).formattedSql);
 
         // Assert
         expect(items.length).toBe(4); // all columns from users table via nested CTEs

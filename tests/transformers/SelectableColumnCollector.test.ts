@@ -1,9 +1,9 @@
 import { describe, expect, test } from 'vitest';
 import { SelectableColumnCollector } from '../../src/transformers/SelectableColumnCollector';
 import { SelectQueryParser } from '../../src/parsers/SelectQueryParser';
-import { Formatter } from '../../src/transformers/Formatter';
+import { SqlFormatter } from '../../src/transformers/Formatter';
 
-const formatter = new Formatter();
+const formatter = new SqlFormatter();
 
 describe('SelectableColumnCollector', () => {
     test('collects basic column references', () => {
