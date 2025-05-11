@@ -169,7 +169,11 @@ export class TableSource extends SqlComponent {
     }
     constructor(namespaces: string[] | IdentifierString[] | null, table: string | IdentifierString) {
         super();
+        // Convert the table name to an IdentifierString if it is provided as a string.
         const tbl = typeof table === "string" ? new IdentifierString(table) : table;
+        // Wrap the namespaces and table name in a QualifiedName object.
+        // This design choice ensures backward compatibility by allowing the namespaces
+        // and table name to be accessed in a way consistent with the previous implementation.
         this.qualifiedName = new QualifiedName(namespaces, tbl);
     }
     public getSourceName(): string {
