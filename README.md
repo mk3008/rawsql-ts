@@ -448,7 +448,7 @@ A suite of utilities for transforming and analyzing SQL ASTs.
 ## Usage Example
 
 ```typescript
-import { TableColumnResolver, SelectQueryParser, SelectableColumnCollector, SelectValueCollector, TableSourceCollector, Formatter } from 'rawsql-ts';
+import { TableColumnResolver, SelectQueryParser, SelectableColumnCollector, SelectValueCollector, TableSourceCollector, SqlFormatter } from 'rawsql-ts';
 
 // TableColumnResolver example
 const resolver: TableColumnResolver = (tableName) => {
@@ -459,7 +459,7 @@ const resolver: TableColumnResolver = (tableName) => {
 
 const sql = `SELECT u.*, p.title as post_title FROM users u INNER JOIN posts p ON u.user_id = p.user_id`;
 const query = SelectQueryParser.parse(sql);
-const formatter = new Formatter();
+const formatter = new SqlFormatter();
 
 // Collects information from the SELECT clause.
 // To expand wildcards, you must specify a TableColumnResolver.
@@ -468,7 +468,7 @@ const selectValues = selectValueCollector.collect(query);
 // Log the name and formatted value of each select value
 console.log('Select values:');
 selectValues.forEach(val => {
-    console.log(`  name: ${val.name}, value: ${formatter.format(val.value)}`);
+    console.log(`  name: ${val.name}, value: ${formatter.format(val.value).formattedSql}`);
 });
 /*
 Select values:
@@ -488,7 +488,7 @@ const selectableColumns = selectableColumnCollector.collect(query);
 // Log detailed info for each selectable column
 console.log('Selectable columns:');
 selectableColumns.forEach(val => {
-    console.log(`  name: ${val.name}, value: ${formatter.format(val.value)}`);
+    console.log(`  name: ${val.name}, value: ${formatter.format(val.value).formattedSql}`);
 });
 /*
 Selectable columns:
@@ -504,7 +504,7 @@ Selectable columns:
 
 ```typescript
 // Create Table from SELECT Example
-import { QueryBuilder, SelectQueryParser, Formatter } from 'rawsql-ts';
+import { QueryBuilder, SelectQueryParser, SqlFormatter } from 'rawsql-ts';
 
 const select = SelectQueryParser.parse('SELECT id, name FROM users');
 const create = QueryBuilder.buildCreateTableQuery(select, 'my_table');
@@ -541,7 +541,7 @@ TableSources:
 This example demonstrates how to join two tables using rawsql-ts. You do not need to understand the internal structure or manage aliases manually. By specifying the join key(s), the ON clause is generated automatically.
 
 ```typescript
-import { SelectQueryParser, Formatter, SimpleSelectQuery } from 'rawsql-ts';
+import { SelectQueryParser, SqlFormatter, SimpleSelectQuery } from 'rawsql-ts';
 
 // Parse the base query
 const query = SelectQueryParser.parse('SELECT u.user_id, u.name FROM users u') as SimpleSelectQuery;
@@ -552,7 +552,7 @@ query.leftJoinRaw('orders', 'o', ['user_id']);
 // Add WHERE clause
 query.appendWhereRaw('o.order_id IS NULL');
 
-const formatter = new Formatter();
+const formatter = new SqlFormatter();
 const formattedSql = formatter.format(query).formattedSql;
 
 console.log(formattedSql);

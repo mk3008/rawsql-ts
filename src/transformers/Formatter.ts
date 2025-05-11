@@ -3,6 +3,9 @@ import { SelectQuery } from '../models/SelectQuery';
 import { SqlComponent, SqlComponentVisitor } from '../models/SqlComponent';
 import { FormatterConfig } from '../parsers/SqlPrintTokenParser';
 
+/**
+ * @deprecated The Formatter class is deprecated. Use SqlFormatter instead.
+ */
 export class Formatter implements SqlComponentVisitor<string> {
     private sqlFormatter: SqlFormatter;
 
