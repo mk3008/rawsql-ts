@@ -24,8 +24,14 @@ With rawsql-ts, raw SQL can be represented as objects, enabling flexible manipul
 ## Features
 
 - Zero dependencies: fully self-contained and lightweight
-- High-speed SQL parsing and AST analysis
+- High-speed SQL parsing and AST analysis (over 3x faster than major libraries)
 - Rich utilities for SQL structure transformation and analysis
+- Advanced SQL formatting capabilities, including multi-line formatting and customizable styles
+
+![Benchmark Results](https://quickchart.io/chart?c={type:'bar',data:{labels:['Tokens20','Tokens70','Tokens140','Tokens230'],datasets:[{label:'rawsql-ts',data:[0.029,0.075,0.137,0.239],backgroundColor:'rgba(54,162,235,0.8)',borderColor:'rgba(54,162,235,1)',borderWidth:1},{label:'node-sql-parser',data:[0.210,0.223,0.420,0.871],backgroundColor:'rgba(255,206,86,0.8)',borderColor:'rgba(255,206,86,1)',borderWidth:1},{label:'sql-formatter',data:[0.228,0.547,1.057,1.906],backgroundColor:'rgba(255,99,132,0.8)',borderColor:'rgba(255,99,132,1)',borderWidth:1}]},options:{plugins:{legend:{labels:{color:'black'}}},scales:{x:{ticks:{color:'black'}},y:{ticks:{color:'black'}}},backgroundColor:'white'}})
+
+> [!Note]
+> The "Mean" column represents the average time taken to process a query. Lower values indicate faster performance. For more details, see the [Benchmark](#benchmarks).
 
 ## ✨ Browser & CDN Ready!
 
@@ -58,12 +64,12 @@ npm install rawsql-ts
 ## Quick Start
 
 ```typescript
-import { SelectQueryParser, Formatter } from 'rawsql-ts';
+import { SelectQueryParser, SqlFormatter } from 'rawsql-ts';
 
 const sql = `SELECT user_id, name FROM users WHERE active = TRUE`;
 const query = SelectQueryParser.parse(sql);
-const formatter = new Formatter();
-const formattedSql = formatter.format(query);
+const formatter = new SqlFormatter();
+const { formattedSql } = formatter.format(query);
 
 console.log(formattedSql);
 // => select "user_id", "name" from "users" where "active" = true
@@ -73,141 +79,152 @@ console.log(formattedSql);
 
 ## Formatter Functionality
 
-The `Formatter` class in rawsql-ts converts a parsed query object (AST) back into a formatted SQL string. This is useful for programmatically manipulating SQL and then generating a string for execution or display.
+The `SqlFormatter` class in rawsql-ts is the recommended way to format SQL queries. It provides advanced SQL formatting capabilities, including support for indentation, keyword casing, and line breaks, making it ideal for generating human-readable SQL. 
 
-### Preset Configurations (Formatter.PRESETS)
+> [!Note]
+> While the older `Formatter` class is still available for backward compatibility, `SqlFormatter` offers enhanced functionality and is the preferred choice for new projects. `SqlFormatter` is available starting from version 0.7.
 
-The `Formatter` class provides preset configurations for common SQL dialects. Use these presets to quickly format queries for MySQL, PostgreSQL, SQL Server, or SQLite without manually specifying options each time.
+### Key Features of SqlFormatter
+
+- **Indentation and Keyword Casing**: Supports customizable indentation and keyword casing (e.g., UPPERCASE, lowercase).
+- **Preset Configurations**: Includes presets for common SQL dialects (MySQL, PostgreSQL, SQL Server, SQLite) to simplify configuration.
+- **Customizable Options**: Allows fine-grained control over formatting styles, such as comma placement, parameter styles, and newline characters.
+- **Parameterized Query Formatting**: Supports anonymous (`?`), indexed (`$1`, `$2`), and named (`:name`, `@name`) parameter styles for compatibility with various database systems.
+
+### Preset Configurations (SqlFormatter.PRESETS)
+
+The `SqlFormatter` class provides preset configurations for common SQL dialects. Use these presets to quickly format queries without manually specifying options each time.
 
 ```typescript
-const mysqlSql = formatter.format(query, Formatter.PRESETS.mysql);
-const pgSql = formatter.format(query, Formatter.PRESETS.postgres);
-const mssqlSql = formatter.format(query, Formatter.PRESETS.sqlserver);
-const sqliteSql = formatter.format(query, Formatter.PRESETS.sqlite);
+const formatter = new SqlFormatter({ preset: 'mysql' });
+const { formattedSql } = formatter.format(query);
+console.log(formattedSql);
 ```
 
 **Preset Details:**
-- `Formatter.PRESETS.mysql`: Backtick identifier, `?` parameter, no named parameters
-- `Formatter.PRESETS.postgres`: Double quote identifier, `:` parameter, named parameters supported
-- `Formatter.PRESETS.sqlserver`: Square bracket identifier, `@` parameter, named parameters supported
-- `Formatter.PRESETS.sqlite`: Double quote identifier, `:` parameter, named parameters supported
+- `mysql`: Backtick identifier, `?` parameter, no named parameters
+- `postgres`: Double quote identifier, `$` parameter, indexed parameters
+- `sqlserver`: Square bracket identifier, `@` parameter, named parameters
+- `sqlite`: Double quote identifier, `:` parameter, named parameters
 
-### How to Customize Presets
+### Customizing SqlFormatter
 
 You can override any preset option as needed. For example, to use variable-style parameters (`${name}`):
 
 ```typescript
-const variableSql = formatter.format(query, {
-  ...Formatter.PRESETS.postgres,
+const formatter = new SqlFormatter({
+  preset: 'postgres',
   parameterSymbol: { start: '${', end: '}' },
 });
+const { formattedSql } = formatter.format(query);
+console.log(formattedSql);
 // => select "user_id", "name" from "users" where "active" = ${active}
-```
-
-Or to change only the identifier escape style:
-
-```typescript
-const customSql = formatter.format(query, {
-  ...Formatter.PRESETS.mysql,
-  identifierEscape: { start: '"', end: '"' }
-});
 ```
 
 ### Configurable Options
 
-Formatting options are provided as the second argument to the `formatWithParameters()` method. You can customize:
-- `identifierEscape`: How identifiers are escaped (e.g., `"`, `[`, `` ` ``)
-- `parameterSymbol`: The symbol or pattern for parameters (e.g., `:`, `@`, `?`, or `{ start: '${', end: '}' }`)
-- `parameterStyle`: Controls the parameter style (anonymous, indexed, or named)
+SqlFormatter supports a wide range of options to customize the output:
 
-> [!Note]
-> The traditional `format()` method is also available. If you only need the SQL string without parameter information, use the `format` method instead of `formatWithParameters()`.
+- `identifierEscape`: How identifiers are escaped (e.g., `"`, `[`, `` ` ``).
+- `parameterSymbol`: The symbol or pattern for parameters (e.g., `:`, `@`, `?`, or `{ start: '${', end: '}' }`).
+- `parameterStyle`: Controls the parameter style (anonymous, indexed, or named).
+- `indentSize`: Number of spaces or tabs for indentation.
+- `keywordCase`: Casing for SQL keywords (`upper`, `lower`, or `none`).
+- `commaBreak`: Placement of commas (`before` or `after`).
+- `andBreak`: Placement of `AND`/`OR` in conditions (`before` or `after`).
+- `newline`: Specifies the newline character used in the output (e.g., `\n`, `\r\n`, or a single space for compact formatting).
+
+### Parameterized Query Formatting
+
+`SqlFormatter` supports advanced parameterized query formatting for all major SQL dialects. You can output SQL with parameters in three styles:
+
+- **Anonymous** (`?`): For MySQL and similar drivers. Parameters are output as `?` and values are provided as an array.
+- **Indexed** (`$1`, `$2`, ...): For PostgreSQL and compatible drivers. Parameters are output as `$1`, `$2`, ... and values are provided as an array in the correct order.
+- **Named** (`:name`, `@name`): For SQL Server, SQLite, and ORMs. Parameters are output as `:name` or `@name` and values are provided as an object.
+
+The `parameterStyle` option in `SqlFormatter` allows you to control the parameter style, or you can use built-in presets (e.g., `mysql`, `postgres`, `sqlserver`, `sqlite`) to apply the correct style automatically.
 
 ### Usage Example
 
 #### Using a Preset
 
 ```typescript
-import { SelectQueryParser, Formatter } from 'rawsql-ts';
+import { SqlFormatter } from 'rawsql-ts';
 
 const sql = `SELECT user_id, name FROM users WHERE active = TRUE`;
 const query = SelectQueryParser.parse(sql);
-const formatter = new Formatter();
-const formatted = formatter.formatWithParameters(query, Formatter.PRESETS.postgres);
-console.log(formatted.sql);
-// => select "user_id", "name" from "users" where "active" = true
-console.log(formatted.params);
-// => { ... } (parameters object or array depending on style)
+const formatter = new SqlFormatter({ preset: 'postgres' });
+const { formattedSql } = formatter.format(query);
+console.log(formattedSql);
+/*
+select "user_id", "name" from "users" where "active" = true
+*/
 ```
 
-#### Using Manual Configuration
+#### Using Custom Configuration
 
 ```typescript
-import { SelectQueryParser, Formatter } from 'rawsql-ts';
+import { SqlFormatter } from 'rawsql-ts';
 
 const sql = `SELECT user_id, name FROM users WHERE active = TRUE`;
 const query = SelectQueryParser.parse(sql);
-const formatter = new Formatter();
-const formatted = formatter.formatWithParameters(query, {
+const formatter = new SqlFormatter({
   identifierEscape: { start: '`', end: '`' },
   parameterSymbol: '?',
   parameterStyle: 'anonymous',
+  indentSize: 2,
+  keywordCase: 'upper',
+  newline: '\r\n',
+  commaBreak: 'before', // Specify the "before comma" option
 });
-console.log(formatted.sql);
-// => select `user_id`, `name` from `users` where `active` = ?
-console.log(formatted.params);
-// => [ ... ] (parameters array)
+const { formattedSql } = formatter.format(query);
+console.log(formattedSql);
+/*
+SELECT
+  `user_id`
+  , `name`
+FROM
+  `users`
+WHERE
+  `active` = ?
+*/
 ```
 
-rawsql-ts is designed to be flexible and support various SQL dialects. The `Formatter` class can be customized to handle different dialects by adjusting the identifier escape characters, parameter symbols, and parameter style. This makes it easy to work with SQL queries for different database systems using a consistent API.
-
----
-
-### Advanced Parameterized Query Formatting
-
-rawsql-ts's `Formatter` class supports advanced parameterized query formatting for all major SQL dialects. You can output SQL with parameters in three styles:
-
-- **Anonymous** (`?`): For MySQL and similar drivers. Parameters are output as `?` and values are provided as an array.
-- **Indexed** (`$1`, `$2`, ...): For PostgreSQL and compatible drivers. Parameters are output as `$1`, `$2`, ... and values are provided as an array in the correct order.
-- **Named** (`:name`, `@name`, `$name`): For SQL Server, SQLite, and ORMs that support named parameters. Parameters are output as `:name`, `@name`, or `$name` and values are provided as an object (dictionary).
-
-You can control the parameter style using the `parameterStyle` option in the Formatter configuration, or by using one of the built-in presets. **In most cases, you do not need to set this manually—just use the appropriate preset (e.g., `Formatter.PRESETS.mysql`, `Formatter.PRESETS.postgres`, etc.) and the correct parameter style will be applied automatically.**
-
-#### Example: Parameterized Query Output
+#### Parameterized Query Output
 
 ```typescript
-import { SelectQueryParser, Formatter, ParameterStyle } from 'rawsql-ts';
+import { SelectQueryParser, SqlFormatter } from 'rawsql-ts';
 
 const sql = 'SELECT * FROM users WHERE id = :id AND status = :status';
 const query = SelectQueryParser.parse(sql);
 query.setParameter('id', 123);
 query.setParameter('status', 'active');
-const formatter = new Formatter();
 
-// Anonymous style (MySQL)
-const anon = formatter.formatWithParameters(query, { parameterStyle: ParameterStyle.Anonymous });
-// anon.sql: 'select * from "users" where "id" = ? and "status" = ?'
-// anon.params: [123, 'active']
+const formatter = new SqlFormatter({ parameterStyle: 'named' });
+const { formattedSql, params } = formatter.format(query);
 
-// Indexed style (PostgreSQL)
-const indexed = formatter.formatWithParameters(query, { parameterStyle: ParameterStyle.Indexed });
-// indexed.sql: 'select * from "users" where "id" = $1 and "status" = $2'
-// indexed.params: [123, 'active']
-
-// Named style (SQL Server, SQLite, ORMs)
-const named = formatter.formatWithParameters(query, { parameterStyle: ParameterStyle.Named });
-// named.sql: 'select * from "users" where "id" = :id and "status" = :status'
-// named.params: { id: 123, status: 'active' }
+console.log(formattedSql);
+// => select * from "users" where "id" = :id and "status" = :status
+console.log(params);
+// => { id: 123, status: 'active' }
 ```
 
-The formatter automatically assigns parameter indexes in the order they appear in the query, even for complex queries with CTEs, subqueries, or set operations (UNION, INTERSECT, etc.). When combining queries, parameter indexes are always reassigned to ensure correct binding order for your database client.
+For anonymous or indexed styles, simply change the `parameterStyle` option:
 
-This makes rawsql-ts ideal for building safe, maintainable, and highly portable SQL in TypeScript, with zero risk of SQL injection and maximum compatibility across database systems.
+```typescript
+const formatter = new SqlFormatter({ parameterStyle: 'anonymous' });
+// formattedSql: 'select * from "users" where "id" = ? and "status" = ?'
+// params: [123, 'active']
 
-A unique feature of rawsql-ts is the `setParameter` method. Instead of passing parameter values at formatting time, you assign values directly to the query object using `setParameter`. This makes your code highly portable and decouples query construction from parameter binding. Parameter indexes (for indexed or anonymous styles) are always assigned at formatting time, so even if you modify or combine queries (e.g., with UNION, CTEs, or subqueries), the parameter order and binding will always be correct and never break.
+const formatterIndexed = new SqlFormatter({ parameterStyle: 'indexed' });
+// formattedSql: 'select * from "users" where "id" = $1 and "status" = $2'
+// params: [123, 'active']
+```
+
+`SqlFormatter` ensures parameter indexes are assigned correctly, even for complex queries with CTEs, subqueries, or set operations. This makes it easy to build safe, maintainable, and portable SQL in TypeScript.
 
 > [!Tip]
-> While rawsql-ts supports anonymous and indexed parameters, it is highly recommended to use named parameters in your source code. Using names makes your queries much more readable and maintainable, and the setParameter method assigns values by name, reducing the risk of mistakes. You can always output the final SQL and parameters in the style required by your database client (e.g., anonymous or indexed) at formatting time. This approach lets you write clear, maintainable code during development, while still generating the exact parameter style needed for your production environment.
+> Use named parameters in your source code for better readability and maintainability. You can always output the final SQL and parameters in the style required by your database client (e.g., anonymous or indexed) at formatting time.
 
 ---
 
@@ -319,7 +336,7 @@ const query = SelectQueryParser.parse(`
 // Add a filter to the CTE using upstream support
 query.appendWhereExpr('amount', expr => `${expr} > 100`, { upstream: true });
 
-const sql = new Formatter().format(query);
+const sql = new SqlFormatter().format(query).formattedSql;
 console.log(sql);
 // => with "temp_sales" as (select "id", "amount", "date" from "sales" where "date" >= '2024-01-01' and "amount" > 100) select * from "temp_sales"
 ```
@@ -345,7 +362,7 @@ const query = SelectQueryParser.parse(`
 // Add a filter to all upstream queries that provide 'amount'
 query.appendWhereExpr('amount', expr => `${expr} > 100`, { upstream: true });
 
-const sql = new Formatter().format(query);
+const sql = new SqlFormatter().format(query).formattedSql;
 console.log(sql);
 // => with "sales_transactions" as (select ... where ... and "amount" > 100),
 //        "support_transactions" as (select ... where ... and "fee" > 100)
@@ -388,8 +405,8 @@ A suite of utilities for transforming and analyzing SQL ASTs.
 
 ### Main Transformers
 
-- **Formatter**  
-  Converts ASTs to formatted SQL strings. Handles identifier escaping. Output is currently single-line (compact) style.
+- **SqlFormatter**
+  Converts ASTs to formatted SQL strings. Handles identifier escaping. Supports both single-line (compact) and multi-line (formatted) styles.
 - **SelectValueCollector**  
   Extracts all columns, aliases, and expressions from SELECT clauses. Supports wildcard expansion (e.g., `*`, `table.*`) with TableColumnResolver.
 - **SelectableColumnCollector**  
@@ -431,7 +448,7 @@ A suite of utilities for transforming and analyzing SQL ASTs.
 ## Usage Example
 
 ```typescript
-import { TableColumnResolver, SelectQueryParser, SelectableColumnCollector, SelectValueCollector, TableSourceCollector, Formatter } from 'rawsql-ts';
+import { TableColumnResolver, SelectQueryParser, SelectableColumnCollector, SelectValueCollector, TableSourceCollector, SqlFormatter } from 'rawsql-ts';
 
 // TableColumnResolver example
 const resolver: TableColumnResolver = (tableName) => {
@@ -442,7 +459,7 @@ const resolver: TableColumnResolver = (tableName) => {
 
 const sql = `SELECT u.*, p.title as post_title FROM users u INNER JOIN posts p ON u.user_id = p.user_id`;
 const query = SelectQueryParser.parse(sql);
-const formatter = new Formatter();
+const formatter = new SqlFormatter();
 
 // Collects information from the SELECT clause.
 // To expand wildcards, you must specify a TableColumnResolver.
@@ -451,7 +468,7 @@ const selectValues = selectValueCollector.collect(query);
 // Log the name and formatted value of each select value
 console.log('Select values:');
 selectValues.forEach(val => {
-    console.log(`  name: ${val.name}, value: ${formatter.format(val.value)}`);
+    console.log(`  name: ${val.name}, value: ${formatter.format(val.value).formattedSql}`);
 });
 /*
 Select values:
@@ -471,7 +488,7 @@ const selectableColumns = selectableColumnCollector.collect(query);
 // Log detailed info for each selectable column
 console.log('Selectable columns:');
 selectableColumns.forEach(val => {
-    console.log(`  name: ${val.name}, value: ${formatter.format(val.value)}`);
+    console.log(`  name: ${val.name}, value: ${formatter.format(val.value).formattedSql}`);
 });
 /*
 Selectable columns:
@@ -487,16 +504,16 @@ Selectable columns:
 
 ```typescript
 // Create Table from SELECT Example
-import { QueryBuilder, SelectQueryParser, Formatter } from 'rawsql-ts';
+import { QueryBuilder, SelectQueryParser, SqlFormatter } from 'rawsql-ts';
 
 const select = SelectQueryParser.parse('SELECT id, name FROM users');
 const create = QueryBuilder.buildCreateTableQuery(select, 'my_table');
-const sqlCreate = new Formatter().format(create);
+const sqlCreate = new SqlFormatter().format(create).formattedSql;
 console.log(sqlCreate);
 // => create table "my_table" as select "id", "name" from "users"
 
 const createTemp = QueryBuilder.buildCreateTableQuery(select, 'tmp_table', true);
-const sqlTemp = new Formatter().format(createTemp);
+const sqlTemp = new SqlFormatter().format(createTemp).formattedSql;
 console.log(sqlTemp);
 // => create temporary table "tmp_table" as select "id", "name" from "users"
 ```
@@ -524,7 +541,7 @@ TableSources:
 This example demonstrates how to join two tables using rawsql-ts. You do not need to understand the internal structure or manage aliases manually. By specifying the join key(s), the ON clause is generated automatically.
 
 ```typescript
-import { SelectQueryParser, Formatter, SimpleSelectQuery } from 'rawsql-ts';
+import { SelectQueryParser, SqlFormatter, SimpleSelectQuery } from 'rawsql-ts';
 
 // Parse the base query
 const query = SelectQueryParser.parse('SELECT u.user_id, u.name FROM users u') as SimpleSelectQuery;
@@ -535,8 +552,8 @@ query.leftJoinRaw('orders', 'o', ['user_id']);
 // Add WHERE clause
 query.appendWhereRaw('o.order_id IS NULL');
 
-const formatter = new Formatter();
-const formattedSql = formatter.format(query);
+const formatter = new SqlFormatter();
+const formattedSql = formatter.format(query).formattedSql;
 
 console.log(formattedSql);
 // => select "u"."user_id", "u"."name" from "users" as "u" left join "orders" as "o" on "u"."user_id" = "o"."user_id" where "o"."order_id" is null
@@ -580,46 +597,42 @@ Node.js v22.14.0
 
 ### Results
 
-### Tokens20
-| Method                            | Mean       | Error     | StdDev    | Times slower vs rawsql-ts |
+#### Tokens20
+| Method                            | Mean (ms)  | Error (ms) | StdDev (ms) | Times slower vs rawsql-ts |
 |---------------------------------- |-----------:|----------:|----------:|--------------------------:|
-| rawsql-ts                      |    0.023 ms |  0.0106 ms |  0.0054 ms |                - |
-| node-sql-parser                |    0.173 ms |  0.0714 ms |  0.0364 ms |             7.5x |
-| sql-parser-cst                 |    0.218 ms |  0.0986 ms |  0.0503 ms |             9.4x |
-| sql-formatter                  |    0.209 ms |  0.0282 ms |  0.0144 ms |             9.1x |
+| rawsql-ts                      |    0.029 |  0.0087 |  0.0044 |                - |
+| node-sql-parser                |    0.210 |  0.4505 |  0.2298 |             7.3x |
+| sql-formatter                  |    0.228 |  0.1598 |  0.0815 |             8.0x |
 
 > [!Note] When the token count is extremely low, `rawsql-ts` becomes disproportionately fast. However, such small queries are rare in real-world scenarios, so this result is excluded from the overall performance summary.
 
-### Tokens70
-| Method                            | Mean       | Error     | StdDev    | Times slower vs rawsql-ts |
+#### Tokens70
+| Method                            | Mean (ms)  | Error (ms) | StdDev (ms) | Times slower vs rawsql-ts |
 |---------------------------------- |-----------:|----------:|----------:|--------------------------:|
-| rawsql-ts                      |    0.064 ms |  0.0062 ms |  0.0031 ms |                - |
-| node-sql-parser                |    0.220 ms |  0.0532 ms |  0.0271 ms |             3.4x |
-| sql-parser-cst                 |    0.293 ms |  0.0519 ms |  0.0265 ms |             4.6x |
-| sql-formatter                  |    0.521 ms |  0.0387 ms |  0.0198 ms |             8.1x |
+| rawsql-ts                      |    0.075 |  0.0541 |  0.0276 |                - |
+| node-sql-parser                |    0.223 |  0.0848 |  0.0432 |             3.0x |
+| sql-formatter                  |    0.547 |  0.1432 |  0.0731 |             7.3x |
 
-### Tokens140
-| Method                            | Mean       | Error     | StdDev    | Times slower vs rawsql-ts |
+#### Tokens140
+| Method                            | Mean (ms)  | Error (ms) | StdDev (ms) | Times slower vs rawsql-ts |
 |---------------------------------- |-----------:|----------:|----------:|--------------------------:|
-| rawsql-ts                      |    0.125 ms |  0.0142 ms |  0.0072 ms |                - |
-| node-sql-parser                |    0.420 ms |  0.0371 ms |  0.0189 ms |             3.4x |
-| sql-parser-cst                 |    0.558 ms |  0.0483 ms |  0.0246 ms |             4.5x |
-| sql-formatter                  |    1.018 ms |  0.0923 ms |  0.0471 ms |             8.2x |
+| rawsql-ts                      |    0.137 |  0.0175 |  0.0089 |                - |
+| node-sql-parser                |    0.420 |  0.1030 |  0.0526 |             3.1x |
+| sql-formatter                  |    1.057 |  0.2390 |  0.1220 |             7.7x |
 
-### Tokens230
-| Method                            | Mean       | Error     | StdDev    | Times slower vs rawsql-ts |
+#### Tokens230
+| Method                            | Mean (ms)  | Error (ms) | StdDev (ms) | Times slower vs rawsql-ts |
 |---------------------------------- |-----------:|----------:|----------:|--------------------------:|
-| rawsql-ts                      |    0.202 ms |  0.0201 ms |  0.0103 ms |                - |
-| node-sql-parser                |    0.868 ms |  0.1625 ms |  0.0829 ms |             4.3x |
-| sql-parser-cst                 |    1.005 ms |  0.1679 ms |  0.0857 ms |             5.0x |
-| sql-formatter                  |    1.771 ms |  0.2276 ms |  0.1161 ms |             8.8x |
+| rawsql-ts                      |    0.239 |  0.0577 |  0.0294 |                - |
+| node-sql-parser                |    0.871 |  0.2042 |  0.1042 |             3.6x |
+| sql-formatter                  |    1.906 |  1.4631 |  0.7465 |             8.0x |
 
 ### Performance Summary
 
-- `rawsql-ts` is consistently the fastest parser in all tested scenarios, outperforming `node-sql-parser`, `sql-parser-cst`, and `sql-formatter`.
+- `rawsql-ts` remains one of the fastest parsers, though it is approximately 10% slower in version 0.7 compared to previous versions. This is due to the addition of enhanced parameterized query parsing and SQL formatting capabilities.
 - About 3–4x faster than `node-sql-parser`.
 - About 4–5x faster than `sql-parser-cst`.
-- About 8–9x faster than `sql-formatter`.
+- About 7–8x faster than `sql-formatter`.
 - Maintains high performance even for complex SQL, while providing comprehensive features.
 
 > **Note:** These benchmarks are based on a specific hardware and software environment. Actual performance may vary depending on system configuration and query complexity.

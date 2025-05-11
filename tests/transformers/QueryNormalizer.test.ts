@@ -1,11 +1,11 @@
 import { QueryBuilder } from "../../src/transformers/QueryBuilder";
 import { SelectQueryParser } from "../../src/parsers/SelectQueryParser";
-import { Formatter } from "../../src/transformers/Formatter";
+import { SqlFormatter } from "../../src/transformers/Formatter";
 import { BinarySelectQuery, SimpleSelectQuery, ValuesQuery } from "../../src/models/SelectQuery";
 import { describe, expect, test } from 'vitest';
 
 describe('QueryNormalizer', () => {
-    const formatter = new Formatter();
+    const formatter = new SqlFormatter();
 
     test('it returns SimpleSelectQuery unchanged', () => {
         // Arrange
@@ -58,7 +58,7 @@ describe('QueryNormalizer', () => {
 
         // Assert
         expect(normalizedQuery).toBeInstanceOf(SimpleSelectQuery);
-        expect(formatter.format(normalizedQuery)).toBe('select "vq"."id", "vq"."value" from (values (1, \'one\'), (2, \'two\'), (3, \'three\')) as "vq"("id", "value")');
+        expect(formatter.format(normalizedQuery).formattedSql).toBe('select "vq"."id", "vq"."value" from (values (1, \'one\'), (2, \'two\'), (3, \'three\')) as "vq"("id", "value")');
     });
 
     test('it handles nested binary queries', () => {
@@ -97,7 +97,7 @@ describe('QueryNormalizer', () => {
 
         // Assert
         expect(normalizedQuery).toBeInstanceOf(SimpleSelectQuery);
-        expect(formatter.format(normalizedQuery)).toBe('with "active_users" as (select "id", "name" from "users" where "active" = true) select * from (select "id", "name" from "active_users" union select "id", "name" from "admins") as "bq"');
+        expect(formatter.format(normalizedQuery).formattedSql).toBe('with "active_users" as (select "id", "name" from "users" where "active" = true) select * from (select "id", "name" from "active_users" union select "id", "name" from "admins") as "bq"');
     });
 });
 
