@@ -112,22 +112,13 @@ const queries = [
 ];
 
 // Create formatter instance (use if needed)
-const formatter = new Formatter();
 const sqlFormatter = new SqlFormatter();
-
 const nodeSqlParser = new NodeSqlParser();
 
 // Create benchmark suite
 const suite = new Benchmark.Suite;
 
 function formatWithRawSql(sql: string) {
-    return () => {
-        const query = SelectQueryParser.parse(sql);
-        query.accept(formatter);
-    };
-}
-
-function formatWithRawSql_SqlFormatter(sql: string) {
     return () => {
         const query = SelectQueryParser.parse(sql);
         sqlFormatter.format(query);
@@ -176,8 +167,6 @@ function getSystemInfo() {
 queries.forEach((query, index) => {
     // Set label using query name
     suite.add(`rawsql-ts ${query.name}`, formatWithRawSql(query.sql));
-    // Set label using query name
-    suite.add(`rawsql-ts[styled] ${query.name}`, formatWithRawSql_SqlFormatter(query.sql));
     // Add node-sql-parser benchmark for comparison
     suite.add(`node-sql-parser ${query.name}`, formatWithNodeSqlParser(query.sql));
     // Add sql-parser-cst benchmark for comparison
