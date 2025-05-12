@@ -243,6 +243,53 @@ describe('SelectQueryParser with VALUES', () => {
         // Assert
         expect(sql).toBe('values (1, \'Product A\'), (2, \'Product B\') union all select "id", "name" from "featured_products" order by "name"');
     });
+
+    test('VALUES with alias using AS', () => {
+        // Arrange
+        const sql = 'select a.* from (values (1)) as a("id")';
+        const expected = 'select "a".* from (values (1)) as "a"("id")';
+
+        // Act
+        const query = SelectQueryParser.parse(sql);
+        const formatted = formatter.format(query);
+
+        // Assert
+        expect(formatted).toBe(expected);
+    });
+
+    test('VALUES with alias without AS', () => {
+        // Arrange
+        const sql = 'select a.* from (values (1)) a("id")';
+
+        // Act & Assert
+        expect(() => SelectQueryParser.parse(sql)).toThrow();
+    });
+
+    test('TABLE with alias using AS', () => {
+        // Arrange
+        const sql = 'select a.* from table as a';
+        const expected = 'select "a".* from "table" as "a"';
+
+        // Act
+        const query = SelectQueryParser.parse(sql);
+        const formatted = formatter.format(query);
+
+        // Assert
+        expect(formatted).toBe(expected);
+    });
+
+    test('TABLE with alias without AS', () => {
+        // Arrange
+        const sql = 'select a.* from table a';
+        const expected = 'select "a".* from "table" as "a"';
+
+        // Act
+        const query = SelectQueryParser.parse(sql);
+        const formatted = formatter.format(query);
+
+        // Assert
+        expect(formatted).toBe(expected);
+    });
 });
 
 describe('SelectQueryParser async', () => {
