@@ -54,7 +54,7 @@ export class EscapedIdentifierTokenReader extends BaseTokenReader {
         }
 
         if (start === this.position) {
-            throw new Error(`Closing delimiter is not found. position: ${start}, delimiter: ${delimiter}\n${this.getDebugPositionInfo(start)}}`);
+            throw new Error(`Closing delimiter is not found. position: ${start}, delimiter: ${delimiter}\n${this.getDebugPositionInfo(start)}`);
         }
 
         // Skip the closing delimiter
