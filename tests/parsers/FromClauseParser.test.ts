@@ -243,3 +243,75 @@ test('from with left join lateral without on clause', () => {
     // Assert
     expect(sql).toEqual(`from "users" as "u" left join lateral unnest("u"."order_ids") as "o"("order_id")`);
 });
+
+test('from with escaped table name (square brackets)', () => {
+    // Arrange
+    const text = `from [users] as [u]`;
+
+    // Act
+    const clause = FromClauseParser.parse(text);
+    const sql = formatter.format(clause);
+
+    // Assert
+    expect(sql).toEqual(`from "users" as "u"`);
+});
+
+test('from with quoted alias (backticks)', () => {
+    // Arrange
+    const text = "from `users` as `u`";
+
+    // Act
+    const clause = FromClauseParser.parse(text);
+    const sql = formatter.format(clause);
+
+    // Assert
+    expect(sql).toEqual(`from "users" as "u"`);
+});
+
+test('from with quoted alias (double quotes)', () => {
+    // Arrange
+    const text = 'from "users" as "u"';
+
+    // Act
+    const clause = FromClauseParser.parse(text);
+    const sql = formatter.format(clause);
+
+    // Assert
+    expect(sql).toEqual(`from "users" as "u"`);
+});
+
+test('from with escaped table name (square brackets without as)', () => {
+    // Arrange
+    const text = `from [users] [u]`;
+
+    // Act
+    const clause = FromClauseParser.parse(text);
+    const sql = formatter.format(clause);
+
+    // Assert
+    expect(sql).toEqual(`from "users" as "u"`);
+});
+
+test('from with quoted alias (backticks without as)', () => {
+    // Arrange
+    const text = "from `users` `u`";
+
+    // Act
+    const clause = FromClauseParser.parse(text);
+    const sql = formatter.format(clause);
+
+    // Assert
+    expect(sql).toEqual(`from "users" as "u"`);
+});
+
+test('from with quoted alias (double quotes without as)', () => {
+    // Arrange
+    const text = 'from "users" "u"';
+
+    // Act
+    const clause = FromClauseParser.parse(text);
+    const sql = formatter.format(clause);
+
+    // Assert
+    expect(sql).toEqual(`from "users" as "u"`);
+});

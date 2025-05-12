@@ -147,3 +147,27 @@ test('with distinct on multiple columns', () => {
     // Assert
     expect(sql).toEqual(`select distinct on(\"a\".\"department_id\", \"a\".\"job_title\") \"a\".\"employee_id\", \"a\".\"salary\", \"a\".\"hire_date\"`);
 });
+
+test('with column alias using as keyword (square brackets)', () => {
+    // Arrange
+    const text = `select [a].[id] as [user_id]`;
+
+    // Act
+    const clause = SelectClauseParser.parse(text);
+    const sql = formatter.format(clause);
+
+    // Assert
+    expect(sql).toEqual(`select "a"."id" as "user_id"`);
+});
+
+test('with column alias using as keyword (backticks)', () => {
+    // Arrange
+    const text = "select `a`.`id` as `user_id`";
+
+    // Act
+    const clause = SelectClauseParser.parse(text);
+    const sql = formatter.format(clause);
+
+    // Assert
+    expect(sql).toEqual(`select "a"."id" as "user_id"`);
+});
