@@ -108,9 +108,14 @@ export class LiteralTokenReader extends BaseTokenReader {
      * Check if the current context allows for a signed number
      */
     private isValidNumericPrefix(previous: Lexeme | null): boolean {
-        return previous === null ||
-            (previous.type !== TokenType.Literal &&
-                previous.type !== TokenType.Identifier);
+        // Allow if there is no previous lexeme
+        if (previous === null) {
+            return true;
+        }
+
+        // Disallow if the previous lexeme is a literal or an identifier
+        const isDisallowedType = previous.type === TokenType.Literal || previous.type === TokenType.Identifier || previous.type === TokenType.CloseParen;
+        return !isDisallowedType;
     }
 
     /**
