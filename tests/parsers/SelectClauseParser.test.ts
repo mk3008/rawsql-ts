@@ -148,7 +148,7 @@ test('with distinct on multiple columns', () => {
     expect(sql).toEqual(`select distinct on(\"a\".\"department_id\", \"a\".\"job_title\") \"a\".\"employee_id\", \"a\".\"salary\", \"a\".\"hire_date\"`);
 });
 
-test('with column alias using as keyword', () => {
+test('with column alias using as keyword (square brackets)', () => {
     // Arrange
     const text = `select [a].[id] as [user_id]`;
 
@@ -160,7 +160,7 @@ test('with column alias using as keyword', () => {
     expect(sql).toEqual(`select "a"."id" as "user_id"`);
 });
 
-test('with column alias using as keyword', () => {
+test('with column alias using as keyword (backticks)', () => {
     // Arrange
     const text = "select `a`.`id` as `user_id`";
 
