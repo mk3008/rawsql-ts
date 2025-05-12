@@ -82,6 +82,7 @@ describe('ValueParser', () => {
         ["InlineQuery - With WHERE clause", "(SELECT name FROM products WHERE price > 100)", "(select \"name\" from \"products\" where \"price\" > 100)"],
         ["InlineQuery - In comparison", "user_id = (SELECT id FROM users WHERE name = 'Alice')", "\"user_id\" = (select \"id\" from \"users\" where \"name\" = 'Alice')"],
         ["InlineQuery - With aggregation", "department_id IN (SELECT dept_id FROM departments WHERE active = TRUE)", "\"department_id\" in (select \"dept_id\" from \"departments\" where \"active\" = true)"],
+        ["FunctionCall with arithmetic operation", "count(*) + 1", "count(*) + 1"],
     ])('%s', (_, text, expected = text) => {
         const value = ValueParser.parse(text);
         const sql = formatter.format(value);

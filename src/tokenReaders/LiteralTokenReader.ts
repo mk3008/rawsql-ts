@@ -65,7 +65,7 @@ export class LiteralTokenReader extends BaseTokenReader {
         }
 
         // Signed number
-        if ((char === '+' || char === '-') && this.isValidNumericPrefix(previous)) {
+        if ((char === '+' || char === '-') && this.determineSignOrOperator(previous) === "sign") {
             const sign = char;
             this.position++;
 
@@ -105,12 +105,30 @@ export class LiteralTokenReader extends BaseTokenReader {
     }
 
     /**
-     * Check if the current context allows for a signed number
+     * Determines if the current context treats '+' or '-' as a numeric sign or an operator.
+     * This method is used to differentiate between operators and numeric signs (e.g., '+' or '-').
+     *
+     * For example:
+     * - In `1-1`, the '-' is treated as an operator, so the expression is split into `1`, `-`, and `1`.
+     * - In `-1`, the '-' is treated as a sign, making `-1` a single, indivisible literal.
+     *
+     * The logic for determining whether '+' or '-' is a sign or an operator is as follows:
+     * - If there is no previous lexeme, it is considered the start of the input, so the sign is valid.
+     * - If the previous lexeme is a literal or an identifier (e.g., `a.id`), the sign is treated as an operator.
+     * - If the previous lexeme is a closing parenthesis (e.g., `count(*)`), the sign is also treated as an operator.
+     *
+     * @param previous The previous lexeme in the input stream.
+     * @returns "sign" if the context allows for a numeric sign, otherwise "operator".
      */
-    private isValidNumericPrefix(previous: Lexeme | null): boolean {
-        return previous === null ||
-            (previous.type !== TokenType.Literal &&
-                previous.type !== TokenType.Identifier);
+    private determineSignOrOperator(previous: Lexeme | null): "sign" | "operator" {
+        // If there is no previous lexeme, treat as a sign
+        if (previous === null) {
+            return "sign";
+        }
+
+        // If the previous lexeme is a literal, identifier, or closing parenthesis, treat as an operator
+        const isOperatorContext = previous.type === TokenType.Literal || previous.type === TokenType.Identifier || previous.type === TokenType.CloseParen;
+        return isOperatorContext ? "operator" : "sign";
     }
 
     /**
