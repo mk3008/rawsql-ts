@@ -257,14 +257,6 @@ describe('SelectQueryParser with VALUES', () => {
         expect(formatted).toBe(expected);
     });
 
-    test('VALUES with alias without AS', () => {
-        // Arrange
-        const sql = 'select a.* from (values (1)) a("id")';
-
-        // Act & Assert
-        expect(() => SelectQueryParser.parse(sql)).toThrow();
-    });
-
     test('TABLE with alias using AS', () => {
         // Arrange
         const sql = 'select a.* from table as a';

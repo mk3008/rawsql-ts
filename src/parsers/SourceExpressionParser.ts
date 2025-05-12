@@ -41,7 +41,19 @@ export class SourceExpressionParser {
                 return { value: sourceExpr, newIndex: idx };
             }
 
-            if (lexemes[idx].type & TokenType.Identifier) {
+            /**
+             * Explanation:
+             * Source aliases are typically identified as TokenType.Identifier.
+             * However, when the 'AS' keyword is omitted and column alias names are specified,
+             * they may sometimes be classified as TokenType.Function.
+             * Since the TokenReader's responsibility is to perform coarse-grained classification,
+             * the parser must interpret subsequent 'Function' tokens as source alias expressions
+             * when they follow a source definition.
+             * Example:
+             * SQL: select t.* from (values(1)) t(id)
+             * Explanation: The alias 't' and its column alias 'id' are parsed as a source alias expression.
+             */
+            if (idx < lexemes.length && ((lexemes[idx].type & TokenType.Identifier) || (lexemes[idx].type & TokenType.Function))) {
                 const aliasResult = SourceAliasExpressionParser.parseFromLexeme(lexemes, idx);
                 idx = aliasResult.newIndex;
                 const sourceExpr = new SourceExpression(sourceResult.value, aliasResult.value);
