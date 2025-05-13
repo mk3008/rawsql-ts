@@ -53,7 +53,7 @@ export class SourceExpressionParser {
              * SQL: select t.* from (values(1)) t(id)
              * Explanation: The alias 't' and its column alias 'id' are parsed as a source alias expression.
              */
-            if (idx < lexemes.length && ((lexemes[idx].type & TokenType.Identifier) || (lexemes[idx].type & TokenType.Function))) {
+            if (idx < lexemes.length && this.isTokenTypeAliasCandidate(lexemes[idx].type)) {
                 const aliasResult = SourceAliasExpressionParser.parseFromLexeme(lexemes, idx);
                 idx = aliasResult.newIndex;
                 const sourceExpr = new SourceExpression(sourceResult.value, aliasResult.value);
@@ -64,5 +64,9 @@ export class SourceExpressionParser {
         // no alias
         const expr = new SourceExpression(sourceResult.value, null);
         return { value: expr, newIndex: idx };
+    }
+
+    private static isTokenTypeAliasCandidate(type: number): boolean {
+        return (type & TokenType.Identifier) !== 0 || (type & TokenType.Function) !== 0;
     }
 }
