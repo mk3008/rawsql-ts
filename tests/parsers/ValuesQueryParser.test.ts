@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { Formatter } from "../../src/transformers/Formatter";
 import { ValuesQueryParser } from "../../src/parsers/ValuesQueryParser";
+import { SelectQueryParser } from '../../src/parsers/SelectQueryParser';
 
 const formatter = new Formatter();
 
@@ -118,4 +119,16 @@ test('error on unexpected end after comma', () => {
 
     // Act & Assert
     expect(() => ValuesQueryParser.parse(text)).toThrow();
+});
+
+test("parses VALUES clause with subquery alias", () => {
+    // Arrange
+    const sql = `select t.* from (values (1)) t(val)`;
+
+    // Act
+    const query = SelectQueryParser.parse(sql);
+    const formattedSQL = formatter.format(query);
+
+    // Assert
+    expect(formattedSQL).toBe(sql);
 });
