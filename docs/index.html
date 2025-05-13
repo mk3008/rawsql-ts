@@ -11,9 +11,24 @@
             background-color: #f0f0f0;
         }
 
+        /* Ensure SQL Input and Formatted SQL are equally sized and prevent overflow */
+        .sql-container {
+            display: flex;
+            gap: 1em;
+        }
+
+        .sql-column {
+            flex: 1;
+            min-width: 0;
+            overflow-x: auto;
+            white-space: nowrap;
+        }
+
         textarea {
             width: 100%;
-            height: 100px;
+            height: 400px;
+            overflow-x: auto;
+            white-space: nowrap;
         }
 
         pre {
@@ -42,8 +57,39 @@
             fill: #000;
         }
 
+        /* Tabs styles */
+        .tab-container {
+            display: flex;
+            border-bottom: 1px solid #ccc;
+            margin-bottom: 1em;
+        }
+
+        .tab {
+            padding: 0.5em 1em;
+            cursor: pointer;
+            border: 1px solid #ccc;
+            border-bottom: none;
+            background-color: #f9f9f9;
+        }
+
+        .tab.active {
+            background-color: #fff;
+            font-weight: bold;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
         /* ---------------------------------------- */
     </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/codemirror.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/mode/sql/sql.min.js"></script>
 </head>
 
 <body>
@@ -59,23 +105,49 @@
             </svg>
         </a>
     </h1>
-    <!-- Installation section with npm link -->
-    <!-- This section provides installation instructions and links 'npm' to the official package page. -->
-    <section style="margin-bottom: 1.5em;">
-        <h2 style="font-size:1.1em; margin-bottom:0.3em;">Installation</h2>
-        <div style="font-size:0.98em;">
-            <a href="https://www.npmjs.com/package/rawsql-ts" target="_blank"
-                style="color:#cb3837; font-weight:bold; text-decoration:none;">npm</a> install rawsql-ts
+    <p style="font-size: 1em; margin-top: 0.5em;">
+        rawsql-ts enables fast parsing and formatting of SELECT queries, available on <a
+            href="https://github.com/mk3008/rawsql-ts" target="_blank"
+            style="color: #007acc; text-decoration: none;">GitHub</a> and <a
+            href="https://www.npmjs.com/package/rawsql-ts" target="_blank"
+            style="color: #cb3837; text-decoration: none;">npm</a>, and works in browsers via CDN.
+    </p>
+    <!-- <p>Type your SQL below and see the formatted and analyzed result using <b>rawsql-ts</b> from CDN!</p> -->
+    <div class="sql-container">
+        <!-- Left column: SQL input -->
+        <div class="sql-column">
+            <h2 style="position: relative;">
+                Input Select Query
+                <button id="clear-input-btn"
+                    style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%);">Clear</button>
+            </h2>
+            <textarea id="sql-input"
+                style="width: 100%; height: 400px;">SELECT u.user_id, u.user_name FROM users as u WHERE u.user_id = :user_id</textarea>
+            <br>
         </div>
-    </section>
-    <p>Type your SQL below and see the formatted and analyzed result using <b>rawsql-ts</b> from CDN!</p>
-    <textarea id="sql-input">SELECT u.user_id, u.user_name FROM users as u WHERE u.user_id = :user_id</textarea>
-    <br>
-    <button id="run-btn">Analyze SQL</button>
-    <div class="result">
-        <h2>Formatted SQL</h2>
+
+        <!-- Right column: Formatted SQL output -->
+        <div class="sql-column">
+            <h2 style="position: relative;">
+                Formatted SQL
+                <button id="copy-output-btn"
+                    style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%);">Copy</button>
+            </h2>
+            <textarea id="output" style="width: 100%; height: 400px;"></textarea>
+        </div>
+    </div>
+
+    <!-- Tabs for Formatter Style and Analyze Result -->
+    <div class="tab-container">
+        <div class="tab active" data-tab="formatter-style">Formatter Style</div>
+        <div class="tab" data-tab="analyze-result">Analyze Result</div>
+    </div>
+
+    <!-- Formatter Style tab content -->
+    <div id="formatter-style" class="tab-content active">
+        <h2>Format Style</h2>
         <!-- Preset selection dropdown -->
-        <label for="preset-select">Select SQL Dialect Preset:</label>
+        <label for="preset-select">Select Format Style Preset:</label>
         <select id="preset-select">
             <option value="postgres">PostgreSQL</option>
             <option value="mysql">MySQL</option>
@@ -103,30 +175,35 @@
             <button id="reset-custom-preset">Reset to Default</button>
         </div>
     </div>
-    <pre id="output"></pre>
-    <button id="copy-output-btn">Copy</button>
-    <h2>Select Values</h2>
-    <pre id="select-values"></pre>
-    <button id="copy-select-values-btn">Copy</button>
-    <h2>Selectable Columns</h2>
-    <pre id="selectable-columns"></pre>
-    <button id="copy-selectable-columns-btn">Copy</button>
-    <h2>Table Sources</h2>
-    <pre id="table-sources"></pre>
-    <button id="copy-table-sources-btn">Copy</button>
-    <h2>CTEs (Common Tables)</h2>
-    <pre id="ctes"></pre>
-    <button id="copy-ctes-btn">Copy</button>
-    <div id="log-list"
-        style="margin-top: 1em; background: #f9f9f9; padding: 1em; border: 1px solid #ddd; max-height: 150px; overflow-y: auto; font-size: 0.9em;">
-        <!-- Log messages will appear here -->
+
+    <!-- Analyze Result tab content -->
+    <div id="analyze-result" class="tab-content">
+        <h2>Select Values</h2>
+        <pre id="select-values"></pre>
+        <button id="copy-select-values-btn">Copy</button>
+        <h2>Selectable Columns</h2>
+        <pre id="selectable-columns"></pre>
+        <button id="copy-selectable-columns-btn">Copy</button>
+        <h2>Table Sources</h2>
+        <pre id="table-sources"></pre>
+        <button id="copy-table-sources-btn">Copy</button>
+        <h2>CTEs (Common Tables)</h2>
+        <pre id="ctes"></pre>
+        <button id="copy-ctes-btn">Copy</button>
     </div>
+
+    <div class="result">
+        <!-- Log messages will appear here -->
+        <div id="log-list"
+            style="margin-top: 1em; background: #f9f9f9; padding: 1em; border: 1px solid #ddd; max-height: 150px; overflow-y: auto; font-size: 0.9em;">
+        </div>
+    </div>
+
     <script type="module">
         import { SelectQueryParser, SqlFormatter, SelectValueCollector, SelectableColumnCollector, TableSourceCollector, CTECollector } from "https://unpkg.com/rawsql-ts/dist/esm/index.js";
 
         const input = document.getElementById('sql-input');
         const output = document.getElementById('output');
-        const btn = document.getElementById('run-btn');
         const selectValuesEl = document.getElementById('select-values');
         const selectableColumnsEl = document.getElementById('selectable-columns');
         const tableSourcesEl = document.getElementById('table-sources');
@@ -175,7 +252,14 @@
 
         // Debounce timer for auto-format
         let debounceTimer = null;
-        const DEBOUNCE_DELAY = 750; // ms
+        const DEBOUNCE_DELAY = 250; // ms
+
+        // Update the status bar with error messages
+        function updateStatusBar(message) {
+            const statusBar = document.getElementById('status-bar');
+            statusBar.textContent = message;
+            statusBar.style.color = message.includes('Error') ? 'red' : 'black';
+        }
 
         /**
          * Format and analyze the SQL in the textarea and display the results.
@@ -194,7 +278,9 @@
                 try {
                     formatterOptions = JSON.parse(customPresetInput.value);
                 } catch (e) {
-                    output.textContent = '[Custom Preset Error] Invalid JSON format';
+                    const errorMessage = '[Custom Preset Error] Invalid JSON format';
+                    output.textContent = errorMessage;
+                    updateStatusBar(errorMessage);
                     return;
                 }
             } else {
@@ -203,13 +289,17 @@
 
             // Format SQL
             try {
-                const query = SelectQueryParser.parse(input.value);
+                const sqlText = sqlInput.getValue();
+                const query = SelectQueryParser.parse(sqlText);
                 const formatter = new SqlFormatter(formatterOptions);
 
                 try {
-                    output.textContent = formatter.format(query).formattedSql;
+                    formattedOutput.setValue(formatter.format(query).formattedSql);
+                    updateStatusBar('SQL formatted successfully.');
                 } catch (e) {
-                    output.textContent = '[Formatter Error] ' + e.message;
+                    const errorMessage = '[Formatter Error] ' + e.message;
+                    output.textContent = errorMessage;
+                    updateStatusBar(errorMessage);
                 }
 
                 // Select values
@@ -249,18 +339,25 @@
                     ctesEl.textContent = '[CTECollector Error] ' + e.message;
                 }
             } catch (e) {
-                output.textContent = '[Parse Error] ' + e.message;
+                const errorMessage = '[Parse Error] ' + e.message;
+                output.textContent = errorMessage;
+                updateStatusBar(errorMessage);
             }
         }
 
-        // Button click: manual analyze
-        btn.onclick = analyzeSql;
+        // Run analyzeSql on window load
+        window.onload = () => {
+            analyzeSql();
+        };
 
-        // Auto-analyze after user stops typing
-        input.addEventListener('input', () => {
+        // Ensure analyzeSql runs after CodeMirror initialization
+        sqlInput.on('changes', () => {
             if (debounceTimer) clearTimeout(debounceTimer);
             debounceTimer = setTimeout(analyzeSql, DEBOUNCE_DELAY);
         });
+
+        // Trigger analyzeSql after CodeMirror is fully initialized
+        analyzeSql();
 
         // Trigger analyzeSql when preset-select changes
         presetSelect.addEventListener('change', analyzeSql);
@@ -306,8 +403,8 @@
         // Initialize visibility on page load
         toggleCustomPresetVisibility();
 
-        // Run once on load
-        analyzeSql();
+        // Set initial SQL text
+        sqlInput.setValue("SELECT u.user_id, u.user_name\nFROM users as u\nWHERE u.user_id = :user_id");
     </script>
     <script>
         function copyToClipboard(content, message) {
@@ -351,6 +448,61 @@
             copyToClipboard(content, 'CTEs copied to clipboard!');
         });
     </script>
+    <script>
+        // Initialize CodeMirror for SQL input
+        const sqlInput = CodeMirror.fromTextArea(document.getElementById('sql-input'), {
+            mode: 'text/x-sql',
+            lineNumbers: true,
+            theme: 'default'
+        });
+
+        // Initialize CodeMirror for Formatted SQL output
+        const formattedOutput = CodeMirror.fromTextArea(document.getElementById('output'), {
+            mode: 'text/x-sql',
+            lineNumbers: true,
+            theme: 'default',
+            readOnly: true
+        });
+
+        // Adjust CodeMirror height for SQL input and output
+        sqlInput.setSize(null, 400); // Set height to 400px
+        formattedOutput.setSize(null, 400); // Set height to 400px
+
+        // Update Formatted SQL output when Analyze SQL button is clicked
+        document.getElementById('run-btn').addEventListener('click', () => {
+            const formattedSql = document.getElementById('output').value; // Ensure we get the value from the textarea
+            formattedOutput.setValue(formattedSql);
+        });
+
+        // Clear input SQL button functionality
+        document.getElementById('clear-input-btn').addEventListener('click', () => {
+            sqlInput.setValue(''); // Clear the content of Input SQL
+        });
+    </script>
+    <script>
+        // Tab switching logic
+        const tabs = document.querySelectorAll('.tab');
+        const tabContents = document.querySelectorAll('.tab-content');
+
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                // Remove active class from all tabs and contents
+                tabs.forEach(t => t.classList.remove('active'));
+                tabContents.forEach(content => content.classList.remove('active'));
+
+                // Add active class to the clicked tab and corresponding content
+                tab.classList.add('active');
+                const targetId = tab.getAttribute('data-tab');
+                document.getElementById(targetId).classList.add('active');
+            });
+        });
+    </script>
+    <footer style="margin-top: 2rem; font-size: 0.9em; text-align: center; color: #555;">
+        <p>This application uses <a href="https://codemirror.net/" target="_blank"
+                style="color: #007acc; text-decoration: none;">CodeMirror</a>,
+            an open-source code editor licensed under the <a href="https://opensource.org/licenses/MIT" target="_blank"
+                style="color: #007acc; text-decoration: none;">MIT License</a>.</p>
+    </footer>
 </body>
 
 </html>
