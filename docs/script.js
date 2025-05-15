@@ -1,5 +1,5 @@
 // Import rawsql-ts modules
-import { SelectQueryParser, SqlFormatter, TableSourceCollector, CTECollector } from "https://unpkg.com/rawsql-ts/dist/esm/index.js";
+import { SelectQueryParser, SqlFormatter, TableSourceCollector, CTECollector } from "https://unpkg.com/rawsql-ts@0.7.2-beta/dist/esm/index.js";
 
 const sqlInputEditor = CodeMirror.fromTextArea(document.getElementById('sql-input'), {
     mode: 'text/x-sql',
