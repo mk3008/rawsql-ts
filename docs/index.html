@@ -38,8 +38,8 @@
 
         <div class="editor-container" id="left-pane"> <!-- Left pane for Tabs -->
             <div class="tab-nav" id="left-tab-nav">
-                <button class="tab-button active" data-tab="input-sql" data-pane="left">InputSQL</button>
-                <button class="tab-button" data-tab="style-config" data-pane="left">StyleConfig</button>
+                <button class="tab-button active" data-tab="input-sql" data-pane="left">SqlEditor</button>
+                <button class="tab-button" data-tab="style-config" data-pane="left">StyleEditor</button>
             </div>
             <div class="tab-content-area" id="left-tab-content-area">
                 <div id="input-sql-tab" class="tab-content active">
@@ -78,14 +78,14 @@
 
         <div class="editor-container" id="right-pane"> <!-- Right pane for Tabs -->
             <div class="tab-nav" id="right-tab-nav">
-                <button class="tab-button active" data-tab="formatted" data-pane="right">Formatted</button>
-                <button class="tab-button" data-tab="analysis1" data-pane="right">Analysis 1</button>
-                <button class="tab-button" data-tab="analysis2" data-pane="right">Analysis 2</button>
+                <button class="tab-button active" data-tab="formatted" data-pane="right">SQL Output</button>
+                <button class="tab-button" data-tab="analysis1" data-pane="right">SQL Resources</button>
+                <!-- <button class="tab-button" data-tab="analysis2" data-pane="right">Analysis 2</button> -->
             </div>
             <div class="tab-content-area" id="right-tab-content-area">
                 <div id="formatted-tab" class="tab-content active">
                     <div class="editor-header" style="display: flex; align-items: center; gap: 10px;">
-                        <h2 style="margin-right: auto;">Formatted SQL</h2>
+                        <h2 style="margin-right: auto;">Output SQL</h2>
                         <select id="quick-style-select" title="Change style for preview"
                             style="max-width: 180px;"></select>
                         <button id="copy-output-btn">copy</button>
@@ -93,9 +93,24 @@
                     <textarea id="formatted-sql"></textarea>
                 </div>
                 <div id="analysis1-tab" class="tab-content">
-                    <h2>Analysis 1</h2>
-                    <p>ここに解析結果1が表示されるよ。</p>
-                    <!-- TODO: Add content for Analysis 1 -->
+                    <div class="editor-header" style="display: flex; align-items: center; gap: 10px;">
+                        <h2 style="margin-right: auto;">Table list</h2>
+                        <button id="copy-table-list-btn">copy</button>
+                    </div>
+                    <div id="table-list-container">
+                        <ul id="table-list">
+                            <!-- Table names will be dynamically inserted here -->
+                        </ul>
+                    </div>
+                    <div class="editor-header" style="display: flex; align-items: center; gap: 10px; margin-top: 20px;">
+                        <h2 style="margin-right: auto;">CTE list</h2>
+                        <button id="copy-cte-list-btn">copy</button>
+                    </div>
+                    <div id="cte-list-container">
+                        <ul id="cte-list">
+                            <!-- CTE names will be dynamically inserted here -->
+                        </ul>
+                    </div>
                 </div>
                 <div id="analysis2-tab" class="tab-content">
                     <h2>Analysis 2</h2>
