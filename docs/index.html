@@ -3,506 +3,115 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>rawsql-ts CDN Demo</title>
-    <style>
-        body {
-            font-family: sans-serif;
-            margin: 2rem;
-            background-color: #f0f0f0;
-        }
-
-        /* Ensure SQL Input and Formatted SQL are equally sized and prevent overflow */
-        .sql-container {
-            display: flex;
-            gap: 1em;
-        }
-
-        .sql-column {
-            flex: 1;
-            min-width: 0;
-            overflow-x: auto;
-            white-space: nowrap;
-        }
-
-        textarea {
-            width: 100%;
-            height: 400px;
-            overflow-x: auto;
-            white-space: nowrap;
-        }
-
-        pre {
-            background: #e0e0e0;
-            padding: 1em;
-        }
-
-        .result {
-            margin-top: 1em;
-        }
-
-        /* --- GitHub icon and h1 alignment fix --- */
-        .github-link {
-            display: inline-flex;
-            align-items: center;
-            height: 1em;
-            margin-left: 0.5em;
-            vertical-align: middle;
-            text-decoration: none;
-        }
-
-        .github-link svg {
-            display: block;
-            height: 1.0em;
-            width: 1.0em;
-            fill: #000;
-        }
-
-        /* Tabs styles */
-        .tab-container {
-            display: flex;
-            border-bottom: 1px solid #ccc;
-            margin-bottom: 1em;
-        }
-
-        .tab {
-            padding: 0.5em 1em;
-            cursor: pointer;
-            border: 1px solid #ccc;
-            border-bottom: none;
-            background-color: #f9f9f9;
-        }
-
-        .tab.active {
-            background-color: #fff;
-            font-weight: bold;
-        }
-
-        .tab-content {
-            display: none;
-        }
-
-        .tab-content.active {
-            display: block;
-        }
-
-        /* ---------------------------------------- */
-    </style>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/codemirror.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/codemirror.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/mode/sql/sql.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>rawsql-ts online</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/theme/default.min.css">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/mode/sql/sql.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/mode/javascript/javascript.min.js"></script>
+    <!-- JSONエディタ用にjavascriptモードを追加 -->
 </head>
 
 <body>
-    <h1 style="display: flex; align-items: center; gap: 0.5em;">
-        rawsql-ts
-        <!-- GitHub icon and link -->
-        <a href="https://github.com/mk3008/rawsql-ts" target="_blank" class="github-link"
-            aria-label="GitHub Repository">
-            <svg viewBox="0 0 16 16" aria-hidden="true">
-                <!-- GitHub Mark SVG Path -->
+    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+        <h1 style="margin: 0; font-size: 2.2rem;">rawsql-ts</h1>
+        <a href="https://github.com/mk3008/rawsql-ts" target="_blank" rel="noopener noreferrer" title="View on GitHub"
+            style="display: flex; align-items: center; margin-left: auto;">
+            <svg height="28" width="28" viewBox="0 0 16 16" fill="#111" aria-hidden="true" style="display: block;">
                 <path
-                    d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.01.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.11.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.19 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z" />
+                    d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.01.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.11.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.19 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z">
+                </path>
             </svg>
         </a>
-    </h1>
-    <p style="font-size: 1em; margin-top: 0.5em;">
-        rawsql-ts enables fast parsing and formatting of SELECT queries, available on <a
-            href="https://github.com/mk3008/rawsql-ts" target="_blank"
-            style="color: #007acc; text-decoration: none;">GitHub</a> and <a
-            href="https://www.npmjs.com/package/rawsql-ts" target="_blank"
-            style="color: #cb3837; text-decoration: none;">npm</a>, and works in browsers via CDN.
-    </p>
-    <!-- <p>Type your SQL below and see the formatted and analyzed result using <b>rawsql-ts</b> from CDN!</p> -->
-    <div class="sql-container">
-        <!-- Left column: SQL input -->
-        <div class="sql-column">
-            <h2 style="position: relative;">
-                Input Select Query
-                <button id="clear-input-btn"
-                    style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%);">Clear</button>
-            </h2>
-            <textarea id="sql-input"
-                style="width: 100%; height: 400px;">SELECT u.user_id, u.user_name FROM users as u WHERE u.user_id = :user_id</textarea>
-            <br>
+    </div>
+    <div class="project-links">
+        rawsql-ts enables fast parsing and formatting of SELECT queries, available on
+        <a href="https://github.com/mk3008/rawsql-ts" class="github-link" target="_blank"
+            rel="noopener noreferrer">GitHub</a>
+        and
+        <a href="https://www.npmjs.com/package/rawsql-ts" class="npm-link" target="_blank"
+            rel="noopener noreferrer">npm</a>, and works in browsers via CDN.
+    </div>
+    <div class="container">
+
+        <div class="editor-container" id="left-pane"> <!-- Left pane for Tabs -->
+            <div class="tab-nav" id="left-tab-nav">
+                <button class="tab-button active" data-tab="input-sql" data-pane="left">InputSQL</button>
+                <button class="tab-button" data-tab="style-config" data-pane="left">StyleConfig</button>
+            </div>
+            <div class="tab-content-area" id="left-tab-content-area">
+                <div id="input-sql-tab" class="tab-content active">
+                    <div class="editor-header">
+                        <h2>Input SQL</h2>
+                        <button id="clear-input-btn">clear</button>
+                    </div>
+                    <textarea id="sql-input"></textarea>
+                </div>
+                <div id="style-config-tab" class="tab-content">
+                    <h2>Style Config</h2>
+                    <div class="style-selector-controls">
+                        <label for="style-select">Style:</label>
+                        <select id="style-select"></select>
+                        <button id="add-new-style-btn">Add New</button>
+                    </div>
+                    <hr>
+                    <div class="style-editor-form">
+                        <div>
+                            <label for="style-name-input">Name:</label>
+                            <input type="text" id="style-name-input" placeholder="Enter style name">
+                        </div>
+                        <label for="style-json-editor" style="display: block; margin-top: 10px;">Style JSON:</label>
+                        <textarea id="style-json-editor"></textarea>
+                    </div>
+                    <div class="style-action-buttons">
+                        <button id="save-style-btn">Save</button>
+                        <button id="delete-style-btn">Delete Selected</button>
+                        <button id="revert-style-btn" style="margin-left: 10px;">Revert Changes</button>
+                        <!-- Added button -->
+                    </div>
+                    <button id="reset-all-settings-btn" style="margin-top: 10px;">Reset All Settings</button>
+                </div>
+            </div>
         </div>
 
-        <!-- Right column: Formatted SQL output -->
-        <div class="sql-column">
-            <h2 style="position: relative;">
-                Formatted SQL
-                <button id="copy-output-btn"
-                    style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%);">Copy</button>
-            </h2>
-            <textarea id="output" style="width: 100%; height: 400px;"></textarea>
+        <div class="editor-container" id="right-pane"> <!-- Right pane for Tabs -->
+            <div class="tab-nav" id="right-tab-nav">
+                <button class="tab-button active" data-tab="formatted" data-pane="right">Formatted</button>
+                <button class="tab-button" data-tab="analysis1" data-pane="right">Analysis 1</button>
+                <button class="tab-button" data-tab="analysis2" data-pane="right">Analysis 2</button>
+            </div>
+            <div class="tab-content-area" id="right-tab-content-area">
+                <div id="formatted-tab" class="tab-content active">
+                    <div class="editor-header" style="display: flex; align-items: center; gap: 10px;">
+                        <h2 style="margin-right: auto;">Formatted SQL</h2>
+                        <select id="quick-style-select" title="Change style for preview"
+                            style="max-width: 180px;"></select>
+                        <button id="copy-output-btn">copy</button>
+                    </div>
+                    <textarea id="formatted-sql"></textarea>
+                </div>
+                <div id="analysis1-tab" class="tab-content">
+                    <h2>Analysis 1</h2>
+                    <p>ここに解析結果1が表示されるよ。</p>
+                    <!-- TODO: Add content for Analysis 1 -->
+                </div>
+                <div id="analysis2-tab" class="tab-content">
+                    <h2>Analysis 2</h2>
+                    <p>ここに解析結果2が表示されるよ。</p>
+                    <!-- TODO: Add content for Analysis 2 -->
+                </div>
+            </div>
         </div>
     </div>
-
-    <!-- Tabs for Formatter Style and Analyze Result -->
-    <div class="tab-container">
-        <div class="tab active" data-tab="formatter-style">Formatter Style</div>
-        <div class="tab" data-tab="analyze-result">Analyze Result</div>
+    <div id="status-bar" style="margin-top: 10px; color: gray;">Ready</div>
+    <div class="license-info" style="font-size: 0.8em; color: #aaa; text-align: center; margin-top: 5px;">
+        CodeMirror is released under the MIT license. <a href="https://codemirror.net/" target="_blank"
+            rel="noopener noreferrer" style="color: #aaa;">codemirror.net</a>
     </div>
 
-    <!-- Formatter Style tab content -->
-    <div id="formatter-style" class="tab-content active">
-        <h2>Format Style</h2>
-        <!-- Preset selection dropdown -->
-        <label for="preset-select">Select Format Style Preset:</label>
-        <select id="preset-select">
-            <option value="postgres">PostgreSQL</option>
-            <option value="mysql">MySQL</option>
-            <option value="sqlserver">SQL Server</option>
-            <option value="sqlite">SQLite</option>
-            <option value="custom">custom</option>
-        </select>
-        <!-- Custom preset input field -->
-        <div id="custom-preset-section">
-            <h3>Custom SQL Dialect Preset</h3>
-            <p>
-                Here you can define your custom SQL dialect preset. The <code>parameterSymbol</code> field supports two
-                formats:
-            <ul>
-                <li>As a simple string, e.g., <code>":"</code></li>
-                <li>As an object with <code>start</code> and <code>end</code> properties, e.g.,
-                    <code>{ "start": "${", "end": "}" }</code>
-                </li>
-            </ul>
-            This allows for flexible parameter formatting in your SQL queries. </p>
-            <textarea id="custom-preset" placeholder="Enter your custom SQL preset here..."
-                style="width: 500px; height: 200px;"></textarea>
-            <br>
-            <button id="save-custom-preset">Save Custom Preset</button>
-            <button id="reset-custom-preset">Reset to Default</button>
-        </div>
-    </div>
-
-    <!-- Analyze Result tab content -->
-    <div id="analyze-result" class="tab-content">
-        <h2>Select Values</h2>
-        <pre id="select-values"></pre>
-        <button id="copy-select-values-btn">Copy</button>
-        <h2>Selectable Columns</h2>
-        <pre id="selectable-columns"></pre>
-        <button id="copy-selectable-columns-btn">Copy</button>
-        <h2>Table Sources</h2>
-        <pre id="table-sources"></pre>
-        <button id="copy-table-sources-btn">Copy</button>
-        <h2>CTEs (Common Tables)</h2>
-        <pre id="ctes"></pre>
-        <button id="copy-ctes-btn">Copy</button>
-    </div>
-
-    <div class="result">
-        <!-- Log messages will appear here -->
-        <div id="log-list"
-            style="margin-top: 1em; background: #f9f9f9; padding: 1em; border: 1px solid #ddd; max-height: 150px; overflow-y: auto; font-size: 0.9em;">
-        </div>
-    </div>
-
-    <script type="module">
-        import { SelectQueryParser, SqlFormatter, SelectValueCollector, SelectableColumnCollector, TableSourceCollector, CTECollector } from "https://unpkg.com/rawsql-ts/dist/esm/index.js";
-
-        const input = document.getElementById('sql-input');
-        const output = document.getElementById('output');
-        const selectValuesEl = document.getElementById('select-values');
-        const selectableColumnsEl = document.getElementById('selectable-columns');
-        const tableSourcesEl = document.getElementById('table-sources');
-        const ctesEl = document.getElementById('ctes');
-        const presetSelect = document.getElementById('preset-select');
-        const customPresetInput = document.getElementById('custom-preset');
-        const saveCustomPresetBtn = document.getElementById('save-custom-preset');
-
-        // Define the SQL dialect preset as a JavaScript object
-        const defaultSqlPreset = {
-            identifierEscape: { start: "\"", end: "\"" },
-            parameterSymbol: ":",
-            parameterStyle: "named",
-            indentSize: 4,
-            indentChar: " ",
-            newline: "\n",
-            keywordCase: "upper",
-            commaBreak: "before",
-            andBreak: "before"
-        };
-
-        // Populate the custom preset textarea with the default preset or cookie value
-        const savedCustomPresetValue = document.cookie.split('; ').find(row => row.startsWith('customSqlPreset='))?.split('=')[1];
-        if (savedCustomPresetValue) {
-            customPresetInput.value = decodeURIComponent(savedCustomPresetValue);
-        } else {
-            customPresetInput.value = JSON.stringify(defaultSqlPreset, null, 4); // Pretty-print JSON
-        }
-
-        // Load preset from cookies
-        const savedPreset = document.cookie.split('; ').find(row => row.startsWith('sqlPreset='))?.split('=')[1];
-        if (savedPreset) {
-            presetSelect.value = savedPreset;
-        }
-
-        // Save preset to cookies
-        presetSelect.addEventListener('change', () => {
-            document.cookie = `sqlPreset=${presetSelect.value}; path=/; max-age=31536000`; // 1 year
-        });
-
-        // Load custom preset from cookies
-        const savedCustomPreset = document.cookie.split('; ').find(row => row.startsWith('customSqlPreset='))?.split('=')[1];
-        if (savedCustomPreset) {
-            customPresetInput.value = decodeURIComponent(savedCustomPreset);
-        }
-
-        // Debounce timer for auto-format
-        let debounceTimer = null;
-        const DEBOUNCE_DELAY = 250; // ms
-
-        // Update the status bar with error messages
-        function updateStatusBar(message) {
-            const statusBar = document.getElementById('status-bar');
-            statusBar.textContent = message;
-            statusBar.style.color = message.includes('Error') ? 'red' : 'black';
-        }
-
-        /**
-         * Format and analyze the SQL in the textarea and display the results.
-         */
-        function analyzeSql() {
-            // Clear previous results
-            output.textContent = '';
-            selectValuesEl.textContent = '';
-            selectableColumnsEl.textContent = '';
-            tableSourcesEl.textContent = '';
-            ctesEl.textContent = '';
-
-            // Determine formatter options
-            let formatterOptions;
-            if (presetSelect.value === 'custom') {
-                try {
-                    formatterOptions = JSON.parse(customPresetInput.value);
-                } catch (e) {
-                    const errorMessage = '[Custom Preset Error] Invalid JSON format';
-                    output.textContent = errorMessage;
-                    updateStatusBar(errorMessage);
-                    return;
-                }
-            } else {
-                formatterOptions = { preset: presetSelect.value };
-            }
-
-            // Format SQL
-            try {
-                const sqlText = sqlInput.getValue();
-                const query = SelectQueryParser.parse(sqlText);
-                const formatter = new SqlFormatter(formatterOptions);
-
-                try {
-                    formattedOutput.setValue(formatter.format(query).formattedSql);
-                    updateStatusBar('SQL formatted successfully.');
-                } catch (e) {
-                    const errorMessage = '[Formatter Error] ' + e.message;
-                    output.textContent = errorMessage;
-                    updateStatusBar(errorMessage);
-                }
-
-                // Select values
-                try {
-                    const selectValueCollector = new SelectValueCollector();
-                    const selectValues = selectValueCollector.collect(query);
-                    selectValuesEl.textContent = selectValues.map(val => `name: ${val.name}, value: ${formatter.format(val.value).formattedSql}`).join('\n');
-                } catch (e) {
-                    selectValuesEl.textContent = '[SelectValueCollector Error] ' + e.message;
-                }
-
-                // Selectable columns
-                try {
-                    const selectableColumnCollector = new SelectableColumnCollector();
-                    const selectableColumns = selectableColumnCollector.collect(query);
-                    selectableColumnsEl.textContent = selectableColumns.map(val => `name: ${val.name}, value: ${formatter.format(val.value).formattedSql}`).join('\n');
-                } catch (e) {
-                    selectableColumnsEl.textContent = '[SelectableColumnCollector Error] ' + e.message;
-                }
-
-                // Table sources
-                try {
-                    const tableSourceCollector = new TableSourceCollector(false);
-                    const sources = tableSourceCollector.collect(query);
-                    tableSourcesEl.textContent = sources.map(src => `name: ${src.getSourceName()}`).join('\n');
-                } catch (e) {
-                    tableSourcesEl.textContent = '[TableSourceCollector Error] ' + e.message;
-                }
-
-                // CTEs (Common Tables)
-                try {
-                    const cteCollector = new CTECollector();
-                    cteCollector.visit(query);
-                    const ctes = cteCollector.getCommonTables();
-                    ctesEl.textContent = ctes.map(cte => `name: ${cte.getSourceAliasName()}, query: ${formatter.format(cte.query).formattedSql}`).join('\n');
-                } catch (e) {
-                    ctesEl.textContent = '[CTECollector Error] ' + e.message;
-                }
-            } catch (e) {
-                const errorMessage = '[Parse Error] ' + e.message;
-                output.textContent = errorMessage;
-                updateStatusBar(errorMessage);
-            }
-        }
-
-        // Run analyzeSql on window load
-        window.onload = () => {
-            analyzeSql();
-        };
-
-        // Ensure analyzeSql runs after CodeMirror initialization
-        sqlInput.on('changes', () => {
-            if (debounceTimer) clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(analyzeSql, DEBOUNCE_DELAY);
-        });
-
-        // Trigger analyzeSql after CodeMirror is fully initialized
-        analyzeSql();
-
-        // Trigger analyzeSql when preset-select changes
-        presetSelect.addEventListener('change', analyzeSql);
-
-        // Save custom preset button click
-        saveCustomPresetBtn.addEventListener('click', () => {
-            const customPreset = customPresetInput.value.trim();
-            if (customPreset) {
-                // Save to cookie
-                document.cookie = `customSqlPreset=${encodeURIComponent(customPreset)}; path=/; max-age=31536000`; // 1 year
-                alert('Custom preset saved!');
-            }
-        });
-
-        // Reset custom preset to default
-        document.getElementById('reset-custom-preset').addEventListener('click', () => {
-            if (confirm('Are you sure you want to reset the custom preset to its default values?')) {
-                customPresetInput.value = JSON.stringify(defaultSqlPreset, null, 4); // Pretty-print JSON
-                addLogMessage('Custom preset reset to default.');
-            }
-        });
-
-        // Trigger analyzeSql when custom preset is edited
-        customPresetInput.addEventListener('input', () => {
-            if (presetSelect.value === 'custom') {
-                analyzeSql();
-            }
-        });
-
-        // Show or hide the custom preset section based on the selected preset
-        function toggleCustomPresetVisibility() {
-            const customPresetSection = document.getElementById('custom-preset-section');
-            if (presetSelect.value === 'custom') {
-                customPresetSection.style.display = 'block';
-            } else {
-                customPresetSection.style.display = 'none';
-            }
-        }
-
-        // Add event listener to toggle visibility on preset change
-        presetSelect.addEventListener('change', toggleCustomPresetVisibility);
-
-        // Initialize visibility on page load
-        toggleCustomPresetVisibility();
-
-        // Set initial SQL text
-        sqlInput.setValue("SELECT u.user_id, u.user_name\nFROM users as u\nWHERE u.user_id = :user_id");
-    </script>
-    <script>
-        function copyToClipboard(content, message) {
-            navigator.clipboard.writeText(content).then(() => {
-                addLogMessage(message);
-            }).catch(err => {
-                console.error('Failed to copy: ', err);
-            });
-        }
-
-        function addLogMessage(message) {
-            const logList = document.getElementById('log-list');
-            const logEntry = document.createElement('div');
-            logEntry.textContent = message;
-            logList.appendChild(logEntry);
-            logList.scrollTop = logList.scrollHeight; // Auto-scroll to the latest log
-        }
-
-        document.getElementById('copy-output-btn').addEventListener('click', () => {
-            const content = document.getElementById('output').textContent;
-            copyToClipboard(content, 'Output copied to clipboard!');
-        });
-
-        document.getElementById('copy-select-values-btn').addEventListener('click', () => {
-            const content = document.getElementById('select-values').textContent;
-            copyToClipboard(content, 'Select Values copied to clipboard!');
-        });
-
-        document.getElementById('copy-selectable-columns-btn').addEventListener('click', () => {
-            const content = document.getElementById('selectable-columns').textContent;
-            copyToClipboard(content, 'Selectable Columns copied to clipboard!');
-        });
-
-        document.getElementById('copy-table-sources-btn').addEventListener('click', () => {
-            const content = document.getElementById('table-sources').textContent;
-            copyToClipboard(content, 'Table Sources copied to clipboard!');
-        });
-
-        document.getElementById('copy-ctes-btn').addEventListener('click', () => {
-            const content = document.getElementById('ctes').textContent;
-            copyToClipboard(content, 'CTEs copied to clipboard!');
-        });
-    </script>
-    <script>
-        // Initialize CodeMirror for SQL input
-        const sqlInput = CodeMirror.fromTextArea(document.getElementById('sql-input'), {
-            mode: 'text/x-sql',
-            lineNumbers: true,
-            theme: 'default'
-        });
-
-        // Initialize CodeMirror for Formatted SQL output
-        const formattedOutput = CodeMirror.fromTextArea(document.getElementById('output'), {
-            mode: 'text/x-sql',
-            lineNumbers: true,
-            theme: 'default',
-            readOnly: true
-        });
-
-        // Adjust CodeMirror height for SQL input and output
-        sqlInput.setSize(null, 400); // Set height to 400px
-        formattedOutput.setSize(null, 400); // Set height to 400px
-
-        // Update Formatted SQL output when Analyze SQL button is clicked
-        document.getElementById('run-btn').addEventListener('click', () => {
-            const formattedSql = document.getElementById('output').value; // Ensure we get the value from the textarea
-            formattedOutput.setValue(formattedSql);
-        });
-
-        // Clear input SQL button functionality
-        document.getElementById('clear-input-btn').addEventListener('click', () => {
-            sqlInput.setValue(''); // Clear the content of Input SQL
-        });
-    </script>
-    <script>
-        // Tab switching logic
-        const tabs = document.querySelectorAll('.tab');
-        const tabContents = document.querySelectorAll('.tab-content');
-
-        tabs.forEach(tab => {
-            tab.addEventListener('click', () => {
-                // Remove active class from all tabs and contents
-                tabs.forEach(t => t.classList.remove('active'));
-                tabContents.forEach(content => content.classList.remove('active'));
-
-                // Add active class to the clicked tab and corresponding content
-                tab.classList.add('active');
-                const targetId = tab.getAttribute('data-tab');
-                document.getElementById(targetId).classList.add('active');
-            });
-        });
-    </script>
-    <footer style="margin-top: 2rem; font-size: 0.9em; text-align: center; color: #555;">
-        <p>This application uses <a href="https://codemirror.net/" target="_blank"
-                style="color: #007acc; text-decoration: none;">CodeMirror</a>,
-            an open-source code editor licensed under the <a href="https://opensource.org/licenses/MIT" target="_blank"
-                style="color: #007acc; text-decoration: none;">MIT License</a>.</p>
-    </footer>
+    <script type="module" src="script.js"></script>
 </body>
 
 </html>
