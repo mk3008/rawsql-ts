@@ -1,5 +1,5 @@
 // Import rawsql-ts modules
-import { SelectQueryParser, SqlFormatter } from "https://unpkg.com/rawsql-ts/dist/esm/index.js";
+import { SelectQueryParser, SqlFormatter, TableSourceCollector, CTECollector } from "https://unpkg.com/rawsql-ts/dist/esm/index.js";
 
 const sqlInputEditor = CodeMirror.fromTextArea(document.getElementById('sql-input'), {
     mode: 'text/x-sql',
@@ -32,6 +32,11 @@ let currentStyles = {}; // To hold all loaded/modified styles
 const statusBar = document.getElementById('status-bar');
 const clearInputBtn = document.getElementById('clear-input-btn');
 const copyOutputBtn = document.getElementById('copy-output-btn');
+const tableList = document.getElementById("table-list");
+const cteList = document.getElementById("cte-list"); // Added for CTE list
+const copyTableListBtn = document.getElementById('copy-table-list-btn');
+const copyCteListBtn = document.getElementById('copy-cte-list-btn'); // Added for CTE list copy button
+
 
 // Tab switching logic
 function initializeTabs(paneId) {
@@ -165,9 +170,63 @@ sqlInputEditor.on('changes', () => {
 clearInputBtn.addEventListener('click', () => {
     sqlInputEditor.setValue('');
     formattedSqlEditor.setValue(''); // Also clear output
+    updateTableList(''); // Clear table list as well
+    updateCTEList(''); // Clear CTE list as well
     updateStatusBar('Input cleared.');
     sqlInputEditor.focus(); // Focus back to input
 });
+
+// Event listener for Copy Table List button
+// const copyTableListBtn = document.getElementById('copy-table-list-btn'); // Already defined above
+if (copyTableListBtn) {
+    copyTableListBtn.addEventListener('click', () => {
+        const tableListElem = document.getElementById("table-list");
+        if (tableListElem && tableListElem.children.length > 0) {
+            const tableNames = Array.from(tableListElem.children)
+                .map(li => li.textContent)
+                .filter(name => name && !name.startsWith("(")) // Filter out placeholder messages
+                .join("\n");
+
+            if (tableNames) {
+                navigator.clipboard.writeText(tableNames).then(() => {
+                    updateStatusBar('Table list copied to clipboard!');
+                }).catch(err => {
+                    console.error('Failed to copy table list: ', err);
+                    updateStatusBar('Failed to copy table list.', true);
+                });
+            } else {
+                updateStatusBar('No table names to copy.', true);
+            }
+        } else {
+            updateStatusBar('Table list is empty.', true);
+        }
+    });
+}
+
+// Event listener for Copy CTE List button
+if (copyCteListBtn) {
+    copyCteListBtn.addEventListener('click', () => {
+        if (cteList && cteList.children.length > 0) {
+            const cteNames = Array.from(cteList.children)
+                .map(li => li.textContent)
+                .filter(name => name && !name.startsWith("(")) // Filter out placeholder messages
+                .join("\n");
+
+            if (cteNames) {
+                navigator.clipboard.writeText(cteNames).then(() => {
+                    updateStatusBar('CTE list copied to clipboard!');
+                }).catch(err => {
+                    console.error('Failed to copy CTE list: ', err);
+                    updateStatusBar('Failed to copy CTE list.', true);
+                });
+            } else {
+                updateStatusBar('No CTE names to copy.', true);
+            }
+        } else {
+            updateStatusBar('CTE list is empty.', true);
+        }
+    });
+}
 
 // Event listener for Copy Output button
 copyOutputBtn.addEventListener('click', () => {
@@ -328,158 +387,144 @@ function displayStyle(styleName) {
     }
 }
 
-addNewStyleBtn.addEventListener('click', () => {
-    const newStyleName = prompt("Enter a name for the new style:", "My Custom Style");
-    if (newStyleName && newStyleName.trim() !== "") {
-        if (currentStyles[newStyleName]) {
-            alert("A style with this name already exists. Please choose a different name.");
+// Function to set up event listeners for style controls
+function setupStyleControls() {
+    addNewStyleBtn.addEventListener('click', () => {
+        const newStyleName = prompt("Enter a name for the new style:", "My Custom Style");
+        if (newStyleName && newStyleName.trim() !== "") {
+            if (currentStyles[newStyleName]) {
+                alert("A style with this name already exists. Please choose a different name.");
+                return;
+            }
+            const baseStyleName = styleSelect.value || Object.keys(currentStyles)[0] || "Default";
+            const baseStyle = currentStyles[baseStyleName] ? JSON.parse(JSON.stringify(currentStyles[baseStyleName])) : { indent: "    ", keywordCase: "upper" };
+            currentStyles[newStyleName] = baseStyle;
+            populateStyleSelect();
+            styleSelect.value = newStyleName;
+            displayStyle(newStyleName);
+            saveStyles();
+            updateStatusBar(`Style '${newStyleName}' added.`, false);
+        }
+    });
+
+    deleteStyleBtn.addEventListener('click', () => {
+        const selectedStyleName = styleSelect.value;
+        if (!selectedStyleName) {
+            alert("No style selected to delete.");
             return;
         }
-        // Create a new style based on the "Default" or the currently selected one
-        const baseStyleName = styleSelect.value || Object.keys(currentStyles)[0] || "Default";
-        const baseStyle = currentStyles[baseStyleName] ? JSON.parse(JSON.stringify(currentStyles[baseStyleName])) : { indent: "    ", keywordCase: "upper" };
+        if (Object.keys(currentStyles).length <= 1) {
+            alert("Cannot delete the last style. Create another style first or edit this one.");
+            return;
+        }
+        if (confirm(`Are you sure you want to delete the style '${selectedStyleName}'?`)) {
+            delete currentStyles[selectedStyleName];
+            populateStyleSelect();
+            if (Object.keys(currentStyles).length > 0) {
+                const firstStyleName = Object.keys(currentStyles)[0];
+                styleSelect.value = firstStyleName;
+                displayStyle(firstStyleName);
+            } else {
+                styleNameInput.value = '';
+                styleJsonEditor.setValue('');
+            }
+            saveStyles();
+            updateStatusBar(`Style '${selectedStyleName}' deleted.`, false);
+        }
+    });
 
-        currentStyles[newStyleName] = baseStyle;
-        populateStyleSelect();
-        styleSelect.value = newStyleName;
-        displayStyle(newStyleName);
-        saveStyles();
-        updateStatusBar(`Style '${newStyleName}' added.`, false);
-    }
-});
-
-deleteStyleBtn.addEventListener('click', () => {
-    const selectedStyleName = styleSelect.value;
-    if (!selectedStyleName) {
-        alert("No style selected to delete.");
-        return;
-    }
-    if (Object.keys(currentStyles).length <= 1) {
-        alert("Cannot delete the last style. Create another style first or edit this one.");
-        return;
-    }
-    if (confirm(`Are you sure you want to delete the style '${selectedStyleName}'?`)) {
-        delete currentStyles[selectedStyleName];
-        populateStyleSelect();
-        // Select the first available style or clear inputs
-        if (Object.keys(currentStyles).length > 0) {
-            const firstStyleName = Object.keys(currentStyles)[0];
-            styleSelect.value = firstStyleName;
-            displayStyle(firstStyleName);
+    saveStyleBtn.addEventListener('click', () => {
+        const originalStyleName = styleSelect.value;
+        const newStyleName = styleNameInput.value.trim();
+        let styleJson;
+        if (!newStyleName) {
+            alert("Style name cannot be empty.");
+            return;
+        }
+        try {
+            styleJson = JSON.parse(styleJsonEditor.getValue());
+        } catch (e) {
+            alert("Invalid JSON in style configuration. Please correct it.\nError: " + e.message);
+            updateStatusBar("Error: Invalid JSON in style configuration.", true);
+            return;
+        }
+        if (!originalStyleName) {
+            alert("No style selected to save to. This is an unexpected error.");
+            return;
+        }
+        if (originalStyleName !== newStyleName) {
+            if (currentStyles[newStyleName]) {
+                alert(`A style named '${newStyleName}' already exists. Please choose a different name or delete the existing one first.`);
+                return;
+            }
+            currentStyles[newStyleName] = styleJson;
+            delete currentStyles[originalStyleName];
+            populateStyleSelect();
+            styleSelect.value = newStyleName;
         } else {
-            styleNameInput.value = '';
-            styleJsonEditor.setValue('');
+            currentStyles[originalStyleName] = styleJson;
         }
         saveStyles();
-        updateStatusBar(`Style '${selectedStyleName}' deleted.`, false);
-    }
-});
+        displayStyle(newStyleName);
+        updateStatusBar(`Style '${newStyleName}' saved.`, false);
+    });
 
-saveStyleBtn.addEventListener('click', () => {
-    const originalStyleName = styleSelect.value;
-    const newStyleName = styleNameInput.value.trim();
-    let styleJson;
-
-    if (!newStyleName) {
-        alert("Style name cannot be empty.");
-        return;
-    }
-
-    try {
-        styleJson = JSON.parse(styleJsonEditor.getValue());
-    } catch (e) {
-        alert("Invalid JSON in style configuration. Please correct it.\nError: " + e.message);
-        updateStatusBar("Error: Invalid JSON in style configuration.", true);
-        return;
-    }
-
-    if (!originalStyleName) { // Should not happen if a style is always selected or being added
-        alert("No style selected to save to. This is an unexpected error.");
-        return;
-    }
-
-    // If name changed, check for conflicts and update key
-    if (originalStyleName !== newStyleName) {
-        if (currentStyles[newStyleName]) {
-            alert(`A style named '${newStyleName}' already exists. Please choose a different name or delete the existing one first.`);
-            return;
-        }
-        // Create new entry and delete old one
-        currentStyles[newStyleName] = styleJson;
-        delete currentStyles[originalStyleName];
-        populateStyleSelect(); // Update dropdown with new name
-        styleSelect.value = newStyleName; // Select the new name
-    } else {
-        // Just update the content for the existing name
-        currentStyles[originalStyleName] = styleJson;
-    }
-
-    saveStyles(); // This will also re-format SQL
-    displayStyle(newStyleName); // Refresh display, especially if name changed
-    updateStatusBar(`Style '${newStyleName}' saved.`, false);
-});
-
-
-styleSelect.addEventListener('change', () => {
-    const selectedStyleName = styleSelect.value;
-    if (selectedStyleName) {
-        // 記憶する
-        localStorage.setItem('rawsql-selected-style', selectedStyleName);
-        displayStyle(selectedStyleName);
-        // quick-style-selectも同期
-        const quickStyleSelect = document.getElementById('quick-style-select');
-        if (quickStyleSelect) quickStyleSelect.value = selectedStyleName;
-        formatSql();
-    }
-});
-// quick-style-selectのイベントでも記憶する
-const quickStyleSelect = document.getElementById('quick-style-select');
-if (quickStyleSelect) {
-    quickStyleSelect.addEventListener('change', () => {
-        const selected = quickStyleSelect.value;
-        if (selected && currentStyles[selected]) {
-            styleSelect.value = selected;
-            localStorage.setItem('rawsql-selected-style', selected);
-            displayStyle(selected);
+    styleSelect.addEventListener('change', () => {
+        const selectedStyleName = styleSelect.value;
+        if (selectedStyleName) {
+            localStorage.setItem('rawsql-selected-style', selectedStyleName);
+            displayStyle(selectedStyleName);
+            const quickStyleSelect = document.getElementById('quick-style-select');
+            if (quickStyleSelect) quickStyleSelect.value = selectedStyleName;
             formatSql();
         }
     });
-}
 
-// Event listener for Revert Changes button
-if (revertStyleBtn) {
-    revertStyleBtn.addEventListener('click', () => {
-        const selectedStyleName = styleSelect.value;
-        if (selectedStyleName && currentStyles[selectedStyleName]) {
-            if (confirm("Are you sure you want to revert changes to the style \'" + selectedStyleName + "\'? Unsaved modifications in the editor will be lost.")) {
-                displayStyle(selectedStyleName); // This will reload the saved state into the editor
-                formatSql(); // Re-format SQL with the reverted style
-                updateStatusBar(`Style '\\${selectedStyleName}' reverted to last saved state.`, false);
+    const quickStyleSelect = document.getElementById('quick-style-select');
+    if (quickStyleSelect) {
+        quickStyleSelect.addEventListener('change', () => {
+            const selected = quickStyleSelect.value;
+            if (selected && currentStyles[selected]) {
+                styleSelect.value = selected;
+                localStorage.setItem('rawsql-selected-style', selected);
+                displayStyle(selected);
+                formatSql();
             }
-        } else {
-            alert("No style selected or style not found to revert.");
-        }
-    });
-}
+        });
+    }
 
-// Event listener for Reset All Settings button
-if (resetAllSettingsBtn) {
-    resetAllSettingsBtn.addEventListener('click', () => {
-        if (confirm("Are you sure you want to reset all settings? Saved styles will be deleted.")) { // Changed to English
-            localStorage.removeItem(DEFAULT_STYLE_KEY);
-            currentStyles = {}; // Clear in-memory styles
-            // Force loadStyles to re-create default and repopulate everything
-            loadStyles();
-            updateStatusBar('All settings have been reset.', false); // Changed to English
-            // Optionally, switch to the first tab or a default view if needed
-            const firstLeftTab = document.querySelector('#left-pane .tab-button');
-            if (firstLeftTab) {
-                firstLeftTab.click();
+    if (revertStyleBtn) {
+        revertStyleBtn.addEventListener('click', () => {
+            const selectedStyleName = styleSelect.value;
+            if (selectedStyleName && currentStyles[selectedStyleName]) {
+                if (confirm("Are you sure you want to revert changes to the style '" + selectedStyleName + "'? Unsaved modifications in the editor will be lost.")) {
+                    displayStyle(selectedStyleName);
+                    formatSql();
+                    updateStatusBar(`Style '${selectedStyleName}' reverted to last saved state.`, false);
+                }
+            } else {
+                alert("No style selected or style not found to revert.");
             }
-        }
-    });
+        });
+    }
+
+    if (resetAllSettingsBtn) {
+        resetAllSettingsBtn.addEventListener('click', () => {
+            if (confirm("Are you sure you want to reset all settings? Saved styles will be deleted.")) {
+                localStorage.removeItem(DEFAULT_STYLE_KEY);
+                currentStyles = {};
+                loadStyles();
+                updateStatusBar('All settings have been reset.', false);
+                const firstLeftTab = document.querySelector('#left-pane .tab-button');
+                if (firstLeftTab) {
+                    firstLeftTab.click();
+                }
+            }
+        });
+    }
 }
 
+// --- Initialization ---
 document.addEventListener('DOMContentLoaded', () => {
     // Quick style select: change style for preview only
     const quickStyleSelect = document.getElementById('quick-style-select');
@@ -530,20 +575,127 @@ document.addEventListener('DOMContentLoaded', () => {
     const initialSql = "SELECT\n    id,\n    name,\n    email\nFROM\n    users\nWHERE\n    status = :active\nORDER BY\n    created_at DESC;";
     sqlInputEditor.setValue(initialSql);
 
-    loadStyles(); // Load styles, which will also call formatSql
+    loadStyles(); // Load styles first
+    setupStyleControls(); // Then set up controls which might depend on loaded styles
+    formatSql(); // Initial format
+    setupTableListAutoUpdate(); // Setup auto-update for table list
+    setupCTEListAutoUpdate(); // Setup auto-update for CTE list
 
-    // Ensure the correct tab is active and CodeMirror instances are refreshed
-    // This is a bit of a belt-and-suspenders approach, but helps with initial load issues.
-    const activeLeftTabButton = document.querySelector('#left-pane .tab-button.active');
-    if (activeLeftTabButton) {
-        const tabId = activeLeftTabButton.dataset.tab;
-        if (tabId === 'input-sql' && sqlInputEditor) sqlInputEditor.refresh();
-        if (tabId === 'style-config' && styleJsonEditor) styleJsonEditor.refresh();
+    // Activate the first tab in each pane if not already set by HTML
+    const firstLeftTab = document.querySelector('#left-pane .tab-button');
+    if (firstLeftTab) {
+        firstLeftTab.click();
     }
-
-    const activeRightTabButton = document.querySelector('#right-pane .tab-button.active');
-    if (activeRightTabButton) {
-        const tabId = activeRightTabButton.dataset.tab;
-        if (tabId === 'formatted' && formattedSqlEditor) formattedSqlEditor.refresh();
+    const firstRightTab = document.querySelector('#right-pane .tab-button');
+    if (firstRightTab) {
+        firstRightTab.click();
     }
 });
+
+/**
+ * Updates the table list in the Analysis 1 tab based on the SQL input.
+ * @param {string} sqlText - The SQL query string.
+ */
+// --- Table List Logic ---
+function updateTableList(sqlText) {
+    if (!tableList) return;
+    tableList.innerHTML = ''; // Clear previous list
+
+    if (!sqlText.trim()) {
+        const li = document.createElement('li');
+        li.textContent = '(SQL input is empty)';
+        tableList.appendChild(li);
+        return;
+    }
+
+    try {
+        const ast = SelectQueryParser.parse(sqlText);
+        const collector = new TableSourceCollector();
+        const tables = collector.collect(ast);
+
+        if (tables.length === 0) {
+            const li = document.createElement('li');
+            li.textContent = '(No tables found)';
+            tableList.appendChild(li);
+        } else {
+            const uniqueTableNames = [...new Set(tables.map(t => t.table.name))];
+            uniqueTableNames.forEach(tableName => {
+                const li = document.createElement('li');
+                li.textContent = tableName;
+                tableList.appendChild(li);
+            });
+        }
+    } catch (error) {
+        console.error("Error parsing SQL for table list:", error);
+        const li = document.createElement('li');
+        li.textContent = '(Error parsing SQL)';
+        tableList.appendChild(li);
+        // Optionally, display a more specific error message or log it
+        // updateStatusBar(`Error for table list: ${error.message}`, true);
+    }
+}
+
+function setupTableListAutoUpdate() {
+    let tableListDebounceTimer = null;
+    sqlInputEditor.on('changes', () => {
+        if (tableListDebounceTimer) clearTimeout(tableListDebounceTimer);
+        tableListDebounceTimer = setTimeout(() => {
+            const sqlText = sqlInputEditor.getValue();
+            updateTableList(sqlText);
+        }, DEBOUNCE_DELAY);
+    });
+    // Initial population
+    updateTableList(sqlInputEditor.getValue());
+}
+
+// --- CTE List Logic ---
+function updateCTEList(sqlText) {
+    if (!cteList) return;
+    cteList.innerHTML = ''; // Clear previous list
+
+    if (!sqlText.trim()) {
+        const li = document.createElement('li');
+        li.textContent = '(SQL input is empty)';
+        cteList.appendChild(li);
+        return;
+    }
+
+    try {
+        const ast = SelectQueryParser.parse(sqlText);
+        const collector = new CTECollector();
+        const ctes = collector.collect(ast); // Assuming collect method exists and returns an array of CTEs
+
+        if (ctes.length === 0) {
+            const li = document.createElement('li');
+            li.textContent = '(No CTEs found)';
+            cteList.appendChild(li);
+        } else {
+            // Extracting CTE names - trying with .value based on common rawsql-ts patterns
+            const uniqueCteNames = [...new Set(ctes.map(cte => cte.getSourceAliasName()))];
+            uniqueCteNames.forEach(cteName => {
+                const li = document.createElement('li');
+                li.textContent = cteName;
+                cteList.appendChild(li);
+            });
+        }
+    } catch (error) {
+        console.error("Error parsing SQL for CTE list:", error);
+        const li = document.createElement('li');
+        li.textContent = '(Error parsing SQL for CTEs)';
+        cteList.appendChild(li);
+        // updateStatusBar(`Error for CTE list: ${error.message}`, true);
+    }
+}
+
+function setupCTEListAutoUpdate() {
+    let cteListDebounceTimer = null;
+    sqlInputEditor.on('changes', () => {
+        if (cteListDebounceTimer) clearTimeout(cteListDebounceTimer);
+        cteListDebounceTimer = setTimeout(() => {
+            const sqlText = sqlInputEditor.getValue();
+            updateCTEList(sqlText);
+        }, DEBOUNCE_DELAY);
+    });
+    // Initial population
+    updateCTEList(sqlInputEditor.getValue());
+}
