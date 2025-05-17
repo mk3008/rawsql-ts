@@ -202,16 +202,12 @@ export class StringUtils {
         }
 
         // Check index range before checking for [] (array type)
-        if (
+        while (
             position + 1 < input.length &&
             input[position] === '[' &&
             input[position + 1] === ']'
         ) {
             position += 2; // Skip the []
-            return {
-                identifier: input.slice(start, position),
-                newPosition: position
-            };
         }
 
         return {

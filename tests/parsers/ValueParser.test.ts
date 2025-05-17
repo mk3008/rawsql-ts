@@ -85,6 +85,7 @@ describe('ValueParser', () => {
         ["FunctionCall with arithmetic operation", "count(*) + 1", "count(*) + 1"],
         ["Postgres Array Type", ":array::int[]", ":array::int[]"],
         ["Postgres Array Type - Single Item", ":item::int", ":item::int"],
+        ["Postgres Array Type - Multi-dimensional", ":array::int[][]", ":array::int[][]"],
     ])('%s', (_, text, expected = text) => {
         const value = ValueParser.parse(text);
         const sql = formatter.format(value);
