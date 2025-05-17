@@ -1,5 +1,5 @@
 import { SqlComponent, SqlComponentVisitor } from '../models/SqlComponent';
-import { CommonTable, TableSource } from '../models/Clause';
+import { CommonTable, SubQuerySource, TableSource } from '../models/Clause';
 import { SelectClause, SelectItem } from '../models/Clause';
 import { SimpleSelectQuery } from '../models/SimpleSelectQuery';
 import { CTECollector } from './CTECollector';
@@ -7,6 +7,7 @@ import { SelectableColumnCollector } from './SelectableColumnCollector';
 import { SelectValueCollector } from './SelectValueCollector';
 import { ColumnReference } from '../models/ValueComponent';
 import { BinarySelectQuery, SelectQuery } from '../models/SelectQuery';
+import { SourceExpression } from '../models/Clause';
 
 export class TableSchema {
     public name: string;
@@ -86,29 +87,41 @@ export class SchemaCollector implements SqlComponentVisitor<void> {
         return this.tableSchemas;
     }
 
+    private running = false;
+
     /**
-     * Visits a SQL component to collect schema information.
+     * Main entry point for the visitor pattern.
+     * Implements the shallow visit pattern to distinguish between root and recursive visits.
      */
     public visit(arg: SqlComponent): void {
-        // Throws an error if not a SimpleSelectQuery
-        if (!(arg instanceof SimpleSelectQuery || arg instanceof BinarySelectQuery)) {
-            throw new Error(`Unsupported SQL component type for schema collection. Received: ${arg.constructor.name}. Expected: SimpleSelectQuery or BinarySelectQuery.`);
+        // If not a root visit, just visit the node and return
+        if (this.running) {
+            this.visitNode(arg);
+            return;
         }
 
-        // initialize schema information
-        this.tableSchemas = [];
-        this.visitedNodes = new Set();
-        this.commonTables = [];
+        // If this is a root visit, we need to reset the state
+        this.reset();
+        this.running = true;
 
-        // Collects Common Table Expressions (CTEs) using CTECollector
-        const cteCollector = new CTECollector();
-        this.commonTables = cteCollector.collect(arg);
+        try {
+            // Ensure the argument is a SelectQuery
+            if (!(arg instanceof SimpleSelectQuery || arg instanceof BinarySelectQuery)) {
+                throw new Error(`Unsupported SQL component type for schema collection. Received: ${arg.constructor.name}. Expected: SimpleSelectQuery or BinarySelectQuery.`);
+            }
 
-        // Scan elements using the visitor pattern
-        this.visitNode(arg);
+            // Collects Common Table Expressions (CTEs) using CTECollector
+            const cteCollector = new CTECollector();
+            this.commonTables = cteCollector.collect(arg);
 
-        // Consolidate tableSchemas
-        this.consolidateTableSchemas();
+            this.visitNode(arg);
+
+            // Consolidate tableSchemas
+            this.consolidateTableSchemas();
+        } finally {
+            // Regardless of success or failure, reset the root visit flag
+            this.running = false;
+        }
     }
 
     /**
@@ -133,6 +146,15 @@ export class SchemaCollector implements SqlComponentVisitor<void> {
         // If no handler found, that's ok - we only care about specific components
     }
 
+    /**
+     * Resets the state of the collector for a new root visit.
+     */
+    private reset(): void {
+        this.tableSchemas = [];
+        this.visitedNodes = new Set();
+        this.commonTables = [];
+    }
+
     private consolidateTableSchemas(): void {
         const consolidatedSchemas: Map<string, Set<string>> = new Map();
 
@@ -150,8 +172,27 @@ export class SchemaCollector implements SqlComponentVisitor<void> {
         });
     }
 
+    private handleTableSource(source: SourceExpression, queryColumns: { table: string, column: string }[], includeUnnamed: boolean): void {
+        if (source.datasource instanceof TableSource) {
+            const tableName = source.datasource.getSourceName();
+            const cte = this.commonTables.filter((table) => table.getSourceAliasName() === tableName);
+            if (cte.length > 0) {
+                cte[0].query.accept(this);
+            } else {
+                const tableAlias = source.getAliasName() ?? tableName;
+                this.processCollectTableSchema(tableName, tableAlias, queryColumns, includeUnnamed);
+            }
+        } else {
+            throw new Error("Datasource is not an instance of TableSource");
+        }
+    }
+
     private visitSimpleSelectQuery(query: SimpleSelectQuery): void {
-        // このクエリで使用されている列を回収する
+        if (query.fromClause === null) {
+            return;
+        }
+
+        // Collect columns used in the query
         const columnCollector = new SelectableColumnCollector();
         const queryColumns = columnCollector.collect(query)
             .filter((column) => column.value instanceof ColumnReference)
@@ -161,37 +202,31 @@ export class SchemaCollector implements SqlComponentVisitor<void> {
                 column: columnRef.column.name
             }));
 
-        // 表名がない列がある場合、エラーを投げる
-        const columnsWithoutTable = queryColumns.filter((columnRef) => columnRef.table === "").map((columnRef) => columnRef.column);
-        if (columnsWithoutTable.length > 0) {
-            throw new Error(`Column reference(s) without table name found in query: ${columnsWithoutTable.join(', ')}`);
-        }
-
-        // If the table is a physical table, list it
-        if (query.fromClause && query.fromClause.source.datasource instanceof TableSource) {
-            const tableName = query.fromClause.source.datasource.getSourceName();
-            if (!this.commonTables.some((table) => table.getSourceAliasName() === tableName)) {
-                // If a physical table is included, use SelectableColumnCollector to collect columns
-                const tableAlias = query.fromClause.source.getAliasName() ?? tableName;
-                this.processCollectTableSchema(tableName, tableAlias, queryColumns);
+        // Throw an error if there are columns without table names in queries with joins
+        if (query.fromClause.joins !== null && query.fromClause.joins.length > 0) {
+            const columnsWithoutTable = queryColumns.filter((columnRef) => columnRef.table === "").map((columnRef) => columnRef.column);
+            if (columnsWithoutTable.length > 0) {
+                throw new Error(`Column reference(s) without table name found in query: ${columnsWithoutTable.join(', ')}`);
             }
         }
 
+        // Handle the main FROM clause table
+        if (query.fromClause.source.datasource instanceof TableSource) {
+            this.handleTableSource(query.fromClause.source, queryColumns, true);
+        } else if (query.fromClause.source.datasource instanceof SubQuerySource) {
+            query.fromClause.source.datasource.query.accept(this);
+        }
+
+        // Handle JOIN clause tables
         if (query.fromClause?.joins) {
             for (const join of query.fromClause.joins) {
                 if (join.source.datasource instanceof TableSource) {
-                    const tableName = join.source.datasource.getSourceName();
-                    if (!this.commonTables.some((table) => table.getSourceAliasName() === tableName)) {
-                        // If a physical table is included, use SelectableColumnCollector to collect columns
-                        const tableAlias = join.source.getAliasName() ?? tableName;
-                        this.processCollectTableSchema(tableName, tableAlias, queryColumns);
-                    }
+                    this.handleTableSource(join.source, queryColumns, false);
+                } else if (join.source.datasource instanceof SubQuerySource) {
+                    join.source.datasource.query.accept(this);
                 }
             }
         }
-
-        // Cascade into subqueries... but for the initial version, this is not implemented.
-        // Subquery processing will be supported in future versions.
     }
 
     private visitBinarySelectQuery(query: BinarySelectQuery): void {
@@ -200,8 +235,10 @@ export class SchemaCollector implements SqlComponentVisitor<void> {
         this.visitNode(query.right);
     }
 
-    private processCollectTableSchema(tableName: string, tableAlias: string, queryColumns: { table: string, column: string }[]): void {
-        const tableColumns = queryColumns.filter((columnRef) => columnRef.table === tableAlias).map((columnRef) => columnRef.column);
+    private processCollectTableSchema(tableName: string, tableAlias: string, queryColumns: { table: string, column: string }[], includeUnnamed: boolean = false): void {
+        const tableColumns = queryColumns
+            .filter((columnRef) => columnRef.table === tableAlias || (includeUnnamed && columnRef.table === ""))
+            .map((columnRef) => columnRef.column);
         const tableSchema = new TableSchema(tableName, tableColumns);
         this.tableSchemas.push(tableSchema);
     }

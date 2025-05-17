@@ -116,4 +116,85 @@ describe('SchemaCollector', () => {
         expect(schemaInfo[0].name).toBe('users');
         expect(schemaInfo[0].columns).toEqual(['id', 'name']);
     });
+
+    test('handles queries with omitted table names for columns when there is only one table', () => {
+        // Arrange
+        const sql = `
+            SELECT id, name FROM users
+        `;
+        const query = SelectQueryParser.parse(sql);
+        const collector = new SchemaCollector();
+
+        // Act
+        const schemaInfo = collector.collect(query);
+
+        // Assert
+        expect(schemaInfo.length).toBe(1);
+        expect(schemaInfo[0].name).toBe('users');
+        expect(schemaInfo[0].columns).toEqual(['id', 'name']);
+    });
+
+    test('collects schema information from CTE used in JOIN clause', () => {
+        // Arrange
+        const sql = `
+            WITH cte_orders AS (
+                SELECT order_id, user_id FROM orders
+            )
+            SELECT u.id, u.name, cte_orders.order_id FROM users u
+            JOIN cte_orders ON u.id = cte_orders.user_id
+        `;
+        const query = SelectQueryParser.parse(sql);
+        const collector = new SchemaCollector();
+
+        // Act
+        const schemaInfo = collector.collect(query);
+
+        // Assert
+        expect(schemaInfo.length).toBe(2);
+        expect(schemaInfo[0].name).toBe('users');
+        expect(schemaInfo[0].columns).toEqual(['id', 'name']);
+        expect(schemaInfo[1].name).toBe('orders');
+        expect(schemaInfo[1].columns).toEqual(['order_id', 'user_id']);
+    });
+
+    test('collects schema information from subquery in FROM clause', () => {
+        // Arrange
+        const sql = `
+            SELECT sq.id, sq.name FROM (
+                SELECT id, name FROM users
+            ) AS sq
+        `;
+        const query = SelectQueryParser.parse(sql);
+        const collector = new SchemaCollector();
+
+        // Act
+        const schemaInfo = collector.collect(query);
+
+        // Assert
+        expect(schemaInfo.length).toBe(1);
+        expect(schemaInfo[0].name).toBe('users');
+        expect(schemaInfo[0].columns).toEqual(['id', 'name']);
+    });
+
+    test('collects schema information from subquery in JOIN clause', () => {
+        // Arrange
+        const sql = `
+            SELECT u.id, u.name, sq.total FROM users u
+            JOIN (
+                SELECT user_id, SUM(amount) as total FROM orders GROUP BY user_id
+            ) AS sq ON u.id = sq.user_id
+        `;
+        const query = SelectQueryParser.parse(sql);
+        const collector = new SchemaCollector();
+
+        // Act
+        const schemaInfo = collector.collect(query);
+
+        // Assert
+        expect(schemaInfo.length).toBe(2);
+        expect(schemaInfo[0].name).toBe('users');
+        expect(schemaInfo[0].columns).toEqual(['id', 'name']);
+        expect(schemaInfo[1].name).toBe('orders');
+        expect(schemaInfo[1].columns).toEqual(['user_id', 'amount']);
+    });
 });
