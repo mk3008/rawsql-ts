@@ -19,20 +19,17 @@ export class SelectableColumnCollector implements SqlComponentVisitor<void> {
     private handlers: Map<symbol, (arg: any) => void>;
     private selectValues: { name: string, value: ValueComponent }[] = [];
     private visitedNodes: Set<SqlComponent> = new Set();
-    private formatter: Formatter;
     private isRootVisit: boolean = true;
     private tableColumnResolver: TableColumnResolver | null = null;
     private commonTableCollector: CTECollector;
-    private selectValueCollector: SelectValueCollector;
     private commonTables: CommonTable[] = [];
+    private throwOnUnresolvedWildcard: boolean;
 
-    constructor(tableColumnResolver?: TableColumnResolver | null) {
+    constructor(tableColumnResolver?: TableColumnResolver | null, throwOnUnresolvedWildcard: boolean = false) {
         this.tableColumnResolver = tableColumnResolver ?? null;
-        this.selectValueCollector = new SelectValueCollector();
+        this.throwOnUnresolvedWildcard = throwOnUnresolvedWildcard;
         this.commonTableCollector = new CTECollector();
         this.commonTables = [];
-
-        this.formatter = new Formatter();
 
         this.handlers = new Map<symbol, (arg: any) => void>();
 
@@ -312,6 +309,14 @@ export class SelectableColumnCollector implements SqlComponentVisitor<void> {
         // Wildcards are ignored because they cannot be reused even if detected
         if (columnRef.column.name !== "*") {
             this.addSelectValueAsUnique(columnRef.column.name, columnRef);
+        } else if (!this.tableColumnResolver && this.throwOnUnresolvedWildcard) {
+            const tableName = columnRef.getNamespace();
+            if (tableName) {
+                const errorMessage = `Wildcard (*) is used. A TableColumnResolver is required to resolve wildcards. Target table: ${tableName}`;
+                throw new Error(errorMessage);
+            }
+            const generalErrorMessage = "Wildcard (*) is used. A TableColumnResolver is required to resolve wildcards.";
+            throw new Error(generalErrorMessage);
         }
     }
 

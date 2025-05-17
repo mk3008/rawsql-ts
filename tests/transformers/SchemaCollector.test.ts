@@ -243,4 +243,28 @@ describe('SchemaCollector with TableColumnResolver', () => {
         expect(schemaInfo[0].name).toBe('users');
         expect(new Set(schemaInfo[0].columns)).toStrictEqual(new Set(['id', 'name', 'email']));
     });
+
+    test('throws error for wildcard columns without TableColumnResolver', () => {
+        // Arrange
+        const sql = `SELECT * FROM users`;
+        const query = SelectQueryParser.parse(sql);
+        const collector = new SchemaCollector(); // No TableColumnResolver provided
+
+        // Act & Assert
+        expect(() => {
+            collector.collect(query);
+        }).toThrowError("Wildcard (*) is used. A TableColumnResolver is required to resolve wildcards.");
+    });
+
+    test('throws error for wildcard columns with alias without TableColumnResolver', () => {
+        // Arrange
+        const sql = `SELECT u.* FROM users as u`;
+        const query = SelectQueryParser.parse(sql);
+        const collector = new SchemaCollector(); // No TableColumnResolver provided
+
+        // Act & Assert
+        expect(() => {
+            collector.collect(query);
+        }).toThrowError(`Wildcard (*) is used. A TableColumnResolver is required to resolve wildcards. Target table: u`);
+    });
 });

@@ -149,7 +149,7 @@ export class SchemaCollector implements SqlComponentVisitor<void> {
         }
 
         // Collect columns used in the query
-        const columnCollector = new SelectableColumnCollector(this.tableColumnResolver);
+        const columnCollector = new SelectableColumnCollector(this.tableColumnResolver, true);
         const queryColumns = columnCollector.collect(query)
             .filter((column) => column.value instanceof ColumnReference)
             .map(column => column.value as ColumnReference)
@@ -195,16 +195,6 @@ export class SchemaCollector implements SqlComponentVisitor<void> {
         let tableColumns = queryColumns
             .filter((columnRef) => columnRef.table === tableAlias || (includeUnnamed && columnRef.table === ""))
             .map((columnRef) => columnRef.column);
-
-        // Handle wildcard (*) by resolving columns using TableColumnResolver
-        if (tableColumns.includes("*")) {
-            if (this.tableColumnResolver) {
-                const resolvedColumns = this.tableColumnResolver(tableName);
-                tableColumns = tableColumns.filter((col) => col !== "*").concat(resolvedColumns);
-            } else {
-                throw new Error(`Wildcard (*) found but no TableColumnResolver provided for table: ${tableName}`);
-            }
-        }
 
         const tableSchema = new TableSchema(tableName, tableColumns);
         this.tableSchemas.push(tableSchema);
