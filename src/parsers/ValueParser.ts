@@ -10,6 +10,7 @@ import { StringSpecifierExpressionParser } from "./StringSpecifierExpressionPars
 import { CommandExpressionParser } from "./CommandExpressionParser";
 import { FunctionExpressionParser } from "./FunctionExpressionParser";
 import { FullNameParser } from "./FullNameParser";
+import { ParseError } from "./ParseError";
 
 export class ValueParser {
     // Parse SQL string to AST (was: parse)
@@ -22,7 +23,11 @@ export class ValueParser {
 
         // Error if there are remaining tokens
         if (result.newIndex < lexemes.length) {
-            throw new Error(`[ValueParser] Unexpected token at index ${result.newIndex}: ${lexemes[result.newIndex].value}`);
+            throw ParseError.fromUnparsedLexemes(
+                lexemes,
+                result.newIndex,
+                `[ValueParser]`
+            );
         }
 
         return result.value;
