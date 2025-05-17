@@ -6,6 +6,7 @@ import { CTECollector } from './CTECollector';
 import { SelectableColumnCollector } from './SelectableColumnCollector';
 import { SelectValueCollector } from './SelectValueCollector';
 import { ColumnReference } from '../models/ValueComponent';
+import { BinarySelectQuery, SelectQuery } from '../models/SelectQuery';
 
 export class TableSchema {
     public name: string;
@@ -32,7 +33,7 @@ export class SchemaCollector implements SqlComponentVisitor<void> {
 
         // Setup handlers for query components
         this.handlers.set(SimpleSelectQuery.kind, (expr) => this.visitSimpleSelectQuery(expr as SimpleSelectQuery));
-        //this.handlers.set(BinarySelectQuery.kind, (expr) => this.visitBinarySelectQuery(expr as BinarySelectQuery));
+        this.handlers.set(BinarySelectQuery.kind, (expr) => this.visitBinarySelectQuery(expr as BinarySelectQuery));
         //this.handlers.set(ValuesQuery.kind, (expr) => this.visitValuesQuery(expr as ValuesQuery));
 
         // WITH clause and common tables
@@ -90,8 +91,8 @@ export class SchemaCollector implements SqlComponentVisitor<void> {
      */
     public visit(arg: SqlComponent): void {
         // Throws an error if not a SimpleSelectQuery
-        if (!(arg instanceof SimpleSelectQuery)) {
-            throw new Error('Unsupported SQL component type for schema collection.');
+        if (!(arg instanceof SimpleSelectQuery || arg instanceof BinarySelectQuery)) {
+            throw new Error(`Unsupported SQL component type for schema collection. Received: ${arg.constructor.name}. Expected: SimpleSelectQuery or BinarySelectQuery.`);
         }
 
         // initialize schema information
@@ -103,8 +104,11 @@ export class SchemaCollector implements SqlComponentVisitor<void> {
         const cteCollector = new CTECollector();
         this.commonTables = cteCollector.collect(arg);
 
-        // ビジターパターンを使用して要素をスキャンする
+        // Scan elements using the visitor pattern
         this.visitNode(arg);
+
+        // Consolidate tableSchemas
+        this.consolidateTableSchemas();
     }
 
     /**
@@ -129,8 +133,25 @@ export class SchemaCollector implements SqlComponentVisitor<void> {
         // If no handler found, that's ok - we only care about specific components
     }
 
+    private consolidateTableSchemas(): void {
+        const consolidatedSchemas: Map<string, Set<string>> = new Map();
+
+        for (const schema of this.tableSchemas) {
+            if (!consolidatedSchemas.has(schema.name)) {
+                consolidatedSchemas.set(schema.name, new Set(schema.columns));
+            } else {
+                const existingColumns = consolidatedSchemas.get(schema.name);
+                schema.columns.forEach(column => existingColumns?.add(column));
+            }
+        }
+
+        this.tableSchemas = Array.from(consolidatedSchemas.entries()).map(([name, columns]) => {
+            return new TableSchema(name, Array.from(columns));
+        });
+    }
+
     private visitSimpleSelectQuery(query: SimpleSelectQuery): void {
-        // 影響をしりたいのでテーブルリソルバーは使用してはいけない
+        // このクエリで使用されている列を回収する
         const columnCollector = new SelectableColumnCollector();
         const queryColumns = columnCollector.collect(query)
             .filter((column) => column.value instanceof ColumnReference)
@@ -140,21 +161,48 @@ export class SchemaCollector implements SqlComponentVisitor<void> {
                 column: columnRef.column.name
             }));
 
-        // テーブルが物理テーブルである場合、リストアップする
+        // 表名がない列がある場合、エラーを投げる
+        const columnsWithoutTable = queryColumns.filter((columnRef) => columnRef.table === "").map((columnRef) => columnRef.column);
+        if (columnsWithoutTable.length > 0) {
+            throw new Error(`Column reference(s) without table name found in query: ${columnsWithoutTable.join(', ')}`);
+        }
+
+        // If the table is a physical table, list it
         if (query.fromClause && query.fromClause.source.datasource instanceof TableSource) {
             const tableName = query.fromClause.source.datasource.getSourceName();
             if (!this.commonTables.some((table) => table.getSourceAliasName() === tableName)) {
-                // 物理テーブルが含まれている場合、SelectableColumnCollectorを使用して列を収集する
-                const tableAlias = query.fromClause.source.getAliasName();
-                const tableColumns = queryColumns.filter((columnRef) => columnRef.table === tableAlias).map((columnRef) => columnRef.column);
-                const tableSchema = new TableSchema(tableName, tableColumns);
-                this.tableSchemas.push(tableSchema);
+                // If a physical table is included, use SelectableColumnCollector to collect columns
+                const tableAlias = query.fromClause.source.getAliasName() ?? tableName;
+                this.processCollectTableSchema(tableName, tableAlias, queryColumns);
             }
         }
 
-        // JOIN句にカスケードするが、初期バージョンはいったんする－
+        if (query.fromClause?.joins) {
+            for (const join of query.fromClause.joins) {
+                if (join.source.datasource instanceof TableSource) {
+                    const tableName = join.source.datasource.getSourceName();
+                    if (!this.commonTables.some((table) => table.getSourceAliasName() === tableName)) {
+                        // If a physical table is included, use SelectableColumnCollector to collect columns
+                        const tableAlias = join.source.getAliasName() ?? tableName;
+                        this.processCollectTableSchema(tableName, tableAlias, queryColumns);
+                    }
+                }
+            }
+        }
 
-        // サブクエリにカスケードする・・・けど、初期バージョンではそこまでやらないとする。
-        // サブクエリの処理は今後のバージョンで対応予定
+        // Cascade into subqueries... but for the initial version, this is not implemented.
+        // Subquery processing will be supported in future versions.
+    }
+
+    private visitBinarySelectQuery(query: BinarySelectQuery): void {
+        // Visit the left and right queries
+        this.visitNode(query.left);
+        this.visitNode(query.right);
+    }
+
+    private processCollectTableSchema(tableName: string, tableAlias: string, queryColumns: { table: string, column: string }[]): void {
+        const tableColumns = queryColumns.filter((columnRef) => columnRef.table === tableAlias).map((columnRef) => columnRef.column);
+        const tableSchema = new TableSchema(tableName, tableColumns);
+        this.tableSchemas.push(tableSchema);
     }
 }
