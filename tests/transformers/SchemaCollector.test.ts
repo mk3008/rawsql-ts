@@ -1,6 +1,8 @@
 import { describe, expect, test } from 'vitest';
 import { SelectQueryParser } from '../../src/parsers/SelectQueryParser';
 import { SchemaCollector } from '../../src/transformers/SchemaCollector';
+import { TableColumnResolver } from '../../src/transformers/TableColumnResolver';
+
 // Test cases for SchemaCollector
 
 describe('SchemaCollector', () => {
@@ -196,5 +198,49 @@ describe('SchemaCollector', () => {
         expect(schemaInfo[0].columns).toEqual(['id', 'name']);
         expect(schemaInfo[1].name).toBe('orders');
         expect(schemaInfo[1].columns).toEqual(['user_id', 'amount']);
+    });
+});
+
+describe('SchemaCollector with TableColumnResolver', () => {
+    test('resolves wildcard columns using TableColumnResolver', () => {
+        // Arrange
+        const sql = `SELECT * FROM users`;
+        const query = SelectQueryParser.parse(sql);
+        const mockResolver: TableColumnResolver = (tableName) => {
+            if (tableName === 'users') {
+                return ['id', 'name', 'email'];
+            }
+            return [];
+        };
+        const collector = new SchemaCollector(mockResolver);
+
+        // Act
+        const schemaInfo = collector.collect(query);
+
+        // Assert
+        expect(schemaInfo.length).toBe(1);
+        expect(schemaInfo[0].name).toBe('users');
+        expect(new Set(schemaInfo[0].columns)).toStrictEqual(new Set(['id', 'name', 'email']));
+    });
+
+    test('resolves wildcard columns with alias using TableColumnResolver', () => {
+        // Arrange
+        const sql = `SELECT u.* FROM users as u`;
+        const query = SelectQueryParser.parse(sql);
+        const mockResolver: TableColumnResolver = (tableName) => {
+            if (tableName === 'users') {
+                return ['id', 'name', 'email'];
+            }
+            return [];
+        };
+        const collector = new SchemaCollector(mockResolver);
+
+        // Act
+        const schemaInfo = collector.collect(query);
+
+        // Assert
+        expect(schemaInfo.length).toBe(1);
+        expect(schemaInfo[0].name).toBe('users');
+        expect(new Set(schemaInfo[0].columns)).toStrictEqual(new Set(['id', 'name', 'email']));
     });
 });
