@@ -22,7 +22,15 @@ export class ValueParser {
 
         // Error if there are remaining tokens
         if (result.newIndex < lexemes.length) {
-            throw new Error(`[ValueParser] Unexpected token at index ${result.newIndex}: ${lexemes[result.newIndex].value}`);
+            const start = Math.max(0, result.newIndex - 2);
+            const end = Math.min(lexemes.length, result.newIndex + 3);
+            const context = lexemes.slice(start, end).map((lexeme, idx) => {
+                const marker = idx + start === result.newIndex ? '>' : ' ';
+                const typeName = TokenType[lexeme.type] || lexeme.type; // Convert type to name if possible
+                return `${marker} ${idx + start}:${lexeme.value} [${typeName}]`;
+            }).join('\n');
+
+            throw new Error(`[ValueParser] Unexpected token at index ${result.newIndex}: ${lexemes[result.newIndex].value}\nContext:\n${context}`);
         }
 
         return result.value;
