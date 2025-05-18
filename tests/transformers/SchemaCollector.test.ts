@@ -3,6 +3,8 @@ import { SelectQueryParser } from '../../src/parsers/SelectQueryParser';
 import { SchemaCollector } from '../../src/transformers/SchemaCollector';
 import { TableColumnResolver } from '../../src/transformers/TableColumnResolver';
 
+const DEBUG = process.env.DEBUG === 'true'; // Add DEBUG flag
+
 // Test cases for SchemaCollector
 
 describe('SchemaCollector', () => {
@@ -206,7 +208,9 @@ describe('SchemaCollector', () => {
         const collector = new SchemaCollector();
         const result = collector.collect(query);
         // This might fail or produce unexpected results, which is the goal for now
-        console.log('Subquery Alias Test Result:', JSON.stringify(result, null, 2));
+        if (DEBUG) {
+            console.log('Subquery Alias Test Result:', JSON.stringify(result, null, 2));
+        }
         // For now, we'll just check if it runs without throwing a *different* kind of error
         // and later refine assertions based on expected behavior or error.
         expect(result).toBeDefined();
@@ -218,7 +222,9 @@ describe('SchemaCollector', () => {
         const collector = new SchemaCollector();
         const result = collector.collect(query);
         // This might fail or produce unexpected results, which is the goal for now
-        console.log('CTE Alias Test Result:', JSON.stringify(result, null, 2));
+        if (DEBUG) {
+            console.log('CTE Alias Test Result:', JSON.stringify(result, null, 2));
+        }
         // For now, we'll just check if it runs without throwing a *different* kind of error
         // and later refine assertions based on expected behavior or error.
         expect(result).toBeDefined();
