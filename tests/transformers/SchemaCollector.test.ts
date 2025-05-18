@@ -301,14 +301,9 @@ order by
         `;
         const query = SelectQueryParser.parse(sql);
         const collector = new SchemaCollector();
-        const result = collector.collect(query);
-        // This might fail or produce unexpected results, which is the goal for now
-        console.log('Complex CTE and Subquery Test Result:', JSON.stringify(result, null, 2));
-        // For now, we'll just check if it runs without throwing a *different* kind of error
-        // and later refine assertions based on expected behavior or error.
-        expect(result).toBeDefined();
+        const schemaInfo = collector.collect(query);
+        expect(schemaInfo.length).toBe(0);
     });
-
 });
 
 describe('SchemaCollector with TableColumnResolver', () => {
@@ -376,5 +371,92 @@ describe('SchemaCollector with TableColumnResolver', () => {
         expect(() => {
             collector.collect(query);
         }).toThrowError(`Wildcard (*) is used. A TableColumnResolver is required to resolve wildcards. Target table: u`);
+    });
+
+    test('should collect schema from a complex query referencing a physical table `dat`', () => {
+        // Arrange
+        const sql = `
+with
+detail as (
+    select  
+        q.*,
+        trunc(q.price * (1 + q.tax_rate)) - q.price as tax,
+        q.price * (1 + q.tax_rate) - q.price as raw_tax
+    from
+        (
+            select
+                dat.*,
+                (dat.unit_price * dat.quantity) as price
+            from
+                dat
+        ) q
+), 
+tax_summary as (
+    select
+        d.tax_rate,
+        trunc(sum(raw_tax)) as total_tax
+    from
+        detail d
+    group by
+        d.tax_rate
+)
+select 
+   line_id,
+    name,
+    unit_price,
+    quantity,
+    tax_rate,
+    price,
+    price + tax as tax_included_price,
+    tax
+from
+    (
+        select
+            line_id,
+            name,
+            unit_price,
+            quantity,
+            tax_rate,
+            price,
+            tax + adjust_tax as tax
+        from
+            (
+                select
+                    q.*,
+                    case when q.total_tax - q.cumulative >= q.priority then 1 else 0 end as adjust_tax
+                from
+                    (
+                        select  
+                            d.*, 
+                            s.total_tax,
+                            sum(d.tax) over (partition by d.tax_rate) as cumulative,
+                            row_number() over (partition by d.tax_rate order by d.raw_tax % 1 desc, d.line_id) as priority
+                        from
+                            detail d
+                            inner join tax_summary s on d.tax_rate = s.tax_rate
+                    ) q
+            ) q
+    ) q
+order by 
+    line_id
+        `;
+        const query = SelectQueryParser.parse(sql);
+        const mockResolver: TableColumnResolver = (tableName) => {
+            if (tableName === 'dat') {
+                // Simulate the columns of the physical table 'dat'
+                return ['line_id', 'name', 'unit_price', 'quantity', 'tax_rate'];
+            }
+            return []; // Return empty for other tables if not specified
+        };
+        const collector = new SchemaCollector(mockResolver);
+
+        // Act
+        const schemaInfo = collector.collect(query);
+
+        // Assert
+        expect(schemaInfo.length).toBe(1);
+        expect(schemaInfo[0].name).toBe('dat');
+        // Columns should be sorted alphabetically by the collector
+        expect(schemaInfo[0].columns).toEqual(['line_id', 'name', 'quantity', 'tax_rate', 'unit_price']);
     });
 });
