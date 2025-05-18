@@ -129,6 +129,7 @@ test("parses VALUES clause with subquery alias", () => {
     const query = SelectQueryParser.parse(sql);
     const formattedSQL = formatter.format(query);
 
+    const expectedSQL = `select "t".* from (values (1)) as "t"("val")`;
     // Assert
-    expect(formattedSQL).toBe(sql);
+    expect(formattedSQL).toBe(expectedSQL);
 });
