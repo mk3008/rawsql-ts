@@ -124,13 +124,14 @@ export class SelectableColumnCollector implements SqlComponentVisitor<void> {
             if (value && typeof (value as any).getNamespace === 'function') {
                 tableName = (value as any).getNamespace() || '';
             }
-            const key = tableName + '.' + name;
+            const key = tableName ? tableName + '.' + name : name;
             if (!this.selectValues.some(item => {
                 let itemTable = '';
                 if (item.value && typeof (item.value as any).getNamespace === 'function') {
                     itemTable = (item.value as any).getNamespace() || '';
                 }
-                return (itemTable + '.' + item.name) === key;
+                const itemKey = itemTable ? itemTable + '.' + item.name : item.name;
+                return itemKey === key;
             })) {
                 this.selectValues.push({ name, value });
             }
