@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { SelectableColumnCollector } from '../../src/transformers/SelectableColumnCollector';
+import { SelectableColumnCollector, DuplicateDetectionMode } from '../../src/transformers/SelectableColumnCollector';
 import { SelectQueryParser } from '../../src/parsers/SelectQueryParser';
 import { SqlFormatter } from '../../src/transformers/Formatter';
 
@@ -22,7 +22,7 @@ describe('SelectableColumnCollector', () => {
         const columnNamesColumn = itemsColumn.map(item => item.name);
 
         // Duplicate detection by table name + column name
-        const collectorTableColumn = new SelectableColumnCollector(undefined, false, 'fullName');
+        const collectorTableColumn = new SelectableColumnCollector(undefined, false, DuplicateDetectionMode.FullName);
         collectorTableColumn.visit(query);
         const itemsTableColumn = collectorTableColumn.collect(query);
         const columnNamesTableColumn = itemsTableColumn.map(item => item.name);
