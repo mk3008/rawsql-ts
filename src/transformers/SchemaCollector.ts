@@ -41,7 +41,8 @@ export class SchemaCollector implements SqlComponentVisitor<void> {
 
     /**
      * Collects schema information (table names and column names) from a SQL query structure.
-     * This method ensures that the collected schema information is unique, but the order of the results is not guaranteed.
+     * This method ensures that the collected schema information is unique and sorted.
+     * The resulting schemas and columns are sorted alphabetically to ensure deterministic ordering.
      *
      * @param arg The SQL query structure to analyze.
      */
@@ -54,7 +55,8 @@ export class SchemaCollector implements SqlComponentVisitor<void> {
      * Main entry point for the visitor pattern.
      * Implements the shallow visit pattern to distinguish between root and recursive visits.
      *
-     * This method ensures that schema information is collected uniquely, but the order of the results is not guaranteed.
+     * This method ensures that schema information is collected uniquely and sorted.
+     * The resulting schemas and columns are sorted alphabetically to ensure deterministic ordering.
      *
      * @param arg The SQL component to visit.
      */
@@ -125,8 +127,7 @@ export class SchemaCollector implements SqlComponentVisitor<void> {
      * This ensures that each table name appears only once in the final schema list,
      * with all its columns combined while removing duplicates.
      *
-     * Note: The order of the resulting schemas and columns is not guaranteed,
-     * as uniqueness is prioritized over maintaining a specific order.
+     * Note: The resulting schemas and columns are sorted alphabetically to ensure deterministic ordering.
      */
     private consolidateTableSchemas(): void {
         const consolidatedSchemas: Map<string, Set<string>> = new Map();
@@ -140,9 +141,11 @@ export class SchemaCollector implements SqlComponentVisitor<void> {
             }
         }
 
-        this.tableSchemas = Array.from(consolidatedSchemas.entries()).map(([name, columns]) => {
-            return new TableSchema(name, Array.from(columns));
-        });
+        this.tableSchemas = Array.from(consolidatedSchemas.entries())
+            .sort(([nameA], [nameB]) => nameA.localeCompare(nameB)) // Sort by table name
+            .map(([name, columns]) => {
+                return new TableSchema(name, Array.from(columns).sort()); // Sort columns alphabetically
+            });
     }
 
     private handleTableSource(source: SourceExpression, queryColumns: { table: string, column: string }[], includeUnnamed: boolean): void {

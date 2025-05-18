@@ -32,10 +32,10 @@ describe('SchemaCollector', () => {
 
         // Assert
         expect(schemaInfo.length).toBe(2);
-        expect(schemaInfo[0].name).toBe('users');
-        expect(schemaInfo[0].columns).toEqual(['id', 'name']);
-        expect(schemaInfo[1].name).toBe('orders');
-        expect(schemaInfo[1].columns).toEqual(['order_id', 'user_id']);
+        expect(schemaInfo[0].name).toBe('orders'); // Adjusted order due to sorting
+        expect(schemaInfo[0].columns).toEqual(['order_id', 'user_id']); // Adjusted order due to sorting
+        expect(schemaInfo[1].name).toBe('users'); // Adjusted order due to sorting
+        expect(schemaInfo[1].columns).toEqual(['id', 'name']); // Adjusted order due to sorting
     });
 
     test('collects schema information from UNION query', () => {
@@ -53,10 +53,10 @@ describe('SchemaCollector', () => {
 
         // Assert
         expect(schemaInfo.length).toBe(2);
-        expect(schemaInfo[0].name).toBe('users');
-        expect(schemaInfo[0].columns).toEqual(['id', 'name']);
-        expect(schemaInfo[1].name).toBe('customers');
-        expect(schemaInfo[1].columns).toEqual(['id', 'email']);
+        expect(schemaInfo[0].name).toBe('customers'); // Adjusted order due to sorting
+        expect(schemaInfo[0].columns).toEqual(['email', 'id']); // Adjusted order due to sorting
+        expect(schemaInfo[1].name).toBe('users'); // Adjusted order due to sorting
+        expect(schemaInfo[1].columns).toEqual(['id', 'name']); // Adjusted order due to sorting
     });
 
     test('merges schema information for the same table referenced multiple times in UNION query', () => {
@@ -75,7 +75,7 @@ describe('SchemaCollector', () => {
         // Assert
         expect(schemaInfo.length).toBe(1);
         expect(schemaInfo[0].name).toBe('users');
-        expect(schemaInfo[0].columns).toEqual(['id', 'name', 'email']);
+        expect(schemaInfo[0].columns).toEqual(['email', 'id', 'name']); // Adjusted order due to sorting
     });
 
     test('collects schema information from three UNION queries', () => {
@@ -96,7 +96,7 @@ describe('SchemaCollector', () => {
         // Assert
         expect(schemaInfo.length).toBe(1);
         expect(schemaInfo[0].name).toBe('users');
-        expect(schemaInfo[0].columns).toEqual(['id', 'name', 'email', 'address']);
+        expect(schemaInfo[0].columns).toEqual(['address', 'email', 'id', 'name']); // Adjusted order due to sorting
     });
 
     test('collects schema information from CTE used in FROM clause', () => {
@@ -153,10 +153,10 @@ describe('SchemaCollector', () => {
 
         // Assert
         expect(schemaInfo.length).toBe(2);
-        expect(schemaInfo[0].name).toBe('users');
-        expect(schemaInfo[0].columns).toEqual(['id', 'name']);
-        expect(schemaInfo[1].name).toBe('orders');
-        expect(schemaInfo[1].columns).toEqual(['order_id', 'user_id']);
+        expect(schemaInfo[0].name).toBe('orders'); // Adjusted order due to sorting
+        expect(schemaInfo[0].columns).toEqual(['order_id', 'user_id']); // Adjusted order due to sorting
+        expect(schemaInfo[1].name).toBe('users'); // Adjusted order due to sorting
+        expect(schemaInfo[1].columns).toEqual(['id', 'name']); // Adjusted order due to sorting
     });
 
     test('collects schema information from subquery in FROM clause', () => {
@@ -194,10 +194,10 @@ describe('SchemaCollector', () => {
 
         // Assert
         expect(schemaInfo.length).toBe(2);
-        expect(schemaInfo[0].name).toBe('users');
-        expect(schemaInfo[0].columns).toEqual(['id', 'name']);
-        expect(schemaInfo[1].name).toBe('orders');
-        expect(schemaInfo[1].columns).toEqual(['user_id', 'amount']);
+        expect(schemaInfo[0].name).toBe('orders'); // Adjusted order due to sorting
+        expect(schemaInfo[0].columns).toEqual(['amount', 'user_id']); // Adjusted order due to sorting
+        expect(schemaInfo[1].name).toBe('users'); // Adjusted order due to sorting
+        expect(schemaInfo[1].columns).toEqual(['id', 'name']); // Adjusted order due to sorting
     });
 });
 
