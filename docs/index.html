@@ -80,6 +80,7 @@
             <div class="tab-nav" id="right-tab-nav">
                 <button class="tab-button active" data-tab="formatted" data-pane="right">SQL Output</button>
                 <button class="tab-button" data-tab="analysis1" data-pane="right">SQL Resources</button>
+                <button class="tab-button" data-tab="schema" data-pane="right">Schema</button>
                 <!-- <button class="tab-button" data-tab="analysis2" data-pane="right">Analysis 2</button> -->
             </div>
             <div class="tab-content-area" id="right-tab-content-area">
@@ -111,6 +112,9 @@
                             <!-- CTE names will be dynamically inserted here -->
                         </ul>
                     </div>
+                    <!-- Schema tab moved to its own tab below -->
+                </div>
+                <div id="schema-tab" class="tab-content">
                     <div class="editor-header" style="display: flex; align-items: center; gap: 10px; margin-top: 20px;">
                         <h2 style="margin-right: auto;">Schema</h2>
                         <button id="copy-schema-info-btn">copy</button>
@@ -119,13 +123,16 @@
                         <textarea id="schema-info-json-editor"></textarea>
                     </div>
                 </div>
-                <div id="analysis2-tab" class="tab-content">
-                    <h2>Analysis 2</h2>
-                    <p>ここに解析結果2が表示されるよ。</p>
-                    <!-- TODO: Add content for Analysis 2 -->
-                </div>
             </div>
         </div>
+
+        <div id="analysis2-tab" class="tab-content">
+            <h2>Analysis 2</h2>
+            <p>ここに解析結果2が表示されるよ。</p>
+            <!-- TODO: Add content for Analysis 2 -->
+        </div>
+    </div>
+    </div>
     </div>
     <div id="status-bar" style="margin-top: 10px; color: gray;">Ready</div>
     <div class="license-info" style="font-size: 0.8em; color: #aaa; text-align: center; margin-top: 5px;">
