@@ -29,6 +29,7 @@ export class SchemaCollector implements SqlComponentVisitor<void> {
     private tableSchemas: TableSchema[] = [];
     private visitedNodes: Set<SqlComponent> = new Set();
     private commonTables: CommonTable[] = [];
+    private running = false;
 
     constructor(private tableColumnResolver: TableColumnResolver | null = null) {
         this.handlers = new Map<symbol, (arg: any) => void>();
@@ -38,16 +39,24 @@ export class SchemaCollector implements SqlComponentVisitor<void> {
         this.handlers.set(BinarySelectQuery.kind, (expr) => this.visitBinarySelectQuery(expr as BinarySelectQuery));
     }
 
+    /**
+     * Collects schema information (table names and column names) from a SQL query structure.
+     * This method ensures that the collected schema information is unique, but the order of the results is not guaranteed.
+     *
+     * @param arg The SQL query structure to analyze.
+     */
     public collect(arg: SqlComponent): TableSchema[] {
         this.visit(arg);
         return this.tableSchemas;
     }
 
-    private running = false;
-
     /**
      * Main entry point for the visitor pattern.
      * Implements the shallow visit pattern to distinguish between root and recursive visits.
+     *
+     * This method ensures that schema information is collected uniquely, but the order of the results is not guaranteed.
+     *
+     * @param arg The SQL component to visit.
      */
     public visit(arg: SqlComponent): void {
         // If not a root visit, just visit the node and return
@@ -111,6 +120,14 @@ export class SchemaCollector implements SqlComponentVisitor<void> {
         this.commonTables = [];
     }
 
+    /**
+     * Consolidates table schemas by merging columns for tables with the same name.
+     * This ensures that each table name appears only once in the final schema list,
+     * with all its columns combined while removing duplicates.
+     *
+     * Note: The order of the resulting schemas and columns is not guaranteed,
+     * as uniqueness is prioritized over maintaining a specific order.
+     */
     private consolidateTableSchemas(): void {
         const consolidatedSchemas: Map<string, Set<string>> = new Map();
 

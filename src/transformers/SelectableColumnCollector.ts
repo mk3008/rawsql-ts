@@ -311,12 +311,10 @@ export class SelectableColumnCollector implements SqlComponentVisitor<void> {
             this.addSelectValueAsUnique(columnRef.column.name, columnRef);
         } else if (!this.tableColumnResolver && this.throwOnUnresolvedWildcard) {
             const tableName = columnRef.getNamespace();
-            if (tableName) {
-                const errorMessage = `Wildcard (*) is used. A TableColumnResolver is required to resolve wildcards. Target table: ${tableName}`;
-                throw new Error(errorMessage);
-            }
-            const generalErrorMessage = "Wildcard (*) is used. A TableColumnResolver is required to resolve wildcards.";
-            throw new Error(generalErrorMessage);
+            const errorMessage = tableName
+                ? `Wildcard (*) is used. A TableColumnResolver is required to resolve wildcards. Target table: ${tableName}`
+                : "Wildcard (*) is used. A TableColumnResolver is required to resolve wildcards.";
+            throw new Error(errorMessage);
         }
     }
 
