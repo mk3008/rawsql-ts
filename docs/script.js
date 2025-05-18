@@ -1,5 +1,5 @@
 // Import rawsql-ts modules
-import { SelectQueryParser, SqlFormatter, TableSourceCollector, CTECollector } from "https://unpkg.com/rawsql-ts@0.7.2-beta/dist/esm/index.js";
+import { SelectQueryParser, SqlFormatter, TableSourceCollector, CTECollector, SchemaCollector } from "https://unpkg.com/rawsql-ts@0.8.2-beta/dist/esm/index.js";
 
 const sqlInputEditor = CodeMirror.fromTextArea(document.getElementById('sql-input'), {
     mode: 'text/x-sql',
@@ -34,8 +34,11 @@ const clearInputBtn = document.getElementById('clear-input-btn');
 const copyOutputBtn = document.getElementById('copy-output-btn');
 const tableList = document.getElementById("table-list");
 const cteList = document.getElementById("cte-list"); // Added for CTE list
+const schemaInfoJsonEditorEl = document.getElementById("schema-info-json-editor"); // Updated for CodeMirror
+let schemaInfoEditor; // For CodeMirror instance
 const copyTableListBtn = document.getElementById('copy-table-list-btn');
 const copyCteListBtn = document.getElementById('copy-cte-list-btn'); // Added for CTE list copy button
+const copySchemaInfoBtn = document.getElementById('copy-schema-info-btn'); // Ensure this is present
 
 
 // Tab switching logic
@@ -70,6 +73,9 @@ function initializeTabs(paneId) {
             if (tabId === 'style-config' && styleJsonEditor) { // Added refresh for styleJsonEditor
                 styleJsonEditor.refresh();
             }
+            if (tabId === 'analysis1' && schemaInfoEditor) { // Added refresh for schemaInfoEditor
+                schemaInfoEditor.refresh();
+            }
             // TODO: Add similar refresh logic if other tabs get CodeMirror instances
         });
     });
@@ -91,15 +97,16 @@ sqlInputEditor.setValue(initialSql);
 function updateStatusBar(message, isError = false) {
     statusBar.textContent = message;
     statusBar.style.color = isError ? 'red' : 'green';
-    // Clear previous timer if any
     if (statusBar.timer) {
         clearTimeout(statusBar.timer);
     }
-    if (!isError) { // Only reset to 'Ready' if it's not an error message
+    // For non-error messages, or specific short error messages, auto-clear.
+    // For persistent error messages (like parse errors), don't auto-clear.
+    if (!isError || message.length < 50) { // Heuristic for auto-clear
         statusBar.timer = setTimeout(() => {
             statusBar.textContent = 'Ready';
             statusBar.style.color = 'gray';
-        }, 3000); // Reset after 3 seconds
+        }, 3000);
     }
 }
 
@@ -117,42 +124,42 @@ function formatSql() {
         const activeLeftTabButton = document.querySelector('#left-pane .tab-button.active');
 
         if (activeLeftTabButton && activeLeftTabButton.dataset.tab === 'style-config' && styleJsonEditor) {
-            // Preview mode: Use current content of styleJsonEditor if valid
             try {
                 const previewStyleJson = styleJsonEditor.getValue();
                 if (previewStyleJson.trim()) {
                     formatOptions = JSON.parse(previewStyleJson);
                     updateStatusBar('Previewing with current style editor content.', false);
                 } else {
-                    // Editor is empty, try to use selected style from dropdown
                     const selectedStyleName = styleSelect.value;
                     if (selectedStyleName && currentStyles[selectedStyleName]) {
                         formatOptions = currentStyles[selectedStyleName];
                     }
                 }
             } catch (e) {
-                updateStatusBar(`Error in Style JSON (preview): \\${e.message}`, true);
-                // Don't format if preview JSON is invalid, or use last known good/selected style
-                // For now, let's prevent formatting with invalid JSON
+                updateStatusBar(`Error in Style JSON (preview): ${e.message}`, true);
                 formattedSqlEditor.setValue("Invalid JSON in Style Editor. Cannot format SQL for preview.");
                 return;
             }
         } else {
-            // Normal mode: Use selected style from dropdown
             const selectedStyleName = styleSelect.value;
             if (selectedStyleName && currentStyles[selectedStyleName]) {
                 formatOptions = currentStyles[selectedStyleName];
             }
         }
 
-        const query = SelectQueryParser.parse(sqlText);
-        const formatter = new SqlFormatter(formatOptions); // Use selected/parsed options
+        const query = SelectQueryParser.parse(sqlText); // MODIFIED
+        const formatter = new SqlFormatter(formatOptions); // MODIFIED
         const formattedSql = formatter.format(query).formattedSql;
         formattedSqlEditor.setValue(formattedSql);
         updateStatusBar('SQL formatted successfully.');
     } catch (error) {
         console.error("Error formatting SQL:", error);
-        updateStatusBar(`Error formatting SQL: ${error.message}`, true);
+        let errorMessage = `Error formatting SQL: ${error.message}`;
+        if (error.name === 'ParseError' && error.details) { // Display detailed parse error
+            errorMessage += `\\nAt line ${error.details.startLine}, column ${error.details.startColumn}. Found: '${error.details.found}'`;
+        }
+        updateStatusBar(errorMessage, true);
+        formattedSqlEditor.setValue(errorMessage); // Show error in output editor
     }
 }
 
@@ -172,6 +179,7 @@ clearInputBtn.addEventListener('click', () => {
     formattedSqlEditor.setValue(''); // Also clear output
     updateTableList(''); // Clear table list as well
     updateCTEList(''); // Clear CTE list as well
+    updateSchemaInfo(''); // Ensure this line is present to clear schema info
     updateStatusBar('Input cleared.');
     sqlInputEditor.focus(); // Focus back to input
 });
@@ -207,23 +215,31 @@ if (copyTableListBtn) {
 if (copyCteListBtn) {
     copyCteListBtn.addEventListener('click', () => {
         if (cteList && cteList.children.length > 0) {
-            const cteNames = Array.from(cteList.children)
-                .map(li => li.textContent)
-                .filter(name => name && !name.startsWith("(")) // Filter out placeholder messages
-                .join("\n");
-
-            if (cteNames) {
-                navigator.clipboard.writeText(cteNames).then(() => {
-                    updateStatusBar('CTE list copied to clipboard!');
-                }).catch(err => {
-                    console.error('Failed to copy CTE list: ', err);
-                    updateStatusBar('Failed to copy CTE list.', true);
-                });
-            } else {
-                updateStatusBar('No CTE names to copy.', true);
-            }
+            const textToCopy = Array.from(cteList.children).map(li => li.textContent).join('\n');
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                updateStatusBar('CTE list copied to clipboard.');
+            }).catch(err => {
+                console.error('Failed to copy CTE list: ', err);
+                updateStatusBar('Failed to copy CTE list.', true);
+            });
         } else {
-            updateStatusBar('CTE list is empty.', true);
+            updateStatusBar('No CTEs to copy.', true);
+        }
+    });
+}
+
+// Event listener for Copy Schema Info button - Ensure this is present
+if (copySchemaInfoBtn) {
+    copySchemaInfoBtn.addEventListener('click', () => {
+        if (schemaInfoEditor && schemaInfoEditor.getValue() && schemaInfoEditor.getValue() !== 'Error collecting schema info.' && schemaInfoEditor.getValue() !== '(SQL input is empty)') {
+            navigator.clipboard.writeText(schemaInfoEditor.getValue()).then(() => {
+                updateStatusBar('Schema info copied to clipboard.');
+            }).catch(err => {
+                console.error('Failed to copy schema info: ', err);
+                updateStatusBar('Failed to copy schema info.', true);
+            });
+        } else {
+            updateStatusBar('No schema info to copy.', true);
         }
     });
 }
@@ -555,7 +571,6 @@ document.addEventListener('DOMContentLoaded', () => {
         styleJsonEditor.on('changes', () => {
             if (styleDebounceTimer) clearTimeout(styleDebounceTimer);
             styleDebounceTimer = setTimeout(() => {
-                // Only format if the style-config tab is active
                 const activeLeftTabButton = document.querySelector('#left-pane .tab-button.active');
                 if (activeLeftTabButton && activeLeftTabButton.dataset.tab === 'style-config') {
                     formatSql();
@@ -565,6 +580,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     } else {
         console.error("style-json-editor textarea not found!");
+    }
+
+    // Initialize CodeMirror for Schema Info (MOVED EARLIER)
+    if (schemaInfoJsonEditorEl) {
+        schemaInfoEditor = CodeMirror.fromTextArea(schemaInfoJsonEditorEl, {
+            mode: { name: "javascript", json: true },
+            lineNumbers: true,
+            theme: 'default',
+            readOnly: true,
+            lineWrapping: true
+        });
+        schemaInfoEditor.setSize(null, 200); // Adjust height as needed
+    } else {
+        console.error("schema-info-json-editor textarea not found!");
     }
 
     // Initialize tabs for both panes
@@ -580,14 +609,15 @@ document.addEventListener('DOMContentLoaded', () => {
     formatSql(); // Initial format
     setupTableListAutoUpdate(); // Setup auto-update for table list
     setupCTEListAutoUpdate(); // Setup auto-update for CTE list
+    setupSchemaInfoAutoUpdate(); // Now schemaInfoEditor is initialized for the direct call
 
     // Activate the first tab in each pane if not already set by HTML
     const firstLeftTab = document.querySelector('#left-pane .tab-button');
-    if (firstLeftTab) {
+    if (firstLeftTab && !firstLeftTab.classList.contains('active')) {
         firstLeftTab.click();
     }
     const firstRightTab = document.querySelector('#right-pane .tab-button');
-    if (firstRightTab) {
+    if (firstRightTab && !firstRightTab.classList.contains('active')) {
         firstRightTab.click();
     }
 });
@@ -609,8 +639,10 @@ function updateTableList(sqlText) {
     }
 
     try {
-        const ast = SelectQueryParser.parse(sqlText);
-        const collector = new TableSourceCollector();
+        const ast = SelectQueryParser.parse(sqlText); // MODIFIED
+
+        // find all table sources
+        const collector = new TableSourceCollector(false); // MODIFIED
         const tables = collector.collect(ast);
 
         if (tables.length === 0) {
@@ -628,10 +660,12 @@ function updateTableList(sqlText) {
     } catch (error) {
         console.error("Error parsing SQL for table list:", error);
         const li = document.createElement('li');
-        li.textContent = '(Error parsing SQL)';
+        let errorText = '(Error parsing SQL for table list)';
+        if (error.name === 'ParseError' && error.message) {
+            errorText = `(Parse Error: ${error.message.substring(0, 50)}...)`; // Keep it short
+        }
+        li.textContent = errorText;
         tableList.appendChild(li);
-        // Optionally, display a more specific error message or log it
-        // updateStatusBar(`Error for table list: ${error.message}`, true);
     }
 }
 
@@ -639,10 +673,7 @@ function setupTableListAutoUpdate() {
     let tableListDebounceTimer = null;
     sqlInputEditor.on('changes', () => {
         if (tableListDebounceTimer) clearTimeout(tableListDebounceTimer);
-        tableListDebounceTimer = setTimeout(() => {
-            const sqlText = sqlInputEditor.getValue();
-            updateTableList(sqlText);
-        }, DEBOUNCE_DELAY);
+        tableListDebounceTimer = setTimeout(() => updateTableList(sqlInputEditor.getValue()), DEBOUNCE_DELAY);
     });
     // Initial population
     updateTableList(sqlInputEditor.getValue());
@@ -651,8 +682,7 @@ function setupTableListAutoUpdate() {
 // --- CTE List Logic ---
 function updateCTEList(sqlText) {
     if (!cteList) return;
-    cteList.innerHTML = ''; // Clear previous list
-
+    cteList.innerHTML = '';
     if (!sqlText.trim()) {
         const li = document.createElement('li');
         li.textContent = '(SQL input is empty)';
@@ -661,29 +691,29 @@ function updateCTEList(sqlText) {
     }
 
     try {
-        const ast = SelectQueryParser.parse(sqlText);
-        const collector = new CTECollector();
-        const ctes = collector.collect(ast); // Assuming collect method exists and returns an array of CTEs
-
-        if (ctes.length === 0) {
-            const li = document.createElement('li');
-            li.textContent = '(No CTEs found)';
-            cteList.appendChild(li);
-        } else {
-            // Extracting CTE names - trying with .value based on common rawsql-ts patterns
-            const uniqueCteNames = [...new Set(ctes.map(cte => cte.getSourceAliasName()))];
-            uniqueCteNames.forEach(cteName => {
-                const li = document.createElement('li');
-                li.textContent = cteName;
-                cteList.appendChild(li);
+        const query = SelectQueryParser.parse(sqlText); // MODIFIED
+        const cteCollector = new CTECollector(); // MODIFIED
+        const ctes = cteCollector.collect(query);
+        if (ctes.length > 0) {
+            ctes.forEach(cte => {
+                const listItem = document.createElement('li');
+                listItem.textContent = cte.getSourceAliasName();
+                cteList.appendChild(listItem); // ADDED: Append to list
             });
+        } else {
+            const listItem = document.createElement('li');
+            listItem.textContent = '(No CTEs found)';
+            cteList.appendChild(listItem);
         }
     } catch (error) {
-        console.error("Error parsing SQL for CTE list:", error);
-        const li = document.createElement('li');
-        li.textContent = '(Error parsing SQL for CTEs)';
-        cteList.appendChild(li);
-        // updateStatusBar(`Error for CTE list: ${error.message}`, true);
+        console.error("Error collecting CTEs:", error);
+        const listItem = document.createElement('li');
+        let errorText = 'Error collecting CTEs.';
+        if (error.name === 'ParseError' && error.message) {
+            errorText = `(Parse Error: ${error.message.substring(0, 50)}...)`; // Keep it short
+        }
+        listItem.textContent = errorText;
+        cteList.appendChild(listItem);
     }
 }
 
@@ -691,11 +721,58 @@ function setupCTEListAutoUpdate() {
     let cteListDebounceTimer = null;
     sqlInputEditor.on('changes', () => {
         if (cteListDebounceTimer) clearTimeout(cteListDebounceTimer);
-        cteListDebounceTimer = setTimeout(() => {
-            const sqlText = sqlInputEditor.getValue();
-            updateCTEList(sqlText);
-        }, DEBOUNCE_DELAY);
+        cteListDebounceTimer = setTimeout(() => updateCTEList(sqlInputEditor.getValue()), DEBOUNCE_DELAY);
     });
     // Initial population
     updateCTEList(sqlInputEditor.getValue());
+}
+
+// --- Schema Info Logic ---
+function updateSchemaInfo(sqlText) {
+    if (!schemaInfoEditor) return; // Check for CodeMirror instance
+
+    if (!sqlText.trim()) {
+        schemaInfoEditor.setValue('(SQL input is empty)');
+        schemaInfoEditor.refresh(); // Refresh CodeMirror
+        return;
+    }
+
+    try {
+        const query = SelectQueryParser.parse(sqlText); // MODIFIED
+        const schemaCollector = new SchemaCollector(); // MODIFIED
+        const schemaInfo = schemaCollector.collect(query);
+
+        if (schemaInfo && schemaInfo.length > 0) {
+            schemaInfoEditor.setValue(JSON.stringify(schemaInfo, null, 2));
+        } else {
+            schemaInfoEditor.setValue('(No schema information collected or schema is empty)');
+        }
+    } catch (error) {
+        console.error("Error collecting schema info:", error);
+        let errorMessage = 'Error collecting schema info.';
+        if (error.name === 'ParseError' && error.message) {
+            errorMessage = `Error parsing SQL for schema: ${error.message}`;
+            if (error.details) { // Add line/column info if available
+                errorMessage += `\\nAt line ${error.details.startLine}, column ${error.details.startColumn}. Found: '${error.details.found}'`;
+            }
+        } else if (error.message) {
+            errorMessage = `Error collecting schema info: ${error.message}`;
+        }
+        schemaInfoEditor.setValue(errorMessage);
+    }
+    schemaInfoEditor.refresh(); // Refresh CodeMirror
+}
+
+function setupSchemaInfoAutoUpdate() {
+    let schemaInfoDebounceTimer = null;
+    sqlInputEditor.on('changes', () => {
+        if (schemaInfoDebounceTimer) clearTimeout(schemaInfoDebounceTimer);
+        schemaInfoDebounceTimer = setTimeout(() => {
+            const sqlText = sqlInputEditor.getValue();
+            // updateTableList and updateCTEList are handled by their own setup functions
+            updateSchemaInfo(sqlText); // Update schema info
+        }, DEBOUNCE_DELAY);
+    });
+    // Initial population
+    updateSchemaInfo(sqlInputEditor.getValue());
 }

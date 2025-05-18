@@ -23,11 +23,16 @@ export class SelectableColumnCollector implements SqlComponentVisitor<void> {
     private tableColumnResolver: TableColumnResolver | null = null;
     private commonTableCollector: CTECollector;
     private commonTables: CommonTable[] = [];
-    private throwOnUnresolvedWildcard: boolean;
+    private includeWildCard: boolean; // This option controls whether wildcard columns are included in the collection.
 
-    constructor(tableColumnResolver?: TableColumnResolver | null, throwOnUnresolvedWildcard: boolean = false) {
+    /**
+     * Constructs a new SelectableColumnCollector.
+     * @param tableColumnResolver Optional. A resolver to determine actual column names, especially for wildcards.
+     * @param includeWildCard Optional. If true, wildcard columns (e.g., table.* or *) are included in the collected values. Defaults to false.
+     */
+    constructor(tableColumnResolver?: TableColumnResolver | null, includeWildCard: boolean = false) {
         this.tableColumnResolver = tableColumnResolver ?? null;
-        this.throwOnUnresolvedWildcard = throwOnUnresolvedWildcard;
+        this.includeWildCard = includeWildCard;
         this.commonTableCollector = new CTECollector();
         this.commonTables = [];
 
@@ -306,15 +311,12 @@ export class SelectableColumnCollector implements SqlComponentVisitor<void> {
 
     // Value component handlers
     private visitColumnReference(columnRef: ColumnReference): void {
-        // Wildcards are ignored because they cannot be reused even if detected
         if (columnRef.column.name !== "*") {
             this.addSelectValueAsUnique(columnRef.column.name, columnRef);
-        } else if (!this.tableColumnResolver && this.throwOnUnresolvedWildcard) {
-            const tableName = columnRef.getNamespace();
-            const errorMessage = tableName
-                ? `Wildcard (*) is used. A TableColumnResolver is required to resolve wildcards. Target table: ${tableName}`
-                : "Wildcard (*) is used. A TableColumnResolver is required to resolve wildcards.";
-            throw new Error(errorMessage);
+        } else if (!this.includeWildCard) {
+            return;
+        } else {
+            this.addSelectValueAsUnique(columnRef.column.name, columnRef);
         }
     }
 

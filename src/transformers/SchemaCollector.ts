@@ -212,7 +212,22 @@ export class SchemaCollector implements SqlComponentVisitor<void> {
     }
 
     private processCollectTableSchema(tableName: string, tableAlias: string, queryColumns: { table: string, column: string }[], includeUnnamed: boolean = false): void {
+        // If a wildcard is present and no resolver is provided, throw an error
+        if (this.tableColumnResolver === null) {
+            const hasWildcard = queryColumns
+                .filter((columnRef) => columnRef.table === tableAlias || (includeUnnamed && columnRef.table === ""))
+                .filter((columnRef) => columnRef.column === "*")
+                .length > 0;
+            if (hasWildcard) {
+                const errorMessage = tableName
+                    ? `Wildcard (*) is used. A TableColumnResolver is required to resolve wildcards. Target table: ${tableName}`
+                    : "Wildcard (*) is used. A TableColumnResolver is required to resolve wildcards.";
+                throw new Error(errorMessage);
+            }
+        }
+
         let tableColumns = queryColumns
+            .filter((columnRef) => columnRef.column !== "*")
             .filter((columnRef) => columnRef.table === tableAlias || (includeUnnamed && columnRef.table === ""))
             .map((columnRef) => columnRef.column);
 
