@@ -702,7 +702,7 @@ function updateCTEList(sqlText) {
             });
         } else {
             const listItem = document.createElement('li');
-            listItem.textContent = 'No CTEs found.';
+            listItem.textContent = '(No CTEs found)';
             cteList.appendChild(listItem);
         }
     } catch (error) {
