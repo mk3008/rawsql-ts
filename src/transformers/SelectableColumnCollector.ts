@@ -29,6 +29,13 @@ export class SelectableColumnCollector implements SqlComponentVisitor<void> {
      * Option for duplicate detection:
      * - 'columnNameOnly': Only column name is used for duplicate detection (default)
      * - 'fullName': Table name + column name is used for duplicate detection
+     * Constructs a new instance of SelectableColumnCollector.
+     *
+     * @param {TableColumnResolver | null} [tableColumnResolver=null] - A resolver for table columns, used to resolve column references to their respective tables.
+     * @param {boolean} [includeWildCard=false] - Whether to include wildcard columns (e.g., `*`) in the collection.
+     * @param {'columnNameOnly' | 'fullName'} [duplicateDetection='columnNameOnly'] - Option for duplicate detection:
+     *   - 'columnNameOnly': Only column name is used for duplicate detection (default).
+     *   - 'fullName': Table name + column name is used for duplicate detection.
      */
     private duplicateDetection: 'columnNameOnly' | 'fullName';
 
