@@ -1,5 +1,5 @@
 // Import rawsql-ts modules
-import { SelectQueryParser, SqlFormatter, TableSourceCollector, CTECollector, SchemaCollector } from "https://unpkg.com/rawsql-ts@0.8.2-beta/dist/esm/index.js";
+import { SelectQueryParser, SqlFormatter, TableSourceCollector, CTECollector, SchemaCollector } from "https://unpkg.com/rawsql-ts@0.8.3-beta/dist/esm/index.js";
 
 const sqlInputEditor = CodeMirror.fromTextArea(document.getElementById('sql-input'), {
     mode: 'text/x-sql',
@@ -73,7 +73,7 @@ function initializeTabs(paneId) {
             if (tabId === 'style-config' && styleJsonEditor) { // Added refresh for styleJsonEditor
                 styleJsonEditor.refresh();
             }
-            if (tabId === 'analysis1' && schemaInfoEditor) { // Added refresh for schemaInfoEditor
+            if (tabId === 'schema' && schemaInfoEditor) { // Refresh schemaInfoEditor for the new 'schema' tab
                 schemaInfoEditor.refresh();
             }
             // TODO: Add similar refresh logic if other tabs get CodeMirror instances
@@ -591,7 +591,7 @@ document.addEventListener('DOMContentLoaded', () => {
             readOnly: true,
             lineWrapping: true
         });
-        schemaInfoEditor.setSize(null, 200); // Adjust height as needed
+        schemaInfoEditor.setSize(null, 600); // Adjust height as needed
     } else {
         console.error("schema-info-json-editor textarea not found!");
     }

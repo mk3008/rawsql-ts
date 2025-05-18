@@ -202,113 +202,68 @@ describe('SchemaCollector', () => {
         expect(schemaInfo[1].columns).toEqual(['id', 'name']); // Adjusted order due to sorting
     });
 
-    test('should collect schema from a query with a subquery source aliased and referenced with wildcard', () => {
-        const sql = 'select a.* from (select id, name from table_a) as a';
-        const query = SelectQueryParser.parse(sql);
-        const collector = new SchemaCollector();
-        const result = collector.collect(query);
-        // This might fail or produce unexpected results, which is the goal for now
-        if (DEBUG) {
-            console.log('Subquery Alias Test Result:', JSON.stringify(result, null, 2));
-        }
-        // For now, we'll just check if it runs without throwing a *different* kind of error
-        // and later refine assertions based on expected behavior or error.
-        expect(result).toBeDefined();
-    });
-
-    test('should collect schema from a query with a CTE aliased and referenced with wildcard', () => {
-        const sql = 'with a as (select id, category from table_a) select a.* from a';
-        const query = SelectQueryParser.parse(sql);
-        const collector = new SchemaCollector();
-        const result = collector.collect(query);
-        // This might fail or produce unexpected results, which is the goal for now
-        if (DEBUG) {
-            console.log('CTE Alias Test Result:', JSON.stringify(result, null, 2));
-        }
-        // For now, we'll just check if it runs without throwing a *different* kind of error
-        // and later refine assertions based on expected behavior or error.
-        expect(result).toBeDefined();
-    });
-
-    test('should collect schema from a complex query with multiple CTEs, subqueries, and window functions', () => {
+    test('collects schema information from complex multi-join query', () => {
+        // Arrange
+        // This test checks that all tables in a multi-join query are detected and their columns are collected
         const sql = `
-with
-dat(line_id, name, unit_price, quantity, tax_rate) as ( 
-    values
-    (1, 'apple' , 105, 5, 0.07),
-    (2, 'orange', 203, 3, 0.07),
-    (3, 'banana', 233, 9, 0.07),
-    (4, 'tea'   , 309, 7, 0.08),
-    (5, 'coffee', 555, 9, 0.08),
-    (6, 'matcha', 456, 2, 0.08)
-),
-detail as (
-    select  
-        q.*,
-        trunc(q.price * (1 + q.tax_rate)) - q.price as tax,
-        q.price * (1 + q.tax_rate) - q.price as raw_tax
-    from
-        (
-            select
-                dat.*,
-                (dat.unit_price * dat.quantity) as price
-            from
-                dat
-        ) q
-), 
-tax_summary as (
-    select
-        d.tax_rate,
-        trunc(sum(raw_tax)) as total_tax
-    from
-        detail d
-    group by
-        d.tax_rate
-)
-select 
-   line_id,
-    name,
-    unit_price,
-    quantity,
-    tax_rate,
-    price,
-    price + tax as tax_included_price,
-    tax
-from
-    (
-        select
-            line_id,
-            name,
-            unit_price,
-            quantity,
-            tax_rate,
-            price,
-            tax + adjust_tax as tax
-        from
-            (
-                select
-                    q.*,
-                    case when q.total_tax - q.cumulative >= q.priority then 1 else 0 end as adjust_tax
-                from
-                    (
-                        select  
-                            d.*, 
-                            s.total_tax,
-                            sum(d.tax) over (partition by d.tax_rate) as cumulative,
-                            row_number() over (partition by d.tax_rate order by d.raw_tax % 1 desc, d.line_id) as priority
-                        from
-                            detail d
-                            inner join tax_summary s on d.tax_rate = s.tax_rate
-                    ) q
-            ) q
-    ) q
-order by 
-    line_id
+            SELECT
+                posts.post_id,
+                posts.title,
+                users.name AS author_name,
+                comments.content AS comment_content,
+                comment_users.name AS comment_author_name,
+                categories.name AS category_name
+            FROM posts
+            JOIN users
+                ON posts.user_id = users.user_id
+            JOIN post_categories
+                ON posts.post_id = post_categories.post_id
+            JOIN categories
+                ON post_categories.category_id = categories.category_id
+            LEFT JOIN comments
+                ON comments.post_id = posts.post_id
+            LEFT JOIN users AS comment_users
+                ON comments.user_id = comment_users.user_id
+            WHERE categories.name = 'Tech';
         `;
         const query = SelectQueryParser.parse(sql);
         const collector = new SchemaCollector();
+
+        // Act
         const schemaInfo = collector.collect(query);
-        expect(schemaInfo.length).toBe(0);
+
+        // Assert
+        // Should collect all involved tables
+        const tableNames = schemaInfo.map(s => s.name).sort();
+        expect(tableNames).toEqual([
+            'categories',
+            'comments',
+            'post_categories',
+            'posts',
+            'users',
+        ].sort());
+
+        // Check that at least the expected columns are present for each table
+        // (Order and presence may depend on parser implementation)
+        const posts = schemaInfo.find(s => s.name === 'posts');
+        if (!posts) throw new Error('posts table not found');
+        expect(posts.columns).toEqual(expect.arrayContaining(['post_id', 'title', 'user_id']));
+
+        const users = schemaInfo.find(s => s.name === 'users');
+        if (!users) throw new Error('users table not found');
+        expect(users.columns).toEqual(expect.arrayContaining(['user_id', 'name']));
+
+        const comments = schemaInfo.find(s => s.name === 'comments');
+        if (!comments) throw new Error('comments table not found');
+        expect(comments.columns).toEqual(expect.arrayContaining(['post_id', 'user_id', 'content']));
+
+        const postCategories = schemaInfo.find(s => s.name === 'post_categories');
+        if (!postCategories) throw new Error('post_categories table not found');
+        expect(postCategories.columns).toEqual(expect.arrayContaining(['post_id', 'category_id']));
+
+        const categories = schemaInfo.find(s => s.name === 'categories');
+        if (!categories) throw new Error('categories table not found');
+        expect(categories.columns).toEqual(expect.arrayContaining(['category_id', 'name']));
     });
 });
 

@@ -1,9 +1,26 @@
+/**
+ * Enum for duplicate detection modes in SelectableColumnCollector.
+ * Determines how duplicates are identified during column collection.
+ */
+export enum DuplicateDetectionMode {
+    /**
+     * Detect duplicates based only on column names.
+     * This mode ignores the table name, so columns with the same name
+     * from different tables are considered duplicates.
+     */
+    ColumnNameOnly = 'columnNameOnly',
+    /**
+     * Detect duplicates based on both table and column names.
+     * This mode ensures that columns with the same name from different
+     * tables are treated as distinct.
+     */
+    FullName = 'fullName',
+}
 import { CommonTable, ForClause, FromClause, GroupByClause, HavingClause, LimitClause, OrderByClause, SelectClause, WhereClause, WindowFrameClause, WindowsClause, JoinClause, JoinOnClause, JoinUsingClause, TableSource, SubQuerySource, SourceExpression, SelectItem, PartitionByClause, FetchClause, OffsetClause } from "../models/Clause";
 import { SimpleSelectQuery } from "../models/SelectQuery";
 import { SqlComponent, SqlComponentVisitor } from "../models/SqlComponent";
 import { ArrayExpression, BetweenExpression, BinaryExpression, CaseExpression, CastExpression, ColumnReference, FunctionCall, InlineQuery, ParenExpression, UnaryExpression, ValueComponent, ValueList, WindowFrameExpression } from "../models/ValueComponent";
 import { CTECollector } from "./CTECollector";
-import { Formatter } from "./Formatter";
 import { SelectValueCollector } from "./SelectValueCollector";
 import { TableColumnResolver } from "./TableColumnResolver";
 
@@ -24,17 +41,25 @@ export class SelectableColumnCollector implements SqlComponentVisitor<void> {
     private commonTableCollector: CTECollector;
     private commonTables: CommonTable[] = [];
     private includeWildCard: boolean; // This option controls whether wildcard columns are included in the collection.
+    private duplicateDetection: DuplicateDetectionMode;
 
     /**
-     * Constructs a new SelectableColumnCollector.
-     * @param tableColumnResolver Optional. A resolver to determine actual column names, especially for wildcards.
-     * @param includeWildCard Optional. If true, wildcard columns (e.g., table.* or *) are included in the collected values. Defaults to false.
+     * Creates a new instance of SelectableColumnCollector.
+     *
+     * @param {TableColumnResolver | null} [tableColumnResolver=null] - The resolver used to resolve column references to their respective tables.
+     * @param {boolean} [includeWildCard=false] - If true, wildcard columns (e.g., `*`) are included in the collection.
+     * @param {DuplicateDetectionMode} [duplicateDetection=DuplicateDetectionMode.ColumnNameOnly] - Specifies the duplicate detection mode: 'columnNameOnly' (default, only column name is used), or 'fullName' (table name + column name).
      */
-    constructor(tableColumnResolver?: TableColumnResolver | null, includeWildCard: boolean = false) {
+    constructor(
+        tableColumnResolver?: TableColumnResolver | null,
+        includeWildCard: boolean = false,
+        duplicateDetection: DuplicateDetectionMode = DuplicateDetectionMode.ColumnNameOnly
+    ) {
         this.tableColumnResolver = tableColumnResolver ?? null;
         this.includeWildCard = includeWildCard;
         this.commonTableCollector = new CTECollector();
         this.commonTables = [];
+        this.duplicateDetection = duplicateDetection;
 
         this.handlers = new Map<symbol, (arg: any) => void>();
 
@@ -94,10 +119,33 @@ export class SelectableColumnCollector implements SqlComponentVisitor<void> {
         this.commonTables = [];
     }
 
+    /**
+     * Add a select value as unique, according to the duplicate detection option.
+     * If duplicateDetection is 'columnNameOnly', only column name is checked.
+     * If duplicateDetection is 'fullName', both table and column name are checked.
+     */
     private addSelectValueAsUnique(name: string, value: ValueComponent): void {
-        // Check if a select value with the same name already exists before adding
-        if (!this.selectValues.some(item => item.name === name)) {
-            this.selectValues.push({ name, value });
+        if (this.duplicateDetection === DuplicateDetectionMode.ColumnNameOnly) {
+            if (!this.selectValues.some(item => item.name === name)) {
+                this.selectValues.push({ name, value });
+            }
+        } else if (this.duplicateDetection === DuplicateDetectionMode.FullName) {
+            // Try to get table name from ValueComponent if possible
+            let tableName = '';
+            if (value && typeof (value as any).getNamespace === 'function') {
+                tableName = (value as any).getNamespace() || '';
+            }
+            const key = tableName ? tableName + '.' + name : name;
+            if (!this.selectValues.some(item => {
+                let itemTable = '';
+                if (item.value && typeof (item.value as any).getNamespace === 'function') {
+                    itemTable = (item.value as any).getNamespace() || '';
+                }
+                const itemKey = itemTable ? itemTable + '.' + item.name : item.name;
+                return itemKey === key;
+            })) {
+                this.selectValues.push({ name, value });
+            }
         }
     }
 

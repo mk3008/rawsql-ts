@@ -1,11 +1,51 @@
 import { describe, expect, test } from 'vitest';
-import { SelectableColumnCollector } from '../../src/transformers/SelectableColumnCollector';
+import { SelectableColumnCollector, DuplicateDetectionMode } from '../../src/transformers/SelectableColumnCollector';
 import { SelectQueryParser } from '../../src/parsers/SelectQueryParser';
 import { SqlFormatter } from '../../src/transformers/Formatter';
 
 const formatter = new SqlFormatter();
 
 describe('SelectableColumnCollector', () => {
+    test('duplicate detection: column vs table+column (user_id overlap)', () => {
+        // Arrange
+        const sql = `
+            SELECT u.user_id, u.user_name, p.profile_name
+            FROM users u
+            JOIN profiles p ON u.user_id = p.user_id
+        `;
+        const query = SelectQueryParser.parse(sql);
+
+        // Default: duplicate detection by column name only
+        const collectorColumn = new SelectableColumnCollector();
+        collectorColumn.visit(query);
+        const itemsColumn = collectorColumn.collect(query);
+        const columnNamesColumn = itemsColumn.map(item => item.name);
+
+        // Duplicate detection by table name + column name
+        const collectorTableColumn = new SelectableColumnCollector(undefined, false, DuplicateDetectionMode.FullName);
+        collectorTableColumn.visit(query);
+        const itemsTableColumn = collectorTableColumn.collect(query);
+        const columnNamesTableColumn = itemsTableColumn.map(item => item.name);
+        const tableColumnKeys = itemsTableColumn.map(item => {
+            let table = '';
+            if (item.value && typeof (item.value as any).getNamespace === 'function') {
+                table = (item.value as any).getNamespace() || '';
+            }
+            return table + '.' + item.name;
+        });
+
+        // Assert
+        // With default (column name only), only 'user_id', 'user_name', 'profile_name' remain (duplicates removed)
+        expect(columnNamesColumn).toEqual(expect.arrayContaining(['user_id', 'user_name', 'profile_name']));
+        expect(columnNamesColumn.length).toBe(3);
+
+        // With table+column, all 'u.user_id', 'u.user_name', 'p.profile_name', 'p.user_id' are included (4 total)
+        expect(tableColumnKeys).toEqual(expect.arrayContaining([
+            'u.user_id', 'u.user_name', 'p.profile_name', 'p.user_id'
+        ]));
+        expect(tableColumnKeys.length).toBe(4);
+    });
+
     test('collects basic column references', () => {
         // Arrange
         const sql = `SELECT id, name FROM users WHERE active = TRUE`;
