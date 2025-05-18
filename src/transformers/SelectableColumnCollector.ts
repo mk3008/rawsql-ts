@@ -1,8 +1,19 @@
 /**
  * Enum for duplicate detection modes in SelectableColumnCollector.
+ * Determines how duplicates are identified during column collection.
  */
 export enum DuplicateDetectionMode {
+    /**
+     * Detect duplicates based only on column names.
+     * This mode ignores the table name, so columns with the same name
+     * from different tables are considered duplicates.
+     */
     ColumnNameOnly = 'columnNameOnly',
+    /**
+     * Detect duplicates based on both table and column names.
+     * This mode ensures that columns with the same name from different
+     * tables are treated as distinct.
+     */
     FullName = 'fullName',
 }
 import { CommonTable, ForClause, FromClause, GroupByClause, HavingClause, LimitClause, OrderByClause, SelectClause, WhereClause, WindowFrameClause, WindowsClause, JoinClause, JoinOnClause, JoinUsingClause, TableSource, SubQuerySource, SourceExpression, SelectItem, PartitionByClause, FetchClause, OffsetClause } from "../models/Clause";
