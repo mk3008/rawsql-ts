@@ -3,7 +3,6 @@ import { SimpleSelectQuery } from "../models/SelectQuery";
 import { SqlComponent, SqlComponentVisitor } from "../models/SqlComponent";
 import { ArrayExpression, BetweenExpression, BinaryExpression, CaseExpression, CastExpression, ColumnReference, FunctionCall, InlineQuery, ParenExpression, UnaryExpression, ValueComponent, ValueList, WindowFrameExpression } from "../models/ValueComponent";
 import { CTECollector } from "./CTECollector";
-import { Formatter } from "./Formatter";
 import { SelectValueCollector } from "./SelectValueCollector";
 import { TableColumnResolver } from "./TableColumnResolver";
 
@@ -24,21 +23,15 @@ export class SelectableColumnCollector implements SqlComponentVisitor<void> {
     private commonTableCollector: CTECollector;
     private commonTables: CommonTable[] = [];
     private includeWildCard: boolean; // This option controls whether wildcard columns are included in the collection.
+    private duplicateDetection: 'columnNameOnly' | 'fullName';
 
     /**
-     * Option for duplicate detection:
-     * - 'columnNameOnly': Only column name is used for duplicate detection (default)
-     * - 'fullName': Table name + column name is used for duplicate detection
      * Constructs a new instance of SelectableColumnCollector.
      *
      * @param {TableColumnResolver | null} [tableColumnResolver=null] - A resolver for table columns, used to resolve column references to their respective tables.
      * @param {boolean} [includeWildCard=false] - Whether to include wildcard columns (e.g., `*`) in the collection.
-     * @param {'columnNameOnly' | 'fullName'} [duplicateDetection='columnNameOnly'] - Option for duplicate detection:
-     *   - 'columnNameOnly': Only column name is used for duplicate detection (default).
-     *   - 'fullName': Table name + column name is used for duplicate detection.
+     * @param {'columnNameOnly' | 'fullName'} [duplicateDetection='columnNameOnly'] - Duplicate detection mode: 'columnNameOnly' (default, only column name is used), or 'fullName' (table name + column name).
      */
-    private duplicateDetection: 'columnNameOnly' | 'fullName';
-
     constructor(
         tableColumnResolver?: TableColumnResolver | null,
         includeWildCard: boolean = false,
