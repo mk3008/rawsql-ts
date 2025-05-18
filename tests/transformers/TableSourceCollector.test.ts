@@ -436,4 +436,84 @@ order by
         // Assert
         expect(tableNames.length).toBe(0);
     });
+
+    test('collects dat as table source in CTE chain', () => {
+        // Arrange
+        const sql = `
+with
+    detail as (
+        select  
+            q.*,
+            trunc(q.price * (1 + q.tax_rate)) - q.price as tax,
+            q.price * (1 + q.tax_rate) - q.price as raw_tax
+        from
+            (
+                select
+                    dat.*,
+                    (dat.unit_price * dat.quantity) as price
+                from
+                    dat
+            ) q
+    ), 
+    tax_summary as (
+        select
+            d.tax_rate,
+            trunc(sum(raw_tax)) as total_tax
+        from
+            detail d
+        group by
+            d.tax_rate
+    )
+select 
+   line_id,
+    name,
+    unit_price,
+    quantity,
+    tax_rate,
+    price,
+    price + tax as tax_included_price,
+    tax
+from
+    (
+        select
+            line_id,
+            name,
+            unit_price,
+            quantity,
+            tax_rate,
+            price,
+            tax + adjust_tax as tax
+        from
+            (
+                select
+                    q.*,
+                    case when q.total_tax - q.cumulative >= q.priority then 1 else 0 end as adjust_tax
+                from
+                    (
+                        select  
+                            d.*, 
+                            s.total_tax,
+                            sum(d.tax) over (partition by d.tax_rate) as cumulative,
+                            row_number() over (partition by d.tax_rate order by d.raw_tax % 1 desc, d.line_id) as priority
+                        from
+                            detail d
+                            inner join tax_summary s on d.tax_rate = s.tax_rate
+                    ) q
+            ) q
+    ) q
+order by 
+    line_id
+        `;
+        const query = SelectQueryParser.parse(sql);
+        const collector = new TableSourceCollector(false); // selectableOnly = false で全探索
+
+        // Act
+        collector.visit(query);
+        const tableSources = collector.getTableSources();
+        const tableNames = tableSources.map(ts => ts.table.name);
+
+        // Assert
+        // dat だけがテーブルソースとして検出されるべき！
+        expect(tableNames).toEqual(['dat']);
+    });
 });
