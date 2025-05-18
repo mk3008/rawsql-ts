@@ -18,4 +18,6 @@ export * from './transformers/TableColumnResolver';
 export * from './transformers/TableSourceCollector';
 export * from './transformers/UpstreamSelectQueryFinder';
 export * from './transformers/SchemaCollector';
+
+export * from './utils/SqlSchemaValidator';
 // Add more exports here if you want to expose additional public API
