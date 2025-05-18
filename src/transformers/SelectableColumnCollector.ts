@@ -1,3 +1,10 @@
+/**
+ * Enum for duplicate detection modes in SelectableColumnCollector.
+ */
+export enum DuplicateDetectionMode {
+    ColumnNameOnly = 'columnNameOnly',
+    FullName = 'fullName',
+}
 import { CommonTable, ForClause, FromClause, GroupByClause, HavingClause, LimitClause, OrderByClause, SelectClause, WhereClause, WindowFrameClause, WindowsClause, JoinClause, JoinOnClause, JoinUsingClause, TableSource, SubQuerySource, SourceExpression, SelectItem, PartitionByClause, FetchClause, OffsetClause } from "../models/Clause";
 import { SimpleSelectQuery } from "../models/SelectQuery";
 import { SqlComponent, SqlComponentVisitor } from "../models/SqlComponent";
@@ -23,19 +30,19 @@ export class SelectableColumnCollector implements SqlComponentVisitor<void> {
     private commonTableCollector: CTECollector;
     private commonTables: CommonTable[] = [];
     private includeWildCard: boolean; // This option controls whether wildcard columns are included in the collection.
-    private duplicateDetection: 'columnNameOnly' | 'fullName';
+    private duplicateDetection: DuplicateDetectionMode;
 
     /**
-     * Constructs a new instance of SelectableColumnCollector.
+     * Creates a new instance of SelectableColumnCollector.
      *
-     * @param {TableColumnResolver | null} [tableColumnResolver=null] - A resolver for table columns, used to resolve column references to their respective tables.
-     * @param {boolean} [includeWildCard=false] - Whether to include wildcard columns (e.g., `*`) in the collection.
-     * @param {'columnNameOnly' | 'fullName'} [duplicateDetection='columnNameOnly'] - Duplicate detection mode: 'columnNameOnly' (default, only column name is used), or 'fullName' (table name + column name).
+     * @param {TableColumnResolver | null} [tableColumnResolver=null] - The resolver used to resolve column references to their respective tables.
+     * @param {boolean} [includeWildCard=false] - If true, wildcard columns (e.g., `*`) are included in the collection.
+     * @param {DuplicateDetectionMode} [duplicateDetection=DuplicateDetectionMode.ColumnNameOnly] - Specifies the duplicate detection mode: 'columnNameOnly' (default, only column name is used), or 'fullName' (table name + column name).
      */
     constructor(
         tableColumnResolver?: TableColumnResolver | null,
         includeWildCard: boolean = false,
-        duplicateDetection: 'columnNameOnly' | 'fullName' = 'columnNameOnly'
+        duplicateDetection: DuplicateDetectionMode = DuplicateDetectionMode.ColumnNameOnly
     ) {
         this.tableColumnResolver = tableColumnResolver ?? null;
         this.includeWildCard = includeWildCard;
@@ -107,11 +114,11 @@ export class SelectableColumnCollector implements SqlComponentVisitor<void> {
      * If duplicateDetection is 'fullName', both table and column name are checked.
      */
     private addSelectValueAsUnique(name: string, value: ValueComponent): void {
-        if (this.duplicateDetection === 'columnNameOnly') {
+        if (this.duplicateDetection === DuplicateDetectionMode.ColumnNameOnly) {
             if (!this.selectValues.some(item => item.name === name)) {
                 this.selectValues.push({ name, value });
             }
-        } else if (this.duplicateDetection === 'fullName') {
+        } else if (this.duplicateDetection === DuplicateDetectionMode.FullName) {
             // Try to get table name from ValueComponent if possible
             let tableName = '';
             if (value && typeof (value as any).getNamespace === 'function') {

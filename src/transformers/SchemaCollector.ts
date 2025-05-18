@@ -3,7 +3,7 @@ import { CommonTable, SubQuerySource, TableSource } from '../models/Clause';
 import { SelectClause, SelectItem } from '../models/Clause';
 import { SimpleSelectQuery } from '../models/SimpleSelectQuery';
 import { CTECollector } from './CTECollector';
-import { SelectableColumnCollector } from './SelectableColumnCollector';
+import { SelectableColumnCollector, DuplicateDetectionMode } from './SelectableColumnCollector';
 import { SelectValueCollector } from './SelectValueCollector';
 import { ColumnReference } from '../models/ValueComponent';
 import { BinarySelectQuery, SelectQuery } from '../models/SelectQuery';
@@ -169,7 +169,7 @@ export class SchemaCollector implements SqlComponentVisitor<void> {
         }
 
         // Collect columns used in the query
-        const columnCollector = new SelectableColumnCollector(this.tableColumnResolver, true, 'fullName');
+        const columnCollector = new SelectableColumnCollector(this.tableColumnResolver, true, DuplicateDetectionMode.FullName);
         const columns = columnCollector.collect(query);
         const queryColumns = columns.filter((column) => column.value instanceof ColumnReference)
             .map(column => column.value as ColumnReference)
