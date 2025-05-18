@@ -311,13 +311,11 @@ export class SelectableColumnCollector implements SqlComponentVisitor<void> {
 
     // Value component handlers
     private visitColumnReference(columnRef: ColumnReference): void {
-        // If includeWildCard is true, or if the column is not a wildcard, add it.
-        // If includeWildCard is false and it is a wildcard, it's skipped unless a tableColumnResolver is present (which might resolve it).
-        if (this.includeWildCard || columnRef.column.name !== "*") {
+        if (columnRef.column.name !== "*") {
             this.addSelectValueAsUnique(columnRef.column.name, columnRef);
-        } else if (this.tableColumnResolver && columnRef.column.name === "*") {
-            // If a resolver is present and it's a wildcard, it might be resolvable, so attempt to add.
-            // The resolver logic itself would handle expansion if possible.
+        } else if (!this.includeWildCard) {
+            return;
+        } else {
             this.addSelectValueAsUnique(columnRef.column.name, columnRef);
         }
     }
