@@ -199,6 +199,70 @@ describe('SchemaCollector', () => {
         expect(schemaInfo[1].name).toBe('users'); // Adjusted order due to sorting
         expect(schemaInfo[1].columns).toEqual(['id', 'name']); // Adjusted order due to sorting
     });
+
+    test('collects schema information from complex multi-join query', () => {
+        // Arrange
+        // This test checks that all tables in a multi-join query are detected and their columns are collected
+        const sql = `
+            SELECT
+                posts.post_id,
+                posts.title,
+                users.name AS author_name,
+                comments.content AS comment_content,
+                comment_users.name AS comment_author_name,
+                categories.name AS category_name
+            FROM posts
+            JOIN users
+                ON posts.user_id = users.user_id
+            JOIN post_categories
+                ON posts.post_id = post_categories.post_id
+            JOIN categories
+                ON post_categories.category_id = categories.category_id
+            LEFT JOIN comments
+                ON comments.post_id = posts.post_id
+            LEFT JOIN users AS comment_users
+                ON comments.user_id = comment_users.user_id
+            WHERE categories.name = 'Tech';
+        `;
+        const query = SelectQueryParser.parse(sql);
+        const collector = new SchemaCollector();
+
+        // Act
+        const schemaInfo = collector.collect(query);
+
+        // Assert
+        // Should collect all involved tables
+        const tableNames = schemaInfo.map(s => s.name).sort();
+        expect(tableNames).toEqual([
+            'categories',
+            'comments',
+            'post_categories',
+            'posts',
+            'users',
+        ].sort());
+
+        // Check that at least the expected columns are present for each table
+        // (Order and presence may depend on parser implementation)
+        const posts = schemaInfo.find(s => s.name === 'posts');
+        if (!posts) throw new Error('posts table not found');
+        expect(posts.columns).toEqual(expect.arrayContaining(['post_id', 'title', 'user_id']));
+
+        const users = schemaInfo.find(s => s.name === 'users');
+        if (!users) throw new Error('users table not found');
+        expect(users.columns).toEqual(expect.arrayContaining(['user_id', 'name']));
+
+        const comments = schemaInfo.find(s => s.name === 'comments');
+        if (!comments) throw new Error('comments table not found');
+        expect(comments.columns).toEqual(expect.arrayContaining(['post_id', 'user_id', 'content']));
+
+        const postCategories = schemaInfo.find(s => s.name === 'post_categories');
+        if (!postCategories) throw new Error('post_categories table not found');
+        expect(postCategories.columns).toEqual(expect.arrayContaining(['post_id', 'category_id']));
+
+        const categories = schemaInfo.find(s => s.name === 'categories');
+        if (!categories) throw new Error('categories table not found');
+        expect(categories.columns).toEqual(expect.arrayContaining(['category_id', 'name']));
+    });
 });
 
 describe('SchemaCollector with TableColumnResolver', () => {

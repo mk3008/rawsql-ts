@@ -25,11 +25,23 @@ export class SelectableColumnCollector implements SqlComponentVisitor<void> {
     private commonTables: CommonTable[] = [];
     private throwOnUnresolvedWildcard: boolean;
 
-    constructor(tableColumnResolver?: TableColumnResolver | null, throwOnUnresolvedWildcard: boolean = false) {
+    /**
+     * Option for duplicate detection:
+     * - 'columnNameOnly': Only column name is used for duplicate detection (default)
+     * - 'fullName': Table name + column name is used for duplicate detection
+     */
+    private duplicateDetection: 'columnNameOnly' | 'fullName';
+
+    constructor(
+        tableColumnResolver?: TableColumnResolver | null,
+        throwOnUnresolvedWildcard: boolean = false,
+        duplicateDetection: 'columnNameOnly' | 'fullName' = 'columnNameOnly'
+    ) {
         this.tableColumnResolver = tableColumnResolver ?? null;
         this.throwOnUnresolvedWildcard = throwOnUnresolvedWildcard;
         this.commonTableCollector = new CTECollector();
         this.commonTables = [];
+        this.duplicateDetection = duplicateDetection;
 
         this.handlers = new Map<symbol, (arg: any) => void>();
 
@@ -89,10 +101,32 @@ export class SelectableColumnCollector implements SqlComponentVisitor<void> {
         this.commonTables = [];
     }
 
+    /**
+     * Add a select value as unique, according to the duplicate detection option.
+     * If duplicateDetection is 'columnNameOnly', only column name is checked.
+     * If duplicateDetection is 'fullName', both table and column name are checked.
+     */
     private addSelectValueAsUnique(name: string, value: ValueComponent): void {
-        // Check if a select value with the same name already exists before adding
-        if (!this.selectValues.some(item => item.name === name)) {
-            this.selectValues.push({ name, value });
+        if (this.duplicateDetection === 'columnNameOnly') {
+            if (!this.selectValues.some(item => item.name === name)) {
+                this.selectValues.push({ name, value });
+            }
+        } else if (this.duplicateDetection === 'fullName') {
+            // Try to get table name from ValueComponent if possible
+            let tableName = '';
+            if (value && typeof (value as any).getNamespace === 'function') {
+                tableName = (value as any).getNamespace() || '';
+            }
+            const key = tableName + '.' + name;
+            if (!this.selectValues.some(item => {
+                let itemTable = '';
+                if (item.value && typeof (item.value as any).getNamespace === 'function') {
+                    itemTable = (item.value as any).getNamespace() || '';
+                }
+                return (itemTable + '.' + item.name) === key;
+            })) {
+                this.selectValues.push({ name, value });
+            }
         }
     }
 

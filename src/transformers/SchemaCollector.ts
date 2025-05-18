@@ -169,9 +169,9 @@ export class SchemaCollector implements SqlComponentVisitor<void> {
         }
 
         // Collect columns used in the query
-        const columnCollector = new SelectableColumnCollector(this.tableColumnResolver, true);
-        const queryColumns = columnCollector.collect(query)
-            .filter((column) => column.value instanceof ColumnReference)
+        const columnCollector = new SelectableColumnCollector(this.tableColumnResolver, true, 'fullName');
+        const columns = columnCollector.collect(query);
+        const queryColumns = columns.filter((column) => column.value instanceof ColumnReference)
             .map(column => column.value as ColumnReference)
             .map(columnRef => ({
                 table: columnRef.getNamespace(),
