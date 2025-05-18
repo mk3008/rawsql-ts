@@ -32,7 +32,7 @@ export class SelectableColumnCollector implements SqlComponentVisitor<void> {
      */
     constructor(tableColumnResolver?: TableColumnResolver | null, includeWildCard: boolean = false) {
         this.tableColumnResolver = tableColumnResolver ?? null;
-        this.includeWildCard = includeWildCard; // Updated comment for this parameter
+        this.includeWildCard = includeWildCard;
         this.commonTableCollector = new CTECollector();
         this.commonTables = [];
 
