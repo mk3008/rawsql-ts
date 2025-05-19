@@ -2,6 +2,8 @@
 import { SelectQueryParser, SqlFormatter, TableSourceCollector, CTECollector, SchemaCollector } from "https://unpkg.com/rawsql-ts@0.8.3-beta/dist/esm/index.js";
 // Import style configuration module
 import { initStyleConfig, loadStyles as loadStylesFromModule, saveStylesAndFormat, displayStyle as displayStyleFromModule, populateStyleSelect as populateStyleSelectFromModule, getCurrentStyles as getStylesFromModule, DEFAULT_STYLE_KEY as STYLE_CONFIG_DEFAULT_KEY } from './style-config.js';
+// Import analysis features module
+import { initAnalysisFeatures } from './analysis-features.js';
 
 const sqlInputEditor = CodeMirror.fromTextArea(document.getElementById('sql-input'), {
     mode: 'text/x-sql',
@@ -180,9 +182,9 @@ sqlInputEditor.on('changes', () => {
 clearInputBtn.addEventListener('click', () => {
     sqlInputEditor.setValue('');
     formattedSqlEditor.setValue(''); // Also clear output
-    updateTableList(''); // Clear table list as well
-    updateCTEList(''); // Clear CTE list as well
-    updateSchemaInfo(''); // Ensure this line is present to clear schema info
+    // updateTableList(''); // Will be handled by analysis-features module via sqlInputEditor change
+    // updateCTEList(''); // Will be handled by analysis-features module via sqlInputEditor change
+    // updateSchemaInfo(''); // Will be handled by analysis-features module via sqlInputEditor change
     updateStatusBar('Input cleared.');
     sqlInputEditor.focus(); // Focus back to input
 });
@@ -365,11 +367,17 @@ document.addEventListener('DOMContentLoaded', () => {
     sqlInputEditor.setValue(initialSql);
 
     loadStyles(); // Load styles first
-    // setupStyleControls(); // Controls are set up within initStyleConfig or by direct calls in style-config.js
     formatSql(); // Initial format
-    setupTableListAutoUpdate(); // Setup auto-update for table list
-    setupCTEListAutoUpdate(); // Setup auto-update for CTE list
-    setupSchemaInfoAutoUpdate(); // Now schemaInfoEditor is initialized for the direct call
+
+    // Initialize analysis features
+    initAnalysisFeatures({
+        sqlInputEditor: sqlInputEditor,
+        tableList: tableList,
+        cteList: cteList,
+        schemaInfoEditor: schemaInfoEditor,
+        debounceDelay: DEBOUNCE_DELAY
+    });
+
 
     // Activate the first tab in each pane if not already set by HTML
     const firstLeftTab = document.querySelector('#left-pane .tab-button');
@@ -387,152 +395,152 @@ document.addEventListener('DOMContentLoaded', () => {
  * @param {string} sqlText - The SQL query string.
  */
 // --- Table List Logic ---
-function updateTableList(sqlText) {
-    if (!tableList) return;
-    tableList.innerHTML = ''; // Clear previous list
+// function updateTableList(sqlText) { // Moved to analysis-features.js
+//     if (!tableList) return;
+//     tableList.innerHTML = ''; // Clear previous list
 
-    if (!sqlText.trim()) {
-        const li = document.createElement('li');
-        li.textContent = '(SQL input is empty)';
-        tableList.appendChild(li);
-        return;
-    }
+//     if (!sqlText.trim()) {
+//         const li = document.createElement('li');
+//         li.textContent = '(SQL input is empty)';
+//         tableList.appendChild(li);
+//         return;
+//     }
 
-    try {
-        const ast = SelectQueryParser.parse(sqlText); // MODIFIED
+//     try {
+//         const ast = SelectQueryParser.parse(sqlText); // MODIFIED
 
-        // find all table sources
-        const collector = new TableSourceCollector(false); // MODIFIED
-        const tables = collector.collect(ast);
+//         // find all table sources
+//         const collector = new TableSourceCollector(false); // MODIFIED
+//         const tables = collector.collect(ast);
 
-        if (tables.length === 0) {
-            const li = document.createElement('li');
-            li.textContent = '(No tables found)';
-            tableList.appendChild(li);
-        } else {
-            const uniqueTableNames = [...new Set(tables.map(t => t.table.name))];
-            uniqueTableNames.forEach(tableName => {
-                const li = document.createElement('li');
-                li.textContent = tableName;
-                tableList.appendChild(li);
-            });
-        }
-    } catch (error) {
-        console.error("Error parsing SQL for table list:", error);
-        const li = document.createElement('li');
-        let errorText = '(Error parsing SQL for table list)';
-        if (error.name === 'ParseError' && error.message) {
-            errorText = `(Parse Error: ${error.message.substring(0, 50)}...)`; // Keep it short
-        }
-        li.textContent = errorText;
-        tableList.appendChild(li);
-    }
-}
+//         if (tables.length === 0) {
+//             const li = document.createElement('li');
+//             li.textContent = '(No tables found)';
+//             tableList.appendChild(li);
+//         } else {
+//             const uniqueTableNames = [...new Set(tables.map(t => t.table.name))];
+//             uniqueTableNames.forEach(tableName => {
+//                 const li = document.createElement('li');
+//                 li.textContent = tableName;
+//                 tableList.appendChild(li);
+//             });
+//         }
+//     } catch (error) {
+//         console.error("Error parsing SQL for table list:", error);
+//         const li = document.createElement('li');
+//         let errorText = '(Error parsing SQL for table list)';
+//         if (error.name === 'ParseError' && error.message) {
+//             errorText = `(Parse Error: ${error.message.substring(0, 50)}...)`; // Keep it short
+//         }
+//         li.textContent = errorText;
+//         tableList.appendChild(li);
+//     }
+// }
 
-function setupTableListAutoUpdate() {
-    let tableListDebounceTimer = null;
-    sqlInputEditor.on('changes', () => {
-        if (tableListDebounceTimer) clearTimeout(tableListDebounceTimer);
-        tableListDebounceTimer = setTimeout(() => updateTableList(sqlInputEditor.getValue()), DEBOUNCE_DELAY);
-    });
-    // Initial population
-    updateTableList(sqlInputEditor.getValue());
-}
+// function setupTableListAutoUpdate() { // Moved to analysis-features.js
+//     let tableListDebounceTimer = null;
+//     sqlInputEditor.on('changes', () => {
+//         if (tableListDebounceTimer) clearTimeout(tableListDebounceTimer);
+//         tableListDebounceTimer = setTimeout(() => updateTableList(sqlInputEditor.getValue()), DEBOUNCE_DELAY);
+//     });
+//     // Initial population
+//     updateTableList(sqlInputEditor.getValue());
+// }
 
 // --- CTE List Logic ---
-function updateCTEList(sqlText) {
-    if (!cteList) return;
-    cteList.innerHTML = '';
-    if (!sqlText.trim()) {
-        const li = document.createElement('li');
-        li.textContent = '(SQL input is empty)';
-        cteList.appendChild(li);
-        return;
-    }
+// function updateCTEList(sqlText) { // Moved to analysis-features.js
+//     if (!cteList) return;
+//     cteList.innerHTML = '';
+//     if (!sqlText.trim()) {
+//         const li = document.createElement('li');
+//         li.textContent = '(SQL input is empty)';
+//         cteList.appendChild(li);
+//         return;
+//     }
 
-    try {
-        const query = SelectQueryParser.parse(sqlText); // MODIFIED
-        const cteCollector = new CTECollector(); // MODIFIED
-        const ctes = cteCollector.collect(query);
-        if (ctes.length > 0) {
-            ctes.forEach(cte => {
-                const listItem = document.createElement('li');
-                listItem.textContent = cte.getSourceAliasName();
-                cteList.appendChild(listItem); // ADDED: Append to list
-            });
-        } else {
-            const listItem = document.createElement('li');
-            listItem.textContent = '(No CTEs found)';
-            cteList.appendChild(listItem);
-        }
-    } catch (error) {
-        console.error("Error collecting CTEs:", error);
-        const listItem = document.createElement('li');
-        let errorText = 'Error collecting CTEs.';
-        if (error.name === 'ParseError' && error.message) {
-            errorText = `(Parse Error: ${error.message.substring(0, 50)}...)`; // Keep it short
-        }
-        listItem.textContent = errorText;
-        cteList.appendChild(listItem);
-    }
-}
+//     try {
+//         const query = SelectQueryParser.parse(sqlText); // MODIFIED
+//         const cteCollector = new CTECollector(); // MODIFIED
+//         const ctes = cteCollector.collect(query);
+//         if (ctes.length > 0) {
+//             ctes.forEach(cte => {
+//                 const listItem = document.createElement('li');
+//                 listItem.textContent = cte.getSourceAliasName();
+//                 cteList.appendChild(listItem); // ADDED: Append to list
+//             });
+//         } else {
+//             const listItem = document.createElement('li');
+//             listItem.textContent = '(No CTEs found)';
+//             cteList.appendChild(listItem);
+//         }
+//     } catch (error) {
+//         console.error("Error collecting CTEs:", error);
+//         const listItem = document.createElement('li');
+//         let errorText = 'Error collecting CTEs.';
+//         if (error.name === 'ParseError' && error.message) {
+//             errorText = `(Parse Error: ${error.message.substring(0, 50)}...)`; // Keep it short
+//         }
+//         listItem.textContent = errorText;
+//         cteList.appendChild(listItem);
+//     }
+// }
 
-function setupCTEListAutoUpdate() {
-    let cteListDebounceTimer = null;
-    sqlInputEditor.on('changes', () => {
-        if (cteListDebounceTimer) clearTimeout(cteListDebounceTimer);
-        cteListDebounceTimer = setTimeout(() => updateCTEList(sqlInputEditor.getValue()), DEBOUNCE_DELAY);
-    });
-    // Initial population
-    updateCTEList(sqlInputEditor.getValue());
-}
+// function setupCTEListAutoUpdate() { // Moved to analysis-features.js
+//     let cteListDebounceTimer = null;
+//     sqlInputEditor.on('changes', () => {
+//         if (cteListDebounceTimer) clearTimeout(cteListDebounceTimer);
+//         cteListDebounceTimer = setTimeout(() => updateCTEList(sqlInputEditor.getValue()), DEBOUNCE_DELAY);
+//     });
+//     // Initial population
+//     updateCTEList(sqlInputEditor.getValue());
+// }
 
 // --- Schema Info Logic ---
-function updateSchemaInfo(sqlText) {
-    if (!schemaInfoEditor) return; // Check for CodeMirror instance
+// function updateSchemaInfo(sqlText) { // Moved to analysis-features.js
+//     if (!schemaInfoEditor) return; // Check for CodeMirror instance
 
-    if (!sqlText.trim()) {
-        schemaInfoEditor.setValue('(SQL input is empty)');
-        schemaInfoEditor.refresh(); // Refresh CodeMirror
-        return;
-    }
+//     if (!sqlText.trim()) {
+//         schemaInfoEditor.setValue('(SQL input is empty)');
+//         schemaInfoEditor.refresh(); // Refresh CodeMirror
+//         return;
+//     }
 
-    try {
-        const query = SelectQueryParser.parse(sqlText); // MODIFIED
-        const schemaCollector = new SchemaCollector(); // MODIFIED
-        const schemaInfo = schemaCollector.collect(query);
+//     try {
+//         const query = SelectQueryParser.parse(sqlText); // MODIFIED
+//         const schemaCollector = new SchemaCollector(); // MODIFIED
+//         const schemaInfo = schemaCollector.collect(query);
 
-        if (schemaInfo && schemaInfo.length > 0) {
-            schemaInfoEditor.setValue(JSON.stringify(schemaInfo, null, 2));
-        } else {
-            schemaInfoEditor.setValue('(No schema information collected or schema is empty)');
-        }
-    } catch (error) {
-        console.error("Error collecting schema info:", error);
-        let errorMessage = 'Error collecting schema info.';
-        if (error.name === 'ParseError' && error.message) {
-            errorMessage = `Error parsing SQL for schema: ${error.message}`;
-            if (error.details) { // Add line/column info if available
-                errorMessage += `\\nAt line ${error.details.startLine}, column ${error.details.startColumn}. Found: '${error.details.found}'`;
-            }
-        } else if (error.message) {
-            errorMessage = `Error collecting schema info: ${error.message}`;
-        }
-        schemaInfoEditor.setValue(errorMessage);
-    }
-    schemaInfoEditor.refresh(); // Refresh CodeMirror
-}
+//         if (schemaInfo && schemaInfo.length > 0) {
+//             schemaInfoEditor.setValue(JSON.stringify(schemaInfo, null, 2));
+//         } else {
+//             schemaInfoEditor.setValue('(No schema information collected or schema is empty)');
+//         }
+//     } catch (error) {
+//         console.error("Error collecting schema info:", error);
+//         let errorMessage = 'Error collecting schema info.';
+//         if (error.name === 'ParseError' && error.message) {
+//             errorMessage = `Error parsing SQL for schema: ${error.message}`;
+//             if (error.details) { // Add line/column info if available
+//                 errorMessage += `\\nAt line ${error.details.startLine}, column ${error.details.startColumn}. Found: '${error.details.found}'`;
+//             }
+//         } else if (error.message) {
+//             errorMessage = `Error collecting schema info: ${error.message}`;
+//         }
+//         schemaInfoEditor.setValue(errorMessage);
+//     }
+//     schemaInfoEditor.refresh(); // Refresh CodeMirror
+// }
 
-function setupSchemaInfoAutoUpdate() {
-    let schemaInfoDebounceTimer = null;
-    sqlInputEditor.on('changes', () => {
-        if (schemaInfoDebounceTimer) clearTimeout(schemaInfoDebounceTimer);
-        schemaInfoDebounceTimer = setTimeout(() => {
-            const sqlText = sqlInputEditor.getValue();
-            // updateTableList and updateCTEList are handled by their own setup functions
-            updateSchemaInfo(sqlText); // Update schema info
-        }, DEBOUNCE_DELAY);
-    });
-    // Initial population
-    updateSchemaInfo(sqlInputEditor.getValue());
-}
+// function setupSchemaInfoAutoUpdate() { // Moved to analysis-features.js
+//     let schemaInfoDebounceTimer = null;
+//     sqlInputEditor.on('changes', () => {
+//         if (schemaInfoDebounceTimer) clearTimeout(schemaInfoDebounceTimer);
+//         schemaInfoDebounceTimer = setTimeout(() => {
+//             const sqlText = sqlInputEditor.getValue();
+//             // updateTableList and updateCTEList are handled by their own setup functions
+//             updateSchemaInfo(sqlText); // Update schema info
+//         }, DEBOUNCE_DELAY);
+//     });
+//     // Initial population
+//     updateSchemaInfo(sqlInputEditor.getValue());
+// }
