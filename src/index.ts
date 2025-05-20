@@ -8,6 +8,7 @@ export * from './models/ValueComponent';
 export * from './models/ValuesQuery';
 
 export * from './transformers/CTECollector';
+export * from './transformers/CTEInjector';
 export * from './transformers/CTENormalizer';
 export * from './transformers/Formatter';
 export * from './transformers/SqlFormatter';
