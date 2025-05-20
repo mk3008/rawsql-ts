@@ -1,8 +1,7 @@
 import { SqlComponent, SqlComponentVisitor } from '../models/SqlComponent';
 import { SimpleSelectQuery, BinarySelectQuery, SelectQuery } from '../models/SelectQuery';
-import { SelectItem } from '../models/Clause';
-import { ColumnReference, ValueComponent } from '../models/ValueComponent';
 import { SelectValueCollector } from './SelectValueCollector';
+import { Formatter } from './Formatter';
 
 /**
  * Options for JSONFormatter
@@ -27,12 +26,14 @@ export interface JSONFormatterOptions {
  */
 export class JSONFormatter implements SqlComponentVisitor<string> {
     private options: JSONFormatterOptions;
+    private formatter: Formatter;
 
     constructor(options: JSONFormatterOptions = {}) {
         this.options = {
             useJsonb: true,
             ...options
         };
+        this.formatter = new Formatter();
     }
 
     /**
@@ -45,7 +46,8 @@ export class JSONFormatter implements SqlComponentVisitor<string> {
         } else if (arg instanceof BinarySelectQuery) {
             throw new Error('JSON formatting for binary select queries (UNION, INTERSECT, EXCEPT) is not supported.');
         } else {
-            throw new Error(`Unsupported SQL component type: ${arg.constructor.name}`);
+            // For other component types, delegate to the standard formatter
+            return this.formatter.visit(arg);
         }
     }
 
@@ -81,40 +83,76 @@ export class JSONFormatter implements SqlComponentVisitor<string> {
         // Add each column to the build_object function
         const columnExpressions = columns.map(col => {
             const colName = col.name;
-            return `  '${colName}', ${this.getColumnExpression(col.value)}`;
+            // Use formatter to get the column expression
+            const valueStr = this.formatter.visit(col.value);
+            // Need to strip quotes for proper JSON property names
+            return `  '${colName}', ${valueStr}`;
         }).join(',\n');
         
         sql += columnExpressions;
         sql += `\n)), '[]') AS result`;
         
-        // Add FROM clause and the rest of the query
+        // Add FROM clause
         if (query.fromClause) {
-            sql += `\nFROM ${query.fromClause.toSqlString(this)}`;
+            // Get the raw SQL text for the FROM clause
+            let fromClauseText = this.formatter.visit(query.fromClause);
+            // Remove any extra keywords that formatter may have added
+            fromClauseText = fromClauseText.replace(/^from /i, '');
+            sql += `\nFROM ${fromClauseText}`;
         }
         
         // Add WHERE clause if it exists
         if (query.whereClause) {
-            sql += `\nWHERE ${query.whereClause.toSqlString(this)}`;
+            // Get the raw SQL text for the WHERE clause
+            let whereClauseText = this.formatter.visit(query.whereClause);
+            // Remove any extra keywords that formatter may have added
+            whereClauseText = whereClauseText.replace(/^where /i, '');
+            sql += `\nWHERE ${whereClauseText}`;
         }
         
         // Add GROUP BY clause if it exists
         if (query.groupByClause) {
-            sql += `\nGROUP BY ${query.groupByClause.toSqlString(this)}`;
+            // Get the raw SQL text for the GROUP BY clause
+            let groupByClauseText = this.formatter.visit(query.groupByClause);
+            // Remove any extra keywords that formatter may have added
+            groupByClauseText = groupByClauseText.replace(/^group by /i, '');
+            sql += `\nGROUP BY ${groupByClauseText}`;
         }
         
         // Add HAVING clause if it exists
         if (query.havingClause) {
-            sql += `\nHAVING ${query.havingClause.toSqlString(this)}`;
+            // Get the raw SQL text for the HAVING clause
+            let havingClauseText = this.formatter.visit(query.havingClause);
+            // Remove any extra keywords that formatter may have added
+            havingClauseText = havingClauseText.replace(/^having /i, '');
+            sql += `\nHAVING ${havingClauseText}`;
         }
         
         // Add ORDER BY clause if it exists
         if (query.orderByClause) {
-            sql += `\nORDER BY ${query.orderByClause.toSqlString(this)}`;
+            // Get the raw SQL text for the ORDER BY clause
+            let orderByClauseText = this.formatter.visit(query.orderByClause);
+            // Remove any extra keywords that formatter may have added
+            orderByClauseText = orderByClauseText.replace(/^order by /i, '');
+            sql += `\nORDER BY ${orderByClauseText}`;
         }
         
-        // Add LIMIT and OFFSET clauses if they exist
+        // Add LIMIT clause if it exists
         if (query.limitClause) {
-            sql += `\nLIMIT ${query.limitClause.toSqlString(this)}`;
+            // Get the raw SQL text for the LIMIT clause
+            let limitClauseText = this.formatter.visit(query.limitClause);
+            // Remove any extra keywords that formatter may have added
+            limitClauseText = limitClauseText.replace(/^limit /i, '');
+            sql += `\nLIMIT ${limitClauseText}`;
+        }
+        
+        // Add OFFSET clause if it exists
+        if (query.offsetClause) {
+            // Get the raw SQL text for the OFFSET clause
+            let offsetClauseText = this.formatter.visit(query.offsetClause);
+            // Remove any extra keywords that formatter may have added
+            offsetClauseText = offsetClauseText.replace(/^offset /i, '');
+            sql += `\nOFFSET ${offsetClauseText}`;
         }
         
         return sql;
@@ -154,7 +192,8 @@ export class JSONFormatter implements SqlComponentVisitor<string> {
                 const column = allColumns.find(col => col.name === rootCol);
                 
                 if (column) {
-                    topLevelColumns.push(`  '${column.name}', ${this.getColumnExpression(column.value)}`);
+                    const valueStr = this.formatter.visit(column.value);
+                    topLevelColumns.push(`  '${column.name}', ${valueStr}`);
                 }
             }
         }
@@ -171,7 +210,8 @@ export class JSONFormatter implements SqlComponentVisitor<string> {
                 const column = allColumns.find(col => col.name === colName);
                 
                 if (column) {
-                    return `      '${column.name}', ${this.getColumnExpression(column.value, true)}`;
+                    const valueStr = this.formatter.visit(column.value);
+                    return `      '${column.name}', ${valueStr}`;
                 }
                 return '';
             }).filter(Boolean).join(',\n');
@@ -199,50 +239,58 @@ export class JSONFormatter implements SqlComponentVisitor<string> {
             const [rootGroupName] = groups[0];
             sql += `\nFROM ${rootGroupName}`;
         } else if (query.fromClause) {
-            sql += `\nFROM ${query.fromClause.toSqlString(this)}`;
+            // Get the raw SQL text for the FROM clause
+            let fromClauseText = this.formatter.visit(query.fromClause);
+            // Remove any extra keywords that formatter may have added
+            fromClauseText = fromClauseText.replace(/^from /i, '');
+            sql += `\nFROM ${fromClauseText}`;
         }
         
         // Add WHERE clause if it exists
         if (query.whereClause) {
-            sql += `\nWHERE ${query.whereClause.toSqlString(this)}`;
+            // Get the raw SQL text for the WHERE clause
+            let whereClauseText = this.formatter.visit(query.whereClause);
+            // Remove any extra keywords that formatter may have added
+            whereClauseText = whereClauseText.replace(/^where /i, '');
+            sql += `\nWHERE ${whereClauseText}`;
         }
         
-        // Add any remaining clauses
+        // Add GROUP BY clause if it exists
         if (query.groupByClause) {
-            sql += `\nGROUP BY ${query.groupByClause.toSqlString(this)}`;
+            // Get the raw SQL text for the GROUP BY clause
+            let groupByClauseText = this.formatter.visit(query.groupByClause);
+            // Remove any extra keywords that formatter may have added
+            groupByClauseText = groupByClauseText.replace(/^group by /i, '');
+            sql += `\nGROUP BY ${groupByClauseText}`;
         }
         
+        // Add HAVING clause if it exists
         if (query.havingClause) {
-            sql += `\nHAVING ${query.havingClause.toSqlString(this)}`;
+            // Get the raw SQL text for the HAVING clause
+            let havingClauseText = this.formatter.visit(query.havingClause);
+            // Remove any extra keywords that formatter may have added
+            havingClauseText = havingClauseText.replace(/^having /i, '');
+            sql += `\nHAVING ${havingClauseText}`;
         }
         
+        // Add ORDER BY clause if it exists
         if (query.orderByClause) {
-            sql += `\nORDER BY ${query.orderByClause.toSqlString(this)}`;
+            // Get the raw SQL text for the ORDER BY clause
+            let orderByClauseText = this.formatter.visit(query.orderByClause);
+            // Remove any extra keywords that formatter may have added
+            orderByClauseText = orderByClauseText.replace(/^order by /i, '');
+            sql += `\nORDER BY ${orderByClauseText}`;
         }
         
+        // Add LIMIT clause if it exists
         if (query.limitClause) {
-            sql += `\nLIMIT ${query.limitClause.toSqlString(this)}`;
+            // Get the raw SQL text for the LIMIT clause
+            let limitClauseText = this.formatter.visit(query.limitClause);
+            // Remove any extra keywords that formatter may have added
+            limitClauseText = limitClauseText.replace(/^limit /i, '');
+            sql += `\nLIMIT ${limitClauseText}`;
         }
         
         return sql;
-    }
-
-    /**
-     * Helper method to get the column expression for the JSON output
-     */
-    private getColumnExpression(column: ValueComponent, nested: boolean = false): string {
-        if (column instanceof ColumnReference) {
-            // If it's a column reference, return it with proper formatting
-            const namespace = column.getNamespace();
-            const columnName = column.qualifiedName.name.toString();
-            
-            if (namespace) {
-                return nested ? `"${columnName}"` : `"${namespace}"."${columnName}"`;
-            }
-            return `"${columnName}"`;
-        } else {
-            // For more complex expressions, use the column's SQL representation
-            return column.toSqlString(this);
-        }
     }
 }

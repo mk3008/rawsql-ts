@@ -387,6 +387,73 @@ console.log(sql);
 >
 > You can focus on developing and maintaining RawSQL itself, without being bothered by troublesome variable search conditions.
 
+## JSON Generation with JSONFormatter
+
+The `JSONFormatter` transformer allows you to convert a SQL query's results into a JSON array format using PostgreSQL's JSON functions. This is particularly useful for web APIs that need to return JSON data directly from the database.
+
+### Basic JSON Array Output
+
+```typescript
+const query = SelectQueryParser.parse(`
+  SELECT 
+    id,
+    name,
+    email 
+  FROM users 
+  WHERE active = true
+`);
+
+// Create a JSON formatter
+const jsonFormatter = new JSONFormatter();
+
+// Generate JSON-returning SQL
+const jsonSql = jsonFormatter.visit(query);
+
+console.log(jsonSql);
+// OUTPUT:
+// SELECT COALESCE(jsonb_agg(jsonb_build_object(
+//   'id', "id",
+//   'name', "name",
+//   'email', "email"
+// )), '[]') AS result
+// FROM "users"
+// WHERE "active" = true
+```
+
+### Nested JSON Structures
+
+For more complex data models, you can use the `groupBy` option to create nested JSON objects:
+
+```typescript
+const complexQuery = SelectQueryParser.parse(`
+  SELECT
+    u.id,
+    u.name,
+    u.email,
+    o.id as order_id,
+    o.total as order_total,
+    o.order_date
+  FROM users u
+  JOIN orders o ON u.id = o.user_id
+  WHERE u.status = 'active'
+`);
+
+// Format with groupBy option to create nested JSON structure
+const complexJsonSql = new JSONFormatter({ 
+  groupBy: {
+    'users': ['id', 'name', 'email'],
+    'orders': ['order_id', 'order_total', 'order_date']
+  }
+}).visit(complexQuery);
+
+// This will produce a nested JSON structure with orders as a nested array within each user
+```
+
+### JSONFormatter Options
+
+- `useJsonb`: Boolean (default: true) - Whether to use PostgreSQL's `jsonb_agg` (true) or `json_agg` (false).
+- `groupBy`: Object - Defines how columns should be grouped into nested structures. Keys are group names, values are arrays of column names.
+
 ---
 
 ### overrideSelectItemExpr
@@ -407,6 +474,8 @@ A suite of utilities for transforming and analyzing SQL ASTs.
 
 - **SqlFormatter**
   Converts ASTs to formatted SQL strings. Handles identifier escaping. Supports both single-line (compact) and multi-line (formatted) styles.
+- **JSONFormatter**
+  Transforms SELECT queries to return JSON array results using PostgreSQL JSON functions. Supports both flat and nested JSON structures.
 - **SelectValueCollector**  
   Extracts all columns, aliases, and expressions from SELECT clauses. Supports wildcard expansion (e.g., `*`, `table.*`) with TableColumnResolver.
 - **SelectableColumnCollector**  

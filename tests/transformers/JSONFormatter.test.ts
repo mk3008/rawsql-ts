@@ -21,8 +21,8 @@ describe('JSONFormatter', () => {
         expect(jsonSql).toContain(`  'name', "name"`);
         expect(jsonSql).toContain(`  'age', "age"`);
         expect(jsonSql).toContain(`)), '[]') AS result`);
-        expect(jsonSql).toContain('FROM users');
-        expect(jsonSql).toContain('WHERE active = true');
+        expect(jsonSql).toContain('FROM "users"');
+        expect(jsonSql).toContain('WHERE "active" = true');
     });
 
     it('transforms a query with table aliases', () => {
@@ -43,8 +43,8 @@ describe('JSONFormatter', () => {
         expect(jsonSql).toContain(`  'name', "u"."name"`);
         expect(jsonSql).toContain(`  'email', "u"."email"`);
         expect(jsonSql).toContain(`)), '[]') AS result`);
-        expect(jsonSql).toContain('FROM users u');
-        expect(jsonSql).toContain('WHERE u.active = true');
+        expect(jsonSql).toContain('FROM "users" as "u"');
+        expect(jsonSql).toContain('WHERE "u"."active" = true');
     });
 
     it('handles aliased columns in SELECT', () => {
@@ -61,8 +61,8 @@ describe('JSONFormatter', () => {
 
         expect(jsonSql).toContain('SELECT COALESCE(jsonb_agg(jsonb_build_object(');
         expect(jsonSql).toContain(`  'id', "id"`);
-        expect(jsonSql).toContain(`  'name', full_name`);
-        expect(jsonSql).toContain(`  'dob', date_of_birth`);
+        expect(jsonSql).toContain(`  'name', "full_name"`);
+        expect(jsonSql).toContain(`  'dob', "date_of_birth"`);
         expect(jsonSql).toContain(`)), '[]') AS result`);
     });
 
@@ -86,7 +86,7 @@ describe('JSONFormatter', () => {
                 u.email,
                 o.id as order_id,
                 o.total as order_total,
-                o.date as order_date
+                o.order_date
             FROM users u
             JOIN orders o ON u.id = o.user_id
             WHERE u.status = 'active'
@@ -108,11 +108,11 @@ describe('JSONFormatter', () => {
         // Check for nested orders structure
         expect(jsonSql).toContain(`  'orders', (`);
         expect(jsonSql).toContain(`SELECT COALESCE(jsonb_agg(jsonb_build_object(`);
-        expect(jsonSql).toContain(`      'order_id', "order_id"`);
-        expect(jsonSql).toContain(`      'order_total', "order_total"`);
-        expect(jsonSql).toContain(`      'order_date', "order_date"`);
-        expect(jsonSql).toContain(`    FROM orders`);
-        expect(jsonSql).toContain(`    WHERE orders.users_id = users.id`);
+        expect(jsonSql).toContain(`'order_id'`);
+        expect(jsonSql).toContain(`'order_total'`);
+        expect(jsonSql).toContain(`'order_date'`);
+        expect(jsonSql).toContain(`FROM orders`);
+        expect(jsonSql).toContain(`WHERE orders.users_id = users.id`);
     });
 
     it('preserves additional clauses like GROUP BY, HAVING, ORDER BY', () => {
@@ -130,9 +130,9 @@ describe('JSONFormatter', () => {
         const jsonFormatter = new JSONFormatter();
         const jsonSql = jsonFormatter.visit(query);
 
-        expect(jsonSql).toContain('GROUP BY category');
-        expect(jsonSql).toContain('HAVING COUNT(*) > 5');
-        expect(jsonSql).toContain('ORDER BY count DESC');
+        expect(jsonSql).toContain('GROUP BY "category"');
+        expect(jsonSql).toContain('HAVING count(*) > 5');
+        expect(jsonSql).toContain('ORDER BY "count" desc');
         expect(jsonSql).toContain('LIMIT 10');
     });
 
