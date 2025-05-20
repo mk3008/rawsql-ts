@@ -417,6 +417,13 @@ A suite of utilities for transforming and analyzing SQL ASTs.
   Collects all CTEs from WITH clauses, subqueries, and UNION queries.
 - **UpstreamSelectQueryFinder**  
   Finds upstream SELECT queries that provide specific columns by traversing CTEs, subqueries, and UNION branches.
+- **CTEInjector**  
+  Inserts Common Table Expressions into queries.
+  - `inject(query, commonTables)`: Injects CTEs into AST query objects.
+  - `withFixtures(sql, deps, fixtures, options)`: Injects test fixtures as CTEs with explicit VALUES rows.
+  - `withNullScaffolding(sql, deps, options)`: Injects NULL-based scaffolding CTEs.
+  This is useful for testing a query's calculation logic without relying on a live database.
+
 - **CTENormalizer**  
   Consolidates all CTEs into a single root-level WITH clause. Throws an error if duplicate CTE names with different definitions are found.
 - **QueryNormalizer**  
@@ -566,6 +573,67 @@ console.log(formattedSql);
 - You can join queries without detailed knowledge of SQL structure or AST internals
 
 ---
+
+## Testing SQL with CTEInjector and Fixtures
+
+The `CTEInjector` class can be used to inject test data into a SQL query for testing purposes. This allows you to validate your SQL query's logic without needing a live database.
+
+```typescript
+import { SelectQueryParser } from 'rawsql-ts';
+import { SchemaCollector } from 'rawsql-ts';
+import { CTEInjector, Fixtures } from 'rawsql-ts';
+
+// SQL query under test
+const sql = `
+  SELECT u.name, SUM(o.total) AS sum_total
+  FROM users u
+  JOIN orders o ON o.user_id = u.id
+  GROUP BY u.name
+`;
+
+// Parse the query and collect schema dependencies
+const query = SelectQueryParser.parse(sql);
+const schemaCollector = new SchemaCollector();
+const deps = schemaCollector.collect(query);
+
+// Provide test fixtures
+const fixtures: Fixtures = {
+  users: [
+    { id: 1, name: 'mike' },
+    { id: 2, name: 'ken' },
+  ],
+  orders: [
+    { user_id: 1, total: 100 },
+    { user_id: 1, total: 500 },
+    { user_id: 2, total: 300 },
+  ],
+};
+
+// Create the test SQL with injected fixtures
+const injector = new CTEInjector();
+const testSQL = injector.withFixtures(sql, deps, fixtures);
+
+console.log(testSQL);
+// Output:
+// WITH
+// users(id, name) AS (
+//   VALUES
+//     (1, 'mike'),
+//     (2, 'ken')
+// ),
+// orders(total, user_id) AS (
+//   VALUES
+//     (100, 1),
+//     (500, 1),
+//     (300, 2)
+// )
+// SELECT u.name, SUM(o.total) AS sum_total
+// FROM users u
+// JOIN orders o ON o.user_id = u.id
+// GROUP BY u.name
+```
+
+You can then run this SQL against any database engine (SQLite, DuckDB, PostgreSQL, etc.) for deterministic unit tests.
 
 ## Benchmarks
 
