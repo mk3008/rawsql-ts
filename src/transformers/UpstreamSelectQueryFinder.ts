@@ -21,10 +21,12 @@ export class UpstreamSelectQueryFinder {
     /**
      * Finds the highest SelectQuery containing all specified columns.
      * @param query The root SelectQuery to search.
-     * @param columnNames Array of column names to check for.
+     * @param columnNames A column name or array of column names to check for.
      * @returns An array of SelectQuery objects, or an empty array if not found.
      */
-    public find(query: SelectQuery, columnNames: string[]): SimpleSelectQuery[] {
+    public find(query: SelectQuery, columnNames: string | string[]): SimpleSelectQuery[] {
+        // Normalize columnNames to array
+        const namesArray = typeof columnNames === 'string' ? [columnNames] : columnNames;
         // Use CTECollector to collect CTEs from the root query only once and reuse
         const cteCollector = new CTECollector();
         const ctes = cteCollector.collect(query);
@@ -32,7 +34,7 @@ export class UpstreamSelectQueryFinder {
         for (const cte of ctes) {
             cteMap.set(cte.getSourceAliasName(), cte);
         }
-        return this.findUpstream(query, columnNames, cteMap);
+        return this.findUpstream(query, namesArray, cteMap);
     }
 
     private handleTableSource(src: TableSource, columnNames: string[], cteMap: Map<string, CommonTable>): SimpleSelectQuery[] | null {
