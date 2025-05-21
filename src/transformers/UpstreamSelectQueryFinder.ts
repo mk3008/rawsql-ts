@@ -10,11 +10,14 @@ import { CTECollector } from "./CTECollector";
  * For UNION queries, it checks each branch independently.
  */
 export class UpstreamSelectQueryFinder {
+    private options: { ignoreCaseAndUnderscore?: boolean };
     private tableColumnResolver?: (tableName: string) => string[];
     private columnCollector: SelectableColumnCollector;
 
-    constructor(tableColumnResolver?: (tableName: string) => string[]) {
+    constructor(tableColumnResolver?: (tableName: string) => string[], options?: { ignoreCaseAndUnderscore?: boolean }) {
+        this.options = options || {};
         this.tableColumnResolver = tableColumnResolver;
+        // Pass the tableColumnResolver instead of options to fix type mismatch.
         this.columnCollector = new SelectableColumnCollector(this.tableColumnResolver);
     }
 
@@ -113,7 +116,6 @@ export class UpstreamSelectQueryFinder {
 
     private findUpstream(query: SelectQuery, columnNames: string[], cteMap: Map<string, CommonTable>): SimpleSelectQuery[] {
         if (query instanceof SimpleSelectQuery) {
-            // Check upstream sources first: prioritize searching upstream branches for the required columns.
             const fromClause = query.fromClause;
             if (fromClause) {
                 const branchResult = this.processFromClauseBranches(fromClause, columnNames, cteMap);
@@ -121,9 +123,11 @@ export class UpstreamSelectQueryFinder {
                     return branchResult;
                 }
             }
-            // If not found in all upstream branches, check this query itself
             const columns = this.columnCollector.collect(query).map(col => col.name);
-            const hasAll = columnNames.every(name => columns.includes(name));
+            const normalize = (s: string) =>
+                this.options.ignoreCaseAndUnderscore ? s.toLowerCase().replace(/_/g, '') : s;
+            // Normalize both the columns and the required names for comparison.
+            const hasAll = columnNames.every(name => columns.some(col => normalize(col) === normalize(name)));
             if (hasAll) {
                 return [query];
             }

@@ -1,22 +1,16 @@
-import { SelectQueryParser } from '../../src/parsers/SelectQueryParser';
 import { SqlParamInjector } from '../../src/transformers/SqlParamInjector';
 import { SqlFormatter } from '../../src/transformers/SqlFormatter';
-import { SimpleSelectQuery } from '../../src/models/SimpleSelectQuery';
 
-// 可変検索条件がないクエリを用意する
+// Use query string directly for demonstration instead of parsing it first
 const sql = `SELECT id, name FROM users WHERE active = true`;
-const baseQuery = SelectQueryParser.parse(sql) as SimpleSelectQuery;
+// Directly pass the string query to the injector
+const injectedQuery = new SqlParamInjector().inject(sql, { id: 42, name: 'Alice' });
 
-// クエリに状態（検索条件）を適用する
-const injectedQuery = new SqlParamInjector().inject(baseQuery, { id: 42, name: 'Alice' });
-
-// クエリ文字列とパラメータを取得する
+// Format SQL and extract parameters
 const { formattedSql, params } = new SqlFormatter().format(injectedQuery);
 
 console.log(formattedSql);
-// 検索条件が追加されたクエリ文字列を取得できる
-// -> SELECT id, name FROM users WHERE active = true AND id = :id AND name = :name
+// Expected output: SELECT id, name FROM users WHERE active = true AND id = :id AND name = :name
 
 console.log(params);
-// 状態をパラメータとして取得できる
-// -> { id: 42, name: 'Alice' }
+// Expected output: { id: 42, name: 'Alice' }
