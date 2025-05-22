@@ -421,6 +421,8 @@ A suite of utilities for transforming and analyzing SQL ASTs.
   Consolidates all CTEs into a single root-level WITH clause. Throws an error if duplicate CTE names with different definitions are found.
 - **QueryNormalizer**  
   Converts any SELECT/UNION/VALUES query into a standard SimpleSelectQuery. Handles subquery wrapping and automatic column name generation.
+- **ParameterRemover**  
+  Removes ParameterExpression nodes (parameterized expressions) from SQL AST. Useful for creating non-parameterized query variations or for static analysis. For compound logical expressions (AND/OR), only the parameterized parts are removed while preserving the rest of the query structure. Works recursively across subqueries, CTEs, and other nested structures.
 
 - **QueryBuilder**  
   Converts any SELECT/UNION/VALUES query into a standard SimpleSelectQuery. Handles subquery wrapping and automatic column name generation.
@@ -516,6 +518,24 @@ const createTemp = QueryBuilder.buildCreateTableQuery(select, 'tmp_table', true)
 const sqlTemp = new SqlFormatter().format(createTemp).formattedSql;
 console.log(sqlTemp);
 // => create temporary table "tmp_table" as select "id", "name" from "users"
+```
+
+```typescript
+// Parameter Removal Example
+import { SelectQueryParser, ParameterRemover, SqlFormatter } from 'rawsql-ts';
+
+// Parse a query with parameters
+const sql = `SELECT id, name FROM users WHERE active = true AND department = :dept AND created_at > :date`;
+const query = SelectQueryParser.parse(sql);
+
+// Remove parameter expressions
+const nonParamQuery = ParameterRemover.remove(query);
+
+// Format the result
+const formatter = new SqlFormatter();
+const result = formatter.format(nonParamQuery).formattedSql;
+console.log(result);
+// => select "id", "name" from "users" where "active" = true
 ```
 
 ```typescript
