@@ -1,6 +1,6 @@
 import { SelectQuery, SimpleSelectQuery } from "../models/SelectQuery";
 import { SelectableColumnCollector } from "./SelectableColumnCollector";
-import { BinaryExpression, FunctionCall, ParameterExpression, ParenExpression, ValueList } from "../models/ValueComponent";
+import { BinaryExpression, FunctionCall, ParameterExpression, ParenExpression, ValueComponent, ValueList } from "../models/ValueComponent";
 import { UpstreamSelectQueryFinder } from "./UpstreamSelectQueryFinder";
 import { SelectQueryParser } from "../parsers/SelectQueryParser";
 
@@ -66,11 +66,7 @@ export class SqlParamInjector {
 
                 // if object, validate its keys
                 if (stateValue !== null && typeof stateValue === 'object' && !Array.isArray(stateValue) && Object.getPrototypeOf(stateValue) === Object.prototype) {
-                    Object.keys(stateValue).forEach(op => {
-                        if (!allowedOps.includes(op)) {
-                            throw new Error(`Unsupported operator '${op}' for state key '${name}'`);
-                        }
-                    });
+                    validateOperators(stateValue, allowedOps, name);
                 }
 
                 if (
@@ -79,66 +75,77 @@ export class SqlParamInjector {
                     Array.isArray(stateValue) ||
                     stateValue instanceof Date
                 ) {
-                    // use constructor to bind value
-                    const paramExpr = new ParameterExpression(name, stateValue);
-                    q.appendWhere(new BinaryExpression(columnRef, "=", paramExpr));
+                    injectSimpleCondition(q, columnRef, name, stateValue);
                 } else {
-                    // Explicit '=' operator support
-                    if ('=' in stateValue) {
-                        const paramEq = new ParameterExpression(name, stateValue['=']);
-                        q.appendWhere(new BinaryExpression(columnRef, "=", paramEq));
-                    }
-                    else {
-                        if ('min' in stateValue) {
-                            const paramMin = new ParameterExpression(name + "_min", stateValue.min);
-                            q.appendWhere(new BinaryExpression(columnRef, ">=", paramMin));
-                        }
-                        if ('max' in stateValue) {
-                            const paramMax = new ParameterExpression(name + "_max", stateValue.max);
-                            q.appendWhere(new BinaryExpression(columnRef, "<=", paramMax));
-                        }
-                        if ('like' in stateValue) {
-                            const paramLike = new ParameterExpression(name + "_like", stateValue.like);
-                            q.appendWhere(new BinaryExpression(columnRef, "like", paramLike));
-                        }
-                        // Additional condition for "in": expand array to individual parameters
-                        if ('in' in stateValue) {
-                            const arr = stateValue['in'] as (number | string)[];
-                            const prms: ParameterExpression[] = arr.map((v, i) =>
-                                new ParameterExpression(`${name}_in_${i}`, v)
-                            );
-                            q.appendWhere(new BinaryExpression(columnRef, "in", new ParenExpression(new ValueList(prms))));
-                        }
-                        if ('any' in stateValue) {
-                            const paramAny = new ParameterExpression(name + "_any", stateValue.any);
-                            q.appendWhere(new BinaryExpression(columnRef, "=", new FunctionCall(null, "any", paramAny, null)));
-                        }
-                        if ('<' in stateValue) {
-                            const paramLT = new ParameterExpression(name + "_lt", stateValue['<']);
-                            q.appendWhere(new BinaryExpression(columnRef, "<", paramLT));
-                        }
-                        if ('>' in stateValue) {
-                            const paramGT = new ParameterExpression(name + "_gt", stateValue['>']);
-                            q.appendWhere(new BinaryExpression(columnRef, ">", paramGT));
-                        }
-                        if ('!=' in stateValue) {
-                            const paramNEQ = new ParameterExpression(name + "_neq", stateValue['!=']);
-                            q.appendWhere(new BinaryExpression(columnRef, "!=", paramNEQ));
-                        }
-                        if ('<>' in stateValue) {
-                            const paramNE = new ParameterExpression(name + "_ne", stateValue['<>']);
-                            q.appendWhere(new BinaryExpression(columnRef, "<>", paramNE));
-                        }
-                        if ('<=' in stateValue) {
-                            const paramLE = new ParameterExpression(name + "_le", stateValue['<=']);
-                            q.appendWhere(new BinaryExpression(columnRef, "<=", paramLE));
-                        }
-                        if ('>=' in stateValue) {
-                            const paramGE = new ParameterExpression(name + "_ge", stateValue['>=']);
-                            q.appendWhere(new BinaryExpression(columnRef, ">=", paramGE));
-                        }
-                    }
+                    injectComplexConditions(q, columnRef, name, stateValue);
                 }
+            }
+        }
+
+        function validateOperators(stateValue: object, allowedOps: string[], name: string): void {
+            Object.keys(stateValue).forEach(op => {
+                if (!allowedOps.includes(op)) {
+                    throw new Error(`Unsupported operator '${op}' for state key '${name}'`);
+                }
+            });
+        }
+
+        function injectSimpleCondition(q: SimpleSelectQuery, columnRef: ValueComponent, name: string, stateValue: any): void {
+            const paramExpr = new ParameterExpression(name, stateValue);
+            q.appendWhere(new BinaryExpression(columnRef, "=", paramExpr));
+        }
+
+        function injectComplexConditions(q: SimpleSelectQuery, columnRef: ValueComponent, name: string, stateValue: Condition): void {
+            if ('=' in stateValue) {
+                const paramEq = new ParameterExpression(name, stateValue['=']);
+                q.appendWhere(new BinaryExpression(columnRef, "=", paramEq));
+            }
+            if ('min' in stateValue) {
+                const paramMin = new ParameterExpression(name + "_min", stateValue.min);
+                q.appendWhere(new BinaryExpression(columnRef, ">=", paramMin));
+            }
+            if ('max' in stateValue) {
+                const paramMax = new ParameterExpression(name + "_max", stateValue.max);
+                q.appendWhere(new BinaryExpression(columnRef, "<=", paramMax));
+            }
+            if ('like' in stateValue) {
+                const paramLike = new ParameterExpression(name + "_like", stateValue.like);
+                q.appendWhere(new BinaryExpression(columnRef, "like", paramLike));
+            }
+            if ('in' in stateValue) {
+                const arr = stateValue['in'] as (number | string)[];
+                const prms: ParameterExpression[] = arr.map((v, i) =>
+                    new ParameterExpression(`${name}_in_${i}`, v)
+                );
+                q.appendWhere(new BinaryExpression(columnRef, "in", new ParenExpression(new ValueList(prms))));
+            }
+            if ('any' in stateValue) {
+                const paramAny = new ParameterExpression(name + "_any", stateValue.any);
+                q.appendWhere(new BinaryExpression(columnRef, "=", new FunctionCall(null, "any", paramAny, null)));
+            }
+            if ('<' in stateValue) {
+                const paramLT = new ParameterExpression(name + "_lt", stateValue['<']);
+                q.appendWhere(new BinaryExpression(columnRef, "<", paramLT));
+            }
+            if ('>' in stateValue) {
+                const paramGT = new ParameterExpression(name + "_gt", stateValue['>']);
+                q.appendWhere(new BinaryExpression(columnRef, ">", paramGT));
+            }
+            if ('!=' in stateValue) {
+                const paramNEQ = new ParameterExpression(name + "_neq", stateValue['!=']);
+                q.appendWhere(new BinaryExpression(columnRef, "!=", paramNEQ));
+            }
+            if ('<>' in stateValue) {
+                const paramNE = new ParameterExpression(name + "_ne", stateValue['<>']);
+                q.appendWhere(new BinaryExpression(columnRef, "<>", paramNE));
+            }
+            if ('<=' in stateValue) {
+                const paramLE = new ParameterExpression(name + "_le", stateValue['<=']);
+                q.appendWhere(new BinaryExpression(columnRef, "<=", paramLE));
+            }
+            if ('>=' in stateValue) {
+                const paramGE = new ParameterExpression(name + "_ge", stateValue['>=']);
+                q.appendWhere(new BinaryExpression(columnRef, ">=", paramGE));
             }
         }
 
