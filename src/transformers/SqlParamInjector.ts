@@ -29,7 +29,10 @@ export class SqlParamInjector {
      * @param state A record of parameter names and values
      * @returns The modified SelectQuery
      */
-    public inject(query: SimpleSelectQuery | string, state: Record<string, number | string | Condition>): SelectQuery {
+    public inject(
+        query: SimpleSelectQuery | string,
+        state: Record<string, number | string | boolean | Date | null | undefined | Condition>
+    ): SelectQuery {
         // Convert string query to SimpleSelectQuery using SelectQueryParser if needed
         if (typeof query === 'string') {
             query = SelectQueryParser.parse(query) as SimpleSelectQuery;
@@ -45,6 +48,9 @@ export class SqlParamInjector {
         const allowedOps = ['min', 'max', 'like', 'in', 'any', '=', '<', '>', '!=', '<>', '<=', '>='];
 
         for (const [name, stateValue] of Object.entries(state)) {
+            // skip undefined values
+            if (stateValue === undefined) continue;
+
             const queries = finder.find(query, name);
             if (queries.length === 0) {
                 throw new Error(`Column '${name}' not found in query`);
@@ -67,7 +73,12 @@ export class SqlParamInjector {
                     });
                 }
 
-                if (stateValue === null || typeof stateValue !== 'object' || Array.isArray(stateValue)) {
+                if (
+                    stateValue === null ||
+                    typeof stateValue !== 'object' ||
+                    Array.isArray(stateValue) ||
+                    stateValue instanceof Date
+                ) {
                     // use constructor to bind value
                     const paramExpr = new ParameterExpression(name, stateValue);
                     q.appendWhere(new BinaryExpression(columnRef, "=", paramExpr));
@@ -137,16 +148,16 @@ export class SqlParamInjector {
 
 // Define allowed condition keywords for state values (single declaration)
 type Condition = {
-    '='?: number | string;
-    min?: number;
-    max?: number;
+    '='?: number | string | boolean | Date;
+    min?: number | string | Date;
+    max?: number | string | Date;
     like?: string;
-    in?: (number | string)[];
-    any?: (number | string)[];
-    '<'?: number;
-    '>'?: number;
-    '!='?: number | string;
-    '<>'?: number | string;
-    '<='?: number;
-    '>='?: number;
+    in?: (number | string | Date)[];
+    any?: (number | string | Date)[];
+    '<'?: number | string | Date;
+    '>'?: number | string | Date;
+    '!='?: number | string | boolean | Date;
+    '<>'?: number | string | boolean | Date;
+    '<='?: number | string | Date;
+    '>='?: number | string | Date;
 };

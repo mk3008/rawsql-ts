@@ -204,6 +204,59 @@ describe('SqlParamInjector', () => {
         expect(params).toEqual({ price: 10 });
     });
 
+    test('supports various primitive types including Date and null', () => {
+        // Arrange: select multiple columns
+        const baseQuery = SelectQueryParser.parse(
+            'select u.count, u.ratio, u.active, u.deleted, u.created_at from users as u'
+        ) as SimpleSelectQuery;
+        const now = new Date('2020-01-01T00:00:00.000Z');
+        const state = {
+            count: 42,
+            ratio: 3.14,
+            active: true,
+            deleted: null,           // explicit null should produce a filter
+            created_at: now
+        };
+
+        // Act: inject and format
+        const injector = new SqlParamInjector();
+        const injectedQuery = injector.inject(baseQuery, state);
+        const { formattedSql, params } = new SqlFormatter().format(injectedQuery);
+
+        // Assert: SQL string includes deleted filter when null is explicit
+        expect(formattedSql).toBe(
+            'select "u"."count", "u"."ratio", "u"."active", "u"."deleted", "u"."created_at" ' +
+            'from "users" as "u" where ' +
+            '"u"."count" = :count and ' +
+            '"u"."ratio" = :ratio and ' +
+            '"u"."active" = :active and ' +
+            '"u"."deleted" = :deleted and ' +
+            '"u"."created_at" = :created_at'
+        );
+        // Assert: params object holds correct values (including deleted:null)
+        expect(params).toEqual({
+            count: 42,
+            ratio: 3.14,
+            active: true,
+            deleted: null,
+            created_at: now
+        });
+    });
+
+    test('ignores undefined state values', () => {
+        // Arrange: parse base query
+        const baseQuery = SelectQueryParser.parse('select u.id from users as u') as SimpleSelectQuery;
+        // State with undefined value should be skipped
+        const state = { id: undefined };
+        // Act: inject and format
+        const injector = new SqlParamInjector();
+        const injected = injector.inject(baseQuery, state);
+        const { formattedSql, params } = new SqlFormatter().format(injected);
+        // Assert: no WHERE and empty params
+        expect(formattedSql).toBe('select "u"."id" from "users" as "u"');
+        expect(params).toEqual({});
+    });
+
     /*
     coding time exception test
     test('throws error for unsupported operator in state', () => {
