@@ -65,7 +65,7 @@ export class SqlParamInjector {
                 const columnRef = entry.value;
 
                 // if object, validate its keys
-                if (stateValue !== null && typeof stateValue === 'object' && !Array.isArray(stateValue)) {
+                if (stateValue !== null && typeof stateValue === 'object' && !Array.isArray(stateValue) && Object.getPrototypeOf(stateValue) === Object.prototype) {
                     Object.keys(stateValue).forEach(op => {
                         if (!allowedOps.includes(op)) {
                             throw new Error(`Unsupported operator '${op}' for state key '${name}'`);
