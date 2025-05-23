@@ -8,32 +8,30 @@
 
 🌐 [Online Demo (GitHub Pages)](https://mk3008.github.io/rawsql-ts/)
 
-rawsql-ts is a high-performance SQL parser and AST transformer library written in TypeScript. It is designed for extensibility and advanced SQL analysis, with initial focus on PostgreSQL syntax but not limited to it. The library enables easy SQL parsing, transformation, and analysis for a wide range of SQL dialects.
+rawsql-ts is a high-performance SQL parser and AST transformer library written in TypeScript. It empowers you to represent raw SQL as objects, enabling flexible manipulation of SQL statements directly within your program. This object-oriented approach allows for partial transformation, decomposition into manageable components, and recombination as needed, dramatically improving the maintainability and reusability of complex SQL.
+
+It is designed for extensibility and advanced SQL analysis, with initial focus on PostgreSQL syntax but not limited to it. The library enables easy SQL parsing, transformation, and analysis for a wide range of SQL dialects.
 
 > [!Note]
 > This library is currently in beta. The API may change until the v1.0 release.
 
 ---
 
-💡 **Key Advantages**
-
-With rawsql-ts, raw SQL can be represented as objects, enabling flexible manipulation of SQL statements directly within your program. Objectified SQL can be partially transformed, decomposed into manageable components, and recombined as needed. This approach dramatically improves the maintainability and reusability of complex SQL, making even large-scale queries easy to manage and refactor.
-
----
-
-## Features
+## Key Features
 
 - Zero dependencies: fully self-contained and lightweight
 - High-speed SQL parsing and AST analysis (over 3x faster than major libraries)
 - Rich utilities for SQL structure transformation and analysis
 - Advanced SQL formatting capabilities, including multi-line formatting and customizable styles
+- Dynamic SQL parameter injection for building flexible search queries with `SqlParamInjector`
+- Static query validation and regression testing against your database schema with `SqlSchemaValidator`, enabling early error detection and robust unit tests for schema changes.
 
-![Benchmark Results](https://quickchart.io/chart?c={type:'bar',data:{labels:['Tokens20','Tokens70','Tokens140','Tokens230'],datasets:[{label:'rawsql-ts',data:[0.029,0.075,0.137,0.239],backgroundColor:'rgba(54,162,235,0.8)',borderColor:'rgba(54,162,235,1)',borderWidth:1},{label:'node-sql-parser',data:[0.210,0.223,0.420,0.871],backgroundColor:'rgba(255,206,86,0.8)',borderColor:'rgba(255,206,86,1)',borderWidth:1},{label:'sql-formatter',data:[0.228,0.547,1.057,1.906],backgroundColor:'rgba(255,99,132,0.8)',borderColor:'rgba(255,99,132,1)',borderWidth:1}]},options:{plugins:{legend:{labels:{color:'black'}}},scales:{x:{ticks:{color:'black'}},y:{ticks:{color:'black'}}},backgroundColor:'white'}})
+![Benchmark Results](https://quickchart.io/chart?c={type:'bar',data:{labels:['Tokens20','Tokens70','Tokens140','Tokens230'],datasets:[{label:'rawsql-ts',data:[0.029,0.075,0.137,0.239],backgroundColor:'rgba(54,162,235,0.8)',borderColor:'rgba(54,162,235,1)',borderWidth:1},{label:'node-sql-parser',data:[0.210,0.223,0.420,0.871],backgroundColor:'rgba(255,206,86,0.8)',borderColor:'rgba(255,206,86,1)',borderWidth:1},{label:'sql-formatter',data:[0.228,0.547,1.057,1.906],backgroundColor:'rgba(255,99,132,0.8)',borderColor:'rgba(255,99,132,1)',borderWidth:1}]},options:{plugins:{legend:{labels:{color:'black'}}},scales:{x:{ticks:{color:'black'}},y:{ticks:{color:'black'}}},backgroundColor:'white'}}&width=700&height=450)
 
 > [!Note]
 > The "Mean" column represents the average time taken to process a query. Lower values indicate faster performance. For more details, see the [Benchmark](#benchmarks).
 
-## ✨ Browser & CDN Ready!
+## Browser & CDN Ready
 
 You can use rawsql-ts directly in modern browsers via CDN (unpkg/jsdelivr)!
 No Node.js dependencies, no build tools required.
@@ -61,52 +59,21 @@ Just import it like this:
 npm install rawsql-ts
 ```
 
+---
+
 ## Quick Start
-
-```typescript
-import { SelectQueryParser, SqlFormatter } from 'rawsql-ts';
-
-const sql = `SELECT user_id, name FROM users WHERE active = TRUE`;
-const query = SelectQueryParser.parse(sql);
-const formatter = new SqlFormatter();
-const { formattedSql } = formatter.format(query);
-
-console.log(formattedSql);
-// => select "user_id", "name" from "users" where "active" = true
-```
 
 ---
 
-## Formatter Functionality
-
-The `SqlFormatter` class in rawsql-ts is the recommended way to format SQL queries. It provides advanced SQL formatting capabilities, including support for indentation, keyword casing, and line breaks, making it ideal for generating human-readable SQL. 
-
-> [!Note]
-> While the older `Formatter` class is still available for backward compatibility, `SqlFormatter` offers enhanced functionality and is the preferred choice for new projects. `SqlFormatter` is available starting from version 0.7.
-
-### Key Features of SqlFormatter
-
-- **Indentation and Keyword Casing**: Supports customizable indentation and keyword casing (e.g., UPPERCASE, lowercase).
-- **Preset Configurations**: Includes presets for common SQL dialects (MySQL, PostgreSQL, SQL Server, SQLite) to simplify configuration.
-- **Customizable Options**: Allows fine-grained control over formatting styles, such as comma placement, parameter styles, and newline characters.
-- **Parameterized Query Formatting**: Supports anonymous (`?`), indexed (`$1`, `$2`), and named (`:name`, `@name`) parameter styles for compatibility with various database systems.
-
-### Preset Configurations (SqlFormatter.PRESETS)
-
-The `SqlFormatter` class provides preset configurations for common SQL dialects. Use these presets to quickly format queries without manually specifying options each time.
+Kickstart your project by dynamically injecting parameters with `SqlParamInjector` for flexible query generation right from the start!
 
 ```typescript
-const formatter = new SqlFormatter({ preset: 'mysql' });
-const { formattedSql } = formatter.format(query);
-console.log(formattedSql);
-```
+import { SqlParamInjector, SqlFormatter } from 'rawsql-ts';
 
-**Preset Details:**
-- `mysql`: Backtick identifier, `?` parameter, no named parameters
-- `postgres`: Double quote identifier, `$` parameter, indexed parameters
-- `sqlserver`: Square bracket identifier, `@` parameter, named parameters
-- `sqlite`: Double quote identifier, `:` parameter, named parameters
+// Define a base SQL query with an alias, using TRUE for boolean conditions
+const baseSql = `SELECT u.user_id, u.user_name, u.email FROM users as u WHERE u.active = TRUE`;
 
+<<<<<<< HEAD
 ### Customizing SqlFormatter
 
 You can override any preset option as needed. For example, to use variable-style parameters (`${name}`):
@@ -524,115 +491,218 @@ const resolver: TableColumnResolver = (tableName) => {
     if (tableName === 'users') return ['user_id', 'user_name', 'email'];
     if (tableName === 'posts') return ['post_id', 'user_id', 'title', 'content'];
     return [];
+=======
+// Imagine you have search parameters from a user's input
+const searchParams = {
+  user_name: { like: '%Alice%' }, // Find users whose name contains 'Alice'
+  email: 'specific.email@example.com' // And have a specific email
+>>>>>>> main
 };
 
-const sql = `SELECT u.*, p.title as post_title FROM users u INNER JOIN posts p ON u.user_id = p.user_id`;
-const query = SelectQueryParser.parse(sql);
-const formatter = new SqlFormatter();
+const injector = new SqlParamInjector();
+// Dynamically inject searchParams into the baseSql
+const query = injector.inject(baseSql, searchParams);
 
-// Collects information from the SELECT clause.
-// To expand wildcards, you must specify a TableColumnResolver.
-const selectValueCollector = new SelectValueCollector(resolver);
-const selectValues = selectValueCollector.collect(query);
-// Log the name and formatted value of each select value
-console.log('Select values:');
-selectValues.forEach(val => {
-    console.log(`  name: ${val.name}, value: ${formatter.format(val.value).formattedSql}`);
-});
-/*
-Select values:
-  name: post_title, value: "p"."title"
-  name: user_id, value: "u"."user_id"
-  name: user_name, value: "u"."user_name"
-  name: email, value: "u"."email"
-*/
-```
+// Format the dynamically generated query (e.g., using PostgreSQL preset)
+const formatter = new SqlFormatter({ preset: 'postgres' }); 
+const { formattedSql, params } = formatter.format(query);
 
-```typescript
-// Collects selectable columns from the FROM/JOIN clauses.
-// You can get accurate information by specifying a TableColumnResolver.
-// If omitted, the information will be inferred from the query content.
-const selectableColumnCollector = new SelectableColumnCollector(resolver);
-const selectableColumns = selectableColumnCollector.collect(query);
-// Log detailed info for each selectable column
-console.log('Selectable columns:');
-selectableColumns.forEach(val => {
-    console.log(`  name: ${val.name}, value: ${formatter.format(val.value).formattedSql}`);
-});
-/*
-Selectable columns:
-  name: post_title, value: "p"."title"
-  name: user_id, value: "u"."user_id"
-  name: user_name, value: "u"."user_name"
-  name: email, value: "u"."email"
-  name: post_id, value: "p"."post_id"
-  name: title, value: "p"."title"
-  name: content, value: "p"."content"
-*/
-```
+console.log('Dynamically Generated SQL:');
+console.log(formattedSql);
+// Expected output (PostgreSQL style):
+// select "u"."user_id", "u"."user_name", "u"."email"
+// from "users" as "u"
+// where "u"."active" = true
+// and "u"."user_name" like :user_name_like
+// and "u"."email" = :email
 
-```typescript
-// Create Table from SELECT Example
-import { QueryBuilder, SelectQueryParser, SqlFormatter } from 'rawsql-ts';
-
-const select = SelectQueryParser.parse('SELECT id, name FROM users');
-const create = QueryBuilder.buildCreateTableQuery(select, 'my_table');
-const sqlCreate = new SqlFormatter().format(create).formattedSql;
-console.log(sqlCreate);
-// => create table "my_table" as select "id", "name" from "users"
-
-const createTemp = QueryBuilder.buildCreateTableQuery(select, 'tmp_table', true);
-const sqlTemp = new SqlFormatter().format(createTemp).formattedSql;
-console.log(sqlTemp);
-// => create temporary table "tmp_table" as select "id", "name" from "users"
-```
-
-```typescript
-// Retrieves physical table sources.
-const tableSourceCollector = new TableSourceCollector();
-const sources = tableSourceCollector.collect(query);
-// Log detailed info for each source
-console.log('Sources:');
-sources.forEach(src => {
-    console.log(`  name: ${src.getSourceName()}`);
-});
-/*
-TableSources:
-  name: users
-  name: posts
-*/
+console.log('\\nParameters:');
+console.log(params);
+// Expected output:
+// { user_name_like: '%Alice%', email: 'specific.email@example.com' }
 ```
 
 ---
 
-## Advanced Example: Table Join
+## SQL Parsing Features
 
-This example demonstrates how to join two tables using rawsql-ts. You do not need to understand the internal structure or manage aliases manually. By specifying the join key(s), the ON clause is generated automatically.
+rawsql-ts provides robust parsers for `SELECT`, `INSERT`, and `UPDATE` statements, automatically handling SQL comments and providing detailed error messages. By converting SQL into a generic Abstract Syntax Tree (AST), it enables a wide variety of transformation processes.
 
 ```typescript
-import { SelectQueryParser, SqlFormatter, SimpleSelectQuery } from 'rawsql-ts';
+import { SelectQueryParser } from 'rawsql-ts';
 
-// Parse the base query
-const query = SelectQueryParser.parse('SELECT u.user_id, u.name FROM users u') as SimpleSelectQuery;
-
-// Add LEFT JOIN using the leftJoinRaw method (join on user_id)
-query.leftJoinRaw('orders', 'o', ['user_id']);
-
-// Add WHERE clause
-query.appendWhereRaw('o.order_id IS NULL');
-
-const formatter = new SqlFormatter();
-const formattedSql = formatter.format(query).formattedSql;
-
-console.log(formattedSql);
-// => select "u"."user_id", "u"."name" from "users" as "u" left join "orders" as "o" on "u"."user_id" = "o"."user_id" where "o"."order_id" is null
+const sql = `SELECT id, name FROM products WHERE category = 'electronics'`;
+const query = SelectQueryParser.parse(sql);
+// query object now holds the AST of the SQL
 ```
 
-**Key Points:**
-- No need to understand internal implementation or alias management
-- Specify only the join key(s) (e.g., `['user_id']`); the ON clause is generated automatically
-- Subqueries and aliases are handled automatically
-- You can join queries without detailed knowledge of SQL structure or AST internals
+For more details on `SelectQueryParser`, see the [SelectQueryParser Usage Guide](./docs/class-SelectQueryParser-usage-guide.md).
+
+---
+
+## SQL Formatter Features
+
+The `SqlFormatter` class is the recommended way to format SQL queries, offering advanced capabilities like indentation, keyword casing, and multi-line formatting.
+It also allows for detailed style customization. For example, you can define your own formatting rules:
+
+```typescript
+import { SelectQueryParser, SqlFormatter } from 'rawsql-ts';
+
+const customStyle = {
+  identifierEscape: {
+    start: "",
+    end: ""
+  },
+  parameterSymbol: ":",
+  parameterStyle: "named",
+  indentSize: 4,
+  indentChar: " ",
+  newline: "\n",
+  keywordCase: "lower",
+  commaBreak: "before",
+  andBreak: "before"
+};
+
+const sqlToFormat = `SELECT u.user_id, u.user_name FROM users as u WHERE status = :active ORDER BY created_at DESC;`;
+const queryToFormat = SelectQueryParser.parse(sqlToFormat);
+const customFormatter = new SqlFormatter(customStyle);
+const { formattedSql: customFormattedSql } = customFormatter.format(queryToFormat);
+
+console.log(customFormattedSql);
+/*
+select
+    u.user_id
+    , u.user_name
+from
+    users as u
+where
+    status = :active
+order by
+    created_at desc;
+*/
+```
+
+For more details, see the [SqlFormatter Usage Guide](./docs/class-SqlFormatter-usage-guide.md).
+
+---
+
+## SqlParamInjector Features
+
+The `SqlParamInjector` class revolutionizes how you build dynamic search queries. Instead of manually constructing different SQL statements for various search conditions, you simply provide a fixed base SQL and a state object. `SqlParamInjector` then dynamically injects parameters and automatically generates the optimal WHERE conditions.
+
+Key benefits include:
+- **Simplified Query Management**: Prepare a single base SQL; `SqlParamInjector` handles the variations.
+- **Effortless Optimal Queries**: Just pass a state object, and it generates a highly efficient query.
+- **Performance-Oriented**: Conditions are intelligently inserted as close to the data source as possible, significantly improving query performance by filtering data early.
+- **Zero Conditional Logic in Code**: Forget writing complex IF statements in your application code to handle different filters.
+- **Enhanced SQL Reusability**: Your base SQL remains clean and can be reused across different scenarios with varying search criteria.
+
+```typescript
+import { SqlParamInjector, SqlFormatter } from 'rawsql-ts';
+
+const sql = `SELECT u.user_id, u.user_name FROM users as u WHERE u.active = TRUE`;
+const injector = new SqlParamInjector();
+// Inject parameters and generate WHERE conditions
+const injectedQuery = injector.inject(sql, { user_id: 42, user_name: 'Alice' });
+
+const formatter = new SqlFormatter();
+const { formattedSql, params } = formatter.format(injectedQuery);
+
+console.log(formattedSql);
+// Output: select "u"."user_id", "u"."user_name" from "users" as "u" where "u"."active" = true and "u"."user_id" = :user_id and "u"."user_name" = :user_name
+console.log(params);
+// Output: { user_id: 42, user_name: 'Alice' }
+```
+
+For more details, see the [SqlParamInjector Usage Guide](./docs/class-SqlParamInjector-usage-guide.md).
+
+---
+
+## SqlSchemaValidator Features
+
+The `SqlSchemaValidator` class helps ensure your SQL queries are valid against a predefined database schema. It can extract schema information about the physical tables your SQL query depends on. By comparing this extracted information with your defined schema (e.g., a schema definition class), you can statically verify the query's behavior. This enables you to perform regression testing as part of your unit tests when schema definitions change, ensuring that your queries remain compatible.
+
+It checks if the tables and columns referenced in your query actually exist in your schema, and it understands table aliases. If there's a problem, it gives you a clear error message telling you what's wrong and where.
+
+Key benefits include:
+- **Schema Validation**: Verifies SQL queries against your database schema.
+- **Table and Column Verification**: Confirms the existence of tables and columns used in the query.
+- **Alias Aware**: Correctly resolves table aliases.
+- **Clear Error Reporting**: Provides descriptive error messages for easy debugging.
+- **Static Analysis**: Allows comparison of SQL-derived schema information with predefined schema definitions.
+- **Automated Regression Testing**: Facilitates unit testing for schema change impacts on queries.
+
+```typescript
+import { SelectQueryParser, SqlSchemaValidator } from 'rawsql-ts';
+
+// Define your database schema
+const schema = {
+  users: ['user_id', 'user_name', 'email', 'status'],
+  orders: ['order_id', 'user_id', 'order_date', 'total_amount']
+};
+
+const validator = new SqlSchemaValidator(schema);
+
+// Example: Validate a SELECT query
+const validSql = 'SELECT u.user_id, u.user_name FROM users as u WHERE u.status = \'active\'';
+const queryToValidate = SelectQueryParser.parse(validSql);
+
+try {
+  validator.validate(queryToValidate);
+  console.log('Query is valid against the schema.');
+} catch (error) {
+  console.error('Schema validation failed:', error.message);
+}
+
+// Example: Validate a query with a non-existent column
+const invalidSql = 'SELECT user_id, non_existent_column FROM users';
+const invalidQuery = SelectQueryParser.parse(invalidSql);
+
+try {
+  validator.validate(invalidQuery);
+} catch (error) {
+  console.error('Schema validation error for non-existent column:', error.message);
+  // Expected output: Validation failed: Column 'non_existent_column' not found in table 'users'.
+}
+```
+
+For more details on `SqlSchemaValidator`, see the [SqlSchemaValidator Usage Guide](./docs/class-SqlSchemaValidator-usage-guide.md).
+
+---
+
+## QueryBuilder Features
+
+`QueryBuilder` is a powerful utility that enhances the management and generation of SQL modification queries (such as `INSERT` or `UPDATE`) by leveraging select queries. This approach significantly improves the maintainability of complex data manipulation logic. It allows for the conversion of select queries into corresponding update-type queries, streamlining development and ensuring consistency.
+
+```typescript
+import { SelectQueryParser, QueryBuilder, SqlFormatter, QueryNormalizer } from 'rawsql-ts';
+
+// Example: Convert a SELECT query to an UPDATE query
+const selectSourceSql = 'SELECT id, new_email AS email, last_login FROM user_updates_source WHERE needs_update = TRUE';
+// QueryBuilder.buildUpdateQuery expects a SimpleSelectQuery as input.
+// If your source is a complex query (e.g. with UNIONs or CTEs), normalize it first.
+const normalizedSelectQuery = QueryNormalizer.normalize(SelectQueryParser.parse(selectSourceSql));
+
+// Define the target table for the UPDATE and the primary key(s) for joining
+const targetTable = 'users';
+const primaryKeys = ['id']; // Column(s) to match records between source and target
+
+const updateQuery = QueryBuilder.buildUpdateQuery(
+  normalizedSelectQuery,
+  'd', // Alias of the source query in the FROM clause
+  targetTable,
+  primaryKeys
+);
+
+const formatter = new SqlFormatter({ preset: 'postgres' }); // Using postgres preset for clarity
+const { formattedSql: updateSql } = formatter.format(updateQuery);
+
+console.log(updateSql);
+// Example output (actual output depends on the SQL dialect and specific query structure):
+// update "users" set "email" = "d"."email", "last_login" = "d"."last_login" from (SELECT id, new_email AS email, last_login FROM user_updates_source WHERE needs_update = TRUE) as "d" where "users"."id" = "d"."id"
+```
+
+For more details on `QueryBuilder`, see the [QueryBuilder Usage Guide](./docs/class-QueryBuilder-usage-guide.md).
 
 ---
 
