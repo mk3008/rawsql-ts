@@ -24,8 +24,9 @@ It is designed for extensibility and advanced SQL analysis, with initial focus o
 - Rich utilities for SQL structure transformation and analysis
 - Advanced SQL formatting capabilities, including multi-line formatting and customizable styles
 - Dynamic SQL parameter injection for building flexible search queries with `SqlParamInjector`
+- Static query validation and regression testing against your database schema with `SqlSchemaValidator`, enabling early error detection and robust unit tests for schema changes.
 
-![Benchmark Results](https://quickchart.io/chart?c={type:'bar',data:{labels:['Tokens20','Tokens70','Tokens140','Tokens230'],datasets:[{label:'rawsql-ts',data:[0.029,0.075,0.137,0.239],backgroundColor:'rgba(54,162,235,0.8)',borderColor:'rgba(54,162,235,1)',borderWidth:1},{label:'node-sql-parser',data:[0.210,0.223,0.420,0.871],backgroundColor:'rgba(255,206,86,0.8)',borderColor:'rgba(255,206,86,1)',borderWidth:1},{label:'sql-formatter',data:[0.228,0.547,1.057,1.906],backgroundColor:'rgba(255,99,132,0.8)',borderColor:'rgba(255,99,132,1)',borderWidth:1}]},options:{plugins:{legend:{labels:{color:'black'}}},scales:{x:{ticks:{color:'black'}},y:{ticks:{color:'black'}}},backgroundColor:'white'}})
+![Benchmark Results](https://quickchart.io/chart?c={type:'bar',data:{labels:['Tokens20','Tokens70','Tokens140','Tokens230'],datasets:[{label:'rawsql-ts',data:[0.029,0.075,0.137,0.239],backgroundColor:'rgba(54,162,235,0.8)',borderColor:'rgba(54,162,235,1)',borderWidth:1},{label:'node-sql-parser',data:[0.210,0.223,0.420,0.871],backgroundColor:'rgba(255,206,86,0.8)',borderColor:'rgba(255,206,86,1)',borderWidth:1},{label:'sql-formatter',data:[0.228,0.547,1.057,1.906],backgroundColor:'rgba(255,99,132,0.8)',borderColor:'rgba(255,99,132,1)',borderWidth:1}]},options:{plugins:{legend:{labels:{color:'black'}}},scales:{x:{ticks:{color:'black'}},y:{ticks:{color:'black'}}},backgroundColor:'white'}}&width=700&height=450)
 
 > [!Note]
 > The "Mean" column represents the average time taken to process a query. Lower values indicate faster performance. For more details, see the [Benchmark](#benchmarks).
@@ -62,32 +63,43 @@ npm install rawsql-ts
 
 ## Quick Start
 
+---
+
+Kickstart your project by dynamically injecting parameters with `SqlParamInjector` for flexible query generation right from the start!
+
 ```typescript
 import { SqlParamInjector, SqlFormatter } from 'rawsql-ts';
 
-// Define a base SQL query with an alias
+// Define a base SQL query with an alias, using TRUE for boolean conditions
 const baseSql = `SELECT u.user_id, u.user_name, u.email FROM users as u WHERE u.active = TRUE`;
 
-// Define the parameters to inject
-const paramsToInject = { user_id: 1 };
+// Imagine you have search parameters from a user's input
+const searchParams = {
+  user_name: { like: '%Alice%' }, // Find users whose name contains 'Alice'
+  email: 'specific.email@example.com' // And have a specific email
+};
 
 const injector = new SqlParamInjector();
-// Dynamically inject the parameters into the WHERE clause
-const query = injector.inject(baseSql, paramsToInject);
+// Dynamically inject searchParams into the baseSql
+const query = injector.inject(baseSql, searchParams);
 
-const formatter = new SqlFormatter({ preset: 'postgres' }); // Optional: Use a preset for formatting
+// Format the dynamically generated query (e.g., using PostgreSQL preset)
+const formatter = new SqlFormatter({ preset: 'postgres' }); 
 const { formattedSql, params } = formatter.format(query);
 
-console.log("Generated SQL:");
+console.log('Dynamically Generated SQL:');
 console.log(formattedSql);
-// Expected SQL output:
+// Expected output (PostgreSQL style):
 // select "u"."user_id", "u"."user_name", "u"."email"
 // from "users" as "u"
-// where "u"."active" = true and "u"."user_id" = :user_id
+// where "u"."active" = true
+// and "u"."user_name" like :user_name_like
+// and "u"."email" = :email
 
-console.log("\\nParameters:");
+console.log('\\nParameters:');
 console.log(params);
-// Expected parameters: { user_id: 1 }
+// Expected output:
+// { user_name_like: '%Alice%', email: 'specific.email@example.com' }
 ```
 
 ---
@@ -168,7 +180,7 @@ Key benefits include:
 ```typescript
 import { SqlParamInjector, SqlFormatter } from 'rawsql-ts';
 
-const sql = `SELECT u.user_id, u.user_name FROM users as u WHERE u.active = true`;
+const sql = `SELECT u.user_id, u.user_name FROM users as u WHERE u.active = TRUE`;
 const injector = new SqlParamInjector();
 // Inject parameters and generate WHERE conditions
 const injectedQuery = injector.inject(sql, { user_id: 42, user_name: 'Alice' });
@@ -177,12 +189,64 @@ const formatter = new SqlFormatter();
 const { formattedSql, params } = formatter.format(injectedQuery);
 
 console.log(formattedSql);
-// Output: SELECT "u"."user_id", "u"."user_name" FROM "users" as "u" WHERE "u"."active" = true AND "u"."user_id" = :user_id AND "u"."user_name" = :user_name
+// Output: select "u"."user_id", "u"."user_name" from "users" as "u" where "u"."active" = true and "u"."user_id" = :user_id and "u"."user_name" = :user_name
 console.log(params);
 // Output: { user_id: 42, user_name: 'Alice' }
 ```
 
 For more details, see the [SqlParamInjector Usage Guide](./docs/class-SqlParamInjector-usage-guide.md).
+
+---
+
+## SqlSchemaValidator Features
+
+The `SqlSchemaValidator` class helps ensure your SQL queries are valid against a predefined database schema. It can extract schema information about the physical tables your SQL query depends on. By comparing this extracted information with your defined schema (e.g., a schema definition class), you can statically verify the query's behavior. This enables you to perform regression testing as part of your unit tests when schema definitions change, ensuring that your queries remain compatible.
+
+It checks if the tables and columns referenced in your query actually exist in your schema, and it understands table aliases. If there's a problem, it gives you a clear error message telling you what's wrong and where.
+
+Key benefits include:
+- **Schema Validation**: Verifies SQL queries against your database schema.
+- **Table and Column Verification**: Confirms the existence of tables and columns used in the query.
+- **Alias Aware**: Correctly resolves table aliases.
+- **Clear Error Reporting**: Provides descriptive error messages for easy debugging.
+- **Static Analysis**: Allows comparison of SQL-derived schema information with predefined schema definitions.
+- **Automated Regression Testing**: Facilitates unit testing for schema change impacts on queries.
+
+```typescript
+import { SelectQueryParser, SqlSchemaValidator } from 'rawsql-ts';
+
+// Define your database schema
+const schema = {
+  users: ['user_id', 'user_name', 'email', 'status'],
+  orders: ['order_id', 'user_id', 'order_date', 'total_amount']
+};
+
+const validator = new SqlSchemaValidator(schema);
+
+// Example: Validate a SELECT query
+const validSql = 'SELECT u.user_id, u.user_name FROM users as u WHERE u.status = \'active\'';
+const queryToValidate = SelectQueryParser.parse(validSql);
+
+try {
+  validator.validate(queryToValidate);
+  console.log('Query is valid against the schema.');
+} catch (error) {
+  console.error('Schema validation failed:', error.message);
+}
+
+// Example: Validate a query with a non-existent column
+const invalidSql = 'SELECT user_id, non_existent_column FROM users';
+const invalidQuery = SelectQueryParser.parse(invalidSql);
+
+try {
+  validator.validate(invalidQuery);
+} catch (error) {
+  console.error('Schema validation error for non-existent column:', error.message);
+  // Expected output: Validation failed: Column 'non_existent_column' not found in table 'users'.
+}
+```
+
+For more details on `SqlSchemaValidator`, see the [SqlSchemaValidator Usage Guide](./docs/class-SqlSchemaValidator-usage-guide.md).
 
 ---
 
