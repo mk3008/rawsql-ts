@@ -10,21 +10,26 @@ import { CTECollector } from "./CTECollector";
  * For UNION queries, it checks each branch independently.
  */
 export class UpstreamSelectQueryFinder {
+    private options: { ignoreCaseAndUnderscore?: boolean };
     private tableColumnResolver?: (tableName: string) => string[];
     private columnCollector: SelectableColumnCollector;
 
-    constructor(tableColumnResolver?: (tableName: string) => string[]) {
+    constructor(tableColumnResolver?: (tableName: string) => string[], options?: { ignoreCaseAndUnderscore?: boolean }) {
+        this.options = options || {};
         this.tableColumnResolver = tableColumnResolver;
+        // Pass the tableColumnResolver instead of options to fix type mismatch.
         this.columnCollector = new SelectableColumnCollector(this.tableColumnResolver);
     }
 
     /**
      * Finds the highest SelectQuery containing all specified columns.
      * @param query The root SelectQuery to search.
-     * @param columnNames Array of column names to check for.
+     * @param columnNames A column name or array of column names to check for.
      * @returns An array of SelectQuery objects, or an empty array if not found.
      */
-    public find(query: SelectQuery, columnNames: string[]): SimpleSelectQuery[] {
+    public find(query: SelectQuery, columnNames: string | string[]): SimpleSelectQuery[] {
+        // Normalize columnNames to array
+        const namesArray = typeof columnNames === 'string' ? [columnNames] : columnNames;
         // Use CTECollector to collect CTEs from the root query only once and reuse
         const cteCollector = new CTECollector();
         const ctes = cteCollector.collect(query);
@@ -32,7 +37,7 @@ export class UpstreamSelectQueryFinder {
         for (const cte of ctes) {
             cteMap.set(cte.getSourceAliasName(), cte);
         }
-        return this.findUpstream(query, columnNames, cteMap);
+        return this.findUpstream(query, namesArray, cteMap);
     }
 
     private handleTableSource(src: TableSource, columnNames: string[], cteMap: Map<string, CommonTable>): SimpleSelectQuery[] | null {
@@ -111,7 +116,6 @@ export class UpstreamSelectQueryFinder {
 
     private findUpstream(query: SelectQuery, columnNames: string[], cteMap: Map<string, CommonTable>): SimpleSelectQuery[] {
         if (query instanceof SimpleSelectQuery) {
-            // Check upstream sources first: prioritize searching upstream branches for the required columns.
             const fromClause = query.fromClause;
             if (fromClause) {
                 const branchResult = this.processFromClauseBranches(fromClause, columnNames, cteMap);
@@ -119,9 +123,11 @@ export class UpstreamSelectQueryFinder {
                     return branchResult;
                 }
             }
-            // If not found in all upstream branches, check this query itself
             const columns = this.columnCollector.collect(query).map(col => col.name);
-            const hasAll = columnNames.every(name => columns.includes(name));
+            const normalize = (s: string) =>
+                this.options.ignoreCaseAndUnderscore ? s.toLowerCase().replace(/_/g, '') : s;
+            // Normalize both the columns and the required names for comparison.
+            const hasAll = columnNames.every(name => columns.some(col => normalize(col) === normalize(name)));
             if (hasAll) {
                 return [query];
             }
