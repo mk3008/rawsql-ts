@@ -1201,10 +1201,14 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     }
 
     public visitInlineQuery(arg: InlineQuery): SqlPrintToken {
-        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.InlineQuery);
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '');
 
         token.innerTokens.push(SqlPrintTokenParser.PAREN_OPEN_TOKEN);
-        token.innerTokens.push(arg.selectQuery.accept(this));
+
+        const queryToken = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.InlineQuery);
+        queryToken.innerTokens.push(arg.selectQuery.accept(this));
+
+        token.innerTokens.push(queryToken);
         token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
 
         return token;

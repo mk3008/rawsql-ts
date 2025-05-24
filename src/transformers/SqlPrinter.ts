@@ -79,7 +79,8 @@ export class SqlPrinter {
                 SqlPrintTokenContainerType.SubQuerySource,
                 SqlPrintTokenContainerType.BinarySelectQueryOperator,
                 SqlPrintTokenContainerType.Values,
-                SqlPrintTokenContainerType.WithClause
+                SqlPrintTokenContainerType.WithClause,
+                SqlPrintTokenContainerType.InlineQuery,
                 //SqlPrintTokenContainerType.CommonTable
             ]
         );
