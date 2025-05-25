@@ -80,6 +80,8 @@ export class SqlPrinter {
                 SqlPrintTokenContainerType.BinarySelectQueryOperator,
                 SqlPrintTokenContainerType.Values,
                 SqlPrintTokenContainerType.WithClause
+                // CaseExpression, SwitchCaseArgument, CaseKeyValuePair, and ElseClause
+                // are not included by default to maintain backward compatibility with tests
                 //SqlPrintTokenContainerType.CommonTable
             ]
         );

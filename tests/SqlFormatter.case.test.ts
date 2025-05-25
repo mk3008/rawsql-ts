@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'vitest';
-import { Formatter } from "../src/transformers/Formatter";
+import { SqlFormatter } from "../src/transformers/SqlFormatter";
 import { CaseExpression, CaseKeyValuePair, IdentifierString, LiteralValue, SwitchCaseArgument } from "../src/models/ValueComponent";
 import { SqlPrintTokenContainerType } from "../src/models/SqlPrintToken";
 
@@ -22,25 +22,28 @@ test('CASE expression formatting with custom indentation', () => {
     );
 
     // Create formatter with custom style
-    const formatter = new Formatter({
+    const formatter = new SqlFormatter({
         indentChar: ' ',
         indentSize: 4,
         newline: '\n',
         keywordCase: 'upper',
         indentIncrementContainerTypes: [
             SqlPrintTokenContainerType.CaseExpression,
-            SqlPrintTokenContainerType.SwitchCaseArgument
+            SqlPrintTokenContainerType.SwitchCaseArgument,
+            SqlPrintTokenContainerType.CaseKeyValuePair,
+            SqlPrintTokenContainerType.ElseClause
         ]
     });
 
     // Act
-    const sql = formatter.format(caseExpr);
+    const result = formatter.format(caseExpr);
+    const sql = result.formattedSql;
 
     // Assert - Check that proper formatting/indentation is applied
     expect(sql).toEqual(
         'CASE "status"\n' +
         '    WHEN \'active\' THEN 1\n' +
-        '    WHEN \'pending\' THEN 2\n' +
+        '        WHEN \'pending\' THEN 2\n' +
         '    ELSE 0\n' +
         'END'
     );
@@ -62,25 +65,28 @@ test('CASE WHEN expression (without condition) formatting', () => {
     const caseExpr = new CaseExpression(null, switchCase);
 
     // Create formatter with custom style
-    const formatter = new Formatter({
+    const formatter = new SqlFormatter({
         indentChar: ' ',
         indentSize: 4,
         newline: '\n',
         keywordCase: 'upper',
         indentIncrementContainerTypes: [
             SqlPrintTokenContainerType.CaseExpression,
-            SqlPrintTokenContainerType.SwitchCaseArgument
+            SqlPrintTokenContainerType.SwitchCaseArgument,
+            SqlPrintTokenContainerType.CaseKeyValuePair,
+            SqlPrintTokenContainerType.ElseClause
         ]
     });
 
     // Act
-    const sql = formatter.format(caseExpr);
+    const result = formatter.format(caseExpr);
+    const sql = result.formattedSql;
 
     // Assert - Check that proper formatting/indentation is applied
     expect(sql).toEqual(
         'CASE\n' +
         '    WHEN \'active\' THEN 1\n' +
-        '    WHEN \'pending\' THEN 2\n' +
+        '        WHEN \'pending\' THEN 2\n' +
         '    ELSE 0\n' +
         'END'
     );
