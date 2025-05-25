@@ -113,13 +113,12 @@ export class SqlPrinter {
         }
 
         const current = this.linePrinter.getCurrentLine();
-
-        // Special handling for CASE expression containers
-        if (this.newline !== ' ' && (
+        
+        // Add a newline before CaseThen and CaseElse containers to ensure correct indentation
+        if (this.newline !== ' ' && 
+           (token.containerType === SqlPrintTokenContainerType.CaseThen || 
             token.containerType === SqlPrintTokenContainerType.CaseWhen ||
-            token.containerType === SqlPrintTokenContainerType.CaseThen ||
-            token.containerType === SqlPrintTokenContainerType.CaseElse
-        )) {
+            token.containerType === SqlPrintTokenContainerType.CaseElse)) {
             this.linePrinter.appendNewline(level);
         }
 

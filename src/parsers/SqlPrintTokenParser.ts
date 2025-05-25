@@ -533,8 +533,6 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         whenToken.innerTokens.push(this.visit(arg.key));
         token.innerTokens.push(whenToken);
 
-        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
-
         // Create a container for the THEN clause with the new CaseThen type
         const thenToken = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.CaseThen);
         thenToken.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'then'));
