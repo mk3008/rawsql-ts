@@ -1,6 +1,6 @@
 import { CommonTable, SourceAliasExpression, SelectItem, SelectClause, FromClause, SourceExpression, TableSource, GroupByClause, WithClause, SubQuerySource, LimitClause } from '../models/Clause';
-import { SimpleSelectQuery } from '../models/SimpleSelectQuery'; // Corrected path back to ../
-import { IdentifierString, ValueComponent, ColumnReference, FunctionCall, ValueList, LiteralValue } from '../models/ValueComponent';
+import { SimpleSelectQuery } from '../models/SimpleSelectQuery';
+import { IdentifierString, ValueComponent, ColumnReference, FunctionCall, ValueList, LiteralValue, BinaryExpression, CaseExpression, SwitchCaseArgument, CaseKeyValuePair } from '../models/ValueComponent'; // Changed BinaryOperation to BinaryExpression
 import { SelectValueCollector } from "./SelectValueCollector";
 
 /**
@@ -431,7 +431,7 @@ export class PostgreJsonQueryBuilder {
                     new SourceExpression(new TableSource(null, new IdentifierString(rootObjectCteAlias)), null),
                     null
                 ),
-                limitClause: new LimitClause(new LiteralValue(1))
+                limitClause: new LimitClause(new LiteralValue(1)) // Correctly use LimitClause
             });
         }
     }
@@ -469,24 +469,16 @@ export class PostgreJsonQueryBuilder {
         allNestedEntitiesGlobal: JsonMapping['nestedEntities'],
         allEntitiesMapGlobal: Map<string, ProcessableEntity>,
         useJsonb?: boolean
-    ): FunctionCall {
+    ): ValueComponent { // Return ValueComponent to allow returning LiteralValue('null')
         const jsonBuildFunc = useJsonb ? "jsonb_build_object" : "json_build_object";
         const properties: ValueComponent[] = [];
 
-        // Columns are always referenced without the CTE alias in the final json_build_object call,
-        // as they are being selected from the context of the current CTE (sourceCteAlias).
-        const sourceTableRefForColumn = null; // Always null to omit CTE alias in ColumnReference
+        const sourceTableRefForColumn = null; // Always null to omit CTE alias
 
         // Add own columns for the current entity
         for (const jsonKey in entityConfig.columns) {
             const sqlColumnName = entityConfig.columns[jsonKey];
             properties.push(new LiteralValue(jsonKey));
-            // When buildEntityJsonObject is called for the root entity in _buildFinalSelectQuery,
-            // sqlColumnName refers to an alias defined in the lastCteAliasForFromClause (which might be origin_query).
-            // When called from buildAggregationDetailsForArrayEntity, sqlColumnName refers to an alias
-            // from sourceCteAliasForParentData (which also might be origin_query or a subsequent CTE).
-            // In all cases, these columns are directly selectable from the FROM clause of the current context,
-            // so no CTE prefix is needed for the column reference itself inside json_build_object.
             properties.push(new ColumnReference(sourceTableRefForColumn, new IdentifierString(sqlColumnName)));
         }
 
@@ -494,27 +486,74 @@ export class PostgreJsonQueryBuilder {
         const directChildren = allNestedEntitiesGlobal.filter(ne => ne.parentId === entityConfig.id);
         for (const childEntityDef of directChildren) {
             const childEntityConfig = allEntitiesMapGlobal.get(childEntityDef.id)!;
-            properties.push(new LiteralValue(childEntityConfig.propertyName)); // Use the propertyName for the key in JSON
+            properties.push(new LiteralValue(childEntityConfig.propertyName));
 
             if (childEntityConfig.relationshipType === "array") {
-                // If it's an array, its value comes from a column in sourceCteAlias (pre-aggregated by a prior CTE).
-                // This propertyName should be an alias available from the sourceCteAlias.
                 properties.push(new ColumnReference(sourceTableRefForColumn, new IdentifierString(childEntityConfig.propertyName)));
-            } else { // "object" or undefined (defaults to object)
-                // Recursively build the nested JSON object.
-                // Its columns are also sourced from the same sourceCteAlias.
-                const nestedObjectCall = this.buildEntityJsonObject(
+            } else { // "object"
+                // Recursively build the child object.
+                // This recursive call will also handle the NULL check for the child.
+                const childJsonObject = this.buildEntityJsonObject(
                     childEntityConfig,
-                    sourceCteAlias, // Pass the same sourceCteAlias
+                    sourceCteAlias, // Child object's columns are also sourced from the same CTE
                     allNestedEntitiesGlobal,
                     allEntitiesMapGlobal,
                     useJsonb
                 );
-                properties.push(nestedObjectCall);
+                properties.push(childJsonObject);
             }
         }
 
-        const buildObjectArgs = new ValueList(properties);
-        return new FunctionCall(null, jsonBuildFunc, buildObjectArgs, null);
+        // If there are no properties at all (e.g. an entity with no columns and no children),
+        // it should still produce an empty object if it's not meant to be null.
+        // However, the primary concern is handling null for entities that *could* have data.
+
+        // Create a list of all SQL column names that constitute this entity and its direct object children.
+        // This is used to check if all of them are NULL.
+        const allConstituentSqlColumns: string[] = Object.values(entityConfig.columns);
+        directChildren.forEach(childDef => {
+            if (childDef.relationshipType === "object") {
+                const childConfig = allEntitiesMapGlobal.get(childDef.id)!;
+                allConstituentSqlColumns.push(...Object.values(childConfig.columns));
+                // Recursively add grand-child columns if they are also objects
+                const grandChildren = allNestedEntitiesGlobal.filter(gc => gc.parentId === childDef.id && gc.relationshipType === "object");
+                grandChildren.forEach(gcDef => {
+                    const gcConfig = allEntitiesMapGlobal.get(gcDef.id)!;
+                    allConstituentSqlColumns.push(...Object.values(gcConfig.columns));
+                });
+            }
+            // For array children, their nullability is handled by the aggregation (COALESCE around jsonb_agg if needed),
+            // or by the fact that their propertyName column in the sourceCteAlias might be null.
+            // So, we don't include their columns in *this* entity's null check.
+        });
+
+        if (allConstituentSqlColumns.length > 0) {
+            // If all SQL columns that make up this object (and its nested objects) are NULL,
+            // then the entire object should be NULL.
+            const conditions = allConstituentSqlColumns.map(colName =>
+                new BinaryExpression( // Changed from BinaryOperation
+                    new ColumnReference(sourceTableRefForColumn, new IdentifierString(colName)),
+                    'is',
+                    new LiteralValue(null)
+                )
+            );
+
+            let combinedCondition: ValueComponent = conditions[0];
+            for (let i = 1; i < conditions.length; i++) {
+                combinedCondition = new BinaryExpression(combinedCondition, 'and', conditions[i]); // Changed from BinaryOperation
+            }
+
+            return new CaseExpression(
+                null, // No main condition for simple WHEN ... THEN ... ELSE
+                new SwitchCaseArgument(
+                    [new CaseKeyValuePair(combinedCondition, new LiteralValue(null))], // WHEN combinedCondition THEN NULL
+                    new FunctionCall(null, new IdentifierString(jsonBuildFunc), new ValueList(properties), null) // ELSE build_object(...)
+                )
+            );
+        } else {
+            // If there are no columns to check for null (e.g., an entity that only has array children, or no children/columns at all),
+            // then just build the object. It might be an empty object {} if properties is also empty.
+            return new FunctionCall(null, new IdentifierString(jsonBuildFunc), new ValueList(properties), null);
+        }
     }
 }
