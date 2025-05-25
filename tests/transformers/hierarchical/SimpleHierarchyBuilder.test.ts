@@ -45,21 +45,20 @@ describe('SimpleHierarchyBuilder - Upstream (Object) Relationships', () => {
 
             const jsonQuery = builder.buildJson(originalQuery, mapping);
             const formatter = new SqlFormatter(customStyle);
-            const formattedSql = formatter.format(jsonQuery).formattedSql;
-
-            // jsonb_agg already returns empty array when no data, no coalesce needed
+            const formattedSql = formatter.format(jsonQuery).formattedSql;            // jsonb_agg already returns empty array when no data, no coalesce needed
             const expectedSql = [
-                `select`,
-                `    jsonb_agg(jsonb_build_object('id', "_sub"."CategoryId", 'name', "_sub"."CategoryName")) as "Categories"`,
-                `from`,
-                `    (`,
-
+                `with`,
+                `    "origin_query" as (`,
                 `        select`,
                 `            "c"."id" as "CategoryId"`,
                 `            , "c"."name" as "CategoryName"`,
                 `        from`,
                 `            "category" as "c"`,
-                `    ) as "_sub"`
+                `    )`,
+                `select`,
+                `    jsonb_agg(jsonb_build_object('id', "CategoryId", 'name', "CategoryName")) as "Categories"`,
+                `from`,
+                `    "origin_query"`
             ].join('\n');
 
             expect(formattedSql).toBe(expectedSql);
@@ -98,15 +97,10 @@ describe('SimpleHierarchyBuilder - Upstream (Object) Relationships', () => {
 
             const jsonQuery = builder.buildJson(originalQuery, mapping);
             const formatter = new SqlFormatter(customStyle);
-            const formattedSql = formatter.format(jsonQuery).formattedSql;
-
-            // Single object also doesn't need coalesce - empty result set is fine
+            const formattedSql = formatter.format(jsonQuery).formattedSql;            // Single object also doesn't need coalesce - empty result set is fine
             const expectedSql = [
-                `select`,
-                `    jsonb_build_object('id', "_sub"."ProductId", 'name', "_sub"."ProductName", 'price', "_sub"."price") as "ProductDetail"`,
-                `from`,
-                `    (`,
-
+                `with`,
+                `    "origin_query" as (`,
                 `        select`,
                 `            "p"."id" as "ProductId"`,
                 `            , "p"."name" as "ProductName"`,
@@ -115,7 +109,11 @@ describe('SimpleHierarchyBuilder - Upstream (Object) Relationships', () => {
                 `            "product" as "p"`,
                 `        where`,
                 `            "p"."id" = 1`,
-                `    ) as "_sub"`,
+                `    )`,
+                `select`,
+                `    jsonb_build_object('id', "ProductId", 'name', "ProductName", 'price', "price") as "ProductDetail"`,
+                `from`,
+                `    "origin_query"`,
                 `limit`,
                 `    1`
             ].join('\n');
@@ -166,23 +164,12 @@ describe('SimpleHierarchyBuilder - Upstream (Object) Relationships', () => {
                     }
                 ],
                 useJsonb: true
-            };
-
-            const jsonQuery = builder.buildJson(originalQuery, mapping);
+            }; const jsonQuery = builder.buildJson(originalQuery, mapping);
             const formatter = new SqlFormatter(customStyle);
             const formattedSql = formatter.format(jsonQuery).formattedSql;            // Array format doesn't need coalesce either
             const expectedSql = [
-                `select`,
-                `    jsonb_agg(jsonb_build_object('id', "_sub"."order_id", 'date', "_sub"."order_date", 'amount', "_sub"."order_amount", 'customer', case`,
-                `        when "_sub"."customer_id" is null`,
-                `        and "_sub"."customer_name" is null`,
-                `        and "_sub"."customer_email" is null then`,
-                `            null`,
-                `        else`,
-                `            jsonb_build_object('id', "_sub"."customer_id", 'name', "_sub"."customer_name", 'email', "_sub"."customer_email")`,
-                `    end)) as "Orders"`,
-                `from`,
-                `    (`,
+                `with`,
+                `    "origin_query" as (`,
                 `        select`,
                 `            "order_id"`,
                 `            , "order_date"`,
@@ -192,7 +179,18 @@ describe('SimpleHierarchyBuilder - Upstream (Object) Relationships', () => {
                 `            , "customer_email"`,
                 `        from`,
                 `            "order_customer_view"`,
-                `    ) as "_sub"`
+                `    )`,
+                `select`,
+                `    jsonb_agg(jsonb_build_object('id', "order_id", 'date', "order_date", 'amount', "order_amount", 'customer', case`,
+                `        when "customer_id" is null`,
+                `        and "customer_name" is null`,
+                `        and "customer_email" is null then`,
+                `            null`,
+                `        else`,
+                `            jsonb_build_object('id', "customer_id", 'name', "customer_name", 'email', "customer_email")`,
+                `    end)) as "Orders"`,
+                `from`,
+                `    "origin_query"`
             ].join('\n');
 
             expect(formattedSql).toBe(expectedSql);
@@ -255,23 +253,8 @@ describe('SimpleHierarchyBuilder - Upstream (Object) Relationships', () => {
             const jsonQuery = builder.buildJson(originalQuery, mapping);
             const formatter = new SqlFormatter(customStyle);
             const formattedSql = formatter.format(jsonQuery).formattedSql; const expectedSql = [
-                `select`,
-                `    jsonb_agg(jsonb_build_object('id', "_sub"."order_id", 'date', "_sub"."order_date", 'customer', case`,
-                `        when "_sub"."customer_id" is null`,
-                `        and "_sub"."customer_name" is null then`,
-                `            null`,
-                `        else`,
-                `            jsonb_build_object('id', "_sub"."customer_id", 'name', "_sub"."customer_name", 'address', case`,
-                `                when "_sub"."address_id" is null`,
-                `                and "_sub"."address_street" is null`,
-                `                and "_sub"."address_city" is null then`,
-                `                    null`,
-                `                else`,
-                `                    jsonb_build_object('id', "_sub"."address_id", 'street', "_sub"."address_street", 'city', "_sub"."address_city")`,
-                `            end)`,
-                `    end)) as "Orders"`,
-                `from`,
-                `    (`,
+                `with`,
+                `    "origin_query" as (`,
                 `        select`,
                 `            "order_id"`,
                 `            , "order_date"`,
@@ -282,7 +265,24 @@ describe('SimpleHierarchyBuilder - Upstream (Object) Relationships', () => {
                 `            , "address_city"`,
                 `        from`,
                 `            "order_customer_address_view"`,
-                `    ) as "_sub"`
+                `    )`,
+                `select`,
+                `    jsonb_agg(jsonb_build_object('id', "order_id", 'date', "order_date", 'customer', case`,
+                `        when "customer_id" is null`,
+                `        and "customer_name" is null then`,
+                `            null`,
+                `        else`,
+                `            jsonb_build_object('id', "customer_id", 'name', "customer_name", 'address', case`,
+                `                when "address_id" is null`,
+                `                and "address_street" is null`,
+                `                and "address_city" is null then`,
+                `                    null`,
+                `                else`,
+                `                    jsonb_build_object('id', "address_id", 'street', "address_street", 'city', "address_city")`,
+                `            end)`,
+                `    end)) as "Orders"`,
+                `from`,
+                `    "origin_query"`
             ].join('\n');
 
             expect(formattedSql).toBe(expectedSql);
@@ -347,23 +347,8 @@ describe('SimpleHierarchyBuilder - Upstream (Object) Relationships', () => {
             const jsonQuery = builder.buildJson(originalQuery, mapping);
             const formatter = new SqlFormatter(customStyle);
             const formattedSql = formatter.format(jsonQuery).formattedSql; const expectedSql = [
-                `select`,
-                `    jsonb_agg(jsonb_build_object('id', "_sub"."product_id", 'name', "_sub"."product_name", 'price', "_sub"."product_price", 'category', case`,
-                `        when "_sub"."category_id" is null`,
-                `        and "_sub"."category_name" is null then`,
-                `            null`,
-                `        else`,
-                `            jsonb_build_object('id', "_sub"."category_id", 'name', "_sub"."category_name")`,
-                `    end, 'supplier', case`,
-                `        when "_sub"."supplier_id" is null`,
-                `        and "_sub"."supplier_name" is null`,
-                `        and "_sub"."supplier_contact" is null then`,
-                `            null`,
-                `        else`,
-                `            jsonb_build_object('id', "_sub"."supplier_id", 'name', "_sub"."supplier_name", 'contact', "_sub"."supplier_contact")`,
-                `    end)) as "Products"`,
-                `from`,
-                `    (`,
+                `with`,
+                `    "origin_query" as (`,
                 `        select`,
                 `            "product_id"`,
                 `            , "product_name"`,
@@ -375,7 +360,24 @@ describe('SimpleHierarchyBuilder - Upstream (Object) Relationships', () => {
                 `            , "supplier_contact"`,
                 `        from`,
                 `            "product_details_view"`,
-                `    ) as "_sub"`
+                `    )`,
+                `select`,
+                `    jsonb_agg(jsonb_build_object('id', "product_id", 'name', "product_name", 'price', "product_price", 'category', case`,
+                `        when "category_id" is null`,
+                `        and "category_name" is null then`,
+                `            null`,
+                `        else`,
+                `            jsonb_build_object('id', "category_id", 'name', "category_name")`,
+                `    end, 'supplier', case`,
+                `        when "supplier_id" is null`,
+                `        and "supplier_name" is null`,
+                `        and "supplier_contact" is null then`,
+                `            null`,
+                `        else`,
+                `            jsonb_build_object('id', "supplier_id", 'name', "supplier_name", 'contact', "supplier_contact")`,
+                `    end)) as "Products"`,
+                `from`,
+                `    "origin_query"`
             ].join('\n');
 
             expect(formattedSql).toBe(expectedSql);
@@ -453,16 +455,8 @@ describe('SimpleHierarchyBuilder - Upstream (Object) Relationships', () => {
             const jsonQuery = builder.buildJson(originalQuery, mapping);
             const formatter = new SqlFormatter(customStyle);
             const formattedSql = formatter.format(jsonQuery).formattedSql; const expectedSql = [
-                `select`,
-                `    jsonb_agg(jsonb_build_object('id', "_sub"."product_id", 'name', "_sub"."product_name", 'category', case`,
-                `        when "_sub"."category_id" is null`,
-                `        and "_sub"."category_name" is null then`,
-                `            null`,
-                `        else`,
-                `            jsonb_build_object('id', "_sub"."category_id", 'name', "_sub"."category_name")`,
-                `    end)) as "Products"`,
-                `from`,
-                `    (`,
+                `with`,
+                `    "origin_query" as (`,
                 `        select`,
                 `            "product_id"`,
                 `            , "product_name"`,
@@ -470,7 +464,17 @@ describe('SimpleHierarchyBuilder - Upstream (Object) Relationships', () => {
                 `            , "category_name"`,
                 `        from`,
                 `            "catalog_report"`,
-                `    ) as "_sub"`
+                `    )`,
+                `select`,
+                `    jsonb_agg(jsonb_build_object('id', "product_id", 'name', "product_name", 'category', case`,
+                `        when "category_id" is null`,
+                `        and "category_name" is null then`,
+                `            null`,
+                `        else`,
+                `            jsonb_build_object('id', "category_id", 'name', "category_name")`,
+                `    end)) as "Products"`,
+                `from`,
+                `    "origin_query"`
             ].join('\n');
 
             expect(formattedSql).toBe(expectedSql);
@@ -535,23 +539,8 @@ describe('SimpleHierarchyBuilder - Upstream (Object) Relationships', () => {
             const jsonQuery = builder.buildJson(originalQuery, mapping);
             const formatter = new SqlFormatter(customStyle);
             const formattedSql = formatter.format(jsonQuery).formattedSql; const expectedSql = [
-                `select`,
-                `    jsonb_agg(jsonb_build_object('id', "_sub"."review_id", 'text', "_sub"."review_text", 'rating', "_sub"."rating", 'product', case`,
-                `        when "_sub"."product_id" is null`,
-                `        and "_sub"."product_name" is null`,
-                `        and "_sub"."product_price" is null then`,
-                `            null`,
-                `        else`,
-                `            jsonb_build_object('id', "_sub"."product_id", 'name', "_sub"."product_name", 'price', "_sub"."product_price", 'category', case`,
-                `                when "_sub"."category_id" is null`,
-                `                and "_sub"."category_name" is null then`,
-                `                    null`,
-                `                else`,
-                `                    jsonb_build_object('id', "_sub"."category_id", 'name', "_sub"."category_name")`,
-                `            end)`,
-                `    end)) as "Reviews"`,
-                `from`,
-                `    (`,
+                `with`,
+                `    "origin_query" as (`,
                 `        select`,
                 `            "review_id"`,
                 `            , "review_text"`,
@@ -563,7 +552,24 @@ describe('SimpleHierarchyBuilder - Upstream (Object) Relationships', () => {
                 `            , "category_name"`,
                 `        from`,
                 `            "review_details"`,
-                `    ) as "_sub"`
+                `    )`,
+                `select`,
+                `    jsonb_agg(jsonb_build_object('id', "review_id", 'text', "review_text", 'rating', "rating", 'product', case`,
+                `        when "product_id" is null`,
+                `        and "product_name" is null`,
+                `        and "product_price" is null then`,
+                `            null`,
+                `        else`,
+                `            jsonb_build_object('id', "product_id", 'name', "product_name", 'price', "product_price", 'category', case`,
+                `                when "category_id" is null`,
+                `                and "category_name" is null then`,
+                `                    null`,
+                `                else`,
+                `                    jsonb_build_object('id', "category_id", 'name', "category_name")`,
+                `            end)`,
+                `    end)) as "Reviews"`,
+                `from`,
+                `    "origin_query"`
             ].join('\n');
 
             expect(formattedSql).toBe(expectedSql);
@@ -621,17 +627,8 @@ describe('SimpleHierarchyBuilder - Upstream (Object) Relationships', () => {
             console.log(formattedSql);
             console.log("========================");            // Enhanced behavior: uses CASE statement to detect null parent and use null instead
             const expectedSql = [
-                `select`,
-                `    jsonb_agg(jsonb_build_object('id', "_sub"."order_id", 'date', "_sub"."order_date", 'amount', "_sub"."order_amount", 'customer', case`,
-                `        when "_sub"."customer_id" is null`,
-                `        and "_sub"."customer_name" is null`,
-                `        and "_sub"."customer_email" is null then`,
-                `            null`,
-                `        else`,
-                `            jsonb_build_object('id', "_sub"."customer_id", 'name', "_sub"."customer_name", 'email', "_sub"."customer_email")`,
-                `    end)) as "Orders"`,
-                `from`,
-                `    (`,
+                `with`,
+                `    "origin_query" as (`,
                 `        select`,
                 `            "order_id"`,
                 `            , "order_date"`,
@@ -642,7 +639,18 @@ describe('SimpleHierarchyBuilder - Upstream (Object) Relationships', () => {
                 `        from`,
                 `            "orders" as "o"`,
                 `            left join "customers" as "c" on "o"."customer_id" = "c"."id"`,
-                `    ) as "_sub"`
+                `    )`,
+                `select`,
+                `    jsonb_agg(jsonb_build_object('id', "order_id", 'date', "order_date", 'amount', "order_amount", 'customer', case`,
+                `        when "customer_id" is null`,
+                `        and "customer_name" is null`,
+                `        and "customer_email" is null then`,
+                `            null`,
+                `        else`,
+                `            jsonb_build_object('id', "customer_id", 'name', "customer_name", 'email', "customer_email")`,
+                `    end)) as "Orders"`,
+                `from`,
+                `    "origin_query"`
             ].join('\n');
 
             expect(formattedSql).toBe(expectedSql);
@@ -694,24 +702,26 @@ describe('SimpleHierarchyBuilder - Upstream (Object) Relationships', () => {
             // This demonstrates the improved null detection logic
 
             const expectedSql = [
-                `select`,
-                `    jsonb_agg(jsonb_build_object('id', "_sub"."order_id", 'date', "_sub"."order_date", 'customer', case`,
-                `        when "_sub"."customer_id" is null`,
-                `        and "_sub"."customer_name" is null`,
-                `        and "_sub"."customer_email" is null then`,
-                `            null`,
-                `        else`,
-                `            jsonb_build_object('id', "_sub"."customer_id", 'name', "_sub"."customer_name", 'email', "_sub"."customer_email")`,
-                `    end)) as "Orders"`,
-                `from`,
-                `    (`,
+                `with`,
+                `    "origin_query" as (`,
                 `        select`,
                 `            1 as "order_id"`,
                 `            , '2024-01-01' as "order_date"`,
                 `            , null::int as "customer_id"`,
                 `            , null::text as "customer_name"`,
                 `            , null::text as "customer_email"`,
-                `    ) as "_sub"`
+                `    )`,
+                `select`,
+                `    jsonb_agg(jsonb_build_object('id', "order_id", 'date', "order_date", 'customer', case`,
+                `        when "customer_id" is null`,
+                `        and "customer_name" is null`,
+                `        and "customer_email" is null then`,
+                `            null`,
+                `        else`,
+                `            jsonb_build_object('id', "customer_id", 'name', "customer_name", 'email', "customer_email")`,
+                `    end)) as "Orders"`,
+                `from`,
+                `    "origin_query"`
             ].join('\n');
 
             expect(formattedSql).toBe(expectedSql);

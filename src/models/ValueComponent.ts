@@ -60,12 +60,25 @@ export class ColumnReference extends SqlComponent {
         }
     }
     static kind = Symbol("ColumnReference");
-    qualifiedName: QualifiedName;
-    constructor(namespaces: string | string[] | IdentifierString[] | null, column: string | IdentifierString) {
+    qualifiedName: QualifiedName; constructor(namespaces: string | string[] | IdentifierString[] | null, column: string | IdentifierString) {
         super();
         let nsArr: string[] | IdentifierString[] | null;
         if (typeof namespaces === "string") {
-            nsArr = [namespaces];
+            // Empty string should be treated as null
+            nsArr = namespaces.trim() === "" ? null : [namespaces];
+        } else if (Array.isArray(namespaces)) {
+            // Check if it's string array or IdentifierString array and handle accordingly
+            if (namespaces.length === 0) {
+                nsArr = null;
+            } else if (typeof namespaces[0] === "string") {
+                // Filter out empty strings from string array
+                const filteredStrings = (namespaces as string[]).filter(ns => ns.trim() !== "");
+                nsArr = filteredStrings.length === 0 ? null : filteredStrings;
+            } else {
+                // Filter out empty IdentifierStrings from IdentifierString array
+                const filteredIdentifiers = (namespaces as IdentifierString[]).filter(ns => ns.name.trim() !== "");
+                nsArr = filteredIdentifiers.length === 0 ? null : filteredIdentifiers;
+            }
         } else {
             nsArr = namespaces;
         }

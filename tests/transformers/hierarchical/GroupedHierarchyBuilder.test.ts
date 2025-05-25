@@ -64,26 +64,32 @@ describe('GroupedHierarchyBuilder - Downstream (Array) Relationships', () => {
 
             const jsonQuery = builder.buildJson(originalQuery, mapping);
             const formatter = new SqlFormatter(customStyle);
-            const formattedSql = formatter.format(jsonQuery).formattedSql;
-
-            const expectedSql = [
-                `with`,
-                `    "category_with_products" as (`,
-                `        select`,
-                `            "category_id"`,
-                `            , "category_name"`,
-                `            , jsonb_agg(jsonb_build_object('id', "product_id", 'name', "product_name")) as "products"`,
-                `        from`,
-                `            "catalog_report"`,
-                `        group by`,
-                `            "category_id"`,
-                `            , "category_name"`,
-                `    )`,
-                `select`,
-                `    jsonb_agg(jsonb_build_object('id', "category_id", 'name', "category_name", 'products', "products")) as "Categories"`,
-                `from`,
-                `    "category_with_products"`
-            ].join('\n');
+            const formattedSql = formatter.format(jsonQuery).formattedSql; const expectedSql = `with
+    "origin_query" as (
+        select
+            "category_id"
+            , "category_name"
+            , "product_id"
+            , "product_name"
+        from
+            "catalog_report"
+    )
+    , "stage_0_products" as (
+        select
+            "category_id"
+            , "category_name"
+            , "products"
+            , jsonb_agg(jsonb_build_object('id', "product_id", 'name', "product_name")) as "products"
+        from
+            "origin_query"
+        group by
+            "category_id"
+            , "category_name"
+    )
+select
+    jsonb_agg(jsonb_build_object('id', "category_id", 'name', "category_name", 'products', "products")) as "Categories"
+from
+    "stage_0_products"`;
 
             expect(formattedSql).toBe(expectedSql);
         });
@@ -133,28 +139,36 @@ describe('GroupedHierarchyBuilder - Downstream (Array) Relationships', () => {
 
             const jsonQuery = builder.buildJson(originalQuery, mapping);
             const formatter = new SqlFormatter(customStyle);
-            const formattedSql = formatter.format(jsonQuery).formattedSql;
-
-            const expectedSql = [
-                `with`,
-                `    "customer_with_orders" as (`,
-                `        select`,
-                `            "customer_id"`,
-                `            , "customer_name"`,
-                `            , "customer_email"`,
-                `            , jsonb_agg(jsonb_build_object('id', "order_id", 'date', "order_date", 'amount', "order_amount")) as "orders"`,
-                `        from`,
-                `            "customer_orders_view"`,
-                `        group by`,
-                `            "customer_id"`,
-                `            , "customer_name"`,
-                `            , "customer_email"`,
-                `    )`,
-                `select`,
-                `    jsonb_agg(jsonb_build_object('id', "customer_id", 'name', "customer_name", 'email', "customer_email", 'orders', "orders")) as "Customers"`,
-                `from`,
-                `    "customer_with_orders"`
-            ].join('\n');
+            const formattedSql = formatter.format(jsonQuery).formattedSql; const expectedSql = `with
+    "origin_query" as (
+        select
+            "customer_id"
+            , "customer_name"
+            , "customer_email"
+            , "order_id"
+            , "order_date"
+            , "order_amount"
+        from
+            "customer_orders_view"
+    )
+    , "stage_0_orders" as (
+        select
+            "customer_id"
+            , "customer_name"
+            , "customer_email"
+            , "orders"
+            , jsonb_agg(jsonb_build_object('id', "order_id", 'date', "order_date", 'amount', "order_amount")) as "orders"
+        from
+            "origin_query"
+        group by
+            "customer_id"
+            , "customer_name"
+            , "customer_email"
+    )
+select
+    jsonb_agg(jsonb_build_object('id', "customer_id", 'name', "customer_name", 'email', "customer_email", 'orders', "orders")) as "Customers"
+from
+    "stage_0_orders"`;
 
             expect(formattedSql).toBe(expectedSql);
         });
@@ -219,25 +233,36 @@ describe('GroupedHierarchyBuilder - Downstream (Array) Relationships', () => {
 
             const jsonQuery = builder.buildJson(originalQuery, mapping);
             const formatter = new SqlFormatter(customStyle);
-            const formattedSql = formatter.format(jsonQuery).formattedSql;            // Expected SQL - updated to match actual generation logic (without nested object in array)
-            const expectedSql = [
-                `with`,
-                `    "region_with_countries" as (`,
-                `        select`,
-                `            "region_id"`,
-                `            , "region_name"`,
-                `            , jsonb_agg(jsonb_build_object('id', "country_id", 'name', "country_name", 'code', "country_code")) as "countries"`,
-                `        from`,
-                `            "region_country_capital_view"`,
-                `        group by`,
-                `            "region_id"`,
-                `            , "region_name"`,
-                `    )`,
-                `select`,
-                `    jsonb_agg(jsonb_build_object('id', "region_id", 'name', "region_name", 'countries', "countries")) as "Regions"`,
-                `from`,
-                `    "region_with_countries"`
-            ].join('\n');
+            const formattedSql = formatter.format(jsonQuery).formattedSql; const expectedSql = `with
+    "origin_query" as (
+        select
+            "region_id"
+            , "region_name"
+            , "country_id"
+            , "country_name"
+            , "country_code"
+            , "capital_id"
+            , "capital_name"
+            , "capital_population"
+        from
+            "region_country_capital_view"
+    )
+    , "stage_0_countries" as (
+        select
+            "region_id"
+            , "region_name"
+            , "countries"
+            , jsonb_agg(jsonb_build_object('id', "country_id", 'name', "country_name", 'code', "country_code")) as "countries"
+        from
+            "origin_query"
+        group by
+            "region_id"
+            , "region_name"
+    )
+select
+    jsonb_agg(jsonb_build_object('id', "region_id", 'name', "region_name", 'countries', "countries")) as "Regions"
+from
+    "stage_0_countries"`;
 
             expect(formattedSql).toBe(expectedSql);
         });
@@ -302,27 +327,39 @@ describe('GroupedHierarchyBuilder - Downstream (Array) Relationships', () => {
 
             const jsonQuery = builder.buildJson(originalQuery, mapping);
             const formatter = new SqlFormatter(customStyle);
-            const formattedSql = formatter.format(jsonQuery).formattedSql;            // Expected SQL - updated to match actual generation logic (without nested object in array)
-            const expectedSql = [
-                `with`,
-                `    "sale_with_saleDetails" as (`,
-                `        select`,
-                `            "sale_id"`,
-                `            , "sale_date"`,
-                `            , "sale_total"`,
-                `            , jsonb_agg(jsonb_build_object('id', "detail_id", 'quantity', "detail_quantity", 'price', "detail_price")) as "details"`,
-                `        from`,
-                `            "sale_full_report"`,
-                `        group by`,
-                `            "sale_id"`,
-                `            , "sale_date"`,
-                `            , "sale_total"`,
-                `    )`,
-                `select`,
-                `    jsonb_agg(jsonb_build_object('id', "sale_id", 'date', "sale_date", 'total', "sale_total", 'details', "details")) as "Sales"`,
-                `from`,
-                `    "sale_with_saleDetails"`
-            ].join('\n');
+            const formattedSql = formatter.format(jsonQuery).formattedSql; const expectedSql = `with
+    "origin_query" as (
+        select
+            "sale_id"
+            , "sale_date"
+            , "sale_total"
+            , "detail_id"
+            , "detail_quantity"
+            , "detail_price"
+            , "product_id"
+            , "product_name"
+            , "product_category"
+        from
+            "sale_full_report"
+    )
+    , "stage_0_saleDetails" as (
+        select
+            "sale_id"
+            , "sale_date"
+            , "sale_total"
+            , "details"
+            , jsonb_agg(jsonb_build_object('id', "detail_id", 'quantity', "detail_quantity", 'price', "detail_price")) as "details"
+        from
+            "origin_query"
+        group by
+            "sale_id"
+            , "sale_date"
+            , "sale_total"
+    )
+select
+    jsonb_agg(jsonb_build_object('id', "sale_id", 'date', "sale_date", 'total', "sale_total", 'details', "details")) as "Sales"
+from
+    "stage_0_saleDetails"`;
 
             expect(formattedSql).toBe(expectedSql);
         });
