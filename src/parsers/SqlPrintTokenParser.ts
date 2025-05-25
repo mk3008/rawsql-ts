@@ -516,7 +516,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
     private createElseToken(elseValue: SqlComponent): SqlPrintToken {
         // Creates a token for the ELSE clause in a CASE expression.
-        const elseToken = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.ElseClause);
+        const elseToken = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.CaseElse);
         elseToken.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'else'));
         elseToken.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
         elseToken.innerTokens.push(this.visit(elseValue));
@@ -526,16 +526,23 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     private visitCaseKeyValuePair(arg: CaseKeyValuePair): SqlPrintToken {
         const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.CaseKeyValuePair);
 
-        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'when'));
+        // Create a container for the WHEN clause with the new CaseWhen type
+        const whenToken = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.CaseWhen);
+        whenToken.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'when'));
+        whenToken.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        whenToken.innerTokens.push(this.visit(arg.key));
+        token.innerTokens.push(whenToken);
+
         token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
-        token.innerTokens.push(this.visit(arg.key));
-        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
-        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'then'));
-        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
-        token.innerTokens.push(this.visit(arg.value));
+
+        // Create a container for the THEN clause with the new CaseThen type
+        const thenToken = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.CaseThen);
+        thenToken.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'then'));
+        thenToken.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        thenToken.innerTokens.push(this.visit(arg.value));
+        token.innerTokens.push(thenToken);
 
         return token;
-
     }
 
     private visitRawString(arg: RawString): SqlPrintToken {
