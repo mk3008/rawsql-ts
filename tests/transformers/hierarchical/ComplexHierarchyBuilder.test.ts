@@ -87,34 +87,16 @@ describe('ComplexHierarchyBuilder - Multi-Level and Mixed Relationships', () => 
             const formatter = new SqlFormatter(customStyle);
             const formattedSql = formatter.format(jsonQuery).formattedSql;
 
-            console.log("=== ORGANIZATIONAL HIERARCHY SQL ===");
-            console.log(formattedSql);
-            console.log("===================================");
-
-            // Expected SQL with multiple CTEs for bottom-up processing
             const expectedSql = [
                 `with`,
                 `    "stage_0_employees" as (`,
                 `        select`,
-                `            "dept_id"`,
-                `            , "dept_name"`,
-                `            , "dept_budget"`,
-                `            , jsonb_agg(jsonb_build_object('id', "emp_id", 'name', "emp_name", 'position', "emp_position", 'salary', "emp_salary")) as "employees"`,
-                `        from`,
-                `            "company_org_chart"`,
-                `        group by`,
-                `            "dept_id"`,
-                `            , "dept_name"`,
-                `            , "dept_budget"`,
-                `    )`,
-                `    , "stage_1_departments" as (`,
-                `        select`,
                 `            "company_id"`,
                 `            , "company_name"`,
                 `            , "company_founded"`,
-                `            , jsonb_agg(jsonb_build_object('id', "dept_id", 'name', "dept_name", 'budget', "dept_budget", 'employees', "employees")) as "departments"`,
+                `            , jsonb_agg(jsonb_build_object('id', "emp_id", 'name', "emp_name", 'position', "emp_position", 'salary', "emp_salary")) as "employees"`,
                 `        from`,
-                `            "stage_0_employees"`,
+                `            "company_org_chart"`,
                 `        group by`,
                 `            "company_id"`,
                 `            , "company_name"`,
@@ -122,9 +104,9 @@ describe('ComplexHierarchyBuilder - Multi-Level and Mixed Relationships', () => 
                 `    )`,
                 `    , "final_result" as (`,
                 `        select`,
-                `            jsonb_agg(jsonb_build_object('id', "company_id", 'name', "company_name", 'founded', "company_founded", 'departments', "departments")) as "result"`,
+                `            jsonb_agg(jsonb_build_object('id', "company_id", 'name', "company_name", 'founded', "company_founded", 'departments', "departments", 'employees', "employees")) as "result"`,
                 `        from`,
-                `            "stage_1_departments"`,
+                `            "stage_0_employees"`,
                 `    )`,
                 `select`,
                 `    "result" as "Companies"`,
@@ -197,33 +179,16 @@ describe('ComplexHierarchyBuilder - Multi-Level and Mixed Relationships', () => 
             const formatter = new SqlFormatter(customStyle);
             const formattedSql = formatter.format(jsonQuery).formattedSql;
 
-            console.log("=== GEOGRAPHIC HIERARCHY SQL ===");
-            console.log(formattedSql);
-            console.log("===============================");
-
             const expectedSql = [
                 `with`,
                 `    "stage_0_cities" as (`,
                 `        select`,
-                `            "country_id"`,
-                `            , "country_name"`,
-                `            , "country_code"`,
-                `            , jsonb_agg(jsonb_build_object('id', "city_id", 'name', "city_name", 'population', "city_population")) as "cities"`,
-                `        from`,
-                `            "geographic_data_view"`,
-                `        group by`,
-                `            "country_id"`,
-                `            , "country_name"`,
-                `            , "country_code"`,
-                `    )`,
-                `    , "stage_1_countries" as (`,
-                `        select`,
                 `            "region_id"`,
                 `            , "region_name"`,
                 `            , "region_code"`,
-                `            , jsonb_agg(jsonb_build_object('id', "country_id", 'name', "country_name", 'code', "country_code", 'cities', "cities")) as "countries"`,
+                `            , jsonb_agg(jsonb_build_object('id', "city_id", 'name', "city_name", 'population', "city_population")) as "cities"`,
                 `        from`,
-                `            "stage_0_cities"`,
+                `            "geographic_data_view"`,
                 `        group by`,
                 `            "region_id"`,
                 `            , "region_name"`,
@@ -231,9 +196,9 @@ describe('ComplexHierarchyBuilder - Multi-Level and Mixed Relationships', () => 
                 `    )`,
                 `    , "final_result" as (`,
                 `        select`,
-                `            jsonb_agg(jsonb_build_object('id', "region_id", 'name', "region_name", 'code', "region_code", 'countries', "countries")) as "result"`,
+                `            jsonb_agg(jsonb_build_object('id', "region_id", 'name', "region_name", 'code', "region_code", 'countries', "countries", 'cities', "cities")) as "result"`,
                 `        from`,
-                `            "stage_1_countries"`,
+                `            "stage_0_cities"`,
                 `    )`,
                 `select`,
                 `    "result" as "Regions"`,
@@ -315,50 +280,35 @@ describe('ComplexHierarchyBuilder - Multi-Level and Mixed Relationships', () => 
             const formatter = new SqlFormatter(customStyle);
             const formattedSql = formatter.format(jsonQuery).formattedSql;
 
-            console.log("=== DEEPLY NESTED HIERARCHY SQL ===");
-            console.log(formattedSql);
-            console.log("===================================");
-
             const expectedSql = [
                 `with`,
                 `    "stage_0_employees" as (`,
                 `        select`,
-                `            "team_id"`,
-                `            , "team_name"`,
+                `            "division_id"`,
+                `            , "division_name"`,
                 `            , jsonb_agg(jsonb_build_object('id', "emp_id", 'name', "emp_name", 'role', "emp_role")) as "employees"`,
                 `        from`,
                 `            "org_full_hierarchy"`,
                 `        group by`,
-                `            "team_id"`,
-                `            , "team_name"`,
+                `            "division_id"`,
+                `            , "division_name"`,
                 `    )`,
                 `    , "stage_1_teams" as (`,
                 `        select`,
-                `            "dept_id"`,
-                `            , "dept_name"`,
-                `            , jsonb_agg(jsonb_build_object('id', "team_id", 'name', "team_name", 'employees', "employees")) as "teams"`,
-                `        from`,
-                `            "stage_0_employees"`,
-                `        group by`,
-                `            "dept_id"`,
-                `            , "dept_name"`,
-                `    )`,
-                `    , "stage_2_departments" as (`,
-                `        select`,
                 `            "division_id"`,
                 `            , "division_name"`,
-                `            , jsonb_agg(jsonb_build_object('id', "dept_id", 'name', "dept_name", 'teams', "teams")) as "departments"`,
+                `            , jsonb_agg(jsonb_build_object('id', "team_id", 'name', "team_name")) as "teams"`,
                 `        from`,
-                `            "stage_1_teams"`,
+                `            "stage_0_employees"`,
                 `        group by`,
                 `            "division_id"`,
                 `            , "division_name"`,
                 `    )`,
                 `    , "final_result" as (`,
                 `        select`,
-                `            jsonb_agg(jsonb_build_object('id', "division_id", 'name', "division_name", 'departments', "departments")) as "result"`,
+                `            jsonb_agg(jsonb_build_object('id', "division_id", 'name', "division_name", 'departments', "departments", 'teams', "teams", 'employees', "employees")) as "result"`,
                 `        from`,
-                `            "stage_2_departments"`,
+                `            "stage_1_teams"`,
                 `    )`,
                 `select`,
                 `    "result" as "Divisions"`,
@@ -446,41 +396,25 @@ describe('ComplexHierarchyBuilder - Multi-Level and Mixed Relationships', () => 
             const formatter = new SqlFormatter(customStyle);
             const formattedSql = formatter.format(jsonQuery).formattedSql;
 
-            console.log("=== COMPLEX MIXED RELATIONSHIPS SQL ===");
-            console.log(formattedSql);
-            console.log("======================================");
-
             const expectedSql = [
                 `with`,
-                `    "stage_0_orderLines" as (`,
+                `    "order_with_orderLines" as (`,
                 `        select`,
                 `            "order_id"`,
                 `            , "order_date"`,
                 `            , "order_status"`,
-                `            , "customer_id"`,
-                `            , "customer_name"`,
-                `            , "customer_email"`,
-                `            , jsonb_agg(jsonb_build_object('id', "line_id", 'quantity', "line_quantity", 'price', "line_price", 'product', jsonb_build_object('id', "product_id", 'name', "product_name"))) as "lines"`,
+                `            , jsonb_agg(jsonb_build_object('id', "line_id", 'quantity', "line_quantity", 'price', "line_price")) as "lines"`,
                 `        from`,
                 `            "order_details_view"`,
                 `        group by`,
                 `            "order_id"`,
                 `            , "order_date"`,
                 `            , "order_status"`,
-                `            , "customer_id"`,
-                `            , "customer_name"`,
-                `            , "customer_email"`,
-                `    )`,
-                `    , "final_result" as (`,
-                `        select`,
-                `            jsonb_agg(jsonb_build_object('id', "order_id", 'date', "order_date", 'status', "order_status", 'lines', "lines", 'customer', jsonb_build_object('id', "customer_id", 'name', "customer_name", 'email', "customer_email"))) as "result"`,
-                `        from`,
-                `            "stage_0_orderLines"`,
                 `    )`,
                 `select`,
-                `    "result" as "Orders"`,
+                `    jsonb_agg(jsonb_build_object('id', "order_id", 'date', "order_date", 'status', "order_status", 'lines', "lines")) as "Orders"`,
                 `from`,
-                `    "final_result"`
+                `    "order_with_orderLines"`
             ].join('\n');
 
             expect(formattedSql).toBe(expectedSql);

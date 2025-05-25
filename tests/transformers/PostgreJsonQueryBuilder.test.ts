@@ -44,13 +44,17 @@ describe('PostgreJsonQueryBuilder', () => {
 
             const jsonQuery = builder.buildJson(originalQuery, mapping);
             const formatter = new SqlFormatter(customStyle);
-            const formattedSql = formatter.format(jsonQuery).formattedSql;
-
-            const expectedSql = [
+            const formattedSql = formatter.format(jsonQuery).formattedSql; const expectedSql = [
                 `select`,
-                `    coalesce(jsonb_agg(jsonb_build_object('id', "c"."id", 'name', "c"."name")), '[]'::jsonb) as "Categories"`,
+                `    jsonb_agg(jsonb_build_object('id', "_sub"."CategoryId", 'name', "_sub"."CategoryName")) as "Categories"`,
                 `from`,
-                `    "category" as "c"`
+                `    (`,
+                `        select`,
+                `            "c"."id" as "CategoryId"`,
+                `            , "c"."name" as "CategoryName"`,
+                `        from`,
+                `            "category" as "c"`,
+                `    ) as "_sub"`
             ].join('\n');
 
             expect(formattedSql).toBe(expectedSql);
@@ -91,11 +95,9 @@ describe('PostgreJsonQueryBuilder', () => {
 
             const jsonQuery = builder.buildJson(originalQuery, mapping);
             const formatter = new SqlFormatter(customStyle);
-            const formattedSql = formatter.format(jsonQuery).formattedSql;
-
-            const expectedSql = [
+            const formattedSql = formatter.format(jsonQuery).formattedSql; const expectedSql = [
                 `select`,
-                `    coalesce(jsonb_build_object('id', "_sub"."ProductId", 'name', "_sub"."ProductName", 'price', "_sub"."price"), 'null'::jsonb) as "ProductDetail"`,
+                `    jsonb_build_object('id', "_sub"."ProductId", 'name', "_sub"."ProductName", 'price', "_sub"."price") as "ProductDetail"`,
                 `from`,
                 `    (`,
                 `        select`,
@@ -156,14 +158,17 @@ describe('PostgreJsonQueryBuilder', () => {
 
             const jsonQuery = builder.buildJson(originalQuery, mapping);
             const formatter = new SqlFormatter(customStyle);
-            const formattedSql = formatter.format(jsonQuery).formattedSql;
-
-            const expectedSql = [
+            const formattedSql = formatter.format(jsonQuery).formattedSql; const expectedSql = [
                 `select`,
-                `    jsonb_agg(jsonb_build_object('id', "_sub"."product_id", 'name', "_sub"."product_name", 'category', jsonb_build_object('id', "_sub"."category_id", 'name', "_sub"."category_name"))) as "Products"`,
+                `    jsonb_agg(jsonb_build_object('id', "_sub"."product_id", 'name', "_sub"."product_name", 'category', case`,
+                `        when "_sub"."category_id" is null`,
+                `        and "_sub"."category_name" is null then`,
+                `            null`,
+                `        else`,
+                `            jsonb_build_object('id', "_sub"."category_id", 'name', "_sub"."category_name")`,
+                `    end)) as "Products"`,
                 `from`,
                 `    (`,
-
                 `        select`,
                 `            "product_id"`,
                 `            , "product_name"`,
@@ -233,14 +238,24 @@ describe('PostgreJsonQueryBuilder', () => {
 
             const jsonQuery = builder.buildJson(originalQuery, mapping);
             const formatter = new SqlFormatter(customStyle);
-            const formattedSql = formatter.format(jsonQuery).formattedSql;
-
-            const expectedSql = [
+            const formattedSql = formatter.format(jsonQuery).formattedSql; const expectedSql = [
                 `select`,
-                `    jsonb_agg(jsonb_build_object('id', "_sub"."review_id", 'text', "_sub"."review_text", 'rating', "_sub"."rating", 'product', jsonb_build_object('id', "_sub"."product_id", 'name', "_sub"."product_name", 'price', "_sub"."product_price", 'category', jsonb_build_object('id', "_sub"."category_id", 'name', "_sub"."category_name")))) as "Reviews"`,
+                `    jsonb_agg(jsonb_build_object('id', "_sub"."review_id", 'text', "_sub"."review_text", 'rating', "_sub"."rating", 'product', case`,
+                `        when "_sub"."product_id" is null`,
+                `        and "_sub"."product_name" is null`,
+                `        and "_sub"."product_price" is null then`,
+                `            null`,
+                `        else`,
+                `            jsonb_build_object('id', "_sub"."product_id", 'name', "_sub"."product_name", 'price', "_sub"."product_price", 'category', case`,
+                `                when "_sub"."category_id" is null`,
+                `                and "_sub"."category_name" is null then`,
+                `                    null`,
+                `                else`,
+                `                    jsonb_build_object('id', "_sub"."category_id", 'name', "_sub"."category_name")`,
+                `            end)`,
+                `    end)) as "Reviews"`,
                 `from`,
                 `    (`,
-
                 `        select`,
                 `            "review_id"`,
                 `            , "review_text"`,
