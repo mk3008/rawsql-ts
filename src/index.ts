@@ -11,7 +11,7 @@ export * from './transformers/CTECollector';
 export * from './transformers/CTENormalizer';
 export * from './transformers/Formatter';
 export * from './transformers/SqlFormatter';
-export * from './transformers/JsonQueryBuilder';
+export * from './transformers/PostgreJsonQueryBuilder';
 export * from './transformers/QueryBuilder'; // old name:QueryConverter
 export * from './transformers/SelectValueCollector';
 export * from './transformers/SelectableColumnCollector';
