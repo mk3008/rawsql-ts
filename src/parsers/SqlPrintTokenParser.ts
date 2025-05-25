@@ -502,40 +502,49 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     private visitSwitchCaseArgument(arg: SwitchCaseArgument): SqlPrintToken {
         const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.SwitchCaseArgument);
 
+        // Add each WHEN/THEN clause
         for (const kv of arg.cases) {
+            // Create a new line for each WHEN clause
             token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
             token.innerTokens.push(kv.accept(this));
         }
+
+        // Add ELSE clause if present
         if (arg.elseValue) {
             token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
             token.innerTokens.push(this.createElseToken(arg.elseValue));
         }
 
         return token;
-    }
-
-    private createElseToken(elseValue: SqlComponent): SqlPrintToken {
+    } private createElseToken(elseValue: SqlComponent): SqlPrintToken {
         // Creates a token for the ELSE clause in a CASE expression.
-        const elseToken = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.ElseClause);
+        const elseToken = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.ElseClause);        // Add the ELSE keyword
         elseToken.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'else'));
-        elseToken.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
-        elseToken.innerTokens.push(this.visit(elseValue));
-        return elseToken;
-    }
 
-    private visitCaseKeyValuePair(arg: CaseKeyValuePair): SqlPrintToken {
+        // Create a container for the ELSE value to enable proper indentation
+        elseToken.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        const elseValueContainer = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.CaseElseValue);
+        elseValueContainer.innerTokens.push(this.visit(elseValue));
+        elseToken.innerTokens.push(elseValueContainer);
+
+        return elseToken;
+    } private visitCaseKeyValuePair(arg: CaseKeyValuePair): SqlPrintToken {
         const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.CaseKeyValuePair);
 
+        // Create WHEN clause
         token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'when'));
         token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
-        token.innerTokens.push(this.visit(arg.key));
+        token.innerTokens.push(this.visit(arg.key));        // Create THEN clause
         token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
         token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'then'));
+
+        // Create a container for the THEN value to enable proper indentation
         token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
-        token.innerTokens.push(this.visit(arg.value));
+        const thenValueContainer = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.CaseThenValue);
+        thenValueContainer.innerTokens.push(this.visit(arg.value));
+        token.innerTokens.push(thenValueContainer);
 
         return token;
-
     }
 
     private visitRawString(arg: RawString): SqlPrintToken {
@@ -581,12 +590,19 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     private visitCaseExpression(arg: CaseExpression): SqlPrintToken {
         const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.CaseExpression);
 
+        // Add the CASE keyword
         token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'case'));
+
+        // Add the condition if exists
         if (arg.condition) {
             token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
             token.innerTokens.push(this.visit(arg.condition));
         }
+
+        // Add the WHEN/THEN pairs and ELSE
         token.innerTokens.push(this.visit(arg.switchCase));
+
+        // Add the END keyword
         token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
         token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'end'));
 
