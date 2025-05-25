@@ -79,7 +79,10 @@ export class SqlPrinter {
                 SqlPrintTokenContainerType.SubQuerySource,
                 SqlPrintTokenContainerType.BinarySelectQueryOperator,
                 SqlPrintTokenContainerType.Values,
-                SqlPrintTokenContainerType.WithClause
+                SqlPrintTokenContainerType.WithClause,
+                SqlPrintTokenContainerType.CaseWhen,
+                SqlPrintTokenContainerType.CaseThen,
+                SqlPrintTokenContainerType.CaseElse
                 //SqlPrintTokenContainerType.CommonTable
             ]
         );
@@ -110,6 +113,14 @@ export class SqlPrinter {
         }
 
         const current = this.linePrinter.getCurrentLine();
+        
+        // Add a newline before CaseThen and CaseElse containers to ensure correct indentation
+        if (this.newline !== ' ' && 
+           (token.containerType === SqlPrintTokenContainerType.CaseThen || 
+            token.containerType === SqlPrintTokenContainerType.CaseWhen ||
+            token.containerType === SqlPrintTokenContainerType.CaseElse)) {
+            this.linePrinter.appendNewline(level);
+        }
 
         if (token.type === SqlPrintTokenType.keyword) {
             let text = token.text;
