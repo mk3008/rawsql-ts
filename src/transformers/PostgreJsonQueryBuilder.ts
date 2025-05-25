@@ -408,7 +408,7 @@ export class PostgreJsonQueryBuilder {
                 withClause: new WithClause(false, currentCtes), // All CTEs are now here
                 selectClause: new SelectClause([
                     new SelectItem(
-                        new FunctionCall(null, new IdentifierString(aggFunc), new ValueList([new ColumnReference(null, new IdentifierString(mapping.rootName))]), null),
+                        new FunctionCall(null, aggFunc, new ValueList([new ColumnReference(null, new IdentifierString(mapping.rootName))]), null),
                         finalAggAlias
                     )
                 ]),
@@ -547,13 +547,13 @@ export class PostgreJsonQueryBuilder {
                 null, // No main condition for simple WHEN ... THEN ... ELSE
                 new SwitchCaseArgument(
                     [new CaseKeyValuePair(combinedCondition, new LiteralValue(null))], // WHEN combinedCondition THEN NULL
-                    new FunctionCall(null, new IdentifierString(jsonBuildFunc), new ValueList(properties), null) // ELSE build_object(...)
+                    new FunctionCall(null, jsonBuildFunc, new ValueList(properties), null) // ELSE build_object(...)
                 )
             );
         } else {
             // If there are no columns to check for null (e.g., an entity that only has array children, or no children/columns at all),
             // then just build the object. It might be an empty object {} if properties is also empty.
-            return new FunctionCall(null, new IdentifierString(jsonBuildFunc), new ValueList(properties), null);
+            return new FunctionCall(null, jsonBuildFunc, new ValueList(properties), null);
         }
     }
 }

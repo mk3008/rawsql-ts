@@ -54,21 +54,21 @@ describe('SimpleHierarchyBuilder - Upstream (Object) Relationships', () => {
                 `            , "c"."name" as "CategoryName"`,
                 `        from`,
                 `            "category" as "c"`,
-                `    )`
-                , `    , "cte_root_categories" as (`, // New CTE for root object construction
+                `    )`,
+                `    , "cte_root_categories" as (`, // New CTE for root object construction
                 `        select`,
                 `            case`,
                 `                when "CategoryId" is null`,
                 `                and "CategoryName" is null then`,
                 `                    null`,
                 `                else`,
-                `                    "jsonb_build_object"(\'id\', "CategoryId", \'name\', "CategoryName")`,
+                `                    jsonb_build_object(\'id\', "CategoryId", \'name\', "CategoryName")`,
                 `            end as "Categories"`,
                 `        from`,
                 `            "origin_query"`,
                 `    )`,
                 `select`,
-                `    "jsonb_agg"("Categories") as "Categories_array"`, // Aggregates from the new CTE
+                `    jsonb_agg("Categories") as "Categories_array"`, // Aggregates from the new CTE
                 `from`,
                 `    "cte_root_categories"`
             ].join('\n');
@@ -121,8 +121,8 @@ describe('SimpleHierarchyBuilder - Upstream (Object) Relationships', () => {
                 `            "product" as "p"`,
                 `        where`,
                 `            "p"."id" = 1`,
-                `    )`
-                , `    , "cte_root_productdetail" as (`, // New CTE for root object construction
+                `    )`,
+                `    , "cte_root_productdetail" as (`, // New CTE for root object construction
                 `        select`,
                 `            case`,
                 `                when "ProductId" is null`,
@@ -130,7 +130,7 @@ describe('SimpleHierarchyBuilder - Upstream (Object) Relationships', () => {
                 `                and "price" is null then`,
                 `                    null`,
                 `                else`,
-                `                    "jsonb_build_object"('id', "ProductId", 'name', "ProductName", 'price', "price")`,
+                `                    jsonb_build_object('id', "ProductId", 'name', "ProductName", 'price', "price")`,
                 `            end as "ProductDetail"`,
                 `        from`,
                 `            "origin_query"`,
@@ -204,8 +204,8 @@ describe('SimpleHierarchyBuilder - Upstream (Object) Relationships', () => {
                 `            , "customer_email"`,
                 `        from`,
                 `            "order_customer_view"`,
-                `    )`
-                , `    , "cte_root_orders" as (`, // New CTE for root object construction
+                `    )`,
+                `    , "cte_root_orders" as (`, // New CTE for root object construction
                 `        select`,
                 `            case`,
                 `                when "order_id" is null`,
@@ -216,20 +216,20 @@ describe('SimpleHierarchyBuilder - Upstream (Object) Relationships', () => {
                 `                and "customer_email" is null then`, // Added for nested object
                 `                    null`,
                 `                else`,
-                `                    "jsonb_build_object"('id', "order_id", 'date', "order_date", 'amount', "order_amount", 'customer', case`,
+                `                    jsonb_build_object('id', "order_id", 'date', "order_date", 'amount', "order_amount", 'customer', case`,
                 `                        when "customer_id" is null`,
                 `                        and "customer_name" is null`,
                 `                        and "customer_email" is null then`,
                 `                            null`,
                 `                        else`,
-                `                            "jsonb_build_object"('id', "customer_id", 'name', "customer_name", 'email', "customer_email")`,
+                `                            jsonb_build_object('id', "customer_id", 'name', "customer_name", 'email', "customer_email")`,
                 `                    end)`,
                 `            end as "Orders"`,
                 `        from`,
                 `            "origin_query"`,
                 `    )`,
                 `select`,
-                `    "jsonb_agg"("Orders") as "Orders_array"`,
+                `    jsonb_agg("Orders") as "Orders_array"`,
                 `from`,
                 `    "cte_root_orders"`
             ].join('\n');
@@ -306,8 +306,8 @@ describe('SimpleHierarchyBuilder - Upstream (Object) Relationships', () => {
                 `            , "address_city"`,
                 `        from`,
                 `            "order_customer_address_view"`,
-                `    )`
-                , `    , "cte_root_orders" as (`, // New CTE for root object construction
+                `    )`,
+                `    , "cte_root_orders" as (`, // New CTE for root object construction
                 `        select`,
                 `            case`,
                 `                when "order_id" is null`,
@@ -319,7 +319,7 @@ describe('SimpleHierarchyBuilder - Upstream (Object) Relationships', () => {
                 `                and "address_city" is null then`,
                 `                    null`,
                 `                else`,
-                `                    "jsonb_build_object"('id', "order_id", 'date', "order_date", 'customer', case`,
+                `                    jsonb_build_object('id', "order_id", 'date', "order_date", 'customer', case`,
                 `                        when "customer_id" is null`, // Customer fields for customer object
                 `                        and "customer_name" is null`,
                 `                        and "address_id" is null`, // Address fields for customer object
@@ -327,13 +327,13 @@ describe('SimpleHierarchyBuilder - Upstream (Object) Relationships', () => {
                 `                        and "address_city" is null then`,
                 `                            null`,
                 `                        else`,
-                `                            "jsonb_build_object"('id', "customer_id", 'name', "customer_name", 'address', case`,
+                `                            jsonb_build_object('id', "customer_id", 'name', "customer_name", 'address', case`,
                 `                                when "address_id" is null`, // Address fields for address object
                 `                                and "address_street" is null`,
                 `                                and "address_city" is null then`,
                 `                                    null`,
                 `                                else`,
-                `                                    "jsonb_build_object"('id', "address_id", 'street', "address_street", 'city', "address_city")`,
+                `                                    jsonb_build_object('id', "address_id", 'street', "address_street", 'city', "address_city")`,
                 `                            end)`,
                 `                    end)`,
                 `            end as "Orders"`,
@@ -341,7 +341,7 @@ describe('SimpleHierarchyBuilder - Upstream (Object) Relationships', () => {
                 `            "origin_query"`,
                 `    )`,
                 `select`,
-                `    "jsonb_agg"("Orders") as "Orders_array"`,
+                `    jsonb_agg("Orders") as "Orders_array"`,
                 `from`,
                 `    "cte_root_orders"`
             ].join('\n');
@@ -421,8 +421,8 @@ describe('SimpleHierarchyBuilder - Upstream (Object) Relationships', () => {
                 `            , "supplier_contact"`,
                 `        from`,
                 `            "product_details_view"`,
-                `    )`
-                , `    , "cte_root_products" as (`, // New CTE for root object construction
+                `    )`,
+                `    , "cte_root_products" as (`, // New CTE for root object construction
                 `        select`,
                 `            case`,
                 `                when "product_id" is null`,
@@ -435,26 +435,26 @@ describe('SimpleHierarchyBuilder - Upstream (Object) Relationships', () => {
                 `                and "supplier_contact" is null then`,
                 `                    null`,
                 `                else`,
-                `                    "jsonb_build_object"('id', "product_id", 'name', "product_name", 'price', "product_price", 'category', case`,
+                `                    jsonb_build_object('id', "product_id", 'name', "product_name", 'price', "product_price", 'category', case`,
                 `                        when "category_id" is null`,
                 `                        and "category_name" is null then`,
                 `                            null`,
                 `                        else`,
-                `                            "jsonb_build_object"('id', "category_id", 'name', "category_name")`,
+                `                            jsonb_build_object('id', "category_id", 'name', "category_name")`,
                 `                    end, 'supplier', case`,
                 `                        when "supplier_id" is null`,
                 `                        and "supplier_name" is null`,
                 `                        and "supplier_contact" is null then`,
                 `                            null`,
                 `                        else`,
-                `                            "jsonb_build_object"('id', "supplier_id", 'name', "supplier_name", 'contact', "supplier_contact")`,
+                `                            jsonb_build_object('id', "supplier_id", 'name', "supplier_name", 'contact', "supplier_contact")`,
                 `                    end)`,
                 `            end as "Products"`,
                 `        from`,
                 `            "origin_query"`,
                 `    )`,
                 `select`,
-                `    "jsonb_agg"("Products") as "Products_array"`,
+                `    jsonb_agg("Products") as "Products_array"`,
                 `from`,
                 `    "cte_root_products"`
             ].join('\n');
@@ -543,8 +543,8 @@ describe('SimpleHierarchyBuilder - Upstream (Object) Relationships', () => {
                 `            , "category_name"`,
                 `        from`,
                 `            "catalog_report"`,
-                `    )`
-                , `    , "cte_root_products" as (`, // New CTE for root object construction
+                `    )`,
+                `    , "cte_root_products" as (`, // New CTE for root object construction
                 `        select`,
                 `            case`,
                 `                when "product_id" is null`,
@@ -553,19 +553,19 @@ describe('SimpleHierarchyBuilder - Upstream (Object) Relationships', () => {
                 `                and "category_name" is null then`,
                 `                    null`,
                 `                else`,
-                `                    "jsonb_build_object"('id', "product_id", 'name', "product_name", 'category', case`,
+                `                    jsonb_build_object('id', "product_id", 'name', "product_name", 'category', case`,
                 `                        when "category_id" is null`,
                 `                        and "category_name" is null then`,
                 `                            null`,
                 `                        else`,
-                `                            "jsonb_build_object"('id', "category_id", 'name', "category_name")`,
+                `                            jsonb_build_object('id', "category_id", 'name', "category_name")`,
                 `                    end)`,
                 `            end as "Products"`,
                 `        from`,
                 `            "origin_query"`,
                 `    )`,
                 `select`,
-                `    "jsonb_agg"("Products") as "Products_array"`,
+                `    jsonb_agg("Products") as "Products_array"`,
                 `from`,
                 `    "cte_root_products"`
             ].join('\n');
@@ -645,8 +645,8 @@ describe('SimpleHierarchyBuilder - Upstream (Object) Relationships', () => {
                 `            , "category_name"`,
                 `        from`,
                 `            "review_details"`,
-                `    )`
-                , `    , "cte_root_reviews" as (`, // New CTE for root object construction
+                `    )`,
+                `    , "cte_root_reviews" as (`, // New CTE for root object construction
                 `        select`,
                 `            case`,
                 `                when "review_id" is null`, // Review fields
@@ -659,7 +659,7 @@ describe('SimpleHierarchyBuilder - Upstream (Object) Relationships', () => {
                 `                and "category_name" is null then`,
                 `                    null`,
                 `                else`,
-                `                    "jsonb_build_object"('id', "review_id", 'text', "review_text", 'rating', "rating", 'product', case`,
+                `                    jsonb_build_object('id', "review_id", 'text', "review_text", 'rating', "rating", 'product', case`,
                 `                        when "product_id" is null`, // Product fields for product object
                 `                        and "product_name" is null`,
                 `                        and "product_price" is null`,
@@ -667,12 +667,12 @@ describe('SimpleHierarchyBuilder - Upstream (Object) Relationships', () => {
                 `                        and "category_name" is null then`,
                 `                            null`,
                 `                        else`,
-                `                            "jsonb_build_object"('id', "product_id", 'name', "product_name", 'price', "product_price", 'category', case`,
+                `                            jsonb_build_object('id', "product_id", 'name', "product_name", 'price', "product_price", 'category', case`,
                 `                                when "category_id" is null`, // Category fields for category object
                 `                                and "category_name" is null then`,
                 `                                    null`,
                 `                                else`,
-                `                                    "jsonb_build_object"('id', "category_id", 'name', "category_name")`,
+                `                                    jsonb_build_object('id', "category_id", 'name', "category_name")`,
                 `                            end)`,
                 `                    end)`,
                 `            end as "Reviews"`,
@@ -680,7 +680,7 @@ describe('SimpleHierarchyBuilder - Upstream (Object) Relationships', () => {
                 `            "origin_query"`,
                 `    )`,
                 `select`,
-                `    "jsonb_agg"("Reviews") as "Reviews_array"`,
+                `    jsonb_agg("Reviews") as "Reviews_array"`,
                 `from`,
                 `    "cte_root_reviews"`
             ].join('\n');
@@ -736,9 +736,6 @@ describe('SimpleHierarchyBuilder - Upstream (Object) Relationships', () => {
             const formatter = new SqlFormatter(customStyle);
             const formattedSql = formatter.format(jsonQuery).formattedSql;
 
-            console.log("=== LEFT JOIN BEHAVIOR ===");
-            console.log(formattedSql);
-            console.log("========================");            // Enhanced behavior: uses CASE statement to detect null parent and use null instead
             const expectedSql = [
                 `with`,
                 `    "origin_query" as (`, // origin_query CTE remains the same
@@ -752,8 +749,8 @@ describe('SimpleHierarchyBuilder - Upstream (Object) Relationships', () => {
                 `        from`,
                 `            "orders" as "o"`,
                 `            left join "customers" as "c" on "o"."customer_id" = "c"."id"`,
-                `    )`
-                , `    , "cte_root_orders" as (`, // New CTE for root object construction
+                `    )`,
+                `    , "cte_root_orders" as (`, // New CTE for root object construction
                 `        select`,
                 `            case`,
                 `                when "order_id" is null`,
@@ -764,20 +761,20 @@ describe('SimpleHierarchyBuilder - Upstream (Object) Relationships', () => {
                 `                and "customer_email" is null then`, // Added for nested object
                 `                    null`,
                 `                else`,
-                `                    "jsonb_build_object"('id', "order_id", 'date', "order_date", 'amount', "order_amount", 'customer', case`,
+                `                    jsonb_build_object('id', "order_id", 'date', "order_date", 'amount', "order_amount", 'customer', case`,
                 `                        when "customer_id" is null`,
                 `                        and "customer_name" is null`,
                 `                        and "customer_email" is null then`,
                 `                            null`,
                 `                        else`,
-                `                            "jsonb_build_object"('id', "customer_id", 'name', "customer_name", 'email', "customer_email")`,
+                `                            jsonb_build_object('id', "customer_id", 'name', "customer_name", 'email', "customer_email")`,
                 `                    end)`,
                 `            end as "Orders"`,
                 `        from`,
                 `            "origin_query"`,
                 `    )`,
                 `select`,
-                `    "jsonb_agg"("Orders") as "Orders_array"`,
+                `    jsonb_agg("Orders") as "Orders_array"`,
                 `from`,
                 `    "cte_root_orders"`
             ].join('\n');
@@ -839,32 +836,31 @@ describe('SimpleHierarchyBuilder - Upstream (Object) Relationships', () => {
                 `            , null::int as "customer_id"`,
                 `            , null::text as "customer_name"`,
                 `            , null::text as "customer_email"`,
-                `    )`
-                , `    , "cte_root_orders" as (`, // New CTE for root object construction
+                `    )`,
+                `    , "cte_root_orders" as (`, // New CTE for root object construction
                 `        select`,
                 `            case`,
                 `                when "order_id" is null`, // Order fields
                 `                and "order_date" is null`,
-                // Customer fields are also part of the root object's null check
                 `                and "customer_id" is null`,
                 `                and "customer_name" is null`,
                 `                and "customer_email" is null then`,
                 `                    null`,
                 `                else`,
-                `                    "jsonb_build_object"('id', "order_id", 'date', "order_date", 'customer', case`,
+                `                    jsonb_build_object('id', "order_id", 'date', "order_date", 'customer', case`,
                 `                        when "customer_id" is null`, // Customer fields for customer object itself
                 `                        and "customer_name" is null`,
                 `                        and "customer_email" is null then`,
                 `                            null`,
                 `                        else`,
-                `                            "jsonb_build_object"('id', "customer_id", 'name', "customer_name", 'email', "customer_email")`,
+                `                            jsonb_build_object('id', "customer_id", 'name', "customer_name", 'email', "customer_email")`,
                 `                    end)`,
                 `            end as "Orders"`,
                 `        from`,
                 `            "origin_query"`,
                 `    )`,
                 `select`,
-                `    "jsonb_agg"("Orders") as "Orders_array"`,
+                `    jsonb_agg("Orders") as "Orders_array"`,
                 `from`,
                 `    "cte_root_orders"`
             ].join('\n');
