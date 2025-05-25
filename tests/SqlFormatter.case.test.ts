@@ -7,17 +7,17 @@ test('CASE expression formatting with custom indentation', () => {
     // Arrange
     const switchCase = new SwitchCaseArgument([
         new CaseKeyValuePair(
-            new LiteralValue('active'), 
+            new LiteralValue('active'),
             new LiteralValue(1)
         ),
         new CaseKeyValuePair(
-            new LiteralValue('pending'), 
+            new LiteralValue('pending'),
             new LiteralValue(2)
         )
     ], new LiteralValue(0));
 
     const caseExpr = new CaseExpression(
-        new IdentifierString('status'), 
+        new IdentifierString('status'),
         switchCase
     );
 
@@ -27,12 +27,6 @@ test('CASE expression formatting with custom indentation', () => {
         indentSize: 4,
         newline: '\n',
         keywordCase: 'upper',
-        indentIncrementContainerTypes: [
-            SqlPrintTokenContainerType.CaseExpression,
-            SqlPrintTokenContainerType.SwitchCaseArgument,
-            SqlPrintTokenContainerType.CaseKeyValuePair,
-            SqlPrintTokenContainerType.ElseClause
-        ]
     });
 
     // Act
@@ -42,9 +36,12 @@ test('CASE expression formatting with custom indentation', () => {
     // Assert - Check that proper formatting/indentation is applied
     expect(sql).toEqual(
         'CASE "status"\n' +
-        '    WHEN \'active\' THEN 1\n' +
-        '        WHEN \'pending\' THEN 2\n' +
-        '    ELSE 0\n' +
+        '    WHEN \'active\' THEN\n' +
+        '        1\n' +
+        '    WHEN \'pending\' THEN\n' +
+        '        2\n' +
+        '    ELSE\n' +
+        '        0\n' +
         'END'
     );
 });
@@ -53,11 +50,11 @@ test('CASE WHEN expression (without condition) formatting', () => {
     // Arrange
     const switchCase = new SwitchCaseArgument([
         new CaseKeyValuePair(
-            new LiteralValue('active'), 
+            new LiteralValue('active'),
             new LiteralValue(1)
         ),
         new CaseKeyValuePair(
-            new LiteralValue('pending'), 
+            new LiteralValue('pending'),
             new LiteralValue(2)
         )
     ], new LiteralValue(0));
@@ -70,12 +67,6 @@ test('CASE WHEN expression (without condition) formatting', () => {
         indentSize: 4,
         newline: '\n',
         keywordCase: 'upper',
-        indentIncrementContainerTypes: [
-            SqlPrintTokenContainerType.CaseExpression,
-            SqlPrintTokenContainerType.SwitchCaseArgument,
-            SqlPrintTokenContainerType.CaseKeyValuePair,
-            SqlPrintTokenContainerType.ElseClause
-        ]
     });
 
     // Act
@@ -85,9 +76,12 @@ test('CASE WHEN expression (without condition) formatting', () => {
     // Assert - Check that proper formatting/indentation is applied
     expect(sql).toEqual(
         'CASE\n' +
-        '    WHEN \'active\' THEN 1\n' +
-        '        WHEN \'pending\' THEN 2\n' +
-        '    ELSE 0\n' +
+        '    WHEN \'active\' THEN\n' +
+        '        1\n' +
+        '    WHEN \'pending\' THEN\n' +
+        '        2\n' +
+        '    ELSE\n' +
+        '        0\n' +
         'END'
     );
 });
