@@ -66,11 +66,24 @@ order_items
 
 You can search orders using various filters:
 
-- Customer ID
-- Date range (from/to)
-- Product category
-- Amount range (min/max)
-- Order status
+- Customer ID: `{ customer_id: 1 }`
+- Date range: `{ order_date: { min: new Date('2024-02-01'), max: new Date('2024-03-31') } }`
+- Product category: `{ category_id: 3 }` or `{ category_id: { in: [1, 2, 3] } }`
+- Amount range: `{ total_amount: { min: 100, max: 300 } }`
+- Order status: `{ status: 'shipped' }` or `{ status: { in: ['shipped', 'delivered'] } }`
+
+You can combine multiple filters in a single search query:
+
+```typescript
+const params = {
+  customer_id: 1,
+  order_date: {
+    min: new Date('2024-01-01'),
+    max: new Date('2024-03-31')
+  },
+  status: { in: ['shipped', 'delivered'] }
+};
+```
 
 ## Example Usage
 

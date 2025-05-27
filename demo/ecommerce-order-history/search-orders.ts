@@ -3,32 +3,23 @@ import {
   SqlParamInjector,
   SqlFormatter,
   PostgreJsonQueryBuilder,
-  JsonMapping
+  JsonMapping,
+  SimpleSelectQuery
 } from '../../src';
 
 /**
- * Order search parameters
+ * Search orders with dynamic filtering using SqlParamInjector
+ * and return results in hierarchical JSON structure using PostgreJsonQueryBuilder
+ * 
+ * This function demonstrates:
+ * 1. Dynamic parameter injection for flexible search conditions
+ * 2. Hierarchical JSON result structure with nested objects and arrays
+ * 3. Support for various filter types (exact match, ranges, lists)
+ * 
+ * @param params Search parameters object with filter conditions
+ * @returns Object containing formatted SQL and parameters
  */
-interface OrderSearchParams {
-  customer_id?: number;
-  order_date?: {
-    min?: Date; // Start date
-    max?: Date; // End date
-  };
-  category_id?: number | number[];
-  total_amount?: {
-    min?: number;
-    max?: number;
-  };
-  status?: string | string[];
-}
-
-/**
- * Search for orders with dynamic filtering
- * @param params Search parameters
- * @returns Formatted SQL and parameters
- */
-function searchOrders(params: OrderSearchParams) {
+function searchOrders(params: Record<string, any>) {
   // Base query to get order data
   const baseQuery = `
     SELECT 
@@ -52,12 +43,9 @@ function searchOrders(params: OrderSearchParams) {
       LEFT JOIN order_items oi ON o.order_id = oi.order_id
   `;
 
-  // Parse the query
-  const query = SelectQueryParser.parse(baseQuery);
-
   // Create injector and inject params
   const injector = new SqlParamInjector();
-  const injectedQuery = injector.inject(query, params);
+  const injectedQuery = injector.inject(baseQuery, params);
 
   // Build a hierarchical JSON structure using PostgreJsonQueryBuilder
   const builder = new PostgreJsonQueryBuilder();
@@ -106,7 +94,7 @@ function searchOrders(params: OrderSearchParams) {
     useJsonb: true
   };
 
-  const jsonQuery = builder.buildJson(injectedQuery, mapping);
+  const jsonQuery = builder.buildJson(injectedQuery as SimpleSelectQuery, mapping);
 
   // Format the SQL
   const formatter = new SqlFormatter({ preset: 'postgres' });
@@ -161,7 +149,7 @@ const example6 = searchOrders({
     min: new Date('2024-01-01'),
     max: new Date('2024-03-31')
   },
-  status: ['shipped', 'delivered']
+  status: { in: ['shipped', 'delivered'] }
 });
 console.log(example6.formattedSql);
 console.log('Parameters:', example6.params);
