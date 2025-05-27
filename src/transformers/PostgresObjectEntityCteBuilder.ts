@@ -110,7 +110,7 @@ export class PostgresObjectEntityCteBuilder {    // Constants for consistent nam
      */
     private collectAndSortObjectEntities(
         mapping: JsonMapping,
-        allEntities: Map<string, ProcessableEntity>    ): ObjectEntityProcessingInfo[] {
+        allEntities: Map<string, ProcessableEntity>): ObjectEntityProcessingInfo[] {
         const objectInfos: ObjectEntityProcessingInfo[] = [];
 
         // Helper function to calculate actual object nesting depth for a given OBJECT entity
@@ -178,7 +178,8 @@ export class PostgresObjectEntityCteBuilder {    // Constants for consistent nam
                 const entity = allEntities.get(nestedEntity.id);
                 // Ensure we don't process the root entity itself as a "parent" CTE,
                 // and that the entity actually exists.
-                if (entity && !entity.isRoot) {                    objectInfos.push({
+                if (entity && !entity.isRoot) {
+                    objectInfos.push({
                         entity,
                         depth: calculateActualObjectNestingDepth(nestedEntity.id)
                     });
