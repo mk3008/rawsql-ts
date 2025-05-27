@@ -104,7 +104,7 @@ console.log(params);
 
 ---
 
-## SQL Parsing Features
+## SelectQueryParser Features
 
 rawsql-ts provides robust parsers for `SELECT`, `INSERT`, and `UPDATE` statements, automatically handling SQL comments and providing detailed error messages. By converting SQL into a generic Abstract Syntax Tree (AST), it enables a wide variety of transformation processes.
 
@@ -116,11 +116,11 @@ const query = SelectQueryParser.parse(sql);
 // query object now holds the AST of the SQL
 ```
 
-For more details on `SelectQueryParser`, see the [SelectQueryParser Usage Guide](./docs/class-SelectQueryParser-usage-guide.md).
+For more details on `SelectQueryParser`, see the [SelectQueryParser Usage Guide](./docs/usage-guides/class-SelectQueryParser-usage-guide.md).
 
 ---
 
-## SQL Formatter Features
+## SqlFormatter Features
 
 The `SqlFormatter` class is the recommended way to format SQL queries, offering advanced capabilities like indentation, keyword casing, and multi-line formatting.
 It also allows for detailed style customization. For example, you can define your own formatting rules:
@@ -162,7 +162,7 @@ order by
 */
 ```
 
-For more details, see the [SqlFormatter Usage Guide](./docs/class-SqlFormatter-usage-guide.md).
+For more details, see the [SqlFormatter Usage Guide](./docs/usage-guides/class-SqlFormatter-usage-guide.md).
 
 ---
 
@@ -194,7 +194,54 @@ console.log(params);
 // Output: { user_id: 42, user_name: 'Alice' }
 ```
 
-For more details, see the [SqlParamInjector Usage Guide](./docs/class-SqlParamInjector-usage-guide.md).
+For more details, see the [SqlParamInjector Usage Guide](./docs/usage-guides/class-SqlParamInjector-usage-guide.md).
+
+---
+
+## PostgreJsonQueryBuilder Features
+
+The `PostgreJsonQueryBuilder` class transforms relational SQL queries into PostgreSQL JSON queries that return hierarchical JSON structures. It automatically handles complex relationships between entities and generates optimized Common Table Expressions (CTEs) for efficient JSON aggregation, making it perfect for building APIs, reports, and data exports.
+
+Key benefits include:
+- **Hierarchical JSON Generation**: Transforms flat relational data into nested JSON objects and arrays
+- **Automatic CTE Management**: Generates optimized CTEs with proper dependency ordering
+- **Flexible Relationship Types**: Supports both object (0..1) and array (1..N) relationships
+- **NULL Handling**: Properly represents missing relationships as NULL instead of empty objects
+- **Performance Optimized**: Uses depth-based processing and JSONB for optimal PostgreSQL performance
+- **Zero Manual Serialization**: Eliminates the need for manual object mapping and JSON construction
+
+```typescript
+import { SelectQueryParser, PostgreJsonQueryBuilder } from 'rawsql-ts';
+
+// Parse your base SQL query
+const baseQuery = SelectQueryParser.parse(`
+    SELECT o.order_id, o.order_date, c.customer_name, i.product_name, i.quantity
+    FROM orders o
+    LEFT JOIN customers c ON o.customer_id = c.customer_id  
+    LEFT JOIN order_items i ON o.order_id = i.order_id
+`) as SimpleSelectQuery;
+
+// Define JSON mapping configuration
+const mapping = {
+    rootName: "order",
+    rootEntity: { id: "order", name: "Order", columns: { "id": "order_id", "date": "order_date" }},
+    nestedEntities: [
+        { id: "customer", parentId: "order", propertyName: "customer", relationshipType: "object", 
+          columns: { "name": "customer_name" }},
+        { id: "items", parentId: "order", propertyName: "items", relationshipType: "array",
+          columns: { "product": "product_name", "qty": "quantity" }}
+    ],
+    useJsonb: true
+};
+
+// Transform to JSON query
+const builder = new PostgreJsonQueryBuilder();
+const jsonQuery = builder.buildJson(baseQuery, mapping);
+// Returns optimized PostgreSQL query with CTEs that produces:
+// [{ "id": 1, "date": "2024-01-15", "customer": {"name": "John"}, "items": [{"product": "Widget", "qty": 2}] }]
+```
+
+For more details, see the [PostgreJsonQueryBuilder Usage Guide](./docs/usage-guides/class-PostgreJsonQueryBuilder-usage-guide.md).
 
 ---
 
@@ -246,7 +293,7 @@ try {
 }
 ```
 
-For more details on `SqlSchemaValidator`, see the [SqlSchemaValidator Usage Guide](./docs/class-SqlSchemaValidator-usage-guide.md).
+For more details on `SqlSchemaValidator`, see the [SqlSchemaValidator Usage Guide](./docs/usage-guides/class-SqlSchemaValidator-usage-guide.md).
 
 ---
 
@@ -282,7 +329,7 @@ console.log(updateSql);
 // update "users" set "email" = "d"."email", "last_login" = "d"."last_login" from (SELECT id, new_email AS email, last_login FROM user_updates_source WHERE needs_update = TRUE) as "d" where "users"."id" = "d"."id"
 ```
 
-For more details on `QueryBuilder`, see the [QueryBuilder Usage Guide](./docs/class-QueryBuilder-usage-guide.md).
+For more details on `QueryBuilder`, see the [QueryBuilder Usage Guide](./docs/usage-guides/class-QueryBuilder-usage-guide.md).
 
 ---
 

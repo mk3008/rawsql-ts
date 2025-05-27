@@ -514,9 +514,10 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
             token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
             token.innerTokens.push(this.createElseToken(arg.elseValue));
         }
-
         return token;
-    } private createElseToken(elseValue: SqlComponent): SqlPrintToken {
+    }
+
+    private createElseToken(elseValue: SqlComponent): SqlPrintToken {
         // Creates a token for the ELSE clause in a CASE expression.
         const elseToken = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.ElseClause);        // Add the ELSE keyword
         elseToken.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'else'));
@@ -528,7 +529,9 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         elseToken.innerTokens.push(elseValueContainer);
 
         return elseToken;
-    } private visitCaseKeyValuePair(arg: CaseKeyValuePair): SqlPrintToken {
+    }
+
+    private visitCaseKeyValuePair(arg: CaseKeyValuePair): SqlPrintToken {
         const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.CaseKeyValuePair);
 
         // Create WHEN clause
@@ -1217,10 +1220,14 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     }
 
     public visitInlineQuery(arg: InlineQuery): SqlPrintToken {
-        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.InlineQuery);
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '');
 
         token.innerTokens.push(SqlPrintTokenParser.PAREN_OPEN_TOKEN);
-        token.innerTokens.push(arg.selectQuery.accept(this));
+
+        const queryToken = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.InlineQuery);
+        queryToken.innerTokens.push(arg.selectQuery.accept(this));
+
+        token.innerTokens.push(queryToken);
         token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
 
         return token;

@@ -60,17 +60,10 @@ export class ColumnReference extends SqlComponent {
         }
     }
     static kind = Symbol("ColumnReference");
-    qualifiedName: QualifiedName;
-    constructor(namespaces: string | string[] | IdentifierString[] | null, column: string | IdentifierString) {
+    qualifiedName: QualifiedName; constructor(namespaces: string | string[] | IdentifierString[] | null, column: string | IdentifierString) {
         super();
-        let nsArr: string[] | IdentifierString[] | null;
-        if (typeof namespaces === "string") {
-            nsArr = [namespaces];
-        } else {
-            nsArr = namespaces;
-        }
         const col = typeof column === "string" ? new IdentifierString(column) : column;
-        this.qualifiedName = new QualifiedName(nsArr, col);
+        this.qualifiedName = new QualifiedName(toIdentifierStringArray(namespaces), col);
     }
 
     public toString(): string {
@@ -89,10 +82,8 @@ export class FunctionCall extends SqlComponent {
     static kind = Symbol("FunctionCall");
     qualifiedName: QualifiedName;
     argument: ValueComponent | null;
-    over: OverExpression | null;
-
-    constructor(
-        namespaces: string[] | IdentifierString[] | null,
+    over: OverExpression | null; constructor(
+        namespaces: string | string[] | IdentifierString[] | null,
         name: string | RawString | IdentifierString,
         argument: ValueComponent | null,
         over: OverExpression | null
@@ -386,14 +377,26 @@ export class TupleExpression extends SqlComponent {
 
 function toIdentifierStringArray(input: string | string[] | IdentifierString[] | null): IdentifierString[] | null {
     if (input == null) return null;
-    if (typeof input === "string") return [new IdentifierString(input)];
+
+    if (typeof input === "string") {
+        // Empty string should be treated as null
+        return input.trim() === "" ? null : [new IdentifierString(input)];
+    }
+
     if (Array.isArray(input)) {
+        if (input.length === 0) return null;
+
         if (typeof input[0] === "string") {
-            return (input as string[]).map(ns => new IdentifierString(ns));
+            // Filter out empty strings from string array
+            const filteredStrings = (input as string[]).filter(ns => ns.trim() !== "");
+            return filteredStrings.length === 0 ? null : filteredStrings.map(ns => new IdentifierString(ns));
         } else {
-            return input as IdentifierString[];
+            // Filter out empty IdentifierStrings from IdentifierString array
+            const filteredIdentifiers = (input as IdentifierString[]).filter(ns => ns.name.trim() !== "");
+            return filteredIdentifiers.length === 0 ? null : filteredIdentifiers;
         }
     }
+
     return null;
 }
 
@@ -408,7 +411,7 @@ export class QualifiedName extends SqlComponent {
     /** The actual name (e.g. table, function, type, column) */
     name: RawString | IdentifierString;
 
-    constructor(namespaces: string[] | IdentifierString[] | null, name: string | RawString | IdentifierString) {
+    constructor(namespaces: string | string[] | IdentifierString[] | null, name: string | RawString | IdentifierString) {
         super();
         this.namespaces = toIdentifierStringArray(namespaces);
         if (typeof name === "string") {
