@@ -514,9 +514,10 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
             token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
             token.innerTokens.push(this.createElseToken(arg.elseValue));
         }
-
         return token;
-    } private createElseToken(elseValue: SqlComponent): SqlPrintToken {
+    }
+
+    private createElseToken(elseValue: SqlComponent): SqlPrintToken {
         // Creates a token for the ELSE clause in a CASE expression.
         const elseToken = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.ElseClause);        // Add the ELSE keyword
         elseToken.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'else'));
