@@ -121,29 +121,82 @@ export class PostgresParentEntityCteBuilder {
     ): ParentEntityProcessingInfo[] {
         const parentInfos: ParentEntityProcessingInfo[] = [];
 
-        // Helper function to calculate depth for an entity
-        const calculateDepth = (entityId: string): number => {
-            const entity = allEntities.get(entityId);
-            if (!entity || entity.isRoot) return 0;
+        // Helper function to calculate actual object nesting depth for a given OBJECT entity
+        const calculateActualObjectNestingDepth = (entityIdOfObject: string): number => {
+            const initialEntity = allEntities.get(entityIdOfObject);
+            if (!initialEntity) {
+                throw new Error(`Entity ${entityIdOfObject} not found for depth calculation.`);
+            }
+            // If the object itself is root, its depth is 0. (This function should ideally be called for nested entities, not the root itself as a "parent CTE" subject)
+            if (initialEntity.isRoot) return 0;
 
-            if (!entity.parentId) return 1;
+            // If the object is not root and has no parentId, it's considered a top-level object, depth 1.
+            if (!initialEntity.parentId) {
+                return 1;
+            }
 
-            return 1 + calculateDepth(entity.parentId);
+            let currentParentIdInHierarchy: string | undefined = initialEntity.parentId;
+            let calculatedObjectDepth = 0;
+            const visitedInPath = new Set<string>();
+            visitedInPath.add(entityIdOfObject); // Add the starting object itself to detect cycles
+
+            while (currentParentIdInHierarchy) {
+                if (visitedInPath.has(currentParentIdInHierarchy)) {
+                    throw new Error(`Circular dependency detected: ${currentParentIdInHierarchy} already visited in path for ${entityIdOfObject}`);
+                }
+                visitedInPath.add(currentParentIdInHierarchy);
+
+                const parentEntityData = allEntities.get(currentParentIdInHierarchy);
+                if (!parentEntityData) {
+                    throw new Error(`Parent entity ${currentParentIdInHierarchy} not found during depth calculation for ${entityIdOfObject}`);
+                }
+
+                let parentIsConsideredAnObjectForNesting = false;
+                if (parentEntityData.isRoot) {
+                    parentIsConsideredAnObjectForNesting = true; // Root counts as an object ancestor
+                } else {
+                    // For non-root parents, find their definition in nestedEntities to check their type
+                    const parentDefinition = mapping.nestedEntities.find(ne => ne.id === currentParentIdInHierarchy);
+                    if (parentDefinition) {
+                        if (parentDefinition.relationshipType === "object") {
+                            parentIsConsideredAnObjectForNesting = true;
+                        }
+                        // If parentDefinition.relationshipType === "array", it's not an object ancestor for depth counting
+                    } else {
+                        // This implies currentParentIdInHierarchy refers to an entity not defined as root or in nestedEntities
+                        // This should ideally not happen with a consistent mapping.
+                        throw new Error(`Parent entity ${currentParentIdInHierarchy} (ancestor of ${entityIdOfObject}) has no definition in mapping.nestedEntities and is not root.`);
+                    }
+                }
+
+                if (parentIsConsideredAnObjectForNesting) {
+                    calculatedObjectDepth++;
+                }
+
+                if (parentEntityData.isRoot) {
+                    break; // Stop when the root is processed as the highest object ancestor
+                }
+                currentParentIdInHierarchy = parentEntityData.parentId; // Move to the next ancestor
+            }
+            return calculatedObjectDepth;
         };
 
-        // Collect all object-type nested entities
         mapping.nestedEntities.forEach(nestedEntity => {
             if (nestedEntity.relationshipType === "object") {
                 const entity = allEntities.get(nestedEntity.id);
+                // Ensure we don't process the root entity itself as a "parent" CTE,
+                // and that the entity actually exists.
                 if (entity && !entity.isRoot) {
                     parentInfos.push({
                         entity,
-                        depth: calculateDepth(nestedEntity.id)
+                        depth: calculateActualObjectNestingDepth(nestedEntity.id)
                     });
                 }
             }
         });
 
+        // The existing grouping and sorting by depth (b - a for descending) should still work correctly
+        // as it processes deepest levels first, regardless of the absolute depth numbers.
         return parentInfos;
     }
 

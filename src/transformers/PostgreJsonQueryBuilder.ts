@@ -3,6 +3,7 @@ import { SimpleSelectQuery } from '../models/SimpleSelectQuery';
 import { IdentifierString, ValueComponent, ColumnReference, FunctionCall, ValueList, LiteralValue, BinaryExpression, CaseExpression, SwitchCaseArgument, CaseKeyValuePair, RawString, UnaryExpression } from '../models/ValueComponent';
 import { SelectValueCollector } from "./SelectValueCollector";
 import { PostgresParentEntityCteBuilder, ProcessableEntity } from './PostgresParentEntityCteBuilder';
+import { PostgresArrayEntityCteBuilder } from './PostgresArrayEntityCteBuilder';
 
 /**
  * Universal JSON mapping definition for creating any level of JSON structures.
@@ -29,16 +30,6 @@ export interface JsonMapping {
 }
 
 /**
- * Information needed to process an array entity during CTE construction.
- */
-interface ArrayEntityProcessingInfo {
-    entity: ProcessableEntity;
-    parentEntity: ProcessableEntity;
-    parentIdColumnSqlName: string; // SQL column name in the parent entity used for linking/grouping.
-    depth: number; // Depth in the entity hierarchy, used for sorting.
-}
-
-/**
  * SimpleSelectQuery を、PostgreSQLのJSON関数を使って
  * フラットなJSON配列または単一JSONオブジェクトを返すクエリに変換するクラスだよ。
  */
@@ -46,10 +37,12 @@ export class PostgreJsonQueryBuilder {
     private selectValueCollector: SelectValueCollector;
     private cteCounter: number = 0;
     private parentEntityCteBuilder: PostgresParentEntityCteBuilder;
+    private arrayEntityCteBuilder: PostgresArrayEntityCteBuilder;
 
     constructor() {
         this.selectValueCollector = new SelectValueCollector(null);
         this.parentEntityCteBuilder = new PostgresParentEntityCteBuilder();
+        this.arrayEntityCteBuilder = new PostgresArrayEntityCteBuilder();
     }
 
     /**
@@ -156,10 +149,10 @@ export class PostgreJsonQueryBuilder {
         const { initialCte, initialCteAlias } = this._createInitialCte(originalQuery);
 
         let ctesForProcessing: CommonTable[] = [initialCte];
-        let currentAliasToBuildUpon = initialCteAlias;
-
-        // Step 2: Prepare entity information and sort array entities by depth
-        const { allEntities, sortedArrayInfos } = this._prepareEntitiesAndSortArrays(mapping);
+        let currentAliasToBuildUpon = initialCteAlias;        // Step 2: Prepare entity information
+        const allEntities = new Map<string, ProcessableEntity>();
+        allEntities.set(mapping.rootEntity.id, { ...mapping.rootEntity, isRoot: true, propertyName: mapping.rootName });
+        mapping.nestedEntities.forEach(ne => allEntities.set(ne.id, { ...ne, isRoot: false, propertyName: ne.propertyName }));
 
         // Step 2.5: Build CTEs for parent entities using dedicated builder
         const parentEntityResult = this.parentEntityCteBuilder.buildParentEntityCtes(
@@ -173,18 +166,15 @@ export class PostgreJsonQueryBuilder {
         ctesForProcessing = parentEntityResult.ctes;
         currentAliasToBuildUpon = parentEntityResult.lastCteAlias;
 
-        // Step 3: Build CTEs for array entities if any exist
-        if (sortedArrayInfos.length > 0) {
-            const arrayCteBuildResult = this._buildArrayEntityCtes(
-                ctesForProcessing,
-                currentAliasToBuildUpon,
-                sortedArrayInfos,
-                allEntities,
-                mapping
-            );
-            ctesForProcessing = arrayCteBuildResult.updatedCtes;
-            currentAliasToBuildUpon = arrayCteBuildResult.lastCteAlias;
-        }
+        // Step 3: Build CTEs for array entities using dedicated builder
+        const arrayCteBuildResult = this.arrayEntityCteBuilder.buildArrayEntityCtes(
+            ctesForProcessing,
+            currentAliasToBuildUpon,
+            allEntities,
+            mapping
+        );
+        ctesForProcessing = arrayCteBuildResult.updatedCtes;
+        currentAliasToBuildUpon = arrayCteBuildResult.lastCteAlias;
 
         // Step 4: Build the final SELECT query using all generated CTEs
         return this._buildFinalSelectQuery(
@@ -211,65 +201,6 @@ export class PostgreJsonQueryBuilder {
     }
 
     /**
-     * Prepares a map of all processable entities and a sorted list of array entity information.
-     * Array entities are sorted by depth (descending) to ensure deeper arrays are processed first.
-     * @param mapping The JSON mapping configuration.
-     * @returns An object containing the map of all entities and the sorted array entity information.
-     */
-    private _prepareEntitiesAndSortArrays(mapping: JsonMapping): { allEntities: Map<string, ProcessableEntity>, sortedArrayInfos: ArrayEntityProcessingInfo[] } {
-        const allEntities = new Map<string, ProcessableEntity>();
-        allEntities.set(mapping.rootEntity.id, { ...mapping.rootEntity, isRoot: true, propertyName: mapping.rootName });
-        mapping.nestedEntities.forEach(ne => allEntities.set(ne.id, { ...ne, isRoot: false, propertyName: ne.propertyName }));
-
-        const getDepth = (entityId: string, visited: Set<string> = new Set()): number => {
-            if (visited.has(entityId)) throw new Error(`Circular dependency detected in entity hierarchy involving ID ${entityId}`);
-            visited.add(entityId);
-
-            const entity = allEntities.get(entityId);
-            if (!entity || entity.isRoot || !entity.parentId) return 0; // Root or no parent means depth 0 relative to its own chain start
-
-            const parentEntity = allEntities.get(entity.parentId);
-            if (!parentEntity) {
-                // This case should ideally be caught by validation earlier, but good to handle.
-                console.warn(`Parent ID ${entity.parentId} not found for entity ${entityId} during depth calculation. This might indicate a broken chain or an orphaned entity.`);
-                return 0; // Treat as depth 0 if parent is missing to prevent further errors
-            }
-            return 1 + getDepth(entity.parentId, new Set(visited)); // Recurse with a new Set for safety
-        };
-
-        const arrayEntityInfos: ArrayEntityProcessingInfo[] = [];
-        mapping.nestedEntities.forEach(ne => {
-            if (ne.relationshipType === "array") {
-                const currentArrayEntity = allEntities.get(ne.id)!;
-                const parentEntity = allEntities.get(ne.parentId);
-
-                if (!parentEntity) {
-                    throw new Error(`Configuration error: Parent entity with ID '${ne.parentId}' not found for array entity '${ne.name}'. This should be caught by validation.`);
-                }
-                // Determine the linking column from the parent. For simplicity, using the first defined column.
-                // This assumes the first column of the parent is a suitable key for linking.
-                // More robust linking might require explicit configuration in the mapping.
-                const parentSqlColumns = Object.values(parentEntity.columns);
-                if (parentSqlColumns.length === 0) {
-                    throw new Error(`Configuration error: Parent entity '${parentEntity.name}' (ID: ${parentEntity.id}) must have at least one column defined to serve as a linking key for child array '${ne.name}'.`);
-                }
-                const parentIdColumnSqlName = parentSqlColumns[0];
-
-                arrayEntityInfos.push({
-                    entity: currentArrayEntity,
-                    parentEntity: parentEntity,
-                    parentIdColumnSqlName: parentIdColumnSqlName,
-                    depth: getDepth(ne.id)
-                });
-            }
-        });
-
-        // Sort by depth, deepest arrays (higher depth number) processed first (bottom-up for arrays)
-        arrayEntityInfos.sort((a, b) => b.depth - a.depth);
-        return { allEntities, sortedArrayInfos: arrayEntityInfos };
-    }
-
-    /**
      * Builds CTEs for each array entity, processing them in order of depth.
      * Each CTE aggregates array elements and joins them to the data from the previous CTE.
      * @param ctesSoFar Array of CTEs built so far (starts with the initial CTE).
@@ -279,63 +210,6 @@ export class PostgreJsonQueryBuilder {
      * @param mapping JSON mapping configuration.
      * @returns An object containing the updated list of all CTEs and the alias of the last CTE created.
      */
-    private _buildArrayEntityCtes(
-        ctesSoFar: CommonTable[],
-        aliasOfCteToBuildUpon: string,
-        sortedArrayInfos: ArrayEntityProcessingInfo[],
-        allEntities: Map<string, ProcessableEntity>,
-        mapping: JsonMapping
-    ): { updatedCtes: CommonTable[], lastCteAlias: string } {
-        let currentCtes = [...ctesSoFar]; // Operate on a mutable copy
-        let previousCteAlias = aliasOfCteToBuildUpon;
-
-        for (const { entity: arrayEntity, parentEntity, parentIdColumnSqlName } of sortedArrayInfos) {
-            const cteAlias = `cte_${arrayEntity.propertyName.toLowerCase().replace(/[^a-z0-9_]/g, '_')}`;
-
-            const aggregationDetails = this.buildAggregationDetailsForArrayEntity(
-                arrayEntity,
-                previousCteAlias,
-                mapping.nestedEntities,
-                allEntities,
-                mapping.useJsonb
-            );
-
-            const prevCteDefinition = currentCtes.find(c => c.aliasExpression.table.name === previousCteAlias)?.query;
-            if (!prevCteDefinition) {
-                // This should not happen if aliases are managed correctly.
-                throw new Error(`Internal error: CTE definition for alias ${previousCteAlias} not found during array CTE construction.`);
-            }
-
-            // Collect select values from the previous CTE to carry them forward.
-            // Pass all `currentCtes` for context to the collector.
-            const prevCteSelectValues = new SelectValueCollector(null, currentCtes).collect(prevCteDefinition);
-
-            const selectItems: SelectItem[] = [];
-            const groupByItems: ValueComponent[] = [];
-
-            prevCteSelectValues.forEach(sv => {
-                selectItems.push(new SelectItem(new ColumnReference(null, new IdentifierString(sv.name)), sv.name));
-                // Group by all columns from the previous CTE, except if a column has the same name
-                // as the array property we are adding. This preserves the parent's data structure.
-                if (sv.name !== arrayEntity.propertyName) {
-                    groupByItems.push(new ColumnReference(null, new IdentifierString(sv.name)));
-                }
-            });
-
-            // Add the aggregated JSON array as a new column.
-            selectItems.push(new SelectItem(aggregationDetails.jsonAgg, arrayEntity.propertyName));
-
-            const cteSelect = new SimpleSelectQuery({
-                selectClause: new SelectClause(selectItems),
-                fromClause: new FromClause(new SourceExpression(new TableSource(null, new IdentifierString(previousCteAlias)), null), null),
-                groupByClause: groupByItems.length > 0 ? new GroupByClause(groupByItems) : null,
-            });
-
-            currentCtes.push(new CommonTable(cteSelect, new SourceAliasExpression(cteAlias, null), null));
-            previousCteAlias = cteAlias; // The newly created CTE becomes the one to build upon next
-        }
-        return { updatedCtes: currentCtes, lastCteAlias: previousCteAlias };
-    }
 
     /**
      * Builds the final SELECT query that constructs the root JSON object (or array of objects).
@@ -450,29 +324,6 @@ export class PostgreJsonQueryBuilder {
         }
     }
 
-    private buildAggregationDetailsForArrayEntity(
-        arrayEntityConfig: ProcessableEntity, // This is the entity for the *elements* of the array
-        sourceCteAliasForParentData: string, // CTE providing parent data and columns for array elements
-        allNestedEntitiesGlobal: JsonMapping['nestedEntities'],
-        allEntitiesMapGlobal: Map<string, ProcessableEntity>,
-        useJsonb?: boolean
-    ): { jsonAgg: FunctionCall } {
-        const jsonAggFunc = useJsonb ? "jsonb_agg" : "json_agg";
-
-        // Simplified: no need to pass sourceAlias since it's the same as sourceCteAliasForParentData
-        const elementObjectBuilder = this.buildEntityJsonObject(
-            arrayEntityConfig,
-            sourceCteAliasForParentData,
-            allNestedEntitiesGlobal,
-            allEntitiesMapGlobal,
-            useJsonb
-        );
-
-        // Aggregate these built objects into a JSON array
-        const aggCall = new FunctionCall(null, new RawString(jsonAggFunc), new ValueList([elementObjectBuilder]), null);
-        return { jsonAgg: aggCall };
-    }
-
     /**
      * Build JSON object for entity, using parent JSON columns when available
      */
@@ -484,12 +335,10 @@ export class PostgreJsonQueryBuilder {
         useJsonb: boolean = false
     ): ValueComponent {
         const jsonBuildFunction = useJsonb ? "jsonb_build_object" : "json_build_object";
-        const args: ValueComponent[] = [];
-
-        // Add the entity's own columns
+        const args: ValueComponent[] = [];        // Add the entity's own columns
         Object.entries(entity.columns).forEach(([jsonKey, sqlColumn]) => {
             args.push(new LiteralValue(jsonKey));
-            args.push(new ColumnReference(sourceAlias ? [sourceAlias] : null, new IdentifierString(sqlColumn)));
+            args.push(new ColumnReference(null, new IdentifierString(sqlColumn)));
         });
 
         // Find and process child entities (both object and array types)
@@ -499,15 +348,13 @@ export class PostgreJsonQueryBuilder {
             const child = allEntities.get(childEntity.id);
             if (!child) return;
 
-            args.push(new LiteralValue(childEntity.propertyName));
-
-            if (childEntity.relationshipType === "object") {
+            args.push(new LiteralValue(childEntity.propertyName)); if (childEntity.relationshipType === "object") {
                 // For object relationships, use pre-computed JSON column
                 const jsonColumnName = `${child.name.toLowerCase()}_json`;
-                args.push(new ColumnReference(sourceAlias ? [sourceAlias] : null, new IdentifierString(jsonColumnName)));
+                args.push(new ColumnReference(null, new IdentifierString(jsonColumnName)));
             } else if (childEntity.relationshipType === "array") {
                 // For array relationships, use the column directly
-                args.push(new ColumnReference(sourceAlias ? [sourceAlias] : null, new IdentifierString(childEntity.propertyName)));
+                args.push(new ColumnReference(null, new IdentifierString(childEntity.propertyName)));
             }
         });
 
