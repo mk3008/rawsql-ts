@@ -257,7 +257,7 @@ from
         from
             "region_country_capital_view"
     )
-    , "cte_parent_depth_1" as (
+    , "cte_object_depth_1" as (
         select
             *
             , case
@@ -281,7 +281,7 @@ from
             , "capital_population"
             , jsonb_agg(jsonb_build_object('id', "country_id", 'name', "country_name", 'code', "country_code", 'capital', "capital_json")) as "countries"
         from
-            "cte_parent_depth_1"
+            "cte_object_depth_1"
         group by
             "capital_json"
             , "region_id"
@@ -377,7 +377,7 @@ from
         from
             "sale_full_report"
     )
-    , "cte_parent_depth_1" as (
+    , "cte_object_depth_1" as (
         select
             *
             , case
@@ -402,7 +402,7 @@ from
             , "product_category"
             , jsonb_agg(jsonb_build_object('id', "detail_id", 'quantity', "detail_quantity", 'price', "detail_price", 'product', "product_json")) as "details"
         from
-            "cte_parent_depth_1"
+            "cte_object_depth_1"
         group by
             "product_json"
             , "sale_id"

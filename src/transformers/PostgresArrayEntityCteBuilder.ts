@@ -2,7 +2,7 @@ import { CommonTable, SourceAliasExpression, SelectItem, SelectClause, FromClaus
 import { SimpleSelectQuery } from '../models/SimpleSelectQuery';
 import { IdentifierString, ValueComponent, ColumnReference, FunctionCall, ValueList, LiteralValue, RawString } from '../models/ValueComponent';
 import { JsonMapping } from './PostgreJsonQueryBuilder';
-import { ProcessableEntity } from './PostgresParentEntityCteBuilder';
+import { ProcessableEntity } from './PostgresObjectEntityCteBuilder';
 import { SelectValueCollector } from './SelectValueCollector';
 
 /**

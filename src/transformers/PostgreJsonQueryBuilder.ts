@@ -2,7 +2,7 @@ import { CommonTable, SourceAliasExpression, SelectItem, SelectClause, FromClaus
 import { SimpleSelectQuery } from '../models/SimpleSelectQuery';
 import { IdentifierString, ValueComponent, ColumnReference, FunctionCall, ValueList, LiteralValue, BinaryExpression, CaseExpression, SwitchCaseArgument, CaseKeyValuePair, RawString, UnaryExpression } from '../models/ValueComponent';
 import { SelectValueCollector } from "./SelectValueCollector";
-import { PostgresParentEntityCteBuilder, ProcessableEntity } from './PostgresParentEntityCteBuilder';
+import { PostgresObjectEntityCteBuilder, ProcessableEntity } from './PostgresObjectEntityCteBuilder';
 import { PostgresArrayEntityCteBuilder } from './PostgresArrayEntityCteBuilder';
 
 /**
@@ -35,10 +35,10 @@ export interface JsonMapping {
  */
 export class PostgreJsonQueryBuilder {
     private selectValueCollector: SelectValueCollector;
-    private parentEntityCteBuilder: PostgresParentEntityCteBuilder;
+    private objectEntityCteBuilder: PostgresObjectEntityCteBuilder;
     private arrayEntityCteBuilder: PostgresArrayEntityCteBuilder; constructor() {
         this.selectValueCollector = new SelectValueCollector(null);
-        this.parentEntityCteBuilder = new PostgresParentEntityCteBuilder();
+        this.objectEntityCteBuilder = new PostgresObjectEntityCteBuilder();
         this.arrayEntityCteBuilder = new PostgresArrayEntityCteBuilder();
     }
 
@@ -139,19 +139,16 @@ export class PostgreJsonQueryBuilder {
         // Step 2: Prepare entity information
         const allEntities = new Map<string, ProcessableEntity>();
         allEntities.set(mapping.rootEntity.id, { ...mapping.rootEntity, isRoot: true, propertyName: mapping.rootName });
-        mapping.nestedEntities.forEach(ne => allEntities.set(ne.id, { ...ne, isRoot: false, propertyName: ne.propertyName }));
-
-        // Step 2.5: Build CTEs for parent entities using dedicated builder
-        const parentEntityResult = this.parentEntityCteBuilder.buildParentEntityCtes(
+        mapping.nestedEntities.forEach(ne => allEntities.set(ne.id, { ...ne, isRoot: false, propertyName: ne.propertyName }));        // Step 2.5: Build CTEs for object entities using dedicated builder
+        const objectEntityResult = this.objectEntityCteBuilder.buildObjectEntityCtes(
             initialCte,
             allEntities,
             mapping
         );
-
-        // Important: Replace the entire CTE list with the result from parent entity builder
-        // The parent entity builder returns all CTEs including the initial one
-        ctesForProcessing = parentEntityResult.ctes;
-        currentAliasToBuildUpon = parentEntityResult.lastCteAlias;
+        // Important: Replace the entire CTE list with the result from object entity builder
+        // The object entity builder returns all CTEs including the initial one
+        ctesForProcessing = objectEntityResult.ctes;
+        currentAliasToBuildUpon = objectEntityResult.lastCteAlias;
 
         // Step 3: Build CTEs for array entities using dedicated builder
         const arrayCteBuildResult = this.arrayEntityCteBuilder.buildArrayEntityCtes(

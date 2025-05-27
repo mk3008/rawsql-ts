@@ -18,29 +18,29 @@ export interface ProcessableEntity {
 }
 
 /**
- * Information for parent entity processing
+ * Information for object entity processing
  */
-interface ParentEntityProcessingInfo {
+interface ObjectEntityProcessingInfo {
     entity: ProcessableEntity;
     depth: number;
 }
 
 /**
- * PostgreSQL-specific builder for creating CTEs for parent entities (object relationships).
- * This class handles the creation of CTEs that build JSON/JSONB objects for parent entities,
+ * PostgreSQL-specific builder for creating CTEs for object entities (object relationships).
+ * This class handles the creation of CTEs that build JSON/JSONB objects for object entities,
  * processing them from the deepest level up to ensure proper dependency ordering.
  * 
  * Features:
- * - Depth-based CTE naming (cte_parent_depth_N)
+ * - Depth-based CTE naming (cte_object_depth_N)
  * - NULL handling for entity columns
  * - JSONB/JSON object construction
  * - Hierarchical processing of nested objects
  * 
  * Why depth calculation is critical:
- * 1. Parent entities can be nested at multiple levels. We must process the deepest
- *    (most distant) parents first to ensure their JSON representations are available
+ * 1. Object entities can be nested at multiple levels. We must process the deepest
+ *    (most distant) objects first to ensure their JSON representations are available
  *    when building their parent entities.
- * 2. Parent entity processing is essentially a column compression operation. Entities
+ * 2. Object entity processing is essentially a column compression operation. Entities
  *    at the same depth level can be processed simultaneously since they don't depend
  *    on each other.
  * 
@@ -53,39 +53,34 @@ interface ParentEntityProcessingInfo {
  * 
  * Processing order: depth 2 → depth 1 → depth 0
  */
-export class PostgresParentEntityCteBuilder {
-    // Constants for consistent naming conventions
+export class PostgresObjectEntityCteBuilder {    // Constants for consistent naming conventions
     private static readonly JSON_COLUMN_SUFFIX = '_json';
-    private static readonly CTE_PARENT_PREFIX = 'cte_parent_depth_';
-    private static readonly WILDCARD_COLUMN = '*';
-
-    /**
-     * Build CTEs for all parent entities in the correct dependency order
+    private static readonly CTE_OBJECT_PREFIX = 'cte_object_depth_';
+    private static readonly WILDCARD_COLUMN = '*';    /**
+     * Build CTEs for all object entities in the correct dependency order
      * @param initialCte The starting CTE containing all raw data
      * @param allEntities Map of all entities in the mapping
      * @param mapping The JSON mapping configuration
      * @returns Array of CTEs and the alias of the last CTE created
      */
-    public buildParentEntityCtes(
+    public buildObjectEntityCtes(
         initialCte: CommonTable,
         allEntities: Map<string, ProcessableEntity>,
         mapping: JsonMapping
     ): { ctes: CommonTable[], lastCteAlias: string } {
         const ctes: CommonTable[] = [initialCte];
-        let previousCteAlias = initialCte.aliasExpression.table.name;
-
-        // Collect and sort parent entities by depth
-        const parentEntityInfos = this.collectAndSortParentEntities(mapping, allEntities);
+        let previousCteAlias = initialCte.aliasExpression.table.name;        // Collect and sort object entities by depth
+        const objectEntityInfos = this.collectAndSortObjectEntities(mapping, allEntities);
 
         // Group entities by depth
-        const entitiesByDepth = this.groupEntitiesByDepth(parentEntityInfos);
+        const entitiesByDepth = this.groupEntitiesByDepth(objectEntityInfos);
 
         // Process each depth level, starting from the deepest
         const depths = Array.from(entitiesByDepth.keys()).sort((a, b) => b - a);
 
         for (const depth of depths) {
             const entitiesAtDepth = entitiesByDepth.get(depth)!;
-            const cteAlias = `${PostgresParentEntityCteBuilder.CTE_PARENT_PREFIX}${depth}`;
+            const cteAlias = `${PostgresObjectEntityCteBuilder.CTE_OBJECT_PREFIX}${depth}`;
 
             // Build CTE for all entities at this depth
             const cte = this.buildDepthCte(
@@ -101,10 +96,8 @@ export class PostgresParentEntityCteBuilder {
         }
 
         return { ctes, lastCteAlias: previousCteAlias };
-    }
-
-    /**
-     * Collect all parent entities and calculate their depth from root.
+    }    /**
+     * Collect all object entities and calculate their depth from root.
      * 
      * Depth calculation is crucial because:
      * - It determines the processing order (deepest first)
@@ -113,13 +106,12 @@ export class PostgresParentEntityCteBuilder {
      * 
      * @param mapping The JSON mapping configuration
      * @param allEntities Map of all entities in the mapping
-     * @returns Array of parent entity information with calculated depths
+     * @returns Array of object entity information with calculated depths
      */
-    private collectAndSortParentEntities(
+    private collectAndSortObjectEntities(
         mapping: JsonMapping,
-        allEntities: Map<string, ProcessableEntity>
-    ): ParentEntityProcessingInfo[] {
-        const parentInfos: ParentEntityProcessingInfo[] = [];
+        allEntities: Map<string, ProcessableEntity>    ): ObjectEntityProcessingInfo[] {
+        const objectInfos: ObjectEntityProcessingInfo[] = [];
 
         // Helper function to calculate actual object nesting depth for a given OBJECT entity
         const calculateActualObjectNestingDepth = (entityIdOfObject: string): number => {
@@ -186,8 +178,7 @@ export class PostgresParentEntityCteBuilder {
                 const entity = allEntities.get(nestedEntity.id);
                 // Ensure we don't process the root entity itself as a "parent" CTE,
                 // and that the entity actually exists.
-                if (entity && !entity.isRoot) {
-                    parentInfos.push({
+                if (entity && !entity.isRoot) {                    objectInfos.push({
                         entity,
                         depth: calculateActualObjectNestingDepth(nestedEntity.id)
                     });
@@ -197,7 +188,7 @@ export class PostgresParentEntityCteBuilder {
 
         // The existing grouping and sorting by depth (b - a for descending) should still work correctly
         // as it processes deepest levels first, regardless of the absolute depth numbers.
-        return parentInfos;
+        return objectInfos;
     }
 
     /**
@@ -210,13 +201,12 @@ export class PostgresParentEntityCteBuilder {
      * 
      * @param parentInfos Array of parent entity information with depths
      * @returns Map of depth level to entities at that depth
-     */
-    private groupEntitiesByDepth(
-        parentInfos: ParentEntityProcessingInfo[]
-    ): Map<number, ParentEntityProcessingInfo[]> {
-        const entitiesByDepth = new Map<number, ParentEntityProcessingInfo[]>();
+     */    private groupEntitiesByDepth(
+        objectInfos: ObjectEntityProcessingInfo[]
+    ): Map<number, ObjectEntityProcessingInfo[]> {
+        const entitiesByDepth = new Map<number, ObjectEntityProcessingInfo[]>();
 
-        parentInfos.forEach(info => {
+        objectInfos.forEach(info => {
             const depth = info.depth;
             if (!entitiesByDepth.has(depth)) {
                 entitiesByDepth.set(depth, []);
@@ -231,7 +221,7 @@ export class PostgresParentEntityCteBuilder {
      * Build a CTE that processes all entities at a specific depth level
      */
     private buildDepthCte(
-        entitiesAtDepth: ParentEntityProcessingInfo[],
+        entitiesAtDepth: ObjectEntityProcessingInfo[],
         previousCteAlias: string,
         cteAlias: string,
         mapping: JsonMapping,
@@ -240,7 +230,7 @@ export class PostgresParentEntityCteBuilder {
         // Build SELECT items: * and JSON objects for all entities at this depth
         const selectItems: SelectItem[] = [
             // Select all columns from previous CTE
-            new SelectItem(new ColumnReference(null, new IdentifierString(PostgresParentEntityCteBuilder.WILDCARD_COLUMN)))
+            new SelectItem(new ColumnReference(null, new IdentifierString(PostgresObjectEntityCteBuilder.WILDCARD_COLUMN)))
         ];
 
         // Process each entity at this depth
@@ -286,7 +276,7 @@ export class PostgresParentEntityCteBuilder {
         const caseExpr = this.createCaseExpression(nullCondition, jsonObject);
 
         // Add JSON object as named column
-        const jsonColumnName = `${entity.name.toLowerCase()}${PostgresParentEntityCteBuilder.JSON_COLUMN_SUFFIX}`;
+        const jsonColumnName = `${entity.name.toLowerCase()}${PostgresObjectEntityCteBuilder.JSON_COLUMN_SUFFIX}`;
         return new SelectItem(caseExpr, jsonColumnName);
     }
 
@@ -364,7 +354,7 @@ export class PostgresParentEntityCteBuilder {
             const child = allEntities.get(childEntity.id);
             if (child) {
                 jsonObjectArgs.push(new LiteralValue(childEntity.propertyName));
-                const jsonColumnName = `${child.name.toLowerCase()}${PostgresParentEntityCteBuilder.JSON_COLUMN_SUFFIX}`;
+                const jsonColumnName = `${child.name.toLowerCase()}${PostgresObjectEntityCteBuilder.JSON_COLUMN_SUFFIX}`;
                 jsonObjectArgs.push(new ColumnReference(null, new IdentifierString(jsonColumnName)));
             }
         });

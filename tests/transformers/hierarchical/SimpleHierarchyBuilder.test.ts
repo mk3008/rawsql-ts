@@ -195,7 +195,7 @@ describe('SimpleHierarchyBuilder - Upstream (Object) Relationships', () => {
                 `        from`,
                 `            "order_customer_view"`,
                 `    )`,
-                `    , "cte_parent_depth_1" as (`,  // Process Customer (depth 1)
+                `    , "cte_object_depth_1" as (`,  // Process Customer (depth 1)
                 `        select`,
                 `            *`,
                 `            , case`,
@@ -213,7 +213,7 @@ describe('SimpleHierarchyBuilder - Upstream (Object) Relationships', () => {
                 `        select`,
                 `            jsonb_build_object('id', "order_id", 'date', "order_date", 'amount', "order_amount", 'customer', "customer_json") as "Orders"`,
                 `        from`,
-                `            "cte_parent_depth_1"`,
+                `            "cte_object_depth_1"`,
                 `    )`,
                 `select`,
                 `    jsonb_agg("Orders") as "Orders_array"`,
@@ -296,7 +296,7 @@ describe('SimpleHierarchyBuilder - Upstream (Object) Relationships', () => {
                 `        from`,
                 `            "order_customer_address_view"`,
                 `    )`,
-                `    , "cte_parent_depth_2" as (`,  // Process Address first (deepest level)
+                `    , "cte_object_depth_2" as (`,  // Process Address first (deepest level)
                 `        select`,
                 `            *`,
                 `            , case`,
@@ -310,7 +310,7 @@ describe('SimpleHierarchyBuilder - Upstream (Object) Relationships', () => {
                 `        from`,
                 `            "origin_query"`,
                 `    )`,
-                `    , "cte_parent_depth_1" as (`,  // Process Customer with Address
+                `    , "cte_object_depth_1" as (`,  // Process Customer with Address
                 `        select`,
                 `            *`,
                 `            , case`,
@@ -321,13 +321,13 @@ describe('SimpleHierarchyBuilder - Upstream (Object) Relationships', () => {
                 `                    jsonb_build_object('id', "customer_id", 'name', "customer_name", 'address', "address_json")`,
                 `            end as "customer_json"`,
                 `        from`,
-                `            "cte_parent_depth_2"`,
+                `            "cte_object_depth_2"`,
                 `    )`,
                 `    , "cte_root_orders" as (`,  // Build root Order with Customer
                 `        select`,
                 `            jsonb_build_object('id', "order_id", 'date', "order_date", 'customer', "customer_json") as "Orders"`,
                 `        from`,
-                `            "cte_parent_depth_1"`,
+                `            "cte_object_depth_1"`,
                 `    )`,
                 `select`,
                 `    jsonb_agg("Orders") as "Orders_array"`,
@@ -413,7 +413,7 @@ describe('SimpleHierarchyBuilder - Upstream (Object) Relationships', () => {
                 `        from`,
                 `            "product_details_view"`,
                 `    )`,
-                `    , "cte_parent_depth_1" as (`,  // Process both Category and Supplier at depth 1
+                `    , "cte_object_depth_1" as (`,  // Process both Category and Supplier at depth 1
                 `        select`,
                 `            *`,
                 `            , case`,
@@ -438,7 +438,7 @@ describe('SimpleHierarchyBuilder - Upstream (Object) Relationships', () => {
                 `        select`,
                 `            jsonb_build_object('id', "product_id", 'name', "product_name", 'price', "product_price", 'category', "category_json", 'supplier', "supplier_json") as "Products"`,
                 `        from`,
-                `            "cte_parent_depth_1"`,
+                `            "cte_object_depth_1"`,
                 `    )`,
                 `select`,
                 `    jsonb_agg("Products") as "Products_array"`,
