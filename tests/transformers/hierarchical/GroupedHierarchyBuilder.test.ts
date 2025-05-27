@@ -74,22 +74,39 @@ describe('GroupedHierarchyBuilder - Downstream (Array) Relationships', () => {
         from
             "catalog_report"
     )
-    , "stage_0_products" as (
+    , "cte_products" as (
         select
             "category_id"
             , "category_name"
-            , "products"
-            , jsonb_agg(jsonb_build_object('id', "product_id", 'name', "product_name")) as "products"
+            , jsonb_agg(case
+                when "product_id" is null
+                and "product_name" is null then
+                    null
+                else
+                    jsonb_build_object('id', "product_id", 'name', "product_name")
+            end) as "products"
         from
             "origin_query"
         group by
             "category_id"
             , "category_name"
     )
+    , "cte_root_categories" as (
+        select
+            case
+                when "category_id" is null
+                and "category_name" is null then
+                    null
+                else
+                    jsonb_build_object('id', "category_id", 'name', "category_name", 'products', "products")
+            end as "Categories"
+        from
+            "cte_products"
+    )
 select
-    jsonb_agg(jsonb_build_object('id', "category_id", 'name', "category_name", 'products', "products")) as "Categories"
+    jsonb_agg("Categories") as "Categories_array"
 from
-    "stage_0_products"`;
+    "cte_root_categories"`;
 
             expect(formattedSql).toBe(expectedSql);
         });
@@ -151,13 +168,19 @@ from
         from
             "customer_orders_view"
     )
-    , "stage_0_orders" as (
+    , "cte_orders" as (
         select
             "customer_id"
             , "customer_name"
             , "customer_email"
-            , "orders"
-            , jsonb_agg(jsonb_build_object('id', "order_id", 'date', "order_date", 'amount', "order_amount")) as "orders"
+            , jsonb_agg(case
+                when "order_id" is null
+                and "order_date" is null
+                and "order_amount" is null then
+                    null
+                else
+                    jsonb_build_object(\'id\', "order_id", \'date\', "order_date", \'amount\', "order_amount")
+            end) as "orders"
         from
             "origin_query"
         group by
@@ -165,10 +188,23 @@ from
             , "customer_name"
             , "customer_email"
     )
+    , "cte_root_customers" as (
+        select
+            case
+                when "customer_id" is null
+                and "customer_name" is null
+                and "customer_email" is null then
+                    null
+                else
+                    jsonb_build_object(\'id\', "customer_id", \'name\', "customer_name", \'email\', "customer_email", \'orders\', "orders")
+            end as "Customers"
+        from
+            "cte_orders"
+    )
 select
-    jsonb_agg(jsonb_build_object('id', "customer_id", 'name', "customer_name", 'email', "customer_email", 'orders', "orders")) as "Customers"
+    jsonb_agg("Customers") as "Customers_array"
 from
-    "stage_0_orders"`;
+    "cte_root_customers"`;
 
             expect(formattedSql).toBe(expectedSql);
         });
@@ -234,35 +270,53 @@ from
             const jsonQuery = builder.buildJson(originalQuery, mapping);
             const formatter = new SqlFormatter(customStyle);
             const formattedSql = formatter.format(jsonQuery).formattedSql; const expectedSql = `with
-    "origin_query" as (
+    origin_query as (
         select
-            "region_id"
-            , "region_name"
-            , "country_id"
-            , "country_name"
-            , "country_code"
-            , "capital_id"
-            , "capital_name"
-            , "capital_population"
+            region_id
+            , region_name
+            , country_id
+            , country_name
+            , country_code
+            , capital_id
+            , capital_name
+            , capital_population
         from
-            "region_country_capital_view"
+            region_country_capital_view
     )
-    , "stage_0_countries" as (
+    , country_with_capital as (
         select
-            "region_id"
-            , "region_name"
-            , "countries"
-            , jsonb_agg(jsonb_build_object('id', "country_id", 'name', "country_name", 'code', "country_code")) as "countries"
+            region_id
+            , region_name
+            , country_id
+            , country_name
+            , country_code
+            , case when capital_id is null
+            and capital_name is null
+            and capital_population is null then null else jsonb_build_object('id', capital_id, 'name', capital_name, 'population', capital_population) end as capital
         from
-            "origin_query"
+            origin_query
+    )
+    , countries_grouped as (
+        select
+            region_id
+            , region_name
+            , jsonb_agg(jsonb_build_object('id', country_id, 'name', country_name, 'code', country_code, 'capital', capital)) as countries
+        from
+            country_with_capital
         group by
-            "region_id"
-            , "region_name"
+            region_id
+            , region_name
+    )
+    , root_regions as (
+        select
+            jsonb_build_object('id', region_id, 'name', region_name, 'countries', countries) as region
+        from
+            countries_grouped
     )
 select
-    jsonb_agg(jsonb_build_object('id', "region_id", 'name', "region_name", 'countries', "countries")) as "Regions"
+    jsonb_agg(region) as regions_array
 from
-    "stage_0_countries"`;
+    root_regions`;
 
             expect(formattedSql).toBe(expectedSql);
         });
@@ -328,38 +382,68 @@ from
             const jsonQuery = builder.buildJson(originalQuery, mapping);
             const formatter = new SqlFormatter(customStyle);
             const formattedSql = formatter.format(jsonQuery).formattedSql; const expectedSql = `with
-    "origin_query" as (
+    origin_query as (
         select
-            "sale_id"
-            , "sale_date"
-            , "sale_total"
-            , "detail_id"
-            , "detail_quantity"
-            , "detail_price"
-            , "product_id"
-            , "product_name"
-            , "product_category"
-        from
-            "sale_full_report"
-    )
-    , "stage_0_saleDetails" as (
+            sale_id,
+            sale_date,
+            sale_total,
+            detail_id,
+            detail_quantity,
+            detail_price,
+            product_id,
+            product_name,
+            product_category
+        from sale_full_report
+    ),
+
+    detail_with_product as (
         select
-            "sale_id"
-            , "sale_date"
-            , "sale_total"
-            , "details"
-            , jsonb_agg(jsonb_build_object('id', "detail_id", 'quantity', "detail_quantity", 'price', "detail_price")) as "details"
-        from
-            "origin_query"
-        group by
-            "sale_id"
-            , "sale_date"
-            , "sale_total"
+            sale_id,
+            sale_date,
+            sale_total,
+            jsonb_build_object(
+                'id', detail_id,
+                'quantity', detail_quantity,
+                'price', detail_price,
+                'product', case
+                    when product_id is null
+                    and product_name is null
+                    and product_category is null then null
+                    else jsonb_build_object(
+                        'id', product_id,
+                        'name', product_name,
+                        'category', product_category
+                    )
+                end
+            ) as detail
+        from origin_query
+        where detail_id is not null
+    ),
+
+    details_grouped as (
+        select
+            sale_id,
+            sale_date,
+            sale_total,
+            jsonb_agg(detail) as details
+        from detail_with_product
+        group by sale_id, sale_date, sale_total
+    ),
+
+    root_sales as (
+        select
+            jsonb_build_object(
+                'id', sale_id,
+                'date', sale_date,
+                'total', sale_total,
+                'details', details
+            ) as sale
+        from details_grouped
     )
+
 select
-    jsonb_agg(jsonb_build_object('id', "sale_id", 'date', "sale_date", 'total', "sale_total", 'details', "details")) as "Sales"
-from
-    "stage_0_saleDetails"`;
+    jsonb_agg(sale) as sales_array
+from root_sales`;
 
             expect(formattedSql).toBe(expectedSql);
         });
