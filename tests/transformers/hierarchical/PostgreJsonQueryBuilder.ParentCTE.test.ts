@@ -1,8 +1,8 @@
-import { PostgreJsonQueryBuilder, JsonMapping } from "../../src/transformers/PostgreJsonQueryBuilder";
-import { SimpleSelectQuery } from "../../src/models/SimpleSelectQuery";
+import { PostgreJsonQueryBuilder, JsonMapping } from "../../../src/transformers/PostgreJsonQueryBuilder";
+import { SimpleSelectQuery } from "../../../src/models/SimpleSelectQuery";
 import { describe, expect, it } from "vitest";
-import { SelectQueryParser } from "../../src/parsers/SelectQueryParser";
-import { SqlFormatter } from "../../src/transformers/SqlFormatter";
+import { SelectQueryParser } from "../../../src/parsers/SelectQueryParser";
+import { SqlFormatter } from "../../../src/transformers/SqlFormatter";
 
 // SQL formatting style configuration
 const customStyle = {
