@@ -30,16 +30,13 @@ export interface JsonMapping {
 }
 
 /**
- * SimpleSelectQuery を、PostgreSQLのJSON関数を使って
- * フラットなJSON配列または単一JSONオブジェクトを返すクエリに変換するクラスだよ。
+ * PostgreSQL JSON query builder that transforms SimpleSelectQuery into queries
+ * that return JSON arrays or single JSON objects using PostgreSQL JSON functions.
  */
 export class PostgreJsonQueryBuilder {
     private selectValueCollector: SelectValueCollector;
-    private cteCounter: number = 0;
     private parentEntityCteBuilder: PostgresParentEntityCteBuilder;
-    private arrayEntityCteBuilder: PostgresArrayEntityCteBuilder;
-
-    constructor() {
+    private arrayEntityCteBuilder: PostgresArrayEntityCteBuilder; constructor() {
         this.selectValueCollector = new SelectValueCollector(null);
         this.parentEntityCteBuilder = new PostgresParentEntityCteBuilder();
         this.arrayEntityCteBuilder = new PostgresArrayEntityCteBuilder();
@@ -47,18 +44,15 @@ export class PostgreJsonQueryBuilder {
 
     /**
      * Validates the JSON mapping and the original query.
+     * @param query Original query to transform
      * @param mapping JSON mapping configuration
-     * @param originalQuery Original query to transform
      */
     private validateMapping(query: SimpleSelectQuery, mapping: JsonMapping): void {
-        // TODO: Implement comprehensive validation
-        // 1. Check if columns in mapping exist in the query
-        // 2. Check for valid parent-child relationships
-        // 3. Check for unique child entity names under a parent
-        // 4. An entity should not have multiple direct array children.
         const collector = new SelectValueCollector();
         const selectedValues = collector.collect(query);
-        const availableColumns = new Set(selectedValues.map(sv => sv.name)); // sv.name is the alias or derived name
+
+        // sv.name is the alias or derived name
+        const availableColumns = new Set(selectedValues.map(sv => sv.name));
 
         // Check root entity columns
         for (const jsonKey in mapping.rootEntity.columns) {
@@ -112,8 +106,6 @@ export class PostgreJsonQueryBuilder {
                 propertyNames.add(child.propertyName);
             }
         }
-
-        console.log("Mapping validation passed.");
     }
 
     /**
@@ -123,12 +115,6 @@ export class PostgreJsonQueryBuilder {
      * @returns Transformed query with JSON aggregation
      */
     public buildJson(originalQuery: SimpleSelectQuery, mapping: JsonMapping): SimpleSelectQuery {
-        this.cteCounter = 0; // Reset CTE counter for each build
-        // this.validateMapping(originalQuery, mapping); // Validation is called inside buildJsonWithCteStrategy
-
-        // Build entity lookup map (optional if direct access to mapping is preferred)
-        // const entityMap = this.buildEntityMap(mapping);
-
         return this.buildJsonWithCteStrategy(originalQuery, mapping);
     }
 
@@ -143,13 +129,14 @@ export class PostgreJsonQueryBuilder {
         mapping: JsonMapping,
     ): SimpleSelectQuery {
         this.validateMapping(originalQuery, mapping);
-        this.cteCounter = 0; // Reset CTE counter for each build
 
         // Step 1: Create the initial CTE from the original query
-        const { initialCte, initialCteAlias } = this._createInitialCte(originalQuery);
+        const { initialCte, initialCteAlias } = this.createInitialCte(originalQuery);
 
         let ctesForProcessing: CommonTable[] = [initialCte];
-        let currentAliasToBuildUpon = initialCteAlias;        // Step 2: Prepare entity information
+        let currentAliasToBuildUpon = initialCteAlias;
+
+        // Step 2: Prepare entity information
         const allEntities = new Map<string, ProcessableEntity>();
         allEntities.set(mapping.rootEntity.id, { ...mapping.rootEntity, isRoot: true, propertyName: mapping.rootName });
         mapping.nestedEntities.forEach(ne => allEntities.set(ne.id, { ...ne, isRoot: false, propertyName: ne.propertyName }));
@@ -177,7 +164,7 @@ export class PostgreJsonQueryBuilder {
         currentAliasToBuildUpon = arrayCteBuildResult.lastCteAlias;
 
         // Step 4: Build the final SELECT query using all generated CTEs
-        return this._buildFinalSelectQuery(
+        return this.buildFinalSelectQuery(
             ctesForProcessing,
             currentAliasToBuildUpon,
             allEntities,
@@ -190,7 +177,7 @@ export class PostgreJsonQueryBuilder {
      * @param originalQuery The base SimpleSelectQuery.
      * @returns An object containing the initial CTE and its alias.
      */
-    private _createInitialCte(originalQuery: SimpleSelectQuery): { initialCte: CommonTable, initialCteAlias: string } {
+    private createInitialCte(originalQuery: SimpleSelectQuery): { initialCte: CommonTable, initialCteAlias: string } {
         const originCteAlias = "origin_query";
         const originCte = new CommonTable(
             originalQuery,
@@ -201,17 +188,6 @@ export class PostgreJsonQueryBuilder {
     }
 
     /**
-     * Builds CTEs for each array entity, processing them in order of depth.
-     * Each CTE aggregates array elements and joins them to the data from the previous CTE.
-     * @param ctesSoFar Array of CTEs built so far (starts with the initial CTE).
-     * @param aliasOfCteToBuildUpon Alias of the CTE from which the current array CTE will select.
-     * @param sortedArrayInfos Sorted list of array entity information.
-     * @param allEntities Map of all processable entities.
-     * @param mapping JSON mapping configuration.
-     * @returns An object containing the updated list of all CTEs and the alias of the last CTE created.
-     */
-
-    /**
      * Builds the final SELECT query that constructs the root JSON object (or array of objects).
      * This query uses all previously generated CTEs.
      * @param finalCtesList The complete list of all CTEs (initial and array CTEs).
@@ -220,7 +196,7 @@ export class PostgreJsonQueryBuilder {
      * @param mapping JSON mapping configuration.
      * @returns The final SimpleSelectQuery.
      */
-    private _buildFinalSelectQuery(
+    private buildFinalSelectQuery(
         finalCtesList: CommonTable[],
         lastCteAliasForFromClause: string,
         allEntities: Map<string, ProcessableEntity>,
