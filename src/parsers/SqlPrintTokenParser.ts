@@ -529,7 +529,9 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         elseToken.innerTokens.push(elseValueContainer);
 
         return elseToken;
-    } private visitCaseKeyValuePair(arg: CaseKeyValuePair): SqlPrintToken {
+    }
+
+    private visitCaseKeyValuePair(arg: CaseKeyValuePair): SqlPrintToken {
         const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.CaseKeyValuePair);
 
         // Create WHEN clause
