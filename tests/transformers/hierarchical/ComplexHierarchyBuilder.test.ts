@@ -102,7 +102,7 @@ describe('ComplexHierarchyBuilder - Multi-Level and Mixed Relationships', () => 
                 `            , "emp_salary"`,
                 `        from`,
                 `            "company_org_chart"`,
-                `    )`,                `    , "cte_array_depth_2" as (`,
+                `    )`, `    , "cte_array_depth_2" as (`,
                 `        select`,
                 `            "company_id"`,
                 `            , "company_name"`,
@@ -120,7 +120,7 @@ describe('ComplexHierarchyBuilder - Multi-Level and Mixed Relationships', () => 
                 `            , "dept_id"`,
                 `            , "dept_name"`,
                 `            , "dept_budget"`,
-                `    )`,                `    , "cte_array_depth_1" as (`,
+                `    )`, `    , "cte_array_depth_1" as (`,
                 `        select`,
                 `            "company_id"`,
                 `            , "company_name"`,
@@ -212,7 +212,7 @@ describe('ComplexHierarchyBuilder - Multi-Level and Mixed Relationships', () => 
 
             const jsonQuery = builder.buildJson(originalQuery, mapping);
             const formatter = new SqlFormatter(customStyle);
-            const formattedSql = formatter.format(jsonQuery).formattedSql;            const expectedSql = [
+            const formattedSql = formatter.format(jsonQuery).formattedSql; const expectedSql = [
                 `with`,
                 `    "origin_query" as (`,
                 `        select`,
