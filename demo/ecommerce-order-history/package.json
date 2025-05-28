@@ -1,0 +1,16 @@
+{
+    "name": "rawsql-ts-ecommerce-demo",
+    "version": "1.0.0",
+    "description": "E-commerce order history search demo using rawsql-ts with PostgreSQL",
+    "private": true,
+    "scripts": {
+        "start": "ts-node search-orders.ts",
+        "setup": "npm install"
+    },
+    "dependencies": {
+        "pg": "^8.11.0"
+    },
+    "devDependencies": {
+        "@types/pg": "^8.10.9"
+    }
+}

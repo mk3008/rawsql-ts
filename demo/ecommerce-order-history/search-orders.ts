@@ -6,6 +6,45 @@ import {
     JsonMapping,
     SimpleSelectQuery
 } from '../../src';
+import { Client } from 'pg';
+
+/**
+ * Database configuration for the demo PostgreSQL instance
+ */
+const DB_CONFIG = {
+    host: 'localhost',
+    port: 5432,
+    database: 'ecommerce',
+    user: 'postgres',
+    password: 'postgres',
+};
+
+/**
+ * Create and configure PostgreSQL client
+ */
+async function createDbClient(): Promise<Client> {
+    const client = new Client(DB_CONFIG);
+    await client.connect();
+    console.log('🔗 Connected to PostgreSQL database');
+    return client;
+}
+
+/**
+ * Execute a query with parameters and return JSON results
+ */
+async function executeQuery(client: Client, sql: string, params: any[]): Promise<any> {
+    try {
+        console.log('🔍 Executing query...');
+        console.log('SQL:', sql);
+        console.log('Parameters:', params);
+
+        const result = await client.query(sql, params);
+        return result.rows;
+    } catch (error) {
+        console.error('❌ Query execution failed:', error);
+        throw error;
+    }
+}
 
 /**
  * Search orders with dynamic filtering using SqlParamInjector
@@ -15,11 +54,12 @@ import {
  * 1. Dynamic parameter injection for flexible search conditions
  * 2. Hierarchical JSON result structure with nested objects and arrays
  * 3. Support for various filter types (exact match, ranges, lists)
+ * 4. Real database execution and JSON data retrieval
  * 
  * @param params Search parameters object with filter conditions
  * @returns Object containing formatted SQL and parameters
  */
-function searchOrders(params: Record<string, any>) {
+async function searchOrders(client: Client, params: Record<string, any>) {
     // Base query to get order data
     const baseQuery = `
     SELECT 
@@ -93,62 +133,113 @@ function searchOrders(params: Record<string, any>) {
         useJsonb: true
     };
 
-    const jsonQuery = builder.buildJson(injectedQuery as SimpleSelectQuery, mapping);
-
-    // Format the SQL
+    const jsonQuery = builder.buildJson(injectedQuery as SimpleSelectQuery, mapping);    // Format the SQL
     const formatter = new SqlFormatter({ preset: 'postgres' });
-    return formatter.format(jsonQuery);
+    const formattedQuery = formatter.format(jsonQuery);
+    // Execute the query and get actual data
+    const results = await executeQuery(client, formattedQuery.formattedSql, Object.values(formattedQuery.params));
+
+    return {
+        ...formattedQuery,
+        data: results
+    };
 }
 
-// Example usage
-console.log('Example 1: Search by customer ID');
-const example1 = searchOrders({ customer_id: 1 });
-console.log(example1.formattedSql);
-console.log('Parameters:', example1.params);
-console.log('\n');
+/**
+ * Main demo function that demonstrates various search scenarios
+ */
+async function runDemo() {
+    let client: Client | null = null;
 
-console.log('Example 2: Search by date range');
-const example2 = searchOrders({
-    order_date: {
-        min: new Date('2024-02-01'),
-        max: new Date('2024-03-31')
+    try {
+        // Connect to database
+        client = await createDbClient();
+
+        console.log('🚀 Starting E-commerce Order History Search Demo\n');
+
+        // Example 1: Search by customer ID
+        console.log('📊 Example 1: Search by customer ID');
+        console.log('=====================================');
+        const example1 = await searchOrders(client, { customer_id: 1 });
+        console.log('SQL:', example1.formattedSql);
+        console.log('Parameters:', example1.params);
+        console.log('Data:', JSON.stringify(example1.data, null, 2));
+        console.log('\n');
+
+        // Example 2: Search by date range
+        console.log('📊 Example 2: Search by date range');
+        console.log('==================================');
+        const example2 = await searchOrders(client, {
+            order_date: {
+                min: new Date('2024-02-01'),
+                max: new Date('2024-03-31')
+            }
+        });
+        console.log('SQL:', example2.formattedSql);
+        console.log('Parameters:', example2.params);
+        console.log('Data:', JSON.stringify(example2.data, null, 2));
+        console.log('\n');
+
+        // Example 3: Search by category
+        console.log('📊 Example 3: Search by category');
+        console.log('================================');
+        const example3 = await searchOrders(client, { category_id: 3 });
+        console.log('SQL:', example3.formattedSql);
+        console.log('Parameters:', example3.params);
+        console.log('Data:', JSON.stringify(example3.data, null, 2));
+        console.log('\n');
+
+        // Example 4: Search by amount range
+        console.log('📊 Example 4: Search by amount range');
+        console.log('====================================');
+        const example4 = await searchOrders(client, {
+            total_amount: {
+                min: 100,
+                max: 300
+            }
+        });
+        console.log('SQL:', example4.formattedSql);
+        console.log('Parameters:', example4.params);
+        console.log('Data:', JSON.stringify(example4.data, null, 2));
+        console.log('\n');
+
+        // Example 5: Search by status
+        console.log('📊 Example 5: Search by status');
+        console.log('==============================');
+        const example5 = await searchOrders(client, { status: 'shipped' });
+        console.log('SQL:', example5.formattedSql);
+        console.log('Parameters:', example5.params);
+        console.log('Data:', JSON.stringify(example5.data, null, 2));
+        console.log('\n');
+
+        // Example 6: Combined search
+        console.log('📊 Example 6: Combined search');
+        console.log('=============================');
+        const example6 = await searchOrders(client, {
+            customer_id: 1,
+            order_date: {
+                min: new Date('2024-01-01'),
+                max: new Date('2024-03-31')
+            },
+            status: { in: ['shipped', 'delivered'] }
+        });
+        console.log('SQL:', example6.formattedSql);
+        console.log('Parameters:', example6.params);
+        console.log('Data:', JSON.stringify(example6.data, null, 2));
+
+        console.log('\n🎉 Demo completed successfully!');
+
+    } catch (error) {
+        console.error('💥 Demo failed:', error);
+        process.exit(1);
+    } finally {
+        // Close database connection
+        if (client) {
+            await client.end();
+            console.log('🔌 Database connection closed');
+        }
     }
-});
-console.log(example2.formattedSql);
-console.log('Parameters:', example2.params);
-console.log('\n');
+}
 
-console.log('Example 3: Search by category');
-const example3 = searchOrders({ category_id: 3 });
-console.log(example3.formattedSql);
-console.log('Parameters:', example3.params);
-console.log('\n');
-
-console.log('Example 4: Search by amount range');
-const example4 = searchOrders({
-    total_amount: {
-        min: 100,
-        max: 300
-    }
-});
-console.log(example4.formattedSql);
-console.log('Parameters:', example4.params);
-console.log('\n');
-
-console.log('Example 5: Search by status');
-const example5 = searchOrders({ status: 'shipped' });
-console.log(example5.formattedSql);
-console.log('Parameters:', example5.params);
-console.log('\n');
-
-console.log('Example 6: Combined search');
-const example6 = searchOrders({
-    customer_id: 1,
-    order_date: {
-        min: new Date('2024-01-01'),
-        max: new Date('2024-03-31')
-    },
-    status: { in: ['shipped', 'delivered'] }
-});
-console.log(example6.formattedSql);
-console.log('Parameters:', example6.params);
+// Run the demo
+runDemo();
