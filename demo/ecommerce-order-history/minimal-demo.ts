@@ -76,6 +76,7 @@ class MinimalOrderRepository {
      */
     async findOrdersByStatus(status?: string): Promise<Order[]> {
         const sql = this.loadSqlFile('simple-orders-by-status.sql');
+
         // First, use SqlParamInjector to dynamically inject WHERE conditions! 🎯
         // This is the rawsql-ts way - no hardcoded parameters in SQL files!
         const params = status ? { status } : {};
@@ -130,26 +131,43 @@ class MinimalOrderRepository {
 
         // PostgresJsonQueryBuilder transforms the query to create hierarchical JSON! ✨
         const jsonQuery = this.pgJsonBuilder.buildJson(injectedQuery, mapping);
-        const formatted = this.formatter.format(jsonQuery); console.log('🔍 Executing SQL with dynamic parameters:', formatted.formattedSql);
-        console.log('📊 Parameters:', Object.values(formatted.params || {}));
-
-        // Execute with dynamically injected parameters from SqlParamInjector!
+        const formatted = this.formatter.format(jsonQuery);
+        console.log('🔍 Executing SQL with dynamic parameters:', formatted.formattedSql);
+        console.log('📊 Parameters:', Object.values(formatted.params || {}));        // Execute with dynamically injected parameters from SqlParamInjector!
         const result = await this.dbClient.query(formatted.formattedSql, Object.values(formatted.params || {}));
 
         // The result is already perfectly structured JSON! No manual mapping needed! 🎉
-        return result.rows[0]?.Orders_array || [];
+        return this.extractJsonArrayResult<Order>(result);
     }
 
     /**
-     * Simple order search - just a basic flat structure example
+     * Extract JSON array from scalar query results (when mapping creates root array)
+     * This is used when PostgresJsonQueryBuilder returns an array of objects
+     * in the first row, first column.
      */
-    async getSimpleOrders(): Promise<any[]> {
-        const sql = this.loadSqlFile('simple-order-list.sql');
+    private extractJsonArrayResult<T>(result: any): T[] {
+        // Get first row, first column (regardless of column name)
+        const firstRow = result.rows[0];
+        if (!firstRow) return [];
 
-        console.log('📋 Executing simple SQL:', sql);
-        const result = await this.dbClient.query(sql);
+        // Extract the first column value as array
+        const firstColumnValue = Object.values(firstRow)[0] as T[];
+        return firstColumnValue || [];
+    }
 
-        return result.rows;
+    /**
+     * Extract JSON object from scalar query results (when mapping creates root object)
+     * This is used when PostgresJsonQueryBuilder returns a single object
+     * in the first row, first column.
+     */
+    private extractJsonObjectResult<T>(result: any): T | null {
+        // Get first row, first column (regardless of column name)
+        const firstRow = result.rows[0];
+        if (!firstRow) return null;
+
+        // Extract the first column value as object
+        const firstColumnValue = Object.values(firstRow)[0] as T;
+        return firstColumnValue || null;
     }
 
     /**
@@ -190,17 +208,7 @@ async function runMinimalDemo() {
         });
         console.log('');
 
-        // Demo 2: Simple flat structure  
-        console.log('� Demo 2: Simple order list (regular SQL)...');
-        console.log('----------------------------------------------');
-        const simpleOrders = await repository.getSimpleOrders();
-
-        console.log(`Simple order list (${simpleOrders.length} orders):`);
-        simpleOrders.forEach(order => {
-            console.log(`- Order #${order.order_id}: ${order.customer_name} - $${order.total_amount}`);
-        });
-
-        console.log('\n🎉 Demo completed! Notice the difference:');
+        console.log('\n🎉 Demo completed!');
         console.log('💡 PostgresJsonQueryBuilder created the hierarchical structure automatically:');
         console.log('   • Nested customer object with all fields');
         console.log('   • Array of order items automatically grouped');
