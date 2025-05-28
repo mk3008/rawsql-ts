@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { SelectQueryParser } from '../../../src/parsers/SelectQueryParser';
 import { SimpleSelectQuery } from '../../../src/models/SimpleSelectQuery';
-import { PostgreJsonQueryBuilder, JsonMapping } from '../../../src/transformers/PostgreJsonQueryBuilder';
+import { PostgresJsonQueryBuilder, JsonMapping } from '../../../src/transformers/PostgresJsonQueryBuilder';
 import { SqlFormatter } from '../../../src/transformers/SqlFormatter';
 
 // SQL formatting style configuration
@@ -41,7 +41,7 @@ describe('ComplexHierarchyBuilder - Multi-Level and Mixed Relationships', () => 
             `;
             const originalQuery = SelectQueryParser.parse(sql) as SimpleSelectQuery;
 
-            const builder = new PostgreJsonQueryBuilder();
+            const builder = new PostgresJsonQueryBuilder();
             const mapping: JsonMapping = {
                 rootName: "Companies",
                 rootEntity: {
@@ -169,7 +169,7 @@ describe('ComplexHierarchyBuilder - Multi-Level and Mixed Relationships', () => 
             `;
             const originalQuery = SelectQueryParser.parse(sql) as SimpleSelectQuery;
 
-            const builder = new PostgreJsonQueryBuilder();
+            const builder = new PostgresJsonQueryBuilder();
             const mapping: JsonMapping = {
                 rootName: "Regions",
                 rootEntity: {
@@ -294,7 +294,7 @@ describe('ComplexHierarchyBuilder - Multi-Level and Mixed Relationships', () => 
             `;
             const originalQuery = SelectQueryParser.parse(sql) as SimpleSelectQuery;
 
-            const builder = new PostgreJsonQueryBuilder();
+            const builder = new PostgresJsonQueryBuilder();
             const mapping: JsonMapping = {
                 rootName: "Divisions",
                 rootEntity: {
@@ -449,7 +449,7 @@ describe('ComplexHierarchyBuilder - Multi-Level and Mixed Relationships', () => 
             `;
             const originalQuery = SelectQueryParser.parse(sql) as SimpleSelectQuery;
 
-            const builder = new PostgreJsonQueryBuilder();
+            const builder = new PostgresJsonQueryBuilder();
             const mapping: JsonMapping = {
                 rootName: "Orders",
                 rootEntity: {

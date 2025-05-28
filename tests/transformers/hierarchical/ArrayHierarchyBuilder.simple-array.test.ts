@@ -1,6 +1,6 @@
 import { SelectQueryParser } from '../../../src/parsers/SelectQueryParser';
-import { PostgreJsonQueryBuilder } from '../../../src/transformers/PostgreJsonQueryBuilder';
-import { JsonMapping } from '../../../src/transformers/PostgreJsonQueryBuilder';
+import { PostgresJsonQueryBuilder } from '../../../src/transformers/PostgresJsonQueryBuilder';
+import { JsonMapping } from '../../../src/transformers/PostgresJsonQueryBuilder';
 import { describe, expect, it } from 'vitest';
 import { SqlFormatter } from '../../../src/transformers/SqlFormatter';
 import { SimpleSelectQuery } from '../../../src/models/SimpleSelectQuery';
@@ -60,7 +60,7 @@ describe('ArrayHierarchyBuilder - Simple Array Relationship', () => {
                 }
             ],
             useJsonb: true
-        }; const builder = new PostgreJsonQueryBuilder();
+        }; const builder = new PostgresJsonQueryBuilder();
         const jsonQuery = builder.buildJson(originalQuery, mapping);
         const formatter = new SqlFormatter(customStyle);
         const formattedSql = formatter.format(jsonQuery).formattedSql;
@@ -158,7 +158,7 @@ describe('ArrayHierarchyBuilder - Simple Array Relationship', () => {
                 }
             ],
             useJsonb: true
-        }; const builder = new PostgreJsonQueryBuilder();
+        }; const builder = new PostgresJsonQueryBuilder();
         const jsonQuery = builder.buildJson(originalQuery, mapping);
         const formatter = new SqlFormatter(customStyle);
         const formattedSql = formatter.format(jsonQuery).formattedSql;

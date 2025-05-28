@@ -1,7 +1,7 @@
 import { CommonTable, SourceAliasExpression, SelectItem, SelectClause, FromClause, SourceExpression, TableSource } from '../models/Clause';
 import { SimpleSelectQuery } from '../models/SimpleSelectQuery';
 import { IdentifierString, ValueComponent, ColumnReference, FunctionCall, ValueList, LiteralValue, BinaryExpression, CaseExpression, SwitchCaseArgument, CaseKeyValuePair, RawString } from '../models/ValueComponent';
-import { JsonMapping } from './PostgreJsonQueryBuilder';
+import { JsonMapping } from './PostgresJsonQueryBuilder';
 
 /**
  * Entity with processing metadata

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { SelectQueryParser } from '../../../src/parsers/SelectQueryParser';
 import { SimpleSelectQuery } from '../../../src/models/SimpleSelectQuery';
-import { PostgreJsonQueryBuilder, JsonMapping } from '../../../src/transformers/PostgreJsonQueryBuilder';
+import { PostgresJsonQueryBuilder, JsonMapping } from '../../../src/transformers/PostgresJsonQueryBuilder';
 import { SqlFormatter } from '../../../src/transformers/SqlFormatter';
 
 // SQL formatting style configuration
@@ -35,7 +35,7 @@ describe('GroupedHierarchyBuilder - Downstream (Array) Relationships', () => {
             `;
             const originalQuery = SelectQueryParser.parse(sql) as SimpleSelectQuery;
 
-            const builder = new PostgreJsonQueryBuilder();
+            const builder = new PostgresJsonQueryBuilder();
             const mapping: JsonMapping = {
                 rootName: "Categories",
                 rootEntity: {
@@ -113,7 +113,7 @@ from
             `;
             const originalQuery = SelectQueryParser.parse(sql) as SimpleSelectQuery;
 
-            const builder = new PostgreJsonQueryBuilder();
+            const builder = new PostgresJsonQueryBuilder();
             const mapping: JsonMapping = {
                 rootName: "Customers",
                 rootEntity: {
@@ -201,7 +201,7 @@ from
             `;
             const originalQuery = SelectQueryParser.parse(sql) as SimpleSelectQuery;
 
-            const builder = new PostgreJsonQueryBuilder();
+            const builder = new PostgresJsonQueryBuilder();
             const mapping: JsonMapping = {
                 rootName: "Regions",
                 rootEntity: {
@@ -321,7 +321,7 @@ from
             `;
             const originalQuery = SelectQueryParser.parse(sql) as SimpleSelectQuery;
 
-            const builder = new PostgreJsonQueryBuilder();
+            const builder = new PostgresJsonQueryBuilder();
             const mapping: JsonMapping = {
                 rootName: "Sales",
                 rootEntity: {

@@ -1,9 +1,9 @@
-# E-commerce Order History Search Demo
+# E-c2. **Hierarchical JSON Results** using `PostgresJsonQueryBuilder`mmerce Order History Search Demo
 
 This demo demonstrates how to use `rawsql-ts` to implement a search feature for e-commerce order history. The demo showcases:
 
 1. **Dynamic Parameter Injection** using `SqlParamInjector`
-2. **Hierarchical JSON Results** using `PostgreJsonQueryBuilder`
+2. **Hierarchical JSON Results** using `PostgresJsonQueryBuilder`
 3. **PostgreSQL Database** setup with Docker
 
 ## Prerequisites

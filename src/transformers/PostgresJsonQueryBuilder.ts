@@ -33,7 +33,7 @@ export interface JsonMapping {
  * PostgreSQL JSON query builder that transforms SimpleSelectQuery into queries
  * that return JSON arrays or single JSON objects using PostgreSQL JSON functions.
  */
-export class PostgreJsonQueryBuilder {
+export class PostgresJsonQueryBuilder {
     private selectValueCollector: SelectValueCollector;
     private objectEntityCteBuilder: PostgresObjectEntityCteBuilder;
     private arrayEntityCteBuilder: PostgresArrayEntityCteBuilder; constructor() {

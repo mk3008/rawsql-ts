@@ -1,15 +1,15 @@
 import {
-  SelectQueryParser,
-  SqlParamInjector,
-  SqlFormatter,
-  PostgreJsonQueryBuilder,
-  JsonMapping,
-  SimpleSelectQuery
+    SelectQueryParser,
+    SqlParamInjector,
+    SqlFormatter,
+    PostgresJsonQueryBuilder,
+    JsonMapping,
+    SimpleSelectQuery
 } from '../../src';
 
 /**
  * Search orders with dynamic filtering using SqlParamInjector
- * and return results in hierarchical JSON structure using PostgreJsonQueryBuilder
+ * and return results in hierarchical JSON structure using PostgresJsonQueryBuilder
  * 
  * This function demonstrates:
  * 1. Dynamic parameter injection for flexible search conditions
@@ -20,8 +20,8 @@ import {
  * @returns Object containing formatted SQL and parameters
  */
 function searchOrders(params: Record<string, any>) {
-  // Base query to get order data
-  const baseQuery = `
+    // Base query to get order data
+    const baseQuery = `
     SELECT 
       o.order_id,
       o.order_date,
@@ -43,62 +43,61 @@ function searchOrders(params: Record<string, any>) {
       LEFT JOIN order_items oi ON o.order_id = oi.order_id
   `;
 
-  // Create injector and inject params
-  const injector = new SqlParamInjector();
-  const injectedQuery = injector.inject(baseQuery, params);
+    // Create injector and inject params
+    const injector = new SqlParamInjector();
+    const injectedQuery = injector.inject(baseQuery, params);
+    // Build a hierarchical JSON structure using PostgresJsonQueryBuilder
+    const builder = new PostgresJsonQueryBuilder();
+    const mapping: JsonMapping = {
+        rootName: "Orders",
+        rootEntity: {
+            id: "order",
+            name: "Order",
+            columns: {
+                "id": "order_id",
+                "date": "order_date",
+                "amount": "total_amount",
+                "status": "status"
+            }
+        },
+        nestedEntities: [
+            {
+                id: "customer",
+                name: "Customer",
+                parentId: "order",
+                propertyName: "customer",
+                relationshipType: "object",
+                columns: {
+                    "id": "customer_id",
+                    "name": "customer_name",
+                    "email": "email",
+                    "address": "address"
+                }
+            },
+            {
+                id: "items",
+                name: "OrderItem",
+                parentId: "order",
+                propertyName: "items",
+                relationshipType: "array",
+                columns: {
+                    "id": "order_item_id",
+                    "productId": "product_id",
+                    "productName": "product_name",
+                    "categoryId": "category_id",
+                    "price": "price",
+                    "quantity": "quantity"
+                }
+            }
+        ],
+        useJsonb: true
+    };
 
-  // Build a hierarchical JSON structure using PostgreJsonQueryBuilder
-  const builder = new PostgreJsonQueryBuilder();
-  const mapping: JsonMapping = {
-    rootName: "Orders",
-    rootEntity: {
-      id: "order",
-      name: "Order",
-      columns: {
-        "id": "order_id",
-        "date": "order_date",
-        "amount": "total_amount",
-        "status": "status"
-      }
-    },
-    nestedEntities: [
-      {
-        id: "customer",
-        name: "Customer",
-        parentId: "order",
-        propertyName: "customer",
-        relationshipType: "object",
-        columns: {
-          "id": "customer_id",
-          "name": "customer_name",
-          "email": "email",
-          "address": "address"
-        }
-      },
-      {
-        id: "items",
-        name: "OrderItem",
-        parentId: "order",
-        propertyName: "items",
-        relationshipType: "array",
-        columns: {
-          "id": "order_item_id",
-          "productId": "product_id",
-          "productName": "product_name",
-          "categoryId": "category_id",
-          "price": "price",
-          "quantity": "quantity"
-        }
-      }
-    ],
-    useJsonb: true
-  };
+    const jsonQuery = builder.buildJson(injectedQuery as SimpleSelectQuery, mapping);
 
-  const jsonQuery = builder.buildJson(injectedQuery as SimpleSelectQuery, mapping);
-
-  // Format the SQL
-  const formatter = new SqlFormatter({ preset: 'postgres' });
-  return formatter.format(jsonQuery);
+    // Format the SQL
+    const formatter = new SqlFormatter({ preset: 'postgres' });
+    return formatter.format(jsonQuery);
 }
 
 // Example usage
@@ -110,10 +109,10 @@ console.log('\n');
 
 console.log('Example 2: Search by date range');
 const example2 = searchOrders({
-  order_date: {
-    min: new Date('2024-02-01'),
-    max: new Date('2024-03-31')
-  }
+    order_date: {
+        min: new Date('2024-02-01'),
+        max: new Date('2024-03-31')
+    }
 });
 console.log(example2.formattedSql);
 console.log('Parameters:', example2.params);
@@ -127,10 +126,10 @@ console.log('\n');
 
 console.log('Example 4: Search by amount range');
 const example4 = searchOrders({
-  total_amount: {
-    min: 100,
-    max: 300
-  }
+    total_amount: {
+        min: 100,
+        max: 300
+    }
 });
 console.log(example4.formattedSql);
 console.log('Parameters:', example4.params);
@@ -144,12 +143,12 @@ console.log('\n');
 
 console.log('Example 6: Combined search');
 const example6 = searchOrders({
-  customer_id: 1,
-  order_date: {
-    min: new Date('2024-01-01'),
-    max: new Date('2024-03-31')
-  },
-  status: { in: ['shipped', 'delivered'] }
+    customer_id: 1,
+    order_date: {
+        min: new Date('2024-01-01'),
+        max: new Date('2024-03-31')
+    },
+    status: { in: ['shipped', 'delivered'] }
 });
 console.log(example6.formattedSql);
 console.log('Parameters:', example6.params);
