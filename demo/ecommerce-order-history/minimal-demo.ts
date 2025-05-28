@@ -75,7 +75,8 @@ class MinimalOrderRepository {
      * PostgresJsonQueryBuilder automatically creates hierarchical JSON with nested objects and arrays
      */
     async findOrdersByStatus(status?: string): Promise<Order[]> {
-        const sql = this.loadSqlFile('simple-orders-by-status.sql');        // First, use SqlParamInjector to dynamically inject WHERE conditions! 🎯
+        const sql = this.loadSqlFile('simple-orders-by-status.sql');
+        // First, use SqlParamInjector to dynamically inject WHERE conditions! 🎯
         // This is the rawsql-ts way - no hardcoded parameters in SQL files!
         const params = status ? { status } : {};
         const parsedQuery = SelectQueryParser.parse(sql) as SimpleSelectQuery;
