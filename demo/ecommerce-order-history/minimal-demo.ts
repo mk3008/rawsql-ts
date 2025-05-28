@@ -285,15 +285,11 @@ async function runMinimalDemo() {
         // Demo 2: Find specific order by ID
         console.log('🔍 Demo 2: Find specific order by ID (same magic, different parameter!)...');
         console.log('------------------------------------------------------------------------');
-        const specificOrder = await repository.findOrderById(1);
-
-        if (specificOrder) {
+        const specificOrder = await repository.findOrderById(1); if (specificOrder) {
             console.log(`Found order for ID 1:`);
-            [specificOrder].forEach(order => {
-                console.log(`- Order #${order.id}: ${order.customer.name} - $${order.amount} (${order.items.length} items)`);
-                order?.items.forEach(item => {
-                    console.log(`  • ${item.productName} x${item.quantity} @ $${item.price}`);
-                });
+            console.log(`- Order #${specificOrder.id}: ${specificOrder.customer.name} - $${specificOrder.amount} (${specificOrder.items.length} items)`);
+            specificOrder.items.forEach(item => {
+                console.log(`  • ${item.productName} x${item.quantity} @ $${item.price}`);
             });
         } else {
             console.log('No order found for ID 1');
