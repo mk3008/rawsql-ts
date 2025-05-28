@@ -22,7 +22,7 @@ SELECT
 FROM orders o
     INNER JOIN customers c ON o.customer_id = c.customer_id
     LEFT JOIN order_items oi ON o.order_id = oi.order_id
--- DON'T write WHERE conditions here!
 -- SqlParamInjector will dynamically inject search conditions based on parameters
--- Writing WHERE clauses reduces reusability and defeats the purpose of rawsql-ts!
+-- Use placeholder comments that SqlParamInjector can replace with actual WHERE conditions
+/* WHERE_PLACEHOLDER */
 ORDER BY o.order_id, oi.order_item_id;

@@ -141,6 +141,80 @@ class MinimalOrderRepository {
     }
 
     /**
+     * Find single order by ID - returns single object, not array! �
+     * PostgresJsonQueryBuilder automatically creates hierarchical JSON with nested objects and arrays
+     */
+    async findOrderById(orderId?: number): Promise<Order | null> {
+        const sql = this.loadSqlFile('simple-orders-by-status.sql');
+
+        // First, use SqlParamInjector to dynamically inject WHERE conditions! 🎯
+        // This is the rawsql-ts way - no hardcoded parameters in SQL files!
+        const params = orderId ? { order_id: orderId } : {};
+        const parsedQuery = SelectQueryParser.parse(sql) as SimpleSelectQuery;
+        const injectedQuery = this.paramInjector.inject(parsedQuery, params) as SimpleSelectQuery;
+
+        // Define the hierarchical mapping for SINGLE OBJECT (not array)! ✨
+        const mapping: JsonMapping = {
+            rootName: "Order",  // Single order, not "Orders"
+            resultFormat: "single",
+            rootEntity: {
+                id: "order",
+                name: "Order",
+                columns: {
+                    "id": "order_id",
+                    "date": "order_date",
+                    "amount": "total_amount",
+                    "status": "status"
+                }
+            },
+            nestedEntities: [
+                {
+                    id: "customer",
+                    name: "Customer",
+                    parentId: "order",
+                    propertyName: "customer",
+                    relationshipType: "object",
+                    columns: {
+                        "id": "customer_id",
+                        "name": "customer_name",
+                        "email": "email",
+                        "address": "address"
+                    }
+                },
+                {
+                    id: "items",
+                    name: "OrderItem",
+                    parentId: "order",
+                    propertyName: "items",
+                    relationshipType: "array",
+                    columns: {
+                        "id": "order_item_id",
+                        "productId": "product_id",
+                        "productName": "product_name",
+                        "categoryId": "category_id",
+                        "price": "price",
+                        "quantity": "quantity"
+                    }
+                }
+            ],
+            useJsonb: true
+        };
+
+        // PostgresJsonQueryBuilder transforms the query to create hierarchical JSON! ✨
+        const jsonQuery = this.pgJsonBuilder.buildJson(injectedQuery, mapping);
+        const formatted = this.formatter.format(jsonQuery);
+
+        console.log('🔍 Executing SQL with dynamic parameters:', formatted.formattedSql);
+        console.log('📊 Parameters:', Object.values(formatted.params || {}));
+
+        const result = await this.dbClient.query(formatted.formattedSql, Object.values(formatted.params || {}));
+
+        // The result is already perfectly structured JSON! No manual mapping needed! 🎉
+        // Use extractJsonObjectResult since we're getting a single object, not an array
+        return this.extractJsonObjectResult<Order>(result);
+    }
+
+    /**
      * Extract JSON array from scalar query results (when mapping creates root array)
      * This is used when PostgresJsonQueryBuilder returns an array of objects
      * in the first row, first column.
@@ -206,6 +280,24 @@ async function runMinimalDemo() {
                 console.log(`  • ${item.productName} x${item.quantity} @ $${item.price}`);
             });
         });
+        console.log('');
+
+        // Demo 2: Find specific order by ID
+        console.log('🔍 Demo 2: Find specific order by ID (same magic, different parameter!)...');
+        console.log('------------------------------------------------------------------------');
+        const specificOrder = await repository.findOrderById(1);
+
+        if (specificOrder) {
+            console.log(`Found order for ID 1:`);
+            [specificOrder].forEach(order => {
+                console.log(`- Order #${order.id}: ${order.customer.name} - $${order.amount} (${order.items.length} items)`);
+                order?.items.forEach(item => {
+                    console.log(`  • ${item.productName} x${item.quantity} @ $${item.price}`);
+                });
+            });
+        } else {
+            console.log('No order found for ID 1');
+        }
         console.log('');
 
         console.log('\n🎉 Demo completed!');

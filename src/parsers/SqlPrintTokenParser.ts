@@ -366,6 +366,9 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     }
 
     public parse(arg: SqlComponent): { token: SqlPrintToken, params: any[] | Record<string, any>[] | Record<string, any> } {
+        // initialize
+        this.index = 1;
+
         const token = this.visit(arg);
         const paramsRaw = ParameterCollector.collect(arg).sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
 
