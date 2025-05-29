@@ -8,7 +8,8 @@ import { Pool, PoolClient } from 'pg';
  * This demonstrates the DTO pattern using rawsql-ts with real PostgreSQL database
  */
 export class TodoInfrastructureService {
-    private pool: Pool;    constructor() {
+    private pool: Pool;
+    constructor() {
         // Initialize PostgreSQL connection pool
         this.pool = new Pool(DATABASE_CONFIG);
     }
@@ -33,7 +34,9 @@ export class TodoInfrastructureService {
      */
     async close(): Promise<void> {
         await this.pool.end();
-    }    /**
+    }
+
+    /**
      * Convert domain search criteria to rawsql-ts compatible state object (DTO pattern)
      * 
      * This is the key transformation that enables clean architecture:
@@ -70,7 +73,8 @@ export class TodoInfrastructureService {
      * 
      * @param criteria Domain search criteria
      * @returns Object containing the formatted SQL and parameters
-     */    public buildSearchQuery(criteria: TodoSearchCriteria) {
+     */
+    public buildSearchQuery(criteria: TodoSearchCriteria) {
         // Base SQL query - SqlParamInjector will add WHERE clause automatically
         const baseSql = `
             SELECT 
@@ -107,7 +111,9 @@ export class TodoInfrastructureService {
             summary: this.buildQuerySummary(criteria, searchState),
             rawQuery: injectedQuery
         };
-    }    /**
+    }
+
+    /**
      * Execute search query against real PostgreSQL database
      * This demonstrates the complete DTO pattern in action with real data
      * 
@@ -131,11 +137,13 @@ export class TodoInfrastructureService {
 
     /**
      * Get total count of todos matching criteria
-     */    async countTodos(criteria: TodoSearchCriteria): Promise<number> {
+     */
+    async countTodos(criteria: TodoSearchCriteria): Promise<number> {
         const countSql = `
             SELECT COUNT(*) as total
             FROM todos
-        `;        const searchState = this.convertToSearchState(criteria);
+        `;
+        const searchState = this.convertToSearchState(criteria);
 
         const injector = new SqlParamInjector(getTableColumns);
         const injectedQuery = injector.inject(countSql, searchState);
