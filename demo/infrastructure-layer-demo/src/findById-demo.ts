@@ -3,133 +3,103 @@ import { ITodoRepository } from './infrastructure-interface';
 import { TodoDetail } from './domain';
 
 /**
- * rawsql-ts Enhanced findById Demo with PostgresJsonQueryBuilder and SqlParamInjector
- * 
- * This demo showcases the enhanced findById method that uses:
- * - SqlParamInjector for automatic WHERE clause generation
- * - PostgresJsonQueryBuilder for hierarchical JSON structure
- * - Real PostgreSQL database operations
+ * rawsql-ts Enhanced findById Demo
+ * Showcases SqlParamInjector + PostgresJsonQueryBuilder integration
  */
 
 async function runFindByIdDemo() {
-    console.log('🎯 rawsql-ts Enhanced findById Demo with PostgresJsonQueryBuilder');
-    console.log('================================================================\n');
+    console.log('🎯 rawsql-ts Enhanced findById Demo');
+    console.log('==========================================\n');
 
-    // Initialize repository with debug logging enabled for demonstration
-    const todoRepository: ITodoRepository = new RawSQLTodoRepository(true); // Enable debug logging
+    // Initialize repository with debug logging
+    const todoRepository: ITodoRepository = new RawSQLTodoRepository(true);
 
-    // Test database connection first
+    // Test database connection
     console.log('🔌 Testing database connection...');
     const isConnected = await (todoRepository as RawSQLTodoRepository).testConnection();
 
     if (!isConnected) {
-        console.log('❌ Failed to connect to database. Please ensure Docker container is running:');
+        console.log('❌ Database connection failed. Start Docker container:');
         console.log('   docker-compose up -d');
         process.exit(1);
     }
 
-    console.log('✅ Database connection successful!\n');
-
-    try {
-        // Test Case 1: Find existing todo with all related data
-        console.log('📋 Test Case 1: Find Todo by ID with Related Data');
-        console.log('─'.repeat(60));
+    console.log('✅ Database connected!\n'); try {
+        // Test Case 1: Find existing todo with related data
+        console.log('📋 Test Case 1: Find Todo with Related Data');
+        console.log('─'.repeat(50));
         console.log('🔍 Searching for todo ID: 1');
-        console.log('📝 Expected: Todo with category and comments in hierarchical JSON structure');
-        console.log();
+        console.log('📝 Expected: Hierarchical JSON with category and comments\n');
 
         const todoDetail = await todoRepository.findById('1');
 
         if (todoDetail) {
-            console.log('✅ Todo found successfully!');
+            console.log('✅ Todo found!');
             console.log('📊 TodoDetail Structure:');
             console.log(JSON.stringify(todoDetail, null, 2));
             console.log();
 
-            console.log('🎯 Key Benefits Demonstrated:');
-            console.log('   • SqlParamInjector automatically generated WHERE clause');
-            console.log('   • PostgresJsonQueryBuilder created hierarchical JSON');
-            console.log('   • Single database query instead of multiple queries');
-            console.log('   • Type-safe domain object returned');
-            console.log('   • Zero manual JSON mapping required');
-            console.log();
+            console.log('🎯 Key Features Demonstrated:');
+            console.log('   • SqlParamInjector: Automatic WHERE clause generation');
+            console.log('   • PostgresJsonQueryBuilder: Hierarchical JSON structure');
+            console.log('   • Single query: Todo + Category + Comments');
+            console.log('   • Type-safe result: TodoDetail interface\n');
         } else {
             console.log('❌ Todo not found');
-        }
-
-        console.log('═'.repeat(60));
-        console.log();
-
-        // Test Case 2: Find non-existing todo
+        }        // Test Case 2: Find non-existing todo
         console.log('📋 Test Case 2: Find Non-Existing Todo');
-        console.log('─'.repeat(60));
-        console.log('🔍 Searching for todo ID: 999');
-        console.log('📝 Expected: null result');
-        console.log();
+        console.log('─'.repeat(50));
+        console.log('🔍 Searching for todo ID: 999\n');
 
         const nonExistentTodo = await todoRepository.findById('999');
 
         if (nonExistentTodo === null) {
             console.log('✅ Correctly returned null for non-existent todo');
-            console.log('🎯 Proper null handling verified');
+            console.log('🎯 Null handling verified\n');
         } else {
-            console.log('❌ Unexpected result for non-existent todo');
+            console.log('❌ Unexpected result for non-existent todo\n');
         }
 
-        console.log();
-        console.log('═'.repeat(60));
-        console.log();
-
-        // Test Case 3: Find multiple todos to show different structures
-        const testIds = ['2', '3', '4'];
-        console.log('📋 Test Case 3: Find Multiple Todos for Structure Comparison');
-        console.log('─'.repeat(60));
+        // Test Case 3: Multiple todos comparison
+        const testIds = ['2', '3'];
+        console.log('📋 Test Case 3: Multiple Todos Structure Comparison');
+        console.log('─'.repeat(50));
 
         for (const id of testIds) {
-            console.log(`🔍 Searching for todo ID: ${id}`);
+            console.log(`🔍 Todo ID: ${id}`);
             const todo = await todoRepository.findById(id);
 
             if (todo) {
-                console.log(`   ✅ Found: "${todo.title}" (${todo.status}, ${todo.priority})`);
+                console.log(`   ✅ "${todo.title}" (${todo.status}, ${todo.priority})`);
                 console.log(`   📂 Category: ${todo.category?.name || 'None'}`);
-                console.log(`   💬 Comments: ${todo.comments?.length || 0} comment(s)`);
+                console.log(`   💬 Comments: ${todo.comments?.length || 0}`);
             } else {
-                console.log(`   ❌ Todo ${id} not found`);
+                console.log(`   ❌ Not found`);
             }
             console.log();
         }
 
-        console.log('🎉 findById Demo completed successfully!');
-        console.log('💡 Key Architecture Benefits:');
-        console.log('   • Clean separation of concerns (domain vs infrastructure)');
-        console.log('   • Automatic SQL generation with type safety');
-        console.log('   • Hierarchical data fetching in single query');
-        console.log('   • Domain objects without infrastructure dependencies');
-        console.log('   • Reusable and maintainable code patterns');
-        console.log('   • Configurable debug logging for development/production');
+        console.log('🎉 Demo completed successfully!');
+        console.log('\n💡 Architecture Benefits:');
+        console.log('   • Clean separation: domain vs infrastructure');
+        console.log('   • Automatic SQL with type safety');
+        console.log('   • Single query for hierarchical data');
+        console.log('   • Configurable debug logging');
 
-        // Demonstrate debug logging control
-        console.log('\n🛠️ Debug Logging Control Example:');
-        console.log('──────────────────────────────────');
-        console.log('// Enable debug logging for development');
-        console.log('const repo = new RawSQLTodoRepository(true);');
-        console.log();
-        console.log('// Disable debug logging for production');
-        console.log('const repo = new RawSQLTodoRepository(false);');
-        console.log();
-        console.log('// Toggle during runtime');
-        console.log('repo.setDebugLogging(false); // Disable logs');
+        // Debug logging control example
+        console.log('\n🛠️ Debug Logging Control:');
+        console.log('   const repo = new RawSQLTodoRepository(true);  // Enable');
+        console.log('   repo.setDebugLogging(false);                  // Disable');
 
     } catch (error) {
         console.error('❌ Demo failed:', error);
     } finally {
-        // Close database connection
         await (todoRepository as RawSQLTodoRepository).close();
-        console.log('👋 Database connection closed');
+        console.log('\n👋 Database connection closed');
     }
 }
 
-// Run the demo if this file is executed directly
+// Run demo if executed directly
 if (require.main === module) {
     runFindByIdDemo().catch(console.error);
 }
