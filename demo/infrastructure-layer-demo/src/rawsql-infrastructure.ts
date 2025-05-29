@@ -1,6 +1,7 @@
 import { SqlParamInjector, SqlFormatter, SelectQueryParser, PostgresJsonQueryBuilder, QueryBuilder, SimpleSelectQuery } from '../../..'; // Import from parent rawsql-ts
 import { TodoSearchCriteria, Todo, TodoDetail, TodoStatus, TodoPriority } from './domain';
 import { getTableColumns, DATABASE_CONFIG } from './database-config';
+import { createJsonMapping } from './schema-migrated';
 import { ITodoRepository, QueryBuildResult } from './infrastructure-interface';
 import { Pool, PoolClient } from 'pg';
 
@@ -114,10 +115,8 @@ export class RawSQLTodoRepository implements ITodoRepository {
             // Generate WHERE clause with SqlParamInjector
             const searchState = { todo_id: parseInt(id) };
             const injector = new SqlParamInjector(getTableColumns);
-            const injectedQuery = injector.inject(baseSql, searchState) as SimpleSelectQuery;
-
-            // Build JSON query structure
-            const jsonMapping = this.createTodoJsonMapping();
+            const injectedQuery = injector.inject(baseSql, searchState) as SimpleSelectQuery;            // Build JSON query structure using unified schema
+            const jsonMapping = createJsonMapping('todo');
             const jsonBuilder = new PostgresJsonQueryBuilder();
             const jsonQuery = jsonBuilder.buildJson(injectedQuery, jsonMapping);
 
@@ -208,62 +207,6 @@ export class RawSQLTodoRepository implements ITodoRepository {
             categoryId: row.category_id,
             createdAt: new Date(row.created_at),
             updatedAt: new Date(row.updated_at)
-        };
-    }
-
-    /**
-     * Create JSON mapping for TodoDetail hierarchical structure
-     */
-    private createTodoJsonMapping() {
-        const categoryEntity = {
-            id: "category",
-            name: "Category",
-            parentId: "todo",
-            propertyName: "category",
-            relationshipType: "object" as const,
-            columns: {
-                "category_id": "category_id",
-                "name": "category_name",
-                "description": "category_description",
-                "color": "category_color",
-                "created_at": "category_created_at"
-            }
-        };
-
-        const commentsEntity = {
-            id: "comments",
-            name: "Comment",
-            parentId: "todo",
-            propertyName: "comments",
-            relationshipType: "array" as const,
-            columns: {
-                "todo_comment_id": "todo_comment_id",
-                "todo_id": "comment_todo_id",
-                "content": "comment_content",
-                "author_name": "comment_author_name",
-                "created_at": "comment_created_at"
-            }
-        };
-
-        return {
-            rootName: "todo",
-            rootEntity: {
-                id: "todo",
-                name: "Todo",
-                columns: {
-                    "todo_id": "todo_id",
-                    "title": "title",
-                    "description": "description",
-                    "status": "status",
-                    "priority": "priority",
-                    "category_id": "category_id",
-                    "created_at": "todo_created_at",
-                    "updated_at": "todo_updated_at"
-                }
-            },
-            nestedEntities: [categoryEntity, commentsEntity],
-            useJsonb: true,
-            resultFormat: "single" as const
         };
     }
 }

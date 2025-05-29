@@ -24,7 +24,9 @@ async function runFindByIdDemo() {
         process.exit(1);
     }
 
-    console.log('✅ Database connected!\n'); try {
+    console.log('✅ Database connected!\n');
+
+    try {
         // Test Case 1: Find existing todo with related data
         console.log('📋 Test Case 1: Find Todo with Related Data');
         console.log('─'.repeat(50));

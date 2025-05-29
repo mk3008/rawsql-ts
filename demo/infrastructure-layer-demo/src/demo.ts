@@ -66,7 +66,9 @@ async function runDemo() {
             if (todos.length > 3) {
                 console.log(`   ... and ${todos.length - 3} more`);
             }
-            console.log(); console.log('✨ rawsql-ts Benefits Demonstrated:');
+            console.log();
+
+            console.log('✨ rawsql-ts Benefits Demonstrated:');
             console.log('   • Automatic WHERE clause injection');
             console.log('   • Type-safe parameter binding');
             console.log('   • Clean domain-infrastructure separation');
