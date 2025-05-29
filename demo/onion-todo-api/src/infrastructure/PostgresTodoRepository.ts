@@ -11,6 +11,31 @@ export class PostgresTodoRepository implements TodoRepository {
     constructor(private readonly pool: Pool) { }
 
     /**
+     * Convert domain search criteria to rawsql-ts compatible state object (DTO pattern)
+     * This demonstrates how rawsql-ts enables clean separation between domain and infrastructure layers
+     * 
+     * @param criteria Domain-layer search criteria
+     * @returns Infrastructure-layer state object with SQL operators and field mappings
+     */
+    private convertToSearchState(criteria: TodoSearchCriteria): Record<string, any> {
+        return {
+            // Domain field 'title' -> SQL LIKE pattern for partial matching
+            title: criteria.title ? { like: `%${criteria.title}%` } : undefined,
+
+            // Direct field mapping (domain matches database schema)
+            status: criteria.status ? criteria.status : undefined,
+            priority: criteria.priority ? criteria.priority : undefined,
+
+            // Domain date range -> SQL operators with field name mapping
+            // fromDate/toDate (domain) -> created_at with >=/<= operators (SQL)
+            created_at: (criteria.fromDate || criteria.toDate) ? {
+                ...(criteria.fromDate && { '>=': criteria.fromDate.toISOString() }),
+                ...(criteria.toDate && { '<=': criteria.toDate.toISOString() })
+            } : undefined
+        };
+    }
+
+    /**
      * Search todos based on criteria using rawsql-ts SqlParamInjector
      * @param criteria - Search criteria for filtering todos
      * @returns Promise resolving to an array of matching todos
@@ -34,21 +59,13 @@ export class PostgresTodoRepository implements TodoRepository {
                     WHEN 'medium' THEN 2 
                     WHEN 'low' THEN 3 
                 END,
-                created_at DESC
-        `;
+                created_at DESC        `;
 
-        const state = {
-            title: criteria.title ? { like: `%${criteria.title}%` } : undefined,
-            status: criteria.status ? criteria.status : undefined,
-            priority: criteria.priority ? criteria.priority : undefined,
-            created_at: (criteria.fromDate || criteria.toDate) ? {
-                ...(criteria.fromDate && { '>=': criteria.fromDate.toISOString() }),
-                ...(criteria.toDate && { '<=': criteria.toDate.toISOString() })
-            } : undefined
-        };
+        // Convert domain criteria to rawsql-ts compatible state (DTO transformation)
+        const state = this.convertToSearchState(criteria);
 
         try {
-            // Use SqlParamInjector to dynamically inject state directly
+            // rawsql-ts SqlParamInjector automatically handles dynamic WHERE clause injection
             const injector = new SqlParamInjector();
             const injectedQuery = injector.inject(baseSql, state);
 
