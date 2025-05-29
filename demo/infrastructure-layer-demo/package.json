@@ -1,0 +1,28 @@
+{
+    "name": "infrastructure-layer-demo",
+    "version": "1.0.0",
+    "description": "rawsql-ts Infrastructure Layer DTO Pattern Demo",
+    "main": "index.js",
+    "scripts": {
+        "demo": "tsx src/demo.ts",
+        "build": "tsc",
+        "dev": "tsx watch src/demo.ts"
+    },
+    "keywords": [
+        "rawsql-ts",
+        "dto",
+        "infrastructure",
+        "clean-architecture"
+    ],
+    "author": "",
+    "license": "MIT",
+    "dependencies": {
+        "@types/pg": "^8.15.2",
+        "pg": "^8.16.0",
+        "tsx": "^4.0.0"
+    },
+    "devDependencies": {
+        "@types/node": "^20.0.0",
+        "typescript": "^5.0.0"
+    }
+}
