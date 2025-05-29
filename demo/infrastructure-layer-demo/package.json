@@ -5,6 +5,7 @@
     "main": "index.js",
     "scripts": {
         "demo": "tsx src/demo.ts",
+        "findById-demo": "tsx src/findById-demo.ts",
         "build": "tsc",
         "dev": "tsx watch src/demo.ts"
     },

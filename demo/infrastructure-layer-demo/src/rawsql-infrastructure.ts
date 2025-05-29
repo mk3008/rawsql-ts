@@ -1,5 +1,5 @@
-import { SqlParamInjector, SqlFormatter } from '../../..'; // Import from parent rawsql-ts
-import { TodoSearchCriteria, Todo, TodoStatus, TodoPriority } from './domain';
+import { SqlParamInjector, SqlFormatter, SelectQueryParser, PostgresJsonQueryBuilder, QueryBuilder, SimpleSelectQuery } from '../../..'; // Import from parent rawsql-ts
+import { TodoSearchCriteria, Todo, TodoDetail, TodoStatus, TodoPriority } from './domain';
 import { getTableColumns, DATABASE_CONFIG } from './database-config';
 import { ITodoRepository, QueryBuildResult } from './infrastructure-interface';
 import { Pool, PoolClient } from 'pg';
@@ -82,136 +82,132 @@ export class RawSQLTodoRepository implements ITodoRepository {
     }
 
     /**
-     * Find a single todo by ID
+     * Find a single todo by ID with full details using PostgresJsonQueryBuilder
+     * This demonstrates rawsql-ts's ability to create complex JSON objects with joins
      */
-    async findById(id: string): Promise<Todo | null> {
-        const sql = 'SELECT * FROM todo WHERE todo_id = $1';
-
+    async findById(id: string): Promise<TodoDetail | null> {
         try {
-            const result = await this.pool.query(sql, [id]);
-            return result.rows.length > 0 ? this.mapRowToTodo(result.rows[0]) : null;
+            // Base SQL query with JOINs to get todo, category, and comments
+            // Note: No WHERE clause - SqlParamInjector will add it automatically
+            const baseSql = `
+                SELECT 
+                    t.todo_id,
+                    t.title,
+                    t.description,
+                    t.status,
+                    t.priority,
+                    t.created_at as todo_created_at,
+                    t.updated_at as todo_updated_at,
+                    -- Category fields
+                    c.category_id,
+                    c.name as category_name,
+                    c.description as category_description,
+                    c.color as category_color,
+                    c.created_at as category_created_at,
+                    -- Comment fields
+                    com.todo_comment_id,
+                    com.todo_id as comment_todo_id,
+                    com.content as comment_content,
+                    com.author_name as comment_author_name,
+                    com.created_at as comment_created_at
+                FROM todo t
+                LEFT JOIN category c ON t.category_id = c.category_id
+                LEFT JOIN todo_comment com ON t.todo_id = com.todo_id
+                ORDER BY com.created_at ASC
+            `;
+
+            const categoryEntity = {
+                id: "category",
+                name: "Category",
+                parentId: "todo",
+                propertyName: "category",
+                relationshipType: "object" as "object",
+                columns: {
+                    "category_id": "category_id",
+                    "name": "category_name",
+                    "description": "category_description",
+                    "color": "category_color",
+                    "created_at": "category_created_at"
+                }
+            };
+
+            const commentsEntity = {
+                id: "comments",
+                name: "Comment",
+                parentId: "todo",
+                propertyName: "comments",
+                relationshipType: "array" as "array",
+                columns: {
+                    "todo_comment_id": "todo_comment_id",
+                    "todo_id": "comment_todo_id",
+                    "content": "comment_content",
+                    "author_name": "comment_author_name",
+                    "created_at": "comment_created_at"
+                }
+            };
+
+            // Define JSON mapping for hierarchical structure
+            const jsonMapping = {
+                rootName: "todo",
+                rootEntity: {
+                    id: "todo",
+                    name: "Todo",
+                    columns: {
+                        "todo_id": "todo_id",
+                        "title": "title",
+                        "description": "description",
+                        "status": "status",
+                        "priority": "priority",
+                        "category_id": "category_id",
+                        "created_at": "todo_created_at",
+                        "updated_at": "todo_updated_at"
+                    }
+                }, nestedEntities: [categoryEntity, commentsEntity],
+                useJsonb: true,
+                resultFormat: "single" as const  // Single object, not array
+            };
+
+            // Use SqlParamInjector to automatically generate WHERE clause
+            const searchState = { todo_id: parseInt(id) };
+            const injector = new SqlParamInjector(getTableColumns);
+            const injectedQuery = injector.inject(baseSql, searchState) as SimpleSelectQuery;
+
+            // Transform to JSON query using PostgresJsonQueryBuilder
+            const jsonBuilder = new PostgresJsonQueryBuilder();
+            const jsonQuery = jsonBuilder.buildJson(injectedQuery, jsonMapping);
+
+            // Format the final query
+            const formatter = new SqlFormatter({ preset: 'postgres' });
+            const { formattedSql, params } = formatter.format(jsonQuery);
+
+            console.log('\n=== Enhanced findById Query with PostgresJsonQueryBuilder ===');
+            console.log('Generated SQL:', formattedSql);
+            console.log('Parameters:', params);
+            console.log('===========================================================\n');
+
+            // Execute the query with parameters from PostgresJsonQueryBuilder
+            // SqlParamInjector already processed the WHERE clause parameters
+            const result = await this.pool.query(formattedSql, params as any[]);
+
+            if (result.rows.length === 0) {
+                return null;
+            }            // Parse the JSON result
+            const todoJson = result.rows[0].todo;
+            if (!todoJson) {
+                return null;
+            }
+
+            // Return the parsed JSON directly as TodoDetail
+            // The PostgresJsonQueryBuilder automatically creates the hierarchical structure
+            return todoJson as TodoDetail;
+
         } catch (error) {
-            throw new Error(`Failed to find todo by ID: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            console.error('Enhanced findById error:', error);
+            throw new Error(`Failed to find todo by ID with details: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
     }
 
-    /**
-     * Create a new todo
-     */
-    async create(todo: Omit<Todo, 'todo_id' | 'createdAt' | 'updatedAt'>): Promise<Todo> {
-        const sql = `
-            INSERT INTO todo (title, description, status, priority, category_id, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
-            RETURNING *
-        `;
-
-        try {
-            const result = await this.pool.query(sql, [
-                todo.title,
-                todo.description,
-                todo.status,
-                todo.priority,
-                todo.categoryId
-            ]);
-            return this.mapRowToTodo(result.rows[0]);
-        } catch (error) {
-            throw new Error(`Failed to create todo: ${error instanceof Error ? error.message : 'Unknown error'}`);
-        }
-    }
-
-    /**
-     * Update an existing todo
-     */
-    async update(id: string, updates: Partial<Omit<Todo, 'todo_id' | 'createdAt'>>): Promise<Todo | null> {
-        const setFields = [];
-        const values = [];
-        let paramIndex = 1;
-
-        if (updates.title !== undefined) {
-            setFields.push(`title = $${paramIndex++}`);
-            values.push(updates.title);
-        }
-        if (updates.description !== undefined) {
-            setFields.push(`description = $${paramIndex++}`);
-            values.push(updates.description);
-        }
-        if (updates.status !== undefined) {
-            setFields.push(`status = $${paramIndex++}`);
-            values.push(updates.status);
-        }
-        if (updates.priority !== undefined) {
-            setFields.push(`priority = $${paramIndex++}`);
-            values.push(updates.priority);
-        }
-        if (updates.categoryId !== undefined) {
-            setFields.push(`category_id = $${paramIndex++}`);
-            values.push(updates.categoryId);
-        }
-
-        if (setFields.length === 0) {
-            return this.findById(id);
-        }
-
-        setFields.push(`updated_at = $${paramIndex++}`);
-        values.push(new Date());
-        values.push(id);
-
-        const sql = `
-            UPDATE todo 
-            SET ${setFields.join(', ')}
-            WHERE todo_id = $${paramIndex}
-            RETURNING *
-        `;
-
-        try {
-            const result = await this.pool.query(sql, values);
-            return result.rows.length > 0 ? this.mapRowToTodo(result.rows[0]) : null;
-        } catch (error) {
-            throw new Error(`Failed to update todo: ${error instanceof Error ? error.message : 'Unknown error'}`);
-        }
-    }
-
-    /**
-     * Delete a todo by ID
-     */
-    async delete(id: string): Promise<boolean> {
-        const sql = 'DELETE FROM todo WHERE todo_id = $1';
-
-        try {
-            const result = await this.pool.query(sql, [id]);
-            return (result.rowCount || 0) > 0;
-        } catch (error) {
-            throw new Error(`Failed to delete todo: ${error instanceof Error ? error.message : 'Unknown error'}`);
-        }
-    }
-
-    /**
-     * Update todo status
-     */
-    async updateStatus(id: string, status: TodoStatus): Promise<Todo | null> {
-        return this.update(id, { status });
-    }
-
-    /**
-     * Update todo priority
-     */
-    async updatePriority(id: string, priority: TodoPriority): Promise<Todo | null> {
-        return this.update(id, { priority });
-    }
-
-    /**
-     * Find todos by status
-     */
-    async findByStatus(status: TodoStatus): Promise<Todo[]> {
-        return this.findByCriteria({ status });
-    }
-
-    /**
-     * Find todos by priority
-     */
-    async findByPriority(priority: TodoPriority): Promise<Todo[]> {
-        return this.findByCriteria({ priority });
-    }    // === Demo-specific methods (for infrastructure layer demonstration) ===
+    // === Demo-specific methods (for infrastructure layer demonstration) ===
 
     /**
      * Build dynamic SQL query using rawsql-ts SqlParamInjector (demo utility)
@@ -278,7 +274,9 @@ export class RawSQLTodoRepository implements ITodoRepository {
      */
     async close(): Promise<void> {
         await this.pool.end();
-    }    /**
+    }
+
+    /**
      * Map database row to domain entity
      */
     private mapRowToTodo(row: any): Todo {

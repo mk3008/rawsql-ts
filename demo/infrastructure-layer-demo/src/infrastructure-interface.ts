@@ -1,10 +1,10 @@
-import { TodoSearchCriteria, Todo, TodoStatus, TodoPriority } from './domain';
+import { TodoSearchCriteria, Todo, TodoDetail } from './domain';
 
 /**
- * Repository interface for Todo domain operations
+ * Repository interface for Todo domain operations (Query-focused for demonstration)
  * 
- * This interface focuses purely on business operations, not infrastructure concerns.
- * Can be implemented by any data access technology (RawSQL, Prisma, TypeORM, etc.)
+ * This interface focuses purely on query operations for testing rawsql-ts capabilities.
+ * All find operations can be handled through findByCriteria with appropriate criteria.
  */
 export interface ITodoRepository {
     /**
@@ -19,64 +19,12 @@ export interface ITodoRepository {
      * @param criteria Domain search criteria
      * @returns Promise resolving to total count
      */
-    countByCriteria(criteria: TodoSearchCriteria): Promise<number>;
-
-    /**
-     * Find a single todo by its unique identifier
+    countByCriteria(criteria: TodoSearchCriteria): Promise<number>;    /**
+     * Find a single todo by its unique identifier with full details (category + comments)
      * @param id Todo ID
-     * @returns Promise resolving to Todo or null if not found
+     * @returns Promise resolving to TodoDetail with related data or null if not found
      */
-    findById(id: string): Promise<Todo | null>;    /**
-     * Create a new todo
-     * @param todo Todo data (without ID, timestamps will be auto-generated)
-     * @returns Promise resolving to created Todo with generated ID and timestamps
-     */
-    create(todo: Omit<Todo, 'todo_id' | 'createdAt' | 'updatedAt'>): Promise<Todo>;
-
-    /**
-     * Update an existing todo
-     * @param id Todo ID to update
-     * @param updates Partial todo data to update
-     * @returns Promise resolving to updated Todo or null if not found
-     */
-    update(id: string, updates: Partial<Omit<Todo, 'todo_id' | 'createdAt'>>): Promise<Todo | null>;
-
-    /**
-     * Delete a todo by ID
-     * @param id Todo ID to delete
-     * @returns Promise resolving to boolean indicating if deletion was successful
-     */
-    delete(id: string): Promise<boolean>;
-
-    /**
-     * Update todo status
-     * @param id Todo ID
-     * @param status New status
-     * @returns Promise resolving to updated Todo or null if not found
-     */
-    updateStatus(id: string, status: TodoStatus): Promise<Todo | null>;
-
-    /**
-     * Update todo priority
-     * @param id Todo ID
-     * @param priority New priority
-     * @returns Promise resolving to updated Todo or null if not found
-     */
-    updatePriority(id: string, priority: TodoPriority): Promise<Todo | null>;
-
-    /**
-     * Find todos by status
-     * @param status Todo status to filter by
-     * @returns Promise resolving to array of todos with specified status
-     */
-    findByStatus(status: TodoStatus): Promise<Todo[]>;
-
-    /**
-     * Find todos by priority
-     * @param priority Todo priority to filter by
-     * @returns Promise resolving to array of todos with specified priority
-     */
-    findByPriority(priority: TodoPriority): Promise<Todo[]>;
+    findById(id: string): Promise<TodoDetail | null>;
 }
 
 /**
