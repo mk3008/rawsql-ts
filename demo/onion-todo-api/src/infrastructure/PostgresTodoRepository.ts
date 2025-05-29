@@ -37,41 +37,20 @@ export class PostgresTodoRepository implements TodoRepository {
                 created_at DESC
         `;
 
-        // Prepare search parameters for SqlParamInjector
-        const searchParams: Record<string, any> = {};
-
-        if (criteria.title) {
-            searchParams.title = { like: `%${criteria.title}%` };
-        }
-
-        if (criteria.status) {
-            searchParams.status = criteria.status;
-        }
-
-        if (criteria.priority) {
-            searchParams.priority = criteria.priority;
-        }
-
-        if (criteria.fromDate) {
-            searchParams.created_at = { '>=': criteria.fromDate.toISOString() };
-        }
-
-        if (criteria.toDate) {
-            // If both fromDate and toDate, use range
-            if (criteria.fromDate) {
-                searchParams.created_at = {
-                    '>=': criteria.fromDate.toISOString(),
-                    '<=': criteria.toDate.toISOString()
-                };
-            } else {
-                searchParams.created_at = { '<=': criteria.toDate.toISOString() };
-            }
-        }
+        const state = {
+            title: criteria.title ? { like: `%${criteria.title}%` } : undefined,
+            status: criteria.status ? criteria.status : undefined,
+            priority: criteria.priority ? criteria.priority : undefined,
+            created_at: (criteria.fromDate || criteria.toDate) ? {
+                ...(criteria.fromDate && { '>=': criteria.fromDate.toISOString() }),
+                ...(criteria.toDate && { '<=': criteria.toDate.toISOString() })
+            } : undefined
+        };
 
         try {
-            // Use SqlParamInjector to dynamically inject search parameters
+            // Use SqlParamInjector to dynamically inject state directly
             const injector = new SqlParamInjector();
-            const injectedQuery = injector.inject(baseSql, searchParams);
+            const injectedQuery = injector.inject(baseSql, state);
 
             // Format for PostgreSQL with indexed parameters
             const formatter = new SqlFormatter({ preset: 'postgres' });
