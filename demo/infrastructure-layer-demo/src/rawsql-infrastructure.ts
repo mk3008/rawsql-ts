@@ -1,13 +1,14 @@
 import { SqlParamInjector, SqlFormatter } from '../../..'; // Import from parent rawsql-ts
 import { TodoSearchCriteria, Todo } from './domain';
 import { getTableColumns, DATABASE_CONFIG } from './database-config';
+import { ITodoInfrastructureService, QueryBuildResult } from './infrastructure-interface';
 import { Pool, PoolClient } from 'pg';
 
 /**
- * Infrastructure layer - Handles database-specific transformations and connections
+ * RawSQL-based implementation of Todo infrastructure service
  * This demonstrates the DTO pattern using rawsql-ts with real PostgreSQL database
  */
-export class TodoInfrastructureService {
+export class RawSQLTodoInfrastructureService implements ITodoInfrastructureService {
     private pool: Pool;
     constructor() {
         // Initialize PostgreSQL connection pool
@@ -64,15 +65,13 @@ export class TodoInfrastructureService {
                 ...(criteria.toDate && { '<=': criteria.toDate.toISOString() })
             } : undefined
         };
-    }
-
-    /**
+    }    /**
      * Build dynamic SQL query using rawsql-ts SqlParamInjector
      * 
      * @param criteria Domain search criteria
      * @returns Object containing the formatted SQL and parameters
      */
-    public buildSearchQuery(criteria: TodoSearchCriteria) {
+    public buildSearchQuery(criteria: TodoSearchCriteria): QueryBuildResult {
         // Base SQL query - SqlParamInjector will add WHERE clause automatically
         const baseSql = `
             SELECT 
@@ -105,7 +104,7 @@ export class TodoInfrastructureService {
         const formatter = new SqlFormatter({ preset: 'postgres' });
         const { formattedSql, params } = formatter.format(injectedQuery); return {
             formattedSql,
-            params
+            params: params as unknown[]
         };
     }
 

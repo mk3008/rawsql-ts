@@ -1,5 +1,6 @@
-import { TodoInfrastructureService } from './infrastructure';
-import { exampleCriteria } from './domain';
+import { RawSQLTodoInfrastructureService } from './rawsql-infrastructure';
+import { ITodoInfrastructureService } from './infrastructure-interface';
+import { exampleCriteria, Todo } from './domain';
 
 /**
  * rawsql-ts Infrastructure Layer DTO Pattern Demo with Real PostgreSQL Database
@@ -12,7 +13,8 @@ async function runDemo() {
     console.log('🎯 rawsql-ts Infrastructure Layer DTO Pattern Demo (Real PostgreSQL)');
     console.log('================================================================\n');
 
-    const infrastructureService = new TodoInfrastructureService();
+    // Using interface for clean architecture (DI would be used in real apps)
+    const infrastructureService: ITodoInfrastructureService = new RawSQLTodoInfrastructureService();
 
     // Test database connection first
     console.log('🔌 Testing database connection...');
@@ -38,8 +40,10 @@ async function runDemo() {
             console.log('🏛️  Domain Criteria:');
             console.log(JSON.stringify(criteria, null, 2));
             console.log();            // Build query using rawsql-ts (for display purposes)
-            const queryResult = infrastructureService.buildSearchQuery(criteria);
-            const searchState = infrastructureService.convertToSearchState(criteria);
+            // Cast to concrete implementation for demo-specific methods
+            const rawSqlService = infrastructureService as RawSQLTodoInfrastructureService;
+            const queryResult = rawSqlService.buildSearchQuery(criteria);
+            const searchState = rawSqlService.convertToSearchState(criteria);
 
             // Show DTO transformation
             console.log('🔧 Infrastructure State (DTO):');
@@ -58,11 +62,9 @@ async function runDemo() {
             // Execute real database query
             console.log('💾 Executing against PostgreSQL database...');
             const todos = await infrastructureService.searchTodos(criteria);
-            const count = await infrastructureService.countTodos(criteria);
-
-            // Show results
+            const count = await infrastructureService.countTodos(criteria);            // Show results
             console.log(`📊 Query Results: Found ${count} todos`);
-            todos.slice(0, 3).forEach((todo, i) => {
+            todos.slice(0, 3).forEach((todo: Todo, i: number) => {
                 console.log(`   ${i + 1}. ${todo.title} (${todo.status}, ${todo.priority})`);
             });
             if (todos.length > 3) {
