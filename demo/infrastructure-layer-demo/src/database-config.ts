@@ -5,16 +5,25 @@
 
 /**
  * Table column resolver for rawsql-ts SqlParamInjector
- * Defines available columns for dynamic SQL injection
+ * Defines available columns for dynamic SQL injection across all tables
  * 
  * @param tableName - Name of the table
  * @returns Array of column names available for injection
  */
 export function getTableColumns(tableName: string): string[] {
-    if (tableName === 'todos') {
-        return ['id', 'title', 'description', 'status', 'priority', 'created_at', 'updated_at'];
+    switch (tableName) {
+        case 'todo':
+            return ['todo_id', 'title', 'description', 'status', 'priority', 'category_id', 'created_at', 'updated_at'];
+
+        case 'category':
+            return ['category_id', 'name', 'description', 'color', 'created_at'];
+
+        case 'todo_comment':
+            return ['todo_comment_id', 'todo_id', 'content', 'author_name', 'created_at'];
+
+        default:
+            return [];
     }
-    return [];
 }
 
 /**

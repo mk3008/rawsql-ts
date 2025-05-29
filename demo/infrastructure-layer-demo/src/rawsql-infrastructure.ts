@@ -68,7 +68,7 @@ export class RawSQLTodoRepository implements ITodoRepository {
      * Count todos matching search criteria
      */
     async countByCriteria(criteria: TodoSearchCriteria): Promise<number> {
-        const countSql = `SELECT COUNT(*) as total FROM todos`;
+        const countSql = `SELECT COUNT(*) as total FROM todo`;
         const searchState = this.convertToSearchState(criteria);
 
         const injector = new SqlParamInjector(getTableColumns);
@@ -85,7 +85,7 @@ export class RawSQLTodoRepository implements ITodoRepository {
      * Find a single todo by ID
      */
     async findById(id: string): Promise<Todo | null> {
-        const sql = 'SELECT * FROM todos WHERE id = $1';
+        const sql = 'SELECT * FROM todo WHERE todo_id = $1';
 
         try {
             const result = await this.pool.query(sql, [id]);
@@ -98,10 +98,10 @@ export class RawSQLTodoRepository implements ITodoRepository {
     /**
      * Create a new todo
      */
-    async create(todo: Omit<Todo, 'id' | 'createdAt' | 'updatedAt'>): Promise<Todo> {
+    async create(todo: Omit<Todo, 'todo_id' | 'createdAt' | 'updatedAt'>): Promise<Todo> {
         const sql = `
-            INSERT INTO todos (title, description, status, priority, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, NOW(), NOW())
+            INSERT INTO todo (title, description, status, priority, category_id, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
             RETURNING *
         `;
 
@@ -110,7 +110,8 @@ export class RawSQLTodoRepository implements ITodoRepository {
                 todo.title,
                 todo.description,
                 todo.status,
-                todo.priority
+                todo.priority,
+                todo.categoryId
             ]);
             return this.mapRowToTodo(result.rows[0]);
         } catch (error) {
@@ -121,7 +122,7 @@ export class RawSQLTodoRepository implements ITodoRepository {
     /**
      * Update an existing todo
      */
-    async update(id: string, updates: Partial<Omit<Todo, 'id' | 'createdAt'>>): Promise<Todo | null> {
+    async update(id: string, updates: Partial<Omit<Todo, 'todo_id' | 'createdAt'>>): Promise<Todo | null> {
         const setFields = [];
         const values = [];
         let paramIndex = 1;
@@ -142,6 +143,10 @@ export class RawSQLTodoRepository implements ITodoRepository {
             setFields.push(`priority = $${paramIndex++}`);
             values.push(updates.priority);
         }
+        if (updates.categoryId !== undefined) {
+            setFields.push(`category_id = $${paramIndex++}`);
+            values.push(updates.categoryId);
+        }
 
         if (setFields.length === 0) {
             return this.findById(id);
@@ -152,9 +157,9 @@ export class RawSQLTodoRepository implements ITodoRepository {
         values.push(id);
 
         const sql = `
-            UPDATE todos 
+            UPDATE todo 
             SET ${setFields.join(', ')}
-            WHERE id = $${paramIndex}
+            WHERE todo_id = $${paramIndex}
             RETURNING *
         `;
 
@@ -170,7 +175,7 @@ export class RawSQLTodoRepository implements ITodoRepository {
      * Delete a todo by ID
      */
     async delete(id: string): Promise<boolean> {
-        const sql = 'DELETE FROM todos WHERE id = $1';
+        const sql = 'DELETE FROM todo WHERE todo_id = $1';
 
         try {
             const result = await this.pool.query(sql, [id]);
@@ -206,9 +211,7 @@ export class RawSQLTodoRepository implements ITodoRepository {
      */
     async findByPriority(priority: TodoPriority): Promise<Todo[]> {
         return this.findByCriteria({ priority });
-    }
-
-    // === Demo-specific methods (for infrastructure layer demonstration) ===
+    }    // === Demo-specific methods (for infrastructure layer demonstration) ===
 
     /**
      * Build dynamic SQL query using rawsql-ts SqlParamInjector (demo utility)
@@ -220,15 +223,16 @@ export class RawSQLTodoRepository implements ITodoRepository {
         // Base SQL query - SqlParamInjector will add WHERE clause automatically
         const baseSql = `
             SELECT 
-                id,
+                todo_id,
                 title,
                 description,
                 status,
                 priority,
+                category_id,
                 created_at,
                 updated_at
             FROM
-                todos
+                todo
             ORDER BY
                 CASE priority 
                     WHEN 'high' THEN 1 
@@ -274,18 +278,17 @@ export class RawSQLTodoRepository implements ITodoRepository {
      */
     async close(): Promise<void> {
         await this.pool.end();
-    }
-
-    /**
+    }    /**
      * Map database row to domain entity
      */
     private mapRowToTodo(row: any): Todo {
         return {
-            id: row.id,
+            todo_id: row.todo_id,
             title: row.title,
             description: row.description,
             status: row.status,
             priority: row.priority,
+            categoryId: row.category_id,
             createdAt: new Date(row.created_at),
             updatedAt: new Date(row.updated_at)
         };

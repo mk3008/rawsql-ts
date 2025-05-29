@@ -26,14 +26,12 @@ export interface ITodoRepository {
      * @param id Todo ID
      * @returns Promise resolving to Todo or null if not found
      */
-    findById(id: string): Promise<Todo | null>;
-
-    /**
+    findById(id: string): Promise<Todo | null>;    /**
      * Create a new todo
      * @param todo Todo data (without ID, timestamps will be auto-generated)
      * @returns Promise resolving to created Todo with generated ID and timestamps
      */
-    create(todo: Omit<Todo, 'id' | 'createdAt' | 'updatedAt'>): Promise<Todo>;
+    create(todo: Omit<Todo, 'todo_id' | 'createdAt' | 'updatedAt'>): Promise<Todo>;
 
     /**
      * Update an existing todo
@@ -41,7 +39,7 @@ export interface ITodoRepository {
      * @param updates Partial todo data to update
      * @returns Promise resolving to updated Todo or null if not found
      */
-    update(id: string, updates: Partial<Omit<Todo, 'id' | 'createdAt'>>): Promise<Todo | null>;
+    update(id: string, updates: Partial<Omit<Todo, 'todo_id' | 'createdAt'>>): Promise<Todo | null>;
 
     /**
      * Delete a todo by ID
