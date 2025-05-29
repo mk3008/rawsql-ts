@@ -1,5 +1,5 @@
-import { RawSQLTodoInfrastructureService } from './rawsql-infrastructure';
-import { ITodoInfrastructureService } from './infrastructure-interface';
+import { RawSQLTodoRepository } from './rawsql-infrastructure';
+import { ITodoRepository } from './infrastructure-interface';
 import { exampleCriteria, Todo } from './domain';
 
 /**
@@ -11,14 +11,12 @@ import { exampleCriteria, Todo } from './domain';
 
 async function runDemo() {
     console.log('🎯 rawsql-ts Infrastructure Layer DTO Pattern Demo (Real PostgreSQL)');
-    console.log('================================================================\n');
-
-    // Using interface for clean architecture (DI would be used in real apps)
-    const infrastructureService: ITodoInfrastructureService = new RawSQLTodoInfrastructureService();
+    console.log('================================================================\n');    // Using interface for clean architecture (DI would be used in real apps)
+    const todoRepository: ITodoRepository = new RawSQLTodoRepository();
 
     // Test database connection first
     console.log('🔌 Testing database connection...');
-    const isConnected = await infrastructureService.testConnection();
+    const isConnected = await (todoRepository as RawSQLTodoRepository).testConnection();
 
     if (!isConnected) {
         console.log('❌ Failed to connect to database. Please ensure Docker container is running:');
@@ -41,9 +39,9 @@ async function runDemo() {
             console.log(JSON.stringify(criteria, null, 2));
             console.log();            // Build query using rawsql-ts (for display purposes)
             // Cast to concrete implementation for demo-specific methods
-            const rawSqlService = infrastructureService as RawSQLTodoInfrastructureService;
-            const queryResult = rawSqlService.buildSearchQuery(criteria);
-            const searchState = rawSqlService.convertToSearchState(criteria);
+            const rawSqlRepo = todoRepository as RawSQLTodoRepository;
+            const queryResult = rawSqlRepo.buildSearchQuery(criteria);
+            const searchState = rawSqlRepo.convertToSearchState(criteria);
 
             // Show DTO transformation
             console.log('🔧 Infrastructure State (DTO):');
@@ -57,12 +55,10 @@ async function runDemo() {
 
             console.log('⚙️  Parameters:');
             console.log(`   ${JSON.stringify(queryResult.params)}`);
-            console.log();
-
-            // Execute real database query
+            console.log();            // Execute real database query using repository interface
             console.log('💾 Executing against PostgreSQL database...');
-            const todos = await infrastructureService.searchTodos(criteria);
-            const count = await infrastructureService.countTodos(criteria);            // Show results
+            const todos = await todoRepository.findByCriteria(criteria);
+            const count = await todoRepository.countByCriteria(criteria);// Show results
             console.log(`📊 Query Results: Found ${count} todos`);
             todos.slice(0, 3).forEach((todo: Todo, i: number) => {
                 console.log(`   ${i + 1}. ${todo.title} (${todo.status}, ${todo.priority})`);
@@ -93,7 +89,7 @@ async function runDemo() {
         console.error('❌ Demo failed:', error instanceof Error ? error.message : 'Unknown error');
     } finally {
         // Clean up database connection
-        await infrastructureService.close();
+        await (todoRepository as RawSQLTodoRepository).close();
         console.log('👋 Database connection closed');
     }
 }

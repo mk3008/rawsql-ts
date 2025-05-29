@@ -1,38 +1,19 @@
 import { SqlParamInjector, SqlFormatter } from '../../..'; // Import from parent rawsql-ts
-import { TodoSearchCriteria, Todo } from './domain';
+import { TodoSearchCriteria, Todo, TodoStatus, TodoPriority } from './domain';
 import { getTableColumns, DATABASE_CONFIG } from './database-config';
-import { ITodoInfrastructureService, QueryBuildResult } from './infrastructure-interface';
+import { ITodoRepository, QueryBuildResult } from './infrastructure-interface';
 import { Pool, PoolClient } from 'pg';
 
 /**
- * RawSQL-based implementation of Todo infrastructure service
- * This demonstrates the DTO pattern using rawsql-ts with real PostgreSQL database
+ * RawSQL-based implementation of Todo repository using rawsql-ts
+ * This demonstrates the DTO pattern with real PostgreSQL database operations
  */
-export class RawSQLTodoInfrastructureService implements ITodoInfrastructureService {
+export class RawSQLTodoRepository implements ITodoRepository {
     private pool: Pool;
+
     constructor() {
         // Initialize PostgreSQL connection pool
         this.pool = new Pool(DATABASE_CONFIG);
-    }
-
-    /**
-     * Test database connection
-     */    async testConnection(): Promise<boolean> {
-        try {
-            const client = await this.pool.connect();
-            await client.query('SELECT 1');
-            client.release();
-            return true;
-        } catch (error) {
-            return false;
-        }
-    }
-
-    /**
-     * Close database connection pool
-     */
-    async close(): Promise<void> {
-        await this.pool.end();
     }
 
     /**
@@ -65,8 +46,172 @@ export class RawSQLTodoInfrastructureService implements ITodoInfrastructureServi
                 ...(criteria.toDate && { '<=': criteria.toDate.toISOString() })
             } : undefined
         };
-    }    /**
-     * Build dynamic SQL query using rawsql-ts SqlParamInjector
+    }
+
+    // === Repository Interface Implementation ===
+
+    /**
+     * Find todos based on search criteria
+     */
+    async findByCriteria(criteria: TodoSearchCriteria): Promise<Todo[]> {
+        const query = this.buildSearchQuery(criteria);
+
+        try {
+            const result = await this.pool.query(query.formattedSql, query.params as any[]);
+            return result.rows.map(this.mapRowToTodo);
+        } catch (error) {
+            throw new Error(`Failed to find todos: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+    }
+
+    /**
+     * Count todos matching search criteria
+     */
+    async countByCriteria(criteria: TodoSearchCriteria): Promise<number> {
+        const countSql = `SELECT COUNT(*) as total FROM todos`;
+        const searchState = this.convertToSearchState(criteria);
+
+        const injector = new SqlParamInjector(getTableColumns);
+        const injectedQuery = injector.inject(countSql, searchState);
+
+        const formatter = new SqlFormatter({ preset: 'postgres' });
+        const { formattedSql, params } = formatter.format(injectedQuery);
+
+        const result = await this.pool.query(formattedSql, params as any[]);
+        return parseInt(result.rows[0].total);
+    }
+
+    /**
+     * Find a single todo by ID
+     */
+    async findById(id: string): Promise<Todo | null> {
+        const sql = 'SELECT * FROM todos WHERE id = $1';
+
+        try {
+            const result = await this.pool.query(sql, [id]);
+            return result.rows.length > 0 ? this.mapRowToTodo(result.rows[0]) : null;
+        } catch (error) {
+            throw new Error(`Failed to find todo by ID: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+    }
+
+    /**
+     * Create a new todo
+     */
+    async create(todo: Omit<Todo, 'id' | 'createdAt' | 'updatedAt'>): Promise<Todo> {
+        const sql = `
+            INSERT INTO todos (title, description, status, priority, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, NOW(), NOW())
+            RETURNING *
+        `;
+
+        try {
+            const result = await this.pool.query(sql, [
+                todo.title,
+                todo.description,
+                todo.status,
+                todo.priority
+            ]);
+            return this.mapRowToTodo(result.rows[0]);
+        } catch (error) {
+            throw new Error(`Failed to create todo: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+    }
+
+    /**
+     * Update an existing todo
+     */
+    async update(id: string, updates: Partial<Omit<Todo, 'id' | 'createdAt'>>): Promise<Todo | null> {
+        const setFields = [];
+        const values = [];
+        let paramIndex = 1;
+
+        if (updates.title !== undefined) {
+            setFields.push(`title = $${paramIndex++}`);
+            values.push(updates.title);
+        }
+        if (updates.description !== undefined) {
+            setFields.push(`description = $${paramIndex++}`);
+            values.push(updates.description);
+        }
+        if (updates.status !== undefined) {
+            setFields.push(`status = $${paramIndex++}`);
+            values.push(updates.status);
+        }
+        if (updates.priority !== undefined) {
+            setFields.push(`priority = $${paramIndex++}`);
+            values.push(updates.priority);
+        }
+
+        if (setFields.length === 0) {
+            return this.findById(id);
+        }
+
+        setFields.push(`updated_at = $${paramIndex++}`);
+        values.push(new Date());
+        values.push(id);
+
+        const sql = `
+            UPDATE todos 
+            SET ${setFields.join(', ')}
+            WHERE id = $${paramIndex}
+            RETURNING *
+        `;
+
+        try {
+            const result = await this.pool.query(sql, values);
+            return result.rows.length > 0 ? this.mapRowToTodo(result.rows[0]) : null;
+        } catch (error) {
+            throw new Error(`Failed to update todo: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+    }
+
+    /**
+     * Delete a todo by ID
+     */
+    async delete(id: string): Promise<boolean> {
+        const sql = 'DELETE FROM todos WHERE id = $1';
+
+        try {
+            const result = await this.pool.query(sql, [id]);
+            return (result.rowCount || 0) > 0;
+        } catch (error) {
+            throw new Error(`Failed to delete todo: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+    }
+
+    /**
+     * Update todo status
+     */
+    async updateStatus(id: string, status: TodoStatus): Promise<Todo | null> {
+        return this.update(id, { status });
+    }
+
+    /**
+     * Update todo priority
+     */
+    async updatePriority(id: string, priority: TodoPriority): Promise<Todo | null> {
+        return this.update(id, { priority });
+    }
+
+    /**
+     * Find todos by status
+     */
+    async findByStatus(status: TodoStatus): Promise<Todo[]> {
+        return this.findByCriteria({ status });
+    }
+
+    /**
+     * Find todos by priority
+     */
+    async findByPriority(priority: TodoPriority): Promise<Todo[]> {
+        return this.findByCriteria({ priority });
+    }
+
+    // === Demo-specific methods (for infrastructure layer demonstration) ===
+
+    /**
+     * Build dynamic SQL query using rawsql-ts SqlParamInjector (demo utility)
      * 
      * @param criteria Domain search criteria
      * @returns Object containing the formatted SQL and parameters
@@ -102,52 +247,33 @@ export class RawSQLTodoInfrastructureService implements ITodoInfrastructureServi
 
         // Format for different database dialects
         const formatter = new SqlFormatter({ preset: 'postgres' });
-        const { formattedSql, params } = formatter.format(injectedQuery); return {
+        const { formattedSql, params } = formatter.format(injectedQuery);
+
+        return {
             formattedSql,
             params: params as unknown[]
         };
     }
 
     /**
-     * Execute search query against real PostgreSQL database
-     * This demonstrates the complete DTO pattern in action with real data
-     * 
-     * @param criteria Domain search criteria
-     * @returns Array of Todo entities
+     * Test database connection (demo utility)
      */
-    async searchTodos(criteria: TodoSearchCriteria): Promise<Todo[]> {
-        // Reuse the query building logic
-        const query = this.buildSearchQuery(criteria);
-
+    async testConnection(): Promise<boolean> {
         try {
-            // Execute query against real PostgreSQL database
-            const result = await this.pool.query(query.formattedSql, query.params as any[]);
-
-            // Map database rows to domain entities
-            return result.rows.map(this.mapRowToTodo);
+            const client = await this.pool.connect();
+            await client.query('SELECT 1');
+            client.release();
+            return true;
         } catch (error) {
-            throw new Error(`Failed to search todos: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            return false;
         }
     }
 
     /**
-     * Get total count of todos matching criteria
+     * Close database connection pool (demo utility)
      */
-    async countTodos(criteria: TodoSearchCriteria): Promise<number> {
-        const countSql = `
-            SELECT COUNT(*) as total
-            FROM todos
-        `;
-        const searchState = this.convertToSearchState(criteria);
-
-        const injector = new SqlParamInjector(getTableColumns);
-        const injectedQuery = injector.inject(countSql, searchState);
-
-        const formatter = new SqlFormatter({ preset: 'postgres' });
-        const { formattedSql, params } = formatter.format(injectedQuery);
-
-        const result = await this.pool.query(formattedSql, params as any[]);
-        return parseInt(result.rows[0].total);
+    async close(): Promise<void> {
+        await this.pool.end();
     }
 
     /**
