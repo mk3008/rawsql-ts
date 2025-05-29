@@ -94,21 +94,22 @@ export class TodoInfrastructureService {
                     WHEN 'low' THEN 3 
                 END,
                 created_at DESC
-        `;        // Convert domain criteria to infrastructure state (DTO transformation)
-        const searchState = this.convertToSearchState(criteria);        // rawsql-ts magic happens here!
+        `;
+
+        // Convert domain criteria to infrastructure state (DTO transformation)
+        const searchState = this.convertToSearchState(criteria);
+
+        // rawsql-ts magic happens here!
         // SqlParamInjector automatically adds WHERE clause based on state
         const injector = new SqlParamInjector(getTableColumns);
         const injectedQuery = injector.inject(baseSql, searchState);
 
         // Format for different database dialects
         const formatter = new SqlFormatter({ preset: 'postgres' });
-        const { formattedSql, params } = formatter.format(injectedQuery);
-
-        return {
+        const { formattedSql, params } = formatter.format(injectedQuery); return {
             searchState,
             formattedSql,
             params,
-            summary: this.buildQuerySummary(criteria, searchState),
             rawQuery: injectedQuery
         };
     }
@@ -168,36 +169,5 @@ export class TodoInfrastructureService {
             createdAt: new Date(row.created_at),
             updatedAt: new Date(row.updated_at)
         };
-    }
-
-    /**
-     * Generate a human-readable summary of the query transformation
-     */
-    private buildQuerySummary(criteria: TodoSearchCriteria, state: Record<string, any>): string {
-        const conditions: string[] = [];
-
-        if (state.title) {
-            conditions.push(`Title contains "${criteria.title}"`);
-        }
-        if (state.status) {
-            conditions.push(`Status equals "${criteria.status}"`);
-        }
-        if (state.priority) {
-            conditions.push(`Priority equals "${criteria.priority}"`);
-        }
-        if (state.created_at) {
-            const dateConditions = [];
-            if (state.created_at['>=']) {
-                dateConditions.push(`after ${criteria.fromDate?.toLocaleDateString()}`);
-            }
-            if (state.created_at['<=']) {
-                dateConditions.push(`before ${criteria.toDate?.toLocaleDateString()}`);
-            }
-            conditions.push(`Created ${dateConditions.join(' and ')}`);
-        }
-
-        return conditions.length > 0
-            ? `Filtering: ${conditions.join(', ')}`
-            : 'No filters applied (return all records)';
     }
 }
