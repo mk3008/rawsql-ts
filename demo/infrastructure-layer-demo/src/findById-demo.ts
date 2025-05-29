@@ -15,8 +15,8 @@ async function runFindByIdDemo() {
     console.log('🎯 rawsql-ts Enhanced findById Demo with PostgresJsonQueryBuilder');
     console.log('================================================================\n');
 
-    // Initialize repository with interface for clean architecture
-    const todoRepository: ITodoRepository = new RawSQLTodoRepository();
+    // Initialize repository with debug logging enabled for demonstration
+    const todoRepository: ITodoRepository = new RawSQLTodoRepository(true); // Enable debug logging
 
     // Test database connection first
     console.log('🔌 Testing database connection...');
@@ -106,6 +106,19 @@ async function runFindByIdDemo() {
         console.log('   • Hierarchical data fetching in single query');
         console.log('   • Domain objects without infrastructure dependencies');
         console.log('   • Reusable and maintainable code patterns');
+        console.log('   • Configurable debug logging for development/production');
+
+        // Demonstrate debug logging control
+        console.log('\n🛠️ Debug Logging Control Example:');
+        console.log('──────────────────────────────────');
+        console.log('// Enable debug logging for development');
+        console.log('const repo = new RawSQLTodoRepository(true);');
+        console.log();
+        console.log('// Disable debug logging for production');
+        console.log('const repo = new RawSQLTodoRepository(false);');
+        console.log();
+        console.log('// Toggle during runtime');
+        console.log('repo.setDebugLogging(false); // Disable logs');
 
     } catch (error) {
         console.error('❌ Demo failed:', error);

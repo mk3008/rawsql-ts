@@ -10,10 +10,34 @@ import { Pool, PoolClient } from 'pg';
  */
 export class RawSQLTodoRepository implements ITodoRepository {
     private pool: Pool;
+    private enableDebugLogging: boolean = false; // Debug logging control flag
 
-    constructor() {
+    constructor(enableDebugLogging: boolean = false) {
         // Initialize PostgreSQL connection pool
         this.pool = new Pool(DATABASE_CONFIG);
+        this.enableDebugLogging = enableDebugLogging;
+    }
+
+    /**
+     * Enable or disable debug logging
+     * @param enabled Whether to enable debug logging
+     */
+    public setDebugLogging(enabled: boolean): void {
+        this.enableDebugLogging = enabled;
+    }
+
+    /**
+     * Private method to handle debug logging consistently
+     * @param message Log message
+     * @param data Optional data to log
+     */
+    private debugLog(message: string, data?: any): void {
+        if (this.enableDebugLogging) {
+            console.log(message);
+            if (data !== undefined) {
+                console.log(data);
+            }
+        }
     }
 
     /**
@@ -55,12 +79,16 @@ export class RawSQLTodoRepository implements ITodoRepository {
      */
     async findByCriteria(criteria: TodoSearchCriteria): Promise<Todo[]> {
         const query = this.buildSearchQuery(criteria);
+        this.debugLog('Executing findByCriteria with query:', query);
 
         try {
             const result = await this.pool.query(query.formattedSql, query.params as any[]);
+            this.debugLog(`Found ${result.rows.length} todos`);
             return result.rows.map(this.mapRowToTodo);
         } catch (error) {
-            throw new Error(`Failed to find todos: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            this.debugLog('findByCriteria error:', error);
+            throw new Error(`Failed to find todos: ${errorMessage}`);
         }
     }
 
@@ -70,6 +98,7 @@ export class RawSQLTodoRepository implements ITodoRepository {
     async countByCriteria(criteria: TodoSearchCriteria): Promise<number> {
         const countSql = `SELECT COUNT(*) as total FROM todo`;
         const searchState = this.convertToSearchState(criteria);
+        this.debugLog('Count criteria search state:', searchState);
 
         const injector = new SqlParamInjector(getTableColumns);
         const injectedQuery = injector.inject(countSql, searchState);
@@ -77,8 +106,12 @@ export class RawSQLTodoRepository implements ITodoRepository {
         const formatter = new SqlFormatter({ preset: 'postgres' });
         const { formattedSql, params } = formatter.format(injectedQuery);
 
+        this.debugLog('Count query:', { sql: formattedSql, params });
+
         const result = await this.pool.query(formattedSql, params as any[]);
-        return parseInt(result.rows[0].total);
+        const count = parseInt(result.rows[0].total);
+        this.debugLog(`Total count: ${count}`);
+        return count;
     }
 
     /**
@@ -174,16 +207,14 @@ export class RawSQLTodoRepository implements ITodoRepository {
 
             // Transform to JSON query using PostgresJsonQueryBuilder
             const jsonBuilder = new PostgresJsonQueryBuilder();
-            const jsonQuery = jsonBuilder.buildJson(injectedQuery, jsonMapping);
-
-            // Format the final query
+            const jsonQuery = jsonBuilder.buildJson(injectedQuery, jsonMapping);            // Format the final query
             const formatter = new SqlFormatter({ preset: 'postgres' });
             const { formattedSql, params } = formatter.format(jsonQuery);
 
-            console.log('\n=== Enhanced findById Query with PostgresJsonQueryBuilder ===');
-            console.log('Generated SQL:', formattedSql);
-            console.log('Parameters:', params);
-            console.log('===========================================================\n');
+            this.debugLog('\n=== Enhanced findById Query with PostgresJsonQueryBuilder ===');
+            this.debugLog('Generated SQL:', formattedSql);
+            this.debugLog('Parameters:', params);
+            this.debugLog('===========================================================\n');
 
             // Execute the query with parameters from PostgresJsonQueryBuilder
             // SqlParamInjector already processed the WHERE clause parameters
@@ -200,10 +231,10 @@ export class RawSQLTodoRepository implements ITodoRepository {
             // Return the parsed JSON directly as TodoDetail
             // The PostgresJsonQueryBuilder automatically creates the hierarchical structure
             return todoJson as TodoDetail;
-
         } catch (error) {
-            console.error('Enhanced findById error:', error);
-            throw new Error(`Failed to find todo by ID with details: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            this.debugLog('Enhanced findById error:', error);
+            throw new Error(`Failed to find todo by ID with details: ${errorMessage}`);
         }
     }
 
@@ -236,10 +267,9 @@ export class RawSQLTodoRepository implements ITodoRepository {
                     WHEN 'low' THEN 3 
                 END,
                 created_at DESC
-        `;
-
-        // Convert domain criteria to infrastructure state (DTO transformation)
+        `;        // Convert domain criteria to infrastructure state (DTO transformation)
         const searchState = this.convertToSearchState(criteria);
+        this.debugLog('Search state (DTO transformation):', searchState);
 
         // SqlParamInjector automatically adds WHERE clause based on state
         const injector = new SqlParamInjector(getTableColumns);
@@ -248,6 +278,8 @@ export class RawSQLTodoRepository implements ITodoRepository {
         // Format for different database dialects
         const formatter = new SqlFormatter({ preset: 'postgres' });
         const { formattedSql, params } = formatter.format(injectedQuery);
+
+        this.debugLog('Generated search query:', { sql: formattedSql, params });
 
         return {
             formattedSql,
