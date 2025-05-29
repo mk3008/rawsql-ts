@@ -16,15 +16,13 @@ export class TodoInfrastructureService {
 
     /**
      * Test database connection
-     */
-    async testConnection(): Promise<boolean> {
+     */    async testConnection(): Promise<boolean> {
         try {
             const client = await this.pool.connect();
             await client.query('SELECT 1');
             client.release();
             return true;
         } catch (error) {
-            console.error('❌ Database connection failed:', error instanceof Error ? error.message : 'Unknown error');
             return false;
         }
     }
@@ -99,7 +97,6 @@ export class TodoInfrastructureService {
         // Convert domain criteria to infrastructure state (DTO transformation)
         const searchState = this.convertToSearchState(criteria);
 
-        // rawsql-ts magic happens here!
         // SqlParamInjector automatically adds WHERE clause based on state
         const injector = new SqlParamInjector(getTableColumns);
         const injectedQuery = injector.inject(baseSql, searchState);
@@ -107,10 +104,8 @@ export class TodoInfrastructureService {
         // Format for different database dialects
         const formatter = new SqlFormatter({ preset: 'postgres' });
         const { formattedSql, params } = formatter.format(injectedQuery); return {
-            searchState,
             formattedSql,
-            params,
-            rawQuery: injectedQuery
+            params
         };
     }
 

@@ -39,10 +39,11 @@ async function runDemo() {
             console.log(JSON.stringify(criteria, null, 2));
             console.log();            // Build query using rawsql-ts (for display purposes)
             const queryResult = infrastructureService.buildSearchQuery(criteria);
+            const searchState = infrastructureService.convertToSearchState(criteria);
 
             // Show DTO transformation
             console.log('🔧 Infrastructure State (DTO):');
-            console.log(JSON.stringify(queryResult.searchState, null, 2));
+            console.log(JSON.stringify(searchState, null, 2));
             console.log();
 
             // Show generated SQL and parameters before execution
