@@ -16,16 +16,23 @@ export class RawSQLTodoRepository implements ITodoRepository {
     private enableDebugLogging: boolean = false;
     // Shared instances to avoid repeated instantiation
     private readonly sqlParamInjector: SqlParamInjector;
-    private readonly sqlFormatter: SqlFormatter;
-    private readonly postgresJsonQueryBuilder: PostgresJsonQueryBuilder;
+    private readonly sqlFormatter: SqlFormatter; private readonly postgresJsonQueryBuilder: PostgresJsonQueryBuilder;
 
-    constructor(enableDebugLogging: boolean = false) {
+    constructor(
+        enableDebugLogging: boolean = false,
+        sqlFormatterOptions?: any
+    ) {
         this.pool = new Pool(DATABASE_CONFIG);
         this.enableDebugLogging = enableDebugLogging;
 
         // Initialize shared instances once
         this.sqlParamInjector = new SqlParamInjector(getTableColumns);
-        this.sqlFormatter = new SqlFormatter({ preset: 'postgres' });
+
+        // Use custom SqlFormatter options for testing, default preset for production
+        this.sqlFormatter = new SqlFormatter(
+            sqlFormatterOptions || { preset: 'postgres' }
+        );
+
         this.postgresJsonQueryBuilder = new PostgresJsonQueryBuilder();
 
         // Load all SQL queries into memory cache for optimal performance
@@ -42,7 +49,8 @@ export class RawSQLTodoRepository implements ITodoRepository {
 
     /**
      * Unified debug logging method
-     */    private debugLog(message: string, data?: any): void {
+     */
+    private debugLog(message: string, data?: any): void {
         if (this.enableDebugLogging) {
             console.log(message);
             if (data !== undefined) console.log(data);
@@ -87,7 +95,9 @@ export class RawSQLTodoRepository implements ITodoRepository {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
             this.debugLog('❌ findByCriteria error:', error); throw new Error(`Failed to find todos: ${errorMessage}`);
         }
-    }    /**
+    }
+
+    /**
      * Count todos matching search criteria
      */
     async countByCriteria(criteria: TodoSearchCriteria): Promise<number> {
@@ -107,7 +117,8 @@ export class RawSQLTodoRepository implements ITodoRepository {
     /**
      * Find todo by ID with related data using PostgresJsonQueryBuilder
      * Demonstrates SqlParamInjector + PostgresJsonQueryBuilder integration
-     */    async findById(id: string): Promise<TodoDetail | null> {
+     */
+    async findById(id: string): Promise<TodoDetail | null> {
         try {
             // Load base query from SQL file
             const baseSql = sqlLoader.getQuery('findTodoWithRelations');
@@ -160,7 +171,9 @@ export class RawSQLTodoRepository implements ITodoRepository {
         this.debugLog('🛠️ Generated query:', { sql: formattedSql, params });
 
         return { formattedSql, params: params as unknown[] };
-    }    /**
+    }
+
+    /**
      * Test database connection
      */
     async testConnection(): Promise<boolean> {
