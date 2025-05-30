@@ -1,4 +1,4 @@
-import { TodoSearchCriteria, CategorySearchCriteria, CommentSearchCriteria } from '../domain/domain';
+import { TodoSearchCriteria, CategorySearchCriteria, CommentSearchCriteria } from '../contracts/search-criteria';
 
 /**
  * Example domain criteria for demonstration (updated for 1:N relationships)

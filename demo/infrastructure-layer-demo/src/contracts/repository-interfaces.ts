@@ -1,4 +1,10 @@
-import { TodoSearchCriteria, Todo, TodoDetail } from '../domain/domain';
+/**
+ * Repository interface contracts - Define infrastructure layer contracts
+ * These represent the contracts that infrastructure implementations must fulfill
+ */
+
+import { TodoSearchCriteria } from './search-criteria';
+import { Todo, TodoDetail } from '../domain/entities';
 
 /**
  * Repository interface for Todo domain operations (Query-focused for demonstration)
@@ -19,7 +25,9 @@ export interface ITodoRepository {
      * @param criteria Domain search criteria
      * @returns Promise resolving to total count
      */
-    countByCriteria(criteria: TodoSearchCriteria): Promise<number>;    /**
+    countByCriteria(criteria: TodoSearchCriteria): Promise<number>;
+
+    /**
      * Find a single todo by its unique identifier with full details (category + comments)
      * @param id Todo ID
      * @returns Promise resolving to TodoDetail with related data or null if not found

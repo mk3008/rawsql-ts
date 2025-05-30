@@ -1,8 +1,9 @@
 import { SqlParamInjector, SqlFormatter, SelectQueryParser, PostgresJsonQueryBuilder, QueryBuilder, SimpleSelectQuery } from '../../../..'; // Import from parent rawsql-ts
-import { TodoSearchCriteria, Todo, TodoDetail, TodoStatus, TodoPriority } from '../domain/domain';
+import { TodoSearchCriteria } from '../contracts/search-criteria';
+import { Todo, TodoDetail, TodoStatus, TodoPriority } from '../domain/entities';
 import { getTableColumns, DATABASE_CONFIG } from './database-config';
 import { createJsonMapping } from './schema-migrated';
-import { ITodoRepository, QueryBuildResult } from './infrastructure-interface';
+import { ITodoRepository, QueryBuildResult } from '../contracts/repository-interfaces';
 import { Pool, PoolClient } from 'pg';
 
 /**

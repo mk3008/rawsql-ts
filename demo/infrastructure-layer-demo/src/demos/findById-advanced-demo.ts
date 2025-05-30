@@ -1,6 +1,6 @@
 import { RawSQLTodoRepository } from '../infrastructure/rawsql-infrastructure';
-import { ITodoRepository } from '../infrastructure/infrastructure-interface';
-import { TodoDetail } from '../domain/domain';
+import { ITodoRepository } from '../contracts/repository-interfaces';
+import { TodoDetail } from '../domain/entities';
 
 /**
  * Advanced FindById Query Demo
