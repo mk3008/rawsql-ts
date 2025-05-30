@@ -1,4 +1,4 @@
-import { TodoSearchCriteria, Todo, TodoDetail } from './domain';
+import { TodoSearchCriteria, Todo, TodoDetail } from '../domain/domain';
 
 /**
  * Repository interface for Todo domain operations (Query-focused for demonstration)
