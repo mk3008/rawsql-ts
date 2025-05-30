@@ -5,9 +5,13 @@
     "main": "index.js",
     "scripts": {
         "demo": "tsx src/demo.ts",
-        "findById-demo": "tsx src/findById-demo.ts",
-        "unified-schema-demo": "tsx src/unified-schema-demo.ts",
-        "migrated-schema-demo": "tsx src/migrated-schema-demo.ts",
+        "demo:all": "tsx src/run-all-demos.ts",
+        "demo:migration": "tsx src/run-all-demos.ts migration",
+        "demo:schema": "tsx src/run-all-demos.ts schema",
+        "demo:queries": "tsx src/run-all-demos.ts queries",
+        "findById-advanced": "tsx src/findById-advanced-demo.ts",
+        "schema-features": "tsx src/schema-features-demo.ts",
+        "migration-verify": "tsx src/migrated-schema-demo.ts",
         "build": "tsc",
         "dev": "tsx watch src/demo.ts"
     },

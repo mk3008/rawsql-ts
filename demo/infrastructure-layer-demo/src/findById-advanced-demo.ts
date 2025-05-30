@@ -3,13 +3,14 @@ import { ITodoRepository } from './infrastructure-interface';
 import { TodoDetail } from './domain';
 
 /**
- * rawsql-ts Enhanced findById Demo
- * Showcases SqlParamInjector + PostgresJsonQueryBuilder integration
+ * Advanced FindById Query Demo
+ * Comprehensive testing of SqlParamInjector + PostgresJsonQueryBuilder integration
+ * Focuses on complex query scenarios and error handling
  */
 
-async function runFindByIdDemo() {
-    console.log('🎯 rawsql-ts Enhanced findById Demo');
-    console.log('==========================================\n');
+async function runAdvancedFindByIdDemo() {
+    console.log('🚀 Advanced FindById Query Demo');
+    console.log('=====================================\n');
 
     // Initialize repository with debug logging
     const todoRepository: ITodoRepository = new RawSQLTodoRepository(true);
@@ -103,7 +104,7 @@ async function runFindByIdDemo() {
 
 // Run demo if executed directly
 if (require.main === module) {
-    runFindByIdDemo().catch(console.error);
+    runAdvancedFindByIdDemo().catch(console.error);
 }
 
-export { runFindByIdDemo };
+export { runAdvancedFindByIdDemo };
