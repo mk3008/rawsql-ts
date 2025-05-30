@@ -12,10 +12,19 @@ import { Pool, PoolClient } from 'pg';
 export class RawSQLTodoRepository implements ITodoRepository {
     private pool: Pool;
     private enableDebugLogging: boolean = false;
+    // Shared instances to avoid repeated instantiation
+    private readonly sqlParamInjector: SqlParamInjector;
+    private readonly sqlFormatter: SqlFormatter;
+    private readonly postgresJsonQueryBuilder: PostgresJsonQueryBuilder;
 
     constructor(enableDebugLogging: boolean = false) {
         this.pool = new Pool(DATABASE_CONFIG);
         this.enableDebugLogging = enableDebugLogging;
+
+        // Initialize shared instances once
+        this.sqlParamInjector = new SqlParamInjector(getTableColumns);
+        this.sqlFormatter = new SqlFormatter({ preset: 'postgres' });
+        this.postgresJsonQueryBuilder = new PostgresJsonQueryBuilder();
     }
 
     /**
@@ -27,13 +36,14 @@ export class RawSQLTodoRepository implements ITodoRepository {
 
     /**
      * Unified debug logging method
-     */
-    private debugLog(message: string, data?: any): void {
+     */    private debugLog(message: string, data?: any): void {
         if (this.enableDebugLogging) {
             console.log(message);
             if (data !== undefined) console.log(data);
         }
-    }    /**
+    }
+
+    /**
      * Convert domain criteria to SQL search state (DTO pattern)
      * Maps domain-specific fields to database operators and constraints
      */
@@ -52,7 +62,9 @@ export class RawSQLTodoRepository implements ITodoRepository {
                 ...(criteria.toDate && { '<=': criteria.toDate.toISOString() })
             } : undefined
         };
-    }    // === Core Repository Methods ===
+    }
+
+    // === Core Repository Methods ===
 
     /**
      * Find todos matching search criteria
@@ -67,8 +79,7 @@ export class RawSQLTodoRepository implements ITodoRepository {
             return result.rows.map(row => this.mapRowToTodo(row));
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-            this.debugLog('❌ findByCriteria error:', error);
-            throw new Error(`Failed to find todos: ${errorMessage}`);
+            this.debugLog('❌ findByCriteria error:', error); throw new Error(`Failed to find todos: ${errorMessage}`);
         }
     }
 
@@ -79,18 +90,18 @@ export class RawSQLTodoRepository implements ITodoRepository {
         const countSql = `SELECT COUNT(*) as total FROM todo`;
         const searchState = this.convertToSearchState(criteria);
 
-        const injector = new SqlParamInjector(getTableColumns);
-        const injectedQuery = injector.inject(countSql, searchState);
-        const formatter = new SqlFormatter({ preset: 'postgres' });
-        const { formattedSql, params } = formatter.format(injectedQuery);
+        // Use shared instances
+        const injectedQuery = this.sqlParamInjector.inject(countSql, searchState);
+        const { formattedSql, params } = this.sqlFormatter.format(injectedQuery);
 
         this.debugLog('🔢 Count query:', { sql: formattedSql, params });
 
         const result = await this.pool.query(formattedSql, params as any[]);
-        const count = parseInt(result.rows[0].total);
-        this.debugLog(`📊 Total count: ${count}`);
+        const count = parseInt(result.rows[0].total); this.debugLog(`📊 Total count: ${count}`);
         return count;
-    }    /**
+    }
+
+    /**
      * Find todo by ID with related data using PostgresJsonQueryBuilder
      * Demonstrates SqlParamInjector + PostgresJsonQueryBuilder integration
      */
@@ -106,23 +117,21 @@ export class RawSQLTodoRepository implements ITodoRepository {
                     com.todo_comment_id, com.todo_id as comment_todo_id,
                     com.content as comment_content, com.author_name as comment_author_name,
                     com.created_at as comment_created_at
-                FROM todo t
-                LEFT JOIN category c ON t.category_id = c.category_id
+                FROM todo t                LEFT JOIN category c ON t.category_id = c.category_id
                 LEFT JOIN todo_comment com ON t.todo_id = com.todo_id
                 ORDER BY com.created_at ASC
             `;
 
             // Generate WHERE clause with SqlParamInjector
             const searchState = { todo_id: parseInt(id) };
-            const injector = new SqlParamInjector(getTableColumns);
-            const injectedQuery = injector.inject(baseSql, searchState) as SimpleSelectQuery;            // Build JSON query structure using unified schema
+            const injectedQuery = this.sqlParamInjector.inject(baseSql, searchState) as SimpleSelectQuery;
+
+            // Build JSON query structure using unified schema
             const jsonMapping = createJsonMapping('todo');
-            const jsonBuilder = new PostgresJsonQueryBuilder();
-            const jsonQuery = jsonBuilder.buildJson(injectedQuery, jsonMapping);
+            const jsonQuery = this.postgresJsonQueryBuilder.buildJson(injectedQuery, jsonMapping);
 
             // Format and execute
-            const formatter = new SqlFormatter({ preset: 'postgres' });
-            const { formattedSql, params } = formatter.format(jsonQuery);
+            const { formattedSql, params } = this.sqlFormatter.format(jsonQuery);
 
             this.debugLog('🎯 Enhanced findById Query');
             this.debugLog('SQL:', formattedSql);
@@ -139,10 +148,11 @@ export class RawSQLTodoRepository implements ITodoRepository {
 
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-            this.debugLog('❌ findById error:', error);
-            throw new Error(`Failed to find todo by ID: ${errorMessage}`);
+            this.debugLog('❌ findById error:', error); throw new Error(`Failed to find todo by ID: ${errorMessage}`);
         }
-    }    // === Demo Utility Methods ===
+    }
+
+    // === Demo Utility Methods ===
 
     /**
      * Build search query using SqlParamInjector (demo utility)
@@ -156,17 +166,15 @@ export class RawSQLTodoRepository implements ITodoRepository {
                     WHEN 'high' THEN 1 
                     WHEN 'medium' THEN 2 
                     WHEN 'low' THEN 3 
-                END,
-                created_at DESC
+                END,                created_at DESC
         `;
 
         const searchState = this.convertToSearchState(criteria);
         this.debugLog('🔄 Search state conversion:', searchState);
 
-        const injector = new SqlParamInjector(getTableColumns);
-        const injectedQuery = injector.inject(baseSql, searchState);
-        const formatter = new SqlFormatter({ preset: 'postgres' });
-        const { formattedSql, params } = formatter.format(injectedQuery);
+        // Use shared instances
+        const injectedQuery = this.sqlParamInjector.inject(baseSql, searchState);
+        const { formattedSql, params } = this.sqlFormatter.format(injectedQuery);
 
         this.debugLog('🛠️ Generated query:', { sql: formattedSql, params });
 
@@ -189,10 +197,11 @@ export class RawSQLTodoRepository implements ITodoRepository {
 
     /**
      * Close connection pool
-     */
-    async close(): Promise<void> {
+     */    async close(): Promise<void> {
         await this.pool.end();
-    }    // === Private Helper Methods ===
+    }
+
+    // === Private Helper Methods ===
 
     /**
      * Map database row to domain Todo entity
