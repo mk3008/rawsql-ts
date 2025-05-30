@@ -4,6 +4,7 @@ import { Todo, TodoDetail, TodoStatus, TodoPriority } from '../domain/entities';
 import { getTableColumns, DATABASE_CONFIG } from './database-config';
 import { createJsonMapping } from './schema-migrated';
 import { ITodoRepository, QueryBuildResult } from '../contracts/repository-interfaces';
+import { sqlLoader } from './sql-loader';
 import { Pool, PoolClient } from 'pg';
 
 /**
@@ -16,9 +17,7 @@ export class RawSQLTodoRepository implements ITodoRepository {
     // Shared instances to avoid repeated instantiation
     private readonly sqlParamInjector: SqlParamInjector;
     private readonly sqlFormatter: SqlFormatter;
-    private readonly postgresJsonQueryBuilder: PostgresJsonQueryBuilder;
-
-    constructor(enableDebugLogging: boolean = false) {
+    private readonly postgresJsonQueryBuilder: PostgresJsonQueryBuilder; constructor(enableDebugLogging: boolean = false) {
         this.pool = new Pool(DATABASE_CONFIG);
         this.enableDebugLogging = enableDebugLogging;
 
@@ -26,6 +25,10 @@ export class RawSQLTodoRepository implements ITodoRepository {
         this.sqlParamInjector = new SqlParamInjector(getTableColumns);
         this.sqlFormatter = new SqlFormatter({ preset: 'postgres' });
         this.postgresJsonQueryBuilder = new PostgresJsonQueryBuilder();
+
+        // Load all SQL queries into memory cache for optimal performance
+        sqlLoader.loadAllQueries();
+        this.debugLog(`🚀 SQL queries loaded: ${sqlLoader.getAvailableQueries().join(', ')}`);
     }
 
     /**
@@ -82,13 +85,11 @@ export class RawSQLTodoRepository implements ITodoRepository {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
             this.debugLog('❌ findByCriteria error:', error); throw new Error(`Failed to find todos: ${errorMessage}`);
         }
-    }
-
-    /**
+    }    /**
      * Count todos matching search criteria
      */
     async countByCriteria(criteria: TodoSearchCriteria): Promise<number> {
-        const countSql = `SELECT COUNT(*) as total FROM todo`;
+        const countSql = sqlLoader.getQuery('countTodos');
         const searchState = this.convertToSearchState(criteria);
 
         // Use shared instances
@@ -103,23 +104,10 @@ export class RawSQLTodoRepository implements ITodoRepository {
     /**
      * Find todo by ID with related data using PostgresJsonQueryBuilder
      * Demonstrates SqlParamInjector + PostgresJsonQueryBuilder integration
-     */
-    async findById(id: string): Promise<TodoDetail | null> {
+     */    async findById(id: string): Promise<TodoDetail | null> {
         try {
-            // Base query with JOINs - SqlParamInjector will add WHERE clause
-            const baseSql = `
-                SELECT 
-                    t.todo_id, t.title, t.description, t.status, t.priority,
-                    t.created_at as todo_created_at, t.updated_at as todo_updated_at,
-                    c.category_id, c.name as category_name, c.description as category_description,
-                    c.color as category_color, c.created_at as category_created_at,
-                    com.todo_comment_id, com.todo_id as comment_todo_id,
-                    com.content as comment_content, com.author_name as comment_author_name,
-                    com.created_at as comment_created_at
-                FROM todo t                LEFT JOIN category c ON t.category_id = c.category_id
-                LEFT JOIN todo_comment com ON t.todo_id = com.todo_id
-                ORDER BY com.created_at ASC
-            `;
+            // Load base query from SQL file
+            const baseSql = sqlLoader.getQuery('findTodoWithRelations');
 
             // Generate WHERE clause with SqlParamInjector
             const searchState = { todo_id: parseInt(id) };
@@ -157,16 +145,7 @@ export class RawSQLTodoRepository implements ITodoRepository {
      * Build search query using SqlParamInjector (demo utility)
      */
     public buildSearchQuery(criteria: TodoSearchCriteria): QueryBuildResult {
-        const baseSql = `
-            SELECT todo_id, title, description, status, priority, category_id, created_at, updated_at
-            FROM todo
-            ORDER BY 
-                CASE priority 
-                    WHEN 'high' THEN 1 
-                    WHEN 'medium' THEN 2 
-                    WHEN 'low' THEN 3 
-                END,                created_at DESC
-        `;
+        const baseSql = sqlLoader.getQuery('findTodos');
 
         const searchState = this.convertToSearchState(criteria);
         this.debugLog('🔄 Search state conversion:', searchState);
@@ -178,15 +157,14 @@ export class RawSQLTodoRepository implements ITodoRepository {
         this.debugLog('🛠️ Generated query:', { sql: formattedSql, params });
 
         return { formattedSql, params: params as unknown[] };
-    }
-
-    /**
+    }    /**
      * Test database connection
      */
     async testConnection(): Promise<boolean> {
         try {
             const client = await this.pool.connect();
-            await client.query('SELECT 1');
+            const connectionSql = sqlLoader.getQuery('connectionTest');
+            await client.query(connectionSql);
             client.release();
             return true;
         } catch (error) {
@@ -196,7 +174,8 @@ export class RawSQLTodoRepository implements ITodoRepository {
 
     /**
      * Close connection pool
-     */    async close(): Promise<void> {
+     */
+    async close(): Promise<void> {
         await this.pool.end();
     }
 
