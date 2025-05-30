@@ -4,7 +4,7 @@
     "description": "rawsql-ts Infrastructure Layer DTO Pattern Demo",
     "main": "index.js",
     "scripts": {
-        "demo": "tsx src/demo.ts",
+        "start": "tsx src/run-all-demos.ts",
         "demo:all": "tsx src/run-all-demos.ts",
         "demo:migration": "tsx src/run-all-demos.ts migration",
         "demo:schema": "tsx src/run-all-demos.ts schema",
@@ -12,8 +12,7 @@
         "findById-advanced": "tsx src/findById-advanced-demo.ts",
         "schema-features": "tsx src/schema-features-demo.ts",
         "migration-verify": "tsx src/migrated-schema-demo.ts",
-        "build": "tsc",
-        "dev": "tsx watch src/demo.ts"
+        "build": "tsc"
     },
     "keywords": [
         "rawsql-ts",
