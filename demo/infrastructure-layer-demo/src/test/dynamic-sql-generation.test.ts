@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { RawSQLTodoRepository } from '../infrastructure/rawsql-infrastructure';
 import { TodoSearchCriteria } from '../contracts/search-criteria';
+import { QueryBuildResult } from '../contracts/repository-interfaces';
 import { TodoStatus, TodoPriority } from '../domain/entities';
 
 // Debug-friendly SQL formatting for testing
