@@ -17,7 +17,9 @@ export class RawSQLTodoRepository implements ITodoRepository {
     // Shared instances to avoid repeated instantiation
     private readonly sqlParamInjector: SqlParamInjector;
     private readonly sqlFormatter: SqlFormatter;
-    private readonly postgresJsonQueryBuilder: PostgresJsonQueryBuilder; constructor(enableDebugLogging: boolean = false) {
+    private readonly postgresJsonQueryBuilder: PostgresJsonQueryBuilder;
+
+    constructor(enableDebugLogging: boolean = false) {
         this.pool = new Pool(DATABASE_CONFIG);
         this.enableDebugLogging = enableDebugLogging;
 
@@ -96,7 +98,8 @@ export class RawSQLTodoRepository implements ITodoRepository {
         const injectedQuery = this.sqlParamInjector.inject(countSql, searchState);
         const { formattedSql, params } = this.sqlFormatter.format(injectedQuery);
 
-        this.debugLog('🔢 Count query:', { sql: formattedSql, params }); const result = await this.pool.query(formattedSql, params as any[]);
+        this.debugLog('🔢 Count query:', { sql: formattedSql, params });
+        const result = await this.pool.query(formattedSql, params as any[]);
         const count = parseInt(result.rows[0].total); this.debugLog(`📊 Total count: ${count}`);
         return count;
     }

@@ -12,6 +12,10 @@
         "findById-advanced": "tsx src/demos/findById-advanced-demo.ts",
         "schema-features": "tsx src/demos/schema-features-demo.ts",
         "migration-verify": "tsx src/demos/migrated-schema-demo.ts",
+        "test": "vitest",
+        "test:run": "vitest run",
+        "test:ui": "vitest --ui",
+        "test:watch": "vitest --watch",
         "build": "tsc"
     },
     "keywords": [
@@ -25,12 +29,14 @@
     "dependencies": {
         "@types/pg": "^8.15.2",
         "pg": "^8.16.0",
+        "rawsql-ts": "file:../../",
         "tsx": "^4.0.0",
-        "zod": "^3.25.36",
-        "rawsql-ts": "file:../../"
+        "zod": "^3.25.36"
     },
     "devDependencies": {
         "@types/node": "^20.0.0",
-        "typescript": "^5.0.0"
+        "@vitest/ui": "^3.1.4",
+        "typescript": "^5.0.0",
+        "vitest": "^3.1.4"
     }
 }
