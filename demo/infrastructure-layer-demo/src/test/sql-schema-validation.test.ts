@@ -3,9 +3,18 @@ import { SqlSchemaValidator } from 'rawsql-ts';
 import { schemaManager } from '../infrastructure/schema-migrated';
 import { SqlQueryLoader } from '../infrastructure/sql-loader';
 
+/**
+ * What this test guarantees:
+ * 1. SQL Parse Validation: All SQL files can be parsed correctly (valid syntax)
+ * 2. Schema Consistency: All referenced tables/columns exist in the physical schema
+ * 3. Static Analysis: Validates structure without database execution (fast & safe)
+ * 4. Left-shift Testing: Catches SQL errors at build time, not runtime
+ */
 describe('SQL Schema Validation', () => {
     let tableColumnResolver: any;
-    let sqlLoader: SqlQueryLoader; beforeAll(async () => {
+    let sqlLoader: SqlQueryLoader;
+
+    beforeAll(async () => {
         // Initialize table column resolver from schema manager
         tableColumnResolver = schemaManager.createTableColumnResolver();
 
@@ -15,30 +24,26 @@ describe('SQL Schema Validation', () => {
     });
 
     it('should validate all SQL queries against schema', () => {
-        // Get all available SQL query names
+        // This test ensures:
+        // - SQL syntax is valid (parseable)
+        // - All table/column references exist in schema
+        // - No typos in table/column names
+        // - Structural integrity without database execution
+
         const queryNames = sqlLoader.getAvailableQueries();
-        console.log('Available queries:', queryNames);
-        console.log('Query names length:', queryNames.length);
 
-        // Debug: check if sqlLoader is working
-        try {
-            const testQuery = sqlLoader.getQuery('findTodos');
-            console.log('Test query findTodos:', testQuery);
-        } catch (error) {
-            console.log('Error getting findTodos:', error);
-        }
-
-        // Validate each SQL query
+        // Validate each SQL query against the schema
         for (const queryName of queryNames) {
             const sqlQuery = sqlLoader.getQuery(queryName);
-            console.log(`Validating query: ${queryName}`);
 
+            // Static validation: ensures SQL is structurally correct
+            // without executing against a real database
             expect(() => {
                 SqlSchemaValidator.validate(sqlQuery, tableColumnResolver);
             }).not.toThrow();
         }
 
-        // Also verify we have some queries to test
+        // Ensure we actually tested some queries
         expect(queryNames.length).toBeGreaterThan(0);
     });
 });
