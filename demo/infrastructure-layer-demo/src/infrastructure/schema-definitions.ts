@@ -73,36 +73,3 @@ export function getTableColumns(tableName: string): string[] {
 export function createJsonMapping(tableName: string) {
     return schemaManager.createJsonMapping(tableName);
 }
-
-// === Generated Zod Schemas ===
-// Note: Zod schema generation is not yet implemented in the library version
-// For now, we'll provide placeholders that match the expected interface
-
-import { z } from 'zod';
-
-export const TodoZodSchema = z.object({
-    todo_id: z.number(),
-    title: z.string(),
-    description: z.string().optional(),
-    status: z.string(),
-    priority: z.string().optional(),
-    category_id: z.number().optional(),
-    created_at: z.date(),
-    updated_at: z.date()
-});
-
-export const CategoryZodSchema = z.object({
-    category_id: z.number(),
-    name: z.string(),
-    description: z.string().optional(),
-    color: z.string().optional(),
-    created_at: z.date()
-});
-
-export const TodoCommentZodSchema = z.object({
-    todo_comment_id: z.number(),
-    todo_id: z.number(),
-    content: z.string(),
-    author_name: z.string(),
-    created_at: z.date()
-});

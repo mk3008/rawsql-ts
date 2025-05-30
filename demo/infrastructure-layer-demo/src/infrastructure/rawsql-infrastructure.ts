@@ -2,7 +2,7 @@ import { SqlParamInjector, SqlFormatter, SelectQueryParser, PostgresJsonQueryBui
 import { TodoSearchCriteria } from '../contracts/search-criteria';
 import { Todo, TodoDetail, TodoStatus, TodoPriority } from '../domain/entities';
 import { getTableColumns, DATABASE_CONFIG } from './database-config';
-import { createJsonMapping } from './schema-migrated';
+import { createJsonMapping } from './schema-definitions';
 import { ITodoRepository, QueryBuildResult } from '../contracts/repository-interfaces';
 import { sqlLoader } from './sql-loader';
 import { Pool, PoolClient } from 'pg';

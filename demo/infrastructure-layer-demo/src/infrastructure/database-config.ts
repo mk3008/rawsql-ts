@@ -3,7 +3,7 @@
  * Now uses rawsql-ts SchemaManager to eliminate duplication
  */
 
-import { getTableColumns as getColumnsFromSchema } from './schema-migrated';
+import { getTableColumns as getColumnsFromSchema } from './schema-definitions';
 
 /**
  * Table column resolver for rawsql-ts SqlParamInjector

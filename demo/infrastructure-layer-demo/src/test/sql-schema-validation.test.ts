@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { SqlSchemaValidator } from 'rawsql-ts';
-import { schemaManager } from '../infrastructure/schema-migrated';
+import { schemaManager } from '../infrastructure/schema-definitions';
 import { SqlQueryLoader } from '../infrastructure/sql-loader';
 
 /**
