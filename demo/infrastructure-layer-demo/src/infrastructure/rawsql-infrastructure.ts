@@ -4,6 +4,7 @@ import { Todo, TodoDetail, TodoStatus, TodoPriority } from '../domain/entities';
 import { getTableColumns, DATABASE_CONFIG } from './database-config';
 import { createJsonMapping } from './schema-definitions';
 import { ITodoRepository, QueryBuildResult } from '../contracts/repository-interfaces';
+import { SqlLogger } from '../contracts/sql-logger';
 import { sqlLoader } from './sql-loader';
 import { Pool, PoolClient } from 'pg';
 
@@ -14,16 +15,20 @@ import { Pool, PoolClient } from 'pg';
 export class RawSQLTodoRepository implements ITodoRepository {
     private pool: Pool;
     private enableDebugLogging: boolean = false;
+    private sqlLogger?: SqlLogger;
     // Shared instances to avoid repeated instantiation
     private readonly sqlParamInjector: SqlParamInjector;
-    private readonly sqlFormatter: SqlFormatter; private readonly postgresJsonQueryBuilder: PostgresJsonQueryBuilder;
+    private readonly sqlFormatter: SqlFormatter;
+    private readonly postgresJsonQueryBuilder: PostgresJsonQueryBuilder;
 
     constructor(
         enableDebugLogging: boolean = false,
-        sqlFormatterOptions?: any
+        sqlFormatterOptions?: any,
+        sqlLogger?: SqlLogger
     ) {
         this.pool = new Pool(DATABASE_CONFIG);
         this.enableDebugLogging = enableDebugLogging;
+        this.sqlLogger = sqlLogger;
 
         // Initialize shared instances once
         this.sqlParamInjector = new SqlParamInjector(getTableColumns);
@@ -82,22 +87,22 @@ export class RawSQLTodoRepository implements ITodoRepository {
 
     /**
      * Find todos matching search criteria
-     */
-    async findByCriteria(criteria: TodoSearchCriteria): Promise<Todo[]> {
+     */    async findByCriteria(criteria: TodoSearchCriteria): Promise<Todo[]> {
         const query = this.buildSearchQuery(criteria);
-        this.debugLog('🔍 Executing findByCriteria', query);
-
-        try {
-            const result = await this.pool.query(query.formattedSql, query.params as any[]);
+        this.debugLog('🔍 Executing findByCriteria', query); try {
+            const result = await this.executeQueryWithLogging(
+                query.formattedSql,
+                Object.values(query.params), // Convert Record to array
+                'findByCriteria'
+            );
             this.debugLog(`✅ Found ${result.rows.length} todos`);
-            return result.rows.map(row => this.mapRowToTodo(row));
+            return result.rows.map((row: any) => this.mapRowToTodo(row));
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-            this.debugLog('❌ findByCriteria error:', error); throw new Error(`Failed to find todos: ${errorMessage}`);
+            this.debugLog('❌ findByCriteria error:', error);
+            throw new Error(`Failed to find todos: ${errorMessage}`);
         }
-    }
-
-    /**
+    }    /**
      * Count todos matching search criteria
      */
     async countByCriteria(criteria: TodoSearchCriteria): Promise<number> {
@@ -106,11 +111,13 @@ export class RawSQLTodoRepository implements ITodoRepository {
 
         // Use shared instances
         const injectedQuery = this.sqlParamInjector.inject(countSql, searchState);
-        const { formattedSql, params } = this.sqlFormatter.format(injectedQuery);
-
-        this.debugLog('🔢 Count query:', { sql: formattedSql, params });
-        const result = await this.pool.query(formattedSql, params as any[]);
-        const count = parseInt(result.rows[0].total); this.debugLog(`📊 Total count: ${count}`);
+        const { formattedSql, params } = this.sqlFormatter.format(injectedQuery); const result = await this.executeQueryWithLogging(
+            formattedSql,
+            Object.values(params), // Convert Record to array
+            'countByCriteria'
+        );
+        const count = parseInt(result.rows[0].total);
+        this.debugLog(`📊 Total count: ${count}`);
         return count;
     }
 
@@ -129,16 +136,14 @@ export class RawSQLTodoRepository implements ITodoRepository {
 
             // Build JSON query structure using unified schema
             const jsonMapping = createJsonMapping('todo');
-            const jsonQuery = this.postgresJsonQueryBuilder.buildJson(injectedQuery, jsonMapping);
-
-            // Format and execute
+            const jsonQuery = this.postgresJsonQueryBuilder.buildJson(injectedQuery, jsonMapping);            // Format and execute
             const { formattedSql, params } = this.sqlFormatter.format(jsonQuery);
 
-            this.debugLog('🎯 Enhanced findById Query');
-            this.debugLog('SQL:', formattedSql);
-            this.debugLog('Params:', params);
-
-            const result = await this.pool.query(formattedSql, params as any[]);
+            const result = await this.executeQueryWithLogging(
+                formattedSql,
+                params as any[],
+                'findById'
+            );
 
             if (result.rows.length === 0) {
                 return null;
@@ -193,9 +198,7 @@ export class RawSQLTodoRepository implements ITodoRepository {
      */
     async close(): Promise<void> {
         await this.pool.end();
-    }
-
-    // === Private Helper Methods ===
+    }    // === Private Helper Methods ===
 
     /**
      * Map database row to domain Todo entity
@@ -211,5 +214,47 @@ export class RawSQLTodoRepository implements ITodoRepository {
             createdAt: new Date(row.created_at),
             updatedAt: new Date(row.updated_at)
         };
+    }
+
+    /**
+     * Execute query with logging support
+     * Captures execution time and details for reporting
+     */
+    private async executeQueryWithLogging(
+        formattedSql: string,
+        params: any[],
+        queryLabel?: string
+    ): Promise<any> {
+        const startTime = performance.now();
+
+        this.debugLog('🔍 Executing query', { sql: formattedSql, params });
+
+        try {
+            const result = await this.pool.query(formattedSql, params as any[]);
+            const executionTime = performance.now() - startTime;
+
+            // Log to SQL logger if available
+            if (this.sqlLogger) {
+                this.sqlLogger.logQuery({
+                    sql: formattedSql,
+                    params: [...params],
+                    executionTimeMs: executionTime,
+                    timestamp: new Date(),
+                    queryLabel,
+                    resultMeta: {
+                        rowCount: result.rows?.length || 0,
+                        hasResults: !!result.rows?.length
+                    }
+                });
+            }
+
+            this.debugLog(`✅ Query completed in ${executionTime.toFixed(2)}ms, ${result.rows?.length || 0} rows`);
+            return result;
+
+        } catch (error) {
+            const executionTime = performance.now() - startTime;
+            this.debugLog(`❌ Query failed after ${executionTime.toFixed(2)}ms:`, error);
+            throw error;
+        }
     }
 }

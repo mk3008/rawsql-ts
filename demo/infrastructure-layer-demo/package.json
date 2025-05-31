@@ -4,8 +4,9 @@
     "description": "rawsql-ts Infrastructure Layer DTO Pattern Demo",
     "main": "index.js",
     "scripts": {
-        "start": "tsx src/demos/prisma-demo.ts",
-        "demo:prisma": "tsx src/demos/prisma-demo.ts",
+        "start": "tsx src/demos/prisma-vs-rawsql-ts-demo.ts",
+        "demo:enhanced": "tsx src/demos/prisma-vs-rawsql-ts-demo.ts",
+        "demo:comparison": "tsx src/demos/prisma-vs-rawsql-ts-demo.ts",
         "demo:findById": "tsx src/demos/findById-advanced-demo.ts",
         "test": "vitest",
         "test:run": "vitest run",

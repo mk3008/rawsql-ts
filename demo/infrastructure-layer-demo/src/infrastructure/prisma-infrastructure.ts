@@ -1,29 +1,66 @@
 /**
  * Prisma-based Todo repository implementation
- * Demonstrates the differences between raw SQL and ORM approaches
- * Uses existing database schema - works with established PostgreSQL tables
+ * Demonstrates enterprise-grade ORM patterns with type-safe query building
+ * Provides automatic SQL generation and injection protection
  */
 
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { TodoSearchCriteria } from '../contracts/search-criteria';
-import { Todo, TodoDetail, TodoStatus, TodoPriority } from '../domain/entities';
+import { Todo, TodoDetail, TodoStatus, TodoPriority, Category, TodoComment } from '../domain/entities';
 import { ITodoRepository } from '../contracts/repository-interfaces';
+import { SqlLogger } from '../contracts/sql-logger';
 
 /**
- * Prisma-based Todo repository implementation using Prisma ORM
- * Comparison with RawSQL approach for different architectural patterns
+ * Prisma-based Todo repository implementation using advanced ORM features
+ * Demonstrates type-safe query building, automatic relation handling, and SQL injection protection
  */
 export class PrismaTodoRepository implements ITodoRepository {
     private prisma: PrismaClient;
     private enableDebugLogging: boolean = false;
-
-    constructor(enableDebugLogging: boolean = false) {
+    private sqlLogger?: SqlLogger; constructor(enableDebugLogging: boolean = false, sqlLogger?: SqlLogger) {
         this.enableDebugLogging = enableDebugLogging;
-
-        // Initialize Prisma client with optional logging
+        this.sqlLogger = sqlLogger;        // Initialize Prisma client with comprehensive configuration
         this.prisma = new PrismaClient({
-            log: enableDebugLogging ? ['query', 'info', 'warn', 'error'] : ['error'],
+            log: [
+                { emit: 'event', level: 'query' },
+                { emit: 'stdout', level: 'error' },
+                ...(enableDebugLogging ? [
+                    { emit: 'stdout', level: 'info' } as const,
+                    { emit: 'stdout', level: 'warn' } as const
+                ] : [])
+            ],
+            errorFormat: 'pretty'
         });
+
+        // Hook into Prisma query events to capture actual SQL
+        if (sqlLogger) {
+            this.setupQueryLogging();
+        }
+
+        this.debugLog('🔧 Prisma client initialized with enhanced logging');
+    }    /**
+     * Setup Prisma query event logging to capture actual SQL
+     */
+    private setupQueryLogging(): void {
+        if (!this.sqlLogger) return;
+
+        // Cast to access internal $on method for query logging
+        const prismaClient = this.prisma as any;
+
+        if (prismaClient.$on) {
+            prismaClient.$on('query', (e: any) => {
+                this.sqlLogger!.logQuery({
+                    sql: e.query,
+                    params: e.params ? JSON.parse(e.params) : [],
+                    executionTimeMs: parseFloat(e.duration) || 0,
+                    timestamp: new Date(e.timestamp),
+                    queryLabel: 'Prisma Generated SQL',
+                    resultMeta: {
+                        hasResults: true // Prisma queries typically return results
+                    }
+                });
+            });
+        }
     }
 
     /**
@@ -41,24 +78,22 @@ export class PrismaTodoRepository implements ITodoRepository {
             console.log(message);
             if (data !== undefined) console.log(data);
         }
-    }
-
-    /**
-     * Convert domain criteria to Prisma where clause
-     * This replaces the SQL parameter injection approach with Prisma's type-safe query building
+    }    /**
+     * Convert domain criteria to Prisma where clause with advanced type safety
+     * Demonstrates Prisma's automatic SQL injection protection and type-safe query building
      */
-    private convertToWhereClause(criteria: TodoSearchCriteria): any {
-        const whereClause: any = {};
+    private convertToWhereClause(criteria: TodoSearchCriteria): Prisma.todoWhereInput {
+        const whereClause: Prisma.todoWhereInput = {};
 
-        // Text search - Prisma handles SQL injection automatically
+        // Text search with automatic SQL injection protection
         if (criteria.title) {
             whereClause.title = {
                 contains: criteria.title,
-                mode: 'insensitive' // Case-insensitive search
+                mode: 'insensitive' // Case-insensitive PostgreSQL ILIKE
             };
         }
 
-        // Direct field matching - type-safe enum handling
+        // Enum-based filtering with compile-time type checking
         if (criteria.status) {
             whereClause.status = criteria.status;
         }
@@ -67,11 +102,12 @@ export class PrismaTodoRepository implements ITodoRepository {
             whereClause.priority = criteria.priority;
         }
 
+        // Direct foreign key filtering
         if (criteria.categoryId) {
             whereClause.category_id = criteria.categoryId;
         }
 
-        // Category name search via relation
+        // Relation-based filtering through nested where clauses
         if (criteria.categoryName) {
             whereClause.category = {
                 name: {
@@ -81,20 +117,22 @@ export class PrismaTodoRepository implements ITodoRepository {
             };
         }
 
-        // Date range filtering - Prisma handles date conversion
+        // Date range filtering with automatic type conversion
         if (criteria.fromDate || criteria.toDate) {
-            whereClause.created_at = {};
+            const dateFilter: Prisma.DateTimeFilter = {};
 
             if (criteria.fromDate) {
-                whereClause.created_at.gte = criteria.fromDate;
+                dateFilter.gte = criteria.fromDate;
             }
 
             if (criteria.toDate) {
-                whereClause.created_at.lte = criteria.toDate;
+                dateFilter.lte = criteria.toDate;
             }
+
+            whereClause.created_at = dateFilter;
         }
 
-        this.debugLog('🔄 Prisma where clause:', whereClause);
+        this.debugLog('🔄 Generated Prisma where clause:', JSON.stringify(whereClause, null, 2));
         return whereClause;
     }
 
@@ -105,33 +143,76 @@ export class PrismaTodoRepository implements ITodoRepository {
      * Prisma approach: Type-safe query builder with automatic SQL generation
      */
     async findByCriteria(criteria: TodoSearchCriteria): Promise<Todo[]> {
-        this.debugLog('🔍 Executing findByCriteria with Prisma', criteria);
+        this.debugLog('🔍 Executing enhanced findByCriteria with Prisma', {
+            criteria,
+            timestamp: new Date().toISOString()
+        });
 
         try {
             const whereClause = this.convertToWhereClause(criteria);
 
-            const todos = await this.prisma.todo.findMany({
+            // Build enhanced query with default parameters
+            const query = {
                 where: whereClause,
                 include: {
-                    category: true // Optional: include category data
+                    category: {
+                        select: {
+                            category_id: true,
+                            name: true,
+                            description: true,
+                            color: true
+                        }
+                    }
                 },
                 orderBy: {
-                    created_at: 'desc'
+                    created_at: 'desc' as const
                 }
+            };
+
+            const todos = await this.executeWithLogging(
+                () => this.prisma.todo.findMany(query),
+                'findByCriteria',
+                whereClause
+            );
+
+            this.debugLog(`✅ Found ${todos.length} todos with Prisma`, {
+                criteriaFields: Object.keys(criteria).filter(key =>
+                    criteria[key as keyof TodoSearchCriteria] !== undefined
+                ),
+                queryComplexity: Object.keys(whereClause).length,
+                resultCount: todos.length
             });
 
-            this.debugLog(`✅ Found ${todos.length} todos with Prisma`);
-
-            // Map Prisma result to domain entities
-            return todos.map(todo => this.mapPrismaToTodo(todo));
+            // Enhanced mapping with error handling
+            return todos.map((todo, index) => {
+                try {
+                    return this.mapPrismaToTodo(todo);
+                } catch (mappingError) {
+                    this.debugLog(`⚠️ Mapping warning for todo at index ${index}:`, mappingError);
+                    throw new Error(`Failed to map todo data for ID: ${todo.todo_id}`);
+                }
+            });
         } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-            this.debugLog('❌ findByCriteria error:', error);
-            throw new Error(`Failed to find todos: ${errorMessage}`);
-        }
-    }
+            if (error instanceof Error) {
+                this.debugLog(`❌ findByCriteria failed:`, {
+                    error: error.message,
+                    criteria,
+                    stack: error.stack?.split('\n').slice(0, 3)
+                });
 
-    /**
+                // Provide more specific error messages based on error type
+                if (error.message.includes('connection')) {
+                    throw new Error('Database connection failed. Please try again later.');
+                } else if (error.message.includes('timeout')) {
+                    throw new Error('Query timed out. Consider narrowing your search criteria.');
+                } else {
+                    throw new Error(`Failed to find todos: ${error.message}`);
+                }
+            }
+
+            throw new Error(`Unexpected error in findByCriteria: ${String(error)}`);
+        }
+    }    /**
      * Count todos matching search criteria
      * Prisma approach: Built-in count aggregation
      */
@@ -141,9 +222,11 @@ export class PrismaTodoRepository implements ITodoRepository {
         try {
             const whereClause = this.convertToWhereClause(criteria);
 
-            const count = await this.prisma.todo.count({
-                where: whereClause
-            });
+            const count = await this.executeWithLogging(
+                () => this.prisma.todo.count({ where: whereClause }),
+                'countByCriteria',
+                whereClause
+            );
 
             this.debugLog(`✅ Count result: ${count} todos`);
             return count;
@@ -165,21 +248,23 @@ export class PrismaTodoRepository implements ITodoRepository {
             const todoId = parseInt(id, 10);
             if (isNaN(todoId)) {
                 throw new Error('Invalid todo ID format');
-            }
-
-            const todo = await this.prisma.todo.findUnique({
-                where: {
-                    todo_id: todoId
-                },
-                include: {
-                    category: true,
-                    comments: {
-                        orderBy: {
-                            created_at: 'asc'
+            } const todo = await this.executeWithLogging(
+                () => this.prisma.todo.findUnique({
+                    where: {
+                        todo_id: todoId
+                    },
+                    include: {
+                        category: true,
+                        comments: {
+                            orderBy: {
+                                created_at: 'asc'
+                            }
                         }
                     }
-                }
-            });
+                }),
+                'findById',
+                { todoId }
+            );
 
             if (!todo) {
                 this.debugLog('❌ Todo not found');
@@ -195,42 +280,29 @@ export class PrismaTodoRepository implements ITodoRepository {
         }
     }
 
-    // === Additional Prisma-specific Methods ===
-
     /**
-     * Test database connection - Prisma approach
+     * Execute Prisma query with logging support
+     * SQL logging is handled by query event listener, this just provides operation context
      */
-    async testConnection(): Promise<boolean> {
+    private async executeWithLogging<T>(
+        operation: () => Promise<T>,
+        operationName: string,
+        operationDetails?: any
+    ): Promise<T> {
+        const startTime = performance.now();
+
+        this.debugLog(`🔍 Executing ${operationName}`, operationDetails);
+
         try {
-            await this.prisma.$queryRaw`SELECT 1`;
-            return true;
-        } catch (error) {
-            this.debugLog('❌ Connection test failed:', error);
-            return false;
-        }
-    }
+            const result = await operation();
+            const executionTime = performance.now() - startTime;
 
-    /**
-     * Close Prisma connection
-     */
-    async close(): Promise<void> {
-        await this.prisma.$disconnect();
-    }
+            this.debugLog(`✅ ${operationName} completed in ${executionTime.toFixed(2)}ms`);
 
-    /**
-     * Get database schema info - Prisma introspection alternative
-     */
-    async getDatabaseInfo(): Promise<any> {
-        try {
-            const tableInfo = await this.prisma.$queryRaw`
-                SELECT table_name, column_name, data_type 
-                FROM information_schema.columns 
-                WHERE table_schema = 'public'
-                ORDER BY table_name, ordinal_position
-            `;
-            return tableInfo;
+            return result;
         } catch (error) {
-            this.debugLog('❌ Database info query failed:', error);
+            const executionTime = performance.now() - startTime;
+            this.debugLog(`❌ ${operationName} failed after ${executionTime.toFixed(2)}ms:`, error);
             throw error;
         }
     }
@@ -283,66 +355,5 @@ export class PrismaTodoRepository implements ITodoRepository {
                 createdAt: comment.created_at
             })) || []
         };
-    }
-
-    // === Demo Utility Methods for Comparison ===
-
-    /**
-     * Show generated SQL (for comparison with rawsql-ts approach)
-     * Note: Prisma doesn't expose the exact SQL easily, this is a workaround
-     */
-    async showGeneratedQuery(criteria: TodoSearchCriteria): Promise<void> {
-        const whereClause = this.convertToWhereClause(criteria);
-
-        console.log('🔍 Prisma Query Object (TypeScript):');
-        console.log(JSON.stringify({
-            where: whereClause,
-            include: {
-                category: true
-            },
-            orderBy: {
-                created_at: 'desc'
-            }
-        }, null, 2));
-
-        console.log('\n📝 Note: Prisma abstracts away the SQL generation');
-        console.log('   Enable query logging to see actual SQL queries');
-        console.log('   Set log: ["query"] in PrismaClient constructor');
-    }
-
-    /**
-     * Raw SQL execution example (showing Prisma can do both approaches)
-     */
-    async executeRawSQLExample(criteria: TodoSearchCriteria): Promise<any[]> {
-        this.debugLog('🔧 Executing raw SQL via Prisma for comparison');
-
-        try {
-            // Example: Prisma can also execute raw SQL when needed
-            const rawQuery = `
-                SELECT t.*, c.name as category_name, c.color as category_color
-                FROM todo t
-                LEFT JOIN category c ON t.category_id = c.category_id
-                WHERE ($1::text IS NULL OR t.title ILIKE $1)
-                  AND ($2::text IS NULL OR t.status = $2)
-                  AND ($3::text IS NULL OR t.priority = $3)
-                ORDER BY t.created_at DESC
-                LIMIT 100
-            `;
-
-            const titleParam = criteria.title ? `%${criteria.title}%` : null;
-
-            const result = await this.prisma.$queryRawUnsafe(
-                rawQuery,
-                titleParam,
-                criteria.status || null,
-                criteria.priority || null
-            );
-
-            this.debugLog('✅ Raw SQL executed via Prisma');
-            return result as any[];
-        } catch (error) {
-            this.debugLog('❌ Raw SQL execution error:', error);
-            throw error;
-        }
     }
 }
