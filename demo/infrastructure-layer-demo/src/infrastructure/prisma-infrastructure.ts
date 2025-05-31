@@ -147,10 +147,17 @@ export class PrismaTodoRepository implements ITodoRepository {
         });
 
         try {
-            const whereClause = this.convertToWhereClause(criteria);            // Build optimized query for table display with priority-based sorting
+            const whereClause = this.convertToWhereClause(criteria);            // Build optimized query for table display with select-based approach
             const query = {
                 where: whereClause,
-                include: {
+                select: {
+                    todo_id: true,
+                    title: true,
+                    description: true,
+                    status: true,
+                    priority: true,
+                    created_at: true,
+                    updated_at: true,
                     category: {
                         select: {
                             name: true,

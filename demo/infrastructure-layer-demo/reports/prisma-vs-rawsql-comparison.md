@@ -1,6 +1,6 @@
 # Prisma vs rawsql-ts Architecture Comparison Report
 
-**Generated on:** 2025-05-31T11:37:16.548Z
+**Generated on:** 2025-05-31T12:57:46.781Z
 
 ---
 
@@ -52,7 +52,7 @@ select "t"."todo_id", "t"."title", "t"."description", "t"."status", "t"."priorit
 ### Prisma
 
 ```sql
-SELECT "public"."todo"."todo_id", "public"."todo"."title", "public"."todo"."description", "public"."todo"."status", "public"."todo"."priority", "public"."todo"."category_id", "public"."todo"."created_at", "public"."todo"."updated_at" FROM "public"."todo" WHERE ("public"."todo"."title" ILIKE $1 AND "public"."todo"."status" = $2 AND "public"."todo"."priority" = $3) ORDER BY "public"."todo"."priority" ASC, "public"."todo"."created_at" DESC OFFSET $4
+SELECT "public"."todo"."todo_id", "public"."todo"."title", "public"."todo"."description", "public"."todo"."status", "public"."todo"."priority", "public"."todo"."created_at", "public"."todo"."updated_at", "public"."todo"."category_id" FROM "public"."todo" WHERE ("public"."todo"."title" ILIKE $1 AND "public"."todo"."status" = $2 AND "public"."todo"."priority" = $3) ORDER BY "public"."todo"."priority" ASC, "public"."todo"."created_at" DESC OFFSET $4
 ```
 **Parameters:** `["%project%","pending","high",0]`
 

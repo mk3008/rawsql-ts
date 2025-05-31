@@ -9,6 +9,22 @@ import { sqlLoader } from './sql-loader';
 import { Pool, PoolClient } from 'pg';
 
 /**
+ * Database row structure for TodoTableView queries
+ * Provides type safety for SQL result mapping
+ */
+interface TodoTableViewRow {
+    todo_id: number;
+    title: string;
+    description: string | null;
+    status: TodoStatus;
+    priority: TodoPriority;
+    category_name: string | null;
+    category_color: string | null;
+    created_at: string | Date; // Can be either string or Date from database
+    updated_at: string | Date; // Can be either string or Date from database
+}
+
+/**
  * RawSQL-based Todo repository implementation using rawsql-ts
  * Demonstrates PostgresJsonQueryBuilder and SqlParamInjector integration
  */
@@ -190,7 +206,9 @@ export class RawSQLTodoRepository implements ITodoRepository {
         } catch (error) {
             return false;
         }
-    }    /**
+    }
+
+    /**
      * Close connection pool
      */
     async close(): Promise<void> {
