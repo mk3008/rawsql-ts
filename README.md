@@ -198,9 +198,9 @@ For more details, see the [SqlParamInjector Usage Guide](./docs/usage-guides/cla
 
 ---
 
-## PostgreJsonQueryBuilder Features
+## PostgresJsonQueryBuilder Features
 
-The `PostgreJsonQueryBuilder` class transforms relational SQL queries into PostgreSQL JSON queries that return hierarchical JSON structures. It automatically handles complex relationships between entities and generates optimized Common Table Expressions (CTEs) for efficient JSON aggregation, making it perfect for building APIs, reports, and data exports.
+The `PostgresJsonQueryBuilder` class transforms relational SQL queries into PostgreSQL JSON queries that return hierarchical JSON structures. It automatically handles complex relationships between entities and generates optimized Common Table Expressions (CTEs) for efficient JSON aggregation, making it perfect for building APIs, reports, and data exports.
 
 Key benefits include:
 - **Hierarchical JSON Generation**: Transforms flat relational data into nested JSON objects and arrays
@@ -211,7 +211,7 @@ Key benefits include:
 - **Zero Manual Serialization**: Eliminates the need for manual object mapping and JSON construction
 
 ```typescript
-import { SelectQueryParser, PostgreJsonQueryBuilder } from 'rawsql-ts';
+import { SelectQueryParser, PostgresJsonQueryBuilder } from 'rawsql-ts';
 
 // Parse your base SQL query
 const baseQuery = SelectQueryParser.parse(`
@@ -235,13 +235,13 @@ const mapping = {
 };
 
 // Transform to JSON query
-const builder = new PostgreJsonQueryBuilder();
+const builder = new PostgresJsonQueryBuilder();
 const jsonQuery = builder.buildJson(baseQuery, mapping);
 // Returns optimized PostgreSQL query with CTEs that produces:
 // [{ "id": 1, "date": "2024-01-15", "customer": {"name": "John"}, "items": [{"product": "Widget", "qty": 2}] }]
 ```
 
-For more details, see the [PostgreJsonQueryBuilder Usage Guide](./docs/usage-guides/class-PostgreJsonQueryBuilder-usage-guide.md).
+For more details, see the [PostgresJsonQueryBuilder Usage Guide](./docs/usage-guides/class-PostgresJsonQueryBuilder-usage-guide.md).
 
 ---
 

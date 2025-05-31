@@ -1,6 +1,6 @@
-# PostgreJsonQueryBuilder Usage Guide
+# PostgresJsonQueryBuilder Usage Guide
 
-The `PostgreJsonQueryBuilder` class is a powerful utility designed to transform relational SQL queries into PostgreSQL JSON queries that return hierarchical JSON structures. It automatically handles complex relationships between entities and generates optimized Common Table Expressions (CTEs) for efficient JSON aggregation.
+The `PostgresJsonQueryBuilder` class is a powerful utility designed to transform relational SQL queries into PostgreSQL JSON queries that return hierarchical JSON structures. It automatically handles complex relationships between entities and generates optimized Common Table Expressions (CTEs) for efficient JSON aggregation.
 
 ## Key Features
 
@@ -13,7 +13,7 @@ The `PostgreJsonQueryBuilder` class is a powerful utility designed to transform 
 
 ## How It Works
 
-`PostgreJsonQueryBuilder` takes a `SimpleSelectQuery` and a `JsonMapping` configuration, then transforms them into a PostgreSQL query that returns JSON structures. The process involves:
+`PostgresJsonQueryBuilder` takes a `SimpleSelectQuery` and a `JsonMapping` configuration, then transforms them into a PostgreSQL query that returns JSON structures. The process involves:
 
 1. **Validation**: Ensures the mapping configuration is valid against the original query
 2. **CTE Generation**: Creates hierarchical CTEs for object and array entities
@@ -23,10 +23,10 @@ The transformation follows a depth-based processing strategy, ensuring that deep
 
 ## Basic Usage
 
-Here's a simple example of how to use `PostgreJsonQueryBuilder`:
+Here's a simple example of how to use `PostgresJsonQueryBuilder`:
 
 ```typescript
-import { PostgreJsonQueryBuilder, SimpleSelectQuery, SelectQueryParser } from 'rawsql-ts';
+import { PostgresJsonQueryBuilder, SimpleSelectQuery, SelectQueryParser } from 'rawsql-ts';
 
 // Parse your base SQL query
 const parser = new SelectQueryParser();
@@ -82,7 +82,7 @@ const mapping = {
 };
 
 // Transform the query
-const builder = new PostgreJsonQueryBuilder();
+const builder = new PostgresJsonQueryBuilder();
 const jsonQuery = builder.buildJson(baseQuery, mapping);
 
 // The result will be a query that returns:
@@ -149,7 +149,7 @@ nestedEntities: Array<{
 Use `relationshipType: "object"` for relationships where each parent has at most one child:
 
 ```typescript
-// Customer → Address (each customer has one address)
+// Customer ↁEAddress (each customer has one address)
 {
     id: "address",
     parentId: "customer", 
@@ -175,7 +175,7 @@ Use `relationshipType: "object"` for relationships where each parent has at most
 Use `relationshipType: "array"` for relationships where each parent can have multiple children:
 
 ```typescript
-// Order → OrderItems (each order has multiple items)
+// Order ↁEOrderItems (each order has multiple items)
 {
     id: "order_items",
     parentId: "order",
@@ -275,7 +275,7 @@ customer_id | customer_name | address_id | street
 {
     "customer": {
         "name": "John Doe", 
-        "address": null  // ← NULL instead of {"street": null}
+        "address": null  // ↁENULL instead of {"street": null}
     }
 }
 ```
@@ -351,4 +351,4 @@ PostgreSQL JSON aggregation requires at most one array child per entity.
 4. **Handle NULLs**: Consider how NULL relationships should appear in your JSON
 5. **Index Appropriately**: Ensure your base query has proper indexes for joins
 
-By using `PostgreJsonQueryBuilder`, you can efficiently transform complex relational queries into clean, hierarchical JSON structures while maintaining optimal database performance.
+By using `PostgresJsonQueryBuilder`, you can efficiently transform complex relational queries into clean, hierarchical JSON structures while maintaining optimal database performance.

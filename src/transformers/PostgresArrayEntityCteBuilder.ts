@@ -1,7 +1,7 @@
 import { CommonTable, SourceAliasExpression, SelectItem, SelectClause, FromClause, SourceExpression, TableSource, GroupByClause } from '../models/Clause';
 import { SimpleSelectQuery } from '../models/SimpleSelectQuery';
 import { IdentifierString, ValueComponent, ColumnReference, FunctionCall, ValueList, LiteralValue, RawString } from '../models/ValueComponent';
-import { JsonMapping } from './PostgreJsonQueryBuilder';
+import { JsonMapping } from './PostgresJsonQueryBuilder';
 import { ProcessableEntity } from './PostgresObjectEntityCteBuilder';
 import { SelectValueCollector } from './SelectValueCollector';
 
