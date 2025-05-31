@@ -50,6 +50,22 @@ export interface TodoComment {
 }
 
 /**
+ * Todo optimized for table/list display - flattened structure
+ * This avoids the need for nested objects and provides data ready for UI rendering
+ */
+export interface TodoTableView {
+    todo_id: number;
+    title: string;
+    description?: string;
+    status: TodoStatus;
+    priority: TodoPriority;
+    category_name?: string;  // Flattened from category.name
+    category_color?: string; // Useful for UI styling
+    createdAt: Date;
+    updatedAt: Date;
+}
+
+/**
  * Todo with all related data (for detailed views)
  */
 export interface TodoDetail extends Todo {

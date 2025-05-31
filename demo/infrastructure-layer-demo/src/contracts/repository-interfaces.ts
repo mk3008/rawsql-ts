@@ -4,7 +4,7 @@
  */
 
 import { TodoSearchCriteria } from './search-criteria';
-import { Todo, TodoDetail } from '../domain/entities';
+import { Todo, TodoDetail, TodoTableView } from '../domain/entities';
 
 /**
  * Repository interface for Todo domain operations (Query-focused for demonstration)
@@ -14,11 +14,11 @@ import { Todo, TodoDetail } from '../domain/entities';
  */
 export interface ITodoRepository {
     /**
-     * Find todos based on search criteria
+     * Find todos based on search criteria - optimized for table/list display
      * @param criteria Domain search criteria
-     * @returns Promise resolving to array of Todo entities
+     * @returns Promise resolving to array of TodoTableView entities with flattened structure
      */
-    findByCriteria(criteria: TodoSearchCriteria): Promise<Todo[]>;
+    findByCriteria(criteria: TodoSearchCriteria): Promise<TodoTableView[]>;
 
     /**
      * Count todos matching search criteria

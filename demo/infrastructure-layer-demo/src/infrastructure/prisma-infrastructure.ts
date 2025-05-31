@@ -6,7 +6,7 @@
 
 import { PrismaClient, Prisma } from '@prisma/client';
 import { TodoSearchCriteria } from '../contracts/search-criteria';
-import { Todo, TodoDetail, TodoStatus, TodoPriority, Category, TodoComment } from '../domain/entities';
+import { Todo, TodoDetail, TodoTableView, TodoStatus, TodoPriority, Category, TodoComment } from '../domain/entities';
 import { ITodoRepository } from '../contracts/repository-interfaces';
 import { SqlLogger } from '../contracts/sql-logger';
 
@@ -134,39 +134,38 @@ export class PrismaTodoRepository implements ITodoRepository {
 
         this.debugLog('🔄 Generated Prisma where clause:', JSON.stringify(whereClause, null, 2));
         return whereClause;
-    }
-
-    // === Core Repository Methods ===
+    }    // === Core Repository Methods ===
 
     /**
-     * Find todos matching search criteria
+     * Find todos matching search criteria - optimized for table display
      * Prisma approach: Type-safe query builder with automatic SQL generation
      */
-    async findByCriteria(criteria: TodoSearchCriteria): Promise<Todo[]> {
+    async findByCriteria(criteria: TodoSearchCriteria): Promise<TodoTableView[]> {
         this.debugLog('🔍 Executing enhanced findByCriteria with Prisma', {
             criteria,
             timestamp: new Date().toISOString()
         });
 
         try {
-            const whereClause = this.convertToWhereClause(criteria);
-
-            // Build enhanced query with default parameters
+            const whereClause = this.convertToWhereClause(criteria);            // Build optimized query for table display with priority-based sorting
             const query = {
                 where: whereClause,
                 include: {
                     category: {
                         select: {
-                            category_id: true,
                             name: true,
-                            description: true,
                             color: true
                         }
                     }
                 },
-                orderBy: {
-                    created_at: 'desc' as const
-                }
+                orderBy: [
+                    {
+                        priority: 'asc' as const  // This will sort high->medium->low as they are stored as enum values
+                    },
+                    {
+                        created_at: 'desc' as const
+                    }
+                ]
             };
 
             const todos = await this.executeWithLogging(
@@ -181,12 +180,10 @@ export class PrismaTodoRepository implements ITodoRepository {
                 ),
                 queryComplexity: Object.keys(whereClause).length,
                 resultCount: todos.length
-            });
-
-            // Enhanced mapping with error handling
+            });            // Map to TodoTableView for optimized table display
             return todos.map((todo, index) => {
                 try {
-                    return this.mapPrismaToTodo(todo);
+                    return this.mapPrismaToTodoTableView(todo);
                 } catch (mappingError) {
                     this.debugLog(`⚠️ Mapping warning for todo at index ${index}:`, mappingError);
                     throw new Error(`Failed to map todo data for ID: ${todo.todo_id}`);
@@ -354,6 +351,24 @@ export class PrismaTodoRepository implements ITodoRepository {
                 authorName: comment.author_name,
                 createdAt: comment.created_at
             })) || []
+        };
+    }
+
+    /**
+     * Map Prisma result to domain TodoTableView entity (optimized for table display)
+     * Flattens category information for table rendering
+     */
+    private mapPrismaToTodoTableView(prismaResult: any): TodoTableView {
+        return {
+            todo_id: prismaResult.todo_id,
+            title: prismaResult.title,
+            description: prismaResult.description,
+            status: prismaResult.status as TodoStatus,
+            priority: prismaResult.priority as TodoPriority,
+            category_name: prismaResult.category?.name,
+            category_color: prismaResult.category?.color,
+            createdAt: prismaResult.created_at,
+            updatedAt: prismaResult.updated_at
         };
     }
 }

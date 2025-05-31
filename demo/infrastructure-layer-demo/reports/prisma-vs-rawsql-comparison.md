@@ -1,6 +1,6 @@
 # Prisma vs rawsql-ts Architecture Comparison Report
 
-**Generated on:** 2025-05-31T10:32:57.833Z
+**Generated on:** 2025-05-31T11:37:16.548Z
 
 ---
 
@@ -28,7 +28,7 @@ This test simulates a **search list functionality** commonly found in enterprise
 ### rawsql-ts
 
 ```sql
-select "todo_id", "title", "description", "status", "priority", "category_id", "created_at", "updated_at" from "todo" where "title" like $1 and "status" = $2 and "priority" = $3 order by case "priority" when 'high' then 1 when 'medium' then 2 when 'low' then 3 end, "created_at" desc
+select "t"."todo_id", "t"."title", "t"."description", "t"."status", "t"."priority", "t"."category_id", "t"."created_at", "t"."updated_at", "c"."name" as "category_name", "c"."color" as "category_color" from "todo" as "t" left join "category" as "c" on "t"."category_id" = "c"."category_id" where "t"."title" like $1 and "t"."status" = $2 and "t"."priority" = $3 order by case "t"."priority" when 'high' then 1 when 'medium' then 2 when 'low' then 3 end, "t"."created_at" desc
 ```
 **Parameters:** `["%project%","pending","high"]`
 
@@ -41,7 +41,8 @@ select "todo_id", "title", "description", "status", "priority", "category_id", "
     "description": "Write comprehensive docs for the new feature",
     "status": "pending",
     "priority": "high",
-    "categoryId": 1,
+    "category_name": "Work",
+    "category_color": "#3498db",
     "createdAt": "2025-05-28T12:11:54.596Z",
     "updatedAt": "2025-05-29T12:11:54.596Z"
   }
@@ -51,12 +52,12 @@ select "todo_id", "title", "description", "status", "priority", "category_id", "
 ### Prisma
 
 ```sql
-SELECT "public"."todo"."todo_id", "public"."todo"."title", "public"."todo"."description", "public"."todo"."status", "public"."todo"."priority", "public"."todo"."category_id", "public"."todo"."created_at", "public"."todo"."updated_at" FROM "public"."todo" WHERE ("public"."todo"."title" ILIKE $1 AND "public"."todo"."status" = $2 AND "public"."todo"."priority" = $3) ORDER BY "public"."todo"."created_at" DESC OFFSET $4
+SELECT "public"."todo"."todo_id", "public"."todo"."title", "public"."todo"."description", "public"."todo"."status", "public"."todo"."priority", "public"."todo"."category_id", "public"."todo"."created_at", "public"."todo"."updated_at" FROM "public"."todo" WHERE ("public"."todo"."title" ILIKE $1 AND "public"."todo"."status" = $2 AND "public"."todo"."priority" = $3) ORDER BY "public"."todo"."priority" ASC, "public"."todo"."created_at" DESC OFFSET $4
 ```
 **Parameters:** `["%project%","pending","high",0]`
 
 ```sql
-SELECT "public"."category"."category_id", "public"."category"."name", "public"."category"."description", "public"."category"."color" FROM "public"."category" WHERE "public"."category"."category_id" IN ($1) OFFSET $2
+SELECT "public"."category"."category_id", "public"."category"."name", "public"."category"."color" FROM "public"."category" WHERE "public"."category"."category_id" IN ($1) OFFSET $2
 ```
 **Parameters:** `[1,0]`
 
@@ -69,7 +70,8 @@ SELECT "public"."category"."category_id", "public"."category"."name", "public"."
     "description": "Write comprehensive docs for the new feature",
     "status": "pending",
     "priority": "high",
-    "categoryId": 1,
+    "category_name": "Work",
+    "category_color": "#3498db",
     "createdAt": "2025-05-28T12:11:54.596Z",
     "updatedAt": "2025-05-29T12:11:54.596Z"
   }

@@ -1,13 +1,24 @@
--- Find all todos with priority-based ordering
+-- Find all todos with category information for table display
 -- Used in: findByCriteria, buildSearchQuery
 -- Note: WHERE clause is dynamically injected by SqlParamInjector based on search criteria
 
-SELECT todo_id, title, description, status, priority, category_id, created_at, updated_at
-FROM todo
+SELECT 
+    t.todo_id, 
+    t.title, 
+    t.description, 
+    t.status, 
+    t.priority, 
+    t.category_id, 
+    t.created_at, 
+    t.updated_at,
+    c.name as category_name,
+    c.color as category_color
+FROM todo t
+LEFT JOIN category c ON t.category_id = c.category_id
 ORDER BY 
-    CASE priority 
+    CASE t.priority 
         WHEN 'high' THEN 1 
         WHEN 'medium' THEN 2 
         WHEN 'low' THEN 3 
     END,
-    created_at DESC
+    t.created_at DESC

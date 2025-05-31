@@ -1,6 +1,6 @@
 import { SqlParamInjector, SqlFormatter, SelectQueryParser, PostgresJsonQueryBuilder, QueryBuilder, SimpleSelectQuery } from '../../../..'; // Import from parent rawsql-ts
 import { TodoSearchCriteria } from '../contracts/search-criteria';
-import { Todo, TodoDetail, TodoStatus, TodoPriority } from '../domain/entities';
+import { Todo, TodoDetail, TodoTableView, TodoStatus, TodoPriority } from '../domain/entities';
 import { getTableColumns, DATABASE_CONFIG } from './database-config';
 import { createJsonMapping } from './schema-definitions';
 import { ITodoRepository, QueryBuildResult } from '../contracts/repository-interfaces';
@@ -81,13 +81,12 @@ export class RawSQLTodoRepository implements ITodoRepository {
                 ...(criteria.toDate && { '<=': criteria.toDate.toISOString() })
             } : undefined
         };
-    }
-
-    // === Core Repository Methods ===
+    }    // === Core Repository Methods ===
 
     /**
-     * Find todos matching search criteria
-     */    async findByCriteria(criteria: TodoSearchCriteria): Promise<Todo[]> {
+     * Find todos matching search criteria - optimized for table display
+     */
+    async findByCriteria(criteria: TodoSearchCriteria): Promise<TodoTableView[]> {
         const query = this.buildSearchQuery(criteria);
         this.debugLog('🔍 Executing findByCriteria', query); try {
             const result = await this.executeQueryWithLogging(
@@ -96,7 +95,7 @@ export class RawSQLTodoRepository implements ITodoRepository {
                 'findByCriteria'
             );
             this.debugLog(`✅ Found ${result.rows.length} todos`);
-            return result.rows.map((row: any) => this.mapRowToTodo(row));
+            return result.rows.map((row: any) => this.mapRowToTodoTableView(row));
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
             this.debugLog('❌ findByCriteria error:', error);
@@ -191,17 +190,34 @@ export class RawSQLTodoRepository implements ITodoRepository {
         } catch (error) {
             return false;
         }
-    }
-
-    /**
+    }    /**
      * Close connection pool
      */
     async close(): Promise<void> {
         await this.pool.end();
-    }    // === Private Helper Methods ===
+    }
+
+    // === Private Helper Methods ===
 
     /**
-     * Map database row to domain Todo entity
+     * Map database row to domain TodoTableView entity (optimized for table display)
+     */
+    private mapRowToTodoTableView(row: any): TodoTableView {
+        return {
+            todo_id: row.todo_id,
+            title: row.title,
+            description: row.description,
+            status: row.status,
+            priority: row.priority,
+            category_name: row.category_name,
+            category_color: row.category_color,
+            createdAt: new Date(row.created_at),
+            updatedAt: new Date(row.updated_at)
+        };
+    }
+
+    /**
+     * Map database row to domain Todo entity (legacy method for other operations)
      */
     private mapRowToTodo(row: any): Todo {
         return {
