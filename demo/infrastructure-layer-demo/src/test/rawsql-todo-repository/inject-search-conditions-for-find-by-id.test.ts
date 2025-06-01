@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { RawSQLTodoRepository } from '../../infrastructure/rawsql-infrastructure';
 import { SelectQueryParser, SqlSchemaValidator } from '../../../../../'; // Import from parent rawsql-ts
-import { sqlLoader } from '../../infrastructure/sql-loader';
 import { schemaManager } from '../../infrastructure/schema-definitions';
 
 // Debug-friendly SQL formatting for testing (consistent with dynamic-sql-generation.test.ts)
@@ -28,13 +27,10 @@ describe('RawSQLTodoRepository - SQL Generation Testing', () => {
     let repository: RawSQLTodoRepository; beforeAll(() => {
         // Initialize repository with debug-friendly SQL formatting for testing
         repository = new RawSQLTodoRepository(false, debugSqlStyle);
-    });
-
-    describe('Base SQL Schema Validation - findTodoWithRelations', () => {
+    }); describe('Base SQL Schema Validation - findTodoWithRelations', () => {
         it('should validate base SQL query against schema without errors', () => {
-            // Arrange: Load base SQL query and schema resolver
-            sqlLoader.loadAllQueries();
-            const baseSql = sqlLoader.getQuery('findTodoWithRelations');
+            // Arrange: Get the exact same base SQL that findById implementation uses
+            const baseSql = repository.getBaseSqlForFindById();
             const tableColumnResolver = schemaManager.createTableColumnResolver();
 
             // Act & Assert: Validate SQL structure and schema consistency
@@ -103,9 +99,8 @@ order by
 
     describe('applyJsonTransformationsForFindById - Full SQL Structure Verification', () => {
         it('should transform base SQL into complete JSON aggregated query', () => {
-            // Arrange: Get the original base SQL from sqlLoader (independent of search conditions)
-            sqlLoader.loadAllQueries(); // Load queries into memory cache first
-            const baseSql = sqlLoader.getQuery('findTodoWithRelations');
+            // Arrange: Get the exact same base SQL that findById implementation uses
+            const baseSql = repository.getBaseSqlForFindById();
             const baseQuery = SelectQueryParser.parse(baseSql) as any;
 
             // Act: Apply JSON transformations to the actual base SQL

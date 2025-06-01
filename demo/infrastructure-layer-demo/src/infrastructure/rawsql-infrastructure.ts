@@ -272,10 +272,9 @@ export class RawSQLTodoRepository implements ITodoRepository {
      * Tests only SqlParamInjector functionality in isolation
      * @param id - Todo ID to search for
      * @returns SimpleSelectQuery with WHERE clause injected
-     */
-    public injectSearchConditionsForFindById(id: string): SimpleSelectQuery {
-        // step1. Load base query from SQL file
-        const baseSql = sqlLoader.getQuery('findTodoWithRelations');
+     */    public injectSearchConditionsForFindById(id: string): SimpleSelectQuery {
+        // step1. Load base query from SQL file (use shared method for consistency)
+        const baseSql = this.getBaseSqlForFindById();
 
         // step2. Generate WHERE clause with SqlParamInjector only
         const searchState = { todo_id: parseInt(id) };
@@ -317,5 +316,16 @@ export class RawSQLTodoRepository implements ITodoRepository {
         return { formattedSql, params: params as unknown[] };
     }
 
-    // === Repository Implementation Methods ===
+    // === Testing Support Methods ===
+
+    /**
+     * Get base SQL query used in findById operation (Testing Support)
+     * This method ensures tests use the exact same SQL as the actual implementation
+     * @returns Base SQL string used for findById operations
+     */
+    public getBaseSqlForFindById(): string {
+        return sqlLoader.getQuery('findTodoWithRelations');
+    }
+
+    // === Testable Unit Methods ===
 }
