@@ -20,14 +20,49 @@ const debugSqlStyle = {
 };
 
 /**
- * Unit tests for SQL generation logic - Phase 1 & 2: Search Condition Injection + JSON Transformation
- * Tests SqlParamInjector and PostgresJsonQueryBuilder functionality with full SQL comparison
+ * RawSQL Safety Assurance Unit Tests for findById Operation
+ * 
+ * This test suite provides comprehensive static validation for RawSQL-based data access,
+ * ensuring safety and correctness WITHOUT requiring database execution.
+ * 
+ * === Core Safety Guarantees ===
+ * 
+ * 1. **SQL Syntax & Schema Consistency Validation**
+ *    - Validates that SQL syntax is parseable and structurally correct
+ *    - Ensures all table/column references exist in the defined database schema
+ *    - Catches typos, schema mismatches, and structural errors at build time
+ *    - Uses SqlSchemaValidator for static analysis (no DB required)
+ * 
+ * 2. **Dynamic Search Condition Safety**
+ *    - Tests SqlParamInjector functionality in isolation
+ *    - Verifies WHERE clause injection works correctly for various search patterns
+ *    - Ensures parameter binding is safe from SQL injection
+ *    - Can be extended to test multiple search patterns and edge cases
+ * 
+ * 3. **Domain Schema Transformation Validation** 
+ *    - Tests PostgresJsonQueryBuilder functionality in isolation
+ *    - Ensures complex JOIN results can be properly transformed to domain objects
+ *    - Validates JSON aggregation produces expected nested structure
+ *    - Guarantees function return types match expected domain schema
+ * 
+ * === Key Technical Benefits ===
+ * 
+ * - **Static Analysis**: All validation happens at test time, not runtime
+ * - **No Database Required**: Tests run fast and don't require DB infrastructure
+ * - **Left-shift Testing**: Catches SQL errors during development, not in production
+ * - **Complete Isolation**: Each phase (schema, injection, transformation) tested independently
+ * - **Implementation Consistency**: Tests use exact same SQL queries as production code
+ * 
+ * This 3-phase validation approach ensures that a single repository function
+ * is completely safe and reliable before any database interaction occurs.
  */
 describe('RawSQLTodoRepository - SQL Generation Testing', () => {
     let repository: RawSQLTodoRepository; beforeAll(() => {
         // Initialize repository with debug-friendly SQL formatting for testing
         repository = new RawSQLTodoRepository(false, debugSqlStyle);
-    }); describe('Base SQL Schema Validation - findTodoWithRelations', () => {
+    });
+
+    describe('Base SQL Schema Validation - findTodoWithRelations', () => {
         it('should validate base SQL query against schema without errors', () => {
             // Arrange: Get the exact same base SQL that findById implementation uses
             const baseSql = repository.getBaseSqlForFindById();

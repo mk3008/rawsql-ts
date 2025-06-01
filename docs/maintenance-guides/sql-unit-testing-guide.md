@@ -2,367 +2,276 @@
 
 ## Overview
 
-This guide provides comprehensive instructions for creating and maintaining unit tests for SQL generation logic in the rawsql-ts project. These guidelines ensure thorough testing of SQL transformations and provide reliable automated validation for AI-assisted maintenance.
+This guide provides instructions for creating unit tests for SQL generation logic in rawsql-ts. These tests ensure safety and reliability for AI-assisted maintenance by validating SQL transformations without database execution.
+
+## Why RawSQL Safety Testing is Critical
+
+### The Problem
+RawSQL development carries significant risks:
+- **SQL Injection vulnerabilities** from improper parameter handling
+- **Schema mismatches** between code and database
+- **Runtime failures** when SQL errors only surface in production
+- **Complex debugging** when SQL generation fails silently
+
+### The Solution: 3-Phase Testing
+Complete static validation without database execution:
+
+1. **Schema Validation**: `SqlSchemaValidator.validate()` - Ensures all tables/columns exist
+2. **Parameter Injection**: Test `SqlParamInjector` - Validates WHERE clause safety
+3. **JSON Transformation**: Test `PostgresJsonQueryBuilder` - Verifies complex transformations
+
+### Benefits
+- **Left-Shift Testing**: Catch errors before database execution
+- **Fast Execution**: No database required for testing
+- **Complete Safety**: Full SQL validation coverage
+- **AI-Ready**: Automated validation for AI maintenance
 
 ## Core Testing Principles
 
-### 1. Test Each SQL Transformation Separately
+### 1. Test Each Transformation Separately
+Create dedicated methods for each SQL transformation phase:
+
 ```typescript
-// ✅ Good: Test each transformation in isolation
-describe('SqlParamInjector - Search Condition Injection', () => {
-    it('should inject WHERE clause correctly', () => {
-        // Test only SqlParamInjector functionality
-    });
-});
+// Base SQL
+getBaseSqlForFindById(): string
 
-describe('PostgresJsonQueryBuilder - JSON Processing', () => {
-    it('should transform result columns correctly', () => {
-        // Test only PostgresJsonQueryBuilder functionality  
-    });
-});
+// Phase 1: Parameter injection
+injectSearchConditionsForFindById(id: string): SimpleSelectQuery
 
-// ❌ Bad: Testing multiple transformations together
-describe('Complete SQL Generation', () => {
-    it('should generate final SQL with all transformations', () => {
-        // This tests too many things at once
-    });
-});
+// Phase 2: JSON transformation  
+applyJsonTransformationsForFindById(baseQuery: SimpleSelectQuery): SimpleSelectQuery
 ```
 
 ### 2. Always Compare Complete SQL Text
-```typescript
-// ✅ Good: Full SQL comparison
-it('should generate expected SQL structure', () => {
-    const result = repository.injectSearchConditions(id);
-    const { formattedSql, params } = formatter.format(result);
-    
-    const expectedSql = `select
-    "t"."todo_id"
-    , "t"."title"
-from
-    "todo" as "t"
-where
-    "t"."todo_id" = $1`;
-    
-    expect(formattedSql.trim()).toBe(expectedSql.trim());
-    expect(params).toEqual([123]);
-});
-
-// ❌ Bad: Partial SQL validation
-it('should include WHERE clause', () => {
-    const result = repository.injectSearchConditions(id);
-    expect(result.where).toBeDefined(); // Not sufficient!
-});
-```
-
-### 3. Never Judge Correctness by SQL Fragments
-
-**⚠️ CRITICAL: Partial SQL testing is strictly forbidden.**
+Never test SQL fragments - always validate the entire generated SQL:
 
 ```typescript
-// ❌ NEVER DO THIS: Fragment testing is unreliable and dangerous
-expect(sql).toContain('WHERE');
-expect(sql).toContain('todo_id = $1');
-expect(sql).toContain('jsonb_build_object');
-expect(sql).toContain('LEFT JOIN');
-
-// ❌ NEVER DO THIS: Component-level validation
-expect(result.where).toBeDefined();
-expect(result.select.columns).toHaveLength(5);
-expect(result.joins[0].type).toBe('LEFT');
-
-// ❌ NEVER DO THIS: Pattern matching on SQL parts
-expect(formattedSql).toMatch(/WHERE\s+"t"\."todo_id"\s*=\s*\$1/);
-
-// ✅ ALWAYS DO THIS: Complete structure validation
-expect(formattedSql.trim()).toBe(expectedCompleteSQL.trim());
+expect(actualQuery.toDebugSql(debugConfig)).toBe(expectedSql);
 ```
 
-**Why partial testing is dangerous:**
-- SQL generation is complex with many interdependent parts
-- Fragment existence doesn't guarantee correct placement or syntax
-- Partial tests can pass while the complete SQL is malformed
-- Context matters: same fragments can be valid or invalid depending on position
-- Full SQL comparison catches integration issues between components
+### 3. Use Consistent Formatting
+Use standardized debug configuration for all SQL comparisons:
 
-**Examples of hidden bugs that fragment testing misses:**
-```sql
--- Fragment test: ✅ Contains "WHERE" and "todo_id = $1"
--- Reality: ❌ Malformed SQL with syntax error
-SELECT "todo_id" WHERE FROM "todo" WHERE "todo_id" = $1
-
--- Fragment test: ✅ Contains "jsonb_build_object" and "LEFT JOIN"  
--- Reality: ❌ Missing GROUP BY clause breaks aggregation
-SELECT jsonb_agg(...) FROM todo LEFT JOIN category -- Missing GROUP BY!
-```
-
-## File Organization
-
-### Directory Structure
-```
-src/
-  test/
-    {infrastructure-class}/
-      {rawsql-function-name}.test.ts
-      {rawsql-function-name}-integration.test.ts
-```
-
-### Example File Organization
-```
-src/
-  test/
-    rawsql-todo-repository/
-      inject-search-conditions-for-find-by-id.test.ts
-      apply-json-transformations-for-find-by-id.test.ts
-      find-by-id-integration.test.ts
-    rawsql-user-repository/
-      inject-search-conditions-for-find-by-email.test.ts
-      apply-pagination-for-list-users.test.ts
+```typescript
+const debugConfig = {
+  sqlDialect: "postgres" as const,
+  printOptions: {
+    indent: "  ",
+    upperCase: false,
+    linesBetweenQueries: 1,
+  },
+};
 ```
 
 ## Test File Template
 
-### Basic Template Structure
 ```typescript
-import { describe, it, expect, beforeAll } from 'vitest';
-import { YourRepositoryClass } from '../infrastructure/your-infrastructure';
-
-// Consistent SQL formatting for testing
-const debugSqlStyle = {
-    identifierEscape: { start: "\"", end: "\"" },
-    parameterSymbol: "$",
-    parameterStyle: "indexed" as const,
-    indentSize: 4,
-    indentChar: " " as const,
-    newline: "\n" as const,
-    keywordCase: "lower" as const,
-    commaBreak: "before" as const,
-    andBreak: "before" as const
-};
-
 /**
- * Unit tests for [SPECIFIC_FUNCTION_NAME] - [TRANSFORMATION_DESCRIPTION]
- * Tests only [SPECIFIC_COMPONENT] functionality with full SQL comparison
+ * Tests for [ClassName] SQL generation methods
+ * 
+ * This test suite validates the complete SQL generation pipeline for [method name]:
+ * - Phase 0: Schema validation using SqlSchemaValidator
+ * - Phase 1: Search condition injection via SqlParamInjector
+ * - Phase 2: JSON transformation via PostgresJsonQueryBuilder
  */
-describe('YourRepositoryClass - [Transformation Name]', () => {
-    let repository: YourRepositoryClass;
 
-    beforeAll(() => {
-        repository = new YourRepositoryClass(false, debugSqlStyle);
+import { describe, it, expect, beforeEach } from "vitest";
+import { SqlSchemaValidator } from "../../../../../../src";
+import { ClassName } from "../infrastructure/class-name";
+import { createTableColumnResolver } from "../test-utils/table-column-resolver";
+
+describe("ClassName SQL Generation Tests", () => {
+  let repository: ClassName;
+  let tableColumnResolver: any;
+
+  beforeEach(() => {
+    repository = new ClassName();
+    tableColumnResolver = createTableColumnResolver();
+  });
+
+  const debugConfig = {
+    sqlDialect: "postgres" as const,
+    printOptions: {
+      indent: "  ",
+      upperCase: false,
+      linesBetweenQueries: 1,
+    },
+  };
+
+  describe("methodName SQL generation", () => {
+    it("Phase 0: validates base SQL schema consistency", () => {
+      const baseSql = repository.getBaseSqlForMethodName();
+      expect(() => {
+        SqlSchemaValidator.validate(baseSql, tableColumnResolver);
+      }).not.toThrow();
     });
 
-    describe('[functionName] - Full SQL Structure Verification', () => {
-        it('should generate expected SQL structure', () => {
-            // Arrange
-            const inputParam = 'test-value';
-
-            // Act
-            const result = repository.yourFunction(inputParam);
-            const { formattedSql, params } = repository['sqlFormatter'].format(result);
-
-            // Debug output (helpful during development)
-            console.log('Actual SQL:', formattedSql);
-
-            // Assert - Complete SQL verification
-            const expectedSql = `select
-    "column1"
-    , "column2"
-from
-    "table1"
-where
-    "column1" = $1`;
-
-            expect(formattedSql.trim()).toBe(expectedSql.trim());
-            expect(params).toEqual(['expected-param-value']);
-        });
-    });
-});
-```
-
-## Testing Strategies for Different Scenarios
-
-### 1. Fixed Search Conditions
-For functions like `findById` where the search condition is fixed:
-```typescript
-describe('Fixed Search Conditions', () => {
-    it('should generate consistent SQL structure', () => {
-        const result = repository.findById('123');
-        // Test complete SQL with expected WHERE clause
-    });
-
-    it('should handle different ID values correctly', () => {
-        const result1 = repository.findById('100');
-        const result2 = repository.findById('999');
-        
-        // Verify SQL structure is consistent, only parameters differ
-        const sql1WithoutParams = formatSql(result1).replace(/\$\d+/g, '$?');
-        const sql2WithoutParams = formatSql(result2).replace(/\$\d+/g, '$?');
-        
-        expect(sql1WithoutParams).toBe(sql2WithoutParams);
-    });
-});
-```
-
-### 2. Optional Search Conditions
-For functions with optional search parameters, test one representative case unless user specifies otherwise:
-```typescript
-describe('Optional Search Conditions', () => {
-    it('should generate SQL with provided search criteria', () => {
-        // Test with one typical search condition combination
-        const searchCriteria = { status: 'active', priority: 'high' };
-        const result = repository.searchTodos(searchCriteria);
-        
-        // Verify complete SQL includes both conditions
-        const { formattedSql, params } = formatter.format(result);
-        expect(formattedSql).toContain('WHERE');
-        expect(formattedSql).toContain('"status" = $1');
-        expect(formattedSql).toContain('AND "priority" = $2');
-        expect(params).toEqual(['active', 'high']);
-    });
-
-    it('should generate base SQL when no search criteria provided', () => {
-        const result = repository.searchTodos({});
-        
-        // Verify SQL without WHERE clause
-        const { formattedSql } = formatter.format(result);
-        expect(formattedSql).not.toContain('WHERE');
-    });
-});
-```
-
-### 3. Security Testing
-Always include SQL injection protection tests:
-```typescript
-describe('SQL Injection Protection', () => {
-    it('should safely handle malicious input', () => {
-        const maliciousInput = "1; DROP TABLE users; --";
-        const result = repository.findById(maliciousInput);
-        const { formattedSql, params } = formatter.format(result);
-        
-        expect(formattedSql).not.toContain('DROP TABLE');
-        expect(formattedSql).not.toContain('--');
-        expect(params).toHaveLength(1);
-        expect(typeof params[0]).toBe('number'); // Should be safely converted
-    });
-});
-```
-
-## SQL Formatting Consistency
-
-### Standard Debug Configuration
-Always use consistent SQL formatting for predictable test results:
-```typescript
-const debugSqlStyle = {
-    identifierEscape: { start: "\"", end: "\"" },
-    parameterSymbol: "$",
-    parameterStyle: "indexed" as const,
-    indentSize: 4,
-    indentChar: " " as const,
-    newline: "\n" as const,
-    keywordCase: "lower" as const,
-    commaBreak: "before" as const,
-    andBreak: "before" as const
-};
-```
-
-### Expected SQL Format
-```sql
+    it("Phase 1: injects search conditions safely", () => {
+      const query = repository.injectSearchConditionsForMethodName("test-id");
+      const actualSql = query.toDebugSql(debugConfig);
+      
+      const expectedSql = `
 select
-    "table1"."column1"
-    , "table1"."column2" as "alias1"
-    , "table2"."column3"
+  base_column
 from
-    "main_table" as "table1"
-    left join "related_table" as "table2" on "table1"."id" = "table2"."main_id"
+  base_table
 where
-    "table1"."status" = $1
-    and "table1"."created_at" > $2
-order by
-    "table1"."created_at"
+  id = $1
+      `.trim();
+
+      expect(actualSql).toBe(expectedSql);
+    });
+
+    it("Phase 2: applies JSON transformations correctly", () => {
+      const baseQuery = repository.injectSearchConditionsForMethodName("test-id");
+      const jsonQuery = repository.applyJsonTransformationsForMethodName(baseQuery);
+      const actualSql = jsonQuery.toDebugSql(debugConfig);
+      
+      const expectedSql = `
+select
+  json_build_object('id', base_table.id, 'data', base_table.data) as result
+from
+  base_table
+where
+  id = $1
+      `.trim();
+
+      expect(actualSql).toBe(expectedSql);
+    });
+  });
+});
 ```
 
-## Common Pitfalls and Solutions
+## Testing Strategies
 
-### 1. Whitespace Sensitivity
+### Fixed Search Conditions
+For methods with fixed WHERE clauses:
+
 ```typescript
-// ✅ Good: Trim whitespace for comparison
-expect(formattedSql.trim()).toBe(expectedSql.trim());
-
-// ❌ Bad: Sensitive to leading/trailing whitespace
-expect(formattedSql).toBe(expectedSql);
+it("generates correct WHERE clause", () => {
+  const query = repository.methodName();
+  const sql = query.toDebugSql(debugConfig);
+  expect(sql).toContain("where\n  status = $1");
+});
 ```
 
-### 2. Parameter Type Consistency
+### Optional Search Conditions
+For methods with conditional WHERE clauses:
+
 ```typescript
-// ✅ Good: Verify parameter types and values
-expect(params).toEqual([123]); // number
-expect(params).toEqual(['active']); // string
+it("handles empty conditions", () => {
+  const query = repository.search({});
+  expect(query.toDebugSql(debugConfig)).not.toContain("where");
+});
 
-// ❌ Bad: Ignoring parameter validation
-// Only checking SQL structure without parameters
+it("handles single condition", () => {
+  const query = repository.search({ name: "test" });
+  expect(query.toDebugSql(debugConfig)).toContain("where\n  name = $1");
+});
 ```
 
-### 3. Debug Output
+### Security Testing
+Test parameter injection safety:
+
 ```typescript
-// ✅ Good: Include debug output for development
-console.log('Actual SQL:', formattedSql);
-console.log('Parameters:', params);
-
-// Remove or comment out console.log in final version
+it("prevents SQL injection", () => {
+  const maliciousInput = "'; DROP TABLE users; --";
+  const query = repository.findById(maliciousInput);
+  const sql = query.toDebugSql(debugConfig);
+  
+  // Should contain parameterized query, not the raw input
+  expect(sql).toContain("id = $1");
+  expect(sql).not.toContain("DROP TABLE");
+});
 ```
 
-## Test Maintenance Guidelines
+## File Organization
 
-### 1. Update Tests When SQL Changes
-- When modifying SQL generation logic, update corresponding tests immediately
-- Run tests after any SQL-related changes
-- Update expected SQL patterns to match new formatting
+```
+src/test/
+├── infrastructure/
+│   └── method-name/
+│       ├── inject-search-conditions-for-method-name.test.ts
+│       ├── apply-json-transformations-for-method-name.test.ts
+│       └── complete-method-name-integration.test.ts
+└── test-utils/
+    └── table-column-resolver.ts
+```
 
-### 2. Version Control for Expected SQL
-- Store expected SQL patterns in test files, not external files
-- Keep expected SQL readable with proper indentation
-- Comment complex SQL expectations when necessary
+## Common Pitfalls
 
-### 3. Test Performance Considerations
-- SQL generation tests should be fast (< 100ms per test)
-- Mock external dependencies (databases, APIs)
-- Focus on logic validation, not actual database operations
+### Whitespace Sensitivity
+Always trim expected SQL and use consistent indentation:
+
+```typescript
+const expectedSql = `
+select
+  column
+from
+  table
+`.trim();
+```
+
+### Parameter Types
+Ensure parameter types match between test and implementation:
+
+```typescript
+// Correct: string parameter
+repository.findById("123")
+
+// Incorrect: number parameter  
+repository.findById(123)
+```
+
+### Debug Output
+Use debug SQL for testing, not runtime SQL:
+
+```typescript
+// Correct
+query.toDebugSql(debugConfig)
+
+// Incorrect  
+query.toSql()
+```
 
 ## Integration with AI Maintenance
 
-### 1. Clear Test Descriptions
+### Clear Test Descriptions
+Write descriptive test names that explain the validation purpose:
+
+```typescript
+it("Phase 1: injects user ID parameter safely into WHERE clause", () => {
+  // Test implementation
+});
+```
+
+### Comprehensive Error Messages
+Provide detailed failure information:
+
+```typescript
+expect(actualSql).toBe(expectedSql);
+// If this fails, the error message will show the complete SQL diff
+```
+
+### Test Documentation
+Document the testing approach in class comments:
+
 ```typescript
 /**
- * Unit tests for SqlParamInjector functionality in findById operation
- * Validates that WHERE clause injection works correctly with proper parameterization
- * Expected: Single WHERE condition with todo_id parameter
+ * This test validates the 3-phase SQL generation approach:
+ * 1. Schema validation - ensures query structure is valid
+ * 2. Parameter injection - validates WHERE clause safety  
+ * 3. JSON transformation - verifies complex query building
  */
 ```
 
-### 2. Comprehensive Error Messages
-```typescript
-expect(formattedSql.trim()).toBe(expectedSql.trim(), 
-    `SQL mismatch. Expected proper WHERE clause injection.
-     Actual: ${formattedSql}
-     Expected: ${expectedSql}`);
-```
-
-### 3. Test Documentation
-- Document the purpose of each test suite
-- Explain complex SQL transformations in comments
-- Provide examples of expected vs actual SQL in test descriptions
-
-## Example: Complete Test File
-
-See `src/test/rawsql-todo-repository/inject-search-conditions-for-find-by-id.test.ts` for a complete implementation example following these guidelines.
-
 ## Conclusion
 
-Following these guidelines ensures:
-- **Reliable SQL validation** through complete text comparison
-- **Maintainable test suites** with clear organization
-- **AI-friendly codebase** with comprehensive automated testing
-- **Security assurance** through injection protection testing
-- **Consistent formatting** for predictable test results
+This testing approach provides complete safety assurance for RawSQL operations:
 
-Remember: SQL generation is complex and error-prone. Comprehensive unit testing with full SQL comparison is essential for maintaining code quality and enabling safe AI-assisted development.
+- **Prevents production failures** by catching SQL errors early
+- **Eliminates security vulnerabilities** through parameter validation
+- **Ensures maintainability** with comprehensive test coverage
+- **Enables AI maintenance** with automated validation
+
+**Remember**: These tests are not optional - they are essential for safe RawSQL development.
