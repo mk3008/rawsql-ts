@@ -129,28 +129,16 @@ export class RawSQLTodoRepository implements ITodoRepository {
         const count = parseInt(result.rows[0].total);
         this.debugLog(`📊 Total count: ${count}`);
         return count;
-    }
-
-    /**
+    }    /**
      * Find todo by ID with related data using PostgresJsonQueryBuilder
      * Demonstrates SqlParamInjector + PostgresJsonQueryBuilder integration
      */
     async findById(id: string): Promise<TodoDetail | null> {
         try {
-            // step1. Load base query from SQL file
-            const baseSql = sqlLoader.getQuery('findTodoWithRelations');
+            // Generate SQL query using testable methods
+            const { formattedSql, params } = this.generateFindByIdQuery(id);
 
-            // step2. Generate WHERE clause with SqlParamInjector
-            const searchState = { todo_id: parseInt(id) };
-            const injectedQuery = this.sqlParamInjector.inject(baseSql, searchState) as SimpleSelectQuery;
-
-            // step3. Build JSON query structure using unified schema
-            const jsonMapping = createJsonMapping('todo');
-            const jsonQuery = this.postgresJsonQueryBuilder.buildJson(injectedQuery, jsonMapping);
-
-            // step4. Format and execute
-            const { formattedSql, params } = this.sqlFormatter.format(jsonQuery);
-
+            // Execute query
             const result = await this.executeQueryWithLogging(
                 formattedSql,
                 params as any[],
@@ -166,7 +154,8 @@ export class RawSQLTodoRepository implements ITodoRepository {
 
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-            this.debugLog('❌ findById error:', error); throw new Error(`Failed to find todo by ID: ${errorMessage}`);
+            this.debugLog('❌ findById error:', error);
+            throw new Error(`Failed to find todo by ID: ${errorMessage}`);
         }
     }
 
@@ -276,5 +265,57 @@ export class RawSQLTodoRepository implements ITodoRepository {
             this.debugLog(`❌ Query failed after ${executionTime.toFixed(2)}ms:`, error);
             throw error;
         }
+    }    // === SQL Generation Methods (Testable) ===
+
+    /**
+     * Step 1: Inject search conditions into base SQL (Testing Phase 1)
+     * Tests only SqlParamInjector functionality in isolation
+     * @param id - Todo ID to search for
+     * @returns SimpleSelectQuery with WHERE clause injected
+     */
+    public injectSearchConditionsForFindById(id: string): SimpleSelectQuery {
+        // step1. Load base query from SQL file
+        const baseSql = sqlLoader.getQuery('findTodoWithRelations');
+
+        // step2. Generate WHERE clause with SqlParamInjector only
+        const searchState = { todo_id: parseInt(id) };
+        const injectedQuery = this.sqlParamInjector.inject(baseSql, searchState) as SimpleSelectQuery;
+
+        return injectedQuery;
     }
+
+    /**
+     * Step 2: Apply JSON transformations to base SQL (Testing Phase 2)
+     * Tests only PostgresJsonQueryBuilder functionality in isolation
+     * @param baseQuery - SimpleSelectQuery without JSON transformations
+     * @returns SimpleSelectQuery with JSON aggregations applied
+     */
+    public applyJsonTransformationsForFindById(baseQuery: SimpleSelectQuery): SimpleSelectQuery {
+        // step3. Build JSON query structure using unified schema (PostgresJsonQueryBuilder only)
+        const jsonMapping = createJsonMapping('todo');
+        const jsonQuery = this.postgresJsonQueryBuilder.buildJson(baseQuery, jsonMapping);
+
+        return jsonQuery;
+    }
+
+    /**
+     * Generate complete SQL query for findById operation (Complete Pipeline)
+     * Combines SqlParamInjector + PostgresJsonQueryBuilder for production use
+     * @param id - Todo ID to search for
+     * @returns Generated SQL query and parameters
+     */
+    public generateFindByIdQuery(id: string): { formattedSql: string; params: unknown[] } {
+        // step1. Inject search conditions (use testable method)
+        const injectedQuery = this.injectSearchConditionsForFindById(id);
+
+        // step2. Apply JSON transformations (use testable method)
+        const jsonQuery = this.applyJsonTransformationsForFindById(injectedQuery);
+
+        // step3. Format final SQL
+        const { formattedSql, params } = this.sqlFormatter.format(jsonQuery);
+
+        return { formattedSql, params: params as unknown[] };
+    }
+
+    // === Repository Implementation Methods ===
 }
