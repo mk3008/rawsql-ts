@@ -9,22 +9,6 @@ import { sqlLoader } from './sql-loader';
 import { Pool, PoolClient } from 'pg';
 
 /**
- * Database row structure for TodoTableView queries
- * Provides type safety for SQL result mapping
- */
-interface TodoTableViewRow {
-    todo_id: number;
-    title: string;
-    description: string | null;
-    status: TodoStatus;
-    priority: TodoPriority;
-    category_name: string | null;
-    category_color: string | null;
-    created_at: string | Date; // Can be either string or Date from database
-    updated_at: string | Date; // Can be either string or Date from database
-}
-
-/**
  * RawSQL-based Todo repository implementation using rawsql-ts
  * Demonstrates PostgresJsonQueryBuilder and SqlParamInjector integration
  */
@@ -224,78 +208,6 @@ export class RawSQLTodoRepository implements ITodoRepository {
      */
     async close(): Promise<void> {
         await this.pool.end();
-    }
-
-    // === Private Helper Methods ===
-
-    /**
-     * Map database row to domain TodoTableView entity (optimized for table display)
-     */
-    private mapRowToTodoTableView(row: any): TodoTableView {
-        return {
-            todo_id: row.todo_id,
-            title: row.title,
-            description: row.description,
-            status: row.status,
-            priority: row.priority,
-            category_name: row.category_name,
-            category_color: row.category_color,
-            createdAt: new Date(row.created_at),
-            updatedAt: new Date(row.updated_at)
-        };
-    }
-
-    /**
-     * Map database row to domain Todo entity (legacy method for other operations)
-     */
-    private mapRowToTodo(row: any): Todo {
-        return {
-            todo_id: row.todo_id,
-            title: row.title,
-            description: row.description,
-            status: row.status,
-            priority: row.priority,
-            categoryId: row.category_id,
-            createdAt: new Date(row.created_at),
-            updatedAt: new Date(row.updated_at)
-        };
-    }    /**
-     * Map SQL DTO (from jsonb_build_object) to domain TodoTableView entity
-     * Handles flat JSON structure already transformed at SQL level
-     */
-    private mapSqlDtoToTodoTableView(todoData: any): TodoTableView {
-        return {
-            todo_id: todoData.todo_id,
-            title: todoData.title,
-            description: todoData.description,
-            status: todoData.status,
-            priority: todoData.priority,
-            category_name: todoData.category_name,
-            category_color: todoData.category_color,
-            createdAt: new Date(todoData.createdAt),
-            updatedAt: new Date(todoData.updatedAt)
-        };
-    }
-
-    /**
-     * Map PostgresJsonQueryBuilder JSON row to domain TodoTableView entity
-     * Handles JSON data structure returned by buildJson() method
-     */
-    private mapJsonRowToTodoTableView(row: any): TodoTableView {
-        // PostgresJsonQueryBuilder returns nested JSON structure
-        const todoData = row.todo || row;
-
-        return {
-            todo_id: todoData.todo_id,
-            title: todoData.title,
-            description: todoData.description,
-            status: todoData.status,
-            priority: todoData.priority,
-            category_name: todoData.category?.name || todoData.category_name,
-            category_color: todoData.category?.color || todoData.category_color,
-            createdAt: new Date(todoData.todo_created_at || todoData.createdAt || todoData.created_at),
-            updatedAt: new Date(todoData.todo_updated_at || todoData.updatedAt || todoData.updated_at)
-        };
     }
 
     /**
