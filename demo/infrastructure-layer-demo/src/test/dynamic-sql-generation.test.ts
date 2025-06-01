@@ -42,22 +42,25 @@ describe('Dynamic SQL Generation', () => {
             // Pattern 1: No search criteria - base query only
             const emptyCriteria: TodoSearchCriteria = {};
 
-            const result = repository.buildSearchQuery(emptyCriteria);
-
-            // Expected base query without WHERE clause (based on actual output)
+            const result = repository.buildSearchQuery(emptyCriteria);            // Expected base query without WHERE clause (updated for JOIN structure)
             const expectedSql = `select
-    "todo_id"
-    , "title"
-    , "description"
-    , "status"
-    , "priority"
-    , "category_id"
-    , "created_at"
-    , "updated_at"
+    "t"."todo_id"
+    , "t"."title"
+    , "t"."description"
+    , "t"."status"
+    , "t"."priority"
+    , "t"."created_at" as "todo_created_at"
+    , "t"."updated_at" as "todo_updated_at"
+    , "c"."category_id"
+    , "c"."name" as "category_name"
+    , "c"."description" as "category_description"
+    , "c"."color" as "category_color"
+    , "c"."created_at" as "category_created_at"
 from
-    "todo"
+    "todo" as "t"
+    left join "category" as "c" on "t"."category_id" = "c"."category_id"
 order by
-    case "priority"
+    case "t"."priority"
         when 'high' then
             1
         when 'medium' then
@@ -65,7 +68,7 @@ order by
         when 'low' then
             3
     end
-    , "created_at" desc`;
+    , "t"."created_at" desc`;
 
             expect(result.formattedSql.trim()).toBe(expectedSql.trim());
             expect(result.params).toEqual([]); // No parameters for empty criteria
@@ -75,24 +78,27 @@ order by
                 title: 'project'
             };
 
-            const result = repository.buildSearchQuery(titleCriteria);
-
-            // Expected query with WHERE clause for title (based on actual output)
+            const result = repository.buildSearchQuery(titleCriteria);            // Expected query with WHERE clause for title (updated for JOIN structure)
             const expectedSql = `select
-    "todo_id"
-    , "title"
-    , "description"
-    , "status"
-    , "priority"
-    , "category_id"
-    , "created_at"
-    , "updated_at"
+    "t"."todo_id"
+    , "t"."title"
+    , "t"."description"
+    , "t"."status"
+    , "t"."priority"
+    , "t"."created_at" as "todo_created_at"
+    , "t"."updated_at" as "todo_updated_at"
+    , "c"."category_id"
+    , "c"."name" as "category_name"
+    , "c"."description" as "category_description"
+    , "c"."color" as "category_color"
+    , "c"."created_at" as "category_created_at"
 from
-    "todo"
+    "todo" as "t"
+    left join "category" as "c" on "t"."category_id" = "c"."category_id"
 where
-    "title" like $1
+    "t"."title" like $1
 order by
-    case "priority"
+    case "t"."priority"
         when 'high' then
             1
         when 'medium' then
@@ -100,7 +106,7 @@ order by
         when 'low' then
             3
     end
-    , "created_at" desc`;
+    , "t"."created_at" desc`;
 
             expect(result.formattedSql.trim()).toBe(expectedSql.trim());
             expect(result.params).toEqual(['%project%']);
@@ -112,26 +118,29 @@ order by
                 priority: 'high' as TodoPriority
             };
 
-            const result = repository.buildSearchQuery(multipleCriteria);
-
-            // Expected query with WHERE clause for multiple conditions (based on actual output)
+            const result = repository.buildSearchQuery(multipleCriteria);            // Expected query with WHERE clause for multiple conditions (updated for JOIN structure)
             const expectedSql = `select
-    "todo_id"
-    , "title"
-    , "description"
-    , "status"
-    , "priority"
-    , "category_id"
-    , "created_at"
-    , "updated_at"
+    "t"."todo_id"
+    , "t"."title"
+    , "t"."description"
+    , "t"."status"
+    , "t"."priority"
+    , "t"."created_at" as "todo_created_at"
+    , "t"."updated_at" as "todo_updated_at"
+    , "c"."category_id"
+    , "c"."name" as "category_name"
+    , "c"."description" as "category_description"
+    , "c"."color" as "category_color"
+    , "c"."created_at" as "category_created_at"
 from
-    "todo"
+    "todo" as "t"
+    left join "category" as "c" on "t"."category_id" = "c"."category_id"
 where
-    "title" like $1
-    and "status" = $2
-    and "priority" = $3
+    "t"."title" like $1
+    and "t"."status" = $2
+    and "t"."priority" = $3
 order by
-    case "priority"
+    case "t"."priority"
         when 'high' then
             1
         when 'medium' then
@@ -139,7 +148,7 @@ order by
         when 'low' then
             3
     end
-    , "created_at" desc`;
+    , "t"."created_at" desc`;
 
             expect(result.formattedSql.trim()).toBe(expectedSql.trim());
             expect(result.params).toEqual(['%urgent%', 'pending', 'high']);

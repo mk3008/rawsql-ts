@@ -97,7 +97,9 @@ export class RawSQLTodoRepository implements ITodoRepository {
                 ...(criteria.toDate && { '<=': criteria.toDate.toISOString() })
             } : undefined
         };
-    }    // === Core Repository Methods ===
+    }
+
+    // === Core Repository Methods ===
 
     /**
      * Find todos matching search criteria - optimized for table display
@@ -105,19 +107,26 @@ export class RawSQLTodoRepository implements ITodoRepository {
     async findByCriteria(criteria: TodoSearchCriteria): Promise<TodoTableView[]> {
         const query = this.buildSearchQuery(criteria);
         this.debugLog('🔍 Executing findByCriteria', query); try {
+            const query = this.buildSearchQuery(criteria);
+            this.debugLog('🔍 Executing findByCriteria with SQL DTO transformation', query);
+
             const result = await this.executeQueryWithLogging(
                 query.formattedSql,
                 Object.values(query.params), // Convert Record to array
                 'findByCriteria'
-            );
-            this.debugLog(`✅ Found ${result.rows.length} todos`);
-            return result.rows.map((row: any) => this.mapRowToTodoTableView(row));
+            ); this.debugLog(`✅ Found ${result.rows.length} todos with SQL DTO transformation`);
+
+            // SQL DTO is complete - return JSON array directly as TodoTableView[]
+            const todosJsonArray = result.rows[0]?.todos_json || [];
+            return todosJsonArray as TodoTableView[];
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
             this.debugLog('❌ findByCriteria error:', error);
             throw new Error(`Failed to find todos: ${errorMessage}`);
         }
-    }    /**
+    }
+
+    /**
      * Count todos matching search criteria
      */
     async countByCriteria(criteria: TodoSearchCriteria): Promise<number> {
@@ -126,7 +135,9 @@ export class RawSQLTodoRepository implements ITodoRepository {
 
         // Use shared instances
         const injectedQuery = this.sqlParamInjector.inject(countSql, searchState);
-        const { formattedSql, params } = this.sqlFormatter.format(injectedQuery); const result = await this.executeQueryWithLogging(
+        const { formattedSql, params } = this.sqlFormatter.format(injectedQuery);
+
+        const result = await this.executeQueryWithLogging(
             formattedSql,
             Object.values(params), // Convert Record to array
             'countByCriteria'
@@ -247,6 +258,43 @@ export class RawSQLTodoRepository implements ITodoRepository {
             categoryId: row.category_id,
             createdAt: new Date(row.created_at),
             updatedAt: new Date(row.updated_at)
+        };
+    }    /**
+     * Map SQL DTO (from jsonb_build_object) to domain TodoTableView entity
+     * Handles flat JSON structure already transformed at SQL level
+     */
+    private mapSqlDtoToTodoTableView(todoData: any): TodoTableView {
+        return {
+            todo_id: todoData.todo_id,
+            title: todoData.title,
+            description: todoData.description,
+            status: todoData.status,
+            priority: todoData.priority,
+            category_name: todoData.category_name,
+            category_color: todoData.category_color,
+            createdAt: new Date(todoData.createdAt),
+            updatedAt: new Date(todoData.updatedAt)
+        };
+    }
+
+    /**
+     * Map PostgresJsonQueryBuilder JSON row to domain TodoTableView entity
+     * Handles JSON data structure returned by buildJson() method
+     */
+    private mapJsonRowToTodoTableView(row: any): TodoTableView {
+        // PostgresJsonQueryBuilder returns nested JSON structure
+        const todoData = row.todo || row;
+
+        return {
+            todo_id: todoData.todo_id,
+            title: todoData.title,
+            description: todoData.description,
+            status: todoData.status,
+            priority: todoData.priority,
+            category_name: todoData.category?.name || todoData.category_name,
+            category_color: todoData.category?.color || todoData.category_color,
+            createdAt: new Date(todoData.todo_created_at || todoData.createdAt || todoData.created_at),
+            updatedAt: new Date(todoData.todo_updated_at || todoData.updatedAt || todoData.updated_at)
         };
     }
 
