@@ -89,8 +89,7 @@ export class RawSQLTodoRepository implements ITodoRepository {
      * Find todos matching search criteria - optimized for table display
      */
     async findByCriteria(criteria: TodoSearchCriteria): Promise<TodoTableView[]> {
-        const query = this.buildSearchQuery(criteria);
-        this.debugLog('🔍 Executing findByCriteria', query); try {
+        try {
             const query = this.buildSearchQuery(criteria);
             this.debugLog('🔍 Executing findByCriteria with SQL DTO transformation', query);
 
@@ -98,10 +97,11 @@ export class RawSQLTodoRepository implements ITodoRepository {
                 query.formattedSql,
                 Object.values(query.params), // Convert Record to array
                 'findByCriteria'
-            ); this.debugLog(`✅ Found ${result.rows.length} todos with SQL DTO transformation`);
+            );
+            this.debugLog(`✅ Found ${result.rows.length} result rows with SQL DTO transformation`);            // Extract JSON array from aggregated result
+            const todosJsonArray = result.rows[0]?.todo_array || [];
+            this.debugLog(`📋 Extracted ${todosJsonArray.length} todos from JSON aggregation`);
 
-            // SQL DTO is complete - return JSON array directly as TodoTableView[]
-            const todosJsonArray = result.rows[0]?.todos_json || [];
             return todosJsonArray as TodoTableView[];
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -137,16 +137,18 @@ export class RawSQLTodoRepository implements ITodoRepository {
      */
     async findById(id: string): Promise<TodoDetail | null> {
         try {
-            // Load base query from SQL file
+            // step1. Load base query from SQL file
             const baseSql = sqlLoader.getQuery('findTodoWithRelations');
 
-            // Generate WHERE clause with SqlParamInjector
+            // step2. Generate WHERE clause with SqlParamInjector
             const searchState = { todo_id: parseInt(id) };
             const injectedQuery = this.sqlParamInjector.inject(baseSql, searchState) as SimpleSelectQuery;
 
-            // Build JSON query structure using unified schema
+            // step3. Build JSON query structure using unified schema
             const jsonMapping = createJsonMapping('todo');
-            const jsonQuery = this.postgresJsonQueryBuilder.buildJson(injectedQuery, jsonMapping);            // Format and execute
+            const jsonQuery = this.postgresJsonQueryBuilder.buildJson(injectedQuery, jsonMapping);
+
+            // step4. Format and execute
             const { formattedSql, params } = this.sqlFormatter.format(jsonQuery);
 
             const result = await this.executeQueryWithLogging(
@@ -179,11 +181,35 @@ export class RawSQLTodoRepository implements ITodoRepository {
         const searchState = this.convertToSearchState(criteria);
         this.debugLog('🔄 Search state conversion:', searchState);
 
-        // Use shared instances
-        const injectedQuery = this.sqlParamInjector.inject(baseSql, searchState);
-        const { formattedSql, params } = this.sqlFormatter.format(injectedQuery);
+        // Generate WHERE clause with SqlParamInjector
+        const injectedQuery = this.sqlParamInjector.inject(baseSql, searchState) as SimpleSelectQuery;        // Build JSON query structure using flat mapping for TodoTableView (9 columns only)
+        const jsonMapping = {
+            rootName: "todo",
+            rootEntity: {
+                id: "todo",
+                name: "Todo",
+                columns: {
+                    "todo_id": "todo_id",
+                    "title": "title",
+                    "description": "description",
+                    "status": "status",
+                    "priority": "priority",
+                    "createdAt": "todo_created_at",     // Map to camelCase as per TodoTableView
+                    "updatedAt": "todo_updated_at",     // Map to camelCase as per TodoTableView
+                    "category_name": "category_name",   // Flattened from category
+                    "category_color": "category_color"  // Flattened from category
+                }
+            },
+            nestedEntities: [],
+            useJsonb: true,
+            resultFormat: "array" as const
+        };
+        const jsonQuery = this.postgresJsonQueryBuilder.buildJson(injectedQuery, jsonMapping);
 
-        this.debugLog('🛠️ Generated query:', { sql: formattedSql, params });
+        // Format and execute
+        const { formattedSql, params } = this.sqlFormatter.format(jsonQuery);
+
+        this.debugLog('🛠️ Generated JSON query:', { sql: formattedSql, params });
 
         return { formattedSql, params: params as unknown[] };
     }

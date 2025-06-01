@@ -1,6 +1,6 @@
 # Prisma vs rawsql-ts Architecture Comparison Report
 
-**Generated on:** 2025-05-31T12:57:46.781Z
+**Generated on:** 2025-06-01T12:59:41.758Z
 
 ---
 
@@ -28,7 +28,7 @@ This test simulates a **search list functionality** commonly found in enterprise
 ### rawsql-ts
 
 ```sql
-select "t"."todo_id", "t"."title", "t"."description", "t"."status", "t"."priority", "t"."category_id", "t"."created_at", "t"."updated_at", "c"."name" as "category_name", "c"."color" as "category_color" from "todo" as "t" left join "category" as "c" on "t"."category_id" = "c"."category_id" where "t"."title" like $1 and "t"."status" = $2 and "t"."priority" = $3 order by case "t"."priority" when 'high' then 1 when 'medium' then 2 when 'low' then 3 end, "t"."created_at" desc
+with "origin_query" as (select "t"."todo_id", "t"."title", "t"."description", "t"."status", "t"."priority", "t"."created_at" as "todo_created_at", "t"."updated_at" as "todo_updated_at", "c"."category_id", "c"."name" as "category_name", "c"."description" as "category_description", "c"."color" as "category_color", "c"."created_at" as "category_created_at" from "todo" as "t" left join "category" as "c" on "t"."category_id" = "c"."category_id" where "t"."title" like $1 and "t"."status" = $2 and "t"."priority" = $3 order by case "t"."priority" when 'high' then 1 when 'medium' then 2 when 'low' then 3 end, "t"."created_at" desc), "cte_root_todo" as (select jsonb_build_object('todo_id', "todo_id", 'title', "title", 'description', "description", 'status', "status", 'priority', "priority", 'createdAt', "todo_created_at", 'updatedAt', "todo_updated_at", 'category_name', "category_name", 'category_color', "category_color") as "todo" from "origin_query") select jsonb_agg("todo") as "todo_array" from "cte_root_todo"
 ```
 **Parameters:** `["%project%","pending","high"]`
 
@@ -36,15 +36,15 @@ select "t"."todo_id", "t"."title", "t"."description", "t"."status", "t"."priorit
 ```json
 [
   {
-    "todo_id": 1,
     "title": "Complete project documentation",
-    "description": "Write comprehensive docs for the new feature",
     "status": "pending",
+    "todo_id": 1,
     "priority": "high",
+    "createdAt": "2025-05-28T12:11:54.59618+00:00",
+    "updatedAt": "2025-05-29T12:11:54.59618+00:00",
+    "description": "Write comprehensive docs for the new feature",
     "category_name": "Work",
-    "category_color": "#3498db",
-    "createdAt": "2025-05-28T12:11:54.596Z",
-    "updatedAt": "2025-05-29T12:11:54.596Z"
+    "category_color": "#3498db"
   }
 ]
 ```
