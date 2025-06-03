@@ -104,11 +104,12 @@ export class DemoSqlLogger implements SqlLogger {
             this.queryLogs.forEach((log, index) => {
                 if (index > 0) report += '\n'; // Add spacing between queries
 
+                // Add query header with counter
+                report += `#### Query${index + 1}\n\n`;
+
                 report += '```sql\n';
                 report += log.sql;
-                report += '\n```\n';
-
-                if (log.params && log.params.length > 0) {
+                report += '\n```\n'; if (log.params && log.params.length > 0) {
                     report += `**Parameters:** \`${JSON.stringify(log.params)}\`\n`;
                 }
             });

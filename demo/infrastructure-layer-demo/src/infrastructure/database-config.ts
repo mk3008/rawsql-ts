@@ -27,5 +27,5 @@ export const DATABASE_CONFIG = {
     password: 'demo_password',
     max: 10,
     idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 2000,
+    connectionTimeoutMillis: 10000,  // Increased timeout for benchmarks
 } as const;

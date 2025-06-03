@@ -75,6 +75,9 @@ export class RawSQLTodoRepository implements ITodoRepository {
             status: criteria.status || undefined,
             priority: criteria.priority || undefined,
 
+            // Category color search - for joined category table
+            category_color: criteria.categoryColor || undefined,
+
             // Date range mapping: domain dates -> created_at with operators
             created_at: (criteria.fromDate || criteria.toDate) ? {
                 ...(criteria.fromDate && { '>=': criteria.fromDate.toISOString() }),
@@ -91,16 +94,14 @@ export class RawSQLTodoRepository implements ITodoRepository {
     async findByCriteria(criteria: TodoSearchCriteria): Promise<TodoTableView[]> {
         try {
             const query = this.buildSearchQuery(criteria);
-            this.debugLog('🔍 Executing findByCriteria with SQL DTO transformation', query);
 
             const result = await this.executeQueryWithLogging(
                 query.formattedSql,
-                Object.values(query.params), // Convert Record to array
+                query.params,
                 'findByCriteria'
             );
-            this.debugLog(`✅ Found ${result.rows.length} result rows with SQL DTO transformation`);            // Extract JSON array from aggregated result
+
             const todosJsonArray = result.rows[0]?.todo_array || [];
-            this.debugLog(`📋 Extracted ${todosJsonArray.length} todos from JSON aggregation`);
 
             return todosJsonArray as TodoTableView[];
         } catch (error) {
@@ -129,19 +130,21 @@ export class RawSQLTodoRepository implements ITodoRepository {
         const count = parseInt(result.rows[0].total);
         this.debugLog(`📊 Total count: ${count}`);
         return count;
-    }    /**
+    }
+
+    /**
      * Find todo by ID with related data using PostgresJsonQueryBuilder
      * Demonstrates SqlParamInjector + PostgresJsonQueryBuilder integration
      */
     async findById(id: string): Promise<TodoDetail | null> {
         try {
             // Generate SQL query using testable methods
-            const { formattedSql, params } = this.generateFindByIdQuery(id);
+            const query = this.generateFindByIdQuery(id);
 
             // Execute query
             const result = await this.executeQueryWithLogging(
-                formattedSql,
-                params as any[],
+                query.formattedSql,
+                query.params,
                 'findById'
             );
 
@@ -171,7 +174,9 @@ export class RawSQLTodoRepository implements ITodoRepository {
         this.debugLog('🔄 Search state conversion:', searchState);
 
         // Generate WHERE clause with SqlParamInjector
-        const injectedQuery = this.sqlParamInjector.inject(baseSql, searchState) as SimpleSelectQuery;        // Build JSON query structure using flat mapping for TodoTableView (9 columns only)
+        const injectedQuery = this.sqlParamInjector.inject(baseSql, searchState) as SimpleSelectQuery;
+
+        // Build JSON query structure using flat mapping for TodoTableView (9 columns only)
         const jsonMapping = {
             rootName: "todo",
             rootEntity: {
@@ -265,7 +270,9 @@ export class RawSQLTodoRepository implements ITodoRepository {
             this.debugLog(`❌ Query failed after ${executionTime.toFixed(2)}ms:`, error);
             throw error;
         }
-    }    // === SQL Generation Methods (Testable) ===
+    }
+
+    // === SQL Generation Methods (Testable) ===
 
     /**
      * Step 1: Inject search conditions into base SQL (Testing Phase 1)
@@ -326,6 +333,4 @@ export class RawSQLTodoRepository implements ITodoRepository {
     public getBaseSqlForFindById(): string {
         return sqlLoader.getQuery('findTodoWithRelations');
     }
-
-    // === Testable Unit Methods ===
 }

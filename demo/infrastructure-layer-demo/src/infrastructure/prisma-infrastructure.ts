@@ -100,21 +100,27 @@ export class PrismaTodoRepository implements ITodoRepository {
 
         if (criteria.priority) {
             whereClause.priority = criteria.priority;
-        }
-
-        // Direct foreign key filtering
+        }        // Direct foreign key filtering
         if (criteria.categoryId) {
             whereClause.category_id = criteria.categoryId;
         }
 
         // Relation-based filtering through nested where clauses
-        if (criteria.categoryName) {
-            whereClause.category = {
-                name: {
+        if (criteria.categoryName || criteria.categoryColor) {
+            whereClause.category = {};
+
+            if (criteria.categoryName) {
+                whereClause.category.name = {
                     contains: criteria.categoryName,
                     mode: 'insensitive'
-                }
-            };
+                };
+            }
+
+            if (criteria.categoryColor) {
+                whereClause.category.color = {
+                    equals: criteria.categoryColor
+                };
+            }
         }
 
         // Date range filtering with automatic type conversion

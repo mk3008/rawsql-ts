@@ -25,6 +25,9 @@ export interface TodoSearchCriteria {
     /** Filter by category name */
     categoryName?: string;
 
+    /** Filter by category color (hex color code) */
+    categoryColor?: string;
+
     /** Search from this date (inclusive) */
     fromDate?: Date;
 

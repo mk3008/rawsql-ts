@@ -61,9 +61,7 @@ async function runPrismaVsRawSqlComparison() {
             report += '- **Search Criteria**: Multiple optional fields (title, status, priority, date ranges, etc.)\n';
             report += '- **Result Format**: 2D array structure optimized for table display\n';
             report += '- **Data Structure**: Results ignore relational structure - flat data for UI tables\n';
-            report += '- **Performance Focus**: Query efficiency for paginated list views\n\n';
-
-            report += '**Request:** Get todos matching title "project", status "pending", priority "high"\n\n';
+            report += '- **Performance Focus**: Query efficiency for paginated list views\n\n'; report += '**Request:** Get todos matching title "project", status "pending", priority "high"\n\n';
 
             const searchCriteria: TodoSearchCriteria = {
                 title: 'project',
@@ -107,13 +105,62 @@ async function runPrismaVsRawSqlComparison() {
             report += '\n**Results:**\n';
             report += '```json\n';
             report += JSON.stringify(prismaResults, null, 2);
+            report += '\n```\n\n';            // Summary section
+            report += '### Summary\n\n';
+            report += `- **rawsql-ts:** ${rawSqlStats.queryCount} queries\n`;
+            report += `- **Prisma:** ${prismaStats.queryCount} queries\n\n`;
+        }
+
+        // === MULTI-TABLE JOIN SEARCH COMPARISON ===
+        if (rawSqlConnection && prismaConnection) {
+            report += '## 🔗 Multi-Table JOIN Search Comparison\n\n';
+
+            // Add test background explanation
+            report += '### Test Background\n\n';
+            report += 'This test simulates a **multi-table search functionality** that requires JOIN operations:\n\n'; report += '- **Use Case**: Search by attributes that exist only in related tables (not main entity)\n';
+            report += '- **Search Method**: Mandatory JOIN-based filtering through foreign key relationships\n';
+            report += '- **Technical Focus**: How each approach handles multi-table filtering\n';
+            report += '- **Data Structure**: Results must include data from multiple related tables\n';
+            report += '- **Performance Focus**: Efficient JOIN operations vs N+1 query strategies\n\n'; report += '**Request:** Get todos filtered by category color "#3498db" (attribute exists only in related category table)\n\n';
+
+            const colorSearchCriteria: TodoSearchCriteria = {
+                categoryColor: '#3498db'
+            };
+
+            // Clear logs before execution
+            rawSqlLogger.clearLogs();
+            prismaLogger.clearLogs();
+
+            // Execute searches
+            const rawSqlColorResults = await rawSqlRepo.findByCriteria(colorSearchCriteria);
+            const prismaColorResults = await prismaRepo.findByCriteria(colorSearchCriteria);
+
+            // Get stats for summary
+            const rawSqlColorStats = rawSqlLogger.getSimpleStats();
+            const prismaColorStats = prismaLogger.getSimpleStats();
+
+            // rawsql-ts section
+            report += rawSqlLogger.formatForReport('rawsql-ts');
+
+            // Add retrieved objects section
+            report += '\n**Results:**\n';
+            report += '```json\n';
+            report += JSON.stringify(rawSqlColorResults, null, 2);
+            report += '\n```\n\n';
+
+            // Prisma section
+            report += prismaLogger.formatForReport('Prisma');
+
+            report += '\n**Results:**\n';
+            report += '```json\n';
+            report += JSON.stringify(prismaColorResults, null, 2);
             report += '\n```\n\n';
 
             // Summary section
             report += '### Summary\n\n';
-            report += `- **rawsql-ts:** ${rawSqlStats.queryCount} queries\n`;
-            report += `- **Prisma:** ${prismaStats.queryCount} queries\n\n`;
-        }        // === ID SEARCH COMPARISON ===
+            report += `- **rawsql-ts:** ${rawSqlColorStats.queryCount} queries\n`;
+            report += `- **Prisma:** ${prismaColorStats.queryCount} queries\n\n`;
+        }// === ID SEARCH COMPARISON ===
         if (rawSqlConnection && prismaConnection) {
             report += '## 🎯 ID Search Comparison\n\n';
 
