@@ -4,6 +4,9 @@
  * Eliminates code duplication and provides type-safe schema management
  */
 
+// Import JsonMapping interface for type safety
+import type { JsonMapping } from '../transformers/PostgresJsonQueryBuilder';
+
 // === Core Types for User-defined Schemas ===
 
 /**
@@ -131,7 +134,7 @@ export class SchemaManager {
      * @param rootTableName Root table for the JSON structure
      * @returns JSON mapping configuration
      */
-    public createJsonMapping(rootTableName: string): any {
+    public createJsonMapping(rootTableName: string): JsonMapping {
         const rootTable = this.schemas[rootTableName];
         if (!rootTable) {
             throw new Error(`Table '${rootTableName}' not found in schema registry`);
@@ -144,7 +147,7 @@ export class SchemaManager {
         });
 
         // Build nested entities from relationships
-        const nestedEntities: any[] = [];
+        const nestedEntities: JsonMapping['nestedEntities'] = [];
 
         rootTable.relationships?.forEach(rel => {
             const relatedTable = this.schemas[rel.table];
@@ -269,7 +272,7 @@ export function createTableColumnResolver(schemas: SchemaRegistry): (tableName: 
  * @param rootTableName Root table name
  * @returns JSON mapping for PostgresJsonQueryBuilder
  */
-export function createJsonMappingFromSchema(schemas: SchemaRegistry, rootTableName: string): any {
+export function createJsonMappingFromSchema(schemas: SchemaRegistry, rootTableName: string): JsonMapping {
     const manager = new SchemaManager(schemas);
     return manager.createJsonMapping(rootTableName);
 }

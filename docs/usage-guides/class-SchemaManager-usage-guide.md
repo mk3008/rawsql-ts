@@ -19,7 +19,7 @@ The `SchemaManager` class provides unified schema definition and automatic conve
 
 `SchemaManager` serves as a central hub for:
 - **Unified Schema Definition**: Define database schemas once and reuse across components
-- **Type Safety**: Full TypeScript support with comprehensive type definitions
+- **Type Safety**: Full TypeScript support with comprehensive type definitions and no `any` types in JSON mapping conversion
 - **Format Conversion**: Automatic conversion to formats required by different utilities
 - **Schema Validation**: Built-in schema validation and consistency checks
 - **Relationship Management**: Support for complex table relationships
@@ -77,12 +77,6 @@ interface TableDefinition {
   columns: Record<string, ColumnDefinition>;
   /** Relationships with other tables */
   relationships?: RelationshipDefinition[];
-  /** Table-level metadata */
-  metadata?: {
-    description?: string;
-    tags?: string[];
-    [key: string]: any;
-  };
 }
 ```
 
@@ -112,8 +106,7 @@ const orderSchema = {
       },
       total_amount: {
         name: 'total_amount'
-      }
-    },    relationships: [
+      }    },    relationships: [
       {
         type: 'object',
         table: 'users',
@@ -124,11 +117,7 @@ const orderSchema = {
         table: 'order_items',
         propertyName: 'items'
       }
-    ],
-    metadata: {
-      description: 'Customer orders table',
-      tags: ['commerce', 'transactional']
-    }
+    ]
   }
 };
 ```
@@ -387,34 +376,6 @@ const jsonMapping = schemaManager.createJsonMapping('users');
 
 // JSON mapping will use the aliases:
 // { "id": 1, "name": "John", "email": "john@example.com" }
-```
-
-### Schema Metadata Usage
-
-```typescript
-const schemaWithMetadata = {
-  orders: {
-    name: 'orders',
-    displayName: 'Customer Order',
-    columns: {
-      order_id: { name: 'order_id', type: 'number', isPrimaryKey: true }
-    },
-    metadata: {
-      description: 'Table storing customer orders',
-      tags: ['commerce', 'transactional', 'core'],
-      owner: 'commerce-team',
-      created: '2024-01-01',
-      lastModified: '2024-06-01'
-    }
-  }
-};
-
-const schemaManager = createSchemaManager(schemaWithMetadata);
-const table = schemaManager.getTable('orders');
-
-console.log('Table description:', table?.metadata?.description);
-console.log('Table tags:', table?.metadata?.tags);
-console.log('Table owner:', table?.metadata?.owner);
 ```
 
 ### Dynamic Schema Operations

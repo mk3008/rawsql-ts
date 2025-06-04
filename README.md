@@ -24,6 +24,7 @@ It is designed for extensibility and advanced SQL analysis, with initial focus o
 - Rich utilities for SQL structure transformation and analysis
 - Advanced SQL formatting capabilities, including multi-line formatting and customizable styles
 - Dynamic SQL parameter injection for building flexible search queries with `SqlParamInjector`
+- Type-safe schema management and JSON mapping conversion with full TypeScript support
 - Static query validation and regression testing against your database schema with `SqlSchemaValidator`, enabling early error detection and robust unit tests for schema changes.
 
 ![Benchmark Results](https://quickchart.io/chart?c={type:'bar',data:{labels:['Tokens20','Tokens70','Tokens140','Tokens230'],datasets:[{label:'rawsql-ts',data:[0.029,0.075,0.137,0.239],backgroundColor:'rgba(54,162,235,0.8)',borderColor:'rgba(54,162,235,1)',borderWidth:1},{label:'node-sql-parser',data:[0.210,0.223,0.420,0.871],backgroundColor:'rgba(255,206,86,0.8)',borderColor:'rgba(255,206,86,1)',borderWidth:1},{label:'sql-formatter',data:[0.228,0.547,1.057,1.906],backgroundColor:'rgba(255,99,132,0.8)',borderColor:'rgba(255,99,132,1)',borderWidth:1}]},options:{plugins:{legend:{labels:{color:'black'}}},scales:{x:{ticks:{color:'black'}},y:{ticks:{color:'black'}}},backgroundColor:'white'}}&width=700&height=450)
@@ -335,15 +336,13 @@ For more details on `QueryBuilder`, see the [QueryBuilder Usage Guide](./docs/us
 
 ## SchemaManager Features
 
-The `SchemaManager` class provides unified schema definition and automatic conversion to various formats, eliminating code duplication and providing type-safe schema management for rawsql-ts. It serves as a central hub for managing database schema definitions and converting them to formats required by different components like `SqlParamInjector`, `PostgresJsonQueryBuilder`, and `SqlSchemaValidator`.
+The `SchemaManager` class provides unified schema definition and type-safe conversion to various formats, eliminating code duplication for rawsql-ts. It serves as a central hub for managing database schema definitions and converting them to formats required by different components like `SqlParamInjector` and `PostgresJsonQueryBuilder`.
 
 Key benefits include:
-- **Unified Schema Definition**: Define your database schema once and use it across all rawsql-ts components
-- **Type-Safe Schema Management**: Full TypeScript support with comprehensive type definitions
-- **Automatic Format Conversion**: Converts schema definitions to various formats required by different utilities
+- **Unified Schema Definition**: Define your database schema once and generate JSON mappings, table column resolvers, and other formats for multiple rawsql-ts components
+- **Type-Safe JSON Mapping**: Fully typed conversion without using `any` types
 - **Schema Validation**: Built-in validation ensures schema consistency and integrity
 - **Relationship Management**: Supports complex table relationships with object and array outputs
-- **Zero Code Duplication**: Eliminate the need to define schemas separately for each component
 
 ```typescript
 import { SchemaManager, createSchemaManager } from 'rawsql-ts';
