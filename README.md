@@ -333,6 +333,43 @@ For more details on `QueryBuilder`, see the [QueryBuilder Usage Guide](./docs/us
 
 ---
 
+## SchemaManager Features
+
+The `SchemaManager` class provides unified schema definition and automatic conversion to various formats, eliminating code duplication and providing type-safe schema management for rawsql-ts. It serves as a central hub for managing database schema definitions and converting them to formats required by different components like `SqlParamInjector`, `PostgresJsonQueryBuilder`, and `SqlSchemaValidator`.
+
+Key benefits include:
+- **Unified Schema Definition**: Define your database schema once and use it across all rawsql-ts components
+- **Type-Safe Schema Management**: Full TypeScript support with comprehensive type definitions
+- **Automatic Format Conversion**: Converts schema definitions to various formats required by different utilities
+- **Schema Validation**: Built-in validation ensures schema consistency and integrity
+- **Relationship Management**: Supports complex table relationships with object and array outputs
+- **Zero Code Duplication**: Eliminate the need to define schemas separately for each component
+
+```typescript
+import { SchemaManager, createSchemaManager } from 'rawsql-ts';
+
+// Define your database schema once
+const schemas = {
+  users: {
+    name: 'users',
+    columns: {
+      user_id: { name: 'user_id', isPrimaryKey: true },
+      user_name: { name: 'user_name' },
+      email: { name: 'email' }
+    }
+  }
+};
+
+// Create SchemaManager and use with other components
+const schemaManager = createSchemaManager(schemas);
+const tableColumnResolver = schemaManager.createTableColumnResolver();
+const injector = new SqlParamInjector({ tableColumnResolver });
+```
+
+For more details on `SchemaManager`, see the [SchemaManager Usage Guide](./docs/usage-guides/class-SchemaManager-usage-guide.md).
+
+---
+
 ## Benchmarks
 
 This project includes a comprehensive benchmark suite to evaluate the performance of `rawsql-ts` in comparison with other popular libraries such as `node-sql-parser` and `sql-formatter`.

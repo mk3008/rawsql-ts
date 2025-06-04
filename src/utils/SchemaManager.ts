@@ -7,16 +7,12 @@
 // === Core Types for User-defined Schemas ===
 
 /**
- * Database column metadata with domain annotations
+ * Database column metadata for schema mapping
  */
 export interface ColumnDefinition {
     /** Column name in database */
     name: string;
-    /** Data type for validation and generation */
-    type: 'string' | 'number' | 'boolean' | 'date' | 'json' | 'uuid';
-    /** Whether column is required/NOT NULL */
-    required?: boolean;
-    /** Primary key indicator */
+    /** Primary key indicator - used for UPDATE/DELETE query WHERE conditions */
     isPrimaryKey?: boolean;
     /** Foreign key reference */
     foreignKey?: {
@@ -25,17 +21,6 @@ export interface ColumnDefinition {
     };
     /** Alias for JSON output (useful for avoiding conflicts) */
     jsonAlias?: string;
-    /** Default value */
-    defaultValue?: any;
-    /** Validation constraints */
-    constraints?: {
-        minLength?: number;
-        maxLength?: number;
-        min?: number;
-        max?: number;
-        pattern?: string;
-        enum?: readonly string[];
-    };
 }
 
 /**
@@ -43,11 +28,9 @@ export interface ColumnDefinition {
  */
 export interface RelationshipDefinition {
     /** Type of relationship */
-    type: 'belongsTo' | 'hasMany' | 'hasOne';
+    type: 'object' | 'array';
     /** Target table name */
     table: string;
-    /** Foreign key column in current table (for belongsTo) or target table (for hasMany/hasOne) */
-    foreignKey: string;
     /** Property name in JSON output */
     propertyName: string;
     /** Optional: Override target table's primary key */
@@ -66,12 +49,6 @@ export interface TableDefinition {
     columns: Record<string, ColumnDefinition>;
     /** Relationships with other tables */
     relationships?: RelationshipDefinition[];
-    /** Table-level metadata */
-    metadata?: {
-        description?: string;
-        tags?: string[];
-        [key: string]: any;
-    };
 }
 
 /**
@@ -97,6 +74,8 @@ export class SchemaManager {
 
     /**
      * Validate schema definitions for consistency
+     * Ensures each table has a primary key (required for UPDATE/DELETE operations)
+     * and validates relationship references
      */
     private validateSchemas(): void {
         const tableNames = Object.keys(this.schemas);
@@ -104,7 +83,7 @@ export class SchemaManager {
 
         // Validate each table
         Object.entries(this.schemas).forEach(([tableName, table]) => {
-            // Check primary key exists
+            // Check primary key exists (required for UPDATE/DELETE WHERE conditions)
             const primaryKeys = Object.entries(table.columns)
                 .filter(([_, col]) => col.isPrimaryKey)
                 .map(([name, _]) => name);
@@ -180,7 +159,7 @@ export class SchemaManager {
             });
 
             // Determine relationship type for JSON builder
-            const relationshipType = rel.type === 'hasMany' ? 'array' : 'object';
+            const relationshipType = rel.type;
 
             nestedEntities.push({
                 id: rel.propertyName,
@@ -224,6 +203,7 @@ export class SchemaManager {
 
     /**
      * Get primary key column name for a table
+     * Used by QueryBuilder.buildUpdateQuery for WHERE clause conditions
      * @param tableName Name of the table
      * @returns Primary key column name or undefined
      */
