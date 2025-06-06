@@ -149,7 +149,7 @@ nestedEntities: Array<{
 Use `relationshipType: "object"` for relationships where each parent has at most one child:
 
 ```typescript
-// Customer ↁEAddress (each customer has one address)
+// Customer → Address (each customer has one address)
 {
     id: "address",
     parentId: "customer", 
@@ -175,7 +175,7 @@ Use `relationshipType: "object"` for relationships where each parent has at most
 Use `relationshipType: "array"` for relationships where each parent can have multiple children:
 
 ```typescript
-// Order ↁEOrderItems (each order has multiple items)
+// Order → OrderItems (each order has multiple items)
 {
     id: "order_items",
     parentId: "order",
@@ -272,10 +272,10 @@ customer_id | customer_name | address_id | street
 1          | "John Doe"    | NULL       | NULL
 
 -- JSON Result (address is NULL, not empty object)
-{
-    "customer": {
+{ 
+   "customer": {
         "name": "John Doe", 
-        "address": null  // ↁENULL instead of {"street": null}
+        "address": null  // ← NULL instead of {"street": null}
     }
 }
 ```
