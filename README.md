@@ -24,6 +24,7 @@ It is designed for extensibility and advanced SQL analysis, with initial focus o
 - Rich utilities for SQL structure transformation and analysis
 - Advanced SQL formatting capabilities, including multi-line formatting and customizable styles
 - Dynamic SQL parameter injection for building flexible search queries with `SqlParamInjector`
+- Type-safe schema management and JSON mapping conversion with full TypeScript support
 - Static query validation and regression testing against your database schema with `SqlSchemaValidator`, enabling early error detection and robust unit tests for schema changes.
 
 ![Benchmark Results](https://quickchart.io/chart?c={type:'bar',data:{labels:['Tokens20','Tokens70','Tokens140','Tokens230'],datasets:[{label:'rawsql-ts',data:[0.029,0.075,0.137,0.239],backgroundColor:'rgba(54,162,235,0.8)',borderColor:'rgba(54,162,235,1)',borderWidth:1},{label:'node-sql-parser',data:[0.210,0.223,0.420,0.871],backgroundColor:'rgba(255,206,86,0.8)',borderColor:'rgba(255,206,86,1)',borderWidth:1},{label:'sql-formatter',data:[0.228,0.547,1.057,1.906],backgroundColor:'rgba(255,99,132,0.8)',borderColor:'rgba(255,99,132,1)',borderWidth:1}]},options:{plugins:{legend:{labels:{color:'black'}}},scales:{x:{ticks:{color:'black'}},y:{ticks:{color:'black'}}},backgroundColor:'white'}}&width=700&height=450)
@@ -198,9 +199,9 @@ For more details, see the [SqlParamInjector Usage Guide](./docs/usage-guides/cla
 
 ---
 
-## PostgreJsonQueryBuilder Features
+## PostgresJsonQueryBuilder Features
 
-The `PostgreJsonQueryBuilder` class transforms relational SQL queries into PostgreSQL JSON queries that return hierarchical JSON structures. It automatically handles complex relationships between entities and generates optimized Common Table Expressions (CTEs) for efficient JSON aggregation, making it perfect for building APIs, reports, and data exports.
+The `PostgresJsonQueryBuilder` class transforms relational SQL queries into PostgreSQL JSON queries that return hierarchical JSON structures. It automatically handles complex relationships between entities and generates optimized Common Table Expressions (CTEs) for efficient JSON aggregation, making it perfect for building APIs, reports, and data exports.
 
 Key benefits include:
 - **Hierarchical JSON Generation**: Transforms flat relational data into nested JSON objects and arrays
@@ -211,7 +212,7 @@ Key benefits include:
 - **Zero Manual Serialization**: Eliminates the need for manual object mapping and JSON construction
 
 ```typescript
-import { SelectQueryParser, PostgreJsonQueryBuilder } from 'rawsql-ts';
+import { SelectQueryParser, PostgresJsonQueryBuilder } from 'rawsql-ts';
 
 // Parse your base SQL query
 const baseQuery = SelectQueryParser.parse(`
@@ -235,13 +236,13 @@ const mapping = {
 };
 
 // Transform to JSON query
-const builder = new PostgreJsonQueryBuilder();
+const builder = new PostgresJsonQueryBuilder();
 const jsonQuery = builder.buildJson(baseQuery, mapping);
 // Returns optimized PostgreSQL query with CTEs that produces:
 // [{ "id": 1, "date": "2024-01-15", "customer": {"name": "John"}, "items": [{"product": "Widget", "qty": 2}] }]
 ```
 
-For more details, see the [PostgreJsonQueryBuilder Usage Guide](./docs/usage-guides/class-PostgreJsonQueryBuilder-usage-guide.md).
+For more details, see the [PostgresJsonQueryBuilder Usage Guide](./docs/usage-guides/class-PostgresJsonQueryBuilder-usage-guide.md).
 
 ---
 
@@ -330,6 +331,41 @@ console.log(updateSql);
 ```
 
 For more details on `QueryBuilder`, see the [QueryBuilder Usage Guide](./docs/usage-guides/class-QueryBuilder-usage-guide.md).
+
+---
+
+## SchemaManager Features
+
+The `SchemaManager` class provides unified schema definition and type-safe conversion to various formats, eliminating code duplication for rawsql-ts. It serves as a central hub for managing database schema definitions and converting them to formats required by different components like `SqlParamInjector` and `PostgresJsonQueryBuilder`.
+
+Key benefits include:
+- **Unified Schema Definition**: Define your database schema once and generate JSON mappings, table column resolvers, and other formats for multiple rawsql-ts components
+- **Type-Safe JSON Mapping**: Fully typed conversion without using `any` types
+- **Schema Validation**: Built-in validation ensures schema consistency and integrity
+- **Relationship Management**: Supports complex table relationships with object and array outputs
+
+```typescript
+import { SchemaManager, createSchemaManager } from 'rawsql-ts';
+
+// Define your database schema once
+const schemas = {
+  users: {
+    name: 'users',
+    columns: {
+      user_id: { name: 'user_id', isPrimaryKey: true },
+      user_name: { name: 'user_name' },
+      email: { name: 'email' }
+    }
+  }
+};
+
+// Create SchemaManager and use with other components
+const schemaManager = createSchemaManager(schemas);
+const tableColumnResolver = schemaManager.createTableColumnResolver();
+const injector = new SqlParamInjector({ tableColumnResolver });
+```
+
+For more details on `SchemaManager`, see the [SchemaManager Usage Guide](./docs/usage-guides/class-SchemaManager-usage-guide.md).
 
 ---
 

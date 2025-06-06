@@ -32,8 +32,8 @@ Initial CTE → Object Entity CTEs → Array Entity CTEs → Final JSON Query
 
 ## Core Components
 
-### 1. PostgreJsonQueryBuilder
-- **Location**: `src/transformers/PostgreJsonQueryBuilder.ts`
+### 1. PostgresJsonQueryBuilder
+- **Location**: `src/transformers/PostgresJsonQueryBuilder.ts`
 - **Role**: Main orchestrator for JSON query transformation
 - **Key Responsibilities**:
   - JSON mapping validation
@@ -57,7 +57,7 @@ Initial CTE → Object Entity CTEs → Array Entity CTEs → Final JSON Query
   - Hierarchical dependency resolution
 
 ### 4. JsonMapping Interface
-- **Location**: `src/transformers/PostgreJsonQueryBuilder.ts` (lines 6-20)
+- **Location**: `src/transformers/PostgresJsonQueryBuilder.ts` (lines 6-20)
 - **Role**: Configuration structure for JSON transformation
 - **Key Properties**:
   - `rootEntity`: Root object definition
@@ -113,7 +113,7 @@ const getDepth = (entityId: string): number => {
 
 ## CTE Builder Integration
 
-### Integration Flow in PostgreJsonQueryBuilder
+### Integration Flow in PostgresJsonQueryBuilder
 
 ```typescript
 // Step 1: Create initial CTE
@@ -166,7 +166,7 @@ return this.buildFinalSelectQuery(
 - Test complex hierarchical structures
 
 ### 5. Key Test Files
-- `tests/transformers/hierarchical/PostgreJsonQueryBuilder.ParentCTE.test.ts`
+- `tests/transformers/hierarchical/PostgresJsonQueryBuilder.ParentCTE.test.ts`
 - `tests/transformers/hierarchical/ComplexHierarchyBuilder.test.ts`
 - `tests/transformers/hierarchical/GroupedHierarchyBuilder.test.ts`
 - `tests/transformers/hierarchical/SimpleHierarchyBuilder.test.ts`
@@ -209,7 +209,7 @@ Suppose we want to add a new "map" relationship type that creates JSON objects w
 
 #### Step 1: Update JsonMapping Interface
 ```typescript
-// src/transformers/PostgreJsonQueryBuilder.ts
+// src/transformers/PostgresJsonQueryBuilder.ts
 export interface JsonMapping {
     // ...existing properties...
     nestedEntities: Array<{
@@ -240,8 +240,8 @@ export class PostgresMapEntityCteBuilder {
 
 #### Step 3: Update Main Builder Integration
 ```typescript
-// src/transformers/PostgreJsonQueryBuilder.ts
-export class PostgreJsonQueryBuilder {
+// src/transformers/PostgresJsonQueryBuilder.ts
+export class PostgresJsonQueryBuilder {
     private mapEntityCteBuilder: PostgresMapEntityCteBuilder;
     
     constructor() {

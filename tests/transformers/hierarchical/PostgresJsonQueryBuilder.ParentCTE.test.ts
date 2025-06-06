@@ -1,4 +1,4 @@
-import { PostgreJsonQueryBuilder, JsonMapping } from "../../../src/transformers/PostgreJsonQueryBuilder";
+import { PostgresJsonQueryBuilder, JsonMapping } from "../../../src/transformers/PostgresJsonQueryBuilder";
 import { SimpleSelectQuery } from "../../../src/models/SimpleSelectQuery";
 import { describe, expect, it } from "vitest";
 import { SelectQueryParser } from "../../../src/parsers/SelectQueryParser";
@@ -20,7 +20,7 @@ const customStyle = {
     andBreak: "before" as const
 };
 
-describe("PostgreJsonQueryBuilder - Parent Entity CTE Generation", () => {
+describe("PostgresJsonQueryBuilder - Parent Entity CTE Generation", () => {
     it("should generate parent CTE for customer entity", () => {
         const sql = `
         select
@@ -35,7 +35,7 @@ describe("PostgreJsonQueryBuilder - Parent Entity CTE Generation", () => {
         `;
         const originalQuery = SelectQueryParser.parse(sql) as SimpleSelectQuery;
 
-        const builder = new PostgreJsonQueryBuilder();
+        const builder = new PostgresJsonQueryBuilder();
         const mapping: JsonMapping = {
             rootName: "Orders",
             rootEntity: {
@@ -138,7 +138,7 @@ describe("PostgreJsonQueryBuilder - Parent Entity CTE Generation", () => {
         `;
         const originalQuery = SelectQueryParser.parse(sql) as SimpleSelectQuery;
 
-        const builder = new PostgreJsonQueryBuilder();
+        const builder = new PostgresJsonQueryBuilder();
         const mapping: JsonMapping = {
             rootName: "OrderDetails",
             rootEntity: {
