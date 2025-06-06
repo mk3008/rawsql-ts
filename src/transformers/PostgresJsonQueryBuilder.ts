@@ -114,8 +114,20 @@ export class PostgresJsonQueryBuilder {
      * @param mapping JSON mapping configuration
      * @returns Transformed query with JSON aggregation
      */
-    public buildJson(originalQuery: SimpleSelectQuery, mapping: JsonMapping): SimpleSelectQuery {
+    public buildJsonQuery(originalQuery: SimpleSelectQuery, mapping: JsonMapping): SimpleSelectQuery {
         return this.buildJsonWithCteStrategy(originalQuery, mapping);
+    }
+
+    /**
+     * Build JSON query from original query and mapping configuration.
+     * @deprecated Use buildJsonQuery instead. This method will be removed in a future version.
+     * @param originalQuery Original query to transform
+     * @param mapping JSON mapping configuration
+     * @returns Transformed query with JSON aggregation
+     */
+    public buildJson(originalQuery: SimpleSelectQuery, mapping: JsonMapping): SimpleSelectQuery {
+        console.warn('buildJson is deprecated. Use buildJsonQuery instead.');
+        return this.buildJsonQuery(originalQuery, mapping);
     }
 
     /**
