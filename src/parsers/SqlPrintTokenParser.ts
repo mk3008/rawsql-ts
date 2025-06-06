@@ -18,6 +18,7 @@ import {
     CastExpression,
     CaseExpression,
     ArrayExpression,
+    ArrayQueryExpression,
     BetweenExpression,
     StringSpecifierExpression,
     TypeValue,
@@ -209,6 +210,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         this.handlers.set(CastExpression.kind, (expr) => this.visitCastExpression(expr as CastExpression));
         this.handlers.set(CaseExpression.kind, (expr) => this.visitCaseExpression(expr as CaseExpression));
         this.handlers.set(ArrayExpression.kind, (expr) => this.visitArrayExpression(expr as ArrayExpression));
+        this.handlers.set(ArrayQueryExpression.kind, (expr) => this.visitArrayQueryExpression(expr as ArrayQueryExpression));
         this.handlers.set(BetweenExpression.kind, (expr) => this.visitBetweenExpression(expr as BetweenExpression));
         this.handlers.set(StringSpecifierExpression.kind, (expr) => this.visitStringSpecifierExpression(expr as StringSpecifierExpression));
         this.handlers.set(TypeValue.kind, (expr) => this.visitTypeValue(expr as TypeValue));
@@ -622,6 +624,18 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.parenthesis, '['));
         token.innerTokens.push(this.visit(arg.expression));
         token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.parenthesis, ']'));
+
+        return token;
+    }
+
+    private visitArrayQueryExpression(arg: ArrayQueryExpression): SqlPrintToken {
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.ArrayExpression);
+
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'array'));
+        // ARRAY(SELECT ...)
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.parenthesis, '('));
+        token.innerTokens.push(this.visit(arg.query));
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.parenthesis, ')'));
 
         return token;
     }

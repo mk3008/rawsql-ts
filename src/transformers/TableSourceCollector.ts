@@ -2,7 +2,7 @@ import { CommonTable, FetchClause, ForClause, FromClause, GroupByClause, HavingC
 import { BinarySelectQuery, SelectQuery, SimpleSelectQuery, ValuesQuery } from "../models/SelectQuery";
 import { SqlComponent, SqlComponentVisitor } from "../models/SqlComponent";
 import {
-    ArrayExpression, BetweenExpression, BinaryExpression, CaseExpression, CaseKeyValuePair,
+    ArrayExpression, ArrayQueryExpression, BetweenExpression, BinaryExpression, CaseExpression, CaseKeyValuePair,
     CastExpression, ColumnReference, FunctionCall, InlineQuery, ParenExpression,
     ParameterExpression, SwitchCaseArgument, TupleExpression, UnaryExpression, ValueComponent,
     OverExpression, WindowFrameExpression, IdentifierString, RawString,
@@ -87,6 +87,7 @@ export class TableSourceCollector implements SqlComponentVisitor<void> {
             this.handlers.set(BetweenExpression.kind, (expr) => this.visitBetweenExpression(expr as BetweenExpression));
             this.handlers.set(FunctionCall.kind, (expr) => this.visitFunctionCall(expr as FunctionCall));
             this.handlers.set(ArrayExpression.kind, (expr) => this.visitArrayExpression(expr as ArrayExpression));
+            this.handlers.set(ArrayQueryExpression.kind, (expr) => this.visitArrayQueryExpression(expr as ArrayQueryExpression));
             this.handlers.set(TupleExpression.kind, (expr) => this.visitTupleExpression(expr as TupleExpression));
             this.handlers.set(CastExpression.kind, (expr) => this.visitCastExpression(expr as CastExpression));
         }
@@ -465,6 +466,10 @@ export class TableSourceCollector implements SqlComponentVisitor<void> {
 
     private visitArrayExpression(expr: ArrayExpression): void {
         expr.expression.accept(this);
+    }
+
+    private visitArrayQueryExpression(expr: ArrayQueryExpression): void {
+        expr.query.accept(this);
     }
 
     private visitTupleExpression(expr: TupleExpression): void {

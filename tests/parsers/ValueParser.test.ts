@@ -25,6 +25,7 @@ describe('ValueParser', () => {
         ["FunctionCall - Namespaced (multiple)", "dbo.util.myfunc(5)", '"dbo"."util".myfunc(5)'],
         ["ParameterExpression - Parameter", "@userId", ":userId"],
         ["ArrayExpression - Array", "ARRAY[1, 2, 3]", "array[1, 2, 3]"],
+        ["ArrayExpression - Function call", "ARRAY(SELECT 1)", "array(select 1)"],
         ["CASE - Simple CASE expression", "CASE age WHEN 18 THEN 'young' WHEN 65 THEN 'senior' ELSE 'adult' END", "case \"age\" when 18 then 'young' when 65 then 'senior' else 'adult' end"],
         ["CASE WHEN - Conditional branching", "CASE WHEN age > 18 THEN 'adult' ELSE 'minor' END", "case when \"age\" > 18 then 'adult' else 'minor' end"],
         ["BETWEEN - Range specification", "age BETWEEN 20 AND 30", '"age" between 20 and 30'],

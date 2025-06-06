@@ -6,6 +6,8 @@ import { KeywordParser } from '../parsers/KeywordParser';
 
 const trie = new KeywordTrie([
     ["grouping", "sets"],
+    // ARRAY has special syntax with [] arguments, so it is forcibly treated as a function
+    ["array"],
 ]);
 const keywordParser = new KeywordParser(trie);
 

@@ -17,6 +17,7 @@ export type ValueComponent = ValueList |
     CastExpression |
     CaseExpression |
     ArrayExpression |
+    ArrayQueryExpression |
     BetweenExpression |
     InlineQuery |
     StringSpecifierExpression |
@@ -303,6 +304,15 @@ export class ArrayExpression extends SqlComponent {
     constructor(expression: ValueComponent) {
         super();
         this.expression = expression;
+    }
+}
+
+export class ArrayQueryExpression extends SqlComponent {
+    static kind = Symbol("ArrayQueryExpression");
+    query: SelectQuery;
+    constructor(query: SelectQuery) {
+        super();
+        this.query = query;
     }
 }
 

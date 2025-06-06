@@ -1,15 +1,35 @@
 import { Lexeme, TokenType } from "../models/Lexeme";
-import { FunctionCall, ValueComponent, BinaryExpression, TypeValue, CastExpression, BetweenExpression, RawString } from "../models/ValueComponent";
+import { FunctionCall, ValueComponent, BinaryExpression, TypeValue, CastExpression, BetweenExpression, RawString, ArrayExpression, ArrayQueryExpression } from "../models/ValueComponent";
+import { SelectQuery } from "../models/SelectQuery";
 import { OverExpressionParser } from "./OverExpressionParser";
 import { ValueParser } from "./ValueParser";
 import { FullNameParser } from "./FullNameParser";
+import { SelectQueryParser } from "./SelectQueryParser";
 
 export class FunctionExpressionParser {
     public static parseFromLexeme(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number } {
         let idx = index;
         const current = lexemes[idx];
 
-        if (current.value === "substring" || current.value === "overlay") {
+        if (current.value === "array") {
+            // Check if this is array literal (ARRAY[...]) or function call (ARRAY(...))
+            if (idx + 1 < lexemes.length && (lexemes[idx + 1].type & TokenType.OpenBracket)) {
+                idx++;
+                const arg = ValueParser.parseArgument(TokenType.OpenBracket, TokenType.CloseBracket, lexemes, idx);
+                idx = arg.newIndex;
+                const value = new ArrayExpression(arg.value);
+                return { value, newIndex: idx };
+            } else if (idx + 1 < lexemes.length && (lexemes[idx + 1].type & TokenType.OpenParen)) {
+                idx++;
+                idx++; // Skip the opening parenthesis
+                const arg = SelectQueryParser.parseFromLexeme(lexemes, idx);
+                idx = arg.newIndex;
+                idx++; // Skip the closing parenthesis
+                const value = new ArrayQueryExpression(arg.value);
+                return { value, newIndex: idx };
+            }
+            throw new Error(`Invalid ARRAY syntax at index ${idx}, expected ARRAY[... or ARRAY(...)`);
+        } else if (current.value === "substring" || current.value === "overlay") {
             return this.parseKeywordFunction(lexemes, idx, [
                 { key: "from", required: false },
                 { key: "for", required: false }
@@ -92,6 +112,20 @@ export class FunctionExpressionParser {
         const namespaces = fullNameResult.namespaces;
         const name = fullNameResult.name;
         idx = fullNameResult.newIndex;
+
+        // Special handling for ARRAY function
+        if (namespaces === null && name.name.toLowerCase() === "array" && idx < lexemes.length && (lexemes[idx].type & TokenType.OpenParen)) {
+            // Check if it's ARRAY(SELECT ...) - parse as ArrayQueryExpression
+            const arg = ValueParser.parseArgument(TokenType.OpenParen, TokenType.CloseParen, lexemes, idx);
+            idx = arg.newIndex;
+
+            // Check if the argument is a SelectQuery (subquery) by checking if it has setParameter method
+            if (arg.value && typeof (arg.value as any).setParameter === 'function') {
+                // This is a SelectQuery from new parseArgument logic
+                const value = new ArrayQueryExpression(arg.value as unknown as SelectQuery);
+                return { value, newIndex: idx };
+            }
+        }
 
         if (idx < lexemes.length && (lexemes[idx].type & TokenType.OpenParen)) {
             // General argument parsing

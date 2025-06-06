@@ -1,21 +1,18 @@
 import { Lexeme, TokenType } from "../models/Lexeme";
 import { ArrayExpression, CaseExpression, CaseKeyValuePair, SwitchCaseArgument, UnaryExpression, ValueComponent } from "../models/ValueComponent";
 import { ValueParser } from "./ValueParser";
+import { FunctionExpressionParser } from "./FunctionExpressionParser";
 
 export class CommandExpressionParser {
     public static parseFromLexeme(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number } {
         let idx = index;
         const current = lexemes[idx];
-
         if (current.value === "case") {
             idx++;
             return this.parseCaseExpression(lexemes, idx);
         } else if (current.value === "case when") {
             idx++;
             return this.parseCaseWhenExpression(lexemes, idx);
-        } else if (current.value === "array") {
-            idx++;
-            return this.parseArrayExpression(lexemes, idx);
         }
 
         return this.parseModifierUnaryExpression(lexemes, idx);
@@ -128,17 +125,5 @@ export class CommandExpressionParser {
         idx = value.newIndex;
 
         return { value: new CaseKeyValuePair(condition.value, value.value), newIndex: idx };
-    }
-
-    private static parseArrayExpression(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number } {
-        let idx = index;
-        // Array function is enclosed in []
-        if (idx < lexemes.length && (lexemes[idx].type & TokenType.OpenBracket)) {
-            const arg = ValueParser.parseArgument(TokenType.OpenBracket, TokenType.CloseBracket, lexemes, idx);
-            idx = arg.newIndex;
-            const value = new ArrayExpression(arg.value);
-            return { value, newIndex: idx };
-        }
-        throw new Error(`Expected opening bracket '[' for array expression at index ${idx}`);
     }
 }
