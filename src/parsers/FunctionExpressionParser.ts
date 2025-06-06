@@ -118,18 +118,12 @@ export class FunctionExpressionParser {
 
     private static parseFunctionCall(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number } {
         let idx = index;
-
         // Parse namespaced function name (e.g., myschema.myfunc, dbo.util.myfunc)
         // Use FullNameParser to get namespaces and function name
         const fullNameResult = FullNameParser.parseFromLexeme(lexemes, idx);
         const namespaces = fullNameResult.namespaces;
         const name = fullNameResult.name;
         idx = fullNameResult.newIndex;
-
-        // Special handling for ARRAY function
-        if (namespaces === null && name.name === "array") {
-            return this.parseArrayExpression(lexemes, index);
-        }
 
         if (idx < lexemes.length && (lexemes[idx].type & TokenType.OpenParen)) {
             // General argument parsing
