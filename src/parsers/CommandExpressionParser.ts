@@ -1,7 +1,6 @@
 import { Lexeme, TokenType } from "../models/Lexeme";
 import { ArrayExpression, CaseExpression, CaseKeyValuePair, SwitchCaseArgument, UnaryExpression, ValueComponent } from "../models/ValueComponent";
 import { ValueParser } from "./ValueParser";
-import { FunctionExpressionParser } from "./FunctionExpressionParser";
 
 export class CommandExpressionParser {
     public static parseFromLexeme(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number } {
