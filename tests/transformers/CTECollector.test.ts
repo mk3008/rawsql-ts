@@ -389,4 +389,38 @@ order by
         expect(commonTables[1].getSourceAliasName()).toBe('detail');
         expect(commonTables[2].getSourceAliasName()).toBe('tax_summary');
     });
+
+    test('handles function tables without throwing error', () => {
+        // Arrange
+        const sql = `SELECT * FROM generate_series(1, 5) AS n`;
+        const query = SelectQueryParser.parse(sql);
+        const collector = new CTECollector();
+
+        // Act & Assert
+        // This should not throw an error, even though there are no CTEs to collect
+        expect(() => {
+            collector.visit(query);
+            const commonTables = collector.getCommonTables();
+            expect(commonTables.length).toBe(0);
+        }).not.toThrow();
+    });
+
+    test('handles complex query with function tables and regular tables', () => {
+        // Arrange
+        const sql = `
+            SELECT u.id, n.value
+            FROM users u
+            CROSS JOIN generate_series(1, 5) AS n(value)
+            WHERE u.active = true
+        `;
+        const query = SelectQueryParser.parse(sql);
+        const collector = new CTECollector();
+
+        // Act & Assert
+        expect(() => {
+            collector.visit(query);
+            const commonTables = collector.getCommonTables();
+            expect(commonTables.length).toBe(0);
+        }).not.toThrow();
+    });
 });

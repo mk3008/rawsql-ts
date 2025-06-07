@@ -1,4 +1,4 @@
-import { CommonTable, FetchClause, ForClause, FromClause, GroupByClause, HavingClause, JoinClause, JoinOnClause, JoinUsingClause, LimitClause, OffsetClause, OrderByClause, OrderByItem, ParenSource, PartitionByClause, SelectClause, SelectItem, SourceExpression, SubQuerySource, TableSource, WhereClause, WindowFrameClause, WindowsClause, WithClause } from "../models/Clause";
+import { CommonTable, FetchClause, ForClause, FromClause, FunctionSource, GroupByClause, HavingClause, JoinClause, JoinOnClause, JoinUsingClause, LimitClause, OffsetClause, OrderByClause, OrderByItem, ParenSource, PartitionByClause, SelectClause, SelectItem, SourceExpression, SubQuerySource, TableSource, WhereClause, WindowFrameClause, WindowsClause, WithClause } from "../models/Clause";
 import { BinarySelectQuery, SelectQuery, SimpleSelectQuery, ValuesQuery } from "../models/SelectQuery";
 import { SqlComponent, SqlComponentVisitor } from "../models/SqlComponent";
 import {
@@ -57,6 +57,7 @@ export class TableSourceCollector implements SqlComponentVisitor<void> {
         // Source components
         this.handlers.set(SourceExpression.kind, (expr) => this.visitSourceExpression(expr as SourceExpression));
         this.handlers.set(TableSource.kind, (expr) => this.visitTableSource(expr as TableSource));
+        this.handlers.set(FunctionSource.kind, (expr) => this.visitFunctionSource(expr as FunctionSource));
         this.handlers.set(ParenSource.kind, (expr) => this.visitParenSource(expr as ParenSource));
         this.handlers.set(SubQuerySource.kind, (expr) => this.visitSubQuerySource(expr as SubQuerySource));
         this.handlers.set(InlineQuery.kind, (expr) => this.visitInlineQuery(expr as InlineQuery));
@@ -304,6 +305,14 @@ export class TableSourceCollector implements SqlComponentVisitor<void> {
             this.tableNameMap.set(identifier, true);
             this.tableSources.push(source);
         }
+    }
+
+    private visitFunctionSource(source: FunctionSource): void {
+        // Function sources are not regular table sources, but may contain subqueries in their arguments
+        if (source.argument) {
+            source.argument.accept(this);
+        }
+        // Function sources themselves are not collected as table sources
     }
 
     /**
