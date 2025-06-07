@@ -1,4 +1,4 @@
-import { CommonTable, ForClause, FromClause, GroupByClause, HavingClause, JoinClause, JoinOnClause, JoinUsingClause, LimitClause, OrderByClause, OrderByItem, ParenSource, PartitionByClause, SelectClause, SelectItem, SourceExpression, SubQuerySource, TableSource, WhereClause, WindowFrameClause, WindowsClause, WithClause } from "../models/Clause";
+import { CommonTable, ForClause, FromClause, FunctionSource, GroupByClause, HavingClause, JoinClause, JoinOnClause, JoinUsingClause, LimitClause, OrderByClause, OrderByItem, ParenSource, PartitionByClause, SelectClause, SelectItem, SourceExpression, SubQuerySource, TableSource, WhereClause, WindowFrameClause, WindowsClause, WithClause } from "../models/Clause";
 import { BinarySelectQuery, SimpleSelectQuery, SelectQuery, ValuesQuery } from "../models/SelectQuery";
 import { SqlComponent, SqlComponentVisitor } from "../models/SqlComponent";
 import {
@@ -54,6 +54,7 @@ export class CTECollector implements SqlComponentVisitor<void> {
         // Source components
         this.handlers.set(SourceExpression.kind, (expr) => this.visitSourceExpression(expr as SourceExpression));
         this.handlers.set(TableSource.kind, (expr) => this.visitTableSource(expr as TableSource));
+        this.handlers.set(FunctionSource.kind, (expr) => this.visitFunctionSource(expr as FunctionSource));
         this.handlers.set(ParenSource.kind, (expr) => this.visitParenSource(expr as ParenSource));
 
         // Subqueries and inline queries
@@ -284,6 +285,13 @@ export class CTECollector implements SqlComponentVisitor<void> {
 
     private visitTableSource(source: TableSource): void {
         // Table sources don't contain subqueries, nothing to do
+    }
+
+    private visitFunctionSource(source: FunctionSource): void {
+        // Function sources may have arguments that could contain subqueries
+        if (source.argument) {
+            source.argument.accept(this);
+        }
     }
 
     private visitParenSource(source: ParenSource): void {

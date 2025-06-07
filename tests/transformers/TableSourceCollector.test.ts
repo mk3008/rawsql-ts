@@ -505,15 +505,67 @@ order by
     line_id
         `;
         const query = SelectQueryParser.parse(sql);
-        const collector = new TableSourceCollector(false); // selectableOnly = false で全探索
+        const collector = new TableSourceCollector(false); // selectableOnly = false for full scan
 
         // Act
         collector.visit(query);
         const tableSources = collector.getTableSources();
         const tableNames = tableSources.map(ts => ts.table.name);
-
         // Assert
-        // dat だけがテーブルソースとして検出されるべき！
+        // Only 'dat' should be detected as a table source
         expect(tableNames).toEqual(['dat']);
+    });
+
+    test('handles function tables without throwing error', () => {
+        // Arrange
+        const sql = `SELECT * FROM generate_series(1, 5) AS n`;
+        const query = SelectQueryParser.parse(sql);
+        const collector = new TableSourceCollector();
+
+        // Act & Assert
+        // This should not throw an error, function tables should be handled gracefully
+        expect(() => {
+            collector.visit(query);
+            const tableSources = collector.getTableSources();
+            // Function sources are not TableSource instances, so should be empty
+            expect(tableSources.length).toBe(0);
+        }).not.toThrow();
+    });
+
+    test('handles function tables with full scanning mode', () => {
+        // Arrange
+        const sql = `SELECT * FROM generate_series(1, 5) AS n`;
+        const query = SelectQueryParser.parse(sql);
+        const collector = new TableSourceCollector(false); // selectableOnly = false
+
+        // Act & Assert
+        // This should not throw an error even in full scan mode
+        expect(() => {
+            collector.visit(query);
+            const tableSources = collector.getTableSources();
+            // Function sources are not TableSource instances, so should be empty
+            expect(tableSources.length).toBe(0);
+        }).not.toThrow();
+    });
+
+    test('handles complex query with function tables and regular tables', () => {
+        // Arrange
+        const sql = `
+            SELECT u.id, n.value
+            FROM users u
+            CROSS JOIN generate_series(1, 5) AS n(value)
+            WHERE u.active = true
+        `;
+        const query = SelectQueryParser.parse(sql);
+        const collector = new TableSourceCollector();
+
+        // Act & Assert
+        expect(() => {
+            collector.visit(query);
+            const tableSources = collector.getTableSources();
+            // Should only collect the regular table source, not the function source
+            expect(tableSources.length).toBe(1);
+            expect(tableSources[0].table.name).toBe('users');
+        }).not.toThrow();
     });
 });

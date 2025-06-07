@@ -420,4 +420,53 @@ order by
         // Columns should be sorted alphabetically by the collector
         expect(schemaInfo[0].columns).toEqual(['line_id', 'name', 'quantity', 'tax_rate', 'unit_price']);
     });
+
+    test('handles function tables (e.g., generate_series) without errors', () => {
+        // Arrange: test with function table to ensure no "[CTECollector] No handler for FunctionSource" error
+        const sql = `SELECT n.value FROM generate_series(1, 5) as n(value)`;
+        const query = SelectQueryParser.parse(sql);
+        const collector = new SchemaCollector();
+
+        // Act & Assert: should not throw any errors
+        expect(() => {
+            const schemaInfo = collector.collect(query);
+            // Function tables should not be included in schema info since they don't represent actual tables
+            // The result might be empty or contain minimal info
+        }).not.toThrow();
+    });
+
+    test('handles mixed queries with function tables and real tables', () => {
+        // Arrange: test with both function tables and real tables
+        const sql = `
+            SELECT u.id, u.name, n.value 
+            FROM users u 
+            CROSS JOIN generate_series(1, 3) as n(value)
+        `;
+        const query = SelectQueryParser.parse(sql);
+        const collector = new SchemaCollector();
+
+        // Act & Assert: should not throw any errors
+        expect(() => {
+            const schemaInfo = collector.collect(query);
+            // Should collect schema info for the real table (users) but not the function table
+        }).not.toThrow();
+    });
+
+    test('handles CTE with function tables', () => {
+        // Arrange: test with CTE containing function table
+        const sql = `
+            WITH numbers AS (
+                SELECT value FROM generate_series(1, 10) as g(value)
+            )
+            SELECT * FROM numbers WHERE value > 5
+        `;
+        const query = SelectQueryParser.parse(sql);
+        const collector = new SchemaCollector();
+
+        // Act & Assert: should not throw any errors
+        expect(() => {
+            const schemaInfo = collector.collect(query);
+            // Should handle the CTE without errors, even though it contains a function table
+        }).not.toThrow();
+    });
 });
