@@ -104,7 +104,6 @@ const keywordTrie = new KeywordTrie([
     ["create", "table"],
     ["create", "temporary", "table"],
     ["tablesample"],
-    ["array"],
     // cast
     ["as"],
     // odrder

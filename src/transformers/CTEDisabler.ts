@@ -2,7 +2,7 @@ import { CommonTable, ForClause, FromClause, GroupByClause, HavingClause, JoinCl
 import { BinarySelectQuery, SimpleSelectQuery, SelectQuery, ValuesQuery } from "../models/SelectQuery";
 import { SqlComponent, SqlComponentVisitor } from "../models/SqlComponent";
 import {
-    ArrayExpression, BetweenExpression, BinaryExpression, CaseExpression, CaseKeyValuePair,
+    ArrayExpression, ArrayQueryExpression, BetweenExpression, BinaryExpression, CaseExpression, CaseKeyValuePair,
     CastExpression, ColumnReference, FunctionCall, InlineQuery, ParenExpression,
     ParameterExpression, SwitchCaseArgument, TupleExpression, UnaryExpression, ValueComponent,
     OverExpression, WindowFrameExpression, IdentifierString, RawString,
@@ -75,6 +75,7 @@ export class CTEDisabler implements SqlComponentVisitor<SqlComponent> {
         this.handlers.set(BetweenExpression.kind, (expr) => this.visitBetweenExpression(expr as BetweenExpression));
         this.handlers.set(FunctionCall.kind, (expr) => this.visitFunctionCall(expr as FunctionCall));
         this.handlers.set(ArrayExpression.kind, (expr) => this.visitArrayExpression(expr as ArrayExpression));
+        this.handlers.set(ArrayQueryExpression.kind, (expr) => this.visitArrayQueryExpression(expr as ArrayQueryExpression));
         this.handlers.set(TupleExpression.kind, (expr) => this.visitTupleExpression(expr as TupleExpression));
         this.handlers.set(CastExpression.kind, (expr) => this.visitCastExpression(expr as CastExpression));
         this.handlers.set(WindowFrameExpression.kind, (expr) => this.visitWindowFrameExpression(expr as WindowFrameExpression));
@@ -320,6 +321,11 @@ export class CTEDisabler implements SqlComponentVisitor<SqlComponent> {
     visitArrayExpression(expr: ArrayExpression): SqlComponent {
         const newExpression = this.visit(expr.expression) as ValueComponent;
         return new ArrayExpression(newExpression);
+    }
+
+    visitArrayQueryExpression(expr: ArrayQueryExpression): SqlComponent {
+        const newQuery = this.visit(expr.query) as SelectQuery;
+        return new ArrayQueryExpression(newQuery);
     }
 
     visitTupleExpression(expr: TupleExpression): SqlComponent {
