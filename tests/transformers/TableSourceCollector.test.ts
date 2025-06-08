@@ -563,7 +563,9 @@ order by
             expect(tableSources.length).toBe(1);
             expect(tableSources[0].table.name).toBe('users');
         }).not.toThrow();
-    }); test('handles function tables with subquery arguments (selectableOnly mode)', () => {
+    });
+
+    test('handles function tables with subquery arguments (selectableOnly mode)', () => {
         // Arrange: function with subquery as argument
         const sql = `
             SELECT * 
