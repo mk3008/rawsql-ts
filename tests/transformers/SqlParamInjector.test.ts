@@ -46,7 +46,7 @@ describe('SqlParamInjector', () => {
         const { formattedSql, params } = formatter.format(injectedQuery);
 
         // Assert: SQL contains conditions for price range and article_name LIKE query
-        expect(formattedSql).toBe('select "a"."article_id", "a"."article_name", "a"."price" from "article" as "a" where "a"."price" >= :price_min and "a"."price" <= :price_max and "a"."article_name" like :article_name_like');
+        expect(formattedSql).toBe('select "a"."article_id", "a"."article_name", "a"."price" from "article" as "a" where ("a"."price" >= :price_min and "a"."price" <= :price_max) and "a"."article_name" like :article_name_like');
 
         // Assert: parameters object matches expected state values
         expect(params).toEqual({ price_min: 10, price_max: 100, article_name_like: '%super%' });
@@ -153,17 +153,17 @@ describe('SqlParamInjector', () => {
         const formatter = new SqlFormatter();
         const { formattedSql, params } = formatter.format(injectedQuery);
 
-        // Updated expected full SQL string with correct Postgres ANY syntax
+        // Updated expected full SQL string with correct Postgres ANY syntax and parentheses for multiple conditions
         const expectedSql =
             'select "a"."price" from "article" as "a" where ' +
-            '"a"."price" in (:price_in_0, :price_in_1, :price_in_2) and ' +
+            '("a"."price" in (:price_in_0, :price_in_1, :price_in_2) and ' +
             '"a"."price" = any(:price_any) and ' +
             '"a"."price" < :price_lt and ' +
             '"a"."price" > :price_gt and ' +
             '"a"."price" != :price_neq and ' +
             '"a"."price" <> :price_ne and ' +
             '"a"."price" <= :price_le and ' +
-            '"a"."price" >= :price_ge';
+            '"a"."price" >= :price_ge)';
 
         // Assert: full SQL string must exactly match expected value
         expect(formattedSql).toBe(expectedSql);
