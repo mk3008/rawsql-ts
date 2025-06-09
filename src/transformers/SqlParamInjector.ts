@@ -395,7 +395,7 @@ export class SqlParamInjector {
         function injectSimpleCondition(q: SimpleSelectQuery, columnRef: ValueComponent, name: string, stateValue: any): void {
             const paramExpr = new ParameterExpression(name, stateValue);
             q.appendWhere(new BinaryExpression(columnRef, "=", paramExpr));
-        }        function injectComplexConditions(q: SimpleSelectQuery, columnRef: ValueComponent, name: string, stateValue: Condition): void {
+        } function injectComplexConditions(q: SimpleSelectQuery, columnRef: ValueComponent, name: string, stateValue: Condition): void {
             const conditions: ValueComponent[] = [];
 
             if ('=' in stateValue) {
