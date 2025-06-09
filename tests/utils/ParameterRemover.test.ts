@@ -108,7 +108,8 @@ describe('ParameterRemover', () => {
             if (result === null) {
                 expect(result).toBeNull();
                 return;
-            } const formatter = new SqlFormatter();
+            }
+            const formatter = new SqlFormatter();
             const formattedResult = formatter.format(result);
             const actualSql = formattedResult.formattedSql;
 
