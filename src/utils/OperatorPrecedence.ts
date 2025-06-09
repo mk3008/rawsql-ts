@@ -76,4 +76,12 @@ export class OperatorPrecedence {
         const op = operator.toLowerCase();
         return op === 'between' || op === 'not between';
     }
+
+    /**
+     * Check if a string is a comparison operator
+     */
+    public static isComparisonOperator(operator: string): boolean {
+        const lowerOp = operator.toLowerCase();
+        return ['=', '!=', '<>', '<', '>', '<=', '>=', 'like', 'ilike', 'in', 'not in'].includes(lowerOp);
+    }
 }

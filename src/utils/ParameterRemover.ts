@@ -10,6 +10,7 @@ import {
     LiteralValue,
     TypeValue
 } from "../models/ValueComponent";
+import { OperatorPrecedence } from "./OperatorPrecedence";
 
 /**
  * Helper visitor to detect if a component tree contains any ParameterExpression
@@ -81,16 +82,7 @@ class ExpressionAnalyzer {
         }
 
         const expr = component as BinaryExpression;
-        const operator = expr.operator.value.toLowerCase();
-        return operator === 'and' || operator === 'or';
-    }
-
-    /**
-     * Check if a string is a logical operator
-     */
-    static isLogicalOperator(operator: string): boolean {
-        const lowerOp = operator.toLowerCase();
-        return lowerOp === 'and' || lowerOp === 'or';
+        return OperatorPrecedence.isLogicalOperator(expr.operator.value);
     }
 
     /**
@@ -102,15 +94,7 @@ class ExpressionAnalyzer {
         }
 
         const expr = component as BinaryExpression;
-        return this.isComparisonOperator(expr.operator.value);
-    }
-
-    /**
-     * Check if a string is a comparison operator
-     */
-    static isComparisonOperator(operator: string): boolean {
-        const lowerOp = operator.toLowerCase();
-        return ['=', '!=', '<>', '<', '>', '<=', '>=', 'like', 'ilike', 'in', 'not in'].includes(lowerOp);
+        return OperatorPrecedence.isComparisonOperator(expr.operator.value);
     }
 }
 
@@ -570,7 +554,7 @@ export class ParameterRemover implements SqlComponentVisitor<SqlComponent | null
     private visitBinaryExpression(expr: BinaryExpression): ValueComponent | null {
         const operator = expr.operator.value.toLowerCase();
 
-        if (ExpressionAnalyzer.isLogicalOperator(operator)) {
+        if (OperatorPrecedence.isLogicalOperator(operator)) {
             // Handle logical operators normally
             const left = this.visit(expr.left) as ValueComponent | null;
             const right = this.visit(expr.right) as ValueComponent | null;
@@ -661,9 +645,9 @@ export class ParameterRemover implements SqlComponentVisitor<SqlComponent | null
     private wouldCreateNonsensicalExpression(left: ValueComponent, operator: string, right: ValueComponent): boolean {
         // Only apply this check for simple cases where we have a direct comparison operator
         // followed by another comparison operator in the right side
-        if (ExpressionAnalyzer.isComparisonOperator(operator) && ExpressionAnalyzer.isComparisonBinaryExpression(right)) {
+        if (OperatorPrecedence.isComparisonOperator(operator) && ExpressionAnalyzer.isComparisonBinaryExpression(right)) {
             const rightBinary = right as any;
-            if (rightBinary.operator && ExpressionAnalyzer.isComparisonOperator(rightBinary.operator.value)) {
+            if (rightBinary.operator && OperatorPrecedence.isComparisonOperator(rightBinary.operator.value)) {
                 // Additional check: make sure this isn't a legitimate nested case
                 // If the left side is a simple column and the right side is a comparison,
                 // this is likely nonsensical (like "name = age > 18")
