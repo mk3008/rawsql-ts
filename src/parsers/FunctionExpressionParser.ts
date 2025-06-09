@@ -60,17 +60,23 @@ export class FunctionExpressionParser {
         return this.parseFunctionCall(lexemes, idx);
     }
 
-    public static tryParseBinaryExpression(lexemes: Lexeme[], index: number, left: ValueComponent, allowAndOperator: boolean = true): { value: ValueComponent; newIndex: number } | null {
+    public static tryParseBinaryExpression(lexemes: Lexeme[], index: number, left: ValueComponent, allowAndOperator: boolean = true, allowOrOperator: boolean = true): { value: ValueComponent; newIndex: number } | null {
         let idx = index;
 
         // If the next element is an operator, process it as a binary expression
         if (idx < lexemes.length && (lexemes[idx].type & TokenType.Operator)) {
-            if (!allowAndOperator && lexemes[idx].value === "and") {
+            const operator = lexemes[idx].value.toLowerCase();
+
+            if (!allowAndOperator && operator === "and") {
                 // Handle special case for "and" operator
                 return null;
             }
 
-            const operator = lexemes[idx].value as string;
+            if (!allowOrOperator && operator === "or") {
+                // Handle special case for "or" operator
+                return null;
+            }
+
             idx++;
 
             // between
@@ -110,10 +116,21 @@ export class FunctionExpressionParser {
         }
         idx++;
 
-        const upper = ValueParser.parseFromLexeme(lexemes, idx);
+        // Parse upper bound with restricted scope - stop at logical operators
+        const upper = this.parseBetweenUpperBound(lexemes, idx);
         idx = upper.newIndex;
         const result = new BetweenExpression(value, lower.value, upper.value, negated);
         return { value: result, newIndex: idx };
+    }
+
+    /**
+     * Parse the upper bound of a BETWEEN expression with logical operator precedence
+     * This stops parsing when it encounters AND/OR operators at the same level
+     */
+    private static parseBetweenUpperBound(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number } {
+        // Parse with higher precedence than AND/OR to ensure BETWEEN binds tighter
+        // Use precedence 3 (higher than AND=2, OR=1) as minimum to stop at logical operators
+        return ValueParser.parseFromLexeme(lexemes, index, false, false);
     }
 
     private static parseFunctionCall(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number } {
