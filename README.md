@@ -23,7 +23,7 @@ It is designed for extensibility and advanced SQL analysis, with initial focus o
 - High-speed SQL parsing and AST analysis (over 3x faster than major libraries)
 - Rich utilities for SQL structure transformation and analysis
 - Advanced SQL formatting capabilities, including multi-line formatting and customizable styles
-- Dynamic SQL parameter injection for building flexible search queries with `SqlParamInjector`
+- Dynamic SQL parameter injection for building flexible search queries with `SqlParamInjector` (supports like, ilike, in, any, range queries, OR/AND conditions and more)
 - Type-safe schema management and JSON mapping conversion with full TypeScript support
 - Static query validation and regression testing against your database schema with `SqlSchemaValidator`, enabling early error detection and robust unit tests for schema changes.
 
@@ -64,43 +64,46 @@ npm install rawsql-ts
 
 ## Quick Start
 
----
-
 Kickstart your project by dynamically injecting parameters with `SqlParamInjector` for flexible query generation right from the start!
 
 ```typescript
 import { SqlParamInjector, SqlFormatter } from 'rawsql-ts';
 
-// Define a base SQL query with an alias, using TRUE for boolean conditions
-const baseSql = `SELECT u.user_id, u.user_name, u.email FROM users as u WHERE u.active = TRUE`;
+// Define a base SQL query with an alias
+const baseSql = `SELECT u.user_id, u.user_name, u.email, u.phone FROM users as u WHERE u.active = TRUE`;
 
-// Imagine you have search parameters from a user's input
+// Search parameters with OR conditions and AND combination
 const searchParams = {
-  user_name: { like: '%Alice%' }, // Find users whose name contains 'Alice'
-  email: 'specific.email@example.com' // And have a specific email
+  name_or_email: {
+    or: [
+      { column: 'user_name', ilike: '%alice%' },
+      { column: 'email', ilike: '%alice%' }
+    ]
+  },
+  phone: { like: '%080%' }  // AND condition
 };
 
 const injector = new SqlParamInjector();
 // Dynamically inject searchParams into the baseSql
 const query = injector.inject(baseSql, searchParams);
 
-// Format the dynamically generated query (e.g., using PostgreSQL preset)
+// Format the dynamically generated query
 const formatter = new SqlFormatter({ preset: 'postgres' }); 
 const { formattedSql, params } = formatter.format(query);
 
-console.log('Dynamically Generated SQL:');
+console.log('Generated SQL:');
 console.log(formattedSql);
-// Expected output (PostgreSQL style):
-// select "u"."user_id", "u"."user_name", "u"."email"
+// Output:
+// select "u"."user_id", "u"."user_name", "u"."email", "u"."phone"
 // from "users" as "u"
 // where "u"."active" = true
-// and "u"."user_name" like :user_name_like
-// and "u"."email" = :email
+//   and ("u"."user_name" ilike :name_or_email_or_0_ilike
+//        or "u"."email" ilike :name_or_email_or_1_ilike)
+//   and "u"."phone" like :phone_like
 
-console.log('\\nParameters:');
+console.log('Parameters:');
 console.log(params);
-// Expected output:
-// { user_name_like: '%Alice%', email: 'specific.email@example.com' }
+// Output: { name_or_email_or_0_ilike: '%alice%', name_or_email_or_1_ilike: '%alice%', phone_like: '%080%' }
 ```
 
 ---
@@ -177,6 +180,8 @@ Key benefits include:
 - **Performance-Oriented**: Conditions are intelligently inserted as close to the data source as possible, significantly improving query performance by filtering data early.
 - **Zero Conditional Logic in Code**: Forget writing complex IF statements in your application code to handle different filters.
 - **Enhanced SQL Reusability**: Your base SQL remains clean and can be reused across different scenarios with varying search criteria.
+- **Rich Operator Support**: Supports various SQL operators including equality, comparison, range (min/max), pattern matching (like/ilike), IN clauses, and PostgreSQL array operators.
+- **Advanced Condition Logic**: Supports OR/AND conditions, automatic parentheses grouping, and explicit column mapping for flexible query construction.
 
 ```typescript
 import { SqlParamInjector, SqlFormatter } from 'rawsql-ts';

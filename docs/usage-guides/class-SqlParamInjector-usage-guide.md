@@ -66,7 +66,7 @@ const state = {
         '<>': 40        // price <> 40
     },
     name: {
-        like: '%john%'  // name LIKE '%john%'
+        ilike: '%john%'  // name ILIKE '%john%' (case-insensitive)
     },
     category_id: {
         in: [1, 2, 3]   // category_id IN (1, 2, 3)
@@ -84,7 +84,8 @@ const state = {
 | `=` | Equals | `price = 100` |
 | `min` | Greater than or equal (converted to >=) | `price >= 10` |
 | `max` | Less than or equal (converted to <=) | `price <= 100` |
-| `like` | Pattern matching | `name LIKE '%john%'` |
+| `like` | Pattern matching (case-sensitive) | `name LIKE '%john%'` |
+| `ilike` | Pattern matching (case-insensitive) | `name ILIKE '%JOHN%'` |
 | `in` | IN clause | `id IN (1, 2, 3)` |
 | `any` | ANY operator | `tags = ANY([100, 200])` |
 | `<` | Less than | `price < 50` |
@@ -94,6 +95,79 @@ const state = {
 | `!=` | Not equal | `price != 50` |
 | `<>` | Not equal | `price <> 50` |
 
+## Advanced Condition Syntax
+
+### 1. Automatic Parentheses Grouping
+
+When multiple operators are specified for the same column, they are automatically wrapped in parentheses to ensure correct SQL logic:
+
+```typescript
+const state = {
+    price: {
+        min: 10,      // price >= 10
+        max: 100,     // price <= 100
+        '!=': 50      // price != 50
+    }
+};
+
+// Generated SQL: WHERE (price >= :price_min AND price <= :price_max AND price != :price_neq)
+```
+
+### 2. OR Conditions
+
+Use the `or` array syntax to create OR conditions across different columns or with different operators:
+
+```typescript
+const state = {
+    search: {
+        or: [
+            { column: 'first_name', ilike: '%john%' },
+            { column: 'last_name', ilike: '%smith%' },
+            { column: 'email', like: '%@example.com' }
+        ]
+    }
+};
+
+// Generated SQL: WHERE (first_name ILIKE :search_or_0_ilike OR last_name ILIKE :search_or_1_ilike OR email LIKE :search_or_2_like)
+```
+
+### 3. Explicit AND Conditions
+
+Use the `and` array syntax for explicit AND grouping:
+
+```typescript
+const state = {
+    search_criteria: {
+        and: [
+            { column: 'name', like: '%phone%' },
+            { column: 'price', min: 100 },
+            { column: 'category_id', '=': 5 }
+        ]
+    }
+};
+
+// Generated SQL: WHERE name LIKE :search_criteria_and_0_like AND price >= :search_criteria_and_1_min AND category_id = :search_criteria_and_2_eq
+```
+
+### 4. Explicit Column Mapping
+
+Map parameter names to different column names using the `column` property:
+
+```typescript
+const state = {
+    user_name: {                    // Parameter name
+        column: 'u_name',           // Actual column name
+        like: '%Alice%'
+    },
+    price_range: {
+        column: 'prc',              // Map to 'prc' column
+        min: 100,
+        max: 1000
+    }
+};
+
+// Generated SQL: WHERE u_name LIKE :user_name_like AND (prc >= :price_range_min AND prc <= :price_range_max)
+```
 
 
 ## Column Search Scope and Upstream Injection (CTE/Subquery Awareness)
@@ -156,7 +230,7 @@ const complexState = {
         '!=': 50      // price != 50
     },
     article_name: {
-        like: '%premium%'
+        ilike: '%premium%'  // Case-insensitive search
     },
     category_id: {
         in: [1, 2, 3, 4]
@@ -185,7 +259,7 @@ const result = injector.inject(
 //   a.price >= :price_min AND 
 //   a.price <= :price_max AND 
 //   a.price != :price_neq AND
-//   a.article_name LIKE :article_name_like AND
+//   a.article_name ILIKE :article_name_ilike AND
 //   a.category_id IN (:category_id_in_0, :category_id_in_1, :category_id_in_2, :category_id_in_3) AND
 //   a.tags = ANY(:tags_any)
 ```
@@ -279,7 +353,7 @@ const searchQuery = `
 
 const searchFilters = {
     price: { min: 1000, max: 5000 },
-    product_name: { like: '%smartphone%' },
+    product_name: { ilike: '%smartphone%' },  // Case-insensitive search
     category_id: { in: [1, 2, 3] },
     in_stock: true,
     created_at: { '>': new Date('2023-01-01') }
@@ -301,13 +375,74 @@ const userQuery = `
 `;
 
 const userFilters = {
-    username: { like: '%admin%' },
+    username: { ilike: '%admin%' },  // Case-insensitive search
     last_login: { '>': new Date('2024-01-01') },
     active: true
 };
 
 const injector = new SqlParamInjector();
 const filteredUsers = injector.inject(userQuery, userFilters);
+```
+
+### Advanced Search with OR Conditions
+
+```typescript
+import { SqlParamInjector } from 'rawsql-ts';
+
+const customerQuery = `
+  SELECT c.customer_id, c.name, c.tel1, c.tel2, c.email
+  FROM customers c
+`;
+
+// Search customers by phone OR email
+const searchFilters = {
+    contact_search: {
+        or: [
+            { column: 'tel1', like: '%080%' },
+            { column: 'tel2', like: '%080%' },
+            { column: 'email', ilike: '%@gmail.com' }
+        ]
+    },
+    active: true  // Regular AND condition
+};
+
+const injector = new SqlParamInjector();
+const searchResult = injector.inject(customerQuery, searchFilters);
+// Generates: WHERE (tel1 LIKE '%080%' OR tel2 LIKE '%080%' OR email ILIKE '%@gmail.com') AND active = true
+```
+
+### Complex Pricing with Explicit Column Mapping
+
+```typescript
+import { SqlParamInjector } from 'rawsql-ts';
+
+const productQuery = `
+  SELECT p.prd_id, p.prd_name, p.base_price, p.sale_price, p.stock_qty
+  FROM products p
+`;
+
+// Complex search with column mapping for legacy database
+const searchCriteria = {
+    product_name: {
+        column: 'prd_name',         // Map to legacy column name
+        ilike: '%phone%'
+    },
+    price_conditions: {
+        and: [
+            { column: 'base_price', min: 100 },
+            { column: 'sale_price', max: 1000 },
+            { column: 'base_price', '!=': 500 }  // Exclude specific price
+        ]
+    },
+    stock_level: {
+        column: 'stock_qty',
+        '>': 0
+    }
+};
+
+const injector = new SqlParamInjector();
+const complexSearch = injector.inject(productQuery, searchCriteria);
+// Generates complex WHERE clause with proper column mapping and grouping
 ```
 
 ## Important Notes
@@ -317,6 +452,9 @@ const filteredUsers = injector.inject(userQuery, userFilters);
 3. **Column name matching**: By default, case sensitivity and underscores are distinguished
 4. **Operator validation**: Using unsupported operators will result in errors
 5. **Query parsing**: String queries are automatically parsed using SelectQueryParser
+6. **Automatic grouping**: Multiple operators on the same column are automatically wrapped in parentheses
+7. **OR/AND conditions**: Explicit `or` and `and` arrays create properly grouped conditions
+8. **Column mapping**: Use the `column` property to map parameter names to different database column names
 
 ## Performance Considerations and Limitations
 
