@@ -469,4 +469,32 @@ order by
             // Should handle the CTE without errors, even though it contains a function table
         }).not.toThrow();
     });
+
+    test('handles StringSpecifierExpression (PostgreSQL E-strings) without error', () => {
+        // Arrange - Simple query with E-string literal
+        const sql = `select E'\\\\s*'`;
+        const query = SelectQueryParser.parse(sql);
+        const collector = new SchemaCollector();
+
+        // Act & Assert - should not throw error (SchemaCollector uses CTECollector internally)
+        expect(() => {
+            collector.collect(query);
+        }).not.toThrow();
+    });
+
+    test('handles StringSpecifierExpression in complex query with schema collection', () => {
+        // Arrange - Complex query with tables and E-string literals
+        const sql = `select u.id, u.name, E'\\\\s*' as pattern from users u where description = E'test\\\\value'`;
+        const query = SelectQueryParser.parse(sql);
+        const collector = new SchemaCollector();
+
+        // Act & Assert - should not throw error and collect schema info
+        expect(() => {
+            const schemaInfo = collector.collect(query);
+            expect(schemaInfo.length).toBe(1);
+            expect(schemaInfo[0].name).toBe('users');
+            expect(schemaInfo[0].columns).toContain('id');
+            expect(schemaInfo[0].columns).toContain('name');
+        }).not.toThrow();
+    });
 });

@@ -9,7 +9,8 @@ import {
     WindowFrameSpec,
     LiteralValue,
     TypeValue,
-    ValueList
+    ValueList,
+    StringSpecifierExpression
 } from "../models/ValueComponent";
 
 /**
@@ -87,6 +88,7 @@ export class CTECollector implements SqlComponentVisitor<void> {
         this.handlers.set(WindowFrameSpec.kind, (expr) => this.visitWindowFrameSpec(expr as WindowFrameSpec));
         this.handlers.set(TypeValue.kind, (expr) => this.visitTypeValue(expr as TypeValue));
         this.handlers.set(ValueList.kind, (expr) => this.visitValueList(expr as ValueList));
+        this.handlers.set(StringSpecifierExpression.kind, (expr) => this.visitStringSpecifierExpression(expr as StringSpecifierExpression));
 
         // Add handlers for other clause types
         this.handlers.set(SelectClause.kind, (expr) => this.visitSelectClause(expr as SelectClause));
@@ -490,5 +492,10 @@ export class CTECollector implements SqlComponentVisitor<void> {
         for (const value of valueList.values) {
             value.accept(this);
         }
+    }
+
+    private visitStringSpecifierExpression(expr: StringSpecifierExpression): void {
+        // StringSpecifierExpression contains RawString and LiteralValue which are leaf nodes
+        // No need to visit children as they don't contain subqueries
     }
 }
