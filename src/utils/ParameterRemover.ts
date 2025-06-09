@@ -12,6 +12,107 @@ import {
 } from "../models/ValueComponent";
 
 /**
+ * Helper visitor to detect if a component tree contains any ParameterExpression
+ */
+class ParameterDetector implements SqlComponentVisitor<boolean> {
+    private handlers: Map<symbol, (arg: any) => boolean>;
+
+    constructor() {
+        this.handlers = new Map();
+
+        // ParameterExpression always returns true
+        this.handlers.set(ParameterExpression.kind, () => true);
+
+        // Binary expressions check both sides
+        this.handlers.set(BinaryExpression.kind, (expr: BinaryExpression) =>
+            this.visit(expr.left) || this.visit(expr.right));
+
+        // Parenthesized expressions check inner expression
+        this.handlers.set(ParenExpression.kind, (expr: ParenExpression) =>
+            this.visit(expr.expression));
+
+        // Unary expressions check inner expression
+        this.handlers.set(UnaryExpression.kind, (expr: UnaryExpression) =>
+            this.visit(expr.expression));
+
+        // Function calls check argument if present
+        this.handlers.set(FunctionCall.kind, (expr: FunctionCall) =>
+            expr.argument ? this.visit(expr.argument) : false);
+
+        // Case expressions check condition and switch cases
+        this.handlers.set(CaseExpression.kind, (expr: CaseExpression) => {
+            const conditionHasParam = expr.condition ? this.visit(expr.condition) : false;
+            const switchCaseHasParam = this.visit(expr.switchCase as ValueComponent);
+            return conditionHasParam || switchCaseHasParam;
+        });
+
+        // Between expressions check all three parts
+        this.handlers.set(BetweenExpression.kind, (expr: BetweenExpression) =>
+            this.visit(expr.expression) || this.visit(expr.lower) || this.visit(expr.upper));
+
+        // Default case: no parameters for simple types
+        // (ColumnReference, LiteralValue, IdentifierString, etc.)
+    }
+
+    visit(component: SqlComponent): boolean {
+        const handler = this.handlers.get(component.getKind());
+        if (handler) {
+            return handler(component);
+        }
+        return false; // Default: no parameters
+    }
+
+    static detect(component: ValueComponent): boolean {
+        const detector = new ParameterDetector();
+        return detector.visit(component);
+    }
+}
+
+/**
+ * Helper to analyze SQL expression structure safely
+ */
+class ExpressionAnalyzer {
+    /**
+     * Check if a component is a binary expression with logical operator (AND/OR)
+     */
+    static isLogicalBinaryExpression(component: SqlComponent): boolean {
+        if (component.getKind() !== BinaryExpression.kind) {
+            return false;
+        }
+
+        const expr = component as BinaryExpression;
+        const operator = expr.operator.value.toLowerCase();
+        return operator === 'and' || operator === 'or';
+    }
+
+    /**
+     * Check if a string is a logical operator
+     */
+    static isLogicalOperator(operator: string): boolean {
+        const lowerOp = operator.toLowerCase();
+        return lowerOp === 'and' || lowerOp === 'or';
+    }    /**
+     * Check if a component is a comparison operator
+     */
+    static isComparisonBinaryExpression(component: SqlComponent): boolean {
+        if (component.getKind() !== BinaryExpression.kind) {
+            return false;
+        }
+
+        const expr = component as BinaryExpression;
+        return this.isComparisonOperator(expr.operator.value);
+    }
+
+    /**
+     * Check if a string is a comparison operator
+     */
+    static isComparisonOperator(operator: string): boolean {
+        const lowerOp = operator.toLowerCase();
+        return ['=', '!=', '<>', '<', '>', '<=', '>=', 'like', 'ilike', 'in', 'not in'].includes(lowerOp);
+    }
+}
+
+/**
  * Utility class to traverse and remove ParameterExpression nodes from the SQL AST.
  * This removes any binary expression containing a ParameterExpression as a whole.
  * For compound logical expressions (AND/OR), only the parameterized parts are removed.
@@ -302,42 +403,15 @@ export class ParameterRemover implements SqlComponentVisitor<SqlComponent | null
 
         return new SelectItem(value, item.identifier?.name || null);
     }
-
-    /**
-     * Visit IdentifierString node
-     */
-    private visitIdentifierString(identifier: IdentifierString): IdentifierString {
-        return identifier;
-    }
-
-    /**
-     * Visit RawString node
-     */
-    private visitRawString(str: RawString): RawString {
-        return str;
-    }
-
-    /**
-     * Visit ColumnReference node
-     */
-    private visitColumnReference(ref: ColumnReference): ColumnReference {
-        return ref;
-    }
-
-    /**
-     * Visit ParameterExpression node
-     */
-    private visitParameterExpression(param: ParameterExpression): null {
-        // ParameterExpressions should always be removed
-        return null;
-    }
-
-    /**
-     * Visit LiteralValue node
-     */
-    private visitLiteralValue(literal: LiteralValue): LiteralValue {
-        return literal;
-    }
+    // Simple visitor methods that return the node unchanged
+    private visitIdentifierString(identifier: IdentifierString): IdentifierString { return identifier; }
+    private visitRawString(str: RawString): RawString { return str; }
+    private visitColumnReference(ref: ColumnReference): ColumnReference { return ref; }
+    private visitParameterExpression(param: ParameterExpression): null { return null; }
+    private visitLiteralValue(literal: LiteralValue): LiteralValue { return literal; }
+    private visitTableSource(source: TableSource): TableSource { return source; }
+    private visitForClause(clause: ForClause): ForClause { return clause; }
+    private visitDistinctComponent(component: DistinctComponent): DistinctComponent { return component; }
 
     /**
      * Visit SourceExpression node
@@ -354,14 +428,6 @@ export class ParameterRemover implements SqlComponentVisitor<SqlComponent | null
 
         return new SourceExpression(sourceComponent, source.aliasExpression);
     }
-
-    /**
-     * Visit TableSource node
-     */
-    private visitTableSource(source: TableSource): TableSource {
-        return source;
-    }
-
     /**
      * Visit ParenSource node
      */
@@ -501,9 +567,8 @@ export class ParameterRemover implements SqlComponentVisitor<SqlComponent | null
      */
     private visitBinaryExpression(expr: BinaryExpression): ValueComponent | null {
         const operator = expr.operator.value.toLowerCase();
-        const isLogicalOperator = operator === 'and' || operator === 'or';
 
-        if (isLogicalOperator) {
+        if (ExpressionAnalyzer.isLogicalOperator(operator)) {
             // Handle logical operators normally
             const left = this.visit(expr.left) as ValueComponent | null;
             const right = this.visit(expr.right) as ValueComponent | null;
@@ -533,16 +598,11 @@ export class ParameterRemover implements SqlComponentVisitor<SqlComponent | null
     private handleComparisonExpression(expr: BinaryExpression): ValueComponent | null {
         const left = this.visit(expr.left) as ValueComponent | null;
 
-        // Check if the right side is a logical expression (AND/OR)
-        if (expr.right.getKind().toString().includes('BinaryExpression')) {
-            const rightBinary = expr.right as BinaryExpression;
-            const rightOperator = rightBinary.operator.value.toLowerCase();
-
-            if (this.isLogicalOperator(rightOperator)) {
-                // This is the problematic case: comparison = (logical expression)
-                // We need to restructure this as: (comparison) logical (other parts)
-                return this.restructureComparisonWithLogical(expr, left);
-            }
+        // Check if the right side is a logical expression (AND/OR) using type-safe analysis
+        if (ExpressionAnalyzer.isLogicalBinaryExpression(expr.right)) {
+            // This is the problematic case: comparison = (logical expression)
+            // We need to restructure this as: (comparison) logical (other parts)
+            return this.restructureComparisonWithLogical(expr, left);
         }
 
         // Normal comparison processing
@@ -590,21 +650,7 @@ export class ParameterRemover implements SqlComponentVisitor<SqlComponent | null
     }
 
     /**
-     * Check if an operator is a logical operator
-     */
-    private isLogicalOperator(operator: string): boolean {
-        if (!operator) return false;
-        const logicalOps = ['and', 'or'];
-        return logicalOps.includes(operator.toLowerCase());
-    }
-
-    /**
-     * Check if an operator is a comparison operator
-     */
-    private isComparisonOperator(operator: string): boolean {
-        const comparisonOps = ['=', '<>', '!=', '<', '>', '<=', '>=', 'like', 'ilike', 'in', 'not in'];
-        return comparisonOps.includes(operator.toLowerCase());
-    }
+     * Check if an operator is a logical operator     */
 
     /**
      * Check if the resulting expression would be nonsensical
@@ -613,9 +659,9 @@ export class ParameterRemover implements SqlComponentVisitor<SqlComponent | null
     private wouldCreateNonsensicalExpression(left: ValueComponent, operator: string, right: ValueComponent): boolean {
         // Only apply this check for simple cases where we have a direct comparison operator
         // followed by another comparison operator in the right side
-        if (this.isComparisonOperator(operator) && right.getKind().toString().includes('BinaryExpression')) {
+        if (ExpressionAnalyzer.isComparisonOperator(operator) && ExpressionAnalyzer.isComparisonBinaryExpression(right)) {
             const rightBinary = right as any;
-            if (rightBinary.operator && this.isComparisonOperator(rightBinary.operator.value)) {
+            if (rightBinary.operator && ExpressionAnalyzer.isComparisonOperator(rightBinary.operator.value)) {
                 // Additional check: make sure this isn't a legitimate nested case
                 // If the left side is a simple column and the right side is a comparison,
                 // this is likely nonsensical (like "name = age > 18")
@@ -631,102 +677,7 @@ export class ParameterRemover implements SqlComponentVisitor<SqlComponent | null
      * Check if a ValueComponent contains a ParameterExpression anywhere in its tree
      */
     private containsParameter(component: ValueComponent): boolean {
-        if (component.getKind() === ParameterExpression.kind) {
-            return true;
-        }
-
-        if (component.getKind() === BinaryExpression.kind) {
-            const binExpr = component as BinaryExpression;
-            return this.containsParameter(binExpr.left) || this.containsParameter(binExpr.right);
-        }
-
-        if (component.getKind() === ParenExpression.kind) {
-            const parenExpr = component as ParenExpression;
-            return this.containsParameter(parenExpr.expression);
-        }
-
-        if (component.getKind() === UnaryExpression.kind) {
-            const unaryExpr = component as UnaryExpression;
-            return this.containsParameter(unaryExpr.expression);
-        }
-
-        if (component.getKind() === FunctionCall.kind) {
-            const funcCall = component as FunctionCall;
-            return funcCall.argument ? this.containsParameter(funcCall.argument) : false;
-        }
-
-        if (component.getKind() === CaseExpression.kind) {
-            const caseExpr = component as CaseExpression;
-            const conditionHasParam = caseExpr.condition ? this.containsParameter(caseExpr.condition) : false;
-            const switchCaseHasParam = this.containsParameter(caseExpr.switchCase as ValueComponent);
-            return conditionHasParam || switchCaseHasParam;
-        }
-
-        if (component.getKind() === BetweenExpression.kind) {
-            const betweenExpr = component as BetweenExpression;
-            return this.containsParameter(betweenExpr.expression) ||
-                this.containsParameter(betweenExpr.lower) ||
-                this.containsParameter(betweenExpr.upper);
-        } if (component.getKind() === InlineQuery.kind) {
-            const inlineQuery = component as InlineQuery;
-            // We need to recursively check if the inline query contains parameters
-            // We'll use a simplified approach for now
-            return false; // TODO: Implement proper parameter checking for inline queries
-        }
-
-        // For other types (ColumnReference, LiteralValue, etc.), no parameters
-        return false;
-    }
-
-    /**
-     * Check if a ValueComponent contains a ParameterExpression
-     */
-    private hasParameterExpression(node: ValueComponent): boolean {
-        if (node instanceof ParameterExpression) {
-            return true;
-        }
-
-        // For other node types, we need to check their properties
-        if (node instanceof BinaryExpression) {
-            return this.hasParameterExpression(node.left) || this.hasParameterExpression(node.right);
-        }
-
-        if (node instanceof UnaryExpression) {
-            return this.hasParameterExpression(node.expression);
-        }
-
-        if (node instanceof ParenExpression) {
-            return this.hasParameterExpression(node.expression);
-        }
-
-        if (node instanceof BetweenExpression) {
-            return this.hasParameterExpression(node.expression) ||
-                this.hasParameterExpression(node.lower) ||
-                this.hasParameterExpression(node.upper);
-        }
-
-        if (node instanceof CaseExpression) {
-            if (node.condition && this.hasParameterExpression(node.condition)) {
-                return true;
-            }
-            // Check switch cases
-            for (const caseKeyValue of node.switchCase.cases) {
-                if (this.hasParameterExpression(caseKeyValue.key) || this.hasParameterExpression(caseKeyValue.value)) {
-                    return true;
-                }
-            }
-            if (node.switchCase.elseValue && this.hasParameterExpression(node.switchCase.elseValue)) {
-                return true;
-            }
-            return false;
-        }
-
-        if (node instanceof FunctionCall && node.argument) {
-            return this.hasParameterExpression(node.argument);
-        }
-
-        // For other types, assume no parameters
-        return false;
+        return ParameterDetector.detect(component);
     }
 
     /**
@@ -759,7 +710,7 @@ export class ParameterRemover implements SqlComponentVisitor<SqlComponent | null
      */
     private visitCaseKeyValuePair(pair: CaseKeyValuePair): CaseKeyValuePair | null {
         // If either key or value contains parameters, remove the entire pair
-        if (this.hasParameterExpression(pair.key) || this.hasParameterExpression(pair.value)) {
+        if (this.containsParameter(pair.key) || this.containsParameter(pair.value)) {
             return null;
         }
         const key = this.visit(pair.key) as ValueComponent;
@@ -786,15 +737,14 @@ export class ParameterRemover implements SqlComponentVisitor<SqlComponent | null
 
         return new SwitchCaseArgument(cases, elseValue);
     }
-
     /**
      * Visit BetweenExpression node
-     */
+    */
     private visitBetweenExpression(expr: BetweenExpression): BetweenExpression | null {
         // If any part of the expression contains a parameter, remove the entire expression
-        if (this.hasParameterExpression(expr.expression) ||
-            this.hasParameterExpression(expr.lower) ||
-            this.hasParameterExpression(expr.upper)) {
+        if (this.containsParameter(expr.expression) ||
+            this.containsParameter(expr.lower) ||
+            this.containsParameter(expr.upper)) {
             return null;
         }
 
@@ -845,7 +795,7 @@ export class ParameterRemover implements SqlComponentVisitor<SqlComponent | null
      */
     private visitCastExpression(expr: CastExpression): CastExpression | null {
         // If the input contains a parameter, remove the entire expression
-        if (this.hasParameterExpression(expr.input)) {
+        if (this.containsParameter(expr.input)) {
             return null;
         }
 
@@ -961,13 +911,6 @@ export class ParameterRemover implements SqlComponentVisitor<SqlComponent | null
     }
 
     /**
-     * Visit ForClause node
-     */
-    private visitForClause(clause: ForClause): ForClause {
-        return clause;
-    }
-
-    /**
      * Visit OffsetClause node
      */
     private visitOffsetClause(clause: OffsetClause): OffsetClause {
@@ -987,15 +930,7 @@ export class ParameterRemover implements SqlComponentVisitor<SqlComponent | null
      * Visit FetchExpression node
      */
     private visitFetchExpression(expression: FetchExpression): FetchExpression {
-        const count = this.visit(expression.count) as ValueComponent;
-        return new FetchExpression(expression.type, count, expression.unit);
-    }
-
-    /**
-     * Visit DistinctComponent node
-     */
-    private visitDistinctComponent(component: DistinctComponent): DistinctComponent {
-        return component;
+        const count = this.visit(expression.count) as ValueComponent; return new FetchExpression(expression.type, count, expression.unit);
     }
 
     /**
