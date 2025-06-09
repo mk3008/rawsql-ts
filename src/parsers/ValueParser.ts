@@ -1,5 +1,5 @@
 import { Lexeme, TokenType } from "../models/Lexeme";
-import { ColumnReference, TypeValue, UnaryExpression, ValueComponent, ValueList } from "../models/ValueComponent";
+import { ColumnReference, TypeValue, UnaryExpression, ValueComponent, ValueList, BinaryExpression, CastExpression } from "../models/ValueComponent";
 import { SqlTokenizer } from "./SqlTokenizer";
 import { IdentifierParser } from "./IdentifierParser";
 import { LiteralParser } from "./LiteralParser";
@@ -11,6 +11,7 @@ import { CommandExpressionParser } from "./CommandExpressionParser";
 import { FunctionExpressionParser } from "./FunctionExpressionParser";
 import { FullNameParser } from "./FullNameParser";
 import { ParseError } from "./ParseError";
+import { OperatorPrecedence } from "../utils/OperatorPrecedence";
 
 export class ValueParser {
     // Parse SQL string to AST (was: parse)
@@ -33,28 +34,87 @@ export class ValueParser {
         return result.value;
     }
 
-    // Parse from lexeme array (was: parse)
-    public static parseFromLexeme(lexemes: Lexeme[], index: number, allowAndOperator: boolean = true): { value: ValueComponent; newIndex: number } {
+    /**
+     * Parse from lexeme array with logical operator controls
+     */
+    public static parseFromLexeme(lexemes: Lexeme[], index: number, allowAndOperator: boolean = true, allowOrOperator: boolean = true): { value: ValueComponent; newIndex: number } {
+        return this.parseExpressionWithPrecedence(lexemes, index, 0, allowAndOperator, allowOrOperator);
+    }
+
+    /**
+     * Parse expressions with operator precedence handling
+     * Uses precedence climbing algorithm
+     */
+    private static parseExpressionWithPrecedence(
+        lexemes: Lexeme[],
+        index: number,
+        minPrecedence: number,
+        allowAndOperator: boolean = true,
+        allowOrOperator: boolean = true
+    ): { value: ValueComponent; newIndex: number } {
         let idx = index;
 
-        // support comments
+        // Parse the primary expression (left side)
         const comment = lexemes[idx].comments;
         const left = this.parseItem(lexemes, idx);
         left.value.comments = comment;
         idx = left.newIndex;
 
+        let result = left.value;
+
+        // Process operators with precedence
         while (idx < lexemes.length && (lexemes[idx].type & TokenType.Operator)) {
-            const binaryResult = FunctionExpressionParser.tryParseBinaryExpression(lexemes, idx, left.value, allowAndOperator);
-            if (binaryResult) {
-                left.value = binaryResult.value;
-                idx = binaryResult.newIndex;
-            } else {
-                // If no binary expression is found, break the loop
+            const operatorToken = lexemes[idx];
+            const operator = operatorToken.value;
+
+            // Check if this operator is allowed
+            if (!allowAndOperator && operator.toLowerCase() === "and") {
                 break;
             }
+            if (!allowOrOperator && operator.toLowerCase() === "or") {
+                break;
+            }
+
+            // Get operator precedence
+            const precedence = OperatorPrecedence.getPrecedence(operator);
+
+            // If this operator has lower precedence than minimum, stop
+            if (precedence < minPrecedence) {
+                break;
+            }
+
+            idx++; // consume operator            // Handle BETWEEN specially as it has different syntax
+            if (OperatorPrecedence.isBetweenOperator(operator)) {
+                const betweenResult = FunctionExpressionParser.parseBetweenExpression(
+                    lexemes, idx, result, operator.toLowerCase().includes('not')
+                );
+                result = betweenResult.value;
+                idx = betweenResult.newIndex;
+                continue;
+            }
+
+            // Handle :: (cast) operator specially
+            if (operator === "::") {
+                const typeValue = FunctionExpressionParser.parseTypeValue(lexemes, idx);
+                result = new CastExpression(result, typeValue.value);
+                idx = typeValue.newIndex;
+                continue;
+            }
+
+            // For left-associative operators, use precedence + 1
+            const nextMinPrecedence = precedence + 1;
+
+            // Parse the right-hand side with higher precedence
+            const rightResult = this.parseExpressionWithPrecedence(
+                lexemes, idx, nextMinPrecedence, allowAndOperator, allowOrOperator
+            );
+            idx = rightResult.newIndex;
+
+            // Create binary expression directly
+            result = new BinaryExpression(result, operator, rightResult.value);
         }
 
-        return { value: left.value, newIndex: idx };
+        return { value: result, newIndex: idx };
     }
 
     private static parseItem(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number } {
@@ -110,6 +170,11 @@ export class ValueParser {
             // SQLServer escape identifier format. e.g. [dbo] or [dbo].[table]
             const { namespaces, name, newIndex } = FullNameParser.parseFromLexeme(lexemes, idx);
             const value = new ColumnReference(namespaces, name);
+            return { value, newIndex };
+        } else if (current.type & TokenType.Type) {
+            // Handle standalone type tokens
+            const { namespaces, name, newIndex } = FullNameParser.parseFromLexeme(lexemes, idx);
+            const value = new TypeValue(namespaces, name);
             return { value, newIndex };
         }
 

@@ -86,6 +86,31 @@ describe('ValueParser', () => {
         ["Postgres Array Type", ":array::int[]", ":array::int[]"],
         ["Postgres Array Type - Single Item", ":item::int", ":item::int"],
         ["Postgres Array Type - Multi-dimensional", ":array::int[][]", ":array::int[][]"],
+        // BETWEEN precedence tests - ensuring BETWEEN binds more tightly than AND/OR
+        ["BETWEEN with AND - precedence test", "age BETWEEN 10 AND 20 AND status = 'active'", '"age" between 10 and 20 and "status" = \'active\''],
+        ["BETWEEN with OR - precedence test", "age BETWEEN 10 AND 20 OR status = 'inactive'", '"age" between 10 and 20 or "status" = \'inactive\''],
+        ["BETWEEN with parameters", "value BETWEEN :min AND :max", '"value" between :min and :max'],
+        ["BETWEEN with complex expressions", "(x + y) BETWEEN 10 AND (z * 2)", '("x" + "y") between 10 and ("z" * 2)'],
+        ["BETWEEN with parentheses", "(age BETWEEN 10 AND 20) OR status = 'active'", '("age" between 10 and 20) or "status" = \'active\''],
+        // Complex type cast tests - covering edge cases from debug scripts
+        ["Type cast - parameterized NUMERIC", '"value"::NUMERIC(10,2)', '"value"::NUMERIC(10, 2)'],
+        ["Type cast - parameterized VARCHAR", '"name"::VARCHAR(50)', '"name"::VARCHAR(50)'],
+        ["Type cast - parameterized DECIMAL", '"data"::DECIMAL(8,4)', '"data"::DECIMAL(8, 4)'],
+        ["Type cast - parameterized TIMESTAMP", '"timestamp"::TIMESTAMP(6)', '"timestamp"::TIMESTAMP(6)'],
+        ["Type cast - namespaced type", '"id"::pg_catalog.int4', '"id"::"pg_catalog".int4'],
+        ["Type cast - public schema type", '"value"::public.custom_type', '"value"::"public".custom_type'],
+        ["Type cast - complex expression", '(x + y)::INTEGER', '("x" + "y")::INTEGER'],
+        ["Type cast - CASE expression", 'CASE WHEN a > b THEN a ELSE b END::BIGINT', 'case when "a" > "b" then "a" else "b" end::BIGINT'],
+        ["Type cast - multiple casts", '"a"::INTEGER::TEXT', '"a"::INTEGER::TEXT'],
+        ["Type cast - with parentheses", '("col1" || "col2")::VARCHAR(100)', '("col1" || "col2")::VARCHAR(100)'],
+        ["Type cast - array type", '"id"::int[]', '"id"::int[]'],
+        ["Type cast - multi-dimensional array", '"data"::int[][]', '"data"::int[][]'],
+        ["Type cast - type without parameters", '"value"::NUMERIC', '"value"::NUMERIC'],
+        ["Type cast - literal cast", '123::TEXT', '123::TEXT'],
+        ["Type cast - function cast", 'NOW()::DATE', 'now()::DATE'],
+        // Complex logical expressions to ensure no regression
+        ["Complex logical - nested AND/OR", 'a = 1 AND (b = 2 OR c = 3) AND d = 4', '"a" = 1 and ("b" = 2 or "c" = 3) and "d" = 4'],
+        ["Complex logical - mixed with BETWEEN", 'a BETWEEN 1 AND 5 AND (b = 2 OR c BETWEEN 10 AND 20)', '"a" between 1 and 5 and ("b" = 2 or "c" between 10 and 20)'],
     ])('%s', (_, text, expected = text) => {
         const value = ValueParser.parse(text);
         const sql = formatter.format(value);
