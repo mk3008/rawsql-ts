@@ -3,7 +3,6 @@ import { FunctionCall, ValueComponent, BinaryExpression, TypeValue, CastExpressi
 import { OverExpressionParser } from "./OverExpressionParser";
 import { ValueParser } from "./ValueParser";
 import { FullNameParser } from "./FullNameParser";
-import { OperatorPrecedence } from "../utils/OperatorPrecedence";
 
 export class FunctionExpressionParser {
     public static parseFromLexeme(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number } {

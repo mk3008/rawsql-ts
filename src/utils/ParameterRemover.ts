@@ -91,7 +91,9 @@ class ExpressionAnalyzer {
     static isLogicalOperator(operator: string): boolean {
         const lowerOp = operator.toLowerCase();
         return lowerOp === 'and' || lowerOp === 'or';
-    }    /**
+    }
+
+    /**
      * Check if a component is a comparison operator
      */
     static isComparisonBinaryExpression(component: SqlComponent): boolean {
