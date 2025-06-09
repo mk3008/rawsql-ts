@@ -19,7 +19,7 @@ export enum DuplicateDetectionMode {
 import { CommonTable, ForClause, FromClause, GroupByClause, HavingClause, LimitClause, OrderByClause, SelectClause, WhereClause, WindowFrameClause, WindowsClause, JoinClause, JoinOnClause, JoinUsingClause, TableSource, SubQuerySource, SourceExpression, SelectItem, PartitionByClause, FetchClause, OffsetClause } from "../models/Clause";
 import { SimpleSelectQuery } from "../models/SelectQuery";
 import { SqlComponent, SqlComponentVisitor } from "../models/SqlComponent";
-import { ArrayExpression, BetweenExpression, BinaryExpression, CaseExpression, CastExpression, ColumnReference, FunctionCall, InlineQuery, ParenExpression, UnaryExpression, ValueComponent, ValueList, WindowFrameExpression } from "../models/ValueComponent";
+import { ArrayExpression, ArrayQueryExpression, BetweenExpression, BinaryExpression, CaseExpression, CastExpression, ColumnReference, FunctionCall, InlineQuery, ParenExpression, UnaryExpression, ValueComponent, ValueList, WindowFrameExpression } from "../models/ValueComponent";
 import { CTECollector } from "./CTECollector";
 import { SelectValueCollector } from "./SelectValueCollector";
 import { TableColumnResolver } from "./TableColumnResolver";
@@ -42,6 +42,7 @@ export class SelectableColumnCollector implements SqlComponentVisitor<void> {
     private commonTables: CommonTable[] = [];
     private includeWildCard: boolean; // This option controls whether wildcard columns are included in the collection.
     private duplicateDetection: DuplicateDetectionMode;
+    private options: { ignoreCaseAndUnderscore?: boolean };
 
     /**
      * Creates a new instance of SelectableColumnCollector.
@@ -49,17 +50,21 @@ export class SelectableColumnCollector implements SqlComponentVisitor<void> {
      * @param {TableColumnResolver | null} [tableColumnResolver=null] - The resolver used to resolve column references to their respective tables.
      * @param {boolean} [includeWildCard=false] - If true, wildcard columns (e.g., `*`) are included in the collection.
      * @param {DuplicateDetectionMode} [duplicateDetection=DuplicateDetectionMode.ColumnNameOnly] - Specifies the duplicate detection mode: 'columnNameOnly' (default, only column name is used), or 'fullName' (table name + column name).
+     * @param {Object} [options={}] - Additional options for the collector.
+     * @param {boolean} [options.ignoreCaseAndUnderscore=false] - If true, column names are compared without considering case and underscores.
      */
     constructor(
         tableColumnResolver?: TableColumnResolver | null,
         includeWildCard: boolean = false,
-        duplicateDetection: DuplicateDetectionMode = DuplicateDetectionMode.ColumnNameOnly
+        duplicateDetection: DuplicateDetectionMode = DuplicateDetectionMode.ColumnNameOnly,
+        options?: { ignoreCaseAndUnderscore?: boolean }
     ) {
         this.tableColumnResolver = tableColumnResolver ?? null;
         this.includeWildCard = includeWildCard;
         this.commonTableCollector = new CTECollector();
         this.commonTables = [];
         this.duplicateDetection = duplicateDetection;
+        this.options = options || {};
 
         this.handlers = new Map<symbol, (arg: any) => void>();
 
@@ -92,6 +97,7 @@ export class SelectableColumnCollector implements SqlComponentVisitor<void> {
         this.handlers.set(CastExpression.kind, (expr) => this.visitCastExpression(expr as CastExpression));
         this.handlers.set(BetweenExpression.kind, (expr) => this.visitBetweenExpression(expr as BetweenExpression));
         this.handlers.set(ArrayExpression.kind, (expr) => this.visitArrayExpression(expr as ArrayExpression));
+        this.handlers.set(ArrayQueryExpression.kind, (expr) => this.visitArrayQueryExpression(expr as ArrayQueryExpression));
         this.handlers.set(ValueList.kind, (expr) => this.visitValueList(expr as ValueList));
         this.handlers.set(WindowFrameClause.kind, (expr) => this.visitWindowFrameClause(expr as WindowFrameClause));
         this.handlers.set(WindowFrameExpression.kind, (expr) => this.visitWindowFrameExpression(expr as WindowFrameExpression));
@@ -433,6 +439,10 @@ export class SelectableColumnCollector implements SqlComponentVisitor<void> {
         if (expr.expression) {
             expr.expression.accept(this);
         }
+    }
+
+    private visitArrayQueryExpression(expr: ArrayQueryExpression): void {
+        expr.query.accept(this);
     }
 
     private visitValueList(expr: ValueList): void {

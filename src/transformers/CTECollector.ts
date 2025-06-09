@@ -1,8 +1,8 @@
-import { CommonTable, ForClause, FromClause, GroupByClause, HavingClause, JoinClause, JoinOnClause, JoinUsingClause, LimitClause, OrderByClause, OrderByItem, ParenSource, PartitionByClause, SelectClause, SelectItem, SourceExpression, SubQuerySource, TableSource, WhereClause, WindowFrameClause, WindowsClause, WithClause } from "../models/Clause";
+import { CommonTable, ForClause, FromClause, FunctionSource, GroupByClause, HavingClause, JoinClause, JoinOnClause, JoinUsingClause, LimitClause, OrderByClause, OrderByItem, ParenSource, PartitionByClause, SelectClause, SelectItem, SourceExpression, SubQuerySource, TableSource, WhereClause, WindowFrameClause, WindowsClause, WithClause } from "../models/Clause";
 import { BinarySelectQuery, SimpleSelectQuery, SelectQuery, ValuesQuery } from "../models/SelectQuery";
 import { SqlComponent, SqlComponentVisitor } from "../models/SqlComponent";
 import {
-    ArrayExpression, BetweenExpression, BinaryExpression, CaseExpression, CaseKeyValuePair,
+    ArrayExpression, ArrayQueryExpression, BetweenExpression, BinaryExpression, CaseExpression, CaseKeyValuePair,
     CastExpression, ColumnReference, FunctionCall, InlineQuery, ParenExpression,
     ParameterExpression, SwitchCaseArgument, TupleExpression, UnaryExpression, ValueComponent,
     OverExpression, WindowFrameExpression, IdentifierString, RawString,
@@ -54,6 +54,7 @@ export class CTECollector implements SqlComponentVisitor<void> {
         // Source components
         this.handlers.set(SourceExpression.kind, (expr) => this.visitSourceExpression(expr as SourceExpression));
         this.handlers.set(TableSource.kind, (expr) => this.visitTableSource(expr as TableSource));
+        this.handlers.set(FunctionSource.kind, (expr) => this.visitFunctionSource(expr as FunctionSource));
         this.handlers.set(ParenSource.kind, (expr) => this.visitParenSource(expr as ParenSource));
 
         // Subqueries and inline queries
@@ -79,6 +80,7 @@ export class CTECollector implements SqlComponentVisitor<void> {
         this.handlers.set(BetweenExpression.kind, (expr) => this.visitBetweenExpression(expr as BetweenExpression));
         this.handlers.set(FunctionCall.kind, (expr) => this.visitFunctionCall(expr as FunctionCall));
         this.handlers.set(ArrayExpression.kind, (expr) => this.visitArrayExpression(expr as ArrayExpression));
+        this.handlers.set(ArrayQueryExpression.kind, (expr) => this.visitArrayQueryExpression(expr as ArrayQueryExpression));
         this.handlers.set(TupleExpression.kind, (expr) => this.visitTupleExpression(expr as TupleExpression));
         this.handlers.set(CastExpression.kind, (expr) => this.visitCastExpression(expr as CastExpression));
         this.handlers.set(WindowFrameExpression.kind, (expr) => this.visitWindowFrameExpression(expr as WindowFrameExpression));
@@ -285,6 +287,13 @@ export class CTECollector implements SqlComponentVisitor<void> {
         // Table sources don't contain subqueries, nothing to do
     }
 
+    private visitFunctionSource(source: FunctionSource): void {
+        // Function sources may have arguments that could contain subqueries
+        if (source.argument) {
+            source.argument.accept(this);
+        }
+    }
+
     private visitParenSource(source: ParenSource): void {
         source.source.accept(this);
     }
@@ -409,6 +418,10 @@ export class CTECollector implements SqlComponentVisitor<void> {
 
     private visitArrayExpression(expr: ArrayExpression): void {
         expr.expression.accept(this);
+    }
+
+    private visitArrayQueryExpression(expr: ArrayQueryExpression): void {
+        expr.query.accept(this);
     }
 
     private visitTupleExpression(expr: TupleExpression): void {

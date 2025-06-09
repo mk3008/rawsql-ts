@@ -214,10 +214,6 @@ describe('TableSourceCollector', () => {
         fullCollector.visit(query);
         const fullSources = fullCollector.getTableSources();
 
-        // Debug information
-        console.log('Default collector tables:', defaultSources.map(ts => ts.table.name));
-        console.log('Full collector tables:', fullSources.map(ts => ts.table.name));
-
         // Assert - adjust assertions based on actual parser behavior
         // The parser appears to treat CTE (cte_data) as a table reference in the default mode
         // rather than the actual table (source_table) inside the CTE
@@ -505,15 +501,160 @@ order by
     line_id
         `;
         const query = SelectQueryParser.parse(sql);
-        const collector = new TableSourceCollector(false); // selectableOnly = false で全探索
+        const collector = new TableSourceCollector(false); // selectableOnly = false for full scan
 
         // Act
         collector.visit(query);
         const tableSources = collector.getTableSources();
         const tableNames = tableSources.map(ts => ts.table.name);
-
         // Assert
-        // dat だけがテーブルソースとして検出されるべき！
+        // Only 'dat' should be detected as a table source
         expect(tableNames).toEqual(['dat']);
+    });
+
+    test('handles function tables without throwing error', () => {
+        // Arrange
+        const sql = `SELECT * FROM generate_series(1, 5) AS n`;
+        const query = SelectQueryParser.parse(sql);
+        const collector = new TableSourceCollector();
+
+        // Act & Assert
+        // This should not throw an error, function tables should be handled gracefully
+        expect(() => {
+            collector.visit(query);
+            const tableSources = collector.getTableSources();
+            // Function sources are not TableSource instances, so should be empty
+            expect(tableSources.length).toBe(0);
+        }).not.toThrow();
+    });
+
+    test('handles function tables with full scanning mode', () => {
+        // Arrange
+        const sql = `SELECT * FROM generate_series(1, 5) AS n`;
+        const query = SelectQueryParser.parse(sql);
+        const collector = new TableSourceCollector(false); // selectableOnly = false
+
+        // Act & Assert
+        // This should not throw an error even in full scan mode
+        expect(() => {
+            collector.visit(query);
+            const tableSources = collector.getTableSources();
+            // Function sources are not TableSource instances, so should be empty
+            expect(tableSources.length).toBe(0);
+        }).not.toThrow();
+    });
+
+    test('handles complex query with function tables and regular tables', () => {
+        // Arrange
+        const sql = `
+            SELECT u.id, n.value
+            FROM users u
+            CROSS JOIN generate_series(1, 5) AS n(value)
+            WHERE u.active = true
+        `;
+        const query = SelectQueryParser.parse(sql);
+        const collector = new TableSourceCollector();
+
+        // Act & Assert
+        expect(() => {
+            collector.visit(query);
+            const tableSources = collector.getTableSources();
+            // Should only collect the regular table source, not the function source
+            expect(tableSources.length).toBe(1);
+            expect(tableSources[0].table.name).toBe('users');
+        }).not.toThrow();
+    });
+
+    test('handles function tables with subquery arguments (selectableOnly mode)', () => {
+        // Arrange: function with subquery as argument
+        const sql = `
+            SELECT * 
+            FROM generate_series(
+                (SELECT min_id FROM config), 
+                (SELECT max_id FROM config)
+            ) AS n(value)
+        `;
+        const query = SelectQueryParser.parse(sql);
+        const collector = new TableSourceCollector(true); // selectableOnly = true (default)
+
+        // Act & Assert
+        // Should handle nested subqueries within function arguments without error
+        expect(() => {
+            collector.visit(query);
+            const tableSources = collector.getTableSources();
+            // In selectableOnly mode, subqueries in function arguments should be ignored
+            expect(tableSources.length).toBe(0); // No table sources should be collected
+        }).not.toThrow();
+    });
+
+    test('handles function tables with subquery arguments (full scan mode)', () => {
+        // Arrange: function with subquery as argument
+        const sql = `
+            SELECT * 
+            FROM generate_series(
+                (SELECT min_id FROM config), 
+                (SELECT max_id FROM config)
+            ) AS n(value)
+        `;
+        const query = SelectQueryParser.parse(sql);
+        const collector = new TableSourceCollector(false); // selectableOnly = false (full scan)        // Act & Assert
+        // Should collect table sources from subqueries in function arguments in full scan mode
+        expect(() => {
+            collector.visit(query);
+            const tableSources = collector.getTableSources();
+            // In full scan mode, should collect table sources from function argument subqueries
+            // Even though config appears twice, it should be deduplicated to 1 entry
+            expect(tableSources.length).toBe(1);
+            expect(tableSources.map(ts => ts.table.name)).toEqual(['config']);
+        }).not.toThrow();
+    });
+
+    test('handles function tables with complex subquery arguments and regular tables (selectableOnly mode)', () => {
+        // Arrange: mixed case with function containing subquery and regular table
+        const sql = `
+            SELECT u.id, n.value
+            FROM users u
+            CROSS JOIN generate_series(
+                1, 
+                (SELECT count(*) FROM orders WHERE user_id = u.id)
+            ) AS n(value)
+        `;
+        const query = SelectQueryParser.parse(sql);
+        const collector = new TableSourceCollector(true); // selectableOnly = true (default)
+
+        // Act & Assert
+        // Should handle all table sources including those in function subqueries
+        expect(() => {
+            collector.visit(query);
+            const tableSources = collector.getTableSources();
+            // In selectableOnly mode, should only collect FROM clause tables, not subquery tables in function arguments
+            expect(tableSources.length).toBe(1);
+            expect(tableSources[0].table.name).toBe('users');
+        }).not.toThrow();
+    });
+
+    test('handles function tables with complex subquery arguments and regular tables (full scan mode)', () => {
+        // Arrange: mixed case with function containing subquery and regular table
+        const sql = `
+            SELECT u.id, n.value
+            FROM users u
+            CROSS JOIN generate_series(
+                1, 
+                (SELECT count(*) FROM orders WHERE user_id = u.id)
+            ) AS n(value)
+        `;
+        const query = SelectQueryParser.parse(sql);
+        const collector = new TableSourceCollector(false); // selectableOnly = false (full scan)
+
+        // Act & Assert
+        // Should handle all table sources including those in function subqueries
+        expect(() => {
+            collector.visit(query);
+            const tableSources = collector.getTableSources();
+            // In full scan mode, should collect both 'users' and 'orders' (from the subquery in function argument)
+            expect(tableSources.length).toBe(2);
+            const tableNames = tableSources.map(ts => ts.table.name).sort();
+            expect(tableNames).toEqual(['orders', 'users']);
+        }).not.toThrow();
     });
 });

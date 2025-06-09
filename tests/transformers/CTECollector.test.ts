@@ -389,4 +389,94 @@ order by
         expect(commonTables[1].getSourceAliasName()).toBe('detail');
         expect(commonTables[2].getSourceAliasName()).toBe('tax_summary');
     });
+
+    test('handles function tables without throwing error', () => {
+        // Arrange
+        const sql = `SELECT * FROM generate_series(1, 5) AS n`;
+        const query = SelectQueryParser.parse(sql);
+        const collector = new CTECollector();
+
+        // Act & Assert
+        // This should not throw an error, even though there are no CTEs to collect
+        expect(() => {
+            collector.visit(query);
+            const commonTables = collector.getCommonTables();
+            expect(commonTables.length).toBe(0);
+        }).not.toThrow();
+    });
+
+    test('handles complex query with function tables and regular tables', () => {
+        // Arrange
+        const sql = `
+            SELECT u.id, n.value
+            FROM users u
+            CROSS JOIN generate_series(1, 5) AS n(value)
+            WHERE u.active = true
+        `;
+        const query = SelectQueryParser.parse(sql);
+        const collector = new CTECollector();
+
+        // Act & Assert   
+        expect(() => {
+            collector.visit(query);
+            const commonTables = collector.getCommonTables();
+            expect(commonTables.length).toBe(0);
+        }).not.toThrow();
+    });
+
+    test('handles CTE with function tables containing subquery arguments', () => {
+        // Arrange: CTE containing function with subquery arguments
+        const sql = `
+            WITH numbered_users AS (
+                SELECT u.*, n.value as row_num
+                FROM users u
+                CROSS JOIN generate_series(
+                    1, 
+                    (SELECT max_rows FROM settings WHERE setting_name = 'user_limit')
+                ) AS n(value)
+            )
+            SELECT * FROM numbered_users WHERE row_num <= 10
+        `;
+        const query = SelectQueryParser.parse(sql);
+        const collector = new CTECollector();
+
+        // Act & Assert
+        // Should handle function with subquery arguments within CTE without error
+        expect(() => {
+            collector.visit(query);
+            const commonTables = collector.getCommonTables();
+            expect(commonTables.length).toBe(1);
+            expect(commonTables[0].getSourceAliasName()).toBe('numbered_users');
+        }).not.toThrow();
+    });
+
+    test('handles nested CTEs with function tables and subqueries', () => {
+        // Arrange: complex nested structure with CTEs, functions, and subqueries
+        const sql = `
+            WITH 
+            range_config AS (
+                SELECT min_val, max_val FROM config_table
+            ),
+            generated_data AS (
+                SELECT n.value
+                FROM generate_series(
+                    (SELECT min_val FROM range_config),
+                    (SELECT max_val FROM range_config)
+                ) AS n(value)
+            )
+            SELECT * FROM generated_data
+        `;
+        const query = SelectQueryParser.parse(sql);
+        const collector = new CTECollector();
+
+        // Act & Assert
+        // Should handle complex nested structure without error
+        expect(() => {
+            collector.visit(query);
+            const commonTables = collector.getCommonTables();
+            expect(commonTables.length).toBe(2);
+            const cteNames = commonTables.map(ct => ct.getSourceAliasName()).sort();
+            expect(cteNames).toEqual(['generated_data', 'range_config']);
+        }).not.toThrow();
+    });
 });

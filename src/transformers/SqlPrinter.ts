@@ -77,9 +77,15 @@ export class SqlPrinter {
                 SqlPrintTokenContainerType.LimitClause,
                 SqlPrintTokenContainerType.OffsetClause,
                 SqlPrintTokenContainerType.SubQuerySource,
-                SqlPrintTokenContainerType.BinarySelectQueryOperator,
-                SqlPrintTokenContainerType.Values,
-                SqlPrintTokenContainerType.WithClause
+                SqlPrintTokenContainerType.BinarySelectQueryOperator, SqlPrintTokenContainerType.Values,
+                SqlPrintTokenContainerType.WithClause,
+                SqlPrintTokenContainerType.SwitchCaseArgument,
+                SqlPrintTokenContainerType.CaseKeyValuePair,
+                SqlPrintTokenContainerType.CaseThenValue,
+                SqlPrintTokenContainerType.ElseClause,
+                SqlPrintTokenContainerType.CaseElseValue
+                // CaseExpression, SwitchCaseArgument, CaseKeyValuePair, and ElseClause
+                // are not included by default to maintain backward compatibility with tests
                 //SqlPrintTokenContainerType.CommonTable
             ]
         );

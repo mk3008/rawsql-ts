@@ -1,10 +1,10 @@
-import { CommonTable, FetchClause, ForClause, FromClause, GroupByClause, HavingClause, JoinClause, JoinOnClause, JoinUsingClause, LimitClause, OffsetClause, OrderByClause, OrderByItem, ParenSource, PartitionByClause, SelectClause, SelectItem, SourceExpression, SubQuerySource, TableSource, WhereClause, WindowFrameClause, WindowsClause, WithClause } from "../models/Clause";
+import { CommonTable, FetchClause, ForClause, FromClause, FunctionSource, GroupByClause, HavingClause, JoinClause, JoinOnClause, JoinUsingClause, LimitClause, OffsetClause, OrderByClause, OrderByItem, ParenSource, PartitionByClause, SelectClause, SelectItem, SourceExpression, SubQuerySource, TableSource, WhereClause, WindowFrameClause, WindowsClause, WithClause } from "../models/Clause";
 import { BinarySelectQuery, SelectQuery, SimpleSelectQuery, ValuesQuery } from "../models/SelectQuery";
 import { SqlComponent, SqlComponentVisitor } from "../models/SqlComponent";
 import {
-    ArrayExpression, BetweenExpression, BinaryExpression, CaseExpression, CaseKeyValuePair,
+    ArrayExpression, ArrayQueryExpression, BetweenExpression, BinaryExpression, CaseExpression, CaseKeyValuePair,
     CastExpression, ColumnReference, FunctionCall, InlineQuery, ParenExpression,
-    ParameterExpression, SwitchCaseArgument, TupleExpression, UnaryExpression, ValueComponent,
+    ParameterExpression, SwitchCaseArgument, TupleExpression, UnaryExpression, ValueComponent, ValueList,
     OverExpression, WindowFrameExpression, IdentifierString, RawString,
     WindowFrameSpec,
     LiteralValue,
@@ -57,6 +57,7 @@ export class TableSourceCollector implements SqlComponentVisitor<void> {
         // Source components
         this.handlers.set(SourceExpression.kind, (expr) => this.visitSourceExpression(expr as SourceExpression));
         this.handlers.set(TableSource.kind, (expr) => this.visitTableSource(expr as TableSource));
+        this.handlers.set(FunctionSource.kind, (expr) => this.visitFunctionSource(expr as FunctionSource));
         this.handlers.set(ParenSource.kind, (expr) => this.visitParenSource(expr as ParenSource));
         this.handlers.set(SubQuerySource.kind, (expr) => this.visitSubQuerySource(expr as SubQuerySource));
         this.handlers.set(InlineQuery.kind, (expr) => this.visitInlineQuery(expr as InlineQuery));
@@ -87,8 +88,10 @@ export class TableSourceCollector implements SqlComponentVisitor<void> {
             this.handlers.set(BetweenExpression.kind, (expr) => this.visitBetweenExpression(expr as BetweenExpression));
             this.handlers.set(FunctionCall.kind, (expr) => this.visitFunctionCall(expr as FunctionCall));
             this.handlers.set(ArrayExpression.kind, (expr) => this.visitArrayExpression(expr as ArrayExpression));
+            this.handlers.set(ArrayQueryExpression.kind, (expr) => this.visitArrayQueryExpression(expr as ArrayQueryExpression));
             this.handlers.set(TupleExpression.kind, (expr) => this.visitTupleExpression(expr as TupleExpression));
             this.handlers.set(CastExpression.kind, (expr) => this.visitCastExpression(expr as CastExpression));
+            this.handlers.set(ValueList.kind, (expr) => this.visitValueList(expr as ValueList));
         }
     }
 
@@ -305,6 +308,24 @@ export class TableSourceCollector implements SqlComponentVisitor<void> {
         }
     }
 
+    private visitFunctionSource(source: FunctionSource): void {
+        // Function sources are not regular table sources, but may contain subqueries in their arguments
+        if (source.argument) {
+            // Special handling for function arguments to ensure we traverse nested structures
+            this.visitValueComponent(source.argument);
+        }
+        // Function sources themselves are not collected as table sources
+    }
+
+    /**
+     * Helper method to visit value components, handling special cases like TupleExpression, ParenExpression, InlineQuery, and ArrayQueryExpression
+     * even in selectableOnly mode when they appear in function arguments
+     */
+    private visitValueComponent(value: ValueComponent): void {
+        // Always use the normal accept pattern - let handlers deal with the logic
+        value.accept(this);
+    }
+
     /**
      * Checks if a table name is a CTE name
      */
@@ -467,6 +488,10 @@ export class TableSourceCollector implements SqlComponentVisitor<void> {
         expr.expression.accept(this);
     }
 
+    private visitArrayQueryExpression(expr: ArrayQueryExpression): void {
+        expr.query.accept(this);
+    }
+
     private visitTupleExpression(expr: TupleExpression): void {
         for (const value of expr.values) {
             value.accept(this);
@@ -476,5 +501,12 @@ export class TableSourceCollector implements SqlComponentVisitor<void> {
     private visitCastExpression(expr: CastExpression): void {
         expr.input.accept(this);
         expr.castType.accept(this);
+    }
+
+    private visitValueList(valueList: ValueList): void {
+        // Process all values in the list, this may include InlineQuery and other table-referencing components
+        for (const value of valueList.values) {
+            value.accept(this);
+        }
     }
 }

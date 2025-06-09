@@ -29,6 +29,8 @@ export enum SqlPrintTokenContainerType {
     SwitchCaseArgument = 'SwitchCaseArgument',
     ElseClause = 'ElseClause',
     CaseKeyValuePair = 'CaseKeyValuePair',
+    CaseThenValue = 'CaseThenValue',
+    CaseElseValue = 'CaseElseValue',
     ParenExpression = 'ParenExpression',
     CastExpression = 'CastExpression',
     CaseExpression = 'CaseExpression',

@@ -1,5 +1,5 @@
 // Import rawsql-ts modules
-import { SelectQueryParser, SqlFormatter, TableSourceCollector, CTECollector, SchemaCollector } from "https://unpkg.com/rawsql-ts@0.8.3-beta/dist/esm/index.js";
+import { SelectQueryParser, SqlFormatter, TableSourceCollector, CTECollector, SchemaCollector } from "https://unpkg.com/rawsql-ts/dist/esm/index.js";
 // Import style configuration module
 import { initStyleConfig, loadStyles as loadStylesFromModule, saveStylesAndFormat, displayStyle as displayStyleFromModule, populateStyleSelect as populateStyleSelectFromModule, getCurrentStyles as getStylesFromModule, DEFAULT_STYLE_KEY as STYLE_CONFIG_DEFAULT_KEY } from './style-config.js';
 // Import analysis features module

@@ -11,6 +11,7 @@ export * from './transformers/CTECollector';
 export * from './transformers/CTENormalizer';
 export * from './transformers/Formatter';
 export * from './transformers/SqlFormatter';
+export * from './transformers/PostgresJsonQueryBuilder';
 export * from './transformers/QueryBuilder'; // old name:QueryConverter
 export * from './transformers/SelectValueCollector';
 export * from './transformers/SelectableColumnCollector';
@@ -18,6 +19,8 @@ export * from './transformers/TableColumnResolver';
 export * from './transformers/TableSourceCollector';
 export * from './transformers/UpstreamSelectQueryFinder';
 export * from './transformers/SchemaCollector';
+export * from './transformers/SqlParamInjector';
 
 export * from './utils/SqlSchemaValidator';
+export * from './utils/SchemaManager';
 // Add more exports here if you want to expose additional public API
