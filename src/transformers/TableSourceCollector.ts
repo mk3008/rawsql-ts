@@ -8,7 +8,8 @@ import {
     OverExpression, WindowFrameExpression, IdentifierString, RawString,
     WindowFrameSpec,
     LiteralValue,
-    TypeValue
+    TypeValue,
+    StringSpecifierExpression
 } from "../models/ValueComponent";
 import { CTECollector } from "./CTECollector";
 
@@ -92,6 +93,7 @@ export class TableSourceCollector implements SqlComponentVisitor<void> {
             this.handlers.set(TupleExpression.kind, (expr) => this.visitTupleExpression(expr as TupleExpression));
             this.handlers.set(CastExpression.kind, (expr) => this.visitCastExpression(expr as CastExpression));
             this.handlers.set(ValueList.kind, (expr) => this.visitValueList(expr as ValueList));
+            this.handlers.set(StringSpecifierExpression.kind, (expr) => this.visitStringSpecifierExpression(expr as StringSpecifierExpression));
         }
     }
 
@@ -508,5 +510,12 @@ export class TableSourceCollector implements SqlComponentVisitor<void> {
         for (const value of valueList.values) {
             value.accept(this);
         }
+    }
+
+    // Handle StringSpecifierExpression (PostgreSQL E-strings)
+    private visitStringSpecifierExpression(expr: StringSpecifierExpression): void {
+        // StringSpecifierExpression is just a literal string with an escape specifier
+        // It doesn't contain table references, so we don't need to visit any children
+        // This is a no-op method to prevent "No handler" errors
     }
 }

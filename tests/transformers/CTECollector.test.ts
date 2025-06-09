@@ -479,4 +479,38 @@ order by
             expect(cteNames).toEqual(['generated_data', 'range_config']);
         }).not.toThrow();
     });
+
+    test('handles StringSpecifierExpression (PostgreSQL E-strings) without error', () => {
+        // Arrange - PostgreSQL E-string literal with escape sequences
+        const sql = `select E'\\\\s*'`;
+        const query = SelectQueryParser.parse(sql);
+        const collector = new CTECollector();
+
+        // Act & Assert - should not throw error about missing handler
+        expect(() => {
+            collector.collect(query);
+        }).not.toThrow();
+    });
+
+    test('handles StringSpecifierExpression in complex query with tables', () => {
+        // Arrange - Complex query with both tables and E-string literals
+        const sql = `
+            WITH user_patterns AS (
+                SELECT id, name, E'\\\\regex\\\\pattern' as pattern
+                FROM users 
+                WHERE description = E'test\\\\value'
+            )
+            SELECT * FROM user_patterns
+        `;
+        const query = SelectQueryParser.parse(sql);
+        const collector = new CTECollector();
+
+        // Act & Assert - should not throw error and should collect CTE
+        expect(() => {
+            collector.collect(query);
+            const commonTables = collector.getCommonTables();
+            expect(commonTables.length).toBe(1);
+            expect(commonTables[0].aliasExpression.table.name).toBe('user_patterns');
+        }).not.toThrow();
+    });
 });

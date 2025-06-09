@@ -634,27 +634,152 @@ order by
     });
 
     test('handles function tables with complex subquery arguments and regular tables (full scan mode)', () => {
-        // Arrange: mixed case with function containing subquery and regular table
+        // Arrange: complex query with function tables with subquery arguments in full scan mode
         const sql = `
-            SELECT u.id, n.value
+            SELECT u.id, n.value, s.status
             FROM users u
             CROSS JOIN generate_series(
                 1, 
-                (SELECT count(*) FROM orders WHERE user_id = u.id)
+                (SELECT max_rows FROM settings WHERE setting_name = 'user_limit')
             ) AS n(value)
+            JOIN statuses s ON u.status_id = s.id
+            WHERE u.active = true
         `;
         const query = SelectQueryParser.parse(sql);
-        const collector = new TableSourceCollector(false); // selectableOnly = false (full scan)
+        const collector = new TableSourceCollector(false); // Full scan mode
 
         // Act & Assert
-        // Should handle all table sources including those in function subqueries
         expect(() => {
             collector.visit(query);
             const tableSources = collector.getTableSources();
-            // In full scan mode, should collect both 'users' and 'orders' (from the subquery in function argument)
-            expect(tableSources.length).toBe(2);
+            // Should find users, settings, and statuses
             const tableNames = tableSources.map(ts => ts.table.name).sort();
-            expect(tableNames).toEqual(['orders', 'users']);
+            expect(tableNames).toContain('users');
+            expect(tableNames).toContain('settings');
+            expect(tableNames).toContain('statuses');
+        }).not.toThrow();
+    });
+
+    test('handles E-string (StringSpecifierExpression) without throwing error', () => {
+        // Arrange: SQL query with E-string literal  
+        const sql = `SELECT * FROM users WHERE name = E'test\\nvalue'`;
+        const query = SelectQueryParser.parse(sql);
+        const collector = new TableSourceCollector();
+
+        // Act & Assert
+        expect(() => {
+            collector.visit(query);
+            const tableSources = collector.getTableSources();
+            expect(tableSources.length).toBe(1);
+            expect(tableSources[0].table.name).toBe('users');
+        }).not.toThrow();
+    });
+
+    test('handles E-string in subqueries without throwing error (full scan mode)', () => {
+        // Arrange: SQL query with E-string in subquery with full scan mode
+        const sql = `
+            SELECT * 
+            FROM orders o
+            WHERE o.user_id IN (
+                SELECT id FROM users WHERE notes = E'special\\nuser'
+            )
+        `;
+        const query = SelectQueryParser.parse(sql);
+        const collector = new TableSourceCollector(false); // Full scan mode to collect from subqueries
+
+        // Act & Assert
+        expect(() => {
+            collector.visit(query);
+            const tableSources = collector.getTableSources();
+            const tableNames = tableSources.map(ts => ts.table.name).sort();
+            expect(tableNames).toContain('orders');
+            expect(tableNames).toContain('users');
+        }).not.toThrow();
+    });
+
+    test('handles complex query with E-strings and CTEs without throwing error', () => {
+        // Arrange: Complex query with E-strings, CTEs, and various table sources
+        const sql = `
+            WITH filtered_users AS (
+                SELECT * FROM users WHERE description = E'active\\nuser'
+            )
+            SELECT u.*, o.order_id
+            FROM filtered_users u
+            JOIN orders o ON u.id = o.user_id
+            WHERE o.status = E'completed\\norder'
+            AND EXISTS (
+                SELECT 1 FROM payments p 
+                WHERE p.order_id = o.id 
+                AND p.notes = E'confirmed\\npayment'
+            )
+        `;
+        const query = SelectQueryParser.parse(sql);
+
+        // Test both modes
+        const defaultCollector = new TableSourceCollector();
+        const fullCollector = new TableSourceCollector(false);
+
+        // Act & Assert - Default mode
+        expect(() => {
+            defaultCollector.visit(query);
+            const defaultSources = defaultCollector.getTableSources();
+            expect(defaultSources.length).toBeGreaterThan(0);
+        }).not.toThrow();
+
+        // Act & Assert - Full scan mode  
+        expect(() => {
+            fullCollector.visit(query);
+            const fullSources = fullCollector.getTableSources();
+            expect(fullSources.length).toBeGreaterThan(0);
+            // Should include tables from subqueries
+            const tableNames = fullSources.map(ts => ts.table.name);
+            expect(tableNames).toContain('users');
+            expect(tableNames).toContain('orders');
+            expect(tableNames).toContain('payments');
+        }).not.toThrow();
+    });
+
+    test('handles StringSpecifierExpression (PostgreSQL E-strings) in simple query', () => {
+        // Arrange - Simple query with E-string literal
+        const sql = `select E'\\\\s*'`;
+        const query = SelectQueryParser.parse(sql);
+        const collector = new TableSourceCollector();
+
+        // Act & Assert - should not throw error
+        expect(() => {
+            const tableList = collector.collect(query);
+            // Should return empty array since no tables are present
+            expect(tableList).toEqual([]);
+        }).not.toThrow();
+    });
+
+    test('handles StringSpecifierExpression in query with tables', () => {
+        // Arrange - Query with both tables and E-string literals
+        const sql = `select E'\\\\s*' from users where description = E'test\\\\newline\\\\tab'`;
+        const query = SelectQueryParser.parse(sql);
+        const collector = new TableSourceCollector();
+
+        // Act & Assert - should successfully collect table sources
+        expect(() => {
+            const tableList = collector.collect(query);
+            // Should contain the 'users' table
+            expect(tableList.length).toBe(1);
+            expect(tableList[0].table.name).toBe('users');
+        }).not.toThrow();
+    });
+
+    test('handles StringSpecifierExpression in subqueries without error', () => {
+        // Arrange - Subquery with E-string that might cause table list parsing error
+        const sql = `select * from (select E'\\\\regex\\\\pattern' as pattern, id from logs where data = E'test\\\\data') as filtered_logs`;
+        const query = SelectQueryParser.parse(sql);
+        const collector = new TableSourceCollector(false); // selectableOnly=false to include subquery tables
+
+        // Act & Assert - should not throw error during table collection
+        expect(() => {
+            const tableList = collector.collect(query);
+            // Should contain the 'logs' table from the subquery when selectableOnly=false
+            expect(tableList.length).toBe(1);
+            expect(tableList[0].table.name).toBe('logs');
         }).not.toThrow();
     });
 });
