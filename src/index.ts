@@ -20,6 +20,7 @@ export * from './transformers/TableSourceCollector';
 export * from './transformers/UpstreamSelectQueryFinder';
 export * from './transformers/SchemaCollector';
 export * from './transformers/SqlParamInjector';
+export * from './transformers/SqlSortInjector';
 
 export * from './utils/SqlSchemaValidator';
 export * from './utils/SchemaManager';

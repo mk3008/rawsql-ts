@@ -24,6 +24,7 @@ It is designed for extensibility and advanced SQL analysis, with initial focus o
 - Rich utilities for SQL structure transformation and analysis
 - Advanced SQL formatting capabilities, including multi-line formatting and customizable styles
 - Dynamic SQL parameter injection for building flexible search queries with `SqlParamInjector` (supports like, ilike, in, any, range queries, OR/AND conditions and more)
+- Dynamic ORDER BY clause injection with `SqlSortInjector` for flexible sorting with support for ASC/DESC, NULLS positioning, and append mode
 - Type-safe schema management and JSON mapping conversion with full TypeScript support
 - Static query validation and regression testing against your database schema with `SqlSchemaValidator`, enabling early error detection and robust unit tests for schema changes.
 
@@ -201,6 +202,53 @@ console.log(params);
 ```
 
 For more details, see the [SqlParamInjector Usage Guide](./docs/usage-guides/class-SqlParamInjector-usage-guide.md).
+
+---
+
+## SqlSortInjector Features
+
+The `SqlSortInjector` class enables dynamic ORDER BY clause injection into SQL queries, providing a clean and flexible way to handle sorting requirements. Instead of manually constructing different SQL statements for various sorting scenarios, you can inject sort conditions into your base SQL query, making your code more maintainable and reusable.
+
+Key benefits include:
+- **Dynamic Sort Injection**: Add ORDER BY conditions to existing queries without modifying the base SQL
+- **Flexible Sort Options**: Support for ASC/DESC directions with NULLS FIRST/LAST positioning
+- **Append Mode**: Preserves existing ORDER BY clauses and appends new conditions
+- **Column Alias Support**: Works seamlessly with column aliases and calculated expressions
+- **TableColumnResolver Integration**: Supports wildcard SELECT queries through schema resolution
+- **Clean Separation**: Remove existing ORDER BY clauses when needed with `removeOrderBy()`
+
+```typescript
+import { SqlSortInjector, SqlFormatter } from 'rawsql-ts';
+
+// Basic sort injection
+const baseSql = 'SELECT id, name, created_at FROM users WHERE active = true';
+const sortConditions = {
+  created_at: { desc: true, nullsLast: true },
+  name: { asc: true }
+};
+
+const injector = new SqlSortInjector();
+const sortedQuery = injector.inject(baseSql, sortConditions);
+
+const formatter = new SqlFormatter();
+const { formattedSql } = formatter.format(sortedQuery);
+
+console.log(formattedSql);
+// Output: select "id", "name", "created_at" from "users" where "active" = true order by "created_at" desc nulls last, "name"
+
+// Append to existing ORDER BY
+const existingSql = 'SELECT id, name FROM users ORDER BY id ASC';
+const additionalSort = { name: { desc: true } };
+const appendedQuery = injector.inject(existingSql, additionalSort);
+// Result: SELECT id, name FROM users ORDER BY id ASC, name DESC
+
+// Remove existing ORDER BY when needed
+const cleanQuery = SqlSortInjector.removeOrderBy(existingSql);
+const newSortedQuery = injector.inject(cleanQuery, { name: { desc: true } });
+// Result: SELECT id, name FROM users ORDER BY name DESC
+```
+
+For more details, see the [SqlSortInjector Usage Guide](./docs/usage-guides/class-SqlSortInjector-usage-guide.md).
 
 ---
 
