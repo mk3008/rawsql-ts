@@ -21,6 +21,7 @@ export * from './transformers/UpstreamSelectQueryFinder';
 export * from './transformers/SchemaCollector';
 export * from './transformers/SqlParamInjector';
 export * from './transformers/SqlSortInjector';
+export * from './transformers/SqlPaginationInjector';
 
 export * from './utils/SqlSchemaValidator';
 export * from './utils/SchemaManager';
