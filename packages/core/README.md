@@ -15,14 +15,6 @@ It is designed for extensibility and advanced SQL analysis, with initial focus o
 > [!Note]
 > This library is currently in beta. The API may change until the v1.0 release.
 
-## 📦 Packages
-
-This is a monorepo containing multiple packages:
-
-- **[rawsql-ts](./packages/core)** - Core SQL parsing and transformation library
-
-Additional integration packages will be added in the future.
-
 ---
 
 ## Key Features

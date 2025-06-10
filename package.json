@@ -1,30 +1,27 @@
 {
-    "name": "rawsql-ts",
+    "name": "rawsql-ts-workspace",
     "version": "0.10.5-beta",
-    "description": "[beta]High-performance SQL parser and AST analyzer written in TypeScript. Provides fast parsing and advanced transformation capabilities.",
-    "main": "dist/index.js",
-    "module": "dist/esm/index.js",
-    "types": "dist/index.d.ts",
-    "browser": "dist/esm/index.min.js",
-    "homepage": "https://mk3008.github.io/rawsql-ts/",
+    "description": "SQL parsing and transformation tools workspace",
+    "private": true,
+    "workspaces": [
+        "packages/*"
+    ],
     "scripts": {
-        "test": "vitest run",
-        "test:watch": "vitest",
-        "coverage": "vitest run --coverage",
-        "build": "tsc --build",
-        "build:browser": "tsc --project tsconfig.browser.json",
-        "build:minify": "esbuild src/index.ts --bundle --minify --outfile=dist/index.min.js --format=cjs --sourcemap && esbuild src/index.ts --bundle --minify --outfile=dist/esm/index.min.js --format=esm --sourcemap",
-        "clean": "tsc --build --clean",
-        "lint": "eslint . --ext .ts,.tsx --fix",
-        "benchmark": "ts-node benchmarks/parse-benchmark.ts"
+        "test": "npm run test --workspaces",
+        "test:watch": "npm run test:watch --workspaces",
+        "coverage": "npm run coverage --workspaces",
+        "build": "npm run build --workspaces",
+        "build:core": "npm run build --workspace=packages/core",
+        "clean": "npm run clean --workspaces",
+        "lint": "npm run lint --workspaces",
+        "benchmark": "npm run benchmark --workspace=packages/core"
     },
     "keywords": [
         "sql",
         "sql-parser",
         "sql-transformer",
-        "ast",
-        "sql-ast",
-        "sql-formatter"
+        "workspace",
+        "monorepo"
     ],
     "author": "msugiura",
     "license": "MIT",
@@ -45,14 +42,10 @@
         "eslint-plugin-prettier": "^5.2.3",
         "microtime": "^3.1.1",
         "node-sql-parser": "^5.3.8",
-        "rawsql-ts": "^0.4.0-beta",
         "sql-formatter": "^15.5.2",
         "sql-parser-cst": "^0.33.1",
         "ts-node": "^10.9.2",
         "typescript": "^5.8.2",
         "vitest": "^1.5.2"
-    },
-    "files": [
-        "dist"
-    ]
+    }
 }
