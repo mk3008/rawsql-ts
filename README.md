@@ -25,6 +25,7 @@ It is designed for extensibility and advanced SQL analysis, with initial focus o
 - Advanced SQL formatting capabilities, including multi-line formatting and customizable styles
 - Dynamic SQL parameter injection for building flexible search queries with `SqlParamInjector` (supports like, ilike, in, any, range queries, OR/AND conditions and more)
 - Dynamic ORDER BY clause injection with `SqlSortInjector` for flexible sorting with support for ASC/DESC, NULLS positioning, and append mode
+- Dynamic LIMIT/OFFSET pagination injection with `SqlPaginationInjector` for efficient data pagination with page-based and offset-based support
 - Type-safe schema management and JSON mapping conversion with full TypeScript support
 - Static query validation and regression testing against your database schema with `SqlSchemaValidator`, enabling early error detection and robust unit tests for schema changes.
 
@@ -249,6 +250,62 @@ const newSortedQuery = injector.inject(cleanQuery, { name: { desc: true } });
 ```
 
 For more details, see the [SqlSortInjector Usage Guide](./docs/usage-guides/class-SqlSortInjector-usage-guide.md).
+
+---
+
+## SqlPaginationInjector Features
+
+The `SqlPaginationInjector` class enables dynamic LIMIT/OFFSET clause injection into SQL queries, providing a clean and efficient way to handle data pagination. Instead of manually constructing different SQL statements for various page sizes and offsets, you can inject pagination into your base SQL query, making your code more maintainable and performance-optimized.
+
+Key benefits include:
+- **Page-Based Pagination**: Simple page number and page size configuration with automatic offset calculation
+- **Automatic OFFSET Optimization**: Smart handling where page 1 omits unnecessary OFFSET 0 clauses
+- **Existing Clause Detection**: Prevents conflicts by detecting and reporting existing LIMIT/OFFSET clauses
+- **Validation & Safety**: Built-in validation for page numbers, page sizes, and configurable maximum limits
+- **Clean Removal**: Remove existing pagination clauses when needed with `removePagination()`
+- **Performance Conscious**: Generates standard LIMIT/OFFSET patterns optimized for database engines
+
+```typescript
+import { SqlPaginationInjector, SqlFormatter } from 'rawsql-ts';
+
+// Basic pagination injection
+const baseSql = 'SELECT id, name, email FROM users WHERE active = true ORDER BY created_at DESC';
+const pagination = {
+  page: 2,        // Page number (1-based)
+  pageSize: 20    // Items per page
+};
+
+const injector = new SqlPaginationInjector();
+const paginatedQuery = injector.inject(baseSql, pagination);
+
+const formatter = new SqlFormatter();
+const { formattedSql } = formatter.format(paginatedQuery);
+
+console.log(formattedSql);
+// Output: select "id", "name", "email" from "users" where "active" = true order by "created_at" desc limit 20 offset 20
+
+// First page optimization (no OFFSET needed)
+const firstPagePagination = { page: 1, pageSize: 10 };
+const firstPageQuery = injector.inject(baseSql, firstPagePagination);
+const { formattedSql: firstPageSql } = formatter.format(firstPageQuery);
+console.log(firstPageSql);
+// Output: select "id", "name", "email" from "users" where "active" = true order by "created_at" desc limit 10
+
+// Remove existing pagination when needed
+const existingPaginatedSql = 'SELECT id, name FROM users LIMIT 50 OFFSET 100';
+const cleanQuery = SqlPaginationInjector.removePagination(existingPaginatedSql);
+const newPagination = { page: 1, pageSize: 25 };
+const repaginatedQuery = injector.inject(cleanQuery, newPagination);
+// Result: Clean query with new pagination applied
+
+// Combine with other injectors for complete query building
+let query = new SqlParamInjector().inject(baseSql, { status: 'active' });
+query = new SqlSortInjector().inject(query, { created_at: { desc: true } });
+query = new SqlPaginationInjector().inject(query, { page: 3, pageSize: 15 });
+// Result: Filtered, sorted, and paginated query ready for execution
+```
+
+For more details, see the [SqlPaginationInjector Usage Guide](./docs/usage-guides/class-SqlPaginationInjector-usage-guide.md).
 
 ---
 
