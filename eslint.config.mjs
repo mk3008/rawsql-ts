@@ -3,9 +3,10 @@ import typescriptParser from '@typescript-eslint/parser';
 
 export default [
     {
-        ignores: ["node_modules", "dist"] // Exclude folders
+        ignores: ["node_modules", "dist", "packages/*/node_modules", "packages/*/dist"] // Exclude folders
     },
     {
+        files: ["packages/*/src/**/*.ts", "packages/*/tests/**/*.ts"], // Target package files
         languageOptions: {
             parser: typescriptParser,
             ecmaVersion: 2022,
