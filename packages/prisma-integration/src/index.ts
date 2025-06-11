@@ -6,8 +6,7 @@
  */
 
 export { PrismaReader } from './PrismaReader';
-export { PrismaSchemaResolver } from './resolvers/PrismaSchemaResolver';
-export { PrismaTableColumnResolver } from './resolvers/PrismaTableColumnResolver';
+export { PrismaSchemaResolver } from './PrismaSchemaResolver';
 // export { PrismaJsonMapping } from './mappers/PrismaJsonMapping'; // TODO: Implement
 
 // Type exports

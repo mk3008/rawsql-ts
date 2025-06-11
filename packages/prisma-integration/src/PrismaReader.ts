@@ -1,6 +1,5 @@
 import { PrismaClientType, PrismaReaderOptions, PrismaSchemaInfo, RawSqlQueryOptions } from './types';
-import { PrismaSchemaResolver } from './resolvers/PrismaSchemaResolver';
-import { PrismaTableColumnResolver } from './resolvers/PrismaTableColumnResolver';
+import { PrismaSchemaResolver } from './PrismaSchemaResolver';
 import {
     SqlFormatter,
     SelectQueryParser,
@@ -51,8 +50,7 @@ export class PrismaReader {
         } this.schemaInfo = await this.schemaResolver.resolveSchema(this.prisma);
 
         if (this.schemaInfo) {
-            const prismaResolver = new PrismaTableColumnResolver(this.schemaInfo);
-            this.tableColumnResolver = prismaResolver.createTableColumnResolver();
+            this.tableColumnResolver = this.schemaResolver.createTableColumnResolver();
         }
 
         if (this.options.debug && this.schemaInfo) {

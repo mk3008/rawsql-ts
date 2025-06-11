@@ -14,6 +14,8 @@ export interface PrismaReaderOptions {
     columnNameMappings?: Record<string, Record<string, string>>;
     /** SQL files directory path */
     sqlFilesPath?: string;
+    /** Custom path to schema.prisma file */
+    schemaPath?: string;
 }
 
 /**

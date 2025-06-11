@@ -27,6 +27,7 @@
     "author": "msugiura",
     "license": "MIT",
     "dependencies": {
+        "@prisma/internals": "^6.9.0",
         "rawsql-ts": "^0.10.5-beta"
     },
     "peerDependencies": {
