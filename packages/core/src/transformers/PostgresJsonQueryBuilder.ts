@@ -36,7 +36,9 @@ export interface JsonMapping {
 export class PostgresJsonQueryBuilder {
     private selectValueCollector: SelectValueCollector;
     private objectEntityCteBuilder: PostgresObjectEntityCteBuilder;
-    private arrayEntityCteBuilder: PostgresArrayEntityCteBuilder; constructor() {
+    private arrayEntityCteBuilder: PostgresArrayEntityCteBuilder;
+
+    constructor() {
         this.selectValueCollector = new SelectValueCollector(null);
         this.objectEntityCteBuilder = new PostgresObjectEntityCteBuilder();
         this.arrayEntityCteBuilder = new PostgresArrayEntityCteBuilder();
