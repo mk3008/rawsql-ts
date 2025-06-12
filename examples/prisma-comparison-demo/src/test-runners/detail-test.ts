@@ -6,6 +6,8 @@
 import { PrismaClient } from '@prisma/client';
 import { PrismaTodoDetailService } from '../services/prisma-todo-detail.service';
 import { RawSqlTodoDetailService } from '../services/rawsql-todo-detail.service';
+import { addTestResultWithDefaults } from './types';
+import { cleanSqlForDisplay } from './index';
 
 const prisma = new PrismaClient({
     log: ['query', 'info', 'warn', 'error'],
@@ -47,14 +49,23 @@ async function testPrismaDetailImplementation() {
 
     for (const testCase of testCases) {
         console.log(`\n📋 Test: ${testCase.name} (ID: ${testCase.todoId})`);
-        console.log('-'.repeat(40));
-
-        try {
+        console.log('-'.repeat(40)); try {
             const result = await service.getTodoDetail(testCase.todoId);
 
             console.log(`⏱️  Execution time: ${result.metrics.executionTimeMs}ms`);
             console.log(`🔢 Query count: ${result.metrics.queryCount}`);
-            console.log(`📦 Response size: ${result.metrics.responseSizeBytes} bytes`);
+            console.log(`📦 Response size: ${result.metrics.responseSizeBytes} bytes`);            // Store test result for summary
+            addTestResultWithDefaults({
+                implementation: 'Prisma ORM',
+                testType: 'detail',
+                testName: testCase.name,
+                success: true, // Success means no error occurred, regardless of whether result was found
+                executionTimeMs: result.metrics.executionTimeMs,
+                queryCount: result.metrics.queryCount,
+                responseSizeBytes: result.metrics.responseSizeBytes,
+                resultCount: result.result ? 1 : 0,
+                sqlQuery: result.metrics.sqlQuery
+            });
 
             if (result.result) {
                 const todo = result.result;
@@ -78,19 +89,29 @@ async function testPrismaDetailImplementation() {
                 }
             } else {
                 console.log('❌ TODO not found');
-            }
-
-            // Show SQL query (truncated)
+            }            // Show SQL query (truncated)
             const sqlLines = result.metrics.sqlQuery.split('\n');
+            const cleanedSql = cleanSqlForDisplay(result.metrics.sqlQuery);
             const sqlPreview = sqlLines.length > 1
-                ? `${sqlLines[0]}... (${sqlLines.length} queries)`
-                : result.metrics.sqlQuery.length > 200
-                    ? result.metrics.sqlQuery.substring(0, 200) + '...'
-                    : result.metrics.sqlQuery;
+                ? `${cleanSqlForDisplay(sqlLines[0])}... (${sqlLines.length} queries)`
+                : cleanedSql.length > 200
+                    ? cleanedSql.substring(0, 200) + '...'
+                    : cleanedSql;
             console.log(`🗄️  SQL: ${sqlPreview}`);
 
         } catch (error) {
-            console.error(`❌ Error in test "${testCase.name}":`, error);
+            console.error(`❌ Error in test "${testCase.name}":`, error);            // Store failed test result
+            addTestResultWithDefaults({
+                implementation: 'Prisma ORM',
+                testType: 'detail',
+                testName: testCase.name,
+                success: false,
+                executionTimeMs: 0,
+                queryCount: 0,
+                responseSizeBytes: 0,
+                resultCount: 0,
+                sqlQuery: ''
+            });
         }
     }
 }
@@ -102,7 +123,7 @@ async function testRawSqlDetailImplementation() {
     console.log('\n🔍 Testing rawsql-ts Todo Detail Implementation');
     console.log('='.repeat(60));
 
-    const service = new RawSqlTodoDetailService(prisma);
+    const service = new RawSqlTodoDetailService(prisma, { debug: false });
 
     try {
         // Initialize the PrismaReader
@@ -115,14 +136,23 @@ async function testRawSqlDetailImplementation() {
 
     for (const testCase of testCases) {
         console.log(`\n📋 Test: ${testCase.name}`);
-        console.log('-'.repeat(40));
-
-        try {
+        console.log('-'.repeat(40)); try {
             const result = await service.getTodoDetail(testCase.todoId);
 
             console.log(`⏱️  Execution time: ${result.metrics.executionTimeMs}ms`);
             console.log(`🔢 Query count: ${result.metrics.queryCount}`);
-            console.log(`📦 Response size: ${result.metrics.responseSizeBytes} bytes`);
+            console.log(`📦 Response size: ${result.metrics.responseSizeBytes} bytes`);            // Store test result for summary
+            addTestResultWithDefaults({
+                implementation: 'rawsql-ts',
+                testType: 'detail',
+                testName: testCase.name,
+                success: true, // Success means no error occurred, regardless of whether result was found
+                executionTimeMs: result.metrics.executionTimeMs,
+                queryCount: result.metrics.queryCount,
+                responseSizeBytes: result.metrics.responseSizeBytes,
+                resultCount: result.result ? 1 : 0,
+                sqlQuery: result.metrics.sqlQuery
+            });
 
             if (result.result) {
                 const todo = result.result;
@@ -146,16 +176,26 @@ async function testRawSqlDetailImplementation() {
                 }
             } else {
                 console.log('❌ TODO not found');
-            }
-
-            // Show SQL query (truncated)
-            const sqlPreview = result.metrics.sqlQuery.length > 200
-                ? result.metrics.sqlQuery.substring(0, 200) + '...'
-                : result.metrics.sqlQuery;
+            }            // Show SQL query (truncated)
+            const cleanedSql = cleanSqlForDisplay(result.metrics.sqlQuery);
+            const sqlPreview = cleanedSql.length > 200
+                ? cleanedSql.substring(0, 200) + '...'
+                : cleanedSql;
             console.log(`🗄️  SQL: ${sqlPreview}`);
 
         } catch (error) {
-            console.error(`❌ Error in test "${testCase.name}":`, error);
+            console.error(`❌ Error in test "${testCase.name}":`, error);            // Store failed test result
+            addTestResultWithDefaults({
+                implementation: 'rawsql-ts',
+                testType: 'detail',
+                testName: testCase.name,
+                success: false,
+                executionTimeMs: 0,
+                queryCount: 0,
+                responseSizeBytes: 0,
+                resultCount: 0,
+                sqlQuery: ''
+            });
         }
     }
 }

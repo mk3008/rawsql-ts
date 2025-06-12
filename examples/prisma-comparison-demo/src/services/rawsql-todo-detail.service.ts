@@ -5,6 +5,7 @@
 
 import { PrismaClient } from '@prisma/client';
 import { PrismaReader } from '../../../../packages/prisma-integration/src/PrismaReader';
+import { JsonMapping } from '../../../../packages/core/src';
 import { TodoDetailService } from '../interfaces/todo-service.interface';
 import {
     TodoDetailResultWithMetrics,
@@ -16,20 +17,99 @@ import {
 export class RawSqlTodoDetailService implements TodoDetailService {
     private prisma: PrismaClient;
     private prismaReader: PrismaReader;
+    private debugMode: boolean;
 
-    constructor(prisma: PrismaClient) {
+    constructor(prisma: PrismaClient, options?: { debug?: boolean }) {
         this.prisma = prisma;
+        this.debugMode = options?.debug ?? false;
         this.prismaReader = new PrismaReader(prisma, {
-            debug: true,
+            debug: this.debugMode,
             sqlFilesPath: './rawsql-ts'
         });
-    }
-
-    /**
+    }    /**
      * Initialize the PrismaReader
      */
     async initialize(): Promise<void> {
         await this.prismaReader.initialize();
+    }
+
+    /**
+     * Create JSON mapping configuration for TODO detail serialization
+     */
+    private createTodoDetailJsonMapping(): JsonMapping {
+        return {
+            rootName: "todo",
+            rootEntity: {
+                id: "todo",
+                name: "Todo",
+                columns: {
+                    "todoId": "todo_id",
+                    "title": "title",
+                    "description": "description",
+                    "completed": "completed",
+                    "createdAt": "created_at",
+                    "updatedAt": "updated_at"
+                }
+            },
+            nestedEntities: [
+                // User relationship (object)
+                {
+                    id: "user",
+                    name: "User",
+                    parentId: "todo",
+                    propertyName: "user",
+                    relationshipType: "object",
+                    columns: {
+                        "userId": "user_id",
+                        "userName": "user_name",
+                        "email": "email",
+                        "createdAt": "user_created_at"
+                    }
+                },
+                // Category relationship (object)
+                {
+                    id: "category",
+                    name: "Category",
+                    parentId: "todo",
+                    propertyName: "category",
+                    relationshipType: "object",
+                    columns: {
+                        "categoryId": "category_id",
+                        "categoryName": "category_name",
+                        "color": "color",
+                        "createdAt": "category_created_at"
+                    }
+                },
+                // Comments relationship (array)
+                {
+                    id: "comments",
+                    name: "Comment",
+                    parentId: "todo",
+                    propertyName: "comments",
+                    relationshipType: "array",
+                    columns: {
+                        "commentId": "comment_id",
+                        "commentText": "comment_text",
+                        "createdAt": "comment_created_at"
+                    }
+                },
+                // Comment user relationship (object)
+                {
+                    id: "comment_user",
+                    name: "CommentUser",
+                    parentId: "comments",
+                    propertyName: "user",
+                    relationshipType: "object",
+                    columns: {
+                        "userId": "comment_user_id",
+                        "userName": "comment_user_name",
+                        "email": "comment_user_email"
+                    }
+                }
+            ],
+            useJsonb: true,
+            resultFormat: "single"
+        };
     }
 
     /**
@@ -50,17 +130,17 @@ export class RawSqlTodoDetailService implements TodoDetailService {
                 queryCount++;
             }
             originalLog(...args);
-        };
-
-        try {
-            originalLog('🔍 rawsql-ts Debug - Getting TODO detail for ID:', todoId);
-
-            // Execute query using PrismaReader with parameter injection
+        }; try {
+            if (this.debugMode) {
+                console.log('🔍 rawsql-ts Debug - Getting TODO detail for ID:', todoId);
+            }            // Execute query using PrismaReader with parameter injection and JSON serialization
+            const jsonMapping = this.createTodoDetailJsonMapping();
             const results = await this.prismaReader.query('getTodoDetail.sql', {
-                filter: { todo_id: todoId }
-            });
-
-            originalLog('✅ rawsql-ts Results:', results.length, 'rows found');
+                filter: { todo_id: todoId },
+                serialize: jsonMapping
+            }); if (this.debugMode) {
+                console.log('✅ rawsql-ts Results:', results.length, 'rows found');
+            }
 
             if (results.length === 0) {
                 const executionTime = Date.now() - startTime;
@@ -79,54 +159,8 @@ export class RawSqlTodoDetailService implements TodoDetailService {
                 };
             }
 
-            // Since rawsql-ts returns flat results, we need to structure the data
-            // Group comments by the main TODO record
-            const firstRow = results[0];
-            const todoDetail: TodoDetail = {
-                todoId: Number(firstRow.todo_id),
-                title: firstRow.title,
-                description: firstRow.description,
-                completed: firstRow.completed,
-                createdAt: firstRow.created_at,
-                updatedAt: firstRow.updated_at,
-                user: {
-                    userId: Number(firstRow.user_id),
-                    userName: firstRow.user_name,
-                    email: firstRow.email,
-                    createdAt: firstRow.user_created_at,
-                },
-                category: {
-                    categoryId: Number(firstRow.category_id),
-                    categoryName: firstRow.category_name,
-                    color: firstRow.color,
-                    createdAt: firstRow.category_created_at,
-                },
-                comments: []
-            };
-
-            // Process comments from flat results
-            const comments: TodoComment[] = [];
-            const commentIds = new Set<number>();
-
-            for (const row of results) {
-                if (row.comment_id && !commentIds.has(row.comment_id)) {
-                    commentIds.add(row.comment_id);
-                    comments.push({
-                        commentId: Number(row.comment_id),
-                        commentText: row.comment_text,
-                        createdAt: row.comment_created_at,
-                        user: {
-                            userId: Number(row.comment_user_id),
-                            userName: row.comment_user_name,
-                            email: row.comment_user_email,
-                        },
-                    });
-                }
-            }
-
-            todoDetail.comments = comments.sort((a, b) =>
-                new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-            );
+            // With JSON serialization, PrismaReader returns structured data directly
+            const todoDetail = results[0] as TodoDetail;
 
             const executionTime = Date.now() - startTime;
 

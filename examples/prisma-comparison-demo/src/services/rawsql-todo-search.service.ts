@@ -17,11 +17,13 @@ import {
 export class RawSqlTodoSearchService implements TodoSearchService {
     private prisma: PrismaClient;
     private prismaReader: PrismaReader;
+    private debugMode: boolean;
 
-    constructor(prisma: PrismaClient) {
+    constructor(prisma: PrismaClient, options?: { debug?: boolean }) {
         this.prisma = prisma;
+        this.debugMode = options?.debug ?? false;
         this.prismaReader = new PrismaReader(prisma, {
-            debug: true,
+            debug: this.debugMode,
             sqlFilesPath: './rawsql-ts'
         });
     }
@@ -62,8 +64,7 @@ export class RawSqlTodoSearchService implements TodoSearchService {
                 user_name: params.conditions.userName ? { ilike: `%${params.conditions.userName}%` } : undefined,
                 category_id: params.conditions.categoryId,
                 color: params.conditions.color
-            };
-            // Build sorting (simplified version without dynamic sorting for now)
+            };            // Build sorting (simplified version without dynamic sorting for now)
             const sort: Record<string, any> = {
                 created_at: { desc: true }
             };
@@ -74,11 +75,13 @@ export class RawSqlTodoSearchService implements TodoSearchService {
                 pageSize: params.pagination.limit
             };
 
-            originalLog('🔍 rawsql-ts Debug - Executing search with:', {
-                filter,
-                sort,
-                paging
-            });
+            if (this.debugMode) {
+                console.log('🔍 rawsql-ts Debug - Executing search with:', {
+                    filter,
+                    sort,
+                    paging
+                });
+            }
 
             // Define JSON mapping for hierarchical structure
             const jsonMapping: JsonMapping = {
