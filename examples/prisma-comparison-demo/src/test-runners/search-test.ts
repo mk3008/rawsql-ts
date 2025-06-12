@@ -75,34 +75,7 @@ const testCases: Array<{
         },
     ];
 
-/**
- * Statistics calculation helpers
- */
-interface PerformanceStats {
-    mean: number;
-    stdDev: number;
-    standardError: number;
-    min: number;
-    max: number;
-    iterations: number;
-}
 
-function calculateStats(measurements: number[]): PerformanceStats {
-    const n = measurements.length;
-    const mean = measurements.reduce((sum, val) => sum + val, 0) / n;
-    const variance = measurements.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / (n - 1);
-    const stdDev = Math.sqrt(variance);
-    const standardError = stdDev / Math.sqrt(n);
-
-    return {
-        mean: Number(mean.toFixed(2)),
-        stdDev: Number(stdDev.toFixed(2)),
-        standardError: Number(standardError.toFixed(2)),
-        min: Math.min(...measurements),
-        max: Math.max(...measurements),
-        iterations: n
-    };
-}
 
 /**
  * Test Prisma ORM implementation
@@ -111,52 +84,41 @@ async function testPrismaSearchImplementation() {
     console.log('🔍 Testing Prisma ORM Todo Search Implementation');
     console.log('='.repeat(60));
 
-    const service = new PrismaTodoSearchService(prisma); for (const testCase of testCases) {
+    const service = new PrismaTodoSearchService(prisma);
+
+    for (const testCase of testCases) {
         console.log(`\n📋 Test: ${testCase.name}`);
-        console.log('-'.repeat(40));        try {
-            // Performance measurement with warm-up and multiple runs            
-            // Test execution parameters (speed measurement removed)            
-            const warmupRuns = 2;
-            const measurementRuns = 5;
-            let finalResult: any;
+        console.log('-'.repeat(40)); try {
+            // Execute test once for functionality verification
+            const result = await service.searchTodos(testCase.params);
 
-            // Warm-up runs for database optimization
-            console.log('🔥 Warming up...');
-            for (let i = 0; i < warmupRuns; i++) {
-                await service.searchTodos(testCase.params);
-            }
-
-            // Test runs for functionality verification
-            console.log(`📊 Running ${measurementRuns} test iterations...`);
-            for (let i = 0; i < measurementRuns; i++) {
-                const result = await service.searchTodos(testCase.params);
-
-                if (i === measurementRuns - 1) {
-                    finalResult = result; // Keep last result for display
-                }
-            }
-
-            console.log(`✅ Found ${finalResult.result.items.length} todos`);
-            console.log(`⏱️  Execution time: NaNms avg (min: NaNms, max: NaNms, σ: NaNms)`);
-            console.log(`🔢 Query count: NaN`);
-            console.log(`📦 Response size: NaN bytes (avg)`);
-            console.log(`🗄️  Has more: ${finalResult.result.pagination.hasMore}`);            // Store test result for analysis (speed metrics removed)
+            console.log(`✅ Found ${result.result.items.length} todos`);
+            console.log(`🗄️  Has more: ${result.result.pagination.hasMore}`);            // Store test result for analysis (speed metrics removed)
             addTestResultWithDefaults({
                 implementation: 'Prisma ORM',
                 testType: 'search',
                 testName: testCase.name,
                 success: true,
-                resultCount: finalResult.result.items.length,
-                sqlQueries: [] // Empty array since individual queries will be handled by sqlExecutionDetails
-            });// Show first few results
-            finalResult.result.items.slice(0, 3).forEach((item: any, index: number) => {
+                resultCount: result.result.items.length,
+                sqlQueries: result.metrics.sqlQueries // Use captured SQL queries from metrics
+            });
+
+            // Show first few results
+            result.result.items.slice(0, 3).forEach((item: any, index: number) => {
                 console.log(`   ${index + 1}. "${item.title}" by ${item.user.userName} (${item.category.categoryName}) [${item.commentCount} comments]`);
-            }); if (finalResult.result.items.length > 3) {
-                console.log(`   ... and ${finalResult.result.items.length - 3} more`);
+            });
+            if (result.result.items.length > 3) {
+                console.log(`   ... and ${result.result.items.length - 3} more`);
             }
 
-            // SQL query capture removed - focusing on functionality analysis
-            console.log(`🗄️  SQL: No SQL query captured`);
+            // Show SQL queries (truncated)
+            const cleanedSql = cleanSqlForDisplay(result.metrics.sqlQueries);
+            const sqlPreview = result.metrics.sqlQueries.length > 1
+                ? `${cleanedSql.substring(0, 100)}... (${result.metrics.sqlQueries.length} queries)`
+                : cleanedSql.length > 200
+                    ? cleanedSql.substring(0, 200) + '...'
+                    : cleanedSql;
+            console.log(`🗄️  SQL: ${sqlPreview}`);
 
         } catch (error) {
             console.error(`❌ Error in test "${testCase.name}":`, error);            // Store failed test result (speed metrics removed)
@@ -166,7 +128,7 @@ async function testPrismaSearchImplementation() {
                 testName: testCase.name,
                 success: false,
                 resultCount: 0,
-                sqlQueries: []
+                sqlQueries: [] // No SQL queries for failed tests
             });
         }
     }
@@ -188,65 +150,47 @@ async function testRawSqlSearchImplementation() {
     } catch (error) {
         console.error('❌ Failed to initialize rawsql-ts PrismaReader:', error);
         return;
-    } for (const testCase of testCases) {
+    }
+
+    for (const testCase of testCases) {
         console.log(`\n📋 Test: ${testCase.name}`);
         console.log('-'.repeat(40)); try {
-            // Test execution parameters (speed measurement removed)
-            const warmupRuns = 2;
-            const measurementRuns = 5;
-            let finalResult: any;
+            // Execute test once for functionality verification
+            const result = await service.searchTodos(testCase.params);
 
-            // Warm-up runs for database optimization
-            console.log('🔥 Warming up...');
-            for (let i = 0; i < warmupRuns; i++) {
-                await service.searchTodos(testCase.params);
-            }
-
-            // Test runs for functionality verification
-            console.log(`📊 Running ${measurementRuns} test iterations...`);
-            for (let i = 0; i < measurementRuns; i++) {
-                const result = await service.searchTodos(testCase.params);
-
-                if (i === measurementRuns - 1) {
-                    finalResult = result; // Keep last result for display
-                }
-            }
-
-            console.log(`✅ Found ${finalResult.result.items.length} todos`);
-            console.log(`⏱️  Execution time: NaNms avg (min: NaNms, max: NaNms, σ: NaNms)`);
-            console.log(`🔢 Query count: NaN`);
-            console.log(`📦 Response size: NaN bytes (avg)`);
-            console.log(`🗄️  Has more: ${finalResult.result.pagination.hasMore}`);
-
-            // Store test result for analysis (speed metrics removed)
+            console.log(`✅ Found ${result.result.items.length} todos`);
+            console.log(`🗄️  Has more: ${result.result.pagination.hasMore}`);            // Store test result for analysis (speed metrics removed)
             addTestResultWithDefaults({
                 implementation: 'rawsql-ts',
                 testType: 'search',
                 testName: testCase.name,
                 success: true,
-                resultCount: finalResult.result.items.length,
-                sqlQueries: [] // Empty array since individual queries will be handled by sqlExecutionDetails
-            });// Show first few results
-            finalResult.result.items.slice(0, 3).forEach((item: any, index: number) => {
-                console.log(`   ${index + 1}. "${item.title}" by ${item.user.userName} (${item.category.categoryName}) [${item.commentCount} comments]`);
-            }); if (finalResult.result.items.length > 3) {
-                console.log(`   ... and ${finalResult.result.items.length - 3} more`);
-            }
+                resultCount: result.result.items.length,
+                sqlQueries: result.metrics.sqlQueries // Use captured SQL queries from metrics
+            });
 
-            // SQL query capture removed - focusing on functionality analysis
-            console.log(`🗄️  SQL: No SQL query captured`);
+            // Show first few results
+            result.result.items.slice(0, 3).forEach((item: any, index: number) => {
+                console.log(`   ${index + 1}. "${item.title}" by ${item.user.userName} (${item.category.categoryName}) [${item.commentCount} comments]`);
+            });
+            if (result.result.items.length > 3) {
+                console.log(`   ... and ${result.result.items.length - 3} more`);
+            }            // Show SQL queries (truncated)
+            const cleanedSql = cleanSqlForDisplay(result.metrics.sqlQueries);
+            const sqlPreview = cleanedSql.length > 200
+                ? cleanedSql.substring(0, 200) + '...'
+                : cleanedSql;
+            console.log(`🗄️  SQL: ${sqlPreview}`);
 
         } catch (error) {
-            console.error(`❌ Error in test "${testCase.name}":`, error);
-
-            // Store failed test result (speed metrics removed)
+            console.error(`❌ Error in test "${testCase.name}":`, error);            // Store failed test result (speed metrics removed)
             addTestResultWithDefaults({
                 implementation: 'rawsql-ts',
                 testType: 'search',
                 testName: testCase.name,
                 success: false,
                 resultCount: 0,
-                sqlQueries: []
+                sqlQueries: [] // No SQL queries for failed tests
             });
         }
     }
