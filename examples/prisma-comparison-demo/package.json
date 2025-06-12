@@ -15,7 +15,9 @@
     },
     "dependencies": {
         "@prisma/client": "^6.9.0",
-        "pg": "^8.11.0"
+        "pg": "^8.11.0",
+        "rawsql-ts": "workspace:*",
+        "prisma-rawsql": "workspace:*"
     },
     "devDependencies": {
         "@types/node": "^20.0.0",

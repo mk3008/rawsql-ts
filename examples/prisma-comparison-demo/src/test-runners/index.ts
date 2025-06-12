@@ -35,12 +35,10 @@ async function runAllTests() {
 
         console.log('\n' + '='.repeat(60));
         console.log('🎉 All tests completed!');
-        console.log('');
-        console.log('📊 Next steps:');
-        console.log('   1. Implement TypedSQL approach');
-        console.log('   2. Implement rawsql-ts approach');
-        console.log('   3. Run performance comparison');
-        console.log('   4. Generate detailed report');
+        console.log(''); console.log('📊 Next steps:');
+        console.log('   1. Compare Prisma ORM vs rawsql-ts performance');
+        console.log('   2. Analyze SQL query differences');
+        console.log('   3. Generate detailed comparison report');
 
     } catch (error) {
         console.error('❌ Test execution failed:', error);

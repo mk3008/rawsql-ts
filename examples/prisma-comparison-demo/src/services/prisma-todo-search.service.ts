@@ -9,12 +9,19 @@ import {
     TodoListItem,
     QueryMetrics,
 } from '../contracts';
+import { TodoSearchService } from '../interfaces/todo-service.interface';
 
-export class PrismaTodoSearchService {
-    private prisma: PrismaClient;
-
-    constructor(prisma: PrismaClient) {
+export class PrismaTodoSearchService implements TodoSearchService {
+    private prisma: PrismaClient; constructor(prisma: PrismaClient) {
         this.prisma = prisma;
+    }
+
+    /**
+     * Initialize the Prisma service (optional)
+     */
+    async initialize(): Promise<void> {
+        // Prisma is already initialized via constructor
+        // This method exists to satisfy the interface
     }
 
     /**

@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { JsonMapping } from 'rawsql-ts';
 
 /**
  * Configuration options for PrismaReader
@@ -44,8 +45,8 @@ export interface RawSqlQueryOptions {
         page?: number;
         pageSize?: number;
     };
-    /** Whether to serialize result using JSON schema */
-    serialize?: boolean;
+    /** JSON mapping configuration for hierarchical JSON serialization */
+    serialize?: JsonMapping;
     /** Additional parameters for the SQL query */
     params?: Record<string, any>;
 }
@@ -58,6 +59,8 @@ export interface PrismaSchemaInfo {
     models: Record<string, PrismaModelInfo>;
     /** Schema name */
     schemaName?: string;
+    /** Database provider (postgresql, mysql, sqlite, etc.) */
+    databaseProvider?: string;
 }
 
 /**

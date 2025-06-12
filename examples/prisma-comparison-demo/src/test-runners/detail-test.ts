@@ -5,6 +5,7 @@
 
 import { PrismaClient } from '@prisma/client';
 import { PrismaTodoDetailService } from '../services/prisma-todo-detail.service';
+import { RawSqlTodoDetailService } from '../services/rawsql-todo-detail.service';
 
 const prisma = new PrismaClient({
     log: ['query', 'info', 'warn', 'error'],
@@ -95,11 +96,77 @@ async function testPrismaDetailImplementation() {
 }
 
 /**
+ * Test rawsql-ts implementation
+ */
+async function testRawSqlDetailImplementation() {
+    console.log('\n🔍 Testing rawsql-ts Todo Detail Implementation');
+    console.log('='.repeat(60));
+
+    const service = new RawSqlTodoDetailService(prisma);
+
+    try {
+        // Initialize the PrismaReader
+        await service.initialize();
+        console.log('✅ rawsql-ts PrismaReader initialized successfully');
+    } catch (error) {
+        console.error('❌ Failed to initialize rawsql-ts PrismaReader:', error);
+        return;
+    }
+
+    for (const testCase of testCases) {
+        console.log(`\n📋 Test: ${testCase.name}`);
+        console.log('-'.repeat(40));
+
+        try {
+            const result = await service.getTodoDetail(testCase.todoId);
+
+            console.log(`⏱️  Execution time: ${result.metrics.executionTimeMs}ms`);
+            console.log(`🔢 Query count: ${result.metrics.queryCount}`);
+            console.log(`📦 Response size: ${result.metrics.responseSizeBytes} bytes`);
+
+            if (result.result) {
+                const todo = result.result;
+                console.log(`✅ Found TODO: "${todo.title}"`);
+                console.log(`   📝 Description: ${todo.description}`);
+                console.log(`   ✅ Completed: ${todo.completed ? 'Yes' : 'No'}`);
+                console.log(`   👤 User: ${todo.user.userName} (${todo.user.email})`);
+                console.log(`   🏷️  Category: ${todo.category.categoryName} (${todo.category.color})`);
+                console.log(`   📅 Created: ${todo.createdAt}`);
+                console.log(`   📝 Comments (${todo.comments.length}):`);
+
+                todo.comments.forEach((comment: any, index: number) => {
+                    const commentPreview = comment.commentText.length > 50
+                        ? comment.commentText.substring(0, 50) + '...'
+                        : comment.commentText;
+                    console.log(`      ${index + 1}. ${comment.user.userName}: "${commentPreview}"`);
+                });
+
+                if (todo.comments.length === 0) {
+                    console.log('      (No comments)');
+                }
+            } else {
+                console.log('❌ TODO not found');
+            }
+
+            // Show SQL query (truncated)
+            const sqlPreview = result.metrics.sqlQuery.length > 200
+                ? result.metrics.sqlQuery.substring(0, 200) + '...'
+                : result.metrics.sqlQuery;
+            console.log(`🗄️  SQL: ${sqlPreview}`);
+
+        } catch (error) {
+            console.error(`❌ Error in test "${testCase.name}":`, error);
+        }
+    }
+}
+
+/**
  * Main test runner
  */
 async function main() {
     try {
         await testPrismaDetailImplementation();
+        await testRawSqlDetailImplementation();
     } catch (error) {
         console.error('❌ Test runner failed:', error);
     } finally {

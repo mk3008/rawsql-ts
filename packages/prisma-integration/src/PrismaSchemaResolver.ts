@@ -33,13 +33,17 @@ export class PrismaSchemaResolver {
             const dmmf = await this.getDMMFFromSchema();
             if (dmmf) {
                 const models = this.parseModelsFromDmmf(dmmf);
+                const databaseProvider = this.extractDatabaseProvider(dmmf);
+
                 this.schemaInfo = {
                     models,
-                    schemaName: this.options.defaultSchema || 'public'
+                    schemaName: this.options.defaultSchema || 'public',
+                    databaseProvider
                 };
 
                 if (this.options.debug) {
                     console.log(`Successfully loaded schema with ${Object.keys(models).length} models from schema.prisma`);
+                    console.log(`Database provider: ${databaseProvider}`);
                 }
 
                 return this.schemaInfo;
@@ -635,7 +639,89 @@ export class PrismaSchemaResolver {
     getModelNames(): string[] {
         if (!this.schemaInfo) {
             return [];
+        } return Object.keys(this.schemaInfo.models);
+    }
+
+    /**
+     * Extract database provider from DMMF
+     * 
+     * @param dmmf - The DMMF object
+     * @returns Database provider string (postgresql, mysql, sqlite, etc.)
+     */    private extractDatabaseProvider(dmmf: any): string | undefined {
+        try {
+            // Check if DMMF has datasources information
+            if (dmmf && dmmf.datasources && Array.isArray(dmmf.datasources) && dmmf.datasources.length > 0) {
+                const datasource = dmmf.datasources[0];
+                if (datasource && datasource.provider) {
+                    const provider = datasource.provider.toLowerCase();
+                    if (this.options.debug) {
+                        console.log(`Found database provider from DMMF datasources: ${provider}`);
+                    }
+                    return provider;
+                }
+            }
+
+            // Fallback: try to read from schema file directly
+            const schemaPath = this.findSchemaFileSync();
+            if (schemaPath && fs.existsSync(schemaPath)) {
+                const schemaContent = fs.readFileSync(schemaPath, 'utf-8');
+
+                // Look specifically for datasource db { provider = "..." } pattern
+                const datasourceMatch = schemaContent.match(/datasource\s+\w+\s*\{[^}]*provider\s*=\s*"([^"]+)"[^}]*\}/);
+                if (datasourceMatch && datasourceMatch[1]) {
+                    const provider = datasourceMatch[1].toLowerCase();
+                    if (this.options.debug) {
+                        console.log(`Found database provider from schema file: ${provider}`);
+                    }
+                    return provider;
+                }
+
+                // Fallback to simple provider match (less reliable)
+                const providerMatch = schemaContent.match(/provider\s*=\s*"([^"]+)"/);
+                if (providerMatch && providerMatch[1]) {
+                    // Skip if this is a generator provider (prisma-client-js)
+                    const provider = providerMatch[1].toLowerCase();
+                    if (provider !== 'prisma-client-js' && !provider.includes('client')) {
+                        if (this.options.debug) {
+                            console.log(`Found database provider from fallback pattern: ${provider}`);
+                        }
+                        return provider;
+                    }
+                }
+            }
+
+            if (this.options.debug) {
+                console.warn('Could not determine database provider from DMMF or schema file');
+            }
+            return undefined;
+        } catch (error) {
+            if (this.options.debug) {
+                console.warn('Error extracting database provider:', error);
+            }
+            return undefined;
         }
-        return Object.keys(this.schemaInfo.models);
+    }
+
+    /**
+     * Find schema file synchronously (for fallback use)
+     * 
+     * @returns Path to schema.prisma file or undefined
+     */
+    private findSchemaFileSync(): string | undefined {
+        const possiblePaths = [
+            this.options.schemaPath,
+            './prisma/schema.prisma',
+            './schema.prisma',
+            '../prisma/schema.prisma',
+            '../../prisma/schema.prisma'
+        ].filter(Boolean) as string[];
+
+        for (const schemaPath of possiblePaths) {
+            if (fs.existsSync(schemaPath)) {
+                return path.resolve(schemaPath);
+            }
+        }
+
+        return undefined;
     }
 }

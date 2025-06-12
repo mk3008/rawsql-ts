@@ -9,12 +9,19 @@ import {
     TodoComment,
     QueryMetrics,
 } from '../contracts';
+import { TodoDetailService } from '../interfaces/todo-service.interface';
 
-export class PrismaTodoDetailService {
-    private prisma: PrismaClient;
-
-    constructor(prisma: PrismaClient) {
+export class PrismaTodoDetailService implements TodoDetailService {
+    private prisma: PrismaClient; constructor(prisma: PrismaClient) {
         this.prisma = prisma;
+    }
+
+    /**
+     * Initialize the Prisma service (optional)
+     */
+    async initialize(): Promise<void> {
+        // Prisma is already initialized via constructor
+        // This method exists to satisfy the interface
     }
 
     /**

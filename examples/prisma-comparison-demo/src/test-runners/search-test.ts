@@ -5,6 +5,7 @@
 
 import { PrismaClient } from '@prisma/client';
 import { PrismaTodoSearchService } from '../services/prisma-todo-search.service';
+import { RawSqlTodoSearchService } from '../services/rawsql-todo-search.service';
 import { TodoSearchParams } from '../contracts';
 
 const prisma = new PrismaClient({
@@ -116,11 +117,64 @@ async function testPrismaSearchImplementation() {
 }
 
 /**
+ * Test rawsql-ts implementation
+ */
+async function testRawSqlSearchImplementation() {
+    console.log('\n🔍 Testing rawsql-ts Todo Search Implementation');
+    console.log('='.repeat(60));
+
+    const service = new RawSqlTodoSearchService(prisma);
+
+    try {
+        // Initialize the PrismaReader
+        await service.initialize();
+        console.log('✅ rawsql-ts PrismaReader initialized successfully');
+    } catch (error) {
+        console.error('❌ Failed to initialize rawsql-ts PrismaReader:', error);
+        return;
+    }
+
+    for (const testCase of testCases) {
+        console.log(`\n📋 Test: ${testCase.name}`);
+        console.log('-'.repeat(40));
+
+        try {
+            const result = await service.searchTodos(testCase.params);
+
+            console.log(`✅ Found ${result.result.items.length} todos`);
+            console.log(`⏱️  Execution time: ${result.metrics.executionTimeMs}ms`);
+            console.log(`🔢 Query count: ${result.metrics.queryCount}`);
+            console.log(`📦 Response size: ${result.metrics.responseSizeBytes} bytes`);
+            console.log(`🗄️  Has more: ${result.result.pagination.hasMore}`);
+
+            // Show first few results
+            result.result.items.slice(0, 3).forEach((item: any, index: number) => {
+                console.log(`   ${index + 1}. "${item.title}" by ${item.user.userName} (${item.category.categoryName}) [${item.commentCount} comments]`);
+            });
+
+            if (result.result.items.length > 3) {
+                console.log(`   ... and ${result.result.items.length - 3} more`);
+            }
+
+            // Show SQL query (truncated)
+            const sqlPreview = result.metrics.sqlQuery.length > 200
+                ? result.metrics.sqlQuery.substring(0, 200) + '...'
+                : result.metrics.sqlQuery;
+            console.log(`🗄️  SQL: ${sqlPreview}`);
+
+        } catch (error) {
+            console.error(`❌ Error in test "${testCase.name}":`, error);
+        }
+    }
+}
+
+/**
  * Main test runner
  */
 async function main() {
     try {
         await testPrismaSearchImplementation();
+        await testRawSqlSearchImplementation();
     } catch (error) {
         console.error('❌ Test runner failed:', error);
     } finally {

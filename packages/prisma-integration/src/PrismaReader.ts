@@ -9,7 +9,8 @@ import {
     TableColumnResolver,
     SimpleSelectQuery,
     SelectQuery,
-    QueryBuilder
+    QueryBuilder,
+    PostgresJsonQueryBuilder
 } from 'rawsql-ts';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -80,7 +81,7 @@ export class PrismaReader {
             throw new Error('PrismaReader not initialized. Call initialize() first.');
         }
 
-        let modifiedQuery: SelectQuery;
+        let modifiedQuery: SimpleSelectQuery;
 
         if (typeof sqlFilePathOrQuery === 'string') {
             // Handle SQL file path
@@ -98,60 +99,69 @@ export class PrismaReader {
             }
 
             // Start with parsed query
-            modifiedQuery = parsedQuery;
+            modifiedQuery = QueryBuilder.buildSimpleQuery(parsedQuery);
 
-            // Apply dynamic modifications
-            // Apply filtering
-            if (options.filter && Object.keys(options.filter).length > 0) {
-                const paramInjector = new SqlParamInjector(this.tableColumnResolver!);
-                // Ensure we have a SimpleSelectQuery for the injector
-                const simpleQuery = QueryBuilder.buildSimpleQuery(modifiedQuery);
-                modifiedQuery = paramInjector.inject(simpleQuery, options.filter);
-
-                if (this.options.debug) {
-                    console.log('Applying filters:', options.filter);
-                }
-            }
-
-            // Apply sorting
-            if (options.sort) {
-                const sortInjector = new SqlSortInjector(this.tableColumnResolver);
-                // Ensure we have a SimpleSelectQuery for the injector
-                const simpleQuery = QueryBuilder.buildSimpleQuery(modifiedQuery);
-                modifiedQuery = sortInjector.inject(simpleQuery, options.sort);
-
-                if (this.options.debug) {
-                    console.log('Applied sorting:', options.sort);
-                }
-            }
-
-            // Apply pagination
-            if (options.paging) {
-                const paginationInjector = new SqlPaginationInjector();
-                const { page = 1, pageSize } = options.paging;
-
-                if (pageSize !== undefined) {
-                    const paginationOptions = { page, pageSize };
-                    // Ensure we have a SimpleSelectQuery for the injector
-                    const simpleQuery = QueryBuilder.buildSimpleQuery(modifiedQuery);
-                    modifiedQuery = paginationInjector.inject(simpleQuery, paginationOptions);
-
-                    if (this.options.debug) {
-                        console.log('Applied pagination:', paginationOptions);
-                    }
-                }
+            if (this.options.debug) {
+                console.log(`Loaded SQL file: ${sqlFilePath}`);
+                console.log('Parsed query:', modifiedQuery);
             }
         } else {
             // Handle pre-built SelectQuery
-            modifiedQuery = sqlFilePathOrQuery;
+            modifiedQuery = QueryBuilder.buildSimpleQuery(sqlFilePathOrQuery);
+        }
+
+        // Apply dynamic modifications
+        // Apply filtering
+        if (options.filter && Object.keys(options.filter).length > 0) {
+            const paramInjector = new SqlParamInjector(this.tableColumnResolver!);
+            modifiedQuery = paramInjector.inject(modifiedQuery, options.filter);
 
             if (this.options.debug) {
-                console.log('Executing pre-built SelectQuery');
+                console.log('Applying filters:', options.filter);
             }
         }
 
+        // Apply sorting
+        if (options.sort) {
+            const sortInjector = new SqlSortInjector(this.tableColumnResolver);
+            modifiedQuery = sortInjector.inject(modifiedQuery, options.sort);
+
+            if (this.options.debug) {
+                console.log('Applied sorting:', options.sort);
+            }
+        }
+
+        // Apply pagination
+        if (options.paging) {
+            const paginationInjector = new SqlPaginationInjector();
+            const { page = 1, pageSize } = options.paging;
+
+            if (pageSize !== undefined) {
+                const paginationOptions = { page, pageSize };
+                modifiedQuery = paginationInjector.inject(modifiedQuery, paginationOptions);
+
+                if (this.options.debug) {
+                    console.log('Applied pagination:', paginationOptions);
+                }
+            }
+        }
+
+        // Apply JSON serialization if requested (before formatting)
+        if (options.serialize) {
+            // Create PostgresJsonQueryBuilder instance
+            const jsonBuilder = new PostgresJsonQueryBuilder();
+
+            // Convert SelectQuery to SimpleSelectQuery
+            const simpleQuery = QueryBuilder.buildSimpleQuery(modifiedQuery);
+
+            // Transform to JSON query and convert back to SelectQuery
+            modifiedQuery = jsonBuilder.buildJsonQuery(simpleQuery, options.serialize);
+        }
+
         // Generate final SQL
-        const formatter = new SqlFormatter();
+        const formatter = new SqlFormatter({
+            preset: this.getPresetFromProvider(this.schemaInfo?.databaseProvider)
+        });
         const formattedResult = formatter.format(modifiedQuery);
         const finalSql = formattedResult.formattedSql;
         const parameters = formattedResult.params || {};
@@ -159,17 +169,13 @@ export class PrismaReader {
         if (this.options.debug) {
             console.log('Executing SQL:', finalSql);
             console.log('Parameters:', parameters);
-        }        // Execute with Prisma
+        }
+
+        // Execute with Prisma
         const parametersArray = Object.values(parameters);
         const result = await this.executeSqlWithParams(finalSql, parametersArray);
 
-        // Apply serialization if requested
-        if (options.serialize && this.schemaInfo) {
-            // TODO: Implement JSON schema-based serialization
-            if (this.options.debug) {
-                console.log('Serialization requested - feature coming soon');
-            }
-        } return result as T[];
+        return result as T[];
     }
 
     /**
@@ -233,8 +239,37 @@ export class PrismaReader {
                 console.error('SQL execution failed:', error);
                 console.error('SQL:', sql);
                 console.error('Parameters:', params);
-            }
-            throw new Error(`SQL execution failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            } throw new Error(`SQL execution failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+    }
+
+    /**
+     * Get SqlFormatter preset from database provider
+     * 
+     * @param provider - Database provider string from Prisma
+     * @returns SqlFormatter preset name
+     */
+    private getPresetFromProvider(provider?: string): 'postgres' | 'mysql' | 'sqlite' | 'sqlserver' | undefined {
+        if (!provider) {
+            return undefined;
+        }
+
+        switch (provider.toLowerCase()) {
+            case 'postgresql':
+            case 'postgres':
+                return 'postgres';
+            case 'mysql':
+                return 'mysql';
+            case 'sqlite':
+                return 'sqlite';
+            case 'sqlserver':
+            case 'mssql':
+                return 'sqlserver';
+            default:
+                if (this.options.debug) {
+                    console.warn(`Unknown database provider: ${provider}, defaulting to no preset`);
+                }
+                return undefined;
         }
     }
 }
