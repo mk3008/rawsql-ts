@@ -113,86 +113,60 @@ async function testPrismaSearchImplementation() {
 
     const service = new PrismaTodoSearchService(prisma); for (const testCase of testCases) {
         console.log(`\n📋 Test: ${testCase.name}`);
-        console.log('-'.repeat(40));
-
-        try {
-            // Performance measurement with warm-up and multiple runs
+        console.log('-'.repeat(40));        try {
+            // Performance measurement with warm-up and multiple runs            
+            // Test execution parameters (speed measurement removed)            
             const warmupRuns = 2;
             const measurementRuns = 5;
-            const executionTimes: number[] = [];
             let finalResult: any;
-            let totalResponseSize = 0;
-            let totalQueryCount = 0;
-            let sqlQuery = '';
 
-            // Warm-up runs (ignored for performance measurement)
+            // Warm-up runs for database optimization
             console.log('🔥 Warming up...');
             for (let i = 0; i < warmupRuns; i++) {
                 await service.searchTodos(testCase.params);
             }
 
-            // Measurement runs
-            console.log(`📊 Running ${measurementRuns} measurement iterations...`);
+            // Test runs for functionality verification
+            console.log(`📊 Running ${measurementRuns} test iterations...`);
             for (let i = 0; i < measurementRuns; i++) {
                 const result = await service.searchTodos(testCase.params);
-                executionTimes.push(result.metrics.executionTimeMs);
-                totalResponseSize += result.metrics.responseSizeBytes;
-                totalQueryCount += result.metrics.queryCount;
-                sqlQuery = result.metrics.sqlQuery; // Keep last SQL query
 
                 if (i === measurementRuns - 1) {
                     finalResult = result; // Keep last result for display
                 }
             }
 
-            // Calculate statistics
-            const { mean: avgTime, stdDev, min: minTime, max: maxTime } = calculateStats(executionTimes);
-            const avgResponseSize = Math.round(totalResponseSize / measurementRuns);
-            const avgQueryCount = totalQueryCount / measurementRuns;
-
             console.log(`✅ Found ${finalResult.result.items.length} todos`);
-            console.log(`⏱️  Execution time: ${avgTime.toFixed(2)}ms avg (min: ${minTime}ms, max: ${maxTime}ms, σ: ${stdDev.toFixed(2)}ms)`);
-            console.log(`🔢 Query count: ${avgQueryCount.toFixed(1)}`);
-            console.log(`📦 Response size: ${avgResponseSize} bytes (avg)`);
-            console.log(`🗄️  Has more: ${finalResult.result.pagination.hasMore}`);            // Store test result for summary (using average values)
+            console.log(`⏱️  Execution time: NaNms avg (min: NaNms, max: NaNms, σ: NaNms)`);
+            console.log(`🔢 Query count: NaN`);
+            console.log(`📦 Response size: NaN bytes (avg)`);
+            console.log(`🗄️  Has more: ${finalResult.result.pagination.hasMore}`);            // Store test result for analysis (speed metrics removed)
             addTestResultWithDefaults({
                 implementation: 'Prisma ORM',
                 testType: 'search',
                 testName: testCase.name,
                 success: true,
-                executionTimeMs: Math.round(avgTime * 100) / 100, // Round to 2 decimal places
-                queryCount: Math.round(avgQueryCount * 10) / 10,   // Round to 1 decimal place
-                responseSizeBytes: avgResponseSize,
                 resultCount: finalResult.result.items.length,
-                sqlQuery: sqlQuery
+                sqlQueries: [] // Empty array since individual queries will be handled by sqlExecutionDetails
             });// Show first few results
             finalResult.result.items.slice(0, 3).forEach((item: any, index: number) => {
                 console.log(`   ${index + 1}. "${item.title}" by ${item.user.userName} (${item.category.categoryName}) [${item.commentCount} comments]`);
-            });
-
-            if (finalResult.result.items.length > 3) {
+            }); if (finalResult.result.items.length > 3) {
                 console.log(`   ... and ${finalResult.result.items.length - 3} more`);
             }
 
-            // Show SQL query (truncated)
-            const cleanedSql = cleanSqlForDisplay(sqlQuery);
-            const sqlPreview = cleanedSql.length > 200
-                ? cleanedSql.substring(0, 200) + '...'
-                : cleanedSql;
-            console.log(`🗄️  SQL: ${sqlPreview}`);
+            // SQL query capture removed - focusing on functionality analysis
+            console.log(`🗄️  SQL: No SQL query captured`);
 
         } catch (error) {
-            console.error(`❌ Error in test "${testCase.name}":`, error);            // Store failed test result
+            console.error(`❌ Error in test "${testCase.name}":`, error);            // Store failed test result (speed metrics removed)
             addTestResultWithDefaults({
                 implementation: 'Prisma ORM',
                 testType: 'search',
                 testName: testCase.name,
                 success: false,
-                executionTimeMs: 0,
-                queryCount: 0,
-                responseSizeBytes: 0,
                 resultCount: 0,
-                sqlQuery: ''
+                sqlQueries: []
             });
         }
     }
@@ -216,86 +190,63 @@ async function testRawSqlSearchImplementation() {
         return;
     } for (const testCase of testCases) {
         console.log(`\n📋 Test: ${testCase.name}`);
-        console.log('-'.repeat(40));
-
-        try {
-            // Performance measurement with warm-up and multiple runs
+        console.log('-'.repeat(40)); try {
+            // Test execution parameters (speed measurement removed)
             const warmupRuns = 2;
             const measurementRuns = 5;
-            const executionTimes: number[] = [];
             let finalResult: any;
-            let totalResponseSize = 0;
-            let totalQueryCount = 0;
-            let sqlQuery = '';
 
-            // Warm-up runs (ignored for performance measurement)
+            // Warm-up runs for database optimization
             console.log('🔥 Warming up...');
             for (let i = 0; i < warmupRuns; i++) {
                 await service.searchTodos(testCase.params);
             }
 
-            // Measurement runs
-            console.log(`📊 Running ${measurementRuns} measurement iterations...`);
+            // Test runs for functionality verification
+            console.log(`📊 Running ${measurementRuns} test iterations...`);
             for (let i = 0; i < measurementRuns; i++) {
                 const result = await service.searchTodos(testCase.params);
-                executionTimes.push(result.metrics.executionTimeMs);
-                totalResponseSize += result.metrics.responseSizeBytes;
-                totalQueryCount += result.metrics.queryCount;
-                sqlQuery = result.metrics.sqlQuery; // Keep last SQL query
 
                 if (i === measurementRuns - 1) {
                     finalResult = result; // Keep last result for display
                 }
             }
 
-            // Calculate statistics
-            const { mean: avgTime, stdDev, min: minTime, max: maxTime } = calculateStats(executionTimes);
-            const avgResponseSize = Math.round(totalResponseSize / measurementRuns);
-            const avgQueryCount = totalQueryCount / measurementRuns;
-
             console.log(`✅ Found ${finalResult.result.items.length} todos`);
-            console.log(`⏱️  Execution time: ${avgTime.toFixed(2)}ms avg (min: ${minTime}ms, max: ${maxTime}ms, σ: ${stdDev.toFixed(2)}ms)`);
-            console.log(`🔢 Query count: ${avgQueryCount.toFixed(1)}`);
-            console.log(`📦 Response size: ${avgResponseSize} bytes (avg)`);
-            console.log(`🗄️  Has more: ${finalResult.result.pagination.hasMore}`);            // Store test result for summary (using average values)
+            console.log(`⏱️  Execution time: NaNms avg (min: NaNms, max: NaNms, σ: NaNms)`);
+            console.log(`🔢 Query count: NaN`);
+            console.log(`📦 Response size: NaN bytes (avg)`);
+            console.log(`🗄️  Has more: ${finalResult.result.pagination.hasMore}`);
+
+            // Store test result for analysis (speed metrics removed)
             addTestResultWithDefaults({
                 implementation: 'rawsql-ts',
                 testType: 'search',
                 testName: testCase.name,
                 success: true,
-                executionTimeMs: Math.round(avgTime * 100) / 100, // Round to 2 decimal places
-                queryCount: Math.round(avgQueryCount * 10) / 10,   // Round to 1 decimal place
-                responseSizeBytes: avgResponseSize,
                 resultCount: finalResult.result.items.length,
-                sqlQuery: sqlQuery
+                sqlQueries: [] // Empty array since individual queries will be handled by sqlExecutionDetails
             });// Show first few results
             finalResult.result.items.slice(0, 3).forEach((item: any, index: number) => {
                 console.log(`   ${index + 1}. "${item.title}" by ${item.user.userName} (${item.category.categoryName}) [${item.commentCount} comments]`);
-            });
-
-            if (finalResult.result.items.length > 3) {
+            }); if (finalResult.result.items.length > 3) {
                 console.log(`   ... and ${finalResult.result.items.length - 3} more`);
             }
 
-            // Show SQL query (truncated)
-            const cleanedSql = cleanSqlForDisplay(sqlQuery);
-            const sqlPreview = cleanedSql.length > 200
-                ? cleanedSql.substring(0, 200) + '...'
-                : cleanedSql;
-            console.log(`🗄️  SQL: ${sqlPreview}`);
+            // SQL query capture removed - focusing on functionality analysis
+            console.log(`🗄️  SQL: No SQL query captured`);
 
         } catch (error) {
-            console.error(`❌ Error in test "${testCase.name}":`, error);            // Store failed test result
+            console.error(`❌ Error in test "${testCase.name}":`, error);
+
+            // Store failed test result (speed metrics removed)
             addTestResultWithDefaults({
                 implementation: 'rawsql-ts',
                 testType: 'search',
                 testName: testCase.name,
                 success: false,
-                executionTimeMs: 0,
-                queryCount: 0,
-                responseSizeBytes: 0,
                 resultCount: 0,
-                sqlQuery: ''
+                sqlQueries: []
             });
         }
     }

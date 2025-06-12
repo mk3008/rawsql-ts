@@ -22,16 +22,10 @@ export class PrismaTodoSearchService implements TodoSearchService {
     async initialize(): Promise<void> {
         // Prisma is already initialized via constructor
         // This method exists to satisfy the interface
-    }
-
-    /**
+    }    /**
      * Search TODOs using Prisma ORM with include and where conditions
      */
     async searchTodos(params: TodoSearchParams): Promise<TodoSearchResultWithMetrics> {
-        const startTime = Date.now();
-        let queryCount = 0;
-        let sqlQuery = '';
-
         // Build where conditions
         const where: any = {};
 
@@ -77,12 +71,10 @@ export class PrismaTodoSearchService implements TodoSearchService {
 
         // Enable query logging to capture SQL
         const originalLog = console.log;
-        const queries: string[] = [];
-        console.log = (...args: any[]) => {
+        const queries: string[] = []; console.log = (...args: any[]) => {
             const message = args.join(' ');
             if (message.includes('prisma:query')) {
                 queries.push(message);
-                queryCount++;
             }
             originalLog(...args);
         };
@@ -143,10 +135,8 @@ export class PrismaTodoSearchService implements TodoSearchService {
                 commentCount: todo._count.comments,
             }));
 
-            const executionTime = Date.now() - startTime;
-
             // Extract SQL from logged queries
-            sqlQuery = queries.length > 0 ? queries[queries.length - 1] : 'No SQL captured';
+            const sqlQueries = queries.length > 0 ? queries : ['No SQL captured'];
 
             const result = {
                 items: todoListItems,
@@ -158,10 +148,7 @@ export class PrismaTodoSearchService implements TodoSearchService {
             };
 
             const metrics: QueryMetrics = {
-                sqlQuery,
-                executionTimeMs: executionTime,
-                queryCount,
-                responseSizeBytes: JSON.stringify(result).length,
+                sqlQueries
             };
 
             return {

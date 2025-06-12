@@ -52,19 +52,14 @@ async function testPrismaDetailImplementation() {
         console.log('-'.repeat(40)); try {
             const result = await service.getTodoDetail(testCase.todoId);
 
-            console.log(`⏱️  Execution time: ${result.metrics.executionTimeMs}ms`);
-            console.log(`🔢 Query count: ${result.metrics.queryCount}`);
-            console.log(`📦 Response size: ${result.metrics.responseSizeBytes} bytes`);            // Store test result for summary
+            // Store test result for summary
             addTestResultWithDefaults({
                 implementation: 'Prisma ORM',
                 testType: 'detail',
                 testName: testCase.name,
                 success: true, // Success means no error occurred, regardless of whether result was found
-                executionTimeMs: result.metrics.executionTimeMs,
-                queryCount: result.metrics.queryCount,
-                responseSizeBytes: result.metrics.responseSizeBytes,
                 resultCount: result.result ? 1 : 0,
-                sqlQuery: result.metrics.sqlQuery
+                sqlQueries: result.metrics.sqlQueries
             });
 
             if (result.result) {
@@ -89,28 +84,26 @@ async function testPrismaDetailImplementation() {
                 }
             } else {
                 console.log('❌ TODO not found');
-            }            // Show SQL query (truncated)
-            const sqlLines = result.metrics.sqlQuery.split('\n');
-            const cleanedSql = cleanSqlForDisplay(result.metrics.sqlQuery);
-            const sqlPreview = sqlLines.length > 1
-                ? `${cleanSqlForDisplay(sqlLines[0])}... (${sqlLines.length} queries)`
+            }            // Show SQL queries (truncated)
+            const cleanedSql = cleanSqlForDisplay(result.metrics.sqlQueries);
+            const sqlPreview = result.metrics.sqlQueries.length > 1
+                ? `${cleanedSql.substring(0, 100)}... (${result.metrics.sqlQueries.length} queries)`
                 : cleanedSql.length > 200
                     ? cleanedSql.substring(0, 200) + '...'
                     : cleanedSql;
             console.log(`🗄️  SQL: ${sqlPreview}`);
 
         } catch (error) {
-            console.error(`❌ Error in test "${testCase.name}":`, error);            // Store failed test result
+            console.error(`❌ Error in test "${testCase.name}":`, error);
+
+            // Store failed test result
             addTestResultWithDefaults({
                 implementation: 'Prisma ORM',
                 testType: 'detail',
                 testName: testCase.name,
                 success: false,
-                executionTimeMs: 0,
-                queryCount: 0,
-                responseSizeBytes: 0,
                 resultCount: 0,
-                sqlQuery: ''
+                sqlQueries: []
             });
         }
     }
@@ -139,19 +132,14 @@ async function testRawSqlDetailImplementation() {
         console.log('-'.repeat(40)); try {
             const result = await service.getTodoDetail(testCase.todoId);
 
-            console.log(`⏱️  Execution time: ${result.metrics.executionTimeMs}ms`);
-            console.log(`🔢 Query count: ${result.metrics.queryCount}`);
-            console.log(`📦 Response size: ${result.metrics.responseSizeBytes} bytes`);            // Store test result for summary
+            // Store test result for summary
             addTestResultWithDefaults({
                 implementation: 'rawsql-ts',
                 testType: 'detail',
                 testName: testCase.name,
                 success: true, // Success means no error occurred, regardless of whether result was found
-                executionTimeMs: result.metrics.executionTimeMs,
-                queryCount: result.metrics.queryCount,
-                responseSizeBytes: result.metrics.responseSizeBytes,
                 resultCount: result.result ? 1 : 0,
-                sqlQuery: result.metrics.sqlQuery
+                sqlQueries: result.metrics.sqlQueries
             });
 
             if (result.result) {
@@ -176,25 +164,26 @@ async function testRawSqlDetailImplementation() {
                 }
             } else {
                 console.log('❌ TODO not found');
-            }            // Show SQL query (truncated)
-            const cleanedSql = cleanSqlForDisplay(result.metrics.sqlQuery);
+            }
+
+            // Show SQL queries (truncated)
+            const cleanedSql = cleanSqlForDisplay(result.metrics.sqlQueries);
             const sqlPreview = cleanedSql.length > 200
                 ? cleanedSql.substring(0, 200) + '...'
                 : cleanedSql;
             console.log(`🗄️  SQL: ${sqlPreview}`);
 
         } catch (error) {
-            console.error(`❌ Error in test "${testCase.name}":`, error);            // Store failed test result
+            console.error(`❌ Error in test "${testCase.name}":`, error);
+
+            // Store failed test result
             addTestResultWithDefaults({
                 implementation: 'rawsql-ts',
                 testType: 'detail',
                 testName: testCase.name,
                 success: false,
-                executionTimeMs: 0,
-                queryCount: 0,
-                responseSizeBytes: 0,
                 resultCount: 0,
-                sqlQuery: ''
+                sqlQueries: []
             });
         }
     }

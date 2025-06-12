@@ -4,7 +4,6 @@
 export interface SqlExecutionDetail {
     rawSql: string;
     parameters: Record<string, any>;
-    executionTimeMs: number;
     rowsAffected: number;
     strategy: string; // 'single-query' | 'multiple-queries' | 'lateral-join' | 'explicit-join'
     complexity: 'simple' | 'medium' | 'complex';
@@ -30,11 +29,8 @@ export interface TestSummary {
     testType: 'search' | 'detail';
     testName: string;
     success: boolean;
-    executionTimeMs: number;
-    queryCount: number;
-    responseSizeBytes: number;
     resultCount: number;
-    sqlQuery: string;
+    sqlQueries: string[];
     // Enhanced SQL analysis fields
     sqlExecutionDetails: SqlExecutionDetail[];
     queryStrategy: QueryStrategy;
@@ -62,9 +58,8 @@ export function addTestResultWithDefaults(
     baseResult: Omit<TestSummary, 'sqlExecutionDetails' | 'queryStrategy'>
 ): void {
     const defaultSqlDetails: SqlExecutionDetail[] = [{
-        rawSql: baseResult.sqlQuery,
+        rawSql: (baseResult.sqlQueries && baseResult.sqlQueries.length > 0) ? baseResult.sqlQueries[0] : '',
         parameters: {},
-        executionTimeMs: baseResult.executionTimeMs,
         rowsAffected: baseResult.resultCount,
         strategy: baseResult.implementation.includes('Prisma') ? 'lateral-join' : 'explicit-join',
         complexity: 'medium'

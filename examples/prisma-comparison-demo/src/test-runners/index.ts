@@ -167,71 +167,13 @@ function generateMarkdownContent(results: TestSummary[], successRate: number, fa
     } else {
         content += `**Success Rate:** ❌ ${failedCount} failed (${successRate.toFixed(1)}%)\n\n`;
     }
-
-    // Overall Performance Summary
-    const prismaResults = results.filter(r => r.implementation.includes('Prisma'));
-    const rawsqlResults = results.filter(r => r.implementation.includes('rawsql'));
-
-    if (prismaResults.length > 0 && rawsqlResults.length > 0) {
-        const avgPrisma = prismaResults.reduce((sum, r) => sum + r.executionTimeMs, 0) / prismaResults.length;
-        const avgRawsql = rawsqlResults.reduce((sum, r) => sum + r.executionTimeMs, 0) / rawsqlResults.length;
-
-        content += `### Overall Performance Summary
-- **Prisma ORM Average:** ${avgPrisma.toFixed(2)}ms
-- **rawsql-ts Average:** ${avgRawsql.toFixed(2)}ms
-- **Winner:** ${avgPrisma < avgRawsql ? 'Prisma ORM' : 'rawsql-ts'} (${Math.abs(avgPrisma - avgRawsql).toFixed(2)}ms faster)
-
-`;
-    }
-
     // Search Tests Section
     if (searchResults.length > 0) {
         content += `## 🔍 TODO Search Tests (List/Pagination)
 
-### Performance Comparison
-| Test Name | Prisma ORM | rawsql-ts | Winner |
-|-----------|------------|-----------|--------|
-`;        // Group search results by test name for comparison
-        const searchTestGroups = new Map<string, TestSummary[]>();
-        searchResults.forEach(result => {
-            if (!searchTestGroups.has(result.testName)) {
-                searchTestGroups.set(result.testName, []);
-            }
-            searchTestGroups.get(result.testName)!.push(result);
-        });
-
-        searchTestGroups.forEach((testGroup, testName) => {
-            const prismaResult = testGroup.find(r => r.implementation.includes('Prisma'));
-            const rawsqlResult = testGroup.find(r => r.implementation.includes('rawsql'));
-
-            if (prismaResult && rawsqlResult) {
-                const winner = prismaResult.executionTimeMs < rawsqlResult.executionTimeMs ? 'Prisma' : 'rawsql-ts';
-                const winnerEmoji = prismaResult.executionTimeMs < rawsqlResult.executionTimeMs ? '🟢' : '🔵';
-                content += `| ${testName} | ${prismaResult.executionTimeMs}ms | ${rawsqlResult.executionTimeMs}ms | ${winnerEmoji} ${winner} |\n`;
-            }
-        });
-
-        content += '\n';
-
-        // Search Performance Analysis
-        const prismaSearchResults = searchResults.filter(r => r.implementation.includes('Prisma'));
-        const rawsqlSearchResults = searchResults.filter(r => r.implementation.includes('rawsql'));
-
-        if (prismaSearchResults.length > 0 && rawsqlSearchResults.length > 0) {
-            const avgPrisma = prismaSearchResults.reduce((sum, r) => sum + r.executionTimeMs, 0) / prismaSearchResults.length;
-            const avgRawsql = rawsqlSearchResults.reduce((sum, r) => sum + r.executionTimeMs, 0) / rawsqlSearchResults.length;
-            const avgPrismaQueries = prismaSearchResults.reduce((sum, r) => sum + r.queryCount, 0) / prismaSearchResults.length;
-            const avgRawsqlQueries = rawsqlSearchResults.reduce((sum, r) => sum + r.queryCount, 0) / rawsqlSearchResults.length;
-
-            content += `### Search Performance Analysis
-- **Prisma ORM Average:** ${avgPrisma.toFixed(2)}ms (${avgPrismaQueries.toFixed(1)} queries)
-- **rawsql-ts Average:** ${avgRawsql.toFixed(2)}ms (${avgRawsqlQueries.toFixed(1)} queries)
-- **Performance Difference:** ${avgPrisma < avgRawsql ? 'Prisma ORM is faster' : 'rawsql-ts is faster'} by ${Math.abs(avgPrisma - avgRawsql).toFixed(2)}ms
-
 **Analysis:** Search operations test pagination, filtering, and sorting capabilities. Both approaches use single queries but differ in SQL generation and data transformation strategies.
 
 `;
-        }
     }
 
     // Detail Tests Section
@@ -248,39 +190,30 @@ function generateMarkdownContent(results: TestSummary[], successRate: number, fa
                 detailTestGroups.set(result.testName, []);
             }
             detailTestGroups.get(result.testName)!.push(result);
-        });
-
-        detailTestGroups.forEach((testGroup, testName) => {
+        }); detailTestGroups.forEach((testGroup, testName) => {
             const prismaResult = testGroup.find(r => r.implementation.includes('Prisma'));
             const rawsqlResult = testGroup.find(r => r.implementation.includes('rawsql'));
 
+            // Speed comparison removed - focusing on functionality analysis only
             if (prismaResult && rawsqlResult) {
-                const winner = prismaResult.executionTimeMs < rawsqlResult.executionTimeMs ? 'Prisma' : 'rawsql-ts';
-                const winnerEmoji = prismaResult.executionTimeMs < rawsqlResult.executionTimeMs ? '🟢' : '🔵';
-                content += `| ${testName} | ${prismaResult.executionTimeMs}ms | ${rawsqlResult.executionTimeMs}ms | ${winnerEmoji} ${winner} |\n`;
+                content += `| ${testName} | ✅ Completed | ✅ Completed | 📊 Both approaches successful |\n`;
             }
         });
 
         content += '\n';
 
-        // Detail Performance Analysis
+        // Detail Implementation Analysis (Speed comparison removed - now focusing on query strategy analysis)
         const prismaDetailResults = detailResults.filter(r => r.implementation.includes('Prisma'));
         const rawsqlDetailResults = detailResults.filter(r => r.implementation.includes('rawsql'));
 
         if (prismaDetailResults.length > 0 && rawsqlDetailResults.length > 0) {
-            const avgPrisma = prismaDetailResults.reduce((sum, r) => sum + r.executionTimeMs, 0) / prismaDetailResults.length;
-            const avgRawsql = rawsqlDetailResults.reduce((sum, r) => sum + r.executionTimeMs, 0) / rawsqlDetailResults.length;
-            const avgPrismaQueries = prismaDetailResults.reduce((sum, r) => sum + r.queryCount, 0) / prismaDetailResults.length;
-            const avgRawsqlQueries = rawsqlDetailResults.reduce((sum, r) => sum + r.queryCount, 0) / rawsqlDetailResults.length;
+            content += `### Detail Implementation Analysis
+- **Prisma ORM Tests:** ${prismaDetailResults.length} test cases completed
+- **rawsql-ts Tests:** ${rawsqlDetailResults.length} test cases completed
 
-            content += `### Detail Performance Analysis
-- **Prisma ORM Average:** ${avgPrisma.toFixed(2)}ms (${avgPrismaQueries.toFixed(1)} queries)
-- **rawsql-ts Average:** ${avgRawsql.toFixed(2)}ms (${avgRawsqlQueries.toFixed(1)} queries)
-- **Performance Difference:** ${avgPrisma < avgRawsql ? 'Prisma ORM is faster' : 'rawsql-ts is faster'} by ${Math.abs(avgPrisma - avgRawsql).toFixed(2)}ms
+**Analysis:** Detail operations test single-record retrieval with complex joins. This helps identify query patterns and data loading strategies.
 
-**Analysis:** Detail operations test single-record retrieval with complex joins. This helps identify N+1 query patterns and data loading efficiency.
-
-### N+1 Query Analysis
+### Query Strategy Analysis
 - **Prisma ORM:** Uses sophisticated relation loading with LATERAL JOINs to avoid N+1 queries
 - **rawsql-ts:** Uses explicit JOINs with manual data aggregation for optimal single-query performance
 
@@ -311,14 +244,11 @@ function generateMarkdownContent(results: TestSummary[], successRate: number, fa
     // Add detailed SQL execution analysis
     results.forEach(result => {
         if (result.sqlExecutionDetails && result.sqlExecutionDetails.length > 0) {
-            content += `\n#### ${result.testName} (${result.implementation}) - SQL Execution Details\n`;
-
-            result.sqlExecutionDetails.forEach((detail: SqlExecutionDetail, index: number) => {
+            content += `\n#### ${result.testName} (${result.implementation}) - SQL Execution Details\n`; result.sqlExecutionDetails.forEach((detail: SqlExecutionDetail, index: number) => {
                 content += `
 **Query ${index + 1}:**
 - **Strategy:** ${detail.strategy}
 - **Complexity:** ${detail.complexity}
-- **Execution Time:** ${detail.executionTimeMs}ms
 - **Rows Affected:** ${detail.rowsAffected}
 - **Parameters:** ${Object.keys(detail.parameters).length} params
 - **SQL:**
@@ -388,16 +318,11 @@ ${detail.rawSql}
 `;    // Detailed Breakdown with enhanced SQL analysis
     content += `## 📋 Detailed Test Results & SQL Execution Analysis
 
-`;
-
-    results.forEach((result: TestSummary) => {
+`; results.forEach((result: TestSummary) => {
         content += `### ${result.testName} (${result.implementation})
 - **Test Type:** ${result.testType === 'search' ? '🔍 Search/List' : '📋 Detail/ID Lookup'}
 - **Status:** ${result.success ? '✅ Passed' : '❌ Failed'}
-- **Execution Time:** ${result.executionTimeMs}ms
-- **Query Count:** ${result.queryCount}
 - **Result Count:** ${result.resultCount}
-- **Response Size:** ${result.responseSizeBytes} bytes
 `;
 
         // Display query strategy analysis
@@ -439,7 +364,6 @@ ${detail.rawSql}
 **Query ${detailIndex + 1}:**
 - **Strategy:** ${detail.strategy}
 - **Complexity:** ${detail.complexity.toUpperCase()}
-- **Execution Time:** ${detail.executionTimeMs}ms
 - **Rows Affected:** ${detail.rowsAffected}
 - **Parameters Count:** ${Object.keys(detail.parameters).length}
 
@@ -458,9 +382,9 @@ ${JSON.stringify(detail.parameters, null, 2)}
                 }
             });
         }        // Show original SQL query (cleaned up) as fallback
-        if (result.sqlQuery && result.sqlQuery.length > 0 && (!result.sqlExecutionDetails || result.sqlExecutionDetails.length === 0)) {
+        if (result.sqlQueries && result.sqlQueries.length > 0 && (!result.sqlExecutionDetails || result.sqlExecutionDetails.length === 0)) {
             // Clean up SQL query for display (remove color codes and trim whitespace)
-            const cleanSql = cleanSqlForDisplay(result.sqlQuery);
+            const cleanSql = cleanSqlForDisplay(result.sqlQueries);
             content += `
 **📝 Generated SQL:**
 \`\`\`sql
@@ -515,15 +439,10 @@ function displaySqlExecutionSummary() {
     console.log(`\n🔍 Query Execution Overview:`);
     console.log(`   Total Tests: ${testResults.length}`);
     console.log(`   Prisma ORM Tests: ${prismaResults.length}`);
-    console.log(`   rawsql-ts Tests: ${rawsqlResults.length}`);
-
-    // Display SQL execution details for each test
+    console.log(`   rawsql-ts Tests: ${rawsqlResults.length}`);    // Display SQL execution details for each test
     testResults.forEach((result, index) => {
         console.log(`\n${index + 1}. ${result.testName} (${result.implementation})`);
-        console.log(`   ⏱️  Execution Time: ${result.executionTimeMs}ms`);
-        console.log(`   🔢 Query Count: ${result.queryCount}`);
-        console.log(`   📊 Result Count: ${result.resultCount}`);
-        console.log(`   💾 Response Size: ${result.responseSizeBytes} bytes`);
+        console.log(`    Result Count: ${result.resultCount}`);
 
         // Display SQL strategy if available
         if (result.queryStrategy) {
@@ -537,20 +456,21 @@ function displaySqlExecutionSummary() {
 
         // Display SQL execution details if available
         if (result.sqlExecutionDetails && result.sqlExecutionDetails.length > 0) {
-            console.log(`   📝 SQL Execution Details:`);
-            result.sqlExecutionDetails.forEach((detail, detailIndex) => {
+            console.log(`   📝 SQL Execution Details:`); result.sqlExecutionDetails.forEach((detail, detailIndex) => {
                 console.log(`      Query ${detailIndex + 1}:`);
                 console.log(`         • Strategy: ${detail.strategy}`);
                 console.log(`         • Complexity: ${detail.complexity}`);
-                console.log(`         • Execution Time: ${detail.executionTimeMs}ms`);
                 console.log(`         • Rows Affected: ${detail.rowsAffected}`);
                 console.log(`         • Parameters: ${Object.keys(detail.parameters).length} params`);
             });
-        }
-
-        // Show actual SQL query (cleaned up)
-        if (result.sqlQuery && result.sqlQuery.trim().length > 0) {
-            const cleanSql = result.sqlQuery
+        }        // Show actual SQL query (cleaned up)
+        if (result.sqlQueries &&
+            Array.isArray(result.sqlQueries) &&
+            result.sqlQueries.length > 0 &&
+            result.sqlQueries[0] &&
+            typeof result.sqlQueries[0] === 'string' &&
+            result.sqlQueries[0].trim().length > 0) {
+            const cleanSql = result.sqlQueries[0]
                 .replace(/\[34m/g, '')
                 .replace(/\[39m/g, '')
                 .replace(/prisma:query\s*/g, '')
@@ -561,24 +481,10 @@ function displaySqlExecutionSummary() {
             } else {
                 console.log(`   🔍 SQL Query: ${cleanSql}`);
             }
+        } else {
+            console.log(`   🔍 SQL Query: Not captured or empty`);
         }
     });
-
-    // Performance comparison summary
-    if (prismaResults.length > 0 && rawsqlResults.length > 0) {
-        const avgPrisma = prismaResults.reduce((sum, r) => sum + r.executionTimeMs, 0) / prismaResults.length;
-        const avgRawsql = rawsqlResults.reduce((sum, r) => sum + r.executionTimeMs, 0) / rawsqlResults.length;
-        const avgPrismaQueries = prismaResults.reduce((sum, r) => sum + r.queryCount, 0) / prismaResults.length;
-        const avgRawsqlQueries = rawsqlResults.reduce((sum, r) => sum + r.queryCount, 0) / rawsqlResults.length;
-
-        console.log(`\n⚡ Performance Comparison:`);
-        console.log(`   Prisma ORM: ${avgPrisma.toFixed(2)}ms avg (${avgPrismaQueries.toFixed(1)} queries avg)`);
-        console.log(`   rawsql-ts:  ${avgRawsql.toFixed(2)}ms avg (${avgRawsqlQueries.toFixed(1)} queries avg)`);
-
-        const faster = avgPrisma < avgRawsql ? 'Prisma ORM' : 'rawsql-ts';
-        const difference = Math.abs(avgPrisma - avgRawsql).toFixed(2);
-        console.log(`   🏆 Winner: ${faster} (${difference}ms faster on average)`);
-    }
 
     console.log('\n' + '='.repeat(50));
 }
@@ -589,7 +495,6 @@ function displaySqlExecutionSummary() {
 function createSqlExecutionDetail(
     rawSql: string,
     parameters: Record<string, any> = {},
-    executionTimeMs: number = 0,
     rowsAffected: number = 0,
     strategy: string = 'single-query',
     complexity: 'simple' | 'medium' | 'complex' = 'medium'
@@ -597,7 +502,6 @@ function createSqlExecutionDetail(
     return {
         rawSql,
         parameters,
-        executionTimeMs,
         rowsAffected,
         strategy,
         complexity
@@ -654,11 +558,16 @@ function enhanceTestResultWithSqlAnalysis(
 }
 
 /**
- * Clean SQL query for display by removing escape codes and unwanted characters
- * @param sqlQuery - Raw SQL query string
- * @returns Cleaned SQL query string
+ * Clean SQL queries for display by removing escape codes and unwanted characters
+ * @param sqlQueries - Array of SQL query strings
+ * @returns Cleaned SQL query string (first query or fallback)
  */
-function cleanSqlForDisplay(sqlQuery: string): string {
+function cleanSqlForDisplay(sqlQueries: string[]): string {
+    if (!sqlQueries || sqlQueries.length === 0) {
+        return 'No SQL query captured';
+    }
+
+    const sqlQuery = sqlQueries[0]; // Use the first query for display
     return sqlQuery
         .replace(/\[34m/g, '')
         .replace(/\[39m/g, '')

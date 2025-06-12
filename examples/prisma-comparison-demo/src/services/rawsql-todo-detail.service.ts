@@ -116,10 +116,6 @@ export class RawSqlTodoDetailService implements TodoDetailService {
      * Get TODO detail by ID using rawsql-ts
      */
     async getTodoDetail(todoId: number): Promise<TodoDetailResultWithMetrics> {
-        const startTime = Date.now();
-        let queryCount = 0;
-        let sqlQuery = '';
-
         // Enable query logging to capture SQL
         const originalLog = console.log;
         const queries: string[] = [];
@@ -127,30 +123,29 @@ export class RawSqlTodoDetailService implements TodoDetailService {
             const message = args.join(' ');
             if (message.includes('prisma:query')) {
                 queries.push(message);
-                queryCount++;
             }
             originalLog(...args);
-        }; try {
+        };
+
+        try {
             if (this.debugMode) {
                 console.log('🔍 rawsql-ts Debug - Getting TODO detail for ID:', todoId);
-            }            // Execute query using PrismaReader with parameter injection and JSON serialization
+            }
+
+            // Execute query using PrismaReader with parameter injection and JSON serialization
             const jsonMapping = this.createTodoDetailJsonMapping();
             const results = await this.prismaReader.query('getTodoDetail.sql', {
                 filter: { todo_id: todoId },
                 serialize: jsonMapping
-            }); if (this.debugMode) {
-                console.log('✅ rawsql-ts Results:', results.length, 'rows found');
-            }
+            });
 
-            if (results.length === 0) {
-                const executionTime = Date.now() - startTime;
-                sqlQuery = queries.length > 0 ? queries[queries.length - 1] : 'rawsql-ts query executed';
+            if (this.debugMode) {
+                console.log('✅ rawsql-ts Results:', results.length, 'rows found');
+            } if (results.length === 0) {
+                const sqlQueries = queries.length > 0 ? queries : ['rawsql-ts query executed'];
 
                 const metrics: QueryMetrics = {
-                    sqlQuery,
-                    executionTimeMs: executionTime,
-                    queryCount,
-                    responseSizeBytes: 4, // null response
+                    sqlQueries
                 };
 
                 return {
@@ -162,16 +157,11 @@ export class RawSqlTodoDetailService implements TodoDetailService {
             // With JSON serialization, PrismaReader returns structured data directly
             const todoDetail = results[0] as TodoDetail;
 
-            const executionTime = Date.now() - startTime;
-
             // Extract SQL from logged queries
-            sqlQuery = queries.length > 0 ? queries[queries.length - 1] : 'rawsql-ts query executed';
+            const sqlQueries = queries.length > 0 ? queries : ['rawsql-ts query executed'];
 
             const metrics: QueryMetrics = {
-                sqlQuery,
-                executionTimeMs: executionTime,
-                queryCount,
-                responseSizeBytes: JSON.stringify(todoDetail).length,
+                sqlQueries
             };
 
             return {

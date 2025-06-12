@@ -39,10 +39,6 @@ export class RawSqlTodoSearchService implements TodoSearchService {
      * Search TODOs using rawsql-ts with dynamic filtering, sorting, and pagination
      */
     async searchTodos(params: TodoSearchParams): Promise<TodoSearchResultWithMetrics> {
-        const startTime = Date.now();
-        let queryCount = 0;
-        let sqlQuery = '';
-
         // Enable query logging to capture SQL
         const originalLog = console.log;
         const queries: string[] = [];
@@ -50,7 +46,6 @@ export class RawSqlTodoSearchService implements TodoSearchService {
             const message = args.join(' ');
             if (message.includes('prisma:query')) {
                 queries.push(message);
-                queryCount++;
             }
             originalLog(...args);
         };
@@ -134,24 +129,21 @@ export class RawSqlTodoSearchService implements TodoSearchService {
                 sort,
                 paging,
                 serialize: jsonMapping
-            }); originalLog('✅ rawsql-ts Results:', results.length, 'items found');
+            });
+            originalLog('✅ rawsql-ts Results:', results.length, 'items found');
 
             // Extract the actual todos array from JSON aggregation result
             // PostgresJsonQueryBuilder returns: [{ "todos_array": [...] }]
             // We need to extract the inner array: [...]
             const actualResults = results.length > 0 && results[0]?.todos_array
                 ? results[0].todos_array
-                : [];
-
-            originalLog('📋 Extracted todos:', actualResults.length, 'items');
-
-            // No manual transformation needed! PostgresJsonQueryBuilder handles it automatically ✨
+                : []; originalLog('📋 Extracted todos:', actualResults.length, 'items');            // No manual transformation needed! PostgresJsonQueryBuilder handles it automatically ✨
             const todoListItems: TodoListItem[] = actualResults;
 
-            const executionTime = Date.now() - startTime;
-
             // Extract SQL from logged queries
-            sqlQuery = queries.length > 0 ? queries[queries.length - 1] : 'rawsql-ts query executed';            // Check if there are more results (simple estimation)
+            const sqlQueries = queries.length > 0 ? queries : ['rawsql-ts query executed'];
+
+            // Check if there are more results (simple estimation)
             const hasMore = actualResults.length === params.pagination.limit;
 
             const result = {
@@ -164,10 +156,7 @@ export class RawSqlTodoSearchService implements TodoSearchService {
             };
 
             const metrics: QueryMetrics = {
-                sqlQuery,
-                executionTimeMs: executionTime,
-                queryCount,
-                responseSizeBytes: JSON.stringify(result).length,
+                sqlQueries
             };
 
             return {

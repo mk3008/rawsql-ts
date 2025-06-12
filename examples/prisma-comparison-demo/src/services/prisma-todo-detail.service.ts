@@ -18,8 +18,7 @@ export class PrismaTodoDetailService implements TodoDetailService {
 
     /**
      * Initialize the Prisma service (optional)
-     */
-    async initialize(): Promise<void> {
+     */    async initialize(): Promise<void> {
         // Prisma is already initialized via constructor
         // This method exists to satisfy the interface
     }
@@ -28,10 +27,6 @@ export class PrismaTodoDetailService implements TodoDetailService {
      * Get TODO detail by ID using Prisma ORM with nested includes
      */
     async getTodoDetail(todoId: number): Promise<TodoDetailResultWithMetrics> {
-        const startTime = Date.now();
-        let queryCount = 0;
-        let sqlQuery = '';
-
         // Enable query logging to capture SQL
         const originalLog = console.log;
         const queries: string[] = [];
@@ -39,7 +34,6 @@ export class PrismaTodoDetailService implements TodoDetailService {
             const message = args.join(' ');
             if (message.includes('prisma:query')) {
                 queries.push(message);
-                queryCount++;
             }
             originalLog(...args);
         };
@@ -82,12 +76,8 @@ export class PrismaTodoDetailService implements TodoDetailService {
                         },
                     },
                 },
-            });
-
-            const executionTime = Date.now() - startTime;
-
-            // Extract SQL from logged queries
-            sqlQuery = queries.length > 0 ? queries.join('\n') : 'No SQL captured';
+            });            // Extract SQL from logged queries
+            const sqlQueries = queries.length > 0 ? queries : ['No SQL captured'];
 
             let result: TodoDetail | null = null;
 
@@ -129,10 +119,7 @@ export class PrismaTodoDetailService implements TodoDetailService {
             }
 
             const metrics: QueryMetrics = {
-                sqlQuery,
-                executionTimeMs: executionTime,
-                queryCount,
-                responseSizeBytes: JSON.stringify(result).length,
+                sqlQueries
             };
 
             return {
