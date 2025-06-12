@@ -58,7 +58,7 @@ export function addTestResultWithDefaults(
     baseResult: Omit<TestSummary, 'sqlExecutionDetails' | 'queryStrategy'>
 ): void {
     const defaultSqlDetails: SqlExecutionDetail[] = [{
-        rawSql: (baseResult.sqlQueries && baseResult.sqlQueries.length > 0) ? baseResult.sqlQueries[0] : '',
+        rawSql: (baseResult.sqlQueries && baseResult.sqlQueries.length > 0) ? cleanSqlForDisplay(baseResult.sqlQueries) : '',
         parameters: {},
         rowsAffected: baseResult.resultCount,
         strategy: baseResult.implementation.includes('Prisma') ? 'lateral-join' : 'explicit-join',
@@ -81,4 +81,34 @@ export function addTestResultWithDefaults(
     };
 
     testResults.push(fullResult);
+}
+
+/**
+ * Clean SQL queries for display by removing escape codes and unwanted characters
+ * @param sqlQueries - Array of SQL query strings  
+ * @returns Cleaned SQL query string (first query or fallback)
+ */
+export function cleanSqlForDisplay(sqlQueries: string[]): string {
+    if (!sqlQueries || sqlQueries.length === 0) {
+        return 'No SQL query captured';
+    }
+
+    const sqlQuery = sqlQueries[0]; // Use the first query for display
+    return sqlQuery
+        // Remove all ANSI escape sequences (comprehensive pattern)
+        .replace(/\x1B\[[0-9;]*[JKmsu]/g, '')  // Standard ANSI escape sequences
+        .replace(/\[(\d+)(;\d+)*m/g, '')       // Color codes like [34m, [39m, [1;32m
+        .replace(/\[\d+m/g, '')                // Simple color codes 
+        .replace(/\[\d+;\d+m/g, '')            // Multi-part color codes
+        // Remove Prisma log prefixes and related content
+        .replace(/prisma:query\s*/gi, '')      // Remove prisma:query prefix (case insensitive)
+        .replace(/prisma:\w+\s*/gi, '')        // Remove any prisma:xxx prefix  
+        .replace(/\s*\+\d+ms\s*/g, '')         // Remove timing info like +2ms
+        .replace(/\s*\(\d+ms\)\s*/g, '')       // Remove timing info like (15ms)
+        // Clean up extra whitespace and formatting
+        .replace(/^\s*[\r\n]+/, '')            // Remove leading whitespace/newlines
+        .replace(/[\r\n]+\s*$/, '')            // Remove trailing whitespace/newlines  
+        .replace(/[\r\n]+/g, '\n')             // Normalize line breaks
+        .replace(/\s+/g, ' ')                  // Normalize multiple spaces to single space
+        .trim();
 }

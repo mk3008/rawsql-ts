@@ -93,7 +93,9 @@ async function testPrismaSearchImplementation() {
             const result = await service.searchTodos(testCase.params);
 
             console.log(`✅ Found ${result.result.items.length} todos`);
-            console.log(`🗄️  Has more: ${result.result.pagination.hasMore}`);            // Store test result for analysis (speed metrics removed)
+            console.log(`🗄️  Has more: ${result.result.pagination.hasMore}`);
+
+            // Store test result for analysis (speed metrics removed)
             addTestResultWithDefaults({
                 implementation: 'Prisma ORM',
                 testType: 'search',
@@ -121,7 +123,9 @@ async function testPrismaSearchImplementation() {
             console.log(`🗄️  SQL: ${sqlPreview}`);
 
         } catch (error) {
-            console.error(`❌ Error in test "${testCase.name}":`, error);            // Store failed test result (speed metrics removed)
+            console.error(`❌ Error in test "${testCase.name}":`, error);
+
+            // Store failed test result (speed metrics removed)
             addTestResultWithDefaults({
                 implementation: 'Prisma ORM',
                 testType: 'search',
@@ -159,7 +163,9 @@ async function testRawSqlSearchImplementation() {
             const result = await service.searchTodos(testCase.params);
 
             console.log(`✅ Found ${result.result.items.length} todos`);
-            console.log(`🗄️  Has more: ${result.result.pagination.hasMore}`);            // Store test result for analysis (speed metrics removed)
+            console.log(`🗄️  Has more: ${result.result.pagination.hasMore}`);
+
+            // Store test result for analysis (speed metrics removed)
             addTestResultWithDefaults({
                 implementation: 'rawsql-ts',
                 testType: 'search',
@@ -175,7 +181,9 @@ async function testRawSqlSearchImplementation() {
             });
             if (result.result.items.length > 3) {
                 console.log(`   ... and ${result.result.items.length - 3} more`);
-            }            // Show SQL queries (truncated)
+            }
+
+            // Show SQL queries (truncated)
             const cleanedSql = cleanSqlForDisplay(result.metrics.sqlQueries);
             const sqlPreview = cleanedSql.length > 200
                 ? cleanedSql.substring(0, 200) + '...'
@@ -183,7 +191,9 @@ async function testRawSqlSearchImplementation() {
             console.log(`🗄️  SQL: ${sqlPreview}`);
 
         } catch (error) {
-            console.error(`❌ Error in test "${testCase.name}":`, error);            // Store failed test result (speed metrics removed)
+            console.error(`❌ Error in test "${testCase.name}":`, error);
+
+            // Store failed test result (speed metrics removed)
             addTestResultWithDefaults({
                 implementation: 'rawsql-ts',
                 testType: 'search',
