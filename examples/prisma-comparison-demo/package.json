@@ -1,0 +1,30 @@
+{
+    "name": "prisma-comparison-demo",
+    "version": "1.0.0",
+    "description": "Comparison demo of Prisma ORM vs rawsql-ts",
+    "main": "dist/index.js",
+    "scripts": {
+        "build": "tsc",
+        "dev": "tsx src/test-runners/index.ts",
+        "start": "tsx src/test-runners/index.ts",
+        "db:setup": "docker-compose up -d && sleep 5 && npx prisma db push && npx prisma db seed",
+        "db:reset": "npx prisma db push --force-reset && npx prisma db seed",
+        "db:stop": "docker-compose down",
+        "generate": "npx prisma generate",
+        "test": "tsx src/test-runners/index.ts"
+    },
+    "dependencies": {
+        "@prisma/client": "^6.9.0",
+        "pg": "^8.11.0"
+    },
+    "devDependencies": {
+        "@types/node": "^20.0.0",
+        "@types/pg": "^8.11.0",
+        "prisma": "^6.9.0",
+        "tsx": "^4.7.0",
+        "typescript": "^5.4.0"
+    },
+    "prisma": {
+        "seed": "tsx prisma/seed.ts"
+    }
+}
