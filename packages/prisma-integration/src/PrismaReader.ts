@@ -1,4 +1,4 @@
-import { PrismaClientType, PrismaReaderOptions, PrismaSchemaInfo, RawSqlQueryOptions } from './types';
+import { PrismaClientType, PrismaReaderOptions, PrismaSchemaInfo } from './types';
 import { PrismaSchemaResolver } from './PrismaSchemaResolver';
 import {
     SqlFormatter,
@@ -12,6 +12,7 @@ import {
     QueryBuilder,
     PostgresJsonQueryBuilder
 } from 'rawsql-ts';
+import { QueryBuildOptions } from '../../core/src/transformers/DynamicQueryBuilder';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -66,7 +67,7 @@ export class PrismaReader {
      * @param options - Query execution options (filter, sort, paging, serialize)
      * @returns Query result
      */
-    async query<T = any>(sqlFilePath: string, options?: RawSqlQueryOptions): Promise<T[]>;
+    async query<T = any>(sqlFilePath: string, options?: QueryBuildOptions): Promise<T[]>;
 
     /**
      * Execute pre-built SelectQuery (e.g., from DynamicQueryBuilder)
@@ -76,7 +77,7 @@ export class PrismaReader {
      */
     async query<T = any>(query: SelectQuery): Promise<T[]>;
 
-    async query<T = any>(sqlFilePathOrQuery: string | SelectQuery, options: RawSqlQueryOptions = {}): Promise<T[]> {
+    async query<T = any>(sqlFilePathOrQuery: string | SelectQuery, options: QueryBuildOptions = {}): Promise<T[]> {
         if (!this.schemaInfo || !this.tableColumnResolver) {
             throw new Error('PrismaReader not initialized. Call initialize() first.');
         }
@@ -134,15 +135,12 @@ export class PrismaReader {
         // Apply pagination
         if (options.paging) {
             const paginationInjector = new SqlPaginationInjector();
-            const { page = 1, pageSize } = options.paging;
 
-            if (pageSize !== undefined) {
-                const paginationOptions = { page, pageSize };
-                modifiedQuery = paginationInjector.inject(modifiedQuery, paginationOptions);
+            // Use the paging options directly since they already match PaginationOptions format
+            modifiedQuery = paginationInjector.inject(modifiedQuery, options.paging);
 
-                if (this.options.debug) {
-                    console.log('Applied pagination:', paginationOptions);
-                }
+            if (this.options.debug) {
+                console.log('Applied pagination:', options.paging);
             }
         }
 
@@ -156,23 +154,34 @@ export class PrismaReader {
 
             // Transform to JSON query and convert back to SelectQuery
             modifiedQuery = jsonBuilder.buildJsonQuery(simpleQuery, options.serialize);
-        }
-
-        // Generate final SQL
+        }        // Generate final SQL
         const formatter = new SqlFormatter({
             preset: this.getPresetFromProvider(this.schemaInfo?.databaseProvider)
         });
         const formattedResult = formatter.format(modifiedQuery);
         const finalSql = formattedResult.formattedSql;
-        const parameters = formattedResult.params || {};
+        const parameters = formattedResult.params;
+
+        // Convert parameters to array format for Prisma execution
+        let parametersArray: any[];
+        if (Array.isArray(parameters)) {
+            // Already an array (Indexed or Anonymous style)
+            parametersArray = parameters;
+        } else if (parameters && typeof parameters === 'object') {
+            // Object format (Named style) - convert to array
+            parametersArray = Object.values(parameters);
+        } else {
+            // No parameters
+            parametersArray = [];
+        }
 
         if (this.options.debug) {
             console.log('Executing SQL:', finalSql);
             console.log('Parameters:', parameters);
+            console.log('Parameters Array:', parametersArray);
         }
 
         // Execute with Prisma
-        const parametersArray = Object.values(parameters);
         const result = await this.executeSqlWithParams(finalSql, parametersArray);
 
         return result as T[];

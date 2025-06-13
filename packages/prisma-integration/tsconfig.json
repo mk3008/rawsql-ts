@@ -23,5 +23,10 @@
         "**/*.config.*",
         "coverage",
         "dist"
+    ],
+    "references": [
+        {
+            "path": "../core"
+        }
     ]
 }

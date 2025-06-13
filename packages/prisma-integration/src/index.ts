@@ -17,3 +17,6 @@ export type {
     PrismaFieldInfo,
     PrismaRelationInfo
 } from './types';
+
+// Re-export QueryBuildOptions from rawsql-ts for convenience
+export type { QueryBuildOptions } from '../../core/src/transformers/DynamicQueryBuilder';

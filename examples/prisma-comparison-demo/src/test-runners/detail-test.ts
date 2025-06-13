@@ -50,9 +50,7 @@ async function testPrismaDetailImplementation() {
     for (const testCase of testCases) {
         console.log(`\n📋 Test: ${testCase.name} (ID: ${testCase.todoId})`);
         console.log('-'.repeat(40)); try {
-            const result = await service.getTodoDetail(testCase.todoId);
-
-            // Store test result for summary
+            const result = await service.getTodoDetail(testCase.todoId);            // Store test result for summary
             addTestResultWithDefaults({
                 implementation: 'Prisma ORM',
                 testType: 'detail',
@@ -60,7 +58,7 @@ async function testPrismaDetailImplementation() {
                 success: true, // Success means no error occurred, regardless of whether result was found
                 resultCount: result.result ? 1 : 0,
                 sqlQueries: result.metrics.sqlQueries
-            });
+            }, [testCase.todoId]); // Pass the todo ID as parameter
 
             if (result.result) {
                 const todo = result.result;
@@ -94,9 +92,7 @@ async function testPrismaDetailImplementation() {
             console.log(`🗄️  SQL: ${sqlPreview}`);
 
         } catch (error) {
-            console.error(`❌ Error in test "${testCase.name}":`, error);
-
-            // Store failed test result
+            console.error(`❌ Error in test "${testCase.name}":`, error);            // Store failed test result
             addTestResultWithDefaults({
                 implementation: 'Prisma ORM',
                 testType: 'detail',
@@ -104,7 +100,7 @@ async function testPrismaDetailImplementation() {
                 success: false,
                 resultCount: 0,
                 sqlQueries: []
-            });
+            }, []);
         }
     }
 }
@@ -116,9 +112,7 @@ async function testRawSqlDetailImplementation() {
     console.log('\n🔍 Testing rawsql-ts Todo Detail Implementation');
     console.log('='.repeat(60));
 
-    const service = new RawSqlTodoDetailService(prisma, { debug: false });
-
-    try {
+    const service = new RawSqlTodoDetailService(prisma, { debug: false }); try {
         // Initialize the PrismaReader
         await service.initialize();
         console.log('✅ rawsql-ts PrismaReader initialized successfully');
@@ -129,7 +123,9 @@ async function testRawSqlDetailImplementation() {
 
     for (const testCase of testCases) {
         console.log(`\n📋 Test: ${testCase.name}`);
-        console.log('-'.repeat(40)); try {
+        console.log('-'.repeat(40));
+
+        try {
             const result = await service.getTodoDetail(testCase.todoId);
 
             // Store test result for summary
@@ -140,27 +136,48 @@ async function testRawSqlDetailImplementation() {
                 success: true, // Success means no error occurred, regardless of whether result was found
                 resultCount: result.result ? 1 : 0,
                 sqlQueries: result.metrics.sqlQueries
-            });
+            }, [testCase.todoId]); // Pass the todo ID as parameter
 
             if (result.result) {
-                const todo = result.result;
-                console.log(`✅ Found TODO: "${todo.title}"`);
-                console.log(`   📝 Description: ${todo.description}`);
-                console.log(`   ✅ Completed: ${todo.completed ? 'Yes' : 'No'}`);
-                console.log(`   👤 User: ${todo.user.userName} (${todo.user.email})`);
-                console.log(`   🏷️  Category: ${todo.category.categoryName} (${todo.category.color})`);
-                console.log(`   📅 Created: ${todo.createdAt}`);
-                console.log(`   📝 Comments (${todo.comments.length}):`);
+                const todoData = result.result as any; // Temporary type assertion
 
-                todo.comments.forEach((comment: any, index: number) => {
-                    const commentPreview = comment.commentText.length > 50
-                        ? comment.commentText.substring(0, 50) + '...'
-                        : comment.commentText;
-                    console.log(`      ${index + 1}. ${comment.user.userName}: "${commentPreview}"`);
-                });
+                // Debug: Log the structure to understand the data
+                console.log('🔍 Debug - Todo structure:', JSON.stringify(todoData, null, 2));
 
-                if (todo.comments.length === 0) {
-                    console.log('      (No comments)');
+                // Extract the actual todo from the nested structure
+                const todo = todoData.todo;
+
+                if (todo) {
+                    console.log(`✅ Found TODO: "${todo.title}"`);
+                    console.log(`   📝 Description: ${todo.description}`);
+                    console.log(`   ✅ Completed: ${todo.completed ? 'Yes' : 'No'}`);
+
+                    // Safe access with fallbacks
+                    const user = todo.user || {};
+                    const category = todo.category || {};
+                    const comments = todo.comments || [];
+
+                    console.log(`   👤 User: ${user.userName || 'Unknown'} (${user.email || 'No email'})`);
+                    console.log(`   🏷️  Category: ${category.categoryName || 'Unknown'} (${category.color || 'No color'})`);
+                    console.log(`   📅 Created: ${todo.createdAt || 'Unknown'}`);
+                    console.log(`   📝 Comments (${comments.length}):`);
+
+                    comments.forEach((comment: any, index: number) => {
+                        if (comment.commentText) { // Skip null comments
+                            const commentPreview = comment.commentText.length > 50
+                                ? comment.commentText.substring(0, 50) + '...'
+                                : comment.commentText;
+                            const commentUser = comment.user || {};
+                            console.log(`      ${index + 1}. ${commentUser.userName || 'Unknown'}: "${commentPreview}"`);
+                        }
+                    });
+
+                    const validComments = comments.filter((comment: any) => comment.commentText);
+                    if (validComments.length === 0) {
+                        console.log('      (No comments)');
+                    }
+                } else {
+                    console.log('❌ TODO structure not recognized');
                 }
             } else {
                 console.log('❌ TODO not found');
@@ -184,7 +201,7 @@ async function testRawSqlDetailImplementation() {
                 success: false,
                 resultCount: 0,
                 sqlQueries: []
-            });
+            }, [testCase.todoId]);
         }
     }
 }

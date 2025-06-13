@@ -153,10 +153,9 @@ export class RawSqlTodoSearchService implements TodoSearchService {
                     limit: params.pagination.limit,
                     hasMore,
                 },
-            };
-
-            const metrics: QueryMetrics = {
-                sqlQueries
+            }; const metrics: QueryMetrics = {
+                sqlQueries,
+                actualParameters: { filter, sort, paging } // Add actual parameters used by rawsql-ts
             };
 
             return {

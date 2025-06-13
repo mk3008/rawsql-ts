@@ -90,12 +90,8 @@ async function testPrismaSearchImplementation() {
         console.log(`\n📋 Test: ${testCase.name}`);
         console.log('-'.repeat(40)); try {
             // Execute test once for functionality verification
-            const result = await service.searchTodos(testCase.params);
-
-            console.log(`✅ Found ${result.result.items.length} todos`);
-            console.log(`🗄️  Has more: ${result.result.pagination.hasMore}`);
-
-            // Store test result for analysis (speed metrics removed)
+            const result = await service.searchTodos(testCase.params); console.log(`✅ Found ${result.result.items.length} todos`);
+            console.log(`🗄️  Has more: ${result.result.pagination.hasMore}`);            // Store test result for analysis (speed metrics removed)
             addTestResultWithDefaults({
                 implementation: 'Prisma ORM',
                 testType: 'search',
@@ -103,7 +99,7 @@ async function testPrismaSearchImplementation() {
                 success: true,
                 resultCount: result.result.items.length,
                 sqlQueries: result.metrics.sqlQueries // Use captured SQL queries from metrics
-            });
+            }, testCase.params); // Pass actual search parameters
 
             // Show first few results
             result.result.items.slice(0, 3).forEach((item: any, index: number) => {
@@ -123,9 +119,7 @@ async function testPrismaSearchImplementation() {
             console.log(`🗄️  SQL: ${sqlPreview}`);
 
         } catch (error) {
-            console.error(`❌ Error in test "${testCase.name}":`, error);
-
-            // Store failed test result (speed metrics removed)
+            console.error(`❌ Error in test "${testCase.name}":`, error);            // Store failed test result (speed metrics removed)
             addTestResultWithDefaults({
                 implementation: 'Prisma ORM',
                 testType: 'search',
@@ -133,7 +127,7 @@ async function testPrismaSearchImplementation() {
                 success: false,
                 resultCount: 0,
                 sqlQueries: [] // No SQL queries for failed tests
-            });
+            }, []);
         }
     }
 }
@@ -160,12 +154,8 @@ async function testRawSqlSearchImplementation() {
         console.log(`\n📋 Test: ${testCase.name}`);
         console.log('-'.repeat(40)); try {
             // Execute test once for functionality verification
-            const result = await service.searchTodos(testCase.params);
-
-            console.log(`✅ Found ${result.result.items.length} todos`);
-            console.log(`🗄️  Has more: ${result.result.pagination.hasMore}`);
-
-            // Store test result for analysis (speed metrics removed)
+            const result = await service.searchTodos(testCase.params); console.log(`✅ Found ${result.result.items.length} todos`);
+            console.log(`🗄️  Has more: ${result.result.pagination.hasMore}`);            // Store test result for analysis (speed metrics removed)
             addTestResultWithDefaults({
                 implementation: 'rawsql-ts',
                 testType: 'search',
@@ -173,7 +163,7 @@ async function testRawSqlSearchImplementation() {
                 success: true,
                 resultCount: result.result.items.length,
                 sqlQueries: result.metrics.sqlQueries // Use captured SQL queries from metrics
-            });
+            }, testCase.params); // Pass actual search parameters
 
             // Show first few results
             result.result.items.slice(0, 3).forEach((item: any, index: number) => {

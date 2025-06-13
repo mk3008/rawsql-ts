@@ -152,7 +152,7 @@ function generateMarkdownContent(results: TestSummary[], successRate: number, fa
     const searchResults = results.filter(r => r.testType === 'search');
     const detailResults = results.filter(r => r.testType === 'detail');
 
-    let content = `# Prisma vs rawsql-ts Comparison Test Report
+    let content = `# Prisma vs rawsql-ts SQL Comparison Report
 
 **Generated:** ${timestamp}
 **Total Tests:** ${results.length}
@@ -167,257 +167,273 @@ function generateMarkdownContent(results: TestSummary[], successRate: number, fa
     } else {
         content += `**Success Rate:** ❌ ${failedCount} failed (${successRate.toFixed(1)}%)\n\n`;
     }
-    // Search Tests Section
+
+    // Search Tests Comparison
     if (searchResults.length > 0) {
-        content += `## 🔍 TODO Search Tests (List/Pagination)
-
-**Analysis:** Search operations test pagination, filtering, and sorting capabilities. Both approaches use single queries but differ in SQL generation and data transformation strategies.
+        content += `## 🔍 Search Operations Comparison
 
 `;
+        content += generateSearchComparison(searchResults);
     }
 
-    // Detail Tests Section
+    // Detail Tests Comparison  
     if (detailResults.length > 0) {
-        content += `## 📋 TODO Detail Tests (ID-based Lookup)
-
-### Performance Comparison
-| Test Name | Prisma ORM | rawsql-ts | Winner |
-|-----------|------------|-----------|--------|
-`;        // Group detail results by test name for comparison
-        const detailTestGroups = new Map<string, TestSummary[]>();
-        detailResults.forEach(result => {
-            if (!detailTestGroups.has(result.testName)) {
-                detailTestGroups.set(result.testName, []);
-            }
-            detailTestGroups.get(result.testName)!.push(result);
-        }); detailTestGroups.forEach((testGroup, testName) => {
-            const prismaResult = testGroup.find(r => r.implementation.includes('Prisma'));
-            const rawsqlResult = testGroup.find(r => r.implementation.includes('rawsql'));
-
-            // Speed comparison removed - focusing on functionality analysis only
-            if (prismaResult && rawsqlResult) {
-                content += `| ${testName} | ✅ Completed | ✅ Completed | 📊 Both approaches successful |\n`;
-            }
-        });
-
-        content += '\n';
-
-        // Detail Implementation Analysis (Speed comparison removed - now focusing on query strategy analysis)
-        const prismaDetailResults = detailResults.filter(r => r.implementation.includes('Prisma'));
-        const rawsqlDetailResults = detailResults.filter(r => r.implementation.includes('rawsql'));
-
-        if (prismaDetailResults.length > 0 && rawsqlDetailResults.length > 0) {
-            content += `### Detail Implementation Analysis
-- **Prisma ORM Tests:** ${prismaDetailResults.length} test cases completed
-- **rawsql-ts Tests:** ${rawsqlDetailResults.length} test cases completed
-
-**Analysis:** Detail operations test single-record retrieval with complex joins. This helps identify query patterns and data loading strategies.
-
-### Query Strategy Analysis
-- **Prisma ORM:** Uses sophisticated relation loading with LATERAL JOINs to avoid N+1 queries
-- **rawsql-ts:** Uses explicit JOINs with manual data aggregation for optimal single-query performance
+        content += `## 📋 Detail Operations Comparison
 
 `;
-        }
-    }    // SQL Generation Comparison with detailed analysis
-    content += `## 🔧 SQL Generation & Execution Strategy Analysis
-
-### Prisma ORM Strategy Deep Dive
-- **Query Generation:** Automatic query generation with intelligent relation handling
-- **JOIN Strategy:** Sophisticated LATERAL JOINs for complex nested data structures
-- **Data Transformation:** Built-in JSON aggregation using \`JSONB_BUILD_OBJECT\` and \`JSONB_AGG\`
-- **Parameter Binding:** Automatic with prepared statements and type safety
-- **N+1 Prevention:** Automatic batching and intelligent query optimization
-- **Connection Management:** Built-in connection pooling with automatic cleanup
-
-### rawsql-ts Strategy Deep Dive  
-- **Query Generation:** Hand-crafted SQL with dynamic parameter injection capabilities
-- **JOIN Strategy:** Explicit JOINs with manual data structuring and aggregation
-- **Data Transformation:** Custom JSON mapping with hierarchical object building
-- **Parameter Binding:** Manual with SqlParamInjector for flexibility and control
-- **N+1 Prevention:** Manual query optimization and explicit JOIN strategies
-- **Connection Management:** Manual connection handling with custom pooling
-
-### Query Complexity Analysis
-`;
-
-    // Add detailed SQL execution analysis
-    results.forEach(result => {
-        if (result.sqlExecutionDetails && result.sqlExecutionDetails.length > 0) {
-            content += `\n#### ${result.testName} (${result.implementation}) - SQL Execution Details\n`; result.sqlExecutionDetails.forEach((detail: SqlExecutionDetail, index: number) => {
-                content += `
-**Query ${index + 1}:**
-- **Strategy:** ${detail.strategy}
-- **Complexity:** ${detail.complexity}
-- **Rows Affected:** ${detail.rowsAffected}
-- **Parameters:** ${Object.keys(detail.parameters).length} params
-- **SQL:**
-\`\`\`sql
-${cleanSqlForDisplay([detail.rawSql])}
-\`\`\`
-`;
-                if (Object.keys(detail.parameters).length > 0) {
-                    content += `- **Parameters:** \`${JSON.stringify(detail.parameters)}\`\n`;
-                }
-            });
-        }
-    });
-
-    content += `\n### Query Strategy Comparison Matrix
-
-| Aspect | Prisma ORM | rawsql-ts | Advantage |
-|--------|------------|-----------|-----------|
-`;
-
-    // Generate strategy comparison matrix
-    const prismaStrategies = results.filter(r => r.implementation.includes('Prisma') && r.queryStrategy);
-    const rawsqlStrategies = results.filter(r => r.implementation.includes('rawsql') && r.queryStrategy);
-
-    if (prismaStrategies.length > 0 && rawsqlStrategies.length > 0) {
-        const prismaStrategy = prismaStrategies[0].queryStrategy;
-        const rawsqlStrategy = rawsqlStrategies[0].queryStrategy;
-
-        content += `| Join Strategy | ${prismaStrategy.joinStrategy} | ${rawsqlStrategy.joinStrategy} | ${prismaStrategy.joinStrategy === 'LATERAL_JOIN' ? 'Prisma (Automatic)' : 'rawsql-ts (Explicit)'} |\n`;
-        content += `| Data Transformation | ${prismaStrategy.dataTransformation} | ${rawsqlStrategy.dataTransformation} | ${prismaStrategy.dataTransformation === 'BUILT_IN_JSON' ? 'Prisma (Automatic)' : 'rawsql-ts (Flexible)'} |\n`;
-        content += `| Parameter Binding | ${prismaStrategy.parameterBinding} | ${rawsqlStrategy.parameterBinding} | ${prismaStrategy.parameterBinding === 'AUTOMATIC' ? 'Prisma (Type Safe)' : 'rawsql-ts (Flexible)'} |\n`;
-        content += `| N+1 Risk | ${prismaStrategy.nPlusOneRisk} | ${rawsqlStrategy.nPlusOneRisk} | ${prismaStrategy.nPlusOneRisk === 'LOW' ? 'Prisma (Built-in Prevention)' : 'rawsql-ts (Manual Control)'} |\n`;
-        content += `| Optimization Level | ${prismaStrategy.optimizationLevel} | ${rawsqlStrategy.optimizationLevel} | ${prismaStrategy.optimizationLevel === 'HIGHLY_OPTIMIZED' ? 'Prisma' : 'rawsql-ts'} |\n`;
+        content += generateDetailComparison(detailResults);
     }
 
-    content += `\n### Performance Optimization Recommendations
-
-#### For Prisma ORM Users:
-1. **Leverage Prisma's built-in optimizations** - Use \`include\` and \`select\` strategically
-2. **Monitor query execution** - Use Prisma's logging to identify bottlenecks
-3. **Utilize relation loading strategies** - Choose between eager and lazy loading appropriately
-4. **Connection pooling** - Configure connection pool size based on application load
-
-#### For rawsql-ts Users:
-1. **Optimize JOIN strategies** - Use explicit JOINs to prevent N+1 queries
-2. **Parameter binding** - Ensure proper parameter sanitization and binding
-3. **Query complexity management** - Break down complex queries when beneficial
-4. **Manual connection management** - Implement efficient connection pooling
-
-`;
-
-    // SQL Generation Comparison (keeping existing functionality)
-    content += `## 🔧 SQL Generation Strategy Comparison
-
-### Prisma ORM Approach
-- **Query Generation:** Automatic query generation with relation handling
-- **JOIN Strategy:** Uses LATERAL JOINs for complex nested data
-- **Data Transformation:** Built-in JSON aggregation with \`JSONB_BUILD_OBJECT\`
-- **Parameter Binding:** Automatic with prepared statements
-
-### rawsql-ts Approach  
-- **Query Generation:** Hand-written SQL with dynamic parameter injection
-- **JOIN Strategy:** Explicit JOINs with manual data structuring
-- **Data Transformation:** Custom JSON mapping with hierarchical object building
-- **Parameter Binding:** Manual with SqlParamInjector
-
-`;    // Detailed Breakdown with enhanced SQL analysis
-    content += `## 📋 Detailed Test Results & SQL Execution Analysis
-
-`; results.forEach((result: TestSummary) => {
-        content += `### ${result.testName} (${result.implementation})
-- **Test Type:** ${result.testType === 'search' ? '🔍 Search/List' : '📋 Detail/ID Lookup'}
-- **Status:** ${result.success ? '✅ Passed' : '❌ Failed'}
-- **Result Count:** ${result.resultCount}
-`;
-
-        // Display query strategy analysis
-        if (result.queryStrategy) {
-            content += `
-**🎯 Query Strategy Analysis:**
-- **Approach:** ${result.queryStrategy.approach}
-- **Join Strategy:** ${result.queryStrategy.joinStrategy}
-- **Data Transformation:** ${result.queryStrategy.dataTransformation}
-- **Parameter Binding:** ${result.queryStrategy.parameterBinding}
-- **N+1 Query Risk:** ${result.queryStrategy.nPlusOneRisk}
-- **Optimization Level:** ${result.queryStrategy.optimizationLevel}
-`;
-        }
-
-        // Display additional performance metrics if available
-        if (result.memoryUsageKB || result.connectionPoolUsage || result.cacheHitRate) {
-            content += `
-**📊 Performance Metrics:**
-`;
-            if (result.memoryUsageKB) {
-                content += `- **Memory Usage:** ${result.memoryUsageKB}KB\n`;
-            }
-            if (result.connectionPoolUsage) {
-                content += `- **Connection Pool Usage:** ${result.connectionPoolUsage}%\n`;
-            }
-            if (result.cacheHitRate) {
-                content += `- **Cache Hit Rate:** ${result.cacheHitRate}%\n`;
-            }
-        }
-
-        // Display SQL execution details if available
-        if (result.sqlExecutionDetails && result.sqlExecutionDetails.length > 0) {
-            content += `
-**💻 SQL Execution Details:**
-`;
-            result.sqlExecutionDetails.forEach((detail: SqlExecutionDetail, detailIndex: number) => {
-                content += `
-**Query ${detailIndex + 1}:**
-- **Strategy:** ${detail.strategy}
-- **Complexity:** ${detail.complexity.toUpperCase()}
-- **Rows Affected:** ${detail.rowsAffected}
-- **Parameters Count:** ${Object.keys(detail.parameters).length}
-
-**Raw SQL:**
-\`\`\`sql
-${detail.rawSql}
-\`\`\`
-`;
-                if (Object.keys(detail.parameters).length > 0) {
-                    content += `
-**Parameters:**
-\`\`\`json
-${JSON.stringify(detail.parameters, null, 2)}
-\`\`\`
-`;
-                }
-            });
-        }        // Show original SQL query (cleaned up) as fallback
-        if (result.sqlQueries && result.sqlQueries.length > 0 && (!result.sqlExecutionDetails || result.sqlExecutionDetails.length === 0)) {
-            // Clean up SQL query for display (remove color codes and trim whitespace)
-            const cleanSql = cleanSqlForDisplay(result.sqlQueries);
-            content += `
-**📝 Generated SQL:**
-\`\`\`sql
-${cleanSql}
-\`\`\`
-`;
-        }
-
-        content += '\n---\n';
-    }); content += `
+    content += `
 ---
-
-## 🎯 Summary & Recommendations
-
-### Key Findings:
-1. **SQL Execution Patterns:** Detailed analysis of query strategies and execution details
-2. **Performance Characteristics:** Comprehensive comparison of execution times and resource usage
-3. **Query Optimization:** Identification of optimization opportunities and best practices
-4. **Strategy Trade-offs:** Clear understanding of when to use each approach
-
-### Next Steps:
-- Review SQL execution details for optimization opportunities
-- Consider query strategy adjustments based on performance analysis
-- Implement recommended optimizations for your specific use case
-- Monitor performance metrics in production environments
-
----
-*Report generated by Prisma vs rawsql-ts SQL Analysis Suite*  
-*Detailed SQL execution analysis and query strategy comparison*  
-*Performance measurements exclude debug logging overhead*
+*This report focuses on SQL query patterns and parameter usage for direct comparison between approaches.*
 `;
 
     return content;
+}
+
+/**
+ * Generate search comparison content
+ */
+function generateSearchComparison(searchResults: TestSummary[]): string {
+    let content = '';
+
+    // Group search results by test condition
+    const testGroups = new Map<string, TestSummary[]>();
+    searchResults.forEach(result => {
+        const testName = result.testName;
+        if (!testGroups.has(testName)) {
+            testGroups.set(testName, []);
+        }
+        testGroups.get(testName)!.push(result);
+    });
+
+    testGroups.forEach((testGroup, testName) => {
+        const prismaResult = testGroup.find(r => r.implementation.includes('Prisma'));
+        const rawsqlResult = testGroup.find(r => r.implementation.includes('rawsql'));
+
+        content += `### ${testName}
+
+`;
+
+        // Common condition description
+        if (prismaResult && rawsqlResult) {
+            const commonCondition = extractConditionFromParameters(prismaResult);
+            content += `**🎯 Test Condition:** ${commonCondition}
+
+`;
+        }
+
+        // Prisma section
+        if (prismaResult) {
+            content += `#### � Prisma ORM
+- **Results:** ${prismaResult.resultCount} records found
+- **Status:** ${prismaResult.success ? '✅ Success' : '❌ Failed'}
+- **Parameters:** \`${JSON.stringify(getParametersFromResult(prismaResult))}\`
+
+**SQL Query:**
+\`\`\`sql
+${getSqlFromResult(prismaResult)}
+\`\`\`
+
+`;
+        }
+
+        // rawsql-ts section
+        if (rawsqlResult) {
+            content += `#### 🔸 rawsql-ts
+- **Results:** ${rawsqlResult.resultCount} records found
+- **Status:** ${rawsqlResult.success ? '✅ Success' : '❌ Failed'}
+- **Parameters:** \`${JSON.stringify(getParametersFromResult(rawsqlResult))}\`
+
+**SQL Query:**
+\`\`\`sql
+${getSqlFromResult(rawsqlResult)}
+\`\`\`
+
+`;
+        }
+
+        content += '---\n\n';
+    });
+
+    return content;
+}
+
+/**
+ * Generate detail comparison content
+ */
+function generateDetailComparison(detailResults: TestSummary[]): string {
+    let content = '';
+
+    // Group detail results by test condition
+    const testGroups = new Map<string, TestSummary[]>();
+    detailResults.forEach(result => {
+        const testName = result.testName;
+        if (!testGroups.has(testName)) {
+            testGroups.set(testName, []);
+        }
+        testGroups.get(testName)!.push(result);
+    });
+
+    testGroups.forEach((testGroup, testName) => {
+        const prismaResult = testGroup.find(r => r.implementation.includes('Prisma'));
+        const rawsqlResult = testGroup.find(r => r.implementation.includes('rawsql'));
+
+        content += `### ${testName}
+
+`;
+
+        // Common condition description
+        if (prismaResult && rawsqlResult) {
+            const commonCondition = extractConditionFromParameters(prismaResult);
+            content += `**🎯 Test Condition:** ${commonCondition}
+
+`;
+        }
+
+        // Prisma section
+        if (prismaResult) {
+            content += `#### 🔹 Prisma ORM
+- **Results:** ${prismaResult.resultCount} records found
+- **Status:** ${prismaResult.success ? '✅ Success' : '❌ Failed'}
+- **Parameters:** \`${JSON.stringify(getParametersFromResult(prismaResult))}\`
+
+**SQL Query:**
+\`\`\`sql
+${getSqlFromResult(prismaResult)}
+\`\`\`
+
+`;
+        }
+
+        // rawsql-ts section
+        if (rawsqlResult) {
+            content += `#### 🔸 rawsql-ts
+- **Results:** ${rawsqlResult.resultCount} records found
+- **Status:** ${rawsqlResult.success ? '✅ Success' : '❌ Failed'}
+- **Parameters:** \`${JSON.stringify(getParametersFromResult(rawsqlResult))}\`
+
+**SQL Query:**
+\`\`\`sql
+${getSqlFromResult(rawsqlResult)}
+\`\`\`
+
+`;
+        }
+
+        content += '---\n\n';
+    });
+
+    return content;
+}
+
+/**
+ * Helper functions for extracting information from test results
+ */
+function extractConditionFromParameters(result: TestSummary): string {
+    const params = getParametersFromResult(result);
+
+    if (Array.isArray(params)) {
+        if (params.length === 1) {
+            return `Single parameter lookup (ID: ${params[0]})`;
+        }
+        return `Array parameters: ${params.join(', ')}`;
+    }
+
+    if (params && typeof params === 'object') {
+        const conditions = params.conditions || {};
+        const conditionKeys = Object.keys(conditions);
+
+        if (conditionKeys.length === 0) {
+            return 'No specific conditions (list all)';
+        }
+
+        const conditionDesc = conditionKeys.map(key => `${key}: ${conditions[key]}`).join(', ');
+        return conditionDesc;
+    }
+
+    return 'Standard lookup operation';
+}
+
+function getParametersFromResult(result: TestSummary): any {
+    if (result.sqlExecutionDetails && result.sqlExecutionDetails.length > 0) {
+        const params = result.sqlExecutionDetails[0].parameters;
+
+        // Check if this is a rawsql-ts result and params look like TodoSearchParams
+        if (result.implementation.includes('rawsql') &&
+            params &&
+            typeof params === 'object' &&
+            params.conditions &&
+            params.pagination) {
+            // Convert to the actual parameters used by rawsql-ts
+            return convertToRawSqlParameters(params);
+        }
+
+        return params;
+    }
+
+    return {};
+}
+
+/**
+ * Convert TodoSearchParams to the actual parameters used by rawsql-ts
+ */
+function convertToRawSqlParameters(params: any): any {
+    if (!params || !params.conditions || !params.pagination) {
+        return params;
+    }
+
+    // Build the filter object as used in rawsql-ts service
+    const filter: Record<string, any> = {};
+
+    if (params.conditions.title) {
+        filter.title = { ilike: `%${params.conditions.title}%` };
+    }
+    if (params.conditions.completed !== undefined) {
+        filter.completed = params.conditions.completed;
+    }
+    if (params.conditions.userName) {
+        filter.user_name = { ilike: `%${params.conditions.userName}%` };
+    }
+    if (params.conditions.categoryId !== undefined) {
+        filter.category_id = params.conditions.categoryId;
+    }
+    if (params.conditions.color) {
+        filter.color = params.conditions.color;
+    }
+
+    // Remove undefined values
+    Object.keys(filter).forEach(key => {
+        if (filter[key] === undefined) {
+            delete filter[key];
+        }
+    });
+
+    // Build sort object (default sorting used in rawsql-ts)
+    const sort = {
+        created_at: { desc: true }
+    };
+
+    // Build paging object
+    const paging = {
+        page: Math.floor(params.pagination.offset / params.pagination.limit) + 1,
+        pageSize: params.pagination.limit
+    };
+
+    return { filter, sort, paging };
+}
+
+function getSqlFromResult(result: TestSummary): string {
+    if (result.sqlExecutionDetails && result.sqlExecutionDetails.length > 0) {
+        return result.sqlExecutionDetails[0].rawSql;
+    }
+
+    if (result.sqlQueries && result.sqlQueries.length > 0) {
+        return cleanSqlForDisplay(result.sqlQueries);
+    }
+
+    return 'No SQL query captured';
 }
 
 /**
@@ -461,7 +477,7 @@ function displaySqlExecutionSummary() {
                 console.log(`         • Strategy: ${detail.strategy}`);
                 console.log(`         • Complexity: ${detail.complexity}`);
                 console.log(`         • Rows Affected: ${detail.rowsAffected}`);
-                console.log(`         • Parameters: ${Object.keys(detail.parameters).length} params`);
+                console.log(`         • Parameters: ${JSON.stringify(detail.parameters)}`);
             });
         }        // Show actual SQL query (cleaned up)
         if (result.sqlQueries &&
@@ -583,3 +599,9 @@ function cleanSqlForDisplay(sqlQueries: string[]): string {
         .trim();
 }
 
+/**
+ * Get parameter count from parameters object/array
+ * Handles both object (named parameters) and array (indexed parameters like $1, $2, etc.)
+ * @param parameters - Parameters object or array
+ * @returns Number of parameters
+ */

@@ -1,5 +1,4 @@
 import { PrismaClient } from '@prisma/client';
-import { JsonMapping } from 'rawsql-ts';
 
 /**
  * Configuration options for PrismaReader
@@ -17,38 +16,6 @@ export interface PrismaReaderOptions {
     sqlFilesPath?: string;
     /** Custom path to schema.prisma file */
     schemaPath?: string;
-}
-
-/**
- * Sort condition options for SqlSortInjector
- */
-export interface SortCondition {
-    /** Ascending order */
-    asc?: boolean;
-    /** Descending order */
-    desc?: boolean;
-    /** NULLS FIRST */
-    nullsFirst?: boolean;
-    /** NULLS LAST */
-    nullsLast?: boolean;
-}
-
-/**
- * Query execution options for RawSql method
- */
-export interface RawSqlQueryOptions {
-    /** Filter conditions to apply to the query */
-    filter?: Record<string, any>;
-    /** Sort conditions (compatible with SqlSortInjector) */
-    sort?: Record<string, SortCondition>;    /** Pagination settings (compatible with SqlPaginationInjector) */
-    paging?: {
-        page?: number;
-        pageSize?: number;
-    };
-    /** JSON mapping configuration for hierarchical JSON serialization */
-    serialize?: JsonMapping;
-    /** Additional parameters for the SQL query */
-    params?: Record<string, any>;
 }
 
 /**

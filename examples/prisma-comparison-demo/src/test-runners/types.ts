@@ -55,11 +55,16 @@ export function addTestResult(result: TestSummary) {
  * Helper function to add test result with default SQL analysis fields
  */
 export function addTestResultWithDefaults(
-    baseResult: Omit<TestSummary, 'sqlExecutionDetails' | 'queryStrategy'>
+    baseResult: Omit<TestSummary, 'sqlExecutionDetails' | 'queryStrategy'>,
+    actualParams?: any[] | any
 ): void {
+    // Extract parameters from SQL query
+    const sqlQuery = (baseResult.sqlQueries && baseResult.sqlQueries.length > 0) ? baseResult.sqlQueries[0] : '';
+    const extractedParams = extractParametersFromSql(sqlQuery, actualParams);
+
     const defaultSqlDetails: SqlExecutionDetail[] = [{
-        rawSql: (baseResult.sqlQueries && baseResult.sqlQueries.length > 0) ? cleanSqlForDisplay(baseResult.sqlQueries) : '',
-        parameters: {},
+        rawSql: sqlQuery ? cleanSqlForDisplay(baseResult.sqlQueries) : '',
+        parameters: extractedParams,
         rowsAffected: baseResult.resultCount,
         strategy: baseResult.implementation.includes('Prisma') ? 'lateral-join' : 'explicit-join',
         complexity: 'medium'
@@ -82,6 +87,8 @@ export function addTestResultWithDefaults(
 
     testResults.push(fullResult);
 }
+
+
 
 /**
  * Clean SQL queries for display by removing escape codes and unwanted characters
@@ -111,4 +118,36 @@ export function cleanSqlForDisplay(sqlQueries: string[]): string {
         .replace(/[\r\n]+/g, '\n')             // Normalize line breaks
         .replace(/\s+/g, ' ')                  // Normalize multiple spaces to single space
         .trim();
+}
+
+/**
+ * Extract parameters from SQL query by detecting $1, $2, $3... patterns
+ * @param sqlQuery - SQL query string
+ * @param actualParams - Optional actual parameter values to map
+ * @returns Parameters array with actual values if provided, or empty array
+ */
+export function extractParametersFromSql(sqlQuery: string, actualParams?: any[] | any): any {
+    if (!sqlQuery) {
+        return [];
+    }
+
+    // Find all parameter placeholders like $1, $2, $3, etc.
+    const paramMatches = sqlQuery.match(/\$(\d+)/g); if (!paramMatches || paramMatches.length === 0) {
+        return actualParams || [];
+    }
+
+    // Extract unique parameter numbers and sort them
+    const paramNumbers = [...new Set(paramMatches.map(match => parseInt(match.substring(1))))]
+        .sort((a, b) => a - b);    // Return actual parameter values if provided
+    if (actualParams) {
+        // If it's an array, return as is (up to parameter count)
+        if (Array.isArray(actualParams)) {
+            return actualParams.slice(0, paramNumbers.length);
+        }
+        // If it's an object, return the object directly
+        return actualParams;
+    }
+
+    // If no actual values, return empty array
+    return [];
 }

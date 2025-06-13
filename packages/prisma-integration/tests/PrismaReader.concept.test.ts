@@ -151,17 +151,18 @@ describe('PrismaReader - 理想形のインターフェース（コンセプト�
             expect(mockPrismaClient.$queryRawUnsafe).toHaveBeenCalledWith(
                 'select "id", "name", "email", "created_at" from "users" where "active" = true limit 10 offset 10'
             );
-        });
-
-        it('ページサイズのみでページングできる', async () => {
+        }); it('基本的なページングができる', async () => {
             // Arrange: モックの戻り値設定
             const mockResult = [
                 { id: 1, name: 'User1' },
                 { id: 2, name: 'User2' }
             ];
-            mockPrismaClient.$queryRawUnsafe.mockResolvedValue(mockResult);            // Act: ページサイズのみでクエリ実行（page=1がデフォルト）
+            mockPrismaClient.$queryRawUnsafe.mockResolvedValue(mockResult);
+
+            // Act: ページサイズのみでクエリ実行（page=1を明示的に指定）
             const result = await prismaReader.query('users/list.sql', {
                 paging: {
+                    page: 1,
                     pageSize: 10
                 }
             });
