@@ -5,14 +5,24 @@ import { UpstreamSelectQueryFinder } from "./UpstreamSelectQueryFinder";
 import { SelectQueryParser } from "../parsers/SelectQueryParser";
 
 /**
+ * Options for SqlParamInjector
+ */
+export interface SqlParamInjectorOptions {
+    /** Whether to ignore case and underscore differences when matching column names */
+    ignoreCaseAndUnderscore?: boolean;
+    /** Whether to allow injection when all parameters are undefined (defaults to false for safety) */
+    allowAllUndefined?: boolean;
+}
+
+/**
  * SqlParamInjector injects state parameters into a SelectQuery model,
  * creating WHERE conditions and setting parameter values.
  */
 export class SqlParamInjector {
     private tableColumnResolver?: (tableName: string) => string[];
-    private options: { ignoreCaseAndUnderscore?: boolean; allowAllUndefined?: boolean };
+    private options: SqlParamInjectorOptions;
 
-    constructor(optionsOrResolver?: { ignoreCaseAndUnderscore?: boolean; allowAllUndefined?: boolean } | ((tableName: string) => string[]), options?: { ignoreCaseAndUnderscore?: boolean; allowAllUndefined?: boolean }) {
+    constructor(optionsOrResolver?: SqlParamInjectorOptions | ((tableName: string) => string[]), options?: SqlParamInjectorOptions) {
         // Type-check to decide which argument was provided
         if (typeof optionsOrResolver === 'function') {
             this.tableColumnResolver = optionsOrResolver;
@@ -28,6 +38,7 @@ export class SqlParamInjector {
      * @param query The SelectQuery to modify
      * @param state A record of parameter names and values
      * @returns The modified SelectQuery
+     * @throws Error when all parameters are undefined and allowAllUndefined is not set to true
      */
     public inject(
         query: SimpleSelectQuery | string,
