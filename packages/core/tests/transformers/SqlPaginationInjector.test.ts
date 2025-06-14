@@ -10,7 +10,7 @@ describe('SqlPaginationInjector', () => {
             const injector = new SqlPaginationInjector();
             const baseQuery = 'SELECT id, name FROM users';
             const pagination: PaginationOptions = { page: 1, pageSize: 20 };
-            const expectedSql = 'select "id", "name" from "users" limit :paging_limit';
+            const expectedSql = 'select "id", "name" from "users" limit :paging_limit offset :paging_offset';
 
             // Act
             const result = injector.inject(baseQuery, pagination);
@@ -20,7 +20,8 @@ describe('SqlPaginationInjector', () => {
             // Assert
             expect(formattedSql).toBe(expectedSql);
             expect(params).toEqual({
-                paging_limit: 20
+                paging_limit: 20,
+                paging_offset: 0
             });
         });
 
@@ -157,7 +158,7 @@ describe('SqlPaginationInjector', () => {
             const injector = new SqlPaginationInjector();
             const baseQuery = 'SELECT id FROM users';
             const pagination: PaginationOptions = { page: 1, pageSize: 1000 };
-            const expectedSql = 'select "id" from "users" limit :paging_limit';
+            const expectedSql = 'select "id" from "users" limit :paging_limit offset :paging_offset';
 
             // Act
             const result = injector.inject(baseQuery, pagination);
@@ -167,16 +168,17 @@ describe('SqlPaginationInjector', () => {
             // Assert
             expect(formattedSql).toBe(expectedSql);
             expect(params).toEqual({
-                paging_limit: 1000
+                paging_limit: 1000,
+                paging_offset: 0
             });
         });
 
-        test('should omit OFFSET parameter when page is 1 (offset = 0)', () => {
+        test('should always include OFFSET parameter for consistent query caching', () => {
             // Arrange
             const injector = new SqlPaginationInjector();
             const baseQuery = 'SELECT id, name FROM users';
             const pagination: PaginationOptions = { page: 1, pageSize: 50 };
-            const expectedSql = 'select "id", "name" from "users" limit :paging_limit';
+            const expectedSql = 'select "id", "name" from "users" limit :paging_limit offset :paging_offset';
 
             // Act
             const result = injector.inject(baseQuery, pagination);
@@ -186,10 +188,11 @@ describe('SqlPaginationInjector', () => {
             // Assert
             expect(formattedSql).toBe(expectedSql);
             expect(params).toEqual({
-                paging_limit: 50
-                // Note: paging_offset should not be present when offset is 0
+                paging_limit: 50,
+                paging_offset: 0
             });
-            expect(params).not.toHaveProperty('paging_offset');
+            // Note: Always include paging_offset for consistent SQL structure and better query caching
+            expect(params).toHaveProperty('paging_offset');
         });
     });
 

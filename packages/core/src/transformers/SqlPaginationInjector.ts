@@ -55,10 +55,10 @@ export class SqlPaginationInjector {
             new ParameterExpression('paging_limit', pagination.pageSize)
         );
 
-        // Create OFFSET clause (only if offset > 0)
-        const offsetClause = offset > 0 ? new OffsetClause(
+        // Create OFFSET clause (always include for consistent query caching)
+        const offsetClause = new OffsetClause(
             new ParameterExpression('paging_offset', offset)
-        ) : null;
+        );
 
         // Create a new query with pagination clauses
         return new SimpleSelectQuery({
