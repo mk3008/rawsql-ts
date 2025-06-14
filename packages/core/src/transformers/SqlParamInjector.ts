@@ -10,9 +10,9 @@ import { SelectQueryParser } from "../parsers/SelectQueryParser";
  */
 export class SqlParamInjector {
     private tableColumnResolver?: (tableName: string) => string[];
-    private options: { ignoreCaseAndUnderscore?: boolean };
+    private options: { ignoreCaseAndUnderscore?: boolean; allowAllUndefined?: boolean };
 
-    constructor(optionsOrResolver?: { ignoreCaseAndUnderscore?: boolean } | ((tableName: string) => string[]), options?: { ignoreCaseAndUnderscore?: boolean }) {
+    constructor(optionsOrResolver?: { ignoreCaseAndUnderscore?: boolean; allowAllUndefined?: boolean } | ((tableName: string) => string[]), options?: { ignoreCaseAndUnderscore?: boolean; allowAllUndefined?: boolean }) {
         // Type-check to decide which argument was provided
         if (typeof optionsOrResolver === 'function') {
             this.tableColumnResolver = optionsOrResolver;
@@ -46,6 +46,15 @@ export class SqlParamInjector {
             this.options.ignoreCaseAndUnderscore ? s.toLowerCase().replace(/_/g, '') : s;
 
         const allowedOps = ['min', 'max', 'like', 'ilike', 'in', 'any', '=', '<', '>', '!=', '<>', '<=', '>=', 'or', 'and', 'column'];
+
+        // Check if all parameters are undefined
+        const stateValues = Object.values(state);
+        const hasParameters = stateValues.length > 0;
+        const allUndefined = hasParameters && stateValues.every(value => value === undefined);
+        
+        if (allUndefined && !this.options.allowAllUndefined) {
+            throw new Error('All parameters are undefined. This would result in fetching all records. Use allowAllUndefined: true option to explicitly allow this behavior.');
+        }
 
         for (const [name, stateValue] of Object.entries(state)) {
             // skip undefined values
