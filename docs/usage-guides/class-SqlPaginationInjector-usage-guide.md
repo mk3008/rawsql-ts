@@ -22,10 +22,13 @@ const injector = new SqlPaginationInjector();
 const paginatedQuery = injector.inject(sql, pagination);
 
 const formatter = new SqlFormatter();
-const { formattedSql } = formatter.format(paginatedQuery);
+const { formattedSql, params } = formatter.format(paginatedQuery);
 
 console.log(formattedSql);
-// Output: select "id", "name", "email" from "users" where "active" = true limit 20 offset 20
+// Output: select "id", "name", "email" from "users" where "active" = true limit :paging_limit offset :paging_offset
+
+console.log(params);
+// Output: { paging_limit: 20, paging_offset: 20 }
 ```
 
 ### 2. Using Parsed Query Objects
@@ -55,21 +58,28 @@ const pagination = {
 
 ## Advanced Features
 
-### 1. First Page Optimization
+### 1. Consistent Query Structure for Better Caching
 
-SqlPaginationInjector automatically optimizes first page queries by omitting unnecessary OFFSET 0:
+SqlPaginationInjector now always includes both LIMIT and OFFSET clauses for all pages to ensure consistent SQL query structure, which improves database query plan caching and prepared statement reuse:
 
 ```typescript
-// First page - no OFFSET clause generated
+// All pages now generate consistent SQL structure
 const firstPage = { page: 1, pageSize: 20 };
 const result = injector.inject(baseQuery, firstPage);
-// Generated SQL: SELECT ... LIMIT 20 (no OFFSET)
+// Generated SQL: SELECT ... LIMIT :paging_limit OFFSET :paging_offset
+// Parameters: { paging_limit: 20, paging_offset: 0 }
 
-// Second page - OFFSET clause included
 const secondPage = { page: 2, pageSize: 20 };
 const result2 = injector.inject(baseQuery, secondPage);
-// Generated SQL: SELECT ... LIMIT 20 OFFSET 20
+// Generated SQL: SELECT ... LIMIT :paging_limit OFFSET :paging_offset  
+// Parameters: { paging_limit: 20, paging_offset: 20 }
 ```
+
+**Benefits of Consistent Structure:**
+- **Better Database Performance**: Same SQL structure allows database to reuse query plans
+- **Improved Prepared Statement Efficiency**: Single cached statement for all pagination requests  
+- **Consistent Behavior**: Predictable SQL output regardless of page number
+- **Reduced Parsing Overhead**: Database doesn't need to parse different SQL variations
 
 ### 2. Remove Existing Pagination
 
@@ -85,7 +95,12 @@ const cleanQuery = SqlPaginationInjector.removePagination(existingPaginatedSql);
 // Apply new pagination
 const newPagination = { page: 1, pageSize: 25 };
 const repaginatedQuery = injector.inject(cleanQuery, newPagination);
-// Result: SELECT id, name FROM users LIMIT 25
+
+// Format with SqlFormatter to see the final SQL
+const formatter = new SqlFormatter();
+const { formattedSql, params } = formatter.format(repaginatedQuery);
+// formattedSql: SELECT id, name FROM users LIMIT :paging_limit OFFSET :paging_offset
+// params: { paging_limit: 25, paging_offset: 0 }
 ```
 
 ### 3. Preserve Other Clauses
