@@ -1,153 +1,154 @@
-import { describe, expect, test } from 'vitest';
-import { SelectQueryParser } from '../../src/parsers/SelectQueryParser';
-import { SqlFormatter } from '../../src/transformers/SqlFormatter';
+/**
+ * Tests for SqlParamInjector - allowAllUndefined option
+ * 
+ * This test suite validates the SqlParamInjector's allowAllUndefined option
+ * which prevents accidental full-table queries when all parameters are undefined.
+ * 
+ * The SqlParamInjector transforms SQL by injecting WHERE conditions based on 
+ * parameter values, and this new option ensures safety by requiring explicit
+ * permission when all parameters would be ignored.
+ */
+
+import { describe, it, expect } from 'vitest';
 import { SqlParamInjector } from '../../src/transformers/SqlParamInjector';
-import { SimpleSelectQuery } from '../../src/models/SimpleSelectQuery';
+import { SqlFormatter } from '../../src/transformers/SqlFormatter';
 
-describe('SqlParamInjector - allowAllUndefined option', () => {
-    test('throws error by default when all parameters are undefined', () => {
-        // Arrange: parse base query
-        const baseQuery = SelectQueryParser.parse('select u.id, u.name from users as u') as SimpleSelectQuery;
-        // State with all undefined values
-        const state = { id: undefined, name: undefined };
+describe('SqlParamInjector allowAllUndefined option', () => {
+    const formatter = new SqlFormatter();
 
-        // Act & Assert: expect injection to throw error by default
-        const injector = new SqlParamInjector();
-        expect(() => {
-            injector.inject(baseQuery, state);
-        }).toThrowError(/All parameters are undefined/);
-    });
+    describe('inject', () => {
+        it('should throw error by default when all parameters are undefined to prevent accidental full-table queries', () => {
+            // Arrange
+            const injector = new SqlParamInjector();
+            const inputQuery = 'select u.id, u.name from users as u';
+            const state = { id: undefined, name: undefined };
 
-    test('throws error by default when single parameter is undefined', () => {
-        // Arrange: parse base query
-        const baseQuery = SelectQueryParser.parse('select u.id from users as u') as SimpleSelectQuery;
-        // State with single undefined value
-        const state = { id: undefined };
+            // Act & Assert
+            expect(() => {
+                injector.inject(inputQuery, state);
+            }).toThrowError(/All parameters are undefined/);
+        });
 
-        // Act & Assert: expect injection to throw error by default
-        const injector = new SqlParamInjector();
-        expect(() => {
-            injector.inject(baseQuery, state);
-        }).toThrowError(/All parameters are undefined/);
-    });
+        it('should throw error by default when single parameter is undefined', () => {
+            // Arrange
+            const injector = new SqlParamInjector();
+            const inputQuery = 'select u.id from users as u';
+            const state = { id: undefined };
 
-    test('allows all undefined parameters when allowAllUndefined is true', () => {
-        // Arrange: parse base query
-        const baseQuery = SelectQueryParser.parse('select u.id, u.name from users as u') as SimpleSelectQuery;
-        // State with all undefined values
-        const state = { id: undefined, name: undefined };
+            // Act & Assert
+            expect(() => {
+                injector.inject(inputQuery, state);
+            }).toThrowError(/All parameters are undefined/);
+        });
 
-        // Act: inject parameters with allowAllUndefined option
-        const injector = new SqlParamInjector({ allowAllUndefined: true });
-        const injectedQuery = injector.inject(baseQuery, state);
+        it('should allow all undefined parameters when allowAllUndefined option is explicitly set to true', () => {
+            // Arrange
+            const injector = new SqlParamInjector({ allowAllUndefined: true });
+            const inputQuery = 'select u.id, u.name from users as u';
+            const state = { id: undefined, name: undefined };
 
-        // Act: format SQL and extract parameters
-        const formatter = new SqlFormatter();
-        const { formattedSql, params } = formatter.format(injectedQuery);
+            // Act
+            const result = injector.inject(inputQuery, state);
+            const { formattedSql, params } = formatter.format(result);
 
-        // Assert: SQL should have no WHERE clause and empty params
-        expect(formattedSql).toBe('select "u"."id", "u"."name" from "users" as "u"');
-        expect(params).toEqual({});
-    });
+            // Assert
+            const expectedSql = 'select "u"."id", "u"."name" from "users" as "u"';
+            const expectedParams = {};
+            
+            expect(formattedSql).toBe(expectedSql);
+            expect(params).toEqual(expectedParams);
+        });
 
-    test('allows single undefined parameter when allowAllUndefined is true', () => {
-        // Arrange: parse base query
-        const baseQuery = SelectQueryParser.parse('select u.id from users as u') as SimpleSelectQuery;
-        // State with single undefined value
-        const state = { id: undefined };
+        it('should allow single undefined parameter when allowAllUndefined option is true', () => {
+            // Arrange
+            const injector = new SqlParamInjector({ allowAllUndefined: true });
+            const inputQuery = 'select u.id from users as u';
+            const state = { id: undefined };
 
-        // Act: inject parameters with allowAllUndefined option
-        const injector = new SqlParamInjector({ allowAllUndefined: true });
-        const injectedQuery = injector.inject(baseQuery, state);
+            // Act
+            const result = injector.inject(inputQuery, state);
+            const { formattedSql, params } = formatter.format(result);
 
-        // Act: format SQL and extract parameters
-        const formatter = new SqlFormatter();
-        const { formattedSql, params } = formatter.format(injectedQuery);
+            // Assert
+            const expectedSql = 'select "u"."id" from "users" as "u"';
+            const expectedParams = {};
+            
+            expect(formattedSql).toBe(expectedSql);
+            expect(params).toEqual(expectedParams);
+        });
 
-        // Assert: SQL should have no WHERE clause and empty params
-        expect(formattedSql).toBe('select "u"."id" from "users" as "u"');
-        expect(params).toEqual({});
-    });
+        it('should work normally when not all parameters are undefined regardless of allowAllUndefined setting', () => {
+            // Arrange
+            const injector = new SqlParamInjector();
+            const inputQuery = 'select u.id, u.name from users as u';
+            const state = { id: 123, name: undefined };
 
-    test('works normally when not all parameters are undefined', () => {
-        // Arrange: parse base query
-        const baseQuery = SelectQueryParser.parse('select u.id, u.name from users as u') as SimpleSelectQuery;
-        // State with mixed defined and undefined values
-        const state = { id: 123, name: undefined };
+            // Act
+            const result = injector.inject(inputQuery, state);
+            const { formattedSql, params } = formatter.format(result);
 
-        // Act: inject parameters (should work normally)
-        const injector = new SqlParamInjector();
-        const injectedQuery = injector.inject(baseQuery, state);
+            // Assert
+            const expectedSql = 'select "u"."id", "u"."name" from "users" as "u" where "u"."id" = :id';
+            const expectedParams = { id: 123 };
+            
+            expect(formattedSql).toBe(expectedSql);
+            expect(params).toEqual(expectedParams);
+        });
 
-        // Act: format SQL and extract parameters
-        const formatter = new SqlFormatter();
-        const { formattedSql, params } = formatter.format(injectedQuery);
+        it('should work normally with empty state object without throwing error', () => {
+            // Arrange
+            const injector = new SqlParamInjector();
+            const inputQuery = 'select u.id from users as u';
+            const state = {};
 
-        // Assert: SQL should contain WHERE clause with only defined parameter
-        expect(formattedSql).toBe('select "u"."id", "u"."name" from "users" as "u" where "u"."id" = :id');
-        expect(params).toEqual({ id: 123 });
-    });
+            // Act
+            const result = injector.inject(inputQuery, state);
+            const { formattedSql, params } = formatter.format(result);
 
-    test('works normally with empty state object', () => {
-        // Arrange: parse base query
-        const baseQuery = SelectQueryParser.parse('select u.id from users as u') as SimpleSelectQuery;
-        // Empty state object
-        const state = {};
+            // Assert
+            const expectedSql = 'select "u"."id" from "users" as "u"';
+            const expectedParams = {};
+            
+            expect(formattedSql).toBe(expectedSql);
+            expect(params).toEqual(expectedParams);
+        });
 
-        // Act: inject parameters (should work normally)
-        const injector = new SqlParamInjector();
-        const injectedQuery = injector.inject(baseQuery, state);
+        it('should support allowAllUndefined option with custom tableColumnResolver constructor', () => {
+            // Arrange
+            const customResolver = (tableName: string) => {
+                if (tableName.toLowerCase() === 'users') return ['id', 'name'];
+                return [];
+            };
+            const injector = new SqlParamInjector(customResolver, { allowAllUndefined: true });
+            const inputQuery = 'select u.* from users as u';
+            const state = { id: undefined, name: undefined };
 
-        // Act: format SQL and extract parameters
-        const formatter = new SqlFormatter();
-        const { formattedSql, params } = formatter.format(injectedQuery);
+            // Act
+            const result = injector.inject(inputQuery, state);
+            const { formattedSql, params } = formatter.format(result);
 
-        // Assert: SQL should have no WHERE clause and empty params
-        expect(formattedSql).toBe('select "u"."id" from "users" as "u"');
-        expect(params).toEqual({});
-    });
+            // Assert
+            const expectedSql = 'select "u".* from "users" as "u"';
+            const expectedParams = {};
+            
+            expect(formattedSql).toBe(expectedSql);
+            expect(params).toEqual(expectedParams);
+        });
 
-    test('allowAllUndefined works with tableColumnResolver constructor', () => {
-        // Custom tableColumnResolver
-        const customResolver = (tableName: string) => {
-            if (tableName.toLowerCase() === 'users') return ['id', 'name'];
-            return [];
-        };
+        it('should throw error with custom tableColumnResolver when allowAllUndefined is false by default', () => {
+            // Arrange
+            const customResolver = (tableName: string) => {
+                if (tableName.toLowerCase() === 'users') return ['id', 'name'];
+                return [];
+            };
+            const injector = new SqlParamInjector(customResolver);
+            const inputQuery = 'select u.* from users as u';
+            const state = { id: undefined, name: undefined };
 
-        // Arrange: parse base query
-        const baseQuery = SelectQueryParser.parse('select u.* from users as u') as SimpleSelectQuery;
-        // State with all undefined values
-        const state = { id: undefined, name: undefined };
-
-        // Act: inject parameters with allowAllUndefined option and custom resolver
-        const injector = new SqlParamInjector(customResolver, { allowAllUndefined: true });
-        const injectedQuery = injector.inject(baseQuery, state);
-
-        // Act: format SQL and extract parameters
-        const formatter = new SqlFormatter();
-        const { formattedSql, params } = formatter.format(injectedQuery);
-
-        // Assert: SQL should have no WHERE clause and empty params
-        expect(formattedSql).toBe('select "u".* from "users" as "u"');
-        expect(params).toEqual({});
-    });
-
-    test('throws error with tableColumnResolver when allowAllUndefined is false', () => {
-        // Custom tableColumnResolver
-        const customResolver = (tableName: string) => {
-            if (tableName.toLowerCase() === 'users') return ['id', 'name'];
-            return [];
-        };
-
-        // Arrange: parse base query
-        const baseQuery = SelectQueryParser.parse('select u.* from users as u') as SimpleSelectQuery;
-        // State with all undefined values
-        const state = { id: undefined, name: undefined };
-
-        // Act & Assert: expect injection to throw error
-        const injector = new SqlParamInjector(customResolver);
-        expect(() => {
-            injector.inject(baseQuery, state);
-        }).toThrowError(/All parameters are undefined/);
+            // Act & Assert
+            expect(() => {
+                injector.inject(inputQuery, state);
+            }).toThrowError(/All parameters are undefined/);
+        });
     });
 });
