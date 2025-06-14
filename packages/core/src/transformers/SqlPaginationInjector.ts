@@ -1,6 +1,6 @@
 import { SelectQuery, SimpleSelectQuery } from "../models/SelectQuery";
 import { LimitClause, OffsetClause } from "../models/Clause";
-import { LiteralValue } from "../models/ValueComponent";
+import { LiteralValue, ParameterExpression } from "../models/ValueComponent";
 import { SelectQueryParser } from "../parsers/SelectQueryParser";
 
 /**
@@ -52,12 +52,12 @@ export class SqlPaginationInjector {
 
         // Create LIMIT clause
         const limitClause = new LimitClause(
-            new LiteralValue(pagination.pageSize)
+            new ParameterExpression('paging_limit', pagination.pageSize)
         );
 
         // Create OFFSET clause (only if offset > 0)
         const offsetClause = offset > 0 ? new OffsetClause(
-            new LiteralValue(offset)
+            new ParameterExpression('paging_offset', offset)
         ) : null;
 
         // Create a new query with pagination clauses
