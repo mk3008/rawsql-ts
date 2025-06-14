@@ -114,8 +114,7 @@ export class LiteralTokenReader extends BaseTokenReader {
      *
      * The logic for determining whether '+' or '-' is a sign or an operator is as follows:
      * - If there is no previous lexeme, it is considered the start of the input, so the sign is valid.
-     * - If the previous lexeme is a literal or an identifier (e.g., `a.id`), the sign is treated as an operator.
-     * - If the previous lexeme is a closing parenthesis (e.g., `count(*)`), the sign is also treated as an operator.
+     * - If the previous lexeme is a literal, identifier, parameter, or closing parenthesis, the sign is treated as an operator.
      *
      * @param previous The previous lexeme in the input stream.
      * @returns "sign" if the context allows for a numeric sign, otherwise "operator".
@@ -126,8 +125,11 @@ export class LiteralTokenReader extends BaseTokenReader {
             return "sign";
         }
 
-        // If the previous lexeme is a literal, identifier, or closing parenthesis, treat as an operator
-        const isOperatorContext = previous.type === TokenType.Literal || previous.type === TokenType.Identifier || previous.type === TokenType.CloseParen;
+        // If the previous lexeme is a literal, identifier, parameter, or closing parenthesis, treat as an operator
+        const isOperatorContext = (previous.type & TokenType.Literal) || 
+                                  (previous.type & TokenType.Identifier) || 
+                                  (previous.type & TokenType.Parameter) || 
+                                  (previous.type & TokenType.CloseParen);
         return isOperatorContext ? "operator" : "sign";
     }
 

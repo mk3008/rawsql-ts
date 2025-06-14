@@ -175,3 +175,27 @@ test('error on invalid syntax - wrong keyword at start', () => {
     // Act & Assert
     expect(() => OffsetClauseParser.parse(text)).toThrow();
 });
+
+test('subtraction operator in offset expression', () => {
+    // Arrange
+    const text = `offset :size * :page - 1`;
+
+    // Act
+    const clause = OffsetClauseParser.parse(text);
+    const sql = formatter.format(clause);
+
+    // Assert
+    expect(sql).toEqual(`offset :size * :page - 1`);
+});
+
+test('nested parentheses with subtraction in offset expression', () => {
+    // Arrange
+    const text = `offset :pageSize * (:currentPage - 1)`;
+
+    // Act
+    const clause = OffsetClauseParser.parse(text);
+    const sql = formatter.format(clause);
+
+    // Assert
+    expect(sql).toEqual(`offset :pageSize * (:currentPage - 1)`);
+});
