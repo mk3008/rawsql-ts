@@ -11,20 +11,23 @@
         "db:reset": "npx prisma db push --force-reset && npx prisma db seed",
         "db:stop": "docker-compose down",
         "generate": "npx prisma generate",
-        "test": "tsx src/test-runners/index.ts"
+        "test": "tsx src/test-runners/index.ts",
+        "test:sql": "vitest run tests/sql-static-analysis.test.ts",
+        "test:sql:watch": "vitest tests/sql-static-analysis.test.ts --watch"
     },
     "dependencies": {
         "@prisma/client": "^6.9.0",
         "pg": "^8.11.0",
-        "rawsql-ts": "workspace:*",
-        "prisma-rawsql": "workspace:*"
+        "rawsql-ts": "file:../../packages/core",
+        "prisma-rawsql": "file:../../packages/prisma-integration"
     },
     "devDependencies": {
         "@types/node": "^20.0.0",
         "@types/pg": "^8.11.0",
         "prisma": "^6.9.0",
         "tsx": "^4.7.0",
-        "typescript": "^5.4.0"
+        "typescript": "^5.4.0",
+        "vitest": "^2.0.0"
     },
     "prisma": {
         "seed": "tsx prisma/seed.ts"
