@@ -232,7 +232,7 @@ const result = injector.inject('SELECT * FROM users', state);
 ```
 
 
-### 2. Custom Table Column Resolver
+### 3. Custom Table Column Resolver
 
 When your SQL uses wildcards (like `SELECT *`) or omits column names, `rawsql-ts` cannot resolve columns by itself because it only parses the SQL string and does not know the actual database schema.
 
@@ -255,7 +255,7 @@ const customResolver = (tableName: string) => {
 const injector = new SqlParamInjector(customResolver);
 ```
 
-### 3. Complex Condition Example
+### 4. Complex Condition Example
 
 In real-world scenarios, search conditions are often more than just simple equality checks. With SqlParamInjector, you can specify a variety of conditions for each column, such as ranges (min/max), pattern matching (like), set membership (in/any), and not-equal conditions. You can also combine multiple conditions for a single column.
 
