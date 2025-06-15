@@ -4,8 +4,6 @@
 ![npm downloads](https://img.shields.io/npm/dm/@rawsql-ts/prisma-integration)
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 
-[Documentation & Examples](https://mk3008.github.io/rawsql-ts/)
-
 ## 🎯 Overview
 
 **Transform SQL files into structured JSON with static validation - no additional schema definitions required.**
@@ -16,51 +14,64 @@ RawSqlClient is a wrapper around PrismaClient that provides three core capabilit
 2. **Static SQL Validation**: Automatically validate that your SQL queries are compatible with your Prisma schema at development time
 3. **Static Model Validation**: Ensure your JSON mappings match your TypeScript domain models through static analysis
 
-### ✨ The Magic in Action
+### What You Can Achieve
 
-What if you could write a complex SQL query, place a JSON mapping file next to it, and get perfectly structured TypeScript objects? 
+Complex SQL queries can be paired with JSON mapping files to produce properly structured TypeScript objects with minimal configuration.
 
 ```typescript
-// This simple call...
-const todoDetail = await rawSqlClient.query<TodoDetail>('getTodoDetail.sql', {
-    filter: { todo_id: 1 },
-    serialize: true  // Auto-loads getTodoDetail.json mapping
-});
+// 🎯 Single object: Use queryOne<T>() 
+const todoDetail = await rawSqlClient.queryOne<TodoDetail>('getTodoDetail.sql', {
+    filter: { todo_id: 1 }
+}); // → TodoDetail | null
 
-// ...returns a fully structured object like this:
-// {
-//     todoId: 1,
-//     title: "Learn rawsql-ts",
-//     description: "Master the art of structured SQL",
-//     completed: false,
-//     user: { userId: 1, userName: "Alice", email: "alice@example.com" },
-//     category: { categoryId: 2, categoryName: "Learning", color: "#blue" },
-//     comments: [
-//         { 
-//             commentId: 1, 
-//             commentText: "Great library!", 
-//             user: { userName: "Bob", email: "bob@example.com" }
-//         }
-//     ]
-// }
+// 🎯 Array of objects: Use queryMany<T>()
+const todoList = await rawSqlClient.queryMany<TodoDetail>('getTodoList.sql', {
+    filter: { completed: false }
+}); // → TodoDetail[]
 ```
 
-**No complex mapping code. No manual object construction. Just pure magic.** ✨
+**The result structure is always the same beautiful nested object:**
+```typescript
+// Both queryOne and queryMany return the same object structure
+{
+    todoId: 1,
+    title: "Learn rawsql-ts",
+    description: "Master the art of structured SQL",
+    completed: false,
+    user: { userId: 1, userName: "Alice", email: "alice@example.com" },
+    category: { categoryId: 2, categoryName: "Learning", color: "#blue" },
+    comments: [
+        { 
+            commentId: 1, 
+            commentText: "Great library!", 
+            user: { userName: "Bob", email: "bob@example.com" }
+        }
+    ]
+}
+```
+
+**Crystal clear intent. Same mapping. Perfect flexibility.** ✨
 
 ### 🔧 Behind the Magic
 
-The power comes from two simple files working together:
+## 🎯 Architecture Overview
 
-**getTodoDetail.sql** - Clean, readable SQL:
+RawSqlClient leverages a two-tier approach to transform flat SQL result sets into structured hierarchical objects. This methodology combines the expressiveness of raw SQL with automated data transformation capabilities.
+
+### Implementation Pattern
+
+The system operates through a coordinated pair of files:
+
+**SQL Query Definition** (`getTodoDetail.sql`):
 ```sql
 SELECT 
-    -- TODO information
+    -- Primary entity attributes
     t.todo_id, t.title, t.description, t.completed,
-    -- User information  
+    -- Related user entity  
     u.user_id, u.user_name, u.email,
-    -- Category information
+    -- Related category entity
     c.category_id, c.category_name, c.color,
-    -- Comments (flat structure from JOINs)
+    -- Associated comments (denormalized via JOINs)
     tc.comment_id, tc.comment_text,
     cu.user_name as comment_user_name
 FROM todo t
@@ -68,33 +79,45 @@ INNER JOIN "user" u ON t.user_id = u.user_id
 INNER JOIN category c ON t.category_id = c.category_id
 LEFT JOIN todo_comment tc ON t.todo_id = tc.todo_id
 LEFT JOIN "user" cu ON tc.user_id = cu.user_id
--- rawsql-ts automatically injects WHERE clause: WHERE t.todo_id = $1
+-- Dynamic WHERE clause injection: WHERE t.todo_id = $1
 ```
 
-**getTodoDetail.json** - Structure definition:
+**Transformation Schema** (`getTodoDetail.json`):
 ```json
 {
-  "rootEntity": { "columns": { "todoId": "todo_id", "title": "title" } },
+  "rootEntity": { 
+    "columns": { "todoId": "todo_id", "title": "title", "description": "description" } 
+  },
   "nestedEntities": [
     { 
-      "parentId": "todo", "propertyName": "user", "relationshipType": "object",
-      "columns": { "userId": "user_id", "userName": "user_name" }
+      "parentId": "todo", 
+      "propertyName": "user", 
+      "relationshipType": "object",
+      "columns": { "userId": "user_id", "userName": "user_name", "email": "email" }
     },
     { 
-      "parentId": "todo", "propertyName": "comments", "relationshipType": "array",
-      "columns": { "commentId": "comment_id", "commentText": "comment_text" }
+      "parentId": "todo", 
+      "propertyName": "comments", 
+      "relationshipType": "array",
+      "columns": { 
+        "commentId": "comment_id", 
+        "commentText": "comment_text",
+        "userName": "comment_user_name"
+      }
     }
   ]
 }
 ```
 
-**Result**: Flat SQL rows become perfectly nested TypeScript objects. That's the rawsql-ts difference! 🚀
+### Technical Implementation
 
-### Key Benefits
+The transformation engine processes denormalized SQL result sets through PostgreSQL's native JSON aggregation functions, converting flat tabular data into structured hierarchical objects. This approach eliminates N+1 query patterns while maintaining type safety and performance optimization.
 
-**No Additional Schema Definitions**: RawSqlClient leverages your existing Prisma schema - no need to maintain separate database schema definitions.
+### Architectural Advantages
 
-**Gradual Adoption**: Since it's a PrismaClient wrapper, you can use RawSqlClient only where needed while keeping existing Prisma code unchanged. Mix and match as required.
+**Schema Reuse**: RawSqlClient integrates directly with existing Prisma schema definitions, eliminating duplicate schema maintenance overhead.
+
+**Incremental Integration**: As a PrismaClient wrapper, RawSqlClient enables selective adoption - existing Prisma code remains unchanged while specific use cases benefit from enhanced SQL capabilities.
 
 ## 🔥 Key Features
 

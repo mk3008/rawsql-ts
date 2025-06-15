@@ -243,6 +243,99 @@ describe('RawSqlClient - 理想形のインターフェース（コンセプト�
         });
     });
 
+    describe('自動シリアライゼーション機能', () => {
+        it('JSONマッピングファイルが存在する場合は自動的にシリアライゼーションが有効になる', async () => {
+            // Arrange: シリアライズされた結果をモック
+            const mockSerializedResult = [
+                {
+                    user_profile: {
+                        id: 1,
+                        name: 'Alice',
+                        email: 'alice@example.com',
+                        posts: [
+                            { id: 101, title: 'First Post' },
+                            { id: 102, title: 'Second Post' }
+                        ]
+                    }
+                }
+            ];
+            mockPrismaClient.$queryRawUnsafe.mockResolvedValue(mockSerializedResult);
+
+            // Mock fs methods for JSON mapping auto-detection
+            const fs = await import('fs');
+            vi.spyOn(fs, 'existsSync').mockReturnValue(true);
+            vi.spyOn(fs, 'readFileSync').mockReturnValue(JSON.stringify({
+                "resultFormat": "object",
+                "rootAlias": "user_profile",
+                "columns": {
+                    "id": "id",
+                    "name": "name",
+                    "email": "email"
+                },
+                "relationships": {
+                    "posts": {
+                        "type": "hasMany",
+                        "columns": {
+                            "id": "post_id",
+                            "title": "post_title"
+                        }
+                    }
+                }
+            }));
+
+            // Act: 自動シリアライゼーションでクエリ実行
+            const result = await client.query('users/profile.sql');
+
+            // Assert: シリアライズされた単一オブジェクトが返されること
+            expect(result).toEqual(mockSerializedResult[0]);
+        });
+
+        it('queryOne<T>()メソッドで明示的にシリアライゼーションが有効になる', async () => {
+            // Arrange: シリアライズされた結果をモック
+            const mockSerializedResult = [
+                {
+                    todo_detail: {
+                        id: 1,
+                        title: 'Test Todo',
+                        description: 'Test Description',
+                        completed: false
+                    }
+                }
+            ];
+            mockPrismaClient.$queryRawUnsafe.mockResolvedValue(mockSerializedResult);
+
+            // Mock fs methods for JSON mapping loading
+            const fs = await import('fs');
+            vi.spyOn(fs, 'existsSync').mockReturnValue(true);
+            vi.spyOn(fs, 'readFileSync').mockReturnValue(JSON.stringify({
+                "resultFormat": "object",
+                "rootAlias": "todo_detail"
+            }));
+
+            // Act: queryOne メソッドを使用
+            const result = await client.queryOne<{ todo_detail: any }>('todos/detail.sql');
+
+            // Assert: シリアライズされた単一オブジェクトが返されること
+            expect(result).toEqual(mockSerializedResult[0]);
+        });
+
+        it('queryMany<T>()メソッドで明示的にシリアライゼーションが無効になる', async () => {
+            // Arrange: 通常の配列結果をモック
+            const mockArrayResult = [
+                { id: 1, title: 'Todo 1', completed: false },
+                { id: 2, title: 'Todo 2', completed: true }
+            ];
+            mockPrismaClient.$queryRawUnsafe.mockResolvedValue(mockArrayResult);
+
+            // Act: queryMany メソッドを使用
+            const result = await client.queryMany('todos/list.sql');
+
+            // Assert: 配列が返されること
+            expect(Array.isArray(result)).toBe(true);
+            expect(result).toEqual(mockArrayResult);
+        });
+    });
+
     describe('エラーハンドリング', () => {
         it('存在しないSQLファイルでエラーが発生する', async () => {
             // Arrange: 存在しないファイルパス

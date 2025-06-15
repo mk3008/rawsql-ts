@@ -74,21 +74,40 @@ export class RawSqlClient {
         if (!this.isInitialized) {
             await this.initialize();
         }
-    }
-
-    /**
+    }    /**
      * Execute SQL from file with dynamic conditions
      * 
      * @param sqlFilePath - Path to SQL file (relative to sqlFilesPath or absolute)
      * @param options - Query execution options (filter, sort, paging, serialize)
      * @returns Query result
-     */    // Overloads for different return types based on serialization
+     */
+    // Main overloads for different return types based on serialization
     async query<T = any>(sqlFilePath: string, options: QueryBuildOptions & { serialize: JsonMapping | true }): Promise<T | null>;
-    async query<T = any>(sqlFilePath: string, options?: Omit<QueryBuildOptions, 'serialize'> | (QueryBuildOptions & { serialize?: false })): Promise<T[]>;
+    async query<T = any>(sqlFilePath: string, options: QueryBuildOptions & { serialize: false }): Promise<T[]>;
+    async query<T = any>(sqlFilePath: string, options?: QueryBuildOptions): Promise<T[] | T | null>;
     async query<T = any>(query: SelectQuery): Promise<T[]>; async query<T = any>(sqlFilePathOrQuery: string | SelectQuery, options: QueryBuildOptions = {}): Promise<T[] | T | null> {
         await this.ensureInitialized();
 
         let modifiedQuery: SimpleSelectQuery;
+        let shouldAutoSerialize = false;
+
+        // Auto-detect serialization need based on usage pattern
+        // If no serialize option is explicitly provided and this is a string path (not SelectQuery),
+        // we'll attempt auto-serialization by trying to load a corresponding .json file
+        if (typeof sqlFilePathOrQuery === 'string' && options.serialize === undefined) {
+            const jsonMappingPath = sqlFilePathOrQuery.replace('.sql', '.json');
+            try {
+                // Check if a corresponding .json mapping file exists
+                await this.loadJsonMapping(jsonMappingPath);
+                shouldAutoSerialize = true;
+                if (this.options.debug) {
+                    console.log(`Auto-detected serialization potential for: ${jsonMappingPath}`);
+                }
+            } catch (error) {
+                // No .json file found, proceed without auto-serialization
+                shouldAutoSerialize = false;
+            }
+        }
 
         if (typeof sqlFilePathOrQuery === 'string') {
             // Handle SQL file path
@@ -149,19 +168,22 @@ export class RawSqlClient {
             if (this.options.debug) {
                 console.log('Applied pagination:', options.paging);
             }
-        }        // Apply JSON serialization if requested (before formatting)
+        }        // Apply JSON serialization if requested or auto-detected (before formatting)
         let serializationApplied = false;
         let actualSerialize: JsonMapping | null = null;
 
-        if (options.serialize) {
+        // Determine if we should serialize
+        const shouldSerialize = options.serialize !== undefined ? options.serialize : shouldAutoSerialize;
+
+        if (shouldSerialize) {
             // Handle boolean case - auto-load JsonMapping from .json file
-            if (typeof options.serialize === 'boolean' && options.serialize === true) {
+            if (typeof shouldSerialize === 'boolean' && shouldSerialize === true) {
                 if (typeof sqlFilePathOrQuery === 'string') {
                     const jsonMappingPath = sqlFilePathOrQuery.replace('.sql', '.json');
                     try {
                         actualSerialize = await this.loadJsonMapping(jsonMappingPath);
                         if (this.options.debug) {
-                            console.log(`Auto-loaded JsonMapping from: ${jsonMappingPath}`);
+                            console.log(`${shouldAutoSerialize ? 'Auto-' : ''}loaded JsonMapping from: ${jsonMappingPath}`);
                         }
                     } catch (error) {
                         if (this.options.debug) {
@@ -172,9 +194,9 @@ export class RawSqlClient {
                 } else {
                     throw new Error('Auto-loading JsonMapping is only supported for SQL file paths, not pre-built queries');
                 }
-            } else if (typeof options.serialize === 'object') {
+            } else if (typeof shouldSerialize === 'object') {
                 // Explicit JsonMapping provided
-                actualSerialize = options.serialize;
+                actualSerialize = shouldSerialize;
             }
 
             // Apply serialization if we have a valid JsonMapping
@@ -217,10 +239,8 @@ export class RawSqlClient {
             console.log('Parameters:', parameters);
             console.log('Parameters Array:', parametersArray);
         }        // Execute with Prisma
-        const result = await this.executeSqlWithParams(finalSql, parametersArray);
-
-        // Handle different return types based on serialization
-        if (options.serialize) {
+        const result = await this.executeSqlWithParams(finalSql, parametersArray);        // Handle different return types based on serialization
+        if (shouldSerialize) {
             // When serialized, expect a single object or null
             if (result.length === 0) {
                 return null as T | null;
@@ -333,9 +353,7 @@ export class RawSqlClient {
                 throw new Error(`Failed to load JsonMapping file "${jsonFilePath}": ${error instanceof Error ? error.message : 'Unknown error'}`);
             }
         }
-    }
-
-    /**
+    }    /**
      * Execute SQL with parameters using Prisma
      * 
      * @param sql - The SQL query string
@@ -358,6 +376,62 @@ export class RawSqlClient {
                 console.error('Parameters:', params);
             } throw new Error(`SQL execution failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
+    }    /**
+     * Execute SQL from file with JSON serialization, returning a single object
+     * Automatically loads corresponding .json mapping file
+     * 
+     * @param sqlFilePath - Path to SQL file (relative to sqlFilesPath or absolute)
+     * @param options - Query execution options (filter, sort, paging)
+     * @returns Single serialized object or null
+     */
+    async queryOne<T>(sqlFilePath: string, options: Omit<QueryBuildOptions, 'serialize'> = {}): Promise<T | null> {
+        // Force serialization to true and call the main query method
+        const queryOptions = { ...options, serialize: true as any };
+        const result = await this.query<T>(sqlFilePath, queryOptions);
+
+        // Handle different result formats
+        if (result === null || result === undefined) {
+            return null;
+        }
+
+        // If result is already a single object (expected case), return it
+        if (!Array.isArray(result)) {
+            return result as T;
+        }
+
+        // If result is an array, return the first element or null
+        if (Array.isArray(result)) {
+            return result.length > 0 ? result[0] as T : null;
+        }
+
+        return result as T;
+    }
+
+    /**
+     * Execute SQL from file with JSON serialization, returning an array
+     * Automatically loads corresponding .json mapping file
+     * 
+     * @param sqlFilePath - Path to SQL file (relative to sqlFilesPath or absolute)
+     * @param options - Query execution options (filter, sort, paging)
+     * @returns Array of serialized objects
+     */
+    async queryMany<T = any>(sqlFilePath: string, options: Omit<QueryBuildOptions, 'serialize'> = {}): Promise<T[]> {
+        // Force serialization to true and call the main query method
+        const queryOptions = { ...options, serialize: true as any };
+        const result = await this.query<T>(sqlFilePath, queryOptions);
+
+        // Handle different result formats
+        if (result === null || result === undefined) {
+            return [];
+        }
+
+        // If result is already an array (expected case), return it
+        if (Array.isArray(result)) {
+            return result as T[];
+        }
+
+        // If result is a single object, wrap it in an array
+        return [result] as T[];
     }
 
     /**

@@ -68,6 +68,5 @@
             }
         }
     ],
-    "useJsonb": true,
-    "resultFormat": "single"
+    "useJsonb": true
 }
