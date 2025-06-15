@@ -1,5 +1,9 @@
 {
     "rootName": "todo",
+    "typeInfo": {
+        "interface": "TodoDetail",
+        "importPath": "src/contracts/todo-detail.ts"
+    },
     "rootEntity": {
         "id": "todo",
         "name": "Todo",
