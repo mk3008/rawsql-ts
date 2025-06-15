@@ -248,8 +248,8 @@ describe('SqlParamInjector', () => {
         const baseQuery = SelectQueryParser.parse('select u.id from users as u') as SimpleSelectQuery;
         // State with undefined value should be skipped
         const state = { id: undefined };
-        // Act: inject and format
-        const injector = new SqlParamInjector();
+        // Act: inject and format with allowAllUndefined option
+        const injector = new SqlParamInjector({ allowAllUndefined: true });
         const injected = injector.inject(baseQuery, state);
         const { formattedSql, params } = new SqlFormatter().format(injected);
         // Assert: no WHERE and empty params
