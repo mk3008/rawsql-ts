@@ -23,6 +23,7 @@ It is designed for extensibility and advanced SQL analysis, with initial focus o
 - High-speed SQL parsing and AST analysis (over 3x faster than major libraries)
 - Rich utilities for SQL structure transformation and analysis
 - Advanced SQL formatting capabilities, including multi-line formatting and customizable styles
+- **All-in-one dynamic query building with `DynamicQueryBuilder`** - combines filtering, sorting, pagination, and JSON serialization in a single, type-safe interface
 - Dynamic SQL parameter injection for building flexible search queries with `SqlParamInjector` (supports like, ilike, in, any, range queries, OR/AND conditions and more)
 - Dynamic ORDER BY clause injection with `SqlSortInjector` for flexible sorting with support for ASC/DESC, NULLS positioning, and append mode
 - Dynamic LIMIT/OFFSET pagination injection with `SqlPaginationInjector` for efficient data pagination with page-based and offset-based support
@@ -306,6 +307,71 @@ query = new SqlPaginationInjector().inject(query, { page: 3, pageSize: 15 });
 ```
 
 For more details, see the [SqlPaginationInjector Usage Guide](./docs/usage-guides/class-SqlPaginationInjector-usage-guide.md).
+
+---
+
+## DynamicQueryBuilder Features
+
+The `DynamicQueryBuilder` class is a powerful, all-in-one solution that combines SQL parsing with dynamic condition injection (filtering, sorting, pagination, and JSON serialization). It provides a unified interface for building complex queries without the need to manually chain multiple injectors, making it ideal for modern web applications that require flexible, dynamic query generation.
+
+Key benefits include:
+- **Unified Interface**: Single class that combines filtering, sorting, pagination, and JSON serialization
+- **Framework-Agnostic**: Pure JavaScript/TypeScript with no file system dependencies
+- **Composable Architecture**: Internally uses specialized injectors in optimal order for performance
+- **Type-Safe**: Full TypeScript support with strongly typed options and return values
+- **Performance Optimized**: Applies conditions in the most efficient order (filter → sort → paginate → serialize)
+- **Easy Testing**: No external dependencies make unit testing straightforward
+
+```typescript
+import { DynamicQueryBuilder, SqlFormatter } from 'rawsql-ts';
+
+// Create a builder instance
+const builder = new DynamicQueryBuilder();
+
+// Build a complete dynamic query with all features
+const baseQuery = 'SELECT id, name, email, created_at FROM users WHERE active = true';
+const options = {
+  filter: { 
+    status: 'premium',
+    created_at: { min: '2024-01-01' }  // Range filter
+  },
+  sort: { 
+    created_at: { desc: true, nullsLast: true },
+    name: { asc: true }
+  },
+  paging: { page: 2, pageSize: 20 },
+  serialize: {
+    rootName: 'users',
+    rootEntity: {
+      id: 'user',
+      name: 'User',
+      columns: { id: 'id', name: 'name', email: 'email', created: 'created_at' }
+    },
+    nestedEntities: []
+  }
+};
+
+const dynamicQuery = builder.buildQuery(baseQuery, options);
+
+const formatter = new SqlFormatter();
+const { formattedSql, params } = formatter.format(dynamicQuery);
+
+console.log(formattedSql);
+// Output: Complex JSON query with all conditions applied
+console.log(params);
+// Output: { status: 'premium', created_at_min: '2024-01-01', paging_limit: 20, paging_offset: 20 }
+
+// Convenience methods for specific use cases
+const filteredOnly = builder.buildFilteredQuery(baseQuery, { name: 'Alice' });
+const sortedOnly = builder.buildSortedQuery(baseQuery, { created_at: { desc: true } });
+const paginatedOnly = builder.buildPaginatedQuery(baseQuery, { page: 1, pageSize: 10 });
+
+// Validate SQL without applying modifications
+const isValid = builder.validateSql('SELECT id FROM users');
+console.log(isValid); // true
+```
+
+For more details, see the [DynamicQueryBuilder Usage Guide](./docs/usage-guides/class-DynamicQueryBuilder-usage-guide.md).
 
 ---
 
