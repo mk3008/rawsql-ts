@@ -5,7 +5,6 @@
 
 import { PrismaClient } from '@prisma/client';
 import { PrismaReader } from '../../../../packages/prisma-integration/src/PrismaReader';
-import { JsonMapping } from '../../../../packages/core/src/transformers/PostgresJsonQueryBuilder';
 import { TodoSearchService } from '../interfaces/todo-service.interface';
 import {
     TodoSearchParams,
@@ -76,59 +75,12 @@ export class RawSqlTodoSearchService implements TodoSearchService {
                     sort,
                     paging
                 });
-            }
-
-            // Define JSON mapping for hierarchical structure
-            const jsonMapping: JsonMapping = {
-                rootName: 'todos',
-                rootEntity: {
-                    id: 't',
-                    name: 'todo',
-                    columns: {
-                        'todoId': 'todo_id',
-                        'title': 'title',
-                        'description': 'description',
-                        'completed': 'completed',
-                        'createdAt': 'created_at',
-                        'updatedAt': 'updated_at',
-                        'commentCount': 'comment_count'
-                    }
-                },
-                nestedEntities: [
-                    {
-                        id: 'u',
-                        name: 'user',
-                        parentId: 't',
-                        propertyName: 'user',
-                        relationshipType: 'object',
-                        columns: {
-                            'userId': 'user_id',
-                            'userName': 'user_name',
-                            'email': 'email'
-                        }
-                    },
-                    {
-                        id: 'c',
-                        name: 'category',
-                        parentId: 't',
-                        propertyName: 'category',
-                        relationshipType: 'object',
-                        columns: {
-                            'categoryId': 'category_id',
-                            'categoryName': 'category_name',
-                            'color': 'color'
-                        }
-                    }
-                ],
-                resultFormat: 'array'
-            };
-
-            // Execute query using PrismaReader with JSON serialization
+            }            // Execute query using PrismaReader with file-based JSON serialization
             const results = await this.prismaReader.query('searchTodos.sql', {
                 filter,
                 sort,
                 paging,
-                serialize: jsonMapping
+                serialize: true
             });
             originalLog('✅ rawsql-ts Results:', results.length, 'items found');
 
