@@ -1,9 +1,11 @@
 import { CommonTable, SourceAliasExpression, SelectItem, SelectClause, FromClause, SourceExpression, TableSource, GroupByClause, WithClause, SubQuerySource, LimitClause } from '../models/Clause';
 import { SimpleSelectQuery } from '../models/SimpleSelectQuery';
+import { SelectQuery } from '../models/SelectQuery';
 import { IdentifierString, ValueComponent, ColumnReference, FunctionCall, ValueList, LiteralValue, BinaryExpression, CaseExpression, SwitchCaseArgument, CaseKeyValuePair, RawString, UnaryExpression } from '../models/ValueComponent';
 import { SelectValueCollector } from "./SelectValueCollector";
 import { PostgresObjectEntityCteBuilder, ProcessableEntity } from './PostgresObjectEntityCteBuilder';
 import { PostgresArrayEntityCteBuilder } from './PostgresArrayEntityCteBuilder';
+import { QueryBuilder } from './QueryBuilder';
 
 /**
  * Universal JSON mapping definition for creating any level of JSON structures.
@@ -112,12 +114,19 @@ export class PostgresJsonQueryBuilder {
 
     /**
      * Build JSON query from original query and mapping configuration.
-     * @param originalQuery Original query to transform
+     * @param originalQuery Original query to transform (can be any SelectQuery type)
      * @param mapping JSON mapping configuration
      * @returns Transformed query with JSON aggregation
      */
-    public buildJsonQuery(originalQuery: SimpleSelectQuery, mapping: JsonMapping): SimpleSelectQuery {
-        return this.buildJsonWithCteStrategy(originalQuery, mapping);
+    public buildJsonQuery(originalQuery: SelectQuery, mapping: JsonMapping): SimpleSelectQuery;
+    public buildJsonQuery(originalQuery: SimpleSelectQuery, mapping: JsonMapping): SimpleSelectQuery;
+    public buildJsonQuery(originalQuery: SelectQuery | SimpleSelectQuery, mapping: JsonMapping): SimpleSelectQuery {
+        // Convert any SelectQuery to SimpleSelectQuery using QueryBuilder
+        const simpleQuery = originalQuery instanceof SimpleSelectQuery
+            ? originalQuery
+            : QueryBuilder.buildSimpleQuery(originalQuery);
+
+        return this.buildJsonWithCteStrategy(simpleQuery, mapping);
     }
 
     /**

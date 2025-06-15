@@ -13,6 +13,7 @@ import { PrismaClient } from '@prisma/client';
 import { PrismaSchemaResolver } from '../../../packages/prisma-integration/src/PrismaSchemaResolver';
 import { SqlSchemaValidator } from '../../../packages/core/src/utils/SqlSchemaValidator';
 import { SelectQueryParser } from '../../../packages/core/src/parsers/SelectQueryParser';
+import { PostgresJsonQueryBuilder, JsonMapping, QueryBuilder } from '../../../packages/core/src';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -110,6 +111,66 @@ describe('SQL Static Analysis Tests', () => {
             });
 
             console.log(`\n🎉 All ${sqlFiles.length} SQL files validated successfully!`);
+        });
+    });
+
+    describe('SQL + JSON Mapping Serialization Tests', () => {
+        it('should validate SQL with JSON mapping when available', () => {
+            // Arrange: Get all SQL files from rawsql-ts directory
+            const rawsqlTsDir = path.join(__dirname, '..', 'rawsql-ts');
+            const files = fs.readdirSync(rawsqlTsDir);
+            const sqlFiles = files.filter(file => file.endsWith('.sql'));
+
+            // Assert: Should have SQL files to test
+            expect(sqlFiles.length).toBeGreaterThan(0);
+
+            // Act & Assert: Check each SQL file for corresponding JSON mapping
+            sqlFiles.forEach(sqlFilename => {
+                const baseName = path.basename(sqlFilename, '.sql');
+                const jsonFilename = `${baseName}.json`;
+                const jsonPath = path.join(rawsqlTsDir, jsonFilename);
+
+                console.log(`\n🔍 Checking ${sqlFilename} for JSON mapping...`);
+
+                if (fs.existsSync(jsonPath)) {
+                    console.log(`✅ Found JSON mapping: ${jsonFilename}`);
+
+                    // Arrange: Read SQL and JSON files
+                    const sqlPath = path.join(rawsqlTsDir, sqlFilename);
+                    const sqlContent = fs.readFileSync(sqlPath, 'utf-8');
+                    const jsonContent = fs.readFileSync(jsonPath, 'utf-8');
+
+                    // Act: Parse SQL
+                    const parseResult = SelectQueryParser.parse(sqlContent);
+                    expect(parseResult).toBeDefined();
+
+                    // Act: Parse JSON mapping
+                    let jsonMapping: JsonMapping;
+                    expect(() => {
+                        jsonMapping = JSON.parse(jsonContent);
+                    }).not.toThrow();                    // Assert: JSON mapping should have required structure
+                    expect(jsonMapping!.rootName).toBeDefined();
+                    expect(jsonMapping!.rootEntity).toBeDefined();
+                    expect(jsonMapping!.rootEntity.columns).toBeDefined();
+
+                    // Act: Build JSON query using PostgresJsonQueryBuilder
+                    // Now supports any SelectQuery type (automatically converts internally)
+                    const jsonQueryBuilder = new PostgresJsonQueryBuilder();
+                    let jsonQuery: any;
+                    expect(() => {
+                        jsonQuery = jsonQueryBuilder.buildJsonQuery(parseResult, jsonMapping!);
+                    }).not.toThrow();
+
+                    // Assert: JSON query should be built successfully
+                    expect(jsonQuery).toBeDefined();
+
+                    console.log(`🎯 ${sqlFilename}: SQL + JSON mapping validation passed`);
+                } else {
+                    console.log(`⚠️  No JSON mapping found for ${sqlFilename} - ignoring serialization test`);
+                }
+            });
+
+            console.log(`\n🎉 SQL + JSON mapping validation completed!`);
         });
     });
 });
