@@ -38,6 +38,28 @@ const injector = new SqlParamInjector();
 const injectedQuery = injector.inject(baseQuery, state);
 ```
 
+### 3. Security: Preventing Accidental Full-Table Queries
+
+By default, `SqlParamInjector` prevents potentially dangerous situations where all parameters are `undefined`, which would result in fetching all records from the database:
+
+```typescript
+// This will throw an error by default
+const state = { id: undefined, name: undefined };
+const injector = new SqlParamInjector();
+
+try {
+    injector.inject(sql, state);
+} catch (error) {
+    console.error(error.message);
+    // "All parameters are undefined. This would result in fetching all records. Use allowAllUndefined: true option to explicitly allow this behavior."
+}
+
+// To explicitly allow this behavior, use the allowAllUndefined option
+const safeInjector = new SqlParamInjector({ allowAllUndefined: true });
+const result = safeInjector.inject(sql, state);
+// This will succeed and return the query without WHERE conditions
+```
+
 ## Supported Types
 
 ### Primitive Types
@@ -192,8 +214,25 @@ const state = { articleId: 100 }; // Matches article_id
 const result = injector.inject(query, state);
 ```
 
+### 2. AllowAllUndefined Option
 
-### 2. Custom Table Column Resolver
+For safety, `SqlParamInjector` prevents accidental full-table queries by throwing an error when all parameters are `undefined`. Use the `allowAllUndefined` option to explicitly allow this behavior:
+
+```typescript
+// Configuration options
+const injector = new SqlParamInjector({ 
+    ignoreCaseAndUnderscore: true,  // Allow flexible column name matching
+    allowAllUndefined: true         // Allow queries when all params are undefined
+});
+
+// This will not throw an error even if all parameters are undefined
+const state = { user_id: undefined, name: undefined };
+const result = injector.inject('SELECT * FROM users', state);
+// Returns the original query without WHERE conditions
+```
+
+
+### 3. Custom Table Column Resolver
 
 When your SQL uses wildcards (like `SELECT *`) or omits column names, `rawsql-ts` cannot resolve columns by itself because it only parses the SQL string and does not know the actual database schema.
 
@@ -216,7 +255,7 @@ const customResolver = (tableName: string) => {
 const injector = new SqlParamInjector(customResolver);
 ```
 
-### 3. Complex Condition Example
+### 4. Complex Condition Example
 
 In real-world scenarios, search conditions are often more than just simple equality checks. With SqlParamInjector, you can specify a variety of conditions for each column, such as ranges (min/max), pattern matching (like), set membership (in/any), and not-equal conditions. You can also combine multiple conditions for a single column.
 
@@ -289,7 +328,19 @@ const result = injector.inject(sql, state);
 
 ## Error Handling
 
-### 1. Column Not Found
+### 1. All Parameters Undefined (Security Check)
+
+```typescript
+try {
+    const injector = new SqlParamInjector();
+    injector.inject('SELECT name FROM users', { name: undefined, email: undefined });
+} catch (error) {
+    console.error(error.message); 
+    // "All parameters are undefined. This would result in fetching all records. Use allowAllUndefined: true option to explicitly allow this behavior."
+}
+```
+
+### 2. Column Not Found
 
 ```typescript
 try {
@@ -300,7 +351,7 @@ try {
 }
 ```
 
-### 2. Unsupported Operators
+### 3. Unsupported Operators
 
 ```typescript
 try {
@@ -447,7 +498,7 @@ const complexSearch = injector.inject(productQuery, searchCriteria);
 
 ## Important Notes
 
-1. **undefined values**: undefined values in the state object are ignored and not added to WHERE conditions
+1. **undefined values**: By default, when all parameters are undefined, an error is thrown to prevent accidental full-table queries. Use `allowAllUndefined: true` to explicitly allow this behavior.
 2. **null values**: Explicit null values generate conditions in the format `column = :param`
 3. **Column name matching**: By default, case sensitivity and underscores are distinguished
 4. **Operator validation**: Using unsupported operators will result in errors

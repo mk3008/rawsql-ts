@@ -5,14 +5,24 @@ import { UpstreamSelectQueryFinder } from "./UpstreamSelectQueryFinder";
 import { SelectQueryParser } from "../parsers/SelectQueryParser";
 
 /**
+ * Options for SqlParamInjector
+ */
+export interface SqlParamInjectorOptions {
+    /** Whether to ignore case and underscore differences when matching column names */
+    ignoreCaseAndUnderscore?: boolean;
+    /** Whether to allow injection when all parameters are undefined (defaults to false for safety) */
+    allowAllUndefined?: boolean;
+}
+
+/**
  * SqlParamInjector injects state parameters into a SelectQuery model,
  * creating WHERE conditions and setting parameter values.
  */
 export class SqlParamInjector {
     private tableColumnResolver?: (tableName: string) => string[];
-    private options: { ignoreCaseAndUnderscore?: boolean };
+    private options: SqlParamInjectorOptions;
 
-    constructor(optionsOrResolver?: { ignoreCaseAndUnderscore?: boolean } | ((tableName: string) => string[]), options?: { ignoreCaseAndUnderscore?: boolean }) {
+    constructor(optionsOrResolver?: SqlParamInjectorOptions | ((tableName: string) => string[]), options?: SqlParamInjectorOptions) {
         // Type-check to decide which argument was provided
         if (typeof optionsOrResolver === 'function') {
             this.tableColumnResolver = optionsOrResolver;
@@ -28,6 +38,7 @@ export class SqlParamInjector {
      * @param query The SelectQuery to modify
      * @param state A record of parameter names and values
      * @returns The modified SelectQuery
+     * @throws Error when all parameters are undefined and allowAllUndefined is not set to true
      */
     public inject(
         query: SimpleSelectQuery | string,
@@ -46,6 +57,15 @@ export class SqlParamInjector {
             this.options.ignoreCaseAndUnderscore ? s.toLowerCase().replace(/_/g, '') : s;
 
         const allowedOps = ['min', 'max', 'like', 'ilike', 'in', 'any', '=', '<', '>', '!=', '<>', '<=', '>=', 'or', 'and', 'column'];
+
+        // Check if all parameters are undefined
+        const stateValues = Object.values(state);
+        const hasParameters = stateValues.length > 0;
+        const allUndefined = hasParameters && stateValues.every(value => value === undefined);
+        
+        if (allUndefined && !this.options.allowAllUndefined) {
+            throw new Error('All parameters are undefined. This would result in fetching all records. Use allowAllUndefined: true option to explicitly allow this behavior.');
+        }
 
         for (const [name, stateValue] of Object.entries(state)) {
             // skip undefined values
