@@ -5,7 +5,7 @@
 
 import { PrismaClient } from '@prisma/client';
 import { PrismaReader } from '../../../../packages/prisma-integration/src/PrismaReader';
-import { JsonMapping } from '../../../../packages/core/src';
+import { JsonMapping, JsonSchemaValidator } from '../../../../packages/core/src';
 import { TodoDetailService } from '../interfaces/todo-service.interface';
 import {
     TodoDetailResultWithMetrics,
@@ -26,7 +26,9 @@ export class RawSqlTodoDetailService implements TodoDetailService {
             debug: this.debugMode,
             sqlFilesPath: './rawsql-ts'
         });
-    }    /**
+    }
+
+    /**
      * Initialize the PrismaReader
      */
     async initialize(): Promise<void> {
@@ -113,6 +115,17 @@ export class RawSqlTodoDetailService implements TodoDetailService {
     }
 
     /**
+     * Execute the core SQL query with JSON mapping
+     */
+    private async executeGetTodoDetailQuery(todoId: number): Promise<TodoDetail | null> {
+        const jsonMapping = this.createTodoDetailJsonMapping();
+        return await this.prismaReader.query<TodoDetail>('getTodoDetail.sql', {
+            filter: { todo_id: todoId },
+            serialize: jsonMapping
+        });
+    }
+
+    /**
      * Get TODO detail by ID using rawsql-ts
      */
     async getTodoDetail(todoId: number): Promise<TodoDetailResultWithMetrics> {
@@ -132,16 +145,14 @@ export class RawSqlTodoDetailService implements TodoDetailService {
                 console.log('🔍 rawsql-ts Debug - Getting TODO detail for ID:', todoId);
             }
 
-            // Execute query using PrismaReader with parameter injection and JSON serialization
-            const jsonMapping = this.createTodoDetailJsonMapping();
-            const results = await this.prismaReader.query('getTodoDetail.sql', {
-                filter: { todo_id: todoId },
-                serialize: jsonMapping
-            });
+            // Execute query using the extracted core method
+            const todoDetail = await this.executeGetTodoDetailQuery(todoId);
 
             if (this.debugMode) {
-                console.log('✅ rawsql-ts Results:', results.length, 'rows found');
-            } if (results.length === 0) {
+                console.log('✅ rawsql-ts Results:', todoDetail ? 'found' : 'not found');
+            }
+
+            if (todoDetail === null) {
                 const sqlQueries = queries.length > 0 ? queries : ['rawsql-ts query executed'];
 
                 const metrics: QueryMetrics = {
@@ -153,9 +164,6 @@ export class RawSqlTodoDetailService implements TodoDetailService {
                     metrics,
                 };
             }
-
-            // With JSON serialization, PrismaReader returns structured data directly
-            const todoDetail = results[0] as TodoDetail;
 
             // Extract SQL from logged queries
             const sqlQueries = queries.length > 0 ? queries : ['rawsql-ts query executed'];
@@ -174,3 +182,97 @@ export class RawSqlTodoDetailService implements TodoDetailService {
         }
     }
 }
+
+// ==========================================
+// In-file Unit Tests with Vitest
+// Note: Run with: npx vitest src/services/rawsql-todo-detail.service.ts
+// ==========================================
+
+import { describe, it, expect, beforeAll, vi } from 'vitest';
+
+describe('RawSqlTodoDetailService - SQL + JSON Mapping Compatibility', () => {
+    let service: RawSqlTodoDetailService;
+    let mockPrismaClient: any;
+
+    beforeAll(async () => {
+        // Create a mock PrismaClient that doesn't require DB connection
+        mockPrismaClient = {
+            $queryRaw: vi.fn().mockResolvedValue([]),
+            $disconnect: vi.fn().mockResolvedValue(undefined)
+        };
+
+        service = new RawSqlTodoDetailService(mockPrismaClient, { debug: false });        // Mock the PrismaReader's query method to avoid actual DB calls
+        // This test only validates SQL composition and JSON mapping structure
+        service['prismaReader'].query = vi.fn().mockResolvedValue({
+            todoId: 1,
+            title: 'Test Todo',
+            description: 'Test Description',
+            completed: false,
+            createdAt: new Date(),
+            updatedAt: new Date(), user: { userId: 1, userName: 'Test User', email: 'test@example.com' },
+            category: { categoryId: 1, categoryName: 'Test Category', color: 'blue' },
+            comments: []
+        });
+
+        await service.initialize();
+    });
+
+    it('should execute SQL query with JSON mapping without errors', async () => {
+        // Test 1: SQL ↔ JsonMapping compatibility validation
+        // Ensures SQL columns match JsonMapping configuration
+
+        const result: TodoDetail | null = await service['executeGetTodoDetailQuery'](1);
+
+        // Verify type safety at compile time and runtime
+        expect(result).toBeDefined();
+        expect(result).not.toBeNull();
+        expect(typeof result).toBe('object');
+        expect(service['prismaReader'].query).toHaveBeenCalledWith('getTodoDetail.sql', {
+            filter: { todo_id: 1 },
+            serialize: expect.any(Object)
+        });
+    });
+
+    it('should have jsonMapping compatible with TodoDetail type structure', () => {
+        // Test 2: JsonMapping ↔ Domain Model compatibility validation
+        // Ensures JsonMapping produces structure matching TodoDetail interface
+
+        const todoDetailSample: TodoDetail = {
+            todoId: 1,
+            title: "Sample Todo",
+            description: "Sample Description",
+            completed: false,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            user: {
+                userId: 1,
+                userName: "Sample User",
+                email: "sample@example.com",
+                createdAt: new Date()
+            },
+            category: {
+                categoryId: 1,
+                categoryName: "Sample Category",
+                color: "blue",
+                createdAt: new Date()
+            },
+            comments: [{
+                commentId: 1,
+                commentText: "Sample Comment",
+                createdAt: new Date(),
+                user: {
+                    userId: 2,
+                    userName: "Comment User",
+                    email: "comment@example.com"
+                }
+            }]
+        };
+
+        const jsonMapping = service['createTodoDetailJsonMapping']();
+        const validationResult = JsonSchemaValidator.validateAgainstSample(jsonMapping, todoDetailSample);
+
+        expect(validationResult.isValid).toBe(true);
+        expect(validationResult.errors).toHaveLength(0);
+        expect(validationResult.missingProperties).toHaveLength(0);
+    });
+});

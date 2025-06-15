@@ -10,7 +10,8 @@ import {
     SimpleSelectQuery,
     SelectQuery,
     QueryBuilder,
-    PostgresJsonQueryBuilder
+    PostgresJsonQueryBuilder,
+    JsonMapping
 } from 'rawsql-ts';
 import { QueryBuildOptions } from '../../core/src/transformers/DynamicQueryBuilder';
 import * as fs from 'fs';
@@ -66,18 +67,12 @@ export class PrismaReader {
      * @param sqlFilePath - Path to SQL file (relative to sqlFilesPath or absolute)
      * @param options - Query execution options (filter, sort, paging, serialize)
      * @returns Query result
-     */
-    async query<T = any>(sqlFilePath: string, options?: QueryBuildOptions): Promise<T[]>;
-
-    /**
-     * Execute pre-built SelectQuery (e.g., from DynamicQueryBuilder)
-     * 
-     * @param query - Pre-built SelectQuery object
-     * @returns Query result
-     */
+     */    // Overloads for different return types based on serialization
+    async query<T = any>(sqlFilePath: string, options: QueryBuildOptions & { serialize: JsonMapping }): Promise<T | null>;
+    async query<T = any>(sqlFilePath: string, options?: Omit<QueryBuildOptions, 'serialize'>): Promise<T[]>;
     async query<T = any>(query: SelectQuery): Promise<T[]>;
 
-    async query<T = any>(sqlFilePathOrQuery: string | SelectQuery, options: QueryBuildOptions = {}): Promise<T[]> {
+    async query<T = any>(sqlFilePathOrQuery: string | SelectQuery, options: QueryBuildOptions = {}): Promise<T[] | T | null> {
         if (!this.schemaInfo || !this.tableColumnResolver) {
             throw new Error('PrismaReader not initialized. Call initialize() first.');
         }
@@ -179,12 +174,20 @@ export class PrismaReader {
             console.log('Executing SQL:', finalSql);
             console.log('Parameters:', parameters);
             console.log('Parameters Array:', parametersArray);
-        }
-
-        // Execute with Prisma
+        }        // Execute with Prisma
         const result = await this.executeSqlWithParams(finalSql, parametersArray);
 
-        return result as T[];
+        // Handle different return types based on serialization
+        if (options.serialize) {
+            // When serialized, expect a single object or null
+            if (result.length === 0) {
+                return null as T | null;
+            }
+            return result[0] as T;
+        } else {
+            // When not serialized, return array of rows
+            return result as T[];
+        }
     }
 
     /**
