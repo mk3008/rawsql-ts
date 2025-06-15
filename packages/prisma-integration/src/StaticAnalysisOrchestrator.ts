@@ -305,7 +305,11 @@ export class StaticAnalysisOrchestrator {
             results.push(`- SQL to JSON Query Convert Check: ${sqlToJsonStatus}`);            // 3. JSON to Model Structure Check
             let jsonToModelStatus = '';
             const domainResults = this.lastDomainModelResults;
-            if (domainResults && filename.replace('.sql', '.json') in domainResults) {
+
+            // If no JSON mapping exists, skip the domain model check
+            if (!sqlResult.hasJsonMapping) {
+                jsonToModelStatus = '⏭️ Skipped (No JSON mapping file)';
+            } else if (domainResults && filename.replace('.sql', '.json') in domainResults) {
                 const domainResult = domainResults[filename.replace('.sql', '.json')];
                 if (domainResult && typeof domainResult === 'object' && 'isValid' in domainResult) {
                     jsonToModelStatus = domainResult.isValid ? '✅ Passed' : '⚠️ Warning';
@@ -315,10 +319,9 @@ export class StaticAnalysisOrchestrator {
             } else {
                 jsonToModelStatus = '⚠️ No Domain Model';
             }
-            results.push(`- JSON to Model Structure Check: ${jsonToModelStatus}`);
-
-            // Add detailed explanations for warnings/errors
-            const issues: string[] = []; if (!sqlResult.isValid && sqlResult.errors.length > 0) {
+            results.push(`- JSON to Model Structure Check: ${jsonToModelStatus}`);// Add detailed explanations for warnings/errors
+            const issues: string[] = [];
+            const jsonFileName = filename.replace('.sql', '.json'); if (!sqlResult.isValid && sqlResult.errors.length > 0) {
                 const errorList = sqlResult.errors.join('; ');
                 issues.push(`**🚨 SQL Syntax Errors**: ${errorList}. Please fix these SQL syntax issues to ensure proper query execution. Check for missing semicolons, incorrect table/column names, or invalid SQL constructs.`);
             }
@@ -327,26 +330,26 @@ export class StaticAnalysisOrchestrator {
                 const errorList = sqlResult.jsonMappingErrors.join('; ');
                 issues.push(`**🚨 JSON Mapping Errors**: ${errorList}. Review your \`${filename.replace('.sql', '.json')}\` file and ensure the JSON structure is valid and matches the expected format for query parameters and return types.`);
             } if (!sqlResult.hasJsonMapping) {
-                const jsonFileName = filename.replace('.sql', '.json');
-                issues.push(`**⚠️ Missing JSON Mapping**: Create \`${jsonFileName}\` to define how SQL results map to TypeScript types. This file should include query parameters and return type definitions. For detailed examples, see the usage guides in the \`docs/usage-guides/\` directory.`);
-            } if (jsonToModelStatus.includes('No TypeInfo')) {
-                const jsonFileName = filename.replace('.sql', '.json');
-                issues.push(`**⚠️ Missing Type Information**: Add a "typeInfo" field to \`${jsonFileName}\` to enable type compatibility validation. This field should contain TypeScript interface definitions that match your domain models. Example: { "typeInfo": { "User": "interface User { id: number; name: string; }" } }`);
+                issues.push(`**⚠️ Missing JSON Mapping**: Create \`${jsonFileName}\` to define how SQL results map to TypeScript types. This file should include query parameters, return type definitions, and optional TypeScript interface definitions for domain model validation. For detailed examples, see the usage guides in the \`docs/usage-guides/\` directory.`);
             }
 
-            if (jsonToModelStatus.includes('No Domain Model')) {
-                const jsonFileName = filename.replace('.sql', '.json');
-                issues.push(`**⚠️ No Domain Model Found**: Create \`${jsonFileName}\` with domain model definitions to enable type compatibility checking. This helps ensure your SQL query results match your expected TypeScript interfaces.`);
+            // Only check for specific domain model issues if JSON mapping exists
+            if (sqlResult.hasJsonMapping) {
+                if (jsonToModelStatus.includes('No TypeInfo')) {
+                    issues.push(`**⚠️ Missing Type Information**: Add a "typeInfo" field to \`${jsonFileName}\` to enable type compatibility validation. This field should contain TypeScript interface definitions that match your domain models. Example: { "typeInfo": { "User": "interface User { id: number; name: string; }" } }`);
+                }
+
+                if (jsonToModelStatus.includes('No Domain Model')) {
+                    issues.push(`**⚠️ No Domain Model Found**: Unable to locate domain model definitions in \`${jsonFileName}\`. Ensure the file contains proper domain model structure for type compatibility checking.`);
+                }
             } if (jsonToModelStatus.includes('Warning')) {
                 const domainResult = domainResults?.[filename.replace('.sql', '.json')];
                 if (domainResult && domainResult.details) {
                     issues.push(`**⚠️ Model Compatibility Issue**: ${domainResult.details}. Review your SQL query and ensure the returned columns match the expected TypeScript interface structure.`);
                 } else if (domainResult && domainResult.errors) {
                     // Use the specific error information from domain analysis
-                    const errorText = domainResult.errors.join('; ');
-                    if (errorText.includes('No typeInfo specified')) {
-                        const jsonFileName = filename.replace('.sql', '.json');
-                        issues.push(`**⚠️ Missing Type Information**: Add a "typeInfo" field to \`${jsonFileName}\` to enable type compatibility validation. This field should contain TypeScript interface definitions that match your domain models. Example: { "typeInfo": { "User": "interface User { id: number; name: string; }" } }`);
+                    const errorText = domainResult.errors.join('; '); if (errorText.includes('No typeInfo specified')) {
+                        // This will be handled by the unified message above
                     } else {
                         issues.push(`**⚠️ Model Compatibility Issue**: ${errorText}. Review your SQL query and ensure the returned columns match the expected TypeScript interface structure.`);
                     }
