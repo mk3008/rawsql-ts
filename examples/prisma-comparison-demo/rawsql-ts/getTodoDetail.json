@@ -1,0 +1,69 @@
+{
+    "rootName": "todo",
+    "rootEntity": {
+        "id": "todo",
+        "name": "Todo",
+        "columns": {
+            "todoId": "todo_id",
+            "title": "title",
+            "description": "description",
+            "completed": "completed",
+            "createdAt": "created_at",
+            "updatedAt": "updated_at"
+        }
+    },
+    "nestedEntities": [
+        {
+            "id": "user",
+            "name": "User",
+            "parentId": "todo",
+            "propertyName": "user",
+            "relationshipType": "object",
+            "columns": {
+                "userId": "user_id",
+                "userName": "user_name",
+                "email": "email",
+                "createdAt": "user_created_at"
+            }
+        },
+        {
+            "id": "category",
+            "name": "Category",
+            "parentId": "todo",
+            "propertyName": "category",
+            "relationshipType": "object",
+            "columns": {
+                "categoryId": "category_id",
+                "categoryName": "category_name",
+                "color": "color",
+                "createdAt": "category_created_at"
+            }
+        },
+        {
+            "id": "comments",
+            "name": "Comment",
+            "parentId": "todo",
+            "propertyName": "comments",
+            "relationshipType": "array",
+            "columns": {
+                "commentId": "comment_id",
+                "commentText": "comment_text",
+                "createdAt": "comment_created_at"
+            }
+        },
+        {
+            "id": "comment_user",
+            "name": "CommentUser",
+            "parentId": "comments",
+            "propertyName": "user",
+            "relationshipType": "object",
+            "columns": {
+                "userId": "comment_user_id",
+                "userName": "comment_user_name",
+                "email": "comment_user_email"
+            }
+        }
+    ],
+    "useJsonb": true,
+    "resultFormat": "single"
+}

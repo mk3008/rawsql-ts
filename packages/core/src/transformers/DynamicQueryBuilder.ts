@@ -16,8 +16,12 @@ export interface QueryBuildOptions {
     sort?: SortConditions;
     /** Pagination options to inject LIMIT/OFFSET clauses */
     paging?: PaginationOptions;
-    /** JSON serialization mapping to transform results into hierarchical JSON */
-    serialize?: JsonMapping;
+    /** JSON serialization mapping to transform results into hierarchical JSON
+     * - JsonMapping object: explicit mapping configuration
+     * - true: auto-load mapping from corresponding .json file
+     * - false/undefined: no serialization
+     */
+    serialize?: JsonMapping | boolean;
 }
 
 /**
@@ -101,9 +105,9 @@ export class DynamicQueryBuilder {
                 modifiedQuery = paginationInjector.inject(simpleQuery, paginationOptions);
             }
         }
-
         // 4. Apply serialization last (transform the final query structure to JSON)
-        if (options.serialize) {
+        // Note: boolean values are handled at PrismaReader level for auto-loading
+        if (options.serialize && typeof options.serialize === 'object') {
             const jsonBuilder = new PostgresJsonQueryBuilder();
             // Ensure we have a SimpleSelectQuery for the JSON builder
             const simpleQuery = QueryBuilder.buildSimpleQuery(modifiedQuery);

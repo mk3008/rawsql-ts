@@ -68,8 +68,8 @@ export class PrismaReader {
      * @param options - Query execution options (filter, sort, paging, serialize)
      * @returns Query result
      */    // Overloads for different return types based on serialization
-    async query<T = any>(sqlFilePath: string, options: QueryBuildOptions & { serialize: JsonMapping }): Promise<T | null>;
-    async query<T = any>(sqlFilePath: string, options?: Omit<QueryBuildOptions, 'serialize'>): Promise<T[]>;
+    async query<T = any>(sqlFilePath: string, options: QueryBuildOptions & { serialize: JsonMapping | true }): Promise<T | null>;
+    async query<T = any>(sqlFilePath: string, options?: Omit<QueryBuildOptions, 'serialize'> | (QueryBuildOptions & { serialize?: false })): Promise<T[]>;
     async query<T = any>(query: SelectQuery): Promise<T[]>;
 
     async query<T = any>(sqlFilePathOrQuery: string | SelectQuery, options: QueryBuildOptions = {}): Promise<T[] | T | null> {
@@ -138,18 +138,49 @@ export class PrismaReader {
                 console.log('Applied pagination:', options.paging);
             }
         }
-
         // Apply JSON serialization if requested (before formatting)
+        let serializationApplied = false;
         if (options.serialize) {
-            // Create PostgresJsonQueryBuilder instance
-            const jsonBuilder = new PostgresJsonQueryBuilder();
+            let actualSerialize: JsonMapping | null = null;
 
-            // Convert SelectQuery to SimpleSelectQuery
-            const simpleQuery = QueryBuilder.buildSimpleQuery(modifiedQuery);
+            // Handle boolean case - auto-load JsonMapping from .json file
+            if (typeof options.serialize === 'boolean' && options.serialize === true) {
+                if (typeof sqlFilePathOrQuery === 'string') {
+                    const jsonMappingPath = sqlFilePathOrQuery.replace('.sql', '.json');
+                    try {
+                        actualSerialize = await this.loadJsonMapping(jsonMappingPath);
+                        if (this.options.debug) {
+                            console.log(`Auto-loaded JsonMapping from: ${jsonMappingPath}`);
+                        }
+                    } catch (error) {
+                        if (this.options.debug) {
+                            console.log(`JsonMapping file not found: ${jsonMappingPath}, skipping serialization`);
+                        }
+                        actualSerialize = null;
+                    }
+                } else {
+                    throw new Error('Auto-loading JsonMapping is only supported for SQL file paths, not pre-built queries');
+                }
+            } else if (typeof options.serialize === 'object') {
+                // Explicit JsonMapping provided
+                actualSerialize = options.serialize;
+            }
 
-            // Transform to JSON query and convert back to SelectQuery
-            modifiedQuery = jsonBuilder.buildJsonQuery(simpleQuery, options.serialize);
-        }        // Generate final SQL
+            // Apply serialization if we have a valid JsonMapping
+            if (actualSerialize) {
+                // Create PostgresJsonQueryBuilder instance
+                const jsonBuilder = new PostgresJsonQueryBuilder();
+
+                // Convert SelectQuery to SimpleSelectQuery
+                const simpleQuery = QueryBuilder.buildSimpleQuery(modifiedQuery);
+
+                // Transform to JSON query and convert back to SelectQuery
+                modifiedQuery = jsonBuilder.buildJsonQuery(simpleQuery, actualSerialize);
+                serializationApplied = true;
+            }
+        }
+
+        // Generate final SQL
         const formatter = new SqlFormatter({
             preset: this.getPresetFromProvider(this.schemaInfo?.databaseProvider)
         });
@@ -174,7 +205,9 @@ export class PrismaReader {
             console.log('Executing SQL:', finalSql);
             console.log('Parameters:', parameters);
             console.log('Parameters Array:', parametersArray);
-        }        // Execute with Prisma
+        }
+
+        // Execute with Prisma
         const result = await this.executeSqlWithParams(finalSql, parametersArray);
 
         // Handle different return types based on serialization
@@ -227,6 +260,47 @@ export class PrismaReader {
                 throw error;
             }
             throw new Error(`Failed to load SQL file "${sqlFilePath}": ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+    }
+
+    /**
+     * Load JsonMapping from a .json file
+     * 
+     * @param jsonFilePath - Path to JSON file (relative to sqlFilesPath or absolute)
+     * @returns JsonMapping object
+     * @throws Error if file not found or invalid JSON
+     */
+    private async loadJsonMapping(jsonFilePath: string): Promise<JsonMapping> {
+        try {
+            // Determine the actual file path
+            let actualPath: string;
+
+            if (path.isAbsolute(jsonFilePath)) {
+                actualPath = jsonFilePath;
+            } else {
+                actualPath = path.join(this.options.sqlFilesPath || './sql', jsonFilePath);
+            }
+
+            // Check if file exists
+            if (!fs.existsSync(actualPath)) {
+                throw new Error(`JsonMapping file not found: ${actualPath}`);
+            }
+
+            // Read and parse JSON file
+            const content = fs.readFileSync(actualPath, 'utf8');
+            const jsonMapping = JSON.parse(content) as JsonMapping;
+
+            if (this.options.debug) {
+                console.log(`Loaded JsonMapping file: ${actualPath}`);
+            }
+
+            return jsonMapping;
+        } catch (error) {
+            if (error instanceof Error && error.message.includes('JsonMapping file not found')) {
+                throw error;
+            } else {
+                throw new Error(`Failed to load JsonMapping file "${jsonFilePath}": ${error instanceof Error ? error.message : 'Unknown error'}`);
+            }
         }
     }
 

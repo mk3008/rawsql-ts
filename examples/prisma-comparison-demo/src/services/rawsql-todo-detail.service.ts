@@ -5,7 +5,7 @@
 
 import { PrismaClient } from '@prisma/client';
 import { PrismaReader } from '../../../../packages/prisma-integration/src/PrismaReader';
-import { JsonMapping, JsonSchemaValidator } from '../../../../packages/core/src';
+import { JsonSchemaValidator } from '../../../../packages/core/src';
 import { TodoDetailService } from '../interfaces/todo-service.interface';
 import {
     TodoDetailResultWithMetrics,
@@ -33,95 +33,13 @@ export class RawSqlTodoDetailService implements TodoDetailService {
      */
     async initialize(): Promise<void> {
         await this.prismaReader.initialize();
-    }
-
-    /**
-     * Create JSON mapping configuration for TODO detail serialization
-     */
-    private createTodoDetailJsonMapping(): JsonMapping {
-        return {
-            rootName: "todo",
-            rootEntity: {
-                id: "todo",
-                name: "Todo",
-                columns: {
-                    "todoId": "todo_id",
-                    "title": "title",
-                    "description": "description",
-                    "completed": "completed",
-                    "createdAt": "created_at",
-                    "updatedAt": "updated_at"
-                }
-            },
-            nestedEntities: [
-                // User relationship (object)
-                {
-                    id: "user",
-                    name: "User",
-                    parentId: "todo",
-                    propertyName: "user",
-                    relationshipType: "object",
-                    columns: {
-                        "userId": "user_id",
-                        "userName": "user_name",
-                        "email": "email",
-                        "createdAt": "user_created_at"
-                    }
-                },
-                // Category relationship (object)
-                {
-                    id: "category",
-                    name: "Category",
-                    parentId: "todo",
-                    propertyName: "category",
-                    relationshipType: "object",
-                    columns: {
-                        "categoryId": "category_id",
-                        "categoryName": "category_name",
-                        "color": "color",
-                        "createdAt": "category_created_at"
-                    }
-                },
-                // Comments relationship (array)
-                {
-                    id: "comments",
-                    name: "Comment",
-                    parentId: "todo",
-                    propertyName: "comments",
-                    relationshipType: "array",
-                    columns: {
-                        "commentId": "comment_id",
-                        "commentText": "comment_text",
-                        "createdAt": "comment_created_at"
-                    }
-                },
-                // Comment user relationship (object)
-                {
-                    id: "comment_user",
-                    name: "CommentUser",
-                    parentId: "comments",
-                    propertyName: "user",
-                    relationshipType: "object",
-                    columns: {
-                        "userId": "comment_user_id",
-                        "userName": "comment_user_name",
-                        "email": "comment_user_email"
-                    }
-                }
-            ],
-            useJsonb: true,
-            resultFormat: "single"
-        };
-    }
-
-    /**
-     * Execute the core SQL query with JSON mapping
+    }    /**
+     * Execute the core SQL query with file-based JSON mapping
      */
     private async executeGetTodoDetailQuery(todoId: number): Promise<TodoDetail | null> {
-        const jsonMapping = this.createTodoDetailJsonMapping();
         return await this.prismaReader.query<TodoDetail>('getTodoDetail.sql', {
             filter: { todo_id: todoId },
-            serialize: jsonMapping
+            serialize: true
         });
     }
 
@@ -189,6 +107,7 @@ export class RawSqlTodoDetailService implements TodoDetailService {
 // ==========================================
 
 import { describe, it, expect, beforeAll, vi } from 'vitest';
+import { JsonMapping } from '../../../../packages/core/src';
 
 describe('RawSqlTodoDetailService - SQL + JSON Mapping Compatibility', () => {
     let service: RawSqlTodoDetailService;
@@ -226,16 +145,13 @@ describe('RawSqlTodoDetailService - SQL + JSON Mapping Compatibility', () => {
         // Verify type safety at compile time and runtime
         expect(result).toBeDefined();
         expect(result).not.toBeNull();
-        expect(typeof result).toBe('object');
-        expect(service['prismaReader'].query).toHaveBeenCalledWith('getTodoDetail.sql', {
+        expect(typeof result).toBe('object'); expect(service['prismaReader'].query).toHaveBeenCalledWith('getTodoDetail.sql', {
             filter: { todo_id: 1 },
-            serialize: expect.any(Object)
+            serialize: true
         });
-    });
-
-    it('should have jsonMapping compatible with TodoDetail type structure', () => {
+    }); it('should have jsonMapping compatible with TodoDetail type structure', async () => {
         // Test 2: JsonMapping ↔ Domain Model compatibility validation
-        // Ensures JsonMapping produces structure matching TodoDetail interface
+        // Ensures file-based JsonMapping produces structure matching TodoDetail interface
 
         const todoDetailSample: TodoDetail = {
             todoId: 1,
@@ -268,7 +184,13 @@ describe('RawSqlTodoDetailService - SQL + JSON Mapping Compatibility', () => {
             }]
         };
 
-        const jsonMapping = service['createTodoDetailJsonMapping']();
+        // Load the JsonMapping from the file (simulate the same process as PrismaReader)
+        const fs = await import('fs');
+        const path = await import('path');
+        const jsonMappingPath = path.join('./rawsql-ts', 'getTodoDetail.json');
+        const jsonMappingContent = fs.readFileSync(jsonMappingPath, 'utf8');
+        const jsonMapping: JsonMapping = JSON.parse(jsonMappingContent);
+
         const validationResult = JsonSchemaValidator.validateAgainstSample(jsonMapping, todoDetailSample);
 
         expect(validationResult.isValid).toBe(true);
