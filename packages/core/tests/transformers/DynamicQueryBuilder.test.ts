@@ -50,9 +50,7 @@ describe('DynamicQueryBuilder', () => {
             const formatter = new SqlFormatter();
             const { formattedSql } = formatter.format(result);
             expect(formattedSql).toBe('select "id", "name" from "users" where "active" = true order by "name"');
-        });
-
-        it('should add pagination conditions', () => {
+        }); it('should add pagination conditions', () => {
             // Arrange
             const sql = 'SELECT id, name FROM users WHERE active = true';
             const paging = { page: 2, pageSize: 10 };
@@ -62,11 +60,10 @@ describe('DynamicQueryBuilder', () => {
 
             // Assert
             const formatter = new SqlFormatter();
-            const { formattedSql } = formatter.format(result);
-            expect(formattedSql).toBe('select "id", "name" from "users" where "active" = true limit 10 offset 10');
-        });
-
-        it('should combine all conditions', () => {
+            const { formattedSql, params } = formatter.format(result);
+            expect(formattedSql).toBe('select "id", "name" from "users" where "active" = true limit :paging_limit offset :paging_offset');
+            expect(params).toEqual({ paging_limit: 10, paging_offset: 10 });
+        }); it('should combine all conditions', () => {
             // Arrange
             const sql = 'SELECT id, name FROM users WHERE active = true';
             const options = {
@@ -81,8 +78,8 @@ describe('DynamicQueryBuilder', () => {
             // Assert
             const formatter = new SqlFormatter();
             const { formattedSql, params } = formatter.format(result);
-            expect(formattedSql).toBe('select "id", "name" from "users" where "active" = true and "name" = :name order by "name" desc limit 5');
-            expect(params).toEqual({ name: 'Alice' });
+            expect(formattedSql).toBe('select "id", "name" from "users" where "active" = true and "name" = :name order by "name" desc limit :paging_limit offset :paging_offset');
+            expect(params).toEqual({ name: 'Alice', paging_limit: 5, paging_offset: 0 });
         });
     });
 
@@ -114,9 +111,7 @@ describe('DynamicQueryBuilder', () => {
             const formatter = new SqlFormatter();
             const { formattedSql } = formatter.format(result);
             expect(formattedSql).toBe('select "id", "name" from "users" order by "id" desc');
-        });
-
-        it('should apply pagination only with buildPaginatedQuery', () => {
+        }); it('should apply pagination only with buildPaginatedQuery', () => {
             // Arrange
             const sql = 'SELECT id, name FROM users';
             const paging = { page: 3, pageSize: 20 };
@@ -126,8 +121,9 @@ describe('DynamicQueryBuilder', () => {
 
             // Assert
             const formatter = new SqlFormatter();
-            const { formattedSql } = formatter.format(result);
-            expect(formattedSql).toBe('select "id", "name" from "users" limit 20 offset 40');
+            const { formattedSql, params } = formatter.format(result);
+            expect(formattedSql).toBe('select "id", "name" from "users" limit :paging_limit offset :paging_offset');
+            expect(params).toEqual({ paging_limit: 20, paging_offset: 40 });
         });
 
         it('should add serialization conditions', () => {
