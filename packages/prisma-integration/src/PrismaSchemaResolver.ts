@@ -1,4 +1,3 @@
-
 import { TableColumnResolver } from 'rawsql-ts';
 import { PrismaClientType, PrismaFieldInfo, PrismaModelInfo, PrismaReaderOptions, PrismaRelationInfo, PrismaSchemaInfo } from './types';
 import { getDMMF } from '@prisma/internals';
@@ -17,7 +16,9 @@ export class PrismaSchemaResolver {
 
     constructor(options: PrismaReaderOptions) {
         this.options = options;
-    }    /**
+    }
+
+    /**
      * Resolve complete schema information from Prisma client
      * 
      * @param prisma - The Prisma client instance
@@ -25,7 +26,7 @@ export class PrismaSchemaResolver {
      */
     async resolveSchema(prisma: PrismaClientType): Promise<PrismaSchemaInfo> {
         if (this.options.debug) {
-            console.log('Resolving Prisma schema using DMMF...');
+            console.log('[PrismaSchemaResolver] Resolving Prisma schema using DMMF...');
         }
 
         try {
@@ -39,18 +40,16 @@ export class PrismaSchemaResolver {
                     models,
                     schemaName: this.options.defaultSchema || 'public',
                     databaseProvider
-                };
-
-                if (this.options.debug) {
-                    console.log(`Successfully loaded schema with ${Object.keys(models).length} models from schema.prisma`);
-                    console.log(`Database provider: ${databaseProvider}`);
+                }; if (this.options.debug) {
+                    console.log(`[PrismaSchemaResolver] Successfully loaded schema with ${Object.keys(models).length} models from schema.prisma`);
+                    console.log(`[PrismaSchemaResolver] Database provider: ${databaseProvider}`);
                 }
 
                 return this.schemaInfo;
             }
         } catch (error) {
             if (this.options.debug) {
-                console.warn('Failed to load schema from schema.prisma:', error);
+                console.warn('[PrismaSchemaResolver] Failed to load schema from schema.prisma:', error);
             }
         }
 
@@ -62,40 +61,28 @@ export class PrismaSchemaResolver {
                 this.schemaInfo = {
                     models,
                     schemaName: this.options.defaultSchema || 'public'
-                };
-
-                if (this.options.debug) {
-                    console.log(`Successfully loaded schema with ${Object.keys(models).length} models from Prisma client`);
-                }
-
-                return this.schemaInfo;
+                }; if (this.options.debug) {
+                    console.log(`[PrismaSchemaResolver] Successfully loaded schema with ${Object.keys(models).length} models from Prisma client`);
+                } return this.schemaInfo;
             }
         } catch (error) {
             if (this.options.debug) {
-                console.warn('Failed to extract DMMF from Prisma client:', error);
+                console.warn('[PrismaSchemaResolver] Failed to extract DMMF from Prisma client:', error);
             }
         }
 
-        // Final fallback: Use mock data for development/testing
-        if (this.shouldUseMockData()) {
-            const models = this.createMockModels();
-            this.schemaInfo = {
-                models,
-                schemaName: this.options.defaultSchema || 'public'
-            };
+        // Final fallback: If all methods fail, throw comprehensive error
+        const schemaLocations = [
+            path.join(process.cwd(), 'prisma', 'schema.prisma'),
+            path.join(process.cwd(), 'schema.prisma'),
+            ...(this.options.schemaPath ? [this.options.schemaPath] : [])
+        ];
 
-            if (this.options.debug) {
-                console.log('Using mock schema data for development/testing');
-            }
-
-            return this.schemaInfo;
-        }
-
-        // If all methods fail in production, throw comprehensive error
         throw new Error(
-            'Unable to resolve Prisma schema information. ' +
-            'Ensure you have a valid schema.prisma file or Prisma client instance. ' +
-            'Checked: schema.prisma file, Prisma client DMMF access.'
+            `Unable to resolve Prisma schema information. Please ensure you have a valid schema.prisma file in one of these locations:\n` +
+            schemaLocations.map(loc => `  - ${loc}`).join('\n') + '\n\n' +
+            'Or provide a valid PrismaClient instance to the StaticAnalysisOrchestrator.\n' +
+            'If you are using a custom schema location, specify it using the "schemaPath" option in PrismaReader.'
         );
     }
 
@@ -170,7 +157,9 @@ export class PrismaSchemaResolver {
         }
 
         return Object.values(model.fields).some(field => field.columnName === columnName);
-    }    /**
+    }
+
+    /**
      * Get DMMF directly from schema.prisma file
      * 
      * @returns Promise resolving to DMMF object or null if not found
@@ -180,13 +169,11 @@ export class PrismaSchemaResolver {
             const schemaPath = await this.findSchemaFile();
             if (!schemaPath) {
                 if (this.options.debug) {
-                    console.log('No schema.prisma file found in common locations');
+                    console.log('[PrismaSchemaResolver] No schema.prisma file found in common locations');
                 }
                 return null;
-            }
-
-            if (this.options.debug) {
-                console.log(`Loading DMMF from schema file: ${schemaPath}`);
+            } if (this.options.debug) {
+                console.log(`[PrismaSchemaResolver] Loading DMMF from schema file: ${schemaPath}`);
             }
 
             // Use @prisma/internals to get DMMF from schema.prisma
@@ -196,7 +183,7 @@ export class PrismaSchemaResolver {
 
             if (this.isValidDmmf(dmmf)) {
                 if (this.options.debug) {
-                    console.log(`Successfully parsed DMMF with ${dmmf.datamodel.models.length} models`);
+                    console.log(`[PrismaSchemaResolver] Successfully parsed DMMF with ${dmmf.datamodel.models.length} models`);
                 }
                 return dmmf;
             }
@@ -216,25 +203,46 @@ export class PrismaSchemaResolver {
      * @returns Promise resolving to schema file path or null if not found
      */
     private async findSchemaFile(): Promise<string | null> {
+        return this.findSchemaFileSync();
+    }
+
+    /**
+     * Find schema file synchronously
+     * 
+     * @returns Path to schema.prisma file or null if not found
+     */
+    private findSchemaFileSync(): string | null {
+        // First priority: Check if custom schema path is provided and exists
+        if (this.options.schemaPath) {
+            try {
+                if (fs.existsSync(this.options.schemaPath) && fs.statSync(this.options.schemaPath).isFile()) {
+                    if (this.options.debug) {
+                        console.log(`[PrismaSchemaResolver] Found schema file at custom path: ${this.options.schemaPath}`);
+                    }
+                    return this.options.schemaPath;
+                }
+            } catch (error) {
+                if (this.options.debug) {
+                    console.warn(`[PrismaSchemaResolver] Custom schema path invalid: ${this.options.schemaPath}`, error);
+                }
+            }
+        }
+
+        // Fallback: Check common locations
         const commonPaths = [
-            // Current working directory
-            path.join(process.cwd(), 'schema.prisma'),
             path.join(process.cwd(), 'prisma', 'schema.prisma'),
-            // Project root (if we're in a subdirectory)
-            path.join(process.cwd(), '..', 'schema.prisma'),
+            path.join(process.cwd(), 'schema.prisma'),
             path.join(process.cwd(), '..', 'prisma', 'schema.prisma'),
-            // Common monorepo structures
-            path.join(process.cwd(), '../../schema.prisma'),
+            path.join(process.cwd(), '..', 'schema.prisma'),
             path.join(process.cwd(), '../../prisma', 'schema.prisma'),
-            // Check if custom schema path is provided
-            ...(this.options.schemaPath ? [this.options.schemaPath] : [])
+            path.join(process.cwd(), '../../schema.prisma'),
         ];
 
         for (const schemaPath of commonPaths) {
             try {
                 if (fs.existsSync(schemaPath) && fs.statSync(schemaPath).isFile()) {
                     if (this.options.debug) {
-                        console.log(`Found schema file at: ${schemaPath}`);
+                        console.log(`[PrismaSchemaResolver] Found schema file at: ${schemaPath}`);
                     }
                     return schemaPath;
                 }
@@ -248,27 +256,6 @@ export class PrismaSchemaResolver {
     }
 
     /**
-     * Extract model information from Prisma client
-     * 
-     * @param prisma - The Prisma client instance
-     * @returns Record of model information
-     */    private async extractModelsFromClient(prisma: PrismaClientType): Promise<Record<string, PrismaModelInfo>> {
-        // Extract DMMF from Prisma client
-        const dmmf = this.extractDmmfFromClient(prisma);
-
-        if (dmmf && this.isValidDmmf(dmmf)) {
-            if (this.options.debug) {
-                console.log(`Extracted DMMF with ${dmmf.datamodel.models.length} models from client`);
-            }
-            return this.parseModelsFromDmmf(dmmf);
-        }
-
-        // If DMMF extraction fails, throw error
-        throw new Error(
-            'Unable to extract schema information from Prisma client. ' +
-            'Make sure you are using a valid Prisma client instance with generated types.'
-        );
-    }/**
      * Extract DMMF from Prisma client using various access methods
      * Supports multiple Prisma versions and deployment environments
      */
@@ -301,26 +288,26 @@ export class PrismaSchemaResolver {
                     const dmmf = getDmmf();
                     if (this.isValidDmmf(dmmf)) {
                         if (this.options.debug) {
-                            console.log('Successfully extracted DMMF from Prisma client');
+                            console.log('[PrismaSchemaResolver] Successfully extracted DMMF from Prisma client');
                         }
                         return dmmf;
                     }
                 } catch (error) {
                     // Continue to next method
                     if (this.options.debug) {
-                        console.debug('DMMF extraction method failed:', error);
+                        console.debug('[PrismaSchemaResolver] DMMF extraction method failed:', error);
                     }
                 }
             }
 
             if (this.options.debug) {
-                console.warn('No valid DMMF found using standard access patterns');
+                console.warn('[PrismaSchemaResolver] No valid DMMF found using standard access patterns');
             }
             return null;
 
         } catch (error) {
             if (this.options.debug) {
-                console.error('Error during DMMF extraction:', error);
+                console.error('[PrismaSchemaResolver] Error during DMMF extraction:', error);
             }
             return null;
         }
@@ -337,129 +324,6 @@ export class PrismaSchemaResolver {
             Array.isArray(dmmf.datamodel.models) &&
             dmmf.datamodel.models.length > 0
         );
-    }    /**
-     * Determine if mock data should be used
-     */
-    private shouldUseMockData(): boolean {
-        // Use mock data in test environment or when explicitly enabled
-        return (
-            process.env.NODE_ENV === 'test' ||
-            process.env.VITEST === 'true' ||
-            (this.options.debug === true && process.env.NODE_ENV !== 'production')
-        );
-    }
-
-    /**
-     * Create mock models for development/testing
-     */
-    private createMockModels(): Record<string, PrismaModelInfo> {
-        return {
-            // Example User model - for testing/development only
-            User: {
-                name: 'User',
-                tableName: 'users',
-                fields: {
-                    id: {
-                        name: 'id',
-                        columnName: 'id',
-                        type: 'Int',
-                        isOptional: false,
-                        isList: false,
-                        isId: true,
-                        isUnique: true,
-                        isGenerated: true
-                    },
-                    email: {
-                        name: 'email',
-                        columnName: 'email',
-                        type: 'String',
-                        isOptional: false,
-                        isList: false,
-                        isId: false,
-                        isUnique: true
-                    },
-                    name: {
-                        name: 'name',
-                        columnName: 'name',
-                        type: 'String',
-                        isOptional: true,
-                        isList: false,
-                        isId: false,
-                        isUnique: false
-                    }
-                },
-                relations: {
-                    posts: {
-                        name: 'posts',
-                        modelName: 'Post',
-                        type: 'one-to-many',
-                        foreignKeys: [],
-                        referencedFields: [],
-                        isOptional: false,
-                        isList: true
-                    }
-                },
-                primaryKey: ['id'],
-                uniqueConstraints: [['email']]
-            },
-            // Example Post model - for testing/development only
-            Post: {
-                name: 'Post',
-                tableName: 'posts',
-                fields: {
-                    id: {
-                        name: 'id',
-                        columnName: 'id',
-                        type: 'Int',
-                        isOptional: false,
-                        isList: false,
-                        isId: true,
-                        isUnique: true,
-                        isGenerated: true
-                    },
-                    title: {
-                        name: 'title',
-                        columnName: 'title',
-                        type: 'String',
-                        isOptional: false,
-                        isList: false,
-                        isId: false,
-                        isUnique: false
-                    },
-                    content: {
-                        name: 'content',
-                        columnName: 'content',
-                        type: 'String',
-                        isOptional: true,
-                        isList: false,
-                        isId: false,
-                        isUnique: false
-                    },
-                    authorId: {
-                        name: 'authorId',
-                        columnName: 'author_id',
-                        type: 'Int',
-                        isOptional: false,
-                        isList: false,
-                        isId: false,
-                        isUnique: false
-                    }
-                },
-                relations: {
-                    author: {
-                        name: 'author',
-                        modelName: 'User',
-                        type: 'many-to-one',
-                        foreignKeys: ['authorId'],
-                        referencedFields: ['id'],
-                        isOptional: false,
-                        isList: false
-                    }
-                },
-                primaryKey: ['id'],
-                uniqueConstraints: []
-            }
-        };
     }
 
     /**
@@ -647,15 +511,15 @@ export class PrismaSchemaResolver {
      * 
      * @param dmmf - The DMMF object
      * @returns Database provider string (postgresql, mysql, sqlite, etc.)
-     */    private extractDatabaseProvider(dmmf: any): string | undefined {
+     */
+    private extractDatabaseProvider(dmmf: any): string | undefined {
         try {
             // Check if DMMF has datasources information
             if (dmmf && dmmf.datasources && Array.isArray(dmmf.datasources) && dmmf.datasources.length > 0) {
                 const datasource = dmmf.datasources[0];
                 if (datasource && datasource.provider) {
-                    const provider = datasource.provider.toLowerCase();
-                    if (this.options.debug) {
-                        console.log(`Found database provider from DMMF datasources: ${provider}`);
+                    const provider = datasource.provider.toLowerCase(); if (this.options.debug) {
+                        console.log(`[PrismaSchemaResolver] Found database provider from DMMF datasources: ${provider}`);
                     }
                     return provider;
                 }
@@ -669,9 +533,8 @@ export class PrismaSchemaResolver {
                 // Look specifically for datasource db { provider = "..." } pattern
                 const datasourceMatch = schemaContent.match(/datasource\s+\w+\s*\{[^}]*provider\s*=\s*"([^"]+)"[^}]*\}/);
                 if (datasourceMatch && datasourceMatch[1]) {
-                    const provider = datasourceMatch[1].toLowerCase();
-                    if (this.options.debug) {
-                        console.log(`Found database provider from schema file: ${provider}`);
+                    const provider = datasourceMatch[1].toLowerCase(); if (this.options.debug) {
+                        console.log(`[PrismaSchemaResolver] Found database provider from schema file: ${provider}`);
                     }
                     return provider;
                 }
@@ -683,45 +546,20 @@ export class PrismaSchemaResolver {
                     const provider = providerMatch[1].toLowerCase();
                     if (provider !== 'prisma-client-js' && !provider.includes('client')) {
                         if (this.options.debug) {
-                            console.log(`Found database provider from fallback pattern: ${provider}`);
+                            console.log(`[PrismaSchemaResolver] Found database provider from fallback pattern: ${provider}`);
                         }
                         return provider;
                     }
                 }
-            }
-
-            if (this.options.debug) {
-                console.warn('Could not determine database provider from DMMF or schema file');
+            } if (this.options.debug) {
+                console.warn('[PrismaSchemaResolver] Could not determine database provider from DMMF or schema file');
             }
             return undefined;
         } catch (error) {
             if (this.options.debug) {
-                console.warn('Error extracting database provider:', error);
+                console.warn('[PrismaSchemaResolver] Error extracting database provider:', error);
             }
             return undefined;
         }
-    }
-
-    /**
-     * Find schema file synchronously (for fallback use)
-     * 
-     * @returns Path to schema.prisma file or undefined
-     */
-    private findSchemaFileSync(): string | undefined {
-        const possiblePaths = [
-            this.options.schemaPath,
-            './prisma/schema.prisma',
-            './schema.prisma',
-            '../prisma/schema.prisma',
-            '../../prisma/schema.prisma'
-        ].filter(Boolean) as string[];
-
-        for (const schemaPath of possiblePaths) {
-            if (fs.existsSync(schemaPath)) {
-                return path.resolve(schemaPath);
-            }
-        }
-
-        return undefined;
     }
 }
