@@ -1,4 +1,4 @@
-import { PrismaClientType, PrismaReaderOptions, PrismaSchemaInfo } from './types';
+import { PrismaClientType, RawSqlClientOptions, PrismaSchemaInfo } from './types';
 import { PrismaSchemaResolver } from './PrismaSchemaResolver';
 import {
     SqlFormatter,
@@ -26,14 +26,14 @@ import * as path from 'path';
  * - Schema-aware JSON serialization
  * - Type-safe parameter injection
  */
-export class PrismaReader {
-    private readonly prisma: PrismaClientType; private readonly options: PrismaReaderOptions;
+export class RawSqlClient {
+    private readonly prisma: PrismaClientType; private readonly options: RawSqlClientOptions;
     private readonly schemaResolver: PrismaSchemaResolver;
     private schemaInfo?: PrismaSchemaInfo;
     private tableColumnResolver?: TableColumnResolver;
     private isInitialized = false;
 
-    constructor(prisma: PrismaClientType, options: PrismaReaderOptions = {}) {
+    constructor(prisma: PrismaClientType, options: RawSqlClientOptions = {}) {
         this.prisma = prisma;
         this.options = {
             debug: false,
@@ -51,10 +51,8 @@ export class PrismaReader {
     private async initialize(): Promise<void> {
         if (this.isInitialized) {
             return; // Already initialized
-        }
-
-        if (this.options.debug) {
-            console.log('Initializing PrismaReader schema information...');
+        } if (this.options.debug) {
+            console.log('Initializing RawSqlClient schema information...');
         }
 
         this.schemaInfo = await this.schemaResolver.resolveSchema(this.prisma);
@@ -68,10 +66,8 @@ export class PrismaReader {
         }
 
         this.isInitialized = true;
-    }
-
-    /**
-     * Ensure the PrismaReader is initialized before use
+    }    /**
+     * Ensure the RawSqlClient is initialized before use
      * Automatically calls initialize() if not already done
      */
     private async ensureInitialized(): Promise<void> {

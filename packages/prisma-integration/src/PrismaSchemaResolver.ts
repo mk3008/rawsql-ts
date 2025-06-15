@@ -1,5 +1,5 @@
 import { TableColumnResolver } from 'rawsql-ts';
-import { PrismaClientType, PrismaFieldInfo, PrismaModelInfo, PrismaReaderOptions, PrismaRelationInfo, PrismaSchemaInfo } from './types';
+import { PrismaClientType, PrismaFieldInfo, PrismaModelInfo, RawSqlClientOptions, PrismaRelationInfo, PrismaSchemaInfo } from './types';
 import { getDMMF } from '@prisma/internals';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -11,10 +11,10 @@ import * as path from 'path';
  * field types, relationships, and other metadata needed for dynamic SQL generation.
  */
 export class PrismaSchemaResolver {
-    private readonly options: PrismaReaderOptions;
+    private readonly options: RawSqlClientOptions;
     private schemaInfo?: PrismaSchemaInfo;
 
-    constructor(options: PrismaReaderOptions) {
+    constructor(options: RawSqlClientOptions) {
         this.options = options;
     }
 
@@ -82,7 +82,7 @@ export class PrismaSchemaResolver {
             `Unable to resolve Prisma schema information. Please ensure you have a valid schema.prisma file in one of these locations:\n` +
             schemaLocations.map(loc => `  - ${loc}`).join('\n') + '\n\n' +
             'Or provide a valid PrismaClient instance to the StaticAnalysisOrchestrator.\n' +
-            'If you are using a custom schema location, specify it using the "schemaPath" option in PrismaReader.'
+            'If you are using a custom schema location, specify it using the "schemaPath" option in RawSqlClient.'
         );
     }
 

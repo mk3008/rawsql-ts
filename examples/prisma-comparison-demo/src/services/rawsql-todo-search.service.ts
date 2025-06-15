@@ -1,10 +1,10 @@
 /**
  * rawsql-ts implementation for TODO search
- * Uses PrismaReader for advanced SQL capabilities with dynamic filtering, sorting, and pagination
+ * Uses RawSqlClient for advanced SQL capabilities with dynamic filtering, sorting, and pagination
  */
 
 import { PrismaClient } from '@prisma/client';
-import { PrismaReader } from '../../../../packages/prisma-integration/src/PrismaReader';
+import { RawSqlClient } from '../../../../packages/prisma-integration/src/RawSqlClient';
 import { TodoSearchService } from '../interfaces/todo-service.interface';
 import {
     TodoSearchParams,
@@ -15,22 +15,22 @@ import {
 
 export class RawSqlTodoSearchService implements TodoSearchService {
     private prisma: PrismaClient;
-    private prismaReader: PrismaReader;
+    private client: RawSqlClient;
     private debugMode: boolean;
 
     constructor(prisma: PrismaClient, options?: { debug?: boolean }) {
         this.prisma = prisma;
         this.debugMode = options?.debug ?? false;
-        this.prismaReader = new PrismaReader(prisma, {
+        this.client = new RawSqlClient(prisma, {
             debug: this.debugMode,
             sqlFilesPath: './rawsql-ts'
         });
     }    /**
-     * Initialize the PrismaReader
-     * (No longer needed - PrismaReader uses lazy initialization)
+     * Initialize the RawSqlClient
+     * (No longer needed - RawSqlClient uses lazy initialization)
      */
     async initialize(): Promise<void> {
-        // PrismaReader now initializes automatically when needed
+        // RawSqlClient now initializes automatically when needed
         // This method is kept for backward compatibility but does nothing
     }
 
@@ -77,8 +77,8 @@ export class RawSqlTodoSearchService implements TodoSearchService {
                     sort,
                     paging
                 });
-            }            // Execute query using PrismaReader with file-based JSON serialization
-            const queryResult = await this.prismaReader.query<TodoListItem[]>('searchTodos.sql', {
+            }            // Execute query using RawSqlClient with file-based JSON serialization
+            const queryResult = await this.client.query<TodoListItem[]>('searchTodos.sql', {
                 filter,
                 sort,
                 paging,
@@ -89,7 +89,7 @@ export class RawSqlTodoSearchService implements TodoSearchService {
             const todoListItems: TodoListItem[] = queryResult || [];
 
             if (this.debugMode) {
-                originalLog('✅ rawsql-ts Results:', todoListItems.length, 'items found');
+                originalLog('✁Erawsql-ts Results:', todoListItems.length, 'items found');
             }
 
             // Extract SQL from logged queries

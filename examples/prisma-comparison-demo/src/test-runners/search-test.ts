@@ -141,12 +141,11 @@ async function testRawSqlSearchImplementation() {
 
     const service = new RawSqlTodoSearchService(prisma, { debug: false });
 
-    try {
-        // Initialize the PrismaReader
+    try {        // Initialize the RawSqlClient
         await service.initialize();
-        console.log('✅ rawsql-ts PrismaReader initialized successfully');
+        console.log('✅ rawsql-ts RawSqlClient initialized successfully');
     } catch (error) {
-        console.error('❌ Failed to initialize rawsql-ts PrismaReader:', error);
+        console.error('❌ Failed to initialize rawsql-ts RawSqlClient:', error);
         return;
     }
 

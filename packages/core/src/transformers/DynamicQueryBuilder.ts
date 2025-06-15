@@ -106,7 +106,7 @@ export class DynamicQueryBuilder {
             }
         }
         // 4. Apply serialization last (transform the final query structure to JSON)
-        // Note: boolean values are handled at PrismaReader level for auto-loading
+        // Note: boolean values are handled at RawSqlClient level for auto-loading
         if (options.serialize && typeof options.serialize === 'object') {
             const jsonBuilder = new PostgresJsonQueryBuilder();
             // Ensure we have a SimpleSelectQuery for the JSON builder

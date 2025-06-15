@@ -1,9 +1,9 @@
 import { PrismaClient } from '@prisma/client';
 
 /**
- * Configuration options for PrismaReader
+ * Configuration options for RawSqlClient
  */
-export interface PrismaReaderOptions {
+export interface RawSqlClientOptions {
     /** Enable debug logging */
     debug?: boolean;
     /** Default schema name */
@@ -96,3 +96,5 @@ export interface PrismaRelationInfo {
  * Generic type for Prisma client
  */
 export type PrismaClientType = PrismaClient;
+
+

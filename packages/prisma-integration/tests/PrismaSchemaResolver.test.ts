@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { PrismaSchemaResolver } from '../src/PrismaSchemaResolver';
-import { PrismaReaderOptions } from '../src/types';
+import { RawSqlClientOptions } from '../src/types';
 import * as fs from 'fs';
 import { getDMMF } from '@prisma/internals';
 
@@ -16,7 +16,7 @@ const mockPrismaClient = {
 
 describe('PrismaSchemaResolver', () => {
     let resolver: PrismaSchemaResolver;
-    let options: PrismaReaderOptions;
+    let options: RawSqlClientOptions;
 
     beforeEach(() => {
         // Arrange: Mock関数をリセット

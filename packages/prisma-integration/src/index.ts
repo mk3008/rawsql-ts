@@ -5,7 +5,7 @@
  * enabling dynamic SQL generation with type safety and hierarchical JSON serialization.
  */
 
-export { PrismaReader } from './PrismaReader';
+export { RawSqlClient } from './RawSqlClient';
 export { PrismaSchemaResolver } from './PrismaSchemaResolver';
 export { AutoTypeCompatibilityValidator } from './AutoTypeCompatibilityValidator';
 export { DomainModelCompatibilityTester, validateJsonMappingCompatibility } from './DomainModelCompatibilityTester';
@@ -23,7 +23,7 @@ export {
 
 // Type exports
 export type {
-    PrismaReaderOptions,
+    RawSqlClientOptions,
     PrismaSchemaInfo,
     PrismaModelInfo,
     PrismaFieldInfo,

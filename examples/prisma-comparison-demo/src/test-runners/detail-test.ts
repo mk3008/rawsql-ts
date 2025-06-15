@@ -113,11 +113,11 @@ async function testRawSqlDetailImplementation() {
     console.log('='.repeat(60));
 
     const service = new RawSqlTodoDetailService(prisma, { debug: false }); try {
-        // Initialize the PrismaReader
+        // Initialize the RawSqlClient
         await service.initialize();
-        console.log('✅ rawsql-ts PrismaReader initialized successfully');
+        console.log('✅ rawsql-ts RawSqlClient initialized successfully');
     } catch (error) {
-        console.error('❌ Failed to initialize rawsql-ts PrismaReader:', error);
+        console.error('❌ Failed to initialize rawsql-ts RawSqlClient:', error);
         return;
     }
 

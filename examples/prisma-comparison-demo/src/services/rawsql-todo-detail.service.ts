@@ -1,10 +1,10 @@
 /**
  * rawsql-ts implementation for TODO detail retrieval
- * Uses PrismaReader for advanced SQL capabilities with automatic data structuring
+ * Uses RawSqlClient for advanced SQL capabilities with automatic data structuring
  */
 
 import { PrismaClient } from '@prisma/client';
-import { PrismaReader } from '../../../../packages/prisma-integration/src/PrismaReader';
+import { RawSqlClient } from '../../../../packages/prisma-integration/src/RawSqlClient';
 import { JsonSchemaValidator } from '../../../../packages/core/src';
 import { TodoDetailService } from '../interfaces/todo-service.interface';
 import {
@@ -16,28 +16,30 @@ import {
 
 export class RawSqlTodoDetailService implements TodoDetailService {
     private prisma: PrismaClient;
-    private prismaReader: PrismaReader;
+    private client: RawSqlClient;
     private debugMode: boolean;
 
     constructor(prisma: PrismaClient, options?: { debug?: boolean }) {
         this.prisma = prisma;
         this.debugMode = options?.debug ?? false;
-        this.prismaReader = new PrismaReader(prisma, {
+        this.client = new RawSqlClient(prisma, {
             debug: this.debugMode,
             sqlFilesPath: './rawsql-ts'
         });
     }    /**
-     * Initialize the PrismaReader
-     * (No longer needed - PrismaReader uses lazy initialization)
+     * Initialize the RawSqlClient
+     * (No longer needed - RawSqlClient uses lazy initialization)
      */
     async initialize(): Promise<void> {
-        // PrismaReader now initializes automatically when needed
+        // RawSqlClient now initializes automatically when needed
         // This method is kept for backward compatibility but does nothing
-    }/**
+    }
+
+    /**
      * Execute the core SQL query with file-based JSON mapping
      */
     private async executeGetTodoDetailQuery(todoId: number): Promise<TodoDetail | null> {
-        return await this.prismaReader.query<TodoDetail>('getTodoDetail.sql', {
+        return await this.client.query<TodoDetail>('getTodoDetail.sql', {
             filter: { todo_id: todoId },
             serialize: true
         });
