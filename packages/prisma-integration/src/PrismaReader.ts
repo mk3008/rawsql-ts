@@ -137,12 +137,11 @@ export class PrismaReader {
             if (this.options.debug) {
                 console.log('Applied pagination:', options.paging);
             }
-        }
-        // Apply JSON serialization if requested (before formatting)
+        }        // Apply JSON serialization if requested (before formatting)
         let serializationApplied = false;
-        if (options.serialize) {
-            let actualSerialize: JsonMapping | null = null;
+        let actualSerialize: JsonMapping | null = null;
 
+        if (options.serialize) {
             // Handle boolean case - auto-load JsonMapping from .json file
             if (typeof options.serialize === 'boolean' && options.serialize === true) {
                 if (typeof sqlFilePathOrQuery === 'string') {
@@ -205,9 +204,7 @@ export class PrismaReader {
             console.log('Executing SQL:', finalSql);
             console.log('Parameters:', parameters);
             console.log('Parameters Array:', parametersArray);
-        }
-
-        // Execute with Prisma
+        }        // Execute with Prisma
         const result = await this.executeSqlWithParams(finalSql, parametersArray);
 
         // Handle different return types based on serialization
@@ -216,7 +213,29 @@ export class PrismaReader {
             if (result.length === 0) {
                 return null as T | null;
             }
-            return result[0] as T;
+
+            const serializedResult = result[0];
+
+            // Check if this is a resultFormat: "array" case and extract the array
+            if (actualSerialize && actualSerialize.resultFormat === 'array' && serializedResult) {
+                // The result should be an object with a single property containing the array
+                // Find the first property that contains an array
+                for (const [key, value] of Object.entries(serializedResult)) {
+                    if (Array.isArray(value)) {
+                        if (this.options.debug) {
+                            console.log(`Auto-extracting array from property "${key}" due to resultFormat: "array"`);
+                        }
+                        return value as T;
+                    }
+                }
+
+                // If no array property found, log warning and return as-is
+                if (this.options.debug) {
+                    console.warn('resultFormat: "array" specified but no array property found in result');
+                }
+            }
+
+            return serializedResult as T;
         } else {
             // When not serialized, return array of rows
             return result as T[];
