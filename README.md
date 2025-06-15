@@ -452,6 +452,55 @@ For more details on `QueryBuilder`, see the [QueryBuilder Usage Guide](./docs/us
 
 ---
 
+## DynamicQueryBuilder Features
+
+The `DynamicQueryBuilder` class provides a comprehensive solution for building dynamic SQL queries by orchestrating multiple rawsql-ts injectors in optimal order. Instead of manually chaining different injectors, this class takes a base SQL string and applies filtering, sorting, pagination, and JSON serialization in a single, intelligent operation for maximum query performance.
+
+Key benefits include:
+- **All-in-One Solution**: Combines SqlParamInjector, SqlSortInjector, SqlPaginationInjector, and PostgresJsonQueryBuilder seamlessly
+- **Intelligent Order**: Automatically applies conditions in optimal sequence (filter → sort → pagination → serialization)
+- **Pure JavaScript**: Framework-agnostic with no dependencies, works in any environment
+- **Convenience Methods**: Dedicated methods for individual operations (filtering, sorting, pagination, serialization)
+- **SQL Validation**: Built-in validation to ensure SQL correctness before processing
+
+```typescript
+import { DynamicQueryBuilder, SqlFormatter } from 'rawsql-ts';
+
+const builder = new DynamicQueryBuilder();
+const baseSql = 'SELECT id, name, email FROM users WHERE active = true';
+
+// Apply all dynamic features in one call
+const query = builder.buildQuery(baseSql, {
+  filter: { status: 'premium', created_at: { '>': '2024-01-01' } },
+  sort: { created_at: { desc: true }, name: { asc: true } },
+  paging: { page: 2, pageSize: 10 },
+  serialize: {
+    rootName: 'user',
+    rootEntity: { id: 'user', name: 'User', columns: { id: 'id', name: 'name', email: 'email' } },
+    nestedEntities: []
+  }
+});
+
+const formatter = new SqlFormatter();
+const { formattedSql, params } = formatter.format(query);
+
+console.log(formattedSql);
+// Output: Optimized PostgreSQL JSON query with filtering, sorting, pagination, and hierarchical JSON structure
+
+// Use convenience methods for specific operations
+const filteredOnly = builder.buildFilteredQuery(baseSql, { status: 'premium' });
+const sortedOnly = builder.buildSortedQuery(baseSql, { name: { asc: true } });
+const paginatedOnly = builder.buildPaginatedQuery(baseSql, { page: 1, pageSize: 20 });
+const serializedOnly = builder.buildSerializedQuery(baseSql, { /* JSON mapping */ });
+```
+
+For detailed filtering options, see the [SqlParamInjector Usage Guide](./docs/usage-guides/class-SqlParamInjector-usage-guide.md).
+For sorting configurations, see the [SqlSortInjector Usage Guide](./docs/usage-guides/class-SqlSortInjector-usage-guide.md).
+For pagination settings, see the [SqlPaginationInjector Usage Guide](./docs/usage-guides/class-SqlPaginationInjector-usage-guide.md).
+For JSON serialization mappings, see the [PostgresJsonQueryBuilder Usage Guide](./docs/usage-guides/class-PostgresJsonQueryBuilder-usage-guide.md).
+
+---
+
 ## SchemaManager Features
 
 The `SchemaManager` class provides unified schema definition and type-safe conversion to various formats, eliminating code duplication for rawsql-ts. It serves as a central hub for managing database schema definitions and converting them to formats required by different components like `SqlParamInjector` and `PostgresJsonQueryBuilder`.

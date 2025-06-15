@@ -22,7 +22,9 @@ export * from './transformers/SchemaCollector';
 export * from './transformers/SqlParamInjector';
 export * from './transformers/SqlSortInjector';
 export * from './transformers/SqlPaginationInjector';
+export * from './transformers/DynamicQueryBuilder';
 
 export * from './utils/SqlSchemaValidator';
+export * from './utils/JsonSchemaValidator';
 export * from './utils/SchemaManager';
 // Add more exports here if you want to expose additional public API
