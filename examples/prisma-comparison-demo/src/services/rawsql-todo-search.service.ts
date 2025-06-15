@@ -25,13 +25,13 @@ export class RawSqlTodoSearchService implements TodoSearchService {
             debug: this.debugMode,
             sqlFilesPath: './rawsql-ts'
         });
-    }
-
-    /**
+    }    /**
      * Initialize the PrismaReader
+     * (No longer needed - PrismaReader uses lazy initialization)
      */
     async initialize(): Promise<void> {
-        await this.prismaReader.initialize();
+        // PrismaReader now initializes automatically when needed
+        // This method is kept for backward compatibility but does nothing
     }
 
     /**

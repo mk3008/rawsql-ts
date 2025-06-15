@@ -26,14 +26,14 @@ export class RawSqlTodoDetailService implements TodoDetailService {
             debug: this.debugMode,
             sqlFilesPath: './rawsql-ts'
         });
-    }
-
-    /**
+    }    /**
      * Initialize the PrismaReader
+     * (No longer needed - PrismaReader uses lazy initialization)
      */
     async initialize(): Promise<void> {
-        await this.prismaReader.initialize();
-    }    /**
+        // PrismaReader now initializes automatically when needed
+        // This method is kept for backward compatibility but does nothing
+    }/**
      * Execute the core SQL query with file-based JSON mapping
      */
     private async executeGetTodoDetailQuery(todoId: number): Promise<TodoDetail | null> {

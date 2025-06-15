@@ -31,6 +31,7 @@ export class PrismaReader {
     private readonly schemaResolver: PrismaSchemaResolver;
     private schemaInfo?: PrismaSchemaInfo;
     private tableColumnResolver?: TableColumnResolver;
+    private isInitialized = false;
 
     constructor(prisma: PrismaClientType, options: PrismaReaderOptions = {}) {
         this.prisma = prisma;
@@ -45,12 +46,18 @@ export class PrismaReader {
 
     /**
      * Initialize the Prisma schema information and resolvers
-     * This should be called once after creating the instance
+     * This is called automatically when needed (lazy initialization)
      */
-    async initialize(): Promise<void> {
+    private async initialize(): Promise<void> {
+        if (this.isInitialized) {
+            return; // Already initialized
+        }
+
         if (this.options.debug) {
             console.log('Initializing PrismaReader schema information...');
-        } this.schemaInfo = await this.schemaResolver.resolveSchema(this.prisma);
+        }
+
+        this.schemaInfo = await this.schemaResolver.resolveSchema(this.prisma);
 
         if (this.schemaInfo) {
             this.tableColumnResolver = this.schemaResolver.createTableColumnResolver();
@@ -58,6 +65,18 @@ export class PrismaReader {
 
         if (this.options.debug && this.schemaInfo) {
             console.log(`Loaded schema with ${Object.keys(this.schemaInfo.models).length} models`);
+        }
+
+        this.isInitialized = true;
+    }
+
+    /**
+     * Ensure the PrismaReader is initialized before use
+     * Automatically calls initialize() if not already done
+     */
+    private async ensureInitialized(): Promise<void> {
+        if (!this.isInitialized) {
+            await this.initialize();
         }
     }
 
@@ -70,12 +89,8 @@ export class PrismaReader {
      */    // Overloads for different return types based on serialization
     async query<T = any>(sqlFilePath: string, options: QueryBuildOptions & { serialize: JsonMapping | true }): Promise<T | null>;
     async query<T = any>(sqlFilePath: string, options?: Omit<QueryBuildOptions, 'serialize'> | (QueryBuildOptions & { serialize?: false })): Promise<T[]>;
-    async query<T = any>(query: SelectQuery): Promise<T[]>;
-
-    async query<T = any>(sqlFilePathOrQuery: string | SelectQuery, options: QueryBuildOptions = {}): Promise<T[] | T | null> {
-        if (!this.schemaInfo || !this.tableColumnResolver) {
-            throw new Error('PrismaReader not initialized. Call initialize() first.');
-        }
+    async query<T = any>(query: SelectQuery): Promise<T[]>; async query<T = any>(sqlFilePathOrQuery: string | SelectQuery, options: QueryBuildOptions = {}): Promise<T[] | T | null> {
+        await this.ensureInitialized();
 
         let modifiedQuery: SimpleSelectQuery;
 
@@ -104,12 +119,13 @@ export class PrismaReader {
         } else {
             // Handle pre-built SelectQuery
             modifiedQuery = QueryBuilder.buildSimpleQuery(sqlFilePathOrQuery);
-        }
-
-        // Apply dynamic modifications
+        }        // Apply dynamic modifications
         // Apply filtering
         if (options.filter && Object.keys(options.filter).length > 0) {
-            const paramInjector = new SqlParamInjector(this.tableColumnResolver!);
+            if (!this.tableColumnResolver) {
+                throw new Error('TableColumnResolver not available. Initialization may have failed.');
+            }
+            const paramInjector = new SqlParamInjector(this.tableColumnResolver);
             modifiedQuery = paramInjector.inject(modifiedQuery, options.filter);
 
             if (this.options.debug) {
