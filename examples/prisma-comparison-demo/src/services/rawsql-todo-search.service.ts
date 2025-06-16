@@ -89,7 +89,7 @@ export class RawSqlTodoSearchService implements TodoSearchService {
             const todoListItems: TodoListItem[] = queryResult || [];
 
             if (this.debugMode) {
-                originalLog('✁Erawsql-ts Results:', todoListItems.length, 'items found');
+                originalLog('🔍 rawsql-ts Results:', todoListItems.length, 'items found');
             }
 
             // Extract SQL from logged queries
