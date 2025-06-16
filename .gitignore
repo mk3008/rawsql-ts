@@ -173,4 +173,4 @@ demo/formatter/node_modules/
 
 # Test reports
 reports/
-*.md
+reports/**/*.md
