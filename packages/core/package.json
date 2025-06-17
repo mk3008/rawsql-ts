@@ -1,10 +1,10 @@
 {
     "name": "rawsql-ts",
-    "version": "0.10.7-beta",
+    "version": "0.10.9-beta",
     "description": "[beta]High-performance SQL parser and AST analyzer written in TypeScript. Provides fast parsing and advanced transformation capabilities.",
-    "main": "dist/index.js",
+    "main": "dist/src/index.js",
     "module": "dist/esm/index.js",
-    "types": "dist/index.d.ts",
+    "types": "dist/src/index.d.ts",
     "browser": "dist/esm/index.min.js",
     "homepage": "https://mk3008.github.io/rawsql-ts/",
     "scripts": {
@@ -12,9 +12,12 @@
         "test:watch": "vitest",
         "coverage": "vitest run --coverage",
         "build": "tsc --build",
-        "build:browser": "tsc --project tsconfig.browser.json",
+        "build:browser": "tsc --project tsconfig.browser.json && npm run build:copy",
+        "build:copy": "node -e \"const fs = require('fs'); fs.copyFileSync('dist/esm/src/index.js', 'dist/esm/index.js'); fs.copyFileSync('dist/esm/src/index.js.map', 'dist/esm/index.js.map');\"",
         "build:minify": "esbuild src/index.ts --bundle --minify --outfile=dist/index.min.js --format=cjs --sourcemap && esbuild src/index.ts --bundle --minify --outfile=dist/esm/index.min.js --format=esm --sourcemap",
-        "clean": "tsc --build --clean",
+        "build:all": "npm run clean && npm run build && npm run build:browser && npm run build:minify",
+        "release": "npm run build:all && npm pack --dry-run && npm publish",
+        "clean": "tsc --build --clean && node -e \"const fs = require('fs'); if (fs.existsSync('dist')) fs.rmSync('dist', {recursive: true, force: true});\"",
         "lint": "eslint . --ext .ts,.tsx --fix",
         "benchmark": "ts-node benchmarks/parse-benchmark.ts"
     },
