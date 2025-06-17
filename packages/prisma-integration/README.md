@@ -4,227 +4,161 @@
 ![npm downloads](https://img.shields.io/npm/dm/@rawsql-ts/prisma-integration)
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 
-## 🎯 Overview
+`@rawsql-ts/prisma-integration` transforms raw SQL into structured TypeScript models automatically. Break free from Prisma model constraints and let SQL handle your DTO creation with comprehensive static validation.
 
-**Transform SQL files into structured JSON with static validation - no additional schema definitions required.**
+**PostgreSQL Only** - This library is specifically designed for PostgreSQL databases.
 
-RawSqlClient is a wrapper around PrismaClient that provides three core capabilities:
+## Key Features
 
-1. **Structured JSON Response**: Place a JSON mapping file alongside your SQL file, and get hierarchical JSON instead of flat database rows
-2. **Static SQL Validation**: Automatically validate that your SQL queries are compatible with your Prisma schema at development time
-3. **Static Model Validation**: Ensure your JSON mappings match your TypeScript domain models through static analysis
+- **Write Simple SQL** - Just write normal flat SQL queries, no complex structuring needed
+- **Get Custom Models** - Return any TypeScript model structure, not limited to Prisma models
+- **JSON Configuration** - Map SQL results to TypeScript models with simple JSON files  
+- **Offline Validation** - Validate SQL syntax and schema without database connection
+- **File Organization** - Organize SQL queries in maintainable, version-controlled files
+- **One-Time Test Setup** - Single validation test covers all your SQL files automatically
 
-### What You Can Achieve
+## 🎯 Design Philosophy
 
-Complex SQL queries can be paired with JSON mapping files to produce properly structured TypeScript objects with minimal configuration.
+**Focus on Read Operations**: Prisma excels at CUD (Create, Update, Delete) operations. This library specifically enhances the **R** (Read) capabilities, letting each tool do what it does best.
 
-```typescript
-// 🎯 Single object: Use queryOne<T>() 
-const todoDetail = await rawSqlClient.queryOne<TodoDetail>('getTodoDetail.sql', {
-    filter: { todo_id: 1 }
-}); // → TodoDetail | null
+**Integration Testing Over Static Perfection**: Accurate type information exists only on the server, making integration tests more practical than perfect static type alignment.
 
-// 🎯 Array of objects: Use queryMany<T>()
-const todoList = await rawSqlClient.queryMany<TodoDetail>('getTodoList.sql', {
-    filter: { completed: false }
-}); // → TodoDetail[]
-```
+**Schema Structure Matters Most**: However, column definitions are stable and structural validation provides real value—catching missing tables or columns where static analysis excels.
 
-**The result structure is always the same beautiful nested object:**
-```typescript
-// Both queryOne and queryMany return the same object structure
-{
-    todoId: 1,
-    title: "Learn rawsql-ts",
-    description: "Master the art of structured SQL",
-    completed: false,
-    user: { userId: 1, userName: "Alice", email: "alice@example.com" },
-    category: { categoryId: 2, categoryName: "Learning", color: "#blue" },
-    comments: [
-        { 
-            commentId: 1, 
-            commentText: "Great library!", 
-            user: { userName: "Bob", email: "bob@example.com" }
-        }
-    ]
-}
-```
-
-**Crystal clear intent. Same mapping. Perfect flexibility.** ✨
-
-### 🔧 Behind the Magic
-
-## 🎯 Architecture Overview
-
-RawSqlClient leverages a two-tier approach to transform flat SQL result sets into structured hierarchical objects. This methodology combines the expressiveness of raw SQL with automated data transformation capabilities.
-
-### Implementation Pattern
-
-The system operates through a coordinated pair of files:
-
-**SQL Query Definition** (`getTodoDetail.sql`):
-```sql
-SELECT 
-    -- Primary entity attributes
-    t.todo_id, t.title, t.description, t.completed,
-    -- Related user entity  
-    u.user_id, u.user_name, u.email,
-    -- Related category entity
-    c.category_id, c.category_name, c.color,
-    -- Associated comments (denormalized via JOINs)
-    tc.comment_id, tc.comment_text,
-    cu.user_name as comment_user_name
-FROM todo t
-INNER JOIN "user" u ON t.user_id = u.user_id  
-INNER JOIN category c ON t.category_id = c.category_id
-LEFT JOIN todo_comment tc ON t.todo_id = tc.todo_id
-LEFT JOIN "user" cu ON tc.user_id = cu.user_id
--- Dynamic WHERE clause injection: WHERE t.todo_id = $1
-```
-
-**Transformation Schema** (`getTodoDetail.json`):
-```json
-{
-  "rootEntity": { 
-    "columns": { "todoId": "todo_id", "title": "title", "description": "description" } 
-  },
-  "nestedEntities": [
-    { 
-      "parentId": "todo", 
-      "propertyName": "user", 
-      "relationshipType": "object",
-      "columns": { "userId": "user_id", "userName": "user_name", "email": "email" }
-    },
-    { 
-      "parentId": "todo", 
-      "propertyName": "comments", 
-      "relationshipType": "array",
-      "columns": { 
-        "commentId": "comment_id", 
-        "commentText": "comment_text",
-        "userName": "comment_user_name"
-      }
-    }
-  ]
-}
-```
-
-### Technical Implementation
-
-The transformation engine processes denormalized SQL result sets through PostgreSQL's native JSON aggregation functions, converting flat tabular data into structured hierarchical objects. This approach eliminates N+1 query patterns while maintaining type safety and performance optimization.
-
-### Architectural Advantages
-
-**Schema Reuse**: RawSqlClient integrates directly with existing Prisma schema definitions, eliminating duplicate schema maintenance overhead.
-
-**Incremental Integration**: As a PrismaClient wrapper, RawSqlClient enables selective adoption - existing Prisma code remains unchanged while specific use cases benefit from enhanced SQL capabilities.
-
-## 🔥 Key Features
-
-> [!Important]
-> This package is designed for **PostgreSQL databases only**. The hierarchical JSON serialization feature leverages PostgreSQL-specific JSON functions and capabilities.
-
-### Primary Capabilities
-
-**SQL File + JSON Mapping = Structured Response**
-- Place a `.json` mapping file alongside your `.sql` file
-- Get hierarchical JSON structures instead of flat database rows
-- No complex SQL joins or subqueries required
-
-**Static SQL Schema Validation**
-- Validate SQL queries against your Prisma schema at development time
-- Catch missing tables, invalid columns, and type mismatches before deployment
-- Automated regression testing through unit tests
-
-**Static JSON Mapping Validation**
-- Validate JSON mappings against your TypeScript domain models
-- Ensure response structure matches expected interfaces
-- Comprehensive error reporting with actionable messages
-
-**Zero Schema Management Overhead**
-- No separate DB schema definitions required - uses your existing Prisma schema
-- PrismaClient wrapper - seamlessly integrates with existing Prisma applications
-- Selective adoption - use RawSqlClient only where you need advanced SQL, keep regular Prisma everywhere else
-
-### Perfect for Hybrid Architectures
-
-```typescript
-// Use Prisma for simple CRUD operations
-const user = await prisma.user.create({ data: { name: 'John', email: 'john@example.com' } });
-
-// Use RawSqlClient for complex queries that need structured JSON output
-const client = new RawSqlClient(prisma);
-const analytics = await client.query('reports/user-analytics.sql', {
-  filter: { department: 'engineering' },
-  serialize: true  // Auto-loads user-analytics.json mapping
-});
-```
-
-> [!Note]
-> This package is part of the rawsql-ts ecosystem. While this package is currently in beta, it provides stable integration with Prisma ORM for production use.
-
----
-
-## � Installation
+## Installation
 
 ```bash
-npm install @rawsql-ts/prisma-integration rawsql-ts @prisma/client
+npm install @rawsql-ts/prisma-integration 
 ```
 
-> [!Note]
-> This package requires `@prisma/client` and `rawsql-ts` as peer dependencies.
+## 🚀 Getting Started 
 
----
+Assuming you already have a Prisma project set up:
 
-## 🚀 Quick Start
+> **Don't have a Prisma project yet?** Check out our [complete demo environment](../../examples/prisma-comparison-demo/README.md) which includes a full setup with sample data.
 
-### Basic Setup with Static Validation
+### Step 1: Create SQL Folder
+
+Create a folder to store your SQL files:
+
+```bash
+mkdir sql
+```
+
+### Step 2: Write Raw SQL Files
+
+Create SQL files with your queries. Just write normal SQL - no special syntax needed.
+
+Write simple SQL appropriate for your database schema:
+
+```sql
+-- sql/users/profile.sql (Example - adjust table/column names for your schema)
+SELECT 
+  u.id, u.name, u.email,
+  p.title, p.bio
+FROM users u
+LEFT JOIN profiles p ON u.id = p.user_id
+```
+
+> **Note**: This is just a sample. Please write simple SQL queries that match your actual database schema and table names.
+
+### Step 3: Execute with RawSqlClient
+
+Now you can execute your SQL files with full TypeScript support:
 
 ```typescript
 import { PrismaClient } from '@prisma/client';
 import { RawSqlClient } from '@rawsql-ts/prisma-integration';
 
-// Initialize Prisma client and rawsql-ts client
 const prisma = new PrismaClient();
 const client = new RawSqlClient(prisma, {
-    sqlFilesPath: './sql',  // Your SQL files directory
-    debug: true
+    sqlFilesPath: './sql'  // Point to your SQL folder
 });
 
-// No manual initialization required - schema is loaded automatically when needed
+// Execute SQL file and get result
+const profile = await client.queryOne('users/profile.sql', { userId: 123 });
 ```
 
-### File-based SQL with JSON Mapping
+That's it! Your execution environment is now ready! 
 
-Create your SQL file and corresponding JSON mapping:
+Continue reading the following sections to explore advanced features like custom model mapping, offline validation, and structured result transformation.
+
+## 📁 File-Based SQL Organization 
+
+Organize your SQL queries in a clean, maintainable folder structure:
+
+```
+sql/
+└── users/
+   ├── profile.sql          # User profile query
+   └── profile.json         # JSON mapping for nested structure
+```
+
+Benefits: Logical grouping, IDE support, version control friendly, and easy discovery.
+
+*[→ Learn more: SQL File Organization Guide](../../docs/usage-guides/sql-file-organization-guide.md)*
+
+## 🔄 Development Workflow
+
+Three-step pattern for structured data handling:
+
+### 1. Define Domain Models
+
+Start by defining TypeScript interfaces that represent your **domain models** - not your database schema, but the structured data your application needs. This is about creating DTOs (Data Transfer Objects) that serve your business logic, which may aggregate data from multiple tables or transform database structures into application-friendly formats.
+
+```typescript
+// src/types/models.ts
+// This is a DOMAIN MODEL - not a Prisma model!
+// It represents how your application wants to consume user data,
+// aggregating information from multiple database tables.
+interface UserProfile {
+  id: number;
+  name: string;
+  email: string;
+  profile: {
+    title: string;
+    bio: string;
+  };
+  posts: Array<{
+    id: number;
+    title: string;
+    content: string;
+  }>;
+}
+```
+
+### 2. Write Flat SQL Query
+
+Create SQL queries that aggregate data from multiple tables to support your domain model. This eliminates the need for manual DTO mapping logic that you'd have to write and maintain when using Prisma's ORM approach:
 
 ```sql
--- sql/users/search.sql
+-- sql/users/get-profile.sql
+-- Aggregate data from multiple tables for domain model
 SELECT 
-    u.id as user_id,
-    u.name as user_name,
-    u.email,
-    u.created_at,
-    p.title as profile_title,
-    p.bio as profile_bio
+  u.id as user_id, u.name, u.email,
+  p.title as profile_title, p.bio as profile_bio,
+  pt.id as post_id, pt.title as post_title, pt.content as post_content
 FROM users u
-LEFT JOIN profiles p ON u.id = p.user_id
-WHERE u.active = true
+LEFT JOIN profiles p ON u.id = p.user_id  
+LEFT JOIN posts pt ON u.id = pt.author_id
+-- No WHERE clause needed - library handles filtering automatically
 ```
 
+### 3. Create JSON Mapping
+
+Define how flat SQL results should be transformed into your domain structure:
+
 ```json
-// sql/users/search.json
+// sql/users/get-profile.json
 {
-  "rootName": "users",
+  "rootName": "userProfile", 
+  "typeInfo": {
+    "interface": "UserProfile",
+    "importPath": "src/types/models.ts"
+  },
   "rootEntity": {
     "id": "user",
-    "name": "User",
-    "columns": {
-      "id": "user_id",
-      "name": "user_name",
-      "email": "email",
-      "created": "created_at"
-    }
+    "columns": { "id": "user_id", "name": "name", "email": "email" }
   },
   "nestedEntities": [
     {
@@ -232,551 +166,166 @@ WHERE u.active = true
       "parentId": "user",
       "propertyName": "profile",
       "relationshipType": "object",
-      "columns": {
-        "title": "profile_title",
-        "bio": "profile_bio"
-      }
+      "columns": { "title": "profile_title", "bio": "profile_bio" }
+    },
+    {
+      "id": "posts",
+      "parentId": "user", 
+      "propertyName": "posts",
+      "relationshipType": "array",
+      "columns": { "id": "post_id", "title": "post_title", "content": "post_content" }
     }
-  ],
-  "resultFormat": "array"
+  ]
 }
 ```
 
-### Execute with Auto-loading JSON Mapping
+### Result: Structured Domain Models
 
 ```typescript
-// Automatic JSON mapping loading and structured result
-const users = await client.query('users/search.sql', {
-  filter: {
-    name: { ilike: '%john%' },
-    created_at: { '>': '2024-01-01' }
-  },
-  sort: { created_at: { desc: true } },
-  paging: { page: 1, pageSize: 20 },
-  serialize: true  // Auto-loads search.json mapping
+const profile = await client.queryOne<UserProfile>('users/get-profile.sql', { 
+  userId: 123 
 });
 
-console.log(users);
-// Returns structured JSON:
-// [
-//   {
-//     "id": 1,
-//     "name": "John Doe",
-//     "email": "john@example.com",
-//     "created": "2024-01-15T10:30:00Z",
-//     "profile": {
-//       "title": "Software Engineer",
-//       "bio": "Passionate developer"
-//     }
-//   }
-// ]
+// Get structured domain model, not flat database records
+console.log(profile.name);           // Full TypeScript support
+console.log(profile.profile.title);  // Nested object access
+console.log(profile.posts[0].title); // Array access
 ```
 
-### Static Analysis & Validation
-
-```typescript
-// Validate SQL against Prisma schema
-import { StaticAnalysisOrchestrator } from '@rawsql-ts/prisma-integration';
-
-const orchestrator = new StaticAnalysisOrchestrator('./sql', './prisma/schema.prisma');
-const report = await orchestrator.generateMarkdownFileSummary();
-console.log(report);
-
-// Use in unit tests for regression detection
-const hasErrors = await orchestrator.hasValidationErrors();
-expect(hasErrors).toBe(false);
-```
-
-> [!Note]
-> SQL files should be created in the `./sql` directory (path configurable via the `sqlFilesPath` option). PrismaReader provides comprehensive query enhancement capabilities including dynamic filtering, sorting, pagination, and **hierarchical JSON transformation of flat SQL results**, thereby eliminating the need for manual object mapping procedures.
+*[→ Learn more: RawSqlClient Usage Guide](../../docs/usage-guides/class-RawSqlClient-usage-guide.md)*
 
 ---
 
-## PrismaReader Features
+## RawSqlClient Features
 
-The `PrismaReader` class provides seamless integration between Prisma ORM and rawsql-ts, enabling you to execute SQL files with dynamic query capabilities. It automatically handles schema resolution, parameter injection, sorting, pagination, and JSON serialization.
+The `RawSqlClient` class provides a modern interface for executing SQL queries with Prisma. It bridges the gap between raw SQL power and TypeScript integration, offering both single-result and multi-result query methods with automatic parameter binding.
 
 Key benefits include:
-- **SQL File Execution**: Load and execute SQL queries from files with automatic parameter handling
-- **Dynamic Query Modification**: Apply filters, sorting, and pagination to base SQL queries
-- **Schema-Aware Processing**: Automatically detects Prisma schema information for validation
-- **JSON Serialization**: Transform flat SQL results into hierarchical JSON structures
-- **Type-Safe Execution**: Full TypeScript support with proper error handling
+- **TypeScript Integration**: Generic methods (`queryOne<T>`, `queryMany<T>`) provide full TypeScript intellisense and compile-time checking.
+- **Automatic Parameter Binding**: Built-in SQL injection protection with safe parameter substitution.
+- **Flexible Result Handling**: Choose between single results or arrays based on your query expectations.
+- **Minimal Configuration**: Works seamlessly with existing Prisma setups without additional schema definitions.
+- **File-Based Organization**: SQL queries organized in files for better maintainability and version control.
+- **Development-Friendly**: Clear error messages and validation warnings to help identify issues early.
 
 ```typescript
-import { PrismaClient } from '@prisma/client';
-import { PrismaReader } from '@rawsql-ts/prisma-integration';
+import { RawSqlClient } from '@rawsql-ts/prisma-integration';
 
-const prisma = new PrismaClient();
-const reader = new PrismaReader(prisma, {
-  debug: true,
-  sqlFilesPath: './sql',
-  defaultSchema: 'public'
+const client = new RawSqlClient(prisma, { sqlFilesPath: './sql' });
+
+// Single result with TypeScript integration
+const user = await client.queryOne<User>('users/get-profile.sql', { 
+  userId: 123 
 });
 
-// Schema information is loaded automatically when first query is executed
-
-// Execute SQL file with comprehensive options
-const results = await reader.query('complex-search.sql', {
-  filter: {
-    status: { in: ['active', 'premium'] },
-    created_at: { '>=': '2024-01-01' },
-    user_name: { ilike: '%john%' }
-  },
-  sort: {
-    created_at: { desc: true, nullsLast: true },
-    user_name: { asc: true }
-  },
-  paging: {
-    page: 2,
-    pageSize: 25
-  },
-  serialize: {
-    rootName: 'user',
-    rootEntity: { 
-      id: 'user', 
-      name: 'User', 
-      columns: { id: 'user_id', name: 'user_name', email: 'email' }
-    },
-    nestedEntities: [
-      { 
-        id: 'profile', 
-        parentId: 'user', 
-        propertyName: 'profile', 
-        relationshipType: 'object',
-        columns: { title: 'profile_title', bio: 'profile_bio' }
-      }
-    ],
-    useJsonb: true
-  }
+// Multiple results with filtering
+const todos = await client.queryMany<Todo>('todos/search.sql', { 
+  status: 'pending',
+  priority: 'high'
 });
 
-console.log(results);
-// Returns hierarchical JSON with applied filters, sorting, and pagination
+// Results are automatically structured based on your generic parameter
+console.log(user.name);        // TypeScript provides full intellisense
+console.log(todos[0].title);   // Complete autocomplete support
 ```
 
----
+*[→ Learn more: RawSqlClient Usage Guide](../../docs/usage-guides/class-RawSqlClient-usage-guide.md)*
 
-## Advanced Integration Examples
+## SqlSchemaValidator Features
 
-### SQL File-Based Query Execution
+The `SqlSchemaValidator` class catches SQL errors, missing tables, and column mismatches at development time—not in production. The static analysis engine validates your SQL queries against your Prisma schema without requiring a database connection, ensuring your queries are correct before deployment.
 
-Create SQL files and execute them with dynamic modifications:
+Key benefits include:
+- **Static Syntax Validation**: Catches basic SQL syntax errors before runtime execution.
+- **Schema Consistency Checking**: Validates table and column names against your Prisma schema definitions.
+- **Schema Structure Validation**: Detects structural mismatches between SQL results and TypeScript interfaces.
+- **JSON Mapping Validation**: Ensures mapping files structure matches your domain models correctly.
+- **Offline Analysis**: No database connection required—perfect for CI/CD pipelines and development workflows.
+- **Comprehensive Reporting**: Detailed validation reports with specific error locations and suggestions.
 
 ```typescript
-// ./sql/users/search.sql
+import { runComprehensiveStaticAnalysis } from '@rawsql-ts/prisma-integration';
+
+// Run comprehensive validation in your tests
+const report = await runComprehensiveStaticAnalysis({
+  baseDir: __dirname,
+  mappingDir: './sql',
+  prismaClient,
+  debug: false
+});
+
+// Display the detailed analysis report
+console.log('\n# Static Analysis Results\n');
+const summary = report.getConciseFileSummary!();
+summary.forEach(line => console.log(line));
+
+// Automatic error reporting
+if (report.sqlAnalysis.invalidFiles > 0) {
+  throw new Error(`Found ${report.sqlAnalysis.invalidFiles} SQL files with syntax errors`);
+}
+
+if (report.sqlAnalysis.invalidMappings > 0) {
+  throw new Error(`Found ${report.sqlAnalysis.invalidMappings} JSON mapping files with errors`);
+}
+
+// Example validation output:
 /*
-SELECT 
-    u.user_id,
-    u.user_name,
-    u.email,
-    u.created_at,
-    p.profile_title,
-    COUNT(posts.post_id) as post_count
-FROM users u
-LEFT JOIN profiles p ON u.user_id = p.user_id
-LEFT JOIN posts ON u.user_id = posts.author_id
-WHERE u.active = true
-GROUP BY u.user_id, u.user_name, u.email, u.created_at, p.profile_title
+## users/get-profile.sql
+- SQL Static Syntax Check: ✅ Passed
+- SQL to JSON Query Convert Check: ✅ Passed
+- JSON to Model Structure Check: ✅ Passed
+
+## todos/search.sql
+- SQL Static Syntax Check: 🚨 Failed
+- SQL to JSON Query Convert Check: ⚠️ No JSON Mapping
+- JSON to Model Structure Check: ⏭️ Skipped (No JSON mapping file)
+
+🚨 SQL Syntax Errors: Table 'todo_items' not found in schema. Please fix these SQL syntax issues to ensure proper query execution.
 */
-
-import { PrismaClient } from '@prisma/client';
-import { PrismaReader } from '@rawsql-ts/prisma-integration';
-
-const prisma = new PrismaClient();
-const reader = new PrismaReader(prisma, {
-  sqlFilesPath: './sql',
-  debug: true
-});
-
-// Execute with dynamic filtering and pagination
-const results = await reader.query('users/search.sql', {
-  filter: {
-    user_name: { ilike: '%alice%' },
-    created_at: { '>=': '2024-01-01' }
-  },
-  sort: {
-    post_count: { desc: true },
-    user_name: { asc: true }
-  },
-  paging: {
-    page: 1,
-    pageSize: 10
-  }
-});
 ```
 
-### Executing Pre-built Queries
+## 🧪 Testing and Quality Assurance
 
-Execute queries built with rawsql-ts components directly:
-
-```typescript
-import { PrismaClient } from '@prisma/client';
-import { PrismaReader } from '@rawsql-ts/prisma-integration';
-import { SelectQueryParser, SqlParamInjector } from 'rawsql-ts';
-
-const prisma = new PrismaClient();
-const reader = new PrismaReader(prisma);
-
-// Build query using rawsql-ts components
-const baseSql = 'SELECT user_id, user_name FROM users WHERE active = true';
-const query = SelectQueryParser.parse(baseSql);
-
-// Execute the pre-built query directly
-const results = await reader.query(query);
-```
-
-### JSON Serialization
-
-Transform flat SQL results into hierarchical JSON structures:
+### Static Analysis Testing
 
 ```typescript
-const prisma = new PrismaClient();
-const reader = new PrismaReader(prisma);
+// tests/sql-validation.test.ts
+import { runComprehensiveStaticAnalysis } from '@rawsql-ts/prisma-integration';
 
-// Execute with JSON serialization
-const results = await reader.query('users/detailed.sql', {
-  serialize: {
-    rootName: 'user',
-    rootEntity: { 
-      id: 'user', 
-      name: 'User', 
-      columns: { 
-        id: 'user_id', 
-        name: 'user_name', 
-        email: 'email',
-        createdAt: 'created_at'
-      }
-    },
-    nestedEntities: [
-      {
-        id: 'profile',
-        parentId: 'user',
-        propertyName: 'profile',
-        relationshipType: 'object',
-        columns: { 
-          title: 'profile_title', 
-          bio: 'profile_bio' 
-        }
-      },
-      {
-        id: 'posts',
-        parentId: 'user', 
-        propertyName: 'posts',
-        relationshipType: 'array',
-        columns: { 
-          id: 'post_id', 
-          title: 'post_title', 
-          content: 'post_content' 
-        }
-      }
-    ],
-    useJsonb: true
-  }
-});
-
-// Results will be hierarchical JSON objects
-console.log(results);
-// Output: [
-//   {
-//     id: 1,
-//     name: 'John Doe',
-//     email: 'john@example.com',
-//     profile: { title: 'Software Engineer', bio: '...' },
-//     posts: [
-//       { id: 1, title: 'Hello World', content: '...' },
-//       { id: 2, title: 'TypeScript Tips', content: '...' }
-//     ]
-//   }
-// ]
-```
-
----
-
-## Best Practices
-
-### 1. PrismaReader Initialization
-```typescript
-// Initialize once and reuse throughout your application
-const reader = new PrismaReader(prisma, {
-  debug: process.env.NODE_ENV === 'development',
-  sqlFilesPath: './sql'
-});
-
-// No manual initialization required - schema is loaded automatically when needed
-```
-
-### 2. Error Handling
-```typescript
-try {
-  const results = await reader.query('users/search.sql', options);
-} catch (error) {
-  if (error.message.includes('SQL file not found')) {
-    console.error('SQL file missing:', error.message);
-  } else if (error.message.includes('SQL execution failed')) {
-    console.error('Database error:', error.message);
-  }
-  throw error;
-}
-```
-### 3. SQL File Organization
-```typescript
-// Organize SQL files by feature/module
-// ./sql/users/search.sql
-// ./sql/users/detail.sql
-// ./sql/orders/list.sql
-// ./sql/reports/monthly.sql
-
-const reader = new PrismaReader(prisma, {
-  sqlFilesPath: './sql'
-});
-
-// Use relative paths from sqlFilesPath
-const userResults = await reader.query('users/search.sql', options);
-const orderResults = await reader.query('orders/list.sql', options);
-```
-
-### TypeScript Type Safety
-
-For enhanced type safety, import the QueryBuildOptions type:
-
-```typescript
-import { PrismaReader, QueryBuildOptions } from '@rawsql-ts/prisma-integration';
-
-// Type-safe query options
-const queryOptions: QueryBuildOptions = {
-  filter: { status: 'active' },
-  sort: { created_at: { desc: true } },
-  paging: { page: 1, pageSize: 10 },
-  serialize: { /* JsonMapping configuration */ }
-};
-
-const results = await reader.query('users/search.sql', queryOptions);
-```
-
-> [!Note]
-> `QueryBuildOptions` is re-exported from rawsql-ts for your convenience, ensuring consistency across the entire rawsql-ts ecosystem. For detailed configuration examples of each option, refer to the [rawsql-ts usage guides](../../docs/usage-guides/).
-
----
-
-## API Reference
-
-### PrismaReader
-
-| Method | Description | Returns |
-|--------|-------------|---------|
-| `constructor(prisma, options?)` | Create new PrismaReader instance | `PrismaReader` |
-| `initialize()` | Initialize schema information (required) | `Promise<void>` |
-| `query(sqlFile, options?)` | Execute SQL file with dynamic options | `Promise<T[]>` |
-| `query(selectQuery)` | Execute pre-built SelectQuery object | `Promise<T[]>` |
-
-### PrismaReaderOptions
-
-| Option | Type | Description | Default |
-|--------|------|-------------|---------|
-| `debug` | `boolean` | Enable debug logging | `false` |
-| `defaultSchema` | `string` | Default database schema name | `'public'` |
-| `sqlFilesPath` | `string` | Base path for SQL files | `'./sql'` |
-
-### QueryBuildOptions
-
-This package uses rawsql-ts's standard `QueryBuildOptions` interface for consistent API design across the ecosystem.
-
-| Option | Type | Description |
-|--------|------|-------------|
-| `filter` | `Record<string, any>` | Filter conditions to inject into WHERE clause ([SqlParamInjector Guide](../../docs/usage-guides/class-SqlParamInjector-usage-guide.md)) |
-| `sort` | `SortConditions` | Sort conditions to inject into ORDER BY clause ([SqlSortInjector Guide](../../docs/usage-guides/class-SqlSortInjector-usage-guide.md)) |
-| `paging` | `PaginationOptions` | Pagination options to inject LIMIT/OFFSET clauses ([SqlPaginationInjector Guide](../../docs/usage-guides/class-SqlPaginationInjector-usage-guide.md)) |
-| `serialize` | `JsonMapping` | JSON serialization mapping to transform results into hierarchical JSON ([PostgresJsonQueryBuilder Guide](../../docs/usage-guides/class-PostgresJsonQueryBuilder-usage-guide.md)) |
-
-> [!Note]
-> `PaginationOptions` requires both `page: number` and `pageSize: number` to be specified for proper pagination.
-
-For detailed usage examples and advanced configurations of each option, please refer to the linked rawsql-ts usage guides above.
-
----
-
-## Examples Repository
-
-For complete working examples and integration patterns, check out our examples repository:
-
-- **[Prisma Comparison Demo](../../examples/prisma-comparison-demo/)** - Complete comparison between Prisma ORM and rawsql-ts approaches
-- **[Todo API Demo](../../examples/todo-api-demo/)** - Real-world API implementation using Prisma integration
-
----
-
-## Static Analysis and Validation
-
-The prisma-integration package provides powerful static analysis capabilities to validate your SQL files, JSON mappings, and TypeScript domain models at development time.
-
-### SQL Static Analysis
-
-```typescript
-import { StaticAnalysisOrchestrator } from 'rawsql-ts/prisma-integration';
-
-// Analyze all SQL files in a directory
-const orchestrator = new StaticAnalysisOrchestrator('./sql-files', './prisma/schema.prisma');
-
-// Generate comprehensive analysis report
-const report = await orchestrator.generateMarkdownFileSummary();
-console.log(report);
-
-// Check for any validation errors
-const hasErrors = await orchestrator.hasValidationErrors();
-if (hasErrors) {
-    console.error('Validation errors found! Please check the report.');
-    process.exit(1);
-}
-```
-
-### Automated Regression Testing
-
-Create comprehensive unit tests that automatically validate your SQL files against your Prisma schema:
-
-```typescript
-// tests/sql-static-analysis.test.ts
-import { describe, it, expect } from 'vitest';
-import { StaticAnalysisOrchestrator } from 'rawsql-ts/prisma-integration';
-import { glob } from 'glob';
-
-describe('SQL Static Analysis', () => {
-    it('should validate all SQL files without errors', async () => {
-        const orchestrator = new StaticAnalysisOrchestrator('./rawsql-ts', './prisma/schema.prisma');
-        
-        // Generate and display the analysis report
-        const report = await orchestrator.generateMarkdownFileSummary();
-        console.log(report);
-        
-        // Fail the test if any validation errors are found
-        const hasErrors = await orchestrator.hasValidationErrors();
-        expect(hasErrors).toBe(false);
+it('should validate all SQL files', async () => {
+    const report = await runComprehensiveStaticAnalysis({
+        baseDir: __dirname,
+        mappingDir: './sql',
+        prismaClient,
+        debug: false
     });
 
-    it('should validate individual SQL files with detailed error reporting', async () => {
-        const orchestrator = new StaticAnalysisOrchestrator('./rawsql-ts', './prisma/schema.prisma');
-        
-        // Get all SQL files
-        const sqlFiles = await glob('./rawsql-ts/**/*.sql');
-        
-        for (const sqlFile of sqlFiles) {
-            // Analyze each file individually for detailed error reporting
-            try {
-                const analysis = await orchestrator.analyzeSqlFile(sqlFile);
-                
-                // Log any warnings or issues found
-                if (analysis.warnings?.length > 0) {
-                    console.warn(`Warnings in ${sqlFile}:`, analysis.warnings);
-                }
-                
-                // Ensure no critical errors exist
-                expect(analysis.errors?.length || 0).toBe(0);
-            } catch (error) {
-                throw new Error(`Failed to analyze ${sqlFile}: ${error.message}`);
-            }
-        }
-    });
-
-    it('should validate JSON mappings match domain models', async () => {
-        const orchestrator = new StaticAnalysisOrchestrator('./rawsql-ts', './prisma/schema.prisma');
-        
-        // Validate that JSON mappings align with TypeScript interfaces
-        const mappingFiles = await glob('./rawsql-ts/**/*.json');
-        
-        for (const mappingFile of mappingFiles) {
-            const validation = await orchestrator.validateJsonMapping(mappingFile);
-            
-            expect(validation.isValid).toBe(true);
-            
-            if (!validation.isValid) {
-                console.error(`Invalid JSON mapping in ${mappingFile}:`, validation.errors);
-            }
-        }
-    });    });
+    if (report.sqlAnalysis.invalidFiles > 0) {
+        throw new Error(`Found ${report.sqlAnalysis.invalidFiles} SQL files with syntax errors`);
+    }
 });
 ```
 
-### JSON Schema Validation
+### CI/CD Integration
 
-```typescript
-import { JsonSchemaValidator } from '@rawsql-ts/prisma-integration';
-
-// Validate JSON mapping files
-const validator = new JsonSchemaValidator();
-const jsonMapping = JSON.parse(fs.readFileSync('./mappings/users.json', 'utf8'));
-
-try {
-    const isValid = validator.validate(jsonMapping);
-    console.log('JSON mapping is valid:', isValid);
-} catch (error) {
-    console.error('JSON validation failed:', error.message);
-}
-
-```typescript
-import { JsonSchemaValidator } from 'rawsql-ts/prisma-integration';
-
-// Validate JSON mapping files
-const validator = new JsonSchemaValidator();
-const jsonMapping = JSON.parse(fs.readFileSync('./mappings/users.json', 'utf8'));
-
-try {
-    const isValid = validator.validate(jsonMapping);
-    console.log('JSON mapping is valid:', isValid);
-} catch (error) {
-    console.error('JSON validation failed:', error.message);
+```json
+{
+  "scripts": {
+    "test:sql-validation": "vitest run tests/sql-validation.test.ts"
+  }
 }
 ```
 
----
+## Examples and Resources 📚
 
-## DynamicQueryBuilder Integration
+### Demo Project
+**[Complete Demo Environment](../../examples/prisma-comparison-demo/)** - Full working example with Prisma schema, SQL queries, and test suite.
 
-Seamlessly integrate with rawsql-ts's `DynamicQueryBuilder` for unified query building:
-
-```typescript
-import { DynamicQueryBuilder } from 'rawsql-ts';
-import { PrismaReader } from 'rawsql-ts/prisma-integration';
-
-const prisma = new PrismaClient();
-const reader = new PrismaReader(prisma);
-
-// Create a DynamicQueryBuilder with Prisma schema awareness
-const tableColumnResolver = reader.createTableColumnResolver();
-const builder = new DynamicQueryBuilder(tableColumnResolver);
-
-// Build dynamic queries with auto-loading JSON serialization
-const users = await reader.loadQuery('getUsers.sql', {
-    filter: { status: 'active', age: { min: 18 } },
-    sort: { created_at: { desc: true } },
-    paging: { page: 1, pageSize: 20 },
-    serialize: true  // Auto-loads getUsers.json mapping
-});
-
-console.log(users); // Structured JSON result
-```
+### Documentation
+- **[RawSqlClient Usage Guide](../../docs/usage-guides/class-RawSqlClient-usage-guide.md)** - Complete client reference
+- **[Enhanced JSON Mapping Guide](../../docs/usage-guides/enhanced-json-mapping-usage-guide.md)** - Advanced mapping patterns
+- **[SQL File Organization Guide](../../docs/usage-guides/sql-file-organization-guide.md)** - Best practices
 
 ---
 
-## License
-
-MIT - see the [LICENSE](../../LICENSE) file for details.
-
----
-
-## Related Packages
-
-- **[rawsql-ts](../core/)** - Core SQL parsing and transformation library
-- **[@rawsql-ts/examples](../examples/)** - Additional integration examples and demos
-
-## Documentation Links
-
-- **[rawsql-ts Usage Guides](../../docs/usage-guides/)** - Comprehensive guides for each component
-  - [DynamicQueryBuilder](../../docs/usage-guides/class-DynamicQueryBuilder-usage-guide.md) - All-in-one query building solution
-  - [SqlParamInjector](../../docs/usage-guides/class-SqlParamInjector-usage-guide.md) - Dynamic filter injection
-  - [SqlSortInjector](../../docs/usage-guides/class-SqlSortInjector-usage-guide.md) - ORDER BY clause generation
-  - [SqlPaginationInjector](../../docs/usage-guides/class-SqlPaginationInjector-usage-guide.md) - LIMIT/OFFSET pagination
-  - [PostgresJsonQueryBuilder](../../docs/usage-guides/class-PostgresJsonQueryBuilder-usage-guide.md) - Hierarchical JSON serialization
-  - [SqlSchemaValidator](../../docs/usage-guides/class-SqlSchemaValidator-usage-guide.md) - Schema validation and static analysis
-
----
-
-Feel free to explore the power of rawsql-ts with Prisma integration! Questions, feature requests, and bug reports are always welcome.
+Questions, feature requests, and bug reports are always welcome! 🎉
