@@ -77,16 +77,18 @@ export class RawSqlTodoSearchService implements TodoSearchService {
                     sort,
                     paging
                 });
-            }            // Execute query using RawSqlClient with file-based JSON serialization
-            const queryResult = await this.client.query<TodoListItem[]>('searchTodos.sql', {
+            }
+
+            // Execute query using RawSqlClient with file-based JSON serialization
+            const queryResult = await this.client.queryMany<TodoListItem>('searchTodos.sql', {
                 filter,
                 sort,
                 paging,
-                serialize: true
+                allowAllUndefined: true  // Allow fetching all records when no filters are specified
             });
 
-            // PostgresJsonQueryBuilder with serialize: true returns TodoListItem[] directly
-            const todoListItems: TodoListItem[] = queryResult || [];
+            // ExecuteScalar behavior: queryMany should return the JSON array directly
+            const todoListItems = queryResult as TodoListItem[];
 
             if (this.debugMode) {
                 originalLog('🔍 rawsql-ts Results:', todoListItems.length, 'items found');

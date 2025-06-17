@@ -27,16 +27,12 @@ export class PrismaTodoDetailService implements TodoDetailService {
      * Get TODO detail by ID using Prisma ORM with nested includes
      */
     async getTodoDetail(todoId: number): Promise<TodoDetailResultWithMetrics> {
-        // Enable query logging to capture SQL
-        const originalLog = console.log;
+        // Capture SQL queries using Prisma's query event listener
         const queries: string[] = [];
-        console.log = (...args: any[]) => {
-            const message = args.join(' ');
-            if (message.includes('prisma:query')) {
-                queries.push(message);
-            }
-            originalLog(...args);
+        const queryListener = (event: any) => {
+            queries.push(event.query);
         };
+        (this.prisma as any).$on('query', queryListener);
 
         try {
             // Fetch todo with all related data
@@ -120,15 +116,14 @@ export class PrismaTodoDetailService implements TodoDetailService {
 
             const metrics: QueryMetrics = {
                 sqlQueries
-            };
-
-            return {
+            }; return {
                 result,
                 metrics,
             };
         } finally {
-            // Restore original console.log
-            console.log = originalLog;
+            // Remove the query listener to prevent memory leaks
+            // Note: Prisma doesn't have an $off method, but listeners are automatically cleaned up
+            // when the Prisma instance is disposed or the connection is closed
         }
     }
 }

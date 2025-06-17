@@ -26,7 +26,9 @@ export class RawSqlTodoDetailService implements TodoDetailService {
             debug: this.debugMode,
             sqlFilesPath: './rawsql-ts'
         });
-    }    /**
+    }
+
+    /**
      * Initialize the RawSqlClient
      * (No longer needed - RawSqlClient uses lazy initialization)
      */
@@ -39,10 +41,17 @@ export class RawSqlTodoDetailService implements TodoDetailService {
      * Execute the core SQL query with file-based JSON mapping
      */
     private async executeGetTodoDetailQuery(todoId: number): Promise<TodoDetail | null> {
-        return await this.client.query<TodoDetail>('getTodoDetail.sql', {
+        const result = await this.client.queryOne<TodoDetail>('getTodoDetail.sql', {
             filter: { todo_id: todoId },
-            serialize: true
         });
+
+        // Debug the query result structure
+        if (this.debugMode) {
+            console.log('🔍 Debug - Todo structure:', JSON.stringify(result, null, 2));
+        }
+
+        // ExecuteScalar behavior: queryOne should return the JSON object directly
+        return result;
     }
 
     /**

@@ -140,19 +140,22 @@ export class RawSqlClient {
             modifiedQuery = QueryBuilder.buildSimpleQuery(sqlFilePathOrQuery);
         }
 
-        // Apply dynamic modifications
-        // Apply filtering
-        if (options.filter && Object.keys(options.filter).length > 0) {
+        // Apply dynamic modifications       
+        // Apply filtering        // Apply filters
+        if (options.filter) {
             if (!this.tableColumnResolver) {
                 throw new Error('TableColumnResolver not available. Initialization may have failed.');
             }
 
-            const paramInjector = new SqlParamInjector(this.tableColumnResolver);
-            modifiedQuery = paramInjector.inject(modifiedQuery, options.filter) as SimpleSelectQuery;
+            const extendedOptions = options as any;
+            const allowAllUndefined = extendedOptions.allowAllUndefined ?? false;
 
             if (this.options.debug) {
-                console.log('Applying filters:', options.filter);
+                console.log('Applying filters:', options.filter, 'allowAllUndefined:', allowAllUndefined);
             }
+
+            const paramInjector = new SqlParamInjector(this.tableColumnResolver, { allowAllUndefined });
+            modifiedQuery = paramInjector.inject(modifiedQuery, options.filter) as SimpleSelectQuery;
         }
 
         // Apply sorting
@@ -209,6 +212,12 @@ export class RawSqlClient {
 
             // Apply serialization if we have a valid JsonMapping
             if (actualSerialize) {
+                // Override resultFormat if explicitly provided in options (cast to any for resultFormat access)
+                const extendedOptions = options as any;
+                if (extendedOptions.resultFormat) {
+                    actualSerialize = { ...actualSerialize, resultFormat: extendedOptions.resultFormat };
+                }
+
                 // Create PostgresJsonQueryBuilder instance
                 const jsonBuilder = new PostgresJsonQueryBuilder();
 
@@ -246,36 +255,30 @@ export class RawSqlClient {
             console.log('Executing SQL:', finalSql);
             console.log('Parameters:', parameters);
             console.log('Parameters Array:', parametersArray);
-        }        // Execute with Prisma
-        const result = await this.executeSqlWithParams(finalSql, parametersArray);        // Handle different return types based on serialization
+        }
+
+        // Execute with Prisma
+        const result = await this.executeSqlWithParams(finalSql, parametersArray);
+
+        // Handle different return types based on serialization
         if (shouldSerialize) {
-            // When serialized, expect a single object or null
+            // When serialized, return ExecuteScalar equivalent (1st row, 1st column value)
             if (result.length === 0) {
                 return null as T | null;
             }
 
-            const serializedResult = result[0];
+            const firstRow = result[0];
 
-            // Check if this is a resultFormat: "array" case and extract the array
-            if (actualSerialize && actualSerialize.resultFormat === 'array' && serializedResult) {
-                // The result should be an object with a single property containing the array
-                // Find the first property that contains an array
-                for (const [key, value] of Object.entries(serializedResult)) {
-                    if (Array.isArray(value)) {
-                        if (this.options.debug) {
-                            console.log(`Auto-extracting array from property "${key}" due to resultFormat: "array"`);
-                        }
-                        return value as T;
-                    }
-                }
-
-                // If no array property found, log warning and return as-is
+            // Get the first column value (ExecuteScalar behavior)
+            if (firstRow && typeof firstRow === 'object') {
+                const firstValue = Object.values(firstRow)[0];
                 if (this.options.debug) {
-                    console.warn('resultFormat: "array" specified but no array property found in result');
+                    console.log('ExecuteScalar: returning first column value from SQL JSON result');
                 }
+                return firstValue as T;
             }
 
-            return serializedResult as T;
+            return firstRow as T;
         } else {
             // When not serialized, return array of rows
             return result as T[];
@@ -393,12 +396,12 @@ export class RawSqlClient {
      * Automatically loads corresponding .json mapping file
      * 
      * @param sqlFilePath - Path to SQL file (relative to sqlFilesPath or absolute)
-     * @param options - Query execution options (filter, sort, paging)
+     * @param options - Query execution options (filter, sort, paging, allowAllUndefined)
      * @returns Single serialized object or null
      */
-    async queryOne<T>(sqlFilePath: string, options: Omit<QueryBuildOptions, 'serialize'> = {}): Promise<T | null> {
-        // Force serialization to true and call the main query method
-        const queryOptions = { ...options, serialize: true as any };
+    async queryOne<T>(sqlFilePath: string, options: Omit<QueryBuildOptions, 'serialize'> & { allowAllUndefined?: boolean } = {}): Promise<T | null> {
+        // Force serialization to true and resultFormat to 'single' for queryOne
+        const queryOptions = { ...options, serialize: true as any, resultFormat: 'single' as any };
         const result = await this.query<T>(sqlFilePath, queryOptions);
 
         // Handle different result formats
@@ -417,19 +420,17 @@ export class RawSqlClient {
         }
 
         return result as T;
-    }
-
-    /**
+    }    /**
      * Execute SQL from file with JSON serialization, returning an array
      * Automatically loads corresponding .json mapping file
      * 
      * @param sqlFilePath - Path to SQL file (relative to sqlFilesPath or absolute)
-     * @param options - Query execution options (filter, sort, paging)
+     * @param options - Query execution options (filter, sort, paging, allowAllUndefined)
      * @returns Array of serialized objects
      */
-    async queryMany<T = any>(sqlFilePath: string, options: Omit<QueryBuildOptions, 'serialize'> = {}): Promise<T[]> {
-        // Force serialization to true and call the main query method
-        const queryOptions = { ...options, serialize: true as any };
+    async queryMany<T = any>(sqlFilePath: string, options: Omit<QueryBuildOptions, 'serialize'> & { allowAllUndefined?: boolean } = {}): Promise<T[]> {
+        // Force serialization to true and resultFormat to 'array' for queryMany
+        const queryOptions = { ...options, serialize: true as any, resultFormat: 'array' as any };
         const result = await this.query<T>(sqlFilePath, queryOptions);
 
         // Handle different result formats
