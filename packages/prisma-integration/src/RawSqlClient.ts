@@ -117,9 +117,9 @@ export class RawSqlClient {
             const sqlContent = this.loadSqlFile(sqlFilePath);
 
             // Parse the base SQL
-            let parsedQuery: SimpleSelectQuery;
+            let parsedQuery: SelectQuery;
             try {
-                parsedQuery = SelectQueryParser.parse(sqlContent) as SimpleSelectQuery;
+                parsedQuery = SelectQueryParser.parse(sqlContent);
             } catch (error) {
                 throw new Error(`Failed to parse SQL file "${sqlFilePath}": ${error instanceof Error ? error.message : 'Unknown error'}`);
             }
@@ -134,14 +134,17 @@ export class RawSqlClient {
         } else {
             // Handle pre-built SelectQuery
             modifiedQuery = QueryBuilder.buildSimpleQuery(sqlFilePathOrQuery);
-        }        // Apply dynamic modifications
+        }
+
+        // Apply dynamic modifications
         // Apply filtering
         if (options.filter && Object.keys(options.filter).length > 0) {
             if (!this.tableColumnResolver) {
                 throw new Error('TableColumnResolver not available. Initialization may have failed.');
             }
+
             const paramInjector = new SqlParamInjector(this.tableColumnResolver);
-            modifiedQuery = paramInjector.inject(modifiedQuery, options.filter);
+            modifiedQuery = paramInjector.inject(modifiedQuery, options.filter) as SimpleSelectQuery;
 
             if (this.options.debug) {
                 console.log('Applying filters:', options.filter);
@@ -161,14 +164,15 @@ export class RawSqlClient {
         // Apply pagination
         if (options.paging) {
             const paginationInjector = new SqlPaginationInjector();
-
             // Use the paging options directly since they already match PaginationOptions format
-            modifiedQuery = paginationInjector.inject(modifiedQuery, options.paging);
+            modifiedQuery = paginationInjector.inject(modifiedQuery, options.paging) as SimpleSelectQuery;
 
             if (this.options.debug) {
                 console.log('Applied pagination:', options.paging);
             }
-        }        // Apply JSON serialization if requested or auto-detected (before formatting)
+        }
+
+        // Apply JSON serialization if requested or auto-detected (before formatting)
         let serializationApplied = false;
         let actualSerialize: JsonMapping | null = null;
 
