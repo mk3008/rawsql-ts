@@ -111,19 +111,73 @@ console.log(params);
 
 ---
 
-## SelectQueryParser Features
+## SelectQueryParser & Query Types
 
 rawsql-ts provides robust parsers for `SELECT`, `INSERT`, and `UPDATE` statements, automatically handling SQL comments and providing detailed error messages. By converting SQL into a generic Abstract Syntax Tree (AST), it enables a wide variety of transformation processes.
+
+### Query Type Overview
+
+The parser returns different query types based on SQL structure:
+
+- **`SimpleSelectQuery`**: Single SELECT statement with comprehensive manipulation API
+- **`BinarySelectQuery`**: Combined queries using UNION, INTERSECT, EXCEPT operators
+- **`ValuesQuery`**: VALUES clause queries for data insertion or testing
+- **`SelectQuery`**: Base interface implemented by all SELECT query classes
 
 ```typescript
 import { SelectQueryParser } from 'rawsql-ts';
 
-const sql = `SELECT id, name FROM products WHERE category = 'electronics'`;
-const query = SelectQueryParser.parse(sql);
-// query object now holds the AST of the SQL
+// Returns SimpleSelectQuery
+const simpleQuery = SelectQueryParser.parse('SELECT id, name FROM products WHERE category = \'electronics\'');
+
+// Returns BinarySelectQuery  
+const unionQuery = SelectQueryParser.parse('SELECT id, name FROM products UNION SELECT id, name FROM archived_products');
+
+// Returns ValuesQuery
+const valuesQuery = SelectQueryParser.parse('VALUES (1, \'Alice\'), (2, \'Bob\')');
 ```
 
-For more details on `SelectQueryParser`, see the [SelectQueryParser Usage Guide](./docs/usage-guides/class-SelectQueryParser-usage-guide.md).
+### SimpleSelectQuery - Rich Programmatic API
+
+`SimpleSelectQuery` provides extensive methods for programmatic query building and manipulation:
+
+**Dynamic Condition Building:**
+- `appendWhereExpr(columnName, exprBuilder)` - Add conditions by column name with upstream injection support
+- `appendWhereRaw()`, `appendHavingRaw()` - Append raw SQL conditions
+- `setParameter(name, value)` - Manage named parameters directly on the query object
+
+**Query Composition:**
+- `toUnion()`, `toIntersect()`, `toExcept()` - Combine with other queries
+- `innerJoin()`, `leftJoin()`, `rightJoin()` - Add JOIN clauses programmatically
+- `appendWith()` - Add Common Table Expressions (CTEs)
+
+**Advanced Features:**
+- Column-aware condition injection that resolves aliases and expressions
+- Parameter management with validation and type safety
+- Subquery wrapping with `toSource(alias)` for complex compositions
+
+```typescript
+import { SelectQueryParser } from 'rawsql-ts';
+
+const query = SelectQueryParser.parse('SELECT id, salary * 1.1 AS adjusted_salary FROM employees');
+
+// Add condition targeting the calculated column
+query.appendWhereExpr('adjusted_salary', expr => `${expr} > 50000`);
+
+// Set parameters directly on the query
+query.setParameter('dept_id', 123);
+
+// Add JOINs programmatically
+query.leftJoinRaw('departments', 'd', 'department_id');
+
+// Combine with another query
+const adminQuery = SelectQueryParser.parse('SELECT id, salary FROM admins');
+const combinedQuery = query.toUnion(adminQuery);
+```
+
+For comprehensive API documentation and advanced examples, see the [SimpleSelectQuery Usage Guide](./docs/usage-guides/class-SimpleSelectQuery-usage-guide.md).
+
+For SelectQueryParser details, see the [SelectQueryParser Usage Guide](./docs/usage-guides/class-SelectQueryParser-usage-guide.md).
 
 ---
 
