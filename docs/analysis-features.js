@@ -2,7 +2,7 @@
 // This module handles SQL analysis features like updating table lists, CTE lists, and schema information.
 
 // Import rawsql-ts modules
-import { SelectQueryParser, TableSourceCollector, CTECollector, SchemaCollector } from "https://unpkg.com/rawsql-ts/dist/esm/index.js";
+import { SelectQueryParser, TableSourceCollector, CTECollector, SchemaCollector } from "https://unpkg.com/rawsql-ts/dist/esm/index.min.js";
 
 let tableListElement, cteListElement, schemaInfoEditorInstance, sqlInputElement, debounceDelayMs;
 

@@ -44,14 +44,14 @@ Just import it like this:
 ```html
 <!-- Always get the latest version -->
 <script type="module">
-  import { parse } from "https://unpkg.com/rawsql-ts/dist/esm/index.js";
+  import { parse } from "https://unpkg.com/rawsql-ts/dist/esm/index.min.js";
 </script>
 ```
 
 ```html
 <!-- Pin a specific version for stability -->
 <script type="module">
-  import { parse } from "https://unpkg.com/rawsql-ts@0.1.0-beta.12/dist/esm/index.js";
+  import { parse } from "https://unpkg.com/rawsql-ts@0.10.9-beta/dist/esm/index.min.js";
 </script>
 ```
 
