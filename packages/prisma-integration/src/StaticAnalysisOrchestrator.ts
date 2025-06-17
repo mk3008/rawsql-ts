@@ -86,7 +86,8 @@ export class StaticAnalysisOrchestrator {
             } catch (error) {
                 throw new Error('Failed to import PrismaClient. Make sure to run "npx prisma generate" first.');
             }
-        }        // Find schema.prisma file path from baseDir
+        }
+        // Find schema.prisma file path from baseDir
         const schemaPath = this.findSchemaPath();
 
         // Initialize schema resolver
@@ -115,7 +116,9 @@ export class StaticAnalysisOrchestrator {
         if (debug) {
             console.log('✅ Static Analysis Orchestrator initialized');
         }
-    }    /**
+    }
+
+    /**
      * Run comprehensive static analysis covering both SQL and domain model aspects
      */
     async runFullAnalysis(): Promise<ComprehensiveAnalysisReport> {
@@ -241,7 +244,9 @@ export class StaticAnalysisOrchestrator {
             results,
             summary
         };
-    }    /**
+    }
+
+    /**
      * Generate overall analysis summary
      */
     private generateOverallSummary(sqlAnalysis: SqlStaticAnalysisReport, domainModelAnalysis: any) {
@@ -272,7 +277,7 @@ export class StaticAnalysisOrchestrator {
     /**
      * Generate markdown-style concise file summary
      * Format: 
-     * ## SQLファイル名
+     * ## SQL_filename
      * - SQL Static Syntax Check: ✅ Passed
      * - SQL to JSON Query Convert Check: ✅ Passed  
      * - JSON to Model Structure Check: ✅ Passed
@@ -302,7 +307,9 @@ export class StaticAnalysisOrchestrator {
             } else {
                 sqlToJsonStatus = '⚠️ No JSON Mapping';
             }
-            results.push(`- SQL to JSON Query Convert Check: ${sqlToJsonStatus}`);            // 3. JSON to Model Structure Check
+            results.push(`- SQL to JSON Query Convert Check: ${sqlToJsonStatus}`);
+
+            // 3. JSON to Model Structure Check
             let jsonToModelStatus = '';
             const domainResults = this.lastDomainModelResults;
 
@@ -319,7 +326,9 @@ export class StaticAnalysisOrchestrator {
             } else {
                 jsonToModelStatus = '⚠️ No Domain Model';
             }
-            results.push(`- JSON to Model Structure Check: ${jsonToModelStatus}`);// Add detailed explanations for warnings/errors
+            results.push(`- JSON to Model Structure Check: ${jsonToModelStatus}`);
+
+            // Add detailed explanations for warnings/errors
             const issues: string[] = [];
             const jsonFileName = filename.replace('.sql', '.json'); if (!sqlResult.isValid && sqlResult.errors.length > 0) {
                 const errorList = sqlResult.errors.join('; ');

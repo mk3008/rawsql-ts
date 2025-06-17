@@ -66,7 +66,9 @@ export class RawSqlClient {
         }
 
         this.isInitialized = true;
-    }    /**
+    }
+
+    /**
      * Ensure the RawSqlClient is initialized before use
      * Automatically calls initialize() if not already done
      */
@@ -74,7 +76,9 @@ export class RawSqlClient {
         if (!this.isInitialized) {
             await this.initialize();
         }
-    }    /**
+    }
+
+    /**
      * Execute SQL from file with dynamic conditions
      * 
      * @param sqlFilePath - Path to SQL file (relative to sqlFilesPath or absolute)
@@ -357,7 +361,9 @@ export class RawSqlClient {
                 throw new Error(`Failed to load JsonMapping file "${jsonFilePath}": ${error instanceof Error ? error.message : 'Unknown error'}`);
             }
         }
-    }    /**
+    }
+
+    /**
      * Execute SQL with parameters using Prisma
      * 
      * @param sql - The SQL query string
@@ -380,7 +386,9 @@ export class RawSqlClient {
                 console.error('Parameters:', params);
             } throw new Error(`SQL execution failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
-    }    /**
+    }
+
+    /**
      * Execute SQL from file with JSON serialization, returning a single object
      * Automatically loads corresponding .json mapping file
      * 
