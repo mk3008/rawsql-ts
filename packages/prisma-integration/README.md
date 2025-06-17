@@ -229,7 +229,8 @@ console.log(user.name);        // TypeScript provides full intellisense
 console.log(todos[0].title);   // Complete autocomplete support
 ```
 
-*[→ Learn more: RawSqlClient Usage Guide](../../docs/usage-guides/class-RawSqlClient-usage-guide.md)*
+*[→ Learn more: RawSqlClient Usage Guide](../../docs/usage-guides/class-RawSqlClient-usage-guide.md)*  
+*[→ Learn more: Dynamic Query Building Guide](../../docs/usage-guides/dynamic-query-building-guide.md)*
 
 ## SqlSchemaValidator Features
 

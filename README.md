@@ -494,12 +494,16 @@ const paginatedOnly = builder.buildPaginatedQuery(baseSql, { page: 1, pageSize: 
 const serializedOnly = builder.buildSerializedQuery(baseSql, { /* JSON mapping */ });
 ```
 
-For detailed filtering options, see the [SqlParamInjector Usage Guide](./docs/usage-guides/class-SqlParamInjector-usage-guide.md).
-For sorting configurations, see the [SqlSortInjector Usage Guide](./docs/usage-guides/class-SqlSortInjector-usage-guide.md).
-For pagination settings, see the [SqlPaginationInjector Usage Guide](./docs/usage-guides/class-SqlPaginationInjector-usage-guide.md).
-For JSON serialization mappings, see the [PostgresJsonQueryBuilder Usage Guide](./docs/usage-guides/class-PostgresJsonQueryBuilder-usage-guide.md).
+For comprehensive examples and advanced patterns, see the [Dynamic Query Building Guide](./docs/usage-guides/dynamic-query-building-guide.md).
+
+For detailed configuration options on individual components:
+- [SqlParamInjector Usage Guide](./docs/usage-guides/class-SqlParamInjector-usage-guide.md) - Detailed filtering options
+- [SqlSortInjector Usage Guide](./docs/usage-guides/class-SqlSortInjector-usage-guide.md) - Sorting configurations  
+- [SqlPaginationInjector Usage Guide](./docs/usage-guides/class-SqlPaginationInjector-usage-guide.md) - Pagination settings
+- [PostgresJsonQueryBuilder Usage Guide](./docs/usage-guides/class-PostgresJsonQueryBuilder-usage-guide.md) - JSON serialization mappings
 
 ---
+
 
 ## SchemaManager Features
 
