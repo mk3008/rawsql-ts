@@ -35,7 +35,7 @@ export type {
     TypeValidationResult,
     EntityTypeInfo,
     TypePropertyInfo
-} from './types/EnhancedJsonMapping';
+} from './EnhancedJsonMapping';
 
 // Static Analysis Types
 export type {

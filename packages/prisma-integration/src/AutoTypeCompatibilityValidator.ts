@@ -8,7 +8,7 @@
 import * as ts from 'typescript';
 import * as fs from 'fs';
 import * as path from 'path';
-import { EnhancedJsonMapping, TypeValidationResult } from './types/EnhancedJsonMapping';
+import { EnhancedJsonMapping, TypeValidationResult } from './EnhancedJsonMapping';
 
 export interface AutoTypeValidationOptions {
     /**

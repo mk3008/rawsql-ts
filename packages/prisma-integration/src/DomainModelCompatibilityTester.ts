@@ -6,7 +6,7 @@
  */
 
 import { AutoTypeCompatibilityValidator } from './AutoTypeCompatibilityValidator';
-import { EnhancedJsonMapping } from './types/EnhancedJsonMapping';
+import { EnhancedJsonMapping } from './EnhancedJsonMapping';
 import * as fs from 'fs';
 import * as path from 'path';
 
