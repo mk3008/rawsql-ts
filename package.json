@@ -1,7 +1,6 @@
 {
     "name": "rawsql-ts-workspace",
-    "version": "0.10.5-beta",
-    "description": "SQL parsing and transformation tools workspace",
+    "description": "Monorepo workspace for rawsql-ts packages",
     "private": true,
     "workspaces": [
         "packages/*"
