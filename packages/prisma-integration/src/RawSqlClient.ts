@@ -6,14 +6,15 @@ import {
     SqlParamInjector,
     SqlSortInjector,
     SqlPaginationInjector,
-    TableColumnResolver,
-    SimpleSelectQuery,
+    TableColumnResolver, SimpleSelectQuery,
     SelectQuery,
     QueryBuilder,
     PostgresJsonQueryBuilder,
-    JsonMapping
+    JsonMapping,
+    TypeTransformationPostProcessor,
+    TypeTransformationConfig
 } from 'rawsql-ts';
-import { QueryBuildOptions } from '../../core/src/transformers/DynamicQueryBuilder';
+import { QueryBuildOptions } from 'rawsql-ts';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -37,8 +38,7 @@ export class RawSqlClient {
         this.prisma = prisma;
         this.options = {
             debug: false,
-            defaultSchema: 'public',
-            sqlFilesPath: './sql',
+            defaultSchema: 'public', sqlFilesPath: './sql',
             ...options
         };
         this.schemaResolver = new PrismaSchemaResolver(this.options);
@@ -154,7 +154,7 @@ export class RawSqlClient {
                 console.log('Applying filters:', options.filter, 'allowAllUndefined:', allowAllUndefined);
             }
 
-            const paramInjector = new SqlParamInjector(this.tableColumnResolver, { allowAllUndefined });
+            const paramInjector = new SqlParamInjector(this.tableColumnResolver);
             modifiedQuery = paramInjector.inject(modifiedQuery, options.filter) as SimpleSelectQuery;
         }
 
@@ -255,19 +255,31 @@ export class RawSqlClient {
             console.log('Executing SQL:', finalSql);
             console.log('Parameters:', parameters);
             console.log('Parameters Array:', parametersArray);
-        }
+        }        // Execute with Prisma
+        const result = await this.executeSqlWithParams(finalSql, parametersArray);        // Apply type transformation if JsonMapping with type information is available
+        let transformedResult = result;
+        if (actualSerialize && result.length > 0) {
+            // Only pass file path if sqlFilePathOrQuery is a string (file path)
+            const filePath = typeof sqlFilePathOrQuery === 'string' ? sqlFilePathOrQuery : undefined;
+            const transformConfig = await this.extractTypeTransformationConfig(actualSerialize, filePath);
+            if (Object.keys(transformConfig.columnTransformations || {}).length > 0) {
+                const processor = new TypeTransformationPostProcessor(transformConfig);
+                transformedResult = processor.transformResult(result);
 
-        // Execute with Prisma
-        const result = await this.executeSqlWithParams(finalSql, parametersArray);
+                if (this.options.debug) {
+                    console.log('🔄 Applied type transformation to protect user input strings');
+                }
+            }
+        }
 
         // Handle different return types based on serialization
         if (shouldSerialize) {
             // When serialized, return ExecuteScalar equivalent (1st row, 1st column value)
-            if (result.length === 0) {
+            if (transformedResult.length === 0) {
                 return null as T | null;
             }
 
-            const firstRow = result[0];
+            const firstRow = transformedResult[0];
 
             // Get the first column value (ExecuteScalar behavior)
             if (firstRow && typeof firstRow === 'object') {
@@ -276,12 +288,10 @@ export class RawSqlClient {
                     console.log('ExecuteScalar: returning first column value from SQL JSON result');
                 }
                 return firstValue as T;
-            }
-
-            return firstRow as T;
+            } return firstRow as T;
         } else {
             // When not serialized, return array of rows
-            return result as T[];
+            return transformedResult as T[];
         }
     }
 
@@ -369,8 +379,7 @@ export class RawSqlClient {
     /**
      * Execute SQL with parameters using Prisma
      * 
-     * @param sql - The SQL query string
-     * @param params - Query parameters
+     * @param sql - The SQL query string     * @param params - Query parameters
      * @returns Query result
      */
     private async executeSqlWithParams<T = any>(sql: string, params: any[]): Promise<T[]> {
@@ -402,14 +411,10 @@ export class RawSqlClient {
     async queryOne<T>(sqlFilePath: string, options: Omit<QueryBuildOptions, 'serialize'> & { allowAllUndefined?: boolean } = {}): Promise<T | null> {
         // Force serialization to true and resultFormat to 'single' for queryOne
         const queryOptions = { ...options, serialize: true as any, resultFormat: 'single' as any };
-        const result = await this.query<T>(sqlFilePath, queryOptions);
-
-        // Handle different result formats
+        const result = await this.query<T>(sqlFilePath, queryOptions);        // Handle different result formats
         if (result === null || result === undefined) {
             return null;
-        }
-
-        // If result is already a single object (expected case), return it
+        }        // If result is already a single object (expected case), return it
         if (!Array.isArray(result)) {
             return result as T;
         }
@@ -420,7 +425,9 @@ export class RawSqlClient {
         }
 
         return result as T;
-    }    /**
+    }
+
+    /**
      * Execute SQL from file with JSON serialization, returning an array
      * Automatically loads corresponding .json mapping file
      * 
@@ -433,18 +440,93 @@ export class RawSqlClient {
         const queryOptions = { ...options, serialize: true as any, resultFormat: 'array' as any };
         const result = await this.query<T>(sqlFilePath, queryOptions);
 
-        // Handle different result formats
+        // Handle different result formats        // Handle different result formats
         if (result === null || result === undefined) {
             return [];
-        }
-
-        // If result is already an array (expected case), return it
+        }        // If result is already an array (expected case), return it
         if (Array.isArray(result)) {
             return result as T[];
+        }        // If result is a single object, wrap it in an array
+        return [result] as T[];
+    }
+
+    /**
+     * Extract type transformation configuration from JsonMapping and type protection file
+     * @param jsonMapping - The JsonMapping containing column information  
+     * @param sqlFilePath - The SQL file path to find corresponding type protection file
+     * @returns TypeTransformationConfig for protecting user input strings
+     */
+    private async extractTypeTransformationConfig(jsonMapping: JsonMapping, sqlFilePath?: string): Promise<TypeTransformationConfig> {
+        const columnTransformations: { [key: string]: any } = {};
+
+        // Try to load type protection configuration from .types.json file
+        let protectedStringFields: string[] = [];
+
+        if (sqlFilePath) {
+            try {
+                const typesFilePath = sqlFilePath.replace('.sql', '.types.json');
+                const typesConfig = await this.loadTypesConfig(typesFilePath);
+                protectedStringFields = typesConfig.protectedStringFields || [];
+
+                if (this.options.debug) {
+                    console.log('🔒 Loaded type protection config:', {
+                        file: typesFilePath,
+                        protectedFields: protectedStringFields
+                    });
+                }
+            } catch (error) {
+                if (this.options.debug) {
+                    console.log('💡 No type protection config found, using value-based detection only');
+                }
+            }
         }
 
-        // If result is a single object, wrap it in an array
-        return [result] as T[];
+        // Apply string protection to the specified fields
+        for (const fieldName of protectedStringFields) {
+            columnTransformations[fieldName] = {
+                sourceType: 'custom' as const,
+                targetType: 'string' as const,
+                handleNull: true
+            };
+        }
+
+        if (this.options.debug && Object.keys(columnTransformations).length > 0) {
+            console.log('🔒 String protection applied to fields:', Object.keys(columnTransformations));
+        }
+
+        return {
+            columnTransformations,
+            enableValueBasedDetection: true  // Still allow auto-detection for non-protected fields
+        };
+    }
+
+    /**
+     * Load type protection configuration from .types.json file
+     * @param typesFilePath - Path to types configuration file
+     * @returns Types configuration object
+     */
+    private async loadTypesConfig(typesFilePath: string): Promise<{ protectedStringFields?: string[] }> {
+        try {
+            // Determine the actual file path
+            let actualPath: string;
+
+            if (path.isAbsolute(typesFilePath)) {
+                actualPath = typesFilePath;
+            } else {
+                actualPath = path.join(this.options.sqlFilesPath || './sql', typesFilePath);
+            }
+
+            // Check if file exists
+            if (!fs.existsSync(actualPath)) {
+                throw new Error(`Types config file not found: ${actualPath}`);
+            }
+
+            // Read and parse JSON file
+            const content = fs.readFileSync(actualPath, 'utf8');
+            return JSON.parse(content);
+        } catch (error) {
+            throw new Error(`Failed to load types config file "${typesFilePath}": ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
     }
 
     /**

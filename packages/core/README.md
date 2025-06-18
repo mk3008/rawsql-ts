@@ -23,6 +23,7 @@ It is designed for extensibility and advanced SQL analysis, with initial focus o
 - High-speed SQL parsing and AST analysis (over 3x faster than major libraries)
 - Rich utilities for SQL structure transformation and analysis
 - Advanced SQL formatting capabilities, including multi-line formatting and customizable styles
+- **JSON-to-TypeScript type transformation** - Automatically convert JSON-ified SQL results (dates as strings, BigInts) back to proper TypeScript types with configurable transformation rules
 - **All-in-one dynamic query building with `DynamicQueryBuilder`** - combines filtering, sorting, pagination, and JSON serialization in a single, type-safe interface
 - Dynamic SQL parameter injection for building flexible search queries with `SqlParamInjector` (supports like, ilike, in, any, range queries, OR/AND conditions and more)
 - Dynamic ORDER BY clause injection with `SqlSortInjector` for flexible sorting with support for ASC/DESC, NULLS positioning, and append mode

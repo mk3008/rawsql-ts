@@ -1,0 +1,11 @@
+{
+    "protectedStringFields": [
+        "title",
+        "description",
+        "commentText",
+        "userName",
+        "email",
+        "categoryName",
+        "color"
+    ]
+}

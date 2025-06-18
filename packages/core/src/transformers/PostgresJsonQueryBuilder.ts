@@ -56,11 +56,11 @@ export class PostgresJsonQueryBuilder {
         const selectedValues = collector.collect(query);
 
         // sv.name is the alias or derived name
-        const availableColumns = new Set(selectedValues.map(sv => sv.name));
-
-        // Check root entity columns
+        const availableColumns = new Set(selectedValues.map(sv => sv.name));        // Check root entity columns
         for (const jsonKey in mapping.rootEntity.columns) {
-            const sourceColumn = mapping.rootEntity.columns[jsonKey];
+            const columnDef = mapping.rootEntity.columns[jsonKey];
+            // Handle both string and object formats
+            const sourceColumn = typeof columnDef === 'string' ? columnDef : (columnDef as any).column;
             if (!availableColumns.has(sourceColumn)) {
                 throw new Error(`Validation Error: Column "${sourceColumn}" for JSON key "${jsonKey}" in root entity "${mapping.rootEntity.name}" not found in the query's select list.`);
             }
@@ -82,8 +82,11 @@ export class PostgresJsonQueryBuilder {
             if (!entityIds.has(entity.parentId)) {
                 throw new Error(`Validation Error: Parent entity with ID "${entity.parentId}" for nested entity "${entity.name}" (ID: ${entity.id}) not found.`);
             }
+
             for (const jsonKey in entity.columns) {
-                const sourceColumn = entity.columns[jsonKey];
+                const columnDef = entity.columns[jsonKey];
+                // Handle both string and object formats
+                const sourceColumn = typeof columnDef === 'string' ? columnDef : (columnDef as any).column;
                 if (!availableColumns.has(sourceColumn)) {
                     throw new Error(`Validation Error: Column "${sourceColumn}" for JSON key "${jsonKey}" in nested entity "${entity.name}" (ID: ${entity.id}) not found in the query's select list.`);
                 }
@@ -332,7 +335,9 @@ export class PostgresJsonQueryBuilder {
     ): ValueComponent {
         const jsonBuildFunction = useJsonb ? "jsonb_build_object" : "json_build_object";
         const args: ValueComponent[] = [];        // Add the entity's own columns
-        Object.entries(entity.columns).forEach(([jsonKey, sqlColumn]) => {
+        Object.entries(entity.columns).forEach(([jsonKey, columnDef]) => {
+            // Handle both string and object formats
+            const sqlColumn = typeof columnDef === 'string' ? columnDef : (columnDef as any).column;
             args.push(new LiteralValue(jsonKey));
             args.push(new ColumnReference(null, new IdentifierString(sqlColumn)));
         });

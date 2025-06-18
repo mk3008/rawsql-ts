@@ -2,7 +2,7 @@
  * Enhanced JsonMapping with TypeScript type information for automatic compatibility validation
  */
 
-import { JsonMapping } from '../../core/src';
+import { JsonMapping } from 'rawsql-ts';
 
 /**
  * Type property definition for automatic type validation

@@ -18,6 +18,8 @@ export * from './transformers/SelectableColumnCollector';
 export * from './transformers/TableColumnResolver';
 export * from './transformers/TableSourceCollector';
 export * from './transformers/UpstreamSelectQueryFinder';
+export * from './transformers/TypeTransformationPostProcessor';
+
 export * from './transformers/SchemaCollector';
 export * from './transformers/SqlParamInjector';
 export * from './transformers/SqlSortInjector';

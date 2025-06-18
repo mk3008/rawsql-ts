@@ -12,6 +12,7 @@
         "db:stop": "docker-compose down",
         "generate": "npx prisma generate",
         "test": "tsx src/test-runners/index.ts",
+        "test:json-mapping-protection": "tsx src/test-runners/json-mapping-protection-test.ts",
         "test:sql": "vitest run tests/sql-static-analysis.test.ts",
         "test:sql:watch": "vitest tests/sql-static-analysis.test.ts --watch"
     },

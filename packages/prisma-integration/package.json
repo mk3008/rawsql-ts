@@ -33,7 +33,7 @@
     "license": "MIT",
     "dependencies": {
         "@prisma/internals": "^6.9.0",
-        "rawsql-ts": "^0.10.5-beta"
+        "rawsql-ts": "file:../core"
     },
     "peerDependencies": {
         "@prisma/client": ">=4.0.0",

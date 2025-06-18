@@ -51,4 +51,4 @@ export type {
 } from './StaticAnalysisOrchestrator';
 
 // Re-export QueryBuildOptions from rawsql-ts for convenience
-export type { QueryBuildOptions } from '../../core/src/transformers/DynamicQueryBuilder';
+export type { QueryBuildOptions } from 'rawsql-ts';

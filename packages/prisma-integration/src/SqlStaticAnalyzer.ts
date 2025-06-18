@@ -8,9 +8,7 @@
  * - Comprehensive validation reports
  */
 
-import { SelectQueryParser } from '../../core/src/parsers/SelectQueryParser';
-import { SqlSchemaValidator } from '../../core/src/utils/SqlSchemaValidator';
-import { PostgresJsonQueryBuilder, JsonMapping } from '../../core/src';
+import { SelectQueryParser, SqlSchemaValidator, PostgresJsonQueryBuilder, JsonMapping } from 'rawsql-ts';
 import { PrismaSchemaResolver } from './PrismaSchemaResolver';
 import * as fs from 'fs';
 import * as path from 'path';
