@@ -68,46 +68,55 @@ npm install rawsql-ts
 
 ## Quick Start
 
-Kickstart your project by dynamically injecting parameters with `SqlParamInjector` for flexible query generation right from the start!
+Experience the power of rawsql-ts with `DynamicQueryBuilder` - build complex queries with filtering, sorting, pagination, and JSON serialization in one go!
 
 ```typescript
-import { SqlParamInjector, SqlFormatter } from 'rawsql-ts';
+import { DynamicQueryBuilder, SqlFormatter } from 'rawsql-ts';
 
-// Define a base SQL query with an alias
-const baseSql = `SELECT u.user_id, u.user_name, u.email, u.phone FROM users as u WHERE u.active = TRUE`;
+// Start with a simple base SQL
+const baseSql = 'SELECT id, name, email, created_at FROM users WHERE active = true';
 
-// Search parameters with OR conditions and AND combination
-const searchParams = {
-  name_or_email: {
-    or: [
-      { column: 'user_name', ilike: '%alice%' },
-      { column: 'email', ilike: '%alice%' }
-    ]
+// Build a complete dynamic query with all features
+const builder = new DynamicQueryBuilder();
+const query = builder.buildQuery(baseSql, {
+  // Dynamic filtering
+  filter: { 
+    status: 'premium', 
+    created_at: { '>': '2024-01-01' } 
   },
-  phone: { like: '%080%' }  // AND condition
-};
+  // Dynamic sorting
+  sort: { 
+    created_at: { desc: true }, 
+    name: { asc: true } 
+  },
+  // Dynamic pagination
+  paging: { 
+    page: 2, 
+    pageSize: 10 
+  },
+  // JSON serialization (optional)
+  serialize: {
+    rootName: 'user',
+    rootEntity: { 
+      id: 'user', 
+      name: 'User', 
+      columns: { id: 'id', name: 'name', email: 'email', createdAt: 'created_at' } 
+    },
+    nestedEntities: []
+  }
+});
 
-const injector = new SqlParamInjector();
-// Dynamically inject searchParams into the baseSql
-const query = injector.inject(baseSql, searchParams);
-
-// Format the dynamically generated query
-const formatter = new SqlFormatter({ preset: 'postgres' }); 
+// Format and execute
+const formatter = new SqlFormatter();
 const { formattedSql, params } = formatter.format(query);
 
 console.log('Generated SQL:');
 console.log(formattedSql);
-// Output:
-// select "u"."user_id", "u"."user_name", "u"."email", "u"."phone"
-// from "users" as "u"
-// where "u"."active" = true
-//   and ("u"."user_name" ilike :name_or_email_or_0_ilike
-//        or "u"."email" ilike :name_or_email_or_1_ilike)
-//   and "u"."phone" like :phone_like
+// Output: Optimized PostgreSQL JSON query with filtering, sorting, and pagination
 
 console.log('Parameters:');
 console.log(params);
-// Output: { name_or_email_or_0_ilike: '%alice%', name_or_email_or_1_ilike: '%alice%', phone_like: '%080%' }
+// Output: { status: 'premium', created_at_gt: '2024-01-01' }
 ```
 
 ---
