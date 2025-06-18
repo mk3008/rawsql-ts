@@ -7,7 +7,7 @@
 -- 4. Write only standard SQL that executes in any SQL client
 -- 
 -- Let rawsql-ts handle the complex parameter injection and dialect conversion.
--- This approach ensures clean, portable, and maintainable SQL code that ROCKS!
+-- This approach ensures clean, portable, and maintainable SQL code.
 --
 -- rawsql-ts will dynamically inject WHERE clauses, parameters, and other
 -- conditions based on the filter options passed to the query method.
