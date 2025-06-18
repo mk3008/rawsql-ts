@@ -18,7 +18,9 @@
 import { SqlStaticAnalyzer, SqlStaticAnalysisReport, SqlStaticAnalyzerOptions } from './SqlStaticAnalyzer';
 import { DomainModelCompatibilityTester } from './DomainModelCompatibilityTester';
 import { PrismaSchemaResolver } from './PrismaSchemaResolver';
+import { UnifiedJsonMapping, ColumnMappingConfig } from 'rawsql-ts';
 import * as path from 'path';
+import * as fs from 'fs';
 
 export interface StaticAnalysisOptions {
     /** Base directory for the project (typically where package.json is) */
@@ -33,6 +35,25 @@ export interface StaticAnalysisOptions {
     debug?: boolean;
 }
 
+export interface StringFieldValidationIssue {
+    fieldName: string;
+    columnName: string;
+    entityName: string;
+    filePath: string;
+    hasForceString: boolean;
+    severity: 'warning' | 'error';
+    recommendation: string;
+}
+
+export interface StringFieldValidationReport {
+    totalMappingFiles: number;
+    totalStringFields: number;
+    protectedFields: number;
+    unprotectedFields: number;
+    issues: StringFieldValidationIssue[];
+    summary: string;
+}
+
 export interface ComprehensiveAnalysisReport {
     sqlAnalysis: SqlStaticAnalysisReport;
     domainModelAnalysis: {
@@ -42,6 +63,7 @@ export interface ComprehensiveAnalysisReport {
         results: Record<string, any>;
         summary: string;
     };
+    stringFieldValidation: StringFieldValidationReport;
     overall: {
         allPassed: boolean;
         totalIssues: number;
@@ -58,6 +80,8 @@ export class StaticAnalysisOrchestrator {
     private domainModelTester?: DomainModelCompatibilityTester;
     private schemaResolver?: PrismaSchemaResolver;
     private ownsPrismaClient: boolean = false;
+    private lastDomainModelResults?: Record<string, any>;
+    private lastStringFieldValidation?: StringFieldValidationReport;
 
     constructor(options: StaticAnalysisOptions) {
         this.options = {
@@ -65,7 +89,9 @@ export class StaticAnalysisOrchestrator {
             debug: false,
             ...options
         };
-    }    /**
+    }
+
+    /**
      * Initialize all analysis components
      */
     async initialize(): Promise<void> {
@@ -130,9 +156,7 @@ export class StaticAnalysisOrchestrator {
 
         if (debug) {
             console.log('📊 Running comprehensive static analysis...');
-        }
-
-        // Run SQL static analysis
+        }        // Run SQL static analysis
         const sqlAnalysis = this.sqlAnalyzer!.generateAnalysisReport();
 
         // Run domain model compatibility analysis
@@ -142,12 +166,19 @@ export class StaticAnalysisOrchestrator {
         this.lastDomainModelResults = domainModelResults;
 
         // Process domain model results
-        const domainModelAnalysis = this.processDomainModelResults(domainModelResults);
+        const domainModelAnalysis = this.processDomainModelResults(domainModelResults);        // Run string field validation
+        const stringFieldValidation = await this.validateStringFields();
+
+        // Store results for concise summary
+        this.lastStringFieldValidation = stringFieldValidation;
 
         // Generate overall summary
-        const overall = this.generateOverallSummary(sqlAnalysis, domainModelAnalysis); const report: ComprehensiveAnalysisReport = {
+        const overall = this.generateOverallSummary(sqlAnalysis, domainModelAnalysis, stringFieldValidation);
+
+        const report: ComprehensiveAnalysisReport = {
             sqlAnalysis,
             domainModelAnalysis,
+            stringFieldValidation,
             overall,
             timestamp: new Date().toISOString(),
             getConciseFileSummary: () => this.generateMarkdownFileSummary()
@@ -248,23 +279,33 @@ export class StaticAnalysisOrchestrator {
 
     /**
      * Generate overall analysis summary
-     */
-    private generateOverallSummary(sqlAnalysis: SqlStaticAnalysisReport, domainModelAnalysis: any) {
+     */    private generateOverallSummary(
+        sqlAnalysis: SqlStaticAnalysisReport,
+        domainModelAnalysis: any,
+        stringFieldValidation: StringFieldValidationReport
+    ) {
         const sqlPassed = sqlAnalysis.validFiles === sqlAnalysis.totalFiles &&
             sqlAnalysis.validMappings === sqlAnalysis.filesWithMapping;
         const domainModelPassed = domainModelAnalysis.validCompatibility === domainModelAnalysis.totalMappingFiles;
+        const stringFieldPassed = stringFieldValidation.unprotectedFields === 0;
 
-        const allPassed = sqlPassed && domainModelPassed;
-        const totalIssues = sqlAnalysis.invalidFiles + sqlAnalysis.invalidMappings + domainModelAnalysis.invalidCompatibility;        // Create more detailed summary with better visual distinction
+        const allPassed = sqlPassed && domainModelPassed && stringFieldPassed;
+        const totalIssues = sqlAnalysis.invalidFiles + sqlAnalysis.invalidMappings +
+            domainModelAnalysis.invalidCompatibility + stringFieldValidation.unprotectedFields;
+
+        // Create more detailed summary with better visual distinction
         const sqlStatus = sqlPassed ? '✅ Passed' : '🚨 ERRORS FOUND';
         const domainModelStatus = domainModelPassed ? '✅ Passed' : '⚠️  Warnings';
+        const stringFieldStatus = stringFieldPassed ? '✅ All Protected' : '⚠️  Unprotected Fields';
 
         const summary = [
             `🏆 Overall Static Analysis Results`,
             `SQL Analysis: ${sqlStatus}`,
             `Domain Model Analysis: ${domainModelStatus}`,
+            `String Field Protection: ${stringFieldStatus}`,
             `Total Issues: ${totalIssues}`,
-            allPassed ? '🎉 All static analysis checks passed!' : (sqlPassed ? '⚠️  Some warnings to review' : '🚨 CRITICAL ERRORS - Action required!')
+            allPassed ? '🎉 All static analysis checks passed!' :
+                (sqlPassed ? (stringFieldPassed ? '⚠️  Some warnings to review' : '⚠️  String field protection issues found') : '🚨 CRITICAL ERRORS - Action required!')
         ].join('\n');
 
         return {
@@ -369,6 +410,18 @@ export class StaticAnalysisOrchestrator {
                 }
             }
 
+            // Check for string field protection issues for this specific file
+            if (sqlResult.hasJsonMapping && this.lastStringFieldValidation) {
+                const fileStringIssues = this.lastStringFieldValidation.issues.filter(issue =>
+                    issue.filePath.endsWith(jsonFileName)
+                );
+
+                if (fileStringIssues.length > 0) {
+                    const fieldList = fileStringIssues.map(issue => `${issue.entityName}.${issue.fieldName}`).join(', ');
+                    issues.push(`**⚠️ String Field Protection**: ${fileStringIssues.length} string field(s) lack protection: ${fieldList}. Add "forceString": true to these fields to ensure proper string type conversion and prevent type coercion issues. This is especially important for user-generated content fields.`);
+                }
+            }
+
             if (issues.length > 0) {
                 results.push('');
                 issues.forEach(issue => results.push(`${issue}`));
@@ -379,9 +432,6 @@ export class StaticAnalysisOrchestrator {
 
         return results;
     }
-
-    // Store domain model results for concise summary
-    private lastDomainModelResults: Record<string, any> | null = null;
 
     /**
      * Find schema.prisma file path starting from baseDir
@@ -421,6 +471,106 @@ export class StaticAnalysisOrchestrator {
         }
         return undefined;
     }
+
+    /**
+     * Validate string field protection in unified JSON mappings
+     */
+    async validateStringFields(): Promise<StringFieldValidationReport> {
+        const { debug } = this.options;
+        const issues: StringFieldValidationIssue[] = [];
+        let totalStringFields = 0;
+        let protectedFields = 0;
+
+        // Known string fields from common database schemas
+        // This could be enhanced to read from Prisma schema dynamically
+        const knownStringFields = new Set([
+            'title', 'description', 'name', 'user_name', 'email',
+            'category_name', 'color', 'comment_text', 'content',
+            'address', 'phone', 'note', 'message', 'slug'
+        ]);
+
+        if (debug) {
+            console.log('🔍 Validating string field protection...');
+        }
+
+        // Find all JSON mapping files
+        const mappingFiles = fs.readdirSync(this.options.mappingDir)
+            .filter(file => file.endsWith('.json'))
+            .map(file => path.join(this.options.mappingDir, file));
+
+        let totalMappingFiles = 0;
+
+        for (const filePath of mappingFiles) {
+            try {
+                const content = fs.readFileSync(filePath, 'utf8');
+                const unifiedMapping: UnifiedJsonMapping = JSON.parse(content);
+                totalMappingFiles++;
+
+                // Helper function to check columns in an entity
+                const checkEntityColumns = (entityName: string, columns: Record<string, ColumnMappingConfig>) => {
+                    for (const [fieldName, config] of Object.entries(columns)) {
+                        const columnName = typeof config === 'string' ? config : config.column;
+                        const hasForceString = typeof config === 'object' && config.forceString === true;
+
+                        // Check if this column maps to a known string field in the database
+                        if (knownStringFields.has(columnName)) {
+                            totalStringFields++;
+
+                            if (hasForceString) {
+                                protectedFields++;
+                            } else {
+                                issues.push({
+                                    fieldName,
+                                    columnName,
+                                    entityName,
+                                    filePath: path.relative(this.options.baseDir, filePath),
+                                    hasForceString: false,
+                                    severity: 'warning',
+                                    recommendation: 'Add "forceString": true to ensure proper string type conversion and prevent type coercion issues'
+                                });
+                            }
+                        }
+                    }
+                };
+
+                // Check root entity
+                if (unifiedMapping.rootEntity) {
+                    checkEntityColumns(unifiedMapping.rootEntity.name, unifiedMapping.rootEntity.columns);
+                }
+
+                // Check nested entities
+                if (unifiedMapping.nestedEntities) {
+                    for (const entity of unifiedMapping.nestedEntities) {
+                        checkEntityColumns(entity.name, entity.columns);
+                    }
+                }
+
+            } catch (error) {
+                if (debug) {
+                    console.warn(`⚠️  Failed to parse mapping file ${filePath}:`, error);
+                }
+            }
+        }
+
+        const unprotectedFields = totalStringFields - protectedFields;
+        const summary = unprotectedFields === 0
+            ? `✅ All ${totalStringFields} string fields are properly protected`
+            : `⚠️  ${unprotectedFields} of ${totalStringFields} string fields lack forceString protection`;
+
+        if (debug) {
+            console.log(`📊 String field validation: ${protectedFields}/${totalStringFields} protected`);
+        }
+
+        return {
+            totalMappingFiles,
+            totalStringFields,
+            protectedFields,
+            unprotectedFields,
+            issues,
+            summary
+        };
+    }
+
 }
 
 /**

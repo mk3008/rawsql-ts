@@ -1,5 +1,5 @@
 /**
- * Enhanced test to verify the unified JSON mapping system and validate type safety
+ * Test script to demonstrate the enhanced validation system with unsafe mapping
  */
 
 import { convertUnifiedMapping, UnifiedJsonMapping, ColumnMappingConfig } from '../../../../packages/prisma-integration/src';
@@ -39,7 +39,7 @@ async function validateStringFields(unifiedMapping: UnifiedJsonMapping): Promise
                         entityName,
                         hasForceString: false,
                         severity: 'warning',
-                        recommendation: `Add "forceString": true to protect against SQL injection and ensure type safety`
+                        recommendation: `Add "forceString": true to ensure proper string type conversion and prevent type coercion issues`
                     });
                 }
             }
@@ -59,20 +59,20 @@ async function validateStringFields(unifiedMapping: UnifiedJsonMapping): Promise
     return issues;
 }
 
-async function testUnifiedMapping() {
-    console.log('🔍 Testing Unified JSON Mapping System');
-    console.log('='.repeat(50));
+async function testUnsafeMapping() {
+    console.log('🔍 Testing Enhanced Validation with Unsafe Mapping');
+    console.log('='.repeat(60));
 
     try {
-        // Load the unified getTodoDetail.json mapping
-        const mappingPath = path.join(__dirname, '../../rawsql-ts/getTodoDetail.json');
+        // Load the unsafe getTodoDetail.json mapping
+        const mappingPath = path.join(__dirname, '../../rawsql-ts/getTodoDetail-unsafe.json');
         const content = fs.readFileSync(mappingPath, 'utf8');
         const unifiedMapping = JSON.parse(content);
 
-        console.log('✅ Loaded unified mapping file');
-        console.log('📋 Root entity columns:', Object.keys(unifiedMapping.rootEntity.columns));
+        console.log('✅ Loaded unsafe mapping file for demonstration');
+        console.log('📋 This file intentionally has security issues to demonstrate validation');
 
-        // 🔒 NEW: Validate string field protection
+        // 🔒 Validate string field protection
         console.log('\n🔍 Validating String Field Protection...');
         const validationIssues = await validateStringFields(unifiedMapping);
 
@@ -91,61 +91,31 @@ async function testUnifiedMapping() {
                 console.log(`      to:`);
                 console.log(`      "${issue.fieldName}": { "column": "${issue.columnName}", "forceString": true }`);
                 console.log('');
-            }
-
-            console.log('🚨 Why this matters:');
-            console.log('   • String fields without forceString protection are vulnerable to SQL injection');
-            console.log('   • Type coercion issues can occur when database returns non-string values');
+            } console.log('🚨 Why this matters:');
+            console.log('   • String fields may be returned as incorrect types (date, bigint, etc.) from database');
+            console.log('   • Runtime errors can occur when JavaScript expects string methods on non-string values');
             console.log('   • forceString ensures values are always converted to strings for safety');
+            console.log('   • This is especially important for user-generated content fields');
+            console.log('');
+
+            console.log('🔧 How to fix these issues:');
+            console.log('   1. Add forceString: true to all string fields that contain user data');
+            console.log('   2. Pay special attention to fields like: title, description, names, emails');
+            console.log('   3. Run this validation test regularly during development');
+            console.log('   4. Consider adding this validation to your CI/CD pipeline');
             console.log('');
         } else {
             console.log('✅ All string fields are properly protected!');
         }
 
-        // Convert to separate JsonMapping and TypeProtection
-        const { jsonMapping, typeProtection } = convertUnifiedMapping(unifiedMapping);
-
-        console.log('\n🔄 Conversion Results:');
-        console.log('📋 JsonMapping root columns:', Object.keys(jsonMapping.rootEntity.columns));
-        console.log('🔒 Protected string fields:', typeProtection.protectedStringFields);
-
-        // Verify that forceString columns are properly converted
-        const expectedProtectedFields = [
-            'title', 'description', 'user_name', 'email',
-            'category_name', 'color', 'comment_text',
-            'comment_user_name', 'comment_user_email'
-        ];
-
-        const allFieldsProtected = expectedProtectedFields.every(field =>
-            typeProtection.protectedStringFields.includes(field)
-        );
-
-        if (allFieldsProtected) {
-            console.log('✅ All expected fields are protected');
-        } else {
-            console.log('❌ Some expected fields are missing from protection');
-            console.log('Expected:', expectedProtectedFields);
-            console.log('Actual:', typeProtection.protectedStringFields);
-        }
-
-        // Verify that regular columns are converted correctly
-        const rootColumns = jsonMapping.rootEntity.columns;
-        const hasRegularColumns = rootColumns.todoId === 'todo_id' &&
-            rootColumns.completed === 'completed';
-
-        if (hasRegularColumns) {
-            console.log('✅ Regular columns converted correctly');
-        } else {
-            console.log('❌ Regular columns conversion failed');
-        }
-
-        console.log('\n🎉 Unified JSON Mapping Test Completed!');
+        console.log('\n🎉 Enhanced Validation Test Completed!');
 
         // Final summary
         if (validationIssues.length === 0) {
             console.log('🎯 Security Status: EXCELLENT - All string fields are protected');
         } else {
             console.log(`🎯 Security Status: NEEDS ATTENTION - ${validationIssues.length} protection issue(s) found`);
+            console.log('🚀 Next steps: Fix the issues above and re-run this test');
         }
 
     } catch (error) {
@@ -153,4 +123,4 @@ async function testUnifiedMapping() {
     }
 }
 
-testUnifiedMapping();
+testUnsafeMapping();
