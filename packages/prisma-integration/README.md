@@ -25,6 +25,10 @@
 
 **Schema Structure Matters Most**: However, column definitions are stable and structural validation provides real value—catching missing tables or columns where static analysis excels.
 
+## Prerequisites
+
+This library requires [Prisma](https://prisma.io) as a peer dependency. Prisma is licensed under the Apache License 2.0.
+
 ## Installation
 
 ```bash
@@ -330,3 +334,11 @@ it('should validate all SQL files', async () => {
 ---
 
 Questions, feature requests, and bug reports are always welcome! 🎉
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+### Third-Party Dependencies
+
+This library integrates with [Prisma](https://github.com/prisma/prisma), which is licensed under the Apache License 2.0. Please see [Prisma's license](https://github.com/prisma/prisma/blob/main/LICENSE) for more details.
