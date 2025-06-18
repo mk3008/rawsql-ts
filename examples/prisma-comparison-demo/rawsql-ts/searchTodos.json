@@ -5,8 +5,14 @@
         "name": "todo",
         "columns": {
             "todoId": "todo_id",
-            "title": "title",
-            "description": "description",
+            "title": {
+                "column": "title",
+                "forceString": true
+            },
+            "description": {
+                "column": "description",
+                "forceString": true
+            },
             "completed": "completed",
             "createdAt": "created_at",
             "updatedAt": "updated_at",
@@ -22,8 +28,14 @@
             "relationshipType": "object",
             "columns": {
                 "userId": "user_id",
-                "userName": "user_name",
-                "email": "email"
+                "userName": {
+                    "column": "user_name",
+                    "forceString": true
+                },
+                "email": {
+                    "column": "email",
+                    "forceString": true
+                }
             }
         },
         {
@@ -34,8 +46,14 @@
             "relationshipType": "object",
             "columns": {
                 "categoryId": "category_id",
-                "categoryName": "category_name",
-                "color": "color"
+                "categoryName": {
+                    "column": "category_name",
+                    "forceString": true
+                },
+                "color": {
+                    "column": "color",
+                    "forceString": true
+                }
             }
         }
     ]

@@ -37,6 +37,15 @@ export type {
     TypePropertyInfo
 } from './EnhancedJsonMapping';
 
+// Unified JSON Mapping
+export type {
+    UnifiedJsonMapping,
+    ColumnMappingConfig,
+    JsonMapping,
+    TypeProtectionConfig
+} from './UnifiedJsonMapping';
+export { convertUnifiedMapping } from './UnifiedJsonMapping';
+
 // Static Analysis Types
 export type {
     SqlFileInfo,

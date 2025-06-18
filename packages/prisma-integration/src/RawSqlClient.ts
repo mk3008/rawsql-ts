@@ -1,5 +1,6 @@
 import { PrismaClientType, RawSqlClientOptions, PrismaSchemaInfo } from './types';
 import { PrismaSchemaResolver } from './PrismaSchemaResolver';
+import { UnifiedJsonMapping, convertUnifiedMapping } from './UnifiedJsonMapping';
 import {
     SqlFormatter,
     SelectQueryParser,
@@ -344,32 +345,18 @@ export class RawSqlClient {
      */
     private async loadJsonMapping(jsonFilePath: string): Promise<JsonMapping> {
         try {
-            // Determine the actual file path
-            let actualPath: string;
-
-            if (path.isAbsolute(jsonFilePath)) {
-                actualPath = jsonFilePath;
-            } else {
-                actualPath = path.join(this.options.sqlFilesPath || './sql', jsonFilePath);
-            }
-
-            // Check if file exists
-            if (!fs.existsSync(actualPath)) {
-                throw new Error(`JsonMapping file not found: ${actualPath}`);
-            }
-
-            // Read and parse JSON file
-            const content = fs.readFileSync(actualPath, 'utf8');
-            const jsonMapping = JSON.parse(content) as JsonMapping;
+            // Load the unified mapping and convert to traditional JsonMapping
+            const unifiedMapping = await this.loadUnifiedMapping(jsonFilePath);
+            const { jsonMapping } = convertUnifiedMapping(unifiedMapping);
 
             if (this.options.debug) {
-                console.log(`Loaded JsonMapping file: ${actualPath}`);
+                console.log(`Loaded and converted unified mapping file: ${jsonFilePath}`);
             }
 
             return jsonMapping;
         } catch (error) {
-            if (error instanceof Error && error.message.includes('JsonMapping file not found')) {
-                throw error;
+            if (error instanceof Error && error.message.includes('Unified mapping file not found')) {
+                throw new Error(`JsonMapping file not found: ${jsonFilePath}`);
             } else {
                 throw new Error(`Failed to load JsonMapping file "${jsonFilePath}": ${error instanceof Error ? error.message : 'Unknown error'}`);
             }
@@ -459,25 +446,35 @@ export class RawSqlClient {
     private async extractTypeTransformationConfig(jsonMapping: JsonMapping, sqlFilePath?: string): Promise<TypeTransformationConfig> {
         const columnTransformations: { [key: string]: any } = {};
 
-        // Try to load type protection configuration from .types.json file
+        // Try to load type protection configuration from unified JSON mapping
         let protectedStringFields: string[] = [];
 
         if (sqlFilePath) {
             try {
-                const typesFilePath = sqlFilePath.replace('.sql', '.types.json');
-                const typesConfig = await this.loadTypesConfig(typesFilePath);
-                protectedStringFields = typesConfig.protectedStringFields || [];
+                const jsonMappingFilePath = sqlFilePath.replace('.sql', '.json');
+                const unifiedMapping = await this.loadUnifiedMapping(jsonMappingFilePath);
+                const { typeProtection } = convertUnifiedMapping(unifiedMapping);
+                protectedStringFields = typeProtection.protectedStringFields || [];
 
                 if (this.options.debug) {
-                    console.log('🔒 Loaded type protection config:', {
-                        file: typesFilePath,
-                        protectedFields: protectedStringFields
+                    console.log('🔒 Loaded type protection config from unified mapping:', {
+                        file: jsonMappingFilePath,
+                        protectedFields: protectedStringFields,
+                        unifiedMappingKeys: Object.keys(unifiedMapping),
+                        typeProtectionKeys: Object.keys(typeProtection)
                     });
                 }
             } catch (error) {
                 if (this.options.debug) {
-                    console.log('💡 No type protection config found, using value-based detection only');
+                    console.log('💡 No unified mapping found or type protection config available, using value-based detection only', {
+                        error: error instanceof Error ? error.message : 'Unknown error',
+                        sqlFilePath
+                    });
                 }
+            }
+        } else {
+            if (this.options.debug) {
+                console.log('💡 No sqlFilePath provided, skipping type protection config loading');
             }
         }
 
@@ -501,31 +498,31 @@ export class RawSqlClient {
     }
 
     /**
-     * Load type protection configuration from .types.json file
-     * @param typesFilePath - Path to types configuration file
-     * @returns Types configuration object
+     * Load unified JSON mapping configuration that includes both mapping and type protection
+     * @param jsonMappingFilePath - Path to unified JSON mapping file
+     * @returns Unified JSON mapping configuration
      */
-    private async loadTypesConfig(typesFilePath: string): Promise<{ protectedStringFields?: string[] }> {
+    private async loadUnifiedMapping(jsonMappingFilePath: string): Promise<UnifiedJsonMapping> {
         try {
             // Determine the actual file path
             let actualPath: string;
 
-            if (path.isAbsolute(typesFilePath)) {
-                actualPath = typesFilePath;
+            if (path.isAbsolute(jsonMappingFilePath)) {
+                actualPath = jsonMappingFilePath;
             } else {
-                actualPath = path.join(this.options.sqlFilesPath || './sql', typesFilePath);
+                actualPath = path.join(this.options.sqlFilesPath || './sql', jsonMappingFilePath);
             }
 
             // Check if file exists
             if (!fs.existsSync(actualPath)) {
-                throw new Error(`Types config file not found: ${actualPath}`);
+                throw new Error(`Unified mapping file not found: ${actualPath}`);
             }
 
             // Read and parse JSON file
             const content = fs.readFileSync(actualPath, 'utf8');
             return JSON.parse(content);
         } catch (error) {
-            throw new Error(`Failed to load types config file "${typesFilePath}": ${error instanceof Error ? error.message : 'Unknown error'}`);
+            throw new Error(`Failed to load unified mapping file "${jsonMappingFilePath}": ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
     }
 

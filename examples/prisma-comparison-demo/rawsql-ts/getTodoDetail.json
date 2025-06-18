@@ -9,8 +9,14 @@
         "name": "Todo",
         "columns": {
             "todoId": "todo_id",
-            "title": "title",
-            "description": "description",
+            "title": {
+                "column": "title",
+                "forceString": true
+            },
+            "description": {
+                "column": "description",
+                "forceString": true
+            },
             "completed": "completed",
             "createdAt": "created_at",
             "updatedAt": "updated_at"
@@ -25,8 +31,14 @@
             "relationshipType": "object",
             "columns": {
                 "userId": "user_id",
-                "userName": "user_name",
-                "email": "email",
+                "userName": {
+                    "column": "user_name",
+                    "forceString": true
+                },
+                "email": {
+                    "column": "email",
+                    "forceString": true
+                },
                 "createdAt": "user_created_at"
             }
         },
@@ -38,8 +50,14 @@
             "relationshipType": "object",
             "columns": {
                 "categoryId": "category_id",
-                "categoryName": "category_name",
-                "color": "color",
+                "categoryName": {
+                    "column": "category_name",
+                    "forceString": true
+                },
+                "color": {
+                    "column": "color",
+                    "forceString": true
+                },
                 "createdAt": "category_created_at"
             }
         },
@@ -51,7 +69,10 @@
             "relationshipType": "array",
             "columns": {
                 "commentId": "comment_id",
-                "commentText": "comment_text",
+                "commentText": {
+                    "column": "comment_text",
+                    "forceString": true
+                },
                 "createdAt": "comment_created_at"
             }
         },
@@ -63,8 +84,14 @@
             "relationshipType": "object",
             "columns": {
                 "userId": "comment_user_id",
-                "userName": "comment_user_name",
-                "email": "comment_user_email"
+                "userName": {
+                    "column": "comment_user_name",
+                    "forceString": true
+                },
+                "email": {
+                    "column": "comment_user_email",
+                    "forceString": true
+                }
             }
         }
     ],

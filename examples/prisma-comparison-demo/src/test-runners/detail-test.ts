@@ -112,7 +112,7 @@ async function testRawSqlDetailImplementation() {
     console.log('\n🔍 Testing rawsql-ts Todo Detail Implementation');
     console.log('='.repeat(60));
 
-    const service = new RawSqlTodoDetailService(prisma, { debug: false }); try {
+    const service = new RawSqlTodoDetailService(prisma, { debug: true }); try {
         // Initialize the RawSqlClient
         await service.initialize();
         console.log('✅ rawsql-ts RawSqlClient initialized successfully');
