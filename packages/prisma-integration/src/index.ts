@@ -43,8 +43,8 @@ export type {
     ColumnMappingConfig,
     JsonMapping,
     TypeProtectionConfig
-} from './UnifiedJsonMapping';
-export { convertUnifiedMapping } from './UnifiedJsonMapping';
+} from 'rawsql-ts';
+export { convertUnifiedMapping } from 'rawsql-ts';
 
 // Static Analysis Types
 export type {

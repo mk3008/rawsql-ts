@@ -1,6 +1,6 @@
 import { PrismaClientType, RawSqlClientOptions, PrismaSchemaInfo } from './types';
 import { PrismaSchemaResolver } from './PrismaSchemaResolver';
-import { UnifiedJsonMapping, convertUnifiedMapping } from './UnifiedJsonMapping';
+import { UnifiedJsonMapping, convertUnifiedMapping } from 'rawsql-ts';
 import {
     SqlFormatter,
     SelectQueryParser,

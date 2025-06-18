@@ -17,6 +17,7 @@ export * from './transformers/SelectValueCollector';
 export * from './transformers/SelectableColumnCollector';
 export * from './transformers/TableColumnResolver';
 export * from './transformers/TableSourceCollector';
+export * from './transformers/UnifiedJsonMapping';
 export * from './transformers/UpstreamSelectQueryFinder';
 export * from './transformers/TypeTransformationPostProcessor';
 

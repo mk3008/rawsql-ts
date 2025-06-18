@@ -2,7 +2,7 @@
  * Simple test to verify the unified JSON mapping system works correctly
  */
 
-import { convertUnifiedMapping } from '../../../../packages/prisma-integration/src/UnifiedJsonMapping';
+import { convertUnifiedMapping } from '../../../../packages/prisma-integration/src';
 import * as fs from 'fs';
 import * as path from 'path';
 

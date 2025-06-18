@@ -3,6 +3,8 @@
  * This unified approach eliminates the need for separate .types.json files.
  */
 
+import { JsonMapping } from './PostgresJsonQueryBuilder';
+
 /**
  * Column configuration that can either be a simple string mapping or an enhanced mapping with type protection.
  */
@@ -32,31 +34,6 @@ export interface UnifiedJsonMapping {
         propertyName: string;
         relationshipType: 'object' | 'array';
         columns: Record<string, ColumnMappingConfig>;
-    }>;
-    useJsonb?: boolean;
-}
-
-/**
- * Traditional JsonMapping structure for backward compatibility.
- */
-export interface JsonMapping {
-    rootName: string;
-    typeInfo?: {
-        interface: string;
-        importPath: string;
-    };
-    rootEntity: {
-        id: string;
-        name: string;
-        columns: Record<string, string>;
-    };
-    nestedEntities: Array<{
-        id: string;
-        name: string;
-        parentId: string;
-        propertyName: string;
-        relationshipType?: 'object' | 'array';
-        columns: Record<string, string>;
     }>;
     useJsonb?: boolean;
 }
@@ -94,10 +71,11 @@ export function convertUnifiedMapping(unified: UnifiedJsonMapping): {
         }
 
         return result;
-    };    // Convert the unified mapping to traditional JsonMapping
+    };
+
+    // Convert the unified mapping to traditional JsonMapping
     const jsonMapping: JsonMapping = {
         rootName: unified.rootName,
-        typeInfo: unified.typeInfo,
         rootEntity: {
             id: unified.rootEntity.id,
             name: unified.rootEntity.name,
@@ -106,6 +84,12 @@ export function convertUnifiedMapping(unified: UnifiedJsonMapping): {
         nestedEntities: [],  // Initialize as empty array
         useJsonb: unified.useJsonb
     };
+
+    // Add typeInfo if it exists
+    if (unified.typeInfo) {
+        // Note: JsonMapping doesn't have typeInfo in core, but we preserve it for backward compatibility
+        (jsonMapping as any).typeInfo = unified.typeInfo;
+    }
 
     // Process nested entities if they exist
     if (unified.nestedEntities) {
