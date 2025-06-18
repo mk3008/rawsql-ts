@@ -15,7 +15,9 @@ async function main() {
     await prisma.$executeRaw`ALTER SEQUENCE user_user_id_seq RESTART WITH 1;`
     await prisma.$executeRaw`ALTER SEQUENCE category_category_id_seq RESTART WITH 1;`
     await prisma.$executeRaw`ALTER SEQUENCE todo_todo_id_seq RESTART WITH 1;`
-    await prisma.$executeRaw`ALTER SEQUENCE todo_comment_comment_id_seq RESTART WITH 1;`// Create users with fixed IDs
+    await prisma.$executeRaw`ALTER SEQUENCE todo_comment_comment_id_seq RESTART WITH 1;`
+
+    // Create users with fixed IDs
     const users = await Promise.all([
         prisma.user.create({
             data: {
