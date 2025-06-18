@@ -2,7 +2,7 @@
  * Prisma ORM implementation for TODO detail retrieval
  */
 
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import {
     TodoDetailResultWithMetrics,
     TodoDetail,
@@ -26,10 +26,9 @@ export class PrismaTodoDetailService implements TodoDetailService {
     /**
      * Get TODO detail by ID using Prisma ORM with nested includes
      */
-    async getTodoDetail(todoId: number): Promise<TodoDetailResultWithMetrics> {
-        // Capture SQL queries using Prisma's query event listener
+    async getTodoDetail(todoId: number): Promise<TodoDetailResultWithMetrics> {        // Capture SQL queries using Prisma's query event listener
         const queries: string[] = [];
-        const queryListener = (event: any) => {
+        const queryListener = (event: { query: string }) => {
             queries.push(event.query);
         };
         (this.prisma as any).$on('query', queryListener);

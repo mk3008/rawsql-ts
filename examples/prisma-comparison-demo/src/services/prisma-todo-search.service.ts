@@ -2,7 +2,7 @@
  * Prisma ORM implementation for TODO search
  */
 
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import {
     TodoSearchParams,
     TodoSearchResultWithMetrics,
@@ -25,9 +25,8 @@ export class PrismaTodoSearchService implements TodoSearchService {
     }    /**
      * Search TODOs using Prisma ORM with include and where conditions
      */
-    async searchTodos(params: TodoSearchParams): Promise<TodoSearchResultWithMetrics> {
-        // Build where conditions
-        const where: any = {};
+    async searchTodos(params: TodoSearchParams): Promise<TodoSearchResultWithMetrics> {        // Build where conditions
+        const where: Prisma.TodoWhereInput = {};
 
         if (params.conditions.title) {
             where.title = {
@@ -71,7 +70,7 @@ export class PrismaTodoSearchService implements TodoSearchService {
 
         // Capture SQL queries using Prisma's query event listener
         const queries: string[] = [];
-        const queryListener = (event: any) => {
+        const queryListener = (event: { query: string }) => {
             queries.push(event.query);
         };
         (this.prisma as any).$on('query', queryListener);
