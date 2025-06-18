@@ -154,7 +154,7 @@ export class RawSqlClient {
                 console.log('Applying filters:', options.filter, 'allowAllUndefined:', allowAllUndefined);
             }
 
-            const paramInjector = new SqlParamInjector(this.tableColumnResolver);
+            const paramInjector = new SqlParamInjector(this.tableColumnResolver, { allowAllUndefined });
             modifiedQuery = paramInjector.inject(modifiedQuery, options.filter) as SimpleSelectQuery;
         }
 
