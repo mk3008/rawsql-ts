@@ -328,7 +328,7 @@ it('should validate all SQL files', async () => {
 
 ### Documentation
 - **[RawSqlClient Usage Guide](../../docs/usage-guides/class-RawSqlClient-usage-guide.md)** - Complete client reference
-- **[Enhanced JSON Mapping Guide](../../docs/usage-guides/enhanced-json-mapping-usage-guide.md)** - Advanced mapping patterns
+- **[Unified JSON Mapping Guide](../../docs/usage-guides/unified-json-mapping-usage-guide.md)** - Advanced mapping patterns
 - **[SQL File Organization Guide](../../docs/usage-guides/sql-file-organization-guide.md)** - Best practices
 
 ---

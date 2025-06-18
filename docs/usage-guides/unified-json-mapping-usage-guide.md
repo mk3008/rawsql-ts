@@ -1,81 +1,86 @@
-# Enhanced JSON Mapping Usage Guide
+# Unified JSON Mapping Usage Guide
 
-This guide provides comprehensive instructions for creating Enhanced JSON Mapping files that transform flat SQL results into structured, type-safe domain models. Enhanced JSON Mapping extends the basic JSON mapping with TypeScript type information for automatic validation.
+This guide provides comprehensive instructions for creating Unified JSON Mapping files that transform flat SQL results into structured, type-safe domain models. The Unified JSON Mapping format integrates type protection and mapping configuration into a single file.
 
 ## Overview
 
-Enhanced JSON Mapping enables:
+Unified JSON Mapping enables:
+- **Type Protection**: Built-in `forceString` protection for string fields
 - **Automatic Type Validation**: Validates TypeScript interfaces against SQL results
-- **Static Analysis**: Catches type mismatches during development
-- **AI-Assisted Generation**: Structured format perfect for AI tools to generate mappings
+- **Static Analysis**: Catches type mismatches and protection issues during development
+- **Single File Configuration**: No need for separate .types.json files
 - **Domain Model Integration**: Links SQL queries directly to TypeScript domain models
 
-## Enhanced JSON Mapping Structure
+## Unified JSON Mapping Structure
 
 ### Complete Example
 
 ```json
 {
-  "rootName": "userProfile",
+  "rootName": "todo",
   "typeInfo": {
-    "interface": "UserProfile",
-    "importPath": "src/types/models.ts"
+    "interface": "TodoDetail",
+    "importPath": "src/contracts/todo-detail.ts"
   },
+  "protectedStringFields": [
+    "title", "description", "user_name", "email", 
+    "category_name", "color", "comment_text"
+  ],
   "rootEntity": {
-    "id": "user",
-    "name": "User",
+    "id": "todo",
+    "name": "Todo",
     "columns": {
-      "id": "user_id",
-      "name": "name",
-      "email": "email"
-    },
-    "typeInfo": {
-      "interface": "UserProfile",
-      "importPath": "src/types/models.ts",
-      "properties": {
-        "id": { "type": "number", "required": true },
-        "name": { "type": "string", "required": true },
-        "email": { "type": "string", "required": true }
-      }
+      "todoId": "todo_id",
+      "title": {
+        "column": "title",
+        "forceString": true
+      },
+      "description": {
+        "column": "description", 
+        "forceString": true
+      },
+      "completed": "completed",
+      "createdAt": "created_at",
+      "updatedAt": "updated_at"
     }
   },
   "nestedEntities": [
     {
-      "id": "profile",
-      "name": "Profile",
-      "parentId": "user",
-      "propertyName": "profile",
+      "id": "user",
+      "name": "User", 
+      "parentId": "todo",
+      "propertyName": "user",
       "relationshipType": "object",
       "columns": {
-        "title": "profile_title",
-        "bio": "profile_bio"
-      },
-      "typeInfo": {
-        "interface": "UserProfile['profile']",
-        "properties": {
-          "title": { "type": "string", "required": true },
-          "bio": { "type": "string", "required": false }
-        }
+        "userId": "user_id",
+        "userName": {
+          "column": "user_name",
+          "forceString": true
+        },
+        "email": {
+          "column": "email",
+          "forceString": true
+        },
+        "createdAt": "user_created_at"
       }
     },
     {
-      "id": "posts",
-      "name": "Posts",
-      "parentId": "user",
-      "propertyName": "posts",
-      "relationshipType": "array",
+      "id": "category",
+      "name": "Category",
+      "parentId": "todo", 
+      "propertyName": "category",
+      "relationshipType": "object",
       "columns": {
-        "id": "post_id",
-        "title": "post_title",
-        "content": "post_content"
-      },
-      "typeInfo": {
-        "interface": "UserProfile['posts'][0]",
-        "properties": {
-          "id": { "type": "number", "required": true },
-          "title": { "type": "string", "required": true },
-          "content": { "type": "string", "required": true }
-        }
+        "categoryId": "category_id",
+        "categoryName": {
+          "column": "category_name",
+          "forceString": true
+        },
+        "color": {
+          "column": "color",
+          "forceString": true
+        },
+        "createdAt": "category_created_at"
       }
     }
   ]
@@ -90,37 +95,89 @@ Enhanced JSON Mapping enables:
 |-------|------|----------|-------------|
 | `rootName` | string | Yes | Unique identifier for the mapping |
 | `typeInfo` | object | No | Global type information for the root interface |
+| `protectedStringFields` | array | No | List of database columns that should be protected with forceString |
 | `rootEntity` | object | Yes | Definition of the root entity structure |
 | `nestedEntities` | array | No | Array of nested entity definitions |
+| `useJsonb` | boolean | No | Whether to use JSONB aggregation (default: true) |
 
 ### TypeInfo Object
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `interface` | string | Yes | TypeScript interface name |
-| `importPath` | string | Yes | Path to import the interface from |
-| `properties` | object | No | Detailed property type definitions |
+| `importPath` | string | No | Path to import the interface from |
 
-### Entity Objects (rootEntity & nestedEntities)
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `id` | string | Yes | Unique entity identifier |
-| `name` | string | Yes | Human-readable entity name |
-| `parentId` | string | No* | Parent entity ID (*required for nested entities) |
-| `propertyName` | string | No* | Property name in parent (*required for nested entities) |
-| `relationshipType` | string | No* | "object" or "array" (*required for nested entities) |
-| `columns` | object | Yes | Column mappings (jsonKey → sqlColumn) |
-| `typeInfo` | object | No | Type validation information |
-
-### Property Type Info
+### Entity Definition
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `type` | string | Yes | 'string', 'number', 'boolean', 'Date', 'object', 'array' |
-| `required` | boolean | Yes | Whether the property is required |
-| `arrayElementType` | string | No | Element type for array properties |
-| `objectInterface` | string | No | Interface reference for object properties |
+| `id` | string | Yes | Unique identifier for this entity |
+| `name` | string | Yes | Display name for the entity |
+| `parentId` | string | No | ID of parent entity (for nested entities) |
+| `propertyName` | string | No | Property name in parent object (for nested entities) |
+| `relationshipType` | string | No | Type of relationship: "object" or "array" |
+| `columns` | object | Yes | Column mapping configuration |
+
+### Column Mapping Configuration
+
+Column mappings can be defined in two ways:
+
+#### Simple String Mapping
+```json
+{
+  "fieldName": "database_column_name"
+}
+```
+
+#### Advanced Object Mapping
+```json
+{
+  "fieldName": {
+    "column": "database_column_name",
+    "forceString": true
+  }
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `column` | string | Yes | Database column name |
+| `forceString` | boolean | No | Force value to be converted to string for type safety |
+
+## String Field Protection
+
+### Why Use forceString?
+
+String fields in the database may return unexpected types due to:
+- Database driver type conversion
+- Numeric values stored as strings
+- Date/timestamp formatting differences
+- NULL value handling
+
+### When to Use forceString
+
+Use `forceString: true` for:
+- User-generated content (titles, descriptions, names)
+- Email addresses and usernames  
+- Text-based identifiers
+- Content that should always be treated as strings
+
+### Example with Protection
+
+```json
+{
+  "columns": {    "title": {
+      "column": "title",
+      "forceString": true
+    },
+    "email": {
+      "column": "email", 
+      "forceString": true
+    },
+    "id": "user_id",  // Numbers don't need forceString
+    "isActive": "is_active"  // Booleans don't need forceString
+  }
+}
 
 ## Relationship Types
 
@@ -256,8 +313,14 @@ Please generate the complete JSON mapping file following the Enhanced JSON Mappi
     "name": "User",
     "columns": {
       "id": "user_id",
-      "name": "name",
-      "email": "email"
+      "name": {
+        "column": "name",
+        "forceString": true
+      },
+      "email": {
+        "column": "email",
+        "forceString": true
+      }
     }
   },
   "nestedEntities": []
