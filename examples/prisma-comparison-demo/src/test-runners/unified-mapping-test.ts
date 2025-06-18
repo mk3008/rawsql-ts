@@ -10,7 +10,7 @@ interface StringFieldValidation {
     fieldName: string;
     columnName: string;
     entityName: string;
-    hasForceString: boolean;
+    hasStringType: boolean;
     severity: 'warning' | 'error';
     recommendation: string;
 }
@@ -28,18 +28,18 @@ async function validateStringFields(unifiedMapping: UnifiedJsonMapping): Promise
     const checkEntityColumns = (entityName: string, columns: Record<string, ColumnMappingConfig>) => {
         for (const [fieldName, config] of Object.entries(columns)) {
             const columnName = typeof config === 'string' ? config : config.column;
-            const hasForceString = typeof config === 'object' && config.forceString === true;
+            const hasStringType = typeof config === 'object' && config.type === 'string';
 
             // Check if this column maps to a known string field in the database
             if (knownStringFields.has(columnName)) {
-                if (!hasForceString) {
+                if (!hasStringType) {
                     issues.push({
                         fieldName,
                         columnName,
                         entityName,
-                        hasForceString: false,
+                        hasStringType: false,
                         severity: 'warning',
-                        recommendation: `Add "forceString": true to protect against SQL injection and ensure type safety`
+                        recommendation: `Add "type": "string" to protect against SQL injection and ensure type safety`
                     });
                 }
             }
@@ -84,19 +84,19 @@ async function testUnifiedMapping() {
                 const icon = issue.severity === 'warning' ? '⚠️' : '❌';
                 console.log(`${icon} ${issue.severity.toUpperCase()}: ${issue.entityName}.${issue.fieldName}`);
                 console.log(`   📊 Database Column: ${issue.columnName}`);
-                console.log(`   🔒 Force String Protection: ${issue.hasForceString ? 'YES' : 'NO'}`);
+                console.log(`   🔒 String Type Protection: ${issue.hasStringType ? 'YES' : 'NO'}`);
                 console.log(`   💡 Recommendation: ${issue.recommendation}`);
                 console.log(`   🛠️  Fix: In your JSON mapping, change:`);
                 console.log(`      "${issue.fieldName}": "${issue.columnName}"`);
                 console.log(`      to:`);
-                console.log(`      "${issue.fieldName}": { "column": "${issue.columnName}", "forceString": true }`);
+                console.log(`      "${issue.fieldName}": { "column": "${issue.columnName}", "type": "string" }`);
                 console.log('');
             }
 
             console.log('🚨 Why this matters:');
-            console.log('   • String fields without forceString protection are vulnerable to SQL injection');
+            console.log('   • String fields without type protection are vulnerable to SQL injection');
             console.log('   • Type coercion issues can occur when database returns non-string values');
-            console.log('   • forceString ensures values are always converted to strings for safety');
+            console.log('   • type: "string" ensures values are always converted to strings for safety');
             console.log('');
         } else {
             console.log('✅ All string fields are properly protected!');
@@ -109,7 +109,7 @@ async function testUnifiedMapping() {
         console.log('📋 JsonMapping root columns:', Object.keys(jsonMapping.rootEntity.columns));
         console.log('🔒 Protected string fields:', typeProtection.protectedStringFields);
 
-        // Verify that forceString columns are properly converted
+        // Verify that string type columns are properly converted
         const expectedProtectedFields = [
             'title', 'description', 'user_name', 'email',
             'category_name', 'color', 'comment_text',

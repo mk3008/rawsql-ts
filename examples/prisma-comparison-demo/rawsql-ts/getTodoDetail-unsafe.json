@@ -12,7 +12,7 @@
             "title": "title",
             "description": {
                 "column": "description",
-                "forceString": true
+                "type": "string"
             },
             "completed": "completed",
             "createdAt": "created_at",
@@ -31,7 +31,7 @@
                 "userName": "user_name",
                 "email": {
                     "column": "email",
-                    "forceString": true
+                    "type": "string"
                 },
                 "createdAt": "user_created_at"
             }

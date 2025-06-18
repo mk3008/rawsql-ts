@@ -6,11 +6,16 @@
 import { JsonMapping } from './PostgresJsonQueryBuilder';
 
 /**
- * Column configuration that can either be a simple string mapping or an enhanced mapping with type protection.
+ * Supported column type enforcement options.
+ */
+export type ColumnType = 'string' | 'auto';
+
+/**
+ * Column configuration that can either be a simple string mapping or an enhanced mapping with type control.
  */
 export type ColumnMappingConfig = string | {
     column: string;
-    forceString?: boolean;
+    type?: ColumnType;
 };
 
 /**
@@ -64,7 +69,7 @@ export function convertUnifiedMapping(unified: UnifiedJsonMapping): {
                 result[key] = config;
             } else {
                 result[key] = config.column;
-                if (config.forceString) {
+                if (config.type === 'string') {
                     protectedStringFields.push(config.column);
                 }
             }
