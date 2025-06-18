@@ -17,12 +17,17 @@ export * from './transformers/SelectValueCollector';
 export * from './transformers/SelectableColumnCollector';
 export * from './transformers/TableColumnResolver';
 export * from './transformers/TableSourceCollector';
+export * from './transformers/UnifiedJsonMapping';
 export * from './transformers/UpstreamSelectQueryFinder';
+export * from './transformers/TypeTransformationPostProcessor';
+
 export * from './transformers/SchemaCollector';
 export * from './transformers/SqlParamInjector';
 export * from './transformers/SqlSortInjector';
 export * from './transformers/SqlPaginationInjector';
+export * from './transformers/DynamicQueryBuilder';
 
 export * from './utils/SqlSchemaValidator';
+export * from './utils/JsonSchemaValidator';
 export * from './utils/SchemaManager';
 // Add more exports here if you want to expose additional public API

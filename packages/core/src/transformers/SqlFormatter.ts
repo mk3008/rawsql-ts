@@ -43,15 +43,13 @@ export class SqlFormatter {
 
         this.parser = new SqlPrintTokenParser(parserOptions);
         this.printer = new SqlPrinter(options);
-    }
-
-    /**
+    }    /**
      * Formats a SQL query string with the given parameters.
      * @param sqlText The SQL query string to format.
      * @param parameters A dictionary of parameters to replace in the query.
      * @returns An object containing the formatted SQL string and the parameters.
      */
-    format(sql: SqlComponent): { formattedSql: string; params: Record<string, any> } {
+    format(sql: SqlComponent): { formattedSql: string; params: any[] | Record<string, any> } {
         const { token, params } = this.parser.parse(sql);
         const formattedSql = this.printer.print(token);
 

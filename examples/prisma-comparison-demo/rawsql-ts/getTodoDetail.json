@@ -1,0 +1,99 @@
+{
+    "rootName": "todo",
+    "typeInfo": {
+        "interface": "TodoDetail",
+        "importPath": "src/contracts/todo-detail.ts"
+    },
+    "rootEntity": {
+        "id": "todo",
+        "name": "Todo",
+        "columns": {
+            "todoId": "todo_id",
+            "title": {
+                "column": "title",
+                "forceString": true
+            },
+            "description": {
+                "column": "description",
+                "forceString": true
+            },
+            "completed": "completed",
+            "createdAt": "created_at",
+            "updatedAt": "updated_at"
+        }
+    },
+    "nestedEntities": [
+        {
+            "id": "user",
+            "name": "User",
+            "parentId": "todo",
+            "propertyName": "user",
+            "relationshipType": "object",
+            "columns": {
+                "userId": "user_id",
+                "userName": {
+                    "column": "user_name",
+                    "forceString": true
+                },
+                "email": {
+                    "column": "email",
+                    "forceString": true
+                },
+                "createdAt": "user_created_at"
+            }
+        },
+        {
+            "id": "category",
+            "name": "Category",
+            "parentId": "todo",
+            "propertyName": "category",
+            "relationshipType": "object",
+            "columns": {
+                "categoryId": "category_id",
+                "categoryName": {
+                    "column": "category_name",
+                    "forceString": true
+                },
+                "color": {
+                    "column": "color",
+                    "forceString": true
+                },
+                "createdAt": "category_created_at"
+            }
+        },
+        {
+            "id": "comments",
+            "name": "Comment",
+            "parentId": "todo",
+            "propertyName": "comments",
+            "relationshipType": "array",
+            "columns": {
+                "commentId": "comment_id",
+                "commentText": {
+                    "column": "comment_text",
+                    "forceString": true
+                },
+                "createdAt": "comment_created_at"
+            }
+        },
+        {
+            "id": "comment_user",
+            "name": "CommentUser",
+            "parentId": "comments",
+            "propertyName": "user",
+            "relationshipType": "object",
+            "columns": {
+                "userId": "comment_user_id",
+                "userName": {
+                    "column": "comment_user_name",
+                    "forceString": true
+                },
+                "email": {
+                    "column": "comment_user_email",
+                    "forceString": true
+                }
+            }
+        }
+    ],
+    "useJsonb": true
+}

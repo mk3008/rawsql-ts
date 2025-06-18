@@ -23,6 +23,8 @@ It is designed for extensibility and advanced SQL analysis, with initial focus o
 - High-speed SQL parsing and AST analysis (over 3x faster than major libraries)
 - Rich utilities for SQL structure transformation and analysis
 - Advanced SQL formatting capabilities, including multi-line formatting and customizable styles
+- **JSON-to-TypeScript type transformation** - Automatically convert JSON-ified SQL results (dates as strings, BigInts) back to proper TypeScript types with configurable transformation rules
+- **All-in-one dynamic query building with `DynamicQueryBuilder`** - combines filtering, sorting, pagination, and JSON serialization in a single, type-safe interface
 - Dynamic SQL parameter injection for building flexible search queries with `SqlParamInjector` (supports like, ilike, in, any, range queries, OR/AND conditions and more)
 - Dynamic ORDER BY clause injection with `SqlSortInjector` for flexible sorting with support for ASC/DESC, NULLS positioning, and append mode
 - Dynamic LIMIT/OFFSET pagination injection with `SqlPaginationInjector` for efficient data pagination with page-based and offset-based support
@@ -66,63 +68,126 @@ npm install rawsql-ts
 
 ## Quick Start
 
-Kickstart your project by dynamically injecting parameters with `SqlParamInjector` for flexible query generation right from the start!
+Experience the power of rawsql-ts with `DynamicQueryBuilder` - build complex queries with filtering, sorting, pagination, and JSON serialization in one go!
 
 ```typescript
-import { SqlParamInjector, SqlFormatter } from 'rawsql-ts';
+import { DynamicQueryBuilder, SqlFormatter } from 'rawsql-ts';
 
-// Define a base SQL query with an alias
-const baseSql = `SELECT u.user_id, u.user_name, u.email, u.phone FROM users as u WHERE u.active = TRUE`;
+// Start with a simple base SQL
+const baseSql = 'SELECT id, name, email, created_at FROM users WHERE active = true';
 
-// Search parameters with OR conditions and AND combination
-const searchParams = {
-  name_or_email: {
-    or: [
-      { column: 'user_name', ilike: '%alice%' },
-      { column: 'email', ilike: '%alice%' }
-    ]
+// Build a complete dynamic query with all features
+const builder = new DynamicQueryBuilder();
+const query = builder.buildQuery(baseSql, {
+  // Dynamic filtering
+  filter: { 
+    status: 'premium', 
+    created_at: { '>': '2024-01-01' } 
   },
-  phone: { like: '%080%' }  // AND condition
-};
+  // Dynamic sorting
+  sort: { 
+    created_at: { desc: true }, 
+    name: { asc: true } 
+  },
+  // Dynamic pagination
+  paging: { 
+    page: 2, 
+    pageSize: 10 
+  },
+  // JSON serialization (optional)
+  serialize: {
+    rootName: 'user',
+    rootEntity: { 
+      id: 'user', 
+      name: 'User', 
+      columns: { id: 'id', name: 'name', email: 'email', createdAt: 'created_at' } 
+    },
+    nestedEntities: []
+  }
+});
 
-const injector = new SqlParamInjector();
-// Dynamically inject searchParams into the baseSql
-const query = injector.inject(baseSql, searchParams);
-
-// Format the dynamically generated query
-const formatter = new SqlFormatter({ preset: 'postgres' }); 
+// Format and execute
+const formatter = new SqlFormatter();
 const { formattedSql, params } = formatter.format(query);
 
 console.log('Generated SQL:');
 console.log(formattedSql);
-// Output:
-// select "u"."user_id", "u"."user_name", "u"."email", "u"."phone"
-// from "users" as "u"
-// where "u"."active" = true
-//   and ("u"."user_name" ilike :name_or_email_or_0_ilike
-//        or "u"."email" ilike :name_or_email_or_1_ilike)
-//   and "u"."phone" like :phone_like
+// Output: Optimized PostgreSQL JSON query with filtering, sorting, and pagination
 
 console.log('Parameters:');
 console.log(params);
-// Output: { name_or_email_or_0_ilike: '%alice%', name_or_email_or_1_ilike: '%alice%', phone_like: '%080%' }
+// Output: { status: 'premium', created_at_gt: '2024-01-01' }
 ```
 
 ---
 
-## SelectQueryParser Features
+## SelectQueryParser & Query Types
 
 rawsql-ts provides robust parsers for `SELECT`, `INSERT`, and `UPDATE` statements, automatically handling SQL comments and providing detailed error messages. By converting SQL into a generic Abstract Syntax Tree (AST), it enables a wide variety of transformation processes.
+
+### Query Type Overview
+
+The parser returns different query types based on SQL structure:
+
+- **`SimpleSelectQuery`**: Single SELECT statement with comprehensive manipulation API
+- **`BinarySelectQuery`**: Combined queries using UNION, INTERSECT, EXCEPT operators
+- **`ValuesQuery`**: VALUES clause queries for data insertion or testing
+- **`SelectQuery`**: Base interface implemented by all SELECT query classes
 
 ```typescript
 import { SelectQueryParser } from 'rawsql-ts';
 
-const sql = `SELECT id, name FROM products WHERE category = 'electronics'`;
-const query = SelectQueryParser.parse(sql);
-// query object now holds the AST of the SQL
+// Returns SimpleSelectQuery
+const simpleQuery = SelectQueryParser.parse('SELECT id, name FROM products WHERE category = \'electronics\'');
+
+// Returns BinarySelectQuery  
+const unionQuery = SelectQueryParser.parse('SELECT id, name FROM products UNION SELECT id, name FROM archived_products');
+
+// Returns ValuesQuery
+const valuesQuery = SelectQueryParser.parse('VALUES (1, \'Alice\'), (2, \'Bob\')');
 ```
 
-For more details on `SelectQueryParser`, see the [SelectQueryParser Usage Guide](./docs/usage-guides/class-SelectQueryParser-usage-guide.md).
+### SimpleSelectQuery - Rich Programmatic API
+
+`SimpleSelectQuery` provides extensive methods for programmatic query building and manipulation:
+
+**Dynamic Condition Building:**
+- `appendWhereExpr(columnName, exprBuilder)` - Add conditions by column name with upstream injection support
+- `appendWhereRaw()`, `appendHavingRaw()` - Append raw SQL conditions
+- `setParameter(name, value)` - Manage named parameters directly on the query object
+
+**Query Composition:**
+- `toUnion()`, `toIntersect()`, `toExcept()` - Combine with other queries
+- `innerJoin()`, `leftJoin()`, `rightJoin()` - Add JOIN clauses programmatically
+- `appendWith()` - Add Common Table Expressions (CTEs)
+
+**Advanced Features:**
+- Column-aware condition injection that resolves aliases and expressions
+- Parameter management with validation and type safety
+- Subquery wrapping with `toSource(alias)` for complex compositions
+
+```typescript
+import { SelectQueryParser } from 'rawsql-ts';
+
+const query = SelectQueryParser.parse('SELECT id, salary * 1.1 AS adjusted_salary FROM employees');
+
+// Add condition targeting the calculated column
+query.appendWhereExpr('adjusted_salary', expr => `${expr} > 50000`);
+
+// Set parameters directly on the query
+query.setParameter('dept_id', 123);
+
+// Add JOINs programmatically
+query.leftJoinRaw('departments', 'd', 'department_id');
+
+// Combine with another query
+const adminQuery = SelectQueryParser.parse('SELECT id, salary FROM admins');
+const combinedQuery = query.toUnion(adminQuery);
+```
+
+For comprehensive API documentation and advanced examples, see the [SimpleSelectQuery Usage Guide](./docs/usage-guides/class-SimpleSelectQuery-usage-guide.md).
+
+For SelectQueryParser details, see the [SelectQueryParser Usage Guide](./docs/usage-guides/class-SelectQueryParser-usage-guide.md).
 
 ---
 
@@ -306,6 +371,71 @@ query = new SqlPaginationInjector().inject(query, { page: 3, pageSize: 15 });
 ```
 
 For more details, see the [SqlPaginationInjector Usage Guide](./docs/usage-guides/class-SqlPaginationInjector-usage-guide.md).
+
+---
+
+## DynamicQueryBuilder Features
+
+The `DynamicQueryBuilder` class is a powerful, all-in-one solution that combines SQL parsing with dynamic condition injection (filtering, sorting, pagination, and JSON serialization). It provides a unified interface for building complex queries without the need to manually chain multiple injectors, making it ideal for modern web applications that require flexible, dynamic query generation.
+
+Key benefits include:
+- **Unified Interface**: Single class that combines filtering, sorting, pagination, and JSON serialization
+- **Framework-Agnostic**: Pure JavaScript/TypeScript with no file system dependencies
+- **Composable Architecture**: Internally uses specialized injectors in optimal order for performance
+- **Type-Safe**: Full TypeScript support with strongly typed options and return values
+- **Performance Optimized**: Applies conditions in the most efficient order (filter → sort → paginate → serialize)
+- **Easy Testing**: No external dependencies make unit testing straightforward
+
+```typescript
+import { DynamicQueryBuilder, SqlFormatter } from 'rawsql-ts';
+
+// Create a builder instance
+const builder = new DynamicQueryBuilder();
+
+// Build a complete dynamic query with all features
+const baseQuery = 'SELECT id, name, email, created_at FROM users WHERE active = true';
+const options = {
+  filter: { 
+    status: 'premium',
+    created_at: { min: '2024-01-01' }  // Range filter
+  },
+  sort: { 
+    created_at: { desc: true, nullsLast: true },
+    name: { asc: true }
+  },
+  paging: { page: 2, pageSize: 20 },
+  serialize: {
+    rootName: 'users',
+    rootEntity: {
+      id: 'user',
+      name: 'User',
+      columns: { id: 'id', name: 'name', email: 'email', created: 'created_at' }
+    },
+    nestedEntities: []
+  }
+};
+
+const dynamicQuery = builder.buildQuery(baseQuery, options);
+
+const formatter = new SqlFormatter();
+const { formattedSql, params } = formatter.format(dynamicQuery);
+
+console.log(formattedSql);
+// Output: Complex JSON query with all conditions applied
+console.log(params);
+// Output: { status: 'premium', created_at_min: '2024-01-01', paging_limit: 20, paging_offset: 20 }
+
+// Convenience methods for specific use cases
+const filteredOnly = builder.buildFilteredQuery(baseQuery, { name: 'Alice' });
+const sortedOnly = builder.buildSortedQuery(baseQuery, { created_at: { desc: true } });
+const paginatedOnly = builder.buildPaginatedQuery(baseQuery, { page: 1, pageSize: 10 });
+
+// Validate SQL without applying modifications
+const isValid = builder.validateSql('SELECT id FROM users');
+console.log(isValid); // true
+```
+
+For more details, see the [DynamicQueryBuilder Usage Guide](./docs/usage-guides/class-DynamicQueryBuilder-usage-guide.md).
 
 ---
 

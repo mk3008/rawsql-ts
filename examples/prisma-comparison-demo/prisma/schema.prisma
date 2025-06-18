@@ -1,0 +1,58 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["relationJoins"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  user_id    Int           @id @default(autoincrement())
+  user_name  String
+  email      String        @unique
+  created_at DateTime      @default(now())
+  todos      Todo[]
+  comments   TodoComment[]
+
+  @@map("user")
+}
+
+model Category {
+  category_id   Int      @id @default(autoincrement())
+  category_name String   @unique
+  color         String?
+  created_at    DateTime @default(now())
+  todos         Todo[]
+
+  @@map("category")
+}
+
+model Todo {
+  todo_id     Int           @id @default(autoincrement())
+  title       String
+  description String?
+  completed   Boolean       @default(false)
+  user_id     Int
+  category_id Int
+  created_at  DateTime      @default(now())
+  updated_at  DateTime      @updatedAt
+  category    Category      @relation(fields: [category_id], references: [category_id])
+  user        User          @relation(fields: [user_id], references: [user_id])
+  comments    TodoComment[]
+
+  @@map("todo")
+}
+
+model TodoComment {
+  comment_id   Int      @id @default(autoincrement())
+  comment_text String
+  todo_id      Int
+  user_id      Int
+  created_at   DateTime @default(now())
+  todo         Todo     @relation(fields: [todo_id], references: [todo_id], onDelete: Cascade)
+  user         User     @relation(fields: [user_id], references: [user_id])
+
+  @@map("todo_comment")
+}

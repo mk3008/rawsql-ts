@@ -170,3 +170,7 @@ obj/
 demo/package.json
 demo/package-lock.json
 demo/formatter/node_modules/
+
+# Test reports
+reports/
+reports/**/*.md

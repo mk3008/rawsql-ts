@@ -1,0 +1,60 @@
+{
+    "rootName": "todos",
+    "rootEntity": {
+        "id": "t",
+        "name": "todo",
+        "columns": {
+            "todoId": "todo_id",
+            "title": {
+                "column": "title",
+                "forceString": true
+            },
+            "description": {
+                "column": "description",
+                "forceString": true
+            },
+            "completed": "completed",
+            "createdAt": "created_at",
+            "updatedAt": "updated_at",
+            "commentCount": "comment_count"
+        }
+    },
+    "nestedEntities": [
+        {
+            "id": "u",
+            "name": "user",
+            "parentId": "t",
+            "propertyName": "user",
+            "relationshipType": "object",
+            "columns": {
+                "userId": "user_id",
+                "userName": {
+                    "column": "user_name",
+                    "forceString": true
+                },
+                "email": {
+                    "column": "email",
+                    "forceString": true
+                }
+            }
+        },
+        {
+            "id": "c",
+            "name": "category",
+            "parentId": "t",
+            "propertyName": "category",
+            "relationshipType": "object",
+            "columns": {
+                "categoryId": "category_id",
+                "categoryName": {
+                    "column": "category_name",
+                    "forceString": true
+                },
+                "color": {
+                    "column": "color",
+                    "forceString": true
+                }
+            }
+        }
+    ]
+}

@@ -1,9 +1,11 @@
 import { CommonTable, SourceAliasExpression, SelectItem, SelectClause, FromClause, SourceExpression, TableSource, GroupByClause, WithClause, SubQuerySource, LimitClause } from '../models/Clause';
 import { SimpleSelectQuery } from '../models/SimpleSelectQuery';
+import { SelectQuery } from '../models/SelectQuery';
 import { IdentifierString, ValueComponent, ColumnReference, FunctionCall, ValueList, LiteralValue, BinaryExpression, CaseExpression, SwitchCaseArgument, CaseKeyValuePair, RawString, UnaryExpression } from '../models/ValueComponent';
 import { SelectValueCollector } from "./SelectValueCollector";
 import { PostgresObjectEntityCteBuilder, ProcessableEntity } from './PostgresObjectEntityCteBuilder';
 import { PostgresArrayEntityCteBuilder } from './PostgresArrayEntityCteBuilder';
+import { QueryBuilder } from './QueryBuilder';
 
 /**
  * Universal JSON mapping definition for creating any level of JSON structures.
@@ -36,7 +38,9 @@ export interface JsonMapping {
 export class PostgresJsonQueryBuilder {
     private selectValueCollector: SelectValueCollector;
     private objectEntityCteBuilder: PostgresObjectEntityCteBuilder;
-    private arrayEntityCteBuilder: PostgresArrayEntityCteBuilder; constructor() {
+    private arrayEntityCteBuilder: PostgresArrayEntityCteBuilder;
+
+    constructor() {
         this.selectValueCollector = new SelectValueCollector(null);
         this.objectEntityCteBuilder = new PostgresObjectEntityCteBuilder();
         this.arrayEntityCteBuilder = new PostgresArrayEntityCteBuilder();
@@ -52,11 +56,11 @@ export class PostgresJsonQueryBuilder {
         const selectedValues = collector.collect(query);
 
         // sv.name is the alias or derived name
-        const availableColumns = new Set(selectedValues.map(sv => sv.name));
-
-        // Check root entity columns
+        const availableColumns = new Set(selectedValues.map(sv => sv.name));        // Check root entity columns
         for (const jsonKey in mapping.rootEntity.columns) {
-            const sourceColumn = mapping.rootEntity.columns[jsonKey];
+            const columnDef = mapping.rootEntity.columns[jsonKey];
+            // Handle both string and object formats
+            const sourceColumn = typeof columnDef === 'string' ? columnDef : (columnDef as any).column;
             if (!availableColumns.has(sourceColumn)) {
                 throw new Error(`Validation Error: Column "${sourceColumn}" for JSON key "${jsonKey}" in root entity "${mapping.rootEntity.name}" not found in the query's select list.`);
             }
@@ -78,8 +82,11 @@ export class PostgresJsonQueryBuilder {
             if (!entityIds.has(entity.parentId)) {
                 throw new Error(`Validation Error: Parent entity with ID "${entity.parentId}" for nested entity "${entity.name}" (ID: ${entity.id}) not found.`);
             }
+
             for (const jsonKey in entity.columns) {
-                const sourceColumn = entity.columns[jsonKey];
+                const columnDef = entity.columns[jsonKey];
+                // Handle both string and object formats
+                const sourceColumn = typeof columnDef === 'string' ? columnDef : (columnDef as any).column;
                 if (!availableColumns.has(sourceColumn)) {
                     throw new Error(`Validation Error: Column "${sourceColumn}" for JSON key "${jsonKey}" in nested entity "${entity.name}" (ID: ${entity.id}) not found in the query's select list.`);
                 }
@@ -110,12 +117,19 @@ export class PostgresJsonQueryBuilder {
 
     /**
      * Build JSON query from original query and mapping configuration.
-     * @param originalQuery Original query to transform
+     * @param originalQuery Original query to transform (can be any SelectQuery type)
      * @param mapping JSON mapping configuration
      * @returns Transformed query with JSON aggregation
      */
-    public buildJsonQuery(originalQuery: SimpleSelectQuery, mapping: JsonMapping): SimpleSelectQuery {
-        return this.buildJsonWithCteStrategy(originalQuery, mapping);
+    public buildJsonQuery(originalQuery: SelectQuery, mapping: JsonMapping): SimpleSelectQuery;
+    public buildJsonQuery(originalQuery: SimpleSelectQuery, mapping: JsonMapping): SimpleSelectQuery;
+    public buildJsonQuery(originalQuery: SelectQuery | SimpleSelectQuery, mapping: JsonMapping): SimpleSelectQuery {
+        // Convert any SelectQuery to SimpleSelectQuery using QueryBuilder
+        const simpleQuery = originalQuery instanceof SimpleSelectQuery
+            ? originalQuery
+            : QueryBuilder.buildSimpleQuery(originalQuery);
+
+        return this.buildJsonWithCteStrategy(simpleQuery, mapping);
     }
 
     /**
@@ -321,7 +335,9 @@ export class PostgresJsonQueryBuilder {
     ): ValueComponent {
         const jsonBuildFunction = useJsonb ? "jsonb_build_object" : "json_build_object";
         const args: ValueComponent[] = [];        // Add the entity's own columns
-        Object.entries(entity.columns).forEach(([jsonKey, sqlColumn]) => {
+        Object.entries(entity.columns).forEach(([jsonKey, columnDef]) => {
+            // Handle both string and object formats
+            const sqlColumn = typeof columnDef === 'string' ? columnDef : (columnDef as any).column;
             args.push(new LiteralValue(jsonKey));
             args.push(new ColumnReference(null, new IdentifierString(sqlColumn)));
         });
