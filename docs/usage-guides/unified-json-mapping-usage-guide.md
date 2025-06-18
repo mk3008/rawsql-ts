@@ -5,7 +5,7 @@ This guide provides comprehensive instructions for creating Unified JSON Mapping
 ## Overview
 
 Unified JSON Mapping enables:
-- **Type Protection**: Built-in `forceString` protection for string fields
+- **Type Protection**: Built-in `type: "string"` protection for string fields
 - **Automatic Type Validation**: Validates TypeScript interfaces against SQL results
 - **Static Analysis**: Catches type mismatches and protection issues during development
 - **Single File Configuration**: No need for separate .types.json files
@@ -30,14 +30,13 @@ Unified JSON Mapping enables:
     "id": "todo",
     "name": "Todo",
     "columns": {
-      "todoId": "todo_id",
-      "title": {
+      "todoId": "todo_id",      "title": {
         "column": "title",
-        "forceString": true
+        "type": "string"
       },
       "description": {
         "column": "description", 
-        "forceString": true
+        "type": "string"
       },
       "completed": "completed",
       "createdAt": "created_at",
@@ -52,14 +51,13 @@ Unified JSON Mapping enables:
       "propertyName": "user",
       "relationshipType": "object",
       "columns": {
-        "userId": "user_id",
-        "userName": {
+        "userId": "user_id",        "userName": {
           "column": "user_name",
-          "forceString": true
+          "type": "string"
         },
         "email": {
           "column": "email",
-          "forceString": true
+          "type": "string"
         },
         "createdAt": "user_created_at"
       }
@@ -71,14 +69,13 @@ Unified JSON Mapping enables:
       "propertyName": "category",
       "relationshipType": "object",
       "columns": {
-        "categoryId": "category_id",
-        "categoryName": {
+        "categoryId": "category_id",        "categoryName": {
           "column": "category_name",
-          "forceString": true
+          "type": "string"
         },
         "color": {
           "column": "color",
-          "forceString": true
+          "type": "string"
         },
         "createdAt": "category_created_at"
       }
@@ -95,7 +92,7 @@ Unified JSON Mapping enables:
 |-------|------|----------|-------------|
 | `rootName` | string | Yes | Unique identifier for the mapping |
 | `typeInfo` | object | No | Global type information for the root interface |
-| `protectedStringFields` | array | No | List of database columns that should be protected with forceString |
+| `protectedStringFields` | array | No | List of database columns that should be protected with type: "string" |
 | `rootEntity` | object | Yes | Definition of the root entity structure |
 | `nestedEntities` | array | No | Array of nested entity definitions |
 | `useJsonb` | boolean | No | Whether to use JSONB aggregation (default: true) |
@@ -134,7 +131,7 @@ Column mappings can be defined in two ways:
 {
   "fieldName": {
     "column": "database_column_name",
-    "forceString": true
+    "type": "string"
   }
 }
 ```
@@ -142,11 +139,11 @@ Column mappings can be defined in two ways:
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `column` | string | Yes | Database column name |
-| `forceString` | boolean | No | Force value to be converted to string for type safety |
+| `type` | string | No | Column type enforcement ("string" or "auto") |
 
 ## String Field Protection
 
-### Why Use forceString?
+### Why Use Type Protection?
 
 String fields in the database may return unexpected types due to:
 - Database driver type conversion
@@ -154,9 +151,9 @@ String fields in the database may return unexpected types due to:
 - Date/timestamp formatting differences
 - NULL value handling
 
-### When to Use forceString
+### When to Use Type Protection
 
-Use `forceString: true` for:
+Use `type: "string"` for:
 - User-generated content (titles, descriptions, names)
 - Email addresses and usernames  
 - Text-based identifiers
@@ -165,17 +162,16 @@ Use `forceString: true` for:
 ### Example with Protection
 
 ```json
-{
-  "columns": {    "title": {
+{  "columns": {    "title": {
       "column": "title",
-      "forceString": true
+      "type": "string"
     },
     "email": {
       "column": "email", 
-      "forceString": true
+      "type": "string"
     },
-    "id": "user_id",  // Numbers don't need forceString
-    "isActive": "is_active"  // Booleans don't need forceString
+    "id": "user_id",  // Numbers don't need type protection
+    "isActive": "is_active"  // Booleans don't need type protection
   }
 }
 
@@ -315,11 +311,11 @@ Please generate the complete JSON mapping file following the Enhanced JSON Mappi
       "id": "user_id",
       "name": {
         "column": "name",
-        "forceString": true
+        "type": "string"
       },
       "email": {
         "column": "email",
-        "forceString": true
+        "type": "string"
       }
     }
   },

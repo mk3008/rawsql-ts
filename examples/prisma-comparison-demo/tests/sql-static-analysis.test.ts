@@ -59,7 +59,7 @@ describe('SQL Static Analysis', () => {
 
             let errorMessage = `Found ${errorLevelIssues.length} string field protection error(s). These must be fixed for type safety.\n\n`;
 
-            errorMessage += '🚨 CRITICAL ERRORS - String fields missing forceString protection:\n';
+            errorMessage += '🚨 CRITICAL ERRORS - String fields missing type protection:\n';
             errorMessage += '─'.repeat(80) + '\n';
 
             displayIssues.forEach((issue, index) => {
@@ -67,7 +67,7 @@ describe('SQL Static Analysis', () => {
                 errorMessage += `   📁 File: ${issue.filePath}\n`;
                 errorMessage += `   📊 Database Column: ${issue.columnName}\n`;
                 errorMessage += `   💡 Fix: Change "${issue.fieldName}": "${issue.columnName}" to:\n`;
-                errorMessage += `        "${issue.fieldName}": { "column": "${issue.columnName}", "forceString": true }\n`;
+                errorMessage += `        "${issue.fieldName}": { "column": "${issue.columnName}", "type": "string" }\n`;
                 if (index < displayIssues.length - 1) errorMessage += '\n';
             });
 
@@ -79,8 +79,8 @@ describe('SQL Static Analysis', () => {
             errorMessage += '\n🔧 Why this is critical:';
             errorMessage += '\n   • String fields may return unexpected types (date, bigint, etc.) from database';
             errorMessage += '\n   • Runtime errors occur when JavaScript expects string methods on non-string values';
-            errorMessage += '\n   • forceString ensures type safety and prevents data corruption';
-            errorMessage += '\n\n🚀 To fix: Add "forceString": true to all string field mappings in the files above.';
+            errorMessage += '\n   • type: "string" ensures type safety and prevents data corruption';
+            errorMessage += '\n\n🚀 To fix: Add "type": "string" to all string field mappings in the files above.';
 
             throw new Error(errorMessage);
         }
@@ -88,7 +88,7 @@ describe('SQL Static Analysis', () => {
         console.log('🎉 **All SQL files validated successfully!**');
 
         if (report.stringFieldValidation.unprotectedFields > 0) {
-            console.log(`⚠️  **Note**: ${report.stringFieldValidation.unprotectedFields} string field(s) lack protection - consider adding forceString: true`);
+            console.log(`⚠️  **Note**: ${report.stringFieldValidation.unprotectedFields} string field(s) lack protection - consider adding type: "string"`);
         } else {
             console.log('🔒 **All string fields are properly protected!**');
         }

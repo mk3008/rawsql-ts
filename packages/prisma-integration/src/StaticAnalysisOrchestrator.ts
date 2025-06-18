@@ -42,7 +42,7 @@ export interface StringFieldValidationIssue {
     columnName: string;
     entityName: string;
     filePath: string;
-    hasForceString: boolean;
+    hasStringType: boolean;
     severity: 'warning' | 'error';
     recommendation: string;
 }
@@ -415,11 +415,9 @@ export class StaticAnalysisOrchestrator {
             if (sqlResult.hasJsonMapping && this.lastStringFieldValidation) {
                 const fileStringIssues = this.lastStringFieldValidation.issues.filter(issue =>
                     issue.filePath.endsWith(jsonFileName)
-                );
-
-                if (fileStringIssues.length > 0) {
+                ); if (fileStringIssues.length > 0) {
                     const fieldList = fileStringIssues.map(issue => `${issue.entityName}.${issue.fieldName}`).join(', ');
-                    issues.push(`**⚠️ String Field Protection**: ${fileStringIssues.length} string field(s) lack protection: ${fieldList}. Add "forceString": true to these fields to ensure proper string type conversion and prevent type coercion issues. This is especially important for user-generated content fields.`);
+                    issues.push(`**⚠️ String Field Protection**: ${fileStringIssues.length} string field(s) lack protection: ${fieldList}. Add "type": "string" to these fields to ensure proper string type conversion and prevent type coercion issues. This is especially important for user-generated content fields.`);
                 }
             }
 
@@ -522,13 +520,13 @@ export class StaticAnalysisOrchestrator {
                 const checkEntityColumns = (entityName: string, columns: Record<string, ColumnMappingConfig>) => {
                     for (const [fieldName, config] of Object.entries(columns)) {
                         const columnName = typeof config === 'string' ? config : config.column;
-                        const hasForceString = typeof config === 'object' && config.forceString === true;
+                        const hasStringType = typeof config === 'object' && config.type === 'string';
 
                         // Check if this column maps to a known string field in the database
                         if (knownStringFields.has(columnName)) {
                             totalStringFields++;
 
-                            if (hasForceString) {
+                            if (hasStringType) {
                                 protectedFields++;
                             } else {
                                 issues.push({
@@ -536,9 +534,9 @@ export class StaticAnalysisOrchestrator {
                                     columnName,
                                     entityName,
                                     filePath: path.relative(this.options.baseDir, filePath),
-                                    hasForceString: false,
+                                    hasStringType: false,
                                     severity: stringFieldProtectionLevel as 'warning' | 'error',
-                                    recommendation: 'Add "forceString": true to ensure proper string type conversion and prevent type coercion issues'
+                                    recommendation: 'Add "type": "string" to ensure proper string type conversion and prevent type coercion issues'
                                 });
                             }
                         }
@@ -567,7 +565,7 @@ export class StaticAnalysisOrchestrator {
         const unprotectedFields = totalStringFields - protectedFields;
         const summary = unprotectedFields === 0
             ? `✅ All ${totalStringFields} string fields are properly protected`
-            : `⚠️  ${unprotectedFields} of ${totalStringFields} string fields lack forceString protection`;
+            : `⚠️  ${unprotectedFields} of ${totalStringFields} string fields lack type protection`;
 
         if (debug) {
             console.log(`📊 String field validation: ${protectedFields}/${totalStringFields} protected`);

@@ -10,7 +10,7 @@ interface StringFieldValidation {
     fieldName: string;
     columnName: string;
     entityName: string;
-    hasForceString: boolean;
+    hasStringType: boolean;
     severity: 'warning' | 'error';
     recommendation: string;
 }
@@ -31,18 +31,18 @@ async function validateStringFields(
     const checkEntityColumns = (entityName: string, columns: Record<string, ColumnMappingConfig>) => {
         for (const [fieldName, config] of Object.entries(columns)) {
             const columnName = typeof config === 'string' ? config : config.column;
-            const hasForceString = typeof config === 'object' && config.forceString === true;
+            const hasStringType = typeof config === 'object' && config.type === 'string';
 
             // Check if this column maps to a known string field in the database
             if (knownStringFields.has(columnName)) {
-                if (!hasForceString) {
+                if (!hasStringType) {
                     issues.push({
                         fieldName,
                         columnName,
                         entityName,
-                        hasForceString: false,
+                        hasStringType: false,
                         severity: severity,
-                        recommendation: `Add "forceString": true to ensure proper string type conversion and prevent type coercion issues`
+                        recommendation: `Add "type": "string" to ensure proper string type conversion and prevent type coercion issues`
                     });
                 }
             }
@@ -85,22 +85,22 @@ async function testUnsafeMapping() {
                 const icon = issue.severity === 'warning' ? '⚠️' : '❌';
                 console.log(`${icon} ${issue.severity.toUpperCase()}: ${issue.entityName}.${issue.fieldName}`);
                 console.log(`   📊 Database Column: ${issue.columnName}`);
-                console.log(`   🔒 Force String Protection: ${issue.hasForceString ? 'YES' : 'NO'}`);
+                console.log(`   🔒 String Type Protection: ${issue.hasStringType ? 'YES' : 'NO'}`);
                 console.log(`   💡 Recommendation: ${issue.recommendation}`);
                 console.log(`   🛠️  Fix: In your JSON mapping, change:`);
                 console.log(`      "${issue.fieldName}": "${issue.columnName}"`);
                 console.log(`      to:`);
-                console.log(`      "${issue.fieldName}": { "column": "${issue.columnName}", "forceString": true }`);
+                console.log(`      "${issue.fieldName}": { "column": "${issue.columnName}", "type": "string" }`);
                 console.log('');
             } console.log('🚨 Why this matters:');
             console.log('   • String fields may be returned as incorrect types (date, bigint, etc.) from database');
             console.log('   • Runtime errors can occur when JavaScript expects string methods on non-string values');
-            console.log('   • forceString ensures values are always converted to strings for safety');
+            console.log('   • type: "string" ensures values are always converted to strings for safety');
             console.log('   • This is especially important for user-generated content fields');
             console.log('');
 
             console.log('🔧 How to fix these issues:');
-            console.log('   1. Add forceString: true to all string fields that contain user data');
+            console.log('   1. Add type: "string" to all string fields that contain user data');
             console.log('   2. Pay special attention to fields like: title, description, names, emails');
             console.log('   3. Run this validation test regularly during development');
             console.log('   4. Consider adding this validation to your CI/CD pipeline');

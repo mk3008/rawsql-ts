@@ -7,11 +7,11 @@
             "todoId": "todo_id",
             "title": {
                 "column": "title",
-                "forceString": true
+                "type": "string"
             },
             "description": {
                 "column": "description",
-                "forceString": true
+                "type": "string"
             },
             "completed": "completed",
             "createdAt": "created_at",
@@ -30,11 +30,11 @@
                 "userId": "user_id",
                 "userName": {
                     "column": "user_name",
-                    "forceString": true
+                    "type": "string"
                 },
                 "email": {
                     "column": "email",
-                    "forceString": true
+                    "type": "string"
                 }
             }
         },
@@ -48,11 +48,11 @@
                 "categoryId": "category_id",
                 "categoryName": {
                     "column": "category_name",
-                    "forceString": true
+                    "type": "string"
                 },
                 "color": {
                     "column": "color",
-                    "forceString": true
+                    "type": "string"
                 }
             }
         }
