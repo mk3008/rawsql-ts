@@ -31,6 +31,8 @@ export interface StaticAnalysisOptions {
     prismaClient?: any;
     /** Schema name for Prisma resolution (default: 'public') */
     defaultSchema?: string;
+    /** String field protection severity level (default: 'error') */
+    stringFieldProtectionLevel?: 'error' | 'warning' | 'off';
     /** Enable debug logging */
     debug?: boolean;
 }
@@ -81,11 +83,10 @@ export class StaticAnalysisOrchestrator {
     private schemaResolver?: PrismaSchemaResolver;
     private ownsPrismaClient: boolean = false;
     private lastDomainModelResults?: Record<string, any>;
-    private lastStringFieldValidation?: StringFieldValidationReport;
-
-    constructor(options: StaticAnalysisOptions) {
+    private lastStringFieldValidation?: StringFieldValidationReport; constructor(options: StaticAnalysisOptions) {
         this.options = {
             defaultSchema: 'public',
+            stringFieldProtectionLevel: 'error',
             debug: false,
             ...options
         };
@@ -470,13 +471,24 @@ export class StaticAnalysisOrchestrator {
             console.warn(`⚠️  schema.prisma not found. Searched paths:`, commonPaths);
         }
         return undefined;
-    }
-
-    /**
+    }    /**
      * Validate string field protection in unified JSON mappings
      */
     async validateStringFields(): Promise<StringFieldValidationReport> {
-        const { debug } = this.options;
+        const { debug, stringFieldProtectionLevel } = this.options;
+
+        // If protection is disabled, return empty report
+        if (stringFieldProtectionLevel === 'off') {
+            return {
+                totalMappingFiles: 0,
+                totalStringFields: 0,
+                protectedFields: 0,
+                unprotectedFields: 0,
+                issues: [],
+                summary: '⏭️ String field protection validation is disabled'
+            };
+        }
+
         const issues: StringFieldValidationIssue[] = [];
         let totalStringFields = 0;
         let protectedFields = 0;
@@ -525,7 +537,7 @@ export class StaticAnalysisOrchestrator {
                                     entityName,
                                     filePath: path.relative(this.options.baseDir, filePath),
                                     hasForceString: false,
-                                    severity: 'warning',
+                                    severity: stringFieldProtectionLevel as 'warning' | 'error',
                                     recommendation: 'Add "forceString": true to ensure proper string type conversion and prevent type coercion issues'
                                 });
                             }

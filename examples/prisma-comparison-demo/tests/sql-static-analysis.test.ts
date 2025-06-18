@@ -17,12 +17,12 @@ describe('SQL Static Analysis', () => {
         await prismaClient.$disconnect();
     });
 
-    it('should validate all SQL files without errors', async () => {
-        // Run analysis
+    it('should validate all SQL files without errors', async () => {        // Run analysis with warning level for string protection
         const report = await runComprehensiveStaticAnalysis({
             baseDir: path.join(__dirname, '..'),
             mappingDir: path.join(__dirname, '..', 'rawsql-ts'),
             prismaClient,
+            stringFieldProtectionLevel: 'warning',
             debug: false
         });
 
@@ -49,10 +49,41 @@ describe('SQL Static Analysis', () => {
 
         if (report.sqlAnalysis.invalidMappings > 0) {
             throw new Error(`Found ${report.sqlAnalysis.invalidMappings} JSON mapping files with errors`);
-        }
+        }        // Check string field protection issues - fail if any errors are found
+        const errorLevelIssues = report.stringFieldValidation.issues.filter(issue => issue.severity === 'error');
+        if (errorLevelIssues.length > 0) {
+            // Generate detailed error message with specific locations and fixes
+            const maxDisplayIssues = 5; // Show first 5 issues in detail
+            const displayIssues = errorLevelIssues.slice(0, maxDisplayIssues);
+            const hasMoreIssues = errorLevelIssues.length > maxDisplayIssues;
 
-        // Note: String field protection issues are warnings, not errors
-        // They won't fail the test but will be displayed for developer awareness
+            let errorMessage = `Found ${errorLevelIssues.length} string field protection error(s). These must be fixed for type safety.\n\n`;
+
+            errorMessage += '🚨 CRITICAL ERRORS - String fields missing forceString protection:\n';
+            errorMessage += '─'.repeat(80) + '\n';
+
+            displayIssues.forEach((issue, index) => {
+                errorMessage += `${index + 1}. ❌ ERROR: ${issue.entityName}.${issue.fieldName}\n`;
+                errorMessage += `   📁 File: ${issue.filePath}\n`;
+                errorMessage += `   📊 Database Column: ${issue.columnName}\n`;
+                errorMessage += `   💡 Fix: Change "${issue.fieldName}": "${issue.columnName}" to:\n`;
+                errorMessage += `        "${issue.fieldName}": { "column": "${issue.columnName}", "forceString": true }\n`;
+                if (index < displayIssues.length - 1) errorMessage += '\n';
+            });
+
+            if (hasMoreIssues) {
+                const remainingCount = errorLevelIssues.length - maxDisplayIssues;
+                errorMessage += `\n... and ${remainingCount} more error(s). See full output above for complete list.\n`;
+            }
+
+            errorMessage += '\n🔧 Why this is critical:';
+            errorMessage += '\n   • String fields may return unexpected types (date, bigint, etc.) from database';
+            errorMessage += '\n   • Runtime errors occur when JavaScript expects string methods on non-string values';
+            errorMessage += '\n   • forceString ensures type safety and prevents data corruption';
+            errorMessage += '\n\n🚀 To fix: Add "forceString": true to all string field mappings in the files above.';
+
+            throw new Error(errorMessage);
+        }
 
         console.log('🎉 **All SQL files validated successfully!**');
 

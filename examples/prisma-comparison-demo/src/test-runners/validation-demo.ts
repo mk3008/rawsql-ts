@@ -15,7 +15,10 @@ interface StringFieldValidation {
     recommendation: string;
 }
 
-async function validateStringFields(unifiedMapping: UnifiedJsonMapping): Promise<StringFieldValidation[]> {
+async function validateStringFields(
+    unifiedMapping: UnifiedJsonMapping,
+    severity: 'warning' | 'error' = 'error'
+): Promise<StringFieldValidation[]> {
     const issues: StringFieldValidation[] = [];
 
     // Known string fields from Prisma schema
@@ -38,7 +41,7 @@ async function validateStringFields(unifiedMapping: UnifiedJsonMapping): Promise
                         columnName,
                         entityName,
                         hasForceString: false,
-                        severity: 'warning',
+                        severity: severity,
                         recommendation: `Add "forceString": true to ensure proper string type conversion and prevent type coercion issues`
                     });
                 }
@@ -70,11 +73,9 @@ async function testUnsafeMapping() {
         const unifiedMapping = JSON.parse(content);
 
         console.log('✅ Loaded unsafe mapping file for demonstration');
-        console.log('📋 This file intentionally has security issues to demonstrate validation');
-
-        // 🔒 Validate string field protection
+        console.log('📋 This file intentionally has security issues to demonstrate validation');        // 🔒 Validate string field protection (default: error level)
         console.log('\n🔍 Validating String Field Protection...');
-        const validationIssues = await validateStringFields(unifiedMapping);
+        const validationIssues = await validateStringFields(unifiedMapping, 'error');
 
         if (validationIssues.length > 0) {
             console.log('⚠️  String Field Protection Issues Found:');
