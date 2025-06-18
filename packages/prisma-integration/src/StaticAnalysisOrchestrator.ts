@@ -415,7 +415,8 @@ export class StaticAnalysisOrchestrator {
             if (sqlResult.hasJsonMapping && this.lastStringFieldValidation) {
                 const fileStringIssues = this.lastStringFieldValidation.issues.filter(issue =>
                     issue.filePath.endsWith(jsonFileName)
-                ); if (fileStringIssues.length > 0) {
+                );
+                if (fileStringIssues.length > 0) {
                     const fieldList = fileStringIssues.map(issue => `${issue.entityName}.${issue.fieldName}`).join(', ');
                     issues.push(`**⚠️ String Field Protection**: ${fileStringIssues.length} string field(s) lack protection: ${fieldList}. Add "type": "string" to these fields to ensure proper string type conversion and prevent type coercion issues. This is especially important for user-generated content fields.`);
                 }
