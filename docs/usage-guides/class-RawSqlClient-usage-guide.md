@@ -2,7 +2,7 @@
 
 ## Overview
 
-`RawSqlClient` is the main interface for executing SQL queries with auto-serialization support in the `@rawsql-ts/prisma-integration` package. It provides a simple, type-safe way to execute file-based SQL queries and transform results into structured JSON objects.
+`RawSqlClient` is the main interface for executing SQL queries with auto-serialization support in the `@msugiura/rawsql-prisma` package. It provides a simple, type-safe way to execute file-based SQL queries and transform results into structured JSON objects.
 
 ## Core Methods
 
@@ -11,7 +11,9 @@
 Executes a SQL query and returns a single result or null. Always enables serialization if a JSON mapping file exists.
 
 ```typescript
-const user = await client.queryOne<User>('users/get-profile.sql', { userId: 123 });
+const user = await client.queryOne<User>('users/get-profile.sql', { 
+  filter: { userId: 123 } 
+});
 // Returns: User | null
 ```
 
@@ -20,7 +22,9 @@ const user = await client.queryOne<User>('users/get-profile.sql', { userId: 123 
 Executes a SQL query and returns an array of results. Always enables serialization if a JSON mapping file exists.
 
 ```typescript
-const todos = await client.queryMany<Todo>('todos/search.sql', { status: 'pending' });
+const todos = await client.queryMany<Todo>('todos/search.sql', { 
+  filter: { status: 'pending' } 
+});
 // Returns: Todo[]
 ```
 
@@ -30,7 +34,7 @@ Low-level query method with full control over serialization and result handling.
 
 ```typescript
 const result = await client.query<Todo[]>('todos/search.sql', 
-  { status: 'pending' }, 
+  { filter: { status: 'pending' } }, 
   { serialize: true }
 );
 ```
@@ -104,7 +108,9 @@ interface UserProfile {
   }>;
 }
 
-const profile = await client.queryOne<UserProfile>('users/get-profile.sql', { userId: 123 });
+const profile = await client.queryOne<UserProfile>('users/get-profile.sql', { 
+  filter: { userId: 123 } 
+});
 ```
 
 ## Advanced Features
@@ -115,17 +121,19 @@ For the `query<T>()` method, serialization is controlled by options:
 
 ```typescript
 // Auto-detect: enables serialization if .json file exists
-const result1 = await client.query<User>('users/get-profile.sql', { userId: 123 });
+const result1 = await client.query<User>('users/get-profile.sql', { 
+  filter: { userId: 123 } 
+});
 
 // Force enable serialization
 const result2 = await client.query<User>('users/get-profile.sql', 
-  { userId: 123 }, 
+  { filter: { userId: 123 } }, 
   { serialize: true }
 );
 
 // Force disable serialization
 const result3 = await client.query<any[]>('users/get-profile.sql', 
-  { userId: 123 }, 
+  { filter: { userId: 123 } }, 
   { serialize: false }
 );
 ```
@@ -134,7 +142,9 @@ const result3 = await client.query<any[]>('users/get-profile.sql',
 
 ```typescript
 try {
-  const user = await client.queryOne<User>('users/get-profile.sql', { userId: 123 });
+  const user = await client.queryOne<User>('users/get-profile.sql', { 
+    filter: { userId: 123 } 
+  });
   if (!user) {
     console.log('User not found');
   }
