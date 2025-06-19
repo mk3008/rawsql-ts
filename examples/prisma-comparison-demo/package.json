@@ -20,7 +20,7 @@
         "@prisma/client": "^6.9.0",
         "pg": "^8.11.0",
         "rawsql-ts": "file:../../packages/core",
-        "@rawsql-ts/prisma": "file:../../packages/prisma-integration"
+        "@msugiura/rawsql-prisma": "file:../../packages/prisma-integration"
     },
     "devDependencies": {
         "@types/node": "^20.0.0",
