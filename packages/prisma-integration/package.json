@@ -1,13 +1,15 @@
 {
     "name": "prisma-rawsql",
     "version": "0.1.0-alpha",
-    "description": "Prisma integration for rawsql-ts - Dynamic SQL generation with type safety and hierarchical JSON serialization",    "main": "dist/src/index.js",
+    "description": "Prisma integration for rawsql-ts - Dynamic SQL generation with type safety and hierarchical JSON serialization",
+    "main": "dist/src/index.js",
     "module": "dist/esm/index.js",
     "types": "dist/src/index.d.ts",
     "scripts": {
         "test": "vitest run",
         "test:watch": "vitest",
-        "coverage": "vitest run --coverage",        "build": "tsc --build",
+        "coverage": "vitest run --coverage",
+        "build": "tsc --build",
         "build:all": "npm run clean && npm run build",
         "release": "npm run build:all && npm pack --dry-run && npm publish",
         "clean": "tsc --build --clean && node -e \"const fs = require('fs'); if (fs.existsSync('dist')) fs.rmSync('dist', {recursive: true, force: true});\"",
