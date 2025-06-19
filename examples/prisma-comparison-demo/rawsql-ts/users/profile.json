@@ -1,0 +1,18 @@
+{
+    "rootName": "UserProfile",
+    "rootEntity": {
+        "columns": {
+            "userId": "user_id",
+            "userName": "user_name",
+            "email": "email",
+            "createdAt": "created_at",
+            "totalTodos": "total_todos",
+            "completedTodos": "completed_todos",
+            "pendingTodos": "pending_todos"
+        }
+    },
+    "protectedStringFields": [
+        "user_name",
+        "email"
+    ]
+}

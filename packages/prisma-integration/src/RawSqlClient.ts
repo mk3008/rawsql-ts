@@ -290,12 +290,14 @@ export class RawSqlClient {
             }
 
             const firstRow = transformedResult[0];
-
             // Get the first column value (ExecuteScalar behavior)
+            // For JSON serialized results, the first column contains the complete JSON object
             if (firstRow && typeof firstRow === 'object') {
                 const firstValue = Object.values(firstRow)[0];
                 if (this.options.debug) {
                     console.log('ExecuteScalar: returning first column value from SQL JSON result');
+                    console.log('First row:', JSON.stringify(firstRow));
+                    console.log('First value:', JSON.stringify(firstValue));
                 }
                 return firstValue as T;
             } return firstRow as T;

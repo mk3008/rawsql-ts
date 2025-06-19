@@ -1,0 +1,15 @@
+{
+    "rootName": "Users",
+    "rootEntity": {
+        "columns": {
+            "userId": "user_id",
+            "userName": "user_name",
+            "email": "email",
+            "createdAt": "created_at"
+        }
+    },
+    "protectedStringFields": [
+        "user_name",
+        "email"
+    ]
+}
