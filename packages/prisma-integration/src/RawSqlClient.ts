@@ -111,6 +111,12 @@ export class RawSqlClient {
             } catch (error) {
                 // No .json file found, proceed without auto-serialization
                 shouldAutoSerialize = false;
+                if (this.options.debug) {
+                    console.log(`Auto-serialization disabled - JSON mapping not found: ${jsonMappingPath}`);
+                    if (error instanceof Error && error.message.includes('resolved to:')) {
+                        console.log(`Path resolution details: ${error.message}`);
+                    }
+                }
             }
         }
 
@@ -199,7 +205,10 @@ export class RawSqlClient {
                         }
                     } catch (error) {
                         if (this.options.debug) {
-                            console.log(`JsonMapping file not found: ${jsonMappingPath}, skipping serialization`);
+                            console.log(`JsonMapping file not found for auto-serialization: ${jsonMappingPath}, skipping serialization`);
+                            if (error instanceof Error && error.message.includes('resolved to:')) {
+                                console.log(`Path resolution details: ${error.message}`);
+                            }
                         }
                         actualSerialize = null;
                     }
@@ -305,22 +314,34 @@ export class RawSqlClient {
      */
     private loadSqlFile(sqlFilePath: string): string {
         try {
-            // Determine the actual file path
+            // Determine the actual file path with proper normalization
             let actualPath: string;
 
             if (path.isAbsolute(sqlFilePath)) {
-                actualPath = sqlFilePath;
+                actualPath = path.normalize(sqlFilePath);
             } else {
-                actualPath = path.join(this.options.sqlFilesPath || './sql', sqlFilePath);
+                // Use path.resolve for better cross-platform compatibility
+                const basePath = path.resolve(this.options.sqlFilesPath || './sql');
+                actualPath = path.resolve(basePath, sqlFilePath);
             }
 
-            // Check if file exists
-            if (!fs.existsSync(actualPath)) {
-                throw new Error(`SQL file not found: ${actualPath}`);
+            // Normalize the path to handle different separators and redundant segments
+            actualPath = path.normalize(actualPath);
+
+            if (this.options.debug) {
+                console.log(`Attempting to load SQL file: ${sqlFilePath} -> ${actualPath}`);
             }
 
-            // Read file content
-            const content = fs.readFileSync(actualPath, 'utf8');
+            // Read file content atomically
+            let content: string;
+            try {
+                content = fs.readFileSync(actualPath, 'utf8');
+            } catch (fsError) {
+                if (fsError instanceof Error && (fsError as any).code === 'ENOENT') {
+                    throw new Error(`SQL file not found: ${actualPath} (resolved from: ${sqlFilePath})`);
+                }
+                throw fsError;
+            }
 
             if (this.options.debug) {
                 console.log(`Loaded SQL file: ${actualPath}`);
@@ -330,7 +351,7 @@ export class RawSqlClient {
             return content;
         } catch (error) {
             if (error instanceof Error && error.message.includes('SQL file not found')) {
-                throw error;
+                throw error; // Re-throw file not found errors as-is
             }
             throw new Error(`Failed to load SQL file "${sqlFilePath}": ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
@@ -356,7 +377,14 @@ export class RawSqlClient {
             return jsonMapping;
         } catch (error) {
             if (error instanceof Error && error.message.includes('Unified mapping file not found')) {
-                throw new Error(`JsonMapping file not found: ${jsonFilePath}`);
+                // Extract the detailed path information from the unified mapping error
+                const match = error.message.match(/Unified mapping file not found: (.+) \(resolved from: (.+)\)/);
+                if (match) {
+                    const [, actualPath, originalPath] = match;
+                    throw new Error(`JsonMapping file not found: ${originalPath} (resolved to: ${actualPath})`);
+                } else {
+                    throw new Error(`JsonMapping file not found: ${jsonFilePath}`);
+                }
             } else {
                 throw new Error(`Failed to load JsonMapping file "${jsonFilePath}": ${error instanceof Error ? error.message : 'Unknown error'}`);
             }
@@ -504,24 +532,45 @@ export class RawSqlClient {
      */
     private async loadUnifiedMapping(jsonMappingFilePath: string): Promise<UnifiedJsonMapping> {
         try {
-            // Determine the actual file path
+            // Determine the actual file path with proper normalization
             let actualPath: string;
 
             if (path.isAbsolute(jsonMappingFilePath)) {
-                actualPath = jsonMappingFilePath;
+                actualPath = path.normalize(jsonMappingFilePath);
             } else {
-                actualPath = path.join(this.options.sqlFilesPath || './sql', jsonMappingFilePath);
+                // Use path.resolve for better cross-platform compatibility
+                const basePath = path.resolve(this.options.sqlFilesPath || './sql');
+                actualPath = path.resolve(basePath, jsonMappingFilePath);
             }
 
-            // Check if file exists
-            if (!fs.existsSync(actualPath)) {
-                throw new Error(`Unified mapping file not found: ${actualPath}`);
+            // Normalize the path to handle different separators and redundant segments
+            actualPath = path.normalize(actualPath);
+
+            if (this.options.debug) {
+                console.log(`Attempting to load unified mapping: ${jsonMappingFilePath} -> ${actualPath}`);
             }
 
-            // Read and parse JSON file
-            const content = fs.readFileSync(actualPath, 'utf8');
-            return JSON.parse(content);
+            // Check if file exists and read content atomically
+            let content: string;
+            try {
+                content = fs.readFileSync(actualPath, 'utf8');
+            } catch (fsError) {
+                if (fsError instanceof Error && (fsError as any).code === 'ENOENT') {
+                    throw new Error(`Unified mapping file not found: ${actualPath} (resolved from: ${jsonMappingFilePath})`);
+                }
+                throw fsError;
+            }
+
+            // Parse JSON content
+            try {
+                return JSON.parse(content);
+            } catch (parseError) {
+                throw new Error(`Invalid JSON in unified mapping file: ${actualPath} (${parseError instanceof Error ? parseError.message : 'Unknown parse error'})`);
+            }
         } catch (error) {
+            if (error instanceof Error && error.message.includes('Unified mapping file not found')) {
+                throw error; // Re-throw file not found errors as-is
+            }
             throw new Error(`Failed to load unified mapping file "${jsonMappingFilePath}": ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
     }
