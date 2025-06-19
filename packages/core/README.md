@@ -185,9 +185,9 @@ const adminQuery = SelectQueryParser.parse('SELECT id, salary FROM admins');
 const combinedQuery = query.toUnion(adminQuery);
 ```
 
-For comprehensive API documentation and advanced examples, see the [SimpleSelectQuery Usage Guide](./docs/usage-guides/class-SimpleSelectQuery-usage-guide.md).
+For comprehensive API documentation and advanced examples, see the [SimpleSelectQuery Usage Guide](../../docs/usage-guides/class-SimpleSelectQuery-usage-guide.md).
 
-For SelectQueryParser details, see the [SelectQueryParser Usage Guide](./docs/usage-guides/class-SelectQueryParser-usage-guide.md).
+For SelectQueryParser details, see the [SelectQueryParser Usage Guide](../../docs/usage-guides/class-SelectQueryParser-usage-guide.md).
 
 ---
 
@@ -233,7 +233,7 @@ order by
 */
 ```
 
-For more details, see the [SqlFormatter Usage Guide](./docs/usage-guides/class-SqlFormatter-usage-guide.md).
+For more details, see the [SqlFormatter Usage Guide](../../docs/usage-guides/class-SqlFormatter-usage-guide.md).
 
 ---
 
@@ -267,7 +267,7 @@ console.log(params);
 // Output: { user_id: 42, user_name: 'Alice' }
 ```
 
-For more details, see the [SqlParamInjector Usage Guide](./docs/usage-guides/class-SqlParamInjector-usage-guide.md).
+For more details, see the [SqlParamInjector Usage Guide](../../docs/usage-guides/class-SqlParamInjector-usage-guide.md).
 
 ---
 
@@ -314,7 +314,7 @@ const newSortedQuery = injector.inject(cleanQuery, { name: { desc: true } });
 // Result: SELECT id, name FROM users ORDER BY name DESC
 ```
 
-For more details, see the [SqlSortInjector Usage Guide](./docs/usage-guides/class-SqlSortInjector-usage-guide.md).
+For more details, see the [SqlSortInjector Usage Guide](../../docs/usage-guides/class-SqlSortInjector-usage-guide.md).
 
 ---
 
@@ -370,7 +370,7 @@ query = new SqlPaginationInjector().inject(query, { page: 3, pageSize: 15 });
 // Result: Filtered, sorted, and paginated query ready for execution
 ```
 
-For more details, see the [SqlPaginationInjector Usage Guide](./docs/usage-guides/class-SqlPaginationInjector-usage-guide.md).
+For more details, see the [SqlPaginationInjector Usage Guide](../../docs/usage-guides/class-SqlPaginationInjector-usage-guide.md).
 
 ---
 
@@ -435,7 +435,7 @@ const isValid = builder.validateSql('SELECT id FROM users');
 console.log(isValid); // true
 ```
 
-For more details, see the [DynamicQueryBuilder Usage Guide](./docs/usage-guides/class-DynamicQueryBuilder-usage-guide.md).
+For more details, see the [DynamicQueryBuilder Usage Guide](../../docs/usage-guides/class-DynamicQueryBuilder-usage-guide.md).
 
 ---
 
@@ -482,7 +482,7 @@ const jsonQuery = builder.buildJson(baseQuery, mapping);
 // [{ "id": 1, "date": "2024-01-15", "customer": {"name": "John"}, "items": [{"product": "Widget", "qty": 2}] }]
 ```
 
-For more details, see the [PostgresJsonQueryBuilder Usage Guide](./docs/usage-guides/class-PostgresJsonQueryBuilder-usage-guide.md).
+For more details, see the [PostgresJsonQueryBuilder Usage Guide](../../docs/usage-guides/class-PostgresJsonQueryBuilder-usage-guide.md).
 
 ---
 
@@ -534,7 +534,7 @@ try {
 }
 ```
 
-For more details on `SqlSchemaValidator`, see the [SqlSchemaValidator Usage Guide](./docs/usage-guides/class-SqlSchemaValidator-usage-guide.md).
+For more details on `SqlSchemaValidator`, see the [SqlSchemaValidator Usage Guide](../../docs/usage-guides/class-SqlSchemaValidator-usage-guide.md).
 
 ---
 
@@ -570,7 +570,7 @@ console.log(updateSql);
 // update "users" set "email" = "d"."email", "last_login" = "d"."last_login" from (SELECT id, new_email AS email, last_login FROM user_updates_source WHERE needs_update = TRUE) as "d" where "users"."id" = "d"."id"
 ```
 
-For more details on `QueryBuilder`, see the [QueryBuilder Usage Guide](./docs/usage-guides/class-QueryBuilder-usage-guide.md).
+For more details on `QueryBuilder`, see the [QueryBuilder Usage Guide](../../docs/usage-guides/class-QueryBuilder-usage-guide.md).
 
 ---
 
@@ -605,7 +605,7 @@ const tableColumnResolver = schemaManager.createTableColumnResolver();
 const injector = new SqlParamInjector({ tableColumnResolver });
 ```
 
-For more details on `SchemaManager`, see the [SchemaManager Usage Guide](./docs/usage-guides/class-SchemaManager-usage-guide.md).
+For more details on `SchemaManager`, see the [SchemaManager Usage Guide](../../docs/usage-guides/class-SchemaManager-usage-guide.md).
 
 ---
 
