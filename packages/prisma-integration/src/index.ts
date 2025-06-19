@@ -5,7 +5,7 @@
  * enabling dynamic SQL generation with type safety and hierarchical JSON serialization.
  */
 
-export { RawSqlClient } from './RawSqlClient';
+export { RawSqlClient, SqlFileNotFoundError, JsonMappingError, SqlExecutionError } from './RawSqlClient';
 export { PrismaSchemaResolver } from './PrismaSchemaResolver';
 export { AutoTypeCompatibilityValidator } from './AutoTypeCompatibilityValidator';
 export { DomainModelCompatibilityTester, validateJsonMappingCompatibility } from './DomainModelCompatibilityTester';
