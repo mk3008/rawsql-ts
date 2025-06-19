@@ -316,7 +316,7 @@ class DynamicQueryService {
 
   async searchUsers(criteria: UserSearchCriteria): Promise<User[]> {
     return this.executeQuery<User>('users/search.sql', {
-      filters: {
+      filter: {
         name: criteria.name ? { ilike: `%${criteria.name}%` } : undefined,
         department: criteria.departments ? { in: criteria.departments } : undefined,
         is_active: criteria.activeOnly ? true : undefined

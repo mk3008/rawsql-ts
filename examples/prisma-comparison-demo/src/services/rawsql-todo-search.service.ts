@@ -80,7 +80,7 @@ export class RawSqlTodoSearchService implements TodoSearchService {
             }
 
             // Execute query using RawSqlClient with file-based JSON serialization
-            const queryResult = await this.client.queryMany<TodoListItem>('searchTodos.sql', {
+            const queryResult = await this.client.queryMany<TodoListItem>('todos/searchTodos.sql', {
                 filter,
                 sort,
                 paging,
