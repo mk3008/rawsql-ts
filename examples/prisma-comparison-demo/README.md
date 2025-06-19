@@ -1,6 +1,6 @@
 # Prisma Comparison Demo
 
-A comprehensive demonstration environment showcasing the capabilities of `@rawsql-ts/prisma-integration` compared to traditional Prisma ORM approaches.
+A comprehensive demonstration environment showcasing the capabilities of `@rawsql-ts/prisma` compared to traditional Prisma ORM approaches.
 
 ## 🎯 What This Demo Shows
 

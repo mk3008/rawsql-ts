@@ -139,7 +139,7 @@ GROUP BY u.id, u.name, u.email, u.created_at, p.title, p.bio
 ## Configuration in RawSqlClient
 
 ```typescript
-import { RawSqlClient } from '@rawsql-ts/prisma-integration';
+import { RawSqlClient } from '@rawsql-ts/prisma';
 
 const client = new RawSqlClient(prisma, {
   sqlFilesPath: './sql',  // Base directory for all SQL files
@@ -162,7 +162,7 @@ const report = await client.queryMany('reports/monthly-sales.sql', { month: '202
 ```typescript
 // tests/sql-files.test.ts
 import { describe, it } from 'vitest';
-import { RawSqlClient } from '@rawsql-ts/prisma-integration';
+import { RawSqlClient } from '@rawsql-ts/prisma';
 import { glob } from 'glob';
 
 describe('SQL File Organization', () => {
@@ -220,7 +220,7 @@ Create corresponding `.json` files for queries that need structured results.
 ### Step 4: Update Import Statements
 ```typescript
 // Replace Prisma raw queries with RawSqlClient calls
-import { RawSqlClient } from '@rawsql-ts/prisma-integration';
+import { RawSqlClient } from '@rawsql-ts/prisma';
 
 const client = new RawSqlClient(prisma, { sqlFilesPath: './sql' });
 ```

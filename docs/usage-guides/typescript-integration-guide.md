@@ -1,6 +1,6 @@
 # TypeScript Integration Guide
 
-This guide covers how to achieve full type safety when using `@rawsql-ts/prisma-integration` with TypeScript.
+This guide covers how to achieve full type safety when using `@rawsql-ts/prisma` with TypeScript.
 
 ## Type-Safe Query Execution
 

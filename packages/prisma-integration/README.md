@@ -1,10 +1,10 @@
-# @rawsql-ts/prisma-integration
+# @rawsql-ts/prisma
 
-![npm version](https://img.shields.io/npm/v/@rawsql-ts/prisma-integration)
-![npm downloads](https://img.shields.io/npm/dm/@rawsql-ts/prisma-integration)
+![npm version](https://img.shields.io/npm/v/@rawsql-ts/prisma)
+![npm downloads](https://img.shields.io/npm/dm/@rawsql-ts/prisma)
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 
-`@rawsql-ts/prisma-integration` transforms raw SQL into structured TypeScript models automatically. Break free from Prisma model constraints and let SQL handle your DTO creation with comprehensive static validation.
+`@rawsql-ts/prisma` transforms raw SQL into structured TypeScript models automatically.Break free from Prisma model constraints and let SQL handle your DTO creation with comprehensive static validation.
 
 **PostgreSQL Only** - This library is specifically designed for PostgreSQL databases.
 
@@ -32,7 +32,7 @@ This library requires [Prisma](https://prisma.io) as a peer dependency. Prisma i
 ## Installation
 
 ```bash
-npm install @rawsql-ts/prisma-integration 
+npm install @rawsql-ts/prisma 
 ```
 
 ## 🚀 Getting Started 
@@ -72,7 +72,7 @@ Now you can execute your SQL files with full TypeScript support:
 
 ```typescript
 import { PrismaClient } from '@prisma/client';
-import { RawSqlClient } from '@rawsql-ts/prisma-integration';
+import { RawSqlClient } from '@rawsql-ts/prisma';
 
 const prisma = new PrismaClient();
 const client = new RawSqlClient(prisma, {
@@ -213,7 +213,7 @@ Key benefits include:
 - **Development-Friendly**: Clear error messages and validation warnings to help identify issues early.
 
 ```typescript
-import { RawSqlClient } from '@rawsql-ts/prisma-integration';
+import { RawSqlClient } from '@rawsql-ts/prisma';
 
 const client = new RawSqlClient(prisma, { sqlFilesPath: './sql' });
 
@@ -249,7 +249,7 @@ Key benefits include:
 - **Comprehensive Reporting**: Detailed validation reports with specific error locations and suggestions.
 
 ```typescript
-import { runComprehensiveStaticAnalysis } from '@rawsql-ts/prisma-integration';
+import { runComprehensiveStaticAnalysis } from '@rawsql-ts/prisma';
 
 // Run comprehensive validation in your tests
 const report = await runComprehensiveStaticAnalysis({
@@ -295,7 +295,7 @@ if (report.sqlAnalysis.invalidMappings > 0) {
 
 ```typescript
 // tests/sql-validation.test.ts
-import { runComprehensiveStaticAnalysis } from '@rawsql-ts/prisma-integration';
+import { runComprehensiveStaticAnalysis } from '@rawsql-ts/prisma';
 
 it('should validate all SQL files', async () => {
     const report = await runComprehensiveStaticAnalysis({

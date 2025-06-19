@@ -20,7 +20,7 @@ It is designed for extensibility and advanced SQL analysis, with initial focus o
 This is a monorepo containing multiple packages:
 
 - **[rawsql-ts](./packages/core)** - Core SQL parsing and transformation library
-- **[prisma-rawsql](./packages/prisma-integration)** - Prisma integration for rawsql-ts with dynamic SQL generation and hierarchical JSON serialization
+- **[@rawsql-ts/prisma](./packages/prisma-integration)** - Prisma integration for rawsql-ts with dynamic SQL generation and hierarchical JSON serialization
 
 ---
 
