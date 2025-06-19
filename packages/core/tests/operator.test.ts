@@ -313,3 +313,55 @@ test('tokenizes "not like" operator', () => {
     expect(tokens[1].type).toBe(TokenType.Operator);
     expect(tokens[1].value).toBe('not like');
 });
+
+test('tokenizes "ilike" operator', () => {
+    // Arrange
+    const tokenizer = new SqlTokenizer('1 ilike 1');
+
+    // Act
+    const tokens = tokenizer.readLexmes();
+
+    // Assert
+    expect(tokens.length).toBe(3);
+    expect(tokens[1].type).toBe(TokenType.Operator);
+    expect(tokens[1].value).toBe('ilike');
+});
+
+test('tokenizes "not ilike" operator', () => {
+    // Arrange
+    const tokenizer = new SqlTokenizer('1 not ilike 1');
+
+    // Act
+    const tokens = tokenizer.readLexmes();
+
+    // Assert
+    expect(tokens.length).toBe(3);
+    expect(tokens[1].type).toBe(TokenType.Operator);
+    expect(tokens[1].value).toBe('not ilike');
+});
+
+test('tokenizes "similar to" operator', () => {
+    // Arrange
+    const tokenizer = new SqlTokenizer('1 similar to 1');
+
+    // Act
+    const tokens = tokenizer.readLexmes();
+
+    // Assert
+    expect(tokens.length).toBe(3);
+    expect(tokens[1].type).toBe(TokenType.Operator);
+    expect(tokens[1].value).toBe('similar to');
+});
+
+test('tokenizes "not similar to" operator', () => {
+    // Arrange
+    const tokenizer = new SqlTokenizer('1 not similar to 1');
+
+    // Act
+    const tokens = tokenizer.readLexmes();
+
+    // Assert
+    expect(tokens.length).toBe(3);
+    expect(tokens[1].type).toBe(TokenType.Operator);
+    expect(tokens[1].value).toBe('not similar to');
+});

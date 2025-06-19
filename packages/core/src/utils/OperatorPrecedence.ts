@@ -20,6 +20,8 @@ export class OperatorPrecedence {
         'ilike': 10,
         'not like': 10,
         'not ilike': 10,
+        'similar to': 10,
+        'not similar to': 10,
         'in': 10,
         'not in': 10,
         'is': 10,
@@ -82,6 +84,6 @@ export class OperatorPrecedence {
      */
     public static isComparisonOperator(operator: string): boolean {
         const lowerOp = operator.toLowerCase();
-        return ['=', '!=', '<>', '<', '>', '<=', '>=', 'like', 'ilike', 'in', 'not in'].includes(lowerOp);
+        return ['=', '!=', '<>', '<', '>', '<=', '>=', 'like', 'ilike', 'similar to', 'in', 'not in'].includes(lowerOp);
     }
 }
