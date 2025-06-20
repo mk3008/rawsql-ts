@@ -8,7 +8,7 @@
  * - Comprehensive validation reports
  */
 
-import { SelectQueryParser, SqlSchemaValidator, PostgresJsonQueryBuilder, JsonMapping } from 'rawsql-ts';
+import { SelectQueryParser, SqlSchemaValidator, PostgresJsonQueryBuilder, JsonMapping, unifyJsonMapping, processJsonMapping } from 'rawsql-ts';
 import { PrismaSchemaResolver } from './PrismaSchemaResolver';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -18,6 +18,7 @@ export interface SqlFileInfo {
     fullPath: string;
     baseName: string;
     content: string;
+    relativePath?: string;
 }
 
 export interface SqlValidationResult {
@@ -66,25 +67,41 @@ export class SqlStaticAnalyzer {
             throw new Error(`SQL directory does not exist: ${sqlDirectory}`);
         }
 
-        const files = fs.readdirSync(sqlDirectory);
-        const sqlFiles = files.filter(file => file.endsWith('.sql'));
+        // Recursively find all SQL files
+        const sqlFiles: SqlFileInfo[] = [];
+
+        const searchDirectory = (dir: string) => {
+            const entries = fs.readdirSync(dir);
+
+            for (const entry of entries) {
+                const fullPath = path.join(dir, entry);
+                const stat = fs.statSync(fullPath);
+
+                if (stat.isDirectory()) {
+                    searchDirectory(fullPath);
+                } else if (stat.isFile() && entry.endsWith('.sql')) {
+                    const content = fs.readFileSync(fullPath, 'utf-8');
+                    const baseName = path.basename(entry, '.sql');
+                    const relativePath = path.relative(sqlDirectory, fullPath);
+
+                    sqlFiles.push({
+                        filename: entry,
+                        fullPath,
+                        baseName,
+                        content,
+                        relativePath
+                    });
+                }
+            }
+        };
+
+        searchDirectory(sqlDirectory);
 
         if (debug) {
-            console.log(`📄 Found ${sqlFiles.length} SQL files in ${sqlDirectory}:`, sqlFiles);
+            console.log(`📄 Found ${sqlFiles.length} SQL files in ${sqlDirectory}:`, sqlFiles.map(f => f.relativePath || f.filename));
         }
 
-        return sqlFiles.map(filename => {
-            const fullPath = path.join(sqlDirectory, filename);
-            const content = fs.readFileSync(fullPath, 'utf-8');
-            const baseName = path.basename(filename, '.sql');
-
-            return {
-                filename,
-                fullPath,
-                baseName,
-                content
-            };
-        });
+        return sqlFiles;
     }
 
     /**
@@ -156,29 +173,24 @@ export class SqlStaticAnalyzer {
                 console.log(`✅ Found JSON mapping: ${sqlFile.baseName}.json`);
             }
 
-            // Read and parse JSON mapping
+            // Read and parse JSON mapping using unified processor
             const jsonContent = fs.readFileSync(jsonPath, 'utf-8');
             let jsonMapping: JsonMapping;
 
             try {
-                jsonMapping = JSON.parse(jsonContent);
+                const rawMapping = JSON.parse(jsonContent);
+                // Use the unified processor to handle any format
+                const unifiedMapping = unifyJsonMapping(rawMapping);
+                const processedMapping = processJsonMapping(unifiedMapping);
+                jsonMapping = processedMapping.jsonMapping;
             } catch (parseError: any) {
-                result.errors.push(`Failed to parse JSON mapping: ${parseError.message}`);
+                result.errors.push(`Failed to process JSON mapping: ${parseError.message}`);
                 return result;
             }
 
-            // Validate JSON mapping structure
-            if (!jsonMapping.rootName) {
-                result.errors.push('JSON mapping missing rootName');
-            }
-            if (!jsonMapping.rootEntity) {
-                result.errors.push('JSON mapping missing rootEntity');
-            }
-            if (!jsonMapping.rootEntity?.columns) {
-                result.errors.push('JSON mapping missing rootEntity.columns');
-            }
-
-            if (result.errors.length > 0) {
+            // Basic validation - the unified processor ensures correct structure
+            if (!jsonMapping || !jsonMapping.rootName || !jsonMapping.rootEntity) {
+                result.errors.push('Invalid JSON mapping structure after processing');
                 return result;
             }
 
