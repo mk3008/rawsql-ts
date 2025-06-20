@@ -459,4 +459,86 @@ describe('UpstreamSelectQueryFinder Demo', () => {
         const normalize = (str: string) => str.replace(/\s+/g, '');
         expect(normalize(actual)).toBe(normalize(expected));
     });
+
+    test('finds upstream queries in UNION branches independently', () => {
+        // Arrange
+        const sql = `
+            WITH users_cte AS (
+                SELECT id, name FROM users
+            ),
+            products_cte AS (
+                SELECT id, title FROM products
+            )
+            SELECT id, name FROM users_cte
+            UNION
+            SELECT id, title as name FROM products_cte
+        `;
+        const query = SelectQueryParser.parse(sql);
+        const finder = new UpstreamSelectQueryFinder();
+
+        // Act - Search for columns that exist in both branches
+        const result = finder.find(query, ['id']);
+
+        // Assert - Should find upstream queries from both UNION branches
+        expect(result).toHaveLength(2);
+        const foundSQLs = result.map(getRawSQL);
+        expect(foundSQLs).toContain('select "id", "name" from "users"');
+        expect(foundSQLs).toContain('select "id", "title" from "products"');
+    });
+
+    test('finds upstream queries in UNION branches with different column availability', () => {
+        // Arrange
+        const sql = `
+            WITH users_cte AS (
+                SELECT id, name, email FROM users
+            ),
+            products_cte AS (
+                SELECT id, title FROM products
+            )
+            SELECT id, name FROM users_cte
+            UNION
+            SELECT id, title as name FROM products_cte
+        `;
+        const query = SelectQueryParser.parse(sql);
+        const finder = new UpstreamSelectQueryFinder();
+
+        // Act - Search for 'email' column which only exists in users_cte
+        const result = finder.find(query, ['email']);
+
+        // Assert - Should only find upstream query from users branch
+        expect(result).toHaveLength(1);
+        const foundSQLs = result.map(getRawSQL);
+        expect(foundSQLs).toContain('select "id", "name", "email" from "users"');
+        expect(foundSQLs).not.toContain('select "id", "title" from "products"');
+    });
+
+    test('handles complex nested UNION with CTEs', () => {
+        // Arrange
+        const sql = `
+            WITH base_data AS (
+                SELECT id, value, category FROM data_table
+            ),
+            filtered_a AS (
+                SELECT id, value FROM base_data WHERE category = 'A'
+            ),
+            filtered_b AS (
+                SELECT id, value FROM base_data WHERE category = 'B'  
+            )
+            SELECT * FROM (
+                SELECT id, value FROM filtered_a
+                UNION ALL
+                SELECT id, value FROM filtered_b
+            ) combined
+        `;
+        const query = SelectQueryParser.parse(sql);
+        const finder = new UpstreamSelectQueryFinder();
+
+        // Act - Search for columns that should be found in base_data through both branches
+        const result = finder.find(query, ['value']);
+
+        // Assert - Should find the base_data query through both filtration paths
+        expect(result.length).toBeGreaterThan(0);
+        const foundSQLs = result.map(getRawSQL);
+        expect(foundSQLs).toContain('select "id", "value", "category" from "data_table"');
+    });
 });

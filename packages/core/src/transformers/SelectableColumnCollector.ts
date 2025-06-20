@@ -17,7 +17,7 @@ export enum DuplicateDetectionMode {
     FullName = 'fullName',
 }
 import { CommonTable, ForClause, FromClause, GroupByClause, HavingClause, LimitClause, OrderByClause, SelectClause, WhereClause, WindowFrameClause, WindowsClause, JoinClause, JoinOnClause, JoinUsingClause, TableSource, SubQuerySource, SourceExpression, SelectItem, PartitionByClause, FetchClause, OffsetClause } from "../models/Clause";
-import { SimpleSelectQuery } from "../models/SelectQuery";
+import { SimpleSelectQuery, BinarySelectQuery } from "../models/SelectQuery";
 import { SqlComponent, SqlComponentVisitor } from "../models/SqlComponent";
 import { ArrayExpression, ArrayQueryExpression, BetweenExpression, BinaryExpression, CaseExpression, CastExpression, ColumnReference, FunctionCall, InlineQuery, ParenExpression, UnaryExpression, ValueComponent, ValueList, WindowFrameExpression } from "../models/ValueComponent";
 import { CTECollector } from "./CTECollector";
@@ -25,12 +25,23 @@ import { SelectValueCollector } from "./SelectValueCollector";
 import { TableColumnResolver } from "./TableColumnResolver";
 
 /**
- * A visitor that collects all ColumnReference instances from a SQL query structure.
+ * A visitor that collects all ColumnReference instances from SimpleSelectQuery structures.
  * This visitor scans through all clauses and collects all unique ColumnReference objects.
  * It does not scan Common Table Expressions (CTEs) or subqueries.
  * 
- * Important: Only collects column references to tables defined in the root FROM/JOIN clauses,
- * as these are the only columns that can be directly referenced in the query.
+ * IMPORTANT: This collector only supports SimpleSelectQuery. BinarySelectQuery 
+ * (UNION/INTERSECT/EXCEPT) will throw an error and should be decomposed into 
+ * individual SimpleSelectQuery branches before using this collector.
+ * 
+ * Behavioral notes:
+ * - Only collects column references to tables defined in the root FROM/JOIN clauses
+ * - For aliased columns (e.g., 'title as name'), collects both the original column 
+ *   reference ('title') AND the alias ('name') to enable complete dependency tracking
+ * 
+ * Use cases:
+ * - Dependency analysis and schema migration tools
+ * - Column usage tracking within individual SELECT branches
+ * - Security analysis for column-level access control
  */
 export class SelectableColumnCollector implements SqlComponentVisitor<void> {
     private handlers: Map<symbol, (arg: any) => void>;
@@ -65,11 +76,11 @@ export class SelectableColumnCollector implements SqlComponentVisitor<void> {
         this.commonTables = [];
         this.duplicateDetection = duplicateDetection;
         this.options = options || {};
-
         this.handlers = new Map<symbol, (arg: any) => void>();
 
-        // Main entry point is the SimpleSelectQuery
+        // Main entry point for SimpleSelectQuery only
         this.handlers.set(SimpleSelectQuery.kind, (expr) => this.visitSimpleSelectQuery(expr as SimpleSelectQuery));
+        // NOTE: BinarySelectQuery is NOT supported - it should be decomposed before using this collector
 
         // Handlers for each clause type that might contain column references
         this.handlers.set(SelectClause.kind, (expr) => this.visitSelectClause(expr as SelectClause));
@@ -167,7 +178,7 @@ export class SelectableColumnCollector implements SqlComponentVisitor<void> {
         }
 
         if (!(arg instanceof SimpleSelectQuery)) {
-            throw new Error("Root visit must be a SimpleSelectQuery");
+            throw new Error("Root visit requires a SimpleSelectQuery. Decompose compound queries before collecting columns.");
         }
 
         // If this is a root visit, we need to reset the state
@@ -251,11 +262,9 @@ export class SelectableColumnCollector implements SqlComponentVisitor<void> {
         if (query.fetchClause) {
             query.fetchClause.accept(this);
         }
-
         if (query.forClause) {
             query.forClause.accept(this);
         }
-
         // Explicitly NOT processing query.WithClause to avoid scanning CTEs
     }
 

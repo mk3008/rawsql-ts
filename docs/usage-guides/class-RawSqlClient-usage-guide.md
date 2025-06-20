@@ -196,11 +196,9 @@ WHERE u.id = :userId
 With the Model-Driven format, the TypeScript interface is already defined in the mapping:
 
 ```typescript
-// Usage
 const profile = await client.queryOne<UserProfile>('users/get-profile.sql', { 
   filter: { userId: 123 } 
 });
-// TypeScript automatically knows the structure from the mapping file!
 ```
 
 *For complete TypeScript integration examples, see the [Model-Driven JSON Mapping Guide](./model-driven-json-mapping-usage-guide.md).*
