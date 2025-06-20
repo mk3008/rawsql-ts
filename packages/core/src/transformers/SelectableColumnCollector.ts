@@ -175,8 +175,10 @@ export class SelectableColumnCollector implements SqlComponentVisitor<void> {
         if (!this.isRootVisit) {
             this.visitNode(arg);
             return;
-        } if (!(arg instanceof SimpleSelectQuery)) {
-            throw new Error("Root visit must be a SimpleSelectQuery only. BinarySelectQuery is not supported - decompose it first.");
+        }
+
+        if (!(arg instanceof SimpleSelectQuery)) {
+            throw new Error("Root visit requires a SimpleSelectQuery. Decompose compound queries before collecting columns.");
         }
 
         // If this is a root visit, we need to reset the state

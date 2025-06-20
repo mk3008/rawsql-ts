@@ -1,4 +1,4 @@
-import { SelectQuery, SimpleSelectQuery } from "../models/SelectQuery";
+import { SelectQuery, SimpleSelectQuery, BinarySelectQuery } from "../models/SelectQuery";
 import { CommonTable } from "../models/Clause";
 import { CTECollector } from "./CTECollector";
 import { SelectableColumnCollector } from "./SelectableColumnCollector";
@@ -122,8 +122,23 @@ export class CTEDependencyTracer {
 
         let mainColumns: string[] = [];
         try {
-            const columnRefs = this.columnCollector.collect(query);
-            mainColumns = columnRefs.map(col => col.name);
+            // SelectableColumnCollector only supports SimpleSelectQuery
+            if (query instanceof SimpleSelectQuery) {
+                const columnRefs = this.columnCollector.collect(query);
+                mainColumns = columnRefs.map(col => col.name);
+            } else if (query instanceof BinarySelectQuery) {
+                // For UNION/INTERSECT/EXCEPT queries, collect from all branches
+                const leftColumns = query.left instanceof SimpleSelectQuery
+                    ? this.columnCollector.collect(query.left).map(col => col.name)
+                    : [];
+                const rightColumns = query.right instanceof SimpleSelectQuery
+                    ? this.columnCollector.collect(query.right).map(col => col.name)
+                    : [];
+
+                // Combine and deduplicate columns from both branches
+                const allColumns = [...leftColumns, ...rightColumns];
+                mainColumns = [...new Set(allColumns)];
+            }
         } catch (error) {
             console.warn(`Failed to collect columns from main query: ${error instanceof Error ? error.message : String(error)}`);
         }

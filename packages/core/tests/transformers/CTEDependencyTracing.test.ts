@@ -23,22 +23,21 @@ describe('CTE Dependency Tracing', () => {
         )
       SELECT name FROM final_result
     `;
-
         const parsed = SelectQueryParser.parse(sql);
         const tracer = new CTEDependencyTracer();
 
-        console.log('\n🔍 Building CTE dependency graph...');
+        // console.log('\n🔍 Building CTE dependency graph...');
         const graph = tracer.buildGraph(parsed);
 
-        console.log(`Found ${graph.nodes.size} CTEs`);
-        console.log(`Root CTEs (no dependencies): ${graph.rootNodes.join(', ')}`);
-        console.log(`Leaf CTEs (not used by others): ${graph.leafNodes.join(', ')}`);
+        // console.log(`Found ${graph.nodes.size} CTEs`);
+        // console.log(`Root CTEs (no dependencies): ${graph.rootNodes.join(', ')}`);
+        // console.log(`Leaf CTEs (not used by others): ${graph.leafNodes.join(', ')}`);
 
         // Print full graph
         tracer.printGraph(graph);
 
         // Trace specific columns
-        console.log('\n' + '='.repeat(60));
+        // console.log('\n' + '='.repeat(60));
 
         const columnsToTrace = [
             'filterable_client_id', // Should be found only in root_data
@@ -90,7 +89,7 @@ describe('CTE Dependency Tracing', () => {
         const parsed = SelectQueryParser.parse(sql);
         const tracer = new CTEDependencyTracer();
 
-        console.log('\n🔍 Simple dependency chain test...');
+        // console.log('\n🔍 Simple dependency chain test...');
         const graph = tracer.buildGraph(parsed);
         tracer.printGraph(graph);
 
