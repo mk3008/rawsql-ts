@@ -745,10 +745,14 @@ order by
     line_id
         `;
         const query = SelectQueryParser.parse(sql);
-        const collector = new SelectableColumnCollector();        // Act
+
+        // Act
+        const collector = new SelectableColumnCollector();
         collector.visit(query);
         const items = collector.collect(query);
-        const columnNames = items.map(item => item.name);        // Assert
+
+        // Assert
+        const columnNames = items.map(item => item.name);
         expect(columnNames).toContain('line_id');
     });
 });

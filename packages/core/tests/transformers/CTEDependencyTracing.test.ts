@@ -22,9 +22,9 @@ describe('CTE Dependency Tracing', () => {
           SELECT name FROM combined_data
         )
       SELECT name FROM final_result
-    `;
+      `;
         const parsed = SelectQueryParser.parse(sql);
-        const tracer = new CTEDependencyTracer();
+        const tracer = new CTEDependencyTracer({ silent: true }); // Use silent mode to avoid test output pollution
 
         // console.log('\n🔍 Building CTE dependency graph...');
         const graph = tracer.buildGraph(parsed);
@@ -33,8 +33,8 @@ describe('CTE Dependency Tracing', () => {
         // console.log(`Root CTEs (no dependencies): ${graph.rootNodes.join(', ')}`);
         // console.log(`Leaf CTEs (not used by others): ${graph.leafNodes.join(', ')}`);
 
-        // Print full graph
-        tracer.printGraph(graph);
+        // Silent tracer won't produce output, but we can still verify the graph structure
+        // tracer.printGraph(graph);
 
         // Trace specific columns
         // console.log('\n' + '='.repeat(60));
@@ -47,21 +47,19 @@ describe('CTE Dependency Tracing', () => {
 
         // Test each column's trace results with assertions
         const filterableClientIdTrace = tracer.traceColumnSearch(parsed, 'filterable_client_id');
-        tracer.printColumnTrace('filterable_client_id', filterableClientIdTrace);
+        // tracer.printColumnTrace('filterable_client_id', filterableClientIdTrace); // Silent mode
         expect(filterableClientIdTrace.foundIn).toContain('root_data');
         expect(filterableClientIdTrace.foundIn).toHaveLength(1); // Only in root_data
         expect(filterableClientIdTrace.notFoundIn).toContain('filtered_data');
-        expect(filterableClientIdTrace.notFoundIn).toContain('final_result');
-
-        const nameTrace = tracer.traceColumnSearch(parsed, 'name');
-        tracer.printColumnTrace('name', nameTrace);
+        expect(filterableClientIdTrace.notFoundIn).toContain('final_result'); const nameTrace = tracer.traceColumnSearch(parsed, 'name');
+        // tracer.printColumnTrace('name', nameTrace); // Silent mode
         expect(nameTrace.foundIn).toContain('root_data');
         expect(nameTrace.foundIn).toContain('filtered_data');
         expect(nameTrace.foundIn).toContain('final_result');
         expect(nameTrace.foundIn.length).toBeGreaterThan(1); // Found in multiple CTEs
 
         const idTrace = tracer.traceColumnSearch(parsed, 'id');
-        tracer.printColumnTrace('id', idTrace);
+        // tracer.printColumnTrace('id', idTrace); // Silent mode
         expect(idTrace.foundIn).toContain('root_data');
         expect(idTrace.foundIn).toContain('filtered_data');
         expect(idTrace.notFoundIn).toContain('final_result'); // Lost in final_result
@@ -87,14 +85,14 @@ describe('CTE Dependency Tracing', () => {
     `;
 
         const parsed = SelectQueryParser.parse(sql);
-        const tracer = new CTEDependencyTracer();
+        const tracer = new CTEDependencyTracer({ silent: true }); // Use silent mode to avoid test output pollution
 
         // console.log('\n🔍 Simple dependency chain test...');
         const graph = tracer.buildGraph(parsed);
-        tracer.printGraph(graph);
+        // tracer.printGraph(graph); // Silent mode
 
         const trace = tracer.traceColumnSearch(parsed, 'special_col');
-        tracer.printColumnTrace('special_col', trace);
+        // tracer.printColumnTrace('special_col', trace); // Silent mode
 
         // special_col should be found in base_cte but not in middle_cte or final_cte
         expect(trace.foundIn).toContain('base_cte');

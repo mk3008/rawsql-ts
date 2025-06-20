@@ -262,10 +262,10 @@ export class SelectableColumnCollector implements SqlComponentVisitor<void> {
         if (query.fetchClause) {
             query.fetchClause.accept(this);
         }
-
         if (query.forClause) {
             query.forClause.accept(this);
-        }        // Explicitly NOT processing query.WithClause to avoid scanning CTEs
+        }
+        // Explicitly NOT processing query.WithClause to avoid scanning CTEs
     }
 
     // Clause handlers
