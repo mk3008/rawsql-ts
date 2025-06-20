@@ -17,7 +17,7 @@ export enum DuplicateDetectionMode {
     FullName = 'fullName',
 }
 import { CommonTable, ForClause, FromClause, GroupByClause, HavingClause, LimitClause, OrderByClause, SelectClause, WhereClause, WindowFrameClause, WindowsClause, JoinClause, JoinOnClause, JoinUsingClause, TableSource, SubQuerySource, SourceExpression, SelectItem, PartitionByClause, FetchClause, OffsetClause } from "../models/Clause";
-import { SimpleSelectQuery } from "../models/SelectQuery";
+import { SimpleSelectQuery, BinarySelectQuery } from "../models/SelectQuery";
 import { SqlComponent, SqlComponentVisitor } from "../models/SqlComponent";
 import { ArrayExpression, ArrayQueryExpression, BetweenExpression, BinaryExpression, CaseExpression, CastExpression, ColumnReference, FunctionCall, InlineQuery, ParenExpression, UnaryExpression, ValueComponent, ValueList, WindowFrameExpression } from "../models/ValueComponent";
 import { CTECollector } from "./CTECollector";
@@ -64,12 +64,11 @@ export class SelectableColumnCollector implements SqlComponentVisitor<void> {
         this.commonTableCollector = new CTECollector();
         this.commonTables = [];
         this.duplicateDetection = duplicateDetection;
-        this.options = options || {};
+        this.options = options || {}; this.handlers = new Map<symbol, (arg: any) => void>();
 
-        this.handlers = new Map<symbol, (arg: any) => void>();
-
-        // Main entry point is the SimpleSelectQuery
+        // Main entry points for different SelectQuery types
         this.handlers.set(SimpleSelectQuery.kind, (expr) => this.visitSimpleSelectQuery(expr as SimpleSelectQuery));
+        this.handlers.set(BinarySelectQuery.kind, (expr) => this.visitBinarySelectQuery(expr as BinarySelectQuery));
 
         // Handlers for each clause type that might contain column references
         this.handlers.set(SelectClause.kind, (expr) => this.visitSelectClause(expr as SelectClause));
@@ -166,8 +165,8 @@ export class SelectableColumnCollector implements SqlComponentVisitor<void> {
             return;
         }
 
-        if (!(arg instanceof SimpleSelectQuery)) {
-            throw new Error("Root visit must be a SimpleSelectQuery");
+        if (!(arg instanceof SimpleSelectQuery) && !(arg instanceof BinarySelectQuery)) {
+            throw new Error("Root visit must be a SimpleSelectQuery or BinarySelectQuery");
         }
 
         // If this is a root visit, we need to reset the state
@@ -255,8 +254,23 @@ export class SelectableColumnCollector implements SqlComponentVisitor<void> {
         if (query.forClause) {
             query.forClause.accept(this);
         }
-
         // Explicitly NOT processing query.WithClause to avoid scanning CTEs
+    }
+
+    /**
+     * Process a BinarySelectQuery (UNION, INTERSECT, EXCEPT) to collect ColumnReferences from both branches.
+     * For UNION queries, we collect columns from both left and right branches.
+     */
+    private visitBinarySelectQuery(query: BinarySelectQuery): void {
+        // Visit left branch
+        if (query.left) {
+            query.left.accept(this);
+        }
+
+        // Visit right branch  
+        if (query.right) {
+            query.right.accept(this);
+        }
     }
 
     // Clause handlers
