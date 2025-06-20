@@ -46,10 +46,27 @@ describe('CTE Dependency Tracing', () => {
             'id' // Should be found in some CTEs but not final
         ];
 
-        columnsToTrace.forEach(columnName => {
-            const trace = tracer.traceColumnSearch(parsed, columnName);
-            tracer.printColumnTrace(columnName, trace);
-        });
+        // Test each column's trace results with assertions
+        const filterableClientIdTrace = tracer.traceColumnSearch(parsed, 'filterable_client_id');
+        tracer.printColumnTrace('filterable_client_id', filterableClientIdTrace);
+        expect(filterableClientIdTrace.foundIn).toContain('root_data');
+        expect(filterableClientIdTrace.foundIn).toHaveLength(1); // Only in root_data
+        expect(filterableClientIdTrace.notFoundIn).toContain('filtered_data');
+        expect(filterableClientIdTrace.notFoundIn).toContain('final_result');
+
+        const nameTrace = tracer.traceColumnSearch(parsed, 'name');
+        tracer.printColumnTrace('name', nameTrace);
+        expect(nameTrace.foundIn).toContain('root_data');
+        expect(nameTrace.foundIn).toContain('filtered_data');
+        expect(nameTrace.foundIn).toContain('final_result');
+        expect(nameTrace.foundIn.length).toBeGreaterThan(1); // Found in multiple CTEs
+
+        const idTrace = tracer.traceColumnSearch(parsed, 'id');
+        tracer.printColumnTrace('id', idTrace);
+        expect(idTrace.foundIn).toContain('root_data');
+        expect(idTrace.foundIn).toContain('filtered_data');
+        expect(idTrace.notFoundIn).toContain('final_result'); // Lost in final_result
+
         expect(graph.nodes.size).toBe(4); // 4 CTEs
         expect(graph.rootNodes).toContain('root_data');
         expect(graph.leafNodes).toContain('final_result');

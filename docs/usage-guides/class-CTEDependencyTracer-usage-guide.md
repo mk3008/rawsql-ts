@@ -159,16 +159,14 @@ tracer.printColumnTrace('special_column', trace);
 
 ## API Reference
 
-### `buildGraph(query: SelectQuery): DependencyGraph`
+### `buildGraph(query: SelectQuery): CTEGraph`
 
 Builds a complete dependency graph for all CTEs in the query.
 
 **Returns:**
 - `nodes`: Map of CTE names to their metadata
-- `dependencies`: Map of CTE dependencies  
 - `rootNodes`: CTEs with no dependencies
 - `leafNodes`: CTEs not used by others
-- `levels`: CTEs organized by dependency depth
 
 ### `traceColumnSearch(query: SelectQuery, columnName: string): ColumnTrace`
 
@@ -182,7 +180,7 @@ Traces where a specific column exists throughout the CTE dependency chain.
 - `searchPath`: Order of CTEs searched
 - `foundIn`: CTEs containing the column
 - `notFoundIn`: CTEs missing the column
-- `details`: Detailed info for CTEs containing the column
+- `graph`: The dependency graph used for the search
 
 ### `printGraph(graph: DependencyGraph): void`
 
