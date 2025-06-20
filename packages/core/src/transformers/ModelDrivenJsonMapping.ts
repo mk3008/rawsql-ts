@@ -8,13 +8,16 @@ import { JsonMapping } from './PostgresJsonQueryBuilder';
 /**
  * Supported field types for database column mapping.
  */
-export type FieldType = 'string' | 'auto';
+export type FieldType = 'string' | 'number' | 'boolean' | 'object' | 'array' | 'auto';
 
 /**
  * Field mapping configuration that can be either a simple column name or enhanced mapping with type control.
  */
 export type FieldMapping = string | {
-    from: string;
+    column: string;
+    type?: FieldType;
+} | {
+    from: string;  // Legacy support
     type?: FieldType;
 };
 
@@ -76,14 +79,21 @@ export function convertModelDrivenMapping(modelMapping: ModelDrivenJsonMapping):
         nestedEntities: any[];
     } => {
         const columns: Record<string, string> = {};
-        const nestedEntities: any[] = [];
-
-        for (const [fieldName, config] of Object.entries(structure)) {
+        const nestedEntities: any[] = []; for (const [fieldName, config] of Object.entries(structure)) {
             if (typeof config === 'string') {
                 // Simple field mapping: "fieldName": "column_name"
                 columns[fieldName] = config;
+            } else if ('column' in config && typeof config.column === 'string' && !('type' in config && (config.type === 'object' || config.type === 'array'))) {
+                // Enhanced field mapping: "fieldName": { "column": "column_name", "type": "string" }
+                const fieldConfig = config as FieldMapping;
+                if (typeof fieldConfig === 'object' && 'column' in fieldConfig) {
+                    columns[fieldName] = fieldConfig.column;
+                    if (fieldConfig.type === 'string') {
+                        protectedStringFields.push(fieldConfig.column);
+                    }
+                }
             } else if ('from' in config && typeof config.from === 'string' && !('type' in config && (config.type === 'object' || config.type === 'array'))) {
-                // Enhanced field mapping: "fieldName": { "from": "column_name", "type": "string" }
+                // Legacy field mapping: "fieldName": { "from": "column_name", "type": "string" }
                 const fieldConfig = config as FieldMapping;
                 if (typeof fieldConfig === 'object' && 'from' in fieldConfig) {
                     columns[fieldName] = fieldConfig.from;

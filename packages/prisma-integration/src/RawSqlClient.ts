@@ -1,6 +1,6 @@
 import { PrismaClientType, RawSqlClientOptions, PrismaSchemaInfo } from './types';
 import { PrismaSchemaResolver } from './PrismaSchemaResolver';
-import { UnifiedJsonMapping, convertUnifiedMapping } from 'rawsql-ts';
+import { UnifiedJsonMapping } from 'rawsql-ts';
 import {
     SqlFormatter,
     SelectQueryParser,
@@ -13,7 +13,9 @@ import {
     PostgresJsonQueryBuilder,
     JsonMapping,
     TypeTransformationPostProcessor,
-    TypeTransformationConfig
+    TypeTransformationConfig,
+    unifyJsonMapping,
+    processJsonMapping
 } from 'rawsql-ts';
 import { QueryBuildOptions } from 'rawsql-ts';
 import * as fs from 'fs';
@@ -529,7 +531,7 @@ export class RawSqlClient {
         try {
             // Load the unified mapping and convert to traditional JsonMapping
             const unifiedMapping = await this.loadUnifiedMapping(jsonFilePath);
-            const { jsonMapping } = convertUnifiedMapping(unifiedMapping);
+            const jsonMapping = unifyJsonMapping(unifiedMapping);
 
             if (this.options.debug) {
                 console.log(`✅ Loaded and converted unified mapping file: ${jsonFilePath}`);
@@ -701,15 +703,15 @@ export class RawSqlClient {
             try {
                 const jsonMappingFilePath = sqlFilePath.replace('.sql', '.json');
                 const unifiedMapping = await this.loadUnifiedMapping(jsonMappingFilePath);
-                const { typeProtection } = convertUnifiedMapping(unifiedMapping);
-                protectedStringFields = typeProtection.protectedStringFields || [];
+                const result = processJsonMapping(unifiedMapping);
+                protectedStringFields = result.metadata?.typeProtection?.protectedStringFields || [];
 
                 if (this.options.debug) {
                     console.log('🔒 Loaded type protection config from unified mapping:', {
                         file: jsonMappingFilePath,
                         protectedFields: protectedStringFields,
                         unifiedMappingKeys: Object.keys(unifiedMapping),
-                        typeProtectionKeys: Object.keys(typeProtection)
+                        format: result.format
                     });
                 }
             } catch (error) {

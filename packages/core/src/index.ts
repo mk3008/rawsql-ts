@@ -27,6 +27,13 @@ export {
     StructureFields,
     FieldType
 } from './transformers/ModelDrivenJsonMapping';
+export {
+    processJsonMapping,
+    unifyJsonMapping,
+    isModelDrivenFormat,
+    isUnifiedFormat,
+    isLegacyFormat
+} from './transformers/JsonMappingUnifier';
 export * from './transformers/UpstreamSelectQueryFinder';
 export * from './transformers/TypeTransformationPostProcessor';
 

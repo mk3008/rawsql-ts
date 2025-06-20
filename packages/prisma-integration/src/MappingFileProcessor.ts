@@ -8,11 +8,11 @@ import * as path from 'path';
 import {
     JsonMapping,
     UnifiedJsonMapping,
-    convertUnifiedMapping,
     ModelDrivenJsonMapping,
-    convertModelDrivenMapping,
     validateModelDrivenMapping,
-    TypeProtectionConfig
+    TypeProtectionConfig,
+    processJsonMapping,
+    unifyJsonMapping
 } from 'rawsql-ts';
 
 /**
@@ -68,52 +68,22 @@ export function loadAndConvertMappingFile(filePath: string): MappingFileResult {
         mappingData = JSON.parse(fileContent);
     } catch (error) {
         throw new Error(`Invalid JSON in mapping file ${filePath}: ${error}`);
-    }
+    } const format = detectMappingFormat(mappingData);
 
-    const format = detectMappingFormat(mappingData);
+    // Use the unified processor to handle all formats
+    const result = processJsonMapping(mappingData);
 
-    switch (format) {
-        case 'model-driven': {
-            const modelMapping = mappingData as ModelDrivenJsonMapping;
+    // Extract TypeProtectionConfig from metadata
+    const typeProtection: TypeProtectionConfig = {
+        protectedStringFields: result.metadata?.typeProtection?.protectedStringFields || []
+    };
 
-            // Validate the model-driven mapping
-            const validationErrors = validateModelDrivenMapping(modelMapping);
-            if (validationErrors.length > 0) {
-                throw new Error(`Invalid ModelDrivenJsonMapping in ${filePath}: ${validationErrors.join(', ')}`);
-            }
-
-            const result = convertModelDrivenMapping(modelMapping);
-            return {
-                format: 'model-driven',
-                jsonMapping: result.jsonMapping,
-                typeProtection: result.typeProtection,
-                sourceFile: filePath
-            };
-        }
-
-        case 'unified': {
-            const unifiedMapping = mappingData as UnifiedJsonMapping;
-            const result = convertUnifiedMapping(unifiedMapping);
-            return {
-                format: 'unified',
-                jsonMapping: result.jsonMapping,
-                typeProtection: result.typeProtection,
-                sourceFile: filePath
-            };
-        }
-
-        case 'legacy':
-        default: {
-            // Assume it's already in JsonMapping format
-            const jsonMapping = mappingData as JsonMapping;
-            return {
-                format: 'legacy',
-                jsonMapping,
-                typeProtection: { protectedStringFields: [] },
-                sourceFile: filePath
-            };
-        }
-    }
+    return {
+        format: result.format as MappingFileFormat,
+        jsonMapping: result.jsonMapping,
+        typeProtection,
+        sourceFile: filePath
+    };
 }
 
 /**
