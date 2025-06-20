@@ -2,6 +2,7 @@ import { SelectQuery, SimpleSelectQuery } from "../models/SelectQuery";
 import { CommonTable } from "../models/Clause";
 import { CTECollector } from "./CTECollector";
 import { SelectableColumnCollector } from "./SelectableColumnCollector";
+import { TableSourceCollector } from "./TableSourceCollector";
 
 /**
  * CTE dependency tree node for visualization
@@ -210,17 +211,26 @@ export class CTEDependencyTracer {
         }
     }
 
+    /**
+     * Find CTEs that are actually referenced in the given query.
+     * Uses TableSourceCollector to properly identify table references from the AST.
+     */
     private findReferencedCTEs(query: SelectQuery, allCTEs: Map<string, CTENode>): string[] {
-        // Simple implementation - look for table references that match CTE names
-        const queryStr = JSON.stringify(query);
+        // Use TableSourceCollector to get all table references from the query
+        const tableCollector = new TableSourceCollector();
+        const tableSources = tableCollector.collect(query);
+
         const referenced: string[] = [];
 
-        allCTEs.forEach((_, cteName) => {
-            // Look for references to this CTE name in the query structure
-            if (queryStr.includes(`"${cteName}"`) || queryStr.includes(cteName)) {
-                referenced.push(cteName);
+        // Check each table source to see if it matches a CTE name
+        for (const source of tableSources) {
+            const tableName = source.table.name;
+            if (tableName && allCTEs.has(tableName)) {
+                if (!referenced.includes(tableName)) {
+                    referenced.push(tableName);
+                }
             }
-        });
+        }
 
         return referenced;
     }

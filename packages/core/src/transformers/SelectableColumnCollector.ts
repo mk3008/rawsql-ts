@@ -64,7 +64,8 @@ export class SelectableColumnCollector implements SqlComponentVisitor<void> {
         this.commonTableCollector = new CTECollector();
         this.commonTables = [];
         this.duplicateDetection = duplicateDetection;
-        this.options = options || {}; this.handlers = new Map<symbol, (arg: any) => void>();
+        this.options = options || {};
+        this.handlers = new Map<symbol, (arg: any) => void>();
 
         // Main entry points for different SelectQuery types
         this.handlers.set(SimpleSelectQuery.kind, (expr) => this.visitSimpleSelectQuery(expr as SimpleSelectQuery));
