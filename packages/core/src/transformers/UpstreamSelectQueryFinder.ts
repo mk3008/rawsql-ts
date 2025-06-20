@@ -7,7 +7,11 @@ import { CTECollector } from "./CTECollector";
  * UpstreamSelectQueryFinder searches upstream queries for the specified columns.
  * If a query (including its upstream CTEs or subqueries) contains all columns,
  * it returns the highest such SelectQuery. Otherwise, it searches downstream.
- * For UNION queries, it checks each branch independently.
+ * 
+ * For BinarySelectQuery (UNION/INTERSECT/EXCEPT), this finder processes each branch
+ * independently, as SelectableColumnCollector is designed for SimpleSelectQuery only.
+ * This approach ensures accurate column detection within individual SELECT branches
+ * while maintaining compatibility with compound query structures.
  */
 export class UpstreamSelectQueryFinder {
     private options: { ignoreCaseAndUnderscore?: boolean };
@@ -133,6 +137,9 @@ export class UpstreamSelectQueryFinder {
             }
             return [];
         } else if (query instanceof BinarySelectQuery) {
+            // Process BinarySelectQuery by decomposing into individual branches.
+            // SelectableColumnCollector is designed for SimpleSelectQuery only,
+            // so we handle UNION/INTERSECT/EXCEPT by processing left and right branches separately.
             const left = this.findUpstream(query.left, columnNames, cteMap);
             const right = this.findUpstream(query.right, columnNames, cteMap);
             return [...left, ...right];
