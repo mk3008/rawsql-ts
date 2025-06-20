@@ -18,7 +18,14 @@
 import { SqlStaticAnalyzer, SqlStaticAnalysisReport, SqlStaticAnalyzerOptions } from './SqlStaticAnalyzer';
 import { DomainModelCompatibilityTester } from './DomainModelCompatibilityTester';
 import { PrismaSchemaResolver } from './PrismaSchemaResolver';
-import { UnifiedJsonMapping, ColumnMappingConfig } from 'rawsql-ts';
+import {
+    UnifiedJsonMapping,
+    ColumnMappingConfig,
+    ModelDrivenJsonMapping,
+    FieldMapping,
+    StructureFields
+} from 'rawsql-ts';
+import { loadAndConvertMappingFile, detectMappingFormat, findAndConvertMappingFiles } from './MappingFileProcessor';
 import * as path from 'path';
 import * as fs from 'fs';
 
@@ -504,37 +511,32 @@ export class StaticAnalysisOrchestrator {
             console.log('🔍 Validating string field protection...');
         }
 
-        // Find all JSON mapping files
-        const mappingFiles = fs.readdirSync(this.options.mappingDir)
-            .filter(file => file.endsWith('.json'))
-            .map(file => path.join(this.options.mappingDir, file));
+        // Find all JSON mapping files using the new processor
+        const mappingResults = findAndConvertMappingFiles(this.options.mappingDir);
+        let totalMappingFiles = mappingResults.length;
 
-        let totalMappingFiles = 0;
-
-        for (const filePath of mappingFiles) {
+        for (const mappingResult of mappingResults) {
             try {
-                const content = fs.readFileSync(filePath, 'utf8');
-                const unifiedMapping: UnifiedJsonMapping = JSON.parse(content);
-                totalMappingFiles++;
+                const { jsonMapping, typeProtection, sourceFile } = mappingResult;
 
                 // Helper function to check columns in an entity
-                const checkEntityColumns = (entityName: string, columns: Record<string, ColumnMappingConfig>) => {
-                    for (const [fieldName, config] of Object.entries(columns)) {
-                        const columnName = typeof config === 'string' ? config : config.column;
-                        const hasStringType = typeof config === 'object' && config.type === 'string';
-
+                const checkEntityColumns = (entityName: string, columns: Record<string, string>) => {
+                    for (const [fieldName, columnName] of Object.entries(columns)) {
                         // Check if this column maps to a known string field in the database
                         if (knownStringFields.has(columnName)) {
                             totalStringFields++;
 
-                            if (hasStringType) {
+                            // Check if this field is protected by type protection
+                            const isProtected = typeProtection.protectedStringFields.includes(columnName);
+
+                            if (isProtected) {
                                 protectedFields++;
                             } else {
                                 issues.push({
                                     fieldName,
                                     columnName,
                                     entityName,
-                                    filePath: path.relative(this.options.baseDir, filePath),
+                                    filePath: path.relative(this.options.baseDir, sourceFile),
                                     hasStringType: false,
                                     severity: stringFieldProtectionLevel as 'warning' | 'error',
                                     recommendation: 'Add "type": "string" to ensure proper string type conversion and prevent type coercion issues'
@@ -545,20 +547,19 @@ export class StaticAnalysisOrchestrator {
                 };
 
                 // Check root entity
-                if (unifiedMapping.rootEntity) {
-                    checkEntityColumns(unifiedMapping.rootEntity.name, unifiedMapping.rootEntity.columns);
+                if (jsonMapping.rootEntity) {
+                    checkEntityColumns(jsonMapping.rootEntity.name, jsonMapping.rootEntity.columns);
                 }
 
                 // Check nested entities
-                if (unifiedMapping.nestedEntities) {
-                    for (const entity of unifiedMapping.nestedEntities) {
+                if (jsonMapping.nestedEntities) {
+                    for (const entity of jsonMapping.nestedEntities) {
                         checkEntityColumns(entity.name, entity.columns);
                     }
                 }
-
             } catch (error) {
                 if (debug) {
-                    console.warn(`⚠️  Failed to parse mapping file ${filePath}:`, error);
+                    console.warn(`⚠️  Failed to process mapping file ${mappingResult.sourceFile}:`, error);
                 }
             }
         }
