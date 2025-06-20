@@ -745,102 +745,10 @@ order by
     line_id
         `;
         const query = SelectQueryParser.parse(sql);
-        const collector = new SelectableColumnCollector();
-
-        // Act
+        const collector = new SelectableColumnCollector();        // Act
         collector.visit(query);
         const items = collector.collect(query);
         const columnNames = items.map(item => item.name);        // Assert
         expect(columnNames).toContain('line_id');
-    });
-
-    test('collects columns from UNION queries (BinarySelectQuery)', () => {
-        // Arrange
-        const sql = `
-            SELECT id, name FROM table1
-            UNION
-            SELECT id, title as name FROM table2
-        `;
-        const query = SelectQueryParser.parse(sql);
-        const collector = new SelectableColumnCollector();
-
-        // Act
-        collector.visit(query);
-        const items = collector.collect(query);
-        const columnNames = items.map(item => item.name);
-
-        // Assert
-        expect(columnNames).toContain('id');
-        expect(columnNames).toContain('name');
-        expect(columnNames).toContain('title'); // From the aliased column
-        expect(columnNames.length).toBeGreaterThanOrEqual(3);
-    });
-
-    test('collects columns from INTERSECT queries (BinarySelectQuery)', () => {
-        // Arrange
-        const sql = `
-            SELECT user_id, email FROM active_users
-            INTERSECT
-            SELECT user_id, email FROM verified_users
-        `;
-        const query = SelectQueryParser.parse(sql);
-        const collector = new SelectableColumnCollector();
-
-        // Act
-        collector.visit(query);
-        const items = collector.collect(query);
-        const columnNames = items.map(item => item.name);
-
-        // Assert
-        expect(columnNames).toContain('user_id');
-        expect(columnNames).toContain('email');
-    });
-
-    test('collects columns from EXCEPT queries (BinarySelectQuery)', () => {
-        // Arrange
-        const sql = `
-            SELECT product_id, product_name FROM all_products
-            EXCEPT
-            SELECT product_id, product_name FROM discontinued_products
-        `;
-        const query = SelectQueryParser.parse(sql);
-        const collector = new SelectableColumnCollector();
-
-        // Act
-        collector.visit(query);
-        const items = collector.collect(query);
-        const columnNames = items.map(item => item.name);
-
-        // Assert
-        expect(columnNames).toContain('product_id');
-        expect(columnNames).toContain('product_name');
-    });
-
-    test('collects columns from nested UNION with CTEs', () => {
-        // Arrange
-        const sql = `
-            WITH branch_a AS (
-                SELECT id, name, special_col FROM table_a
-            ),
-            branch_b AS (
-                SELECT id, name FROM table_b
-            )
-            SELECT id, name FROM branch_a
-            UNION ALL
-            SELECT id, name FROM branch_b
-        `;
-        const query = SelectQueryParser.parse(sql);
-        const collector = new SelectableColumnCollector();
-
-        // Act
-        collector.visit(query);
-        const items = collector.collect(query);
-        const columnNames = items.map(item => item.name);
-
-        // Assert
-        expect(columnNames).toContain('id');
-        expect(columnNames).toContain('name');
-        expect(columnNames).toContain('special_col'); // From CTE branch_a
-        expect(columnNames.length).toBeGreaterThanOrEqual(3);
     });
 });

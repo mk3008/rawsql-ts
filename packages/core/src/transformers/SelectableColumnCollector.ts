@@ -25,12 +25,23 @@ import { SelectValueCollector } from "./SelectValueCollector";
 import { TableColumnResolver } from "./TableColumnResolver";
 
 /**
- * A visitor that collects all ColumnReference instances from a SQL query structure.
+ * A visitor that collects all ColumnReference instances from SimpleSelectQuery structures.
  * This visitor scans through all clauses and collects all unique ColumnReference objects.
  * It does not scan Common Table Expressions (CTEs) or subqueries.
  * 
- * Important: Only collects column references to tables defined in the root FROM/JOIN clauses,
- * as these are the only columns that can be directly referenced in the query.
+ * IMPORTANT: This collector only supports SimpleSelectQuery. BinarySelectQuery 
+ * (UNION/INTERSECT/EXCEPT) will throw an error and should be decomposed into 
+ * individual SimpleSelectQuery branches before using this collector.
+ * 
+ * Behavioral notes:
+ * - Only collects column references to tables defined in the root FROM/JOIN clauses
+ * - For aliased columns (e.g., 'title as name'), collects both the original column 
+ *   reference ('title') AND the alias ('name') to enable complete dependency tracking
+ * 
+ * Use cases:
+ * - Dependency analysis and schema migration tools
+ * - Column usage tracking within individual SELECT branches
+ * - Security analysis for column-level access control
  */
 export class SelectableColumnCollector implements SqlComponentVisitor<void> {
     private handlers: Map<symbol, (arg: any) => void>;
@@ -67,9 +78,9 @@ export class SelectableColumnCollector implements SqlComponentVisitor<void> {
         this.options = options || {};
         this.handlers = new Map<symbol, (arg: any) => void>();
 
-        // Main entry points for different SelectQuery types
+        // Main entry point for SimpleSelectQuery only
         this.handlers.set(SimpleSelectQuery.kind, (expr) => this.visitSimpleSelectQuery(expr as SimpleSelectQuery));
-        this.handlers.set(BinarySelectQuery.kind, (expr) => this.visitBinarySelectQuery(expr as BinarySelectQuery));
+        // NOTE: BinarySelectQuery is NOT supported - it should be decomposed before using this collector
 
         // Handlers for each clause type that might contain column references
         this.handlers.set(SelectClause.kind, (expr) => this.visitSelectClause(expr as SelectClause));
@@ -164,10 +175,8 @@ export class SelectableColumnCollector implements SqlComponentVisitor<void> {
         if (!this.isRootVisit) {
             this.visitNode(arg);
             return;
-        }
-
-        if (!(arg instanceof SimpleSelectQuery) && !(arg instanceof BinarySelectQuery)) {
-            throw new Error("Root visit must be a SimpleSelectQuery or BinarySelectQuery");
+        } if (!(arg instanceof SimpleSelectQuery)) {
+            throw new Error("Root visit must be a SimpleSelectQuery only. BinarySelectQuery is not supported - decompose it first.");
         }
 
         // If this is a root visit, we need to reset the state
@@ -254,24 +263,7 @@ export class SelectableColumnCollector implements SqlComponentVisitor<void> {
 
         if (query.forClause) {
             query.forClause.accept(this);
-        }
-        // Explicitly NOT processing query.WithClause to avoid scanning CTEs
-    }
-
-    /**
-     * Process a BinarySelectQuery (UNION, INTERSECT, EXCEPT) to collect ColumnReferences from both branches.
-     * For UNION queries, we collect columns from both left and right branches.
-     */
-    private visitBinarySelectQuery(query: BinarySelectQuery): void {
-        // Visit left branch
-        if (query.left) {
-            query.left.accept(this);
-        }
-
-        // Visit right branch  
-        if (query.right) {
-            query.right.accept(this);
-        }
+        }        // Explicitly NOT processing query.WithClause to avoid scanning CTEs
     }
 
     // Clause handlers
