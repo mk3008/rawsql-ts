@@ -138,19 +138,29 @@ The legacy format is still supported but deprecated:
 
 ```json
 {
-  "user": {
+  "columns": {
     "id": "user_id",
     "name": "user_name",
     "email": "user_email"
   },
-  "posts": [
-    {
-      "id": "post_id",
-      "title": "post_title",
-      "content": "post_content",
-      "createdAt": "post_created_at"
+  "relationships": {
+    "posts": {
+      "type": "hasMany",
+      "columns": {
+        "id": "post_id",
+        "title": "post_title",
+        "content": "post_content",
+        "createdAt": "post_created_at"
+      }
+    },
+    "profile": {
+      "type": "hasOne",
+      "columns": {
+        "bio": "profile_bio",
+        "avatar": "profile_avatar_url"
+      }
     }
-  ]
+  }
 }
 ```
 

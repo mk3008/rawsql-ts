@@ -466,7 +466,7 @@ The Model-Driven format is automatically detected and converted by the MappingFi
 The system automatically detects format based on structure:
 - **Model-Driven**: Has `typeInfo` and `structure` fields
 - **Unified**: Has `rootName` and `rootEntity` fields
-- **Legacy**: Has `rootName` without `rootEntity`
+- **Legacy**: Has `columns` and `relationships` fields
 
 ### Migration Benefits
 - **Improved Readability**: Structure mirrors TypeScript interfaces

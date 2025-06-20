@@ -361,7 +361,7 @@ sql/
 }
 ```
 
-*[→ Learn more: Unified JSON Mapping Guide](../../docs/usage-guides/unified-json-mapping-usage-guide.md)*
+*[→ Learn more: Model-Driven JSON Mapping Guide](../../docs/usage-guides/model-driven-json-mapping-usage-guide.md)*
 
 ## 🔄 Development Workflow
 

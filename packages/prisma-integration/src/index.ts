@@ -55,7 +55,7 @@ export type {
     StructureFields,
     FieldType
 } from 'rawsql-ts';
-export { convertUnifiedMapping, convertModelDrivenMapping, validateModelDrivenMapping } from 'rawsql-ts';
+export { unifyJsonMapping, processJsonMapping, convertModelDrivenMapping, validateModelDrivenMapping } from 'rawsql-ts';
 
 // Static Analysis Types
 export type {

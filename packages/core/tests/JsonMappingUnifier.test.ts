@@ -187,8 +187,8 @@ describe('JsonMappingUnifier', () => {
         });
     });
 
-    describe('Legacy Format Processing', () => {
-        test('should process legacy format correctly', () => {
+    describe('Legacy Format Compatibility', () => {
+        test('should process legacy format for backward compatibility', () => {
             const input = {
                 columns: { id: 'u.id', name: 'u.name' },
                 relationships: {
@@ -224,10 +224,16 @@ describe('JsonMappingUnifier', () => {
     });
 
     describe('Convenience Functions', () => {
-        test('unifyJsonMapping should return JsonMapping directly', () => {
+        test('unifyJsonMapping should return JsonMapping directly from model-driven format', () => {
             const input = {
-                columns: { id: 'u.id', name: 'u.name' },
-                relationships: {}
+                typeInfo: {
+                    interface: 'User',
+                    importPath: './types/User'
+                },
+                structure: {
+                    id: { column: 'u.id', type: 'number' },
+                    name: { column: 'u.name', type: 'string' }
+                }
             };
 
             const result = unifyJsonMapping(input);
