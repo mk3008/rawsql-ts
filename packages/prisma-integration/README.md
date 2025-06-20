@@ -80,12 +80,165 @@ const client = new RawSqlClient(prisma, {
 });
 
 // Execute SQL file and get result
-const profile = await client.queryOne('users/profile.sql', { userId: 123 });
+const profile = await client.queryOne('users/profile.sql', { filter: { userId: 123 } });
 ```
 
 That's it! Your execution environment is now ready! 
 
 Continue reading the following sections to explore advanced features like custom model mapping, offline validation, and structured result transformation.
+
+## 🔧 TypeScript Integration
+
+### Generic Type Usage
+
+Use TypeScript generics to get full type safety for your query results:
+
+```typescript
+// Define your domain models
+interface UserProfile {
+  id: number;
+  name: string;
+  email: string;
+  profile?: {
+    title: string;
+    bio: string;
+  };
+}
+
+interface UserList {
+  id: number;
+  name: string;
+  email: string;
+  isActive: boolean;
+}
+
+// Type-safe query execution
+const profile = await client.queryOne<UserProfile>('users/get-profile.sql', {
+  filter: { id: 1 }
+});
+// profile is typed as UserProfile | null
+
+const users = await client.queryMany<UserList>('users/list-active.sql', {
+  filter: { isActive: true }
+});
+// users is typed as UserList[]
+
+// With complex filtering
+const searchResults = await client.queryMany<UserProfile>('users/search.sql', {
+  filter: {
+    name: { ilike: '%john%' },
+    email: { ilike: '%@company.com' },
+    'profile.title': { ilike: '%engineer%' }
+  },
+  sort: [{ column: 'name', direction: 'asc' }],
+  limit: 10,
+  offset: 0
+});
+```
+
+### Parameter Type Safety
+
+Ensure your parameters match expected types:
+
+```typescript
+// Define parameter interfaces for better type safety
+interface UserSearchParams {
+  filter?: {
+    id?: number;
+    name?: string | { ilike: string };
+    email?: string | { ilike: string };
+    isActive?: boolean;
+  };
+  sort?: Array<{ column: string; direction: 'asc' | 'desc' }>;
+  limit?: number;
+  offset?: number;
+}
+
+// Use typed parameters
+const searchUsers = async (params: UserSearchParams): Promise<UserList[]> => {
+  return client.queryMany<UserList>('users/search.sql', params);
+};
+```
+
+## ⚙️ Configuration Options
+
+### Complete RawSqlClient Configuration
+
+```typescript
+import { PrismaClient } from '@prisma/client';
+import { RawSqlClient } from '@msugiura/rawsql-prisma';
+
+const client = new RawSqlClient(prisma, {
+  // SQL files directory path (default: './sql')
+  sqlFilesPath: './sql',
+  
+  // Enable debug logging (default: false)
+  debug: true,
+  
+  // Default schema name (default: undefined)
+  defaultSchema: 'public',
+  
+  // Custom table name mappings (default: {})
+  tableNameMappings: {
+    'User': 'users',
+    'UserProfile': 'user_profiles'
+  },
+  
+  // Custom column name mappings (default: {})
+  columnNameMappings: {
+    'users': {
+      'firstName': 'first_name',
+      'lastName': 'last_name'
+    }
+  },
+  
+  // Custom path to schema.prisma file (default: auto-detect)
+  schemaPath: './prisma/schema.prisma'
+});
+```
+
+### Configuration Details
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `sqlFilesPath` | `string` | `'./sql'` | Base directory for SQL files (relative or absolute) |
+| `debug` | `boolean` | `false` | Enable detailed logging for troubleshooting |
+| `defaultSchema` | `string` | `undefined` | Default database schema name |
+| `tableNameMappings` | `Record<string, string>` | `{}` | Map model names to table names |
+| `columnNameMappings` | `Record<string, Record<string, string>>` | `{}` | Map column names per table |
+| `schemaPath` | `string` | auto-detect | Custom path to schema.prisma file |
+
+### Path Resolution
+
+- **Relative paths**: Resolved from current working directory
+- **Absolute paths**: Used as-is
+- **Cross-platform**: Automatically handles Windows/Linux path separators
+- **Normalization**: Redundant path segments are cleaned up
+
+```typescript
+// These all resolve to the same file
+const variants = [
+  'users/profile.sql',
+  './users/profile.sql', 
+  'users/./profile.sql',
+  'users/../users/profile.sql'
+];
+```
+
+### Debug Mode
+
+Enable debug mode to get detailed information about:
+
+```typescript
+const client = new RawSqlClient(prisma, { debug: true });
+
+// Debug output will show:
+// - SQL file loading paths
+// - JSON mapping file resolution
+// - Query execution details  
+// - Schema resolution process
+// - Path normalization steps
+```
 
 ## 📁 File-Based SQL Organization 
 
@@ -101,6 +254,114 @@ sql/
 Benefits: Logical grouping, IDE support, version control friendly, and easy discovery.
 
 *[→ Learn more: SQL File Organization Guide](../../docs/usage-guides/sql-file-organization-guide.md)*
+
+## 📄 JSON Mapping Guide
+
+### When JSON Mapping is Required vs Optional
+
+JSON mapping files control how SQL query results are structured into TypeScript objects:
+
+**JSON Mapping is REQUIRED when:**
+- You need nested object structures (parent-child relationships)
+- You want to group related columns into sub-objects
+- You need to transform column names to different property names
+- Your SQL query joins multiple tables and you want structured results
+
+**JSON Mapping is OPTIONAL when:**
+- You're returning simple flat data (scalar values)
+- Column names in SQL match your TypeScript interface properties
+- You only need the first column of each row (scalar fallback)
+
+### Scalar Fallback Behavior
+
+Without JSON mapping, queries return only the **first column** of each row:
+
+```sql
+-- sql/users/get-names.sql
+SELECT name, email, created_at FROM users;
+```
+
+```typescript
+// Without JSON mapping file
+const result = await client.queryMany('users/get-names.sql');
+// Result: ['John', 'Jane', 'Bob'] - only first column (name)
+
+// With JSON mapping file (users/get-names.json)
+const result = await client.queryMany('users/get-names.sql');
+// Result: [{ name: 'John', email: 'john@...', createdAt: '...' }, ...]
+```
+
+### File Naming and Location Requirements
+
+**Critical Requirements:**
+- JSON mapping files must be in the **same directory** as the SQL file
+- JSON mapping files must have the **exact same name** as the SQL file
+- Use `.json` extension for mapping files
+
+```
+✅ CORRECT Structure:
+sql/
+├── users/
+│   ├── profile.sql
+│   └── profile.json          ← Same directory, same name
+└── orders/
+    ├── list.sql
+    └── list.json
+
+❌ INCORRECT - Subdirectory mapping (NOT SUPPORTED):
+sql/
+├── users/
+│   ├── profile.sql
+│   └── mappings/
+│       └── profile.json      ← Different directory - won't work
+```
+
+### JSON Mapping Examples
+
+**Simple Property Mapping:**
+```json
+{
+  "rootEntity": {
+    "id": "user",
+    "name": "User",
+    "columns": {
+      "id": "user_id",
+      "name": "user_name",
+      "email": "user_email"
+    }
+  }
+}
+```
+
+**Nested Object Structure:**
+```json
+{
+  "rootEntity": {
+    "id": "user",
+    "name": "User",
+    "columns": {
+      "id": "user_id",
+      "name": "user_name",
+      "email": "user_email"
+    }
+  },
+  "childEntities": [
+    {
+      "id": "profile",
+      "name": "Profile",
+      "parentId": "user",
+      "propertyName": "profile",
+      "relationshipType": "object",
+      "columns": {
+        "title": "profile_title",
+        "bio": "profile_bio"
+      }
+    }
+  ]
+}
+```
+
+*[→ Learn more: Unified JSON Mapping Guide](../../docs/usage-guides/unified-json-mapping-usage-guide.md)*
 
 ## 🔄 Development Workflow
 
@@ -187,7 +448,7 @@ Define how flat SQL results should be transformed into your domain structure:
 
 ```typescript
 const profile = await client.queryOne<UserProfile>('users/get-profile.sql', { 
-  userId: 123 
+  filter: { userId: 123 }
 });
 
 // Get structured domain model, not flat database records
@@ -197,6 +458,102 @@ console.log(profile.posts[0].title); // Array access
 ```
 
 *[→ Learn more: RawSqlClient Usage Guide](../../docs/usage-guides/class-RawSqlClient-usage-guide.md)*
+
+## 🚨 Error Handling & Troubleshooting
+
+### Common Error Types
+
+RawSqlClient provides enhanced error messages with specific, actionable information:
+
+```typescript
+import { RawSqlClient, SqlFileNotFoundError, JsonMappingError, SqlExecutionError } from '@msugiura/rawsql-prisma';
+
+try {
+  const result = await client.queryOne('users/profile.sql', { 
+    filter: { id: 1 } 
+  });
+} catch (error) {
+  if (error instanceof SqlFileNotFoundError) {
+    console.log('File not found:', error.filename);
+    console.log('Searched in:', error.searchedPath);
+    console.log('Suggestions:', error.message);
+  } else if (error instanceof JsonMappingError) {
+    console.log('JSON mapping issue:', error.message);
+  } else if (error instanceof SqlExecutionError) {
+    console.log('Query execution failed:', error.message);
+  }
+}
+```
+
+### Common Scenarios and Solutions
+
+**1. SQL File Not Found**
+```
+❌ Error: SQL file not found: 'users/profile.sql'
+```
+**Solutions:**
+- Check file exists at `./sql/users/profile.sql`
+- Verify `sqlFilesPath` configuration
+- Ensure `.sql` file extension
+- Check directory structure matches
+
+**2. JSON Mapping Issues**  
+```
+❌ Error: Invalid JSON mapping in users/profile.json
+```
+**Solutions:**
+- Validate JSON syntax
+- Ensure column names match SQL SELECT aliases
+- Verify nested entity relationships are correct
+- Check `importPath` points to valid TypeScript files
+
+**3. Parameter Naming Issues**
+```typescript
+// ❌ Inconsistent parameter naming
+await client.queryOne('users/search.sql', { filters: {...} });
+await client.queryMany('users/list.sql', { filter: {...} });
+
+// ✅ Consistent parameter naming
+await client.queryOne('users/search.sql', { filter: {...} });
+await client.queryMany('users/list.sql', { filter: {...} });
+```
+
+### Debug Mode Usage
+
+Enable debug mode for detailed troubleshooting information:
+
+```typescript
+const client = new RawSqlClient(prisma, { 
+  debug: true,  // Enable detailed logging
+  sqlFilesPath: './sql' 
+});
+
+// Debug output shows:
+// - SQL file loading paths and resolution
+// - JSON mapping file search and parsing
+// - Query parameter injection
+// - Database query execution details
+// - Schema resolution process
+```
+
+### Best Practices
+
+**File Organization:**
+- Keep SQL and JSON files in same directory
+- Use consistent naming: `profile.sql` + `profile.json`
+- Avoid subdirectories for JSON mapping files
+
+**Parameter Usage:**
+- Always use `filter` parameter (not `filters`)
+- Use TypeScript interfaces to define parameter types
+- Enable debug mode during development
+
+**Error Prevention:**
+- Test SQL queries manually first
+- Validate JSON mapping syntax
+- Use static analysis for early error detection
+
+*[→ Learn more: Error Handling Guide](../../docs/usage-guides/error-handling-guide.md)*
 
 ---
 
@@ -219,7 +576,7 @@ const client = new RawSqlClient(prisma, { sqlFilesPath: './sql' });
 
 // Single result with TypeScript integration
 const user = await client.queryOne<User>('users/get-profile.sql', { 
-  userId: 123 
+  filter: { userId: 123 }
 });
 
 // Multiple results with filtering
@@ -334,6 +691,65 @@ it('should validate all SQL files', async () => {
 ---
 
 Questions, feature requests, and bug reports are always welcome! 🎉
+
+## ❓ Frequently Asked Questions
+
+### Package and Installation
+
+**Q: What's the correct package name to install?**
+A: Use `npm install @msugiura/rawsql-prisma`. The package was renamed from `@rawsql-ts/prisma-integration`.
+
+**Q: What are the peer dependency requirements?**
+A: You need `@prisma/client` >= 4.0.0 and `prisma` >= 4.0.0.
+
+### JSON Mapping and File Organization
+
+**Q: When do I need JSON mapping files?**
+A: JSON mapping is optional for simple queries returning flat data. It's required when you need nested objects, column name transformation, or structured results from joined tables.
+
+**Q: What happens if I don't provide a JSON mapping file?**
+A: The query returns only the first column of each row (scalar fallback behavior). This is useful for simple queries like getting a list of IDs or names.
+
+**Q: Can I put JSON mapping files in subdirectories?**
+A: No, JSON mapping files must be in the same directory as their corresponding SQL files. Subdirectory mapping is not supported.
+
+**Q: Do column names in SQL need to match my TypeScript interface?**
+A: Not if you use JSON mapping. The mapping file allows you to transform SQL column names (like `user_name`) to TypeScript properties (like `name`).
+
+### TypeScript and Type Safety
+
+**Q: How do I get full TypeScript support?**
+A: Use generic methods: `client.queryOne<UserProfile>()` and `client.queryMany<UserList>()`. Define your interfaces and use them as type parameters.
+
+**Q: Should I use `filter` or `filters` for parameters?**
+A: Always use `filter` (singular). This is the consistent naming convention throughout the library.
+
+### Error Handling and Debugging
+
+**Q: How do I troubleshoot file not found errors?**
+A: Enable debug mode (`debug: true`) to see detailed path resolution. Verify your `sqlFilesPath` configuration and ensure files exist at the expected locations.
+
+**Q: Why am I getting "scalar fallback" instead of structured objects?**
+A: This happens when JSON mapping files are missing. Add a `.json` file with the same name as your `.sql` file for structured results.
+
+**Q: How do I handle different database providers?**
+A: This library is currently **PostgreSQL only**. Support for other databases may be added in future versions.
+
+### Migration and Best Practices
+
+**Q: How do I migrate from the old package name?**
+A: Uninstall the old package and install the new one:
+```bash
+npm uninstall @rawsql-ts/prisma-integration
+npm install @msugiura/rawsql-prisma
+```
+Update your imports to use `@msugiura/rawsql-prisma`.
+
+**Q: What are the recommended file organization patterns?**
+A: Group SQL files by domain (users/, orders/, reports/), keep SQL and JSON files together, use descriptive names with verbs (get-profile.sql, list-active.sql).
+
+**Q: How do I optimize performance?**
+A: SQL files are cached after first load, JSON mappings are parsed once at startup, use database indexes for filtered columns, and consider pagination for large result sets.
 
 ## License
 
