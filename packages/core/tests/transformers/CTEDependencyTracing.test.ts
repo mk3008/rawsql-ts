@@ -101,4 +101,28 @@ describe('CTE Dependency Tracing', () => {
         expect(trace.notFoundIn).toContain('middle_cte');
         expect(trace.notFoundIn).toContain('final_cte');
     });
+
+    it('should run in silent mode without console output', () => {
+        const sql = `
+            WITH base_cte AS (
+                SELECT id, special_col FROM table1
+            )
+            SELECT id FROM base_cte
+        `;
+
+        const parsed = SelectQueryParser.parse(sql);
+        const silentTracer = new CTEDependencyTracer({ silent: true });
+
+        // These should not produce any console output
+        const graph = silentTracer.buildGraph(parsed);
+        silentTracer.printGraph(graph);
+
+        const trace = silentTracer.traceColumnSearch(parsed, 'special_col');
+        silentTracer.printColumnTrace('special_col', trace);
+
+        // Verify the functionality still works
+        expect(graph.nodes.size).toBe(1);
+        expect(graph.nodes.has('base_cte')).toBe(true);
+        expect(trace.foundIn).toContain('base_cte');
+    });
 });

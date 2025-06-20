@@ -30,9 +30,11 @@ export interface CTEGraph {
  */
 export class CTEDependencyTracer {
     private columnCollector: SelectableColumnCollector;
+    private silent: boolean;
 
-    constructor() {
+    constructor(options?: { silent?: boolean }) {
         this.columnCollector = new SelectableColumnCollector();
+        this.silent = options?.silent ?? false;
     }
 
     /**
@@ -53,7 +55,9 @@ export class CTEDependencyTracer {
                 const columnRefs = this.columnCollector.collect(cte.query);
                 columns = columnRefs.map(col => col.name);
             } catch (error) {
-                console.warn(`Failed to collect columns for CTE ${cteName}: ${error instanceof Error ? error.message : String(error)}`);
+                if (!this.silent) {
+                    console.warn(`Failed to collect columns for CTE ${cteName}: ${error instanceof Error ? error.message : String(error)}`);
+                }
             }
 
             nodes.set(cteName, {
@@ -140,7 +144,9 @@ export class CTEDependencyTracer {
                 mainColumns = [...new Set(allColumns)];
             }
         } catch (error) {
-            console.warn(`Failed to collect columns from main query: ${error instanceof Error ? error.message : String(error)}`);
+            if (!this.silent) {
+                console.warn(`Failed to collect columns from main query: ${error instanceof Error ? error.message : String(error)}`);
+            }
         }
 
         if (mainColumns.some(col => col.toLowerCase() === columnName.toLowerCase())) {
@@ -174,6 +180,8 @@ export class CTEDependencyTracer {
      * Print visual representation of CTE dependency graph
      */
     public printGraph(graph: CTEGraph): void {
+        if (this.silent) return;
+
         console.log('\n=== CTE Dependency Graph ===');
 
         // Group by levels
@@ -207,6 +215,8 @@ export class CTEDependencyTracer {
      * Print column search trace
      */
     public printColumnTrace(columnName: string, trace: ReturnType<typeof this.traceColumnSearch>): void {
+        if (this.silent) return;
+
         console.log(`\n=== Column Search Trace for "${columnName}" ===`);
         console.log(`Search path: ${trace.searchPath.join(' → ')}`);
         console.log(`Found in: ${trace.foundIn.length > 0 ? trace.foundIn.join(', ') : 'NONE'}`);

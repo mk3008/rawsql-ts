@@ -20,6 +20,21 @@ import { SelectQueryParser } from 'rawsql-ts/parsers/SelectQueryParser';
 
 ## Basic Usage
 
+### Constructor Options
+
+```typescript
+// Default behavior - shows debug output
+const tracer = new CTEDependencyTracer();
+
+// Silent mode - suppresses all console output
+const silentTracer = new CTEDependencyTracer({ silent: true });
+```
+
+The `silent` option is particularly useful when:
+- Using CTEDependencyTracer programmatically in production code
+- Running automated tests where console output should be minimal
+- Analyzing multiple queries in batch without cluttering the output
+
 ### 1. Building CTE Dependency Graphs
 
 ```typescript
@@ -124,7 +139,50 @@ columnsToCheck.forEach(col => {
 });
 ```
 
-### 2. Debugging Column Loss in UNIONs
+### 2. Silent Mode for Production Use
+
+When you need to analyze queries programmatically without console output:
+
+```typescript
+const silentTracer = new CTEDependencyTracer({ silent: true });
+
+// Build graph and trace columns without any console output
+const graph = silentTracer.buildGraph(query);
+const trace = silentTracer.traceColumnSearch(query, 'target_column');
+
+// Process results programmatically
+if (trace.foundIn.length === 0) {
+  throw new Error(`Column 'target_column' not found in any CTE`);
+}
+
+// You can still manually output specific information when needed
+console.log(`Column found in: ${trace.foundIn.join(', ')}`);
+```
+
+### 3. Batch Analysis with Mixed Output Control
+
+```typescript
+const queries = [query1, query2, query3];
+const silentTracer = new CTEDependencyTracer({ silent: true });
+const verboseTracer = new CTEDependencyTracer({ silent: false });
+
+// Analyze all queries silently first
+const results = queries.map(q => ({
+  graph: silentTracer.buildGraph(q),
+  columnTrace: silentTracer.traceColumnSearch(q, 'important_column')
+}));
+
+// Only show detailed output for problematic queries
+results.forEach((result, index) => {
+  if (result.columnTrace.foundIn.length === 0) {
+    console.log(`\n=== Problem found in Query ${index + 1} ===`);
+    verboseTracer.printGraph(result.graph);
+    verboseTracer.printColumnTrace('important_column', result.columnTrace);
+  }
+});
+```
+
+### 4. Debugging Column Loss in UNIONs
 
 When working with UNION operations, columns can be "lost" if they don't exist in all branches:
 
@@ -159,6 +217,15 @@ tracer.printColumnTrace('special_column', trace);
 
 ## API Reference
 
+### Constructor
+
+```typescript
+new CTEDependencyTracer(options?: { silent?: boolean })
+```
+
+**Parameters:**
+- `options.silent`: Optional boolean (default: `false`). When `true`, suppresses all console output from `printGraph()`, `printColumnTrace()`, and internal warning messages.
+
 ### `buildGraph(query: SelectQuery): CTEGraph`
 
 Builds a complete dependency graph for all CTEs in the query.
@@ -184,11 +251,11 @@ Traces where a specific column exists throughout the CTE dependency chain.
 
 ### `printGraph(graph: DependencyGraph): void`
 
-Pretty-prints the dependency graph in a hierarchical format.
+Pretty-prints the dependency graph in a hierarchical format. Output is suppressed when `silent: true` is set in constructor.
 
 ### `printColumnTrace(columnName: string, trace: ColumnTrace): void`
 
-Pretty-prints the column trace results with detailed information.
+Pretty-prints the column trace results with detailed information. Output is suppressed when `silent: true` is set in constructor.
 
 ## Common Use Cases
 
@@ -236,6 +303,8 @@ console.log('Column availability preserved:', sameAvailability);
 2. **Debug Before Fixing**: Always trace the issue before attempting fixes
 3. **Combine with Tests**: Use in unit tests to validate complex query behavior
 4. **Performance Consideration**: This is a debugging tool - don't use in production code paths
+5. **Silent Mode in Production**: Use `{ silent: true }` when analyzing queries programmatically or in automated tests
+6. **Selective Output**: Combine silent and verbose tracers for controlled output in batch analysis
 
 ## Integration with Other Tools
 
