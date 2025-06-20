@@ -39,11 +39,11 @@ describe('MappingFileProcessor', () => {
                         title: 'title'
                     }
                 }
-            };
-
-            const format = detectMappingFormat(unifiedData);
+            }; const format = detectMappingFormat(unifiedData);
             expect(format).toBe('unified');
-        }); it('should detect legacy format for backward compatibility', () => {
+        });
+
+        it('should detect legacy format for backward compatibility', () => {
             const legacyData = {
                 columns: {
                     id: 'todo_id',

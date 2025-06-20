@@ -25,7 +25,7 @@ import {
     FieldMapping,
     StructureFields
 } from 'rawsql-ts';
-import { loadAndConvertMappingFile, detectMappingFormat, findAndConvertMappingFiles } from './MappingFileProcessor';
+import { findAndConvertMappingFiles } from './MappingFileProcessor';
 import * as path from 'path';
 import * as fs from 'fs';
 

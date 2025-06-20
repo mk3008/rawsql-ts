@@ -100,12 +100,6 @@ export function findAndConvertMappingFiles(baseDir: string): MappingFileResult[]
         return results;
     }
 
-    const searchPatterns = [
-        '**/*.model-driven.json',
-        '**/*.unified.json',
-        '**/*.json'
-    ];
-
     // Simple recursive file search
     const searchDirectory = (dir: string) => {
         const entries = fs.readdirSync(dir);
@@ -117,7 +111,13 @@ export function findAndConvertMappingFiles(baseDir: string): MappingFileResult[]
             if (stat.isDirectory()) {
                 searchDirectory(fullPath);
             } else if (stat.isFile() && entry.endsWith('.json')) {
-                // Prioritize model-driven files
+                // Skip common non-mapping JSON files
+                const nonMappingFiles = ['package.json', 'tsconfig.json', 'eslint.json', '.eslintrc.json', 'tsconfig.browser.json'];
+                if (nonMappingFiles.includes(entry)) {
+                    continue;
+                }
+
+                // Process model-driven files
                 if (entry.endsWith('.model-driven.json')) {
                     try {
                         const result = loadAndConvertMappingFile(fullPath);
