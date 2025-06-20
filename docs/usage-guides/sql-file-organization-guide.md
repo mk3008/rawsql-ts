@@ -106,35 +106,49 @@ GROUP BY u.id, u.name, u.email, u.created_at, p.title, p.bio
 ```
 
 ### JSON Mapping Guidelines
-1. **Start simple** with basic column mappings
-2. **Add nested structures** only when needed
-3. **Document complex mappings** with comments
+1. **Use Model-Driven format** for new projects
+2. **Start simple** with basic column mappings
+3. **Add nested structures** only when needed
 4. **Validate mappings** against TypeScript interfaces
 
 ```json
 {
-  "_comment": "User profile with nested profile data and post count",
-  "rootEntity": {
-    "columns": {
-      "id": "id",
-      "name": "name", 
-      "email": "email",
-      "createdAt": "created_at",
-      "postCount": "post_count"
-    }
+  "typeInfo": {
+    "interface": "UserProfile",
+    "importPath": "src/contracts/user-profile.ts"
   },
-  "nestedEntities": [
-    {
-      "propertyName": "profile",
-      "relationshipType": "object",
-      "columns": {
-        "title": "profile_title",
-        "bio": "profile_bio"
+  "structure": {
+    "id": "id",
+    "name": {
+      "from": "name",
+      "type": "string"
+    },
+    "email": {
+      "from": "email", 
+      "type": "string"
+    },
+    "createdAt": "created_at",
+    "postCount": "post_count",
+    "profile": {
+      "type": "object",
+      "from": "p",
+      "structure": {
+        "title": {
+          "from": "profile_title",
+          "type": "string"
+        },
+        "bio": {
+          "from": "profile_bio",
+          "type": "string"
+        }
       }
     }
-  ]
+  },
+  "protectedStringFields": ["name", "email", "profile_title", "profile_bio"]
 }
 ```
+
+*For comprehensive JSON mapping examples, patterns, and migration guides, see the **[Model-Driven JSON Mapping Guide](./model-driven-json-mapping-usage-guide.md)**.*
 
 ## Configuration in RawSqlClient
 

@@ -250,44 +250,72 @@ ORDER BY tc.created_at ASC
 ```json
 // rawsql-ts/getTodoDetail.json
 {
-  "rootEntity": {
-    "columns": {
-      "todoId": "todo_id",
-      "title": "title",
-      "description": "description",
-      "completed": "completed",
-      "createdAt": "created_at"
+  "typeInfo": {
+    "interface": "TodoDetail",
+    "importPath": "src/contracts/todo-detail.ts"
+  },
+  "structure": {
+    "todoId": "todo_id",
+    "title": {
+      "from": "title",
+      "type": "string"
+    },
+    "description": {
+      "from": "description",
+      "type": "string"
+    },
+    "completed": "completed",
+    "createdAt": "created_at",
+    "user": {
+      "type": "object",
+      "from": "u",
+      "structure": {
+        "userId": "user_id",
+        "userName": {
+          "from": "user_name",
+          "type": "string"
+        },
+        "email": {
+          "from": "email",
+          "type": "string"
+        }
+      }
+    },
+    "category": {
+      "type": "object",
+      "from": "c",
+      "structure": {
+        "categoryId": "category_id",
+        "categoryName": {
+          "from": "category_name",
+          "type": "string"
+        },
+        "color": {
+          "from": "color",
+          "type": "string"
+        }
+      }
+    },
+    "comments": {
+      "type": "array",
+      "from": "comments",
+      "structure": {
+        "commentId": "comment_id",
+        "commentText": {
+          "from": "comment_text",
+          "type": "string"
+        },
+        "createdAt": "comment_created_at",
+        "userName": {
+          "from": "comment_user_name",
+          "type": "string"
+        }
+      }
     }
   },
-  "nestedEntities": [
-    {
-      "propertyName": "user",
-      "relationshipType": "object",
-      "columns": {
-        "userId": "user_id",
-        "userName": "user_name",
-        "email": "email"
-      }
-    },
-    {
-      "propertyName": "category",
-      "relationshipType": "object",
-      "columns": {
-        "categoryId": "category_id",
-        "categoryName": "category_name",
-        "color": "color"
-      }
-    },
-    {
-      "propertyName": "comments",
-      "relationshipType": "array",
-      "columns": {
-        "commentId": "comment_id",
-        "commentText": "comment_text",
-        "createdAt": "comment_created_at",
-        "userName": "comment_user_name"
-      }
-    }
+  "protectedStringFields": [
+    "title", "description", "user_name", "email", 
+    "category_name", "color", "comment_text", "comment_user_name"
   ]
 }
 ```
@@ -384,8 +412,9 @@ npm run test:sql:watch              # Run in watch mode for real-time validation
 ## 📚 Learning Resources
 
 1. **[Prisma Integration Guide](../../packages/prisma-integration/README.md)** - Complete documentation
-2. **[Usage Guides](../../docs/usage-guides/)** - Detailed guides for specific features
-3. **Check the reports folder** - Generated analysis reports with detailed insights
+2. **[Model-Driven JSON Mapping Guide](../../docs/usage-guides/model-driven-json-mapping-usage-guide.md)** - Transform SQL results into structured TypeScript models
+3. **[Usage Guides](../../docs/usage-guides/)** - Detailed guides for specific features
+4. **Check the reports folder** - Generated analysis reports with detailed insights
 
 ---
 

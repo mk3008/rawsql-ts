@@ -1,12 +1,19 @@
 {
-    "rootName": "Users",
-    "rootEntity": {
-        "columns": {
-            "userId": "user_id",
-            "userName": "user_name",
-            "email": "email",
-            "createdAt": "created_at"
-        }
+    "typeInfo": {
+        "interface": "UserSearchResult",
+        "importPath": "src/contracts/user-search-result.ts"
+    },
+    "structure": {
+        "userId": "user_id",
+        "userName": {
+            "from": "user_name",
+            "type": "string"
+        },
+        "email": {
+            "from": "email",
+            "type": "string"
+        },
+        "createdAt": "created_at"
     },
     "protectedStringFields": [
         "user_name",

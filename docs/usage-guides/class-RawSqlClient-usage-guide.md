@@ -48,9 +48,43 @@ sql/
     get-profile.json    ← JSON mapping (auto-loaded)
 ```
 
-### JSON Mapping Structure
+### Modern Model-Driven JSON Mapping (Recommended)
 
-The JSON mapping file defines how flat SQL results should be transformed into hierarchical JSON structures:
+The current recommended format is **Model-Driven JSON Mapping**, which mirrors your TypeScript interface structure directly and includes type information:
+
+```json
+{
+  "typeInfo": {
+    "interface": "UserProfile",
+    "importPath": "src/contracts/user-profile.ts"
+  },
+  "structure": {
+    "userId": "user_id",
+    "name": {
+      "from": "user_name", 
+      "type": "string"
+    },
+    "posts": {
+      "type": "array",
+      "from": "posts", 
+      "structure": {
+        "postId": "post_id",
+        "title": {
+          "from": "post_title",
+          "type": "string"
+        }
+      }
+    }
+  },
+  "protectedStringFields": ["user_name", "post_title"]
+}
+```
+
+*For complete examples, advanced patterns, and migration guides, see the **[Model-Driven JSON Mapping Guide](./model-driven-json-mapping-usage-guide.md)**.*
+
+### Legacy JSON Mapping (Still Supported)
+
+The legacy format is still supported but deprecated:
 
 ```json
 {
@@ -69,6 +103,16 @@ The JSON mapping file defines how flat SQL results should be transformed into hi
   ]
 }
 ```
+
+### Advantages of Model-Driven Format
+
+1. **Type Safety**: Includes TypeScript interface information
+2. **Intuitive Structure**: Mirrors your TypeScript models exactly
+3. **Better Validation**: Built-in type checking and validation
+4. **Future-Proof**: New features prioritize this format
+5. **Enhanced Static Analysis**: Better integration with development tools
+
+For detailed examples and migration guides, see the [Model-Driven JSON Mapping Guide](./model-driven-json-mapping-usage-guide.md).
 
 ### SQL Query Example
 
@@ -89,23 +133,15 @@ WHERE u.id = :userId
 
 ### TypeScript Usage
 
-```typescript
-interface UserProfile {
-  user: {
-    id: number;
-    name: string;
-    email: string;
-  };
-  posts: Array<{
-    id: number;
-    title: string;
-    content: string;
-    createdAt: string;
-  }>;
-}
+With the Model-Driven format, the TypeScript interface is already defined in the mapping:
 
+```typescript
+// Usage
 const profile = await client.queryOne<UserProfile>('users/get-profile.sql', { userId: 123 });
+// TypeScript automatically knows the structure from the mapping file!
 ```
+
+*For complete TypeScript integration examples, see the [Model-Driven JSON Mapping Guide](./model-driven-json-mapping-usage-guide.md).*
 
 ## Advanced Features
 
@@ -145,7 +181,34 @@ try {
 
 ## Best Practices
 
-### 1. Use Descriptive File Names
+### 1. Use Model-Driven JSON Mapping
+
+For new projects, always use the Model-Driven format:
+
+```json
+{
+  "typeInfo": {
+    "interface": "TodoDetail",
+    "importPath": "src/contracts/todo-detail.ts"
+  },
+  "structure": {
+    "todoId": "todo_id",
+    "title": {
+      "from": "title",
+      "type": "string"
+    }
+  },
+  "protectedStringFields": ["title"]
+}
+```
+
+Benefits:
+- **Better IDE support**: TypeScript interface information
+- **Type safety**: Built-in validation and type checking
+- **Future-proof**: New features prioritize this format
+- **Easier maintenance**: Structure mirrors TypeScript models
+
+### 2. Use Descriptive File Names
 
 ```
 sql/
@@ -156,7 +219,7 @@ sql/
     get-recent-orders.sql    ← Specific scope
 ```
 
-### 2. Structure Your Mapping Files
+### 3. Structure Your Mapping Files
 
 Keep your JSON mappings simple and focused:
 
@@ -182,7 +245,7 @@ Keep your JSON mappings simple and focused:
 }
 ```
 
-### 3. Prefer `queryOne` and `queryMany`
+### 4. Prefer `queryOne` and `queryMany`
 
 These methods provide clearer intent and automatic serialization:
 
@@ -250,6 +313,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
 ## Related Guides
 
+- [Model-Driven JSON Mapping Guide](./model-driven-json-mapping-usage-guide.md) - Complete guide for modern JSON mapping format
 - [SQL File Organization Guide](./sql-file-organization-guide.md)
 - [TypeScript Integration Guide](./typescript-integration-guide.md)
 - [SQL Schema Validator Guide](./class-SqlSchemaValidator-usage-guide.md)
