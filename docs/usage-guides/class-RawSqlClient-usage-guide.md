@@ -2,37 +2,87 @@
 
 ## Overview
 
-`RawSqlClient` is the main interface for executing SQL queries with auto-serialization support in the `@rawsql-ts/prisma-integration` package. It provides a simple, type-safe way to execute file-based SQL queries and transform results into structured JSON objects.
+`RawSqlClient` is the main interface for executing SQL queries with auto-serialization support in the `@msugiura/rawsql-prisma` package. It provides a simple, type-safe way to execute file-based SQL queries and transform results into structured JSON objects.
 
 ## Core Methods
 
-### `queryOne<T>(sqlPath, params?)`
+The `RawSqlClient` provides **two main public methods** for executing SQL queries:
 
-Executes a SQL query and returns a single result or null. Always enables serialization if a JSON mapping file exists.
+| Method | JSON Mapping | Return Type | Best For |
+|--------|-------------|-------------|----------|
+| `queryOne()` | **Required** | `T` or `null` | Single result endpoints |
+| `queryMany()` | **Required** | `T[]` | Multiple results endpoints |
+
+> **Note:** The `query()` method has been made private as of v0.1.0-alpha to simplify the API and reduce confusion. Use `queryOne()` or `queryMany()` instead for clearer intent and better type safety.
+
+### `queryOne<T>(sqlPath, options?)`
+
+**High-level method** that always requires JSON mapping and returns a single result or null.
 
 ```typescript
-const user = await client.queryOne<User>('users/get-profile.sql', { userId: 123 });
+const user = await client.queryOne<User>('users/get-profile.sql', { 
+  filter: { userId: 123 } 
+});
 // Returns: User | null
+// Throws: JsonMappingRequiredError if users/get-profile.json is missing
 ```
 
-### `queryMany<T>(sqlPath, params?)`
+**When to use:**
+- ✅ For `GET /users/:id` type endpoints
+- ✅ When you expect exactly one result or null
+- ✅ When you always want structured JSON objects
+- ✅ When JSON mapping should be mandatory (enforced)
 
-Executes a SQL query and returns an array of results. Always enables serialization if a JSON mapping file exists.
+### `queryMany<T>(sqlPath, options?)`
+
+**High-level method** that always requires JSON mapping and returns an array of results.
 
 ```typescript
-const todos = await client.queryMany<Todo>('todos/search.sql', { status: 'pending' });
+const todos = await client.queryMany<Todo>('todos/search.sql', { 
+  filter: { status: 'pending' } 
+});
 // Returns: Todo[]
+// Throws: JsonMappingRequiredError if todos/search.json is missing
 ```
 
-### `query<T>(sqlPath, params?, options?)`
+**When to use:**
+- ✅ For `GET /users` type endpoints
+- ✅ When you expect multiple results (even if potentially empty)
+- ✅ When you always want structured JSON arrays
+- ✅ When JSON mapping should be mandatory (enforced)
 
-Low-level query method with full control over serialization and result handling.
+### Decision Flow
 
+```mermaid
+graph TD
+    A[Need to execute SQL?] --> B{Single result or multiple?}
+    B -->|Single| C[Use queryOne&lt;T&gt;]
+    B -->|Multiple| D[Use queryMany&lt;T&gt;]
+    
+    C --> E[Requires JSON mapping file]
+    D --> F[Requires JSON mapping file]
+    
+    E --> G[Returns T | null]
+    F --> H[Returns T[]]
+```
+
+### Why was `query()` removed?
+
+The `query()` method was made private in v0.1.0-alpha for the following reasons:
+
+1. **🔀 Confusing behavior**: Too many options (`serialize: true/false/undefined`) led to unpredictable results
+2. **📱 Unclear return types**: Return type varied (`T[]` | `T` | `null`) depending on options, making TypeScript integration difficult
+3. **🤔 Inconsistent JSON mapping**: Auto-detection vs explicit serialization caused confusion
+4. **🎯 Better alternatives**: `queryOne()` and `queryMany()` provide clearer intent and safer defaults
+
+**Migration guide:**
 ```typescript
-const result = await client.query<Todo[]>('todos/search.sql', 
-  { status: 'pending' }, 
-  { serialize: true }
-);
+// ❌ Old way (removed)
+const result = await client.query('users/list.sql');
+
+// ✅ New way - clear intent
+const users = await client.queryMany<User>('users/list.sql');  // For multiple results
+const user = await client.queryOne<User>('users/get-by-id.sql'); // For single result
 ```
 
 ## JSON Mapping and Auto-Serialization
@@ -104,7 +154,9 @@ interface UserProfile {
   }>;
 }
 
-const profile = await client.queryOne<UserProfile>('users/get-profile.sql', { userId: 123 });
+const profile = await client.queryOne<UserProfile>('users/get-profile.sql', { 
+  filter: { userId: 123 } 
+});
 ```
 
 ## Advanced Features
@@ -115,32 +167,67 @@ For the `query<T>()` method, serialization is controlled by options:
 
 ```typescript
 // Auto-detect: enables serialization if .json file exists
-const result1 = await client.query<User>('users/get-profile.sql', { userId: 123 });
+const result1 = await client.query<User>('users/get-profile.sql', { 
+  filter: { userId: 123 } 
+});
 
 // Force enable serialization
 const result2 = await client.query<User>('users/get-profile.sql', 
-  { userId: 123 }, 
+  { filter: { userId: 123 } }, 
   { serialize: true }
 );
 
 // Force disable serialization
 const result3 = await client.query<any[]>('users/get-profile.sql', 
-  { userId: 123 }, 
+  { filter: { userId: 123 } }, 
   { serialize: false }
 );
 ```
 
 ### Error Handling
 
+The `queryOne<T>()` and `queryMany<T>()` methods require JSON mapping files and will throw clear errors when they're missing:
+
 ```typescript
+import { JsonMappingRequiredError } from '@msugiura/rawsql-prisma';
+
 try {
-  const user = await client.queryOne<User>('users/get-profile.sql', { userId: 123 });
+  const user = await client.queryOne<User>('users/get-profile.sql', { 
+    filter: { userId: 123 } 
+  });
   if (!user) {
     console.log('User not found');
   }
 } catch (error) {
-  console.error('Query failed:', error);
+  if (error instanceof JsonMappingRequiredError) {
+    console.error('Missing JSON mapping file:', error.expectedMappingPath);
+    console.error('For SQL file:', error.sqlFilePath);
+    // The error message contains helpful solutions:
+    // 1. Create the JSON mapping file
+    // 2. Use query() method instead if you want raw results
+  } else {
+    console.error('Query failed:', error);
+  }
 }
+```
+
+#### Error Types
+
+- **`JsonMappingRequiredError`**: Thrown when `queryOne()` or `queryMany()` cannot find the required JSON mapping file
+- **`SqlFileNotFoundError`**: Thrown when the SQL file cannot be found
+- **`JsonMappingError`**: Thrown when the JSON mapping file is invalid
+- **`SqlExecutionError`**: Thrown when SQL execution fails
+
+#### When JSON Mapping is Required vs Optional
+
+```typescript
+// ❌ REQUIRES JSON mapping file - will throw if missing
+const users = await client.queryOne<User>('users/get-profile.sql');
+const usersList = await client.queryMany<User>('users/list.sql');
+
+// ✅ JSON mapping is OPTIONAL - works with or without
+const rawResult = await client.query('users/get-profile.sql'); // Raw database rows
+const serializedResult = await client.query('users/get-profile.sql', {}, { serialize: true }); // Auto-detects mapping
 ```
 
 ## Best Practices

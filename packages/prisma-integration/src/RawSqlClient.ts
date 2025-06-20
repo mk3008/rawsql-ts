@@ -85,6 +85,44 @@ export class JsonMappingError extends Error {
 }
 
 /**
+ * Error thrown when JSON mapping is required but not found
+ */
+export class JsonMappingRequiredError extends Error {
+    public readonly sqlFilePath: string;
+    public readonly expectedMappingPath: string;
+    public readonly methodName: string;
+
+    constructor(sqlFilePath: string, expectedMappingPath: string, methodName: string) {
+        const message = [
+            `JSON mapping file is required but not found for ${methodName}()`,
+            `SQL file: ${sqlFilePath}`,
+            `Expected mapping file: ${expectedMappingPath}`,
+            '',
+            'Solutions:',
+            `1. Create the JSON mapping file at: ${expectedMappingPath}`,
+            `2. Use the raw query() method instead of ${methodName}() if you want unstructured results`,
+            '',
+            'Example JSON mapping structure:',
+            '{',
+            '  "resultFormat": "object",',
+            '  "rootAlias": "item",',
+            '  "columns": {',
+            '    "id": "id",',
+            '    "name": "name",',
+            '    "email": "email"',
+            '  }',
+            '}'
+        ].join('\n');
+
+        super(message);
+        this.name = 'JsonMappingRequiredError';
+        this.sqlFilePath = sqlFilePath;
+        this.expectedMappingPath = expectedMappingPath;
+        this.methodName = methodName;
+    }
+}
+
+/**
  * Error thrown when SQL query execution fails
  */
 export class SqlExecutionError extends Error {
@@ -179,17 +217,27 @@ export class RawSqlClient {
     }
 
     /**
-     * Execute SQL from file with dynamic conditions
+     * Execute SQL from file with dynamic conditions - INTERNAL USE ONLY
      * 
-     * @param sqlFilePath - Path to SQL file (relative to sqlFilesPath or absolute)
+     * This method was made private to simplify the API and reduce confusion.
+     * Use queryOne() or queryMany() instead for clearer intent and better type safety.
+     * 
+     * Reasons for making this private:
+     * 1. Too many options led to confusing behavior (serialize: true/false/undefined)
+     * 2. Return type was unpredictable (T[] | T | null depending on options)
+     * 3. JSON mapping behavior was inconsistent (auto-detect vs explicit)
+     * 4. queryOne/queryMany provide clearer intent and safer defaults
+     * 
+     * @param sqlFilePathOrQuery - Path to SQL file or pre-built SelectQuery
      * @param options - Query execution options (filter, sort, paging, serialize)
      * @returns Query result
+     * @internal
      */
-    // Main overloads for different return types based on serialization
-    async query<T = any>(sqlFilePath: string, options: QueryBuildOptions & { serialize: JsonMapping | true }): Promise<T | null>;
-    async query<T = any>(sqlFilePath: string, options: QueryBuildOptions & { serialize: false }): Promise<T[]>;
-    async query<T = any>(sqlFilePath: string, options?: QueryBuildOptions): Promise<T[] | T | null>;
-    async query<T = any>(query: SelectQuery): Promise<T[]>; async query<T = any>(sqlFilePathOrQuery: string | SelectQuery, options: QueryBuildOptions = {}): Promise<T[] | T | null> {
+    // Main overloads for different return types based on serialization    private async query<T = any>(sqlFilePath: string, options: QueryBuildOptions & { serialize: JsonMapping | true }): Promise<T | null>;
+    private async query<T = any>(sqlFilePath: string, options: QueryBuildOptions & { serialize: false }): Promise<T[]>;
+    private async query<T = any>(sqlFilePath: string, options?: QueryBuildOptions): Promise<T[] | T | null>;
+    private async query<T = any>(query: SelectQuery): Promise<T[]>;
+    private async query<T = any>(sqlFilePathOrQuery: string | SelectQuery, options: QueryBuildOptions = {}): Promise<T[] | T | null> {
         await this.ensureInitialized();
 
         let modifiedQuery: SimpleSelectQuery;
@@ -557,22 +605,36 @@ export class RawSqlClient {
             throw new SqlExecutionError(sql, params, databaseError, error instanceof Error ? error : undefined);
         }
     }
-
     /**
      * Execute SQL from file with JSON serialization, returning a single object
      * Automatically loads corresponding .json mapping file
+     * Throws error if JSON mapping file is not found
      * 
      * @param sqlFilePath - Path to SQL file (relative to sqlFilesPath or absolute)
      * @param options - Query execution options (filter, sort, paging, allowAllUndefined)
      * @returns Single serialized object or null
+     * @throws JsonMappingRequiredError when JSON mapping file is not found
      */
     async queryOne<T>(sqlFilePath: string, options: Omit<QueryBuildOptions, 'serialize'> & { allowAllUndefined?: boolean } = {}): Promise<T | null> {
+        // Check if JSON mapping file exists before proceeding
+        const jsonMappingPath = sqlFilePath.replace('.sql', '.json');
+        try {
+            await this.loadJsonMapping(jsonMappingPath);
+        } catch (error) {
+            // JSON mapping is required for queryOne
+            throw new JsonMappingRequiredError(sqlFilePath, jsonMappingPath, 'queryOne');
+        }
+
         // Force serialization to true and resultFormat to 'single' for queryOne
         const queryOptions = { ...options, serialize: true as any, resultFormat: 'single' as any };
-        const result = await this.query<T>(sqlFilePath, queryOptions);        // Handle different result formats
+        const result = await this.query<T>(sqlFilePath, queryOptions);
+
+        // Handle different result formats
         if (result === null || result === undefined) {
             return null;
-        }        // If result is already a single object (expected case), return it
+        }
+
+        // If result is already a single object (expected case), return it
         if (!Array.isArray(result)) {
             return result as T;
         }
@@ -588,23 +650,38 @@ export class RawSqlClient {
     /**
      * Execute SQL from file with JSON serialization, returning an array
      * Automatically loads corresponding .json mapping file
+     * Throws error if JSON mapping file is not found
      * 
      * @param sqlFilePath - Path to SQL file (relative to sqlFilesPath or absolute)
      * @param options - Query execution options (filter, sort, paging, allowAllUndefined)
      * @returns Array of serialized objects
+     * @throws JsonMappingRequiredError when JSON mapping file is not found
      */
     async queryMany<T = any>(sqlFilePath: string, options: Omit<QueryBuildOptions, 'serialize'> & { allowAllUndefined?: boolean } = {}): Promise<T[]> {
+        // Check if JSON mapping file exists before proceeding
+        const jsonMappingPath = sqlFilePath.replace('.sql', '.json');
+        try {
+            await this.loadJsonMapping(jsonMappingPath);
+        } catch (error) {
+            // JSON mapping is required for queryMany
+            throw new JsonMappingRequiredError(sqlFilePath, jsonMappingPath, 'queryMany');
+        }
+
         // Force serialization to true and resultFormat to 'array' for queryMany
         const queryOptions = { ...options, serialize: true as any, resultFormat: 'array' as any };
         const result = await this.query<T>(sqlFilePath, queryOptions);
 
-        // Handle different result formats        // Handle different result formats
+        // Handle different result formats
         if (result === null || result === undefined) {
             return [];
-        }        // If result is already an array (expected case), return it
+        }
+
+        // If result is already an array (expected case), return it
         if (Array.isArray(result)) {
             return result as T[];
-        }        // If result is a single object, wrap it in an array
+        }
+
+        // If result is a single object, wrap it in an array
         return [result] as T[];
     }
 
