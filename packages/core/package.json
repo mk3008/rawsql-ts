@@ -6,7 +6,7 @@
     "module": "dist/esm/index.js",
     "types": "dist/src/index.d.ts",
     "browser": "dist/esm/index.min.js",
-    "homepage": "https://mk3008.github.io/rawsql-ts/",
+    "homepage": "https://github.com/mk3008/rawsql-ts/tree/main/packages/core",
     "scripts": {
         "test": "vitest run",
         "test:watch": "vitest",
