@@ -17,13 +17,6 @@ export class PrismaTodoDetailService implements TodoDetailService {
     }
 
     /**
-     * Initialize the Prisma service (optional)
-     */    async initialize(): Promise<void> {
-        // Prisma is already initialized via constructor
-        // This method exists to satisfy the interface
-    }
-
-    /**
      * Get TODO detail by ID using Prisma ORM with nested includes
      */
     async getTodoDetail(todoId: number): Promise<TodoDetailResultWithMetrics> {        // Capture SQL queries using Prisma's query event listener

@@ -16,25 +16,75 @@ import {
 
 export class RawSqlTodoDetailService implements TodoDetailService {
     private prisma: PrismaClient;
-    private client: RawSqlClient;
+    private client: RawSqlClient | null = null;
     private debugMode: boolean;
-
-    constructor(prisma: PrismaClient, options?: { debug?: boolean }) {
+    private isInitialized: boolean = false;
+    private schemaPreloaded: boolean = false;
+    private disableResolver: boolean; constructor(prisma: PrismaClient, options?: { debug?: boolean; preloadSchema?: boolean; disableResolver?: boolean }) {
         this.prisma = prisma;
         this.debugMode = options?.debug ?? false;
-        this.client = new RawSqlClient(prisma, {
-            debug: this.debugMode,
-            sqlFilesPath: './rawsql-ts'
-        });
+        this.disableResolver = options?.disableResolver ?? false;
+        // Don't initialize RawSqlClient here - use lazy initialization        // By default, preload schema for optimal performance (can be disabled if needed)
+        // Skip preloading if resolver is disabled
+        if (options?.preloadSchema !== false && !this.disableResolver) {
+            this.preloadSchemaAsync();
+        }
     }
 
     /**
-     * Initialize the RawSqlClient
-     * (No longer needed - RawSqlClient uses lazy initialization)
+     * Asynchronously preload schema in background for production optimization
+     * This reduces first-query latency without blocking constructor
      */
-    async initialize(): Promise<void> {
-        // RawSqlClient now initializes automatically when needed
-        // This method is kept for backward compatibility but does nothing
+    private async preloadSchemaAsync(): Promise<void> {
+        try {
+            if (this.debugMode) {
+                console.log('🚀 [Production] Pre-loading schema in background...');
+            }
+
+            await this.ensureInitialized();
+
+            if (this.client) {
+                await this.client.initializeSchema();
+                this.schemaPreloaded = true;
+
+                if (this.debugMode) {
+                    console.log('✅ [Production] Schema pre-loaded successfully');
+                }
+            }
+        } catch (error) {
+            if (this.debugMode) {
+                console.warn('⚠️ [Production] Schema pre-loading failed:', error);
+            }
+        }
+    }
+
+    /**
+     * Initialize RawSqlClient only when needed (lazy initialization)
+     * This prevents heavy schema parsing during service construction
+     */
+    private async ensureInitialized(): Promise<void> {
+        if (this.isInitialized && this.client) {
+            return;
+        }
+
+        if (this.debugMode) {
+            console.log('🔧 Initializing rawsql-ts client (function-based lazy resolver)...');
+        } const startTime = performance.now();
+        this.client = new RawSqlClient(this.prisma, {
+            debug: this.debugMode,
+            sqlFilesPath: './rawsql-ts',
+            disableResolver: this.disableResolver
+        });
+
+        // Simply initialize without forcing a query
+        // The lazy resolver will handle schema loading when actually needed
+
+        const endTime = performance.now();
+        this.isInitialized = true;
+
+        if (this.debugMode) {
+            console.log(`✅ rawsql-ts client initialized in ${(endTime - startTime).toFixed(2)}ms`);
+        }
     }
 
     /**
@@ -42,8 +92,11 @@ export class RawSqlTodoDetailService implements TodoDetailService {
      * Uses queryOne now that the GROUP BY aggregation issue is fixed
      */
     private async executeGetTodoDetailQuery(todoId: number): Promise<TodoDetail | null> {
+        // Ensure client is initialized before use
+        await this.ensureInitialized();
+
         // Use queryOne for proper aggregation now that GROUP BY is fixed
-        const result = await this.client.queryOne<TodoDetail>('todos/getTodoDetail.sql', {
+        const result = await this.client!.queryOne<TodoDetail>('todos/getTodoDetail.sql', {
             filter: { todo_id: todoId },
         });
 
@@ -58,6 +111,9 @@ export class RawSqlTodoDetailService implements TodoDetailService {
      * Get TODO detail by ID using rawsql-ts
      */
     async getTodoDetail(todoId: number): Promise<TodoDetailResultWithMetrics> {
+        // Ensure initialization before executing query
+        await this.ensureInitialized();
+
         // Enable query logging to capture SQL
         const originalLog = console.log;
         const queries: string[] = [];

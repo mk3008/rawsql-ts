@@ -16,7 +16,10 @@ const prisma = new PrismaClient();
 
 // Initialize service instances
 const prismaService = new PrismaTodoDetailService(prisma);
-const rawSqlService = new RawSqlTodoDetailService(prisma, { debug: false });
+const rawSqlService = new RawSqlTodoDetailService(prisma, {
+    debug: true,  // Enable debug to see internal timing
+    disableResolver: true  // Disable resolver for faster startup
+});
 
 // Create readline interface for user input
 const rl = createInterface({

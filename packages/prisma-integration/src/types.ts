@@ -16,6 +16,8 @@ export interface RawSqlClientOptions {
     sqlFilesPath?: string;
     /** Custom path to schema.prisma file */
     schemaPath?: string;
+    /** Disable table column resolver (no schema analysis) */
+    disableResolver?: boolean;
 }
 
 /**
