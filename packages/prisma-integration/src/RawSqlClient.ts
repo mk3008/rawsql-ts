@@ -177,17 +177,18 @@ export class RawSqlClient {
     private readonly jsonMappingCache: Map<string, UnifiedJsonMapping> = new Map();
 
     // SQL file cache to avoid reading the same file multiple times
-    private readonly sqlFileCache: Map<string, string> = new Map();
-
-    constructor(prisma: PrismaClientType, options: RawSqlClientOptions = {}) {
+    private readonly sqlFileCache: Map<string, string> = new Map(); constructor(prisma: PrismaClientType, options: RawSqlClientOptions = {}) {
         this.prisma = prisma;
         this.options = {
             debug: false,
-            defaultSchema: 'public', sqlFilesPath: './sql',
+            defaultSchema: 'public',
+            sqlFilesPath: './sql',
+            enableFileCache: true,  // Enable caching by default for performance
+            cacheMaxSize: 1000,     // Default cache limit
             ...options
         };
         this.schemaResolver = new PrismaSchemaResolver(this.options);
-    }    /**
+    }/**
      * Initialize the Prisma schema information and resolvers
      * This is called automatically when needed (lazy initialization)
      * Uses function-based lazy evaluation for optimal performance
@@ -580,10 +581,8 @@ export class RawSqlClient {
             }
 
             // Normalize the path to handle different separators and redundant segments
-            actualPath = path.normalize(actualPath);
-
-            // Check cache first to avoid reading the same file multiple times
-            if (this.sqlFileCache.has(actualPath)) {
+            actualPath = path.normalize(actualPath);            // Check cache first to avoid reading the same file multiple times
+            if (this.options.enableFileCache && this.sqlFileCache.has(actualPath)) {
                 if (this.options.debug) {
                     console.log(`📋 Using cached SQL file: ${sqlFilePath}`);
                 }
@@ -618,13 +617,13 @@ export class RawSqlClient {
                 console.log(`✅ Loaded SQL file: ${actualPath}`);
                 console.log(`📝 Content preview: ${content.substring(0, 100)}${content.length > 100 ? '...' : ''}`);
                 console.log(`📊 File size: ${content.length} characters`);
-            }
+            }            // Cache the SQL content to avoid re-reading the same file
+            if (this.options.enableFileCache) {
+                this.sqlFileCache.set(actualPath, content);
 
-            // Cache the SQL content to avoid re-reading the same file
-            this.sqlFileCache.set(actualPath, content);
-
-            if (this.options.debug) {
-                console.log(`💾 Cached SQL file: ${sqlFilePath}`);
+                if (this.options.debug) {
+                    console.log(`💾 Cached SQL file: ${sqlFilePath}`);
+                }
             }
 
             return content;
@@ -885,10 +884,8 @@ export class RawSqlClient {
             }
 
             // Normalize the path to handle different separators and redundant segments
-            actualPath = path.normalize(actualPath);
-
-            // Check cache first to avoid reading the same file multiple times
-            if (this.jsonMappingCache.has(actualPath)) {
+            actualPath = path.normalize(actualPath);            // Check cache first to avoid reading the same file multiple times
+            if (this.options.enableFileCache && this.jsonMappingCache.has(actualPath)) {
                 if (this.options.debug) {
                     console.log(`📋 Using cached JSON mapping: ${jsonMappingFilePath}`);
                 }
@@ -950,13 +947,13 @@ export class RawSqlClient {
                 );
             } if (this.options.debug) {
                 console.log(`✅ Successfully parsed JSON mapping with keys: ${Object.keys(parsed).join(', ')}`);
-            }
+            }            // Cache the parsed mapping to avoid re-reading the same file
+            if (this.options.enableFileCache) {
+                this.jsonMappingCache.set(actualPath, parsed);
 
-            // Cache the parsed mapping to avoid re-reading the same file
-            this.jsonMappingCache.set(actualPath, parsed);
-
-            if (this.options.debug) {
-                console.log(`💾 Cached JSON mapping file: ${jsonMappingFilePath}`);
+                if (this.options.debug) {
+                    console.log(`💾 Cached JSON mapping file: ${jsonMappingFilePath}`);
+                }
             }
 
             return parsed;
