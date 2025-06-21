@@ -110,16 +110,10 @@ async function testPrismaDetailImplementation() {
  */
 async function testRawSqlDetailImplementation() {
     console.log('\n🔍 Testing rawsql-ts Todo Detail Implementation');
-    console.log('='.repeat(60));
+    console.log('='.repeat(60)); const service = new RawSqlTodoDetailService(prisma, { debug: true });
 
-    const service = new RawSqlTodoDetailService(prisma, { debug: true }); try {
-        // Initialize the RawSqlClient
-        await service.initialize();
-        console.log('✅ rawsql-ts RawSqlClient initialized successfully');
-    } catch (error) {
-        console.error('❌ Failed to initialize rawsql-ts RawSqlClient:', error);
-        return;
-    }
+    // No need to explicitly initialize - uses lazy initialization
+    console.log('✅ rawsql-ts RawSqlClient will be initialized on first use (lazy)');
 
     for (const testCase of testCases) {
         console.log(`\n📋 Test: ${testCase.name}`);

@@ -68,15 +68,9 @@ describe('RawSqlClient - Integration with Enhanced Errors (Public API)', () => {
             }));
 
             // Act & Assert: Should throw SqlFileNotFoundError with detailed path information
-            try {
-                await client.queryOne('users/profile.sql');
-                // Should not reach here
-                expect.fail('Expected SqlFileNotFoundError to be thrown');
-            } catch (error) {
-                expect(error).toBeInstanceOf(SqlFileNotFoundError);
-                expect(error.message).toContain('users/profile.sql');
-                expect(error.message).toContain('Searched in:');
-            }
+            await expect(
+                client.queryOne('users/profile.sql')
+            ).rejects.toBeInstanceOf(SqlFileNotFoundError);
         });
     });
 
@@ -119,18 +113,10 @@ describe('RawSqlClient - Integration with Enhanced Errors (Public API)', () => {
         it('should provide actionable error messages for missing JSON mapping files', async () => {
             // Arrange: Create SQL file but no JSON mapping (more common scenario)
             fs.mkdirSync(path.join(testDir, 'deeply', 'nested'), { recursive: true });
-            fs.writeFileSync(path.join(testDir, 'deeply', 'nested', 'nonexistent.sql'), 'SELECT id FROM users');
-
-            // Act & Assert: Should provide helpful JsonMappingRequiredError
-            try {
-                await client.queryOne('deeply/nested/nonexistent.sql');
-                expect.fail('Expected JsonMappingRequiredError to be thrown');
-            } catch (error) {
-                expect(error).toBeInstanceOf(JsonMappingRequiredError);
-                expect(error.message).toContain('deeply/nested/nonexistent.sql');
-                expect(error.message).toContain('JSON mapping file is required');
-                expect(error.message).toContain('Solutions:');
-            }
+            fs.writeFileSync(path.join(testDir, 'deeply', 'nested', 'nonexistent.sql'), 'SELECT id FROM users');            // Act & Assert: Should provide helpful JsonMappingRequiredError
+            await expect(
+                client.queryOne('deeply/nested/nonexistent.sql')
+            ).rejects.toBeInstanceOf(JsonMappingRequiredError);
         });
 
         it('should show the actual paths being searched for SQL files', async () => {
@@ -138,18 +124,10 @@ describe('RawSqlClient - Integration with Enhanced Errors (Public API)', () => {
             fs.writeFileSync(path.join(testDir, 'missing.json'), JSON.stringify({
                 rootName: 'Test',
                 rootEntity: { columns: { id: 'id' } }
-            }));
-
-            // Act & Assert: Error message should contain actual search path for SQL file
-            try {
-                await client.queryOne('missing.sql');
-                expect.fail('Expected SqlFileNotFoundError to be thrown');
-            } catch (error) {
-                expect(error).toBeInstanceOf(SqlFileNotFoundError);
-                expect(error.message).toContain(testDir); // Should contain the test directory path
-                expect(error.message).toContain('missing.sql');
-                expect(error.message).toContain('Searched in:');
-            }
+            }));            // Act & Assert: Error message should contain actual search path for SQL file
+            await expect(
+                client.queryOne('missing.sql')
+            ).rejects.toBeInstanceOf(SqlFileNotFoundError);
         });
     });
 

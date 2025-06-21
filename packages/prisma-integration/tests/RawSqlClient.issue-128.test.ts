@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { RawSqlClient, SqlFileNotFoundError, JsonMappingRequiredError } from '../src/RawSqlClient';
+import { RawSqlClient, SqlFileNotFoundError, JsonMappingRequiredError, JsonMappingError } from '../src/RawSqlClient';
 
 describe('Issue #128: JSON mapping files in subdirectories', () => {
     let client: RawSqlClient;    // Mock Prisma Client - only $queryRawUnsafe is used in the current API
@@ -44,7 +44,7 @@ describe('Issue #128: JSON mapping files in subdirectories', () => {
             // queryOne requires JSON mapping - should throw error if mapping file is missing
             await expect(
                 client.queryOne('users/list.sql', { filter: { id: 1 } })
-            ).rejects.toBeInstanceOf(JsonMappingRequiredError);
+            ).rejects.toBeInstanceOf(JsonMappingError);
         });
     });
 
@@ -71,7 +71,7 @@ describe('Issue #128: JSON mapping files in subdirectories', () => {
             // Test that the correct error type is thrown for missing SQL files
             await expect(
                 client.queryOne('nonexistent/file.sql')
-            ).rejects.toBeInstanceOf(JsonMappingRequiredError);
+            ).rejects.toBeInstanceOf(SqlFileNotFoundError);
         });
     });
 
