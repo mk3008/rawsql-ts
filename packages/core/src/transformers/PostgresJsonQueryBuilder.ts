@@ -26,7 +26,6 @@ export interface JsonMapping {
         relationshipType?: "object" | "array";
         columns: { [jsonKey: string]: string };
     }>;
-    useJsonb?: boolean;
     resultFormat?: "array" | "single";
     emptyResult?: string;
 }
@@ -233,16 +232,13 @@ export class PostgresJsonQueryBuilder {
         if (!rootEntity) {
             throw new Error(`Root entity ${mapping.rootEntity.id} not found`);
         }
-
         if (mapping.resultFormat === "array" || !mapping.resultFormat) {
-            // Step 4.1a: Create a CTE that wraps the final result as the root object
-            // No alias needed for single table SELECT
+            // Step 4.1a: Create a CTE that wraps the final result as the root object            // No alias needed for single table SELECT
             const rootObjectBuilderExpression = this.buildEntityJsonObject(
                 rootEntity,
                 null,  // No source alias for single table
                 mapping.nestedEntities,
-                allEntities,
-                mapping.useJsonb
+                allEntities
             );
 
             const rootObjectSelectItem = new SelectItem(rootObjectBuilderExpression, mapping.rootName);
@@ -263,7 +259,7 @@ export class PostgresJsonQueryBuilder {
             currentCtes.push(rootObjectCte);
 
             // Step 4.1b: Aggregate all the root objects
-            const aggregationFunc = mapping.useJsonb ? "jsonb_agg" : "json_agg";
+            const aggregationFunc = "jsonb_agg";  // Always use JSONB
             const aggregateExpression = new FunctionCall(
                 null,
                 new RawString(aggregationFunc),
@@ -287,8 +283,7 @@ export class PostgresJsonQueryBuilder {
                 rootEntity,
                 null,  // No source alias for single table
                 mapping.nestedEntities,
-                allEntities,
-                mapping.useJsonb
+                allEntities
             );
 
             const rootObjectSelectItem = new SelectItem(rootObjectBuilderExpression, mapping.rootName);
@@ -330,11 +325,12 @@ export class PostgresJsonQueryBuilder {
         entity: ProcessableEntity,
         sourceAlias: string | null,
         nestedEntities: JsonMapping['nestedEntities'],
-        allEntities: Map<string, ProcessableEntity>,
-        useJsonb: boolean = false
+        allEntities: Map<string, ProcessableEntity>
     ): ValueComponent {
-        const jsonBuildFunction = useJsonb ? "jsonb_build_object" : "json_build_object";
-        const args: ValueComponent[] = [];        // Add the entity's own columns
+        const jsonBuildFunction = "jsonb_build_object";
+        const args: ValueComponent[] = [];
+
+        // Add the entity's own columns
         Object.entries(entity.columns).forEach(([jsonKey, columnDef]) => {
             // Handle both string and object formats
             const sqlColumn = typeof columnDef === 'string' ? columnDef : (columnDef as any).column;

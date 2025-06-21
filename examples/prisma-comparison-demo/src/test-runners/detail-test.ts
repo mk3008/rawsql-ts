@@ -75,7 +75,7 @@ async function testPrismaDetailImplementation() {
                         const preview = comment.commentText.length > 50
                             ? comment.commentText.substring(0, 50) + '...'
                             : comment.commentText;
-                        console.log(`      ${index + 1}. ${comment.user.userName}: "${preview}"`);
+                        console.log(`      ${index + 1}. ${comment.commentUser.userName}: "${preview}"`);
                     });
                 } else {
                     console.log('      (No comments)');

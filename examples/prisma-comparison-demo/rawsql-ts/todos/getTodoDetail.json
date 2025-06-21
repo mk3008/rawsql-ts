@@ -50,7 +50,7 @@
         },
         "comments": {
             "type": "array",
-            "from": "cm",
+            "from": "tc",
             "structure": {
                 "commentId": "comment_id",
                 "commentText": {
@@ -58,7 +58,7 @@
                     "type": "string"
                 },
                 "createdAt": "comment_created_at",
-                "user": {
+                "commentUser": {
                     "type": "object",
                     "from": "cu",
                     "structure": {
@@ -74,7 +74,5 @@
                     }
                 }
             }
-        }
-    },
-    "useJsonb": true
+        }    }
 }

@@ -47,7 +47,6 @@ export interface ModelDrivenJsonMapping {
         importPath: string;
     };
     structure: StructureFields;
-    useJsonb?: boolean;
 }
 
 /**
@@ -129,9 +128,7 @@ export function convertModelDrivenMapping(modelMapping: ModelDrivenJsonMapping):
     };
 
     // Process the root structure
-    const processed = processStructure(modelMapping.structure);
-
-    // Build the traditional JsonMapping
+    const processed = processStructure(modelMapping.structure);    // Build the traditional JsonMapping
     const jsonMapping: JsonMapping = {
         rootName: 'root', // Default root name
         rootEntity: {
@@ -139,8 +136,7 @@ export function convertModelDrivenMapping(modelMapping: ModelDrivenJsonMapping):
             name: 'Root',
             columns: processed.columns
         },
-        nestedEntities: processed.nestedEntities,
-        useJsonb: modelMapping.useJsonb
+        nestedEntities: processed.nestedEntities
     };
 
     // Add typeInfo for backward compatibility

@@ -80,7 +80,6 @@ describe('ComplexHierarchyBuilder - Multi-Level and Mixed Relationships', () => 
                         }
                     }
                 ],
-                useJsonb: true
             };
 
             const jsonQuery = builder.buildJson(originalQuery, mapping);
@@ -207,7 +206,6 @@ describe('ComplexHierarchyBuilder - Multi-Level and Mixed Relationships', () => 
                         }
                     }
                 ],
-                useJsonb: true
             };
 
             const jsonQuery = builder.buildJson(originalQuery, mapping);
@@ -341,7 +339,6 @@ describe('ComplexHierarchyBuilder - Multi-Level and Mixed Relationships', () => 
                         }
                     }
                 ],
-                useJsonb: true
             };
 
             const jsonQuery = builder.buildJson(originalQuery, mapping);
@@ -498,7 +495,6 @@ describe('ComplexHierarchyBuilder - Multi-Level and Mixed Relationships', () => 
                         }
                     }
                 ],
-                useJsonb: true
             };
 
             const jsonQuery = builder.buildJson(originalQuery, mapping);

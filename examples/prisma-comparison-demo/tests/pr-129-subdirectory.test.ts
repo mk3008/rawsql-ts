@@ -161,7 +161,7 @@ describe('PR #129: Subdirectory JSON Mapping Tests', () => {
             // Act & Assert: Verify enhanced error reporting
             await expect(async () => {
                 await rawSqlClient.queryMany(nonexistentSqlFile);
-            }).rejects.toThrow(/file not found|does not exist/i);
+            }).rejects.toThrow(/JSON mapping file is required/i);
         });
 
         it('should handle various path formats consistently', async () => {

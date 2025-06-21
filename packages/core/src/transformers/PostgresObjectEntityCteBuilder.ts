@@ -268,9 +268,8 @@ export class PostgresObjectEntityCteBuilder {    // Constants for consistent nam
 
         // Add child object relationships
         this.addChildObjectRelationships(entity, jsonObjectArgs, mapping, allEntities);
-
         // Create JSON object
-        const jsonObject = this.createJsonObject(jsonObjectArgs, mapping.useJsonb);
+        const jsonObject = this.createJsonObject(jsonObjectArgs);
 
         // Build NULL condition and CASE expression
         const nullCondition = this.buildNullCondition(nullChecks);
@@ -364,8 +363,9 @@ export class PostgresObjectEntityCteBuilder {    // Constants for consistent nam
     /**
      * Create JSON object function call
      */
-    private createJsonObject(args: ValueComponent[], useJsonb: boolean = false): FunctionCall {
-        const jsonBuildFunction = useJsonb ? "jsonb_build_object" : "json_build_object";
+    private createJsonObject(args: ValueComponent[]): FunctionCall {
+        const jsonBuildFunction = "jsonb_build_object";
+        // Always use JSONB
         return new FunctionCall(
             null,
             new RawString(jsonBuildFunction),

@@ -1,6 +1,6 @@
 import { CommonTable, SourceAliasExpression, SelectItem, SelectClause, FromClause, SourceExpression, TableSource, GroupByClause } from '../models/Clause';
 import { SimpleSelectQuery } from '../models/SimpleSelectQuery';
-import { IdentifierString, ValueComponent, ColumnReference, FunctionCall, ValueList, LiteralValue, RawString } from '../models/ValueComponent';
+import { IdentifierString, ValueComponent, ColumnReference, FunctionCall, ValueList, LiteralValue, RawString, CastExpression, TypeValue } from '../models/ValueComponent';
 import { JsonMapping } from './PostgresJsonQueryBuilder';
 import { ProcessableEntity } from './PostgresObjectEntityCteBuilder';
 import { SelectValueCollector } from './SelectValueCollector';
@@ -211,15 +211,14 @@ export class PostgresArrayEntityCteBuilder {
         if (!prevCte) {
             throw new Error(`CTE not found: ${currentCteAlias}`);
         }
-
         const prevSelects = new SelectValueCollector(null, currentCtes).collect(prevCte);
 
         // Build SELECT items: columns that are NOT being compressed (for GROUP BY)
         const groupByItems: ValueComponent[] = [];
-        const selectItems: SelectItem[] = [];
-
-        prevSelects.forEach(sv => {
+        const selectItems: SelectItem[] = []; prevSelects.forEach(sv => {
             if (!arrayColumns.has(sv.name)) {
+                // Add all non-array columns to SELECT and GROUP BY
+                // JSONB columns can be used directly in GROUP BY operations
                 selectItems.push(new SelectItem(new ColumnReference(null, new IdentifierString(sv.name)), sv.name));
                 groupByItems.push(new ColumnReference(null, new IdentifierString(sv.name)));
             }
@@ -230,8 +229,7 @@ export class PostgresArrayEntityCteBuilder {
             const agg = this.buildAggregationDetailsForArrayEntity(
                 info.entity,
                 mapping.nestedEntities,
-                new Map(), // allEntities - not needed for array aggregation
-                mapping.useJsonb
+                new Map() // allEntities - not needed for array aggregation
             );
             selectItems.push(new SelectItem(agg.jsonAgg, info.entity.propertyName));
         }
@@ -265,17 +263,15 @@ export class PostgresArrayEntityCteBuilder {
      * @param entity The array entity being processed
      * @param nestedEntities All nested entities from the mapping
      * @param allEntities Map of all entities (not used in current implementation)
-     * @param useJsonb Whether to use JSONB functions
      * @returns Object containing the JSON aggregation function
      */
     private buildAggregationDetailsForArrayEntity(
         entity: ProcessableEntity,
         nestedEntities: any[],
-        allEntities: Map<string, ProcessableEntity>,
-        useJsonb: boolean = false
+        allEntities: Map<string, ProcessableEntity>
     ): { jsonAgg: ValueComponent } {
-        // Build JSON object for array elements
-        const jsonBuildFunction = useJsonb ? "jsonb_build_object" : "json_build_object";
+        // Build JSON object for array elements using JSONB functions
+        const jsonBuildFunction = "jsonb_build_object";
         const args: ValueComponent[] = [];
 
         // Add the entity's own columns
@@ -299,12 +295,11 @@ export class PostgresArrayEntityCteBuilder {
                 args.push(new ColumnReference(null, new IdentifierString(childEntity.propertyName)));
             }
         });
-
         // Create JSON object
         const jsonObject = new FunctionCall(null, new RawString(jsonBuildFunction), new ValueList(args), null);
 
-        // Create JSON aggregation
-        const jsonAggFunction = useJsonb ? "jsonb_agg" : "json_agg";
+        // Create JSON aggregation using JSONB
+        const jsonAggFunction = "jsonb_agg";
         const jsonAgg = new FunctionCall(
             null,
             new RawString(jsonAggFunction),

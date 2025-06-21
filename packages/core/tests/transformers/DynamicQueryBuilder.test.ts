@@ -145,7 +145,7 @@ describe('DynamicQueryBuilder', () => {
             // Assert
             const formatter = new SqlFormatter(); const { formattedSql } = formatter.format(result);
             // Verify that JSON query is correctly generated (detailed format is verified in PostgresJsonQueryBuilder tests)
-            expect(formattedSql).toContain('json_agg');
+            expect(formattedSql).toContain('jsonb_agg');
             expect(formattedSql).toContain('"user"');
         });
 
@@ -174,7 +174,7 @@ describe('DynamicQueryBuilder', () => {
             const formatter = new SqlFormatter();
             const { formattedSql } = formatter.format(result);
             // Verify that all combined features are applied
-            expect(formattedSql).toContain('json_agg'); // Serialization
+            expect(formattedSql).toContain('jsonb_agg'); // Serialization
             expect(formattedSql).toContain('limit'); // Pagination
             // Filter and sort are included in the inner query
         });
@@ -198,7 +198,7 @@ describe('DynamicQueryBuilder', () => {
             // Assert
             const formatter = new SqlFormatter();
             const { formattedSql } = formatter.format(result);
-            expect(formattedSql).toContain('json_agg');
+            expect(formattedSql).toContain('jsonb_agg');
             expect(formattedSql).toContain('"user"');
         });
     });
