@@ -58,7 +58,7 @@
                     "type": "string"
                 },
                 "createdAt": "comment_created_at",
-                "commentUser": {
+                "user": {
                     "type": "object",
                     "from": "cu",
                     "structure": {
@@ -74,5 +74,6 @@
                     }
                 }
             }
-        }    }
+        }
+    }
 }

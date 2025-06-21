@@ -281,14 +281,13 @@ export class PostgresArrayEntityCteBuilder {
         });
 
         // Find and process child entities (both object and array types)
-        const childEntities = nestedEntities.filter((ne) => ne.parentId === entity.id);
-
-        childEntities.forEach((childEntity) => {
+        const childEntities = nestedEntities.filter((ne) => ne.parentId === entity.id); childEntities.forEach((childEntity) => {
             args.push(new LiteralValue(childEntity.propertyName));
 
             if (childEntity.relationshipType === "object") {
                 // For object relationships, use pre-computed JSON column
-                const jsonColumnName = `${childEntity.name.toLowerCase()}_json`;
+                // Use entity ID instead of name to avoid naming conflicts
+                const jsonColumnName = `${childEntity.id.toLowerCase()}_json`;
                 args.push(new ColumnReference(null, new IdentifierString(jsonColumnName)));
             } else if (childEntity.relationshipType === "array") {
                 // For array relationships, use the column directly

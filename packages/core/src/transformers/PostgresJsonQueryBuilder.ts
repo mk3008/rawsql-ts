@@ -347,7 +347,8 @@ export class PostgresJsonQueryBuilder {
 
             args.push(new LiteralValue(childEntity.propertyName)); if (childEntity.relationshipType === "object") {
                 // For object relationships, use pre-computed JSON column
-                const jsonColumnName = `${child.name.toLowerCase()}_json`;
+                // Use entity ID instead of name to avoid naming conflicts
+                const jsonColumnName = `${child.id.toLowerCase()}_json`;
                 args.push(new ColumnReference(null, new IdentifierString(jsonColumnName)));
             } else if (childEntity.relationshipType === "array") {
                 // For array relationships, use the column directly

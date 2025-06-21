@@ -49,7 +49,7 @@ export interface TodoComment {
     /** Creation timestamp */
     createdAt: Date;
     /** Comment author information */
-    commentUser: {
+    user: {
         userId: number;
         userName: string;
         email: string;

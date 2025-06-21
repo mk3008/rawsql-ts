@@ -276,7 +276,8 @@ export class PostgresObjectEntityCteBuilder {    // Constants for consistent nam
         const caseExpr = this.createCaseExpression(nullCondition, jsonObject);
 
         // Add JSON object as named column
-        const jsonColumnName = `${entity.name.toLowerCase()}${PostgresObjectEntityCteBuilder.JSON_COLUMN_SUFFIX}`;
+        // Use entity ID instead of name to avoid naming conflicts
+        const jsonColumnName = `${entity.id.toLowerCase()}${PostgresObjectEntityCteBuilder.JSON_COLUMN_SUFFIX}`;
         return new SelectItem(caseExpr, jsonColumnName);
     }
 
@@ -354,7 +355,8 @@ export class PostgresObjectEntityCteBuilder {    // Constants for consistent nam
             const child = allEntities.get(childEntity.id);
             if (child) {
                 jsonObjectArgs.push(new LiteralValue(childEntity.propertyName));
-                const jsonColumnName = `${child.name.toLowerCase()}${PostgresObjectEntityCteBuilder.JSON_COLUMN_SUFFIX}`;
+                // Use entity ID instead of name to avoid naming conflicts
+                const jsonColumnName = `${child.id.toLowerCase()}${PostgresObjectEntityCteBuilder.JSON_COLUMN_SUFFIX}`;
                 jsonObjectArgs.push(new ColumnReference(null, new IdentifierString(jsonColumnName)));
             }
         });

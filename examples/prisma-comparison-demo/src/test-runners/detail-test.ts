@@ -75,7 +75,7 @@ async function testPrismaDetailImplementation() {
                         const preview = comment.commentText.length > 50
                             ? comment.commentText.substring(0, 50) + '...'
                             : comment.commentText;
-                        console.log(`      ${index + 1}. ${comment.commentUser.userName}: "${preview}"`);
+                        console.log(`      ${index + 1}. ${comment.user.userName}: "${preview}"`);
                     });
                 } else {
                     console.log('      (No comments)');
@@ -127,7 +127,6 @@ async function testRawSqlDetailImplementation() {
 
         try {
             const result = await service.getTodoDetail(testCase.todoId);
-
             // Store test result for summary
             addTestResultWithDefaults({
                 implementation: 'rawsql-ts',
@@ -145,9 +144,10 @@ async function testRawSqlDetailImplementation() {
                 console.log('🔍 Debug - Todo structure:', JSON.stringify(todoData, null, 2));
 
                 // Extract the actual todo from the nested structure
-                const todo = todoData.todo;
+                // For rawsql-ts, the data is directly the todo object, not nested under 'todo'
+                const todo = todoData.todo || todoData; // Try nested first, then direct
 
-                if (todo) {
+                if (todo && todo.title) {
                     console.log(`✅ Found TODO: "${todo.title}"`);
                     console.log(`   📝 Description: ${todo.description}`);
                     console.log(`   ✅ Completed: ${todo.completed ? 'Yes' : 'No'}`);
