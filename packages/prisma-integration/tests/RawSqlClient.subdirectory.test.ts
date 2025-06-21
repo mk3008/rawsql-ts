@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { RawSqlClient } from '../src/RawSqlClient';
+import { RawSqlClient, JsonMappingRequiredError } from '../src/RawSqlClient';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -65,13 +65,13 @@ describe('RawSqlClient - JSON Mapping Subdirectory Bug', () => {
 
         it('should reproduce the missing JSON file issue', async () => {
             // This test reproduces the exact scenario from the issue:
-            // SQL file exists in subdirectory, but JSON file does not exist
+            // SQL file exists in subdirectory, but JSON file does not exist            
 
             // Act: Try to use a subdirectory SQL file without a corresponding JSON file
             // This should throw JsonMappingRequiredError since queryOne() requires JSON mapping
             await expect(
                 client.queryOne('users/list.sql', { filter: { id: 1 } })
-            ).rejects.toThrow('JSON mapping file is required but not found for queryOne()');
+            ).rejects.toBeInstanceOf(JsonMappingRequiredError);
         });
 
         it('should work correctly with root-level JSON mapping files', async () => {
