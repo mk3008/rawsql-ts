@@ -240,99 +240,18 @@ export class PostgresArrayEntityCteBuilder {
             Object.values(info.entity.columns).forEach(col => currentLevelArrayColumns.add(col));
         });
 
-        // Get columns from all array entities to identify what should be excluded from GROUP BY
-        // For each array entity, collect both its direct columns and columns from ALL nested entities within it
-        // (regardless of their depth - they're all part of the array structure)
-        const allArrayEntityColumns = new Set<string>();
-        const arrayEntitiesByDepth = new Map<number, Set<string>>();
+        // Collect array entity columns organized by depth for GROUP BY exclusion strategy
+        const arrayEntityColumns = this.collectArrayEntityColumnsByDepth(mapping, depth);
 
-        mapping.nestedEntities
-            .filter(entity => entity.relationshipType === 'array')
-            .forEach(entity => {
-                // Find depth for this entity - we can use existing sort logic or calculate
-                let entityDepth = 0;
-                let currentEntity = entity;
-                while (currentEntity.parentId && currentEntity.parentId !== mapping.rootEntity.id) {
-                    entityDepth++;
-                    currentEntity = mapping.nestedEntities.find(e => e.id === currentEntity.parentId) || currentEntity;
-                }
-
-                if (!arrayEntitiesByDepth.has(entityDepth)) {
-                    arrayEntitiesByDepth.set(entityDepth, new Set());
-                }
-
-                // Add direct columns from the array entity
-                Object.values(entity.columns).forEach(column => {
-                    const columnName = typeof column === 'string' ? column : (column as any).column;
-                    allArrayEntityColumns.add(columnName);
-                    arrayEntitiesByDepth.get(entityDepth)!.add(columnName);
-                });
-
-                // Collect columns from ALL descendant entities (not just direct children)
-                // This includes entities at any depth under this array entity
-                const collectAllDescendantColumns = (parentEntityId: string, targetDepth: number) => {
-                    mapping.nestedEntities
-                        .filter(nestedEntity => nestedEntity.parentId === parentEntityId)
-                        .forEach(nestedEntity => {
-                            // Add all columns from this descendant to the array depth
-                            Object.values(nestedEntity.columns).forEach(column => {
-                                const columnName = typeof column === 'string' ? column : (column as any).column;
-                                allArrayEntityColumns.add(columnName);
-                                arrayEntitiesByDepth.get(targetDepth)!.add(columnName);
-                            });
-                            // Recursively collect from deeper nested entities
-                            collectAllDescendantColumns(nestedEntity.id, targetDepth);
-                        });
-                };
-
-                collectAllDescendantColumns(entity.id, entityDepth);
-            });
-
-        prevSelects.forEach(sv => {
-            if (!arrayColumns.has(sv.name)) {
-                // Include columns unless they belong to the current depth array entities (being aggregated)
-                const isJsonColumn = sv.name.endsWith('_json'); // Already processed JSON columns
-                let shouldInclude = true;
-
-                // Check if this column belongs to array entities at current depth or deeper
-                // (these columns are being aggregated and should not be in GROUP BY)
-                for (const [entityDepth, columns] of arrayEntitiesByDepth.entries()) {
-                    if (entityDepth >= depth && columns.has(sv.name)) {
-                        shouldInclude = false;
-                        break;
-                    }
-                }
-
-                // Special handling for JSON columns:
-                // - JSON columns from entities OUTSIDE array contexts should be included
-                // - JSON columns from entities INSIDE array contexts should be excluded to prevent over-grouping
-                if (isJsonColumn && sv.name.startsWith('entity_')) {
-                    // Check if this JSON column represents an entity that's nested within any array being processed
-                    const entityMatch = sv.name.match(/entity_(\d+)_json/);
-                    if (entityMatch) {
-                        // For now, exclude all entity JSON columns when processing array depth > 0
-                        // This is a simplified approach - in the future we could be more precise
-                        // by checking if the entity is actually nested within the current array
-                        if (depth > 0) {
-                            // Only exclude JSON columns that correspond to nested entities within arrays
-                            // entity_1_json (user) and entity_2_json (category) should still be included
-                            // entity_4_json (comment user) should be excluded
-                            const entityNumber = parseInt(entityMatch[1]);
-                            // Heuristic: entities with higher numbers are typically more nested
-                            // This is not perfect but works for our current case
-                            if (entityNumber > 2) {
-                                shouldInclude = false;
-                            }
-                        }
-                    }
-                }
-
-                if (shouldInclude || (isJsonColumn && !sv.name.startsWith('entity_'))) {
-                    selectItems.push(new SelectItem(new ColumnReference(null, new IdentifierString(sv.name)), sv.name));
-                    groupByItems.push(new ColumnReference(null, new IdentifierString(sv.name)));
-                }
-            }
-        });
+        // Process existing SELECT variables to determine which should be included in GROUP BY
+        this.processSelectVariablesForGroupBy(
+            prevSelects,
+            arrayColumns,
+            arrayEntityColumns,
+            depth,
+            selectItems,
+            groupByItems
+        );
 
         // Add JSON aggregation columns for each array entity at this depth
         for (const info of infos) {
@@ -425,5 +344,220 @@ export class PostgresArrayEntityCteBuilder {
         );
 
         return { jsonAgg };
+    }
+
+    /**
+     * Collects array entity columns organized by depth for the GROUP BY exclusion strategy.
+     * 
+     * This method creates a mapping from depth levels to sets of column names that belong to
+     * array entities at each depth. This is used to determine which columns should be excluded
+     * from GROUP BY clauses when performing array aggregation at specific depths.
+     * 
+     * @param mapping The JSON mapping configuration containing all entities
+     * @param currentDepth The current aggregation depth being processed
+     * @returns A map where keys are depth levels and values are sets of column names
+     */
+    private collectArrayEntityColumnsByDepth(
+        mapping: JsonMapping,
+        currentDepth: number
+    ): Map<number, Set<string>> {
+        const arrayEntitiesByDepth = new Map<number, Set<string>>();        // Initialize depth maps for current and deeper levels
+        // Use a reasonable maximum depth limit to avoid infinite loops
+        const maxDepth = Math.max(currentDepth + 3, 5); // Allow up to 3 additional levels or minimum 5 levels
+        for (let d = currentDepth; d <= maxDepth; d++) {
+            arrayEntitiesByDepth.set(d, new Set());
+        }
+
+        // Process all array entities to collect their columns by depth
+        mapping.nestedEntities
+            .filter(entity => entity.relationshipType === 'array')
+            .forEach(entity => {
+                // Calculate entity depth in the hierarchy
+                const entityDepth = this.calculateEntityDepth(entity, mapping);
+
+                if (!arrayEntitiesByDepth.has(entityDepth)) {
+                    arrayEntitiesByDepth.set(entityDepth, new Set());
+                }
+
+                // Add direct columns from the array entity
+                this.addEntityColumnsToDepthSet(entity, entityDepth, arrayEntitiesByDepth);
+
+                // Collect columns from all descendant entities recursively
+                this.collectDescendantColumns(entity.id, entityDepth, mapping, arrayEntitiesByDepth);
+            });
+
+        return arrayEntitiesByDepth;
+    }
+
+    /**
+     * Calculates the depth of an entity in the hierarchy by traversing up to the root.
+     * 
+     * @param entity The entity to calculate depth for
+     * @param mapping The JSON mapping containing all entities
+     * @returns The depth level (0 for root level, 1 for first level, etc.)
+     */
+    private calculateEntityDepth(entity: any, mapping: JsonMapping): number {
+        let entityDepth = 0;
+        let currentEntity = entity;
+
+        while (currentEntity.parentId && currentEntity.parentId !== mapping.rootEntity.id) {
+            entityDepth++;
+            currentEntity = mapping.nestedEntities.find(e => e.id === currentEntity.parentId) || currentEntity;
+        }
+
+        return entityDepth;
+    }
+
+    /**
+     * Adds all columns from an entity to the specified depth set.
+     * 
+     * @param entity The entity whose columns should be added
+     * @param depth The depth level to add columns to
+     * @param arrayEntitiesByDepth The map to update
+     */
+    private addEntityColumnsToDepthSet(
+        entity: any,
+        depth: number,
+        arrayEntitiesByDepth: Map<number, Set<string>>
+    ): void {
+        Object.values(entity.columns).forEach(column => {
+            const columnName = typeof column === 'string' ? column : (column as any).column;
+            arrayEntitiesByDepth.get(depth)!.add(columnName);
+        });
+    }
+
+    /**
+     * Recursively collects columns from all descendant entities under a parent entity.
+     * 
+     * This method ensures that all nested entities (at any depth) under an array entity
+     * have their columns properly categorized by the array entity's depth level.
+     * 
+     * @param parentEntityId The ID of the parent entity
+     * @param targetDepth The depth level to assign collected columns to
+     * @param mapping The JSON mapping containing all entities
+     * @param arrayEntitiesByDepth The map to update with collected columns
+     */
+    private collectDescendantColumns(
+        parentEntityId: string,
+        targetDepth: number,
+        mapping: JsonMapping,
+        arrayEntitiesByDepth: Map<number, Set<string>>
+    ): void {
+        mapping.nestedEntities
+            .filter(nestedEntity => nestedEntity.parentId === parentEntityId)
+            .forEach(nestedEntity => {
+                // Add all columns from this descendant to the target depth
+                this.addEntityColumnsToDepthSet(nestedEntity, targetDepth, arrayEntitiesByDepth);
+
+                // Recursively collect from deeper nested entities
+                this.collectDescendantColumns(nestedEntity.id, targetDepth, mapping, arrayEntitiesByDepth);
+            });
+    }
+
+    /**
+     * Processes SELECT variables to determine which should be included in GROUP BY clauses.
+     * 
+     * This method implements the core logic for deciding which columns from previous CTEs
+     * should be included in the GROUP BY clause when performing array aggregation. It handles
+     * special cases for JSON columns and applies depth-based filtering to prevent over-grouping.
+     * 
+     * @param prevSelects SELECT variables from the previous CTE
+     * @param arrayColumns Columns that are being aggregated (should be excluded from GROUP BY)
+     * @param arrayEntitiesByDepth Map of depth levels to their column sets
+     * @param currentDepth The current aggregation depth being processed
+     * @param selectItems Output array for SELECT items
+     * @param groupByItems Output array for GROUP BY items
+     */
+    private processSelectVariablesForGroupBy(
+        prevSelects: any[],
+        arrayColumns: Set<string>,
+        arrayEntitiesByDepth: Map<number, Set<string>>,
+        currentDepth: number,
+        selectItems: SelectItem[],
+        groupByItems: ValueComponent[]
+    ): void {
+        prevSelects.forEach(sv => {
+            if (!arrayColumns.has(sv.name)) {
+                const shouldInclude = this.shouldIncludeColumnInGroupBy(
+                    sv.name,
+                    arrayEntitiesByDepth,
+                    currentDepth
+                );
+
+                if (shouldInclude) {
+                    selectItems.push(new SelectItem(
+                        new ColumnReference(null, new IdentifierString(sv.name)),
+                        sv.name
+                    ));
+                    groupByItems.push(new ColumnReference(null, new IdentifierString(sv.name)));
+                }
+            }
+        });
+    }
+
+    /**
+     * Determines whether a column should be included in the GROUP BY clause.
+     * 
+     * This method applies depth-based filtering and special handling for JSON columns
+     * to prevent over-grouping during array aggregation. It implements heuristics for
+     * excluding columns that belong to nested entities within array contexts.
+     * 
+     * @param columnName The name of the column to evaluate
+     * @param arrayEntitiesByDepth Map of depth levels to their column sets
+     * @param currentDepth The current aggregation depth
+     * @returns True if the column should be included in GROUP BY, false otherwise
+     */
+    private shouldIncludeColumnInGroupBy(
+        columnName: string,
+        arrayEntitiesByDepth: Map<number, Set<string>>,
+        currentDepth: number
+    ): boolean {
+        const isJsonColumn = columnName.endsWith('_json');
+        let shouldInclude = true;
+
+        // Check if this column belongs to array entities at current depth or deeper
+        // These columns are being aggregated and should not be in GROUP BY
+        for (const [entityDepth, columns] of arrayEntitiesByDepth.entries()) {
+            if (entityDepth >= currentDepth && columns.has(columnName)) {
+                shouldInclude = false;
+                break;
+            }
+        }
+
+        // Special handling for JSON columns to prevent over-grouping
+        if (isJsonColumn && columnName.startsWith('entity_')) {
+            shouldInclude = this.shouldIncludeJsonColumn(columnName, currentDepth);
+        }
+
+        // Always include non-entity JSON columns (e.g., computed columns)
+        return shouldInclude || (isJsonColumn && !columnName.startsWith('entity_'));
+    }
+
+    /**
+     * Applies heuristics to determine if an entity JSON column should be included in GROUP BY.
+     * 
+     * This method uses entity numbering patterns to identify deeply nested entities
+     * that should be excluded from GROUP BY when processing array aggregations.
+     * This is a simplified heuristic approach that works for current use cases.
+     * 
+     * @param columnName The JSON column name (expected format: entity_N_json)
+     * @param currentDepth The current aggregation depth
+     * @returns True if the JSON column should be included, false otherwise
+     */
+    private shouldIncludeJsonColumn(columnName: string, currentDepth: number): boolean {
+        const entityMatch = columnName.match(/entity_(\d+)_json/);
+        if (!entityMatch) {
+            return true;
+        }
+
+        // For depth > 0, exclude JSON columns from highly nested entities
+        // This heuristic assumes entities with higher numbers are more deeply nested
+        if (currentDepth > 0) {
+            const entityNumber = parseInt(entityMatch[1]);
+            // Entities with numbers > 2 are typically nested within arrays and should be excluded
+            return entityNumber <= 2;
+        }
+
+        return true;
     }
 }

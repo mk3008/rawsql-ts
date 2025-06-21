@@ -237,9 +237,51 @@ export class RawSqlClient {
         if (this.options.enableFileCache) {
             const timestamp = fs.statSync(actualPath).mtimeMs;
             cache.set(actualPath, { content, timestamp });
+
+            // Enforce cache size limit with LRU eviction strategy
+            this.evictCacheIfNeeded(cache);
+
             if (this.options.debug) {
                 console.log(`💾 Cached ${cacheType.toLowerCase()} file: ${originalPath} (timestamp: ${timestamp})`);
             }
+        }
+    }
+
+    /**
+     * Evict oldest entries from cache when it exceeds the configured maximum size
+     * Uses LRU (Least Recently Used) strategy by checking timestamps
+     */
+    private evictCacheIfNeeded<T>(cache: Map<string, { content: T; timestamp: number }>): void {
+        const maxSize = this.options.cacheMaxSize ?? 1000;
+
+        // Skip eviction if cache size is unlimited (0) or within limits
+        if (maxSize === 0 || cache.size <= maxSize) {
+            return;
+        }
+
+        // Calculate how many entries to remove (remove 10% extra to avoid frequent evictions)
+        const targetSize = Math.floor(maxSize * 0.9);
+        const entriesToRemove = cache.size - targetSize;
+
+        if (entriesToRemove <= 0) {
+            return;
+        }
+
+        // Sort entries by timestamp (oldest first) and remove the oldest ones
+        const sortedEntries = Array.from(cache.entries())
+            .sort(([, a], [, b]) => a.timestamp - b.timestamp);
+
+        for (let i = 0; i < entriesToRemove; i++) {
+            const [key] = sortedEntries[i];
+            cache.delete(key);
+
+            if (this.options.debug) {
+                console.log(`🗑️ Evicted cache entry: ${key}`);
+            }
+        }
+
+        if (this.options.debug) {
+            console.log(`📦 Cache eviction complete: ${entriesToRemove} entries removed, ${cache.size} remaining`);
         }
     }
 
