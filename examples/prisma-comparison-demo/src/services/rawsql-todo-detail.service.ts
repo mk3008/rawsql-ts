@@ -39,18 +39,18 @@ export class RawSqlTodoDetailService implements TodoDetailService {
 
     /**
      * Execute the core SQL query with file-based JSON mapping
+     * Uses queryOne now that the GROUP BY aggregation issue is fixed
      */
     private async executeGetTodoDetailQuery(todoId: number): Promise<TodoDetail | null> {
+        // Use queryOne for proper aggregation now that GROUP BY is fixed
         const result = await this.client.queryOne<TodoDetail>('todos/getTodoDetail.sql', {
             filter: { todo_id: todoId },
         });
 
-        // Debug the query result structure
-        if (this.debugMode) {
-            console.log('🔍 Debug - Todo structure:', JSON.stringify(result, null, 2));
+        if (this.debugMode && result) {
+            console.log('🔍 Debug - Comments count:', result.comments?.length || 0);
         }
 
-        // ExecuteScalar behavior: queryOne should return the JSON object directly
         return result;
     }
 

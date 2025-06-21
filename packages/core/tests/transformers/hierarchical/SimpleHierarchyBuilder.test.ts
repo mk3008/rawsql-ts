@@ -39,7 +39,6 @@ describe('SimpleHierarchyBuilder - Upstream (Object) Relationships', () => {
                     }
                 },
                 nestedEntities: [],
-                useJsonb: true,
                 resultFormat: "array"
             };
 
@@ -96,7 +95,6 @@ describe('SimpleHierarchyBuilder - Upstream (Object) Relationships', () => {
                     }
                 },
                 nestedEntities: [],
-                useJsonb: true,
                 resultFormat: "single",
                 emptyResult: "null"
             };
@@ -175,7 +173,6 @@ describe('SimpleHierarchyBuilder - Upstream (Object) Relationships', () => {
                         }
                     }
                 ],
-                useJsonb: true
             };
 
             const jsonQuery = builder.buildJson(originalQuery, mapping);
@@ -275,7 +272,6 @@ describe('SimpleHierarchyBuilder - Upstream (Object) Relationships', () => {
                         }
                     }
                 ],
-                useJsonb: true
             };
 
             const jsonQuery = builder.buildJson(originalQuery, mapping);
@@ -391,7 +387,6 @@ describe('SimpleHierarchyBuilder - Upstream (Object) Relationships', () => {
                         }
                     }
                 ],
-                useJsonb: true
             };
 
             const jsonQuery = builder.buildJson(originalQuery, mapping);
