@@ -59,7 +59,6 @@ describe('GroupedHierarchyBuilder - Downstream (Array) Relationships', () => {
                         }
                     }
                 ],
-                useJsonb: true
             };
 
             const jsonQuery = builder.buildJson(originalQuery, mapping);
@@ -139,7 +138,6 @@ from
                         }
                     }
                 ],
-                useJsonb: true
             };
 
             const jsonQuery = builder.buildJson(originalQuery, mapping);
@@ -238,7 +236,6 @@ from
                         }
                     }
                 ],
-                useJsonb: true
             };
 
             const jsonQuery = builder.buildJson(originalQuery, mapping);
@@ -276,9 +273,6 @@ from
             "capital_json"
             , "region_id"
             , "region_name"
-            , "capital_id"
-            , "capital_name"
-            , "capital_population"
             , jsonb_agg(jsonb_build_object('id', "country_id", 'name', "country_name", 'code', "country_code", 'capital', "capital_json")) as "countries"
         from
             "cte_object_depth_1"
@@ -286,9 +280,6 @@ from
             "capital_json"
             , "region_id"
             , "region_name"
-            , "capital_id"
-            , "capital_name"
-            , "capital_population"
     )
     , "cte_root_regions" as (
         select
@@ -359,8 +350,9 @@ from
                         }
                     }
                 ],
-                useJsonb: true
-            }; const jsonQuery = builder.buildJson(originalQuery, mapping);
+            };
+
+            const jsonQuery = builder.buildJson(originalQuery, mapping);
             const formatter = new SqlFormatter(customStyle);
             const formattedSql = formatter.format(jsonQuery).formattedSql; const expectedSql = `with
     "origin_query" as (
@@ -397,9 +389,6 @@ from
             , "sale_id"
             , "sale_date"
             , "sale_total"
-            , "product_id"
-            , "product_name"
-            , "product_category"
             , jsonb_agg(jsonb_build_object('id', "detail_id", 'quantity', "detail_quantity", 'price', "detail_price", 'product', "product_json")) as "details"
         from
             "cte_object_depth_1"
@@ -408,9 +397,6 @@ from
             , "sale_id"
             , "sale_date"
             , "sale_total"
-            , "product_id"
-            , "product_name"
-            , "product_category"
     )
     , "cte_root_sales" as (
         select

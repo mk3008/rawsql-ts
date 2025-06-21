@@ -14,11 +14,6 @@ import {
  */
 export interface TodoSearchService {
     /**
-     * Initialize the service (if needed)
-     */
-    initialize?(): Promise<void>;
-
-    /**
      * Search TODOs with filtering, sorting, and pagination
      */
     searchTodos(params: TodoSearchParams): Promise<TodoSearchResultWithMetrics>;
@@ -28,11 +23,6 @@ export interface TodoSearchService {
  * Interface for TODO detail functionality
  */
 export interface TodoDetailService {
-    /**
-     * Initialize the service (if needed)
-     */
-    initialize?(): Promise<void>;
-
     /**
      * Get detailed TODO information by ID
      */

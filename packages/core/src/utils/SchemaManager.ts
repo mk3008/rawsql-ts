@@ -182,7 +182,6 @@ export class SchemaManager {
                 columns: rootColumns
             },
             nestedEntities,
-            useJsonb: true,
             resultFormat: "single" as const
         };
     }

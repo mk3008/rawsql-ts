@@ -1,99 +1,79 @@
 {
-    "rootName": "todo",
     "typeInfo": {
         "interface": "TodoDetail",
         "importPath": "src/contracts/todo-detail.ts"
     },
-    "rootEntity": {
-        "id": "todo",
-        "name": "Todo",
-        "columns": {
-            "todoId": "todo_id",
-            "title": {
-                "column": "title",
-                "type": "string"
-            },
-            "description": {
-                "column": "description",
-                "type": "string"
-            },
-            "completed": "completed",
-            "createdAt": "created_at",
-            "updatedAt": "updated_at"
-        }
-    },
-    "nestedEntities": [
-        {
-            "id": "user",
-            "name": "User",
-            "parentId": "todo",
-            "propertyName": "user",
-            "relationshipType": "object",
-            "columns": {
+    "structure": {
+        "todoId": "todo_id",
+        "title": {
+            "from": "title",
+            "type": "string"
+        },
+        "description": {
+            "from": "description",
+            "type": "string"
+        },
+        "completed": "completed",
+        "createdAt": "created_at",
+        "updatedAt": "updated_at",
+        "user": {
+            "type": "object",
+            "from": "u",
+            "structure": {
                 "userId": "user_id",
                 "userName": {
-                    "column": "user_name",
+                    "from": "user_name",
                     "type": "string"
                 },
                 "email": {
-                    "column": "email",
+                    "from": "email",
                     "type": "string"
                 },
                 "createdAt": "user_created_at"
             }
         },
-        {
-            "id": "category",
-            "name": "Category",
-            "parentId": "todo",
-            "propertyName": "category",
-            "relationshipType": "object",
-            "columns": {
+        "category": {
+            "type": "object",
+            "from": "c",
+            "structure": {
                 "categoryId": "category_id",
                 "categoryName": {
-                    "column": "category_name",
+                    "from": "category_name",
                     "type": "string"
                 },
                 "color": {
-                    "column": "color",
+                    "from": "color",
                     "type": "string"
                 },
                 "createdAt": "category_created_at"
             }
         },
-        {
-            "id": "comments",
-            "name": "Comment",
-            "parentId": "todo",
-            "propertyName": "comments",
-            "relationshipType": "array",
-            "columns": {
+        "comments": {
+            "type": "array",
+            "from": "tc",
+            "structure": {
                 "commentId": "comment_id",
                 "commentText": {
-                    "column": "comment_text",
+                    "from": "comment_text",
                     "type": "string"
                 },
-                "createdAt": "comment_created_at"
-            }
-        },
-        {
-            "id": "comment_user",
-            "name": "CommentUser",
-            "parentId": "comments",
-            "propertyName": "user",
-            "relationshipType": "object",
-            "columns": {
-                "userId": "comment_user_id",
-                "userName": {
-                    "column": "comment_user_name",
-                    "type": "string"
-                },
-                "email": {
-                    "column": "comment_user_email",
-                    "type": "string"
+                "createdAt": "comment_created_at",
+                "user": {
+                    "type": "object",
+                    "from": "cu",
+                    "structure": {
+                        "userId": "comment_user_id",
+                        "userName": {
+                            "from": "comment_user_name",
+                            "type": "string"
+                        },
+                        "email": {
+                            "from": "comment_user_email",
+                            "type": "string"
+                        }
+                    }
                 }
             }
         }
-    ],
-    "useJsonb": true
+    }
 }

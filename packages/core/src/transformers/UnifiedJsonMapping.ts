@@ -36,11 +36,9 @@ export interface UnifiedJsonMapping {
         id: string;
         name: string;
         parentId: string;
-        propertyName: string;
-        relationshipType: 'object' | 'array';
+        propertyName: string; relationshipType: 'object' | 'array';
         columns: Record<string, ColumnMappingConfig>;
     }>;
-    useJsonb?: boolean;
 }
 
 /**
@@ -83,11 +81,9 @@ export function convertUnifiedMapping(unified: UnifiedJsonMapping): {
         rootName: unified.rootName,
         rootEntity: {
             id: unified.rootEntity.id,
-            name: unified.rootEntity.name,
-            columns: processColumns(unified.rootEntity.columns)
+            name: unified.rootEntity.name, columns: processColumns(unified.rootEntity.columns)
         },
-        nestedEntities: [],  // Initialize as empty array
-        useJsonb: unified.useJsonb
+        nestedEntities: []  // Initialize as empty array
     };
 
     // Add typeInfo if it exists

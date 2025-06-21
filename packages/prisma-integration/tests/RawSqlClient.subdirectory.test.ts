@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { RawSqlClient } from '../src/RawSqlClient';
+import { RawSqlClient, JsonMappingRequiredError } from '../src/RawSqlClient';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -45,8 +45,8 @@ describe('RawSqlClient - JSON Mapping Subdirectory Bug', () => {
     describe('Reproduce the subdirectory issue', () => {
         it('should attempt to load JSON mapping from subdirectory', async () => {
             // This test shows that subdirectory JSON mapping WORKS correctly
-            
-            // Mock: minimal database result
+
+            // Mock: database result with proper JSON structure
             mockPrismaClient.$queryRawUnsafe.mockResolvedValue([
                 { UserProfile: { id: 1, name: 'Alice', email: 'alice@example.com' } }
             ]);
@@ -58,31 +58,25 @@ describe('RawSqlClient - JSON Mapping Subdirectory Bug', () => {
 
             // If we get here, the test actually worked
             expect(result).toBeDefined();
-            expect(result).toHaveProperty('UserProfile');
+            expect(result).toHaveProperty('id');
+            expect(result).toHaveProperty('name');
+            expect(result).toHaveProperty('email');
         });
 
         it('should reproduce the missing JSON file issue', async () => {
             // This test reproduces the exact scenario from the issue:
-            // SQL file exists in subdirectory, but JSON file does not exist
-            
-            // Mock: minimal database result (for non-serialized query)
-            mockPrismaClient.$queryRawUnsafe.mockResolvedValue([
-                { id: 1, name: 'Alice', email: 'alice@example.com' }
-            ]);
+            // SQL file exists in subdirectory, but JSON file does not exist            
 
             // Act: Try to use a subdirectory SQL file without a corresponding JSON file
-            // This should reproduce the "JsonMapping file not found: users/list.json" message
-            const result = await client.queryOne('users/list.sql', {
-                filter: { id: 1 }
-            });
-
-            // The current behavior: falls back to first column value (scalar)
-            expect(result).toBe(1);  // First column value from the first row
+            // This should throw JsonMappingRequiredError since queryOne() requires JSON mapping
+            await expect(
+                client.queryOne('users/list.sql', { filter: { id: 1 } })
+            ).rejects.toBeInstanceOf(JsonMappingRequiredError);
         });
 
         it('should work correctly with root-level JSON mapping files', async () => {
             // This tests the control case - root level files should work
-            
+
             // Mock: result that would come from JSON serialization
             mockPrismaClient.$queryRawUnsafe.mockResolvedValue([
                 { UserList: { id: 1, name: 'Alice', email: 'alice@example.com' } }
@@ -95,7 +89,9 @@ describe('RawSqlClient - JSON Mapping Subdirectory Bug', () => {
 
             // Should work correctly with JSON mapping
             expect(result).toBeDefined();
-            expect(result).toHaveProperty('UserList');
+            expect(result).toHaveProperty('id');
+            expect(result).toHaveProperty('name');
+            expect(result).toHaveProperty('email');
         });
     });
 });

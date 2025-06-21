@@ -71,7 +71,7 @@ export class PrismaSchemaResolver {
             }
         }
 
-        // Final fallback: If all methods fail, throw comprehensive error
+        // Final fallback: If all methods fail, throw error
         const schemaLocations = [
             path.join(process.cwd(), 'prisma', 'schema.prisma'),
             path.join(process.cwd(), 'schema.prisma'),

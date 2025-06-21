@@ -1,15 +1,22 @@
 {
-    "rootName": "UserProfile",
-    "rootEntity": {
-        "columns": {
-            "userId": "user_id",
-            "userName": "user_name",
-            "email": "email",
-            "createdAt": "created_at",
-            "totalTodos": "total_todos",
-            "completedTodos": "completed_todos",
-            "pendingTodos": "pending_todos"
-        }
+    "typeInfo": {
+        "interface": "UserProfile",
+        "importPath": "src/contracts/user-profile.ts"
+    },
+    "structure": {
+        "userId": "user_id",
+        "userName": {
+            "from": "user_name",
+            "type": "string"
+        },
+        "email": {
+            "from": "email",
+            "type": "string"
+        },
+        "createdAt": "created_at",
+        "totalTodos": "total_todos",
+        "completedTodos": "completed_todos",
+        "pendingTodos": "pending_todos"
     },
     "protectedStringFields": [
         "user_name",

@@ -361,7 +361,7 @@ sql/
 }
 ```
 
-*[→ Learn more: Unified JSON Mapping Guide](../../docs/usage-guides/unified-json-mapping-usage-guide.md)*
+*[→ Learn more: Model-Driven JSON Mapping Guide](../../docs/usage-guides/model-driven-json-mapping-usage-guide.md)*
 
 ## 🔄 Development Workflow
 
@@ -685,7 +685,7 @@ it('should validate all SQL files', async () => {
 
 ### Documentation
 - **[RawSqlClient Usage Guide](../../docs/usage-guides/class-RawSqlClient-usage-guide.md)** - Complete client reference
-- **[Unified JSON Mapping Guide](../../docs/usage-guides/unified-json-mapping-usage-guide.md)** - Advanced mapping patterns
+- **[Model-Driven JSON Mapping Guide](../../docs/usage-guides/model-driven-json-mapping-usage-guide.md)** - Modern mapping patterns and best practices
 - **[SQL File Organization Guide](../../docs/usage-guides/sql-file-organization-guide.md)** - Best practices
 
 ---

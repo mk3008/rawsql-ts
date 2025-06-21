@@ -236,5 +236,5 @@ try {
 ## Related Guides
 
 - [RawSqlClient Usage Guide](./class-RawSqlClient-usage-guide.md) - Main client usage
-- [Unified JSON Mapping Usage Guide](./unified-json-mapping-usage-guide.md) - JSON mapping configuration
+- [Model-Driven JSON Mapping Usage Guide](./model-driven-json-mapping-usage-guide.md) - JSON mapping configuration and best practices
 - [SQL File Organization Guide](./sql-file-organization-guide.md) - Best practices for organizing SQL files

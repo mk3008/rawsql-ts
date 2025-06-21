@@ -154,14 +154,24 @@ describe('PR #129: Subdirectory JSON Mapping Tests', () => {
     });
 
     describe('Path resolution error handling', () => {
-        it('should provide helpful error messages for missing JSON files', async () => {
-            // Arrange: Prepare a scenario with missing JSON mapping file
+        it('should provide helpful error messages for missing SQL files', async () => {
+            // Arrange: Prepare a scenario with missing SQL file
             const nonexistentSqlFile = 'users/nonexistent.sql';
 
-            // Act & Assert: Verify enhanced error reporting
+            // Act & Assert: Verify clear and direct error reporting
             await expect(async () => {
                 await rawSqlClient.queryMany(nonexistentSqlFile);
-            }).rejects.toThrow(/file not found|does not exist/i);
+            }).rejects.toThrow(/SQL file not found/i);
+        });
+
+        it('should provide helpful error messages for missing JSON mapping files', async () => {
+            // Arrange: Use a SQL file that exists but doesn't have corresponding JSON mapping
+            const sqlFileWithoutMapping = 'todos/testMissingMapping.sql';            // Act & Assert: Verify JsonMappingError is thrown directly (no wrapping)
+            await expect(async () => {
+                await rawSqlClient.queryOne(sqlFileWithoutMapping, {
+                    filter: { todo_id: 1 }
+                });
+            }).rejects.toThrow(/Invalid JSON mapping file/i);
         });
 
         it('should handle various path formats consistently', async () => {

@@ -1,6 +1,6 @@
 import { PrismaClientType, RawSqlClientOptions, PrismaSchemaInfo } from './types';
 import { PrismaSchemaResolver } from './PrismaSchemaResolver';
-import { UnifiedJsonMapping, convertUnifiedMapping } from 'rawsql-ts';
+import { UnifiedJsonMapping } from 'rawsql-ts';
 import {
     SqlFormatter,
     SelectQueryParser,
@@ -13,14 +13,20 @@ import {
     PostgresJsonQueryBuilder,
     JsonMapping,
     TypeTransformationPostProcessor,
-    TypeTransformationConfig
+    TypeTransformationConfig,
+    unifyJsonMapping,
+    processJsonMapping
 } from 'rawsql-ts';
 import { QueryBuildOptions } from 'rawsql-ts';
 import * as fs from 'fs';
 import * as path from 'path';
 
 /**
- * Enhanced error classes for better debugging experience
+ * Custom error classes for rawsql-ts operations
+ * 
+ * These error classes provide detailed context and helpful suggestions
+ * for common issues like missing files, invalid JSON, and SQL execution failures.
+ * Each error includes structured information for programmatic handling.
  */
 
 /**
@@ -171,12 +177,122 @@ export class RawSqlClient {
     private schemaInfo?: PrismaSchemaInfo;
     private tableColumnResolver?: TableColumnResolver;
     private isInitialized = false;
+    private schemaPreloaded = false;    // JSON mapping file cache to avoid reading the same file multiple times
+    private readonly jsonMappingCache: Map<string, { content: UnifiedJsonMapping; timestamp: number }> = new Map();
+
+    // SQL file cache to avoid reading the same file multiple times
+    private readonly sqlFileCache: Map<string, { content: string; timestamp: number }> = new Map();
+
+    /**
+     * Common helper method to check file cache and handle timestamp validation
+     * Returns cached content if valid, undefined if cache miss or invalidated
+     */
+    private checkFileCache<T>(
+        cache: Map<string, { content: T; timestamp: number }>,
+        actualPath: string,
+        originalPath: string,
+        cacheType: 'SQL' | 'JSON mapping'
+    ): T | undefined {
+        if (!this.options.enableFileCache || !cache.has(actualPath)) {
+            return undefined;
+        }
+
+        // Check if file exists before checking timestamp (file might be deleted)
+        if (!fs.existsSync(actualPath)) {
+            // File was deleted, remove from cache
+            if (this.options.debug) {
+                console.log(`🗑️ Removing deleted ${cacheType.toLowerCase()} from cache: ${originalPath}`);
+            }
+            cache.delete(actualPath);
+            return undefined;
+        }
+
+        const cachedEntry = cache.get(actualPath)!;
+        const currentTimestamp = fs.statSync(actualPath).mtimeMs;
+
+        if (cachedEntry.timestamp === currentTimestamp) {
+            if (this.options.debug) {
+                console.log(`📋 Using cached ${cacheType.toLowerCase()}: ${originalPath}`);
+            }
+            return cachedEntry.content;
+        } else {
+            if (this.options.debug) {
+                console.log(`🔄 Cache invalidated for ${cacheType.toLowerCase()}: ${originalPath} (file modified)`);
+            }
+            cache.delete(actualPath);
+            return undefined;
+        }
+    }
+
+    /**
+     * Common helper method to store content in file cache with timestamp
+     */
+    private setCacheEntry<T>(
+        cache: Map<string, { content: T; timestamp: number }>,
+        actualPath: string,
+        content: T,
+        originalPath: string,
+        cacheType: 'SQL' | 'JSON mapping'
+    ): void {
+        if (this.options.enableFileCache) {
+            const timestamp = fs.statSync(actualPath).mtimeMs;
+            cache.set(actualPath, { content, timestamp });
+
+            // Enforce cache size limit with LRU eviction strategy
+            this.evictCacheIfNeeded(cache);
+
+            if (this.options.debug) {
+                console.log(`💾 Cached ${cacheType.toLowerCase()} file: ${originalPath} (timestamp: ${timestamp})`);
+            }
+        }
+    }
+
+    /**
+     * Evict oldest entries from cache when it exceeds the configured maximum size
+     * Uses LRU (Least Recently Used) strategy by checking timestamps
+     */
+    private evictCacheIfNeeded<T>(cache: Map<string, { content: T; timestamp: number }>): void {
+        const maxSize = this.options.cacheMaxSize ?? 1000;
+
+        // Skip eviction if cache size is unlimited (0) or within limits
+        if (maxSize === 0 || cache.size <= maxSize) {
+            return;
+        }
+
+        // Calculate how many entries to remove (remove 10% extra to avoid frequent evictions)
+        const targetSize = Math.floor(maxSize * 0.9);
+        const entriesToRemove = cache.size - targetSize;
+
+        if (entriesToRemove <= 0) {
+            return;
+        }
+
+        // Sort entries by timestamp (oldest first) and remove the oldest ones
+        const sortedEntries = Array.from(cache.entries())
+            .sort(([, a], [, b]) => a.timestamp - b.timestamp);
+
+        for (let i = 0; i < entriesToRemove; i++) {
+            const [key] = sortedEntries[i];
+            cache.delete(key);
+
+            if (this.options.debug) {
+                console.log(`🗑️ Evicted cache entry: ${key}`);
+            }
+        }
+
+        if (this.options.debug) {
+            console.log(`📦 Cache eviction complete: ${entriesToRemove} entries removed, ${cache.size} remaining`);
+        }
+    }
 
     constructor(prisma: PrismaClientType, options: RawSqlClientOptions = {}) {
         this.prisma = prisma;
         this.options = {
             debug: false,
-            defaultSchema: 'public', sqlFilesPath: './sql',
+            defaultSchema: 'public',
+            sqlFilesPath: './sql',
+            enableFileCache: true,  // Enable caching by default for performance
+            cacheMaxSize: 1000,     // Default cache limit
             ...options
         };
         this.schemaResolver = new PrismaSchemaResolver(this.options);
@@ -185,34 +301,116 @@ export class RawSqlClient {
     /**
      * Initialize the Prisma schema information and resolvers
      * This is called automatically when needed (lazy initialization)
+     * Uses function-based lazy evaluation for optimal performance
      */
     private async initialize(): Promise<void> {
         if (this.isInitialized) {
             return; // Already initialized
         } if (this.options.debug) {
-            console.log('Initializing RawSqlClient schema information...');
-        }
-
-        this.schemaInfo = await this.schemaResolver.resolveSchema(this.prisma);
-
-        if (this.schemaInfo) {
-            this.tableColumnResolver = this.schemaResolver.createTableColumnResolver();
-        }
-
-        if (this.options.debug && this.schemaInfo) {
-            console.log(`Loaded schema with ${Object.keys(this.schemaInfo.models).length} models`);
+            const resolverMode = this.options.disableResolver ? 'SQL-only mode (no resolver)' : 'lazy function resolvers';
+            console.log(`Initializing RawSqlClient with ${resolverMode}...`);
+        }        // Create lazy function-based resolver or undefined if disabled
+        if (this.options.disableResolver) {
+            this.tableColumnResolver = undefined;
+            if (this.options.debug) {
+                console.log('Table column resolver disabled - using SQL-only mode');
+            }
+        } else {
+            this.tableColumnResolver = this.createLazyTableColumnResolver();
+            if (this.options.debug) {
+                console.log('Lazy resolvers initialized - schema will be loaded on-demand');
+            }
         }
 
         this.isInitialized = true;
     }
 
     /**
+     * Create a lazy table column resolver that loads schema information only when needed
+     * This avoids the expensive upfront schema resolution cost
+     */
+    private createLazyTableColumnResolver(): TableColumnResolver {
+        return (tableName: string): string[] => {
+            // Auto-initialize schema when first accessed
+            if (!this.schemaInfo) {
+                if (this.options.debug) {
+                    console.log(`[LazyResolver] Auto-loading schema for table: ${tableName}`);
+                }
+
+                // Synchronous schema resolution (should be already cached after first init)
+                // In production, schema should be pre-loaded via initializeSchema()
+                try {
+                    // This is a sync call to the already resolved schema
+                    return this.schemaResolver.getColumnNames(tableName) || [];
+                } catch (error) {
+                    if (this.options.debug) {
+                        console.warn(`[LazyResolver] Failed to resolve columns for table ${tableName}:`, error);
+                    }
+                    return [];
+                }
+            }
+
+            return this.schemaResolver.getColumnNames(tableName) || [];
+        };
+    }
+
+    /**
      * Ensure the RawSqlClient is initialized before use
      * Automatically calls initialize() if not already done
+     * Auto-loads schema on first query if not preloaded
      */
     private async ensureInitialized(): Promise<void> {
         if (!this.isInitialized) {
             await this.initialize();
+        }
+
+        // Auto-load schema on first query if not already loaded
+        if (!this.schemaInfo && !this.schemaPreloaded) {
+            if (this.options.debug) {
+                console.log('Auto-loading schema on first query...');
+            }
+
+            try {
+                this.schemaInfo = await this.schemaResolver.resolveSchema(this.prisma);
+
+                if (this.options.debug && this.schemaInfo) {
+                    console.log(`Auto-loaded schema with ${Object.keys(this.schemaInfo.models).length} models`);
+                }
+            } catch (error) {
+                if (this.options.debug) {
+                    console.warn('Auto-initialization failed:', error);
+                }
+                throw error;
+            }
+        }
+    }
+
+    /**
+     * Explicitly initialize schema information for production use
+     * Call this method during application startup to avoid lazy loading delays
+     */
+    async initializeSchema(): Promise<void> {
+        // Skip schema initialization if resolver is disabled
+        if (this.options.disableResolver) {
+            if (this.options.debug) {
+                console.log('Skipping schema initialization - resolver disabled');
+            }
+            return;
+        }
+
+        if (this.schemaInfo) {
+            return; // Already loaded
+        }
+
+        if (this.options.debug) {
+            console.log('Pre-loading schema information for production...');
+        }
+
+        this.schemaInfo = await this.schemaResolver.resolveSchema(this.prisma);
+        this.schemaPreloaded = true;
+
+        if (this.options.debug && this.schemaInfo) {
+            console.log(`Pre-loaded schema with ${Object.keys(this.schemaInfo.models).length} models`);
         }
     }
 
@@ -294,31 +492,52 @@ export class RawSqlClient {
             modifiedQuery = QueryBuilder.buildSimpleQuery(sqlFilePathOrQuery);
         }
 
-        // Apply dynamic modifications       
-        // Apply filtering        // Apply filters
+        // Apply dynamic modifications         // Apply filtering        // Apply filters
         if (options.filter) {
             if (!this.tableColumnResolver) {
-                throw new Error('TableColumnResolver not available. Initialization may have failed.');
+                if (this.options.disableResolver) {
+                    // When resolver is disabled, skip column validation and allow basic filtering
+                    if (this.options.debug) {
+                        console.log('Resolver disabled - applying filters without column validation');
+                    }
+                    const paramInjector = new SqlParamInjector(undefined, { allowAllUndefined: true });
+                    modifiedQuery = paramInjector.inject(modifiedQuery, options.filter) as SimpleSelectQuery;
+                } else {
+                    throw new Error('TableColumnResolver not available. Initialization may have failed.');
+                }
+            } else {
+                const extendedOptions = options as any;
+                const allowAllUndefined = extendedOptions.allowAllUndefined ?? false;
+
+                if (this.options.debug) {
+                    console.log('Applying filters:', options.filter, 'allowAllUndefined:', allowAllUndefined);
+                }
+
+                const paramInjector = new SqlParamInjector(this.tableColumnResolver, { allowAllUndefined });
+                modifiedQuery = paramInjector.inject(modifiedQuery, options.filter) as SimpleSelectQuery;
             }
-
-            const extendedOptions = options as any;
-            const allowAllUndefined = extendedOptions.allowAllUndefined ?? false;
-
-            if (this.options.debug) {
-                console.log('Applying filters:', options.filter, 'allowAllUndefined:', allowAllUndefined);
-            }
-
-            const paramInjector = new SqlParamInjector(this.tableColumnResolver, { allowAllUndefined });
-            modifiedQuery = paramInjector.inject(modifiedQuery, options.filter) as SimpleSelectQuery;
         }
 
         // Apply sorting
         if (options.sort) {
-            const sortInjector = new SqlSortInjector(this.tableColumnResolver);
-            modifiedQuery = sortInjector.inject(modifiedQuery, options.sort);
+            if (!this.tableColumnResolver) {
+                if (this.options.disableResolver) {
+                    // When resolver is disabled, skip column validation for sorting
+                    if (this.options.debug) {
+                        console.log('Resolver disabled - applying sorting without column validation');
+                    }
+                    const sortInjector = new SqlSortInjector(undefined);
+                    modifiedQuery = sortInjector.inject(modifiedQuery, options.sort);
+                } else {
+                    throw new Error('TableColumnResolver not available for sorting. Initialization may have failed.');
+                }
+            } else {
+                const sortInjector = new SqlSortInjector(this.tableColumnResolver);
+                modifiedQuery = sortInjector.inject(modifiedQuery, options.sort);
 
-            if (this.options.debug) {
-                console.log('Applied sorting:', options.sort);
+                if (this.options.debug) {
+                    console.log('Applied sorting:', options.sort);
+                }
             }
         }
 
@@ -476,6 +695,12 @@ export class RawSqlClient {
             // Normalize the path to handle different separators and redundant segments
             actualPath = path.normalize(actualPath);
 
+            // Check cache first and validate file timestamp to avoid stale content
+            const cachedContent = this.checkFileCache(this.sqlFileCache, actualPath, sqlFilePath, 'SQL');
+            if (cachedContent !== undefined) {
+                return cachedContent;
+            }
+
             if (this.options.debug) {
                 console.log(`Attempting to load SQL file: ${sqlFilePath} -> ${actualPath}`);
             }
@@ -506,6 +731,9 @@ export class RawSqlClient {
                 console.log(`📊 File size: ${content.length} characters`);
             }
 
+            // Cache the SQL content with timestamp to avoid re-reading the same file
+            this.setCacheEntry(this.sqlFileCache, actualPath, content, sqlFilePath, 'SQL');
+
             return content;
         } catch (error) {
             if (error instanceof SqlFileNotFoundError) {
@@ -529,7 +757,7 @@ export class RawSqlClient {
         try {
             // Load the unified mapping and convert to traditional JsonMapping
             const unifiedMapping = await this.loadUnifiedMapping(jsonFilePath);
-            const { jsonMapping } = convertUnifiedMapping(unifiedMapping);
+            const jsonMapping = unifyJsonMapping(unifiedMapping);
 
             if (this.options.debug) {
                 console.log(`✅ Loaded and converted unified mapping file: ${jsonFilePath}`);
@@ -605,25 +833,24 @@ export class RawSqlClient {
             throw new SqlExecutionError(sql, params, databaseError, error instanceof Error ? error : undefined);
         }
     }
+
     /**
      * Execute SQL from file with JSON serialization, returning a single object
      * Automatically loads corresponding .json mapping file
-     * Throws error if JSON mapping file is not found
+     * Throws error if SQL or JSON mapping file is not found or invalid
      * 
      * @param sqlFilePath - Path to SQL file (relative to sqlFilesPath or absolute)
      * @param options - Query execution options (filter, sort, paging, allowAllUndefined)
      * @returns Single serialized object or null
-     * @throws JsonMappingRequiredError when JSON mapping file is not found
+     * @throws SqlFileNotFoundError when SQL file is not found
+     * @throws JsonMappingError when JSON mapping file is not found or invalid
      */
     async queryOne<T>(sqlFilePath: string, options: Omit<QueryBuildOptions, 'serialize'> & { allowAllUndefined?: boolean } = {}): Promise<T | null> {
-        // Check if JSON mapping file exists before proceeding
+        // Validate both required files upfront - fail fast approach
+        this.loadSqlFile(sqlFilePath); // Will throw SqlFileNotFoundError if file doesn't exist
+
         const jsonMappingPath = sqlFilePath.replace('.sql', '.json');
-        try {
-            await this.loadJsonMapping(jsonMappingPath);
-        } catch (error) {
-            // JSON mapping is required for queryOne
-            throw new JsonMappingRequiredError(sqlFilePath, jsonMappingPath, 'queryOne');
-        }
+        await this.loadJsonMapping(jsonMappingPath); // Will throw JsonMappingError if file doesn't exist or invalid
 
         // Force serialization to true and resultFormat to 'single' for queryOne
         const queryOptions = { ...options, serialize: true as any, resultFormat: 'single' as any };
@@ -650,22 +877,20 @@ export class RawSqlClient {
     /**
      * Execute SQL from file with JSON serialization, returning an array
      * Automatically loads corresponding .json mapping file
-     * Throws error if JSON mapping file is not found
+     * Throws error if SQL or JSON mapping file is not found or invalid
      * 
      * @param sqlFilePath - Path to SQL file (relative to sqlFilesPath or absolute)
      * @param options - Query execution options (filter, sort, paging, allowAllUndefined)
      * @returns Array of serialized objects
-     * @throws JsonMappingRequiredError when JSON mapping file is not found
+     * @throws SqlFileNotFoundError when SQL file is not found
+     * @throws JsonMappingError when JSON mapping file is not found or invalid
      */
     async queryMany<T = any>(sqlFilePath: string, options: Omit<QueryBuildOptions, 'serialize'> & { allowAllUndefined?: boolean } = {}): Promise<T[]> {
-        // Check if JSON mapping file exists before proceeding
+        // Validate both required files upfront - fail fast approach
+        this.loadSqlFile(sqlFilePath); // Will throw SqlFileNotFoundError if file doesn't exist
+
         const jsonMappingPath = sqlFilePath.replace('.sql', '.json');
-        try {
-            await this.loadJsonMapping(jsonMappingPath);
-        } catch (error) {
-            // JSON mapping is required for queryMany
-            throw new JsonMappingRequiredError(sqlFilePath, jsonMappingPath, 'queryMany');
-        }
+        await this.loadJsonMapping(jsonMappingPath); // Will throw JsonMappingError if file doesn't exist or invalid
 
         // Force serialization to true and resultFormat to 'array' for queryMany
         const queryOptions = { ...options, serialize: true as any, resultFormat: 'array' as any };
@@ -701,15 +926,15 @@ export class RawSqlClient {
             try {
                 const jsonMappingFilePath = sqlFilePath.replace('.sql', '.json');
                 const unifiedMapping = await this.loadUnifiedMapping(jsonMappingFilePath);
-                const { typeProtection } = convertUnifiedMapping(unifiedMapping);
-                protectedStringFields = typeProtection.protectedStringFields || [];
+                const result = processJsonMapping(unifiedMapping);
+                protectedStringFields = result.metadata?.typeProtection?.protectedStringFields || [];
 
                 if (this.options.debug) {
                     console.log('🔒 Loaded type protection config from unified mapping:', {
                         file: jsonMappingFilePath,
                         protectedFields: protectedStringFields,
                         unifiedMappingKeys: Object.keys(unifiedMapping),
-                        typeProtectionKeys: Object.keys(typeProtection)
+                        format: result.format
                     });
                 }
             } catch (error) {
@@ -747,6 +972,7 @@ export class RawSqlClient {
 
     /**
      * Load unified JSON mapping configuration that includes both mapping and type protection
+     * Uses caching to avoid reading the same file multiple times
      * @param jsonMappingFilePath - Path to unified JSON mapping file
      * @returns Unified JSON mapping configuration
      */    private async loadUnifiedMapping(jsonMappingFilePath: string): Promise<UnifiedJsonMapping> {
@@ -764,6 +990,12 @@ export class RawSqlClient {
 
             // Normalize the path to handle different separators and redundant segments
             actualPath = path.normalize(actualPath);
+
+            // Check cache first and validate file timestamp to avoid stale content
+            const cachedContent = this.checkFileCache(this.jsonMappingCache, actualPath, jsonMappingFilePath, 'JSON mapping');
+            if (cachedContent !== undefined) {
+                return cachedContent;
+            }
 
             if (this.options.debug) {
                 console.log(`Attempting to load unified mapping: ${jsonMappingFilePath} -> ${actualPath}`);
@@ -818,11 +1050,12 @@ export class RawSqlClient {
                     actualPath,
                     'Mapping file must contain a JSON object'
                 );
-            }
-
-            if (this.options.debug) {
+            } if (this.options.debug) {
                 console.log(`✅ Successfully parsed JSON mapping with keys: ${Object.keys(parsed).join(', ')}`);
             }
+
+            // Cache the parsed mapping with timestamp to avoid re-reading the same file
+            this.setCacheEntry(this.jsonMappingCache, actualPath, parsed, jsonMappingFilePath, 'JSON mapping');
 
             return parsed;
         } catch (error) {

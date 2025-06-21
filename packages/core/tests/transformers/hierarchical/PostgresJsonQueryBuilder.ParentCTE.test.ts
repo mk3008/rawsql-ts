@@ -61,7 +61,6 @@ describe("PostgresJsonQueryBuilder - Parent Entity CTE Generation", () => {
                     }
                 }
             ],
-            useJsonb: true
         };
 
         const jsonQuery = builder.buildJson(originalQuery, mapping);
@@ -201,7 +200,6 @@ describe("PostgresJsonQueryBuilder - Parent Entity CTE Generation", () => {
                     }
                 }
             ],
-            useJsonb: true
         };
 
         const jsonQuery = builder.buildJson(originalQuery, mapping);
@@ -279,13 +277,13 @@ describe("PostgresJsonQueryBuilder - Parent Entity CTE Generation", () => {
             `                    null`,
             `                else`,
             `                    jsonb_build_object('id', "shipping_id", 'method', "shipping_method", 'fee', "shipping_fee", 'carrier', "carrier_json")`,
-            `            end as "shippinginfo_json"`,
+            `            end as "shipping_json"`,
             `        from`,
             `            "cte_object_depth_2"`,
             `    )`,
             `    , "cte_root_orderdetails" as (`,
             `        select`,
-            `            jsonb_build_object('id', "order_id", 'date', "order_date", 'total', "order_total", 'customer', "customer_json", 'shipping', "shippinginfo_json") as "OrderDetails"`,
+            `            jsonb_build_object('id', "order_id", 'date', "order_date", 'total', "order_total", 'customer', "customer_json", 'shipping', "shipping_json") as "OrderDetails"`,
             `        from`,
             `            "cte_object_depth_1"`,
             `    )`,
@@ -304,7 +302,7 @@ describe("PostgresJsonQueryBuilder - Parent Entity CTE Generation", () => {
         expect(formattedSql).toContain('"address_json"');
         expect(formattedSql).toContain('"carrier_json"');
         expect(formattedSql).toContain('"customer_json"');
-        expect(formattedSql).toContain('"shippinginfo_json"');
+        expect(formattedSql).toContain('"shipping_json"');
 
         // Full comparison
         expect(formattedSql).toBe(expectedSql);

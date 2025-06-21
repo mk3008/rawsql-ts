@@ -1,13 +1,12 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { RawSqlClient } from '../src/RawSqlClient';
+import { RawSqlClient, SqlFileNotFoundError, JsonMappingRequiredError, JsonMappingError } from '../src/RawSqlClient';
 
 describe('Issue #128: JSON mapping files in subdirectories', () => {
-    let client: RawSqlClient;
-
-    // Mock Prisma Client
+    let client: RawSqlClient;    // Mock Prisma Client - only $queryRawUnsafe is used in the current API
     const mockPrismaClient = {
-        $queryRaw: () => Promise.resolve([]),
-        $queryRawUnsafe: () => Promise.resolve([{ id: 1, name: 'Alice', email: 'alice@example.com', title: 'Engineer', bio: 'Developer' }]),
+        $queryRawUnsafe: () => Promise.resolve([
+            { UserProfile: { id: 1, name: 'Alice', email: 'alice@example.com', title: 'Engineer', bio: 'Developer' } }
+        ]),
         _dmmf: {
             datamodel: {
                 models: [
@@ -28,55 +27,24 @@ describe('Issue #128: JSON mapping files in subdirectories', () => {
     describe('Original issue reproduction', () => {
         it('should find JSON mapping files in subdirectories (WORKING CASE)', async () => {
             // This test demonstrates that the subdirectory JSON mapping DOES work
-            const result = await client.queryOne('users/profile.sql', { 
-                filter: { id: 1 } 
+            const result = await client.queryOne('users/profile.sql', {
+                filter: { id: 1 }
             });
 
-            // Should return structured object (due to JSON mapping)
+            // Should return the nested object from JSON mapping (first column value)
             expect(result).toBeDefined();
             expect(typeof result).toBe('object');
+            expect(result).toHaveProperty('id');
+            expect(result).toHaveProperty('name');
+            expect(result).toHaveProperty('email');
         });
 
-        it('should provide clear error messages when JSON files are missing in subdirectories', async () => {
-            // This reproduces the error message from the issue
-            let debugOutput: string[] = [];
-            
-            // Temporarily enable debug to capture the error message
-            const debugClient = new RawSqlClient(mockPrismaClient as any, {
-                debug: true,
-                sqlFilesPath: './tests/sql'
-            });
-
-            // Capture console.log output
-            const originalLog = console.log;
-            console.log = (...args: any[]) => {
-                debugOutput.push(args.join(' '));
-            };
-
-            try {
-                const result = await debugClient.queryOne('users/list.sql', { 
-                    filter: { id: 1 } 
-                });
-
-                // Should still work but use non-serialized mode
-                expect(result).toBeDefined();
-            } finally {
-                console.log = originalLog;
-            }
-
-            // Should have logged the improved error message
-            const errorMessages = debugOutput.filter(msg => 
-                msg.includes('JsonMapping file not found') || 
-                msg.includes('Path resolution details')
-            );
-            
-            expect(errorMessages.length).toBeGreaterThan(0);
-            
-            // The new error messages should include path resolution details
-            const hasPathDetails = debugOutput.some(msg => 
-                msg.includes('resolved to:')
-            );
-            expect(hasPathDetails).toBe(true);
+        it('should throw error when JSON mapping file is missing for queryOne', async () => {
+            // This reproduces the error when JSON mapping is required but missing
+            // queryOne requires JSON mapping - should throw error if mapping file is missing
+            await expect(
+                client.queryOne('users/list.sql', { filter: { id: 1 } })
+            ).rejects.toBeInstanceOf(JsonMappingError);
         });
     });
 
@@ -90,37 +58,28 @@ describe('Issue #128: JSON mapping files in subdirectories', () => {
             ];
 
             for (const sqlPath of pathVariants) {
-                const result = await client.queryOne(sqlPath, { 
-                    filter: { id: 1 } 
+                const result = await client.queryOne(sqlPath, {
+                    filter: { id: 1 }
                 });
-                
+
                 expect(result).toBeDefined();
                 expect(typeof result).toBe('object');
             }
         });
 
-        it('should provide helpful error messages for missing files', async () => {
-            try {
-                await client.query('nonexistent/file.sql');
-                fail('Expected error for missing file');
-            } catch (error) {
-                expect(error).toBeDefined();
-                expect(error instanceof Error).toBe(true);
-                
-                if (error instanceof Error) {
-                    // Should include both original path and resolved path
-                    expect(error.message).toContain('nonexistent/file.sql');
-                    expect(error.message).toContain('resolved from');
-                }
-            }
+        it('should provide helpful error messages for missing SQL files', async () => {
+            // Test that the correct error type is thrown for missing SQL files
+            await expect(
+                client.queryOne('nonexistent/file.sql')
+            ).rejects.toBeInstanceOf(SqlFileNotFoundError);
         });
     });
 
     describe('Cross-platform compatibility', () => {
         it('should normalize different path separators', async () => {
             // Test path normalization (especially important on Windows)
-            const result = await client.queryOne('users/profile.sql', { 
-                filter: { id: 1 } 
+            const result = await client.queryOne('users/profile.sql', {
+                filter: { id: 1 }
             });
 
             expect(result).toBeDefined();

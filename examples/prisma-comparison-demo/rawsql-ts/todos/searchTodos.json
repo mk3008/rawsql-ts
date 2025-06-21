@@ -1,60 +1,51 @@
 {
-    "rootName": "todos",
-    "rootEntity": {
-        "id": "t",
-        "name": "todo",
-        "columns": {
-            "todoId": "todo_id",
-            "title": {
-                "column": "title",
-                "type": "string"
-            },
-            "description": {
-                "column": "description",
-                "type": "string"
-            },
-            "completed": "completed",
-            "createdAt": "created_at",
-            "updatedAt": "updated_at",
-            "commentCount": "comment_count"
-        }
+    "typeInfo": {
+        "interface": "TodoSearchResult",
+        "importPath": "src/contracts/todo-search-result.ts"
     },
-    "nestedEntities": [
-        {
-            "id": "u",
-            "name": "user",
-            "parentId": "t",
-            "propertyName": "user",
-            "relationshipType": "object",
-            "columns": {
+    "structure": {
+        "todoId": "todo_id",
+        "title": {
+            "from": "title",
+            "type": "string"
+        },
+        "description": {
+            "from": "description",
+            "type": "string"
+        },
+        "completed": "completed",
+        "createdAt": "created_at",
+        "updatedAt": "updated_at",
+        "commentCount": "comment_count",
+        "user": {
+            "type": "object",
+            "from": "u",
+            "structure": {
                 "userId": "user_id",
                 "userName": {
-                    "column": "user_name",
+                    "from": "user_name",
                     "type": "string"
                 },
                 "email": {
-                    "column": "email",
+                    "from": "email",
                     "type": "string"
                 }
             }
         },
-        {
-            "id": "c",
-            "name": "category",
-            "parentId": "t",
-            "propertyName": "category",
-            "relationshipType": "object",
-            "columns": {
+        "category": {
+            "type": "object",
+            "from": "c",
+            "structure": {
                 "categoryId": "category_id",
                 "categoryName": {
-                    "column": "category_name",
+                    "from": "category_name",
                     "type": "string"
                 },
                 "color": {
-                    "column": "color",
+                    "from": "color",
                     "type": "string"
                 }
             }
         }
-    ]
+    }
 }

@@ -109,7 +109,8 @@ Ready for more advanced features? Check out:
 
 1. **[Core Package Documentation](./packages/core/README.md)** - Complete SQL parsing, transformation, and all available classes
 2. **[Prisma Integration](./packages/prisma-integration/README.md)** - Prisma-specific features and hierarchical JSON serialization
-3. **[Live Demo](./examples/prisma-comparison-demo/)** - See rawsql-ts vs Prisma in action
+3. **[Model-Driven JSON Mapping Guide](./docs/usage-guides/model-driven-json-mapping-usage-guide.md)** - Transform SQL results into structured TypeScript models
+4. **[Live Demo](./examples/prisma-comparison-demo/)** - See rawsql-ts vs Prisma in action
 
 ---
 

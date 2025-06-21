@@ -16,6 +16,25 @@ export interface RawSqlClientOptions {
     sqlFilesPath?: string;
     /** Custom path to schema.prisma file */
     schemaPath?: string;
+    /** 
+     * Disable table column resolver (no schema analysis)
+     * When true, enables pure SQL mode with faster startup time.
+     * Recommended for production environments with pre-validated SQL.
+     * Note: Disables column validation and auto-completion features.
+     */
+    disableResolver?: boolean;
+    /** 
+     * Enable file caching for JSON mappings and SQL files
+     * Default: true - Files are cached in memory to avoid redundant I/O
+     * Set to false to disable caching (useful for development with file watching)
+     */
+    enableFileCache?: boolean;
+    /** 
+     * Cache size limit for JSON mappings and SQL files
+     * Default: 1000 - Maximum number of files to keep in memory cache
+     * Set to 0 for unlimited cache size
+     */
+    cacheMaxSize?: number;
 }
 
 /**

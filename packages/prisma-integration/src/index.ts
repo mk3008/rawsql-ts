@@ -9,6 +9,12 @@ export { RawSqlClient, SqlFileNotFoundError, JsonMappingError, SqlExecutionError
 export { PrismaSchemaResolver } from './PrismaSchemaResolver';
 export { AutoTypeCompatibilityValidator } from './AutoTypeCompatibilityValidator';
 export { DomainModelCompatibilityTester, validateJsonMappingCompatibility } from './DomainModelCompatibilityTester';
+export {
+    detectMappingFormat,
+    loadAndConvertMappingFile,
+    findAndConvertMappingFiles,
+    getMappingFileStats
+} from './MappingFileProcessor';
 
 // Static Analysis Components
 export { SqlStaticAnalyzer, analyzeSqlFiles, validateSqlFile } from './SqlStaticAnalyzer';
@@ -42,9 +48,14 @@ export type {
     UnifiedJsonMapping,
     ColumnMappingConfig,
     JsonMapping,
-    TypeProtectionConfig
+    TypeProtectionConfig,
+    ModelDrivenJsonMapping,
+    FieldMapping,
+    NestedStructure,
+    StructureFields,
+    FieldType
 } from 'rawsql-ts';
-export { convertUnifiedMapping } from 'rawsql-ts';
+export { unifyJsonMapping, processJsonMapping, convertModelDrivenMapping, validateModelDrivenMapping } from 'rawsql-ts';
 
 // Static Analysis Types
 export type {
@@ -58,6 +69,11 @@ export type {
     StaticAnalysisOptions,
     ComprehensiveAnalysisReport
 } from './StaticAnalysisOrchestrator';
+
+export type {
+    MappingFileFormat,
+    MappingFileResult
+} from './MappingFileProcessor';
 
 // Re-export QueryBuildOptions from rawsql-ts for convenience
 export type { QueryBuildOptions } from 'rawsql-ts';

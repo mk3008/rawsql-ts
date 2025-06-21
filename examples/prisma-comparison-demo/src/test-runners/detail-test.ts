@@ -110,16 +110,10 @@ async function testPrismaDetailImplementation() {
  */
 async function testRawSqlDetailImplementation() {
     console.log('\n🔍 Testing rawsql-ts Todo Detail Implementation');
-    console.log('='.repeat(60));
+    console.log('='.repeat(60)); const service = new RawSqlTodoDetailService(prisma, { debug: true });
 
-    const service = new RawSqlTodoDetailService(prisma, { debug: true }); try {
-        // Initialize the RawSqlClient
-        await service.initialize();
-        console.log('✅ rawsql-ts RawSqlClient initialized successfully');
-    } catch (error) {
-        console.error('❌ Failed to initialize rawsql-ts RawSqlClient:', error);
-        return;
-    }
+    // No need to explicitly initialize - uses lazy initialization
+    console.log('✅ rawsql-ts RawSqlClient will be initialized on first use (lazy)');
 
     for (const testCase of testCases) {
         console.log(`\n📋 Test: ${testCase.name}`);
@@ -127,7 +121,6 @@ async function testRawSqlDetailImplementation() {
 
         try {
             const result = await service.getTodoDetail(testCase.todoId);
-
             // Store test result for summary
             addTestResultWithDefaults({
                 implementation: 'rawsql-ts',
@@ -145,9 +138,10 @@ async function testRawSqlDetailImplementation() {
                 console.log('🔍 Debug - Todo structure:', JSON.stringify(todoData, null, 2));
 
                 // Extract the actual todo from the nested structure
-                const todo = todoData.todo;
+                // For rawsql-ts, the data is directly the todo object, not nested under 'todo'
+                const todo = todoData.todo || todoData; // Try nested first, then direct
 
-                if (todo) {
+                if (todo && todo.title) {
                     console.log(`✅ Found TODO: "${todo.title}"`);
                     console.log(`   📝 Description: ${todo.description}`);
                     console.log(`   ✅ Completed: ${todo.completed ? 'Yes' : 'No'}`);

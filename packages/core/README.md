@@ -470,9 +470,7 @@ const mapping = {
         { id: "customer", parentId: "order", propertyName: "customer", relationshipType: "object", 
           columns: { "name": "customer_name" }},
         { id: "items", parentId: "order", propertyName: "items", relationshipType: "array",
-          columns: { "product": "product_name", "qty": "quantity" }}
-    ],
-    useJsonb: true
+          columns: { "product": "product_name", "qty": "quantity" }}    ]
 };
 
 // Transform to JSON query

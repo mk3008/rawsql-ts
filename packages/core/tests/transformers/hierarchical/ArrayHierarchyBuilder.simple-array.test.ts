@@ -59,8 +59,9 @@ describe('ArrayHierarchyBuilder - Simple Array Relationship', () => {
                     }
                 }
             ],
-            useJsonb: true
-        }; const builder = new PostgresJsonQueryBuilder();
+        };
+
+        const builder = new PostgresJsonQueryBuilder();
         const jsonQuery = builder.buildJson(originalQuery, mapping);
         const formatter = new SqlFormatter(customStyle);
         const formattedSql = formatter.format(jsonQuery).formattedSql;
@@ -157,8 +158,9 @@ describe('ArrayHierarchyBuilder - Simple Array Relationship', () => {
                     }
                 }
             ],
-            useJsonb: true
-        }; const builder = new PostgresJsonQueryBuilder();
+        };
+
+        const builder = new PostgresJsonQueryBuilder();
         const jsonQuery = builder.buildJson(originalQuery, mapping);
         const formatter = new SqlFormatter(customStyle);
         const formattedSql = formatter.format(jsonQuery).formattedSql;

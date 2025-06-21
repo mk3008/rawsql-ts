@@ -77,7 +77,6 @@ const mapping = {
             }
         }
     ],
-    useJsonb: true,
     resultFormat: "array"
 };
 
@@ -137,7 +136,6 @@ nestedEntities: Array<{
 ### Configuration Options
 ```typescript
 {
-    useJsonb?: boolean;                      // Use JSONB instead of JSON (default: false)
     resultFormat?: "array" | "single";      // Result format (default: "array")
     emptyResult?: string;                    // Value for empty results
 }
@@ -249,9 +247,7 @@ const complexMapping = {
                 "email": "email_address"
             }
         }
-    ],
-    useJsonb: true
-};
+    ],};
 ```
 
 ### Single Object Result
@@ -286,9 +282,7 @@ customer_id | customer_name | address_id | street
 ```typescript
 // For better performance in PostgreSQL
 const mapping = {
-    // ...
-    useJsonb: true  // Uses jsonb_build_object, jsonb_agg functions
-};
+    // ...};
 ```
 
 ### Query Optimization
@@ -346,9 +340,8 @@ PostgreSQL JSON aggregation requires at most one array child per entity.
 ## Best Practices
 
 1. **Keep Hierarchies Shallow**: Deeply nested structures can impact performance
-2. **Use JSONB**: Enable `useJsonb: true` for better PostgreSQL performance
-3. **Validate Mappings**: Always test your mapping configurations thoroughly
-4. **Handle NULLs**: Consider how NULL relationships should appear in your JSON
-5. **Index Appropriately**: Ensure your base query has proper indexes for joins
+2. **Validate Mappings**: Always test your mapping configurations thoroughly
+3. **Handle NULLs**: Consider how NULL relationships should appear in your JSON
+4. **Index Appropriately**: Ensure your base query has proper indexes for joins
 
 By using `PostgresJsonQueryBuilder`, you can efficiently transform complex relational queries into clean, hierarchical JSON structures while maintaining optimal database performance.
