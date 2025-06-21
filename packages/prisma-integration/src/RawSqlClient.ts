@@ -22,7 +22,11 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 /**
- * Enhanced error classes for better debugging experience
+ * Custom error classes for rawsql-ts operations
+ * 
+ * These error classes provide detailed context and helpful suggestions
+ * for common issues like missing files, invalid JSON, and SQL execution failures.
+ * Each error includes structured information for programmatic handling.
  */
 
 /**
@@ -174,10 +178,10 @@ export class RawSqlClient {
     private tableColumnResolver?: TableColumnResolver;
     private isInitialized = false;
     private schemaPreloaded = false;    // JSON mapping file cache to avoid reading the same file multiple times
-    private readonly jsonMappingCache: Map<string, UnifiedJsonMapping> = new Map();
+    private readonly jsonMappingCache: Map<string, { content: UnifiedJsonMapping; timestamp: number }> = new Map();
 
     // SQL file cache to avoid reading the same file multiple times
-    private readonly sqlFileCache: Map<string, string> = new Map(); constructor(prisma: PrismaClientType, options: RawSqlClientOptions = {}) {
+    private readonly sqlFileCache: Map<string, { content: string; timestamp: number }> = new Map(); constructor(prisma: PrismaClientType, options: RawSqlClientOptions = {}) {
         this.prisma = prisma;
         this.options = {
             debug: false,
@@ -188,7 +192,9 @@ export class RawSqlClient {
             ...options
         };
         this.schemaResolver = new PrismaSchemaResolver(this.options);
-    }/**
+    }
+
+    /**
      * Initialize the Prisma schema information and resolvers
      * This is called automatically when needed (lazy initialization)
      * Uses function-based lazy evaluation for optimal performance
@@ -273,7 +279,9 @@ export class RawSqlClient {
                 throw error;
             }
         }
-    }    /**
+    }
+
+    /**
      * Explicitly initialize schema information for production use
      * Call this method during application startup to avoid lazy loading delays
      */
@@ -581,12 +589,31 @@ export class RawSqlClient {
             }
 
             // Normalize the path to handle different separators and redundant segments
-            actualPath = path.normalize(actualPath);            // Check cache first to avoid reading the same file multiple times
+            actualPath = path.normalize(actualPath);            // Check cache first and validate file timestamp to avoid stale content
             if (this.options.enableFileCache && this.sqlFileCache.has(actualPath)) {
-                if (this.options.debug) {
-                    console.log(`📋 Using cached SQL file: ${sqlFilePath}`);
+                // Check if file exists before checking timestamp (file might be deleted)
+                if (fs.existsSync(actualPath)) {
+                    const cachedEntry = this.sqlFileCache.get(actualPath)!;
+                    const currentTimestamp = fs.statSync(actualPath).mtimeMs;
+
+                    if (cachedEntry.timestamp === currentTimestamp) {
+                        if (this.options.debug) {
+                            console.log(`📋 Using cached SQL file: ${sqlFilePath}`);
+                        }
+                        return cachedEntry.content;
+                    } else {
+                        if (this.options.debug) {
+                            console.log(`🔄 Cache invalidated for SQL file: ${sqlFilePath} (file modified)`);
+                        }
+                        this.sqlFileCache.delete(actualPath);
+                    }
+                } else {
+                    // File was deleted, remove from cache
+                    if (this.options.debug) {
+                        console.log(`🗑️ Removing deleted file from cache: ${sqlFilePath}`);
+                    }
+                    this.sqlFileCache.delete(actualPath);
                 }
-                return this.sqlFileCache.get(actualPath)!;
             }
 
             if (this.options.debug) {
@@ -617,12 +644,18 @@ export class RawSqlClient {
                 console.log(`✅ Loaded SQL file: ${actualPath}`);
                 console.log(`📝 Content preview: ${content.substring(0, 100)}${content.length > 100 ? '...' : ''}`);
                 console.log(`📊 File size: ${content.length} characters`);
-            }            // Cache the SQL content to avoid re-reading the same file
+            }
+
+            // Cache the SQL content with timestamp to avoid re-reading the same file
             if (this.options.enableFileCache) {
-                this.sqlFileCache.set(actualPath, content);
+                const fileStats = fs.statSync(actualPath);
+                this.sqlFileCache.set(actualPath, {
+                    content: content,
+                    timestamp: fileStats.mtimeMs
+                });
 
                 if (this.options.debug) {
-                    console.log(`💾 Cached SQL file: ${sqlFilePath}`);
+                    console.log(`💾 Cached SQL file: ${sqlFilePath} (timestamp: ${fileStats.mtimeMs})`);
                 }
             }
 
@@ -884,12 +917,31 @@ export class RawSqlClient {
             }
 
             // Normalize the path to handle different separators and redundant segments
-            actualPath = path.normalize(actualPath);            // Check cache first to avoid reading the same file multiple times
+            actualPath = path.normalize(actualPath);            // Check cache first and validate file timestamp to avoid stale content
             if (this.options.enableFileCache && this.jsonMappingCache.has(actualPath)) {
-                if (this.options.debug) {
-                    console.log(`📋 Using cached JSON mapping: ${jsonMappingFilePath}`);
+                // Check if file exists before checking timestamp (file might be deleted)
+                if (fs.existsSync(actualPath)) {
+                    const cachedEntry = this.jsonMappingCache.get(actualPath)!;
+                    const currentTimestamp = fs.statSync(actualPath).mtimeMs;
+
+                    if (cachedEntry.timestamp === currentTimestamp) {
+                        if (this.options.debug) {
+                            console.log(`📋 Using cached JSON mapping: ${jsonMappingFilePath}`);
+                        }
+                        return cachedEntry.content;
+                    } else {
+                        if (this.options.debug) {
+                            console.log(`🔄 Cache invalidated for JSON mapping: ${jsonMappingFilePath} (file modified)`);
+                        }
+                        this.jsonMappingCache.delete(actualPath);
+                    }
+                } else {
+                    // File was deleted, remove from cache
+                    if (this.options.debug) {
+                        console.log(`🗑️ Removing deleted JSON mapping from cache: ${jsonMappingFilePath}`);
+                    }
+                    this.jsonMappingCache.delete(actualPath);
                 }
-                return this.jsonMappingCache.get(actualPath)!;
             }
 
             if (this.options.debug) {
@@ -947,12 +999,18 @@ export class RawSqlClient {
                 );
             } if (this.options.debug) {
                 console.log(`✅ Successfully parsed JSON mapping with keys: ${Object.keys(parsed).join(', ')}`);
-            }            // Cache the parsed mapping to avoid re-reading the same file
+            }
+
+            // Cache the parsed mapping with timestamp to avoid re-reading the same file
             if (this.options.enableFileCache) {
-                this.jsonMappingCache.set(actualPath, parsed);
+                const fileStats = fs.statSync(actualPath);
+                this.jsonMappingCache.set(actualPath, {
+                    content: parsed,
+                    timestamp: fileStats.mtimeMs
+                });
 
                 if (this.options.debug) {
-                    console.log(`💾 Cached JSON mapping file: ${jsonMappingFilePath}`);
+                    console.log(`💾 Cached JSON mapping file: ${jsonMappingFilePath} (timestamp: ${fileStats.mtimeMs})`);
                 }
             }
 
