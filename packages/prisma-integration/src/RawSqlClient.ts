@@ -181,7 +181,69 @@ export class RawSqlClient {
     private readonly jsonMappingCache: Map<string, { content: UnifiedJsonMapping; timestamp: number }> = new Map();
 
     // SQL file cache to avoid reading the same file multiple times
-    private readonly sqlFileCache: Map<string, { content: string; timestamp: number }> = new Map(); constructor(prisma: PrismaClientType, options: RawSqlClientOptions = {}) {
+    private readonly sqlFileCache: Map<string, { content: string; timestamp: number }> = new Map();
+
+    /**
+     * Common helper method to check file cache and handle timestamp validation
+     * Returns cached content if valid, undefined if cache miss or invalidated
+     */
+    private checkFileCache<T>(
+        cache: Map<string, { content: T; timestamp: number }>,
+        actualPath: string,
+        originalPath: string,
+        cacheType: 'SQL' | 'JSON mapping'
+    ): T | undefined {
+        if (!this.options.enableFileCache || !cache.has(actualPath)) {
+            return undefined;
+        }
+
+        // Check if file exists before checking timestamp (file might be deleted)
+        if (!fs.existsSync(actualPath)) {
+            // File was deleted, remove from cache
+            if (this.options.debug) {
+                console.log(`🗑️ Removing deleted ${cacheType.toLowerCase()} from cache: ${originalPath}`);
+            }
+            cache.delete(actualPath);
+            return undefined;
+        }
+
+        const cachedEntry = cache.get(actualPath)!;
+        const currentTimestamp = fs.statSync(actualPath).mtimeMs;
+
+        if (cachedEntry.timestamp === currentTimestamp) {
+            if (this.options.debug) {
+                console.log(`📋 Using cached ${cacheType.toLowerCase()}: ${originalPath}`);
+            }
+            return cachedEntry.content;
+        } else {
+            if (this.options.debug) {
+                console.log(`🔄 Cache invalidated for ${cacheType.toLowerCase()}: ${originalPath} (file modified)`);
+            }
+            cache.delete(actualPath);
+            return undefined;
+        }
+    }
+
+    /**
+     * Common helper method to store content in file cache with timestamp
+     */
+    private setCacheEntry<T>(
+        cache: Map<string, { content: T; timestamp: number }>,
+        actualPath: string,
+        content: T,
+        originalPath: string,
+        cacheType: 'SQL' | 'JSON mapping'
+    ): void {
+        if (this.options.enableFileCache) {
+            const timestamp = fs.statSync(actualPath).mtimeMs;
+            cache.set(actualPath, { content, timestamp });
+            if (this.options.debug) {
+                console.log(`💾 Cached ${cacheType.toLowerCase()} file: ${originalPath} (timestamp: ${timestamp})`);
+            }
+        }
+    }
+
+    constructor(prisma: PrismaClientType, options: RawSqlClientOptions = {}) {
         this.prisma = prisma;
         this.options = {
             debug: false,
@@ -589,31 +651,12 @@ export class RawSqlClient {
             }
 
             // Normalize the path to handle different separators and redundant segments
-            actualPath = path.normalize(actualPath);            // Check cache first and validate file timestamp to avoid stale content
-            if (this.options.enableFileCache && this.sqlFileCache.has(actualPath)) {
-                // Check if file exists before checking timestamp (file might be deleted)
-                if (fs.existsSync(actualPath)) {
-                    const cachedEntry = this.sqlFileCache.get(actualPath)!;
-                    const currentTimestamp = fs.statSync(actualPath).mtimeMs;
+            actualPath = path.normalize(actualPath);
 
-                    if (cachedEntry.timestamp === currentTimestamp) {
-                        if (this.options.debug) {
-                            console.log(`📋 Using cached SQL file: ${sqlFilePath}`);
-                        }
-                        return cachedEntry.content;
-                    } else {
-                        if (this.options.debug) {
-                            console.log(`🔄 Cache invalidated for SQL file: ${sqlFilePath} (file modified)`);
-                        }
-                        this.sqlFileCache.delete(actualPath);
-                    }
-                } else {
-                    // File was deleted, remove from cache
-                    if (this.options.debug) {
-                        console.log(`🗑️ Removing deleted file from cache: ${sqlFilePath}`);
-                    }
-                    this.sqlFileCache.delete(actualPath);
-                }
+            // Check cache first and validate file timestamp to avoid stale content
+            const cachedContent = this.checkFileCache(this.sqlFileCache, actualPath, sqlFilePath, 'SQL');
+            if (cachedContent !== undefined) {
+                return cachedContent;
             }
 
             if (this.options.debug) {
@@ -647,17 +690,7 @@ export class RawSqlClient {
             }
 
             // Cache the SQL content with timestamp to avoid re-reading the same file
-            if (this.options.enableFileCache) {
-                const fileStats = fs.statSync(actualPath);
-                this.sqlFileCache.set(actualPath, {
-                    content: content,
-                    timestamp: fileStats.mtimeMs
-                });
-
-                if (this.options.debug) {
-                    console.log(`💾 Cached SQL file: ${sqlFilePath} (timestamp: ${fileStats.mtimeMs})`);
-                }
-            }
+            this.setCacheEntry(this.sqlFileCache, actualPath, content, sqlFilePath, 'SQL');
 
             return content;
         } catch (error) {
@@ -758,6 +791,7 @@ export class RawSqlClient {
             throw new SqlExecutionError(sql, params, databaseError, error instanceof Error ? error : undefined);
         }
     }
+
     /**
      * Execute SQL from file with JSON serialization, returning a single object
      * Automatically loads corresponding .json mapping file
@@ -917,31 +951,12 @@ export class RawSqlClient {
             }
 
             // Normalize the path to handle different separators and redundant segments
-            actualPath = path.normalize(actualPath);            // Check cache first and validate file timestamp to avoid stale content
-            if (this.options.enableFileCache && this.jsonMappingCache.has(actualPath)) {
-                // Check if file exists before checking timestamp (file might be deleted)
-                if (fs.existsSync(actualPath)) {
-                    const cachedEntry = this.jsonMappingCache.get(actualPath)!;
-                    const currentTimestamp = fs.statSync(actualPath).mtimeMs;
+            actualPath = path.normalize(actualPath);
 
-                    if (cachedEntry.timestamp === currentTimestamp) {
-                        if (this.options.debug) {
-                            console.log(`📋 Using cached JSON mapping: ${jsonMappingFilePath}`);
-                        }
-                        return cachedEntry.content;
-                    } else {
-                        if (this.options.debug) {
-                            console.log(`🔄 Cache invalidated for JSON mapping: ${jsonMappingFilePath} (file modified)`);
-                        }
-                        this.jsonMappingCache.delete(actualPath);
-                    }
-                } else {
-                    // File was deleted, remove from cache
-                    if (this.options.debug) {
-                        console.log(`🗑️ Removing deleted JSON mapping from cache: ${jsonMappingFilePath}`);
-                    }
-                    this.jsonMappingCache.delete(actualPath);
-                }
+            // Check cache first and validate file timestamp to avoid stale content
+            const cachedContent = this.checkFileCache(this.jsonMappingCache, actualPath, jsonMappingFilePath, 'JSON mapping');
+            if (cachedContent !== undefined) {
+                return cachedContent;
             }
 
             if (this.options.debug) {
@@ -1002,17 +1017,7 @@ export class RawSqlClient {
             }
 
             // Cache the parsed mapping with timestamp to avoid re-reading the same file
-            if (this.options.enableFileCache) {
-                const fileStats = fs.statSync(actualPath);
-                this.jsonMappingCache.set(actualPath, {
-                    content: parsed,
-                    timestamp: fileStats.mtimeMs
-                });
-
-                if (this.options.debug) {
-                    console.log(`💾 Cached JSON mapping file: ${jsonMappingFilePath} (timestamp: ${fileStats.mtimeMs})`);
-                }
-            }
+            this.setCacheEntry(this.jsonMappingCache, actualPath, parsed, jsonMappingFilePath, 'JSON mapping');
 
             return parsed;
         } catch (error) {
