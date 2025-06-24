@@ -3,9 +3,10 @@ import { SimpleSelectQuery } from '../models/SimpleSelectQuery';
 import { SelectQuery } from '../models/SelectQuery';
 import { IdentifierString, ValueComponent, ColumnReference, FunctionCall, ValueList, LiteralValue, BinaryExpression, CaseExpression, SwitchCaseArgument, CaseKeyValuePair, RawString, UnaryExpression } from '../models/ValueComponent';
 import { SelectValueCollector } from "./SelectValueCollector";
-import { PostgresObjectEntityCteBuilder, ProcessableEntity } from './PostgresObjectEntityCteBuilder';
+import { PostgresObjectEntityCteBuilder, ProcessableEntity, JsonColumnMapping, CteBuilderResult } from './PostgresObjectEntityCteBuilder';
 import { PostgresArrayEntityCteBuilder } from './PostgresArrayEntityCteBuilder';
 import { QueryBuilder } from './QueryBuilder';
+import { QueryBuildOptions } from './DynamicQueryBuilder';
 
 /**
  * Universal JSON mapping definition for creating any level of JSON structures.
@@ -120,9 +121,18 @@ export class PostgresJsonQueryBuilder {
      * @param mapping JSON mapping configuration
      * @returns Transformed query with JSON aggregation
      */
-    public buildJsonQuery(originalQuery: SelectQuery, mapping: JsonMapping): SimpleSelectQuery;
-    public buildJsonQuery(originalQuery: SimpleSelectQuery, mapping: JsonMapping): SimpleSelectQuery;
-    public buildJsonQuery(originalQuery: SelectQuery | SimpleSelectQuery, mapping: JsonMapping): SimpleSelectQuery {
+    public buildJsonQuery(originalQuery: SelectQuery, mapping: JsonMapping, options?: QueryBuildOptions): SimpleSelectQuery;
+    public buildJsonQuery(originalQuery: SimpleSelectQuery, mapping: JsonMapping, options?: QueryBuildOptions): SimpleSelectQuery;
+    public buildJsonQuery(originalQuery: SelectQuery | SimpleSelectQuery, mapping: JsonMapping, options?: QueryBuildOptions): SimpleSelectQuery {
+        // Check jsonb option - must be true (or undefined/default) for GROUP BY compatibility
+        if (options?.jsonb === false) {
+            throw new Error(
+                'JSONB must be enabled for PostgreSQL GROUP BY compatibility. ' +
+                'JSON type cannot be used in GROUP BY clauses. ' +
+                'Please set jsonb: true or omit the jsonb option (defaults to true).'
+            );
+        }
+
         // Convert any SelectQuery to SimpleSelectQuery using QueryBuilder
         const simpleQuery = originalQuery instanceof SimpleSelectQuery
             ? originalQuery
@@ -174,13 +184,16 @@ export class PostgresJsonQueryBuilder {
         // The object entity builder returns all CTEs including the initial one
         ctesForProcessing = objectEntityResult.ctes;
         currentAliasToBuildUpon = objectEntityResult.lastCteAlias;
+        // Store column mappings for later use
+        const columnMappings = objectEntityResult.columnMappings;
 
         // Step 3: Build CTEs for array entities using dedicated builder
         const arrayCteBuildResult = this.arrayEntityCteBuilder.buildArrayEntityCtes(
             ctesForProcessing,
             currentAliasToBuildUpon,
             allEntities,
-            mapping
+            mapping,
+            columnMappings
         );
         ctesForProcessing = arrayCteBuildResult.updatedCtes;
         currentAliasToBuildUpon = arrayCteBuildResult.lastCteAlias;
@@ -190,7 +203,8 @@ export class PostgresJsonQueryBuilder {
             ctesForProcessing,
             currentAliasToBuildUpon,
             allEntities,
-            mapping
+            mapping,
+            columnMappings
         );
     }
 
@@ -222,7 +236,8 @@ export class PostgresJsonQueryBuilder {
         finalCtesList: CommonTable[],
         lastCteAliasForFromClause: string,
         allEntities: Map<string, ProcessableEntity>,
-        mapping: JsonMapping
+        mapping: JsonMapping,
+        columnMappings: JsonColumnMapping[]
     ): SimpleSelectQuery {
         const currentCtes = [...finalCtesList];
 
@@ -238,7 +253,8 @@ export class PostgresJsonQueryBuilder {
                 rootEntity,
                 null,  // No source alias for single table
                 mapping.nestedEntities,
-                allEntities
+                allEntities,
+                columnMappings
             );
 
             const rootObjectSelectItem = new SelectItem(rootObjectBuilderExpression, mapping.rootName);
@@ -283,7 +299,8 @@ export class PostgresJsonQueryBuilder {
                 rootEntity,
                 null,  // No source alias for single table
                 mapping.nestedEntities,
-                allEntities
+                allEntities,
+                columnMappings
             );
 
             const rootObjectSelectItem = new SelectItem(rootObjectBuilderExpression, mapping.rootName);
@@ -325,7 +342,8 @@ export class PostgresJsonQueryBuilder {
         entity: ProcessableEntity,
         sourceAlias: string | null,
         nestedEntities: JsonMapping['nestedEntities'],
-        allEntities: Map<string, ProcessableEntity>
+        allEntities: Map<string, ProcessableEntity>,
+        columnMappings: JsonColumnMapping[]
     ): ValueComponent {
         const jsonBuildFunction = "jsonb_build_object";
         const args: ValueComponent[] = [];
@@ -346,10 +364,12 @@ export class PostgresJsonQueryBuilder {
             if (!child) return;
 
             args.push(new LiteralValue(childEntity.propertyName)); if (childEntity.relationshipType === "object") {
-                // For object relationships, use pre-computed JSON column
-                // Use entity ID instead of name to avoid naming conflicts
-                const jsonColumnName = `${child.id.toLowerCase()}_json`;
-                args.push(new ColumnReference(null, new IdentifierString(jsonColumnName)));
+                // For object relationships, use pre-computed JSON column from column mappings
+                const mapping = columnMappings.find(m => m.entityId === child.id);
+                if (!mapping) {
+                    throw new Error(`Column mapping not found for entity: ${child.id}`);
+                }
+                args.push(new ColumnReference(null, new IdentifierString(mapping.generatedColumnName)));
             } else if (childEntity.relationshipType === "array") {
                 // For array relationships, use the column directly
                 args.push(new ColumnReference(null, new IdentifierString(childEntity.propertyName)));

@@ -17,13 +17,15 @@ describe('Comment Aggregation Integration Tests', () => {
         prisma = new PrismaClient();
         await prisma.$connect();
 
-        rawSqlService = new RawSqlTodoDetailService(prisma, { debug: false });
+        rawSqlService = new RawSqlTodoDetailService(prisma, { debug: true });
         prismaService = new PrismaTodoDetailService(prisma);
     });
 
     afterAll(async () => {
         await prisma.$disconnect();
-    }); it('should return the same number of comments as Prisma for TODO with multiple comments', async () => {
+    }); 
+    
+    it('should return the same number of comments as Prisma for TODO with multiple comments', async () => {
         // Use TODO ID 1 which is known to have multiple comments
         const todoId = 1;
 
@@ -38,7 +40,9 @@ describe('Comment Aggregation Integration Tests', () => {
 
         expect(rawSqlComments.length).toBe(prismaComments.length);
         expect(rawSqlComments.length).toBeGreaterThan(1); // Ensure we're testing with multiple comments
-    }); it('should return comments with correct structure and data', async () => {
+    });
+    
+    it('should return comments with correct structure and data', async () => {
         const todoId = 1;
 
         const prismaResult = await prismaService.getTodoDetail(todoId);

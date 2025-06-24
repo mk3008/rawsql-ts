@@ -35,10 +35,11 @@ describe('RawSqlClient - JSON Mapping Subdirectory Bug', () => {
         // Reset all mocks
         vi.clearAllMocks();
 
-        // Create RawSqlClient instance
+        // Create RawSqlClient instance with absolute path for cross-platform compatibility
+        const sqlPath = path.join(__dirname, 'sql');
         client = new RawSqlClient(mockPrismaClient as any, {
             debug: true,
-            sqlFilesPath: './tests/sql'
+            sqlFilesPath: sqlPath
         });
     });
 

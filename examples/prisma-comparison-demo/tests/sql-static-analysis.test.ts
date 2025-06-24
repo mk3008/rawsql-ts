@@ -5,10 +5,19 @@
  * This is the kind of test you'd actually want in a real project.
  */
 
+// Load environment variables from .env file for Windows VS Code compatibility
+import * as dotenv from 'dotenv';
+import * as path from 'path';
+dotenv.config({ path: path.join(__dirname, '..', '.env') });
+
+// Set fallback DATABASE_URL if not already set
+if (!process.env.DATABASE_URL) {
+    process.env.DATABASE_URL = 'postgresql://demo_user:demo_password@localhost:5432/prisma_comparison_demo?schema=public';
+}
+
 import { describe, it, expect, afterAll } from 'vitest';
 import { PrismaClient } from '@prisma/client';
 import { runComprehensiveStaticAnalysis } from '../../../packages/prisma-integration/src';
-import * as path from 'path';
 
 describe('SQL Static Analysis', () => {
     const prismaClient = new PrismaClient();
@@ -17,7 +26,8 @@ describe('SQL Static Analysis', () => {
         await prismaClient.$disconnect();
     });
 
-    it('should validate all SQL files without errors', async () => {        // Run analysis with warning level for string protection
+    it('should validate all SQL files without errors', async () => {        
+        // Run analysis with warning level for string protection
         const report = await runComprehensiveStaticAnalysis({
             baseDir: path.join(__dirname, '..'),
             mappingDir: path.join(__dirname, '..', 'rawsql-ts'),
@@ -49,7 +59,9 @@ describe('SQL Static Analysis', () => {
 
         if (report.sqlAnalysis.invalidMappings > 0) {
             throw new Error(`Found ${report.sqlAnalysis.invalidMappings} JSON mapping files with errors`);
-        }        // Check string field protection issues - fail if any errors are found
+        }       
+        
+        // Check string field protection issues - fail if any errors are found
         const errorLevelIssues = report.stringFieldValidation.issues.filter(issue => issue.severity === 'error');
         if (errorLevelIssues.length > 0) {
             // Generate detailed error message with specific locations and fixes

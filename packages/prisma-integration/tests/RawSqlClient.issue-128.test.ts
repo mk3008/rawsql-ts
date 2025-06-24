@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { RawSqlClient, SqlFileNotFoundError, JsonMappingRequiredError, JsonMappingError } from '../src/RawSqlClient';
+import * as path from 'path';
 
 describe('Issue #128: JSON mapping files in subdirectories', () => {
     let client: RawSqlClient;    // Mock Prisma Client - only $queryRawUnsafe is used in the current API
@@ -18,9 +19,11 @@ describe('Issue #128: JSON mapping files in subdirectories', () => {
     };
 
     beforeEach(() => {
+        // Use absolute path for cross-platform compatibility
+        const sqlPath = path.join(__dirname, 'sql');
         client = new RawSqlClient(mockPrismaClient as any, {
             debug: false, // Disable debug for cleaner test output
-            sqlFilesPath: './tests/sql'
+            sqlFilesPath: sqlPath
         });
     });
 

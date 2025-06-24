@@ -174,3 +174,6 @@ demo/formatter/node_modules/
 # Test reports
 reports/
 reports/**/*.md
+
+# Claude settings
+.claude/

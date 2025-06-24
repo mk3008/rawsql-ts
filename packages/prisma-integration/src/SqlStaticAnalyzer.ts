@@ -8,7 +8,8 @@
  * - Comprehensive validation reports
  */
 
-import { SelectQueryParser, SqlSchemaValidator, PostgresJsonQueryBuilder, JsonMapping, unifyJsonMapping, processJsonMapping } from 'rawsql-ts';
+import { SelectQueryParser, SqlSchemaValidator, PostgresJsonQueryBuilder, JsonMapping } from 'rawsql-ts';
+import { convertModelDrivenMapping } from '../../core/src/transformers/ModelDrivenJsonMapping';
 import { PrismaSchemaResolver } from './PrismaSchemaResolver';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -107,7 +108,7 @@ export class SqlStaticAnalyzer {
     /**
      * Validate a single SQL file
      */
-    validateSqlFile(sqlFile: SqlFileInfo): SqlValidationResult {
+    async validateSqlFile(sqlFile: SqlFileInfo): Promise<SqlValidationResult> {
         const { debug } = this.options;
         const result: SqlValidationResult = {
             filename: sqlFile.filename,
@@ -142,7 +143,7 @@ export class SqlStaticAnalyzer {
             result.hasJsonMapping = fs.existsSync(jsonPath);
 
             if (result.hasJsonMapping) {
-                const jsonValidationResult = this.validateJsonMapping(sqlFile, jsonPath, parseResult);
+                const jsonValidationResult = await this.validateJsonMapping(sqlFile, jsonPath, parseResult);
                 result.jsonMappingValid = jsonValidationResult.isValid;
                 result.jsonMappingErrors = jsonValidationResult.errors;
             }
@@ -164,7 +165,7 @@ export class SqlStaticAnalyzer {
     /**
      * Validate JSON mapping for a SQL file
      */
-    private validateJsonMapping(sqlFile: SqlFileInfo, jsonPath: string, parseResult: any): { isValid: boolean; errors: string[] } {
+    private async validateJsonMapping(sqlFile: SqlFileInfo, jsonPath: string, parseResult: any): Promise<{ isValid: boolean; errors: string[] }> {
         const { debug } = this.options;
         const result = { isValid: false, errors: [] as string[] };
 
@@ -179,10 +180,20 @@ export class SqlStaticAnalyzer {
 
             try {
                 const rawMapping = JSON.parse(jsonContent);
-                // Use the unified processor to handle any format
-                const unifiedMapping = unifyJsonMapping(rawMapping);
-                const processedMapping = processJsonMapping(unifiedMapping);
-                jsonMapping = processedMapping.jsonMapping;
+                
+                // Check if this is a Model-driven mapping (has typeInfo and structure)
+                if (rawMapping.typeInfo && rawMapping.structure) {
+                    // Use the convertModelDrivenMapping function
+                    const conversionResult = convertModelDrivenMapping(rawMapping);
+                    jsonMapping = conversionResult.jsonMapping;
+                } else if (rawMapping.rootName && rawMapping.rootEntity) {
+                    // Already in legacy format
+                    jsonMapping = rawMapping as JsonMapping;
+                } else {
+                    // Invalid format
+                    result.errors.push('JSON mapping must be either Model-driven format (with typeInfo and structure) or Legacy format (with rootName and rootEntity)');
+                    return result;
+                }
             } catch (parseError: any) {
                 result.errors.push(`Failed to process JSON mapping: ${parseError.message}`);
                 return result;
@@ -224,12 +235,12 @@ export class SqlStaticAnalyzer {
     /**
      * Validate all SQL files in the directory
      */
-    validateAllSqlFiles(): SqlValidationResult[] {
+    async validateAllSqlFiles(): Promise<SqlValidationResult[]> {
         const sqlFiles = this.discoverSqlFiles();
         const results: SqlValidationResult[] = [];
 
         for (const sqlFile of sqlFiles) {
-            const result = this.validateSqlFile(sqlFile);
+            const result = await this.validateSqlFile(sqlFile);
             results.push(result);
         }
 
@@ -239,8 +250,8 @@ export class SqlStaticAnalyzer {
     /**
      * Generate comprehensive analysis report
      */
-    generateAnalysisReport(): SqlStaticAnalysisReport {
-        const results = this.validateAllSqlFiles();
+    async generateAnalysisReport(): Promise<SqlStaticAnalysisReport> {
+        const results = await this.validateAllSqlFiles();
 
         const totalFiles = results.length;
         const validFiles = results.filter(r => r.isValid).length;
@@ -308,7 +319,7 @@ export class SqlStaticAnalyzer {
  */
 export async function analyzeSqlFiles(options: SqlStaticAnalyzerOptions): Promise<SqlStaticAnalysisReport> {
     const analyzer = new SqlStaticAnalyzer(options);
-    return analyzer.generateAnalysisReport();
+    return await analyzer.generateAnalysisReport();
 }
 
 /**
@@ -336,5 +347,5 @@ export async function validateSqlFile(sqlFilePath: string, schemaResolver: Prism
         };
     }
 
-    return analyzer.validateSqlFile(targetFile);
+    return await analyzer.validateSqlFile(targetFile);
 }

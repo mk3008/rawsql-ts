@@ -1,0 +1,34 @@
+{
+    "folders": [
+        {
+            "name": "Root",
+            "path": "."
+        },
+        {
+            "name": "Core Package",
+            "path": "./packages/core"
+        },
+        {
+            "name": "Prisma Integration",
+            "path": "./packages/prisma-integration"
+        },
+        {
+            "name": "Examples",
+            "path": "./examples"
+        }
+    ],
+    "settings": {
+        "vitest.enable": true,
+        "vitest.workspaceConfig": "./vitest.config.ts",
+        "typescript.preferences.includePackageJsonAutoImports": "auto",
+        "typescript.suggest.autoImports": true,
+        "test.defaultGutterClickAction": "run"
+    },
+    "extensions": {
+        "recommendations": [
+            "vitest.explorer",
+            "ms-vscode.test-adapter-converter",
+            "hbenl.vscode-test-explorer"
+        ]
+    }
+}

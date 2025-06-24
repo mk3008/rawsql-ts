@@ -6,6 +6,7 @@
 import { PrismaClient } from '@prisma/client';
 import { RawSqlClient } from '../../../../packages/prisma-integration/src/RawSqlClient';
 import { TodoSearchService } from '../interfaces/todo-service.interface';
+import * as path from 'path';
 import {
     TodoSearchParams,
     TodoSearchResultWithMetrics,
@@ -21,9 +22,11 @@ export class RawSqlTodoSearchService implements TodoSearchService {
     constructor(prisma: PrismaClient, options?: { debug?: boolean }) {
         this.prisma = prisma;
         this.debugMode = options?.debug ?? false;
+        // Use absolute path for cross-platform compatibility
+        const sqlFilesPath = path.join(__dirname, '..', '..', 'rawsql-ts');
         this.client = new RawSqlClient(prisma, {
             debug: this.debugMode,
-            sqlFilesPath: './rawsql-ts'
+            sqlFilesPath: sqlFilesPath
         });
     }    /**
      * Initialize the RawSqlClient

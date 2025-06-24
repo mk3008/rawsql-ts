@@ -1,6 +1,7 @@
 import { expect, beforeAll, describe, it } from 'vitest';
-import { RawSqlClient } from '../../../packages/prisma-integration/src';
+import { RawSqlClient } from '../../../packages/prisma-integration/src/RawSqlClient';
 import { PrismaClient } from '@prisma/client';
+import * as path from 'path';
 
 /**
  * Test Suite: PR #129 - Subdirectory JSON Mapping Tests
@@ -23,8 +24,10 @@ describe('PR #129: Subdirectory JSON Mapping Tests', () => {
     beforeAll(async () => {
         // Initialize test dependencies
         prisma = new PrismaClient();
+        // Use absolute path for cross-platform compatibility
+        const sqlFilesPath = path.join(__dirname, '..', 'rawsql-ts');
         rawSqlClient = new RawSqlClient(prisma, {
-            sqlFilesPath: './rawsql-ts',
+            sqlFilesPath: sqlFilesPath,
             debug: false // Set to true for debugging
         });
     });
@@ -171,7 +174,7 @@ describe('PR #129: Subdirectory JSON Mapping Tests', () => {
                 await rawSqlClient.queryOne(sqlFileWithoutMapping, {
                     filter: { todo_id: 1 }
                 });
-            }).rejects.toThrow(/Invalid JSON mapping file/i);
+            }).rejects.toThrow(/JSON mapping file is required but not found/i);
         });
 
         it('should handle various path formats consistently', async () => {
@@ -215,8 +218,8 @@ describe('PR #129: Subdirectory JSON Mapping Tests', () => {
                 '"category" as "c"',
                 'inner join',
                 'left join',
-                'jsonb_build_object',
-                'jsonb_agg'
+                'json_build_object',
+                'json_agg'
             ];
 
             // Act: Get the internal query builder to examine SQL generation

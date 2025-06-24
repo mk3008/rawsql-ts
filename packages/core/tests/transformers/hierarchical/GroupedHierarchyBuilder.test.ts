@@ -264,20 +264,20 @@ from
                     null
                 else
                     jsonb_build_object('id', "capital_id", 'name', "capital_name", 'population', "capital_population")
-            end as "capital_json"
+            end as "capital_json_1"
         from
             "origin_query"
     )
     , "cte_array_depth_1" as (
         select
-            "capital_json"
+            "capital_json_1"
             , "region_id"
             , "region_name"
-            , jsonb_agg(jsonb_build_object('id', "country_id", 'name', "country_name", 'code', "country_code", 'capital', "capital_json")) as "countries"
+            , jsonb_agg(jsonb_build_object('id', "country_id", 'name', "country_name", 'code', "country_code", 'capital', "capital_json_1")) as "countries"
         from
             "cte_object_depth_1"
         group by
-            "capital_json"
+            "capital_json_1"
             , "region_id"
             , "region_name"
     )
@@ -379,21 +379,21 @@ from
                     null
                 else
                     jsonb_build_object('id', "product_id", 'name', "product_name", 'category', "product_category")
-            end as "product_json"
+            end as "product_json_1"
         from
             "origin_query"
     )
     , "cte_array_depth_1" as (
         select
-            "product_json"
+            "product_json_1"
             , "sale_id"
             , "sale_date"
             , "sale_total"
-            , jsonb_agg(jsonb_build_object('id', "detail_id", 'quantity', "detail_quantity", 'price', "detail_price", 'product', "product_json")) as "details"
+            , jsonb_agg(jsonb_build_object('id', "detail_id", 'quantity', "detail_quantity", 'price', "detail_price", 'product', "product_json_1")) as "details"
         from
             "cte_object_depth_1"
         group by
-            "product_json"
+            "product_json_1"
             , "sale_id"
             , "sale_date"
             , "sale_total"

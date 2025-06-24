@@ -90,13 +90,13 @@ describe("PostgresJsonQueryBuilder - Parent Entity CTE Generation", () => {
             `                    null`,
             `                else`,
             `                    jsonb_build_object('id', "customer_id", 'name', "customer_name", 'email', "customer_email")`,
-            `            end as "customer_json"`,
+            `            end as "customer_json_1"`,
             `        from`,
             `            "origin_query"`,
             `    )`,
             `    , "cte_root_orders" as (`,
             `        select`,
-            `            jsonb_build_object('id', "order_id", 'date', "order_date", 'amount', "order_amount", 'customer', "customer_json") as "Orders"`,
+            `            jsonb_build_object('id', "order_id", 'date', "order_date", 'amount', "order_amount", 'customer', "customer_json_1") as "Orders"`,
             `        from`,
             `            "cte_object_depth_1"`,
             `    )`,
@@ -247,7 +247,7 @@ describe("PostgresJsonQueryBuilder - Parent Entity CTE Generation", () => {
             `                    null`,
             `                else`,
             `                    jsonb_build_object('id', "address_id", 'street', "address_street", 'city', "address_city", 'zip', "address_zip")`,
-            `            end as "address_json"`,
+            `            end as "address_json_1"`,
             `            , case`,
             `                when "carrier_id" is null`,
             `                and "carrier_name" is null`,
@@ -255,7 +255,7 @@ describe("PostgresJsonQueryBuilder - Parent Entity CTE Generation", () => {
             `                    null`,
             `                else`,
             `                    jsonb_build_object('id', "carrier_id", 'name', "carrier_name", 'phone', "carrier_phone")`,
-            `            end as "carrier_json"`,
+            `            end as "carrier_json_2"`,
             `        from`,
             `            "origin_query"`,
             `    )`,
@@ -268,22 +268,22 @@ describe("PostgresJsonQueryBuilder - Parent Entity CTE Generation", () => {
             `                and "customer_email" is null then`,
             `                    null`,
             `                else`,
-            `                    jsonb_build_object('id', "customer_id", 'name', "customer_name", 'email', "customer_email", 'address', "address_json")`,
-            `            end as "customer_json"`,
+            `                    jsonb_build_object('id', "customer_id", 'name', "customer_name", 'email', "customer_email", 'address', "address_json_1")`,
+            `            end as "customer_json_3"`,
             `            , case`,
             `                when "shipping_id" is null`,
             `                and "shipping_method" is null`,
             `                and "shipping_fee" is null then`,
             `                    null`,
             `                else`,
-            `                    jsonb_build_object('id', "shipping_id", 'method', "shipping_method", 'fee', "shipping_fee", 'carrier', "carrier_json")`,
-            `            end as "shipping_json"`,
+            `                    jsonb_build_object('id', "shipping_id", 'method', "shipping_method", 'fee', "shipping_fee", 'carrier', "carrier_json_2")`,
+            `            end as "shippinginfo_json_4"`,
             `        from`,
             `            "cte_object_depth_2"`,
             `    )`,
             `    , "cte_root_orderdetails" as (`,
             `        select`,
-            `            jsonb_build_object('id', "order_id", 'date', "order_date", 'total', "order_total", 'customer', "customer_json", 'shipping', "shipping_json") as "OrderDetails"`,
+            `            jsonb_build_object('id', "order_id", 'date', "order_date", 'total', "order_total", 'customer', "customer_json_3", 'shipping', "shippinginfo_json_4") as "OrderDetails"`,
             `        from`,
             `            "cte_object_depth_1"`,
             `    )`,
@@ -299,10 +299,10 @@ describe("PostgresJsonQueryBuilder - Parent Entity CTE Generation", () => {
         // Check if all depth CTEs exist
         expect(formattedSql).toContain('"cte_object_depth_2"');
         expect(formattedSql).toContain('"cte_object_depth_1"');
-        expect(formattedSql).toContain('"address_json"');
-        expect(formattedSql).toContain('"carrier_json"');
-        expect(formattedSql).toContain('"customer_json"');
-        expect(formattedSql).toContain('"shipping_json"');
+        expect(formattedSql).toContain('"address_json_1"');
+        expect(formattedSql).toContain('"carrier_json_2"');
+        expect(formattedSql).toContain('"customer_json_3"');
+        expect(formattedSql).toContain('"shippinginfo_json_4"');
 
         // Full comparison
         expect(formattedSql).toBe(expectedSql);

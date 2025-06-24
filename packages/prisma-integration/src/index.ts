@@ -48,14 +48,25 @@ export type {
     UnifiedJsonMapping,
     ColumnMappingConfig,
     JsonMapping,
-    TypeProtectionConfig,
-    ModelDrivenJsonMapping,
-    FieldMapping,
-    NestedStructure,
-    StructureFields,
-    FieldType
+    TypeProtectionConfig
 } from 'rawsql-ts';
-export { unifyJsonMapping, processJsonMapping, convertModelDrivenMapping, validateModelDrivenMapping } from 'rawsql-ts';
+
+// Model-driven types and converters - temporarily commented out until core package is republished
+// TODO: Uncomment these exports after core package version bump and republish
+// export type {
+//     ModelDrivenJsonMapping,
+//     FieldMapping,
+//     NestedStructure,
+//     StructureFields,
+//     FieldType
+// } from 'rawsql-ts';
+// export { 
+//     JsonMappingConverter, 
+//     /** @deprecated Use JsonMappingConverter.convert() instead */
+//     processJsonMapping, 
+//     convertModelDrivenMapping, 
+//     validateModelDrivenMapping 
+// } from 'rawsql-ts';
 
 // Static Analysis Types
 export type {

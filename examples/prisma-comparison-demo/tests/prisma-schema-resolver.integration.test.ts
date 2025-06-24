@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { PrismaClient } from '@prisma/client';
-import { PrismaSchemaResolver } from '@msugiura/rawsql-prisma';
+import { PrismaSchemaResolver } from '../../../packages/prisma-integration/src/PrismaSchemaResolver';
+import * as path from 'path';
 
 /**
  * Integration tests for PrismaSchemaResolver using real Prisma environment
@@ -17,10 +18,13 @@ describe('PrismaSchemaResolver Integration Tests', () => {
         // Initialize real PrismaClient
         prisma = new PrismaClient();
 
-        // Create resolver with debug enabled for better visibility
+        // Create resolver with explicit schema path for test explorer compatibility
+        const demoSchemaPath = path.join(__dirname, '..', 'prisma', 'schema.prisma');
+        
         resolver = new PrismaSchemaResolver({
-            debug: true,
-            defaultSchema: 'public'
+            debug: false,
+            defaultSchema: 'public',
+            schemaPath: demoSchemaPath
         });
     });
 

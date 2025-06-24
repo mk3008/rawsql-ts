@@ -1,12 +1,14 @@
 /**
  * Unified JSON Mapping processor that supports both legacy and model-driven formats.
  * 
+ * @deprecated Use JsonMappingConverter instead. This module is kept for backward compatibility.
  * This module provides backward compatibility while encouraging migration to the model-driven format.
  * It automatically detects the input format and normalizes to a consistent internal representation.
  */
 
 import { JsonMapping } from './PostgresJsonQueryBuilder';
 import { ModelDrivenJsonMapping, convertModelDrivenMapping } from './ModelDrivenJsonMapping';
+import { JsonMappingConverter, JsonMappingInput } from './JsonMappingConverter';
 
 /**
  * Unified mapping format that can handle both legacy and model-driven inputs.
@@ -147,6 +149,8 @@ function convertLegacyFormat(input: UnifiedMappingInput): JsonMapping {
 /**
  * Main processor that unifies all JSON mapping formats into a consistent JsonMapping.
  * 
+ * @deprecated Use JsonMappingConverter.convert() instead.
+ * 
  * Features:
  * - Automatic format detection
  * - Backward compatibility with all existing formats
@@ -157,75 +161,58 @@ function convertLegacyFormat(input: UnifiedMappingInput): JsonMapping {
  * @returns Unified processing result with JsonMapping and metadata
  */
 export function processJsonMapping(input: UnifiedMappingInput): MappingProcessResult {
-    const format = detectMappingFormat(input);
-    let jsonMapping: JsonMapping;
-    let metadata: MappingProcessResult['metadata'] = {};
-    try {
-        switch (format) {
-            case 'model-driven':
-                // Validate model-driven input
-                if (!input.typeInfo || !input.structure) {
-                    throw new Error('Model-driven format requires typeInfo and structure fields');
-                }
-
-                // Convert model-driven to JsonMapping
-                const modelDrivenInput: ModelDrivenJsonMapping = {
-                    typeInfo: input.typeInfo!,
-                    structure: input.structure!
-                };
-
-                const converted = convertModelDrivenMapping(modelDrivenInput);
-                jsonMapping = converted.jsonMapping;
-
-                // Preserve metadata
-                metadata = {
-                    typeInfo: input.typeInfo,
-                    typeProtection: converted.typeProtection
-                };
-                break;
-
-            case 'unified':
-                // Validate unified input
-                if (!input.rootEntity) {
-                    throw new Error('Unified format requires rootEntity field');
-                }
-
-                jsonMapping = convertUnifiedFormat(input);
-                break;
-
-            case 'legacy':
-                // Validate legacy input
-                if (!input.columns && !input.relationships) {
-                    throw new Error('Legacy format requires at least columns or relationships field');
-                }
-
-                jsonMapping = convertLegacyFormat(input);
-                break;
-
-            default:
-                throw new Error(`Unsupported mapping format: ${format}`);
-        }
-
+    // Runtime deprecation warning
+    console.warn('⚠️ DEPRECATED: processJsonMapping() is deprecated. Use JsonMappingConverter.convert() instead.');
+    console.warn('Migration guide: https://github.com/mk3008/rawsql-ts/blob/main/docs/migration-guide.md');
+    
+    // Check for legacy format with columns and relationships
+    if ((input.columns || input.relationships) && !input.rootName && !input.rootEntity) {
+        const jsonMapping = convertLegacyFormat(input);
         return {
-            format,
+            format: 'legacy',
             jsonMapping,
             originalInput: input,
-            metadata
+            metadata: {}
         };
-
-    } catch (error) {
-        throw new Error(`Failed to process JSON mapping (format: ${format}): ${error instanceof Error ? error.message : String(error)}`);
     }
+    
+    const converter = new JsonMappingConverter();
+    const result = converter.convert(input as JsonMappingInput);
+    
+    // Map converter formats to unifier formats for backward compatibility
+    let format: 'model-driven' | 'unified' | 'legacy' = result.format as any;
+    
+    // If it's detected as 'legacy' by converter but has rootName and rootEntity, it's 'unified' format
+    if (result.format === 'legacy' && input.rootName && input.rootEntity) {
+        format = 'unified';
+    }
+    
+    return {
+        format,
+        jsonMapping: result.mapping,
+        originalInput: input,
+        metadata: {
+            typeInfo: result.metadata?.typeInfo,
+            typeProtection: result.typeProtection
+        }
+    };
 }
 
 /**
  * Convenience function for direct JsonMapping extraction.
  * 
+ * @deprecated Use JsonMappingConverter.toLegacyMapping() instead.
+ * 
  * @param input - Any supported JSON mapping format
  * @returns JsonMapping ready for use with PostgresJsonQueryBuilder
  */
 export function unifyJsonMapping(input: UnifiedMappingInput): JsonMapping {
-    return processJsonMapping(input).jsonMapping;
+    // Runtime deprecation warning
+    console.warn('⚠️ DEPRECATED: unifyJsonMapping() is deprecated. Use JsonMappingConverter.toLegacyMapping() instead.');
+    console.warn('Migration guide: https://github.com/mk3008/rawsql-ts/blob/main/docs/migration-guide.md');
+    
+    const converter = new JsonMappingConverter();
+    return converter.toLegacyMapping(input as JsonMappingInput);
 }
 
 /**

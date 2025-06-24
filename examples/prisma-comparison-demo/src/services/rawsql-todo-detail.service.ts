@@ -7,6 +7,7 @@ import { PrismaClient } from '@prisma/client';
 import { RawSqlClient } from '../../../../packages/prisma-integration/src/RawSqlClient';
 import { JsonSchemaValidator } from '../../../../packages/core/src';
 import { TodoDetailService } from '../interfaces/todo-service.interface';
+import * as path from 'path';
 import {
     TodoDetailResultWithMetrics,
     TodoDetail,
@@ -24,7 +25,8 @@ export class RawSqlTodoDetailService implements TodoDetailService {
         this.prisma = prisma;
         this.debugMode = options?.debug ?? false;
         this.disableResolver = options?.disableResolver ?? false;
-        // Don't initialize RawSqlClient here - use lazy initialization        // By default, preload schema for optimal performance (can be disabled if needed)
+        // Don't initialize RawSqlClient here - use lazy initialization        
+        // By default, preload schema for optimal performance (can be disabled if needed)
         // Skip preloading if resolver is disabled
         if (options?.preloadSchema !== false && !this.disableResolver) {
             this.preloadSchemaAsync();
@@ -70,9 +72,11 @@ export class RawSqlTodoDetailService implements TodoDetailService {
         if (this.debugMode) {
             console.log('🔧 Initializing rawsql-ts client (function-based lazy resolver)...');
         } const startTime = performance.now();
+        // Use absolute path for cross-platform compatibility
+        const sqlFilesPath = path.join(__dirname, '..', '..', 'rawsql-ts');
         this.client = new RawSqlClient(this.prisma, {
             debug: this.debugMode,
-            sqlFilesPath: './rawsql-ts',
+            sqlFilesPath: sqlFilesPath,
             disableResolver: this.disableResolver
         });
 
