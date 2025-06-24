@@ -5,15 +5,9 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import {
-    JsonMapping,
-    UnifiedJsonMapping,
-    ModelDrivenJsonMapping,
-    validateModelDrivenMapping,
-    TypeProtectionConfig,
-    processJsonMapping,
-    unifyJsonMapping
-} from 'rawsql-ts';
+import { JsonMapping, TypeProtectionConfig } from '../../core/src';
+import { UnifiedJsonMapping } from '../../core/src/transformers/UnifiedJsonMapping';
+import { convertModelDrivenMapping } from '../../core/src/transformers/ModelDrivenJsonMapping';
 
 /**
  * Supported JSON mapping file formats.
@@ -28,6 +22,9 @@ export interface MappingFileResult {
     jsonMapping: JsonMapping;
     typeProtection: TypeProtectionConfig;
     sourceFile: string;
+    success?: boolean;
+    errors?: string[];
+    convertedMapping?: JsonMapping;
 }
 
 /**
@@ -68,21 +65,47 @@ export function loadAndConvertMappingFile(filePath: string): MappingFileResult {
         mappingData = JSON.parse(fileContent);
     } catch (error) {
         throw new Error(`Invalid JSON in mapping file ${filePath}: ${error}`);
-    } const format = detectMappingFormat(mappingData);
+    }
+    
+    const format = detectMappingFormat(mappingData);
 
-    // Use the unified processor to handle all formats
-    const result = processJsonMapping(mappingData);
-
-    // Extract TypeProtectionConfig from metadata
-    const typeProtection: TypeProtectionConfig = {
-        protectedStringFields: result.metadata?.typeProtection?.protectedStringFields || []
-    };
+    // Convert different formats to legacy format
+    let jsonMapping: JsonMapping;
+    let typeProtection: TypeProtectionConfig = { protectedStringFields: [] };
+    
+    if (format === 'model-driven') {
+        // Convert Model-Driven format to legacy format
+        try {
+            const conversionResult = convertModelDrivenMapping(mappingData);
+            jsonMapping = conversionResult.jsonMapping;
+            typeProtection = conversionResult.typeProtection;
+        } catch (error) {
+            throw new Error(`Failed to convert Model-Driven mapping ${filePath}: ${error}`);
+        }
+    } else if (mappingData.rootName && mappingData.rootEntity) {
+        // Convert unified format to legacy format
+        jsonMapping = {
+            rootName: mappingData.rootName,
+            rootEntity: {
+                id: mappingData.rootEntity.id || 'root',
+                name: mappingData.rootEntity.name || mappingData.rootName,
+                columns: mappingData.rootEntity.columns || {}
+            },
+            nestedEntities: mappingData.nestedEntities || []
+        };
+    } else {
+        // Assume it's already in legacy format
+        jsonMapping = mappingData as JsonMapping;
+    }
 
     return {
-        format: result.format as MappingFileFormat,
-        jsonMapping: result.jsonMapping,
+        format,
+        jsonMapping,
         typeProtection,
-        sourceFile: filePath
+        sourceFile: filePath,
+        success: true,
+        errors: [],
+        convertedMapping: jsonMapping
     };
 }
 

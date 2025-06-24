@@ -113,7 +113,8 @@ export interface PrismaRelationInfo {
 
 /**
  * Generic type for Prisma client
+ * Uses any to allow different Prisma client versions and schemas
  */
-export type PrismaClientType = PrismaClient;
+export type PrismaClientType = any;
 
 

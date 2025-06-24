@@ -18,13 +18,12 @@
 import { SqlStaticAnalyzer, SqlStaticAnalysisReport, SqlStaticAnalyzerOptions } from './SqlStaticAnalyzer';
 import { DomainModelCompatibilityTester } from './DomainModelCompatibilityTester';
 import { PrismaSchemaResolver } from './PrismaSchemaResolver';
-import {
-    UnifiedJsonMapping,
-    ColumnMappingConfig,
-    ModelDrivenJsonMapping,
-    FieldMapping,
-    StructureFields
-} from 'rawsql-ts';
+import { UnifiedJsonMapping, ColumnMappingConfig } from '../../core/src/transformers/UnifiedJsonMapping';
+
+// Model-driven types are not available, using any for now
+type ModelDrivenJsonMapping = any;
+type FieldMapping = any;
+type StructureFields = any;
 import { findAndConvertMappingFiles } from './MappingFileProcessor';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -90,7 +89,8 @@ export class StaticAnalysisOrchestrator {
     private schemaResolver?: PrismaSchemaResolver;
     private ownsPrismaClient: boolean = false;
     private lastDomainModelResults?: Record<string, any>;
-    private lastStringFieldValidation?: StringFieldValidationReport; constructor(options: StaticAnalysisOptions) {
+    private lastStringFieldValidation?: StringFieldValidationReport;
+    private lastSqlReport?: SqlStaticAnalysisReport; constructor(options: StaticAnalysisOptions) {
         this.options = {
             defaultSchema: 'public',
             stringFieldProtectionLevel: 'error',
@@ -165,7 +165,9 @@ export class StaticAnalysisOrchestrator {
         if (debug) {
             console.log('📊 Running comprehensive static analysis...');
         }        // Run SQL static analysis
-        const sqlAnalysis = this.sqlAnalyzer!.generateAnalysisReport();
+        const sqlAnalysis = await this.sqlAnalyzer!.generateAnalysisReport();
+        // Store SQL report for later use
+        this.lastSqlReport = sqlAnalysis;
 
         // Run domain model compatibility analysis
         const domainModelResults = await this.domainModelTester!.validateAllMappingFiles();
@@ -207,7 +209,7 @@ export class StaticAnalysisOrchestrator {
         if (!this.sqlAnalyzer) {
             await this.initialize();
         }
-        return this.sqlAnalyzer!.generateAnalysisReport();
+        return await this.sqlAnalyzer!.generateAnalysisReport();
     }
 
     /**
@@ -235,7 +237,7 @@ export class StaticAnalysisOrchestrator {
             throw new Error(`SQL file not found: ${filename}`);
         }
 
-        return this.sqlAnalyzer!.validateSqlFile(targetFile);
+        return await this.sqlAnalyzer!.validateSqlFile(targetFile);
     }
 
     /**
@@ -336,7 +338,11 @@ export class StaticAnalysisOrchestrator {
             return ['⚠️  Analysis not initialized. Call initialize() first.'];
         }
 
-        const sqlReport = this.sqlAnalyzer.generateAnalysisReport();
+        // Use the last generated SQL report if available, or throw error if not available
+        const sqlReport = this.lastSqlReport;
+        if (!sqlReport) {
+            throw new Error('No SQL analysis report available. Call runFullAnalysis() first.');
+        }
         const results: string[] = [];
 
         // Process each SQL file

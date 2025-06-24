@@ -7,6 +7,7 @@ import { PrismaClient } from '@prisma/client';
 import { RawSqlClient } from '../../../../packages/prisma-integration/src/RawSqlClient';
 import { JsonSchemaValidator } from '../../../../packages/core/src';
 import { TodoDetailService } from '../interfaces/todo-service.interface';
+import * as path from 'path';
 import {
     TodoDetailResultWithMetrics,
     TodoDetail,
@@ -24,7 +25,8 @@ export class RawSqlTodoDetailService implements TodoDetailService {
         this.prisma = prisma;
         this.debugMode = options?.debug ?? false;
         this.disableResolver = options?.disableResolver ?? false;
-        // Don't initialize RawSqlClient here - use lazy initialization        // By default, preload schema for optimal performance (can be disabled if needed)
+        // Don't initialize RawSqlClient here - use lazy initialization        
+        // By default, preload schema for optimal performance (can be disabled if needed)
         // Skip preloading if resolver is disabled
         if (options?.preloadSchema !== false && !this.disableResolver) {
             this.preloadSchemaAsync();
@@ -70,9 +72,11 @@ export class RawSqlTodoDetailService implements TodoDetailService {
         if (this.debugMode) {
             console.log('🔧 Initializing rawsql-ts client (function-based lazy resolver)...');
         } const startTime = performance.now();
+        // Use absolute path for cross-platform compatibility
+        const sqlFilesPath = path.join(__dirname, '..', '..', 'rawsql-ts');
         this.client = new RawSqlClient(this.prisma, {
             debug: this.debugMode,
-            sqlFilesPath: './rawsql-ts',
+            sqlFilesPath: sqlFilesPath,
             disableResolver: this.disableResolver
         });
 
@@ -92,13 +96,18 @@ export class RawSqlTodoDetailService implements TodoDetailService {
      * Uses queryOne now that the GROUP BY aggregation issue is fixed
      */
     private async executeGetTodoDetailQuery(todoId: number): Promise<TodoDetail | null> {
+        console.log('🔍 [DEBUG] executeGetTodoDetailQuery called with todoId:', todoId);
+        
         // Ensure client is initialized before use
         await this.ensureInitialized();
+        console.log('🔍 [DEBUG] Client initialized successfully');
 
         // Use queryOne for proper aggregation now that GROUP BY is fixed
+        console.log('🔍 [DEBUG] About to call client.queryOne with todos/getTodoDetail.sql');
         const result = await this.client!.queryOne<TodoDetail>('todos/getTodoDetail.sql', {
             filter: { todo_id: todoId },
         });
+        console.log('🔍 [DEBUG] client.queryOne completed, result:', result ? 'found' : 'null');
 
         if (this.debugMode && result) {
             console.log('🔍 Debug - Comments count:', result.comments?.length || 0);

@@ -6,9 +6,13 @@
         "packages/*"
     ],
     "scripts": {
-        "test": "npm run test --workspaces",
-        "test:watch": "npm run test:watch --workspaces",
-        "coverage": "npm run coverage --workspaces",
+        "test": "vitest run",
+        "test:watch": "vitest",
+        "test:ui": "vitest --ui",
+        "test:coverage": "vitest run --coverage",
+        "test:workspaces": "npm run test --workspaces",
+        "test:watch:workspaces": "npm run test:watch --workspaces",
+        "coverage:workspaces": "npm run coverage --workspaces",
         "build": "npm run build --workspaces",
         "build:core": "npm run build --workspace=packages/core",
         "clean": "npm run clean --workspaces",
@@ -46,5 +50,8 @@
         "ts-node": "^10.9.2",
         "typescript": "^5.8.2",
         "vitest": "^1.5.2"
+    },
+    "optionalDependencies": {
+        "@rollup/rollup-linux-x64-gnu": "^4.44.0"
     }
 }

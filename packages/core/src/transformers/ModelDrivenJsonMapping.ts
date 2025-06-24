@@ -66,9 +66,19 @@ export function convertModelDrivenMapping(modelMapping: ModelDrivenJsonMapping):
 } {
     const protectedStringFields: string[] = [];
     let entityIdCounter = 0;
+    const propertyNameCounters: Record<string, number> = {};
 
     // Generate unique entity IDs
     const generateEntityId = () => `entity_${++entityIdCounter}`;
+    
+    // Generate unique property names to avoid JSON key conflicts
+    const generateUniquePropertyName = (baseName: string): string => {
+        if (!propertyNameCounters[baseName]) {
+            propertyNameCounters[baseName] = 0;
+        }
+        propertyNameCounters[baseName]++;
+        return propertyNameCounters[baseName] === 1 ? baseName : `${baseName}_${propertyNameCounters[baseName]}`;
+    };
     // Helper function to process structure fields and extract entities
     const processStructure = (
         structure: StructureFields,
@@ -103,15 +113,17 @@ export function convertModelDrivenMapping(modelMapping: ModelDrivenJsonMapping):
             } else if ('type' in config && (config.type === 'object' || config.type === 'array')) {
                 // Nested structure: object or array
                 const nestedStructure = config as NestedStructure;
+                const uniquePropertyName = generateUniquePropertyName(fieldName);
+                // Generate globally unique entity ID to ensure unique JSON column names
                 const entityId = generateEntityId();
 
                 const processedNested = processStructure(nestedStructure.structure, entityId);
-
                 nestedEntities.push({
-                    id: entityId,
+                    id: entityId, // Use unique ID to avoid column conflicts
                     name: fieldName.charAt(0).toUpperCase() + fieldName.slice(1), // Capitalize first letter
                     parentId: parentId || 'root',
-                    propertyName: fieldName,
+                    propertyName: uniquePropertyName,
+                    originalPropertyName: fieldName, // Store original name for final mapping
                     relationshipType: nestedStructure.type,
                     columns: processedNested.columns
                 });

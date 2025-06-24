@@ -218,7 +218,7 @@ async function displayAvailableTodos(): Promise<void> {
             }
         });
 
-        todos.forEach(todo => {
+        todos.forEach((todo: any) => {
             const status = todo.completed ? '✅' : '⭕';
             console.log(`${status} ID: ${todo.todo_id} - ${todo.title}`);
         });

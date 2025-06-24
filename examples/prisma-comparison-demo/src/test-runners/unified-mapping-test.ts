@@ -2,7 +2,8 @@
  * Enhanced test to verify the unified JSON mapping system and validate type safety
  */
 
-import { convertUnifiedMapping, UnifiedJsonMapping, ColumnMappingConfig } from '../../../../packages/prisma-integration/src';
+import { JsonMapping, TypeProtectionConfig } from '../../../../packages/prisma-integration/src';
+import { JsonMappingConverter } from '../../../../packages/core/src';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -15,7 +16,7 @@ interface StringFieldValidation {
     recommendation: string;
 }
 
-async function validateStringFields(unifiedMapping: UnifiedJsonMapping): Promise<StringFieldValidation[]> {
+async function validateStringFields(unifiedMapping: any): Promise<StringFieldValidation[]> {
     const issues: StringFieldValidation[] = [];
 
     // Known string fields from Prisma schema
@@ -25,7 +26,7 @@ async function validateStringFields(unifiedMapping: UnifiedJsonMapping): Promise
     ]);
 
     // Helper function to check columns in an entity
-    const checkEntityColumns = (entityName: string, columns: Record<string, ColumnMappingConfig>) => {
+    const checkEntityColumns = (entityName: string, columns: Record<string, any>) => {
         for (const [fieldName, config] of Object.entries(columns)) {
             const columnName = typeof config === 'string' ? config : config.column;
             const hasStringType = typeof config === 'object' && config.type === 'string';
@@ -102,8 +103,11 @@ async function testUnifiedMapping() {
             console.log('✅ All string fields are properly protected!');
         }
 
-        // Convert to separate JsonMapping and TypeProtection
-        const { jsonMapping, typeProtection } = convertUnifiedMapping(unifiedMapping);
+        // Convert to separate JsonMapping and TypeProtection using new API
+        const converter = new JsonMappingConverter();
+        const result = converter.convert(unifiedMapping);
+        const jsonMapping = result.mapping;
+        const typeProtection = result.typeProtection;
 
         console.log('\n🔄 Conversion Results:');
         console.log('📋 JsonMapping root columns:', Object.keys(jsonMapping.rootEntity.columns));

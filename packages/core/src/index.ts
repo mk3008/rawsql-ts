@@ -17,7 +17,8 @@ export * from './transformers/SelectValueCollector';
 export * from './transformers/SelectableColumnCollector';
 export * from './transformers/TableColumnResolver';
 export * from './transformers/TableSourceCollector';
-export * from './transformers/UnifiedJsonMapping';
+export * from './transformers/JsonMappingConverter';
+export * from './transformers/EnhancedJsonMapping';
 export {
     ModelDrivenJsonMapping,
     convertModelDrivenMapping,
@@ -28,12 +29,15 @@ export {
     FieldType
 } from './transformers/ModelDrivenJsonMapping';
 export {
+    /** @deprecated Use JsonMappingConverter.convert() instead */
     processJsonMapping,
-    unifyJsonMapping,
     isModelDrivenFormat,
     isUnifiedFormat,
     isLegacyFormat
 } from './transformers/JsonMappingUnifier';
+
+/** @deprecated Use JsonMappingConverter.toLegacyMapping() instead */
+export { unifyJsonMapping } from './transformers/JsonMappingUnifier';
 export * from './transformers/UpstreamSelectQueryFinder';
 export * from './transformers/TypeTransformationPostProcessor';
 

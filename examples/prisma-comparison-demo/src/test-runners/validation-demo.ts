@@ -2,7 +2,8 @@
  * Test script to demonstrate the enhanced validation system with unsafe mapping
  */
 
-import { convertUnifiedMapping, UnifiedJsonMapping, ColumnMappingConfig } from '../../../../packages/prisma-integration/src';
+import { JsonMapping, TypeProtectionConfig } from '../../../../packages/prisma-integration/src';
+import { JsonMappingConverter } from '../../../../packages/core/src';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -16,7 +17,7 @@ interface StringFieldValidation {
 }
 
 async function validateStringFields(
-    unifiedMapping: UnifiedJsonMapping,
+    unifiedMapping: any,
     severity: 'warning' | 'error' = 'error'
 ): Promise<StringFieldValidation[]> {
     const issues: StringFieldValidation[] = [];
@@ -28,7 +29,7 @@ async function validateStringFields(
     ]);
 
     // Helper function to check columns in an entity
-    const checkEntityColumns = (entityName: string, columns: Record<string, ColumnMappingConfig>) => {
+    const checkEntityColumns = (entityName: string, columns: Record<string, any>) => {
         for (const [fieldName, config] of Object.entries(columns)) {
             const columnName = typeof config === 'string' ? config : config.column;
             const hasStringType = typeof config === 'object' && config.type === 'string';

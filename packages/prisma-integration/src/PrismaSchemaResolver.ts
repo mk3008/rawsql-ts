@@ -1,4 +1,4 @@
-import { TableColumnResolver } from 'rawsql-ts';
+import { TableColumnResolver } from '../../core/src';
 import { PrismaClientType, PrismaFieldInfo, PrismaModelInfo, RawSqlClientOptions, PrismaRelationInfo, PrismaSchemaInfo } from './types';
 import { getDMMF } from '@prisma/internals';
 import * as fs from 'fs';
@@ -71,18 +71,38 @@ export class PrismaSchemaResolver {
             }
         }
 
-        // Final fallback: If all methods fail, throw error
-        const schemaLocations = [
-            path.join(process.cwd(), 'prisma', 'schema.prisma'),
-            path.join(process.cwd(), 'schema.prisma'),
+        // Final fallback: If all methods fail, throw error with actual searched paths
+        const cwd = process.cwd();
+        const searchedPaths = [
+            // Current directory
+            path.join(cwd, 'prisma', 'schema.prisma'),
+            path.join(cwd, 'schema.prisma'),
+            
+            // Parent directories (for monorepo structures)
+            path.join(cwd, '..', 'prisma', 'schema.prisma'),
+            path.join(cwd, '..', 'schema.prisma'),
+            path.join(cwd, '../../prisma', 'schema.prisma'),
+            path.join(cwd, '../../schema.prisma'),
+            path.join(cwd, '../../../prisma', 'schema.prisma'),
+            path.join(cwd, '../../../schema.prisma'),
+            
+            // Specific paths for package structures
+            path.join(cwd, 'packages', 'prisma-integration', 'prisma', 'schema.prisma'),
+            path.join(cwd, 'examples', 'prisma-comparison-demo', 'prisma', 'schema.prisma'),
+            
             ...(this.options.schemaPath ? [this.options.schemaPath] : [])
         ];
 
         throw new Error(
-            `Unable to resolve Prisma schema information. Please ensure you have a valid schema.prisma file in one of these locations:\n` +
-            schemaLocations.map(loc => `  - ${loc}`).join('\n') + '\n\n' +
-            'Or provide a valid PrismaClient instance to the StaticAnalysisOrchestrator.\n' +
-            'If you are using a custom schema location, specify it using the "schemaPath" option in RawSqlClient.'
+            `Unable to resolve Prisma schema information. Searched in these locations:\n` +
+            searchedPaths.map(loc => `  - ${loc}`).join('\n') + '\n\n' +
+            `Current working directory: ${cwd}\n` +
+            `Platform: ${process.platform}\n` +
+            `Node.js version: ${process.version}\n\n` +
+            'Solutions:\n' +
+            '1. Ensure you have a valid schema.prisma file in one of the above locations\n' +
+            '2. Provide a valid PrismaClient instance to the StaticAnalysisOrchestrator\n' +
+            '3. Specify a custom schema location using the "schemaPath" option in RawSqlClient'
         );
     }
 
@@ -228,30 +248,84 @@ export class PrismaSchemaResolver {
             }
         }
 
-        // Fallback: Check common locations
+        // Fallback: Check common locations relative to current working directory
+        const cwd = process.cwd();
+        const isWindows = process.platform === 'win32';
+        const isWSL = process.platform === 'linux' && process.env.WSL_DISTRO_NAME;
+        
         const commonPaths = [
-            path.join(process.cwd(), 'prisma', 'schema.prisma'),
-            path.join(process.cwd(), 'schema.prisma'),
-            path.join(process.cwd(), '..', 'prisma', 'schema.prisma'),
-            path.join(process.cwd(), '..', 'schema.prisma'),
-            path.join(process.cwd(), '../../prisma', 'schema.prisma'),
-            path.join(process.cwd(), '../../schema.prisma'),
+            // Current directory
+            path.join(cwd, 'prisma', 'schema.prisma'),
+            path.join(cwd, 'schema.prisma'),
+            
+            // Parent directories (for monorepo structures)
+            path.join(cwd, '..', 'prisma', 'schema.prisma'),
+            path.join(cwd, '..', 'schema.prisma'),
+            path.join(cwd, '../../prisma', 'schema.prisma'),
+            path.join(cwd, '../../schema.prisma'),
+            path.join(cwd, '../../../prisma', 'schema.prisma'),
+            path.join(cwd, '../../../schema.prisma'),
+            
+            // Specific paths for package structures
+            path.join(cwd, 'packages', 'prisma-integration', 'prisma', 'schema.prisma'),
+            path.join(cwd, 'examples', 'prisma-comparison-demo', 'prisma', 'schema.prisma'),
+            
+            // Absolute paths from filesystem root (for Windows/Linux compatibility)
+            path.resolve(cwd, '../../../../prisma/schema.prisma'),
+            path.resolve(cwd, '../../../../schema.prisma'),
         ];
+
+        // Add Windows-specific paths if running on Windows
+        if (isWindows) {
+            // Convert WSL-style paths to Windows paths if applicable
+            const windowsCwd = cwd.replace(/^\/mnt\/([a-z])/, '$1:');
+            if (windowsCwd !== cwd) {
+                commonPaths.push(
+                    path.join(windowsCwd, 'prisma', 'schema.prisma'),
+                    path.join(windowsCwd, 'packages', 'prisma-integration', 'prisma', 'schema.prisma'),
+                    path.join(windowsCwd, 'examples', 'prisma-comparison-demo', 'prisma', 'schema.prisma')
+                );
+            }
+        }
+
+        // Add WSL-specific paths if running in WSL
+        if (isWSL) {
+            const wslPaths = [
+                '/mnt/c/Users/mssgm/github/packages/prisma-integration/prisma/schema.prisma',
+                '/mnt/c/Users/mssgm/github/examples/prisma-comparison-demo/prisma/schema.prisma'
+            ];
+            commonPaths.push(...wslPaths);
+        }
+
+        if (this.options.debug) {
+            console.log(`[PrismaSchemaResolver] Current working directory: ${cwd}`);
+            console.log(`[PrismaSchemaResolver] Searching for schema.prisma in ${commonPaths.length} locations...`);
+        }
 
         for (const schemaPath of commonPaths) {
             try {
+                if (this.options.debug) {
+                    console.log(`[PrismaSchemaResolver] Checking: ${schemaPath}`);
+                }
+                
                 if (fs.existsSync(schemaPath) && fs.statSync(schemaPath).isFile()) {
                     if (this.options.debug) {
-                        console.log(`[PrismaSchemaResolver] Found schema file at: ${schemaPath}`);
+                        console.log(`[PrismaSchemaResolver] ✅ Found schema file at: ${schemaPath}`);
                     }
                     return schemaPath;
                 }
             } catch (error) {
-                // Continue checking other paths
+                if (this.options.debug) {
+                    console.log(`[PrismaSchemaResolver] ❌ Error checking ${schemaPath}:`, error instanceof Error ? error.message : error);
+                }
                 continue;
             }
         }
 
+        if (this.options.debug) {
+            console.log('[PrismaSchemaResolver] ❌ No schema.prisma file found in any location');
+        }
+        
         return null;
     }
 

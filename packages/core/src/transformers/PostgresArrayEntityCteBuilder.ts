@@ -2,7 +2,7 @@ import { CommonTable, SourceAliasExpression, SelectItem, SelectClause, FromClaus
 import { SimpleSelectQuery } from '../models/SimpleSelectQuery';
 import { IdentifierString, ValueComponent, ColumnReference, FunctionCall, ValueList, LiteralValue, RawString, CastExpression, TypeValue } from '../models/ValueComponent';
 import { JsonMapping } from './PostgresJsonQueryBuilder';
-import { ProcessableEntity } from './PostgresObjectEntityCteBuilder';
+import { ProcessableEntity, JsonColumnMapping } from './PostgresObjectEntityCteBuilder';
 import { SelectValueCollector } from './SelectValueCollector';
 
 /**
@@ -58,7 +58,8 @@ export class PostgresArrayEntityCteBuilder {
         ctesSoFar: CommonTable[],
         aliasOfCteToBuildUpon: string,
         allEntities: Map<string, ProcessableEntity>,
-        mapping: JsonMapping
+        mapping: JsonMapping,
+        columnMappings?: JsonColumnMapping[]
     ): { updatedCtes: CommonTable[], lastCteAlias: string } {
         let currentCtes = [...ctesSoFar];
         let currentCteAlias = aliasOfCteToBuildUpon;
@@ -85,7 +86,8 @@ export class PostgresArrayEntityCteBuilder {
                 currentCteAlias,
                 currentCtes,
                 depth,
-                mapping
+                mapping,
+                columnMappings
             );
 
             currentCtes.push(cte);
@@ -198,7 +200,8 @@ export class PostgresArrayEntityCteBuilder {
         currentCteAlias: string,
         currentCtes: CommonTable[],
         depth: number,
-        mapping: JsonMapping
+        mapping: JsonMapping,
+        columnMappings?: JsonColumnMapping[]
     ): { cte: CommonTable, newCteAlias: string } {
         // Collect columns that will be compressed into arrays
         // This includes both direct columns and columns from nested entities within the array
@@ -258,7 +261,8 @@ export class PostgresArrayEntityCteBuilder {
             const agg = this.buildAggregationDetailsForArrayEntity(
                 info.entity,
                 mapping.nestedEntities,
-                new Map() // allEntities - not needed for array aggregation
+                new Map(), // allEntities - not needed for array aggregation
+                columnMappings
             );
             selectItems.push(new SelectItem(agg.jsonAgg, info.entity.propertyName));
         }
@@ -297,7 +301,8 @@ export class PostgresArrayEntityCteBuilder {
     private buildAggregationDetailsForArrayEntity(
         entity: ProcessableEntity,
         nestedEntities: any[],
-        allEntities: Map<string, ProcessableEntity>
+        allEntities: Map<string, ProcessableEntity>,
+        columnMappings?: JsonColumnMapping[]
     ): { jsonAgg: ValueComponent } {
         // Build JSON object for array elements using JSONB functions
         const jsonBuildFunction = "jsonb_build_object";
@@ -314,10 +319,55 @@ export class PostgresArrayEntityCteBuilder {
             args.push(new LiteralValue(childEntity.propertyName));
 
             if (childEntity.relationshipType === "object") {
-                // For object relationships, use pre-computed JSON column
-                // Use entity ID instead of name to avoid naming conflicts
-                const jsonColumnName = `${childEntity.id.toLowerCase()}_json`;
-                args.push(new ColumnReference(null, new IdentifierString(jsonColumnName)));
+                // For object relationships, use pre-computed JSON column from column mappings
+                if (!columnMappings) {
+                    throw new Error(
+                        `❌ PostgresArrayEntityCteBuilder Error: Column mappings not provided\n` +
+                        `\n` +
+                        `🔍 Details:\n` +
+                        `  - Entity ID: ${childEntity.id}\n` +
+                        `  - Entity Name: ${childEntity.name || 'unknown'}\n` +
+                        `  - Property Name: ${childEntity.propertyName}\n` +
+                        `  - Relationship Type: ${childEntity.relationshipType}\n` +
+                        `\n` +
+                        `💡 Solution:\n` +
+                        `  Column mappings are required for hybrid JSON column naming.\n` +
+                        `  This error indicates that PostgresObjectEntityCteBuilder did not\n` +
+                        `  pass column mappings to PostgresArrayEntityCteBuilder.\n` +
+                        `\n` +
+                        `🔧 Check:\n` +
+                        `  1. Ensure PostgresJsonQueryBuilder.buildJsonWithCteStrategy() passes columnMappings\n` +
+                        `  2. Verify PostgresObjectEntityCteBuilder.buildObjectEntityCtes() returns columnMappings\n` +
+                        `  3. Check that Model-driven mapping conversion generates unique entity IDs`
+                    );
+                }
+
+                const mapping = columnMappings.find(m => m.entityId === childEntity.id);
+                if (!mapping) {
+                    const availableMappings = columnMappings.map(m => `${m.entityId} → ${m.generatedColumnName}`).join(', ');
+                    throw new Error(
+                        `❌ PostgresArrayEntityCteBuilder Error: Column mapping not found\n` +
+                        `\n` +
+                        `🔍 Details:\n` +
+                        `  - Looking for Entity ID: ${childEntity.id}\n` +
+                        `  - Entity Name: ${childEntity.name || 'unknown'}\n` +
+                        `  - Property Name: ${childEntity.propertyName}\n` +
+                        `  - Relationship Type: ${childEntity.relationshipType}\n` +
+                        `\n` +
+                        `📋 Available Mappings:\n` +
+                        `  ${availableMappings || 'None'}\n` +
+                        `\n` +
+                        `💡 Solution:\n` +
+                        `  Entity IDs must match between mapping generation and usage.\n` +
+                        `  This suggests a mismatch in entity ID generation or processing.\n` +
+                        `\n` +
+                        `🔧 Check:\n` +
+                        `  1. Model-driven mapping conversion generates consistent entity IDs\n` +
+                        `  2. PostgresObjectEntityCteBuilder processes all entities correctly\n` +
+                        `  3. Entity hierarchy and parentId relationships are correct`
+                    );
+                }
+                args.push(new ColumnReference(null, new IdentifierString(mapping.generatedColumnName)));
             } else if (childEntity.relationshipType === "array") {
                 // For array relationships, use the column directly
                 args.push(new ColumnReference(null, new IdentifierString(childEntity.propertyName)));
@@ -489,7 +539,10 @@ export class PostgresArrayEntityCteBuilder {
                         new ColumnReference(null, new IdentifierString(sv.name)),
                         sv.name
                     ));
-                    groupByItems.push(new ColumnReference(null, new IdentifierString(sv.name)));
+                    // Exclude JSON columns from GROUP BY as PostgreSQL doesn't support equality operators for JSON type
+                    if (!sv.name.endsWith('_json')) {
+                        groupByItems.push(new ColumnReference(null, new IdentifierString(sv.name)));
+                    }
                 }
             }
         });

@@ -7,8 +7,9 @@
  */
 
 import { PrismaClient } from '@prisma/client';
-import { RawSqlClient } from 'prisma-rawsql';
-import { transformDatabaseResult, TypeTransformationPostProcessor } from 'rawsql-ts';
+import { RawSqlClient } from '../../../../packages/prisma-integration/src/RawSqlClient';
+import { transformDatabaseResult, TypeTransformationPostProcessor } from '../../../../packages/core/src';
+import * as path from 'path';
 
 const prisma = new PrismaClient({
     log: ['query', 'info', 'warn', 'error'],
@@ -24,19 +25,18 @@ async function testTypeTransformationWithRealData() {
 
     try {
         // Initialize RawSqlClient
+        // Use absolute path for cross-platform compatibility
+        const sqlFilesPath = path.join(__dirname, '..', '..', 'rawsql-ts');
         const rawSqlClient = new RawSqlClient(prisma, {
             debug: true,
-            sqlFilesPath: './rawsql-ts'
+            sqlFilesPath: sqlFilesPath
         });
 
         console.log('\n📋 Step 1: Execute SQL without type transformation');
         console.log('-'.repeat(50));
 
         // Execute the query without any type transformation to see raw JSON result
-        const rawResult = await rawSqlClient.query('getTodoDetail.sql', {
-            filter: { todo_id: 1 },
-            serialize: true
-        });
+        const rawResult = await rawSqlClient.queryOne('getTodoDetail.sql', { filter: { id: 1 } });
 
         console.log('📄 Raw SQL result (first few characters):');
         const rawString = JSON.stringify(rawResult, null, 2);
@@ -121,16 +121,15 @@ async function testCustomTypeTransformation() {
         console.log('-'.repeat(50));
 
         // Example of how custom transformations can be used in a real application context
+        // Use absolute path for cross-platform compatibility
+        const sqlFilesPath = path.join(__dirname, '..', '..', 'rawsql-ts');
         const rawSqlClient = new RawSqlClient(prisma, {
             debug: false,
-            sqlFilesPath: './rawsql-ts'
+            sqlFilesPath: sqlFilesPath
         });
 
         // Execute a real query and show how type transformations are applied
-        const rawResult = await rawSqlClient.query('getTodoDetail.sql', {
-            filter: { todo_id: 1 },
-            serialize: true
-        });
+        const rawResult = await rawSqlClient.queryOne('getTodoDetail.sql', { filter: { id: 1 } });
 
         console.log('✅ Successfully demonstrated type transformation integration with real data');
         console.log('   See core library tests for comprehensive transformation examples:');
@@ -207,9 +206,11 @@ async function testRealDatabaseStringProtection() {
         console.log('\n📋 Step 2: Query dangerous comments (raw JSON)');
         console.log('-'.repeat(50));
 
+        // Use absolute path for cross-platform compatibility
+        const sqlFilesPath = path.join(__dirname, '..', '..', 'rawsql-ts');
         const rawSqlClient = new RawSqlClient(prisma, {
             debug: false,
-            sqlFilesPath: './rawsql-ts'
+            sqlFilesPath: sqlFilesPath
         });
 
         // Use raw SQL to get the comments

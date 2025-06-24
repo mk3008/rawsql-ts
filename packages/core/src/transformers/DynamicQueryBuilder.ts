@@ -22,6 +22,12 @@ export interface QueryBuildOptions {
      * - false/undefined: no serialization
      */
     serialize?: JsonMapping | boolean;
+    /** 
+     * JSONB usage setting. Must be true (default) for PostgreSQL GROUP BY compatibility.
+     * Setting to false will throw an error as JSON type cannot be used in GROUP BY clauses.
+     * @default true
+     */
+    jsonb?: boolean;
 }
 
 /**

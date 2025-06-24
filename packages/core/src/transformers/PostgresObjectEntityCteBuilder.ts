@@ -18,6 +18,25 @@ export interface ProcessableEntity {
 }
 
 /**
+ * JSON column mapping information
+ */
+export interface JsonColumnMapping {
+    entityId: string;
+    entityName: string;
+    generatedColumnName: string; // "customer_json_1", "address_json_2" など
+    depth: number;
+}
+
+/**
+ * Result from CTE builder including column mappings
+ */
+export interface CteBuilderResult {
+    ctes: CommonTable[];
+    lastCteAlias: string;
+    columnMappings: JsonColumnMapping[];
+}
+
+/**
  * Information for object entity processing
  */
 interface ObjectEntityProcessingInfo {
@@ -54,9 +73,17 @@ interface ObjectEntityProcessingInfo {
  * Processing order: depth 2 → depth 1 → depth 0
  */
 export class PostgresObjectEntityCteBuilder {    // Constants for consistent naming conventions
-    private static readonly JSON_COLUMN_SUFFIX = '_json';
     private static readonly CTE_OBJECT_PREFIX = 'cte_object_depth_';
-    private static readonly WILDCARD_COLUMN = '*';    /**
+    private static readonly WILDCARD_COLUMN = '*';
+    
+    // Simple counter for unique JSON column names
+    private jsonColumnCounter = 0;
+    // Map entity ID to generated JSON column name
+    private entityToJsonColumnMap = new Map<string, string>();
+    // Column mappings for external use
+    private columnMappings: JsonColumnMapping[] = [];    
+    
+    /**
      * Build CTEs for all object entities in the correct dependency order
      * @param initialCte The starting CTE containing all raw data
      * @param allEntities Map of all entities in the mapping
@@ -67,7 +94,13 @@ export class PostgresObjectEntityCteBuilder {    // Constants for consistent nam
         initialCte: CommonTable,
         allEntities: Map<string, ProcessableEntity>,
         mapping: JsonMapping
-    ): { ctes: CommonTable[], lastCteAlias: string } {
+    ): CteBuilderResult {
+        
+        // Reset counter and mapping for each query
+        this.jsonColumnCounter = 0;
+        this.entityToJsonColumnMap.clear();
+        this.columnMappings = [];
+        
         const ctes: CommonTable[] = [initialCte];
         let previousCteAlias = initialCte.aliasExpression.table.name;        // Collect and sort object entities by depth
         const objectEntityInfos = this.collectAndSortObjectEntities(mapping, allEntities);
@@ -95,7 +128,30 @@ export class PostgresObjectEntityCteBuilder {    // Constants for consistent nam
             previousCteAlias = cteAlias;
         }
 
-        return { ctes, lastCteAlias: previousCteAlias };
+        return { 
+            ctes, 
+            lastCteAlias: previousCteAlias,
+            columnMappings: this.columnMappings
+        };
+    }
+    
+    /**
+     * Generate unique JSON column name with entity name and counter
+     */
+    private generateUniqueJsonColumnName(entityName: string, entityId: string, depth: number): string {
+        this.jsonColumnCounter++;
+        const columnName = `${entityName.toLowerCase()}_json_${this.jsonColumnCounter}`;
+        
+        
+        // Record mapping information for external use
+        this.columnMappings.push({
+            entityId,
+            entityName,
+            generatedColumnName: columnName,
+            depth
+        });
+        
+        return columnName;
     }    /**
      * Collect all object entities and calculate their depth from root.
      * 
@@ -263,6 +319,7 @@ export class PostgresObjectEntityCteBuilder {    // Constants for consistent nam
         mapping: JsonMapping,
         allEntities: Map<string, ProcessableEntity>
     ): SelectItem {
+        
         // Build JSON object arguments and NULL checks
         const { jsonObjectArgs, nullChecks } = this.prepareEntityColumns(entity);
 
@@ -275,10 +332,34 @@ export class PostgresObjectEntityCteBuilder {    // Constants for consistent nam
         const nullCondition = this.buildNullCondition(nullChecks);
         const caseExpr = this.createCaseExpression(nullCondition, jsonObject);
 
-        // Add JSON object as named column
-        // Use entity ID instead of name to avoid naming conflicts
-        const jsonColumnName = `${entity.id.toLowerCase()}${PostgresObjectEntityCteBuilder.JSON_COLUMN_SUFFIX}`;
+        // Add JSON object as named column with unique name to avoid conflicts
+        // Calculate depth for this entity (approximate - for mapping purposes)
+        const depth = this.calculateApproximateDepth(entity, mapping);
+        const jsonColumnName = this.generateUniqueJsonColumnName(entity.name, entity.id, depth);
+        // Store mapping for child entity references
+        this.entityToJsonColumnMap.set(entity.id, jsonColumnName);
         return new SelectItem(caseExpr, jsonColumnName);
+    }
+
+    /**
+     * Calculate approximate depth for an entity (for mapping purposes)
+     */
+    private calculateApproximateDepth(entity: ProcessableEntity, mapping: JsonMapping): number {
+        if (entity.isRoot) return 0;
+        if (!entity.parentId) return 1;
+        
+        // Simple depth calculation
+        let depth = 1;
+        let currentParentId = entity.parentId;
+        
+        while (currentParentId && currentParentId !== mapping.rootEntity.id) {
+            const parentEntity = mapping.nestedEntities.find(e => e.id === currentParentId);
+            if (!parentEntity) break;
+            depth++;
+            currentParentId = parentEntity.parentId;
+        }
+        
+        return depth;
     }
 
     /**
@@ -355,8 +436,11 @@ export class PostgresObjectEntityCteBuilder {    // Constants for consistent nam
             const child = allEntities.get(childEntity.id);
             if (child) {
                 jsonObjectArgs.push(new LiteralValue(childEntity.propertyName));
-                // Use entity ID instead of name to avoid naming conflicts
-                const jsonColumnName = `${child.id.toLowerCase()}${PostgresObjectEntityCteBuilder.JSON_COLUMN_SUFFIX}`;
+                // Use mapped JSON column name to avoid conflicts
+                const jsonColumnName = this.entityToJsonColumnMap.get(child.id);
+                if (!jsonColumnName) {
+                    throw new Error(`JSON column name not found for child entity: ${child.id}`);
+                }
                 jsonObjectArgs.push(new ColumnReference(null, new IdentifierString(jsonColumnName)));
             }
         });

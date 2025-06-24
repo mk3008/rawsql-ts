@@ -3,7 +3,8 @@
  */
 
 import { PrismaClient } from '@prisma/client';
-import { RawSqlClient } from 'prisma-rawsql';
+import { RawSqlClient } from '../../../../packages/prisma-integration/src/RawSqlClient';
+import * as path from 'path';
 
 const prisma = new PrismaClient({
     log: ['query', 'info', 'warn', 'error'],
@@ -14,19 +15,18 @@ async function testJsonMappingTypeProtection() {
     console.log('='.repeat(50));
 
     try {
+        // Use absolute path for cross-platform compatibility
+        const sqlFilesPath = path.join(__dirname, '..', '..', 'rawsql-ts');
         const rawSqlClient = new RawSqlClient(prisma, {
             debug: true,
-            sqlFilesPath: './rawsql-ts'
+            sqlFilesPath: sqlFilesPath
         });
 
         console.log('\n📋 Step 1: Execute query with type-protected JsonMapping');
         console.log('-'.repeat(50));
 
         // Execute the query with the updated JsonMapping that has type protection
-        const result = await rawSqlClient.query('getTodoDetail.sql', {
-            filter: { todo_id: 1 },
-            serialize: true
-        });
+        const result = await rawSqlClient.queryOne('getTodoDetail.sql', { filter: { id: 1 } });
 
         console.log('\n🔍 Analyzing protected result:');
         if (result && typeof result === 'object') {
