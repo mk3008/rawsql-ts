@@ -18,10 +18,7 @@
 import { SqlStaticAnalyzer, SqlStaticAnalysisReport, SqlStaticAnalyzerOptions } from './SqlStaticAnalyzer';
 import { DomainModelCompatibilityTester } from './DomainModelCompatibilityTester';
 import { PrismaSchemaResolver } from './PrismaSchemaResolver';
-import {
-    UnifiedJsonMapping,
-    ColumnMappingConfig
-} from 'rawsql-ts';
+import { UnifiedJsonMapping, ColumnMappingConfig } from '../../core/src/transformers/UnifiedJsonMapping';
 
 // Model-driven types are not available, using any for now
 type ModelDrivenJsonMapping = any;

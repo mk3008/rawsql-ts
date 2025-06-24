@@ -1,6 +1,6 @@
 import { PrismaClientType, RawSqlClientOptions, PrismaSchemaInfo } from './types';
 import { PrismaSchemaResolver } from './PrismaSchemaResolver';
-import { UnifiedJsonMapping } from 'rawsql-ts';
+import { UnifiedJsonMapping } from '../../core/src/transformers/UnifiedJsonMapping';
 import {
     SqlFormatter,
     SelectQueryParser,
@@ -14,9 +14,9 @@ import {
     JsonMapping,
     TypeTransformationPostProcessor,
     TypeTransformationConfig
-} from 'rawsql-ts';
+} from '../../core/src';
 import { convertModelDrivenMapping } from '../../core/src/transformers/ModelDrivenJsonMapping';
-import { QueryBuildOptions } from 'rawsql-ts';
+import { QueryBuildOptions } from '../../core/src';
 import * as fs from 'fs';
 import * as path from 'path';
 

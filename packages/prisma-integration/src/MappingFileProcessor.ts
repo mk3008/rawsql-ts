@@ -5,11 +5,8 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import {
-    JsonMapping,
-    UnifiedJsonMapping,
-    TypeProtectionConfig
-} from 'rawsql-ts';
+import { JsonMapping, TypeProtectionConfig } from '../../core/src';
+import { UnifiedJsonMapping } from '../../core/src/transformers/UnifiedJsonMapping';
 import { convertModelDrivenMapping } from '../../core/src/transformers/ModelDrivenJsonMapping';
 
 /**

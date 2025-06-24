@@ -96,13 +96,18 @@ export class RawSqlTodoDetailService implements TodoDetailService {
      * Uses queryOne now that the GROUP BY aggregation issue is fixed
      */
     private async executeGetTodoDetailQuery(todoId: number): Promise<TodoDetail | null> {
+        console.log('🔍 [DEBUG] executeGetTodoDetailQuery called with todoId:', todoId);
+        
         // Ensure client is initialized before use
         await this.ensureInitialized();
+        console.log('🔍 [DEBUG] Client initialized successfully');
 
         // Use queryOne for proper aggregation now that GROUP BY is fixed
+        console.log('🔍 [DEBUG] About to call client.queryOne with todos/getTodoDetail.sql');
         const result = await this.client!.queryOne<TodoDetail>('todos/getTodoDetail.sql', {
             filter: { todo_id: todoId },
         });
+        console.log('🔍 [DEBUG] client.queryOne completed, result:', result ? 'found' : 'null');
 
         if (this.debugMode && result) {
             console.log('🔍 Debug - Comments count:', result.comments?.length || 0);
