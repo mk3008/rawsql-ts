@@ -246,6 +246,23 @@ export class PostgresArrayEntityCteBuilder {
         // Collect array entity columns organized by depth for GROUP BY exclusion strategy
         const arrayEntityColumns = this.collectArrayEntityColumnsByDepth(mapping, depth);
 
+        // Identify JSON columns from objects within the arrays being processed at this depth
+        const arrayInternalObjectColumns = new Set<string>();
+        if (columnMappings) {
+            infos.forEach(info => {
+                // Find all object-type nested entities within this array entity
+                mapping.nestedEntities
+                    .filter(ne => ne.parentId === info.entity.id && ne.relationshipType === "object")
+                    .forEach(objectEntity => {
+                        // Find the corresponding JSON column mapping for this object entity
+                        const columnMapping = columnMappings.find(cm => cm.entityId === objectEntity.id);
+                        if (columnMapping) {
+                            arrayInternalObjectColumns.add(columnMapping.generatedColumnName);
+                        }
+                    });
+            });
+        }
+
         // Process existing SELECT variables to determine which should be included in GROUP BY
         this.processSelectVariablesForGroupBy(
             prevSelects,
@@ -253,7 +270,8 @@ export class PostgresArrayEntityCteBuilder {
             arrayEntityColumns,
             depth,
             selectItems,
-            groupByItems
+            groupByItems,
+            arrayInternalObjectColumns
         );
 
         // Add JSON aggregation columns for each array entity at this depth
@@ -316,7 +334,9 @@ export class PostgresArrayEntityCteBuilder {
 
         // Find and process child entities (both object and array types)
         const childEntities = nestedEntities.filter((ne) => ne.parentId === entity.id); childEntities.forEach((childEntity) => {
-            args.push(new LiteralValue(childEntity.propertyName));
+            // Use originalPropertyName if available to avoid sequential numbering in final JSON
+            const propertyNameForJson = (childEntity as any).originalPropertyName || childEntity.propertyName;
+            args.push(new LiteralValue(propertyNameForJson));
 
             if (childEntity.relationshipType === "object") {
                 // For object relationships, use pre-computed JSON column from column mappings
@@ -524,10 +544,17 @@ export class PostgresArrayEntityCteBuilder {
         arrayEntitiesByDepth: Map<number, Set<string>>,
         currentDepth: number,
         selectItems: SelectItem[],
-        groupByItems: ValueComponent[]
+        groupByItems: ValueComponent[],
+        arrayInternalObjectColumns?: Set<string>
     ): void {
         prevSelects.forEach(sv => {
             if (!arrayColumns.has(sv.name)) {
+                // Exclude JSON columns from objects within arrays being processed
+                if (arrayInternalObjectColumns && arrayInternalObjectColumns.has(sv.name)) {
+                    // Skip this column - it's an object within the array being aggregated
+                    return;
+                }
+
                 const shouldInclude = this.shouldIncludeColumnInGroupBy(
                     sv.name,
                     arrayEntitiesByDepth,
@@ -577,13 +604,16 @@ export class PostgresArrayEntityCteBuilder {
             }
         }
 
-        // Special handling for JSON columns to prevent over-grouping
-        if (isJsonColumn && columnName.startsWith('entity_')) {
-            shouldInclude = this.shouldIncludeJsonColumn(columnName, currentDepth);
+        // Critical: JSON columns from objects within arrays being processed 
+        // must be excluded from GROUP BY as they are aggregated within the array
+        if (isJsonColumn) {
+            // Legacy handling for entity_ prefixed JSON columns
+            if (columnName.startsWith('entity_')) {
+                shouldInclude = this.shouldIncludeJsonColumn(columnName, currentDepth);
+            }
         }
 
-        // Always include non-entity JSON columns (e.g., computed columns)
-        return shouldInclude || (isJsonColumn && !columnName.startsWith('entity_'));
+        return shouldInclude;
     }
 
     /**
