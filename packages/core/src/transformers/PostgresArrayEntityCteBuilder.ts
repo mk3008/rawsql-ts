@@ -16,43 +16,34 @@ interface ArrayEntityProcessingInfo {
 }
 
 /**
- * PostgreSQL-specific builder for creating CTEs for array entities (array relationships).
- * This class handles the creation of CTEs that build JSON/JSONB arrays for child entities,
- * processing them from the deepest level up to ensure proper dependency ordering.
+ * Builds CTEs for array entities using depth-first processing and row compression.
  * 
- * Features:
- * - Depth-based CTE naming (cte_array_depth_N)
- * - Row compression using GROUP BY operations
- * - JSONB/JSON array aggregation
- * - Hierarchical processing of nested arrays
- * - Column exclusion to avoid duplication
- * 
- * Why depth calculation is critical:
- * 1. Array entities can be nested at multiple levels. We must process the deepest
- *    (most distant) arrays first to ensure their JSON representations are available
- *    when building their parent arrays.
- * 2. Array entity processing is essentially a row compression operation using GROUP BY.
- *    Unlike parent entities which use column compression, arrays require grouping
- *    to aggregate multiple rows into JSON arrays.
- * 
- * Example hierarchy:
- * Order (root, depth 0)
- *   └─ Items (array, depth 1)
- *       └─ Details (array, depth 2)
- * 
- * Processing order: depth 2 → depth 1 → depth 0
+ * Core concepts:
+ * - Column Compression: OBJECT relationships (user_id, user_name → user_json)
+ * - Row Compression: ARRAY relationships (multiple rows → JSON array via GROUP BY)
+ * - Depth-First: Process deepest arrays first for dependency ordering
+ * - GROUP BY Exclusion: Exclude array-internal columns to prevent over-grouping
  */
 export class PostgresArrayEntityCteBuilder {
     // Constants for consistent naming conventions
     private static readonly CTE_ARRAY_PREFIX = 'cte_array_depth_';
+    
+    // JSON function names for PostgreSQL aggregation
+    private static readonly JSON_FUNCTIONS = {
+        BUILD_OBJECT: 'jsonb_build_object',
+        AGGREGATE: 'jsonb_agg'
+    } as const;
 
     /**
-     * Build CTEs for all array entities in the correct dependency order
-     * @param ctesSoFar Array of CTEs built so far (starts with the initial CTE)
-     * @param aliasOfCteToBuildUpon Alias of the CTE from which the current array CTE will select
+     * Builds CTEs for all array entities using depth-first processing.
+     * Collects arrays by depth, processes deepest first, chains CTEs.
+     * 
+     * @param ctesSoFar Array of CTEs built so far
+     * @param aliasOfCteToBuildUpon Alias of the CTE to build upon
      * @param allEntities Map of all entities in the mapping
      * @param mapping The JSON mapping configuration
-     * @returns Object containing the updated list of all CTEs and the alias of the last CTE created
+     * @param columnMappings Optional mappings from object entity IDs to generated JSON column names
+     * @returns Object containing updated CTEs and last CTE alias
      */
     public buildArrayEntityCtes(
         ctesSoFar: CommonTable[],
@@ -98,15 +89,12 @@ export class PostgresArrayEntityCteBuilder {
     }
 
     /**
-     * Collect all array entities and calculate their depth from root.
-     * 
-     * Depth calculation ensures proper processing order where deeper nested
-     * arrays are processed first, making their aggregated data available
-     * for parent array processing.
+     * Collects array entities and calculates depth for dependency ordering.
+     * Depth = distance from root. Deeper arrays processed first.
      * 
      * @param mapping The JSON mapping configuration
      * @param allEntities Map of all entities in the mapping
-     * @returns Array of array entity information with calculated depths, sorted deepest first
+     * @returns Array of array entity information with depths, sorted deepest first
      */
     private collectAndSortArrayEntities(
         mapping: JsonMapping,
@@ -156,12 +144,7 @@ export class PostgresArrayEntityCteBuilder {
     }
 
     /**
-     * Group array entities by their depth level.
-     * 
-     * Grouping by depth allows us to:
-     * - Process all entities at the same level in a single CTE
-     * - Optimize query performance by reducing the number of CTEs
-     * - Maintain clear dependency ordering
+     * Groups array entities by depth level for batch processing.
      * 
      * @param arrayInfos Array of array entity information with depths
      * @returns Map of depth level to entities at that depth
@@ -183,16 +166,16 @@ export class PostgresArrayEntityCteBuilder {
     }
 
     /**
-     * Build a CTE that processes all array entities at a specific depth level.
-     * 
-     * This method creates a single CTE that aggregates multiple array entities
-     * at the same depth, using GROUP BY to compress rows into JSON arrays.
+     * Builds CTE for specific depth level using row compression.
+     * Uses GROUP BY to aggregate multiple rows into JSON arrays.
+     * Excludes array-internal columns from GROUP BY to prevent over-grouping.
      * 
      * @param infos Array entities at this depth level
      * @param currentCteAlias Alias of the CTE to build upon
      * @param currentCtes All CTEs built so far
      * @param depth Current depth level being processed
      * @param mapping JSON mapping configuration
+     * @param columnMappings Optional mappings from object entity IDs to generated JSON column names
      * @returns The new CTE and its alias
      */
     private buildDepthCte(
@@ -305,15 +288,14 @@ export class PostgresArrayEntityCteBuilder {
     }
 
     /**
-     * Build JSON aggregation function for an array entity.
-     * 
-     * This method creates a jsonb_agg or json_agg function call that aggregates
-     * the entity's columns into a JSON array. It also handles nested relationships
-     * by including child entity properties in the JSON object.
+     * Creates jsonb_agg function for array entity.
+     * Handles entity columns and nested child relationships.
+     * Uses originalPropertyName to avoid sequential numbering.
      * 
      * @param entity The array entity being processed
      * @param nestedEntities All nested entities from the mapping
      * @param allEntities Map of all entities (not used in current implementation)
+     * @param columnMappings Mappings from object entity IDs to generated JSON column names
      * @returns Object containing the JSON aggregation function
      */
     private buildAggregationDetailsForArrayEntity(
@@ -323,7 +305,7 @@ export class PostgresArrayEntityCteBuilder {
         columnMappings?: JsonColumnMapping[]
     ): { jsonAgg: ValueComponent } {
         // Build JSON object for array elements using JSONB functions
-        const jsonBuildFunction = "jsonb_build_object";
+        const jsonBuildFunction = PostgresArrayEntityCteBuilder.JSON_FUNCTIONS.BUILD_OBJECT;
         const args: ValueComponent[] = [];
 
         // Add the entity's own columns
@@ -399,7 +381,7 @@ export class PostgresArrayEntityCteBuilder {
 
         // Create JSON aggregation using JSONB with NULL filtering
         // Use FILTER clause to exclude rows where primary key is NULL (no actual data)
-        const jsonAggFunction = "jsonb_agg";
+        const jsonAggFunction = PostgresArrayEntityCteBuilder.JSON_FUNCTIONS.AGGREGATE;
 
         // Find the primary column (typically the first column) to use for NULL filtering
         const primaryColumn = Object.values(entity.columns)[0];
@@ -417,11 +399,7 @@ export class PostgresArrayEntityCteBuilder {
     }
 
     /**
-     * Collects array entity columns organized by depth for the GROUP BY exclusion strategy.
-     * 
-     * This method creates a mapping from depth levels to sets of column names that belong to
-     * array entities at each depth. This is used to determine which columns should be excluded
-     * from GROUP BY clauses when performing array aggregation at specific depths.
+     * Collects array entity columns by depth for GROUP BY exclusion strategy.
      * 
      * @param mapping The JSON mapping configuration containing all entities
      * @param currentDepth The current aggregation depth being processed
@@ -433,7 +411,7 @@ export class PostgresArrayEntityCteBuilder {
     ): Map<number, Set<string>> {
         const arrayEntitiesByDepth = new Map<number, Set<string>>();        // Initialize depth maps for current and deeper levels
         // Use a reasonable maximum depth limit to avoid infinite loops
-        const maxDepth = Math.max(currentDepth + 3, 5); // Allow up to 3 additional levels or minimum 5 levels
+        const maxDepth = Math.max(currentDepth + 3, 5);
         for (let d = currentDepth; d <= maxDepth; d++) {
             arrayEntitiesByDepth.set(d, new Set());
         }
@@ -460,7 +438,7 @@ export class PostgresArrayEntityCteBuilder {
     }
 
     /**
-     * Calculates the depth of an entity in the hierarchy by traversing up to the root.
+     * Calculates entity depth by traversing up to root.
      * 
      * @param entity The entity to calculate depth for
      * @param mapping The JSON mapping containing all entities
@@ -479,7 +457,7 @@ export class PostgresArrayEntityCteBuilder {
     }
 
     /**
-     * Adds all columns from an entity to the specified depth set.
+     * Adds entity columns to depth set.
      * 
      * @param entity The entity whose columns should be added
      * @param depth The depth level to add columns to
@@ -497,10 +475,7 @@ export class PostgresArrayEntityCteBuilder {
     }
 
     /**
-     * Recursively collects columns from all descendant entities under a parent entity.
-     * 
-     * This method ensures that all nested entities (at any depth) under an array entity
-     * have their columns properly categorized by the array entity's depth level.
+     * Recursively collects columns from descendant entities.
      * 
      * @param parentEntityId The ID of the parent entity
      * @param targetDepth The depth level to assign collected columns to
@@ -525,11 +500,8 @@ export class PostgresArrayEntityCteBuilder {
     }
 
     /**
-     * Processes SELECT variables to determine which should be included in GROUP BY clauses.
-     * 
-     * This method implements the core logic for deciding which columns from previous CTEs
-     * should be included in the GROUP BY clause when performing array aggregation. It handles
-     * special cases for JSON columns and applies depth-based filtering to prevent over-grouping.
+     * Implements GROUP BY exclusion strategy for array aggregation.
+     * Excludes current array columns and array-internal object JSON columns.
      * 
      * @param prevSelects SELECT variables from the previous CTE
      * @param arrayColumns Columns that are being aggregated (should be excluded from GROUP BY)
@@ -537,6 +509,7 @@ export class PostgresArrayEntityCteBuilder {
      * @param currentDepth The current aggregation depth being processed
      * @param selectItems Output array for SELECT items
      * @param groupByItems Output array for GROUP BY items
+     * @param arrayInternalObjectColumns JSON columns from objects within arrays being processed
      */
     private processSelectVariablesForGroupBy(
         prevSelects: any[],
@@ -576,11 +549,8 @@ export class PostgresArrayEntityCteBuilder {
     }
 
     /**
-     * Determines whether a column should be included in the GROUP BY clause.
-     * 
-     * This method applies depth-based filtering and special handling for JSON columns
-     * to prevent over-grouping during array aggregation. It implements heuristics for
-     * excluding columns that belong to nested entities within array contexts.
+     * Determines if column should be included in GROUP BY clause.
+     * Applies depth-based filtering and special handling for JSON columns.
      * 
      * @param columnName The name of the column to evaluate
      * @param arrayEntitiesByDepth Map of depth levels to their column sets
@@ -617,11 +587,8 @@ export class PostgresArrayEntityCteBuilder {
     }
 
     /**
-     * Applies heuristics to determine if an entity JSON column should be included in GROUP BY.
-     * 
-     * This method uses entity numbering patterns to identify deeply nested entities
-     * that should be excluded from GROUP BY when processing array aggregations.
-     * This is a simplified heuristic approach that works for current use cases.
+     * Applies heuristics for entity JSON column inclusion in GROUP BY.
+     * Uses entity numbering patterns to identify deeply nested entities.
      * 
      * @param columnName The JSON column name (expected format: entity_N_json)
      * @param currentDepth The current aggregation depth
