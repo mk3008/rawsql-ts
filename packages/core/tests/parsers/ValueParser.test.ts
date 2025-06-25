@@ -112,6 +112,7 @@ describe('ValueParser', () => {
         // Complex logical expressions to ensure no regression
         ["Complex logical - nested AND/OR", 'a = 1 AND (b = 2 OR c = 3) AND d = 4', '"a" = 1 and ("b" = 2 or "c" = 3) and "d" = 4'],
         ["Complex logical - mixed with BETWEEN", 'a BETWEEN 1 AND 5 AND (b = 2 OR c BETWEEN 10 AND 20)', '"a" between 1 and 5 and ("b" = 2 or "c" between 10 and 20)'],
+        ["COUNT with DISTINCT and nested function", "COUNT(DISTINCT DATE('2025-01-01'))", "count(distinct DATE('2025-01-01'))"],
     ])('%s', (_, text, expected = text) => {
         const value = ValueParser.parse(text);
         const sql = formatter.format(value);
