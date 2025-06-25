@@ -499,7 +499,8 @@ describe('ComplexHierarchyBuilder - Multi-Level and Mixed Relationships', () => 
 
             const jsonQuery = builder.buildJson(originalQuery, mapping);
             const formatter = new SqlFormatter(customStyle);
-            const formattedSql = formatter.format(jsonQuery).formattedSql; const expectedSql = [
+            const formattedSql = formatter.format(jsonQuery).formattedSql;
+            const expectedSql = [
                 `with`,
                 `    "origin_query" as (`,
                 `        select`,
@@ -540,8 +541,7 @@ describe('ComplexHierarchyBuilder - Multi-Level and Mixed Relationships', () => 
                 `    )`,
                 `    , "cte_array_depth_1" as (`,
                 `        select`,
-                `            "product_json_1"`,
-                `            , "customer_json_2"`,
+                `            "customer_json_2"`,
                 `            , "order_id"`,
                 `            , "order_date"`,
                 `            , "order_status"`,
@@ -552,8 +552,7 @@ describe('ComplexHierarchyBuilder - Multi-Level and Mixed Relationships', () => 
                 `        from`,
                 `            "cte_object_depth_1"`,
                 `        group by`,
-                `            "product_json_1"`,
-                `            , "customer_json_2"`,
+                `            "customer_json_2"`,
                 `            , "order_id"`,
                 `            , "order_date"`,
                 `            , "order_status"`,

@@ -270,15 +270,13 @@ from
     )
     , "cte_array_depth_1" as (
         select
-            "capital_json_1"
-            , "region_id"
+            "region_id"
             , "region_name"
             , jsonb_agg(jsonb_build_object('id', "country_id", 'name', "country_name", 'code', "country_code", 'capital', "capital_json_1")) as "countries"
         from
             "cte_object_depth_1"
         group by
-            "capital_json_1"
-            , "region_id"
+            "region_id"
             , "region_name"
     )
     , "cte_root_regions" as (
@@ -385,16 +383,14 @@ from
     )
     , "cte_array_depth_1" as (
         select
-            "product_json_1"
-            , "sale_id"
+            "sale_id"
             , "sale_date"
             , "sale_total"
             , jsonb_agg(jsonb_build_object('id', "detail_id", 'quantity', "detail_quantity", 'price', "detail_price", 'product', "product_json_1")) as "details"
         from
             "cte_object_depth_1"
         group by
-            "product_json_1"
-            , "sale_id"
+            "sale_id"
             , "sale_date"
             , "sale_total"
     )
