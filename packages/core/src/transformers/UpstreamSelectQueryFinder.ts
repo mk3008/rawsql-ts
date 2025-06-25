@@ -60,7 +60,7 @@ export class UpstreamSelectQueryFinder {
         return null;
     }
 
-    private handleSubQuerySource(src: SubQuerySource, columnNames: string[], cteMap: Map<string, WithClause["tables"][number]>): SimpleSelectQuery[] | null {
+    private handleSubQuerySource(src: SubQuerySource, columnNames: string[], cteMap: Map<string, CommonTable>): SimpleSelectQuery[] | null {
         // Handles the logic for SubQuerySource in findUpstream
         const result = this.findUpstream(src.query, columnNames, cteMap);
         if (result.length === 0) {
@@ -120,21 +120,30 @@ export class UpstreamSelectQueryFinder {
 
     private findUpstream(query: SelectQuery, columnNames: string[], cteMap: Map<string, CommonTable>): SimpleSelectQuery[] {
         if (query instanceof SimpleSelectQuery) {
+            // First, try to find upstream queries from FROM clause
             const fromClause = query.fromClause;
             if (fromClause) {
                 const branchResult = this.processFromClauseBranches(fromClause, columnNames, cteMap);
-                if (branchResult) {
+                if (branchResult && branchResult.length > 0) {
                     return branchResult;
                 }
             }
+
+            // If no upstream queries found, check if current query contains all columns
             const columns = this.columnCollector.collect(query).map(col => col.name);
+            // Collect columns defined in CTEs as well
+            const cteColumns = this.collectCTEColumns(query, cteMap);
+            const allColumns = [...columns, ...cteColumns];
+            
             const normalize = (s: string) =>
                 this.options.ignoreCaseAndUnderscore ? s.toLowerCase().replace(/_/g, '') : s;
             // Normalize both the columns and the required names for comparison.
-            const hasAll = columnNames.every(name => columns.some(col => normalize(col) === normalize(name)));
+            const hasAll = columnNames.every(name => allColumns.some(col => normalize(col) === normalize(name)));
+            
             if (hasAll) {
                 return [query];
             }
+            
             return [];
         } else if (query instanceof BinarySelectQuery) {
             // Process BinarySelectQuery by decomposing into individual branches.
@@ -143,6 +152,44 @@ export class UpstreamSelectQueryFinder {
             const left = this.findUpstream(query.left, columnNames, cteMap);
             const right = this.findUpstream(query.right, columnNames, cteMap);
             return [...left, ...right];
+        }
+        return [];
+    }
+
+    /**
+     * Collects columns defined in CTEs
+     */
+    private collectCTEColumns(query: SimpleSelectQuery, cteMap: Map<string, CommonTable>): string[] {
+        const cteColumns: string[] = [];
+        
+        // If WITH clause exists, collect columns defined in CTEs
+        if (query.withClause) {
+            for (const cte of query.withClause.tables) {
+                // Collect columns from CTE query
+                const columns = this.collectColumnsFromSelectQuery(cte.query);
+                cteColumns.push(...columns);
+            }
+        }
+        
+        return cteColumns;
+    }
+
+    /**
+     * Recursively collects columns from SelectQuery
+     */
+    private collectColumnsFromSelectQuery(query: SelectQuery): string[] {
+        if (query instanceof SimpleSelectQuery) {
+            try {
+                return this.columnCollector.collect(query).map(col => col.name);
+            } catch (error) {
+                // Return empty array if SelectableColumnCollector fails
+                console.warn('Failed to collect columns from SimpleSelectQuery:', error);
+                return [];
+            }
+        } else if (query instanceof BinarySelectQuery) {
+            // For BinarySelectQuery (UNION etc.), get column names from the left query
+            // In UNION statements, left and right must have matching column count/types, so left side is sufficient
+            return this.collectColumnsFromSelectQuery(query.left);
         }
         return [];
     }
