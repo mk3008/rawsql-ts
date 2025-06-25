@@ -128,6 +128,18 @@ export class ValueParser {
         const current = lexemes[idx];
 
         if (current.type & TokenType.Identifier && current.type & TokenType.Operator && current.type & TokenType.Type) {
+            // Check if this is followed by parentheses (function call)
+            if (idx + 1 < lexemes.length && (lexemes[idx + 1].type & TokenType.OpenParen)) {
+                // Determine if this is a type constructor or function call
+                if (this.isTypeConstructor(lexemes, idx + 1, current.value)) {
+                    // Type constructor
+                    const typeValue = FunctionExpressionParser.parseTypeValue(lexemes, idx);
+                    return { value: typeValue.value, newIndex: typeValue.newIndex };
+                } else {
+                    // Function call
+                    return FunctionExpressionParser.parseFromLexeme(lexemes, idx);
+                }
+            }
             // Typed literal format pattern
             // e.g., `interval '2 days'`
             const first = IdentifierParser.parseFromLexeme(lexemes, idx);
@@ -147,8 +159,25 @@ export class ValueParser {
             // Namespace is also recognized as Identifier.
             // Since functions and types, as well as columns (tables), can have namespaces,
             // it is necessary to determine by the last element of the identifier.
-            if (lexemes[newIndex - 1].type & (TokenType.Function | TokenType.Type)) {
+            if (lexemes[newIndex - 1].type & TokenType.Function) {
                 return FunctionExpressionParser.parseFromLexeme(lexemes, idx);
+            } else if (lexemes[newIndex - 1].type & TokenType.Type) {
+                // Handle Type tokens that also have Identifier flag
+                if (newIndex < lexemes.length && (lexemes[newIndex].type & TokenType.OpenParen)) {
+                    // Determine if this is a type constructor or function call
+                    if (this.isTypeConstructor(lexemes, newIndex, name.name)) {
+                        // Type constructor (NUMERIC(10,2), VARCHAR(50), etc.)
+                        const typeValue = FunctionExpressionParser.parseTypeValue(lexemes, idx);
+                        return { value: typeValue.value, newIndex: typeValue.newIndex };
+                    } else {
+                        // Function call (DATE('2025-01-01'), etc.)
+                        return FunctionExpressionParser.parseFromLexeme(lexemes, idx);
+                    }
+                } else {
+                    // Handle standalone type tokens
+                    const value = new TypeValue(namespaces, name);
+                    return { value, newIndex };
+                }
             }
             const value = new ColumnReference(namespaces, name);
             return { value, newIndex };
@@ -172,10 +201,23 @@ export class ValueParser {
             const value = new ColumnReference(namespaces, name);
             return { value, newIndex };
         } else if (current.type & TokenType.Type) {
-            // Handle standalone type tokens
+            // Check if this type token is followed by an opening parenthesis
             const { namespaces, name, newIndex } = FullNameParser.parseFromLexeme(lexemes, idx);
-            const value = new TypeValue(namespaces, name);
-            return { value, newIndex };
+            if (newIndex < lexemes.length && (lexemes[newIndex].type & TokenType.OpenParen)) {
+                // Determine if this is a type constructor or function call
+                if (this.isTypeConstructor(lexemes, newIndex, name.name)) {
+                    // Type constructor (NUMERIC(10,2), VARCHAR(50), etc.)
+                    const typeValue = FunctionExpressionParser.parseTypeValue(lexemes, idx);
+                    return { value: typeValue.value, newIndex: typeValue.newIndex };
+                } else {
+                    // Function call (DATE('2025-01-01'), etc.)
+                    return FunctionExpressionParser.parseFromLexeme(lexemes, idx);
+                }
+            } else {
+                // Handle standalone type tokens
+                const value = new TypeValue(namespaces, name);
+                return { value, newIndex };
+            }
         }
 
         throw new Error(`[ValueParser] Invalid lexeme. index: ${idx}, type: ${lexemes[idx].type}, value: ${lexemes[idx].value}`);
@@ -237,5 +279,43 @@ export class ValueParser {
         }
 
         throw new Error(`Expected opening parenthesis at index ${index}`);
+    }
+
+    /**
+     * Determines if a type token followed by parentheses is a type constructor or function call
+     * @param lexemes Array of lexemes
+     * @param openParenIndex Index of the opening parenthesis
+     * @param typeName Name of the type/function
+     * @returns True if this is a type constructor, false if it's a function call
+     */
+    private static isTypeConstructor(lexemes: Lexeme[], openParenIndex: number, typeName: string): boolean {
+        // These are always type constructors regardless of content
+        const alwaysTypeConstructors = [
+            'NUMERIC', 'DECIMAL', 'VARCHAR', 'CHAR', 'CHARACTER',
+            'TIMESTAMP', 'TIME', 'INTERVAL'
+        ];
+        
+        const upperTypeName = typeName.toUpperCase();
+        if (alwaysTypeConstructors.includes(upperTypeName)) {
+            return true;
+        }
+        
+        // For DATE, check if the first argument is a string literal (function) or not (type)
+        if (upperTypeName === 'DATE') {
+            const firstArgIndex = openParenIndex + 1;
+            if (firstArgIndex < lexemes.length) {
+                const firstArg = lexemes[firstArgIndex];
+                const isStringLiteral = (firstArg.type & TokenType.Literal) && 
+                                       typeof firstArg.value === 'string' &&
+                                       isNaN(Number(firstArg.value));
+                // If first argument is a string literal, it's a function call
+                // DATE('2025-01-01') -> function
+                // DATE(6) -> type constructor
+                return !isStringLiteral;
+            }
+        }
+        
+        // Default: assume it's a function call for ambiguous cases
+        return false;
     }
 }
