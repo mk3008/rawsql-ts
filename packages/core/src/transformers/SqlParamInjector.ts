@@ -1,4 +1,5 @@
 import { SelectQuery, SimpleSelectQuery } from "../models/SelectQuery";
+import { BinarySelectQuery } from "../models/BinarySelectQuery";
 import { SelectableColumnCollector } from "./SelectableColumnCollector";
 import { BinaryExpression, FunctionCall, ParameterExpression, ParenExpression, ValueComponent, ValueList } from "../models/ValueComponent";
 import { UpstreamSelectQueryFinder } from "./UpstreamSelectQueryFinder";
@@ -71,130 +72,10 @@ export class SqlParamInjector {
             // skip undefined values
             if (stateValue === undefined) continue;
 
-            // Handle OR conditions specially - they don't need the main column to exist
-            if (stateValue !== null && typeof stateValue === 'object' && !Array.isArray(stateValue) && 'or' in stateValue) {
-                const orConditions = stateValue.or as SingleCondition[];
-                if (orConditions && orConditions.length > 0) {
-                    // For OR conditions, we need to find a query that contains any of the referenced columns
-                    const referencedColumns = orConditions
-                        .map(cond => cond.column || name)
-                        .filter((col, index, arr) => arr.indexOf(col) === index); // unique columns
-
-                    let targetQuery: SimpleSelectQuery | null = null;
-                    for (const colName of referencedColumns) {
-                        const queries = finder.find(query, colName);
-                        if (queries.length > 0) {
-                            targetQuery = queries[0];
-                            break;
-                        }
-                    }
-
-                    if (!targetQuery) {
-                        throw new Error(`None of the OR condition columns [${referencedColumns.join(', ')}] found in query`);
-                    }
-
-                    const columns = collector.collect(targetQuery);
-                    injectOrConditions(targetQuery, name, orConditions, normalize, columns, collector);
-                    continue;
-                }
-            }
-
-            // Handle AND conditions specially - they don't need the main column to exist
-            if (stateValue !== null && typeof stateValue === 'object' && !Array.isArray(stateValue) && 'and' in stateValue) {
-                const andConditions = stateValue.and as SingleCondition[];
-                if (andConditions && andConditions.length > 0) {
-                    // For AND conditions, we need to find a query that contains any of the referenced columns
-                    const referencedColumns = andConditions
-                        .map(cond => cond.column || name)
-                        .filter((col, index, arr) => arr.indexOf(col) === index); // unique columns
-
-                    let targetQuery: SimpleSelectQuery | null = null;
-                    for (const colName of referencedColumns) {
-                        const queries = finder.find(query, colName);
-                        if (queries.length > 0) {
-                            targetQuery = queries[0];
-                            break;
-                        }
-                    }
-
-                    if (!targetQuery) {
-                        throw new Error(`None of the AND condition columns [${referencedColumns.join(', ')}] found in query`);
-                    }
-
-                    const columns = collector.collect(targetQuery);
-                    injectAndConditions(targetQuery, name, andConditions, normalize, columns, collector);
-                    continue;
-                }
-            }
-
-            // Handle explicit column mapping without OR
-            if (stateValue !== null && typeof stateValue === 'object' && !Array.isArray(stateValue) && 'column' in stateValue && !('or' in stateValue)) {
-                const explicitColumnName = stateValue.column;
-                if (explicitColumnName) {
-                    const queries = finder.find(query, explicitColumnName);
-                    if (queries.length === 0) {
-                        throw new Error(`Explicit column '${explicitColumnName}' not found in query`);
-                    }
-
-                    for (const q of queries) {
-                        const columns = collector.collect(q);
-                        const entry = columns.find(item => normalize(item.name) === normalize(explicitColumnName));
-                        if (!entry) {
-                            throw new Error(`Explicit column '${explicitColumnName}' not found in query`);
-                        }
-
-                        // if object, validate its keys
-                        if (stateValue !== null && typeof stateValue === 'object' && !Array.isArray(stateValue) && Object.getPrototypeOf(stateValue) === Object.prototype) {
-                            validateOperators(stateValue, allowedOps, name);
-                        }
-
-                        injectComplexConditions(q, entry.value, name, stateValue);
-                    }
-                    continue;
-                }
-            }
-
-            const queries = finder.find(query, name);
-            if (queries.length === 0) {
-                throw new Error(`Column '${name}' not found in query`);
-            }
-
-            for (const q of queries) {
-                const columns = collector.collect(q);
-                const entry = columns.find(item => normalize(item.name) === normalize(name));
-                if (!entry) {
-                    throw new Error(`Column '${name}' not found in query`);
-                }
-                const columnRef = entry.value;                // if object, validate its keys
-                if (stateValue !== null && typeof stateValue === 'object' && !Array.isArray(stateValue) && Object.getPrototypeOf(stateValue) === Object.prototype) {
-                    validateOperators(stateValue, allowedOps, name);
-                }
-
-                // Handle explicit column mapping
-                let targetColumn = columnRef;
-                let targetColumnName = name;
-                if (stateValue !== null && typeof stateValue === 'object' && !Array.isArray(stateValue) && 'column' in stateValue) {
-                    const explicitColumnName = stateValue.column;
-                    if (explicitColumnName) {
-                        const explicitEntry = columns.find(item => normalize(item.name) === normalize(explicitColumnName));
-                        if (explicitEntry) {
-                            targetColumn = explicitEntry.value;
-                            targetColumnName = explicitColumnName;
-                        }
-                    }
-                }
-
-                if (
-                    stateValue === null ||
-                    typeof stateValue !== 'object' ||
-                    Array.isArray(stateValue) ||
-                    stateValue instanceof Date
-                ) {
-                    injectSimpleCondition(q, targetColumn, targetColumnName, stateValue);
-                } else {
-                    injectComplexConditions(q, targetColumn, targetColumnName, stateValue);
-                }
-            }
+            this.processStateParameter(
+                name, stateValue, query, finder, collector, normalize, allowedOps,
+                injectOrConditions, injectAndConditions, injectSimpleCondition, injectComplexConditions, validateOperators
+            );
         } function injectAndConditions(
             q: SimpleSelectQuery,
             baseName: string,
@@ -488,6 +369,254 @@ export class SqlParamInjector {
         }
 
         return query;
+    }
+
+    /**
+     * Type guard for OR conditions
+     */
+    private isOrCondition(value: any): value is { or: SingleCondition[] } {
+        return value !== null && typeof value === 'object' && !Array.isArray(value) && 'or' in value;
+    }
+
+    /**
+     * Type guard for AND conditions
+     */
+    private isAndCondition(value: any): value is { and: SingleCondition[] } {
+        return value !== null && typeof value === 'object' && !Array.isArray(value) && 'and' in value;
+    }
+
+    /**
+     * Type guard for explicit column mapping without OR
+     */
+    private isExplicitColumnMapping(value: any): value is { column: string } {
+        return value !== null && typeof value === 'object' && !Array.isArray(value) && 
+               'column' in value && !('or' in value);
+    }
+
+    /**
+     * Type guard for objects that need operator validation
+     */
+    private isValidatableObject(value: any): value is object {
+        return value !== null && typeof value === 'object' && !Array.isArray(value) && 
+               Object.getPrototypeOf(value) === Object.prototype;
+    }
+
+    /**
+     * Type guard for column mapping presence
+     */
+    private hasColumnMapping(value: any): value is { column?: string } {
+        return value !== null && typeof value === 'object' && !Array.isArray(value) && 'column' in value;
+    }
+
+    /**
+     * Type guard for simple values (non-object conditions)
+     */
+    private isSimpleValue(value: any): boolean {
+        return value === null || typeof value !== 'object' || Array.isArray(value) || value instanceof Date;
+    }
+
+    /**
+     * Processes a single state parameter
+     */
+    private processStateParameter(
+        name: string,
+        stateValue: any,
+        query: SimpleSelectQuery,
+        finder: UpstreamSelectQueryFinder,
+        collector: SelectableColumnCollector,
+        normalize: (s: string) => string,
+        allowedOps: string[],
+        injectOrConditions: Function,
+        injectAndConditions: Function,
+        injectSimpleCondition: Function,
+        injectComplexConditions: Function,
+        validateOperators: Function
+    ): void {
+        // Handle OR conditions specially - they don't need the main column to exist
+        if (this.isOrCondition(stateValue)) {
+            const orConditions = stateValue.or as SingleCondition[];
+            if (orConditions && orConditions.length > 0) {
+                const targetQuery = this.findTargetQueryForLogicalCondition(
+                    finder, query, name, orConditions
+                );
+                const allColumns = this.getAllAvailableColumns(targetQuery, collector);
+                injectOrConditions(targetQuery, name, orConditions, normalize, allColumns, collector);
+                return;
+            }
+        }
+
+        // Handle AND conditions specially - they don't need the main column to exist
+        if (this.isAndCondition(stateValue)) {
+            const andConditions = stateValue.and as SingleCondition[];
+            if (andConditions && andConditions.length > 0) {
+                const targetQuery = this.findTargetQueryForLogicalCondition(
+                    finder, query, name, andConditions
+                );
+                const allColumns = this.getAllAvailableColumns(targetQuery, collector);
+                injectAndConditions(targetQuery, name, andConditions, normalize, allColumns, collector);
+                return;
+            }
+        }
+
+        // Handle explicit column mapping without OR
+        if (this.isExplicitColumnMapping(stateValue)) {
+            const explicitColumnName = stateValue.column;
+            if (explicitColumnName) {
+                const queries = finder.find(query, explicitColumnName);
+                if (queries.length === 0) {
+                    throw new Error(`Explicit column '${explicitColumnName}' not found in query`);
+                }
+
+                for (const q of queries) {
+                    const allColumns = this.getAllAvailableColumns(q, collector);
+                    const entry = allColumns.find(item => normalize(item.name) === normalize(explicitColumnName));
+                    if (!entry) {
+                        throw new Error(`Explicit column '${explicitColumnName}' not found in query`);
+                    }
+
+                    // if object, validate its keys
+                    if (this.isValidatableObject(stateValue)) {
+                        validateOperators(stateValue, allowedOps, name);
+                    }
+
+                    injectComplexConditions(q, entry.value, name, stateValue);
+                }
+                return;
+            }
+        }
+
+        // Handle regular column conditions
+        this.processRegularColumnCondition(
+            name, stateValue, query, finder, collector, normalize, allowedOps,
+            injectSimpleCondition, injectComplexConditions, validateOperators
+        );
+    }
+
+    /**
+     * Processes regular column conditions (non-logical, non-explicit)
+     */
+    private processRegularColumnCondition(
+        name: string,
+        stateValue: any,
+        query: SimpleSelectQuery,
+        finder: UpstreamSelectQueryFinder,
+        collector: SelectableColumnCollector,
+        normalize: (s: string) => string,
+        allowedOps: string[],
+        injectSimpleCondition: Function,
+        injectComplexConditions: Function,
+        validateOperators: Function
+    ): void {
+        const queries = finder.find(query, name);
+        if (queries.length === 0) {
+            throw new Error(`Column '${name}' not found in query`);
+        }
+
+        for (const q of queries) {
+            const allColumns = this.getAllAvailableColumns(q, collector);
+            const entry = allColumns.find(item => normalize(item.name) === normalize(name));
+            if (!entry) {
+                throw new Error(`Column '${name}' not found in query`);
+            }
+            const columnRef = entry.value;
+            
+            // if object, validate its keys
+            if (this.isValidatableObject(stateValue)) {
+                validateOperators(stateValue, allowedOps, name);
+            }
+
+            // Handle explicit column mapping
+            let targetColumn = columnRef;
+            let targetColumnName = name;
+            if (this.hasColumnMapping(stateValue)) {
+                const explicitColumnName = stateValue.column;
+                if (explicitColumnName) {
+                    const explicitEntry = allColumns.find(item => normalize(item.name) === normalize(explicitColumnName));
+                    if (explicitEntry) {
+                        targetColumn = explicitEntry.value;
+                        targetColumnName = explicitColumnName;
+                    }
+                }
+            }
+
+            if (this.isSimpleValue(stateValue)) {
+                injectSimpleCondition(q, targetColumn, targetColumnName, stateValue);
+            } else {
+                injectComplexConditions(q, targetColumn, targetColumnName, stateValue);
+            }
+        }
+    }
+
+    /**
+     * Finds target query for logical conditions (AND/OR)
+     */
+    private findTargetQueryForLogicalCondition(
+        finder: UpstreamSelectQueryFinder,
+        query: SimpleSelectQuery,
+        baseName: string,
+        conditions: SingleCondition[]
+    ): SimpleSelectQuery {
+        const referencedColumns = conditions
+            .map(cond => cond.column || baseName)
+            .filter((col, index, arr) => arr.indexOf(col) === index); // unique columns
+
+        for (const colName of referencedColumns) {
+            const queries = finder.find(query, colName);
+            if (queries.length > 0) {
+                return queries[0];
+            }
+        }
+
+        const conditionType = conditions === (conditions as any).or ? 'OR' : 'AND';
+        throw new Error(`None of the ${conditionType} condition columns [${referencedColumns.join(', ')}] found in query`);
+    }
+
+    /**
+     * Collects all available columns from a query including CTE columns
+     */
+    private getAllAvailableColumns(
+        query: SimpleSelectQuery, 
+        collector: SelectableColumnCollector
+    ): { name: string; value: ValueComponent }[] {
+        const columns = collector.collect(query);
+        const cteColumns = this.collectCTEColumns(query);
+        return [...columns, ...cteColumns];
+    }
+
+    /**
+     * Collects column names and references from CTE definitions
+     */
+    private collectCTEColumns(query: SimpleSelectQuery): { name: string; value: ValueComponent }[] {
+        const cteColumns: { name: string; value: ValueComponent }[] = [];
+        
+        if (query.withClause) {
+            for (const cte of query.withClause.tables) {
+                try {
+                    const columns = this.collectColumnsFromSelectQuery(cte.query);
+                    cteColumns.push(...columns);
+                } catch (error) {
+                    // Log error but continue processing other CTEs
+                    console.warn(`Failed to collect columns from CTE '${cte.getSourceAliasName()}':`, error);
+                }
+            }
+        }
+        
+        return cteColumns;
+    }
+
+    /**
+     * Recursively collects columns from any SelectQuery type
+     */
+    private collectColumnsFromSelectQuery(query: SelectQuery): { name: string; value: ValueComponent }[] {
+        if (query instanceof SimpleSelectQuery) {
+            const collector = new SelectableColumnCollector(this.tableColumnResolver);
+            return collector.collect(query);
+        } else if (query instanceof BinarySelectQuery) {
+            // For UNION/INTERSECT/EXCEPT, columns from left side are representative
+            // since both sides must have matching column structure
+            return this.collectColumnsFromSelectQuery(query.left);
+        }
+        return [];
     }
 }
 
