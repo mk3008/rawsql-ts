@@ -17,10 +17,8 @@
         "test:sql:watch": "vitest tests/sql-static-analysis.test.ts --watch"
     },
     "dependencies": {
-        "@msugiura/rawsql-prisma": "file:../../packages/prisma-integration",
         "@prisma/client": "^6.9.0",
-        "pg": "^8.11.0",
-        "rawsql-ts": "file:../../packages/core"
+        "pg": "^8.11.0"
     },
     "devDependencies": {
         "@types/node": "^20.0.0",
@@ -30,6 +28,9 @@
         "tsx": "^4.7.0",
         "typescript": "^5.4.0",
         "vitest": "^2.0.0"
+    },
+    "optionalDependencies": {
+        "@rollup/rollup-linux-x64-gnu": "^4.44.0"
     },
     "prisma": {
         "seed": "tsx prisma/seed.ts"
