@@ -24,11 +24,11 @@ Model-Driven JSON Mapping enables:
   "structure": {
     "todoId": "todo_id",
     "title": {
-      "from": "title",
+      "column": "title",
       "type": "string"
     },
     "description": {
-      "from": "description",
+      "column": "description",
       "type": "string"
     },
     "completed": "completed",
@@ -40,11 +40,11 @@ Model-Driven JSON Mapping enables:
       "structure": {
         "userId": "user_id",
         "userName": {
-          "from": "user_name",
+          "column": "user_name",
           "type": "string"
         },
         "email": {
-          "from": "email",
+          "column": "email",
           "type": "string"
         }
       }
@@ -55,11 +55,11 @@ Model-Driven JSON Mapping enables:
       "structure": {
         "categoryId": "category_id",
         "categoryName": {
-          "from": "category_name",
+          "column": "category_name",
           "type": "string"
         },
         "color": {
-          "from": "color",
+          "column": "color",
           "type": "string"
         }
       }
@@ -70,17 +70,13 @@ Model-Driven JSON Mapping enables:
       "structure": {
         "commentId": "comment_id",
         "text": {
-          "from": "comment_text",
+          "column": "comment_text",
           "type": "string"
         },
         "createdAt": "comment_created_at"
       }
     }
-  },
-  "protectedStringFields": [
-    "title", "description", "user_name", "email", 
-    "category_name", "color", "comment_text"
-  ]
+  }
 }
 ```
 
@@ -92,7 +88,8 @@ Model-Driven JSON Mapping enables:
 |-------|------|----------|-------------|
 | `typeInfo` | object | Yes | TypeScript interface information |
 | `structure` | object | Yes | The main data structure mapping |
-| `protectedStringFields` | array | No | List of database columns that should be protected with type: "string" |
+
+**Note:** The `protectedStringFields` array from earlier documentation is not used in the actual implementation. Type protection is automatically extracted from fields marked with `type: "string"`.
 
 ### TypeInfo Object
 
@@ -103,7 +100,7 @@ Model-Driven JSON Mapping enables:
 
 ### Structure Mapping
 
-The `structure` object maps TypeScript properties to database columns using two formats:
+The `structure` object maps TypeScript properties to database columns using three formats:
 
 #### Simple String Mapping
 ```json
@@ -112,7 +109,7 @@ The `structure` object maps TypeScript properties to database columns using two 
 }
 ```
 
-#### Advanced Object Mapping
+#### Advanced Object Mapping (Legacy)
 ```json
 {
   "fieldName": {
@@ -121,6 +118,18 @@ The `structure` object maps TypeScript properties to database columns using two 
   }
 }
 ```
+
+#### Advanced Object Mapping (New)
+```json
+{
+  "fieldName": {
+    "column": "database_column_name",
+    "type": "string"
+  }
+}
+```
+
+**Note:** Both `from` and `column` formats are supported for backward compatibility.
 
 ### Nested Object Mapping
 ```json
@@ -152,9 +161,12 @@ The `structure` object maps TypeScript properties to database columns using two 
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `from` | string | Yes (for complex mappings) | Source database column or alias |
-| `type` | string | No | Data type: "string", "number", "boolean", "object", "array" |
+| `from` | string | Yes (for complex mappings, legacy) | Source database column or alias |
+| `column` | string | Yes (for complex mappings, new) | Source database column |
+| `type` | string | No | Data type: "string", "number", "boolean", "object", "array", "auto" |
 | `structure` | object | Yes (for objects/arrays) | Nested structure definition |
+
+**Note:** Use either `from` OR `column` (not both). The `column` format is preferred for new mappings.
 
 ## Advantages Over Legacy Formats
 
@@ -225,10 +237,7 @@ interface User {
       "type": "string"
     },
     "createdAt": "created_at"
-  },
-  "protectedStringFields": [
-    "name", "email"
-  ]
+  }
 }
 ```
 
@@ -250,11 +259,11 @@ interface User {
       "from": "p",
       "structure": {
         "title": {
-          "from": "profile_title",
+          "column": "profile_title",
           "type": "string"
         },
         "bio": {
-          "from": "profile_bio",
+          "column": "profile_bio",
           "type": "string"
         }
       }
@@ -350,11 +359,11 @@ Use `type: "string"` for:
 {
   "structure": {
     "title": {
-      "from": "title",
+      "column": "title",
       "type": "string"
     },
     "email": {
-      "from": "email", 
+      "column": "email", 
       "type": "string"
     },
     "id": "user_id",  // Numbers don't need type protection
@@ -362,6 +371,10 @@ Use `type: "string"` for:
   }
 }
 ```
+
+### Automatic Type Protection Extraction
+
+The implementation automatically extracts type protection information from fields marked with `type: "string"`. You don't need to specify a separate `protectedStringFields` array.
 
 ## AI Generation Template
 
@@ -451,12 +464,51 @@ Please generate the complete JSON mapping file following the Model-Driven JSON M
 ### 3. Type Safety
 - Always include `typeInfo` with correct interface name and import path
 - Use `type: "string"` for user-generated content
-- Add `protectedStringFields` for security-sensitive columns
+- Type protection is automatically extracted from field definitions
 
 ### 4. SQL Query Alignment
 - Ensure SQL column aliases match the mapping exactly
 - Use table aliases in SQL and reference them in `from` fields
 - Structure JOINs to support the nested object hierarchy
+
+## API Usage
+
+The Model-Driven JSON Mapping is processed using the `convertModelDrivenMapping` function:
+
+```typescript
+import { convertModelDrivenMapping, ModelDrivenJsonMapping } from 'rawsql-ts';
+
+const modelMapping: ModelDrivenJsonMapping = {
+  typeInfo: {
+    interface: "UserProfile",
+    importPath: "src/contracts/user-profile.ts"
+  },
+  structure: {
+    userId: "user_id",
+    name: { column: "name", type: "string" },
+    email: { column: "email", type: "string" }
+  }
+};
+
+// Convert to legacy format for PostgresJsonQueryBuilder
+const { jsonMapping, typeProtection } = convertModelDrivenMapping(modelMapping);
+
+// Use with PostgresJsonQueryBuilder
+const jsonQuery = postgresBuilder.buildJson(query, jsonMapping);
+```
+
+### Validation
+
+The implementation includes validation to ensure mapping correctness:
+
+```typescript
+import { validateModelDrivenMapping } from 'rawsql-ts';
+
+const errors = validateModelDrivenMapping(modelMapping);
+if (errors.length > 0) {
+  console.error('Validation errors:', errors);
+}
+```
 
 ## Migration from Legacy Formats
 
@@ -473,6 +525,7 @@ The system automatically detects format based on structure:
 - **Simplified Maintenance**: Easier to understand and modify
 - **Better Type Safety**: Enhanced type information and validation
 - **Future-Proof**: New features will prioritize model-driven format
+- **Automatic Entity ID Generation**: No need to manually manage entity IDs
 
 ## Integration with Static Analysis
 
