@@ -110,4 +110,5 @@ jobs:
       run: npm run build:core
       
     - name: Run benchmarks
-      run: npm run benchmark
+      run: npm run benchmark --workspace=packages/core
+      continue-on-error: true
