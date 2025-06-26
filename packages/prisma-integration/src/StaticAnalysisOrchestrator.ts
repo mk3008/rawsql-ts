@@ -19,14 +19,14 @@ import { SqlStaticAnalyzer, SqlStaticAnalysisReport, SqlStaticAnalyzerOptions } 
 import { DomainModelCompatibilityTester } from './DomainModelCompatibilityTester';
 import { PrismaSchemaResolver } from './PrismaSchemaResolver';
 import { UnifiedJsonMapping, ColumnMappingConfig } from '../../core/src/transformers/UnifiedJsonMapping';
+import { findAndConvertMappingFiles } from './MappingFileProcessor';
+import * as path from 'path';
+import * as fs from 'fs';
 
 // Model-driven types are not available, using any for now
 type ModelDrivenJsonMapping = any;
 type FieldMapping = any;
 type StructureFields = any;
-import { findAndConvertMappingFiles } from './MappingFileProcessor';
-import * as path from 'path';
-import * as fs from 'fs';
 
 export interface StaticAnalysisOptions {
     /** Base directory for the project (typically where package.json is) */
@@ -451,18 +451,17 @@ export class StaticAnalysisOrchestrator {
      * This method searches common locations to support both terminal and VS Code test execution
      */
     private findSchemaPath(): string | undefined {
-        const fs = require('fs');
         const { baseDir } = this.options;
 
-        // Common schema.prisma locations relative to baseDir
+        // Ensure baseDir is absolute to prevent relative path issues
+        const absoluteBaseDir = path.resolve(baseDir);
+
+        // Common schema.prisma locations using absolute paths
         const commonPaths = [
-            path.join(baseDir, 'prisma', 'schema.prisma'), // Standard location
-            path.join(baseDir, 'schema.prisma'), // Root location
-            path.join(baseDir, '..', 'prisma', 'schema.prisma'), // Parent directory
-            path.join(baseDir, '..', 'schema.prisma'), // Parent root
-            // Fallback to process.cwd() for backwards compatibility
-            path.join(process.cwd(), 'prisma', 'schema.prisma'),
-            path.join(process.cwd(), 'schema.prisma'),
+            path.resolve(absoluteBaseDir, 'prisma', 'schema.prisma'), // Standard location
+            path.resolve(absoluteBaseDir, 'schema.prisma'), // Root location
+            path.resolve(absoluteBaseDir, '..', 'prisma', 'schema.prisma'), // Parent directory
+            path.resolve(absoluteBaseDir, '..', 'schema.prisma'), // Parent root
         ];
 
         for (const schemaPath of commonPaths) {

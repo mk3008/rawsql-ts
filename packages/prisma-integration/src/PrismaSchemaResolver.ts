@@ -72,31 +72,35 @@ export class PrismaSchemaResolver {
         }
 
         // Final fallback: If all methods fail, throw error with actual searched paths
-        const cwd = process.cwd();
+        // Use module directory as base instead of process.cwd() for consistent resolution
+        const moduleDir = path.dirname(__filename);
+        const projectRoot = path.resolve(moduleDir, '..');
+        
         const searchedPaths = [
-            // Current directory
-            path.join(cwd, 'prisma', 'schema.prisma'),
-            path.join(cwd, 'schema.prisma'),
+            // Project root and common locations
+            path.resolve(projectRoot, 'prisma', 'schema.prisma'),
+            path.resolve(projectRoot, 'schema.prisma'),
             
             // Parent directories (for monorepo structures)
-            path.join(cwd, '..', 'prisma', 'schema.prisma'),
-            path.join(cwd, '..', 'schema.prisma'),
-            path.join(cwd, '../../prisma', 'schema.prisma'),
-            path.join(cwd, '../../schema.prisma'),
-            path.join(cwd, '../../../prisma', 'schema.prisma'),
-            path.join(cwd, '../../../schema.prisma'),
+            path.resolve(projectRoot, '..', 'prisma', 'schema.prisma'),
+            path.resolve(projectRoot, '..', 'schema.prisma'),
+            path.resolve(projectRoot, '../../prisma', 'schema.prisma'),
+            path.resolve(projectRoot, '../../schema.prisma'),
+            path.resolve(projectRoot, '../../../prisma', 'schema.prisma'),
+            path.resolve(projectRoot, '../../../schema.prisma'),
             
             // Specific paths for package structures
-            path.join(cwd, 'packages', 'prisma-integration', 'prisma', 'schema.prisma'),
-            path.join(cwd, 'examples', 'prisma-comparison-demo', 'prisma', 'schema.prisma'),
+            path.resolve(projectRoot, 'packages', 'prisma-integration', 'prisma', 'schema.prisma'),
+            path.resolve(projectRoot, 'examples', 'prisma-comparison-demo', 'prisma', 'schema.prisma'),
             
-            ...(this.options.schemaPath ? [this.options.schemaPath] : [])
+            ...(this.options.schemaPath ? [path.resolve(this.options.schemaPath)] : [])
         ];
 
         throw new Error(
             `Unable to resolve Prisma schema information. Searched in these locations:\n` +
             searchedPaths.map(loc => `  - ${loc}`).join('\n') + '\n\n' +
-            `Current working directory: ${cwd}\n` +
+            `Module directory: ${moduleDir}\n` +
+            `Project root: ${projectRoot}\n` +
             `Platform: ${process.platform}\n` +
             `Node.js version: ${process.version}\n\n` +
             'Solutions:\n' +
@@ -248,57 +252,65 @@ export class PrismaSchemaResolver {
             }
         }
 
-        // Fallback: Check common locations relative to current working directory
-        const cwd = process.cwd();
+        // Fallback: Check common locations relative to module directory for consistent resolution
+        // Use module directory as base instead of process.cwd() to avoid execution context issues
+        const moduleDir = path.dirname(__filename);
+        const projectRoot = path.resolve(moduleDir, '..');
         const isWindows = process.platform === 'win32';
         const isWSL = process.platform === 'linux' && process.env.WSL_DISTRO_NAME;
         
         const commonPaths = [
-            // Current directory
-            path.join(cwd, 'prisma', 'schema.prisma'),
-            path.join(cwd, 'schema.prisma'),
+            // Project root and common locations
+            path.resolve(projectRoot, 'prisma', 'schema.prisma'),
+            path.resolve(projectRoot, 'schema.prisma'),
             
             // Parent directories (for monorepo structures)
-            path.join(cwd, '..', 'prisma', 'schema.prisma'),
-            path.join(cwd, '..', 'schema.prisma'),
-            path.join(cwd, '../../prisma', 'schema.prisma'),
-            path.join(cwd, '../../schema.prisma'),
-            path.join(cwd, '../../../prisma', 'schema.prisma'),
-            path.join(cwd, '../../../schema.prisma'),
+            path.resolve(projectRoot, '..', 'prisma', 'schema.prisma'),
+            path.resolve(projectRoot, '..', 'schema.prisma'),
+            path.resolve(projectRoot, '../../prisma', 'schema.prisma'),
+            path.resolve(projectRoot, '../../schema.prisma'),
+            path.resolve(projectRoot, '../../../prisma', 'schema.prisma'),
+            path.resolve(projectRoot, '../../../schema.prisma'),
             
             // Specific paths for package structures
-            path.join(cwd, 'packages', 'prisma-integration', 'prisma', 'schema.prisma'),
-            path.join(cwd, 'examples', 'prisma-comparison-demo', 'prisma', 'schema.prisma'),
+            path.resolve(projectRoot, 'packages', 'prisma-integration', 'prisma', 'schema.prisma'),
+            path.resolve(projectRoot, 'examples', 'prisma-comparison-demo', 'prisma', 'schema.prisma'),
             
-            // Absolute paths from filesystem root (for Windows/Linux compatibility)
-            path.resolve(cwd, '../../../../prisma/schema.prisma'),
-            path.resolve(cwd, '../../../../schema.prisma'),
+            // Additional fallback paths
+            path.resolve(projectRoot, '../../../../prisma/schema.prisma'),
+            path.resolve(projectRoot, '../../../../schema.prisma'),
         ];
 
         // Add Windows-specific paths if running on Windows
         if (isWindows) {
             // Convert WSL-style paths to Windows paths if applicable
-            const windowsCwd = cwd.replace(/^\/mnt\/([a-z])/, '$1:');
-            if (windowsCwd !== cwd) {
+            const windowsProjectRoot = projectRoot.replace(/^\/mnt\/([a-z])/, '$1:');
+            if (windowsProjectRoot !== projectRoot) {
                 commonPaths.push(
-                    path.join(windowsCwd, 'prisma', 'schema.prisma'),
-                    path.join(windowsCwd, 'packages', 'prisma-integration', 'prisma', 'schema.prisma'),
-                    path.join(windowsCwd, 'examples', 'prisma-comparison-demo', 'prisma', 'schema.prisma')
+                    path.join(windowsProjectRoot, 'prisma', 'schema.prisma'),
+                    path.join(windowsProjectRoot, 'packages', 'prisma-integration', 'prisma', 'schema.prisma'),
+                    path.join(windowsProjectRoot, 'examples', 'prisma-comparison-demo', 'prisma', 'schema.prisma')
                 );
             }
         }
 
-        // Add WSL-specific paths if running in WSL
+        // Add dynamic WSL paths if running in WSL (avoid hardcoded user paths)
         if (isWSL) {
-            const wslPaths = [
-                '/mnt/c/Users/mssgm/github/packages/prisma-integration/prisma/schema.prisma',
-                '/mnt/c/Users/mssgm/github/examples/prisma-comparison-demo/prisma/schema.prisma'
-            ];
-            commonPaths.push(...wslPaths);
+            // Try to detect WSL mount points dynamically
+            const wslMountBase = '/mnt/c';
+            if (fs.existsSync(wslMountBase)) {
+                // Add some common WSL paths relative to the detected mount
+                const wslPaths = [
+                    path.resolve(wslMountBase, 'projects', 'prisma', 'schema.prisma'),
+                    path.resolve(wslMountBase, 'dev', 'prisma', 'schema.prisma')
+                ];
+                commonPaths.push(...wslPaths);
+            }
         }
 
         if (this.options.debug) {
-            console.log(`[PrismaSchemaResolver] Current working directory: ${cwd}`);
+            console.log(`[PrismaSchemaResolver] Module directory: ${moduleDir}`);
+            console.log(`[PrismaSchemaResolver] Project root: ${projectRoot}`);
             console.log(`[PrismaSchemaResolver] Searching for schema.prisma in ${commonPaths.length} locations...`);
         }
 
