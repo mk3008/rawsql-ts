@@ -23,6 +23,7 @@ It is designed for extensibility and advanced SQL analysis, with initial focus o
 - High-speed SQL parsing and AST analysis (over 3x faster than major libraries)
 - Rich utilities for SQL structure transformation and analysis
 - Advanced SQL formatting capabilities, including multi-line formatting and customizable styles
+- **Programmatic CTE Management** - Add, remove, and manipulate Common Table Expressions (CTEs) programmatically with support for PostgreSQL MATERIALIZED/NOT MATERIALIZED hints
 - **JSON-to-TypeScript type transformation** - Automatically convert JSON-ified SQL results (dates as strings, BigInts) back to proper TypeScript types with configurable transformation rules
 - **All-in-one dynamic query building with `DynamicQueryBuilder`** - combines filtering, sorting, pagination, and JSON serialization in a single, type-safe interface
 - Dynamic SQL parameter injection for building flexible search queries with `SqlParamInjector` (supports like, ilike, in, any, range queries, OR/AND conditions and more)
@@ -118,6 +119,58 @@ console.log('Parameters:');
 console.log(params);
 // Output: { status: 'premium', created_at_gt: '2024-01-01' }
 ```
+
+---
+
+## CTE Management API
+
+The CTE Management API provides programmatic control over Common Table Expressions (CTEs), allowing you to build and manipulate WITH clauses dynamically. This is particularly useful for building complex analytical queries, data transformation pipelines, and hierarchical data structures.
+
+```typescript
+import { SelectQueryParser, SqlFormatter } from 'rawsql-ts';
+
+// Build a multi-step data pipeline with CTEs
+const pipeline = SelectQueryParser.parse('SELECT * FROM final_results').toSimpleQuery();
+
+// Step 1: Add raw data CTE with PostgreSQL MATERIALIZED hint
+const salesData = SelectQueryParser.parse(`
+    SELECT customer_id, order_date, amount, product_category
+    FROM sales WHERE order_date >= '2024-01-01'
+`);
+pipeline.addCTE('raw_sales', salesData.toSimpleQuery(), { materialized: true });
+
+// Step 2: Add aggregation CTE
+const monthlyStats = SelectQueryParser.parse(`
+    SELECT customer_id, DATE_TRUNC('month', order_date) as month,
+           SUM(amount) as total, COUNT(*) as orders
+    FROM raw_sales
+    GROUP BY customer_id, DATE_TRUNC('month', order_date)
+`);
+pipeline.addCTE('monthly_stats', monthlyStats.toSimpleQuery());
+
+// Manage CTEs programmatically
+console.log(pipeline.getCTENames()); // ['raw_sales', 'monthly_stats']
+console.log(pipeline.hasCTE('raw_sales')); // true
+
+// Replace the final query to use the CTEs
+const finalQuery = SelectQueryParser.parse(`
+    SELECT * FROM monthly_stats WHERE total > 10000
+`);
+pipeline.replaceCTE('final_results', finalQuery.toSimpleQuery());
+
+// Format and execute
+const formatter = new SqlFormatter();
+const { formattedSql } = formatter.format(pipeline);
+// Output: WITH "raw_sales" AS MATERIALIZED (...), "monthly_stats" AS (...) SELECT * FROM monthly_stats WHERE total > 10000
+```
+
+Key features include:
+- **Dynamic CTE Management**: Add, remove, replace, and query CTEs programmatically
+- **PostgreSQL MATERIALIZED Support**: Control query optimization with MATERIALIZED/NOT MATERIALIZED hints
+- **Type Safety**: Full TypeScript support with error handling for duplicate names and invalid operations
+- **Performance Optimized**: O(1) CTE name lookups for efficient operations
+
+For comprehensive examples and advanced usage patterns, see the [CTE Management API Usage Guide](../../docs/usage-guides/cte-management-api-usage-guide.md).
 
 ---
 

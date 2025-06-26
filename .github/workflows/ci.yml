@@ -1,0 +1,103 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop, "release/*", "feature/*" ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x, 22.x]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Lint check
+      run: npm run lint
+      
+    - name: TypeScript compilation check
+      run: npm run build
+      
+    - name: Run unit tests (excluding Docker-dependent tests)
+      run: npm run test:workspaces
+      
+    - name: Run coverage tests
+      run: npm run coverage:workspaces
+      if: matrix.node-version == '20.x'
+      
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v4
+      if: matrix.node-version == '20.x'
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        files: ./packages/*/coverage/lcov.info
+        fail_ci_if_error: false
+        verbose: true
+
+  package-tests:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        package: [core, prisma-integration]
+        node-version: [20.x]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Build ${{ matrix.package }} package
+      run: npm run build --workspace=packages/${{ matrix.package }}
+      
+    - name: Test ${{ matrix.package }} package
+      run: npm run test --workspace=packages/${{ matrix.package }}
+      
+    - name: Lint ${{ matrix.package }} package
+      run: npm run lint --workspace=packages/${{ matrix.package }}
+
+  benchmark:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/'))
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js 20.x
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20.x
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Build core package
+      run: npm run build:core
+      
+    - name: Run benchmarks
+      run: npm run benchmark
