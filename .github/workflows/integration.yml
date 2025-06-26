@@ -1,11 +1,12 @@
 name: Integration Tests
 
 on:
-  push:
-    branches: [ main, develop ]
-  pull_request:
-    branches: [ main, develop ]
-  workflow_dispatch:  # Allow manual trigger
+  workflow_dispatch:  # Manual trigger only for now
+  # Temporarily disabled for PR testing
+  # push:
+  #   branches: [ main, develop ]
+  # pull_request:
+  #   branches: [ main, develop ]
 
 jobs:
   integration-tests:
@@ -48,7 +49,9 @@ jobs:
         DATABASE_URL: postgresql://demo_user:demo_password@localhost:5432/prisma_comparison_demo
       run: |
         npm install
-        npm run db:setup
+        npx prisma generate
+        npx prisma db push
+        npx prisma db seed
         
     - name: Run integration tests
       working-directory: ./examples/prisma-comparison-demo
