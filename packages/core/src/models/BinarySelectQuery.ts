@@ -1,11 +1,13 @@
 import { SourceExpression, SubQuerySource, SourceAliasExpression } from "./Clause";
-import type { SelectQuery } from "./SelectQuery";
+import type { SelectQuery, CTEOptions } from "./SelectQuery";
 import { SqlComponent } from "./SqlComponent";
 import { RawString } from "./ValueComponent";
 import { CTENormalizer } from "../transformers/CTENormalizer";
 import { SelectQueryParser } from "../parsers/SelectQueryParser";
 import { ParameterCollector } from "../transformers/ParameterCollector";
 import { ParameterHelper } from "../utils/ParameterHelper";
+import { QueryBuilder } from "../transformers/QueryBuilder";
+import { SimpleSelectQuery } from "./SimpleSelectQuery";
 
 /**
  * Represents a binary SELECT query (e.g., UNION, INTERSECT, EXCEPT).
@@ -162,5 +164,14 @@ export class BinarySelectQuery extends SqlComponent implements SelectQuery {
     public setParameter(name: string, value: any): this {
         ParameterHelper.set(this, name, value);
         return this;
+    }
+
+    /**
+     * Converts this BinarySelectQuery to a SimpleSelectQuery using QueryBuilder.
+     * This enables CTE management on binary queries by wrapping them as subqueries.
+     * @returns A SimpleSelectQuery representation of this binary query
+     */
+    public toSimpleQuery(): SimpleSelectQuery {
+        return QueryBuilder.buildSimpleQuery(this);
     }
 }

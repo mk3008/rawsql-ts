@@ -4,7 +4,22 @@ import { SimpleSelectQuery } from "./SimpleSelectQuery";
 import { BinarySelectQuery } from "./BinarySelectQuery";
 import { ValuesQuery } from "./ValuesQuery";
 
+export interface CTEOptions {
+    materialized?: boolean | null;
+}
+
+export { DuplicateCTEError, InvalidCTENameError, CTENotFoundError } from './CTEError';
+
+export interface CTEManagement {
+    addCTE(name: string, query: SelectQuery, options?: CTEOptions): this;
+    removeCTE(name: string): this;
+    hasCTE(name: string): boolean;
+    getCTENames(): string[];
+    replaceCTE(name: string, query: SelectQuery, options?: CTEOptions): this;
+}
+
 export interface SelectQuery extends SqlComponent {
     setParameter(name: string, value: any): this;
+    toSimpleQuery(): SimpleSelectQuery;
 }
 export { SimpleSelectQuery, BinarySelectQuery, ValuesQuery, InsertQuery };

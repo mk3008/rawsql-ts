@@ -25,7 +25,7 @@ export class ValuesQuery extends SqlComponent implements SelectQuery {
         this.columnAliases = columnAliases;
     }
 
-    public toSimpleSelectQuery(): SimpleSelectQuery {
+    public toSimpleQuery(): SimpleSelectQuery {
         return QueryBuilder.buildSimpleQuery(this);
     }
 
