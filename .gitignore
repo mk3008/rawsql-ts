@@ -138,6 +138,7 @@ build/
 # Temporary files
 tmp/
 temp/
+.tmp/
 
 # IDE-specific files
 .idea/

@@ -30,6 +30,8 @@ export class QueryBuilder {
         }
 
         // Always create a new BinarySelectQuery instance (never mutate input)
+        // Note: ValuesQuery requires conversion to SimpleSelectQuery because it lacks SELECT clause structure
+        // BinarySelectQuery and SimpleSelectQuery can be used directly in binary operations
         const wrap = (q: SelectQuery) => q instanceof ValuesQuery ? QueryBuilder.buildSimpleQuery(q) : q;
         let result: BinarySelectQuery = new BinarySelectQuery(wrap(queries[0]), operator, wrap(queries[1]));
         CTENormalizer.normalize(result);

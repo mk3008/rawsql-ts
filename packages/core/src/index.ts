@@ -6,6 +6,7 @@ export * from './models/BinarySelectQuery';
 export * from './models/SelectQuery';
 export * from './models/ValueComponent';
 export * from './models/ValuesQuery';
+export * from './models/CTEError';
 
 export * from './transformers/CTECollector';
 export * from './transformers/CTENormalizer';

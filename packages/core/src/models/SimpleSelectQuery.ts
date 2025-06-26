@@ -6,7 +6,8 @@ import { CTENormalizer } from "../transformers/CTENormalizer";
 import { SelectableColumnCollector } from "../transformers/SelectableColumnCollector";
 import { SourceParser } from "../parsers/SourceParser";
 import { BinarySelectQuery } from "./BinarySelectQuery";
-import type { SelectQuery } from "./SelectQuery";
+import type { SelectQuery, CTEOptions, CTEManagement } from "./SelectQuery";
+import { DuplicateCTEError, InvalidCTENameError, CTENotFoundError } from "./CTEError";
 import { SelectQueryParser } from "../parsers/SelectQueryParser";
 import { Formatter } from "../transformers/Formatter";
 import { TableColumnResolver } from "../transformers/TableColumnResolver";
@@ -17,7 +18,7 @@ import { ParameterHelper } from "../utils/ParameterHelper";
 /**
  * Represents a simple SELECT query in SQL.
  */
-export class SimpleSelectQuery extends SqlComponent implements SelectQuery {
+export class SimpleSelectQuery extends SqlComponent implements SelectQuery, CTEManagement {
     static kind = Symbol("SelectQuery");
     withClause: WithClause | null;
     selectClause: SelectClause;
@@ -31,6 +32,9 @@ export class SimpleSelectQuery extends SqlComponent implements SelectQuery {
     offsetClause: OffsetClause | null;
     fetchClause: FetchClause | null;
     forClause: ForClause | null;
+    
+    // Performance optimization: O(1) CTE name lookups
+    private cteNameCache: Set<string> = new Set();
 
     constructor(params: {
         selectClause: SelectClause,
@@ -59,6 +63,23 @@ export class SimpleSelectQuery extends SqlComponent implements SelectQuery {
         this.offsetClause = params.offsetClause ?? null;
         this.fetchClause = params.fetchClause ?? null;
         this.forClause = params.forClause ?? null;
+        
+        // Initialize CTE name cache from existing withClause
+        this.initializeCTECache();
+    }
+
+    /**
+     * Initializes the CTE name cache from existing withClause.
+     * Called during construction and when withClause is modified externally.
+     * @private
+     */
+    private initializeCTECache(): void {
+        this.cteNameCache.clear();
+        if (this.withClause?.tables) {
+            for (const table of this.withClause.tables) {
+                this.cteNameCache.add(table.aliasExpression.table.name);
+            }
+        }
     }
 
     /**
@@ -444,6 +465,227 @@ export class SimpleSelectQuery extends SqlComponent implements SelectQuery {
      */
     public setParameter(name: string, value: any): this {
         ParameterHelper.set(this, name, value);
+        return this;
+    }
+
+    /**
+     * Returns this SimpleSelectQuery instance (identity function).
+     * @returns This SimpleSelectQuery instance
+     */
+    public toSimpleQuery(): SimpleSelectQuery {
+        return this;
+    }
+
+    /**
+     * Adds a CTE (Common Table Expression) to the query.
+     * 
+     * @param name CTE name/alias (must be non-empty)
+     * @param query SelectQuery to use as CTE
+     * @param options Optional configuration
+     * @param options.materialized PostgreSQL-specific: true = MATERIALIZED, false = NOT MATERIALIZED, null/undefined = no hint
+     * 
+     * @throws {InvalidCTENameError} When name is empty or whitespace-only
+     * @throws {DuplicateCTEError} When CTE with same name already exists
+     * 
+     * @example
+     * ```typescript
+     * // Basic CTE
+     * query.addCTE('active_users', 
+     *   SelectQueryParser.parse('SELECT * FROM users WHERE active = true')
+     * );
+     * 
+     * // PostgreSQL MATERIALIZED CTE (forces materialization)
+     * query.addCTE('expensive_calc', expensiveQuery, { materialized: true });
+     * 
+     * // PostgreSQL NOT MATERIALIZED CTE (prevents materialization)
+     * query.addCTE('simple_view', simpleQuery, { materialized: false });
+     * ```
+     * 
+     * @remarks
+     * - MATERIALIZED/NOT MATERIALIZED is PostgreSQL-specific syntax
+     * - Other databases will ignore the materialized hint
+     * - CTE names must be unique within the query
+     * - Method supports fluent chaining
+     */
+    public addCTE(name: string, query: SelectQuery, options?: CTEOptions): this {
+        // Validate CTE name
+        if (!name || name.trim() === '') {
+            throw new InvalidCTENameError(name, 'name cannot be empty or whitespace-only');
+        }
+        
+        // Check for duplicate CTE name
+        if (this.hasCTE(name)) {
+            throw new DuplicateCTEError(name);
+        }
+        
+        const materialized = options?.materialized ?? null;
+        const commonTable = new CommonTable(query, name, materialized);
+        this.appendWith(commonTable);
+        
+        // Update cache for O(1) future lookups
+        this.cteNameCache.add(name);
+        return this;
+    }
+
+    /**
+     * Removes a CTE by name from the query.
+     * 
+     * @param name CTE name to remove
+     * 
+     * @throws {CTENotFoundError} When CTE with specified name doesn't exist
+     * 
+     * @example
+     * ```typescript
+     * query.addCTE('temp_data', tempQuery);
+     * query.removeCTE('temp_data'); // Removes the CTE
+     * 
+     * // Throws CTENotFoundError
+     * query.removeCTE('non_existent'); 
+     * ```
+     * 
+     * @remarks
+     * - Throws error if CTE doesn't exist (strict mode for safety)
+     * - Use hasCTE() to check existence before removal if needed
+     * - Method supports fluent chaining
+     */
+    public removeCTE(name: string): this {
+        if (!this.hasCTE(name)) {
+            throw new CTENotFoundError(name);
+        }
+        
+        if (this.withClause) {
+            this.withClause.tables = this.withClause.tables.filter(table => table.aliasExpression.table.name !== name);
+            if (this.withClause.tables.length === 0) {
+                this.withClause = null;
+            }
+        }
+        
+        // Update cache for O(1) future lookups
+        this.cteNameCache.delete(name);
+        return this;
+    }
+
+    /**
+     * Checks if a CTE with the given name exists in the query.
+     * Optimized with O(1) lookup using internal cache.
+     * 
+     * @param name CTE name to check
+     * @returns true if CTE exists, false otherwise
+     * 
+     * @example
+     * ```typescript
+     * query.addCTE('user_stats', statsQuery);
+     * 
+     * if (query.hasCTE('user_stats')) {
+     *   console.log('CTE exists');
+     * }
+     * 
+     * query.removeCTE('user_stats');
+     * console.log(query.hasCTE('user_stats')); // false
+     * ```
+     * 
+     * @remarks
+     * - Performs case-sensitive name matching
+     * - Returns false for queries without any CTEs
+     * - Useful for conditional CTE operations
+     * - O(1) performance using internal cache
+     */
+    public hasCTE(name: string): boolean {
+        return this.cteNameCache.has(name);
+    }
+
+    /**
+     * Returns an array of all CTE names in the query.
+     * 
+     * @returns Array of CTE names in the order they were defined
+     * 
+     * @example
+     * ```typescript
+     * const query = SelectQueryParser.parse('SELECT * FROM data').toSimpleQuery();
+     * 
+     * // Empty query
+     * console.log(query.getCTENames()); // []
+     * 
+     * // Add CTEs
+     * query.addCTE('users', userQuery);
+     * query.addCTE('orders', orderQuery);
+     * 
+     * console.log(query.getCTENames()); // ['users', 'orders']
+     * 
+     * // Use for validation
+     * const expectedCTEs = ['users', 'orders', 'products'];
+     * const actualCTEs = query.getCTENames();
+     * const missingCTEs = expectedCTEs.filter(name => !actualCTEs.includes(name));
+     * ```
+     * 
+     * @remarks
+     * - Returns empty array for queries without CTEs
+     * - Names are returned in definition order
+     * - Useful for debugging and validation
+     * - Names reflect actual CTE aliases, not table references
+     * - Performance: O(n) but avoids redundant array mapping
+     */
+    public getCTENames(): string[] {
+        return this.withClause?.tables.map(table => table.aliasExpression.table.name) ?? [];
+    }
+
+    /**
+     * Replaces an existing CTE or adds a new one with the given name.
+     * 
+     * @param name CTE name to replace/add (must be non-empty)
+     * @param query SelectQuery to use as CTE
+     * @param options Optional configuration
+     * @param options.materialized PostgreSQL-specific: true = MATERIALIZED, false = NOT MATERIALIZED, null/undefined = no hint
+     * 
+     * @throws {InvalidCTENameError} When name is empty or whitespace-only
+     * 
+     * @example
+     * ```typescript
+     * const query = SelectQueryParser.parse('SELECT * FROM final_data').toSimpleQuery();
+     * const oldQuery = SelectQueryParser.parse('SELECT id FROM old_table');
+     * const newQuery = SelectQueryParser.parse('SELECT id, status FROM new_table WHERE active = true');
+     * 
+     * // Add initial CTE
+     * query.addCTE('data_source', oldQuery);
+     * 
+     * // Replace with improved version
+     * query.replaceCTE('data_source', newQuery, { materialized: true });
+     * 
+     * // Safe replacement - adds if doesn't exist
+     * query.replaceCTE('new_cte', newQuery); // Won't throw error
+     * 
+     * // Chaining replacements
+     * query
+     *   .replaceCTE('cte1', query1, { materialized: false })
+     *   .replaceCTE('cte2', query2, { materialized: true });
+     * ```
+     * 
+     * @remarks
+     * - Unlike addCTE(), this method won't throw error if CTE already exists
+     * - Unlike removeCTE(), this method won't throw error if CTE doesn't exist
+     * - Useful for upsert-style CTE operations
+     * - MATERIALIZED/NOT MATERIALIZED is PostgreSQL-specific
+     * - Method supports fluent chaining
+     * - Maintains CTE order when replacing existing CTEs
+     */
+    public replaceCTE(name: string, query: SelectQuery, options?: CTEOptions): this {
+        // Validate CTE name
+        if (!name || name.trim() === '') {
+            throw new InvalidCTENameError(name, 'name cannot be empty or whitespace-only');
+        }
+        
+        // Remove existing CTE if it exists (don't throw error if not found)
+        if (this.hasCTE(name)) {
+            this.removeCTE(name);
+        }
+        
+        // Add new CTE (but skip duplicate check since we just removed it)
+        const materialized = options?.materialized ?? null;
+        const commonTable = new CommonTable(query, name, materialized);
+        this.appendWith(commonTable);
+        
+        // Update cache for O(1) future lookups
+        this.cteNameCache.add(name);
         return this;
     }
 }
