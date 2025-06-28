@@ -35,8 +35,12 @@ export class DomainModelCompatibilityTester {
     private options: TestValidationOptions;
 
     constructor(options: TestValidationOptions = {}) {
+        // Use module directory as default base instead of process.cwd() for consistent resolution
+        const moduleDir = path.dirname(__filename);
+        const defaultBaseDir = path.resolve(moduleDir, '..');
+        
         this.options = {
-            baseDir: process.cwd(),
+            baseDir: defaultBaseDir,
             mappingDir: './rawsql-ts',
             debug: false,
             ...options

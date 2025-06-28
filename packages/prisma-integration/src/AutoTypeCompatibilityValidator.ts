@@ -35,8 +35,12 @@ export class AutoTypeCompatibilityValidator {
     private options: AutoTypeValidationOptions;
 
     constructor(options: AutoTypeValidationOptions = {}) {
+        // Use module directory as default base instead of process.cwd() for consistent resolution
+        const moduleDir = path.dirname(__filename);
+        const defaultBaseDir = path.resolve(moduleDir, '..');
+        
         this.options = {
-            baseDir: process.cwd(),
+            baseDir: defaultBaseDir,
             compilerOptions: {
                 target: ts.ScriptTarget.ES2020,
                 module: ts.ModuleKind.CommonJS,
