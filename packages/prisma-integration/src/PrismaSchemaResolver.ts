@@ -71,36 +71,25 @@ export class PrismaSchemaResolver {
             }
         }
 
-        // Final fallback: If all methods fail, throw error with actual searched paths
-        // Use module directory as base instead of process.cwd() for consistent resolution
-        const moduleDir = path.dirname(__filename);
-        const projectRoot = path.resolve(moduleDir, '..');
-        
-        const searchedPaths = [
-            // Project root and common locations
-            path.resolve(projectRoot, 'prisma', 'schema.prisma'),
-            path.resolve(projectRoot, 'schema.prisma'),
-            
-            // Parent directories (for monorepo structures)
-            path.resolve(projectRoot, '..', 'prisma', 'schema.prisma'),
-            path.resolve(projectRoot, '..', 'schema.prisma'),
-            path.resolve(projectRoot, '../../prisma', 'schema.prisma'),
-            path.resolve(projectRoot, '../../schema.prisma'),
-            path.resolve(projectRoot, '../../../prisma', 'schema.prisma'),
-            path.resolve(projectRoot, '../../../schema.prisma'),
-            
-            // Specific paths for package structures
-            path.resolve(projectRoot, 'packages', 'prisma-integration', 'prisma', 'schema.prisma'),
-            path.resolve(projectRoot, 'examples', 'prisma-comparison-demo', 'prisma', 'schema.prisma'),
-            
-            ...(this.options.schemaPath ? [path.resolve(this.options.schemaPath)] : [])
+        // Final fallback: If all methods fail, throw error with generic paths
+        // Use generic location names instead of exposing system-specific paths
+        const searchedLocations = [
+            './prisma/schema.prisma',
+            './schema.prisma',
+            '../prisma/schema.prisma',
+            '../schema.prisma',
+            '../../prisma/schema.prisma',
+            '../../schema.prisma',
+            '../../../prisma/schema.prisma',
+            '../../../schema.prisma',
+            './packages/*/prisma/schema.prisma',
+            './examples/*/prisma/schema.prisma',
+            ...(this.options.schemaPath ? ['<custom-schema-path>'] : [])
         ];
 
         throw new Error(
             `Unable to resolve Prisma schema information. Searched in these locations:\n` +
-            searchedPaths.map(loc => `  - ${loc}`).join('\n') + '\n\n' +
-            `Module directory: ${moduleDir}\n` +
-            `Project root: ${projectRoot}\n` +
+            searchedLocations.map(loc => `  - ${loc}`).join('\n') + '\n\n' +
             `Platform: ${process.platform}\n` +
             `Node.js version: ${process.version}\n\n` +
             'Solutions:\n' +
