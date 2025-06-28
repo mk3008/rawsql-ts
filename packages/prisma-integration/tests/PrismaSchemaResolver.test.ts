@@ -61,7 +61,7 @@ describe('PrismaSchemaResolver - Path Resolution (T-WADA)', () => {
             }).not.toThrow();
         });
 
-        it('SCENARIO 2: WSL path handling should be dynamic, not hardcoded', () => {
+        it('SCENARIO 2: WSL path handling should be dynamic, not hardcoded', async () => {
             // Arrange - Test WSL environment detection
             const originalPlatform = process.platform;
             const originalEnv = process.env.WSL_DISTRO_NAME;
@@ -132,7 +132,7 @@ describe('PrismaSchemaResolver - Path Resolution (T-WADA)', () => {
             expect(mockFs.existsSync).toHaveBeenCalledWith(absoluteSchemaPath);
         });
 
-        it('SCENARIO 4: Should handle file system errors gracefully', () => {
+        it('SCENARIO 4: Should handle file system errors gracefully', async () => {
             // Arrange - Test error handling in path resolution
             mockFs.existsSync.mockImplementation(() => {
                 throw new Error('EACCES: permission denied');
