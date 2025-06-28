@@ -18,7 +18,7 @@
 import { SqlStaticAnalyzer, SqlStaticAnalysisReport, SqlStaticAnalyzerOptions } from './SqlStaticAnalyzer';
 import { DomainModelCompatibilityTester } from './DomainModelCompatibilityTester';
 import { PrismaSchemaResolver } from './PrismaSchemaResolver';
-import { UnifiedJsonMapping, ColumnMappingConfig } from '../../core/src/transformers/UnifiedJsonMapping';
+import { UnifiedJsonMapping, ColumnMappingConfig } from 'rawsql-ts';
 import { findAndConvertMappingFiles } from './MappingFileProcessor';
 import * as path from 'path';
 import * as fs from 'fs';

@@ -1,4 +1,4 @@
-import { TableColumnResolver } from '../../../core/src';
+import { TableColumnResolver } from 'rawsql-ts';
 import { PrismaSchemaInfo, PrismaModelInfo } from '../types';
 
 /**
