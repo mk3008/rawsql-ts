@@ -5,6 +5,8 @@ import { SqlSortInjector, SortConditions } from "./SqlSortInjector";
 import { SqlPaginationInjector, PaginationOptions } from "./SqlPaginationInjector";
 import { PostgresJsonQueryBuilder, JsonMapping } from "./PostgresJsonQueryBuilder";
 import { QueryBuilder } from "./QueryBuilder";
+import { SqlParameterBinder } from "./SqlParameterBinder";
+import { ParameterDetector } from "../utils/ParameterDetector";
 
 /**
  * Options for dynamic query building
@@ -86,12 +88,23 @@ export class DynamicQueryBuilder {
         // Apply dynamic modifications in the correct order
         let modifiedQuery: SelectQuery = parsedQuery;
 
-        // 1. Apply filtering first (most selective, should reduce data early)
+        // 1. Bind hardcoded parameters first (before any other transformations)
         if (options.filter && Object.keys(options.filter).length > 0) {
-            const paramInjector = new SqlParamInjector(this.tableColumnResolver);
-            // Ensure we have a SimpleSelectQuery for the injector
-            const simpleQuery = QueryBuilder.buildSimpleQuery(modifiedQuery);
-            modifiedQuery = paramInjector.inject(simpleQuery, options.filter);
+            const { hardcodedParams, dynamicFilters } = ParameterDetector.separateFilters(modifiedQuery, options.filter);
+            
+            // Bind hardcoded parameters if any exist
+            if (Object.keys(hardcodedParams).length > 0) {
+                const parameterBinder = new SqlParameterBinder({ requireAllParameters: false });
+                modifiedQuery = parameterBinder.bind(modifiedQuery, hardcodedParams);
+            }
+            
+            // Apply dynamic filtering only if there are non-hardcoded filters
+            if (Object.keys(dynamicFilters).length > 0) {
+                const paramInjector = new SqlParamInjector(this.tableColumnResolver);
+                // Ensure we have a SimpleSelectQuery for the injector
+                const simpleQuery = QueryBuilder.buildSimpleQuery(modifiedQuery);
+                modifiedQuery = paramInjector.inject(simpleQuery, dynamicFilters);
+            }
         }
 
         // 2. Apply sorting second (after filtering to sort smaller dataset)
