@@ -44,8 +44,7 @@ export type {
 } from './EnhancedJsonMapping';
 
 // Unified JSON Mapping
-export type { JsonMapping, TypeProtectionConfig } from '../../core/src';
-export type { UnifiedJsonMapping, ColumnMappingConfig } from '../../core/src/transformers/UnifiedJsonMapping';
+export type { JsonMapping, TypeProtectionConfig, UnifiedJsonMapping, ColumnMappingConfig } from 'rawsql-ts';
 
 // Model-driven types and converters - temporarily commented out until core package is republished
 // TODO: Uncomment these exports after core package version bump and republish
@@ -83,4 +82,4 @@ export type {
 } from './MappingFileProcessor';
 
 // Re-export QueryBuildOptions from core for convenience
-export type { QueryBuildOptions } from '../../core/src';
+export type { QueryBuildOptions } from 'rawsql-ts';

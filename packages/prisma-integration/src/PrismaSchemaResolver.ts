@@ -1,4 +1,4 @@
-import { TableColumnResolver } from '../../core/src';
+import { TableColumnResolver } from 'rawsql-ts';
 import { PrismaClientType, PrismaFieldInfo, PrismaModelInfo, RawSqlClientOptions, PrismaRelationInfo, PrismaSchemaInfo } from './types';
 import { getDMMF } from '@prisma/internals';
 import * as fs from 'fs';
