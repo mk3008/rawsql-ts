@@ -52,8 +52,5 @@ export * from './utils/SqlSchemaValidator';
 export * from './utils/JsonSchemaValidator';
 export * from './utils/SchemaManager';
 
-// Export missing types needed by rawsql-prisma package (avoid conflicts with EnhancedJsonMapping)
-export type { UnifiedJsonMapping, ColumnMappingConfig } from './transformers/UnifiedJsonMapping';
-export { convertUnifiedMapping } from './transformers/UnifiedJsonMapping';
 
 // Add more exports here if you want to expose additional public API
