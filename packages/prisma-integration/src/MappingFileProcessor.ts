@@ -1,11 +1,12 @@
 /**
  * Model-driven JSON mapping file processor for rawsql-ts integration.
- * Handles detection and conversion of both UnifiedJsonMapping and ModelDrivenJsonMapping formats.
+ * Handles detection and conversion of ModelDrivenJsonMapping formats.
  */
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { JsonMapping, TypeProtectionConfig, UnifiedJsonMapping, convertModelDrivenMapping } from 'rawsql-ts';
+import { JsonMapping, TypeProtectionConfig, convertModelDrivenMapping } from 'rawsql-ts';
+
 
 /**
  * Supported JSON mapping file formats.
@@ -34,10 +35,6 @@ export function detectMappingFormat(mappingData: any): MappingFileFormat {
         return 'model-driven';
     }
 
-    // Check for UnifiedJsonMapping format  
-    if (mappingData.rootEntity && mappingData.rootEntity.id && mappingData.rootEntity.columns) {
-        return 'unified';
-    }
 
     // Check for legacy JsonMapping format
     if (mappingData.rootName && mappingData.rootEntity && mappingData.rootEntity.name) {
@@ -49,7 +46,7 @@ export function detectMappingFormat(mappingData: any): MappingFileFormat {
 
 /**
  * Load and convert a JSON mapping file to the standard JsonMapping format.
- * Supports both UnifiedJsonMapping and ModelDrivenJsonMapping formats.
+ * Supports ModelDrivenJsonMapping format.
  */
 export function loadAndConvertMappingFile(filePath: string): MappingFileResult {
     if (!fs.existsSync(filePath)) {
@@ -111,7 +108,7 @@ export function loadAndConvertMappingFile(filePath: string): MappingFileResult {
  * Search for mapping files in a directory and return conversion results.
  * Supports multiple file naming patterns:
  * - *.model-driven.json (ModelDrivenJsonMapping format)
- * - *.unified.json (UnifiedJsonMapping format) 
+ 
  * - *.json (legacy JsonMapping format)
  */
 export function findAndConvertMappingFiles(baseDir: string): MappingFileResult[] {
@@ -146,14 +143,7 @@ export function findAndConvertMappingFiles(baseDir: string): MappingFileResult[]
                     } catch (error) {
                         console.warn(`Failed to load model-driven mapping file ${fullPath}:`, error);
                     }
-                } else if (entry.endsWith('.unified.json')) {
-                    try {
-                        const result = loadAndConvertMappingFile(fullPath);
-                        results.push(result);
-                    } catch (error) {
-                        console.warn(`Failed to load unified mapping file ${fullPath}:`, error);
-                    }
-                } else if (!entry.includes('.model-driven.') && !entry.includes('.unified.')) {
+                } else if (!entry.includes('.model-driven.')) {
                     // Regular JSON file - try to detect format
                     try {
                         const result = loadAndConvertMappingFile(fullPath);
