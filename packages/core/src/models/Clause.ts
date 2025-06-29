@@ -1,6 +1,7 @@
 import { SelectQuery, SimpleSelectQuery } from "./SelectQuery";
 import { SqlComponent } from "./SqlComponent";
 import { IdentifierString, RawString, TupleExpression, ValueComponent, WindowFrameExpression, QualifiedName } from "./ValueComponent";
+import { HintClause } from "./HintClause";
 
 export class SelectItem extends SqlComponent {
     static kind = Symbol("SelectItem");
@@ -17,10 +18,12 @@ export class SelectClause extends SqlComponent {
     static kind = Symbol("SelectClause");
     items: SelectItem[];
     distinct: DistinctComponent | null;
-    constructor(items: SelectItem[], distinct: DistinctComponent | null = null) {
+    hints: HintClause[];
+    constructor(items: SelectItem[], distinct: DistinctComponent | null = null, hints: HintClause[] = []) {
         super();
         this.items = items;
         this.distinct = distinct;
+        this.hints = hints;
     }
 }
 

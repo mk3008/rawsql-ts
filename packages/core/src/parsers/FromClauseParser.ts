@@ -3,6 +3,7 @@ import { Lexeme } from "../models/Lexeme";
 import { SqlTokenizer } from "./SqlTokenizer";
 import { JoinClauseParser } from "./JoinClauseParser";
 import { SourceExpressionParser } from "./SourceExpressionParser";
+import { CommentUtils } from "../utils/CommentUtils";
 
 export class FromClauseParser {
     // Parse SQL string to AST (was: parse)
@@ -25,6 +26,9 @@ export class FromClauseParser {
     public static parseFromLexeme(lexemes: Lexeme[], index: number): { value: FromClause; newIndex: number } {
         let idx = index;
 
+        // Capture comments associated with the FROM clause
+        const fromTokenComments = CommentUtils.collectClauseComments(lexemes, idx, 'from');
+
         if (lexemes[idx].value !== 'from') {
             throw new Error(`Syntax error at position ${idx}: Expected 'FROM' keyword but found "${lexemes[idx].value}". FROM clauses must start with the FROM keyword.`);
         }
@@ -43,9 +47,13 @@ export class FromClauseParser {
 
         if (join !== null) {
             const clause = new FromClause(sourceExpression.value, join.value);
+            // Set comments from the FROM token to the clause
+            clause.comments = fromTokenComments;
             return { value: clause, newIndex: idx };
         } else {
             const clause = new FromClause(sourceExpression.value, null);
+            // Set comments from the FROM token to the clause
+            clause.comments = fromTokenComments;
             return { value: clause, newIndex: idx };
         }
     }

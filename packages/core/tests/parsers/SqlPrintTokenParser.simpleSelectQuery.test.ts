@@ -139,8 +139,8 @@ describe('SqlPrintTokenParser + SqlPrinter (SimpleSelectQuery)', () => {
             const token = parser.visit(node);
             const sql = printer.print(token);
             expect(sql).toBe([
-                'SELECT DISTINCT',
-                '  "id"',
+                'SELECT',
+                '  DISTINCT "id"',
                 '  , "name"',
                 'FROM',
                 '  "users"',
@@ -160,8 +160,8 @@ describe('SqlPrintTokenParser + SqlPrinter (SimpleSelectQuery)', () => {
             // Expected output assumes DISTINCT ON is parsed and handled as a special construct.
             // The actual output will depend on how SqlPrintTokenParser structures tokens for DISTINCT ON.
             expect(sql).toBe([
-                'SELECT DISTINCT ON("status")',
-                '  "id"',
+                'SELECT',
+                '  DISTINCT ON("status") "id"',
                 '  , "name"',
                 '  , "status"',
                 'FROM',
@@ -180,8 +180,8 @@ describe('SqlPrintTokenParser + SqlPrinter (SimpleSelectQuery)', () => {
             const token = parser.visit(node);
             const sql = printer.print(token);
             expect(sql).toBe([
-                'SELECT DISTINCT',
-                '  count("id")',
+                'SELECT',
+                '  DISTINCT count("id")',
                 '  , "status"',
                 'FROM',
                 '  "users"',

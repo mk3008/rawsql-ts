@@ -26,6 +26,8 @@ export class SqlFormatter {
         keywordCase?: 'none' | 'upper' | 'lower'; // Updated type
         commaBreak?: CommaBreakStyle; // Updated type
         andBreak?: AndBreakStyle; // Updated type
+        exportComment?: boolean; // Add comment export option
+        strictCommentPlacement?: boolean; // Only export comments from clause-level keywords
     } = {}) { // Default to 'sqlserver' if options is empty
 
         const presetConfig = options.preset ? PRESETS[options.preset] : undefined;
