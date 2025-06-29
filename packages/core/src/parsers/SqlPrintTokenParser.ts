@@ -467,6 +467,15 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
             token.innerTokens.push(this.visit(arg.argument));
         }
         token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
+        
+        if (arg.withinGroup) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'within group'));
+            token.innerTokens.push(SqlPrintTokenParser.PAREN_OPEN_TOKEN);
+            token.innerTokens.push(this.visit(arg.withinGroup));
+            token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
+        }
+        
         if (arg.over) {
             token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
             token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'over'));

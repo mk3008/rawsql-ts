@@ -83,16 +83,21 @@ export class FunctionCall extends SqlComponent {
     static kind = Symbol("FunctionCall");
     qualifiedName: QualifiedName;
     argument: ValueComponent | null;
-    over: OverExpression | null; constructor(
+    over: OverExpression | null;
+    withinGroup: OrderByClause | null;
+    
+    constructor(
         namespaces: string | string[] | IdentifierString[] | null,
         name: string | RawString | IdentifierString,
         argument: ValueComponent | null,
-        over: OverExpression | null
+        over: OverExpression | null,
+        withinGroup: OrderByClause | null = null
     ) {
         super();
         this.qualifiedName = new QualifiedName(namespaces, name);
         this.argument = argument;
         this.over = over;
+        this.withinGroup = withinGroup;
     }
 
     /**
@@ -108,6 +113,7 @@ export class FunctionCall extends SqlComponent {
         return this.qualifiedName.name;
     }
 }
+
 
 export type OverExpression = WindowFrameExpression | IdentifierString;
 

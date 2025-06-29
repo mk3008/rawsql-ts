@@ -1,10 +1,12 @@
 import { Lexeme, TokenType } from "../models/Lexeme";
 import { FunctionCall, ValueComponent, BinaryExpression, TypeValue, CastExpression, BetweenExpression, RawString, ArrayExpression, ArrayQueryExpression } from "../models/ValueComponent";
 import { SelectQuery } from "../models/SelectQuery";
+import { OrderByClause } from "../models/Clause";
 import { OverExpressionParser } from "./OverExpressionParser";
 import { ValueParser } from "./ValueParser";
 import { FullNameParser } from "./FullNameParser";
 import { SelectQueryParser } from "./SelectQueryParser";
+import { OrderByClauseParser } from "./OrderByClauseParser";
 
 export class FunctionExpressionParser {
     /**
@@ -147,13 +149,21 @@ export class FunctionExpressionParser {
             const arg = ValueParser.parseArgument(TokenType.OpenParen, TokenType.CloseParen, lexemes, idx);
             idx = arg.newIndex;
 
+            // Check for WITHIN GROUP clause
+            let withinGroup: OrderByClause | null = null;
+            if (idx < lexemes.length && lexemes[idx].value === "within group") {
+                const withinGroupResult = this.parseWithinGroupClause(lexemes, idx);
+                withinGroup = withinGroupResult.value;
+                idx = withinGroupResult.newIndex;
+            }
+
             if (idx < lexemes.length && lexemes[idx].value === "over") {
                 const over = OverExpressionParser.parseFromLexeme(lexemes, idx);
                 idx = over.newIndex;
-                const value = new FunctionCall(namespaces, name.name, arg.value, over.value);
+                const value = new FunctionCall(namespaces, name.name, arg.value, over.value, withinGroup);
                 return { value, newIndex: idx };
             } else {
-                const value = new FunctionCall(namespaces, name.name, arg.value, null);
+                const value = new FunctionCall(namespaces, name.name, arg.value, null, withinGroup);
                 return { value, newIndex: idx };
             }
         } else {
@@ -241,5 +251,33 @@ export class FunctionExpressionParser {
             const value = new TypeValue(namespaces, new RawString(name.name));
             return { value, newIndex: idx };
         }
+    }
+
+    private static parseWithinGroupClause(lexemes: Lexeme[], index: number): { value: OrderByClause; newIndex: number } {
+        let idx = index;
+
+        // Expect "WITHIN GROUP" (now a single token)
+        if (idx >= lexemes.length || lexemes[idx].value !== "within group") {
+            throw new Error(`Expected 'WITHIN GROUP' at index ${idx}`);
+        }
+        idx++;
+
+        // Expect "("
+        if (idx >= lexemes.length || !(lexemes[idx].type & TokenType.OpenParen)) {
+            throw new Error(`Expected '(' after 'WITHIN GROUP' at index ${idx}`);
+        }
+        idx++;
+
+        // Parse ORDER BY clause
+        const orderByResult = OrderByClauseParser.parseFromLexeme(lexemes, idx);
+        idx = orderByResult.newIndex;
+
+        // Expect ")"
+        if (idx >= lexemes.length || !(lexemes[idx].type & TokenType.CloseParen)) {
+            throw new Error(`Expected ')' after WITHIN GROUP ORDER BY clause at index ${idx}`);
+        }
+        idx++;
+
+        return { value: orderByResult.value, newIndex: idx };
     }
 }

@@ -104,6 +104,8 @@ const keywordTrie = new KeywordTrie([
     ["create", "table"],
     ["create", "temporary", "table"],
     ["tablesample"],
+    // order set aggregate functions
+    ["within", "group"],
     // cast
     ["as"],
     // odrder
