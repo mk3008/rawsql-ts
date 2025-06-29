@@ -28,7 +28,7 @@ describe('MappingFileProcessor', () => {
             expect(format).toBe('model-driven');
         });
 
-        it('should detect unified format for backward compatibility', () => {
+        it('should detect legacy format for unified-like structure', () => {
             const unifiedData = {
                 rootName: 'todo',
                 rootEntity: {
@@ -40,7 +40,7 @@ describe('MappingFileProcessor', () => {
                     }
                 }
             }; const format = detectMappingFormat(unifiedData);
-            expect(format).toBe('unified');
+            expect(format).toBe('legacy');
         });
 
         it('should detect legacy format for backward compatibility', () => {
