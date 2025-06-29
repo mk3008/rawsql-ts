@@ -3,6 +3,7 @@ import { Lexeme, TokenType } from "../models/Lexeme";
 import { ColumnReference } from "../models/ValueComponent";
 import { SqlTokenizer } from "./SqlTokenizer";
 import { ValueParser } from "./ValueParser";
+import { HintClause } from "../models/HintClause";
 
 export class SelectClauseParser {
     // Parse SQL string to AST (was: parse)
@@ -26,10 +27,21 @@ export class SelectClauseParser {
         let idx = index;
         let distinct: DistinctComponent | null = null;
 
+        // Capture comments from the SELECT token
+        const selectTokenComments = idx < lexemes.length ? lexemes[idx].comments : null;
+
         if (lexemes[idx].value !== 'select') {
             throw new Error(`Syntax error at position ${idx}: Expected 'SELECT' keyword but found "${lexemes[idx].value}". SELECT clauses must start with the SELECT keyword.`);
         }
         idx++;
+
+        // Parse hint clauses (/*+ hint */) after SELECT
+        const hints: HintClause[] = [];
+        while (idx < lexemes.length && HintClause.isHintClause(lexemes[idx].value)) {
+            const hintContent = HintClause.extractHintContent(lexemes[idx].value);
+            hints.push(new HintClause(hintContent));
+            idx++;
+        }
 
         if (idx < lexemes.length && lexemes[idx].value === 'distinct') {
             idx++;
@@ -56,7 +68,9 @@ export class SelectClauseParser {
         if (items.length === 0) {
             throw new Error(`Syntax error at position ${index}: No select items found. The SELECT clause requires at least one expression to select.`);
         } else {
-            const clause = new SelectClause(items, distinct);
+            const clause = new SelectClause(items, distinct, hints);
+            // Set comments from the SELECT token to the clause
+            clause.comments = selectTokenComments;
             return { value: clause, newIndex: idx };
         }
     }

@@ -103,6 +103,9 @@ export class SelectQueryParser {
         let idx = index;
         let withClauseResult = null;
 
+        // Capture comments from the first token for the query
+        const firstTokenComments = idx < lexemes.length ? lexemes[idx].comments : null;
+
         // Parse optional WITH clause
         if (idx < lexemes.length && lexemes[idx].value === 'with') {
             withClauseResult = WithClauseParser.parseFromLexeme(lexemes, idx);
@@ -116,6 +119,13 @@ export class SelectQueryParser {
 
         const selectClauseResult = SelectClauseParser.parseFromLexeme(lexemes, idx);
         idx = selectClauseResult.newIndex;
+
+        // If the select clause has the same comments as what we captured, clear them from the clause
+        // to avoid duplication (the query-level comments take precedence)
+        if (firstTokenComments && selectClauseResult.value.comments && 
+            JSON.stringify(firstTokenComments) === JSON.stringify(selectClauseResult.value.comments)) {
+            selectClauseResult.value.comments = null;
+        }
 
         // Parse FROM clause (optional)
         let fromClauseResult = null;
@@ -202,6 +212,9 @@ export class SelectQueryParser {
             fetchClause: fetchClauseResult ? fetchClauseResult.value : null,
             forClause: forClauseResult ? forClauseResult.value : null
         });
+
+        // Set comments from the first token to the query object
+        selectQuery.comments = firstTokenComments;
 
         return { value: selectQuery, newIndex: idx };
     }

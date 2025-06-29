@@ -2,6 +2,7 @@ import { WhereClause } from "../models/Clause";
 import { Lexeme } from "../models/Lexeme";
 import { SqlTokenizer } from "./SqlTokenizer";
 import { ValueParser } from "./ValueParser";
+import { CommentUtils } from "../utils/CommentUtils";
 
 export class WhereClauseParser {
     // Parse SQL string to AST (was: parse)
@@ -24,6 +25,9 @@ export class WhereClauseParser {
     public static parseFromLexeme(lexemes: Lexeme[], index: number): { value: WhereClause; newIndex: number } {
         let idx = index;
 
+        // Capture comments associated with the WHERE clause
+        const whereTokenComments = CommentUtils.collectClauseComments(lexemes, idx, 'where');
+
         if (lexemes[idx].value !== 'where') {
             throw new Error(`Syntax error at position ${idx}: Expected 'WHERE' keyword but found "${lexemes[idx].value}". WHERE clauses must start with the WHERE keyword.`);
         }
@@ -35,6 +39,8 @@ export class WhereClauseParser {
 
         const item = ValueParser.parseFromLexeme(lexemes, idx);
         const clause = new WhereClause(item.value);
+        // Set comments from the WHERE token to the clause
+        clause.comments = whereTokenComments;
 
         return { value: clause, newIndex: item.newIndex };
     }

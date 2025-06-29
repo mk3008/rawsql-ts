@@ -35,6 +35,12 @@ export class SqlPrinter {
     /** Keyword case style: 'none', 'upper' | 'lower' */
     keywordCase: 'none' | 'upper' | 'lower';
 
+    /** Whether to export comments in the output (default: false for compatibility) */
+    exportComment: boolean;
+
+    /** Whether to use strict comment placement (only clause-level comments, default: false) */
+    strictCommentPlacement: boolean;
+
     private linePrinter: LinePrinter;
     private indentIncrementContainers: Set<SqlPrintTokenContainerType>;
 
@@ -48,6 +54,8 @@ export class SqlPrinter {
         commaBreak?: CommaBreakStyle;
         andBreak?: AndBreakStyle;
         keywordCase?: 'none' | 'upper' | 'lower';
+        exportComment?: boolean;
+        strictCommentPlacement?: boolean;
         indentIncrementContainerTypes?: string[]; // Option to customize
     }) {
         this.indentChar = options?.indentChar ?? '';
@@ -60,6 +68,8 @@ export class SqlPrinter {
         this.commaBreak = options?.commaBreak ?? 'none';
         this.andBreak = options?.andBreak ?? 'none';
         this.keywordCase = options?.keywordCase ?? 'none';
+        this.exportComment = options?.exportComment ?? false;
+        this.strictCommentPlacement = options?.strictCommentPlacement ?? false;
         this.linePrinter = new LinePrinter(this.indentChar, this.indentSize, this.newline);
 
         // Initialize
@@ -163,6 +173,13 @@ export class SqlPrinter {
             // before join clause, add newline
             this.linePrinter.appendNewline(level);
             this.linePrinter.appendText(text);
+        } else if (token.type === SqlPrintTokenType.comment) {
+            // Handle comments - only output if exportComment is true
+            if (this.exportComment) {
+                this.linePrinter.appendText(token.text);
+                // Always add a space after comment to ensure SQL structure safety
+                this.linePrinter.appendText(' ');
+            }
         } else {
             this.linePrinter.appendText(token.text);
         }

@@ -1,4 +1,5 @@
 import { PartitionByClause, OrderByClause, OrderByItem, SelectClause, SelectItem, Distinct, DistinctOn, SortDirection, NullsSortDirection, TableSource, SourceExpression, FromClause, JoinClause, JoinOnClause, JoinUsingClause, FunctionSource, SourceAliasExpression, WhereClause, GroupByClause, HavingClause, SubQuerySource, WindowFrameClause, LimitClause, ForClause, OffsetClause, WindowsClause as WindowClause, CommonTable, WithClause, FetchClause, FetchExpression, InsertClause, UpdateClause, SetClause, ReturningClause, SetClauseItem } from "../models/Clause";
+import { HintClause } from "../models/HintClause";
 import { BinarySelectQuery, SimpleSelectQuery, ValuesQuery } from "../models/SelectQuery";
 import { SqlComponent, SqlComponentVisitor } from "../models/SqlComponent";
 import { SqlPrintToken, SqlPrintTokenType, SqlPrintTokenContainerType } from "../models/SqlPrintToken";
@@ -230,6 +231,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         this.handlers.set(SelectClause.kind, (expr) => this.visitSelectClause(expr as SelectClause));
         this.handlers.set(Distinct.kind, (expr) => this.visitDistinct(expr as Distinct));
         this.handlers.set(DistinctOn.kind, (expr) => this.visitDistinctOn(expr as DistinctOn));
+        this.handlers.set(HintClause.kind, (expr) => this.visitHintClause(expr as HintClause));
 
         // from
         this.handlers.set(TableSource.kind, (expr) => this.visitTableSource(expr as TableSource));
@@ -407,9 +409,36 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     public visit(arg: SqlComponent): SqlPrintToken {
         const handler = this.handlers.get(arg.getKind());
         if (handler) {
-            return handler(arg);
+            const token = handler(arg);
+            // Add comments to the token if they exist
+            this.addCommentsToToken(token, arg.comments);
+            return token;
         }
         throw new Error(`[SqlPrintTokenParser] No handler for kind: ${arg.getKind().toString()}`);
+    }
+
+    /**
+     * Adds comment tokens to a SqlPrintToken based on the comments array
+     */
+    private addCommentsToToken(token: SqlPrintToken, comments: string[] | null): void {
+        if (!comments || comments.length === 0) {
+            return;
+        }
+
+        // Add comment tokens before the main token
+        const commentTokens: SqlPrintToken[] = [];
+        for (const comment of comments) {
+            if (comment.trim()) {
+                // Use block comment format for safer SQL formatting
+                // This prevents line comments from breaking SQL structure when newlines are added
+                commentTokens.push(new SqlPrintToken(SqlPrintTokenType.comment, `/* ${comment} */`));
+            }
+        }
+
+        // Prepend comment tokens to the existing inner tokens
+        if (commentTokens.length > 0) {
+            token.innerTokens.unshift(...commentTokens);
+        }
     }
 
     private visitValueList(arg: ValueList): SqlPrintToken {
@@ -808,10 +837,16 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
         token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
 
+        // Add hint clauses immediately after SELECT (before DISTINCT)
+        for (const hint of arg.hints) {
+            token.innerTokens.push(this.visit(hint));
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        }
+
+        // Add DISTINCT after hints (if present)
         if (arg.distinct) {
-            token.keywordTokens = [];
-            token.keywordTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
-            token.keywordTokens.push(arg.distinct.accept(this));
+            token.innerTokens.push(arg.distinct.accept(this));
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
         }
 
         for (let i = 0; i < arg.items.length; i++) {
@@ -821,6 +856,11 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
             token.innerTokens.push(this.visit(arg.items[i]));
         }
 
+        return token;
+    }
+
+    private visitHintClause(arg: HintClause): SqlPrintToken {
+        const token = new SqlPrintToken(SqlPrintTokenType.value, arg.getFullHint());
         return token;
     }
 
