@@ -1,7 +1,6 @@
 import { PrismaClientType, RawSqlClientOptions, PrismaSchemaInfo } from './types';
 import { PrismaSchemaResolver } from './PrismaSchemaResolver';
 import {
-    UnifiedJsonMapping,
     SqlFormatter,
     SelectQueryParser,
     SqlParamInjector,
@@ -20,6 +19,7 @@ import {
 } from 'rawsql-ts';
 import * as fs from 'fs';
 import * as path from 'path';
+
 
 /**
  * Custom error classes for rawsql-ts operations
@@ -178,7 +178,7 @@ export class RawSqlClient {
     private tableColumnResolver?: TableColumnResolver;
     private isInitialized = false;
     private schemaPreloaded = false;    // JSON mapping file cache to avoid reading the same file multiple times
-    private readonly jsonMappingCache: Map<string, { content: UnifiedJsonMapping; timestamp: number }> = new Map();
+    private readonly jsonMappingCache: Map<string, { content: any; timestamp: number }> = new Map();
 
     // SQL file cache to avoid reading the same file multiple times
     private readonly sqlFileCache: Map<string, { content: string; timestamp: number }> = new Map();
@@ -898,7 +898,7 @@ export class RawSqlClient {
                         name: unifiedMapping.rootEntity.name || unifiedMapping.rootName,
                         columns: legacyColumns
                     },
-                    nestedEntities: (unifiedMapping.nestedEntities || [])
+                    nestedEntities: ((unifiedMapping as any).nestedEntities || [])
                         .filter((entity: any) => entity && typeof entity === 'object')
                         .map((entity: any) => {
                             const entityColumns = entity.columns || {};
@@ -1240,7 +1240,7 @@ export class RawSqlClient {
      * Uses caching to avoid reading the same file multiple times
      * @param jsonMappingFilePath - Path to unified JSON mapping file
      * @returns Unified JSON mapping configuration
-     */    private async loadUnifiedMapping(jsonMappingFilePath: string): Promise<UnifiedJsonMapping> {
+     */    private async loadUnifiedMapping(jsonMappingFilePath: string): Promise<any> {
         let actualPath: string = jsonMappingFilePath; // Initialize with fallback value
 
         try {
@@ -1296,7 +1296,7 @@ export class RawSqlClient {
             }
 
             // Parse JSON content
-            let parsed: UnifiedJsonMapping;
+            let parsed: any;
             try {
                 parsed = JSON.parse(content);
             } catch (parseError) {
