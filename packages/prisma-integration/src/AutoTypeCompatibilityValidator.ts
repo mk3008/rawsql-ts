@@ -35,9 +35,8 @@ export class AutoTypeCompatibilityValidator {
     private options: AutoTypeValidationOptions;
 
     constructor(options: AutoTypeValidationOptions = {}) {
-        // Use module directory as default base instead of process.cwd() for consistent resolution
-        const moduleDir = path.dirname(__filename);
-        const defaultBaseDir = path.resolve(moduleDir, '..');
+        // Use project current directory for proper path resolution
+        const defaultBaseDir = process.cwd();
         
         this.options = {
             baseDir: defaultBaseDir,
@@ -128,9 +127,7 @@ export class AutoTypeCompatibilityValidator {
 
         // If already has an extension, return as-is
         if (path.extname(resolved)) {
-            if (fs.existsSync(resolved)) {
-                return resolved;
-            }
+            return resolved; // Let validation handle file existence
         }
 
         // Try common TypeScript file extensions
