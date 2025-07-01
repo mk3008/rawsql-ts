@@ -12,6 +12,7 @@ npm run lint          # ESLint
 - Add test when adding/fixing features
 - Always compile to check TypeScript errors
 - Use `SqlFormatter` for SQL comparison tests
+- **Source code comments must be written in English**
 
 ## Test Strategy (t-wada Method)
 Follow Test-Driven Development with these practices:
@@ -95,3 +96,23 @@ if (mapping.rootName && mapping.rootEntity) { /* Legacy */ }
 4. **In monorepos: npm packages vs file: references**
    - `file:../packages/core` still uses built `dist/` files
    - Direct src imports bypass build/cache issues
+
+## Chat Output Format Rules
+**Chat responses MUST follow these formatting rules:**
+
+### 1. File Path Declaration
+- **First line**: Always start with recognized CLAUDE.md full path in backticks
+- If no CLAUDE.md recognized: State "CLAUDE.md: Not recognized"
+
+### 2. Compression Notation
+- Use abbreviated notation for efficiency (space-limited CLI)
+- Examples: `impl` (implementation), `cfg` (config), `err` (error), `fn` (function)
+- Document compression usage when applied
+
+### 3. Temporary File Management
+- Create temporary scripts/files in `/.tmp/` directory
+- Before cleanup: evaluate if content should be:
+  - Converted to permanent tests
+  - Added to documentation
+  - Preserved for future reference
+- Delete `/.tmp/` contents only after evaluation

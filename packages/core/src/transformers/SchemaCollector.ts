@@ -1,11 +1,10 @@
 import { SqlComponent, SqlComponentVisitor } from '../models/SqlComponent';
-import { CommonTable, SubQuerySource, TableSource } from '../models/Clause';
-import { SelectClause, SelectItem } from '../models/Clause';
+import { CommonTable, SubQuerySource, TableSource, SelectClause, SelectItem, FromClause } from '../models/Clause';
 import { SimpleSelectQuery } from '../models/SimpleSelectQuery';
 import { CTECollector } from './CTECollector';
 import { SelectableColumnCollector, DuplicateDetectionMode } from './SelectableColumnCollector';
 import { SelectValueCollector } from './SelectValueCollector';
-import { ColumnReference } from '../models/ValueComponent';
+import { ColumnReference, ValueComponent } from '../models/ValueComponent';
 import { BinarySelectQuery, SelectQuery } from '../models/SelectQuery';
 import { SourceExpression } from '../models/Clause';
 import { TableColumnResolver } from './TableColumnResolver';
@@ -31,7 +30,10 @@ export class SchemaCollector implements SqlComponentVisitor<void> {
     private commonTables: CommonTable[] = [];
     private running = false;
 
-    constructor(private tableColumnResolver: TableColumnResolver | null = null) {
+    constructor(
+        private tableColumnResolver: TableColumnResolver | null = null,
+        private allowWildcardWithoutResolver: boolean = false
+    ) {
         this.handlers = new Map<symbol, (arg: any) => void>();
 
         // Setup handlers for query components
@@ -171,12 +173,67 @@ export class SchemaCollector implements SqlComponentVisitor<void> {
         // Collect columns used in the query
         const columnCollector = new SelectableColumnCollector(this.tableColumnResolver, true, DuplicateDetectionMode.FullName);
         const columns = columnCollector.collect(query);
-        const queryColumns = columns.filter((column) => column.value instanceof ColumnReference)
-            .map(column => column.value as ColumnReference)
-            .map(columnRef => ({
-                table: columnRef.getNamespace(),
-                column: columnRef.column.name
-            }));
+        
+        let queryColumns: { table: string, column: string }[];
+        
+        // Only filter JOIN condition columns when allowWildcardWithoutResolver is true
+        // This preserves backward compatibility for existing tests
+        if (this.allowWildcardWithoutResolver) {
+            // Filter to include only columns that are actually selected, not those used in JOIN conditions
+            const selectColumns = this.getSelectClauseColumns(query);
+            
+            queryColumns = columns.filter((column) => column.value instanceof ColumnReference)
+                .map(column => column.value as ColumnReference)
+                .filter(columnRef => {
+                    // Only include columns that are either:
+                    // 1. Explicitly mentioned in SELECT clause (not wildcards)
+                    // 2. Part of wildcard expansion from SELECT clause (only if we have a resolver)
+                    const tableName = columnRef.getNamespace();
+                    const columnName = columnRef.column.name;
+                    
+                    return selectColumns.some(selectCol => {
+                        if (selectCol.value instanceof ColumnReference) {
+                            const selectTableName = selectCol.value.getNamespace();
+                            const selectColumnName = selectCol.value.column.name;
+                            
+                            // Exact match for explicit columns
+                            if (selectTableName === tableName && selectColumnName === columnName) {
+                                return true;
+                            }
+                            
+                            // Wildcard match (table.* or *) - only include if we have a resolver
+                            if (selectColumnName === "*") {
+                                // If allowWildcardWithoutResolver is true and no resolver, exclude wildcard expansions
+                                if (this.allowWildcardWithoutResolver && this.tableColumnResolver === null) {
+                                    return false;
+                                }
+                                
+                                // Full wildcard (*) matches all tables
+                                if (selectTableName === "") {
+                                    return true;
+                                }
+                                // Table wildcard (table.*) matches specific table
+                                if (selectTableName === tableName) {
+                                    return true;
+                                }
+                            }
+                        }
+                        return false;
+                    });
+                })
+                .map(columnRef => ({
+                    table: columnRef.getNamespace(),
+                    column: columnRef.column.name
+                }));
+        } else {
+            // Original behavior: include all columns including JOIN conditions
+            queryColumns = columns.filter((column) => column.value instanceof ColumnReference)
+                .map(column => column.value as ColumnReference)
+                .map(columnRef => ({
+                    table: columnRef.getNamespace(),
+                    column: columnRef.column.name
+                }));
+        }
 
         // Throw an error if there are columns without table names in queries with joins
         if (query.fromClause.joins !== null && query.fromClause.joins.length > 0) {
@@ -211,14 +268,36 @@ export class SchemaCollector implements SqlComponentVisitor<void> {
         this.visitNode(query.right);
     }
 
+    /**
+     * Extract column references from the SELECT clause only
+     */
+    private getSelectClauseColumns(query: SimpleSelectQuery): { name: string, value: ValueComponent }[] {
+        if (!query.selectClause) {
+            return [];
+        }
+        
+        const selectColumns: { name: string, value: ValueComponent }[] = [];
+        
+        for (const item of query.selectClause.items) {
+            if (item.value instanceof ColumnReference) {
+                const columnName = item.value.column.name;
+                selectColumns.push({ name: columnName, value: item.value });
+            }
+        }
+        
+        return selectColumns;
+    }
+
     private processCollectTableSchema(tableName: string, tableAlias: string, queryColumns: { table: string, column: string }[], includeUnnamed: boolean = false): void {
-        // If a wildcard is present and no resolver is provided, throw an error
+        // Check if wildcard is present and handle based on configuration
         if (this.tableColumnResolver === null) {
             const hasWildcard = queryColumns
                 .filter((columnRef) => columnRef.table === tableAlias || (includeUnnamed && columnRef.table === ""))
                 .filter((columnRef) => columnRef.column === "*")
                 .length > 0;
-            if (hasWildcard) {
+            
+            // Throw error if wildcard is found and allowWildcardWithoutResolver is false (default behavior)
+            if (hasWildcard && !this.allowWildcardWithoutResolver) {
                 const errorMessage = tableName
                     ? `Wildcard (*) is used. A TableColumnResolver is required to resolve wildcards. Target table: ${tableName}`
                     : "Wildcard (*) is used. A TableColumnResolver is required to resolve wildcards.";
