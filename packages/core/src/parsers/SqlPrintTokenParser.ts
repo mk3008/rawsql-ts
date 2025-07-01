@@ -835,19 +835,32 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     private visitSelectClause(arg: SelectClause): SqlPrintToken {
         const token = new SqlPrintToken(SqlPrintTokenType.keyword, 'select', SqlPrintTokenContainerType.SelectClause);
 
-        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
-
+        // Handle hints and DISTINCT as part of the keyword line
+        let selectKeywordText = 'select';
+        
         // Add hint clauses immediately after SELECT (before DISTINCT)
         for (const hint of arg.hints) {
-            token.innerTokens.push(this.visit(hint));
-            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            selectKeywordText += ' ' + this.visit(hint).text;
         }
 
-        // Add DISTINCT after hints (if present)
+        // Add DISTINCT after hints (if present)  
         if (arg.distinct) {
-            token.innerTokens.push(arg.distinct.accept(this));
-            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            const distinctToken = arg.distinct.accept(this);
+            if (distinctToken.innerTokens && distinctToken.innerTokens.length > 0) {
+                // For compound DISTINCT tokens (like DISTINCT ON), concatenate all parts
+                let distinctText = distinctToken.text;
+                for (const innerToken of distinctToken.innerTokens) {
+                    distinctText += this.flattenTokenText(innerToken);
+                }
+                selectKeywordText += ' ' + distinctText;
+            } else {
+                selectKeywordText += ' ' + distinctToken.text;
+            }
         }
+
+        // Update the token text to include hints and DISTINCT
+        token.text = selectKeywordText;
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
 
         for (let i = 0; i < arg.items.length; i++) {
             if (i > 0) {
@@ -857,6 +870,16 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         }
 
         return token;
+    }
+
+    private flattenTokenText(token: SqlPrintToken): string {
+        let result = token.text;
+        if (token.innerTokens) {
+            for (const innerToken of token.innerTokens) {
+                result += this.flattenTokenText(innerToken);
+            }
+        }
+        return result;
     }
 
     private visitHintClause(arg: HintClause): SqlPrintToken {

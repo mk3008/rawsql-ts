@@ -1,0 +1,215 @@
+import { describe, it, expect } from 'vitest';
+import { SelectQueryParser } from '../src/parsers/SelectQueryParser';
+import { SqlFormatter } from '../src/transformers/SqlFormatter';
+import { CommentEditor } from '../src/utils/CommentEditor';
+
+describe('Comment Editing API', () => {
+    const testSql = `
+WITH 
+-- Base customer data (active users only, with segment classification)
+raw_users AS (
+    SELECT 
+        user_id,
+        email,
+        registration_date,
+        subscription_tier,
+        country_code,
+        referral_source,
+        device_type,
+        CASE 
+            WHEN registration_date >= CURRENT_DATE - INTERVAL '90 days' THEN 'new'
+            WHEN registration_date >= CURRENT_DATE - INTERVAL '365 days' THEN 'active'
+            ELSE 'established'
+        END as user_segment
+    FROM users 
+    WHERE email IS NOT NULL 
+    AND registration_date IS NOT NULL
+)
+select * from raw_users
+`;
+
+    it('should add comments to SQL query', () => {
+        const query = SelectQueryParser.parse(testSql);
+        
+        // Add a new comment
+        CommentEditor.addComment(query, 'This query retrieves customer segments');
+        
+        const comments = CommentEditor.getComments(query);
+        expect(comments).toHaveLength(2);
+        expect(comments[0]).toBe('Base customer data (active users only, with segment classification)');
+        expect(comments[1]).toBe('This query retrieves customer segments');
+        
+        // Format and check output
+        const formatter = new SqlFormatter({
+            exportComment: true,
+            keywordCase: 'upper'
+        });
+        
+        const result = formatter.format(query);
+        expect(result.formattedSql).toContain('/* Base customer data (active users only, with segment classification) */');
+        expect(result.formattedSql).toContain('/* This query retrieves customer segments */');
+    });
+
+    it('should edit existing comments', () => {
+        const query = SelectQueryParser.parse(testSql);
+        
+        // Edit the existing comment
+        CommentEditor.editComment(query, 0, 'Base customer data with segmentation logic');
+        
+        const comments = CommentEditor.getComments(query);
+        expect(comments).toHaveLength(1);
+        expect(comments[0]).toBe('Base customer data with segmentation logic');
+        
+        // Format and check output
+        const formatter = new SqlFormatter({
+            exportComment: true,
+            keywordCase: 'upper'
+        });
+        
+        const result = formatter.format(query);
+        expect(result.formattedSql).toContain('/* Base customer data with segmentation logic */');
+        expect(result.formattedSql).not.toContain('Base customer data (active users only, with segment classification)');
+    });
+
+    it('should delete comments', () => {
+        const query = SelectQueryParser.parse(testSql);
+        
+        // Delete the comment
+        CommentEditor.deleteComment(query, 0);
+        
+        const comments = CommentEditor.getComments(query);
+        expect(comments).toHaveLength(0);
+        
+        // Format and check output - should have no comments
+        const formatter = new SqlFormatter({
+            exportComment: true,
+            keywordCase: 'upper'
+        });
+        
+        const result = formatter.format(query);
+        expect(result.formattedSql).not.toContain('/*');
+    });
+
+    it('should handle multiple comment operations', () => {
+        const query = SelectQueryParser.parse(testSql);
+        
+        // Start with original comment
+        expect(CommentEditor.getComments(query)).toHaveLength(1);
+        
+        // Add more comments
+        CommentEditor.addComment(query, 'Performance optimized query');
+        CommentEditor.addComment(query, 'Last updated: 2024-01-15');
+        
+        expect(CommentEditor.getComments(query)).toHaveLength(3);
+        
+        // Edit middle comment
+        CommentEditor.editComment(query, 1, 'Highly optimized for performance');
+        
+        // Delete first comment
+        CommentEditor.deleteComment(query, 0);
+        
+        const finalComments = CommentEditor.getComments(query);
+        expect(finalComments).toHaveLength(2);
+        expect(finalComments[0]).toBe('Highly optimized for performance');
+        expect(finalComments[1]).toBe('Last updated: 2024-01-15');
+    });
+
+    it('should find components with specific comments', () => {
+        const query = SelectQueryParser.parse(testSql);
+        
+        // Find components with "customer" in comments
+        const components = CommentEditor.findComponentsWithComment(query, 'customer');
+        expect(components).toHaveLength(1);
+        expect(components[0]).toBe(query);
+    });
+
+    it('should format SQL with comment export option', () => {
+        const query = SelectQueryParser.parse(testSql);
+        
+        // Add additional comments
+        CommentEditor.addComment(query, 'Additional note: Check indexes');
+        
+        // Format with comments
+        const formatterWithComments = new SqlFormatter({
+            exportComment: true,
+            keywordCase: 'upper',
+            commaBreak: 'before'
+        });
+        
+        const withComments = formatterWithComments.format(query);
+        expect(withComments.formattedSql).toContain('/* Base customer data (active users only, with segment classification) */');
+        expect(withComments.formattedSql).toContain('/* Additional note: Check indexes */');
+        
+        // Format without comments
+        const formatterWithoutComments = new SqlFormatter({
+            exportComment: false,
+            keywordCase: 'upper',
+            commaBreak: 'before'
+        });
+        
+        const withoutComments = formatterWithoutComments.format(query);
+        expect(withoutComments.formattedSql).not.toContain('/*');
+    });
+
+    it('should replace text in comments across the AST', () => {
+        const query = SelectQueryParser.parse(testSql);
+        
+        // Add more comments with "data" in them
+        CommentEditor.addComment(query, 'Process customer data efficiently');
+        CommentEditor.addComment(query, 'Data validation rules applied');
+        
+        // Replace "data" with "information"
+        const replacementCount = CommentEditor.replaceInComments(query, 'data', 'information');
+        
+        expect(replacementCount).toBe(3); // Should replace in all 3 comments
+        
+        const comments = CommentEditor.getComments(query);
+        expect(comments[0]).toBe('Base customer information (active users only, with segment classification)');
+        expect(comments[1]).toBe('Process customer information efficiently');
+        expect(comments[2]).toBe('information validation rules applied');
+    });
+
+    it('should count comments in the AST', () => {
+        const query = SelectQueryParser.parse(testSql);
+        
+        expect(CommentEditor.countComments(query)).toBe(1);
+        
+        CommentEditor.addComment(query, 'Additional comment 1');
+        CommentEditor.addComment(query, 'Additional comment 2');
+        
+        expect(CommentEditor.countComments(query)).toBe(3);
+        
+        CommentEditor.deleteComment(query, 0);
+        
+        expect(CommentEditor.countComments(query)).toBe(2);
+    });
+
+    it('should get all comments with their components', () => {
+        const query = SelectQueryParser.parse(testSql);
+        
+        CommentEditor.addComment(query, 'Query level comment');
+        
+        const allComments = CommentEditor.getAllComments(query);
+        
+        expect(allComments).toHaveLength(2);
+        expect(allComments[0].comment).toBe('Base customer data (active users only, with segment classification)');
+        expect(allComments[0].component).toBe(query);
+        expect(allComments[0].index).toBe(0);
+        
+        expect(allComments[1].comment).toBe('Query level comment');
+        expect(allComments[1].component).toBe(query);
+        expect(allComments[1].index).toBe(1);
+    });
+
+    it('should handle error cases gracefully', () => {
+        const query = SelectQueryParser.parse(testSql);
+        
+        // Test invalid index errors
+        expect(() => CommentEditor.editComment(query, 10, 'new comment')).toThrow('Invalid comment index: 10');
+        expect(() => CommentEditor.deleteComment(query, -1)).toThrow('Invalid comment index: -1');
+        
+        // Test empty component
+        CommentEditor.deleteAllComments(query);
+        expect(() => CommentEditor.editComment(query, 0, 'new comment')).toThrow('Invalid comment index: 0');
+    });
+});
