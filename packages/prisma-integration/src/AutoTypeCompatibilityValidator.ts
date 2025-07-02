@@ -76,7 +76,9 @@ export class AutoTypeCompatibilityValidator {
             const interfaceFilePath = this.resolveInterfacePath(jsonMapping.typeInfo.importPath);
 
             if (this.options.debug) {
-                console.log(`🔍 Resolving interface from: ${interfaceFilePath}`);
+                console.log(`🔍 Import path: ${jsonMapping.typeInfo.importPath}`);
+                console.log(`📂 Base directory: ${this.options.baseDir}`);
+                console.log(`📄 Resolved to: ${interfaceFilePath}`);
             }
 
             // Parse TypeScript interface
@@ -123,9 +125,38 @@ export class AutoTypeCompatibilityValidator {
             return importPath;
         }
 
+        // First, try resolving from baseDir
         const resolved = path.resolve(this.options.baseDir!, importPath);
 
-        // If already has an extension, return as-is
+        // Check if the import path might contain redundant directory prefixes
+        // e.g., if baseDir is "project/static-analysis" and importPath is "static-analysis/src/file.ts"
+        const baseDirName = path.basename(this.options.baseDir!);
+        if (importPath.startsWith(baseDirName + path.sep)) {
+            // Try without the redundant prefix
+            const withoutPrefix = importPath.substring(baseDirName.length + 1);
+            const alternativeResolved = path.resolve(this.options.baseDir!, withoutPrefix);
+            
+            // Check which path exists
+            const resolvePaths = [alternativeResolved, resolved];
+            for (const basePath of resolvePaths) {
+                if (path.extname(basePath)) {
+                    if (fs.existsSync(basePath)) {
+                        return basePath;
+                    }
+                } else {
+                    // Try common TypeScript file extensions
+                    const extensions = ['.ts', '.tsx', '.d.ts'];
+                    for (const ext of extensions) {
+                        const withExt = basePath + ext;
+                        if (fs.existsSync(withExt)) {
+                            return withExt;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Standard resolution logic
         if (path.extname(resolved)) {
             return resolved; // Let validation handle file existence
         }
