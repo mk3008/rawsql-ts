@@ -1,6 +1,6 @@
 {
     "name": "@msugiura/rawsql-prisma",
-    "version": "0.1.5-alpha",
+    "version": "0.1.6-alpha",
     "description": "Prisma integration for rawsql-ts - Dynamic SQL generation with type safety and hierarchical JSON serialization",
     "main": "dist/src/index.js",
     "module": "dist/esm/index.js",
