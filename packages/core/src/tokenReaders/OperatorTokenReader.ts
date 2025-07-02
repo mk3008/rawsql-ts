@@ -28,6 +28,8 @@ const trie = new KeywordTrie([
     ["not", "similar", "to"], // e.g. name not similar to 'J(ohn|ane)%'
     ["similar"], // e.g. substring('abcdef' similar '%#"cd#"%' escape '#')
     ["placing"], // e.g. overlay('abcdef' placing 'cd' from 3 for 2)
+    ["rlike"], // MySQL regular expression operator
+    ["regexp"], // MySQL regular expression operator
     // unary
     ["not"],
     // unary - trim

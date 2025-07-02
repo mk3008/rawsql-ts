@@ -26,6 +26,23 @@ export class OperatorPrecedence {
         'not in': 10,
         'is': 10,
         'is not': 10,
+        // JSON operators (PostgreSQL/MySQL)
+        '->': 10,
+        '->>': 10,
+        '#>': 10,
+        '#>>': 10,
+        '@>': 10,
+        '<@': 10,
+        '?': 10,
+        '?|': 10,
+        '?&': 10,
+        // Regular expression operators (PostgreSQL/MySQL)
+        '~': 10,
+        '~*': 10,
+        '!~': 10,
+        '!~*': 10,
+        'rlike': 10,
+        'regexp': 10,
         'between': 15,  // BETWEEN has higher precedence than logical operators
         'not between': 15,
 
@@ -84,6 +101,8 @@ export class OperatorPrecedence {
      */
     public static isComparisonOperator(operator: string): boolean {
         const lowerOp = operator.toLowerCase();
-        return ['=', '!=', '<>', '<', '>', '<=', '>=', 'like', 'ilike', 'similar to', 'in', 'not in'].includes(lowerOp);
+        return ['=', '!=', '<>', '<', '>', '<=', '>=', 'like', 'ilike', 'similar to', 'in', 'not in',
+               '->', '->>', '#>', '#>>', '@>', '<@', '?', '?|', '?&',
+               '~', '~*', '!~', '!~*', 'rlike', 'regexp'].includes(lowerOp);
     }
 }

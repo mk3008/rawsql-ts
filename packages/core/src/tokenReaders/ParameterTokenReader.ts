@@ -62,7 +62,21 @@ export class ParameterTokenReader extends BaseTokenReader {
         }
 
         // nameless parameter (?)
+        // However, do not recognize as a parameter if it could be a JSON operator
         if (char === '?') {
+            // Check for JSON operators ?| and ?&
+            if (this.canRead(1)) {
+                const nextChar = this.input[this.position + 1];
+                if (nextChar === '|' || nextChar === '&') {
+                    return null; // Let OperatorTokenReader handle it
+                }
+            }
+            
+            // If previous token is an identifier or literal, ? might be a JSON operator
+            if (previous && (previous.type & TokenType.Identifier || previous.type & TokenType.Literal)) {
+                return null; // Let OperatorTokenReader handle it
+            }
+            
             this.position++;
             return this.createLexeme(TokenType.Parameter, char);
         }
