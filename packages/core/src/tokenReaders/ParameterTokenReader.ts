@@ -49,6 +49,26 @@ export class ParameterTokenReader extends BaseTokenReader {
                 return null;
             }
 
+            // Special handling for SQL Server MONEY literals ($123.45)
+            // Only treat as MONEY if it contains decimal point or comma (not just $123)
+            if (char === '$' && this.canRead(1) && CharLookupTable.isDigit(this.input[this.position + 1])) {
+                // Look ahead to see if this looks like a MONEY literal (has . or ,)
+                let pos = this.position + 1;
+                let hasDecimalOrComma = false;
+                while (pos < this.input.length && (CharLookupTable.isDigit(this.input[pos]) || this.input[pos] === ',' || this.input[pos] === '.')) {
+                    if (this.input[pos] === '.' || this.input[pos] === ',') {
+                        hasDecimalOrComma = true;
+                        break;
+                    }
+                    pos++;
+                }
+                
+                if (hasDecimalOrComma) {
+                    return null; // Let LiteralTokenReader handle it as MONEY
+                }
+                // Otherwise, treat as parameter (e.g., $1, $123)
+            }
+
             this.position++;
 
             // Read the identifier part after the prefix

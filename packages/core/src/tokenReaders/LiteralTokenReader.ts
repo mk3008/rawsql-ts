@@ -64,6 +64,28 @@ export class LiteralTokenReader extends BaseTokenReader {
             return this.createLexeme(TokenType.Literal, this.readDigit());
         }
 
+        // SQL Server MONEY literal ($123.45)
+        // Only treat as MONEY if it contains decimal point or comma to avoid conflict with PostgreSQL $1 parameters
+        if (char === '$' && this.canRead(1) && CharLookupTable.isDigit(this.input[this.position + 1])) {
+            // Look ahead to see if this looks like a MONEY literal (has . or ,)
+            let pos = this.position + 1;
+            let hasDecimalOrComma = false;
+            while (pos < this.input.length && (CharLookupTable.isDigit(this.input[pos]) || this.input[pos] === ',' || this.input[pos] === '.')) {
+                if (this.input[pos] === '.' || this.input[pos] === ',') {
+                    hasDecimalOrComma = true;
+                    break;
+                }
+                pos++;
+            }
+            
+            if (hasDecimalOrComma) {
+                const start = this.position;
+                this.position++; // Skip $
+                const numberPart = this.readMoneyDigit();
+                return this.createLexeme(TokenType.Literal, '$' + numberPart);
+            }
+        }
+
         // Signed number
         if ((char === '+' || char === '-') && this.determineSignOrOperator(previous) === "sign") {
             const sign = char;
@@ -194,6 +216,35 @@ export class LiteralTokenReader extends BaseTokenReader {
         if (this.input[start] === '.') {
             // If the number starts with a dot, add 0 to the front
             return '0' + this.input.slice(start, this.position);
+        }
+
+        return this.input.slice(start, this.position);
+    }
+
+    /**
+     * Read a MONEY value (allows commas as thousand separators)
+     */
+    private readMoneyDigit(): string {
+        const start = this.position;
+        let hasDot = false;
+
+        // Consider decimal point and comma separators
+        while (this.canRead()) {
+            const char = this.input[this.position];
+
+            if (char === '.' && !hasDot) {
+                hasDot = true;
+            } else if (char === ',' && !hasDot) {
+                // Allow comma as thousand separator before decimal point
+            } else if (!CharLookupTable.isDigit(char)) {
+                break;
+            }
+
+            this.position++;
+        }
+
+        if (start === this.position) {
+            throw new Error(`Unexpected character. position: ${start}\n${this.getDebugPositionInfo(start)}`);
         }
 
         return this.input.slice(start, this.position);

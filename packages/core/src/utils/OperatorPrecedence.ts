@@ -43,6 +43,9 @@ export class OperatorPrecedence {
         '!~*': 10,
         'rlike': 10,
         'regexp': 10,
+        // MySQL arithmetic/logical operators
+        'mod': 30,  // Same precedence as %
+        'xor': 2,   // Same precedence as OR
         'between': 15,  // BETWEEN has higher precedence than logical operators
         'not between': 15,
 

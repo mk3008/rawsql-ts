@@ -130,6 +130,13 @@ describe('ValueParser', () => {
         ["Regex not match case insensitive", "text_col !~* 'pattern'", "\"text_col\" !~* 'pattern'"],
         ["MySQL RLIKE operator", "text_col RLIKE 'pattern'", "\"text_col\" rlike 'pattern'"],
         ["MySQL REGEXP operator", "text_col REGEXP 'pattern'", "\"text_col\" regexp 'pattern'"],
+        // Phase 2: Additional MySQL and SQL Server operators
+        ["MySQL MOD operator", "a MOD b", "\"a\" mod \"b\""],
+        ["MySQL XOR operator", "a XOR b", "\"a\" xor \"b\""],
+        ["SQL Server MONEY literal - basic", "$123.45", "'$123.45'"],
+        ["SQL Server MONEY literal - with commas", "$1,234.56", "'$1,234.56'"],
+        ["PostgreSQL parameter vs MONEY - parameter wins", "$1000", ":1000"],
+        ["PostgreSQL parameter vs MONEY - MONEY wins", "$1000.50", "'$1000.50'"],
     ])('%s', (_, text, expected = text) => {
         const value = ValueParser.parse(text);
         const sql = formatter.format(value);
