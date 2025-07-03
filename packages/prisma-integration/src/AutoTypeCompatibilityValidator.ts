@@ -10,6 +10,11 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { EnhancedJsonMapping, TypeValidationResult } from './EnhancedJsonMapping';
 
+/**
+ * Supported TypeScript file extensions for interface resolution
+ */
+const TYPESCRIPT_EXTENSIONS = ['.ts', '.tsx', '.d.ts'] as const;
+
 export interface AutoTypeValidationOptions {
     /**
      * Base directory for resolving relative import paths
@@ -76,7 +81,10 @@ export class AutoTypeCompatibilityValidator {
             const interfaceFilePath = this.resolveInterfacePath(jsonMapping.typeInfo.importPath);
 
             if (this.options.debug) {
-                console.log(`🔍 Resolving interface from: ${interfaceFilePath}`);
+                console.log(`🔍 Import path: ${jsonMapping.typeInfo.importPath}`);
+                console.log(`📂 Base directory: ${this.options.baseDir}`);
+                console.log(`📄 Resolved to: ${interfaceFilePath}`);
+                console.log(`✅ File exists: ${fs.existsSync(interfaceFilePath)}`);
             }
 
             // Parse TypeScript interface
@@ -118,29 +126,77 @@ export class AutoTypeCompatibilityValidator {
 
     /**
      * Resolve interface file path relative to base directory
-     */    private resolveInterfacePath(importPath: string): string {
+     */
+    private resolveInterfacePath(importPath: string): string {
         if (path.isAbsolute(importPath)) {
             return importPath;
         }
 
-        const resolved = path.resolve(this.options.baseDir!, importPath);
+        // Try different resolution strategies
+        const candidatePaths = this.generateCandidatePaths(importPath);
+        
+        // Find the first existing file
+        for (const candidatePath of candidatePaths) {
+            const resolvedPath = this.resolveWithExtensions(candidatePath);
+            if (resolvedPath) {
+                return resolvedPath;
+            }
+        }
 
-        // If already has an extension, return as-is
-        if (path.extname(resolved)) {
-            return resolved; // Let validation handle file existence
+        // Fallback: return original resolution with .ts extension
+        return path.resolve(this.options.baseDir!, importPath) + '.ts';
+    }
+
+    /**
+     * Generate candidate paths for resolution, handling redundant directory prefixes
+     * 
+     * This method addresses the issue where import paths may contain redundant directory names
+     * that match the base directory name. For example:
+     * - baseDir: "/project/static-analysis"
+     * - importPath: "static-analysis/src/types.ts"
+     * - Result: First tries "/project/static-analysis/src/types.ts", then "/project/static-analysis/static-analysis/src/types.ts"
+     * 
+     * @param importPath - The relative import path from the JSON mapping file
+     * @returns Array of candidate absolute paths to try, ordered by preference
+     */
+    private generateCandidatePaths(importPath: string): string[] {
+        const baseDir = this.options.baseDir!;
+        const baseDirName = path.basename(baseDir);
+        const candidates: string[] = [];
+
+        // Strategy 1: Check for redundant directory prefix
+        if (importPath.startsWith(baseDirName + path.sep)) {
+            const withoutPrefix = importPath.substring(baseDirName.length + 1);
+            candidates.push(path.resolve(baseDir, withoutPrefix));
+        }
+
+        // Strategy 2: Standard resolution
+        candidates.push(path.resolve(baseDir, importPath));
+
+        return candidates;
+    }
+
+    /**
+     * Try to resolve a path with common TypeScript extensions
+     * 
+     * @param basePath - The base path to resolve (with or without extension)
+     * @returns The resolved path if found, null otherwise
+     */
+    private resolveWithExtensions(basePath: string): string | null {
+        // If path already has an extension, check if it exists
+        if (path.extname(basePath)) {
+            return fs.existsSync(basePath) ? basePath : null;
         }
 
         // Try common TypeScript file extensions
-        const extensions = ['.ts', '.tsx', '.d.ts'];
-        for (const ext of extensions) {
-            const withExt = resolved + ext;
+        for (const ext of TYPESCRIPT_EXTENSIONS) {
+            const withExt = basePath + ext;
             if (fs.existsSync(withExt)) {
                 return withExt;
             }
         }
 
-        // If no extension found, return with .ts as fallback
-        return resolved + '.ts';
+        return null;
     }
 
     /**
