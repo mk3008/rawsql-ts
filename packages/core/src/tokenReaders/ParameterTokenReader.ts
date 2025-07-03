@@ -49,6 +49,11 @@ export class ParameterTokenReader extends BaseTokenReader {
                 return null;
             }
 
+            // Special handling for PostgreSQL dollar-quoted strings ($$ or $tag$)
+            if (char === '$' && this.isDollarQuotedString()) {
+                return null; // Let LiteralTokenReader handle it as dollar-quoted string
+            }
+
             // Special handling for SQL Server MONEY literals ($123.45)
             // Only treat as MONEY if it contains decimal point or comma (not just $123)
             if (char === '$' && this.canRead(1) && CharLookupTable.isDigit(this.input[this.position + 1])) {
@@ -102,5 +107,52 @@ export class ParameterTokenReader extends BaseTokenReader {
         }
 
         return null;
+    }
+
+    /**
+     * Check if the current position starts a PostgreSQL dollar-quoted string
+     * Patterns: $$ or $tag$
+     */
+    private isDollarQuotedString(): boolean {
+        if (!this.canRead(1)) {
+            return false;
+        }
+
+        // Check for $$ pattern
+        if (this.input[this.position + 1] === '$') {
+            return true;
+        }
+
+        // Check for $tag$ pattern
+        // Look for the closing $ after the tag
+        let pos = this.position + 1;
+        while (pos < this.input.length) {
+            const char = this.input[pos];
+            if (char === '$') {
+                // Found closing $ - this looks like $tag$ pattern
+                return true;
+            }
+            // Tag can contain letters, digits, underscores
+            if (!this.isAlphanumeric(char) && char !== '_') {
+                // Invalid character for tag, not a dollar-quoted string
+                return false;
+            }
+            pos++;
+        }
+
+        // No closing $ found
+        return false;
+    }
+
+    /**
+     * Check if character is alphanumeric (letter or digit)
+     */
+    private isAlphanumeric(char: string): boolean {
+        if (char.length !== 1) return false;
+        const code = char.charCodeAt(0);
+        // Check if digit (0-9) or letter (a-z, A-Z)
+        return (code >= 48 && code <= 57) ||  // 0-9
+               (code >= 65 && code <= 90) ||  // A-Z
+               (code >= 97 && code <= 122);   // a-z
     }
 }

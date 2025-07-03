@@ -510,7 +510,12 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     private visitLiteralValue(arg: LiteralValue): SqlPrintToken {
         let text;
         if (typeof arg.value === "string") {
-            text = `'${arg.value.replace(/'/g, "''")}'`;
+            if (arg.isDollarString) {
+                // For dollar-quoted strings, return the original format
+                text = arg.value;
+            } else {
+                text = `'${arg.value.replace(/'/g, "''")}'`;
+            }
         } else if (arg.value === null) {
             text = "null";
         } else {

@@ -64,6 +64,11 @@ export class LiteralTokenReader extends BaseTokenReader {
             return this.createLexeme(TokenType.Literal, this.readDigit());
         }
 
+        // PostgreSQL dollar-quoted string ($$content$$ or $tag$content$tag$)
+        if (char === '$' && this.isDollarQuotedString()) {
+            return this.createLexeme(TokenType.Literal, this.readDollarQuotedString());
+        }
+
         // SQL Server MONEY literal ($123.45)
         // Only treat as MONEY if it contains decimal point or comma to avoid conflict with PostgreSQL $1 parameters
         if (char === '$' && this.canRead(1) && CharLookupTable.isDigit(this.input[this.position + 1])) {
@@ -284,5 +289,88 @@ export class LiteralTokenReader extends BaseTokenReader {
             const value = this.input.slice(start + 1, this.position - 1);
             return value;
         }
+    }
+
+    /**
+     * Check if the current position starts a PostgreSQL dollar-quoted string
+     */
+    private isDollarQuotedString(): boolean {
+        if (!this.canRead(1)) {
+            return false;
+        }
+
+        // Check for $$ pattern
+        if (this.input[this.position + 1] === '$') {
+            return true;
+        }
+
+        // Check for $tag$ pattern
+        let pos = this.position + 1;
+        while (pos < this.input.length) {
+            const char = this.input[pos];
+            if (char === '$') {
+                return true;
+            }
+            if (!this.isAlphanumeric(char) && char !== '_') {
+                return false;
+            }
+            pos++;
+        }
+
+        return false;
+    }
+
+    /**
+     * Read a PostgreSQL dollar-quoted string
+     */
+    private readDollarQuotedString(): string {
+        const start = this.position;
+        
+        // Read the opening tag
+        this.position++; // Skip initial $
+        let tag = '';
+        
+        // Read tag characters until the closing $
+        while (this.canRead() && this.input[this.position] !== '$') {
+            tag += this.input[this.position];
+            this.position++;
+        }
+        
+        if (!this.canRead()) {
+            throw new Error(`Unexpected end of input while reading dollar-quoted string tag at position ${start}`);
+        }
+        
+        this.position++; // Skip closing $ of opening tag
+        
+        // Now read the content until we find the closing tag
+        const openingTag = '$' + tag + '$';
+        const closingTag = openingTag;
+        let content = '';
+        
+        while (this.canRead()) {
+            // Check if we're at the start of the closing tag
+            if (this.input.substring(this.position, this.position + closingTag.length) === closingTag) {
+                // Found closing tag
+                this.position += closingTag.length;
+                return openingTag + content + closingTag;
+            }
+            
+            content += this.input[this.position];
+            this.position++;
+        }
+        
+        throw new Error(`Unclosed dollar-quoted string starting at position ${start}. Expected closing tag: ${closingTag}`);
+    }
+
+    /**
+     * Check if character is alphanumeric (letter or digit)
+     */
+    private isAlphanumeric(char: string): boolean {
+        if (char.length !== 1) return false;
+        const code = char.charCodeAt(0);
+        // Check if digit (0-9) or letter (a-z, A-Z)
+        return (code >= 48 && code <= 57) ||  // 0-9
+               (code >= 65 && code <= 90) ||  // A-Z
+               (code >= 97 && code <= 122);   // a-z
     }
 }

@@ -137,6 +137,12 @@ describe('ValueParser', () => {
         ["SQL Server MONEY literal - with commas", "$1,234.56", "'$1,234.56'"],
         ["PostgreSQL parameter vs MONEY - parameter wins", "$1000", ":1000"],
         ["PostgreSQL parameter vs MONEY - MONEY wins", "$1000.50", "'$1000.50'"],
+        // PostgreSQL Dollar-quoted strings
+        ["PostgreSQL dollar-quoted string - basic", "$$hello world$$", "$$hello world$$"],
+        ["PostgreSQL dollar-quoted string - with tag", "$tag$content$tag$", "$tag$content$tag$"],
+        ["PostgreSQL dollar-quoted string - empty", "$$$$", "$$$$"],
+        ["PostgreSQL dollar-quoted string - with quotes inside", "$$it's a 'quoted' string$$", "$$it's a 'quoted' string$$"],
+        ["PostgreSQL dollar-quoted string - multiline", "$func$\nBEGIN\n  RETURN 'hello';\nEND;\n$func$", "$func$\nBEGIN\n  RETURN 'hello';\nEND;\n$func$"],
     ])('%s', (_, text, expected = text) => {
         const value = ValueParser.parse(text);
         const sql = formatter.format(value);
