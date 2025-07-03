@@ -202,12 +202,31 @@ export class StringUtils {
         }
 
         // Check index range before checking for [] (array type)
+        // But don't include [] if it looks like array access rather than type declaration
         while (
             position + 1 < input.length &&
             input[position] === '[' &&
             input[position + 1] === ']'
         ) {
-            position += 2; // Skip the []
+            // Check if this looks like array access context by looking at what comes before
+            // Array access context: after an expression/identifier that could be an array
+            // Type context: in type declarations, parameter lists, etc.
+            
+            // Simple heuristic: if we're at the end of what looks like a variable/column name
+            // and not in a clear type context, treat [] as array access, not type suffix
+            const beforeIdentifier = input.slice(0, start).trim();
+            
+            // Don't treat as type suffix if:
+            // 1. We're at the start of input (standalone identifier)
+            // 2. Previous context suggests this is a variable/column reference
+            if (beforeIdentifier === '' || 
+                /[)]$/.test(beforeIdentifier) ||  // After closing paren 
+                /\b(select|from|where|and|or|set|values|insert|update|delete)\s*$/i.test(beforeIdentifier)) {
+                // This looks like array access context, don't include []
+                break;
+            }
+            
+            position += 2; // Skip the [] (keep existing behavior for type contexts)
         }
 
         return {

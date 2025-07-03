@@ -49,6 +49,11 @@ export class ParameterTokenReader extends BaseTokenReader {
                 return null;
             }
 
+            // Don't treat `:` as parameter prefix in array slice context [1:2]
+            if (char === ':' && this.isInArraySliceContext()) {
+                return null;
+            }
+
             // Special handling for PostgreSQL dollar-quoted strings ($$ or $tag$)
             if (char === '$' && this.isDollarQuotedString()) {
                 return null; // Let LiteralTokenReader handle it as dollar-quoted string
@@ -107,6 +112,53 @@ export class ParameterTokenReader extends BaseTokenReader {
         }
 
         return null;
+    }
+
+    /**
+     * Check if we're in an array slice context where : should be treated as an operator
+     * Look backwards for an opening bracket that suggests array access
+     */
+    private isInArraySliceContext(): boolean {
+        // Look backwards from current position to find opening bracket
+        let pos = this.position - 1;
+        let bracketDepth = 0;
+        let parenDepth = 0;
+        
+        while (pos >= 0) {
+            const char = this.input[pos];
+            
+            if (char === ']') {
+                bracketDepth++;
+            } else if (char === '[') {
+                bracketDepth--;
+                if (bracketDepth < 0) {
+                    // Found unmatched opening bracket, check if it's array access context
+                    // Array access context: after identifier, closing paren, or closing bracket
+                    if (pos > 0) {
+                        const prevChar = this.input[pos - 1];
+                        // If previous char could end an expression (identifier, paren, bracket)
+                        if (/[a-zA-Z0-9_)\]]/.test(prevChar)) {
+                            return true;
+                        }
+                    }
+                    // Also check if we're at start of input with brackets
+                    if (pos === 0) {
+                        return false; // Standalone [expr] is not array access
+                    }
+                    break;
+                }
+            } else if (char === ')') {
+                parenDepth++;
+            } else if (char === '(') {
+                parenDepth--;
+                // Continue searching even through parentheses as they might be function calls
+                // in array slice context like arr[func(x):func(y)]
+            }
+            
+            pos--;
+        }
+        
+        return false;
     }
 
     /**

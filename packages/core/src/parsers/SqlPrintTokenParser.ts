@@ -20,6 +20,8 @@ import {
     CaseExpression,
     ArrayExpression,
     ArrayQueryExpression,
+    ArraySliceExpression,
+    ArrayIndexExpression,
     BetweenExpression,
     StringSpecifierExpression,
     TypeValue,
@@ -212,6 +214,8 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         this.handlers.set(CaseExpression.kind, (expr) => this.visitCaseExpression(expr as CaseExpression));
         this.handlers.set(ArrayExpression.kind, (expr) => this.visitArrayExpression(expr as ArrayExpression));
         this.handlers.set(ArrayQueryExpression.kind, (expr) => this.visitArrayQueryExpression(expr as ArrayQueryExpression));
+        this.handlers.set(ArraySliceExpression.kind, (expr) => this.visitArraySliceExpression(expr as ArraySliceExpression));
+        this.handlers.set(ArrayIndexExpression.kind, (expr) => this.visitArrayIndexExpression(expr as ArrayIndexExpression));
         this.handlers.set(BetweenExpression.kind, (expr) => this.visitBetweenExpression(expr as BetweenExpression));
         this.handlers.set(StringSpecifierExpression.kind, (expr) => this.visitStringSpecifierExpression(expr as StringSpecifierExpression));
         this.handlers.set(TypeValue.kind, (expr) => this.visitTypeValue(expr as TypeValue));
@@ -670,6 +674,52 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.parenthesis, '('));
         token.innerTokens.push(this.visit(arg.query));
         token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.parenthesis, ')'));
+
+        return token;
+    }
+
+    private visitArraySliceExpression(arg: ArraySliceExpression): SqlPrintToken {
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.ArrayExpression);
+
+        // array expression
+        token.innerTokens.push(this.visit(arg.array));
+        
+        // opening bracket
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.parenthesis, '['));
+        
+        // start index (optional)
+        if (arg.startIndex) {
+            token.innerTokens.push(this.visit(arg.startIndex));
+        }
+        
+        // colon separator
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.operator, ':'));
+        
+        // end index (optional)
+        if (arg.endIndex) {
+            token.innerTokens.push(this.visit(arg.endIndex));
+        }
+        
+        // closing bracket
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.parenthesis, ']'));
+
+        return token;
+    }
+
+    private visitArrayIndexExpression(arg: ArrayIndexExpression): SqlPrintToken {
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.ArrayExpression);
+
+        // array expression
+        token.innerTokens.push(this.visit(arg.array));
+        
+        // opening bracket
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.parenthesis, '['));
+        
+        // index
+        token.innerTokens.push(this.visit(arg.index));
+        
+        // closing bracket
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.parenthesis, ']'));
 
         return token;
     }

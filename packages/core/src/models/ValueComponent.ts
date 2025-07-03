@@ -18,6 +18,8 @@ export type ValueComponent = ValueList |
     CaseExpression |
     ArrayExpression |
     ArrayQueryExpression |
+    ArraySliceExpression |
+    ArrayIndexExpression |
     BetweenExpression |
     InlineQuery |
     StringSpecifierExpression |
@@ -387,6 +389,30 @@ export class TupleExpression extends SqlComponent {
     constructor(values: ValueComponent[]) {
         super();
         this.values = values;
+    }
+}
+
+export class ArraySliceExpression extends SqlComponent {
+    static kind = Symbol("ArraySliceExpression");
+    array: ValueComponent;
+    startIndex: ValueComponent | null;  // null for [:2]
+    endIndex: ValueComponent | null;    // null for [1:]
+    constructor(array: ValueComponent, startIndex: ValueComponent | null, endIndex: ValueComponent | null) {
+        super();
+        this.array = array;
+        this.startIndex = startIndex;
+        this.endIndex = endIndex;
+    }
+}
+
+export class ArrayIndexExpression extends SqlComponent {
+    static kind = Symbol("ArrayIndexExpression");
+    array: ValueComponent;
+    index: ValueComponent;
+    constructor(array: ValueComponent, index: ValueComponent) {
+        super();
+        this.array = array;
+        this.index = index;
     }
 }
 

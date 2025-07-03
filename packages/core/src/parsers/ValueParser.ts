@@ -1,5 +1,5 @@
 import { Lexeme, TokenType } from "../models/Lexeme";
-import { ColumnReference, TypeValue, UnaryExpression, ValueComponent, ValueList, BinaryExpression, CastExpression } from "../models/ValueComponent";
+import { ColumnReference, TypeValue, UnaryExpression, ValueComponent, ValueList, BinaryExpression, CastExpression, ArraySliceExpression, ArrayIndexExpression } from "../models/ValueComponent";
 import { SqlTokenizer } from "./SqlTokenizer";
 import { IdentifierParser } from "./IdentifierParser";
 import { LiteralParser } from "./LiteralParser";
@@ -61,6 +61,11 @@ export class ValueParser {
         idx = left.newIndex;
 
         let result = left.value;
+
+        // Handle postfix array access ([...])
+        const arrayAccessResult = this.parseArrayAccess(lexemes, idx, result);
+        result = arrayAccessResult.value;
+        idx = arrayAccessResult.newIndex;
 
         // Process operators with precedence
         while (idx < lexemes.length && (lexemes[idx].type & TokenType.Operator)) {
@@ -279,6 +284,155 @@ export class ValueParser {
         }
 
         throw new Error(`Expected opening parenthesis at index ${index}`);
+    }
+
+    /**
+     * Parse postfix array access operations [index] or [start:end]
+     * @param lexemes Array of lexemes
+     * @param index Current index
+     * @param baseExpression The base expression to apply array access to
+     * @returns Result with potentially modified expression and new index
+     */
+    private static parseArrayAccess(lexemes: Lexeme[], index: number, baseExpression: ValueComponent): { value: ValueComponent; newIndex: number } {
+        let idx = index;
+        let result = baseExpression;
+
+        // Check for array access syntax [...]
+        while (idx < lexemes.length && (lexemes[idx].type & TokenType.OpenBracket)) {
+            // Check if this is SQL Server bracket identifier by looking ahead
+            if (this.isSqlServerBracketIdentifier(lexemes, idx)) {
+                break; // This is SQL Server bracket syntax, not array access
+            }
+
+            idx++; // consume opening bracket
+
+            if (idx >= lexemes.length) {
+                throw new Error(`Expected array index or slice after '[' at index ${idx - 1}`);
+            }
+
+            // Check for empty brackets []
+            if (lexemes[idx].type & TokenType.CloseBracket) {
+                throw new Error(`Empty array access brackets not supported at index ${idx}`);
+            }
+
+            // First, check if this is a slice by looking for colon pattern
+            let startExpr: ValueComponent | null = null;
+            let isSlice = false;
+
+            // Parse the first part (could be start of slice or single index)
+            if (lexemes[idx].type & TokenType.Operator && lexemes[idx].value === ":") {
+                // Starts with colon [:end] - start is null
+                isSlice = true;
+                idx++; // consume colon
+            } else {
+                // Parse the first expression (but with higher precedence than colon)
+                const colonPrecedence = OperatorPrecedence.getPrecedence(":");
+                const firstResult = this.parseExpressionWithPrecedence(lexemes, idx, colonPrecedence + 1);
+                startExpr = firstResult.value;
+                idx = firstResult.newIndex;
+
+                // Check if next token is colon
+                if (idx < lexemes.length && lexemes[idx].type & TokenType.Operator && lexemes[idx].value === ":") {
+                    isSlice = true;
+                    idx++; // consume colon
+                }
+            }
+
+            if (isSlice) {
+                // This is a slice expression [start:end]
+                let endExpr: ValueComponent | null = null;
+
+                // Check if there's an end expression or if it's an open slice like [1:]
+                if (idx < lexemes.length && !(lexemes[idx].type & TokenType.CloseBracket)) {
+                    const colonPrecedence = OperatorPrecedence.getPrecedence(":");
+                    const endResult = this.parseExpressionWithPrecedence(lexemes, idx, colonPrecedence + 1);
+                    endExpr = endResult.value;
+                    idx = endResult.newIndex;
+                }
+
+                // Expect closing bracket
+                if (idx >= lexemes.length || !(lexemes[idx].type & TokenType.CloseBracket)) {
+                    throw new Error(`Expected ']' after array slice at index ${idx}`);
+                }
+                idx++; // consume closing bracket
+
+                // Create ArraySliceExpression
+                result = new ArraySliceExpression(result, startExpr, endExpr);
+            } else {
+                // This is a single index access [index]
+                // Need to parse the full expression if it wasn't already parsed
+                if (!startExpr) {
+                    const indexResult = this.parseFromLexeme(lexemes, idx);
+                    startExpr = indexResult.value;
+                    idx = indexResult.newIndex;
+                }
+                
+                // Expect closing bracket
+                if (idx >= lexemes.length || !(lexemes[idx].type & TokenType.CloseBracket)) {
+                    throw new Error(`Expected ']' after array index at index ${idx}`);
+                }
+                idx++; // consume closing bracket
+
+                // Create ArrayIndexExpression
+                result = new ArrayIndexExpression(result, startExpr!);
+            }
+        }
+
+        return { value: result, newIndex: idx };
+    }
+
+    /**
+     * Check if the bracket at the given index represents SQL Server bracket identifier syntax
+     * Returns true if this looks like [identifier] or [schema].[table] syntax
+     */
+    private static isSqlServerBracketIdentifier(lexemes: Lexeme[], bracketIndex: number): boolean {
+        let idx = bracketIndex + 1; // Start after opening bracket
+
+        if (idx >= lexemes.length) return false;
+
+        // SQL Server bracket identifiers should contain only identifiers and dots
+        while (idx < lexemes.length && !(lexemes[idx].type & TokenType.CloseBracket)) {
+            const token = lexemes[idx];
+            
+            // Allow identifiers and dots in SQL Server bracket syntax
+            if ((token.type & TokenType.Identifier) || 
+                (token.type & TokenType.Operator && token.value === ".")) {
+                idx++;
+                continue;
+            }
+            
+            // If we find anything else (numbers, expressions, colons), it's array access
+            return false;
+        }
+
+        // If we reached the end without finding a closing bracket, it's malformed
+        if (idx >= lexemes.length) return false;
+
+        // If the closing bracket is immediately followed by a dot, it's likely SQL Server syntax
+        // like [dbo].[table] 
+        const closingBracketIndex = idx;
+        if (closingBracketIndex + 1 < lexemes.length) {
+            const nextToken = lexemes[closingBracketIndex + 1];
+            if (nextToken.type & TokenType.Operator && nextToken.value === ".") {
+                return true;
+            }
+        }
+
+        // Check if the content looks like a simple identifier (no colons, expressions, etc.)
+        idx = bracketIndex + 1;
+        let hasOnlyIdentifiersAndDots = true;
+        while (idx < closingBracketIndex) {
+            const token = lexemes[idx];
+            if (!((token.type & TokenType.Identifier) || 
+                  (token.type & TokenType.Operator && token.value === "."))) {
+                hasOnlyIdentifiersAndDots = false;
+                break;
+            }
+            idx++;
+        }
+
+        // If it contains only identifiers and dots, it's likely SQL Server syntax
+        return hasOnlyIdentifiersAndDots;
     }
 
     /**
