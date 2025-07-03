@@ -24,6 +24,9 @@ export class WithClauseParser {
     public static parseFromLexeme(lexemes: Lexeme[], index: number): { value: WithClause; newIndex: number } {
         let idx = index;
 
+        // Capture comments from the WITH keyword
+        const withTokenComments = idx < lexemes.length ? lexemes[idx].comments : null;
+
         // Expect WITH keyword
         if (idx < lexemes.length && lexemes[idx].value.toLowerCase() === "with") {
             idx++;
@@ -48,14 +51,20 @@ export class WithClauseParser {
         // Parse additional CTEs (optional)
         while (idx < lexemes.length && (lexemes[idx].type & TokenType.Comma)) {
             idx++; // Skip comma
+            
+            // Capture comments that may be before the next CTE name
+            // Check if there are tokens before the CTE name that might have comments
             const cteResult = CommonTableParser.parseFromLexeme(lexemes, idx);
             tables.push(cteResult.value);
             idx = cteResult.newIndex;
         }
 
-        // Create WITH clause
+        // Create WITH clause with comments
+        const withClause = new WithClause(recursive, tables);
+        withClause.comments = withTokenComments;
+
         return {
-            value: new WithClause(recursive, tables),
+            value: withClause,
             newIndex: idx
         };
     }

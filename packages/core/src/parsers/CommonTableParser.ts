@@ -25,6 +25,9 @@ export class CommonTableParser {
     public static parseFromLexeme(lexemes: Lexeme[], index: number): { value: CommonTable; newIndex: number } {
         let idx = index;
 
+        // Capture comments from the CTE name token (before parsing alias)
+        const cteNameComments = idx < lexemes.length ? lexemes[idx].comments : null;
+
         // Parse alias and optional column aliases
         // SourceAliasExpressionParser already handles column aliases if present
         const aliasResult = SourceAliasExpressionParser.parseFromLexeme(lexemes, idx);
@@ -53,10 +56,23 @@ export class CommonTableParser {
         if (idx < lexemes.length && lexemes[idx].type !== TokenType.OpenParen) {
             throw new Error(`Syntax error at position ${idx}: Expected '(' after CTE name but found "${lexemes[idx].value}".`);
         }
+        
+        // Capture comments from the opening parenthesis for the CTE inner query
+        const cteQueryComments = lexemes[idx].comments;
         idx++; // Skip opening parenthesis
 
         const queryResult = SelectQueryParser.parseFromLexeme(lexemes, idx);
         idx = queryResult.newIndex;
+        
+        // If there are comments from the opening parenthesis, add them to the inner query
+        if (cteQueryComments && cteQueryComments.length > 0) {
+            if (queryResult.value.comments) {
+                // Prepend the CTE query comments to existing comments
+                queryResult.value.comments = [...cteQueryComments, ...queryResult.value.comments];
+            } else {
+                queryResult.value.comments = cteQueryComments;
+            }
+        }
 
         if (idx < lexemes.length && lexemes[idx].type !== TokenType.CloseParen) {
             throw new Error(`Syntax error at position ${idx}: Expected ')' after CTE query but found "${lexemes[idx].value}".`);
@@ -64,6 +80,10 @@ export class CommonTableParser {
         idx++; // Skip closing parenthesis
 
         const value = new CommonTable(queryResult.value, aliasResult.value, materialized);
+        
+        // Set comments on the CommonTable from the CTE name token
+        value.comments = cteNameComments;
+
         return { value, newIndex: idx };
     }
 }
