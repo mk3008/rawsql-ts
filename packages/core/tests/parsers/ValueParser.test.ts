@@ -113,6 +113,36 @@ describe('ValueParser', () => {
         ["Complex logical - nested AND/OR", 'a = 1 AND (b = 2 OR c = 3) AND d = 4', '"a" = 1 and ("b" = 2 or "c" = 3) and "d" = 4'],
         ["Complex logical - mixed with BETWEEN", 'a BETWEEN 1 AND 5 AND (b = 2 OR c BETWEEN 10 AND 20)', '"a" between 1 and 5 and ("b" = 2 or "c" between 10 and 20)'],
         ["COUNT with DISTINCT and nested function", "COUNT(DISTINCT DATE('2025-01-01'))", "count(distinct DATE('2025-01-01'))"],
+        // JSON operators (PostgreSQL/MySQL)
+        ["JSON arrow operator", "json_col -> 'key'", "\"json_col\" -> 'key'"],
+        ["JSON double arrow operator", "json_col ->> 'key'", "\"json_col\" ->> 'key'"],
+        ["JSON path operator", "json_col #> '{key,subkey}'", "\"json_col\" #> '{key,subkey}'"],
+        ["JSON path text operator", "json_col #>> '{key,subkey}'", "\"json_col\" #>> '{key,subkey}'"],
+        ["JSON contains operator", "json_col @> '{\"key\": \"value\"}'", "\"json_col\" @> '{\"key\": \"value\"}'"],
+        ["JSON contained by operator", "'{\"key\": \"value\"}' <@ json_col", "'{\"key\": \"value\"}' <@ \"json_col\""],
+        ["JSON key exists operator", "json_col ? 'key'", "\"json_col\" ? 'key'"],
+        ["JSON any key exists operator", "json_col ?| array['key1', 'key2']", "\"json_col\" ?| array['key1', 'key2']"],
+        ["JSON all keys exist operator", "json_col ?& array['key1', 'key2']", "\"json_col\" ?& array['key1', 'key2']"],
+        // Regular expression operators (PostgreSQL/MySQL)
+        ["Regex match operator", "text_col ~ 'pattern'", "\"text_col\" ~ 'pattern'"],
+        ["Regex match case insensitive", "text_col ~* 'pattern'", "\"text_col\" ~* 'pattern'"],
+        ["Regex not match operator", "text_col !~ 'pattern'", "\"text_col\" !~ 'pattern'"],
+        ["Regex not match case insensitive", "text_col !~* 'pattern'", "\"text_col\" !~* 'pattern'"],
+        ["MySQL RLIKE operator", "text_col RLIKE 'pattern'", "\"text_col\" rlike 'pattern'"],
+        ["MySQL REGEXP operator", "text_col REGEXP 'pattern'", "\"text_col\" regexp 'pattern'"],
+        // Phase 2: Additional MySQL and SQL Server operators
+        ["MySQL MOD operator", "a MOD b", "\"a\" mod \"b\""],
+        ["MySQL XOR operator", "a XOR b", "\"a\" xor \"b\""],
+        ["SQL Server MONEY literal - basic", "$123.45", "'$123.45'"],
+        ["SQL Server MONEY literal - with commas", "$1,234.56", "'$1,234.56'"],
+        ["PostgreSQL parameter vs MONEY - parameter wins", "$1000", ":1000"],
+        ["PostgreSQL parameter vs MONEY - MONEY wins", "$1000.50", "'$1000.50'"],
+        // PostgreSQL Dollar-quoted strings
+        ["PostgreSQL dollar-quoted string - basic", "$$hello world$$", "$$hello world$$"],
+        ["PostgreSQL dollar-quoted string - with tag", "$tag$content$tag$", "$tag$content$tag$"],
+        ["PostgreSQL dollar-quoted string - empty", "$$$$", "$$$$"],
+        ["PostgreSQL dollar-quoted string - with quotes inside", "$$it's a 'quoted' string$$", "$$it's a 'quoted' string$$"],
+        ["PostgreSQL dollar-quoted string - multiline", "$func$\nBEGIN\n  RETURN 'hello';\nEND;\n$func$", "$func$\nBEGIN\n  RETURN 'hello';\nEND;\n$func$"],
     ])('%s', (_, text, expected = text) => {
         const value = ValueParser.parse(text);
         const sql = formatter.format(value);

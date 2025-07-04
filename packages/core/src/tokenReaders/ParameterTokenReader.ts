@@ -49,6 +49,36 @@ export class ParameterTokenReader extends BaseTokenReader {
                 return null;
             }
 
+            // Don't treat `:` as parameter prefix in array slice context [1:2]
+            if (char === ':' && this.isInArraySliceContext()) {
+                return null;
+            }
+
+            // Special handling for PostgreSQL dollar-quoted strings ($$ or $tag$)
+            if (char === '$' && this.isDollarQuotedString()) {
+                return null; // Let LiteralTokenReader handle it as dollar-quoted string
+            }
+
+            // Special handling for SQL Server MONEY literals ($123.45)
+            // Only treat as MONEY if it contains decimal point or comma (not just $123)
+            if (char === '$' && this.canRead(1) && CharLookupTable.isDigit(this.input[this.position + 1])) {
+                // Look ahead to see if this looks like a MONEY literal (has . or ,)
+                let pos = this.position + 1;
+                let hasDecimalOrComma = false;
+                while (pos < this.input.length && (CharLookupTable.isDigit(this.input[pos]) || this.input[pos] === ',' || this.input[pos] === '.')) {
+                    if (this.input[pos] === '.' || this.input[pos] === ',') {
+                        hasDecimalOrComma = true;
+                        break;
+                    }
+                    pos++;
+                }
+                
+                if (hasDecimalOrComma) {
+                    return null; // Let LiteralTokenReader handle it as MONEY
+                }
+                // Otherwise, treat as parameter (e.g., $1, $123)
+            }
+
             this.position++;
 
             // Read the identifier part after the prefix
@@ -62,11 +92,119 @@ export class ParameterTokenReader extends BaseTokenReader {
         }
 
         // nameless parameter (?)
+        // However, do not recognize as a parameter if it could be a JSON operator
         if (char === '?') {
+            // Check for JSON operators ?| and ?&
+            if (this.canRead(1)) {
+                const nextChar = this.input[this.position + 1];
+                if (nextChar === '|' || nextChar === '&') {
+                    return null; // Let OperatorTokenReader handle it
+                }
+            }
+            
+            // If previous token is an identifier or literal, ? might be a JSON operator
+            if (previous && (previous.type & TokenType.Identifier || previous.type & TokenType.Literal)) {
+                return null; // Let OperatorTokenReader handle it
+            }
+            
             this.position++;
             return this.createLexeme(TokenType.Parameter, char);
         }
 
         return null;
+    }
+
+    /**
+     * Check if we're in an array slice context where : should be treated as an operator
+     * Look backwards for an opening bracket that suggests array access
+     */
+    private isInArraySliceContext(): boolean {
+        // Look backwards from current position to find opening bracket
+        let pos = this.position - 1;
+        let bracketDepth = 0;
+        let parenDepth = 0;
+        
+        while (pos >= 0) {
+            const char = this.input[pos];
+            
+            if (char === ']') {
+                bracketDepth++;
+            } else if (char === '[') {
+                bracketDepth--;
+                if (bracketDepth < 0) {
+                    // Found unmatched opening bracket, check if it's array access context
+                    // Array access context: after identifier, closing paren, or closing bracket
+                    if (pos > 0) {
+                        const prevChar = this.input[pos - 1];
+                        // If previous char could end an expression (identifier, paren, bracket)
+                        if (/[a-zA-Z0-9_)\]]/.test(prevChar)) {
+                            return true;
+                        }
+                    }
+                    // Also check if we're at start of input with brackets
+                    if (pos === 0) {
+                        return false; // Standalone [expr] is not array access
+                    }
+                    break;
+                }
+            } else if (char === ')') {
+                parenDepth++;
+            } else if (char === '(') {
+                parenDepth--;
+                // Continue searching even through parentheses as they might be function calls
+                // in array slice context like arr[func(x):func(y)]
+            }
+            
+            pos--;
+        }
+        
+        return false;
+    }
+
+    /**
+     * Check if the current position starts a PostgreSQL dollar-quoted string
+     * Patterns: $$ or $tag$
+     */
+    private isDollarQuotedString(): boolean {
+        if (!this.canRead(1)) {
+            return false;
+        }
+
+        // Check for $$ pattern
+        if (this.input[this.position + 1] === '$') {
+            return true;
+        }
+
+        // Check for $tag$ pattern
+        // Look for the closing $ after the tag
+        let pos = this.position + 1;
+        while (pos < this.input.length) {
+            const char = this.input[pos];
+            if (char === '$') {
+                // Found closing $ - this looks like $tag$ pattern
+                return true;
+            }
+            // Tag can contain letters, digits, underscores
+            if (!this.isAlphanumeric(char) && char !== '_') {
+                // Invalid character for tag, not a dollar-quoted string
+                return false;
+            }
+            pos++;
+        }
+
+        // No closing $ found
+        return false;
+    }
+
+    /**
+     * Check if character is alphanumeric (letter or digit)
+     */
+    private isAlphanumeric(char: string): boolean {
+        if (char.length !== 1) return false;
+        const code = char.charCodeAt(0);
+        // Check if digit (0-9) or letter (a-z, A-Z)
+        return (code >= 48 && code <= 57) ||  // 0-9
+               (code >= 65 && code <= 90) ||  // A-Z
+               (code >= 97 && code <= 122);   // a-z
     }
 }

@@ -31,11 +31,11 @@ export class CharLookupTable {
 
         // Check for specific operator character codes
         // '+'=43, '-'=45, '*'=42, '/'=47, '%'=37, '~'=126, '@'=64, '#'=35, '^'=94, 
-        // '&'=38, ':'=58, '!'=33, '<'=60, '>'=62, '='=61, '|'=124
+        // '&'=38, ':'=58, '!'=33, '<'=60, '>'=62, '='=61, '|'=124, '?'=63
         return code === 43 || code === 45 || code === 42 || code === 47 ||
             code === 37 || code === 126 || code === 64 || code === 35 ||
             code === 94 || code === 38 || code === 58 || code === 33 ||
-            code === 60 || code === 62 || code === 61 || code === 124;
+            code === 60 || code === 62 || code === 61 || code === 124 || code === 63;
     }
 
     public static isDelimiter(char: string): boolean {
@@ -55,11 +55,11 @@ export class CharLookupTable {
 
         // Finally check for operator symbols
         // '+'=43, '-'=45, '*'=42, '/'=47, '%'=37, '~'=126, '@'=64, '#'=35, '^'=94, 
-        // '&'=38, ':'=58, '!'=33, '<'=60, '>'=62, '='=61, '|'=124
+        // '&'=38, ':'=58, '!'=33, '<'=60, '>'=62, '='=61, '|'=124, '?'=63
         return code === 43 || code === 45 || code === 42 || code === 47 ||
             code === 37 || code === 126 || code === 64 || code === 35 ||
             code === 94 || code === 38 || code === 58 || code === 33 ||
-            code === 60 || code === 62 || code === 61 || code === 124;
+            code === 60 || code === 62 || code === 61 || code === 124 || code === 63;
     }
 
     public static isNamedParameterPrefix(char: string): boolean {
