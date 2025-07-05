@@ -76,7 +76,7 @@ console.log(ast);
 ## Important Notes
 
 - The parser only supports SELECT-family queries (SELECT, WITH, VALUES, UNION, etc.).
-- SQL comments (both single-line `--` and block `/* ... */`) are automatically removed during parsing and do not appear in the AST.
+- SQL comments (both single-line `--` and block `/* ... */`) are parsed and preserved in the AST, but are not exported by default. Use `SqlFormatter` with `exportComment: true` to include comments in formatted output.
 - The output AST is compatible with other rawsql-ts tools (e.g., SqlParamInjector, SqlFormatter).
 - The parser does not validate table existence or column types; it only parses SQL syntax.
 
