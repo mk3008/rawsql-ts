@@ -144,8 +144,9 @@ export class QueryFlowDiagramGenerator {
         const leftNodeId = this.processQuery(query.left, `${context}_left`, cteNames);
         const rightNodeId = this.processQuery(query.right, `${context}_right`, cteNames);
 
-        // Create operation node
-        const operationNode = this.graph.createSetOperationNode('1', query.operator.value);
+        // Create operation node with unique ID based on context
+        const operationId = context === 'main' ? 'main' : context.replace(/^cte_/, '');
+        const operationNode = this.graph.createSetOperationNode(operationId, query.operator.value);
 
         // Connect left and right to operation
         if (leftNodeId && !this.graph.hasConnection(leftNodeId, operationNode.id)) {
@@ -165,7 +166,9 @@ export class QueryFlowDiagramGenerator {
         cteNames: Set<string>
     ): string {
         const partNodes: string[] = [];
-        const operationNode = this.graph.createSetOperationNode('1', operator);
+        // Use context to create unique operation ID
+        const operationId = context === 'main' ? 'main' : context.replace(/^cte_/, '');
+        const operationNode = this.graph.createSetOperationNode(operationId, operator);
 
         // Process each part with numbered naming
         for (let i = 0; i < parts.length; i++) {

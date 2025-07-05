@@ -1,5 +1,5 @@
 // Import rawsql-ts modules
-import { SelectQueryParser, SqlFormatter, TableSourceCollector, CTECollector, SchemaCollector } from "https://unpkg.com/rawsql-ts/dist/esm/index.min.js";
+import { SelectQueryParser, SqlFormatter, TableSourceCollector, CTECollector, SchemaCollector, QueryFlowDiagramGenerator } from "https://unpkg.com/rawsql-ts/dist/esm/index.min.js";
 // Import style configuration module
 import { initStyleConfig, loadStyles as loadStylesFromModule, saveStylesAndFormat, displayStyle as displayStyleFromModule, populateStyleSelect as populateStyleSelectFromModule, getCurrentStyles as getStylesFromModule, DEFAULT_STYLE_KEY as STYLE_CONFIG_DEFAULT_KEY } from './style-config.js';
 // Import analysis features module
@@ -43,6 +43,7 @@ let schemaInfoEditor; // For CodeMirror instance
 const copyTableListBtn = document.getElementById('copy-table-list-btn');
 const copyCteListBtn = document.getElementById('copy-cte-list-btn'); // Added for CTE list copy button
 const copySchemaInfoBtn = document.getElementById('copy-schema-info-btn'); // Ensure this is present
+const copyFlowBtn = document.getElementById('copy-flow-btn'); // Flow diagram copy button
 
 
 // Tab switching logic
@@ -80,6 +81,9 @@ function initializeTabs(paneId) {
             if (tabId === 'schema' && schemaInfoEditor) { // Refresh schemaInfoEditor for the new 'schema' tab
                 schemaInfoEditor.refresh();
             }
+            if (tabId === 'flow') { // Refresh flow diagram when tab is activated
+                updateFlowDiagram();
+            }
             // TODO: Add similar refresh logic if other tabs get CodeMirror instances
         });
     });
@@ -111,6 +115,51 @@ function updateStatusBar(message, isError = false) {
             statusBar.textContent = 'Ready';
             statusBar.style.color = 'gray';
         }, 3000);
+    }
+}
+
+// Initialize Mermaid
+mermaid.initialize({
+    startOnLoad: true,
+    theme: 'default',
+    securityLevel: 'loose',
+    flowchart: {
+        htmlLabels: true,
+        curve: 'basis'
+    }
+});
+
+// Function to update flow diagram
+async function updateFlowDiagram() {
+    const sqlText = sqlInputEditor.getValue();
+    const flowDiagramContainer = document.getElementById('flow-diagram');
+    
+    if (!sqlText.trim()) {
+        flowDiagramContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: gray;">Enter SQL query to generate flow diagram</div>';
+        return;
+    }
+
+    try {
+        const mermaidCode = QueryFlowDiagramGenerator.generate(sqlText);
+        console.log('Generated Mermaid code:', mermaidCode);
+        
+        // Clear the container
+        flowDiagramContainer.innerHTML = '';
+        
+        // Create a unique ID for the diagram
+        const diagramId = 'flow-diagram-' + Date.now();
+        
+        // Use mermaid.render() to generate SVG
+        const { svg } = await mermaid.render(diagramId, mermaidCode);
+        
+        // Insert the SVG into the container
+        flowDiagramContainer.innerHTML = svg;
+        
+        updateStatusBar('Flow diagram updated successfully.');
+    } catch (error) {
+        console.error('Error generating flow diagram:', error);
+        flowDiagramContainer.innerHTML = `<div style="padding: 20px; color: red;">Error generating flow diagram: ${error.message}</div>`;
+        updateStatusBar('Error generating flow diagram.', true);
     }
 }
 
@@ -175,7 +224,14 @@ const DEBOUNCE_DELAY = 250; // ms
 // Attach listener to sqlInputEditor for changes
 sqlInputEditor.on('changes', () => {
     if (debounceTimer) clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(formatSql, DEBOUNCE_DELAY);
+    debounceTimer = setTimeout(() => {
+        formatSql();
+        // Update flow diagram if flow tab is active
+        const activeRightTabButton = document.querySelector('#right-pane .tab-button.active');
+        if (activeRightTabButton && activeRightTabButton.dataset.tab === 'flow') {
+            updateFlowDiagram();
+        }
+    }, DEBOUNCE_DELAY);
 });
 
 // Event listener for Clear Input button
@@ -245,6 +301,30 @@ if (copySchemaInfoBtn) {
             });
         } else {
             updateStatusBar('No schema info to copy.', true);
+        }
+    });
+}
+
+// Event listener for Copy Flow button
+if (copyFlowBtn) {
+    copyFlowBtn.addEventListener('click', () => {
+        const sqlText = sqlInputEditor.getValue();
+        if (!sqlText.trim()) {
+            updateStatusBar('No SQL query to generate flow diagram.', true);
+            return;
+        }
+        
+        try {
+            const mermaidCode = QueryFlowDiagramGenerator.generate(sqlText);
+            navigator.clipboard.writeText(mermaidCode).then(() => {
+                updateStatusBar('Flow diagram code copied to clipboard.');
+            }).catch(err => {
+                console.error('Failed to copy flow diagram: ', err);
+                updateStatusBar('Failed to copy flow diagram.', true);
+            });
+        } catch (error) {
+            console.error('Error generating flow diagram for copy: ', error);
+            updateStatusBar('Error generating flow diagram.', true);
         }
     });
 }

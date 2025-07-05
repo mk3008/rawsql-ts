@@ -12,6 +12,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/mode/sql/sql.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/mode/javascript/javascript.min.js"></script>
     <!-- JSONエディタ用にjavascriptモードを追加 -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
 </head>
 
 <body>
@@ -81,6 +82,7 @@
                 <button class="tab-button active" data-tab="formatted" data-pane="right">Output</button>
                 <button class="tab-button" data-tab="analysis1" data-pane="right">Resources</button>
                 <button class="tab-button" data-tab="schema" data-pane="right">Dependencies</button>
+                <button class="tab-button" data-tab="flow" data-pane="right">Flow</button>
                 <!-- <button class="tab-button" data-tab="analysis2" data-pane="right">Analysis 2</button> -->
             </div>
             <div class="tab-content-area" id="right-tab-content-area">
@@ -121,6 +123,15 @@
                     </div>
                     <div id="schema-info-container">
                         <textarea id="schema-info-json-editor"></textarea>
+                    </div>
+                </div>
+                <div id="flow-tab" class="tab-content">
+                    <div class="editor-header" style="display: flex; align-items: center; gap: 10px;">
+                        <h2 style="margin-right: auto;">Flow Diagram</h2>
+                        <button id="copy-flow-btn">copy</button>
+                    </div>
+                    <div id="flow-diagram-container">
+                        <div id="flow-diagram"></div>
                     </div>
                 </div>
             </div>
