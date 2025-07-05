@@ -492,6 +492,50 @@ For more details, see the [DynamicQueryBuilder Usage Guide](../../docs/usage-gui
 
 ---
 
+## Query Flow Diagram Generation
+
+Generate Mermaid flow diagrams from SQL queries to visualize data flow and query execution order.
+
+```typescript
+import { QueryFlowDiagramGenerator } from 'rawsql-ts';
+
+const sql = `
+  WITH user_stats AS (
+    SELECT user_id, COUNT(*) as post_count
+    FROM posts GROUP BY user_id
+  )
+  SELECT u.name, us.post_count
+  FROM users u
+  LEFT JOIN user_stats us ON u.id = us.user_id
+`;
+
+const mermaid = QueryFlowDiagramGenerator.generate(sql);
+console.log(mermaid);
+// Output: Mermaid flowchart showing data flow through SQL operations
+```
+
+### Symbol Reference
+
+| SQL Element | Shape | Example |
+|-------------|-------|---------|
+| Table/CTE/Subquery | Cylinder | `table_users[(users)]`, `cte_stats[(CTE:user_stats)]` |
+| SELECT/WHERE/GROUP BY | Hexagon | `{{SELECT}}`, `{{WHERE}}` |
+| JOIN/UNION | Diamond | `{LEFT JOIN}`, `{UNION ALL}` |
+
+Example output for CTE query:
+```mermaid
+flowchart TD
+    table_posts[(posts)] --> cte_user_stats_group_by{{GROUP BY}}
+    cte_user_stats_group_by --> cte_user_stats_select{{SELECT}}
+    cte_user_stats_select --> cte_user_stats[(CTE:user_stats)]
+    table_users[(users)] -->|NOT NULL| join_1{LEFT JOIN}
+    cte_user_stats -->|NULLABLE| join_1
+    join_1 --> main_select{{SELECT}}
+    main_select --> main_output(Final Result)
+```
+
+---
+
 ## PostgresJsonQueryBuilder Features
 
 The `PostgresJsonQueryBuilder` class transforms relational SQL queries into PostgreSQL JSON queries that return hierarchical JSON structures. It automatically handles complex relationships between entities and generates optimized Common Table Expressions (CTEs) for efficient JSON aggregation, making it perfect for building APIs, reports, and data exports.
