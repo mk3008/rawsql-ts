@@ -1,6 +1,6 @@
 import { SqlComponent } from "./SqlComponent";
 import { ForClause, FromClause, GroupByClause, HavingClause, JoinClause, JoinOnClause, LimitClause, OrderByClause, SelectClause, SourceExpression, SubQuerySource, SourceAliasExpression, WhereClause, WindowsClause as WindowClause, WithClause, CommonTable, OffsetClause, FetchClause } from "./Clause";
-import { BinaryExpression, ColumnReference, ValueComponent } from "./ValueComponent";
+import { BinaryExpression, ColumnReference, ValueComponent, SqlParameterValue } from "./ValueComponent";
 import { ValueParser } from "../parsers/ValueParser";
 import { CTENormalizer } from "../transformers/CTENormalizer";
 import { SelectableColumnCollector } from "../transformers/SelectableColumnCollector";
@@ -463,7 +463,7 @@ export class SimpleSelectQuery extends SqlComponent implements SelectQuery, CTEM
      * @param name Parameter name
      * @param value Value to set
      */
-    public setParameter(name: string, value: any): this {
+    public setParameter(name: string, value: SqlParameterValue): this {
         ParameterHelper.set(this, name, value);
         return this;
     }

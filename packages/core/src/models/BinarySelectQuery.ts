@@ -1,7 +1,7 @@
 import { SourceExpression, SubQuerySource, SourceAliasExpression } from "./Clause";
 import type { SelectQuery, CTEOptions } from "./SelectQuery";
 import { SqlComponent } from "./SqlComponent";
-import { RawString } from "./ValueComponent";
+import { RawString, SqlParameterValue } from "./ValueComponent";
 import { CTENormalizer } from "../transformers/CTENormalizer";
 import { SelectQueryParser } from "../parsers/SelectQueryParser";
 import { ParameterCollector } from "../transformers/ParameterCollector";
@@ -161,7 +161,7 @@ export class BinarySelectQuery extends SqlComponent implements SelectQuery {
      * @param name Parameter name
      * @param value Value to set
      */
-    public setParameter(name: string, value: any): this {
+    public setParameter(name: string, value: SqlParameterValue): this {
         ParameterHelper.set(this, name, value);
         return this;
     }

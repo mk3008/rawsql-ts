@@ -246,7 +246,7 @@ For SelectQueryParser details, see the [SelectQueryParser Usage Guide](../../doc
 
 ## SqlFormatter Features
 
-The `SqlFormatter` class is the recommended way to format SQL queries, offering advanced capabilities like indentation, keyword casing, and multi-line formatting.
+The `SqlFormatter` class is the recommended way to format SQL queries, offering advanced capabilities like indentation, keyword casing, multi-line formatting, and comprehensive comment preservation.
 It also allows for detailed style customization. For example, you can define your own formatting rules:
 
 ```typescript
@@ -285,6 +285,43 @@ order by
     created_at desc;
 */
 ```
+
+### Comment Handling
+
+SqlFormatter provides comprehensive comment parsing and export capabilities:
+
+```typescript
+import { SqlFormatter } from 'rawsql-ts';
+
+// Enable comment export (disabled by default for backward compatibility)
+const formatter = new SqlFormatter({ 
+  exportComment: true,
+  strictCommentPlacement: true  // Only export comments from clause-level keywords
+});
+
+const sqlWithComments = `
+  -- This is a query to get active users
+  SELECT 
+    u.id, 
+    u.name /* User's full name */
+  FROM users u
+  WHERE u.active = true -- Only active users
+`;
+
+const query = SelectQueryParser.parse(sqlWithComments);
+const { formattedSql } = formatter.format(query);
+
+console.log(formattedSql);
+// Output includes comments preserved as block comments for SQL safety
+```
+
+**Comment Features:**
+- **Full Comment Parsing**: Supports both `--` line comments and `/* */` block comments
+- **AST Preservation**: Comments are stored in the Abstract Syntax Tree and preserved throughout transformations
+- **Safe Export**: Line comments are automatically converted to block comments during export to prevent SQL structure issues
+- **Configurable Export**: Enable/disable comment export with `exportComment` option
+- **Comment Editing API**: Programmatically add, edit, delete, and search comments using the `CommentEditor` class
+- **Clause Association**: Comments can be associated with specific SQL clauses and keywords
 
 For more details, see the [SqlFormatter Usage Guide](../../docs/usage-guides/class-SqlFormatter-usage-guide.md).
 

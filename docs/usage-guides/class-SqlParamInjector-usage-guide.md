@@ -385,6 +385,51 @@ const formatter = new SqlFormatter({
 const { formattedSql, params } = formatter.format(injectedQuery);
 ```
 
+### Comment Preservation
+
+SqlParamInjector preserves SQL comments throughout the parameter injection process. Comments are maintained in the Abstract Syntax Tree (AST) and can be exported using SqlFormatter:
+
+```typescript
+import { SqlParamInjector, SqlFormatter } from 'rawsql-ts';
+
+// SQL with comments
+const sqlWithComments = `
+-- Get active users with filtering
+SELECT 
+    u.user_id, 
+    u.user_name /* Full name */
+FROM users u
+WHERE u.active = true -- Only active users
+`;
+
+const injector = new SqlParamInjector();
+const injectedQuery = injector.inject(sqlWithComments, { 
+    user_id: 42 
+});
+
+// Format with comment preservation
+const formatter = new SqlFormatter({ 
+    exportComment: true  // Enable comment export
+});
+
+const { formattedSql, params } = formatter.format(injectedQuery);
+
+console.log(formattedSql);
+// Output includes comments preserved as block comments for SQL safety:
+// /* Get active users with filtering */
+// SELECT 
+//     u.user_id, 
+//     u.user_name /* Full name */
+// FROM users u
+// WHERE u.active = true /* Only active users */ AND u.user_id = :user_id
+```
+
+**Comment Features:**
+- **Full Preservation**: Comments are preserved throughout parameter injection
+- **AST Integration**: Comments are stored in the query's Abstract Syntax Tree
+- **Safe Export**: Line comments (`--`) are automatically converted to block comments (`/* */`) for SQL safety
+- **Configurable Output**: Use `exportComment: true` in SqlFormatter to include comments in formatted output
+
 ## Practical Examples
 
 ### E-commerce Product Search

@@ -3,6 +3,7 @@ import { InsertQuery } from "./InsertQuery";
 import { SimpleSelectQuery } from "./SimpleSelectQuery";
 import { BinarySelectQuery } from "./BinarySelectQuery";
 import { ValuesQuery } from "./ValuesQuery";
+import { SqlParameterValue } from "./ValueComponent";
 
 export interface CTEOptions {
     materialized?: boolean | null;
@@ -19,7 +20,7 @@ export interface CTEManagement {
 }
 
 export interface SelectQuery extends SqlComponent {
-    setParameter(name: string, value: any): this;
+    setParameter(name: string, value: SqlParameterValue): this;
     toSimpleQuery(): SimpleSelectQuery;
 }
 export { SimpleSelectQuery, BinarySelectQuery, ValuesQuery, InsertQuery };
