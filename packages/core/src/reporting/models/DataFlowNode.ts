@@ -32,8 +32,18 @@ export abstract class BaseDataFlowNode implements DataFlowNode {
  * Represents a data source (table, CTE, subquery)
  */
 export class DataSourceNode extends BaseDataFlowNode {
+    private annotations: Set<string> = new Set();
+    
     constructor(id: string, label: string, type: 'table' | 'cte' | 'subquery') {
         super(id, label, type, 'cylinder');
+    }
+
+    addAnnotation(annotation: string): void {
+        this.annotations.add(annotation);
+    }
+
+    hasAnnotation(annotation: string): boolean {
+        return this.annotations.has(annotation);
     }
 
     getMermaidRepresentation(): string {
