@@ -166,12 +166,12 @@ describe('QueryFlowDiagramGenerator - Full Mermaid Output Tests', () => {
     main_left_select{{SELECT}}
     table_admins[(admins)]
     main_right_select{{SELECT}}
-    union_all_1{UNION ALL}
+    union_all_main{UNION ALL}
 
     table_users --> main_left_select
     table_admins --> main_right_select
-    main_left_select --> union_all_1
-    main_right_select --> union_all_1
+    main_left_select --> union_all_main
+    main_right_select --> union_all_main
 `);
         });
     });
@@ -241,7 +241,7 @@ describe('QueryFlowDiagramGenerator - Full Mermaid Output Tests', () => {
     subquery_combined_internal_left_select{{SELECT}}
     table_admins[(admins)]
     subquery_combined_internal_right_select{{SELECT}}
-    union_all_1{UNION ALL}
+    union_all_subquery_combined_internal{UNION ALL}
     main_where{{WHERE}}
     main_select{{SELECT}}
     main_output(Final Result)
@@ -253,9 +253,9 @@ describe('QueryFlowDiagramGenerator - Full Mermaid Output Tests', () => {
     cte_user_stats_select --> cte_user_stats
     cte_user_stats --> subquery_combined_internal_left_select
     table_admins --> subquery_combined_internal_right_select
-    subquery_combined_internal_left_select --> union_all_1
-    subquery_combined_internal_right_select --> union_all_1
-    union_all_1 --> subquery_combined
+    subquery_combined_internal_left_select --> union_all_subquery_combined_internal
+    subquery_combined_internal_right_select --> union_all_subquery_combined_internal
+    union_all_subquery_combined_internal --> subquery_combined
     subquery_combined --> main_where
     main_where --> main_select
     main_select --> main_output
