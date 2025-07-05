@@ -14,7 +14,7 @@ export interface TypeTransformationConfig {
     };
     /** Custom transformation functions */
     customTransformers?: {
-        [transformerName: string]: (value: any) => any;
+        [transformerName: string]: (value: unknown) => unknown;
     };
     /** Enable value-based type detection when column mapping is not provided (default: true) */
     enableValueBasedDetection?: boolean;
@@ -32,7 +32,7 @@ export interface TypeTransformation {
     /** Whether to handle null values (default: true) */
     handleNull?: boolean;
     /** Validation function for the value */
-    validator?: (value: any) => boolean;
+    validator?: (value: unknown) => boolean;
 }
 
 /**
@@ -52,9 +52,9 @@ export class TypeTransformationPostProcessor {
      * @param result The result object from PostgreSQL JSON query
      * @returns Transformed result with proper TypeScript types
      */
-    public transformResult<T = any>(result: any): T {
+    public transformResult<T = unknown>(result: unknown): T {
         if (result === null || result === undefined) {
-            return result;
+            return result as T;
         }
 
         if (Array.isArray(result)) {
@@ -67,7 +67,7 @@ export class TypeTransformationPostProcessor {
     /**
      * Transform a single object recursively
      */
-    private transformSingleObject(obj: any): any {
+    private transformSingleObject(obj: unknown): unknown {
         if (obj === null || obj === undefined || typeof obj !== 'object') {
             return obj;
         }
@@ -76,7 +76,7 @@ export class TypeTransformationPostProcessor {
             return obj.map(item => this.transformSingleObject(item));
         }
 
-        const transformed: any = {};
+        const transformed: Record<string, unknown> = {};
 
         for (const [key, value] of Object.entries(obj)) {
             if (value === null || value === undefined) {
@@ -149,8 +149,11 @@ export class TypeTransformationPostProcessor {
                 handleNull: true,
                 validator: (v) => {
                     try {
-                        BigInt(v);
-                        return true;
+                        if (typeof v === 'string' || typeof v === 'number' || typeof v === 'bigint' || typeof v === 'boolean') {
+                            BigInt(v);
+                            return true;
+                        }
+                        return false;
                     } catch {
                         return false;
                     }
@@ -166,8 +169,11 @@ export class TypeTransformationPostProcessor {
                 handleNull: true,
                 validator: (v) => {
                     try {
-                        BigInt(v);
-                        return true;
+                        if (typeof v === 'string' || typeof v === 'number' || typeof v === 'bigint' || typeof v === 'boolean') {
+                            BigInt(v);
+                            return true;
+                        }
+                        return false;
                     } catch {
                         return false;
                     }
@@ -305,8 +311,11 @@ export class TypeTransformationPostProcessor {
                     handleNull: true,
                     validator: (value) => {
                         try {
-                            BigInt(value);
-                            return true;
+                            if (typeof value === 'string' || typeof value === 'number' || typeof value === 'bigint' || typeof value === 'boolean') {
+                                BigInt(value);
+                                return true;
+                            }
+                            return false;
                         } catch {
                             return false;
                         }
@@ -344,8 +353,11 @@ export class TypeTransformationPostProcessor {
                     handleNull: true,
                     validator: (value) => {
                         try {
-                            BigInt(value);
-                            return true;
+                            if (typeof value === 'string' || typeof value === 'number' || typeof value === 'bigint' || typeof value === 'boolean') {
+                                BigInt(value);
+                                return true;
+                            }
+                            return false;
                         } catch {
                             return false;
                         }
@@ -359,8 +371,8 @@ export class TypeTransformationPostProcessor {
 /**
  * Convenience function to create and apply transformations
  */
-export function transformDatabaseResult<T = any>(
-    result: any,
+export function transformDatabaseResult<T = unknown>(
+    result: unknown,
     config?: TypeTransformationConfig
 ): T {
     const processor = new TypeTransformationPostProcessor(
@@ -397,7 +409,7 @@ export const TypeTransformers = {
     /**
      * Transform JSON string to object
      */
-    toObject: <T = any>(value: string | null): T | null => {
+    toObject: <T = unknown>(value: string | null): T | null => {
         if (value === null || value === undefined) return null;
         try {
             return JSON.parse(value) as T;

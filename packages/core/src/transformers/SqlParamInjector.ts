@@ -1,7 +1,7 @@
 import { SelectQuery, SimpleSelectQuery } from "../models/SelectQuery";
 import { BinarySelectQuery } from "../models/BinarySelectQuery";
 import { SelectableColumnCollector } from "./SelectableColumnCollector";
-import { BinaryExpression, FunctionCall, ParameterExpression, ParenExpression, ValueComponent, ValueList } from "../models/ValueComponent";
+import { BinaryExpression, FunctionCall, ParameterExpression, ParenExpression, ValueComponent, ValueList, SqlParameterValue } from "../models/ValueComponent";
 import { UpstreamSelectQueryFinder } from "./UpstreamSelectQueryFinder";
 import { SelectQueryParser } from "../parsers/SelectQueryParser";
 
@@ -14,6 +14,9 @@ export interface SqlParamInjectorOptions {
     /** Whether to allow injection when all parameters are undefined (defaults to false for safety) */
     allowAllUndefined?: boolean;
 }
+
+// Type for state parameter values - can be simple values, conditions, or complex objects
+export type StateParameterValue = SqlParameterValue | SqlParameterValue[] | Condition | OrCondition | AndCondition | ExplicitColumnMapping;
 
 /**
  * SqlParamInjector injects state parameters into a SelectQuery model,
@@ -293,7 +296,7 @@ export class SqlParamInjector {
             });
         }
 
-        function injectSimpleCondition(q: SimpleSelectQuery, columnRef: ValueComponent, name: string, stateValue: any): void {
+        function injectSimpleCondition(q: SimpleSelectQuery, columnRef: ValueComponent, name: string, stateValue: SqlParameterValue): void {
             const paramExpr = new ParameterExpression(name, stateValue);
             q.appendWhere(new BinaryExpression(columnRef, "=", paramExpr));
         } function injectComplexConditions(q: SimpleSelectQuery, columnRef: ValueComponent, name: string, stateValue: Condition): void {
@@ -374,21 +377,21 @@ export class SqlParamInjector {
     /**
      * Type guard for OR conditions
      */
-    private isOrCondition(value: any): value is { or: SingleCondition[] } {
+    private isOrCondition(value: unknown): value is { or: SingleCondition[] } {
         return value !== null && typeof value === 'object' && !Array.isArray(value) && 'or' in value;
     }
 
     /**
      * Type guard for AND conditions
      */
-    private isAndCondition(value: any): value is { and: SingleCondition[] } {
+    private isAndCondition(value: unknown): value is { and: SingleCondition[] } {
         return value !== null && typeof value === 'object' && !Array.isArray(value) && 'and' in value;
     }
 
     /**
      * Type guard for explicit column mapping without OR
      */
-    private isExplicitColumnMapping(value: any): value is { column: string } {
+    private isExplicitColumnMapping(value: unknown): value is { column: string } {
         return value !== null && typeof value === 'object' && !Array.isArray(value) && 
                'column' in value && !('or' in value);
     }
@@ -396,7 +399,7 @@ export class SqlParamInjector {
     /**
      * Type guard for objects that need operator validation
      */
-    private isValidatableObject(value: any): value is object {
+    private isValidatableObject(value: unknown): value is object {
         return value !== null && typeof value === 'object' && !Array.isArray(value) && 
                Object.getPrototypeOf(value) === Object.prototype;
     }
@@ -404,14 +407,14 @@ export class SqlParamInjector {
     /**
      * Type guard for column mapping presence
      */
-    private hasColumnMapping(value: any): value is { column?: string } {
+    private hasColumnMapping(value: unknown): value is { column?: string } {
         return value !== null && typeof value === 'object' && !Array.isArray(value) && 'column' in value;
     }
 
     /**
      * Type guard for simple values (non-object conditions)
      */
-    private isSimpleValue(value: any): boolean {
+    private isSimpleValue(value: unknown): boolean {
         return value === null || typeof value !== 'object' || Array.isArray(value) || value instanceof Date;
     }
 
@@ -420,7 +423,7 @@ export class SqlParamInjector {
      */
     private processStateParameter(
         name: string,
-        stateValue: any,
+        stateValue: StateParameterValue,
         query: SimpleSelectQuery,
         finder: UpstreamSelectQueryFinder,
         collector: SelectableColumnCollector,
@@ -497,7 +500,7 @@ export class SqlParamInjector {
      */
     private processRegularColumnCondition(
         name: string,
-        stateValue: any,
+        stateValue: StateParameterValue,
         query: SimpleSelectQuery,
         finder: UpstreamSelectQueryFinder,
         collector: SelectableColumnCollector,
@@ -651,3 +654,18 @@ type LogicalCondition = {
 
 // Main condition type supporting all patterns
 type Condition = BaseCondition | SingleCondition | LogicalCondition;
+
+// OR condition type
+type OrCondition = {
+    or: SingleCondition[];
+};
+
+// AND condition type
+type AndCondition = {
+    and: SingleCondition[];
+};
+
+// Explicit column mapping type
+type ExplicitColumnMapping = {
+    column: string;
+} & BaseCondition;

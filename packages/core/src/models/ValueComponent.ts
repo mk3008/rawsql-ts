@@ -212,16 +212,18 @@ export class LiteralValue extends SqlComponent {
     }
 }
 
+export type SqlParameterValue = string | number | boolean | Date | null | undefined | (string | number | Date)[];
+
 export class ParameterExpression extends SqlComponent {
     static kind = Symbol("ParameterExpression");
     name: RawString;
-    value: any | null; // Holds the parameter value; can be provided via second argument.
+    value: SqlParameterValue; // Holds the parameter value; can be provided via second argument.
     /**
      * The index assigned by the formatter when generating parameterized queries.
      * Used for naming parameters like $1, $2, etc.
      */
     index: number | null;
-    constructor(name: string, value: any | null = null) {
+    constructor(name: string, value: SqlParameterValue = null) {
         super();
         this.name = new RawString(name);
         this.value = value; // Value is now accepted as a second argument (optional)

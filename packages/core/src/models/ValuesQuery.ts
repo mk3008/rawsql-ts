@@ -3,6 +3,7 @@ import { ParameterCollector } from "../transformers/ParameterCollector";
 import { QueryBuilder } from "../transformers/QueryBuilder";
 import { SelectQuery } from "./SelectQuery";
 import { SimpleSelectQuery } from "./SimpleSelectQuery";
+import { SqlParameterValue } from "./ValueComponent";
 import { SqlComponent } from "./SqlComponent";
 import { TupleExpression } from "./ValueComponent";
 
@@ -34,7 +35,7 @@ export class ValuesQuery extends SqlComponent implements SelectQuery {
        * @param name Parameter name
        * @param value Value to set
        */
-    public setParameter(name: string, value: any): this {
+    public setParameter(name: string, value: SqlParameterValue): this {
         ParameterHelper.set(this, name, value);
         return this;
     }

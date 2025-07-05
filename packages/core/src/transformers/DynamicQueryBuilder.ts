@@ -7,13 +7,36 @@ import { PostgresJsonQueryBuilder, JsonMapping } from "./PostgresJsonQueryBuilde
 import { QueryBuilder } from "./QueryBuilder";
 import { SqlParameterBinder } from "./SqlParameterBinder";
 import { ParameterDetector } from "../utils/ParameterDetector";
+import { SqlParameterValue } from "../models/ValueComponent";
+
+// Type-safe filter condition values
+export type FilterConditionValue = SqlParameterValue | SqlParameterValue[] | {
+    min?: SqlParameterValue;
+    max?: SqlParameterValue;
+    like?: string;
+    ilike?: string;
+    in?: SqlParameterValue[];
+    any?: SqlParameterValue[];
+    '='?: SqlParameterValue;
+    '>'?: SqlParameterValue;
+    '<'?: SqlParameterValue;
+    '>='?: SqlParameterValue;
+    '<='?: SqlParameterValue;
+    '!='?: SqlParameterValue;
+    '<>'?: SqlParameterValue;
+    or?: { column: string; [operator: string]: SqlParameterValue | string }[];
+    and?: { column: string; [operator: string]: SqlParameterValue | string }[];
+    column?: string;
+};
+
+export type FilterConditions = Record<string, FilterConditionValue>;
 
 /**
  * Options for dynamic query building
  */
 export interface QueryBuildOptions {
     /** Filter conditions to inject into WHERE clause */
-    filter?: Record<string, any>;
+    filter?: FilterConditions;
     /** Sort conditions to inject into ORDER BY clause */
     sort?: SortConditions;
     /** Pagination options to inject LIMIT/OFFSET clauses */
@@ -144,7 +167,7 @@ export class DynamicQueryBuilder {
      * @param filter Filter conditions to apply
      * @returns Modified SelectQuery with filter conditions applied
      */
-    buildFilteredQuery(sqlContent: string, filter: Record<string, any>): SelectQuery {
+    buildFilteredQuery(sqlContent: string, filter: FilterConditions): SelectQuery {
         return this.buildQuery(sqlContent, { filter });
     }
 
