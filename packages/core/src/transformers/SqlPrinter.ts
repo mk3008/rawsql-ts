@@ -123,7 +123,7 @@ export class SqlPrinter {
         return this.linePrinter.print();
     }
 
-    private appendToken(token: SqlPrintToken, level: number) {
+    private appendToken(token: SqlPrintToken, level: number, parentContainerType?: SqlPrintTokenContainerType) {
         if (!token.innerTokens || token.innerTokens.length === 0) {
             if (token.text === '') {
                 return;
@@ -142,7 +142,11 @@ export class SqlPrinter {
             this.linePrinter.appendText(text);
         } else if (token.type === SqlPrintTokenType.comma) {
             let text = token.text;
-            if (this.commaBreak === 'before') {
+            // Special handling for commas in WithClause when cteOneline is enabled
+            if (this.cteOneline && parentContainerType === SqlPrintTokenContainerType.WithClause) {
+                this.linePrinter.appendText(text);
+                this.linePrinter.appendNewline(level);
+            } else if (this.commaBreak === 'before') {
                 this.linePrinter.appendNewline(level);
                 this.linePrinter.appendText(text);
             } else if (this.commaBreak === 'after') {
@@ -212,7 +216,7 @@ export class SqlPrinter {
         if (token.keywordTokens && token.keywordTokens.length > 0) {
             for (let i = 0; i < token.keywordTokens.length; i++) {
                 const keywordToken = token.keywordTokens[i];
-                this.appendToken(keywordToken, level);
+                this.appendToken(keywordToken, level, token.containerType);
             }
         }
 
@@ -226,7 +230,7 @@ export class SqlPrinter {
 
         for (let i = 0; i < token.innerTokens.length; i++) {
             const child = token.innerTokens[i];
-            this.appendToken(child, innerLevel);
+            this.appendToken(child, innerLevel, token.containerType);
         }
 
         // indent level down
