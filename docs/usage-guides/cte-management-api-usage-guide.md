@@ -468,6 +468,50 @@ const formatter = new SqlFormatter({
 const { formattedSql } = formatter.format(queryWithCTEs);
 ```
 
+#### CTE One-liner Formatting
+
+Use the `cteOneline` option to format CTE parts as one-liners while keeping the main query with normal formatting:
+
+```typescript
+const formatter = new SqlFormatter({
+    keywordCase: 'upper',
+    indentSize: 2,
+    newline: '\n',
+    cteOneline: true  // Format CTE parts as one-liners
+});
+
+const query = SelectQueryParser.parse(`
+    WITH user_summary AS (
+        SELECT id, name, COUNT(*)
+        FROM users
+        WHERE active = true
+        GROUP BY id, name
+    )
+    SELECT * FROM user_summary
+    ORDER BY name;
+`);
+
+const { formattedSql } = formatter.format(query);
+console.log(formattedSql);
+/*
+Output:
+WITH
+  "user_summary" AS (SELECT "id", "name", COUNT(*) FROM "users" WHERE "active" = TRUE GROUP BY "id", "name")
+SELECT
+  *
+FROM
+  "user_summary"
+ORDER BY
+  "name"
+*/
+```
+
+**Benefits of CTE One-liner Formatting:**
+- Keeps CTE definitions compact while maintaining readability of the main query
+- Useful for complex queries with multiple CTEs
+- Preserves all other formatting options (keyword case, indentation, etc.)
+- Maintains backward compatibility when option is not specified
+
 ### With DynamicQueryBuilder
 
 Combine CTE management with dynamic query building:
