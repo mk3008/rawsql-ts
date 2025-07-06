@@ -259,4 +259,58 @@ order by
         // Assert: Verify the result
         expect(result.formattedSql).toBe(expectedSql);
     });
+
+    test('should use trailing commas for CTE separators even when column commas are leading', () => {
+        // Arrange: Set up test data and conditions
+        const sqlWithLeadingCommaStyle = `
+            WITH 
+            active_users AS (
+                SELECT id
+                     , name
+                FROM users
+                WHERE active = true
+            ),
+            user_orders AS (
+                SELECT user_id
+                     , COUNT(*) as order_count
+                FROM orders
+                GROUP BY user_id
+            )
+            SELECT u.id
+                 , u.name
+                 , o.order_count
+            FROM active_users u
+            LEFT JOIN user_orders o ON u.id = o.user_id
+            ORDER BY u.name;
+        `;
+
+        const query = SelectQueryParser.parse(sqlWithLeadingCommaStyle);
+        const formatter = new SqlFormatter({
+            newline: '\n',
+            indentSize: 2,
+            indentChar: ' ',
+            commaBreak: 'before', // Leading comma style for columns
+            cteOneline: true
+        });
+        
+        // Expected: CTE separators use trailing commas, columns still use leading commas
+        const expectedSql = `with
+  "active_users" as (select "id" , "name" from "users" where "active" = true),
+  "user_orders" as (select "user_id" , count(*) as "order_count" from "orders" group by "user_id")
+select
+  "u"."id"
+  , "u"."name"
+  , "o"."order_count"
+from
+  "active_users" as "u"
+  left join "user_orders" as "o" on "u"."id" = "o"."user_id"
+order by
+  "u"."name"`;
+
+        // Act: Execute the test target
+        const result = formatter.format(query);
+        
+        // Assert: Verify the result
+        expect(result.formattedSql).toBe(expectedSql);
+    });
 });
