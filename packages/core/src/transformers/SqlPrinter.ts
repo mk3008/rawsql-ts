@@ -41,6 +41,9 @@ export class SqlPrinter {
     /** Whether to use strict comment placement (only clause-level comments, default: false) */
     strictCommentPlacement: boolean;
 
+    /** Whether to format CTE parts as one-liners (default: false) */
+    cteOneline: boolean;
+
     private linePrinter: LinePrinter;
     private indentIncrementContainers: Set<SqlPrintTokenContainerType>;
 
@@ -57,6 +60,7 @@ export class SqlPrinter {
         exportComment?: boolean;
         strictCommentPlacement?: boolean;
         indentIncrementContainerTypes?: string[]; // Option to customize
+        cteOneline?: boolean; // Format CTE parts as one-liners
     }) {
         this.indentChar = options?.indentChar ?? '';
         this.indentSize = options?.indentSize ?? 0;
@@ -70,6 +74,7 @@ export class SqlPrinter {
         this.keywordCase = options?.keywordCase ?? 'none';
         this.exportComment = options?.exportComment ?? false;
         this.strictCommentPlacement = options?.strictCommentPlacement ?? false;
+        this.cteOneline = options?.cteOneline ?? false;
         this.linePrinter = new LinePrinter(this.indentChar, this.indentSize, this.newline);
 
         // Initialize
@@ -180,6 +185,25 @@ export class SqlPrinter {
                 // Always add a space after comment to ensure SQL structure safety
                 this.linePrinter.appendText(' ');
             }
+        } else if (token.containerType === SqlPrintTokenContainerType.CommonTable && this.cteOneline) {
+            // Handle CTE with one-liner formatting when cteOneline is enabled
+            const onelinePrinter = new SqlPrinter({
+                indentChar: '',
+                indentSize: 0,
+                newline: ' ',
+                commaBreak: this.commaBreak,
+                andBreak: this.andBreak,
+                keywordCase: this.keywordCase,
+                exportComment: this.exportComment,
+                strictCommentPlacement: this.strictCommentPlacement,
+                cteOneline: false, // Prevent recursive CTE oneline processing
+            });
+            
+            const onelineResult = onelinePrinter.print(token, level);
+            this.linePrinter.appendText(onelineResult);
+            
+            // Return early to avoid processing innerTokens with normal logic
+            return;
         } else {
             this.linePrinter.appendText(token.text);
         }
