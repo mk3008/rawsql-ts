@@ -9,6 +9,14 @@ export const VALID_PRESETS = ['mysql', 'postgres', 'sqlserver', 'sqlite'] as con
 export type PresetName = (typeof VALID_PRESETS)[number];
 
 /**
+ * WithClauseStyle determines how WITH clauses are formatted.
+ * - 'standard': Normal formatting with proper indentation
+ * - 'cte-oneline': Individual CTEs are formatted as one-liners
+ * - 'full-oneline': Entire WITH clause is formatted as one line
+ */
+export type WithClauseStyle = 'standard' | 'cte-oneline' | 'full-oneline';
+
+/**
  * SqlFormatter class combines parsing and printing of SQL queries into a single interface.
  */
 export class SqlFormatter {
@@ -28,7 +36,7 @@ export class SqlFormatter {
         andBreak?: AndBreakStyle; // Updated type
         exportComment?: boolean; // Add comment export option
         strictCommentPlacement?: boolean; // Only export comments from clause-level keywords
-        cteOneline?: boolean; // Format CTE parts as one-liners
+        withClauseStyle?: WithClauseStyle; // WITH clause formatting style
     } = {}) { // Default to 'sqlserver' if options is empty
 
         const presetConfig = options.preset ? PRESETS[options.preset] : undefined;
