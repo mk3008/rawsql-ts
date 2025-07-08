@@ -1,5 +1,6 @@
 import { SqlPrintToken, SqlPrintTokenType, SqlPrintTokenContainerType } from "../models/SqlPrintToken";
 import { IndentCharOption, LinePrinter, NewlineOption } from "./LinePrinter";
+import { WithClauseStyle } from "./SqlFormatter";
 
 /**
  * CommaBreakStyle determines how commas are placed in formatted SQL output.
@@ -39,8 +40,8 @@ export interface SqlPrinterOptions {
     strictCommentPlacement?: boolean;
     /** Container types that should increase indentation level */
     indentIncrementContainerTypes?: SqlPrintTokenContainerType[];
-    /** Whether to format CTE parts as one-liners (default: false) */
-    cteOneline?: boolean;
+    /** WITH clause formatting style (default: 'standard') */
+    withClauseStyle?: WithClauseStyle;
 }
 
 /**
@@ -51,14 +52,15 @@ export interface SqlPrinterOptions {
  * - Line break styles for commas and AND operators
  * - Keyword case transformation
  * - Comment handling
- * - CTE (Common Table Expression) formatting
+ * - WITH clause formatting styles
  * 
  * @example
  * const printer = new SqlPrinter({
  *   indentChar: '  ',
  *   indentSize: 1,
  *   keywordCase: 'upper',
- *   commaBreak: 'after'
+ *   commaBreak: 'after',
+ *   withClauseStyle: 'cte-oneline'
  * });
  * const formatted = printer.print(sqlToken);
  */
@@ -83,8 +85,8 @@ export class SqlPrinter {
     /** Whether to use strict comment placement (only clause-level comments, default: false) */
     strictCommentPlacement: boolean;
 
-    /** Whether to format CTE parts as one-liners (default: false) */
-    cteOneline: boolean;
+    /** WITH clause formatting style (default: 'standard') */
+    withClauseStyle: WithClauseStyle;
 
     private linePrinter: LinePrinter;
     private indentIncrementContainers: Set<SqlPrintTokenContainerType>;
@@ -105,7 +107,7 @@ export class SqlPrinter {
         this.keywordCase = options?.keywordCase ?? 'none';
         this.exportComment = options?.exportComment ?? false;
         this.strictCommentPlacement = options?.strictCommentPlacement ?? false;
-        this.cteOneline = options?.cteOneline ?? false;
+        this.withClauseStyle = options?.withClauseStyle ?? 'standard';
         this.linePrinter = new LinePrinter(this.indentChar, this.indentSize, this.newline);
 
         // Initialize
@@ -176,8 +178,11 @@ export class SqlPrinter {
             this.handleJoinClauseToken(token, level);
         } else if (token.type === SqlPrintTokenType.comment) {
             this.handleCommentToken(token);
-        } else if (token.containerType === SqlPrintTokenContainerType.CommonTable && this.cteOneline) {
+        } else if (token.containerType === SqlPrintTokenContainerType.CommonTable && this.withClauseStyle === 'cte-oneline') {
             this.handleCteOnelineToken(token, level);
+            return; // Return early to avoid processing innerTokens
+        } else if (token.containerType === SqlPrintTokenContainerType.WithClause && this.withClauseStyle === 'full-oneline') {
+            this.handleWithClauseOnelineToken(token, level);
             return; // Return early to avoid processing innerTokens
         } else {
             this.linePrinter.appendText(token.text);
@@ -195,8 +200,11 @@ export class SqlPrinter {
 
         // indent level up
         if (this.newline !== ' ' && current.text !== '' && this.indentIncrementContainers.has(token.containerType)) { // Changed condition
-            innerLevel++;
-            this.linePrinter.appendNewline(innerLevel);
+            // Skip newline for WithClause when withClauseStyle is 'full-oneline'
+            if (!(token.containerType === SqlPrintTokenContainerType.WithClause && this.withClauseStyle === 'full-oneline')) {
+                innerLevel++;
+                this.linePrinter.appendNewline(innerLevel);
+            }
         }
 
         for (let i = 0; i < token.innerTokens.length; i++) {
@@ -206,7 +214,10 @@ export class SqlPrinter {
 
         // indent level down
         if (innerLevel !== level) {
-            this.linePrinter.appendNewline(level);
+            // Skip newline for WithClause when withClauseStyle is 'full-oneline'
+            if (!(parentContainerType === SqlPrintTokenContainerType.WithClause && this.withClauseStyle === 'full-oneline')) {
+                this.linePrinter.appendNewline(level);
+            }
         }
     }
 
@@ -231,8 +242,8 @@ export class SqlPrinter {
     private handleCommaToken(token: SqlPrintToken, level: number, parentContainerType?: SqlPrintTokenContainerType): void {
         const text = token.text;
         
-        // Special handling for commas in WithClause when cteOneline is enabled
-        if (this.cteOneline && parentContainerType === SqlPrintTokenContainerType.WithClause) {
+        // Special handling for commas in WithClause when withClauseStyle is 'cte-oneline'
+        if (this.withClauseStyle === 'cte-oneline' && parentContainerType === SqlPrintTokenContainerType.WithClause) {
             this.linePrinter.appendText(text);
             this.linePrinter.appendNewline(level);
         } else if (this.commaBreak === 'before') {
@@ -277,7 +288,7 @@ export class SqlPrinter {
     }
 
     private handleCteOnelineToken(token: SqlPrintToken, level: number): void {
-        // Handle CTE with one-liner formatting when cteOneline is enabled
+        // Handle CTE with one-liner formatting when withClauseStyle is 'cte-oneline'
         const onelinePrinter = new SqlPrinter({
             indentChar: '',
             indentSize: 0,
@@ -287,10 +298,35 @@ export class SqlPrinter {
             keywordCase: this.keywordCase,
             exportComment: this.exportComment,
             strictCommentPlacement: this.strictCommentPlacement,
-            cteOneline: false, // Prevent recursive CTE oneline processing
+            withClauseStyle: 'standard', // Prevent recursive processing
         });
         
         const onelineResult = onelinePrinter.print(token, level);
         this.linePrinter.appendText(onelineResult);
+    }
+
+    private handleWithClauseOnelineToken(token: SqlPrintToken, level: number): void {
+        // Handle entire WITH clause as one-liner when withClauseStyle is 'full-oneline'
+        
+        // Create a completely oneline printer for the entire WITH clause
+        const onelinePrinter = new SqlPrinter({
+            indentChar: '',
+            indentSize: 0,
+            newline: ' ',
+            commaBreak: 'none',
+            andBreak: this.andBreak,
+            keywordCase: this.keywordCase,
+            exportComment: this.exportComment,
+            strictCommentPlacement: this.strictCommentPlacement,
+            withClauseStyle: 'standard', // Prevent recursive processing
+            indentIncrementContainerTypes: [], // Disable all indentation
+        });
+        
+        // Print the entire WITH clause as one line
+        const onelineResult = onelinePrinter.print(token, 0);
+        this.linePrinter.appendText(onelineResult);
+        
+        // Add newline after WITH clause  
+        this.linePrinter.appendNewline(level);
     }
 }
