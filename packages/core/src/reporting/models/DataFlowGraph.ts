@@ -120,37 +120,13 @@ export class DataFlowGraph {
     }
 
     /**
-     * Creates a process node
+     * Creates a process node (deprecated - kept for backward compatibility)
+     * Note: Process nodes are no longer used in data flow diagrams
+     * as we focus only on data sources, joins, and unions
      */
     createProcessNode(type: string, context: string): ProcessNode {
-        let node: ProcessNode;
-        
-        switch (type.toLowerCase()) {
-            case 'where':
-                node = ProcessNode.createWhere(context);
-                break;
-            case 'group by':
-                node = ProcessNode.createGroupBy(context);
-                break;
-            case 'having':
-                node = ProcessNode.createHaving(context);
-                break;
-            case 'select':
-                node = ProcessNode.createSelect(context);
-                break;
-            case 'order by':
-                node = ProcessNode.createOrderBy(context);
-                break;
-            case 'limit':
-                node = ProcessNode.createLimit(context, false);
-                break;
-            case 'limit/offset':
-                node = ProcessNode.createLimit(context, true);
-                break;
-            default:
-                node = new ProcessNode(context, type);
-        }
-        
+        // Create a generic process node for backward compatibility
+        const node = new ProcessNode(context, type);
         this.addNode(node);
         return node;
     }

@@ -59,7 +59,7 @@ export class DataSourceNode extends BaseDataFlowNode {
     }
 
     static createSubquery(alias: string): DataSourceNode {
-        return new DataSourceNode(`subquery_${alias}`, `QUERY:${alias}`, 'subquery');
+        return new DataSourceNode(`subquery_${alias}`, `SUB:${alias}`, 'subquery');
     }
 }
 
@@ -76,26 +76,32 @@ export class ProcessNode extends BaseDataFlowNode {
         return `${this.id}{{${this.label}}}`;
     }
 
+    /** @deprecated Process nodes are no longer used in data flow diagrams */
     static createWhere(context: string): ProcessNode {
         return new ProcessNode(`${context}_where`, 'WHERE', context);
     }
 
+    /** @deprecated Process nodes are no longer used in data flow diagrams */
     static createGroupBy(context: string): ProcessNode {
         return new ProcessNode(`${context}_group_by`, 'GROUP BY', context);
     }
 
+    /** @deprecated Process nodes are no longer used in data flow diagrams */
     static createHaving(context: string): ProcessNode {
         return new ProcessNode(`${context}_having`, 'HAVING', context);
     }
 
+    /** @deprecated Process nodes are no longer used in data flow diagrams */
     static createSelect(context: string): ProcessNode {
         return new ProcessNode(`${context}_select`, 'SELECT', context);
     }
 
+    /** @deprecated Process nodes are no longer used in data flow diagrams */
     static createOrderBy(context: string): ProcessNode {
         return new ProcessNode(`${context}_order_by`, 'ORDER BY', context);
     }
 
+    /** @deprecated Process nodes are no longer used in data flow diagrams */
     static createLimit(context: string, hasOffset: boolean = false): ProcessNode {
         const label = hasOffset ? 'LIMIT/OFFSET' : 'LIMIT';
         return new ProcessNode(`${context}_limit`, label, context);
@@ -106,12 +112,22 @@ export class ProcessNode extends BaseDataFlowNode {
  * Represents an operation (JOIN, UNION, etc.)
  */
 export class OperationNode extends BaseDataFlowNode {
-    constructor(id: string, operation: string) {
-        super(id, operation, 'operation', 'diamond');
+    constructor(id: string, operation: string, shape: NodeShape = 'diamond') {
+        super(id, operation, 'operation', shape);
     }
 
     getMermaidRepresentation(): string {
-        return `${this.id}{${this.label}}`;
+        switch (this.shape) {
+            case 'rounded':
+                return `${this.id}(${this.label})`;
+            case 'rectangle':
+                return `${this.id}[${this.label}]`;
+            case 'hexagon':
+                return `${this.id}{{${this.label}}}`;
+            case 'diamond':
+            default:
+                return `${this.id}{${this.label}}`;
+        }
     }
 
     static createJoin(joinId: string, joinType: string): OperationNode {
@@ -126,17 +142,19 @@ export class OperationNode extends BaseDataFlowNode {
             label = normalizedType.toUpperCase() + ' JOIN';
         }
         
-        return new OperationNode(`join_${joinId}`, label);
+        // Use hexagon shape for JOIN operations (same as old SELECT)
+        return new OperationNode(`join_${joinId}`, label, 'hexagon');
     }
 
     static createUnion(unionId: string, unionType: string = 'UNION ALL'): OperationNode {
-        return new OperationNode(`${unionType.toLowerCase().replace(/\s+/g, '_')}_${unionId}`, unionType.toUpperCase());
+        return new OperationNode(`${unionType.toLowerCase().replace(/\s+/g, '_')}_${unionId}`, unionType.toUpperCase(), 'rectangle');
     }
 
     static createSetOperation(operationId: string, operation: string): OperationNode {
         const normalizedOp = operation.toUpperCase();
         const id = `${normalizedOp.toLowerCase().replace(/\s+/g, '_')}_${operationId}`;
-        return new OperationNode(id, normalizedOp);
+        // Use rectangle shape for set operations like UNION (smaller than diamond)
+        return new OperationNode(id, normalizedOp, 'rectangle');
     }
 }
 
