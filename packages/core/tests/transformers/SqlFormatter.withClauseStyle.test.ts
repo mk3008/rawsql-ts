@@ -105,17 +105,9 @@ order by
             withClauseStyle: 'full-oneline'
         });
         
-        // Expected: Complete SQL with entire WITH clause as continuous block
-        const expectedSql = `with "user_summary" as (
-  select
-    "id", "name", count(*)
-  from
-    "users"
-  where
-    "active" = true
-  group by
-    "id", "name"
-) select
+        // Expected: WITH clause content completely on one line, followed by normal formatted SELECT
+        const expectedSql = `with "user_summary" as (select "id", "name", count(*) from "users" where "active" = true group by "id", "name")
+select
   *
 from
   "user_summary"
@@ -139,22 +131,9 @@ order by
             withClauseStyle: 'full-oneline'
         });
         
-        // Expected: Complete SQL with entire WITH clause as continuous block
-        const expectedSql = `with "active_users" as (
-  select
-    "id", "name"
-  from
-    "users"
-  where
-    "active" = true
-), "user_orders" as (
-  select
-    "user_id", count(*) as "order_count"
-  from
-    "orders"
-  group by
-    "user_id"
-) select
+        // Expected: WITH clause content completely on one line, followed by normal formatted SELECT
+        const expectedSql = `with "active_users" as (select "id", "name" from "users" where "active" = true), "user_orders" as (select "user_id", count(*) as "order_count" from "orders" group by "user_id")
+select
   "u"."id", "u"."name", "o"."order_count"
 from
   "active_users" as "u"
@@ -180,17 +159,9 @@ order by
             withClauseStyle: 'full-oneline'
         });
         
-        // Expected: Complete SQL with keywords in uppercase
-        const expectedSql = `WITH "user_summary" AS (
-  SELECT
-    "id", "name", count(*)
-  FROM
-    "users"
-  WHERE
-    "active" = true
-  GROUP BY
-    "id", "name"
-) SELECT
+        // Expected: WITH clause content completely on one line with keywords in uppercase, followed by normal formatted SELECT
+        const expectedSql = `WITH "user_summary" AS (SELECT "id", "name", count(*) FROM "users" WHERE "active" = true GROUP BY "id", "name")
+SELECT
   *
 FROM
   "user_summary"
@@ -226,17 +197,9 @@ ORDER BY
             exportComment: true
         });
         
-        // Expected: Complete SQL with entire WITH clause as continuous block including comments
-        const expectedSql = `with "user_summary" as (
-  /* Get active users */ select
-    "id", "name", count(*)
-  from
-    "users"
-  where
-    "active" = true
-  group by
-    "id", "name"
-) select
+        // Expected: WITH clause content completely on one line including comments, followed by normal formatted SELECT
+        const expectedSql = `with "user_summary" as (/* Get active users */ select "id", "name", count(*) from "users" where "active" = true group by "id", "name")
+select
   *
 from
   "user_summary"`;
