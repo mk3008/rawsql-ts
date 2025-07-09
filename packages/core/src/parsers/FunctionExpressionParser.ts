@@ -7,6 +7,7 @@ import { ValueParser } from "./ValueParser";
 import { FullNameParser } from "./FullNameParser";
 import { SelectQueryParser } from "./SelectQueryParser";
 import { OrderByClauseParser } from "./OrderByClauseParser";
+import { ParseError } from "./ParseError";
 
 export class FunctionExpressionParser {
     /**
@@ -167,7 +168,7 @@ export class FunctionExpressionParser {
                 return { value, newIndex: idx };
             }
         } else {
-            throw new Error(`Expected opening parenthesis after function name '${name.name}' at index ${idx}`);
+            throw ParseError.fromUnparsedLexemes(lexemes, idx, `Expected opening parenthesis after function name '${name.name}'.`);
         }
     }
 
@@ -211,7 +212,7 @@ export class FunctionExpressionParser {
                     }
 
                 } else if (required) {
-                    throw new Error(`Keyword '${key}' is required at index ${idx}`);
+                    throw ParseError.fromUnparsedLexemes(lexemes, idx, `Keyword '${key}' is required for ${name.name} function.`);
                 }
             }
 
@@ -238,10 +239,10 @@ export class FunctionExpressionParser {
                     return { value, newIndex: idx };
                 }
             } else {
-                throw new Error(`Missing closing parenthesis for function '${name.name}' at index ${idx}`);
+                throw ParseError.fromUnparsedLexemes(lexemes, idx, `Missing closing parenthesis for function '${name.name}'.`);
             }
         } else {
-            throw new Error(`Missing opening parenthesis for function '${name.name}' at index ${idx}`);
+            throw ParseError.fromUnparsedLexemes(lexemes, idx, `Missing opening parenthesis for function '${name.name}'.`);
         }
     }
 

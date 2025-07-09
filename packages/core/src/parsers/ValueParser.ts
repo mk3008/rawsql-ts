@@ -225,7 +225,7 @@ export class ValueParser {
             }
         }
 
-        throw new Error(`[ValueParser] Invalid lexeme. index: ${idx}, type: ${lexemes[idx].type}, value: ${lexemes[idx].value}`);
+        throw ParseError.fromUnparsedLexemes(lexemes, idx, `[ValueParser] Invalid lexeme.`);
     }
 
     public static parseArgument(openToken: TokenType, closeToken: TokenType, lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number } {
@@ -251,7 +251,7 @@ export class ValueParser {
                     idx++;
                     return { value: wildcard, newIndex: idx };
                 } else {
-                    throw new Error(`Expected closing parenthesis at index ${idx}`);
+                    throw ParseError.fromUnparsedLexemes(lexemes, idx, `Expected closing parenthesis after wildcard '*'.`);
                 }
             }
 
@@ -279,11 +279,11 @@ export class ValueParser {
                 const value = new ValueList(args);
                 return { value, newIndex: idx };
             } else {
-                throw new Error(`Missing closing parenthesis at index ${idx}`);
+                throw ParseError.fromUnparsedLexemes(lexemes, idx, `Missing closing parenthesis.`);
             }
         }
 
-        throw new Error(`Expected opening parenthesis at index ${index}`);
+        throw ParseError.fromUnparsedLexemes(lexemes, index, `Expected opening parenthesis.`);
     }
 
     /**
