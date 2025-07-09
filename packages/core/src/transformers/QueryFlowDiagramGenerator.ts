@@ -99,11 +99,23 @@ export class QueryFlowDiagramGenerator {
 
         // 1. Process FROM clause (including JOINs)
         if (query.fromClause) {
-            currentNodeId = this.joinHandler.processFromClause(
-                query.fromClause,
-                cteNames,
-                this.processQuery.bind(this)
-            );
+            const hasJoins = query.fromClause.joins && query.fromClause.joins.length > 0;
+            
+            if (hasJoins) {
+                // If there are JOINs, process normally (data source -> JOIN -> SELECT)
+                currentNodeId = this.joinHandler.processFromClause(
+                    query.fromClause,
+                    cteNames,
+                    this.processQuery.bind(this)
+                );
+            } else {
+                // If no JOINs, connect data source directly to SELECT
+                currentNodeId = this.dataSourceHandler.processSource(
+                    query.fromClause.source,
+                    cteNames,
+                    this.processQuery.bind(this)
+                );
+            }
         }
 
         // 2-7. Process other clauses in execution order
@@ -156,6 +168,7 @@ export class QueryFlowDiagramGenerator {
             this.graph.addConnection(rightNodeId, operationNode.id);
         }
 
+        // Return the operation node directly without adding SELECT
         return operationNode.id;
     }
 
@@ -184,6 +197,7 @@ export class QueryFlowDiagramGenerator {
             }
         }
 
+        // Return the operation node directly without adding SELECT
         return operationNode.id;
     }
 
