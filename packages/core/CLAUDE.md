@@ -3,9 +3,10 @@
 ## MUST: Response starts with `CLAUDE.md path` or `CLAUDE.md: Not recognized`
 
 ## Dev Principles
-1. One problem at a time, complete it
+1. **KISS**: Simple, readable code > complex clever solutions
 2. Maintainability > micro-optimizations  
-3. Small focused tasks
+3. One problem at a time, complete it
+4. Small focused tasks
 
 ## Critical Rules
 - **Tests are specs - never change expected values without user consultation**
@@ -23,6 +24,20 @@
 ## Debug & Cleanup
 - Temp files → `.tmp/` folder only, cleanup after debug
 - Remove console.log before commit
+
+## Pre-commit Validation
+Before staging changes, run full validation:
+```bash
+npm test              # Full test suite (core: 1154+ tests)
+npm run build         # TypeScript compilation check
+npm run lint          # ESLint validation
+```
+Ensure all pass with no regressions before git add/commit.
+
+## Commit Process
+1. **Refactor for maintainability** (avoid over-DRY, prefer readability)
+2. **Stage changes**: `git add .`
+3. **Commit with descriptive message**
 
 ## Code Changes Not Reflecting?
 1. Check imports: `from 'rawsql-ts'` (stale) vs `from '../../core/src'` (fresh)
