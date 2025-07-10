@@ -1,5 +1,35 @@
 # rawsql-ts Core Package
 
+## MUST: Response starts with `CLAUDE.md path` or `CLAUDE.md: Not recognized`
+
+## Dev Principles
+1. One problem at a time, complete it
+2. Maintainability > micro-optimizations  
+3. Small focused tasks
+
+## Critical Rules
+- **Tests are specs - never change expected values without user consultation**
+- Add test when adding/fixing features
+- Always compile to check TypeScript errors
+- **Source code comments in English only**
+
+## TDD: Red-Compile-Green-Refactor
+1. **Red**: Write failing test first (bug repro included)
+2. **Compile**: Fix TypeScript errors before running tests
+3. **Green**: Minimal code to pass test
+4. **Refactor**: Improve while keeping tests green
+5. **Verify**: Break test temporarily to ensure it actually tests behavior
+
+## Debug & Cleanup
+- Temp files → `.tmp/` folder only, cleanup after debug
+- Remove console.log before commit
+
+## Code Changes Not Reflecting?
+1. Check imports: `from 'rawsql-ts'` (stale) vs `from '../../core/src'` (fresh)
+2. Clear cache: `rm -rf dist node_modules && npm run build`
+3. Add debug: `console.log('🔍 [Class] method');`
+4. Monorepo: `file:../core` uses dist/, direct imports bypass cache
+
 ## Commands
 ```bash
 npm test              # Run tests  
@@ -7,112 +37,17 @@ npm run build         # TypeScript build
 npm run lint          # ESLint
 ```
 
-## Critical Rules
-- Unit tests are specifications - never change expected values without consultation
-- Add test when adding/fixing features
-- Always compile to check TypeScript errors
-- Use `SqlFormatter` for SQL comparison tests
-- **Source code comments must be written in English**
+## Library-Specific: rawsql-ts
 
-## Test Strategy (t-wada Method)
-Follow Test-Driven Development with these practices:
-
-### 1. Red-Compile-Green-Refactor Cycle
-- **Red**: Write failing test first (including bug reproduction tests)
-- **Compile**: Ensure TypeScript compilation passes without errors
-- **Green**: Write minimal code to make test pass
-- **Refactor**: Improve code while keeping tests green
-
-### 2. Humming Test
-- Intentionally break tests to verify they actually test the behavior
-- Change expected values temporarily to confirm test catches the change
-- Ensures tests are not false positives
-
-### 3. Triangulation
-- Write multiple test cases to drive implementation
-- Use different inputs/scenarios to guide the design
-- Let tests reveal the true requirements through examples
-
-### 4. Bug Reproduction
-- For bugs: write failing test that reproduces the issue first
-- Fix implementation until test passes
-- Prevents regression of the same bug
-
-### 5. Compilation First
-- Always resolve TypeScript errors before proceeding to test execution
-- Use `npm run build` to verify type safety before running tests
-- Separate type definition issues from logic implementation issues
-
-## JSON Mapping Conversion
+### JSON Mapping
 ```typescript
-// Model-Driven format
+// Model-Driven: mapping.typeInfo && mapping.structure
 import { convertModelDrivenMapping } from 'rawsql-ts';
-const result = convertModelDrivenMapping(mapping);
-
-// Format detection
-if (mapping.typeInfo && mapping.structure) { /* Model-Driven */ }
-if (mapping.rootName && mapping.rootEntity) { /* Legacy */ }
+// Legacy: mapping.rootName && mapping.rootEntity
 ```
 
-## Common Errors
-- `Cannot read properties of undefined (reading 'columns')` → Use `convertModelDrivenMapping`
+### Common Errors & Fixes
+- `Cannot read 'columns'` → Use `convertModelDrivenMapping`
 - Module not found → `npm run build` first
-- Use package imports: `import { X } from 'rawsql-ts'`
-
-## Development Principles
-1. Solve one problem completely before next
-2. Prioritize maintainability over micro-optimizations  
-3. Keep tasks small and focused
-4. When requirements overlap → consider separation, suggest `git worktree add ../branch feature/fix`
-
-## Debugging Guidelines
-- For temporary files during debugging, use `.tmp/` folder
-- Clean up all `.tmp/` folder contents after debugging is complete
-- Remove debug console.log statements before committing
-
-## Troubleshooting: Code Changes Not Reflecting
-**When your code changes don't appear in tests/execution:**
-
-1. **Check import sources first**
-   ```typescript
-   // ❌ Old npm package (cached/outdated)
-   import { X } from 'rawsql-ts';
-   
-   // ✅ Direct source (latest changes)
-   import { X } from '../../core/src/index';
-   ```
-
-2. **Clear build artifacts**
-   ```bash
-   rm -rf dist node_modules
-   npm run build
-   ```
-
-3. **Add debug logs to verify code path**
-   ```typescript
-   console.log('🔍 [ClassName] method called'); // Verify execution
-   ```
-
-4. **In monorepos: npm packages vs file: references**
-   - `file:../packages/core` still uses built `dist/` files
-   - Direct src imports bypass build/cache issues
-
-## Chat Output Format Rules
-**Chat responses MUST follow these formatting rules:**
-
-### 1. File Path Declaration
-- **First line**: Always start with recognized CLAUDE.md full path in backticks
-- If no CLAUDE.md recognized: State "CLAUDE.md: Not recognized"
-
-### 2. Compression Notation
-- Use abbreviated notation for efficiency (space-limited CLI)
-- Examples: `impl` (implementation), `cfg` (config), `err` (error), `fn` (function)
-- Document compression usage when applied
-
-### 3. Temporary File Management
-- Create temporary scripts/files in `/.tmp/` directory
-- Before cleanup: evaluate if content should be:
-  - Converted to permanent tests
-  - Added to documentation
-  - Preserved for future reference
-- Delete `/.tmp/` contents only after evaluation
+- Wrong imports → Use `from 'rawsql-ts'` not local paths
+- Use `SqlFormatter` for SQL comparison tests

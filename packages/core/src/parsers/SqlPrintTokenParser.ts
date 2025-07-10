@@ -429,20 +429,129 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
             return;
         }
 
-        // Add comment tokens before the main token
-        const commentTokens: SqlPrintToken[] = [];
+        // Create CommentBlock containers for each comment
+        const commentBlocks = this.createCommentBlocks(comments);
+
+        // Insert comment blocks and handle spacing
+        if (commentBlocks.length > 0) {
+            this.insertCommentBlocksWithSpacing(token, commentBlocks);
+        }
+    }
+
+    /**
+     * Creates CommentBlock containers for the given comments.
+     * Each CommentBlock contains: Comment -> CommentNewline -> Space
+     * This structure supports both oneliner and multiline formatting modes.
+     */
+    private createCommentBlocks(comments: string[]): SqlPrintToken[] {
+        const commentBlocks: SqlPrintToken[] = [];
+        
         for (const comment of comments) {
             if (comment.trim()) {
-                // Use block comment format for safer SQL formatting
-                // This prevents line comments from breaking SQL structure when newlines are added
-                commentTokens.push(new SqlPrintToken(SqlPrintTokenType.comment, `/* ${comment} */`));
+                commentBlocks.push(this.createSingleCommentBlock(comment));
             }
         }
+        
+        return commentBlocks;
+    }
 
-        // Prepend comment tokens to the existing inner tokens
-        if (commentTokens.length > 0) {
-            token.innerTokens.unshift(...commentTokens);
+    /**
+     * Creates a single CommentBlock with the standard structure:
+     * Comment -> CommentNewline -> Space
+     * 
+     * This structure supports both formatting modes:
+     * - Multiline mode: Comment + newline (space is filtered as leading space)
+     * - Oneliner mode: Comment + space (commentNewline is skipped)
+     */
+    private createSingleCommentBlock(comment: string): SqlPrintToken {
+        const commentBlock = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.CommentBlock);
+        
+        // Add comment token
+        const commentToken = new SqlPrintToken(SqlPrintTokenType.comment, this.formatBlockComment(comment));
+        commentBlock.innerTokens.push(commentToken);
+        
+        // Add conditional newline token for multiline mode
+        const commentNewlineToken = new SqlPrintToken(SqlPrintTokenType.commentNewline, '');
+        commentBlock.innerTokens.push(commentNewlineToken);
+        
+        // Add space token for oneliner mode spacing
+        const spaceToken = new SqlPrintToken(SqlPrintTokenType.space, ' ');
+        commentBlock.innerTokens.push(spaceToken);
+        
+        return commentBlock;
+    }
+
+    /**
+     * Inserts comment blocks into a token and handles spacing logic.
+     * Adds separator spaces for clause-level containers and manages duplicate space removal.
+     */
+    private insertCommentBlocksWithSpacing(token: SqlPrintToken, commentBlocks: SqlPrintToken[]): void {
+        token.innerTokens.unshift(...commentBlocks);
+        
+        // Add a separator space after comments only for certain container types
+        // where comments need to be separated from main content
+        const needsSeparatorSpace = this.shouldAddSeparatorSpace(token.containerType);
+        
+        if (needsSeparatorSpace) {
+            const separatorSpace = new SqlPrintToken(SqlPrintTokenType.space, ' ');
+            token.innerTokens.splice(commentBlocks.length, 0, separatorSpace);
+            
+            // Remove the original space token after our separator if it exists 
+            // This prevents duplicate spaces when comments are added
+            if (token.innerTokens.length > commentBlocks.length + 1 && 
+                token.innerTokens[commentBlocks.length + 1].type === SqlPrintTokenType.space) {
+                token.innerTokens.splice(commentBlocks.length + 1, 1);
+            }
+        } else {
+            // For containers that don't need separator space, still remove duplicate spaces
+            if (token.innerTokens.length > commentBlocks.length && 
+                token.innerTokens[commentBlocks.length].type === SqlPrintTokenType.space) {
+                token.innerTokens.splice(commentBlocks.length, 1);
+            }
         }
+    }
+
+    /**
+     * Determines whether a separator space should be added after comments for the given container type.
+     * 
+     * Clause-level containers (SELECT, FROM, WHERE, etc.) need separator spaces because:
+     * - Comments appear before the main clause content
+     * - A space is needed to separate comment block from SQL tokens
+     * 
+     * Item-level containers (SelectItem, etc.) don't need separator spaces because:
+     * - Comments are inline with the item content
+     * - Spacing is handled by existing token structure
+     */
+    private shouldAddSeparatorSpace(containerType: SqlPrintTokenContainerType): boolean {
+        return this.isClauseLevelContainer(containerType);
+    }
+
+    /**
+     * Checks if the container type represents a SQL clause (as opposed to an item within a clause).
+     */
+    private isClauseLevelContainer(containerType: SqlPrintTokenContainerType): boolean {
+        switch (containerType) {
+            case SqlPrintTokenContainerType.SelectClause:
+            case SqlPrintTokenContainerType.FromClause:
+            case SqlPrintTokenContainerType.WhereClause:
+            case SqlPrintTokenContainerType.GroupByClause:
+            case SqlPrintTokenContainerType.HavingClause:
+            case SqlPrintTokenContainerType.OrderByClause:
+            case SqlPrintTokenContainerType.LimitClause:
+            case SqlPrintTokenContainerType.OffsetClause:
+            case SqlPrintTokenContainerType.WithClause:
+            case SqlPrintTokenContainerType.SimpleSelectQuery:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    /**
+     * Formats a comment string as a block comment.
+     */
+    private formatBlockComment(comment: string): string {
+        return `/* ${comment} */`;
     }
 
     private visitValueList(arg: ValueList): SqlPrintToken {

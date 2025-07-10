@@ -5,12 +5,13 @@ export enum SqlPrintTokenType {
     comma, // Represents comma ','
     parenthesis, // Represents parentheses: ( ) { } [ ]
     operator, // Represents operators such as +, -, *, /
-    comment,
+    comment, // SQL comments /* */ or --
     parameter,
     dot,
     type,
-    space,
+    space, // Whitespace characters
     argumentSplitter,
+    commentNewline, // Conditional newline after comments (multiline mode only)
 }
 
 // Enum for container type, used for formatting and context
@@ -79,6 +80,7 @@ export enum SqlPrintTokenContainerType {
     ReturningClause = "ReturningClause",
     SetClauseItem = "SetClauseItem",
     CreateTableQuery = "CreateTableQuery",
+    CommentBlock = "CommentBlock", // Container for comment tokens with conditional newlines
     // Add more as needed
 }
 
