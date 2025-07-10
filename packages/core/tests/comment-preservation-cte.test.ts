@@ -24,16 +24,12 @@ orders AS (
 SELECT * FROM orders;`;
 
     test('should preserve comments in AST structure', () => {
-        const query = SelectQueryParser.parse(sqlWithComments);
+        const query = SelectQueryParser.parse(sqlWithComments).toSimpleQuery();
         
-        // Check main query comments
-        expect(query.comments).toBeDefined();
-        expect(query.comments).toContain('This is the main WITH clause comment');
-        expect(query.comments).toContain('Comment for users CTE');
-        
-        // Check WITH clause comments
+        // Check WITH clause comments (this is where comments are actually stored)
         expect(query.withClause?.comments).toBeDefined();
         expect(query.withClause?.comments).toContain('This is the main WITH clause comment');
+        expect(query.withClause?.comments).toContain('Comment for users CTE');
         
         // Check CTE level comments
         const ctes = query.withClause?.tables || [];

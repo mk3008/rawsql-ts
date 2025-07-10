@@ -134,10 +134,13 @@ export class SqlPrinter {
                 SqlPrintTokenContainerType.CaseKeyValuePair,
                 SqlPrintTokenContainerType.CaseThenValue,
                 SqlPrintTokenContainerType.ElseClause,
-                SqlPrintTokenContainerType.CaseElseValue
+                SqlPrintTokenContainerType.CaseElseValue,
+                SqlPrintTokenContainerType.SimpleSelectQuery
+                // Note: CommentBlock is intentionally excluded from indentIncrementContainers
+                // because it serves as a grouping mechanism without affecting indentation.
                 // CaseExpression, SwitchCaseArgument, CaseKeyValuePair, and ElseClause
-                // are not included by default to maintain backward compatibility with tests
-                //SqlPrintTokenContainerType.CommonTable
+                // are not included by default to maintain backward compatibility with tests.
+                // SqlPrintTokenContainerType.CommonTable is also excluded by default.
             ]
         );
     }
@@ -159,7 +162,7 @@ export class SqlPrinter {
             this.linePrinter.lines[0].level = level;
         }
 
-        this.appendToken(token, level);
+        this.appendToken(token, level, undefined);
 
         return this.linePrinter.print();
     }
@@ -187,7 +190,14 @@ export class SqlPrinter {
         } else if (token.containerType === "JoinClause") {
             this.handleJoinClauseToken(token, level);
         } else if (token.type === SqlPrintTokenType.comment) {
-            this.handleCommentToken(token);
+            // Handle comments as regular tokens - let the standard processing handle everything
+            if (this.exportComment) {
+                this.linePrinter.appendText(token.text);
+            }
+        } else if (token.type === SqlPrintTokenType.space) {
+            this.handleSpaceToken(token, parentContainerType);
+        } else if (token.type === SqlPrintTokenType.commentNewline) {
+            this.handleCommentNewlineToken(token, level);
         } else if (token.containerType === SqlPrintTokenContainerType.CommonTable && this.withClauseStyle === 'cte-oneline') {
             this.handleCteOnelineToken(token, level);
             return; // Return early to avoid processing innerTokens
@@ -206,7 +216,7 @@ export class SqlPrinter {
         let innerLevel = level;
 
         // indent level up
-        if (this.newline !== ' ' && current.text !== '' && this.indentIncrementContainers.has(token.containerType)) { // Changed condition
+        if (!this.isOnelineMode() && current.text !== '' && this.indentIncrementContainers.has(token.containerType)) {
             // Skip newline for any container when inside WITH clause with full-oneline style
             if (!(this.insideWithClause && this.withClauseStyle === 'full-oneline')) {
                 innerLevel++;
@@ -236,7 +246,18 @@ export class SqlPrinter {
         }
     }
 
+    /**
+     * Determines if a token should be skipped during printing.
+     * Tokens are skipped if they have no content and no inner tokens,
+     * except for special token types that have semantic meaning despite empty text.
+     */
     private shouldSkipToken(token: SqlPrintToken): boolean {
+        // Special tokens with semantic meaning should never be skipped
+        if (token.type === SqlPrintTokenType.commentNewline) {
+            return false;
+        }
+        
+        // Skip tokens that have no content and no children
         return (!token.innerTokens || token.innerTokens.length === 0) && token.text === '';
     }
 
@@ -311,18 +332,78 @@ export class SqlPrinter {
         this.linePrinter.appendText(text);
     }
 
-    private handleCommentToken(token: SqlPrintToken): void {
-        // Handle comments - only output if exportComment is true
-        if (this.exportComment) {
-            this.linePrinter.appendText(token.text);
-            // Always add a space after comment to ensure SQL structure safety
-            this.linePrinter.appendText(' ');
+    /**
+     * Handles space tokens with context-aware filtering.
+     * Skips spaces in CommentBlocks when in specific CTE modes to prevent duplication.
+     */
+    private handleSpaceToken(token: SqlPrintToken, parentContainerType?: SqlPrintTokenContainerType): void {
+        if (this.shouldSkipCommentBlockSpace(parentContainerType)) {
+            return;
+        }
+        this.linePrinter.appendText(token.text);
+    }
+
+    /**
+     * Determines whether to skip space tokens in CommentBlocks.
+     * Prevents duplicate spacing in CTE full-oneline mode only.
+     */
+    private shouldSkipCommentBlockSpace(parentContainerType?: SqlPrintTokenContainerType): boolean {
+        return parentContainerType === SqlPrintTokenContainerType.CommentBlock && 
+               this.insideWithClause && 
+               this.withClauseStyle === 'full-oneline';
+    }
+
+    /**
+     * Handles commentNewline tokens with conditional newline behavior.
+     * In multiline mode (newline !== ' '), adds a newline after comments.
+     * In oneliner mode (newline === ' '), does nothing to keep comments on same line.
+     * Skips newlines in CTE modes (full-oneline, cte-oneline) to maintain one-line format.
+     */
+    private handleCommentNewlineToken(token: SqlPrintToken, level: number): void {
+        if (this.shouldSkipCommentNewline()) {
+            return;
+        }
+        
+        if (!this.isOnelineMode()) {
+            this.linePrinter.appendNewline(level);
         }
     }
 
+    /**
+     * Determines whether to skip commentNewline tokens.
+     * Skips in CTE modes to maintain one-line formatting.
+     */
+    private shouldSkipCommentNewline(): boolean {
+        return (this.insideWithClause && this.withClauseStyle === 'full-oneline') ||
+               this.withClauseStyle === 'cte-oneline';
+    }
+
+    /**
+     * Determines if the printer is in oneliner mode.
+     * Oneliner mode uses single spaces instead of actual newlines.
+     */
+    private isOnelineMode(): boolean {
+        return this.newline === ' ';
+    }
+
+
+
+    /**
+     * Handles CTE tokens with one-liner formatting.
+     * Creates a nested SqlPrinter instance for proper CTE oneline formatting.
+     */
     private handleCteOnelineToken(token: SqlPrintToken, level: number): void {
-        // Handle CTE with one-liner formatting when withClauseStyle is 'cte-oneline'
-        const onelinePrinter = new SqlPrinter({
+        const onelinePrinter = this.createCteOnelinePrinter();
+        const onelineResult = onelinePrinter.print(token, level);
+        const cleanedResult = this.cleanDuplicateSpaces(onelineResult);
+        this.linePrinter.appendText(cleanedResult);
+    }
+
+    /**
+     * Creates a SqlPrinter instance configured for CTE oneline formatting.
+     */
+    private createCteOnelinePrinter(): SqlPrinter {
+        return new SqlPrinter({
             indentChar: '',
             indentSize: 0,
             newline: ' ',
@@ -333,9 +414,14 @@ export class SqlPrinter {
             strictCommentPlacement: this.strictCommentPlacement,
             withClauseStyle: 'standard', // Prevent recursive processing
         });
-        
-        const onelineResult = onelinePrinter.print(token, level);
-        this.linePrinter.appendText(onelineResult);
+    }
+
+    /**
+     * Removes duplicate consecutive spaces while preserving single spaces.
+     * Simple and safe space normalization for CTE oneline mode.
+     */
+    private cleanDuplicateSpaces(text: string): string {
+        return text.replace(/\s{2,}/g, ' ');
     }
 
 }

@@ -103,14 +103,15 @@ export class SelectQueryParser {
         let idx = index;
         let withClauseResult = null;
 
-        // Capture comments from the first token for the query
-        const firstTokenComments = idx < lexemes.length ? lexemes[idx].comments : null;
-
         // Parse optional WITH clause
         if (idx < lexemes.length && lexemes[idx].value === 'with') {
             withClauseResult = WithClauseParser.parseFromLexeme(lexemes, idx);
             idx = withClauseResult.newIndex;
         }
+
+        // Capture comments from the current token (after WITH clause if present)
+        // This avoids duplication with WITH clause comments
+        const firstTokenComments = idx < lexemes.length ? lexemes[idx].comments : null;
 
         // Parse SELECT clause (required)
         if (idx >= lexemes.length || lexemes[idx].value !== 'select') {
