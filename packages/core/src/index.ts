@@ -7,6 +7,7 @@ export * from './models/SelectQuery';
 export * from './models/ValueComponent';
 export * from './models/ValuesQuery';
 export * from './models/CTEError';
+export * from './models/Lexeme';
 
 export * from './transformers/CTECollector';
 export * from './transformers/CTENormalizer';
@@ -54,6 +55,7 @@ export * from './utils/SqlSchemaValidator';
 export * from './utils/JsonSchemaValidator';
 export * from './utils/SchemaManager';
 export * from './utils/CommentEditor';
+export * from './utils/LexemeCursor';
 
 
 // Add more exports here if you want to expose additional public API

@@ -1,4 +1,4 @@
-﻿import { Lexeme, TokenType } from '../models/Lexeme';
+﻿import { Lexeme, TokenType, LexemePosition } from '../models/Lexeme';
 import { StringUtils } from '../utils/stringUtils';
 
 /**
@@ -61,22 +61,31 @@ export abstract class BaseTokenReader {
     /**
      * Create a lexeme with the specified type and value
      */
-    protected createLexeme(type: TokenType, value: string, comments: string[] | null = null): Lexeme {
-        if (type === TokenType.Command || type === TokenType.Operator || type === TokenType.Function) {
-            // Benchmark tests showed that directly calling toLowerCase() is ~5x faster
-            // than first checking if the string is already lowercase.
-            // See benchmarks/lowercase-benchmark.js for detailed performance analysis.
-            return {
-                type,
-                value: value.toLowerCase(),
-                comments: comments,
-            };
-        }
-        return {
+    protected createLexeme(type: TokenType, value: string, comments: string[] | null = null, startPosition?: number, endPosition?: number): Lexeme {
+        const lexeme: Lexeme = {
             type,
-            value,
+            value: (type === TokenType.Command || type === TokenType.Operator || type === TokenType.Function) 
+                ? value.toLowerCase() 
+                : value,
             comments: comments,
         };
+
+        // Add position information if provided
+        if (startPosition !== undefined && endPosition !== undefined) {
+            lexeme.position = {
+                startPosition,
+                endPosition,
+            };
+        }
+
+        return lexeme;
+    }
+
+    /**
+     * Create a lexeme with automatic position tracking
+     */
+    protected createLexemeWithPosition(type: TokenType, value: string, startPos: number, comments: string[] | null = null): Lexeme {
+        return this.createLexeme(type, value, comments, startPos, startPos + value.length);
     }
 
     /**

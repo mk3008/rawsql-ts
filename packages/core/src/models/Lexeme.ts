@@ -17,10 +17,23 @@
 }
 
 /**
+ * Position information for a lexeme in the source text
+ */
+export interface LexemePosition {
+    startPosition: number;  // Character offset in source
+    endPosition: number;    // Character offset in source
+    startLine?: number;     // Line number (1-based)
+    startColumn?: number;   // Column number (1-based)
+    endLine?: number;       // Line number (1-based)
+    endColumn?: number;     // Column number (1-based)
+}
+
+/**
  * Represents a lexical token in SQL parsing
  */
 export interface Lexeme {
     type: number; // Bit flags for TokenType
     value: string;
     comments: string[] | null;
+    position?: LexemePosition; // Optional position information for cursor-to-lexeme mapping
 }
