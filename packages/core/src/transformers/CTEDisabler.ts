@@ -2,10 +2,10 @@ import { CommonTable, ForClause, FromClause, GroupByClause, HavingClause, JoinCl
 import { BinarySelectQuery, SimpleSelectQuery, SelectQuery, ValuesQuery } from "../models/SelectQuery";
 import { SqlComponent, SqlComponentVisitor } from "../models/SqlComponent";
 import {
-    ArrayExpression, ArrayQueryExpression, BetweenExpression, BinaryExpression, CaseExpression, CaseKeyValuePair,
+    ArrayExpression, ArrayQueryExpression, ArraySliceExpression, ArrayIndexExpression, BetweenExpression, BinaryExpression, CaseExpression, CaseKeyValuePair,
     CastExpression, ColumnReference, FunctionCall, InlineQuery, ParenExpression,
-    ParameterExpression, SwitchCaseArgument, TupleExpression, UnaryExpression, ValueComponent,
-    OverExpression, WindowFrameExpression, IdentifierString, RawString,
+    ParameterExpression, SwitchCaseArgument, TupleExpression, UnaryExpression, ValueComponent, ValueList,
+    OverExpression, WindowFrameExpression, IdentifierString, RawString, StringSpecifierExpression,
     WindowFrameSpec,
     LiteralValue,
     TypeValue
@@ -81,6 +81,11 @@ export class CTEDisabler implements SqlComponentVisitor<SqlComponent> {
         this.handlers.set(WindowFrameExpression.kind, (expr) => this.visitWindowFrameExpression(expr as WindowFrameExpression));
         this.handlers.set(WindowFrameSpec.kind, (expr) => this.visitWindowFrameSpec(expr as WindowFrameSpec));
         this.handlers.set(TypeValue.kind, (expr) => this.visitTypeValue(expr as TypeValue));
+        // Additional ValueComponent handlers for complex queries
+        this.handlers.set(ValueList.kind, (expr) => this.visitValueList(expr as ValueList));
+        this.handlers.set(ArraySliceExpression.kind, (expr) => this.visitArraySliceExpression(expr as ArraySliceExpression));
+        this.handlers.set(ArrayIndexExpression.kind, (expr) => this.visitArrayIndexExpression(expr as ArrayIndexExpression));
+        this.handlers.set(StringSpecifierExpression.kind, (expr) => this.visitStringSpecifierExpression(expr as StringSpecifierExpression));
 
         // Add handlers for other clause types
         this.handlers.set(SelectClause.kind, (expr) => this.visitSelectClause(expr as SelectClause));
@@ -91,6 +96,7 @@ export class CTEDisabler implements SqlComponentVisitor<SqlComponent> {
         this.handlers.set(LimitClause.kind, (expr) => this.visitLimitClause(expr as LimitClause));
         this.handlers.set(ForClause.kind, (expr) => this.visitForClause(expr as ForClause));
         this.handlers.set(OrderByItem.kind, (expr) => this.visitOrderByItem(expr as OrderByItem));
+        this.handlers.set(PartitionByClause.kind, (expr) => this.visitPartitionByClause(expr as PartitionByClause));
     }
 
     /**
@@ -411,5 +417,27 @@ export class CTEDisabler implements SqlComponentVisitor<SqlComponent> {
     visitOrderByItem(item: OrderByItem): SqlComponent {
         const newValue = this.visit(item.value) as ValueComponent;
         return new OrderByItem(newValue, item.sortDirection, item.nullsPosition);
+    }
+
+    visitValueList(valueList: ValueList): SqlComponent {
+        const newValues = valueList.values.map(value => this.visit(value) as ValueComponent);
+        return new ValueList(newValues);
+    }
+
+    visitArraySliceExpression(expr: ArraySliceExpression): SqlComponent {
+        return expr;
+    }
+
+    visitArrayIndexExpression(expr: ArrayIndexExpression): SqlComponent {
+        return expr;
+    }
+
+    visitStringSpecifierExpression(expr: StringSpecifierExpression): SqlComponent {
+        return expr;
+    }
+
+    visitPartitionByClause(clause: PartitionByClause): SqlComponent {
+        const newValue = this.visit(clause.value) as ValueComponent;
+        return new PartitionByClause(newValue);
     }
 }
