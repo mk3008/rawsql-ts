@@ -10,6 +10,7 @@ export * from './models/CTEError';
 
 export * from './transformers/CTECollector';
 export * from './transformers/CTENormalizer';
+export * from './transformers/CTEDependencyAnalyzer';
 export * from './transformers/Formatter';
 export * from './transformers/SqlFormatter';
 export * from './transformers/PostgresJsonQueryBuilder';
