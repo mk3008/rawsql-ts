@@ -239,7 +239,7 @@ describe('CTEDependencyAnalyzer', () => {
         expect(() => analyzer.getExecutionOrder()).toThrow('Circular reference detected');
     });
 
-    test('should handle complex circular dependencies with complete validation', () => {
+    test('should handle complex diamond dependencies (DAG) with complete validation', () => {
         const sql = `
             WITH cte_a AS (
                 SELECT * FROM base_table
@@ -285,11 +285,46 @@ describe('CTEDependencyAnalyzer', () => {
         const expectedCteDSQL = 'select * from "cte_c" union all select * from "cte_b"';
         validateCompleteSQL(cteDSQL, expectedCteDSQL);
 
-        // Validate dependencies - cte_d creates the cycle by referencing both cte_c and cte_b
+        // Validate dependencies - cte_d references both cte_c and cte_b, but no cycle exists
         expect(analyzer.getDependencies('cte_a')).toEqual([]);
         expect(analyzer.getDependencies('cte_b')).toEqual(['cte_a']);
         expect(analyzer.getDependencies('cte_c')).toEqual(['cte_b']);
         expect(analyzer.getDependencies('cte_d').sort()).toEqual(['cte_b', 'cte_c']);
+
+        // This is NOT a circular dependency - it's a diamond pattern (DAG)
+        expect(analyzer.hasCircularDependency()).toBe(false);
+    });
+
+    test('should detect complex circular dependencies with complete validation', () => {
+        const sql = `
+            WITH cte_a AS (
+                SELECT * FROM base_table
+            ),
+            cte_b AS (
+                SELECT * FROM cte_a
+            ),
+            cte_c AS (
+                SELECT * FROM cte_b
+                UNION ALL
+                SELECT * FROM cte_d  -- This creates the cycle: b->c->d->b
+            ),
+            cte_d AS (
+                SELECT * FROM cte_c
+            )
+            SELECT * FROM cte_d
+        `;
+
+        const parsedQuery = SelectQueryParser.parse(sql);
+        const query = parsedQuery as SimpleSelectQuery;
+        const graph = analyzer.analyzeDependencies(query);
+
+        expect(graph.nodes).toHaveLength(4);
+        
+        // Validate dependencies that create the actual cycle
+        expect(analyzer.getDependencies('cte_a')).toEqual([]);
+        expect(analyzer.getDependencies('cte_b')).toEqual(['cte_a']);
+        expect(analyzer.getDependencies('cte_c').sort()).toEqual(['cte_b', 'cte_d']);
+        expect(analyzer.getDependencies('cte_d')).toEqual(['cte_c']);
 
         expect(analyzer.hasCircularDependency()).toBe(true);
     });
