@@ -408,4 +408,112 @@ describe("CTEQueryDecomposer", () => {
             expect(() => decomposer.decompose(query)).toThrow("Circular reference detected");
         });
     });
+
+    describe("Synchronize functionality", () => {
+        test("synchronize resolves inconsistencies between edited CTEs", () => {
+            // Arrange - Create inconsistent edits
+            const inconsistentEdits = [
+                {
+                    name: "users_data",
+                    query: "select id, name from users where active = true"
+                },
+                {
+                    name: "active_users", 
+                    query: "select * from users_data where id >= 1000"  // Expects all columns but users_data only has id, name
+                }
+            ];
+            const rootQuery = "select count(*) from active_users";
+
+            // Act - Synchronize to resolve inconsistencies
+            const result = decomposer.synchronize(inconsistentEdits, rootQuery);
+
+            // Assert - Inconsistencies should be resolved
+            expect(result).toHaveLength(2);
+            
+            const usersData = result.find(cte => cte.name === "users_data");
+            const activeUsers = result.find(cte => cte.name === "active_users");
+            
+            expect(usersData).toBeDefined();
+            expect(activeUsers).toBeDefined();
+            
+            // users_data should maintain its new definition (accounting for formatter quotes)
+            expect(usersData!.query).toContain("\"id\"");
+            expect(usersData!.query).toContain("\"name\"");
+            expect(usersData!.query).toContain("\"active\" = true");
+            
+            // active_users should reference the updated users_data definition
+            expect(activeUsers!.query).toContain("users_data");
+            expect(activeUsers!.query).toContain("\"id\" >= 1000");
+            expect(activeUsers!.dependencies).toContain("users_data");
+        });
+
+        test("synchronize handles empty array", () => {
+            // Arrange
+            const editedCTEs: Array<{name: string, query: string}> = [];
+            const rootQuery = "select 1";
+
+            // Act
+            const result = decomposer.synchronize(editedCTEs, rootQuery);
+
+            // Assert
+            expect(result).toHaveLength(0);
+        });
+
+        test("synchronize preserves CTE metadata", () => {
+            // Arrange
+            const editedCTEs = [
+                {
+                    name: "base_table",
+                    query: "select * from users where status = 'active'"
+                },
+                {
+                    name: "filtered_table",
+                    query: "select id, name from base_table where created_at > '2024-01-01'"
+                }
+            ];
+            const rootQuery = "select count(*) from filtered_table";
+
+            // Act
+            const result = decomposer.synchronize(editedCTEs, rootQuery);
+
+            // Assert
+            expect(result).toHaveLength(2);
+            
+            const baseTable = result.find(cte => cte.name === "base_table");
+            const filteredTable = result.find(cte => cte.name === "filtered_table");
+            
+            // Verify metadata is correct
+            expect(baseTable!.dependencies).toHaveLength(0);
+            expect(baseTable!.dependents).toContain("filtered_table");
+            expect(baseTable!.isRecursive).toBe(false);
+            
+            expect(filteredTable!.dependencies).toContain("base_table");
+            expect(filteredTable!.dependents).toHaveLength(0);
+            expect(filteredTable!.isRecursive).toBe(false);
+        });
+
+        test("synchronize handles WITH clause in edited CTEs", () => {
+            // Arrange - Edited CTE contains WITH clause (like from decomposer output)
+            const editedCTEs = [
+                {
+                    name: "complex_table",
+                    query: "with temp_data as (select * from users where active = true) select id, name from temp_data where id > 100"
+                }
+            ];
+            const rootQuery = "select * from complex_table";
+
+            // Act
+            const result = decomposer.synchronize(editedCTEs, rootQuery);
+
+            // Assert
+            expect(result).toHaveLength(2);  // Should expand to temp_data + complex_table
+            
+            const tempData = result.find(cte => cte.name === "temp_data");
+            const complexTable = result.find(cte => cte.name === "complex_table");
+            
+            expect(tempData).toBeDefined();
+            expect(complexTable).toBeDefined();
+            expect(complexTable!.dependencies).toContain("temp_data");
+        });
+    });
 });

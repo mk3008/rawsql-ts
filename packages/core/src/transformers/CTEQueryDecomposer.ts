@@ -2,46 +2,67 @@ import { CommonTable } from "../models/Clause";
 import { SimpleSelectQuery } from "../models/SimpleSelectQuery";
 import { CTEDependencyAnalyzer, CTENode } from "./CTEDependencyAnalyzer";
 import { CTECollector } from "./CTECollector";
-import { SqlFormatter, PresetName, WithClauseStyle } from "./SqlFormatter";
-import { CommaBreakStyle, AndBreakStyle } from "./SqlPrinter";
-import { IndentCharOption, NewlineOption } from "./LinePrinter";
+import { SqlFormatter, SqlFormatterOptions } from "./SqlFormatter";
 import { CommentEditor } from "../utils/CommentEditor";
 import { SelectQueryParser } from "../parsers/SelectQueryParser";
+import { CTEComposer } from "./CTEComposer";
 
 /**
  * Interface representing a decomposed CTE with executable query
+ * @public
  */
 export interface DecomposedCTE {
+    /** Name of the CTE */
     name: string;
+    /** Executable SQL query for this CTE (includes dependencies) */
     query: string;
+    /** Array of CTE names that this CTE depends on */
     dependencies: string[];
+    /** Array of CTE names that depend on this CTE */
     dependents: string[];
+    /** Whether this CTE is recursive */
     isRecursive: boolean;
 }
 
 /**
- * Options for CTEQueryDecomposer formatting
+ * Options for CTEQueryDecomposer extending SqlFormatterOptions
+ * @public
  */
-export interface CTEDecomposerOptions {
-    preset?: PresetName;
-    identifierEscape?: { start: string; end: string };
-    parameterSymbol?: string | { start: string; end: string };
-    parameterStyle?: 'anonymous' | 'indexed' | 'named';
-    indentSize?: number;
-    indentChar?: IndentCharOption;
-    newline?: NewlineOption;
-    keywordCase?: 'none' | 'upper' | 'lower';
-    commaBreak?: CommaBreakStyle;
-    andBreak?: AndBreakStyle;
-    exportComment?: boolean;
-    strictCommentPlacement?: boolean;
-    withClauseStyle?: WithClauseStyle;
-    addComments?: boolean; // Add comments to decomposed queries
+export interface CTEDecomposerOptions extends SqlFormatterOptions {
+    /** Whether to add comments to decomposed queries showing metadata and dependencies */
+    addComments?: boolean;
 }
 
 /**
  * Decomposes complex CTEs into executable standalone queries
- * Supports recursive CTEs, chained dependencies, and circular dependency detection
+ * 
+ * This class analyzes Common Table Expressions and generates executable standalone queries
+ * for each CTE, making complex CTE debugging easier. It supports:
+ * - Recursive CTE detection and handling
+ * - Dependency analysis (dependencies and dependents for each CTE)  
+ * - Configurable SQL formatter options (MySQL, PostgreSQL, custom styles)
+ * - Optional comment generation showing CTE metadata and relationships
+ * - Comprehensive error handling for circular dependencies
+ * 
+ * @example
+ * ```typescript
+ * const decomposer = new CTEQueryDecomposer({
+ *   preset: 'postgres',
+ *   addComments: true,
+ *   keywordCase: 'upper'
+ * });
+ * 
+ * const query = `
+ *   with users_data as (select * from users),
+ *        active_users as (select * from users_data where active = true)
+ *   select * from active_users
+ * `;
+ * 
+ * const decomposed = decomposer.decompose(SelectQueryParser.parse(query));
+ * // Returns array of DecomposedCTE objects with executable queries
+ * ```
+ * 
+ * @public
  */
 export class CTEQueryDecomposer {
     private static readonly ERROR_MESSAGES = {
@@ -63,6 +84,10 @@ export class CTEQueryDecomposer {
     private readonly formatter: SqlFormatter;
     private readonly options: CTEDecomposerOptions;
 
+    /**
+     * Creates a new CTEQueryDecomposer instance
+     * @param options - Configuration options extending SqlFormatterOptions
+     */
     constructor(options: CTEDecomposerOptions = {}) {
         this.options = options;
         this.dependencyAnalyzer = new CTEDependencyAnalyzer();
@@ -72,9 +97,33 @@ export class CTEQueryDecomposer {
 
     /**
      * Decomposes CTEs in a query into executable standalone queries
-     * @param query The query containing CTEs to decompose
-     * @returns Array of decomposed CTEs with executable queries
+     * 
+     * This method analyzes the query structure to:
+     * 1. Collect all CTEs and analyze their dependencies
+     * 2. Detect recursive CTEs and handle them separately
+     * 3. Generate executable queries for each CTE including required dependencies
+     * 4. Add optional comments with metadata (if addComments option is enabled)
+     * 5. Format output according to specified formatter options
+     * 
+     * @param query - The SimpleSelectQuery containing CTEs to decompose
+     * @returns Array of decomposed CTEs with executable queries, dependencies, and metadata
      * @throws Error if circular dependencies are detected in non-recursive CTEs
+     * 
+     * @example
+     * ```typescript
+     * const query = SelectQueryParser.parse(`
+     *   with base as (select * from users),
+     *        filtered as (select * from base where active = true)
+     *   select * from filtered
+     * `);
+     * 
+     * const result = decomposer.decompose(query);
+     * // Returns:
+     * // [
+     * //   { name: 'base', query: 'select * from users', dependencies: [], ... },
+     * //   { name: 'filtered', query: 'with base as (...) select * from base where active = true', dependencies: ['base'], ... }
+     * // ]
+     * ```
      */
     public decompose(query: SimpleSelectQuery): DecomposedCTE[] {
         const ctes = this.cteCollector.collect(query);
@@ -88,6 +137,55 @@ export class CTEQueryDecomposer {
         this.validateCircularDependencies(recursiveCTEs.length > 0);
 
         return this.processCTENodes(query, dependencyGraph.nodes, recursiveCTEs);
+    }
+
+    /**
+     * Synchronizes edited CTEs back into a unified query and re-decomposes them
+     * 
+     * This method resolves inconsistencies between edited CTEs by:
+     * 1. Composing the edited CTEs into a unified query
+     * 2. Parsing the unified query to ensure consistency
+     * 3. Re-decomposing the synchronized query
+     * 
+     * This is useful when CTEs have been edited independently and may have
+     * inconsistencies that need to be resolved through a unified composition.
+     * 
+     * @param editedCTEs - Array of edited CTEs that may have inconsistencies
+     * @param rootQuery - The main query that uses the CTEs
+     * @returns Array of re-decomposed CTEs with resolved inconsistencies
+     * @throws Error if the composed query cannot be parsed or contains errors
+     * 
+     * @example
+     * ```typescript
+     * // After editing CTEs independently, synchronize them
+     * const editedCTEs = [
+     *   { name: 'users_data', query: 'select * from users where active = true' },
+     *   { name: 'active_users', query: 'select * from users_data where id >= 1000' }
+     * ];
+     * 
+     * const synchronized = decomposer.synchronize(editedCTEs, 'select count(*) from active_users');
+     * // Returns re-decomposed CTEs with resolved dependencies
+     * ```
+     */
+    public synchronize(editedCTEs: Array<{name: string, query: string}>, rootQuery: string): DecomposedCTE[] {
+        if (editedCTEs.length === 0) {
+            return [];
+        }
+
+        // Use CTEComposer to create a unified query, sharing formatter options
+        const composerOptions = {
+            ...this.options,
+            // Remove decomposer-specific options
+            addComments: undefined
+        };
+        const composer = new CTEComposer(composerOptions);
+        const unifiedQuery = composer.compose(editedCTEs, rootQuery);
+        
+        // Parse the unified query
+        const parsedQuery = SelectQueryParser.parse(unifiedQuery) as SimpleSelectQuery;
+        
+        // Re-decompose the synchronized query
+        return this.decompose(parsedQuery);
     }
 
     /**

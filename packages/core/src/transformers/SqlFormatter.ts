@@ -17,27 +17,46 @@ export type PresetName = (typeof VALID_PRESETS)[number];
 export type WithClauseStyle = 'standard' | 'cte-oneline' | 'full-oneline';
 
 /**
+ * Options for SqlFormatter configuration
+ * @public
+ */
+export interface SqlFormatterOptions {
+    /** Database preset for formatting style ('mysql', 'postgres', 'sqlserver', 'sqlite') */
+    preset?: PresetName;
+    /** Custom identifier escape characters (e.g., {start: '"', end: '"'} for PostgreSQL) */
+    identifierEscape?: { start: string; end: string };
+    /** Parameter symbol configuration for SQL parameters */
+    parameterSymbol?: string | { start: string; end: string };
+    /** Style for parameter formatting */
+    parameterStyle?: 'anonymous' | 'indexed' | 'named';
+    /** Number of spaces for indentation */
+    indentSize?: number;
+    /** Character to use for indentation ('space' or 'tab') */
+    indentChar?: IndentCharOption;
+    /** Newline character style */
+    newline?: NewlineOption;
+    /** Case transformation for SQL keywords */
+    keywordCase?: 'none' | 'upper' | 'lower';
+    /** Style for comma line breaks */
+    commaBreak?: CommaBreakStyle;
+    /** Style for AND/OR line breaks */
+    andBreak?: AndBreakStyle;
+    /** Whether to export comments in formatted output */
+    exportComment?: boolean;
+    /** Whether to only export comments from clause-level keywords */
+    strictCommentPlacement?: boolean;
+    /** Formatting style for WITH clauses */
+    withClauseStyle?: WithClauseStyle;
+}
+
+/**
  * SqlFormatter class combines parsing and printing of SQL queries into a single interface.
  */
 export class SqlFormatter {
     private parser: SqlPrintTokenParser;
     private printer: SqlPrinter;
 
-    constructor(options: {
-        preset?: PresetName; // Restrict preset to specific strings
-        identifierEscape?: { start: string; end: string }; // Allow custom identifier escape
-        parameterSymbol?: string | { start: string; end: string }; // Allow custom parameter symbol
-        parameterStyle?: 'anonymous' | 'indexed' | 'named'; // Allow custom parameter style
-        indentSize?: number;
-        indentChar?: IndentCharOption; // Updated type
-        newline?: NewlineOption; // Updated type
-        keywordCase?: 'none' | 'upper' | 'lower'; // Updated type
-        commaBreak?: CommaBreakStyle; // Updated type
-        andBreak?: AndBreakStyle; // Updated type
-        exportComment?: boolean; // Add comment export option
-        strictCommentPlacement?: boolean; // Only export comments from clause-level keywords
-        withClauseStyle?: WithClauseStyle; // WITH clause formatting style
-    } = {}) { // Default to 'sqlserver' if options is empty
+    constructor(options: SqlFormatterOptions = {}) { // Default to 'sqlserver' if options is empty
 
         const presetConfig = options.preset ? PRESETS[options.preset] : undefined;
 

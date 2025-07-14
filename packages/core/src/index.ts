@@ -14,6 +14,7 @@ export * from './transformers/CTENormalizer';
 export * from './transformers/CTEDisabler';
 export * from './transformers/CTEDependencyAnalyzer';
 export * from './transformers/CTEQueryDecomposer';
+export * from './transformers/CTEComposer';
 export * from './transformers/Formatter';
 export * from './transformers/SqlFormatter';
 export * from './transformers/PostgresJsonQueryBuilder';
