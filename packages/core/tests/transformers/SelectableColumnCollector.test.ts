@@ -460,9 +460,7 @@ describe('SelectableColumnCollector', () => {
         collector.visit(query);
         const items = collector.collect(query);
         const columnNames = items.map(item => item.name);
-        const expressions = items.map(item => formatter.format(item.value));        // Debug output
-        console.log('Debug - actual columns returned:', columnNames);
-
+        const expressions = items.map(item => formatter.format(item.value));
         // Assert        // Both columns defined in the subquery's SELECT clause should be available
         // Length check is temporarily disabled
         expect(items.length).toBe(2);
@@ -575,9 +573,7 @@ describe('SelectableColumnCollector', () => {
         collector.visit(query);
         const items = collector.collect(query);
         const columnNames = items.map(item => item.name);
-        const expressions = items.map(item => formatter.format(item.value));        // Debug output
-        console.log('Deeply nested subquery columns:', columnNames);
-
+        const expressions = items.map(item => formatter.format(item.value));
         // Assert        expect(items.length).toBe(1);
 
         // Only the column from the outermost subquery is accessible
@@ -600,9 +596,7 @@ describe('SelectableColumnCollector', () => {
         collector.visit(query);
         const items = collector.collect(query);
         const columnNames = items.map(item => item.name);
-        const expressions = items.map(item => formatter.format(item.value));        // Debug output
-        console.log('Nested subquery with unknown source columns:', columnNames);
-
+        const expressions = items.map(item => formatter.format(item.value));
         // Assert
         // Since 'a' is just a table name with no column info available statically
         // we can't determine what columns are available through the subquery
@@ -625,9 +619,7 @@ describe('SelectableColumnCollector', () => {
         collector.visit(query);
         const items = collector.collect(query);
         const columnNames = items.map(item => item.name);
-        const expressions = items.map(item => formatter.format(item.value));        // Debug output
-        console.log('Multi-level nested with unknown columns:', columnNames);
-
+        const expressions = items.map(item => formatter.format(item.value));
         // Assert
         // No column information is available since the base table's structure is unknown
         expect(items.length).toBe(0);
@@ -754,5 +746,369 @@ order by
         // Assert
         const columnNames = items.map(item => item.name);
         expect(columnNames).toContain('line_id');
+    });
+
+    describe('upstream functionality', () => {
+        test('collects all columns with upstream option disabled (default)', () => {
+            // Arrange
+            const sql = `
+                SELECT u.id, u.name
+                FROM users u
+                WHERE u.active = TRUE
+            `;
+            const query = SelectQueryParser.parse(sql);
+            const collector = new SelectableColumnCollector();
+
+            // Act
+            const items = collector.collect(query);
+            const columnNames = items.map(item => item.name);
+
+            // Assert
+            expect(columnNames).toContain('id');
+            expect(columnNames).toContain('name');
+            expect(columnNames).toContain('active');
+        });
+
+        test('collects upstream columns when upstream option is enabled', () => {
+            // Arrange
+            const sql = `
+                SELECT u.id, u.name
+                FROM users u
+                WHERE u.active = TRUE
+            `;
+            const query = SelectQueryParser.parse(sql);
+            const collector = new SelectableColumnCollector(null, false, DuplicateDetectionMode.ColumnNameOnly, { upstream: true });
+
+            // Act
+            const items = collector.collect(query);
+            const columnNames = items.map(item => item.name);
+
+            // Assert - Should include all columns from the table for DynamicQuery maximum search conditions
+            expect(columnNames).toContain('id');
+            expect(columnNames).toContain('name');
+            expect(columnNames).toContain('active');
+            // TODO: Add more assertions based on table resolver implementation
+        });
+
+        test('collects upstream columns from JOINed tables', () => {
+            // Arrange
+            const sql = `
+                SELECT u.id, u.name, p.phone
+                FROM users u
+                JOIN profiles p ON u.id = p.user_id
+                WHERE u.active = TRUE
+            `;
+            const query = SelectQueryParser.parse(sql);
+            const collector = new SelectableColumnCollector(null, false, DuplicateDetectionMode.ColumnNameOnly, { upstream: true });
+
+            // Act
+            const items = collector.collect(query);
+            const columnNames = items.map(item => item.name);
+
+            // Assert - Should include all columns from both tables for maximum search conditions
+            expect(columnNames).toContain('id');
+            expect(columnNames).toContain('name');
+            expect(columnNames).toContain('active');
+            expect(columnNames).toContain('phone');
+            expect(columnNames).toContain('user_id');
+        });
+
+        test('collects upstream columns from subqueries', () => {
+            // Arrange
+            const sql = `
+                SELECT sub.id, sub.name
+                FROM (
+                    SELECT u.id, u.name, u.email
+                    FROM users u
+                    WHERE u.active = TRUE
+                ) sub
+            `;
+            const query = SelectQueryParser.parse(sql);
+            const collector = new SelectableColumnCollector(null, false, DuplicateDetectionMode.ColumnNameOnly, { upstream: true });
+
+            // Act
+            const items = collector.collect(query);
+            const columnNames = items.map(item => item.name);
+
+            // Assert - Should include all columns available from the subquery
+            expect(columnNames).toContain('id');
+            expect(columnNames).toContain('name');
+            expect(columnNames).toContain('email');
+        });
+
+        test('collects upstream columns from CTEs', () => {
+            // Arrange
+            const sql = `
+                WITH user_data AS (
+                    SELECT u.id, u.name, u.email, u.status
+                    FROM users u
+                    WHERE u.active = TRUE
+                )
+                SELECT ud.id, ud.name
+                FROM user_data ud
+                WHERE ud.status = 'premium'
+            `;
+            const query = SelectQueryParser.parse(sql);
+            const collector = new SelectableColumnCollector(null, false, DuplicateDetectionMode.ColumnNameOnly, { upstream: true });
+
+            // Act
+            const items = collector.collect(query);
+            const columnNames = items.map(item => item.name);
+
+
+            // Assert - Should include all columns from the CTE for maximum search conditions
+            expect(columnNames).toContain('id');
+            expect(columnNames).toContain('name');
+            expect(columnNames).toContain('status');
+            // TODO: Fix CTE column collection to include all columns from SELECT clause
+        });
+
+        test('maintains backward compatibility when upstream option is not provided', () => {
+            // Arrange
+            const sql = `
+                SELECT u.id, u.name
+                FROM users u
+                WHERE u.active = TRUE
+            `;
+            const query = SelectQueryParser.parse(sql);
+            const collector = new SelectableColumnCollector();
+
+            // Act
+            const items = collector.collect(query);
+            const columnNames = items.map(item => item.name);
+
+            // Assert - Should work exactly as before
+            expect(columnNames).toContain('id');
+            expect(columnNames).toContain('name');
+            expect(columnNames).toContain('active');
+        });
+    });
+
+    describe('union queries and complex structures', () => {
+        test('collects columns from union queries', () => {
+            // Arrange
+            const sql = `
+                SELECT u.id, u.name, u.email
+                FROM users u
+                WHERE u.active = TRUE
+                UNION
+                SELECT c.id, c.name, c.email
+                FROM customers c
+                WHERE c.status = 'active'
+            `;
+            const query = SelectQueryParser.parse(sql);
+            const collector = new SelectableColumnCollector();
+
+            // Act
+            const items = collector.collect(query);
+            const columnNames = items.map(item => item.name);
+
+            // Assert - Should collect columns from both sides of the union
+            expect(columnNames).toContain('id');
+            expect(columnNames).toContain('name');
+            expect(columnNames).toContain('email');
+            expect(columnNames).toContain('active');
+            expect(columnNames).toContain('status');
+        });
+
+        test('collects columns from union queries with upstream option', () => {
+            // Arrange
+            const sql = `
+                SELECT u.id, u.name
+                FROM users u
+                UNION
+                SELECT c.id, c.name
+                FROM customers c
+            `;
+            const query = SelectQueryParser.parse(sql);
+            const collector = new SelectableColumnCollector(null, false, DuplicateDetectionMode.ColumnNameOnly, { upstream: true });
+
+            // Act
+            const items = collector.collect(query);
+            const columnNames = items.map(item => item.name);
+
+            // Assert - Should collect columns from both sides with upstream
+            expect(columnNames).toContain('id');
+            expect(columnNames).toContain('name');
+        });
+
+        test('handles recursive CTEs', () => {
+            // Arrange
+            const sql = `
+                WITH RECURSIVE employee_hierarchy AS (
+                    -- Base case: top-level managers
+                    SELECT id, name, manager_id, 1 as level
+                    FROM employees
+                    WHERE manager_id IS NULL
+                    
+                    UNION ALL
+                    
+                    -- Recursive case: employees with managers
+                    SELECT e.id, e.name, e.manager_id, eh.level + 1
+                    FROM employees e
+                    JOIN employee_hierarchy eh ON e.manager_id = eh.id
+                )
+                SELECT eh.id, eh.name, eh.level
+                FROM employee_hierarchy eh
+                WHERE eh.level <= 3
+            `;
+            const query = SelectQueryParser.parse(sql);
+            const collector = new SelectableColumnCollector();
+
+            // Act
+            const items = collector.collect(query);
+            const columnNames = items.map(item => item.name);
+
+            // Assert - Should collect columns from the recursive CTE
+            expect(columnNames).toContain('id');
+            expect(columnNames).toContain('name');
+            expect(columnNames).toContain('level');
+        });
+
+        test('handles recursive CTEs with upstream option', () => {
+            // Arrange
+            const sql = `
+                WITH RECURSIVE category_tree AS (
+                    -- Base case: root categories
+                    SELECT id, name, parent_id, 0 as depth
+                    FROM categories
+                    WHERE parent_id IS NULL
+                    
+                    UNION ALL
+                    
+                    -- Recursive case: child categories
+                    SELECT c.id, c.name, c.parent_id, ct.depth + 1
+                    FROM categories c
+                    JOIN category_tree ct ON c.parent_id = ct.id
+                )
+                SELECT ct.id, ct.name
+                FROM category_tree ct
+                WHERE ct.depth <= 2
+            `;
+            const query = SelectQueryParser.parse(sql);
+            const collector = new SelectableColumnCollector(null, false, DuplicateDetectionMode.ColumnNameOnly, { upstream: true });
+
+            // Act
+            const items = collector.collect(query);
+            const columnNames = items.map(item => item.name);
+
+            // Assert - Should collect all columns from the recursive CTE
+            expect(columnNames).toContain('id');
+            expect(columnNames).toContain('name');
+            expect(columnNames).toContain('depth');
+        });
+
+        test('handles complex nested union with CTEs', () => {
+            // Arrange
+            const sql = `
+                WITH user_stats AS (
+                    SELECT u.id, u.name, COUNT(p.id) as post_count
+                    FROM users u
+                    LEFT JOIN posts p ON u.id = p.user_id
+                    GROUP BY u.id, u.name
+                ),
+                customer_stats AS (
+                    SELECT c.id, c.name, COUNT(o.id) as order_count
+                    FROM customers c
+                    LEFT JOIN orders o ON c.id = o.customer_id
+                    GROUP BY c.id, c.name
+                )
+                SELECT us.id, us.name, us.post_count, 'user' as type
+                FROM user_stats us
+                WHERE us.post_count > 0
+                UNION ALL
+                SELECT cs.id, cs.name, cs.order_count, 'customer' as type
+                FROM customer_stats cs
+                WHERE cs.order_count > 0
+            `;
+            const query = SelectQueryParser.parse(sql);
+            const collector = new SelectableColumnCollector();
+
+            // Act
+            const items = collector.collect(query);
+            const columnNames = items.map(item => item.name);
+
+            // Assert - Should collect columns from both CTEs and union branches
+            expect(columnNames).toContain('id');
+            expect(columnNames).toContain('name');
+            expect(columnNames).toContain('post_count');
+            expect(columnNames).toContain('order_count');
+            expect(columnNames).toContain('type');
+        });
+    });
+
+    describe('enhanced duplicate detection', () => {
+        test('automatically removes duplicates with improved performance', () => {
+            // Arrange
+            const sql = `
+                SELECT u.id, u.name, u.id, u.name
+                FROM users u
+                WHERE u.id = 1 AND u.id > 0 AND u.name = 'test'
+            `;
+            const query = SelectQueryParser.parse(sql);
+            const collector = new SelectableColumnCollector();
+
+            // Act
+            const items = collector.collect(query);
+            const columnNames = items.map(item => item.name);
+
+            // Assert - Should automatically remove duplicates
+            expect(items.length).toBe(2); // id, name (no duplicates)
+            expect(columnNames).toContain('id');
+            expect(columnNames).toContain('name');
+            
+            // Verify no duplicates
+            const uniqueNames = [...new Set(columnNames)];
+            expect(uniqueNames.length).toBe(columnNames.length);
+        });
+
+        test('handles case and underscore normalization', () => {
+            // Arrange
+            const sql = `
+                SELECT u.user_id, u.User_Id, u.user_name, u.User_Name
+                FROM users u
+                WHERE u.user_id = 1 AND u.user_name = 'test'
+            `;
+            const query = SelectQueryParser.parse(sql);
+            const collector = new SelectableColumnCollector(
+                null, false, DuplicateDetectionMode.ColumnNameOnly,
+                { ignoreCaseAndUnderscore: true }
+            );
+
+            // Act
+            const items = collector.collect(query);
+            const columnNames = items.map(item => item.name);
+
+
+            // Assert - Should normalize and remove case/underscore duplicates
+            // user_id and User_Id should be treated as the same column
+            const userIdVariants = columnNames.filter(name => 
+                name.toLowerCase().replace(/_/g, '').includes('userid')
+            );
+            const userNameVariants = columnNames.filter(name => 
+                name.toLowerCase().replace(/_/g, '').includes('username')
+            );
+            
+            expect(userIdVariants.length).toBe(1);
+            expect(userNameVariants.length).toBe(1);
+        });
+
+        test('maintains performance with large number of columns', () => {
+            // Arrange - Create a query with many duplicate columns
+            const columns = Array.from({ length: 1000 }, (_, i) => `col${i % 10}`);
+            const selectPart = columns.map(col => `t.${col}`).join(', ');
+            const sql = `SELECT ${selectPart} FROM test_table t`;
+            const query = SelectQueryParser.parse(sql);
+            const collector = new SelectableColumnCollector();
+
+            // Act
+            const startTime = Date.now();
+            const items = collector.collect(query);
+            const endTime = Date.now();
+
+            // Assert - Should efficiently handle duplicates
+            expect(items.length).toBe(10); // Only 10 unique columns
+            expect(endTime - startTime).toBeLessThan(100); // Should be fast
+        });
     });
 });

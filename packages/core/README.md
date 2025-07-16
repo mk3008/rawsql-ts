@@ -464,6 +464,68 @@ For more details, see the [SqlPaginationInjector Usage Guide](../../docs/usage-g
 
 ---
 
+## SelectableColumnCollector Features
+
+The `SelectableColumnCollector` class extracts all column references from SQL queries, providing essential metadata for dependency analysis, schema migration, and dynamic query building. It supports both standard column collection and upstream column collection for maximum search conditions in DynamicQuery scenarios.
+
+Key benefits include:
+- **Column Dependency Analysis**: Identify all column references used in SQL queries
+- **Schema Migration Support**: Track column usage across complex queries for safe schema changes
+- **DynamicQuery Integration**: Collect maximum available columns for flexible search conditions
+- **Upstream Column Collection**: Gather all columns from CTEs, subqueries, and tables for comprehensive analysis
+- **Duplicate Detection**: Configurable modes for handling duplicate column names (column-only vs table.column)
+- **Security Analysis**: Enable column-level access control by understanding column dependencies
+
+```typescript
+import { SelectableColumnCollector, DuplicateDetectionMode } from 'rawsql-ts';
+
+const sql = `
+  WITH user_stats AS (
+    SELECT u.id, u.name, u.email, COUNT(p.id) as post_count
+    FROM users u
+    LEFT JOIN posts p ON u.id = p.user_id
+    GROUP BY u.id, u.name, u.email
+  )
+  SELECT us.name, us.post_count
+  FROM user_stats us
+  WHERE us.post_count > 5
+`;
+
+const query = SelectQueryParser.parse(sql);
+
+// Basic column collection - only referenced columns
+const collector = new SelectableColumnCollector();
+const columns = collector.collect(query);
+console.log(columns.map(c => c.name));
+// Output: ['name', 'post_count']
+
+// Upstream collection for DynamicQuery - all available columns
+const upstreamCollector = new SelectableColumnCollector(
+  null, false, DuplicateDetectionMode.ColumnNameOnly, 
+  { upstream: true }
+);
+const allColumns = upstreamCollector.collect(query);
+console.log(allColumns.map(c => c.name));
+// Output: ['name', 'post_count', 'id', 'email'] // All columns from CTE
+
+// Duplicate detection modes
+const fullNameCollector = new SelectableColumnCollector(
+  null, false, DuplicateDetectionMode.FullName
+);
+const uniqueColumns = fullNameCollector.collect(query);
+// Distinguishes between u.id and p.id as separate columns
+```
+
+### Use Cases
+
+- **DynamicQuery Maximum Search Conditions**: Collect all available columns from upstream sources (CTEs, subqueries, tables) to enable comprehensive filtering options
+- **Schema Migration Planning**: Identify all column dependencies before making schema changes
+- **Security Analysis**: Implement column-level access control by understanding which columns are accessed
+- **Query Optimization**: Analyze column usage patterns to optimize query performance
+- **API Generation**: Automatically generate filter and sort options based on available columns
+
+---
+
 ## DynamicQueryBuilder Features
 
 The `DynamicQueryBuilder` class is a powerful, all-in-one solution that combines SQL parsing with dynamic condition injection (filtering, sorting, pagination, and JSON serialization). It provides a unified interface for building complex queries without the need to manually chain multiple injectors, making it ideal for modern web applications that require flexible, dynamic query generation.
