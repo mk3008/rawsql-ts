@@ -23,6 +23,7 @@ export * from './transformers/PostgresJsonQueryBuilder';
 export * from './transformers/QueryBuilder'; // old name:QueryConverter
 export * from './transformers/SelectValueCollector';
 export * from './transformers/SelectableColumnCollector';
+export { DuplicateDetectionMode } from './transformers/SelectableColumnCollector';
 export * from './transformers/TableColumnResolver';
 export * from './transformers/TableSourceCollector';
 export * from './transformers/JsonMappingConverter';
