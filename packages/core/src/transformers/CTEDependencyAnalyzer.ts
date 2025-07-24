@@ -4,25 +4,31 @@ import { CTECollector } from "./CTECollector";
 import { TableSourceCollector } from "./TableSourceCollector";
 
 /**
- * Interface representing a dependency relationship between CTEs
+ * Node type for distinguishing between CTE and main query nodes
+ */
+export type NodeType = 'CTE' | 'ROOT';
+
+/**
+ * Interface representing a dependency relationship between nodes
  */
 export interface CTEEdge {
-    from: string;  // Source CTE name
-    to: string;    // Target CTE name
+    from: string;  // Source node name (CTE name or 'MAIN_QUERY')
+    to: string;    // Target node name (CTE name or 'MAIN_QUERY')
 }
 
 /**
- * Interface representing a CTE node in the dependency graph
+ * Interface representing a node in the dependency graph (either CTE or main query)
  */
 export interface CTENode {
     name: string;
-    cte: CommonTable;
-    dependencies: string[];    // List of CTE names this CTE depends on
-    dependents: string[];      // List of CTE names that depend on this CTE
+    type: NodeType;           // 'CTE' or 'ROOT'
+    cte: CommonTable | null;  // null for ROOT nodes
+    dependencies: string[];   // List of node names this node depends on
+    dependents: string[];     // List of node names that depend on this node
 }
 
 /**
- * Interface representing the complete CTE dependency graph
+ * Interface representing the complete CTE dependency graph including main query
  */
 export interface CTEDependencyGraph {
     nodes: CTENode[];
@@ -39,6 +45,8 @@ export class CTEDependencyAnalyzer {
         NOT_ANALYZED: "Must call analyzeDependencies first",
         CIRCULAR_REFERENCE: "Circular reference detected in CTE"
     } as const;
+    
+    private static readonly MAIN_QUERY_NAME = 'MAIN_QUERY' as const;
 
     private readonly sourceCollector: TableSourceCollector;
     private readonly cteCollector: CTECollector;
@@ -58,7 +66,7 @@ export class CTEDependencyAnalyzer {
     public analyzeDependencies(query: SimpleSelectQuery): CTEDependencyGraph {
         const ctes = this.cteCollector.collect(query);
         this.buildCTEMap(ctes);
-        this.dependencyGraph = this.buildDependencyGraph(ctes);
+        this.dependencyGraph = this.buildDependencyGraph(ctes, query);
         return this.dependencyGraph;
     }
 
@@ -82,6 +90,35 @@ export class CTEDependencyAnalyzer {
         this.ensureAnalyzed();
         const node = this.findNodeByName(cteName);
         return node ? [...node.dependents] : [];
+    }
+
+    /**
+     * Gets the list of CTEs that are directly referenced by the main query
+     * @returns Array of CTE names referenced by the main query
+     */
+    public getMainQueryDependencies(): string[] {
+        this.ensureAnalyzed();
+        const mainQueryNode = this.findNodeByName(CTEDependencyAnalyzer.MAIN_QUERY_NAME);
+        return mainQueryNode ? [...mainQueryNode.dependencies] : [];
+    }
+
+    /**
+     * Gets nodes by type (CTE or ROOT)
+     * @param nodeType The type of nodes to retrieve
+     * @returns Array of nodes of the specified type
+     */
+    public getNodesByType(nodeType: NodeType): CTENode[] {
+        this.ensureAnalyzed();
+        return this.dependencyGraph!.nodes.filter(n => n.type === nodeType);
+    }
+
+    /**
+     * Gets the main query node
+     * @returns The main query node or undefined if not found
+     */
+    public getMainQueryNode(): CTENode | undefined {
+        this.ensureAnalyzed();
+        return this.findNodeByName(CTEDependencyAnalyzer.MAIN_QUERY_NAME);
     }
 
     /**
@@ -148,22 +185,25 @@ export class CTEDependencyAnalyzer {
     }
 
     /**
-     * Builds the dependency graph from the given CTEs
+     * Builds the dependency graph from the given CTEs and main query
      * @param ctes Array of CommonTable objects
+     * @param mainQuery The main query that may reference CTEs
      * @returns The constructed dependency graph
      */
-    private buildDependencyGraph(ctes: CommonTable[]): CTEDependencyGraph {
+    private buildDependencyGraph(ctes: CommonTable[], mainQuery: SimpleSelectQuery): CTEDependencyGraph {
         const nodes: CTENode[] = [];
         const edges: CTEEdge[] = [];
         const dependencyMap = new Map<string, Set<string>>();
         const dependentMap = new Map<string, Set<string>>();
 
-        // Initialize maps for all CTEs
+        // Initialize maps for all CTEs and main query
         for (const cte of ctes) {
             const name = CTEDependencyAnalyzer.getCTEName(cte);
             dependencyMap.set(name, new Set<string>());
             dependentMap.set(name, new Set<string>());
         }
+        dependencyMap.set(CTEDependencyAnalyzer.MAIN_QUERY_NAME, new Set<string>());
+        dependentMap.set(CTEDependencyAnalyzer.MAIN_QUERY_NAME, new Set<string>());
 
         // Analyze dependencies for each CTE
         for (const cte of ctes) {
@@ -188,16 +228,47 @@ export class CTEDependencyAnalyzer {
             }
         }
 
-        // Create nodes with dependency and dependent information
+        // Analyze main query references to CTEs (excluding WITH clause)
+        const mainQueryWithoutCTE = this.getMainQueryWithoutCTE(mainQuery);
+        if (mainQueryWithoutCTE) {
+            const mainQueryReferences = this.sourceCollector.collect(mainQueryWithoutCTE);
+            
+            for (const referencedTable of mainQueryReferences) {
+                const referencedName = referencedTable.table.name;
+                
+                // If main query references a CTE, create dependency edge
+                if (this.cteMap.has(referencedName)) {
+                    dependencyMap.get(CTEDependencyAnalyzer.MAIN_QUERY_NAME)!.add(referencedName);
+                    dependentMap.get(referencedName)!.add(CTEDependencyAnalyzer.MAIN_QUERY_NAME);
+                    
+                    edges.push({
+                        from: CTEDependencyAnalyzer.MAIN_QUERY_NAME,
+                        to: referencedName
+                    });
+                }
+            }
+        }
+
+        // Create CTE nodes
         for (const cte of ctes) {
             const name = CTEDependencyAnalyzer.getCTEName(cte);
             nodes.push({
                 name,
+                type: 'CTE',
                 cte,
                 dependencies: Array.from(dependencyMap.get(name) || new Set()),
                 dependents: Array.from(dependentMap.get(name) || new Set())
             });
         }
+
+        // Create main query node
+        nodes.push({
+            name: CTEDependencyAnalyzer.MAIN_QUERY_NAME,
+            type: 'ROOT',
+            cte: null,
+            dependencies: Array.from(dependencyMap.get(CTEDependencyAnalyzer.MAIN_QUERY_NAME) || new Set()),
+            dependents: Array.from(dependentMap.get(CTEDependencyAnalyzer.MAIN_QUERY_NAME) || new Set())
+        });
 
         return { nodes, edges };
     }
@@ -231,6 +302,36 @@ export class CTEDependencyAnalyzer {
      */
     private findNodeByName(cteName: string): CTENode | undefined {
         return this.dependencyGraph?.nodes.find(n => n.name === cteName);
+    }
+
+    /**
+     * Gets the main query without the WITH clause for analyzing main query dependencies
+     * @param query The complete query with WITH clause
+     * @returns A query without WITH clause, or null if no main query exists
+     */
+    private getMainQueryWithoutCTE(query: SimpleSelectQuery): SimpleSelectQuery | null {
+        if (!query.withClause) {
+            // No WITH clause, return the query as-is
+            return query;
+        }
+
+        // Create a copy of the query without the WITH clause
+        const mainQueryCopy = new SimpleSelectQuery({
+            selectClause: query.selectClause,
+            fromClause: query.fromClause,
+            whereClause: query.whereClause,
+            groupByClause: query.groupByClause,
+            havingClause: query.havingClause,
+            orderByClause: query.orderByClause,
+            limitClause: query.limitClause,
+            offsetClause: query.offsetClause,
+            fetchClause: query.fetchClause,
+            forClause: query.forClause,
+            windowClause: query.windowClause,
+            // Intentionally skip withClause (defaults to null)
+        });
+        
+        return mainQueryCopy;
     }
 
     /**

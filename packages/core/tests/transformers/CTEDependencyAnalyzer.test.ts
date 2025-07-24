@@ -64,24 +64,25 @@ describe('CTEDependencyAnalyzer', () => {
         const query = parsedQuery as SimpleSelectQuery;
         const graph = analyzer.analyzeDependencies(query);
 
-        // Validate the complete structure
-        expect(graph.nodes).toHaveLength(3);
-        expect(graph.edges).toHaveLength(2);
+        // Validate the complete structure (filter out MAIN_QUERY node)
+        const cteNodes = analyzer.getNodesByType('CTE');
+        expect(cteNodes).toHaveLength(3);
+        expect(graph.edges.filter(e => e.from !== 'MAIN_QUERY' && e.to !== 'MAIN_QUERY')).toHaveLength(2);
 
         // Validate each CTE's SQL definition
-        const userOrdersCTE = graph.nodes.find(n => n.name === 'user_orders');
+        const userOrdersCTE = cteNodes.find(n => n.name === 'user_orders');
         expect(userOrdersCTE).toBeDefined();
         const userOrdersSQL = formatter.format(userOrdersCTE!.cte.query);
         const expectedUserOrdersSQL = 'select "user_id", count(*) as "order_count" from "orders" group by "user_id"';
         validateCompleteSQL(userOrdersSQL, expectedUserOrdersSQL);
 
-        const activeUsersCTE = graph.nodes.find(n => n.name === 'active_users');
+        const activeUsersCTE = cteNodes.find(n => n.name === 'active_users');
         expect(activeUsersCTE).toBeDefined();
         const activeUsersSQL = formatter.format(activeUsersCTE!.cte.query);
         const expectedActiveUsersSQL = 'select * from "users" where "active" = true';
         validateCompleteSQL(activeUsersSQL, expectedActiveUsersSQL);
 
-        const summaryCTE = graph.nodes.find(n => n.name === 'summary');
+        const summaryCTE = cteNodes.find(n => n.name === 'summary');
         expect(summaryCTE).toBeDefined();
         const summarySQL = formatter.format(summaryCTE!.cte.query);
         const expectedSummarySQL = 'select "au".*, "uo"."order_count" from "active_users" as "au" left join "user_orders" as "uo" on "au"."id" = "uo"."user_id"';
@@ -96,7 +97,7 @@ describe('CTEDependencyAnalyzer', () => {
         // Validate dependents with exact arrays
         expect(analyzer.getDependents('user_orders')).toEqual(['summary']);
         expect(analyzer.getDependents('active_users')).toEqual(['summary']);
-        expect(analyzer.getDependents('summary')).toEqual([]);
+        expect(analyzer.getDependents('summary')).toEqual(['MAIN_QUERY']);
     });
 
     test('should generate correct execution order with deterministic results', () => {
@@ -123,13 +124,16 @@ describe('CTEDependencyAnalyzer', () => {
         
         const executionOrder = analyzer.getExecutionOrder();
         
+        // Filter out MAIN_QUERY from execution order
+        const cteExecutionOrder = executionOrder.filter(name => name !== 'MAIN_QUERY');
+        
         // Validate exact execution order
-        expect(executionOrder).toHaveLength(3);
+        expect(cteExecutionOrder).toHaveLength(3);
         
         // user_orders and active_users should come before summary (exact position validation)
-        const summaryIndex = executionOrder.indexOf('summary');
-        const userOrdersIndex = executionOrder.indexOf('user_orders');
-        const activeUsersIndex = executionOrder.indexOf('active_users');
+        const summaryIndex = cteExecutionOrder.indexOf('summary');
+        const userOrdersIndex = cteExecutionOrder.indexOf('user_orders');
+        const activeUsersIndex = cteExecutionOrder.indexOf('active_users');
         
         expect(summaryIndex).toBe(2); // summary should be last
         expect(userOrdersIndex).toBeLessThan(summaryIndex);
@@ -141,7 +145,7 @@ describe('CTEDependencyAnalyzer', () => {
             ['active_users', 'user_orders', 'summary']
         ];
         expect(possibleOrders.some(order => 
-            JSON.stringify(order) === JSON.stringify(executionOrder)
+            JSON.stringify(order) === JSON.stringify(cteExecutionOrder)
         )).toBe(true);
     });
 
@@ -165,23 +169,24 @@ describe('CTEDependencyAnalyzer', () => {
         const query = parsedQuery as SimpleSelectQuery;
         const graph = analyzer.analyzeDependencies(query);
 
-        expect(graph.nodes).toHaveLength(3);
-        expect(graph.edges).toHaveLength(2);
+        const cteNodes = analyzer.getNodesByType('CTE');
+        expect(cteNodes).toHaveLength(3);
+        expect(graph.edges.filter(e => e.from !== 'MAIN_QUERY' && e.to !== 'MAIN_QUERY')).toHaveLength(2);
 
         // Validate each CTE's SQL definition in the chain
-        const baseDataCTE = graph.nodes.find(n => n.name === 'base_data');
+        const baseDataCTE = cteNodes.find(n => n.name === 'base_data');
         expect(baseDataCTE).toBeDefined();
         const baseDataSQL = formatter.format(baseDataCTE!.cte.query);
         const expectedBaseDataSQL = 'select * from "raw_table"';
         validateCompleteSQL(baseDataSQL, expectedBaseDataSQL);
 
-        const processedDataCTE = graph.nodes.find(n => n.name === 'processed_data');
+        const processedDataCTE = cteNodes.find(n => n.name === 'processed_data');
         expect(processedDataCTE).toBeDefined();
         const processedDataSQL = formatter.format(processedDataCTE!.cte.query);
         const expectedProcessedDataSQL = 'select "id", "value" * 2 as "doubled_value" from "base_data"';
         validateCompleteSQL(processedDataSQL, expectedProcessedDataSQL);
 
-        const finalResultCTE = graph.nodes.find(n => n.name === 'final_result');
+        const finalResultCTE = cteNodes.find(n => n.name === 'final_result');
         expect(finalResultCTE).toBeDefined();
         const finalResultSQL = formatter.format(finalResultCTE!.cte.query);
         const expectedFinalResultSQL = 'select "id", "doubled_value", "doubled_value" + 10 as "final_value" from "processed_data"';
@@ -194,7 +199,8 @@ describe('CTEDependencyAnalyzer', () => {
 
         // Validate exact execution order
         const executionOrder = analyzer.getExecutionOrder();
-        expect(executionOrder).toEqual(['base_data', 'processed_data', 'final_result']);
+        const cteExecutionOrder = executionOrder.filter(name => name !== 'MAIN_QUERY');
+        expect(cteExecutionOrder).toEqual(['base_data', 'processed_data', 'final_result']);
     });
 
     test('should detect circular dependencies with complete validation', () => {
@@ -213,17 +219,18 @@ describe('CTEDependencyAnalyzer', () => {
         const graph = analyzer.analyzeDependencies(query);
 
         // Validate the circular dependency structure
-        expect(graph.nodes).toHaveLength(2);
-        expect(graph.edges).toHaveLength(2);
+        const cteNodes = analyzer.getNodesByType('CTE');
+        expect(cteNodes).toHaveLength(2);
+        expect(graph.edges.filter(e => e.from !== 'MAIN_QUERY' && e.to !== 'MAIN_QUERY')).toHaveLength(2);
 
         // Validate each CTE's SQL definition
-        const cteACTE = graph.nodes.find(n => n.name === 'cte_a');
+        const cteACTE = cteNodes.find(n => n.name === 'cte_a');
         expect(cteACTE).toBeDefined();
         const cteASQL = formatter.format(cteACTE!.cte.query);
         const expectedCteASQL = 'select * from "cte_b"';
         validateCompleteSQL(cteASQL, expectedCteASQL);
 
-        const cteBCTE = graph.nodes.find(n => n.name === 'cte_b');
+        const cteBCTE = cteNodes.find(n => n.name === 'cte_b');
         expect(cteBCTE).toBeDefined();
         const cteBSQL = formatter.format(cteBCTE!.cte.query);
         const expectedCteBSQL = 'select * from "cte_a"';
@@ -232,7 +239,7 @@ describe('CTEDependencyAnalyzer', () => {
         // Validate circular dependencies
         expect(analyzer.getDependencies('cte_a')).toEqual(['cte_b']);
         expect(analyzer.getDependencies('cte_b')).toEqual(['cte_a']);
-        expect(analyzer.getDependents('cte_a')).toEqual(['cte_b']);
+        expect(analyzer.getDependents('cte_a').sort()).toEqual(['MAIN_QUERY', 'cte_b']);
         expect(analyzer.getDependents('cte_b')).toEqual(['cte_a']);
 
         expect(analyzer.hasCircularDependency()).toBe(true);
@@ -262,25 +269,26 @@ describe('CTEDependencyAnalyzer', () => {
         const query = parsedQuery as SimpleSelectQuery;
         const graph = analyzer.analyzeDependencies(query);
 
-        expect(graph.nodes).toHaveLength(4);
+        const cteNodes = analyzer.getNodesByType('CTE');
+        expect(cteNodes).toHaveLength(4);
         
         // Validate each CTE's SQL definition
-        const cteACTE = graph.nodes.find(n => n.name === 'cte_a');
+        const cteACTE = cteNodes.find(n => n.name === 'cte_a');
         const cteASQL = formatter.format(cteACTE!.cte.query);
         const expectedCteASQL = 'select * from "base_table"';
         validateCompleteSQL(cteASQL, expectedCteASQL);
 
-        const cteBCTE = graph.nodes.find(n => n.name === 'cte_b');
+        const cteBCTE = cteNodes.find(n => n.name === 'cte_b');
         const cteBSQL = formatter.format(cteBCTE!.cte.query);
         const expectedCteBSQL = 'select * from "cte_a"';
         validateCompleteSQL(cteBSQL, expectedCteBSQL);
 
-        const cteCCTE = graph.nodes.find(n => n.name === 'cte_c');
+        const cteCCTE = cteNodes.find(n => n.name === 'cte_c');
         const cteCSQL = formatter.format(cteCCTE!.cte.query);
         const expectedCteCSQL = 'select * from "cte_b"';
         validateCompleteSQL(cteCSQL, expectedCteCSQL);
 
-        const cteDCTE = graph.nodes.find(n => n.name === 'cte_d');
+        const cteDCTE = cteNodes.find(n => n.name === 'cte_d');
         const cteDSQL = formatter.format(cteDCTE!.cte.query);
         const expectedCteDSQL = 'select * from "cte_c" union all select * from "cte_b"';
         validateCompleteSQL(cteDSQL, expectedCteDSQL);
@@ -318,7 +326,8 @@ describe('CTEDependencyAnalyzer', () => {
         const query = parsedQuery as SimpleSelectQuery;
         const graph = analyzer.analyzeDependencies(query);
 
-        expect(graph.nodes).toHaveLength(4);
+        const cteNodes = analyzer.getNodesByType('CTE');
+        expect(cteNodes).toHaveLength(4);
         
         // Validate dependencies that create the actual cycle
         expect(analyzer.getDependencies('cte_a')).toEqual([]);
@@ -347,21 +356,22 @@ describe('CTEDependencyAnalyzer', () => {
         const query = parsedQuery as SimpleSelectQuery;
         const graph = analyzer.analyzeDependencies(query);
 
-        expect(graph.nodes).toHaveLength(3);
-        expect(graph.edges).toHaveLength(2);
+        const cteNodes = analyzer.getNodesByType('CTE');
+        expect(cteNodes).toHaveLength(3);
+        expect(graph.edges.filter(e => e.from !== 'MAIN_QUERY' && e.to !== 'MAIN_QUERY')).toHaveLength(2);
 
         // Validate each CTE's SQL definition
-        const cteACTE = graph.nodes.find(n => n.name === 'cte_a');
+        const cteACTE = cteNodes.find(n => n.name === 'cte_a');
         const cteASQL = formatter.format(cteACTE!.cte.query);
         const expectedCteASQL = 'select * from "base_table"';
         validateCompleteSQL(cteASQL, expectedCteASQL);
 
-        const cteBCTE = graph.nodes.find(n => n.name === 'cte_b');
+        const cteBCTE = cteNodes.find(n => n.name === 'cte_b');
         const cteBSQL = formatter.format(cteBCTE!.cte.query);
         const expectedCteBSQL = 'select * from "cte_a"';
         validateCompleteSQL(cteBSQL, expectedCteBSQL);
 
-        const cteCCTE = graph.nodes.find(n => n.name === 'cte_c');
+        const cteCCTE = cteNodes.find(n => n.name === 'cte_c');
         const cteCSQL = formatter.format(cteCCTE!.cte.query);
         const expectedCteCSQL = 'select * from "cte_a"';
         validateCompleteSQL(cteCSQL, expectedCteCSQL);
@@ -373,17 +383,18 @@ describe('CTEDependencyAnalyzer', () => {
         
         // Validate dependents
         expect(analyzer.getDependents('cte_a').sort()).toEqual(['cte_b', 'cte_c']);
-        expect(analyzer.getDependents('cte_b')).toEqual([]);
-        expect(analyzer.getDependents('cte_c')).toEqual([]);
+        expect(analyzer.getDependents('cte_b')).toEqual(['MAIN_QUERY']);
+        expect(analyzer.getDependents('cte_c')).toEqual(['MAIN_QUERY']);
 
         expect(analyzer.hasCircularDependency()).toBe(false);
         
         const executionOrder = analyzer.getExecutionOrder();
-        expect(executionOrder).toHaveLength(3);
+        const cteExecutionOrder = executionOrder.filter(name => name !== 'MAIN_QUERY');
+        expect(cteExecutionOrder).toHaveLength(3);
         
-        const cteAIndex = executionOrder.indexOf('cte_a');
-        const cteBIndex = executionOrder.indexOf('cte_b');
-        const cteCIndex = executionOrder.indexOf('cte_c');
+        const cteAIndex = cteExecutionOrder.indexOf('cte_a');
+        const cteBIndex = cteExecutionOrder.indexOf('cte_b');
+        const cteCIndex = cteExecutionOrder.indexOf('cte_c');
         
         // cte_a should come before both cte_b and cte_c
         expect(cteAIndex).toBe(0); // cte_a should be first
@@ -404,9 +415,11 @@ describe('CTEDependencyAnalyzer', () => {
         
         const graph = analyzer.analyzeDependencies(query);
 
-        expect(graph.nodes).toHaveLength(0);
+        const cteNodes = analyzer.getNodesByType('CTE');
+        expect(cteNodes).toHaveLength(0);
         expect(graph.edges).toHaveLength(0);
-        expect(analyzer.getExecutionOrder()).toHaveLength(0);
+        const cteExecutionOrder = analyzer.getExecutionOrder().filter(name => name !== 'MAIN_QUERY');
+        expect(cteExecutionOrder).toHaveLength(0);
         expect(analyzer.hasCircularDependency()).toBe(false);
     });
 
@@ -422,19 +435,21 @@ describe('CTEDependencyAnalyzer', () => {
         const query = parsedQuery as SimpleSelectQuery;
         const graph = analyzer.analyzeDependencies(query);
 
-        expect(graph.nodes).toHaveLength(1);
-        expect(graph.edges).toHaveLength(0);
+        const cteNodes = analyzer.getNodesByType('CTE');
+        expect(cteNodes).toHaveLength(1);
+        expect(graph.edges.filter(e => e.from !== 'MAIN_QUERY' && e.to !== 'MAIN_QUERY')).toHaveLength(0);
         
         // Validate the CTE's SQL definition
-        const singleCTE = graph.nodes.find(n => n.name === 'single_cte');
+        const singleCTE = cteNodes.find(n => n.name === 'single_cte');
         expect(singleCTE).toBeDefined();
         const singleCTESQL = formatter.format(singleCTE!.cte.query);
         const expectedSingleCTESQL = 'select * from "base_table"';
         validateCompleteSQL(singleCTESQL, expectedSingleCTESQL);
         
         expect(analyzer.getDependencies('single_cte')).toEqual([]);
-        expect(analyzer.getDependents('single_cte')).toEqual([]);
-        expect(analyzer.getExecutionOrder()).toEqual(['single_cte']);
+        expect(analyzer.getDependents('single_cte')).toEqual(['MAIN_QUERY']);
+        const cteExecutionOrder = analyzer.getExecutionOrder().filter(name => name !== 'MAIN_QUERY');
+        expect(cteExecutionOrder).toEqual(['single_cte']);
         expect(analyzer.hasCircularDependency()).toBe(false);
     });
 
@@ -489,30 +504,31 @@ describe('CTEDependencyAnalyzer', () => {
         const query = parsedQuery as SimpleSelectQuery;
         const graph = analyzer.analyzeDependencies(query);
 
-        expect(graph.nodes).toHaveLength(5);
+        const cteNodes = analyzer.getNodesByType('CTE');
+        expect(cteNodes).toHaveLength(5);
 
         // Validate each CTE's SQL definition
-        const level1aCTE = graph.nodes.find(n => n.name === 'level1_a');
+        const level1aCTE = cteNodes.find(n => n.name === 'level1_a');
         const level1aSQL = formatter.format(level1aCTE!.cte.query);
         const expectedLevel1aSQL = 'select * from "raw_data_a"';
         validateCompleteSQL(level1aSQL, expectedLevel1aSQL);
 
-        const level1bCTE = graph.nodes.find(n => n.name === 'level1_b');
+        const level1bCTE = cteNodes.find(n => n.name === 'level1_b');
         const level1bSQL = formatter.format(level1bCTE!.cte.query);
         const expectedLevel1bSQL = 'select * from "raw_data_b"';
         validateCompleteSQL(level1bSQL, expectedLevel1bSQL);
 
-        const level2aCTE = graph.nodes.find(n => n.name === 'level2_a');
+        const level2aCTE = cteNodes.find(n => n.name === 'level2_a');
         const level2aSQL = formatter.format(level2aCTE!.cte.query);
         const expectedLevel2aSQL = 'select * from "level1_a" union all select * from "level1_b"';
         validateCompleteSQL(level2aSQL, expectedLevel2aSQL);
 
-        const level2bCTE = graph.nodes.find(n => n.name === 'level2_b');
+        const level2bCTE = cteNodes.find(n => n.name === 'level2_b');
         const level2bSQL = formatter.format(level2bCTE!.cte.query);
         const expectedLevel2bSQL = 'select * from "level1_a"';
         validateCompleteSQL(level2bSQL, expectedLevel2bSQL);
 
-        const level3CTE = graph.nodes.find(n => n.name === 'level3');
+        const level3CTE = cteNodes.find(n => n.name === 'level3');
         const level3SQL = formatter.format(level3CTE!.cte.query);
         const expectedLevel3SQL = 'select "la".*, "lb"."extra_col" from "level2_a" as "la" join "level2_b" as "lb" on "la"."id" = "lb"."id"';
         validateCompleteSQL(level3SQL, expectedLevel3SQL);
@@ -526,13 +542,14 @@ describe('CTEDependencyAnalyzer', () => {
 
         // Validate execution order preserves dependencies
         const executionOrder = analyzer.getExecutionOrder();
-        expect(executionOrder).toHaveLength(5);
+        const cteExecutionOrder = executionOrder.filter(name => name !== 'MAIN_QUERY');
+        expect(cteExecutionOrder).toHaveLength(5);
         
-        const level1aIndex = executionOrder.indexOf('level1_a');
-        const level1bIndex = executionOrder.indexOf('level1_b');
-        const level2aIndex = executionOrder.indexOf('level2_a');
-        const level2bIndex = executionOrder.indexOf('level2_b');
-        const level3Index = executionOrder.indexOf('level3');
+        const level1aIndex = cteExecutionOrder.indexOf('level1_a');
+        const level1bIndex = cteExecutionOrder.indexOf('level1_b');
+        const level2aIndex = cteExecutionOrder.indexOf('level2_a');
+        const level2bIndex = cteExecutionOrder.indexOf('level2_b');
+        const level3Index = cteExecutionOrder.indexOf('level3');
 
         // Level 1 CTEs should come before level 2
         expect(level1aIndex).toBeLessThan(level2aIndex);

@@ -214,6 +214,11 @@ export class CTEQueryDecomposer {
         const result: DecomposedCTE[] = [];
 
         for (const node of nodes) {
+            // Skip ROOT nodes (main query) as they are not CTEs
+            if (node.type === 'ROOT') {
+                continue;
+            }
+            
             const isRecursive = recursiveCTEs.includes(node.name);
             
             if (isRecursive) {
@@ -231,13 +236,17 @@ export class CTEQueryDecomposer {
      */
     private createRecursiveCTE(node: CTENode, query: SimpleSelectQuery): DecomposedCTE {
         const formattedQuery = this.formatter.format(query).formattedSql;
-        const finalQuery = this.addCommentsToQuery(formattedQuery, node.name, [], [], true);
+        
+        // Filter out MAIN_QUERY from dependents for DecomposedCTE result
+        const cteDependents = node.dependents.filter(dep => dep !== 'MAIN_QUERY');
+        
+        const finalQuery = this.addCommentsToQuery(formattedQuery, node.name, node.dependencies, node.dependents, true);
         
         return {
             name: node.name,
             query: finalQuery,
-            dependencies: [],
-            dependents: [],
+            dependencies: [...node.dependencies],
+            dependents: cteDependents,
             isRecursive: true
         };
     }
@@ -249,11 +258,14 @@ export class CTEQueryDecomposer {
         const query = this.buildExecutableQuery(node, allNodes);
         const finalQuery = this.addCommentsToQuery(query, node.name, node.dependencies, node.dependents, false);
         
+        // Filter out MAIN_QUERY from dependents for DecomposedCTE result
+        const cteDependents = node.dependents.filter(dep => dep !== 'MAIN_QUERY');
+        
         return {
             name: node.name,
             query: finalQuery,
             dependencies: [...node.dependencies],
-            dependents: [...node.dependents],
+            dependents: cteDependents,
             isRecursive: false
         };
     }
@@ -262,6 +274,11 @@ export class CTEQueryDecomposer {
      * Builds an executable query for a CTE by including its dependencies
      */
     private buildExecutableQuery(targetNode: CTENode, allNodes: CTENode[]): string {
+        // ROOT nodes don't have a cte property
+        if (targetNode.type === 'ROOT' || !targetNode.cte) {
+            throw new Error(`Cannot build executable query for ROOT node: ${targetNode.name}`);
+        }
+        
         const requiredCTEs = this.collectRequiredCTEs(targetNode, allNodes);
         
         if (requiredCTEs.length === 0) {
@@ -302,7 +319,8 @@ export class CTEQueryDecomposer {
             }
 
             // Then add this node (ensuring dependencies come first)
-            if (nodeName !== targetNode.name) {
+            // Skip ROOT nodes and the target node itself
+            if (nodeName !== targetNode.name && node.type !== 'ROOT') {
                 result.push(node);
             }
         };
@@ -322,6 +340,10 @@ export class CTEQueryDecomposer {
         if (requiredCTEs.length === 0) return "";
 
         const cteDefinitions = requiredCTEs.map(node => {
+            // Skip ROOT nodes as they don't have CTE definitions
+            if (node.type === 'ROOT' || !node.cte) {
+                throw new Error(`Cannot include ROOT node in WITH clause: ${node.name}`);
+            }
             const cteName = node.name;
             const cteQuery = this.formatter.format(node.cte.query).formattedSql;
             return `${cteName} as (${cteQuery})`;
@@ -429,7 +451,9 @@ export class CTEQueryDecomposer {
         const depsText = dependencies.length > 0 ? dependencies.join(", ") : NONE;
         comments.push(`${DEPENDENCIES} ${depsText}`);
         
-        const dependentsText = dependents.length > 0 ? dependents.join(", ") : NONE;
+        // Filter out MAIN_QUERY from dependents for display purposes
+        const cteDependents = dependents.filter(dep => dep !== 'MAIN_QUERY');
+        const dependentsText = cteDependents.length > 0 ? cteDependents.join(", ") : NONE;
         comments.push(`${DEPENDENTS} ${dependentsText}`);
         
         return comments;
