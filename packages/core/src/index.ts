@@ -1,5 +1,6 @@
 // Entry point for rawsql-ts package
 export * from './parsers/SelectQueryParser';
+export { ParseAnalysisResult } from './parsers/SelectQueryParser';
 export * from './parsers/InsertQueryParser';
 export * from './parsers/WithClauseParser';
 
