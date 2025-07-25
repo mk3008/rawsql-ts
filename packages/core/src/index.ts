@@ -52,6 +52,7 @@ export * from './transformers/UpstreamSelectQueryFinder';
 export * from './transformers/TypeTransformationPostProcessor';
 
 export * from './transformers/SchemaCollector';
+export { TableSchema, SchemaAnalysisResult } from './transformers/SchemaCollector';
 export * from './transformers/QueryFlowDiagramGenerator';
 export * from './transformers/SqlParamInjector';
 export * from './transformers/SqlSortInjector';
