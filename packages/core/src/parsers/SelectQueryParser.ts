@@ -15,6 +15,14 @@ import { ValuesQueryParser } from "./ValuesQueryParser";
 import { FetchClauseParser } from "./FetchClauseParser";
 import { OffsetClauseParser } from "./OffsetClauseParser";
 
+export interface ParseAnalysisResult {
+    success: boolean;
+    query?: SelectQuery;
+    error?: string;
+    errorPosition?: number; // Character position in source text
+    remainingTokens?: string[];
+}
+
 export class SelectQueryParser {
     // Parse SQL string to AST (was: parse)
     public static parse(query: string): SelectQuery {
@@ -30,6 +38,94 @@ export class SelectQueryParser {
         }
 
         return result.value;
+    }
+
+    /**
+     * Analyzes SQL string for parsing without throwing errors.
+     * Returns a result object containing the parsed query on success,
+     * or error information if parsing fails.
+     *
+     * @param query SQL string to analyze
+     * @returns Analysis result containing query, error information, and success status
+     */
+    /**
+     * Calculate character position from token index by finding token in original query
+     */
+    private static calculateCharacterPosition(query: string, lexemes: Lexeme[], tokenIndex: number): number {
+        if (tokenIndex >= lexemes.length) {
+            return query.length;
+        }
+        
+        // If lexeme has position information, use it
+        const lexeme = lexemes[tokenIndex];
+        if (lexeme.position?.startPosition !== undefined) {
+            return lexeme.position.startPosition;
+        }
+        
+        // Fallback: search for token in original query
+        // Build search pattern from tokens up to the target
+        let searchStart = 0;
+        for (let i = 0; i < tokenIndex; i++) {
+            const tokenValue = lexemes[i].value;
+            const tokenPos = query.indexOf(tokenValue, searchStart);
+            if (tokenPos !== -1) {
+                searchStart = tokenPos + tokenValue.length;
+            }
+        }
+        
+        const targetToken = lexemes[tokenIndex].value;
+        const tokenPos = query.indexOf(targetToken, searchStart);
+        return tokenPos !== -1 ? tokenPos : searchStart;
+    }
+
+    public static analyze(query: string): ParseAnalysisResult {
+        let lexemes: Lexeme[] = [];
+        
+        try {
+            const tokenizer = new SqlTokenizer(query);
+            lexemes = tokenizer.readLexmes();
+
+            // Parse
+            const result = this.parseFromLexeme(lexemes, 0);
+
+            // Check for remaining tokens
+            if (result.newIndex < lexemes.length) {
+                const remainingTokens = lexemes.slice(result.newIndex).map(lex => lex.value);
+                const errorLexeme = lexemes[result.newIndex];
+                const errorPosition = this.calculateCharacterPosition(query, lexemes, result.newIndex);
+                
+                return {
+                    success: false,
+                    query: result.value,
+                    error: `Syntax error: Unexpected token "${errorLexeme.value}" at character position ${errorPosition}. The SELECT query is complete but there are additional tokens.`,
+                    errorPosition: errorPosition,
+                    remainingTokens: remainingTokens
+                };
+            }
+
+            return {
+                success: true,
+                query: result.value
+            };
+        } catch (error) {
+            // Extract position information from error message if available
+            let errorPosition: number | undefined;
+            
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            
+            // Try to extract token index from error message and convert to character position
+            const positionMatch = errorMessage.match(/position (\d+)/);
+            if (positionMatch) {
+                const tokenIndex = parseInt(positionMatch[1], 10);
+                errorPosition = this.calculateCharacterPosition(query, lexemes, tokenIndex);
+            }
+
+            return {
+                success: false,
+                error: errorMessage,
+                errorPosition: errorPosition
+            };
+        }
     }
 
     /**

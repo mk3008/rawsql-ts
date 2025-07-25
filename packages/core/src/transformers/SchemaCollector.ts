@@ -19,6 +19,13 @@ export class TableSchema {
     }
 }
 
+export interface SchemaAnalysisResult {
+    success: boolean;
+    schemas: TableSchema[];
+    unresolvedColumns: string[];
+    error?: string;
+}
+
 /**
  * A visitor that collects schema information (table names and column names) from a SQL query structure.
  */
@@ -29,6 +36,11 @@ export class SchemaCollector implements SqlComponentVisitor<void> {
     private visitedNodes: Set<SqlComponent> = new Set();
     private commonTables: CommonTable[] = [];
     private running = false;
+    
+    // For analyze method
+    private unresolvedColumns: string[] = [];
+    private analysisError: string | undefined = undefined;
+    private isAnalyzeMode = false;
 
     constructor(
         private tableColumnResolver: TableColumnResolver | null = null,
@@ -51,6 +63,34 @@ export class SchemaCollector implements SqlComponentVisitor<void> {
     public collect(arg: SqlComponent): TableSchema[] {
         this.visit(arg);
         return this.tableSchemas;
+    }
+
+    /**
+     * Analyzes schema information from a SQL query structure without throwing errors.
+     * Returns a result object containing successfully resolved schemas, unresolved columns,
+     * and error information if any issues were encountered.
+     *
+     * @param arg The SQL query structure to analyze.
+     * @returns Analysis result containing schemas, unresolved columns, and success status.
+     */
+    public analyze(arg: SqlComponent): SchemaAnalysisResult {
+        // Set analyze mode flag
+        this.isAnalyzeMode = true;
+        
+        try {
+            this.visit(arg);
+            
+            // If we got here without errors, it's a success
+            return {
+                success: this.unresolvedColumns.length === 0 && !this.analysisError,
+                schemas: this.tableSchemas,
+                unresolvedColumns: this.unresolvedColumns,
+                error: this.analysisError
+            };
+        } finally {
+            // Reset analyze mode flag
+            this.isAnalyzeMode = false;
+        }
     }
 
     /**
@@ -122,6 +162,8 @@ export class SchemaCollector implements SqlComponentVisitor<void> {
         this.tableSchemas = [];
         this.visitedNodes = new Set();
         this.commonTables = [];
+        this.unresolvedColumns = [];
+        this.analysisError = undefined;
     }
 
     /**
@@ -235,11 +277,18 @@ export class SchemaCollector implements SqlComponentVisitor<void> {
                 }));
         }
 
-        // Throw an error if there are columns without table names in queries with joins
+        // Handle columns without table names in queries with joins
         if (query.fromClause.joins !== null && query.fromClause.joins.length > 0) {
             const columnsWithoutTable = queryColumns.filter((columnRef) => columnRef.table === "").map((columnRef) => columnRef.column);
             if (columnsWithoutTable.length > 0) {
-                throw new Error(`Column reference(s) without table name found in query: ${columnsWithoutTable.join(', ')}`);
+                if (this.isAnalyzeMode) {
+                    // In analyze mode, collect unresolved columns
+                    this.unresolvedColumns.push(...columnsWithoutTable);
+                    this.analysisError = `Column reference(s) without table name found in query: ${columnsWithoutTable.join(', ')}`;
+                } else {
+                    // In collect mode, throw error as before
+                    throw new Error(`Column reference(s) without table name found in query: ${columnsWithoutTable.join(', ')}`);
+                }
             }
         }
 
@@ -296,12 +345,25 @@ export class SchemaCollector implements SqlComponentVisitor<void> {
                 .filter((columnRef) => columnRef.column === "*")
                 .length > 0;
             
-            // Throw error if wildcard is found and allowWildcardWithoutResolver is false (default behavior)
+            // Handle error if wildcard is found and allowWildcardWithoutResolver is false (default behavior)
             if (hasWildcard && !this.allowWildcardWithoutResolver) {
                 const errorMessage = tableName
                     ? `Wildcard (*) is used. A TableColumnResolver is required to resolve wildcards. Target table: ${tableName}`
                     : "Wildcard (*) is used. A TableColumnResolver is required to resolve wildcards.";
-                throw new Error(errorMessage);
+                
+                if (this.isAnalyzeMode) {
+                    // In analyze mode, record the error but continue processing
+                    this.analysisError = errorMessage;
+                    // Add wildcard columns to unresolved list
+                    const wildcardColumns = queryColumns
+                        .filter((columnRef) => columnRef.table === tableAlias || (includeUnnamed && columnRef.table === ""))
+                        .filter((columnRef) => columnRef.column === "*")
+                        .map((columnRef) => columnRef.table ? `${columnRef.table}.*` : "*");
+                    this.unresolvedColumns.push(...wildcardColumns);
+                } else {
+                    // In collect mode, throw error as before
+                    throw new Error(errorMessage);
+                }
             }
         }
 

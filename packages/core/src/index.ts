@@ -1,5 +1,6 @@
 // Entry point for rawsql-ts package
 export * from './parsers/SelectQueryParser';
+export { ParseAnalysisResult } from './parsers/SelectQueryParser';
 export * from './parsers/InsertQueryParser';
 export * from './parsers/WithClauseParser';
 
@@ -52,6 +53,7 @@ export * from './transformers/UpstreamSelectQueryFinder';
 export * from './transformers/TypeTransformationPostProcessor';
 
 export * from './transformers/SchemaCollector';
+export { TableSchema, SchemaAnalysisResult } from './transformers/SchemaCollector';
 export * from './transformers/QueryFlowDiagramGenerator';
 export * from './transformers/SqlParamInjector';
 export * from './transformers/SqlSortInjector';
