@@ -104,23 +104,23 @@ describe('SqlParamInjector', () => {
         expect(params).toEqual({ article_id: 100 });
     });
 
-    test('should skip column validation when skipColumnValidation option is enabled', () => {
+    test('should ignore non-existent columns when ignoreNonExistentColumns option is enabled', () => {
         // Arrange: parse base query with limited columns
         const baseQuery = SelectQueryParser.parse('select a.article_id from article as a') as SimpleSelectQuery;
-        // Arrange: state with non-existent column - should not throw error with skipColumnValidation
-        const state = { nonExistentColumn: 'value' };
+        // Arrange: state with both existing and non-existent columns
+        const state = { nonExistentColumn: 'value', article_id: 100 };
 
-        // Act: inject parameters with skipColumnValidation option
-        const injector = new SqlParamInjector({ skipColumnValidation: true });
+        // Act: inject parameters with ignoreNonExistentColumns option
+        const injector = new SqlParamInjector({ ignoreNonExistentColumns: true });
         const injectedQuery = injector.inject(baseQuery, state);
 
         // Act: format SQL and extract parameters
         const formatter = new SqlFormatter();
         const { formattedSql, params } = formatter.format(injectedQuery);
 
-        // Assert: WHERE clause should be added even for non-existent column
-        expect(formattedSql).toBe('select "a"."article_id" from "article" as "a" where "nonExistentColumn" = :nonExistentColumn');
-        expect(params).toEqual({ nonExistentColumn: 'value' });
+        // Assert: only existing columns should be in WHERE clause, non-existent columns ignored
+        expect(formattedSql).toBe('select "a"."article_id" from "article" as "a" where "a"."article_id" = :article_id');
+        expect(params).toEqual({ article_id: 100 });
     });
 
     test('injects state using custom tableColumnResolver', () => {

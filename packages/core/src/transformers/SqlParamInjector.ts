@@ -13,8 +13,8 @@ export interface SqlParamInjectorOptions {
     ignoreCaseAndUnderscore?: boolean;
     /** Whether to allow injection when all parameters are undefined (defaults to false for safety) */
     allowAllUndefined?: boolean;
-    /** Whether to skip column validation entirely (defaults to false for safety) */
-    skipColumnValidation?: boolean;
+    /** Whether to ignore non-existent columns instead of throwing errors (defaults to false for safety) */
+    ignoreNonExistentColumns?: boolean;
 }
 
 // Type for state parameter values - can be simple values, conditions, or complex objects
@@ -512,27 +512,12 @@ export class SqlParamInjector {
         injectComplexConditions: Function,
         validateOperators: Function
     ): void {
-        // Skip column validation if option is enabled
-        if (this.options.skipColumnValidation) {
-            // if object, validate its keys
-            if (this.isValidatableObject(stateValue)) {
-                validateOperators(stateValue, allowedOps, name);
-            }
-            
-            // Create a column reference using the name directly
-            const columnRef = new ColumnReference(null, name);
-            
-            // Handle complex conditions if needed
-            if (this.isValidatableObject(stateValue)) {
-                injectComplexConditions(query, columnRef, name, stateValue);
-            } else {
-                injectSimpleCondition(query, columnRef, name, stateValue);
-            }
-            return;
-        }
-        
         const queries = finder.find(query, name);
         if (queries.length === 0) {
+            // Ignore non-existent columns if option is enabled
+            if (this.options.ignoreNonExistentColumns) {
+                return;
+            }
             throw new Error(`Column '${name}' not found in query`);
         }
 
