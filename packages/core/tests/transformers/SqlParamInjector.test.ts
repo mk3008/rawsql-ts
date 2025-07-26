@@ -85,6 +85,44 @@ describe('SqlParamInjector', () => {
         expect(params).toEqual({ articleId: 100 });
     });
 
+    test('should skip column validation for undefined values', () => {
+        // Arrange: parse base query with limited columns
+        const baseQuery = SelectQueryParser.parse('select a.article_id from article as a') as SimpleSelectQuery;
+        // Arrange: state with undefined value for non-existent column - should not throw error
+        const state = { nonExistentColumn: undefined, article_id: 100 };
+
+        // Act: inject parameters - should not throw error for undefined values
+        const injector = new SqlParamInjector();
+        const injectedQuery = injector.inject(baseQuery, state);
+
+        // Act: format SQL and extract parameters
+        const formatter = new SqlFormatter();
+        const { formattedSql, params } = formatter.format(injectedQuery);
+
+        // Assert: only defined values should be in WHERE clause
+        expect(formattedSql).toBe('select "a"."article_id" from "article" as "a" where "a"."article_id" = :article_id');
+        expect(params).toEqual({ article_id: 100 });
+    });
+
+    test('should skip column validation when skipColumnValidation option is enabled', () => {
+        // Arrange: parse base query with limited columns
+        const baseQuery = SelectQueryParser.parse('select a.article_id from article as a') as SimpleSelectQuery;
+        // Arrange: state with non-existent column - should not throw error with skipColumnValidation
+        const state = { nonExistentColumn: 'value' };
+
+        // Act: inject parameters with skipColumnValidation option
+        const injector = new SqlParamInjector({ skipColumnValidation: true });
+        const injectedQuery = injector.inject(baseQuery, state);
+
+        // Act: format SQL and extract parameters
+        const formatter = new SqlFormatter();
+        const { formattedSql, params } = formatter.format(injectedQuery);
+
+        // Assert: WHERE clause should be added even for non-existent column
+        expect(formattedSql).toBe('select "a"."article_id" from "article" as "a" where "nonExistentColumn" = :nonExistentColumn');
+        expect(params).toEqual({ nonExistentColumn: 'value' });
+    });
+
     test('injects state using custom tableColumnResolver', () => {
         // Custom tableColumnResolver returns columns for "users" table
         const customResolver = (tableName: string) => {
