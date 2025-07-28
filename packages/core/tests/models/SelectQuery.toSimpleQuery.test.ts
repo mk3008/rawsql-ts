@@ -49,7 +49,7 @@ describe('SelectQuery toSimpleQuery() conversion', () => {
 
         test('should enable CTE management on converted BinarySelectQuery', () => {
             // Test that converted binary query supports CTE operations
-            const query1 = SelectQueryParser.parse('SELECT id FROM users');
+            const query1 = SelectQueryParser.parse('SELECT id FROM users').toSimpleQuery();
             const query2 = SelectQueryParser.parse('SELECT id FROM customers');
             const binaryQuery = query1.toUnion(query2);
             const cteQuery = SelectQueryParser.parse('SELECT id FROM accounts WHERE active = true');
@@ -65,7 +65,7 @@ describe('SelectQuery toSimpleQuery() conversion', () => {
 
         test('should produce valid SQL with complex UNION and CTE', () => {
             // Test full workflow: UNION -> toSimpleQuery -> addCTE -> format
-            const query1 = SelectQueryParser.parse('SELECT id, name FROM employees');
+            const query1 = SelectQueryParser.parse('SELECT id, name FROM employees').toSimpleQuery();
             const query2 = SelectQueryParser.parse('SELECT id, name FROM contractors');
             const binaryQuery = query1.toUnionAll(query2);
             const cteQuery = SelectQueryParser.parse('SELECT id FROM departments WHERE active = true');
@@ -84,7 +84,7 @@ describe('SelectQuery toSimpleQuery() conversion', () => {
     describe('Method chaining patterns', () => {
         test('should support fluent API: binary -> toSimpleQuery -> CTE operations', () => {
             // Test the recommended usage pattern
-            const query1 = SelectQueryParser.parse('SELECT id FROM table1');
+            const query1 = SelectQueryParser.parse('SELECT id FROM table1').toSimpleQuery();
             const query2 = SelectQueryParser.parse('SELECT id FROM table2');
             const cte1 = SelectQueryParser.parse('SELECT id FROM temp1');
             const cte2 = SelectQueryParser.parse('SELECT id FROM temp2');
@@ -97,6 +97,115 @@ describe('SelectQuery toSimpleQuery() conversion', () => {
             expect(result.hasCTE('temp_data1')).toBe(true);
             expect(result.hasCTE('temp_data2')).toBe(true);
             expect(result.getCTENames()).toEqual(['temp_data1', 'temp_data2']);
+        });
+    });
+
+    describe('BinarySelectQuery ORDER BY handling', () => {
+        // NOTE: In SQL standard, ORDER BY in UNION context applies to the entire result set.
+        // Table prefixes (e.g., "a.column") would be invalid SQL syntax in ORDER BY clauses
+        // following UNION operations. Only column names without prefixes or positional notation
+        // (ORDER BY 1, 2) are valid. This implementation correctly handles valid SQL cases.
+        
+        test('should move ORDER BY from right query to SimpleQuery when converting', () => {
+            // Test ORDER BY removal from right query and movement to SimpleQuery
+            const query1 = SelectQueryParser.parse('SELECT id, name FROM users').toSimpleQuery();
+            const query2 = SelectQueryParser.parse('SELECT id, name FROM customers ORDER BY name ASC');
+            const binaryQuery = query1.toUnion(query2);
+            
+            const result = binaryQuery.toSimpleQuery();
+            const formatted = formatter.format(result);
+            
+            // ORDER BY should be at SimpleQuery level, not in the subquery
+            expect(result.orderByClause).not.toBeNull();
+            
+            // Verify ORDER BY is at the outermost level (after the subquery)
+            // Should be: SELECT * FROM (...) AS "bq" ORDER BY "name"
+            const sql = formatted.formattedSql.trim();
+            expect(sql).toMatch(/\)\s+as\s+"bq"\s+order\s+by\s+"name"/i);
+            
+            // The binary query itself should no longer have ORDER BY on the right side
+            const binaryFormatted = formatter.format(binaryQuery);
+            // Should not contain ORDER BY before UNION
+            expect(binaryFormatted.formattedSql).not.toMatch(/order\s+by\s+[^)]+\)\s*$/i);
+        });
+
+        test('should handle multiple ORDER BY clauses correctly', () => {
+            // Test when both queries have ORDER BY - should use right query's ORDER BY
+            const query1 = SelectQueryParser.parse('SELECT id, name FROM users ORDER BY id DESC').toSimpleQuery();
+            const query2 = SelectQueryParser.parse('SELECT id, name FROM customers ORDER BY name ASC, id DESC');
+            const binaryQuery = query1.toUnion(query2);
+            
+            const result = binaryQuery.toSimpleQuery();
+            const formatted = formatter.format(result);
+            
+            // Should have ORDER BY at SimpleQuery level from right query
+            expect(result.orderByClause).not.toBeNull();
+            
+            // Verify ORDER BY is moved to outermost level and contains columns from right query
+            const sql = formatted.formattedSql.trim();
+            expect(sql).toMatch(/\)\s+as\s+"bq"\s+order\s+by\s+"name"[^,]*,\s*"id"/i);
+            
+            // Original binary query should have ORDER BY removed from right side
+            const binaryFormatted = formatter.format(binaryQuery);
+            // Left query still has its ORDER BY (not removed)
+            expect(binaryFormatted.formattedSql).toContain('order by "id" desc union');
+            // But right query's ORDER BY should be removed
+            expect(binaryFormatted.formattedSql).not.toMatch(/customers.*order\s+by.*$/i);
+        });
+
+        test('should work with nested binary queries', () => {
+            // Test ORDER BY handling with nested binary operations
+            const query1 = SelectQueryParser.parse('SELECT id FROM table1').toSimpleQuery();
+            const query2 = SelectQueryParser.parse('SELECT id FROM table2 ORDER BY id ASC');
+            const query3 = SelectQueryParser.parse('SELECT id FROM table3');
+            
+            const binaryQuery1 = query1.toUnion(query2);
+            const binaryQuery2 = binaryQuery1.toSimpleQuery().toUnion(query3);
+            
+            const result = binaryQuery2.toSimpleQuery();
+            const formatted = formatter.format(result);
+            
+            // Should extract ORDER BY from the rightmost query that has it
+            expect(result.orderByClause).not.toBeNull();
+            
+            // ORDER BY should be at the outermost level
+            const sql = formatted.formattedSql.trim();
+            expect(sql).toMatch(/\)\s+as\s+"bq"\s+order\s+by\s+"id"/i);
+            
+            // Verify the nested structure doesn't have ORDER BY in the middle
+            expect(sql).not.toMatch(/table2.*order.*union/i);
+        });
+
+        test('should handle case with no ORDER BY in any query', () => {
+            // Test when no queries have ORDER BY
+            const query1 = SelectQueryParser.parse('SELECT id FROM users').toSimpleQuery();
+            const query2 = SelectQueryParser.parse('SELECT id FROM customers');
+            const binaryQuery = query1.toUnion(query2);
+            
+            const result = binaryQuery.toSimpleQuery();
+            
+            // Should have no ORDER BY clause
+            expect(result.orderByClause).toBeNull();
+        });
+
+        test('should verify ORDER BY is actually removed from original query', () => {
+            // Create queries and verify ORDER BY removal
+            const query1 = SelectQueryParser.parse('SELECT id FROM users').toSimpleQuery();
+            const query2 = SelectQueryParser.parse('SELECT id FROM customers ORDER BY id DESC').toSimpleQuery();
+            
+            // Store original ORDER BY state
+            expect(query2.orderByClause).not.toBeNull();
+            const originalOrderBy = query2.orderByClause;
+            
+            const binaryQuery = query1.toUnion(query2);
+            const result = binaryQuery.toSimpleQuery();
+            
+            // Original query should have ORDER BY removed
+            expect(query2.orderByClause).toBeNull();
+            
+            // Result should have the ORDER BY
+            expect(result.orderByClause).not.toBeNull();
+            expect(result.orderByClause).toBe(originalOrderBy);
         });
     });
 

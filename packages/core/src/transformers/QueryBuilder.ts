@@ -1,4 +1,4 @@
-import { SetClause, SetClauseItem, FromClause, WhereClause, SelectClause, SelectItem, SourceAliasExpression, SourceExpression, SubQuerySource, WithClause, TableSource, UpdateClause, InsertClause } from '../models/Clause';
+import { SetClause, SetClauseItem, FromClause, WhereClause, SelectClause, SelectItem, SourceAliasExpression, SourceExpression, SubQuerySource, WithClause, TableSource, UpdateClause, InsertClause, OrderByClause } from '../models/Clause';
 import { UpdateQuery } from '../models/UpdateQuery';
 import { BinaryExpression, ColumnReference } from '../models/ValueComponent';
 import { SelectValueCollector } from './SelectValueCollector';
@@ -66,7 +66,10 @@ export class QueryBuilder {
     }
 
     private static buildSimpleBinaryQuery(query: BinarySelectQuery): SimpleSelectQuery {
-        // Create a subquery source from the binary query
+        // Extract ORDER BY from the rightmost query in the binary tree and remove it
+        const extractedOrderBy = QueryBuilder.extractAndRemoveOrderByFromBinaryQuery(query);
+        
+        // Create a subquery source from the binary query (now without ORDER BY)
         const subQuerySource = new SubQuerySource(query);
 
         // Create a source expression with alias
@@ -81,15 +84,63 @@ export class QueryBuilder {
         // Create SELECT clause with * (all columns)
         const selectClause = QueryBuilder.createSelectAllClause();
 
-        // Create the final simple select query
+        // Create the final simple select query with extracted ORDER BY
         const q = new SimpleSelectQuery(
             {
                 selectClause,
-                fromClause
+                fromClause,
+                orderByClause: extractedOrderBy
             }
         );
 
         return CTENormalizer.normalize(q) as SimpleSelectQuery;
+    }
+
+    /**
+     * Extracts ORDER BY clause from the rightmost query in a binary query tree and removes it.
+     * This clarifies the semantics by moving the ORDER BY from the ambiguous position 
+     * in the UNION to the explicit outer SimpleSelectQuery level.
+     * 
+     * NOTE: ORDER BY in UNION context applies to the entire result set, not individual subqueries.
+     * Therefore, table prefixes (e.g., "a.column") in ORDER BY are invalid SQL and would cause 
+     * syntax errors. Valid ORDER BY clauses should only reference column names without prefixes
+     * or use positional notation (ORDER BY 1, 2). Since we only process valid SQL, the current
+     * implementation correctly handles legitimate cases without additional prefix processing.
+     * 
+     * @param query BinarySelectQuery to process
+     * @returns Extracted OrderByClause or null if none found
+     */
+    private static extractAndRemoveOrderByFromBinaryQuery(query: BinarySelectQuery): OrderByClause | null {
+        return QueryBuilder.findAndRemoveRightmostOrderBy(query);
+    }
+
+    /**
+     * Recursively finds and removes ORDER BY from the rightmost query in a binary tree.
+     * 
+     * @param query Current query being processed
+     * @returns Extracted OrderByClause or null
+     */
+    private static findAndRemoveRightmostOrderBy(query: SelectQuery): OrderByClause | null {
+        if (query instanceof BinarySelectQuery) {
+            // For binary queries, check right side first (rightmost takes precedence)
+            const rightOrderBy = QueryBuilder.findAndRemoveRightmostOrderBy(query.right);
+            if (rightOrderBy) {
+                return rightOrderBy;
+            }
+            
+            // If no ORDER BY on right side, check left side
+            return QueryBuilder.findAndRemoveRightmostOrderBy(query.left);
+        }
+        else if (query instanceof SimpleSelectQuery) {
+            // Extract ORDER BY from SimpleSelectQuery and remove it
+            const orderBy = query.orderByClause;
+            if (orderBy) {
+                query.orderByClause = null;
+                return orderBy;
+            }
+        }
+        
+        return null;
     }
 
     /**
