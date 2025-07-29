@@ -6,6 +6,7 @@ export * from './parsers/WithClauseParser';
 
 export * from './models/BinarySelectQuery';
 export * from './models/SelectQuery';
+export * from './models/SqlComponent';
 export * from './models/ValueComponent';
 export * from './models/ValuesQuery';
 export * from './models/CTEError';
