@@ -23,6 +23,7 @@ This document defines quality standards and commands for AI assistants (such as 
 - **Test Coverage: 80%+ overall, 90%+ for Core layer** - Quality target
 - **Type Safety: Minimize usage of unknown and any types** - Leverage TypeScript's core benefits
 - **JSDoc Comments: 80%+ of public classes and functions** - Improve API comprehensibility
+- **Language Consistency: All comments and documentation in English** - International project standards
 
 ## Commands to Meet Quality Standards
 
@@ -396,6 +397,9 @@ tsc --noEmit && npm run lint && npm test && npm run build
 
 ### Build
 ✅ Success
+
+### Language Consistency
+✅ All comments and documentation in English
 
 ## Fix Details
 - Integrated implementation of JoinAggregationDecomposer class

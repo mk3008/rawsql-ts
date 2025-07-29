@@ -31,6 +31,13 @@ This document defines the standard development rules for the rawsql-ts project.
 - All modules must use static imports (`import ... from`)
 - For conditional module loading, import all modules upfront and select at runtime
 
+### Documentation and Comments Language Policy
+- **All source code comments must be written in English**
+- **All documentation files must be written in English**
+- **Reason**: International project consistency and global collaboration
+- **Scope**: TypeScript/JavaScript comments, JSDoc, README files, rule documents
+- **Enforcement**: Checked during code review and quality assurance process
+
 ## Coding Conventions
 
 ### Naming Rules
