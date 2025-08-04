@@ -2,6 +2,7 @@ import { CommonTable } from "../models/Clause";
 import { SimpleSelectQuery } from "../models/SimpleSelectQuery";
 import { CTECollector } from "./CTECollector";
 import { TableSourceCollector } from "./TableSourceCollector";
+import { CTETableReferenceCollector } from "./CTETableReferenceCollector";
 
 /**
  * Node type for distinguishing between CTE and main query nodes
@@ -49,12 +50,20 @@ export class CTEDependencyAnalyzer {
     private static readonly MAIN_QUERY_NAME = 'MAIN_QUERY' as const;
 
     private readonly sourceCollector: TableSourceCollector;
+    private readonly cteReferenceCollector: CTETableReferenceCollector;
     private readonly cteCollector: CTECollector;
     private dependencyGraph: CTEDependencyGraph | null = null;
     private cteMap: Map<string, CommonTable> = new Map();
 
     constructor() {
+        // For analyzing CTE-to-CTE dependencies within WITH clause
+        // Excludes CTEs from results to avoid circular references
         this.sourceCollector = new TableSourceCollector(false);
+        
+        // For analyzing main query references to CTEs  
+        // Includes CTEs in results to detect CTE usage
+        this.cteReferenceCollector = new CTETableReferenceCollector();
+        
         this.cteCollector = new CTECollector();
     }
 
@@ -210,6 +219,7 @@ export class CTEDependencyAnalyzer {
             const cteName = CTEDependencyAnalyzer.getCTEName(cte);
             
             // Find all table/CTE references in this CTE's query
+            // Uses sourceCollector which excludes CTEs to get only real table dependencies
             const referencedTables = this.sourceCollector.collect(cte.query);
             
             for (const referencedTable of referencedTables) {
@@ -231,7 +241,8 @@ export class CTEDependencyAnalyzer {
         // Analyze main query references to CTEs (excluding WITH clause)
         const mainQueryWithoutCTE = this.getMainQueryWithoutCTE(mainQuery);
         if (mainQueryWithoutCTE) {
-            const mainQueryReferences = this.sourceCollector.collect(mainQueryWithoutCTE);
+            // Uses cteReferenceCollector which includes CTEs to detect CTE usage in main query
+            const mainQueryReferences = this.cteReferenceCollector.collect(mainQueryWithoutCTE);
             
             for (const referencedTable of mainQueryReferences) {
                 const referencedName = referencedTable.table.name;

@@ -172,6 +172,9 @@ export class CTEQueryDecomposer {
             return [];
         }
 
+        // Flatten nested WITH clauses by extracting sub-CTEs from edited CTEs
+        const flattenedCTEs = this.flattenNestedWithClauses(editedCTEs);
+        
         // Use CTEComposer to create a unified query, sharing formatter options
         const composerOptions = {
             ...this.options,
@@ -179,13 +182,93 @@ export class CTEQueryDecomposer {
             addComments: undefined
         };
         const composer = new CTEComposer(composerOptions);
-        const unifiedQuery = composer.compose(editedCTEs, rootQuery);
+        const unifiedQuery = composer.compose(flattenedCTEs, rootQuery);
         
         // Parse the unified query
         const parsedQuery = SelectQueryParser.parse(unifiedQuery) as SimpleSelectQuery;
         
         // Re-decompose the synchronized query
         return this.decompose(parsedQuery);
+    }
+
+    /**
+     * Flattens nested WITH clauses by extracting sub-CTEs from edited CTEs
+     * @param editedCTEs Array of edited CTEs that may contain nested WITH clauses
+     * @returns Flattened array of CTEs with sub-CTEs extracted to top level
+     */
+    private flattenNestedWithClauses(editedCTEs: Array<{name: string, query: string}>): Array<{name: string, query: string}> {
+        const flattened: Array<{name: string, query: string}> = [];
+        const extractedCTEs = new Map<string, string>(); // name -> query mapping for extracted CTEs
+        
+        for (const editedCTE of editedCTEs) {
+            try {
+                // Check if this CTE's query contains a WITH clause
+                const withPattern = /^\s*with\s+/i;
+                if (withPattern.test(editedCTE.query)) {
+                    // Parse the query to extract nested CTEs
+                    const parsed = SelectQueryParser.parse(editedCTE.query) as SimpleSelectQuery;
+                    
+                    if (parsed.withClause && parsed.withClause.tables) {
+                        // Extract each nested CTE
+                        for (const nestedCTE of parsed.withClause.tables) {
+                            const cteName = this.getCTEName(nestedCTE);
+                            if (!extractedCTEs.has(cteName)) {
+                                // Format the nested CTE query
+                                const cteFormatter = new SqlFormatter({
+                                    identifierEscape: { start: "", end: "" }
+                                });
+                                const nestedQuery = cteFormatter.format(nestedCTE.query).formattedSql;
+                                extractedCTEs.set(cteName, nestedQuery);
+                            }
+                        }
+                        
+                        // Create the main query without the WITH clause
+                        const mainQueryWithoutWith = new SimpleSelectQuery({
+                            selectClause: parsed.selectClause,
+                            fromClause: parsed.fromClause,
+                            whereClause: parsed.whereClause,
+                            groupByClause: parsed.groupByClause,
+                            havingClause: parsed.havingClause,
+                            orderByClause: parsed.orderByClause,
+                            windowClause: parsed.windowClause,
+                            limitClause: parsed.limitClause,
+                            offsetClause: parsed.offsetClause,
+                            fetchClause: parsed.fetchClause,
+                            forClause: parsed.forClause,
+                            withClause: undefined // Remove WITH clause
+                        });
+                        
+                        const mainFormatter = new SqlFormatter({
+                            identifierEscape: { start: "", end: "" }
+                        });
+                        const mainQuery = mainFormatter.format(mainQueryWithoutWith).formattedSql;
+                        
+                        flattened.push({
+                            name: editedCTE.name,
+                            query: mainQuery
+                        });
+                    } else {
+                        // WITH clause exists but no tables found, preserve as-is
+                        flattened.push(editedCTE);
+                    }
+                } else {
+                    // No WITH clause, preserve as-is
+                    flattened.push(editedCTE);
+                }
+            } catch (error) {
+                // If parsing fails, preserve the original CTE
+                flattened.push(editedCTE);
+            }
+        }
+        
+        // Add extracted CTEs at the beginning (they need to be defined first)
+        const result: Array<{name: string, query: string}> = [];
+        for (const [name, query] of extractedCTEs) {
+            result.push({ name, query });
+        }
+        result.push(...flattened);
+        
+        return result;
     }
 
     /**
