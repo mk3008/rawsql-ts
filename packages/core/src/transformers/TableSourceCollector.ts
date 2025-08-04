@@ -417,7 +417,7 @@ export class TableSourceCollector implements SqlComponentVisitor<void> {
         clause.expression.accept(this);
     }
 
-    private visitForClause(clause: ForClause): void {
+    private visitForClause(_clause: ForClause): void {
         // FOR clause doesn't contain table sources
     }
 
@@ -513,7 +513,7 @@ export class TableSourceCollector implements SqlComponentVisitor<void> {
     }
 
     // Handle StringSpecifierExpression (PostgreSQL E-strings)
-    private visitStringSpecifierExpression(expr: StringSpecifierExpression): void {
+    private visitStringSpecifierExpression(_expr: StringSpecifierExpression): void {
         // StringSpecifierExpression is just a literal string with an escape specifier
         // It doesn't contain table references, so we don't need to visit any children
         // This is a no-op method to prevent "No handler" errors
