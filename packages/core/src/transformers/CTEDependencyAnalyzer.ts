@@ -54,7 +54,7 @@ export class CTEDependencyAnalyzer {
     private cteMap: Map<string, CommonTable> = new Map();
 
     constructor() {
-        this.sourceCollector = new TableSourceCollector(true);
+        this.sourceCollector = new TableSourceCollector(false);
         this.cteCollector = new CTECollector();
     }
 
