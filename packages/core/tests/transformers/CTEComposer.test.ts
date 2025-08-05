@@ -228,7 +228,8 @@ describe("CTEComposer", () => {
             // Arrange
             const schema = {
                 users: ["id", "name", "email", "active"],
-                orders: ["id", "user_id", "total"]
+                orders: ["id", "user_id", "total"],
+                active_users: ["id", "name"] // CTE schema
             };
             const validatingComposer = new CTEComposer({ 
                 validateSchema: true,
