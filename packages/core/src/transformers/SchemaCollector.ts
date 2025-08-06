@@ -1,11 +1,10 @@
 import { SqlComponent, SqlComponentVisitor } from '../models/SqlComponent';
-import { CommonTable, SubQuerySource, TableSource, SelectClause, SelectItem, FromClause } from '../models/Clause';
+import { CommonTable, SubQuerySource, TableSource } from '../models/Clause';
 import { SimpleSelectQuery } from '../models/SimpleSelectQuery';
 import { CTECollector } from './CTECollector';
 import { SelectableColumnCollector, DuplicateDetectionMode } from './SelectableColumnCollector';
-import { SelectValueCollector } from './SelectValueCollector';
 import { ColumnReference, ValueComponent } from '../models/ValueComponent';
-import { BinarySelectQuery, SelectQuery } from '../models/SelectQuery';
+import { BinarySelectQuery } from '../models/SelectQuery';
 import { SourceExpression } from '../models/Clause';
 import { TableColumnResolver } from './TableColumnResolver';
 
@@ -192,18 +191,30 @@ export class SchemaCollector implements SqlComponentVisitor<void> {
             });
     }
 
-    private handleTableSource(source: SourceExpression, queryColumns: { table: string, column: string }[], includeUnnamed: boolean): void {
+    private handleSourceExpression(source: SourceExpression, queryColumns: { table: string, column: string }[], includeUnnamed: boolean): void {
         if (source.datasource instanceof TableSource) {
             const tableName = source.datasource.getSourceName();
             const cte = this.commonTables.filter((table) => table.getSourceAliasName() === tableName);
             if (cte.length > 0) {
+                // Process the CTE query recursively
                 cte[0].query.accept(this);
+                
+                // Also collect schema information for the CTE itself
+                const cteAlias = source.getAliasName() ?? tableName;
+                this.processCTETableSchema(cte[0], cteAlias, queryColumns, includeUnnamed);
             } else {
                 const tableAlias = source.getAliasName() ?? tableName;
                 this.processCollectTableSchema(tableName, tableAlias, queryColumns, includeUnnamed);
             }
+        } else if (source.datasource instanceof SubQuerySource) {
+            // Process subqueries recursively
+            this.visitNode(source.datasource.query);
+            
+            // For subqueries, we don't add schema information directly as they're derived
+            // The schema will be collected from the inner query
         } else {
-            throw new Error("Datasource is not an instance of TableSource");
+            // For other source types (FunctionSource, ParenSource), we skip schema collection
+            // as they don't represent table schemas in the traditional sense
         }
     }
 
@@ -294,7 +305,7 @@ export class SchemaCollector implements SqlComponentVisitor<void> {
 
         // Handle the main FROM clause table
         if (query.fromClause.source.datasource instanceof TableSource) {
-            this.handleTableSource(query.fromClause.source, queryColumns, true);
+            this.handleSourceExpression(query.fromClause.source, queryColumns, true);
         } else if (query.fromClause.source.datasource instanceof SubQuerySource) {
             query.fromClause.source.datasource.query.accept(this);
         }
@@ -303,7 +314,7 @@ export class SchemaCollector implements SqlComponentVisitor<void> {
         if (query.fromClause?.joins) {
             for (const join of query.fromClause.joins) {
                 if (join.source.datasource instanceof TableSource) {
-                    this.handleTableSource(join.source, queryColumns, false);
+                    this.handleSourceExpression(join.source, queryColumns, false);
                 } else if (join.source.datasource instanceof SubQuerySource) {
                     join.source.datasource.query.accept(this);
                 }
@@ -336,6 +347,7 @@ export class SchemaCollector implements SqlComponentVisitor<void> {
         
         return selectColumns;
     }
+
 
     private processCollectTableSchema(tableName: string, tableAlias: string, queryColumns: { table: string, column: string }[], includeUnnamed: boolean = false): void {
         // Check if wildcard is present and handle based on configuration
@@ -374,5 +386,137 @@ export class SchemaCollector implements SqlComponentVisitor<void> {
 
         const tableSchema = new TableSchema(tableName, tableColumns);
         this.tableSchemas.push(tableSchema);
+    }
+
+    private processCTETableSchema(cte: CommonTable, cteAlias: string, queryColumns: { table: string, column: string }[], includeUnnamed: boolean = false): void {
+        const cteName = cte.getSourceAliasName();
+        
+        // Get the columns that the CTE exposes by analyzing its SELECT clause
+        const cteColumns = this.getCTEColumns(cte);
+        
+        // Filter query columns that reference this CTE
+        const cteReferencedColumns = queryColumns
+            .filter((columnRef) => columnRef.table === cteAlias || (includeUnnamed && columnRef.table === ""))
+            .map((columnRef) => columnRef.column);
+
+        // Handle wildcards for CTEs
+        if (cteReferencedColumns.includes("*")) {
+            if (this.tableColumnResolver !== null) {
+                // Try to resolve columns using the resolver first
+                const resolvedColumns = this.tableColumnResolver(cteName);
+                if (resolvedColumns.length > 0) {
+                    const tableSchema = new TableSchema(cteName, resolvedColumns);
+                    this.tableSchemas.push(tableSchema);
+                    return;
+                }
+            }
+            
+            // If we can determine CTE columns, use them for wildcard expansion
+            if (cteColumns.length > 0) {
+                const tableSchema = new TableSchema(cteName, cteColumns);
+                this.tableSchemas.push(tableSchema);
+                return;
+            } else if (this.allowWildcardWithoutResolver) {
+                // Allow wildcards but with empty columns since we can't determine them
+                const tableSchema = new TableSchema(cteName, []);
+                this.tableSchemas.push(tableSchema);
+                return;
+            } else {
+                // Handle wildcard error
+                const errorMessage = `Wildcard (*) is used. A TableColumnResolver is required to resolve wildcards. Target table: ${cteName}`;
+                if (this.isAnalyzeMode) {
+                    this.analysisError = errorMessage;
+                    this.unresolvedColumns.push(cteAlias ? `${cteAlias}.*` : "*");
+                } else {
+                    throw new Error(errorMessage);
+                }
+                return;
+            }
+        }
+
+        // Process specific column references
+        let tableColumns = cteReferencedColumns.filter((column) => column !== "*");
+        
+        // Validate column references against CTE columns in analyze mode
+        if (this.isAnalyzeMode) {
+            let availableColumns = cteColumns;
+            
+            // Try to get columns from resolver first if available
+            if (this.tableColumnResolver) {
+                const resolvedColumns = this.tableColumnResolver(cteName);
+                if (resolvedColumns.length > 0) {
+                    availableColumns = resolvedColumns;
+                }
+            }
+            
+            const invalidColumns = tableColumns.filter((column) => !availableColumns.includes(column));
+            if (invalidColumns.length > 0) {
+                this.unresolvedColumns.push(...invalidColumns);
+                if (!this.analysisError) {
+                    this.analysisError = `Undefined column(s) found in CTE "${cteName}": ${invalidColumns.join(', ')}`;
+                }
+            }
+        }
+
+        // Add the CTE schema
+        const tableSchema = new TableSchema(cteName, tableColumns);
+        this.tableSchemas.push(tableSchema);
+    }
+
+    private getCTEColumns(cte: CommonTable): string[] {
+        try {
+            // Try to get select items from the CTE query
+            if (cte.query instanceof SimpleSelectQuery && cte.query.selectClause) {
+                const selectItems = cte.query.selectClause.items;
+                const columns: string[] = [];
+                
+                for (const item of selectItems) {
+                    if (item.value instanceof ColumnReference) {
+                        const columnName = item.identifier?.name || item.value.column.name;
+                        if (item.value.column.name === "*") {
+                            // For wildcards in CTE definitions, we need special handling
+                            const tableNamespace = item.value.getNamespace();
+                            if (tableNamespace) {
+                                // Try to find the referenced CTE or table
+                                const referencedCTE = this.commonTables.find(cte => cte.getSourceAliasName() === tableNamespace);
+                                if (referencedCTE) {
+                                    // Recursively get columns from the referenced CTE
+                                    const referencedColumns = this.getCTEColumns(referencedCTE);
+                                    if (referencedColumns.length > 0) {
+                                        columns.push(...referencedColumns);
+                                        continue;
+                                    }
+                                }
+                            }
+                            // If we can't resolve the wildcard, we mark this CTE as having unknown columns
+                            // This will be handled by the wildcard processing logic later
+                            return [];
+                        } else {
+                            columns.push(columnName);
+                        }
+                    } else {
+                        // For expressions, functions, etc., use the identifier if available
+                        if (item.identifier) {
+                            columns.push(item.identifier.name);
+                        }
+                    }
+                }
+                
+                return columns.filter((name, index, array) => array.indexOf(name) === index); // Remove duplicates
+            }
+            
+            // Fallback: try using SelectableColumnCollector
+            const columnCollector = new SelectableColumnCollector(null, true, DuplicateDetectionMode.FullName);
+            const columns = columnCollector.collect(cte.query);
+            
+            return columns
+                .filter((column) => column.value instanceof ColumnReference)
+                .map(column => column.value as ColumnReference)
+                .map(columnRef => columnRef.column.name)
+                .filter((name, index, array) => array.indexOf(name) === index); // Remove duplicates
+        } catch (error) {
+            // If we can't determine the columns, return empty array
+            return [];
+        }
     }
 }
