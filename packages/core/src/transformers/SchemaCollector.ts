@@ -223,10 +223,103 @@ export class SchemaCollector implements SqlComponentVisitor<void> {
             return;
         }
 
-        const queryColumns = this.collectQueryColumns(query);
-        this.validateColumnsInJoinQueries(query, queryColumns);
-        this.processFromClause(query, queryColumns);
-        this.processJoinClauses(query, queryColumns);
+        // Collect columns used in the query
+        const columnCollector = new SelectableColumnCollector(this.tableColumnResolver, true, DuplicateDetectionMode.FullName);
+        const columns = columnCollector.collect(query);
+        
+        let queryColumns: { table: string, column: string }[];
+        
+        // Only filter JOIN condition columns when allowWildcardWithoutResolver is true
+        // This preserves backward compatibility for existing tests
+        if (this.allowWildcardWithoutResolver) {
+            // Filter to include only columns that are actually selected, not those used in JOIN conditions
+            const selectColumns = this.getSelectClauseColumns(query);
+            
+            queryColumns = columns.filter((column) => column.value instanceof ColumnReference)
+                .map(column => column.value as ColumnReference)
+                .filter(columnRef => {
+                    // Only include columns that are either:
+                    // 1. Explicitly mentioned in SELECT clause (not wildcards)
+                    // 2. Part of wildcard expansion from SELECT clause (only if we have a resolver)
+                    const tableName = columnRef.getNamespace();
+                    const columnName = columnRef.column.name;
+                    
+                    return selectColumns.some(selectCol => {
+                        if (selectCol.value instanceof ColumnReference) {
+                            const selectTableName = selectCol.value.getNamespace();
+                            const selectColumnName = selectCol.value.column.name;
+                            
+                            // Exact match for explicit columns
+                            if (selectTableName === tableName && selectColumnName === columnName) {
+                                return true;
+                            }
+                            
+                            // Wildcard match (table.* or *) - only include if we have a resolver
+                            if (selectColumnName === "*") {
+                                // If allowWildcardWithoutResolver is true and no resolver, exclude wildcard expansions
+                                if (this.allowWildcardWithoutResolver && this.tableColumnResolver === null) {
+                                    return false;
+                                }
+                                
+                                // Full wildcard (*) matches all tables
+                                if (selectTableName === "") {
+                                    return true;
+                                }
+                                // Table wildcard (table.*) matches specific table
+                                if (selectTableName === tableName) {
+                                    return true;
+                                }
+                            }
+                        }
+                        return false;
+                    });
+                })
+                .map(columnRef => ({
+                    table: columnRef.getNamespace(),
+                    column: columnRef.column.name
+                }));
+        } else {
+            // Original behavior: include all columns including JOIN conditions
+            queryColumns = columns.filter((column) => column.value instanceof ColumnReference)
+                .map(column => column.value as ColumnReference)
+                .map(columnRef => ({
+                    table: columnRef.getNamespace(),
+                    column: columnRef.column.name
+                }));
+        }
+
+        // Handle columns without table names in queries with joins
+        if (query.fromClause.joins !== null && query.fromClause.joins.length > 0) {
+            const columnsWithoutTable = queryColumns.filter((columnRef) => columnRef.table === "").map((columnRef) => columnRef.column);
+            if (columnsWithoutTable.length > 0) {
+                if (this.isAnalyzeMode) {
+                    // In analyze mode, collect unresolved columns
+                    this.unresolvedColumns.push(...columnsWithoutTable);
+                    this.analysisError = `Column reference(s) without table name found in query: ${columnsWithoutTable.join(', ')}`;
+                } else {
+                    // In collect mode, throw error as before
+                    throw new Error(`Column reference(s) without table name found in query: ${columnsWithoutTable.join(', ')}`);
+                }
+            }
+        }
+
+        // Handle the main FROM clause table
+        if (query.fromClause.source.datasource instanceof TableSource) {
+            this.handleSourceExpression(query.fromClause.source, queryColumns, true);
+        } else if (query.fromClause.source.datasource instanceof SubQuerySource) {
+            query.fromClause.source.datasource.query.accept(this);
+        }
+
+        // Handle JOIN clause tables
+        if (query.fromClause?.joins) {
+            for (const join of query.fromClause.joins) {
+                if (join.source.datasource instanceof TableSource) {
+                    this.handleSourceExpression(join.source, queryColumns, false);
+                } else if (join.source.datasource instanceof SubQuerySource) {
+                    join.source.datasource.query.accept(this);
+                }
+            }
+        }
     }
 
     private visitBinarySelectQuery(query: BinarySelectQuery): void {
@@ -236,57 +329,23 @@ export class SchemaCollector implements SqlComponentVisitor<void> {
     }
 
     /**
-     * Collects column references from a query's SELECT clause and other relevant clauses
+     * Extract column references from the SELECT clause only
      */
-    private collectQueryColumns(query: SimpleSelectQuery): { table: string, column: string }[] {
-        const queryColumns: { table: string, column: string }[] = [];
+    private getSelectClauseColumns(query: SimpleSelectQuery): { name: string, value: ValueComponent }[] {
+        if (!query.selectClause) {
+            return [];
+        }
         
-        if (query.selectClause) {
-            for (const item of query.selectClause.items) {
-                if (item.value instanceof ColumnReference) {
-                    const namespace = item.value.getNamespace();
-                    queryColumns.push({
-                        table: namespace || "",
-                        column: item.value.column.name
-                    });
-                }
+        const selectColumns: { name: string, value: ValueComponent }[] = [];
+        
+        for (const item of query.selectClause.items) {
+            if (item.value instanceof ColumnReference) {
+                const columnName = item.value.column.name;
+                selectColumns.push({ name: columnName, value: item.value });
             }
         }
         
-        return queryColumns;
-    }
-
-    /**
-     * Validates that columns referenced in JOIN conditions exist in the query
-     */
-    private validateColumnsInJoinQueries(_query: SimpleSelectQuery, _queryColumns: { table: string, column: string }[]): void {
-        // For now, this is a placeholder - actual validation logic would check JOIN conditions
-        // against available columns from tables and CTEs
-    }
-
-    /**
-     * Processes the FROM clause to collect schema information
-     */
-    private processFromClause(query: SimpleSelectQuery, queryColumns: { table: string, column: string }[]): void {
-        if (!query.fromClause) {
-            return;
-        }
-
-        // Process the main source
-        this.handleSourceExpression(query.fromClause.source, queryColumns, false);
-    }
-
-    /**
-     * Processes JOIN clauses to collect schema information
-     */
-    private processJoinClauses(query: SimpleSelectQuery, queryColumns: { table: string, column: string }[]): void {
-        if (!query.fromClause?.joins) {
-            return;
-        }
-
-        for (const join of query.fromClause.joins) {
-            this.handleSourceExpression(join.source, queryColumns, false);
-        }
+        return selectColumns;
     }
 
 
@@ -320,16 +379,9 @@ export class SchemaCollector implements SqlComponentVisitor<void> {
             }
         }
 
-        // For schemas without explicit table prefixes in SELECT clause, include all non-wildcard columns
-        // This handles cases like "SELECT id, name FROM users" where columns don't have table prefixes
         let tableColumns = queryColumns
             .filter((columnRef) => columnRef.column !== "*")
-            .filter((columnRef) => 
-                columnRef.table === tableAlias || 
-                (includeUnnamed && columnRef.table === "") ||
-                // When table name is not specified in column reference, assume it belongs to the main table
-                columnRef.table === ""
-            )
+            .filter((columnRef) => columnRef.table === tableAlias || (includeUnnamed && columnRef.table === ""))
             .map((columnRef) => columnRef.column);
 
         const tableSchema = new TableSchema(tableName, tableColumns);
