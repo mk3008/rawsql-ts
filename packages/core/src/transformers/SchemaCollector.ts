@@ -449,11 +449,25 @@ export class SchemaCollector implements SqlComponentVisitor<void> {
                 }
             }
             
-            const invalidColumns = tableColumns.filter((column) => !availableColumns.includes(column));
-            if (invalidColumns.length > 0) {
-                this.unresolvedColumns.push(...invalidColumns);
-                if (!this.analysisError) {
-                    this.analysisError = `Undefined column(s) found in CTE "${cteName}": ${invalidColumns.join(', ')}`;
+            // Only validate columns if we have available columns to validate against
+            // If allowWildcardWithoutResolver is true and we have no available columns,
+            // skip validation as the wildcard expansion couldn't be determined
+            if (availableColumns.length > 0) {
+                const invalidColumns = tableColumns.filter((column) => !availableColumns.includes(column));
+                if (invalidColumns.length > 0) {
+                    this.unresolvedColumns.push(...invalidColumns);
+                    if (!this.analysisError) {
+                        this.analysisError = `Undefined column(s) found in CTE "${cteName}": ${invalidColumns.join(', ')}`;
+                    }
+                }
+            } else if (!this.allowWildcardWithoutResolver) {
+                // Only report error if wildcards are not allowed without resolver
+                const invalidColumns = tableColumns;
+                if (invalidColumns.length > 0) {
+                    this.unresolvedColumns.push(...invalidColumns);
+                    if (!this.analysisError) {
+                        this.analysisError = `Undefined column(s) found in CTE "${cteName}": ${invalidColumns.join(', ')}`;
+                    }
                 }
             }
         }
@@ -487,6 +501,36 @@ export class SchemaCollector implements SqlComponentVisitor<void> {
                                         continue;
                                     }
                                 }
+                            } else {
+                                // For unqualified wildcards (*), try to inherit from FROM clause
+                                if (cte.query instanceof SimpleSelectQuery && cte.query.fromClause) {
+                                    const fromSource = cte.query.fromClause.source;
+                                    if (fromSource.datasource instanceof TableSource) {
+                                        // For table sources with wildcards, we need resolver or allow mode
+                                        const tableName = fromSource.datasource.table.name;
+                                        if (this.tableColumnResolver) {
+                                            const resolvedColumns = this.tableColumnResolver(tableName);
+                                            if (resolvedColumns.length > 0) {
+                                                columns.push(...resolvedColumns);
+                                                continue;
+                                            }
+                                        }
+                                        // If allowWildcardWithoutResolver is true, continue processing without error
+                                        if (this.allowWildcardWithoutResolver) {
+                                            // We can't determine exact columns, but we'll handle this at validation time
+                                            return [];
+                                        }
+                                    } else if (fromSource.datasource instanceof SubQuerySource) {
+                                        // For subqueries, we need to analyze the subquery structure
+                                        // This is complex and might not be fully resolvable without execution
+                                        return [];
+                                    }
+                                }
+                            }
+                            // If we can't resolve the wildcard but allowWildcardWithoutResolver is true,
+                            // continue processing and let the validation handle it
+                            if (this.allowWildcardWithoutResolver) {
+                                return [];
                             }
                             // If we can't resolve the wildcard, we mark this CTE as having unknown columns
                             // This will be handled by the wildcard processing logic later
