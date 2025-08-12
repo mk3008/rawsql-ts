@@ -449,11 +449,25 @@ export class SchemaCollector implements SqlComponentVisitor<void> {
                 }
             }
             
-            const invalidColumns = tableColumns.filter((column) => !availableColumns.includes(column));
-            if (invalidColumns.length > 0) {
-                this.unresolvedColumns.push(...invalidColumns);
-                if (!this.analysisError) {
-                    this.analysisError = `Undefined column(s) found in CTE "${cteName}": ${invalidColumns.join(', ')}`;
+            // Only validate columns if we have available columns to validate against
+            // If allowWildcardWithoutResolver is true and we have no available columns,
+            // skip validation as the wildcard expansion couldn't be determined
+            if (availableColumns.length > 0) {
+                const invalidColumns = tableColumns.filter((column) => !availableColumns.includes(column));
+                if (invalidColumns.length > 0) {
+                    this.unresolvedColumns.push(...invalidColumns);
+                    if (!this.analysisError) {
+                        this.analysisError = `Undefined column(s) found in CTE "${cteName}": ${invalidColumns.join(', ')}`;
+                    }
+                }
+            } else if (!this.allowWildcardWithoutResolver) {
+                // Only report error if wildcards are not allowed without resolver
+                const invalidColumns = tableColumns;
+                if (invalidColumns.length > 0) {
+                    this.unresolvedColumns.push(...invalidColumns);
+                    if (!this.analysisError) {
+                        this.analysisError = `Undefined column(s) found in CTE "${cteName}": ${invalidColumns.join(', ')}`;
+                    }
                 }
             }
         }
@@ -465,58 +479,101 @@ export class SchemaCollector implements SqlComponentVisitor<void> {
 
     private getCTEColumns(cte: CommonTable): string[] {
         try {
-            // Try to get select items from the CTE query
             if (cte.query instanceof SimpleSelectQuery && cte.query.selectClause) {
-                const selectItems = cte.query.selectClause.items;
-                const columns: string[] = [];
-                
-                for (const item of selectItems) {
-                    if (item.value instanceof ColumnReference) {
-                        const columnName = item.identifier?.name || item.value.column.name;
-                        if (item.value.column.name === "*") {
-                            // For wildcards in CTE definitions, we need special handling
-                            const tableNamespace = item.value.getNamespace();
-                            if (tableNamespace) {
-                                // Try to find the referenced CTE or table
-                                const referencedCTE = this.commonTables.find(cte => cte.getSourceAliasName() === tableNamespace);
-                                if (referencedCTE) {
-                                    // Recursively get columns from the referenced CTE
-                                    const referencedColumns = this.getCTEColumns(referencedCTE);
-                                    if (referencedColumns.length > 0) {
-                                        columns.push(...referencedColumns);
-                                        continue;
-                                    }
-                                }
-                            }
-                            // If we can't resolve the wildcard, we mark this CTE as having unknown columns
-                            // This will be handled by the wildcard processing logic later
-                            return [];
-                        } else {
-                            columns.push(columnName);
-                        }
-                    } else {
-                        // For expressions, functions, etc., use the identifier if available
-                        if (item.identifier) {
-                            columns.push(item.identifier.name);
-                        }
-                    }
-                }
-                
-                return columns.filter((name, index, array) => array.indexOf(name) === index); // Remove duplicates
+                return this.extractColumnsFromSelectItems(cte.query.selectClause.items, cte);
             }
             
-            // Fallback: try using SelectableColumnCollector
-            const columnCollector = new SelectableColumnCollector(null, true, DuplicateDetectionMode.FullName);
-            const columns = columnCollector.collect(cte.query);
-            
-            return columns
-                .filter((column) => column.value instanceof ColumnReference)
-                .map(column => column.value as ColumnReference)
-                .map(columnRef => columnRef.column.name)
-                .filter((name, index, array) => array.indexOf(name) === index); // Remove duplicates
+            return this.extractColumnsUsingCollector(cte.query);
         } catch (error) {
-            // If we can't determine the columns, return empty array
             return [];
         }
+    }
+
+    private extractColumnsFromSelectItems(selectItems: any[], cte: CommonTable): string[] {
+        const columns: string[] = [];
+        
+        for (const item of selectItems) {
+            if (item.value instanceof ColumnReference) {
+                const columnName = item.identifier?.name || item.value.column.name;
+                
+                if (item.value.column.name === "*") {
+                    const wildcardColumns = this.resolveWildcardInCTE(item.value, cte);
+                    if (wildcardColumns === null) {
+                        return []; // Wildcard couldn't be resolved
+                    }
+                    columns.push(...wildcardColumns);
+                } else {
+                    columns.push(columnName);
+                }
+            } else if (item.identifier) {
+                columns.push(item.identifier.name);
+            }
+        }
+        
+        return this.removeDuplicates(columns);
+    }
+
+    private resolveWildcardInCTE(columnRef: ColumnReference, cte: CommonTable): string[] | null {
+        const tableNamespace = columnRef.getNamespace();
+        
+        if (tableNamespace) {
+            return this.resolveQualifiedWildcard(tableNamespace);
+        } else {
+            return this.resolveUnqualifiedWildcard(cte);
+        }
+    }
+
+    private resolveQualifiedWildcard(tableNamespace: string): string[] | null {
+        const referencedCTE = this.commonTables.find(cte => cte.getSourceAliasName() === tableNamespace);
+        if (referencedCTE) {
+            const referencedColumns = this.getCTEColumns(referencedCTE);
+            if (referencedColumns.length > 0) {
+                return referencedColumns;
+            }
+        }
+        return null;
+    }
+
+    private resolveUnqualifiedWildcard(cte: CommonTable): string[] | null {
+        if (!(cte.query instanceof SimpleSelectQuery) || !cte.query.fromClause) {
+            return null;
+        }
+
+        const fromSource = cte.query.fromClause.source;
+        
+        if (fromSource.datasource instanceof TableSource) {
+            return this.resolveTableWildcard(fromSource.datasource.table.name);
+        } else if (fromSource.datasource instanceof SubQuerySource) {
+            return null; // Too complex to resolve
+        }
+        
+        return null;
+    }
+
+    private resolveTableWildcard(tableName: string): string[] | null {
+        if (this.tableColumnResolver) {
+            const resolvedColumns = this.tableColumnResolver(tableName);
+            if (resolvedColumns.length > 0) {
+                return resolvedColumns;
+            }
+        }
+        
+        // If allowWildcardWithoutResolver is true, return null to indicate unknown columns
+        return this.allowWildcardWithoutResolver ? null : null;
+    }
+
+    private extractColumnsUsingCollector(query: any): string[] {
+        const columnCollector = new SelectableColumnCollector(null, true, DuplicateDetectionMode.FullName);
+        const columns = columnCollector.collect(query);
+        
+        return columns
+            .filter((column) => column.value instanceof ColumnReference)
+            .map(column => column.value as ColumnReference)
+            .map(columnRef => columnRef.column.name)
+            .filter((name, index, array) => array.indexOf(name) === index);
+    }
+
+    private removeDuplicates(columns: string[]): string[] {
+        return columns.filter((name, index, array) => array.indexOf(name) === index);
     }
 }
