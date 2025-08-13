@@ -67,6 +67,8 @@ export * from './utils/JsonSchemaValidator';
 export * from './utils/SchemaManager';
 export * from './utils/CommentEditor';
 export * from './utils/LexemeCursor';
+export * from './utils/CTERegionDetector';
+export type { CTERegion, CursorPositionInfo } from './utils/CTERegionDetector';
 
 
 // Add more exports here if you want to expose additional public API

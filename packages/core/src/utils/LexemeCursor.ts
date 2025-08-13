@@ -1,8 +1,18 @@
 import { Lexeme, TokenType } from '../models/Lexeme';
+import { StringUtils } from './stringUtils';
 
 /**
- * Utility class for cursor-to-lexeme mapping in SQL text
- * Provides functionality to find lexemes at specific cursor positions for IDE integration
+ * Utility class for cursor-to-lexeme mapping in SQL text.
+ * 
+ * Provides functionality to find lexemes at specific cursor positions for IDE integration.
+ * Handles SQL parsing with proper comment and whitespace handling for editor features.
+ * 
+ * @example Basic usage
+ * ```typescript
+ * const sql = "SELECT id FROM users WHERE active = true";
+ * const lexeme = LexemeCursor.findLexemeAtPosition(sql, 7); // position at 'id'
+ * console.log(lexeme?.value); // 'id'
+ * ```
  */
 export class LexemeCursor {
     private static readonly SQL_COMMANDS = new Set([
@@ -11,10 +21,21 @@ export class LexemeCursor {
         'insert', 'update', 'delete', 'into', 'values', 'set'
     ]);
     /**
-     * Find the lexeme at the specified cursor position
-     * @param sql The SQL string
-     * @param cursorPosition The cursor position (0-based)
+     * Find the lexeme at the specified cursor position.
+     * 
+     * Performs intelligent SQL parsing with proper comment and whitespace handling.
+     * Returns null if cursor is in whitespace or comments.
+     * 
+     * @param sql - The SQL string to analyze
+     * @param cursorPosition - The cursor position (0-based character offset)
      * @returns The lexeme at the position, or null if not found
+     * 
+     * @example
+     * ```typescript
+     * const sql = "SELECT user_id FROM orders";
+     * const lexeme = LexemeCursor.findLexemeAtPosition(sql, 7);
+     * console.log(lexeme?.value); // 'user_id'
+     * ```
      */
     public static findLexemeAtPosition(sql: string, cursorPosition: number): Lexeme | null {
         if (cursorPosition < 0 || cursorPosition >= sql.length) {
@@ -35,9 +56,20 @@ export class LexemeCursor {
     }
 
     /**
-     * Get all lexemes with position information
-     * @param sql The SQL string
-     * @returns Array of lexemes with position information
+     * Get all lexemes with position information from SQL text.
+     * 
+     * Tokenizes the entire SQL string with precise position information.
+     * Useful for syntax highlighting, code analysis, and editor features.
+     * 
+     * @param sql - The SQL string to tokenize
+     * @returns Array of lexemes with position information (excludes comments/whitespace)
+     * 
+     * @example
+     * ```typescript
+     * const sql = "SELECT id FROM users";
+     * const lexemes = LexemeCursor.getAllLexemesWithPosition(sql);
+     * lexemes.forEach(l => console.log(`${l.value} at ${l.position.startPosition}`));
+     * ```
      */
     public static getAllLexemesWithPosition(sql: string): Lexeme[] {
         if (!sql?.trim()) {
@@ -49,7 +81,7 @@ export class LexemeCursor {
             let position = 0;
             
             while (position < sql.length) {
-                position = this.skipWhitespace(sql, position);
+                position = this.skipWhitespaceAndComments(sql, position);
                 
                 if (position >= sql.length) {
                     break;
@@ -71,13 +103,11 @@ export class LexemeCursor {
     }
 
     /**
-     * Skip whitespace characters
+     * Skip whitespace and comments, returning new position
      */
-    private static skipWhitespace(sql: string, position: number): number {
-        while (position < sql.length && /\s/.test(sql[position])) {
-            position++;
-        }
-        return position;
+    private static skipWhitespaceAndComments(sql: string, position: number): number {
+        const result = StringUtils.readWhiteSpaceAndComment(sql, position);
+        return result.position;
     }
 
     /**
@@ -185,7 +215,7 @@ export class LexemeCursor {
         }
         
         // Check if it's followed by parentheses (function)
-        const nextNonWhitespacePos = this.skipWhitespace(sql, position);
+        const nextNonWhitespacePos = this.skipWhitespaceAndComments(sql, position);
         if (nextNonWhitespacePos < sql.length && sql[nextNonWhitespacePos] === '(') {
             return TokenType.Function;
         }
