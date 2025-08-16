@@ -584,6 +584,11 @@ export class SelectableColumnCollector implements SqlComponentVisitor<void> {
      * This includes columns from CTEs, subqueries, and tables that can be used for filtering.
      */
     private collectUpstreamColumns(clause: FromClause): void {
+        // For upstream collection, collect columns from ALL available CTEs 
+        // not just the ones directly referenced in the FROM clause
+        // This ensures complex multi-CTE queries have all available columns for filtering
+        this.collectAllAvailableCTEColumns();
+
         // Collect columns from primary source
         this.collectUpstreamColumnsFromSource(clause.source);
 
@@ -668,10 +673,23 @@ export class SelectableColumnCollector implements SqlComponentVisitor<void> {
             const cteCollector = new SelectValueCollector(this.tableColumnResolver, this.commonTables);
             const cteColumns = cteCollector.collect(cteTable.query.selectClause);
             
-            // Add all columns from the CTE
+            // Add all columns from the CTE, excluding wildcards
             for (const item of cteColumns) {
-                this.addSelectValueAsUnique(item.name, item.value);
+                // Skip wildcard columns as they are not valid selectable column names
+                if (item.name !== '*') {
+                    this.addSelectValueAsUnique(item.name, item.value);
+                }
             }
+        }
+    }
+
+    /**
+     * Collect columns from ALL available CTEs for upstream functionality.
+     * This ensures that complex multi-CTE queries have all available columns for filtering.
+     */
+    private collectAllAvailableCTEColumns(): void {
+        for (const cte of this.commonTables) {
+            this.collectUpstreamColumnsFromCTE(cte);
         }
     }
 
