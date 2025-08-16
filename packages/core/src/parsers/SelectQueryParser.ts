@@ -14,6 +14,7 @@ import { WithClauseParser } from "./WithClauseParser";
 import { ValuesQueryParser } from "./ValuesQueryParser";
 import { FetchClauseParser } from "./FetchClauseParser";
 import { OffsetClauseParser } from "./OffsetClauseParser";
+import { CTERegionDetector } from "../utils/CTERegionDetector";
 
 export interface ParseAnalysisResult {
     success: boolean;
@@ -322,5 +323,62 @@ export class SelectQueryParser {
 
         // Return the result from ValuesQueryParser directly
         return { value: result.value, newIndex: result.newIndex };
+    }
+
+    /**
+     * Get the CTE name at the specified cursor position.
+     * 
+     * This method provides a simple interface for retrieving the CTE name
+     * based on a 1D cursor position in the SQL text.
+     * 
+     * @deprecated Use CTERegionDetector.getCursorCte() instead for better API consistency
+     * @param sql - The SQL string to analyze
+     * @param cursorPosition - The cursor position (0-based character offset)
+     * @returns The CTE name if cursor is in a CTE, null otherwise
+     * 
+     * @example
+     * ```typescript
+     * const sql = `WITH users AS (SELECT * FROM table) SELECT * FROM users`;
+     * const cteName = SelectQueryParser.getCursorCte(sql, 25);
+     * console.log(cteName); // "users"
+     * ```
+     */
+    public static getCursorCte(sql: string, cursorPosition: number): string | null {
+        return CTERegionDetector.getCursorCte(sql, cursorPosition);
+    }
+
+    /**
+     * Get the CTE name at the specified 2D coordinates (line, column).
+     * 
+     * This method provides a convenient interface for editor integrations
+     * that work with line/column coordinates instead of character positions.
+     * 
+     * @deprecated Use CTERegionDetector.getCursorCteAt() instead for better API consistency
+     * @param sql - The SQL string to analyze
+     * @param line - The line number (1-based)
+     * @param column - The column number (1-based)
+     * @returns The CTE name if cursor is in a CTE, null otherwise
+     * 
+     * @example
+     * ```typescript
+     * const sql = `WITH users AS (\n  SELECT * FROM table\n) SELECT * FROM users`;
+     * const cteName = SelectQueryParser.getCursorCteAt(sql, 2, 5);
+     * console.log(cteName); // "users"
+     * ```
+     */
+    public static getCursorCteAt(sql: string, line: number, column: number): string | null {
+        return CTERegionDetector.getCursorCteAt(sql, line, column);
+    }
+
+    /**
+     * Convert character position to line/column coordinates.
+     * 
+     * @deprecated Use CTERegionDetector.positionToLineColumn() instead for better API consistency
+     * @param text - The text to analyze
+     * @param position - The character position (0-based)
+     * @returns Object with line and column (1-based), or null if invalid position
+     */
+    public static positionToLineColumn(text: string, position: number): { line: number; column: number } | null {
+        return CTERegionDetector.positionToLineColumn(text, position);
     }
 }

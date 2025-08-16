@@ -855,6 +855,9 @@ order by
             const items = collector.collect(query);
             const columnNames = items.map(item => item.name);
 
+            console.log('Simple CTE Test Results:');
+            console.log('Columns:', columnNames);
+            console.log('Total columns:', columnNames.length);
 
             // Assert - Should include all columns from the CTE for maximum search conditions
             expect(columnNames).toContain('id');
