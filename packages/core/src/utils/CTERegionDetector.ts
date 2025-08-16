@@ -109,16 +109,22 @@ export class CTERegionDetector {
      */
     public static analyzeCursorPosition(sql: string, cursorPosition: number): CursorPositionInfo {
         const cteRegions = this.extractCTERegions(sql);
+        const extendedRegions = this.calculateExtendedCTEBoundaries(sql, cteRegions);
         
-        // Find which CTE region contains the cursor
-        const currentCTE = cteRegions.find(region => 
-            cursorPosition >= region.startPosition && cursorPosition <= region.endPosition
+        // Find which CTE region contains the cursor using extended boundaries
+        const currentCTE = extendedRegions.find(region => 
+            cursorPosition >= region.startPosition && cursorPosition < region.extendedEndPosition
         );
         
         if (currentCTE) {
             return {
                 isInCTE: true,
-                cteRegion: currentCTE,
+                cteRegion: {
+                    name: currentCTE.name,
+                    startPosition: currentCTE.startPosition,
+                    endPosition: currentCTE.endPosition,
+                    sqlContent: currentCTE.sqlContent
+                },
                 executableSQL: currentCTE.sqlContent
             };
         } else {
@@ -130,6 +136,116 @@ export class CTERegionDetector {
                 executableSQL: mainSQL
             };
         }
+    }
+
+    /**
+     * Get the CTE name at the specified cursor position (simplified interface).
+     * 
+     * This method provides a simple interface for retrieving just the CTE name
+     * without additional context information.
+     * 
+     * @param sql - The SQL string to analyze
+     * @param cursorPosition - The cursor position (0-based character offset)
+     * @returns The CTE name if cursor is in a CTE, null otherwise
+     * 
+     * @example
+     * ```typescript
+     * const sql = `WITH users AS (SELECT * FROM table) SELECT * FROM users`;
+     * const cteName = CTERegionDetector.getCursorCte(sql, 25);
+     * console.log(cteName); // "users"
+     * ```
+     */
+    public static getCursorCte(sql: string, cursorPosition: number): string | null {
+        try {
+            const analysis = this.analyzeCursorPosition(sql, cursorPosition);
+            return analysis.isInCTE ? analysis.cteRegion?.name || null : null;
+        } catch (error) {
+            return null;
+        }
+    }
+
+    /**
+     * Get the CTE name at the specified 2D coordinates (line, column).
+     * 
+     * This method provides a convenient interface for editor integrations
+     * that work with line/column coordinates instead of character positions.
+     * 
+     * @param sql - The SQL string to analyze
+     * @param line - The line number (1-based)
+     * @param column - The column number (1-based)
+     * @returns The CTE name if cursor is in a CTE, null otherwise
+     * 
+     * @example
+     * ```typescript
+     * const sql = `WITH users AS (\n  SELECT * FROM table\n) SELECT * FROM users`;
+     * const cteName = CTERegionDetector.getCursorCteAt(sql, 2, 5);
+     * console.log(cteName); // "users"
+     * ```
+     */
+    public static getCursorCteAt(sql: string, line: number, column: number): string | null {
+        try {
+            const position = this.lineColumnToPosition(sql, line, column);
+            if (position === -1) {
+                return null;
+            }
+            return this.getCursorCte(sql, position);
+        } catch (error) {
+            return null;
+        }
+    }
+
+    /**
+     * Convert line/column coordinates to character position.
+     * 
+     * @param text - The text to analyze
+     * @param line - The line number (1-based)
+     * @param column - The column number (1-based)
+     * @returns The character position (0-based), or -1 if invalid coordinates
+     */
+    private static lineColumnToPosition(text: string, line: number, column: number): number {
+        if (line < 1 || column < 1) {
+            return -1;
+        }
+
+        const lines = text.split('\n');
+        if (line > lines.length) {
+            return -1;
+        }
+
+        const targetLine = lines[line - 1];
+        if (column > targetLine.length + 1) { // +1 to allow position at end of line
+            return -1;
+        }
+
+        // Calculate position by summing lengths of previous lines plus newlines
+        let position = 0;
+        for (let i = 0; i < line - 1; i++) {
+            position += lines[i].length + 1; // +1 for the newline character
+        }
+        position += column - 1; // column is 1-based, position is 0-based
+
+        return position;
+    }
+
+    /**
+     * Convert character position to line/column coordinates.
+     * 
+     * @param text - The text to analyze
+     * @param position - The character position (0-based)
+     * @returns Object with line and column (1-based), or null if invalid position
+     */
+    public static positionToLineColumn(text: string, position: number): { line: number; column: number } | null {
+        if (position < 0 || position > text.length) {
+            return null;
+        }
+
+        const beforePosition = text.substring(0, position);
+        const lines = beforePosition.split('\n');
+        
+        return {
+            line: lines.length,
+            column: lines[lines.length - 1].length + 1
+        };
     }
     
     /**
@@ -282,6 +398,52 @@ export class CTERegionDetector {
         return depth === 0; // We're at top level if depth is 0
     }
     
+    /**
+     * Calculate extended CTE boundaries for better cursor position detection.
+     * Extended boundaries include the space between CTEs and before the main query.
+     */
+    private static calculateExtendedCTEBoundaries(sql: string, cteRegions: CTERegion[]): Array<CTERegion & { extendedEndPosition: number }> {
+        if (cteRegions.length === 0) {
+            return [];
+        }
+        
+        return cteRegions.map((region, index) => {
+            let extendedEndPosition: number;
+            
+            if (index < cteRegions.length - 1) {
+                // Not the last CTE - extend to the start of the next CTE
+                extendedEndPosition = cteRegions[index + 1].startPosition;
+            } else {
+                // Last CTE - extend to the start of the main query
+                const mainQueryStart = this.findMainQueryStart(sql, region.endPosition);
+                extendedEndPosition = mainQueryStart;
+            }
+            
+            return {
+                ...region,
+                extendedEndPosition
+            };
+        });
+    }
+    
+    /**
+     * Find the start position of the main query after the last CTE
+     */
+    private static findMainQueryStart(sql: string, afterPosition: number): number {
+        // Look for the main SELECT keyword after the CTE definitions
+        let pos = afterPosition;
+        while (pos < sql.length) {
+            const remaining = sql.substring(pos).toLowerCase().trim();
+            if (remaining.startsWith('select')) {
+                // Find the actual position of SELECT in the original text
+                const selectIndex = sql.toLowerCase().indexOf('select', pos);
+                return selectIndex !== -1 ? selectIndex : pos;
+            }
+            pos++;
+        }
+        return sql.length; // If no main query found, extend to end of string
+    }
+
     /**
      * Extract the main query part (non-CTE SQL)
      */
