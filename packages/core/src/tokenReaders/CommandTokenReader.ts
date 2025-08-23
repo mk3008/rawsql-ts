@@ -74,6 +74,8 @@ const keywordTrie = new KeywordTrie([
     ["groups"],
     // aggregate functions with WITHIN GROUP
     ["within", "group"],
+    // table functions with WITH ORDINALITY
+    ["with", "ordinality"],
     // window frame
     ["current", "row"],
     ["unbounded", "preceding"],

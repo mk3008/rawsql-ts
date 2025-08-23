@@ -86,18 +86,24 @@ export class FunctionCall extends SqlComponent {
     qualifiedName: QualifiedName;
     argument: ValueComponent | null;
     over: OverExpression | null;
-    withinGroup: OrderByClause | null; constructor(
+    withinGroup: OrderByClause | null;
+    withOrdinality: boolean;
+    internalOrderBy: OrderByClause | null; constructor(
         namespaces: string | string[] | IdentifierString[] | null,
         name: string | RawString | IdentifierString,
         argument: ValueComponent | null,
         over: OverExpression | null,
-        withinGroup: OrderByClause | null = null
+        withinGroup: OrderByClause | null = null,
+        withOrdinality: boolean = false,
+        internalOrderBy: OrderByClause | null = null
     ) {
         super();
         this.qualifiedName = new QualifiedName(namespaces, name);
         this.argument = argument;
         this.over = over;
         this.withinGroup = withinGroup;
+        this.withOrdinality = withOrdinality;
+        this.internalOrderBy = internalOrderBy;
     }
 
     /**

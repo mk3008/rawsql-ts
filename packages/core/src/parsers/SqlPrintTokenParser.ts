@@ -579,7 +579,16 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         if (arg.argument) {
             token.innerTokens.push(this.visit(arg.argument));
         }
+        if (arg.internalOrderBy) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(this.visit(arg.internalOrderBy));
+        }
         token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
+        if (arg.withOrdinality) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'with ordinality'));
+        }
+
         if (arg.over) {
             token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
             token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'over'));
