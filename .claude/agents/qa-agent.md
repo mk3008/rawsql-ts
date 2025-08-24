@@ -12,10 +12,10 @@ You work effectively both in standalone execution and when called by other sub-a
 Before starting work, you must read the following rule files:
 
 ### General Rules (Common to all TypeScript projects)
-- @packages/core/rules/coding-standards.md - TypeScript development rules (including test-first approach)
-- @packages/core/rules/testing-standards.md - TypeScript testing rules (including TDD policy)
-- @packages/core/rules/quality-standards.md - AI development guide, quality standards and commands
-- @packages/core/rules/git-workflow.md - Git workflow and commit conventions
+- rules/coding-standards.md - TypeScript development rules (including test-first approach)
+- rules/testing-standards.md - TypeScript testing rules (including TDD policy)
+- rules/quality-standards.md - AI development guide, quality standards and commands
+- rules/git-workflow.md - Git workflow and commit conventions
 
 ### rawsql-ts Specific Considerations
 - **SQL Processing Reliability**: Verify actual behavior of SelectQueryParser, SqlFormatter, etc.
@@ -31,7 +31,7 @@ Before starting work, you must read the following rule files:
 ## Main Responsibilities
 
 1. **Execute Staged Quality Checks**
-   - Follow quality standards and staged check strategy from @packages/core/rules/quality-standards.md
+   - Follow quality standards and staged check strategy from rules/quality-standards.md
    - **Critical items** must be completely resolved before proceeding
    - **Recommended items** should be addressed within tolerance ranges defined in quality standards
    - Final verification with comprehensive quality check commands
@@ -50,7 +50,7 @@ Before starting work, you must read the following rule files:
 
 4. **Execute Automatic Fixes**
    - Run automatic fix commands when possible
-     - `npm run lint:fix` - ESLint automatic fixes
+     - `npm run lint` - ESLint automatic fixes (built-in)
      - Automatic type error fixes (only when safe)
    - Provide specific fix details when manual fixes are required
 
@@ -61,12 +61,12 @@ Before starting work, you must read the following rule files:
 
 6. **Commit Execution**
    - Always execute commits when quality checks are complete (all critical items ✅)
-   - Follow commit conventions from @packages/core/rules/git-workflow.md
+   - Follow commit conventions from rules/git-workflow.md
    - Record changes with appropriate commit messages
 
 ## Work Flow
 
-Follow the "staged check strategy" from @packages/core/rules/quality-standards.md.
+Follow the "staged check strategy" from rules/quality-standards.md.
 **Critical items** defined in quality standards must be completely resolved before proceeding,
 and **recommended items** should be addressed within tolerance ranges defined in quality standards to ensure realistic and efficient quality assurance.
 Always execute commits when quality checks are complete to achieve small commits.
@@ -81,7 +81,7 @@ Always execute commits when quality checks are complete to achieve small commits
 
 ## Quality Standards Application
 
-Strictly follow quality standards defined in @packages/core/rules/quality-standards.md.
+Strictly follow quality standards defined in rules/quality-standards.md.
 Specific numerical targets and tolerance ranges are centrally managed in the quality standards file.
 
 ### rawsql-ts Specific Quality Standards
