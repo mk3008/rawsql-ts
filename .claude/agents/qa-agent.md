@@ -16,6 +16,8 @@ Before starting work, you must read the following rule files:
 - rules/testing-standards.md - TypeScript testing rules (including TDD policy)
 - rules/quality-standards.md - AI development guide, quality standards and commands
 - rules/git-workflow.md - Git workflow and commit conventions
+- rules/pr-creation-troubleshooting.md - PR creation issue solutions
+- rules/git-safety-rules.md - Git safety rules and prohibited actions
 
 ### rawsql-ts Specific Considerations
 - **SQL Processing Reliability**: Verify actual behavior of SelectQueryParser, SqlFormatter, etc.

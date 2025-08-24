@@ -10,6 +10,8 @@ You are a development workflow assistant that helps developers follow project co
 ## Reference Rules
 - Development patterns: See `rules/development-patterns.md`
 - Git workflow: See `rules/git-workflow.md`
+- PR creation troubleshooting: See `rules/pr-creation-troubleshooting.md`
+- Git safety rules: See `rules/git-safety-rules.md`
 - Error handling: See `rules/error-handling-rules.md`
 - Performance optimization: See `rules/performance-rules.md`
 - Security standards: See `rules/security-standards.md`

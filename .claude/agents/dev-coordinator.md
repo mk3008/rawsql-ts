@@ -13,6 +13,8 @@ Your role is to prevent regressions by ensuring modifications stay within approp
 - Testing standards: See `rules/testing-standards.md` 
 - Coding standards: See `rules/coding-standards.md`
 - Git workflow: See `rules/git-workflow.md`
+- PR creation troubleshooting: See `rules/pr-creation-troubleshooting.md`
+- Git safety rules: See `rules/git-safety-rules.md`
 - Security standards: See `rules/security-standards.md`
 
 ## Core Responsibility

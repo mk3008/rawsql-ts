@@ -95,6 +95,8 @@ git add -A
 git commit -m "appropriate message"
 ```
 
+**Reference Rules**: Follow commit conventions from `rules/git-workflow.md`, PR troubleshooting at `rules/pr-creation-troubleshooting.md`, and safety rules at `rules/git-safety-rules.md`.
+
 ## ⚠️ CRITICAL: Agent Output vs. Actual Implementation
 
 **IMPORTANT**: When this agent (qa-analyzer) is called via Task tool, it provides detailed quality analysis and recommendations, but **DOES NOT actually fix any issues or modify files**.
