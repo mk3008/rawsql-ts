@@ -88,7 +88,9 @@ export class FunctionCall extends SqlComponent {
     over: OverExpression | null;
     withinGroup: OrderByClause | null;
     withOrdinality: boolean;
-    internalOrderBy: OrderByClause | null; constructor(
+    internalOrderBy: OrderByClause | null;
+    
+    constructor(
         namespaces: string | string[] | IdentifierString[] | null,
         name: string | RawString | IdentifierString,
         argument: ValueComponent | null,
