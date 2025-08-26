@@ -1,5 +1,5 @@
 import { Lexeme, TokenType } from "../models/Lexeme";
-import { FunctionCall, ValueComponent, BinaryExpression, TypeValue, CastExpression, BetweenExpression, RawString, ArrayExpression, ArrayQueryExpression } from "../models/ValueComponent";
+import { FunctionCall, ValueComponent, BinaryExpression, TypeValue, CastExpression, BetweenExpression, RawString, ArrayExpression, ArrayQueryExpression, ValueList, ColumnReference } from "../models/ValueComponent";
 import { SelectQuery } from "../models/SelectQuery";
 import { OrderByClause } from "../models/Clause";
 import { OverExpressionParser } from "./OverExpressionParser";
@@ -10,6 +10,14 @@ import { OrderByClauseParser } from "./OrderByClauseParser";
 import { ParseError } from "./ParseError";
 
 export class FunctionExpressionParser {
+    /**
+     * Aggregate functions that support internal ORDER BY clause
+     */
+    private static readonly AGGREGATE_FUNCTIONS_WITH_ORDER_BY = new Set([
+        'string_agg', 'array_agg', 'json_agg', 'jsonb_agg', 
+        'json_object_agg', 'jsonb_object_agg', 'xmlagg'
+    ]);
+
     /**
      * Parse ARRAY expressions - handles both ARRAY[...] (literal) and ARRAY(...) (query) syntax
      * @param lexemes Array of lexemes to parse
@@ -146,8 +154,21 @@ export class FunctionExpressionParser {
         idx = fullNameResult.newIndex;
 
         if (idx < lexemes.length && (lexemes[idx].type & TokenType.OpenParen)) {
-            // General argument parsing
-            const arg = ValueParser.parseArgument(TokenType.OpenParen, TokenType.CloseParen, lexemes, idx);
+            // Check if this is an aggregate function that supports internal ORDER BY
+            const functionName = name.name.toLowerCase();
+            let arg: { value: ValueComponent; newIndex: number };
+            
+            let internalOrderBy: OrderByClause | null = null;
+            
+            if (this.AGGREGATE_FUNCTIONS_WITH_ORDER_BY.has(functionName)) {
+                // Use special aggregate function argument parser
+                const result = this.parseAggregateArguments(lexemes, idx);
+                arg = { value: result.arguments, newIndex: result.newIndex };
+                internalOrderBy = result.orderByClause;
+            } else {
+                // General argument parsing
+                arg = ValueParser.parseArgument(TokenType.OpenParen, TokenType.CloseParen, lexemes, idx);
+            }
             idx = arg.newIndex;
 
             // Check for WITHIN GROUP clause
@@ -158,13 +179,20 @@ export class FunctionExpressionParser {
                 idx = withinGroupResult.newIndex;
             }
 
+            // Check for WITH ORDINALITY clause
+            let withOrdinality = false;
+            if (idx < lexemes.length && lexemes[idx].value === "with ordinality") {
+                withOrdinality = true;
+                idx++; // Skip single "with ordinality" token
+            }
+
             if (idx < lexemes.length && lexemes[idx].value === "over") {
                 const over = OverExpressionParser.parseFromLexeme(lexemes, idx);
                 idx = over.newIndex;
-                const value = new FunctionCall(namespaces, name.name, arg.value, over.value, withinGroup);
+                const value = new FunctionCall(namespaces, name.name, arg.value, over.value, withinGroup, withOrdinality, internalOrderBy);
                 return { value, newIndex: idx };
             } else {
-                const value = new FunctionCall(namespaces, name.name, arg.value, null, withinGroup);
+                const value = new FunctionCall(namespaces, name.name, arg.value, null, withinGroup, withOrdinality, internalOrderBy);
                 return { value, newIndex: idx };
             }
         } else {
@@ -226,16 +254,23 @@ export class FunctionExpressionParser {
                     withinGroup = withinGroupResult.value;
                     idx = withinGroupResult.newIndex;
                 }
+
+                // Check for WITH ORDINALITY clause
+                let withOrdinality = false;
+                if (idx < lexemes.length && lexemes[idx].value === "with ordinality") {
+                    withOrdinality = true;
+                    idx++; // Skip single "with ordinality" token
+                }
                 
                 // Use the previously parsed namespaces and function name for consistency
                 if (idx < lexemes.length && lexemes[idx].value === "over") {
                     idx++;
                     const over = OverExpressionParser.parseFromLexeme(lexemes, idx);
                     idx = over.newIndex;
-                    const value = new FunctionCall(namespaces, name.name, arg, over.value, withinGroup);
+                    const value = new FunctionCall(namespaces, name.name, arg, over.value, withinGroup, withOrdinality, null);
                     return { value, newIndex: idx };
                 } else {
-                    const value = new FunctionCall(namespaces, name.name, arg, null, withinGroup);
+                    const value = new FunctionCall(namespaces, name.name, arg, null, withinGroup, withOrdinality, null);
                     return { value, newIndex: idx };
                 }
             } else {
@@ -295,5 +330,89 @@ export class FunctionExpressionParser {
         idx++;
 
         return { value: orderByResult.value, newIndex: idx };
+    }
+
+    /**
+     * Parse arguments for aggregate functions that support internal ORDER BY
+     * Handles patterns like: string_agg(expr, separator ORDER BY sort_expr)
+     * @param lexemes Array of lexemes to parse
+     * @param index Current parsing index (should point to opening parenthesis)
+     * @returns Parsed arguments, ORDER BY clause, and new index
+     */
+    private static parseAggregateArguments(lexemes: Lexeme[], index: number): { arguments: ValueComponent; orderByClause: OrderByClause | null; newIndex: number } {
+        let idx = index;
+        const args: ValueComponent[] = [];
+        let orderByClause: OrderByClause | null = null;
+
+        // Check for opening parenthesis
+        if (idx >= lexemes.length || !(lexemes[idx].type & TokenType.OpenParen)) {
+            throw ParseError.fromUnparsedLexemes(lexemes, idx, `Expected opening parenthesis.`);
+        }
+        idx++;
+
+        // Handle empty arguments
+        if (idx < lexemes.length && (lexemes[idx].type & TokenType.CloseParen)) {
+            idx++;
+            return { arguments: new ValueList([]), orderByClause: null, newIndex: idx };
+        }
+
+        // Handle wildcard case
+        if (idx < lexemes.length && lexemes[idx].value === "*") {
+            const wildcard = new ColumnReference(null, "*");
+            idx++;
+            if (idx < lexemes.length && (lexemes[idx].type & TokenType.CloseParen)) {
+                idx++;
+                return { arguments: wildcard, orderByClause: null, newIndex: idx };
+            } else {
+                throw ParseError.fromUnparsedLexemes(lexemes, idx, `Expected closing parenthesis after wildcard '*'.`);
+            }
+        }
+
+        // Parse first argument
+        const firstArg = ValueParser.parseFromLexeme(lexemes, idx);
+        idx = firstArg.newIndex;
+        args.push(firstArg.value);
+
+        // Parse additional arguments separated by comma, or ORDER BY
+        while (idx < lexemes.length && 
+               ((lexemes[idx].type & TokenType.Comma) || lexemes[idx].value === "order by")) {
+            
+            // Check if current token is ORDER BY (without comma)
+            if (lexemes[idx].value === "order by") {
+                // Parse ORDER BY clause
+                const orderByResult = OrderByClauseParser.parseFromLexeme(lexemes, idx);
+                idx = orderByResult.newIndex;
+                orderByClause = orderByResult.value;
+                break; // ORDER BY should be the last element in aggregate functions
+            }
+            
+            if (lexemes[idx].type & TokenType.Comma) {
+                idx++; // Skip comma
+                
+                // Check if next token after comma is ORDER BY
+                if (idx < lexemes.length && lexemes[idx].value === "order by") {
+                    // Parse ORDER BY clause
+                    const orderByResult = OrderByClauseParser.parseFromLexeme(lexemes, idx);
+                    idx = orderByResult.newIndex;
+                    orderByClause = orderByResult.value;
+                    break; // ORDER BY should be the last element in aggregate functions
+                }
+                
+                // Parse regular argument after comma
+                const argResult = ValueParser.parseFromLexeme(lexemes, idx);
+                idx = argResult.newIndex;
+                args.push(argResult.value);
+            }
+        }
+
+        // Check for closing parenthesis
+        if (idx >= lexemes.length || !(lexemes[idx].type & TokenType.CloseParen)) {
+            throw ParseError.fromUnparsedLexemes(lexemes, idx, `Expected closing parenthesis.`);
+        }
+        idx++;
+
+        // Return single argument if only one, otherwise return ValueList
+        const argumentsValue = args.length === 1 ? args[0] : new ValueList(args);
+        return { arguments: argumentsValue, orderByClause, newIndex: idx };
     }
 }

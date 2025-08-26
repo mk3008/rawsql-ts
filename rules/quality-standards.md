@@ -33,7 +33,7 @@ This document defines quality standards and commands for AI assistants (such as 
 tsc --noEmit
 
 # Type check specific file
-tsc --noEmit src/transformers/JoinAggregationDecomposer.ts
+tsc --noEmit packages/core/src/transformers/JoinAggregationDecomposer.ts
 
 # Example of type error
 # src/transformers/SqlFormatter.ts(25,3): error TS2322: Type 'string' is not assignable to type 'FormatterOptions'
@@ -46,8 +46,8 @@ tsc --noEmit src/transformers/JoinAggregationDecomposer.ts
 # Check for lint errors
 npm run lint
 
-# Auto-fix available issues
-npm run lint:fix
+# lint already includes auto-fix
+# (no separate lint:fix command available)
 
 # Lint specific file
 npx eslint src/transformers/JoinAggregationDecomposer.ts
@@ -64,7 +64,7 @@ npm test
 npm test JoinAggregationDecomposer
 
 # Run tests with coverage
-npm run test:coverage
+npm run coverage
 
 # Watch mode (during development)
 npm run test:watch
@@ -127,8 +127,8 @@ tsc --noEmit
 # 1. Check errors
 npm run lint
 
-# 2. Attempt auto-fix
-npm run lint:fix
+# 2. lint command includes auto-fix
+# (no separate lint:fix available)
 
 # 3. Manual fixes when needed
 # - Remove unused variables

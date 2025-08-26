@@ -175,3 +175,6 @@ demo/formatter/node_modules/
 # Test reports
 reports/
 reports/**/*.md
+
+# Serena (MCP coding agent)
+.serena/

@@ -74,6 +74,8 @@ const keywordTrie = new KeywordTrie([
     ["groups"],
     // aggregate functions with WITHIN GROUP
     ["within", "group"],
+    // table functions with WITH ORDINALITY  
+    ["with", "ordinality"],
     // window frame
     ["current", "row"],
     ["unbounded", "preceding"],
@@ -133,7 +135,7 @@ export class CommandTokenReader extends BaseTokenReader {
         const keyword = keywordParser.parse(this.input, this.position);
         if (keyword !== null) {
             this.position = keyword.newPosition;
-            return this.createLexeme(TokenType.Command, keyword.keyword);
+            return this.createLexeme(TokenType.Command, keyword.keyword, keyword.comments);
         }
 
         // check hint clause

@@ -1,0 +1,25 @@
+# Run tests, build, and lint before commit
+echo "🔍 Running pre-commit checks..."
+
+echo "📋 Running tests..."
+npm test
+if [ $? -ne 0 ]; then
+    echo "❌ Tests failed! Commit aborted."
+    exit 1
+fi
+
+echo "🔨 Building project..."
+npm run build
+if [ $? -ne 0 ]; then
+    echo "❌ Build failed! Commit aborted."
+    exit 1
+fi
+
+echo "🧹 Running lint..."
+npm run lint
+if [ $? -ne 0 ]; then
+    echo "❌ Lint failed! Commit aborted."
+    exit 1
+fi
+
+echo "✅ All checks passed! Proceeding with commit."

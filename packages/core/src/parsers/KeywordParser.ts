@@ -23,7 +23,7 @@ export class KeywordParser {
         return !this.isEndOfInput(input, position, shift);
     }
 
-    public parse(input: string, position: number): { keyword: string, newPosition: number } | null {
+    public parse(input: string, position: number): { keyword: string, newPosition: number, comments?: string[] } | null {
         if (this.isEndOfInput(input, position)) {
             return null;
         }
@@ -51,7 +51,9 @@ export class KeywordParser {
 
         // multi-word keyword
         let lexeme = result.identifier;
-        position = StringUtils.readWhiteSpaceAndComment(input, result.newPosition).position;
+        const commentResult = StringUtils.readWhiteSpaceAndComment(input, result.newPosition);
+        position = commentResult.position;
+        const collectedComments: string[] = [...commentResult.lines]; // Cache comments during multi-word parsing
 
         // end of input
         if (this.isEndOfInput(input, position)) {
@@ -59,7 +61,8 @@ export class KeywordParser {
                 // if the last match was partial or final, it means that the keyword is finished
                 return {
                     keyword: lexeme,
-                    newPosition: position
+                    newPosition: position,
+                    comments: collectedComments.length > 0 ? collectedComments : undefined
                 };
             } else {
 
@@ -84,7 +87,9 @@ export class KeywordParser {
                 }
 
                 lexeme += ' ' + result.identifier;
-                position = StringUtils.readWhiteSpaceAndComment(input, result.newPosition).position;
+                const nextCommentResult = StringUtils.readWhiteSpaceAndComment(input, result.newPosition);
+                position = nextCommentResult.position;
+                collectedComments.push(...nextCommentResult.lines); // Collect comments between multi-word tokens
 
                 if (matchResult === KeywordMatchResult.Final) {
                     break;
@@ -98,7 +103,8 @@ export class KeywordParser {
 
         return {
             keyword: lexeme,
-            newPosition: position
+            newPosition: position,
+            comments: collectedComments.length > 0 ? collectedComments : undefined
         };
     }
 }

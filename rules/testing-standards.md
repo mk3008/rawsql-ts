@@ -50,7 +50,7 @@ This document defines the standard testing rules for the rawsql-ts project.
 
 ### File Naming Conventions (Actual Structure)
 ```
-src/                                  # Implementation code
+packages/core/src/                    # Implementation code
 ├── models/
 │   ├── SelectQuery.ts
 │   ├── Clause.ts
@@ -67,7 +67,7 @@ src/                                  # Implementation code
     ├── CommentEditor.ts
     └── ParameterDetector.ts
 
-tests/                                # Test code (separate directory)
+packages/core/tests/                  # Test code (separate directory)
 ├── models/                           # Model tests
 │   ├── SelectQuery.test.ts
 │   ├── SelectQuery.cte-management.test.ts
@@ -439,27 +439,27 @@ npm test comment-preservation-cte
 
 ### Tests You Should Not Write
 ```typescript
-// ❌ 実装詳細をテストしない
+// ❌ Don't test implementation details
 it('should call internal parse method', () => {
   const spy = vi.spyOn(parser, '_internalParse');
   parser.parse(sql);
   expect(spy).toHaveBeenCalled();
 });
 
-// ❌ 外部システムに実際にアクセス
+// ❌ Don't access external systems directly
 it('should save to real database', async () => {
   await queryExecutor.execute(sql);
   const saved = await realDatabase.find(queryId);
   expect(saved).toEqual(query);
 });
 
-// ❌ 時間に依存するテスト
+// ❌ Don't write time-dependent tests
 it('should return current timestamp', () => {
   const result = formatter.addTimestamp();
-  expect(result).toBe(Date.now()); // 不安定
+  expect(result).toBe(Date.now()); // Unstable
 });
 
-// ❌ 順序に依存するテスト
+// ❌ Don't write order-dependent tests
 describe('Sequential Tests', () => {
   let sharedParser: SelectQueryParser;
   
@@ -468,26 +468,26 @@ describe('Sequential Tests', () => {
   });
   
   it('should use initialized parser', () => {
-    expect(sharedParser.parse(sql)).toBeDefined(); // 前のテストに依存
+    expect(sharedParser.parse(sql)).toBeDefined(); // Depends on previous test
   });
 });
 
 // ❌ rawsql-tsの内部実装をモック
 it('should parse with mocked parser', () => {
   const mockParser = vi.fn().mockReturnValue(fakeResult);
-  // 実際のパーサーの動作を検証していない
+  // Doesn't validate actual parser behavior
 });
 ```
 
 ### Recommended Alternatives
 ```typescript
-// ✅ 振る舞いをテスト
+// ✅ Test behavior
 it('should return formatted SQL', () => {
   const result = formatter.format(query);
   expect(result.formattedSql).toContain('SELECT');
 });
 
-// ✅ 軽量実装を使用
+// ✅ Use lightweight implementation
 it('should cache parsed queries', async () => {
   const cache = new InMemoryQueryCache();
   const parser = new CachingParser(cache);
@@ -497,7 +497,7 @@ it('should cache parsed queries', async () => {
   expect(cached).toBeDefined();
 });
 
-// ✅ 時間をモック
+// ✅ Mock time
 it('should add timestamp to query', () => {
   const fixedTime = new Date('2023-01-01').getTime();
   vi.spyOn(Date, 'now').mockReturnValue(fixedTime);
@@ -506,7 +506,7 @@ it('should add timestamp to query', () => {
   expect(result).toBe(fixedTime);
 });
 
-// ✅ 独立したテスト
+// ✅ Independent tests
 describe('Independent Tests', () => {
   let parser: SelectQueryParser;
   
@@ -524,10 +524,10 @@ describe('Independent Tests', () => {
   });
 });
 
-// ✅ 実際のrawsql-tsを使用
+// ✅ Use actual rawsql-ts
 it('should decompose complex query correctly', () => {
   const sql = TEST_SQL_QUERIES.complex;
-  const query = SelectQueryParser.parse(sql); // 実際のパーサー
+  const query = SelectQueryParser.parse(sql); // Actual parser
   const decomposer = new JoinAggregationDecomposer();
   
   const result = decomposer.analyze(query);
