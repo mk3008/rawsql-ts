@@ -2,6 +2,14 @@ import { Lexeme, TokenType } from '../models/Lexeme';
 import { StringUtils } from './stringUtils';
 
 /**
+ * Line and column position (1-based indexing for editor integration)
+ */
+export interface LineColumn {
+    line: number;      // 1-based line number
+    column: number;    // 1-based column number
+}
+
+/**
  * Utility class for cursor-to-lexeme mapping in SQL text.
  * 
  * Provides functionality to find lexemes at specific cursor positions for IDE integration.
@@ -20,6 +28,31 @@ export class LexemeCursor {
         'limit', 'offset', 'as', 'on', 'inner', 'left', 'right', 'join', 'union',
         'insert', 'update', 'delete', 'into', 'values', 'set'
     ]);
+    /**
+     * Find the lexeme at the specified line and column position.
+     * 
+     * Designed for GUI editor integration where users select alias text.
+     * Uses 1-based line and column indexing to match editor conventions.
+     * 
+     * @param sql - The SQL string to analyze
+     * @param position - Line and column position (1-based)
+     * @returns The lexeme at the position, or null if not found
+     * 
+     * @example
+     * ```typescript
+     * const sql = "SELECT user_id FROM orders";
+     * const lexeme = LexemeCursor.findLexemeAtLineColumn(sql, { line: 1, column: 8 });
+     * console.log(lexeme?.value); // 'user_id'
+     * ```
+     */
+    public static findLexemeAtLineColumn(sql: string, position: LineColumn): Lexeme | null {
+        const charOffset = this.lineColumnToCharOffset(sql, position);
+        if (charOffset === -1) {
+            return null;
+        }
+        return this.findLexemeAtPosition(sql, charOffset);
+    }
+
     /**
      * Find the lexeme at the specified cursor position.
      * 
@@ -245,5 +278,88 @@ export class LexemeCursor {
                 endPosition: endPos
             }
         };
+    }
+
+    /**
+     * Convert line and column position to character offset.
+     * 
+     * @param sql - The SQL string
+     * @param position - Line and column position (1-based)
+     * @returns Character offset (0-based), or -1 if position is out of bounds
+     */
+    private static lineColumnToCharOffset(sql: string, position: LineColumn): number {
+        if (position.line < 1 || position.column < 1) {
+            return -1;
+        }
+
+        const lines = sql.split('\n');
+        
+        if (position.line > lines.length) {
+            return -1; // Line out of bounds
+        }
+        
+        const targetLine = lines[position.line - 1];
+        if (position.column > targetLine.length + 1) {
+            return -1; // Column out of bounds
+        }
+        
+        // Calculate character offset
+        let offset = 0;
+        for (let i = 0; i < position.line - 1; i++) {
+            offset += lines[i].length + 1; // +1 for newline character
+        }
+        offset += position.column - 1;
+        
+        return offset;
+    }
+
+    /**
+     * Convert character offset to line and column position.
+     * 
+     * @param sql - The SQL string
+     * @param charOffset - Character offset (0-based)
+     * @returns Line and column position (1-based), or null if offset is out of bounds
+     */
+    public static charOffsetToLineColumn(sql: string, charOffset: number): LineColumn | null {
+        if (charOffset < 0 || charOffset > sql.length) {
+            return null;
+        }
+        
+        const lines = sql.split('\n');
+        let currentOffset = 0;
+        
+        for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+            const lineLength = lines[lineIndex].length;
+            
+            // Check if the offset is within this line
+            if (charOffset < currentOffset + lineLength) {
+                return {
+                    line: lineIndex + 1,
+                    column: charOffset - currentOffset + 1
+                };
+            }
+            
+            // Check if the offset is exactly at the end of this line (newline position)
+            if (charOffset === currentOffset + lineLength && lineIndex < lines.length - 1) {
+                // Position at newline - return start of next line
+                return {
+                    line: lineIndex + 2,
+                    column: 1
+                };
+            }
+            
+            currentOffset += lineLength + 1; // +1 for newline character
+        }
+        
+        // Handle position at the very end of the text
+        if (charOffset === sql.length) {
+            const lastLine = lines[lines.length - 1];
+            return {
+                line: lines.length,
+                column: lastLine.length + 1
+            };
+        }
+        
+        return null;
     }
 }
