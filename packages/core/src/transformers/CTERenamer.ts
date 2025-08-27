@@ -5,6 +5,12 @@ import { CTEDependencyAnalyzer } from "./CTEDependencyAnalyzer";
 import { TableSourceCollector } from "./TableSourceCollector";
 import { ColumnReferenceCollector } from "./ColumnReferenceCollector";
 import { ColumnReference } from "../models/ValueComponent";
+import { LexemeCursor, LineColumn } from "../utils/LexemeCursor";
+import { SelectQueryParser } from "../parsers/SelectQueryParser";
+import { TokenType } from "../models/Lexeme";
+import { SqlFormatter } from "./SqlFormatter";
+import { KeywordParser } from "../parsers/KeywordParser";
+import { commandKeywordTrie } from "../tokenReaders/CommandTokenReader";
 
 /**
  * Error messages for CTE renaming operations.
@@ -75,9 +81,12 @@ const ERROR_MESSAGES = {
  * @since 0.11.16
  */
 export class CTERenamer {
+    // Use shared keyword trie from CommandTokenReader to avoid duplication
+
     private dependencyAnalyzer: CTEDependencyAnalyzer;
     private columnReferenceCollector: ColumnReferenceCollector;
     private tableSourceCollector: TableSourceCollector;
+    private keywordParser: KeywordParser;
 
     /**
      * Creates a new instance of CTERenamer.
@@ -89,6 +98,7 @@ export class CTERenamer {
         this.dependencyAnalyzer = new CTEDependencyAnalyzer();
         this.columnReferenceCollector = new ColumnReferenceCollector();
         this.tableSourceCollector = new TableSourceCollector(); // Use default selectableOnly=true to avoid infinite recursion
+        this.keywordParser = new KeywordParser(commandKeywordTrie);
     }
 
     /**
@@ -371,5 +381,157 @@ export class CTERenamer {
                 console.warn('Warning: Failed to update table source:', error);
             }
         }
+    }
+
+    /**
+     * GUI-integrated CTE renaming with line/column position support.
+     * 
+     * Designed for editor integration where users can right-click on CTE names
+     * and rename them. Automatically detects the CTE name at the cursor position
+     * and performs the rename operation.
+     * 
+     * @param sql - The complete SQL string containing CTE definitions
+     * @param position - Line and column position where the user clicked (1-based)
+     * @param newName - The new name for the CTE
+     * @returns The updated SQL string with the CTE renamed
+     * 
+     * @throws {Error} When no CTE name is found at the specified position
+     * @throws {Error} When the new name conflicts with existing CTE names
+     * 
+     * @example
+     * ```typescript
+     * const sql = `
+     *   WITH user_data AS (SELECT * FROM users),
+     *        order_data AS (SELECT * FROM orders)
+     *   SELECT * FROM user_data JOIN order_data ON ...
+     * `;
+     * 
+     * const renamer = new CTERenamer();
+     * // User right-clicks on 'user_data' at line 2, column 8
+     * const result = renamer.renameCTEAtPosition(sql, { line: 2, column: 8 }, 'customer_data');
+     * console.log(result);
+     * // Returns SQL with 'user_data' renamed to 'customer_data' everywhere
+     * ```
+     */
+    public renameCTEAtPosition(sql: string, position: LineColumn, newName: string): string {
+        // Input validation
+        if (!sql?.trim()) {
+            throw new Error('SQL cannot be empty');
+        }
+        if (!position || position.line < 1 || position.column < 1) {
+            throw new Error('Position must be a valid line/column (1-based)');
+        }
+        if (!newName?.trim()) {
+            throw new Error('New CTE name cannot be empty');
+        }
+
+        // Find the lexeme at the specified position
+        const lexeme = LexemeCursor.findLexemeAtLineColumn(sql, position);
+        if (!lexeme) {
+            throw new Error(`No CTE name found at line ${position.line}, column ${position.column}`);
+        }
+
+        const cteName = lexeme.value;
+        
+        // Parse the SQL to get the query structure
+        const query = SelectQueryParser.parse(sql);
+        
+        // First check if this is actually a CTE name in the query
+        if (!this.isCTENameInQuery(query, cteName)) {
+            throw new Error(`'${cteName}' is not a CTE name in this query`);
+        }
+
+        // Validate that the lexeme is a valid identifier or function (not a command/keyword)
+        if (!(lexeme.type & (TokenType.Identifier | TokenType.Function))) {
+            throw new Error(`Token at position is not a CTE name: '${lexeme.value}'`);
+        }
+
+        // Check for naming conflicts
+        const conflicts = this.checkNameConflicts(query, newName, cteName);
+        if (conflicts.length > 0) {
+            throw new Error(conflicts.join(', '));
+        }
+
+        // Perform the CTE rename operation
+        this.renameCTE(query, cteName, newName);
+        
+        // Return the formatted SQL using SqlFormatter
+        const formatter = new SqlFormatter();
+        const result = formatter.format(query);
+        return result.formattedSql;
+    }
+
+    /**
+     * Check for naming conflicts with existing CTEs and reserved keywords.
+     * @private
+     */
+    private checkNameConflicts(query: SelectQuery, newName: string, currentName: string): string[] {
+        const conflicts: string[] = [];
+
+        // Skip checks if the name isn't actually changing
+        if (currentName === newName) {
+            return conflicts;
+        }
+
+        // Check for reserved keyword conflicts
+        conflicts.push(...this.checkKeywordConflicts(newName));
+
+        // Check for existing CTE name conflicts
+        if (this.isCTENameInQuery(query, newName)) {
+            conflicts.push(`CTE name '${newName}' already exists`);
+        }
+
+        return conflicts;
+    }
+
+    /**
+     * Checks if the new name conflicts with SQL keywords using the existing KeywordTrie.
+     * @private
+     */
+    private checkKeywordConflicts(newName: string): string[] {
+        const conflicts: string[] = [];
+        
+        try {
+            // Use the KeywordParser to check if the new name is a reserved keyword
+            const keywordResult = this.keywordParser.parse(newName, 0);
+            
+            if (keywordResult !== null && keywordResult.keyword.toLowerCase() === newName.toLowerCase()) {
+                conflicts.push(`'${newName}' is a reserved SQL keyword and should not be used as a CTE name`);
+            }
+        } catch (error) {
+            console.warn(`Failed to check keyword conflicts for '${newName}':`, error);
+            // Fallback to basic check if KeywordParser fails
+            if (this.isBasicReservedKeyword(newName)) {
+                conflicts.push(`'${newName}' is a reserved SQL keyword and should not be used as a CTE name`);
+            }
+        }
+
+        return conflicts;
+    }
+
+    /**
+     * Fallback method for basic reserved keyword checking.
+     * @private
+     */
+    private isBasicReservedKeyword(name: string): boolean {
+        const basicKeywords = ['select', 'from', 'where', 'with', 'as', 'union', 'join', 'table', 'null'];
+        return basicKeywords.includes(name.toLowerCase());
+    }
+
+    /**
+     * Check if a CTE name exists in the query.
+     * @private
+     */
+    private isCTENameInQuery(query: SelectQuery, cteName: string): boolean {
+        if (query instanceof SimpleSelectQuery && query.withClause) {
+            return query.withClause.tables.some(cte => 
+                cte.aliasExpression && cte.aliasExpression.table && cte.aliasExpression.table.name === cteName
+            );
+        }
+        if (query instanceof BinarySelectQuery) {
+            return this.isCTENameInQuery(query.left, cteName) || 
+                   this.isCTENameInQuery(query.right, cteName);
+        }
+        return false;
     }
 }

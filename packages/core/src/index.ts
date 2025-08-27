@@ -20,6 +20,8 @@ export * from './transformers/CTETableReferenceCollector';
 export * from './transformers/CTEQueryDecomposer';
 export * from './transformers/CTEComposer';
 export * from './transformers/CTERenamer';
+export * from './transformers/AliasRenamer';
+export * from './transformers/SmartRenamer';
 export * from './transformers/ColumnReferenceCollector';
 export * from './transformers/Formatter';
 export * from './transformers/SqlFormatter';
@@ -67,6 +69,7 @@ export * from './utils/JsonSchemaValidator';
 export * from './utils/SchemaManager';
 export * from './utils/CommentEditor';
 export * from './utils/LexemeCursor';
+export type { LineColumn } from './utils/LexemeCursor';
 export * from './utils/CTERegionDetector';
 export type { CTERegion, CursorPositionInfo } from './utils/CTERegionDetector';
 

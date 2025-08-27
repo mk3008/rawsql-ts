@@ -118,6 +118,7 @@ const keywordTrie = new KeywordTrie([
 ]);
 const keywordParser = new KeywordParser(keywordTrie);
 export const joinkeywordParser = new KeywordParser(joinTrie);
+export { keywordTrie as commandKeywordTrie };
 
 export class CommandTokenReader extends BaseTokenReader {
     public tryRead(previous: Lexeme | null): Lexeme | null {
