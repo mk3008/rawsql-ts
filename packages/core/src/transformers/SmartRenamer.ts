@@ -6,6 +6,7 @@ import { BinarySelectQuery } from "../models/BinarySelectQuery";
 import { TokenType } from "../models/Lexeme";
 import { CTERenamer } from "./CTERenamer";
 import { AliasRenamer } from "./AliasRenamer";
+import { SqlIdentifierRenamer } from "./SqlIdentifierRenamer";
 
 /**
  * Result of smart rename operation
@@ -18,6 +19,9 @@ export interface SmartRenameResult {
     originalName: string;
     newName: string;
     error?: string;
+    // Formatting preservation info (added for integrated functionality)
+    formattingPreserved?: boolean;
+    formattingMethod?: 'sql-identifier-renamer' | 'smart-renamer-only';
 }
 
 /**
@@ -28,31 +32,47 @@ export interface SmartRenameResult {
  * - If cursor is on a CTE name → uses CTERenamer
  * - If cursor is on a table alias → uses AliasRenamer  
  * - Auto-detects the type and calls appropriate renamer
+ * - Supports optional formatting preservation via SqlIdentifierRenamer
  * 
  * @example
  * ```typescript
  * const renamer = new SmartRenamer();
  * const sql = `
- *   WITH user_data AS (SELECT * FROM users u WHERE u.active = true)
+ *   -- User analysis
+ *   WITH user_data AS (  /* User CTE *\/
+ *       SELECT * FROM users u 
+ *       WHERE u.active = true
+ *   )
  *   SELECT * FROM user_data
  * `;
  * 
- * // Right-click on 'user_data' (CTE name) at line 2, column 8
- * const result = renamer.rename(sql, { line: 2, column: 8 }, 'customer_data');
- * // Uses CTERenamer automatically
+ * // Standard rename (no formatting preservation)
+ * const result1 = renamer.rename(sql, { line: 3, column: 8 }, 'customer_data');
  * 
- * // Right-click on 'u' (table alias) at line 2, column 35  
- * const result2 = renamer.rename(sql, { line: 2, column: 35 }, 'usr');
- * // Uses AliasRenamer automatically
+ * // Rename with formatting preservation
+ * const result2 = renamer.rename(sql, { line: 3, column: 8 }, 'customer_data', 
+ *   { preserveFormatting: true });
+ * // Preserves comments, indentation, line breaks
+ * 
+ * // Batch rename with formatting preservation
+ * const result3 = renamer.batchRename(sql, {
+ *   'user_data': 'customers',
+ *   'u': 'users_tbl'
+ * }, { preserveFormatting: true });
+ * 
+ * // Check if position is renameable (for GUI context menus)
+ * const isRenameable = renamer.isRenameable(sql, { line: 3, column: 8 });
  * ```
  */
 export class SmartRenamer {
     private cteRenamer: CTERenamer;
     private aliasRenamer: AliasRenamer;
+    private identifierRenamer: SqlIdentifierRenamer;
 
     constructor() {
         this.cteRenamer = new CTERenamer();
         this.aliasRenamer = new AliasRenamer();
+        this.identifierRenamer = new SqlIdentifierRenamer();
     }
 
     /**
@@ -132,9 +152,10 @@ export class SmartRenamer {
      * @param sql - The complete SQL string
      * @param position - Line and column position where user clicked (1-based)
      * @param newName - The new name to assign
+     * @param options - Optional configuration { preserveFormatting?: boolean }
      * @returns Result object with success status and details
      */
-    public rename(sql: string, position: LineColumn, newName: string): SmartRenameResult {
+    public rename(sql: string, position: LineColumn, newName: string, options?: { preserveFormatting?: boolean }): SmartRenameResult {
         try {
             // Input validation
             if (!sql?.trim()) {
@@ -159,10 +180,25 @@ export class SmartRenamer {
             }
 
             const originalName = lexeme.value;
+            const preserveFormatting = options?.preserveFormatting ?? false;
 
-            // Try CTE renaming first
+            // Detect the renamer type
             const renamerType = this.detectRenamerType(sql, originalName);
             
+            // If formatting preservation is requested, try that approach first
+            if (preserveFormatting) {
+                try {
+                    const formatPreservedResult = this.attemptFormattingPreservationRename(sql, position, newName, originalName, renamerType);
+                    if (formatPreservedResult.success) {
+                        return formatPreservedResult;
+                    }
+                } catch (error) {
+                    // Log error but continue with fallback approach
+                    console.warn('Formatting preservation failed, falling back to standard rename:', error);
+                }
+            }
+            
+            // Standard rename approach (no formatting preservation)
             try {
                 let newSql: string;
                 
@@ -177,7 +213,9 @@ export class SmartRenamer {
                             renamerType: 'alias',
                             originalName,
                             newName,
-                            error: result.conflicts?.join(', ') || 'Alias rename failed'
+                            error: result.conflicts?.join(', ') || 'Alias rename failed',
+                            formattingPreserved: false,
+                            formattingMethod: 'smart-renamer-only'
                         };
                     }
                     newSql = result.newSql!;
@@ -191,7 +229,9 @@ export class SmartRenamer {
                     newSql,
                     renamerType,
                     originalName,
-                    newName
+                    newName,
+                    formattingPreserved: false,
+                    formattingMethod: 'smart-renamer-only'
                 };
 
             } catch (error) {
@@ -242,6 +282,154 @@ export class SmartRenamer {
     }
 
     /**
+     * Attempts to perform rename using SqlIdentifierRenamer to preserve formatting.
+     * @private
+     */
+    private attemptFormattingPreservationRename(
+        sql: string, 
+        position: LineColumn, 
+        newName: string, 
+        originalName: string, 
+        renamerType: 'cte' | 'alias' | 'unknown'
+    ): SmartRenameResult {
+        // First, use standard renaming to validate the operation
+        const standardResult = this.performStandardRename(sql, position, newName, originalName, renamerType);
+        
+        if (!standardResult.success) {
+            return {
+                ...standardResult,
+                formattingPreserved: false,
+                formattingMethod: 'smart-renamer-only'
+            };
+        }
+
+        // Create rename mapping for format restorer
+        const renameMap = new Map([[originalName, newName]]);
+
+        try {
+            // Use SqlIdentifierRenamer to apply the rename while preserving formatting
+            const formattedSql = this.identifierRenamer.renameIdentifiers(sql, renameMap);
+
+            // Validate that the rename was successful
+            if (this.validateRenameResult(sql, formattedSql, originalName, newName)) {
+                return {
+                    success: true,
+                    originalSql: sql,
+                    newSql: formattedSql,
+                    renamerType,
+                    originalName,
+                    newName,
+                    formattingPreserved: true,
+                    formattingMethod: 'sql-identifier-renamer'
+                };
+            } else {
+                throw new Error('Validation failed: rename may not have been applied correctly');
+            }
+
+        } catch (error) {
+            // Return standard result on formatting preservation failure
+            return {
+                ...standardResult,
+                formattingPreserved: false,
+                formattingMethod: 'smart-renamer-only'
+            };
+        }
+    }
+
+    /**
+     * Perform standard rename without formatting preservation
+     * @private
+     */
+    private performStandardRename(
+        sql: string, 
+        position: LineColumn, 
+        newName: string, 
+        originalName: string, 
+        renamerType: 'cte' | 'alias' | 'unknown'
+    ): SmartRenameResult {
+        try {
+            let newSql: string;
+            
+            if (renamerType === 'cte') {
+                newSql = this.cteRenamer.renameCTEAtPosition(sql, position, newName);
+            } else if (renamerType === 'alias') {
+                const result = this.aliasRenamer.renameAlias(sql, position, newName);
+                if (!result.success) {
+                    return {
+                        success: false,
+                        originalSql: sql,
+                        renamerType: 'alias',
+                        originalName,
+                        newName,
+                        error: result.conflicts?.join(', ') || 'Alias rename failed'
+                    };
+                }
+                newSql = result.newSql!;
+            } else {
+                return {
+                    success: false,
+                    originalSql: sql,
+                    renamerType: 'unknown',
+                    originalName,
+                    newName,
+                    error: `Cannot determine if '${originalName}' is a CTE name or table alias`
+                };
+            }
+
+            return {
+                success: true,
+                originalSql: sql,
+                newSql,
+                renamerType,
+                originalName,
+                newName
+            };
+
+        } catch (error) {
+            return {
+                success: false,
+                originalSql: sql,
+                renamerType,
+                originalName,
+                newName,
+                error: `${renamerType.toUpperCase()} rename failed: ${error instanceof Error ? error.message : String(error)}`
+            };
+        }
+    }
+
+    /**
+     * Validates that the rename operation was successful
+     * @private
+     */
+    private validateRenameResult(originalSql: string, newSql: string, oldName: string, newName: string): boolean {
+        // Basic validation: new SQL should be different from original
+        if (originalSql === newSql) {
+            return false;
+        }
+
+        // The new name should appear in the result
+        if (!newSql.includes(newName)) {
+            return false;
+        }
+
+        // The new SQL should have fewer occurrences of the old name than the original
+        const originalOccurrences = this.countWordOccurrences(originalSql, oldName);
+        const newOccurrences = this.countWordOccurrences(newSql, oldName);
+        
+        return newOccurrences < originalOccurrences;
+    }
+
+    /**
+     * Counts word boundary occurrences of a name in SQL
+     * @private
+     */
+    private countWordOccurrences(sql: string, name: string): number {
+        const regex = new RegExp(`\\b${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
+        const matches = sql.match(regex);
+        return matches ? matches.length : 0;
+    }
+
+    /**
      * Create error result object.
      * @private
      */
@@ -252,7 +440,71 @@ export class SmartRenamer {
             renamerType,
             originalName,
             newName,
-            error
+            error,
+            formattingPreserved: false,
+            formattingMethod: 'smart-renamer-only'
         };
+    }
+
+    /**
+     * Batch rename multiple identifiers with optional formatting preservation.
+     * 
+     * @param sql - The complete SQL string  
+     * @param renames - Map of old names to new names
+     * @param options - Optional configuration { preserveFormatting?: boolean }
+     * @returns Result with success status and details
+     */
+    public batchRename(
+        sql: string, 
+        renames: Record<string, string>,
+        options?: { preserveFormatting?: boolean }
+    ): SmartRenameResult {
+        const preserveFormatting = options?.preserveFormatting ?? false;
+
+        if (preserveFormatting) {
+            try {
+                const renameMap = new Map(Object.entries(renames));
+                const formattedSql = this.identifierRenamer.renameIdentifiers(sql, renameMap);
+
+                const originalNames = Object.keys(renames);
+                const newNames = Object.values(renames);
+
+                return {
+                    success: true,
+                    originalSql: sql,
+                    newSql: formattedSql,
+                    renamerType: 'alias', // Assume alias for batch operations
+                    originalName: originalNames.join(', '),
+                    newName: newNames.join(', '),
+                    formattingPreserved: true,
+                    formattingMethod: 'sql-identifier-renamer'
+                };
+
+            } catch (error) {
+                return {
+                    success: false,
+                    originalSql: sql,
+                    renamerType: 'unknown',
+                    originalName: Object.keys(renames).join(', '),
+                    newName: Object.values(renames).join(', '),
+                    error: `Batch rename failed: ${error instanceof Error ? error.message : String(error)}`,
+                    formattingPreserved: false,
+                    formattingMethod: 'smart-renamer-only'
+                };
+            }
+        } else {
+            // Standard batch rename without formatting preservation would need implementation
+            // For now, return error suggesting individual renames
+            return {
+                success: false,
+                originalSql: sql,
+                renamerType: 'unknown',
+                originalName: Object.keys(renames).join(', '),
+                newName: Object.values(renames).join(', '),
+                error: 'Batch rename without formatting preservation not implemented. Use individual renames or enable formatting preservation.',
+                formattingPreserved: false,
+                formattingMethod: 'smart-renamer-only'
+            };
+        }
     }
 }
