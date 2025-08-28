@@ -11,6 +11,7 @@ export * from './models/ValueComponent';
 export * from './models/ValuesQuery';
 export * from './models/CTEError';
 export * from './models/Lexeme';
+export * from './models/FormattingLexeme';
 
 export * from './transformers/CTECollector';
 export * from './transformers/CTENormalizer';
@@ -22,6 +23,9 @@ export * from './transformers/CTEComposer';
 export * from './transformers/CTERenamer';
 export * from './transformers/AliasRenamer';
 export * from './transformers/SmartRenamer';
+export * from './formatters/OriginalFormatRestorer';
+export * from './transformers/SqlIdentifierRenamer';
+export type { ScopeRange } from './transformers/SqlIdentifierRenamer';
 export * from './transformers/ColumnReferenceCollector';
 export * from './transformers/Formatter';
 export * from './transformers/SqlFormatter';
