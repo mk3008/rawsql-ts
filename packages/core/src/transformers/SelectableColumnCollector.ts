@@ -19,7 +19,7 @@ export enum DuplicateDetectionMode {
 import { CommonTable, ForClause, FromClause, GroupByClause, HavingClause, LimitClause, OrderByClause, SelectClause, WhereClause, WindowFrameClause, WindowsClause, JoinClause, JoinOnClause, JoinUsingClause, TableSource, SubQuerySource, SourceExpression, SelectItem, PartitionByClause, FetchClause, OffsetClause, ParenSource } from "../models/Clause";
 import { SimpleSelectQuery, BinarySelectQuery } from "../models/SelectQuery";
 import { SqlComponent, SqlComponentVisitor } from "../models/SqlComponent";
-import { ArrayExpression, ArrayQueryExpression, BetweenExpression, BinaryExpression, CaseExpression, CastExpression, ColumnReference, FunctionCall, InlineQuery, ParenExpression, UnaryExpression, ValueComponent, ValueList, WindowFrameExpression, IdentifierString } from "../models/ValueComponent";
+import { ArrayExpression, ArrayQueryExpression, BetweenExpression, BinaryExpression, CaseExpression, CastExpression, ColumnReference, FunctionCall, InlineQuery, ParenExpression, UnaryExpression, ValueComponent, ValueList, WindowFrameExpression, IdentifierString, ArraySliceExpression, ArrayIndexExpression } from "../models/ValueComponent";
 import { CTECollector } from "./CTECollector";
 import { SelectValueCollector } from "./SelectValueCollector";
 import { TableColumnResolver } from "./TableColumnResolver";
@@ -167,12 +167,15 @@ export class SelectableColumnCollector implements SqlComponentVisitor<void> {
         this.handlers.set(BinaryExpression.kind, (expr) => this.visitBinaryExpression(expr as BinaryExpression));
         this.handlers.set(UnaryExpression.kind, (expr) => this.visitUnaryExpression(expr as UnaryExpression));
         this.handlers.set(FunctionCall.kind, (expr) => this.visitFunctionCall(expr as FunctionCall));
+        this.handlers.set(InlineQuery.kind, (expr) => this.visitInlineQuery(expr as InlineQuery));
         this.handlers.set(ParenExpression.kind, (expr) => this.visitParenExpression(expr as ParenExpression));
         this.handlers.set(CaseExpression.kind, (expr) => this.visitCaseExpression(expr as CaseExpression));
         this.handlers.set(CastExpression.kind, (expr) => this.visitCastExpression(expr as CastExpression));
         this.handlers.set(BetweenExpression.kind, (expr) => this.visitBetweenExpression(expr as BetweenExpression));
         this.handlers.set(ArrayExpression.kind, (expr) => this.visitArrayExpression(expr as ArrayExpression));
         this.handlers.set(ArrayQueryExpression.kind, (expr) => this.visitArrayQueryExpression(expr as ArrayQueryExpression));
+        this.handlers.set(ArraySliceExpression.kind, (expr) => this.visitArraySliceExpression(expr as ArraySliceExpression));
+        this.handlers.set(ArrayIndexExpression.kind, (expr) => this.visitArrayIndexExpression(expr as ArrayIndexExpression));
         this.handlers.set(ValueList.kind, (expr) => this.visitValueList(expr as ValueList));
         this.handlers.set(WindowFrameExpression.kind, (expr) => this.visitWindowFrameExpression(expr as WindowFrameExpression));
         this.handlers.set(PartitionByClause.kind, (expr) => this.visitPartitionByClause(expr as PartitionByClause));
@@ -380,9 +383,21 @@ export class SelectableColumnCollector implements SqlComponentVisitor<void> {
     private visitSelectClause(clause: SelectClause): void {
         for (const item of clause.items) {
             if (item.identifier) {
+                // For aliased items, add the alias name
                 this.addSelectValueAsUnique(item.identifier.name, item.value);
+            } else if (item.value instanceof ColumnReference) {
+                // For non-aliased column references, preserve namespace information
+                // This ensures u.id and p.id are treated as separate columns in FullName mode
+                const columnName = item.value.column.name;
+                if (columnName !== "*") {
+                    this.addSelectValueAsUnique(columnName, item.value);
+                } else if (this.includeWildCard) {
+                    this.addSelectValueAsUnique(columnName, item.value);
+                }
+            } else {
+                // For other value types (functions, expressions, etc.), process normally
+                item.value.accept(this);
             }
-            item.value.accept(this);
         }
     }
 
@@ -513,11 +528,31 @@ export class SelectableColumnCollector implements SqlComponentVisitor<void> {
     }
 
     private visitFunctionCall(func: FunctionCall): void {
+        // Visit function arguments - this handles both single arguments and ValueList arguments
         if (func.argument) {
             func.argument.accept(this);
         }
+        
+        // Visit OVER clause for window functions
         if (func.over) {
             func.over.accept(this);
+        }
+        
+        // Visit WITHIN GROUP clause for ordered aggregate functions
+        if (func.withinGroup) {
+            func.withinGroup.accept(this);
+        }
+        
+        // Visit internal ORDER BY clause (for array_agg, json_agg, etc.)
+        if (func.internalOrderBy) {
+            func.internalOrderBy.accept(this);
+        }
+    }
+
+    private visitInlineQuery(inlineQuery: InlineQuery): void {
+        // Visit the nested SELECT query within the inline query expression
+        if (inlineQuery.selectQuery) {
+            this.visitNode(inlineQuery.selectQuery);
         }
     }
 
@@ -567,10 +602,36 @@ export class SelectableColumnCollector implements SqlComponentVisitor<void> {
         expr.query.accept(this);
     }
 
+    private visitArraySliceExpression(expr: ArraySliceExpression): void {
+        // Visit the array and slice indices for column references
+        if (expr.array) {
+            expr.array.accept(this);
+        }
+        if (expr.startIndex) {
+            expr.startIndex.accept(this);
+        }
+        if (expr.endIndex) {
+            expr.endIndex.accept(this);
+        }
+    }
+
+    private visitArrayIndexExpression(expr: ArrayIndexExpression): void {
+        // Visit the array and index for column references
+        if (expr.array) {
+            expr.array.accept(this);
+        }
+        if (expr.index) {
+            expr.index.accept(this);
+        }
+    }
+
     private visitValueList(expr: ValueList): void {
-        if (expr.values) {
+        // Visit all values in the list to collect column references from function arguments
+        if (expr.values && Array.isArray(expr.values)) {
             for (const value of expr.values) {
-                value.accept(this);
+                if (value) {
+                    value.accept(this);
+                }
             }
         }
     }
@@ -669,9 +730,18 @@ export class SelectableColumnCollector implements SqlComponentVisitor<void> {
      */
     private collectUpstreamColumnsFromCTE(cteTable: CommonTable): void {
         if (cteTable.query instanceof SimpleSelectQuery) {
-            // Use SelectValueCollector to get the columns defined in the CTE's SELECT clause
-            const cteCollector = new SelectValueCollector(this.tableColumnResolver, this.commonTables);
-            const cteColumns = cteCollector.collect(cteTable.query.selectClause);
+            // Create a recursive SelectableColumnCollector to collect ALL column references from the CTE
+            // This includes columns from SELECT, FROM, WHERE, JOIN, and other clauses within the CTE
+            // NOTE: Set upstream to false to prevent infinite recursion through collectAllAvailableCTEColumns
+            const cteCollector = new SelectableColumnCollector(
+                this.tableColumnResolver,
+                this.includeWildCard,
+                this.duplicateDetection,
+                { ...this.options, upstream: false }
+            );
+            
+            // Collect all columns from the CTE query (including WHERE clause columns)
+            const cteColumns = cteCollector.collect(cteTable.query);
             
             // Add all columns from the CTE, excluding wildcards
             for (const item of cteColumns) {

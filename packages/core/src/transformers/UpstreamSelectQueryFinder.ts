@@ -1,6 +1,6 @@
 import { SelectQuery, SimpleSelectQuery, BinarySelectQuery, ValuesQuery } from "../models/SelectQuery";
 import { CommonTable, SubQuerySource, TableSource, WithClause } from "../models/Clause";
-import { SelectableColumnCollector } from "./SelectableColumnCollector";
+import { SelectableColumnCollector, DuplicateDetectionMode } from "./SelectableColumnCollector";
 import { CTECollector } from "./CTECollector";
 
 /**
@@ -22,7 +22,12 @@ export class UpstreamSelectQueryFinder {
         this.options = options || {};
         this.tableColumnResolver = tableColumnResolver;
         // Pass the tableColumnResolver instead of options to fix type mismatch.
-        this.columnCollector = new SelectableColumnCollector(this.tableColumnResolver);
+        this.columnCollector = new SelectableColumnCollector(
+            this.tableColumnResolver,
+            false, // includeWildCard
+            DuplicateDetectionMode.FullName, // Use FullName to preserve JOIN table columns
+            { upstream: true } // Enable upstream collection for qualified name resolution
+        );
     }
 
     /**

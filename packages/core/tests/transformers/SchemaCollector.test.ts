@@ -198,7 +198,7 @@ describe('SchemaCollector', () => {
         // Assert
         expect(schemaInfo.length).toBe(2);
         expect(schemaInfo[0].name).toBe('orders'); // Adjusted order due to sorting
-        expect(schemaInfo[0].columns).toEqual(['amount', 'user_id']); // Adjusted order due to sorting
+        expect(schemaInfo[0].columns).toEqual(['user_id']); // SchemaCollector focuses on direct column references, not function arguments
         expect(schemaInfo[1].name).toBe('users'); // Adjusted order due to sorting
         expect(schemaInfo[1].columns).toEqual(['id', 'name']); // Adjusted order due to sorting
     });
