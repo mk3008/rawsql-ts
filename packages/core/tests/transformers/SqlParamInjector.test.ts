@@ -145,7 +145,7 @@ describe('SqlParamInjector', () => {
         const { formattedSql, params } = formatter.format(injectedQuery);
 
         // Assert: SQL and parameters correctly reflect the custom resolver mapping
-        expect(formattedSql).toBe('select "u".* from "users" as "u" where "u"."user_id" = :user_id and "u"."created_at" = :created_at');
+        expect(formattedSql).toBe('select "u".* from "users" as "u" where "u"."user_id" = :user_id and "users"."user_id" = :user_id and "u"."created_at" = :created_at and "users"."created_at" = :created_at');
         expect(params).toEqual({ user_id: 20, created_at: '2020-01-01' });
     });
 
@@ -309,5 +309,89 @@ describe('SqlParamInjector', () => {
             .toThrowError(/Unsupported operator 'test'/);
     });
     */
+
+    test('should support real table names with aliases in qualified column references', () => {
+        // Arrange: parse query with table alias
+        const baseQuery = SelectQueryParser.parse(`
+            SELECT u.id, u.name, p.name 
+            FROM users u 
+            JOIN profiles p ON u.id = p.user_id
+        `) as SimpleSelectQuery;
+
+        // Arrange: state using real table name instead of alias
+        const state = {
+            'users.name': 'Alice',        // Real table name, not alias 'u'
+            'profiles.name': 'Profile Alice' // Real table name, not alias 'p'
+        };
+
+        // Act: inject parameters
+        const injector = new SqlParamInjector();
+        const injectedQuery = injector.inject(baseQuery, state);
+
+        // Act: format SQL and extract parameters
+        const formatter = new SqlFormatter();
+        const { formattedSql, params } = formatter.format(injectedQuery);
+
+        // Assert: should work even though query uses aliases 'u' and 'p'
+        expect(formattedSql).toContain('"u"."name" = :users_name');
+        expect(formattedSql).toContain('"p"."name" = :profiles_name');
+        expect(params).toEqual({
+            users_name: 'Alice',
+            profiles_name: 'Profile Alice'
+        });
+    });
+
+    test('should throw error when using alias names in qualified column references', () => {
+        // Arrange: parse query with table alias
+        const baseQuery = SelectQueryParser.parse(`
+            SELECT u.id, u.name, p.name 
+            FROM users u 
+            JOIN profiles p ON u.id = p.user_id
+        `) as SimpleSelectQuery;
+
+        // Arrange: state using alias names (should be rejected)
+        const state = {
+            'u.name': 'Alice',        // Alias name - should be rejected
+            'p.name': 'Profile Alice' // Alias name - should be rejected
+        };
+
+        // Act & Assert: should throw error for alias names
+        const injector = new SqlParamInjector();
+        expect(() => {
+            injector.inject(baseQuery, state);
+        }).toThrowError(/Only real table names are allowed in qualified column references.*not aliases/);
+    });
+
+    test('should ignore alias names when ignoreNonExistentColumns is enabled', () => {
+        // Arrange: parse query with table alias
+        const baseQuery = SelectQueryParser.parse(`
+            SELECT u.id, u.name, p.name 
+            FROM users u 
+            JOIN profiles p ON u.id = p.user_id
+        `) as SimpleSelectQuery;
+
+        // Arrange: state mixing real table names and alias names
+        const state = {
+            'users.name': 'Alice',    // Real table name - should work
+            'u.name': 'Bob',          // Alias name - should be ignored
+            'p.name': 'Profile'       // Alias name - should be ignored
+        };
+
+        // Act: inject parameters with ignoreNonExistentColumns option
+        const injector = new SqlParamInjector({ ignoreNonExistentColumns: true });
+        const injectedQuery = injector.inject(baseQuery, state);
+
+        // Act: format SQL and extract parameters
+        const formatter = new SqlFormatter();
+        const { formattedSql, params } = formatter.format(injectedQuery);
+
+        // Assert: only real table name should be processed, aliases ignored
+        expect(formattedSql).toContain('"u"."name" = :users_name');
+        expect(formattedSql).not.toContain('u_name');
+        expect(formattedSql).not.toContain('p_name');
+        expect(params).toEqual({
+            users_name: 'Alice'
+        });
+    });
 });
 

@@ -29,6 +29,36 @@ export type FilterConditionValue = SqlParameterValue | SqlParameterValue[] | {
     column?: string;
 };
 
+/**
+ * Filter conditions for dynamic query building.
+ * 
+ * Supports both unqualified and qualified column names:
+ * - Unqualified: `{ name: 'Alice' }` - applies to all columns named 'name'
+ * - Qualified: `{ 'users.name': 'Bob' }` - applies only to the 'name' column in the 'users' table/alias
+ * - Hybrid: `{ name: 'Default', 'users.name': 'Override' }` - qualified names take priority over unqualified
+ * 
+ * @example
+ * ```typescript
+ * // Basic usage (backward compatible)
+ * const filter: FilterConditions = {
+ *   name: 'Alice',
+ *   status: 'active'
+ * };
+ * 
+ * // Qualified names for disambiguation in JOINs
+ * const filter: FilterConditions = {
+ *   'users.name': 'Alice',    // Only applies to users.name
+ *   'profiles.name': 'Bob'    // Only applies to profiles.name
+ * };
+ * 
+ * // Hybrid approach
+ * const filter: FilterConditions = {
+ *   status: 'active',         // Applies to all 'status' columns
+ *   'users.name': 'Alice',    // Overrides for users.name specifically
+ *   'profiles.name': 'Bob'    // Overrides for profiles.name specifically
+ * };
+ * ```
+ */
 export type FilterConditions = Record<string, FilterConditionValue>;
 
 /**
@@ -68,6 +98,48 @@ export interface QueryBuildOptions {
  * - Composable - combines multiple injectors in the correct order
  * - Type-safe - provides TypeScript types for all options
  * - Testable - easy to unit test without mocking file system
+ * - Table.Column Notation - supports qualified column names for disambiguation in JOINs
+ * 
+ * ## Table.Column Notation Support
+ * 
+ * This class now supports qualified column names in filter conditions to disambiguate
+ * columns with the same name from different tables in JOIN queries:
+ * 
+ * @example
+ * ```typescript
+ * // Basic filtering (backward compatible)
+ * builder.buildQuery('SELECT u.id, u.name FROM users u', {
+ *   filter: { name: 'Alice' }
+ * });
+ * 
+ * // Qualified column names for JOIN disambiguation  
+ * builder.buildQuery(`
+ *   SELECT u.id, u.name, p.name, o.total
+ *   FROM users u
+ *   JOIN profiles p ON u.id = p.user_id
+ *   JOIN orders o ON u.id = o.user_id
+ * `, {
+ *   filter: {
+ *     'u.name': 'Alice',           // Only applies to users.name
+ *     'p.name': 'Profile Alice',   // Only applies to profiles.name  
+ *     'o.total': { min: 100 }      // Only applies to orders.total
+ *   }
+ * });
+ * 
+ * // Hybrid approach - qualified names override unqualified
+ * builder.buildQuery(`
+ *   SELECT u.name, p.name, o.name FROM users u
+ *   JOIN profiles p ON u.id = p.user_id
+ *   JOIN orders o ON u.id = o.user_id  
+ * `, {
+ *   filter: {
+ *     name: 'Default',         // Applies to all 'name' columns
+ *     'u.name': 'Alice',       // Overrides for users.name specifically
+ *     'p.name': 'Bob'          // Overrides for profiles.name specifically
+ *     // orders.name gets 'Default'
+ *   }
+ * });
+ * ```
  */
 export class DynamicQueryBuilder {
     private tableColumnResolver?: (tableName: string) => string[];

@@ -1,5 +1,5 @@
 import { SelectQuery, SimpleSelectQuery } from "../models/SelectQuery";
-import { SelectableColumnCollector } from "./SelectableColumnCollector";
+import { SelectableColumnCollector, DuplicateDetectionMode } from "./SelectableColumnCollector";
 import { OrderByClause, OrderByItem, SortDirection, NullsSortDirection } from "../models/Clause";
 import { ValueComponent } from "../models/ValueComponent";
 import { SelectQueryParser } from "../parsers/SelectQueryParser";
@@ -69,8 +69,13 @@ export class SqlSortInjector {
             throw new Error('Complex queries are not supported for sorting');
         }
 
-        // Collect available columns from the current query only (no upstream search)
-        const collector = new SelectableColumnCollector(this.tableColumnResolver);
+        // Collect available columns including all JOIN table columns for sorting
+        const collector = new SelectableColumnCollector(
+            this.tableColumnResolver,
+            false, // includeWildCard
+            DuplicateDetectionMode.FullName, // Use FullName to preserve JOIN table columns
+            { upstream: true } // Enable upstream collection for JOIN table sorting
+        );
         const availableColumns = collector.collect(query);
 
         // Validate that all specified columns exist

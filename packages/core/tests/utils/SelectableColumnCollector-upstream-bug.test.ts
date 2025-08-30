@@ -4,6 +4,61 @@ import { SelectQueryParser } from '../../src/parsers/SelectQueryParser';
 
 describe('SelectableColumnCollector upstream option bug reproduction', () => {
     
+    describe('Root Cause Analysis - JOIN table column collection bug', () => {
+        it('should collect all SELECT clause columns from JOIN tables', () => {
+            const bugSQL = `
+                SELECT u.id, u.name, p.id, p.name 
+                FROM users u 
+                JOIN profiles p ON u.id = p.user_id
+            `;
+            
+            console.log('\n=== ROOT CAUSE ANALYSIS ===');
+            console.log('Query:', bugSQL.trim());
+            
+            const query = SelectQueryParser.parse(bugSQL);
+            
+            // Test with FullName mode to see all columns distinctly
+            const fullNameCollector = new SelectableColumnCollector(
+                null, false, DuplicateDetectionMode.FullName
+            );
+            const fullNameColumns = fullNameCollector.collect(query);
+            
+            console.log('\nFullName mode results:');
+            fullNameColumns.forEach(col => {
+                const namespace = (col.value as any).getNamespace ? (col.value as any).getNamespace() : '';
+                console.log(`  ${namespace}.${col.name} (from ${col.value.constructor.name})`);
+            });
+            console.log('Total columns:', fullNameColumns.length);
+            
+            // Map to namespace.column format for easier testing
+            const fullNameKeys = fullNameColumns.map(col => {
+                const namespace = (col.value as any).getNamespace ? (col.value as any).getNamespace() : '';
+                return namespace ? `${namespace}.${col.name}` : col.name;
+            });
+            
+            console.log('\nExpected columns: u.id, u.name, p.id, p.name, p.user_id');
+            console.log('Actually collected:', fullNameKeys.join(', '));
+            
+            // Test: All SELECT clause columns should be present
+            expect(fullNameKeys).toContain('u.id');     // u.id from SELECT
+            expect(fullNameKeys).toContain('u.name');   // u.name from SELECT
+            expect(fullNameKeys).toContain('p.id');     // p.id from SELECT
+            expect(fullNameKeys).toContain('p.name');   // p.name from SELECT
+            expect(fullNameKeys).toContain('p.user_id'); // p.user_id from JOIN condition
+            
+            // Should have exactly 5 columns: u.id, u.name, p.id, p.name, p.user_id
+            expect(fullNameColumns.length).toBe(5);
+            
+            // Log success or failure
+            if (fullNameKeys.includes('p.id') && fullNameKeys.includes('p.name')) {
+                console.log('✅ FIX SUCCESSFUL - All JOIN table SELECT columns collected');
+            } else {
+                console.log('❌ ISSUE CONFIRMED - Missing JOIN table SELECT columns');
+                console.log('Missing columns:', ['p.id', 'p.name'].filter(col => !fullNameKeys.includes(col)));
+            }
+        });
+    });
+    
     describe('Working Example (Simple CTE)', () => {
         it('should collect upstream columns from simple CTE correctly', () => {
             const workingSQL = `

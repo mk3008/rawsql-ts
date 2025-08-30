@@ -1,9 +1,10 @@
 import { SelectQuery, SimpleSelectQuery } from "../models/SelectQuery";
 import { BinarySelectQuery } from "../models/BinarySelectQuery";
-import { SelectableColumnCollector } from "./SelectableColumnCollector";
-import { BinaryExpression, FunctionCall, ParameterExpression, ParenExpression, ValueComponent, ValueList, SqlParameterValue, ColumnReference } from "../models/ValueComponent";
+import { SelectableColumnCollector, DuplicateDetectionMode } from "./SelectableColumnCollector";
+import { BinaryExpression, FunctionCall, ParameterExpression, ParenExpression, ValueComponent, ValueList, SqlParameterValue } from "../models/ValueComponent";
 import { UpstreamSelectQueryFinder } from "./UpstreamSelectQueryFinder";
 import { SelectQueryParser } from "../parsers/SelectQueryParser";
+import { TableSource, SourceExpression } from "../models/Clause";
 
 /**
  * Options for SqlParamInjector
@@ -57,7 +58,12 @@ export class SqlParamInjector {
 
         // Pass tableColumnResolver to finder and collector
         const finder = new UpstreamSelectQueryFinder(this.tableColumnResolver, this.options);
-        const collector = new SelectableColumnCollector(this.tableColumnResolver);
+        const collector = new SelectableColumnCollector(
+            this.tableColumnResolver, 
+            false, // includeWildCard
+            DuplicateDetectionMode.FullName, // Use FullName to preserve JOIN table columns (u.id vs p.id)
+            { upstream: true } // Enable upstream collection for qualified name resolution
+        );
         // Normalization is handled locally below.
         const normalize = (s: string) =>
             this.options.ignoreCaseAndUnderscore ? s.toLowerCase().replace(/_/g, '') : s;
@@ -73,21 +79,53 @@ export class SqlParamInjector {
             throw new Error('All parameters are undefined. This would result in fetching all records. Use allowAllUndefined: true option to explicitly allow this behavior.');
         }
 
+        // Separate qualified and unqualified parameters for hybrid processing
+        const qualifiedParams: Array<[string, StateParameterValue]> = [];
+        const unqualifiedParams: Array<[string, StateParameterValue]> = [];
+
         for (const [name, stateValue] of Object.entries(state)) {
             // skip undefined values
             if (stateValue === undefined) continue;
 
+            if (this.isQualifiedColumnName(name)) {
+                qualifiedParams.push([name, stateValue]);
+            } else {
+                unqualifiedParams.push([name, stateValue]);
+            }
+        }
+
+        // Process qualified parameters first
+        for (const [name, stateValue] of qualifiedParams) {
             this.processStateParameter(
                 name, stateValue, query, finder, collector, normalize, allowedOps,
                 injectOrConditions, injectAndConditions, injectSimpleCondition, injectComplexConditions, validateOperators
             );
-        } function injectAndConditions(
+        }
+
+        // Then process unqualified parameters, but only for columns that haven't been processed yet
+        const processedQualifiedColumns = new Set<string>();
+        for (const [qualifiedName, _] of qualifiedParams) {
+            const parsed = this.parseQualifiedColumnName(qualifiedName);
+            if (parsed) {
+                // Track which table.column combinations have been processed
+                processedQualifiedColumns.add(`${parsed.table.toLowerCase()}.${parsed.column.toLowerCase()}`);
+            }
+        }
+
+        for (const [name, stateValue] of unqualifiedParams) {
+            this.processUnqualifiedParameter(
+                name, stateValue, query, finder, collector, normalize, allowedOps,
+                injectOrConditions, injectAndConditions, injectSimpleCondition, injectComplexConditions, validateOperators,
+                processedQualifiedColumns
+            );
+        }
+
+        function injectAndConditions(
             q: SimpleSelectQuery,
             baseName: string,
             andConditions: SingleCondition[],
             normalize: (s: string) => string,
-            availableColumns: { name: string; value: ValueComponent }[],
-            collector: SelectableColumnCollector
+            availableColumns: { name: string; value: ValueComponent }[]
         ): void {
             // For AND conditions, we process each condition and add them all with AND logic
             for (let i = 0; i < andConditions.length; i++) {
@@ -176,8 +214,7 @@ export class SqlParamInjector {
             baseName: string,
             orConditions: SingleCondition[],
             normalize: (s: string) => string,
-            availableColumns: { name: string; value: ValueComponent }[],
-            collector: SelectableColumnCollector
+            availableColumns: { name: string; value: ValueComponent }[]
         ): void {
             const orExpressions: ValueComponent[] = [];
 
@@ -301,7 +338,9 @@ export class SqlParamInjector {
         function injectSimpleCondition(q: SimpleSelectQuery, columnRef: ValueComponent, name: string, stateValue: SqlParameterValue): void {
             const paramExpr = new ParameterExpression(name, stateValue);
             q.appendWhere(new BinaryExpression(columnRef, "=", paramExpr));
-        } function injectComplexConditions(q: SimpleSelectQuery, columnRef: ValueComponent, name: string, stateValue: Condition): void {
+        }
+
+        function injectComplexConditions(q: SimpleSelectQuery, columnRef: ValueComponent, name: string, stateValue: Condition): void {
             const conditions: ValueComponent[] = [];
 
             if ('=' in stateValue) {
@@ -407,6 +446,37 @@ export class SqlParamInjector {
     }
 
     /**
+     * Parses a qualified column name (table.column) into its components
+     * @param qualifiedName The qualified name (e.g., 'users.name' or 'name')
+     * @returns Object with table and column parts, or null if invalid
+     */
+    private parseQualifiedColumnName(qualifiedName: string): { table: string; column: string } | null {
+        const parts = qualifiedName.split('.');
+        if (parts.length === 2 && parts[0].trim() && parts[1].trim()) {
+            return {
+                table: parts[0].trim(),
+                column: parts[1].trim()
+            };
+        }
+        return null;
+    }
+
+    /**
+     * Checks if a column name is qualified (contains a dot)
+     */
+    private isQualifiedColumnName(name: string): boolean {
+        return name.includes('.') && this.parseQualifiedColumnName(name) !== null;
+    }
+
+    /**
+     * Sanitizes parameter names by replacing dots with underscores
+     * This ensures qualified names like 'users.name' become 'users_name' as parameter names
+     */
+    private sanitizeParameterName(name: string): string {
+        return name.replace(/\./g, '_');
+    }
+
+    /**
      * Type guard for column mapping presence
      */
     private hasColumnMapping(value: unknown): value is { column?: string } {
@@ -445,7 +515,7 @@ export class SqlParamInjector {
                     finder, query, name, orConditions
                 );
                 const allColumns = this.getAllAvailableColumns(targetQuery, collector);
-                injectOrConditions(targetQuery, name, orConditions, normalize, allColumns, collector);
+                injectOrConditions(targetQuery, name, orConditions, normalize, allColumns);
                 return;
             }
         }
@@ -458,7 +528,7 @@ export class SqlParamInjector {
                     finder, query, name, andConditions
                 );
                 const allColumns = this.getAllAvailableColumns(targetQuery, collector);
-                injectAndConditions(targetQuery, name, andConditions, normalize, allColumns, collector);
+                injectAndConditions(targetQuery, name, andConditions, normalize, allColumns);
                 return;
             }
         }
@@ -498,6 +568,146 @@ export class SqlParamInjector {
     }
 
     /**
+     * Processes unqualified parameters, respecting qualified parameter overrides
+     */
+    private processUnqualifiedParameter(
+        name: string,
+        stateValue: StateParameterValue,
+        query: SimpleSelectQuery,
+        finder: UpstreamSelectQueryFinder,
+        collector: SelectableColumnCollector,
+        normalize: (s: string) => string,
+        allowedOps: string[],
+        injectOrConditions: Function,
+        injectAndConditions: Function,
+        injectSimpleCondition: Function,
+        injectComplexConditions: Function,
+        validateOperators: Function,
+        processedQualifiedColumns: Set<string>
+    ): void {
+        // Handle OR conditions specially - they don't need the main column to exist
+        if (this.isOrCondition(stateValue)) {
+            const orConditions = stateValue.or as SingleCondition[];
+            if (orConditions && orConditions.length > 0) {
+                const targetQuery = this.findTargetQueryForLogicalCondition(
+                    finder, query, name, orConditions
+                );
+                const allColumns = this.getAllAvailableColumns(targetQuery, collector);
+                injectOrConditions(targetQuery, name, orConditions, normalize, allColumns);
+                return;
+            }
+        }
+
+        // Handle AND conditions specially - they don't need the main column to exist
+        if (this.isAndCondition(stateValue)) {
+            const andConditions = stateValue.and as SingleCondition[];
+            if (andConditions && andConditions.length > 0) {
+                const targetQuery = this.findTargetQueryForLogicalCondition(
+                    finder, query, name, andConditions
+                );
+                const allColumns = this.getAllAvailableColumns(targetQuery, collector);
+                injectAndConditions(targetQuery, name, andConditions, normalize, allColumns);
+                return;
+            }
+        }
+
+        // Handle explicit column mapping without OR
+        if (this.isExplicitColumnMapping(stateValue)) {
+            const explicitColumnName = stateValue.column;
+            if (explicitColumnName) {
+                const queries = finder.find(query, explicitColumnName);
+                if (queries.length === 0) {
+                    throw new Error(`Explicit column '${explicitColumnName}' not found in query`);
+                }
+
+                for (const q of queries) {
+                    const allColumns = this.getAllAvailableColumns(q, collector);
+                    const entry = allColumns.find(item => normalize(item.name) === normalize(explicitColumnName));
+                    if (!entry) {
+                        throw new Error(`Explicit column '${explicitColumnName}' not found in query`);
+                    }
+
+                    // if object, validate its keys
+                    if (this.isValidatableObject(stateValue)) {
+                        validateOperators(stateValue, allowedOps, name);
+                    }
+
+                    injectComplexConditions(q, entry.value, name, stateValue);
+                }
+                return;
+            }
+        }
+
+        // Find all queries that contain this unqualified column name
+        const queries = finder.find(query, name);
+        if (queries.length === 0) {
+            // Ignore non-existent columns if option is enabled
+            if (this.options.ignoreNonExistentColumns) {
+                return;
+            }
+            throw new Error(`Column '${name}' not found in query`);
+        }
+
+        for (const q of queries) {
+            const allColumns = this.getAllAvailableColumns(q, collector);
+            const tableMapping = this.buildTableMapping(q);
+            
+            // Find all columns with this name
+            const matchingColumns = allColumns.filter(item => normalize(item.name) === normalize(name));
+            
+            for (const entry of matchingColumns) {
+                // Check if this column has already been processed by a qualified parameter
+                let skipColumn = false;
+                
+                // Get the table name for this column
+                if (entry.value && typeof (entry.value as any).getNamespace === 'function') {
+                    const namespace = (entry.value as any).getNamespace();
+                    if (namespace) {
+                        const realTableName = tableMapping.aliasToRealTable.get(namespace.toLowerCase());
+                        if (realTableName) {
+                            const qualifiedKey = `${realTableName.toLowerCase()}.${name.toLowerCase()}`;
+                            if (processedQualifiedColumns.has(qualifiedKey)) {
+                                skipColumn = true;
+                            }
+                        }
+                    }
+                }
+                
+                // Skip if this column was already processed by a qualified parameter
+                if (skipColumn) {
+                    continue;
+                }
+                
+                const columnRef = entry.value;
+                
+                // if object, validate its keys
+                if (this.isValidatableObject(stateValue)) {
+                    validateOperators(stateValue, allowedOps, name);
+                }
+
+                // Handle explicit column mapping
+                let targetColumn = columnRef;
+                if (this.hasColumnMapping(stateValue)) {
+                    const explicitColumnName = stateValue.column;
+                    if (explicitColumnName) {
+                        const explicitEntry = allColumns.find(item => normalize(item.name) === normalize(explicitColumnName));
+                        if (explicitEntry) {
+                            targetColumn = explicitEntry.value;
+                        }
+                    }
+                }
+
+                // Use the original parameter name for unqualified columns
+                if (this.isSimpleValue(stateValue)) {
+                    injectSimpleCondition(q, targetColumn, name, stateValue);
+                } else {
+                    injectComplexConditions(q, targetColumn, name, stateValue);
+                }
+            }
+        }
+    }
+
+    /**
      * Processes regular column conditions (non-logical, non-explicit)
      */
     private processRegularColumnCondition(
@@ -512,21 +722,92 @@ export class SqlParamInjector {
         injectComplexConditions: Function,
         validateOperators: Function
     ): void {
-        const queries = finder.find(query, name);
+        // Check if this is a qualified column name (table.column)
+        let searchColumnName = name;
+        let targetTableName: string | undefined = undefined;
+        
+        if (this.isQualifiedColumnName(name)) {
+            const parsed = this.parseQualifiedColumnName(name);
+            if (parsed) {
+                searchColumnName = parsed.column;
+                targetTableName = parsed.table;
+            }
+        }
+
+        const queries = finder.find(query, searchColumnName);
         if (queries.length === 0) {
             // Ignore non-existent columns if option is enabled
             if (this.options.ignoreNonExistentColumns) {
                 return;
             }
-            throw new Error(`Column '${name}' not found in query`);
+            throw new Error(`Column '${searchColumnName}' not found in query`);
         }
 
         for (const q of queries) {
             const allColumns = this.getAllAvailableColumns(q, collector);
-            const entry = allColumns.find(item => normalize(item.name) === normalize(name));
-            if (!entry) {
-                throw new Error(`Column '${name}' not found in query`);
+            
+            // For qualified names, find the column with the specific table name
+            let entry: { name: string; value: ValueComponent } | undefined;
+            
+            if (targetTableName) {
+                // Build table mapping for enhanced qualified name resolution
+                const tableMapping = this.buildTableMapping(q);
+                
+                // Look for column with specific real table name only (no alias matching)
+                entry = allColumns.find(item => {
+                    const normalizedColumnName = normalize(item.name) === normalize(searchColumnName);
+                    if (!normalizedColumnName) return false;
+                    
+                    // Check if the column has the target table name
+                    if (item.value && typeof (item.value as any).getNamespace === 'function') {
+                        const namespace = (item.value as any).getNamespace();
+                        if (namespace) {
+                            const normalizedNamespace = normalize(namespace);
+                            const normalizedTargetTable = normalize(targetTableName);
+                            
+                            // Only check if targetTableName is a real table name that maps to this alias
+                            const realTableName = tableMapping.aliasToRealTable.get(normalizedNamespace);
+                            if (realTableName && normalize(realTableName) === normalizedTargetTable) {
+                                return true;
+                            }
+                        }
+                    }
+                    return false;
+                });
+                
+                if (!entry) {
+                    // If qualified name not found, try to be more lenient for backward compatibility
+                    if (this.options.ignoreNonExistentColumns) {
+                        continue;
+                    }
+                    // Check if the table exists at all
+                    const tableMapping = this.buildTableMapping(q);
+                    const hasRealTable = Array.from(tableMapping.realTableToAlias.keys()).some(realTable => 
+                        normalize(realTable) === normalize(targetTableName)
+                    );
+                    const hasAliasTable = Array.from(tableMapping.aliasToRealTable.keys()).some(alias => 
+                        normalize(alias) === normalize(targetTableName)
+                    );
+                    
+                    if (!hasRealTable && !hasAliasTable) {
+                        // Table doesn't exist at all
+                        throw new Error(`Column '${name}' (qualified as ${name}) not found in query`);
+                    } else if (hasAliasTable && !hasRealTable) {
+                        // It's an alias, not a real table name
+                        throw new Error(`Column '${name}' not found. Only real table names are allowed in qualified column references (e.g., 'users.name'), not aliases (e.g., 'u.name').`);
+                    } else {
+                        // Real table exists but column doesn't
+                        throw new Error(`Column '${name}' (qualified as ${name}) not found in query`);
+                    }
+                }
+            } else {
+                // Unqualified name - find any matching column
+                entry = allColumns.find(item => normalize(item.name) === normalize(searchColumnName));
+                if (!entry) {
+                    throw new Error(`Column '${searchColumnName}' not found in query`);
+                }
             }
+            
             const columnRef = entry.value;
             
             // if object, validate its keys
@@ -536,22 +817,24 @@ export class SqlParamInjector {
 
             // Handle explicit column mapping
             let targetColumn = columnRef;
-            let targetColumnName = name;
             if (this.hasColumnMapping(stateValue)) {
                 const explicitColumnName = stateValue.column;
                 if (explicitColumnName) {
                     const explicitEntry = allColumns.find(item => normalize(item.name) === normalize(explicitColumnName));
                     if (explicitEntry) {
                         targetColumn = explicitEntry.value;
-                        targetColumnName = explicitColumnName;
                     }
                 }
             }
 
+            // Use sanitized parameter name (replace dots with underscores)
+            // This ensures qualified names like 'users.name' become 'users_name' as parameter names
+            const parameterName = this.sanitizeParameterName(name);
+            
             if (this.isSimpleValue(stateValue)) {
-                injectSimpleCondition(q, targetColumn, targetColumnName, stateValue);
+                injectSimpleCondition(q, targetColumn, parameterName, stateValue);
             } else {
-                injectComplexConditions(q, targetColumn, targetColumnName, stateValue);
+                injectComplexConditions(q, targetColumn, parameterName, stateValue);
             }
         }
     }
@@ -618,7 +901,12 @@ export class SqlParamInjector {
      */
     private collectColumnsFromSelectQuery(query: SelectQuery): { name: string; value: ValueComponent }[] {
         if (query instanceof SimpleSelectQuery) {
-            const collector = new SelectableColumnCollector(this.tableColumnResolver);
+            const collector = new SelectableColumnCollector(
+                this.tableColumnResolver,
+                false, // includeWildCard
+                DuplicateDetectionMode.FullName, // Use FullName to preserve JOIN table columns
+                { upstream: true } // Enable upstream collection for qualified name resolution
+            );
             return collector.collect(query);
         } else if (query instanceof BinarySelectQuery) {
             // For UNION/INTERSECT/EXCEPT, columns from left side are representative
@@ -626,6 +914,78 @@ export class SqlParamInjector {
             return this.collectColumnsFromSelectQuery(query.left);
         }
         return [];
+    }
+
+    /**
+     * Builds a mapping between table aliases and real table names for enhanced qualified name resolution
+     */
+    private buildTableMapping(query: SimpleSelectQuery): { 
+        aliasToRealTable: Map<string, string>;
+        realTableToAlias: Map<string, string>;
+    } {
+        const aliasToRealTable = new Map<string, string>();
+        const realTableToAlias = new Map<string, string>();
+
+        try {
+            // Process FROM clause
+            if (query.fromClause) {
+                this.processSourceForMapping(query.fromClause.source, aliasToRealTable, realTableToAlias);
+                
+                // Process JOIN clauses
+                if (query.fromClause.joins) {
+                    for (const join of query.fromClause.joins) {
+                        this.processSourceForMapping(join.source, aliasToRealTable, realTableToAlias);
+                    }
+                }
+            }
+            
+            // Process CTE definitions
+            if (query.withClause) {
+                for (const cte of query.withClause.tables) {
+                    const cteAlias = cte.getSourceAliasName();
+                    if (cteAlias) {
+                        // For CTEs, the "real table name" is the CTE name itself
+                        aliasToRealTable.set(cteAlias.toLowerCase(), cteAlias);
+                        realTableToAlias.set(cteAlias.toLowerCase(), cteAlias);
+                    }
+                }
+            }
+        } catch (error) {
+            // Log warning but continue with empty mapping for safety
+            console.warn('Failed to build table mapping:', error);
+        }
+
+        return { aliasToRealTable, realTableToAlias };
+    }
+
+    /**
+     * Helper method to process a single SourceExpression for table mapping
+     */
+    private processSourceForMapping(
+        source: SourceExpression, 
+        aliasToRealTable: Map<string, string>, 
+        realTableToAlias: Map<string, string>
+    ): void {
+        try {
+            if (source.datasource instanceof TableSource) {
+                const realTableName = source.datasource.getSourceName();
+                const aliasName = source.aliasExpression?.table?.name || realTableName;
+                
+                if (realTableName && aliasName) {
+                    // Store mappings in lowercase for case-insensitive lookup
+                    aliasToRealTable.set(aliasName.toLowerCase(), realTableName);
+                    realTableToAlias.set(realTableName.toLowerCase(), aliasName);
+                    
+                    // Also store direct mapping if alias equals real table name
+                    if (aliasName === realTableName) {
+                        aliasToRealTable.set(realTableName.toLowerCase(), realTableName);
+                    }
+                }
+            }
+        } catch (error) {
+            // Log warning but continue processing other sources
+            console.warn('Failed to process source for mapping:', error);
+        }
     }
 }
 
