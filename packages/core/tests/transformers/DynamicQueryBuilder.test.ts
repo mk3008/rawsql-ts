@@ -552,7 +552,7 @@ describe('DynamicQueryBuilder', () => {
             const formatter = new SqlFormatter();
             const { formattedSql, params } = formatter.format(result);
             
-            // Should work exactly as before
+            // Should work exactly as before (single table optimizes to no qualifier)
             expect(formattedSql).toContain('"name" = :name');
             expect(formattedSql).toContain('"status" = :status');
             expect(params).toEqual({
