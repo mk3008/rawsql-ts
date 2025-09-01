@@ -26,6 +26,12 @@ const joinTrie = new KeywordTrie([
     ["natural", "right", "outer", "join"],
     ["natural", "full", "join"],
     ["natural", "full", "outer", "join"],
+
+    // LATERAL JOIN patterns
+    ["lateral", "join"],
+    ["lateral", "inner", "join"],
+    ["lateral", "left", "join"],
+    ["lateral", "left", "outer", "join"],
 ]);
 const keywordTrie = new KeywordTrie([
     ["with"],
