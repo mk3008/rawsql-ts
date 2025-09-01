@@ -80,7 +80,7 @@ export class CTEBuilder {
 
         // Resolve name duplications
         const resolvedTables: CommonTable[] = [];
-        for (const [name, tables] of ctesByName.entries()) {
+        for (const [name, tables] of Array.from(ctesByName.entries())) {
             if (tables.length === 1) {
                 // No duplication
                 resolvedTables.push(tables[0]);
@@ -200,7 +200,7 @@ export class CTEBuilder {
 
             // Process dependencies first (inner CTEs)
             const deps = dependencies.get(tableName) || new Set<string>();
-            for (const dep of deps) {
+            for (const dep of Array.from(deps)) {
                 visit(dep);
             }
 

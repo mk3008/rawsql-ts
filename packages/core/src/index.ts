@@ -81,5 +81,39 @@ export type { LineColumn } from './utils/LexemeCursor';
 export * from './utils/CTERegionDetector';
 export type { CTERegion, CursorPositionInfo } from './utils/CTERegionDetector';
 
+// Position-aware parsing and IntelliSense support
+export * from './utils/CursorContextAnalyzer';
+export type { IntelliSenseContext } from './utils/CursorContextAnalyzer';
+export * from './utils/ScopeResolver';
+export type { 
+    ScopeInfo, 
+    AvailableTable, 
+    AvailableCTE, 
+    AvailableColumn 
+} from './utils/ScopeResolver';
+export * from './utils/PositionAwareParser';
+export type { 
+    ParseToPositionOptions, 
+    PositionParseResult 
+} from './utils/PositionAwareParser';
+export * from './utils/MultiQuerySplitter';
+export type { QueryInfo, QueryCollection } from './utils/MultiQuerySplitter';
+
+// Convenience functions for IntelliSense integration
+export {
+    /** Parse SQL up to cursor position with error recovery */
+    parseToPosition,
+    /** Analyze cursor context for IntelliSense */
+    getCursorContext,
+    /** Resolve scope information at cursor position */
+    resolveScope,
+    /** Split multi-query SQL text into individual queries */
+    splitQueries,
+    /** Get IntelliSense information for multi-query context */
+    getIntelliSenseInfo,
+    /** Get completion suggestions based on cursor context */
+    getCompletionSuggestions
+} from './utils/IntelliSenseApi';
+
 
 // Add more exports here if you want to expose additional public API
