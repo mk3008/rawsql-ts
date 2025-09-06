@@ -173,7 +173,9 @@ export class SelectQueryParser {
 
         // check 'union'
         while (idx < lexemes.length && this.unionCommandSet.has(lexemes[idx].value.toLowerCase())) {
-            const operator = lexemes[idx].value.toLowerCase();
+            const operatorLexeme = lexemes[idx];
+            const operator = operatorLexeme.value.toLowerCase();
+            const unionComments = operatorLexeme.comments; // Comments from UNION keyword
             idx++;
             if (idx >= lexemes.length) {
                 throw new Error(`Syntax error at position ${idx}: Expected a query after '${operator.toUpperCase()}' but found end of input.`);
@@ -182,11 +184,34 @@ export class SelectQueryParser {
             const nextToken = lexemes[idx].value.toLowerCase();
             if (this.selectCommandSet.has(nextToken)) {
                 const result = this.parseSimpleSelectQuery(lexemes, idx);
-                query = new BinarySelectQuery(query, operator, result.value);
+                const binaryQuery = new BinarySelectQuery(query, operator, result.value);
+                
+                // Assign UNION comments to right query (common usage pattern)
+                if (unionComments && unionComments.length > 0) {
+                    if (result.value.comments) {
+                        // Prepend UNION comments to existing comments
+                        result.value.comments = [...unionComments, ...result.value.comments];
+                    } else {
+                        result.value.comments = unionComments;
+                    }
+                }
+                
+                query = binaryQuery;
                 idx = result.newIndex;
             } else if (nextToken === 'values') {
                 const result = this.parseValuesQuery(lexemes, idx);
-                query = new BinarySelectQuery(query, operator, result.value);
+                const binaryQuery = new BinarySelectQuery(query, operator, result.value);
+                
+                // UNIONのコメントは右側クエリに設定する
+                if (unionComments && unionComments.length > 0) {
+                    if (result.value.comments) {
+                        result.value.comments = [...unionComments, ...result.value.comments];
+                    } else {
+                        result.value.comments = unionComments;
+                    }
+                }
+                
+                query = binaryQuery;
                 idx = result.newIndex;
             } else {
                 throw new Error(`Syntax error at position ${idx}: Expected 'SELECT' or 'VALUES' after '${operator.toUpperCase()}' but found "${lexemes[idx].value}".`);
