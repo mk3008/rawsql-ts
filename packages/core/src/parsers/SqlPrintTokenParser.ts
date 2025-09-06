@@ -583,7 +583,14 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
             token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
             token.innerTokens.push(this.visit(arg.internalOrderBy));
         }
-        token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
+        // Use FunctionCall comments if available, otherwise use static token
+        if (arg.comments && arg.comments.length > 0) {
+            const closingParenToken = new SqlPrintToken(SqlPrintTokenType.parenthesis, ')');
+            this.addCommentsToToken(closingParenToken, arg.comments);
+            token.innerTokens.push(closingParenToken);
+        } else {
+            token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
+        }
         if (arg.withOrdinality) {
             token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
             token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'with ordinality'));
@@ -1481,7 +1488,18 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         queryToken.innerTokens.push(arg.selectQuery.accept(this));
 
         token.innerTokens.push(queryToken);
-        token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
+        
+        // Add comments from the InlineQuery to the closing parenthesis
+        if (arg.comments && arg.comments.length > 0) {
+            const closingParenToken = new SqlPrintToken(SqlPrintTokenType.parenthesis, ')');
+            this.addCommentsToToken(closingParenToken, arg.comments);
+            token.innerTokens.push(closingParenToken);
+            
+            // Clear the comments from arg to prevent duplicate output by the general comment handler
+            arg.comments = null;
+        } else {
+            token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
+        }
 
         return token;
     }

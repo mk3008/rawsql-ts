@@ -157,6 +157,7 @@ export class FunctionExpressionParser {
             // Check if this is an aggregate function that supports internal ORDER BY
             const functionName = name.name.toLowerCase();
             let arg: { value: ValueComponent; newIndex: number };
+            let closingComments: string[] | null = null;
             
             let internalOrderBy: OrderByClause | null = null;
             
@@ -165,9 +166,12 @@ export class FunctionExpressionParser {
                 const result = this.parseAggregateArguments(lexemes, idx);
                 arg = { value: result.arguments, newIndex: result.newIndex };
                 internalOrderBy = result.orderByClause;
+                // TODO: Handle closing comments for aggregate functions
             } else {
-                // General argument parsing
-                arg = ValueParser.parseArgument(TokenType.OpenParen, TokenType.CloseParen, lexemes, idx);
+                // General argument parsing with comment capture
+                const argWithComments = this.parseArgumentWithComments(lexemes, idx);
+                arg = { value: argWithComments.value, newIndex: argWithComments.newIndex };
+                closingComments = argWithComments.closingComments;
             }
             idx = arg.newIndex;
 
@@ -190,9 +194,17 @@ export class FunctionExpressionParser {
                 const over = OverExpressionParser.parseFromLexeme(lexemes, idx);
                 idx = over.newIndex;
                 const value = new FunctionCall(namespaces, name.name, arg.value, over.value, withinGroup, withOrdinality, internalOrderBy);
+                // Set closing comments if available
+                if (closingComments && closingComments.length > 0) {
+                    value.comments = closingComments;
+                }
                 return { value, newIndex: idx };
             } else {
                 const value = new FunctionCall(namespaces, name.name, arg.value, null, withinGroup, withOrdinality, internalOrderBy);
+                // Set closing comments if available
+                if (closingComments && closingComments.length > 0) {
+                    value.comments = closingComments;
+                }
                 return { value, newIndex: idx };
             }
         } else {
@@ -414,5 +426,69 @@ export class FunctionExpressionParser {
         // Return single argument if only one, otherwise return ValueList
         const argumentsValue = args.length === 1 ? args[0] : new ValueList(args);
         return { arguments: argumentsValue, orderByClause, newIndex: idx };
+    }
+
+    /**
+     * Parse function arguments and capture closing parenthesis comments
+     */
+    private static parseArgumentWithComments(lexemes: Lexeme[], index: number): { 
+        value: ValueComponent; 
+        closingComments: string[] | null; 
+        newIndex: number 
+    } {
+        let idx = index;
+        
+        // Check for opening parenthesis
+        if (idx >= lexemes.length || !(lexemes[idx].type & TokenType.OpenParen)) {
+            throw ParseError.fromUnparsedLexemes(lexemes, idx, `Expected opening parenthesis.`);
+        }
+        idx++; // Skip opening parenthesis
+        
+        const args: ValueComponent[] = [];
+        
+        // Check for empty parentheses
+        if (idx < lexemes.length && (lexemes[idx].type & TokenType.CloseParen)) {
+            const closingComments = lexemes[idx].comments;
+            idx++; // Skip closing parenthesis
+            return { value: new ValueList([]), closingComments, newIndex: idx };
+        }
+        
+        // Handle wildcard case: count(*)
+        if (idx < lexemes.length && lexemes[idx].value === "*") {
+            const wildcard = new ColumnReference(null, "*");
+            idx++;
+            
+            // Check for closing parenthesis
+            if (idx >= lexemes.length || !(lexemes[idx].type & TokenType.CloseParen)) {
+                throw ParseError.fromUnparsedLexemes(lexemes, idx, `Expected closing parenthesis after wildcard '*'.`);
+            }
+            const closingComments = lexemes[idx].comments;
+            idx++;
+            return { value: wildcard, closingComments, newIndex: idx };
+        }
+        
+        // Parse regular arguments
+        const result = ValueParser.parseFromLexeme(lexemes, idx);
+        idx = result.newIndex;
+        args.push(result.value);
+        
+        // Continue reading if the next element is a comma
+        while (idx < lexemes.length && (lexemes[idx].type & TokenType.Comma)) {
+            idx++;
+            const argResult = ValueParser.parseFromLexeme(lexemes, idx);
+            idx = argResult.newIndex;
+            args.push(argResult.value);
+        }
+        
+        // Check for closing parenthesis
+        if (idx >= lexemes.length || !(lexemes[idx].type & TokenType.CloseParen)) {
+            throw ParseError.fromUnparsedLexemes(lexemes, idx, `Expected closing parenthesis.`);
+        }
+        const closingComments = lexemes[idx].comments;
+        idx++;
+        
+        // Return single argument if only one, otherwise return ValueList
+        const argumentsValue = args.length === 1 ? args[0] : new ValueList(args);
+        return { value: argumentsValue, closingComments, newIndex: idx };
     }
 }

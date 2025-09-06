@@ -19,9 +19,15 @@ export class ParenExpressionParser {
             if (idx >= lexemes.length || lexemes[idx].type !== TokenType.CloseParen) {
                 throw new Error(`Expected ')' at index ${idx}, but found ${lexemes[idx].value}`);
             }
+            
+            // Capture comments from the closing parenthesis
+            const closingComments = lexemes[idx].comments;
             idx++; // Skip the ')' token
 
             const value = new InlineQuery(result.value);
+            if (closingComments && closingComments.length > 0) {
+                value.comments = closingComments;
+            }
             return { value, newIndex: idx };
         } else {
             const result = ValueParser.parseArgument(TokenType.OpenParen, TokenType.CloseParen, lexemes, index);
