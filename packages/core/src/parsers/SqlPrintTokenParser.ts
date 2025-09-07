@@ -588,6 +588,9 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
             const closingParenToken = new SqlPrintToken(SqlPrintTokenType.parenthesis, ')');
             this.addCommentsToToken(closingParenToken, arg.comments);
             token.innerTokens.push(closingParenToken);
+            
+            // Clear the comments from arg to prevent duplicate output by the general comment handler
+            arg.comments = null;
         } else {
             token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
         }
