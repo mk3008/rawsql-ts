@@ -352,7 +352,7 @@ export class PostgresJsonQueryBuilder {
         Object.entries(entity.columns).forEach(([jsonKey, columnDef]) => {
             // Handle both string and object formats
             const sqlColumn = typeof columnDef === 'string' ? columnDef : (columnDef as any).column;
-            args.push(new LiteralValue(jsonKey));
+            args.push(new LiteralValue(jsonKey, undefined, true));
             args.push(new ColumnReference(null, new IdentifierString(sqlColumn)));
         });
 
@@ -363,7 +363,7 @@ export class PostgresJsonQueryBuilder {
             const child = allEntities.get(childEntity.id);
             if (!child) return;
 
-            args.push(new LiteralValue(childEntity.propertyName)); if (childEntity.relationshipType === "object") {
+            args.push(new LiteralValue(childEntity.propertyName, undefined, true)); if (childEntity.relationshipType === "object") {
                 // For object relationships, use pre-computed JSON column from column mappings
                 const mapping = columnMappings.find(m => m.entityId === child.id);
                 if (!mapping) {

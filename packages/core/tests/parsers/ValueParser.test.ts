@@ -133,10 +133,10 @@ describe('ValueParser', () => {
         // Phase 2: Additional MySQL and SQL Server operators
         ["MySQL MOD operator", "a MOD b", "\"a\" mod \"b\""],
         ["MySQL XOR operator", "a XOR b", "\"a\" xor \"b\""],
-        ["SQL Server MONEY literal - basic", "$123.45", "'$123.45'"],
-        ["SQL Server MONEY literal - with commas", "$1,234.56", "'$1,234.56'"],
+        ["SQL Server MONEY literal - basic", "$123.45", "$123.45"],
+        ["SQL Server MONEY literal - with commas", "$1,234.56", "$1,234.56"],
         ["PostgreSQL parameter vs MONEY - parameter wins", "$1000", ":1000"],
-        ["PostgreSQL parameter vs MONEY - MONEY wins", "$1000.50", "'$1000.50'"],
+        ["PostgreSQL parameter vs MONEY - MONEY wins", "$1000.50", "$1000.50"],
         // PostgreSQL Dollar-quoted strings
         ["PostgreSQL dollar-quoted string - basic", "$$hello world$$", "$$hello world$$"],
         ["PostgreSQL dollar-quoted string - with tag", "$tag$content$tag$", "$tag$content$tag$"],

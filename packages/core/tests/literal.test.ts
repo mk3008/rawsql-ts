@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'vitest';
+import { expect, test } from 'vitest';
 ﻿import { TokenType } from "../src/models/Lexeme";
 import { SqlTokenizer } from "../src/parsers/SqlTokenizer";
 
@@ -12,7 +12,46 @@ test('tokenizes string', () => {
     // Assert
     expect(tokens.length).toBe(1);
     expect(tokens[0].type).toBe(TokenType.Literal);
-    expect(tokens[0].value).toBe("test string");
+    expect(tokens[0].value).toBe("'test string'");
+});
+
+test('tokenizes string literal null with quotes', () => {
+    // Arrange
+    const tokenizer = new SqlTokenizer("'null'");
+
+    // Act
+    const tokens = tokenizer.readLexmes();
+
+    // Assert
+    expect(tokens.length).toBe(1);
+    expect(tokens[0].type).toBe(TokenType.Literal);
+    expect(tokens[0].value).toBe("'null'");
+});
+
+test('tokenizes string literal true with quotes', () => {
+    // Arrange
+    const tokenizer = new SqlTokenizer("'true'");
+
+    // Act
+    const tokens = tokenizer.readLexmes();
+
+    // Assert
+    expect(tokens.length).toBe(1);
+    expect(tokens[0].type).toBe(TokenType.Literal);
+    expect(tokens[0].value).toBe("'true'");
+});
+
+test('tokenizes string literal false with quotes', () => {
+    // Arrange
+    const tokenizer = new SqlTokenizer("'false'");
+
+    // Act
+    const tokens = tokenizer.readLexmes();
+
+    // Assert
+    expect(tokens.length).toBe(1);
+    expect(tokens[0].type).toBe(TokenType.Literal);
+    expect(tokens[0].value).toBe("'false'");
 });
 
 test('tokenizes integer number', () => {
