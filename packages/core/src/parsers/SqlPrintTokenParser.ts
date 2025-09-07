@@ -583,7 +583,17 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
             token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
             token.innerTokens.push(this.visit(arg.internalOrderBy));
         }
-        token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
+        // Use FunctionCall comments if available, otherwise use static token
+        if (arg.comments && arg.comments.length > 0) {
+            const closingParenToken = new SqlPrintToken(SqlPrintTokenType.parenthesis, ')');
+            this.addCommentsToToken(closingParenToken, arg.comments);
+            token.innerTokens.push(closingParenToken);
+            
+            // Clear the comments from arg to prevent duplicate output by the general comment handler
+            arg.comments = null;
+        } else {
+            token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
+        }
         if (arg.withOrdinality) {
             token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
             token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'with ordinality'));
@@ -631,15 +641,14 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
     private visitLiteralValue(arg: LiteralValue): SqlPrintToken {
         let text;
-        if (typeof arg.value === "string") {
-            if (arg.isDollarString) {
-                // For dollar-quoted strings, return the original format
-                text = arg.value;
-            } else {
-                text = `'${arg.value.replace(/'/g, "''")}'`;
-            }
-        } else if (arg.value === null) {
+        if (arg.value === null) {
             text = "null";
+        } else if (arg.isStringLiteral) {
+            // For originally quoted string literals, preserve quotes
+            text = `'${(arg.value as string).replace(/'/g, "''")}'`;
+        } else if (typeof arg.value === "string") {
+            // For dollar-quoted strings or other string values, use as-is
+            text = arg.value;
         } else {
             text = arg.value.toString();
         }
@@ -1481,7 +1490,18 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         queryToken.innerTokens.push(arg.selectQuery.accept(this));
 
         token.innerTokens.push(queryToken);
-        token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
+        
+        // Add comments from the InlineQuery to the closing parenthesis
+        if (arg.comments && arg.comments.length > 0) {
+            const closingParenToken = new SqlPrintToken(SqlPrintTokenType.parenthesis, ')');
+            this.addCommentsToToken(closingParenToken, arg.comments);
+            token.innerTokens.push(closingParenToken);
+            
+            // Clear the comments from arg to prevent duplicate output by the general comment handler
+            arg.comments = null;
+        } else {
+            token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
+        }
 
         return token;
     }

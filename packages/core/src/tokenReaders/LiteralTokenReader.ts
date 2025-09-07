@@ -42,6 +42,12 @@ export class LiteralTokenReader extends BaseTokenReader {
 
         const char = this.input[this.position];
 
+        // String literal - check before keywords to prevent 'null' being treated as null
+        if (char === '\'') {
+            const value = this.readSingleQuotedString();
+            return this.createLexeme(TokenType.Literal, value);
+        }
+
         // Check for keyword literals    
         const keyword = this.tryReadKeyword();
         if (keyword) {
@@ -51,12 +57,6 @@ export class LiteralTokenReader extends BaseTokenReader {
         // Decimal token starting with a dot
         if (char === '.' && this.canRead(1) && CharLookupTable.isDigit(this.input[this.position + 1])) {
             return this.createLexeme(TokenType.Literal, this.readDigit());
-        }
-
-        // String literal
-        if (char === '\'') {
-            const value = this.readSingleQuotedString(false);
-            return this.createLexeme(TokenType.Literal, value);
         }
 
         // Digit tokens
@@ -84,7 +84,6 @@ export class LiteralTokenReader extends BaseTokenReader {
             }
             
             if (hasDecimalOrComma) {
-                const start = this.position;
                 this.position++; // Skip $
                 const numberPart = this.readMoneyDigit();
                 return this.createLexeme(TokenType.Literal, '$' + numberPart);
@@ -258,7 +257,7 @@ export class LiteralTokenReader extends BaseTokenReader {
     /**
      * Read a string literal
      */
-    private readSingleQuotedString(includeSingleQuote: boolean): string {
+    private readSingleQuotedString(): string {
         const start = this.position;
         let closed = false;
         this.read("'");
@@ -282,13 +281,7 @@ export class LiteralTokenReader extends BaseTokenReader {
             throw new Error(`Single quote is not closed. position: ${start}\n${this.getDebugPositionInfo(start)}`);
         }
 
-        if (includeSingleQuote) {
-            const value = this.input.slice(start, this.position);
-            return value;
-        } else {
-            const value = this.input.slice(start + 1, this.position - 1);
-            return value;
-        }
+        return this.input.slice(start, this.position);
     }
 
     /**

@@ -104,7 +104,7 @@ FROM customer_segments`;
         } catch (error: any) {
             console.log('Error message for original user query:');
             console.log(error.message);
-            expect(error.message).toContain('Missing closing parenthesis');
+            expect(error.message).toContain('Expected closing parenthesis');
             expect(error.message).toContain('Context:');
             expect(error.message).toContain('DAYS [Identifier]');
         }

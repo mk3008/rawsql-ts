@@ -25,11 +25,8 @@ export class LiteralParser {
         }
         // Otherwise, treat it as a string
         else {
-            // Check if it's a dollar-quoted string
-            // Pattern: $tag$ content $tag$ where tag can be empty
-            const isDollarString = /^\$[^$]*\$[\s\S]*\$[^$]*\$$/.test(valueText);
-            
-            if (isDollarString) {
+            // Check if it's a dollar-quoted string or regular quoted string
+            if (/^\$[^$]*\$[\s\S]*\$[^$]*\$$/.test(valueText)) {
                 // For dollar-quoted strings, store the entire string including tags
                 parsedValue = valueText;
             } else if (valueText.startsWith("'") && valueText.endsWith("'")) {
@@ -39,8 +36,11 @@ export class LiteralParser {
                 parsedValue = valueText;
             }
             
+            // Check if it was originally a quoted string literal
+            const isStringLiteral = valueText.startsWith("'") && valueText.endsWith("'");
+            
             idx++
-            const value = new LiteralValue(parsedValue, isDollarString);
+            const value = new LiteralValue(parsedValue, undefined, isStringLiteral);
             return { value, newIndex: idx };
         }
     }

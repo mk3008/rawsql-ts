@@ -57,7 +57,10 @@ export class ValueParser {
         // Parse the primary expression (left side)
         const comment = lexemes[idx].comments;
         const left = this.parseItem(lexemes, idx);
-        left.value.comments = comment;
+        // Only set comments if the child component doesn't already have comments
+        if (left.value.comments === null && comment && comment.length > 0) {
+            left.value.comments = comment;
+        }
         idx = left.newIndex;
 
         let result = left.value;
@@ -142,7 +145,8 @@ export class ValueParser {
                     return { value: typeValue.value, newIndex: typeValue.newIndex };
                 } else {
                     // Function call
-                    return FunctionExpressionParser.parseFromLexeme(lexemes, idx);
+                    const result = FunctionExpressionParser.parseFromLexeme(lexemes, idx);
+                    return result;
                 }
             }
             // Typed literal format pattern

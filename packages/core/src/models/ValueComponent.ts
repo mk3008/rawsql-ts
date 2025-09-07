@@ -212,11 +212,11 @@ export class LiteralValue extends SqlComponent {
     static kind = Symbol("LiteralExpression");
     // Use the string type instead of the RawString type because it has its own escaping process.
     value: string | number | boolean | null;
-    isDollarString?: boolean;
-    constructor(value: string | number | boolean | null, isDollarString?: boolean) {
+    isStringLiteral?: boolean; // Flag to indicate this was originally a quoted string literal
+    constructor(value: string | number | boolean | null, _deprecated?: boolean, isStringLiteral?: boolean) {
         super();
         this.value = value;
-        this.isDollarString = isDollarString;
+        this.isStringLiteral = isStringLiteral;
     }
 }
 

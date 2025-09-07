@@ -10,7 +10,7 @@ import { InsertClause, SourceExpression, TableSource } from '../../src/models/Cl
 describe('Formatter: InsertQuery', () => {
     it('formats simple single-row VALUES insert', () => {
         const valuesQuery = new ValuesQuery([
-            new TupleExpression([new LiteralValue(1), new LiteralValue('Alice')])
+            new TupleExpression([new LiteralValue(1), new LiteralValue('Alice', undefined, true)])
         ]);
         const insertClause = new InsertClause(
             new SourceExpression(
@@ -29,8 +29,8 @@ describe('Formatter: InsertQuery', () => {
 
     it('formats multi-row VALUES insert', () => {
         const valuesQuery = new ValuesQuery([
-            new TupleExpression([new LiteralValue(1), new LiteralValue('Alice')]),
-            new TupleExpression([new LiteralValue(2), new LiteralValue('Bob')])
+            new TupleExpression([new LiteralValue(1), new LiteralValue('Alice', undefined, true)]),
+            new TupleExpression([new LiteralValue(2), new LiteralValue('Bob', undefined, true)])
         ]);
         const insertClause = new InsertClause(
             new SourceExpression(

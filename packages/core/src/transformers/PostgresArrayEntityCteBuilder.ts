@@ -310,7 +310,7 @@ export class PostgresArrayEntityCteBuilder {
 
         // Add the entity's own columns
         Object.entries(entity.columns).forEach(([jsonKey, sqlColumn]) => {
-            args.push(new LiteralValue(jsonKey));
+            args.push(new LiteralValue(jsonKey, undefined, true));
             args.push(new ColumnReference(null, new IdentifierString(sqlColumn)));
         });
 
@@ -318,7 +318,7 @@ export class PostgresArrayEntityCteBuilder {
         const childEntities = nestedEntities.filter((ne) => ne.parentId === entity.id); childEntities.forEach((childEntity) => {
             // Use originalPropertyName if available to avoid sequential numbering in final JSON
             const propertyNameForJson = (childEntity as any).originalPropertyName || childEntity.propertyName;
-            args.push(new LiteralValue(propertyNameForJson));
+            args.push(new LiteralValue(propertyNameForJson, undefined, true));
 
             if (childEntity.relationshipType === "object") {
                 // For object relationships, use pre-computed JSON column from column mappings

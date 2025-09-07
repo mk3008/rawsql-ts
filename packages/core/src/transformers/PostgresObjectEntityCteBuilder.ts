@@ -387,7 +387,7 @@ export class PostgresObjectEntityCteBuilder {    // Constants for consistent nam
         const nullChecks: ValueComponent[] = [];
 
         Object.entries(entity.columns).forEach(([jsonKey, sqlColumn]) => {
-            jsonObjectArgs.push(new LiteralValue(jsonKey));
+            jsonObjectArgs.push(new LiteralValue(jsonKey, undefined, true));
             jsonObjectArgs.push(new ColumnReference(null, new IdentifierString(sqlColumn)));
 
             // Collect NULL checks for each column
@@ -435,7 +435,7 @@ export class PostgresObjectEntityCteBuilder {    // Constants for consistent nam
         childEntities.forEach(childEntity => {
             const child = allEntities.get(childEntity.id);
             if (child) {
-                jsonObjectArgs.push(new LiteralValue(childEntity.propertyName));
+                jsonObjectArgs.push(new LiteralValue(childEntity.propertyName, undefined, true));
                 // Use mapped JSON column name to avoid conflicts
                 const jsonColumnName = this.entityToJsonColumnMap.get(child.id);
                 if (!jsonColumnName) {
