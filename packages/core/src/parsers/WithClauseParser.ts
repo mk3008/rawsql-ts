@@ -70,11 +70,25 @@ export class WithClauseParser {
      * console.log(result.newIndex); // position after the WITH clause
      * ```
      */
-    public static parseFromLexeme(lexemes: Lexeme[], index: number): { value: WithClause; newIndex: number } {
+    public static parseFromLexeme(lexemes: Lexeme[], index: number): { value: WithClause; newIndex: number; headerComments: string[] | null } {
         let idx = index;
 
-        // Capture comments from the WITH keyword
+        // Capture comments from the WITH keyword and separate them
         const withTokenComments = idx < lexemes.length ? lexemes[idx].comments : null;
+        let headerComments: string[] | null = null;
+        let actualWithComments: string[] | null = null;
+        
+        // Based on tokenizer analysis:
+        // - WITH token gets multiple comments that should be separated
+        // - First comment is typically the global/header comment
+        // - Subsequent comments are WITH-specific
+        if (withTokenComments && withTokenComments.length > 1) {
+            headerComments = [withTokenComments[0]];  // "Global query comment"
+            actualWithComments = withTokenComments.slice(1);  // ["WITH clause comment"]
+        } else if (withTokenComments && withTokenComments.length === 1) {
+            // Single comment - could be either, keep as WITH comment for now
+            actualWithComments = withTokenComments;
+        }
 
         // Expect WITH keyword
         if (idx < lexemes.length && lexemes[idx].value.toLowerCase() === "with") {
@@ -96,6 +110,12 @@ export class WithClauseParser {
         const firstCte = CommonTableParser.parseFromLexeme(lexemes, idx);
         tables.push(firstCte.value);
         idx = firstCte.newIndex;
+        
+        // Collect trailing comments from all CTEs
+        const allTrailingComments: string[] = [];
+        if (firstCte.trailingComments) {
+            allTrailingComments.push(...firstCte.trailingComments);
+        }
 
         // Parse additional CTEs (optional)
         while (idx < lexemes.length && (lexemes[idx].type & TokenType.Comma)) {
@@ -106,15 +126,28 @@ export class WithClauseParser {
             const cteResult = CommonTableParser.parseFromLexeme(lexemes, idx);
             tables.push(cteResult.value);
             idx = cteResult.newIndex;
+            
+            // Collect trailing comments from this CTE too
+            if (cteResult.trailingComments) {
+                allTrailingComments.push(...cteResult.trailingComments);
+            }
         }
 
         // Create WITH clause with comments
         const withClause = new WithClause(recursive, tables);
-        withClause.comments = withTokenComments;
+        withClause.comments = actualWithComments; // Only WITH-specific comments
+        
+        // Global comments should be handled at SelectQuery level, not here
+        
+        // Set trailing comments for the main query
+        if (allTrailingComments.length > 0) {
+            withClause.trailingComments = allTrailingComments;
+        }
 
         return {
             value: withClause,
-            newIndex: idx
+            newIndex: idx,
+            headerComments: headerComments
         };
     }
 }

@@ -22,7 +22,7 @@ export class CommonTableParser {
     }
 
     // Parse from lexeme array (was: parse)
-    public static parseFromLexeme(lexemes: Lexeme[], index: number): { value: CommonTable; newIndex: number } {
+    public static parseFromLexeme(lexemes: Lexeme[], index: number): { value: CommonTable; newIndex: number; trailingComments: string[] | null } {
         let idx = index;
 
         // Capture comments from the CTE name token (before parsing alias)
@@ -77,13 +77,21 @@ export class CommonTableParser {
         if (idx < lexemes.length && lexemes[idx].type !== TokenType.CloseParen) {
             throw new Error(`Syntax error at position ${idx}: Expected ')' after CTE query but found "${lexemes[idx].value}".`);
         }
+        
+        // Capture comments from the closing parenthesis - these might be meant for the subsequent query
+        const closingParenComments = lexemes[idx].comments;
         idx++; // Skip closing parenthesis
 
         const value = new CommonTable(queryResult.value, aliasResult.value, materialized);
         
-        // Set comments on the CommonTable from the CTE name token
+        // Set comments only from the CTE name token, not from closing parenthesis
+        // The closing parenthesis comments likely belong to the main query, not the CTE
         value.comments = cteNameComments;
 
-        return { value, newIndex: idx };
+        return { 
+            value, 
+            newIndex: idx,
+            trailingComments: closingParenComments && closingParenComments.length > 0 ? closingParenComments : null
+        };
     }
 }

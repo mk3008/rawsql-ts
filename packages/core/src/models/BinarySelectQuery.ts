@@ -14,6 +14,7 @@ import { SimpleSelectQuery } from "./SimpleSelectQuery";
  */
 export class BinarySelectQuery extends SqlComponent implements SelectQuery {
     static kind = Symbol("BinarySelectQuery");
+    headerComments: string[] | null = null; // Comments that appear before the first query
     left: SelectQuery;
     operator: RawString;
     right: SelectQuery;

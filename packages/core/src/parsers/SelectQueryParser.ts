@@ -186,6 +186,13 @@ export class SelectQueryParser {
                 const result = this.parseSimpleSelectQuery(lexemes, idx);
                 const binaryQuery = new BinarySelectQuery(query, operator, result.value);
                 
+                // Transfer headerComments from the first query to the BinarySelectQuery
+                if (query.headerComments) {
+                    binaryQuery.headerComments = query.headerComments;
+                    // Clear headerComments from the left query to avoid duplication
+                    query.headerComments = null;
+                }
+                
                 // Assign UNION comments to right query (common usage pattern)
                 if (unionComments && unionComments.length > 0) {
                     if (result.value.comments) {
@@ -202,7 +209,14 @@ export class SelectQueryParser {
                 const result = this.parseValuesQuery(lexemes, idx);
                 const binaryQuery = new BinarySelectQuery(query, operator, result.value);
                 
-                // UNIONのコメントは右側クエリに設定する
+                // Transfer headerComments from the first query to the BinarySelectQuery
+                if (query.headerComments) {
+                    binaryQuery.headerComments = query.headerComments;
+                    // Clear headerComments from the left query to avoid duplication
+                    query.headerComments = null;
+                }
+                
+                // Assign UNION comments to the right side query
                 if (unionComments && unionComments.length > 0) {
                     if (result.value.comments) {
                         result.value.comments = [...unionComments, ...result.value.comments];
@@ -225,15 +239,55 @@ export class SelectQueryParser {
         let idx = index;
         let withClauseResult = null;
 
+        // Collect headerComments before WITH clause
+        const headerComments: string[] = [];
+        
         // Parse optional WITH clause
         if (idx < lexemes.length && lexemes[idx].value === 'with') {
             withClauseResult = WithClauseParser.parseFromLexeme(lexemes, idx);
             idx = withClauseResult.newIndex;
+            
+            // Collect headerComments from WithClauseParser
+            if (withClauseResult.headerComments) {
+                headerComments.push(...withClauseResult.headerComments);
+            }
+        }
+
+        // Collect comments from WITH clause 
+        const withTrailingComments: string[] = [];
+        
+        // Get trailing comments from WITH clause (these are comments after WITH clause, meant for main query)
+        if (withClauseResult?.value.trailingComments) {
+            withTrailingComments.push(...withClauseResult.value.trailingComments);
+        }
+        
+        // Collect comments that appear between WITH clause end and SELECT keyword
+        const intermediateComments: string[] = [...withTrailingComments];
+        let tempIdx = idx;
+        while (tempIdx < lexemes.length && lexemes[tempIdx].value.toLowerCase() !== 'select') {
+            const tokenComments = lexemes[tempIdx].comments;
+            if (tokenComments && tokenComments.length > 0) {
+                intermediateComments.push(...tokenComments);
+            }
+            tempIdx++;
+        }
+        
+        // Add intermediate comments (like "Main query comment") to headerComments after they're collected
+        if (intermediateComments.length > 0) {
+            headerComments.push(...intermediateComments);
         }
 
         // Capture comments from the current token (after WITH clause if present)
         // This avoids duplication with WITH clause comments
         const firstTokenComments = idx < lexemes.length ? lexemes[idx].comments : null;
+        
+        // Combine comments for query level (excluding header comments)
+        // Note: intermediateComments already includes withTrailingComments, so don't duplicate
+        const allQueryComments: string[] = [];
+        if (firstTokenComments && firstTokenComments.length > 0) {
+            allQueryComments.push(...firstTokenComments);
+        }
+        // intermediateComments are now applied to SELECT clause only, not query level
 
         // Parse SELECT clause (required)
         if (idx >= lexemes.length || lexemes[idx].value !== 'select') {
@@ -243,12 +297,16 @@ export class SelectQueryParser {
         const selectClauseResult = SelectClauseParser.parseFromLexeme(lexemes, idx);
         idx = selectClauseResult.newIndex;
 
+        // intermediate comments are now handled as headerComments, not SELECT clause comments
+
         // If the select clause has the same comments as what we captured, clear them from the clause
         // to avoid duplication (the query-level comments take precedence)
         if (firstTokenComments && selectClauseResult.value.comments && 
             JSON.stringify(firstTokenComments) === JSON.stringify(selectClauseResult.value.comments)) {
             selectClauseResult.value.comments = null;
         }
+        
+        // WITH trailing comments are now handled at query level for proper positioning
 
         // Parse FROM clause (optional)
         let fromClauseResult = null;
@@ -336,8 +394,9 @@ export class SelectQueryParser {
             forClause: forClauseResult ? forClauseResult.value : null
         });
 
-        // Set comments from the first token to the query object
-        selectQuery.comments = firstTokenComments;
+        // Set comments and headerComments from all collected sources to the query object
+        selectQuery.comments = allQueryComments.length > 0 ? allQueryComments : null;
+        selectQuery.headerComments = headerComments.length > 0 ? headerComments : null;
 
         return { value: selectQuery, newIndex: idx };
     }

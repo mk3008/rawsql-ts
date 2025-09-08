@@ -192,7 +192,7 @@ export class SqlPrinter {
         } else if (token.type === SqlPrintTokenType.comment) {
             // Handle comments as regular tokens - let the standard processing handle everything
             if (this.exportComment) {
-                this.linePrinter.appendText(token.text);
+                this.handleCommentToken(token);
             }
         } else if (token.type === SqlPrintTokenType.space) {
             this.handleSpaceToken(token, parentContainerType);
@@ -414,6 +414,22 @@ export class SqlPrinter {
             strictCommentPlacement: this.strictCommentPlacement,
             withClauseStyle: 'standard', // Prevent recursive processing
         });
+    }
+
+    /**
+     * Handles comment tokens with proper spacing.
+     * Ensures there's a space before the comment if the current line has content.
+     */
+    private handleCommentToken(token: SqlPrintToken): void {
+        const currentLine = this.linePrinter.getCurrentLine();
+        
+        // If there's content on the current line and it doesn't end with a space,
+        // add a space before the comment
+        if (currentLine.text !== '' && !currentLine.text.endsWith(' ')) {
+            this.linePrinter.appendText(' ');
+        }
+        
+        this.linePrinter.appendText(token.text);
     }
 
     /**
