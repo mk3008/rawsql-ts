@@ -496,9 +496,25 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
      * Adds separator spaces for clause-level containers and manages duplicate space removal.
      */
     private insertCommentBlocksWithSpacing(token: SqlPrintToken, commentBlocks: SqlPrintToken[]): void {
-        // For SelectItem, append comments at the end rather than prepending at the beginning
+        // For SelectItem, append comments at the end with proper spacing
         if (token.containerType === SqlPrintTokenContainerType.SelectItem) {
+            // Add space before comment if not already present
+            if (token.innerTokens.length > 0) {
+                const lastToken = token.innerTokens[token.innerTokens.length - 1];
+                if (lastToken.type !== SqlPrintTokenType.space) {
+                    token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+                }
+            }
             token.innerTokens.push(...commentBlocks);
+            return;
+        }
+        
+        // Special handling for SelectClause to add space between keyword and comment
+        if (token.containerType === SqlPrintTokenContainerType.SelectClause) {
+            // For SelectClause, comments need to be inserted after the keyword with a space separator
+            // Current structure: [keyword text, space, other tokens...]
+            // Desired structure: [keyword text, space, comments, space, other tokens...]
+            token.innerTokens.unshift(SqlPrintTokenParser.SPACE_TOKEN, ...commentBlocks);
             return;
         }
         

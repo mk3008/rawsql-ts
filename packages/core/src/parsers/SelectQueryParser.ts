@@ -239,8 +239,10 @@ export class SelectQueryParser {
         let idx = index;
         let withClauseResult = null;
 
-        // Collect headerComments before WITH clause
+        // Collect headerComments before WITH clause or SELECT clause
         const headerComments: string[] = [];
+        
+        // headerComments will be collected from SELECT token itself or WITH clause
         
         // Parse optional WITH clause
         if (idx < lexemes.length && lexemes[idx].value === 'with') {
@@ -262,51 +264,33 @@ export class SelectQueryParser {
         }
         
         // Collect comments that appear between WITH clause end and SELECT keyword
-        const intermediateComments: string[] = [...withTrailingComments];
+        // These should be applied to query level (appearing between WITH and SELECT)
+        const queryLevelComments: string[] = [...withTrailingComments];
         let tempIdx = idx;
         while (tempIdx < lexemes.length && lexemes[tempIdx].value.toLowerCase() !== 'select') {
             const tokenComments = lexemes[tempIdx].comments;
             if (tokenComments && tokenComments.length > 0) {
-                intermediateComments.push(...tokenComments);
+                queryLevelComments.push(...tokenComments);
             }
             tempIdx++;
         }
-        
-        // Add intermediate comments (like "Main query comment") to headerComments after they're collected
-        if (intermediateComments.length > 0) {
-            headerComments.push(...intermediateComments);
-        }
-
-        // Capture comments from the current token (after WITH clause if present)
-        // This avoids duplication with WITH clause comments
-        const firstTokenComments = idx < lexemes.length ? lexemes[idx].comments : null;
-        
-        // Combine comments for query level (excluding header comments)
-        // Note: intermediateComments already includes withTrailingComments, so don't duplicate
-        const allQueryComments: string[] = [];
-        if (firstTokenComments && firstTokenComments.length > 0) {
-            allQueryComments.push(...firstTokenComments);
-        }
-        // intermediateComments are now applied to SELECT clause only, not query level
 
         // Parse SELECT clause (required)
         if (idx >= lexemes.length || lexemes[idx].value !== 'select') {
             throw new Error(`Syntax error at position ${idx}: Expected 'SELECT' keyword but found "${idx < lexemes.length ? lexemes[idx].value : 'end of input'}". SELECT queries must start with the SELECT keyword.`);
         }
 
+        // Also collect comments attached to the SELECT token itself as headerComments
+        const selectTokenComments = lexemes[idx].comments;
+        if (selectTokenComments && selectTokenComments.length > 0) {
+            headerComments.push(...selectTokenComments);
+            // Clear the comments from the SELECT token to avoid duplication
+            lexemes[idx].comments = null;
+        }
+
         const selectClauseResult = SelectClauseParser.parseFromLexeme(lexemes, idx);
         idx = selectClauseResult.newIndex;
 
-        // intermediate comments are now handled as headerComments, not SELECT clause comments
-
-        // If the select clause has the same comments as what we captured, clear them from the clause
-        // to avoid duplication (the query-level comments take precedence)
-        if (firstTokenComments && selectClauseResult.value.comments && 
-            JSON.stringify(firstTokenComments) === JSON.stringify(selectClauseResult.value.comments)) {
-            selectClauseResult.value.comments = null;
-        }
-        
-        // WITH trailing comments are now handled at query level for proper positioning
 
         // Parse FROM clause (optional)
         let fromClauseResult = null;
@@ -394,8 +378,8 @@ export class SelectQueryParser {
             forClause: forClauseResult ? forClauseResult.value : null
         });
 
-        // Set comments and headerComments from all collected sources to the query object
-        selectQuery.comments = allQueryComments.length > 0 ? allQueryComments : null;
+        // Set headerComments and query-level comments from collected sources to the query object
+        selectQuery.comments = queryLevelComments.length > 0 ? queryLevelComments : null;
         selectQuery.headerComments = headerComments.length > 0 ? headerComments : null;
 
         return { value: selectQuery, newIndex: idx };
