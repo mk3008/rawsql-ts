@@ -150,6 +150,19 @@ export class SelectQueryParser {
     ]);
     private static selectCommandSet = new Set<string>(["with", "select"]);
 
+    /**
+     * Transfer headerComments from source query to target query and clear from source
+     * @param source Source query to transfer headerComments from
+     * @param target Target query to receive headerComments
+     */
+    private static transferHeaderComments(source: SelectQuery, target: SelectQuery): void {
+        if (source.headerComments) {
+            target.headerComments = source.headerComments;
+            // Clear headerComments from the source query to avoid duplication
+            source.headerComments = null;
+        }
+    }
+
     // Parse from lexeme array (was: parse)
     public static parseFromLexeme(lexemes: Lexeme[], index: number): { value: SelectQuery; newIndex: number } {
         let idx = index;
@@ -187,11 +200,7 @@ export class SelectQueryParser {
                 const binaryQuery = new BinarySelectQuery(query, operator, result.value);
                 
                 // Transfer headerComments from the first query to the BinarySelectQuery
-                if (query.headerComments) {
-                    binaryQuery.headerComments = query.headerComments;
-                    // Clear headerComments from the left query to avoid duplication
-                    query.headerComments = null;
-                }
+                this.transferHeaderComments(query, binaryQuery);
                 
                 // Assign UNION comments to right query (common usage pattern)
                 if (unionComments && unionComments.length > 0) {
@@ -210,11 +219,7 @@ export class SelectQueryParser {
                 const binaryQuery = new BinarySelectQuery(query, operator, result.value);
                 
                 // Transfer headerComments from the first query to the BinarySelectQuery
-                if (query.headerComments) {
-                    binaryQuery.headerComments = query.headerComments;
-                    // Clear headerComments from the left query to avoid duplication
-                    query.headerComments = null;
-                }
+                this.transferHeaderComments(query, binaryQuery);
                 
                 // Assign UNION comments to the right side query
                 if (unionComments && unionComments.length > 0) {

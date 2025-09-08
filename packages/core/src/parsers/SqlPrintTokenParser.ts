@@ -421,9 +421,12 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         const handler = this.handlers.get(arg.getKind());
         if (handler) {
             const token = handler(arg);
-            // Add comments to the token if they exist, except for SimpleSelectQuery
-            // which handles comments manually in visitSimpleQuery
-            if (arg.getKind() !== SimpleSelectQuery.kind) {
+            // Check if component handles its own comments to avoid double processing
+            const handlesOwnComments = 'handlesOwnComments' in arg && typeof (arg as any).handlesOwnComments === 'function'
+                ? (arg as any).handlesOwnComments()
+                : arg.getKind() === SimpleSelectQuery.kind; // Fallback for existing SimpleSelectQuery
+            
+            if (!handlesOwnComments) {
                 this.addCommentsToToken(token, arg.comments);
             }
             return token;
