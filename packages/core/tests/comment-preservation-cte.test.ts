@@ -30,9 +30,8 @@ SELECT * FROM orders;`;
         expect(query.headerComments).toBeDefined();
         expect(query.headerComments).toContain('This is the main WITH clause comment');
         
-        // Check WITH clause comments (only WITH-specific comments)
-        expect(query.withClause?.comments).toBeDefined();
-        expect(query.withClause?.comments).toContain('Comment for users CTE');
+        // WITH-prefix comments are now moved to headerComments (WITH clause itself has no comments)
+        expect(query.withClause?.comments).toBeNull();
         
         // Check CTE level comments
         const ctes = query.withClause?.tables || [];

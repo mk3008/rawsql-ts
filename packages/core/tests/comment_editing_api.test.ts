@@ -79,11 +79,10 @@ FROM
     it('should edit existing comments', () => {
         const query = SelectQueryParser.parse(testSql);
         
-        // Edit the existing comment in WithClause
-        const withClause = (query as any).withClause;
-        CommentEditor.editComment(withClause, 0, 'Edited: Base customer data with segmentation logic');
+        // Edit the existing header comment (WITH-prefix comments are now moved to headerComments)
+        CommentEditor.editComment(query, 0, 'Edited: Base customer data with segmentation logic');
         
-        const comments = CommentEditor.getComments(withClause);
+        const comments = CommentEditor.getComments(query);
         expect(comments).toHaveLength(1);
         expect(comments[0]).toBe('Edited: Base customer data with segmentation logic');
         
@@ -95,8 +94,9 @@ FROM
         });
         
         const result = formatter.format(query);
-        const expectedSql = `WITH
-/* Edited: Base customer data with segmentation logic */
+        // Header comments appear at the beginning
+        const expectedSql = `/* Edited: Base customer data with segmentation logic */
+WITH
 "raw_users" AS (
 SELECT
 "user_id", "email", "registration_date", "subscription_tier", "country_code", "referral_source", "device_type", CASE
@@ -122,11 +122,10 @@ FROM
     it('should delete comments', () => {
         const query = SelectQueryParser.parse(testSql);
         
-        // Delete the comment from WithClause
-        const withClause = (query as any).withClause;
-        CommentEditor.deleteComment(withClause, 0);
+        // Delete the header comment (WITH-prefix comments are now moved to headerComments)
+        CommentEditor.deleteComment(query, 0);
         
-        const comments = CommentEditor.getComments(withClause);
+        const comments = CommentEditor.getComments(query);
         expect(comments).toHaveLength(0);
         
         // Format and check output - should have no comments
@@ -190,11 +189,11 @@ FROM
     it('should find components with specific comments', () => {
         const query = SelectQueryParser.parse(testSql);
         
-        // Find components with "customer" in comments
-        // Now comments are properly separated: WithClause has the original comment
+        // Find components with "customer" in comments  
+        // WITH-prefix comments are now moved to headerComments
         const components = CommentEditor.findComponentsWithComment(query, 'customer');
         expect(components.length).toBeGreaterThanOrEqual(1);
-        expect(components.some(comp => comp === (query as any).withClause)).toBe(true);
+        expect(components.some(comp => comp === query)).toBe(true);
     });
 
     it('should format SQL with comment export option', () => {
@@ -212,9 +211,10 @@ FROM
         });
         
         const withComments = formatterWithComments.format(query);
-        const expectedWithComments = `/* Export Test: Additional note about indexes */
+        // Both header comments appear at the beginning
+        const expectedWithComments = `/* Base customer data (active users only, with segment classification) */
+/* Export Test: Additional note about indexes */
 WITH
-/* Base customer data (active users only, with segment classification) */
 "raw_users" AS (
 SELECT
 "user_id"
@@ -292,15 +292,16 @@ FROM
         // Replace "data" with "information"
         const replacementCount = CommentEditor.replaceInComments(query, 'data', 'information');
         
-        expect(replacementCount).toBe(3); // Should replace in all 3 comments (1 in WithClause + 2 in query)
+        expect(replacementCount).toBe(3); // Should replace in all 3 comments (1 original + 2 added)
         
         const comments = CommentEditor.getComments(query);
-        expect(comments[0]).toBe('Process customer information efficiently');
-        expect(comments[1]).toBe('information validation rules applied');
+        expect(comments[0]).toBe('Base customer information (active users only, with segment classification)');
+        expect(comments[1]).toBe('Process customer information efficiently');
+        expect(comments[2]).toBe('information validation rules applied');
         
-        // Check WithClause comment was also replaced
+        // WITH-prefix comments are now moved to headerComments (WITH clause has no comments)
         const withClauseComments = CommentEditor.getComments((query as any).withClause);
-        expect(withClauseComments[0]).toBe('Base customer information (active users only, with segment classification)');
+        expect(withClauseComments).toHaveLength(0);
     });
 
     it('should count comments in the AST', () => {

@@ -97,7 +97,12 @@ export class CommentEditor {
      * @param component The SQL component to clear comments from
      */
     static deleteAllComments(component: SqlComponent): void {
-        component.comments = null;
+        if (this.isSelectQuery(component)) {
+            const selectQuery = component as SelectQuery;
+            selectQuery.headerComments = null;
+        } else {
+            component.comments = null;
+        }
     }
 
     /**
