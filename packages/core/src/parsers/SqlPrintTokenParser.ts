@@ -583,10 +583,18 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     }
 
     /**
-     * Formats a comment string as a block comment.
+     * Formats a comment string as a block comment with security sanitization.
+     * Prevents SQL injection by removing dangerous comment sequences.
      */
     private formatBlockComment(comment: string): string {
-        return `/* ${comment} */`;
+        // Remove dangerous comment termination sequences to prevent SQL injection
+        const sanitizedComment = comment
+            .replace(/\*\//g, '*') // Remove comment close sequences
+            .replace(/\/\*/g, '*') // Remove comment open sequences
+            .replace(/\r?\n/g, ' ') // Replace newlines with spaces for single-line comments
+            .trim(); // Remove leading/trailing whitespace
+        
+        return `/* ${sanitizedComment} */`;
     }
 
     private visitValueList(arg: ValueList): SqlPrintToken {

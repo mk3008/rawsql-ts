@@ -503,7 +503,8 @@ WHERE active = true
         const resultWithSpaces = formatterWithSpaces.format(query);
         
         // Verify comments are handled appropriately
-        expect(resultWithNewlines.formattedSql).toContain('/* Multi-line comment\nwith line breaks */');
-        expect(resultWithSpaces.formattedSql).toContain('/* Multi-line comment\nwith line breaks */');
+        // Note: Newlines in comments are converted to spaces for security (prevents multi-line injection)
+        expect(resultWithNewlines.formattedSql).toContain('/* Multi-line comment with line breaks */');
+        expect(resultWithSpaces.formattedSql).toContain('/* Multi-line comment with line breaks */');
     });
 });
