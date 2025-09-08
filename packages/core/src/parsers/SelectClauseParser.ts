@@ -113,9 +113,15 @@ export class SelectItemParser {
 
         if (idx < lexemes.length && (lexemes[idx].type & TokenType.Identifier)) {
             const alias = lexemes[idx].value;
+            const aliasComments = lexemes[idx].comments; // Capture comments from alias token
             idx++;
+            const selectItem = new SelectItem(value, alias);
+            // Set comments from the alias token to the SelectItem
+            if (aliasComments && aliasComments.length > 0) {
+                selectItem.comments = aliasComments;
+            }
             return {
-                value: new SelectItem(value, alias),
+                value: selectItem,
                 newIndex: idx,
             };
         } else if (value instanceof ColumnReference && value.column.name !== "*") {

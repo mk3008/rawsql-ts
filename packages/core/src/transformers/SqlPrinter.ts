@@ -416,6 +416,7 @@ export class SqlPrinter {
         });
     }
 
+
     /**
      * Removes duplicate consecutive spaces while preserving single spaces.
      * Simple and safe space normalization for CTE oneline mode.

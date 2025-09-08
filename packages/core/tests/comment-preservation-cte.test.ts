@@ -26,10 +26,12 @@ SELECT * FROM orders;`;
     test('should preserve comments in AST structure', () => {
         const query = SelectQueryParser.parse(sqlWithComments).toSimpleQuery();
         
-        // Check WITH clause comments (this is where comments are actually stored)
-        expect(query.withClause?.comments).toBeDefined();
-        expect(query.withClause?.comments).toContain('This is the main WITH clause comment');
-        expect(query.withClause?.comments).toContain('Comment for users CTE');
+        // Check SelectQuery headerComments (main WITH clause comment now belongs here)
+        expect(query.headerComments).toBeDefined();
+        expect(query.headerComments).toContain('This is the main WITH clause comment');
+        
+        // WITH-prefix comments are now moved to headerComments (WITH clause itself has no comments)
+        expect(query.withClause?.comments).toBeNull();
         
         // Check CTE level comments
         const ctes = query.withClause?.tables || [];

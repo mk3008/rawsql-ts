@@ -359,6 +359,8 @@ export class WithClause extends SqlComponent {
     static kind = Symbol("WithClause");
     recursive: boolean;
     tables: CommonTable[];
+    trailingComments: string[] | null = null; // Comments after WITH clause, meant for main query
+    globalComments: string[] | null = null; // Comments meant for the entire query, not just WITH clause
     constructor(recursive: boolean, tables: CommonTable[]) {
         super();
         this.recursive = recursive;

@@ -291,6 +291,13 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     private visitBinarySelectQuery(arg: BinarySelectQuery): SqlPrintToken {
         const token = new SqlPrintToken(SqlPrintTokenType.container, '');
 
+        // Add headerComments at the very beginning (before the first query)
+        if (arg.headerComments && arg.headerComments.length > 0) {
+            const headerCommentBlocks = this.createCommentBlocks(arg.headerComments);
+            token.innerTokens.push(...headerCommentBlocks);
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        }
+
         token.innerTokens.push(this.visit(arg.left));
         token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
 
@@ -414,8 +421,14 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         const handler = this.handlers.get(arg.getKind());
         if (handler) {
             const token = handler(arg);
-            // Add comments to the token if they exist
-            this.addCommentsToToken(token, arg.comments);
+            // Check if component handles its own comments to avoid double processing
+            const handlesOwnComments = 'handlesOwnComments' in arg && typeof (arg as any).handlesOwnComments === 'function'
+                ? (arg as any).handlesOwnComments()
+                : arg.getKind() === SimpleSelectQuery.kind; // Fallback for existing SimpleSelectQuery
+            
+            if (!handlesOwnComments) {
+                this.addCommentsToToken(token, arg.comments);
+            }
             return token;
         }
         throw new Error(`[SqlPrintTokenParser] No handler for kind: ${arg.getKind().toString()}`);
@@ -486,6 +499,28 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
      * Adds separator spaces for clause-level containers and manages duplicate space removal.
      */
     private insertCommentBlocksWithSpacing(token: SqlPrintToken, commentBlocks: SqlPrintToken[]): void {
+        // For SelectItem, append comments at the end with proper spacing
+        if (token.containerType === SqlPrintTokenContainerType.SelectItem) {
+            // Add space before comment if not already present
+            if (token.innerTokens.length > 0) {
+                const lastToken = token.innerTokens[token.innerTokens.length - 1];
+                if (lastToken.type !== SqlPrintTokenType.space) {
+                    token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+                }
+            }
+            token.innerTokens.push(...commentBlocks);
+            return;
+        }
+        
+        // Special handling for SelectClause to add space between keyword and comment
+        if (token.containerType === SqlPrintTokenContainerType.SelectClause) {
+            // For SelectClause, comments need to be inserted after the keyword with a space separator
+            // Current structure: [keyword text, space, other tokens...]
+            // Desired structure: [keyword text, space, comments, space, other tokens...]
+            token.innerTokens.unshift(SqlPrintTokenParser.SPACE_TOKEN, ...commentBlocks);
+            return;
+        }
+        
         token.innerTokens.unshift(...commentBlocks);
         
         // Add a separator space after comments only for certain container types
@@ -548,10 +583,23 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     }
 
     /**
-     * Formats a comment string as a block comment.
+     * Formats a comment string as a block comment with security sanitization.
+     * Prevents SQL injection by removing dangerous comment sequences.
      */
     private formatBlockComment(comment: string): string {
-        return `/* ${comment} */`;
+        // Remove dangerous comment termination sequences to prevent SQL injection
+        const sanitizedComment = comment
+            .replace(/\*\//g, '*') // Remove comment close sequences
+            .replace(/\/\*/g, '*') // Remove comment open sequences
+            .replace(/\r?\n/g, ' ') // Replace newlines with spaces for single-line comments
+            .trim(); // Remove leading/trailing whitespace
+        
+        // Return empty string if comment becomes empty after sanitization
+        if (!sanitizedComment) {
+            return '';
+        }
+        
+        return `/* ${sanitizedComment} */`;
     }
 
     private visitValueList(arg: ValueList): SqlPrintToken {
@@ -1011,6 +1059,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'as'));
         token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
         token.innerTokens.push(this.visit(arg.identifier));
+        
         return token;
     }
 
@@ -1390,8 +1439,28 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     public visitSimpleQuery(arg: SimpleSelectQuery): SqlPrintToken {
         const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.SimpleSelectQuery);
 
+        // Add headerComments at the very beginning (before WITH clause)
+        if (arg.headerComments && arg.headerComments.length > 0) {
+            const headerCommentBlocks = this.createCommentBlocks(arg.headerComments);
+            token.innerTokens.push(...headerCommentBlocks);
+            if (arg.withClause) {
+                token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            }
+        }
+
         if (arg.withClause) {
             token.innerTokens.push(arg.withClause.accept(this));
+        }
+
+        // Add regular comments between WITH clause and SELECT clause if they exist
+        if (arg.comments && arg.comments.length > 0) {
+            const commentBlocks = this.createCommentBlocks(arg.comments);
+            token.innerTokens.push(...commentBlocks);
+            
+            // Add a space separator after comments if there are more tokens coming
+            if (arg.selectClause) {
+                token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            }
         }
 
         token.innerTokens.push(arg.selectClause.accept(this));
@@ -1467,6 +1536,16 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
     public visitValuesQuery(arg: ValuesQuery): SqlPrintToken {
         const token = new SqlPrintToken(SqlPrintTokenType.keyword, 'values', SqlPrintTokenContainerType.ValuesQuery);
+        
+        // Add headerComments before VALUES keyword
+        if (arg.headerComments && arg.headerComments.length > 0) {
+            const headerCommentBlocks = this.createCommentBlocks(arg.headerComments);
+            for (const commentBlock of headerCommentBlocks) {
+                token.innerTokens.push(commentBlock);
+                token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            }
+        }
+        
         token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
 
         const values = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.Values);
@@ -1478,6 +1557,10 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         }
 
         token.innerTokens.push(values);
+        
+        // Add regular comments to the token
+        this.addCommentsToToken(token, arg.comments);
+        
         return token;
     }
 

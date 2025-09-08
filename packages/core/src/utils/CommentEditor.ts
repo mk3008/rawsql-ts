@@ -1,4 +1,5 @@
 import { SqlComponent } from '../models/SqlComponent';
+import { SelectQuery } from '../models/SelectQuery';
 
 /**
  * Utility class for editing comments on SQL components.
@@ -7,43 +8,87 @@ import { SqlComponent } from '../models/SqlComponent';
 export class CommentEditor {
     /**
      * Add a comment to a SQL component
+     * For SelectQuery components, adds to headerComments for query-level comments
      * @param component The SQL component to add comment to
      * @param comment The comment text to add
      */
     static addComment(component: SqlComponent, comment: string): void {
-        if (!component.comments) {
-            component.comments = [];
+        // Check if this is a SelectQuery component - add to headerComments for query-level comments
+        if (this.isSelectQuery(component)) {
+            const selectQuery = component as SelectQuery;
+            if (!selectQuery.headerComments) {
+                selectQuery.headerComments = [];
+            }
+            selectQuery.headerComments.push(comment);
+        } else {
+            // For other components, add to regular comments
+            if (!component.comments) {
+                component.comments = [];
+            }
+            component.comments.push(comment);
         }
-        component.comments.push(comment);
+    }
+    
+    /**
+     * Check if a component implements SelectQuery interface
+     * Uses discriminator property for robust type detection
+     * @param component The component to check
+     * @returns true if the component is a SelectQuery
+     */
+    private static isSelectQuery(component: SqlComponent): component is SelectQuery {
+        // Use discriminator property for robust type detection
+        return '__selectQueryType' in component && 
+               (component as SelectQuery).__selectQueryType === 'SelectQuery';
     }
 
     /**
      * Edit an existing comment by index
+     * For SelectQuery components, edits headerComments
      * @param component The SQL component containing the comment
      * @param index The index of the comment to edit (0-based)
      * @param newComment The new comment text
      * @throws Error if index is invalid
      */
     static editComment(component: SqlComponent, index: number, newComment: string): void {
-        if (!component.comments || index < 0 || index >= component.comments.length) {
-            throw new Error(`Invalid comment index: ${index}. Component has ${component.comments?.length || 0} comments.`);
+        if (this.isSelectQuery(component)) {
+            const selectQuery = component as SelectQuery;
+            if (!selectQuery.headerComments || index < 0 || index >= selectQuery.headerComments.length) {
+                throw new Error(`Invalid comment index: ${index}. Component has ${selectQuery.headerComments?.length || 0} comments.`);
+            }
+            selectQuery.headerComments[index] = newComment;
+        } else {
+            if (!component.comments || index < 0 || index >= component.comments.length) {
+                throw new Error(`Invalid comment index: ${index}. Component has ${component.comments?.length || 0} comments.`);
+            }
+            component.comments[index] = newComment;
         }
-        component.comments[index] = newComment;
     }
 
     /**
      * Delete a comment by index
+     * For SelectQuery components, deletes from headerComments
      * @param component The SQL component containing the comment
      * @param index The index of the comment to delete (0-based)
      * @throws Error if index is invalid
      */
     static deleteComment(component: SqlComponent, index: number): void {
-        if (!component.comments || index < 0 || index >= component.comments.length) {
-            throw new Error(`Invalid comment index: ${index}. Component has ${component.comments?.length || 0} comments.`);
-        }
-        component.comments.splice(index, 1);
-        if (component.comments.length === 0) {
-            component.comments = null;
+        if (this.isSelectQuery(component)) {
+            const selectQuery = component as SelectQuery;
+            if (!selectQuery.headerComments || index < 0 || index >= selectQuery.headerComments.length) {
+                throw new Error(`Invalid comment index: ${index}. Component has ${selectQuery.headerComments?.length || 0} comments.`);
+            }
+            selectQuery.headerComments.splice(index, 1);
+            if (selectQuery.headerComments.length === 0) {
+                selectQuery.headerComments = null;
+            }
+        } else {
+            if (!component.comments || index < 0 || index >= component.comments.length) {
+                throw new Error(`Invalid comment index: ${index}. Component has ${component.comments?.length || 0} comments.`);
+            }
+            component.comments.splice(index, 1);
+            if (component.comments.length === 0) {
+                component.comments = null;
+            }
         }
     }
 
@@ -52,15 +97,25 @@ export class CommentEditor {
      * @param component The SQL component to clear comments from
      */
     static deleteAllComments(component: SqlComponent): void {
-        component.comments = null;
+        if (this.isSelectQuery(component)) {
+            const selectQuery = component as SelectQuery;
+            selectQuery.headerComments = null;
+        } else {
+            component.comments = null;
+        }
     }
 
     /**
      * Get all comments from a component
+     * For SelectQuery components, returns headerComments instead of regular comments
      * @param component The SQL component to get comments from
      * @returns Array of comment strings (empty array if no comments)
      */
     static getComments(component: SqlComponent): string[] {
+        if (this.isSelectQuery(component)) {
+            const selectQuery = component as SelectQuery;
+            return selectQuery.headerComments || [];
+        }
         return component.comments || [];
     }
 
@@ -77,10 +132,28 @@ export class CommentEditor {
         
         const traverse = (component: any) => {
             if (component && component instanceof SqlComponent) {
+                let hasMatchingComment = false;
+                
+                // Check regular comments
                 if (component.comments && component.comments.some(c => {
                     const commentText = caseSensitive ? c : c.toLowerCase();
                     return commentText.includes(searchTerm);
                 })) {
+                    hasMatchingComment = true;
+                }
+                
+                // Check headerComments for SelectQuery components
+                if (this.isSelectQuery(component)) {
+                    const selectQuery = component as SelectQuery;
+                    if (selectQuery.headerComments && selectQuery.headerComments.some(c => {
+                        const commentText = caseSensitive ? c : c.toLowerCase();
+                        return commentText.includes(searchTerm);
+                    })) {
+                        hasMatchingComment = true;
+                    }
+                }
+                
+                if (hasMatchingComment) {
                     results.push(component);
                 }
             }
@@ -113,16 +186,37 @@ export class CommentEditor {
         let replacementCount = 0;
         
         const traverse = (component: any) => {
-            if (component && component instanceof SqlComponent && component.comments) {
-                for (let i = 0; i < component.comments.length; i++) {
-                    const originalComment = component.comments[i];
-                    const flags = caseSensitive ? 'g' : 'gi';
-                    const regex = new RegExp(searchText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), flags);
-                    const newComment = originalComment.replace(regex, replaceText);
-                    
-                    if (newComment !== originalComment) {
-                        component.comments[i] = newComment;
-                        replacementCount++;
+            if (component && component instanceof SqlComponent) {
+                // Handle regular comments
+                if (component.comments) {
+                    for (let i = 0; i < component.comments.length; i++) {
+                        const originalComment = component.comments[i];
+                        const flags = caseSensitive ? 'g' : 'gi';
+                        const regex = new RegExp(searchText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), flags);
+                        const newComment = originalComment.replace(regex, replaceText);
+                        
+                        if (newComment !== originalComment) {
+                            component.comments[i] = newComment;
+                            replacementCount++;
+                        }
+                    }
+                }
+                
+                // Handle headerComments for SelectQuery components
+                if (this.isSelectQuery(component)) {
+                    const selectQuery = component as SelectQuery;
+                    if (selectQuery.headerComments) {
+                        for (let i = 0; i < selectQuery.headerComments.length; i++) {
+                            const originalComment = selectQuery.headerComments[i];
+                            const flags = caseSensitive ? 'g' : 'gi';
+                            const regex = new RegExp(searchText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), flags);
+                            const newComment = originalComment.replace(regex, replaceText);
+                            
+                            if (newComment !== originalComment) {
+                                selectQuery.headerComments[i] = newComment;
+                                replacementCount++;
+                            }
+                        }
                     }
                 }
             }
@@ -152,8 +246,18 @@ export class CommentEditor {
         let count = 0;
         
         const traverse = (component: any) => {
-            if (component && component instanceof SqlComponent && component.comments) {
-                count += component.comments.length;
+            if (component && component instanceof SqlComponent) {
+                if (component.comments) {
+                    count += component.comments.length;
+                }
+                
+                // Count headerComments for SelectQuery components
+                if (this.isSelectQuery(component)) {
+                    const selectQuery = component as SelectQuery;
+                    if (selectQuery.headerComments) {
+                        count += selectQuery.headerComments.length;
+                    }
+                }
             }
             
             // Traverse all properties recursively
@@ -181,10 +285,23 @@ export class CommentEditor {
         const results: { comment: string; component: SqlComponent; index: number }[] = [];
         
         const traverse = (component: any) => {
-            if (component && component instanceof SqlComponent && component.comments) {
-                component.comments.forEach((comment, index) => {
-                    results.push({ comment, component, index });
-                });
+            if (component && component instanceof SqlComponent) {
+                // Add regular comments
+                if (component.comments) {
+                    component.comments.forEach((comment, index) => {
+                        results.push({ comment, component, index });
+                    });
+                }
+                
+                // Add headerComments for SelectQuery components
+                if (this.isSelectQuery(component)) {
+                    const selectQuery = component as SelectQuery;
+                    if (selectQuery.headerComments) {
+                        selectQuery.headerComments.forEach((comment, index) => {
+                            results.push({ comment, component, index });
+                        });
+                    }
+                }
             }
             
             // Traverse all properties recursively

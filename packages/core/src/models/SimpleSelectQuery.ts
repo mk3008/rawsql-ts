@@ -20,6 +20,8 @@ import { ParameterHelper } from "../utils/ParameterHelper";
  */
 export class SimpleSelectQuery extends SqlComponent implements SelectQuery, CTEManagement {
     static kind = Symbol("SelectQuery");
+    readonly __selectQueryType: 'SelectQuery' = 'SelectQuery'; // Discriminator for type safety
+    headerComments: string[] | null = null; // Comments that appear before WITH clause
     withClause: WithClause | null;
     selectClause: SelectClause;
     fromClause: FromClause | null;
