@@ -12,6 +12,7 @@ import { TupleExpression } from "./ValueComponent";
  */
 export class ValuesQuery extends SqlComponent implements SelectQuery {
     static kind = Symbol("ValuesQuery");
+    readonly __selectQueryType: 'SelectQuery' = 'SelectQuery'; // Discriminator for type safety
     headerComments: string[] | null = null; // Comments that appear before VALUES clause
     tuples: TupleExpression[];
     /**

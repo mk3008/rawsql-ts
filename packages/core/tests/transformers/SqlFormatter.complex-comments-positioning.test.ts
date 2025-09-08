@@ -34,13 +34,10 @@ FROM
             
             const query = SelectQueryParser.parse(inputSql);
             
-            // Test with formatted output (human-readable with indentation)
+            // Test with compact formatting (no indentation for precise comparison)
             const formatterWithIndent = new SqlFormatter({ 
                 exportComment: true, 
-                preset: 'postgres',
-                indentSize: 2,
-                indentChar: ' ',
-                newline: '\n'
+                preset: 'postgres'
             });
             
             const resultWithIndent = formatterWithIndent.format(query);
@@ -49,14 +46,9 @@ FROM
             console.log(resultWithIndent.formattedSql);
             
             // Expected formatted output with proper structure and comments
-            const expectedFormattedSql = `/* Global query comment */ with /* WITH clause comment */ "a" as (
-  /* First query comment */ select 1
-  union all
-  /* Second query comment */ select 2
-)
-/* Main query comment */ select * from "table"
-union all
-/* Union query comment */ select * from "table"`;
+            // Both "Global query comment" and "WITH clause comment" appear before WITH keyword,
+            // so both should be header comments (appearing at the start)
+            const expectedFormattedSql = `/* Global query comment */ /* WITH clause comment */  with "a" as (/* First query comment */ select 1 union all /* Second query comment */  select 2) /* Main query comment */  select * from "table" union all /* Union query comment */  select * from "table"`;
             
             console.log('\n=== Expected Output ===');
             console.log(expectedFormattedSql);

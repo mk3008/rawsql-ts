@@ -79,15 +79,11 @@ export class WithClauseParser {
         let actualWithComments: string[] | null = null;
         
         // Based on tokenizer analysis:
-        // - WITH token gets multiple comments that should be separated
-        // - First comment is typically the global/header comment
-        // - Subsequent comments are WITH-specific
-        if (withTokenComments && withTokenComments.length > 1) {
-            headerComments = [withTokenComments[0]];  // "Global query comment"
-            actualWithComments = withTokenComments.slice(1);  // ["WITH clause comment"]
-        } else if (withTokenComments && withTokenComments.length === 1) {
-            // Single comment - could be either, keep as WITH comment for now
-            actualWithComments = withTokenComments;
+        // - All comments before WITH token are header comments (query-level)
+        // - Comments that appear after WITH keyword are WITH-specific
+        if (withTokenComments && withTokenComments.length > 0) {
+            headerComments = [...withTokenComments];  // All comments before WITH are header comments
+            actualWithComments = null;  // No WITH-specific comments from the WITH token itself
         }
 
         // Expect WITH keyword

@@ -31,24 +31,14 @@ export class CommentEditor {
     
     /**
      * Check if a component implements SelectQuery interface
-     * Uses multiple checks for robust type detection
+     * Uses discriminator property for robust type detection
      * @param component The component to check
      * @returns true if the component is a SelectQuery
      */
     private static isSelectQuery(component: SqlComponent): component is SelectQuery {
-        // First check for required properties
-        const hasRequiredProperties = 'headerComments' in component && 
-                                    'setParameter' in component && 
-                                    'toSimpleQuery' in component;
-        
-        // Additional check for method types to increase robustness
-        if (hasRequiredProperties) {
-            const candidate = component as any;
-            return typeof candidate.setParameter === 'function' && 
-                   typeof candidate.toSimpleQuery === 'function';
-        }
-        
-        return false;
+        // Use discriminator property for robust type detection
+        return '__selectQueryType' in component && 
+               (component as SelectQuery).__selectQueryType === 'SelectQuery';
     }
 
     /**

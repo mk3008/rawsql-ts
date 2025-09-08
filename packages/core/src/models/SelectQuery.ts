@@ -20,6 +20,7 @@ export interface CTEManagement {
 }
 
 export interface SelectQuery extends SqlComponent {
+    readonly __selectQueryType: 'SelectQuery'; // Discriminator property for type safety
     headerComments: string[] | null;
     setParameter(name: string, value: SqlParameterValue): this;
     toSimpleQuery(): SimpleSelectQuery;

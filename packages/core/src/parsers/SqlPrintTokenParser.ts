@@ -594,6 +594,11 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
             .replace(/\r?\n/g, ' ') // Replace newlines with spaces for single-line comments
             .trim(); // Remove leading/trailing whitespace
         
+        // Return empty string if comment becomes empty after sanitization
+        if (!sanitizedComment) {
+            return '';
+        }
+        
         return `/* ${sanitizedComment} */`;
     }
 
