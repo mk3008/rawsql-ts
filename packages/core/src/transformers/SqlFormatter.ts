@@ -17,18 +17,10 @@ export type PresetName = (typeof VALID_PRESETS)[number];
 export type WithClauseStyle = 'standard' | 'cte-oneline' | 'full-oneline';
 
 /**
- * Options for SqlFormatter configuration
+ * Base formatting options shared between SqlFormatter and SqlPrinter
  * @public
  */
-export interface SqlFormatterOptions {
-    /** Database preset for formatting style ('mysql', 'postgres', 'sqlserver', 'sqlite') */
-    preset?: PresetName;
-    /** Custom identifier escape characters (e.g., {start: '"', end: '"'} for PostgreSQL) */
-    identifierEscape?: { start: string; end: string };
-    /** Parameter symbol configuration for SQL parameters */
-    parameterSymbol?: string | { start: string; end: string };
-    /** Style for parameter formatting */
-    parameterStyle?: 'anonymous' | 'indexed' | 'named';
+export interface BaseFormattingOptions {
     /** Number of spaces for indentation */
     indentSize?: number;
     /** Character to use for indentation ('space' or 'tab') */
@@ -47,6 +39,33 @@ export interface SqlFormatterOptions {
     strictCommentPlacement?: boolean;
     /** Formatting style for WITH clauses */
     withClauseStyle?: WithClauseStyle;
+    /** Keep parentheses content on one line regardless of AND/OR break settings */
+    parenthesesOneLine?: boolean;
+    /** Keep BETWEEN expressions on one line regardless of AND break settings */
+    betweenOneLine?: boolean;
+    /** Keep VALUES clause on one line regardless of comma break settings */
+    valuesOneLine?: boolean;
+    /** Keep JOIN conditions on one line regardless of AND/OR break settings */
+    joinOneLine?: boolean;
+    /** Keep CASE expressions on one line regardless of formatting settings */
+    caseOneLine?: boolean;
+    /** Keep subqueries (inline queries) on one line regardless of formatting settings */
+    subqueryOneLine?: boolean;
+}
+
+/**
+ * Options for SqlFormatter configuration
+ * @public
+ */
+export interface SqlFormatterOptions extends BaseFormattingOptions {
+    /** Database preset for formatting style ('mysql', 'postgres', 'sqlserver', 'sqlite') */
+    preset?: PresetName;
+    /** Custom identifier escape characters (e.g., {start: '"', end: '"'} for PostgreSQL) */
+    identifierEscape?: { start: string; end: string };
+    /** Parameter symbol configuration for SQL parameters */
+    parameterSymbol?: string | { start: string; end: string };
+    /** Style for parameter formatting */
+    parameterStyle?: 'anonymous' | 'indexed' | 'named';
 }
 
 /**
@@ -72,7 +91,15 @@ export class SqlFormatter {
         };
 
         this.parser = new SqlPrintTokenParser(parserOptions);
-        this.printer = new SqlPrinter(options);
+        this.printer = new SqlPrinter({
+            ...options,
+            parenthesesOneLine: options.parenthesesOneLine,
+            betweenOneLine: options.betweenOneLine,
+            valuesOneLine: options.valuesOneLine,
+            joinOneLine: options.joinOneLine,
+            caseOneLine: options.caseOneLine,
+            subqueryOneLine: options.subqueryOneLine
+        });
     }    /**
      * Formats a SQL query string with the given parameters.
      * @param sqlText The SQL query string to format.

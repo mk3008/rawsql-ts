@@ -1,6 +1,6 @@
 import { SqlPrintToken, SqlPrintTokenType, SqlPrintTokenContainerType } from "../models/SqlPrintToken";
 import { IndentCharOption, LinePrinter, NewlineOption } from "./LinePrinter";
-import { WithClauseStyle } from "./SqlFormatter";
+import { BaseFormattingOptions, WithClauseStyle } from "./SqlFormatter";
 
 /**
  * CommaBreakStyle determines how commas are placed in formatted SQL output.
@@ -21,27 +21,9 @@ export type AndBreakStyle = 'none' | 'before' | 'after';
 /**
  * Options for configuring SqlPrinter formatting behavior
  */
-export interface SqlPrinterOptions {
-    /** Indent character (e.g., ' ' or '\t') */
-    indentChar?: IndentCharOption;
-    /** Indent size (number of indentChar repetitions per level) */
-    indentSize?: number;
-    /** Newline character (e.g., '\n' or '\r\n') */
-    newline?: NewlineOption;
-    /** Comma break style: 'none', 'before', or 'after' */
-    commaBreak?: CommaBreakStyle;
-    /** AND break style: 'none', 'before', or 'after' */
-    andBreak?: AndBreakStyle;
-    /** Keyword case style: 'none', 'upper' | 'lower' */
-    keywordCase?: 'none' | 'upper' | 'lower';
-    /** Whether to export comments in the output (default: false for compatibility) */
-    exportComment?: boolean;
-    /** Whether to use strict comment placement (only clause-level comments, default: false) */
-    strictCommentPlacement?: boolean;
+export interface SqlPrinterOptions extends BaseFormattingOptions {
     /** Container types that should increase indentation level */
     indentIncrementContainerTypes?: SqlPrintTokenContainerType[];
-    /** WITH clause formatting style (default: 'standard') */
-    withClauseStyle?: WithClauseStyle;
 }
 
 /**
@@ -93,6 +75,18 @@ export class SqlPrinter {
     
     /** Track whether we are currently inside a WITH clause for full-oneline formatting */
     private insideWithClause: boolean = false;
+    /** Whether to keep parentheses content on one line */
+    private parenthesesOneLine: boolean;
+    /** Whether to keep BETWEEN expressions on one line */
+    private betweenOneLine: boolean;
+    /** Whether to keep VALUES clause on one line */
+    private valuesOneLine: boolean;
+    /** Whether to keep JOIN conditions on one line */
+    private joinOneLine: boolean;
+    /** Whether to keep CASE expressions on one line */
+    private caseOneLine: boolean;
+    /** Whether to keep subqueries on one line */
+    private subqueryOneLine: boolean;
 
     /**
      * @param options Optional style settings for pretty printing
@@ -111,6 +105,12 @@ export class SqlPrinter {
         this.exportComment = options?.exportComment ?? false;
         this.strictCommentPlacement = options?.strictCommentPlacement ?? false;
         this.withClauseStyle = options?.withClauseStyle ?? 'standard';
+        this.parenthesesOneLine = options?.parenthesesOneLine ?? false;
+        this.betweenOneLine = options?.betweenOneLine ?? false;
+        this.valuesOneLine = options?.valuesOneLine ?? false;
+        this.joinOneLine = options?.joinOneLine ?? false;
+        this.caseOneLine = options?.caseOneLine ?? false;
+        this.subqueryOneLine = options?.subqueryOneLine ?? false;
         this.linePrinter = new LinePrinter(this.indentChar, this.indentSize, this.newline);
 
         // Initialize
@@ -200,6 +200,14 @@ export class SqlPrinter {
             this.handleCommentNewlineToken(token, level);
         } else if (token.containerType === SqlPrintTokenContainerType.CommonTable && this.withClauseStyle === 'cte-oneline') {
             this.handleCteOnelineToken(token, level);
+            return; // Return early to avoid processing innerTokens
+        } else if ((token.containerType === SqlPrintTokenContainerType.ParenExpression && this.parenthesesOneLine) ||
+                   (token.containerType === SqlPrintTokenContainerType.BetweenExpression && this.betweenOneLine) ||
+                   (token.containerType === SqlPrintTokenContainerType.Values && this.valuesOneLine) ||
+                   (token.containerType === SqlPrintTokenContainerType.JoinOnClause && this.joinOneLine) ||
+                   (token.containerType === SqlPrintTokenContainerType.CaseExpression && this.caseOneLine) ||
+                   (token.containerType === SqlPrintTokenContainerType.InlineQuery && this.subqueryOneLine)) {
+            this.handleOnelineToken(token, level);
             return; // Return early to avoid processing innerTokens
         } else {
             this.linePrinter.appendText(token.text);
@@ -413,6 +421,42 @@ export class SqlPrinter {
             exportComment: this.exportComment,
             strictCommentPlacement: this.strictCommentPlacement,
             withClauseStyle: 'standard', // Prevent recursive processing
+        });
+    }
+
+    /**
+     * Handles tokens with oneline formatting (parentheses, BETWEEN, VALUES, JOIN, CASE, subqueries).
+     * Creates a unified oneline printer that formats everything as one line regardless of content type.
+     */
+    private handleOnelineToken(token: SqlPrintToken, level: number): void {
+        const onelinePrinter = this.createOnelinePrinter();
+        const onelineResult = onelinePrinter.print(token, level);
+        const cleanedResult = this.cleanDuplicateSpaces(onelineResult);
+        this.linePrinter.appendText(cleanedResult);
+    }
+
+    /**
+     * Creates a unified SqlPrinter instance configured for oneline formatting.
+     * Works for all oneline options: parentheses, BETWEEN, VALUES, JOIN, CASE, subqueries.
+     * Sets all oneline options to false to prevent recursion and uses newline=' ' for actual oneline effect.
+     */
+    private createOnelinePrinter(): SqlPrinter {
+        return new SqlPrinter({
+            indentChar: '',
+            indentSize: 0,
+            newline: ' ',              // KEY: Replace all newlines with spaces - this makes everything oneline!
+            commaBreak: 'none',        // Disable comma-based line breaks
+            andBreak: 'none',          // Disable AND/OR-based line breaks
+            keywordCase: this.keywordCase,
+            exportComment: this.exportComment,
+            strictCommentPlacement: this.strictCommentPlacement,
+            withClauseStyle: 'standard',
+            parenthesesOneLine: false, // Prevent recursive processing (avoid infinite loops)
+            betweenOneLine: false,     // Prevent recursive processing (avoid infinite loops)
+            valuesOneLine: false,      // Prevent recursive processing (avoid infinite loops)
+            joinOneLine: false,        // Prevent recursive processing (avoid infinite loops)
+            caseOneLine: false,        // Prevent recursive processing (avoid infinite loops)
+            subqueryOneLine: false,    // Prevent recursive processing (avoid infinite loops)
         });
     }
 
