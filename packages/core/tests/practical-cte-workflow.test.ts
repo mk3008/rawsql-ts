@@ -442,4 +442,89 @@ describe("Practical CTE Workflow - Decompose, Edit, Compose", () => {
         // Ensure final result is valid SQL
         expect(() => SelectQueryParser.parse(composedQuery)).not.toThrow();
     });
+
+    test("CTE Restoration - debug a specific CTE from complex query", () => {
+        // Arrange - Complex query from real-world scenario
+        const complexQuery = `
+            with user_base as (select id, email, created_at from users where deleted_at is null),
+                 active_users as (select * from user_base where created_at >= '2023-01-01'),
+                 user_purchases as (
+                     select user_id, sum(amount) as total_spent 
+                     from purchases p
+                     join active_users au on p.user_id = au.id
+                     group by user_id
+                 ),
+                 high_value_users as (
+                     select au.*, up.total_spent
+                     from active_users au
+                     join user_purchases up on au.id = up.user_id
+                     where up.total_spent > 1000
+                 )
+            select count(*) from high_value_users
+        `;
+
+        // Act - Parse and restore a specific CTE for debugging
+        const parsedQuery = SelectQueryParser.parse(complexQuery) as SimpleSelectQuery;
+        const decomposer = new CTEQueryDecomposer();
+        
+        // Debug the 'high_value_users' CTE specifically  
+        const result = decomposer.extractCTE(parsedQuery, 'high_value_users');
+
+        // Assert - Verify restoration provides executable SQL with all dependencies
+        expect(result.name).toBe('high_value_users');
+        expect(result.dependencies).toEqual(['user_base', 'active_users', 'user_purchases']);
+        expect(result.warnings).toHaveLength(0);
+
+        // Should contain all required dependencies
+        expect(result.executableSql).toContain('with user_base as');
+        expect(result.executableSql).toContain('active_users as');
+        expect(result.executableSql).toContain('user_purchases as');
+        
+        // Should end with the target CTE's query
+        expect(result.executableSql).toContain('select "au".*, "up"."total_spent"');
+        expect(result.executableSql).toContain('where "up"."total_spent" > 1000');
+
+        console.log("=== CTE Restoration Example ===");
+        console.log("Restored CTE:", result.name);
+        console.log("Dependencies:", result.dependencies);
+        console.log("Executable SQL:\n", result.executableSql);
+
+        // The restored SQL should be parseable and executable
+        expect(() => SelectQueryParser.parse(result.executableSql)).not.toThrow();
+    });
+
+    test("CTE Restoration - progressive debugging workflow", () => {
+        const query = `
+            with raw_orders as (select * from orders where status = 'completed'),
+                 daily_totals as (select date(created_at) as day, sum(amount) as total from raw_orders group by date(created_at)),
+                 top_days as (select * from daily_totals where total > 10000)
+            select * from top_days order by total desc
+        `;
+        
+        const parsedQuery = SelectQueryParser.parse(query) as SimpleSelectQuery;
+        const decomposer = new CTEQueryDecomposer();
+
+        // Progressive debugging: start with base, then move up the chain
+        
+        // 1. Debug base CTE (no dependencies)
+        const baseResult = decomposer.extractCTE(parsedQuery, 'raw_orders');
+        expect(baseResult.dependencies).toHaveLength(0);
+        expect(baseResult.executableSql).toBe('select * from \"orders\" where \"status\" = \'completed\'');
+
+        // 2. Debug intermediate CTE (depends on base)
+        const dailyResult = decomposer.extractCTE(parsedQuery, 'daily_totals');
+        expect(dailyResult.dependencies).toEqual(['raw_orders']);
+        expect(dailyResult.executableSql).toContain('with raw_orders as');
+        
+        // 3. Debug final CTE (depends on entire chain)
+        const topResult = decomposer.extractCTE(parsedQuery, 'top_days');
+        expect(topResult.dependencies).toEqual(['raw_orders', 'daily_totals']);
+        expect(topResult.executableSql).toContain('with raw_orders as');
+        expect(topResult.executableSql).toContain('daily_totals as');
+
+        console.log("=== Progressive CTE Debugging ===");
+        console.log("1. Base CTE:", baseResult.executableSql);
+        console.log("2. Intermediate dependencies:", dailyResult.dependencies);
+        console.log("3. Final CTE dependencies:", topResult.dependencies);
+    });
 });
