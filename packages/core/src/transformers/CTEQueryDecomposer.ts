@@ -34,12 +34,28 @@ export interface CTEDecomposerOptions extends SqlFormatterOptions {
 }
 
 /**
+ * Result of CTE SQL restoration containing executable query and metadata
+ * @public
+ */
+export interface CTERestorationResult {
+    /** Name of the CTE */
+    name: string;
+    /** Executable SQL query including all dependencies */
+    executableSql: string;
+    /** Array of CTE names that this CTE depends on (in execution order) */
+    dependencies: string[];
+    /** Any warnings encountered during restoration */
+    warnings: string[];
+}
+
+/**
  * Decomposes complex CTEs into executable standalone queries
  * 
  * This class analyzes Common Table Expressions and generates executable standalone queries
  * for each CTE, making complex CTE debugging easier. It supports:
  * - Recursive CTE detection and handling
  * - Dependency analysis (dependencies and dependents for each CTE)  
+ * - CTE SQL Restoration: Generate executable SQL for a specific CTE with its dependencies
  * - Configurable SQL formatter options (MySQL, PostgreSQL, custom styles)
  * - Optional comment generation showing CTE metadata and relationships
  * - Comprehensive error handling for circular dependencies
@@ -60,6 +76,10 @@ export interface CTEDecomposerOptions extends SqlFormatterOptions {
  * 
  * const decomposed = decomposer.decompose(SelectQueryParser.parse(query));
  * // Returns array of DecomposedCTE objects with executable queries
+ * 
+ * // Or restore a specific CTE for debugging:
+ * const restored = decomposer.extractCTE(SelectQueryParser.parse(query), 'active_users');
+ * console.log(restored.executableSql); // Standalone executable SQL with dependencies
  * ```
  * 
  * @public
@@ -189,6 +209,105 @@ export class CTEQueryDecomposer {
         
         // Re-decompose the synchronized query
         return this.decompose(parsedQuery);
+    }
+
+    /**
+     * Restores executable SQL for a specific CTE by including all its dependencies
+     * 
+     * This method provides a focused API for generating standalone, executable SQL
+     * for a specific Common Table Expression. It analyzes dependencies and includes
+     * all required CTEs in the correct execution order.
+     * 
+     * Key features:
+     * - Automatic dependency resolution and ordering
+     * - Recursive CTE detection and handling  
+     * - Error handling for circular dependencies
+     * - Optional dependency comments for debugging
+     * 
+     * @param query - The query containing CTEs
+     * @param cteName - The name of the CTE to restore
+     * @returns CTERestorationResult with executable SQL and metadata
+     * @throws Error if CTE is not found or circular dependencies exist
+     * 
+     * @example
+     * ```typescript
+     * const query = SelectQueryParser.parse(`
+     *   with users_data as (select * from users),
+     *        active_users as (select * from users_data where active = true),
+     *        premium_users as (select * from active_users where premium = true)
+     *   select * from premium_users
+     * `);
+     * 
+     * // Get executable SQL for 'premium_users' CTE
+     * const result = decomposer.extractCTE(query, 'premium_users');
+     * // result.executableSql will contain:
+     * // with users_data as (select * from users),
+     * //      active_users as (select * from users_data where active = true)
+     * // select * from active_users where premium = true
+     * ```
+     */
+    public extractCTE(query: SimpleSelectQuery, cteName: string): CTERestorationResult {
+        const warnings: string[] = [];
+
+        // Validate query contains CTEs
+        const allCTEs = this.cteCollector.collect(query);
+        if (allCTEs.length === 0) {
+            throw new Error("Query does not contain any CTEs");
+        }
+
+        // Find target CTE
+        const targetCTE = allCTEs.find(cte => this.getCTEName(cte) === cteName);
+        if (!targetCTE) {
+            throw new Error(`CTE not found in query: ${cteName}`);
+        }
+
+        // Check if this is a recursive CTE
+        const recursiveCTEs = this.findRecursiveCTEs(query, allCTEs);
+        const isRecursive = recursiveCTEs.includes(cteName);
+        
+        if (isRecursive) {
+            warnings.push("Recursive CTE restoration requires the full query context");
+            // For recursive CTEs, return the entire query as dependencies are complex
+            return {
+                name: cteName,
+                executableSql: this.formatter.format(query).formattedSql,
+                dependencies: this.getAllCTENames(allCTEs).filter(name => name !== cteName),
+                warnings
+            };
+        }
+
+        // Analyze dependencies
+        const dependencyGraph = this.dependencyAnalyzer.analyzeDependencies(query);
+        
+        // Check for circular dependencies
+        if (this.dependencyAnalyzer.hasCircularDependency()) {
+            throw new Error("Circular dependency detected in CTEs");
+        }
+
+        // Find target node in dependency graph
+        const targetNode = dependencyGraph.nodes.find(node => node.name === cteName);
+        if (!targetNode || !targetNode.cte) {
+            throw new Error(`CTE not found in dependency graph: ${cteName}`);
+        }
+
+        // Build executable query using existing private method
+        const executableSql = this.buildExecutableQuery(targetNode, dependencyGraph.nodes);
+
+        // Collect all required dependencies in correct order
+        const requiredCTEs = this.collectRequiredCTEs(targetNode, dependencyGraph.nodes);
+        const allDependencies = requiredCTEs.map(node => node.name);
+
+        // Add comments if requested
+        const finalSql = this.options.addComments 
+            ? this.addRestorationComments(executableSql, targetNode, warnings)
+            : executableSql;
+
+        return {
+            name: cteName,
+            executableSql: finalSql,
+            dependencies: allDependencies,
+            warnings
+        };
     }
 
     /**
@@ -561,6 +680,43 @@ export class CTEQueryDecomposer {
         const comments = this.generateComments(cteName, dependencies, dependents, isRecursive);
         const commentLines = comments.map(comment => `-- ${comment}`).join('\n');
         return `${commentLines}\n${query}`;
+    }
+
+    /**
+     * Adds restoration comments to the executable SQL if enabled
+     * @param sql The executable SQL
+     * @param targetNode The target CTE node
+     * @param warnings Any warnings to include
+     * @returns SQL with comments added
+     */
+    private addRestorationComments(sql: string, targetNode: CTENode, warnings: string[]): string {
+        const comments: string[] = [];
+        
+        comments.push("-- CTE Restoration: " + targetNode.name);
+        
+        if (targetNode.dependencies.length > 0) {
+            comments.push("-- Dependencies: " + targetNode.dependencies.join(", "));
+        } else {
+            comments.push("-- Dependencies: none");
+        }
+        
+        if (warnings.length > 0) {
+            comments.push("-- Warnings: " + warnings.join(", "));
+        }
+        
+        comments.push("-- Generated by CTEQueryDecomposer.extractCTE()");
+        comments.push("");
+        
+        return comments.join("\n") + sql;
+    }
+
+    /**
+     * Gets all CTE names from an array of CTEs
+     * @param ctes Array of CommonTable objects
+     * @returns Array of CTE names
+     */
+    private getAllCTENames(ctes: CommonTable[]): string[] {
+        return ctes.map(cte => this.getCTEName(cte));
     }
 
     /**
