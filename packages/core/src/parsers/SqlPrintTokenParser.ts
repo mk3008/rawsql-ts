@@ -1057,7 +1057,16 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         // Add alias if it is different from the default name
         token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
         token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'as'));
-        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        
+        // Add comments from the AS keyword if they exist
+        if (arg.asKeywordComments && arg.asKeywordComments.length > 0) {
+            const commentBlocks = this.createCommentBlocks(arg.asKeywordComments);
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(...commentBlocks);
+        } else {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        }
+        
         token.innerTokens.push(this.visit(arg.identifier));
         
         return token;

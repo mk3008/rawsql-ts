@@ -106,8 +106,10 @@ export class SelectItemParser {
         const value = parsedValue.value;
         idx = parsedValue.newIndex;
 
+        let asKeywordComments: string[] | null = null;
         if (idx < lexemes.length && lexemes[idx].value === 'as') {
-            // Skip 'AS' keyword
+            // Capture comments from 'AS' keyword before skipping
+            asKeywordComments = lexemes[idx].comments;
             idx++;
         }
 
@@ -115,7 +117,7 @@ export class SelectItemParser {
             const alias = lexemes[idx].value;
             const aliasComments = lexemes[idx].comments; // Capture comments from alias token
             idx++;
-            const selectItem = new SelectItem(value, alias);
+            const selectItem = new SelectItem(value, alias, asKeywordComments);
             // Set comments from the alias token to the SelectItem
             if (aliasComments && aliasComments.length > 0) {
                 selectItem.comments = aliasComments;
@@ -127,13 +129,13 @@ export class SelectItemParser {
         } else if (value instanceof ColumnReference && value.column.name !== "*") {
             // nameless select item
             return {
-                value: new SelectItem(value, value.column.name),
+                value: new SelectItem(value, value.column.name, asKeywordComments),
                 newIndex: idx,
             };
         }
         // nameless select item
         return {
-            value: new SelectItem(value),
+            value: new SelectItem(value, null, asKeywordComments),
             newIndex: idx,
         };
     }
