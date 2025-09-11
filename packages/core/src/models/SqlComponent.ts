@@ -23,6 +23,7 @@ export abstract class SqlComponent {
     }
 
     // Legacy comment field for backward compatibility
+    // @deprecated Use positionedComments instead for better comment positioning
     comments: string[] | null = null;
     
     // New position-based comment system
