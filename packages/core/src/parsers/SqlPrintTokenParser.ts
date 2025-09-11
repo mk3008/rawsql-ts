@@ -432,11 +432,9 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
                   arg.getKind() === FunctionCall.kind || arg.getKind() === IdentifierString.kind; // Components that handle their own positioned comments
             
             if (!handlesOwnComments) {
-                // Prioritize positioned comments, fallback to legacy comments
+                // Add positioned comments
                 if (arg.positionedComments && arg.positionedComments.length > 0) {
                     this.addPositionedCommentsToToken(token, arg);
-                } else if (arg.comments && arg.comments.length > 0) {
-                    this.addCommentsToToken(token, arg.comments);
                 }
             }
             return token;
@@ -700,11 +698,9 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.ColumnReference);
         token.innerTokens.push(arg.qualifiedName.accept(this));
         
-        // Handle positioned comments for ColumnReference, fallback to legacy comments
+        // Handle positioned comments for ColumnReference
         if (arg.positionedComments && arg.positionedComments.length > 0) {
             this.addPositionedCommentsToToken(token, arg);
-        } else if (arg.comments && arg.comments.length > 0) {
-            this.addCommentsToToken(token, arg.comments);
         }
         
         return token;
@@ -736,7 +732,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
             token.innerTokens.push(closingParenToken);
             
             // Clear the comments from arg to prevent duplicate output by the general comment handler
-            arg.comments = null;
+            arg
         } else {
             token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
         }
@@ -1220,15 +1216,9 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     private visitSelectItem(arg: SelectItem): SqlPrintToken {
         const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.SelectItem);
 
-        // Clear comments from the value to avoid duplication since SelectItem handles them
-        const originalValueComments = arg.value.comments;
+        // Clear positioned comments from the value to avoid duplication since SelectItem handles them
         const originalValuePositionedComments = (arg.value as any).positionedComments;
-        arg.value.comments = null;
         (arg.value as any).positionedComments = null;
-
-        // Clear SelectItem legacy comments to prevent duplication since we use positioned comments
-        const originalSelectItemComments = arg.comments;
-        arg.comments = null;
 
         // Add 'before' positioned comments
         const beforeComments = arg.getPositionedComments('before');
@@ -1252,10 +1242,8 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         // Clear positioned comments to prevent duplicate processing
         (arg as any).positionedComments = null;
 
-        // Restore original comments to avoid side effects
-        arg.value.comments = originalValueComments;
+        // Restore original positioned comments to avoid side effects
         (arg.value as any).positionedComments = originalValuePositionedComments;
-        arg.comments = originalSelectItemComments;
 
         if (!arg.identifier) {
             return token;
@@ -1906,7 +1894,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
             token.innerTokens.push(closingParenToken);
             
             // Clear the comments from arg to prevent duplicate output by the general comment handler
-            arg.comments = null;
+            arg
         } else {
             token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
         }

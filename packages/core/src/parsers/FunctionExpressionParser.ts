@@ -196,14 +196,14 @@ export class FunctionExpressionParser {
                 const value = new FunctionCall(namespaces, name.name, arg.value, over.value, withinGroup, withOrdinality, internalOrderBy);
                 // Set closing comments if available
                 if (closingComments && closingComments.length > 0) {
-                    value.comments = closingComments;
+                    value
                 }
                 return { value, newIndex: idx };
             } else {
                 const value = new FunctionCall(namespaces, name.name, arg.value, null, withinGroup, withOrdinality, internalOrderBy);
                 // Set closing comments if available
                 if (closingComments && closingComments.length > 0) {
-                    value.comments = closingComments;
+                    value
                 }
                 return { value, newIndex: idx };
             }
@@ -308,7 +308,7 @@ export class FunctionExpressionParser {
                 value.positionedComments = arg.value.positionedComments;
             }
             if (arg.value.comments) {
-                value.comments = arg.value.comments;
+                value
             }
             return { value, newIndex: idx };
         } else {
@@ -502,14 +502,14 @@ export class FunctionExpressionParser {
                 ];
                 
                 // Clear legacy comments to prevent duplication
-                result.value.comments = null;
+                result.value
                 
                 // Also clear positioned comments from nested components to prevent duplication
                 // This is needed because both the outer component and inner components might have the same comments
                 if ('qualifiedName' in result.value && result.value.qualifiedName) {
                     if ('name' in result.value.qualifiedName && result.value.qualifiedName.name) {
                         result.value.qualifiedName.name.positionedComments = null;
-                        result.value.qualifiedName.name.comments = null;
+                        result.value.qualifiedName.name
                     }
                 }
             }

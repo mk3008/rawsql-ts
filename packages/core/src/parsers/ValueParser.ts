@@ -65,7 +65,7 @@ export class ValueParser {
         }
         // Fall back to legacy comments if positioned comments aren't available
         else if (left.value.comments === null && comment && comment.length > 0) {
-            left.value.comments = comment;
+            left.value
         }
         idx = left.newIndex;
 
@@ -128,7 +128,7 @@ export class ValueParser {
             const binaryExpr = new BinaryExpression(result, operator, rightResult.value);
             // Transfer operator token comments to the operator RawString
             if (operatorToken.comments && operatorToken.comments.length > 0) {
-                binaryExpr.operator.comments = operatorToken.comments;
+                binaryExpr.operator
             }
             if (operatorToken.positionedComments && operatorToken.positionedComments.length > 0) {
                 binaryExpr.operator.positionedComments = operatorToken.positionedComments;
@@ -148,7 +148,7 @@ export class ValueParser {
         }
         // Fall back to legacy comments if positioned comments aren't available
         else if (value.comments === null && lexeme.comments && lexeme.comments.length > 0) {
-            value.comments = lexeme.comments;
+            value
         }
     }
 
@@ -320,7 +320,7 @@ export class ValueParser {
                         }));
                     }
                 } else if (openParenToken.comments && openParenToken.comments.length > 0) {
-                    wildcard.comments = openParenToken.comments;
+                    wildcard
                 }
                 idx++;
                 // The next element must be closeToken
@@ -356,9 +356,9 @@ export class ValueParser {
             } else if (openParenToken.comments && openParenToken.comments.length > 0) {
                 // Fall back to legacy comments
                 if (result.value.comments) {
-                    result.value.comments = [...openParenToken.comments, ...result.value.comments];
+                    result.value
                 } else {
-                    result.value.comments = openParenToken.comments;
+                    result.value
                 }
             }
             

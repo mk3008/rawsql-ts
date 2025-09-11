@@ -258,13 +258,13 @@ export class SqlTokenizer {
                 
                 // Set legacy comments only if positioned comments don't exist (avoid duplication)
                 if (positionedComments.length === 0 && allComments.length > 0) {
-                    lexeme.comments = allComments;
+                    lexeme
                 } else {
-                    lexeme.comments = null;
+                    lexeme
                 }
             } else {
                 // Clear both if no comments exist
-                lexeme.comments = null;
+                lexeme
                 lexeme.positionedComments = undefined;
             }
             

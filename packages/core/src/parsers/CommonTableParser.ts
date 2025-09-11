@@ -69,9 +69,9 @@ export class CommonTableParser {
         if (cteQueryComments && cteQueryComments.length > 0) {
             if (queryResult.value.comments) {
                 // Prepend the CTE query comments to existing comments
-                queryResult.value.comments = [...cteQueryComments, ...queryResult.value.comments];
+                queryResult.value
             } else {
-                queryResult.value.comments = cteQueryComments;
+                queryResult.value
             }
         }
 
@@ -91,15 +91,15 @@ export class CommonTableParser {
             if (cteNamePositionedComments && cteNamePositionedComments.length > 0) {
                 aliasResult.value.table.positionedComments = cteNamePositionedComments;
                 // Clear legacy comments to prevent duplication
-                aliasResult.value.table.comments = null;
+                aliasResult.value.table
             } else if (cteNameComments && cteNameComments.length > 0) {
                 // Fallback to legacy comments if no positioned comments
-                aliasResult.value.table.comments = cteNameComments;
+                aliasResult.value.table
             }
         }
         
         // Clear CommonTable comments since they're now on the CTE name
-        value.comments = null;
+        value
 
         return { 
             value, 

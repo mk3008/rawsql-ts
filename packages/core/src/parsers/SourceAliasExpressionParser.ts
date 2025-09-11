@@ -45,8 +45,6 @@ export class SourceAliasExpressionParser {
                 // Transfer positioned comments from the alias token
                 if (aliasToken.positionedComments && aliasToken.positionedComments.length > 0) {
                     sourceAlias.positionedComments = aliasToken.positionedComments;
-                } else if (aliasToken.comments && aliasToken.comments.length > 0) {
-                    sourceAlias.comments = aliasToken.comments;
                 }
                 return { value: sourceAlias, newIndex: idx };
             }
@@ -55,8 +53,6 @@ export class SourceAliasExpressionParser {
             // Transfer positioned comments from the alias token
             if (aliasToken.positionedComments && aliasToken.positionedComments.length > 0) {
                 sourceAlias.positionedComments = aliasToken.positionedComments;
-            } else if (aliasToken.comments && aliasToken.comments.length > 0) {
-                sourceAlias.comments = aliasToken.comments;
             }
             return { value: sourceAlias, newIndex: idx };
         }

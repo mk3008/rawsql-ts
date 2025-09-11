@@ -131,7 +131,7 @@ export class WithClauseParser {
 
         // Create WITH clause with comments
         const withClause = new WithClause(recursive, tables);
-        withClause.comments = actualWithComments; // Only WITH-specific comments
+        withClause // Only WITH-specific comments
         
         // Global comments should be handled at SelectQuery level, not here
         

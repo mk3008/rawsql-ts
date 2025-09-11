@@ -290,7 +290,7 @@ export class SelectQueryParser {
         if (selectTokenComments && selectTokenComments.length > 0) {
             headerComments.push(...selectTokenComments);
             // Clear the comments from the SELECT token to avoid duplication
-            lexemes[idx].comments = null;
+            lexemes[idx]
         }
 
         const selectClauseResult = SelectClauseParser.parseFromLexeme(lexemes, idx);
@@ -384,7 +384,7 @@ export class SelectQueryParser {
         });
 
         // Set headerComments and query-level comments from collected sources to the query object
-        selectQuery.comments = queryLevelComments.length > 0 ? queryLevelComments : null;
+        selectQuery
         selectQuery.headerComments = headerComments.length > 0 ? headerComments : null;
 
         return { value: selectQuery, newIndex: idx };

@@ -23,7 +23,7 @@ export class FullNameParser {
             if (lastLexeme.positionedComments && lastLexeme.positionedComments.length > 0) {
                 identifierString.positionedComments = lastLexeme.positionedComments;
             } else if (lastLexeme.comments && lastLexeme.comments.length > 0) {
-                identifierString.comments = lastLexeme.comments;
+                identifierString
             }
         }
         

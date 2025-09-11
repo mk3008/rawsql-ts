@@ -26,7 +26,7 @@ export class ParenExpressionParser {
 
             const value = new InlineQuery(result.value);
             if (closingComments && closingComments.length > 0) {
-                value.comments = closingComments;
+                value
             }
             return { value, newIndex: idx };
         } else {

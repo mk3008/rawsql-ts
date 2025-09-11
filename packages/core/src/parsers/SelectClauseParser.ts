@@ -69,8 +69,6 @@ export class SelectClauseParser {
             throw new Error(`Syntax error at position ${index}: No select items found. The SELECT clause requires at least one expression to select.`);
         } else {
             const clause = new SelectClause(items, distinct, hints);
-            // Set comments from the SELECT token to the clause
-            clause.comments = selectTokenComments;
             return { value: clause, newIndex: idx };
         }
     }
@@ -143,14 +141,12 @@ export class SelectItemParser {
                 if ('positionedComments' in selectItem.value) {
                     (selectItem.value as any).positionedComments = null;
                 }
-                selectItem.value.comments = null;
                 
                 // Also clear positioned comments from nested IdentifierString (in QualifiedName)
                 if (selectItem.value.constructor.name === 'ColumnReference') {
                     const columnRef = selectItem.value as any;
                     if (columnRef.qualifiedName && columnRef.qualifiedName.name) {
                         columnRef.qualifiedName.name.positionedComments = null;
-                        columnRef.qualifiedName.name.comments = null;
                     }
                 }
             }
@@ -187,14 +183,12 @@ export class SelectItemParser {
                 if ('positionedComments' in selectItem.value) {
                     (selectItem.value as any).positionedComments = null;
                 }
-                selectItem.value.comments = null;
                 
                 // Also clear positioned comments from nested IdentifierString (in QualifiedName)
                 if (selectItem.value.constructor.name === 'ColumnReference') {
                     const columnRef = selectItem.value as any;
                     if (columnRef.qualifiedName && columnRef.qualifiedName.name) {
                         columnRef.qualifiedName.name.positionedComments = null;
-                        columnRef.qualifiedName.name.comments = null;
                     }
                 }
             }

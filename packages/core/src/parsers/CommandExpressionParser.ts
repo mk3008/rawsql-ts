@@ -121,7 +121,7 @@ export class CommandExpressionParser {
             allKeywordComments.push(...endKeywordComments);
         }
         if (allKeywordComments.length > 0) {
-            switchCaseArg.comments = allKeywordComments;
+            switchCaseArg
         }
 
         // Store positioned comments (combine ELSE and END)
@@ -165,7 +165,7 @@ export class CommandExpressionParser {
         const keyValuePair = new CaseKeyValuePair(condition.value, value.value);
         // Store THEN keyword comments on the CaseKeyValuePair
         if (thenKeywordComments && thenKeywordComments.length > 0) {
-            keyValuePair.comments = thenKeywordComments;
+            keyValuePair
         }
         if (thenKeywordPositionedComments && thenKeywordPositionedComments.length > 0) {
             keyValuePair.positionedComments = thenKeywordPositionedComments;
