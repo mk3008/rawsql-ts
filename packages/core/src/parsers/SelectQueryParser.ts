@@ -202,13 +202,13 @@ export class SelectQueryParser {
                 // Transfer headerComments from the first query to the BinarySelectQuery
                 this.transferHeaderComments(query, binaryQuery);
                 
-                // Assign UNION comments to right query (common usage pattern)
+                // Assign UNION comments to right query as headerComments (semantic positioning)
                 if (unionComments && unionComments.length > 0) {
-                    if (result.value.comments) {
-                        // Prepend UNION comments to existing comments
-                        result.value.comments = [...unionComments, ...result.value.comments];
+                    if (result.value.headerComments) {
+                        // Prepend UNION comments to existing headerComments
+                        result.value.headerComments = [...unionComments, ...result.value.headerComments];
                     } else {
-                        result.value.comments = unionComments;
+                        result.value.headerComments = unionComments;
                     }
                 }
                 
@@ -221,12 +221,12 @@ export class SelectQueryParser {
                 // Transfer headerComments from the first query to the BinarySelectQuery
                 this.transferHeaderComments(query, binaryQuery);
                 
-                // Assign UNION comments to the right side query
+                // Assign UNION comments to the right side query as headerComments (semantic positioning)
                 if (unionComments && unionComments.length > 0) {
-                    if (result.value.comments) {
-                        result.value.comments = [...unionComments, ...result.value.comments];
+                    if (result.value.headerComments) {
+                        result.value.headerComments = [...unionComments, ...result.value.headerComments];
                     } else {
-                        result.value.comments = unionComments;
+                        result.value.headerComments = unionComments;
                     }
                 }
                 

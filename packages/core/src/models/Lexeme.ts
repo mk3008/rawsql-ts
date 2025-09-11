@@ -29,11 +29,20 @@ export interface LexemePosition {
 }
 
 /**
+ * Positioned comment information for lexemes
+ */
+export interface LexemePositionedComment {
+    position: 'before' | 'after';
+    comments: string[];
+}
+
+/**
  * Represents a lexical token in SQL parsing
  */
 export interface Lexeme {
     type: number; // Bit flags for TokenType
     value: string;
     comments: string[] | null;
+    positionedComments?: LexemePositionedComment[]; // New positioned comment system
     position?: LexemePosition; // Optional position information for cursor-to-lexeme mapping
 }

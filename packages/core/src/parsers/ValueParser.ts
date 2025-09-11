@@ -56,9 +56,15 @@ export class ValueParser {
 
         // Parse the primary expression (left side)
         const comment = lexemes[idx].comments;
+        const positionedComments = lexemes[idx].positionedComments;
         const left = this.parseItem(lexemes, idx);
-        // Only set comments if the child component doesn't already have comments
-        if (left.value.comments === null && comment && comment.length > 0) {
+        
+        // Transfer positioned comments if they exist and the component doesn't handle its own comments
+        if (positionedComments && positionedComments.length > 0 && !left.value.positionedComments) {
+            left.value.positionedComments = positionedComments;
+        }
+        // Fall back to legacy comments if positioned comments aren't available
+        else if (left.value.comments === null && comment && comment.length > 0) {
             left.value.comments = comment;
         }
         idx = left.newIndex;
@@ -118,11 +124,32 @@ export class ValueParser {
             );
             idx = rightResult.newIndex;
 
-            // Create binary expression directly
-            result = new BinaryExpression(result, operator, rightResult.value);
+            // Create binary expression with operator comments preserved
+            const binaryExpr = new BinaryExpression(result, operator, rightResult.value);
+            // Transfer operator token comments to the operator RawString
+            if (operatorToken.comments && operatorToken.comments.length > 0) {
+                binaryExpr.operator.comments = operatorToken.comments;
+            }
+            if (operatorToken.positionedComments && operatorToken.positionedComments.length > 0) {
+                binaryExpr.operator.positionedComments = operatorToken.positionedComments;
+            }
+            result = binaryExpr;
         }
 
         return { value: result, newIndex: idx };
+    }
+
+    /**
+     * Transfer positioned comments from lexeme to value component if the component doesn't already handle them
+     */
+    private static transferPositionedComments(lexeme: Lexeme, value: ValueComponent): void {
+        if (lexeme.positionedComments && lexeme.positionedComments.length > 0 && !value.positionedComments) {
+            value.positionedComments = lexeme.positionedComments;
+        }
+        // Fall back to legacy comments if positioned comments aren't available
+        else if (value.comments === null && lexeme.comments && lexeme.comments.length > 0) {
+            value.comments = lexeme.comments;
+        }
     }
 
     private static parseItem(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number } {
@@ -141,11 +168,13 @@ export class ValueParser {
                 // Determine if this is a type constructor or function call
                 if (this.isTypeConstructor(lexemes, idx + 1, current.value)) {
                     // Type constructor
-                    const typeValue = FunctionExpressionParser.parseTypeValue(lexemes, idx);
-                    return { value: typeValue.value, newIndex: typeValue.newIndex };
+                    const result = FunctionExpressionParser.parseTypeValue(lexemes, idx);
+                    this.transferPositionedComments(current, result.value);
+                    return { value: result.value, newIndex: result.newIndex };
                 } else {
                     // Function call
                     const result = FunctionExpressionParser.parseFromLexeme(lexemes, idx);
+                    this.transferPositionedComments(current, result.value);
                     return result;
                 }
             }
@@ -153,6 +182,7 @@ export class ValueParser {
             // e.g., `interval '2 days'`
             const first = IdentifierParser.parseFromLexeme(lexemes, idx);
             if (first.newIndex >= lexemes.length) {
+                this.transferPositionedComments(current, first.value);
                 return first;
             }
             const next = lexemes[first.newIndex];
@@ -160,8 +190,10 @@ export class ValueParser {
                 // Typed literal format
                 const second = LiteralParser.parseFromLexeme(lexemes, first.newIndex);
                 const result = new UnaryExpression(lexemes[idx].value, second.value);
+                this.transferPositionedComments(current, result);
                 return { value: result, newIndex: second.newIndex };
             }
+            this.transferPositionedComments(current, first.value);
             return first;
         } else if (current.type & TokenType.Identifier) {
             const { namespaces, name, newIndex } = FullNameParser.parseFromLexeme(lexemes, idx);
@@ -169,45 +201,67 @@ export class ValueParser {
             // Since functions and types, as well as columns (tables), can have namespaces,
             // it is necessary to determine by the last element of the identifier.
             if (lexemes[newIndex - 1].type & TokenType.Function) {
-                return FunctionExpressionParser.parseFromLexeme(lexemes, idx);
+                const result = FunctionExpressionParser.parseFromLexeme(lexemes, idx);
+                this.transferPositionedComments(current, result.value);
+                return result;
             } else if (lexemes[newIndex - 1].type & TokenType.Type) {
                 // Handle Type tokens that also have Identifier flag
                 if (newIndex < lexemes.length && (lexemes[newIndex].type & TokenType.OpenParen)) {
                     // Determine if this is a type constructor or function call
                     if (this.isTypeConstructor(lexemes, newIndex, name.name)) {
                         // Type constructor (NUMERIC(10,2), VARCHAR(50), etc.)
-                        const typeValue = FunctionExpressionParser.parseTypeValue(lexemes, idx);
-                        return { value: typeValue.value, newIndex: typeValue.newIndex };
+                        const result = FunctionExpressionParser.parseTypeValue(lexemes, idx);
+                        this.transferPositionedComments(current, result.value);
+                        return { value: result.value, newIndex: result.newIndex };
                     } else {
                         // Function call (DATE('2025-01-01'), etc.)
-                        return FunctionExpressionParser.parseFromLexeme(lexemes, idx);
+                        const result = FunctionExpressionParser.parseFromLexeme(lexemes, idx);
+                        this.transferPositionedComments(current, result.value);
+                        return result;
                     }
                 } else {
                     // Handle standalone type tokens
                     const value = new TypeValue(namespaces, name);
+                    this.transferPositionedComments(current, value);
                     return { value, newIndex };
                 }
             }
             const value = new ColumnReference(namespaces, name);
+            this.transferPositionedComments(current, value);
             return { value, newIndex };
         } else if (current.type & TokenType.Literal) {
-            return LiteralParser.parseFromLexeme(lexemes, idx);
+            const result = LiteralParser.parseFromLexeme(lexemes, idx);
+            this.transferPositionedComments(current, result.value);
+            return result;
         } else if (current.type & TokenType.OpenParen) {
-            return ParenExpressionParser.parseFromLexeme(lexemes, idx);
+            const result = ParenExpressionParser.parseFromLexeme(lexemes, idx);
+            this.transferPositionedComments(current, result.value);
+            return result;
         } else if (current.type & TokenType.Function) {
-            return FunctionExpressionParser.parseFromLexeme(lexemes, idx);
+            const result = FunctionExpressionParser.parseFromLexeme(lexemes, idx);
+            this.transferPositionedComments(current, result.value);
+            return result;
         } else if (current.type & TokenType.Operator) {
-            return UnaryExpressionParser.parseFromLexeme(lexemes, idx);
+            const result = UnaryExpressionParser.parseFromLexeme(lexemes, idx);
+            this.transferPositionedComments(current, result.value);
+            return result;
         } else if (current.type & TokenType.Parameter) {
-            return ParameterExpressionParser.parseFromLexeme(lexemes, idx);
+            const result = ParameterExpressionParser.parseFromLexeme(lexemes, idx);
+            this.transferPositionedComments(current, result.value);
+            return result;
         } else if (current.type & TokenType.StringSpecifier) {
-            return StringSpecifierExpressionParser.parseFromLexeme(lexemes, idx);
+            const result = StringSpecifierExpressionParser.parseFromLexeme(lexemes, idx);
+            this.transferPositionedComments(current, result.value);
+            return result;
         } else if (current.type & TokenType.Command) {
-            return CommandExpressionParser.parseFromLexeme(lexemes, idx);
+            const result = CommandExpressionParser.parseFromLexeme(lexemes, idx);
+            this.transferPositionedComments(current, result.value);
+            return result;
         } else if (current.type & TokenType.OpenBracket) {
             // SQLServer escape identifier format. e.g. [dbo] or [dbo].[table]
             const { namespaces, name, newIndex } = FullNameParser.parseFromLexeme(lexemes, idx);
             const value = new ColumnReference(namespaces, name);
+            this.transferPositionedComments(current, value);
             return { value, newIndex };
         } else if (current.type & TokenType.Type) {
             // Check if this type token is followed by an opening parenthesis
@@ -216,15 +270,19 @@ export class ValueParser {
                 // Determine if this is a type constructor or function call
                 if (this.isTypeConstructor(lexemes, newIndex, name.name)) {
                     // Type constructor (NUMERIC(10,2), VARCHAR(50), etc.)
-                    const typeValue = FunctionExpressionParser.parseTypeValue(lexemes, idx);
-                    return { value: typeValue.value, newIndex: typeValue.newIndex };
+                    const result = FunctionExpressionParser.parseTypeValue(lexemes, idx);
+                    this.transferPositionedComments(current, result.value);
+                    return { value: result.value, newIndex: result.newIndex };
                 } else {
                     // Function call (DATE('2025-01-01'), etc.)
-                    return FunctionExpressionParser.parseFromLexeme(lexemes, idx);
+                    const result = FunctionExpressionParser.parseFromLexeme(lexemes, idx);
+                    this.transferPositionedComments(current, result.value);
+                    return result;
                 }
             } else {
                 // Handle standalone type tokens
                 const value = new TypeValue(namespaces, name);
+                this.transferPositionedComments(current, value);
                 return { value, newIndex };
             }
         }
@@ -238,6 +296,8 @@ export class ValueParser {
 
         // Check for opening parenthesis
         if (idx < lexemes.length && lexemes[idx].type === openToken) {
+            // Capture comments from opening parenthesis
+            const openParenToken = lexemes[idx];
             idx++;
 
             if (idx < lexemes.length && lexemes[idx].type === closeToken) {
@@ -249,6 +309,19 @@ export class ValueParser {
             // If the next element is `*`, treat `*` as an Identifier
             if (idx < lexemes.length && lexemes[idx].value === "*") {
                 const wildcard = new ColumnReference(null, "*");
+                // Transfer opening paren comments to wildcard
+                if (openParenToken.positionedComments && openParenToken.positionedComments.length > 0) {
+                    // Convert "after" positioned comments from opening paren to "before" comments for the argument
+                    const beforeComments = openParenToken.positionedComments.filter(pc => pc.position === 'after');
+                    if (beforeComments.length > 0) {
+                        wildcard.positionedComments = beforeComments.map(pc => ({
+                            position: 'before' as const,
+                            comments: pc.comments
+                        }));
+                    }
+                } else if (openParenToken.comments && openParenToken.comments.length > 0) {
+                    wildcard.comments = openParenToken.comments;
+                }
                 idx++;
                 // The next element must be closeToken
                 if (idx < lexemes.length && lexemes[idx].type === closeToken) {
@@ -262,6 +335,33 @@ export class ValueParser {
             // Parse the value inside
             const result = this.parseFromLexeme(lexemes, idx);
             idx = result.newIndex;
+            
+            // Transfer opening paren comments to the first argument
+            if (openParenToken.positionedComments && openParenToken.positionedComments.length > 0) {
+                // Convert "after" positioned comments from opening paren to "before" comments for the argument
+                const afterComments = openParenToken.positionedComments.filter(pc => pc.position === 'after');
+                if (afterComments.length > 0) {
+                    const beforeComments = afterComments.map(pc => ({
+                        position: 'before' as const,
+                        comments: pc.comments
+                    }));
+                    
+                    // Merge with existing positioned comments
+                    if (result.value.positionedComments) {
+                        result.value.positionedComments = [...beforeComments, ...result.value.positionedComments];
+                    } else {
+                        result.value.positionedComments = beforeComments;
+                    }
+                }
+            } else if (openParenToken.comments && openParenToken.comments.length > 0) {
+                // Fall back to legacy comments
+                if (result.value.comments) {
+                    result.value.comments = [...openParenToken.comments, ...result.value.comments];
+                } else {
+                    result.value.comments = openParenToken.comments;
+                }
+            }
+            
             args.push(result.value);
 
             // Continue reading if the next element is a comma

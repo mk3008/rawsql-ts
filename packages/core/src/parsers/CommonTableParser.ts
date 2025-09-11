@@ -27,6 +27,7 @@ export class CommonTableParser {
 
         // Capture comments from the CTE name token (before parsing alias)
         const cteNameComments = idx < lexemes.length ? lexemes[idx].comments : null;
+        const cteNamePositionedComments = idx < lexemes.length ? lexemes[idx].positionedComments : null;
 
         // Parse alias and optional column aliases
         // SourceAliasExpressionParser already handles column aliases if present
@@ -84,9 +85,21 @@ export class CommonTableParser {
 
         const value = new CommonTable(queryResult.value, aliasResult.value, materialized);
         
-        // Set comments only from the CTE name token, not from closing parenthesis
-        // The closing parenthesis comments likely belong to the main query, not the CTE
-        value.comments = cteNameComments;
+        // Transfer comments to the CTE name (IdentifierString) for proper Value-based comment handling
+        if (aliasResult.value && aliasResult.value.table) {
+            // Transfer positioned comments from CTE name token to the IdentifierString
+            if (cteNamePositionedComments && cteNamePositionedComments.length > 0) {
+                aliasResult.value.table.positionedComments = cteNamePositionedComments;
+                // Clear legacy comments to prevent duplication
+                aliasResult.value.table.comments = null;
+            } else if (cteNameComments && cteNameComments.length > 0) {
+                // Fallback to legacy comments if no positioned comments
+                aliasResult.value.table.comments = cteNameComments;
+            }
+        }
+        
+        // Clear CommonTable comments since they're now on the CTE name
+        value.comments = null;
 
         return { 
             value, 

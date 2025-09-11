@@ -80,7 +80,12 @@ export class CommandExpressionParser {
         }
 
         // Process ELSE
+        let elseKeywordComments: string[] | null = null;
+        let elseKeywordPositionedComments: any = null;
         if (idx < lexemes.length && this.isCommandWithValue(lexemes[idx], "else")) {
+            // Capture ELSE keyword comments before consuming
+            elseKeywordComments = lexemes[idx].comments;
+            elseKeywordPositionedComments = lexemes[idx].positionedComments;
             idx++;
             const elseResult = ValueParser.parseFromLexeme(lexemes, idx);
             elseValue = elseResult.value;
@@ -88,7 +93,12 @@ export class CommandExpressionParser {
         }
 
         // Process END
+        let endKeywordComments: string[] | null = null;
+        let endKeywordPositionedComments: any = null;
         if (idx < lexemes.length && this.isCommandWithValue(lexemes[idx], "end")) {
+            // Capture END keyword comments before consuming
+            endKeywordComments = lexemes[idx].comments;
+            endKeywordPositionedComments = lexemes[idx].positionedComments;
             idx++;
         } else {
             throw new Error(`The CASE expression requires 'end' keyword at the end (index ${idx})`);
@@ -99,8 +109,34 @@ export class CommandExpressionParser {
         }
 
         // Create SwitchCaseArgument
-        const value = new SwitchCaseArgument(whenThenList, elseValue);
-        return { value, newIndex: idx };
+        const switchCaseArg = new SwitchCaseArgument(whenThenList, elseValue);
+        
+        // Store ELSE and END keyword comments 
+        // For now, we'll combine them and store on the SwitchCaseArgument
+        const allKeywordComments: string[] = [];
+        if (elseKeywordComments && elseKeywordComments.length > 0) {
+            allKeywordComments.push(...elseKeywordComments);
+        }
+        if (endKeywordComments && endKeywordComments.length > 0) {
+            allKeywordComments.push(...endKeywordComments);
+        }
+        if (allKeywordComments.length > 0) {
+            switchCaseArg.comments = allKeywordComments;
+        }
+
+        // Store positioned comments (combine ELSE and END)
+        const allPositionedComments: any[] = [];
+        if (elseKeywordPositionedComments && elseKeywordPositionedComments.length > 0) {
+            allPositionedComments.push(...elseKeywordPositionedComments);
+        }
+        if (endKeywordPositionedComments && endKeywordPositionedComments.length > 0) {
+            allPositionedComments.push(...endKeywordPositionedComments);
+        }
+        if (allPositionedComments.length > 0) {
+            switchCaseArg.positionedComments = allPositionedComments;
+        }
+
+        return { value: switchCaseArg, newIndex: idx };
     }
 
     // Helper method: Check if a lexeme is a Command token with the specified value
@@ -117,12 +153,24 @@ export class CommandExpressionParser {
         if (idx >= lexemes.length || !(lexemes[idx].type & TokenType.Command) || lexemes[idx].value !== "then") {
             throw new Error(`Expected 'then' after WHEN condition at index ${idx}`);
         }
+        // Capture THEN keyword comments before consuming
+        const thenKeywordComments = lexemes[idx].comments;
+        const thenKeywordPositionedComments = lexemes[idx].positionedComments;
         idx++; // Skip the THEN keyword
 
         // Parse the value after THEN
         const value = ValueParser.parseFromLexeme(lexemes, idx);
         idx = value.newIndex;
 
-        return { value: new CaseKeyValuePair(condition.value, value.value), newIndex: idx };
+        const keyValuePair = new CaseKeyValuePair(condition.value, value.value);
+        // Store THEN keyword comments on the CaseKeyValuePair
+        if (thenKeywordComments && thenKeywordComments.length > 0) {
+            keyValuePair.comments = thenKeywordComments;
+        }
+        if (thenKeywordPositionedComments && thenKeywordPositionedComments.length > 0) {
+            keyValuePair.positionedComments = thenKeywordPositionedComments;
+        }
+
+        return { value: keyValuePair, newIndex: idx };
     }
 }

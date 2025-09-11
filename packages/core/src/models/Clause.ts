@@ -7,12 +7,10 @@ export class SelectItem extends SqlComponent {
     static kind = Symbol("SelectItem");
     value: ValueComponent;
     identifier: IdentifierString | null;
-    asKeywordComments: string[] | null;
-    constructor(value: ValueComponent, name: string | null = null, asKeywordComments: string[] | null = null) {
+    constructor(value: ValueComponent, name: string | null = null) {
         super();
         this.value = value;
         this.identifier = name ? new IdentifierString(name) : null;
-        this.asKeywordComments = asKeywordComments;
     }
 }
 

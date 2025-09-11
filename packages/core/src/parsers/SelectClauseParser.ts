@@ -102,6 +102,13 @@ export class SelectItemParser {
      */
     public static parseItem(lexemes: Lexeme[], index: number): { value: SelectItem; newIndex: number } {
         let idx = index;
+        
+        // Capture positioned comments from the value token (column/expression)
+        let valueTokenPositionedComments: { position: 'before' | 'after'; comments: string[] }[] = [];
+        if (idx < lexemes.length && lexemes[idx].positionedComments) {
+            valueTokenPositionedComments = lexemes[idx].positionedComments || [];
+        }
+        
         const parsedValue = ValueParser.parseFromLexeme(lexemes, idx);
         const value = parsedValue.value;
         idx = parsedValue.newIndex;
@@ -117,25 +124,93 @@ export class SelectItemParser {
             const alias = lexemes[idx].value;
             const aliasComments = lexemes[idx].comments; // Capture comments from alias token
             idx++;
-            const selectItem = new SelectItem(value, alias, asKeywordComments);
-            // Set comments from the alias token to the SelectItem
-            if (aliasComments && aliasComments.length > 0) {
-                selectItem.comments = aliasComments;
+            const selectItem = new SelectItem(value, alias);
+            
+            // Store positioned comments properly for correct formatting
+            // Add positioned comments from value token (before/after the column)
+            if (valueTokenPositionedComments.length > 0) {
+                for (const posComment of valueTokenPositionedComments) {
+                    selectItem.addPositionedComments(posComment.position, posComment.comments);
+                }
+                // Clear both positioned and legacy comments from the value to avoid duplication
+                if ('positionedComments' in selectItem.value) {
+                    (selectItem.value as any).positionedComments = null;
+                }
+                selectItem.value.comments = null;
+                
+                // Also clear positioned comments from nested IdentifierString (in QualifiedName)
+                if (selectItem.value.constructor.name === 'ColumnReference') {
+                    const columnRef = selectItem.value as any;
+                    if (columnRef.qualifiedName && columnRef.qualifiedName.name) {
+                        columnRef.qualifiedName.name.positionedComments = null;
+                        columnRef.qualifiedName.name.comments = null;
+                    }
+                }
             }
+            
+            // Store AS keyword comments and alias comments separately for proper positioning
+            if (asKeywordComments && asKeywordComments.length > 0) {
+                (selectItem as any).asKeywordComments = asKeywordComments;
+            }
+            
+            if (aliasComments && aliasComments.length > 0) {
+                (selectItem as any).aliasComments = aliasComments;
+            }
+            
             return {
                 value: selectItem,
                 newIndex: idx,
             };
         } else if (value instanceof ColumnReference && value.column.name !== "*") {
             // nameless select item
+            const selectItem = new SelectItem(value, value.column.name);
+            
+            // Store positioned comments properly for correct formatting
+            // Add positioned comments from value token (before/after the column)
+            if (valueTokenPositionedComments.length > 0) {
+                for (const posComment of valueTokenPositionedComments) {
+                    selectItem.addPositionedComments(posComment.position, posComment.comments);
+                }
+                // Clear both positioned and legacy comments from the value to avoid duplication
+                if ('positionedComments' in selectItem.value) {
+                    (selectItem.value as any).positionedComments = null;
+                }
+                selectItem.value.comments = null;
+                
+                // Also clear positioned comments from nested IdentifierString (in QualifiedName)
+                if (selectItem.value.constructor.name === 'ColumnReference') {
+                    const columnRef = selectItem.value as any;
+                    if (columnRef.qualifiedName && columnRef.qualifiedName.name) {
+                        columnRef.qualifiedName.name.positionedComments = null;
+                        columnRef.qualifiedName.name.comments = null;
+                    }
+                }
+            }
+            
+            // Add AS keyword comments (after the AS keyword)
+            if (asKeywordComments && asKeywordComments.length > 0) {
+                selectItem.addPositionedComments('after', asKeywordComments);
+            }
             return {
-                value: new SelectItem(value, value.column.name, asKeywordComments),
+                value: selectItem,
                 newIndex: idx,
             };
         }
         // nameless select item
+        const selectItem = new SelectItem(value);
+        
+        // Add positioned comments from value token
+        if (valueTokenPositionedComments.length > 0) {
+            for (const posComment of valueTokenPositionedComments) {
+                selectItem.addPositionedComments(posComment.position, posComment.comments);
+            }
+        }
+        
+        if (asKeywordComments && asKeywordComments.length > 0) {
+            selectItem.addPositionedComments('after', asKeywordComments);
+        }
         return {
-            value: new SelectItem(value, null, asKeywordComments),
+            value: selectItem,
             newIndex: idx,
         };
     }

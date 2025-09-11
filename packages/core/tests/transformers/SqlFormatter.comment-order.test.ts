@@ -104,7 +104,7 @@ AND /* a1 */ created_at > /* a2 */ '2023-01-01' /* a3 */`;
         expect(actualComments).toEqual(expectedOrder);
     });
 
-    it('should produce formatted SQL with all comments preserved', () => {
+    it('should produce exact formatted SQL with positioned comments - full text comparison', () => {
         const originalSql = `SELECT  
     /* a1 */ a /* a2 */
     , /* b1 */ b /* b2 */
@@ -116,33 +116,48 @@ FROM
         const formatter = new SqlFormatter(formatterOptions);
         const result = formatter.format(parsed);
 
-        // Note: This test verifies that comments are preserved, not that formatting stays unchanged
-        // The SqlFormatter applies structural formatting, but must preserve all comment content
-        const expectedFormattedSql = `/* a1 */
-SELECT
-    /* a2 */
-    a
-    , /* b1 */
-    /* b2 */
-    b
-    , /* c1 */
-    /* c2 */
-    c AS /* c3 */
-    alias_c /* c4 */
+        // Expected formatted SQL - corrected to proper comment positions
+        const expectedFormattedSql = `SELECT
+    /* a1 */ a /* a2 */
+    , /* b1 */ b /* b2 */
+    , /* c1 */ c /* c2 */ AS /* c3 */ alias_c /* c4 */
 FROM
     users`;
 
-        console.log('=== SQL Full Text Comparison ===');
-        console.log('Original:');
-        console.log(originalSql);
+        console.log('=== EXACT SQL Full Text Comparison ===');
+        console.log('Input SQL:');
+        console.log(JSON.stringify(originalSql));
         console.log('---');
-        console.log('Formatted:');
+        console.log('Expected Output:');
+        console.log(JSON.stringify(expectedFormattedSql));
+        console.log('---');
+        console.log('Actual Output:');
+        console.log(JSON.stringify(result.formattedSql));
+        console.log('---');
+        console.log('Expected (formatted):');
+        console.log(expectedFormattedSql);
+        console.log('---');
+        console.log('Actual (formatted):');
         console.log(result.formattedSql);
-        console.log('=== End Comparison ===');
-
-        expect(result.formattedSql).toBe(expectedFormattedSql);
         
-        // Verify the key fix: AS keyword comment preservation
-        expect(result.formattedSql).toContain('AS /* c3 */');
+        if (result.formattedSql !== expectedFormattedSql) {
+            console.log('=== Character-by-character comparison ===');
+            const expected = expectedFormattedSql;
+            const actual = result.formattedSql;
+            const maxLen = Math.max(expected.length, actual.length);
+            
+            for (let i = 0; i < maxLen; i++) {
+                const exp = expected[i] || '<END>';
+                const act = actual[i] || '<END>';
+                if (exp !== act) {
+                    console.log(`Position ${i}: expected '${exp}' (${exp.charCodeAt?.(0) || 'END'}), got '${act}' (${act.charCodeAt?.(0) || 'END'})`);
+                    break;
+                }
+            }
+        }
+        console.log('=== End Full Text Comparison ===');
+
+        // Exact match comparison
+        expect(result.formattedSql).toBe(expectedFormattedSql);
     });
 });

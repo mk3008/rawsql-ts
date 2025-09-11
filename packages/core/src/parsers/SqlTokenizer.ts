@@ -120,25 +120,26 @@ export class SqlTokenizer {
         // Reset position for this tokenization
         this.position = 0;
         
-        // Pre-allocate array with estimated capacity for better performance
-        const estimatedTokens = Math.ceil(this.input.length / 8); // Assuming average token length of 8 chars
-        const lexemes: Lexeme[] = new Array(estimatedTokens);
-        let lexemeCount = 0;
-
-        // Read initial prefix comments
-        const comment = this.readComment();
-        let pendingComments = comment.lines;
-        this.position = comment.position;
-
-        // Track the previous token
+        // First pass: collect all tokens and their positions without comments
+        const tokenData: Array<{
+            lexeme: Lexeme;
+            startPos: number;
+            endPos: number;
+            prefixComments: string[];
+            suffixComments: string[];
+        }> = [];
+        
         let previous: Lexeme | null = null;
-
-        // Read tokens until the end of input is reached
+        
         while (this.canRead()) {
             // Semicolon is a delimiter, so stop reading
             if (this.input[this.position] === ';') {
                 break;
             }
+
+            // Read prefix comments before the token
+            const prefixComment = this.readComment();
+            const tokenStartPos = this.position = prefixComment.position;
 
             // Read using the token reader manager
             const lexeme = this.readerManager.tryRead(this.position, previous);
@@ -148,66 +149,132 @@ export class SqlTokenizer {
             }
 
             // Update position
-            this.position = this.readerManager.getMaxPosition();
+            const tokenEndPos = this.position = this.readerManager.getMaxPosition();
 
-            // Read suffix comments
-            const currentComment = this.readComment();
-            this.position = currentComment.position;
+            // Read suffix comments after the token
+            const suffixComment = this.readComment();
+            this.position = suffixComment.position;
 
-            if ((lexeme.type & TokenType.Comma) || (lexeme.type & TokenType.Operator)) {
-                // Carry over comments after commas or operators
-                if (currentComment.lines.length > 0) {
-                    pendingComments.push(...currentComment.lines);
-                }
-            } else {
-                // Add comments to the current token if any
-                const hasComments = pendingComments.length > 0 || currentComment.lines.length > 0;
-                if (hasComments) {
-                    this.addCommentsToToken(lexeme, pendingComments, currentComment.lines);
-                }
-                pendingComments = []; // Clear as they are processed
-            }
+            tokenData.push({
+                lexeme,
+                startPos: tokenStartPos,
+                endPos: tokenEndPos,
+                prefixComments: prefixComment.lines,
+                suffixComments: suffixComment.lines
+            });
 
-            lexemes[lexemeCount++] = lexeme;
             previous = lexeme;
         }
 
-        // Add any pending comments to the last token
-        if (pendingComments.length > 0 && lexemeCount > 0) {
-            const lastToken = lexemes[lexemeCount - 1];
-            if (lastToken.comments === null) {
-                lastToken.comments = [];
+        // Second pass: intelligently attach comments based on semantic meaning
+        const lexemes: Lexeme[] = new Array(tokenData.length);
+        
+        for (let i = 0; i < tokenData.length; i++) {
+            const current = tokenData[i];
+            const lexeme = current.lexeme;
+            
+            // For SELECT keyword, suffix comments should go to the first select item
+            if (lexeme.value.toLowerCase() === 'select' && current.suffixComments.length > 0) {
+                // Find the first meaningful token after SELECT (skip DISTINCT, etc.)
+                let targetIndex = i + 1;
+                while (targetIndex < tokenData.length) {
+                    const target = tokenData[targetIndex];
+                    // Look for identifier, literal, or any meaningful token that isn't a command/comma/operator
+                    if ((target.lexeme.type & TokenType.Identifier) ||
+                        (target.lexeme.type & TokenType.Literal) ||
+                        (!(target.lexeme.type & TokenType.Command) && 
+                         !(target.lexeme.type & TokenType.Comma) && 
+                         !(target.lexeme.type & TokenType.Operator))) {
+                        // Move comments to the target token as prefix comments
+                        target.prefixComments.unshift(...current.suffixComments);
+                        current.suffixComments = [];
+                        break;
+                    }
+                    targetIndex++;
+                }
             }
-            lastToken.comments.push(...pendingComments);
+            
+            // For commas, suffix comments should go to next meaningful token
+            if ((lexeme.type & TokenType.Comma) && current.suffixComments.length > 0) {
+                let targetIndex = i + 1;
+                if (targetIndex < tokenData.length) {
+                    const target = tokenData[targetIndex];
+                    target.prefixComments.unshift(...current.suffixComments);
+                    current.suffixComments = [];
+                }
+            }
+            
+            // For UNION/INTERSECT/EXCEPT keywords, suffix comments should go to the next SELECT as prefix comments
+            if ((lexeme.value.toLowerCase() === 'union' || 
+                 lexeme.value.toLowerCase() === 'intersect' || 
+                 lexeme.value.toLowerCase() === 'except') && 
+                current.suffixComments.length > 0) {
+                // Find the next SELECT keyword
+                let targetIndex = i + 1;
+                while (targetIndex < tokenData.length) {
+                    const target = tokenData[targetIndex];
+                    if (target.lexeme.value.toLowerCase() === 'select') {
+                        // Move UNION suffix comments to SELECT as prefix comments
+                        target.prefixComments.unshift(...current.suffixComments);
+                        current.suffixComments = [];
+                        break;
+                    }
+                    targetIndex++;
+                }
+            }
+            
+            // Attach remaining comments to the current token
+            const allComments: string[] = [];
+            const positionedComments: { position: 'before' | 'after'; comments: string[] }[] = [];
+            
+            // Preserve existing positioned comments from token readers (e.g., CommandTokenReader)
+            if (lexeme.positionedComments && lexeme.positionedComments.length > 0) {
+                positionedComments.push(...lexeme.positionedComments);
+                // Note: Don't add to allComments - positioned comments are handled separately
+            }
+            
+            // Add prefix comments as "before" positioned comments
+            if (current.prefixComments.length > 0) {
+                allComments.push(...current.prefixComments);
+                positionedComments.push({
+                    position: 'before',
+                    comments: [...current.prefixComments]
+                });
+            }
+            
+            // Add suffix comments as "after" positioned comments
+            if (current.suffixComments.length > 0) {
+                allComments.push(...current.suffixComments);
+                positionedComments.push({
+                    position: 'after',
+                    comments: [...current.suffixComments]
+                });
+            }
+            
+            // Prioritize positioned comments while maintaining legacy compatibility
+            if (allComments.length > 0 || positionedComments.length > 0) {
+                // Set positioned comments as primary system
+                lexeme.positionedComments = positionedComments.length > 0 ? positionedComments : undefined;
+                
+                // Set legacy comments only if positioned comments don't exist (avoid duplication)
+                if (positionedComments.length === 0 && allComments.length > 0) {
+                    lexeme.comments = allComments;
+                } else {
+                    lexeme.comments = null;
+                }
+            } else {
+                // Clear both if no comments exist
+                lexeme.comments = null;
+                lexeme.positionedComments = undefined;
+            }
+            
+            lexemes[i] = lexeme;
         }
 
-        // Trim the array to actual size used
-        return lexemeCount === estimatedTokens ? lexemes : lexemes.slice(0, lexemeCount);
+        return lexemes;
     }
 
 
-    /**
-     * Adds comments to the token.
-     */
-    private addCommentsToToken(lexeme: Lexeme, prefixComments: string[], suffixComments: string[]): void {
-        const hasComments = prefixComments.length > 0 || suffixComments.length > 0;
-
-        if (hasComments) {
-            if (lexeme.comments === null) {
-                lexeme.comments = [];
-            }
-
-            // Add prefix comments to the beginning.
-            if (prefixComments.length > 0) {
-                lexeme.comments.unshift(...prefixComments);
-            }
-
-            // Add suffix comments to the end.
-            if (suffixComments.length > 0) {
-                lexeme.comments.push(...suffixComments);
-            }
-        }
-    }
 
     /**
      * Skips whitespace characters and SQL comments in the input.
