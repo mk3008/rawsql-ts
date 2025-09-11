@@ -114,15 +114,22 @@ export class SelectItemParser {
         idx = parsedValue.newIndex;
 
         let asKeywordComments: string[] | null = null;
+        let asKeywordPositionedComments: { position: 'before' | 'after'; comments: string[] }[] = [];
         if (idx < lexemes.length && lexemes[idx].value === 'as') {
-            // Capture comments from 'AS' keyword before skipping
-            asKeywordComments = lexemes[idx].comments;
+            // Capture positioned comments from 'AS' keyword first
+            if (lexemes[idx].positionedComments && lexemes[idx].positionedComments.length > 0) {
+                asKeywordPositionedComments = lexemes[idx].positionedComments;
+            } else if (lexemes[idx].comments && lexemes[idx].comments.length > 0) {
+                // Fallback to legacy comments
+                asKeywordComments = lexemes[idx].comments;
+            }
             idx++;
         }
 
         if (idx < lexemes.length && (lexemes[idx].type & TokenType.Identifier)) {
             const alias = lexemes[idx].value;
             const aliasComments = lexemes[idx].comments; // Capture comments from alias token
+            const aliasPositionedComments = lexemes[idx].positionedComments; // Capture positioned comments from alias token
             idx++;
             const selectItem = new SelectItem(value, alias);
             
@@ -148,12 +155,17 @@ export class SelectItemParser {
                 }
             }
             
-            // Store AS keyword comments and alias comments separately for proper positioning
-            if (asKeywordComments && asKeywordComments.length > 0) {
+            // Store AS keyword positioned comments and alias comments separately for proper positioning
+            if (asKeywordPositionedComments.length > 0) {
+                // AS keyword positioned comments need special handling - store them separately
+                (selectItem as any).asKeywordPositionedComments = asKeywordPositionedComments;
+            } else if (asKeywordComments && asKeywordComments.length > 0) {
                 (selectItem as any).asKeywordComments = asKeywordComments;
             }
             
-            if (aliasComments && aliasComments.length > 0) {
+            if (aliasPositionedComments && aliasPositionedComments.length > 0) {
+                (selectItem as any).aliasPositionedComments = aliasPositionedComments;
+            } else if (aliasComments && aliasComments.length > 0) {
                 (selectItem as any).aliasComments = aliasComments;
             }
             

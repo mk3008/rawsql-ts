@@ -1271,9 +1271,35 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
         // Add alias if it is different from the default name
         token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        
+        // Handle AS keyword positioned comments (before AS)
+        const asKeywordPositionedComments = (arg as any).asKeywordPositionedComments;
+        if (asKeywordPositionedComments) {
+            const beforeComments = asKeywordPositionedComments.filter((pc: any) => pc.position === 'before');
+            if (beforeComments.length > 0) {
+                for (const posComment of beforeComments) {
+                    const commentTokens = this.createInlineCommentSequence(posComment.comments);
+                    token.innerTokens.push(...commentTokens);
+                    token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+                }
+            }
+        }
+        
         token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'as'));
         
-        // Add AS keyword comments if present
+        // Handle AS keyword positioned comments (after AS)
+        if (asKeywordPositionedComments) {
+            const afterComments = asKeywordPositionedComments.filter((pc: any) => pc.position === 'after');
+            if (afterComments.length > 0) {
+                token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+                for (const posComment of afterComments) {
+                    const commentTokens = this.createInlineCommentSequence(posComment.comments);
+                    token.innerTokens.push(...commentTokens);
+                }
+            }
+        }
+        
+        // Fallback: Add AS keyword legacy comments if present
         const asKeywordComments = (arg as any).asKeywordComments;
         if (asKeywordComments && asKeywordComments.length > 0) {
             token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
@@ -1287,7 +1313,20 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         const identifierToken = this.visit(arg.identifier);
         token.innerTokens.push(identifierToken);
         
-        // Add alias comments if present
+        // Handle alias positioned comments (after alias)
+        const aliasPositionedComments = (arg as any).aliasPositionedComments;
+        if (aliasPositionedComments) {
+            const afterComments = aliasPositionedComments.filter((pc: any) => pc.position === 'after');
+            if (afterComments.length > 0) {
+                token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+                for (const posComment of afterComments) {
+                    const commentTokens = this.createInlineCommentSequence(posComment.comments);
+                    token.innerTokens.push(...commentTokens);
+                }
+            }
+        }
+        
+        // Fallback: Add alias legacy comments if present
         const aliasComments = (arg as any).aliasComments;
         if (aliasComments && aliasComments.length > 0) {
             token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
