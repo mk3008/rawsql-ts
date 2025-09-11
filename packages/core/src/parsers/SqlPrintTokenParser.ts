@@ -1483,8 +1483,41 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         // Print join clause: [joinType] [lateral] [source] [on/using ...]
         const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.JoinClause);
 
+        // Handle JOIN keyword positioned comments (before JOIN)
+        const joinKeywordPositionedComments = (arg as any).joinKeywordPositionedComments;
+        if (joinKeywordPositionedComments) {
+            const beforeComments = joinKeywordPositionedComments.filter((pc: any) => pc.position === 'before');
+            if (beforeComments.length > 0) {
+                for (const posComment of beforeComments) {
+                    const commentTokens = this.createInlineCommentSequence(posComment.comments);
+                    token.innerTokens.push(...commentTokens);
+                    token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+                }
+            }
+        }
+
         // join type (e.g. inner join, left join, etc)
         token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, arg.joinType.value));
+        
+        // Handle JOIN keyword positioned comments (after JOIN)
+        if (joinKeywordPositionedComments) {
+            const afterComments = joinKeywordPositionedComments.filter((pc: any) => pc.position === 'after');
+            if (afterComments.length > 0) {
+                token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+                for (const posComment of afterComments) {
+                    const commentTokens = this.createInlineCommentSequence(posComment.comments);
+                    token.innerTokens.push(...commentTokens);
+                }
+            }
+        }
+        
+        // Fallback: Add JOIN keyword legacy comments if present
+        const joinKeywordComments = (arg as any).joinKeywordComments;
+        if (joinKeywordComments && joinKeywordComments.length > 0) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            const commentTokens = this.createInlineCommentSequence(joinKeywordComments);
+            token.innerTokens.push(...commentTokens);
+        }
         if (arg.lateral) {
             token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
             token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'lateral'));

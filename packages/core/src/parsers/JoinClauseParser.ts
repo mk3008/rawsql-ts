@@ -58,8 +58,17 @@ export class JoinClauseParser {
     private static parseJoinClause(lexemes: Lexeme[], index: number): { value: JoinClause; newIndex: number } {
         let idx = index;
 
-        // Get the join type
+        // Capture positioned comments from JOIN keyword
+        let joinKeywordComments: string[] | null = null;
+        let joinKeywordPositionedComments: { position: 'before' | 'after'; comments: string[] }[] = [];
+        
+        // Get the join type and capture comments
         const joinType = lexemes[idx].value === "," ? "cross join" : lexemes[idx].value;
+        if (lexemes[idx].positionedComments && lexemes[idx].positionedComments.length > 0) {
+            joinKeywordPositionedComments = lexemes[idx].positionedComments;
+        } else if (lexemes[idx].comments && lexemes[idx].comments.length > 0) {
+            joinKeywordComments = lexemes[idx].comments;
+        }
         idx++;
 
         // Check for lateral join
@@ -77,18 +86,36 @@ export class JoinClauseParser {
             const onResult = JoinOnClauseParser.tryParse(lexemes, idx);
             if (onResult) {
                 const joinClause = new JoinClause(joinType, sourceResult.value, onResult.value, lateral);
+                // Transfer JOIN keyword positioned comments
+                if (joinKeywordPositionedComments.length > 0) {
+                    (joinClause as any).joinKeywordPositionedComments = joinKeywordPositionedComments;
+                } else if (joinKeywordComments && joinKeywordComments.length > 0) {
+                    (joinClause as any).joinKeywordComments = joinKeywordComments;
+                }
                 return { value: joinClause, newIndex: onResult.newIndex };
             }
             // JoinUsingClauseParser
             const usingResult = JoinUsingClauseParser.tryParse(lexemes, idx);
             if (usingResult) {
                 const joinClause = new JoinClause(joinType, sourceResult.value, usingResult.value, lateral);
+                // Transfer JOIN keyword positioned comments
+                if (joinKeywordPositionedComments.length > 0) {
+                    (joinClause as any).joinKeywordPositionedComments = joinKeywordPositionedComments;
+                } else if (joinKeywordComments && joinKeywordComments.length > 0) {
+                    (joinClause as any).joinKeywordComments = joinKeywordComments;
+                }
                 return { value: joinClause, newIndex: usingResult.newIndex };
             }
         }
 
         // If we reach the end of the input, we can treat it as a natural join
         const joinClause = new JoinClause(joinType, sourceResult.value, null, lateral);
+        // Transfer JOIN keyword positioned comments
+        if (joinKeywordPositionedComments.length > 0) {
+            (joinClause as any).joinKeywordPositionedComments = joinKeywordPositionedComments;
+        } else if (joinKeywordComments && joinKeywordComments.length > 0) {
+            (joinClause as any).joinKeywordComments = joinKeywordComments;
+        }
         return { value: joinClause, newIndex: idx };
     }
 }
