@@ -115,9 +115,9 @@ export class SelectItemParser {
         let asKeywordPositionedComments: { position: 'before' | 'after'; comments: string[] }[] = [];
         if (idx < lexemes.length && lexemes[idx].value === 'as') {
             // Capture positioned comments from 'AS' keyword first
-            if (lexemes[idx].positionedComments && lexemes[idx].positionedComments.length > 0) {
-                asKeywordPositionedComments = lexemes[idx].positionedComments;
-            } else if (lexemes[idx].comments && lexemes[idx].comments.length > 0) {
+            if (lexemes[idx].positionedComments && lexemes[idx].positionedComments!.length > 0) {
+                asKeywordPositionedComments = lexemes[idx].positionedComments!;
+            } else if (lexemes[idx].comments && lexemes[idx].comments!.length > 0) {
                 // Fallback to legacy comments
                 asKeywordComments = lexemes[idx].comments;
             }

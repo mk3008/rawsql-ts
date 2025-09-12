@@ -64,9 +64,9 @@ export class JoinClauseParser {
         
         // Get the join type and capture comments
         const joinType = lexemes[idx].value === "," ? "cross join" : lexemes[idx].value;
-        if (lexemes[idx].positionedComments && lexemes[idx].positionedComments.length > 0) {
-            joinKeywordPositionedComments = lexemes[idx].positionedComments;
-        } else if (lexemes[idx].comments && lexemes[idx].comments.length > 0) {
+        if (lexemes[idx].positionedComments && lexemes[idx].positionedComments!.length > 0) {
+            joinKeywordPositionedComments = lexemes[idx].positionedComments!;
+        } else if (lexemes[idx].comments && lexemes[idx].comments!.length > 0) {
             joinKeywordComments = lexemes[idx].comments;
         }
         idx++;

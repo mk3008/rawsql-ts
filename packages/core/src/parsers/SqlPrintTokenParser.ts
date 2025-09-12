@@ -628,6 +628,42 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     }
 
     /**
+     * Handles positioned comments for ParenExpression with special spacing rules.
+     * ParenExpression comments should be adjacent to parentheses without separator spaces.
+     */
+    private addPositionedCommentsToParenExpression(token: SqlPrintToken, component: SqlComponent): void {
+        if (!component.positionedComments) {
+            return;
+        }
+
+        // For ParenExpression: (/* comment */ content /* comment */)
+        // Comments should be placed immediately after opening paren and before closing paren
+        
+        // Handle 'before' comments - place after opening parenthesis without space
+        const beforeComments = component.getPositionedComments('before');
+        if (beforeComments.length > 0) {
+            const commentBlocks = this.createCommentBlocks(beforeComments);
+            // Insert after opening paren (index 1) without separator space
+            let insertIndex = 1;
+            for (const commentBlock of commentBlocks) {
+                token.innerTokens.splice(insertIndex, 0, commentBlock);
+                insertIndex++;
+            }
+        }
+
+        // Handle 'after' comments - place before closing parenthesis without space
+        const afterComments = component.getPositionedComments('after');
+        if (afterComments.length > 0) {
+            const commentBlocks = this.createCommentBlocks(afterComments);
+            // Insert before closing paren (last position) without separator space
+            const insertIndex = token.innerTokens.length;
+            for (const commentBlock of commentBlocks) {
+                token.innerTokens.splice(insertIndex - 1, 0, commentBlock);
+            }
+        }
+    }
+
+    /**
      * Determines whether a separator space should be added after comments for the given container type.
      * 
      * Clause-level containers (SELECT, FROM, WHERE, etc.) need separator spaces because:
@@ -960,9 +996,49 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     private visitParenExpression(arg: ParenExpression): SqlPrintToken {
         const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.ParenExpression);
 
+        // Handle positioned comments for ParenExpression - check both self and inner expression
+        const hasOwnComments = arg.positionedComments && arg.positionedComments.length > 0;
+        const hasInnerComments = arg.expression.positionedComments && arg.expression.positionedComments.length > 0;
+        
+        // Store inner comments for later processing and clear to prevent duplicate processing
+        let innerBeforeComments: string[] = [];
+        let innerAfterComments: string[] = [];
+        if (hasInnerComments) {
+            innerBeforeComments = arg.expression.getPositionedComments('before');
+            innerAfterComments = arg.expression.getPositionedComments('after');
+            (arg.expression as any).positionedComments = null;
+        }
+
+        // Build basic structure first
         token.innerTokens.push(SqlPrintTokenParser.PAREN_OPEN_TOKEN);
         token.innerTokens.push(this.visit(arg.expression));
         token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
+        
+        // Now add positioned comments in the correct positions manually
+        if (innerBeforeComments.length > 0) {
+            const commentBlocks = this.createCommentBlocks(innerBeforeComments);
+            // Insert after opening paren (index 1) without separator space
+            let insertIndex = 1;
+            for (const commentBlock of commentBlocks) {
+                token.innerTokens.splice(insertIndex, 0, commentBlock);
+                insertIndex++;
+            }
+        }
+        
+        if (innerAfterComments.length > 0) {
+            const commentBlocks = this.createCommentBlocks(innerAfterComments);
+            // Insert before closing paren (last position) without separator space
+            const insertIndex = token.innerTokens.length;
+            for (const commentBlock of commentBlocks) {
+                token.innerTokens.splice(insertIndex - 1, 0, commentBlock);
+            }
+        }
+        
+        if (hasOwnComments) {
+            this.addPositionedCommentsToParenExpression(token, arg);
+            // Clear positioned comments to prevent duplicate processing in parent containers
+            (arg as any).positionedComments = null;
+        }
 
         return token;
     }
@@ -1232,8 +1308,10 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         token.innerTokens.push(this.visit(arg.value));
 
         // Add 'after' positioned comments for the value
+        // Skip after comments if the value is ParenExpression (already handled in ParenExpression processing)
         const afterComments = arg.getPositionedComments('after');
-        if (afterComments.length > 0) {
+        const isParenExpression = (arg.value as any).constructor.name === 'ParenExpression';
+        if (afterComments.length > 0 && !isParenExpression) {
             token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
             const commentTokens = this.createInlineCommentSequence(afterComments);
             token.innerTokens.push(...commentTokens);
