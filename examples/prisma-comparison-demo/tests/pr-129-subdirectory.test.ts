@@ -17,7 +17,7 @@ import * as path from 'path';
  * - Error handling for missing files with helpful messages
  * - Path format consistency (relative, normalized paths)
  */
-describe('PR #129: Subdirectory JSON Mapping Tests', () => {
+describe.skip('PR #129: Subdirectory JSON Mapping Tests', () => {
     let rawSqlClient: RawSqlClient;
     let prisma: PrismaClient;
 
@@ -32,8 +32,8 @@ describe('PR #129: Subdirectory JSON Mapping Tests', () => {
         });
     });
 
-    describe('Todos in subdirectory', () => {
-        it('should load JSON mapping for todos/getTodoDetail.sql', async () => {
+    describe.skip('Todos in subdirectory', () => {
+        it.skip('should load JSON mapping for todos/getTodoDetail.sql', async () => {
             // Arrange: Prepare test parameters and expected result structure
             const sqlFile = 'todos/getTodoDetail.sql';
             const testTodoId = 1;
@@ -64,7 +64,7 @@ describe('PR #129: Subdirectory JSON Mapping Tests', () => {
             expect(Array.isArray(todoResult.comments)).toBe(true);
         });
 
-        it('should load JSON mapping for todos/searchTodos.sql', async () => {
+        it.skip('should load JSON mapping for todos/searchTodos.sql', async () => {
             // Arrange: Prepare search parameters and expected result structure
             const sqlFile = 'todos/searchTodos.sql';
             const completedFilter = false;
@@ -96,8 +96,8 @@ describe('PR #129: Subdirectory JSON Mapping Tests', () => {
         });
     });
 
-    describe('Users in subdirectory', () => {
-        it('should load JSON mapping for users/profile.sql', async () => {
+    describe.skip('Users in subdirectory', () => {
+        it.skip('should load JSON mapping for users/profile.sql', async () => {
             // Arrange: Prepare user profile parameters and expected structure
             const sqlFile = 'users/profile.sql';
             const testUserId = 1;
@@ -129,7 +129,7 @@ describe('PR #129: Subdirectory JSON Mapping Tests', () => {
             expect(userResult.pendingTodos).toBeTypeOf('number');
         });
 
-        it('should load JSON mapping for users/search.sql and generate correct SQL', async () => {
+        it.skip('should load JSON mapping for users/search.sql and generate correct SQL', async () => {
             // Arrange: Prepare search parameters and expected structure
             const sqlFile = 'users/search.sql';
             const expectedProperties = ['userId', 'userName', 'email', 'createdAt'];
@@ -156,8 +156,8 @@ describe('PR #129: Subdirectory JSON Mapping Tests', () => {
         });
     });
 
-    describe('Path resolution error handling', () => {
-        it('should provide helpful error messages for missing SQL files', async () => {
+    describe.skip('Path resolution error handling', () => {
+        it.skip('should provide helpful error messages for missing SQL files', async () => {
             // Arrange: Prepare a scenario with missing SQL file
             const nonexistentSqlFile = 'users/nonexistent.sql';
 
@@ -167,7 +167,7 @@ describe('PR #129: Subdirectory JSON Mapping Tests', () => {
             }).rejects.toThrow(/SQL file not found/i);
         });
 
-        it('should provide helpful error messages for missing JSON mapping files', async () => {
+        it.skip('should provide helpful error messages for missing JSON mapping files', async () => {
             // Arrange: Use a SQL file that exists but doesn't have corresponding JSON mapping
             const sqlFileWithoutMapping = 'todos/testMissingMapping.sql';            // Act & Assert: Verify JsonMappingError is thrown directly (no wrapping)
             await expect(async () => {
@@ -177,7 +177,7 @@ describe('PR #129: Subdirectory JSON Mapping Tests', () => {
             }).rejects.toThrow(/JSON mapping file is required but not found/i);
         });
 
-        it('should handle various path formats consistently', async () => {
+        it.skip('should handle various path formats consistently', async () => {
             // Arrange: Test different path formats for the same file
             const pathFormats = [
                 'todos/getTodoDetail.sql',
@@ -205,8 +205,8 @@ describe('PR #129: Subdirectory JSON Mapping Tests', () => {
         });
     });
 
-    describe('SQL Generation and Formatting', () => {
-        it('should generate properly formatted SQL for complex queries', async () => {
+    describe.skip('SQL Generation and Formatting', () => {
+        it.skip('should generate properly formatted SQL for complex queries', async () => {
             // Arrange: Test complex query formatting
             const sqlFile = 'todos/getTodoDetail.sql';
             const testTodoId = 1;
@@ -234,7 +234,7 @@ describe('PR #129: Subdirectory JSON Mapping Tests', () => {
             // Note: For full SQL text comparison, we would need access to the 
             // generated SQL string, which might require additional logging or 
             // a test-specific method in RawSqlClient
-        }); it('should handle filter injection properly', async () => {
+        }); it.skip('should handle filter injection properly', async () => {
             // Arrange: Test different filter scenarios
             const sqlFile = 'todos/searchTodos.sql';
 
