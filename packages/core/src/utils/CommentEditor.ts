@@ -7,12 +7,14 @@ import { SelectQuery } from '../models/SelectQuery';
  */
 export class CommentEditor {
     /**
-     * Add a comment to a SQL component
+     * Add a comment to a SQL component using positioned comments system
      * For SelectQuery components, adds to headerComments for query-level comments
+     * For other components, adds as 'before' positioned comment
      * @param component The SQL component to add comment to
      * @param comment The comment text to add
+     * @param position Optional position for comment ('before' | 'after'), defaults to 'before'
      */
-    static addComment(component: SqlComponent, comment: string): void {
+    static addComment(component: SqlComponent, comment: string, position: 'before' | 'after' = 'before'): void {
         // Check if this is a SelectQuery component - add to headerComments for query-level comments
         if (this.isSelectQuery(component)) {
             const selectQuery = component as SelectQuery;
@@ -21,11 +23,8 @@ export class CommentEditor {
             }
             selectQuery.headerComments.push(comment);
         } else {
-            // For other components, add to regular comments
-            if (!component.comments) {
-                component.comments = [];
-            }
-            component.comments.push(comment);
+            // For other components, add to positioned comments
+            component.addPositionedComments(position, [comment]);
         }
     }
     
@@ -44,12 +43,14 @@ export class CommentEditor {
     /**
      * Edit an existing comment by index
      * For SelectQuery components, edits headerComments
+     * For other components, edits positioned comments
      * @param component The SQL component containing the comment
      * @param index The index of the comment to edit (0-based)
      * @param newComment The new comment text
+     * @param position Position to edit ('before' | 'after'), defaults to 'before' for non-SelectQuery components
      * @throws Error if index is invalid
      */
-    static editComment(component: SqlComponent, index: number, newComment: string): void {
+    static editComment(component: SqlComponent, index: number, newComment: string, position: 'before' | 'after' = 'before'): void {
         if (this.isSelectQuery(component)) {
             const selectQuery = component as SelectQuery;
             if (!selectQuery.headerComments || index < 0 || index >= selectQuery.headerComments.length) {
@@ -57,21 +58,28 @@ export class CommentEditor {
             }
             selectQuery.headerComments[index] = newComment;
         } else {
-            if (!component.comments || index < 0 || index >= component.comments.length) {
-                throw new Error(`Invalid comment index: ${index}. Component has ${component.comments?.length || 0} comments.`);
+            const positionedComments = component.getPositionedComments(position);
+            if (!positionedComments || index < 0 || index >= positionedComments.length) {
+                throw new Error(`Invalid comment index: ${index}. Component has ${positionedComments?.length || 0} ${position} positioned comments.`);
             }
-            component.comments[index] = newComment;
+            // Update the comment in the positioned comments
+            const positioned = component.positionedComments?.find(pc => pc.position === position);
+            if (positioned) {
+                positioned.comments[index] = newComment;
+            }
         }
     }
 
     /**
      * Delete a comment by index
      * For SelectQuery components, deletes from headerComments
+     * For other components, deletes from positioned comments
      * @param component The SQL component containing the comment
      * @param index The index of the comment to delete (0-based)
+     * @param position Position to delete from ('before' | 'after'), defaults to 'before' for non-SelectQuery components
      * @throws Error if index is invalid
      */
-    static deleteComment(component: SqlComponent, index: number): void {
+    static deleteComment(component: SqlComponent, index: number, position: 'before' | 'after' = 'before'): void {
         if (this.isSelectQuery(component)) {
             const selectQuery = component as SelectQuery;
             if (!selectQuery.headerComments || index < 0 || index >= selectQuery.headerComments.length) {
@@ -82,12 +90,21 @@ export class CommentEditor {
                 selectQuery.headerComments = null;
             }
         } else {
-            if (!component.comments || index < 0 || index >= component.comments.length) {
-                throw new Error(`Invalid comment index: ${index}. Component has ${component.comments?.length || 0} comments.`);
+            const positionedComments = component.getPositionedComments(position);
+            if (!positionedComments || index < 0 || index >= positionedComments.length) {
+                throw new Error(`Invalid comment index: ${index}. Component has ${positionedComments?.length || 0} ${position} positioned comments.`);
             }
-            component.comments.splice(index, 1);
-            if (component.comments.length === 0) {
-                component.comments = null;
+            // Delete the comment from positioned comments
+            const positioned = component.positionedComments?.find(pc => pc.position === position);
+            if (positioned) {
+                positioned.comments.splice(index, 1);
+                // Clean up empty positioned comment groups
+                if (positioned.comments.length === 0) {
+                    component.positionedComments = component.positionedComments?.filter(pc => pc.position !== position) || null;
+                    if (component.positionedComments?.length === 0) {
+                        component.positionedComments = null;
+                    }
+                }
             }
         }
     }
@@ -101,13 +118,14 @@ export class CommentEditor {
             const selectQuery = component as SelectQuery;
             selectQuery.headerComments = null;
         } else {
-            component.comments = null;
+            component.positionedComments = null;
         }
     }
 
     /**
      * Get all comments from a component
-     * For SelectQuery components, returns headerComments instead of regular comments
+     * For SelectQuery components, returns headerComments
+     * For other components, returns all positioned comments as a flat array
      * @param component The SQL component to get comments from
      * @returns Array of comment strings (empty array if no comments)
      */
@@ -116,7 +134,7 @@ export class CommentEditor {
             const selectQuery = component as SelectQuery;
             return selectQuery.headerComments || [];
         }
-        return component.comments || [];
+        return component.getAllPositionedComments();
     }
 
     /**
@@ -134,8 +152,9 @@ export class CommentEditor {
             if (component && component instanceof SqlComponent) {
                 let hasMatchingComment = false;
                 
-                // Check regular comments
-                if (component.comments && component.comments.some(c => {
+                // Check positioned comments
+                const allPositionedComments = component.getAllPositionedComments();
+                if (allPositionedComments && allPositionedComments.some(c => {
                     const commentText = caseSensitive ? c : c.toLowerCase();
                     return commentText.includes(searchTerm);
                 })) {
@@ -247,8 +266,10 @@ export class CommentEditor {
         
         const traverse = (component: any) => {
             if (component && component instanceof SqlComponent) {
-                if (component.comments) {
-                    count += component.comments.length;
+                // Count positioned comments
+                const positionedComments = component.getAllPositionedComments();
+                if (positionedComments) {
+                    count += positionedComments.length;
                 }
                 
                 // Count headerComments for SelectQuery components
@@ -286,9 +307,10 @@ export class CommentEditor {
         
         const traverse = (component: any) => {
             if (component && component instanceof SqlComponent) {
-                // Add regular comments
-                if (component.comments) {
-                    component.comments.forEach((comment, index) => {
+                // Add positioned comments
+                const positionedComments = component.getAllPositionedComments();
+                if (positionedComments) {
+                    positionedComments.forEach((comment, index) => {
                         results.push({ comment, component, index });
                     });
                 }

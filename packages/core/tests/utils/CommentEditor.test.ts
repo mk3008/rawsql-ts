@@ -23,7 +23,7 @@ describe('CommentEditor', () => {
             CommentEditor.addComment(selectClause, 'This is the main SELECT clause');
 
             // Assert
-            expect(selectClause.comments).toEqual(['This is the main SELECT clause']);
+            expect(selectClause.getPositionedComments('before')).toEqual(['This is the main SELECT clause']);
         });
 
         it('should add multiple comments to SelectClause', () => {
@@ -39,10 +39,10 @@ describe('CommentEditor', () => {
             CommentEditor.addComment(selectClause, 'Second comment');
 
             // Assert
-            expect(selectClause.comments).toEqual(['First comment', 'Second comment']);
+            expect(selectClause.getPositionedComments('before')).toEqual(['First comment', 'Second comment']);
         });
 
-        it.skip('should add comment to SelectClause parsed from SQL', () => {
+        it('should add comment to SelectClause parsed from SQL', () => {
             // Arrange
             const sql = 'SELECT id, name FROM users';
             const query = SelectQueryParser.parse(sql) as SimpleSelectQuery;
@@ -53,11 +53,11 @@ describe('CommentEditor', () => {
 
             // Assert
             const result = formatter.format(query);
-            const expectedSql = `SELECT /* Select user information */  "id", "name" FROM "users"`;
+            const expectedSql = `SELECT/* Select user information */   "id", "name" FROM "users"`;
             expect(result.formattedSql).toBe(expectedSql);
         });
 
-        it.skip('should add comment to SelectItem within SelectClause', () => {
+        it('should add comment to SelectItem within SelectClause', () => {
             // Arrange
             const sql = 'SELECT id, name FROM users';
             const query = SelectQueryParser.parse(sql) as SimpleSelectQuery;
@@ -69,11 +69,11 @@ describe('CommentEditor', () => {
 
             // Assert
             const result = formatter.format(query);
-            const expectedSql = `SELECT "id" /* User ID column */ , "name" FROM "users"`;
+            const expectedSql = `SELECT /* User ID column */ "id", "name" FROM "users"`;
             expect(result.formattedSql).toBe(expectedSql);
         });
 
-        it.skip('should add multiple comments to different parts of SelectClause', () => {
+        it('should add multiple comments to different parts of SelectClause', () => {
             // Arrange
             const sql = 'SELECT id, name FROM users WHERE active = true';
             const query = SelectQueryParser.parse(sql) as SimpleSelectQuery;
@@ -85,13 +85,13 @@ describe('CommentEditor', () => {
 
             // Assert
             const result = formatter.format(query);
-            const expectedSql = `SELECT /* Main SELECT clause */  "id" /* Primary key */ , "name" /* Display name */  FROM "users" WHERE "active" = true`;
+            const expectedSql = `SELECT/* Main SELECT clause */   /* Primary key */ "id", /* Display name */ "name" FROM "users" WHERE "active" = true`;
             expect(result.formattedSql).toBe(expectedSql);
         });
     });
 
     describe('editComment', () => {
-        it.skip('should edit existing comment on SelectClause', () => {
+        it('should edit existing comment on SelectClause', () => {
             // Arrange
             const sql = 'SELECT id FROM users';
             const query = SelectQueryParser.parse(sql) as SimpleSelectQuery;
@@ -102,7 +102,7 @@ describe('CommentEditor', () => {
 
             // Assert
             const result = formatter.format(query);
-            const expectedSql = `SELECT /* Updated comment */  "id" FROM "users"`;
+            const expectedSql = `SELECT/* Updated comment */   "id" FROM "users"`;
             expect(result.formattedSql).toBe(expectedSql);
         });
 
@@ -112,7 +112,7 @@ describe('CommentEditor', () => {
 
             // Act & Assert
             expect(() => CommentEditor.editComment(selectClause, 0, 'New comment'))
-                .toThrowError('Invalid comment index: 0. Component has 0 comments.');
+                .toThrowError('Invalid comment index: 0. Component has 0 before positioned comments.');
         });
     });
 
@@ -132,7 +132,7 @@ describe('CommentEditor', () => {
             expect(result.formattedSql).toBe(expectedSql);
         });
 
-        it.skip('should delete specific comment when multiple exist', () => {
+        it('should delete specific comment when multiple exist', () => {
             // Arrange
             const sql = 'SELECT id FROM users';
             const query = SelectQueryParser.parse(sql) as SimpleSelectQuery;
@@ -145,7 +145,7 @@ describe('CommentEditor', () => {
 
             // Assert
             const result = formatter.format(query);
-            const expectedSql = `SELECT /* First */ /* Third */  "id" FROM "users"`;
+            const expectedSql = `SELECT/* First */  /* Third */   "id" FROM "users"`;
             expect(result.formattedSql).toBe(expectedSql);
         });
     });

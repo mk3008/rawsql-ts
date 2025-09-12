@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest';
 import { SqlTokenizer } from "../../src/parsers/SqlTokenizer";
 
-test.skip('prefix comment', () => {
+test('prefix comment', () => {
     // Arrange
     const tokenizer = new SqlTokenizer(`
     /*   
@@ -16,16 +16,20 @@ test.skip('prefix comment', () => {
     // Act
     const lexemes = tokenizer.readLexmes();
 
-    // Assert
+    // Assert  
     expect(lexemes.length).toBe(1);
-    expect(lexemes[0].comments?.length).toBe(4);
-    expect(lexemes[0].comments?.[0]).toBe('block comment 1');
-    expect(lexemes[0].comments?.[1]).toBe('block comment 2');
-    expect(lexemes[0].comments?.[2]).toBe('line comment 3');
-    expect(lexemes[0].comments?.[3]).toBe('line comment 4');
+    // Check positioned comments
+    expect(lexemes[0].positionedComments).toBeDefined();
+    const beforePositionedComment = lexemes[0].positionedComments?.find(pc => pc.position === 'before');
+    expect(beforePositionedComment).toBeDefined();
+    expect(beforePositionedComment!.comments.length).toBe(4);
+    expect(beforePositionedComment!.comments[0]).toBe('block comment 1');
+    expect(beforePositionedComment!.comments[1]).toBe('block comment 2');
+    expect(beforePositionedComment!.comments[2]).toBe('line comment 3');
+    expect(beforePositionedComment!.comments[3]).toBe('line comment 4');
 });
 
-test.skip('sufix comment', () => {
+test('sufix comment', () => {
     // Arrange
     const tokenizer = new SqlTokenizer(`
    'test'
@@ -42,13 +46,17 @@ test.skip('sufix comment', () => {
 
     // Assert
     expect(lexemes.length).toBe(1);
-    expect(lexemes[0].comments?.[0]).toBe('block comment 1');
-    expect(lexemes[0].comments?.[1]).toBe('block comment 2');
-    expect(lexemes[0].comments?.[2]).toBe('line comment 3');
-    expect(lexemes[0].comments?.[3]).toBe('line comment 4');
+    // Check positioned comments for suffix (after) comments
+    expect(lexemes[0].positionedComments).toBeDefined();
+    const afterPositionedComment = lexemes[0].positionedComments?.find(pc => pc.position === 'after');
+    expect(afterPositionedComment).toBeDefined();
+    expect(afterPositionedComment!.comments[0]).toBe('block comment 1');
+    expect(afterPositionedComment!.comments[1]).toBe('block comment 2');
+    expect(afterPositionedComment!.comments[2]).toBe('line comment 3');
+    expect(afterPositionedComment!.comments[3]).toBe('line comment 4');
 });
 
-test.skip('Empty lines in comments are removed', () => {
+test('Empty lines in comments are removed', () => {
     // Arrange
     const tokenizer = new SqlTokenizer(`
     /*   
@@ -69,14 +77,18 @@ test.skip('Empty lines in comments are removed', () => {
 
     // Assert
     expect(lexemes.length).toBe(1);
-    expect(lexemes[0].comments?.length).toBe(4);
-    expect(lexemes[0].comments?.[0]).toBe('block comment 1');
-    expect(lexemes[0].comments?.[1]).toBe('block comment 2');
-    expect(lexemes[0].comments?.[2]).toBe('line comment 3');
-    expect(lexemes[0].comments?.[3]).toBe('line comment 4');
+    // Check positioned comments
+    expect(lexemes[0].positionedComments).toBeDefined();
+    const beforePositionedComment = lexemes[0].positionedComments?.find(pc => pc.position === 'before');
+    expect(beforePositionedComment).toBeDefined();
+    expect(beforePositionedComment!.comments.length).toBe(4);
+    expect(beforePositionedComment!.comments[0]).toBe('block comment 1');
+    expect(beforePositionedComment!.comments[1]).toBe('block comment 2');
+    expect(beforePositionedComment!.comments[2]).toBe('line comment 3');
+    expect(beforePositionedComment!.comments[3]).toBe('line comment 4');
 });
 
-test.skip('Empty lines within block comments are not removed', () => {
+test('Empty lines within block comments are not removed', () => {
     // Arrange
     const tokenizer = new SqlTokenizer(`
     /*   
@@ -98,15 +110,19 @@ test.skip('Empty lines within block comments are not removed', () => {
 
     // Assert
     expect(lexemes.length).toBe(1);
-    expect(lexemes[0].comments?.length).toBe(5);
-    expect(lexemes[0].comments?.[0]).toBe('block comment 1');
-    expect(lexemes[0].comments?.[1]).toBe('');
-    expect(lexemes[0].comments?.[2]).toBe('block comment 2');
-    expect(lexemes[0].comments?.[3]).toBe('line comment 3');
-    expect(lexemes[0].comments?.[4]).toBe('line comment 4');
+    // Check positioned comments
+    expect(lexemes[0].positionedComments).toBeDefined();
+    const beforePositionedComment = lexemes[0].positionedComments?.find(pc => pc.position === 'before');
+    expect(beforePositionedComment).toBeDefined();
+    expect(beforePositionedComment!.comments.length).toBe(5);
+    expect(beforePositionedComment!.comments[0]).toBe('block comment 1');
+    expect(beforePositionedComment!.comments[1]).toBe('');
+    expect(beforePositionedComment!.comments[2]).toBe('block comment 2');
+    expect(beforePositionedComment!.comments[3]).toBe('line comment 3');
+    expect(beforePositionedComment!.comments[4]).toBe('line comment 4');
 });
 
-test.skip('hint clause(not comment)', () => {
+test('hint clause(not comment)', () => {
     // Arrange
     const tokenizer = new SqlTokenizer(`
    /*+ hint comment */
@@ -122,7 +138,7 @@ test.skip('hint clause(not comment)', () => {
     expect(lexemes[0].value).toBe('/*+ hint comment */');
 });
 
-test.skip('Realistic example', () => {
+test('Realistic example', () => {
     // Arrange
     const tokenizer = new SqlTokenizer(`
     FLOOR(price * 1.1) -- Calculate total price (including tax) and round down
@@ -133,5 +149,9 @@ test.skip('Realistic example', () => {
 
     // Assert
     expect(lexemes.length).toBe(6);
-    expect(lexemes[5].comments?.[0]).toBe('Calculate total price (including tax) and round down');
+    // Check positioned comments for the last lexeme (should have after comment)
+    expect(lexemes[5].positionedComments).toBeDefined();
+    const afterPositionedComment = lexemes[5].positionedComments?.find(pc => pc.position === 'after');
+    expect(afterPositionedComment).toBeDefined();
+    expect(afterPositionedComment!.comments[0]).toBe('Calculate total price (including tax) and round down');
 });
