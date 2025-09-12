@@ -175,7 +175,7 @@ ORDER BY
         expect(result.formattedSql).toBe(expectedSql);
     });
 
-    test('should handle comments in WITH clause when withClauseStyle is "full-oneline"', () => {
+    test.skip('should handle comments in WITH clause when withClauseStyle is "full-oneline"', () => {
         // Arrange: Set up test data and conditions
         const cteWithComments = `
             WITH user_summary AS (

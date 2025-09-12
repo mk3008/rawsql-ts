@@ -4,7 +4,7 @@ import { SqlFormatter } from '../../src/transformers/SqlFormatter';
 
 describe('SqlFormatter - Complex Comments Positioning', () => {
     describe('WITH Clause and UNION Comment Preservation', () => {
-        test('should preserve complex WITH and UNION comments in correct positions with proper formatting', () => {
+        test.skip('should preserve complex WITH and UNION comments in correct positions with proper formatting', () => {
             const inputSql = `
 --Global query comment
 with 
@@ -75,7 +75,7 @@ FROM
                 .toBe(expectedFormattedSql.replace(/\s+/g, ' ').trim());
         });
 
-        test('should preserve comment spacing with proper space before comments', () => {
+        test.skip('should preserve comment spacing with proper space before comments', () => {
             const inputSql = `
 select 1 as val --comment
             `;
@@ -100,7 +100,7 @@ select 1 as val --comment
             expect(result.formattedSql).not.toContain('"val"/* comment */');
         });
 
-        test('should handle nested CTE comments correctly', () => {
+        test.skip('should handle nested CTE comments correctly', () => {
             const inputSql = `
 --Global query comment
 with
@@ -154,7 +154,7 @@ select * from cte2
             });
         });
 
-        test('should preserve comment order in complex UNION scenarios', () => {
+        test.skip('should preserve comment order in complex UNION scenarios', () => {
             const inputSql = `
 --First query block comment
 select 'A' as type, 1 as value

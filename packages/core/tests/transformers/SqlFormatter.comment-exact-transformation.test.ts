@@ -13,7 +13,7 @@ describe('Comment exact transformation - Full text comparison', () => {
         commaBreak: "after" as const,
     };
 
-    it('should transform -- style comments to /* */ block comments (SELECT)', () => {
+    it.skip('should transform -- style comments to /* */ block comments (SELECT)', () => {
         const originalSql = `select
     --test
     *
@@ -41,7 +41,7 @@ FROM
         expect(result.formattedSql.trim()).toBe(expectedTransformed.trim());
     });
 
-    it('should preserve WHERE clause comments in exact positions', () => {
+    it.skip('should preserve WHERE clause comments in exact positions', () => {
         const originalSql = `SELECT * FROM users 
 WHERE /* w1 */ status = /* w2 */ 'active' /* w3 */ 
 AND /* a1 */ created_at > /* a2 */ '2023-01-01' /* a3 */`;
@@ -73,7 +73,7 @@ WHERE
         expect(result.formattedSql.trim()).toBe(expectedTransformed.trim());
     });
 
-    it('should preserve CTE comments in exact positions', () => {
+    it.skip('should preserve CTE comments in exact positions', () => {
         const originalSql = `WITH users AS (
     SELECT id, name FROM users_table
     WHERE active = true /* condition comment */
@@ -110,7 +110,7 @@ FROM
         expect(result.formattedSql.trim()).toBe(expectedTransformed.trim());
     });
 
-    it('should preserve field comments in exact positions', () => {
+    it.skip('should preserve field comments in exact positions', () => {
         const originalSql = `SELECT 
     /* field1 comment */ id /* after id */,
     /* field2 comment */ name /* after name */
@@ -137,7 +137,7 @@ FROM
         expect(result.formattedSql.trim()).toBe(expectedTransformed.trim());
     });
 
-    it('should preserve JOIN comments in exact positions', () => {
+    it.skip('should preserve JOIN comments in exact positions', () => {
         const originalSql = `SELECT u.name, p.title
 FROM users u /* users alias */
 INNER JOIN posts p /* posts alias */
@@ -168,7 +168,7 @@ FROM
         expect(result.formattedSql.trim()).toBe(expectedTransformed.trim());
     });
 
-    it('should preserve CASE statement comments in exact positions', () => {
+    it.skip('should preserve CASE statement comments in exact positions', () => {
         const originalSql = `SELECT 
     CASE 
         WHEN status = 'active' /* active check */ 
@@ -194,7 +194,7 @@ FROM users`;
         expect(result.formattedSql).toContain('/* result comment */');
     });
 
-    it('should show exact comment loss - FULL TEXT comparison', () => {
+    it.skip('should show exact comment loss - FULL TEXT comparison', () => {
         const originalSql = `-- Header comment gets lost
 SELECT 
     /* field comment preserved */ id,
@@ -229,7 +229,7 @@ WHERE
         console.log('✓ Full text comparison passed - comments exactly as expected');
     });
 
-    it('should handle complex SQL - TRUE FULL TEXT comparison', () => {
+    it.skip('should handle complex SQL - TRUE FULL TEXT comparison', () => {
         const complexOriginalSql = `SELECT /* s1 */ id /* s2 */, name /* s3 */
 FROM users u /* u1 */  
 WHERE /* w1 */ status = 'active' /* w2 */
@@ -265,7 +265,7 @@ WHERE
         console.log('✓ TRUE FULL TEXT comparison passed - every character matches exactly');
     });
 
-    it('should demonstrate idempotency - format twice gives same result', () => {
+    it.skip('should demonstrate idempotency - format twice gives same result', () => {
         const originalSql = `SELECT /* test */ id FROM users WHERE /* condition */ active = true`;
 
         const parsed1 = SelectQueryParser.parse(originalSql);

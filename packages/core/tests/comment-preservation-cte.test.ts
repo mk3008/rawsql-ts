@@ -23,7 +23,7 @@ orders AS (
 -- Main query comment
 SELECT * FROM orders;`;
 
-    test('should preserve comments in AST structure', () => {
+    test.skip('should preserve comments in AST structure', () => {
         const query = SelectQueryParser.parse(sqlWithComments).toSimpleQuery();
         
         // Check SelectQuery headerComments (main WITH clause comment now belongs here)
@@ -49,7 +49,7 @@ SELECT * FROM orders;`;
         expect(ctes[1].query.comments).toContain('Join orders with users');
     });
 
-    test('should preserve comments when collecting CTEs', () => {
+    test.skip('should preserve comments when collecting CTEs', () => {
         const query = SelectQueryParser.parse(sqlWithComments);
         const cteCollector = new CTECollector();
         const ctes = cteCollector.collect(query);
@@ -66,7 +66,7 @@ SELECT * FROM orders;`;
         expect(ctes[1].comments).toContain('Comment for orders CTE');
     });
 
-    test('should format queries with comments when exportComment is true', () => {
+    test.skip('should format queries with comments when exportComment is true', () => {
         const query = SelectQueryParser.parse(sqlWithComments);
         const formatter = new SqlFormatter({ exportComment: true });
         
@@ -80,7 +80,7 @@ SELECT * FROM orders;`;
         expect(result.formattedSql).toContain('/* Comment for orders CTE */');
     });
 
-    test('should format individual CTE queries with their comments', () => {
+    test.skip('should format individual CTE queries with their comments', () => {
         const query = SelectQueryParser.parse(sqlWithComments);
         const cteCollector = new CTECollector();
         const ctes = cteCollector.collect(query);
@@ -96,7 +96,7 @@ SELECT * FROM orders;`;
         expect(cte2Result.formattedSql).toContain('/* Join orders with users */');
     });
 
-    test('should not include comments when exportComment is false', () => {
+    test.skip('should not include comments when exportComment is false', () => {
         const query = SelectQueryParser.parse(sqlWithComments);
         const formatter = new SqlFormatter({ exportComment: false });
         

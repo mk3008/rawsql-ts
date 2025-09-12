@@ -45,9 +45,7 @@ describe('SqlParamInjector complex scenarios', () => {
         from
             "users"
         where
-            "active" = true
-            and "id" = :id
-            and "name" = :name
+            "active" = true and "id" = :id and "name" = :name
     )
 select
     *
@@ -99,8 +97,7 @@ from
         from
             "users"
         where
-            "active" = true
-            and "name" = :name
+            "active" = true and "name" = :name
     )
 select
     *

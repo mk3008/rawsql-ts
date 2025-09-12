@@ -258,9 +258,7 @@ from
         select
             *
             , case
-                when "capital_id" is null
-                and "capital_name" is null
-                and "capital_population" is null then
+                when "capital_id" is null and "capital_name" is null and "capital_population" is null then
                     null
                 else
                     jsonb_build_object('id', "capital_id", 'name', "capital_name", 'population', "capital_population")
@@ -371,9 +369,7 @@ from
         select
             *
             , case
-                when "product_id" is null
-                and "product_name" is null
-                and "product_category" is null then
+                when "product_id" is null and "product_name" is null and "product_category" is null then
                     null
                 else
                     jsonb_build_object('id', "product_id", 'name', "product_name", 'category', "product_category")
