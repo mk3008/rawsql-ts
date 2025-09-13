@@ -51,10 +51,7 @@ export class CommandExpressionParser {
             result.positionedComments = caseKeywordPositionedComments;
         } else if (caseKeywordComments && caseKeywordComments.length > 0) {
             // Convert legacy comments to positioned comments for unified spec
-            result.positionedComments = [{
-                position: 'before' as const,
-                comments: caseKeywordComments
-            }];
+            result.positionedComments = [CommandExpressionParser.convertLegacyToPositioned(caseKeywordComments, 'before')];
         }
         
         return { value: result, newIndex: idx };
@@ -82,10 +79,7 @@ export class CommandExpressionParser {
             result.positionedComments = caseWhenKeywordPositionedComments;
         } else if (caseWhenKeywordComments && caseWhenKeywordComments.length > 0) {
             // Convert legacy comments to positioned comments for unified spec
-            result.positionedComments = [{
-                position: 'before' as const,
-                comments: caseWhenKeywordComments
-            }];
+            result.positionedComments = [CommandExpressionParser.convertLegacyToPositioned(caseWhenKeywordComments, 'before')];
         }
         
         return { value: result, newIndex: idx };
@@ -161,10 +155,7 @@ export class CommandExpressionParser {
         
         // Convert legacy comments to positioned comments if no positioned comments exist
         if (allPositionedComments.length === 0 && allKeywordComments.length > 0) {
-            allPositionedComments.push({
-                position: 'after' as const,
-                comments: allKeywordComments
-            });
+            allPositionedComments.push(CommandExpressionParser.convertLegacyToPositioned(allKeywordComments, 'after'));
         }
         
         if (allPositionedComments.length > 0) {
@@ -204,12 +195,22 @@ export class CommandExpressionParser {
             keyValuePair.positionedComments = thenKeywordPositionedComments;
         } else if (thenKeywordComments && thenKeywordComments.length > 0) {
             // Convert legacy comments to positioned comments for unified spec
-            keyValuePair.positionedComments = [{
-                position: 'after' as const,
-                comments: thenKeywordComments
-            }];
+            keyValuePair.positionedComments = [CommandExpressionParser.convertLegacyToPositioned(thenKeywordComments, 'after')];
         }
 
         return { value: keyValuePair, newIndex: idx };
+    }
+
+    /**
+     * Convert legacy comments to positioned comments format
+     */
+    private static convertLegacyToPositioned(
+        legacyComments: string[],
+        position: 'before' | 'after' = 'before'
+    ): { position: 'before' | 'after', comments: string[] } {
+        return {
+            position,
+            comments: legacyComments
+        };
     }
 }

@@ -387,8 +387,6 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         // reset parameter index before parsing
         this.index = 1;
         
-        // reset positioned comments processing flags to allow re-formatting
-        this.clearPositionedCommentsFlags(arg);
 
         const token = this.visit(arg);
         const paramsRaw = ParameterCollector.collect(arg).sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
@@ -423,53 +421,42 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         return { token, params: [] };
     }
 
+
     /**
-     * Clear all positioned comments processing flags to allow re-formatting of the same component
-     * @param root The root component to clear flags from
+     * Check if a component handles its own comments
      */
-    private clearPositionedCommentsFlags(root: SqlComponent): void {
-        const traverse = (component: any) => {
-            if (component && typeof component === 'object') {
-                // Clear the flag if it exists
-                if ('_positionedCommentsProcessed' in component) {
-                    delete component._positionedCommentsProcessed;
-                }
-                
-                // Traverse all properties recursively
-                for (const key in component) {
-                    if (component[key] && typeof component[key] === 'object') {
-                        if (Array.isArray(component[key])) {
-                            component[key].forEach(traverse);
-                        } else {
-                            traverse(component[key]);
-                        }
-                    }
-                }
-            }
-        };
-        
-        traverse(root);
+    private componentHandlesOwnComments(component: SqlComponent): boolean {
+        // First check if component has a handlesOwnComments method
+        if ('handlesOwnComments' in component && typeof (component as any).handlesOwnComments === 'function') {
+            return (component as any).handlesOwnComments();
+        }
+
+        // Static list of components that handle their own positioned comments
+        const selfHandlingTypes = new Set([
+            SimpleSelectQuery.kind,
+            SelectItem.kind,
+            CaseKeyValuePair.kind,
+            SwitchCaseArgument.kind,
+            ColumnReference.kind,
+            LiteralValue.kind,
+            ParameterExpression.kind,
+            TableSource.kind,
+            SourceAliasExpression.kind,
+            TypeValue.kind,
+            FunctionCall.kind,
+            IdentifierString.kind
+        ]);
+
+        return selfHandlingTypes.has(component.getKind());
     }
 
     public visit(arg: SqlComponent): SqlPrintToken {
         const handler = this.handlers.get(arg.getKind());
         if (handler) {
             const token = handler(arg);
-            // Check if component handles its own comments to avoid double processing
-            const handlesOwnComments = 'handlesOwnComments' in arg && typeof (arg as any).handlesOwnComments === 'function'
-                ? (arg as any).handlesOwnComments()
-                : arg.getKind() === SimpleSelectQuery.kind || arg.getKind() === SelectItem.kind || 
-                  arg.getKind() === CaseKeyValuePair.kind || arg.getKind() === SwitchCaseArgument.kind ||
-                  arg.getKind() === ColumnReference.kind || arg.getKind() === LiteralValue.kind ||
-                  arg.getKind() === ParameterExpression.kind || arg.getKind() === TableSource.kind ||
-                  arg.getKind() === SourceAliasExpression.kind || arg.getKind() === TypeValue.kind ||
-                  arg.getKind() === FunctionCall.kind || arg.getKind() === IdentifierString.kind; // Components that handle their own positioned comments
-            
-            if (!handlesOwnComments) {
-                // Add positioned comments
-                if (arg.positionedComments && arg.positionedComments.length > 0) {
-                    this.addPositionedCommentsToToken(token, arg);
-                }
+
+            if (!this.componentHandlesOwnComments(arg)) {
+                this.addComponentComments(token, arg);
             }
             return token;
         }
@@ -477,18 +464,37 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     }
 
     /**
+     * Check if a component has positioned comments
+     */
+    private hasPositionedComments(component: SqlComponent): boolean {
+        return (component.positionedComments?.length ?? 0) > 0;
+    }
+
+    /**
+     * Check if a component has legacy comments
+     */
+    private hasLegacyComments(component: SqlComponent): boolean {
+        return (component.comments?.length ?? 0) > 0;
+    }
+
+    /**
+     * Centralized comment handling - checks positioned comments first, falls back to legacy
+     */
+    private addComponentComments(token: SqlPrintToken, component: SqlComponent): void {
+        if (this.hasPositionedComments(component)) {
+            this.addPositionedCommentsToToken(token, component);
+        } else if (this.hasLegacyComments(component)) {
+            this.addCommentsToToken(token, component.comments);
+        }
+    }
+
+    /**
      * Adds positioned comment tokens to a SqlPrintToken for inline formatting
      */
     private addPositionedCommentsToToken(token: SqlPrintToken, component: SqlComponent): void {
-        if (!component.positionedComments) {
+        if (!this.hasPositionedComments(component)) {
             return;
         }
-        
-        // Check if positioned comments have already been processed to prevent duplication
-        if ((component as any)._positionedCommentsProcessed) {
-            return;
-        }
-        (component as any)._positionedCommentsProcessed = true;
 
         // Handle 'before' comments - add inline at the beginning with spaces
         const beforeComments = component.getPositionedComments('before');
@@ -531,7 +537,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
      * Adds comment tokens to a SqlPrintToken based on the comments array
      */
     private addCommentsToToken(token: SqlPrintToken, comments: string[] | null): void {
-        if (!comments || comments.length === 0) {
+        if (!comments?.length) {
             return;
         }
 
@@ -784,24 +790,16 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     private visitColumnReference(arg: ColumnReference): SqlPrintToken {
         const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.ColumnReference);
         token.innerTokens.push(arg.qualifiedName.accept(this));
-        
-        // Handle positioned comments for ColumnReference
-        if (arg.positionedComments && arg.positionedComments.length > 0) {
-            this.addPositionedCommentsToToken(token, arg);
-        }
-        
+
+        this.addComponentComments(token, arg);
+
         return token;
     }
 
     private visitFunctionCall(arg: FunctionCall): SqlPrintToken {
         const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.FunctionCall);
-        
-        // Handle positioned comments
-        if (arg.positionedComments && arg.positionedComments.length > 0) {
-            this.addPositionedCommentsToToken(token, arg);
-        } else if (arg.comments && arg.comments.length > 0) {
-            this.addCommentsToToken(token, arg.comments);
-        }
+
+        this.addComponentComments(token, arg);
 
         token.innerTokens.push(arg.qualifiedName.accept(this));
         token.innerTokens.push(SqlPrintTokenParser.PAREN_OPEN_TOKEN);
@@ -907,12 +905,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         const text = this.parameterDecorator.decorate(arg.name.value, arg.index)
         const token = new SqlPrintToken(SqlPrintTokenType.parameter, text);
 
-        // Handle positioned comments for ParameterExpression
-        if (arg.positionedComments && arg.positionedComments.length > 0) {
-            this.addPositionedCommentsToToken(token, arg);
-        } else if (arg.comments && arg.comments.length > 0) {
-            this.addCommentsToToken(token, arg.comments);
-        }
+        this.addComponentComments(token, arg);
 
         this.index++;
         return token;
@@ -921,10 +914,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     private visitSwitchCaseArgument(arg: SwitchCaseArgument): SqlPrintToken {
         const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.SwitchCaseArgument);
 
-        // Handle positioned comments for SwitchCaseArgument
-        if (arg.positionedComments && arg.positionedComments.length > 0) {
-            this.addPositionedCommentsToToken(token, arg);
-        }
+        this.addComponentComments(token, arg);
 
         // Add each WHEN/THEN clause
         for (const kv of arg.cases) {
@@ -1243,13 +1233,8 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
     private visitTypeValue(arg: TypeValue): SqlPrintToken {
         const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.TypeValue);
-        
-        // Handle positioned comments
-        if (arg.positionedComments && arg.positionedComments.length > 0) {
-            this.addPositionedCommentsToToken(token, arg);
-        } else if (arg.comments && arg.comments.length > 0) {
-            this.addCommentsToToken(token, arg.comments);
-        }
+
+        this.addComponentComments(token, arg);
         
         token.innerTokens.push(arg.qualifiedName.accept(this));
         if (arg.argument) {
@@ -1560,12 +1545,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         fullName += arg.table.accept(this).text;
         const token = new SqlPrintToken(SqlPrintTokenType.value, fullName);
         
-        // Handle positioned comments for TableSource
-        if (arg.positionedComments && arg.positionedComments.length > 0) {
-            this.addPositionedCommentsToToken(token, arg);
-        } else if (arg.comments && arg.comments.length > 0) {
-            this.addCommentsToToken(token, arg.comments);
-        }
+        this.addComponentComments(token, arg);
         
         // alias (if present and different from table name)
         if (arg.identifier && arg.identifier.name !== arg.table.name) {
@@ -1744,10 +1724,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     public visitWhereClause(arg: WhereClause): SqlPrintToken {
         const token = new SqlPrintToken(SqlPrintTokenType.keyword, 'where', SqlPrintTokenContainerType.WhereClause);
 
-        // Handle positioned comments for WhereClause (unified spec)
-        if (arg.positionedComments && arg.positionedComments.length > 0) {
-            this.addPositionedCommentsToToken(token, arg);
-        }
+        this.addComponentComments(token, arg);
 
         token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
         token.innerTokens.push(this.visit(arg.condition));
