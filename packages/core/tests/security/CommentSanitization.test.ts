@@ -8,7 +8,7 @@ describe('Comment Security and Sanitization', () => {
     const formatter = new SqlFormatter({ exportComment: true });
 
     describe('SQL Injection Prevention', () => {
-        test.skip('should prevent comment injection with */ sequences', () => {
+        test('should prevent comment injection with */ sequences', () => {
             const query = SelectQueryParser.parse('SELECT id FROM users');
             const maliciousComment = 'malicious */ DROP TABLE users; /*';
             
@@ -25,7 +25,7 @@ describe('Comment Security and Sanitization', () => {
             expect(commentStartIndex).toBeLessThan(commentEndIndex);
         });
 
-        test.skip('should prevent nested comment attacks', () => {
+        test('should prevent nested comment attacks', () => {
             const query = SelectQueryParser.parse('SELECT id FROM users');
             const nestedComment = '/* nested comment attack */';
             
@@ -37,7 +37,7 @@ describe('Comment Security and Sanitization', () => {
             expect(result.formattedSql).not.toContain('/* /* nested');
         });
 
-        test.skip('should sanitize multiple dangerous sequences', () => {
+        test('should sanitize multiple dangerous sequences', () => {
             const query = SelectQueryParser.parse('SELECT id FROM users');
             const complexAttack = 'test */ SELECT password FROM secrets; /* more */ DROP TABLE important; /*';
             
@@ -53,7 +53,7 @@ describe('Comment Security and Sanitization', () => {
             expect(result.formattedSql).toContain('/* test * SELECT password FROM secrets; * more * DROP TABLE important; * */');
         });
 
-        test.skip('should handle newlines in comments', () => {
+        test('should handle newlines in comments', () => {
             const query = SelectQueryParser.parse('SELECT id FROM users');
             const multilineComment = 'First line\nSecond line\r\nThird line';
             
@@ -66,7 +66,7 @@ describe('Comment Security and Sanitization', () => {
             expect(result.formattedSql).not.toContain('\r');
         });
 
-        test.skip('should preserve safe comment content', () => {
+        test('should preserve safe comment content', () => {
             const query = SelectQueryParser.parse('SELECT id FROM users');
             const safeComment = 'This is a safe comment with numbers 123 and symbols !@#$%^&*()';
             
@@ -77,7 +77,7 @@ describe('Comment Security and Sanitization', () => {
             expect(result.formattedSql).toContain(`/* ${safeComment} */`);
         });
 
-        test.skip('should handle empty and whitespace-only comments', () => {
+        test('should handle empty and whitespace-only comments', () => {
             const query1 = SelectQueryParser.parse('SELECT id FROM users');
             const query2 = SelectQueryParser.parse('SELECT id FROM users');
             
@@ -96,7 +96,7 @@ describe('Comment Security and Sanitization', () => {
     });
     
     describe('Multiple Comments Security', () => {
-        test.skip('should sanitize all comments in complex queries', () => {
+        test('should sanitize all comments in complex queries', () => {
             const sql = 'SELECT id, name FROM users WHERE active = true';
             const query = SelectQueryParser.parse(sql) as SimpleSelectQuery;
             

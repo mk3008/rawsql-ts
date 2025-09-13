@@ -28,7 +28,7 @@ raw_users AS (
 select * from raw_users
 `;
 
-    it.skip('should add comments to SQL query', () => {
+    it('should add comments to SQL query', () => {
         const query = SelectQueryParser.parse(testSql);
         
         // Add a new comment
@@ -67,7 +67,7 @@ END AS "user_segment"
 FROM
 "users"
 WHERE
-"email" is not null AND "registration_date" is not null
+"email" is not null and "registration_date" is not null
 )
 SELECT
 *
@@ -76,7 +76,7 @@ FROM
         expect(result.formattedSql).toBe(expectedSql);
     });
 
-    it.skip('should edit existing comments', () => {
+    it('should edit existing comments', () => {
         const query = SelectQueryParser.parse(testSql);
         
         // Edit the existing header comment (WITH-prefix comments are now moved to headerComments)
@@ -110,7 +110,7 @@ END AS "user_segment"
 FROM
 "users"
 WHERE
-"email" is not null AND "registration_date" is not null
+"email" is not null and "registration_date" is not null
 )
 SELECT
 *
@@ -119,7 +119,7 @@ FROM
         expect(result.formattedSql).toBe(expectedSql);
     });
 
-    it.skip('should delete comments', () => {
+    it('should delete comments', () => {
         const query = SelectQueryParser.parse(testSql);
         
         // Delete the header comment (WITH-prefix comments are now moved to headerComments)
@@ -150,7 +150,7 @@ END AS "user_segment"
 FROM
 "users"
 WHERE
-"email" is not null AND "registration_date" is not null
+"email" is not null and "registration_date" is not null
 )
 SELECT
 *
@@ -159,7 +159,7 @@ FROM
         expect(result.formattedSql).toBe(expectedSql);
     });
 
-    it.skip('should handle multiple comment operations', () => {
+    it('should handle multiple comment operations', () => {
         const query = SelectQueryParser.parse(testSql);
         
         // Start with 1 header comment (original comment from before WITH is now header comment)
@@ -186,7 +186,7 @@ FROM
         expect(finalComments[1]).toBe('Last updated: 2024-01-15');
     });
 
-    it.skip('should find components with specific comments', () => {
+    it('should find components with specific comments', () => {
         const query = SelectQueryParser.parse(testSql);
         
         // Find components with "customer" in comments  
@@ -196,7 +196,7 @@ FROM
         expect(components.some(comp => comp === query)).toBe(true);
     });
 
-    it.skip('should format SQL with comment export option', () => {
+    it('should format SQL with comment export option', () => {
         const query = SelectQueryParser.parse(testSql);
         
         // Add additional comments
@@ -235,7 +235,7 @@ END AS "user_segment"
 FROM
 "users"
 WHERE
-"email" is not null AND "registration_date" is not null
+"email" is not null and "registration_date" is not null
 )
 SELECT
 *
@@ -273,7 +273,7 @@ END AS "user_segment"
 FROM
 "users"
 WHERE
-"email" is not null AND "registration_date" is not null
+"email" is not null and "registration_date" is not null
 )
 SELECT
 *
@@ -282,7 +282,7 @@ FROM
         expect(withoutComments.formattedSql).toBe(expectedWithoutComments);
     });
 
-    it.skip('should replace text in comments across the AST', () => {
+    it('should replace text in comments across the AST', () => {
         const query = SelectQueryParser.parse(testSql);
         
         // Add more comments with "data" in them
@@ -304,7 +304,7 @@ FROM
         expect(withClauseComments).toHaveLength(0);
     });
 
-    it.skip('should count comments in the AST', () => {
+    it('should count comments in the AST', () => {
         const query = SelectQueryParser.parse(testSql);
         
         // After comment preservation fix, comments appear in multiple components
@@ -324,7 +324,7 @@ FROM
         expect(afterDelete).toBeLessThan(afterAdd2);
     });
 
-    it.skip('should get all comments with their components', () => {
+    it('should get all comments with their components', () => {
         const query = SelectQueryParser.parse(testSql);
         
         CommentEditor.addComment(query, 'Query level comment');
@@ -348,7 +348,7 @@ FROM
         expect(hasAddedComment).toBe(true);
     });
 
-    it.skip('should handle error cases gracefully', () => {
+    it('should handle error cases gracefully', () => {
         const query = SelectQueryParser.parse(testSql);
         
         // Test invalid index errors
@@ -360,7 +360,7 @@ FROM
         expect(() => CommentEditor.editComment(query, 0, 'new comment')).toThrow('Invalid comment index: 0');
     });
 
-    it.skip('should handle multiple comments in SELECT clause with newlines', () => {
+    it('should handle multiple comments in SELECT clause with newlines', () => {
         const testSql = `
 SELECT 
     user_id,
@@ -399,7 +399,7 @@ WHERE
         expect(result.formattedSql).toBe(expectedSql);
     });
 
-    it.skip('should handle multiple comments in WHERE clause with newlines', () => {
+    it('should handle multiple comments in WHERE clause with newlines', () => {
         const testSql = `
 SELECT 
     user_id,
@@ -438,7 +438,7 @@ WHERE
         expect(result.formattedSql).toBe(expectedSql);
     });
 
-    it.skip('should handle multiple comments in both SELECT and WHERE clauses', () => {
+    it('should handle multiple comments in both SELECT and WHERE clauses', () => {
         const testSql = `
 SELECT 
     user_id,
@@ -479,7 +479,7 @@ WHERE
         expect(result.formattedSql).toBe(expectedSql);
     });
 
-    it.skip('should handle multiline comments with different newline settings', () => {
+    it('should handle multiline comments with different newline settings', () => {
         const testSql = `
 SELECT 
     user_id,
