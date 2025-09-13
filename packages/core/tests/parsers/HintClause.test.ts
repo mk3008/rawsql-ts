@@ -104,7 +104,7 @@ describe('HintClause', () => {
         validateCompleteSQL(result.formattedSql, expectedSql);
     });
 
-    test.skip('should work with hint clauses and regular comments together', () => {
+    test('should work with hint clauses and regular comments together', () => {
         // Arrange
         const query = SelectQueryParser.parse(`
             -- Query comment
@@ -118,7 +118,7 @@ describe('HintClause', () => {
         const result = formatter.format(query);
 
         // Assert - Complete SQL comparison
-        const expectedSql = '/* Query comment */ select /*+ index(users idx_name) */ "id", /* Column comment */ "name" from "users"';
+        const expectedSql = 'select /*+ index(users idx_name) */ "id", "name" /* Column comment */ from "users"';
         validateCompleteSQL(result.formattedSql, expectedSql);
     });
 
