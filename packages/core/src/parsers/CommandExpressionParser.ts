@@ -7,11 +7,17 @@ export class CommandExpressionParser {
         let idx = index;
         const current = lexemes[idx];
         if (current.value === "case") {
+            // Capture CASE keyword comments before consuming
+            const caseKeywordComments = current.comments;
+            const caseKeywordPositionedComments = current.positionedComments;
             idx++;
-            return this.parseCaseExpression(lexemes, idx);
+            return this.parseCaseExpression(lexemes, idx, caseKeywordComments, caseKeywordPositionedComments);
         } else if (current.value === "case when") {
+            // Capture CASE WHEN keyword comments before consuming
+            const caseWhenKeywordComments = current.comments;
+            const caseWhenKeywordPositionedComments = current.positionedComments;
             idx++;
-            return this.parseCaseWhenExpression(lexemes, idx);
+            return this.parseCaseWhenExpression(lexemes, idx, caseWhenKeywordComments, caseWhenKeywordPositionedComments);
         }
 
         return this.parseModifierUnaryExpression(lexemes, idx);
@@ -29,7 +35,7 @@ export class CommandExpressionParser {
         throw new Error(`Invalid modifier unary expression at index ${idx}, Lexeme: ${lexemes[idx].value}`);
     }
 
-    private static parseCaseExpression(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number; } {
+    private static parseCaseExpression(lexemes: Lexeme[], index: number, caseKeywordComments?: string[] | null, caseKeywordPositionedComments?: any): { value: ValueComponent; newIndex: number; } {
         let idx = index;
         const condition = ValueParser.parseFromLexeme(lexemes, idx);
         idx = condition.newIndex;
@@ -39,10 +45,22 @@ export class CommandExpressionParser {
 
         // Create CASE expression
         const result = new CaseExpression(condition.value, switchCaseResult.value);
+        
+        // Assign CASE keyword comments to the CaseExpression (positioned comments only for unified spec)
+        if (caseKeywordPositionedComments && caseKeywordPositionedComments.length > 0) {
+            result.positionedComments = caseKeywordPositionedComments;
+        } else if (caseKeywordComments && caseKeywordComments.length > 0) {
+            // Convert legacy comments to positioned comments for unified spec
+            result.positionedComments = [{
+                position: 'before' as const,
+                comments: caseKeywordComments
+            }];
+        }
+        
         return { value: result, newIndex: idx };
     }
 
-    private static parseCaseWhenExpression(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number; } {
+    private static parseCaseWhenExpression(lexemes: Lexeme[], index: number, caseWhenKeywordComments?: string[] | null, caseWhenKeywordPositionedComments?: any): { value: ValueComponent; newIndex: number; } {
         let idx = index;
 
         // Parse the first WHEN clause
@@ -58,6 +76,18 @@ export class CommandExpressionParser {
 
         // Create CASE expression with condition null (uses WHEN conditions instead of a simple CASE)
         const result = new CaseExpression(null, switchCaseResult.value);
+        
+        // Assign CASE WHEN keyword comments to the CaseExpression (positioned comments only for unified spec)
+        if (caseWhenKeywordPositionedComments && caseWhenKeywordPositionedComments.length > 0) {
+            result.positionedComments = caseWhenKeywordPositionedComments;
+        } else if (caseWhenKeywordComments && caseWhenKeywordComments.length > 0) {
+            // Convert legacy comments to positioned comments for unified spec
+            result.positionedComments = [{
+                position: 'before' as const,
+                comments: caseWhenKeywordComments
+            }];
+        }
+        
         return { value: result, newIndex: idx };
     }
 
@@ -120,11 +150,7 @@ export class CommandExpressionParser {
         if (endKeywordComments && endKeywordComments.length > 0) {
             allKeywordComments.push(...endKeywordComments);
         }
-        if (allKeywordComments.length > 0) {
-            switchCaseArg
-        }
-
-        // Store positioned comments (combine ELSE and END)
+        // Store positioned comments (combine ELSE and END) - unified spec: positioned comments only
         const allPositionedComments: any[] = [];
         if (elseKeywordPositionedComments && elseKeywordPositionedComments.length > 0) {
             allPositionedComments.push(...elseKeywordPositionedComments);
@@ -132,6 +158,15 @@ export class CommandExpressionParser {
         if (endKeywordPositionedComments && endKeywordPositionedComments.length > 0) {
             allPositionedComments.push(...endKeywordPositionedComments);
         }
+        
+        // Convert legacy comments to positioned comments if no positioned comments exist
+        if (allPositionedComments.length === 0 && allKeywordComments.length > 0) {
+            allPositionedComments.push({
+                position: 'after' as const,
+                comments: allKeywordComments
+            });
+        }
+        
         if (allPositionedComments.length > 0) {
             switchCaseArg.positionedComments = allPositionedComments;
         }
@@ -164,11 +199,15 @@ export class CommandExpressionParser {
 
         const keyValuePair = new CaseKeyValuePair(condition.value, value.value);
         // Store THEN keyword comments on the CaseKeyValuePair
-        if (thenKeywordComments && thenKeywordComments.length > 0) {
-            keyValuePair
-        }
+        // Store THEN keyword comments - unified spec: positioned comments only
         if (thenKeywordPositionedComments && thenKeywordPositionedComments.length > 0) {
             keyValuePair.positionedComments = thenKeywordPositionedComments;
+        } else if (thenKeywordComments && thenKeywordComments.length > 0) {
+            // Convert legacy comments to positioned comments for unified spec
+            keyValuePair.positionedComments = [{
+                position: 'after' as const,
+                comments: thenKeywordComments
+            }];
         }
 
         return { value: keyValuePair, newIndex: idx };

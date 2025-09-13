@@ -25,7 +25,7 @@ describe('SqlFormatter comment order preservation', () => {
         subqueryOneLine: true
     };
 
-    it.skip('should preserve comment order in SELECT clause', () => {
+    it('should preserve comment order in SELECT clause', () => {
         const sql = `SELECT  
     /* a1 */ a /* a2 */
     , /* b1 */ b /* b2 */
@@ -57,7 +57,7 @@ FROM
         console.log('✓ AS keyword comment spacing is correct');
     });
 
-    it.skip('should preserve comment order with complex expressions - partial implementation', () => {
+    it('should preserve comment order with complex expressions - partial implementation', () => {
         const sql = `SELECT
     /* start */ CASE 
         WHEN /* w1 */ x > 0 /* w2 */ THEN /* t1 */ 'positive' /* t2 */
@@ -81,6 +81,27 @@ FROM test`;
         expect(actualComments).toContain('w1');
         expect(actualComments).toContain('w2');
         
+        console.log('=== CASE EXPRESSION COMMENT ANALYSIS ===');
+        console.log('Expected order: start, w1, w2, t1, t2, e1, e2, end');
+        console.log('Actual order:', actualComments.join(', '));
+        
+        // Analyze specific issues
+        const startCount = actualComments.filter(c => c === 'start').length;
+        const w1Count = actualComments.filter(c => c === 'w1').length;
+        console.log(`Issues found:`);
+        console.log(`- 'start' appears ${startCount} times (should be 1)`);
+        console.log(`- 'w1' appears ${w1Count} times (should be 1)`);
+        
+        const missingComments = ['start', 'w1', 'w2', 't1', 't2', 'e1', 'e2', 'end'].filter(expected => 
+            !actualComments.includes(expected)
+        );
+        if (missingComments.length > 0) {
+            console.log(`- Missing comments: ${missingComments.join(', ')}`);
+        }
+        
+        console.log('=== FORMATTED SQL OUTPUT ===');
+        console.log(result.formattedSql);
+        console.log('=== END OUTPUT ===');
         console.log('Complex expression comments preserved:', actualComments);
         console.log('Note: CASE keyword comment preservation needs further work');
     });

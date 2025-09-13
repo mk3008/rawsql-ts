@@ -449,6 +449,12 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         if (!component.positionedComments) {
             return;
         }
+        
+        // Check if positioned comments have already been processed to prevent duplication
+        if ((component as any)._positionedCommentsProcessed) {
+            return;
+        }
+        (component as any)._positionedCommentsProcessed = true;
 
         // Handle 'before' comments - add inline at the beginning with spaces
         const beforeComments = component.getPositionedComments('before');
@@ -473,6 +479,17 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
                 token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.space, ' '));
                 token.innerTokens.push(commentBlock);
             }
+        }
+        
+        // Clear positioned comments to prevent duplicate processing (unified spec)
+        // Only clear for CASE expression components that are known to have duplication issues
+        const caseContainerTypes = [
+            SqlPrintTokenContainerType.CaseExpression,
+            SqlPrintTokenContainerType.SwitchCaseArgument,
+            SqlPrintTokenContainerType.CaseKeyValuePair
+        ];
+        if (caseContainerTypes.includes(token.containerType as any)) {
+            component.positionedComments = null;
         }
     }
 
@@ -870,6 +887,11 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     private visitSwitchCaseArgument(arg: SwitchCaseArgument): SqlPrintToken {
         const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.SwitchCaseArgument);
 
+        // Handle positioned comments for SwitchCaseArgument
+        if (arg.positionedComments && arg.positionedComments.length > 0) {
+            this.addPositionedCommentsToToken(token, arg);
+        }
+
         // Add each WHEN/THEN clause
         for (const kv of arg.cases) {
             // Create a new line for each WHEN clause
@@ -915,6 +937,11 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
     private visitCaseKeyValuePair(arg: CaseKeyValuePair): SqlPrintToken {
         const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.CaseKeyValuePair);
+
+        // Handle positioned comments for CaseKeyValuePair
+        if (arg.positionedComments && arg.positionedComments.length > 0) {
+            this.addPositionedCommentsToToken(token, arg);
+        }
 
         // Create WHEN clause
         token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'when'));
@@ -1055,6 +1082,11 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
     private visitCaseExpression(arg: CaseExpression): SqlPrintToken {
         const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.CaseExpression);
+
+        // Handle positioned comments for CaseExpression (unified spec: positioned comments only)
+        if (arg.positionedComments && arg.positionedComments.length > 0) {
+            this.addPositionedCommentsToToken(token, arg);
+        }
 
         // Add the CASE keyword
         token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'case'));
@@ -1405,6 +1437,11 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
     private visitSelectClause(arg: SelectClause): SqlPrintToken {
         const token = new SqlPrintToken(SqlPrintTokenType.keyword, 'select', SqlPrintTokenContainerType.SelectClause);
+        
+        // Handle positioned comments for SelectClause (unified spec)
+        if (arg.positionedComments && arg.positionedComments.length > 0) {
+            this.addPositionedCommentsToToken(token, arg);
+        }
 
         // Handle hints and DISTINCT as part of the keyword line
         let selectKeywordText = 'select';
@@ -1460,6 +1497,12 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
     private visitDistinct(arg: Distinct): SqlPrintToken {
         const token = new SqlPrintToken(SqlPrintTokenType.keyword, 'distinct');
+        
+        // Handle positioned comments for Distinct (unified spec)
+        if (arg.positionedComments && arg.positionedComments.length > 0) {
+            this.addPositionedCommentsToToken(token, arg);
+        }
+        
         return token;
     }
 
@@ -1667,6 +1710,11 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     public visitWhereClause(arg: WhereClause): SqlPrintToken {
         const token = new SqlPrintToken(SqlPrintTokenType.keyword, 'where', SqlPrintTokenContainerType.WhereClause);
 
+        // Handle positioned comments for WhereClause (unified spec)
+        if (arg.positionedComments && arg.positionedComments.length > 0) {
+            this.addPositionedCommentsToToken(token, arg);
+        }
+
         token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
         token.innerTokens.push(this.visit(arg.condition));
 
@@ -1827,7 +1875,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     public visitSimpleQuery(arg: SimpleSelectQuery): SqlPrintToken {
         const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.SimpleSelectQuery);
 
-        // Handle positioned comments for SimpleSelectQuery
+        // Handle positioned comments for SimpleSelectQuery (unified spec)
         if (arg.positionedComments && arg.positionedComments.length > 0) {
             this.addPositionedCommentsToToken(token, arg);
         } else if (arg.headerComments && arg.headerComments.length > 0) {
