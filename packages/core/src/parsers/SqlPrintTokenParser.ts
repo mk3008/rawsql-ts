@@ -291,8 +291,11 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     private visitBinarySelectQuery(arg: BinarySelectQuery): SqlPrintToken {
         const token = new SqlPrintToken(SqlPrintTokenType.container, '');
 
-        // Add headerComments at the very beginning (before the first query)
-        if (arg.headerComments && arg.headerComments.length > 0) {
+        // Handle positioned comments for BinarySelectQuery (unified spec)
+        if (arg.positionedComments && arg.positionedComments.length > 0) {
+            this.addPositionedCommentsToToken(token, arg);
+        } else if (arg.headerComments && arg.headerComments.length > 0) {
+            // Fallback to legacy headerComments if no positioned comments
             const headerCommentBlocks = this.createCommentBlocks(arg.headerComments);
             token.innerTokens.push(...headerCommentBlocks);
             token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
