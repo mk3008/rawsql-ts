@@ -479,7 +479,7 @@ WHERE
         expect(result.formattedSql).toBe(expectedSql);
     });
 
-    it.skip('should handle multiline comments with different newline settings', () => {
+    it('should handle multiline comments with different newline settings', () => {
         const testSql = `
 SELECT 
     user_id,

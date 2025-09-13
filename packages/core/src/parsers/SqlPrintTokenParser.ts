@@ -383,6 +383,9 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     public parse(arg: SqlComponent): { token: SqlPrintToken, params: any[] | Record<string, any>[] | Record<string, any> } {
         // reset parameter index before parsing
         this.index = 1;
+        
+        // reset positioned comments processing flags to allow re-formatting
+        this.clearPositionedCommentsFlags(arg);
 
         const token = this.visit(arg);
         const paramsRaw = ParameterCollector.collect(arg).sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
@@ -415,6 +418,34 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
         // Fallback (just in case)
         return { token, params: [] };
+    }
+
+    /**
+     * Clear all positioned comments processing flags to allow re-formatting of the same component
+     * @param root The root component to clear flags from
+     */
+    private clearPositionedCommentsFlags(root: SqlComponent): void {
+        const traverse = (component: any) => {
+            if (component && typeof component === 'object') {
+                // Clear the flag if it exists
+                if ('_positionedCommentsProcessed' in component) {
+                    delete component._positionedCommentsProcessed;
+                }
+                
+                // Traverse all properties recursively
+                for (const key in component) {
+                    if (component[key] && typeof component[key] === 'object') {
+                        if (Array.isArray(component[key])) {
+                            component[key].forEach(traverse);
+                        } else {
+                            traverse(component[key]);
+                        }
+                    }
+                }
+            }
+        };
+        
+        traverse(root);
     }
 
     public visit(arg: SqlComponent): SqlPrintToken {
