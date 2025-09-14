@@ -1395,8 +1395,11 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     private visitSelectItem(arg: SelectItem): SqlPrintToken {
         const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.SelectItem);
 
-        // Clear positioned comments from the value to avoid duplication since SelectItem handles them
+        // Preserve original positioned comments to avoid mutating the source object
+        const originalSelectItemPositionedComments = (arg as any).positionedComments;
         const originalValuePositionedComments = (arg.value as any).positionedComments;
+
+        // Clear positioned comments from the value to avoid duplication since SelectItem handles them
         (arg.value as any).positionedComments = null;
 
         // Add 'before' positioned comments
@@ -1419,11 +1422,9 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
             const commentTokens = this.createInlineCommentSequence(afterComments);
             token.innerTokens.push(...commentTokens);
         }
-        
-        // Clear positioned comments to prevent duplicate processing
-        (arg as any).positionedComments = null;
 
         // Restore original positioned comments to avoid side effects
+        (arg as any).positionedComments = originalSelectItemPositionedComments;
         (arg.value as any).positionedComments = originalValuePositionedComments;
 
         if (!arg.identifier) {
