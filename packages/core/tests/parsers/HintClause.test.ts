@@ -118,7 +118,8 @@ describe('HintClause', () => {
         const result = formatter.format(query);
 
         // Assert - Complete SQL comparison
-        const expectedSql = 'select /*+ index(users idx_name) */ "id", "name" /* Column comment */ from "users"';
+        // Note: Line comment (-- Query comment) is converted to headerComment and becomes block comment
+        const expectedSql = '/* Query comment */ select /*+ index(users idx_name) */ "id", "name" /* Column comment */ from "users"';
         validateCompleteSQL(result.formattedSql, expectedSql);
     });
 

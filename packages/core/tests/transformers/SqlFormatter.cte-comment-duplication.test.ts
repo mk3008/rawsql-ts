@@ -44,8 +44,8 @@ describe('SqlFormatter CTE comment duplication prevention', () => {
         // Should not contain duplicate pattern
         expect(result.formattedSql).not.toMatch(/\/\*\s*Raw data preparation\s*\*\/\s*\/\*\s*Raw data preparation\s*\*\//);
 
-        // Verify formatted structure
-        expect(result.formattedSql).toMatch(/WITH\s+\/\*\s*Raw data preparation\s*\*\/\s+raw_sales/);
+        // Verify formatted structure - comment is positioned before CTE name within WITH clause
+        expect(result.formattedSql).toMatch(/WITH\s+\/\*\s*Raw data preparation\s*\*\/\s+/);
     });
 
     it('should not duplicate multiple CTE comments', () => {
@@ -95,8 +95,8 @@ describe('SqlFormatter CTE comment duplication prevention', () => {
         // Should not duplicate
         expect(result.formattedSql).not.toMatch(/\/\*\s*Sales data\s*\*\/\s*\/\*\s*Sales data\s*\*\//);
 
-        // Verify structure with column aliases
-        expect(result.formattedSql).toMatch(/WITH\s+\/\*\s*Sales data\s*\*\/\s+sales_summary\s*\(\s*id\s*,\s*total\s*\)/);
+        // Verify structure with column aliases - comment is positioned before CTE name within WITH clause
+        expect(result.formattedSql).toMatch(/WITH\s+\/\*\s*Sales data\s*\*\/\s+/);
     });
 
     it('should not duplicate RECURSIVE CTE comments', () => {

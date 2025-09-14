@@ -206,7 +206,8 @@ WHERE status = 'active' /* condition preserved */`;
         const result = formatter.format(parsed);
 
         // Updated expected text to include preserved header comment
-        const expectedFullText = `-- Header comment preserved
+        // Note: Line comments (--) are converted to block comments (/* */) when processed as headerComments
+        const expectedFullText = `/* Header comment preserved */
 SELECT
     /* field comment preserved */ "id",
     "name" /* after name preserved */

@@ -46,19 +46,19 @@ FROM
             console.log(resultWithIndent.formattedSql);
             
             // Expected formatted output with current positioned comments system
-            // Note: Only some comments are captured by current system
-            const expectedFormattedSql = `/* WITH clause comment */  with "a" as (select 1 union all /* Second query comment */ select 2) select * from "table" union all /* Union query comment */ select * from "table"`;
+            // Note: Comments now preserve source order - Global comes first (before WITH), then WITH clause comment (within WITH)
+            const expectedFormattedSql = `/* Global query comment */ with /* WITH clause comment */ "a" as (select 1 union all /* Second query comment */ select 2) /* Main query comment */ select * from "table" union all /* Union query comment */ select * from "table"`;
             
             console.log('\n=== Expected Output ===');
             console.log(expectedFormattedSql);
             
             // Verify comments that are preserved by current positioned comments system
             const originalComments = [
-                // 'Global query comment',    // Not captured - top-level comment
-                'WITH clause comment',
+                'Global query comment',       // Now captured as headerComment
+                'WITH clause comment',        // Captured as headerComment
                 // 'First query comment',     // Not captured - inner query top-level comment
                 'Second query comment',
-                // 'Main query comment',      // Not captured - between CTE and main query
+                'Main query comment',         // Now captured as positioned comment
                 'Union query comment'
             ];
             

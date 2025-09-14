@@ -80,12 +80,18 @@ export class WithClauseParser {
         let actualWithComments: string[] | null = null;
 
         // Extract positioned comments: "before" comments are header comments, "after" comments are WITH-specific
+        // Process them in source order: first "before" (global), then "after" (WITH-specific)
         if (withTokenPositionedComments && withTokenPositionedComments.length > 0) {
+            // First collect "before" comments (appear before WITH clause)
             for (const posComment of withTokenPositionedComments) {
                 if (posComment.position === 'before' && posComment.comments) {
                     if (!headerComments) headerComments = [];
                     headerComments.push(...posComment.comments);
-                } else if (posComment.position === 'after' && posComment.comments) {
+                }
+            }
+            // Then collect "after" comments (appear after WITH keyword, before CTE)
+            for (const posComment of withTokenPositionedComments) {
+                if (posComment.position === 'after' && posComment.comments) {
                     if (!actualWithComments) actualWithComments = [];
                     actualWithComments.push(...posComment.comments);
                 }
@@ -162,8 +168,9 @@ export class WithClauseParser {
             const cteNameTokenIndex = firstCteIndex;
             if (cteNameTokenIndex < lexemes.length) {
                 // Clear existing comments on CTE name token to prevent duplication
-                lexemes[cteNameTokenIndex].comments = null;
-                lexemes[cteNameTokenIndex].positionedComments = [];
+                if (!lexemes[cteNameTokenIndex].positionedComments) {
+                    lexemes[cteNameTokenIndex].positionedComments = [];
+                }
 
                 // Add WITH "after" comments as "before" positioned comments (appear before CTE name)
                 if (actualWithComments && actualWithComments.length > 0) {
