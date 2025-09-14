@@ -27,8 +27,38 @@ console.log(`📁 Report output directory: ${reportDir}`);
 const COMPLEX_SQL_SAMPLES = {
     // Sample 1: Sales analysis report (main)
     sales_analysis: `
--- Main query: Sales analysis report
-WITH /* Raw data preparation */ raw_sales AS (
+/*
+  Sales Analysis Report - Q4 2023
+  ================================
+
+  Purpose: Comprehensive sales performance analysis with regional breakdown
+  Author: Analytics Team
+  Created: 2023-01-01
+  Last Updated: 2023-12-31
+
+  Dependencies:
+  - sales table: Core transaction data
+  - customers table: Customer master data with regional info
+  - products table: Product catalog and categories
+  - categories table: Product category hierarchy
+
+  Business Logic:
+  - Analyzes sales performance by region and customer type
+  - Calculates running totals and moving averages
+  - Classifies customers into VIP/Premium/Standard tiers
+  - Projects next year sales based on regional growth patterns
+*/
+WITH
+/*
+  Raw Sales Data Preparation
+  --------------------------
+  Extracts and processes core sales transactions for the analysis period.
+  Applies business rules:
+  - Only valid sales (quantity > 0)
+  - Date range: 2023-01-01 to 2024-01-01
+  - Calculates net amount considering discounts
+*/
+raw_sales AS (
     SELECT
         s.sale_id /* Sale ID */,
         s.sale_date /* Sale date */,
@@ -44,7 +74,12 @@ WITH /* Raw data preparation */ raw_sales AS (
       AND s.sale_date < '2024-01-01'
       AND s.quantity > 0 /* Valid sales only */
 ),
-/* Customer master data */
+/*
+  Customer Master Data
+  -------------------
+  Retrieves active customer information with regional and type classification.
+  Used for segmentation analysis and regional performance metrics.
+*/
 customer_master AS (
     SELECT
         c.customer_id,
@@ -55,7 +90,12 @@ customer_master AS (
     FROM customers c
     WHERE c.active_flag = 1 /* Active customers only */
 ),
-/* Product master data */
+/*
+  Product Master Data
+  ------------------
+  Active product catalog with category hierarchy.
+  Includes brand information for product analysis and reporting.
+*/
 product_master AS (
     SELECT
         p.product_id,
@@ -68,7 +108,16 @@ product_master AS (
         ON p.category_id = cat.category_id
     WHERE p.discontinued_flag = 0 /* Active products only */
 ),
-/* Detailed sales data */
+/*
+  Enriched Sales Data
+  ------------------
+  Combines sales, customer, and product data with analytical functions.
+  Calculates:
+  - Customer sale rankings (latest first)
+  - Running totals (cumulative amounts by customer)
+  - Moving averages (3-day window by product)
+  - VIP customer classification based on total purchase amounts
+*/
 enriched_sales AS (
     SELECT
         rs.*,
@@ -101,7 +150,14 @@ enriched_sales AS (
     INNER JOIN product_master pm /* Product master join */
         ON rs.product_id = pm.product_id
     LEFT JOIN (
-        /* Subquery: VIP customer classification */
+        /*
+          VIP Customer Classification Subquery
+          ------------------------------------
+          Classifies customers into tiers based on total purchase amounts:
+          - VIP: Over 100,000 total purchases
+          - Premium: Over 50,000 total purchases
+          - Standard: All other customers
+        */
         SELECT
             customer_id,
             CASE
@@ -122,7 +178,18 @@ enriched_sales AS (
     ) vip_customers /* VIP classification results */
         ON rs.customer_id = vip_customers.customer_id
 ),
-/* Regional summary */
+/*
+  Regional Summary Aggregation
+  ---------------------------
+  Aggregates sales data by region and customer type.
+  Provides comprehensive metrics including:
+  - Customer and transaction counts
+  - Sales totals and averages
+  - Date ranges (first/last sale dates)
+  - Statistical measures (median, 95th percentile)
+
+  Filters to top 100 transactions per customer to focus on key customers.
+*/
 regional_summary AS (
     SELECT
         region /* Region */,
@@ -141,7 +208,17 @@ regional_summary AS (
     GROUP BY region, customer_type
     HAVING SUM(net_amount) > 10000 /* Regions with sales over 10K only */
 ),
-/* Final report results */
+/*
+  Final Report Results
+  -------------------
+  Prepares final output with rankings and projections.
+  Includes:
+  - Sales rankings (DENSE_RANK for tied values)
+  - Percentage of total sales calculation
+  - Next year projections based on regional growth:
+    * Tokyo/Osaka: 15% growth (major cities)
+    * Other regions: 5% growth (conservative estimate)
+*/
 final_report AS (
     SELECT
         rs.region,
@@ -165,7 +242,13 @@ final_report AS (
         END AS projected_next_year
     FROM regional_summary rs
 )
-/* Main SELECT statement */
+/*
+  Main SELECT Statement - Final Output
+  ------------------------------------
+  Produces the final report with all calculated metrics and classifications.
+  Output includes sales rankings, regional performance, customer metrics,
+  and next year projections with performance grades (S/A/B/C).
+*/
 SELECT
     fr.sales_rank /* Rank */,
     fr.region /* Region name */,
@@ -198,6 +281,19 @@ LIMIT 50 /* Top 50 records */
 
     // Sample 2: QualifiedName test (bug verification)
     qualified_name_test: `
+/*
+  Qualified Name Handling Test
+  ===========================
+
+  Purpose: Verifies that table.column references are properly handled
+  and that comments don't interfere with qualified name parsing.
+
+  Tests specifically:
+  - Table alias usage (u.id, p.title, c.content)
+  - JOIN conditions with qualified names
+  - WHERE clauses with qualified references
+  - Comment placement around qualified names
+*/
 SELECT
     u.id /* user ID */,
     u.name /* user name */,
@@ -216,6 +312,23 @@ ORDER BY u.name /* sort by name */, p.created_at DESC /* latest first */
 
     // Sample 3: CASE expression test (comment order verification)
     case_expression_test: `
+/*
+  CASE Expression Comment Preservation Test
+  ========================================
+
+  Purpose: Verifies that comments within complex CASE expressions
+  are properly preserved and positioned during SQL formatting.
+
+  Test Coverage:
+  - Comments before/after CASE keyword
+  - Comments around WHEN conditions
+  - Comments around THEN results
+  - Comments before/after ELSE clause
+  - Comments before/after END keyword
+
+  This is critical for maintaining code documentation in
+  business logic expressions.
+*/
 SELECT
     CASE /* start */ u.status /* status */
         WHEN /* condition1 */ 'active' /* active */ THEN /* result1 */ 1 /* valid */
