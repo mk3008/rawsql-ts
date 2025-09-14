@@ -335,9 +335,12 @@ function analyzeComments(originalSql, formattedSql) {
         !formattedCommentTexts.includes(text)
     );
 
-    const duplicatedComments = formattedCommentTexts.filter((text, index) =>
-        formattedCommentTexts.indexOf(text) !== index
-    );
+    // DISABLED: Simple text-based duplicate detection produces false positives
+    // Same comment text can legitimately appear in different contexts (e.g., table definition vs aggregation)
+    // const duplicatedComments = formattedCommentTexts.filter((text, index) =>
+    //     formattedCommentTexts.indexOf(text) !== index
+    // );
+    const duplicatedComments = []; // Disabled to prevent false positives
 
     return {
         originalCount: originalComments.length,

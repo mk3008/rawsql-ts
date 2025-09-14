@@ -58,14 +58,36 @@ export class OrderByClauseParser {
             return { value: value, newIndex: idx };
         }
 
-        // asc, desc
-        const sortDirection = idx >= lexemes.length
-            ? null
-            : lexemes[idx].value === 'asc'
-                ? (idx++, SortDirection.Ascending)
-                : lexemes[idx].value === 'desc'
-                    ? (idx++, SortDirection.Descending)
-                    : null;
+        // Capture comments from ASC/DESC tokens (both legacy comments and positioned comments)
+        let sortDirectionComments: string[] | null = null;
+        let sortDirection = null;
+
+        if (idx < lexemes.length) {
+            const token = lexemes[idx];
+            if (token.value === 'asc') {
+                sortDirection = SortDirection.Ascending;
+                idx++;
+            } else if (token.value === 'desc') {
+                sortDirection = SortDirection.Descending;
+                idx++;
+            }
+
+            // Capture comments from the ASC/DESC token
+            if (sortDirection !== null) {
+                if (token.positionedComments && token.positionedComments.length > 0) {
+                    sortDirectionComments = [];
+                    for (const posComment of token.positionedComments) {
+                        if (posComment.comments && posComment.comments.length > 0) {
+                            sortDirectionComments.push(...posComment.comments);
+                        }
+                    }
+                }
+                if (token.comments && token.comments.length > 0) {
+                    if (!sortDirectionComments) sortDirectionComments = [];
+                    sortDirectionComments.push(...token.comments);
+                }
+            }
+        }
 
         // nulls first, nulls last
         const nullsSortDirection = idx >= lexemes.length
@@ -75,6 +97,15 @@ export class OrderByClauseParser {
                 : lexemes[idx].value === 'nulls last'
                     ? (idx++, NullsSortDirection.Last)
                     : null;
+
+        // Apply sort direction comments to the value if captured
+        if (sortDirectionComments && sortDirectionComments.length > 0) {
+            if (value.comments) {
+                value.comments.push(...sortDirectionComments);
+            } else {
+                value.comments = sortDirectionComments;
+            }
+        }
 
         if (sortDirection === null && nullsSortDirection === null) {
             return { value: value, newIndex: idx };
