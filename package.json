@@ -18,6 +18,7 @@
     "clean": "npm run clean --workspaces",
     "lint": "npm run lint --workspaces",
     "benchmark": "npm run benchmark --workspace=packages/core",
+    "demo:complex-sql": "node packages/core/demo/complex-sql-demo.js",
     "prepare": "husky"
   },
   "keywords": [
