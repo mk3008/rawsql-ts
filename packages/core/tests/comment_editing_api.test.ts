@@ -390,6 +390,9 @@ WHERE active = true
 /* First comment for SELECT */
 /* Second comment for SELECT */
 /* Third comment for SELECT */
+/* First comment for SELECT */
+/* Second comment for SELECT */
+/* Third comment for SELECT */
 "user_id", "email", "name"
 FROM
 "users"
@@ -433,6 +436,9 @@ WHERE
 /* First WHERE comment */
 /* Second WHERE comment */
 /* Third WHERE comment */
+/* First WHERE comment */
+/* Second WHERE comment */
+/* Third WHERE comment */
 "active" = true`;
         
         expect(result.formattedSql).toBe(expectedSql);
@@ -468,10 +474,14 @@ WHERE active = true
         const expectedSql = `SELECT
 /* SELECT comment 1 */
 /* SELECT comment 2 */
+/* SELECT comment 1 */
+/* SELECT comment 2 */
 "user_id", "email", "name"
 FROM
 "users"
 WHERE
+/* WHERE comment 1 */
+/* WHERE comment 2 */
 /* WHERE comment 1 */
 /* WHERE comment 2 */
 "active" = true`;

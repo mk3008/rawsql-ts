@@ -290,7 +290,48 @@ export class SelectQueryParser {
         if (selectTokenComments && selectTokenComments.length > 0) {
             headerComments.push(...selectTokenComments);
             // Clear the comments from the SELECT token to avoid duplication
-            lexemes[idx]
+            lexemes[idx].comments = null;
+        }
+
+        // Also collect positioned comments from SELECT token as headerComments
+        const selectTokenPositionedComments = lexemes[idx].positionedComments;
+        if (selectTokenPositionedComments && selectTokenPositionedComments.length > 0) {
+            for (const posComment of selectTokenPositionedComments) {
+                if (posComment.position === 'before' && posComment.comments) {
+                    headerComments.push(...posComment.comments);
+                }
+            }
+            // Clear the positioned comments from SELECT token to avoid duplication
+            lexemes[idx].positionedComments = undefined;
+        }
+
+        // Collect comments from tokens between WITH clause end and SELECT clause start
+        // These are typically comments that appear between clauses like "WITH ... ) /* comment */ SELECT ..."
+        let betweenClauseComments: string[] = [];
+        if (withClauseResult) {
+            // Scan tokens from end of WITH clause up to (but not including) the SELECT token
+            // We need to include tokens that might have "after" positioned comments from WITH clause
+            const withEndIndex = withClauseResult.newIndex;
+            const scanStartIndex = Math.max(0, withEndIndex - 1); // Include the last token of WITH clause
+            for (let i = scanStartIndex; i < idx; i++) {
+                const token = lexemes[i];
+
+                // Collect positioned comments
+                if (token.positionedComments && token.positionedComments.length > 0) {
+                    for (const posComment of token.positionedComments) {
+                        if (posComment.comments) {
+                            betweenClauseComments.push(...posComment.comments);
+                        }
+                    }
+                    token.positionedComments = undefined; // Clear to avoid duplication
+                }
+
+                // Collect legacy comments
+                if (token.comments && token.comments.length > 0) {
+                    betweenClauseComments.push(...token.comments);
+                    token.comments = null; // Clear to avoid duplication
+                }
+            }
         }
 
         const selectClauseResult = SelectClauseParser.parseFromLexeme(lexemes, idx);
@@ -384,8 +425,12 @@ export class SelectQueryParser {
         });
 
         // Set headerComments and query-level comments from collected sources to the query object
-        selectQuery
         selectQuery.headerComments = headerComments.length > 0 ? headerComments : null;
+
+        // Set between-clause comments as regular comments on the SimpleSelectQuery
+        if (betweenClauseComments.length > 0) {
+            selectQuery.comments = betweenClauseComments;
+        }
 
         return { value: selectQuery, newIndex: idx };
     }

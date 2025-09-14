@@ -23,7 +23,7 @@ export interface ProcessableEntity {
 export interface JsonColumnMapping {
     entityId: string;
     entityName: string;
-    generatedColumnName: string; // "customer_json_1", "address_json_2" など
+    generatedColumnName: string; // e.g., "customer_json_1", "address_json_2"
     depth: number;
 }
 

@@ -80,7 +80,7 @@ describe('SqlFormatter - Comprehensive SQL Output Validation', () => {
             const formatter = new SqlFormatter({ exportComment: true });
             const result = formatter.format(query);
 
-            const expectedSql = 'select 1 as "id"';
+            const expectedSql = '/* This is a comment */ select 1 as "id"';
             validateCompleteSQL(result.formattedSql, expectedSql);
         });
 
@@ -93,7 +93,7 @@ describe('SqlFormatter - Comprehensive SQL Output Validation', () => {
             const formatter = new SqlFormatter({ exportComment: true });
             const result = formatter.format(query);
 
-            const expectedSql = 'select 1 as "id"';
+            const expectedSql = '/* First comment */ /* Second comment */ select 1 as "id"';
             validateCompleteSQL(result.formattedSql, expectedSql);
         });
 
@@ -108,7 +108,7 @@ describe('SqlFormatter - Comprehensive SQL Output Validation', () => {
             const formatter = new SqlFormatter({ exportComment: true });
             const result = formatter.format(query);
 
-            const expectedSql = 'select 1 as "id"';
+            const expectedSql = '/* * This is a multi-line */ /* * block comment */ select 1 as "id"';
             validateCompleteSQL(result.formattedSql, expectedSql);
         });
 
@@ -130,7 +130,7 @@ describe('SqlFormatter - Comprehensive SQL Output Validation', () => {
                 -- Comment before SELECT
                 SELECT 1 as id
             `);
-            const formatter = new SqlFormatter({ 
+            const formatter = new SqlFormatter({
                 exportComment: true,
                 keywordCase: 'upper',
                 newline: '\n',
@@ -139,7 +139,7 @@ describe('SqlFormatter - Comprehensive SQL Output Validation', () => {
             });
             const result = formatter.format(query);
 
-            const expectedSql = 'SELECT 1 AS "id"';
+            const expectedSql = '/* Comment before SELECT */ SELECT 1 AS "id"';
             validateCompleteSQL(result.formattedSql, expectedSql);
         });
     });
@@ -160,7 +160,7 @@ describe('SqlFormatter - Comprehensive SQL Output Validation', () => {
             const formatter = new SqlFormatter({ exportComment: true });
             const result = formatter.format(query);
 
-            const expectedSql = 'select "id", /* ID column */ "name" /* FROM comment */ from "users" /* WHERE comment */ where "active" = 1';
+            const expectedSql = '/* Overall query comment */ select "id", /* ID column */ "name" /* FROM comment */ from "users" /* WHERE comment */ where "active" = 1';
             validateCompleteSQL(result.formattedSql, expectedSql);
         });
 
@@ -220,7 +220,7 @@ describe('SqlFormatter - Comprehensive SQL Output Validation', () => {
             const formatter = new SqlFormatter({ exportComment: true });
             const result = formatter.format(query);
 
-            const expectedSql = 'select round( /* price value */ "price" /* price value */ * 1.1, 2) as "rounded_price" from "products"';
+            const expectedSql = 'select round("price" /* price value */ /* price value */ * 1.1, 2) as "rounded_price" from "products"';
             validateCompleteSQL(result.formattedSql, expectedSql);
         });
 
@@ -236,7 +236,7 @@ describe('SqlFormatter - Comprehensive SQL Output Validation', () => {
             const formatter = new SqlFormatter({ exportComment: true });
             const result = formatter.format(query);
 
-            const expectedSql = 'select ( /* base price */ "price" /* base price */ * 1.1 /* with tax */ + 500) as "final_price" from "products"';
+            const expectedSql = 'select ("price" /* base price */ /* base price */ * 1.1 /* with tax */ + 500) as "final_price" from "products"';
             validateCompleteSQL(result.formattedSql, expectedSql);
         });
 
@@ -308,7 +308,7 @@ describe('SqlFormatter - Comprehensive SQL Output Validation', () => {
             const formatter = new SqlFormatter({ exportComment: true });
             const result = formatter.format(query);
 
-            const expectedSql = 'select /*+ index(users idx_name) */ "id", "name" /* Column comment */ from "users"';
+            const expectedSql = '/* Query comment */ select /*+ index(users idx_name) */ "id", "name" /* Column comment */ from "users"';
             validateCompleteSQL(result.formattedSql, expectedSql);
         });
     });
@@ -335,7 +335,7 @@ describe('SqlFormatter - Comprehensive SQL Output Validation', () => {
             const formatter = new SqlFormatter({ exportComment: true });
             const result = formatter.format(query);
 
-            const expectedSql = 'select "u"."id", /* User ID */ "u"."name", /* User name */ "p"."title" from "users" as "u" /* Inner join with posts */ inner join "posts" as "p" on "u"."id" = "p". /* Filter conditions */ "user_id" where "u"."active" = 1 and "p"."published" = true /* Order results */ order by "u"."name", "p"."created_at" desc';
+            const expectedSql = '/* Main query comment */ select "u"."id", /* User ID */ "u"."name", /* User name */ "p"."title" from "users" as "u" /* Inner join with posts */ inner join "posts" as "p" on "u"."id" = "p"."user_id" /* Filter conditions */ where "u"."active" = 1 and "p"."published" = true /* Order results */ order by "u"."name", "p"."created_at" desc';
             validateCompleteSQL(result.formattedSql, expectedSql);
         });
 

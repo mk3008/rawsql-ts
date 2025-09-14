@@ -149,6 +149,11 @@ export class SelectItemParser {
                         columnRef.qualifiedName.name.positionedComments = null;
                     }
                 }
+
+                // Clear positioned comments from BinaryExpression children only to avoid duplication
+                if (selectItem.value.constructor.name === 'BinaryExpression') {
+                    this.clearPositionedCommentsRecursively(selectItem.value);
+                }
             }
             
             // Store AS keyword positioned comments and alias comments separately for proper positioning
@@ -191,6 +196,11 @@ export class SelectItemParser {
                         columnRef.qualifiedName.name.positionedComments = null;
                     }
                 }
+
+                // Clear positioned comments from BinaryExpression children only to avoid duplication
+                if (selectItem.value.constructor.name === 'BinaryExpression') {
+                    this.clearPositionedCommentsRecursively(selectItem.value);
+                }
             }
             
             // Add AS keyword comments (after the AS keyword)
@@ -210,6 +220,10 @@ export class SelectItemParser {
             for (const posComment of valueTokenPositionedComments) {
                 selectItem.addPositionedComments(posComment.position, posComment.comments);
             }
+            // Clear positioned comments from BinaryExpression children only to avoid duplication
+            if (selectItem.value.constructor.name === 'BinaryExpression') {
+                this.clearPositionedCommentsRecursively(selectItem.value);
+            }
         }
         
         if (asKeywordComments && asKeywordComments.length > 0) {
@@ -219,5 +233,44 @@ export class SelectItemParser {
             value: selectItem,
             newIndex: idx,
         };
+    }
+
+    /**
+     * Recursively clear positioned comments from all nested components to prevent duplication
+     */
+    private static clearPositionedCommentsRecursively(component: any): void {
+        if (!component || typeof component !== 'object') {
+            return;
+        }
+
+        // Clear positioned comments from this component
+        if ('positionedComments' in component) {
+            component.positionedComments = null;
+        }
+
+        // Recursively clear from common nested properties
+        if (component.left) {
+            this.clearPositionedCommentsRecursively(component.left);
+        }
+        if (component.right) {
+            this.clearPositionedCommentsRecursively(component.right);
+        }
+        if (component.qualifiedName) {
+            this.clearPositionedCommentsRecursively(component.qualifiedName);
+        }
+        if (component.table) {
+            this.clearPositionedCommentsRecursively(component.table);
+        }
+        if (component.name) {
+            this.clearPositionedCommentsRecursively(component.name);
+        }
+        if (component.args && Array.isArray(component.args)) {
+            component.args.forEach((arg: any) => {
+                this.clearPositionedCommentsRecursively(arg);
+            });
+        }
+        if (component.value) {
+            this.clearPositionedCommentsRecursively(component.value);
+        }
     }
 }

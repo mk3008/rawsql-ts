@@ -143,15 +143,14 @@ FROM users u /* users alias */
 INNER JOIN posts p /* posts alias */
     ON u.id = p.user_id /* join condition */`;
 
-        // Actual behavior: JOIN condition comment gets placed differently
+        // Actual behavior: JOIN condition comment gets placed correctly after QualifiedName fix
         const expectedTransformed = `SELECT
     "u"."name",
     "p"."title"
 FROM
     "users" AS "u" /* users alias */
     INNER JOIN "posts" AS "p" /* posts alias */
-    ON "u"."id" = "p". /* join condition */
-    "user_id"`;
+    ON "u"."id" = "p"."user_id" /* join condition */`;
 
         const parsed = SelectQueryParser.parse(originalSql);
         const formatter = new SqlFormatter(formatterOptions);
@@ -194,9 +193,9 @@ FROM users`;
         expect(result.formattedSql).toContain('/* result comment */');
     });
 
-    it('should show exact comment loss - FULL TEXT comparison', () => {
-        const originalSql = `-- Header comment gets lost
-SELECT 
+    it('should preserve header comments - FULL TEXT comparison', () => {
+        const originalSql = `-- Header comment preserved
+SELECT
     /* field comment preserved */ id,
     name /* after name preserved */
 FROM /* table comment gets lost */ users /* after table preserved */
@@ -206,8 +205,9 @@ WHERE status = 'active' /* condition preserved */`;
         const formatter = new SqlFormatter(formatterOptions);
         const result = formatter.format(parsed);
 
-        // 実際の出力に基づく全文期待値
-        const expectedFullText = `SELECT
+        // Updated expected text to include preserved header comment
+        const expectedFullText = `-- Header comment preserved
+SELECT
     /* field comment preserved */ "id",
     "name" /* after name preserved */
 FROM
@@ -215,7 +215,7 @@ FROM
 WHERE
     "status" = 'active' /* condition preserved */`;
 
-        console.log('\n=== COMMENT LOSS FULL TEXT COMPARISON ===');
+        console.log('\n=== HEADER COMMENT PRESERVATION FULL TEXT COMPARISON ===');
         console.log('Original SQL:');
         console.log(originalSql);
         console.log('\nExpected Full Text:');

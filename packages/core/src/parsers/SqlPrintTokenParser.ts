@@ -334,7 +334,31 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
                 token.innerTokens.push(SqlPrintTokenParser.DOT_TOKEN);
             }
         }
-        token.innerTokens.push(arg.name.accept(this));
+
+        // Handle name and its comments carefully
+        // We need to prevent double processing by temporarily clearing the name's comments,
+        // then process them at the QualifiedName level
+        const originalNameComments = arg.name.positionedComments;
+        const originalNameLegacyComments = arg.name.comments;
+
+        // Temporarily clear name's comments to prevent double processing
+        arg.name.positionedComments = null;
+        arg.name.comments = null;
+
+        const nameToken = arg.name.accept(this);
+        token.innerTokens.push(nameToken);
+
+        // Restore original comments
+        arg.name.positionedComments = originalNameComments;
+        arg.name.comments = originalNameLegacyComments;
+
+        // Apply the name's comments to the qualified name token
+        if (this.hasPositionedComments(arg.name) || this.hasLegacyComments(arg.name)) {
+            this.addComponentComments(token, arg.name);
+        }
+
+        // Also handle any comments directly on the QualifiedName itself
+        this.addComponentComments(token, arg);
 
         return token;
     }
@@ -444,7 +468,8 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
             SourceAliasExpression.kind,
             TypeValue.kind,
             FunctionCall.kind,
-            IdentifierString.kind
+            IdentifierString.kind,
+            QualifiedName.kind
         ]);
 
         return selfHandlingTypes.has(component.getKind());
@@ -583,41 +608,65 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
      */
     private createCommentBlocks(comments: string[]): SqlPrintToken[] {
         const commentBlocks: SqlPrintToken[] = [];
-        
+
         for (const comment of comments) {
             if (comment.trim()) {
                 commentBlocks.push(this.createSingleCommentBlock(comment));
             }
         }
-        
+
         return commentBlocks;
     }
+
+
 
     /**
      * Creates a single CommentBlock with the standard structure:
      * Comment -> CommentNewline -> Space
-     * 
+     *
      * This structure supports both formatting modes:
      * - Multiline mode: Comment + newline (space is filtered as leading space)
      * - Oneliner mode: Comment + space (commentNewline is skipped)
      */
     private createSingleCommentBlock(comment: string): SqlPrintToken {
         const commentBlock = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.CommentBlock);
-        
-        // Add comment token
-        const commentToken = new SqlPrintToken(SqlPrintTokenType.comment, this.formatBlockComment(comment));
+
+        // Add comment token - preserve original format for line comments
+        const commentToken = new SqlPrintToken(SqlPrintTokenType.comment, this.formatComment(comment));
         commentBlock.innerTokens.push(commentToken);
-        
+
         // Add conditional newline token for multiline mode
         const commentNewlineToken = new SqlPrintToken(SqlPrintTokenType.commentNewline, '');
         commentBlock.innerTokens.push(commentNewlineToken);
-        
+
         // Add space token for oneliner mode spacing
         const spaceToken = new SqlPrintToken(SqlPrintTokenType.space, ' ');
         commentBlock.innerTokens.push(spaceToken);
-        
+
         return commentBlock;
     }
+
+    /**
+     * Formats a comment, preserving line comment format for -- comments
+     * and converting others to block format for safety
+     */
+    private formatComment(comment: string): string {
+        const trimmed = comment.trim();
+
+        // If it's already a line comment, preserve it
+        if (trimmed.startsWith('--')) {
+            return trimmed;
+        }
+
+        // If it's already a block comment, preserve it (but sanitize)
+        if (trimmed.startsWith('/*') && trimmed.endsWith('*/')) {
+            return this.formatBlockComment(trimmed.slice(2, -2));
+        }
+
+        // For plain text comments, convert to block format
+        return this.formatBlockComment(trimmed);
+    }
+
 
     /**
      * Inserts comment blocks into a token and handles spacing logic.
@@ -1028,11 +1077,14 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
                 '',
                 SqlPrintTokenContainerType.IdentifierString
             );
-            
+
             // Add the identifier text as the main token
             const valueToken = new SqlPrintToken(SqlPrintTokenType.value, text);
             token.innerTokens.push(valueToken);
-            
+
+            // Add legacy comments to the token
+            this.addComponentComments(token, arg);
+
             return token;
         }
         
@@ -1851,6 +1903,9 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         }
 
         token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+
+        this.addComponentComments(token, arg);
+
         return token;
     }
 
@@ -1878,6 +1933,8 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
         token.innerTokens.push(query);
         token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
+
+        this.addComponentComments(token, arg);
 
         return token;
     }
