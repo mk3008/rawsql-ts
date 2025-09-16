@@ -390,9 +390,6 @@ WHERE active = true
 /* First comment for SELECT */
 /* Second comment for SELECT */
 /* Third comment for SELECT */
-/* First comment for SELECT */
-/* Second comment for SELECT */
-/* Third comment for SELECT */
 "user_id", "email", "name"
 FROM
 "users"
@@ -436,9 +433,6 @@ WHERE
 /* First WHERE comment */
 /* Second WHERE comment */
 /* Third WHERE comment */
-/* First WHERE comment */
-/* Second WHERE comment */
-/* Third WHERE comment */
 "active" = true`;
         
         expect(result.formattedSql).toBe(expectedSql);
@@ -474,14 +468,10 @@ WHERE active = true
         const expectedSql = `SELECT
 /* SELECT comment 1 */
 /* SELECT comment 2 */
-/* SELECT comment 1 */
-/* SELECT comment 2 */
 "user_id", "email", "name"
 FROM
 "users"
 WHERE
-/* WHERE comment 1 */
-/* WHERE comment 2 */
 /* WHERE comment 1 */
 /* WHERE comment 2 */
 "active" = true`;
@@ -498,30 +488,35 @@ FROM users
 WHERE active = true
 `;
         
-        const query = SelectQueryParser.parse(testSql).toSimpleQuery();
-        
-        // Add comments
-        CommentEditor.addComment(query.selectClause, 'Multi-line comment\nwith line breaks');
-        CommentEditor.addComment(query.whereClause!, 'Another multi-line\ncomment here');
-        
+        // Create separate query instances for each test to avoid mutation issues
+        const query1 = SelectQueryParser.parse(testSql).toSimpleQuery();
+        const query2 = SelectQueryParser.parse(testSql).toSimpleQuery();
+
+        // Add comments to both queries
+        CommentEditor.addComment(query1.selectClause, 'Multi-line comment\nwith line breaks');
+        CommentEditor.addComment(query1.whereClause!, 'Another multi-line\ncomment here');
+
+        CommentEditor.addComment(query2.selectClause, 'Multi-line comment\nwith line breaks');
+        CommentEditor.addComment(query2.whereClause!, 'Another multi-line\ncomment here');
+
         // Test with newlines
         const formatterWithNewlines = new SqlFormatter({
             exportComment: true,
             keywordCase: 'upper',
             newline: '\n'
         });
-        
-        const resultWithNewlines = formatterWithNewlines.format(query);
-        
+
+        const resultWithNewlines = formatterWithNewlines.format(query1);
+
         // Test with spaces
         const formatterWithSpaces = new SqlFormatter({
             exportComment: true,
             keywordCase: 'upper',
             newline: ' '
         });
-        
-        const resultWithSpaces = formatterWithSpaces.format(query);
-        
+
+        const resultWithSpaces = formatterWithSpaces.format(query2);
+
         // Verify comments are handled appropriately
         // Note: Newlines in comments are converted to spaces for security (prevents multi-line injection)
         expect(resultWithNewlines.formattedSql).toContain('/* Multi-line comment with line breaks */');

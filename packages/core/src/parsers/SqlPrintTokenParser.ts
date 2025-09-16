@@ -294,6 +294,8 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         // Handle positioned comments for BinarySelectQuery (unified spec)
         if (arg.positionedComments && arg.positionedComments.length > 0) {
             this.addPositionedCommentsToToken(token, arg);
+            // Clear positioned comments to prevent duplicate processing
+            arg.positionedComments = null;
         } else if (arg.headerComments && arg.headerComments.length > 0) {
             // Fallback to legacy headerComments if no positioned comments
             const headerCommentBlocks = this.createCommentBlocks(arg.headerComments);
@@ -547,13 +549,20 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         }
         
         // Clear positioned comments to prevent duplicate processing (unified spec)
-        // Only clear for CASE expression components that are known to have duplication issues
-        const caseContainerTypes = [
+        // Only clear for specific component types that are known to have duplication issues
+        const componentsWithDuplicationIssues = [
             SqlPrintTokenContainerType.CaseExpression,
             SqlPrintTokenContainerType.SwitchCaseArgument,
-            SqlPrintTokenContainerType.CaseKeyValuePair
+            SqlPrintTokenContainerType.CaseKeyValuePair,
+            SqlPrintTokenContainerType.SelectClause,  // SELECT clauses have manual + automatic processing
+            SqlPrintTokenContainerType.LiteralValue,
+            SqlPrintTokenContainerType.IdentifierString,
+            SqlPrintTokenContainerType.DistinctOn,
+            SqlPrintTokenContainerType.SourceAliasExpression,
+            SqlPrintTokenContainerType.SimpleSelectQuery,
+            SqlPrintTokenContainerType.WhereClause  // WHERE clauses also have duplication issues
         ];
-        if (caseContainerTypes.includes(token.containerType as any)) {
+        if (componentsWithDuplicationIssues.includes(token.containerType as any)) {
             component.positionedComments = null;
         }
     }
@@ -960,6 +969,8 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         // Handle positioned comments for LiteralValue
         if (arg.positionedComments && arg.positionedComments.length > 0) {
             this.addPositionedCommentsToToken(token, arg);
+            // Clear positioned comments to prevent duplicate processing
+            arg.positionedComments = null;
         } else if (arg.comments && arg.comments.length > 0) {
             this.addCommentsToToken(token, arg.comments);
         }
@@ -1033,6 +1044,8 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         // Handle positioned comments for CaseKeyValuePair
         if (arg.positionedComments && arg.positionedComments.length > 0) {
             this.addPositionedCommentsToToken(token, arg);
+            // Clear positioned comments to prevent duplicate processing
+            arg.positionedComments = null;
         }
 
         // Create WHEN clause
@@ -1081,6 +1094,8 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
             
             // Add positioned comments
             this.addPositionedCommentsToToken(token, arg);
+            // Clear positioned comments to prevent duplicate processing
+            arg.positionedComments = null;
             
             // Add the identifier text as the main token
             const valueToken = new SqlPrintToken(SqlPrintTokenType.value, text);
@@ -1181,6 +1196,8 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         // Handle positioned comments for CaseExpression (unified spec: positioned comments only)
         if (arg.positionedComments && arg.positionedComments.length > 0) {
             this.addPositionedCommentsToToken(token, arg);
+            // Clear positioned comments to prevent duplicate processing
+            arg.positionedComments = null;
         }
 
         // Add the CASE keyword
@@ -1532,6 +1549,8 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         // Handle positioned comments for SelectClause (unified spec)
         if (arg.positionedComments && arg.positionedComments.length > 0) {
             this.addPositionedCommentsToToken(token, arg);
+            // Clear positioned comments to prevent duplicate processing
+            arg.positionedComments = null;
         }
 
         // Handle hints and DISTINCT as part of the keyword line
@@ -1592,6 +1611,8 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         // Handle positioned comments for Distinct (unified spec)
         if (arg.positionedComments && arg.positionedComments.length > 0) {
             this.addPositionedCommentsToToken(token, arg);
+            // Clear positioned comments to prevent duplicate processing
+            arg.positionedComments = null;
         }
         
         return token;
@@ -1786,6 +1807,8 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         // Handle positioned comments for SourceAliasExpression (alias name comments)
         if (arg.positionedComments && arg.positionedComments.length > 0) {
             this.addPositionedCommentsToToken(token, arg);
+            // Clear positioned comments to prevent duplicate processing
+            arg.positionedComments = null;
         } else if (arg.comments && arg.comments.length > 0) {
             this.addCommentsToToken(token, arg.comments);
         }
@@ -1966,6 +1989,8 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         // Handle positioned comments for SimpleSelectQuery (unified spec)
         if (arg.positionedComments && arg.positionedComments.length > 0) {
             this.addPositionedCommentsToToken(token, arg);
+            // Clear positioned comments to prevent duplicate processing
+            arg.positionedComments = null;
         } else if (arg.headerComments && arg.headerComments.length > 0) {
             // Fallback to legacy headerComments if no positioned comments
             const headerCommentBlocks = this.createCommentBlocks(arg.headerComments);

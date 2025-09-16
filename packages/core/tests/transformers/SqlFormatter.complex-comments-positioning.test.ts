@@ -47,7 +47,7 @@ FROM
             
             // Expected formatted output with current positioned comments system
             // Note: Comments now preserve source order - Global comes first (before WITH), then WITH clause comment (within WITH)
-            const expectedFormattedSql = `/* Global query comment */ with /* WITH clause comment */ "a" as (select 1 union all /* Second query comment */ select 2) /* Main query comment */ select * from "table" union all /* Union query comment */ select * from "table"`;
+            const expectedFormattedSql = `/* Global query comment */ /* WITH clause comment */ with "a" as (select 1 union all /* Second query comment */ select 2) /* Main query comment */ select * from "table" union all /* Union query comment */ select * from "table"`;
             
             console.log('\n=== Expected Output ===');
             console.log(expectedFormattedSql);
