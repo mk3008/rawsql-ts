@@ -610,7 +610,11 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         const commentBlocks: SqlPrintToken[] = [];
 
         for (const comment of comments) {
-            if (comment.trim()) {
+            // Accept comments that have content after trim OR are separator lines OR are empty (for structure preservation)
+            const trimmed = comment.trim();
+            const isSeparatorLine = /^[-=_+*#]+$/.test(trimmed);
+
+            if (trimmed || isSeparatorLine || comment === '') {
                 commentBlocks.push(this.createSingleCommentBlock(comment));
             }
         }
@@ -654,13 +658,15 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         const trimmed = comment.trim();
 
         // If it's already a line comment, preserve it
-        if (trimmed.startsWith('--')) {
+        // But exclude separator lines (lines with only dashes, equals, etc.)
+        if (trimmed.startsWith('--') && !/^--[-=_+*#]*$/.test(trimmed)) {
             return trimmed;
         }
 
         // If it's already a block comment, preserve it (but sanitize)
         if (trimmed.startsWith('/*') && trimmed.endsWith('*/')) {
-            return this.formatBlockComment(trimmed.slice(2, -2));
+            // Pass the entire comment including /* and */ for proper sanitization
+            return this.formatBlockComment(trimmed);
         }
 
         // For plain text comments, convert to block format
@@ -810,18 +816,31 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
      * Prevents SQL injection by removing dangerous comment sequences.
      */
     private formatBlockComment(comment: string): string {
-        // Remove dangerous comment termination sequences to prevent SQL injection
-        const sanitizedComment = comment
+        // Sanitize dangerous comment sequences to prevent SQL injection
+        let sanitizedComment = comment
             .replace(/\*\//g, '*') // Remove comment close sequences
-            .replace(/\/\*/g, '*') // Remove comment open sequences
-            .replace(/\r?\n/g, ' ') // Replace newlines with spaces for single-line comments
+            .replace(/\/\*/g, '*'); // Remove comment open sequences
+
+        // Check if this is a separator line (like ----------) before processing
+        const trimmed = sanitizedComment.trim();
+        const isSeparatorLine = /^[-=_+*#]+$/.test(trimmed);
+
+        if (isSeparatorLine) {
+            // For separator lines, preserve as-is (already sanitized above)
+            return `/* ${trimmed} */`;
+        }
+
+        // For multiline comments: convert newlines to spaces (security requirement)
+        sanitizedComment = sanitizedComment
+            .replace(/\r?\n/g, ' ') // Replace newlines with spaces
+            .replace(/\s+/g, ' ') // Collapse multiple spaces into single space
             .trim(); // Remove leading/trailing whitespace
-        
+
         // Return empty string if comment becomes empty after sanitization
         if (!sanitizedComment) {
             return '';
         }
-        
+
         return `/* ${sanitizedComment} */`;
     }
 
