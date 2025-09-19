@@ -93,76 +93,110 @@ export class CommandExpressionParser {
     ): { value: SwitchCaseArgument; newIndex: number; } {
         let idx = index;
         const whenThenList = [...initialWhenThenList];
-        let elseValue = null;
 
-        // Process WHEN clauses
+        // Parse all WHEN clauses
+        idx = this.parseAdditionalWhenClauses(lexemes, idx, whenThenList);
+
+        // Parse optional ELSE clause
+        const { elseValue, elseComments, newIndex: elseIndex } = this.parseElseClause(lexemes, idx);
+        idx = elseIndex;
+
+        // Parse required END clause
+        const { endComments, newIndex: endIndex } = this.parseEndClause(lexemes, idx);
+        idx = endIndex;
+
+        if (whenThenList.length === 0) {
+            throw new Error(`The CASE expression requires at least one WHEN clause (index ${idx})`);
+        }
+
+        // Create SwitchCaseArgument and apply comments directly
+        const switchCaseArg = new SwitchCaseArgument(whenThenList, elseValue);
+        this.applySwitchCaseComments(switchCaseArg, elseComments, endComments);
+
+        return { value: switchCaseArg, newIndex: idx };
+    }
+
+    // Parse additional WHEN clauses
+    private static parseAdditionalWhenClauses(lexemes: Lexeme[], index: number, whenThenList: CaseKeyValuePair[]): number {
+        let idx = index;
         while (idx < lexemes.length && this.isCommandWithValue(lexemes[idx], "when")) {
             idx++;
             const whenResult = this.parseCaseConditionValuePair(lexemes, idx);
             idx = whenResult.newIndex;
             whenThenList.push(whenResult.value);
         }
+        return idx;
+    }
 
-        // Process ELSE
-        let elseKeywordComments: string[] | null = null;
-        let elseKeywordPositionedComments: any = null;
+    // Parse optional ELSE clause
+    private static parseElseClause(lexemes: Lexeme[], index: number): { elseValue: any; elseComments: any; newIndex: number } {
+        let elseValue = null;
+        let elseComments = null;
+        let idx = index;
+
         if (idx < lexemes.length && this.isCommandWithValue(lexemes[idx], "else")) {
-            // Capture ELSE keyword comments before consuming
-            elseKeywordComments = lexemes[idx].comments;
-            elseKeywordPositionedComments = lexemes[idx].positionedComments;
+            // Extract comments from ELSE keyword before consuming
+            elseComments = this.extractKeywordComments(lexemes[idx]);
             idx++;
             const elseResult = ValueParser.parseFromLexeme(lexemes, idx);
             elseValue = elseResult.value;
             idx = elseResult.newIndex;
         }
 
-        // Process END
-        let endKeywordComments: string[] | null = null;
-        let endKeywordPositionedComments: any = null;
+        return { elseValue, elseComments, newIndex: idx };
+    }
+
+    // Parse required END clause
+    private static parseEndClause(lexemes: Lexeme[], index: number): { endComments: any; newIndex: number } {
+        let idx = index;
+        let endComments = null;
+
         if (idx < lexemes.length && this.isCommandWithValue(lexemes[idx], "end")) {
-            // Capture END keyword comments before consuming
-            endKeywordComments = lexemes[idx].comments;
-            endKeywordPositionedComments = lexemes[idx].positionedComments;
+            // Extract comments from END keyword before consuming
+            endComments = this.extractKeywordComments(lexemes[idx]);
             idx++;
         } else {
             throw new Error(`The CASE expression requires 'end' keyword at the end (index ${idx})`);
         }
 
-        if (whenThenList.length === 0) {
-            throw new Error(`The CASE expression requires at least one WHEN clause (index ${idx})`);
+        return { endComments, newIndex: idx };
+    }
+
+    // Extract comments from a keyword token
+    private static extractKeywordComments(token: Lexeme): { legacy: string[] | null; positioned: any } {
+        return {
+            legacy: token.comments,
+            positioned: token.positionedComments
+        };
+    }
+
+    // Apply comments to SwitchCaseArgument directly (no collection then assignment)
+    private static applySwitchCaseComments(switchCaseArg: SwitchCaseArgument, elseComments: any, endComments: any): void {
+        const allPositionedComments: any[] = [];
+        const allLegacyComments: string[] = [];
+
+        // Process ELSE comments directly
+        if (elseComments?.positioned && elseComments.positioned.length > 0) {
+            allPositionedComments.push(...elseComments.positioned);
+        }
+        if (elseComments?.legacy && elseComments.legacy.length > 0) {
+            allLegacyComments.push(...elseComments.legacy);
         }
 
-        // Create SwitchCaseArgument
-        const switchCaseArg = new SwitchCaseArgument(whenThenList, elseValue);
-        
-        // Store ELSE and END keyword comments 
-        // For now, we'll combine them and store on the SwitchCaseArgument
-        const allKeywordComments: string[] = [];
-        if (elseKeywordComments && elseKeywordComments.length > 0) {
-            allKeywordComments.push(...elseKeywordComments);
+        // Process END comments directly
+        if (endComments?.positioned && endComments.positioned.length > 0) {
+            allPositionedComments.push(...endComments.positioned);
         }
-        if (endKeywordComments && endKeywordComments.length > 0) {
-            allKeywordComments.push(...endKeywordComments);
+        if (endComments?.legacy && endComments.legacy.length > 0) {
+            allLegacyComments.push(...endComments.legacy);
         }
-        // Store positioned comments (combine ELSE and END) - unified spec: positioned comments only
-        const allPositionedComments: any[] = [];
-        if (elseKeywordPositionedComments && elseKeywordPositionedComments.length > 0) {
-            allPositionedComments.push(...elseKeywordPositionedComments);
-        }
-        if (endKeywordPositionedComments && endKeywordPositionedComments.length > 0) {
-            allPositionedComments.push(...endKeywordPositionedComments);
-        }
-        
-        // Convert legacy comments to positioned comments if no positioned comments exist
-        if (allPositionedComments.length === 0 && allKeywordComments.length > 0) {
-            allPositionedComments.push(CommandExpressionParser.convertLegacyToPositioned(allKeywordComments, 'after'));
-        }
-        
+
+        // Apply positioned comments directly, or convert legacy comments
         if (allPositionedComments.length > 0) {
             switchCaseArg.positionedComments = allPositionedComments;
+        } else if (allLegacyComments.length > 0) {
+            switchCaseArg.positionedComments = [CommandExpressionParser.convertLegacyToPositioned(allLegacyComments, 'after')];
         }
-
-        return { value: switchCaseArg, newIndex: idx };
     }
 
     // Helper method: Check if a lexeme is a Command token with the specified value
