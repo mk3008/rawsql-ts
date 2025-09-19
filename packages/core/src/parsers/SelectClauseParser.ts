@@ -101,28 +101,16 @@ export class SelectItemParser {
     public static parseItem(lexemes: Lexeme[], index: number): { value: SelectItem; newIndex: number } {
         let idx = index;
         
-        // Capture positioned comments from the value token (column/expression)
-        let valueTokenPositionedComments: { position: 'before' | 'after'; comments: string[] }[] = [];
-        if (idx < lexemes.length && lexemes[idx].positionedComments) {
-            valueTokenPositionedComments = lexemes[idx].positionedComments || [];
-        }
+        // Extract positioned comments from the value token directly
+        const valueTokenComments = this.extractValueTokenComments(lexemes, idx);
         
         const parsedValue = ValueParser.parseFromLexeme(lexemes, idx);
         const value = parsedValue.value;
         idx = parsedValue.newIndex;
 
-        let asKeywordComments: string[] | null = null;
-        let asKeywordPositionedComments: { position: 'before' | 'after'; comments: string[] }[] = [];
-        if (idx < lexemes.length && lexemes[idx].value === 'as') {
-            // Capture positioned comments from 'AS' keyword first
-            if (lexemes[idx].positionedComments && lexemes[idx].positionedComments!.length > 0) {
-                asKeywordPositionedComments = lexemes[idx].positionedComments!;
-            } else if (lexemes[idx].comments && lexemes[idx].comments!.length > 0) {
-                // Fallback to legacy comments
-                asKeywordComments = lexemes[idx].comments;
-            }
-            idx++;
-        }
+        // Parse optional AS keyword and extract comments directly
+        const { asComments, newIndex: asIndex } = this.parseAsKeyword(lexemes, idx);
+        idx = asIndex;
 
         if (idx < lexemes.length && (lexemes[idx].type & TokenType.Identifier)) {
             const alias = lexemes[idx].value;
@@ -131,44 +119,10 @@ export class SelectItemParser {
             idx++;
             const selectItem = new SelectItem(value, alias);
             
-            // Store positioned comments properly for correct formatting
-            // Add positioned comments from value token (before/after the column)
-            if (valueTokenPositionedComments.length > 0) {
-                for (const posComment of valueTokenPositionedComments) {
-                    selectItem.addPositionedComments(posComment.position, posComment.comments);
-                }
-                // Clear both positioned and legacy comments from the value to avoid duplication
-                if ('positionedComments' in selectItem.value) {
-                    (selectItem.value as any).positionedComments = null;
-                }
-                
-                // Also clear positioned comments from nested IdentifierString (in QualifiedName)
-                if (selectItem.value.constructor.name === 'ColumnReference') {
-                    const columnRef = selectItem.value as any;
-                    if (columnRef.qualifiedName && columnRef.qualifiedName.name) {
-                        columnRef.qualifiedName.name.positionedComments = null;
-                    }
-                }
-
-                // Clear positioned comments from BinaryExpression children only to avoid duplication
-                if (selectItem.value.constructor.name === 'BinaryExpression') {
-                    this.clearPositionedCommentsRecursively(selectItem.value);
-                }
-            }
-            
-            // Store AS keyword positioned comments and alias comments separately for proper positioning
-            if (asKeywordPositionedComments.length > 0) {
-                // AS keyword positioned comments need special handling - store them separately
-                (selectItem as any).asKeywordPositionedComments = asKeywordPositionedComments;
-            } else if (asKeywordComments && asKeywordComments.length > 0) {
-                (selectItem as any).asKeywordComments = asKeywordComments;
-            }
-            
-            if (aliasPositionedComments && aliasPositionedComments.length > 0) {
-                (selectItem as any).aliasPositionedComments = aliasPositionedComments;
-            } else if (aliasComments && aliasComments.length > 0) {
-                (selectItem as any).aliasComments = aliasComments;
-            }
+            // Apply all comments directly to selectItem (no collection then assignment)
+            this.applyValueTokenComments(selectItem, valueTokenComments);
+            this.applyAsKeywordComments(selectItem, asComments);
+            this.applyAliasComments(selectItem, aliasComments, aliasPositionedComments);
             
             return {
                 value: selectItem,
@@ -178,35 +132,9 @@ export class SelectItemParser {
             // nameless select item
             const selectItem = new SelectItem(value, value.column.name);
             
-            // Store positioned comments properly for correct formatting
-            // Add positioned comments from value token (before/after the column)
-            if (valueTokenPositionedComments.length > 0) {
-                for (const posComment of valueTokenPositionedComments) {
-                    selectItem.addPositionedComments(posComment.position, posComment.comments);
-                }
-                // Clear both positioned and legacy comments from the value to avoid duplication
-                if ('positionedComments' in selectItem.value) {
-                    (selectItem.value as any).positionedComments = null;
-                }
-                
-                // Also clear positioned comments from nested IdentifierString (in QualifiedName)
-                if (selectItem.value.constructor.name === 'ColumnReference') {
-                    const columnRef = selectItem.value as any;
-                    if (columnRef.qualifiedName && columnRef.qualifiedName.name) {
-                        columnRef.qualifiedName.name.positionedComments = null;
-                    }
-                }
-
-                // Clear positioned comments from BinaryExpression children only to avoid duplication
-                if (selectItem.value.constructor.name === 'BinaryExpression') {
-                    this.clearPositionedCommentsRecursively(selectItem.value);
-                }
-            }
-            
-            // Add AS keyword comments (after the AS keyword)
-            if (asKeywordComments && asKeywordComments.length > 0) {
-                selectItem.addPositionedComments('after', asKeywordComments);
-            }
+            // Apply value token and AS keyword comments directly
+            this.applyValueTokenComments(selectItem, valueTokenComments);
+            this.applyAsKeywordComments(selectItem, asComments);
             return {
                 value: selectItem,
                 newIndex: idx,
@@ -215,20 +143,9 @@ export class SelectItemParser {
         // nameless select item
         const selectItem = new SelectItem(value);
         
-        // Add positioned comments from value token
-        if (valueTokenPositionedComments.length > 0) {
-            for (const posComment of valueTokenPositionedComments) {
-                selectItem.addPositionedComments(posComment.position, posComment.comments);
-            }
-            // Clear positioned comments from BinaryExpression children only to avoid duplication
-            if (selectItem.value.constructor.name === 'BinaryExpression') {
-                this.clearPositionedCommentsRecursively(selectItem.value);
-            }
-        }
-        
-        if (asKeywordComments && asKeywordComments.length > 0) {
-            selectItem.addPositionedComments('after', asKeywordComments);
-        }
+        // Apply comments directly
+        this.applyValueTokenComments(selectItem, valueTokenComments);
+        this.applyAsKeywordComments(selectItem, asComments);
         return {
             value: selectItem,
             newIndex: idx,
@@ -271,6 +188,83 @@ export class SelectItemParser {
         }
         if (component.value) {
             this.clearPositionedCommentsRecursively(component.value);
+        }
+    }
+
+    // Extract positioned comments from value token (no collection arrays)
+    private static extractValueTokenComments(lexemes: Lexeme[], index: number): { positioned: any; legacy: string[] | null } {
+        if (index >= lexemes.length) {
+            return { positioned: null, legacy: null };
+        }
+
+        const token = lexemes[index];
+        return {
+            positioned: token.positionedComments && token.positionedComments.length > 0 ? token.positionedComments : null,
+            legacy: null // Value token legacy comments are not typically used
+        };
+    }
+
+    // Parse AS keyword and extract its comments directly
+    private static parseAsKeyword(lexemes: Lexeme[], index: number): { asComments: any; newIndex: number } {
+        if (index >= lexemes.length || lexemes[index].value !== 'as') {
+            return { asComments: { positioned: null, legacy: null }, newIndex: index };
+        }
+
+        const asToken = lexemes[index];
+        const asComments = {
+            positioned: asToken.positionedComments && asToken.positionedComments.length > 0 ? asToken.positionedComments : null,
+            legacy: asToken.comments && asToken.comments.length > 0 ? asToken.comments : null
+        };
+
+        return { asComments, newIndex: index + 1 };
+    }
+
+    // Apply value token comments directly to selectItem
+    private static applyValueTokenComments(selectItem: SelectItem, valueTokenComments: any): void {
+        if (valueTokenComments.positioned) {
+            for (const posComment of valueTokenComments.positioned) {
+                selectItem.addPositionedComments(posComment.position, posComment.comments);
+            }
+            this.clearValueTokenComments(selectItem);
+        }
+    }
+
+    // Apply AS keyword comments directly to selectItem
+    private static applyAsKeywordComments(selectItem: SelectItem, asComments: any): void {
+        if (asComments.positioned) {
+            (selectItem as any).asKeywordPositionedComments = asComments.positioned;
+        } else if (asComments.legacy) {
+            (selectItem as any).asKeywordComments = asComments.legacy;
+        }
+    }
+
+    // Apply alias comments directly to selectItem
+    private static applyAliasComments(selectItem: SelectItem, aliasComments: string[] | null, aliasPositionedComments: any): void {
+        if (aliasPositionedComments && aliasPositionedComments.length > 0) {
+            (selectItem as any).aliasPositionedComments = aliasPositionedComments;
+        } else if (aliasComments && aliasComments.length > 0) {
+            (selectItem as any).aliasComments = aliasComments;
+        }
+    }
+
+    // Clear positioned comments from value to avoid duplication
+    private static clearValueTokenComments(selectItem: SelectItem): void {
+        // Clear both positioned and legacy comments from the value to avoid duplication
+        if ('positionedComments' in selectItem.value) {
+            (selectItem.value as any).positionedComments = null;
+        }
+
+        // Also clear positioned comments from nested IdentifierString (in QualifiedName)
+        if (selectItem.value.constructor.name === 'ColumnReference') {
+            const columnRef = selectItem.value as any;
+            if (columnRef.qualifiedName && columnRef.qualifiedName.name) {
+                columnRef.qualifiedName.name.positionedComments = null;
+            }
+        }
+
+        // Clear positioned comments from BinaryExpression children only to avoid duplication
+        if (selectItem.value.constructor.name === 'BinaryExpression') {
+            this.clearPositionedCommentsRecursively(selectItem.value);
         }
     }
 }
