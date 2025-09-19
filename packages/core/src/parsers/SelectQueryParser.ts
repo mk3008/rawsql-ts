@@ -242,267 +242,296 @@ export class SelectQueryParser {
 
     private static parseSimpleSelectQuery(lexemes: Lexeme[], index: number): { value: SimpleSelectQuery; newIndex: number } {
         let idx = index;
+
+        // 1. Parse optional WITH clause and collect header comments
+        const { withClauseResult, newIndex: withEndIndex, selectQuery: queryTemplate } = this.parseWithClauseAndComments(lexemes, idx);
+        idx = withEndIndex;
+
+        // 2. Parse all SQL clauses sequentially
+        const { clauses, newIndex: clausesEndIndex } = this.parseAllClauses(lexemes, idx, withClauseResult);
+        idx = clausesEndIndex;
+
+        // 3. Create final query with parsed clauses
+        const selectQuery = new SimpleSelectQuery({
+            withClause: withClauseResult ? withClauseResult.value : null,
+            ...clauses
+        });
+
+        // 4. Apply collected comments directly to the query
+        this.applyCommentsToQuery(selectQuery, queryTemplate, withClauseResult);
+
+        return { value: selectQuery, newIndex: idx };
+    }
+
+    // Parse WITH clause and collect header comments
+    private static parseWithClauseAndComments(lexemes: Lexeme[], index: number): {
+        withClauseResult: any;
+        newIndex: number;
+        selectQuery: { headerComments?: string[]; betweenClauseComments?: string[]; mainSelectPrefixComments?: string[] }
+    } {
+        let idx = index;
         let withClauseResult = null;
+        const queryTemplate: any = {};
 
-        // Collect headerComments before WITH clause or SELECT clause
+        // Collect header comments before WITH or SELECT
+        queryTemplate.headerComments = this.collectHeaderComments(lexemes, idx);
+
+        // Skip to WITH or SELECT token
+        while (idx < lexemes.length &&
+               lexemes[idx].value.toLowerCase() !== 'with' &&
+               lexemes[idx].value.toLowerCase() !== 'select') {
+            idx++;
+        }
+
+        // Collect 'before' comments from WITH token
+        if (idx < lexemes.length && lexemes[idx].value.toLowerCase() === 'with') {
+            this.collectWithTokenHeaderComments(lexemes[idx], queryTemplate);
+        }
+
+        // Parse WITH clause if present
+        if (idx < lexemes.length && lexemes[idx].value === 'with') {
+            withClauseResult = WithClauseParser.parseFromLexeme(lexemes, idx);
+            idx = withClauseResult.newIndex;
+
+            // Collect comments between WITH clause and SELECT
+            queryTemplate.mainSelectPrefixComments = this.collectMainSelectPrefixComments(lexemes, withClauseResult, idx);
+            queryTemplate.betweenClauseComments = this.collectBetweenClauseComments(lexemes, withClauseResult, idx);
+        }
+
+        return { withClauseResult, newIndex: idx, selectQuery: queryTemplate };
+    }
+
+    // Parse all SQL clauses (SELECT, FROM, WHERE, etc.)
+    private static parseAllClauses(lexemes: Lexeme[], index: number, withClauseResult: any): {
+        clauses: any;
+        newIndex: number
+    } {
+        let idx = index;
+
+        // Find and parse SELECT clause
+        idx = this.findMainSelectToken(lexemes, idx, withClauseResult);
+        this.collectSelectTokenComments(lexemes, idx);
+
+        const selectClauseResult = SelectClauseParser.parseFromLexeme(lexemes, idx);
+        idx = selectClauseResult.newIndex;
+
+        // Parse optional clauses
+        const fromClauseResult = this.parseOptionalClause(lexemes, idx, 'from', FromClauseParser);
+        idx = fromClauseResult.newIndex;
+
+        const whereClauseResult = this.parseOptionalClause(lexemes, fromClauseResult.newIndex, 'where', WhereClauseParser);
+        idx = whereClauseResult.newIndex;
+
+        const groupByClauseResult = this.parseOptionalClause(lexemes, whereClauseResult.newIndex, 'group by', GroupByClauseParser);
+        idx = groupByClauseResult.newIndex;
+
+        const havingClauseResult = this.parseOptionalClause(lexemes, groupByClauseResult.newIndex, 'having', HavingClauseParser);
+        idx = havingClauseResult.newIndex;
+
+        const windowClauseResult = this.parseOptionalClause(lexemes, havingClauseResult.newIndex, 'window', WindowClauseParser);
+        idx = windowClauseResult.newIndex;
+
+        const orderByClauseResult = this.parseOptionalClause(lexemes, windowClauseResult.newIndex, 'order by', OrderByClauseParser);
+        idx = orderByClauseResult.newIndex;
+
+        const limitClauseResult = this.parseOptionalClause(lexemes, orderByClauseResult.newIndex, 'limit', LimitClauseParser);
+        idx = limitClauseResult.newIndex;
+
+        const offsetClauseResult = this.parseOptionalClause(lexemes, limitClauseResult.newIndex, 'offset', OffsetClauseParser);
+        idx = offsetClauseResult.newIndex;
+
+        const fetchClauseResult = this.parseOptionalClause(lexemes, offsetClauseResult.newIndex, 'fetch', FetchClauseParser);
+        idx = fetchClauseResult.newIndex;
+
+        const forClauseResult = this.parseOptionalClause(lexemes, fetchClauseResult.newIndex, 'for', ForClauseParser);
+        idx = forClauseResult.newIndex;
+
+        const clauses = {
+            selectClause: selectClauseResult.value,
+            fromClause: fromClauseResult.value,
+            whereClause: whereClauseResult.value,
+            groupByClause: groupByClauseResult.value,
+            havingClause: havingClauseResult.value,
+            orderByClause: orderByClauseResult.value,
+            windowClause: windowClauseResult.value,
+            limitClause: limitClauseResult.value,
+            offsetClause: offsetClauseResult.value,
+            fetchClause: fetchClauseResult.value,
+            forClause: forClauseResult.value
+        };
+
+        return { clauses, newIndex: idx };
+    }
+
+    // Helper to parse optional clauses
+    private static parseOptionalClause(lexemes: Lexeme[], index: number, keyword: string, parser: any): { value: any; newIndex: number } {
+        if (index < lexemes.length && lexemes[index].value.toLowerCase() === keyword) {
+            return parser.parseFromLexeme(lexemes, index);
+        }
+        return { value: null, newIndex: index };
+    }
+
+    // Collect header comments before meaningful tokens
+    private static collectHeaderComments(lexemes: Lexeme[], startIndex: number): string[] {
         const headerComments: string[] = [];
+        let idx = startIndex;
 
-        // Collect comments that appear before the first meaningful token (WITH or SELECT)
-        // These are considered header comments for the main query
-        while (idx < lexemes.length && lexemes[idx].value.toLowerCase() !== 'with' && lexemes[idx].value.toLowerCase() !== 'select') {
-            // Check positioned comments
-            const tokenPositionedComments = lexemes[idx].positionedComments;
-            if (tokenPositionedComments) {
-                for (const posComment of tokenPositionedComments) {
+        while (idx < lexemes.length &&
+               lexemes[idx].value.toLowerCase() !== 'with' &&
+               lexemes[idx].value.toLowerCase() !== 'select') {
+
+            const token = lexemes[idx];
+            if (token.positionedComments) {
+                for (const posComment of token.positionedComments) {
                     if (posComment.comments) {
                         headerComments.push(...posComment.comments);
                     }
                 }
             }
-
-            // Check legacy comments for backward compatibility
-            const tokenComments = lexemes[idx].comments;
-            if (tokenComments && tokenComments.length > 0) {
-                headerComments.push(...tokenComments);
+            if (token.comments && token.comments.length > 0) {
+                headerComments.push(...token.comments);
             }
             idx++;
         }
 
-        // Collect 'before' positioned comments from WITH token as header comments
-        // 'after' positioned comments from WITH token should go to CTE
-        if (idx < lexemes.length && lexemes[idx].value.toLowerCase() === 'with') {
-            const withTokenPositionedComments = lexemes[idx].positionedComments;
-            if (withTokenPositionedComments) {
-                for (const posComment of withTokenPositionedComments) {
-                    if (posComment.position === 'before' && posComment.comments) {
-                        headerComments.push(...posComment.comments);
-                    }
-                }
+        return headerComments;
+    }
+
+    // Collect 'before' positioned comments from WITH token
+    private static collectWithTokenHeaderComments(withToken: Lexeme, queryTemplate: any): void {
+        if (!withToken.positionedComments) return;
+
+        if (!queryTemplate.headerComments) queryTemplate.headerComments = [];
+
+        for (const posComment of withToken.positionedComments) {
+            if (posComment.position === 'before' && posComment.comments) {
+                queryTemplate.headerComments.push(...posComment.comments);
             }
         }
+    }
 
-        // Parse optional WITH clause
-        if (idx < lexemes.length && lexemes[idx].value === 'with') {
-            withClauseResult = WithClauseParser.parseFromLexeme(lexemes, idx);
-            idx = withClauseResult.newIndex;
-
-            // Do NOT collect headerComments from WithClauseParser anymore
-            // CTE comments should remain with their respective CTEs
-        }
-
-        // Collect comments from WITH clause
-        const withTrailingComments: string[] = [];
-
-        // Collect comments that appear between WITH clause end and SELECT keyword
-        // These should be positioned comments (before) for main SELECT
+    // Collect comments between WITH clause and main SELECT
+    private static collectMainSelectPrefixComments(lexemes: Lexeme[], withClauseResult: any, currentIndex: number): string[] {
         const mainSelectPrefixComments: string[] = [];
 
-        // Get trailing comments from WITH clause (these are comments after WITH clause, meant for main query)
+        // Get trailing comments from WITH clause
         if (withClauseResult?.value.trailingComments) {
-            withTrailingComments.push(...withClauseResult.value.trailingComments);
-            // These trailing comments should be positioned comments (before) for main SELECT
             mainSelectPrefixComments.push(...withClauseResult.value.trailingComments);
         }
 
-        // Find the main SELECT token (not the one inside CTE)
-        let mainSelectIdx = -1;
-        if (withClauseResult) {
-            // Start looking after the WITH clause ended
-            for (let i = withClauseResult.newIndex; i < lexemes.length; i++) {
-                if (lexemes[i].value.toLowerCase() === 'select') {
-                    mainSelectIdx = i;
-                    break;
-                }
-            }
-        } else {
-            // No WITH clause, just find the first SELECT
-            mainSelectIdx = idx;
-        }
+        // Find main SELECT token
+        const mainSelectIdx = this.findMainSelectIndex(lexemes, withClauseResult, currentIndex);
 
-        // Scan tokens from end of WITH clause to main SELECT
+        // Scan tokens between WITH end and main SELECT
         if (withClauseResult && mainSelectIdx > withClauseResult.newIndex) {
             for (let tempIdx = withClauseResult.newIndex; tempIdx < mainSelectIdx; tempIdx++) {
-                // Check positioned comments
-                const tokenPositionedComments = lexemes[tempIdx].positionedComments;
-                if (tokenPositionedComments) {
-                    for (const posComment of tokenPositionedComments) {
+                const token = lexemes[tempIdx];
+                if (token.positionedComments) {
+                    for (const posComment of token.positionedComments) {
                         if (posComment.comments) {
                             mainSelectPrefixComments.push(...posComment.comments);
                         }
                     }
                 }
-
-                // Check legacy comments for backward compatibility
-                const tokenComments = lexemes[tempIdx].comments;
-                if (tokenComments && tokenComments.length > 0) {
-                    mainSelectPrefixComments.push(...tokenComments);
-                }
-            }
-        }
-
-        // Update idx to point to the main SELECT token
-        if (mainSelectIdx >= 0) {
-            idx = mainSelectIdx;
-        }
-
-        // Parse SELECT clause (required)
-        if (idx >= lexemes.length || lexemes[idx].value !== 'select') {
-            throw new Error(`Syntax error at position ${idx}: Expected 'SELECT' keyword but found "${idx < lexemes.length ? lexemes[idx].value : 'end of input'}". SELECT queries must start with the SELECT keyword.`);
-        }
-
-        // Also collect comments attached to the SELECT token itself as headerComments
-        const selectTokenComments = lexemes[idx].comments;
-        if (selectTokenComments && selectTokenComments.length > 0) {
-            headerComments.push(...selectTokenComments);
-            // Clear the comments from the SELECT token to avoid duplication
-            lexemes[idx].comments = null;
-        }
-
-        // Also collect positioned comments from SELECT token as headerComments
-        const selectTokenPositionedComments = lexemes[idx].positionedComments;
-        if (selectTokenPositionedComments && selectTokenPositionedComments.length > 0) {
-            for (const posComment of selectTokenPositionedComments) {
-                if (posComment.position === 'before' && posComment.comments) {
-                    headerComments.push(...posComment.comments);
-                }
-            }
-            // Clear the positioned comments from SELECT token to avoid duplication
-            lexemes[idx].positionedComments = undefined;
-        }
-
-        // Collect comments from tokens between WITH clause end and SELECT clause start
-        // These are typically comments that appear between clauses like "WITH ... ) /* comment */ SELECT ..."
-        let betweenClauseComments: string[] = [];
-        if (withClauseResult) {
-            // Scan tokens from end of WITH clause up to (but not including) the SELECT token
-            // We need to include tokens that might have "after" positioned comments from WITH clause
-            const withEndIndex = withClauseResult.newIndex;
-            const scanStartIndex = Math.max(0, withEndIndex - 1); // Include the last token of WITH clause
-            for (let i = scanStartIndex; i < idx; i++) {
-                const token = lexemes[i];
-
-                // Collect positioned comments
-                if (token.positionedComments && token.positionedComments.length > 0) {
-                    for (const posComment of token.positionedComments) {
-                        if (posComment.comments) {
-                            betweenClauseComments.push(...posComment.comments);
-                        }
-                    }
-                    token.positionedComments = undefined; // Clear to avoid duplication
-                }
-
-                // Collect legacy comments
                 if (token.comments && token.comments.length > 0) {
-                    betweenClauseComments.push(...token.comments);
-                    token.comments = null; // Clear to avoid duplication
+                    mainSelectPrefixComments.push(...token.comments);
                 }
             }
         }
 
-        const selectClauseResult = SelectClauseParser.parseFromLexeme(lexemes, idx);
-        idx = selectClauseResult.newIndex;
+        return mainSelectPrefixComments;
+    }
 
+    // Collect comments between clauses
+    private static collectBetweenClauseComments(lexemes: Lexeme[], withClauseResult: any, currentIndex: number): string[] {
+        if (!withClauseResult) return [];
 
-        // Parse FROM clause (optional)
-        let fromClauseResult = null;
-        if (idx < lexemes.length && lexemes[idx].value === 'from') {
-            fromClauseResult = FromClauseParser.parseFromLexeme(lexemes, idx);
-            idx = fromClauseResult.newIndex;
+        const betweenClauseComments: string[] = [];
+        const withEndIndex = withClauseResult.newIndex;
+        const scanStartIndex = Math.max(0, withEndIndex - 1);
+
+        for (let i = scanStartIndex; i < currentIndex; i++) {
+            const token = lexemes[i];
+
+            if (token.positionedComments && token.positionedComments.length > 0) {
+                for (const posComment of token.positionedComments) {
+                    if (posComment.comments) {
+                        betweenClauseComments.push(...posComment.comments);
+                    }
+                }
+                token.positionedComments = undefined;
+            }
+
+            if (token.comments && token.comments.length > 0) {
+                betweenClauseComments.push(...token.comments);
+                token.comments = null;
+            }
         }
 
-        // Parse WHERE clause (optional)
-        let whereClauseResult = null;
-        if (idx < lexemes.length && lexemes[idx].value === 'where') {
-            whereClauseResult = WhereClauseParser.parseFromLexeme(lexemes, idx);
-            idx = whereClauseResult.newIndex;
+        return betweenClauseComments;
+    }
+
+    // Find main SELECT token index
+    private static findMainSelectIndex(lexemes: Lexeme[], withClauseResult: any, fallbackIndex: number): number {
+        if (withClauseResult) {
+            for (let i = withClauseResult.newIndex; i < lexemes.length; i++) {
+                if (lexemes[i].value.toLowerCase() === 'select') {
+                    return i;
+                }
+            }
+        }
+        return fallbackIndex;
+    }
+
+    // Find and validate main SELECT token
+    private static findMainSelectToken(lexemes: Lexeme[], index: number, withClauseResult: any): number {
+        const mainSelectIdx = this.findMainSelectIndex(lexemes, withClauseResult, index);
+
+        if (mainSelectIdx >= lexemes.length || lexemes[mainSelectIdx].value !== 'select') {
+            throw new Error(`Syntax error at position ${mainSelectIdx}: Expected 'SELECT' keyword but found "${mainSelectIdx < lexemes.length ? lexemes[mainSelectIdx].value : 'end of input'}". SELECT queries must start with the SELECT keyword.`);
         }
 
-        // Parse GROUP BY clause (optional)
-        let groupByClauseResult = null;
-        if (idx < lexemes.length && lexemes[idx].value === 'group by') {
-            groupByClauseResult = GroupByClauseParser.parseFromLexeme(lexemes, idx);
-            idx = groupByClauseResult.newIndex;
+        return mainSelectIdx;
+    }
+
+    // Collect and clear comments from SELECT token
+    private static collectSelectTokenComments(lexemes: Lexeme[], selectIndex: number): string[] {
+        const selectToken = lexemes[selectIndex];
+        const selectComments: string[] = [];
+
+        if (selectToken.comments && selectToken.comments.length > 0) {
+            selectComments.push(...selectToken.comments);
+            selectToken.comments = null;
         }
 
-        // Parse HAVING clause (optional)
-        let havingClauseResult = null;
-        if (idx < lexemes.length && lexemes[idx].value === 'having') {
-            havingClauseResult = HavingClauseParser.parseFromLexeme(lexemes, idx);
-            idx = havingClauseResult.newIndex;
+        if (selectToken.positionedComments && selectToken.positionedComments.length > 0) {
+            for (const posComment of selectToken.positionedComments) {
+                if (posComment.position === 'before' && posComment.comments) {
+                    selectComments.push(...posComment.comments);
+                }
+            }
+            selectToken.positionedComments = undefined;
         }
 
-        // Parse WINDOW clause (optional)
-        let windowClauseResult = null;
-        if (idx < lexemes.length && lexemes[idx].value === 'window') {
-            windowClauseResult = WindowClauseParser.parseFromLexeme(lexemes, idx);
-            idx = windowClauseResult.newIndex;
+        return selectComments;
+    }
+
+    // Apply all collected comments directly to the query
+    private static applyCommentsToQuery(selectQuery: SimpleSelectQuery, queryTemplate: any, withClauseResult: any): void {
+        // Apply header comments directly
+        if (queryTemplate.headerComments?.length > 0) {
+            selectQuery.headerComments = queryTemplate.headerComments;
         }
 
-        // Parse ORDER BY clause (optional)
-        let orderByClauseResult = null;
-        if (idx < lexemes.length && lexemes[idx].value === 'order by') {
-            orderByClauseResult = OrderByClauseParser.parseFromLexeme(lexemes, idx);
-            idx = orderByClauseResult.newIndex;
+        // Apply main SELECT prefix comments as positioned comments
+        if (queryTemplate.mainSelectPrefixComments?.length > 0) {
+            selectQuery.addPositionedComments('before', queryTemplate.mainSelectPrefixComments);
         }
 
-        // Parse LIMIT clause (optional)
-        let limitClauseResult = null;
-        if (idx < lexemes.length && lexemes[idx].value === 'limit') {
-            limitClauseResult = LimitClauseParser.parseFromLexeme(lexemes, idx);
-            idx = limitClauseResult.newIndex;
+        // Apply between-clause comments
+        if (queryTemplate.betweenClauseComments?.length > 0) {
+            selectQuery.comments = queryTemplate.betweenClauseComments;
         }
-
-        // Parse OFFSET clause (optional)
-        let offsetClauseResult = null;
-        if (idx < lexemes.length && lexemes[idx].value === 'offset') {
-            offsetClauseResult = OffsetClauseParser.parseFromLexeme(lexemes, idx);
-            idx = offsetClauseResult.newIndex;
-        }
-
-        // Parse FETCH clause (optional)
-        let fetchClauseResult = null;
-        if (idx < lexemes.length && lexemes[idx].value === 'fetch') {
-            fetchClauseResult = FetchClauseParser.parseFromLexeme(lexemes, idx);
-            idx = fetchClauseResult.newIndex;
-        }
-
-        // Parse FOR clause (optional)
-        let forClauseResult = null;
-        if (idx < lexemes.length && lexemes[idx].value.toLowerCase() === 'for') {
-            forClauseResult = ForClauseParser.parseFromLexeme(lexemes, idx);
-            idx = forClauseResult.newIndex;
-        }
-
-        // Create and return the SelectQuery object
-        const selectQuery = new SimpleSelectQuery({
-            withClause: withClauseResult ? withClauseResult.value : null,
-            selectClause: selectClauseResult.value,
-            fromClause: fromClauseResult ? fromClauseResult.value : null,
-            whereClause: whereClauseResult ? whereClauseResult.value : null,
-            groupByClause: groupByClauseResult ? groupByClauseResult.value : null,
-            havingClause: havingClauseResult ? havingClauseResult.value : null,
-            orderByClause: orderByClauseResult ? orderByClauseResult.value : null,
-            windowClause: windowClauseResult ? windowClauseResult.value : null,
-            limitClause: limitClauseResult ? limitClauseResult.value : null,
-            offsetClause: offsetClauseResult ? offsetClauseResult.value : null,
-            fetchClause: fetchClauseResult ? fetchClauseResult.value : null,
-            forClause: forClauseResult ? forClauseResult.value : null
-        });
-
-        // Set headerComments and query-level comments from collected sources to the query object
-        selectQuery.headerComments = headerComments.length > 0 ? headerComments : null;
-
-        // Set main SELECT prefix comments as positioned comments (before)
-        if (mainSelectPrefixComments.length > 0) {
-            selectQuery.addPositionedComments('before', mainSelectPrefixComments);
-        }
-
-        // Set between-clause comments as regular comments on the SimpleSelectQuery
-        if (betweenClauseComments.length > 0) {
-            selectQuery.comments = betweenClauseComments;
-        }
-
-        return { value: selectQuery, newIndex: idx };
     }
 
     private static parseValuesQuery(lexemes: Lexeme[], index: number): { value: SelectQuery; newIndex: number } {
