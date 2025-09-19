@@ -386,6 +386,29 @@ const FORMATTER_CONFIGS = [
         }
     },
     {
+        name: 'Smart Comment Style',
+        key: 'smart_comment',
+        options: {
+            identifierEscape: { start: '"', end: '"' },
+            parameterSymbol: '$',
+            parameterStyle: 'indexed',
+            indentSize: 4,
+            indentChar: ' ',
+            newline: '\n',
+            keywordCase: 'upper',
+            commaBreak: 'after', // After comma works well with smart comments
+            andBreak: 'before',
+            exportComment: true,
+            commentStyle: 'smart', // Enable smart comment processing
+            parenthesesOneLine: false,
+            betweenOneLine: false,
+            valuesOneLine: false,
+            joinOneLine: false,
+            caseOneLine: false,
+            subqueryOneLine: false
+        }
+    },
+    {
         name: 'Optimized Style',
         key: 'optimized',
         options: {
@@ -471,32 +494,46 @@ function analyzeComments(originalSql, formattedSql) {
  */
 function generateReport(results) {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const reportPath = path.join(reportDir, `sql-demo-report-${timestamp}.md`);
+    const generatedPaths = [];
 
-    let report = `# Complex SQL Formatting Demo Report\n\n`;
-    report += `📅 Generated: ${new Date().toLocaleString('en-US')}\n`;
-    report += `🎯 Purpose: Verification of positioned comments system and SQL formatting quality\n\n`;
-
-    // Summary
-    report += `## 📊 Execution Summary\n\n`;
-    report += `| SQL Sample | Configs | Avg Performance | Avg Comment Preservation |\n`;
-    report += `|------------|---------|-----------------|-------------------------|\n`;
-
-    Object.keys(results).forEach(sqlKey => {
-        const sqlResults = results[sqlKey];
-        const avgPerformance = (sqlResults.reduce((sum, r) => sum + r.performance.total, 0) / sqlResults.length).toFixed(1);
-        const avgPreservation = (sqlResults.reduce((sum, r) => sum + parseFloat(r.comments.preservationRate), 0) / sqlResults.length).toFixed(1);
-
-        report += `| ${sqlKey} | ${sqlResults.length} | ${avgPerformance}ms | ${avgPreservation}% |\n`;
+    // Generate individual reports for each formatting style
+    FORMATTER_CONFIGS.forEach(config => {
+        const stylePath = generateStyleReport(results, config, timestamp);
+        generatedPaths.push(stylePath);
     });
 
-    // Detailed results
+    // Generate summary report
+    const summaryPath = generateSummaryReport(results, timestamp);
+    generatedPaths.push(summaryPath);
+
+    return generatedPaths;
+}
+
+function generateStyleReport(results, config, timestamp) {
+    const reportPath = path.join(reportDir, `sql-format-report-${timestamp}-${config.key}.md`);
+
+    let report = `# Complex SQL Formatting Demo - ${config.name}\n\n`;
+    report += `📅 Generated: ${new Date().toLocaleString('en-US')}\n`;
+    report += `🎯 Purpose: Verification of positioned comments system and SQL formatting quality\n`;
+    report += `⚙️ Configuration: ${config.name}\n\n`;
+
+    // Configuration details
+    report += `## 📋 Configuration Details\n\n`;
+    report += `| Setting | Value |\n`;
+    report += `|---------|-------|\n`;
+    report += `| Comma Break | ${config.options.commaBreak} |\n`;
+    report += `| Comment Style | ${config.options.commentStyle || 'block'} |\n`;
+    report += `| Keyword Case | ${config.options.keywordCase} |\n`;
+    report += `| Indent Size | ${config.options.indentSize} |\n`;
+    report += `| Newline | ${config.options.newline === '\\n' ? 'LF' : 'CRLF'} |\n\n`;
+
+    // Results for this specific style
     Object.keys(results).forEach(sqlKey => {
         const sqlResults = results[sqlKey];
-        report += `\n## 🔍 ${sqlKey} Detailed Results\n\n`;
+        const result = sqlResults.find(r => r.configKey === config.key);
 
-        sqlResults.forEach(result => {
-            report += `### ${result.configName}\n\n`;
+        if (result) {
+            report += `## 🔍 ${sqlKey}\n\n`;
 
             // Performance
             report += `**⏱️ Performance:**\n`;
@@ -514,35 +551,113 @@ function generateReport(results) {
             // Comment analysis
             if (result.comments.lostComments.length > 0) {
                 report += `**❌ Lost Comments (${result.comments.lostComments.length} items):**\n`;
-                result.comments.lostComments.slice(0, 5).forEach(comment => {
-                    report += `- "${comment}"\n`;
+                result.comments.lostComments.slice(0, 3).forEach(comment => {
+                    report += `- "${comment.substring(0, 80)}${comment.length > 80 ? '...' : ''}"\n`;
                 });
-                if (result.comments.lostComments.length > 5) {
-                    report += `- ... ${result.comments.lostComments.length - 5} more\n`;
+                if (result.comments.lostComments.length > 3) {
+                    report += `- ... ${result.comments.lostComments.length - 3} more\n`;
                 }
                 report += `\n`;
             }
 
-            if (result.comments.duplicatedComments.length > 0) {
-                report += `**⚠️ Duplicated Comments (${result.comments.duplicatedComments.length} types):**\n`;
-                result.comments.duplicatedComments.slice(0, 3).forEach(comment => {
-                    report += `- "${comment}"\n`;
-                });
-                report += `\n`;
-            }
-
-            // Original SQL
-            report += `**📄 Original SQL:**\n`;
-            report += `\`\`\`sql\n`;
-            report += result.originalSql.trim();
-            report += `\n\`\`\`\n\n`;
-
-            // Formatted SQL sample (full text)
-            report += `**📝 Formatted SQL (full text):**\n`;
+            // Formatted SQL result
+            report += `**📝 Formatted SQL:**\n`;
             report += `\`\`\`sql\n`;
             report += result.formattedSql;
             report += `\n\`\`\`\n\n`;
+        }
+    });
+
+    // Style-specific notes
+    report += `## 💡 Style Notes\n\n`;
+    if (config.key === 'smart_comment') {
+        report += `- **Smart Comment Style**: Single-line block comments converted to \`--\` format\n`;
+        report += `- **Multi-line Support**: Consecutive comments maintained as block format\n`;
+        report += `- **Performance**: Optimized for readability and comma break compatibility\n\n`;
+    } else if (config.options.commaBreak === 'after') {
+        report += `- **After Comma Style**: Commas placed at end of lines with newlines after\n`;
+        report += `- **Readability**: Improved scan-ability for field lists\n`;
+    } else if (config.options.commaBreak === 'before') {
+        report += `- **Before Comma Style**: Commas placed at start of lines\n`;
+        report += `- **Traditional**: Classic SQL formatting approach\n`;
+    } else {
+        report += `- **Optimized Style**: Balanced formatting for performance and readability\n`;
+    }
+
+    // Footer
+    report += `---\n`;
+    report += `📁 Report saved to: \`${reportPath}\`\n`;
+    report += `🔧 Run command: \`npm run demo:complex-sql\`\n`;
+
+    fs.writeFileSync(reportPath, report);
+    return reportPath;
+}
+
+function generateSummaryReport(results, timestamp) {
+    const reportPath = path.join(reportDir, `sql-format-report-${timestamp}-summary.md`);
+
+    let report = `# Complex SQL Formatting Demo - Summary Report\n\n`;
+    report += `📅 Generated: ${new Date().toLocaleString('en-US')}\n`;
+    report += `🎯 Purpose: Verification of positioned comments system and SQL formatting quality\n\n`;
+
+    // Summary
+    report += `## 📊 Execution Summary\n\n`;
+    report += `| SQL Sample | Configs | Avg Performance | Avg Comment Preservation |\n`;
+    report += `|------------|---------|-----------------|-------------------------|\n`;
+
+    Object.keys(results).forEach(sqlKey => {
+        const sqlResults = results[sqlKey];
+        const avgPerformance = (sqlResults.reduce((sum, r) => sum + r.performance.total, 0) / sqlResults.length).toFixed(1);
+        const avgPreservation = (sqlResults.reduce((sum, r) => sum + parseFloat(r.comments.preservationRate), 0) / sqlResults.length).toFixed(1);
+
+        report += `| ${sqlKey} | ${sqlResults.length} | ${avgPerformance}ms | ${avgPreservation}% |\n`;
+    });
+
+    // Original SQL samples
+    report += `\n## 📋 Original SQL Samples\n\n`;
+    Object.keys(COMPLEX_SQL_SAMPLES).forEach(sqlKey => {
+        report += `### ${sqlKey}\n\n`;
+        report += `**Lines:** ${COMPLEX_SQL_SAMPLES[sqlKey].split('\n').length}\n`;
+        report += `**Characters:** ${COMPLEX_SQL_SAMPLES[sqlKey].length}\n\n`;
+        report += `\`\`\`sql\n`;
+        report += COMPLEX_SQL_SAMPLES[sqlKey].trim();
+        report += `\n\`\`\`\n\n`;
+    });
+
+    // Style comparison
+    report += `## 🎨 Style Comparison\n\n`;
+    report += `| Style | Performance | Comment Preservation | Notes |\n`;
+    report += `|-------|-------------|---------------------|-------|\n`;
+
+    FORMATTER_CONFIGS.forEach(config => {
+        let totalPerf = 0;
+        let totalPres = 0;
+        let count = 0;
+
+        Object.keys(results).forEach(sqlKey => {
+            const result = results[sqlKey].find(r => r.configKey === config.key);
+            if (result) {
+                totalPerf += result.performance.total;
+                totalPres += parseFloat(result.comments.preservationRate);
+                count++;
+            }
         });
+
+        const avgPerf = count > 0 ? (totalPerf / count).toFixed(1) : '0';
+        const avgPres = count > 0 ? (totalPres / count).toFixed(1) : '0';
+
+        let notes = '';
+        if (config.key === 'smart_comment') {
+            notes = 'Smart comment conversion';
+        } else if (config.options.commaBreak === 'after') {
+            notes = 'After comma style';
+        } else if (config.options.commaBreak === 'before') {
+            notes = 'Before comma style';
+        } else {
+            notes = 'Optimized format';
+        }
+
+        report += `| ${config.name} | ${avgPerf}ms | ${avgPres}% | ${notes} |\n`;
     });
 
     // Recommendations
@@ -668,13 +783,21 @@ async function runDemo() {
         console.log('');
     }
 
-    // Generate report
-    console.log('📄 Generating report...');
-    const reportPath = generateReport(results);
+    // Generate reports
+    console.log('📄 Generating reports...');
+    const reportPaths = generateReport(results);
 
     console.log('\n🎉 Demo execution completed!');
     console.log('━'.repeat(80));
-    console.log(`📁 Detailed report: ${reportPath}`);
+    console.log('📁 Generated reports:');
+    reportPaths.forEach((path, index) => {
+        const filename = path.split('/').pop();
+        if (filename.includes('summary')) {
+            console.log(`   📋 Summary: ${filename}`);
+        } else {
+            console.log(`   📄 Style: ${filename}`);
+        }
+    });
     console.log('🔄 Use for continuous quality verification');
     console.log('');
 
@@ -687,7 +810,7 @@ async function runDemo() {
         console.log(`  ${sqlKey}: ${avgPreservation}% ${hasErrors ? '❌' : '✅'}`);
     });
 
-    return reportPath;
+    return reportPaths;
 }
 
 // CLI execution

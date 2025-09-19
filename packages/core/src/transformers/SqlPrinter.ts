@@ -1,6 +1,6 @@
 import { SqlPrintToken, SqlPrintTokenType, SqlPrintTokenContainerType } from "../models/SqlPrintToken";
 import { IndentCharOption, LinePrinter, NewlineOption } from "./LinePrinter";
-import { BaseFormattingOptions, WithClauseStyle } from "./SqlFormatter";
+import { BaseFormattingOptions, WithClauseStyle, CommentStyle } from "./SqlFormatter";
 
 /**
  * CommaBreakStyle determines how commas are placed in formatted SQL output.
@@ -70,6 +70,9 @@ export class SqlPrinter {
     /** WITH clause formatting style (default: 'standard') */
     withClauseStyle: WithClauseStyle;
 
+    /** Comment formatting style (default: 'block') */
+    commentStyle: CommentStyle;
+
     private linePrinter: LinePrinter;
     private indentIncrementContainers: Set<SqlPrintTokenContainerType>;
     
@@ -105,6 +108,7 @@ export class SqlPrinter {
         this.exportComment = options?.exportComment ?? false;
         this.strictCommentPlacement = options?.strictCommentPlacement ?? false;
         this.withClauseStyle = options?.withClauseStyle ?? 'standard';
+        this.commentStyle = options?.commentStyle ?? 'block';
         this.parenthesesOneLine = options?.parenthesesOneLine ?? false;
         this.betweenOneLine = options?.betweenOneLine ?? false;
         this.valuesOneLine = options?.valuesOneLine ?? false;
@@ -192,6 +196,8 @@ export class SqlPrinter {
         } else if (token.type === SqlPrintTokenType.comment) {
             // Handle comments as regular tokens - let the standard processing handle everything
             if (this.exportComment) {
+                // Note: Smart comment processing is handled at SqlPrintTokenParser level
+                // via positioned comments system, so we don't need additional processing here
                 this.linePrinter.appendText(token.text);
             }
         } else if (token.type === SqlPrintTokenType.space) {
@@ -468,5 +474,6 @@ export class SqlPrinter {
     private cleanDuplicateSpaces(text: string): string {
         return text.replace(/\s{2,}/g, ' ');
     }
+
 
 }

@@ -17,6 +17,13 @@ export type PresetName = (typeof VALID_PRESETS)[number];
 export type WithClauseStyle = 'standard' | 'cte-oneline' | 'full-oneline';
 
 /**
+ * CommentStyle determines how comments are formatted in the output.
+ * - 'block': Keep original comment style (default)
+ * - 'smart': Convert single-line to --, multi-line to block comments, optimize for comma break styles
+ */
+export type CommentStyle = 'block' | 'smart';
+
+/**
  * Base formatting options shared between SqlFormatter and SqlPrinter
  * @public
  */
@@ -37,6 +44,8 @@ export interface BaseFormattingOptions {
     exportComment?: boolean;
     /** Whether to only export comments from clause-level keywords */
     strictCommentPlacement?: boolean;
+    /** Comment formatting style */
+    commentStyle?: CommentStyle;
     /** Formatting style for WITH clauses */
     withClauseStyle?: WithClauseStyle;
     /** Keep parentheses content on one line regardless of AND/OR break settings */
@@ -90,7 +99,10 @@ export class SqlFormatter {
             parameterStyle: options.parameterStyle ?? presetConfig?.parameterStyle,
         };
 
-        this.parser = new SqlPrintTokenParser(parserOptions);
+        this.parser = new SqlPrintTokenParser({
+            ...parserOptions,
+            commentStyle: options.commentStyle
+        });
         this.printer = new SqlPrinter({
             ...options,
             parenthesesOneLine: options.parenthesesOneLine,
