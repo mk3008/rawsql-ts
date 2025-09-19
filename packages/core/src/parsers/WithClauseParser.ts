@@ -79,24 +79,17 @@ export class WithClauseParser {
         let headerComments: string[] | null = null;
         let actualWithComments: string[] | null = null;
 
-        // Extract positioned comments: "before" comments are header comments, "after" comments are WITH-specific
-        // Process them in source order: first "before" (global), then "after" (WITH-specific)
+        // Extract positioned comments: only "before" comments are header comments
+        // "after" comments on clauses are ignored per specification
         if (withTokenPositionedComments && withTokenPositionedComments.length > 0) {
-            // First collect "before" comments (appear before WITH clause)
+            // Only collect "before" comments (appear before WITH clause)
             for (const posComment of withTokenPositionedComments) {
                 if (posComment.position === 'before' && posComment.comments) {
                     if (!headerComments) headerComments = [];
                     headerComments.push(...posComment.comments);
                 }
             }
-            // Then collect "after" comments (appear after WITH keyword, before CTE)
-            // These should be treated as header comments for the overall query
-            for (const posComment of withTokenPositionedComments) {
-                if (posComment.position === 'after' && posComment.comments) {
-                    if (!headerComments) headerComments = [];
-                    headerComments.push(...posComment.comments);
-                }
-            }
+            // Note: "after" comments on WITH clause are ignored per specification
         }
 
         // Fallback to legacy comments if no positioned comments (for backward compatibility)
@@ -105,15 +98,7 @@ export class WithClauseParser {
         }
 
 
-        // Clear both positioned and legacy comments from WITH token to avoid duplication
-        if (idx < lexemes.length) {
-            if (withTokenPositionedComments) {
-                lexemes[idx].positionedComments = undefined;
-            }
-            if (withTokenLegacyComments) {
-                lexemes[idx].comments = null;
-            }
-        }
+        // Note: DO NOT clear comments here - CommonTableParser needs to access them
 
 
         // Expect WITH keyword
@@ -125,35 +110,9 @@ export class WithClauseParser {
 
         // Check for RECURSIVE keyword
         const recursive = idx < lexemes.length && lexemes[idx].value.toLowerCase() === "recursive";
-        let recursiveComments: string[] | null = null;
         if (recursive) {
-            // Capture comments from RECURSIVE keyword token
-            const recursiveTokenPositionedComments = lexemes[idx].positionedComments;
-            const recursiveTokenLegacyComments = lexemes[idx].comments;
-
-            // Extract "after" positioned comments from RECURSIVE token
-            if (recursiveTokenPositionedComments && recursiveTokenPositionedComments.length > 0) {
-                for (const posComment of recursiveTokenPositionedComments) {
-                    if (posComment.position === 'after' && posComment.comments) {
-                        if (!recursiveComments) recursiveComments = [];
-                        recursiveComments.push(...posComment.comments);
-                    }
-                }
-            }
-
-            // Fallback to legacy comments if no positioned comments
-            if (!recursiveComments && recursiveTokenLegacyComments && recursiveTokenLegacyComments.length > 0) {
-                recursiveComments = [...recursiveTokenLegacyComments];
-            }
-
-            // Clear comments from RECURSIVE token to avoid duplication
-            if (recursiveTokenPositionedComments) {
-                lexemes[idx].positionedComments = undefined;
-            }
-            if (recursiveTokenLegacyComments) {
-                lexemes[idx].comments = null;
-            }
-
+            // Note: RECURSIVE keyword "after" comments are ignored per clause specification
+            // Note: DO NOT clear comments here - CommonTableParser may need to access them
             idx++;
         }
 
@@ -170,6 +129,9 @@ export class WithClauseParser {
         // Individual CTEs can have their own comments, but WITH-level comments are different
 
         const firstCte = CommonTableParser.parseFromLexeme(lexemes, firstCteIndex);
+
+        // Note: WITH clause "after" comments are no longer passed to CTEs per specification
+
         tables.push(firstCte.value);
         idx = firstCte.newIndex;
         
@@ -182,7 +144,7 @@ export class WithClauseParser {
         // Parse additional CTEs (optional)
         while (idx < lexemes.length && (lexemes[idx].type & TokenType.Comma)) {
             idx++; // Skip comma
-            
+
             // Capture comments that may be before the next CTE name
             // Check if there are tokens before the CTE name that might have comments
             const cteResult = CommonTableParser.parseFromLexeme(lexemes, idx);

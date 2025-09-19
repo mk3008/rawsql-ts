@@ -246,38 +246,103 @@ export class SelectQueryParser {
 
         // Collect headerComments before WITH clause or SELECT clause
         const headerComments: string[] = [];
-        
-        // headerComments will be collected from SELECT token itself or WITH clause
-        
+
+        // Collect comments that appear before the first meaningful token (WITH or SELECT)
+        // These are considered header comments for the main query
+        while (idx < lexemes.length && lexemes[idx].value.toLowerCase() !== 'with' && lexemes[idx].value.toLowerCase() !== 'select') {
+            // Check positioned comments
+            const tokenPositionedComments = lexemes[idx].positionedComments;
+            if (tokenPositionedComments) {
+                for (const posComment of tokenPositionedComments) {
+                    if (posComment.comments) {
+                        headerComments.push(...posComment.comments);
+                    }
+                }
+            }
+
+            // Check legacy comments for backward compatibility
+            const tokenComments = lexemes[idx].comments;
+            if (tokenComments && tokenComments.length > 0) {
+                headerComments.push(...tokenComments);
+            }
+            idx++;
+        }
+
+        // Collect 'before' positioned comments from WITH token as header comments
+        // 'after' positioned comments from WITH token should go to CTE
+        if (idx < lexemes.length && lexemes[idx].value.toLowerCase() === 'with') {
+            const withTokenPositionedComments = lexemes[idx].positionedComments;
+            if (withTokenPositionedComments) {
+                for (const posComment of withTokenPositionedComments) {
+                    if (posComment.position === 'before' && posComment.comments) {
+                        headerComments.push(...posComment.comments);
+                    }
+                }
+            }
+        }
+
         // Parse optional WITH clause
         if (idx < lexemes.length && lexemes[idx].value === 'with') {
             withClauseResult = WithClauseParser.parseFromLexeme(lexemes, idx);
             idx = withClauseResult.newIndex;
-            
-            // Collect headerComments from WithClauseParser
-            if (withClauseResult.headerComments) {
-                headerComments.push(...withClauseResult.headerComments);
-            }
+
+            // Do NOT collect headerComments from WithClauseParser anymore
+            // CTE comments should remain with their respective CTEs
         }
 
-        // Collect comments from WITH clause 
+        // Collect comments from WITH clause
         const withTrailingComments: string[] = [];
-        
+
+        // Collect comments that appear between WITH clause end and SELECT keyword
+        // These should be positioned comments (before) for main SELECT
+        const mainSelectPrefixComments: string[] = [];
+
         // Get trailing comments from WITH clause (these are comments after WITH clause, meant for main query)
         if (withClauseResult?.value.trailingComments) {
             withTrailingComments.push(...withClauseResult.value.trailingComments);
+            // These trailing comments should be positioned comments (before) for main SELECT
+            mainSelectPrefixComments.push(...withClauseResult.value.trailingComments);
         }
-        
-        // Collect comments that appear between WITH clause end and SELECT keyword
-        // These should be applied to query level (appearing between WITH and SELECT)
-        const queryLevelComments: string[] = [...withTrailingComments];
-        let tempIdx = idx;
-        while (tempIdx < lexemes.length && lexemes[tempIdx].value.toLowerCase() !== 'select') {
-            const tokenComments = lexemes[tempIdx].comments;
-            if (tokenComments && tokenComments.length > 0) {
-                queryLevelComments.push(...tokenComments);
+
+        // Find the main SELECT token (not the one inside CTE)
+        let mainSelectIdx = -1;
+        if (withClauseResult) {
+            // Start looking after the WITH clause ended
+            for (let i = withClauseResult.newIndex; i < lexemes.length; i++) {
+                if (lexemes[i].value.toLowerCase() === 'select') {
+                    mainSelectIdx = i;
+                    break;
+                }
             }
-            tempIdx++;
+        } else {
+            // No WITH clause, just find the first SELECT
+            mainSelectIdx = idx;
+        }
+
+        // Scan tokens from end of WITH clause to main SELECT
+        if (withClauseResult && mainSelectIdx > withClauseResult.newIndex) {
+            for (let tempIdx = withClauseResult.newIndex; tempIdx < mainSelectIdx; tempIdx++) {
+                // Check positioned comments
+                const tokenPositionedComments = lexemes[tempIdx].positionedComments;
+                if (tokenPositionedComments) {
+                    for (const posComment of tokenPositionedComments) {
+                        if (posComment.comments) {
+                            mainSelectPrefixComments.push(...posComment.comments);
+                        }
+                    }
+                }
+
+                // Check legacy comments for backward compatibility
+                const tokenComments = lexemes[tempIdx].comments;
+                if (tokenComments && tokenComments.length > 0) {
+                    mainSelectPrefixComments.push(...tokenComments);
+                }
+            }
+        }
+
+        // Update idx to point to the main SELECT token
+        if (mainSelectIdx >= 0) {
+            idx = mainSelectIdx;
         }
 
         // Parse SELECT clause (required)
@@ -426,6 +491,11 @@ export class SelectQueryParser {
 
         // Set headerComments and query-level comments from collected sources to the query object
         selectQuery.headerComments = headerComments.length > 0 ? headerComments : null;
+
+        // Set main SELECT prefix comments as positioned comments (before)
+        if (mainSelectPrefixComments.length > 0) {
+            selectQuery.addPositionedComments('before', mainSelectPrefixComments);
+        }
 
         // Set between-clause comments as regular comments on the SimpleSelectQuery
         if (betweenClauseComments.length > 0) {

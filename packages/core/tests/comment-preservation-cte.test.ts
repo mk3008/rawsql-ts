@@ -25,19 +25,26 @@ SELECT * FROM orders;`;
 
     test('should preserve comments in AST structure', () => {
         const query = SelectQueryParser.parse(sqlWithComments).toSimpleQuery();
-        
-        // Check SelectQuery headerComments (main WITH clause comment now belongs here)  
+
+        // Check SelectQuery headerComments (main WITH clause comment belongs here)
         expect(query.headerComments).toBeDefined();
-        // Update expectation based on actual behavior
-        expect(query.headerComments).toContain('Comment for users CTE');
-        
-        // WITH-prefix comments are now moved to headerComments (WITH clause itself has no comments)
+        expect(query.headerComments).toContain('This is the main WITH clause comment');
+
+        // WITH clause itself has no comments (individual CTE comments belong to CTEs)
         expect(query.withClause?.comments).toBeNull();
-        
-        // Note: CTE individual comments may be handled differently in positioned comments system
-        // For now, focus on headerComments which are working correctly
+
+        // CTE comments are now handled in positioned comments system
         const ctes = query.withClause?.tables || [];
         expect(ctes).toHaveLength(2); // Verify CTEs are parsed correctly
+
+        // Check that CTE comments are preserved in their respective CTEs
+        const usersCte = ctes[0];
+        expect(usersCte.aliasExpression.table.positionedComments).toBeDefined();
+        expect(usersCte.aliasExpression.table.positionedComments?.[0]?.comments).toContain('Comment for users CTE');
+
+        const ordersCte = ctes[1];
+        expect(ordersCte.aliasExpression.positionedComments).toBeDefined();
+        expect(ordersCte.aliasExpression.positionedComments?.[0]?.comments).toContain('Comment for orders CTE');
     });
 
     test('should preserve comments when collecting CTEs', () => {

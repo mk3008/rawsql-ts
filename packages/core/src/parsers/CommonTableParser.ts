@@ -25,166 +25,183 @@ export class CommonTableParser {
     public static parseFromLexeme(lexemes: Lexeme[], index: number): { value: CommonTable; newIndex: number; trailingComments: string[] | null } {
         let idx = index;
 
-        // Capture comments from the CTE name token and preceding tokens (before parsing alias)
-        const cteNameComments = idx < lexemes.length ? lexemes[idx].comments : null;
-        const cteNamePositionedComments = idx < lexemes.length ? lexemes[idx].positionedComments : null;
-
-        // Also look for comments in preceding tokens that should belong to this CTE name
-        // For SQL like "WITH /* comment */ cte_name AS", the comment appears before the CTE name
-        let precedingComments: string[] | null = null;
-        let precedingPositionedComments: any[] | null = null;
-
-        // Check previous tokens for comments that should be associated with this CTE
-        for (let i = idx - 1; i >= 0; i--) {
-            const token = lexemes[i];
-            // Stop looking if we hit a comma (indicates previous CTE) or WITH keyword
-            if (token.type & TokenType.Comma) {
-                break;
-            }
-            if (token.value.toLowerCase() === 'with' || token.value.toLowerCase() === 'recursive') {
-                break;
-            }
-            // Collect comments from tokens that are just comments or whitespace before the CTE name
-            if (token.comments && token.comments.length > 0) {
-                if (!precedingComments) precedingComments = [];
-                precedingComments.unshift(...token.comments);
-            }
-            if (token.positionedComments && token.positionedComments.length > 0) {
-                if (!precedingPositionedComments) precedingPositionedComments = [];
-                precedingPositionedComments.unshift(...token.positionedComments);
-            }
-        }
-
-        // Parse alias and optional column aliases
-        // SourceAliasExpressionParser already handles column aliases if present
+        // 1. Parse alias and optional column aliases
         const aliasResult = SourceAliasExpressionParser.parseFromLexeme(lexemes, idx);
         idx = aliasResult.newIndex;
 
-        if (idx < lexemes.length && lexemes[idx].value !== "as") {
-            throw new Error(`Syntax error at position ${idx}: Expected 'AS' keyword after CTE name but found "${lexemes[idx].value}".`);
+        // 2. Collect preceding comments for this CTE
+        this.collectPrecedingComments(lexemes, index, aliasResult);
+
+        // 3. Parse AS keyword
+        idx = this.parseAsKeyword(lexemes, idx);
+
+        // 4. Parse optional MATERIALIZED flag
+        const { materialized, newIndex: materializedIndex } = this.parseMaterializedFlag(lexemes, idx);
+        idx = materializedIndex;
+
+        // 5. Parse inner SELECT query with parentheses
+        const { selectQuery, trailingComments, newIndex: selectIndex } = this.parseInnerSelectQuery(lexemes, idx);
+        idx = selectIndex;
+
+        // 6. Create CommonTable instance
+        const value = new CommonTable(selectQuery, aliasResult.value, materialized);
+
+        return {
+            value,
+            newIndex: idx,
+            trailingComments
+        };
+    }
+
+    // Collect comments from preceding tokens that should belong to this CTE
+    private static collectPrecedingComments(lexemes: Lexeme[], index: number, aliasResult: any): void {
+        if (!aliasResult.value?.table) return;
+
+        const cteTable = aliasResult.value.table;
+
+        for (let i = index - 1; i >= 0; i--) {
+            const token = lexemes[i];
+
+            // Handle WITH keyword specially - collect its "after" comments for the first CTE
+            if (token.value.toLowerCase() === 'with') {
+                this.collectWithTokenComments(token, cteTable);
+                break; // Stop at WITH keyword
+            }
+
+            // Stop looking if we hit a comma (indicates previous CTE) or RECURSIVE keyword
+            if (token.type & TokenType.Comma || token.value.toLowerCase() === 'recursive') {
+                break;
+            }
+
+            // Collect comments from tokens before the CTE name
+            this.collectTokenComments(token, cteTable);
         }
-        idx++; // Skip 'AS' keyword
+    }
 
-        // Materialized flag
-        let materialized: boolean | null = null;
+    // Collect comments from WITH token
+    private static collectWithTokenComments(token: Lexeme, cteTable: any): void {
+        let hasPositionedComments = false;
 
-        // Parse optional MATERIALIZED or NOT MATERIALIZED keywords
-        if (idx < lexemes.length) {
-            const currentValue = lexemes[idx].value;
-            if (currentValue === "materialized") {
-                materialized = true;
-                idx++;
-            } else if (currentValue === "not materialized") {
-                materialized = false;
-                idx++;
+        if (token.positionedComments && token.positionedComments.length > 0) {
+            for (const posComment of token.positionedComments) {
+                if (posComment.position === 'after' && posComment.comments) {
+                    this.addPositionedComment(cteTable, 'before', posComment.comments);
+                    hasPositionedComments = true;
+                }
             }
         }
+
+        // Only use legacy comments if no positioned comments were found
+        if (!hasPositionedComments && token.comments && token.comments.length > 0) {
+            this.addPositionedComment(cteTable, 'before', token.comments);
+        }
+    }
+
+    // Collect comments from a token
+    private static collectTokenComments(token: Lexeme, cteTable: any): void {
+        if (token.comments && token.comments.length > 0) {
+            this.addPositionedComment(cteTable, 'before', token.comments);
+        }
+        if (token.positionedComments && token.positionedComments.length > 0) {
+            if (!cteTable.positionedComments) {
+                cteTable.positionedComments = [];
+            }
+            cteTable.positionedComments.unshift(...token.positionedComments);
+        }
+    }
+
+    // Helper to add positioned comment
+    private static addPositionedComment(cteTable: any, position: string, comments: string[]): void {
+        if (!cteTable.positionedComments) {
+            cteTable.positionedComments = [];
+        }
+        cteTable.positionedComments.unshift({
+            position,
+            comments: [...comments]
+        });
+    }
+
+    // Parse AS keyword
+    private static parseAsKeyword(lexemes: Lexeme[], index: number): number {
+        if (index < lexemes.length && lexemes[index].value !== "as") {
+            throw new Error(`Syntax error at position ${index}: Expected 'AS' keyword after CTE name but found "${lexemes[index].value}".`);
+        }
+        return index + 1; // Skip 'AS' keyword
+    }
+
+    // Parse optional MATERIALIZED flag
+    private static parseMaterializedFlag(lexemes: Lexeme[], index: number): { materialized: boolean | null; newIndex: number } {
+        if (index >= lexemes.length) {
+            return { materialized: null, newIndex: index };
+        }
+
+        const currentValue = lexemes[index].value;
+        if (currentValue === "materialized") {
+            return { materialized: true, newIndex: index + 1 };
+        } else if (currentValue === "not materialized") {
+            return { materialized: false, newIndex: index + 1 };
+        }
+
+        return { materialized: null, newIndex: index };
+    }
+
+    // Parse inner SELECT query with parentheses
+    private static parseInnerSelectQuery(lexemes: Lexeme[], index: number): { selectQuery: any; trailingComments: string[] | null; newIndex: number } {
+        let idx = index;
 
         if (idx < lexemes.length && lexemes[idx].type !== TokenType.OpenParen) {
             throw new Error(`Syntax error at position ${idx}: Expected '(' after CTE name but found "${lexemes[idx].value}".`);
         }
-        
+
         // Capture comments from the opening parenthesis for the CTE inner query
-        const cteQueryComments = lexemes[idx].comments;
+        const cteQueryHeaderComments = this.extractComments(lexemes[idx]);
         idx++; // Skip opening parenthesis
 
         const queryResult = SelectQueryParser.parseFromLexeme(lexemes, idx);
         idx = queryResult.newIndex;
-        
-        // If there are comments from the opening parenthesis, add them to the inner query
-        if (cteQueryComments && cteQueryComments.length > 0) {
-            if (queryResult.value.comments) {
-                // Prepend the CTE query comments to existing comments
-                queryResult.value
+
+        // Add comments from the opening parenthesis as header comments for the inner query
+        if (cteQueryHeaderComments.length > 0) {
+            if (queryResult.value.headerComments) {
+                queryResult.value.headerComments = [...cteQueryHeaderComments, ...queryResult.value.headerComments];
             } else {
-                queryResult.value
+                queryResult.value.headerComments = cteQueryHeaderComments;
             }
         }
 
         if (idx < lexemes.length && lexemes[idx].type !== TokenType.CloseParen) {
             throw new Error(`Syntax error at position ${idx}: Expected ')' after CTE query but found "${lexemes[idx].value}".`);
         }
-        
-        // Capture comments from the closing parenthesis - these might be meant for the subsequent query
-        const closingParenComments = lexemes[idx].comments;
+
+        // Capture comments from the closing parenthesis
+        const closingParenComments = this.extractComments(lexemes[idx]);
         idx++; // Skip closing parenthesis
 
-        const value = new CommonTable(queryResult.value, aliasResult.value, materialized);
-        
-        // Transfer comments to the CTE name (IdentifierString) for proper Value-based comment handling
-        if (aliasResult.value && aliasResult.value.table) {
-            // Combine positioned comments from CTE name token and preceding tokens
-            let combinedPositionedComments = [];
-            if (precedingPositionedComments && precedingPositionedComments.length > 0) {
-                combinedPositionedComments.push(...precedingPositionedComments);
-            }
-            if (cteNamePositionedComments && cteNamePositionedComments.length > 0) {
-                combinedPositionedComments.push(...cteNamePositionedComments);
-            }
+        return {
+            selectQuery: queryResult.value,
+            trailingComments: closingParenComments.length > 0 ? closingParenComments : null,
+            newIndex: idx
+        };
+    }
 
-            // Combine legacy comments from CTE name token and preceding tokens
-            let combinedComments = [];
-            if (precedingComments && precedingComments.length > 0) {
-                combinedComments.push(...precedingComments);
-            }
-            if (cteNameComments && cteNameComments.length > 0) {
-                combinedComments.push(...cteNameComments);
-            }
+    // Extract comments from a lexeme (both positioned and legacy)
+    private static extractComments(lexeme: Lexeme): string[] {
+        const comments: string[] = [];
 
-            // Convert comments to positioned comments for proper before/after placement
-            if (precedingComments || cteNameComments || combinedPositionedComments.length > 0) {
-                let positionedComments = [];
-
-                // Comments from preceding tokens should be 'before' the CTE name
-                if (precedingComments && precedingComments.length > 0) {
-                    positionedComments.push({
-                        position: 'before',
-                        comments: precedingComments
-                    });
+        // Check positioned comments
+        if (lexeme.positionedComments) {
+            for (const posComment of lexeme.positionedComments) {
+                if (posComment.comments) {
+                    comments.push(...posComment.comments);
                 }
-
-                // Comments from the CTE name token itself should be 'after' the CTE name
-                if (cteNameComments && cteNameComments.length > 0) {
-                    positionedComments.push({
-                        position: 'after',
-                        comments: cteNameComments
-                    });
-                }
-
-                // Add any existing positioned comments (merge with existing ones to avoid duplication)
-                if (combinedPositionedComments.length > 0) {
-                    for (const existingComment of combinedPositionedComments) {
-                        // Check if we already have a comment with the same position
-                        const existingPositionIndex = positionedComments.findIndex(
-                            pc => pc.position === existingComment.position
-                        );
-
-                        if (existingPositionIndex >= 0) {
-                            // Merge with existing positioned comment of same position
-                            positionedComments[existingPositionIndex].comments.push(...existingComment.comments);
-                        } else {
-                            // Add as new positioned comment
-                            positionedComments.push(existingComment);
-                        }
-                    }
-                }
-
-                // Set positioned comments and clear legacy comments
-                aliasResult.value.table.positionedComments = positionedComments;
-                aliasResult.value.table.comments = null;
-
-                // Clear positioned comments from AliasExpression to prevent duplication
-                aliasResult.value.positionedComments = null;
             }
         }
-        
-        // Clear CommonTable comments since they're now on the CTE name
-        value
 
-        return { 
-            value, 
-            newIndex: idx,
-            trailingComments: closingParenComments && closingParenComments.length > 0 ? closingParenComments : null
-        };
+        // Check legacy comments for backward compatibility
+        if (lexeme.comments && lexeme.comments.length > 0) {
+            comments.push(...lexeme.comments);
+        }
+
+        return comments;
     }
 }

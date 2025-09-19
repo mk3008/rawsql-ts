@@ -700,17 +700,13 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
             return false;
         }
 
-        // Don't merge standalone separator lines (not within block comments)
-        if (/^[-=_+*#]+$/.test(trimmed) && !trimmed.startsWith('/*')) {
-            return false;
-        }
-
         // Don't merge if it's already a proper multi-line block comment
         if (trimmed.startsWith('/*') && trimmed.endsWith('*/') && trimmed.includes('\n')) {
             return false;
         }
 
-        // Merge single-line block comments and plain text
+        // Merge all other content including separator lines, plain text, and single-line block comments
+        // Separator lines within comment blocks should be merged together
         return true;
     }
 
@@ -2165,6 +2161,15 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     public visitCommonTable(arg: CommonTable): SqlPrintToken {
         const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.CommonTable);
 
+        // Handle positioned comments for CommonTable (avoid duplication)
+        if (arg.positionedComments && arg.positionedComments.length > 0) {
+            this.addPositionedCommentsToToken(token, arg);
+            // Clear positioned comments to prevent duplicate processing
+            arg.positionedComments = null;
+        } else if (arg.comments && arg.comments.length > 0) {
+            this.addCommentsToToken(token, arg.comments);
+        }
+
         token.innerTokens.push(arg.aliasExpression.accept(this));
         token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
         token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'as'));
@@ -2186,8 +2191,6 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
         token.innerTokens.push(query);
         token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
-
-        this.addComponentComments(token, arg);
 
         return token;
     }
