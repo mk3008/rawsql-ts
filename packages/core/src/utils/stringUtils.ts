@@ -100,33 +100,22 @@ export class StringUtils {
                 if (input.charCodeAt(position) === 42 && input.charCodeAt(position + 1) === 47) {
                     position += 2;
 
-                    // Process the comment content
-                    const rawLines = input.slice(start + 2, position - 2).replace(/\r/g, '').split('\n');
-                    const processedLines: string[] = [];
+                    // Process the comment content - preserve as single block to avoid fragmentation
+                    const rawContent = input.slice(start + 2, position - 2).replace(/\r/g, '');
 
-                    for (const rawLine of rawLines) {
-                        const trimmedLine = rawLine.trim();
-                        // Check if the original line (before trim) contains only separator characters
-                        const isSeparatorLine = /^\s*[-=_+*#]+\s*$/.test(rawLine);
-
-                        if (trimmedLine !== '' || isSeparatorLine) {
-                            // Keep non-empty lines and separator lines (preserve separator content)
-                            processedLines.push(isSeparatorLine ? rawLine.trim() : trimmedLine);
-                        } else {
-                            // For truly empty lines, preserve them as empty strings
-                            // This maintains the original comment structure
-                            processedLines.push('');
-                        }
+                    // Trim leading and trailing empty lines while preserving internal structure
+                    const lines = rawContent.split('\n');
+                    while (lines.length > 0 && lines[0].trim() === '') {
+                        lines.shift();
+                    }
+                    while (lines.length > 0 && lines[lines.length - 1].trim() === '') {
+                        lines.pop();
                     }
 
-                    // Remove empty lines only at the beginning and end
-                    while (processedLines.length > 0 && processedLines[0] === '') {
-                        processedLines.shift();
-                    }
-                    while (processedLines.length > 0 && processedLines[processedLines.length - 1] === '') {
-                        processedLines.pop();
-                    }
-                    return { newPosition: position, comments: processedLines };
+                    // Join back into single comment block with preserved line breaks
+                    const singleComment = lines.join('\n').trim();
+
+                    return { newPosition: position, comments: singleComment ? [singleComment] : [] };
                 }
                 position++;
             }
