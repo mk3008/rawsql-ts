@@ -223,50 +223,8 @@ export class SqlTokenizer {
                 }
             }
             
-            // Attach remaining comments to the current token
-            const allComments: string[] = [];
-            const positionedComments: { position: 'before' | 'after'; comments: string[] }[] = [];
-            
-            // Preserve existing positioned comments from token readers (e.g., CommandTokenReader)
-            if (lexeme.positionedComments && lexeme.positionedComments.length > 0) {
-                positionedComments.push(...lexeme.positionedComments);
-                // Note: Don't add to allComments - positioned comments are handled separately
-            }
-            
-            // Add prefix comments as "before" positioned comments
-            if (current.prefixComments.length > 0) {
-                allComments.push(...current.prefixComments);
-                positionedComments.push({
-                    position: 'before',
-                    comments: [...current.prefixComments]
-                });
-            }
-            
-            // Add suffix comments as "after" positioned comments
-            if (current.suffixComments.length > 0) {
-                allComments.push(...current.suffixComments);
-                positionedComments.push({
-                    position: 'after',
-                    comments: [...current.suffixComments]
-                });
-            }
-            
-            // Prioritize positioned comments while maintaining legacy compatibility
-            if (allComments.length > 0 || positionedComments.length > 0) {
-                // Set positioned comments as primary system
-                lexeme.positionedComments = positionedComments.length > 0 ? positionedComments : undefined;
-                
-                // Set legacy comments only if positioned comments don't exist (avoid duplication)
-                if (positionedComments.length === 0 && allComments.length > 0) {
-                    lexeme
-                } else {
-                    lexeme
-                }
-            } else {
-                // Clear both if no comments exist
-                lexeme
-                lexeme.positionedComments = undefined;
-            }
+            // Attach comments to the current token directly (no collection then assignment)
+            this.attachCommentsToLexeme(lexeme, current)
             
             lexemes[i] = lexeme;
         }
@@ -274,7 +232,49 @@ export class SqlTokenizer {
         return lexemes;
     }
 
+    // Attach comments to lexeme directly (no collection then assignment anti-pattern)
+    private attachCommentsToLexeme(lexeme: Lexeme, tokenData: { prefixComments: string[]; suffixComments: string[] }): void {
+        const newPositionedComments: { position: 'before' | 'after'; comments: string[] }[] = [];
+        const allLegacyComments: string[] = [];
 
+        // Preserve existing positioned comments from token readers (e.g., CommandTokenReader)
+        if (lexeme.positionedComments && lexeme.positionedComments.length > 0) {
+            newPositionedComments.push(...lexeme.positionedComments);
+        }
+
+        // Add prefix comments as "before" positioned comments directly
+        if (tokenData.prefixComments.length > 0) {
+            allLegacyComments.push(...tokenData.prefixComments);
+            newPositionedComments.push({
+                position: 'before',
+                comments: [...tokenData.prefixComments]
+            });
+        }
+
+        // Add suffix comments as "after" positioned comments directly
+        if (tokenData.suffixComments.length > 0) {
+            allLegacyComments.push(...tokenData.suffixComments);
+            newPositionedComments.push({
+                position: 'after',
+                comments: [...tokenData.suffixComments]
+            });
+        }
+
+        // Apply comments directly to lexeme (positioned comments take priority)
+        if (newPositionedComments.length > 0) {
+            lexeme.positionedComments = newPositionedComments;
+            // Clear legacy comments when positioned comments exist to avoid duplication
+            lexeme.comments = null;
+        } else if (allLegacyComments.length > 0) {
+            // Only set legacy comments if no positioned comments exist
+            lexeme.comments = allLegacyComments;
+            lexeme.positionedComments = undefined;
+        } else {
+            // Clear both if no comments exist
+            lexeme.comments = null;
+            lexeme.positionedComments = undefined;
+        }
+    }
 
     /**
      * Skips whitespace characters and SQL comments in the input.
