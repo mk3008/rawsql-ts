@@ -111,7 +111,7 @@ export class SqlPrinter {
         this.joinOneLine = options?.joinOneLine ?? false;
         this.caseOneLine = options?.caseOneLine ?? false;
         this.subqueryOneLine = options?.subqueryOneLine ?? false;
-        this.linePrinter = new LinePrinter(this.indentChar, this.indentSize, this.newline);
+        this.linePrinter = new LinePrinter(this.indentChar, this.indentSize, this.newline, this.commaBreak);
 
         // Initialize
         this.indentIncrementContainers = new Set(
@@ -156,7 +156,7 @@ export class SqlPrinter {
      */
     print(token: SqlPrintToken, level: number = 0): string {
         // initialize
-        this.linePrinter = new LinePrinter(this.indentChar, this.indentSize, this.newline);
+        this.linePrinter = new LinePrinter(this.indentChar, this.indentSize, this.newline, this.commaBreak);
         this.insideWithClause = false; // Reset WITH clause context
         if (this.linePrinter.lines.length > 0 && level !== this.linePrinter.lines[0].level) {
             this.linePrinter.lines[0].level = level;

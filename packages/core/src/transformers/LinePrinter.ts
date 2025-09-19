@@ -2,7 +2,10 @@
 export type NewlineOption = ' ' | '\n' | '\r\n';
 
 // Define the allowed indent character options
-export type IndentCharOption = '' | ' ' | '\t';
+export type IndentCharOption = string;
+
+// Import CommaBreakStyle type
+export type CommaBreakStyle = 'none' | 'before' | 'after';
 
 /**
  * SqlPrintHelper provides utility methods for SQL pretty printing.
@@ -11,16 +14,19 @@ export class LinePrinter {
     indentChar: IndentCharOption; // Changed type to IndentCharOption
     indentSize: number;
     newline: NewlineOption; // Changed type to NewlineOption
+    commaBreak: CommaBreakStyle; // Add comma break style
     lines: PrintLine[];
     /**
      * @param indentChar Character used for indentation (default: ' ') // Updated comment to reflect options
      * @param indentSize Number of indentChar per level (default: 0)
      * @param newline Newline string (default: '\r\n') // Changed type and default value
+     * @param commaBreak Comma break style (default: 'none')
      */
-    constructor(indentChar: IndentCharOption = ' ', indentSize: number = 0, newline: NewlineOption = '\r\n') { // Changed type for indentChar
+    constructor(indentChar: IndentCharOption = ' ', indentSize: number = 0, newline: NewlineOption = '\r\n', commaBreak: CommaBreakStyle = 'none') { // Changed type for indentChar
         this.indentChar = indentChar;
         this.indentSize = indentSize;
         this.newline = newline;
+        this.commaBreak = commaBreak;
         this.lines = [];
         this.appendNewline(0);
     }
@@ -65,16 +71,35 @@ export class LinePrinter {
      * @param text Text to append
      */
     appendText(text: string): void {
-        if (this.lines.length > 0) {
-            const workingIndex = this.lines.length - 1;
-            const workLine = this.lines[workingIndex]
-            // Leading space is not needed
-            if (!(text === ' ' && workLine.text === '')) {
-                workLine.text += text;
-            }
-        } else {
-            throw new Error('No tokens to append to.');
+        // Handle special comma cleanup first
+        if (this.cleanupLine(text)) {
+            // If cleanup was performed, add comma to previous line
+            const previousLine = this.lines[this.lines.length - 1];
+            previousLine.text = previousLine.text.trimEnd() + text;
+            return;
         }
+
+        const workLine = this.getCurrentLine();
+        // Leading space is not needed
+        if (!(text === ' ' && workLine.text === '')) {
+            workLine.text += text;
+        }
+    }
+
+    /**
+     * Cleans up the current line for comma formatting.
+     * For 'after' and 'none' comma styles, removes empty line when a comma is being added.
+     * @param text The text being processed
+     * @returns true if cleanup was performed, false otherwise
+     */
+    cleanupLine(text: string): boolean {
+        const workLine = this.getCurrentLine();
+        if (text === ',' && workLine.text.trim() === '' && this.lines.length > 1 && (this.commaBreak === 'after' || this.commaBreak === 'none')) {
+            // Remove current empty line
+            this.lines.pop(); // Safe: we checked lines.length > 1
+            return true; // Cleanup performed
+        }
+        return false; // No cleanup needed
     }
 
     getCurrentLine(): PrintLine {
@@ -83,6 +108,18 @@ export class LinePrinter {
         } else {
             throw new Error('No tokens to get current line from.');
         }
+    }
+
+    /**
+     * Checks if the current line is empty (has no text content)
+     * @returns true if current line is empty, false otherwise
+     */
+    isCurrentLineEmpty(): boolean {
+        if (this.lines.length > 0) {
+            const currentLine = this.lines[this.lines.length - 1];
+            return currentLine.text.trim() === '';
+        }
+        return true;
     }
 }
 
