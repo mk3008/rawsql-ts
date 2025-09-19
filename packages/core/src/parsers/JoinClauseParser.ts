@@ -58,20 +58,11 @@ export class JoinClauseParser {
     private static parseJoinClause(lexemes: Lexeme[], index: number): { value: JoinClause; newIndex: number } {
         let idx = index;
 
-        // Capture positioned comments from JOIN keyword
-        let joinKeywordComments: string[] | null = null;
-        let joinKeywordPositionedComments: { position: 'before' | 'after'; comments: string[] }[] = [];
-        
-        // Get the join type and capture comments
-        const joinType = lexemes[idx].value === "," ? "cross join" : lexemes[idx].value;
-        if (lexemes[idx].positionedComments && lexemes[idx].positionedComments!.length > 0) {
-            joinKeywordPositionedComments = lexemes[idx].positionedComments!;
-        } else if (lexemes[idx].comments && lexemes[idx].comments!.length > 0) {
-            joinKeywordComments = lexemes[idx].comments;
-        }
-        idx++;
+        // Extract JOIN keyword and comments
+        const { joinType, joinComments, newIndex: joinIndex } = this.parseJoinKeyword(lexemes, idx);
+        idx = joinIndex;
 
-        // Check for lateral join
+        // Parse lateral join
         const lateralResult = this.parseLateral(lexemes, idx);
         const lateral = lateralResult.value;
         idx = lateralResult.newIndex;
@@ -80,42 +71,62 @@ export class JoinClauseParser {
         const sourceResult = SourceExpressionParser.parseFromLexeme(lexemes, idx);
         idx = sourceResult.newIndex;
 
-
-        if (idx < lexemes.length) {
-            // JoinOnClauseParser
-            const onResult = JoinOnClauseParser.tryParse(lexemes, idx);
-            if (onResult) {
-                const joinClause = new JoinClause(joinType, sourceResult.value, onResult.value, lateral);
-                // Transfer JOIN keyword positioned comments
-                if (joinKeywordPositionedComments.length > 0) {
-                    (joinClause as any).joinKeywordPositionedComments = joinKeywordPositionedComments;
-                } else if (joinKeywordComments && joinKeywordComments.length > 0) {
-                    (joinClause as any).joinKeywordComments = joinKeywordComments;
-                }
-                return { value: joinClause, newIndex: onResult.newIndex };
-            }
-            // JoinUsingClauseParser
-            const usingResult = JoinUsingClauseParser.tryParse(lexemes, idx);
-            if (usingResult) {
-                const joinClause = new JoinClause(joinType, sourceResult.value, usingResult.value, lateral);
-                // Transfer JOIN keyword positioned comments
-                if (joinKeywordPositionedComments.length > 0) {
-                    (joinClause as any).joinKeywordPositionedComments = joinKeywordPositionedComments;
-                } else if (joinKeywordComments && joinKeywordComments.length > 0) {
-                    (joinClause as any).joinKeywordComments = joinKeywordComments;
-                }
-                return { value: joinClause, newIndex: usingResult.newIndex };
-            }
+        // Try to parse join condition (ON or USING)
+        const joinClause = this.parseJoinCondition(lexemes, idx, joinType, sourceResult.value, lateral, joinComments);
+        if (joinClause) {
+            return joinClause;
         }
 
-        // If we reach the end of the input, we can treat it as a natural join
-        const joinClause = new JoinClause(joinType, sourceResult.value, null, lateral);
-        // Transfer JOIN keyword positioned comments
-        if (joinKeywordPositionedComments.length > 0) {
-            (joinClause as any).joinKeywordPositionedComments = joinKeywordPositionedComments;
-        } else if (joinKeywordComments && joinKeywordComments.length > 0) {
-            (joinClause as any).joinKeywordComments = joinKeywordComments;
+        // Natural join (no condition)
+        const naturalJoinClause = new JoinClause(joinType, sourceResult.value, null, lateral);
+        this.applyJoinComments(naturalJoinClause, joinComments);
+        return { value: naturalJoinClause, newIndex: idx };
+    }
+
+    // Extract JOIN keyword and its comments
+    private static parseJoinKeyword(lexemes: Lexeme[], index: number): { joinType: string; joinComments: any; newIndex: number } {
+        const joinType = lexemes[index].value === "," ? "cross join" : lexemes[index].value;
+        const joinComments = this.extractJoinKeywordComments(lexemes[index]);
+        return { joinType, joinComments, newIndex: index + 1 };
+    }
+
+    // Extract comments from JOIN keyword token
+    private static extractJoinKeywordComments(token: Lexeme): { positioned: any; legacy: string[] | null } {
+        return {
+            positioned: token.positionedComments && token.positionedComments.length > 0 ? token.positionedComments : null,
+            legacy: token.comments && token.comments.length > 0 ? token.comments : null
+        };
+    }
+
+    // Parse join condition (ON or USING)
+    private static parseJoinCondition(lexemes: Lexeme[], index: number, joinType: string, sourceValue: any, lateral: boolean, joinComments: any): { value: JoinClause; newIndex: number } | null {
+        if (index >= lexemes.length) return null;
+
+        // Try JoinOnClauseParser
+        const onResult = JoinOnClauseParser.tryParse(lexemes, index);
+        if (onResult) {
+            const joinClause = new JoinClause(joinType, sourceValue, onResult.value, lateral);
+            this.applyJoinComments(joinClause, joinComments);
+            return { value: joinClause, newIndex: onResult.newIndex };
         }
-        return { value: joinClause, newIndex: idx };
+
+        // Try JoinUsingClauseParser
+        const usingResult = JoinUsingClauseParser.tryParse(lexemes, index);
+        if (usingResult) {
+            const joinClause = new JoinClause(joinType, sourceValue, usingResult.value, lateral);
+            this.applyJoinComments(joinClause, joinComments);
+            return { value: joinClause, newIndex: usingResult.newIndex };
+        }
+
+        return null;
+    }
+
+    // Apply comments to JoinClause directly (no collection then assignment)
+    private static applyJoinComments(joinClause: JoinClause, joinComments: any): void {
+        if (joinComments.positioned) {
+            (joinClause as any).joinKeywordPositionedComments = joinComments.positioned;
+        } else if (joinComments.legacy) {
+            (joinClause as any).joinKeywordComments = joinComments.legacy;
+        }
     }
 }
