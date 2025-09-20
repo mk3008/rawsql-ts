@@ -35,27 +35,22 @@ describe('Comment Ownership Specification - TDD', () => {
             `;
 
             // Act
-            const query = SelectQueryParser.parse(sql);
+            const query = SelectQueryParser.parse(sql).toSimpleQuery();
 
             // Assert - Comment ownership according to new specification
 
             // 1. Main SELECT header comment
+            expect(query.headerComments).not.toBeNull();
             expect(query.headerComments).toContain('1: Main SELECT header comment');
+            expect(query.headerComments?.some(comment => comment.includes('2: CTE prefix comment'))).toBe(true);
 
-            // 2. CTE prefix comment is ignored (clause after comment per new spec)
             expect(query.withClause).toBeTruthy();
             expect(query.withClause!.tables).toHaveLength(1);
             const cteTable = query.withClause!.tables[0];
-            // CTE should have no prefix comments since WITH clause after comments are ignored
-            const beforeComments = cteTable.getPositionedComments('before');
-            expect(beforeComments).not.toContain('2: CTE prefix comment');
-
-            // 3. CTE SELECT header comment should be in CTE's internal SELECT query
+            expect(cteTable.getPositionedComments('before')).toEqual([]);
             expect(cteTable.query.headerComments).toContain('3: CTE SELECT header comment');
 
-            // 4. Main SELECT prefix comment should be in main query positioned comments (before)
-            const mainSelectBefore = query.getPositionedComments('before');
-            expect(mainSelectBefore).toContain('4: Main SELECT prefix comment');
+            expect(query.comments).toContain('4: Main SELECT prefix comment');
         });
 
         test('should handle header comment priority over prefix comment', () => {
@@ -71,12 +66,8 @@ describe('Comment Ownership Specification - TDD', () => {
             // Act
             const query = SelectQueryParser.parse(sql);
 
-            // Assert - Header comment should take priority
             expect(query.headerComments).toContain('Header comment for main SELECT');
-
-            // Prefix comment should still be preserved but separately
-            const beforeComments = query.getPositionedComments('before');
-            expect(beforeComments).toContain('Prefix comment for main SELECT');
+            expect(query.comments).toContain('Prefix comment for main SELECT');
         });
 
         test('should handle CTE without internal comments', () => {
@@ -91,7 +82,7 @@ describe('Comment Ownership Specification - TDD', () => {
             `;
 
             // Act
-            const query = SelectQueryParser.parse(sql);
+            const query = SelectQueryParser.parse(sql).toSimpleQuery();
 
             // Assert
             const cteTable = query.withClause!.tables[0];
@@ -122,22 +113,22 @@ describe('Comment Ownership Specification - TDD', () => {
             `;
 
             // Act
-            const query = SelectQueryParser.parse(sql);
+            const query = SelectQueryParser.parse(sql).toSimpleQuery();
 
             // Assert
+            expect(query.headerComments).not.toBeNull();
             expect(query.headerComments).toContain('Main query header');
+            expect(query.headerComments?.some(comment => comment.includes('First CTE prefix'))).toBe(true);
 
             const cte1 = query.withClause!.tables[0];
-            // WITH clause after comments are ignored per new specification
-            expect(cte1.getPositionedComments('before')).not.toContain('First CTE prefix');
+            expect(cte1.getPositionedComments('before')).toEqual([]);
             expect(cte1.query.headerComments).toContain('First CTE internal header');
 
             const cte2 = query.withClause!.tables[1];
-            // Comma after comments are also ignored per clause specification
-            expect(cte2.getPositionedComments('before')).not.toContain('Second CTE prefix');
+            expect(cte2.getPositionedComments('before')).toEqual([]);
             expect(cte2.query.headerComments).toBeNull();
 
-            expect(query.getPositionedComments('before')).toContain('Main SELECT prefix');
+            expect(query.comments).toContain('Main SELECT prefix');
         });
 
         test('should handle comments in different SQL clause contexts', () => {

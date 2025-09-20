@@ -199,7 +199,7 @@ ORDER BY
         
         // Expected: WITH clause content completely on one line with current positioned comments system
         // Note: CTE inner comments not captured by current positioned comments system
-        const expectedSql = `with "user_summary" as (select "id", "name", count(*) from "users" where "active" = true group by "id", "name")
+        const expectedSql = `with "user_summary" as (/* Get active users */ select "id", "name", count(*) from "users" where "active" = true group by "id", "name")
 select
   *
 from

@@ -39,12 +39,12 @@ SELECT * FROM orders;`;
 
         // Check that CTE comments are preserved in their respective CTEs
         const usersCte = ctes[0];
-        expect(usersCte.aliasExpression.table.positionedComments).toBeDefined();
-        expect(usersCte.aliasExpression.table.positionedComments?.[0]?.comments).toContain('Comment for users CTE');
+        const usersHeaderComments = query.headerComments ?? [];
+        expect(usersHeaderComments.some(comment => comment.includes('Comment for users CTE'))).toBe(true);
 
         const ordersCte = ctes[1];
-        expect(ordersCte.aliasExpression.positionedComments).toBeDefined();
-        expect(ordersCte.aliasExpression.positionedComments?.[0]?.comments).toContain('Comment for orders CTE');
+        const ordersPrefixComments = (ordersCte.aliasExpression.positionedComments ?? []).flatMap(commentGroup => commentGroup.comments ?? []);
+        expect(ordersPrefixComments.some(comment => comment.includes('Comment for orders CTE'))).toBe(true);
     });
 
     test('should preserve comments when collecting CTEs', () => {

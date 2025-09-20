@@ -2200,11 +2200,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.SimpleSelectQuery);
 
         // Handle positioned comments for SimpleSelectQuery (unified spec)
-        if (arg.positionedComments && arg.positionedComments.length > 0) {
-            this.addPositionedCommentsToToken(token, arg);
-            // Clear positioned comments to prevent duplicate processing
-            arg.positionedComments = null;
-        } else if (arg.headerComments && arg.headerComments.length > 0) {
+        if (arg.headerComments && arg.headerComments.length > 0) {
             // Fallback to legacy headerComments if no positioned comments
             // For smart comment style, treat headerComments as a single multi-line block
             if (this.commentStyle === 'smart' && arg.headerComments.length > 1) {
@@ -2217,6 +2213,12 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
             if (arg.withClause) {
                 token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
             }
+        }
+
+        if (arg.positionedComments && arg.positionedComments.length > 0) {
+            this.addPositionedCommentsToToken(token, arg);
+            // Clear positioned comments to prevent duplicate processing
+            arg.positionedComments = null;
         }
 
         if (arg.withClause) {

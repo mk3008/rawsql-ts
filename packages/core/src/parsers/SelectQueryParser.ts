@@ -163,6 +163,26 @@ export class SelectQueryParser {
         }
     }
 
+    private static extractUnionTokenComments(unionLexeme: Lexeme): string[] | null {
+        const comments: string[] = [];
+
+        if (unionLexeme.positionedComments && unionLexeme.positionedComments.length > 0) {
+            for (const posComment of unionLexeme.positionedComments) {
+                if (posComment.comments && posComment.comments.length > 0) {
+                    comments.push(...posComment.comments);
+                }
+            }
+            unionLexeme.positionedComments = undefined;
+        }
+
+        if (unionLexeme.comments && unionLexeme.comments.length > 0) {
+            comments.push(...unionLexeme.comments);
+            unionLexeme.comments = null;
+        }
+
+        return comments.length > 0 ? comments : null;
+    }
+
     // Parse from lexeme array (was: parse)
     public static parseFromLexeme(lexemes: Lexeme[], index: number): { value: SelectQuery; newIndex: number } {
         let idx = index;
@@ -188,7 +208,7 @@ export class SelectQueryParser {
         while (idx < lexemes.length && this.unionCommandSet.has(lexemes[idx].value.toLowerCase())) {
             const operatorLexeme = lexemes[idx];
             const operator = operatorLexeme.value.toLowerCase();
-            const unionComments = operatorLexeme.comments; // Comments from UNION keyword
+            const unionComments = this.extractUnionTokenComments(operatorLexeme);
             idx++;
             if (idx >= lexemes.length) {
                 throw new Error(`Syntax error at position ${idx}: Expected a query after '${operator.toUpperCase()}' but found end of input.`);
@@ -248,8 +268,29 @@ export class SelectQueryParser {
         idx = withEndIndex;
 
         // 2. Parse all SQL clauses sequentially
-        const { clauses, newIndex: clausesEndIndex } = this.parseAllClauses(lexemes, idx, withClauseResult);
+        const { clauses, newIndex: clausesEndIndex, selectTokenComments } = this.parseAllClauses(lexemes, idx, withClauseResult);
         idx = clausesEndIndex;
+
+        // Merge SELECT token comments based on presence of WITH clause
+        if (selectTokenComments && selectTokenComments.length > 0) {
+            if (withClauseResult) {
+                const existingBetween = queryTemplate.betweenClauseComments ?? [];
+                const merged = [...existingBetween];
+                for (const comment of selectTokenComments) {
+                    if (!merged.includes(comment)) {
+                        merged.push(comment);
+                    }
+                }
+                queryTemplate.betweenClauseComments = merged;
+                queryTemplate.mainSelectPrefixComments = undefined;
+            } else {
+                const existingHeader = queryTemplate.headerComments ?? [];
+                queryTemplate.headerComments = [
+                    ...existingHeader,
+                    ...selectTokenComments
+                ];
+            }
+        }
 
         // 3. Create final query with parsed clauses
         const selectQuery = new SimpleSelectQuery({
@@ -304,13 +345,14 @@ export class SelectQueryParser {
     // Parse all SQL clauses (SELECT, FROM, WHERE, etc.)
     private static parseAllClauses(lexemes: Lexeme[], index: number, withClauseResult: any): {
         clauses: any;
-        newIndex: number
+        newIndex: number;
+        selectTokenComments: string[]
     } {
         let idx = index;
 
         // Find and parse SELECT clause
         idx = this.findMainSelectToken(lexemes, idx, withClauseResult);
-        this.collectSelectTokenComments(lexemes, idx);
+        const selectTokenComments = this.collectSelectTokenComments(lexemes, idx);
 
         const selectClauseResult = SelectClauseParser.parseFromLexeme(lexemes, idx);
         idx = selectClauseResult.newIndex;
@@ -360,7 +402,7 @@ export class SelectQueryParser {
             forClause: forClauseResult.value
         };
 
-        return { clauses, newIndex: idx };
+        return { clauses, newIndex: idx, selectTokenComments };
     }
 
     // Helper to parse optional clauses
@@ -403,11 +445,26 @@ export class SelectQueryParser {
 
         if (!queryTemplate.headerComments) queryTemplate.headerComments = [];
 
+        const beforeComments: string[] = [];
+        const afterComments: string[] = [];
         for (const posComment of withToken.positionedComments) {
-            if (posComment.position === 'before' && posComment.comments) {
-                queryTemplate.headerComments.push(...posComment.comments);
+            if (posComment.comments && posComment.comments.length > 0) {
+                if (posComment.position === 'before') {
+                    beforeComments.push(...posComment.comments);
+                } else if (posComment.position === 'after') {
+                    afterComments.push(...posComment.comments);
+                }
             }
         }
+        if (beforeComments.length > 0) {
+            queryTemplate.headerComments.push(...beforeComments);
+        }
+        if (afterComments.length > 0) {
+            queryTemplate.headerComments.push(...afterComments);
+        }
+
+        withToken.positionedComments = undefined;
+        withToken.comments = null;
     }
 
     // Collect comments between WITH clause and main SELECT
@@ -523,15 +580,31 @@ export class SelectQueryParser {
             selectQuery.headerComments = queryTemplate.headerComments;
         }
 
-        // Apply main SELECT prefix comments as positioned comments
-        if (queryTemplate.mainSelectPrefixComments?.length > 0) {
-            selectQuery.addPositionedComments('before', queryTemplate.mainSelectPrefixComments);
-        }
+        // Merge helper to avoid duplicate between-clause comments
+        const mergeBetweenComments = (source?: string[]) => {
+            if (!source || source.length === 0) {
+                return;
+            }
+            const existing = selectQuery.comments ?? [];
+            const merged: string[] = [];
 
-        // Apply between-clause comments
-        if (queryTemplate.betweenClauseComments?.length > 0) {
-            selectQuery.comments = queryTemplate.betweenClauseComments;
-        }
+            for (const comment of source) {
+                if (!merged.includes(comment)) {
+                    merged.push(comment);
+                }
+            }
+
+            for (const comment of existing) {
+                if (!merged.includes(comment)) {
+                    merged.push(comment);
+                }
+            }
+
+            selectQuery.comments = merged;
+        };
+
+        mergeBetweenComments(queryTemplate.mainSelectPrefixComments);
+        mergeBetweenComments(queryTemplate.betweenClauseComments);
     }
 
     private static parseValuesQuery(lexemes: Lexeme[], index: number): { value: SelectQuery; newIndex: number } {

@@ -352,6 +352,10 @@ export class SqlPrinter {
      */
     private handleSpaceToken(token: SqlPrintToken, parentContainerType?: SqlPrintTokenContainerType): void {
         if (this.shouldSkipCommentBlockSpace(parentContainerType)) {
+            const currentLine = this.linePrinter.getCurrentLine();
+            if (currentLine.text !== '' && !currentLine.text.endsWith(' ')) {
+                this.linePrinter.appendText(' ');
+            }
             return;
         }
         this.linePrinter.appendText(token.text);
@@ -409,8 +413,9 @@ export class SqlPrinter {
     private handleCteOnelineToken(token: SqlPrintToken, level: number): void {
         const onelinePrinter = this.createCteOnelinePrinter();
         const onelineResult = onelinePrinter.print(token, level);
-        const cleanedResult = this.cleanDuplicateSpaces(onelineResult);
-        this.linePrinter.appendText(cleanedResult);
+        let cleanedResult = this.cleanDuplicateSpaces(onelineResult);
+        cleanedResult = cleanedResult.replace(/\(\s+/g, '(').replace(/\s+\)/g, ' )');
+        this.linePrinter.appendText(cleanedResult.trim());
     }
 
     /**
@@ -424,7 +429,7 @@ export class SqlPrinter {
             commaBreak: this.commaBreak,
             andBreak: this.andBreak,
             keywordCase: this.keywordCase,
-            exportComment: this.exportComment,
+            exportComment: false,
             strictCommentPlacement: this.strictCommentPlacement,
             withClauseStyle: 'standard', // Prevent recursive processing
         });

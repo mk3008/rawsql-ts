@@ -47,18 +47,18 @@ FROM
             
             // Expected formatted output with current positioned comments system
             // Note: Comments now preserve source order - Global comes first (before WITH), then WITH clause comment (within WITH)
-            const expectedFormattedSql = `/* Global query comment */ /* WITH clause comment */ with "a" as (select 1 union all /* Second query comment */ select 2) /* Main query comment */ select * from "table" union all /* Union query comment */ select * from "table"`;
+            const expectedFormattedSql = `/* Global query comment */ /* WITH clause comment */ with "a" as (/* First query comment */ select 1 union all /* Second query comment */ select 2) /* Main query comment */ select * from "table" union all /* Union query comment */ select * from "table"`;
             
             console.log('\n=== Expected Output ===');
             console.log(expectedFormattedSql);
             
             // Verify comments that are preserved by current positioned comments system
             const originalComments = [
-                'Global query comment',       // Now captured as headerComment
-                'WITH clause comment',        // Captured as headerComment
-                // 'First query comment',     // Not captured - inner query top-level comment
+                'Global query comment',
+                'WITH clause comment',
+                'First query comment',
                 'Second query comment',
-                'Main query comment',         // Now captured as positioned comment
+                'Main query comment',
                 'Union query comment'
             ];
             
@@ -186,7 +186,7 @@ select 'C' as type, 3 as value
             
             // Comments preserved by current positioned comments system
             const unionComments = [
-                // 'First query block comment',    // Not captured - top-level
+                'First query block comment',
                 'Second query block comment',
                 'Third query block comment',
                 'End comment'
