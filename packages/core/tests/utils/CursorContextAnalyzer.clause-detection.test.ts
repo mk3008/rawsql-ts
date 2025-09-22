@@ -69,7 +69,11 @@ describe('CursorContextAnalyzer - IntelliSense Suggestion Fixes', () => {
             expect(context.suggestKeywords).toBe(false);
         });
 
-        // LATERAL JOIN support - currently not working, skip for now
+        // TODO: Fix LATERAL JOIN IntelliSense recognition
+        // Issue: KeywordCache.isValidJoinKeyword('lateral') returns false
+        // Root cause: joinkeywordParser.parse('lateral', 0) fails
+        // Expected: Should suggest ['JOIN', 'INNER JOIN', 'LEFT JOIN', 'LEFT OUTER JOIN']
+        // Priority: Low (IntelliSense feature, not core functionality)
         test.skip('should suggest complete JOIN phrases after LATERAL (TODO: fix LATERAL recognition)', () => {
             const sql = 'SELECT * FROM users LATERAL ';
             const context = CursorContextAnalyzer.analyzeIntelliSense(sql, sql.length);

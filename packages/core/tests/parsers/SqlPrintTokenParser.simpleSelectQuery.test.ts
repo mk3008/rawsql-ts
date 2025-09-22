@@ -812,8 +812,8 @@ order by
             'FROM',
             '  [users]',
             'WHERE',
-            '  [id] = @id',
-            '  AND [status] = @status'
+                '  [id] = @id',
+                '  AND [status] = @status'
         ].join('\r\n'));
     });
 
@@ -873,8 +873,8 @@ order by
             'FROM',
             '  [users]',
             'WHERE',
-            '  [id] = @id',
-            '  AND [status] = @status'
+                '  [id] = @id',
+                '  AND [status] = @status'
         ].join('\r\n'));
     });
 });

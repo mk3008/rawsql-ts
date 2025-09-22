@@ -143,8 +143,9 @@ export class AutoTypeCompatibilityValidator {
             }
         }
 
-        // Fallback: return original resolution with .ts extension
-        return path.resolve(this.options.baseDir!, importPath) + '.ts';
+        // Fallback: return original resolution and append .ts only when needed
+        const fallbackPath = path.resolve(this.options.baseDir!, importPath);
+        return path.extname(fallbackPath) ? fallbackPath : `${fallbackPath}.ts`;
     }
 
     /**
@@ -162,16 +163,29 @@ export class AutoTypeCompatibilityValidator {
     private generateCandidatePaths(importPath: string): string[] {
         const baseDir = this.options.baseDir!;
         const baseDirName = path.basename(baseDir);
+        const normalizedImportPath = importPath.split('\\').join('/');
+        const normalizedSegments = normalizedImportPath.split('/').filter(segment => segment.length > 0);
         const candidates: string[] = [];
 
-        // Strategy 1: Check for redundant directory prefix
-        if (importPath.startsWith(baseDirName + path.sep)) {
-            const withoutPrefix = importPath.substring(baseDirName.length + 1);
-            candidates.push(path.resolve(baseDir, withoutPrefix));
+        const addCandidate = (segments: string[]) => {
+            const candidate = path.resolve(baseDir, ...segments);
+            if (!candidates.includes(candidate)) {
+                candidates.push(candidate);
+            }
+        };
+
+        let prefixIndex = 0;
+        while (prefixIndex < normalizedSegments.length && normalizedSegments[prefixIndex] === baseDirName) {
+            prefixIndex++;
+            addCandidate(normalizedSegments.slice(prefixIndex));
         }
 
-        // Strategy 2: Standard resolution
-        candidates.push(path.resolve(baseDir, importPath));
+        addCandidate(normalizedSegments);
+
+        const resolvedOriginal = path.resolve(baseDir, normalizedImportPath);
+        if (!candidates.includes(resolvedOriginal)) {
+            candidates.push(resolvedOriginal);
+        }
 
         return candidates;
     }

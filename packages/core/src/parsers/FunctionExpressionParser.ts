@@ -196,14 +196,14 @@ export class FunctionExpressionParser {
                 const value = new FunctionCall(namespaces, name.name, arg.value, over.value, withinGroup, withOrdinality, internalOrderBy);
                 // Set closing comments if available
                 if (closingComments && closingComments.length > 0) {
-                    value.comments = closingComments;
+                    value
                 }
                 return { value, newIndex: idx };
             } else {
                 const value = new FunctionCall(namespaces, name.name, arg.value, null, withinGroup, withOrdinality, internalOrderBy);
                 // Set closing comments if available
                 if (closingComments && closingComments.length > 0) {
-                    value.comments = closingComments;
+                    value
                 }
                 return { value, newIndex: idx };
             }
@@ -303,6 +303,13 @@ export class FunctionExpressionParser {
             const arg = ValueParser.parseArgument(TokenType.OpenParen, TokenType.CloseParen, lexemes, idx);
             idx = arg.newIndex;
             const value = new TypeValue(namespaces, new RawString(name.name), arg.value);
+            // Transfer positioned comments from the argument to the function
+            if (arg.value.positionedComments) {
+                value.positionedComments = arg.value.positionedComments;
+            }
+            if (arg.value.comments) {
+                value
+            }
             return { value, newIndex: idx };
         } else {
             const value = new TypeValue(namespaces, new RawString(name.name));
@@ -444,10 +451,11 @@ export class FunctionExpressionParser {
     } {
         let idx = index;
         
-        // Check for opening parenthesis
+        // Check for opening parenthesis and capture its comments
         if (idx >= lexemes.length || !(lexemes[idx].type & TokenType.OpenParen)) {
             throw ParseError.fromUnparsedLexemes(lexemes, idx, `Expected opening parenthesis.`);
         }
+        const openParenToken = lexemes[idx];
         idx++; // Skip opening parenthesis
         
         const args: ValueComponent[] = [];
@@ -476,6 +484,37 @@ export class FunctionExpressionParser {
         // Parse regular arguments
         const result = ValueParser.parseFromLexeme(lexemes, idx);
         idx = result.newIndex;
+        
+        // Transfer opening paren comments to the first argument
+        if (openParenToken.positionedComments && openParenToken.positionedComments.length > 0) {
+            // Convert "after" positioned comments from opening paren to "before" comments for the argument
+            const afterComments = openParenToken.positionedComments.filter(pc => pc.position === 'after');
+            if (afterComments.length > 0) {
+                const beforeComments = afterComments.map(pc => ({
+                    position: 'before' as const,
+                    comments: pc.comments
+                }));
+                
+                // Merge positioned comments (don't convert legacy comments since they're already positioned)
+                result.value.positionedComments = [
+                    ...beforeComments,
+                    ...(result.value.positionedComments || [])
+                ];
+                
+                // Clear legacy comments to prevent duplication
+                result.value
+                
+                // Also clear positioned comments from nested components to prevent duplication
+                // This is needed because both the outer component and inner components might have the same comments
+                if ('qualifiedName' in result.value && result.value.qualifiedName) {
+                    if ('name' in result.value.qualifiedName && result.value.qualifiedName.name) {
+                        result.value.qualifiedName.name.positionedComments = null;
+                        result.value.qualifiedName.name
+                    }
+                }
+            }
+        }
+        
         args.push(result.value);
         
         // Continue reading if the next element is a comma

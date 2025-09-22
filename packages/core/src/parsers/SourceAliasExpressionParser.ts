@@ -9,8 +9,9 @@ export class SourceAliasExpressionParser {
 
         // If there is a column alias, it may be detected as a function, so functions are also processed.
         if (idx < lexemes.length && ((lexemes[idx].type & TokenType.Identifier) || (lexemes[idx].type & TokenType.Function))) {
-            // Check for alias
-            const table = lexemes[idx].value;
+            // Check for alias and capture comments from the alias token
+            const aliasToken = lexemes[idx];
+            const table = aliasToken.value;
             idx++;
 
             if (idx < lexemes.length && (lexemes[idx].type & TokenType.OpenParen)) {
@@ -40,10 +41,20 @@ export class SourceAliasExpressionParser {
                     throw new Error(`Syntax error at position ${index}: No column aliases found. Column alias declarations must contain at least one column name.`);
                 }
 
-                return { value: new SourceAliasExpression(table, columns), newIndex: idx };
+                const sourceAlias = new SourceAliasExpression(table, columns);
+                // Transfer positioned comments from the alias token
+                if (aliasToken.positionedComments && aliasToken.positionedComments.length > 0) {
+                    sourceAlias.positionedComments = aliasToken.positionedComments;
+                }
+                return { value: sourceAlias, newIndex: idx };
             }
 
-            return { value: new SourceAliasExpression(table, null), newIndex: idx };
+            const sourceAlias = new SourceAliasExpression(table, null);
+            // Transfer positioned comments from the alias token
+            if (aliasToken.positionedComments && aliasToken.positionedComments.length > 0) {
+                sourceAlias.positionedComments = aliasToken.positionedComments;
+            }
+            return { value: sourceAlias, newIndex: idx };
         }
 
         throw new Error(`Syntax error at position ${index}: Expected an identifier for table alias but found "${lexemes[index]?.value || 'end of input'}".`);

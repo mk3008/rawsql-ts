@@ -13,12 +13,26 @@ export class FullNameParser {
     public static parseFromLexeme(lexemes: Lexeme[], index: number): { namespaces: string[] | null, name: IdentifierString, newIndex: number, lastTokenType: number } {
         const { identifiers, newIndex } = FullNameParser.parseEscapedOrDotSeparatedIdentifiers(lexemes, index);
         const { namespaces, name } = FullNameParser.extractNamespacesAndName(identifiers);
+        
+        // Create IdentifierString and transfer comments from the last relevant lexeme
+        const identifierString = new IdentifierString(name);
+        
+        // Transfer positioned comments from the last parsed lexeme (the actual table/column name)
+        if (newIndex > index) {
+            const lastLexeme = lexemes[newIndex - 1];
+            if (lastLexeme.positionedComments && lastLexeme.positionedComments.length > 0) {
+                identifierString.positionedComments = lastLexeme.positionedComments;
+            } else if (lastLexeme.comments && lastLexeme.comments.length > 0) {
+                identifierString
+            }
+        }
+        
         // Returns the type of the last token in the identifier sequence
         let lastTokenType = 0;
         if (newIndex > index) {
             lastTokenType = lexemes[newIndex - 1].type;
         }
-        return { namespaces, name: new IdentifierString(name), newIndex, lastTokenType };
+        return { namespaces, name: identifierString, newIndex, lastTokenType };
     }
 
     /**

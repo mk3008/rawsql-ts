@@ -48,12 +48,12 @@ export class FromClauseParser {
         if (join !== null) {
             const clause = new FromClause(sourceExpression.value, join.value);
             // Set comments from the FROM token to the clause
-            clause.comments = fromTokenComments;
+            clause
             return { value: clause, newIndex: idx };
         } else {
             const clause = new FromClause(sourceExpression.value, null);
             // Set comments from the FROM token to the clause
-            clause.comments = fromTokenComments;
+            clause
             return { value: clause, newIndex: idx };
         }
     }

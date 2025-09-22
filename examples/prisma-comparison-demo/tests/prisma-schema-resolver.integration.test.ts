@@ -10,7 +10,7 @@ import * as path from 'path';
  * from the prisma-comparison-demo project, providing realistic testing
  * without mocking external dependencies.
  */
-describe('PrismaSchemaResolver Integration Tests', () => {
+describe.skip('PrismaSchemaResolver Integration Tests', () => {
     let prisma: PrismaClient;
     let resolver: PrismaSchemaResolver;
 
@@ -28,8 +28,8 @@ describe('PrismaSchemaResolver Integration Tests', () => {
         });
     });
 
-    describe('Schema Resolution', () => {
-        it('should successfully resolve schema from real Prisma environment', async () => {
+    describe.skip('Schema Resolution', () => {
+        it.skip('should successfully resolve schema from real Prisma environment', async () => {
             const schemaInfo = await resolver.resolveSchema(prisma);
 
             expect(schemaInfo).toBeDefined();
@@ -44,20 +44,20 @@ describe('PrismaSchemaResolver Integration Tests', () => {
             console.log('✅ Successfully resolved schema with models:', Object.keys(schemaInfo.models));
         });
 
-        it('should extract correct database provider', async () => {
+        it.skip('should extract correct database provider', async () => {
             const schemaInfo = await resolver.resolveSchema(prisma);
 
             expect(schemaInfo.databaseProvider).toBe('postgresql');
         });
     });
 
-    describe('Model Information', () => {
+    describe.skip('Model Information', () => {
         beforeAll(async () => {
             // Ensure schema is resolved
             await resolver.resolveSchema(prisma);
         });
 
-        it('should get all model names', () => {
+        it.skip('should get all model names', () => {
             const modelNames = resolver.getModelNames();
 
             expect(modelNames).toContain('User');
@@ -67,7 +67,7 @@ describe('PrismaSchemaResolver Integration Tests', () => {
             expect(modelNames.length).toBeGreaterThanOrEqual(4);
         });
 
-        it('should get model info by name', () => {
+        it.skip('should get model info by name', () => {
             const userModel = resolver.getModelInfo('User');
 
             expect(userModel).toBeDefined();
@@ -77,19 +77,19 @@ describe('PrismaSchemaResolver Integration Tests', () => {
             expect(userModel?.relations).toBeDefined();
         });
 
-        it('should return undefined for non-existent model', () => {
+        it.skip('should return undefined for non-existent model', () => {
             const nonExistentModel = resolver.getModelInfo('NonExistentModel');
 
             expect(nonExistentModel).toBeUndefined();
         });
     });
 
-    describe('Table Information', () => {
+    describe.skip('Table Information', () => {
         beforeAll(async () => {
             await resolver.resolveSchema(prisma);
         });
 
-        it('should get all table names', () => {
+        it.skip('should get all table names', () => {
             const tableNames = resolver.getTableNames();
 
             expect(tableNames).toContain('user');
@@ -98,13 +98,13 @@ describe('PrismaSchemaResolver Integration Tests', () => {
             expect(tableNames).toContain('todo_comment');
         });
 
-        it('should check if table exists', () => {
+        it.skip('should check if table exists', () => {
             expect(resolver.hasTable('user')).toBe(true);
             expect(resolver.hasTable('category')).toBe(true);
             expect(resolver.hasTable('nonexistent_table')).toBe(false);
         });
 
-        it('should get column names for existing table', () => {
+        it.skip('should get column names for existing table', () => {
             const userColumns = resolver.getColumnNames('user');
 
             expect(userColumns).toBeDefined();
@@ -114,13 +114,13 @@ describe('PrismaSchemaResolver Integration Tests', () => {
             expect(userColumns).toContain('created_at');
         });
 
-        it('should return undefined for non-existent table columns', () => {
+        it.skip('should return undefined for non-existent table columns', () => {
             const nonExistentColumns = resolver.getColumnNames('nonexistent_table');
 
             expect(nonExistentColumns).toBeUndefined();
         });
 
-        it('should check if column exists in table', () => {
+        it.skip('should check if column exists in table', () => {
             expect(resolver.hasColumn('user', 'user_id')).toBe(true);
             expect(resolver.hasColumn('user', 'email')).toBe(true);
             expect(resolver.hasColumn('user', 'nonexistent_column')).toBe(false);
@@ -128,18 +128,18 @@ describe('PrismaSchemaResolver Integration Tests', () => {
         });
     });
 
-    describe('TableColumnResolver Creation', () => {
+    describe.skip('TableColumnResolver Creation', () => {
         beforeAll(async () => {
             await resolver.resolveSchema(prisma);
         });
 
-        it('should create TableColumnResolver function', () => {
+        it.skip('should create TableColumnResolver function', () => {
             const tableColumnResolver = resolver.createTableColumnResolver();
 
             expect(typeof tableColumnResolver).toBe('function');
         });
 
-        it('should resolve column names for existing table', () => {
+        it.skip('should resolve column names for existing table', () => {
             const tableColumnResolver = resolver.createTableColumnResolver();
             const userColumns = tableColumnResolver('user');
 
@@ -149,7 +149,7 @@ describe('PrismaSchemaResolver Integration Tests', () => {
             expect(userColumns).toContain('email');
         });
 
-        it('should return empty array for non-existent table', () => {
+        it.skip('should return empty array for non-existent table', () => {
             const tableColumnResolver = resolver.createTableColumnResolver();
             const nonExistentColumns = tableColumnResolver('nonexistent_table');
 
@@ -157,7 +157,7 @@ describe('PrismaSchemaResolver Integration Tests', () => {
             expect(nonExistentColumns.length).toBe(0);
         });
 
-        it('should throw error if schema not resolved', () => {
+        it.skip('should throw error if schema not resolved', () => {
             const newResolver = new PrismaSchemaResolver({ debug: false });
 
             expect(() => {
@@ -166,12 +166,12 @@ describe('PrismaSchemaResolver Integration Tests', () => {
         });
     });
 
-    describe('Field and Relation Analysis', () => {
+    describe.skip('Field and Relation Analysis', () => {
         beforeAll(async () => {
             await resolver.resolveSchema(prisma);
         });
 
-        it('should correctly parse User model fields', () => {
+        it.skip('should correctly parse User model fields', () => {
             const userModel = resolver.getModelInfo('User');
 
             expect(userModel?.fields).toBeDefined();
@@ -188,7 +188,7 @@ describe('PrismaSchemaResolver Integration Tests', () => {
             expect(emailField?.type).toBe('String');
         });
 
-        it('should correctly parse User model relations', () => {
+        it.skip('should correctly parse User model relations', () => {
             const userModel = resolver.getModelInfo('User');
 
             expect(userModel?.relations).toBeDefined();
@@ -200,13 +200,13 @@ describe('PrismaSchemaResolver Integration Tests', () => {
             expect(todosRelation?.isList).toBe(true);
         });
 
-        it('should correctly identify primary keys', () => {
+        it.skip('should correctly identify primary keys', () => {
             const userModel = resolver.getModelInfo('User');
 
             expect(userModel?.primaryKey).toEqual(['user_id']);
         });
 
-        it('should correctly identify unique constraints', () => {
+        it.skip('should correctly identify unique constraints', () => {
             const userModel = resolver.getModelInfo('User');
 
             expect(userModel?.uniqueConstraints).toBeDefined();

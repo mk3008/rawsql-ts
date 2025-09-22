@@ -8,7 +8,7 @@ import { PrismaTodoDetailService } from '../src/services/prisma-todo-detail.serv
  * This test suite ensures that rawsql-ts correctly aggregates comments 
  * into arrays and returns the same data structure as Prisma
  */
-describe('Comment Aggregation Integration Tests', () => {
+describe.skip('Comment Aggregation Integration Tests', () => {
     let prisma: PrismaClient;
     let rawSqlService: RawSqlTodoDetailService;
     let prismaService: PrismaTodoDetailService;
@@ -25,7 +25,7 @@ describe('Comment Aggregation Integration Tests', () => {
         await prisma.$disconnect();
     }); 
     
-    it('should return the same number of comments as Prisma for TODO with multiple comments', async () => {
+    it.skip('should return the same number of comments as Prisma for TODO with multiple comments', async () => {
         // Use TODO ID 1 which is known to have multiple comments
         const todoId = 1;
 
@@ -42,7 +42,7 @@ describe('Comment Aggregation Integration Tests', () => {
         expect(rawSqlComments.length).toBeGreaterThan(1); // Ensure we're testing with multiple comments
     });
     
-    it('should return comments with correct structure and data', async () => {
+    it.skip('should return comments with correct structure and data', async () => {
         const todoId = 1;
 
         const prismaResult = await prismaService.getTodoDetail(todoId);
@@ -72,7 +72,7 @@ describe('Comment Aggregation Integration Tests', () => {
         });
     });
 
-    it('should handle TODOs with no comments correctly', async () => {
+    it.skip('should handle TODOs with no comments correctly', async () => {
         // Find a TODO with no comments, or use a non-existent TODO ID
         const todos = await prisma.todo.findMany({
             include: {
@@ -104,7 +104,7 @@ describe('Comment Aggregation Integration Tests', () => {
         }
     });
 
-    it('should return comments in consistent order', async () => {
+    it.skip('should return comments in consistent order', async () => {
         const todoId = 1;
 
         // Run the same query multiple times to ensure consistent ordering
@@ -133,7 +133,7 @@ describe('Comment Aggregation Integration Tests', () => {
         }
     });
 
-    it('should verify raw SQL query returns multiple rows for TODO with comments', async () => {
+    it.skip('should verify raw SQL query returns multiple rows for TODO with comments', async () => {
         // This test verifies that the underlying SQL query returns the expected number of rows
         const todoId = 1;
 

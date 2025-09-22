@@ -73,17 +73,18 @@ describe('QueryNormalizer', () => {
         expect(normalizedQuery).toBeInstanceOf(SimpleSelectQuery);
     });
 
-    test.skip('it handles VALUES with no rows', () => {
-        // This test is skipped as some SQL parsers might not accept the empty VALUES syntax
-        // Arrange - Note: Using empty VALUES syntax
+    test('it handles VALUES with no rows - should throw error for missing column aliases', () => {
+        // VALUES () without column aliases cannot be converted to SimpleSelectQuery
+        // This is expected behavior - column aliases are required for normalization
+
+        // Arrange
         const sql = "VALUES ()";
         const query = SelectQueryParser.parse(sql);
 
-        // Act
-        const normalizedQuery = QueryBuilder.buildSimpleQuery(query);
-
-        // Assert
-        expect(normalizedQuery).toBeInstanceOf(SimpleSelectQuery);
+        // Act & Assert - Should throw error
+        expect(() => {
+            QueryBuilder.buildSimpleQuery(query);
+        }).toThrow('Column aliases are required to convert a VALUES clause to SimpleSelectQuery');
     });
 
     test('it normalizes UNION query with WITH clause', () => {

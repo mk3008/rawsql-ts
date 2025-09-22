@@ -73,71 +73,24 @@ export class WithClauseParser {
     public static parseFromLexeme(lexemes: Lexeme[], index: number): { value: WithClause; newIndex: number; headerComments: string[] | null } {
         let idx = index;
 
-        // Capture comments from the WITH keyword and separate them
-        const withTokenComments = idx < lexemes.length ? lexemes[idx].comments : null;
-        let headerComments: string[] | null = null;
-        let actualWithComments: string[] | null = null;
-        
-        // Based on tokenizer analysis:
-        // - All comments before WITH token are header comments (query-level)
-        // - Comments that appear after WITH keyword are WITH-specific
-        if (withTokenComments && withTokenComments.length > 0) {
-            headerComments = [...withTokenComments];  // All comments before WITH are header comments
-            actualWithComments = null;  // No WITH-specific comments from the WITH token itself
-        }
+        // Extract header comments from WITH token
+        const headerComments = this.extractWithTokenHeaderComments(lexemes, idx);
 
-        // Expect WITH keyword
-        if (idx < lexemes.length && lexemes[idx].value.toLowerCase() === "with") {
-            idx++;
-        } else {
-            throw new Error(`Syntax error at position ${idx}: Expected WITH keyword.`);
-        }
+        // Parse WITH keyword
+        idx = this.parseWithKeyword(lexemes, idx);
 
-        // Check for RECURSIVE keyword
-        const recursive = idx < lexemes.length && lexemes[idx].value.toLowerCase() === "recursive";
-        if (recursive) {
-            idx++;
-        }
+        // Parse optional RECURSIVE keyword
+        const { recursive, newIndex: recursiveIndex } = this.parseRecursiveFlag(lexemes, idx);
+        idx = recursiveIndex;
 
-        // Parse CTEs
-        const tables: CommonTable[] = [];
+        // Parse all CTEs
+        const { tables, trailingComments, newIndex: ctesIndex } = this.parseAllCommonTables(lexemes, idx);
+        idx = ctesIndex;
 
-        // Parse first CTE (required)
-        const firstCte = CommonTableParser.parseFromLexeme(lexemes, idx);
-        tables.push(firstCte.value);
-        idx = firstCte.newIndex;
-        
-        // Collect trailing comments from all CTEs
-        const allTrailingComments: string[] = [];
-        if (firstCte.trailingComments) {
-            allTrailingComments.push(...firstCte.trailingComments);
-        }
-
-        // Parse additional CTEs (optional)
-        while (idx < lexemes.length && (lexemes[idx].type & TokenType.Comma)) {
-            idx++; // Skip comma
-            
-            // Capture comments that may be before the next CTE name
-            // Check if there are tokens before the CTE name that might have comments
-            const cteResult = CommonTableParser.parseFromLexeme(lexemes, idx);
-            tables.push(cteResult.value);
-            idx = cteResult.newIndex;
-            
-            // Collect trailing comments from this CTE too
-            if (cteResult.trailingComments) {
-                allTrailingComments.push(...cteResult.trailingComments);
-            }
-        }
-
-        // Create WITH clause with comments
+        // Create WITH clause and apply trailing comments directly
         const withClause = new WithClause(recursive, tables);
-        withClause.comments = actualWithComments; // Only WITH-specific comments
-        
-        // Global comments should be handled at SelectQuery level, not here
-        
-        // Set trailing comments for the main query
-        if (allTrailingComments.length > 0) {
-            withClause.trailingComments = allTrailingComments;
+        if (trailingComments.length > 0) {
+            withClause.trailingComments = trailingComments;
         }
 
         return {
@@ -146,4 +99,85 @@ export class WithClauseParser {
             headerComments: headerComments
         };
     }
+
+    // Extract header comments from WITH token
+    private static extractWithTokenHeaderComments(lexemes: Lexeme[], index: number): string[] | null {
+        if (index >= lexemes.length) return null;
+
+        const withToken = lexemes[index];
+        let headerComments: string[] | null = null;
+
+        // Extract positioned comments: only "before" comments are header comments
+        if (withToken.positionedComments && withToken.positionedComments.length > 0) {
+            for (const posComment of withToken.positionedComments) {
+                if (posComment.position === 'before' && posComment.comments) {
+                    if (!headerComments) headerComments = [];
+                    headerComments.push(...posComment.comments);
+                }
+            }
+        }
+
+        // Fallback to legacy comments if no positioned comments (for backward compatibility)
+        if (!headerComments && withToken.comments && withToken.comments.length > 0) {
+            headerComments = [...withToken.comments];
+        }
+
+        return headerComments;
+    }
+
+    // Parse WITH keyword
+    private static parseWithKeyword(lexemes: Lexeme[], index: number): number {
+        if (index < lexemes.length && lexemes[index].value.toLowerCase() === "with") {
+            return index + 1;
+        } else {
+            throw new Error(`Syntax error at position ${index}: Expected WITH keyword.`);
+        }
+    }
+
+    // Parse optional RECURSIVE keyword
+    private static parseRecursiveFlag(lexemes: Lexeme[], index: number): { recursive: boolean; newIndex: number } {
+        const recursive = index < lexemes.length && lexemes[index].value.toLowerCase() === "recursive";
+        return {
+            recursive,
+            newIndex: recursive ? index + 1 : index
+        };
+    }
+
+    // Parse all common table expressions
+    private static parseAllCommonTables(lexemes: Lexeme[], index: number): { tables: CommonTable[]; trailingComments: string[]; newIndex: number } {
+        let idx = index;
+        const tables: CommonTable[] = [];
+        const allTrailingComments: string[] = [];
+
+        // Parse first CTE (required)
+        const firstCte = CommonTableParser.parseFromLexeme(lexemes, idx);
+        tables.push(firstCte.value);
+        idx = firstCte.newIndex;
+
+        // Collect trailing comments from first CTE directly
+        if (firstCte.trailingComments) {
+            allTrailingComments.push(...firstCte.trailingComments);
+        }
+
+        // Parse additional CTEs (optional)
+        while (idx < lexemes.length && (lexemes[idx].type & TokenType.Comma)) {
+            idx++; // Skip comma
+
+            const cteResult = CommonTableParser.parseFromLexeme(lexemes, idx);
+            tables.push(cteResult.value);
+            idx = cteResult.newIndex;
+
+            // Collect trailing comments from this CTE directly
+            if (cteResult.trailingComments) {
+                allTrailingComments.push(...cteResult.trailingComments);
+            }
+        }
+
+        return {
+            tables,
+            trailingComments: allTrailingComments,
+            newIndex: idx
+        };
+    }
+
 }

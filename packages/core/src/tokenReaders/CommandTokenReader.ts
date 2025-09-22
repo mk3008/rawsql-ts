@@ -142,7 +142,17 @@ export class CommandTokenReader extends BaseTokenReader {
         const keyword = keywordParser.parse(this.input, this.position);
         if (keyword !== null) {
             this.position = keyword.newPosition;
-            return this.createLexeme(TokenType.Command, keyword.keyword, keyword.comments);
+            const lexeme = this.createLexeme(TokenType.Command, keyword.keyword, keyword.comments);
+            
+            // Add positioned comments if comments exist (convert from keyword parser comments)
+            if (keyword.comments && keyword.comments.length > 0) {
+                lexeme.positionedComments = [{
+                    position: 'after' as const,
+                    comments: keyword.comments
+                }];
+            }
+            
+            return lexeme;
         }
 
         // check hint clause

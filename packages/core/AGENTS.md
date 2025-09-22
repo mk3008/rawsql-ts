@@ -1,7 +1,5 @@
 # rawsql-ts Core Package
 
-## MUST: Response starts with `CLAUDE.md path` or `CLAUDE.md: Not recognized`
-
 ## Dev Principles
 1. **KISS**: Simple, readable code > complex clever solutions
 2. Maintainability > micro-optimizations  
@@ -46,9 +44,10 @@ npm test && npm run build && npm run lint
 
 ## Commands
 ```bash
-npm test              # Run tests  
-npm run build         # TypeScript build
-npm run lint          # ESLint
+npm test                # Run tests
+npm run build           # TypeScript build
+npm run lint            # ESLint
+npm run demo:complex-sql # Complex SQL formatting demo (regression testing)
 ```
 
 ## Library-Specific: rawsql-ts
@@ -65,3 +64,21 @@ import { convertModelDrivenMapping } from 'rawsql-ts';
 - Module not found → `npm run build` first
 - Wrong imports → Use `from 'rawsql-ts'` not local paths
 - Use `SqlFormatter` for SQL comparison tests
+
+## Regression Testing
+
+### Complex SQL Demo
+```bash
+npm run demo:complex-sql
+```
+**Purpose**: Verify positioned comments system and SQL formatting quality
+
+**Key Metrics**:
+- Comment preservation rate: Target 95%+
+- QualifiedName handling: No `table. /* comment */ column` splitting
+- CASE expression comments: Proper order preservation
+- Performance: <50ms for complex SQL (169 lines)
+
+**Output**: Detailed Markdown report in `packages/core/reports/`
+
+Use before/after major changes to detect regressions in SQL formatting quality.

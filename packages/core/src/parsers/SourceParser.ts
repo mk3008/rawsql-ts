@@ -62,6 +62,14 @@ export class SourceParser {
     private static parseTableSource(fullNameResult: { namespaces: string[] | null, name: any, newIndex: number }): { value: TableSource; newIndex: number } {
         const { namespaces, name, newIndex } = fullNameResult;
         const value = new TableSource(namespaces, name.name);
+        
+        // Transfer positioned comments from the table name to TableSource
+        if (name.positionedComments && name.positionedComments.length > 0) {
+            value.positionedComments = name.positionedComments;
+        } else if (name.comments && name.comments.length > 0) {
+            value.comments = name.comments;
+        }
+        
         return { value, newIndex };
     }
 
@@ -82,6 +90,8 @@ export class SourceParser {
 
     private static parseParenSource(lexemes: Lexeme[], index: number): { value: SourceComponent; newIndex: number } {
         let idx = index;
+        // capture the open parenthesis and its comments
+        const openParenToken = lexemes[idx];
         // skip the open parenthesis
         idx++;
         if (idx >= lexemes.length) {
@@ -91,7 +101,7 @@ export class SourceParser {
         // Support both SELECT and VALUES in subqueries
         const keyword = lexemes[idx].value;
         if (keyword === "select" || keyword === "values" || keyword === "with") {
-            const result = this.parseSubQuerySource(lexemes, idx);
+            const result = this.parseSubQuerySource(lexemes, idx, openParenToken);
             idx = result.newIndex;
             if (idx < lexemes.length && lexemes[idx].type == TokenType.CloseParen) {
                 // skip the closing parenthesis
@@ -115,12 +125,36 @@ export class SourceParser {
         throw new Error(`Syntax error at position ${idx}: Expected 'SELECT' keyword, 'VALUES' keyword, or opening parenthesis '(' but found "${lexemes[idx].value}".`);
     }
 
-    private static parseSubQuerySource(lexemes: Lexeme[], index: number): { value: SubQuerySource; newIndex: number } {
+    private static parseSubQuerySource(lexemes: Lexeme[], index: number, openParenToken?: Lexeme): { value: SubQuerySource; newIndex: number } {
         let idx = index;
 
         // Use the new parseFromLexeme method and destructure the result
         const { value: selectQuery, newIndex } = SelectQueryParser.parseFromLexeme(lexemes, idx);
         idx = newIndex;
+
+        // Transfer opening paren comments to the subquery (similar to function arguments)
+        if (openParenToken && openParenToken.positionedComments && openParenToken.positionedComments.length > 0) {
+            // Convert "after" positioned comments from opening paren to "before" comments for the subquery
+            const afterComments = openParenToken.positionedComments.filter(pc => pc.position === 'after');
+            if (afterComments.length > 0) {
+                const beforeComments = afterComments.map(pc => ({
+                    position: 'before' as const,
+                    comments: pc.comments
+                }));
+                
+                // Merge with existing positioned comments on the subquery
+                if (selectQuery.positionedComments) {
+                    selectQuery.positionedComments = [...beforeComments, ...selectQuery.positionedComments];
+                } else {
+                    selectQuery.positionedComments = beforeComments;
+                }
+                
+                // Clear legacy comments to prevent duplication
+                if (selectQuery.comments) {
+                    selectQuery.comments = null;
+                }
+            }
+        }
 
         const subQuerySource = new SubQuerySource(selectQuery);
         return { value: subQuerySource, newIndex: idx };

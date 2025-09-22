@@ -101,20 +101,32 @@ export class StringUtils {
                     position += 2;
 
                     // Process the comment content
-                    const lines = input.slice(start + 2, position - 2).replace(/\r/g, '').split('\n');
-                    for (let i = 0; i < lines.length; i++) {
-                        lines[i] = lines[i].trim();
+                    const rawLines = input.slice(start + 2, position - 2).replace(/\r/g, '').split('\n');
+                    const processedLines: string[] = [];
+
+                    for (const rawLine of rawLines) {
+                        const trimmedLine = rawLine.trim();
+                        // Check if the original line (before trim) contains only separator characters
+                        const isSeparatorLine = /^\s*[-=_+*#]+\s*$/.test(rawLine);
+
+                        if (trimmedLine !== '' || isSeparatorLine) {
+                            // Keep non-empty lines and separator lines (preserve separator content)
+                            processedLines.push(isSeparatorLine ? rawLine.trim() : trimmedLine);
+                        } else {
+                            // For truly empty lines, preserve them as empty strings
+                            // This maintains the original comment structure
+                            processedLines.push('');
+                        }
                     }
 
-                    // Remove empty lines, but only at the beginning and end
-                    while (lines.length > 0 && lines[0] === '') {
-                        lines.shift();
+                    // Remove empty lines only at the beginning and end
+                    while (processedLines.length > 0 && processedLines[0] === '') {
+                        processedLines.shift();
                     }
-                    while (lines.length > 0 && lines[lines.length - 1] === '') {
-                        lines.pop();
+                    while (processedLines.length > 0 && processedLines[processedLines.length - 1] === '') {
+                        processedLines.pop();
                     }
-
-                    return { newPosition: position, comments: lines };
+                    return { newPosition: position, comments: processedLines };
                 }
                 position++;
             }
