@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+require('ts-node/register/transpile-only');
+
 /**
  * Complex SQL Formatting Demo Application
  * Permanent demo application for regression testing
@@ -8,8 +10,8 @@
  * Purpose: Continuous verification of positioned comments system and SQL formatting quality
  */
 
-const { SelectQueryParser } = require('../dist/src/parsers/SelectQueryParser');
-const { SqlFormatter } = require('../dist/src/transformers/SqlFormatter');
+const { SelectQueryParser } = require('../src/parsers/SelectQueryParser');
+const { SqlFormatter } = require('../src/transformers/SqlFormatter');
 const fs = require('fs');
 const path = require('path');
 
@@ -386,8 +388,8 @@ const FORMATTER_CONFIGS = [
         }
     },
     {
-        name: 'Smart Comment Style',
-        key: 'smart_comment',
+        name: 'After Comma Smart Comment Style',
+        key: 'after_commna_smart_comment',
         options: {
             identifierEscape: { start: '"', end: '"' },
             parameterSymbol: '$',
@@ -397,6 +399,30 @@ const FORMATTER_CONFIGS = [
             newline: '\n',
             keywordCase: 'upper',
             commaBreak: 'after', // After comma works well with smart comments
+            andBreak: 'before',
+            exportComment: true,
+            commentStyle: 'smart', // Enable smart comment processing
+            parenthesesOneLine: false,
+            betweenOneLine: false,
+            valuesOneLine: false,
+            joinOneLine: false,
+            caseOneLine: false,
+            subqueryOneLine: false
+        }
+    },
+    {
+        name: 'Before Comma Smart Comment Style',
+        key: 'before_comma_smart_comment',
+        options: {
+            identifierEscape: { start: '"', end: '"' },
+            parameterSymbol: '$',
+            parameterStyle: 'indexed',
+            indentSize: 4,
+            indentChar: ' ',
+            newline: '\n',
+            keywordCase: 'upper',
+            commaBreak: 'before', // Before comma works well with smart comments
+            cteCommaBreak: 'after', // CTEs use after-comma for better readability
             andBreak: 'before',
             exportComment: true,
             commentStyle: 'smart', // Enable smart comment processing

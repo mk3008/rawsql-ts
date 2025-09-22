@@ -1,7 +1,5 @@
 # rawsql-ts Core Package
 
-## MUST: Response starts with `CLAUDE.md path` or `CLAUDE.md: Not recognized`
-
 ## Dev Principles
 1. **KISS**: Simple, readable code > complex clever solutions
 2. Maintainability > micro-optimizations  

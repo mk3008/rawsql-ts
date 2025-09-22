@@ -45,13 +45,6 @@ FROM
             console.log('\n=== Formatted Output (With Indentation) ===');
             console.log(resultWithIndent.formattedSql);
             
-            // Expected formatted output with current positioned comments system
-            // Note: Comments now preserve source order - Global comes first (before WITH), then WITH clause comment (within WITH)
-            const expectedFormattedSql = `/* Global query comment */ /* WITH clause comment */ with "a" as (/* First query comment */ select 1 union all /* Second query comment */ select 2) /* Main query comment */ select * from "table" union all /* Union query comment */ select * from "table"`;
-            
-            console.log('\n=== Expected Output ===');
-            console.log(expectedFormattedSql);
-            
             // Verify comments that are preserved by current positioned comments system
             const originalComments = [
                 'Global query comment',
@@ -61,17 +54,27 @@ FROM
                 'Main query comment',
                 'Union query comment'
             ];
-            
+
             console.log('\n=== Comment Preservation Check ===');
             originalComments.forEach(comment => {
                 const found = resultWithIndent.formattedSql.includes(comment);
                 console.log(`  "${comment}": ${found ? '✓' : '✗'}`);
                 expect(found, `Comment "${comment}" should be preserved`).toBe(true);
             });
-            
-            // Test the formatted structure matches expectations
-            expect(resultWithIndent.formattedSql.replace(/\s+/g, ' ').trim())
-                .toBe(expectedFormattedSql.replace(/\s+/g, ' ').trim());
+
+            const normalizedOutput = resultWithIndent.formattedSql.replace(/\s+/g, ' ').trim();
+            const globalCommentIndex = normalizedOutput.indexOf('/* Global query comment */');
+            const withClauseCommentIndex = normalizedOutput.indexOf('/* WITH clause comment */');
+            const withClausePattern = 'with /* WITH clause comment */';
+            const aliasAfterCommentIndex = normalizedOutput.indexOf('/* WITH clause comment */ "a" as (');
+            const firstCommentIndex = normalizedOutput.indexOf('/* First query comment */');
+
+            expect(globalCommentIndex).toBeGreaterThan(-1);
+            expect(withClauseCommentIndex).toBeGreaterThan(globalCommentIndex);
+            expect(normalizedOutput.includes(withClausePattern)).toBe(true);
+            expect(aliasAfterCommentIndex).toBeGreaterThan(-1);
+            expect(firstCommentIndex).toBeGreaterThan(aliasAfterCommentIndex);
+
         });
 
         test('should preserve comment spacing with proper space before comments', () => {

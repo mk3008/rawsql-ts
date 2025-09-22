@@ -38,6 +38,8 @@ export interface BaseFormattingOptions {
     keywordCase?: 'none' | 'upper' | 'lower';
     /** Style for comma line breaks */
     commaBreak?: CommaBreakStyle;
+    /** Style for comma line breaks inside WITH clause definitions */
+    cteCommaBreak?: CommaBreakStyle;
     /** Style for AND/OR line breaks */
     andBreak?: AndBreakStyle;
     /** Whether to export comments in formatted output */

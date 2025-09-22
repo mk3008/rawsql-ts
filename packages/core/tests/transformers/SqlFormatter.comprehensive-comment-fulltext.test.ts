@@ -123,7 +123,7 @@ FROM
 WHERE
     "status" = /* w2 */
     'active' /* w3 */
-    and /* a1 */
+    AND /* a1 */
     "created_at" > /* a2 */
     '2023-01-01' /* a3 */`;
 

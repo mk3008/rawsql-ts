@@ -1,3 +1,4 @@
+#!/bin/sh
 # Run tests, build, and lint before commit
 echo "🔍 Running pre-commit checks..."
 

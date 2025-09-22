@@ -1,4 +1,4 @@
-import { PartitionByClause, OrderByClause, OrderByItem, SelectClause, SelectItem, Distinct, DistinctOn, SortDirection, NullsSortDirection, TableSource, SourceExpression, FromClause, JoinClause, JoinOnClause, JoinUsingClause, FunctionSource, SourceAliasExpression, WhereClause, GroupByClause, HavingClause, SubQuerySource, WindowFrameClause, LimitClause, ForClause, OffsetClause, WindowsClause as WindowClause, CommonTable, WithClause, FetchClause, FetchExpression, InsertClause, UpdateClause, SetClause, ReturningClause, SetClauseItem } from "../models/Clause";
+﻿import { PartitionByClause, OrderByClause, OrderByItem, SelectClause, SelectItem, Distinct, DistinctOn, SortDirection, NullsSortDirection, TableSource, SourceExpression, FromClause, JoinClause, JoinOnClause, JoinUsingClause, FunctionSource, SourceAliasExpression, WhereClause, GroupByClause, HavingClause, SubQuerySource, WindowFrameClause, LimitClause, ForClause, OffsetClause, WindowsClause as WindowClause, CommonTable, WithClause, FetchClause, FetchExpression, InsertClause, UpdateClause, SetClause, ReturningClause, SetClauseItem } from "../models/Clause";
 import { HintClause } from "../models/HintClause";
 import { BinarySelectQuery, SimpleSelectQuery, ValuesQuery } from "../models/SelectQuery";
 import { SqlComponent, SqlComponentVisitor } from "../models/SqlComponent";
@@ -695,8 +695,10 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
      * Determines if a comment should be merged with consecutive comments
      */
     private shouldMergeComment(trimmed: string): boolean {
-        // Don't merge line comments
-        if (trimmed.startsWith('--')) {
+        const isSeparatorLine = /^[-=_+*#]+$/.test(trimmed);
+
+        // Don't merge line comments unless they are separator-only lines
+        if (!isSeparatorLine && trimmed.startsWith('--')) {
             return false;
         }
 
@@ -1145,6 +1147,10 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         
         // Visit the operator to handle its comments properly
         const operatorToken = this.visit(arg.operator);
+        const operatorLower = operatorToken.text.toLowerCase();
+        if (operatorLower === 'and' || operatorLower === 'or') {
+            operatorToken.type = SqlPrintTokenType.operator;
+        }
         token.innerTokens.push(operatorToken);
         
         token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
@@ -2493,3 +2499,4 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         return token;
     }
 }
+

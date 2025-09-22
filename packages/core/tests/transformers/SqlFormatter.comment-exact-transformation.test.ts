@@ -54,7 +54,7 @@ FROM
 WHERE
     "status" = /* w2 */
     'active' /* w3 */
-    and /* a1 */
+    AND /* a1 */
     "created_at" > /* a2 */
     '2023-01-01' /* a3 */`;
 
@@ -249,7 +249,7 @@ FROM
     "users" AS "u" /* u1 */
 WHERE
     "status" = 'active' /* w2 */
-    and /* a1 */
+    AND /* a1 */
     "created_at" > '2023-01-01' /* a2 */`;
 
         console.log('\n=== COMPLEX SQL TRUE FULL TEXT COMPARISON ===');

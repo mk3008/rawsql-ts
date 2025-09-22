@@ -93,7 +93,8 @@ describe('SqlPrintTokenParser + SqlPrinter (SimpleSelectQuery)', () => {
                 'FROM',
                 '  "users"',
                 'WHERE',
-                '  "age" > 18 and ("status" = \'active\' or "type" = \'admin\')'
+                '  "age" > 18',
+                '  AND ("status" = \'active\' or "type" = \'admin\')'
             ].join('\r\n'));
         });
 
@@ -114,7 +115,8 @@ describe('SqlPrintTokenParser + SqlPrinter (SimpleSelectQuery)', () => {
                 'FROM',
                 '  "users"',
                 'WHERE',
-                '  "age" > 18 and ("status" = \'active\' or "type" = \'admin\')'
+                '  "age" > 18 AND',
+                '  ("status" = \'active\' or "type" = \'admin\')'
             ].join('\r\n'));
         });
     });
@@ -143,7 +145,8 @@ describe('SqlPrintTokenParser + SqlPrinter (SimpleSelectQuery)', () => {
                 'FROM',
                 '  "users"',
                 'WHERE',
-                '  "age" > 18 and "type" = \'user\''
+                '  "age" > 18',
+                '  AND "type" = \'user\''
             ].join('\r\n'));
         });
 
@@ -809,7 +812,8 @@ order by
             'FROM',
             '  [users]',
             'WHERE',
-            '  [id] = @id and [status] = @status'
+                '  [id] = @id',
+                '  AND [status] = @status'
         ].join('\r\n'));
     });
 
@@ -869,7 +873,8 @@ order by
             'FROM',
             '  [users]',
             'WHERE',
-            '  [id] = @id and [status] = @status'
+                '  [id] = @id',
+                '  AND [status] = @status'
         ].join('\r\n'));
     });
 });

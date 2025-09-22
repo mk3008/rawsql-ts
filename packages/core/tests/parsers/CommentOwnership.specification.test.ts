@@ -42,12 +42,17 @@ describe('Comment Ownership Specification - TDD', () => {
             // 1. Main SELECT header comment
             expect(query.headerComments).not.toBeNull();
             expect(query.headerComments).toContain('1: Main SELECT header comment');
-            expect(query.headerComments?.some(comment => comment.includes('2: CTE prefix comment'))).toBe(true);
+            expect(query.headerComments?.some(comment => comment.includes('2: CTE prefix comment'))).toBe(false);
 
             expect(query.withClause).toBeTruthy();
             expect(query.withClause!.tables).toHaveLength(1);
             const cteTable = query.withClause!.tables[0];
-            expect(cteTable.getPositionedComments('before')).toEqual([]);
+            const ctePrefixComments = [
+                ...cteTable.getPositionedComments('before'),
+                ...cteTable.aliasExpression.getPositionedComments('before'),
+                ...cteTable.aliasExpression.table.getPositionedComments('before')
+            ];
+            expect(ctePrefixComments.some(comment => comment.includes('2: CTE prefix comment'))).toBe(true);
             expect(cteTable.query.headerComments).toContain('3: CTE SELECT header comment');
 
             expect(query.comments).toContain('4: Main SELECT prefix comment');
@@ -118,14 +123,24 @@ describe('Comment Ownership Specification - TDD', () => {
             // Assert
             expect(query.headerComments).not.toBeNull();
             expect(query.headerComments).toContain('Main query header');
-            expect(query.headerComments?.some(comment => comment.includes('First CTE prefix'))).toBe(true);
+            expect(query.headerComments?.some(comment => comment.includes('First CTE prefix'))).toBe(false);
 
             const cte1 = query.withClause!.tables[0];
-            expect(cte1.getPositionedComments('before')).toEqual([]);
+            const cte1Prefix = [
+                ...cte1.getPositionedComments('before'),
+                ...cte1.aliasExpression.getPositionedComments('before'),
+                ...cte1.aliasExpression.table.getPositionedComments('before')
+            ];
+            expect(cte1Prefix.some(comment => comment.includes('First CTE prefix'))).toBe(true);
             expect(cte1.query.headerComments).toContain('First CTE internal header');
 
             const cte2 = query.withClause!.tables[1];
-            expect(cte2.getPositionedComments('before')).toEqual([]);
+            const cte2Prefix = [
+                ...cte2.getPositionedComments('before'),
+                ...cte2.aliasExpression.getPositionedComments('before'),
+                ...cte2.aliasExpression.table.getPositionedComments('before')
+            ];
+            expect(cte2Prefix.some(comment => comment.includes('Second CTE prefix'))).toBe(true);
             expect(cte2.query.headerComments).toBeNull();
 
             expect(query.comments).toContain('Main SELECT prefix');

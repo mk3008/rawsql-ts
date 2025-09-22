@@ -445,26 +445,17 @@ export class SelectQueryParser {
 
         if (!queryTemplate.headerComments) queryTemplate.headerComments = [];
 
-        const beforeComments: string[] = [];
-        const afterComments: string[] = [];
+        const remainingPositioned: typeof withToken.positionedComments = [];
+
         for (const posComment of withToken.positionedComments) {
-            if (posComment.comments && posComment.comments.length > 0) {
-                if (posComment.position === 'before') {
-                    beforeComments.push(...posComment.comments);
-                } else if (posComment.position === 'after') {
-                    afterComments.push(...posComment.comments);
-                }
+            if (posComment.position === 'before' && posComment.comments) {
+                queryTemplate.headerComments.push(...posComment.comments);
+            } else {
+                remainingPositioned.push(posComment);
             }
         }
-        if (beforeComments.length > 0) {
-            queryTemplate.headerComments.push(...beforeComments);
-        }
-        if (afterComments.length > 0) {
-            queryTemplate.headerComments.push(...afterComments);
-        }
 
-        withToken.positionedComments = undefined;
-        withToken.comments = null;
+        withToken.positionedComments = remainingPositioned.length > 0 ? remainingPositioned : undefined;
     }
 
     // Collect comments between WITH clause and main SELECT

@@ -30,17 +30,16 @@ select * from raw_users
 
     it('should add comments to SQL query', () => {
         const query = SelectQueryParser.parse(testSql);
-        
+
         // Add a new comment
         CommentEditor.addComment(query, 'Added: This query retrieves customer segments');
-        
+
         const comments = CommentEditor.getComments(query);
-        // After adding a comment, we should have 2 header comments:
-        // 1. Original: "Base customer data (active users only, with segment classification)"
-        // 2. Added: "Added: This query retrieves customer segments"
-        expect(comments).toHaveLength(2);
-        expect(comments[0]).toBe('Base customer data (active users only, with segment classification)');
-        expect(comments[1]).toBe('Added: This query retrieves customer segments');
+        // After adding a comment, we should have 1 header comment:
+        // The added comment: "Added: This query retrieves customer segments"
+        // Note: The original comment is stored in the CTE identifier component, not as a header comment
+        expect(comments).toHaveLength(1);
+        expect(comments[0]).toBe('Added: This query retrieves customer segments');
         
         // Format and check output with newline
         const formatter = new SqlFormatter({
@@ -48,12 +47,12 @@ select * from raw_users
             keywordCase: 'upper',
             newline: '\n'
         });
-        
+
         const result = formatter.format(query);
-        // Expected output: Both header comments appear at the start
-        const expectedSql = `/* Base customer data (active users only, with segment classification) */
-/* Added: This query retrieves customer segments */
+        // Expected output: The added header comment appears at the start, and the original comment appears in CTE
+        const expectedSql = `/* Added: This query retrieves customer segments */
 WITH
+/* Base customer data (active users only, with segment classification) */
 "raw_users" AS (
 SELECT
 "user_id", "email", "registration_date", "subscription_tier", "country_code", "referral_source", "device_type", CASE
@@ -67,7 +66,7 @@ END AS "user_segment"
 FROM
 "users"
 WHERE
-"email" is not null and "registration_date" is not null
+"email" is not null AND "registration_date" is not null
 )
 SELECT
 *
@@ -78,10 +77,13 @@ FROM
 
     it('should edit existing comments', () => {
         const query = SelectQueryParser.parse(testSql);
-        
-        // Edit the existing header comment (WITH-prefix comments are now moved to headerComments)
+
+        // First add a comment to have something to edit (since original comment is in CTE identifier)
+        CommentEditor.addComment(query, 'Original comment');
+
+        // Edit the existing header comment
         CommentEditor.editComment(query, 0, 'Edited: Base customer data with segmentation logic');
-        
+
         const comments = CommentEditor.getComments(query);
         expect(comments).toHaveLength(1);
         expect(comments[0]).toBe('Edited: Base customer data with segmentation logic');
@@ -92,11 +94,12 @@ FROM
             keywordCase: 'upper',
             newline: '\n'
         });
-        
+
         const result = formatter.format(query);
-        // Header comments appear at the beginning
+        // Header comments appear at the beginning, original CTE comment remains
         const expectedSql = `/* Edited: Base customer data with segmentation logic */
 WITH
+/* Base customer data (active users only, with segment classification) */
 "raw_users" AS (
 SELECT
 "user_id", "email", "registration_date", "subscription_tier", "country_code", "referral_source", "device_type", CASE
@@ -110,7 +113,7 @@ END AS "user_segment"
 FROM
 "users"
 WHERE
-"email" is not null and "registration_date" is not null
+"email" is not null AND "registration_date" is not null
 )
 SELECT
 *
@@ -121,22 +124,26 @@ FROM
 
     it('should delete comments', () => {
         const query = SelectQueryParser.parse(testSql);
-        
-        // Delete the header comment (WITH-prefix comments are now moved to headerComments)
+
+        // First add a comment to have something to delete (since no header comments initially)
+        CommentEditor.addComment(query, 'Comment to delete');
+
+        // Delete the header comment
         CommentEditor.deleteComment(query, 0);
-        
+
         const comments = CommentEditor.getComments(query);
         expect(comments).toHaveLength(0);
         
-        // Format and check output - should have no comments
+        // Format and check output - should have no header comments but CTE comment remains
         const formatter = new SqlFormatter({
             exportComment: true,
             keywordCase: 'upper',
             newline: '\n'
         });
-        
+
         const result = formatter.format(query);
         const expectedSql = `WITH
+/* Base customer data (active users only, with segment classification) */
 "raw_users" AS (
 SELECT
 "user_id", "email", "registration_date", "subscription_tier", "country_code", "referral_source", "device_type", CASE
@@ -150,7 +157,7 @@ END AS "user_segment"
 FROM
 "users"
 WHERE
-"email" is not null and "registration_date" is not null
+"email" is not null AND "registration_date" is not null
 )
 SELECT
 *
@@ -161,47 +168,46 @@ FROM
 
     it('should handle multiple comment operations', () => {
         const query = SelectQueryParser.parse(testSql);
-        
-        // Start with 1 header comment (original comment from before WITH is now header comment)
-        expect(CommentEditor.getComments(query)).toHaveLength(1);
-        expect(CommentEditor.getComments(query)[0]).toBe('Base customer data (active users only, with segment classification)');
+
+        // Start with 0 header comments (original comment is in CTE identifier)
+        expect(CommentEditor.getComments(query)).toHaveLength(0);
         
         // Add more comments
         CommentEditor.addComment(query, 'Performance optimized query');
         CommentEditor.addComment(query, 'Last updated: 2024-01-15');
-        
-        // Now we should have 3 comments total (1 original + 2 added)
-        expect(CommentEditor.getComments(query)).toHaveLength(3);
-        
-        // Edit first comment (the original one)
+
+        // Now we should have 2 comments total (0 original + 2 added)
+        expect(CommentEditor.getComments(query)).toHaveLength(2);
+
+        // Edit first comment
         CommentEditor.editComment(query, 0, 'Highly optimized for performance');
-        
+
         // Delete first comment (edited one)
         CommentEditor.deleteComment(query, 0);
-        
-        // After deleting the first comment, we should have 2 remaining
+
+        // After deleting the first comment, we should have 1 remaining
         const finalComments = CommentEditor.getComments(query);
-        expect(finalComments).toHaveLength(2);
-        expect(finalComments[0]).toBe('Performance optimized query');
-        expect(finalComments[1]).toBe('Last updated: 2024-01-15');
+        expect(finalComments).toHaveLength(1);
+        expect(finalComments[0]).toBe('Last updated: 2024-01-15');
     });
 
     it('should find components with specific comments', () => {
         const query = SelectQueryParser.parse(testSql);
-        
-        // Find components with "customer" in comments  
-        // WITH-prefix comments are now moved to headerComments
+
+        // Find components with "customer" in comments
+        // The comment is now in the CTE identifier component, not in query headerComments
         const components = CommentEditor.findComponentsWithComment(query, 'customer');
         expect(components.length).toBeGreaterThanOrEqual(1);
-        expect(components.some(comp => comp === query)).toBe(true);
+        // The query itself doesn't have the comment anymore, it's in a child component
+        expect(components.some(comp => comp.constructor.name === 'IdentifierString')).toBe(true);
     });
 
     it('should format SQL with comment export option', () => {
         const query = SelectQueryParser.parse(testSql);
-        
+
         // Add additional comments
         CommentEditor.addComment(query, 'Export Test: Additional note about indexes');
-        
+
         // Format with comments
         const formatterWithComments = new SqlFormatter({
             exportComment: true,
@@ -209,12 +215,12 @@ FROM
             commaBreak: 'before',
             newline: '\n'
         });
-        
+
         const withComments = formatterWithComments.format(query);
-        // Both header comments appear at the beginning
-        const expectedWithComments = `/* Base customer data (active users only, with segment classification) */
-/* Export Test: Additional note about indexes */
+        // The added header comment appears at the beginning, original comment in CTE
+        const expectedWithComments = `/* Export Test: Additional note about indexes */
 WITH
+/* Base customer data (active users only, with segment classification) */
 "raw_users" AS (
 SELECT
 "user_id"
@@ -235,7 +241,7 @@ END AS "user_segment"
 FROM
 "users"
 WHERE
-"email" is not null and "registration_date" is not null
+"email" is not null AND "registration_date" is not null
 )
 SELECT
 *
@@ -273,7 +279,7 @@ END AS "user_segment"
 FROM
 "users"
 WHERE
-"email" is not null and "registration_date" is not null
+"email" is not null AND "registration_date" is not null
 )
 SELECT
 *
@@ -284,22 +290,26 @@ FROM
 
     it('should replace text in comments across the AST', () => {
         const query = SelectQueryParser.parse(testSql);
-        
+
         // Add more comments with "data" in them
         CommentEditor.addComment(query, 'Process customer data efficiently');
         CommentEditor.addComment(query, 'Data validation rules applied');
-        
+
         // Replace "data" with "information"
         const replacementCount = CommentEditor.replaceInComments(query, 'data', 'information');
-        
-        expect(replacementCount).toBe(3); // Should replace in all 3 comments (1 original + 2 added)
-        
+
+        expect(replacementCount).toBe(3); // Should replace in all 3 comments (1 in CTE identifier + 2 added)
+
         const comments = CommentEditor.getComments(query);
-        expect(comments[0]).toBe('Base customer information (active users only, with segment classification)');
-        expect(comments[1]).toBe('Process customer information efficiently');
-        expect(comments[2]).toBe('information validation rules applied');
-        
-        // WITH-prefix comments are now moved to headerComments (WITH clause has no comments)
+        expect(comments[0]).toBe('Process customer information efficiently');
+        expect(comments[1]).toBe('information validation rules applied');
+
+        // Verify the CTE comment was also replaced by checking all comments
+        const allComments = CommentEditor.getAllComments(query);
+        const cteComment = allComments.find(c => c.component.constructor.name === 'IdentifierString');
+        expect(cteComment?.comment).toBe('Base customer information (active users only, with segment classification)');
+
+        // WITH clause itself has no direct comments
         const withClauseComments = CommentEditor.getComments((query as any).withClause);
         expect(withClauseComments).toHaveLength(0);
     });

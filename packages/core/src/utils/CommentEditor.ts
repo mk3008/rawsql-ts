@@ -213,14 +213,33 @@ export class CommentEditor {
                         const flags = caseSensitive ? 'g' : 'gi';
                         const regex = new RegExp(searchText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), flags);
                         const newComment = originalComment.replace(regex, replaceText);
-                        
+
                         if (newComment !== originalComment) {
                             component.comments[i] = newComment;
                             replacementCount++;
                         }
                     }
                 }
-                
+
+                // Handle positioned comments
+                if (component.positionedComments) {
+                    for (const posComment of component.positionedComments) {
+                        if (posComment.comments) {
+                            for (let i = 0; i < posComment.comments.length; i++) {
+                                const originalComment = posComment.comments[i];
+                                const flags = caseSensitive ? 'g' : 'gi';
+                                const regex = new RegExp(searchText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), flags);
+                                const newComment = originalComment.replace(regex, replaceText);
+
+                                if (newComment !== originalComment) {
+                                    posComment.comments[i] = newComment;
+                                    replacementCount++;
+                                }
+                            }
+                        }
+                    }
+                }
+
                 // Handle headerComments for SelectQuery components
                 if (this.isSelectQuery(component)) {
                     const selectQuery = component as SelectQuery;
@@ -230,7 +249,7 @@ export class CommentEditor {
                             const flags = caseSensitive ? 'g' : 'gi';
                             const regex = new RegExp(searchText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), flags);
                             const newComment = originalComment.replace(regex, replaceText);
-                            
+
                             if (newComment !== originalComment) {
                                 selectQuery.headerComments[i] = newComment;
                                 replacementCount++;
