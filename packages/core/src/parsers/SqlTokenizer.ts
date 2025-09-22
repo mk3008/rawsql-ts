@@ -224,7 +224,7 @@ export class SqlTokenizer {
             }
             
             // Attach comments to the current token directly (no collection then assignment)
-            this.attachCommentsToLexeme(lexeme, current)
+            this.attachCommentsToLexeme(lexeme, current);
             
             lexemes[i] = lexeme;
         }

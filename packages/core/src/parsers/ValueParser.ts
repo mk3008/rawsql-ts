@@ -356,9 +356,9 @@ export class ValueParser {
             } else if (openParenToken.comments && openParenToken.comments.length > 0) {
                 // Fall back to legacy comments
                 if (result.value.comments) {
-                    result.value
+                    result.value.comments = openParenToken.comments.concat(result.value.comments);
                 } else {
-                    result.value
+                    result.value.comments = openParenToken.comments;
                 }
             }
             

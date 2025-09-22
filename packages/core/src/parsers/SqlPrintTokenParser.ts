@@ -170,6 +170,31 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     private static readonly PAREN_CLOSE_TOKEN = new SqlPrintToken(SqlPrintTokenType.parenthesis, ')');
     private static readonly DOT_TOKEN = new SqlPrintToken(SqlPrintTokenType.dot, '.');
 
+    // Set of component kinds that handle their own positioned comments
+    // Note: Cannot use static readonly due to circular dependency issues with class initialization
+    private static _selfHandlingComponentTypes: Set<symbol> | null = null;
+
+    private static getSelfHandlingComponentTypes(): Set<symbol> {
+        if (!this._selfHandlingComponentTypes) {
+            this._selfHandlingComponentTypes = new Set([
+                SimpleSelectQuery.kind,
+                SelectItem.kind,
+                CaseKeyValuePair.kind,
+                SwitchCaseArgument.kind,
+                ColumnReference.kind,
+                LiteralValue.kind,
+                ParameterExpression.kind,
+                TableSource.kind,
+                SourceAliasExpression.kind,
+                TypeValue.kind,
+                FunctionCall.kind,
+                IdentifierString.kind,
+                QualifiedName.kind
+            ]);
+        }
+        return this._selfHandlingComponentTypes;
+    }
+
     private handlers: Map<symbol, (arg: any) => SqlPrintToken> = new Map();
     parameterDecorator: ParameterDecorator;
     identifierDecorator: IdentifierDecorator;
@@ -467,24 +492,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
             return (component as any).handlesOwnComments();
         }
 
-        // Static list of components that handle their own positioned comments
-        const selfHandlingTypes = new Set([
-            SimpleSelectQuery.kind,
-            SelectItem.kind,
-            CaseKeyValuePair.kind,
-            SwitchCaseArgument.kind,
-            ColumnReference.kind,
-            LiteralValue.kind,
-            ParameterExpression.kind,
-            TableSource.kind,
-            SourceAliasExpression.kind,
-            TypeValue.kind,
-            FunctionCall.kind,
-            IdentifierString.kind,
-            QualifiedName.kind
-        ]);
-
-        return selfHandlingTypes.has(component.getKind());
+        return SqlPrintTokenParser.getSelfHandlingComponentTypes().has(component.getKind());
     }
 
     public visit(arg: SqlComponent): SqlPrintToken {
