@@ -67,7 +67,7 @@ export class SourceParser {
         if (name.positionedComments && name.positionedComments.length > 0) {
             value.positionedComments = name.positionedComments;
         } else if (name.comments && name.comments.length > 0) {
-            value
+            value.comments = name.comments;
         }
         
         return { value, newIndex };
@@ -151,7 +151,7 @@ export class SourceParser {
                 
                 // Clear legacy comments to prevent duplication
                 if (selectQuery.comments) {
-                    selectQuery
+                    selectQuery.comments = null;
                 }
             }
         }
