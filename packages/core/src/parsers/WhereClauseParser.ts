@@ -40,7 +40,7 @@ export class WhereClauseParser {
         const item = ValueParser.parseFromLexeme(lexemes, idx);
         const clause = new WhereClause(item.value);
         // Set comments from the WHERE token to the clause
-        clause
+        clause.comments = whereTokenComments;
 
         return { value: clause, newIndex: item.newIndex };
     }

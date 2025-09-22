@@ -65,7 +65,7 @@ export class ValueParser {
         }
         // Fall back to legacy comments if positioned comments aren't available
         else if (left.value.comments === null && comment && comment.length > 0) {
-            left.value
+            left.value.comments = comment;
         }
         idx = left.newIndex;
 
@@ -128,7 +128,7 @@ export class ValueParser {
             const binaryExpr = new BinaryExpression(result, operator, rightResult.value);
             // Transfer operator token comments to the operator RawString
             if (operatorToken.comments && operatorToken.comments.length > 0) {
-                binaryExpr.operator
+                binaryExpr.operator.comments = operatorToken.comments;
             }
             if (operatorToken.positionedComments && operatorToken.positionedComments.length > 0) {
                 binaryExpr.operator.positionedComments = operatorToken.positionedComments;
@@ -148,7 +148,7 @@ export class ValueParser {
         }
         // Fall back to legacy comments if positioned comments aren't available
         else if (value.comments === null && lexeme.comments && lexeme.comments.length > 0) {
-            value
+            value.comments = lexeme.comments;
         }
     }
 
@@ -320,7 +320,7 @@ export class ValueParser {
                         }));
                     }
                 } else if (openParenToken.comments && openParenToken.comments.length > 0) {
-                    wildcard
+                    wildcard.comments = openParenToken.comments;
                 }
                 idx++;
                 // The next element must be closeToken
