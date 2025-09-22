@@ -580,7 +580,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
             SqlPrintTokenContainerType.SimpleSelectQuery,
             SqlPrintTokenContainerType.WhereClause  // WHERE clauses also have duplication issues
         ];
-        if (componentsWithDuplicationIssues.includes(token.containerType as any)) {
+        if (token.containerType && componentsWithDuplicationIssues.includes(token.containerType)) {
             component.positionedComments = null;
         }
     }
@@ -1363,7 +1363,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         if (hasInnerComments) {
             innerBeforeComments = arg.expression.getPositionedComments('before');
             innerAfterComments = arg.expression.getPositionedComments('after');
-            (arg.expression as any).positionedComments = null;
+            arg.expression.positionedComments = null;
         }
 
         // Build basic structure first
@@ -1394,7 +1394,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         if (hasOwnComments) {
             this.addPositionedCommentsToParenExpression(token, arg);
             // Clear positioned comments to prevent duplicate processing in parent containers
-            (arg as any).positionedComments = null;
+            arg.positionedComments = null;
         }
 
         return token;
@@ -1652,11 +1652,11 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.SelectItem);
 
         // Preserve original positioned comments to avoid mutating the source object
-        const originalSelectItemPositionedComments = (arg as any).positionedComments;
-        const originalValuePositionedComments = (arg.value as any).positionedComments;
+        const originalSelectItemPositionedComments = arg.positionedComments;
+        const originalValuePositionedComments = arg.value.positionedComments;
 
         // Clear positioned comments from the value to avoid duplication since SelectItem handles them
-        (arg.value as any).positionedComments = null;
+        arg.value.positionedComments = null;
 
         // Add 'before' positioned comments
         const beforeComments = arg.getPositionedComments('before');
@@ -1672,7 +1672,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         // Add 'after' positioned comments for the value
         // Skip after comments if the value is ParenExpression (already handled in ParenExpression processing)
         const afterComments = arg.getPositionedComments('after');
-        const isParenExpression = (arg.value as any).constructor.name === 'ParenExpression';
+        const isParenExpression = arg.value.constructor.name === 'ParenExpression';
         if (afterComments.length > 0 && !isParenExpression) {
             token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
             const commentTokens = this.createInlineCommentSequence(afterComments);
@@ -1680,8 +1680,8 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         }
 
         // Restore original positioned comments to avoid side effects
-        (arg as any).positionedComments = originalSelectItemPositionedComments;
-        (arg.value as any).positionedComments = originalValuePositionedComments;
+        arg.positionedComments = originalSelectItemPositionedComments;
+        arg.value.positionedComments = originalValuePositionedComments;
 
         if (!arg.identifier) {
             return token;
@@ -1699,7 +1699,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
         
         // Handle AS keyword positioned comments (before AS)
-        const asKeywordPositionedComments = (arg as any).asKeywordPositionedComments;
+        const asKeywordPositionedComments = 'asKeywordPositionedComments' in arg ? (arg as any).asKeywordPositionedComments : null;
         if (asKeywordPositionedComments) {
             const beforeComments = asKeywordPositionedComments.filter((pc: any) => pc.position === 'before');
             if (beforeComments.length > 0) {
@@ -1726,7 +1726,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         }
         
         // Fallback: Add AS keyword legacy comments if present
-        const asKeywordComments = (arg as any).asKeywordComments;
+        const asKeywordComments = 'asKeywordComments' in arg ? (arg as any).asKeywordComments : null;
         if (asKeywordComments && asKeywordComments.length > 0) {
             token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
             const commentTokens = this.createInlineCommentSequence(asKeywordComments);
@@ -1740,7 +1740,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         token.innerTokens.push(identifierToken);
         
         // Handle alias positioned comments (after alias)
-        const aliasPositionedComments = (arg as any).aliasPositionedComments;
+        const aliasPositionedComments = 'aliasPositionedComments' in arg ? (arg as any).aliasPositionedComments : null;
         if (aliasPositionedComments) {
             const afterComments = aliasPositionedComments.filter((pc: any) => pc.position === 'after');
             if (afterComments.length > 0) {
