@@ -81,4 +81,4 @@ npm run demo:complex-sql
 
 **Output**: Detailed Markdown report in `packages/core/reports/`
 
-Use before/after major changes to detect regressions in SQL formatting quality.
+Use before/after major changes to detect regressions in SQL formatting quality.\r\n### Build / Bundling Notes\r\n- esbuild の --minify は識別子の短縮化まで実施するため、SelectItem 内でコメントが重複する不具合が発生する。\r\n- そのため uild:minify では --minify-syntax --minify-whitespace のみを使用し、--minify-identifiers は無効化している。\r\n- もし --minify を再度有効にする場合は、ESM/CJS 双方のミニファイ成果物でコメント重複が再発しないことを必ず検証すること。
