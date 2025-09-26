@@ -86,53 +86,62 @@ export class StringUtils {
      * Skip block comment.
      */
     private static readBlockComment(input: string, position: number): { newPosition: number, comments: string[] | null } {
-        if (position + 3 >= input.length) {
+        if (position + 1 >= input.length) {
             return { newPosition: position, comments: null };
         }
 
-        // '/'=47, '*'=42, '+'=43
-        if (input.charCodeAt(position) === 47 && input.charCodeAt(position + 1) === 42 && input.charCodeAt(position + 2) !== 43) {
-            const start = position;
-            position += 2;
-
-            while (position + 1 < input.length) {
-                // '*'=42, '/'=47
-                if (input.charCodeAt(position) === 42 && input.charCodeAt(position + 1) === 47) {
-                    position += 2;
-
-                    // Process the comment content
-                    const rawLines = input.slice(start + 2, position - 2).replace(/\r/g, '').split('\n');
-                    const processedLines: string[] = [];
-
-                    for (const rawLine of rawLines) {
-                        const trimmedLine = rawLine.trim();
-                        // Check if the original line (before trim) contains only separator characters
-                        const isSeparatorLine = /^\s*[-=_+*#]+\s*$/.test(rawLine);
-
-                        if (trimmedLine !== '' || isSeparatorLine) {
-                            // Keep non-empty lines and separator lines (preserve separator content)
-                            processedLines.push(isSeparatorLine ? rawLine.trim() : trimmedLine);
-                        } else {
-                            // For truly empty lines, preserve them as empty strings
-                            // This maintains the original comment structure
-                            processedLines.push('');
-                        }
-                    }
-
-                    // Remove empty lines only at the beginning and end
-                    while (processedLines.length > 0 && processedLines[0] === '') {
-                        processedLines.shift();
-                    }
-                    while (processedLines.length > 0 && processedLines[processedLines.length - 1] === '') {
-                        processedLines.pop();
-                    }
-                    return { newPosition: position, comments: processedLines };
-                }
-                position++;
-            }
-            throw new Error(`Block comment is not closed. position: ${position}`);
+        // Fast check for /* ('/'=47, '*'=42)
+        if (input.charCodeAt(position) !== 47 || input.charCodeAt(position + 1) !== 42) {
+            return { newPosition: position, comments: null };
         }
-        return { newPosition: position, comments: null };
+
+        // Treat Oracle style hints (/*+) as non-comment so other readers can process them. ('+'=43)
+        const isHint = position + 2 < input.length && input.charCodeAt(position + 2) === 43;
+        if (isHint) {
+            return { newPosition: position, comments: null };
+        }
+
+        const start = position;
+        position += 2;
+
+        while (position + 1 < input.length) {
+            // Look for closing */ ('*'/=42, '/'=47)
+            if (input.charCodeAt(position) === 42 && input.charCodeAt(position + 1) === 47) {
+                position += 2;
+                const processedLines = this.processBlockCommentContent(input.slice(start + 2, position - 2));
+                return { newPosition: position, comments: processedLines };
+            }
+            position++;
+        }
+
+        // Unterminated comment: consume rest of input and return collected lines.
+        const processedLinesUnterminated = this.processBlockCommentContent(input.slice(start + 2));
+        return { newPosition: input.length, comments: processedLinesUnterminated };
+    }
+
+    private static processBlockCommentContent(rawContent: string): string[] {
+        const rawLines = rawContent.replace(/\r/g, '').split('\n');
+        const processedLines: string[] = [];
+
+        for (const rawLine of rawLines) {
+            const trimmedLine = rawLine.trim();
+            const isSeparatorLine = /^\s*[-=_+*#]+\s*$/.test(rawLine);
+
+            if (trimmedLine !== '' || isSeparatorLine) {
+                processedLines.push(isSeparatorLine ? rawLine.trim() : trimmedLine);
+            } else {
+                processedLines.push('');
+            }
+        }
+
+        while (processedLines.length > 0 && processedLines[0] === '') {
+            processedLines.shift();
+        }
+        while (processedLines.length > 0 && processedLines[processedLines.length - 1] === '') {
+            processedLines.pop();
+        }
+
+        return processedLines;
     }
 
     /**

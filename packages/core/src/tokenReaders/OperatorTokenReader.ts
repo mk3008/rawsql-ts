@@ -109,18 +109,26 @@ export class OperatorTokenReader extends BaseTokenReader {
             const start = this.position;
 
             while (this.canRead() && CharLookupTable.isOperatorSymbol(this.input[this.position])) {
-                // check for `--` and `/*` comments
-                if (this.canRead(1)) {
-                    const current = this.input[this.position];
-                    if (current === '-' && this.input[this.position + 1] === '-') {
-                        break;
-                    } else if (current === '/' && this.input[this.position + 1] === '*') {
-                        break; // end of operator
-                    }
+                this.position++;
+
+                if (!this.canRead()) {
+                    break;
                 }
 
+                const previous = this.input[this.position - 1];
+                const next = this.input[this.position];
+
+                // Stop before consuming the second character of comment prefixes to avoid zero-length slices.
+                if ((previous === '-' && next === '-') || (previous === '/' && next === '*')) {
+                    break;
+                }
+            }
+
+            // Ensure progress even when a comment prefix appears immediately.
+            if (this.position === start) {
                 this.position++;
             }
+
             const resut = this.input.slice(start, this.position);
             return this.createLexeme(TokenType.Operator, resut);
         }
