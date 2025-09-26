@@ -1,5 +1,6 @@
 import { expect, test } from 'vitest';
 import { SqlTokenizer } from "../../src/parsers/SqlTokenizer";
+import { StringUtils } from "../../src/utils/stringUtils";
 
 test('prefix comment', () => {
     // Arrange
@@ -154,4 +155,24 @@ test('Realistic example', () => {
     const afterPositionedComment = lexemes[5].positionedComments?.find(pc => pc.position === 'after');
     expect(afterPositionedComment).toBeDefined();
     expect(afterPositionedComment!.comments[0]).toBe('Calculate total price (including tax) and round down');
+});
+
+test('unterminated block comment does not hang tokenizer', () => {
+    const tokenizer = new SqlTokenizer('select /* ');
+    const lexemes = tokenizer.readLexmes();
+
+    expect(lexemes.map(lex => lex.value)).toEqual(['select']);
+});
+
+test('unterminated escaped identifier throws meaningful error', () => {
+    const tokenizer = new SqlTokenizer('select "unterminated');
+    expect(() => tokenizer.readLexmes()).toThrow(/Closing delimiter is not found/);
+});
+
+test('readWhiteSpaceAndComment consumes unterminated block comment', () => {
+    const sql = '/* partial comment';
+    const result = StringUtils.readWhiteSpaceAndComment(sql, 0);
+
+    expect(result.position).toBe(sql.length);
+    expect(result.lines).toEqual(['partial comment']);
 });

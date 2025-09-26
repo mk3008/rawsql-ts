@@ -1,4 +1,4 @@
-import { BaseTokenReader } from './BaseTokenReader';
+﻿import { BaseTokenReader } from './BaseTokenReader';
 import { Lexeme, TokenType } from '../models/Lexeme';
 import { StringUtils } from '../utils/stringUtils';
 
@@ -91,11 +91,17 @@ export class EscapedIdentifierTokenReader extends BaseTokenReader {
         // Skip the opening delimiter
         this.position++;
 
+        let foundClosing = false;
         while (this.canRead()) {
             if (this.input[this.position] === delimiter) {
+                foundClosing = true;
                 break;
             }
             this.position++;
+        }
+
+        if (!foundClosing) {
+            throw new Error(`Closing delimiter is not found. position: ${start}, delimiter: ${delimiter}\n${this.getDebugPositionInfo(start)}`);
         }
 
         if (start === this.position) {
