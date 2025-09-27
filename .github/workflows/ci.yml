@@ -30,22 +30,18 @@ jobs:
     - name: Lint check
       run: |
         npm run lint --workspace=packages/core
-        npm run lint --workspace=packages/prisma-integration
       
     - name: TypeScript compilation check
       run: |
         npm run build --workspace=packages/core
-        npm run build --workspace=packages/prisma-integration
       
     - name: Run unit tests (excluding Docker-dependent tests)
       run: |
         npm run test --workspace=packages/core
-        npm run test --workspace=packages/prisma-integration
       
     - name: Run coverage tests
       run: |
         npm run coverage --workspace=packages/core
-        npm run coverage --workspace=packages/prisma-integration
       if: matrix.node-version == '20.x'
       continue-on-error: true
       
@@ -64,7 +60,7 @@ jobs:
     
     strategy:
       matrix:
-        package: [core, prisma-integration]
+        package: [core]
         node-version: [20.x]
     
     steps:

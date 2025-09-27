@@ -20,7 +20,7 @@ It is designed for extensibility and advanced SQL analysis, with initial focus o
 This is a monorepo containing multiple packages:
 
 - **[rawsql-ts](./packages/core)** - Core SQL parsing and transformation library
-- **[@msugiura/rawsql-prisma](./packages/prisma-integration)** - Prisma integration for rawsql-ts with dynamic SQL generation and hierarchical JSON serialization
+- **(Prisma integration removed)** - Prisma-specific integration has been removed from this monorepo.
 
 ---
 
@@ -108,24 +108,17 @@ console.log(params);
 Ready for more advanced features? Check out:
 
 1. **[Core Package Documentation](./packages/core/README.md)** - Complete SQL parsing, transformation, and all available classes
-2. **[Prisma Integration](./packages/prisma-integration/README.md)** - Prisma-specific features and hierarchical JSON serialization
-3. **[Model-Driven JSON Mapping Guide](./docs/usage-guides/model-driven-json-mapping-usage-guide.md)** - Transform SQL results into structured TypeScript models
-4. **[Live Demo](./examples/prisma-comparison-demo/)** - See rawsql-ts vs Prisma in action
+2. **[Model-Driven JSON Mapping Guide](./docs/usage-guides/model-driven-json-mapping-usage-guide.md)** - Transform SQL results into structured TypeScript models
 
 ---
 
-## Advanced Features & Documentation
+### Advanced Features & Documentation
 
 For comprehensive documentation and advanced use cases:
 
 ### Core Package
 - **[Complete Documentation](./packages/core/README.md)** - All classes, methods, and advanced features
 - **[Usage Guides](./docs/usage-guides/)** - Step-by-step guides for each component
-- **[Maintenance Guides](./docs/maintenance-guides/)** - Best practices and maintenance tips
-
-### Prisma Integration
-- **[Prisma Integration Package](./packages/prisma-integration/README.md)** - Prisma-specific features
-- **[Prisma vs rawsql-ts Demo](./examples/prisma-comparison-demo/)** - Side-by-side comparison
 
 ---
 

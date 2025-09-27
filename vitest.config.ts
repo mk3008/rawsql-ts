@@ -6,8 +6,7 @@ export default defineConfig({
     test: {
         environment: 'node',
         include: [
-            'packages/*/tests/**/*.test.[jt]s',
-            'examples/*/tests/**/*.test.[jt]s'
+            'packages/*/tests/**/*.test.[jt]s'
         ],
         exclude: [
             '**/dist/**',
@@ -27,8 +26,7 @@ export default defineConfig({
     // 各パッケージのtsconfig.jsonを認識するためのresolve設定
     resolve: {
         alias: {
-            'rawsql-ts': resolve(__dirname, 'packages/core/src'),
-            '@msugiura/rawsql-prisma': resolve(__dirname, 'packages/prisma-integration/src')
+            'rawsql-ts': resolve(__dirname, 'packages/core/src')
         }
     }
 })
