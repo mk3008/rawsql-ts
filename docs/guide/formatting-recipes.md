@@ -3,57 +3,100 @@ title: Formatting Recipes
 outline: deep
 ---
 
-# Formatting Recipes
+# SqlFormatter Recipes
 
-`rawsql-ts` ships with composable formatters that understand SQL semantics. This page highlights common recipes and shows how to extend them.
+## Quick Start
 
-## Basic Usage
+`SqlFormatter` turns parsed or dynamically generated queries into legible SQL. Instantiate it with `SqlFormatterOptions`, call `format`, and receive both the printable SQL text and normalized parameters.
 
-```ts
-import { SqlFormatter, SelectQueryParser } from 'rawsql-ts'
+```typescript
+import { SqlFormatter } from 'rawsql-ts';
 
-const sql = `SELECT id, name FROM users WHERE status = :status`
-const query = SelectQueryParser.parse(sql)
-
-const formatter = new SqlFormatter({
-  indent: 2,
-  uppercase: ['select', 'from', 'where']
-})
-
-const formatted = formatter.format(query)
+const formatter = new SqlFormatter({ keywordCase: 'upper', indentSize: 4 });
+const { formattedSql, params } = formatter.format(query);
 ```
 
-## Style Configuration
+## Base Formatting Options
 
-The playground persists user-defined presets under `localStorage`. To recreate the same options in code, load the style JSON export and pass it into the formatter constructor.
+`SqlFormatterOptions` extends `BaseFormattingOptions`. The following knobs cover the most common layout needs:
 
-```ts
-import { SqlFormatter } from 'rawsql-ts'
-import style from './my-style.json'
+| Option | Purpose |
+| --- | --- |
+| `indentSize` + `indentChar` | Control indentation width and whether tabs or spaces are used. |
+| `newline` | Switch between `\n`, `\r\n`, or `\r` newlines. |
+| `keywordCase` | Force keywords to upper or lower case while leaving identifiers untouched. |
+| `commaBreak` / `cteCommaBreak` | Choose between inline commas and vertical lists for general clauses or `WITH` definitions. |
+| `andBreak` | Balance boolean logic readability by breaking `AND`/`OR` groups. |
+| `commentStyle` | Convert comments to a normalized style while preserving placement. |
+| `withClauseStyle` | Collapse or fan out common table expressions. |
+| `parenthesesOneLine`, `joinOneLine`, etc. | Keep tight expressions compact when vertical whitespace would hurt readability. |
 
-const formatter = new SqlFormatter(style)
+Combine these options to mirror house formatting conventions or align with existing lint rules.
+
+## Sample
+
+```json
+{
+  "identifierEscape": {
+    "start": "",
+    "end": ""
+  },
+  "parameterSymbol": ":",
+  "parameterStyle": "named",
+  "indentSize": 4,
+  "indentChar": " ",
+  "newline": "\n",
+  "keywordCase": "lower",
+  "commaBreak": "before",
+  "cteCommaBreak": "after",
+  "andBreak": "before",
+  "exportComment": true,
+  "commentStyle": "smart",
+  "parenthesesOneLine": true,
+  "betweenOneLine": true,
+  "valuesOneLine": true,
+  "joinOneLine": true,
+  "caseOneLine": true,
+  "subqueryOneLine": true
+}
 ```
 
-## Handling CTEs
+## Parameter Style Deep Dive
 
-```ts
-import { CTENormalizer, SqlFormatter } from 'rawsql-ts'
+`parameterStyle` determines how placeholders are printed and how `params` is shaped when you call `format`:
 
-const normalized = CTENormalizer.normalize(sql)
-const formatter = new SqlFormatter({ indent: 4 })
-const formatted = formatter.format(normalized)
+### Named parameters
+
+```typescript
+const formatter = new SqlFormatter({ parameterStyle: 'named', parameterSymbol: ':' });
+const { formattedSql, params } = formatter.format(query);
+// params => { userId: 42, status: 'active' }
 ```
 
-## IntelliSense Helpers
+Use this when your driver accepts named bindings (e.g. `:userId`). `params` is a dictionary keyed by the placeholder names injected by `DynamicQueryBuilder` or your custom query graph.
 
-Combine the formatter with the IntelliSense APIs to provide contextual suggestions inside an editor.
+### Indexed parameters
 
-```ts
-import { getCompletionSuggestions, parseToPosition } from 'rawsql-ts'
-
-const { query, cursor } = parseToPosition(sqlText, cursorOffset)
-const completions = getCompletionSuggestions({ query, cursor })
+```typescript
+const formatter = new SqlFormatter({ parameterStyle: 'indexed', parameterSymbol: '$' });
+const { formattedSql, params } = formatter.format(query);
+// params => ['active', 42]
 ```
 
-Use the [Formatter Playground](/demo/index.html) to experiment with configurations and export the preset that works best for your project.
+Indexed mode emits placeholders like `$1`, `$2`, `$3`, preserving array order. Choose it for PostgreSQL adapters or any engine that matches ordered binds.
 
+### Anonymous parameters
+
+```typescript
+const formatter = new SqlFormatter({ parameterStyle: 'anonymous', parameterSymbol: '?' });
+const { formattedSql, params } = formatter.format(query);
+// params => ['active', 42]
+```
+
+Anonymous style prints bare symbols such as `?` or `%s`. `SqlFormatter` still returns an array so you can hand it to clients that expect positional parameters.
+
+> Tip: You can mix `parameterStyle` with presets like `{ preset: 'postgres' }`. Presets provide sensible defaults that you can override per option when integrating with legacy code.
+
+## Learn More
+
+Check the full [`SqlFormatterOptions` API](../api/interfaces/SqlFormatterOptions.md) documentation for every toggle, including advanced preset configuration and default values.

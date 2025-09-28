@@ -28,8 +28,7 @@ export default defineConfig({
         { text: 'Overview', link: '/guide/overview' },
         { text: 'Getting Started', link: '/guide/getting-started' },
         { text: 'Formatting Recipes', link: '/guide/formatting-recipes' },
-        { text: 'Testing Strategy', link: '/guide/testing-strategy' },
-        { text: 'Model Driven Mapping', link: '/guide/model-driven-json-mapping-examples' }
+        { text: 'Querybuilding Recipes', link: '/guide/querybuilding-recipes' },
       ],
       '/api/': apiSidebarWithIndex
     },

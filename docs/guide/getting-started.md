@@ -8,7 +8,7 @@ outline: deep
 ## Prerequisites
 
 - Node.js 20 or later (aligns with the CI matrix)
-- npm ≥ 10.0 (ships with Node 20)
+- npm >= 10.0 (ships with Node 20)
 
 ## Install
 
@@ -38,3 +38,6 @@ console.log(params);
 ```
 
 ## Next Step
+
+- [Formatting Recipes](./formatting-recipes.md) - Configure whitespace, keyword casing, and placeholder styles so your formatted SQL matches production expectations.
+- [Querybuilding Recipes](./querybuilding-recipes.md) - Master `FilterConditions`, nested logic, and downstream formatting to safely project runtime parameters.
