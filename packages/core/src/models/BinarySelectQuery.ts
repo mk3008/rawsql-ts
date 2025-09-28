@@ -10,7 +10,17 @@ import { QueryBuilder } from "../transformers/QueryBuilder";
 import { SimpleSelectQuery } from "./SimpleSelectQuery";
 
 /**
- * Represents a binary SELECT query (e.g., UNION, INTERSECT, EXCEPT).
+ * Represents a binary SELECT expression (UNION/INTERSECT/EXCEPT) composed from two SelectQuery values.
+ *
+ * @example
+ * ```typescript
+ * const parts = [
+ *   SelectQueryParser.parse('SELECT id, name FROM users').toSimpleQuery(),
+ *   SelectQueryParser.parse('SELECT id, name FROM archived_users').toSimpleQuery()
+ * ];
+ * const unionQuery = QueryBuilder.buildBinaryQuery(parts, 'union');
+ * ```
+ * Related tests: packages/core/tests/models/SelectQueryUnion.test.ts
  */
 export class BinarySelectQuery extends SqlComponent implements SelectQuery {
     static kind = Symbol("BinarySelectQuery");

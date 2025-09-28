@@ -1,7 +1,24 @@
 /**
- * Schema Manager for rawsql-ts
- * Provides unified schema definition and automatic conversion to various formats
- * Eliminates code duplication and provides type-safe schema management
+ * Central schema management utility for rawsql-ts.
+ * Converts user-defined table definitions into resolvers and JSON mappings consumed by collectors and builders.
+ *
+ * @example
+ * ```typescript
+ * const manager = new SchemaManager({
+ *   users: {
+ *     name: 'users',
+ *     columns: {
+ *       id: { name: 'id', isPrimaryKey: true },
+ *       email: { name: 'email' }
+ *     }
+ *   }
+ * });
+ *
+ * const resolver = manager.createTableColumnResolver();
+ * const collector = new SchemaCollector(resolver);
+ * const schemas = collector.collect(SelectQueryParser.parse('SELECT * FROM users'));
+ * ```
+ * Related tests: packages/core/tests/transformers/SchemaCollector.test.ts
  */
 
 // Import JsonMapping interface for type safety
@@ -275,3 +292,4 @@ export function createJsonMappingFromSchema(schemas: SchemaRegistry, rootTableNa
     const manager = new SchemaManager(schemas);
     return manager.createJsonMapping(rootTableName);
 }
+

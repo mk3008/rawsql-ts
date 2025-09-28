@@ -31,7 +31,7 @@ jobs:
       run: npm run test --workspace=packages/core
       
     - name: Run unit tests (prisma-integration)
-      run: npm run test --workspace=packages/prisma-integration
+      run: echo "prisma-integration removed"
 
   validate-packages:
     runs-on: ubuntu-latest
@@ -55,6 +55,4 @@ jobs:
         cd packages/core && npm pack --dry-run
         
     - name: Check prisma-integration package
-      run: |
-        npm run build --workspace=packages/prisma-integration
-        cd packages/prisma-integration && npm pack --dry-run
+      run: echo "prisma-integration removed"

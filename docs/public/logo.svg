@@ -1,0 +1,7 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 80" role="img" aria-labelledby="title desc">
+  <title id="title">rawsql-ts</title>
+  <desc id="desc">Minimal logo for rawsql-ts documentation</desc>
+  <rect width="240" height="80" rx="12" fill="#0f172a"/>
+  <text x="40" y="50" font-family="'Fira Code', monospace" font-size="32" fill="#38bdf8">rawsql</text>
+  <text x="170" y="50" font-family="'Fira Code', monospace" font-size="32" fill="#fbbf24">-ts</text>
+</svg>

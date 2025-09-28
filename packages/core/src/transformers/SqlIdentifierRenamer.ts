@@ -26,8 +26,15 @@ export interface Renameability {
 }
 
 /**
- * Handles safe renaming of SQL identifiers within SQL strings
- * Uses character-by-character parsing instead of regex for better performance and maintainability
+ * Handles safe renaming of SQL identifiers within plain SQL strings.
+ *
+ * @example
+ * ```typescript
+ * const renamer = new SqlIdentifierRenamer();
+ * const sql = 'SELECT u.id FROM users u';
+ * const result = renamer.renameIdentifier(sql, 'u', 'users_alias');
+ * ```
+ * Related tests: packages/core/tests/transformers/SqlIdentifierRenamer.test.ts
  */
 export class SqlIdentifierRenamer {
     
@@ -613,3 +620,4 @@ export class SqlIdentifierRenamer {
         return count;
     }
 }
+

@@ -71,6 +71,7 @@ import { TableColumnResolver } from "./TableColumnResolver";
  * `);
  * const unionColumns = collector.collect(unionQuery);
  * ```
+ * Related tests: packages/core/tests/transformers/SelectableColumnCollector.test.ts
  */
 export class SelectableColumnCollector implements SqlComponentVisitor<void> {
     private handlers!: Map<symbol, (arg: any) => void>;

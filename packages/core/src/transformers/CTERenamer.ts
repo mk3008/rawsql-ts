@@ -78,6 +78,7 @@ const ERROR_MESSAGES = {
  * }
  * ```
  * 
+ * Related tests: packages/core/tests/transformers/CTERenamer.test.ts
  * @since 0.11.16
  */
 export class CTERenamer {
@@ -106,7 +107,7 @@ export class CTERenamer {
      * 
      * This method performs a comprehensive rename operation that includes:
      * - Updating the CTE definition name in the WITH clause
-     * - Updating all column references (e.g., `old_name.column` → `new_name.column`)
+     * - Updating all column references (e.g., `old_name.column` -> `new_name.column`)
      * - Updating all table references in FROM and JOIN clauses
      * - Processing references within nested CTEs and subqueries
      * 
@@ -137,7 +138,8 @@ export class CTERenamer {
      * }
      * ```
      * 
-     * @since 0.11.16
+     * Related tests: packages/core/tests/transformers/CTERenamer.test.ts
+ * @since 0.11.16
      */
     public renameCTE(query: SelectQuery, oldName: string, newName: string): void {
         // Input validation
@@ -535,3 +537,6 @@ export class CTERenamer {
         return false;
     }
 }
+
+
+

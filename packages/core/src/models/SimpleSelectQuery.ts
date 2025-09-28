@@ -16,9 +16,21 @@ import { QueryBuilder } from "../transformers/QueryBuilder";
 import { ParameterHelper } from "../utils/ParameterHelper";
 
 /**
- * Represents a simple SELECT query in SQL.
+ * Represents a single SELECT statement with full clause support (WITH, JOIN, GROUP BY, etc.).
+ * Provides the fluent CTE management API used throughout packages/core/tests/models/SelectQuery.cte-management.test.ts.
+ *
+ * @example
+ * ```typescript
+ * const query = SelectQueryParser.parse('SELECT id, email FROM users').toSimpleQuery();
+ * const active = SelectQueryParser.parse('SELECT id FROM users WHERE active = true');
+ *
+ * query
+ *   .addCTE('active_users', active)
+ *   .toUnionAll(SelectQueryParser.parse('SELECT id, email FROM legacy_users'));
+ * ```
  */
 export class SimpleSelectQuery extends SqlComponent implements SelectQuery, CTEManagement {
+
     static kind = Symbol("SelectQuery");
     readonly __selectQueryType: 'SelectQuery' = 'SelectQuery'; // Discriminator for type safety
     headerComments: string[] | null = null; // Comments that appear before WITH clause
