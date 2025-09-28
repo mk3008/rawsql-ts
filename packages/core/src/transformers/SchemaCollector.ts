@@ -26,7 +26,15 @@ export interface SchemaAnalysisResult {
 }
 
 /**
- * A visitor that collects schema information (table names and column names) from a SQL query structure.
+ * Collects schema information (table names and resolved columns) from SelectQuery instances.
+ *
+ * @example
+ * ```typescript
+ * const collector = new SchemaCollector((table) => ['id', 'name']);
+ * const query = SelectQueryParser.parse('SELECT id, name FROM users');
+ * const schemas = collector.collect(query);
+ * ```
+ * Related tests: packages/core/tests/transformers/SchemaCollector.test.ts
  */
 export class SchemaCollector implements SqlComponentVisitor<void> {
     private handlers: Map<symbol, (arg: any) => void>;
@@ -577,3 +585,4 @@ export class SchemaCollector implements SqlComponentVisitor<void> {
         return columns.filter((name, index, array) => array.indexOf(name) === index);
     }
 }
+

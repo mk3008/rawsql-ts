@@ -3,6 +3,20 @@ import { SqlComponent } from '../models/SqlComponent';
 import { TableColumnResolver } from '../transformers/TableColumnResolver';
 import { SelectQueryParser } from '../parsers/SelectQueryParser';
 
+/**
+ * Validates SQL query structures against known tables and columns.
+ *
+ * @example
+ * ```typescript
+ * const tables = [
+ *   { name: 'users', columns: ['id', 'email'] }
+ * ];
+ *
+ * SqlSchemaValidator.validate('SELECT id FROM users', tables);
+ * ```
+ * Related tests: packages/core/tests/utils/SqlSchemaValidator.validate.test.ts
+ */
+
 export class SqlSchemaValidator {
     /**
      * Validates a SQL query structure against a provided TableColumnResolver or TableSchema array.

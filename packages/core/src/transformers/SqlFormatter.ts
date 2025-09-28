@@ -24,7 +24,14 @@ export type WithClauseStyle = 'standard' | 'cte-oneline' | 'full-oneline';
 export type CommentStyle = 'block' | 'smart';
 
 /**
- * Base formatting options shared between SqlFormatter and SqlPrinter
+ * Common formatting knobs shared by SqlFormatter and SqlPrinter.
+ *
+ * @example
+ * ```typescript
+ * const formatter = new SqlFormatter({ keywordCase: 'upper', indentSize: 4 });
+ * const { formattedSql } = formatter.format(SelectQueryParser.parse('select * from users'));
+ * ```
+ * Related tests: packages/core/tests/transformers/SqlFormatter.case.test.ts
  * @public
  */
 export interface BaseFormattingOptions {
@@ -65,7 +72,14 @@ export interface BaseFormattingOptions {
 }
 
 /**
- * Options for SqlFormatter configuration
+ * High level configuration accepted by SqlFormatter.
+ *
+ * @example
+ * ```typescript
+ * const formatter = new SqlFormatter({ preset: 'postgres', commentStyle: 'smart' });
+ * const { formattedSql } = formatter.format(SelectQueryParser.parse('select * from users where active = true'));
+ * ```
+ * Related tests: packages/core/tests/transformers/CommentStyle.comprehensive.test.ts
  * @public
  */
 export interface SqlFormatterOptions extends BaseFormattingOptions {
@@ -80,7 +94,15 @@ export interface SqlFormatterOptions extends BaseFormattingOptions {
 }
 
 /**
- * SqlFormatter class combines parsing and printing of SQL queries into a single interface.
+ * High level facade that parses a SqlComponent, applies formatting rules, and prints the final SQL text.
+ *
+ * @example
+ * ```typescript
+ * const formatter = new SqlFormatter({ keywordCase: 'lower', withClauseStyle: 'cte-oneline' });
+ * const query = SelectQueryParser.parse('WITH cte AS (SELECT id FROM users) SELECT * FROM cte');
+ * const { formattedSql } = formatter.format(query);
+ * ```
+ * Related tests: packages/core/tests/transformers/SqlFormatter.case.test.ts
  */
 export class SqlFormatter {
     private parser: SqlPrintTokenParser;
@@ -114,7 +136,9 @@ export class SqlFormatter {
             caseOneLine: options.caseOneLine,
             subqueryOneLine: options.subqueryOneLine
         });
-    }    /**
+    }    
+    
+    /**
      * Formats a SQL query string with the given parameters.
      * @param sqlText The SQL query string to format.
      * @param parameters A dictionary of parameters to replace in the query.

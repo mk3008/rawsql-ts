@@ -106,6 +106,7 @@ const ERROR_MESSAGES = {
  * }
  * ```
  * 
+ * Related tests: packages/core/tests/transformers/AliasRenamer.functional.test.ts
  * @since 0.12.0
  */
 export class AliasRenamer {
@@ -727,3 +728,4 @@ export class AliasRenamer {
         }
     }
 }
+

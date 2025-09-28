@@ -25,44 +25,24 @@ export interface SmartRenameResult {
 }
 
 /**
- * Smart renamer that automatically detects whether to use CTERenamer or AliasRenamer
- * based on the cursor position in SQL text.
- * 
- * This class provides unified GUI integration for SQL renaming operations:
- * - If cursor is on a CTE name → uses CTERenamer
- * - If cursor is on a table alias → uses AliasRenamer  
- * - Auto-detects the type and calls appropriate renamer
- * - Supports optional formatting preservation via SqlIdentifierRenamer
- * 
+ * Smart renamer that detects whether a cursor points to a CTE or table alias and routes to the correct renamer.
+ *
+ * - CTE targets use CTERenamer so dependency graphs stay consistent.
+ * - Table aliases use AliasRenamer with scope detection.
+ * - Optional formatting preservation uses SqlIdentifierRenamer.
+ *
  * @example
  * ```typescript
  * const renamer = new SmartRenamer();
- * const sql = `
- *   -- User analysis
- *   WITH user_data AS (  /* User CTE *\/
- *       SELECT * FROM users u 
- *       WHERE u.active = true
- *   )
- *   SELECT * FROM user_data
- * `;
- * 
- * // Standard rename (no formatting preservation)
- * const result1 = renamer.rename(sql, { line: 3, column: 8 }, 'customer_data');
- * 
- * // Rename with formatting preservation
- * const result2 = renamer.rename(sql, { line: 3, column: 8 }, 'customer_data', 
- *   { preserveFormatting: true });
- * // Preserves comments, indentation, line breaks
- * 
- * // Batch rename with formatting preservation
- * const result3 = renamer.batchRename(sql, {
- *   'user_data': 'customers',
- *   'u': 'users_tbl'
- * }, { preserveFormatting: true });
- * 
- * // Check if position is renameable (for GUI context menus)
- * const isRenameable = renamer.isRenameable(sql, { line: 3, column: 8 });
+ * const sql = `WITH user_data AS (SELECT * FROM users) SELECT * FROM user_data`;
+ *
+ * const result = renamer.rename(sql, { line: 1, column: 8 }, 'customer_data');
+ *
+ * if (result.success) {
+ *   console.log(result.newSql);
+ * }
  * ```
+ * Related tests: packages/core/tests/transformers/SmartRenamer.demo.test.ts
  */
 export class SmartRenamer {
     private cteRenamer: CTERenamer;

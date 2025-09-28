@@ -8,8 +8,19 @@ import { QueryBuilder } from "./QueryBuilder";
 import { SqlParameterBinder } from "./SqlParameterBinder";
 import { ParameterDetector } from "../utils/ParameterDetector";
 import { SqlParameterValue } from "../models/ValueComponent";
+/**
+ * Value union accepted for a single filter entry in DynamicQueryBuilder.
+ *
+ * @example
+ * ```typescript
+ * const options = { filter: { price: { min: 10, max: 100 }, status: ['active', 'pending'] } };
+ * builder.buildQuery('SELECT * FROM orders', options);
+ * ```
+ * Related tests: packages/core/tests/transformers/DynamicQueryBuilder.test.ts
 
-// Type-safe filter condition values
+ */
+
+
 export type FilterConditionValue = SqlParameterValue | SqlParameterValue[] | {
     min?: SqlParameterValue;
     max?: SqlParameterValue;
@@ -58,8 +69,11 @@ export type FilterConditionValue = SqlParameterValue | SqlParameterValue[] | {
  *   'profiles.name': 'Bob'    // Overrides for profiles.name specifically
  * };
  * ```
+ * Related tests: packages/core/tests/transformers/DynamicQueryBuilder.test.ts
  */
 export type FilterConditions = Record<string, FilterConditionValue>;
+
+
 
 /**
  * Options for dynamic query building
@@ -86,60 +100,12 @@ export interface QueryBuildOptions {
 }
 
 /**
- * DynamicQueryBuilder provides pure JavaScript SQL query building capabilities.
- * It combines SQL parsing with dynamic condition injection (filtering, sorting, pagination, serialization).
- * 
- * This class is framework-agnostic and does not perform any file I/O operations.
- * It only works with SQL content provided as strings.
- * 
- * Key features:
- * - Pure JavaScript/TypeScript - no file system dependencies
- * - Framework-agnostic - can be used with any database framework
- * - Composable - combines multiple injectors in the correct order
- * - Type-safe - provides TypeScript types for all options
- * - Testable - easy to unit test without mocking file system
- * - Table.Column Notation - supports qualified column names for disambiguation in JOINs
- * 
- * ## Table.Column Notation Support
- * 
- * This class now supports qualified column names in filter conditions to disambiguate
- * columns with the same name from different tables in JOIN queries:
- * 
- * @example
- * ```typescript
- * // Basic filtering (backward compatible)
- * builder.buildQuery('SELECT u.id, u.name FROM users u', {
- *   filter: { name: 'Alice' }
- * });
- * 
- * // Qualified column names for JOIN disambiguation  
- * builder.buildQuery(`
- *   SELECT u.id, u.name, p.name, o.total
- *   FROM users u
- *   JOIN profiles p ON u.id = p.user_id
- *   JOIN orders o ON u.id = o.user_id
- * `, {
- *   filter: {
- *     'u.name': 'Alice',           // Only applies to users.name
- *     'p.name': 'Profile Alice',   // Only applies to profiles.name  
- *     'o.total': { min: 100 }      // Only applies to orders.total
- *   }
- * });
- * 
- * // Hybrid approach - qualified names override unqualified
- * builder.buildQuery(`
- *   SELECT u.name, p.name, o.name FROM users u
- *   JOIN profiles p ON u.id = p.user_id
- *   JOIN orders o ON u.id = o.user_id  
- * `, {
- *   filter: {
- *     name: 'Default',         // Applies to all 'name' columns
- *     'u.name': 'Alice',       // Overrides for users.name specifically
- *     'p.name': 'Bob'          // Overrides for profiles.name specifically
- *     // orders.name gets 'Default'
- *   }
- * });
- * ```
+ * DynamicQueryBuilder combines SQL parsing with dynamic condition injection (filters, sorts, paging, JSON serialization).
+ *
+ * Key behaviours verified in packages/core/tests/transformers/DynamicQueryBuilder.test.ts:
+ * - Preserves the input SQL when no options are supplied.
+ * - Applies filter, sort, and pagination in a deterministic order.
+ * - Supports JSON serialization for hierarchical projections.
  */
 export class DynamicQueryBuilder {
     private tableColumnResolver?: (tableName: string) => string[];
@@ -154,10 +120,10 @@ export class DynamicQueryBuilder {
     /**
      * Builds a SelectQuery from SQL content with dynamic conditions.
      * This is a pure function that does not perform any I/O operations.
-     *     * @param sqlContent Raw SQL string to parse and modify
+     * @param sqlContent Raw SQL string to parse and modify
      * @param options Dynamic conditions to apply (filter, sort, paging, serialize)
      * @returns Modified SelectQuery with all dynamic conditions applied
-     *     * @example
+     * @example
      * ```typescript
      * const builder = new DynamicQueryBuilder();
      * const query = builder.buildQuery(
@@ -294,3 +260,6 @@ export class DynamicQueryBuilder {
         }
     }
 }
+
+
+
