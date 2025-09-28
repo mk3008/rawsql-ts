@@ -181,3 +181,9 @@ reports/**/*.md
 
 # Generated API docs
 docs/api/
+
+# VitePress build output
+docs/.vitepress/dist
+
+# Vite/VitePress cache
+docs/.vitepress/cache
