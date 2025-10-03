@@ -48,6 +48,8 @@ export interface BaseFormattingOptions {
     commaBreak?: CommaBreakStyle;
     /** Style for comma line breaks inside WITH clause definitions */
     cteCommaBreak?: CommaBreakStyle;
+    /** Style for comma line breaks inside VALUES clauses */
+    valuesCommaBreak?: CommaBreakStyle;
     /** Style for AND/OR line breaks */
     andBreak?: AndBreakStyle;
     /** Whether to export comments in formatted output */
@@ -155,4 +157,5 @@ export class SqlFormatter {
         return { formattedSql, params };
     }
 }
+
 

@@ -1566,6 +1566,8 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         }
         token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
 
+        this.addComponentComments(token, arg);
+
         return token;
     }
 

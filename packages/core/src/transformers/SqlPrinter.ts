@@ -58,6 +58,8 @@ export class SqlPrinter {
     commaBreak: CommaBreakStyle;
     /** WITH clause comma break style (defaults to commaBreak) */
     cteCommaBreak: CommaBreakStyle;
+    /** VALUES clause comma break style (defaults to commaBreak) */
+    valuesCommaBreak: CommaBreakStyle;
     /** AND break style: 'none', 'before', or 'after' */
     andBreak: AndBreakStyle;
 
@@ -111,6 +113,7 @@ export class SqlPrinter {
 
         this.commaBreak = options?.commaBreak ?? 'none';
         this.cteCommaBreak = options?.cteCommaBreak ?? this.commaBreak;
+        this.valuesCommaBreak = options?.valuesCommaBreak ?? this.commaBreak;
         this.andBreak = options?.andBreak ?? 'none';
         this.keywordCase = options?.keywordCase ?? 'none';
         this.exportComment = options?.exportComment ?? false;
@@ -326,7 +329,14 @@ export class SqlPrinter {
     private handleCommaToken(token: SqlPrintToken, level: number, parentContainerType?: SqlPrintTokenContainerType): void {
         const text = token.text;
         const isWithinWithClause = parentContainerType === SqlPrintTokenContainerType.WithClause;
-        const effectiveCommaBreak = isWithinWithClause ? this.cteCommaBreak : this.commaBreak;
+        const isWithinValuesClause = parentContainerType === SqlPrintTokenContainerType.Values;
+
+        let effectiveCommaBreak: CommaBreakStyle = this.commaBreak;
+        if (isWithinWithClause) {
+            effectiveCommaBreak = this.cteCommaBreak;
+        } else if (isWithinValuesClause) {
+            effectiveCommaBreak = this.valuesCommaBreak;
+        }
 
         // Skip comma newlines when inside WITH clause with full-oneline style
         if (this.insideWithClause && this.withClauseStyle === 'full-oneline') {
@@ -349,9 +359,25 @@ export class SqlPrinter {
                 this.linePrinter.commaBreak = previousCommaBreak;
             }
         } else if (effectiveCommaBreak === 'after') {
+            const previousCommaBreak = this.linePrinter.commaBreak;
+            if (previousCommaBreak !== 'after') {
+                this.linePrinter.commaBreak = 'after';
+            }
             this.linePrinter.appendText(text);
             if (!(this.insideWithClause && this.withClauseStyle === 'full-oneline')) {
                 this.linePrinter.appendNewline(level);
+            }
+            if (previousCommaBreak !== 'after') {
+                this.linePrinter.commaBreak = previousCommaBreak;
+            }
+        } else if (effectiveCommaBreak === 'none') {
+            const previousCommaBreak = this.linePrinter.commaBreak;
+            if (previousCommaBreak !== 'none') {
+                this.linePrinter.commaBreak = 'none';
+            }
+            this.linePrinter.appendText(text);
+            if (previousCommaBreak !== 'none') {
+                this.linePrinter.commaBreak = previousCommaBreak;
             }
         } else {
             this.linePrinter.appendText(text);
@@ -474,6 +500,7 @@ export class SqlPrinter {
             newline: ' ',
             commaBreak: this.commaBreak,
             cteCommaBreak: this.cteCommaBreak,
+            valuesCommaBreak: this.valuesCommaBreak,
             andBreak: this.andBreak,
             keywordCase: this.keywordCase,
             exportComment: false,
@@ -505,6 +532,7 @@ export class SqlPrinter {
             newline: ' ',              // KEY: Replace all newlines with spaces - this makes everything oneline!
             commaBreak: 'none',        // Disable comma-based line breaks
             cteCommaBreak: this.cteCommaBreak,
+            valuesCommaBreak: 'none',
             andBreak: 'none',          // Disable AND/OR-based line breaks
             keywordCase: this.keywordCase,
             exportComment: this.exportComment,
