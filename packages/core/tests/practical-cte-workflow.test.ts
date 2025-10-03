@@ -58,7 +58,10 @@ describe("Practical CTE Workflow - Decompose, Edit, Compose", () => {
 
         // Verify the expected structure - WITH clause override functionality
         // The old WITH clause should be ignored, and only the main SELECT should be extracted
-        const expected = `with users_data as (select * from users where active = true), active_users as (select * from users_data where id >= 1000) select count(*) from active_users`;
+        const expected = `with
+users_data as (select * from users where active = true)
+, active_users as (select * from users_data where id >= 1000)
+select count(*) from active_users`;
         expect(composedQuery).toBe(expected);
 
         // Verify that the old WITH clause was ignored and new definition is used

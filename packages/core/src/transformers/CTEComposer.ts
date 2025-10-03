@@ -1,6 +1,10 @@
-import { SimpleSelectQuery } from "../models/SimpleSelectQuery";
+﻿import { SimpleSelectQuery } from "../models/SimpleSelectQuery";
+import type { SelectQuery } from "../models/SelectQuery";
 import { SelectQueryParser } from "../parsers/SelectQueryParser";
+import { SqlTokenizer } from "../parsers/SqlTokenizer";
+import { WithClauseParser } from "../parsers/WithClauseParser";
 import { CTENormalizer } from "./CTENormalizer";
+import { CTEDisabler } from "./CTEDisabler";
 import { SqlFormatter, SqlFormatterOptions } from "./SqlFormatter";
 import { SqlSchemaValidator } from "../utils/SqlSchemaValidator";
 import { CommonTable, SourceAliasExpression } from "../models/Clause";
@@ -74,6 +78,75 @@ export class CTEComposer {
         this.dependencyAnalyzer = new CTEDependencyAnalyzer();
     }
 
+    public removeWithClauses(input: string): string  {
+        return this.removeWithClauseText(input);
+    }
+
+    private removeWithClauseText(sql: string): string {
+        const tokenizer = new SqlTokenizer(sql);
+        const lexemes = tokenizer.readLexmes();
+
+        if (lexemes.length === 0) {
+            return sql;
+        }
+
+        const withIndex = lexemes.findIndex((lexeme) => lexeme.value.toLowerCase() === "with");
+        if (withIndex !== 0) {
+            return sql;
+        }
+
+        let parseResult;
+        try {
+            parseResult = WithClauseParser.parseFromLexeme(lexemes, withIndex);
+        } catch {
+            return sql;
+        }
+
+        let startPos = this.findTokenPosition(sql, lexemes[withIndex].value, 0);
+        if (startPos === sql.length) {
+            return sql;
+        }
+
+        let searchPos = startPos + lexemes[withIndex].value.length;
+        for (let i = withIndex + 1; i < parseResult.newIndex; i++) {
+            const token = lexemes[i].value;
+            const tokenPos = this.findTokenPosition(sql, token, searchPos);
+            if (tokenPos === sql.length) {
+                return sql;
+            }
+            searchPos = tokenPos + token.length;
+        }
+
+        const endPos = parseResult.newIndex < lexemes.length
+            ? this.findTokenPosition(sql, lexemes[parseResult.newIndex].value, searchPos)
+            : sql.length;
+
+        if (endPos === sql.length && parseResult.newIndex < lexemes.length) {
+            return sql;
+        }
+
+        let prefix = sql.slice(0, startPos);
+        if (prefix.trim().length === 0) {
+            prefix = "";
+        }
+
+        return prefix + sql.slice(endPos);
+    }
+
+    private findTokenPosition(sql: string, value: string, fromIndex: number): number {
+        const lowerSql = sql.toLowerCase();
+        const lowerValue = value.toLowerCase();
+        let searchIndex = fromIndex;
+        while (searchIndex <= sql.length) {
+            const found = lowerSql.indexOf(lowerValue, searchIndex);
+            if (found === -1) {
+                return sql.length;
+            }
+            return found;
+        }
+        return sql.length;
+    }
+
     /**
      * Compose edited CTEs and root query into a unified SQL query
      * 
@@ -113,7 +186,7 @@ export class CTEComposer {
         // Extract pure queries and detect recursion
         const pureQueries = editedCTEs.map(cte => ({
             name: cte.name,
-            query: this.extractPureQuery(cte.query, cte.name)
+            query: this.extractPureQuery(cte.query)
         }));
 
         // Build temporary query to analyze dependencies
@@ -137,7 +210,7 @@ export class CTEComposer {
         });
 
         const withKeyword = isRecursive ? "with recursive" : "with";
-        const composedQuery = `${withKeyword} ${cteDefinitions.join(", ")} ${rootQuery}`;
+        const composedQuery = `${withKeyword}\n${cteDefinitions.join("\n, ")}\n${rootQuery}`;
         
         // Validate schema if requested
         if (this.options.validateSchema && this.options.schema) {
@@ -153,10 +226,9 @@ export class CTEComposer {
      * If query contains WITH with known CTEs, extract main SELECT and ignore old definitions
      * If query contains WITH with unknown CTEs, preserve entire query
      * @param query The query that may contain WITH clause  
-     * @param cteName The name of the CTE to extract (if query contains WITH)
      * @returns Pure SELECT query without WITH clause, or entire query if it contains new sub-CTEs
      */
-    private extractPureQuery(query: string, cteName?: string): string {
+    private extractPureQuery(query: string): string {
         // Simple regex to check if query starts with WITH
         const withPattern = /^\s*with\s+/i;
         
@@ -173,7 +245,7 @@ export class CTEComposer {
 
         // Parse the query to check what CTEs are defined in the WITH clause
         try {
-            const parsed = SelectQueryParser.parse(query) as SimpleSelectQuery;
+            const parsed = SelectQueryParser.parse(query).toSimpleQuery();
             
             if (parsed.withClause && parsed.withClause.tables) {
                 // Check if WITH clause contains only known CTEs from our composition
@@ -200,11 +272,7 @@ export class CTEComposer {
                         withClause: undefined // withClause removed
                     });
                     
-                    // Use a formatter without quotes for extraction to preserve original format
-                    const extractFormatter = new SqlFormatter({
-                        identifierEscape: { start: "", end: "" }
-                    });
-                    return extractFormatter.format(queryWithoutWith).formattedSql;
+                    return this.formatter.format(queryWithoutWith).formattedSql;
                 }
             }
         } catch (error) {
@@ -351,17 +419,8 @@ export class CTEComposer {
      * Apply formatting to the final query
      */
     private formatFinalQuery(composedQuery: string): string {
-        if (this.options.preset || this.options.keywordCase) {
-            try {
-                const parsed = SelectQueryParser.parse(composedQuery) as SimpleSelectQuery;
-                return this.formatter.format(parsed).formattedSql;
-            } catch (error) {
-                // If parsing fails, return unformatted query
-                return composedQuery;
-            }
-        }
-        
-        return composedQuery;
+        const parsed = SelectQueryParser.parse(composedQuery).toSimpleQuery();
+        const f = new SqlFormatter({ ...this.formatter, withClauseStyle: 'cte-oneline'});
+        return this.formatter.format(parsed).formattedSql;
     }
-
 }

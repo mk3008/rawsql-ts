@@ -21,7 +21,9 @@ describe("CTEComposer", () => {
             const result = composer.compose(editedCTEs, rootQuery);
             
             // Assert
-            const expected = `with users_data as (select * from users where active = true) select * from users_data`;
+            const expected = `with
+users_data as (select * from users where active = true)
+select * from users_data`;
             expect(result).toBe(expected);
         });
 

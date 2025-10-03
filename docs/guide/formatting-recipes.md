@@ -97,6 +97,36 @@ Anonymous style prints bare symbols such as `?` or `%s`. `SqlFormatter` still re
 
 > Tip: You can mix `parameterStyle` with presets like `{ preset: 'postgres' }`. Presets provide sensible defaults that you can override per option when integrating with legacy code.
 
+## CLI Configuration
+
+`rawsql-ts-cli` automatically applies formatter options from a `rawsqlconfig.json` file (or legacy `rawsql.config*` variants) located in the current working directory or any parent directory. The loader understands `rawsqlconfig.json`, `rawsql.config`, `rawsql.config.json`, `rawsql.config.js`, `rawsql.config.cjs`, and `rawsql.config.mjs`.
+
+You can export the same shape you would pass to `SqlFormatter`, or nest it under `formatter` and extend it with `cteComposer` overrides. Both objects are merged so the `build` command can wire the right `CTEComposer` options.
+
+```jsonc
+// rawsqlconfig.json
+{
+  "formatter": {
+    "preset": "postgres",
+    "keywordCase": "upper",
+    "indentSize": 2
+  },
+  "cteComposer": {
+    "withClauseStyle": "cte-oneline"
+  }
+}
+```
+
+```js
+// rawsql.config.js (legacy example)
+export default {
+  formatter: { keywordCase: 'lower' },
+  cteComposer: { commentStyle: 'smart' }
+};
+```
+
+Once the file is present, the `rawsql build` command reuses these settings when composing resources back into the root SQL files.
+
 ## Learn More
 
 Check the full [`SqlFormatterOptions` API](../api/interfaces/SqlFormatterOptions.md) documentation for every toggle, including advanced preset configuration and default values.

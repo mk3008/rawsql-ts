@@ -1,0 +1,22 @@
+{
+  "name": "rawsql-ts-cli",
+  "version": "0.1.0",
+  "description": "Command line interface for building SQL assets with rawsql-ts",
+  "type": "module",
+  "bin": {
+    "rawsql": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "prepublishOnly": "pnpm run build"
+  },
+  "dependencies": {
+    "rawsql-ts": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "tsx": "^4.19.1",
+    "typescript": "^5.8.2"
+  }
+}

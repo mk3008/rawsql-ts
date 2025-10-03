@@ -60,7 +60,8 @@
     "typedoc-vitepress-theme": "^1.1.2",
     "typescript": "^5.8.2",
     "vitepress": "^1.6.4",
-    "vitest": "^1.5.2"
+    "vitest": "^1.5.2",
+    "rawsql-ts-cli": "workspace:*"
   },
   "optionalDependencies": {
     "@rollup/rollup-linux-x64-gnu": "^4.44.0",

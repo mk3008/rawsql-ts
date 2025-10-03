@@ -1,0 +1,24 @@
+{
+  "identifierEscape": {
+    "start": "",
+    "end": ""
+  },
+  "parameterSymbol": ":",
+  "parameterStyle": "named",
+  "indentSize": 4,
+  "indentChar": " ",
+  "newline": "\n",
+  "keywordCase": "lower",
+  "commaBreak": "before",
+  "cteCommaBreak": "before",
+  "andBreak": "before",
+  "exportComment": true,
+  "commentStyle": "smart",
+  "parenthesesOneLine": true,
+  "betweenOneLine": true,
+  "valuesOneLine": true,
+  "joinOneLine": true,
+  "caseOneLine": true,
+  "subqueryOneLine": true,
+  "withClauseStyle": "cte-oneline"
+}
