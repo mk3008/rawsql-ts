@@ -115,8 +115,8 @@ AND /* a1 */ created_at > /* a2 */ '2023-01-01' /* a3 */`;
         const formatter = new SqlFormatter(formatterOptions);
         const result = formatter.format(parsed);
 
-        // Note: w1 (before WHERE clause) not captured by current positioned comments system
-        const expectedOrder = ['w2', 'w3', 'a1', 'a2', 'a3'];
+        // New positioned comment pipeline captures the leading WHERE comment as well
+        const expectedOrder = ['w1', 'w2', 'w3', 'a1', 'a2', 'a3'];
         
         const commentMatches = result.formattedSql.match(/\/\*\s*(\w+)\s*\*\//g);
         const actualComments = commentMatches?.map(comment => 

@@ -38,13 +38,13 @@ WHERE /* where comment */ active = true /* condition comment */`;
         const result = formatter.format(parsed);
 
         // Expected output based on current positioned comments system
-        // Note: WHERE clause preceding comments are not captured
         const expectedFormatted = `SELECT
     /* field comment */ "id" /* after id */,
     /* name comment */ "name" /* after name */
 FROM
     "users" /* table comment */
 WHERE
+    /* where comment */
     "active" = true /* condition comment */`;
 
         console.log('=== ORIGINAL SQL ===');
@@ -115,16 +115,16 @@ AND /* a1 */ created_at > /* a2 */ '2023-01-01' /* a3 */`;
         const result = formatter.format(parsed);
 
         // Expected output based on current positioned comments system
-        // Note: w1 comment (before WHERE clause) is not captured
         const expectedFormatted = `SELECT
     *
 FROM
-    "users"
+    \"users\"
 WHERE
-    "status" = /* w2 */
+    /* w1 */
+    \"status\" = /* w2 */
     'active' /* w3 */
     AND /* a1 */
-    "created_at" > /* a2 */
+    \"created_at\" > /* a2 */
     '2023-01-01' /* a3 */`;
 
         console.log('\n=== WHERE ORIGINAL ===');
@@ -141,8 +141,7 @@ WHERE
         ) || [];
         
         console.log('Comment order:', actualComments);
-        // Note: w1 comment (before WHERE clause) is not captured by current positioned comments system
-        expect(actualComments).toEqual(['w2', 'w3', 'a1', 'a2', 'a3']);
+        expect(actualComments).toEqual(['w1', 'w2', 'w3', 'a1', 'a2', 'a3']);
         
         // Full text comparison
         expect(result.formattedSql.trim()).toBe(expectedFormatted.trim());

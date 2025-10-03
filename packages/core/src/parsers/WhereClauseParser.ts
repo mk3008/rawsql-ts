@@ -26,9 +26,12 @@ export class WhereClauseParser {
         let idx = index;
 
         // Capture comments associated with the WHERE clause
+        const whereLexeme = lexemes[idx];
         const whereTokenComments = CommentUtils.collectClauseComments(lexemes, idx, 'where');
+        // Preserve positioned comments from the WHERE keyword so we can reapply them during printing
+        const wherePositionedComments = whereLexeme.positionedComments;
 
-        if (lexemes[idx].value !== 'where') {
+        if (whereLexeme.value !== 'where') {
             throw new Error(`Syntax error at position ${idx}: Expected 'WHERE' keyword but found "${lexemes[idx].value}". WHERE clauses must start with the WHERE keyword.`);
         }
         idx++;
@@ -41,6 +44,14 @@ export class WhereClauseParser {
         const clause = new WhereClause(item.value);
         // Set comments from the WHERE token to the clause
         clause.comments = whereTokenComments;
+
+        if (wherePositionedComments && wherePositionedComments.length > 0) {
+            // Clone positioned comments so mutations on the clause do not leak back to the tokenizer state
+            clause.positionedComments = wherePositionedComments.map((comment) => ({
+                position: comment.position,
+                comments: [...comment.comments],
+            }));
+        }
 
         return { value: clause, newIndex: item.newIndex };
     }

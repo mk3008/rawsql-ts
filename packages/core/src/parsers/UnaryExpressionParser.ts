@@ -8,7 +8,8 @@ export class UnaryExpressionParser {
 
         // Process unary operator
         if (idx < lexemes.length && (lexemes[idx].type & TokenType.Operator)) {
-            const operator = lexemes[idx].value;
+            const operatorLexeme = lexemes[idx];
+            const operator = operatorLexeme.value;
             idx++;
 
             // Treat the asterisk as an Identifier, not as a unary operator
@@ -23,6 +24,15 @@ export class UnaryExpressionParser {
 
             // Create unary expression
             const value = new UnaryExpression(operator, result.value);
+
+            if (operatorLexeme.positionedComments && operatorLexeme.positionedComments.length > 0) {
+                // Carry positioned comments from the operator token onto the expression for precise placement
+                value.positionedComments = operatorLexeme.positionedComments;
+            } else if (operatorLexeme.comments && operatorLexeme.comments.length > 0) {
+                // Fallback for legacy comment collection so older paths still retain notes
+                value.comments = operatorLexeme.comments;
+            }
+
             return { value, newIndex: idx };
         }
 

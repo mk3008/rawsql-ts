@@ -52,6 +52,7 @@ AND /* a1 */ created_at > /* a2 */ '2023-01-01' /* a3 */`;
 FROM
     "users"
 WHERE
+    /* w1 */
     "status" = /* w2 */
     'active' /* w3 */
     AND /* a1 */
@@ -69,6 +70,57 @@ WHERE
         console.log(expectedTransformed);
         console.log('\nActual:');
         console.log(result.formattedSql);
+
+        expect(result.formattedSql.trim()).toBe(expectedTransformed.trim());
+    });
+
+    it('should preserve EXISTS subquery comments', () => {
+        const originalSql = `select
+    *
+from
+    table_a as a
+where
+    --c1
+    exists (
+        --c2
+        select
+            *
+        from
+            table_b as b
+        where
+            a.id = b.id
+    )
+    --c3`;
+
+        const expectedTransformed = `select
+    *
+from
+    table_a as a
+where
+    /* c1 */
+    exists /* c2 */
+    (select * from table_b as b where a.id = b.id) /* c3 */`;
+
+        const parsed = SelectQueryParser.parse(originalSql);
+        const formatter = new SqlFormatter({
+            identifierEscape: { start: '', end: '' },
+            exportComment: true,
+            commentStyle: 'smart',
+            keywordCase: 'lower',
+            indentSize: 4,
+            indentChar: ' ',
+            newline: '\n',
+            commaBreak: 'before',
+            cteCommaBreak: 'after',
+            andBreak: 'before',
+            parenthesesOneLine: true,
+            betweenOneLine: true,
+            valuesOneLine: true,
+            joinOneLine: true,
+            caseOneLine: true,
+            subqueryOneLine: true,
+        });
+        const result = formatter.format(parsed);
 
         expect(result.formattedSql.trim()).toBe(expectedTransformed.trim());
     });
@@ -248,6 +300,7 @@ AND /* a1 */ created_at > '2023-01-01' /* a2 */`;
 FROM
     "users" AS "u" /* u1 */
 WHERE
+    /* w1 */
     "status" = 'active' /* w2 */
     AND /* a1 */
     "created_at" > '2023-01-01' /* a2 */`;
