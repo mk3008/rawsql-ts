@@ -54,51 +54,51 @@ function loadStyles() {
     } else {
         currentStyles = {
             "Default": {
-                "identifierEscape": { "start": "", "end": "" },
+                "identifierEscape": "none",
                 "parameterSymbol": ":",
                 "parameterStyle": "named",
                 "indentSize": 4,
-                "indentChar": " ",
-                "newline": "\n",
+                "indentChar": "space",
+                "newline": "lf",
                 "keywordCase": "lower",
                 "commaBreak": "before",
                 "andBreak": "before"
             },
             "OneLiner": {
-                "identifierEscape": { "start": "", "end": "" },
+                "identifierEscape": "none",
                 "parameterSymbol": ":",
                 "parameterStyle": "named",
-                "keywordCase": "lower",
+                "keywordCase": "lower"
             },
             "Postgres": {
-                "identifierEscape": { "start": '"', "end": '"' },
+                "identifierEscape": "quote",
                 "parameterSymbol": "$",
                 "parameterStyle": "indexed",
                 "indentSize": 4,
-                "indentChar": " ",
-                "newline": "\n",
+                "indentChar": "space",
+                "newline": "lf",
                 "keywordCase": "upper",
                 "commaBreak": "before",
                 "andBreak": "before"
             },
             "MySQL": {
-                "identifierEscape": { "start": "`", "end": "`" },
+                "identifierEscape": "backtick",
                 "parameterSymbol": "?",
                 "parameterStyle": "anonymous",
                 "indentSize": 4,
-                "indentChar": " ",
-                "newline": "\n",
+                "indentChar": "space",
+                "newline": "lf",
                 "keywordCase": "upper",
                 "commaBreak": "before",
                 "andBreak": "before"
             },
             "SQLServer": {
-                "identifierEscape": { "start": "[", "end": "]" },
+                "identifierEscape": "bracket",
                 "parameterSymbol": "@",
                 "parameterStyle": "named",
                 "indentSize": 4,
-                "indentChar": " ",
-                "newline": "\n",
+                "indentChar": "space",
+                "newline": "lf",
                 "keywordCase": "upper",
                 "commaBreak": "before",
                 "andBreak": "before"

@@ -1,6 +1,7 @@
 import { SqlPrintTokenParser, FormatterConfig, PRESETS } from '../parsers/SqlPrintTokenParser';
 import { SqlPrinter, CommaBreakStyle, AndBreakStyle } from './SqlPrinter';
 import { IndentCharOption, NewlineOption } from './LinePrinter'; // Import types for compatibility
+import { IdentifierEscapeOption, resolveIdentifierEscapeOption } from './FormatOptionResolver';
 import { SelectQuery } from '../models/SelectQuery';
 import { SqlComponent } from '../models/SqlComponent';
 
@@ -37,9 +38,9 @@ export type CommentStyle = 'block' | 'smart';
 export interface BaseFormattingOptions {
     /** Number of spaces for indentation */
     indentSize?: number;
-    /** Character to use for indentation ('space' or 'tab') */
+    /** Character to use for indentation (logical 'space'/'tab' or literal control character) */
     indentChar?: IndentCharOption;
-    /** Newline character style */
+    /** Newline character style (logical 'lf'/'crlf'/'cr' or literal newline string) */
     newline?: NewlineOption;
     /** Case transformation for SQL keywords */
     keywordCase?: 'none' | 'upper' | 'lower';
@@ -85,8 +86,8 @@ export interface BaseFormattingOptions {
 export interface SqlFormatterOptions extends BaseFormattingOptions {
     /** Database preset for formatting style ('mysql', 'postgres', 'sqlserver', 'sqlite') */
     preset?: PresetName;
-    /** Custom identifier escape characters (e.g., {start: '"', end: '"'} for PostgreSQL) */
-    identifierEscape?: { start: string; end: string };
+    /** Identifier escape style (logical name like 'quote' or explicit delimiters) */
+    identifierEscape?: IdentifierEscapeOption;
     /** Parameter symbol configuration for SQL parameters */
     parameterSymbol?: string | { start: string; end: string };
     /** Style for parameter formatting */
@@ -116,9 +117,12 @@ export class SqlFormatter {
             throw new Error(`Invalid preset: ${options.preset}`); // Throw error for invalid preset
         }
 
+        // Normalize identifier escape names into actual delimiter pairs before configuring the parser.
+        const resolvedIdentifierEscape = resolveIdentifierEscapeOption(options.identifierEscape ?? presetConfig?.identifierEscape);
+
         const parserOptions = {
             ...presetConfig, // Apply preset configuration
-            identifierEscape: options.identifierEscape ?? presetConfig?.identifierEscape,
+            identifierEscape: resolvedIdentifierEscape ?? presetConfig?.identifierEscape,
             parameterSymbol: options.parameterSymbol ?? presetConfig?.parameterSymbol,
             parameterStyle: options.parameterStyle ?? presetConfig?.parameterStyle,
         };
@@ -151,3 +155,4 @@ export class SqlFormatter {
         return { formattedSql, params };
     }
 }
+

@@ -1,8 +1,10 @@
 // Define the allowed newline options
-export type NewlineOption = ' ' | '\n' | '\r\n';
+export type NewlineLogicalName = 'lf' | 'crlf' | 'cr';
+export type NewlineOption = NewlineLogicalName | '\n' | '\r\n' | '\r' | ' ';
 
 // Define the allowed indent character options
-export type IndentCharOption = string;
+export type IndentCharLogicalName = 'space' | 'tab';
+export type IndentCharOption = IndentCharLogicalName | string;
 
 // Import CommaBreakStyle type
 export type CommaBreakStyle = 'none' | 'before' | 'after';
@@ -17,9 +19,9 @@ export class LinePrinter {
     commaBreak: CommaBreakStyle; // Add comma break style
     lines: PrintLine[];
     /**
-     * @param indentChar Character used for indentation (default: ' ') // Updated comment to reflect options
+     * @param indentChar Character used for indentation (default: ' ') // Accepts logical names like 'space'/'tab'
      * @param indentSize Number of indentChar per level (default: 0)
-     * @param newline Newline string (default: '\r\n') // Changed type and default value
+     * @param newline Newline string (default: '\r\n') // Accepts logical names like 'lf'/'crlf'/'cr'
      * @param commaBreak Comma break style (default: 'none')
      */
     constructor(indentChar: IndentCharOption = ' ', indentSize: number = 0, newline: NewlineOption = '\r\n', commaBreak: CommaBreakStyle = 'none') { // Changed type for indentChar

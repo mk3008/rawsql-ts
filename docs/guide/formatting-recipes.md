@@ -22,8 +22,8 @@ const { formattedSql, params } = formatter.format(query);
 
 | Option | Purpose |
 | --- | --- |
-| `indentSize` + `indentChar` | Control indentation width and whether tabs or spaces are used. |
-| `newline` | Switch between `\n`, `\r\n`, or `\r` newlines. |
+| `indentSize` + `indentChar` | Control indentation width. Use logical names like `space`/`tab` or provide literal characters. |
+| `newline` | Switch between logical names `lf`, `crlf`, `cr` or provide literal newline strings. |
 | `keywordCase` | Force keywords to upper or lower case while leaving identifiers untouched. |
 | `commaBreak` / `cteCommaBreak` | Choose between inline commas and vertical lists for general clauses or `WITH` definitions. |
 | `andBreak` | Balance boolean logic readability by breaking `AND`/`OR` groups. |
@@ -37,15 +37,12 @@ Combine these options to mirror house formatting conventions or align with exist
 
 ```json
 {
-  "identifierEscape": {
-    "start": "",
-    "end": ""
-  },
+  "identifierEscape": "none",
   "parameterSymbol": ":",
   "parameterStyle": "named",
   "indentSize": 4,
-  "indentChar": " ",
-  "newline": "\n",
+  "indentChar": "space",
+  "newline": "lf",
   "keywordCase": "lower",
   "commaBreak": "before",
   "cteCommaBreak": "after",

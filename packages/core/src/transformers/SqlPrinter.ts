@@ -1,5 +1,6 @@
 import { SqlPrintToken, SqlPrintTokenType, SqlPrintTokenContainerType } from "../models/SqlPrintToken";
 import { IndentCharOption, LinePrinter, NewlineOption } from "./LinePrinter";
+import { resolveIndentCharOption, resolveNewlineOption } from "./FormatOptionResolver";
 import { BaseFormattingOptions, WithClauseStyle, CommentStyle } from "./SqlFormatter";
 
 /**
@@ -97,12 +98,16 @@ export class SqlPrinter {
      * @param options Optional style settings for pretty printing
      */
     constructor(options?: SqlPrinterOptions) {
-        this.indentChar = options?.indentChar ?? '';
+        // Resolve logical options to their control character representations before applying defaults.
+        const resolvedIndentChar = resolveIndentCharOption(options?.indentChar);
+        const resolvedNewline = resolveNewlineOption(options?.newline);
+
+        this.indentChar = resolvedIndentChar ?? '';
         this.indentSize = options?.indentSize ?? 0;
 
         // The default newline character is set to a blank space (' ') to enable one-liner formatting.
         // This is intentional and differs from the LinePrinter default of '\r\n'.
-        this.newline = options?.newline ?? ' ';
+        this.newline = resolvedNewline ?? ' ';
 
         this.commaBreak = options?.commaBreak ?? 'none';
         this.cteCommaBreak = options?.cteCommaBreak ?? this.commaBreak;
