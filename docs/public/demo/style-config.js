@@ -62,7 +62,17 @@ function loadStyles() {
                 "newline": "lf",
                 "keywordCase": "lower",
                 "commaBreak": "before",
-                "andBreak": "before"
+                "valuesCommaBreak": "before",
+                "andBreak": "before",
+                "exportComment": true,
+                "commentStyle": "block",
+                "withClauseStyle": "standard",
+                "parenthesesOneLine": true,
+                "betweenOneLine": true,
+                "valuesOneLine": false,
+                "joinOneLine": true,
+                "caseOneLine": false,
+                "subqueryOneLine": false
             },
             "OneLiner": {
                 "identifierEscape": "none",
@@ -79,7 +89,17 @@ function loadStyles() {
                 "newline": "lf",
                 "keywordCase": "upper",
                 "commaBreak": "before",
-                "andBreak": "before"
+                "valuesCommaBreak": "before",
+                "andBreak": "before",
+                "exportComment": true,
+                "commentStyle": "block",
+                "withClauseStyle": "standard",
+                "parenthesesOneLine": true,
+                "betweenOneLine": true,
+                "valuesOneLine": false,
+                "joinOneLine": true,
+                "caseOneLine": false,
+                "subqueryOneLine": false
             },
             "MySQL": {
                 "identifierEscape": "backtick",
@@ -90,7 +110,17 @@ function loadStyles() {
                 "newline": "lf",
                 "keywordCase": "upper",
                 "commaBreak": "before",
-                "andBreak": "before"
+                "valuesCommaBreak": "before",
+                "andBreak": "before",
+                "exportComment": true,
+                "commentStyle": "block",
+                "withClauseStyle": "standard",
+                "parenthesesOneLine": true,
+                "betweenOneLine": true,
+                "valuesOneLine": false,
+                "joinOneLine": true,
+                "caseOneLine": false,
+                "subqueryOneLine": false
             },
             "SQLServer": {
                 "identifierEscape": "bracket",
@@ -101,7 +131,17 @@ function loadStyles() {
                 "newline": "lf",
                 "keywordCase": "upper",
                 "commaBreak": "before",
-                "andBreak": "before"
+                "valuesCommaBreak": "before",
+                "andBreak": "before",
+                "exportComment": true,
+                "commentStyle": "block",
+                "withClauseStyle": "standard",
+                "parenthesesOneLine": true,
+                "betweenOneLine": true,
+                "valuesOneLine": false,
+                "joinOneLine": true,
+                "caseOneLine": false,
+                "subqueryOneLine": false
             }
         };
         localStorage.setItem(DEFAULT_STYLE_KEY, JSON.stringify(currentStyles));
