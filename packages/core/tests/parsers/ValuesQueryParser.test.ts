@@ -133,3 +133,25 @@ test("parses VALUES clause with subquery alias", () => {
     // Assert
     expect(formattedSQL).toBe(expectedSQL);
 });
+
+test('values clause preserves inline comments', () => {
+    const sql = `--c1
+values
+--c2
+(1, 'Alice'),
+(2, 'Bob')
+--c3`;
+
+    const clause = ValuesQueryParser.parse(sql);
+
+    expect(clause.headerComments).toEqual(['c1']);
+
+    const firstTuple = clause.tuples[0];
+    const beforeComments = firstTuple.getPositionedComments('before');
+    expect(beforeComments).toContain('c2');
+
+    const lastTuple = clause.tuples[clause.tuples.length - 1];
+    const afterComments = lastTuple.getPositionedComments('after');
+    expect(afterComments).toContain('c3');
+});
+

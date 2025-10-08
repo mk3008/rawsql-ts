@@ -253,15 +253,12 @@ It also allows for detailed style customization. For example, you can define you
 import { SelectQueryParser, SqlFormatter } from 'rawsql-ts';
 
 const customStyle = {
-  identifierEscape: {
-    start: "",
-    end: ""
-  },
+  identifierEscape: "none",
   parameterSymbol: ":",
   parameterStyle: "named",
   indentSize: 4,
-  indentChar: " ",
-  newline: "\n",
+  indentChar: "space",
+  newline: "lf",
   keywordCase: "lower",
   commaBreak: "before",
   andBreak: "before"

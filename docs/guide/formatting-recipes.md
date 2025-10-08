@@ -22,10 +22,11 @@ const { formattedSql, params } = formatter.format(query);
 
 | Option | Purpose |
 | --- | --- |
-| `indentSize` + `indentChar` | Control indentation width and whether tabs or spaces are used. |
-| `newline` | Switch between `\n`, `\r\n`, or `\r` newlines. |
+| `indentSize` + `indentChar` | Control indentation width. Use logical names like `space`/`tab` or provide literal characters. |
+| `newline` | Switch between logical names `lf`, `crlf`, `cr` or provide literal newline strings. |
 | `keywordCase` | Force keywords to upper or lower case while leaving identifiers untouched. |
 | `commaBreak` / `cteCommaBreak` | Choose between inline commas and vertical lists for general clauses or `WITH` definitions. |
+| `valuesCommaBreak` | Override comma placement specifically inside `VALUES` tuples without changing the global comma setting. |
 | `andBreak` | Balance boolean logic readability by breaking `AND`/`OR` groups. |
 | `commentStyle` | Convert comments to a normalized style while preserving placement. |
 | `withClauseStyle` | Collapse or fan out common table expressions. |
@@ -33,22 +34,24 @@ const { formattedSql, params } = formatter.format(query);
 
 Combine these options to mirror house formatting conventions or align with existing lint rules.
 
+### VALUES clause formatting tips
+
+Use `valuesCommaBreak` when you need to keep the main query in trailing-comma style but prefer inline tuples inside a `VALUES` block (or vice versa). With `exportComment: true`, comments that appear before or after each tuple are preserved and printed alongside the formatted output, so inline annotations survive automated formatting.
+
 ## Sample
 
 ```json
 {
-  "identifierEscape": {
-    "start": "",
-    "end": ""
-  },
+  "identifierEscape": "none",
   "parameterSymbol": ":",
   "parameterStyle": "named",
   "indentSize": 4,
-  "indentChar": " ",
-  "newline": "\n",
+  "indentChar": "space",
+  "newline": "lf",
   "keywordCase": "lower",
   "commaBreak": "before",
   "cteCommaBreak": "after",
+  "valuesCommaBreak": "after",
   "andBreak": "before",
   "exportComment": true,
   "commentStyle": "smart",
@@ -70,6 +73,7 @@ Combine these options to mirror house formatting conventions or align with exist
 ```typescript
 const formatter = new SqlFormatter({ parameterStyle: 'named', parameterSymbol: ':' });
 const { formattedSql, params } = formatter.format(query);
+
 // params => { userId: 42, status: 'active' }
 ```
 
@@ -80,6 +84,7 @@ Use this when your driver accepts named bindings (e.g. `:userId`). `params` is a
 ```typescript
 const formatter = new SqlFormatter({ parameterStyle: 'indexed', parameterSymbol: '$' });
 const { formattedSql, params } = formatter.format(query);
+
 // params => ['active', 42]
 ```
 
@@ -90,6 +95,7 @@ Indexed mode emits placeholders like `$1`, `$2`, `$3`, preserving array order. C
 ```typescript
 const formatter = new SqlFormatter({ parameterStyle: 'anonymous', parameterSymbol: '?' });
 const { formattedSql, params } = formatter.format(query);
+
 // params => ['active', 42]
 ```
 

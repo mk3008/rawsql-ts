@@ -878,3 +878,26 @@ order by
         ].join('\r\n'));
     });
 });
+    it('should override comma break style for VALUES separately', () => {
+        const node = SelectQueryParser.parse(
+            'values (1, 2), (3, 4)'
+        );
+        const parser = new SqlPrintTokenParser();
+        const token = parser.visit(node);
+
+        const printer = new SqlPrinter({
+            indentSize: 2,
+            indentChar: ' ',
+            newline: '\r\n',
+            keywordCase: 'upper',
+            commaBreak: 'before',
+            valuesCommaBreak: 'after'
+        });
+        const sql = printer.print(token);
+
+        expect(sql).toBe([
+            'VALUES',
+            '  (1, 2),',
+            '  (3, 4)'
+        ].join('\r\n'));
+    });
