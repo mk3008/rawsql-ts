@@ -1,10 +1,37 @@
-import * as Benchmark from 'benchmark';
+import * as fs from 'fs';
+import * as path from 'path';
+import Benchmark = require('benchmark');
+type BenchmarkCase = Benchmark;
 import * as os from 'os';
-import { SelectQueryParser } from '../src/parsers/SelectQueryParser';
 import { format as sqlFormat } from 'sql-formatter';
 import { Parser as NodeSqlParser } from 'node-sql-parser';
-import { parse as cstParse } from 'sql-parser-cst';
-import { SqlFormatter } from '../src/transformers/SqlFormatter';
+import { SelectQueryParser } from '../packages/core/src/parsers/SelectQueryParser';
+import { SqlFormatter } from '../packages/core/src/transformers/SqlFormatter';
+
+interface BenchmarkResult {
+    name: string;
+    hz: number;
+    stats: Benchmark.Stats;
+    rme: number;
+    mean: number;
+    samples: number;
+}
+
+interface SystemInfo {
+    cpuModel: string;
+    logicalCores: number;
+    osName: string;
+    totalMem: number;
+    nodeVersion: string;
+}
+
+interface ChartDataset {
+    labels: string[];
+    datasets: Array<{
+        label: string;
+        data: Array<number | null>;
+    }>;
+}
 
 // Set of SQL queries for benchmarking
 const queries = [
@@ -44,111 +71,109 @@ const queries = [
     },
     {
         name: 'Tokens230',
-        sql: `with
-                detail as (
-                    select
+        sql: `WITH
+                detail AS (
+                    SELECT
                         q.*,
-                        trunc(q.price * (1 + q.tax_rate)) - q.price as tax,
-                        q.price * (1 + q.tax_rate) - q.price as raw_tax
-                    from
+                        TRUNC(q.price * (1 + q.tax_rate)) - q.price AS tax,
+                        q.price * (1 + q.tax_rate) - q.price AS raw_tax
+                    FROM
                         (
-                            select
+                            SELECT
                                 dat.*,
-                                (dat.unit_price * dat.quantity) as price
-                            from
+                                (dat.unit_price * dat.quantity) AS price
+                            FROM
                                 dat
                         ) q
                 ),
-                tax_summary as (
-                    select
+                tax_summary AS (
+                    SELECT
                         d.tax_rate,
-                        trunc(sum(raw_tax)) as total_tax
-                    from
+                        TRUNC(SUM(raw_tax)) AS total_tax
+                    FROM
                         detail d
-                    group by
+                    GROUP BY
                         d.tax_rate
                 )
-                select
-                line_id,
+                SELECT
+                    line_id,
                     name,
                     unit_price,
                     quantity,
                     tax_rate,
                     price,
-                    price + tax as tax_included_price,
+                    price + tax AS tax_included_price,
                     tax
-                from
+                FROM
                     (
-                        select
+                        SELECT
                             line_id,
                             name,
                             unit_price,
                             quantity,
                             tax_rate,
                             price,
-                            tax + adjust_tax as tax
-                        from
+                            tax + adjust_tax AS tax
+                        FROM
                             (
-                                select
+                                SELECT
                                     q.*,
-                                    case when q.total_tax - q.cumulative >= q.priority then 1 else 0 end as adjust_tax
-                                from
+                                    CASE WHEN q.total_tax - q.cumulative >= q.priority THEN 1 ELSE 0 END AS adjust_tax
+                                FROM
                                     (
-                                        select
+                                        SELECT
                                             d.*,
                                             s.total_tax,
-                                            sum(d.tax) over (partition by d.tax_rate) as cumulative,
-                                            row_number() over (partition by d.tax_rate order by d.raw_tax % 1 desc, d.line_id) as priority
-                                        from
+                                            SUM(d.tax) OVER (PARTITION BY d.tax_rate) AS cumulative,
+                                            ROW_NUMBER() OVER (PARTITION BY d.tax_rate ORDER BY d.raw_tax % 1 DESC, d.line_id) AS priority
+                                        FROM
                                             detail d
-                                            inner join tax_summary s on d.tax_rate = s.tax_rate
+                                            INNER JOIN tax_summary s ON d.tax_rate = s.tax_rate
                                     ) q
                             ) q
                     ) q
-                order by
-                    line_id`
+                ORDER BY
+                    line_id;`
     }
 ];
 
-// Create formatter instance (use if needed)
 const sqlFormatter = new SqlFormatter();
 const nodeSqlParser = new NodeSqlParser();
+const suite = new Benchmark.Suite();
+const reportLines: string[] = [];
 
-// Create benchmark suite
-const suite = new Benchmark.Suite;
+const logLine = (line = '') => {
+    console.log(line);
+    reportLines.push(line);
+};
 
 function formatWithRawSql(sql: string) {
     return () => {
+        // Parse into the rawsql-ts AST to exercise the updated tokenizer with comment support.
         const query = SelectQueryParser.parse(sql);
+        // Format the query to mirror real-world usage that chains parsing and formatting.
         sqlFormatter.format(query);
     };
 }
 
 function formatWithSqlFormatter(sql: string) {
     return () => {
+        // Execute sql-formatter as a baseline formatter-only comparison.
         sqlFormat(sql, { language: 'postgresql' });
     };
 }
 
 function formatWithNodeSqlParser(sql: string) {
     return () => {
-        const ast = nodeSqlParser.astify(sql);
-        nodeSqlParser.sqlify(ast);
+        // Parse using node-sql-parser to compare against another AST-based parser.
+        nodeSqlParser.astify(sql, { database: 'postgresql' });
     };
 }
 
-function formatWithSqlParserCst(sql: string) {
-    return () => {
-        cstParse(sql, { dialect: 'postgresql' });
-    };
-}
-
-// Get system information
-function getSystemInfo() {
-    const cpus = os.cpus();
-    const cpuModel = cpus.length > 0 ? cpus[0].model : 'Unknown CPU';
-    const cpuCount = cpus.length;
-    const logicalCores = cpuCount;
+function getSystemInfo(): SystemInfo {
+    // Collect CPU, OS, memory, and runtime metadata for reproducible benchmark context.
+    const cpuModel = os.cpus()[0]?.model ?? 'Unknown CPU';
+    const logicalCores = os.cpus().length;
     const osName = `${os.type()} ${os.release()}`;
     const totalMem = Math.round(os.totalmem() / (1024 * 1024 * 1024));
     const nodeVersion = process.version;
@@ -162,118 +187,146 @@ function getSystemInfo() {
     };
 }
 
-// Add benchmarks for individual queries
-queries.forEach((query, index) => {
-    // Set label using query name
-    suite.add(`rawsql-ts ${query.name}`, formatWithRawSql(query.sql));
-    // Add node-sql-parser benchmark for comparison
-    suite.add(`node-sql-parser ${query.name}`, formatWithNodeSqlParser(query.sql));
-
-    // NOTE: Omitted because it is generally slightly slower than node-sql-parser
-    //// Add sql-parser-cst benchmark for comparison
-    //suite.add(`sql-parser-cst ${query.name}`, formatWithSqlParserCst(query.sql));
-
-    // Add sql-formatter benchmark for comparison
-    suite.add(`sql-formatter ${query.name}`, formatWithSqlFormatter(query.sql));
-});
-
-// Function to display header and system information
 function printHeader() {
+    // Emit benchmark metadata as a fenced block for easy copying into documentation.
     const info = getSystemInfo();
     const currentDate = new Date().toISOString().split('T')[0];
-    // Get benchmark version information
     const benchmarkVersion = require('benchmark/package.json').version;
 
-    console.log('```');
-    console.log(`benchmark.js v${benchmarkVersion}, ${info.osName}`);
-    console.log(`${info.cpuModel.trim()}, ${info.logicalCores} logical cores`);
-    console.log(`Node.js ${info.nodeVersion}`);
-    console.log('```');
-    console.log('');
+    logLine('```');
+    logLine(`benchmark.js v${benchmarkVersion}, ${info.osName}`);
+    logLine(`${info.cpuModel.trim()}, ${info.logicalCores} logical cores`);
+    logLine(`Node.js ${info.nodeVersion}`);
+    logLine(`Date ${currentDate}`);
+    logLine('```');
+    logLine('');
 }
 
-// Display report in markdown table format - grouped by token size
-function printResults(results: any[]) {
-    // Group results by token size (based on query name)
+function printResults(results: BenchmarkResult[]) {
+    // Organize results by query complexity so readers can compare like-for-like workloads.
     const queryNames = queries.map(q => q.name);
-    const groupedResults: Record<string, any[]> = {};
+    const groupedResults: Record<string, BenchmarkResult[]> = {};
 
     queryNames.forEach(name => {
         groupedResults[name] = results.filter(r => r.name.includes(name));
     });
 
-    // Print a table for each token group
+    // Render each group as a Markdown table with a rawsql-ts baseline column.
     Object.keys(groupedResults).forEach(groupName => {
-        console.log(`\n#### ${groupName}`);
-        // Add new column header for rawsql-ts comparison
-        console.log('| Method                            | Mean (ms)  | Error (ms) | StdDev (ms) | Times slower vs rawsql-ts |');
-        console.log('|---------------------------------- |-----------:|----------:|----------:|--------------------------:|');
+        logLine(`\n#### ${groupName}`);
+        logLine('| Method                            | Mean (ms)  | Error (ms) | StdDev (ms) | Times slower vs rawsql-ts |');
+        logLine('|---------------------------------- |-----------:|----------:|----------:|--------------------------:|');
 
         const groupResults = groupedResults[groupName];
-
-        // Find the mean value for rawsql-ts in this group
         const rawsqlResult = groupResults.find(r => r.name.startsWith('rawsql-ts'));
         const rawsqlMean = rawsqlResult ? rawsqlResult.mean : null;
 
-        // Display in original order (don't sort by time)
         groupResults.forEach(result => {
-            // Format method name (extract library name)
+            // Match the library segment before the query name for consistent labels.
             const methodMatch = result.name.match(/^([^]+)\s+Tokens\d+$/);
             const methodName = methodMatch ? methodMatch[1] : result.name;
             const name = methodName.padEnd(30).substring(0, 30);
 
-            // Display average time in milliseconds (3 decimal places)
-            const mean = (result.mean * 1000).toFixed(3).padStart(8);
+            const meanMs = result.mean * 1000;
+            const mean = meanMs.toFixed(3).padStart(8);
 
-            // Display error rate in milliseconds (4 decimal places)
-            const error = ((result.stats.deviation * 1000) * 1.96).toFixed(4).padStart(7);
+            const errorMs = result.stats.deviation * 1000 * 1.96;
+            const error = errorMs.toFixed(4).padStart(7);
 
-            // Display standard deviation in milliseconds (4 decimal places)
-            const stddev = (result.stats.deviation * 1000).toFixed(4).padStart(7);
+            const stddevMs = result.stats.deviation * 1000;
+            const stddev = stddevMs.toFixed(4).padStart(7);
 
-            // Calculate ratio vs rawsql-ts (how many times slower)
             let ratioStr = '-';
             if (rawsqlMean && !result.name.startsWith('rawsql-ts')) {
                 const ratio = result.mean / rawsqlMean;
-                if (ratio >= 1.01) {
-                    ratioStr = ratio.toFixed(1) + 'x';
-                } else {
-                    ratioStr = '<1x';
-                }
+                ratioStr = ratio >= 1.01 ? `${ratio.toFixed(1)}x` : '<1x';
             }
 
-            console.log(`| ${name} | ${mean} | ${error} | ${stddev} | ${ratioStr.padStart(16)} |`);
+            logLine(`| ${name} | ${mean} | ${error} | ${stddev} | ${ratioStr.padStart(16)} |`);
         });
     });
 
-    console.log('')
+    logLine('');
 }
 
-// Callback when benchmark is completed
-suite.on('cycle', (event: any) => {
-    // Suppress log output for each cycle
+function buildChartDataset(results: BenchmarkResult[]): ChartDataset {
+    // Generate QuickChart-compatible data for the README bar chart.
+    const labels = queries.map(query => query.name);
+    const methods = ['rawsql-ts', 'node-sql-parser', 'sql-formatter'];
+
+    const datasets = methods.map(label => {
+        const data = labels.map(queryName => {
+            const match = results.find(result => result.name.startsWith(label) && result.name.endsWith(queryName));
+            if (!match) {
+                return null;
+            }
+
+            const meanMs = match.mean * 1000;
+            return parseFloat(meanMs.toFixed(3));
+        });
+
+        return {
+            label,
+            data
+        };
+    });
+
+    return {
+        labels,
+        datasets
+    };
+}
+
+function printChartDataset(results: BenchmarkResult[]) {
+    // Emit chart data as JSON so documentation can be updated without manual transcription.
+    const dataset = buildChartDataset(results);
+    logLine('#### Chart Dataset');
+    logLine('```json');
+    logLine(JSON.stringify(dataset, null, 2));
+    logLine('```');
+    logLine('');
+}
+
+function writeReportFile(lines: string[]): string {
+    // Persist the Markdown report under ./tmp for downstream documentation updates.
+    const timestamp = new Date().toISOString().replace(/[:]/g, '-');
+    const tmpDir = path.resolve(__dirname, '../tmp');
+    fs.mkdirSync(tmpDir, { recursive: true });
+
+    const filePath = path.join(tmpDir, `parse-benchmark-report-${timestamp}.md`);
+    fs.writeFileSync(filePath, `${lines.join('\n')}\n`, 'utf8');
+
+    return filePath;
+}
+
+queries.forEach(query => {
+    suite.add(`rawsql-ts ${query.name}`, formatWithRawSql(query.sql));
+    suite.add(`node-sql-parser ${query.name}`, formatWithNodeSqlParser(query.sql));
+    suite.add(`sql-formatter ${query.name}`, formatWithSqlFormatter(query.sql));
 });
 
-// Callback on completion
-suite.on('complete', function (this: any) {
-    // Get results as an array
-    const results = this.filter('successful').map((benchmark: any) => ({
+suite.on('cycle', () => {
+    // Suppress per-cycle output to keep the report concise.
+});
+
+suite.on('complete', function (this: Benchmark.Suite) {
+    // Collect successful benchmarks for reporting once the suite finishes.
+    const results = this.filter('successful').map((benchmark: BenchmarkCase) => ({
         name: benchmark.name,
         hz: benchmark.hz,
         stats: benchmark.stats,
         rme: benchmark.stats.rme,
         mean: benchmark.stats.mean,
         samples: benchmark.stats.sample.length
-    }));
+    })) as BenchmarkResult[];
 
-    // No longer sorting results
-    // Display header and system information
     printHeader();
-
-    // Display results grouped by token size
     printResults(results);
+    printChartDataset(results);
+
+    const reportPath = writeReportFile(reportLines);
+    console.log(`Report saved to ${path.relative(process.cwd(), reportPath)}`);
 });
 
-// Run benchmark
 console.log('running...');
-suite.run({ 'async': false });
+suite.run({ async: false });
