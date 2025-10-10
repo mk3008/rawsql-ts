@@ -27,7 +27,9 @@ const { formattedSql, params } = formatter.format(query);
 | `keywordCase` | Force keywords to upper or lower case while leaving identifiers untouched. |
 | `commaBreak` / `cteCommaBreak` | Choose between inline commas and vertical lists for general clauses or `WITH` definitions. |
 | `valuesCommaBreak` | Override comma placement specifically inside `VALUES` tuples without changing the global comma setting. |
-| `andBreak` | Balance boolean logic readability by breaking `AND`/`OR` groups. |
+| `andBreak` | Control how `AND` keywords are broken onto new lines. |
+| `orBreak` | Control how `OR` keywords are broken onto new lines. |
+| `indentNestedParentheses` | Indent boolean blocks inside parentheses while keeping innermost expressions compact. |
 | `commentStyle` | Convert comments to a normalized style while preserving placement. |
 | `withClauseStyle` | Collapse or fan out common table expressions. |
 | `parenthesesOneLine`, `joinOneLine`, etc. | Keep tight expressions compact when vertical whitespace would hurt readability. |
@@ -53,6 +55,8 @@ Use `valuesCommaBreak` when you need to keep the main query in trailing-comma st
   "cteCommaBreak": "after",
   "valuesCommaBreak": "after",
   "andBreak": "before",
+  "orBreak": "before",
+  "indentNestedParentheses": true,
   "exportComment": true,
   "commentStyle": "smart",
   "parenthesesOneLine": true,
@@ -63,6 +67,10 @@ Use `valuesCommaBreak` when you need to keep the main query in trailing-comma st
   "subqueryOneLine": true
 }
 ```
+
+### Nested parentheses indentation
+
+Set `indentNestedParentheses: true` to expand only the outermost boolean groups while keeping innermost comparisons in a single line. This is useful for `WHERE` clauses that mix grouping parentheses with longer `OR` chains: the first nesting level is indented for readability, while the deepest `(a <= x and x <= b)` style checks stay on one line. Pair it with `orBreak: 'before'` or `'after'` when you want every `OR` branch to fall on its own line.
 
 ## Parameter Style Deep Dive
 

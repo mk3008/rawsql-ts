@@ -94,7 +94,7 @@ describe('SqlPrintTokenParser + SqlPrinter (SimpleSelectQuery)', () => {
                 '  "users"',
                 'WHERE',
                 '  "age" > 18',
-                '  AND ("status" = \'active\' or "type" = \'admin\')'
+                '  AND ("status" = \'active\' OR "type" = \'admin\')'
             ].join('\r\n'));
         });
 
@@ -116,7 +116,7 @@ describe('SqlPrintTokenParser + SqlPrinter (SimpleSelectQuery)', () => {
                 '  "users"',
                 'WHERE',
                 '  "age" > 18 AND',
-                '  ("status" = \'active\' or "type" = \'admin\')'
+                '  ("status" = \'active\' OR "type" = \'admin\')'
             ].join('\r\n'));
         });
     });

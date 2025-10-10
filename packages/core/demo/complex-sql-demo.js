@@ -90,7 +90,18 @@ customer_master AS (
         c.customer_type /* Customer type */,
         c.registration_date /* Registration date */
     FROM customers c
-    WHERE c.active_flag = 1 /* Active customers only */
+    /* Qualification rules with nested parentheses for formatting regression */
+    WHERE
+        (c.status = 'active' OR c.status IS NULL)
+        AND (
+            (
+                (c.trial_start IS NULL AND c.trial_end IS NULL)
+                OR (c.trial_start <= '2023-06-30' AND '2023-06-30' <= c.trial_end)
+                OR (c.reactivation_date IS NOT NULL AND c.reactivation_date <= '2023-12-31')
+            )
+            OR (c.preferred_region = 'NA' AND c.vip_score >= 500)
+            OR (c.preferred_region = 'EU' AND c.vip_score >= 450)
+        )
 ),
 /*
   Product Master Data
@@ -356,6 +367,7 @@ const FORMATTER_CONFIGS = [
             keywordCase: 'upper',
             commaBreak: 'before', // Before comma
             andBreak: 'before',
+            orBreak: 'before',
             exportComment: true,
             parenthesesOneLine: false,
             betweenOneLine: false,
@@ -378,6 +390,7 @@ const FORMATTER_CONFIGS = [
             keywordCase: 'upper',
             commaBreak: 'after', // After comma
             andBreak: 'before',
+            orBreak: 'before',
             exportComment: true,
             parenthesesOneLine: false,
             betweenOneLine: false,
@@ -400,6 +413,7 @@ const FORMATTER_CONFIGS = [
             keywordCase: 'upper',
             commaBreak: 'after', // After comma works well with smart comments
             andBreak: 'before',
+            orBreak: 'before',
             exportComment: true,
             commentStyle: 'smart', // Enable smart comment processing
             parenthesesOneLine: false,
@@ -424,9 +438,58 @@ const FORMATTER_CONFIGS = [
             commaBreak: 'before', // Before comma works well with smart comments
             cteCommaBreak: 'after', // CTEs use after-comma for better readability
             andBreak: 'before',
+            orBreak: 'before',
             exportComment: true,
             commentStyle: 'smart', // Enable smart comment processing
             parenthesesOneLine: false,
+            betweenOneLine: false,
+            valuesOneLine: false,
+            joinOneLine: false,
+            caseOneLine: false,
+            subqueryOneLine: false
+        }
+    },
+    {
+        name: 'Compact Nested Parentheses',
+        key: 'nested_parentheses_compact',
+        options: {
+            identifierEscape: { start: '"', end: '"' },
+            parameterSymbol: '$',
+            parameterStyle: 'indexed',
+            indentSize: 2,
+            indentChar: ' ',
+            newline: '\n',
+            keywordCase: 'lower',
+            commaBreak: 'after',
+            andBreak: 'before',
+            orBreak: 'none',
+            exportComment: true,
+            parenthesesOneLine: true,
+            indentNestedParentheses: false,
+            betweenOneLine: false,
+            valuesOneLine: false,
+            joinOneLine: false,
+            caseOneLine: false,
+            subqueryOneLine: false
+        }
+    },
+    {
+        name: 'Expanded Nested Parentheses',
+        key: 'nested_parentheses_expanded',
+        options: {
+            identifierEscape: { start: '"', end: '"' },
+            parameterSymbol: '$',
+            parameterStyle: 'indexed',
+            indentSize: 2,
+            indentChar: ' ',
+            newline: '\n',
+            keywordCase: 'lower',
+            commaBreak: 'after',
+            andBreak: 'before',
+            orBreak: 'before',
+            exportComment: true,
+            parenthesesOneLine: true,
+            indentNestedParentheses: true,
             betweenOneLine: false,
             valuesOneLine: false,
             joinOneLine: false,
@@ -447,6 +510,7 @@ const FORMATTER_CONFIGS = [
             keywordCase: 'lower',
             commaBreak: 'before',
             andBreak: 'before',
+            orBreak: 'before',
             exportComment: true,
             parenthesesOneLine: true,
             betweenOneLine: true,

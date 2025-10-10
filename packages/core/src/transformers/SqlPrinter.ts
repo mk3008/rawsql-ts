@@ -20,6 +20,14 @@ export type CommaBreakStyle = 'none' | 'before' | 'after';
 export type AndBreakStyle = 'none' | 'before' | 'after';
 
 /**
+ * OrBreakStyle determines how OR operators are placed in formatted SQL output.
+ * - 'none': No line break for OR
+ * - 'before': Line break before OR
+ * - 'after': Line break after OR
+ */
+export type OrBreakStyle = 'none' | 'before' | 'after';
+
+/**
  * Options for configuring SqlPrinter formatting behavior
  */
 export interface SqlPrinterOptions extends BaseFormattingOptions {
@@ -62,6 +70,8 @@ export class SqlPrinter {
     valuesCommaBreak: CommaBreakStyle;
     /** AND break style: 'none', 'before', or 'after' */
     andBreak: AndBreakStyle;
+    /** OR break style: 'none', 'before', or 'after' */
+    orBreak: OrBreakStyle;
 
     /** Keyword case style: 'none', 'upper' | 'lower' */
     keywordCase: 'none' | 'upper' | 'lower';
@@ -95,6 +105,8 @@ export class SqlPrinter {
     private caseOneLine: boolean;
     /** Whether to keep subqueries on one line */
     private subqueryOneLine: boolean;
+    /** Whether to indent nested parentheses when boolean groups get expanded */
+    private indentNestedParentheses: boolean;
 
     /**
      * @param options Optional style settings for pretty printing
@@ -115,6 +127,7 @@ export class SqlPrinter {
         this.cteCommaBreak = options?.cteCommaBreak ?? this.commaBreak;
         this.valuesCommaBreak = options?.valuesCommaBreak ?? this.commaBreak;
         this.andBreak = options?.andBreak ?? 'none';
+        this.orBreak = options?.orBreak ?? 'none';
         this.keywordCase = options?.keywordCase ?? 'none';
         this.exportComment = options?.exportComment ?? false;
         this.strictCommentPlacement = options?.strictCommentPlacement ?? false;
@@ -126,6 +139,7 @@ export class SqlPrinter {
         this.joinOneLine = options?.joinOneLine ?? false;
         this.caseOneLine = options?.caseOneLine ?? false;
         this.subqueryOneLine = options?.subqueryOneLine ?? false;
+        this.indentNestedParentheses = options?.indentNestedParentheses ?? false;
         this.linePrinter = new LinePrinter(this.indentChar, this.indentSize, this.newline, this.commaBreak);
 
         // Initialize
@@ -177,12 +191,12 @@ export class SqlPrinter {
             this.linePrinter.lines[0].level = level;
         }
 
-        this.appendToken(token, level, undefined, 0);
+        this.appendToken(token, level, undefined, 0, false);
 
         return this.linePrinter.print();
     }
 
-    private appendToken(token: SqlPrintToken, level: number, parentContainerType?: SqlPrintTokenContainerType, caseContextDepth: number = 0): void {
+    private appendToken(token: SqlPrintToken, level: number, parentContainerType?: SqlPrintTokenContainerType, caseContextDepth: number = 0, indentParentActive: boolean = false): void {
         // Track WITH clause context for full-oneline formatting
         const wasInsideWithClause = this.insideWithClause;
         if (token.containerType === SqlPrintTokenContainerType.WithClause && this.withClauseStyle === 'full-oneline') {
@@ -196,14 +210,19 @@ export class SqlPrinter {
         const current = this.linePrinter.getCurrentLine();
         const isCaseContext = this.isCaseContext(token.containerType);
         const nextCaseContextDepth = isCaseContext ? caseContextDepth + 1 : caseContextDepth;
+        const shouldIndentNested = this.shouldIndentNestedParentheses(token);
 
         // Handle different token types
         if (token.type === SqlPrintTokenType.keyword) {
             this.handleKeywordToken(token, level, parentContainerType, caseContextDepth);
         } else if (token.type === SqlPrintTokenType.comma) {
             this.handleCommaToken(token, level, parentContainerType);
+        } else if (token.type === SqlPrintTokenType.parenthesis) {
+            this.handleParenthesisToken(token, level, indentParentActive);
         } else if (token.type === SqlPrintTokenType.operator && token.text.toLowerCase() === 'and') {
             this.handleAndOperatorToken(token, level, parentContainerType, caseContextDepth);
+        } else if (token.type === SqlPrintTokenType.operator && token.text.toLowerCase() === 'or') {
+            this.handleOrOperatorToken(token, level, parentContainerType, caseContextDepth);
         } else if (token.containerType === "JoinClause") {
             this.handleJoinClauseToken(token, level);
         } else if (token.type === SqlPrintTokenType.comment) {
@@ -220,7 +239,7 @@ export class SqlPrinter {
         } else if (token.containerType === SqlPrintTokenContainerType.CommonTable && this.withClauseStyle === 'cte-oneline') {
             this.handleCteOnelineToken(token, level);
             return; // Return early to avoid processing innerTokens
-        } else if ((token.containerType === SqlPrintTokenContainerType.ParenExpression && this.parenthesesOneLine) ||
+        } else if ((token.containerType === SqlPrintTokenContainerType.ParenExpression && this.parenthesesOneLine && !shouldIndentNested) ||
                    (token.containerType === SqlPrintTokenContainerType.BetweenExpression && this.betweenOneLine) ||
                    (token.containerType === SqlPrintTokenContainerType.Values && this.valuesOneLine) ||
                    (token.containerType === SqlPrintTokenContainerType.JoinOnClause && this.joinOneLine) ||
@@ -236,24 +255,32 @@ export class SqlPrinter {
         if (token.keywordTokens && token.keywordTokens.length > 0) {
             for (let i = 0; i < token.keywordTokens.length; i++) {
                 const keywordToken = token.keywordTokens[i];
-                this.appendToken(keywordToken, level, token.containerType, nextCaseContextDepth);
+                this.appendToken(keywordToken, level, token.containerType, nextCaseContextDepth, indentParentActive);
             }
         }
 
         let innerLevel = level;
+        let increasedIndent = false;
+        const shouldIncreaseIndent = this.indentIncrementContainers.has(token.containerType) || shouldIndentNested;
+        const delayIndentNewline = shouldIndentNested && token.containerType === SqlPrintTokenContainerType.ParenExpression;
 
-        // indent level up
-        if (!this.isOnelineMode() && current.text !== '' && this.indentIncrementContainers.has(token.containerType)) {
-            // Skip newline for any container when inside WITH clause with full-oneline style
-            if (!(this.insideWithClause && this.withClauseStyle === 'full-oneline')) {
-                innerLevel++;
+        if (!this.isOnelineMode() && shouldIncreaseIndent) {
+            if (this.insideWithClause && this.withClauseStyle === 'full-oneline') {
+                // Keep everything on one line for full-oneline WITH clauses.
+            } else if (delayIndentNewline) {
+                innerLevel = level + 1;
+                increasedIndent = true;
+            } else if (current.text !== '') {
+                innerLevel = level + 1;
+                increasedIndent = true;
                 this.linePrinter.appendNewline(innerLevel);
             }
         }
 
         for (let i = 0; i < token.innerTokens.length; i++) {
             const child = token.innerTokens[i];
-            this.appendToken(child, innerLevel, token.containerType, nextCaseContextDepth);
+            const childIndentParentActive = token.containerType === SqlPrintTokenContainerType.ParenExpression ? shouldIndentNested : indentParentActive;
+            this.appendToken(child, innerLevel, token.containerType, nextCaseContextDepth, childIndentParentActive);
         }
         
         // Exit WITH clause context when we finish processing WithClause container
@@ -265,11 +292,8 @@ export class SqlPrinter {
         }
 
         // indent level down
-        if (innerLevel !== level) {
-            // Skip newline for any container when inside WITH clause with full-oneline style
-            if (!(this.insideWithClause && this.withClauseStyle === 'full-oneline')) {
-                this.linePrinter.appendNewline(level);
-            }
+        if (increasedIndent && shouldIncreaseIndent && !(this.insideWithClause && this.withClauseStyle === 'full-oneline') && !delayIndentNewline) {
+            this.linePrinter.appendNewline(level);
         }
     }
 
@@ -314,6 +338,9 @@ export class SqlPrinter {
         const lower = token.text.toLowerCase();
         if (lower === 'and' && this.andBreak !== 'none') {
             this.handleAndOperatorToken(token, level, parentContainerType, caseContextDepth);
+            return;
+        } else if (lower === 'or' && this.orBreak !== 'none') {
+            this.handleOrOperatorToken(token, level, parentContainerType, caseContextDepth);
             return;
         }
 
@@ -409,6 +436,85 @@ export class SqlPrinter {
         }
     }
 
+    private handleParenthesisToken(token: SqlPrintToken, level: number, indentParentActive: boolean): void {
+        if (token.text === '(') {
+            this.linePrinter.appendText(token.text);
+            if (indentParentActive && !this.isOnelineMode()) {
+                if (!(this.insideWithClause && this.withClauseStyle === 'full-oneline')) {
+                    this.linePrinter.appendNewline(level);
+                }
+            }
+            return;
+        }
+
+        if (token.text === ')' && indentParentActive && !this.isOnelineMode()) {
+            // Align closing parenthesis with the outer indentation level when nested groups expand.
+            const closingLevel = Math.max(level - 1, 0);
+            if (!(this.insideWithClause && this.withClauseStyle === 'full-oneline')) {
+                this.linePrinter.appendNewline(closingLevel);
+            }
+        }
+        this.linePrinter.appendText(token.text);
+    }
+
+    private handleOrOperatorToken(token: SqlPrintToken, level: number, parentContainerType?: SqlPrintTokenContainerType, caseContextDepth: number = 0): void {
+        const text = this.applyKeywordCase(token.text);
+
+        // Leave OR untouched inside CASE branches to preserve inline evaluation order.
+        if (caseContextDepth > 0) {
+            this.linePrinter.appendText(text);
+            return;
+        }
+
+        if (this.orBreak === 'before') {
+            // Insert a newline before OR unless WITH full-oneline mode suppresses breaks.
+            if (!(this.insideWithClause && this.withClauseStyle === 'full-oneline')) {
+                this.linePrinter.appendNewline(level);
+            }
+            this.linePrinter.appendText(text);
+        } else if (this.orBreak === 'after') {
+            this.linePrinter.appendText(text);
+            // Break after OR when multi-line formatting is active.
+            if (!(this.insideWithClause && this.withClauseStyle === 'full-oneline')) {
+                this.linePrinter.appendNewline(level);
+            }
+        } else {
+            this.linePrinter.appendText(text);
+        }
+    }
+
+    /**
+     * Decide whether a parentheses group should increase indentation when inside nested structures.
+     * We only expand groups that contain further parentheses so simple comparisons stay compact.
+     */
+    private shouldIndentNestedParentheses(token: SqlPrintToken): boolean {
+        if (!this.indentNestedParentheses) {
+            return false;
+        }
+        if (token.containerType !== SqlPrintTokenContainerType.ParenExpression) {
+            return false;
+        }
+
+        // Look for nested parentheses containers. If present, indent to highlight grouping.
+        return token.innerTokens.some((child) => this.containsParenExpression(child));
+    }
+
+    /**
+     * Recursively inspect descendants to find additional parentheses groups.
+     * Helps detect complex boolean groups like ((A) OR (B) OR (C)).
+     */
+    private containsParenExpression(token: SqlPrintToken): boolean {
+        if (token.containerType === SqlPrintTokenContainerType.ParenExpression) {
+            return true;
+        }
+        for (const child of token.innerTokens) {
+            if (this.containsParenExpression(child)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private handleJoinClauseToken(token: SqlPrintToken, level: number): void {
         const text = this.applyKeywordCase(token.text);
         // before join clause, add newline (skip when inside WITH clause with full-oneline style)
@@ -502,10 +608,12 @@ export class SqlPrinter {
             cteCommaBreak: this.cteCommaBreak,
             valuesCommaBreak: this.valuesCommaBreak,
             andBreak: this.andBreak,
+            orBreak: this.orBreak,
             keywordCase: this.keywordCase,
             exportComment: false,
             strictCommentPlacement: this.strictCommentPlacement,
             withClauseStyle: 'standard', // Prevent recursive processing
+            indentNestedParentheses: false,
         });
     }
 
@@ -533,7 +641,8 @@ export class SqlPrinter {
             commaBreak: 'none',        // Disable comma-based line breaks
             cteCommaBreak: this.cteCommaBreak,
             valuesCommaBreak: 'none',
-            andBreak: 'none',          // Disable AND/OR-based line breaks
+            andBreak: 'none',          // Disable AND-based line breaks
+            orBreak: 'none',           // Disable OR-based line breaks
             keywordCase: this.keywordCase,
             exportComment: this.exportComment,
             strictCommentPlacement: this.strictCommentPlacement,
@@ -544,6 +653,7 @@ export class SqlPrinter {
             joinOneLine: false,        // Prevent recursive processing (avoid infinite loops)
             caseOneLine: false,        // Prevent recursive processing (avoid infinite loops)
             subqueryOneLine: false,    // Prevent recursive processing (avoid infinite loops)
+            indentNestedParentheses: false,
         });
     }
 
