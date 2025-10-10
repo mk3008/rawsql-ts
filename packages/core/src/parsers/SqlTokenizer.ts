@@ -125,8 +125,8 @@ export class SqlTokenizer {
             lexeme: Lexeme;
             startPos: number;
             endPos: number;
-            prefixComments: string[];
-            suffixComments: string[];
+            prefixComments: string[] | null;
+            suffixComments: string[] | null;
         }> = [];
         
         let previous: Lexeme | null = null;
@@ -174,7 +174,8 @@ export class SqlTokenizer {
             const lexeme = current.lexeme;
             
             // For SELECT keyword, suffix comments should go to the first select item
-            if (lexeme.value.toLowerCase() === 'select' && current.suffixComments.length > 0) {
+            if (lexeme.value.toLowerCase() === 'select' && current.suffixComments && current.suffixComments.length > 0) {
+                const suffixComments = current.suffixComments;
                 // Find the first meaningful token after SELECT (skip DISTINCT, etc.)
                 let targetIndex = i + 1;
                 while (targetIndex < tokenData.length) {
@@ -186,8 +187,11 @@ export class SqlTokenizer {
                          !(target.lexeme.type & TokenType.Comma) && 
                          !(target.lexeme.type & TokenType.Operator))) {
                         // Move comments to the target token as prefix comments
-                        target.prefixComments.unshift(...current.suffixComments);
-                        current.suffixComments = [];
+                        if (!target.prefixComments) {
+                            target.prefixComments = [];
+                        }
+                        target.prefixComments.unshift(...suffixComments);
+                        current.suffixComments = null;
                         break;
                     }
                     targetIndex++;
@@ -195,12 +199,16 @@ export class SqlTokenizer {
             }
             
             // For commas, suffix comments should go to next meaningful token
-            if ((lexeme.type & TokenType.Comma) && current.suffixComments.length > 0) {
+            if ((lexeme.type & TokenType.Comma) && current.suffixComments && current.suffixComments.length > 0) {
+                const suffixComments = current.suffixComments;
                 let targetIndex = i + 1;
                 if (targetIndex < tokenData.length) {
                     const target = tokenData[targetIndex];
-                    target.prefixComments.unshift(...current.suffixComments);
-                    current.suffixComments = [];
+                    if (!target.prefixComments) {
+                        target.prefixComments = [];
+                    }
+                    target.prefixComments.unshift(...suffixComments);
+                    current.suffixComments = null;
                 }
             }
             
@@ -208,15 +216,19 @@ export class SqlTokenizer {
             if ((lexeme.value.toLowerCase() === 'union' || 
                  lexeme.value.toLowerCase() === 'intersect' || 
                  lexeme.value.toLowerCase() === 'except') && 
-                current.suffixComments.length > 0) {
+                current.suffixComments && current.suffixComments.length > 0) {
+                const suffixComments = current.suffixComments;
                 // Find the next SELECT keyword
                 let targetIndex = i + 1;
                 while (targetIndex < tokenData.length) {
                     const target = tokenData[targetIndex];
                     if (target.lexeme.value.toLowerCase() === 'select') {
                         // Move UNION suffix comments to SELECT as prefix comments
-                        target.prefixComments.unshift(...current.suffixComments);
-                        current.suffixComments = [];
+                        if (!target.prefixComments) {
+                            target.prefixComments = [];
+                        }
+                        target.prefixComments.unshift(...suffixComments);
+                        current.suffixComments = null;
                         break;
                     }
                     targetIndex++;
@@ -233,7 +245,7 @@ export class SqlTokenizer {
     }
 
     // Attach comments to lexeme directly (no collection then assignment anti-pattern)
-    private attachCommentsToLexeme(lexeme: Lexeme, tokenData: { prefixComments: string[]; suffixComments: string[] }): void {
+    private attachCommentsToLexeme(lexeme: Lexeme, tokenData: { prefixComments: string[] | null; suffixComments: string[] | null }): void {
         const newPositionedComments: { position: 'before' | 'after'; comments: string[] }[] = [];
         const allLegacyComments: string[] = [];
 
@@ -243,7 +255,7 @@ export class SqlTokenizer {
         }
 
         // Add prefix comments as "before" positioned comments directly
-        if (tokenData.prefixComments.length > 0) {
+        if (tokenData.prefixComments && tokenData.prefixComments.length > 0) {
             allLegacyComments.push(...tokenData.prefixComments);
             newPositionedComments.push({
                 position: 'before',
@@ -252,7 +264,7 @@ export class SqlTokenizer {
         }
 
         // Add suffix comments as "after" positioned comments directly
-        if (tokenData.suffixComments.length > 0) {
+        if (tokenData.suffixComments && tokenData.suffixComments.length > 0) {
             allLegacyComments.push(...tokenData.suffixComments);
             newPositionedComments.push({
                 position: 'after',
@@ -281,7 +293,7 @@ export class SqlTokenizer {
      * 
      * @remarks This method updates the position pointer.
      */
-    private readComment(): { position: number, lines: string[] } {
+    private readComment(): { position: number, lines: string[] | null } {
         return StringUtils.readWhiteSpaceAndComment(this.input, this.position);
     }
 
@@ -449,8 +461,9 @@ export class SqlTokenizer {
             const result = StringUtils.readWhiteSpaceAndComment(whitespaceSegment, pos);
             
             // Add any comments found
-            if (result.lines.length > 0) {
-                inlineComments.push(...result.lines);
+            const lines = result.lines;
+            if (lines && lines.length > 0) {
+                inlineComments.push(...lines);
             }
             
             // Move position forward

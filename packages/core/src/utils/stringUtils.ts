@@ -148,8 +148,8 @@ export class StringUtils {
      * Skip white space characters and SQL comments.
      * @returns Object containing the new position and an array of skipped comments
      */
-    public static readWhiteSpaceAndComment(input: string, position: number): { position: number, lines: string[] } {
-        const lines: string[] = [];
+    public static readWhiteSpaceAndComment(input: string, position: number): { position: number, lines: string[] | null } {
+        let lines: string[] | null = null;
         const length = input.length;
 
         while (position < length) {
@@ -171,6 +171,9 @@ export class StringUtils {
                 if (lineCommentResult.newPosition !== position) {
                     position = lineCommentResult.newPosition;
                     if (lineCommentResult.comment) {
+                        if (lines === null) {
+                            lines = [];
+                        }
                         lines.push(lineCommentResult.comment.trim());
                     }
                     continue;
@@ -182,6 +185,9 @@ export class StringUtils {
                 if (blockCommentResult.newPosition !== position) {
                     position = blockCommentResult.newPosition;
                     if (blockCommentResult.comments) {
+                        if (lines === null) {
+                            lines = [];
+                        }
                         lines.push(...blockCommentResult.comments);
                     }
                     continue;
@@ -192,7 +198,7 @@ export class StringUtils {
             break;
         }
 
-        return { position, lines: lines };
+        return { position, lines };
     }
 
     /**

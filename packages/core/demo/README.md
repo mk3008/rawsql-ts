@@ -33,6 +33,7 @@ npm run demo:complex-sql
 1. **Before Comma Style** (`commaBreak: 'before'`)
 2. **After Comma Style** (`commaBreak: 'after'`)
 3. **Optimized Style** (compact configuration)
+4. **OR Break Variants** (`orBreak: 'before' | 'after'`) for highlighting vertical OR chains
 
 ## SQL Samples
 

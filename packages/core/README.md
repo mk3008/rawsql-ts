@@ -261,7 +261,8 @@ const customStyle = {
   newline: "lf",
   keywordCase: "lower",
   commaBreak: "before",
-  andBreak: "before"
+  andBreak: "before",
+  orBreak: "before"
 };
 
 const sqlToFormat = `SELECT u.user_id, u.user_name FROM users as u WHERE status = :active ORDER BY created_at DESC;`;

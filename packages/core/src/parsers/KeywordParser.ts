@@ -53,7 +53,7 @@ export class KeywordParser {
         let lexeme = result.identifier;
         const commentResult = StringUtils.readWhiteSpaceAndComment(input, result.newPosition);
         position = commentResult.position;
-        const collectedComments: string[] = [...commentResult.lines]; // Cache comments during multi-word parsing
+        const collectedComments: string[] = commentResult.lines ? [...commentResult.lines] : []; // Cache comments during multi-word parsing
 
         // end of input
         if (this.isEndOfInput(input, position)) {
@@ -89,7 +89,9 @@ export class KeywordParser {
                 lexeme += ' ' + result.identifier;
                 const nextCommentResult = StringUtils.readWhiteSpaceAndComment(input, result.newPosition);
                 position = nextCommentResult.position;
-                collectedComments.push(...nextCommentResult.lines); // Collect comments between multi-word tokens
+                if (nextCommentResult.lines && nextCommentResult.lines.length > 0) {
+                    collectedComments.push(...nextCommentResult.lines); // Collect comments between multi-word tokens
+                }
 
                 if (matchResult === KeywordMatchResult.Final) {
                     break;

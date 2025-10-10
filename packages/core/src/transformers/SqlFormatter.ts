@@ -1,5 +1,5 @@
 import { SqlPrintTokenParser, FormatterConfig, PRESETS } from '../parsers/SqlPrintTokenParser';
-import { SqlPrinter, CommaBreakStyle, AndBreakStyle } from './SqlPrinter';
+import { SqlPrinter, CommaBreakStyle, AndBreakStyle, OrBreakStyle } from './SqlPrinter';
 import { IndentCharOption, NewlineOption } from './LinePrinter'; // Import types for compatibility
 import { IdentifierEscapeOption, resolveIdentifierEscapeOption } from './FormatOptionResolver';
 import { SelectQuery } from '../models/SelectQuery';
@@ -50,8 +50,10 @@ export interface BaseFormattingOptions {
     cteCommaBreak?: CommaBreakStyle;
     /** Style for comma line breaks inside VALUES clauses */
     valuesCommaBreak?: CommaBreakStyle;
-    /** Style for AND/OR line breaks */
+    /** Style for AND line breaks */
     andBreak?: AndBreakStyle;
+    /** Style for OR line breaks */
+    orBreak?: OrBreakStyle;
     /** Whether to export comments in formatted output */
     exportComment?: boolean;
     /** Whether to only export comments from clause-level keywords */
@@ -72,6 +74,8 @@ export interface BaseFormattingOptions {
     caseOneLine?: boolean;
     /** Keep subqueries (inline queries) on one line regardless of formatting settings */
     subqueryOneLine?: boolean;
+    /** Indent nested parentheses when boolean groups contain additional parentheses */
+    indentNestedParentheses?: boolean;
 }
 
 /**
@@ -140,7 +144,8 @@ export class SqlFormatter {
             valuesOneLine: options.valuesOneLine,
             joinOneLine: options.joinOneLine,
             caseOneLine: options.caseOneLine,
-            subqueryOneLine: options.subqueryOneLine
+            subqueryOneLine: options.subqueryOneLine,
+            indentNestedParentheses: options.indentNestedParentheses
         });
     }    
     
