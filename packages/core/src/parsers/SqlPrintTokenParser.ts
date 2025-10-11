@@ -199,14 +199,12 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     parameterDecorator: ParameterDecorator;
     identifierDecorator: IdentifierDecorator;
     index: number = 1;
-    private commentStyle: 'block' | 'smart' = 'block';
 
     constructor(options?: {
         preset?: FormatterConfig,
         identifierEscape?: { start: string; end: string },
         parameterSymbol?: string | { start: string; end: string },
-        parameterStyle?: 'anonymous' | 'indexed' | 'named',
-        commentStyle?: 'block' | 'smart'
+        parameterStyle?: 'anonymous' | 'indexed' | 'named'
     }) {
         if (options?.preset) {
             const preset = options.preset
@@ -223,8 +221,6 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
             start: options?.identifierEscape?.start ?? '"',
             end: options?.identifierEscape?.end ?? '"'
         });
-
-        this.commentStyle = options?.commentStyle ?? 'block';
 
         this.handlers.set(ValueList.kind, (expr) => this.visitValueList(expr as ValueList));
         this.handlers.set(ColumnReference.kind, (expr) => this.visitColumnReference(expr as ColumnReference));
@@ -326,9 +322,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
             // Clear positioned comments to prevent duplicate processing
             arg.positionedComments = null;
         } else if (arg.headerComments && arg.headerComments.length > 0) {
-            // Fallback to legacy headerComments if no positioned comments
-            // For smart comment style, treat headerComments as a single multi-line block
-            if (this.commentStyle === 'smart' && arg.headerComments.length > 1) {
+            if (this.shouldMergeHeaderComments(arg.headerComments)) {
                 const mergedHeaderComment = this.createHeaderMultiLineCommentBlock(arg.headerComments);
                 token.innerTokens.push(mergedHeaderComment);
             } else {
@@ -545,14 +539,9 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         const beforeComments = component.getPositionedComments('before');
         if (beforeComments.length > 0) {
             const commentBlocks = this.createCommentBlocks(beforeComments);
-            // Create a single inline sequence: /* comment */ content
-            const beforeTokens: SqlPrintToken[] = [];
-            for (const commentBlock of commentBlocks) {
-                beforeTokens.push(commentBlock);
-                beforeTokens.push(new SqlPrintToken(SqlPrintTokenType.space, ' '));
+            for (let i = commentBlocks.length - 1; i >= 0; i--) {
+                token.innerTokens.unshift(commentBlocks[i]);
             }
-            // Insert before the existing content
-            token.innerTokens.unshift(...beforeTokens);
         }
 
         // Handle 'after' comments - add inline after the main content
@@ -561,7 +550,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
             const commentBlocks = this.createCommentBlocks(afterComments);
             // Append after comments with spaces for inline formatting
             for (const commentBlock of commentBlocks) {
-                token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.space, ' '));
+                token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
                 token.innerTokens.push(commentBlock);
             }
         }
@@ -593,15 +582,8 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
             return;
         }
 
-        // For multiple comments, create inline comment sequence instead of separate blocks
-        if (comments.length > 1) {
-            const inlineComments = this.createInlineCommentSequence(comments);
-            this.insertCommentBlocksWithSpacing(token, inlineComments);
-        } else {
-            // Create CommentBlock containers for single comment
-            const commentBlocks = this.createCommentBlocks(comments);
-            this.insertCommentBlocksWithSpacing(token, commentBlocks);
-        }
+        const commentBlocks = this.createCommentBlocks(comments);
+        this.insertCommentBlocksWithSpacing(token, commentBlocks);
     }
 
     /**
@@ -614,7 +596,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
             const comment = comments[i];
             if (comment.trim()) {
                 // Add comment token directly
-                const commentToken = new SqlPrintToken(SqlPrintTokenType.comment, this.formatBlockComment(comment));
+                const commentToken = new SqlPrintToken(SqlPrintTokenType.comment, this.formatComment(comment));
                 commentTokens.push(commentToken);
                 
                 // Add space between comments (except after last comment)
@@ -634,11 +616,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
      * This structure supports both oneliner and multiline formatting modes.
      */
     private createCommentBlocks(comments: string[]): SqlPrintToken[] {
-        if (this.commentStyle === 'smart') {
-            return this.createSmartCommentBlocks(comments);
-        }
-
-        // Block style (default) - each comment gets its own block
+        // Create individual comment blocks for each comment entry
         const commentBlocks: SqlPrintToken[] = [];
 
         for (const comment of comments) {
@@ -655,51 +633,6 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     }
 
     /**
-     * Creates smart comment blocks by merging consecutive block comments into multi-line format
-     */
-    private createSmartCommentBlocks(comments: string[]): SqlPrintToken[] {
-        const commentBlocks: SqlPrintToken[] = [];
-        const blockComments: string[] = [];
-
-        const flushBlockComments = () => {
-            if (blockComments.length > 0) {
-                if (blockComments.length === 1) {
-                    // Single comment - keep as-is
-                    commentBlocks.push(this.createSingleCommentBlock(blockComments[0]));
-                } else {
-                    // Multiple consecutive comments - create multi-line block
-                    commentBlocks.push(this.createMultiLineCommentBlock(blockComments));
-                }
-                blockComments.length = 0;
-            }
-        };
-
-        for (const comment of comments) {
-            const trimmed = comment.trim();
-            const isSeparatorLine = /^[-=_+*#]+$/.test(trimmed);
-
-            if (!trimmed && !isSeparatorLine && comment !== '') {
-                continue;
-            }
-
-            // Check if this is a block comment that should be merged
-            if (this.shouldMergeComment(trimmed)) {
-                blockComments.push(comment);
-            } else {
-                // Flush any accumulated block comments first
-                flushBlockComments();
-                // Add this comment as-is
-                commentBlocks.push(this.createSingleCommentBlock(comment));
-            }
-        }
-
-        // Flush any remaining block comments
-        flushBlockComments();
-
-        return commentBlocks;
-    }
-
-    /**
      * Determines if a comment should be merged with consecutive comments
      */
     private shouldMergeComment(trimmed: string): boolean {
@@ -711,8 +644,14 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         }
 
         // Don't merge if it's already a proper multi-line block comment
-        if (trimmed.startsWith('/*') && trimmed.endsWith('*/') && trimmed.includes('\n')) {
-            return false;
+        if (trimmed.startsWith('/*') && trimmed.endsWith('*/')) {
+            const inner = trimmed.slice(2, -2).trim();
+            if (!inner) {
+                return false;
+            }
+            if (trimmed.includes('\n')) {
+                return false;
+            }
         }
 
         // Merge all other content including separator lines, plain text, and single-line block comments
@@ -724,115 +663,6 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
      * Creates a multi-line block comment structure from consecutive comments
      * Returns a CommentBlock containing multiple comment lines for proper LinePrinter integration
      */
-    private createMultiLineCommentBlock(comments: string[]): SqlPrintToken {
-        const lines: string[] = [];
-
-        for (const comment of comments) {
-            const trimmed = comment.trim();
-
-            // Remove existing /* */ markers if present and extract content
-            if (trimmed.startsWith('/*') && trimmed.endsWith('*/')) {
-                const content = trimmed.slice(2, -2);
-                if (content.trim()) {
-                    // Sanitize the content (only remove /* and */)
-                    const sanitized = content
-                        .replace(/\*\//g, '*')  // Remove */ sequences
-                        .replace(/\/\*/g, '*'); // Remove /* sequences
-
-                    // Split multi-line content and add each line
-                    const contentLines = sanitized.split('\n').map(line => line.trim()).filter(line => line);
-                    lines.push(...contentLines);
-                }
-            } else if (trimmed) {
-                // Sanitize plain text content
-                const sanitized = trimmed
-                    .replace(/\*\//g, '*')  // Remove */ sequences
-                    .replace(/\/\*/g, '*'); // Remove /* sequences
-
-                // Split plain text content by lines
-                const contentLines = sanitized.split('\n').map(line => line.trim()).filter(line => line);
-                lines.push(...contentLines);
-            }
-        }
-
-        // Create multi-line comment block structure
-        const commentBlock = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.CommentBlock);
-
-        if (lines.length === 0) {
-            // Empty comment
-            const commentToken = new SqlPrintToken(SqlPrintTokenType.comment, '/* */');
-            commentBlock.innerTokens.push(commentToken);
-        } else {
-            // Opening /*
-            const openToken = new SqlPrintToken(SqlPrintTokenType.comment, '/*');
-            commentBlock.innerTokens.push(openToken);
-            commentBlock.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.commentNewline, ''));
-
-            // Content lines (each as separate comment token)
-            for (const line of lines) {
-                const lineToken = new SqlPrintToken(SqlPrintTokenType.comment, `  ${line}`);
-                commentBlock.innerTokens.push(lineToken);
-                commentBlock.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.commentNewline, ''));
-            }
-
-            // Closing */
-            const closeToken = new SqlPrintToken(SqlPrintTokenType.comment, '*/');
-            commentBlock.innerTokens.push(closeToken);
-        }
-
-        // Add final newline and space for standard structure
-        commentBlock.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.commentNewline, ''));
-        commentBlock.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.space, ' '));
-
-        return commentBlock;
-    }
-
-    /**
-     * Creates a multi-line comment block specifically for headerComments
-     * headerComments come as pre-split lines, so we handle them differently
-     */
-    private createHeaderMultiLineCommentBlock(headerComments: string[]): SqlPrintToken {
-        // Keep all lines including empty ones to preserve structure
-        const lines = headerComments;
-
-        // Create multi-line comment block structure
-        const commentBlock = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.CommentBlock);
-
-        if (lines.length === 0) {
-            // Empty comment
-            const commentToken = new SqlPrintToken(SqlPrintTokenType.comment, '/* */');
-            commentBlock.innerTokens.push(commentToken);
-        } else {
-            // Opening /*
-            const openToken = new SqlPrintToken(SqlPrintTokenType.comment, '/*');
-            commentBlock.innerTokens.push(openToken);
-            commentBlock.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.commentNewline, ''));
-
-            // Content lines (each as separate comment token)
-            for (const line of lines) {
-                // Sanitize the line content
-                const sanitized = line
-                    .replace(/\*\//g, '*')  // Remove */ sequences
-                    .replace(/\/\*/g, '*'); // Remove /* sequences
-
-                const lineToken = new SqlPrintToken(SqlPrintTokenType.comment, `  ${sanitized}`);
-                commentBlock.innerTokens.push(lineToken);
-                commentBlock.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.commentNewline, ''));
-            }
-
-            // Closing */
-            const closeToken = new SqlPrintToken(SqlPrintTokenType.comment, '*/');
-            commentBlock.innerTokens.push(closeToken);
-        }
-
-        // Add final newline and space for standard structure
-        commentBlock.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.commentNewline, ''));
-        commentBlock.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.space, ' '));
-
-        return commentBlock;
-    }
-
-
     /**
      * Creates a single CommentBlock with the standard structure:
      * Comment -> CommentNewline -> Space
@@ -866,37 +696,24 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     private formatComment(comment: string): string {
         const trimmed = comment.trim();
 
-        // Smart style processing
-        if (this.commentStyle === 'smart') {
-            return this.formatCommentSmart(trimmed);
+        if (!trimmed) {
+            return '/* */';
         }
 
-        // Default block style processing
-        // If it's already a line comment, preserve it
-        // But exclude separator lines (lines with only dashes, equals, etc.)
-        if (trimmed.startsWith('--') && !/^--[-=_+*#]*$/.test(trimmed)) {
-            return trimmed;
-        }
-
-        // If it's already a block comment, preserve it (but sanitize)
-        if (trimmed.startsWith('/*') && trimmed.endsWith('*/')) {
-            // Pass the entire comment including /* and */ for proper sanitization
+        const isSeparatorLine = /^[-=_+*#]+$/.test(trimmed);
+        if (isSeparatorLine) {
             return this.formatBlockComment(trimmed);
         }
 
-        // For plain text comments, convert to block format
-        return this.formatBlockComment(trimmed);
-    }
+        if (trimmed.startsWith('--')) {
+            return this.formatLineComment(trimmed.slice(2));
+        }
 
-    /**
-     * Formats comments using smart style rules:
-     * - Only multi-line block comment merging is supported
-     * - Single-line comments remain as block comments (no dash conversion)
-     */
-    private formatCommentSmart(comment: string): string {
-        // Smart style only affects multi-line comment merging at createSmartCommentBlocks level
-        // Individual comment formatting remains the same as block style
-        return this.formatBlockComment(comment);
+        if (trimmed.startsWith('/*') && trimmed.endsWith('*/')) {
+            return this.formatBlockComment(trimmed);
+        }
+
+        return this.formatBlockComment(trimmed);
     }
 
     /**
@@ -904,9 +721,8 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
      * Adds separator spaces for clause-level containers and manages duplicate space removal.
      */
     private insertCommentBlocksWithSpacing(token: SqlPrintToken, commentBlocks: SqlPrintToken[]): void {
-        // For SelectItem, append comments at the end with proper spacing
+        // For SelectItem, append comment blocks after ensuring spacing
         if (token.containerType === SqlPrintTokenContainerType.SelectItem) {
-            // Add space before comment if not already present
             if (token.innerTokens.length > 0) {
                 const lastToken = token.innerTokens[token.innerTokens.length - 1];
                 if (lastToken.type !== SqlPrintTokenType.space) {
@@ -928,7 +744,6 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         
         // Special handling for IdentifierString to add space before comment
         if (token.containerType === SqlPrintTokenContainerType.IdentifierString) {
-            // Add space before comment if not already present
             if (token.innerTokens.length > 0) {
                 const lastToken = token.innerTokens[token.innerTokens.length - 1];
                 if (lastToken.type !== SqlPrintTokenType.space) {
@@ -1041,32 +856,113 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
      * Prevents SQL injection by removing dangerous comment sequences.
      */
     private formatBlockComment(comment: string): string {
-        // Sanitize dangerous comment sequences to prevent SQL injection
-        let sanitizedComment = comment
-            .replace(/\*\//g, '*') // Remove comment close sequences
-            .replace(/\/\*/g, '*'); // Remove comment open sequences
+        const hasDelimiters = comment.startsWith('/*') && comment.endsWith('*/');
+        const rawContent = hasDelimiters ? comment.slice(2, -2) : comment;
 
-        // Check if this is a separator line (like ----------) before processing
-        const trimmed = sanitizedComment.trim();
-        const isSeparatorLine = /^[-=_+*#]+$/.test(trimmed);
+        const escapedContent = this.escapeCommentDelimiters(rawContent);
+        const normalized = escapedContent.replace(/\r?\n/g, '\n');
+        const lines = normalized
+            .split('\n')
+            .map(line => line.replace(/\s+/g, ' ').trim())
+            .filter(line => line.length > 0);
 
-        if (isSeparatorLine) {
-            // For separator lines, preserve as-is (already sanitized above)
-            return `/* ${trimmed} */`;
+        if (lines.length === 0) {
+            return '/* */';
         }
 
-        // For multiline comments: convert newlines to spaces (security requirement)
-        sanitizedComment = sanitizedComment
-            .replace(/\r?\n/g, ' ') // Replace newlines with spaces
-            .replace(/\s+/g, ' ') // Collapse multiple spaces into single space
-            .trim(); // Remove leading/trailing whitespace
+        const isSeparatorLine = lines.length === 1 && /^[-=_+*#]+$/.test(lines[0]);
 
-        // Return empty string if comment becomes empty after sanitization
-        if (!sanitizedComment) {
-            return '';
+        if (!hasDelimiters) {
+            // Flatten free-form comments to a single block to avoid leaking multi-line structures.
+            if (isSeparatorLine) {
+                return `/* ${lines[0]} */`;
+            }
+            const flattened = lines.join(' ');
+            return `/* ${flattened} */`;
         }
 
-        return `/* ${sanitizedComment} */`;
+        if (isSeparatorLine || lines.length === 1) {
+            return `/* ${lines[0]} */`;
+        }
+
+        const body = lines.map(line => `  ${line}`).join('\n');
+        return `/*\n${body}\n*/`;
+    }
+
+    private shouldMergeHeaderComments(comments: string[]): boolean {
+        if (comments.length <= 1) {
+            return false;
+        }
+        return comments.some(comment => {
+            const trimmed = comment.trim();
+            return /^[-=_+*#]{3,}$/.test(trimmed) || trimmed.startsWith('- ') || trimmed.startsWith('* ');
+        });
+    }
+
+    private createHeaderMultiLineCommentBlock(headerComments: string[]): SqlPrintToken {
+        const commentBlock = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.CommentBlock);
+
+        if (headerComments.length === 0) {
+            const commentToken = new SqlPrintToken(SqlPrintTokenType.comment, '/* */');
+            commentBlock.innerTokens.push(commentToken);
+        } else {
+            const openToken = new SqlPrintToken(SqlPrintTokenType.comment, '/*');
+            commentBlock.innerTokens.push(openToken);
+            commentBlock.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.commentNewline, ''));
+
+            for (const line of headerComments) {
+                const sanitized = this.escapeCommentDelimiters(line);
+                const lineToken = new SqlPrintToken(SqlPrintTokenType.comment, `  ${sanitized}`);
+                commentBlock.innerTokens.push(lineToken);
+                commentBlock.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.commentNewline, ''));
+            }
+
+            const closeToken = new SqlPrintToken(SqlPrintTokenType.comment, '*/');
+            commentBlock.innerTokens.push(closeToken);
+        }
+
+        commentBlock.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.commentNewline, ''));
+        commentBlock.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.space, ' '));
+
+        return commentBlock;
+    }
+
+    /**
+     * Formats text as a single-line comment while sanitizing unsafe sequences.
+     */
+    private formatLineComment(content: string): string {
+        // Normalize content to a single line and remove dangerous sequences
+        const sanitized = this.sanitizeLineCommentContent(content);
+
+        if (!sanitized) {
+            return '--';
+        }
+
+        return `-- ${sanitized}`;
+    }
+
+    /**
+     * Sanitizes content intended for a single-line comment.
+     */
+    private sanitizeLineCommentContent(content: string): string {
+        // Replace comment delimiters to avoid nested comment injection
+        let sanitized = this.escapeCommentDelimiters(content)
+            .replace(/\r?\n/g, ' ')
+            .replace(/\u2028|\u2029/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+        if (sanitized.startsWith('--')) {
+            sanitized = sanitized.slice(2).trimStart();
+        }
+
+        return sanitized;
+    }
+
+    private escapeCommentDelimiters(content: string): string {
+        return content
+            .replace(/\/\*/g, '\\/\\*')
+            .replace(/\*\//g, '*\\/');
     }
 
     private visitValueList(arg: ValueList): SqlPrintToken {
@@ -1660,21 +1556,19 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         // Clear positioned comments from the value to avoid duplication since SelectItem handles them
         arg.value.positionedComments = null;
 
-        // Add 'before' positioned comments
+        // Add positioned comments in recorded order
         const beforeComments = arg.getPositionedComments('before');
+        const afterComments = arg.getPositionedComments('after');
+        const isParenExpression = arg.value.constructor.name === 'ParenExpression';
+
         if (beforeComments.length > 0) {
             const commentTokens = this.createInlineCommentSequence(beforeComments);
             token.innerTokens.push(...commentTokens);
             token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
         }
 
-        // Add the value (column name)
         token.innerTokens.push(this.visit(arg.value));
 
-        // Add 'after' positioned comments for the value
-        // Skip after comments if the value is ParenExpression (already handled in ParenExpression processing)
-        const afterComments = arg.getPositionedComments('after');
-        const isParenExpression = arg.value.constructor.name === 'ParenExpression';
         if (afterComments.length > 0 && !isParenExpression) {
             token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
             const commentTokens = this.createInlineCommentSequence(afterComments);
@@ -2217,9 +2111,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
         // Handle positioned comments for SimpleSelectQuery (unified spec)
         if (arg.headerComments && arg.headerComments.length > 0) {
-            // Fallback to legacy headerComments if no positioned comments
-            // For smart comment style, treat headerComments as a single multi-line block
-            if (this.commentStyle === 'smart' && arg.headerComments.length > 1) {
+            if (this.shouldMergeHeaderComments(arg.headerComments)) {
                 const mergedHeaderComment = this.createHeaderMultiLineCommentBlock(arg.headerComments);
                 token.innerTokens.push(mergedHeaderComment);
             } else {
@@ -2328,10 +2220,16 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         
         // Add headerComments before VALUES keyword
         if (arg.headerComments && arg.headerComments.length > 0) {
-            const headerCommentBlocks = this.createCommentBlocks(arg.headerComments);
-            for (const commentBlock of headerCommentBlocks) {
-                token.innerTokens.push(commentBlock);
+            if (this.shouldMergeHeaderComments(arg.headerComments)) {
+                const mergedHeaderComment = this.createHeaderMultiLineCommentBlock(arg.headerComments);
+                token.innerTokens.push(mergedHeaderComment);
                 token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            } else {
+                const headerCommentBlocks = this.createCommentBlocks(arg.headerComments);
+                for (const commentBlock of headerCommentBlocks) {
+                    token.innerTokens.push(commentBlock);
+                    token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+                }
             }
         }
         

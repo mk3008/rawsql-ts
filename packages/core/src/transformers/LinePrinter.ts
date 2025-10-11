@@ -97,11 +97,33 @@ export class LinePrinter {
     cleanupLine(text: string): boolean {
         const workLine = this.getCurrentLine();
         if (text === ',' && workLine.text.trim() === '' && this.lines.length > 1 && (this.commaBreak === 'after' || this.commaBreak === 'none')) {
-            // Remove current empty line
+            let previousIndex = this.lines.length - 2;
+            while (previousIndex >= 0 && this.lines[previousIndex].text.trim() === '') {
+                this.lines.splice(previousIndex, 1);
+                previousIndex--;
+            }
+            if (previousIndex < 0) {
+                return false;
+            }
+            const previousLine = this.lines[previousIndex];
+            // Avoid pulling commas onto a line comment to keep the comma executable
+            if (this.lineHasTrailingComment(previousLine.text)) {
+                return false;
+            }
             this.lines.pop(); // Safe: we checked lines.length > 1
             return true; // Cleanup performed
         }
         return false; // No cleanup needed
+    }
+
+    private lineHasTrailingComment(text: string): boolean {
+        // Strip simple quoted sections so comment markers inside literals are ignored.
+        const withoutStrings = text
+            .replace(/'([^']|'')*'/g, '')
+            .replace(/"([^"]|"")*"/g, '')
+            .trim();
+        // Treat any remaining '--' as a line comment marker so we never pull commas onto commented lines.
+        return withoutStrings.includes('--');
     }
 
     getCurrentLine(): PrintLine {

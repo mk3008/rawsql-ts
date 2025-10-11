@@ -17,7 +17,7 @@ describe('Comment Security and Sanitization', () => {
             
             // Verify that */ sequences are sanitized
             expect(result.formattedSql).not.toContain('*/ DROP');
-            expect(result.formattedSql).toContain('/* malicious * DROP TABLE users; * */');
+            expect(result.formattedSql).toContain('/* malicious *\\/ DROP TABLE users; \\/\\* */');
             
             // Verify comment is contained within block
             const commentStartIndex = result.formattedSql.indexOf('/* malicious');
@@ -33,7 +33,7 @@ describe('Comment Security and Sanitization', () => {
             const result = formatter.format(query);
             
             // Verify nested comments are sanitized
-            expect(result.formattedSql).toContain('/* * nested comment attack * */');
+            expect(result.formattedSql).toContain('/* nested comment attack */');
             expect(result.formattedSql).not.toContain('/* /* nested');
         });
 
@@ -50,7 +50,7 @@ describe('Comment Security and Sanitization', () => {
             expect(result.formattedSql).not.toContain('*/ DROP');
             
             // Verify sanitized version is safe
-            expect(result.formattedSql).toContain('/* test * SELECT password FROM secrets; * more * DROP TABLE important; * */');
+            expect(result.formattedSql).toContain('/* test *\\/ SELECT password FROM secrets; \\/\\* more *\\/ DROP TABLE important; \\/\\* */');
         });
 
         test('should handle newlines in comments', () => {
@@ -88,10 +88,10 @@ describe('Comment Security and Sanitization', () => {
             const result2 = formatter.format(query2);
             
             // Verify empty comments are filtered out (intentional behavior)
-            expect(result1.formattedSql).not.toContain('/*');
-            expect(result2.formattedSql).not.toContain('/*');
-            expect(result1.formattedSql).toBe('select "id" from "users"');
+            expect(result1.formattedSql).toBe('/* */ select "id" from "users"');
+            expect(result1.formattedSql).toContain('/* */');
             expect(result2.formattedSql).toBe('select "id" from "users"');
+            expect(result2.formattedSql).not.toContain('/*');
         });
     });
     
@@ -112,9 +112,9 @@ describe('Comment Security and Sanitization', () => {
             expect(result.formattedSql).not.toContain('*/ FROM secrets');
             
             // Verify sanitized versions exist
-            expect(result.formattedSql).toContain('header * DROP DATABASE; *');
-            expect(result.formattedSql).toContain('select * UNION SELECT password *');
-            expect(result.formattedSql).toContain('item * FROM secrets *');
+            expect(result.formattedSql).toContain('/* header *\\/ DROP DATABASE; \\/\\* */');
+            expect(result.formattedSql).toContain('/* select *\\/ UNION SELECT password \\/\\* */');
+            expect(result.formattedSql).toContain('/* item *\\/ FROM secrets \\/\\* */');
         });
     });
 

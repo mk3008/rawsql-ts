@@ -37,14 +37,14 @@ export interface SqlPrinterOptions extends BaseFormattingOptions {
 
 /**
  * SqlPrinter formats a SqlPrintToken tree into a SQL string with flexible style options.
- * 
+ *
  * This class provides various formatting options including:
  * - Indentation control (character and size)
  * - Line break styles for commas and AND operators
  * - Keyword case transformation
  * - Comment handling
  * - WITH clause formatting styles
- * 
+ *
  * @example
  * const printer = new SqlPrinter({
  *   indentChar: '  ',
@@ -79,8 +79,6 @@ export class SqlPrinter {
     /** Whether to export comments in the output (default: false for compatibility) */
     exportComment: boolean;
 
-    /** Whether to use strict comment placement (only clause-level comments, default: false) */
-    strictCommentPlacement: boolean;
 
     /** WITH clause formatting style (default: 'standard') */
     withClauseStyle: WithClauseStyle;
@@ -90,7 +88,7 @@ export class SqlPrinter {
 
     private linePrinter: LinePrinter;
     private indentIncrementContainers: Set<SqlPrintTokenContainerType>;
-    
+
     /** Track whether we are currently inside a WITH clause for full-oneline formatting */
     private insideWithClause: boolean = false;
     /** Whether to keep parentheses content on one line */
@@ -107,6 +105,10 @@ export class SqlPrinter {
     private subqueryOneLine: boolean;
     /** Whether to indent nested parentheses when boolean groups get expanded */
     private indentNestedParentheses: boolean;
+    /** Pending line comment that needs a forced newline before next token */
+    private pendingLineCommentBreak: number | null = null;
+    /** Accumulates lines when reconstructing multi-line block comments inside CommentBlocks */
+    private smartCommentBlockBuilder: { lines: string[]; level: number; mode: 'block' | 'line' } | null = null;
 
     /**
      * @param options Optional style settings for pretty printing
@@ -130,7 +132,6 @@ export class SqlPrinter {
         this.orBreak = options?.orBreak ?? 'none';
         this.keywordCase = options?.keywordCase ?? 'none';
         this.exportComment = options?.exportComment ?? false;
-        this.strictCommentPlacement = options?.strictCommentPlacement ?? false;
         this.withClauseStyle = options?.withClauseStyle ?? 'standard';
         this.commentStyle = options?.commentStyle ?? 'block';
         this.parenthesesOneLine = options?.parenthesesOneLine ?? false;
@@ -187,6 +188,8 @@ export class SqlPrinter {
         // initialize
         this.linePrinter = new LinePrinter(this.indentChar, this.indentSize, this.newline, this.commaBreak);
         this.insideWithClause = false; // Reset WITH clause context
+        this.pendingLineCommentBreak = null;
+        this.smartCommentBlockBuilder = null;
         if (this.linePrinter.lines.length > 0 && level !== this.linePrinter.lines[0].level) {
             this.linePrinter.lines[0].level = level;
         }
@@ -202,8 +205,28 @@ export class SqlPrinter {
         if (token.containerType === SqlPrintTokenContainerType.WithClause && this.withClauseStyle === 'full-oneline') {
             this.insideWithClause = true;
         }
-        
+
         if (this.shouldSkipToken(token)) {
+            return;
+        }
+
+        if (this.smartCommentBlockBuilder && token.containerType !== SqlPrintTokenContainerType.CommentBlock && token.type !== SqlPrintTokenType.commentNewline) {
+            this.flushSmartCommentBlockBuilder();
+        }
+
+        if (this.pendingLineCommentBreak !== null) {
+            if (!this.isOnelineMode()) {
+                this.linePrinter.appendNewline(this.pendingLineCommentBreak);
+            }
+            const shouldSkipToken = token.type === SqlPrintTokenType.commentNewline;
+            this.pendingLineCommentBreak = null;
+            if (shouldSkipToken) {
+                return;
+            }
+        }
+
+        if (token.containerType === SqlPrintTokenContainerType.CommentBlock) {
+            this.handleCommentBlockContainer(token, level);
             return;
         }
 
@@ -226,11 +249,8 @@ export class SqlPrinter {
         } else if (token.containerType === "JoinClause") {
             this.handleJoinClauseToken(token, level);
         } else if (token.type === SqlPrintTokenType.comment) {
-            // Handle comments as regular tokens - let the standard processing handle everything
             if (this.exportComment) {
-                // Note: Smart comment processing is handled at SqlPrintTokenParser level
-                // via positioned comments system, so we don't need additional processing here
-                this.linePrinter.appendText(token.text);
+                this.printCommentToken(token.text, level, parentContainerType);
             }
         } else if (token.type === SqlPrintTokenType.space) {
             this.handleSpaceToken(token, parentContainerType);
@@ -282,7 +302,11 @@ export class SqlPrinter {
             const childIndentParentActive = token.containerType === SqlPrintTokenContainerType.ParenExpression ? shouldIndentNested : indentParentActive;
             this.appendToken(child, innerLevel, token.containerType, nextCaseContextDepth, childIndentParentActive);
         }
-        
+
+        if (this.smartCommentBlockBuilder && this.smartCommentBlockBuilder.mode === 'line') {
+            this.flushSmartCommentBlockBuilder();
+        }
+
         // Exit WITH clause context when we finish processing WithClause container
         if (token.containerType === SqlPrintTokenContainerType.WithClause && this.withClauseStyle === 'full-oneline') {
             this.insideWithClause = false;
@@ -320,7 +344,7 @@ export class SqlPrinter {
         if (token.type === SqlPrintTokenType.commentNewline) {
             return false;
         }
-        
+
         // Skip tokens that have no content and no children
         return (!token.innerTokens || token.innerTokens.length === 0) && token.text === '';
     }
@@ -389,6 +413,9 @@ export class SqlPrinter {
             const previousCommaBreak = this.linePrinter.commaBreak;
             if (previousCommaBreak !== 'after') {
                 this.linePrinter.commaBreak = 'after';
+            }
+            if (!(this.insideWithClause && this.withClauseStyle === 'full-oneline')) {
+                this.linePrinter.appendNewline(level);
             }
             this.linePrinter.appendText(text);
             if (!(this.insideWithClause && this.withClauseStyle === 'full-oneline')) {
@@ -529,6 +556,9 @@ export class SqlPrinter {
      * Skips spaces in CommentBlocks when in specific CTE modes to prevent duplication.
      */
     private handleSpaceToken(token: SqlPrintToken, parentContainerType?: SqlPrintTokenContainerType): void {
+        if (this.smartCommentBlockBuilder && this.smartCommentBlockBuilder.mode === 'line') {
+            this.flushSmartCommentBlockBuilder();
+        }
         if (this.shouldSkipCommentBlockSpace(parentContainerType)) {
             const currentLine = this.linePrinter.getCurrentLine();
             if (currentLine.text !== '' && !currentLine.text.endsWith(' ')) {
@@ -544,9 +574,354 @@ export class SqlPrinter {
      * Prevents duplicate spacing in CTE full-oneline mode only.
      */
     private shouldSkipCommentBlockSpace(parentContainerType?: SqlPrintTokenContainerType): boolean {
-        return parentContainerType === SqlPrintTokenContainerType.CommentBlock && 
-               this.insideWithClause && 
+        return parentContainerType === SqlPrintTokenContainerType.CommentBlock &&
+               this.insideWithClause &&
                this.withClauseStyle === 'full-oneline';
+    }
+
+    private printCommentToken(text: string, level: number, parentContainerType?: SqlPrintTokenContainerType): void {
+        const trimmed = text.trim();
+        if (!trimmed) {
+            return;
+        }
+
+        if (this.commentStyle === 'smart' && parentContainerType === SqlPrintTokenContainerType.CommentBlock) {
+            if (this.handleSmartCommentBlockToken(text, trimmed, level)) {
+                return;
+            }
+        }
+
+        if (this.commentStyle === 'smart') {
+            const normalized = this.normalizeCommentForSmart(trimmed);
+            if (normalized.lines.length > 1 || normalized.forceBlock) {
+                const blockText = this.buildBlockComment(normalized.lines, level);
+                this.linePrinter.appendText(blockText);
+            } else {
+                const content = normalized.lines[0];
+                const lineText = content ? `-- ${content}` : '--';
+                if (parentContainerType === SqlPrintTokenContainerType.CommentBlock) {
+                    this.linePrinter.appendText(lineText);
+                    this.pendingLineCommentBreak = level;
+                } else {
+                    this.linePrinter.appendText(lineText);
+                    this.linePrinter.appendNewline(level);
+                }
+            }
+        } else {
+            if (trimmed.startsWith('/*') && trimmed.endsWith('*/')) {
+                if (/\r?\n/.test(trimmed)) {
+                    // Keep multi-line block comments intact by normalizing line endings once.
+                    const newlineReplacement = this.isOnelineMode() ? ' ' : (typeof this.newline === 'string' ? this.newline : '\n');
+                    const normalized = trimmed.replace(/\r?\n/g, newlineReplacement);
+                    this.linePrinter.appendText(normalized);
+                } else {
+                    this.linePrinter.appendText(trimmed);
+                }
+            } else {
+                this.linePrinter.appendText(trimmed);
+            }
+            if (trimmed.startsWith('--')) {
+                if (parentContainerType === SqlPrintTokenContainerType.CommentBlock) {
+                    this.pendingLineCommentBreak = level;
+                } else {
+                    this.linePrinter.appendNewline(level);
+                }
+            }
+        }
+    }
+
+    private handleSmartCommentBlockToken(raw: string, trimmed: string, level: number): boolean {
+        if (!this.smartCommentBlockBuilder) {
+            if (trimmed === '/*') {
+                // Begin assembling a multi-line block comment that is emitted as split tokens
+                this.smartCommentBlockBuilder = { lines: [], level, mode: 'block' };
+                return true;
+            }
+            const lineContent = this.extractLineCommentContent(trimmed);
+            if (lineContent !== null) {
+                this.smartCommentBlockBuilder = {
+                    lines: [lineContent],
+                    level,
+                    mode: 'line',
+                };
+                return true;
+            }
+            return false;
+        }
+
+        if (this.smartCommentBlockBuilder.mode === 'block') {
+            if (trimmed === '*/') {
+                const { lines, level: blockLevel } = this.smartCommentBlockBuilder;
+                const blockText = this.buildBlockComment(lines, blockLevel);
+                this.linePrinter.appendText(blockText);
+                this.pendingLineCommentBreak = blockLevel;
+                this.smartCommentBlockBuilder = null;
+                return true;
+            }
+            this.smartCommentBlockBuilder.lines.push(this.normalizeSmartBlockLine(raw));
+            return true;
+        }
+
+        const content = this.extractLineCommentContent(trimmed);
+        if (content !== null) {
+            this.smartCommentBlockBuilder.lines.push(content);
+            return true;
+        }
+
+        this.flushSmartCommentBlockBuilder();
+        return false;
+    }
+
+    private handleCommentBlockContainer(token: SqlPrintToken, level: number): void {
+        if (!this.exportComment) {
+            return;
+        }
+        if (this.commentStyle !== 'smart') {
+            const rawLines = this.extractRawCommentBlockLines(token);
+            if (rawLines.length > 0) {
+                const normalizedBlocks = rawLines.map(line => `/* ${line} */`).join(' ');
+                const hasTrailingSpace = token.innerTokens?.some(child => child.type === SqlPrintTokenType.space && child.text.includes(' '));
+                this.linePrinter.appendText(hasTrailingSpace ? `${normalizedBlocks} ` : normalizedBlocks);
+                return;
+            }
+            for (const child of token.innerTokens) {
+                this.appendToken(child, level, token.containerType, 0, false);
+            }
+            return;
+        }
+
+        const lines = this.collectCommentBlockLines(token);
+        if (lines.length === 0 && !this.smartCommentBlockBuilder) {
+            // No meaningful content; treat as empty line comment to preserve spacing
+            this.smartCommentBlockBuilder = {
+                lines: [''],
+                level,
+                mode: 'line',
+            };
+            return;
+        }
+
+        if (!this.smartCommentBlockBuilder || this.smartCommentBlockBuilder.mode !== 'line') {
+            this.smartCommentBlockBuilder = {
+                lines: [...lines],
+                level,
+                mode: 'line',
+            };
+        } else {
+            this.smartCommentBlockBuilder.lines.push(...lines);
+        }
+    }
+
+    private normalizeSmartBlockLine(raw: string): string {
+        // Remove trailing whitespace that only carries formatting artifacts
+        let line = raw.replace(/\s+$/g, '');
+        if (!line) {
+            return '';
+        }
+        if (line.startsWith('  ')) {
+            line = line.slice(2);
+        }
+        if (line.startsWith('* ')) {
+            return line.slice(2);
+        }
+        if (line === '*') {
+            return '';
+        }
+        if (line.startsWith('*')) {
+            return line.slice(1);
+        }
+        return line;
+    }
+
+    private extractLineCommentContent(trimmed: string): string | null {
+        if (trimmed.startsWith('--')) {
+            return trimmed.slice(2).trimStart();
+        }
+        if (trimmed.startsWith('/*') && trimmed.endsWith('*/')) {
+            const inner = trimmed.slice(2, -2).trim();
+            return inner;
+        }
+        return null;
+    }
+
+    private flushSmartCommentBlockBuilder(): void {
+        if (!this.smartCommentBlockBuilder) {
+            return;
+        }
+
+        const { lines, level, mode } = this.smartCommentBlockBuilder;
+
+        if (mode === 'line') {
+            if (lines.length > 1) {
+                const blockText = this.buildBlockComment(lines, level);
+                this.linePrinter.appendText(blockText);
+            } else {
+                const content = lines[0] ?? '';
+                const lineText = content ? `-- ${content}` : '--';
+                this.linePrinter.appendText(lineText);
+            }
+            if (!this.isOnelineMode()) {
+                this.linePrinter.appendNewline(level);
+            }
+            this.pendingLineCommentBreak = null;
+        }
+
+        this.smartCommentBlockBuilder = null;
+    }
+
+    private collectCommentBlockLines(token: SqlPrintToken): string[] {
+        const lines: string[] = [];
+        let collectingBlock = false;
+        for (const child of token.innerTokens ?? []) {
+            if (child.type === SqlPrintTokenType.comment) {
+                const trimmed = child.text.trim();
+                if (trimmed === '/*') {
+                    collectingBlock = true;
+                    continue;
+                }
+                if (trimmed === '*/') {
+                    collectingBlock = false;
+                    continue;
+                }
+                if (collectingBlock) {
+                    lines.push(this.normalizeSmartBlockLine(child.text));
+                    continue;
+                }
+                const content = this.extractLineCommentContent(trimmed);
+                if (content !== null) {
+                    lines.push(content);
+                }
+            }
+        }
+        return lines;
+    }
+
+    private extractRawCommentBlockLines(token: SqlPrintToken): string[] {
+        const lines: string[] = [];
+        let collectingBlock = false;
+        for (const child of token.innerTokens ?? []) {
+            if (child.type === SqlPrintTokenType.comment) {
+                const text = child.text;
+                const trimmed = text.trim();
+                if (trimmed === '/*') {
+                    collectingBlock = true;
+                    continue;
+                }
+                if (trimmed === '*/') {
+                    collectingBlock = false;
+                    continue;
+                }
+                if (collectingBlock) {
+                    if (trimmed.length > 0) {
+                        lines.push(trimmed);
+                    }
+                    continue;
+                }
+            }
+        }
+        return lines;
+    }
+
+    private normalizeCommentForSmart(text: string): { lines: string[]; forceBlock: boolean } {
+        const trimmed = text.trim();
+        let source = trimmed;
+        let forceBlock = false;
+
+        if (trimmed.startsWith('--')) {
+            source = trimmed.slice(2);
+        } else if (trimmed.startsWith('/*') && trimmed.endsWith('*/')) {
+            const inner = trimmed.slice(2, -2);
+            const normalizedInner = inner.replace(/\r?\n/g, '\n');
+            if (normalizedInner.includes('\n')) {
+                forceBlock = true;
+                source = inner;
+            } else {
+                source = inner;
+                if (!source.trim()) {
+                    source = trimmed;
+                }
+            }
+        }
+
+        const escaped = this.escapeCommentDelimiters(source);
+        const normalized = escaped.replace(/\r?\n/g, '\n');
+        const rawSegments = normalized.split('\n');
+        const processedLines: string[] = [];
+        const processedRaw: string[] = [];
+        for (const segment of rawSegments) {
+            const rawTrimmed = segment.trim();
+            const sanitized = this.sanitizeCommentLine(segment);
+            if (sanitized.length > 0) {
+                processedLines.push(sanitized);
+                processedRaw.push(rawTrimmed);
+            }
+        }
+        let lines = processedLines;
+
+        if (lines.length === 0) {
+            lines = [''];
+        }
+
+        if (!forceBlock && lines.length === 1 && !lines[0] && trimmed.startsWith('/*') && trimmed.endsWith('*/')) {
+            const escapedFull = this.escapeCommentDelimiters(trimmed);
+            lines = [this.sanitizeCommentLine(escapedFull)];
+        }
+
+        if (!forceBlock && lines.length > 1) {
+            forceBlock = true;
+        }
+
+        lines = lines.map((line, index) => {
+            if (/^[-=_+*#]+$/.test(line)) {
+                const rawLine = processedRaw[index] ?? line;
+                const normalizedRaw = rawLine.replace(/\s+/g, '');
+                if (normalizedRaw.length >= line.length) {
+                    return normalizedRaw;
+                }
+            }
+            return line;
+        });
+
+        return { lines, forceBlock };
+    }
+
+    private buildBlockComment(lines: string[], level: number): string {
+        if (lines.length <= 1) {
+            const content = lines[0] ?? '';
+            return content ? `/* ${content} */` : '/* */';
+        }
+        const newline = this.newline === ' ' ? '\n' : this.newline;
+        const currentLevel = this.linePrinter.getCurrentLine()?.level ?? level;
+        const baseIndent = this.getIndentString(currentLevel);
+        const unitIndent = '  ';
+        const innerIndent = baseIndent + unitIndent;
+        const body = lines.map(line => `${innerIndent}${line}`).join(newline);
+        const closing = `${baseIndent}*/`;
+        return `/*${newline}${body}${newline}${closing}`;
+    }
+
+    private getIndentString(level: number): string {
+        if (level <= 0) {
+            return '';
+        }
+        if (this.indentSize <= 0) {
+            return '  '.repeat(level);
+        }
+        const unit = typeof this.indentChar === 'string' ? this.indentChar : '';
+        return unit.repeat(this.indentSize * level);
+    }
+
+    private sanitizeCommentLine(content: string): string {
+        let sanitized = content;
+        sanitized = sanitized.replace(/\u2028|\u2029/g, ' ');
+        sanitized = sanitized.replace(/\s+/g, ' ').trim();
+        return sanitized;
+    }
+
+    private escapeCommentDelimiters(content: string): string {
+        return content
+            .replace(/\/\*/g, '\\/\\*')
+            .replace(/\*\//g, '*\\/');
     }
 
     /**
@@ -556,10 +931,17 @@ export class SqlPrinter {
      * Skips newlines in CTE modes (full-oneline, cte-oneline) to maintain one-line format.
      */
     private handleCommentNewlineToken(token: SqlPrintToken, level: number): void {
+        if (this.smartCommentBlockBuilder) {
+            return;
+        }
+        if (this.pendingLineCommentBreak !== null) {
+            this.linePrinter.appendNewline(this.pendingLineCommentBreak);
+            this.pendingLineCommentBreak = null;
+            return;
+        }
         if (this.shouldSkipCommentNewline()) {
             return;
         }
-        
         if (!this.isOnelineMode()) {
             this.linePrinter.appendNewline(level);
         }
@@ -611,7 +993,6 @@ export class SqlPrinter {
             orBreak: this.orBreak,
             keywordCase: this.keywordCase,
             exportComment: false,
-            strictCommentPlacement: this.strictCommentPlacement,
             withClauseStyle: 'standard', // Prevent recursive processing
             indentNestedParentheses: false,
         });
@@ -645,7 +1026,6 @@ export class SqlPrinter {
             orBreak: 'none',           // Disable OR-based line breaks
             keywordCase: this.keywordCase,
             exportComment: this.exportComment,
-            strictCommentPlacement: this.strictCommentPlacement,
             withClauseStyle: 'standard',
             parenthesesOneLine: false, // Prevent recursive processing (avoid infinite loops)
             betweenOneLine: false,     // Prevent recursive processing (avoid infinite loops)

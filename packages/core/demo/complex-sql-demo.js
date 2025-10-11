@@ -402,7 +402,7 @@ const FORMATTER_CONFIGS = [
     },
     {
         name: 'After Comma Smart Comment Style',
-        key: 'after_commna_smart_comment',
+        key: 'after_comma_smart_comment',
         options: {
             identifierEscape: { start: '"', end: '"' },
             parameterSymbol: '$',
@@ -474,8 +474,8 @@ const FORMATTER_CONFIGS = [
         }
     },
     {
-        name: 'Expanded Nested Parentheses',
-        key: 'nested_parentheses_expanded',
+        name: 'Expanded Nested Parentheses(After Comma)',
+        key: 'after_comma_smart_comment_nested_parentheses_expanded',
         options: {
             identifierEscape: { start: '"', end: '"' },
             parameterSymbol: '$',
@@ -494,7 +494,33 @@ const FORMATTER_CONFIGS = [
             valuesOneLine: false,
             joinOneLine: false,
             caseOneLine: false,
-            subqueryOneLine: false
+            subqueryOneLine: false,
+            commentStyle: 'smart' // Smart comment style for nested parentheses
+        }
+    },
+      {
+        name: 'Expanded Nested Parentheses(Before Comma)',
+        key: 'before_comma_smart_comment_nested_parentheses_expanded',
+        options: {
+            identifierEscape: { start: '"', end: '"' },
+            parameterSymbol: '$',
+            parameterStyle: 'indexed',
+            indentSize: 2,
+            indentChar: ' ',
+            newline: '\n',
+            keywordCase: 'lower',
+            commaBreak: 'before',
+            andBreak: 'before',
+            orBreak: 'before',
+            exportComment: true,
+            parenthesesOneLine: true,
+            indentNestedParentheses: true,
+            betweenOneLine: false,
+            valuesOneLine: false,
+            joinOneLine: false,
+            caseOneLine: false,
+            subqueryOneLine: false,
+            commentStyle: 'smart' // Smart comment style for nested parentheses
         }
     },
     {
