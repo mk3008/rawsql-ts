@@ -18,23 +18,70 @@ const { formattedSql, params } = formatter.format(query);
 
 ## Base Formatting Options
 
-`SqlFormatterOptions` extends `BaseFormattingOptions`. The following knobs cover the most common layout needs:
+`SqlFormatterOptions` extends `BaseFormattingOptions`. The table below lists the core knobs, which values they accept, and what happens when you leave them out. Defaults come straight from the `SqlPrinter` constructor.
 
-| Option | Purpose |
+| Option | Allowed values | Default when omitted | What it controls |
+| --- | --- | --- | --- |
+| `indentSize` | Any non‑negative integer | `0` | Number of `indentChar` repetitions per nesting level. Set `indentSize: 4` for four spaces per indent. |
+| `indentChar` | `'space'`, `'tab'`, or any literal string (e.g. `'  '` or `'\t'`) | `''` (no indent characters) | The unit inserted for each indent level. Pair with `indentSize` to get consistent spacing. |
+| `newline` | `'lf'`, `'crlf'`, `'cr'`, or a literal string such as `'\n'` | `' '` (single space) | Line separator used by the formatter. Set to `'lf'` or `'\n'` for multi-line output; the space default keeps everything on one line. |
+| `keywordCase` | `'none'`, `'upper'`, `'lower'` | `'none'` | Forces SQL keywords to a particular case without touching identifiers. |
+| `commaBreak` | `'none'`, `'before'`, `'after'` | `'none'` | Global comma placement for SELECT lists, INSERT columns, etc. |
+| `cteCommaBreak` | Same as `commaBreak` | Mirrors `commaBreak` | Specialised comma placement inside `WITH` definitions. |
+| `valuesCommaBreak` | Same as `commaBreak` | Mirrors `commaBreak` | Comma handling within `VALUES` tuples. |
+| `andBreak` | `'none'`, `'before'`, `'after'` | `'none'` | Controls whether logical `AND` operators move to their own lines. |
+| `orBreak` | `'none'`, `'before'`, `'after'` | `'none'` | Same idea for logical `OR` operators. |
+| `indentNestedParentheses` | `true` / `false` | `false` | Adds an extra indent when boolean groups introduce parentheses inside `WHERE` or `HAVING` clauses. |
+| `commentStyle` | `'block'`, `'smart'` | `'block'` | Normalises how comments are emitted (see below). |
+| `withClauseStyle` | `'standard'`, `'cte-oneline'`, `'full-oneline'` | `'standard'` | Expands or collapses common table expressions. |
+| `parenthesesOneLine`, `betweenOneLine`, `valuesOneLine`, `joinOneLine`, `caseOneLine`, `subqueryOneLine` | `true` / `false` | `false` for each | Opt-in switches that keep the corresponding construct on a single line even if other break settings would expand it. |
+| `exportComment` | `true` / `false` | `false` | Emits comments collected by the parser. Turn it on when you want annotations preserved. |
+
+Combine these settings to mirror house formatting conventions or align with existing lint rules. The following sections call out the options that trip up newcomers most often.
+
+### Indentation and newlines
+
+- **Indentation:** Set both `indentChar` and `indentSize`. A common four-space indent looks like:
+  ```json
+  { "indentChar": "space", "indentSize": 4 }
+  ```
+- **Multi-line output:** Because the default `newline` is a single space, remember to switch it to `'lf'` (or another newline) when you want each clause on its own line:
+  ```json
+  { "newline": "lf" }
+  ```
+  This pairs nicely with `indentSize` to produce classic, vertical SQL layouts.
+
+### Comma break styles
+
+| Value | Layout effect |
 | --- | --- |
-| `indentSize` + `indentChar` | Control indentation width. Use logical names like `space`/`tab` or provide literal characters. |
-| `newline` | Switch between logical names `lf`, `crlf`, `cr` or provide literal newline strings. |
-| `keywordCase` | Force keywords to upper or lower case while leaving identifiers untouched. |
-| `commaBreak` / `cteCommaBreak` | Choose between inline commas and vertical lists for general clauses or `WITH` definitions. |
-| `valuesCommaBreak` | Override comma placement specifically inside `VALUES` tuples without changing the global comma setting. |
-| `andBreak` | Control how `AND` keywords are broken onto new lines. |
-| `orBreak` | Control how `OR` keywords are broken onto new lines. |
-| `indentNestedParentheses` | Indent boolean blocks inside parentheses while keeping innermost expressions compact. |
-| `commentStyle` | Convert comments to a normalized style while preserving placement. |
-| `withClauseStyle` | Collapse or fan out common table expressions. |
-| `parenthesesOneLine`, `joinOneLine`, etc. | Keep tight expressions compact when vertical whitespace would hurt readability. |
+| `'none'` | Leaves commas inline: `SELECT a, b, c`. |
+| `'after'` | Writes each item on its own line and keeps the comma at the end of the line (trailing-comma style). |
+| `'before'` | Moves the comma to the next line so each row starts with `, column_name`. |
 
-Combine these options to mirror house formatting conventions or align with existing lint rules.
+Set `commaBreak` for the general case, then override `cteCommaBreak` or `valuesCommaBreak` when you need different list behaviour in `WITH` or `VALUES` clauses. Example: trailing commas in SELECT lists but inline tuples inside `VALUES`.
+
+```typescript
+const formatter = new SqlFormatter({
+    newline: 'lf',
+    commaBreak: 'after',          // SELECT list uses trailing commas
+    valuesCommaBreak: 'none'      // VALUES tuples stay compact
+});
+```
+
+### Keyword break options (`andBreak`, `orBreak`)
+
+- `'before'` produces styles like `AND condition` with the logical keyword leading the line.
+- `'after'` keeps the keyword on the same line as the previous expression and breaks right after it.
+- `'none'` leaves the logical operators inline.
+
+Choose `'before'` when you want to scan down logical branches quickly, or `'after'` to keep complex conditions aligned underneath their keywords.
+
+### Comment style tips
+
+Set `commentStyle: 'smart'` when you want single-line annotations to become SQL line comments (`-- like this`) while multi-line explanations are preserved as block comments. Separator banners such as `/* ===== */` stay grouped, and consecutive block comments continue to merge into a readable multi-line block.
+
+Default behaviour (`'block'`) leaves comments exactly as they were parsed. Switch to `'smart'` whenever inline `/* like this */` notes should turn into proper `--` line comments while still keeping multi-line doc blocks intact.
 
 ### VALUES clause formatting tips
 

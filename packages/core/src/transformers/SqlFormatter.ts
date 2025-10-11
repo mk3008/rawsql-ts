@@ -56,8 +56,6 @@ export interface BaseFormattingOptions {
     orBreak?: OrBreakStyle;
     /** Whether to export comments in formatted output */
     exportComment?: boolean;
-    /** Whether to only export comments from clause-level keywords */
-    strictCommentPlacement?: boolean;
     /** Comment formatting style */
     commentStyle?: CommentStyle;
     /** Formatting style for WITH clauses */
@@ -135,7 +133,6 @@ export class SqlFormatter {
 
         this.parser = new SqlPrintTokenParser({
             ...parserOptions,
-            commentStyle: options.commentStyle
         });
         this.printer = new SqlPrinter({
             ...options,

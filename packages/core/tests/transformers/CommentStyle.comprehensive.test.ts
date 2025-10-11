@@ -5,8 +5,8 @@ import { SqlFormatter } from '../../src/transformers/SqlFormatter';
 /**
  * CommentStyle - Comprehensive TDD Test
  *
- * Tests the smart comment style feature that merges consecutive block comments
- * into multi-line format while preserving single-line comments as block format.
+ * Tests the smart comment style feature that converts single-line comments to line comments
+ * while merging multi-line content into block structures.
  */
 describe('CommentStyle - Comprehensive TDD Test', () => {
     const blockFormatter = new SqlFormatter({
@@ -45,7 +45,7 @@ describe('CommentStyle - Comprehensive TDD Test', () => {
     });
 
     describe('Smart style conversion', () => {
-        test('should keep single comments as block format', () => {
+        test('should convert single comments to line format', () => {
             // Arrange
             const sql = `
                 SELECT s.sale_id /* Single comment */, s.amount
@@ -57,9 +57,9 @@ describe('CommentStyle - Comprehensive TDD Test', () => {
             // Act
             const result = smartFormatter.format(query);
 
-            // Assert - smart style keeps single comments as block format
-            expect(result.formattedSql).toContain('/* Single comment */');
-            expect(result.formattedSql).not.toContain('-- ');
+            // Assert - smart style converts single comments to line format
+            expect(result.formattedSql).toContain('-- Single comment');
+            expect(result.formattedSql).not.toContain('/* Single comment */');
         });
 
         test('should merge consecutive block comments into multi-line format', () => {
@@ -86,7 +86,31 @@ describe('CommentStyle - Comprehensive TDD Test', () => {
             expect(result.formattedSql).toContain('================================');
             expect(result.formattedSql).toContain('Purpose: Comprehensive analysis');
             expect(result.formattedSql).toContain('Author: Analytics Team');
-            expect(result.formattedSql).toContain('\n*/');
+            expect(result.formattedSql).toMatch(/\n\s*\*\//);
+        });
+
+        test('should merge stacked line comments into block format', () => {
+            // Arrange
+            const sql = `
+                WITH
+                    -- Header line 1
+                    -- Header line 2
+                    sample AS (
+                        SELECT 1
+                    )
+                SELECT * FROM sample
+            `;
+
+            const query = SelectQueryParser.parse(sql).toSimpleQuery();
+
+            // Act
+            const result = smartFormatter.format(query);
+
+            // Assert - multi-line comment block is produced
+            expect(result.formattedSql).toContain('/*\n');
+            expect(result.formattedSql).toContain('Header line 1');
+            expect(result.formattedSql).toContain('Header line 2');
+            expect(result.formattedSql).toMatch(/\n\s*\*\//);
         });
 
         test('should preserve existing line comments unchanged', () => {
@@ -128,9 +152,9 @@ describe('CommentStyle - Comprehensive TDD Test', () => {
             // Act
             const result = afterCommaSmartFormatter.format(query);
 
-            // Assert - smart style works with comma breaks
-            expect(result.formattedSql).toContain('/* Sale ID */');
-            expect(result.formattedSql).toContain('/* Amount */');
+            // Assert - smart style works with comma breaks and line comments
+            expect(result.formattedSql).toContain('-- Sale ID');
+            expect(result.formattedSql).toContain('-- Amount');
             expect(result.formattedSql).toContain(',\n'); // After comma style
         });
 
@@ -154,14 +178,89 @@ describe('CommentStyle - Comprehensive TDD Test', () => {
             // Act
             const result = beforeCommaSmartFormatter.format(query);
 
-            // Assert - smart style works with comma breaks
-            expect(result.formattedSql).toContain('/* Sale ID */');
-            expect(result.formattedSql).toContain('/* Amount */');
+            // Assert - smart style works with comma breaks and line comments
+            expect(result.formattedSql).toContain('-- Sale ID');
+            expect(result.formattedSql).toContain('-- Amount');
             expect(result.formattedSql).toContain('\n,'); // Before comma style
+        });
+
+        test('should preserve comma placement after inline comments when using after style', () => {
+            // Arrange
+            const afterCommaSmartFormatter = new SqlFormatter({
+                exportComment: true,
+                commentStyle: 'smart',
+                commaBreak: 'after',
+                keywordCase: 'upper',
+                newline: '\n'
+            });
+
+            const sql = `
+                SELECT
+                    "c"."customer_id" /* Identifier */,
+                    "c"."customer_name" /* Customer name */,
+                    "c"."region" /* Region */,
+                    "c"."status"
+                FROM customers c
+            `;
+
+            const query = SelectQueryParser.parse(sql).toSimpleQuery();
+
+            // Act
+            const result = afterCommaSmartFormatter.format(query);
+
+            // Assert - comments stay attached to expressions and commas move to following lines
+            expect(result.formattedSql).toMatch(/"c"\."customer_id" -- Identifier\n,\n/);
+            expect(result.formattedSql).toMatch(/"c"\."customer_name" -- Customer name\n,\n/);
+            expect(result.formattedSql).toMatch(/"c"\."region" -- Region\n,\n/);
+        });
+
+        test('should keep commas executable when comma break is none', () => {
+            // Arrange
+            const noneCommaFormatter = new SqlFormatter({
+                exportComment: true,
+                commentStyle: 'smart',
+                commaBreak: 'none',
+                keywordCase: 'upper',
+                newline: '\n'
+            });
+
+            const sql = `
+                SELECT
+                    o.order_id /* Order identifier */,
+                    o.customer_id /* Customer identifier */
+                FROM orders o
+            `;
+
+            const query = SelectQueryParser.parse(sql).toSimpleQuery();
+
+            // Act
+            const result = noneCommaFormatter.format(query);
+
+            // Assert - commas should remain outside the line comments
+            expect(result.formattedSql).toContain(', "o"."customer_id" -- Customer identifier');
+            expect(result.formattedSql).not.toContain('-- Order identifier,');
+            expect(result.formattedSql).not.toContain('-- Customer identifier,');
         });
     });
 
     describe('Edge cases', () => {
+        test('should insert newline after line comments that precede expressions', () => {
+            // Arrange
+            const sql = `
+                SELECT
+                    /* Net amount calculation */ "s"."quantity" * "s"."unit_price" * (1 - "s"."discount_rate") AS net_amount
+                FROM sales s
+            `;
+
+            const query = SelectQueryParser.parse(sql).toSimpleQuery();
+            // Act
+            const result = smartFormatter.format(query);
+
+            // Assert - expression should move to the next line
+            expect(result.formattedSql).toContain('-- Net amount calculation\n');
+            expect(result.formattedSql).toMatch(/\n\s*"s"\."quantity" \* "s"\."unit_price"/);
+        });
+
         test('should handle empty comments gracefully', () => {
             // Arrange
             const sql = `
@@ -177,6 +276,44 @@ describe('CommentStyle - Comprehensive TDD Test', () => {
             // Assert - should handle empty comments without errors
             expect(result.formattedSql).toContain('SELECT');
             expect(result.formattedSql).toContain('FROM');
+        });
+
+        test('should retain inline arithmetic comments inside expressions', () => {
+            // Arrange
+            const sql = `
+                SELECT /* a */ 1 + /* b */ 2 AS result
+                FROM dual_table
+            `;
+
+            const query = SelectQueryParser.parse(sql).toSimpleQuery();
+
+            // Act
+            const result = smartFormatter.format(query);
+
+            // Assert - comments should stay attached to their operands in order
+            expect(result.formattedSql).toMatch(/-- a\n\s*1 \+ -- b\n\s*2 AS "result"/);
+        });
+
+        test('should escape block delimiters when merging stacked line comments', () => {
+            // Arrange
+            const sql = `
+                SELECT
+                    -- /* */
+                    -- /* */
+                    a.id
+                FROM accounts a
+            `;
+
+            const query = SelectQueryParser.parse(sql).toSimpleQuery();
+
+            // Act
+            const result = smartFormatter.format(query);
+
+            // Assert - each comment line should contain escaped block markers
+            const escapedLines = result.formattedSql
+                .split('\n')
+                .filter(line => line.startsWith('--'));
+            expect(escapedLines).toEqual(['-- \\/\\* *\\/', '-- \\/\\* *\\/']);
         });
 
         test('should preserve comment content with special characters', () => {

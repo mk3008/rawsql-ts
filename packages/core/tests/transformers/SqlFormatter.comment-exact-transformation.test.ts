@@ -97,9 +97,9 @@ where
 from
     table_a as a
 where
-    /* c1 */
-    exists /* c2 */
-    (select * from table_b as b where a.id = b.id) /* c3 */`;
+    -- c1
+    exists -- c2
+    (select * from table_b as b where a.id = b.id) -- c3`;
 
         const parsed = SelectQueryParser.parse(originalSql);
         const formatter = new SqlFormatter({

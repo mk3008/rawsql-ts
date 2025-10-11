@@ -294,7 +294,6 @@ import { SqlFormatter } from 'rawsql-ts';
 // Enable comment export (disabled by default for backward compatibility)
 const formatter = new SqlFormatter({ 
   exportComment: true,
-  strictCommentPlacement: true  // Only export comments from clause-level keywords
 });
 
 const sqlWithComments = `
