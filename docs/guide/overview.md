@@ -45,7 +45,6 @@ const statements = SqlParser.parseMany(`
 `);
 ```
 
-
 Single-statement parsing uses a defensive default: `SqlParser.parse` throws when trailing statements are detected, while `SqlParser.parseMany` skips empty fragments yet carries leading comments forward so annotations are not lost.
 
 ## Next Steps
@@ -53,4 +52,3 @@ Single-statement parsing uses a defensive default: `SqlParser.parse` throws when
 - Follow the Getting Started Guide for local usage and formatting recipes.
 - Try the Formatter Playground to experiment with formatting and AST analysis.
 - Browse the API Reference for detailed class and type definitions.
-
