@@ -3,12 +3,13 @@
 import { InsertQuery } from "../models/InsertQuery";
 import { Lexeme, TokenType } from "../models/Lexeme";
 import { SqlTokenizer } from "./SqlTokenizer";
+import { SelectQuery } from "../models/SelectQuery";
 import { SelectQueryParser } from "./SelectQueryParser";
-import { WithClause } from "../models/Clause";
+import { InsertClause, ReturningClause, WithClause } from "../models/Clause";
 import { WithClauseParser } from "./WithClauseParser";
-import { SimpleSelectQuery } from "../models/SimpleSelectQuery";
 import { SourceExpressionParser } from "./SourceExpressionParser";
-import { InsertClause } from "../models/Clause";
+import { ValuesQueryParser } from "./ValuesQueryParser";
+import { ReturningClauseParser } from "./ReturningClauseParser";
 
 export class InsertQueryParser {
     /**
@@ -31,27 +32,26 @@ export class InsertQueryParser {
     public static parseFromLexeme(lexemes: Lexeme[], index: number): { value: InsertQuery; newIndex: number } {
         let idx = index;
 
-        let withclause: WithClause | null = null;
-        if (lexemes[idx].value === "with") {
+        let withClause: WithClause | null = null;
+        if (lexemes[idx]?.value === "with") {
             const result = WithClauseParser.parseFromLexeme(lexemes, idx);
-            withclause = result.value;
+            withClause = result.value;
             idx = result.newIndex;
         }
 
-        // Expect INSERT INTO
-        if (lexemes[idx].value !== "insert into") {
-            throw new Error(`Syntax error at position ${idx}: Expected 'INSERT INTO' but found '${lexemes[idx].value}'.`);
+        if (!lexemes[idx] || lexemes[idx].value !== "insert into") {
+            const found = lexemes[idx]?.value ?? "end of input";
+            throw new Error(`Syntax error at position ${idx}: Expected 'INSERT INTO' but found '${found}'.`);
         }
         idx++;
 
-        // Parse table and optional alias/schema using SourceExpressionParser
         const sourceResult = SourceExpressionParser.parseTableSourceFromLexemes(lexemes, idx);
         idx = sourceResult.newIndex;
 
-        // Optional columns
-        let columns: string[] = [];
+        let columns: string[] | null = null;
         if (lexemes[idx]?.type === TokenType.OpenParen) {
             idx++;
+            columns = [];
             while (idx < lexemes.length && lexemes[idx].type === TokenType.Identifier) {
                 columns.push(lexemes[idx].value);
                 idx++;
@@ -65,22 +65,40 @@ export class InsertQueryParser {
                 throw new Error(`Syntax error at position ${idx}: Expected ')' after column list.`);
             }
             idx++;
-        }
-
-        const selectResult = SelectQueryParser.parseFromLexeme(lexemes, idx);
-        if (withclause) {
-            if (selectResult.value instanceof SimpleSelectQuery) {
-                selectResult.value.withClause = withclause;
-            } else {
-                throw new Error(`WITH clause is not supported in this context.`);
+            if (columns.length === 0) {
+                columns = [];
             }
         }
 
-        idx = selectResult.newIndex;
+        if (idx >= lexemes.length) {
+            throw new Error(`Syntax error: Unexpected end of input while parsing INSERT statement. VALUES or SELECT clause expected.`);
+        }
+
+        const nextToken = lexemes[idx].value.toLowerCase();
+        let dataQuery: SelectQuery;
+        if (nextToken === "values") {
+            const valuesResult = ValuesQueryParser.parseFromLexeme(lexemes, idx);
+            dataQuery = valuesResult.value;
+            idx = valuesResult.newIndex;
+        } else {
+            const selectResult = SelectQueryParser.parseFromLexeme(lexemes, idx);
+            dataQuery = selectResult.value;
+            idx = selectResult.newIndex;
+        }
+
+        let returningClause: ReturningClause | null = null;
+        if (lexemes[idx]?.value === "returning") {
+            const returningResult = ReturningClauseParser.parseFromLexeme(lexemes, idx);
+            returningClause = returningResult.value;
+            idx = returningResult.newIndex;
+        }
+
         return {
             value: new InsertQuery({
-                insertClause: new InsertClause(sourceResult.value, columns),
-                selectQuery: selectResult.value
+                withClause,
+                insertClause: new InsertClause(sourceResult.value, columns ?? null),
+                selectQuery: dataQuery,
+                returning: returningClause
             }),
             newIndex: idx
         };

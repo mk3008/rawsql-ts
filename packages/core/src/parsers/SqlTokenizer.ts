@@ -1,17 +1,17 @@
-﻿import { Lexeme, TokenType } from '../models/Lexeme';
-import { FormattingLexeme } from '../models/FormattingLexeme';
+﻿import { FormattingLexeme } from '../models/FormattingLexeme';
+import { Lexeme, TokenType } from '../models/Lexeme';
+import { CommandTokenReader } from '../tokenReaders/CommandTokenReader';
+import { EscapedIdentifierTokenReader } from '../tokenReaders/EscapedIdentifierTokenReader';
+import { FunctionTokenReader } from '../tokenReaders/FunctionTokenReader';
 import { IdentifierTokenReader } from '../tokenReaders/IdentifierTokenReader';
 import { LiteralTokenReader } from '../tokenReaders/LiteralTokenReader';
+import { OperatorTokenReader } from '../tokenReaders/OperatorTokenReader';
 import { ParameterTokenReader } from '../tokenReaders/ParameterTokenReader';
 import { SpecialSymbolTokenReader } from '../tokenReaders/SymbolTokenReader';
-import { TokenReaderManager } from '../tokenReaders/TokenReaderManager';
-import { OperatorTokenReader } from '../tokenReaders/OperatorTokenReader';
-import { StringUtils } from '../utils/stringUtils';
-import { CommandTokenReader } from '../tokenReaders/CommandTokenReader';
 import { StringSpecifierTokenReader } from '../tokenReaders/StringSpecifierTokenReader';
-import { FunctionTokenReader } from '../tokenReaders/FunctionTokenReader';
+import { TokenReaderManager } from '../tokenReaders/TokenReaderManager';
 import { TypeTokenReader } from '../tokenReaders/TypeTokenReader';
-import { EscapedIdentifierTokenReader } from '../tokenReaders/EscapedIdentifierTokenReader';
+import { StringUtils } from '../utils/stringUtils';
 
 /**
  * Options for tokenization behavior
@@ -109,7 +109,15 @@ export class SqlTokenizer {
         
         // Create a fresh tokenizer instance for clean state
         const freshTokenizer = new SqlTokenizer(this.input);
-        return freshTokenizer.readLexmes();
+        return freshTokenizer.readLexemes();
+    }
+
+    /**
+     * @deprecated Use {@link readLexemes} (correct spelling) instead.
+     * This legacy alias remains for backwards compatibility and delegates to the new method.
+     */
+    public readLexmes(): Lexeme[] {
+        return this.readLexemes();
     }
 
     /**
@@ -118,7 +126,7 @@ export class SqlTokenizer {
      * @returns An array of lexemes extracted from the input string.
      * @throws Error if an unexpected character is encountered.
      */
-    public readLexmes(): Lexeme[] {
+    public readLexemes(): Lexeme[] {
         const segment = this.readNextStatement(0);
         return segment ? segment.lexemes : [];
     }
@@ -554,51 +562,10 @@ export class SqlTokenizer {
      * Skip whitespace and comments from the given position
      */
     private skipWhitespaceAndComments(pos: number): number {
-        let currentPos = pos;
-        
-        while (currentPos < this.input.length) {
-            const char = this.input[currentPos];
-            
-            // Skip whitespace
-            if (this.isWhitespace(char)) {
-                currentPos++;
-                continue;
-            }
-            
-            // Skip line comments
-            if (currentPos < this.input.length - 1 && 
-                this.input[currentPos] === '-' && this.input[currentPos + 1] === '-') {
-                // Find end of line or end of input
-                while (currentPos < this.input.length && 
-                       this.input[currentPos] !== '\n' && this.input[currentPos] !== '\r') {
-                    currentPos++;
-                }
-                continue;
-            }
-            
-            // Skip block comments
-            if (currentPos < this.input.length - 1 && 
-                this.input[currentPos] === '/' && this.input[currentPos + 1] === '*') {
-                currentPos += 2;
-                // Find end of comment
-                while (currentPos < this.input.length - 1) {
-                    if (this.input[currentPos] === '*' && this.input[currentPos + 1] === '/') {
-                        currentPos += 2;
-                        break;
-                    }
-                    currentPos++;
-                }
-                continue;
-            }
-            
-            // No more whitespace or comments
-            break;
-        }
-        
-        return currentPos;
+        return StringUtils.readWhiteSpaceAndComment(this.input, pos).position;
     }
 
-    private getLineColumnInfo(startPos: number, endPos: number) {
+private getLineColumnInfo(startPos: number, endPos: number) {
         const startInfo = this.getLineColumn(startPos);
         const endInfo = this.getLineColumn(endPos);
         
@@ -626,3 +593,10 @@ export class SqlTokenizer {
         return { line, column };
     }
 }
+
+
+
+
+
+
+

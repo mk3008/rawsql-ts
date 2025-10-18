@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+﻿import { describe, it, expect } from 'vitest';
 import { SqlTokenizer } from '../../src/parsers/SqlTokenizer';
 
 describe('SqlTokenizer - Integrated Formatting Functionality', () => {
@@ -46,13 +46,9 @@ WHERE u.active = true`;
         expect(firstLexeme.position.endPosition).toBeGreaterThan(firstLexeme.position.startPosition);
         expect(firstLexeme.position.startLine).toBeGreaterThanOrEqual(1);
         expect(firstLexeme.position.startColumn).toBeGreaterThanOrEqual(1);
-        
-        console.log('=== Formatting Preservation Test ===');
-        console.log(`Total lexemes: ${formattingLexemes.length}`);
-        console.log(`First lexeme: "${firstLexeme.value}"`);
-        console.log(`Following whitespace length: ${firstLexeme.followingWhitespace.length}`);
-        console.log(`Inline comments count: ${firstLexeme.inlineComments.length}`);
-        console.log('✓ Formatting preservation working correctly');
+console.log(`Total lexemes: ${formattingLexemes.length}`);
+console.log(`Following whitespace length: ${firstLexeme.followingWhitespace.length}`);
+console.log('笨・Formatting preservation working correctly');
     });
 
     it('should maintain backward compatibility with readLexmes method', () => {
@@ -61,21 +57,15 @@ WHERE u.active = true`;
         
         const lexemesOld = tokenizer.readLexmes();
         const lexemesNew = tokenizer.tokenize();
-        
-        console.log('\n=== Debug Backward Compatibility Test ===');
-        console.log(`SQL: "${sql}"`);
-        console.log(`readLexmes() result count: ${lexemesOld.length}`);
-        console.log(`tokenize() result count: ${lexemesNew.length}`);
-        console.log(`readLexmes() first few:`, lexemesOld.slice(0, 3));
-        console.log(`tokenize() first few:`, lexemesNew.slice(0, 3));
+console.log(`SQL: "${sql}"`);
+console.log(`tokenize() result count: ${lexemesNew.length}`);
+console.log(`tokenize() first few:`, lexemesNew.slice(0, 3));
         
         expect(lexemesOld.length).toBeGreaterThan(0);
         expect(lexemesNew.length).toBeGreaterThan(0);
         expect(lexemesOld.length).toBe(lexemesNew.length);
         expect(lexemesOld).toEqual(lexemesNew);
-        
-        console.log('✓ Backward compatibility maintained');
-    });
+});
 
     it('should handle complex SQL with comments and formatting', () => {
         const sql = `WITH sales_data AS (  /* CTE comment */
@@ -107,13 +97,9 @@ SELECT * FROM analytics`;
         // Check that some lexemes have comments
         const lexemesWithComments = formattingLexemes.filter(l => l.inlineComments.length > 0);
         expect(lexemesWithComments.length).toBeGreaterThan(0);
-        
-        console.log('\n=== Complex SQL Test ===');
-        console.log(`Total lexemes: ${formattingLexemes.length}`);
-        console.log(`Lexemes with comments: ${lexemesWithComments.length}`);
-        console.log(`WITH lexeme whitespace: "${withLexeme!.followingWhitespace}"`);
-        console.log('✓ Complex SQL formatting handled correctly');
-    });
+console.log(`Total lexemes: ${formattingLexemes.length}`);
+console.log(`WITH lexeme whitespace: "${withLexeme!.followingWhitespace}"`);
+});
 
     it('should handle empty and minimal SQL', () => {
         const tokenizer1 = new SqlTokenizer('');
@@ -125,11 +111,8 @@ SELECT * FROM analytics`;
         expect(minimalResult.length).toBe(2); // SELECT, 1
         expect(minimalResult[0].value.toLowerCase()).toBe('select');
         expect(minimalResult[1].value).toBe('1');
-        
-        console.log('\n=== Edge Cases Test ===');
-        console.log(`Empty SQL result: ${emptyResult.length} lexemes`);
-        console.log(`Minimal SQL result: ${minimalResult.length} lexemes`);
-        console.log('✓ Edge cases handled correctly');
+console.log(`Empty SQL result: ${emptyResult.length} lexemes`);
+console.log('笨・Edge cases handled correctly');
     });
 
     it('should preserve exact whitespace and comment content', () => {
@@ -155,9 +138,7 @@ FROM table1`;
         
         expect(allComments.length).toBeGreaterThanOrEqual(1);
         expect(allComments.some(c => c.includes('Comment'))).toBe(true);
-        
-        console.log('\n=== Whitespace and Comments Preservation Test ===');
-        console.log(`All comments found: ${JSON.stringify(allComments)}`);
-        console.log('✓ Comments and whitespace preserved correctly');
-    });
+console.log(`All comments found: ${JSON.stringify(allComments)}`);
 });
+});
+

@@ -551,11 +551,15 @@ export class UpdateClause extends SqlComponent {
  */
 export class InsertClause extends SqlComponent {
     source: SourceExpression;
-    columns: IdentifierString[];
+    columns: IdentifierString[] | null;
 
-    constructor(source: SourceExpression, columns: string[]) {
+    constructor(source: SourceExpression, columns?: (IdentifierString | string)[] | null) {
         super();
         this.source = source;
-        this.columns = columns.map((col) => new IdentifierString(col));
+        if (columns && columns.length > 0) {
+            this.columns = columns.map((col) => typeof col === "string" ? new IdentifierString(col) : col);
+        } else {
+            this.columns = null;
+        }
     }
 }

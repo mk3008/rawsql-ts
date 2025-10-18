@@ -1,8 +1,12 @@
+import type { Lexeme } from '../models/Lexeme';
 import type { SelectQuery } from '../models/SelectQuery';
+import { InsertQuery } from '../models/InsertQuery';
 import { SqlTokenizer, StatementLexemeResult } from './SqlTokenizer';
 import { SelectQueryParser } from './SelectQueryParser';
+import { InsertQueryParser } from './InsertQueryParser';
+import { WithClauseParser } from './WithClauseParser';
 
-export type ParsedStatement = SelectQuery;
+export type ParsedStatement = SelectQuery | InsertQuery;
 
 export interface SqlParserOptions {
     mode?: 'single' | 'multiple';
@@ -85,15 +89,22 @@ export class SqlParser {
 
         const firstToken = segment.lexemes[0].value.toLowerCase();
 
-        // Interpret common SELECT lead tokens including WITH-based CTEs and VALUES clauses.
-        if (firstToken === 'select' || firstToken === 'with' || firstToken === 'values') {
+        if (firstToken === 'with') {
+            if (this.looksLikeInsertAfterWith(segment.lexemes)) {
+                return this.parseInsertStatement(segment, statementIndex);
+            }
             return this.parseSelectStatement(segment, statementIndex);
         }
 
-        // Placeholder for future INSERT/UPDATE/DDL support.
-        throw new Error(
-            `[SqlParser] Statement ${statementIndex} starts with unsupported token "${segment.lexemes[0].value}". Support for additional statement types will be introduced soon.`
-        );
+        if (firstToken === 'select' || firstToken === 'values') {
+            return this.parseSelectStatement(segment, statementIndex);
+        }
+
+        if (firstToken.startsWith('insert')) {
+            return this.parseInsertStatement(segment, statementIndex);
+        }
+
+        throw new Error(`[SqlParser] Statement ${statementIndex} starts with unsupported token "${segment.lexemes[0].value}". Support for additional statement types will be introduced soon.`);
     }
 
     private static parseSelectStatement(segment: StatementLexemeResult, statementIndex: number): SelectQuery {
@@ -113,6 +124,47 @@ export class SqlParser {
             const message = error instanceof Error ? error.message : String(error);
             throw new Error(`[SqlParser] Failed to parse SELECT statement ${statementIndex}: ${message}`);
         }
+    }
+
+    private static parseInsertStatement(segment: StatementLexemeResult, statementIndex: number): InsertQuery {
+        try {
+            const result = InsertQueryParser.parseFromLexeme(segment.lexemes, 0);
+
+            if (result.newIndex < segment.lexemes.length) {
+                const unexpected = segment.lexemes[result.newIndex];
+                const position = unexpected.position?.startPosition ?? segment.statementStart;
+                throw new Error(
+                    `[SqlParser] Unexpected token "${unexpected.value}" in statement ${statementIndex} at character ${position}.`
+                );
+            }
+
+            return result.value;
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            throw new Error(`[SqlParser] Failed to parse INSERT statement ${statementIndex}: ${message}`);
+        }
+    }
+
+    private static looksLikeInsertAfterWith(lexemes: Lexeme[]): boolean {
+        try {
+            const clone = this.cloneLexemeArray(lexemes);
+            const withResult = WithClauseParser.parseFromLexeme(clone, 0);
+            const next = lexemes[withResult.newIndex];
+            return next?.value.toLowerCase().startsWith('insert');
+        } catch {
+            return false;
+        }
+    }
+
+    private static cloneLexemeArray(lexemes: Lexeme[]): Lexeme[] {
+        return lexemes.map((lexeme) => ({
+            ...lexeme,
+            comments: lexeme.comments ? [...lexeme.comments] : null,
+            positionedComments: lexeme.positionedComments
+                ? lexeme.positionedComments.map(pc => ({ position: pc.position, comments: [...pc.comments] }))
+                : undefined,
+            position: lexeme.position ? { ...lexeme.position } : undefined
+        }));
     }
 
     private static consumeNextStatement(
