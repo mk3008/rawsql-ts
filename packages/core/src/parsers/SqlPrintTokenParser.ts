@@ -2279,7 +2279,10 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     private visitInsertQuery(arg: InsertQuery): SqlPrintToken {
         const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.InsertQuery);
 
-        // Process the insert clause
+        if (arg.withClause) {
+            token.innerTokens.push(arg.withClause.accept(this));
+        }
+
         token.innerTokens.push(this.visit(arg.insertClause));
 
         // Process the select query if present
@@ -2288,18 +2291,22 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
             token.innerTokens.push(this.visit(arg.selectQuery));
         }
 
+        if (arg.returningClause) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(arg.returningClause.accept(this));
+        }
+
         return token;
     }
 
     private visitInsertClause(arg: InsertClause): SqlPrintToken {
         const token = new SqlPrintToken(SqlPrintTokenType.container, '');
 
-        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
         token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'insert into'));
         token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
         token.innerTokens.push(arg.source.accept(this));
 
-        if (arg.columns.length > 0) {
+        if (arg.columns && arg.columns.length > 0) {
             token.innerTokens.push(SqlPrintTokenParser.PAREN_OPEN_TOKEN);
             for (let i = 0; i < arg.columns.length; i++) {
                 if (i > 0) {

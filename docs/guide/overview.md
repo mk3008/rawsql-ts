@@ -30,12 +30,18 @@ It is lightweight, fast, and built to keep your SQL expressive and reusable, not
 `SqlParser` is the canonical gateway for turning raw SQL into AST objects. Today it delegates to `SelectQueryParser` for SELECT/VALUES statements and will fan out to INSERT/UPDATE/DDL parsers as they land.
 
 ```typescript
-import { SqlParser } from 'rawsql-ts';
+import { SqlParser, InsertQuery } from 'rawsql-ts';
 
 const statement = SqlParser.parse('SELECT id, email FROM users');
+const insert = SqlParser.parse('INSERT INTO audit_log (user_id) VALUES (42) RETURNING id');
+
+if (insert instanceof InsertQuery) {
+    console.log(insert.returningClause);
+}
+
 const statements = SqlParser.parseMany(`
     SELECT id FROM users WHERE active = true;
-    SELECT id FROM accounts WHERE suspended = false;
+    INSERT INTO audit_log (user_id) SELECT id FROM users WHERE suspended = false;
 `);
 ```
 
