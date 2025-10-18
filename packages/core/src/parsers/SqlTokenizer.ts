@@ -20,6 +20,15 @@ export interface TokenizeOptions {
     preserveFormatting?: boolean;
 }
 
+export interface StatementLexemeResult {
+    lexemes: Lexeme[];
+    statementStart: number;
+    statementEnd: number;
+    nextPosition: number;
+    rawText: string;
+    leadingComments: string[] | null;
+}
+
 /**
  * Class responsible for tokenizing SQL input.
  */
@@ -110,17 +119,31 @@ export class SqlTokenizer {
      * @throws Error if an unexpected character is encountered.
      */
     public readLexmes(): Lexeme[] {
-        return this.tokenizeBasic();
+        const segment = this.readNextStatement(0);
+        return segment ? segment.lexemes : [];
     }
 
     /**
      * Tokenizes the input SQL without formatting preservation (internal method)
      */
     private tokenizeBasic(): Lexeme[] {
-        // Reset position for this tokenization
-        this.position = 0;
-        
-        // First pass: collect all tokens and their positions without comments
+        const segment = this.readNextStatement(0);
+        return segment ? segment.lexemes : [];
+    }
+
+    public readNextStatement(startPosition: number = 0, carryComments: string[] | null = null): StatementLexemeResult | null {
+        const length = this.input.length;
+
+        // Abort when the cursor already moved past the input.
+        if (startPosition >= length) {
+            return null;
+        }
+
+        // Adopt a working cursor so the original tokenizer state is untouched.
+        this.position = startPosition;
+
+        const statementStart = startPosition;
+        let pendingLeading = carryComments ? [...carryComments] : null;
         const tokenData: Array<{
             lexeme: Lexeme;
             startPos: number;
@@ -128,65 +151,91 @@ export class SqlTokenizer {
             prefixComments: string[] | null;
             suffixComments: string[] | null;
         }> = [];
-        
+
         let previous: Lexeme | null = null;
-        
+
         while (this.canRead()) {
-            // Semicolon is a delimiter, so stop reading
-            if (this.input[this.position] === ';') {
+            // Fold whitespace and comments into the token stream and advance to the next significant character.
+            const prefixComment = this.readComment();
+            this.position = prefixComment.position;
+
+            if (!this.canRead()) {
+                // No more characters, so keep any trailing comments for the next statement.
+                pendingLeading = this.mergeComments(pendingLeading, prefixComment.lines);
                 break;
             }
 
-            // Read prefix comments before the token
-            const prefixComment = this.readComment();
-            const tokenStartPos = this.position = prefixComment.position;
+            if (this.input[this.position] === ';') {
+                // Statement terminated before any token appeared.
+                pendingLeading = this.mergeComments(pendingLeading, prefixComment.lines);
+                break;
+            }
 
-            // Read using the token reader manager
+            // Read the next lexeme at the current position.
             const lexeme = this.readerManager.tryRead(this.position, previous);
-
             if (lexeme === null) {
                 throw new Error(`Unexpected character. actual: ${this.input[this.position]}, position: ${this.position}\n${this.getDebugPositionInfo(this.position)}`);
             }
 
-            // Update position
+            const tokenStartPos = this.position;
             const tokenEndPos = this.position = this.readerManager.getMaxPosition();
 
-            // Read suffix comments after the token
+            // Capture trailing whitespace and comments after the token.
             const suffixComment = this.readComment();
             this.position = suffixComment.position;
+
+            let prefixComments = this.mergeComments(pendingLeading, prefixComment.lines);
+            pendingLeading = null;
 
             tokenData.push({
                 lexeme,
                 startPos: tokenStartPos,
                 endPos: tokenEndPos,
-                prefixComments: prefixComment.lines,
+                prefixComments,
                 suffixComments: suffixComment.lines
             });
 
             previous = lexeme;
         }
 
-        // Second pass: intelligently attach comments based on semantic meaning
+        const statementEnd = this.position;
+        const lexemes = this.buildLexemesFromTokenData(tokenData);
+        const nextPosition = this.skipPastTerminator(statementEnd);
+
+        return {
+            lexemes,
+            statementStart,
+            statementEnd,
+            nextPosition,
+            rawText: this.input.slice(statementStart, statementEnd),
+            leadingComments: pendingLeading
+        };
+    }
+
+    private buildLexemesFromTokenData(tokenData: Array<{
+        lexeme: Lexeme;
+        startPos: number;
+        endPos: number;
+        prefixComments: string[] | null;
+        suffixComments: string[] | null;
+    }>): Lexeme[] {
         const lexemes: Lexeme[] = new Array(tokenData.length);
-        
+
         for (let i = 0; i < tokenData.length; i++) {
             const current = tokenData[i];
             const lexeme = current.lexeme;
-            
-            // For SELECT keyword, suffix comments should go to the first select item
+
+            // Redirect SELECT suffix comments to the first meaningful select item.
             if (lexeme.value.toLowerCase() === 'select' && current.suffixComments && current.suffixComments.length > 0) {
                 const suffixComments = current.suffixComments;
-                // Find the first meaningful token after SELECT (skip DISTINCT, etc.)
                 let targetIndex = i + 1;
                 while (targetIndex < tokenData.length) {
                     const target = tokenData[targetIndex];
-                    // Look for identifier, literal, or any meaningful token that isn't a command/comma/operator
                     if ((target.lexeme.type & TokenType.Identifier) ||
                         (target.lexeme.type & TokenType.Literal) ||
-                        (!(target.lexeme.type & TokenType.Command) && 
-                         !(target.lexeme.type & TokenType.Comma) && 
+                        (!(target.lexeme.type & TokenType.Command) &&
+                         !(target.lexeme.type & TokenType.Comma) &&
                          !(target.lexeme.type & TokenType.Operator))) {
-                        // Move comments to the target token as prefix comments
                         if (!target.prefixComments) {
                             target.prefixComments = [];
                         }
@@ -197,8 +246,8 @@ export class SqlTokenizer {
                     targetIndex++;
                 }
             }
-            
-            // For commas, suffix comments should go to next meaningful token
+
+            // Ensure commas push trailing comments onto the following token.
             if ((lexeme.type & TokenType.Comma) && current.suffixComments && current.suffixComments.length > 0) {
                 const suffixComments = current.suffixComments;
                 let targetIndex = i + 1;
@@ -211,19 +260,17 @@ export class SqlTokenizer {
                     current.suffixComments = null;
                 }
             }
-            
-            // For UNION/INTERSECT/EXCEPT keywords, suffix comments should go to the next SELECT as prefix comments
-            if ((lexeme.value.toLowerCase() === 'union' || 
-                 lexeme.value.toLowerCase() === 'intersect' || 
-                 lexeme.value.toLowerCase() === 'except') && 
+
+            // Bridge set-operator suffix comments to the subsequent SELECT clause.
+            if ((lexeme.value.toLowerCase() === 'union' ||
+                 lexeme.value.toLowerCase() === 'intersect' ||
+                 lexeme.value.toLowerCase() === 'except') &&
                 current.suffixComments && current.suffixComments.length > 0) {
                 const suffixComments = current.suffixComments;
-                // Find the next SELECT keyword
                 let targetIndex = i + 1;
                 while (targetIndex < tokenData.length) {
                     const target = tokenData[targetIndex];
                     if (target.lexeme.value.toLowerCase() === 'select') {
-                        // Move UNION suffix comments to SELECT as prefix comments
                         if (!target.prefixComments) {
                             target.prefixComments = [];
                         }
@@ -234,14 +281,39 @@ export class SqlTokenizer {
                     targetIndex++;
                 }
             }
-            
-            // Attach comments to the current token directly (no collection then assignment)
+
             this.attachCommentsToLexeme(lexeme, current);
-            
+            // Attach source position metadata so downstream parsers can report precise locations.
+            lexeme.position = {
+                startPosition: current.startPos,
+                endPosition: current.endPos,
+                ...this.getLineColumnInfo(current.startPos, current.endPos)
+            };
             lexemes[i] = lexeme;
         }
 
         return lexemes;
+    }
+
+    private skipPastTerminator(position: number): number {
+        let next = position;
+
+        if (next < this.input.length && this.input[next] === ';') {
+            next++;
+        }
+
+        return this.skipWhitespaceAndComments(next);
+    }
+
+    private mergeComments(base: string[] | null, addition: string[] | null | undefined): string[] | null {
+        if (addition && addition.length > 0) {
+            if (!base || base.length === 0) {
+                return [...addition];
+            }
+            return [...base, ...addition];
+        }
+
+        return base ? [...base] : null;
     }
 
     // Attach comments to lexeme directly (no collection then assignment anti-pattern)

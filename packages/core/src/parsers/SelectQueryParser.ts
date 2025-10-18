@@ -24,6 +24,10 @@ export interface ParseAnalysisResult {
     remainingTokens?: string[];
 }
 
+/**
+ * Legacy SELECT-only parser.
+ * Prefer using SqlParser as the canonical entry point for multi-statement or mixed-statement workflows.
+ */
 export class SelectQueryParser {
     // Parse SQL string to AST (was: parse)
     public static parse(query: string): SelectQuery {

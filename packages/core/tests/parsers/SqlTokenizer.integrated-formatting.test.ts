@@ -12,10 +12,12 @@ describe('SqlTokenizer - Integrated Formatting Functionality', () => {
         expect(lexemes.length).toBeGreaterThan(0);
         expect(lexemes[0].value.toLowerCase()).toBe('select');
         
-        // Verify it's regular Lexeme, not FormattingLexeme
+        // Verify it's regular Lexeme without formatting-only properties
         expect('followingWhitespace' in lexemes[0]).toBe(false);
         expect('inlineComments' in lexemes[0]).toBe(false);
-        expect('position' in lexemes[0]).toBe(false);
+        expect(lexemes[0].position).toBeDefined();
+        expect(lexemes[0].position!.startPosition).toBe(0);
+        expect(lexemes[0].position!.endPosition).toBeGreaterThan(0);
     });
 
     it('should tokenize with formatting preservation when requested', () => {
