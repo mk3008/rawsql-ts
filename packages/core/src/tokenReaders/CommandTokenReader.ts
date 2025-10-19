@@ -69,8 +69,6 @@ const keywordTrie = new KeywordTrie([
     ["intersect", "all"],
     ["except"],
     ["except", "all"],
-    // between and
-    ["beteen"],
     // window functions
     ["window"],
     ["over"],
