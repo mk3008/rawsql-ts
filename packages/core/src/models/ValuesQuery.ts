@@ -1,11 +1,21 @@
 import { ParameterHelper } from "../utils/ParameterHelper";
 import { ParameterCollector } from "../transformers/ParameterCollector";
 import { QueryBuilder } from "../transformers/QueryBuilder";
-import { SelectQuery } from "./SelectQuery";
+import type {
+    SelectQuery,
+    InsertQueryConversionOptions,
+    UpdateQueryConversionOptions,
+    DeleteQueryConversionOptions,
+    MergeQueryConversionOptions
+} from "./SelectQuery";
 import { SimpleSelectQuery } from "./SimpleSelectQuery";
 import { SqlParameterValue } from "./ValueComponent";
 import { SqlComponent } from "./SqlComponent";
 import { TupleExpression } from "./ValueComponent";
+import type { InsertQuery } from "./InsertQuery";
+import type { UpdateQuery } from "./UpdateQuery";
+import type { DeleteQuery } from "./DeleteQuery";
+import type { MergeQuery } from "./MergeQuery";
 
 /**
  * Represents a VALUES query in SQL.
@@ -30,6 +40,22 @@ export class ValuesQuery extends SqlComponent implements SelectQuery {
 
     public toSimpleQuery(): SimpleSelectQuery {
         return QueryBuilder.buildSimpleQuery(this);
+    }
+
+    public toInsertQuery(options: InsertQueryConversionOptions): InsertQuery {
+        return this.toSimpleQuery().toInsertQuery(options);
+    }
+
+    public toUpdateQuery(options: UpdateQueryConversionOptions): UpdateQuery {
+        return this.toSimpleQuery().toUpdateQuery(options);
+    }
+
+    public toDeleteQuery(options: DeleteQueryConversionOptions): DeleteQuery {
+        return this.toSimpleQuery().toDeleteQuery(options);
+    }
+
+    public toMergeQuery(options: MergeQueryConversionOptions): MergeQuery {
+        return this.toSimpleQuery().toMergeQuery(options);
     }
 
     /**

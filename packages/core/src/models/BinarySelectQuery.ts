@@ -1,5 +1,12 @@
 import { SourceExpression, SubQuerySource, SourceAliasExpression } from "./Clause";
-import type { SelectQuery, CTEOptions } from "./SelectQuery";
+import type {
+    SelectQuery,
+    CTEOptions,
+    InsertQueryConversionOptions,
+    UpdateQueryConversionOptions,
+    DeleteQueryConversionOptions,
+    MergeQueryConversionOptions
+} from "./SelectQuery";
 import { SqlComponent } from "./SqlComponent";
 import { RawString, SqlParameterValue } from "./ValueComponent";
 import { CTENormalizer } from "../transformers/CTENormalizer";
@@ -8,6 +15,10 @@ import { ParameterCollector } from "../transformers/ParameterCollector";
 import { ParameterHelper } from "../utils/ParameterHelper";
 import { QueryBuilder } from "../transformers/QueryBuilder";
 import { SimpleSelectQuery } from "./SimpleSelectQuery";
+import type { InsertQuery } from "./InsertQuery";
+import type { UpdateQuery } from "./UpdateQuery";
+import type { DeleteQuery } from "./DeleteQuery";
+import type { MergeQuery } from "./MergeQuery";
 
 /**
  * Represents a binary SELECT expression (UNION/INTERSECT/EXCEPT) composed from two SelectQuery values.
@@ -157,6 +168,22 @@ export class BinarySelectQuery extends SqlComponent implements SelectQuery {
     public exceptAllRaw(sql: string): BinarySelectQuery {
         const parsedQuery = SelectQueryParser.parse(sql);
         return this.exceptAll(parsedQuery);
+    }
+
+    public toInsertQuery(options: InsertQueryConversionOptions): InsertQuery {
+        return this.toSimpleQuery().toInsertQuery(options);
+    }
+
+    public toUpdateQuery(options: UpdateQueryConversionOptions): UpdateQuery {
+        return this.toSimpleQuery().toUpdateQuery(options);
+    }
+
+    public toDeleteQuery(options: DeleteQueryConversionOptions): DeleteQuery {
+        return this.toSimpleQuery().toDeleteQuery(options);
+    }
+
+    public toMergeQuery(options: MergeQueryConversionOptions): MergeQuery {
+        return this.toSimpleQuery().toMergeQuery(options);
     }
 
     // Returns a SourceExpression wrapping this query as a subquery source.

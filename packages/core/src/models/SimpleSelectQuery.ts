@@ -6,7 +6,15 @@ import { CTENormalizer } from "../transformers/CTENormalizer";
 import { SelectableColumnCollector } from "../transformers/SelectableColumnCollector";
 import { SourceParser } from "../parsers/SourceParser";
 import { BinarySelectQuery } from "./BinarySelectQuery";
-import type { SelectQuery, CTEOptions, CTEManagement } from "./SelectQuery";
+import type {
+    SelectQuery,
+    CTEOptions,
+    CTEManagement,
+    InsertQueryConversionOptions,
+    UpdateQueryConversionOptions,
+    DeleteQueryConversionOptions,
+    MergeQueryConversionOptions
+} from "./SelectQuery";
 import { DuplicateCTEError, InvalidCTENameError, CTENotFoundError } from "./CTEError";
 import { SelectQueryParser } from "../parsers/SelectQueryParser";
 import { Formatter } from "../transformers/Formatter";
@@ -14,6 +22,10 @@ import { TableColumnResolver } from "../transformers/TableColumnResolver";
 import { UpstreamSelectQueryFinder } from "../transformers/UpstreamSelectQueryFinder";
 import { QueryBuilder } from "../transformers/QueryBuilder";
 import { ParameterHelper } from "../utils/ParameterHelper";
+import type { InsertQuery } from "./InsertQuery";
+import type { UpdateQuery } from "./UpdateQuery";
+import type { DeleteQuery } from "./DeleteQuery";
+import type { MergeQuery } from "./MergeQuery";
 
 /**
  * Represents a single SELECT statement with full clause support (WITH, JOIN, GROUP BY, etc.).
@@ -116,6 +128,22 @@ export class SimpleSelectQuery extends SqlComponent implements SelectQuery, CTEM
      */
     public toUnionAll(rightQuery: SelectQuery): BinarySelectQuery {
         return this.toBinaryQuery('union all', rightQuery);
+    }
+
+    public toInsertQuery(options: InsertQueryConversionOptions): InsertQuery {
+        return QueryBuilder.buildInsertQuery(this, options);
+    }
+
+    public toUpdateQuery(options: UpdateQueryConversionOptions): UpdateQuery {
+        return QueryBuilder.buildUpdateQuery(this, options);
+    }
+
+    public toDeleteQuery(options: DeleteQueryConversionOptions): DeleteQuery {
+        return QueryBuilder.buildDeleteQuery(this, options);
+    }
+
+    public toMergeQuery(options: MergeQueryConversionOptions): MergeQuery {
+        return QueryBuilder.buildMergeQuery(this, options);
     }
 
     /**

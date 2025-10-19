@@ -1,6 +1,8 @@
-import { SetClause, SetClauseItem, FromClause, WhereClause, SelectClause, SelectItem, SourceAliasExpression, SourceExpression, SubQuerySource, WithClause, TableSource, UpdateClause, InsertClause, OrderByClause } from '../models/Clause';
+import { SetClause, SetClauseItem, FromClause, WhereClause, SelectClause, SelectItem, SourceAliasExpression, SourceExpression, SubQuerySource, WithClause, TableSource, UpdateClause, InsertClause, OrderByClause, DeleteClause, UsingClause } from '../models/Clause';
 import { UpdateQuery } from '../models/UpdateQuery';
-import { BinaryExpression, ColumnReference } from '../models/ValueComponent';
+import { DeleteQuery } from '../models/DeleteQuery';
+import { MergeQuery, MergeWhenClause, MergeUpdateAction, MergeDeleteAction, MergeInsertAction, MergeDoNothingAction } from '../models/MergeQuery';
+import { BinaryExpression, ColumnReference, ValueList } from '../models/ValueComponent';
 import { SelectValueCollector } from './SelectValueCollector';
 import { BinarySelectQuery, SelectQuery, SimpleSelectQuery, ValuesQuery } from "../models/SelectQuery";
 import { CTECollector } from "./CTECollector";
@@ -9,6 +11,7 @@ import { CreateTableQuery } from "../models/CreateTableQuery";
 import { InsertQuery } from "../models/InsertQuery";
 import { CTEDisabler } from './CTEDisabler';
 import { SourceExpressionParser } from '../parsers/SourceExpressionParser';
+import type { InsertQueryConversionOptions, UpdateQueryConversionOptions, DeleteQueryConversionOptions, MergeQueryConversionOptions } from "../models/SelectQuery";
 
 /**
  * QueryBuilder provides static methods to build or convert various SQL query objects.
@@ -219,93 +222,499 @@ export class QueryBuilder {
     }
 
     /**
-     * Converts a SELECT query to an INSERT query (INSERT INTO ... SELECT ...)
-     * @param selectQuery The SELECT query to use as the source
-     * @param tableName The name of the table to insert into
-     * @param columns Optional: array of column names. If omitted, columns are inferred from the selectQuery
-     * @returns An InsertQuery instance
+     * Converts a SELECT query to an INSERT query (INSERT INTO ... SELECT ...).
      */
-    public static buildInsertQuery(selectQuery: SimpleSelectQuery, tableName: string): InsertQuery {
-        let cols: string[];
+    public static buildInsertQuery(selectQuery: SimpleSelectQuery, targetOrOptions: string | InsertQueryConversionOptions, explicitColumns?: string[]): InsertQuery {
+        // Derive normalized options while preserving the legacy signature for backward compatibility.
+        const options = QueryBuilder.normalizeInsertOptions(targetOrOptions, explicitColumns);
+        // Determine the final column order either from user-provided options or by inferring from the select list.
+        const columnNames = QueryBuilder.prepareInsertColumns(selectQuery, options.columns ?? null);
+        // Promote WITH clauses to the INSERT statement so the SELECT body remains self-contained.
+        const withClause = QueryBuilder.extractWithClause(selectQuery);
 
-        const count = selectQuery.selectClause.items.length;
-
-        // Try to infer columns from the selectQuery
-        const collector = new SelectValueCollector();
-        const items = collector.collect(selectQuery);
-        cols = items.map(item => item.name);
-        if (!cols.length || count !== cols.length) {
-            throw new Error(
-                `Columns cannot be inferred from the selectQuery. ` +
-                `Make sure you are not using wildcards or unnamed columns.\n` +
-                `Select clause column count: ${count}, ` +
-                `Columns with valid names: ${cols.length}\n` +
-                `Detected column names: [${cols.join(", ")}]`
-            );
-        }
-
-        // Generate SourceExpression (supports only table name, does not support alias or schema)
-        const sourceExpr = SourceExpressionParser.parse(tableName);
+        const sourceExpr = SourceExpressionParser.parse(options.target);
         return new InsertQuery({
-            insertClause: new InsertClause(sourceExpr, cols),
-            selectQuery: selectQuery
+            withClause: withClause ?? undefined,
+            insertClause: new InsertClause(sourceExpr, columnNames),
+            selectQuery
         });
     }
 
     /**
-     * Builds an UPDATE query from a SELECT query, table name, and primary key(s).
-     * @param selectQuery The SELECT query providing new values (must select all columns to update and PKs)
-     * @param updateTableExprRaw The table name to update
-     * @param primaryKeys The primary key column name(s)
-     * @returns UpdateQuery instance
+     * Builds an UPDATE query from a SELECT query and conversion options.
      */
-    public static buildUpdateQuery(selectQuery: SimpleSelectQuery, selectSourceName: string, updateTableExprRaw: string, primaryKeys: string | string[]) {
-        const updateClause = new UpdateClause(SourceExpressionParser.parse(updateTableExprRaw));
-
-        const pkArray = Array.isArray(primaryKeys) ? primaryKeys : [primaryKeys];
-        const selectCollector = new SelectValueCollector();
-        const selectItems = selectCollector.collect(selectQuery);
-
-        const cteCollector = new CTECollector();
-        const collectedCTEs = cteCollector.collect(selectQuery);
-        const cteDisabler = new CTEDisabler();
-        cteDisabler.execute(selectQuery);
-
-        for (const pk of pkArray) {
-            if (!selectItems.some(item => item.name === pk)) {
-                throw new Error(`Primary key column '${pk}' is not present in selectQuery select list.`);
-            }
-        }
-
-        const updateSourceName = updateClause.getSourceAliasName();
-        if (!updateSourceName) {
+    public static buildUpdateQuery(selectQuery: SimpleSelectQuery, selectSourceOrOptions: string | UpdateQueryConversionOptions, updateTableExprRaw?: string, primaryKeys?: string | string[]): UpdateQuery {
+        // Normalize the function arguments into a single configuration object.
+        const options = QueryBuilder.normalizeUpdateOptions(selectSourceOrOptions, updateTableExprRaw, primaryKeys);
+        // Collect select-list metadata and align columns before mutating the query during WITH extraction.
+        const updateColumns = QueryBuilder.prepareUpdateColumns(selectQuery, options.primaryKeys, options.columns ?? null);
+        const updateClause = new UpdateClause(SourceExpressionParser.parse(options.target));
+        const targetAlias = updateClause.getSourceAliasName();
+        if (!targetAlias) {
             throw new Error(`Source expression does not have an alias. Please provide an alias for the source expression.`);
         }
 
-        const setColumns = selectItems.filter(item => !pkArray.includes(item.name));
-        const setItems = setColumns.map(col => new SetClauseItem(col.name, new ColumnReference(updateSourceName, col.name)));
+        // Move CTE definitions to the UPDATE statement for cleaner SQL.
+        const withClause = QueryBuilder.extractWithClause(selectQuery);
+
+        const setItems = updateColumns.map(column => new SetClauseItem(column, QueryBuilder.toColumnReference(options.sourceAlias, column)));
+        if (setItems.length === 0) {
+            throw new Error(`No updatable columns found. Ensure the select list contains at least one column other than the specified primary keys.`);
+        }
         const setClause = new SetClause(setItems);
 
-        const from = new FromClause(selectQuery.toSource(selectSourceName), null);
+        const fromClause = new FromClause(selectQuery.toSource(options.sourceAlias), null);
+        const whereClause = new WhereClause(QueryBuilder.buildEqualityPredicate(targetAlias, options.sourceAlias, options.primaryKeys));
 
-        let where: BinaryExpression | null = null;
-        for (const pk of pkArray) {
-            const cond = new BinaryExpression(
-                new ColumnReference(updateSourceName, pk),
-                '=',
-                new ColumnReference(selectSourceName, pk)
-            );
-            where = where ? new BinaryExpression(where, 'and', cond) : cond;
-        }
-        const whereClause = new WhereClause(where!);
-
-        const updateQuery = new UpdateQuery({
-            updateClause: updateClause,
-            setClause: setClause,
-            fromClause: from,
-            whereClause: whereClause,
-            withClause: collectedCTEs.length > 0 ? new WithClause(false, collectedCTEs) : undefined,
+        return new UpdateQuery({
+            updateClause,
+            setClause,
+            fromClause,
+            whereClause,
+            withClause: withClause ?? undefined
         });
-        return updateQuery;
+    }
+
+    /**
+     * Builds a DELETE query that deletes the rows matched by the SELECT query output.
+     */
+    public static buildDeleteQuery(selectQuery: SimpleSelectQuery, options: DeleteQueryConversionOptions): DeleteQuery {
+        // Normalise options to guarantee arrays and alias defaults.
+        const normalized = QueryBuilder.normalizeDeleteOptions(options);
+        const predicateColumns = QueryBuilder.prepareDeleteColumns(selectQuery, normalized.primaryKeys, normalized.columns ?? null);
+        const deleteClause = new DeleteClause(SourceExpressionParser.parse(normalized.target));
+        const targetAlias = deleteClause.getSourceAliasName();
+        if (!targetAlias) {
+            throw new Error(`Source expression does not have an alias. Please provide an alias for the delete target.`);
+        }
+
+        const withClause = QueryBuilder.extractWithClause(selectQuery);
+
+        const usingClause = new UsingClause([selectQuery.toSource(normalized.sourceAlias)]);
+        const whereClause = new WhereClause(QueryBuilder.buildEqualityPredicate(targetAlias, normalized.sourceAlias, predicateColumns));
+
+        return new DeleteQuery({
+            deleteClause,
+            usingClause,
+            whereClause,
+            withClause: withClause ?? undefined
+        });
+    }
+
+    /**
+     * Builds a MERGE query (upsert) that coordinates actions based on row matches.
+     */
+    public static buildMergeQuery(selectQuery: SimpleSelectQuery, options: MergeQueryConversionOptions): MergeQuery {
+        // Ensure the configuration is fully expanded before inspection.
+        const normalized = QueryBuilder.normalizeMergeOptions(options);
+        const mergeColumnPlan = QueryBuilder.prepareMergeColumns(
+            selectQuery,
+            normalized.primaryKeys,
+            normalized.updateColumns ?? null,
+            normalized.insertColumns ?? null,
+            normalized.matchedAction ?? 'update',
+            normalized.notMatchedAction ?? 'insert'
+        );
+
+        const targetExpression = SourceExpressionParser.parse(normalized.target);
+        const targetAlias = targetExpression.getAliasName();
+        if (!targetAlias) {
+            throw new Error(`Source expression does not have an alias. Please provide an alias for the merge target.`);
+        }
+
+        const withClause = QueryBuilder.extractWithClause(selectQuery);
+
+        const onCondition = QueryBuilder.buildEqualityPredicate(targetAlias, normalized.sourceAlias, normalized.primaryKeys);
+        const sourceExpression = selectQuery.toSource(normalized.sourceAlias);
+
+        const whenClauses: MergeWhenClause[] = [];
+
+        const matchedAction = normalized.matchedAction ?? 'update';
+        if (matchedAction === 'update') {
+            if (mergeColumnPlan.updateColumns.length === 0) {
+                throw new Error(`No columns available for MERGE update action. Provide updateColumns or ensure the select list includes non-key columns.`);
+            }
+            const setItems = mergeColumnPlan.updateColumns.map(column => new SetClauseItem(column, QueryBuilder.toColumnReference(normalized.sourceAlias, column)));
+            whenClauses.push(new MergeWhenClause("matched", new MergeUpdateAction(new SetClause(setItems))));
+        } else if (matchedAction === 'delete') {
+            whenClauses.push(new MergeWhenClause("matched", new MergeDeleteAction()));
+        } else if (matchedAction === 'doNothing') {
+            whenClauses.push(new MergeWhenClause("matched", new MergeDoNothingAction()));
+        }
+
+        const notMatchedAction = normalized.notMatchedAction ?? 'insert';
+        if (notMatchedAction === 'insert') {
+            if (mergeColumnPlan.insertColumns.length === 0) {
+                throw new Error('Unable to infer MERGE insert columns. Provide insertColumns explicitly.');
+            }
+            const insertValues = new ValueList(mergeColumnPlan.insertColumns.map(column => QueryBuilder.toColumnReference(normalized.sourceAlias, column)));
+            whenClauses.push(new MergeWhenClause("not_matched", new MergeInsertAction({
+                columns: mergeColumnPlan.insertColumns,
+                values: insertValues
+            })));
+        } else if (notMatchedAction === 'doNothing') {
+            whenClauses.push(new MergeWhenClause("not_matched", new MergeDoNothingAction()));
+        }
+
+        const notMatchedBySourceAction = normalized.notMatchedBySourceAction ?? 'doNothing';
+        if (notMatchedBySourceAction === 'delete') {
+            whenClauses.push(new MergeWhenClause("not_matched_by_source", new MergeDeleteAction()));
+        } else if (notMatchedBySourceAction === 'doNothing') {
+            whenClauses.push(new MergeWhenClause("not_matched_by_source", new MergeDoNothingAction()));
+        }
+
+        if (whenClauses.length === 0) {
+            throw new Error(`At least one MERGE action must be generated. Adjust the merge conversion options.`);
+        }
+
+        return new MergeQuery({
+            withClause: withClause ?? undefined,
+            target: targetExpression,
+            source: sourceExpression,
+            onCondition,
+            whenClauses
+        });
+    }
+
+    private static normalizeInsertOptions(targetOrOptions: string | InsertQueryConversionOptions, explicitColumns?: string[]): InsertQueryConversionOptions {
+        if (typeof targetOrOptions === 'string') {
+            return {
+                target: targetOrOptions,
+                columns: explicitColumns
+            };
+        }
+        if (explicitColumns && explicitColumns.length > 0) {
+            return {
+                ...targetOrOptions,
+                columns: explicitColumns
+            };
+        }
+        return { ...targetOrOptions };
+    }
+
+    private static resolveInsertColumns(selectQuery: SimpleSelectQuery, options: InsertQueryConversionOptions): string[] {
+        const selectItemCount = selectQuery.selectClause.items.length;
+        if (options.columns && options.columns.length > 0) {
+            if (options.columns.length !== selectItemCount) {
+                throw new Error(`The number of provided columns (${options.columns.length}) must match the select list size (${selectItemCount}).`);
+            }
+            return [...options.columns];
+        }
+
+        const items = QueryBuilder.collectSelectItems(selectQuery);
+        const inferred = items.map(item => item.name).filter(name => name !== '*');
+        if (!inferred.length || inferred.length !== selectItemCount) {
+            throw new Error(
+                `Columns cannot be inferred from the selectQuery. Make sure you are not using wildcards or unnamed columns.\n` +
+                `Select clause column count: ${selectItemCount}, ` +
+                `Columns with valid names: ${inferred.length}\n` +
+                `Detected column names: [${inferred.join(", ")}]`
+            );
+        }
+        return inferred;
+    }
+
+    private static normalizeUpdateOptions(selectSourceOrOptions: string | UpdateQueryConversionOptions, updateTableExprRaw?: string, primaryKeys?: string | string[]): { target: string; primaryKeys: string[]; sourceAlias: string; columns?: string[] } {
+        if (typeof selectSourceOrOptions === 'string') {
+            if (!updateTableExprRaw) {
+                throw new Error('updateTableExprRaw is required when using the legacy buildUpdateQuery signature.');
+            }
+            if (primaryKeys === undefined) {
+                throw new Error('primaryKeys are required when using the legacy buildUpdateQuery signature.');
+            }
+            return {
+                target: updateTableExprRaw,
+                primaryKeys: QueryBuilder.normalizeColumnArray(primaryKeys),
+                sourceAlias: selectSourceOrOptions
+            };
+        }
+
+        return {
+            target: selectSourceOrOptions.target,
+            primaryKeys: QueryBuilder.normalizeColumnArray(selectSourceOrOptions.primaryKeys),
+            sourceAlias: selectSourceOrOptions.sourceAlias ?? 'src',
+            columns: selectSourceOrOptions.columns
+        };
+    }
+
+    private static normalizeDeleteOptions(options: DeleteQueryConversionOptions): DeleteQueryConversionOptions & { primaryKeys: string[]; sourceAlias: string } {
+        return {
+            ...options,
+            primaryKeys: QueryBuilder.normalizeColumnArray(options.primaryKeys),
+            sourceAlias: options.sourceAlias ?? 'src'
+        };
+    }
+
+    private static normalizeMergeOptions(options: MergeQueryConversionOptions): MergeQueryConversionOptions & { primaryKeys: string[]; sourceAlias: string } {
+        return {
+            ...options,
+            primaryKeys: QueryBuilder.normalizeColumnArray(options.primaryKeys),
+            sourceAlias: options.sourceAlias ?? 'src'
+        };
+    }
+
+    private static normalizeColumnArray(columns: string | string[]): string[] {
+        const array = Array.isArray(columns) ? columns : [columns];
+        const normalized = array.map(col => col.trim()).filter(col => col.length > 0);
+        if (!normalized.length) {
+            throw new Error('At least one column must be specified.');
+        }
+        return normalized;
+    }
+
+    private static collectSelectItems(selectQuery: SimpleSelectQuery) {
+        const collector = new SelectValueCollector();
+        return collector.collect(selectQuery);
+    }
+
+    private static collectSelectColumnNames(selectQuery: SimpleSelectQuery): string[] {
+        const items = QueryBuilder.collectSelectItems(selectQuery);
+        const names: string[] = [];
+        for (const item of items) {
+            if (!item.name || item.name === '*') {
+                throw new Error(
+                    `Columns cannot be inferred from the selectQuery. ` +
+                    `Make sure you are not using wildcards or unnamed columns.`
+                );
+            }
+            if (!names.includes(item.name)) {
+                names.push(item.name);
+            }
+        }
+        if (!names.length) {
+            throw new Error('Unable to determine any column names from selectQuery.');
+        }
+        return names;
+    }
+
+    private static ensurePrimaryKeys(selectColumns: string[], primaryKeys: string[]): void {
+        const available = new Set(selectColumns);
+        for (const pk of primaryKeys) {
+            if (!available.has(pk)) {
+                throw new Error(`Primary key column '${pk}' is not present in selectQuery select list.`);
+            }
+        }
+    }
+
+    private static prepareInsertColumns(selectQuery: SimpleSelectQuery, optionColumns: string[] | null): string[] {
+        const selectColumns = QueryBuilder.collectSelectColumnNames(selectQuery);
+        if (optionColumns && optionColumns.length > 0) {
+            const normalized = QueryBuilder.normalizeColumnArray(optionColumns);
+            const allowed = new Set(normalized);
+            const finalColumns = selectColumns.filter(name => allowed.has(name));
+            if (!finalColumns.length) {
+                throw new Error('No overlapping columns found between selectQuery and provided columns.');
+            }
+            QueryBuilder.rebuildSelectClause(selectQuery, finalColumns);
+            QueryBuilder.ensureSelectClauseSize(selectQuery, finalColumns.length);
+            return finalColumns;
+        }
+        QueryBuilder.ensureSelectClauseSize(selectQuery, selectColumns.length);
+        return selectColumns;
+    }
+
+    private static prepareUpdateColumns(selectQuery: SimpleSelectQuery, primaryKeys: string[], explicitColumns: string[] | null): string[] {
+        const selectColumns = QueryBuilder.collectSelectColumnNames(selectQuery);
+        QueryBuilder.ensurePrimaryKeys(selectColumns, primaryKeys);
+
+        const primaryKeySet = new Set(primaryKeys);
+        const updateCandidates = selectColumns.filter(name => !primaryKeySet.has(name));
+
+        let selectedUpdateColumns = updateCandidates;
+        if (explicitColumns && explicitColumns.length > 0) {
+            const normalized = QueryBuilder.normalizeColumnArray(explicitColumns);
+            const preferred = new Set(normalized);
+            selectedUpdateColumns = updateCandidates.filter(name => preferred.has(name));
+            if (!selectedUpdateColumns.length) {
+                throw new Error('No matching columns found between selectQuery and provided update columns.');
+            }
+        }
+
+        const requiredColumns = new Set<string>();
+        primaryKeys.forEach(key => requiredColumns.add(key));
+        selectedUpdateColumns.forEach(col => requiredColumns.add(col));
+
+        const desiredOrder = selectColumns.filter(name => requiredColumns.has(name));
+        QueryBuilder.rebuildSelectClause(selectQuery, desiredOrder);
+        QueryBuilder.ensureSelectClauseSize(selectQuery, desiredOrder.length);
+
+        return desiredOrder.filter(name => !primaryKeySet.has(name));
+    }
+
+    private static prepareDeleteColumns(selectQuery: SimpleSelectQuery, primaryKeys: string[], explicitColumns: string[] | null): string[] {
+        const selectColumns = QueryBuilder.collectSelectColumnNames(selectQuery);
+        QueryBuilder.ensurePrimaryKeys(selectColumns, primaryKeys);
+
+        const primaryKeySet = new Set(primaryKeys);
+        let matchColumns: string[] = [];
+        if (explicitColumns && explicitColumns.length > 0) {
+            const normalized = QueryBuilder.normalizeColumnArray(explicitColumns);
+            const preferred = new Set(normalized);
+            matchColumns = selectColumns.filter(name => preferred.has(name) && !primaryKeySet.has(name));
+        }
+
+        const requiredColumns = new Set<string>();
+        primaryKeys.forEach(key => requiredColumns.add(key));
+        matchColumns.forEach(col => requiredColumns.add(col));
+
+        const desiredOrder = selectColumns.filter(name => requiredColumns.has(name));
+        QueryBuilder.rebuildSelectClause(selectQuery, desiredOrder);
+        QueryBuilder.ensureSelectClauseSize(selectQuery, desiredOrder.length);
+
+        return desiredOrder;
+    }
+
+    private static prepareMergeColumns(
+        selectQuery: SimpleSelectQuery,
+        primaryKeys: string[],
+        explicitUpdateColumns: string[] | null,
+        explicitInsertColumns: string[] | null,
+        matchedAction: string,
+        notMatchedAction: string
+    ): { updateColumns: string[]; insertColumns: string[] } {
+        const selectColumns = QueryBuilder.collectSelectColumnNames(selectQuery);
+        QueryBuilder.ensurePrimaryKeys(selectColumns, primaryKeys);
+
+        const primaryKeySet = new Set(primaryKeys);
+
+        let updateColumnsSeed: string[] = [];
+        if (matchedAction === 'update') {
+            const candidates = selectColumns.filter(name => !primaryKeySet.has(name));
+            if (explicitUpdateColumns && explicitUpdateColumns.length > 0) {
+                const normalized = QueryBuilder.normalizeColumnArray(explicitUpdateColumns);
+                const preferred = new Set(normalized);
+                updateColumnsSeed = candidates.filter(name => preferred.has(name));
+            } else {
+                updateColumnsSeed = candidates;
+            }
+        }
+
+        let insertColumnsSeed: string[] = [];
+        if (notMatchedAction === 'insert') {
+            if (explicitInsertColumns && explicitInsertColumns.length > 0) {
+                const normalized = QueryBuilder.normalizeColumnArray(explicitInsertColumns);
+                const preferred = new Set(normalized);
+                insertColumnsSeed = selectColumns.filter(name => preferred.has(name));
+            } else {
+                insertColumnsSeed = selectColumns;
+            }
+        }
+
+        const requiredColumns = new Set<string>();
+        primaryKeys.forEach(key => requiredColumns.add(key));
+        updateColumnsSeed.forEach(col => requiredColumns.add(col));
+        insertColumnsSeed.forEach(col => requiredColumns.add(col));
+
+        const desiredOrder = selectColumns.filter(name => requiredColumns.has(name));
+        QueryBuilder.rebuildSelectClause(selectQuery, desiredOrder);
+        QueryBuilder.ensureSelectClauseSize(selectQuery, desiredOrder.length);
+
+        const finalUpdateColumns = matchedAction === 'update'
+            ? desiredOrder.filter(name => !primaryKeySet.has(name) && updateColumnsSeed.includes(name))
+            : [];
+        const finalInsertColumns = notMatchedAction === 'insert'
+            ? desiredOrder.filter(name => insertColumnsSeed.includes(name))
+            : [];
+
+        return {
+            updateColumns: finalUpdateColumns,
+            insertColumns: finalInsertColumns
+        };
+    }
+
+    private static rebuildSelectClause(selectQuery: SimpleSelectQuery, desiredColumns: string[]): void {
+        const itemMap = new Map<string, SelectItem>();
+        for (const item of selectQuery.selectClause.items) {
+            const name = QueryBuilder.getSelectItemName(item);
+            if (!name) {
+                continue;
+            }
+            if (!itemMap.has(name)) {
+                itemMap.set(name, item);
+            }
+        }
+
+        const rebuiltItems: SelectItem[] = [];
+        const seen = new Set<string>();
+        for (const column of desiredColumns) {
+            if (seen.has(column)) {
+                continue;
+            }
+            const item = itemMap.get(column);
+            if (!item) {
+                throw new Error(`Column '${column}' not found in select clause.`);
+            }
+            rebuiltItems.push(item);
+            seen.add(column);
+        }
+
+        if (!rebuiltItems.length) {
+            throw new Error('Unable to rebuild select clause with the requested columns.');
+        }
+
+        selectQuery.selectClause.items = rebuiltItems;
+    }
+
+    private static getSelectItemName(item: SelectItem): string | null {
+        if (item.identifier) {
+            return item.identifier.name;
+        }
+        if (item.value instanceof ColumnReference) {
+            return item.value.column.name;
+        }
+        return null;
+    }
+
+    private static ensureSelectClauseSize(selectQuery: SimpleSelectQuery, expected: number): void {
+        if (selectQuery.selectClause.items.length !== expected) {
+            throw new Error(
+                `Select clause column count (${selectQuery.selectClause.items.length}) does not match expected count (${expected}).`
+            );
+        }
+    }
+
+    private static extractWithClause(selectQuery: SimpleSelectQuery): WithClause | null {
+        const cteCollector = new CTECollector();
+        const collected = cteCollector.collect(selectQuery);
+        if (collected.length === 0) {
+            return null;
+        }
+        const cteDisabler = new CTEDisabler();
+        cteDisabler.execute(selectQuery);
+        return new WithClause(false, collected);
+    }
+
+    private static buildEqualityPredicate(leftAlias: string, rightAlias: string, columns: string[]): BinaryExpression {
+        const uniqueColumns = QueryBuilder.mergeUniqueColumns(columns);
+        if (!uniqueColumns.length) {
+            throw new Error('At least one column is required to build a comparison predicate.');
+        }
+
+        let predicate: BinaryExpression | null = null;
+        for (const column of uniqueColumns) {
+            const comparison = new BinaryExpression(
+                QueryBuilder.toColumnReference(leftAlias, column),
+                '=',
+                QueryBuilder.toColumnReference(rightAlias, column)
+            );
+            predicate = predicate ? new BinaryExpression(predicate, 'and', comparison) : comparison;
+        }
+        return predicate!;
+    }
+
+    private static toColumnReference(alias: string, column: string): ColumnReference {
+        return new ColumnReference(alias, column);
+    }
+
+    private static mergeUniqueColumns(columns: string[]): string[] {
+        const seen = new Set<string>();
+        const result: string[] = [];
+        for (const column of columns) {
+            if (!seen.has(column)) {
+                seen.add(column);
+                result.push(column);
+            }
+        }
+        return result;
     }
 }
