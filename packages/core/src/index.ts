@@ -3,8 +3,11 @@ export * from './parsers/SqlParser';
 export * from './parsers/SelectQueryParser';
 export { ParseAnalysisResult } from './parsers/SelectQueryParser';
 export * from './parsers/InsertQueryParser';
+export * from './parsers/UpdateQueryParser';
+export * from './parsers/DeleteQueryParser';
 export * from './parsers/WithClauseParser';
 export * from './parsers/CreateTableParser';
+export * from './parsers/MergeQueryParser';
 
 export * from './models/BinarySelectQuery';
 export * from './models/SelectQuery';
@@ -14,6 +17,11 @@ export * from './models/ValuesQuery';
 export * from './models/CTEError';
 export * from './models/Lexeme';
 export * from './models/FormattingLexeme';
+export * from './models/InsertQuery';
+export * from './models/UpdateQuery';
+export * from './models/DeleteQuery';
+export * from './models/CreateTableQuery';
+export * from './models/MergeQuery';
 
 export * from './transformers/CTECollector';
 export * from './transformers/CTENormalizer';

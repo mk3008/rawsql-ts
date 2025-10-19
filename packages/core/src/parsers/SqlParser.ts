@@ -4,15 +4,17 @@ import type { InsertQuery } from '../models/InsertQuery';
 import type { UpdateQuery } from '../models/UpdateQuery';
 import type { DeleteQuery } from '../models/DeleteQuery';
 import type { CreateTableQuery } from '../models/CreateTableQuery';
+import type { MergeQuery } from '../models/MergeQuery';
 import { SqlTokenizer, StatementLexemeResult } from './SqlTokenizer';
 import { SelectQueryParser } from './SelectQueryParser';
 import { InsertQueryParser } from './InsertQueryParser';
 import { UpdateQueryParser } from './UpdateQueryParser';
 import { DeleteQueryParser } from './DeleteQueryParser';
 import { CreateTableParser } from './CreateTableParser';
+import { MergeQueryParser } from './MergeQueryParser';
 import { WithClauseParser } from './WithClauseParser';
 
-export type ParsedStatement = SelectQuery | InsertQuery | UpdateQuery | DeleteQuery | CreateTableQuery;
+export type ParsedStatement = SelectQuery | InsertQuery | UpdateQuery | DeleteQuery | CreateTableQuery | MergeQuery;
 
 export interface SqlParserOptions {
     mode?: 'single' | 'multiple';
@@ -106,6 +108,9 @@ export class SqlParser {
             if (commandAfterWith === 'delete from') {
                 return this.parseDeleteStatement(segment, statementIndex);
             }
+            if (commandAfterWith === 'merge into') {
+                return this.parseMergeStatement(segment, statementIndex);
+            }
             return this.parseSelectStatement(segment, statementIndex);
         }
 
@@ -127,6 +132,10 @@ export class SqlParser {
 
         if (firstToken === 'create table' || firstToken === 'create temporary table') {
             return this.parseCreateTableStatement(segment, statementIndex);
+        }
+
+        if (firstToken === 'merge into') {
+            return this.parseMergeStatement(segment, statementIndex);
         }
 
         throw new Error(`[SqlParser] Statement ${statementIndex} starts with unsupported token "${segment.lexemes[0].value}". Support for additional statement types will be introduced soon.`);
@@ -225,6 +234,26 @@ export class SqlParser {
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
             throw new Error(`[SqlParser] Failed to parse CREATE TABLE statement ${statementIndex}: ${message}`);
+        }
+    }
+
+    private static parseMergeStatement(segment: StatementLexemeResult, statementIndex: number): MergeQuery {
+        try {
+            const result = MergeQueryParser.parseFromLexeme(segment.lexemes, 0);
+
+            if (result.newIndex < segment.lexemes.length) {
+                // Guard against trailing tokens that would indicate parsing stopped prematurely.
+                const unexpected = segment.lexemes[result.newIndex];
+                const position = unexpected.position?.startPosition ?? segment.statementStart;
+                throw new Error(
+                    `[SqlParser] Unexpected token "${unexpected.value}" in statement ${statementIndex} at character ${position}.`
+                );
+            }
+
+            return result.value;
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            throw new Error(`[SqlParser] Failed to parse MERGE statement ${statementIndex}: ${message}`);
         }
     }
 

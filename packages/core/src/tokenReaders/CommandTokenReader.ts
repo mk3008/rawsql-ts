@@ -69,8 +69,6 @@ const keywordTrie = new KeywordTrie([
     ["intersect", "all"],
     ["except"],
     ["except", "all"],
-    // between and
-    ["beteen"],
     // window functions
     ["window"],
     ["over"],
@@ -106,9 +104,12 @@ const keywordTrie = new KeywordTrie([
     ["merge", "into"],
     ["matched"],
     ["not", "matched"],
+    ["not", "matched", "by", "source"],
+    ["not", "matched", "by", "target"],
     ["update", "set"],
     ["if", "not", "exists"],
     ["do", "nothing"],
+    ["insert", "default", "values"],
     ["values"],
     ["set"],
     ["returning"],
