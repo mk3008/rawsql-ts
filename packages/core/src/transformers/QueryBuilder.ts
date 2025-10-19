@@ -209,10 +209,11 @@ export class QueryBuilder {
      * @param isTemporary If true, creates a temporary table
      * @returns A CreateTableQuery instance
      */
-    public static buildCreateTableQuery(query: SelectQuery, tableName: string, isTemporary: boolean = false): CreateTableQuery {
+    public static buildCreateTableQuery(query: SelectQuery, tableName: string, isTemporary: boolean = false, ifNotExists: boolean = false): CreateTableQuery {
         return new CreateTableQuery({
             tableName,
             isTemporary,
+            ifNotExists,
             asSelectQuery: query
         });
     }

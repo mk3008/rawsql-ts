@@ -3,14 +3,16 @@ import type { SelectQuery } from '../models/SelectQuery';
 import type { InsertQuery } from '../models/InsertQuery';
 import type { UpdateQuery } from '../models/UpdateQuery';
 import type { DeleteQuery } from '../models/DeleteQuery';
+import type { CreateTableQuery } from '../models/CreateTableQuery';
 import { SqlTokenizer, StatementLexemeResult } from './SqlTokenizer';
 import { SelectQueryParser } from './SelectQueryParser';
 import { InsertQueryParser } from './InsertQueryParser';
 import { UpdateQueryParser } from './UpdateQueryParser';
 import { DeleteQueryParser } from './DeleteQueryParser';
+import { CreateTableParser } from './CreateTableParser';
 import { WithClauseParser } from './WithClauseParser';
 
-export type ParsedStatement = SelectQuery | InsertQuery | UpdateQuery | DeleteQuery;
+export type ParsedStatement = SelectQuery | InsertQuery | UpdateQuery | DeleteQuery | CreateTableQuery;
 
 export interface SqlParserOptions {
     mode?: 'single' | 'multiple';
@@ -123,6 +125,10 @@ export class SqlParser {
             return this.parseDeleteStatement(segment, statementIndex);
         }
 
+        if (firstToken === 'create table' || firstToken === 'create temporary table') {
+            return this.parseCreateTableStatement(segment, statementIndex);
+        }
+
         throw new Error(`[SqlParser] Statement ${statementIndex} starts with unsupported token "${segment.lexemes[0].value}". Support for additional statement types will be introduced soon.`);
     }
 
@@ -200,6 +206,25 @@ export class SqlParser {
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
             throw new Error(`[SqlParser] Failed to parse DELETE statement ${statementIndex}: ${message}`);
+        }
+    }
+
+    private static parseCreateTableStatement(segment: StatementLexemeResult, statementIndex: number): CreateTableQuery {
+        try {
+            const result = CreateTableParser.parseFromLexeme(segment.lexemes, 0);
+
+            if (result.newIndex < segment.lexemes.length) {
+                const unexpected = segment.lexemes[result.newIndex];
+                const position = unexpected.position?.startPosition ?? segment.statementStart;
+                throw new Error(
+                    `[SqlParser] Unexpected token "${unexpected.value}" in statement ${statementIndex} at character ${position}.`
+                );
+            }
+
+            return result.value;
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            throw new Error(`[SqlParser] Failed to parse CREATE TABLE statement ${statementIndex}: ${message}`);
         }
     }
 
