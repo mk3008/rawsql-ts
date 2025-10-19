@@ -1,4 +1,4 @@
-﻿import { BaseTokenReader } from "./BaseTokenReader";
+import { BaseTokenReader } from "./BaseTokenReader";
 import { Lexeme, TokenType } from '../models/Lexeme';
 import { KeywordTrie } from "../models/KeywordTrie";
 import { KeywordParser } from "../parsers/KeywordParser";
@@ -107,6 +107,7 @@ const keywordTrie = new KeywordTrie([
     ["matched"],
     ["not", "matched"],
     ["update", "set"],
+    ["if", "not", "exists"],
     ["do", "nothing"],
     ["values"],
     ["set"],
@@ -172,3 +173,5 @@ export class CommandTokenReader extends BaseTokenReader {
         return null;
     }
 }
+
+

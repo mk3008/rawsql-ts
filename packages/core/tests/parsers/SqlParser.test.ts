@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest';
 import { SqlParser } from '../../src/parsers/SqlParser';
 import { SimpleSelectQuery } from '../../src/models/SelectQuery';
 import { InsertQuery } from '../../src/models/InsertQuery';
+import { CreateTableQuery } from '../../src/models/CreateTableQuery';
 
 describe('SqlParser', () => {
     test('parse returns a SelectQuery for single-statement input', () => {
@@ -26,6 +27,14 @@ describe('SqlParser', () => {
             throw new Error('SqlParser.parse should return InsertQuery for INSERT statements');
         }
         expect(result.returningClause).not.toBeNull();
+    });
+
+    test('parse returns a CreateTableQuery for CREATE TABLE statements', () => {
+        const sql = 'CREATE TABLE logs AS SELECT id FROM events';
+
+        const result = SqlParser.parse(sql);
+
+        expect(result).toBeInstanceOf(CreateTableQuery);
     });
 
     test('parse throws when additional statements are present in single mode', () => {

@@ -14,17 +14,21 @@ export class CreateTableQuery extends SqlComponent {
     tableName: IdentifierString;
     /** If true, this is a temporary table */
     isTemporary: boolean;
+    /** If true, the statement includes IF NOT EXISTS */
+    ifNotExists: boolean;
     /** Optional: SELECT query for AS SELECT ... */
     asSelectQuery?: SelectQuery;
 
     constructor(params: {
         tableName: string;
         isTemporary?: boolean;
+        ifNotExists?: boolean;
         asSelectQuery?: SelectQuery;
     }) {
         super();
         this.tableName = new IdentifierString(params.tableName);
         this.isTemporary = params.isTemporary ?? false;
+        this.ifNotExists = params.ifNotExists ?? false;
         this.asSelectQuery = params.asSelectQuery;
     }
 

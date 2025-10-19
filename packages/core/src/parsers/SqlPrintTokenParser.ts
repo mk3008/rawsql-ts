@@ -2462,7 +2462,9 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     }
 
     public visitCreateTableQuery(arg: CreateTableQuery): SqlPrintToken {
-        const token = new SqlPrintToken(SqlPrintTokenType.keyword, arg.isTemporary ? 'create temporary table' : 'create table', SqlPrintTokenContainerType.CreateTableQuery);
+        const baseKeyword = arg.isTemporary ? 'create temporary table' : 'create table';
+        const keywordText = arg.ifNotExists ? `${baseKeyword} if not exists` : baseKeyword;
+        const token = new SqlPrintToken(SqlPrintTokenType.keyword, keywordText, SqlPrintTokenContainerType.CreateTableQuery);
 
         token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
         token.innerTokens.push(arg.tableName.accept(this));
