@@ -1,4 +1,4 @@
-// filepath: src/parsers/InsertQueryParser.ts
+﻿// filepath: src/parsers/InsertQueryParser.ts
 // Provides parsing for INSERT queries, supporting optional columns and WITH/SELECT/VALUES structure.
 import { InsertQuery } from "../models/InsertQuery";
 import { Lexeme, TokenType } from "../models/Lexeme";
@@ -18,7 +18,7 @@ export class InsertQueryParser {
      */
     public static parse(query: string): InsertQuery {
         const tokenizer = new SqlTokenizer(query);
-        const lexemes = tokenizer.readLexmes();
+        const lexemes = tokenizer.readLexemes();
         const result = this.parseFromLexeme(lexemes, 0);
         if (result.newIndex < lexemes.length) {
             throw new Error(`Syntax error: Unexpected token "${lexemes[result.newIndex].value}" at position ${result.newIndex}. The INSERT query is complete but there are additional tokens.`);
@@ -104,3 +104,4 @@ export class InsertQueryParser {
         };
     }
 }
+

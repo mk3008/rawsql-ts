@@ -1,4 +1,4 @@
-// Provides parsing for UPDATE queries, supporting SET, WHERE, FROM, and RETURNING clauses.
+﻿// Provides parsing for UPDATE queries, supporting SET, WHERE, FROM, and RETURNING clauses.
 import { UpdateQuery } from "../models/UpdateQuery";
 import { Lexeme } from "../models/Lexeme";
 import { SqlTokenizer } from "./SqlTokenizer";
@@ -17,7 +17,7 @@ export class UpdateQueryParser {
      */
     public static parse(query: string): UpdateQuery {
         const tokenizer = new SqlTokenizer(query);
-        const lexemes = tokenizer.readLexmes();
+        const lexemes = tokenizer.readLexemes();
         const result = this.parseFromLexeme(lexemes, 0);
         if (result.newIndex < lexemes.length) {
             throw new Error(`Syntax error: Unexpected token "${lexemes[result.newIndex].value}" at position ${result.newIndex}. The UPDATE query is complete but there are additional tokens.`);
@@ -93,3 +93,4 @@ export class UpdateQueryParser {
         };
     }
 }
+
