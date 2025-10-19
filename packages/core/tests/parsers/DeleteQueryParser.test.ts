@@ -40,6 +40,20 @@ describe("DeleteQueryParser", () => {
         expect(formatted).toBe("delete from \"public\".\"users\" returning \"id\", \"name\"");
     });
 
+    it("formats DELETE with RETURNING *", () => {
+        // Arrange
+        const sql = "DELETE FROM public.users RETURNING *";
+
+        // Act
+        const ast = DeleteQueryParser.parse(sql);
+        const formatted = new SqlFormatter().format(ast).formattedSql;
+
+        // Assert
+        expect(formatted).toBe("delete from \"public\".\"users\" returning *");
+        expect(ast.returningClause?.columns).toHaveLength(1);
+        expect(ast.returningClause?.columns[0].name).toBe("*");
+    });
+
     it("formats DELETE with USING clause", () => {
         // Arrange
         const sql = "DELETE FROM sales.orders o USING sales.customers c WHERE o.customer_id = c.id";

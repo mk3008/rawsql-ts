@@ -15,15 +15,34 @@ export class ReturningClauseParser {
         }
         idx++;
         const columns: IdentifierString[] = [];
-        while (idx < lexemes.length && lexemes[idx].type === TokenType.Identifier) {
-            columns.push(new IdentifierString(lexemes[idx].value));
-            idx++;
-            if (lexemes[idx]?.type === TokenType.Comma) {
+        while (idx < lexemes.length) {
+            const lexeme = lexemes[idx];
+
+            // Accept identifiers (column names) as RETURNING targets.
+            if (lexeme.type & TokenType.Identifier) {
+                columns.push(new IdentifierString(lexeme.value));
+                idx++;
+            }
+            // Accept '*' wildcard which is emitted as an operator token.
+            else if (lexeme.value === "*") {
+                columns.push(new IdentifierString("*"));
                 idx++;
             } else {
                 break;
             }
+
+            if (lexemes[idx]?.type === TokenType.Comma) {
+                idx++;
+                continue;
+            }
+            break;
         }
+
+        if (columns.length === 0) {
+            const position = lexemes[idx]?.position?.startPosition ?? idx;
+            throw new Error(`[ReturningClauseParser] Expected a column or '*' after RETURNING at position ${position}.`);
+        }
+
         return { value: new ReturningClause(columns), newIndex: idx };
     }
 }
