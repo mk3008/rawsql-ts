@@ -2,13 +2,15 @@
 import type { SelectQuery } from '../models/SelectQuery';
 import type { InsertQuery } from '../models/InsertQuery';
 import type { UpdateQuery } from '../models/UpdateQuery';
+import type { DeleteQuery } from '../models/DeleteQuery';
 import { SqlTokenizer, StatementLexemeResult } from './SqlTokenizer';
 import { SelectQueryParser } from './SelectQueryParser';
 import { InsertQueryParser } from './InsertQueryParser';
 import { UpdateQueryParser } from './UpdateQueryParser';
+import { DeleteQueryParser } from './DeleteQueryParser';
 import { WithClauseParser } from './WithClauseParser';
 
-export type ParsedStatement = SelectQuery | InsertQuery | UpdateQuery;
+export type ParsedStatement = SelectQuery | InsertQuery | UpdateQuery | DeleteQuery;
 
 export interface SqlParserOptions {
     mode?: 'single' | 'multiple';
@@ -21,7 +23,7 @@ export interface SqlParserManyOptions {
 
 /**
  * Canonical entry point for SQL parsing.
- * Today it delegates to SelectQueryParser, but it is designed to embrace INSERT/UPDATE/DDL parsers next.
+ * Delegates to dedicated parsers for SELECT, INSERT, UPDATE, and DELETE statements, and is designed to embrace additional statement types next.
  */
 export class SqlParser {
     public static parse(sql: string, options: SqlParserOptions = {}): ParsedStatement {
@@ -99,6 +101,9 @@ export class SqlParser {
             if (commandAfterWith === 'update') {
                 return this.parseUpdateStatement(segment, statementIndex);
             }
+            if (commandAfterWith === 'delete from') {
+                return this.parseDeleteStatement(segment, statementIndex);
+            }
             return this.parseSelectStatement(segment, statementIndex);
         }
 
@@ -112,6 +117,10 @@ export class SqlParser {
 
         if (firstToken === 'update') {
             return this.parseUpdateStatement(segment, statementIndex);
+        }
+
+        if (firstToken === 'delete from') {
+            return this.parseDeleteStatement(segment, statementIndex);
         }
 
         throw new Error(`[SqlParser] Statement ${statementIndex} starts with unsupported token "${segment.lexemes[0].value}". Support for additional statement types will be introduced soon.`);
@@ -171,6 +180,26 @@ export class SqlParser {
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
             throw new Error(`[SqlParser] Failed to parse UPDATE statement ${statementIndex}: ${message}`);
+        }
+    }
+
+    private static parseDeleteStatement(segment: StatementLexemeResult, statementIndex: number): DeleteQuery {
+        try {
+            const result = DeleteQueryParser.parseFromLexeme(segment.lexemes, 0);
+
+            // Guard against trailing tokens that would indicate multiple statements in DELETE parsing.
+            if (result.newIndex < segment.lexemes.length) {
+                const unexpected = segment.lexemes[result.newIndex];
+                const position = unexpected.position?.startPosition ?? segment.statementStart;
+                throw new Error(
+                    `[SqlParser] Unexpected token "${unexpected.value}" in statement ${statementIndex} at character ${position}.`
+                );
+            }
+
+            return result.value;
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            throw new Error(`[SqlParser] Failed to parse DELETE statement ${statementIndex}: ${message}`);
         }
     }
 

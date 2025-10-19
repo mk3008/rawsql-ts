@@ -2,7 +2,7 @@ import { InsertQueryParser } from "../../src/parsers/InsertQueryParser";
 import { InsertQuery } from "../../src/models/InsertQuery";
 import { SelectQuery } from "../../src/models/SelectQuery";
 import { describe, it, expect } from "vitest";
-import { Formatter } from "../../src/transformers/Formatter";
+import { SqlFormatter } from "../../src/transformers/SqlFormatter";
 import { TableSource, ParenSource, SourceExpression } from "../../src/models/Clause";
 
 describe("InsertQueryParser", () => {
@@ -13,7 +13,7 @@ describe("InsertQueryParser", () => {
         // Act
         const insert = InsertQueryParser.parse(sql);
         // Assert
-        const query = new Formatter().format(insert);
+        const query = new SqlFormatter().format(insert).formattedSql;
 
         // Assert
         expect(query).toBe('insert into "users" select * from "accounts"');
@@ -24,7 +24,7 @@ describe("InsertQueryParser", () => {
 
         // Act
         const insert = InsertQueryParser.parse(sql);
-        const query = new Formatter().format(insert);
+        const query = new SqlFormatter().format(insert).formattedSql;
 
         // Assert
         expect(query).toBe('insert into "users"("id", "name") select "id", "name" from "accounts"');
@@ -35,7 +35,7 @@ describe("InsertQueryParser", () => {
 
         // Act
         const insert = InsertQueryParser.parse(sql);
-        const query = new Formatter().format(insert);
+        const query = new SqlFormatter().format(insert).formattedSql;
 
         expect(query).toBe("with \"t\" as (select 1 as \"id\", 'a' as \"name\") insert into \"users\"(\"id\", \"name\") select * from \"t\"");
         expect(insert.withClause).not.toBeNull();
@@ -46,7 +46,7 @@ describe("InsertQueryParser", () => {
 
         // Act
         const insert = InsertQueryParser.parse(sql);
-        const query = new Formatter().format(insert);
+        const query = new SqlFormatter().format(insert).formattedSql;
 
         // Assert
         expect(query).toBe('insert into "db"."schema"."users"("id") select "id" from "accounts"');
@@ -56,7 +56,7 @@ describe("InsertQueryParser", () => {
         const sql = "INSERT INTO users VALUES (1, 'a')";
 
         const insert = InsertQueryParser.parse(sql);
-        const query = new Formatter().format(insert);
+        const query = new SqlFormatter().format(insert).formattedSql;
 
         expect(query).toBe("insert into \"users\" values (1, 'a')");
         expect(insert.insertClause.columns).toBeNull();
@@ -66,9 +66,21 @@ describe("InsertQueryParser", () => {
         const sql = "INSERT INTO users (id, name) VALUES (1, 'a') RETURNING id, name";
 
         const insert = InsertQueryParser.parse(sql);
-        const query = new Formatter().format(insert);
+        const query = new SqlFormatter().format(insert).formattedSql;
 
         expect(query).toBe("insert into \"users\"(\"id\", \"name\") values (1, 'a') returning \"id\", \"name\"");
         expect(insert.returningClause).not.toBeNull();
     });
+
+    it("parses INSERT ... RETURNING *", () => {
+        const sql = "INSERT INTO users (id, name) VALUES (1, 'a') RETURNING *";
+
+        const insert = InsertQueryParser.parse(sql);
+        const query = new SqlFormatter().format(insert).formattedSql;
+
+        expect(query).toBe("insert into \"users\"(\"id\", \"name\") values (1, 'a') returning *");
+        expect(insert.returningClause?.columns).toHaveLength(1);
+        expect(insert.returningClause?.columns[0].name).toBe("*");
+    });
 });
+

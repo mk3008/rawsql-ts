@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { UpdateQueryParser } from "../../src/parsers/UpdateQueryParser";
 import { UpdateQuery } from "../../src/models/UpdateQuery";
-import { Formatter } from "../../src/transformers/Formatter";
+import { SqlFormatter } from "../../src/transformers/SqlFormatter";
 
 describe("UpdateQueryParser", () => {
     it("formats UPDATE with table alias in updateTableExpr", () => {
@@ -10,7 +10,7 @@ describe("UpdateQueryParser", () => {
 
         // Act
         const ast = UpdateQueryParser.parse(sql);
-        const formatted = new Formatter().format(ast);
+        const formatted = new SqlFormatter().format(ast).formattedSql;
 
         // Assert
         expect(formatted).toBe("update \"users\" as \"u\" set \"name\" = 'AliasTest' where \"u\".\"id\" = 10");
@@ -24,7 +24,7 @@ describe("UpdateQueryParser", () => {
         const ast = UpdateQueryParser.parse(sql);
 
         // Assert
-        const formatted = new Formatter().format(ast);
+        const formatted = new SqlFormatter().format(ast).formattedSql;
         expect(formatted).toBe("update \"users\" set \"name\" = 'Alice', \"age\" = 18 where \"id\" = 1");
     });
 
@@ -34,10 +34,24 @@ describe("UpdateQueryParser", () => {
 
         // Act
         const ast = UpdateQueryParser.parse(sql);
-        const formatted = new Formatter().format(ast);
+        const formatted = new SqlFormatter().format(ast).formattedSql;
 
         // Assert
         expect(formatted).toBe("update \"public\".\"users\" set \"active\" = true returning \"id\", \"name\"");
+    });
+
+    it("formats UPDATE with RETURNING *", () => {
+        // Arrange
+        const sql = "UPDATE public.users SET active = true RETURNING *";
+
+        // Act
+        const ast = UpdateQueryParser.parse(sql);
+        const formatted = new SqlFormatter().format(ast).formattedSql;
+
+        // Assert
+        expect(formatted).toBe("update \"public\".\"users\" set \"active\" = true returning *");
+        expect(ast.returningClause?.columns).toHaveLength(1);
+        expect(ast.returningClause?.columns[0].name).toBe("*");
     });
 
     it("formats UPDATE ... FROM ...", () => {
@@ -46,7 +60,7 @@ describe("UpdateQueryParser", () => {
 
         // Act
         const ast = UpdateQueryParser.parse(sql);
-        const formatted = new Formatter().format(ast);
+        const formatted = new SqlFormatter().format(ast).formattedSql;
 
         // Assert
         expect(formatted).toBe("update \"users\" set \"name\" = 'Bob' from \"other_users\" where \"users\".\"id\" = \"other_users\".\"id\"");
@@ -58,9 +72,10 @@ describe("UpdateQueryParser", () => {
 
         // Act
         const ast = UpdateQueryParser.parse(sql);
-        const formatted = new Formatter().format(ast);
+        const formatted = new SqlFormatter().format(ast).formattedSql;
 
         // Assert
         expect(formatted).toBe('with "active_users" as (select "id" from "users" where "active" = true) update "users" set "name" = \'CTE\' where "id" in (select "id" from "active_users")');
     });
 });
+

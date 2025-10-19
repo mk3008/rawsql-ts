@@ -335,6 +335,18 @@ export class FromClause extends SqlComponent {
     }
 }
 
+export class UsingClause extends SqlComponent {
+    static kind = Symbol("UsingClause");
+    sources: SourceExpression[];
+    constructor(sources: SourceExpression[]) {
+        super();
+        this.sources = sources;
+    }
+    public getSources(): SourceExpression[] {
+        return [...this.sources];
+    }
+}
+
 export class CommonTable extends SqlComponent {
     static kind = Symbol("CommonTable");
     query: SelectQuery;
@@ -541,6 +553,18 @@ export class UpdateClause extends SqlComponent {
             return this.source.datasource.table.name;
         }
         return null;
+    }
+}
+
+export class DeleteClause extends SqlComponent {
+    static kind = Symbol("DeleteClause");
+    source: SourceExpression;
+    constructor(source: SourceExpression) {
+        super();
+        this.source = source;
+    }
+    public getSourceAliasName(): string | null {
+        return this.source.getAliasName();
     }
 }
 
