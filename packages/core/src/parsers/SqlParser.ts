@@ -93,7 +93,7 @@ export class SqlParser {
 
         if (firstToken === 'with') {
             const commandAfterWith = this.getCommandAfterWith(segment.lexemes);
-            if (commandAfterWith?.startsWith('insert')) {
+            if (commandAfterWith === 'insert into') {
                 return this.parseInsertStatement(segment, statementIndex);
             }
             if (commandAfterWith === 'update') {
@@ -106,7 +106,7 @@ export class SqlParser {
             return this.parseSelectStatement(segment, statementIndex);
         }
 
-        if (firstToken.startsWith('insert')) {
+        if (firstToken === 'insert into') {
             return this.parseInsertStatement(segment, statementIndex);
         }
 
@@ -229,6 +229,7 @@ export class SqlParser {
         }
     }
 }
+
 
 
 
