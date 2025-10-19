@@ -5,7 +5,7 @@ import { SqlFormatter } from '../../src/transformers/SqlFormatter';
 import { CreateTableQuery } from '../../src/models/CreateTableQuery';
 
 
-describe('QueryBuilder.toCreateTableQuery', () => {
+describe('QueryBuilder.buildCreateTableQuery', () => {
     it('should convert a simple SELECT to CREATE TABLE ... AS SELECT', () => {
         // Arrange
         const select = SelectQueryParser.parse('SELECT id, name FROM users');
@@ -45,4 +45,3 @@ describe('QueryBuilder.toCreateTableQuery', () => {
         expect(sql).toBe('create table if not exists "logs" as select "id" from "users"');
     });
 });
-

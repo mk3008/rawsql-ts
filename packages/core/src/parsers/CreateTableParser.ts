@@ -77,26 +77,35 @@ export class CreateTableParser {
         }
 
         let asSelectQuery: SelectQuery | undefined;
-        if (lexemes[idx]?.value === "as") {
+        const nextValue = tokenAt(0);
+        if (nextValue === "as") {
             idx++;
             const selectResult = SelectQueryParser.parseFromLexeme(lexemes, idx);
             asSelectQuery = selectResult.value;
             idx = selectResult.newIndex;
-        } else if (lexemes[idx]?.value === "select" || lexemes[idx]?.value === "with") {
+        } else if (nextValue === "select" || nextValue === "with" || nextValue === "values") {
             // Allow omitting AS keyword before SELECT / WITH.
             const selectResult = SelectQueryParser.parseFromLexeme(lexemes, idx);
             asSelectQuery = selectResult.value;
             idx = selectResult.newIndex;
         }
 
-        return {
-            value: new CreateTableQuery({
-                tableName,
-                isTemporary,
-                ifNotExists,
-                asSelectQuery
-            }),
-            newIndex: idx
-        };
+        const resultQuery = new CreateTableQuery({
+            tableName,
+            isTemporary,
+            ifNotExists,
+            asSelectQuery
+        });
+        if (tableIdentifier?.positionedComments?.length) {
+            resultQuery.tableName.positionedComments = tableIdentifier.positionedComments.map(pc => ({
+                position: pc.position,
+                comments: [...pc.comments]
+            }));
+        }
+        if (tableIdentifier?.comments?.length) {
+            resultQuery.tableName.comments = [...tableIdentifier.comments];
+        }
+
+        return { value: resultQuery, newIndex: idx };
     }
 }
