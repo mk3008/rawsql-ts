@@ -23,7 +23,7 @@ export interface SqlParserManyOptions {
 
 /**
  * Canonical entry point for SQL parsing.
- * Today it delegates to SelectQueryParser, but it is designed to embrace INSERT/UPDATE/DDL parsers next.
+ * Delegates to dedicated parsers for SELECT, INSERT, UPDATE, and DELETE statements, and is designed to embrace additional statement types next.
  */
 export class SqlParser {
     public static parse(sql: string, options: SqlParserOptions = {}): ParsedStatement {

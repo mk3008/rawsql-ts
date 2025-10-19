@@ -42,14 +42,14 @@ describe("DeleteQueryParser", () => {
 
     it("formats DELETE with USING clause", () => {
         // Arrange
-        const sql = "DELETE FROM users USING other_users WHERE users.id = other_users.id";
+        const sql = "DELETE FROM sales.orders o USING sales.customers c WHERE o.customer_id = c.id";
 
         // Act
         const ast = DeleteQueryParser.parse(sql);
         const formatted = new SqlFormatter().format(ast).formattedSql;
 
         // Assert
-        expect(formatted).toBe("delete from \"users\" using \"other_users\" where \"users\".\"id\" = \"other_users\".\"id\"");
+        expect(formatted).toBe("delete from \"sales\".\"orders\" as \"o\" using \"sales\".\"customers\" as \"c\" where \"o\".\"customer_id\" = \"c\".\"id\"");
     });
 
     it("formats DELETE with CTE (WITH clause)", () => {
@@ -64,9 +64,33 @@ describe("DeleteQueryParser", () => {
         expect(formatted).toBe('with "old_users" as (select "id" from "users" where "active" = false) delete from "users" where "id" in (select "id" from "old_users")');
     });
 
+    it("parses DELETE with WITH RECURSIVE CTE", () => {
+        // Arrange
+        const sql = `
+            WITH RECURSIVE subordinates AS (
+                SELECT id, manager_id FROM employees WHERE manager_id = 1
+                UNION ALL
+                SELECT e.id, e.manager_id
+                FROM employees e
+                JOIN subordinates s ON s.id = e.manager_id
+            )
+            DELETE FROM employees e USING subordinates s WHERE e.id = s.id
+        `;
+
+        // Act
+        const ast = DeleteQueryParser.parse(sql);
+
+        // Assert
+        expect(ast.withClause).not.toBeNull();
+        expect(ast.withClause?.recursive).toBe(true);
+        expect(ast.withClause?.tables.length).toBeGreaterThan(0);
+        const formatted = new SqlFormatter().format(ast).formattedSql;
+        expect(formatted).toContain('with recursive "subordinates" as');
+    });
+
     it("parses USING clause sources and aliases", () => {
         // Arrange
-        const sql = "DELETE FROM orders o USING customers c, warehouses w WHERE o.customer_id = c.id AND o.warehouse_id = w.id";
+        const sql = "DELETE FROM sales.orders o USING sales.customers c, logistics.warehouses w WHERE o.customer_id = c.id AND o.warehouse_id = w.id";
 
         // Act
         const ast = DeleteQueryParser.parse(sql);
@@ -81,9 +105,9 @@ describe("DeleteQueryParser", () => {
         expect(warehousesSource.getAliasName()).toBe("w");
 
         expect(customersSource.datasource).toBeInstanceOf(TableSource);
-        expect((customersSource.datasource as TableSource).getSourceName()).toBe("customers");
+        expect((customersSource.datasource as TableSource).getSourceName()).toBe("sales.customers");
 
         expect(warehousesSource.datasource).toBeInstanceOf(TableSource);
-        expect((warehousesSource.datasource as TableSource).getSourceName()).toBe("warehouses");
+        expect((warehousesSource.datasource as TableSource).getSourceName()).toBe("logistics.warehouses");
     });
 });

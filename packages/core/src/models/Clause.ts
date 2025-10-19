@@ -343,7 +343,7 @@ export class UsingClause extends SqlComponent {
         this.sources = sources;
     }
     public getSources(): SourceExpression[] {
-        return this.sources;
+        return [...this.sources];
     }
 }
 
@@ -564,13 +564,7 @@ export class DeleteClause extends SqlComponent {
         this.source = source;
     }
     public getSourceAliasName(): string | null {
-        if (this.source.aliasExpression) {
-            return this.source.aliasExpression.table.name;
-        }
-        else if (this.source.datasource instanceof TableSource) {
-            return this.source.datasource.table.name;
-        }
-        return null;
+        return this.source.getAliasName();
     }
 }
 
