@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { SelectQueryParser } from '../../src/parsers/SelectQueryParser';
 import { QueryBuilder } from '../../src/transformers/QueryBuilder';
-import { Formatter } from '../../src/transformers/Formatter';
+import { SqlFormatter } from '../../src/transformers/SqlFormatter';
 import { SimpleSelectQuery } from '../../src/models/SimpleSelectQuery';
 
 describe('buildUpdateQuery', () => {
@@ -12,7 +12,7 @@ describe('buildUpdateQuery', () => {
 
         // Act
         const update = QueryBuilder.buildUpdateQuery(select, "src", 'exam_results', 'id');
-        const sql = new Formatter().format(update);
+        const sql = new SqlFormatter().format(update).formattedSql;
 
         // Assert
         // Check that the WITH clause is correctly reflected in the UPDATE statement
@@ -27,7 +27,7 @@ describe('buildUpdateQuery', () => {
         // Act
         // Include an alias in updateTableExpr (e.g. "exam_results er")
         const update = QueryBuilder.buildUpdateQuery(select, "src", 'exam_results er', 'id');
-        const sql = new Formatter().format(update);
+        const sql = new SqlFormatter().format(update).formattedSql;
 
         // Assert
         // Confirm that the UPDATE statement is generated correctly with alias
@@ -40,7 +40,7 @@ describe('buildUpdateQuery', () => {
 
         // Act
         const update = QueryBuilder.buildUpdateQuery(select, "src", 'users', 'id');
-        const sql = new Formatter().format(update);
+        const sql = new SqlFormatter().format(update).formattedSql;
 
         // Assert
         expect(sql).toContain('update "users" set "name" = "users"."name", "age" = "users"."age" from (select "id", "name", "age" from "users_new") as "src" where "users"."id" = "src"."id"');
@@ -53,7 +53,7 @@ describe('buildUpdateQuery', () => {
 
         // Act
         const update = QueryBuilder.buildUpdateQuery(select, "src", 'order_details', ['order_id', 'item_id']);
-        const sql = new Formatter().format(update);
+        const sql = new SqlFormatter().format(update).formattedSql;
 
         // Assert
         expect(sql).toContain('update "order_details" set "quantity" = "order_details"."quantity" from (select "order_id", "item_id", "quantity" from "order_items") as "src" where "order_details"."order_id" = "src"."order_id" and "order_details"."item_id" = "src"."item_id"');
