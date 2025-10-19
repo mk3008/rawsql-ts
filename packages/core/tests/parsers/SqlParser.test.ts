@@ -3,6 +3,7 @@ import { SqlParser } from '../../src/parsers/SqlParser';
 import { SimpleSelectQuery } from '../../src/models/SelectQuery';
 import { InsertQuery } from '../../src/models/InsertQuery';
 import { CreateTableQuery } from '../../src/models/CreateTableQuery';
+import { MergeQuery } from '../../src/models/MergeQuery';
 
 describe('SqlParser', () => {
     test('parse returns a SelectQuery for single-statement input', () => {
@@ -35,6 +36,20 @@ describe('SqlParser', () => {
         const result = SqlParser.parse(sql);
 
         expect(result).toBeInstanceOf(CreateTableQuery);
+    });
+
+    test('parse returns a MergeQuery for MERGE statements', () => {
+        const sql = `
+            MERGE INTO target t
+            USING source s
+            ON t.id = s.id
+            WHEN MATCHED THEN UPDATE SET name = s.name
+            WHEN NOT MATCHED THEN INSERT (id, name) VALUES (s.id, s.name);
+        `;
+
+        const result = SqlParser.parse(sql);
+
+        expect(result).toBeInstanceOf(MergeQuery);
     });
 
     test('parse throws when additional statements are present in single mode', () => {

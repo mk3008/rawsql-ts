@@ -5,6 +5,7 @@ export { ParseAnalysisResult } from './parsers/SelectQueryParser';
 export * from './parsers/InsertQueryParser';
 export * from './parsers/WithClauseParser';
 export * from './parsers/CreateTableParser';
+export * from './parsers/MergeQueryParser';
 
 export * from './models/BinarySelectQuery';
 export * from './models/SelectQuery';
@@ -14,6 +15,7 @@ export * from './models/ValuesQuery';
 export * from './models/CTEError';
 export * from './models/Lexeme';
 export * from './models/FormattingLexeme';
+export * from './models/MergeQuery';
 
 export * from './transformers/CTECollector';
 export * from './transformers/CTENormalizer';
