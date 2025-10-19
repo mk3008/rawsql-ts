@@ -1,4 +1,4 @@
-﻿import { PartitionByClause, OrderByClause, OrderByItem, SelectClause, SelectItem, Distinct, DistinctOn, SortDirection, NullsSortDirection, TableSource, SourceExpression, FromClause, JoinClause, JoinOnClause, JoinUsingClause, FunctionSource, SourceAliasExpression, WhereClause, GroupByClause, HavingClause, SubQuerySource, WindowFrameClause, LimitClause, ForClause, OffsetClause, WindowsClause as WindowClause, CommonTable, WithClause, FetchClause, FetchExpression, InsertClause, UpdateClause, SetClause, ReturningClause, SetClauseItem } from "../models/Clause";
+﻿import { PartitionByClause, OrderByClause, OrderByItem, SelectClause, SelectItem, Distinct, DistinctOn, SortDirection, NullsSortDirection, TableSource, SourceExpression, FromClause, JoinClause, JoinOnClause, JoinUsingClause, FunctionSource, SourceAliasExpression, WhereClause, GroupByClause, HavingClause, SubQuerySource, WindowFrameClause, LimitClause, ForClause, OffsetClause, WindowsClause as WindowClause, CommonTable, WithClause, FetchClause, FetchExpression, InsertClause, UpdateClause, DeleteClause, UsingClause, SetClause, ReturningClause, SetClauseItem } from "../models/Clause";
 import { HintClause } from "../models/HintClause";
 import { BinarySelectQuery, SimpleSelectQuery, ValuesQuery } from "../models/SelectQuery";
 import { SqlComponent, SqlComponentVisitor } from "../models/SqlComponent";
@@ -38,6 +38,7 @@ import { IdentifierDecorator } from "./IdentifierDecorator";
 import { ParameterDecorator } from "./ParameterDecorator";
 import { InsertQuery } from "../models/InsertQuery";
 import { UpdateQuery } from "../models/UpdateQuery";
+import { DeleteQuery } from "../models/DeleteQuery";
 import { CreateTableQuery } from "../models/CreateTableQuery";
 
 export enum ParameterStyle {
@@ -302,6 +303,9 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         this.handlers.set(InsertClause.kind, (expr) => this.visitInsertClause(expr as InsertClause));
         this.handlers.set(UpdateQuery.kind, (expr) => this.visitUpdateQuery(expr as UpdateQuery));
         this.handlers.set(UpdateClause.kind, (expr) => this.visitUpdateClause(expr as UpdateClause));
+        this.handlers.set(DeleteQuery.kind, (expr) => this.visitDeleteQuery(expr as DeleteQuery));
+        this.handlers.set(DeleteClause.kind, (expr) => this.visitDeleteClause(expr as DeleteClause));
+        this.handlers.set(UsingClause.kind, (expr) => this.visitUsingClause(expr as UsingClause));
         this.handlers.set(SetClause.kind, (expr) => this.visitSetClause(expr as SetClause));
         this.handlers.set(SetClauseItem.kind, (expr) => this.visitSetClauseItem(expr as SetClauseItem));
         this.handlers.set(ReturningClause.kind, (expr) => this.visitReturningClause(expr as ReturningClause));
@@ -2315,6 +2319,65 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
                 token.innerTokens.push(arg.columns[i].accept(this));
             }
             token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
+        }
+
+        return token;
+    }
+
+    private visitDeleteQuery(arg: DeleteQuery): SqlPrintToken {
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.DeleteQuery);
+
+        // Attach WITH clause tokens when present before the DELETE command.
+        if (arg.withClause) {
+            token.innerTokens.push(arg.withClause.accept(this));
+        }
+
+        token.innerTokens.push(arg.deleteClause.accept(this));
+
+        // Append USING clause when the DELETE references additional sources.
+        if (arg.usingClause) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(arg.usingClause.accept(this));
+        }
+
+        // Append WHERE clause to restrict affected rows.
+        if (arg.whereClause) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(arg.whereClause.accept(this));
+        }
+
+        // Append RETURNING clause when the DELETE yields output columns.
+        if (arg.returningClause) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(arg.returningClause.accept(this));
+        }
+
+        return token;
+    }
+
+    public visitDeleteClause(arg: DeleteClause): SqlPrintToken {
+        const token = new SqlPrintToken(SqlPrintTokenType.keyword, 'delete from', SqlPrintTokenContainerType.DeleteClause);
+
+        // Render the target relation immediately after the DELETE FROM keyword.
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(arg.source.accept(this));
+
+        return token;
+    }
+
+    public visitUsingClause(arg: UsingClause): SqlPrintToken {
+        const token = new SqlPrintToken(SqlPrintTokenType.keyword, 'using', SqlPrintTokenContainerType.UsingClause);
+
+        if (arg.sources.length > 0) {
+            // Attach the first USING source directly after the keyword.
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            for (let i = 0; i < arg.sources.length; i++) {
+                if (i > 0) {
+                    // Separate subsequent sources with comma and space for clarity.
+                    token.innerTokens.push(...SqlPrintTokenParser.commaSpaceTokens());
+                }
+                token.innerTokens.push(this.visit(arg.sources[i]));
+            }
         }
 
         return token;
