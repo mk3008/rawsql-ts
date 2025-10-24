@@ -28,28 +28,25 @@ describe('buildInsertQuery', () => {
         expect(sql).toBe('insert into "accounts"("id", "email") select "id", "email" from "accounts_backup"');
     });
 
-    it('drops missing optional columns when select output is underspecified', () => {
+    it('throws when explicit columns reference missing select columns', () => {
         const select = SelectQueryParser.parse('SELECT 1 AS id') as SimpleSelectQuery;
 
-        const insert = QueryBuilder.buildInsertQuery(select, {
+        expect(() => QueryBuilder.buildInsertQuery(select, {
             target: 'users',
             columns: ['id', 'name']
-        });
-        const sql = new SqlFormatter().format(insert).formattedSql;
-
-        expect(sql).toBe('insert into "users"("id") select 1 as "id"');
+        })).toThrowError('Columns specified in conversion options were not found in selectQuery select list: [name].');
     });
 
-    it('removes extra columns from select when using explicit column list', () => {
+    it('filters the select clause to the provided columns', () => {
         const select = SelectQueryParser.parse("SELECT 1 AS id, 'a' AS name, 2 AS value") as SimpleSelectQuery;
 
         const insert = QueryBuilder.buildInsertQuery(select, {
             target: 'users',
-            columns: ['id', 'name']
+            columns: ['name', 'id']
         });
         const sql = new SqlFormatter().format(insert).formattedSql;
 
-        expect(sql).toBe("insert into \"users\"(\"id\", \"name\") select 1 as \"id\", 'a' as \"name\"");
+        expect(sql).toBe("insert into \"users\"(\"name\", \"id\") select 'a' as \"name\", 1 as \"id\"");
     });
 
     it('throws when select output has no overlap with explicit columns', () => {
@@ -58,6 +55,27 @@ describe('buildInsertQuery', () => {
         expect(() => QueryBuilder.buildInsertQuery(select, {
             target: 'users',
             columns: ['id', 'name']
-        })).toThrowError('No overlapping columns found between selectQuery and provided columns.');
+        })).toThrowError('Columns specified in conversion options were not found in selectQuery select list: [id, name].');
+    });
+
+    it('throws when select output uses wildcard columns', () => {
+        const select = SelectQueryParser.parse('SELECT 1') as SimpleSelectQuery;
+
+        expect(() => QueryBuilder.buildInsertQuery(select, {
+            target: 'users',
+            columns: ['id']
+        })).toThrowError('Unable to determine any column names from selectQuery.');
+    });
+
+    it('reorders select output to match explicit column order', () => {
+        const select = SelectQueryParser.parse('SELECT id, name FROM users_src') as SimpleSelectQuery;
+
+        const insert = QueryBuilder.buildInsertQuery(select, {
+            target: 'users',
+            columns: ['name', 'id']
+        });
+        const sql = new SqlFormatter().format(insert).formattedSql;
+
+        expect(sql).toBe('insert into "users"("name", "id") select "name", "id" from "users_src"');
     });
 });

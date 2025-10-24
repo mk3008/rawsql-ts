@@ -1,7 +1,6 @@
 import { SourceExpression, SubQuerySource, SourceAliasExpression } from "./Clause";
 import type {
     SelectQuery,
-    CTEOptions,
     InsertQueryConversionOptions,
     UpdateQueryConversionOptions,
     DeleteQueryConversionOptions,
@@ -11,7 +10,6 @@ import { SqlComponent } from "./SqlComponent";
 import { RawString, SqlParameterValue } from "./ValueComponent";
 import { CTENormalizer } from "../transformers/CTENormalizer";
 import { SelectQueryParser } from "../parsers/SelectQueryParser";
-import { ParameterCollector } from "../transformers/ParameterCollector";
 import { ParameterHelper } from "../utils/ParameterHelper";
 import { QueryBuilder } from "../transformers/QueryBuilder";
 import { SimpleSelectQuery } from "./SimpleSelectQuery";

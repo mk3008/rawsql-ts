@@ -392,28 +392,6 @@ export class QueryBuilder {
         return { ...targetOrOptions };
     }
 
-    private static resolveInsertColumns(selectQuery: SimpleSelectQuery, options: InsertQueryConversionOptions): string[] {
-        const selectItemCount = selectQuery.selectClause.items.length;
-        if (options.columns && options.columns.length > 0) {
-            if (options.columns.length !== selectItemCount) {
-                throw new Error(`The number of provided columns (${options.columns.length}) must match the select list size (${selectItemCount}).`);
-            }
-            return [...options.columns];
-        }
-
-        const items = QueryBuilder.collectSelectItems(selectQuery);
-        const inferred = items.map(item => item.name).filter(name => name !== '*');
-        if (!inferred.length || inferred.length !== selectItemCount) {
-            throw new Error(
-                `Columns cannot be inferred from the selectQuery. Make sure you are not using wildcards or unnamed columns.\n` +
-                `Select clause column count: ${selectItemCount}, ` +
-                `Columns with valid names: ${inferred.length}\n` +
-                `Detected column names: [${inferred.join(", ")}]`
-            );
-        }
-        return inferred;
-    }
-
     private static normalizeUpdateOptions(selectSourceOrOptions: string | UpdateQueryConversionOptions, updateTableExprRaw?: string, primaryKeys?: string | string[]): { target: string; primaryKeys: string[]; sourceAlias: string; columns?: string[] } {
         if (typeof selectSourceOrOptions === 'string') {
             if (!updateTableExprRaw) {
@@ -500,14 +478,14 @@ export class QueryBuilder {
         const selectColumns = QueryBuilder.collectSelectColumnNames(selectQuery);
         if (optionColumns && optionColumns.length > 0) {
             const normalized = QueryBuilder.normalizeColumnArray(optionColumns);
-            const allowed = new Set(normalized);
-            const finalColumns = selectColumns.filter(name => allowed.has(name));
-            if (!finalColumns.length) {
-                throw new Error('No overlapping columns found between selectQuery and provided columns.');
+            const uniqueNormalized = normalized.filter((name, idx) => normalized.indexOf(name) === idx);
+            const missing = uniqueNormalized.filter(name => !selectColumns.includes(name));
+            if (missing.length > 0) {
+                throw new Error(`Columns specified in conversion options were not found in selectQuery select list: [${missing.join(', ')}].`);
             }
-            QueryBuilder.rebuildSelectClause(selectQuery, finalColumns);
-            QueryBuilder.ensureSelectClauseSize(selectQuery, finalColumns.length);
-            return finalColumns;
+            QueryBuilder.rebuildSelectClause(selectQuery, uniqueNormalized);
+            QueryBuilder.ensureSelectClauseSize(selectQuery, uniqueNormalized.length);
+            return uniqueNormalized;
         }
         QueryBuilder.ensureSelectClauseSize(selectQuery, selectColumns.length);
         return selectColumns;
@@ -520,25 +498,27 @@ export class QueryBuilder {
         const primaryKeySet = new Set(primaryKeys);
         const updateCandidates = selectColumns.filter(name => !primaryKeySet.has(name));
 
-        let selectedUpdateColumns = updateCandidates;
+        let updateColumnsOrdered: string[];
         if (explicitColumns && explicitColumns.length > 0) {
             const normalized = QueryBuilder.normalizeColumnArray(explicitColumns);
-            const preferred = new Set(normalized);
-            selectedUpdateColumns = updateCandidates.filter(name => preferred.has(name));
-            if (!selectedUpdateColumns.length) {
-                throw new Error('No matching columns found between selectQuery and provided update columns.');
+            const uniqueNormalized = normalized.filter((name, idx) => normalized.indexOf(name) === idx);
+            const missing = uniqueNormalized.filter(name => primaryKeySet.has(name) || !updateCandidates.includes(name));
+            if (missing.length > 0) {
+                throw new Error(`Provided update columns were not found in selectQuery output or are primary keys: [${missing.join(', ')}].`);
             }
+            updateColumnsOrdered = uniqueNormalized;
+        } else {
+            updateColumnsOrdered = Array.from(new Set(updateCandidates));
         }
 
-        const requiredColumns = new Set<string>();
-        primaryKeys.forEach(key => requiredColumns.add(key));
-        selectedUpdateColumns.forEach(col => requiredColumns.add(col));
-
-        const desiredOrder = selectColumns.filter(name => requiredColumns.has(name));
+        const desiredOrder = Array.from(new Set([
+            ...primaryKeys,
+            ...updateColumnsOrdered
+        ]));
         QueryBuilder.rebuildSelectClause(selectQuery, desiredOrder);
         QueryBuilder.ensureSelectClauseSize(selectQuery, desiredOrder.length);
 
-        return desiredOrder.filter(name => !primaryKeySet.has(name));
+        return updateColumnsOrdered;
     }
 
     private static prepareDeleteColumns(selectQuery: SimpleSelectQuery, primaryKeys: string[], explicitColumns: string[] | null): string[] {
@@ -577,43 +557,51 @@ export class QueryBuilder {
 
         const primaryKeySet = new Set(primaryKeys);
 
-        let updateColumnsSeed: string[] = [];
+        let updateColumnsOrdered: string[] = [];
         if (matchedAction === 'update') {
             const candidates = selectColumns.filter(name => !primaryKeySet.has(name));
             if (explicitUpdateColumns && explicitUpdateColumns.length > 0) {
                 const normalized = QueryBuilder.normalizeColumnArray(explicitUpdateColumns);
-                const preferred = new Set(normalized);
-                updateColumnsSeed = candidates.filter(name => preferred.has(name));
+                const uniqueNormalized = normalized.filter((name, idx) => normalized.indexOf(name) === idx);
+                const missing = uniqueNormalized.filter(name => primaryKeySet.has(name) || !candidates.includes(name));
+                if (missing.length > 0) {
+                    throw new Error(`Provided update columns were not found in selectQuery output or are primary keys: [${missing.join(', ')}].`);
+                }
+                updateColumnsOrdered = uniqueNormalized;
             } else {
-                updateColumnsSeed = candidates;
+                updateColumnsOrdered = Array.from(new Set(candidates));
             }
         }
 
-        let insertColumnsSeed: string[] = [];
+        let insertColumnsOrdered: string[] = [];
         if (notMatchedAction === 'insert') {
             if (explicitInsertColumns && explicitInsertColumns.length > 0) {
                 const normalized = QueryBuilder.normalizeColumnArray(explicitInsertColumns);
-                const preferred = new Set(normalized);
-                insertColumnsSeed = selectColumns.filter(name => preferred.has(name));
+                const uniqueNormalized = normalized.filter((name, idx) => normalized.indexOf(name) === idx);
+                const missing = uniqueNormalized.filter(name => !selectColumns.includes(name));
+                if (missing.length > 0) {
+                    throw new Error(`Provided insert columns were not found in selectQuery output: [${missing.join(', ')}].`);
+                }
+                insertColumnsOrdered = uniqueNormalized;
             } else {
-                insertColumnsSeed = selectColumns;
+                insertColumnsOrdered = Array.from(new Set(selectColumns));
             }
         }
 
-        const requiredColumns = new Set<string>();
-        primaryKeys.forEach(key => requiredColumns.add(key));
-        updateColumnsSeed.forEach(col => requiredColumns.add(col));
-        insertColumnsSeed.forEach(col => requiredColumns.add(col));
-
-        const desiredOrder = selectColumns.filter(name => requiredColumns.has(name));
+        const desiredOrder = Array.from(new Set([
+            ...primaryKeys,
+            ...updateColumnsOrdered,
+            ...insertColumnsOrdered,
+            ...selectColumns
+        ])).filter(name => selectColumns.includes(name));
         QueryBuilder.rebuildSelectClause(selectQuery, desiredOrder);
         QueryBuilder.ensureSelectClauseSize(selectQuery, desiredOrder.length);
 
         const finalUpdateColumns = matchedAction === 'update'
-            ? desiredOrder.filter(name => !primaryKeySet.has(name) && updateColumnsSeed.includes(name))
+            ? updateColumnsOrdered
             : [];
         const finalInsertColumns = notMatchedAction === 'insert'
-            ? desiredOrder.filter(name => insertColumnsSeed.includes(name))
+            ? insertColumnsOrdered
             : [];
 
         return {

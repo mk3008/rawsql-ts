@@ -1,5 +1,4 @@
 import { ParameterHelper } from "../utils/ParameterHelper";
-import { ParameterCollector } from "../transformers/ParameterCollector";
 import { QueryBuilder } from "../transformers/QueryBuilder";
 import type {
     SelectQuery,

@@ -63,14 +63,14 @@ describe('buildMergeQuery', () => {
         expect(mergeQuery.whenClauses[2].action).toBeInstanceOf(MergeDeleteAction);
     });
 
-    it('drops missing merge columns when select output omits them', () => {
+    it('respects explicit merge column order when subsets are provided', () => {
         const select = SelectQueryParser.parse('SELECT id, name FROM incoming_users') as SimpleSelectQuery;
 
         const mergeQuery = QueryBuilder.buildMergeQuery(select, {
             target: 'users u',
             primaryKeys: 'id',
-            updateColumns: ['name', 'age'],
-            insertColumns: ['id', 'name', 'age'],
+            updateColumns: ['name'],
+            insertColumns: ['name', 'id'],
             sourceAlias: 'src'
         });
 
@@ -78,7 +78,7 @@ describe('buildMergeQuery', () => {
         expect(updateAction.setClause.items.map(item => item.column.name)).toEqual(['name']);
 
         const insertAction = mergeQuery.whenClauses.find(clause => clause.matchType === 'not_matched')?.action as MergeInsertAction;
-        expect(insertAction.columns?.map(col => col.name)).toEqual(['id', 'name']);
+        expect(insertAction.columns?.map(col => col.name)).toEqual(['name', 'id']);
     });
 
     it('removes extra select columns when explicit merge lists are provided', () => {
@@ -107,7 +107,7 @@ describe('buildMergeQuery', () => {
             primaryKeys: 'id',
             updateColumns: ['name'],
             sourceAlias: 'src'
-        })).toThrowError('No columns available for MERGE update action. Provide updateColumns or ensure the select list includes non-key columns.');
+        })).toThrowError('Provided update columns were not found in selectQuery output or are primary keys: [name].');
     });
 
     it('throws when merge insert columns do not match select output', () => {
@@ -120,6 +120,6 @@ describe('buildMergeQuery', () => {
             notMatchedAction: 'insert',
             insertColumns: ['name'],
             sourceAlias: 'src'
-        })).toThrowError('Unable to infer MERGE insert columns. Provide insertColumns explicitly.');
+        })).toThrowError('Provided insert columns were not found in selectQuery output: [name].');
     });
 });

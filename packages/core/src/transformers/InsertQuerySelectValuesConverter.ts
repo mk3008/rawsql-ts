@@ -1,9 +1,10 @@
 import { InsertQuery } from "../models/InsertQuery";
 import { ValuesQuery } from "../models/ValuesQuery";
-import { SimpleSelectQuery, BinarySelectQuery } from "../models/SelectQuery";
+import { SimpleSelectQuery } from "../models/SimpleSelectQuery";
+import { BinarySelectQuery } from "../models/BinarySelectQuery";
 import { SelectClause, SelectItem } from "../models/Clause";
 import { TupleExpression, ValueComponent } from "../models/ValueComponent";
-import { SelectQuery } from "../models/SelectQuery";
+import type { SelectQuery } from "../models/SelectQuery";
 
 /**
  * Utility to convert INSERT ... VALUES statements into INSERT ... SELECT UNION ALL form and vice versa.

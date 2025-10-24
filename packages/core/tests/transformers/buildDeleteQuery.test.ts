@@ -31,4 +31,48 @@ describe('buildDeleteQuery', () => {
 
         expect(sql).toBe('delete from "users" using (select "id", "tenant_id" from "users_staging") as "src" where "users"."id" = "src"."id" and "users"."tenant_id" = "src"."tenant_id"');
     });
+
+    it('hoists CTEs when building DELETE queries', () => {
+        const select = SelectQueryParser.parse(
+            'WITH flagged AS (SELECT id FROM users_staging WHERE flagged = true) SELECT id FROM flagged'
+        ) as SimpleSelectQuery;
+
+        const deleteQuery = QueryBuilder.buildDeleteQuery(select, {
+            target: 'users',
+            primaryKeys: 'id'
+        });
+        const sql = new SqlFormatter().format(deleteQuery).formattedSql;
+
+        expect(sql).toBe(
+            'with "flagged" as (select "id" from "users_staging" where "flagged" = true) delete from "users" using (select "id" from "flagged") as "src" where "users"."id" = "src"."id"'
+        );
+    });
+
+    it('uses default source alias when none is provided', () => {
+        const select = SelectQueryParser.parse('SELECT id FROM users_staging') as SimpleSelectQuery;
+
+        const deleteQuery = QueryBuilder.buildDeleteQuery(select, {
+            target: 'users',
+            primaryKeys: 'id'
+        });
+        const sql = new SqlFormatter().format(deleteQuery).formattedSql;
+
+        expect(sql).toBe('delete from "users" using (select "id" from "users_staging") as "src" where "users"."id" = "src"."id"');
+    });
+
+    it('deduplicates composite primary keys when building predicates', () => {
+        const select = SelectQueryParser.parse('SELECT id, tenant_id FROM users_staging') as SimpleSelectQuery;
+
+        const deleteQuery = QueryBuilder.buildDeleteQuery(select, {
+            target: 'users',
+            primaryKeys: ['id', 'tenant_id', 'id'],
+            columns: ['tenant_id', 'status'],
+            sourceAlias: 'alias_src'
+        });
+        const sql = new SqlFormatter().format(deleteQuery).formattedSql;
+
+        expect(sql).toBe(
+            'delete from "users" using (select "id", "tenant_id" from "users_staging") as "alias_src" where "users"."id" = "alias_src"."id" and "users"."tenant_id" = "alias_src"."tenant_id"'
+        );
+    });
 });

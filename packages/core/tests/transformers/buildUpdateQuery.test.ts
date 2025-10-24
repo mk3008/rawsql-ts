@@ -74,18 +74,15 @@ describe('buildUpdateQuery', () => {
         expect(sql).toBe('update "events" as "e" set "status" = "src"."status" from (select "id", "status" from "events_draft") as "src" where "e"."id" = "src"."id"');
     });
 
-    it('drops missing update columns when select output omits them', () => {
+    it('throws when explicit update columns reference missing select columns', () => {
         const select = SelectQueryParser.parse('SELECT id, name FROM users_src') as SimpleSelectQuery;
 
-        const update = QueryBuilder.buildUpdateQuery(select, {
+        expect(() => QueryBuilder.buildUpdateQuery(select, {
             target: 'users u',
             primaryKeys: 'id',
             columns: ['name', 'age'],
             sourceAlias: 'src'
-        });
-        const sql = new SqlFormatter().format(update).formattedSql;
-
-        expect(sql).toBe('update "users" as "u" set "name" = "src"."name" from (select "id", "name" from "users_src") as "src" where "u"."id" = "src"."id"');
+        })).toThrowError('Provided update columns were not found in selectQuery output or are primary keys: [age].');
     });
 
     it('removes extra select columns when explicit update list provided', () => {
@@ -110,7 +107,7 @@ describe('buildUpdateQuery', () => {
             primaryKeys: 'id',
             columns: ['name'],
             sourceAlias: 'src'
-        })).toThrowError('No matching columns found between selectQuery and provided update columns.');
+        })).toThrowError('Provided update columns were not found in selectQuery output or are primary keys: [name].');
     });
 
     it('throws when select output omits required primary keys', () => {
@@ -122,5 +119,13 @@ describe('buildUpdateQuery', () => {
             columns: ['name'],
             sourceAlias: 'src'
         })).toThrowError("Primary key column 'id' is not present in selectQuery select list.");
+    });
+
+    it('throws when select output only includes primary keys', () => {
+        const select = SelectQueryParser.parse('SELECT id FROM users_src') as SimpleSelectQuery;
+
+        expect(() => QueryBuilder.buildUpdateQuery(select, "src", 'users', 'id')).toThrowError(
+            'No updatable columns found. Ensure the select list contains at least one column other than the specified primary keys.'
+        );
     });
 });

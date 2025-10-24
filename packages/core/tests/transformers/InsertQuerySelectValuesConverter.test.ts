@@ -59,4 +59,23 @@ SELECT '2023-03-12' AS sale_date, 200 AS price, '2024-01-11 14:29:01.618' AS cre
             "Each SELECT item must have an alias matching target columns."
         );
     });
+
+    it('throws when converting SELECT queries with FROM clause to VALUES form', () => {
+        const insert = InsertQueryParser.parse(
+            `INSERT INTO sale(sale_date, price, created_at)
+SELECT sale_date AS sale_date, price AS price, created_at AS created_at FROM sale_staging`
+        );
+        expect(() => InsertQuerySelectValuesConverter.toValues(insert)).toThrowError(
+            'SELECT queries with FROM or WHERE clauses cannot be converted to VALUES.'
+        );
+    });
+
+    it('throws when VALUES tuples do not match column length during SELECT conversion', () => {
+        const insert = InsertQueryParser.parse(
+            `INSERT INTO sale(sale_date, price) VALUES ('2023-01-01', 160, '2024-01-11 14:29:01.618')`
+        );
+        expect(() => InsertQuerySelectValuesConverter.toSelectUnion(insert)).toThrowError(
+            'Tuple value count does not match column count.'
+        );
+    });
 });
