@@ -36,7 +36,7 @@ const { formattedSql, params } = formatter.format(query);
 | `withClauseStyle` | `'standard'`, `'cte-oneline'`, `'full-oneline'` | `'standard'` | Expands or collapses common table expressions. |
 | `parenthesesOneLine`, `betweenOneLine`, `valuesOneLine`, `joinOneLine`, `caseOneLine`, `subqueryOneLine` | `true` / `false` | `false` for each | Opt-in switches that keep the corresponding construct on a single line even if other break settings would expand it. |
 | `exportComment` | `true` / `false` | `false` | Emits comments collected by the parser. Turn it on when you want annotations preserved. |
-| `castStyle` | 'standard', 'postgres' | From preset or 'standard' | Chooses how CAST expressions are printed. 'standard' emits ANSI `CAST(expr AS type)` while 'postgres' emits `expr::type`. |
+| `castStyle` | 'standard', 'postgres' | From preset or 'standard' | Chooses how CAST expressions are printed. 'standard' emits ANSI `CAST(expr AS type)` while 'postgres' emits `expr::type`. See "Controlling CAST style" below for usage notes and examples. |
 
 Combine these settings to mirror house formatting conventions or align with existing lint rules. The following sections call out the options that trip up newcomers most often.
 
