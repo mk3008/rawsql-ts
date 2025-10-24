@@ -165,7 +165,10 @@ export class SqlPrinter {
                 SqlPrintTokenContainerType.CaseThenValue,
                 SqlPrintTokenContainerType.ElseClause,
                 SqlPrintTokenContainerType.CaseElseValue,
-                SqlPrintTokenContainerType.SimpleSelectQuery
+                SqlPrintTokenContainerType.SimpleSelectQuery,
+                SqlPrintTokenContainerType.CreateTableDefinition,
+                SqlPrintTokenContainerType.AlterTableStatement,
+                SqlPrintTokenContainerType.IndexColumnList
                 // Note: CommentBlock is intentionally excluded from indentIncrementContainers
                 // because it serves as a grouping mechanism without affecting indentation.
                 // CaseExpression, SwitchCaseArgument, CaseKeyValuePair, and ElseClause

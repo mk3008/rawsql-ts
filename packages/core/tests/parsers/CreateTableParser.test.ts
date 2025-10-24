@@ -45,7 +45,7 @@ describe("CreateTableParser", () => {
         // Assert
         expect(ast.asSelectQuery).not.toBeUndefined();
         expect(ast.ifNotExists).toBe(true);
-        expect(formatted).toContain('create table if not exists "reporting.daily" as');
+        expect(formatted).toContain('create table if not exists "reporting"."daily" as');
         expect(formatted).toContain('with "recent" as (select "id" from "users") select "id" from "recent"');
     });
 
@@ -60,11 +60,40 @@ describe("CreateTableParser", () => {
         // Assert
         expect(ast.asSelectQuery).toBeUndefined();
         expect(ast.ifNotExists).toBe(false);
-        expect(formatted).toBe('create table "archive.users"');
+        expect(formatted).toBe('create table "archive"."users"');
     });
 
-    it("throws when encountering column definitions", () => {
-        const sql = "CREATE TABLE users (id INT)";
-        expect(() => CreateTableParser.parse(sql)).toThrow(/not supported/i);
+    it("parses column definitions with constraints", () => {
+        const sql = `CREATE TABLE public.users (
+            id BIGINT PRIMARY KEY,
+            email TEXT NOT NULL UNIQUE,
+            role_id INT REFERENCES auth.roles(id) ON DELETE CASCADE,
+            CONSTRAINT users_role_fk FOREIGN KEY (role_id) REFERENCES auth.roles(id) DEFERRABLE INITIALLY DEFERRED
+        ) WITH (fillfactor = 80)`;
+
+        const ast = CreateTableParser.parse(sql);
+        const formatted = new SqlFormatter().format(ast).formattedSql;
+
+        expect(ast.columns).toHaveLength(3);
+        expect(ast.tableConstraints).toHaveLength(1);
+        expect(ast.tableOptions?.value.toLowerCase().replace(/\s+/g, " ")).toBe("with (fillfactor = 80)");
+
+        const idColumn = ast.columns[0];
+        expect(idColumn.constraints.map(c => c.kind)).toContain("primary-key");
+        const emailColumn = ast.columns[1];
+        expect(emailColumn.constraints.some(c => c.kind === "not-null")).toBe(true);
+        expect(emailColumn.constraints.some(c => c.kind === "unique")).toBe(true);
+        const fkConstraint = ast.tableConstraints[0];
+        expect(fkConstraint.kind).toBe("foreign-key");
+        expect(fkConstraint.reference?.deferrable).toBe("deferrable");
+        expect(fkConstraint.reference?.initially).toBe("deferred");
+        const roleColumn = ast.columns[2];
+        const referenceConstraint = roleColumn.constraints.find(c => c.kind === "references");
+        expect(referenceConstraint?.reference?.onDelete).toBe("cascade");
+
+        expect(formatted).toContain('create table "public"."users"');
+        expect(formatted).toContain('foreign key ("role_id") references "auth"."roles"("id") deferrable initially deferred');
+        expect(formatted).toContain('with (fillfactor = 80)');
     });
 });
+

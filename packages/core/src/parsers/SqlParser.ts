@@ -5,6 +5,13 @@ import type { UpdateQuery } from '../models/UpdateQuery';
 import type { DeleteQuery } from '../models/DeleteQuery';
 import type { CreateTableQuery } from '../models/CreateTableQuery';
 import type { MergeQuery } from '../models/MergeQuery';
+import type {
+    DropTableStatement,
+    DropIndexStatement,
+    CreateIndexStatement,
+    AlterTableStatement,
+    DropConstraintStatement
+} from '../models/DDLStatements';
 import { SqlTokenizer, StatementLexemeResult } from './SqlTokenizer';
 import { SelectQueryParser } from './SelectQueryParser';
 import { InsertQueryParser } from './InsertQueryParser';
@@ -13,8 +20,24 @@ import { DeleteQueryParser } from './DeleteQueryParser';
 import { CreateTableParser } from './CreateTableParser';
 import { MergeQueryParser } from './MergeQueryParser';
 import { WithClauseParser } from './WithClauseParser';
+import { DropTableParser } from './DropTableParser';
+import { DropIndexParser } from './DropIndexParser';
+import { CreateIndexParser } from './CreateIndexParser';
+import { AlterTableParser } from './AlterTableParser';
+import { DropConstraintParser } from './DropConstraintParser';
 
-export type ParsedStatement = SelectQuery | InsertQuery | UpdateQuery | DeleteQuery | CreateTableQuery | MergeQuery;
+export type ParsedStatement =
+    | SelectQuery
+    | InsertQuery
+    | UpdateQuery
+    | DeleteQuery
+    | CreateTableQuery
+    | MergeQuery
+    | DropTableStatement
+    | DropIndexStatement
+    | CreateIndexStatement
+    | AlterTableStatement
+    | DropConstraintStatement;
 
 export interface SqlParserOptions {
     mode?: 'single' | 'multiple';
@@ -138,6 +161,26 @@ export class SqlParser {
             return this.parseMergeStatement(segment, statementIndex);
         }
 
+        if (firstToken === 'create index' || firstToken === 'create unique index') {
+            return this.parseCreateIndexStatement(segment, statementIndex);
+        }
+
+        if (firstToken === 'drop table') {
+            return this.parseDropTableStatement(segment, statementIndex);
+        }
+
+        if (firstToken === 'drop index') {
+            return this.parseDropIndexStatement(segment, statementIndex);
+        }
+
+        if (firstToken === 'alter table') {
+            return this.parseAlterTableStatement(segment, statementIndex);
+        }
+
+        if (firstToken === 'drop constraint') {
+            return this.parseDropConstraintStatement(segment, statementIndex);
+        }
+
         throw new Error(`[SqlParser] Statement ${statementIndex} starts with unsupported token "${segment.lexemes[0].value}". Support for additional statement types will be introduced soon.`);
     }
 
@@ -234,6 +277,91 @@ export class SqlParser {
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
             throw new Error(`[SqlParser] Failed to parse CREATE TABLE statement ${statementIndex}: ${message}`);
+        }
+    }
+
+    private static parseDropTableStatement(segment: StatementLexemeResult, statementIndex: number): DropTableStatement {
+        try {
+            const result = DropTableParser.parseFromLexeme(segment.lexemes, 0);
+            if (result.newIndex < segment.lexemes.length) {
+                const unexpected = segment.lexemes[result.newIndex];
+                const position = unexpected.position?.startPosition ?? segment.statementStart;
+                throw new Error(
+                    `[SqlParser] Unexpected token "${unexpected.value}" in statement ${statementIndex} at character ${position}.`
+                );
+            }
+            return result.value;
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            throw new Error(`[SqlParser] Failed to parse DROP TABLE statement ${statementIndex}: ${message}`);
+        }
+    }
+
+    private static parseDropIndexStatement(segment: StatementLexemeResult, statementIndex: number): DropIndexStatement {
+        try {
+            const result = DropIndexParser.parseFromLexeme(segment.lexemes, 0);
+            if (result.newIndex < segment.lexemes.length) {
+                const unexpected = segment.lexemes[result.newIndex];
+                const position = unexpected.position?.startPosition ?? segment.statementStart;
+                throw new Error(
+                    `[SqlParser] Unexpected token "${unexpected.value}" in statement ${statementIndex} at character ${position}.`
+                );
+            }
+            return result.value;
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            throw new Error(`[SqlParser] Failed to parse DROP INDEX statement ${statementIndex}: ${message}`);
+        }
+    }
+
+    private static parseCreateIndexStatement(segment: StatementLexemeResult, statementIndex: number): CreateIndexStatement {
+        try {
+            const result = CreateIndexParser.parseFromLexeme(segment.lexemes, 0);
+            if (result.newIndex < segment.lexemes.length) {
+                const unexpected = segment.lexemes[result.newIndex];
+                const position = unexpected.position?.startPosition ?? segment.statementStart;
+                throw new Error(
+                    `[SqlParser] Unexpected token "${unexpected.value}" in statement ${statementIndex} at character ${position}.`
+                );
+            }
+            return result.value;
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            throw new Error(`[SqlParser] Failed to parse CREATE INDEX statement ${statementIndex}: ${message}`);
+        }
+    }
+
+    private static parseAlterTableStatement(segment: StatementLexemeResult, statementIndex: number): AlterTableStatement {
+        try {
+            const result = AlterTableParser.parseFromLexeme(segment.lexemes, 0);
+            if (result.newIndex < segment.lexemes.length) {
+                const unexpected = segment.lexemes[result.newIndex];
+                const position = unexpected.position?.startPosition ?? segment.statementStart;
+                throw new Error(
+                    `[SqlParser] Unexpected token "${unexpected.value}" in statement ${statementIndex} at character ${position}.`
+                );
+            }
+            return result.value;
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            throw new Error(`[SqlParser] Failed to parse ALTER TABLE statement ${statementIndex}: ${message}`);
+        }
+    }
+
+    private static parseDropConstraintStatement(segment: StatementLexemeResult, statementIndex: number): DropConstraintStatement {
+        try {
+            const result = DropConstraintParser.parseFromLexeme(segment.lexemes, 0);
+            if (result.newIndex < segment.lexemes.length) {
+                const unexpected = segment.lexemes[result.newIndex];
+                const position = unexpected.position?.startPosition ?? segment.statementStart;
+                throw new Error(
+                    `[SqlParser] Unexpected token "${unexpected.value}" in statement ${statementIndex} at character ${position}.`
+                );
+            }
+            return result.value;
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            throw new Error(`[SqlParser] Failed to parse DROP CONSTRAINT statement ${statementIndex}: ${message}`);
         }
     }
 

@@ -8,6 +8,11 @@ export * from './parsers/DeleteQueryParser';
 export * from './parsers/WithClauseParser';
 export * from './parsers/CreateTableParser';
 export * from './parsers/MergeQueryParser';
+export * from './parsers/CreateIndexParser';
+export * from './parsers/DropTableParser';
+export * from './parsers/DropIndexParser';
+export * from './parsers/AlterTableParser';
+export * from './parsers/DropConstraintParser';
 
 export * from './models/BinarySelectQuery';
 export * from './models/SelectQuery';
@@ -22,6 +27,7 @@ export * from './models/UpdateQuery';
 export * from './models/DeleteQuery';
 export * from './models/CreateTableQuery';
 export * from './models/MergeQuery';
+export * from './models/DDLStatements';
 
 export * from './transformers/CTECollector';
 export * from './transformers/CTENormalizer';
