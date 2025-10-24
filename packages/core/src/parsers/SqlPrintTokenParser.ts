@@ -40,6 +40,7 @@ import { InsertQuery } from "../models/InsertQuery";
 import { UpdateQuery } from "../models/UpdateQuery";
 import { DeleteQuery } from "../models/DeleteQuery";
 import { CreateTableQuery } from "../models/CreateTableQuery";
+import { MergeQuery, MergeWhenClause, MergeUpdateAction, MergeDeleteAction, MergeInsertAction, MergeDoNothingAction, MergeMatchType } from "../models/MergeQuery";
 
 export enum ParameterStyle {
     Anonymous = 'anonymous',
@@ -310,6 +311,12 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         this.handlers.set(SetClauseItem.kind, (expr) => this.visitSetClauseItem(expr as SetClauseItem));
         this.handlers.set(ReturningClause.kind, (expr) => this.visitReturningClause(expr as ReturningClause));
         this.handlers.set(CreateTableQuery.kind, (expr) => this.visitCreateTableQuery(expr as CreateTableQuery));
+        this.handlers.set(MergeQuery.kind, (expr) => this.visitMergeQuery(expr as MergeQuery));
+        this.handlers.set(MergeWhenClause.kind, (expr) => this.visitMergeWhenClause(expr as MergeWhenClause));
+        this.handlers.set(MergeUpdateAction.kind, (expr) => this.visitMergeUpdateAction(expr as MergeUpdateAction));
+        this.handlers.set(MergeDeleteAction.kind, (expr) => this.visitMergeDeleteAction(expr as MergeDeleteAction));
+        this.handlers.set(MergeInsertAction.kind, (expr) => this.visitMergeInsertAction(expr as MergeInsertAction));
+        this.handlers.set(MergeDoNothingAction.kind, (expr) => this.visitMergeDoNothingAction(expr as MergeDoNothingAction));
     }
 
     /**
@@ -2381,6 +2388,134 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         }
 
         return token;
+    }
+
+    private visitMergeQuery(arg: MergeQuery): SqlPrintToken {
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.MergeQuery);
+
+        if (arg.withClause) {
+            token.innerTokens.push(arg.withClause.accept(this));
+        }
+
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'merge into'));
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(arg.target.accept(this));
+
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'using'));
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(arg.source.accept(this));
+
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'on'));
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(arg.onCondition.accept(this));
+
+        for (const clause of arg.whenClauses) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(clause.accept(this));
+        }
+
+        return token;
+    }
+
+    private visitMergeWhenClause(arg: MergeWhenClause): SqlPrintToken {
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.MergeWhenClause);
+
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, this.mergeMatchTypeToKeyword(arg.matchType)));
+        if (arg.condition) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'and'));
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(arg.condition.accept(this));
+        }
+
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'then'));
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(arg.action.accept(this));
+
+        return token;
+    }
+
+    private visitMergeUpdateAction(arg: MergeUpdateAction): SqlPrintToken {
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.MergeUpdateAction);
+
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'update'));
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(arg.setClause.accept(this));
+
+        if (arg.whereClause) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(arg.whereClause.accept(this));
+        }
+
+        return token;
+    }
+
+    private visitMergeDeleteAction(arg: MergeDeleteAction): SqlPrintToken {
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.MergeDeleteAction);
+
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'delete'));
+        if (arg.whereClause) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(arg.whereClause.accept(this));
+        }
+
+        return token;
+    }
+
+    private visitMergeInsertAction(arg: MergeInsertAction): SqlPrintToken {
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.MergeInsertAction);
+
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'insert'));
+        if (arg.columns && arg.columns.length > 0) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(SqlPrintTokenParser.PAREN_OPEN_TOKEN);
+            for (let i = 0; i < arg.columns.length; i++) {
+                if (i > 0) {
+                    token.innerTokens.push(...SqlPrintTokenParser.commaSpaceTokens());
+                }
+                token.innerTokens.push(arg.columns[i].accept(this));
+            }
+            token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
+        }
+
+        if (arg.defaultValues) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'default values'));
+            return token;
+        }
+
+        if (arg.values) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'values'));
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(SqlPrintTokenParser.PAREN_OPEN_TOKEN);
+            token.innerTokens.push(arg.values.accept(this));
+            token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
+        }
+
+        return token;
+    }
+
+    private visitMergeDoNothingAction(_: MergeDoNothingAction): SqlPrintToken {
+        return new SqlPrintToken(SqlPrintTokenType.keyword, 'do nothing', SqlPrintTokenContainerType.MergeDoNothingAction);
+    }
+
+    private mergeMatchTypeToKeyword(matchType: MergeMatchType): string {
+        switch (matchType) {
+            case 'matched':
+                return 'when matched';
+            case 'not_matched':
+                return 'when not matched';
+            case 'not_matched_by_source':
+                return 'when not matched by source';
+            case 'not_matched_by_target':
+                return 'when not matched by target';
+            default:
+                return 'when';
+        }
     }
 
     private visitUpdateQuery(arg: UpdateQuery): SqlPrintToken {

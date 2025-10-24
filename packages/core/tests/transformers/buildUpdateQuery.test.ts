@@ -15,8 +15,7 @@ describe('buildUpdateQuery', () => {
         const sql = new SqlFormatter().format(update).formattedSql;
 
         // Assert
-        // Check that the WITH clause is correctly reflected in the UPDATE statement
-        expect(sql).toContain('with "active_users" as (select "id", "score" from "exam_results_new" where "active" = true) update "exam_results" set "score" = "exam_results"."score" from (select "id", "score" from "active_users") as "src" where "exam_results"."id" = "src"."id"');
+        expect(sql).toBe('with "active_users" as (select "id", "score" from "exam_results_new" where "active" = true) update "exam_results" set "score" = "src"."score" from (select "id", "score" from "active_users") as "src" where "exam_results"."id" = "src"."id"');
     });
 
     it('generates UPDATE with table alias in updateTableExpr', () => {
@@ -30,8 +29,7 @@ describe('buildUpdateQuery', () => {
         const sql = new SqlFormatter().format(update).formattedSql;
 
         // Assert
-        // Confirm that the UPDATE statement is generated correctly with alias
-        expect(sql).toContain('update "exam_results" as "er" set "score" = "er"."score" from (select "id", "score" from "exam_results_new") as "src" where "er"."id" = "src"."id"');
+        expect(sql).toBe('update "exam_results" as "er" set "score" = "src"."score" from (select "id", "score" from "exam_results_new") as "src" where "er"."id" = "src"."id"');
     });
 
     it('generates simple UPDATE with single PK', () => {
@@ -43,7 +41,7 @@ describe('buildUpdateQuery', () => {
         const sql = new SqlFormatter().format(update).formattedSql;
 
         // Assert
-        expect(sql).toContain('update "users" set "name" = "users"."name", "age" = "users"."age" from (select "id", "name", "age" from "users_new") as "src" where "users"."id" = "src"."id"');
+        expect(sql).toBe('update "users" set "name" = "src"."name", "age" = "src"."age" from (select "id", "name", "age" from "users_new") as "src" where "users"."id" = "src"."id"');
     });
 
     it('generates UPDATE with composite PK (order_items/order_details)', () => {
@@ -56,6 +54,78 @@ describe('buildUpdateQuery', () => {
         const sql = new SqlFormatter().format(update).formattedSql;
 
         // Assert
-        expect(sql).toContain('update "order_details" set "quantity" = "order_details"."quantity" from (select "order_id", "item_id", "quantity" from "order_items") as "src" where "order_details"."order_id" = "src"."order_id" and "order_details"."item_id" = "src"."item_id"');
+        expect(sql).toBe('update "order_details" set "quantity" = "src"."quantity" from (select "order_id", "item_id", "quantity" from "order_items") as "src" where "order_details"."order_id" = "src"."order_id" and "order_details"."item_id" = "src"."item_id"');
+    });
+
+    it('builds UPDATE via SelectQuery.toUpdateQuery with explicit columns', () => {
+        // Arrange
+        const select = SelectQueryParser.parse('SELECT id, status FROM events_draft') as SimpleSelectQuery;
+
+        // Act
+        const update = select.toUpdateQuery({
+            target: 'events e',
+            primaryKeys: 'id',
+            columns: ['status'],
+            sourceAlias: 'src'
+        });
+        const sql = new SqlFormatter().format(update).formattedSql;
+
+        // Assert
+        expect(sql).toBe('update "events" as "e" set "status" = "src"."status" from (select "id", "status" from "events_draft") as "src" where "e"."id" = "src"."id"');
+    });
+
+    it('throws when explicit update columns reference missing select columns', () => {
+        const select = SelectQueryParser.parse('SELECT id, name FROM users_src') as SimpleSelectQuery;
+
+        expect(() => QueryBuilder.buildUpdateQuery(select, {
+            target: 'users u',
+            primaryKeys: 'id',
+            columns: ['name', 'age'],
+            sourceAlias: 'src'
+        })).toThrowError('Provided update columns were not found in selectQuery output or are primary keys: [age].');
+    });
+
+    it('removes extra select columns when explicit update list provided', () => {
+        const select = SelectQueryParser.parse('SELECT id, name, age, extra FROM users_src') as SimpleSelectQuery;
+
+        const update = QueryBuilder.buildUpdateQuery(select, {
+            target: 'users',
+            primaryKeys: 'id',
+            columns: ['name', 'age'],
+            sourceAlias: 'src'
+        });
+        const sql = new SqlFormatter().format(update).formattedSql;
+
+        expect(sql).toBe('update "users" set "name" = "src"."name", "age" = "src"."age" from (select "id", "name", "age" from "users_src") as "src" where "users"."id" = "src"."id"');
+    });
+
+    it('throws when explicit update columns do not match select output', () => {
+        const select = SelectQueryParser.parse('SELECT id FROM users_src') as SimpleSelectQuery;
+
+        expect(() => QueryBuilder.buildUpdateQuery(select, {
+            target: 'users',
+            primaryKeys: 'id',
+            columns: ['name'],
+            sourceAlias: 'src'
+        })).toThrowError('Provided update columns were not found in selectQuery output or are primary keys: [name].');
+    });
+
+    it('throws when select output omits required primary keys', () => {
+        const select = SelectQueryParser.parse('SELECT name FROM users_src') as SimpleSelectQuery;
+
+        expect(() => QueryBuilder.buildUpdateQuery(select, {
+            target: 'users',
+            primaryKeys: 'id',
+            columns: ['name'],
+            sourceAlias: 'src'
+        })).toThrowError("Primary key column 'id' is not present in selectQuery select list.");
+    });
+
+    it('throws when select output only includes primary keys', () => {
+        const select = SelectQueryParser.parse('SELECT id FROM users_src') as SimpleSelectQuery;
+
+        expect(() => QueryBuilder.buildUpdateQuery(select, "src", 'users', 'id')).toThrowError(
+            'No updatable columns found. Ensure the select list contains at least one column other than the specified primary keys.'
+        );
     });
 });

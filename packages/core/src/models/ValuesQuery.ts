@@ -1,11 +1,20 @@
 import { ParameterHelper } from "../utils/ParameterHelper";
-import { ParameterCollector } from "../transformers/ParameterCollector";
 import { QueryBuilder } from "../transformers/QueryBuilder";
-import { SelectQuery } from "./SelectQuery";
+import type {
+    SelectQuery,
+    InsertQueryConversionOptions,
+    UpdateQueryConversionOptions,
+    DeleteQueryConversionOptions,
+    MergeQueryConversionOptions
+} from "./SelectQuery";
 import { SimpleSelectQuery } from "./SimpleSelectQuery";
 import { SqlParameterValue } from "./ValueComponent";
 import { SqlComponent } from "./SqlComponent";
 import { TupleExpression } from "./ValueComponent";
+import type { InsertQuery } from "./InsertQuery";
+import type { UpdateQuery } from "./UpdateQuery";
+import type { DeleteQuery } from "./DeleteQuery";
+import type { MergeQuery } from "./MergeQuery";
 
 /**
  * Represents a VALUES query in SQL.
@@ -30,6 +39,38 @@ export class ValuesQuery extends SqlComponent implements SelectQuery {
 
     public toSimpleQuery(): SimpleSelectQuery {
         return QueryBuilder.buildSimpleQuery(this);
+    }
+
+    /**
+     * Converts this VALUES query into an INSERT statement definition.
+     * @remarks The conversion may reorder the generated SELECT clause to align with the requested column order.
+     */
+    public toInsertQuery(options: InsertQueryConversionOptions): InsertQuery {
+        return this.toSimpleQuery().toInsertQuery(options);
+    }
+
+    /**
+     * Converts this VALUES query into an UPDATE statement definition.
+     * @remarks The conversion may reorder the generated SELECT clause to align with the requested column order.
+     */
+    public toUpdateQuery(options: UpdateQueryConversionOptions): UpdateQuery {
+        return this.toSimpleQuery().toUpdateQuery(options);
+    }
+
+    /**
+     * Converts this VALUES query into a DELETE statement definition.
+     * @remarks The conversion may reorder the generated SELECT clause to align with the requested column order.
+     */
+    public toDeleteQuery(options: DeleteQueryConversionOptions): DeleteQuery {
+        return this.toSimpleQuery().toDeleteQuery(options);
+    }
+
+    /**
+     * Converts this VALUES query into a MERGE statement definition.
+     * @remarks The conversion may reorder the generated SELECT clause to align with the requested column order.
+     */
+    public toMergeQuery(options: MergeQueryConversionOptions): MergeQuery {
+        return this.toSimpleQuery().toMergeQuery(options);
     }
 
     /**
