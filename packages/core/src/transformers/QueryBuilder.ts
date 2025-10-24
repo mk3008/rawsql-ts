@@ -1,8 +1,8 @@
-import { SetClause, SetClauseItem, FromClause, WhereClause, SelectClause, SelectItem, SourceAliasExpression, SourceExpression, SubQuerySource, WithClause, TableSource, UpdateClause, InsertClause, OrderByClause, DeleteClause, UsingClause } from '../models/Clause';
+import { SetClause, SetClauseItem, FromClause, WhereClause, SelectClause, SelectItem, SourceAliasExpression, SourceExpression, SubQuerySource, WithClause, TableSource, UpdateClause, InsertClause, OrderByClause, DeleteClause } from '../models/Clause';
 import { UpdateQuery } from '../models/UpdateQuery';
 import { DeleteQuery } from '../models/DeleteQuery';
 import { MergeQuery, MergeWhenClause, MergeUpdateAction, MergeDeleteAction, MergeInsertAction, MergeDoNothingAction } from '../models/MergeQuery';
-import { BinaryExpression, ColumnReference, ValueList } from '../models/ValueComponent';
+import { BinaryExpression, ColumnReference, InlineQuery, LiteralValue, UnaryExpression, ValueList } from '../models/ValueComponent';
 import { SelectValueCollector } from './SelectValueCollector';
 import { BinarySelectQuery, SelectQuery, SimpleSelectQuery, ValuesQuery } from "../models/SelectQuery";
 import { CTECollector } from "./CTECollector";
@@ -309,12 +309,19 @@ export class QueryBuilder {
 
         const withClause = QueryBuilder.extractWithClause(selectQuery);
 
-        const usingClause = new UsingClause([selectQuery.toSource(normalized.sourceAlias)]);
-        const whereClause = new WhereClause(QueryBuilder.buildEqualityPredicate(targetAlias, normalized.sourceAlias, predicateColumns));
+        // Build correlated EXISTS predicate instead of Postgres-specific USING clause.
+        const predicate = QueryBuilder.buildEqualityPredicate(targetAlias, normalized.sourceAlias, predicateColumns);
+        const sourceExpression = selectQuery.toSource(normalized.sourceAlias);
+        const existsSelectClause = new SelectClause([new SelectItem(new LiteralValue(1))]);
+        const existsSubquery = new SimpleSelectQuery({
+            selectClause: existsSelectClause,
+            fromClause: new FromClause(sourceExpression, null),
+            whereClause: new WhereClause(predicate)
+        });
+        const whereClause = new WhereClause(new UnaryExpression('exists', new InlineQuery(existsSubquery)));
 
         return new DeleteQuery({
             deleteClause,
-            usingClause,
             whereClause,
             withClause: withClause ?? undefined
         });

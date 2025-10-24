@@ -130,7 +130,7 @@ describe('SqlPrintTokenParser + SqlPrinter', () => {
         const sql = printer.print(token);
 
         // Assert
-        expect(sql).toBe('1::"pg_catalog".int4');
+        expect(sql).toBe('cast(1 as "pg_catalog".int4)');
     });
 
     it('should print string specifier', () => {
