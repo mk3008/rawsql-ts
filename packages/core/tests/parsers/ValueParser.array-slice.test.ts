@@ -28,7 +28,7 @@ describe('ValueParser - Array Slice Syntax (Implemented)', () => {
             
             // Complex expressions with array slicing
             ["Function result with slice", "get_array()[1:2]", 'get_array()[1:2]'],
-            ["Cast expression with slice", "(column::int[])[1:2]", '("column"::int[])[1:2]'],
+            ["Cast expression with slice", "(column::int[])[1:2]", '(cast("column" as int[]))[1:2]'],
             ["Parenthesized expression with slice", "(a + b)[1:2]", '("a" + "b")[1:2]'],
         ])('%s: %s', (description, input, expected) => {
             const value = ValueParser.parse(input);
@@ -84,7 +84,7 @@ describe('ValueParser - Array Slice Syntax (Implemented)', () => {
             ["Array function call", "ARRAY(SELECT 1)", "array(select 1)"],
             ["Parenthesized array", "(ARRAY[1,2,3])", "(array[1, 2, 3])"],
             ["Simple column reference", "column_name", '"column_name"'],
-            ["PostgreSQL array literal", "'{1,2,3}'::int[]", "'{1,2,3}'::int[]"],
+            ["PostgreSQL array literal", "'{1,2,3}'::int[]", "cast('{1,2,3}' as int[])"],
         ])('%s: %s', (description, input, expected) => {
             const value = ValueParser.parse(input);
             const formatted = formatter.format(value);

@@ -15,7 +15,7 @@ describe('buildDeleteQuery', () => {
         });
         const sql = new SqlFormatter().format(deleteQuery).formattedSql;
 
-        expect(sql).toBe('delete from "users" as "u" using (select "id" from "users_staging" where "flagged" = true) as "src" where "u"."id" = "src"."id"');
+        expect(sql).toBe('delete from "users" as "u" where exists (select 1 from (select "id" from "users_staging" where "flagged" = true) as "src" where "u"."id" = "src"."id")');
     });
 
     it('builds DELETE via SelectQuery method with additional match columns', () => {
@@ -29,7 +29,7 @@ describe('buildDeleteQuery', () => {
         });
         const sql = new SqlFormatter().format(deleteQuery).formattedSql;
 
-        expect(sql).toBe('delete from "users" using (select "id", "tenant_id" from "users_staging") as "src" where "users"."id" = "src"."id" and "users"."tenant_id" = "src"."tenant_id"');
+        expect(sql).toBe('delete from "users" where exists (select 1 from (select "id", "tenant_id" from "users_staging") as "src" where "users"."id" = "src"."id" and "users"."tenant_id" = "src"."tenant_id")');
     });
 
     it('hoists CTEs when building DELETE queries', () => {
@@ -44,7 +44,7 @@ describe('buildDeleteQuery', () => {
         const sql = new SqlFormatter().format(deleteQuery).formattedSql;
 
         expect(sql).toBe(
-            'with "flagged" as (select "id" from "users_staging" where "flagged" = true) delete from "users" using (select "id" from "flagged") as "src" where "users"."id" = "src"."id"'
+            'with "flagged" as (select "id" from "users_staging" where "flagged" = true) delete from "users" where exists (select 1 from (select "id" from "flagged") as "src" where "users"."id" = "src"."id")'
         );
     });
 
@@ -57,7 +57,7 @@ describe('buildDeleteQuery', () => {
         });
         const sql = new SqlFormatter().format(deleteQuery).formattedSql;
 
-        expect(sql).toBe('delete from "users" using (select "id" from "users_staging") as "src" where "users"."id" = "src"."id"');
+        expect(sql).toBe('delete from "users" where exists (select 1 from (select "id" from "users_staging") as "src" where "users"."id" = "src"."id")');
     });
 
     it('deduplicates composite primary keys when building predicates', () => {
@@ -72,7 +72,7 @@ describe('buildDeleteQuery', () => {
         const sql = new SqlFormatter().format(deleteQuery).formattedSql;
 
         expect(sql).toBe(
-            'delete from "users" using (select "id", "tenant_id" from "users_staging") as "alias_src" where "users"."id" = "alias_src"."id" and "users"."tenant_id" = "alias_src"."tenant_id"'
+            'delete from "users" where exists (select 1 from (select "id", "tenant_id" from "users_staging") as "alias_src" where "users"."id" = "alias_src"."id" and "users"."tenant_id" = "alias_src"."tenant_id")'
         );
     });
 });

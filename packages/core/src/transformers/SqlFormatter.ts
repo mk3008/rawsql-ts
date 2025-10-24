@@ -1,4 +1,4 @@
-import { SqlPrintTokenParser, FormatterConfig, PRESETS } from '../parsers/SqlPrintTokenParser';
+import { SqlPrintTokenParser, FormatterConfig, PRESETS, CastStyle } from '../parsers/SqlPrintTokenParser';
 import { SqlPrinter, CommaBreakStyle, AndBreakStyle, OrBreakStyle } from './SqlPrinter';
 import { IndentCharOption, NewlineOption } from './LinePrinter'; // Import types for compatibility
 import { IdentifierEscapeOption, resolveIdentifierEscapeOption } from './FormatOptionResolver';
@@ -96,6 +96,8 @@ export interface SqlFormatterOptions extends BaseFormattingOptions {
     parameterSymbol?: string | { start: string; end: string };
     /** Style for parameter formatting */
     parameterStyle?: 'anonymous' | 'indexed' | 'named';
+    /** Preferred CAST rendering style */
+    castStyle?: CastStyle;
 }
 
 /**
@@ -129,6 +131,7 @@ export class SqlFormatter {
             identifierEscape: resolvedIdentifierEscape ?? presetConfig?.identifierEscape,
             parameterSymbol: options.parameterSymbol ?? presetConfig?.parameterSymbol,
             parameterStyle: options.parameterStyle ?? presetConfig?.parameterStyle,
+            castStyle: options.castStyle ?? presetConfig?.castStyle,
         };
 
         this.parser = new SqlPrintTokenParser({

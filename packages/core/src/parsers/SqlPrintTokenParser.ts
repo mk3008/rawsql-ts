@@ -48,6 +48,8 @@ export enum ParameterStyle {
     Named = 'named'
 }
 
+export type CastStyle = 'postgres' | 'standard';
+
 export interface FormatterConfig {
     identifierEscape?: {
         start: string;
@@ -58,6 +60,8 @@ export interface FormatterConfig {
      * Parameter style: anonymous (?), indexed ($1), or named (:name)
      */
     parameterStyle?: ParameterStyle;
+    /** Controls how CAST expressions are rendered */
+    castStyle?: CastStyle;
 }
 
 export const PRESETS: Record<string, FormatterConfig> = {
@@ -70,11 +74,13 @@ export const PRESETS: Record<string, FormatterConfig> = {
         identifierEscape: { start: '"', end: '"' },
         parameterSymbol: '$',
         parameterStyle: ParameterStyle.Indexed,
+        castStyle: 'postgres',
     },
     postgresWithNamedParams: {
         identifierEscape: { start: '"', end: '"' },
         parameterSymbol: ':',
         parameterStyle: ParameterStyle.Named,
+        castStyle: 'postgres',
     },
     sqlserver: {
         identifierEscape: { start: '[', end: ']' },
@@ -125,6 +131,7 @@ export const PRESETS: Record<string, FormatterConfig> = {
         identifierEscape: { start: '"', end: '"' },
         parameterSymbol: '$',
         parameterStyle: ParameterStyle.Indexed,
+        castStyle: 'postgres',
     },
     athena: {
         identifierEscape: { start: '"', end: '"' },
@@ -150,6 +157,7 @@ export const PRESETS: Record<string, FormatterConfig> = {
         identifierEscape: { start: '"', end: '"' },
         parameterSymbol: '$',
         parameterStyle: ParameterStyle.Indexed,
+        castStyle: 'postgres',
     },
     flinksql: {
         identifierEscape: { start: '`', end: '`' },
@@ -201,12 +209,14 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     parameterDecorator: ParameterDecorator;
     identifierDecorator: IdentifierDecorator;
     index: number = 1;
+    private castStyle: CastStyle;
 
     constructor(options?: {
         preset?: FormatterConfig,
         identifierEscape?: { start: string; end: string },
         parameterSymbol?: string | { start: string; end: string },
-        parameterStyle?: 'anonymous' | 'indexed' | 'named'
+        parameterStyle?: 'anonymous' | 'indexed' | 'named',
+        castStyle?: CastStyle
     }) {
         if (options?.preset) {
             const preset = options.preset
@@ -223,6 +233,8 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
             start: options?.identifierEscape?.start ?? '"',
             end: options?.identifierEscape?.end ?? '"'
         });
+
+        this.castStyle = options?.castStyle ?? 'standard';
 
         this.handlers.set(ValueList.kind, (expr) => this.visitValueList(expr as ValueList));
         this.handlers.set(ColumnReference.kind, (expr) => this.visitColumnReference(expr as ColumnReference));
@@ -1310,9 +1322,23 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     private visitCastExpression(arg: CastExpression): SqlPrintToken {
         const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.CastExpression);
 
+        // Use PostgreSQL-specific :: casts only when the preset explicitly opts in.
+        if (this.castStyle === 'postgres') {
+            token.innerTokens.push(this.visit(arg.input));
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.operator, '::'));
+            token.innerTokens.push(this.visit(arg.castType));
+            return token;
+        }
+
+        // Default to ANSI-compliant CAST(expression AS type) syntax for broader compatibility.
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'cast'));
+        token.innerTokens.push(SqlPrintTokenParser.PAREN_OPEN_TOKEN);
         token.innerTokens.push(this.visit(arg.input));
-        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.operator, '::'));
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'as'));
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
         token.innerTokens.push(this.visit(arg.castType));
+        token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
 
         return token;
     }

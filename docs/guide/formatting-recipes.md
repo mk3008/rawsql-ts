@@ -1,4 +1,4 @@
-﻿---
+---
 title: Formatting Recipes
 outline: deep
 ---
@@ -36,6 +36,7 @@ const { formattedSql, params } = formatter.format(query);
 | `withClauseStyle` | `'standard'`, `'cte-oneline'`, `'full-oneline'` | `'standard'` | Expands or collapses common table expressions. |
 | `parenthesesOneLine`, `betweenOneLine`, `valuesOneLine`, `joinOneLine`, `caseOneLine`, `subqueryOneLine` | `true` / `false` | `false` for each | Opt-in switches that keep the corresponding construct on a single line even if other break settings would expand it. |
 | `exportComment` | `true` / `false` | `false` | Emits comments collected by the parser. Turn it on when you want annotations preserved. |
+| `castStyle` | 'standard', 'postgres' | From preset or 'standard' | Chooses how CAST expressions are printed. 'standard' emits ANSI `CAST(expr AS type)` while 'postgres' emits `expr::type`. See "Controlling CAST style" below for usage notes and examples. |
 
 Combine these settings to mirror house formatting conventions or align with existing lint rules. The following sections call out the options that trip up newcomers most often.
 
@@ -87,6 +88,20 @@ Default behaviour (`'block'`) leaves comments exactly as they were parsed. Switc
 
 Use `valuesCommaBreak` when you need to keep the main query in trailing-comma style but prefer inline tuples inside a `VALUES` block (or vice versa). With `exportComment: true`, comments that appear before or after each tuple are preserved and printed alongside the formatted output, so inline annotations survive automated formatting.
 
+
+### Controlling CAST style
+
+`castStyle` lets you toggle between ANSI-compatible casts and PostgreSQL's shorthand.
+
+```typescript
+new SqlFormatter().format(expr);                 // cast("price" as NUMERIC(10, 2))
+new SqlFormatter({ castStyle: 'postgres' }).format(expr); // "price"::NUMERIC(10, 2)
+```
+
+- Default (`'standard'`) keeps ANSI `CAST(... AS ...)`, which works across engines such as MySQL, SQL Server, DuckDB, and more.
+- Set `castStyle: 'postgres'` when you explicitly target PostgreSQL-style `::` casts. Presets like `'postgres'`, `'redshift'`, and `'cockroachdb'` already switch this on.
+
+If you are migrating away from PostgreSQL-only syntax, enforce `castStyle: 'standard'` and phase out `::` usage gradually.
 ## Sample
 
 ```json
