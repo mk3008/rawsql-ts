@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { SelectQueryParser } from '../../src/parsers/SelectQueryParser';
 import { QueryBuilder } from '../../src/transformers/QueryBuilder';
+import { SqlFormatter } from '../../src/transformers/SqlFormatter';
 import { SimpleSelectQuery } from '../../src/models/SimpleSelectQuery';
 import { MergeDeleteAction, MergeDoNothingAction, MergeInsertAction, MergeUpdateAction } from '../../src/models/MergeQuery';
 import { ColumnReference, ValueList } from '../../src/models/ValueComponent';
@@ -121,5 +122,20 @@ describe('buildMergeQuery', () => {
             insertColumns: ['name'],
             sourceAlias: 'src'
         })).toThrowError('Provided insert columns were not found in selectQuery output: [name].');
+    });
+
+    it('formats MERGE queries via SqlFormatter', () => {
+        const select = SelectQueryParser.parse('SELECT id, name FROM incoming_users') as SimpleSelectQuery;
+
+        const mergeQuery = QueryBuilder.buildMergeQuery(select, {
+            target: 'users u',
+            primaryKeys: 'id',
+            updateColumns: ['name'],
+            insertColumns: ['id', 'name'],
+            sourceAlias: 'src'
+        });
+
+        const sql = new SqlFormatter().format(mergeQuery).formattedSql;
+        expect(sql).toBe('merge into "users" as "u" using (select "id", "name" from "incoming_users") as "src" on "u"."id" = "src"."id" when matched then update set "name" = "src"."name" when not matched then insert ("id", "name") values ("src"."id", "src"."name") when not matched by source then do nothing');
     });
 });

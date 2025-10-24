@@ -130,18 +130,38 @@ export class SimpleSelectQuery extends SqlComponent implements SelectQuery, CTEM
         return this.toBinaryQuery('union all', rightQuery);
     }
 
+    /**
+     * Converts this query into an INSERT statement definition.
+     * @remarks
+     * Calling this method may reorder the current SELECT clause to match the requested column order.
+     */
     public toInsertQuery(options: InsertQueryConversionOptions): InsertQuery {
         return QueryBuilder.buildInsertQuery(this, options);
     }
 
+    /**
+     * Converts this query into an UPDATE statement definition.
+     * @remarks
+     * The conversion may reorder the SELECT list so that primary keys and updated columns align with the target table.
+     */
     public toUpdateQuery(options: UpdateQueryConversionOptions): UpdateQuery {
         return QueryBuilder.buildUpdateQuery(this, options);
     }
 
+    /**
+     * Converts this query into a DELETE statement definition.
+     * @remarks
+     * The SELECT clause may be reordered to ensure primary keys and comparison columns appear first.
+     */
     public toDeleteQuery(options: DeleteQueryConversionOptions): DeleteQuery {
         return QueryBuilder.buildDeleteQuery(this, options);
     }
 
+    /**
+     * Converts this query into a MERGE statement definition.
+     * @remarks
+     * This method may reorder the SELECT clause to align with the specified MERGE column lists.
+     */
     public toMergeQuery(options: MergeQueryConversionOptions): MergeQuery {
         return QueryBuilder.buildMergeQuery(this, options);
     }

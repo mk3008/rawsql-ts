@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { InsertQueryParser } from '../../src/parsers/InsertQueryParser';
 import { SqlFormatter } from '../../src/transformers/SqlFormatter';
+import { QueryBuilder } from '../../src/transformers/QueryBuilder';
 import { InsertQuerySelectValuesConverter } from '../../src/transformers/InsertQuerySelectValuesConverter';
 
 const formatter = () => new SqlFormatter();
@@ -76,6 +77,26 @@ SELECT sale_date AS sale_date, price AS price, created_at AS created_at FROM sal
         );
         expect(() => InsertQuerySelectValuesConverter.toSelectUnion(insert)).toThrowError(
             'Tuple value count does not match column count.'
+        );
+    });
+
+    it('is accessible through QueryBuilder for VALUES -> SELECT conversion', () => {
+        const insert = InsertQueryParser.parse(valuesSql);
+        const converted = QueryBuilder.convertInsertValuesToSelect(insert);
+        const sql = formatter().format(converted).formattedSql;
+
+        expect(sql).toBe(
+            "insert into \"sale\"(\"sale_date\", \"price\", \"created_at\") select '2023-01-01' as \"sale_date\", 160 as \"price\", '2024-01-11 14:29:01.618' as \"created_at\" union all select '2023-03-12' as \"sale_date\", 200 as \"price\", '2024-01-11 14:29:01.618' as \"created_at\""
+        );
+    });
+
+    it('is accessible through QueryBuilder for SELECT -> VALUES conversion', () => {
+        const insert = InsertQueryParser.parse(unionSql);
+        const converted = QueryBuilder.convertInsertSelectToValues(insert);
+        const sql = formatter().format(converted).formattedSql;
+
+        expect(sql).toBe(
+            "insert into \"sale\"(\"sale_date\", \"price\", \"created_at\") values ('2023-01-01', 160, '2024-01-11 14:29:01.618'), ('2023-03-12', 200, '2024-01-11 14:29:01.618')"
         );
     });
 });

@@ -12,6 +12,7 @@ import { InsertQuery } from "../models/InsertQuery";
 import { CTEDisabler } from './CTEDisabler';
 import { SourceExpressionParser } from '../parsers/SourceExpressionParser';
 import type { InsertQueryConversionOptions, UpdateQueryConversionOptions, DeleteQueryConversionOptions, MergeQueryConversionOptions } from "../models/SelectQuery";
+import { InsertQuerySelectValuesConverter } from "./InsertQuerySelectValuesConverter";
 
 /**
  * QueryBuilder provides static methods to build or convert various SQL query objects.
@@ -238,6 +239,24 @@ export class QueryBuilder {
             insertClause: new InsertClause(sourceExpr, columnNames),
             selectQuery
         });
+    }
+
+    /**
+     * Converts an INSERT ... VALUES query into INSERT ... SELECT form using UNION ALL.
+     * @param insertQuery The VALUES-based InsertQuery to convert.
+     * @returns A new InsertQuery that selects rows instead of using VALUES.
+     */
+    public static convertInsertValuesToSelect(insertQuery: InsertQuery): InsertQuery {
+        return InsertQuerySelectValuesConverter.toSelectUnion(insertQuery);
+    }
+
+    /**
+     * Converts an INSERT ... SELECT (optionally with UNION ALL) into INSERT ... VALUES form.
+     * @param insertQuery The SELECT-based InsertQuery to convert.
+     * @returns A new InsertQuery that uses VALUES tuples.
+     */
+    public static convertInsertSelectToValues(insertQuery: InsertQuery): InsertQuery {
+        return InsertQuerySelectValuesConverter.toValues(insertQuery);
     }
 
     /**

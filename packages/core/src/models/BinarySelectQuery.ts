@@ -168,18 +168,34 @@ export class BinarySelectQuery extends SqlComponent implements SelectQuery {
         return this.exceptAll(parsedQuery);
     }
 
+    /**
+     * Converts this query into an INSERT statement definition.
+     * @remarks The underlying simple query may be reordered so that column order matches the requested insert columns.
+     */
     public toInsertQuery(options: InsertQueryConversionOptions): InsertQuery {
         return this.toSimpleQuery().toInsertQuery(options);
     }
 
+    /**
+     * Converts this query into an UPDATE statement definition.
+     * @remarks The conversion can reorder the SELECT list produced by {@link toSimpleQuery}.
+     */
     public toUpdateQuery(options: UpdateQueryConversionOptions): UpdateQuery {
         return this.toSimpleQuery().toUpdateQuery(options);
     }
 
+    /**
+     * Converts this query into a DELETE statement definition.
+     * @remarks The conversion can reorder the SELECT list produced by {@link toSimpleQuery}.
+     */
     public toDeleteQuery(options: DeleteQueryConversionOptions): DeleteQuery {
         return this.toSimpleQuery().toDeleteQuery(options);
     }
 
+    /**
+     * Converts this query into a MERGE statement definition.
+     * @remarks The conversion can reorder the SELECT list produced by {@link toSimpleQuery}.
+     */
     public toMergeQuery(options: MergeQueryConversionOptions): MergeQuery {
         return this.toSimpleQuery().toMergeQuery(options);
     }

@@ -83,6 +83,12 @@ export enum SqlPrintTokenContainerType {
     ReturningClause = "ReturningClause",
     SetClauseItem = "SetClauseItem",
     CreateTableQuery = "CreateTableQuery",
+    MergeQuery = "MergeQuery",
+    MergeWhenClause = "MergeWhenClause",
+    MergeUpdateAction = "MergeUpdateAction",
+    MergeDeleteAction = "MergeDeleteAction",
+    MergeInsertAction = "MergeInsertAction",
+    MergeDoNothingAction = "MergeDoNothingAction",
     CommentBlock = "CommentBlock", // Container for comment tokens with conditional newlines
     // Add more as needed
 }
