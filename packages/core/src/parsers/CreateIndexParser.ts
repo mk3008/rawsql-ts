@@ -195,6 +195,10 @@ export class CreateIndexParser {
             }
         }
 
+        if (lexemes[idx - 1]?.type !== TokenType.CloseParen) {
+            throw new Error(`[CreateIndexParser] Expected ')' to close column list starting at index ${index}.`);
+        }
+
         return { columns, newIndex: idx };
     }
 
@@ -220,6 +224,10 @@ export class CreateIndexParser {
                 idx++;
                 break;
             }
+        }
+
+        if (lexemes[idx - 1]?.type !== TokenType.CloseParen) {
+            throw new Error(`[CreateIndexParser] Expected ')' to close identifier list starting at index ${index}.`);
         }
 
         return { identifiers, newIndex: idx };
@@ -248,6 +256,10 @@ export class CreateIndexParser {
                 }
             }
             idx++;
+        }
+
+        if (depth !== 0) {
+            throw new Error(`[CreateIndexParser] Unterminated WITH options starting at index ${start}; unbalanced parentheses.`);
         }
 
         const text = joinLexemeValues(lexemes, start, idx);

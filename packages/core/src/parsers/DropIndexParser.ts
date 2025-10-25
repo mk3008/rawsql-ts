@@ -39,7 +39,7 @@ export class DropIndexParser {
             ifExists = true;
             idx++;
             const next = lexemes[idx];
-            if (!next || !(next.type & (TokenType.Identifier | TokenType.Function | TokenType.Type | TokenType.OpenBracket))) {
+            if (!next || next.type !== TokenType.Identifier) {
                 throw new Error("[DropIndexParser] Expected index name immediately after IF EXISTS.");
             }
         }
