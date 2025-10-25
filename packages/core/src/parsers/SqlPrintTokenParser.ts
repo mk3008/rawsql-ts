@@ -39,8 +39,24 @@ import { ParameterDecorator } from "./ParameterDecorator";
 import { InsertQuery } from "../models/InsertQuery";
 import { UpdateQuery } from "../models/UpdateQuery";
 import { DeleteQuery } from "../models/DeleteQuery";
-import { CreateTableQuery } from "../models/CreateTableQuery";
+import {
+    CreateTableQuery,
+    TableColumnDefinition,
+    ColumnConstraintDefinition,
+    TableConstraintDefinition,
+    ReferenceDefinition
+} from "../models/CreateTableQuery";
 import { MergeQuery, MergeWhenClause, MergeUpdateAction, MergeDeleteAction, MergeInsertAction, MergeDoNothingAction, MergeMatchType } from "../models/MergeQuery";
+import {
+    DropTableStatement,
+    DropIndexStatement,
+    CreateIndexStatement,
+    IndexColumnDefinition,
+    AlterTableStatement,
+    AlterTableAddConstraint,
+    AlterTableDropConstraint,
+    DropConstraintStatement
+} from "../models/DDLStatements";
 
 export enum ParameterStyle {
     Anonymous = 'anonymous',
@@ -323,6 +339,18 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         this.handlers.set(SetClauseItem.kind, (expr) => this.visitSetClauseItem(expr as SetClauseItem));
         this.handlers.set(ReturningClause.kind, (expr) => this.visitReturningClause(expr as ReturningClause));
         this.handlers.set(CreateTableQuery.kind, (expr) => this.visitCreateTableQuery(expr as CreateTableQuery));
+        this.handlers.set(TableColumnDefinition.kind, (expr) => this.visitTableColumnDefinition(expr as TableColumnDefinition));
+        this.handlers.set(ColumnConstraintDefinition.kind, (expr) => this.visitColumnConstraintDefinition(expr as ColumnConstraintDefinition));
+        this.handlers.set(TableConstraintDefinition.kind, (expr) => this.visitTableConstraintDefinition(expr as TableConstraintDefinition));
+        this.handlers.set(ReferenceDefinition.kind, (expr) => this.visitReferenceDefinition(expr as ReferenceDefinition));
+        this.handlers.set(CreateIndexStatement.kind, (expr) => this.visitCreateIndexStatement(expr as CreateIndexStatement));
+        this.handlers.set(IndexColumnDefinition.kind, (expr) => this.visitIndexColumnDefinition(expr as IndexColumnDefinition));
+        this.handlers.set(DropTableStatement.kind, (expr) => this.visitDropTableStatement(expr as DropTableStatement));
+        this.handlers.set(DropIndexStatement.kind, (expr) => this.visitDropIndexStatement(expr as DropIndexStatement));
+        this.handlers.set(AlterTableStatement.kind, (expr) => this.visitAlterTableStatement(expr as AlterTableStatement));
+        this.handlers.set(AlterTableAddConstraint.kind, (expr) => this.visitAlterTableAddConstraint(expr as AlterTableAddConstraint));
+        this.handlers.set(AlterTableDropConstraint.kind, (expr) => this.visitAlterTableDropConstraint(expr as AlterTableDropConstraint));
+        this.handlers.set(DropConstraintStatement.kind, (expr) => this.visitDropConstraintStatement(expr as DropConstraintStatement));
         this.handlers.set(MergeQuery.kind, (expr) => this.visitMergeQuery(expr as MergeQuery));
         this.handlers.set(MergeWhenClause.kind, (expr) => this.visitMergeWhenClause(expr as MergeWhenClause));
         this.handlers.set(MergeUpdateAction.kind, (expr) => this.visitMergeUpdateAction(expr as MergeUpdateAction));
@@ -2624,11 +2652,32 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
     public visitCreateTableQuery(arg: CreateTableQuery): SqlPrintToken {
         const baseKeyword = arg.isTemporary ? 'create temporary table' : 'create table';
-        const keywordText = arg.ifNotExists ? `${baseKeyword} if not exists` : baseKeyword;
+        let keywordText = arg.ifNotExists ? `${baseKeyword} if not exists` : baseKeyword;
         const token = new SqlPrintToken(SqlPrintTokenType.keyword, keywordText, SqlPrintTokenContainerType.CreateTableQuery);
 
         token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
-        token.innerTokens.push(arg.tableName.accept(this));
+        const qualifiedName = new QualifiedName(arg.namespaces ?? null, arg.tableName);
+        token.innerTokens.push(qualifiedName.accept(this));
+
+        const definitionEntries: SqlComponent[] = [...arg.columns, ...arg.tableConstraints];
+        if (definitionEntries.length > 0) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(SqlPrintTokenParser.PAREN_OPEN_TOKEN);
+            const definitionToken = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.CreateTableDefinition);
+            for (let i = 0; i < definitionEntries.length; i++) {
+                if (i > 0) {
+                    definitionToken.innerTokens.push(...SqlPrintTokenParser.commaSpaceTokens());
+                }
+                definitionToken.innerTokens.push(definitionEntries[i].accept(this));
+            }
+            token.innerTokens.push(definitionToken);
+            token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
+        }
+
+        if (arg.tableOptions) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(arg.tableOptions.accept(this));
+        }
 
         if (arg.asSelectQuery) {
             token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
@@ -2639,5 +2688,454 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
         return token;
     }
-}
 
+    private visitTableColumnDefinition(arg: TableColumnDefinition): SqlPrintToken {
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.TableColumnDefinition);
+        token.innerTokens.push(arg.name.accept(this));
+
+        if (arg.dataType) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(arg.dataType.accept(this));
+        }
+
+        for (const constraint of arg.constraints) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(constraint.accept(this));
+        }
+
+        return token;
+    }
+
+    private visitColumnConstraintDefinition(arg: ColumnConstraintDefinition): SqlPrintToken {
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.ColumnConstraintDefinition);
+
+        if (arg.constraintName) {
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'constraint'));
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(arg.constraintName.accept(this));
+        }
+
+        const appendKeyword = (text: string) => {
+            if (token.innerTokens.length > 0) {
+                token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            }
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, text));
+        };
+
+        const appendComponent = (component: SqlComponent) => {
+            if (token.innerTokens.length > 0) {
+                token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            }
+            token.innerTokens.push(component.accept(this));
+        };
+
+        switch (arg.kind) {
+            case 'not-null':
+                appendKeyword('not null');
+                break;
+            case 'null':
+                appendKeyword('null');
+                break;
+            case 'default':
+                appendKeyword('default');
+                if (arg.defaultValue) {
+                    token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+                    token.innerTokens.push(arg.defaultValue.accept(this));
+                }
+                break;
+            case 'primary-key':
+                appendKeyword('primary key');
+                break;
+            case 'unique':
+                appendKeyword('unique');
+                break;
+            case 'references':
+                if (arg.reference) {
+                    appendComponent(arg.reference);
+                }
+                break;
+            case 'check':
+                if (arg.checkExpression) {
+                    appendKeyword('check');
+                    token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+                    token.innerTokens.push(SqlPrintTokenParser.PAREN_OPEN_TOKEN);
+                    token.innerTokens.push(this.visit(arg.checkExpression));
+                    token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
+                }
+                break;
+            case 'generated-always-identity':
+            case 'generated-by-default-identity':
+            case 'raw':
+                if (arg.rawClause) {
+                    appendComponent(arg.rawClause);
+                }
+                break;
+        }
+
+        return token;
+    }
+
+    private visitTableConstraintDefinition(arg: TableConstraintDefinition): SqlPrintToken {
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.TableConstraintDefinition);
+
+        const appendKeyword = (text: string) => {
+            if (token.innerTokens.length > 0) {
+                token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            }
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, text));
+        };
+
+        const appendComponent = (component: SqlComponent) => {
+            if (token.innerTokens.length > 0) {
+                token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            }
+            token.innerTokens.push(component.accept(this));
+        };
+
+        const appendColumns = (columns: IdentifierString[] | null) => {
+            if (!columns || columns.length === 0) {
+                return;
+            }
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(SqlPrintTokenParser.PAREN_OPEN_TOKEN);
+            const listToken = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.ValueList);
+            for (let i = 0; i < columns.length; i++) {
+                if (i > 0) {
+                    listToken.innerTokens.push(...SqlPrintTokenParser.commaSpaceTokens());
+                }
+                listToken.innerTokens.push(columns[i].accept(this));
+            }
+            token.innerTokens.push(listToken);
+            token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
+        };
+
+        if (arg.constraintName) {
+            appendKeyword('constraint');
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(arg.constraintName.accept(this));
+        }
+
+        switch (arg.kind) {
+            case 'primary-key':
+                appendKeyword('primary key');
+                appendColumns(arg.columns ?? []);
+                break;
+            case 'unique':
+                appendKeyword('unique');
+                appendColumns(arg.columns ?? []);
+                break;
+            case 'foreign-key':
+                appendKeyword('foreign key');
+                appendColumns(arg.columns ?? []);
+                if (arg.reference) {
+                    token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+                    token.innerTokens.push(arg.reference.accept(this));
+                }
+                break;
+            case 'check':
+                if (arg.checkExpression) {
+                    appendKeyword('check');
+                    token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+                    token.innerTokens.push(SqlPrintTokenParser.PAREN_OPEN_TOKEN);
+                    token.innerTokens.push(this.visit(arg.checkExpression));
+                    token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
+                }
+                break;
+            case 'raw':
+                if (arg.rawClause) {
+                    appendComponent(arg.rawClause);
+                }
+                break;
+        }
+
+        return token;
+    }
+
+    private visitReferenceDefinition(arg: ReferenceDefinition): SqlPrintToken {
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.ReferenceDefinition);
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'references'));
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(arg.targetTable.accept(this));
+
+        if (arg.columns && arg.columns.length > 0) {
+            token.innerTokens.push(SqlPrintTokenParser.PAREN_OPEN_TOKEN);
+            const columnList = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.ValueList);
+            for (let i = 0; i < arg.columns.length; i++) {
+                if (i > 0) {
+                    columnList.innerTokens.push(...SqlPrintTokenParser.commaSpaceTokens());
+                }
+                columnList.innerTokens.push(arg.columns[i].accept(this));
+            }
+            token.innerTokens.push(columnList);
+            token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
+        }
+
+        if (arg.matchType) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, `match ${arg.matchType}`));
+        }
+        if (arg.onDelete) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'on delete'));
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, arg.onDelete));
+        }
+        if (arg.onUpdate) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'on update'));
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, arg.onUpdate));
+        }
+        if (arg.deferrable === 'deferrable') {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'deferrable'));
+        } else if (arg.deferrable === 'not deferrable') {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'not deferrable'));
+        }
+        if (arg.initially === 'immediate') {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'initially immediate'));
+        } else if (arg.initially === 'deferred') {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'initially deferred'));
+        }
+
+        return token;
+    }
+
+    private visitCreateIndexStatement(arg: CreateIndexStatement): SqlPrintToken {
+        const keywordParts = ['create'];
+        if (arg.unique) {
+            keywordParts.push('unique');
+        }
+        keywordParts.push('index');
+        if (arg.concurrently) {
+            keywordParts.push('concurrently');
+        }
+        if (arg.ifNotExists) {
+            keywordParts.push('if not exists');
+        }
+        const token = new SqlPrintToken(SqlPrintTokenType.keyword, keywordParts.join(' '), SqlPrintTokenContainerType.CreateIndexStatement);
+
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(arg.indexName.accept(this));
+
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'on'));
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(arg.tableName.accept(this));
+
+        if (arg.usingMethod) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'using'));
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(arg.usingMethod.accept(this));
+        }
+
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(SqlPrintTokenParser.PAREN_OPEN_TOKEN);
+        const columnList = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.IndexColumnList);
+        for (let i = 0; i < arg.columns.length; i++) {
+            if (i > 0) {
+                columnList.innerTokens.push(...SqlPrintTokenParser.commaSpaceTokens());
+            }
+            columnList.innerTokens.push(arg.columns[i].accept(this));
+        }
+        token.innerTokens.push(columnList);
+        token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
+
+        if (arg.include && arg.include.length > 0) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'include'));
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(SqlPrintTokenParser.PAREN_OPEN_TOKEN);
+            const includeList = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.ValueList);
+            for (let i = 0; i < arg.include.length; i++) {
+                if (i > 0) {
+                    includeList.innerTokens.push(...SqlPrintTokenParser.commaSpaceTokens());
+                }
+                includeList.innerTokens.push(arg.include[i].accept(this));
+            }
+            token.innerTokens.push(includeList);
+            token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
+        }
+
+        if (arg.withOptions) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(arg.withOptions.accept(this));
+        }
+
+        if (arg.tablespace) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'tablespace'));
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(arg.tablespace.accept(this));
+        }
+
+        if (arg.where) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'where'));
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(this.visit(arg.where));
+        }
+
+        return token;
+    }
+
+    private visitIndexColumnDefinition(arg: IndexColumnDefinition): SqlPrintToken {
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.IndexColumnDefinition);
+        token.innerTokens.push(this.visit(arg.expression));
+
+        if (arg.collation) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'collate'));
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(arg.collation.accept(this));
+        }
+
+        if (arg.operatorClass) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(arg.operatorClass.accept(this));
+        }
+
+        if (arg.sortOrder) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, arg.sortOrder));
+        }
+
+        if (arg.nullsOrder) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, `nulls ${arg.nullsOrder}`));
+        }
+
+        return token;
+    }
+
+    private visitDropTableStatement(arg: DropTableStatement): SqlPrintToken {
+        const keyword = arg.ifExists ? 'drop table if exists' : 'drop table';
+        const token = new SqlPrintToken(SqlPrintTokenType.keyword, keyword, SqlPrintTokenContainerType.DropTableStatement);
+
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        const tableList = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.ValueList);
+        for (let i = 0; i < arg.tables.length; i++) {
+            if (i > 0) {
+                tableList.innerTokens.push(...SqlPrintTokenParser.commaSpaceTokens());
+            }
+            tableList.innerTokens.push(arg.tables[i].accept(this));
+        }
+        token.innerTokens.push(tableList);
+
+        if (arg.behavior) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, arg.behavior));
+        }
+
+        return token;
+    }
+
+    private visitDropIndexStatement(arg: DropIndexStatement): SqlPrintToken {
+        const keywordParts = ['drop', 'index'];
+        if (arg.concurrently) {
+            keywordParts.push('concurrently');
+        }
+        if (arg.ifExists) {
+            keywordParts.push('if exists');
+        }
+        const token = new SqlPrintToken(SqlPrintTokenType.keyword, keywordParts.join(' '), SqlPrintTokenContainerType.DropIndexStatement);
+
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        const indexList = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.ValueList);
+        for (let i = 0; i < arg.indexNames.length; i++) {
+            if (i > 0) {
+                indexList.innerTokens.push(...SqlPrintTokenParser.commaSpaceTokens());
+            }
+            indexList.innerTokens.push(arg.indexNames[i].accept(this));
+        }
+        token.innerTokens.push(indexList);
+
+        if (arg.behavior) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, arg.behavior));
+        }
+
+        return token;
+    }
+
+    private visitAlterTableStatement(arg: AlterTableStatement): SqlPrintToken {
+        const keywordParts = ['alter', 'table'];
+        if (arg.ifExists) {
+            keywordParts.push('if exists');
+        }
+        if (arg.only) {
+            keywordParts.push('only');
+        }
+        const token = new SqlPrintToken(SqlPrintTokenType.keyword, keywordParts.join(' '), SqlPrintTokenContainerType.AlterTableStatement);
+
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(arg.table.accept(this));
+
+        for (let i = 0; i < arg.actions.length; i++) {
+            if (i === 0) {
+                token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            } else {
+                token.innerTokens.push(SqlPrintTokenParser.COMMA_TOKEN);
+                token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            }
+            token.innerTokens.push(arg.actions[i].accept(this));
+        }
+
+        return token;
+    }
+
+    private visitAlterTableAddConstraint(arg: AlterTableAddConstraint): SqlPrintToken {
+        const keyword = arg.ifNotExists ? 'add if not exists' : 'add';
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.AlterTableAddConstraint);
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, keyword));
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(arg.constraint.accept(this));
+
+        if (arg.notValid) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'not valid'));
+        }
+
+        return token;
+    }
+
+    private visitAlterTableDropConstraint(arg: AlterTableDropConstraint): SqlPrintToken {
+        let keyword = 'drop constraint';
+        if (arg.ifExists) {
+            keyword += ' if exists';
+        }
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.AlterTableDropConstraint);
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, keyword));
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(arg.constraintName.accept(this));
+
+        if (arg.behavior) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, arg.behavior));
+        }
+
+        return token;
+    }
+
+    private visitDropConstraintStatement(arg: DropConstraintStatement): SqlPrintToken {
+        let keyword = 'drop constraint';
+        if (arg.ifExists) {
+            keyword += ' if exists';
+        }
+        const token = new SqlPrintToken(SqlPrintTokenType.keyword, keyword, SqlPrintTokenContainerType.DropConstraintStatement);
+
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(arg.constraintName.accept(this));
+
+        if (arg.behavior) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, arg.behavior));
+        }
+
+        return token;
+    }
+}

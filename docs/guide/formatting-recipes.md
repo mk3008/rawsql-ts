@@ -176,3 +176,38 @@ Anonymous style prints bare symbols such as `?` or `%s`. `SqlFormatter` still re
 ## Learn More
 
 Check the full [`SqlFormatterOptions` API](../api/interfaces/SqlFormatterOptions.md) documentation for every toggle, including advanced preset configuration and default values.
+
+## Formatting DDL statements
+
+`SqlFormatter` now understands schema-definition statements. You can parse `CREATE TABLE`, `DROP TABLE`, `ALTER TABLE` constraint changes, and index management statements and feed the resulting ASTs through the formatter to keep them consistent with query output.
+
+```ts
+import {
+  CreateTableParser,
+  DropTableParser,
+  CreateIndexParser,
+  DropIndexParser,
+  DropConstraintParser,
+  AlterTableParser,
+  SqlFormatter
+} from 'rawsql-ts';
+
+const ddl = `CREATE TABLE IF NOT EXISTS public.users (
+  id BIGINT PRIMARY KEY,
+  email TEXT NOT NULL UNIQUE,
+  role_id INT REFERENCES auth.roles(id)
+) WITH (fillfactor = 80)`;
+
+const ast = CreateTableParser.parse(ddl);
+const { formattedSql } = new SqlFormatter({ keywordCase: 'lower' }).format(ast);
+// formattedSql => drop-in-ready canonical SQL
+```
+
+Use the dedicated parsers when working with other DDL statements:
+
+- `DropTableParser` for `DROP TABLE` with multi-table targets and cascading options.
+- `AlterTableParser` to capture `ADD CONSTRAINT`/`DROP CONSTRAINT` actions on existing tables.
+- `CreateIndexParser` and `DropIndexParser` to normalize index definitions, including INCLUDE lists, storage parameters, and partial index predicates.
+- `DropConstraintParser` when databases support standalone constraint removal.
+
+These parsers emit strongly typed models (`CreateTableQuery`, `CreateIndexStatement`, `AlterTableStatement`, and more) so the formatter and other visitors can treat DDL alongside queries.
