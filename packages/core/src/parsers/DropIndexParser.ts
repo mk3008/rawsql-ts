@@ -38,6 +38,10 @@ export class DropIndexParser {
         if (lexemes[idx]?.value.toLowerCase() === "if exists") {
             ifExists = true;
             idx++;
+            const next = lexemes[idx];
+            if (!next || !(next.type & (TokenType.Identifier | TokenType.Function | TokenType.Type | TokenType.OpenBracket))) {
+                throw new Error("[DropIndexParser] Expected index name immediately after IF EXISTS.");
+            }
         }
 
         const indexNames: QualifiedName[] = [];

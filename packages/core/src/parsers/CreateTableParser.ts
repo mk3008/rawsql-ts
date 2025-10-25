@@ -19,6 +19,7 @@ import type { SelectQuery } from "../models/SelectQuery";
 import { FunctionExpressionParser } from "./FunctionExpressionParser";
 import { ValueParser } from "./ValueParser";
 import { IdentifierString, RawString, TypeValue, ValueComponent, QualifiedName } from "../models/ValueComponent";
+import { joinLexemeValues } from "../utils/ParserStringUtils";
 
 interface QualifiedNameResult {
     namespaces: string[] | null;
@@ -118,7 +119,7 @@ export class CreateTableParser {
             throw new Error(`[CreateTableParser] Unexpected end of input at position ${idx}.`);
         }
 
-        const commandToken = lexemes[idx].value;
+        const commandToken = lexemes[idx].value.toLowerCase();
         const isTemporary = commandToken === "create temporary table";
 
         if (commandToken !== "create table" && !isTemporary) {
@@ -160,7 +161,7 @@ export class CreateTableParser {
             if (!this.isSelectKeyword(nextValue, lexemes[idx + 1])) {
                 const optionsEnd = this.findClauseBoundary(lexemes, idx);
                 if (optionsEnd > idx) {
-                    tableOptions = new RawString(this.joinLexemeValues(lexemes, idx, optionsEnd));
+                    tableOptions = new RawString(joinLexemeValues(lexemes, idx, optionsEnd));
                     idx = optionsEnd;
                 }
             }
@@ -266,6 +267,10 @@ export class CreateTableParser {
         // Parse the column name as a qualified identifier.
         const columnNameResult = this.parseQualifiedName(lexemes, idx);
         idx = columnNameResult.newIndex;
+        if (columnNameResult.namespaces && columnNameResult.namespaces.length > 0) {
+            const qualified = [...columnNameResult.namespaces, columnNameResult.name.name].join(".");
+            throw new Error(`[CreateTableParser] Column name '${qualified}' must not include a schema or namespace qualifier.`);
+        }
         const columnName = columnNameResult.name;
 
         // Parse optional data type immediately following the column name.
@@ -299,7 +304,7 @@ export class CreateTableParser {
             return { value: result.value, newIndex: result.newIndex };
         } catch {
             const typeEnd = this.findFirstConstraintIndex(lexemes, index);
-            const rawText = this.joinLexemeValues(lexemes, index, typeEnd);
+            const rawText = joinLexemeValues(lexemes, index, typeEnd);
             return { value: new RawString(rawText), newIndex: typeEnd };
         }
     }
@@ -405,7 +410,7 @@ export class CreateTableParser {
         // Parse identity-style generated clauses.
         if (value.startsWith("generated")) {
             const clauseEnd = this.findFirstConstraintIndex(lexemes, idx + 1);
-            const text = this.joinLexemeValues(lexemes, idx, clauseEnd);
+            const text = joinLexemeValues(lexemes, idx, clauseEnd);
             idx = clauseEnd;
             const kind: ColumnConstraintKind = value.startsWith("generated always")
                 ? "generated-always-identity"
@@ -422,7 +427,7 @@ export class CreateTableParser {
 
         // Fallback to raw clause capture for unsupported constraints.
         const rawEnd = this.findFirstConstraintIndex(lexemes, idx + 1);
-        const rawText = this.joinLexemeValues(lexemes, idx, rawEnd);
+        const rawText = joinLexemeValues(lexemes, idx, rawEnd);
         return {
             value: new ColumnConstraintDefinition({
                 kind: "raw",
@@ -515,7 +520,7 @@ export class CreateTableParser {
 
         // Fallback to capturing the raw text when the constraint is not recognized.
         const rawEnd = this.findFirstConstraintIndex(lexemes, idx + 1);
-        const rawText = this.joinLexemeValues(lexemes, idx, rawEnd);
+        const rawText = joinLexemeValues(lexemes, idx, rawEnd);
         return {
             value: new TableConstraintDefinition({
                 kind: "raw",
@@ -706,25 +711,4 @@ export class CreateTableParser {
         return idx;
     }
 
-    private static joinLexemeValues(lexemes: Lexeme[], start: number, end: number): string {
-        const noSpaceBefore = new Set([",", ")", "]", "}", ";"]);
-        const noSpaceAfter = new Set(["(", "[", "{"]);
-        let result = "";
-        for (let i = start; i < end; i++) {
-            const current = lexemes[i];
-            const value = current.value;
-            if (result.length === 0) {
-                result = value;
-                continue;
-            }
-            const prev = lexemes[i - 1]?.value ?? "";
-            const omitSpace =
-                noSpaceBefore.has(value) ||
-                noSpaceAfter.has(prev) ||
-                value === "." ||
-                prev === ".";
-            result += omitSpace ? value : ` ${value}`;
-        }
-        return result;
-    }
 }

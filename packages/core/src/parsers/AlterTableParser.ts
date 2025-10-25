@@ -12,13 +12,14 @@ import {
     MatchType,
     ReferentialAction,
     ConstraintDeferrability,
-    ConstraintInitially
+    ConstraintInitially,
+    TableConstraintKind
 } from "../models/CreateTableQuery";
 import { Lexeme, TokenType } from "../models/Lexeme";
 import { FullNameParser } from "./FullNameParser";
 import { QualifiedName, IdentifierString, RawString, ValueComponent } from "../models/ValueComponent";
 import { ValueParser } from "./ValueParser";
-import { TableConstraintKind } from "../models/CreateTableQuery";
+import { joinLexemeValues } from "../utils/ParserStringUtils";
 
 /**
  * Parses ALTER TABLE statements focused on constraint operations.
@@ -95,11 +96,11 @@ export class AlterTableParser {
         while (idx < lexemes.length) {
             const value = lexemes[idx].value.toLowerCase();
 
-            if (value.startsWith("add")) {
+            if (value === "add constraint") {
                 const result = this.parseAddConstraintAction(lexemes, idx);
                 actions.push(result.value);
                 idx = result.newIndex;
-            } else if (value.startsWith("drop constraint") || value === "drop") {
+            } else if (value === "drop constraint") {
                 const result = this.parseDropConstraintAction(lexemes, idx);
                 actions.push(result.value);
                 idx = result.newIndex;
@@ -288,7 +289,7 @@ export class AlterTableParser {
         }
 
         const rawEnd = this.findConstraintClauseEnd(lexemes, idx + 1);
-        const rawText = this.joinLexemeValues(lexemes, idx, rawEnd);
+        const rawText = joinLexemeValues(lexemes, idx, rawEnd);
         return {
             constraint: new TableConstraintDefinition({
                 kind: "raw" as TableConstraintKind,
@@ -443,24 +444,4 @@ export class AlterTableParser {
         return idx;
     }
 
-    private static joinLexemeValues(lexemes: Lexeme[], start: number, end: number): string {
-        const noSpaceBefore = new Set([",", ")", "]", "}", ";"]);
-        const noSpaceAfter = new Set(["(", "[", "{"]);
-        let result = "";
-        for (let i = start; i < end; i++) {
-            const current = lexemes[i];
-            if (result.length === 0) {
-                result = current.value;
-                continue;
-            }
-            const prevValue = lexemes[i - 1]?.value ?? "";
-            const omitSpace =
-                noSpaceBefore.has(current.value) ||
-                noSpaceAfter.has(prevValue) ||
-                current.value === "." ||
-                prevValue === ".";
-            result += omitSpace ? current.value : ` ${current.value}`;
-        }
-        return result;
-    }
 }

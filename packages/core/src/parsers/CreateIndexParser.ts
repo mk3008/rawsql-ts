@@ -9,6 +9,7 @@ import { Lexeme, TokenType } from "../models/Lexeme";
 import { FullNameParser } from "./FullNameParser";
 import { QualifiedName, IdentifierString, RawString, ValueComponent } from "../models/ValueComponent";
 import { ValueParser } from "./ValueParser";
+import { joinLexemeValues } from "../utils/ParserStringUtils";
 
 /**
  * Parses CREATE INDEX statements.
@@ -249,7 +250,7 @@ export class CreateIndexParser {
             idx++;
         }
 
-        const text = this.joinLexemeValues(lexemes, start, idx);
+        const text = joinLexemeValues(lexemes, start, idx);
         return {
             options: new RawString(text),
             newIndex: idx
@@ -261,26 +262,5 @@ export class CreateIndexParser {
             value === "with" ||
             value === "where" ||
             value === "tablespace";
-    }
-
-    private static joinLexemeValues(lexemes: Lexeme[], start: number, end: number): string {
-        const noSpaceBefore = new Set([",", ")", "]", "}", ";"]);
-        const noSpaceAfter = new Set(["(", "[", "{"]);
-        let result = "";
-        for (let i = start; i < end; i++) {
-            const current = lexemes[i];
-            if (result.length === 0) {
-                result = current.value;
-                continue;
-            }
-            const prevValue = lexemes[i - 1]?.value ?? "";
-            const omitSpace =
-                noSpaceBefore.has(current.value) ||
-                noSpaceAfter.has(prevValue) ||
-                current.value === "." ||
-                prevValue === ".";
-            result += omitSpace ? current.value : ` ${current.value}`;
-        }
-        return result;
     }
 }

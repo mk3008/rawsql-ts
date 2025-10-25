@@ -59,6 +59,11 @@ WHERE active = true`;
         expect(formatted).toBe('drop index concurrently if exists "idx_users_email", "idx_users_active" restrict');
     });
 
+    it("rejects DROP INDEX when options are out of order", () => {
+        const sql = "DROP INDEX IF EXISTS CONCURRENTLY idx_users_email";
+        expect(() => DropIndexParser.parse(sql)).toThrow(/expected index name immediately after if exists/i);
+    });
+
     it("parses ALTER TABLE constraint actions", () => {
         const sql = `ALTER TABLE IF EXISTS ONLY public.users
     ADD CONSTRAINT users_email_key UNIQUE (email),

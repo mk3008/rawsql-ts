@@ -186,6 +186,8 @@ import {
   CreateTableParser,
   DropTableParser,
   CreateIndexParser,
+  DropIndexParser,
+  DropConstraintParser,
   AlterTableParser,
   SqlFormatter
 } from 'rawsql-ts';
