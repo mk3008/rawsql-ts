@@ -270,7 +270,7 @@ export class SqlPrinter {
             this.handleAndOperatorToken(token, level, parentContainerType, caseContextDepth);
         } else if (token.type === SqlPrintTokenType.operator && token.text.toLowerCase() === 'or') {
             this.handleOrOperatorToken(token, level, parentContainerType, caseContextDepth);
-        } else if (token.containerType === "JoinClause") {
+        } else if (token.containerType === SqlPrintTokenContainerType.JoinClause) {
             this.handleJoinClauseToken(token, level);
         } else if (token.type === SqlPrintTokenType.comment) {
             if (this.exportComment) {
