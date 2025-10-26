@@ -2,6 +2,11 @@ import { SqlPrintToken, SqlPrintTokenType, SqlPrintTokenContainerType } from "..
 import { IndentCharOption, LinePrinter, NewlineOption } from "./LinePrinter";
 import { resolveIndentCharOption, resolveNewlineOption } from "./FormatOptionResolver";
 import { BaseFormattingOptions, WithClauseStyle, CommentStyle } from "./SqlFormatter";
+import {
+    OnelineFormattingHelper,
+    OnelineFormattingOptions,
+    CommaBreakStyle as HelperCommaBreakStyle,
+} from "./OnelineFormattingHelper";
 
 /**
  * CommaBreakStyle determines how commas are placed in formatted SQL output.
@@ -9,7 +14,7 @@ import { BaseFormattingOptions, WithClauseStyle, CommentStyle } from "./SqlForma
  * - 'before': Line break before comma
  * - 'after': Line break after comma
  */
-export type CommaBreakStyle = 'none' | 'before' | 'after';
+export type CommaBreakStyle = HelperCommaBreakStyle;
 
 /**
  * AndBreakStyle determines how AND operators are placed in formatted SQL output.
@@ -105,6 +110,10 @@ export class SqlPrinter {
     private subqueryOneLine: boolean;
     /** Whether to indent nested parentheses when boolean groups get expanded */
     private indentNestedParentheses: boolean;
+    /** Whether to keep INSERT column lists on one line */
+    private insertColumnsOneLine: boolean;
+    /** Shared helper for oneline-specific formatting decisions */
+    private onelineHelper: OnelineFormattingHelper;
     /** Pending line comment that needs a forced newline before next token */
     private pendingLineCommentBreak: number | null = null;
     /** Accumulates lines when reconstructing multi-line block comments inside CommentBlocks */
@@ -141,6 +150,18 @@ export class SqlPrinter {
         this.caseOneLine = options?.caseOneLine ?? false;
         this.subqueryOneLine = options?.subqueryOneLine ?? false;
         this.indentNestedParentheses = options?.indentNestedParentheses ?? false;
+        this.insertColumnsOneLine = options?.insertColumnsOneLine ?? false;
+        const onelineOptions: OnelineFormattingOptions = {
+            parenthesesOneLine: this.parenthesesOneLine,
+            betweenOneLine: this.betweenOneLine,
+            valuesOneLine: this.valuesOneLine,
+            joinOneLine: this.joinOneLine,
+            caseOneLine: this.caseOneLine,
+            subqueryOneLine: this.subqueryOneLine,
+            insertColumnsOneLine: this.insertColumnsOneLine,
+            withClauseStyle: this.withClauseStyle,
+        };
+        this.onelineHelper = new OnelineFormattingHelper(onelineOptions);
         this.linePrinter = new LinePrinter(this.indentChar, this.indentSize, this.newline, this.commaBreak);
 
         // Initialize
@@ -244,12 +265,12 @@ export class SqlPrinter {
         } else if (token.type === SqlPrintTokenType.comma) {
             this.handleCommaToken(token, level, parentContainerType);
         } else if (token.type === SqlPrintTokenType.parenthesis) {
-            this.handleParenthesisToken(token, level, indentParentActive);
+            this.handleParenthesisToken(token, level, indentParentActive, parentContainerType);
         } else if (token.type === SqlPrintTokenType.operator && token.text.toLowerCase() === 'and') {
             this.handleAndOperatorToken(token, level, parentContainerType, caseContextDepth);
         } else if (token.type === SqlPrintTokenType.operator && token.text.toLowerCase() === 'or') {
             this.handleOrOperatorToken(token, level, parentContainerType, caseContextDepth);
-        } else if (token.containerType === "JoinClause") {
+        } else if (token.containerType === SqlPrintTokenContainerType.JoinClause) {
             this.handleJoinClauseToken(token, level);
         } else if (token.type === SqlPrintTokenType.comment) {
             if (this.exportComment) {
@@ -262,15 +283,10 @@ export class SqlPrinter {
         } else if (token.containerType === SqlPrintTokenContainerType.CommonTable && this.withClauseStyle === 'cte-oneline') {
             this.handleCteOnelineToken(token, level);
             return; // Return early to avoid processing innerTokens
-        } else if ((token.containerType === SqlPrintTokenContainerType.ParenExpression && this.parenthesesOneLine && !shouldIndentNested) ||
-                   (token.containerType === SqlPrintTokenContainerType.BetweenExpression && this.betweenOneLine) ||
-                   (token.containerType === SqlPrintTokenContainerType.Values && this.valuesOneLine) ||
-                   (token.containerType === SqlPrintTokenContainerType.JoinOnClause && this.joinOneLine) ||
-                   (token.containerType === SqlPrintTokenContainerType.CaseExpression && this.caseOneLine) ||
-                   (token.containerType === SqlPrintTokenContainerType.InlineQuery && this.subqueryOneLine)) {
+        } else if (this.shouldFormatContainerAsOneline(token, shouldIndentNested)) {
             this.handleOnelineToken(token, level);
             return; // Return early to avoid processing innerTokens
-        } else {
+        } else if (!this.tryAppendInsertClauseTokenText(token.text, parentContainerType)) {
             this.linePrinter.appendText(token.text);
         }
 
@@ -302,6 +318,19 @@ export class SqlPrinter {
 
         for (let i = 0; i < token.innerTokens.length; i++) {
             const child = token.innerTokens[i];
+            const nextChild = token.innerTokens[i + 1];
+
+            if (child.type === SqlPrintTokenType.space) {
+                if (this.shouldConvertSpaceToClauseBreak(token.containerType, nextChild)) {
+                    if (!this.isOnelineMode()) {
+                        this.linePrinter.appendNewline(innerLevel);
+                    }
+                    continue;
+                }
+                this.handleSpaceToken(child, token.containerType, nextChild);
+                continue;
+            }
+
             const childIndentParentActive = token.containerType === SqlPrintTokenContainerType.ParenExpression ? shouldIndentNested : indentParentActive;
             this.appendToken(child, innerLevel, token.containerType, nextCaseContextDepth, childIndentParentActive);
         }
@@ -377,20 +406,63 @@ export class SqlPrinter {
             this.linePrinter.appendText(text);
             return;
         }
+
+        this.ensureSpaceBeforeKeyword();
         this.linePrinter.appendText(text);
+    }
+
+    private ensureSpaceBeforeKeyword(): void {
+        const currentLine = this.linePrinter.getCurrentLine();
+        if (currentLine.text === '') {
+            return;
+        }
+        const lastChar = currentLine.text[currentLine.text.length - 1];
+        if (lastChar === '(') {
+            return;
+        }
+        this.ensureTrailingSpace();
+    }
+
+    private ensureTrailingSpace(): void {
+        const currentLine = this.linePrinter.getCurrentLine();
+        if (currentLine.text === '') {
+            return;
+        }
+        if (!currentLine.text.endsWith(' ')) {
+            currentLine.text += ' ';
+        }
+        currentLine.text = currentLine.text.replace(/\s+$/, ' ');
+    }
+
+    /**
+     * Normalizes INSERT column list token text when one-line formatting is active.
+     */
+    private tryAppendInsertClauseTokenText(text: string, parentContainerType?: SqlPrintTokenContainerType): boolean {
+        const currentLineText = this.linePrinter.getCurrentLine().text;
+        const result = this.onelineHelper.formatInsertClauseToken(
+            text,
+            parentContainerType,
+            currentLineText,
+            () => this.ensureTrailingSpace(),
+        );
+        if (!result.handled) {
+            return false;
+        }
+        if (result.text) {
+            this.linePrinter.appendText(result.text);
+        }
+        return true;
     }
 
     private handleCommaToken(token: SqlPrintToken, level: number, parentContainerType?: SqlPrintTokenContainerType): void {
         const text = token.text;
         const isWithinWithClause = parentContainerType === SqlPrintTokenContainerType.WithClause;
-        const isWithinValuesClause = parentContainerType === SqlPrintTokenContainerType.Values;
-
-        let effectiveCommaBreak: CommaBreakStyle = this.commaBreak;
-        if (isWithinWithClause) {
-            effectiveCommaBreak = this.cteCommaBreak;
-        } else if (isWithinValuesClause) {
-            effectiveCommaBreak = this.valuesCommaBreak;
-        }
+        const effectiveCommaBreak = this.onelineHelper.resolveCommaBreak(
+            parentContainerType,
+            this.commaBreak,
+            this.cteCommaBreak,
+            this.valuesCommaBreak,
+        );
 
         // Skip comma newlines when inside WITH clause with full-oneline style
         if (this.insideWithClause && this.withClauseStyle === 'full-oneline') {
@@ -407,6 +479,10 @@ export class SqlPrinter {
             }
             if (!(this.insideWithClause && this.withClauseStyle === 'full-oneline')) {
                 this.linePrinter.appendNewline(level);
+                if (parentContainerType === SqlPrintTokenContainerType.InsertClause) {
+                    // Align comma-prefixed column entries under the INSERT column indentation.
+                    this.linePrinter.getCurrentLine().level = level + 1;
+                }
             }
             this.linePrinter.appendText(text);
             if (previousCommaBreak !== 'before') {
@@ -433,6 +509,9 @@ export class SqlPrinter {
                 this.linePrinter.commaBreak = 'none';
             }
             this.linePrinter.appendText(text);
+            if (this.onelineHelper.isInsertClauseOneline(parentContainerType)) {
+                this.ensureTrailingSpace();
+            }
             if (previousCommaBreak !== 'none') {
                 this.linePrinter.commaBreak = previousCommaBreak;
             }
@@ -466,21 +545,30 @@ export class SqlPrinter {
         }
     }
 
-    private handleParenthesisToken(token: SqlPrintToken, level: number, indentParentActive: boolean): void {
+    private handleParenthesisToken(token: SqlPrintToken, level: number, indentParentActive: boolean, parentContainerType?: SqlPrintTokenContainerType): void {
         if (token.text === '(') {
             this.linePrinter.appendText(token.text);
-            if (indentParentActive && !this.isOnelineMode()) {
-                if (!(this.insideWithClause && this.withClauseStyle === 'full-oneline')) {
+            if (parentContainerType === SqlPrintTokenContainerType.InsertClause && this.insertColumnsOneLine) {
+                return;
+            }
+            if (!this.isOnelineMode()) {
+                if (this.shouldBreakAfterOpeningParen(parentContainerType)) {
+                    this.linePrinter.appendNewline(level + 1);
+                } else if (indentParentActive && !(this.insideWithClause && this.withClauseStyle === 'full-oneline')) {
                     this.linePrinter.appendNewline(level);
                 }
             }
             return;
         }
 
-        if (token.text === ')' && indentParentActive && !this.isOnelineMode()) {
-            // Align closing parenthesis with the outer indentation level when nested groups expand.
-            const closingLevel = Math.max(level - 1, 0);
-            if (!(this.insideWithClause && this.withClauseStyle === 'full-oneline')) {
+        if (token.text === ')' && !this.isOnelineMode()) {
+            if (this.shouldBreakBeforeClosingParen(parentContainerType)) {
+                this.linePrinter.appendNewline(Math.max(level, 0));
+                this.linePrinter.appendText(token.text);
+                return;
+            }
+            if (indentParentActive && !(this.insideWithClause && this.withClauseStyle === 'full-oneline')) {
+                const closingLevel = Math.max(level - 1, 0);
                 this.linePrinter.appendNewline(closingLevel);
             }
         }
@@ -547,22 +635,40 @@ export class SqlPrinter {
 
     private handleJoinClauseToken(token: SqlPrintToken, level: number): void {
         const text = this.applyKeywordCase(token.text);
-        // before join clause, add newline (skip when inside WITH clause with full-oneline style)
-        if (!(this.insideWithClause && this.withClauseStyle === 'full-oneline')) {
+        // before join clause, add newline when multiline formatting is allowed
+        if (this.onelineHelper.shouldInsertJoinNewline(this.insideWithClause)) {
             this.linePrinter.appendNewline(level);
         }
         this.linePrinter.appendText(text);
     }
 
     /**
+     * Decides whether the current container should collapse into a single line.
+     */
+    private shouldFormatContainerAsOneline(token: SqlPrintToken, shouldIndentNested: boolean): boolean {
+        return this.onelineHelper.shouldFormatContainer(token, shouldIndentNested);
+    }
+
+    /**
+     * Detects an INSERT column list that must stay on a single line.
+     */
+    private isInsertClauseOneline(parentContainerType?: SqlPrintTokenContainerType): boolean {
+        return this.onelineHelper.isInsertClauseOneline(parentContainerType);
+    }
+
+    /**
      * Handles space tokens with context-aware filtering.
      * Skips spaces in CommentBlocks when in specific CTE modes to prevent duplication.
      */
-    private handleSpaceToken(token: SqlPrintToken, parentContainerType?: SqlPrintTokenContainerType): void {
+    private handleSpaceToken(token: SqlPrintToken, parentContainerType?: SqlPrintTokenContainerType, nextToken?: SqlPrintToken): void {
         if (this.smartCommentBlockBuilder && this.smartCommentBlockBuilder.mode === 'line') {
             this.flushSmartCommentBlockBuilder();
         }
-        if (this.shouldSkipCommentBlockSpace(parentContainerType)) {
+        const currentLineText = this.linePrinter.getCurrentLine().text;
+        if (this.onelineHelper.shouldSkipInsertClauseSpace(parentContainerType, nextToken, currentLineText)) {
+            return;
+        }
+        if (this.onelineHelper.shouldSkipCommentBlockSpace(parentContainerType, this.insideWithClause)) {
             const currentLine = this.linePrinter.getCurrentLine();
             if (currentLine.text !== '' && !currentLine.text.endsWith(' ')) {
                 this.linePrinter.appendText(' ');
@@ -570,16 +676,6 @@ export class SqlPrinter {
             return;
         }
         this.linePrinter.appendText(token.text);
-    }
-
-    /**
-     * Determines whether to skip space tokens in CommentBlocks.
-     * Prevents duplicate spacing in CTE full-oneline mode only.
-     */
-    private shouldSkipCommentBlockSpace(parentContainerType?: SqlPrintTokenContainerType): boolean {
-        return parentContainerType === SqlPrintTokenContainerType.CommentBlock &&
-               this.insideWithClause &&
-               this.withClauseStyle === 'full-oneline';
     }
 
     private printCommentToken(text: string, level: number, parentContainerType?: SqlPrintTokenContainerType): void {
@@ -998,6 +1094,7 @@ export class SqlPrinter {
             exportComment: false,
             withClauseStyle: 'standard', // Prevent recursive processing
             indentNestedParentheses: false,
+            insertColumnsOneLine: this.insertColumnsOneLine,
         });
     }
 
@@ -1010,6 +1107,73 @@ export class SqlPrinter {
         const onelineResult = onelinePrinter.print(token, level);
         const cleanedResult = this.cleanDuplicateSpaces(onelineResult);
         this.linePrinter.appendText(cleanedResult);
+    }
+
+    private getClauseBreakIndentLevel(parentType: SqlPrintTokenContainerType | undefined, level: number): number {
+        // Currently all CUD clause breaks align with the statement keyword.
+        return level;
+    }
+
+    private shouldBreakAfterOpeningParen(parentType?: SqlPrintTokenContainerType): boolean {
+        return parentType === SqlPrintTokenContainerType.InsertClause
+            ? !this.isInsertClauseOneline(parentType)
+            : false;
+    }
+
+    private shouldBreakBeforeClosingParen(parentType?: SqlPrintTokenContainerType): boolean {
+        return parentType === SqlPrintTokenContainerType.InsertClause
+            ? !this.isInsertClauseOneline(parentType)
+            : false;
+    }
+
+    private shouldConvertSpaceToClauseBreak(parentType: SqlPrintTokenContainerType | undefined, nextToken?: SqlPrintToken): boolean {
+        if (!parentType || !nextToken) {
+            return false;
+        }
+
+        const nextKeyword = nextToken.type === SqlPrintTokenType.keyword ? nextToken.text.toLowerCase() : null;
+        const nextContainer = nextToken.containerType;
+
+        if (parentType === SqlPrintTokenContainerType.UpdateQuery) {
+            if (nextKeyword === 'set' || nextKeyword === 'from' || nextKeyword === 'where' || nextKeyword === 'returning') {
+                return true;
+            }
+        }
+
+        if (parentType === SqlPrintTokenContainerType.InsertQuery) {
+            if (nextKeyword === 'returning') {
+                return true;
+            }
+            if (nextKeyword && (nextKeyword.startsWith('select') || nextKeyword.startsWith('values'))) {
+                return true;
+            }
+            if (nextContainer === SqlPrintTokenContainerType.ValuesQuery || nextContainer === SqlPrintTokenContainerType.SimpleSelectQuery) {
+                return true;
+            }
+            if (nextContainer === SqlPrintTokenContainerType.InsertClause) {
+                return true;
+            }
+        }
+
+        if (parentType === SqlPrintTokenContainerType.DeleteQuery) {
+            if (nextKeyword === 'using' || nextKeyword === 'where' || nextKeyword === 'returning') {
+                return true;
+            }
+        }
+
+        if (parentType === SqlPrintTokenContainerType.MergeUpdateAction || parentType === SqlPrintTokenContainerType.MergeDeleteAction) {
+            if (nextKeyword === 'where') {
+                return true;
+            }
+        }
+
+        if (parentType === SqlPrintTokenContainerType.MergeInsertAction) {
+            if (nextKeyword && (nextKeyword.startsWith('values') || nextKeyword === 'default values')) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -1037,6 +1201,7 @@ export class SqlPrinter {
             caseOneLine: false,        // Prevent recursive processing (avoid infinite loops)
             subqueryOneLine: false,    // Prevent recursive processing (avoid infinite loops)
             indentNestedParentheses: false,
+            insertColumnsOneLine: this.insertColumnsOneLine,
         });
     }
 
@@ -1051,3 +1216,4 @@ export class SqlPrinter {
 
 
 }
+

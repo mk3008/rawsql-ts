@@ -7,33 +7,26 @@ import { TableSource, ParenSource, SourceExpression } from "../../src/models/Cla
 
 describe("InsertQueryParser", () => {
     it("parses INSERT INTO table SELECT ...", () => {
-        // Arrange
         const sql = "INSERT INTO users SELECT * FROM accounts";
 
-        // Act
         const insert = InsertQueryParser.parse(sql);
-        // Assert
         const query = new SqlFormatter().format(insert).formattedSql;
 
-        // Assert
         expect(query).toBe('insert into "users" select * from "accounts"');
     });
 
     it("parses INSERT INTO table (col1, col2) SELECT ...", () => {
         const sql = "INSERT INTO users (id, name) SELECT id, name FROM accounts";
 
-        // Act
         const insert = InsertQueryParser.parse(sql);
         const query = new SqlFormatter().format(insert).formattedSql;
 
-        // Assert
         expect(query).toBe('insert into "users"("id", "name") select "id", "name" from "accounts"');
     });
 
     it("parses INSERT INTO table (col1, col2) WITH ... SELECT ...", () => {
         const sql = "WITH t AS (SELECT 1 AS id, 'a' AS name) INSERT INTO users (id, name) SELECT * FROM t";
 
-        // Act
         const insert = InsertQueryParser.parse(sql);
         const query = new SqlFormatter().format(insert).formattedSql;
 
@@ -44,11 +37,9 @@ describe("InsertQueryParser", () => {
     it("parses INSERT INTO db.schema.users (col1) SELECT ...", () => {
         const sql = "INSERT INTO db.schema.users (id) SELECT id FROM accounts";
 
-        // Act
         const insert = InsertQueryParser.parse(sql);
         const query = new SqlFormatter().format(insert).formattedSql;
 
-        // Assert
         expect(query).toBe('insert into "db"."schema"."users"("id") select "id" from "accounts"');
     });
 
@@ -83,4 +74,3 @@ describe("InsertQueryParser", () => {
         expect(insert.returningClause?.columns[0].name).toBe("*");
     });
 });
-
