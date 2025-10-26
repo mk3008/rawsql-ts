@@ -8,6 +8,10 @@ import {
     CommaBreakStyle as HelperCommaBreakStyle,
 } from "./OnelineFormattingHelper";
 
+const CREATE_TABLE_SINGLE_PAREN_KEYWORDS = new Set(['unique', 'check']);
+const CREATE_TABLE_MULTI_PAREN_KEYWORDS = new Set(['primary key', 'foreign key']);
+const CREATE_TABLE_PAREN_KEYWORDS_WITH_IDENTIFIER = new Set(['references']);
+
 /**
  * CommaBreakStyle determines how commas are placed in formatted SQL output.
  * - 'none': No line break for commas
@@ -319,6 +323,7 @@ export class SqlPrinter {
         for (let i = 0; i < token.innerTokens.length; i++) {
             const child = token.innerTokens[i];
             const nextChild = token.innerTokens[i + 1];
+            const previousChild = this.findPreviousSignificantToken(token.innerTokens, i);
 
             if (child.type === SqlPrintTokenType.space) {
                 if (this.shouldConvertSpaceToClauseBreak(token.containerType, nextChild)) {
@@ -327,7 +332,7 @@ export class SqlPrinter {
                     }
                     continue;
                 }
-                this.handleSpaceToken(child, token.containerType, nextChild);
+                this.handleSpaceToken(child, token.containerType, nextChild, previousChild);
                 continue;
             }
 
@@ -660,7 +665,12 @@ export class SqlPrinter {
      * Handles space tokens with context-aware filtering.
      * Skips spaces in CommentBlocks when in specific CTE modes to prevent duplication.
      */
-    private handleSpaceToken(token: SqlPrintToken, parentContainerType?: SqlPrintTokenContainerType, nextToken?: SqlPrintToken): void {
+    private handleSpaceToken(
+        token: SqlPrintToken,
+        parentContainerType?: SqlPrintTokenContainerType,
+        nextToken?: SqlPrintToken,
+        previousToken?: SqlPrintToken,
+    ): void {
         if (this.smartCommentBlockBuilder && this.smartCommentBlockBuilder.mode === 'line') {
             this.flushSmartCommentBlockBuilder();
         }
@@ -675,7 +685,91 @@ export class SqlPrinter {
             }
             return;
         }
+        // Skip redundant spaces before structural parentheses in CREATE TABLE DDL.
+        if (this.shouldSkipSpaceBeforeParenthesis(parentContainerType, nextToken, previousToken)) {
+            return;
+        }
         this.linePrinter.appendText(token.text);
+    }
+
+    private findPreviousSignificantToken(tokens: SqlPrintToken[], index: number): SqlPrintToken | undefined {
+        for (let i = index - 1; i >= 0; i--) {
+            const candidate = tokens[i];
+            if (candidate.type === SqlPrintTokenType.space || candidate.type === SqlPrintTokenType.commentNewline) {
+                continue;
+            }
+            if (candidate.type === SqlPrintTokenType.comment && !this.exportComment) {
+                continue;
+            }
+            return candidate;
+        }
+        return undefined;
+    }
+
+    private shouldSkipSpaceBeforeParenthesis(
+        parentContainerType?: SqlPrintTokenContainerType,
+        nextToken?: SqlPrintToken,
+        previousToken?: SqlPrintToken,
+    ): boolean {
+        if (!nextToken || nextToken.type !== SqlPrintTokenType.parenthesis || nextToken.text !== '(') {
+            return false;
+        }
+        if (!parentContainerType || !this.isCreateTableSpacingContext(parentContainerType)) {
+            return false;
+        }
+        if (!previousToken) {
+            return false;
+        }
+
+        if (this.isCreateTableNameToken(previousToken, parentContainerType)) {
+            return true;
+        }
+
+        if (this.isCreateTableConstraintKeyword(previousToken)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    private isCreateTableSpacingContext(parentContainerType: SqlPrintTokenContainerType): boolean {
+        switch (parentContainerType) {
+            case SqlPrintTokenContainerType.CreateTableQuery:
+            case SqlPrintTokenContainerType.CreateTableDefinition:
+            case SqlPrintTokenContainerType.TableConstraintDefinition:
+            case SqlPrintTokenContainerType.ColumnConstraintDefinition:
+            case SqlPrintTokenContainerType.ReferenceDefinition:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private isCreateTableNameToken(previousToken: SqlPrintToken, parentContainerType: SqlPrintTokenContainerType): boolean {
+        if (parentContainerType !== SqlPrintTokenContainerType.CreateTableQuery) {
+            return false;
+        }
+
+        return previousToken.containerType === SqlPrintTokenContainerType.QualifiedName;
+    }
+
+    private isCreateTableConstraintKeyword(previousToken: SqlPrintToken): boolean {
+        if (previousToken.type !== SqlPrintTokenType.keyword) {
+            return false;
+        }
+
+        const text = previousToken.text.toLowerCase();
+        if (CREATE_TABLE_SINGLE_PAREN_KEYWORDS.has(text)) {
+            return true;
+        }
+        if (CREATE_TABLE_MULTI_PAREN_KEYWORDS.has(text)) {
+            return true;
+        }
+        if (CREATE_TABLE_PAREN_KEYWORDS_WITH_IDENTIFIER.has(text)) {
+            return true;
+        }
+
+        return false;
     }
 
     private printCommentToken(text: string, level: number, parentContainerType?: SqlPrintTokenContainerType): void {
