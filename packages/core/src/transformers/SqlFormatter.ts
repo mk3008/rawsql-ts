@@ -74,6 +74,8 @@ export interface BaseFormattingOptions {
     subqueryOneLine?: boolean;
     /** Indent nested parentheses when boolean groups contain additional parentheses */
     indentNestedParentheses?: boolean;
+    /** Keep INSERT column lists on one line regardless of comma break settings */
+    insertColumnsOneLine?: boolean;
 }
 
 /**

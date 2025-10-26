@@ -2365,7 +2365,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     }
 
     private visitInsertClause(arg: InsertClause): SqlPrintToken {
-        const token = new SqlPrintToken(SqlPrintTokenType.container, '');
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.InsertClause);
 
         token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'insert into'));
         token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);

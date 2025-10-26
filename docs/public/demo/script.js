@@ -1,5 +1,10 @@
-// Import rawsql-ts modules
-import { SelectQueryParser, SqlFormatter, TableSourceCollector, CTECollector, SchemaCollector, QueryFlowDiagramGenerator } from "https://unpkg.com/rawsql-ts/dist/esm/index.min.js";
+// Import rawsql-ts modules from the local vendor bundle for consistent class instances
+import {
+    SqlParser,
+    SqlFormatter,
+    QueryFlowDiagramGenerator,
+    MultiQuerySplitter
+} from './vendor/rawsql.browser.js';
 // Import style configuration module
 import { initStyleConfig, loadStyles as loadStylesFromModule, saveStylesAndFormat, displayStyle as displayStyleFromModule, populateStyleSelect as populateStyleSelectFromModule, getCurrentStyles as getStylesFromModule, DEFAULT_STYLE_KEY as STYLE_CONFIG_DEFAULT_KEY } from './style-config.js';
 // Import analysis features module
@@ -101,6 +106,77 @@ initializeTabs('right-pane');
 const initialSql = "SELECT\n    id,\n    name,\n    email\nFROM\n    users\nWHERE\n    status = :active\nORDER BY\n    created_at DESC;";
 sqlInputEditor.setValue(initialSql);
 
+function parseSqlText(sqlText) {
+    const splitResult = MultiQuerySplitter.split(sqlText);
+    const statements = new Map();
+    const errors = [];
+
+    for (const query of splitResult.queries) {
+        if (query.isEmpty) {
+            continue;
+        }
+
+        try {
+            const ast = SqlParser.parse(query.sql);
+            statements.set(query.index, { ast, sql: query.sql });
+        } catch (error) {
+            errors.push({
+                index: query.index,
+                message: error instanceof Error ? error.message : String(error)
+            });
+        }
+    }
+
+    return { splitResult, statements, errors };
+}
+
+function isSelectStatement(ast) {
+    return Boolean(ast && typeof ast === 'object' && ast.__selectQueryType);
+}
+
+// Decide whether the original statement ended with a semicolon.
+function statementNeedsSemicolon(original, endIndex) {
+    if (!original || endIndex < 0 || endIndex >= original.length) {
+        return false;
+    }
+    return original[endIndex] === ";";
+}
+
+// Ensure semicolon is placed on its own line with surrounding newlines when required.
+function formatSegmentWithSemicolon(text, includeSemicolon) {
+    if (!text) {
+        return "";
+    }
+    let trimmed = text.replace(/\s+$/u, '');
+    if (!includeSemicolon) {
+        return trimmed;
+    }
+    trimmed = trimmed.replace(/\s*;+\s*$/u, '');
+    return `${trimmed}\n;`;
+}
+
+// Locate the first SELECT-like statement for flow diagrams.
+function findFirstSelectSegment(sqlText) {
+    const { splitResult, statements } = parseSqlText(sqlText);
+
+    for (const query of splitResult.queries) {
+        if (query.isEmpty) {
+            continue;
+        }
+
+        const parsed = statements.get(query.index);
+        if (!parsed) {
+            continue;
+        }
+
+        if (isSelectStatement(parsed.ast)) {
+            return { sql: parsed.sql, ast: parsed.ast };
+        }
+    }
+
+    return null;
+}
+
 // Function to update status bar
 function updateStatusBar(message, isError = false) {
     statusBar.textContent = message;
@@ -140,7 +216,14 @@ async function updateFlowDiagram() {
     }
 
     try {
-        const mermaidCode = QueryFlowDiagramGenerator.generate(sqlText);
+        const selectSegment = findFirstSelectSegment(sqlText);
+        const targetSql = selectSegment?.sql;
+        if (!targetSql) {
+            flowDiagramContainer.innerHTML = '<div style="padding: 20px; color: gray;">Flow diagram is available for SELECT statements only.</div>';
+            return;
+        }
+
+        const mermaidCode = QueryFlowDiagramGenerator.generate(targetSql);
         console.log('Generated Mermaid code:', mermaidCode);
         
         // Clear the container
@@ -201,11 +284,64 @@ function formatSql() {
             }
         }
 
-        const query = SelectQueryParser.parse(sqlText); // MODIFIED
-        const formatter = new SqlFormatter(formatOptions); // MODIFIED
-        const formattedSql = formatter.format(query).formattedSql;
-        formattedSqlEditor.setValue(formattedSql);
-        updateStatusBar('SQL formatted successfully.');
+        const { splitResult, statements, errors } = parseSqlText(sqlText);
+        const formatter = new SqlFormatter(formatOptions);
+        const segments = [];
+        let formattedCount = 0;
+        const errorMap = new Map(errors.map(err => [err.index, err.message]));
+
+        for (const queryInfo of splitResult.queries) {
+            const segmentSql = queryInfo.sql;
+            if (!segmentSql) {
+                continue;
+            }
+
+            if (queryInfo.isEmpty) {
+                // Preserve comment-only or empty segments as-is.
+                segments.push(segmentSql);
+                continue;
+            }
+
+            const parsed = statements.get(queryInfo.index);
+
+            if (!parsed) {
+                const needsSemicolon = statementNeedsSemicolon(splitResult.originalText, queryInfo.end);
+                const fallbackSql = formatSegmentWithSemicolon(segmentSql, needsSemicolon);
+                segments.push(fallbackSql);
+                const errorMessage = errorMap.get(queryInfo.index);
+                if (errorMessage) {
+                    console.warn(`Skipping formatting for statement ${queryInfo.index + 1}: ${errorMessage}`);
+                }
+                continue;
+            }
+
+            const { formattedSql } = formatter.format(parsed.ast);
+            const needsSemicolon = statementNeedsSemicolon(splitResult.originalText, queryInfo.end);
+            const finalSql = formatSegmentWithSemicolon(formattedSql, needsSemicolon);
+            segments.push(finalSql);
+            formattedCount++;
+        }
+
+        if (segments.length === 0) {
+            formattedSqlEditor.setValue('');
+            updateStatusBar('No executable SQL statements detected.');
+            return;
+        }
+
+        const combinedSql = segments.join('\n');
+        formattedSqlEditor.setValue(combinedSql);
+
+        if (errors.length > 0) {
+            const formattedPart = formattedCount > 0 ? `Formatted ${formattedCount} statement${formattedCount > 1 ? 's' : ''}. ` : '';
+            const skippedPart = `Skipped ${errors.length} due to parse errors.`;
+            updateStatusBar(`${formattedPart}${skippedPart}`, true);
+        } else if (formattedCount > 1) {
+            updateStatusBar(`SQL formatted successfully (${formattedCount} statements).`);
+        } else if (formattedCount === 1) {
+            updateStatusBar('SQL formatted successfully.');
+        } else {
+            updateStatusBar('No executable SQL statements detected.');
+        }
     } catch (error) {
         console.error("Error formatting SQL:", error);
         let errorMessage = `Error formatting SQL: ${error.message}`;
@@ -315,7 +451,12 @@ if (copyFlowBtn) {
         }
         
         try {
-            const mermaidCode = QueryFlowDiagramGenerator.generate(sqlText);
+            const selectSegment = findFirstSelectSegment(sqlText);
+            if (!selectSegment?.sql) {
+                updateStatusBar('Flow diagram is available for SELECT statements only.', true);
+                return;
+            }
+            const mermaidCode = QueryFlowDiagramGenerator.generate(selectSegment.sql);
             navigator.clipboard.writeText(mermaidCode).then(() => {
                 updateStatusBar('Flow diagram code copied to clipboard.');
             }).catch(err => {

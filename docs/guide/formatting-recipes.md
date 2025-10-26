@@ -31,6 +31,7 @@ const { formattedSql, params } = formatter.format(query);
 | `valuesCommaBreak` | Same as `commaBreak` | Mirrors `commaBreak` | Comma handling within `VALUES` tuples. |
 | `andBreak` | `'none'`, `'before'`, `'after'` | `'none'` | Controls whether logical `AND` operators move to their own lines. |
 | `orBreak` | `'none'`, `'before'`, `'after'` | `'none'` | Same idea for logical `OR` operators. |
+| `insertColumnsOneLine` | `true` / `false` | `false` | Keeps column lists inside `INSERT INTO` statements on a single line when `true`. |
 | `indentNestedParentheses` | `true` / `false` | `false` | Adds an extra indent when boolean groups introduce parentheses inside `WHERE` or `HAVING` clauses. |
 | `commentStyle` | `'block'`, `'smart'` | `'block'` | Normalises how comments are emitted (see below). |
 | `withClauseStyle` | `'standard'`, `'cte-oneline'`, `'full-oneline'` | `'standard'` | Expands or collapses common table expressions. |
@@ -77,6 +78,34 @@ const formatter = new SqlFormatter({
 - `'none'` leaves the logical operators inline.
 
 Choose `'before'` when you want to scan down logical branches quickly, or `'after'` to keep complex conditions aligned underneath their keywords.
+
+### INSERT column list layouts
+
+`insertColumnsOneLine` gives you a dedicated switch for shaping `INSERT INTO` column lists without disturbing the rest of your comma settings.
+
+- `false` (default) expands each column when you combine it with `commaBreak: 'before'` or `'after'`:
+  ```typescript
+  const formatter = new SqlFormatter({
+      newline: 'lf',
+      commaBreak: 'before'
+  });
+  // insert into table_a(
+  //     id
+  //     , value
+  // )
+  // values ...
+  ```
+- `true` keeps the table name and columns on one line, while `valuesCommaBreak` continues to control the `VALUES` tuples:
+  ```typescript
+  const formatter = new SqlFormatter({
+      newline: 'lf',
+      insertColumnsOneLine: true
+  });
+  // insert into table_a(id, value)
+  // values ...
+  ```
+
+The two insert layouts make it easy to adopt either a compact DML style or a vertically aligned style without rewriting other recipes.
 
 ### Comment style tips
 

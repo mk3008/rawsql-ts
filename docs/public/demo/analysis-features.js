@@ -1,8 +1,14 @@
 // analysis-features.js
 // This module handles SQL analysis features like updating table lists, CTE lists, and schema information.
 
-// Import rawsql-ts modules
-import { SelectQueryParser, TableSourceCollector, CTECollector, SchemaCollector } from "https://unpkg.com/rawsql-ts/dist/esm/index.min.js";
+// Import rawsql-ts modules from local vendor bundle for consistent class instances
+import {
+    SqlParser,
+    TableSourceCollector,
+    CTECollector,
+    SchemaCollector,
+    MultiQuerySplitter
+} from './vendor/rawsql.browser.js';
 
 let tableListElement, cteListElement, schemaInfoEditorInstance, sqlInputElement, debounceDelayMs;
 
@@ -24,10 +30,63 @@ export function initAnalysisFeatures(options) {
     setupSchemaInfoAutoUpdate();
 }
 
+let parseCache = { text: null, splitResult: null, statements: null, errors: null };
+
+function getParseResult(sqlText) {
+    if (parseCache.text === sqlText) {
+        return parseCache;
+    }
+
+    const splitResult = MultiQuerySplitter.split(sqlText);
+    const statements = new Map();
+    const errors = [];
+
+    for (const query of splitResult.queries) {
+        if (query.isEmpty) {
+            continue;
+        }
+
+        try {
+            const ast = SqlParser.parse(query.sql);
+            statements.set(query.index, { ast, sql: query.sql });
+        } catch (error) {
+            errors.push({
+                index: query.index,
+                message: error instanceof Error ? error.message : String(error)
+            });
+        }
+    }
+
+    parseCache = { text: sqlText, splitResult, statements, errors };
+    return parseCache;
+}
+
+function isSelectStatement(ast) {
+    return Boolean(ast && typeof ast === 'object' && ast.__selectQueryType);
+}
+
+// Extract SELECT statements from the current SQL text for downstream analysis.
+function extractSelectStatements(sqlText) {
+    const { splitResult, statements } = getParseResult(sqlText);
+    const selectStatements = [];
+
+    for (const query of splitResult.queries) {
+        if (query.isEmpty) {
+            continue;
+        }
+        const parsed = statements.get(query.index);
+        if (parsed && isSelectStatement(parsed.ast)) {
+            selectStatements.push(parsed);
+        }
+    }
+
+    return selectStatements;
+}
+
 // --- Table List Logic ---
 function updateTableList(sqlText) {
     if (!tableListElement) return;
-    tableListElement.innerHTML = ''; // Clear previous list
+    tableListElement.innerHTML = '';
 
     if (!sqlText.trim()) {
         const li = document.createElement('li');
@@ -37,28 +96,43 @@ function updateTableList(sqlText) {
     }
 
     try {
-        const ast = SelectQueryParser.parse(sqlText);
-        const collector = new TableSourceCollector(false);
-        const tables = collector.collect(ast);
+        const selectStatements = extractSelectStatements(sqlText);
+        if (selectStatements.length === 0) {
+            const li = document.createElement('li');
+            li.textContent = '(No SELECT statements found)';
+            tableListElement.appendChild(li);
+            return;
+        }
 
-        if (tables.length === 0) {
+        const tableNames = new Set();
+        for (const { ast } of selectStatements) {
+            const collector = new TableSourceCollector(false);
+            const tables = collector.collect(ast);
+            tables.forEach(t => {
+                if (t?.table?.name) {
+                    tableNames.add(t.table.name);
+                }
+            });
+        }
+
+        if (tableNames.size === 0) {
             const li = document.createElement('li');
             li.textContent = '(No tables found)';
             tableListElement.appendChild(li);
-        } else {
-            const uniqueTableNames = [...new Set(tables.map(t => t.table.name))];
-            uniqueTableNames.forEach(tableName => {
-                const li = document.createElement('li');
-                li.textContent = tableName;
-                tableListElement.appendChild(li);
-            });
+            return;
         }
+
+        Array.from(tableNames).forEach(tableName => {
+            const li = document.createElement('li');
+            li.textContent = tableName;
+            tableListElement.appendChild(li);
+        });
     } catch (error) {
-        console.error("Error parsing SQL for table list:", error);
+        console.error('Error parsing SQL for table list:', error);
         const li = document.createElement('li');
         let errorText = '(Error parsing SQL for table list)';
-        if (error.name === 'ParseError' && error.message) {
-            errorText = `(Parse Error: ${error.message.substring(0, 50)}...)`; // Keep it short
+        if (error?.message) {
+            errorText = `(Error: ${error.message.substring(0, 80)}...)`;
         }
         li.textContent = errorText;
         tableListElement.appendChild(li);
@@ -72,7 +146,6 @@ function setupTableListAutoUpdate() {
         if (tableListDebounceTimer) clearTimeout(tableListDebounceTimer);
         tableListDebounceTimer = setTimeout(() => updateTableList(sqlInputElement.getValue()), debounceDelayMs);
     });
-    // Initial population
     updateTableList(sqlInputElement.getValue());
 }
 
@@ -88,26 +161,44 @@ function updateCTEList(sqlText) {
     }
 
     try {
-        const query = SelectQueryParser.parse(sqlText);
-        const cteCollector = new CTECollector();
-        const ctes = cteCollector.collect(query);
-        if (ctes.length > 0) {
+        const selectStatements = extractSelectStatements(sqlText);
+        if (selectStatements.length === 0) {
+            const listItem = document.createElement('li');
+            listItem.textContent = '(No SELECT statements found)';
+            cteListElement.appendChild(listItem);
+            return;
+        }
+
+        const cteNames = new Set();
+        for (const { ast } of selectStatements) {
+            const collector = new CTECollector();
+            const ctes = collector.collect(ast);
             ctes.forEach(cte => {
-                const listItem = document.createElement('li');
-                listItem.textContent = cte.getSourceAliasName();
-                cteListElement.appendChild(listItem);
+                const name = cte.getSourceAliasName();
+                if (name) {
+                    cteNames.add(name);
+                }
             });
-        } else {
+        }
+
+        if (cteNames.size === 0) {
             const listItem = document.createElement('li');
             listItem.textContent = '(No CTEs found)';
             cteListElement.appendChild(listItem);
+            return;
         }
+
+        Array.from(cteNames).forEach(name => {
+            const listItem = document.createElement('li');
+            listItem.textContent = name;
+            cteListElement.appendChild(listItem);
+        });
     } catch (error) {
-        console.error("Error collecting CTEs:", error);
+        console.error('Error collecting CTEs:', error);
         const listItem = document.createElement('li');
         let errorText = 'Error collecting CTEs.';
-        if (error.name === 'ParseError' && error.message) {
-            errorText = `(Parse Error: ${error.message.substring(0, 50)}...)`; // Keep it short
+        if (error?.message) {
+            errorText = `(Error: ${error.message.substring(0, 80)}...)`;
         }
         listItem.textContent = errorText;
         cteListElement.appendChild(listItem);
@@ -121,7 +212,6 @@ function setupCTEListAutoUpdate() {
         if (cteListDebounceTimer) clearTimeout(cteListDebounceTimer);
         cteListDebounceTimer = setTimeout(() => updateCTEList(sqlInputElement.getValue()), debounceDelayMs);
     });
-    // Initial population
     updateCTEList(sqlInputElement.getValue());
 }
 
@@ -136,7 +226,15 @@ function updateSchemaInfo(sqlText) {
     }
 
     try {
-        const query = SelectQueryParser.parse(sqlText);
+        const selectStatements = extractSelectStatements(sqlText);
+        if (selectStatements.length === 0) {
+            schemaInfoEditorInstance.setValue('(No SELECT statements found for schema analysis)');
+            schemaInfoEditorInstance.refresh();
+            return;
+        }
+
+        // Focus on the first SELECT statement for schema introspection.
+        const query = selectStatements[0].ast;
         const schemaCollector = new SchemaCollector();
         const schemaInfo = schemaCollector.collect(query);
 
@@ -148,12 +246,7 @@ function updateSchemaInfo(sqlText) {
     } catch (error) {
         console.error("Error collecting schema info:", error);
         let errorMessage = 'Error collecting schema info.';
-        if (error.name === 'ParseError' && error.message) {
-            errorMessage = `Error parsing SQL for schema: ${error.message}`;
-            if (error.details) {
-                errorMessage += `\nAt line ${error.details.startLine}, column ${error.details.startColumn}. Found: '${error.details.found}'`;
-            }
-        } else if (error.message) {
+        if (error?.message) {
             errorMessage = `Error collecting schema info: ${error.message}`;
         }
         schemaInfoEditorInstance.setValue(errorMessage);
