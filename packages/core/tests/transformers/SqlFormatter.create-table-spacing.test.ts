@@ -70,4 +70,37 @@ describe('SqlFormatter CREATE TABLE spacing', () => {
 
         expect(formattedSql).toBe(expected);
     });
+
+    it('handles MySQL-style constraint names without extra spaces before parentheses', () => {
+        const sql = [
+            'CREATE TABLE t (',
+            '    id int NOT NULL',
+            '    , UNIQUE KEY uk (id)',
+            '    , FOREIGN KEY fk (id) REFERENCES parent (pid)',
+            ')',
+        ].join('\n');
+
+        const ast = CreateTableParser.parse(sql);
+        const formatter = new SqlFormatter({
+            indentChar: ' ',
+            indentSize: 4,
+            newline: '\n',
+            keywordCase: 'lower',
+            commaBreak: 'before',
+            identifierEscape: 'none',
+            constraintStyle: 'mysql',
+        });
+
+        const { formattedSql } = formatter.format(ast);
+
+        const expected = [
+            'create table t(',
+            '    id int not null',
+            '    , unique key uk(id)',
+            '    , foreign key fk(id) references parent(pid)',
+            ')',
+        ].join('\n');
+
+        expect(formattedSql).toBe(expected);
+    });
 });

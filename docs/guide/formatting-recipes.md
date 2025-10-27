@@ -38,6 +38,7 @@ const { formattedSql, params } = formatter.format(query);
 | `parenthesesOneLine`, `betweenOneLine`, `valuesOneLine`, `joinOneLine`, `caseOneLine`, `subqueryOneLine` | `true` / `false` | `false` for each | Opt-in switches that keep the corresponding construct on a single line even if other break settings would expand it. |
 | `exportComment` | `true` / `false` | `false` | Emits comments collected by the parser. Turn it on when you want annotations preserved. |
 | `castStyle` | 'standard', 'postgres' | From preset or 'standard' | Chooses how CAST expressions are printed. 'standard' emits ANSI `CAST(expr AS type)` while 'postgres' emits `expr::type`. See "Controlling CAST style" below for usage notes and examples. |
+| `constraintStyle` | `'postgres'`, `'mysql'` | From preset or `'postgres'` | Shapes constraint output in DDL: `'postgres'` prints `constraint ... primary key(...)`, while `'mysql'` emits `unique key name(...)` / `foreign key name(...)`. |
 
 Combine these settings to mirror house formatting conventions or align with existing lint rules. The following sections call out the options that trip up newcomers most often.
 
@@ -131,6 +132,23 @@ new SqlFormatter({ castStyle: 'postgres' }).format(expr); // "price"::NUMERIC(10
 - Set `castStyle: 'postgres'` when you explicitly target PostgreSQL-style `::` casts. Presets like `'postgres'`, `'redshift'`, and `'cockroachdb'` already switch this on.
 
 If you are migrating away from PostgreSQL-only syntax, enforce `castStyle: 'standard'` and phase out `::` usage gradually.
+
+### DDL constraint style
+
+`constraintStyle` controls how table- and column-level constraints appear when formatting `CREATE TABLE` statements.
+
+- `'postgres'` (default) prints explicit `constraint` clauses, e.g.:
+  ```sql
+  , constraint orders_pkey primary key(order_id)
+  , constraint orders_customer_fkey foreign key(customer_id) references customers(customer_id)
+  ```
+- `'mysql'` drops the leading keyword and mirrors MySQL's `UNIQUE KEY` / inline constraint syntax:
+  ```sql
+  , unique key orders_customer_unique(customer_id)
+  , foreign key orders_customer_fkey(customer_id) references customers(customer_id)
+  ```
+
+Pair this option with your target engine: presets such as `'mysql'` enable it automatically, while PostgreSQL-oriented presets keep the default.
 ## Sample
 
 ```json
