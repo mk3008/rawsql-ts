@@ -81,7 +81,7 @@ WHERE active = true`;
         const dropAction = ast.actions[2] as AlterTableDropConstraint;
         expect(dropAction.ifExists).toBe(true);
         expect(dropAction.behavior).toBe("cascade");
-        expect(formatted).toContain('alter table if exists only "public"."users" add constraint "users_email_key" unique ("email"),');
+        expect(formatted).toContain('alter table if exists only "public"."users" add constraint "users_email_key" unique("email"),');
         expect(formatted).toContain('drop constraint if exists "users_old_fk" cascade');
     });
 

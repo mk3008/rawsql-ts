@@ -473,12 +473,20 @@ export class CreateTableParser {
 
         if (value === "unique" || value === "unique key") {
             idx++;
+            let inlineKeyName: IdentifierString | undefined;
+            if (idx < lexemes.length &&
+                lexemes[idx].value !== "(" &&
+                !(lexemes[idx].type & TokenType.Command)) {
+                const inlineNameResult = this.parseQualifiedName(lexemes, idx);
+                inlineKeyName = inlineNameResult.name;
+                idx = inlineNameResult.newIndex;
+            }
             const { identifiers, newIndex } = this.parseIdentifierList(lexemes, idx);
             idx = newIndex;
             return {
                 value: new TableConstraintDefinition({
                     kind: "unique",
-                    constraintName,
+                    constraintName: constraintName ?? inlineKeyName,
                     columns: identifiers
                 }),
                 newIndex: idx
@@ -487,6 +495,14 @@ export class CreateTableParser {
 
         if (value === "foreign key") {
             idx++;
+            let inlineKeyName: IdentifierString | undefined;
+            if (idx < lexemes.length &&
+                lexemes[idx].value !== "(" &&
+                !(lexemes[idx].type & TokenType.Command)) {
+                const inlineNameResult = this.parseQualifiedName(lexemes, idx);
+                inlineKeyName = inlineNameResult.name;
+                idx = inlineNameResult.newIndex;
+            }
             const { identifiers, newIndex } = this.parseIdentifierList(lexemes, idx);
             idx = newIndex;
             const referenceResult = this.parseReferenceDefinition(lexemes, idx);
@@ -494,7 +510,7 @@ export class CreateTableParser {
             return {
                 value: new TableConstraintDefinition({
                     kind: "foreign-key",
-                    constraintName,
+                    constraintName: constraintName ?? inlineKeyName,
                     columns: identifiers,
                     reference: referenceResult.value,
                     deferrable: referenceResult.value.deferrable,

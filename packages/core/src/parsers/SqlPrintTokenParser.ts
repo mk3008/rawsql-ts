@@ -66,6 +66,8 @@ export enum ParameterStyle {
 
 export type CastStyle = 'postgres' | 'standard';
 
+export type ConstraintStyle = 'postgres' | 'mysql';
+
 export interface FormatterConfig {
     identifierEscape?: {
         start: string;
@@ -78,6 +80,8 @@ export interface FormatterConfig {
     parameterStyle?: ParameterStyle;
     /** Controls how CAST expressions are rendered */
     castStyle?: CastStyle;
+    /** Controls how table/column constraints are rendered */
+    constraintStyle?: ConstraintStyle;
 }
 
 export const PRESETS: Record<string, FormatterConfig> = {
@@ -85,38 +89,45 @@ export const PRESETS: Record<string, FormatterConfig> = {
         identifierEscape: { start: '`', end: '`' },
         parameterSymbol: '?',
         parameterStyle: ParameterStyle.Anonymous,
+        constraintStyle: 'mysql',
     },
     postgres: {
         identifierEscape: { start: '"', end: '"' },
         parameterSymbol: '$',
         parameterStyle: ParameterStyle.Indexed,
         castStyle: 'postgres',
+        constraintStyle: 'postgres',
     },
     postgresWithNamedParams: {
         identifierEscape: { start: '"', end: '"' },
         parameterSymbol: ':',
         parameterStyle: ParameterStyle.Named,
         castStyle: 'postgres',
+        constraintStyle: 'postgres',
     },
     sqlserver: {
         identifierEscape: { start: '[', end: ']' },
         parameterSymbol: '@',
         parameterStyle: ParameterStyle.Named,
+        constraintStyle: 'postgres',
     },
     sqlite: {
         identifierEscape: { start: '"', end: '"' },
         parameterSymbol: ':',
         parameterStyle: ParameterStyle.Named,
+        constraintStyle: 'postgres',
     },
     oracle: {
         identifierEscape: { start: '"', end: '"' },
         parameterSymbol: ':',
         parameterStyle: ParameterStyle.Named,
+        constraintStyle: 'postgres',
     },
     clickhouse: {
         identifierEscape: { start: '`', end: '`' },
         parameterSymbol: '?',
         parameterStyle: ParameterStyle.Anonymous,
+        constraintStyle: 'postgres',
     },
     firebird: {
         identifierEscape: { start: '"', end: '"' },
@@ -226,13 +237,15 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     identifierDecorator: IdentifierDecorator;
     index: number = 1;
     private castStyle: CastStyle;
+    private constraintStyle: ConstraintStyle;
 
     constructor(options?: {
         preset?: FormatterConfig,
         identifierEscape?: { start: string; end: string },
         parameterSymbol?: string | { start: string; end: string },
         parameterStyle?: 'anonymous' | 'indexed' | 'named',
-        castStyle?: CastStyle
+        castStyle?: CastStyle,
+        constraintStyle?: ConstraintStyle,
     }) {
         if (options?.preset) {
             const preset = options.preset
@@ -251,6 +264,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         });
 
         this.castStyle = options?.castStyle ?? 'standard';
+        this.constraintStyle = options?.constraintStyle ?? 'postgres';
 
         this.handlers.set(ValueList.kind, (expr) => this.visitValueList(expr as ValueList));
         this.handlers.set(ColumnReference.kind, (expr) => this.visitColumnReference(expr as ColumnReference));
@@ -2809,7 +2823,11 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
             token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
         };
 
-        if (arg.constraintName) {
+        const useMysqlConstraintStyle = this.constraintStyle === 'mysql';
+        const inlineNameKinds = new Set<TableConstraintDefinition['kind']>(['primary-key', 'unique', 'foreign-key']);
+        const shouldInlineConstraintName = useMysqlConstraintStyle && !!arg.constraintName && inlineNameKinds.has(arg.kind);
+
+        if (arg.constraintName && !shouldInlineConstraintName) {
             appendKeyword('constraint');
             token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
             token.innerTokens.push(arg.constraintName.accept(this));
@@ -2818,14 +2836,30 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         switch (arg.kind) {
             case 'primary-key':
                 appendKeyword('primary key');
+                if (shouldInlineConstraintName && arg.constraintName) {
+                    token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+                    token.innerTokens.push(arg.constraintName.accept(this));
+                }
                 appendColumns(arg.columns ?? []);
                 break;
             case 'unique':
-                appendKeyword('unique');
+                if (useMysqlConstraintStyle) {
+                    appendKeyword('unique key');
+                    if (shouldInlineConstraintName && arg.constraintName) {
+                        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+                        token.innerTokens.push(arg.constraintName.accept(this));
+                    }
+                } else {
+                    appendKeyword('unique');
+                }
                 appendColumns(arg.columns ?? []);
                 break;
             case 'foreign-key':
                 appendKeyword('foreign key');
+                if (shouldInlineConstraintName && arg.constraintName) {
+                    token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+                    token.innerTokens.push(arg.constraintName.accept(this));
+                }
                 appendColumns(arg.columns ?? []);
                 if (arg.reference) {
                     token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);

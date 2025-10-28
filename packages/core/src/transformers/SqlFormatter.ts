@@ -1,4 +1,4 @@
-import { SqlPrintTokenParser, FormatterConfig, PRESETS, CastStyle } from '../parsers/SqlPrintTokenParser';
+import { SqlPrintTokenParser, FormatterConfig, PRESETS, CastStyle, ConstraintStyle } from '../parsers/SqlPrintTokenParser';
 import { SqlPrinter, CommaBreakStyle, AndBreakStyle, OrBreakStyle } from './SqlPrinter';
 import { IndentCharOption, NewlineOption } from './LinePrinter'; // Import types for compatibility
 import { IdentifierEscapeOption, resolveIdentifierEscapeOption } from './FormatOptionResolver';
@@ -100,6 +100,8 @@ export interface SqlFormatterOptions extends BaseFormattingOptions {
     parameterStyle?: 'anonymous' | 'indexed' | 'named';
     /** Preferred CAST rendering style */
     castStyle?: CastStyle;
+    /** Constraint rendering style (affects CREATE TABLE constraint layout) */
+    constraintStyle?: ConstraintStyle;
 }
 
 /**
@@ -136,8 +138,18 @@ export class SqlFormatter {
             castStyle: options.castStyle ?? presetConfig?.castStyle,
         };
 
-        this.parser = new SqlPrintTokenParser({
+        const constraintStyle: ConstraintStyle =
+            options.constraintStyle ??
+            presetConfig?.constraintStyle ??
+            'postgres';
+
+        const parserConfig = {
             ...parserOptions,
+            constraintStyle,
+        };
+
+        this.parser = new SqlPrintTokenParser({
+            ...parserConfig,
         });
         this.printer = new SqlPrinter({
             ...options,

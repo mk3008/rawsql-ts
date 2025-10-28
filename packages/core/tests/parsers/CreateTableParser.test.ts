@@ -92,7 +92,7 @@ describe("CreateTableParser", () => {
         expect(referenceConstraint?.reference?.onDelete).toBe("cascade");
 
         expect(formatted).toContain('create table "public"."users"');
-        expect(formatted).toContain('foreign key ("role_id") references "auth"."roles"("id") deferrable initially deferred');
+        expect(formatted).toContain('foreign key("role_id") references "auth"."roles"("id") deferrable initially deferred');
         expect(formatted).toContain('with (fillfactor = 80)');
     });
 });
