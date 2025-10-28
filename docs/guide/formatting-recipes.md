@@ -165,6 +165,8 @@ Pair this option with your target engine: presets such as `'mysql'` enable it au
   "valuesCommaBreak": "after",
   "andBreak": "before",
   "orBreak": "before",
+  "withClauseStyle": "cte-oneline",
+  "insertColumnsOneLine": true,
   "indentNestedParentheses": true,
   "exportComment": true,
   "commentStyle": "smart",
@@ -173,7 +175,9 @@ Pair this option with your target engine: presets such as `'mysql'` enable it au
   "valuesOneLine": true,
   "joinOneLine": true,
   "caseOneLine": true,
-  "subqueryOneLine": true
+  "subqueryOneLine": true,
+  "castStyle": "postgres",
+  "constraintStyle": "postgres"
 }
 ```
 

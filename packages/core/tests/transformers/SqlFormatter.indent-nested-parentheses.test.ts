@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'vitest';
+import { CreateTableParser } from '../../src/parsers/CreateTableParser';
 import { SelectQueryParser } from '../../src/parsers/SelectQueryParser';
 import { SqlFormatter } from '../../src/transformers/SqlFormatter';
 
@@ -60,5 +61,80 @@ where
         const result = formatter.format(query);
 
         expect(result.formattedSql).toBe(expectedSql);
+    });
+
+    test('indentNestedParentheses true indents table-level CHECK constraints with nested groups', () => {
+        const ddl = [
+            'CREATE TABLE table_a (',
+            '    id SERIAL PRIMARY KEY',
+            '    , start_birthday DATE',
+            '    , end_birthday DATE',
+            '    , CONSTRAINT chk_nested CHECK((start_birthday IS NULL AND end_birthday IS NULL)',
+            '    OR (start_birthday IS NOT NULL AND end_birthday IS NOT NULL))',
+            ')',
+        ].join('\n');
+
+        const ast = CreateTableParser.parse(ddl);
+        // Ensure CREATE TABLE check constraints mirror SELECT formatting when nested boolean groups are present.
+        const formatter = new SqlFormatter({
+            newline: '\n',
+            indentSize: 4,
+            indentChar: ' ',
+            keywordCase: 'lower',
+            commaBreak: 'before',
+            orBreak: 'before',
+            identifierEscape: 'none',
+            indentNestedParentheses: true,
+        });
+
+        const expected = [
+            'create table table_a(',
+            '    id SERIAL primary key',
+            '    , start_birthday DATE',
+            '    , end_birthday DATE',
+            '    , constraint chk_nested check(',
+            '        (start_birthday is null and end_birthday is null)',
+            '        or (start_birthday is not null and end_birthday is not null)',
+            '    )',
+            ')',
+        ].join('\n');
+
+        const { formattedSql } = formatter.format(ast);
+
+        expect(formattedSql).toBe(expected);
+    });
+
+    test('indentNestedParentheses true indents column-level CHECK constraints with nested groups', () => {
+        const ddl = [
+            'CREATE TABLE metrics (',
+            '    score INTEGER CHECK((score IS NULL) OR (score > 0))',
+            ')',
+        ].join('\n');
+
+        const ast = CreateTableParser.parse(ddl);
+        // Validate column constraints reuse the same ParenExpression path for nested indentation logic.
+        const formatter = new SqlFormatter({
+            newline: '\n',
+            indentSize: 4,
+            indentChar: ' ',
+            keywordCase: 'lower',
+            commaBreak: 'before',
+            orBreak: 'before',
+            identifierEscape: 'none',
+            indentNestedParentheses: true,
+        });
+
+        const expected = [
+            'create table metrics(',
+            '    score INTEGER check(',
+            '        (score is null)',
+            '        or (score > 0)',
+            '    )',
+            ')',
+        ].join('\n');
+
+        const { formattedSql } = formatter.format(ast);
+
+        expect(formattedSql).toBe(expected);
     });
 });
