@@ -4,6 +4,7 @@ import { BinarySelectQuery, SimpleSelectQuery, ValuesQuery } from "../models/Sel
 import { SqlComponent, SqlComponentVisitor } from "../models/SqlComponent";
 import { SqlPrintToken, SqlPrintTokenType, SqlPrintTokenContainerType } from "../models/SqlPrintToken";
 import {
+    ValueComponent,
     ValueList,
     ColumnReference,
     FunctionCall,
@@ -2771,10 +2772,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
             case 'check':
                 if (arg.checkExpression) {
                     appendKeyword('check');
-                    token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
-                    token.innerTokens.push(SqlPrintTokenParser.PAREN_OPEN_TOKEN);
-                    token.innerTokens.push(this.visit(arg.checkExpression));
-                    token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
+                    token.innerTokens.push(this.wrapWithParenExpression(arg.checkExpression));
                 }
                 break;
             case 'generated-always-identity':
@@ -2869,10 +2867,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
             case 'check':
                 if (arg.checkExpression) {
                     appendKeyword('check');
-                    token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
-                    token.innerTokens.push(SqlPrintTokenParser.PAREN_OPEN_TOKEN);
-                    token.innerTokens.push(this.visit(arg.checkExpression));
-                    token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
+                    token.innerTokens.push(this.wrapWithParenExpression(arg.checkExpression));
                 }
                 break;
             case 'raw':
@@ -2883,6 +2878,16 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         }
 
         return token;
+    }
+
+    private wrapWithParenExpression(expression: ValueComponent): SqlPrintToken {
+        // Reuse existing parentheses groups to avoid double-wrapping when callers already provided them.
+        if (expression instanceof ParenExpression) {
+            return this.visit(expression);
+        }
+        // Synthesize a ParenExpression wrapper so nested boolean groups render with consistent indentation.
+        const synthetic = new ParenExpression(expression);
+        return this.visit(synthetic);
     }
 
     private visitReferenceDefinition(arg: ReferenceDefinition): SqlPrintToken {
