@@ -163,6 +163,7 @@ export class CreateTableQuery extends SqlComponent {
     tableConstraints: TableConstraintDefinition[];
     tableOptions?: RawString | null;
     asSelectQuery?: SelectQuery;
+    withDataOption: 'with-data' | 'with-no-data' | null;
 
     constructor(params: {
         tableName: string;
@@ -173,6 +174,7 @@ export class CreateTableQuery extends SqlComponent {
         tableConstraints?: TableConstraintDefinition[];
         tableOptions?: RawString | null;
         asSelectQuery?: SelectQuery;
+        withDataOption?: 'with-data' | 'with-no-data' | null;
     }) {
         super();
         this.tableName = new IdentifierString(params.tableName);
@@ -183,6 +185,7 @@ export class CreateTableQuery extends SqlComponent {
         this.tableConstraints = params.tableConstraints ? [...params.tableConstraints] : [];
         this.tableOptions = params.tableOptions ?? null;
         this.asSelectQuery = params.asSelectQuery;
+        this.withDataOption = params.withDataOption ?? null;
     }
 
     /**

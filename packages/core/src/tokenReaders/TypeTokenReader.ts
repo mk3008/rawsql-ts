@@ -32,7 +32,18 @@ export class TypeTokenReader extends BaseTokenReader {
         const keyword = typeParser.parse(this.input, this.position);
         if (keyword !== null) {
             this.position = keyword.newPosition;
-            return this.createLexeme(TokenType.Type, keyword.keyword);
+            const lexeme = this.createLexeme(TokenType.Type, keyword.keyword);
+
+            // Preserve inline comments that may appear after multi-word type keywords (e.g., "timestamp with time zone -- note").
+            if (keyword.comments && keyword.comments.length > 0) {
+                const existing = lexeme.positionedComments ?? [];
+                lexeme.positionedComments = [
+                    ...existing,
+                    { position: 'after', comments: [...keyword.comments] }
+                ];
+            }
+
+            return lexeme;
         }
 
         // check pervious token

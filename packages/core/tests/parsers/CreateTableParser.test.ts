@@ -95,5 +95,35 @@ describe("CreateTableParser", () => {
         expect(formatted).toContain('foreign key("role_id") references "auth"."roles"("id") deferrable initially deferred');
         expect(formatted).toContain('with (fillfactor = 80)');
     });
+
+    it("parses CREATE TABLE ... AS SELECT WITH DATA", () => {
+        const sql = [
+            "CREATE TABLE backup_users AS",
+            "SELECT * FROM users",
+            "WITH DATA"
+        ].join("\n");
+
+        const ast = CreateTableParser.parse(sql);
+        const formatted = new SqlFormatter().format(ast).formattedSql;
+
+        expect(ast.asSelectQuery).toBeDefined();
+        expect(ast.withDataOption).toBe("with-data");
+        expect(formatted).toContain('with data');
+    });
+
+    it("parses CREATE TABLE ... AS SELECT WITH NO DATA", () => {
+        const sql = [
+            "CREATE TABLE empty_users AS",
+            "SELECT * FROM users",
+            "WITH NO DATA"
+        ].join("\n");
+
+        const ast = CreateTableParser.parse(sql);
+        const formatted = new SqlFormatter().format(ast).formattedSql;
+
+        expect(ast.asSelectQuery).toBeDefined();
+        expect(ast.withDataOption).toBe("with-no-data");
+        expect(formatted).toContain('with no data');
+    });
 });
 

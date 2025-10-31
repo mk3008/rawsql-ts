@@ -141,7 +141,17 @@ export class OperatorTokenReader extends BaseTokenReader {
             // but can also be used as a type in expressions like `'1 month'::interval`,
             // so we return it as both Operator and Type.
             this.position = result.newPosition;
-            return this.createLexeme(TokenType.Operator | TokenType.Type | TokenType.Identifier, result.keyword);
+            const lexeme = this.createLexeme(TokenType.Operator | TokenType.Type | TokenType.Identifier, result.keyword);
+
+            // Preserve inline comments that follow multi-word literals or types (e.g., "timestamp with time zone -- note").
+            if (result.comments && result.comments.length > 0) {
+                lexeme.positionedComments = [
+                    ...(lexeme.positionedComments ?? []),
+                    { position: 'after', comments: [...result.comments] }
+                ];
+            }
+
+            return lexeme;
         }
 
         result = keywordParser.parse(this.input, this.position);
