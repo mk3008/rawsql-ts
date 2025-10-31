@@ -1639,7 +1639,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         // Add positioned comments in recorded order
         const beforeComments = arg.getPositionedComments('before');
         const afterComments = arg.getPositionedComments('after');
-        const isParenExpression = arg.value.constructor.name === 'ParenExpression';
+        const isParenExpression = arg.value instanceof ParenExpression;
 
         if (beforeComments.length > 0) {
             const commentTokens = this.createInlineCommentSequence(beforeComments);

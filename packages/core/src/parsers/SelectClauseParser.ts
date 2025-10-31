@@ -1,6 +1,6 @@
 import { Distinct, DistinctComponent, DistinctOn, SelectClause, SelectItem } from "../models/Clause";
 import { Lexeme, TokenType } from "../models/Lexeme";
-import { ColumnReference } from "../models/ValueComponent";
+import { ColumnReference, BinaryExpression } from "../models/ValueComponent";
 import { SqlTokenizer } from "./SqlTokenizer";
 import { ValueParser } from "./ValueParser";
 import { HintClause } from "../models/HintClause";
@@ -255,15 +255,15 @@ export class SelectItemParser {
         }
 
         // Also clear positioned comments from nested IdentifierString (in QualifiedName)
-        if (selectItem.value.constructor.name === 'ColumnReference') {
-            const columnRef = selectItem.value as any;
+        if (selectItem.value instanceof ColumnReference) {
+            const columnRef = selectItem.value as ColumnReference;
             if (columnRef.qualifiedName && columnRef.qualifiedName.name) {
                 columnRef.qualifiedName.name.positionedComments = null;
             }
         }
 
         // Clear positioned comments from BinaryExpression children only to avoid duplication
-        if (selectItem.value.constructor.name === 'BinaryExpression') {
+        if (selectItem.value instanceof BinaryExpression) {
             this.clearPositionedCommentsRecursively(selectItem.value);
         }
     }
