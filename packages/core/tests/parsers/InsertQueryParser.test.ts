@@ -73,4 +73,33 @@ describe("InsertQueryParser", () => {
         expect(insert.returningClause?.columns).toHaveLength(1);
         expect(insert.returningClause?.columns[0].name).toBe("*");
     });
+
+    it("preserves comments across insert targets and returning columns", () => {
+        const sql = [
+            '/* head */ INSERT INTO /* target before */ users /* target after */ (',
+            '    /* before id */',
+            '    id /* after id */',
+            ') VALUES',
+            '    (1)',
+            'RETURNING /* return before col */ id /* return after col */'
+        ].join('\n');
+
+        const insert = InsertQueryParser.parse(sql);
+        const insertClause = insert.insertClause;
+        const tableSource = insertClause.source.datasource as TableSource;
+
+        expect(insertClause.getPositionedComments('before')).toEqual(['head']);
+        expect(tableSource.getPositionedComments('before')).toEqual(['target before']);
+        expect(tableSource.getPositionedComments('after')).toEqual(['target after']);
+
+        const column = insertClause.columns?.[0];
+        expect(column).toBeDefined();
+        expect(column?.getPositionedComments('before')).toEqual(['before id']);
+        expect(column?.getPositionedComments('after')).toEqual(['after id']);
+
+        const returningColumn = insert.returningClause?.columns[0];
+        expect(returningColumn).toBeDefined();
+        expect(returningColumn?.getPositionedComments('before')).toEqual(['return before col']);
+        expect(returningColumn?.getPositionedComments('after')).toEqual(['return after col']);
+    });
 });

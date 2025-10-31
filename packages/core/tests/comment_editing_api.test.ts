@@ -396,10 +396,10 @@ WHERE active = true
         const result = formatter.format(query);
         
         // Expected output with multiple comments in SELECT clause (with comment newlines)
-        const expectedSql = `SELECT
-/* First comment for SELECT */
+        const expectedSql = `/* First comment for SELECT */
 /* Second comment for SELECT */
 /* Third comment for SELECT */
+SELECT
 "user_id", "email", "name"
 FROM
 "users"
@@ -439,10 +439,10 @@ WHERE active = true
 "user_id", "email", "name"
 FROM
 "users"
-WHERE
 /* First WHERE comment */
 /* Second WHERE comment */
 /* Third WHERE comment */
+WHERE
 "active" = true`;
         
         expect(result.formattedSql).toBe(expectedSql);
@@ -475,15 +475,15 @@ WHERE active = true
         const result = formatter.format(query);
         
         // Expected output with comments in both clauses (with comment newlines)
-        const expectedSql = `SELECT
-/* SELECT comment 1 */
+        const expectedSql = `/* SELECT comment 1 */
 /* SELECT comment 2 */
+SELECT
 "user_id", "email", "name"
 FROM
 "users"
-WHERE
 /* WHERE comment 1 */
 /* WHERE comment 2 */
+WHERE
 "active" = true`;
         
         expect(result.formattedSql).toBe(expectedSql);

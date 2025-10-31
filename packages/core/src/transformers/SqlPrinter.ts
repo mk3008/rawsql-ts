@@ -238,6 +238,45 @@ export class SqlPrinter {
             return;
         }
 
+        let leadingCommentCount = 0;
+        const hasLeadingComment = token.innerTokens && token.innerTokens.length > 0
+            && token.innerTokens[0].containerType === SqlPrintTokenContainerType.CommentBlock;
+
+        const leadingCommentIndentLevel = hasLeadingComment
+            ? this.getLeadingCommentIndentLevel(parentContainerType, level)
+            : null;
+
+        if (
+            hasLeadingComment
+            && !this.isOnelineMode()
+            && this.shouldAddNewlineBeforeLeadingComments(parentContainerType)
+        ) {
+            const currentLine = this.linePrinter.getCurrentLine();
+            if (currentLine.text.trim().length > 0) {
+                // Align the newline before leading comments with the intended comment indentation.
+                this.linePrinter.appendNewline(leadingCommentIndentLevel ?? level);
+            }
+        }
+
+        if (token.innerTokens && token.innerTokens.length > 0) {
+            while (leadingCommentCount < token.innerTokens.length) {
+                const leading = token.innerTokens[leadingCommentCount];
+                if (leading.containerType === SqlPrintTokenContainerType.CommentBlock) {
+                    // Keep leading comment processing aligned with its computed indentation level.
+                    this.appendToken(
+                        leading,
+                        leadingCommentIndentLevel ?? level,
+                        token.containerType,
+                        caseContextDepth,
+                        indentParentActive
+                    );
+                    leadingCommentCount++;
+                } else {
+                    break;
+                }
+            }
+        }
+
         if (this.smartCommentBlockBuilder && token.containerType !== SqlPrintTokenContainerType.CommentBlock && token.type !== SqlPrintTokenType.commentNewline) {
             this.flushSmartCommentBlockBuilder();
         }
@@ -320,7 +359,7 @@ export class SqlPrinter {
             }
         }
 
-        for (let i = 0; i < token.innerTokens.length; i++) {
+        for (let i = leadingCommentCount; i < token.innerTokens.length; i++) {
             const child = token.innerTokens[i];
             const nextChild = token.innerTokens[i + 1];
             const previousEntry = this.findPreviousSignificantToken(token.innerTokens, i);
@@ -1185,6 +1224,32 @@ export class SqlPrinter {
     private shouldSkipCommentNewline(): boolean {
         return (this.insideWithClause && this.withClauseStyle === 'full-oneline') ||
                this.withClauseStyle === 'cte-oneline';
+    }
+
+    private shouldAddNewlineBeforeLeadingComments(parentType?: SqlPrintTokenContainerType): boolean {
+        if (!parentType) {
+            return false;
+        }
+        if (parentType === SqlPrintTokenContainerType.TupleExpression) {
+            return true;
+        }
+        if (parentType === SqlPrintTokenContainerType.InsertClause) {
+            return !this.insertColumnsOneLine;
+        }
+        if (parentType === SqlPrintTokenContainerType.SelectClause) {
+            return true;
+        }
+        return false;
+    }
+
+    private getLeadingCommentIndentLevel(parentType: SqlPrintTokenContainerType | undefined, currentLevel: number): number {
+        if (parentType === SqlPrintTokenContainerType.TupleExpression) {
+            return currentLevel + 1;
+        }
+        if (parentType === SqlPrintTokenContainerType.InsertClause || parentType === SqlPrintTokenContainerType.SelectClause) {
+            return currentLevel + 1;
+        }
+        return currentLevel;
     }
 
     /**

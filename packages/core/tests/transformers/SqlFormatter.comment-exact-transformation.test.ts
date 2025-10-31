@@ -51,7 +51,8 @@ from
         const expectedTransformed = `SELECT
     *
 FROM
-    "table"/* from comment */`;
+    /* from comment */
+    "table"`;
 
         const parsed = SelectQueryParser.parse(originalSql);
         const formatter = new SqlFormatter(formatterOptions);
@@ -291,8 +292,8 @@ SELECT
     /* field comment preserved */ "id",
     "name" /* after name preserved */
 FROM
-    "users"/* table comment gets lost */
-    /* after table preserved */
+    /* table comment gets lost */
+    "users" /* after table preserved */
 WHERE
     "status" = 'active' /* condition preserved */`;
 
