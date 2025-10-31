@@ -2,6 +2,7 @@
 import { Lexeme, TokenType } from "../models/Lexeme";
 import { IdentifierString } from "../models/ValueComponent";
 import { ReturningClause } from "../models/Clause";
+import { extractLexemeComments } from "./utils/LexemeCommentUtils";
 
 export class ReturningClauseParser {
     /**
@@ -13,29 +14,59 @@ export class ReturningClauseParser {
         if (lexemes[idx]?.value !== "returning") {
             throw new Error(`Syntax error at position ${idx}: Expected 'RETURNING' but found '${lexemes[idx]?.value}'.`);
         }
+
+        const returningLexeme = lexemes[idx];
+        const returningComments = extractLexemeComments(returningLexeme);
         idx++;
+
         const columns: IdentifierString[] = [];
+        // Track inline comments that should precede the next returning column.
+        let pendingBeforeForNext: string[] = [...returningComments.after];
         while (idx < lexemes.length) {
             const lexeme = lexemes[idx];
 
-            // Accept identifiers (column names) as RETURNING targets.
+            let column: IdentifierString | null = null;
             if (lexeme.type & TokenType.Identifier) {
-                columns.push(new IdentifierString(lexeme.value));
-                idx++;
+                column = new IdentifierString(lexeme.value);
+            } else if (lexeme.value === "*") {
+                column = new IdentifierString("*");
             }
-            // Accept '*' wildcard which is emitted as an operator token.
-            else if (lexeme.value === "*") {
-                columns.push(new IdentifierString("*"));
-                idx++;
-            } else {
+
+            if (!column) {
                 break;
             }
 
+            const columnComments = extractLexemeComments(lexeme);
+            const beforeComments: string[] = [];
+            if (pendingBeforeForNext.length > 0) {
+                beforeComments.push(...pendingBeforeForNext);
+            }
+            if (columnComments.before.length > 0) {
+                beforeComments.push(...columnComments.before);
+            }
+            if (beforeComments.length > 0) {
+                column.addPositionedComments("before", beforeComments);
+            }
+            if (columnComments.after.length > 0) {
+                column.addPositionedComments("after", columnComments.after);
+            }
+
+            columns.push(column);
+            pendingBeforeForNext = [];
+            idx++;
+
             if (lexemes[idx]?.type === TokenType.Comma) {
+                const commaComments = extractLexemeComments(lexemes[idx]);
+                pendingBeforeForNext = [...commaComments.after];
                 idx++;
                 continue;
             }
+
             break;
+        }
+
+        if (pendingBeforeForNext.length > 0 && columns.length > 0) {
+            columns[columns.length - 1].addPositionedComments("after", pendingBeforeForNext);
         }
 
         if (columns.length === 0) {
@@ -43,6 +74,11 @@ export class ReturningClauseParser {
             throw new Error(`[ReturningClauseParser] Expected a column or '*' after RETURNING at position ${position}.`);
         }
 
-        return { value: new ReturningClause(columns), newIndex: idx };
+        const clause = new ReturningClause(columns);
+        if (returningComments.before.length > 0) {
+            clause.addPositionedComments("before", returningComments.before);
+        }
+
+        return { value: clause, newIndex: idx };
     }
 }

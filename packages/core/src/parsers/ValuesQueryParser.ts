@@ -3,6 +3,7 @@ import { ValuesQuery } from "../models/SelectQuery";
 import { TupleExpression, ValueComponent } from "../models/ValueComponent";
 import { SqlTokenizer } from "./SqlTokenizer";
 import { ValueParser } from "./ValueParser";
+import { extractLexemeComments } from "./utils/LexemeCommentUtils";
 
 export class ValuesQueryParser {
     public static parse(query: string): ValuesQuery {
@@ -32,7 +33,7 @@ export class ValuesQueryParser {
             throw new Error(`Syntax error at position ${idx}: Expected 'VALUES' keyword but found "${valuesLexeme.value}". VALUES clauses must start with the VALUES keyword.`);
         }
 
-        const valuesComments = this.extractLexemeComments(valuesLexeme);
+        const valuesComments = extractLexemeComments(valuesLexeme);
         idx++;
 
         if (idx >= lexemes.length) {
@@ -71,7 +72,7 @@ export class ValuesQueryParser {
             throw new Error(`Syntax error at position ${idx}: Expected opening parenthesis but found "${idx < lexemes.length ? lexemes[idx].value : "end of input"}". Tuple expressions in VALUES clause must be enclosed in parentheses.`);
         }
 
-        const openingComments = this.extractLexemeComments(lexemes[idx]);
+        const openingComments = extractLexemeComments(lexemes[idx]);
         idx++;
 
         const values: ValueComponent[] = [];
@@ -82,7 +83,7 @@ export class ValuesQueryParser {
 
         if (lexemes[idx].type & TokenType.CloseParen) {
             const tuple = new TupleExpression([]);
-            const closingComments = this.extractLexemeComments(lexemes[idx]);
+            const closingComments = extractLexemeComments(lexemes[idx]);
             idx++;
 
             if (openingComments.before.length > 0) {
@@ -115,7 +116,7 @@ export class ValuesQueryParser {
             throw new Error(`Syntax error at position ${idx}: Expected closing parenthesis but found "${idx < lexemes.length ? lexemes[idx].value : "end of input"}". Tuple expressions in VALUES clause must be enclosed in parentheses.`);
         }
 
-        const closingComments = this.extractLexemeComments(lexemes[idx]);
+        const closingComments = extractLexemeComments(lexemes[idx]);
         idx++;
 
         const tuple = new TupleExpression(values);
@@ -136,51 +137,4 @@ export class ValuesQueryParser {
         return { value: tuple, newIndex: idx };
     }
 
-    private static extractLexemeComments(lexeme: Lexeme | undefined): { before: string[]; after: string[] } {
-        const before: string[] = [];
-        const after: string[] = [];
-
-        if (!lexeme) {
-            return { before, after };
-        }
-
-        if (lexeme.positionedComments && lexeme.positionedComments.length > 0) {
-            for (const positioned of lexeme.positionedComments) {
-                if (!positioned.comments || positioned.comments.length === 0) {
-                    continue;
-                }
-
-                if (positioned.position === 'before') {
-                    before.push(...positioned.comments);
-                } else if (positioned.position === 'after') {
-                    after.push(...positioned.comments);
-                }
-            }
-        } else if (lexeme.comments && lexeme.comments.length > 0) {
-            before.push(...lexeme.comments);
-        }
-
-        return {
-            before: this.dedupeComments(before),
-            after: this.dedupeComments(after),
-        };
-    }
-
-    private static dedupeComments(comments: string[]): string[] {
-        if (comments.length <= 1) {
-            return comments;
-        }
-
-        const seen = new Set<string>();
-        const result: string[] = [];
-
-        for (const comment of comments) {
-            if (!seen.has(comment)) {
-                seen.add(comment);
-                result.push(comment);
-            }
-        }
-
-        return result;
-    }
-}
+}

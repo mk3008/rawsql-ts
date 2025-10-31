@@ -10,6 +10,8 @@ import { WithClauseParser } from "./WithClauseParser";
 import { SourceExpressionParser } from "./SourceExpressionParser";
 import { ValuesQueryParser } from "./ValuesQueryParser";
 import { ReturningClauseParser } from "./ReturningClauseParser";
+import { IdentifierString } from "../models/ValueComponent";
+import { extractLexemeComments } from "./utils/LexemeCommentUtils";
 
 export class InsertQueryParser {
     /**
@@ -43,30 +45,93 @@ export class InsertQueryParser {
             const found = lexemes[idx]?.value ?? "end of input";
             throw new Error(`Syntax error at position ${idx}: Expected 'INSERT INTO' but found '${found}'.`);
         }
+
+        const insertKeywordLexeme = lexemes[idx];
+        const insertKeywordComments = extractLexemeComments(insertKeywordLexeme);
         idx++;
 
         const sourceResult = SourceExpressionParser.parseTableSourceFromLexemes(lexemes, idx);
+        const targetSource = sourceResult.value;
+        const targetDatasource = targetSource.datasource;
         idx = sourceResult.newIndex;
 
-        let columns: string[] | null = null;
+        // Route inline comments immediately following INSERT INTO to the table reference.
+        if (insertKeywordComments.after.length > 0) {
+            targetDatasource.addPositionedComments("before", insertKeywordComments.after);
+        }
+
+        let columnIdentifiers: IdentifierString[] | null = null;
+        let trailingInsertComments: string[] = [];
         if (lexemes[idx]?.type === TokenType.OpenParen) {
+            const openParenLexeme = lexemes[idx];
+            const parenComments = extractLexemeComments(openParenLexeme);
             idx++;
-            columns = [];
-            while (idx < lexemes.length && lexemes[idx].type === TokenType.Identifier) {
-                columns.push(lexemes[idx].value);
-                idx++;
-                if (lexemes[idx]?.type === TokenType.Comma) {
-                    idx++;
-                } else {
-                    break;
-                }
+
+            if (parenComments.before.length > 0) {
+                // Comments before '(' belong after the table name.
+                targetDatasource.addPositionedComments("after", parenComments.before);
             }
+
+            columnIdentifiers = [];
+            let pendingBeforeForNext: string[] = [...parenComments.after];
+
+            while (idx < lexemes.length && (lexemes[idx].type & TokenType.Identifier)) {
+                const columnLexeme = lexemes[idx];
+                const columnComments = extractLexemeComments(columnLexeme);
+                const column = new IdentifierString(columnLexeme.value);
+
+                // Attach leading comments gathered from preceding tokens and the identifier itself.
+                const beforeComments: string[] = [];
+                if (pendingBeforeForNext.length > 0) {
+                    beforeComments.push(...pendingBeforeForNext);
+                }
+                if (columnComments.before.length > 0) {
+                    beforeComments.push(...columnComments.before);
+                }
+                if (beforeComments.length > 0) {
+                    column.addPositionedComments("before", beforeComments);
+                }
+
+                if (columnComments.after.length > 0) {
+                    column.addPositionedComments("after", columnComments.after);
+                }
+
+                columnIdentifiers.push(column);
+                pendingBeforeForNext = [];
+                idx++;
+
+                if (lexemes[idx]?.type === TokenType.Comma) {
+                    const commaComments = extractLexemeComments(lexemes[idx]);
+                    pendingBeforeForNext = [...commaComments.after];
+                    idx++;
+                    continue;
+                }
+
+                break;
+            }
+
+            if (pendingBeforeForNext.length > 0 && columnIdentifiers.length > 0) {
+                columnIdentifiers[columnIdentifiers.length - 1].addPositionedComments("after", pendingBeforeForNext);
+                pendingBeforeForNext = [];
+            }
+
             if (lexemes[idx]?.type !== TokenType.CloseParen) {
                 throw new Error(`Syntax error at position ${idx}: Expected ')' after column list.`);
             }
+
+            const closeParenComments = extractLexemeComments(lexemes[idx]);
             idx++;
-            if (columns.length === 0) {
-                columns = [];
+
+            if (closeParenComments.before.length > 0 && columnIdentifiers.length > 0) {
+                columnIdentifiers[columnIdentifiers.length - 1].addPositionedComments("after", closeParenComments.before);
+            }
+            if (closeParenComments.after.length > 0) {
+                // Comments after ')' should trail the entire INSERT clause.
+                trailingInsertComments = closeParenComments.after;
+            }
+
+            if (columnIdentifiers.length === 0) {
+                columnIdentifiers = [];
             }
         }
 
@@ -93,10 +158,18 @@ export class InsertQueryParser {
             idx = returningResult.newIndex;
         }
 
+        const insertClause = new InsertClause(targetSource, columnIdentifiers ?? null);
+        if (insertKeywordComments.before.length > 0) {
+            insertClause.addPositionedComments("before", insertKeywordComments.before);
+        }
+        if (trailingInsertComments.length > 0) {
+            insertClause.addPositionedComments("after", trailingInsertComments);
+        }
+
         return {
             value: new InsertQuery({
                 withClause,
-                insertClause: new InsertClause(sourceResult.value, columns ?? null),
+                insertClause,
                 selectQuery: dataQuery,
                 returning: returningClause
             }),

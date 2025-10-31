@@ -1,4 +1,4 @@
-﻿import { PartitionByClause, OrderByClause, OrderByItem, SelectClause, SelectItem, Distinct, DistinctOn, SortDirection, NullsSortDirection, TableSource, SourceExpression, FromClause, JoinClause, JoinOnClause, JoinUsingClause, FunctionSource, SourceAliasExpression, WhereClause, GroupByClause, HavingClause, SubQuerySource, WindowFrameClause, LimitClause, ForClause, OffsetClause, WindowsClause as WindowClause, CommonTable, WithClause, FetchClause, FetchExpression, InsertClause, UpdateClause, DeleteClause, UsingClause, SetClause, ReturningClause, SetClauseItem } from "../models/Clause";
+import { PartitionByClause, OrderByClause, OrderByItem, SelectClause, SelectItem, Distinct, DistinctOn, SortDirection, NullsSortDirection, TableSource, SourceExpression, FromClause, JoinClause, JoinOnClause, JoinUsingClause, FunctionSource, SourceAliasExpression, WhereClause, GroupByClause, HavingClause, SubQuerySource, WindowFrameClause, LimitClause, ForClause, OffsetClause, WindowsClause as WindowClause, CommonTable, WithClause, FetchClause, FetchExpression, InsertClause, UpdateClause, DeleteClause, UsingClause, SetClause, ReturningClause, SetClauseItem } from "../models/Clause";
 import { HintClause } from "../models/HintClause";
 import { BinarySelectQuery, SimpleSelectQuery, ValuesQuery } from "../models/SelectQuery";
 import { SqlComponent, SqlComponentVisitor } from "../models/SqlComponent";
@@ -1532,6 +1532,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
     private visitTupleExpression(arg: TupleExpression): SqlPrintToken {
         const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.TupleExpression);
+        const requiresMultiline = this.tupleRequiresMultiline(arg);
 
         token.innerTokens.push(SqlPrintTokenParser.PAREN_OPEN_TOKEN);
         for (let i = 0; i < arg.values.length; i++) {
@@ -1540,11 +1541,40 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
             }
             token.innerTokens.push(this.visit(arg.values[i]));
         }
+        if (requiresMultiline) {
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.commentNewline, '', SqlPrintTokenContainerType.TupleExpression));
+        }
         token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
 
-        this.addComponentComments(token, arg);
-
         return token;
+    }
+
+    private tupleRequiresMultiline(tuple: TupleExpression): boolean {
+        for (const value of tuple.values) {
+            if (this.hasInlineComments(value)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private hasInlineComments(component: SqlComponent): boolean {
+        if (this.hasLeadingComments(component)) {
+            return true;
+        }
+        if (component instanceof TupleExpression) {
+            return this.tupleRequiresMultiline(component);
+        }
+        return false;
+    }
+
+    private hasLeadingComments(component: SqlComponent): boolean {
+        const positioned = component.positionedComments ?? [];
+        const before = positioned.find(pc => pc.position === 'before');
+        if (before && before.comments.some(comment => comment.trim().length > 0)) {
+            return true;
+        }
+        return false;
     }
 
     private visitWindowFrameExpression(arg: WindowFrameExpression): SqlPrintToken {
@@ -2375,7 +2405,6 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
             token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
             token.innerTokens.push(arg.returningClause.accept(this));
         }
-
         return token;
     }
 
@@ -2396,7 +2425,6 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
             }
             token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
         }
-
         return token;
     }
 
@@ -2661,7 +2689,6 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
             }
             token.innerTokens.push(this.visit(arg.columns[i]));
         }
-
         return token;
     }
 
@@ -3178,3 +3205,5 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         return token;
     }
 }
+
+

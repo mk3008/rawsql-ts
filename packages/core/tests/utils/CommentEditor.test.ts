@@ -53,7 +53,7 @@ describe('CommentEditor', () => {
 
             // Assert
             const result = formatter.format(query);
-            const expectedSql = `SELECT/* Select user information */  "id", "name" FROM "users"`;
+            const expectedSql = `/* Select user information */ SELECT "id", "name" FROM "users"`;
             expect(result.formattedSql).toBe(expectedSql);
         });
 
@@ -85,7 +85,7 @@ describe('CommentEditor', () => {
 
             // Assert
             const result = formatter.format(query);
-            const expectedSql = `SELECT/* Main SELECT clause */  /* Primary key */ "id", /* Display name */ "name" FROM "users" WHERE "active" = true`;
+            const expectedSql = `/* Main SELECT clause */ SELECT /* Primary key */ "id", /* Display name */ "name" FROM "users" WHERE "active" = true`;
             expect(result.formattedSql).toBe(expectedSql);
         });
     });
@@ -102,7 +102,7 @@ describe('CommentEditor', () => {
 
             // Assert
             const result = formatter.format(query);
-            const expectedSql = `SELECT/* Updated comment */  "id" FROM "users"`;
+            const expectedSql = `/* Updated comment */ SELECT "id" FROM "users"`;
             expect(result.formattedSql).toBe(expectedSql);
         });
 
@@ -145,7 +145,7 @@ describe('CommentEditor', () => {
 
             // Assert
             const result = formatter.format(query);
-            const expectedSql = `SELECT/* First */ /* Third */  "id" FROM "users"`;
+            const expectedSql = `/* First */ /* Third */ SELECT "id" FROM "users"`;
             expect(result.formattedSql).toBe(expectedSql);
         });
     });

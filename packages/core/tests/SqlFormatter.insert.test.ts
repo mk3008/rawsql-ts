@@ -68,12 +68,10 @@ describe('SqlFormatter insert formatting', () => {
         const firstRowLines = formattedSql.split('\n').filter(line => line.includes('/* first row */'));
         const secondRowLines = formattedSql.split('\n').filter(line => line.includes('/* second row */'));
 
-        expect(firstRowLines).toHaveLength(2);
-        expect(secondRowLines).toHaveLength(2);
+        expect(firstRowLines).toHaveLength(1);
+        expect(secondRowLines).toHaveLength(1);
         expect(formattedSql).toContain('(1, 10) /* first row */');
         expect(formattedSql).toContain(', (2, 20) /* second row */');
-        expect(firstRowLines.some(line => line.trim() === '/* first row */')).toBe(true);
-        expect(secondRowLines.some(line => line.trim() === '/* second row */')).toBe(true);
     });
 
     it('supports single-line column lists when configured', () => {
@@ -109,5 +107,35 @@ describe('SqlFormatter insert formatting', () => {
         ].join('\n');
 
         expect(formattedSql).toBe(expected);
+    });
+    it('preserves comments across insert formatting', () => {
+        const sql = [
+            '/* head */ INSERT INTO /* target before */ users /* target after */ (',
+            '    /* before id */',
+            '    id /* after id */',
+            ')',
+            'VALUES',
+            '    (1 /* value note */)',
+            'RETURNING /* return before col */ id /* return after col */'
+        ].join('\n');
+
+        const insert = InsertQueryParser.parse(sql);
+        const formatter = new SqlFormatter({
+            exportComment: true,
+            keywordCase: 'upper',
+            newline: '\n',
+        });
+
+        const { formattedSql } = formatter.format(insert);
+
+        const headMatches = formattedSql.match(/\/\* head \*\//g) ?? [];
+        expect(headMatches).toHaveLength(1);
+        expect(formattedSql).toContain('/* target before */');
+        expect(formattedSql).toContain('/* target after */');
+        expect(formattedSql).toContain('/* before id */');
+        expect(formattedSql).toContain('/* after id */');
+        expect(formattedSql).toContain('/* value note */');
+        expect(formattedSql).toContain('/* return before col */');
+        expect(formattedSql).toContain('/* return after col */');
     });
 });

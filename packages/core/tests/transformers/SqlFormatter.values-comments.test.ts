@@ -22,9 +22,14 @@ values
 
         const result = formatter.format(SelectQueryParser.parse(sql));
 
-        expect(result.formattedSql).toContain('/* c1 */');
-        expect(result.formattedSql).toContain('/* c2 */');
-        expect(result.formattedSql).toContain("(1, 'Alice')");
-        expect(result.formattedSql).toContain('/* c3 */');
+        const expected = [
+            '/* c1 */',
+            'VALUES',
+            "  /* c2 */",
+            "  (1, 'Alice')",
+            "  , (2, 'Bob') /* c3 */",
+        ].join('\r\n');
+
+        expect(result.formattedSql).toBe(expected);
     });
 });
