@@ -2728,6 +2728,18 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
             token.innerTokens.push(arg.asSelectQuery.accept(this));
         }
 
+        if (arg.withDataOption) {
+            // Reconstruct WITH [NO] DATA clause to mirror PostgreSQL CREATE TABLE semantics.
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'with'));
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            if (arg.withDataOption === 'with-no-data') {
+                token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'no'));
+                token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            }
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'data'));
+        }
+
         return token;
     }
 

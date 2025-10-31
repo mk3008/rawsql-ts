@@ -119,7 +119,10 @@ export class CreateTableParser {
             throw new Error(`[CreateTableParser] Unexpected end of input at position ${idx}.`);
         }
 
-        const commandToken = lexemes[idx].value.toLowerCase();
+        const commandLexeme = lexemes[idx];
+        // Capture comments that precede the CREATE TABLE keyword so they can be re-applied later.
+        const leadingCreateComments = this.popLexemeComments(commandLexeme, 'before');
+        const commandToken = commandLexeme.value.toLowerCase();
         const isTemporary = commandToken === "create temporary table";
 
         if (commandToken !== "create table" && !isTemporary) {
@@ -149,6 +152,7 @@ export class CreateTableParser {
         let tableConstraints: TableConstraintDefinition[] = [];
         let tableOptions: RawString | null = null;
         let asSelectQuery: SelectQuery | undefined;
+        let withDataOption: 'with-data' | 'with-no-data' | null = null;
 
         // Parse DDL column definitions when present.
         if (lexemes[idx]?.type === TokenType.OpenParen) {
@@ -180,6 +184,15 @@ export class CreateTableParser {
             idx = selectResult.newIndex;
         }
 
+        if (asSelectQuery) {
+            // Allow optional PostgreSQL-style WITH [NO] DATA clause after AS SELECT bodies.
+            const withResult = this.parseWithDataOption(lexemes, idx);
+            if (withResult) {
+                withDataOption = withResult.value;
+                idx = withResult.newIndex;
+            }
+        }
+
         const query = new CreateTableQuery({
             tableName: tableName.name,
             namespaces: tableNamespaces,
@@ -188,7 +201,8 @@ export class CreateTableParser {
             columns,
             tableConstraints,
             tableOptions,
-            asSelectQuery
+            asSelectQuery,
+            withDataOption
         });
 
         // Re-attach positioned comments captured on the identifier.
@@ -200,6 +214,11 @@ export class CreateTableParser {
         }
         if (legacyComments) {
             query.tableName.comments = [...legacyComments];
+        }
+
+        if (leadingCreateComments.length > 0) {
+            // Keep top-level comments aligned with the CREATE TABLE statement.
+            query.addPositionedComments('before', leadingCreateComments);
         }
 
         return { value: query, newIndex: idx };
@@ -222,6 +241,10 @@ export class CreateTableParser {
         const columns: TableColumnDefinition[] = [];
         const constraints: TableConstraintDefinition[] = [];
 
+        const openParenLexeme = lexemes[idx];
+        // Convert comments placed immediately after '(' into leading comments for the first entry.
+        let pendingLeading = this.toOptionalComments(this.popLexemeComments(openParenLexeme, 'after'));
+
         // Skip opening parenthesis.
         idx++;
 
@@ -229,33 +252,69 @@ export class CreateTableParser {
         while (idx < lexemes.length) {
             const lexeme = lexemes[idx];
             if (lexeme.type === TokenType.CloseParen) {
+                // When comments sit right before ')', keep them with the preceding entry.
+                const closingLeading = this.popLexemeComments(lexeme, 'before');
+                if (closingLeading.length > 0) {
+                    const target = (constraints.length > 0 ? constraints[constraints.length - 1] : columns[columns.length - 1]) ?? null;
+                    if (target) {
+                        target.addPositionedComments('after', closingLeading);
+                    }
+                }
                 idx++;
                 break;
             }
 
             const tokenValue = lexeme.value.toLowerCase();
+            const isConstraint = this.TABLE_CONSTRAINT_STARTERS.has(tokenValue);
+            const entryResult = isConstraint
+                ? this.parseTableConstraint(lexemes, idx)
+                : this.parseColumnDefinition(lexemes, idx);
+            let entry = entryResult.value;
 
-            if (this.TABLE_CONSTRAINT_STARTERS.has(tokenValue)) {
-                const constraintResult = this.parseTableConstraint(lexemes, idx);
-                constraints.push(constraintResult.value);
-                idx = constraintResult.newIndex;
-            } else {
-                const columnResult = this.parseColumnDefinition(lexemes, idx);
-                columns.push(columnResult.value);
-                idx = columnResult.newIndex;
+            if (pendingLeading && pendingLeading.length > 0) {
+                // Reattach comments that belonged between comma/parenthesis and the entry itself.
+                entry.addPositionedComments('before', pendingLeading);
+                pendingLeading = null;
             }
+
+            const trailingComments = this.popLexemeComments(lexemes[Math.max(entryResult.newIndex - 1, idx)], 'after');
+            if (trailingComments.length > 0) {
+                // Preserve inline comments that appeared after the entry tokens.
+                entry.addPositionedComments('after', trailingComments);
+            }
+
+            if (isConstraint) {
+                constraints.push(entry as TableConstraintDefinition);
+            } else {
+                columns.push(entry as TableColumnDefinition);
+            }
+
+            idx = entryResult.newIndex;
 
             // Consume delimiter comma between definitions.
             if (idx < lexemes.length && (lexemes[idx].type & TokenType.Comma)) {
+                const commaLexeme = lexemes[idx];
+                const commaTrailing = this.popLexemeComments(commaLexeme, 'after');
+                pendingLeading = this.toOptionalComments(commaTrailing);
                 idx++;
                 continue;
             }
 
             // Break when encountering the closing parenthesis.
             if (idx < lexemes.length && lexemes[idx].type === TokenType.CloseParen) {
+                const closingLexeme = lexemes[idx];
+                const closingLeading = this.popLexemeComments(closingLexeme, 'before');
+                if (closingLeading.length > 0) {
+                    const target = (constraints.length > 0 ? constraints[constraints.length - 1] : columns[columns.length - 1]) ?? null;
+                    if (target) {
+                        target.addPositionedComments('after', closingLeading);
+                    }
+                }
                 idx++;
                 break;
             }
+
+            pendingLeading = null;
         }
 
         return { columns, tableConstraints: constraints, newIndex: idx };
@@ -725,6 +784,86 @@ export class CreateTableParser {
             idx++;
         }
         return idx;
+    }
+
+    private static parseWithDataOption(
+        lexemes: Lexeme[],
+        index: number
+    ): { value: 'with-data' | 'with-no-data'; newIndex: number } | null {
+        // Detect PostgreSQL-style WITH [NO] DATA phrases that follow CREATE TABLE ... AS SELECT.
+        const current = lexemes[index];
+        if (!current) {
+            return null;
+        }
+
+        const value = current.value.toLowerCase();
+        if (value === "with data") {
+            return { value: "with-data", newIndex: index + 1 };
+        }
+        if (value === "with no data") {
+            return { value: "with-no-data", newIndex: index + 1 };
+        }
+        if (value !== "with") {
+            return null;
+        }
+
+        const next = lexemes[index + 1];
+        const nextValue = next?.value.toLowerCase();
+
+        if (nextValue === "data") {
+            return { value: "with-data", newIndex: index + 2 };
+        }
+
+        if (nextValue === "data") {
+            return { value: "with-data", newIndex: index + 2 };
+        }
+
+        if (nextValue === "no data") {
+            return { value: "with-no-data", newIndex: index + 2 };
+        }
+
+        if (nextValue === "no") {
+            const following = lexemes[index + 2];
+            if (following && following.value.toLowerCase() === "data") {
+                return { value: "with-no-data", newIndex: index + 3 };
+            }
+        }
+
+        return null;
+    }
+
+    private static popLexemeComments(lexeme: Lexeme | undefined, position: 'before' | 'after'): string[] {
+        if (!lexeme) {
+            return [];
+        }
+
+        let collected: string[] = [];
+
+        // Extract positioned comments first so they are not reused downstream.
+        if (lexeme.positionedComments && lexeme.positionedComments.length > 0) {
+            const matchIndex = lexeme.positionedComments.findIndex(pc => pc.position === position);
+            if (matchIndex >= 0) {
+                collected = [...lexeme.positionedComments[matchIndex].comments];
+                const remaining = lexeme.positionedComments.filter((_, idx) => idx !== matchIndex);
+                lexeme.positionedComments = remaining.length > 0 ? remaining : undefined;
+            }
+        }
+
+        if (collected.length > 0) {
+            return collected;
+        }
+
+        if (lexeme.comments && lexeme.comments.length > 0) {
+            const legacy = [...lexeme.comments];
+            lexeme.comments = null;
+            return legacy;
+        }
+
+        return [];
+    }
+
+    private static toOptionalComments(comments: string[]): string[] | null {
+        return comments.length > 0 ? comments : null;
     }
 
 }

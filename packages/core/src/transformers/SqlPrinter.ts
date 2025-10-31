@@ -353,9 +353,15 @@ export class SqlPrinter {
                 innerLevel = level + 1;
                 increasedIndent = true;
             } else if (current.text !== '') {
-                innerLevel = level + 1;
-                increasedIndent = true;
-                this.linePrinter.appendNewline(innerLevel);
+                if (this.shouldAlignCreateTableSelect(token.containerType, parentContainerType)) {
+                    innerLevel = level;
+                    increasedIndent = false;
+                    this.linePrinter.appendNewline(level);
+                } else {
+                    innerLevel = level + 1;
+                    increasedIndent = true;
+                    this.linePrinter.appendNewline(innerLevel);
+                }
             }
         }
 
@@ -780,6 +786,14 @@ export class SqlPrinter {
         }
 
         return false;
+    }
+
+    private shouldAlignCreateTableSelect(
+        containerType: SqlPrintTokenContainerType | undefined,
+        parentContainerType?: SqlPrintTokenContainerType,
+    ): boolean {
+        return containerType === SqlPrintTokenContainerType.SimpleSelectQuery &&
+            parentContainerType === SqlPrintTokenContainerType.CreateTableQuery;
     }
 
     private isCreateTableSpacingContext(parentContainerType: SqlPrintTokenContainerType): boolean {

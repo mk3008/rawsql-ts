@@ -103,4 +103,32 @@ describe('SqlFormatter CREATE TABLE spacing', () => {
 
         expect(formattedSql).toBe(expected);
     });
+
+    it('keeps SELECT aligned after AS in CREATE TABLE AS SELECT', () => {
+        const sql = [
+            'create table active_users as',
+            'select',
+            '    1'
+        ].join('\n');
+
+        const ast = CreateTableParser.parse(sql);
+        const formatter = new SqlFormatter({
+            indentChar: ' ',
+            indentSize: 4,
+            newline: '\n',
+            keywordCase: 'lower',
+            commaBreak: 'before',
+            identifierEscape: 'none',
+        });
+
+        const { formattedSql } = formatter.format(ast);
+
+        const expected = [
+            'create table active_users as',
+            'select',
+            '    1'
+        ].join('\n');
+
+        expect(formattedSql).toBe(expected);
+    });
 });
