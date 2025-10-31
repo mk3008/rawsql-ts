@@ -97,7 +97,7 @@ export class SetClauseParser {
             if (equalsComments.before.length > 0) {
                 const equalsBefore: string[] = [];
                 mergeUnique(equalsBefore, equalsComments.before);
-                addUniquePositionedComments(setItem, "after", equalsBefore);
+                addUniquePositionedComments(columnParseResult.name, "after", equalsBefore);
             }
 
             // Comments captured after '=' should precede the value expression.
