@@ -20,17 +20,44 @@ describe('Comment exact transformation - Full text comparison', () => {
 from
     table`;
 
-        // Actual behavior: -- comment gets moved to the end
+        // Expected behavior: comment stays with the SELECT item as an inline block comment.
         const expectedTransformed = `SELECT
-    *
+    /* test */ *
 FROM
-    "table"/* test */`;
+    "table"`;
 
         const parsed = SelectQueryParser.parse(originalSql);
         const formatter = new SqlFormatter(formatterOptions);
         const result = formatter.format(parsed);
 
         console.log('=== COMMENT STYLE TRANSFORMATION ===');
+        console.log('Original:');
+        console.log(originalSql);
+        console.log('\nExpected:');
+        console.log(expectedTransformed);
+        console.log('\nActual:');
+        console.log(result.formattedSql);
+
+        expect(result.formattedSql.trim()).toBe(expectedTransformed.trim());
+    });
+
+    it('should keep FROM clause line comments with their source table', () => {
+        const originalSql = `select
+    *
+from
+    --from comment
+    table`;
+
+        const expectedTransformed = `SELECT
+    *
+FROM
+    "table"/* from comment */`;
+
+        const parsed = SelectQueryParser.parse(originalSql);
+        const formatter = new SqlFormatter(formatterOptions);
+        const result = formatter.format(parsed);
+
+        console.log('\n=== FROM CLAUSE COMMENT PRESERVATION ===');
         console.log('Original:');
         console.log(originalSql);
         console.log('\nExpected:');
@@ -264,7 +291,8 @@ SELECT
     /* field comment preserved */ "id",
     "name" /* after name preserved */
 FROM
-    "users" /* after table preserved */
+    "users"/* table comment gets lost */
+    /* after table preserved */
 WHERE
     "status" = 'active' /* condition preserved */`;
 

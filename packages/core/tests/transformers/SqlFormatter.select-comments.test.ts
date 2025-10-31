@@ -176,5 +176,20 @@ describe('SqlFormatter - SELECT Comments (Bug 3)', () => {
             expect(result.formattedSql).toContain('select');
             expect(result.formattedSql).not.toContain('/*');
         });
+
+        test('should keep leading comment attached to star expression', () => {
+            const inputSql = `
+                select
+                -- a
+                * from table_s as a
+            `;
+            
+            const query = SelectQueryParser.parse(inputSql);
+            const formatter = new SqlFormatter({ exportComment: true });
+            const result = formatter.format(query);
+            
+            expect(result.formattedSql.toLowerCase()).toContain('select /* a */ *');
+            expect(result.formattedSql).not.toContain('"table_s"/* a */');
+        });
     });
 });

@@ -239,11 +239,33 @@ export class SqlTokenizer {
                 let targetIndex = i + 1;
                 while (targetIndex < tokenData.length) {
                     const target = tokenData[targetIndex];
+                    // Allow SELECT-prefix comments to bind to '*' tokens so they stay with the select list.
+                    const isStarOperator = (target.lexeme.type & TokenType.Operator) && target.lexeme.value === '*';
                     if ((target.lexeme.type & TokenType.Identifier) ||
                         (target.lexeme.type & TokenType.Literal) ||
+                        isStarOperator ||
                         (!(target.lexeme.type & TokenType.Command) &&
                          !(target.lexeme.type & TokenType.Comma) &&
                          !(target.lexeme.type & TokenType.Operator))) {
+                        if (!target.prefixComments) {
+                            target.prefixComments = [];
+                        }
+                        target.prefixComments.unshift(...suffixComments);
+                        current.suffixComments = null;
+                        break;
+                    }
+                    targetIndex++;
+                }
+            }
+
+            if (lexeme.value.toLowerCase() === 'from' && current.suffixComments && current.suffixComments.length > 0) {
+                const suffixComments = current.suffixComments;
+                let targetIndex = i + 1;
+                while (targetIndex < tokenData.length) {
+                    const target = tokenData[targetIndex];
+                    // Attach FROM suffix comments to the immediately following source token.
+                    const isCommand = (target.lexeme.type & TokenType.Command) !== 0;
+                    if (!isCommand) {
                         if (!target.prefixComments) {
                             target.prefixComments = [];
                         }
