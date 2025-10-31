@@ -9,6 +9,7 @@ import { FromClauseParser } from "./FromClauseParser";
 import { FromClause, ReturningClause, WhereClause, WithClause } from "../models/Clause";
 import { SetClauseParser } from "./SetClauseParser";
 import { WithClauseParser } from "./WithClauseParser";
+import { extractLexemeComments } from "./utils/LexemeCommentUtils";
 
 export class UpdateQueryParser {
     /**
@@ -44,12 +45,22 @@ export class UpdateQueryParser {
         if (lexemes[idx].value !== "update") {
             throw new Error(`Syntax error at position ${idx}: Expected 'UPDATE' but found '${lexemes[idx].value}'.`);
         }
+        const updateLexeme = lexemes[idx];
+        const updateKeywordComments = extractLexemeComments(updateLexeme);
         idx++;
 
         // Parse updateClause (table or source expression)
         const updateClauseResult = UpdateClauseParser.parseFromLexeme(lexemes, idx);
         const updateClause = updateClauseResult.value;
         idx = updateClauseResult.newIndex;
+
+        // Attach positioned comments captured from the UPDATE keyword.
+        if (updateKeywordComments.before.length > 0) {
+            updateClause.addPositionedComments("before", updateKeywordComments.before);
+        }
+        if (updateKeywordComments.after.length > 0) {
+            updateClause.addPositionedComments("after", updateKeywordComments.after);
+        }
 
         // Parse set clause (including 'SET' keyword check)
         const setClauseResult = SetClauseParser.parseFromLexeme(lexemes, idx);

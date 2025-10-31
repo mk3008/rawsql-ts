@@ -1054,8 +1054,6 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     private visitFunctionCall(arg: FunctionCall): SqlPrintToken {
         const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.FunctionCall);
 
-        this.addComponentComments(token, arg);
-
         token.innerTokens.push(arg.qualifiedName.accept(this));
         token.innerTokens.push(SqlPrintTokenParser.PAREN_OPEN_TOKEN);
         if (arg.argument) {
@@ -1095,6 +1093,8 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
                 token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
             }
         }
+
+        this.addComponentComments(token, arg);
 
         return token;
     }
