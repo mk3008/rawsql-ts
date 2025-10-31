@@ -188,7 +188,11 @@ export class ValueParser {
             const next = lexemes[first.newIndex];
             if (next.type & TokenType.Literal) {
                 // Typed literal format
-                const second = LiteralParser.parseFromLexeme(lexemes, first.newIndex);
+                const literalIndex = first.newIndex;
+                const literalLexeme = lexemes[literalIndex];
+                const second = LiteralParser.parseFromLexeme(lexemes, literalIndex);
+                // Preserve comments that belong to the literal part of typed literal expressions.
+                this.transferPositionedComments(literalLexeme, second.value);
                 const result = new UnaryExpression(lexemes[idx].value, second.value);
                 this.transferPositionedComments(current, result);
                 return { value: result, newIndex: second.newIndex };
