@@ -8,6 +8,7 @@ import { FullNameParser } from "./FullNameParser";
 import { SelectQueryParser } from "./SelectQueryParser";
 import { OrderByClauseParser } from "./OrderByClauseParser";
 import { ParseError } from "./ParseError";
+import { extractLexemeComments } from "./utils/LexemeCommentUtils";
 
 export class FunctionExpressionParser {
     /**
@@ -196,14 +197,14 @@ export class FunctionExpressionParser {
                 const value = new FunctionCall(namespaces, name.name, arg.value, over.value, withinGroup, withOrdinality, internalOrderBy);
                 // Set closing comments if available
                 if (closingComments && closingComments.length > 0) {
-                    value
+                    value.addPositionedComments("after", closingComments);
                 }
                 return { value, newIndex: idx };
             } else {
                 const value = new FunctionCall(namespaces, name.name, arg.value, null, withinGroup, withOrdinality, internalOrderBy);
                 // Set closing comments if available
                 if (closingComments && closingComments.length > 0) {
-                    value
+                    value.addPositionedComments("after", closingComments);
                 }
                 return { value, newIndex: idx };
             }
@@ -371,7 +372,7 @@ export class FunctionExpressionParser {
 
         // Handle empty arguments
         if (idx < lexemes.length && (lexemes[idx].type & TokenType.CloseParen)) {
-            const closingComments = lexemes[idx].comments;
+            const closingComments = this.getClosingComments(lexemes[idx]);
             idx++;
             return { arguments: new ValueList([]), orderByClause: null, closingComments, newIndex: idx };
         }
@@ -381,7 +382,7 @@ export class FunctionExpressionParser {
             const wildcard = new ColumnReference(null, "*");
             idx++;
             if (idx < lexemes.length && (lexemes[idx].type & TokenType.CloseParen)) {
-                const closingComments = lexemes[idx].comments;
+                const closingComments = this.getClosingComments(lexemes[idx]);
                 idx++;
                 return { arguments: wildcard, orderByClause: null, closingComments, newIndex: idx };
             } else {
@@ -430,7 +431,7 @@ export class FunctionExpressionParser {
         if (idx >= lexemes.length || !(lexemes[idx].type & TokenType.CloseParen)) {
             throw ParseError.fromUnparsedLexemes(lexemes, idx, `Expected closing parenthesis.`);
         }
-        const closingComments = lexemes[idx].comments;
+        const closingComments = this.getClosingComments(lexemes[idx]);
         idx++;
 
         // Return single argument if only one, otherwise return ValueList
@@ -462,7 +463,7 @@ export class FunctionExpressionParser {
         
         // Check for empty parentheses
         if (idx < lexemes.length && (lexemes[idx].type & TokenType.CloseParen)) {
-            const closingComments = lexemes[idx].comments;
+            const closingComments = this.getClosingComments(lexemes[idx]);
             idx++; // Skip closing parenthesis
             return { value: new ValueList([]), closingComments, newIndex: idx };
         }
@@ -476,7 +477,7 @@ export class FunctionExpressionParser {
             if (idx >= lexemes.length || !(lexemes[idx].type & TokenType.CloseParen)) {
                 throw ParseError.fromUnparsedLexemes(lexemes, idx, `Expected closing parenthesis after wildcard '*'.`);
             }
-            const closingComments = lexemes[idx].comments;
+            const closingComments = this.getClosingComments(lexemes[idx]);
             idx++;
             return { value: wildcard, closingComments, newIndex: idx };
         }
@@ -529,11 +530,30 @@ export class FunctionExpressionParser {
         if (idx >= lexemes.length || !(lexemes[idx].type & TokenType.CloseParen)) {
             throw ParseError.fromUnparsedLexemes(lexemes, idx, `Expected closing parenthesis.`);
         }
-        const closingComments = lexemes[idx].comments;
+        const closingComments = this.getClosingComments(lexemes[idx]);
         idx++;
-        
+
         // Return single argument if only one, otherwise return ValueList
         const argumentsValue = args.length === 1 ? args[0] : new ValueList(args);
         return { value: argumentsValue, closingComments, newIndex: idx };
     }
+    /**
+     * Normalize closing parenthesis comments to preserve positioned and legacy comment metadata.
+     */
+    private static getClosingComments(lexeme: Lexeme | undefined): string[] | null {
+        if (!lexeme) {
+            return null;
+        }
+
+        const commentInfo = extractLexemeComments(lexeme);
+        if (commentInfo.after.length > 0) {
+            return commentInfo.after;
+        }
+        if (commentInfo.before.length > 0) {
+            return commentInfo.before;
+        }
+
+        return null;
+    }
 }
+
