@@ -134,8 +134,13 @@ export class MergeQueryParser {
             const thenComments = extractLexemeComments(thenLexeme);
             idx++;
 
+            // Merge comments appearing around THEN so action-level handling can preserve them.
+            const pendingActionComments: string[] = [];
+            this.mergeUnique(pendingActionComments, thenComments.before);
+            this.mergeUnique(pendingActionComments, thenComments.after);
+
             // Dispatch to clause-specific action parser.
-            const actionResult = this.parseAction(lexemes, idx, thenComments.after);
+            const actionResult = this.parseAction(lexemes, idx, pendingActionComments);
             idx = actionResult.newIndex;
             clauses.push(new MergeWhenClause(matchType, actionResult.action, additionalCondition));
         }
