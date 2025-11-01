@@ -2504,9 +2504,11 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         token.innerTokens.push(arg.source.accept(this));
 
         token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
-        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'on'));
-        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
-        token.innerTokens.push(arg.onCondition.accept(this));
+        const onClauseToken = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.JoinOnClause);
+        onClauseToken.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'on'));
+        onClauseToken.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        onClauseToken.innerTokens.push(arg.onCondition.accept(this));
+        token.innerTokens.push(onClauseToken);
 
         for (const clause of arg.whenClauses) {
             token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
@@ -2585,8 +2587,16 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         }
 
         if (arg.values) {
-            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
-            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'values'));
+            const leadingValuesComments = arg.getValuesLeadingComments();
+            if (leadingValuesComments.length > 0) {
+                token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.commentNewline, ''));
+                const commentBlocks = this.createCommentBlocks(leadingValuesComments);
+                token.innerTokens.push(...commentBlocks);
+            } else {
+                token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            }
+            const valuesKeywordToken = new SqlPrintToken(SqlPrintTokenType.keyword, 'values');
+            token.innerTokens.push(valuesKeywordToken);
             token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
             token.innerTokens.push(SqlPrintTokenParser.PAREN_OPEN_TOKEN);
             token.innerTokens.push(arg.values.accept(this));
@@ -2654,7 +2664,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     }
 
     public visitSetClause(arg: SetClause): SqlPrintToken {
-        const token = new SqlPrintToken(SqlPrintTokenType.keyword, 'set', SqlPrintTokenContainerType.SelectClause);
+        const token = new SqlPrintToken(SqlPrintTokenType.keyword, 'set', SqlPrintTokenContainerType.SetClause);
 
         token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
         for (let i = 0; i < arg.items.length; i++) {

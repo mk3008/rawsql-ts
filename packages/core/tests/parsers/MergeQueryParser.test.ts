@@ -75,4 +75,51 @@ describe("MergeQueryParser", () => {
         expect(defaultInsertAction.defaultValues).toBe(true);
         expect(defaultInsertAction.values).toBeNull();
     });
+
+    it("preserves comments throughout MERGE update and insert actions", () => {
+        const sql = [
+            "-- c1",
+            "merge into users as target --c2",
+            "using temp_users as source --c3",
+            "on target.user_id = source.user_id --c4",
+            "when matched then",
+            "    --c5",
+            "    update set",
+            "        --c6",
+            "        username = source.username",
+            "        --c7",
+            "        ,",
+            "        --c8",
+            "        email = source.email",
+            "        --c9",
+            "        ,",
+            "        --c10",
+            "        updated_at = now()",
+            "        --c11",
+            "when not matched then",
+            "    -- c12",
+            "    insert (user_id, username, email, created_at) --c13",
+            "    values (source.user_id, source.username, source.email, now())",
+            "    --c14"
+        ].join("\n");
+
+        const result = MergeQueryParser.parse(sql);
+
+        const matchedClause = result.whenClauses[0];
+        const updateAction = matchedClause.action as MergeUpdateAction;
+        const insertClause = result.whenClauses[1];
+        const insertAction = insertClause.action as MergeInsertAction;
+
+        // Leading MERGE comment should be preserved on the query.
+        expect(result.getPositionedComments("before")).toContain("c1");
+
+        // Comments preceding UPDATE and the first assignment should be retained.
+        expect(updateAction.getPositionedComments("before")).toContain("c5");
+        expect(updateAction.setClause.items[0].column.getPositionedComments("before")).toContain("c6");
+
+        // Comments around the INSERT branch should remain attached.
+        expect(insertAction.getPositionedComments("before")).toContain("c12");
+        expect(insertAction.getValuesLeadingComments()).toContain("c13");
+        expect(insertAction.values?.getPositionedComments("after")).toContain("c14");
+    });
 });

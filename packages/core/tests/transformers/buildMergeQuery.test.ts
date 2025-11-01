@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { SelectQueryParser } from '../../src/parsers/SelectQueryParser';
+import { MergeQueryParser } from '../../src/parsers/MergeQueryParser';
 import { QueryBuilder } from '../../src/transformers/QueryBuilder';
 import { SqlFormatter } from '../../src/transformers/SqlFormatter';
 import { SimpleSelectQuery } from '../../src/models/SimpleSelectQuery';
@@ -136,6 +137,46 @@ describe('buildMergeQuery', () => {
         });
 
         const sql = new SqlFormatter().format(mergeQuery).formattedSql;
-        expect(sql).toBe('merge into "users" as "u" using (select "id", "name" from "incoming_users") as "src" on "u"."id" = "src"."id" when matched then update set "name" = "src"."name" when not matched then insert ("id", "name") values ("src"."id", "src"."name") when not matched by source then do nothing');
+        expect(sql).toBe('merge into "users" as "u" using (select "id", "name" from "incoming_users") as "src" on "u"."id" = "src"."id" when matched then update set "name" = "src"."name" when not matched then insert("id", "name") values("src"."id", "src"."name") when not matched by source then do nothing');
+    });
+
+    it('formats comments before merge insert values clauses', () => {
+        const mergeSql = [
+            '-- c1',
+            'merge into users as target --c2',
+            'using temp_users as source --c3',
+            'on target.user_id = source.user_id --c4',
+            'when matched then',
+            '    --c5',
+            '    update set',
+            '        --c6',
+            '        username = source.username',
+            '        --c7',
+            '        ,',
+            '        --c8',
+            '        email = source.email',
+            '        --c9',
+            '        ,',
+            '        --c10',
+            '        updated_at = now()',
+            '        --c11',
+            'when not matched then',
+            '    -- c12',
+            '    insert (user_id, username, email, created_at) --c13',
+            '    values (source.user_id, source.username, source.email, now())',
+            '    --c14'
+        ].join('\n');
+
+        const mergeQuery = MergeQueryParser.parse(mergeSql);
+        const formatter = new SqlFormatter({
+            exportComment: true,
+            keywordCase: 'lower',
+            newline: '\n'
+        });
+
+        const formatted = formatter.format(mergeQuery).formattedSql;
+
+        expect(formatted).toMatch(/\/\* c13 \*\/\s*\n\s*values/);
+        expect(formatted).toContain('now() /* c14 */');
     });
 });

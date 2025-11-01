@@ -35,11 +35,13 @@ export class MergeInsertAction extends MergeAction {
     columns: IdentifierString[] | null;
     values: ValueList | null;
     defaultValues: boolean;
+    private valuesLeadingComments: string[] | null;
 
     constructor(params: {
         columns?: (IdentifierString | string)[] | null;
         values?: ValueList | null;
         defaultValues?: boolean;
+        valuesLeadingComments?: string[] | null;
     }) {
         super();
         this.columns = params.columns
@@ -47,6 +49,25 @@ export class MergeInsertAction extends MergeAction {
             : null;
         this.values = params.values ?? null;
         this.defaultValues = params.defaultValues ?? false;
+        this.valuesLeadingComments = params.valuesLeadingComments ? [...params.valuesLeadingComments] : null;
+    }
+
+    addValuesLeadingComments(comments: string[]): void {
+        if (!comments || comments.length === 0) {
+            return;
+        }
+        if (!this.valuesLeadingComments) {
+            this.valuesLeadingComments = [];
+        }
+        for (const comment of comments) {
+            if (!this.valuesLeadingComments.includes(comment)) {
+                this.valuesLeadingComments.push(comment);
+            }
+        }
+    }
+
+    getValuesLeadingComments(): string[] {
+        return this.valuesLeadingComments ? [...this.valuesLeadingComments] : [];
     }
 }
 
