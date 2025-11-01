@@ -296,8 +296,8 @@ order by
         
         // Expected: CTE separators use trailing commas, columns still use leading commas
         const expectedSql = `with
-  "active_users" as (select "id" , "name" from "users" where "active" = true),
-  "user_orders" as (select "user_id" , count(*) as "order_count" from "orders" group by "user_id")
+  "active_users" as (select "id", "name" from "users" where "active" = true),
+  "user_orders" as (select "user_id", count(*) as "order_count" from "orders" group by "user_id")
 select
   "u"."id"
   , "u"."name"

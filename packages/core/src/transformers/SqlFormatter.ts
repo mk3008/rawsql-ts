@@ -76,6 +76,8 @@ export interface BaseFormattingOptions {
     indentNestedParentheses?: boolean;
     /** Keep INSERT column lists on one line regardless of comma break settings */
     insertColumnsOneLine?: boolean;
+    /** Keep MERGE WHEN clause predicates on one line regardless of AND break settings */
+    whenOneLine?: boolean;
 }
 
 /**
