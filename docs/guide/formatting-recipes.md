@@ -36,6 +36,7 @@ const { formattedSql, params } = formatter.format(query);
 | `commentStyle` | `'block'`, `'smart'` | `'block'` | Normalises how comments are emitted (see below). |
 | `withClauseStyle` | `'standard'`, `'cte-oneline'`, `'full-oneline'` | `'standard'` | Expands or collapses common table expressions. |
 | `parenthesesOneLine`, `betweenOneLine`, `valuesOneLine`, `joinOneLine`, `caseOneLine`, `subqueryOneLine` | `true` / `false` | `false` for each | Opt-in switches that keep the corresponding construct on a single line even if other break settings would expand it. |
+| `whenOneLine` | `true` / `false` | `false` | Forces each `MERGE WHEN` predicate to stay on a single line even if `andBreak` / `orBreak` would normally wrap it. |
 | `exportComment` | `true` / `false` | `false` | Emits comments collected by the parser. Turn it on when you want annotations preserved. |
 | `castStyle` | 'standard', 'postgres' | From preset or 'standard' | Chooses how CAST expressions are printed. 'standard' emits ANSI `CAST(expr AS type)` while 'postgres' emits `expr::type`. See "Controlling CAST style" below for usage notes and examples. |
 | `constraintStyle` | `'postgres'`, `'mysql'` | From preset or `'postgres'` | Shapes constraint output in DDL: `'postgres'` prints `constraint ... primary key(...)`, while `'mysql'` emits `unique key name(...)` / `foreign key name(...)`. |
@@ -79,6 +80,22 @@ const formatter = new SqlFormatter({
 - `'none'` leaves the logical operators inline.
 
 Choose `'before'` when you want to scan down logical branches quickly, or `'after'` to keep complex conditions aligned underneath their keywords.
+
+### MERGE `WHEN` predicate layout
+
+`MERGE` statements reuse the same `andBreak` / `orBreak` logic as `WHERE` clauses, so enabling `'before'` or `'after'` normally splits predicates such as `WHEN MATCHED AND target.flag = 'Y'` across multiple lines. Set `whenOneLine: true` to keep each `WHEN` predicate compact while still honouring your preferred breaks elsewhere:
+
+```typescript
+const formatter = new SqlFormatter({
+    newline: 'lf',
+    andBreak: 'before',
+    whenOneLine: true
+});
+// when matched and target.flag = 'Y'
+//     then update set status = source.status
+```
+
+The switch leaves other logical groups untouched, so `WHERE` clauses continue to follow the global `andBreak` / `orBreak` style.
 
 ### INSERT column list layouts
 
