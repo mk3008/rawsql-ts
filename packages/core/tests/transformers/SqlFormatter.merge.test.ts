@@ -227,4 +227,42 @@ describe('SqlFormatter MERGE formatting', () => {
         expect(formattedSql).toBe(expected);
     });
 
+    it('keeps comments before THEN on the clause boundary', () => {
+        const unformatted = [
+            'merge into users as target',
+            'using staging_users as source',
+            'on target.user_id = source.user_id',
+            'when matched -- c_before_then',
+            'then',
+            '    -- c_after_then',
+            '    update set username = source.username',
+            'when not matched then',
+            '    insert default values',
+        ].join('\n');
+
+        const formatter = new SqlFormatter({
+            keywordCase: 'upper',
+            newline: '\n',
+            indentSize: 4,
+            indentChar: ' ',
+            identifierEscape: 'none',
+            andBreak: 'none',
+            commentStyle: 'smart',
+            exportComment: true,
+        });
+
+        const mergeQuery = MergeQueryParser.parse(unformatted);
+        const { formattedSql } = formatter.format(mergeQuery);
+
+        const expectedSnippet = [
+            'WHEN MATCHED -- c_before_then',
+            '    THEN',
+            '    -- c_after_then',
+            '    UPDATE SET',
+            '        username = source.username',
+        ].join('\n');
+
+        expect(formattedSql).toContain(expectedSnippet);
+    });
+
 });

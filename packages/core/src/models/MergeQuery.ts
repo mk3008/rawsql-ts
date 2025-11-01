@@ -80,12 +80,39 @@ export class MergeWhenClause extends SqlComponent {
     matchType: MergeMatchType;
     condition: ValueComponent | null;
     action: MergeAction;
+    private thenLeadingComments: string[] | null;
 
-    constructor(matchType: MergeMatchType, action: MergeAction, condition?: ValueComponent | null) {
+    constructor(
+        matchType: MergeMatchType,
+        action: MergeAction,
+        condition?: ValueComponent | null,
+        options?: { thenLeadingComments?: string[] | null }
+    ) {
         super();
         this.matchType = matchType;
         this.action = action;
         this.condition = condition ?? null;
+        this.thenLeadingComments = options?.thenLeadingComments
+            ? [...options.thenLeadingComments]
+            : null;
+    }
+
+    addThenLeadingComments(comments: string[]): void {
+        if (!comments || comments.length === 0) {
+            return;
+        }
+        if (!this.thenLeadingComments) {
+            this.thenLeadingComments = [];
+        }
+        for (const comment of comments) {
+            if (!this.thenLeadingComments.includes(comment)) {
+                this.thenLeadingComments.push(comment);
+            }
+        }
+    }
+
+    getThenLeadingComments(): string[] {
+        return this.thenLeadingComments ? [...this.thenLeadingComments] : [];
     }
 }
 

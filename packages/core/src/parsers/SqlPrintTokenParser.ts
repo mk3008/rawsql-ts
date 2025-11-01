@@ -2529,8 +2529,18 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
             token.innerTokens.push(arg.condition.accept(this));
         }
 
-        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
-        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'then'));
+        const thenLeadingComments = arg.getThenLeadingComments();
+        const thenKeywordToken = new SqlPrintToken(SqlPrintTokenType.keyword, 'then');
+
+        if (thenLeadingComments.length > 0) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            const commentBlocks = this.createCommentBlocks(thenLeadingComments);
+            token.innerTokens.push(...commentBlocks);
+            token.innerTokens.push(thenKeywordToken);
+        } else {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(thenKeywordToken);
+        }
         token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
         token.innerTokens.push(arg.action.accept(this));
 

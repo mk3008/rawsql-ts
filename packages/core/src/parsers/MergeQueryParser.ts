@@ -132,17 +132,22 @@ export class MergeQueryParser {
                 throw new Error(`[MergeQueryParser] Syntax error at position ${idx}: expected 'THEN' but found '${actual}'.`);
             }
             const thenComments = extractLexemeComments(thenLexeme);
+            const commentsBeforeThen: string[] = [];
+            const precedingLexeme = lexemes[idx - 1];
+            if (precedingLexeme) {
+                const precedingComments = extractLexemeComments(precedingLexeme);
+                this.mergeUnique(commentsBeforeThen, precedingComments.after);
+            }
+            this.mergeUnique(commentsBeforeThen, thenComments.before);
             idx++;
 
-            // Merge comments appearing around THEN so action-level handling can preserve them.
-            const pendingActionComments: string[] = [];
-            this.mergeUnique(pendingActionComments, thenComments.before);
-            this.mergeUnique(pendingActionComments, thenComments.after);
-
-            // Dispatch to clause-specific action parser.
-            const actionResult = this.parseAction(lexemes, idx, pendingActionComments);
+            // Dispatch to clause-specific action parser with comments that follow THEN.
+            const actionResult = this.parseAction(lexemes, idx, thenComments.after ?? []);
             idx = actionResult.newIndex;
-            clauses.push(new MergeWhenClause(matchType, actionResult.action, additionalCondition));
+
+            const whenClause = new MergeWhenClause(matchType, actionResult.action, additionalCondition);
+            whenClause.addThenLeadingComments(commentsBeforeThen);
+            clauses.push(whenClause);
         }
 
         return { clauses, newIndex: idx };

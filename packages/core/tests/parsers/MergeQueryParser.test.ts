@@ -122,4 +122,27 @@ describe("MergeQueryParser", () => {
         expect(insertAction.getValuesLeadingComments()).toContain("c13");
         expect(insertAction.values?.getPositionedComments("after")).toContain("c14");
     });
+
+    it("keeps comments preceding THEN separate from action comments", () => {
+        const sql = [
+            "merge into users as target",
+            "using staging_users as source",
+            "on target.user_id = source.user_id",
+            "when matched -- c_before_then",
+            "then",
+            "    -- c_after_then",
+            "    update set username = source.username",
+            "when not matched then",
+            "    insert default values"
+        ].join("\n");
+
+        const result = MergeQueryParser.parse(sql);
+        const clause = result.whenClauses[0];
+        const action = clause.action as MergeUpdateAction;
+
+        expect(clause.getThenLeadingComments()).toContain("c_before_then");
+        expect(clause.getThenLeadingComments()).not.toContain("c_after_then");
+        expect(action.getPositionedComments("before")).toContain("c_after_then");
+        expect(action.getPositionedComments("before")).not.toContain("c_before_then");
+    });
 });
