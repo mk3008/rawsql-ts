@@ -93,7 +93,12 @@ export class LinePrinter {
             return;
         }
         const previousLine = this.lines[this.lines.length - 2];
-        previousLine.text = previousLine.text.replace(/\s+$/, '');
+        const newlineMatch = previousLine.text.match(/(\r?\n)$/);
+        const trailingNewline = newlineMatch ? newlineMatch[1] : '';
+        const content = trailingNewline
+            ? previousLine.text.slice(0, -trailingNewline.length)
+            : previousLine.text;
+        previousLine.text = content.replace(/[ \t]+$/, '') + trailingNewline;
     }
 
     /**
