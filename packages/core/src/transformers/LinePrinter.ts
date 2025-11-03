@@ -88,6 +88,19 @@ export class LinePrinter {
         }
     }
 
+    trimTrailingWhitespaceFromPreviousLine(): void {
+        if (this.lines.length < 2) {
+            return;
+        }
+        const previousLine = this.lines[this.lines.length - 2];
+        const newlineMatch = previousLine.text.match(/(\r?\n)$/);
+        const trailingNewline = newlineMatch ? newlineMatch[1] : '';
+        const content = trailingNewline
+            ? previousLine.text.slice(0, -trailingNewline.length)
+            : previousLine.text;
+        previousLine.text = content.replace(/[ \t]+$/, '') + trailingNewline;
+    }
+
     /**
      * Cleans up the current line for comma formatting.
      * For 'after' and 'none' comma styles, removes empty line when a comma is being added.

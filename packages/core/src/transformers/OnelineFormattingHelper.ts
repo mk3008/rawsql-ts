@@ -42,7 +42,11 @@ export class OnelineFormattingHelper {
     }
 
     isInsertClauseOneline(parentContainerType?: SqlPrintTokenContainerType): boolean {
-        return this.options.insertColumnsOneLine && parentContainerType === SqlPrintTokenContainerType.InsertClause;
+        if (!this.options.insertColumnsOneLine) {
+            return false;
+        }
+        return parentContainerType === SqlPrintTokenContainerType.InsertClause ||
+            parentContainerType === SqlPrintTokenContainerType.MergeInsertAction;
     }
 
     shouldInsertJoinNewline(insideWithClause: boolean): boolean {
@@ -72,7 +76,11 @@ export class OnelineFormattingHelper {
         nextToken: SqlPrintToken | undefined,
         currentLineText: string,
     ): boolean {
-        if (parentContainerType !== SqlPrintTokenContainerType.InsertClause) {
+        const isInsertContainer =
+            parentContainerType === SqlPrintTokenContainerType.InsertClause ||
+            parentContainerType === SqlPrintTokenContainerType.MergeInsertAction;
+
+        if (!isInsertContainer) {
             return false;
         }
 

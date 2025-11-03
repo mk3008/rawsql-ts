@@ -82,6 +82,7 @@ export enum SqlPrintTokenContainerType {
     DeleteClause = "DeleteClause",
     UsingClause = "UsingClause",
     ReturningClause = "ReturningClause",
+    SetClause = "SetClause",
     SetClauseItem = "SetClauseItem",
     CreateTableQuery = "CreateTableQuery",
     CreateTableDefinition = "CreateTableDefinition",

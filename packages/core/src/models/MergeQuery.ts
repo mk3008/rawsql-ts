@@ -35,11 +35,13 @@ export class MergeInsertAction extends MergeAction {
     columns: IdentifierString[] | null;
     values: ValueList | null;
     defaultValues: boolean;
+    private valuesLeadingComments: string[] | null;
 
     constructor(params: {
         columns?: (IdentifierString | string)[] | null;
         values?: ValueList | null;
         defaultValues?: boolean;
+        valuesLeadingComments?: string[] | null;
     }) {
         super();
         this.columns = params.columns
@@ -47,6 +49,25 @@ export class MergeInsertAction extends MergeAction {
             : null;
         this.values = params.values ?? null;
         this.defaultValues = params.defaultValues ?? false;
+        this.valuesLeadingComments = params.valuesLeadingComments ? [...params.valuesLeadingComments] : null;
+    }
+
+    addValuesLeadingComments(comments: string[]): void {
+        if (!comments || comments.length === 0) {
+            return;
+        }
+        if (!this.valuesLeadingComments) {
+            this.valuesLeadingComments = [];
+        }
+        for (const comment of comments) {
+            if (!this.valuesLeadingComments.includes(comment)) {
+                this.valuesLeadingComments.push(comment);
+            }
+        }
+    }
+
+    getValuesLeadingComments(): string[] {
+        return this.valuesLeadingComments ? [...this.valuesLeadingComments] : [];
     }
 }
 
@@ -59,12 +80,39 @@ export class MergeWhenClause extends SqlComponent {
     matchType: MergeMatchType;
     condition: ValueComponent | null;
     action: MergeAction;
+    private thenLeadingComments: string[] | null;
 
-    constructor(matchType: MergeMatchType, action: MergeAction, condition?: ValueComponent | null) {
+    constructor(
+        matchType: MergeMatchType,
+        action: MergeAction,
+        condition?: ValueComponent | null,
+        options?: { thenLeadingComments?: string[] | null }
+    ) {
         super();
         this.matchType = matchType;
         this.action = action;
         this.condition = condition ?? null;
+        this.thenLeadingComments = options?.thenLeadingComments
+            ? [...options.thenLeadingComments]
+            : null;
+    }
+
+    addThenLeadingComments(comments: string[]): void {
+        if (!comments || comments.length === 0) {
+            return;
+        }
+        if (!this.thenLeadingComments) {
+            this.thenLeadingComments = [];
+        }
+        for (const comment of comments) {
+            if (!this.thenLeadingComments.includes(comment)) {
+                this.thenLeadingComments.push(comment);
+            }
+        }
+    }
+
+    getThenLeadingComments(): string[] {
+        return this.thenLeadingComments ? [...this.thenLeadingComments] : [];
     }
 }
 
