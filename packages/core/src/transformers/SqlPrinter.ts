@@ -1576,6 +1576,7 @@ export class SqlPrinter {
             orBreak: 'none',           // Disable OR-based line breaks
             keywordCase: this.keywordCase,
             exportComment: this.exportComment,
+            commentStyle: this.commentStyle,
             withClauseStyle: 'standard',
             parenthesesOneLine: false, // Prevent recursive processing (avoid infinite loops)
             betweenOneLine: false,     // Prevent recursive processing (avoid infinite loops)
@@ -1588,7 +1589,6 @@ export class SqlPrinter {
         });
     }
 
-
     /**
      * Removes duplicate consecutive spaces while preserving single spaces.
      * Simple and safe space normalization for CTE oneline mode.
@@ -1596,7 +1596,4 @@ export class SqlPrinter {
     private cleanDuplicateSpaces(text: string): string {
         return text.replace(/\s{2,}/g, ' ');
     }
-
-
 }
-
