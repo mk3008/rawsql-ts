@@ -134,6 +134,12 @@ export class SqlPrintToken {
      */
     innerTokens: SqlPrintToken[] = [];
 
+    /**
+     * Optional marker indicating that this token originated from headerComments.
+     * Used by printers to selectively emit only header-level annotations.
+     */
+    isHeaderComment?: boolean;
+
     constructor(type: SqlPrintTokenType, text: string = '', containerType: SqlPrintTokenContainerType = SqlPrintTokenContainerType.None) {
         this.type = type;
         this.text = text;

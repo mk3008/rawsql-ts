@@ -1,5 +1,5 @@
 import { SqlPrintTokenParser, FormatterConfig, PRESETS, CastStyle, ConstraintStyle } from '../parsers/SqlPrintTokenParser';
-import { SqlPrinter, CommaBreakStyle, AndBreakStyle, OrBreakStyle } from './SqlPrinter';
+import { SqlPrinter, CommaBreakStyle, AndBreakStyle, OrBreakStyle, CommentExportMode } from './SqlPrinter';
 import { IndentCharOption, NewlineOption } from './LinePrinter'; // Import types for compatibility
 import { IdentifierEscapeOption, resolveIdentifierEscapeOption } from './FormatOptionResolver';
 import { SelectQuery } from '../models/SelectQuery';
@@ -55,7 +55,7 @@ export interface BaseFormattingOptions {
     /** Style for OR line breaks */
     orBreak?: OrBreakStyle;
     /** Whether to export comments in formatted output */
-    exportComment?: boolean;
+    exportComment?: boolean | CommentExportMode;
     /** Comment formatting style */
     commentStyle?: CommentStyle;
     /** Formatting style for WITH clauses */
