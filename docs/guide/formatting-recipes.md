@@ -36,6 +36,7 @@ const { formattedSql, params } = formatter.format(query);
 | `commentStyle` | `'block'`, `'smart'` | `'block'` | Normalises how comments are emitted (see below). |
 | `withClauseStyle` | `'standard'`, `'cte-oneline'`, `'full-oneline'` | `'standard'` | Expands or collapses common table expressions. |
 | `parenthesesOneLine`, `betweenOneLine`, `valuesOneLine`, `joinOneLine`, `caseOneLine`, `subqueryOneLine` | `true` / `false` | `false` for each | Opt-in switches that keep the corresponding construct on a single line even if other break settings would expand it. |
+| `joinConditionOrderByDeclaration` | `true` / `false` | `false` | Normalizes `JOIN ... ON` column comparisons so the left operand matches table declaration order. |
 | `whenOneLine` | `true` / `false` | `false` | Forces each `MERGE WHEN` predicate to stay on a single line even if `andBreak` / `orBreak` would normally wrap it. |
 | `exportComment` | `'full'`, `'none'`, `'header-only'`, `'top-header-only'` (legacy `true` / `false` still accepted) | `'none'` | Controls which comments are emitted: `'full'` prints everything, `'none'` drops all comments, `'header-only'` keeps leading comments on every block, and `'top-header-only'` keeps only top-level headers. |
 | `castStyle` | 'standard', 'postgres' | From preset or 'standard' | Chooses how CAST expressions are printed. 'standard' emits ANSI `CAST(expr AS type)` while 'postgres' emits `expr::type`. See "Controlling CAST style" below for usage notes and examples. |
@@ -196,6 +197,34 @@ Pair this option with your target engine: presets such as `'mysql'` enable it au
   "castStyle": "postgres",
   "constraintStyle": "postgres"
 }
+```
+
+### Align JOIN conditions with declaration order
+
+Enable `joinConditionOrderByDeclaration` when you want every equality inside a `JOIN ... ON` clause to follow the table declaration order. This keeps the left-hand column aligned with the first table mentioned in the `FROM` clause, which makes symmetrical joins easier to scan.
+
+```json
+{
+  "joinConditionOrderByDeclaration": true
+}
+```
+
+Input:
+
+```sql
+select *
+from account a
+inner join invoice i on i.account_id = a.id
+```
+
+Output:
+
+```sql
+select
+  *
+from
+  "account" as "a"
+  inner join "invoice" as "i" on "a"."id" = "i"."account_id"
 ```
 
 ### Nested parentheses indentation
