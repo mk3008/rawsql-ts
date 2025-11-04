@@ -239,6 +239,8 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     index: number = 1;
     private castStyle: CastStyle;
     private constraintStyle: ConstraintStyle;
+    private readonly normalizeJoinConditionOrder: boolean;
+    private joinConditionContexts: Array<{ aliasOrder: Map<string, number> }> = [];
 
     constructor(options?: {
         preset?: FormatterConfig,
@@ -247,6 +249,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         parameterStyle?: 'anonymous' | 'indexed' | 'named',
         castStyle?: CastStyle,
         constraintStyle?: ConstraintStyle,
+        joinConditionOrderByDeclaration?: boolean,
     }) {
         if (options?.preset) {
             const preset = options.preset
@@ -266,6 +269,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
         this.castStyle = options?.castStyle ?? 'standard';
         this.constraintStyle = options?.constraintStyle ?? 'postgres';
+        this.normalizeJoinConditionOrder = options?.joinConditionOrderByDeclaration ?? false;
 
         this.handlers.set(ValueList.kind, (expr) => this.visitValueList(expr as ValueList));
         this.handlers.set(ColumnReference.kind, (expr) => this.visitColumnReference(expr as ColumnReference));
@@ -1911,19 +1915,35 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     }
 
     public visitFromClause(arg: FromClause): SqlPrintToken {
-        const token = new SqlPrintToken(SqlPrintTokenType.keyword, 'from', SqlPrintTokenContainerType.FromClause);
-
-        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
-        token.innerTokens.push(this.visit(arg.source));
-
-        if (arg.joins) {
-            for (let i = 0; i < arg.joins.length; i++) {
-                token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
-                token.innerTokens.push(this.visit(arg.joins[i]));
+        // Build a declaration order map so JOIN ON operands can be normalized later.
+        let contextPushed = false;
+        if (this.normalizeJoinConditionOrder) {
+            const aliasOrder = this.buildJoinAliasOrder(arg);
+            if (aliasOrder.size > 0) {
+                this.joinConditionContexts.push({ aliasOrder });
+                contextPushed = true;
             }
         }
 
-        return token;
+        try {
+            const token = new SqlPrintToken(SqlPrintTokenType.keyword, 'from', SqlPrintTokenContainerType.FromClause);
+
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(this.visit(arg.source));
+
+            if (arg.joins) {
+                for (let i = 0; i < arg.joins.length; i++) {
+                    token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+                    token.innerTokens.push(this.visit(arg.joins[i]));
+                }
+            }
+
+            return token;
+        } finally {
+            if (contextPushed) {
+                this.joinConditionContexts.pop();
+            }
+        }
     }
 
     public visitJoinClause(arg: JoinClause): SqlPrintToken {
@@ -1981,6 +2001,14 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     }
 
     public visitJoinOnClause(arg: JoinOnClause): SqlPrintToken {
+        // Normalize JOIN ON predicate columns to follow declaration order when enabled.
+        if (this.normalizeJoinConditionOrder) {
+            const aliasOrder = this.getCurrentJoinAliasOrder();
+            if (aliasOrder) {
+                this.normalizeJoinConditionValue(arg.condition, aliasOrder);
+            }
+        }
+
         const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.JoinOnClause);
 
         token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'on'));
@@ -1988,6 +2016,127 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         token.innerTokens.push(this.visit(arg.condition));
 
         return token;
+    }
+
+    private getCurrentJoinAliasOrder(): Map<string, number> | null {
+        if (this.joinConditionContexts.length === 0) {
+            return null;
+        }
+        return this.joinConditionContexts[this.joinConditionContexts.length - 1].aliasOrder;
+    }
+
+    private buildJoinAliasOrder(fromClause: FromClause): Map<string, number> {
+        const aliasOrder = new Map<string, number>();
+        let nextIndex = 0;
+
+        const registerSource = (source: SourceExpression) => {
+            const identifiers = this.collectSourceIdentifiers(source);
+            if (identifiers.length === 0) {
+                return;
+            }
+            // Track the earliest declaration index for each identifier found in the FROM clause.
+            for (const identifier of identifiers) {
+                const key = identifier.toLowerCase();
+                if (!aliasOrder.has(key)) {
+                    aliasOrder.set(key, nextIndex);
+                }
+            }
+            nextIndex++;
+        };
+
+        registerSource(fromClause.source);
+        if (fromClause.joins) {
+            for (const joinClause of fromClause.joins) {
+                registerSource(joinClause.source);
+            }
+        }
+
+        return aliasOrder;
+    }
+
+    private collectSourceIdentifiers(source: SourceExpression): string[] {
+        const identifiers: string[] = [];
+        const aliasName = source.getAliasName();
+        if (aliasName) {
+            identifiers.push(aliasName);
+        }
+        // Capture table identifiers so unaliased tables can still be matched.
+        if (source.datasource instanceof TableSource) {
+            const tableComponent = source.datasource.table.name;
+            identifiers.push(tableComponent);
+            const fullName = source.datasource.getSourceName();
+            if (fullName && fullName !== tableComponent) {
+                identifiers.push(fullName);
+            }
+        }
+        return identifiers;
+    }
+
+    private normalizeJoinConditionValue(condition: ValueComponent, aliasOrder: Map<string, number>): void {
+        // Walk the value tree so every comparison within the JOIN predicate is inspected.
+        const kind = condition.getKind();
+        if (kind === ParenExpression.kind) {
+            const paren = condition as ParenExpression;
+            this.normalizeJoinConditionValue(paren.expression, aliasOrder);
+            return;
+        }
+
+        if (kind === BinaryExpression.kind) {
+            const binary = condition as BinaryExpression;
+            this.normalizeJoinConditionValue(binary.left, aliasOrder);
+            this.normalizeJoinConditionValue(binary.right, aliasOrder);
+            this.normalizeBinaryEquality(binary, aliasOrder);
+        }
+    }
+
+    private normalizeBinaryEquality(binary: BinaryExpression, aliasOrder: Map<string, number>): void {
+        // Only normalize simple equality comparisons, leaving other operators untouched.
+        const operatorValue = binary.operator.value.toLowerCase();
+        if (operatorValue !== '=') {
+            return;
+        }
+
+        const leftOwner = this.resolveColumnOwner(binary.left);
+        const rightOwner = this.resolveColumnOwner(binary.right);
+
+        if (!leftOwner || !rightOwner || leftOwner === rightOwner) {
+            return;
+        }
+
+        const leftOrder = aliasOrder.get(leftOwner);
+        const rightOrder = aliasOrder.get(rightOwner);
+
+        if (leftOrder === undefined || rightOrder === undefined) {
+            return;
+        }
+
+        if (leftOrder > rightOrder) {
+            // Swap operands so the earlier declared table appears on the left.
+            const originalLeft = binary.left;
+            binary.left = binary.right;
+            binary.right = originalLeft;
+        }
+    }
+
+    private resolveColumnOwner(value: ValueComponent): string | null {
+        const kind = value.getKind();
+        if (kind === ColumnReference.kind) {
+            // Column references expose their qualifier namespace, which we normalize for lookups.
+            const columnRef = value as ColumnReference;
+            const namespace = columnRef.getNamespace();
+            if (!namespace) {
+                return null;
+            }
+
+            const qualifier = namespace.includes('.') ? namespace.split('.').pop() ?? '' : namespace;
+            return qualifier.toLowerCase();
+        }
+
+        if (kind === ParenExpression.kind) {
+            return this.resolveColumnOwner((value as ParenExpression).expression);
+        }
+
+        return null;
     }
 
     public visitJoinUsingClause(arg: JoinUsingClause): SqlPrintToken {

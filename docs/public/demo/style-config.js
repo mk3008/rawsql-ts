@@ -74,7 +74,8 @@ function loadStyles() {
                 "valuesOneLine": false,
                 "joinOneLine": true,
                 "caseOneLine": false,
-                "subqueryOneLine": false
+                "subqueryOneLine": false,
+                "joinConditionOrderByDeclaration": false
             },
             "OneLiner": {
                 "identifierEscape": "none",
@@ -103,7 +104,8 @@ function loadStyles() {
                 "valuesOneLine": false,
                 "joinOneLine": true,
                 "caseOneLine": false,
-                "subqueryOneLine": false
+                "subqueryOneLine": false,
+                "joinConditionOrderByDeclaration": false
             },
             "MySQL": {
                 "identifierEscape": "backtick",
@@ -126,7 +128,8 @@ function loadStyles() {
                 "valuesOneLine": false,
                 "joinOneLine": true,
                 "caseOneLine": false,
-                "subqueryOneLine": false
+                "subqueryOneLine": false,
+                "joinConditionOrderByDeclaration": false
             },
             "SQLServer": {
                 "identifierEscape": "bracket",
@@ -149,7 +152,8 @@ function loadStyles() {
                 "valuesOneLine": false,
                 "joinOneLine": true,
                 "caseOneLine": false,
-                "subqueryOneLine": false
+                "subqueryOneLine": false,
+                "joinConditionOrderByDeclaration": false
             }
         };
         localStorage.setItem(DEFAULT_STYLE_KEY, JSON.stringify(currentStyles));

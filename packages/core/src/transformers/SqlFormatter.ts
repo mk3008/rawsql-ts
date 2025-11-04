@@ -79,6 +79,8 @@ export interface BaseFormattingOptions {
     insertColumnsOneLine?: boolean;
     /** Keep MERGE WHEN clause predicates on one line regardless of AND break settings */
     whenOneLine?: boolean;
+    /** Reorder JOIN ON column comparisons to follow table declaration order */
+    joinConditionOrderByDeclaration?: boolean;
 }
 
 /**
@@ -139,6 +141,7 @@ export class SqlFormatter {
             parameterSymbol: options.parameterSymbol ?? presetConfig?.parameterSymbol,
             parameterStyle: options.parameterStyle ?? presetConfig?.parameterStyle,
             castStyle: options.castStyle ?? presetConfig?.castStyle,
+            joinConditionOrderByDeclaration: options.joinConditionOrderByDeclaration,
         };
 
         const constraintStyle: ConstraintStyle =
