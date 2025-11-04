@@ -17,6 +17,8 @@ describe('ValueParser', () => {
         ["LiteralValue - NULL", "NULL", "null"],
         ["BinaryExpression - Arithmetic operation", "a.id + 10", '"a"."id" + 10'],
         ["BinaryExpression - Multiple operators", "price * quantity - discount", '"price" * "quantity" - "discount"'],
+        ["BinaryExpression - Cast followed by addition", "1::int + 2", "cast(1 as int) + 2"],
+        ["BinaryExpression - Array access followed by addition", "arr[1] + 2", '"arr"[1] + 2'],
         ["UnaryExpression - NOT operator", "NOT is_active", 'not "is_active"'],
         ["ParenExpression - Expression enclosed in parentheses", "(a + b) * c", '("a" + "b") * "c"'],
         ["FunctionCall - Single argument", "COUNT(id)", 'count("id")'],

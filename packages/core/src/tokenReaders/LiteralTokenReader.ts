@@ -151,11 +151,14 @@ export class LiteralTokenReader extends BaseTokenReader {
             return "sign";
         }
 
-        // If the previous lexeme is a literal, identifier, parameter, or closing parenthesis, treat as an operator
-        const isOperatorContext = (previous.type & TokenType.Literal) || 
-                                  (previous.type & TokenType.Identifier) || 
-                                  (previous.type & TokenType.Parameter) || 
-                                  (previous.type & TokenType.CloseParen);
+        // Treat preceding tokens that close expressions (literals, identifiers, casts, brackets, etc.) as operator contexts
+        const operatorContextFlags = TokenType.Literal |
+            TokenType.Identifier |
+            TokenType.Parameter |
+            TokenType.CloseParen |
+            TokenType.CloseBracket |
+            TokenType.Type;
+        const isOperatorContext = (previous.type & operatorContextFlags) !== 0;
         return isOperatorContext ? "operator" : "sign";
     }
 
