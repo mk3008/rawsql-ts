@@ -136,7 +136,8 @@ export class SqlPrintToken {
 
     /**
      * Optional marker indicating that this token originated from headerComments.
-     * Used by printers to selectively emit only header-level annotations.
+     * This flag is only valid for CommentBlock containers and used by printers
+     * to selectively emit only header-level annotations.
      */
     isHeaderComment?: boolean;
 
@@ -144,5 +145,12 @@ export class SqlPrintToken {
         this.type = type;
         this.text = text;
         this.containerType = containerType;
+    }
+
+    markAsHeaderComment(): void {
+        if (this.containerType !== SqlPrintTokenContainerType.CommentBlock) {
+            throw new Error('Header comment flag must only be applied to CommentBlock containers.');
+        }
+        this.isHeaderComment = true;
     }
 }

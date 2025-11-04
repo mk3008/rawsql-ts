@@ -678,8 +678,9 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
     /**
      * Creates CommentBlock containers for the given comments.
-     * Each CommentBlock contains: Comment -> CommentNewline -> Space
-     * This structure supports both oneliner and multiline formatting modes.
+     * Each CommentBlock contains: Comment -> CommentNewline -> Space.
+     * @param comments Raw comment strings to convert into CommentBlock tokens.
+     * @param isHeaderComment Marks the generated blocks as originating from header comments when true.
      */
     private createCommentBlocks(comments: string[], isHeaderComment: boolean = false): SqlPrintToken[] {
         // Create individual comment blocks for each comment entry
@@ -739,7 +740,9 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
      */
     private createSingleCommentBlock(comment: string, isHeaderComment: boolean = false): SqlPrintToken {
         const commentBlock = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.CommentBlock);
-        commentBlock.isHeaderComment = isHeaderComment;
+        if (isHeaderComment) {
+            commentBlock.markAsHeaderComment();
+        }
 
         // Add comment token - preserve original format for line comments
         const commentToken = new SqlPrintToken(SqlPrintTokenType.comment, this.formatComment(comment));
@@ -968,7 +971,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
     private createHeaderMultiLineCommentBlock(headerComments: string[]): SqlPrintToken {
         const commentBlock = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.CommentBlock);
-        commentBlock.isHeaderComment = true;
+        commentBlock.markAsHeaderComment();
 
         if (headerComments.length === 0) {
             const commentToken = new SqlPrintToken(SqlPrintTokenType.comment, '/* */');

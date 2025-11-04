@@ -7,6 +7,7 @@ import {
     OnelineFormattingOptions,
     CommaBreakStyle as HelperCommaBreakStyle,
 } from "./OnelineFormattingHelper";
+import { CommentExportMode } from "../types/Formatting";
 
 const CREATE_TABLE_SINGLE_PAREN_KEYWORDS = new Set(['unique', 'check', 'key', 'index']);
 const CREATE_TABLE_MULTI_PAREN_KEYWORDS = new Set(['primary key', 'foreign key', 'unique key']);
@@ -35,15 +36,6 @@ export type AndBreakStyle = 'none' | 'before' | 'after';
  * - 'after': Line break after OR
  */
 export type OrBreakStyle = 'none' | 'before' | 'after';
-
-/**
- * Comment export modes controlling which comments are emitted.
- * - 'full': emit every comment (legacy `true` behaviour)
- * - 'none': suppress all comments (legacy `false` behaviour)
- * - 'header-only': emit only leading comments for each container
- * - 'top-header-only': emit leading comments only when the container is top-level
- */
-export type CommentExportMode = 'none' | 'full' | 'header-only' | 'top-header-only';
 
 interface CommentRenderContext {
     position: 'leading' | 'inline';
@@ -1499,7 +1491,7 @@ export class SqlPrinter {
             andBreak: this.andBreak,
             orBreak: this.orBreak,
             keywordCase: this.keywordCase,
-            exportComment: false,
+            exportComment: 'none',
             withClauseStyle: 'standard', // Prevent recursive processing
             indentNestedParentheses: false,
             insertColumnsOneLine: this.insertColumnsOneLine,

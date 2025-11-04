@@ -55,7 +55,7 @@ describe('SqlFormatter exportComment modes', () => {
         expect(formattedSql).not.toContain('TRAILING INLINE');
     });
 
-    test('mode "leaf-header-only" emits only top-level leading comments', () => {
+    test('mode "top-header-only" emits only top-level leading comments', () => {
         const { formattedSql } = new SqlFormatter({ exportComment: 'top-header-only' }).format(parseSample());
 
         expect(formattedSql).toContain('ROOT HEADER');
@@ -76,7 +76,7 @@ FROM
         const formatter = new SqlFormatter({ exportComment: 'header-only' });
         const { formattedSql } = formatter.format(SelectQueryParser.parse(sql));
 
-        expect(formattedSql).toContain('1');
+        expect(formattedSql).toMatch(/(\/\*\s*1\s*\*\/|--\s*1\b)/);
         expect(formattedSql).not.toContain('--2');
         expect(formattedSql).not.toContain('--3');
     });

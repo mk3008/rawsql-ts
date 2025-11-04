@@ -1,4 +1,4 @@
-import type { CommentExportMode } from "../transformers/SqlPrinter";
+import type { CommentExportMode } from "../types/Formatting";
 
 /**
  * Represents a comment with its position relative to a token or component
@@ -87,5 +87,5 @@ export interface SqlComponentVisitor<T> {
 export class SqlDialectConfiguration {
     public parameterSymbol: string = ":";
     public identifierEscape = { start: '"', end: '"' };
-    public exportComment: CommentExportMode = "full";
+    public exportComment: CommentExportMode = "none";
 }
