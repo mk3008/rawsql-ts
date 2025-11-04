@@ -1,5 +1,5 @@
 body {
-    font-family: sans-serif;
+    font-family: 'PlemolJP', 'SFMono-Regular', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
     margin: 20px;
     font-size: 14px;
     /* Overall site font size */
@@ -39,7 +39,7 @@ textarea {
 /* CodeMirrorの行の高さを調整 */
 .CodeMirror {
     line-height: 1.3;
-    font-family: 'PlemolJP', sans-serif;
+    font-family: 'PlemolJP', 'SFMono-Regular', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
     font-size: 13px;
     /* Slightly smaller font for editor */
 }
