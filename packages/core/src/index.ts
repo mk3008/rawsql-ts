@@ -14,6 +14,8 @@ export * from './parsers/DropIndexParser';
 export * from './parsers/AlterTableParser';
 export * from './parsers/DropConstraintParser';
 
+export * from './types/Formatting';
+
 export * from './models/BinarySelectQuery';
 export * from './models/SelectQuery';
 export * from './models/SqlComponent';

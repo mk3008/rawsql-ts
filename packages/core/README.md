@@ -293,7 +293,7 @@ import { SqlFormatter } from 'rawsql-ts';
 
 // Enable comment export (disabled by default for backward compatibility)
 const formatter = new SqlFormatter({ 
-  exportComment: true,
+  exportComment: 'full',
 });
 
 const sqlWithComments = `
@@ -316,7 +316,7 @@ console.log(formattedSql);
 - **Full Comment Parsing**: Supports both `--` line comments and `/* */` block comments
 - **AST Preservation**: Comments are stored in the Abstract Syntax Tree and preserved throughout transformations
 - **Safe Export**: Line comments are automatically converted to block comments during export to prevent SQL structure issues
-- **Configurable Export**: Enable/disable comment export with `exportComment` option
+- **Configurable Export**: Choose `exportComment` = "full", "none", "header-only" (only header annotations), or "top-header-only" (outermost header only) to control comment emission
 - **Comment Editing API**: Programmatically add, edit, delete, and search comments using the `CommentEditor` class
 - **Clause Association**: Comments can be associated with specific SQL clauses and keywords
 
@@ -532,7 +532,7 @@ Key benefits include:
 - **Framework-Agnostic**: Pure JavaScript/TypeScript with no file system dependencies
 - **Composable Architecture**: Internally uses specialized injectors in optimal order for performance
 - **Type-Safe**: Full TypeScript support with strongly typed options and return values
-- **Performance Optimized**: Applies conditions in the most efficient order (filter → sort → paginate → serialize)
+- **Performance Optimized**: Applies conditions in the most efficient order (filter -> sort -> paginate -> serialize)
 - **Easy Testing**: No external dependencies make unit testing straightforward
 
 ```typescript
@@ -863,9 +863,9 @@ Node.js v22.14.0
 ### Performance Summary
 
 - `rawsql-ts` remains one of the fastest parsers, though it is approximately 10% slower in version 0.7 compared to previous versions. This is due to the addition of enhanced parameterized query parsing and SQL formatting capabilities.
-- About 3–4x faster than `node-sql-parser`.
-- About 4–5x faster than `sql-parser-cst`.
-- About 7–8x faster than `sql-formatter`.
+- About 3x faster than `node-sql-parser`.
+- About 4x faster than `sql-parser-cst`.
+- About 7x faster than `sql-formatter`.
 - Maintains high performance even for complex SQL, while providing comprehensive features.
 
 > **Note:** These benchmarks are based on a specific hardware and software environment. Actual performance may vary depending on system configuration and query complexity.

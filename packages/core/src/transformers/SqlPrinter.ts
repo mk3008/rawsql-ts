@@ -7,6 +7,7 @@ import {
     OnelineFormattingOptions,
     CommaBreakStyle as HelperCommaBreakStyle,
 } from "./OnelineFormattingHelper";
+import { CommentExportMode } from "../types/Formatting";
 
 const CREATE_TABLE_SINGLE_PAREN_KEYWORDS = new Set(['unique', 'check', 'key', 'index']);
 const CREATE_TABLE_MULTI_PAREN_KEYWORDS = new Set(['primary key', 'foreign key', 'unique key']);
@@ -35,6 +36,12 @@ export type AndBreakStyle = 'none' | 'before' | 'after';
  * - 'after': Line break after OR
  */
 export type OrBreakStyle = 'none' | 'before' | 'after';
+
+interface CommentRenderContext {
+    position: 'leading' | 'inline';
+    isTopLevelContainer: boolean;
+    forceRender?: boolean;
+}
 
 /**
  * Options for configuring SqlPrinter formatting behavior
@@ -85,8 +92,8 @@ export class SqlPrinter {
     /** Keyword case style: 'none', 'upper' | 'lower' */
     keywordCase: 'none' | 'upper' | 'lower';
 
-    /** Whether to export comments in the output (default: false for compatibility) */
-    exportComment: boolean;
+    /** Comment export mode controlling how comments are emitted */
+    commentExportMode: CommentExportMode;
 
 
     /** WITH clause formatting style (default: 'standard') */
@@ -148,7 +155,7 @@ export class SqlPrinter {
         this.andBreak = options?.andBreak ?? 'none';
         this.orBreak = options?.orBreak ?? 'none';
         this.keywordCase = options?.keywordCase ?? 'none';
-        this.exportComment = options?.exportComment ?? false;
+        this.commentExportMode = this.resolveCommentExportMode(options?.exportComment);
         this.withClauseStyle = options?.withClauseStyle ?? 'standard';
         this.commentStyle = options?.commentStyle ?? 'block';
         this.parenthesesOneLine = options?.parenthesesOneLine ?? false;
@@ -233,7 +240,53 @@ export class SqlPrinter {
         return this.linePrinter.print();
     }
 
-    private appendToken(token: SqlPrintToken, level: number, parentContainerType?: SqlPrintTokenContainerType, caseContextDepth: number = 0, indentParentActive: boolean = false): void {
+    // Resolve legacy boolean values into explicit comment export modes.
+    private resolveCommentExportMode(option?: boolean | CommentExportMode): CommentExportMode {
+        if (option === undefined) {
+            return 'none';
+        }
+        if (option === true) {
+            return 'full';
+        }
+        if (option === false) {
+            return 'none';
+        }
+        return option;
+    }
+
+    // Determine whether the current mode allows emitting inline comments.
+    private rendersInlineComments(): boolean {
+        return this.commentExportMode === 'full';
+    }
+
+    // Decide if a comment block or token should be rendered given its context.
+    private shouldRenderComment(token: SqlPrintToken, context?: CommentRenderContext): boolean {
+        if (context?.forceRender) {
+            return this.commentExportMode !== 'none';
+        }
+
+        switch (this.commentExportMode) {
+            case 'full':
+                return true;
+            case 'none':
+                return false;
+            case 'header-only':
+                return token.isHeaderComment === true;
+            case 'top-header-only':
+                return token.isHeaderComment === true && Boolean(context?.isTopLevelContainer);
+            default:
+                return false;
+        }
+    }
+
+    private appendToken(
+        token: SqlPrintToken,
+        level: number,
+        parentContainerType?: SqlPrintTokenContainerType,
+        caseContextDepth: number = 0,
+        indentParentActive: boolean = false,
+        commentContext?: CommentRenderContext
+    ): void {
         // Track WITH clause context for full-oneline formatting
         const wasInsideWithClause = this.insideWithClause;
         if (token.containerType === SqlPrintTokenContainerType.WithClause && this.withClauseStyle === 'full-oneline') {
@@ -244,16 +297,34 @@ export class SqlPrinter {
             return;
         }
 
-        let leadingCommentCount = 0;
-        const hasLeadingComment = token.innerTokens && token.innerTokens.length > 0
-            && token.innerTokens[0].containerType === SqlPrintTokenContainerType.CommentBlock;
+        const containerIsTopLevel = parentContainerType === undefined;
 
-        const leadingCommentIndentLevel = hasLeadingComment
+        let leadingCommentCount = 0;
+        // Collect leading comment blocks with context so we can respect the export mode.
+        const leadingCommentContexts: Array<{ token: SqlPrintToken; context: CommentRenderContext; shouldRender: boolean }> = [];
+        if (token.innerTokens && token.innerTokens.length > 0) {
+            while (leadingCommentCount < token.innerTokens.length) {
+                const leadingCandidate = token.innerTokens[leadingCommentCount];
+                if (leadingCandidate.containerType !== SqlPrintTokenContainerType.CommentBlock) {
+                    break;
+                }
+                const context: CommentRenderContext = {
+                    position: 'leading',
+                    isTopLevelContainer: containerIsTopLevel,
+                };
+                const shouldRender = this.shouldRenderComment(leadingCandidate, context);
+                leadingCommentContexts.push({ token: leadingCandidate, context, shouldRender });
+                leadingCommentCount++;
+            }
+        }
+
+        const hasRenderableLeadingComment = leadingCommentContexts.some(item => item.shouldRender);
+        const leadingCommentIndentLevel = hasRenderableLeadingComment
             ? this.getLeadingCommentIndentLevel(parentContainerType, level)
             : null;
 
         if (
-            hasLeadingComment
+            hasRenderableLeadingComment
             && !this.isOnelineMode()
             && this.shouldAddNewlineBeforeLeadingComments(parentContainerType)
         ) {
@@ -264,23 +335,19 @@ export class SqlPrinter {
             }
         }
 
-        if (token.innerTokens && token.innerTokens.length > 0) {
-            while (leadingCommentCount < token.innerTokens.length) {
-                const leading = token.innerTokens[leadingCommentCount];
-                if (leading.containerType === SqlPrintTokenContainerType.CommentBlock) {
-                    // Keep leading comment processing aligned with its computed indentation level.
-                    this.appendToken(
-                        leading,
-                        leadingCommentIndentLevel ?? level,
-                        token.containerType,
-                        caseContextDepth,
-                        indentParentActive
-                    );
-                    leadingCommentCount++;
-                } else {
-                    break;
-                }
+        for (const leading of leadingCommentContexts) {
+            if (!leading.shouldRender) {
+                continue;
             }
+            // Keep leading comment processing aligned with its computed indentation level.
+            this.appendToken(
+                leading.token,
+                leadingCommentIndentLevel ?? level,
+                token.containerType,
+                caseContextDepth,
+                indentParentActive,
+                leading.context
+            );
         }
 
         if (this.smartCommentBlockBuilder && token.containerType !== SqlPrintTokenContainerType.CommentBlock && token.type !== SqlPrintTokenType.commentNewline) {
@@ -298,9 +365,18 @@ export class SqlPrinter {
             }
         }
 
+        // Fallback context applies when the caller did not provide comment metadata.
+        const effectiveCommentContext: CommentRenderContext = commentContext ?? {
+            position: 'inline',
+            isTopLevelContainer: containerIsTopLevel,
+        };
+
         if (token.containerType === SqlPrintTokenContainerType.CommentBlock) {
+            if (!this.shouldRenderComment(token, effectiveCommentContext)) {
+                return;
+            }
             const commentLevel = this.getCommentBaseIndentLevel(level, parentContainerType);
-            this.handleCommentBlockContainer(token, commentLevel);
+            this.handleCommentBlockContainer(token, commentLevel, effectiveCommentContext);
             return;
         }
 
@@ -323,7 +399,7 @@ export class SqlPrinter {
         } else if (token.containerType === SqlPrintTokenContainerType.JoinClause) {
             this.handleJoinClauseToken(token, level);
         } else if (token.type === SqlPrintTokenType.comment) {
-            if (this.exportComment) {
+            if (this.shouldRenderComment(token, effectiveCommentContext)) {
                 const commentLevel = this.getCommentBaseIndentLevel(level, parentContainerType);
                 this.printCommentToken(token.text, commentLevel, parentContainerType);
             }
@@ -422,7 +498,10 @@ export class SqlPrinter {
             if (inMergePredicate) {
                 this.mergeWhenPredicateDepth++;
             }
-            this.appendToken(child, innerLevel, token.containerType, nextCaseContextDepth, childIndentParentActive);
+            const childCommentContext: CommentRenderContext | undefined = child.containerType === SqlPrintTokenContainerType.CommentBlock
+                ? { position: 'inline', isTopLevelContainer: containerIsTopLevel }
+                : undefined;
+            this.appendToken(child, innerLevel, token.containerType, nextCaseContextDepth, childIndentParentActive, childCommentContext);
             if (inMergePredicate) {
                 this.mergeWhenPredicateDepth--;
             }
@@ -824,7 +903,7 @@ export class SqlPrinter {
             if (candidate.type === SqlPrintTokenType.space || candidate.type === SqlPrintTokenType.commentNewline) {
                 continue;
             }
-            if (candidate.type === SqlPrintTokenType.comment && !this.exportComment) {
+            if (candidate.type === SqlPrintTokenType.comment && !this.rendersInlineComments()) {
                 continue;
             }
             return { token: candidate, index: i };
@@ -1035,10 +1114,7 @@ export class SqlPrinter {
         return false;
     }
 
-    private handleCommentBlockContainer(token: SqlPrintToken, level: number): void {
-        if (!this.exportComment) {
-            return;
-        }
+    private handleCommentBlockContainer(token: SqlPrintToken, level: number, context: CommentRenderContext): void {
         if (this.commentStyle !== 'smart') {
             const rawLines = this.extractRawCommentBlockLines(token);
             if (rawLines.length > 0) {
@@ -1048,7 +1124,13 @@ export class SqlPrinter {
                 return;
             }
             for (const child of token.innerTokens) {
-                this.appendToken(child, level, token.containerType, 0, false);
+                // Force inner comment tokens to render once the block is approved.
+                const childContext: CommentRenderContext = {
+                    position: context.position,
+                    isTopLevelContainer: context.isTopLevelContainer,
+                    forceRender: true,
+                };
+                this.appendToken(child, level, token.containerType, 0, false, childContext);
             }
             return;
         }
@@ -1409,7 +1491,7 @@ export class SqlPrinter {
             andBreak: this.andBreak,
             orBreak: this.orBreak,
             keywordCase: this.keywordCase,
-            exportComment: false,
+            exportComment: 'none',
             withClauseStyle: 'standard', // Prevent recursive processing
             indentNestedParentheses: false,
             insertColumnsOneLine: this.insertColumnsOneLine,
@@ -1575,7 +1657,7 @@ export class SqlPrinter {
             andBreak: 'none',          // Disable AND-based line breaks
             orBreak: 'none',           // Disable OR-based line breaks
             keywordCase: this.keywordCase,
-            exportComment: this.exportComment,
+            exportComment: this.commentExportMode,
             commentStyle: this.commentStyle,
             withClauseStyle: 'standard',
             parenthesesOneLine: false, // Prevent recursive processing (avoid infinite loops)

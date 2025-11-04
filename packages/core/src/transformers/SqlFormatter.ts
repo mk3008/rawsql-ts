@@ -1,5 +1,6 @@
 import { SqlPrintTokenParser, FormatterConfig, PRESETS, CastStyle, ConstraintStyle } from '../parsers/SqlPrintTokenParser';
 import { SqlPrinter, CommaBreakStyle, AndBreakStyle, OrBreakStyle } from './SqlPrinter';
+import { CommentExportMode } from '../types/Formatting';
 import { IndentCharOption, NewlineOption } from './LinePrinter'; // Import types for compatibility
 import { IdentifierEscapeOption, resolveIdentifierEscapeOption } from './FormatOptionResolver';
 import { SelectQuery } from '../models/SelectQuery';
@@ -55,7 +56,7 @@ export interface BaseFormattingOptions {
     /** Style for OR line breaks */
     orBreak?: OrBreakStyle;
     /** Whether to export comments in formatted output */
-    exportComment?: boolean;
+    exportComment?: boolean | CommentExportMode;
     /** Comment formatting style */
     commentStyle?: CommentStyle;
     /** Formatting style for WITH clauses */
@@ -153,17 +154,29 @@ export class SqlFormatter {
         this.parser = new SqlPrintTokenParser({
             ...parserConfig,
         });
-        this.printer = new SqlPrinter({
+
+        // Normalize legacy boolean comment export flags before configuring the printer.
+        const normalizedExportComment =
+            options.exportComment === true
+                ? 'full'
+                : options.exportComment === false
+                ? 'none'
+                : options.exportComment;
+
+        const printerOptions: BaseFormattingOptions = {
             ...options,
+            exportComment: normalizedExportComment,
             parenthesesOneLine: options.parenthesesOneLine,
             betweenOneLine: options.betweenOneLine,
             valuesOneLine: options.valuesOneLine,
             joinOneLine: options.joinOneLine,
             caseOneLine: options.caseOneLine,
             subqueryOneLine: options.subqueryOneLine,
-            indentNestedParentheses: options.indentNestedParentheses
-        });
-    }    
+            indentNestedParentheses: options.indentNestedParentheses,
+        };
+
+        this.printer = new SqlPrinter(printerOptions);
+    }
     
     /**
      * Formats a SQL query string with the given parameters.

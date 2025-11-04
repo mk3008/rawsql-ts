@@ -37,7 +37,7 @@ const { formattedSql, params } = formatter.format(query);
 | `withClauseStyle` | `'standard'`, `'cte-oneline'`, `'full-oneline'` | `'standard'` | Expands or collapses common table expressions. |
 | `parenthesesOneLine`, `betweenOneLine`, `valuesOneLine`, `joinOneLine`, `caseOneLine`, `subqueryOneLine` | `true` / `false` | `false` for each | Opt-in switches that keep the corresponding construct on a single line even if other break settings would expand it. |
 | `whenOneLine` | `true` / `false` | `false` | Forces each `MERGE WHEN` predicate to stay on a single line even if `andBreak` / `orBreak` would normally wrap it. |
-| `exportComment` | `true` / `false` | `false` | Emits comments collected by the parser. Turn it on when you want annotations preserved. |
+| `exportComment` | `'full'`, `'none'`, `'header-only'`, `'top-header-only'` (legacy `true` / `false` still accepted) | `'none'` | Controls which comments are emitted: `'full'` prints everything, `'none'` drops all comments, `'header-only'` keeps leading comments on every block, and `'top-header-only'` keeps only top-level headers. |
 | `castStyle` | 'standard', 'postgres' | From preset or 'standard' | Chooses how CAST expressions are printed. 'standard' emits ANSI `CAST(expr AS type)` while 'postgres' emits `expr::type`. See "Controlling CAST style" below for usage notes and examples. |
 | `constraintStyle` | `'postgres'`, `'mysql'` | From preset or `'postgres'` | Shapes constraint output in DDL: `'postgres'` prints `constraint ... primary key(...)`, while `'mysql'` emits `unique key name(...)` / `foreign key name(...)`. |
 
@@ -133,7 +133,7 @@ Default behaviour (`'block'`) leaves comments exactly as they were parsed. Switc
 
 ### VALUES clause formatting tips
 
-Use `valuesCommaBreak` when you need to keep the main query in trailing-comma style but prefer inline tuples inside a `VALUES` block (or vice versa). With `exportComment: true`, comments that appear before or after each tuple are preserved and printed alongside the formatted output, so inline annotations survive automated formatting.
+Use `valuesCommaBreak` when you need to keep the main query in trailing-comma style but prefer inline tuples inside a `VALUES` block (or vice versa). With `exportComment: 'full'`, comments that appear before or after each tuple are preserved and printed alongside the formatted output, so inline annotations survive automated formatting. Prefer `'header-only'` or `'top-header-only'` when you only want to keep leading annotations instead of every inline remark.
 
 
 ### Controlling CAST style
@@ -185,7 +185,7 @@ Pair this option with your target engine: presets such as `'mysql'` enable it au
   "withClauseStyle": "cte-oneline",
   "insertColumnsOneLine": true,
   "indentNestedParentheses": true,
-  "exportComment": true,
+  "exportComment": "full",
   "commentStyle": "smart",
   "parenthesesOneLine": true,
   "betweenOneLine": true,
