@@ -4,6 +4,7 @@ import {
     AlterTableAction,
     AlterTableAddConstraint,
     AlterTableDropConstraint,
+    AlterTableDropColumn,
     DropBehavior
 } from "../models/DDLStatements";
 import {
@@ -102,6 +103,10 @@ export class AlterTableParser {
                 idx = result.newIndex;
             } else if (value === "drop constraint") {
                 const result = this.parseDropConstraintAction(lexemes, idx);
+                actions.push(result.value);
+                idx = result.newIndex;
+            } else if (value === "drop column" || value === "drop") {
+                const result = this.parseDropColumnAction(lexemes, idx);
                 actions.push(result.value);
                 idx = result.newIndex;
             } else {
@@ -208,6 +213,52 @@ export class AlterTableParser {
         return {
             value: new AlterTableDropConstraint({
                 constraintName: nameResult.name,
+                ifExists,
+                behavior
+            }),
+            newIndex: idx
+        };
+    }
+
+    private static parseDropColumnAction(lexemes: Lexeme[], index: number): { value: AlterTableDropColumn; newIndex: number } {
+        let idx = index;
+
+        const initialValue = lexemes[idx]?.value.toLowerCase();
+        if (initialValue === "drop column") {
+            idx++;
+        } else if (initialValue === "drop") {
+            idx++;
+            if (lexemes[idx]?.value.toLowerCase() !== "column") {
+                throw new Error(`[AlterTableParser] Expected COLUMN keyword after DROP at index ${idx}.`);
+            }
+            idx++;
+        } else {
+            throw new Error(`[AlterTableParser] Expected DROP COLUMN at index ${idx}.`);
+        }
+
+        let ifExists = false;
+        if (lexemes[idx]?.value.toLowerCase() === "if exists") {
+            // Accept optional IF EXISTS modifier for defensive migrations.
+            ifExists = true;
+            idx++;
+        }
+
+        // Parse the column identifier, propagating any attached comments.
+        const nameResult = FullNameParser.parseFromLexeme(lexemes, idx);
+        const columnName = nameResult.name;
+        idx = nameResult.newIndex;
+
+        let behavior: DropBehavior = null;
+        const nextValue = lexemes[idx]?.value.toLowerCase();
+        if (nextValue === "cascade" || nextValue === "restrict") {
+            // Capture optional drop behavior to mirror PostgreSQL semantics.
+            behavior = nextValue as DropBehavior;
+            idx++;
+        }
+
+        return {
+            value: new AlterTableDropColumn({
+                columnName,
                 ifExists,
                 behavior
             }),
