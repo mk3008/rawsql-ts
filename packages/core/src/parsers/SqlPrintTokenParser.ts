@@ -1,7 +1,7 @@
 import { PartitionByClause, OrderByClause, OrderByItem, SelectClause, SelectItem, Distinct, DistinctOn, SortDirection, NullsSortDirection, TableSource, SourceExpression, FromClause, JoinClause, JoinOnClause, JoinUsingClause, FunctionSource, SourceAliasExpression, WhereClause, GroupByClause, HavingClause, SubQuerySource, WindowFrameClause, LimitClause, ForClause, OffsetClause, WindowsClause as WindowClause, CommonTable, WithClause, FetchClause, FetchExpression, InsertClause, UpdateClause, DeleteClause, UsingClause, SetClause, ReturningClause, SetClauseItem } from "../models/Clause";
 import { HintClause } from "../models/HintClause";
 import { BinarySelectQuery, SimpleSelectQuery, ValuesQuery } from "../models/SelectQuery";
-import { SqlComponent, SqlComponentVisitor } from "../models/SqlComponent";
+import { SqlComponent, SqlComponentVisitor, PositionedComment } from "../models/SqlComponent";
 import { SqlPrintToken, SqlPrintTokenType, SqlPrintTokenContainerType } from "../models/SqlPrintToken";
 import {
     ValueComponent,
@@ -1405,23 +1405,171 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
             arg.positionedComments = null;
         }
 
+        const promotedComments: SqlPrintToken[] = [];
+
+        const trailingSwitchComments = this.extractSwitchAfterComments(arg.switchCase);
+
+        let conditionToken: SqlPrintToken | null = null;
+        if (arg.condition) {
+            conditionToken = this.visit(arg.condition);
+            promotedComments.push(...this.collectCaseLeadingCommentBlocks(conditionToken));
+        }
+
+        const switchToken = this.visit(arg.switchCase);
+        promotedComments.push(...this.collectCaseLeadingCommentsFromSwitch(switchToken));
+
+        if (promotedComments.length > 0) {
+            token.innerTokens.push(...promotedComments);
+        }
+
         // Add the CASE keyword
         token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'case'));
 
         // Add the condition if exists
-        if (arg.condition) {
+        if (conditionToken) {
             token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
-            token.innerTokens.push(this.visit(arg.condition));
+            token.innerTokens.push(conditionToken);
         }
 
         // Add the WHEN/THEN pairs and ELSE
-        token.innerTokens.push(this.visit(arg.switchCase));
+        token.innerTokens.push(switchToken);
 
         // Add the END keyword
         token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
         token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'end'));
 
+        if (trailingSwitchComments.length > 0) {
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.commentNewline, ''));
+            const trailingBlocks = this.createCommentBlocks(trailingSwitchComments);
+            token.innerTokens.push(...trailingBlocks);
+        }
+
         return token;
+    }
+
+    private extractSwitchAfterComments(arg: SwitchCaseArgument): string[] {
+        if (!arg.positionedComments || arg.positionedComments.length === 0) {
+            return [];
+        }
+        const trailing: string[] = [];
+        const retained: PositionedComment[] = [];
+        for (const entry of arg.positionedComments) {
+            if (entry.position === 'after') {
+                trailing.push(...entry.comments);
+            } else {
+                retained.push(entry);
+            }
+        }
+        arg.positionedComments = retained.length > 0 ? retained : null;
+        return trailing;
+    }
+
+    private collectCaseLeadingCommentsFromSwitch(token: SqlPrintToken): SqlPrintToken[] {
+        if (!token.innerTokens || token.innerTokens.length === 0) {
+            return [];
+        }
+        const pairToken = token.innerTokens.find(child => child.containerType === SqlPrintTokenContainerType.CaseKeyValuePair);
+        if (!pairToken) {
+            return [];
+        }
+        const keyToken = this.findCaseKeyToken(pairToken);
+        if (!keyToken) {
+            return [];
+        }
+        return this.collectCaseLeadingCommentBlocks(keyToken);
+    }
+
+    private findCaseKeyToken(pairToken: SqlPrintToken): SqlPrintToken | undefined {
+        for (const child of pairToken.innerTokens) {
+            if (child.containerType === SqlPrintTokenContainerType.CommentBlock) {
+                continue;
+            }
+            if (child.type === SqlPrintTokenType.space) {
+                continue;
+            }
+            if (child.type === SqlPrintTokenType.keyword) {
+                continue;
+            }
+            if (child.containerType === SqlPrintTokenContainerType.CaseThenValue) {
+                continue;
+            }
+            return child;
+        }
+        return undefined;
+    }
+
+    private collectCaseLeadingCommentBlocks(token: SqlPrintToken): SqlPrintToken[] {
+        if (!token.innerTokens || token.innerTokens.length === 0) {
+            return [];
+        }
+        const collected: SqlPrintToken[] = [];
+        this.collectCaseLeadingCommentBlocksRecursive(token, collected, new Set<string>(), 0);
+        return collected;
+    }
+
+    private collectCaseLeadingCommentBlocksRecursive(
+        token: SqlPrintToken,
+        collected: SqlPrintToken[],
+        seen: Set<string>,
+        depth: number,
+    ): void {
+        if (!token.innerTokens || token.innerTokens.length === 0) {
+            return;
+        }
+
+        let removedAny = false;
+        while (token.innerTokens.length > 0) {
+            const first = token.innerTokens[0];
+            if (first.containerType === SqlPrintTokenContainerType.CommentBlock) {
+                token.innerTokens.shift();
+                const signature = this.commentBlockSignature(first);
+                if (!(depth > 0 && seen.has(signature))) {
+                    collected.push(first);
+                    seen.add(signature);
+                }
+                removedAny = true;
+                continue;
+            }
+            if (!removedAny && first.type === SqlPrintTokenType.space) {
+                return;
+            }
+            break;
+        }
+
+        if (!token.innerTokens || token.innerTokens.length === 0) {
+            return;
+        }
+
+        const firstChild = token.innerTokens[0];
+        if (this.isTransparentCaseWrapper(firstChild)) {
+            this.collectCaseLeadingCommentBlocksRecursive(firstChild, collected, seen, depth + 1);
+        }
+    }
+
+    private isTransparentCaseWrapper(token: SqlPrintToken | undefined): boolean {
+        if (!token) {
+            return false;
+        }
+        const transparentContainers: SqlPrintTokenContainerType[] = [
+            SqlPrintTokenContainerType.ColumnReference,
+            SqlPrintTokenContainerType.QualifiedName,
+            SqlPrintTokenContainerType.IdentifierString,
+            SqlPrintTokenContainerType.RawString,
+            SqlPrintTokenContainerType.LiteralValue,
+            SqlPrintTokenContainerType.ParenExpression,
+            SqlPrintTokenContainerType.UnaryExpression,
+        ];
+        return transparentContainers.includes(token.containerType);
+    }
+
+    private commentBlockSignature(commentBlock: SqlPrintToken): string {
+        if (!commentBlock.innerTokens || commentBlock.innerTokens.length === 0) {
+            return '';
+        }
+        return commentBlock.innerTokens
+            .filter(inner => inner.text !== '')
+            .map(inner => inner.text)
+            .join('|');
     }
 
     private visitArrayExpression(arg: ArrayExpression): SqlPrintToken {
