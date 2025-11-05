@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'vitest';
+import { performance } from 'node:perf_hooks';
 import { Formatter } from "../../src/transformers/Formatter";
 import { ValuesQueryParser } from "../../src/parsers/ValuesQueryParser";
 import { SelectQueryParser } from '../../src/parsers/SelectQueryParser';
@@ -153,5 +154,19 @@ values
     const lastTuple = clause.tuples[clause.tuples.length - 1];
     const afterComments = lastTuple.getPositionedComments('after');
     expect(afterComments).toContain('c3');
+});
+
+test('values clause with massive row count parses within time budget', () => {
+    // Generate a large VALUES clause to simulate stress conditions.
+    const rows = Array.from({ length: 20000 }, (_, index) => `(${index}, 'value_${index}')`);
+    const sql = `values ${rows.join(', ')}`;
+
+    // Measure parsing latency so the regression stays detectable.
+    const start = performance.now();
+    const clause = ValuesQueryParser.parse(sql);
+    const durationMs = performance.now() - start;
+
+    expect(clause.tuples.length).toBe(20000);
+    expect(durationMs).toBeLessThan(2000);
 });
 
