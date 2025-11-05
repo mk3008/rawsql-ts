@@ -56,6 +56,7 @@ import {
     AlterTableStatement,
     AlterTableAddConstraint,
     AlterTableDropConstraint,
+    AlterTableDropColumn,
     DropConstraintStatement
 } from "../models/DDLStatements";
 
@@ -369,6 +370,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         this.handlers.set(AlterTableStatement.kind, (expr) => this.visitAlterTableStatement(expr as AlterTableStatement));
         this.handlers.set(AlterTableAddConstraint.kind, (expr) => this.visitAlterTableAddConstraint(expr as AlterTableAddConstraint));
         this.handlers.set(AlterTableDropConstraint.kind, (expr) => this.visitAlterTableDropConstraint(expr as AlterTableDropConstraint));
+        this.handlers.set(AlterTableDropColumn.kind, (expr) => this.visitAlterTableDropColumn(expr as AlterTableDropColumn));
         this.handlers.set(DropConstraintStatement.kind, (expr) => this.visitDropConstraintStatement(expr as DropConstraintStatement));
         this.handlers.set(MergeQuery.kind, (expr) => this.visitMergeQuery(expr as MergeQuery));
         this.handlers.set(MergeWhenClause.kind, (expr) => this.visitMergeWhenClause(expr as MergeWhenClause));
@@ -3512,6 +3514,24 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, keyword));
         token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
         token.innerTokens.push(arg.constraintName.accept(this));
+
+        if (arg.behavior) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, arg.behavior));
+        }
+
+        return token;
+    }
+
+    private visitAlterTableDropColumn(arg: AlterTableDropColumn): SqlPrintToken {
+        let keyword = 'drop column';
+        if (arg.ifExists) {
+            keyword += ' if exists';
+        }
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.AlterTableDropColumn);
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, keyword));
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(arg.columnName.accept(this));
 
         if (arg.behavior) {
             token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);

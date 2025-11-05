@@ -174,7 +174,28 @@ export class AlterTableDropConstraint extends SqlComponent {
     }
 }
 
-export type AlterTableAction = AlterTableAddConstraint | AlterTableDropConstraint;
+/**
+ * ALTER TABLE ... DROP COLUMN action.
+ */
+export class AlterTableDropColumn extends SqlComponent {
+    static kind = Symbol("AlterTableDropColumn");
+    columnName: IdentifierString;
+    ifExists: boolean;
+    behavior: DropBehavior;
+
+    constructor(params: {
+        columnName: IdentifierString;
+        ifExists?: boolean;
+        behavior?: DropBehavior;
+    }) {
+        super();
+        this.columnName = params.columnName;
+        this.ifExists = params.ifExists ?? false;
+        this.behavior = params.behavior ?? null;
+    }
+}
+
+export type AlterTableAction = AlterTableAddConstraint | AlterTableDropConstraint | AlterTableDropColumn;
 
 /**
  * ALTER TABLE statement representation with constraint-centric actions.

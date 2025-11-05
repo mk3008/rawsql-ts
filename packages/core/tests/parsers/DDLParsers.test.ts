@@ -9,7 +9,8 @@ import {
     CreateIndexStatement,
     AlterTableStatement,
     AlterTableAddConstraint,
-    AlterTableDropConstraint
+    AlterTableDropConstraint,
+    AlterTableDropColumn
 } from "../../src/models/DDLStatements";
 
 
@@ -83,6 +84,20 @@ WHERE active = true`;
         expect(dropAction.behavior).toBe("cascade");
         expect(formatted).toContain('alter table if exists only "public"."users" add constraint "users_email_key" unique("email"),');
         expect(formatted).toContain('drop constraint if exists "users_old_fk" cascade');
+    });
+
+    it("parses ALTER TABLE drop column action", () => {
+        const sql = `ALTER TABLE public.child_table DROP COLUMN IF EXISTS child_name_text CASCADE`;
+
+        const ast = AlterTableParser.parse(sql) as AlterTableStatement;
+        const formatted = new SqlFormatter().format(ast).formattedSql;
+
+        expect(ast.actions).toHaveLength(1);
+        const dropColumn = ast.actions[0] as AlterTableDropColumn;
+        expect(dropColumn.columnName.name).toBe("child_name_text");
+        expect(dropColumn.ifExists).toBe(true);
+        expect(dropColumn.behavior).toBe("cascade");
+        expect(formatted).toBe('alter table "public"."child_table" drop column if exists "child_name_text" cascade');
     });
 
     it("parses standalone DROP CONSTRAINT", () => {
