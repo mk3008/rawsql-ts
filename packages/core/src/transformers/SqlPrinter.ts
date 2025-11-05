@@ -433,6 +433,8 @@ export class SqlPrinter {
         let increasedIndent = false;
         const shouldIncreaseIndent = this.indentIncrementContainers.has(token.containerType) || shouldIndentNested;
         const delayIndentNewline = shouldIndentNested && token.containerType === SqlPrintTokenContainerType.ParenExpression;
+        const isAlterTableStatement = token.containerType === SqlPrintTokenContainerType.AlterTableStatement;
+        let deferAlterTableIndent = false;
 
         if (!this.isOnelineMode() && shouldIncreaseIndent) {
             if (this.insideWithClause && this.withClauseStyle === 'full-oneline') {
@@ -441,21 +443,28 @@ export class SqlPrinter {
                 innerLevel = level + 1;
                 increasedIndent = true;
             } else if (current.text !== '') {
-                let targetIndentLevel = level + 1;
-                if (
-                    token.containerType === SqlPrintTokenContainerType.SetClause &&
-                    parentContainerType === SqlPrintTokenContainerType.MergeUpdateAction
-                ) {
-                    targetIndentLevel = level + 2;
-                }
-                if (this.shouldAlignCreateTableSelect(token.containerType, parentContainerType)) {
-                    innerLevel = level;
-                    increasedIndent = false;
-                    this.linePrinter.appendNewline(level);
-                } else {
-                    innerLevel = targetIndentLevel;
+                if (isAlterTableStatement) {
+                    // Delay the first line break so ALTER TABLE keeps the table name on the opening line.
+                    innerLevel = level + 1;
                     increasedIndent = true;
-                    this.linePrinter.appendNewline(innerLevel);
+                    deferAlterTableIndent = true;
+                } else {
+                    let targetIndentLevel = level + 1;
+                    if (
+                        token.containerType === SqlPrintTokenContainerType.SetClause &&
+                        parentContainerType === SqlPrintTokenContainerType.MergeUpdateAction
+                    ) {
+                        targetIndentLevel = level + 2;
+                    }
+                    if (this.shouldAlignCreateTableSelect(token.containerType, parentContainerType)) {
+                        innerLevel = level;
+                        increasedIndent = false;
+                        this.linePrinter.appendNewline(level);
+                    } else {
+                        innerLevel = targetIndentLevel;
+                        increasedIndent = true;
+                        this.linePrinter.appendNewline(innerLevel);
+                    }
                 }
             } else if (token.containerType === SqlPrintTokenContainerType.SetClause) {
                 innerLevel = parentContainerType === SqlPrintTokenContainerType.MergeUpdateAction ? level + 2 : level + 1;
@@ -466,6 +475,8 @@ export class SqlPrinter {
 
         const isMergeWhenClause = this.whenOneLine && token.containerType === SqlPrintTokenContainerType.MergeWhenClause;
         let mergePredicateActive = isMergeWhenClause;
+        let alterTableTableRendered = false;
+        let alterTableIndentInserted = false;
 
         for (let i = leadingCommentCount; i < token.innerTokens.length; i++) {
             const child = token.innerTokens[i];
@@ -477,6 +488,23 @@ export class SqlPrinter {
             const childIsAction = this.isMergeActionContainer(child);
             const nextIsAction = this.isMergeActionContainer(nextChild);
             const inMergePredicate = mergePredicateActive && !childIsAction;
+
+            if (isAlterTableStatement) {
+                if (child.containerType === SqlPrintTokenContainerType.QualifiedName) {
+                    // Track when the table name has been printed so we can defer indentation until after it.
+                    alterTableTableRendered = true;
+                } else if (deferAlterTableIndent && alterTableTableRendered && !alterTableIndentInserted) {
+                    if (!this.isOnelineMode()) {
+                        this.linePrinter.appendNewline(innerLevel);
+                    }
+                    alterTableIndentInserted = true;
+                    deferAlterTableIndent = false;
+                    if (!this.isOnelineMode() && child.type === SqlPrintTokenType.space) {
+                        // Drop the space token because we already emitted a newline.
+                        continue;
+                    }
+                }
+            }
 
             if (child.type === SqlPrintTokenType.space) {
                 if (this.shouldConvertSpaceToClauseBreak(token.containerType, nextChild)) {
