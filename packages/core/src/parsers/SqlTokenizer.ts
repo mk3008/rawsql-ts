@@ -49,6 +49,11 @@ export class SqlTokenizer {
     private readerManager: TokenReaderManager;
 
     /**
+     * Cached start offsets for each line in the input string.
+     */
+    private lineStartPositions: number[] | null = null;
+
+    /**
      * Initializes a new instance of the SqlTokenizer.
      */
     constructor(input: string) {
@@ -600,19 +605,44 @@ private getLineColumnInfo(startPos: number, endPos: number) {
     }
 
     private getLineColumn(position: number): { line: number; column: number } {
-        let line = 1;
-        let column = 1;
+        const starts = this.ensureLineStartPositions();
 
-        for (let i = 0; i < Math.min(position, this.input.length); i++) {
-            if (this.input[i] === '\n') {
-                line++;
-                column = 1;
+        // Use binary search to locate the greatest line start that does not exceed position.
+        let low = 0;
+        let high = starts.length - 1;
+        while (low <= high) {
+            const mid = (low + high) >>> 1;
+            if (starts[mid] <= position) {
+                low = mid + 1;
             } else {
-                column++;
+                high = mid - 1;
             }
         }
 
-        return { line, column };
+        const lineIndex = high >= 0 ? high : 0;
+        const lineStart = starts[lineIndex];
+        return {
+            line: lineIndex + 1,
+            column: position - lineStart + 1
+        };
+    }
+
+    private ensureLineStartPositions(): number[] {
+        if (this.lineStartPositions) {
+            return this.lineStartPositions;
+        }
+
+        const starts: number[] = [0];
+
+        // Precompute the start index of each line so callers can map positions in O(log n).
+        for (let i = 0; i < this.input.length; i++) {
+            if (this.input.charCodeAt(i) === 10) { // '\n'
+                starts.push(i + 1);
+            }
+        }
+
+        this.lineStartPositions = starts;
+        return starts;
     }
 }
 
