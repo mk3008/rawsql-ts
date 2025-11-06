@@ -61,6 +61,10 @@ export class ExplainStatementParser {
             const optionResult = this.parseOptionList(lexemes, idx);
             options.push(...optionResult.options);
             idx = optionResult.newIndex;
+            if (optionResult.trailingComments && optionResult.trailingComments.length > 0) {
+                // Promote comments that follow the option list so they attach to the nested statement.
+                this.attachTrailingCommentsToNextLexeme(lexemes, idx, optionResult.trailingComments);
+            }
         }
 
         if (idx >= lexemes.length) {
@@ -79,7 +83,7 @@ export class ExplainStatementParser {
         return { value: explain, newIndex: idx };
     }
 
-    private static parseOptionList(lexemes: Lexeme[], index: number): { options: ExplainOption[]; newIndex: number } {
+    private static parseOptionList(lexemes: Lexeme[], index: number): { options: ExplainOption[]; newIndex: number; trailingComments: string[] | null } {
         let idx = index;
 
         if (!(lexemes[idx].type & TokenType.OpenParen)) {
@@ -88,6 +92,7 @@ export class ExplainStatementParser {
         idx++; // consume '('
 
         const options: ExplainOption[] = [];
+        let trailingComments: string[] | null = null;
 
         while (idx < lexemes.length) {
             const token = lexemes[idx];
@@ -143,6 +148,7 @@ export class ExplainStatementParser {
             }
 
             if (lexemes[idx].type & TokenType.CloseParen) {
+                trailingComments = this.extractAfterComments(lexemes[idx]);
                 idx++;
                 break;
             }
@@ -152,7 +158,7 @@ export class ExplainStatementParser {
             );
         }
 
-        return { options, newIndex: idx };
+        return { options, newIndex: idx, trailingComments };
     }
 
     private static isLegacyFlag(lexeme: Lexeme | undefined): boolean {
@@ -168,5 +174,64 @@ export class ExplainStatementParser {
 
     private static canStartOptionName(lexeme: Lexeme): boolean {
         return (lexeme.type & (TokenType.Identifier | TokenType.Command | TokenType.Function | TokenType.Type)) !== 0;
+    }
+
+    private static extractAfterComments(token: Lexeme): string[] | null {
+        let collected: string[] | null = null;
+
+        if (token.positionedComments && token.positionedComments.length > 0) {
+            // Split out 'after' comments so they can be reassigned to the following token.
+            const retained = [];
+            for (const posComment of token.positionedComments) {
+                if (posComment.position === 'after' && posComment.comments && posComment.comments.length > 0) {
+                    if (!collected) {
+                        collected = [];
+                    }
+                    collected.push(...posComment.comments);
+                    continue;
+                }
+                retained.push(posComment);
+            }
+            token.positionedComments = retained.length > 0 ? retained : undefined;
+        }
+
+        if (token.comments && token.comments.length > 0) {
+            // Fall back to legacy comment storage when positioned comments are absent.
+            if (!collected) {
+                collected = [];
+            }
+            collected.push(...token.comments);
+            token.comments = null;
+        }
+
+        return collected;
+    }
+
+    private static attachTrailingCommentsToNextLexeme(lexemes: Lexeme[], index: number, comments: string[]): void {
+        if (!comments || comments.length === 0) {
+            return;
+        }
+
+        const target = lexemes[index];
+        if (!target) {
+            return;
+        }
+
+        if (!target.positionedComments) {
+            // Initialise positioned comments to allow inserting 'before' entries.
+            target.positionedComments = [];
+        }
+
+        const beforeEntry = target.positionedComments.find(pos => pos.position === 'before');
+        if (beforeEntry) {
+            // Append to existing leading comments on the target lexeme.
+            beforeEntry.comments.push(...comments);
+        } else {
+            // Seed a new leading comment entry on the next lexeme.
+            target.positionedComments.push({
+                position: 'before',
+                comments: [...comments],
+            });
+        }
     }
 }

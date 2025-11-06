@@ -1488,6 +1488,10 @@ export class SqlPrinter {
         if (parentType === SqlPrintTokenContainerType.SelectClause) {
             return true;
         }
+        if (parentType === SqlPrintTokenContainerType.ExplainStatement) {
+            // Ensure EXPLAIN targets print header comments on a dedicated line.
+            return true;
+        }
         return false;
     }
 
