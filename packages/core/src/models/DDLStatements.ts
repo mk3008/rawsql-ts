@@ -239,6 +239,36 @@ export class DropConstraintStatement extends SqlComponent {
 }
 
 /**
+ * Option entry within an EXPLAIN statement.
+ */
+export class ExplainOption extends SqlComponent {
+    static kind = Symbol("ExplainOption");
+    name: IdentifierString;
+    value: ValueComponent | null;
+
+    constructor(params: { name: IdentifierString; value?: ValueComponent | null }) {
+        super();
+        this.name = new IdentifierString(params.name.name);
+        this.value = params.value ?? null;
+    }
+}
+
+/**
+ * EXPLAIN statement representation.
+ */
+export class ExplainStatement extends SqlComponent {
+    static kind = Symbol("ExplainStatement");
+    options: ExplainOption[] | null;
+    statement: SqlComponent;
+
+    constructor(params: { options?: ExplainOption[] | null; statement: SqlComponent }) {
+        super();
+        this.options = params.options ? params.options.map(option => new ExplainOption(option)) : null;
+        this.statement = params.statement;
+    }
+}
+
+/**
  * ANALYZE statement representation.
  */
 export class AnalyzeStatement extends SqlComponent {

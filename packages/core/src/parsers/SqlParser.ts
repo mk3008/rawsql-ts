@@ -11,7 +11,8 @@ import type {
     CreateIndexStatement,
     AlterTableStatement,
     DropConstraintStatement,
-    AnalyzeStatement
+    AnalyzeStatement,
+    ExplainStatement
 } from '../models/DDLStatements';
 import { SqlTokenizer, StatementLexemeResult } from './SqlTokenizer';
 import { SelectQueryParser } from './SelectQueryParser';
@@ -27,6 +28,7 @@ import { CreateIndexParser } from './CreateIndexParser';
 import { AlterTableParser } from './AlterTableParser';
 import { DropConstraintParser } from './DropConstraintParser';
 import { AnalyzeStatementParser } from './AnalyzeStatementParser';
+import { ExplainStatementParser } from './ExplainStatementParser';
 
 export type ParsedStatement =
     | SelectQuery
@@ -40,7 +42,8 @@ export type ParsedStatement =
     | CreateIndexStatement
     | AlterTableStatement
     | DropConstraintStatement
-    | AnalyzeStatement;
+    | AnalyzeStatement
+    | ExplainStatement;
 
 export interface SqlParserOptions {
     mode?: 'single' | 'multiple';
@@ -188,6 +191,10 @@ export class SqlParser {
             return this.parseAnalyzeStatement(segment, statementIndex);
         }
 
+        if (firstToken === 'explain') {
+            return this.parseExplainStatement(segment, statementIndex);
+        }
+
         throw new Error(`[SqlParser] Statement ${statementIndex} starts with unsupported token "${segment.lexemes[0].value}". Support for additional statement types will be introduced soon.`);
     }
 
@@ -207,6 +214,41 @@ export class SqlParser {
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
             throw new Error(`[SqlParser] Failed to parse SELECT statement ${statementIndex}: ${message}`);
+        }
+    }
+
+    private static parseExplainStatement(segment: StatementLexemeResult, statementIndex: number): ExplainStatement {
+        try {
+            const result = ExplainStatementParser.parseFromLexeme(segment.lexemes, 0, (lexemes, nestedStart) => {
+                if (nestedStart >= lexemes.length) {
+                    throw new Error("[ExplainStatementParser] Missing statement after EXPLAIN options.");
+                }
+
+                const nestedSegment: StatementLexemeResult = {
+                    lexemes: lexemes.slice(nestedStart),
+                    statementStart: segment.statementStart,
+                    statementEnd: segment.statementEnd,
+                    nextPosition: segment.nextPosition,
+                    rawText: segment.rawText,
+                    leadingComments: segment.leadingComments,
+                };
+
+                const statement = this.dispatchParse(nestedSegment, statementIndex);
+                return { value: statement, newIndex: lexemes.length };
+            });
+
+            if (result.newIndex < segment.lexemes.length) {
+                const unexpected = segment.lexemes[result.newIndex];
+                const position = unexpected.position?.startPosition ?? segment.statementStart;
+                throw new Error(
+                    `[SqlParser] Unexpected token "${unexpected.value}" in EXPLAIN statement ${statementIndex} at character ${position}.`
+                );
+            }
+
+            return result.value;
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            throw new Error(`[SqlParser] Failed to parse EXPLAIN statement ${statementIndex}: ${message}`);
         }
     }
 

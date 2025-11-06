@@ -436,7 +436,16 @@ export class SqlPrinter {
         const isAlterTableStatement = token.containerType === SqlPrintTokenContainerType.AlterTableStatement;
         let deferAlterTableIndent = false;
 
-        if (!this.isOnelineMode() && shouldIncreaseIndent) {
+        const alignExplainChild = this.shouldAlignExplainStatementChild(parentContainerType, token.containerType);
+
+        if (alignExplainChild) {
+            // Keep EXPLAIN target statements flush left so they render like standalone statements.
+            if (!this.isOnelineMode() && current.text !== '') {
+                this.linePrinter.appendNewline(level);
+            }
+            innerLevel = level;
+            increasedIndent = false;
+        } else if (!this.isOnelineMode() && shouldIncreaseIndent) {
             if (this.insideWithClause && this.withClauseStyle === 'full-oneline') {
                 // Keep everything on one line for full-oneline WITH clauses.
             } else if (delayIndentNewline) {
@@ -553,6 +562,22 @@ export class SqlPrinter {
         // indent level down
         if (increasedIndent && shouldIncreaseIndent && !(this.insideWithClause && this.withClauseStyle === 'full-oneline') && !delayIndentNewline) {
             this.linePrinter.appendNewline(level);
+        }
+    }
+
+    private shouldAlignExplainStatementChild(parentType: SqlPrintTokenContainerType | undefined, childType: SqlPrintTokenContainerType): boolean {
+        if (parentType !== SqlPrintTokenContainerType.ExplainStatement) {
+            return false;
+        }
+        switch (childType) {
+            case SqlPrintTokenContainerType.SimpleSelectQuery:
+            case SqlPrintTokenContainerType.InsertQuery:
+            case SqlPrintTokenContainerType.UpdateQuery:
+            case SqlPrintTokenContainerType.DeleteQuery:
+            case SqlPrintTokenContainerType.MergeQuery:
+                return true;
+            default:
+                return false;
         }
     }
 

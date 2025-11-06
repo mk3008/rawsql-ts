@@ -4,7 +4,8 @@ import { SimpleSelectQuery } from '../../src/models/SelectQuery';
 import { InsertQuery } from '../../src/models/InsertQuery';
 import { CreateTableQuery } from '../../src/models/CreateTableQuery';
 import { MergeQuery } from '../../src/models/MergeQuery';
-import { AnalyzeStatement } from '../../src/models/DDLStatements';
+import { AnalyzeStatement, ExplainStatement } from '../../src/models/DDLStatements';
+import { RawString, IdentifierString } from '../../src/models/ValueComponent';
 
 describe('SqlParser', () => {
     test('parse returns a SelectQuery for single-statement input', () => {
@@ -63,6 +64,49 @@ describe('SqlParser', () => {
             expect(result.verbose).toBe(true);
             expect(result.columns?.map(col => col.name)).toEqual(['id']);
         }
+    });
+
+    test('parse returns an ExplainStatement for EXPLAIN statements', () => {
+        const sql = 'EXPLAIN ANALYZE VERBOSE SELECT id FROM users';
+
+        const result = SqlParser.parse(sql);
+
+        expect(result).toBeInstanceOf(ExplainStatement);
+        if (result instanceof ExplainStatement) {
+            const optionNames = result.options?.map(option => option.name.name);
+            expect(optionNames).toEqual(['analyze', 'verbose']);
+            expect(result.statement.constructor.name).toBe('SimpleSelectQuery');
+        }
+    });
+
+    test('parse handles EXPLAIN option list with explicit values', () => {
+        const sql = 'EXPLAIN (ANALYZE false, FORMAT JSON) SELECT id FROM users';
+
+        const result = SqlParser.parse(sql);
+
+        expect(result).toBeInstanceOf(ExplainStatement);
+        if (result instanceof ExplainStatement) {
+            expect(result.options).toHaveLength(2);
+            const optionMap = Object.fromEntries(result.options!.map(option => [option.name.name, option.value]));
+            const analyzeValue = optionMap['analyze'];
+            const formatValue = optionMap['format'];
+            expect(analyzeValue).toBeDefined();
+            expect(formatValue).toBeDefined();
+            if (analyzeValue instanceof RawString) {
+                expect(analyzeValue.value.toLowerCase()).toBe('false');
+            }
+            if (formatValue) {
+                if (formatValue instanceof IdentifierString) {
+                    expect(formatValue.name.toLowerCase()).toBe('json');
+                } else if (formatValue instanceof RawString) {
+                    expect(formatValue.value.toLowerCase()).toBe('json');
+                }
+            }
+        }
+    });
+
+    test('parse throws when EXPLAIN lacks a nested statement', () => {
+        expect(() => SqlParser.parse('EXPLAIN')).toThrow(/EXPLAIN must be followed/i);
     });
 
     test('parse throws when additional statements are present in single mode', () => {
