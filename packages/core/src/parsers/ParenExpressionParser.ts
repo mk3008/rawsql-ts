@@ -86,6 +86,32 @@ export class ParenExpressionParser {
         idx = result.newIndex;
 
         const value = new ParenExpression(result.value);
+
+        // Preserve comments that trail immediately after the closing parenthesis (e.g. `(expr) -- note`).
+        const closingIndex = idx - 1;
+        if (closingIndex >= 0 && closingIndex < lexemes.length) {
+            const closingLexeme = lexemes[closingIndex];
+            if (closingLexeme.type & TokenType.CloseParen) {
+                if (closingLexeme.positionedComments && closingLexeme.positionedComments.length > 0) {
+                    const afterComments = closingLexeme.positionedComments
+                        .filter(comment => comment.position === 'after' && comment.comments.length > 0)
+                        .map(comment => ({
+                            position: comment.position,
+                            comments: [...comment.comments],
+                        }));
+                    if (afterComments.length > 0) {
+                        value.positionedComments = value.positionedComments
+                            ? [...value.positionedComments, ...afterComments]
+                            : afterComments;
+                    }
+                } else if (closingLexeme.comments && closingLexeme.comments.length > 0) {
+                    value.comments = value.comments
+                        ? value.comments.concat(closingLexeme.comments)
+                        : [...closingLexeme.comments];
+                }
+            }
+        }
+
         return { value, newIndex: idx };
     }
 }

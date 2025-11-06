@@ -236,7 +236,7 @@ describe('SqlFormatter - Comprehensive SQL Output Validation', () => {
             const formatter = new SqlFormatter({ exportComment: true });
             const result = formatter.format(query);
 
-            const expectedSql = 'select ("price" /* base price */ /* base price */ * 1.1 /* with tax */ + 500) as "final_price" from "products"';
+            const expectedSql = 'select ("price" /* base price */ /* base price */ * 1.1 /* with tax */ + 500) /* plus fee */ as "final_price" from "products"';
             validateCompleteSQL(result.formattedSql, expectedSql);
         });
 
