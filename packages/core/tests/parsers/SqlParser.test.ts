@@ -4,6 +4,7 @@ import { SimpleSelectQuery } from '../../src/models/SelectQuery';
 import { InsertQuery } from '../../src/models/InsertQuery';
 import { CreateTableQuery } from '../../src/models/CreateTableQuery';
 import { MergeQuery } from '../../src/models/MergeQuery';
+import { AnalyzeStatement } from '../../src/models/DDLStatements';
 
 describe('SqlParser', () => {
     test('parse returns a SelectQuery for single-statement input', () => {
@@ -50,6 +51,18 @@ describe('SqlParser', () => {
         const result = SqlParser.parse(sql);
 
         expect(result).toBeInstanceOf(MergeQuery);
+    });
+
+    test('parse returns an AnalyzeStatement for ANALYZE statements', () => {
+        const sql = 'ANALYZE VERBOSE public.users (id)';
+
+        const result = SqlParser.parse(sql);
+
+        expect(result).toBeInstanceOf(AnalyzeStatement);
+        if (result instanceof AnalyzeStatement) {
+            expect(result.verbose).toBe(true);
+            expect(result.columns?.map(col => col.name)).toEqual(['id']);
+        }
     });
 
     test('parse throws when additional statements are present in single mode', () => {

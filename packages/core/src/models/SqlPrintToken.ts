@@ -100,6 +100,7 @@ export enum SqlPrintTokenContainerType {
     AlterTableDropConstraint = "AlterTableDropConstraint",
     AlterTableDropColumn = "AlterTableDropColumn",
     DropConstraintStatement = "DropConstraintStatement",
+    AnalyzeStatement = "AnalyzeStatement",
     MergeQuery = "MergeQuery",
     MergeWhenClause = "MergeWhenClause",
     MergeUpdateAction = "MergeUpdateAction",
