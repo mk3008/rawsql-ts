@@ -58,6 +58,8 @@ import {
     AlterTableDropConstraint,
     AlterTableDropColumn,
     DropConstraintStatement,
+    ExplainOption,
+    ExplainStatement,
     AnalyzeStatement
 } from "../models/DDLStatements";
 
@@ -373,6 +375,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         this.handlers.set(AlterTableDropConstraint.kind, (expr) => this.visitAlterTableDropConstraint(expr as AlterTableDropConstraint));
         this.handlers.set(AlterTableDropColumn.kind, (expr) => this.visitAlterTableDropColumn(expr as AlterTableDropColumn));
         this.handlers.set(DropConstraintStatement.kind, (expr) => this.visitDropConstraintStatement(expr as DropConstraintStatement));
+        this.handlers.set(ExplainStatement.kind, (expr) => this.visitExplainStatement(expr as ExplainStatement));
         this.handlers.set(AnalyzeStatement.kind, (expr) => this.visitAnalyzeStatement(expr as AnalyzeStatement));
         this.handlers.set(MergeQuery.kind, (expr) => this.visitMergeQuery(expr as MergeQuery));
         this.handlers.set(MergeWhenClause.kind, (expr) => this.visitMergeWhenClause(expr as MergeWhenClause));
@@ -3565,6 +3568,47 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         return token;
     }
 
+    private visitExplainStatement(arg: ExplainStatement): SqlPrintToken {
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.ExplainStatement);
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'explain'));
+
+        const inlineFlags: ExplainOption[] = [];
+        const optionList: ExplainOption[] = [];
+
+        if (arg.options) {
+            for (const option of arg.options) {
+                if (this.isExplainLegacyFlag(option) && this.isExplainBooleanTrue(option.value)) {
+                    inlineFlags.push(option);
+                } else {
+                    optionList.push(option);
+                }
+            }
+        }
+
+        for (const flag of inlineFlags) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, flag.name.name.toLowerCase()));
+        }
+
+        if (optionList.length > 0) {
+            // Keep the option list immediately after EXPLAIN without an extra space.
+            token.innerTokens.push(SqlPrintTokenParser.PAREN_OPEN_TOKEN);
+            for (let i = 0; i < optionList.length; i++) {
+                if (i > 0) {
+                    token.innerTokens.push(SqlPrintTokenParser.COMMA_TOKEN);
+                    token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+                }
+                token.innerTokens.push(this.renderExplainOption(optionList[i]));
+            }
+            token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
+        }
+
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(arg.statement.accept(this));
+
+        return token;
+    }
+
     private visitAnalyzeStatement(arg: AnalyzeStatement): SqlPrintToken {
         const keywordParts = ['analyze'];
         if (arg.verbose) {
@@ -3597,6 +3641,49 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         }
 
         return token;
+    }
+
+    private renderExplainOption(option: ExplainOption): SqlPrintToken {
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.ExplainOption);
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, option.name.name.toLowerCase()));
+
+        if (option.value && !this.isExplainBooleanTrue(option.value)) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(option.value.accept(this));
+        }
+
+        return token;
+    }
+
+    private isExplainLegacyFlag(option: ExplainOption): boolean {
+        const name = option.name.name.toLowerCase();
+        return name === 'analyze' || name === 'verbose';
+    }
+
+    private isExplainBooleanTrue(value: ValueComponent | null): boolean {
+        if (!value) {
+            return false;
+        }
+
+        if (value instanceof RawString) {
+            const normalized = value.value.toLowerCase();
+            return normalized === 'true' || normalized === 't' || normalized === 'on' || normalized === 'yes' || normalized === '1';
+        }
+
+        if (value instanceof LiteralValue) {
+            if (typeof value.value === 'boolean') {
+                return value.value;
+            }
+            if (typeof value.value === 'number') {
+                return value.value !== 0;
+            }
+            if (typeof value.value === 'string') {
+                const normalized = value.value.toLowerCase();
+                return normalized === 'true' || normalized === 't' || normalized === 'on' || normalized === 'yes' || normalized === '1';
+            }
+        }
+
+        return false;
     }
 
     private renderQualifiedNameInline(arg: QualifiedName): SqlPrintToken {

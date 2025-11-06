@@ -66,6 +66,9 @@ export class OnelineFormattingHelper {
             // Keep ANALYZE column lists compact so comma break preferences do not insert newlines.
             return 'none';
         }
+        if (parentContainerType === SqlPrintTokenContainerType.ExplainStatement) {
+            return 'none';
+        }
         if (parentContainerType === SqlPrintTokenContainerType.Values) {
             return valuesCommaBreak;
         }

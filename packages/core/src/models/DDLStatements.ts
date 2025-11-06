@@ -13,6 +13,23 @@ export type DropBehavior = 'cascade' | 'restrict' | null;
 export type IndexSortOrder = 'asc' | 'desc' | null;
 export type IndexNullsOrder = 'first' | 'last' | null;
 
+function cloneIdentifierWithComments(identifier: IdentifierString): IdentifierString {
+    const clone = new IdentifierString(identifier.name);
+
+    // Preserve positioned comment metadata while cloning identifiers.
+    if (identifier.positionedComments) {
+        clone.positionedComments = identifier.positionedComments.map(entry => ({
+            position: entry.position,
+            comments: [...entry.comments],
+        }));
+    } else if (identifier.comments && identifier.comments.length > 0) {
+        // Copy legacy comment arrays when no positioned comments exist.
+        clone.comments = [...identifier.comments];
+    }
+
+    return clone;
+}
+
 /**
  * DROP TABLE statement representation.
  */
@@ -239,6 +256,37 @@ export class DropConstraintStatement extends SqlComponent {
 }
 
 /**
+ * Option entry within an EXPLAIN statement.
+ */
+export class ExplainOption extends SqlComponent {
+    static kind = Symbol("ExplainOption");
+    name: IdentifierString;
+    value: ValueComponent | null;
+
+    constructor(params: { name: IdentifierString; value?: ValueComponent | null }) {
+        super();
+        // Clone the option name so explain options keep associated metadata.
+        this.name = cloneIdentifierWithComments(params.name);
+        this.value = params.value ?? null;
+    }
+}
+
+/**
+ * EXPLAIN statement representation.
+ */
+export class ExplainStatement extends SqlComponent {
+    static kind = Symbol("ExplainStatement");
+    options: ExplainOption[] | null;
+    statement: SqlComponent;
+
+    constructor(params: { options?: ExplainOption[] | null; statement: SqlComponent }) {
+        super();
+        this.options = params.options ? params.options.map(option => new ExplainOption(option)) : null;
+        this.statement = params.statement;
+    }
+}
+
+/**
  * ANALYZE statement representation.
  */
 export class AnalyzeStatement extends SqlComponent {
@@ -253,19 +301,11 @@ export class AnalyzeStatement extends SqlComponent {
         this.target = params?.target
             ? new QualifiedName(params.target.namespaces, params.target.name)
             : null;
-        this.columns = params?.columns
-            ? params.columns.map(column => {
-                  const clone = new IdentifierString(column.name);
-                  if (column.positionedComments) {
-                      clone.positionedComments = column.positionedComments.map(entry => ({
-                          position: entry.position,
-                          comments: [...entry.comments],
-                      }));
-                  } else if (column.comments && column.comments.length > 0) {
-                      clone.comments = [...column.comments];
-                  }
-                  return clone;
-              })
-            : null;
+        if (params?.columns) {
+            // Clone target columns so position-aware comments remain intact.
+            this.columns = params.columns.map(cloneIdentifierWithComments);
+        } else {
+            this.columns = null;
+        }
     }
 }
