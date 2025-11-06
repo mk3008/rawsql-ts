@@ -883,10 +883,11 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         const afterComments = component.getPositionedComments('after');
         if (afterComments.length > 0) {
             const commentBlocks = this.createCommentBlocks(afterComments);
-            // Insert before closing paren (last position) without separator space
-            const insertIndex = token.innerTokens.length;
+            const closingIndex = token.innerTokens.length - 1;
+            let insertIndex = closingIndex + 1;
             for (const commentBlock of commentBlocks) {
-                token.innerTokens.splice(insertIndex - 1, 0, commentBlock);
+                token.innerTokens.splice(insertIndex, 0, SqlPrintTokenParser.SPACE_TOKEN, commentBlock);
+                insertIndex += 2;
             }
         }
     }
@@ -1821,14 +1822,17 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         // Preserve original positioned comments to avoid mutating the source object
         const originalSelectItemPositionedComments = arg.positionedComments;
         const originalValuePositionedComments = arg.value.positionedComments;
+        const isParenExpression = arg.value instanceof ParenExpression;
 
-        // Clear positioned comments from the value to avoid duplication since SelectItem handles them
-        arg.value.positionedComments = null;
+        // Clear positioned comments from the value to avoid duplication when SelectItem itself renders them.
+        // ParenExpression handles trailing comments internally, so we must keep its metadata intact.
+        if (!isParenExpression) {
+            arg.value.positionedComments = null;
+        }
 
         // Add positioned comments in recorded order
         const beforeComments = arg.getPositionedComments('before');
         const afterComments = arg.getPositionedComments('after');
-        const isParenExpression = arg.value instanceof ParenExpression;
 
         if (beforeComments.length > 0) {
             const commentTokens = this.createInlineCommentSequence(beforeComments);
