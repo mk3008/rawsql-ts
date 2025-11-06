@@ -45,4 +45,8 @@ describe('AnalyzeStatementParser', () => {
     it('throws when column list appears without target', () => {
         expect(() => AnalyzeStatementParser.parse('ANALYZE (id)')).toThrow(/requires a target relation/i);
     });
+
+    it('throws when column list is empty', () => {
+        expect(() => AnalyzeStatementParser.parse('ANALYZE users ()')).toThrow(/must include at least one column identifier/i);
+    });
 });
