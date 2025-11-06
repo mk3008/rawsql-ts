@@ -57,7 +57,8 @@ import {
     AlterTableAddConstraint,
     AlterTableDropConstraint,
     AlterTableDropColumn,
-    DropConstraintStatement
+    DropConstraintStatement,
+    AnalyzeStatement
 } from "../models/DDLStatements";
 
 export enum ParameterStyle {
@@ -372,6 +373,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         this.handlers.set(AlterTableDropConstraint.kind, (expr) => this.visitAlterTableDropConstraint(expr as AlterTableDropConstraint));
         this.handlers.set(AlterTableDropColumn.kind, (expr) => this.visitAlterTableDropColumn(expr as AlterTableDropColumn));
         this.handlers.set(DropConstraintStatement.kind, (expr) => this.visitDropConstraintStatement(expr as DropConstraintStatement));
+        this.handlers.set(AnalyzeStatement.kind, (expr) => this.visitAnalyzeStatement(expr as AnalyzeStatement));
         this.handlers.set(MergeQuery.kind, (expr) => this.visitMergeQuery(expr as MergeQuery));
         this.handlers.set(MergeWhenClause.kind, (expr) => this.visitMergeWhenClause(expr as MergeWhenClause));
         this.handlers.set(MergeUpdateAction.kind, (expr) => this.visitMergeUpdateAction(expr as MergeUpdateAction));
@@ -3561,6 +3563,69 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         }
 
         return token;
+    }
+
+    private visitAnalyzeStatement(arg: AnalyzeStatement): SqlPrintToken {
+        const keywordParts = ['analyze'];
+        if (arg.verbose) {
+            keywordParts.push('verbose');
+        }
+        const token = new SqlPrintToken(
+            SqlPrintTokenType.keyword,
+            keywordParts.join(' '),
+            SqlPrintTokenContainerType.AnalyzeStatement
+        );
+
+        // Render relation target when provided.
+        if (arg.target) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(this.renderQualifiedNameInline(arg.target));
+
+            // Render column list inline (comma space) when present.
+            if (arg.columns && arg.columns.length > 0) {
+                token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+                token.innerTokens.push(SqlPrintTokenParser.PAREN_OPEN_TOKEN);
+                for (let i = 0; i < arg.columns.length; i++) {
+                    if (i > 0) {
+                        token.innerTokens.push(SqlPrintTokenParser.COMMA_TOKEN);
+                        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+                    }
+                    token.innerTokens.push(this.renderIdentifierInline(arg.columns[i]));
+                }
+                token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
+            }
+        }
+
+        return token;
+    }
+
+    private renderQualifiedNameInline(arg: QualifiedName): SqlPrintToken {
+        const parts: string[] = [];
+        if (arg.namespaces && arg.namespaces.length > 0) {
+            for (const ns of arg.namespaces) {
+                parts.push(this.renderIdentifierText(ns));
+            }
+        }
+        parts.push(this.renderIdentifierText(arg.name));
+        return new SqlPrintToken(SqlPrintTokenType.value, parts.join('.'), SqlPrintTokenContainerType.QualifiedName);
+    }
+
+    private renderIdentifierInline(component: IdentifierString): SqlPrintToken {
+        return new SqlPrintToken(
+            SqlPrintTokenType.value,
+            this.renderIdentifierText(component),
+            SqlPrintTokenContainerType.IdentifierString
+        );
+    }
+
+    private renderIdentifierText(component: IdentifierString | RawString): string {
+        if (component instanceof IdentifierString) {
+            if (component.name === '*') {
+                return component.name;
+            }
+            return this.identifierDecorator.decorate(component.name);
+        }
+        return component.value;
     }
 }
 

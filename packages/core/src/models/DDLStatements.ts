@@ -237,3 +237,35 @@ export class DropConstraintStatement extends SqlComponent {
         this.behavior = params.behavior ?? null;
     }
 }
+
+/**
+ * ANALYZE statement representation.
+ */
+export class AnalyzeStatement extends SqlComponent {
+    static kind = Symbol("AnalyzeStatement");
+    verbose: boolean;
+    target: QualifiedName | null;
+    columns: IdentifierString[] | null;
+
+    constructor(params?: { verbose?: boolean; target?: QualifiedName | null; columns?: IdentifierString[] | null }) {
+        super();
+        this.verbose = params?.verbose ?? false;
+        this.target = params?.target
+            ? new QualifiedName(params.target.namespaces, params.target.name)
+            : null;
+        this.columns = params?.columns
+            ? params.columns.map(column => {
+                  const clone = new IdentifierString(column.name);
+                  if (column.positionedComments) {
+                      clone.positionedComments = column.positionedComments.map(entry => ({
+                          position: entry.position,
+                          comments: [...entry.comments],
+                      }));
+                  } else if (column.comments && column.comments.length > 0) {
+                      clone.comments = [...column.comments];
+                  }
+                  return clone;
+              })
+            : null;
+    }
+}

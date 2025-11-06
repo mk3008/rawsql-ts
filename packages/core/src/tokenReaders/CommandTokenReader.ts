@@ -114,6 +114,7 @@ const keywordTrie = new KeywordTrie([
     ["values"],
     ["set"],
     ["returning"],
+    ["analyze"],
     ["create", "table"],
     ["create", "temporary", "table"],
     ["alter", "table"],
