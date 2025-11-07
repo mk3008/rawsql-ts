@@ -15,7 +15,6 @@ jobs:
     - name: Setup pnpm
       uses: pnpm/action-setup@v4
       with:
-        version: 10.17.0
         run_install: false
       
     - name: Setup Node.js 20.x
@@ -49,7 +48,6 @@ jobs:
     - name: Setup pnpm
       uses: pnpm/action-setup@v4
       with:
-        version: 10.17.0
         run_install: false
       
     - name: Setup Node.js 20.x
