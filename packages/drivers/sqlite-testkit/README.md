@@ -51,7 +51,13 @@ Use `driver.withFixtures([...])` to derive a scoped driver with scenario-specifi
 
 ## `wrapSqliteDriver`
 
-Wrap an existing connection without changing downstream repository code:
+Turn any existing `better-sqlite3` connection into a transparent proxy that:
+
+- intercepts `prepare`, `exec`, `all`, `get`, and `run`
+- rewrites incoming `SELECT` statements into fixture-backed CTEs (and passes through everything else)
+- leaves the underlying repository or DAO code untouched
+
+In other words, you can keep your production query paths as-is and only override read queries during tests.
 
 ```ts
 import Database from 'better-sqlite3';
