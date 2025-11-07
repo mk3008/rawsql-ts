@@ -176,4 +176,17 @@ describe('wrapSqliteDriver', () => {
     expect(scoped.queries?.[0].sql).toContain('orders');
     expect(wrapped.queries).toHaveLength(1);
   });
+
+  it('passes non-select statements through without rewriting', () => {
+    const exec = vi.fn();
+    const driver = { exec } as unknown as SqliteConnectionLike;
+
+    const wrapped = wrapSqliteDriver(driver, {
+      fixtures: [],
+    });
+
+    wrapped.exec?.('UPDATE customers SET tier = "vip" WHERE id = 1');
+
+    expect(exec).toHaveBeenCalledWith('UPDATE customers SET tier = "vip" WHERE id = 1');
+  });
 });

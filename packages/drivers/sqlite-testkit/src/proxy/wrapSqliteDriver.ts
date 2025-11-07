@@ -17,6 +17,24 @@ const normalizeParams = (args: unknown[]): unknown => {
   return args;
 };
 
+const isSelectableQuery = (sql: string): boolean => {
+  const trimmed = sql.trimStart();
+  if (trimmed.length === 0) {
+    return false;
+  }
+
+  const upper = trimmed.toUpperCase();
+  if (upper.startsWith('SELECT') || upper.startsWith('WITH')) {
+    return true;
+  }
+
+  if (upper.startsWith('EXPLAIN')) {
+    return /\bSELECT\b/i.test(upper);
+  }
+
+  return false;
+};
+
 export const wrapSqliteDriver = <T extends SqliteConnectionLike>(
   driver: T,
   options: WrapSqliteDriverOptions
@@ -81,8 +99,7 @@ export const wrapSqliteDriver = <T extends SqliteConnectionLike>(
 
         if (prop === 'prepare') {
           return (sql: string, ...rest: unknown[]) => {
-            // Only rewrite when the caller passes a SQL string.
-            if (typeof sql !== 'string') {
+            if (typeof sql !== 'string' || !isSelectableQuery(sql)) {
               return value.apply(target, [sql, ...rest]);
             }
 
@@ -95,7 +112,7 @@ export const wrapSqliteDriver = <T extends SqliteConnectionLike>(
 
         if (prop === 'exec') {
           return (sql: string, ...rest: unknown[]) => {
-            if (typeof sql !== 'string') {
+            if (typeof sql !== 'string' || !isSelectableQuery(sql)) {
               return value.apply(target, [sql, ...rest]);
             }
             const context = scopedFixtures ? { fixtures: scopedFixtures } : undefined;
@@ -107,7 +124,7 @@ export const wrapSqliteDriver = <T extends SqliteConnectionLike>(
 
         if (prop === 'all' || prop === 'get' || prop === 'run') {
           return (sql: string, ...rest: unknown[]) => {
-            if (typeof sql !== 'string') {
+            if (typeof sql !== 'string' || !isSelectableQuery(sql)) {
               return value.apply(target, [sql, ...rest]);
             }
             const context = scopedFixtures ? { fixtures: scopedFixtures } : undefined;
