@@ -17,19 +17,18 @@ const buildFixtureList = (tables: FixtureRowsByTable) => {
 const betterSqliteFactory = tryResolveBetterSqlite();
 const describeIfDriver = betterSqliteFactory ? describe : describe.skip;
 
-const createInterceptedRepository = (tableRows: FixtureRowsByTable): CustomerRepository => {
-  // Wrap the demo connection once so all tests share the same schema registry per environment.
-  const interceptedConnection = wrapSqliteDriver(createDemoConnection(), {
+const createInterceptedConnection = (tableRows: FixtureRowsByTable) => {
+  // Produce a fresh proxy per test so fixture overrides stay isolated.
+  return wrapSqliteDriver(createDemoConnection(), {
     fixtures: buildFixtureList(tableRows),
     schema: demoSchemaRegistry,
     missingFixtureStrategy: 'error',
   });
-  return new CustomerRepository(interceptedConnection);
 };
 
 describeIfDriver('CustomerRepository SQL interception demo', () => {
   it('returns the active customers from fixtures instead of disk', () => {
-    const repo = createInterceptedRepository({
+    const intercepted = createInterceptedConnection({
       customers: [
         {
           id: 4242,
@@ -48,6 +47,7 @@ describeIfDriver('CustomerRepository SQL interception demo', () => {
         },
       ],
     });
+    const repo = new CustomerRepository(intercepted);
     const active = repo.listActive();
     repo.close();
 
@@ -63,7 +63,7 @@ describeIfDriver('CustomerRepository SQL interception demo', () => {
   });
 
   it('maps fixture rows when finding a single customer', () => {
-    const repo = createInterceptedRepository({
+    const intercepted = createInterceptedConnection({
       customers: [
         {
           id: 5000,
@@ -82,6 +82,7 @@ describeIfDriver('CustomerRepository SQL interception demo', () => {
         },
       ],
     });
+    const repo = new CustomerRepository(intercepted);
     const customer = repo.findByEmail('carol@example.com');
     repo.close();
 

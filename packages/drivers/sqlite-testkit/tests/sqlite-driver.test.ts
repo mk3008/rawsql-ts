@@ -99,4 +99,30 @@ describe('wrapSqliteDriver', () => {
 
     expect(exec.mock.calls[0][0]).toMatch(/^WITH/);
   });
+
+  it('derives scoped proxies without mutating the original wrapper', () => {
+    const statements: string[] = [];
+    const driver: SqliteConnectionLike = {
+      exec(sql: string) {
+        statements.push(sql);
+      },
+    };
+
+    // Seed the base proxy with a users fixture so follow-up calls still resolve.
+    const wrapped = wrapSqliteDriver(driver, {
+      fixtures: [{ tableName: 'users', rows: [{ id: 1 }], schema: { columns: { id: 'INTEGER' } } }],
+    });
+
+    const scoped = wrapped.withFixtures([
+      { tableName: 'orders', rows: [{ id: 2 }], schema: { columns: { id: 'INTEGER' } } },
+    ]);
+
+    // Verify the scoped proxy emits SQL for its own fixtures while leaving the base proxy untouched.
+    scoped.exec?.('SELECT * FROM orders');
+    wrapped.exec?.('SELECT * FROM users');
+
+    expect(scoped).not.toBe(wrapped);
+    expect(statements[0]).toContain('orders');
+    expect(statements[1]).toContain('users');
+  });
 });
