@@ -1,4 +1,5 @@
-﻿import type { SelectRewriterOptions, TableFixture } from '@rawsql-ts/testkit-core';
+import type { SelectRewriterOptions } from '@rawsql-ts/testkit-core';
+import type { TableFixture } from '@rawsql-ts/testkit-core';
 
 export interface SqliteStatementLike {
   all?(...params: unknown[]): unknown;

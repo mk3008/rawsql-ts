@@ -1,4 +1,5 @@
-﻿import { SelectFixtureRewriter, type TableFixture } from '@rawsql-ts/testkit-core';
+import { SelectFixtureRewriter } from '@rawsql-ts/testkit-core';
+import type { TableFixture } from '@rawsql-ts/testkit-core';
 import type {
   CreateSqliteSelectTestDriverOptions,
   SqliteConnectionLike,
