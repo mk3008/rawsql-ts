@@ -2,14 +2,14 @@ import type { SelectRewriterOptions } from '@rawsql-ts/testkit-core';
 import type { TableFixture } from '@rawsql-ts/testkit-core';
 
 export interface SqliteStatementLike {
-  all?(...params: unknown[]): unknown;
+  all?(...params: unknown[]): unknown[] | undefined;
   get?(...params: unknown[]): unknown;
   run?(...params: unknown[]): unknown;
 }
 
 export interface SqliteConnectionLike {
   prepare?(sql: string, ...params: unknown[]): SqliteStatementLike;
-  all?(sql: string, ...params: unknown[]): unknown;
+  all?(sql: string, ...params: unknown[]): unknown[] | undefined;
   get?(sql: string, ...params: unknown[]): unknown;
   run?(sql: string, ...params: unknown[]): unknown;
   exec?(sql: string, ...params: unknown[]): unknown;

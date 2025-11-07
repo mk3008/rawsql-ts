@@ -1,7 +1,7 @@
 import type { SqliteConnectionLike, SqliteStatementLike } from '../../src/types';
 
 export interface CustomerRepositoryStatement extends SqliteStatementLike {
-  all(...params: unknown[]): unknown;
+  all(...params: unknown[]): unknown[] | undefined;
   get(...params: unknown[]): unknown;
 }
 

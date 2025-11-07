@@ -67,7 +67,8 @@ export class SqliteSelectTestDriverImpl implements SqliteSelectTestDriver {
 
     // Fall back to high-level helpers such as db.all(sql, params).
     if (typeof connection.all === 'function') {
-      return this.invokeConnectionMethod(connection.all, connection, sql, params) ?? [];
+      const rows = this.invokeConnectionMethod(connection.all, connection, sql, params);
+      return rows ?? [];
     }
 
     if (typeof connection.get === 'function') {
@@ -88,7 +89,8 @@ export class SqliteSelectTestDriverImpl implements SqliteSelectTestDriver {
 
     // Leverage the strongest method the statement exposes.
     if (typeof statement.all === 'function') {
-      return statement.all(...args) ?? [];
+      const rows = statement.all(...args);
+      return rows ?? [];
     }
 
     if (typeof statement.get === 'function') {
@@ -104,12 +106,13 @@ export class SqliteSelectTestDriverImpl implements SqliteSelectTestDriver {
     throw new Error('Prepared statement does not expose all/get/run helpers.');
   }
 
-  private invokeConnectionMethod(
-    method: (...args: unknown[]) => unknown,
+  private invokeConnectionMethod<T>(
+    method: (sql: string, ...args: unknown[]) => T,
     connection: SqliteConnectionLike,
     sql: string,
     params?: QueryParams
-  ): unknown {
+  ): T {
+    // Normalize params once so every driver helper sees the same calling convention.
     const args = this.normalizeParams(params);
     if (args.length === 0) {
       return method.call(connection, sql);
