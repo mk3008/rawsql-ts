@@ -1,0 +1,102 @@
+﻿import { describe, expect, it, vi } from 'vitest';
+import { createSqliteSelectTestDriver } from '../src/driver/SqliteSelectTestDriver';
+import { wrapSqliteDriver } from '../src/proxy/wrapSqliteDriver';
+import type { SqliteConnectionLike } from '../src/types';
+
+class FakeStatement {
+  constructor(private readonly rows: unknown[]) {}
+  public all(..._params: unknown[]) {
+    return this.rows;
+  }
+}
+
+class FakeConnection implements SqliteConnectionLike {
+  public statements: string[] = [];
+  constructor(private readonly rows: unknown[]) {}
+  prepare(sql: string) {
+    this.statements.push(sql);
+    return new FakeStatement(this.rows);
+  }
+}
+
+describe('sqlite select test driver', () => {
+  it('rewrites SQL before hitting the underlying driver', async () => {
+    const connection = new FakeConnection([{ id: 1 }]);
+    const driver = createSqliteSelectTestDriver({
+      connectionFactory: () => connection,
+      fixtures: [
+        {
+          tableName: 'users',
+          rows: [{ id: 1 }],
+          schema: { columns: { id: 'INTEGER' } },
+        },
+      ],
+    });
+
+    const rows = await driver.query('SELECT * FROM users');
+
+    expect(rows).toEqual([{ id: 1 }]);
+    expect(connection.statements[0]).toMatch(/^WITH/);
+  });
+
+  it('shares the same connection when deriving scoped fixtures', async () => {
+    const connection = new FakeConnection([{ id: 1 }]);
+    const driver = createSqliteSelectTestDriver({
+      connectionFactory: () => connection,
+      fixtures: [
+        {
+          tableName: 'users',
+          rows: [{ id: 1 }],
+          schema: { columns: { id: 'INTEGER' } },
+        },
+      ],
+    });
+
+    await driver.query('SELECT * FROM users');
+
+    const scoped = driver.withFixtures([
+      { tableName: 'orders', rows: [{ id: 2 }], schema: { columns: { id: 'INTEGER' } } },
+    ]);
+
+    await scoped.query('SELECT * FROM orders');
+    expect(connection.statements.length).toBe(2);
+  });
+});
+
+describe('wrapSqliteDriver', () => {
+  it('intercepts exec/get/all helpers', () => {
+    const exec = vi.fn();
+    const all = vi.fn();
+    const driver = {
+      exec,
+      all,
+    } as unknown as SqliteConnectionLike;
+
+    const wrapped = wrapSqliteDriver(driver, {
+      fixtures: [
+        { tableName: 'users', rows: [{ id: 1 }], schema: { columns: { id: 'INTEGER' } } },
+      ],
+    });
+
+    wrapped.exec?.('SELECT * FROM users');
+    expect(exec).toHaveBeenCalled();
+
+    wrapped.all?.('SELECT * FROM users');
+    expect(all.mock.calls[0][0]).toMatch(/^WITH/);
+  });
+
+  it('allows per-proxy fixture overrides', () => {
+    const exec = vi.fn();
+    const driver = { exec } as unknown as SqliteConnectionLike;
+
+    const wrapped = wrapSqliteDriver(driver, {
+      fixtures: [],
+    });
+
+    wrapped.withFixtures([
+      { tableName: 'users', rows: [{ id: 1 }], schema: { columns: { id: 'INTEGER' } } },
+    ]).exec?.('SELECT * FROM users');
+
+    expect(exec.mock.calls[0][0]).toMatch(/^WITH/);
+  });
+});

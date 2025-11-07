@@ -1,0 +1,43 @@
+{
+  "name": "@rawsql-ts/sqlite-testkit",
+  "version": "0.1.0",
+  "description": "SQLite driver adapters for the rawsql-ts select query test harness.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src --ext .ts",
+    "postinstall": "node ./scripts/install-better-sqlite3.cjs"
+  },
+  "keywords": [
+    "sqlite",
+    "testing",
+    "fixtures",
+    "rawsql"
+  ],
+  "license": "MIT",
+  "author": "msugiura",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mk3008/rawsql-ts.git",
+    "directory": "packages/drivers/sqlite-testkit"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@rawsql-ts/testkit-core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "better-sqlite3": "^12.4.1",
+    "dotenv": "^16.4.7",
+    "typescript": "^5.8.2",
+    "vitest": "^4.0.7"
+  },
+  "files": [
+    "dist"
+  ]
+}

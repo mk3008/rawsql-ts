@@ -1,0 +1,27 @@
+{
+  "customers": {
+    "columns": {
+      "id": "INTEGER",
+      "email": "TEXT",
+      "display_name": "TEXT",
+      "tier": "TEXT",
+      "suspended_at": "TEXT"
+    }
+  },
+  "customer_tiers": {
+    "columns": {
+      "tier": "TEXT",
+      "monthly_quota": "INTEGER",
+      "priority_level": "TEXT",
+      "escalation_sla_hours": "INTEGER"
+    }
+  },
+  "customer_notes": {
+    "columns": {
+      "id": "INTEGER",
+      "customer_id": "INTEGER",
+      "body": "TEXT",
+      "created_at": "TEXT"
+    }
+  }
+}
