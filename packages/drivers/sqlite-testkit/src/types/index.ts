@@ -30,8 +30,18 @@ export interface SqliteSelectTestDriver extends SelectDriver {
   close(): void;
 }
 
-export interface WrapSqliteDriverOptions extends SelectRewriterOptions {}
+export interface WrappedSqlQueryLogEntry {
+  method: string;
+  sql: string;
+  params?: unknown;
+}
+
+export interface WrapSqliteDriverOptions extends SelectRewriterOptions {
+  onExecute?(sql: string, params?: unknown): void;
+  recordQueries?: boolean;
+}
 
 export type WrappedSqliteDriver<T> = T & {
   withFixtures(fixtures: TableFixture[]): WrappedSqliteDriver<T>;
+  queries?: WrappedSqlQueryLogEntry[];
 };

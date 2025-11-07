@@ -125,4 +125,55 @@ describe('wrapSqliteDriver', () => {
     expect(statements[0]).toContain('orders');
     expect(statements[1]).toContain('users');
   });
+
+  it('invokes the onExecute hook with rewritten SQL and provided params', () => {
+    const exec = vi.fn();
+    const statement = {
+      get: vi.fn(),
+    };
+    const driver: SqliteConnectionLike = {
+      exec,
+      prepare: vi.fn(() => statement),
+    };
+
+    const onExecute = vi.fn();
+
+    const wrapped = wrapSqliteDriver(driver, {
+      fixtures: [{ tableName: 'users', rows: [{ id: 1 }], schema: { columns: { id: 'INTEGER' } } }],
+      onExecute,
+    });
+
+    wrapped.exec?.('SELECT * FROM users');
+    const prepared = wrapped.prepare?.(
+      'SELECT * FROM users WHERE email = @email LIMIT @limit'
+    );
+    prepared?.get({ email: 'carol@example.com', limit: 1 });
+
+    expect(onExecute).toHaveBeenCalledTimes(2);
+    expect(onExecute.mock.calls[0][0]).toMatch(/^WITH/);
+    expect(onExecute.mock.calls[1][1]).toEqual({ email: 'carol@example.com', limit: 1 });
+  });
+
+  it('records executed queries per proxy when enabled', () => {
+    const exec = vi.fn();
+    const driver = { exec } as unknown as SqliteConnectionLike;
+
+    const wrapped = wrapSqliteDriver(driver, {
+      fixtures: [{ tableName: 'users', rows: [{ id: 1 }], schema: { columns: { id: 'INTEGER' } } }],
+      recordQueries: true,
+    });
+
+    wrapped.exec?.('SELECT * FROM users');
+    expect(wrapped.queries).toHaveLength(1);
+    expect(wrapped.queries?.[0].sql).toMatch(/^WITH/);
+
+    const scoped = wrapped.withFixtures([
+      { tableName: 'orders', rows: [{ id: 2 }], schema: { columns: { id: 'INTEGER' } } },
+    ]);
+    scoped.exec?.('SELECT * FROM orders');
+
+    expect(scoped.queries).toHaveLength(1);
+    expect(scoped.queries?.[0].sql).toContain('orders');
+    expect(wrapped.queries).toHaveLength(1);
+  });
 });
