@@ -12,23 +12,29 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v4
+      with:
+        version: 10.17.0
+        run_install: false
+      
     - name: Setup Node.js 20.x
       uses: actions/setup-node@v4
       with:
         node-version: 20.x
-        cache: 'npm'
+        cache: 'pnpm'
         
     - name: Install dependencies
-      run: npm ci
+      run: pnpm install --frozen-lockfile
       
     - name: Lint check
-      run: npm run lint
+      run: pnpm -r run lint
       
     - name: TypeScript compilation check
-      run: npm run build
+      run: pnpm -r run build
       
     - name: Run unit tests (core)
-      run: npm run test --workspace=packages/core
+      run: pnpm --filter "./packages/core" run test
       
     - name: Run unit tests (prisma-integration)
       run: echo "prisma-integration removed"
@@ -40,19 +46,26 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v4
+      with:
+        version: 10.17.0
+        run_install: false
+      
     - name: Setup Node.js 20.x
       uses: actions/setup-node@v4
       with:
         node-version: 20.x
-        cache: 'npm'
+        cache: 'pnpm'
         
     - name: Install dependencies
-      run: npm ci
+      run: pnpm install --frozen-lockfile
       
     - name: Check package.json validity
       run: |
-        npm run build:core
-        cd packages/core && npm pack --dry-run
+        pnpm --filter "./packages/core" run build
+        mkdir -p tmp
+        pnpm pack --filter "./packages/core" --pack-destination ./tmp
         
     - name: Check prisma-integration package
       run: echo "prisma-integration removed"
