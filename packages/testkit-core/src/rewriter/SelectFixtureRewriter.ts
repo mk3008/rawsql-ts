@@ -1,4 +1,6 @@
-﻿import { MissingFixtureError, QueryRewriteError, SchemaValidationError } from '../errors';
+import { SelectQueryParser, SqlFormatter } from 'rawsql-ts';
+import type { SimpleSelectQuery } from 'rawsql-ts';
+import { MissingFixtureError, QueryRewriteError, SchemaValidationError } from '../errors';
 import { FixtureStore } from '../fixtures/FixtureStore';
 import { normalizeIdentifier } from '../fixtures/naming';
 import { createLogger } from '../logger/NoopLogger';
@@ -7,10 +9,10 @@ import type {
   SelectRewriteContext,
   SelectRewriteResult,
   SelectRewriterOptions,
-  TableFixture,
   TestkitLogger,
 } from '../types';
 import { SqliteValuesBuilder } from '../sql/SqliteValuesBuilder';
+import type { FixtureCteDefinition } from '../sql/SqliteValuesBuilder';
 import { SelectAnalyzer } from './SelectAnalyzer';
 
 export class SelectFixtureRewriter {
@@ -20,6 +22,12 @@ export class SelectFixtureRewriter {
   private readonly missingFixtureStrategy: MissingFixtureStrategy;
   private readonly passthrough: Set<string>;
   private readonly wildcardPassthrough: boolean;
+  private readonly formatter = new SqlFormatter({
+    preset: 'sqlite',
+    newline: ' ',
+    withClauseStyle: 'full-oneline',
+    exportComment: 'top-header-only',
+  });
 
   constructor(options: SelectRewriterOptions = {}) {
     this.fixtureStore = new FixtureStore(options.fixtures ?? [], options.schema);
@@ -35,7 +43,7 @@ export class SelectFixtureRewriter {
       const analysis = this.analyzer.analyze(sql);
       const fixtureMap = this.fixtureStore.withOverrides(context?.fixtures);
       const fixturesApplied: string[] = [];
-      const cteDefinitions: string[] = [];
+      const cteDefinitions: FixtureCteDefinition[] = [];
 
       for (const table of analysis.tableNames) {
         if (this.isPassthrough(table)) {
@@ -87,22 +95,52 @@ export class SelectFixtureRewriter {
     }
   }
 
-  private mergeWithClause(sql: string, cteDefinitions: string[]): string {
+  private mergeWithClause(sql: string, cteDefinitions: FixtureCteDefinition[]): string {
     if (cteDefinitions.length === 0) {
       return sql;
     }
 
-    const fixtureSql = cteDefinitions.join(',\n');
-    const withPattern = /^(\s*WITH\s+(?:RECURSIVE\s+)?)/i;
-    const match = sql.match(withPattern);
+    // Parse the SQL into an AST so we can attach fixtures even when comments or existing WITH clauses exist.
+    const parsedQuery = SelectQueryParser.parse(sql);
+    const simpleQuery = parsedQuery.toSimpleQuery();
+    const fixtureNames: string[] = [];
 
-    if (match) {
-      const prefix = match[0];
-      const remainder = sql.slice(prefix.length);
-      const separator = remainder.trimStart().length > 0 ? ',\n' : '\n';
-      return `${prefix}${fixtureSql}${separator}${remainder}`;
+    for (const cte of cteDefinitions) {
+      fixtureNames.push(cte.name);
+      simpleQuery.addCTE(cte.name, cte.query);
     }
 
-    return `WITH ${fixtureSql}\n${sql}`;
+    this.promoteFixtureCtes(simpleQuery, fixtureNames);
+
+    // Emit the final SQL with one-line formatting and top-level header comments only.
+    const { formattedSql } = this.formatter.format(simpleQuery);
+    return formattedSql;
+  }
+
+  private promoteFixtureCtes(query: SimpleSelectQuery, fixtureNames: string[]): void {
+    if (!query.withClause || fixtureNames.length === 0) {
+      return;
+    }
+
+    // Preserve insertion order so query-defined CTEs remain after injected fixtures.
+    const fixtureOrder = new Map<string, number>();
+    fixtureNames.forEach((name, index) => fixtureOrder.set(name, index));
+
+    const fixtureTables: (typeof query.withClause.tables[number] | undefined)[] = new Array(fixtureNames.length);
+    const userTables: typeof query.withClause.tables = [];
+
+    for (const table of query.withClause.tables) {
+      const alias = table.aliasExpression.table.name;
+      const order = fixtureOrder.get(alias);
+      if (order === undefined) {
+        userTables.push(table);
+        continue;
+      }
+      fixtureTables[order] = table;
+    }
+
+    query.withClause.tables = fixtureTables
+      .filter((table): table is typeof query.withClause.tables[number] => Boolean(table))
+      .concat(userTables);
   }
 }

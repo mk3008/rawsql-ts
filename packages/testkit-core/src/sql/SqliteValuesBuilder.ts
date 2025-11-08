@@ -1,4 +1,11 @@
-﻿import type { NormalizedFixture } from '../fixtures/FixtureStore';
+import { SelectQueryParser } from 'rawsql-ts';
+import type { SelectQuery } from 'rawsql-ts';
+import type { NormalizedFixture } from '../fixtures/FixtureStore';
+
+export interface FixtureCteDefinition {
+  name: string;
+  query: SelectQuery;
+}
 
 const quoteIdentifier = (value: string): string => {
   return `"${value.replace(/"/g, '""')}"`;
@@ -26,7 +33,18 @@ const formatLiteral = (value: string | number | bigint | Buffer | null): string 
 };
 
 export class SqliteValuesBuilder {
-  public static buildCTE(fixture: NormalizedFixture): string {
+  public static buildCTE(fixture: NormalizedFixture): FixtureCteDefinition {
+    // Compose the CTE body as SQL so we can parse it into a SelectQuery.
+    const selectSql = this.buildSelectStatement(fixture);
+    const query = SelectQueryParser.parse(selectSql);
+    return {
+      name: fixture.name,
+      query,
+    };
+  }
+
+  private static buildSelectStatement(fixture: NormalizedFixture): string {
+    // Build a SELECT statement for a single fixture row with typed literals.
     const projectRow = (row: (string | number | bigint | Buffer | null)[]) => {
       return (
         'SELECT ' +
@@ -39,21 +57,15 @@ export class SqliteValuesBuilder {
       );
     };
 
-    const parts = [`${quoteIdentifier(fixture.name)} AS (`];
-
     if (fixture.rows.length === 0) {
-      parts.push(
-        `  ${projectRow(fixture.columns.map(() => null))}`,
-        '  WHERE 1 = 0'
-      );
-    } else {
-      parts.push(
-        '  ' + fixture.rows.map(projectRow).join('\n  UNION ALL\n  ')
-      );
+      // Emit a zero-row SELECT so downstream code preserves schema metadata.
+      return `${projectRow(fixture.columns.map(() => null))} WHERE 1 = 0`;
     }
 
-    parts.push(')');
+    if (fixture.rows.length === 1) {
+      return projectRow(fixture.rows[0]);
+    }
 
-    return parts.join('\n');
+    return fixture.rows.map(projectRow).join('\nUNION ALL\n');
   }
 }

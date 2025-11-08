@@ -33,9 +33,9 @@ describe('SelectFixtureRewriter', () => {
 
     const result = rewriter.rewrite("SELECT id, name FROM users WHERE role = 'admin'");
 
-    expect(result.sql.startsWith('WITH')).toBe(true);
-    expect(result.sql).toContain('"users" AS');
-    expect(result.sql).toContain("SELECT id, name FROM users WHERE role = 'admin'");
+    expect(result.sql.toLowerCase().startsWith('with ')).toBe(true);
+    expect(result.sql.toLowerCase()).toContain('"users" as');
+    expect(result.sql).toContain(`select "id", "name" from "users" where "role" = 'admin'`);
     expect(result.fixturesApplied).toEqual(['users']);
   });
 
@@ -53,8 +53,8 @@ describe('SelectFixtureRewriter', () => {
     const sql = `WITH source AS (SELECT * FROM users) SELECT * FROM source`;
     const rewritten = rewriter.rewrite(sql);
 
-    expect(rewritten.sql).toMatch(/WITH\s+"users" AS/);
-    expect(rewritten.sql).toContain('source AS');
+    expect(rewritten.sql).toMatch(/with\s+"users"\s+as/i);
+    expect(rewritten.sql.indexOf('"users"')).toBeLessThan(rewritten.sql.indexOf('"source"'));
   });
 
   it('throws when fixtures are missing under the default strategy', () => {
@@ -95,7 +95,29 @@ describe('SelectFixtureRewriter', () => {
       ],
     });
 
-    expect(override.sql.startsWith('WITH')).toBe(true);
+    expect(override.sql.toLowerCase().startsWith('with ')).toBe(true);
     expect(override.fixturesApplied).toEqual(['users']);
+  });
+
+  it('preserves top-level header comments and keeps output on one line', () => {
+    const rewriter = new SelectFixtureRewriter({
+      fixtures: [
+        {
+          tableName: 'users',
+          rows: [{ id: 1, name: 'Alice', role: 'admin' }],
+          schema: schema.users,
+        },
+      ],
+    });
+
+    const sql = `/* top header */
+-- inline note
+SELECT id, name FROM users -- trailing`;
+    const result = rewriter.rewrite(sql);
+
+    expect(result.sql.startsWith('/* top header */')).toBe(true);
+    expect(result.sql.includes('\n')).toBe(false);
+    expect(result.sql).not.toContain('-- inline note');
+    expect(result.sql).not.toContain('-- trailing');
   });
 });
