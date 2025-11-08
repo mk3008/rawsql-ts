@@ -131,6 +131,11 @@ export class SqliteSelectTestDriverImpl implements SqliteSelectTestDriver {
   }
 }
 
+/**
+ * Instantiates a test driver that rewrites SELECT fixtures before delegating execution.
+ * @param options Driver options that provide connection factory and rewrite settings.
+ * @returns An implementation that exposes pg-style querying plus fixture scoping helpers.
+ */
 export const createSqliteSelectTestDriver = (
   options: CreateSqliteSelectTestDriverOptions
 ): SqliteSelectTestDriver => {

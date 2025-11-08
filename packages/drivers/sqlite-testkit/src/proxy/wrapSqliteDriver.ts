@@ -36,6 +36,12 @@ const isSelectableQuery = (sql: string): boolean => {
   return false;
 };
 
+/**
+ * Wraps a SQLite connection to rewrite SELECT statements and optionally record execution data.
+ * @param driver Native connection whose SELECT queries should honor fixture rewrites.
+ * @param options Configuration that controls fixture scoping, query logging, and execution hooks.
+ * @returns A proxied driver that rewrites queries before delegating and exposes fixture helpers.
+ */
 export const wrapSqliteDriver = <T extends SqliteConnectionLike>(
   driver: T,
   options: WrapSqliteDriverOptions

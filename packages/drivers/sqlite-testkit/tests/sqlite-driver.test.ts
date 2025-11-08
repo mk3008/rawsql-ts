@@ -1,55 +1,120 @@
-﻿import { describe, expect, it, vi } from 'vitest';
+import Database from 'better-sqlite3';
+import { describe, expect, it, vi } from 'vitest';
 import { createSqliteSelectTestDriver } from '../src/driver/SqliteSelectTestDriver';
 import { wrapSqliteDriver } from '../src/proxy/wrapSqliteDriver';
-import type { SqliteConnectionLike } from '../src/types';
+import type { SqliteConnectionLike, SqliteStatementLike } from '../src/types';
 
-class FakeStatement {
-  constructor(private readonly rows: unknown[]) {}
-  public all(..._params: unknown[]) {
-    return this.rows;
-  }
-}
+const userFixture = {
+  tableName: 'users',
+  rows: [{ id: 1, email: 'alice@example.com' }],
+  schema: { columns: { id: 'INTEGER', email: 'TEXT' } },
+};
 
-class FakeConnection implements SqliteConnectionLike {
-  public statements: string[] = [];
-  constructor(private readonly rows: unknown[]) {}
-  prepare(sql: string) {
-    this.statements.push(sql);
-    return new FakeStatement(this.rows);
-  }
-}
+type RecordedStatement = {
+  sql: string;
+  stage: 'prepare' | 'direct' | 'statement';
+};
+
+const wrapStatement = (
+  statement: SqliteStatementLike,
+  sql: string,
+  statements: RecordedStatement[]
+): SqliteStatementLike => {
+  return new Proxy(statement, {
+    get(target, prop, receiver) {
+      const value = Reflect.get(target, prop, receiver);
+      if (typeof value !== 'function') {
+        return value;
+      }
+
+      if (prop === 'all' || prop === 'get' || prop === 'run') {
+        return (...args: unknown[]) => {
+          // Record the rewritten SQL whenever the statement executes.
+          statements.push({ sql, stage: 'statement' });
+          return value.apply(target, args);
+        };
+      }
+
+      return value.bind(target);
+    },
+  });
+};
+
+type RecordingConnection = {
+  driver: SqliteConnectionLike;
+  statements: RecordedStatement[];
+  close: () => void;
+};
+
+const createRecordingConnection = (): RecordingConnection => {
+  const db = new Database(':memory:');
+  const statements: RecordedStatement[] = [];
+  let closed = false;
+
+  const close = () => {
+    if (!closed) {
+      // Ensure we dispose the native handle exactly once.
+      closed = true;
+      db.close();
+    }
+  };
+
+  const proxy = new Proxy(db, {
+    get(target, prop, receiver) {
+      if (prop === 'close') {
+        return close;
+      }
+
+      const value = Reflect.get(target, prop, receiver);
+      if (typeof value !== 'function') {
+        return value;
+      }
+
+      if (prop === 'prepare') {
+        return (sql: string, ...args: unknown[]) => {
+          // Track the SQL entering the driver before execution.
+          statements.push({ sql, stage: 'prepare' });
+          const statement = value.apply(target, [sql, ...args]) as SqliteStatementLike;
+          return wrapStatement(statement, sql, statements);
+        };
+      }
+
+      if (prop === 'exec' || prop === 'all' || prop === 'get' || prop === 'run') {
+        return (sql: string, ...args: unknown[]) => {
+          // Capture high-level helpers that bypass prepare().
+          statements.push({ sql, stage: 'direct' });
+          return value.apply(target, [sql, ...args]);
+        };
+      }
+
+      return value.bind(target);
+    },
+  });
+
+  return { driver: proxy as SqliteConnectionLike, statements, close };
+};
 
 describe('sqlite select test driver', () => {
   it('rewrites SQL before hitting the underlying driver', async () => {
-    const connection = new FakeConnection([{ id: 1 }]);
+    const recording = createRecordingConnection();
     const driver = createSqliteSelectTestDriver({
-      connectionFactory: () => connection,
-      fixtures: [
-        {
-          tableName: 'users',
-          rows: [{ id: 1 }],
-          schema: { columns: { id: 'INTEGER' } },
-        },
-      ],
+      connectionFactory: () => recording.driver,
+      fixtures: [userFixture],
     });
 
     const rows = await driver.query('SELECT * FROM users');
 
-    expect(rows).toEqual([{ id: 1 }]);
-    expect(connection.statements[0]).toMatch(/^WITH/);
+    expect(rows).toEqual([{ id: 1, email: 'alice@example.com' }]);
+    expect(recording.statements[0]?.sql).toMatch(/^with/i);
+
+    driver.close();
   });
 
   it('shares the same connection when deriving scoped fixtures', async () => {
-    const connection = new FakeConnection([{ id: 1 }]);
+    const recording = createRecordingConnection();
     const driver = createSqliteSelectTestDriver({
-      connectionFactory: () => connection,
-      fixtures: [
-        {
-          tableName: 'users',
-          rows: [{ id: 1 }],
-          schema: { columns: { id: 'INTEGER' } },
-        },
-      ],
+      connectionFactory: () => recording.driver,
+      fixtures: [userFixture],
     });
 
     await driver.query('SELECT * FROM users');
@@ -59,113 +124,108 @@ describe('sqlite select test driver', () => {
     ]);
 
     await scoped.query('SELECT * FROM orders');
-    expect(connection.statements.length).toBe(2);
+    const prepareStatements = recording.statements.filter((entry) => entry.stage === 'prepare');
+    expect(prepareStatements).toHaveLength(2);
+
+    driver.close();
   });
 });
 
 describe('wrapSqliteDriver', () => {
   it('intercepts exec/get/all helpers', () => {
-    const exec = vi.fn();
-    const all = vi.fn();
-    const driver = {
-      exec,
-      all,
-    } as unknown as SqliteConnectionLike;
-
-    const wrapped = wrapSqliteDriver(driver, {
-      fixtures: [
-        { tableName: 'users', rows: [{ id: 1 }], schema: { columns: { id: 'INTEGER' } } },
-      ],
+    const sqlite = new Database(':memory:');
+    const wrapped = wrapSqliteDriver(sqlite as unknown as SqliteConnectionLike, {
+      fixtures: [userFixture],
+      recordQueries: true,
     });
 
     wrapped.exec?.('SELECT * FROM users');
-    expect(exec).toHaveBeenCalled();
+    const statement = wrapped.prepare?.('SELECT * FROM users');
+    const rows = statement?.all?.();
+    const single = statement?.get?.();
 
-    wrapped.all?.('SELECT * FROM users');
-    expect(all.mock.calls[0][0]).toMatch(/^WITH/);
+    expect(rows).toEqual([{ id: 1, email: 'alice@example.com' }]);
+    expect(single).toEqual({ id: 1, email: 'alice@example.com' });
+    expect(wrapped.queries?.every((entry) => /^with/i.test(entry.sql))).toBe(true);
+
+    sqlite.close();
   });
 
   it('allows per-proxy fixture overrides', () => {
-    const exec = vi.fn();
-    const driver = { exec } as unknown as SqliteConnectionLike;
-
-    const wrapped = wrapSqliteDriver(driver, {
+    const sqlite = new Database(':memory:');
+    const wrapped = wrapSqliteDriver(sqlite as unknown as SqliteConnectionLike, {
       fixtures: [],
     });
 
-    wrapped.withFixtures([
-      { tableName: 'users', rows: [{ id: 1 }], schema: { columns: { id: 'INTEGER' } } },
-    ]).exec?.('SELECT * FROM users');
+    const scoped = wrapped.withFixtures([
+      {
+        tableName: 'users',
+        rows: [{ id: 1, email: 'alice@example.com' }],
+        schema: { columns: { id: 'INTEGER', email: 'TEXT' } },
+      },
+    ]);
 
-    expect(exec.mock.calls[0][0]).toMatch(/^WITH/);
+    const rows = scoped.prepare?.('SELECT * FROM users')?.all?.();
+    expect(rows).toEqual([{ id: 1, email: 'alice@example.com' }]);
+
+    sqlite.close();
   });
 
   it('derives scoped proxies without mutating the original wrapper', () => {
-    const statements: string[] = [];
-    const driver: SqliteConnectionLike = {
-      exec(sql: string) {
-        statements.push(sql);
-      },
-    };
-
-    // Seed the base proxy with a users fixture so follow-up calls still resolve.
-    const wrapped = wrapSqliteDriver(driver, {
-      fixtures: [{ tableName: 'users', rows: [{ id: 1 }], schema: { columns: { id: 'INTEGER' } } }],
+    const sqlite = new Database(':memory:');
+    const wrapped = wrapSqliteDriver(sqlite as unknown as SqliteConnectionLike, {
+      fixtures: [userFixture],
+      recordQueries: true,
     });
 
     const scoped = wrapped.withFixtures([
       { tableName: 'orders', rows: [{ id: 2 }], schema: { columns: { id: 'INTEGER' } } },
     ]);
 
-    // Verify the scoped proxy emits SQL for its own fixtures while leaving the base proxy untouched.
-    scoped.exec?.('SELECT * FROM orders');
-    wrapped.exec?.('SELECT * FROM users');
+    const scopedRows = scoped.prepare?.('SELECT * FROM orders')?.all?.();
+    const baseRows = wrapped.prepare?.('SELECT * FROM users')?.all?.();
 
     expect(scoped).not.toBe(wrapped);
-    expect(statements[0]).toContain('orders');
-    expect(statements[1]).toContain('users');
+    expect(scopedRows).toEqual([{ id: 2 }]);
+    expect(baseRows).toEqual([{ id: 1, email: 'alice@example.com' }]);
+    expect(scoped.queries?.[0].sql).toContain('orders');
+    expect(wrapped.queries?.[1]?.sql ?? wrapped.queries?.[0].sql).toContain('users');
+
+    sqlite.close();
   });
 
   it('invokes the onExecute hook with rewritten SQL and provided params', () => {
-    const exec = vi.fn();
-    const statement = {
-      get: vi.fn(),
-    };
-    const driver: SqliteConnectionLike = {
-      exec,
-      prepare: vi.fn(() => statement),
-    };
-
+    const sqlite = new Database(':memory:');
     const onExecute = vi.fn();
 
-    const wrapped = wrapSqliteDriver(driver, {
-      fixtures: [{ tableName: 'users', rows: [{ id: 1 }], schema: { columns: { id: 'INTEGER' } } }],
+    const wrapped = wrapSqliteDriver(sqlite as unknown as SqliteConnectionLike, {
+      fixtures: [userFixture],
       onExecute,
     });
 
     wrapped.exec?.('SELECT * FROM users');
-    const prepared = wrapped.prepare?.(
-      'SELECT * FROM users WHERE email = @email LIMIT @limit'
-    );
-    prepared?.get({ email: 'carol@example.com', limit: 1 });
+    const statement = wrapped.prepare?.('SELECT * FROM users WHERE email = @email LIMIT @limit');
+    const params = { email: 'alice@example.com', limit: 1 };
+    const record = statement?.get(params);
 
+    expect(record).toEqual({ id: 1, email: 'alice@example.com' });
     expect(onExecute).toHaveBeenCalledTimes(2);
-    expect(onExecute.mock.calls[0][0]).toMatch(/^WITH/);
-    expect(onExecute.mock.calls[1][1]).toEqual({ email: 'carol@example.com', limit: 1 });
+    expect(onExecute.mock.calls[0][0]).toMatch(/^with/i);
+    expect(onExecute.mock.calls[1][1]).toEqual(params);
+
+    sqlite.close();
   });
 
   it('records executed queries per proxy when enabled', () => {
-    const exec = vi.fn();
-    const driver = { exec } as unknown as SqliteConnectionLike;
-
-    const wrapped = wrapSqliteDriver(driver, {
-      fixtures: [{ tableName: 'users', rows: [{ id: 1 }], schema: { columns: { id: 'INTEGER' } } }],
+    const sqlite = new Database(':memory:');
+    const wrapped = wrapSqliteDriver(sqlite as unknown as SqliteConnectionLike, {
+      fixtures: [userFixture],
       recordQueries: true,
     });
 
     wrapped.exec?.('SELECT * FROM users');
     expect(wrapped.queries).toHaveLength(1);
-    expect(wrapped.queries?.[0].sql).toMatch(/^WITH/);
+    expect(wrapped.queries?.[0].sql).toMatch(/^with/i);
 
     const scoped = wrapped.withFixtures([
       { tableName: 'orders', rows: [{ id: 2 }], schema: { columns: { id: 'INTEGER' } } },
@@ -175,18 +235,24 @@ describe('wrapSqliteDriver', () => {
     expect(scoped.queries).toHaveLength(1);
     expect(scoped.queries?.[0].sql).toContain('orders');
     expect(wrapped.queries).toHaveLength(1);
+
+    sqlite.close();
   });
 
   it('passes non-select statements through without rewriting', () => {
-    const exec = vi.fn();
-    const driver = { exec } as unknown as SqliteConnectionLike;
+    const recording = createRecordingConnection();
+    recording.driver.exec?.('CREATE TABLE customers (id INTEGER PRIMARY KEY, tier TEXT)');
+    recording.driver.exec?.("INSERT INTO customers (tier) VALUES ('basic')");
 
-    const wrapped = wrapSqliteDriver(driver, {
+    const wrapped = wrapSqliteDriver(recording.driver, {
       fixtures: [],
     });
 
-    wrapped.exec?.('UPDATE customers SET tier = "vip" WHERE id = 1');
+    const updateSql = "UPDATE customers SET tier = 'vip' WHERE rowid = 1";
+    wrapped.exec?.(updateSql);
 
-    expect(exec).toHaveBeenCalledWith('UPDATE customers SET tier = "vip" WHERE id = 1');
+    expect(recording.statements.at(-1)?.sql).toBe(updateSql);
+
+    recording.close();
   });
 });

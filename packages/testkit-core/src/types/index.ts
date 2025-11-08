@@ -1,4 +1,6 @@
-﻿export type SqliteAffinity = 'TEXT' | 'INTEGER' | 'REAL' | 'NUMERIC' | 'BLOB';
+import type { SqlFormatterOptions } from 'rawsql-ts';
+
+export type SqliteAffinity = 'TEXT' | 'INTEGER' | 'REAL' | 'NUMERIC' | 'BLOB';
 
 export interface TableSchemaDefinition {
   columns: Record<string, SqliteAffinity>;
@@ -38,8 +40,12 @@ export interface SelectRewriterOptions {
   missingFixtureStrategy?: MissingFixtureStrategy;
   passthroughTables?: string[];
   logger?: TestkitLogger;
+  formatterOptions?: SqlFormatterOptions;
+  cteConflictBehavior?: 'error' | 'override';
 }
 
 export interface SelectRewriteContext {
   fixtures?: TableFixture[];
+  formatterOptions?: SqlFormatterOptions;
 }
+

@@ -5,6 +5,7 @@ import type { NormalizedFixture } from '../fixtures/FixtureStore';
 export interface FixtureCteDefinition {
   name: string;
   query: SelectQuery;
+  inlineSql: string;
 }
 
 const quoteIdentifier = (value: string): string => {
@@ -34,17 +35,17 @@ const formatLiteral = (value: string | number | bigint | Buffer | null): string 
 
 export class SqliteValuesBuilder {
   public static buildCTE(fixture: NormalizedFixture): FixtureCteDefinition {
-    // Compose the CTE body as SQL so we can parse it into a SelectQuery.
     const selectSql = this.buildSelectStatement(fixture);
+    const inlineSql = this.wrapAsCte(fixture.name, selectSql);
     const query = SelectQueryParser.parse(selectSql);
     return {
       name: fixture.name,
       query,
+      inlineSql,
     };
   }
 
   private static buildSelectStatement(fixture: NormalizedFixture): string {
-    // Build a SELECT statement for a single fixture row with typed literals.
     const projectRow = (row: (string | number | bigint | Buffer | null)[]) => {
       return (
         'SELECT ' +
@@ -58,7 +59,6 @@ export class SqliteValuesBuilder {
     };
 
     if (fixture.rows.length === 0) {
-      // Emit a zero-row SELECT so downstream code preserves schema metadata.
       return `${projectRow(fixture.columns.map(() => null))} WHERE 1 = 0`;
     }
 
@@ -67,5 +67,13 @@ export class SqliteValuesBuilder {
     }
 
     return fixture.rows.map(projectRow).join('\nUNION ALL\n');
+  }
+
+  private static wrapAsCte(name: string, selectSql: string): string {
+    const indented = selectSql
+      .split('\n')
+      .map((line) => `  ${line}`)
+      .join('\n');
+    return `${quoteIdentifier(name)} AS (\n${indented}\n)`;
   }
 }

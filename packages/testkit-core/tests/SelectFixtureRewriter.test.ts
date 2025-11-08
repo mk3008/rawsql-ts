@@ -10,6 +10,12 @@ const schema: Record<string, TableSchemaDefinition> = {
       role: 'TEXT',
     },
   },
+  orders: {
+    columns: {
+      id: 'INTEGER',
+      total: 'REAL',
+    },
+  },
 };
 
 const registry: SchemaRegistry = {
@@ -119,5 +125,110 @@ SELECT id, name FROM users -- trailing`;
     expect(result.sql.includes('\n')).toBe(false);
     expect(result.sql).not.toContain('-- inline note');
     expect(result.sql).not.toContain('-- trailing');
+  });
+
+  it('injects fixtures into every statement of multi-query SQL', () => {
+    const rewriter = new SelectFixtureRewriter({
+      fixtures: [
+        {
+          tableName: 'users',
+          rows: [{ id: 1, name: 'Alice', role: 'admin' }],
+          schema: schema.users,
+        },
+      ],
+    });
+
+    const multi = `SELECT id FROM users; SELECT role FROM users; SELECT 1;`;
+    const result = rewriter.rewrite(multi);
+    const statements = result.sql
+      .split(';')
+      .map((statement) => statement.trim())
+      .filter(Boolean);
+
+    expect(statements).toHaveLength(3);
+    expect(statements[0].toLowerCase().startsWith('with ')).toBe(true);
+    expect(statements[1].toLowerCase().startsWith('with ')).toBe(true);
+    expect(statements[2].toLowerCase().startsWith('select 1')).toBe(true);
+    expect(result.fixturesApplied).toEqual(['users']);
+  });
+
+  it('fails fast on conflicting user-defined CTE names by default', () => {
+    const rewriter = new SelectFixtureRewriter({
+      fixtures: [
+        {
+          tableName: 'users',
+          rows: [{ id: 1, name: 'Alice', role: 'admin' }],
+          schema: schema.users,
+        },
+      ],
+    });
+
+    expect(() =>
+      rewriter.rewrite('WITH users AS (SELECT 1) SELECT * FROM users')
+    ).toThrowError(/conflicts/i);
+  });
+
+  it('overrides user-defined CTEs when configured', () => {
+    const rewriter = new SelectFixtureRewriter({
+      fixtures: [
+        {
+          tableName: 'users',
+          rows: [{ id: 42, name: 'Override', role: 'owner' }],
+          schema: schema.users,
+        },
+      ],
+      cteConflictBehavior: 'override',
+    });
+
+    const sql = 'WITH users AS (SELECT 1) SELECT * FROM users';
+    const result = rewriter.rewrite(sql);
+
+    expect(result.sql.toLowerCase()).toContain('override');
+    expect(result.fixturesApplied).toEqual(['users']);
+  });
+
+  it('honors custom formatter options from options and context', () => {
+    const rewriter = new SelectFixtureRewriter({
+      fixtures: [
+        {
+          tableName: 'users',
+          rows: [{ id: 1, name: 'Alice', role: 'admin' }],
+          schema: schema.users,
+        },
+      ],
+      formatterOptions: { keywordCase: 'upper' },
+    });
+
+    const base = rewriter.rewrite('SELECT id FROM users');
+    expect(base.sql.startsWith('WITH ')).toBe(true);
+
+    const lower = rewriter.rewrite('SELECT id FROM users', {
+      formatterOptions: { keywordCase: 'lower' },
+    });
+    expect(lower.sql.startsWith('with ')).toBe(true);
+  });
+
+  it('falls back to regex injection when AST parsing fails, injecting all fixtures', () => {
+    const rewriter = new SelectFixtureRewriter({
+      fixtures: [
+        {
+          tableName: 'users',
+          rows: [{ id: 1, name: 'Alice', role: 'admin' }],
+          schema: schema.users,
+        },
+        {
+          tableName: 'orders',
+          rows: [{ id: 10, total: 99.5 }],
+          schema: schema.orders,
+        },
+      ],
+    });
+
+    const sql = 'INSERT INTO audit_log DEFAULT VALUES';
+    const result = rewriter.rewrite(sql);
+
+    expect(result.sql.startsWith('WITH "users"')).toBe(true);
+    expect(result.sql).toContain('"orders" AS');
+    expect(result.fixturesApplied).toEqual(['users', 'orders']);
   });
 });

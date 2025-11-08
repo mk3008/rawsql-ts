@@ -34,19 +34,39 @@ const downloadUrl = `https://github.com/WiseLibs/better-sqlite3/releases/downloa
 const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'better-sqlite3-'));
 const archivePath = path.join(tmpDir, assetName);
 
-const download = () =>
+const download = (url = downloadUrl, redirectCount = 0) =>
   new Promise((resolve, reject) => {
-    const file = fs.createWriteStream(archivePath);
     https
-      .get(downloadUrl, (response) => {
-        if (response.statusCode && response.statusCode >= 400) {
-          reject(new Error(`Failed to download prebuilt binary (${response.statusCode})`));
+      .get(url, (response) => {
+        if (
+          response.statusCode &&
+          response.statusCode >= 300 &&
+          response.statusCode < 400 &&
+          response.headers.location
+        ) {
+          // Follow GitHub's redirector (a HEAD object would yield a 302 first).
+          if (redirectCount >= 5) {
+            reject(new Error('Too many redirects while downloading prebuilt binary'));
+            return;
+          }
+          response.resume();
+          download(response.headers.location, redirectCount + 1).then(resolve).catch(reject);
           return;
         }
+
+        if (response.statusCode && response.statusCode >= 400) {
+          reject(new Error(`Failed to download prebuilt binary (${response.statusCode})`));
+          response.resume();
+          return;
+        }
+
+        // Stream the payload into the archive path once we have a 200 response.
+        const file = fs.createWriteStream(archivePath);
         response.pipe(file);
         file.on('finish', () => {
           file.close(resolve);
         });
+        file.on('error', reject);
       })
       .on('error', reject);
   });
@@ -68,9 +88,25 @@ const download = () =>
     process.exit(0);
   }
 
-  const prebuildRelease = path.join(tmpDir, 'build', 'Release', 'better_sqlite3.node');
-  if (!fs.existsSync(prebuildRelease)) {
-    console.warn('[better-sqlite3-prebuild] Extracted archive does not contain build/Release/better_sqlite3.node');
+  const locatePrebuilt = (searchDir) => {
+    // Depth-first search so we can handle archives that wrap binaries with additional folders.
+    for (const entry of fs.readdirSync(searchDir, { withFileTypes: true })) {
+      const fullPath = path.join(searchDir, entry.name);
+      if (entry.isDirectory()) {
+        const nested = locatePrebuilt(fullPath);
+        if (nested) {
+          return nested;
+        }
+      } else if (entry.isFile() && entry.name === 'better_sqlite3.node') {
+        return fullPath;
+      }
+    }
+    return undefined;
+  };
+
+  const prebuildRelease = locatePrebuilt(tmpDir);
+  if (!prebuildRelease) {
+    console.warn('[better-sqlite3-prebuild] Extracted archive did not contain better_sqlite3.node');
     process.exit(0);
   }
 
