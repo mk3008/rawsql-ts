@@ -180,8 +180,6 @@ reports/**/*.md
 # Serena (MCP coding agent)
 .serena/
 
-# Generated API docs
-docs/api/
 
 # VitePress build output
 docs/.vitepress/dist
