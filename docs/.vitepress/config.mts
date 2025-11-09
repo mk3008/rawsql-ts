@@ -29,6 +29,8 @@ export default defineConfig({
         { text: 'Getting Started', link: '/guide/getting-started' },
         { text: 'Formatting Recipes', link: '/guide/formatting-recipes' },
         { text: 'Querybuilding Recipes', link: '/guide/querybuilding-recipes' },
+        { text: 'Testkit Concept', link: '/guide/testkit-concept' },
+        { text: 'SQLite Testkit How-To', link: '/guide/sqlite-testkit-howto' },
       ],
       '/api/': apiSidebarWithIndex
     },
