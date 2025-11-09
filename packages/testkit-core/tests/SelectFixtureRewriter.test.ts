@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { MissingFixtureError } from '../src/errors';
+import { MissingFixtureError, QueryRewriteError } from '../src/errors';
 import { SelectFixtureRewriter } from '../src/rewriter/SelectFixtureRewriter';
 import type { SchemaRegistry, TableSchemaDefinition } from '../src/types';
 
@@ -206,7 +206,7 @@ SELECT id, name FROM users -- trailing`;
     expect(result.sql).not.toContain('-- inline note');
     expect(result.sql).not.toContain('-- trailing');
   });
-  
+
   it('injects fixtures into every statement of multi-query SQL', () => {
     const rewriter = new SelectFixtureRewriter({
       fixtures: [
@@ -228,7 +228,12 @@ SELECT id, name FROM users -- trailing`;
     expect(statements[1].toLowerCase().startsWith('with ')).toBe(true);
     expect(statements[2].toLowerCase().startsWith('select 1')).toBe(true);
     expect(result.fixturesApplied).toEqual(['users']);
+
+    // Full SQL: fixture CTE injected into each SELECT statement that references the table
+    expect(result.sql).toBe(
+      "with \"users\" as (select cast(1 as INTEGER) as \"id\", cast('Alice' as TEXT) as \"name\", cast('admin' as TEXT) as \"role\") select \"id\" from \"users\"; with \"users\" as (select cast(1 as INTEGER) as \"id\", cast('Alice' as TEXT) as \"name\", cast('admin' as TEXT) as \"role\") select \"role\" from \"users\"; SELECT 1;");
   });
+
   it('fails fast on conflicting user-defined CTE names by default', () => {
     const rewriter = new SelectFixtureRewriter({
       fixtures: [
@@ -241,8 +246,9 @@ SELECT id, name FROM users -- trailing`;
     });
     expect(() =>
       rewriter.rewrite('WITH users AS (SELECT 1) SELECT * FROM users')
-    ).toThrowError(/conflicts/i);
+    ).toThrowError(`Fixture CTE "users" conflicts with query-defined CTE.`);
   });
+
   it('overrides user-defined CTEs when configured', () => {
     const rewriter = new SelectFixtureRewriter({
       fixtures: [
@@ -258,7 +264,13 @@ SELECT id, name FROM users -- trailing`;
     const result = rewriter.rewrite(sql);
     expect(result.sql.toLowerCase()).toContain('override');
     expect(result.fixturesApplied).toEqual(['users']);
+
+    // Full SQL: fixture CTE overrides user-defined CTE
+    expect(result.sql).toBe(
+      'with "users" as (select cast(42 as INTEGER) as "id", cast(\'Override\' as TEXT) as "name", cast(\'owner\' as TEXT) as "role") select * from "users"'
+    );
   });
+  
   it('honors custom formatter options from options and context', () => {
     const rewriter = new SelectFixtureRewriter({
       fixtures: [
@@ -277,7 +289,56 @@ SELECT id, name FROM users -- trailing`;
     });
     expect(lower.sql.startsWith('with ')).toBe(true);
   });
-  it('falls back to regex injection when AST parsing fails, injecting all fixtures', () => {
+
+  it('throws when analyzer fails under the default behavior', () => {
+    const rewriter = new SelectFixtureRewriter({
+      fixtures: [
+        {
+          tableName: 'users',
+          rows: [{ id: 1, name: 'Alice', role: 'admin' }],
+          schema: schema.users,
+        },
+      ],
+    });
+    expect(() => rewriter.rewrite(`UPDATE users SET role = 'user' WHERE id = 1`)).toThrowError(
+      QueryRewriteError
+    );
+  });
+
+  it('skips rewriting when analyzer failure behavior is set to skip', () => {
+    const rewriter = new SelectFixtureRewriter({
+      fixtures: [
+        {
+          tableName: 'users',
+          rows: [{ id: 1, name: 'Alice', role: 'admin' }],
+          schema: schema.users,
+        },
+      ],
+      analyzerFailureBehavior: 'skip',
+    });
+    const sql = `UPDATE users SET role = 'user' WHERE id = 1`;
+    const result = rewriter.rewrite(sql);
+    expect(result.sql).toBe(sql);
+    expect(result.fixturesApplied).toEqual([]);
+  });
+
+  it('allows per-call overrides of analyzer failure behavior', () => {
+    const rewriter = new SelectFixtureRewriter({
+      fixtures: [
+        {
+          tableName: 'users',
+          rows: [{ id: 1, name: 'Alice', role: 'admin' }],
+          schema: schema.users,
+        },
+      ],
+    });
+    const sql = `UPDATE users SET role = 'user' WHERE id = 1`;
+    const result = rewriter.rewrite(sql, { analyzerFailureBehavior: 'skip' });
+    expect(result.sql).toBe(sql);
+    expect(result.fixturesApplied).toEqual([]);
+  });
+
+  it('injects all fixtures via regex when analyzer failure behavior is inject', () => {
     const rewriter = new SelectFixtureRewriter({
       fixtures: [
         {
@@ -291,11 +352,31 @@ SELECT id, name FROM users -- trailing`;
           schema: schema.orders,
         },
       ],
+      analyzerFailureBehavior: 'inject',
     });
     const sql = 'INSERT INTO audit_log DEFAULT VALUES';
     const result = rewriter.rewrite(sql);
     expect(result.sql.startsWith('WITH "users"')).toBe(true);
     expect(result.sql).toContain('"orders" AS');
+    expect(result.sql.toLowerCase()).toContain('insert into audit_log');
     expect(result.fixturesApplied).toEqual(['users', 'orders']);
+  });
+
+  it('bypasses DCL statements but still rewrites subsequent SELECT statements', () => {
+    const rewriter = new SelectFixtureRewriter({
+      fixtures: [
+        {
+          tableName: 'users',
+          rows: [{ id: 1, name: 'Alice', role: 'admin' }],
+          schema: schema.users,
+        },
+      ],
+    });
+    const sql = `set work_mem = '256MB'; SELECT * FROM users;`;
+    const result = rewriter.rewrite(sql);
+    const normalized = result.sql.toLowerCase();
+    expect(normalized.startsWith(`set work_mem = '256mb'`)).toBe(true);
+    expect(normalized).toContain('with "users" as');
+    expect(result.fixturesApplied).toEqual(['users']);
   });
 });

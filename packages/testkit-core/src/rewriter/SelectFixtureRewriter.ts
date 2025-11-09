@@ -10,6 +10,7 @@ import { FixtureStore } from '../fixtures/FixtureStore';
 import { normalizeIdentifier } from '../fixtures/naming';
 import { createLogger } from '../logger/NoopLogger';
 import type {
+  AnalyzerFailureBehavior,
   MissingFixtureStrategy,
   SelectRewriteContext,
   SelectRewriteResult,
@@ -37,6 +38,7 @@ export class SelectFixtureRewriter {
   private readonly wildcardPassthrough: boolean;
   private readonly formatterOptions: SqlFormatterOptions;
   private readonly cteConflictBehavior: 'error' | 'override';
+  private readonly analyzerFailureBehavior: AnalyzerFailureBehavior;
 
   constructor(options: SelectRewriterOptions = {}) {
     this.fixtureStore = new FixtureStore(options.fixtures ?? [], options.schema);
@@ -50,6 +52,7 @@ export class SelectFixtureRewriter {
       ...(options.formatterOptions ?? {}),
     };
     this.cteConflictBehavior = options.cteConflictBehavior ?? 'error';
+    this.analyzerFailureBehavior = options.analyzerFailureBehavior ?? 'error';
   }
 
   public rewrite(sql: string, context?: SelectRewriteContext): SelectRewriteResult {
@@ -93,15 +96,38 @@ export class SelectFixtureRewriter {
 
   private rewriteSingleQuery(sql: string, context?: SelectRewriteContext): SelectRewriteResult {
     const fixtureMap = this.fixtureStore.withOverrides(context?.fixtures);
+    const analyzerFailureBehavior = this.resolveAnalyzerFailureBehavior(context);
 
     let analysis: SelectAnalysisResult | null = null;
+    let analyzerError: unknown = null;
     try {
       analysis = this.analyzer.analyze(sql);
     } catch (error) {
-      // Fall back to regex insertion later; over-inject fixtures because dependencies are unknown.
+      analyzerError = error;
+      // Preserve the root cause for diagnostics while deferring the final decision to the configured fallback strategy.
       this.logger.debug?.('Falling back to raw WITH merge due to analyzer failure.', {
         error: error instanceof Error ? error.message : String(error),
       });
+    }
+
+    if (!analysis) {
+      if (this.isDclStatement(sql)) {
+        // DCL statements remain untouched because fixture injection would corrupt their syntax.
+        return { sql, fixturesApplied: [] };
+      }
+
+      if (analyzerFailureBehavior === 'skip') {
+        // Allow callers to opt out of rewrites when analyzer support is missing.
+        return { sql, fixturesApplied: [] };
+      }
+
+      if (analyzerFailureBehavior === 'error') {
+        const cause = analyzerError instanceof Error ? analyzerError : undefined;
+        throw new QueryRewriteError(
+          'Analyzer failed to process SQL statement; provide a SELECT query or set analyzerFailureBehavior to "inject".',
+          cause
+        );
+      }
     }
 
     const existingCteNames = analysis ? new Set(analysis.cteNames) : undefined;
@@ -166,6 +192,27 @@ export class SelectFixtureRewriter {
       sql: rewritten,
       fixturesApplied,
     };
+  }
+
+  private resolveAnalyzerFailureBehavior(context?: SelectRewriteContext): AnalyzerFailureBehavior {
+    return context?.analyzerFailureBehavior ?? this.analyzerFailureBehavior;
+  }
+
+  /**
+   * Skips statements that are clearly DCL (Data Control Language).
+   * In theory, this should be detected via AST analysis,
+   * but since DCL is outside the supported syntax scope of this library,
+   * we use a lightweight prefix check as a simple safeguard.
+   *
+   * @param {string} sql - The SQL text to inspect.
+   * @returns {boolean} True if the statement appears to be a DCL statement; otherwise, false.
+   */
+  private isDclStatement(sql: string): boolean {
+    const normalized = sql.trim().toLowerCase();
+    if (!normalized) {
+      return false;
+    }
+    return /^(set|reset|grant|revoke)\b/.test(normalized);
   }
 
   private isPassthrough(tableName: string): boolean {

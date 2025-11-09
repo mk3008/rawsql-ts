@@ -21,6 +21,7 @@ export interface TableFixture {
 }
 
 export type MissingFixtureStrategy = 'error' | 'passthrough' | 'warn';
+export type AnalyzerFailureBehavior = 'error' | 'skip' | 'inject';
 
 export interface TestkitLogger {
   debug?(message: string, meta?: Record<string, unknown>): void;
@@ -42,10 +43,12 @@ export interface SelectRewriterOptions {
   logger?: TestkitLogger;
   formatterOptions?: SqlFormatterOptions;
   cteConflictBehavior?: 'error' | 'override';
+  analyzerFailureBehavior?: AnalyzerFailureBehavior;
 }
 
 export interface SelectRewriteContext {
   fixtures?: TableFixture[];
   formatterOptions?: SqlFormatterOptions;
+  analyzerFailureBehavior?: AnalyzerFailureBehavior;
 }
 
