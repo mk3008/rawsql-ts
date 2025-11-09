@@ -5,7 +5,9 @@ outline: deep
 
 # Why SQL Unit Testing Is Hard and How `rawsql-ts` Solves It
 
-## The Traditional Problem
+## Traditional & Mocked Testing Pain Points
+
+### Conventional Database-Centric Tests
 
 Unit testing SQL logic is notoriously painful.  
 A "unit test" should verify *inputs and outputs* - yet SQL queries rely on *database state* instead of explicit inputs.
@@ -30,6 +32,39 @@ While this works, it has several downsides:
 
 In short: **SQL tests often look like integration tests in disguise**.
 
+### Mocked SQL Verification
+
+Many ORM or query-builder tests rely on **SQL mocks**, verifying that a certain SQL string was issued.
+
+| Approach | What It Verifies | Drawback |
+|-----------|------------------|-----------|
+| Mocking | "Was this SQL string generated?" | Tightly couples test to implementation |
+| rawsql-ts | "Does this SQL return correct results?" | Independent of query syntax |
+
+Mock-based tests fail on trivial refactors (e.g., formatting, alias renaming), even if behavior is unchanged.  
+`rawsql-ts` tests actual *behavior* - not internal SQL strings - so they are far more robust.
+
+#### Patterns You Probably Rely On
+
+##### Query Builder Output Tests
+
+- **Pros:** Very fast and isolated.  
+- **Cons:** Test implementation details rather than behavior. SQL builders or ORM libraries already guarantee correctness of generated syntax, so re-testing that generation logic brings limited value. Even minor library updates or formatting changes can break tests unnecessarily. It's akin to *verifying the transpiled code instead of running the function* - efficient, but misaligned with the purpose of unit testing.
+
+##### Repository Mocks
+
+- **Pros:** Excellent for testing upper layers (services, controllers).  
+- **Cons:** Does **not** validate SQL correctness or query semantics. It assumes the repository's SQL logic is already correct. This pattern remains valid when your focus is purely application logic, and it still works alongside `rawsql-ts` if you need higher-layer isolation.
+
+##### Development Database Tests
+
+- **Pros:** Real SQL execution, full schema fidelity.  
+- **Cons:** Expensive to maintain. Each developer needs a local environment, and CI/CD setups become heavy and fragile. Scaling across multiple projects or schemas quickly becomes impractical.
+
+##### rawsql-ts as the Middle Ground
+
+`rawsql-ts` bridges these approaches - executing **real SQL logic** on an in-memory engine, while keeping tests lightweight, portable, and deterministic. It brings the realism of development databases with the speed of mocks, without the brittleness.
+
 ---
 
 ## The RawSQL Approach
@@ -51,20 +86,6 @@ No file I/O, no schema migration, no cleanup required.
 
 ---
 
-## Why This Is Better Than Mocking
-
-Many ORM or query-builder tests rely on **SQL mocks**, verifying that a certain SQL string was issued.
-
-| Approach | What It Verifies | Drawback |
-|-----------|------------------|-----------|
-| Mocking | "Was this SQL string generated?" | Tightly couples test to implementation |
-| rawsql-ts | "Does this SQL return correct results?" | Independent of query syntax |
-
-Mock-based tests fail on trivial refactors (e.g., formatting, alias renaming), even if behavior is unchanged.  
-`rawsql-ts` tests actual *behavior* - not internal SQL strings - so they are far more robust.
-
----
-
 ## Conceptually, It's Just Dependency Injection for Databases
 
 The same principle as DI in code applies here:
@@ -72,77 +93,46 @@ The same principle as DI in code applies here:
 - **Traditional tests:** depend on a real DB connection (hard dependency)
 - **rawsql-ts:** injects a "fixture-backed driver" (soft dependency)
 
-This lets repositories stay unmodified while swapping in a different driver for testing.
+This lets repositories stay unmodified while transparently swapping in a different driver for testing.
 
 ---
 
-## Why Only `SELECT` Is Supported
+## Scope & Limitations
 
-`rawsql-ts` focuses exclusively on **read queries** (`SELECT` statements`).  
-There are two main reasons:
+### Why Only `SELECT` Is Supported
+
+`rawsql-ts` focuses exclusively on **read queries** (`SELECT` statements).  
+There are three main reasons:
 
 1. **Single-table CUD operations are trivial.**  
-   Most `INSERT`, `UPDATE`, and `DELETE` queries are thin wrappers around ORM or driver APIs.  
-   Their correctness depends more on the ORM layer than the SQL itself.  
-   Testing them in isolation adds little value.
+   Most `INSERT`, `UPDATE`, and `DELETE` queries are thin wrappers around ORM or driver APIs, so their correctness depends more on those layers than on SQL itself. Testing them in isolation adds little value.
 
-2. **The true complexity lies in `R` (Read) queries.**  
-   `SELECT` statements represent the *business logic* of a repository - 
-   joins, filters, computed columns, and aggregation rules.  
-   These are exactly the parts that need deterministic, logic-level verification.
+2. **The real logic hides in `R` (Read) queries.**  
+   `SELECT` statements encode joins, filters, computed columns, and aggregation rules - the exact areas that need deterministic verification.
 
-In other words, **`R` is where correctness matters most**, and where mocking or integration DBs fall short.  
-By specializing in `SELECT`, `rawsql-ts` can ensure realistic SQL semantics and type fidelity without introducing mutation or side effects.
+3. **Modification queries stem from prior selections.**
+   Any INSERT, UPDATE, or DELETE can be represented as a selection that decides which rows and which values change. Validating the read logic often implies correctness in downstream write logic.
 
----
+This equivalence is not absolute - triggers, side effects, or constraints can diverge, but those concerns are implementation details, not logical ones. Focusing on SELECT keeps the validation surface tight while maximizing correctness leverage.
 
-## Mock Testing Approaches in Practice
+### What rawsql-ts Deliberately Avoids
 
-In modern projects, SQL-related tests generally fall into three categories.  
-Each has its advantages, and none are inherently wrong - they just address different needs.
+`rawsql-ts` targets *logical correctness*, not physical performance characteristics.
 
-### 1. Query Builder Output Tests
+Out of scope:
+- Index usage
+- Execution plans
+- Locking / concurrency
+- Vendor-specific optimizer behavior
 
-These tests assert that an ORM or query builder produces the expected SQL string.
-
-- **Pros:** Very fast and isolated  
-- **Cons:** Test implementation details rather than behavior.  
-  SQL builders or ORM libraries already guarantee correctness of generated syntax,  
-  so re-testing that generation logic brings limited value.  
-  Even minor library updates or formatting changes can break tests unnecessarily.
-
-It's akin to *verifying the transpiled code instead of running the function* -  
-efficient, but conceptually misaligned with the purpose of unit testing.
-
-### 2. Repository Mocks
-
-Here, a mock repository returns pre-defined model objects without touching the database.
-
-- **Pros:** Excellent for testing upper layers (services, controllers).  
-- **Cons:** Does **not** validate SQL correctness or query semantics.  
-  It assumes the repository's SQL logic is already correct.
-
-This pattern remains valid when your focus is purely application logic -  
-and it still works alongside `rawsql-ts` if you need higher-layer isolation.
-
-### 3. Development Database Tests
-
-The traditional pattern: run tests against a seeded local or shared database.
-
-- **Pros:** Real SQL execution, full schema fidelity.  
-- **Cons:** Expensive to maintain. Each developer needs a local environment,  
-  and CI/CD setups become heavy and fragile.  
-  Scaling across multiple projects or schemas quickly becomes impractical.
-
-### `rawsql-ts` as the Middle Ground
-
-`rawsql-ts` bridges these approaches - executing **real SQL logic** on an in-memory engine,  
-while keeping tests lightweight, portable, and deterministic.  
-It brings the realism of #3 with the speed of #1, without the brittleness of mocks.
+These aspects belong to **integration / performance testing** against a real database, where the physical layer can be observed directly.
 
 ---
 
-## Why This Approach Matters Now
+## AI Era: Why This Approach Matters Now
+
+As SQL testing becomes more automated and data-driven, the testing landscape itself is evolving.
+AI-generated SQL now outpaces manual review cycles, so teams need deterministic, fixture-driven tests that treat data as explicit inputs and emit diagnostics that LLMs and humans can act on.
 
 Theoretically, this testing style has always been possible:  
 you could intercept SQL and rewrite it with `WITH ... VALUES` manually.  
@@ -222,22 +212,8 @@ allowing AI or developers to iterate rapidly without deep SQL expertise.
 | Speed | Seconds to minutes | Milliseconds |
 | Isolation | Shared DB, risk of pollution | Fully isolated per test |
 | Maintenance | Heavy | Light |
-| Accuracy | Can drift from production | Schema-checked via registry |
+| Accuracy | Can drift from production | Ensured via schema registry |
 | Query validation | Manual | Automatic (AST + CTE rewrite) |
-
----
-
-## Limitations (by Design)
-
-`rawsql-ts` focuses on *logical correctness* - not physical performance.
-
-Out of scope:
-- Index usage
-- Execution plans
-- Locking / concurrency
-- Vendor-specific optimizer behavior
-
-Those belong to **integration / performance testing** against a real DB.
 
 ---
 
@@ -250,7 +226,7 @@ Traditional SQL tests validate *how* the query was issued.
 `rawsql-ts` validates *what the query means*.
 
 By elevating fixtures to explicit inputs and treating queries as pure functions,  
-`rawsql-ts` brings SQL unit testing back to its true goal - **verifying logic, not plumbing**.
+`rawsql-ts` brings SQL unit testing back to its true goal - **verifying logic, not the infrastructure plumbing**.
 
 ## Learn More
 
@@ -261,5 +237,3 @@ By elevating fixtures to explicit inputs and treating queries as pure functions,
 
 - Apply the testing model in the [SQLite Testkit HowTo](./sqlite-testkit-howto.md).
 - Explore the workspace demos under `packages/drivers/sqlite-testkit/demo` to see the fixture driver in practice.
-
-
