@@ -18,30 +18,31 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v4
+      with:
+        run_install: false
+      
     - name: Setup Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v4
       with:
         node-version: ${{ matrix.node-version }}
-        cache: 'npm'
+        cache: 'pnpm'
         
     - name: Install dependencies
-      run: npm ci
+      run: pnpm install --frozen-lockfile
       
     - name: Lint check
-      run: |
-        npm run lint --workspace=packages/core
+      run: pnpm --filter "./packages/core" run lint
       
     - name: TypeScript compilation check
-      run: |
-        npm run build --workspace=packages/core
+      run: pnpm --filter "./packages/core" run build
       
     - name: Run unit tests (excluding Docker-dependent tests)
-      run: |
-        npm run test --workspace=packages/core
+      run: pnpm --filter "./packages/core" run test
       
     - name: Run coverage tests
-      run: |
-        npm run coverage --workspace=packages/core
+      run: pnpm --filter "./packages/core" run coverage
       if: matrix.node-version == '20.x'
       continue-on-error: true
       
@@ -57,23 +58,28 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v4
+      with:
+        run_install: false
+      
     - name: Setup Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v4
       with:
         node-version: ${{ matrix.node-version }}
-        cache: 'npm'
+        cache: 'pnpm'
         
     - name: Install dependencies
-      run: npm ci
+      run: pnpm install --frozen-lockfile
       
     - name: Build ${{ matrix.package }} package
-      run: npm run build --workspace=packages/${{ matrix.package }}
+      run: pnpm --filter "./packages/${{ matrix.package }}" run build
       
     - name: Test ${{ matrix.package }} package
-      run: npm run test --workspace=packages/${{ matrix.package }}
+      run: pnpm --filter "./packages/${{ matrix.package }}" run test
       
     - name: Lint ${{ matrix.package }} package
-      run: npm run lint --workspace=packages/${{ matrix.package }}
+      run: pnpm --filter "./packages/${{ matrix.package }}" run lint
 
   benchmark:
     runs-on: ubuntu-latest
@@ -83,18 +89,23 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v4
+      with:
+        run_install: false
+      
     - name: Setup Node.js 20.x
       uses: actions/setup-node@v4
       with:
         node-version: 20.x
-        cache: 'npm'
+        cache: 'pnpm'
         
     - name: Install dependencies
-      run: npm ci
+      run: pnpm install --frozen-lockfile
       
     - name: Build core package
-      run: npm run build:core
+      run: pnpm --filter "./packages/core" run build
       
     - name: Run benchmarks
-      run: npm run benchmark --workspace=packages/core
+      run: pnpm --filter "./packages/core" run benchmark
       continue-on-error: true
