@@ -3,12 +3,19 @@ import { describe, expect, it, vi } from 'vitest';
 import { createSqliteSelectTestDriver } from '../src/driver/SqliteSelectTestDriver';
 import { wrapSqliteDriver } from '../src/proxy/wrapSqliteDriver';
 import type { SqliteConnectionLike, SqliteStatementLike } from '../src/types';
+import type { TableFixture } from '@rawsql-ts/testkit-core';
 
 const userFixture = {
   tableName: 'users',
   rows: [{ id: 1, email: 'alice@example.com' }],
   schema: { columns: { id: 'INTEGER', email: 'TEXT' } },
-};
+} satisfies TableFixture;
+
+const ordersFixture = {
+  tableName: 'orders',
+  rows: [{ id: 2 }],
+  schema: { columns: { id: 'INTEGER' } },
+} satisfies TableFixture;
 
 type RecordedStatement = {
   sql: string;
@@ -119,9 +126,7 @@ describe('sqlite select test driver', () => {
 
     await driver.query('SELECT * FROM users');
 
-    const scoped = driver.withFixtures([
-      { tableName: 'orders', rows: [{ id: 2 }], schema: { columns: { id: 'INTEGER' } } },
-    ]);
+    const scoped = driver.withFixtures([ordersFixture]);
 
     await scoped.query('SELECT * FROM orders');
     const prepareStatements = recording.statements.filter((entry) => entry.stage === 'prepare');
@@ -175,13 +180,7 @@ describe('wrapSqliteDriver', () => {
       fixtures: [],
     });
 
-    const scoped = wrapped.withFixtures([
-      {
-        tableName: 'users',
-        rows: [{ id: 1, email: 'alice@example.com' }],
-        schema: { columns: { id: 'INTEGER', email: 'TEXT' } },
-      },
-    ]);
+    const scoped = wrapped.withFixtures([userFixture]);
 
     const rows = scoped.prepare?.('SELECT * FROM users')?.all?.();
     expect(rows).toEqual([{ id: 1, email: 'alice@example.com' }]);
@@ -196,9 +195,7 @@ describe('wrapSqliteDriver', () => {
       recordQueries: true,
     });
 
-    const scoped = wrapped.withFixtures([
-      { tableName: 'orders', rows: [{ id: 2 }], schema: { columns: { id: 'INTEGER' } } },
-    ]);
+    const scoped = wrapped.withFixtures([ordersFixture]);
 
     const scopedRows = scoped.prepare?.('SELECT * FROM orders')?.all?.();
     const baseRows = wrapped.prepare?.('SELECT * FROM users')?.all?.();
@@ -224,7 +221,7 @@ describe('wrapSqliteDriver', () => {
     wrapped.exec?.('SELECT * FROM users');
     const statement = wrapped.prepare?.('SELECT * FROM users WHERE email = @email LIMIT @limit');
     const params = { email: 'alice@example.com', limit: 1 };
-    const record = statement?.get(params);
+    const record = statement?.get?.(params);
 
     expect(record).toEqual({ id: 1, email: 'alice@example.com' });
     expect(onExecute).toHaveBeenCalledTimes(2);
@@ -245,9 +242,7 @@ describe('wrapSqliteDriver', () => {
     expect(wrapped.queries).toHaveLength(1);
     expect(wrapped.queries?.[0].sql).toMatch(/^with/i);
 
-    const scoped = wrapped.withFixtures([
-      { tableName: 'orders', rows: [{ id: 2 }], schema: { columns: { id: 'INTEGER' } } },
-    ]);
+    const scoped = wrapped.withFixtures([ordersFixture]);
     scoped.exec?.('SELECT * FROM orders');
 
     expect(scoped.queries).toHaveLength(1);
@@ -274,3 +269,4 @@ describe('wrapSqliteDriver', () => {
     recording.close();
   });
 });
+
