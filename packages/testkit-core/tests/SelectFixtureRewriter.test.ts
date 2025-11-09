@@ -41,32 +41,101 @@ describe('SelectFixtureRewriter', () => {
     expect(result.sql.toLowerCase()).toContain('"users" as');
     expect(result.sql).toContain(`select "id", "name" from "users" where "role" = 'admin'`);
     expect(result.fixturesApplied).toEqual(['users']);
+
+    // full expected SQL for snapshot
+    expect(result.sql, "with \"users\" as (select cast(1 as INTEGER) as \"id\", cast('Alice' as TEXT) as \"name\", cast('admin' as TEXT) as \"role\" union all select cast(2 as INTEGER) as \"id\", cast('Bob' as TEXT) as \"name\", cast('user' as TEXT) as \"role\") select \"id\", \"name\" from \"users\" where \"role\" = 'admin'");
   });
-  it('merges fixture definitions with user-defined WITH clauses', () => {
+
+  it('injects fixture CTE using per-fixture schema before user-defined WITH CTE', () => {
     const rewriter = new SelectFixtureRewriter({
       fixtures: [
         {
           tableName: 'users',
           rows: [{ id: 1, name: 'Temp', role: 'admin' }],
+          // Use schema information defined on the fixture itself
           schema: schema.users,
         },
       ],
     });
+
     const sql = `WITH source AS (SELECT * FROM users) SELECT * FROM source`;
     const rewritten = rewriter.rewrite(sql);
+
+    // `users` CTE is injected and appears before user-defined `source` CTE
     expect(rewritten.sql).toMatch(/with\s+"users"\s+as/i);
-    expect(rewritten.sql.indexOf('"users"')).toBeLessThan(rewritten.sql.indexOf('"source"'));
+    expect(rewritten.sql.indexOf('"users"')).toBeLessThan(
+      rewritten.sql.indexOf('"source"'),
+    );
+
+    // Full SQL: fixture CTE + original user-defined CTE
+    expect(rewritten.sql).toBe(
+      'with "users" as (select cast(1 as INTEGER) as "id", cast(\'Temp\' as TEXT) as "name", cast(\'admin\' as TEXT) as "role"), "source" as (select * from "users") select * from "source"'
+    );
   });
+
+  it('injects fixture CTE using registry-level schema and preserves user-defined WITH CTE', () => {
+    const rewriter = new SelectFixtureRewriter({
+      fixtures: [
+        {
+          tableName: 'users',
+          rows: [{ id: 1, name: 'Temp', role: 'admin' }],
+        },
+      ],
+      // Use shared schema registry instead of per-fixture schema
+      schema: registry,
+    });
+
+    const sql = `WITH source AS (SELECT * FROM users) SELECT * FROM source`;
+    const rewritten = rewriter.rewrite(sql);
+
+    // Same rewritten SQL should be produced as when using per-fixture schema
+    expect(rewritten.sql).toBe(
+      'with "users" as (select cast(1 as INTEGER) as "id", cast(\'Temp\' as TEXT) as "name", cast(\'admin\' as TEXT) as "role"), "source" as (select * from "users") select * from "source"'
+    );
+  });
+
+
   it('throws when fixtures are missing under the default strategy', () => {
     const rewriter = new SelectFixtureRewriter({
       schema: registry,
     });
-    expect(() => rewriter.rewrite('SELECT * FROM users')).toThrowError(/Fixture/);
+
+    expect(() => rewriter.rewrite('SELECT * FROM users')).toThrowError(`Fixture for table "users" was not provided.
+
+Diagnostics:
+  - Strategy: error
+  - Table: users
+  - SQL snippet: SELECT * FROM users
+  - Required columns (schema registry):
+      • id (INTEGER)
+      • name (TEXT)
+      • role (TEXT)
+  - Suggested fixture template:
+      {
+        tableName: 'users',
+        schema: {
+          columns: {
+            id: 'INTEGER',
+            name: 'TEXT',
+            role: 'TEXT'
+          }
+        },
+        rows: [
+          { id: /* INTEGER */, name: /* TEXT */, role: /* TEXT */ }
+        ],
+      }
+
+Next steps:
+  1. Declare a fixture for the table with the columns listed above.
+  2. Provide at least one row so rewritten SELECT statements shadow the physical table.
+  3. Pass fixtures via SelectRewriterOptions.fixtures or rewrite context overrides.`);
   });
+
   it('describes missing fixtures with schema-derived column details', () => {
     const rewriter = new SelectFixtureRewriter({
       schema: registry,
     });
+    
     try {
       rewriter.rewrite('SELECT id, name FROM users');
       throw new Error('Expected MissingFixtureError');
@@ -79,6 +148,7 @@ describe('SelectFixtureRewriter', () => {
       expect(message).toContain('Suggested fixture template');
     }
   });
+
   it('warns instead of throwing when strategy is warn', () => {
     const warn = vi.fn();
     const rewriter = new SelectFixtureRewriter({
@@ -86,10 +156,19 @@ describe('SelectFixtureRewriter', () => {
       missingFixtureStrategy: 'warn',
       logger: { warn },
     });
+
     const result = rewriter.rewrite('SELECT * FROM users');
-    expect(warn).toHaveBeenCalled();
+
+    // In 'warn' mode, missing fixtures are reported but not fatal.
+    // The rewriter logs a warning (message + context) and returns the original SQL unchanged.
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringMatching(/Missing fixture/),
+      expect.objectContaining({ table: 'users' }),
+    );
+
     expect(result.sql).toBe('SELECT * FROM users');
   });
+
   it('accepts per-call overrides via context fixtures', () => {
     const rewriter = new SelectFixtureRewriter({
       schema: registry,
@@ -107,6 +186,7 @@ describe('SelectFixtureRewriter', () => {
     expect(override.sql.toLowerCase().startsWith('with ')).toBe(true);
     expect(override.fixturesApplied).toEqual(['users']);
   });
+
   it('preserves top-level header comments and keeps output on one line', () => {
     const rewriter = new SelectFixtureRewriter({
       fixtures: [
@@ -126,6 +206,7 @@ SELECT id, name FROM users -- trailing`;
     expect(result.sql).not.toContain('-- inline note');
     expect(result.sql).not.toContain('-- trailing');
   });
+  
   it('injects fixtures into every statement of multi-query SQL', () => {
     const rewriter = new SelectFixtureRewriter({
       fixtures: [
