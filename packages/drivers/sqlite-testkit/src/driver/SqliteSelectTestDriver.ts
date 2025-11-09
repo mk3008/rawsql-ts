@@ -9,6 +9,10 @@ import type {
 
 export type QueryParams = unknown[] | Record<string, unknown> | undefined;
 
+/**
+ * Concrete {@link SqliteSelectTestDriver} implementation that rewrites fixtures
+ * before delegating to the underlying SQLite connection.
+ */
 export class SqliteSelectTestDriverImpl implements SqliteSelectTestDriver {
   private connection?: SqliteConnectionLike;
   private readonly rewriter: SelectFixtureRewriter;
@@ -132,9 +136,27 @@ export class SqliteSelectTestDriverImpl implements SqliteSelectTestDriver {
 }
 
 /**
- * Instantiates a test driver that rewrites SELECT fixtures before delegating execution.
- * @param options Driver options that provide connection factory and rewrite settings.
- * @returns An implementation that exposes pg-style querying plus fixture scoping helpers.
+ * Creates a lightweight SQLite test driver that injects fixture-backed CTEs before delegating to the real driver.
+ * @param options Driver options that provide the connection factory plus rewrite behavior inherited from testkit-core.
+ * @returns An implementation that exposes `query`, `withFixtures`, and `close` helpers for SELECT-first tests.
+ * @example
+ * ```ts
+ * import Database from 'better-sqlite3';
+ * import { createSqliteSelectTestDriver } from '@rawsql-ts/sqlite-testkit';
+ *
+ * const driver = createSqliteSelectTestDriver({
+ *   connectionFactory: () => new Database(':memory:'),
+ *   fixtures: [
+ *     {
+ *       tableName: 'users',
+ *       rows: [{ id: 1, email: 'demo@example.com' }],
+ *     },
+ *   ],
+ * });
+ *
+ * const rows = await driver.query('SELECT id, email FROM users');
+ * console.log(rows);
+ * ```
  */
 export const createSqliteSelectTestDriver = (
   options: CreateSqliteSelectTestDriverOptions

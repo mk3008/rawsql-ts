@@ -15,7 +15,6 @@ export interface SqliteConnectionLike {
   exec?(sql: string, ...params: unknown[]): unknown;
   pragma?(statement: string, ...params: unknown[]): unknown;
   close?(): void;
-  [key: string]: unknown;
 }
 
 export interface SelectDriver<T = unknown> {

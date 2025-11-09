@@ -1,7 +1,89 @@
-﻿export class MissingFixtureError extends Error {
-  constructor(public readonly tableName: string) {
-    super(`Fixture for table "${tableName}" was not provided.`);
+import type { MissingFixtureStrategy, SqliteAffinity } from '../types';
+
+export interface MissingFixtureColumnDetail {
+  name: string;
+  affinity: SqliteAffinity;
+}
+
+export interface MissingFixtureDiagnostics {
+  tableName: string;
+  sql?: string;
+  strategy: MissingFixtureStrategy;
+  schemaColumns?: MissingFixtureColumnDetail[];
+  schemaSource?: 'fixture' | 'schema';
+}
+
+export class MissingFixtureError extends Error {
+  constructor(public readonly diagnostics: MissingFixtureDiagnostics) {
+    super(MissingFixtureError.buildMessage(diagnostics));
     this.name = 'MissingFixtureError';
+  }
+
+  private static buildMessage(diagnostics: MissingFixtureDiagnostics): string {
+    const lines: string[] = [];
+    lines.push(`Fixture for table "${diagnostics.tableName}" was not provided.`);
+    lines.push('');
+    lines.push('Diagnostics:');
+    lines.push(`  - Strategy: ${diagnostics.strategy}`);
+    lines.push(`  - Table: ${diagnostics.tableName}`);
+    if (diagnostics.sql) {
+      lines.push(`  - SQL snippet: ${MissingFixtureError.formatSqlSnippet(diagnostics.sql)}`);
+    }
+
+    if (diagnostics.schemaColumns && diagnostics.schemaColumns.length > 0) {
+      const sourceLabel =
+        diagnostics.schemaSource === 'schema' ? 'schema registry' : 'fixture metadata';
+      lines.push(`  - Required columns (${sourceLabel}):`);
+      diagnostics.schemaColumns.forEach((column) => {
+        lines.push(`      • ${column.name} (${column.affinity})`);
+      });
+      lines.push('  - Suggested fixture template:');
+      lines.push(...MissingFixtureError.buildFixtureTemplate(diagnostics.tableName, diagnostics.schemaColumns));
+    } else {
+      lines.push(
+        '  - Column definitions: unavailable. Register schema via options.schema or include schema per fixture.'
+      );
+    }
+
+    lines.push('');
+    lines.push('Next steps:');
+    lines.push('  1. Declare a fixture for the table with the columns listed above.');
+    lines.push('  2. Provide at least one row so rewritten SELECT statements shadow the physical table.');
+    lines.push('  3. Pass fixtures via SelectRewriterOptions.fixtures or rewrite context overrides.');
+    return lines.join('\n');
+  }
+
+  private static formatSqlSnippet(sql: string): string {
+    const compact = sql.replace(/\s+/g, ' ').trim();
+    const limit = 280;
+    if (compact.length <= limit) {
+      return compact;
+    }
+    return `${compact.slice(0, limit)}…`;
+  }
+
+  private static buildFixtureTemplate(
+    tableName: string,
+    columns: MissingFixtureColumnDetail[]
+  ): string[] {
+    const indent = (level: number): string => ' '.repeat(level * 2);
+    const template: string[] = [];
+    template.push(`${indent(3)}{`);
+    template.push(`${indent(4)}tableName: '${tableName}',`);
+    template.push(`${indent(4)}schema: {`);
+    template.push(`${indent(5)}columns: {`);
+    columns.forEach((column, index) => {
+      const suffix = index === columns.length - 1 ? '' : ',';
+      template.push(`${indent(6)}${column.name}: '${column.affinity}'${suffix}`);
+    });
+    template.push(`${indent(5)}}`);
+    template.push(`${indent(4)}},`);
+    template.push(`${indent(4)}rows: [`);
+    const rowExample = columns.map((column) => `${column.name}: /* ${column.affinity} */`).join(', ');
+    template.push(`${indent(5)}{ ${rowExample} }`);
+    template.push(`${indent(4)}],`);
+    template.push(`${indent(3)}}`);
+    return template;
   }
 }
 
@@ -18,3 +100,4 @@ export class QueryRewriteError extends Error {
     this.name = 'QueryRewriteError';
   }
 }
+

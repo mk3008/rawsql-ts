@@ -1,6 +1,11 @@
 import { SelectQueryParser, SqlFormatter, splitQueries } from 'rawsql-ts';
 import type { SimpleSelectQuery, SqlFormatterOptions } from 'rawsql-ts';
-import { MissingFixtureError, QueryRewriteError, SchemaValidationError } from '../errors';
+import {
+  MissingFixtureError,
+  QueryRewriteError,
+  SchemaValidationError,
+} from '../errors';
+import type { MissingFixtureColumnDetail } from '../errors';
 import { FixtureStore } from '../fixtures/FixtureStore';
 import { normalizeIdentifier } from '../fixtures/naming';
 import { createLogger } from '../logger/NoopLogger';
@@ -118,7 +123,13 @@ export class SelectFixtureRewriter {
           // Reference points to a CTE defined inside the query, so no fixture is required.
           continue;
         }
-        this.handleMissingFixture(table);
+        // Surface actionable diagnostics when a referenced table does not have a fixture.
+        const columnDescriptor = this.fixtureStore.describeColumns(table);
+        const schemaColumns = columnDescriptor?.columns.map((column) => ({
+          name: column.name,
+          affinity: column.affinity,
+        }));
+        this.handleMissingFixture(table, sql, schemaColumns, columnDescriptor?.source);
         continue;
       }
 
@@ -164,9 +175,20 @@ export class SelectFixtureRewriter {
     return this.passthrough.has(tableName);
   }
 
-  private handleMissingFixture(table: string): void {
+  private handleMissingFixture(
+    table: string,
+    sql: string,
+    schemaColumns?: MissingFixtureColumnDetail[],
+    schemaSource?: 'fixture' | 'schema'
+  ): void {
     if (this.missingFixtureStrategy === 'error') {
-      throw new MissingFixtureError(table);
+      throw new MissingFixtureError({
+        tableName: table,
+        sql,
+        strategy: this.missingFixtureStrategy,
+        schemaColumns,
+        schemaSource,
+      });
     }
 
     if (this.missingFixtureStrategy === 'warn') {

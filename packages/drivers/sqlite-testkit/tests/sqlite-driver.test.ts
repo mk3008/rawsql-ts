@@ -129,6 +129,24 @@ describe('sqlite select test driver', () => {
 
     driver.close();
   });
+
+  it('provides descriptive diagnostics when fixtures are missing under the error strategy', async () => {
+    const recording = createRecordingConnection();
+    const driver = createSqliteSelectTestDriver({
+      connectionFactory: () => recording.driver,
+      schema: {
+        getTable: (name: string) => (name === 'users' ? userFixture.schema : undefined),
+      },
+      missingFixtureStrategy: 'error',
+    });
+
+    await expect(driver.query('SELECT id, email FROM users')).rejects.toThrowError(
+      /id \(INTEGER\)[\s\S]*email \(TEXT\)/
+    );
+
+    driver.close();
+    recording.close();
+  });
 });
 
 describe('wrapSqliteDriver', () => {

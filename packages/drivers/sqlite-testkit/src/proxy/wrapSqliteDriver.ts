@@ -37,10 +37,25 @@ const isSelectableQuery = (sql: string): boolean => {
 };
 
 /**
- * Wraps a SQLite connection to rewrite SELECT statements and optionally record execution data.
- * @param driver Native connection whose SELECT queries should honor fixture rewrites.
- * @param options Configuration that controls fixture scoping, query logging, and execution hooks.
- * @returns A proxied driver that rewrites queries before delegating and exposes fixture helpers.
+ * Wraps a SQLite connection so every SELECT/CTE statement is rewritten with fixture-backed CTEs before execution.
+ * @param driver Native connection (e.g. better-sqlite3, sqlite3) whose SELECT queries should honor rewrites.
+ * @param options Configuration that controls fixtures, rewrite strategy, execution hooks, and optional query logging.
+ * @returns A proxied driver that transparently rewrites queries, surfaces an optional `queries` log, and supports `withFixtures`.
+ * @example
+ * ```ts
+ * import Database from 'better-sqlite3';
+ * import { wrapSqliteDriver } from '@rawsql-ts/sqlite-testkit';
+ *
+ * const db = wrapSqliteDriver(new Database(':memory:'), {
+ *   fixtures: [
+ *     { tableName: 'accounts', rows: [{ id: 42, tier: 'pro' }] },
+ *   ],
+ *   recordQueries: true,
+ * });
+ *
+ * const rows = db.all('SELECT id, tier FROM accounts');
+ * console.log(rows, db.queries);
+ * ```
  */
 export const wrapSqliteDriver = <T extends SqliteConnectionLike>(
   driver: T,

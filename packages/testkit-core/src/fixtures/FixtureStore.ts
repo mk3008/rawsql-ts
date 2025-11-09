@@ -13,6 +13,13 @@ export interface NormalizedFixture {
   rows: (string | number | bigint | Buffer | null)[][];
 }
 
+export type FixtureColumnSource = 'fixture' | 'schema';
+
+export interface FixtureColumnDescription {
+  columns: ColumnDefinition[];
+  source: FixtureColumnSource;
+}
+
 export class FixtureStore {
   private readonly schemaRegistry?: SchemaRegistry;
   private readonly baseMap: Map<string, NormalizedFixture>;
@@ -35,6 +42,21 @@ export class FixtureStore {
     return next;
   }
 
+  public describeColumns(tableName: string): FixtureColumnDescription | undefined {
+    const normalized = normalizeIdentifier(tableName);
+    const fixture = this.baseMap.get(normalized);
+    if (fixture) {
+      return { columns: fixture.columns, source: 'fixture' };
+    }
+
+    const schema = this.getRegisteredSchema(tableName, normalized);
+    if (!schema) {
+      return undefined;
+    }
+
+    return { columns: this.buildColumns(schema, tableName), source: 'schema' };
+  }
+
   private buildMap(fixtures: TableFixture[]): Map<string, NormalizedFixture> {
     const map = new Map<string, NormalizedFixture>();
     for (const fixture of fixtures) {
@@ -42,6 +64,17 @@ export class FixtureStore {
       map.set(normalizedName, this.normalizeFixture(fixture));
     }
     return map;
+  }
+
+  private getRegisteredSchema(tableName: string, normalized: string): TableSchemaDefinition | undefined {
+    if (!this.schemaRegistry) {
+      return undefined;
+    }
+    return (
+      this.schemaRegistry.getTable(tableName) ??
+      this.schemaRegistry.getTable(normalized) ??
+      this.schemaRegistry.getTable(tableName.toLowerCase())
+    );
   }
 
   private normalizeFixture(fixture: TableFixture): NormalizedFixture {
