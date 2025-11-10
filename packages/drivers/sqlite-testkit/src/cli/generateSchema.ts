@@ -1,7 +1,14 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import type { TableSchemaDefinition, SqliteAffinity } from '@rawsql-ts/testkit-core';
-import { CreateTableQuery, SqlParser, TypeValue, RawString, type TableColumnDefinition } from 'rawsql-ts';
+import {
+  CreateTableQuery,
+  SqlParser,
+  TypeValue,
+  RawString,
+  type ParsedStatement,
+  type TableColumnDefinition,
+} from 'rawsql-ts';
 
 const DEFAULT_OUTPUT = 'schema.json';
 
@@ -119,12 +126,13 @@ async function buildSchema(databasePath: string, filters?: string[]): Promise<Re
 
       try {
         const parsed = SqlParser.parse(row.sql);
-        if (parsed.kind !== CreateTableQuery.kind) {
+        // Guard against other statements so the schema generator stays focused on CREATE TABLE definitions.
+        if (!isCreateTableStatement(parsed)) {
           console.warn(`Skipping "${row.name}" because the parser emitted a non-CREATE TABLE statement.`);
           continue;
         }
 
-        const createTable = parsed as CreateTableQuery;
+        const createTable = parsed;
         if (createTable.columns.length === 0) {
           console.warn(`Skipping "${row.name}" because the CREATE TABLE statement does not expose columns.`);
           continue;
@@ -176,6 +184,10 @@ function writeSchemaPerTable(directory: string, schema: Record<string, TableSche
     const filePath = resolve(directory, fileName);
     writeFileSync(filePath, `${JSON.stringify({ [tableName]: definition }, null, 2)}\n`, 'utf8');
   }
+}
+
+function isCreateTableStatement(statement: ParsedStatement): statement is CreateTableQuery {
+  return statement.getKind() === CreateTableQuery.kind;
 }
 
 function getDeclaredType(dataType?: TypeValue | RawString | null): string {
