@@ -5,13 +5,12 @@ on:
     branches: [ main ]
     paths:
       - 'docs/**'
+      - '!docs/api/**'
       - 'packages/core/src/**'
       - 'typedoc.json'
       - 'package.json'
       - 'pnpm-lock.yaml'
       - '.github/workflows/docs.yml'
-    paths-ignore:
-      - 'docs/api/**'
   workflow_dispatch:
 
 permissions:
