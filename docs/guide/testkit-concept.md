@@ -2,68 +2,87 @@
 title: Why SQL Unit Testing Is Hard and How `rawsql-ts` Solves It
 outline: deep
 ---
-
 # Why SQL Unit Testing Is Hard and How `rawsql-ts` Solves It
 
-## Traditional & Mocked Testing Pain Points
+## Traditional Testing Patterns and Their Pain Points
 
-### Conventional Database-Centric Tests
+Unit testing SQL logic is notoriously painful.
+A *unit test* should verify **inputs and outputs** — yet SQL queries depend on **database state**, not explicit inputs.
+Developers have tried several approaches to make SQL testable. Let’s examine them in order, from the most realistic to the most isolated.
 
-Unit testing SQL logic is notoriously painful.  
-A "unit test" should verify *inputs and outputs* - yet SQL queries rely on *database state* instead of explicit inputs.
+---
 
-Typical tests follow this pattern:
+### 1. Development Database Tests
 
-1. Create a test database.
-2. Apply the schema and seed data.
-3. Run the query.
-4. Assert the result.
-5. Clean up (truncate / rollback).
+This is the most common approach — running tests directly against a local or shared development database.
 
-While this works, it has several downsides:
+| Aspect       | Description                                         | Trade-off                               |
+| ------------ | --------------------------------------------------- | --------------------------------------- |
+| Execution    | Runs against an actual development or test database | Requires setup, teardown, and isolation |
+| Verification | Tests query results under full schema fidelity      | Dependent on mutable external state     |
+| Maintenance  | Mirrors production environment                      | Slow and fragile in CI environments     |
 
-| Issue | Impact |
-|-------|---------|
-| Shared mutable DB state | Tests interfere with each other |
-| Slow setup / teardown | Hard to run frequently |
-| Schema drift | Test DB may not match production schema |
-| High maintenance cost | Difficult to reproduce locally or in CI |
-| Not "true" unit tests | Behavior depends on external state |
+In short: **these tests resemble integration tests more than true unit tests.**
 
-In short: **SQL tests often look like integration tests in disguise**.
+---
 
-### Mocked SQL Verification
+### 2. Query Builder & Mocked SQL Tests
 
-Many ORM or query-builder tests rely on **SQL mocks**, verifying that a certain SQL string was issued.
+To avoid the cost of a real database, many ORM or query-builder tests rely on **mocking** — verifying that a specific SQL string was generated.
 
-| Approach | What It Verifies | Drawback |
-|-----------|------------------|-----------|
-| Mocking | "Was this SQL string generated?" | Tightly couples test to implementation |
-| rawsql-ts | "Does this SQL return correct results?" | Independent of query syntax |
+| Aspect       | Description                                     | Trade-off                                              |
+| ------------ | ----------------------------------------------- | ------------------------------------------------------ |
+| Verification | Checks whether a given SQL string was generated | Sensitive to harmless refactors and formatting changes |
+| Scope        | Focuses on SQL syntax rather than behavior      | Misses logic-level correctness                         |
+| Maintenance  | Fast and isolated                               | Can break on minor library or alias changes            |
 
-Mock-based tests fail on trivial refactors (e.g., formatting, alias renaming), even if behavior is unchanged.  
-`rawsql-ts` tests actual *behavior* - not internal SQL strings - so they are far more robust.
+Mock-based tests validate **implementation details**, not actual behavior.
+It’s like testing the **transpiled code** instead of **running the function**.
 
-#### Patterns You Probably Rely On
+---
 
-##### Query Builder Output Tests
+### 3. Repository Layer Mocks
 
-- **Pros:** Very fast and isolated.  
-- **Cons:** Test implementation details rather than behavior. SQL builders or ORM libraries already guarantee correctness of generated syntax, so re-testing that generation logic brings limited value. Even minor library updates or formatting changes can break tests unnecessarily. It's akin to *verifying the transpiled code instead of running the function* - efficient, but misaligned with the purpose of unit testing.
+This pattern mocks the **repository layer** — the class that encapsulates SQL access — in order to isolate upper layers (such as services or controllers) from database dependencies.
+It’s **not designed to validate SQL logic itself**, but rather to isolate upper layers from database dependencies.
+In other words, verifying SQL correctness is simply **outside the purpose of this pattern**.
 
-##### Repository Mocks
+| Aspect  | Description                                                | Trade-off                                     |
+| ------- | ---------------------------------------------------------- | --------------------------------------------- |
+| Purpose | Isolates service and controller logic from DB dependencies | Not intended for SQL correctness verification |
+| Usage   | Mocks repository results to test upper-layer reactions     | Misleading if mistaken for SQL testing        |
+| Value   | Enables fast and deterministic service tests               | Provides no insight into query behavior       |
 
-- **Pros:** Excellent for testing upper layers (services, controllers).  
-- **Cons:** Does **not** validate SQL correctness or query semantics. It assumes the repository's SQL logic is already correct. This pattern remains valid when your focus is purely application logic, and it still works alongside `rawsql-ts` if you need higher-layer isolation.
+Put simply: repository mocks are **tools for layer isolation**, rather than for SQL testing.
 
-##### Development Database Tests
+---
 
-- **Pros:** Real SQL execution, full schema fidelity.  
-- **Cons:** Expensive to maintain. Each developer needs a local environment, and CI/CD setups become heavy and fragile. Scaling across multiple projects or schemas quickly becomes impractical.
+### 4. rawsql-ts: The Middle Ground
 
-##### rawsql-ts as the Middle Ground
+`rawsql-ts` bridges these three worlds.
 
-`rawsql-ts` bridges these approaches - executing **real SQL logic** on an in-memory engine, while keeping tests lightweight, portable, and deterministic. It brings the realism of development databases with the speed of mocks, without the brittleness.
+| Aspect       | Description                                        | Trade-off                                              |
+| ------------ | -------------------------------------------------- | ------------------------------------------------------ |
+| Execution    | Runs real SQL logic on an in-memory engine         | Slightly more setup than pure mocks                    |
+| Verification | Validates behavior and semantics instead of syntax | Doesn’t emulate full production engine features        |
+| Maintenance  | Lightweight, schema-free, and CI-friendly          | Focused on logical correctness rather than performance |
+
+It executes SQL directly in-memory, verifying the *behavior* of SQL code without tying tests to formatting or infrastructure.
+This balance makes it ideal for true **SQL unit testing** — realistic, portable, and CI-friendly.
+
+---
+
+### 5. Summary
+
+| Approach              | Validates         | Speed | Maintenance | Realism |
+| --------------------- | ----------------- | ----- | ----------- | ------- |
+| Development DB        | Actual results    | Slow  | High        | ✅ Full  |
+| Query Builder / Mock  | SQL string        | Fast  | Low         | ❌ Low   |
+| Repository Layer Mock | Application logic | Fast  | Low         | ❌ None  |
+| rawsql-ts             | Query behavior    | Fast  | Low         | ✅ High  |
+
+In practice, many teams start with **development DB tests**, then adopt **builder mocks** for speed — but both miss the sweet spot.
+`rawsql-ts` exists to deliver that missing middle ground: **behavior-level SQL testing without the database baggage**.
 
 ---
 

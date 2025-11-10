@@ -63,6 +63,26 @@ export const schemaRegistry: SchemaRegistry = {
 
 You can also define an inline schema directly inside a fixture for quick tests.
 
+## Generating schema JSON from SQLite
+
+Use the bundled CLI to inspect a SQLite database and emit a `schema.json` file automatically.
+The command loads `better-sqlite3`, reads `sqlite_master`, and derives column affinities according to SQLite's published rules.
+Invoke it from the workspace root so `ts-node` resolves the package-specific `tsconfig.json`.
+
+```bash
+pnpm --filter @rawsql-ts/sqlite-testkit run schema:generate -- \
+  --database packages/drivers/sqlite-testkit/demo/sqlite/customer-demo.sqlite \
+  --output packages/drivers/sqlite-testkit/demo/schema/schema.json
+```
+
+Add `--tables tableA,tableB` to limit the export to a subset of tables (name matching is case-insensitive). The CLI sorts tables alphabetically before writing and warns about any statements it cannot parse.
+
+Ensure `better-sqlite3` is installed (it is an optional dependency for this CLI) before running the command.
+
+### Per-table exports
+
+You can pass `--per-table` to emit each table schema into its own JSON file inside the target directory (file names are URI-encoded to remain filesystem-safe). The demo registry now loads these fragments automatically when `schema.json` is missing, so you can keep one file per table and still share a `SchemaRegistry` instance.
+
 ---
 
 ## Option 1: In-Memory Driver (`createSqliteSelectTestDriver`)
