@@ -29,6 +29,18 @@ export default defineConfig({
         { text: 'Getting Started', link: '/guide/getting-started' },
         { text: 'Formatting Recipes', link: '/guide/formatting-recipes' },
         { text: 'Querybuilding Recipes', link: '/guide/querybuilding-recipes' },
+        { text: 'Testkit Concept', link: '/guide/testkit-concept' },
+        { text: 'SQLite Testkit How-To', link: '/guide/sqlite-testkit-howto' },
+        {
+          text: 'Conversion Guides',
+          items: [
+            { text: 'SELECT → INSERT', link: '/guide/insert-conversion' },
+            { text: 'SELECT → UPDATE', link: '/guide/update-conversion' },
+            { text: 'SELECT → DELETE', link: '/guide/delete-conversion' },
+            { text: 'SELECT → CREATE TABLE', link: '/guide/create-table-conversion' },
+            { text: 'SELECT → MERGE', link: '/guide/merge-conversion' },
+          ]
+        }
       ],
       '/api/': apiSidebarWithIndex
     },

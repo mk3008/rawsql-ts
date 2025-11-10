@@ -1,4 +1,4 @@
-﻿---
+---
 title: SQLite Testkit Guide
 outline: deep
 ---
@@ -62,6 +62,26 @@ export const schemaRegistry: SchemaRegistry = {
 ```
 
 You can also define an inline schema directly inside a fixture for quick tests.
+
+## Generating schema JSON from SQLite
+
+Use the bundled CLI to inspect a SQLite database and emit a `schema.json` file automatically.
+The command loads `better-sqlite3`, reads `sqlite_master`, and derives column affinities according to SQLite's published rules.
+Invoke it from the workspace root so `ts-node` resolves the package-specific `tsconfig.json`.
+
+```bash
+pnpm --filter @rawsql-ts/sqlite-testkit run schema:generate -- \
+  --database packages/drivers/sqlite-testkit/demo/sqlite/customer-demo.sqlite \
+  --output packages/drivers/sqlite-testkit/demo/schema/schema.json
+```
+
+Add `--tables tableA,tableB` to limit the export to a subset of tables (name matching is case-insensitive). The CLI sorts tables alphabetically before writing and warns about any statements it cannot parse.
+
+Ensure `better-sqlite3` is installed (it is an optional dependency for this CLI) before running the command.
+
+### Per-table exports
+
+You can pass `--per-table` to emit each table schema into its own JSON file inside the target directory (file names are URI-encoded to remain filesystem-safe). The demo registry now loads these fragments automatically when `schema.json` is missing, so you can keep one file per table and still share a `SchemaRegistry` instance.
 
 ---
 
@@ -165,7 +185,13 @@ node packages/drivers/sqlite-testkit/scripts/install-better-sqlite3.cjs
 - **Missing schema:** Ensure every fixture table is registered or includes an inline schema.  
 - **No test files:** Update `vitest.workspace.ts` include patterns.  
 - **Leaked handles:** Always close the driver at the end of each test.  
-- **Fixtures not applied:** Only `SELECT` statements are intercepted - DMLs pass through unchanged.
+- **Fixtures not applied:** Only `SELECT` statements are intercepted - DMLs pass through unchanged. See the [Insert conversion](./insert-conversion.md), [Update conversion](./update-conversion.md), [Delete conversion](./delete-conversion.md), [CreateTable conversion](./create-table-conversion.md), and [Merge conversion](./merge-conversion.md) guides for how each DML maps back to a projected query.
+
+---
+
+## Why Only `SELECT` Statements Are Intercepted
+
+`rawsql-ts` keeps the runtime focused on `SELECT` queries because each modification can be expressed as a projection that `QueryBuilder` (packages/core/src/transformers/QueryBuilder.ts) rewrites into the target DML. The conversion guides listed above document how `INSERT`, `UPDATE`, `DELETE`, `CREATE TABLE`, and `MERGE` statements are synthesized from the same select metadata that the testkit already rewrites, so validating the reads effectively covers the writes without exposing mutable state.
 
 ---
 
@@ -173,6 +199,11 @@ With these tools, you can reuse production repositories unchanged while gaining 
 
 ## Learn More
 
+- [Insert conversion](./insert-conversion.md) - Learn how `QueryBuilder.buildInsertQuery` converts a projection back to `INSERT INTO ... SELECT ...`.
+- [Update conversion](./update-conversion.md) - See how primary keys, aliases, and set clauses are derived from a `SimpleSelectQuery`.
+- [Delete conversion](./delete-conversion.md) - Understand the correlated `EXISTS` predicate that keeps deletions aligned with select filters.
+- [CreateTable conversion](./create-table-conversion.md) - Learn how temporary tables can be seeded via `CREATE TABLE ... AS SELECT ...`.
+- [Merge conversion](./merge-conversion.md) - Dive into the action builders that turn a projection into a full upsert pipeline.
 - [Testkit Concept](./testkit-concept.md) - Understand the rationale behind fixture-driven SQL unit testing.
 - [SchemaRegistry API](../api/interfaces/SchemaRegistry.md) - Reference the type contracts for schema lookups and inline overrides.
 - [SelectQueryParser](../api/classes/SelectQueryParser.md) - See how the parser exposes AST nodes for fixture injection and diagnostics.
@@ -181,4 +212,5 @@ With these tools, you can reuse production repositories unchanged while gaining 
 
 - Run the demo specs under `packages/drivers/sqlite-testkit/tests` to validate your setup end-to-end.
 - Port existing repository tests by wrapping your `better-sqlite3` adapter as shown in `packages/drivers/sqlite-testkit/demo/tests/customer-intercept.test.ts`.
+
 

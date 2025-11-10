@@ -82,3 +82,7 @@ console.log(intercepted.queries);
 ```
 
 Call `intercepted.withFixtures([...])` to create an isolated proxy that applies additional fixtures on top of the base configuration.
+
+## Publishing
+
+Run `npm run release` from `packages/drivers/sqlite-testkit` to execute lint, test, build, `npm pack --dry-run`, and `npm publish --access public`. This mirrors the core package release workflow and lets you publish `@rawsql-ts/sqlite-testkit` directly after bumping the version.

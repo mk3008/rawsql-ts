@@ -9,7 +9,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint src --ext .ts",
-    "postinstall": "node ./scripts/install-better-sqlite3.cjs"
+    "schema:generate": "ts-node --project tsconfig.json src/cli/generateSchema.ts",
+    "postinstall": "node ./scripts/install-better-sqlite3.cjs",
+    "release": "npm run lint && npm run test && npm run build && npm pack --dry-run && npm publish --access public"
   },
   "keywords": [
     "sqlite",
@@ -28,14 +30,16 @@
     "node": ">=20"
   },
   "dependencies": {
-    "@rawsql-ts/testkit-core": "workspace:*"
+    "@rawsql-ts/testkit-core": "workspace:*",
+    "rawsql-ts": "workspace:*"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",
     "better-sqlite3": "^12.4.1",
     "dotenv": "^16.4.7",
     "typescript": "^5.8.2",
-    "vitest": "^4.0.7"
+    "vitest": "^4.0.7",
+    "ts-node": "^10.9.2"
   },
   "files": [
     "dist"

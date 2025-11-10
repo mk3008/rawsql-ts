@@ -1,0 +1,263 @@
+<div v-pre>
+# Class: IndexColumnDefinition
+
+Defined in: [packages/core/src/models/DDLStatements.ts:77](https://github.com/mk3008/rawsql-ts/blob/931f6c594a3d00fa39b6fcdb6143e285443101ee/packages/core/src/models/DDLStatements.ts#L77)
+
+Column definition within CREATE INDEX clause.
+
+## Extends
+
+- [`SqlComponent`](SqlComponent.md)
+
+## Constructors
+
+### Constructor
+
+> **new IndexColumnDefinition**(`params`): `IndexColumnDefinition`
+
+Defined in: [packages/core/src/models/DDLStatements.ts:85](https://github.com/mk3008/rawsql-ts/blob/931f6c594a3d00fa39b6fcdb6143e285443101ee/packages/core/src/models/DDLStatements.ts#L85)
+
+#### Parameters
+
+##### params
+
+###### expression
+
+[`ValueComponent`](../type-aliases/ValueComponent.md)
+
+###### sortOrder?
+
+[`IndexSortOrder`](../type-aliases/IndexSortOrder.md)
+
+###### nullsOrder?
+
+[`IndexNullsOrder`](../type-aliases/IndexNullsOrder.md)
+
+###### collation?
+
+`null` \| [`QualifiedName`](QualifiedName.md)
+
+###### operatorClass?
+
+`null` \| [`QualifiedName`](QualifiedName.md)
+
+#### Returns
+
+`IndexColumnDefinition`
+
+#### Overrides
+
+[`SqlComponent`](SqlComponent.md).[`constructor`](SqlComponent.md#constructor)
+
+## Properties
+
+### kind
+
+> `static` **kind**: `symbol`
+
+Defined in: [packages/core/src/models/DDLStatements.ts:78](https://github.com/mk3008/rawsql-ts/blob/931f6c594a3d00fa39b6fcdb6143e285443101ee/packages/core/src/models/DDLStatements.ts#L78)
+
+#### Overrides
+
+[`SqlComponent`](SqlComponent.md).[`kind`](SqlComponent.md#kind)
+
+***
+
+### expression
+
+> **expression**: [`ValueComponent`](../type-aliases/ValueComponent.md)
+
+Defined in: [packages/core/src/models/DDLStatements.ts:79](https://github.com/mk3008/rawsql-ts/blob/931f6c594a3d00fa39b6fcdb6143e285443101ee/packages/core/src/models/DDLStatements.ts#L79)
+
+***
+
+### sortOrder
+
+> **sortOrder**: [`IndexSortOrder`](../type-aliases/IndexSortOrder.md)
+
+Defined in: [packages/core/src/models/DDLStatements.ts:80](https://github.com/mk3008/rawsql-ts/blob/931f6c594a3d00fa39b6fcdb6143e285443101ee/packages/core/src/models/DDLStatements.ts#L80)
+
+***
+
+### nullsOrder
+
+> **nullsOrder**: [`IndexNullsOrder`](../type-aliases/IndexNullsOrder.md)
+
+Defined in: [packages/core/src/models/DDLStatements.ts:81](https://github.com/mk3008/rawsql-ts/blob/931f6c594a3d00fa39b6fcdb6143e285443101ee/packages/core/src/models/DDLStatements.ts#L81)
+
+***
+
+### collation?
+
+> `optional` **collation**: `null` \| [`QualifiedName`](QualifiedName.md)
+
+Defined in: [packages/core/src/models/DDLStatements.ts:82](https://github.com/mk3008/rawsql-ts/blob/931f6c594a3d00fa39b6fcdb6143e285443101ee/packages/core/src/models/DDLStatements.ts#L82)
+
+***
+
+### operatorClass?
+
+> `optional` **operatorClass**: `null` \| [`QualifiedName`](QualifiedName.md)
+
+Defined in: [packages/core/src/models/DDLStatements.ts:83](https://github.com/mk3008/rawsql-ts/blob/931f6c594a3d00fa39b6fcdb6143e285443101ee/packages/core/src/models/DDLStatements.ts#L83)
+
+***
+
+### comments
+
+> **comments**: `null` \| `string`[] = `null`
+
+Defined in: [packages/core/src/models/SqlComponent.ts:29](https://github.com/mk3008/rawsql-ts/blob/931f6c594a3d00fa39b6fcdb6143e285443101ee/packages/core/src/models/SqlComponent.ts#L29)
+
+#### Inherited from
+
+[`SqlComponent`](SqlComponent.md).[`comments`](SqlComponent.md#comments)
+
+***
+
+### positionedComments
+
+> **positionedComments**: `null` \| [`PositionedComment`](../interfaces/PositionedComment.md)[] = `null`
+
+Defined in: [packages/core/src/models/SqlComponent.ts:32](https://github.com/mk3008/rawsql-ts/blob/931f6c594a3d00fa39b6fcdb6143e285443101ee/packages/core/src/models/SqlComponent.ts#L32)
+
+#### Inherited from
+
+[`SqlComponent`](SqlComponent.md).[`positionedComments`](SqlComponent.md#positionedcomments)
+
+## Methods
+
+### getKind()
+
+> **getKind**(): `symbol`
+
+Defined in: [packages/core/src/models/SqlComponent.ts:15](https://github.com/mk3008/rawsql-ts/blob/931f6c594a3d00fa39b6fcdb6143e285443101ee/packages/core/src/models/SqlComponent.ts#L15)
+
+#### Returns
+
+`symbol`
+
+#### Inherited from
+
+[`SqlComponent`](SqlComponent.md).[`getKind`](SqlComponent.md#getkind)
+
+***
+
+### accept()
+
+> **accept**&lt;`T`\&gt;(`visitor`): `T`
+
+Defined in: [packages/core/src/models/SqlComponent.ts:19](https://github.com/mk3008/rawsql-ts/blob/931f6c594a3d00fa39b6fcdb6143e285443101ee/packages/core/src/models/SqlComponent.ts#L19)
+
+#### Type Parameters
+
+##### T
+
+`T`
+
+#### Parameters
+
+##### visitor
+
+[`SqlComponentVisitor`](../interfaces/SqlComponentVisitor.md)&lt;`T`\&gt;
+
+#### Returns
+
+`T`
+
+#### Inherited from
+
+[`SqlComponent`](SqlComponent.md).[`accept`](SqlComponent.md#accept)
+
+***
+
+### toSqlString()
+
+> **toSqlString**(`formatter`): `string`
+
+Defined in: [packages/core/src/models/SqlComponent.ts:23](https://github.com/mk3008/rawsql-ts/blob/931f6c594a3d00fa39b6fcdb6143e285443101ee/packages/core/src/models/SqlComponent.ts#L23)
+
+#### Parameters
+
+##### formatter
+
+[`SqlComponentVisitor`](../interfaces/SqlComponentVisitor.md)&lt;`string`\&gt;
+
+#### Returns
+
+`string`
+
+#### Inherited from
+
+[`SqlComponent`](SqlComponent.md).[`toSqlString`](SqlComponent.md#tosqlstring)
+
+***
+
+### addPositionedComments()
+
+> **addPositionedComments**(`position`, `comments`): `void`
+
+Defined in: [packages/core/src/models/SqlComponent.ts:37](https://github.com/mk3008/rawsql-ts/blob/931f6c594a3d00fa39b6fcdb6143e285443101ee/packages/core/src/models/SqlComponent.ts#L37)
+
+Add comments at a specific position
+
+#### Parameters
+
+##### position
+
+`"before"` | `"after"`
+
+##### comments
+
+`string`[]
+
+#### Returns
+
+`void`
+
+#### Inherited from
+
+[`SqlComponent`](SqlComponent.md).[`addPositionedComments`](SqlComponent.md#addpositionedcomments)
+
+***
+
+### getPositionedComments()
+
+> **getPositionedComments**(`position`): `string`[]
+
+Defined in: [packages/core/src/models/SqlComponent.ts:56](https://github.com/mk3008/rawsql-ts/blob/931f6c594a3d00fa39b6fcdb6143e285443101ee/packages/core/src/models/SqlComponent.ts#L56)
+
+Get comments for a specific position
+
+#### Parameters
+
+##### position
+
+`"before"` | `"after"`
+
+#### Returns
+
+`string`[]
+
+#### Inherited from
+
+[`SqlComponent`](SqlComponent.md).[`getPositionedComments`](SqlComponent.md#getpositionedcomments)
+
+***
+
+### getAllPositionedComments()
+
+> **getAllPositionedComments**(): `string`[]
+
+Defined in: [packages/core/src/models/SqlComponent.ts:66](https://github.com/mk3008/rawsql-ts/blob/931f6c594a3d00fa39b6fcdb6143e285443101ee/packages/core/src/models/SqlComponent.ts#L66)
+
+Get all positioned comments as a flat array in order (before, after)
+
+#### Returns
+
+`string`[]
+
+#### Inherited from
+
+[`SqlComponent`](SqlComponent.md).[`getAllPositionedComments`](SqlComponent.md#getallpositionedcomments)
+</div>
