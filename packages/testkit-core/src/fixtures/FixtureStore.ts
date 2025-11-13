@@ -1,10 +1,15 @@
 ﻿import { SchemaValidationError } from '../errors';
 import { normalizeIdentifier, sanitizeFixtureIdentifier } from './naming';
-import type { TableFixture, SchemaRegistry, TableSchemaDefinition, SqliteAffinity } from '../types';
+import type {
+  ColumnTypeName,
+  TableFixture,
+  SchemaRegistry,
+  TableSchemaDefinition,
+} from '../types';
 
 export interface ColumnDefinition {
   name: string;
-  affinity: SqliteAffinity;
+  typeName: ColumnTypeName;
 }
 
 export interface NormalizedFixture {
@@ -103,7 +108,7 @@ export class FixtureStore {
       throw new SchemaValidationError(`Schema for "${fixtureName}" must declare at least one column.`);
     }
 
-    return entries.map(([name, affinity]) => ({ name, affinity }));
+    return entries.map(([name, typeName]) => ({ name, typeName }));
   }
 
   private normalizeRow(
@@ -131,7 +136,7 @@ export class FixtureStore {
       }
 
       normalizedRow.push(
-        this.normalizeValue(value, column.affinity, fixtureName, column.name, rowIndex)
+        this.normalizeValue(value, column.typeName, fixtureName, column.name, rowIndex)
       );
     }
 
@@ -140,65 +145,33 @@ export class FixtureStore {
 
   private normalizeValue(
     value: unknown,
-    affinity: SqliteAffinity,
+    typeName: ColumnTypeName,
     fixtureName: string,
     columnName: string,
     rowIndex: number
   ): string | number | bigint | Buffer {
     const location = `fixture "${fixtureName}" column "${columnName}" (row ${rowIndex})`;
 
-    if (affinity === 'TEXT') {
-      if (typeof value === 'string') {
-        return value;
-      }
-      if (value instanceof Date) {
-        return value.toISOString();
-      }
-      if (typeof value === 'number' || typeof value === 'boolean') {
-        return String(value);
-      }
-      return JSON.stringify(value);
+    // Convert flexible JS primitives into the literal shapes SqliteValuesBuilder accepts.
+    if (value instanceof Buffer) {
+      return value;
+    }
+    if (value instanceof Uint8Array) {
+      return Buffer.from(value);
+    }
+    if (value instanceof Date) {
+      return value.toISOString();
+    }
+    if (typeof value === 'string' || typeof value === 'number' || typeof value === 'bigint') {
+      return value;
+    }
+    if (typeof value === 'boolean') {
+      return value ? 1 : 0;
     }
 
-    if (affinity === 'INTEGER') {
-      if (typeof value === 'number' && Number.isFinite(value)) {
-        return Math.trunc(value);
-      }
-      if (typeof value === 'bigint') {
-        return value;
-      }
-      if (typeof value === 'boolean') {
-        return value ? 1 : 0;
-      }
-      throw new SchemaValidationError(`Expected integer-compatible value for ${location}.`);
-    }
-
-    if (affinity === 'REAL' || affinity === 'NUMERIC') {
-      if (typeof value === 'number' && Number.isFinite(value)) {
-        return value;
-      }
-      if (typeof value === 'bigint') {
-        return Number(value);
-      }
-      if (typeof value === 'string') {
-        const parsed = Number(value);
-        if (!Number.isNaN(parsed)) {
-          return parsed;
-        }
-      }
-      throw new SchemaValidationError(`Expected numeric value for ${location}.`);
-    }
-
-    if (affinity === 'BLOB') {
-      if (value instanceof Buffer) {
-        return value;
-      }
-      if (value instanceof Uint8Array) {
-        return Buffer.from(value);
-      }
-      throw new SchemaValidationError(`Expected Buffer or Uint8Array for ${location}.`);
-    }
-
-    throw new SchemaValidationError(`Unsupported affinity "${affinity}" configured for ${location}.`);
+    throw new SchemaValidationError(
+      `Expected fixture value compatible with declared type "${typeName}" for ${location}.`
+    );
   }
 }
+

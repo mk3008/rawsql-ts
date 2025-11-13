@@ -3,8 +3,8 @@ import { SqliteValuesBuilder } from '../src/sql/SqliteValuesBuilder';
 import type { NormalizedFixture } from '../src/fixtures/FixtureStore';
 
 const baseColumns: NormalizedFixture['columns'] = [
-  { name: 'id', affinity: 'INTEGER' },
-  { name: 'name', affinity: 'TEXT' },
+  { name: 'id', typeName: 'INTEGER' },
+  { name: 'name', typeName: 'TEXT' },
 ];
 
 const createFixture = (rows: NormalizedFixture['rows']): NormalizedFixture => ({

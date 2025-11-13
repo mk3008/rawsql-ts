@@ -55,7 +55,10 @@ export class SqliteValuesBuilder {
         fixture.columns
           .map((column, index) => {
             const literal = formatLiteral(row[index] ?? null);
-            return `CAST(${literal} AS ${column.affinity}) AS ${quoteIdentifier(column.name)}`;
+            // Default to TEXT (SQLite's fallback) when no DDL type was declared.
+            const declaredType = column.typeName.trim();
+            const castTarget = declaredType.length > 0 ? declaredType : 'TEXT';
+            return `CAST(${literal} AS ${castTarget}) AS ${quoteIdentifier(column.name)}`;
           })
           .join(', ')
       );
