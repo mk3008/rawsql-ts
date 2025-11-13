@@ -7,6 +7,7 @@ import type {
   PostgresQueryParams,
   PostgresSelectTestDriver,
 } from '../types';
+import { withPostgresFormatterDefaults } from '../utils/postgresFormatterOptions';
 
 export class PostgresSelectTestDriverImpl implements PostgresSelectTestDriver {
   private connection?: PostgresConnectionLike;
@@ -17,7 +18,7 @@ export class PostgresSelectTestDriverImpl implements PostgresSelectTestDriver {
     private readonly scopedFixtures?: TableFixture[],
     seedConnection?: PostgresConnectionLike
   ) {
-    this.rewriter = new SelectFixtureRewriter(options);
+    this.rewriter = new SelectFixtureRewriter(withPostgresFormatterDefaults(options));
     this.connection = seedConnection;
   }
 

@@ -13,4 +13,10 @@ export default defineWorkspace([
       root: './packages/drivers/sqlite-testkit',
     },
   },
+  {
+    extends: './packages/drivers/postgres-testkit/vitest.config.ts',
+    test: {
+      root: './packages/drivers/postgres-testkit',
+    },
+  },
 ]);

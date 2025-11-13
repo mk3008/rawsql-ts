@@ -1,20 +1,14 @@
 ﻿import { describe, expect, it } from 'vitest';
 import { CustomerRepository } from '../repositories/CustomerRepository';
+import { getDemoPostgresUrl } from '../runtime/postgresConfig';
 import { createDemoPostgresConnection } from '../db/mockConnectionFactory';
 
-describe('Postgres customer repository (physical)', () => {
-  it('returns rows from the mock connection directly', async () => {
-    const client = createDemoPostgresConnection({
-      public__customers: [
-        {
-          id: 1,
-          email: 'physical@example.com',
-          display_name: 'Physical Customer',
-          tier: 'standard',
-          suspended_at: null,
-        },
-      ],
-    });
+const describeManual = getDemoPostgresUrl() ? describe : describe.skip;
+
+describeManual('Postgres customer repository (physical)', () => {
+  it('returns rows from the docker Postgres baseline', async () => {
+    // Connect to the docker-backed Postgres instance for the physical baseline check.
+    const client = await createDemoPostgresConnection();
 
     const repo = new CustomerRepository(client);
     const active = await repo.listActive();

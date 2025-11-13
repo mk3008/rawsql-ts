@@ -8,6 +8,7 @@ import type {
   WrappedPostgresDriver,
   WrappedPostgresQueryLogEntry,
 } from '../types';
+import { withPostgresFormatterDefaults } from '../utils/postgresFormatterOptions';
 
 const normalizePostgresQueryArgs = (
   args: unknown[]
@@ -95,7 +96,8 @@ export const wrapPostgresDriver = <T extends PostgresConnectionLike>(
   driver: T,
   options: WrapPostgresDriverOptions
 ): WrappedPostgresDriver<T> => {
-  const rewriter = new SelectFixtureRewriter(options);
+  const rewriterOptions = withPostgresFormatterDefaults(options);
+  const rewriter = new SelectFixtureRewriter(rewriterOptions);
 
   const buildProxy = (scopedFixtures?: TableFixture[]): WrappedPostgresDriver<T> => {
     const queryLog: WrappedPostgresQueryLogEntry[] | undefined = options.recordQueries ? [] : undefined;
