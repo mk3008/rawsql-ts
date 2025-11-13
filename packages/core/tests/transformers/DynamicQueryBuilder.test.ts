@@ -83,6 +83,74 @@ describe('DynamicQueryBuilder', () => {
         });
     });
 
+    describe('Logical filter composition', () => {
+        const logicalFilterSql = 'select id, status, priority, category, type from tasks where active = true';
+
+        it('formats OR conditions as grouped predicates', () => {
+            // Arrange
+            const options = {
+                filter: {
+                    or: {
+                        or: [
+                            { column: 'status', '=': 'todo' },
+                            { column: 'priority', '=': 'high' }
+                        ]
+                    }
+                }
+            };
+
+            // Act
+            const result = builder.buildQuery(logicalFilterSql, options);
+            const formatter = new SqlFormatter();
+            const { formattedSql, params } = formatter.format(result);
+
+            // Assert
+            expect(formattedSql).toBe(
+                'select "id", "status", "priority", "category", "type" from "tasks" where "active" = true and ("status" = :or_or_0_eq or "priority" = :or_or_1_eq)'
+            );
+            expect(params).toEqual({
+                or_or_0_eq: 'todo',
+                or_or_1_eq: 'high'
+            });
+        });
+
+        it('combines multiple OR groups in one filter payload', () => {
+            // Arrange
+            const options = {
+                filter: {
+                    or: {
+                        or: [
+                            { column: 'status', '=': 'pending' },
+                            { column: 'priority', '=': 'urgent' }
+                        ]
+                    },
+                    orGroup: {
+                        or: [
+                            { column: 'category', '=': 'billing' },
+                            { column: 'type', '=': 'feature' }
+                        ]
+                    }
+                }
+            };
+
+            // Act
+            const result = builder.buildQuery(logicalFilterSql, options);
+            const formatter = new SqlFormatter();
+            const { formattedSql, params } = formatter.format(result);
+
+            // Assert
+            expect(formattedSql).toBe(
+                'select "id", "status", "priority", "category", "type" from "tasks" where "active" = true and ("status" = :or_or_0_eq or "priority" = :or_or_1_eq) and ("category" = :orGroup_or_0_eq or "type" = :orGroup_or_1_eq)'
+            );
+            expect(params).toEqual({
+                or_or_0_eq: 'pending',
+                or_or_1_eq: 'urgent',
+                orGroup_or_0_eq: 'billing',
+                orGroup_or_1_eq: 'feature'
+            });
+        });
+    });
+
     describe('Convenience methods', () => {
         it('should apply filter only with buildFilteredQuery', () => {
             // Arrange
@@ -667,6 +735,36 @@ describe('DynamicQueryBuilder', () => {
                 profiles_name: 'Alice Profile',
                 orders_total: 100
             });
+        });
+    });
+
+    describe('Explicit column overrides for expressions', () => {
+        it('injects filters targeting a JSON extraction expression using a differently-named alias', () => {
+            // Arrange
+            const sql = `
+                SELECT
+                    id,
+                    payload ->> 'status' AS status_path
+                FROM tasks
+                WHERE active = true
+            `;
+            const options = {
+                filter: {
+                    statusPath: {
+                        column: 'status_path',
+                        '=': 'active'
+                    }
+                }
+            };
+
+            // Act
+            const result = builder.buildQuery(sql, options);
+
+            // Assert
+            const formatter = new SqlFormatter();
+            const { formattedSql, params } = formatter.format(result);
+            expect(formattedSql).toContain('"payload" ->> \'status\' = :statusPath');
+            expect(params).toEqual({ statusPath: 'active' });
         });
     });
 });

@@ -12,15 +12,14 @@ rawsql-ts is a high-performance SQL parser and AST transformer library written i
 
 It is designed for extensibility and advanced SQL analysis, with initial focus on PostgreSQL syntax but not limited to it. The library enables easy SQL parsing, transformation, and analysis for a wide range of SQL dialects.
 
-> [!Note]
-> This library is currently in beta. The API may change until the v1.0 release.
-
 ## 📦 Packages
 
-This is a monorepo containing multiple packages:
+This workspace hosts the following packages:
 
-- **[rawsql-ts](./packages/core)** - Core SQL parsing and transformation library
-- **(Prisma integration removed)** - Prisma-specific integration has been removed from this monorepo.
+- **[rawsql-ts](./packages/core)** – Core SQL parsing and transformation library.
+- **@rawsql-ts/testkit-core** – Shared fixtures, schema validation, and SQL rewrite utilities for the select query test harness.
+- **@rawsql-ts/postgres-testkit** – PostgreSQL driver adapters that plug into the testkit core.
+- **@rawsql-ts/sqlite-testkit** – SQLite driver adapters that plug into the testkit core.
 
 ---
 
