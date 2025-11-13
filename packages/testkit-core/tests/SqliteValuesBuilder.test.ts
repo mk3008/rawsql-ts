@@ -8,7 +8,8 @@ const baseColumns: NormalizedFixture['columns'] = [
 ];
 
 const createFixture = (rows: NormalizedFixture['rows']): NormalizedFixture => ({
-  name: 'users',
+  tableName: 'users',
+  cteNameBase: 'users',
   columns: baseColumns,
   rows,
 });

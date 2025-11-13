@@ -1,9 +1,9 @@
 import type { SqlFormatterOptions } from 'rawsql-ts';
 
-export type SqliteAffinity = 'TEXT' | 'INTEGER' | 'REAL' | 'NUMERIC' | 'BLOB';
+export type ColumnTypeName = string;
 
 export interface TableSchemaDefinition {
-  columns: Record<string, SqliteAffinity>;
+  columns: Record<string, ColumnTypeName>;
 }
 
 export interface SchemaRegistry {

@@ -4,6 +4,7 @@ import type { NormalizedFixture } from '../fixtures/FixtureStore';
 
 export interface FixtureCteDefinition {
   name: string;
+  sourceName: string;
   query: SelectQuery;
   inlineSql: string;
 }
@@ -34,12 +35,14 @@ const formatLiteral = (value: string | number | bigint | Buffer | null): string 
 };
 
 export class SqliteValuesBuilder {
-  public static buildCTE(fixture: NormalizedFixture): FixtureCteDefinition {
+  public static buildCTE(fixture: NormalizedFixture, alias?: string): FixtureCteDefinition {
     const selectSql = this.buildSelectStatement(fixture);
-    const inlineSql = this.wrapAsCte(fixture.name, selectSql);
+    const cteName = alias ?? fixture.cteNameBase;
+    const inlineSql = this.wrapAsCte(cteName, selectSql);
     const query = SelectQueryParser.parse(selectSql);
     return {
-      name: fixture.name,
+      name: cteName,
+      sourceName: fixture.tableName,
       query,
       inlineSql,
     };

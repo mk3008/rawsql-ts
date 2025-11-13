@@ -7,6 +7,7 @@ import {
 } from '../errors';
 import type { MissingFixtureColumnDetail } from '../errors';
 import { FixtureStore } from '../fixtures/FixtureStore';
+import type { NormalizedFixture } from '../fixtures/FixtureStore';
 import { normalizeIdentifier } from '../fixtures/naming';
 import { createLogger } from '../logger/NoopLogger';
 import type {
@@ -20,6 +21,7 @@ import type {
 import { SqliteValuesBuilder } from '../sql/SqliteValuesBuilder';
 import type { FixtureCteDefinition } from '../sql/SqliteValuesBuilder';
 import { SelectAnalyzer } from './SelectAnalyzer';
+import { renameSqlIdentifiers, renameTableReferences } from './TableReferenceRenamer';
 import type { SelectAnalysisResult } from './SelectAnalyzer';
 
 const DEFAULT_FORMATTER_OPTIONS: SqlFormatterOptions = {
@@ -132,9 +134,26 @@ export class SelectFixtureRewriter {
 
     const existingCteNames = analysis ? new Set(analysis.cteNames) : undefined;
     const targetTables = analysis ? [...new Set(analysis.tableNames)] : [...fixtureMap.keys()];
+    const shouldDebugRewrite = Boolean(process.env.DEBUG_REWRITE_SQL);
+    if (shouldDebugRewrite) {
+      console.debug('SelectFixtureRewriter targetTables', { targetTables });
+    }
     const cteDefinitions: FixtureCteDefinition[] = [];
     const scheduledFixtures = new Set<string>();
     const fixturesApplied: string[] = [];
+    const renameMap = new Map<string, string>();
+    const assignedAliases = new Set<string>();
+
+    const registerFixture = (tableKey: string, fixture: NormalizedFixture): void => {
+      const alias = this.allocateCteAlias(fixture.cteNameBase, assignedAliases);
+      assignedAliases.add(alias.toLowerCase());
+      renameMap.set(tableKey, alias);
+      cteDefinitions.push(SqliteValuesBuilder.buildCTE(fixture, alias));
+      scheduledFixtures.add(tableKey);
+      if (!fixturesApplied.includes(fixture.tableName)) {
+        fixturesApplied.push(fixture.tableName);
+      }
+    };
 
     for (const table of targetTables) {
       if (this.isPassthrough(table)) {
@@ -146,10 +165,8 @@ export class SelectFixtureRewriter {
 
       if (!fixture) {
         if (isQueryDefinedCte) {
-          // Reference points to a CTE defined inside the query, so no fixture is required.
           continue;
         }
-        // Surface actionable diagnostics when a referenced table does not have a fixture.
         const columnDescriptor = this.fixtureStore.describeColumns(table);
         const schemaColumns = columnDescriptor?.columns.map((column) => ({
           name: column.name,
@@ -159,11 +176,7 @@ export class SelectFixtureRewriter {
         continue;
       }
 
-      cteDefinitions.push(SqliteValuesBuilder.buildCTE(fixture));
-      scheduledFixtures.add(table);
-      if (!fixturesApplied.includes(fixture.name)) {
-        fixturesApplied.push(fixture.name);
-      }
+      registerFixture(table, fixture);
     }
 
     if (existingCteNames) {
@@ -175,19 +188,26 @@ export class SelectFixtureRewriter {
         if (!fixture) {
           continue;
         }
-        cteDefinitions.push(SqliteValuesBuilder.buildCTE(fixture));
-        scheduledFixtures.add(cteName);
-        if (!fixturesApplied.includes(fixture.name)) {
-          fixturesApplied.push(fixture.name);
-        }
+        registerFixture(cteName, fixture);
       }
+    }
+
+    if (shouldDebugRewrite) {
+      console.debug('SelectFixtureRewriter renameMap', { renameEntries: [...renameMap.entries()] });
     }
 
     if (cteDefinitions.length === 0) {
       return { sql, fixturesApplied };
     }
 
-    const rewritten = this.mergeWithClause(sql, cteDefinitions, context, Boolean(analysis), existingCteNames);
+    const rewritten = this.mergeWithClause(
+      sql,
+      cteDefinitions,
+      context,
+      Boolean(analysis),
+      existingCteNames,
+      renameMap
+    );
     return {
       sql: rewritten,
       fixturesApplied,
@@ -243,12 +263,30 @@ export class SelectFixtureRewriter {
     }
   }
 
+  /**
+   * Allocate a unique alias for fixture CTEs so we never collide with other CTE names.
+   */
+  private allocateCteAlias(baseName: string, usedAliases: Set<string>): string {
+    let candidate = baseName;
+    let suffix = 1;
+
+    while (true) {
+      const normalized = candidate.toLowerCase();
+      if (!usedAliases.has(normalized)) {
+        return candidate;
+      }
+      candidate = `${baseName}_${suffix}`;
+      suffix += 1;
+    }
+  }
+
   private mergeWithClause(
     sql: string,
     cteDefinitions: FixtureCteDefinition[],
     context: SelectRewriteContext | undefined,
     preferAst: boolean,
-    conflictingCteNames?: Set<string>
+    conflictingCteNames: Set<string> | undefined,
+    renameMap: Map<string, string> = new Map()
   ): string {
     if (cteDefinitions.length === 0) {
       return sql;
@@ -256,29 +294,31 @@ export class SelectFixtureRewriter {
 
     if (preferAst) {
       try {
-        return this.mergeWithClauseAst(sql, cteDefinitions, context, conflictingCteNames);
+        return this.mergeWithClauseAst(sql, cteDefinitions, context, conflictingCteNames, renameMap);
       } catch (error) {
         if (error instanceof QueryRewriteError) {
           throw error;
         }
-        // Analyzer succeeded but the final formatting failed; fall back to regex merge.
+        // Analyzer succeeded but the final formatting failed, fall back to regex merge.
         this.logger.debug?.('AST-based WITH merge failed, using regex fallback.', {
           error: error instanceof Error ? error.message : String(error),
         });
       }
     }
 
-    return this.mergeWithClauseFallback(sql, cteDefinitions);
+    return this.mergeWithClauseFallback(sql, cteDefinitions, renameMap);
   }
-
   private mergeWithClauseAst(
     sql: string,
     cteDefinitions: FixtureCteDefinition[],
     context?: SelectRewriteContext,
-    conflictingCteNames?: Set<string>
+    conflictingCteNames?: Set<string>,
+    renameMap: Map<string, string> = new Map()
   ): string {
     const parsedQuery = SelectQueryParser.parse(sql);
     const simpleQuery = parsedQuery.toSimpleQuery();
+    // Update table and column references so schema-qualified identifiers reuse sanitized aliases.
+    renameTableReferences(simpleQuery, renameMap);
     const fixtureNames: string[] = [];
 
     for (const cte of cteDefinitions) {
@@ -300,10 +340,14 @@ export class SelectFixtureRewriter {
     this.promoteFixtureCtes(simpleQuery, fixtureNames);
     const formatter = this.createFormatter(context);
     const { formattedSql } = formatter.format(simpleQuery);
-    return formattedSql;
+    return renameSqlIdentifiers(formattedSql, renameMap);
   }
 
-  private mergeWithClauseFallback(sql: string, cteDefinitions: FixtureCteDefinition[]): string {
+  private mergeWithClauseFallback(
+    sql: string,
+    cteDefinitions: FixtureCteDefinition[],
+    renameMap: Map<string, string> = new Map()
+  ): string {
     const fixtureSql = cteDefinitions.map((cte) => cte.inlineSql).join(', ');
     const withPattern = /^(\s*WITH\s+(?:RECURSIVE\s+)?)/i;
     const match = sql.match(withPattern);
@@ -312,10 +356,10 @@ export class SelectFixtureRewriter {
       const prefix = match[0];
       const remainder = sql.slice(prefix.length);
       const separator = remainder.trimStart().length > 0 ? ', ' : ' ';
-      return `${prefix}${fixtureSql}${separator}${remainder}`;
+      return renameSqlIdentifiers(`${prefix}${fixtureSql}${separator}${remainder}`, renameMap);
     }
 
-    return `WITH ${fixtureSql} ${sql}`.trim();
+    return renameSqlIdentifiers(`WITH ${fixtureSql} ${sql}`.trim(), renameMap);
   }
 
   private promoteFixtureCtes(query: SimpleSelectQuery, fixtureNames: string[]): void {

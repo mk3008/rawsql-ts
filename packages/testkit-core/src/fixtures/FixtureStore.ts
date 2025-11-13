@@ -1,5 +1,5 @@
 ﻿import { SchemaValidationError } from '../errors';
-import { normalizeIdentifier } from './naming';
+import { normalizeIdentifier, sanitizeFixtureIdentifier } from './naming';
 import type { TableFixture, SchemaRegistry, TableSchemaDefinition, SqliteAffinity } from '../types';
 
 export interface ColumnDefinition {
@@ -8,7 +8,8 @@ export interface ColumnDefinition {
 }
 
 export interface NormalizedFixture {
-  name: string;
+  tableName: string;
+  cteNameBase: string;
   columns: ColumnDefinition[];
   rows: (string | number | bigint | Buffer | null)[][];
 }
@@ -89,7 +90,8 @@ export class FixtureStore {
     const rows = fixture.rows.map((row, rowIndex) => this.normalizeRow(row, columns, fixture.tableName, rowIndex));
 
     return {
-      name: fixture.tableName,
+      tableName: fixture.tableName,
+      cteNameBase: sanitizeFixtureIdentifier(fixture.tableName),
       columns,
       rows,
     };

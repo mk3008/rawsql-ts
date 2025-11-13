@@ -1,0 +1,46 @@
+﻿{
+  "name": "@rawsql-ts/postgres-testkit",
+  "version": "0.1.0",
+  "description": "Postgres driver adapters for the rawsql-ts select query test harness.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src --ext .ts",
+    "schema:generate": "ts-node --project tsconfig.json src/cli/generateSchema.ts",
+    "release": "npm run lint && npm run test && npm run build && npm pack --dry-run && npm publish --access public"
+  },
+  "keywords": [
+    "postgres",
+    "testing",
+    "fixtures",
+    "rawsql"
+  ],
+  "license": "MIT",
+  "author": "msugiura",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mk3008/rawsql-ts.git",
+    "directory": "packages/drivers/postgres-testkit"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@rawsql-ts/testkit-core": "workspace:*",
+    "rawsql-ts": "workspace:*",
+    "pg": "^8.10.0"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.6.5",
+    "dotenv": "^16.4.7",
+    "typescript": "^5.8.2",
+    "vitest": "^4.0.7",
+    "ts-node": "^10.9.2"
+  },
+  "files": [
+    "dist"
+  ]
+}

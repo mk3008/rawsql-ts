@@ -1,0 +1,15 @@
+﻿version: '3.8'
+services:
+  demo-postgres:
+    image: postgres:16
+    container_name: rawsql-ts-postgres-demo
+    env_file:
+      - ./.env.demo
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres-demo-data:/var/lib/postgresql/data
+      - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+
+volumes:
+  postgres-demo-data:

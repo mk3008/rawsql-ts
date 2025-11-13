@@ -46,6 +46,28 @@ describe('SelectFixtureRewriter', () => {
     expect(result.sql, "with \"users\" as (select cast(1 as INTEGER) as \"id\", cast('Alice' as TEXT) as \"name\", cast('admin' as TEXT) as \"role\" union all select cast(2 as INTEGER) as \"id\", cast('Bob' as TEXT) as \"name\", cast('user' as TEXT) as \"role\") select \"id\", \"name\" from \"users\" where \"role\" = 'admin'");
   });
 
+  it('sanitizes schema-qualified table references when rewriting', () => {
+    const rewriter = new SelectFixtureRewriter({
+      fixtures: [
+        {
+          tableName: 'public.customers',
+          rows: [{ id: 5, name: 'Atlas' }],
+          schema: {
+            columns: {
+              id: 'INTEGER',
+              name: 'TEXT',
+            },
+          },
+        },
+      ],
+    });
+
+    const rewritten = rewriter.rewrite('SELECT public.customers.id, public.customers.name FROM public.customers');
+    expect(rewritten.sql.toLowerCase()).toContain('with "public__customers"');
+    expect(rewritten.sql.toLowerCase()).toContain('from "public__customers"');
+    expect(rewritten.sql).toContain('"public__customers"."id"');
+  });
+
   it('injects fixture CTE using per-fixture schema before user-defined WITH CTE', () => {
     const rewriter = new SelectFixtureRewriter({
       fixtures: [
