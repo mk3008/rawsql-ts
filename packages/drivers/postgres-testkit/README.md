@@ -63,6 +63,34 @@ await wrapped.end?.();
 
 The proxy rewrites SELECT statements while leaving INSERT/UPDATE/DELETE untouched, supports query logging when `recordQueries` is enabled, and exposes a `withFixtures` helper for scoped overrides.
 
+### Positional parameters and dynamic filters
+
+`wrapPostgresDriver` (and the underlying rewrite pipeline) uses the AST-based builders from `@rawsql-ts/core`. When you apply a `filter` object to a query that already uses Postgres-style indexed parameters, the dynamic conditions are injected with their own `$n` placeholders, and the old indexes are renumbered accordingly.
+
+For example:
+
+```sql
+with a as (select id, name from table_a)
+select * from a where id = $1
+```
+
+Applying the filter `{ id: 1, name: 'Alice' }` produces:
+
+```sql
+with "a" as (select "id", "name" from "table_a" where "name" = $1)
+select * from "a" where "id" = $2
+```
+
+The parameter array becomes `['Alice', 1]`, because the injected `name` comparison now owns `$1` and the original `id = $1` shifted to `$2`. This is intentional: dynamic filters target the columns that are not already bound and are appended in the order the builder sees them, so the grid of `$n` indexes simply reflects the rewritten WHERE clauses rather than preserving the original numbering.
+
+When you can choose, prefer named placeholders so the filter keys line up with the column names you are targeting. DynamicQueryBuilder still treats indexed placeholders as if they were keyed by the assignment column, but the AST can only recover those column names in very simple comparisons. Any arithmetic or function call around the column hides the target and leaves the placeholder unresolved, which makes indexed styles fragile unless the SQL stays very plain. Drivers such as `pg` that require index-style binds therefore remain compatible, but they inherit these limitations when the SQL contains hardcoded parameters.
+
+Because the rewrite pipeline renumbers existing positional parameters and relies on column names to drive the dynamic filter injection, you cannot satisfy a hardcoded placeholder by specifying its original `$n` slot. Write the filters by column name (e.g., `filter: { id: 10 }`) rather than by placeholder (`filter: { '$1': 10 }`) so the builder can align the condition with the rewritten statement.
+
+If a hardcoded placeholder remains without a matching filter value, the builder raises a `Missing values for hardcoded placeholders` error before execution, mirroring the behavior in `packages/core/tests/utils/ParameterDetector.test.ts`. Make sure every placeholder in your SQL has a corresponding filter entry or remove the placeholder entirely.
+
+If you previously saw redundant rewrites like `... id = $1 and id = :id`, this rewrite was caused by treating the column as both a hardcoded parameter and a dynamic filter. `ParameterDetector` now maps the column to its existing `$n` placeholder before splitting the filters, so only truly new conditions add new `$n` bindings.
+
 ## Schema generation
 
 Use the built-in CLI to materialize a JSON schema map directly from a Postgres database.
