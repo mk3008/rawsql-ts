@@ -91,6 +91,16 @@ Call `intercepted.withFixtures([...])` to create an isolated proxy that applies 
 +- **INSERT** statements go through `TestkitDbAdapter` (when you provide schema metadata via `tableDefs`) so they can be normalized to `INSERT ... SELECT`, casted, and validated without touching a real table.
 +- **Any other statement** runs unchanged on the underlying SQLite connection.
 
+### Driver integration flow
+
+The sqlite helper mirrors the Postgres logic:
+
+1. SELECT queries are rewritten through `SelectFixtureRewriter` as usual.
+2. INSERT statements leverage `TestkitDbAdapter` when `tableDefs` exist, passing along `enableTypeCasts`, `enableRuntimeDtoValidation`, and `failOnShapeIssues`. Validation errors throw `CudValidationError` with structured `{ kind, column, message }` diagnostics before anything touches the real connection.
+3. UPDATE, DELETE, and other statements bypass the rewrite layer so they hit the native driver directly unless you override the proxy manually.
+
+The same `cudOptions` plumbing ensures cast/validation flags and error propagation behave identically between Postgres and sqlite wrappers.
+
 To enable the CUD pipeline, pass `tableDefs: TableDef[]` where each entry captures the `tableName` plus its columns (`name`, `dbType`, `nullable`, and optional `hasDefault`). You can generate those snapshots with the Postgres schema CLI (`pnpm --filter @rawsql-ts/postgres-testkit run schema:generate ...`), keep the resulting JSON/TS definitions near your fixtures, and share them between the Postgres and SQLite stacks so both adapters reuse the same metadata.
 
 Shape/runtime rewrites honour the `cudOptions` configuration:

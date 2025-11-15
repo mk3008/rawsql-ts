@@ -71,17 +71,29 @@ The proxy rewrites SELECT statements while leaving INSERT/UPDATE/DELETE untouche
 - **INSERT** statements are rewritten by `TestkitDbAdapter` (only when you pass `tableDefs`) into `INSERT ... SELECT` payloads with optional CASTs and validation.
 - **Everything else** (UPDATE, DELETE, DDL, EXECUTE, etc.) bypasses the rewrite layer and executes untouched.
 
-Provide the schema metadata that powers the `TestkitDbAdapter` by passing `tableDefs: TableDef[]`. Each snapshot pairs a `tableName` with a column list (`name`, `dbType`, `nullable`, and optional `hasDefault`)—these snapshots can be generated via the schema CLI (`pnpm --filter @rawsql-ts/postgres-testkit run schema:generate ...`) and stored alongside your fixtures so the adapters never hit `information_schema` at runtime.
+### Driver integration flow
+
+This adapter splits responsibilities to keep the CRUD pipeline table-independent:
+
+1. **SELECT** rewrites follow the same fixture-backed flow as `createPostgresSelectTestDriver`.
+2. **INSERT** statements reach `TestkitDbAdapter` when `tableDefs` metadata is present. The adapter normalizes VALUES → SELECT, attaches CASTs, and runs `validateInsertShape`/`validateDtoSelectRuntime`. Validation failures throw `CudValidationError`, which carries an `issues` array (`{ kind, column, message }`) so downstream code can surface structured diagnostics or rethrow a human-friendly message.
+3. **Other statements** (UPDATE/DELETE/DDL) skip rewriting altogether so they execute against the native connection unless you override the proxy behavior manually.
+
+`wrapPostgresDriver` propagates `cudOptions` to `TestkitDbAdapter`, so `enableTypeCasts`, `enableRuntimeDtoValidation`, and `failOnShapeIssues` remain consistent between the wrapper and the AST-driven pipeline. `wrapSqliteDriver` mirrors the same option plumbing so both drivers honor the same flags, diagnostics, and passthrough contracts.
+
+Provide the schema metadata that powers the `TestkitDbAdapter` by passing `tableDefs: TableDef[]`. Each snapshot pairs a `tableName` with a column list (`name`, `dbType`, `nullable`, and optional `hasDefault`)—these snapshots can be hand-written, reverse-generated, or automatically emitted by the CLI (`pnpm --filter @rawsql-ts/postgres-testkit run schema:generate ...`). Store them alongside your fixtures so downstream adapters never query `information_schema`.
 
 Use `cudOptions` to control `TestkitDbAdapter` behaviors:
 
 | Option | Default | Description |
 | --- | --- | --- |
 | `enableTypeCasts` | `true` | Wrap each SELECT payload element with a CAST to the column’s `dbType`. |
-| `enableRuntimeDtoValidation` | `true` | Enforce that DTO-based INSERT SELECTs include a FROM clause; disable to let DTOs run unchanged. |
+| `enableRuntimeDtoValidation` | `true` | Enforce that DTO-based INSERT SELECTs include a FROM clause; disable to let DTO-driven payloads run unchanged. |
 | `failOnShapeIssues` | `true` | Throw `CudValidationError` when the INSERT supplies missing/extra columns; set to `false` to let the original SQL run untouched. |
 
-`CudValidationError` includes an `issues` array of `{ kind, column, message }` diagnostics so calling code can render user-friendly hints or emit structured telemetry.
+`CudValidationError` includes an `issues` array of `{ kind, column, message }` diagnostics so calling code can render structured hints or surface telemetry.
+
+Postgres-specific column types such as `NUMERIC`, `JSONB`, or `ENUM` currently flow through the pipeline as the literal `dbType` text, so any tailored CAST or validation logic for those types is a future extensibility point you can layer on top of the existing model.
 
 ### Positional parameters and dynamic filters
 
