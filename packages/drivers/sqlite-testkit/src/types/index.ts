@@ -1,5 +1,9 @@
-import type { SelectRewriterOptions } from '@rawsql-ts/testkit-core';
-import type { TableFixture } from '@rawsql-ts/testkit-core';
+import type {
+  SelectRewriterOptions,
+  TableDef,
+  TestkitCudOptions,
+  TableFixture,
+} from '@rawsql-ts/testkit-core';
 
 export interface SqliteStatementLike {
   all?(...params: unknown[]): unknown[] | undefined;
@@ -39,6 +43,8 @@ export interface WrappedSqlQueryLogEntry {
 export interface WrapSqliteDriverOptions extends SelectRewriterOptions {
   onExecute?(sql: string, params?: unknown): void;
   recordQueries?: boolean;
+  tableDefs?: TableDef[];
+  cudOptions?: TestkitCudOptions;
 }
 
 export type WrappedSqliteDriver<T> = T & {

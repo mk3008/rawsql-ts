@@ -7,6 +7,7 @@
 ## Core Expectations
 - Always rewrite SQL through `SelectFixtureRewriter`; do not add regex-based parsing paths in this adapter.
 - Keep scaling hooks side-effect free: every `withFixtures` call should yield a new proxy or driver that reuses the same underlying connection without sharing mutable state.
+- Determine statement kind (SELECT/INSERT/etc.) through the `rawsql-ts` AST (`SqlParser`, `InsertQuery`, etc.) instead of string/regex heuristics so the adapter stays AST-first.
 - Surface clear diagnostics (`MissingFixtureError`, schema validation feedback) directly from testkit-core.
 
 ## Driver Flow

@@ -63,6 +63,26 @@ await wrapped.end?.();
 
 The proxy rewrites SELECT statements while leaving INSERT/UPDATE/DELETE untouched, supports query logging when `recordQueries` is enabled, and exposes a `withFixtures` helper for scoped overrides.
 
+# CUD pipeline and TableDef snapshots
+
+`wrapPostgresDriver` now stitches together three routes before handing SQL to the real connection:
+
+- **SELECT** statements go through `SelectFixtureRewriter` so fixture-backed CTEs shadow the real tables.
+- **INSERT** statements are rewritten by `TestkitDbAdapter` (only when you pass `tableDefs`) into `INSERT ... SELECT` payloads with optional CASTs and validation.
+- **Everything else** (UPDATE, DELETE, DDL, EXECUTE, etc.) bypasses the rewrite layer and executes untouched.
+
+Provide the schema metadata that powers the `TestkitDbAdapter` by passing `tableDefs: TableDef[]`. Each snapshot pairs a `tableName` with a column list (`name`, `dbType`, `nullable`, and optional `hasDefault`)—these snapshots can be generated via the schema CLI (`pnpm --filter @rawsql-ts/postgres-testkit run schema:generate ...`) and stored alongside your fixtures so the adapters never hit `information_schema` at runtime.
+
+Use `cudOptions` to control `TestkitDbAdapter` behaviors:
+
+| Option | Default | Description |
+| --- | --- | --- |
+| `enableTypeCasts` | `true` | Wrap each SELECT payload element with a CAST to the column’s `dbType`. |
+| `enableRuntimeDtoValidation` | `true` | Enforce that DTO-based INSERT SELECTs include a FROM clause; disable to let DTOs run unchanged. |
+| `failOnShapeIssues` | `true` | Throw `CudValidationError` when the INSERT supplies missing/extra columns; set to `false` to let the original SQL run untouched. |
+
+`CudValidationError` includes an `issues` array of `{ kind, column, message }` diagnostics so calling code can render user-friendly hints or emit structured telemetry.
+
 ### Positional parameters and dynamic filters
 
 `wrapPostgresDriver` (and the underlying rewrite pipeline) uses the AST-based builders from `@rawsql-ts/core`. When you apply a `filter` object to a query that already uses Postgres-style indexed parameters, the dynamic conditions are injected with their own `$n` placeholders, and the old indexes are renumbered accordingly.

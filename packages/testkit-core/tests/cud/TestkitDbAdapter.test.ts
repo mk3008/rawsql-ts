@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { SimpleSelectQuery } from 'rawsql-ts';
+import { InsertQuery, SimpleSelectQuery } from 'rawsql-ts';
 import {
   CudValidationError,
   TestkitCudOptions,
@@ -20,7 +20,7 @@ describe('TestkitDbAdapter CUD pipeline', () => {
   const adapter = new TestkitDbAdapter([userTable]);
 
   it('rewrites VALUES-based INSERTs to INSERT...SELECT with CASTs', () => {
-    const insert = adapter.rewriteInsert("INSERT INTO users (id, email) VALUES (1, 'alice@example.com')");
+    const insert = adapter.rewriteInsert("INSERT INTO users (id, email) VALUES (1, 'alice@example.com')") as InsertQuery;
     const select = insert.selectQuery as SimpleSelectQuery;
 
     expect(select).toBeInstanceOf(SimpleSelectQuery);
@@ -30,6 +30,12 @@ describe('TestkitDbAdapter CUD pipeline', () => {
   it('throws validation errors when required columns are omitted', () => {
     const invalidSql = "INSERT INTO users (email) VALUES ('missing-id@example.com')";
     expect(() => adapter.rewriteInsert(invalidSql)).toThrow(CudValidationError);
+  });
+
+  it('falls back instead of throwing when strict shape validation is disabled', () => {
+    const invalidSql = "INSERT INTO users (email) VALUES ('still-missing-id@example.com')";
+    const options: TestkitCudOptions = { failOnShapeIssues: false };
+    expect(adapter.rewriteInsert(invalidSql, options)).toBeNull();
   });
 
   it('throws runtime DTO validation errors when the SELECT lacks a FROM clause', () => {

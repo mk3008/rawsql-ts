@@ -1,6 +1,7 @@
 import type { FieldDef, QueryConfig, QueryResult, QueryResultRow } from 'pg';
 import { describe, expect, it, vi } from 'vitest';
-import type { TableFixture } from '@rawsql-ts/testkit-core';
+import { CudValidationError } from '@rawsql-ts/testkit-core';
+import type { TableDef, TableFixture } from '@rawsql-ts/testkit-core';
 import type { PostgresConnectionLike, PostgresQueryCallback } from '../src/types';
 import { createPostgresSelectTestDriver, wrapPostgresDriver } from '../src';
 
@@ -15,6 +16,14 @@ const ordersFixture = {
   rows: [{ id: 2, status: 'pending' }],
   schema: { columns: { id: 'INTEGER', status: 'TEXT' } },
 } satisfies TableFixture;
+
+const userTableDef: TableDef = {
+  tableName: 'users',
+  columns: [
+    { name: 'id', dbType: 'INTEGER', nullable: false },
+    { name: 'email', dbType: 'TEXT', nullable: false },
+  ],
+};
 
 type RecordedQuery = {
   sql: string;
@@ -184,6 +193,89 @@ describe('wrapPostgresDriver', () => {
     await wrapped.query(rawSql);
 
     expect(recording.queries.at(-1)?.sql).toBe(rawSql);
+  });
+});
+
+describe('wrapPostgresDriver CUD pipeline', () => {
+  const insertSql = "INSERT INTO users (id, email) VALUES (5, 'dave@example.com')";
+  const dtoSql = "INSERT INTO users (id, email) SELECT 1 AS id, 'dto@example.com' AS email";
+
+  it('rewrites INSERT statements when TableDef metadata is provided', async () => {
+    const recording = createRecordingConnection();
+    const wrapped = wrapPostgresDriver(recording.driver, {
+      fixtures: [],
+      tableDefs: [userTableDef],
+    });
+
+    await wrapped.query(insertSql, [4, 'dave@example.com']);
+
+    const executed = recording.queries.at(-1)?.sql ?? '';
+    const normalized = executed.toLowerCase();
+    expect(normalized).toContain('insert into "users"');
+    expect(normalized).toContain('select');
+    expect(normalized).toContain('from (values');
+  });
+
+  it('surfaces CudValidationError when strict shape validation runs', () => {
+    const recording = createRecordingConnection();
+    const wrapped = wrapPostgresDriver(recording.driver, {
+      fixtures: [],
+      tableDefs: [userTableDef],
+    });
+
+    expect(() => wrapped.query("INSERT INTO users (email) VALUES ('missing')")).toThrow(
+      CudValidationError
+    );
+  });
+
+  it('falls back to the original SQL when failOnShapeIssues is disabled', async () => {
+    const recording = createRecordingConnection();
+    const wrapped = wrapPostgresDriver(recording.driver, {
+      fixtures: [],
+      tableDefs: [userTableDef],
+      cudOptions: { failOnShapeIssues: false },
+    });
+
+    await wrapped.query("INSERT INTO users (email) VALUES ('fallback')");
+
+    expect(recording.queries.at(-1)?.sql).toBe("INSERT INTO users (email) VALUES ('fallback')");
+  });
+
+  it('allows DTO inserts without FROM when runtime validation is disabled', async () => {
+    const recording = createRecordingConnection();
+    const wrapped = wrapPostgresDriver(recording.driver, {
+      fixtures: [],
+      tableDefs: [userTableDef],
+      cudOptions: { enableRuntimeDtoValidation: false },
+    });
+
+    await wrapped.query(dtoSql);
+
+    expect(recording.queries.at(-1)?.sql?.toLowerCase()).toContain('select');
+  });
+
+  it('respects the enableTypeCasts flag', async () => {
+    const recordingStrict = createRecordingConnection();
+    const wrappedStrict = wrapPostgresDriver(recordingStrict.driver, {
+      fixtures: [],
+      tableDefs: [userTableDef],
+    });
+    await wrappedStrict.query(insertSql);
+
+    const castSql = (recordingStrict.queries.at(-1)?.sql ?? '').toLowerCase();
+    expect(castSql).toContain('cast(');
+
+    const recordingLoose = createRecordingConnection();
+    const wrappedLoose = wrapPostgresDriver(recordingLoose.driver, {
+      fixtures: [],
+      tableDefs: [userTableDef],
+      cudOptions: { enableTypeCasts: false },
+    });
+    const alternateInsert = "INSERT INTO users (id, email) VALUES (6, 'nocast@example.com')";
+    await wrappedLoose.query(alternateInsert);
+
+    const noCastSql = (recordingLoose.queries.at(-1)?.sql ?? '').toLowerCase();
+    expect(noCastSql).not.toContain('cast(');
   });
 });
 

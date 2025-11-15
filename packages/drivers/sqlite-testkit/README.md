@@ -83,6 +83,26 @@ console.log(intercepted.queries);
 
 Call `intercepted.withFixtures([...])` to create an isolated proxy that applies additional fixtures on top of the base configuration.
 
+## CUD pipeline and TableDef snapshots
+
+`wrapSqliteDriver` keeps a similar call-routing strategy to the Postgres helper:
+
++- **SELECT** statements are rewritten through `SelectFixtureRewriter` and the fixture-backed CTEs you supply.
++- **INSERT** statements go through `TestkitDbAdapter` (when you provide schema metadata via `tableDefs`) so they can be normalized to `INSERT ... SELECT`, casted, and validated without touching a real table.
++- **Any other statement** runs unchanged on the underlying SQLite connection.
+
+To enable the CUD pipeline, pass `tableDefs: TableDef[]` where each entry captures the `tableName` plus its columns (`name`, `dbType`, `nullable`, and optional `hasDefault`). You can generate those snapshots with the Postgres schema CLI (`pnpm --filter @rawsql-ts/postgres-testkit run schema:generate ...`), keep the resulting JSON/TS definitions near your fixtures, and share them between the Postgres and SQLite stacks so both adapters reuse the same metadata.
+
+Shape/runtime rewrites honour the `cudOptions` configuration:
+
+| Option | Default | Description |
+| --- | --- | --- |
+| `enableTypeCasts` | `true` | Wrap each SELECT value with a CAST to the column’s `dbType`. |
+| `enableRuntimeDtoValidation` | `true` | Reject DTO-based SELECTs without a FROM clause; disable to opt out. |
+| `failOnShapeIssues` | `true` | Throw `CudValidationError` when columns are missing/extra; set to `false` to pass the SQL through unchanged. |
+
+`CudValidationError` carries an `issues` array with `{ kind, column, message }` entries so you can render human-friendly hints or surface structured telemetry from your integration layer.
+
 ## Publishing
 
 Run `npm run release` from `packages/drivers/sqlite-testkit` to execute lint, test, build, `npm pack --dry-run`, and `npm publish --access public`. This mirrors the core package release workflow and lets you publish `@rawsql-ts/sqlite-testkit` directly after bumping the version.

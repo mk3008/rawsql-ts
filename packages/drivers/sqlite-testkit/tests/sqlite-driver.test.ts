@@ -1,9 +1,10 @@
 import Database from 'better-sqlite3';
 import { describe, expect, it, vi } from 'vitest';
+import { CudValidationError } from '@rawsql-ts/testkit-core';
 import { createSqliteSelectTestDriver } from '../src/driver/SqliteSelectTestDriver';
 import { wrapSqliteDriver } from '../src/proxy/wrapSqliteDriver';
 import type { SqliteConnectionLike, SqliteStatementLike } from '../src/types';
-import type { TableFixture } from '@rawsql-ts/testkit-core';
+import type { TableDef, TableFixture } from '@rawsql-ts/testkit-core';
 
 const userFixture = {
   tableName: 'users',
@@ -16,6 +17,14 @@ const ordersFixture = {
   rows: [{ id: 2 }],
   schema: { columns: { id: 'INTEGER' } },
 } satisfies TableFixture;
+
+const sqliteUserTableDef: TableDef = {
+  tableName: 'users',
+  columns: [
+    { name: 'id', dbType: 'INTEGER', nullable: false },
+    { name: 'email', dbType: 'TEXT', nullable: false },
+  ],
+};
 
 type RecordedStatement = {
   sql: string;
@@ -250,6 +259,58 @@ describe('wrapSqliteDriver', () => {
     expect(wrapped.queries).toHaveLength(1);
 
     sqlite.close();
+  });
+
+  describe('wrapSqliteDriver CUD pipeline', () => {
+    const createRecordingStub = () => {
+      const statements: RecordedStatement[] = [];
+      const driver: SqliteConnectionLike = {
+        exec(sql: string) {
+          statements.push({ sql, stage: 'direct' });
+          return undefined;
+        },
+      };
+      return { driver, statements };
+    };
+
+    it('rewrites INSERT statements when TableDef metadata is provided', () => {
+      const recording = createRecordingStub();
+      const wrapped = wrapSqliteDriver(recording.driver, {
+        fixtures: [],
+        tableDefs: [sqliteUserTableDef],
+      });
+
+      wrapped.exec?.("INSERT INTO users (id, email) VALUES (10, 'cud@example.com')");
+
+      const executed = recording.statements.at(-1)?.sql ?? '';
+      expect(executed.toLowerCase()).toContain('insert into "users"');
+      expect(executed.toLowerCase()).toContain('select');
+      expect(executed.toLowerCase()).toContain('from (values');
+    });
+
+    it('surfaces CudValidationError when strict shape validation runs', () => {
+      const recording = createRecordingStub();
+      const wrapped = wrapSqliteDriver(recording.driver, {
+        fixtures: [],
+        tableDefs: [sqliteUserTableDef],
+      });
+
+      expect(() => wrapped.exec?.("INSERT INTO users (email) VALUES ('missing')")).toThrow(CudValidationError);
+    });
+
+    it('falls back to the original SQL when failOnShapeIssues is disabled', () => {
+      const recording = createRecordingStub();
+      const wrapped = wrapSqliteDriver(recording.driver, {
+        fixtures: [],
+        tableDefs: [sqliteUserTableDef],
+        cudOptions: { failOnShapeIssues: false },
+      });
+
+      const invalidSql = "INSERT INTO users (email) VALUES ('fallback')";
+      wrapped.exec?.(invalidSql);
+
+      expect(recording.statements.at(-1)?.sql).toBe(invalidSql);
+    });
   });
 
   it('passes non-select statements through without rewriting', () => {

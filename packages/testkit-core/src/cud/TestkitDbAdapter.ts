@@ -16,6 +16,7 @@ import {
 export interface TestkitCudOptions {
   enableTypeCasts?: boolean;
   enableRuntimeDtoValidation?: boolean;
+  failOnShapeIssues?: boolean;
 }
 
 export class CudValidationError extends Error {
@@ -35,8 +36,15 @@ export class TestkitDbAdapter {
     }
   }
 
-  public rewriteInsert(sql: string, options: TestkitCudOptions = {}): InsertQuery {
-    const parsed = SqlParser.parse(sql);
+  public rewriteInsert(sql: string, options: TestkitCudOptions = {}): InsertQuery | null {
+    let parsed: InsertQuery;
+    try {
+      parsed = SqlParser.parse(sql) as InsertQuery;
+    } catch {
+      // Fall back to passthrough when the SQL cannot be parsed (e.g., parameterized INSERTs).
+      return null;
+    }
+
     if (!(parsed instanceof InsertQuery)) {
       throw new Error('TestkitDbAdapter currently supports INSERT statements only.');
     }
@@ -50,7 +58,12 @@ export class TestkitDbAdapter {
 
     const shapeIssues = validateInsertShape(insert, table);
     if (shapeIssues.length > 0) {
-      throw new CudValidationError(shapeIssues);
+      const shouldFailOnShapeIssues = options.failOnShapeIssues ?? true;
+      // Bail out when the INSERT shape is noisy unless strict validation was requested.
+      if (shouldFailOnShapeIssues) {
+        throw new CudValidationError(shapeIssues);
+      }
+      return null;
     }
 
     normalizeInsertValuesToSelect(insert);

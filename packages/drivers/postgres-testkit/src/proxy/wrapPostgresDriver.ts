@@ -1,5 +1,6 @@
-﻿import { SelectFixtureRewriter } from '@rawsql-ts/testkit-core';
-import type { TableFixture } from '@rawsql-ts/testkit-core';
+import { SelectFixtureRewriter, TestkitDbAdapter } from '@rawsql-ts/testkit-core';
+import { InsertQuery, SqlFormatter, SqlParser } from 'rawsql-ts';
+import type { TableFixture, TableDef, TestkitCudOptions } from '@rawsql-ts/testkit-core';
 import type { QueryConfig } from 'pg';
 import type {
   PostgresConnectionLike,
@@ -35,7 +36,7 @@ const normalizePostgresQueryArgs = (
     isConfig = true;
     values = config.values;
     if (typeof valuesOrCallback === 'function') {
-      callback = valuesOrCallback;
+      callback = valuesOrCallback as PostgresQueryCallback;
     }
   } else {
     // Treat the string overload and distinguish between params arrays and callbacks.
@@ -43,10 +44,10 @@ const normalizePostgresQueryArgs = (
     if (Array.isArray(valuesOrCallback)) {
       values = valuesOrCallback;
       if (typeof maybeCallback === 'function') {
-        callback = maybeCallback;
+        callback = maybeCallback as PostgresQueryCallback;
       }
     } else if (typeof valuesOrCallback === 'function') {
-      callback = valuesOrCallback;
+      callback = valuesOrCallback as PostgresQueryCallback;
     }
   }
 
@@ -81,6 +82,39 @@ export const wrapPostgresDriver = <T extends PostgresConnectionLike>(
 ): WrappedPostgresDriver<T> => {
   const rewriterOptions = withPostgresFormatterDefaults(options);
   const rewriter = new SelectFixtureRewriter(rewriterOptions);
+  const tableDefs: TableDef[] | undefined =
+    Array.isArray(options.tableDefs) && options.tableDefs.length > 0 ? options.tableDefs : undefined;
+  const cudAdapter = tableDefs ? new TestkitDbAdapter(tableDefs) : undefined;
+  const cudOptions: TestkitCudOptions = options.cudOptions ?? {};
+  const insertFormatter = cudAdapter ? new SqlFormatter(rewriterOptions.formatterOptions ?? {}) : undefined;
+
+  const isInsertStatement = (sql: string): boolean => {
+    try {
+      const parsed = SqlParser.parse(sql);
+      return parsed instanceof InsertQuery;
+    } catch {
+      return false;
+    }
+  };
+
+  // Route INSERT statements through the TestkitDbAdapter when table metadata is available.
+  const rewriteInsertSql = (sql: string): string | undefined => {
+    if (!cudAdapter || !insertFormatter) {
+      return undefined;
+    }
+
+    if (!isInsertStatement(sql)) {
+      return undefined;
+    }
+
+    const rewritten = cudAdapter.rewriteInsert(sql, cudOptions);
+    if (!rewritten) {
+      return undefined;
+    }
+
+    const { formattedSql } = insertFormatter.format(rewritten);
+    return formattedSql;
+  };
 
   const buildProxy = (scopedFixtures?: TableFixture[]): WrappedPostgresDriver<T> => {
     const queryLog: WrappedPostgresQueryLogEntry[] | undefined = options.recordQueries ? [] : undefined;
@@ -113,16 +147,23 @@ export const wrapPostgresDriver = <T extends PostgresConnectionLike>(
 
         return (...args: unknown[]) => {
           const normalized = normalizePostgresQueryArgs(args);
-          if (!isSelectableQuery(normalized.text)) {
-            // Pass through non-select statements untouched.
-            return value.apply(target, normalized.buildArgs());
+
+          if (isSelectableQuery(normalized.text)) {
+            const context = scopedFixtures ? { fixtures: scopedFixtures } : undefined;
+            // Rewrite SELECT queries before they reach the real driver.
+            const rewritten = rewriter.rewrite(normalized.text, context);
+            handleExecution(rewritten.sql, normalized.values);
+            return value.apply(target, normalized.buildArgs(rewritten.sql));
           }
 
-          const context = scopedFixtures ? { fixtures: scopedFixtures } : undefined;
-          // Rewrite SELECT queries before they reach the real driver.
-          const rewritten = rewriter.rewrite(normalized.text, context);
-          handleExecution(rewritten.sql, normalized.values);
-          return value.apply(target, normalized.buildArgs(rewritten.sql));
+          const rewrittenInsert = rewriteInsertSql(normalized.text);
+          if (rewrittenInsert) {
+            handleExecution(rewrittenInsert, normalized.values);
+            return value.apply(target, normalized.buildArgs(rewrittenInsert));
+          }
+
+          // Pass through non-rewritten statements untouched.
+          return value.apply(target, normalized.buildArgs());
         };
       },
     }) as WrappedPostgresDriver<T>;

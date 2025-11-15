@@ -6,6 +6,7 @@
 
 ## Core Expectations
 - Always route SQL through the testkit-core rewriter; do not implement regex-driven parsing inside the driver layer.
+- Detect statement kinds (SELECT/INSERT/etc.) through the `rawsql-ts` AST (`SqlParser`, `InsertQuery`) instead of regex heuristics so behavior stays AST-first.
 - When you need new rewrite behavior, extend testkit-core (AST path) first, then thread the option through this package.
 - Keep adapters side-effect free: `createSqliteSelectTestDriver` and `wrapSqliteDriver` must produce disposable objects without shared global state.
 

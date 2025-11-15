@@ -1,5 +1,6 @@
-import { SelectFixtureRewriter } from '@rawsql-ts/testkit-core';
-import type { TableFixture } from '@rawsql-ts/testkit-core';
+import { SelectFixtureRewriter, TestkitDbAdapter } from '@rawsql-ts/testkit-core';
+import { InsertQuery, SqlFormatter, SqlParser } from 'rawsql-ts';
+import type { TableFixture, TableDef, TestkitCudOptions } from '@rawsql-ts/testkit-core';
 import type {
   SqliteConnectionLike,
   SqliteStatementLike,
@@ -62,6 +63,39 @@ export const wrapSqliteDriver = <T extends SqliteConnectionLike>(
   options: WrapSqliteDriverOptions
 ): WrappedSqliteDriver<T> => {
   const rewriter = new SelectFixtureRewriter(options);
+  const tableDefs: TableDef[] | undefined =
+    Array.isArray(options.tableDefs) && options.tableDefs.length > 0 ? options.tableDefs : undefined;
+  const cudAdapter = tableDefs ? new TestkitDbAdapter(tableDefs) : undefined;
+  const cudOptions: TestkitCudOptions = options.cudOptions ?? {};
+  const insertFormatter = cudAdapter ? new SqlFormatter(options.formatterOptions ?? {}) : undefined;
+
+  const isInsertStatement = (sql: string): boolean => {
+    try {
+      const parsed = SqlParser.parse(sql);
+      return parsed instanceof InsertQuery;
+    } catch {
+      return false;
+    }
+  };
+
+  // Route INSERT statements through the in-memory TableDef pipeline when metadata is supplied.
+  const rewriteInsertSql = (sql: string): string | undefined => {
+    if (!cudAdapter || !insertFormatter) {
+      return undefined;
+    }
+
+    if (!isInsertStatement(sql)) {
+      return undefined;
+    }
+
+    const rewritten = cudAdapter.rewriteInsert(sql, cudOptions);
+    if (!rewritten) {
+      return undefined;
+    }
+
+    const { formattedSql } = insertFormatter.format(rewritten);
+    return formattedSql;
+  };
 
   const buildProxy = (scopedFixtures?: TableFixture[]): WrappedSqliteDriver<T> => {
     const queryLog: WrappedSqlQueryLogEntry[] | undefined = options.recordQueries ? [] : undefined;
@@ -121,38 +155,73 @@ export const wrapSqliteDriver = <T extends SqliteConnectionLike>(
 
         if (prop === 'prepare') {
           return (sql: string, ...rest: unknown[]) => {
-            if (typeof sql !== 'string' || !isSelectableQuery(sql)) {
+            if (typeof sql !== 'string') {
               return value.apply(target, [sql, ...rest]);
             }
 
-            const context = scopedFixtures ? { fixtures: scopedFixtures } : undefined;
-            const rewritten = rewriter.rewrite(sql, context);
-            const statement = value.apply(target, [rewritten.sql, ...rest]) as SqliteStatementLike;
-            return wrapStatement(statement, rewritten.sql);
+            let executedSql = sql;
+            if (isSelectableQuery(sql)) {
+              const context = scopedFixtures ? { fixtures: scopedFixtures } : undefined;
+              const rewritten = rewriter.rewrite(sql, context);
+              executedSql = rewritten.sql;
+            } else {
+              // Route INSERT statements through the TableDef-based adapter when metadata exists.
+              const rewrittenInsert = rewriteInsertSql(sql);
+              if (rewrittenInsert) {
+                executedSql = rewrittenInsert;
+              }
+            }
+
+            const statement = value.apply(target, [executedSql, ...rest]) as SqliteStatementLike;
+            return wrapStatement(statement, executedSql);
           };
         }
 
         if (prop === 'exec') {
           return (sql: string, ...rest: unknown[]) => {
-            if (typeof sql !== 'string' || !isSelectableQuery(sql)) {
+            if (typeof sql !== 'string') {
               return value.apply(target, [sql, ...rest]);
             }
-            const context = scopedFixtures ? { fixtures: scopedFixtures } : undefined;
-            const rewritten = rewriter.rewrite(sql, context);
-            handleExecution(prop, rewritten.sql, rest);
-            return value.apply(target, [rewritten.sql, ...rest]);
+
+            if (isSelectableQuery(sql)) {
+              const context = scopedFixtures ? { fixtures: scopedFixtures } : undefined;
+              const rewritten = rewriter.rewrite(sql, context);
+              handleExecution(prop, rewritten.sql, rest);
+              return value.apply(target, [rewritten.sql, ...rest]);
+            }
+
+            // Route INSERT statements through the TableDef-based adapter when metadata exists.
+            // Route INSERT statements through the TableDef-based adapter when metadata exists.
+            const rewrittenInsert = rewriteInsertSql(sql);
+            if (rewrittenInsert) {
+              handleExecution(prop, rewrittenInsert, rest);
+              return value.apply(target, [rewrittenInsert, ...rest]);
+            }
+
+            return value.apply(target, [sql, ...rest]);
           };
         }
 
         if (prop === 'all' || prop === 'get' || prop === 'run') {
           return (sql: string, ...rest: unknown[]) => {
-            if (typeof sql !== 'string' || !isSelectableQuery(sql)) {
+            if (typeof sql !== 'string') {
               return value.apply(target, [sql, ...rest]);
             }
-            const context = scopedFixtures ? { fixtures: scopedFixtures } : undefined;
-            const rewritten = rewriter.rewrite(sql, context);
-            handleExecution(prop, rewritten.sql, rest);
-            return value.apply(target, [rewritten.sql, ...rest]);
+
+            if (isSelectableQuery(sql)) {
+              const context = scopedFixtures ? { fixtures: scopedFixtures } : undefined;
+              const rewritten = rewriter.rewrite(sql, context);
+              handleExecution(prop, rewritten.sql, rest);
+              return value.apply(target, [rewritten.sql, ...rest]);
+            }
+
+            const rewrittenInsert = rewriteInsertSql(sql);
+            if (rewrittenInsert) {
+              handleExecution(prop, rewrittenInsert, rest);
+              return value.apply(target, [rewrittenInsert, ...rest]);
+            }
+
+            return value.apply(target, [sql, ...rest]);
           };
         }
 
