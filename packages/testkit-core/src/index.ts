@@ -5,3 +5,4 @@ export { SelectFixtureRewriter } from './rewriter/SelectFixtureRewriter';
 export type { SelectAnalysisResult } from './rewriter/SelectAnalyzer';
 export { isSelectableQuery } from './utils/isSelectableQuery';
 export * from './cud/helpers';
+export { CudValidationError, TestkitDbAdapter, TestkitCudOptions } from './cud/TestkitDbAdapter';
