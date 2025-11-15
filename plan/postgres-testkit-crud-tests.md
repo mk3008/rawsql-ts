@@ -39,11 +39,12 @@ Add coverage that satisfies both phases of the DataAccessLayer 1.0 CRUD expectat
   - Phase B helpers: `packages/testkit-core/src/cud/helpers.ts` now contains `normalizeInsertValuesToSelect`, `applyTypeCastsToSelect`, `validateInsertShape`, and `validateDtoSelectRuntime`, with corresponding tests in `packages/testkit-core/tests/cud/helpers.test.ts` covering VALUES, parameterized values, and column order.
   - Phase B pipeline: `TestkitDbAdapter` (`packages/testkit-core/src/cud/TestkitDbAdapter.ts`) plus `packages/testkit-core/tests/cud/TestkitDbAdapter.test.ts` rewrite INSERT → INSERT...SELECT, apply casts, and run shape/runtime validation solely using TableDef snapshots. The README (`packages/testkit-core/README.md`) now explains the DAL1.0 CUD pipeline, including the minimal TableDef schema (columns/dbType/nullable/default), how to generate snapshots, and how TestkitDbAdapter consumes them.
   - Shared utilities: AST-based `isSelectableQuery` lives in `testkit-core` and is reused by the Postgres driver and `wrapPostgresDriver`.
+  - Driver integration documentation: Postgres/sqlite READMEs and AGENTS now describe the SELECT/CUD/other routing, `cudOptions` flag propagation, `CudValidationError` diagnostics, TableDef snapshot usage, and note that AST parsing (via `SqlParser`/`InsertQuery`) determines INSERT detection instead of regex.
 
 - **Incomplete tasks**
- 1. Only the demo integration tests (`demo/tests/*`) require Docker Postgres—rerun `pnpm --filter @rawsql-ts/postgres-testkit test` in such an environment to ensure they pass without affecting the table-independent CRUD pipeline tests.
- 2. Expand README/docs to explain how to prepare TableDef snapshots (schema requirements, snapshot generation process) and how TestkitDbAdapter uses those snapshots along with its options (`enableTypeCasts`, `enableRuntimeDtoValidation`, `failOnShapeIssues`).
-  3. Split the driver integration effort into call-routing strategy (SELECT → fixture rewrite, CUD → TestkitDbAdapter pipeline, other statements → passthrough), error propagation model (how `CudValidationError` surfaces, structured diagnostics vs plain messaging), and option propagation (which flags—`enableRuntimeDtoValidation`, `enableTypeCasts`, `failOnShapeIssues`—are honored) before wiring to Postgres/SQLite drivers.
+ 1. Docker demo tests (`demo/tests/*`) still require Postgres; rerun `pnpm --filter @rawsql-ts/postgres-testkit test` in that environment as the final verification.
+
+
 
 - **Open decisions**
   - **Default policy for CUD validation.** Should casts and runtime validation be enabled by default, and should environments (CI vs local) be able to toggle them?
@@ -52,6 +53,10 @@ Add coverage that satisfies both phases of the DataAccessLayer 1.0 CRUD expectat
 
 - **CudValidationError exposure**
   - Should `CudValidationError` surface as structured diagnostics (kind/column/message) so callers can react programmatically, or as consolidated plain messages for humans?
+
+## Reflection
+- Migrated the driver routing logic to an AST-first approach, documented the SELECT/CUD/pass-through split, and aligned the README/AGENTS doc set with the DAL1.0 expectations so every downstream consumer understands how `cudOptions` flow through the pipelines.
+- Updated the CUD helpers/README to highlight TableDef minimums, runtime DTO validation intent, passthrough behavior, and deferred DB-type CAST work without touching live schemas; the remaining open decision list still requires your guidance before we iterate further.
 
 ## Open tabs:
 - helpers.test.ts: packages/testkit-core/tests/cud/helpers.test.ts
