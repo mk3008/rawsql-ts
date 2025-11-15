@@ -1,7 +1,7 @@
-# Postgres Testkit CRUD Test Plan
+﻿# Postgres Testkit CRUD Test Plan
 
 ## Context & comparison
-- DataAccessLayer 1.0 and the accompanying CUD/migration task list both insist that CRUD logic be derived from the SELECT layer and that tests avoid dependency on real DB tables (`DataAccessLayer 1.0` sections 1–4 and the “Phase 1 CUD base” sections of `DataAccessLayer1.0_CUD_Migration_TaskList.md`).
+- DataAccessLayer 1.0 and the accompanying CUD/migration task list both insist that CRUD logic be derived from the SELECT layer and that tests avoid dependency on real DB tables (`DataAccessLayer 1.0` sections 1-4 and the “Phase 1 CUD base” sections of `DataAccessLayer1.0_CUD_Migration_TaskList.md`).
 - The postgres testkit currently only exercises SELECT rewrites (see `packages/drivers/postgres-testkit/tests/postgres-driver.test.ts`) and has no coverage for INSERT/UPDATE/DELETE flows, so we lack the DB-table-independent regression safety that the new architecture mandates.
 
 ## Goal
@@ -31,3 +31,30 @@ Add coverage that satisfies both phases of the DataAccessLayer 1.0 CRUD expectat
    - Ensure runtime DTO validation (when enabled via options) runs purely based on the `FROM`-less DTO SELECT without connecting to Postgres.
 3. **Enforce table-independence.** Explicitly note in the tests that all table metadata comes from in-memory `TableDef` instances or local schema snapshots, and make it clear that schema resolution never queries `information_schema`, `pg_catalog`, ORM metadata, or any other live Postgres tables.
 4. **Document the pipeline coverage.** Add or update README/test docs (in English) to call out the new DAL1.0 alignment and mention that the CRUD tests remain fixture-driven.
+
+## Current status
+
+- **Implemented tasks**
+  - Phase A (Postgres driver CRUD smoke tests): covers INSERT/UPDATE/DELETE via `packages/drivers/postgres-testkit/tests/postgres-driver.test.ts`, proving `createPostgresSelectTestDriver`, `wrapPostgresDriver`, and scoped fixtures forward original DML.
+  - Phase B helpers: `packages/testkit-core/src/cud/helpers.ts` now contains `normalizeInsertValuesToSelect`, `applyTypeCastsToSelect`, `validateInsertShape`, and `validateDtoSelectRuntime`, with corresponding tests in `packages/testkit-core/tests/cud/helpers.test.ts` covering VALUES, parameterized values, and column order.
+  - Phase B pipeline: `TestkitDbAdapter` (`packages/testkit-core/src/cud/TestkitDbAdapter.ts`) plus `packages/testkit-core/tests/cud/TestkitDbAdapter.test.ts` rewrite INSERT → INSERT...SELECT, apply casts, and run shape/runtime validation solely using TableDef snapshots. The README (`packages/testkit-core/README.md`) now explains the DAL1.0 CUD pipeline, including the minimal TableDef schema (columns/dbType/nullable/default), how to generate snapshots, and how TestkitDbAdapter consumes them.
+  - Shared utilities: AST-based `isSelectableQuery` lives in `testkit-core` and is reused by the Postgres driver and `wrapPostgresDriver`.
+
+- **Incomplete tasks**
+ 1. Only the demo integration tests (`demo/tests/*`) require Docker Postgres—rerun `pnpm --filter @rawsql-ts/postgres-testkit test` in such an environment to ensure they pass without affecting the table-independent CRUD pipeline tests.
+ 2. Expand README/docs to explain how to prepare TableDef snapshots (schema requirements, snapshot generation process) and how TestkitDbAdapter uses those snapshots along with its options (`enableTypeCasts`, `enableRuntimeDtoValidation`, `failOnShapeIssues`).
+  3. Split the driver integration effort into call-routing strategy (SELECT → fixture rewrite, CUD → TestkitDbAdapter pipeline, other statements → passthrough), error propagation model (how `CudValidationError` surfaces, structured diagnostics vs plain messaging), and option propagation (which flags—`enableRuntimeDtoValidation`, `enableTypeCasts`, `failOnShapeIssues`—are honored) before wiring to Postgres/SQLite drivers.
+
+- **Open decisions**
+  - **Default policy for CUD validation.** Should casts and runtime validation be enabled by default, and should environments (CI vs local) be able to toggle them?
+  - **Storage format for TableDef snapshots.** Should we store them as TS, JSON, or generate them automatically, and where should those artifacts live?
+  - **DBMS-specific CAST strategy.** How do we map Postgres-specific types like NUMERIC, JSONB, and ENUM into the CAST pipeline safely?
+
+- **CudValidationError exposure**
+  - Should `CudValidationError` surface as structured diagnostics (kind/column/message) so callers can react programmatically, or as consolidated plain messages for humans?
+
+## Open tabs:
+- helpers.test.ts: packages/testkit-core/tests/cud/helpers.test.ts
+- TestkitDbAdapter.test.ts: packages/testkit-core/tests/cud/TestkitDbAdapter.test.ts
+- TestkitDbAdapter.ts: packages/testkit-core/src/cud/TestkitDbAdapter.ts
+- postgres-testkit-crud-tests.md: plan/postgres-testkit-crud-tests.md

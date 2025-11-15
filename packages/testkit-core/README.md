@@ -34,6 +34,19 @@ const { sql } = rewriter.rewrite('SELECT id, name FROM users');
 
 ## DAL 1.0 CUD pipeline coverage
 
-`testkit-core` now ships with CUD helpers and the `TestkitDbAdapter` that rewrite `INSERT` statements into `INSERT ... SELECT` flows, apply casts, and run shape/runtime validation purely against in-memory `TableDef` snapshots. The adapter never queries `information_schema` or any live tables—every schema lookup comes from the declarative `TableDef` provided by the test.  
+`testkit-core` now ships with CUD helpers and the `TestkitDbAdapter` that rewrite `INSERT` statements into `INSERT ... SELECT`, apply casts, and run shape/runtime validation solely via in-memory `TableDef` snapshots. The adapter never queries `information_schema`, `pg_catalog`, or any live tables—every schema lookup is derived from the provided `TableDef`.
 
-Integration tests under `packages/testkit-core/tests/cud/` explicitly cover the adapter pipeline, ensuring VALUES normalisation, type casts, and DTO FROM validation work before any downstream driver executes SQL. This keeps the Postgres/SQLite driver tests free of real schema dependencies while matching the DataAccessLayer 1.0 policy.
+### TableDef requirements
+
+- `columns`: array of column definitions with the minimal properties `name`, `dbType`, `nullable`, and optional `default` or `hasDefault`.
+- Each column’s `dbType` text is used directly when applying CASTs inside the rewrite pipeline.
+- TableDef snapshots may be hand-written for new entities, reverse-generated from existing schemas (e.g., `SELECT column_name, data_type, is_nullable, column_default FROM information_schema.columns`), or produced by custom scripts; store them in a shared workspace folder and commit them alongside repository fixtures.
+- `TestkitDbAdapter` consumes `TableDef` to validate INSERT shapes, plan column order, and attach CAST expressions before the final SQL is executed.
+
+### Option reference
+
+- `enableTypeCasts` (default `true`): wrap each SELECT value with a CAST to the column’s `dbType`.
+- `enableRuntimeDtoValidation` (default `true`): ensure DTO-derived SELECTs include a FROM clause before execution.
+- `failOnShapeIssues`: when `true`, `CudValidationError` is thrown for missing or extra columns; otherwise, you can log warnings or fall back to passthrough behavior downstream.
+
+Integration tests under `packages/testkit-core/tests/cud/` cover VALUES normalization, CAST injection, DTO validation, and the adapter pipeline to keep downstream drivers table-independent while honoring the DAL1.0 CUD strategy.
