@@ -1,4 +1,4 @@
-﻿import { SelectFixtureRewriter } from '@rawsql-ts/testkit-core';
+import { SelectFixtureRewriter, isSelectableQuery } from '@rawsql-ts/testkit-core';
 import type { TableFixture } from '@rawsql-ts/testkit-core';
 import type { QueryResult } from 'pg';
 import type {
@@ -23,6 +23,12 @@ export class PostgresSelectTestDriverImpl implements PostgresSelectTestDriver {
   }
 
   public async query<T = unknown>(sql: string, params?: PostgresQueryParams): Promise<T[]> {
+    if (!isSelectableQuery(sql)) {
+      // Skip rewriting when the statement is not a SELECT so DML hits the driver directly.
+      const directResult = await this.executeQuery<T>(sql, params);
+      return directResult.rows as T[];
+    }
+
     // Build a rewrite context if scoped fixtures were supplied.
     const context = this.scopedFixtures ? { fixtures: this.scopedFixtures } : undefined;
     // Rewrite the incoming SQL so fixture-backed CTEs shadow the real tables.

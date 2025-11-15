@@ -1,4 +1,4 @@
-﻿import type { FieldDef, QueryConfig, QueryResult } from 'pg';
+import type { FieldDef, QueryConfig, QueryResult, QueryResultRow } from 'pg';
 import { describe, expect, it, vi } from 'vitest';
 import type { TableFixture } from '@rawsql-ts/testkit-core';
 import type { PostgresConnectionLike, PostgresQueryCallback } from '../src/types';
@@ -29,7 +29,7 @@ const createRecordingConnection = () => {
     textOrConfig: string | QueryConfig,
     valuesOrCallback?: unknown[] | PostgresQueryCallback,
     callback?: PostgresQueryCallback
-  ): Promise<QueryResult<unknown>> => {
+  ): Promise<QueryResult<QueryResultRow>> => {
     const sql = typeof textOrConfig === 'string' ? textOrConfig : textOrConfig.text;
     const params = typeof textOrConfig === 'string'
       ? (Array.isArray(valuesOrCallback) ? valuesOrCallback : undefined)
@@ -40,13 +40,13 @@ const createRecordingConnection = () => {
 
     const lower = sql.toLowerCase();
     // Map the SQL to the fixture rows by checking for the target table name in the rewritten statement.
-    const rows = lower.includes('orders')
+    const rows: QueryResultRow[] = lower.includes('orders')
       ? ordersFixture.rows
       : lower.includes('users')
         ? userFixture.rows
         : [];
 
-    const result: QueryResult<unknown> = {
+    const result: QueryResult<QueryResultRow> = {
       command: 'SELECT',
       rowCount: rows.length,
       oid: 0,
@@ -184,5 +184,60 @@ describe('wrapPostgresDriver', () => {
     await wrapped.query(rawSql);
 
     expect(recording.queries.at(-1)?.sql).toBe(rawSql);
+  });
+});
+
+describe('postgres DML passthrough', () => {
+  it('lets createPostgresSelectTestDriver forward INSERT strings unmodified', async () => {
+    const recording = createRecordingConnection();
+    const driver = createPostgresSelectTestDriver({
+      connectionFactory: () => recording.driver,
+      fixtures: [userFixture],
+    });
+
+    const insertSql = "INSERT INTO users (id, email) VALUES (3, 'charlie@example.com')";
+    // Exercise an INSERT through the test driver to ensure DML bypasses the rewriter.
+    await driver.query(insertSql);
+
+    expect(recording.queries.at(-1)?.sql).toBe(insertSql);
+    expect(recording.queries.at(-1)?.params).toBeUndefined();
+
+    await driver.close();
+  });
+
+  it('forwards parameterized UPDATE statements with positional params', async () => {
+    const recording = createRecordingConnection();
+    const driver = createPostgresSelectTestDriver({
+      connectionFactory: () => recording.driver,
+      fixtures: [ordersFixture],
+    });
+
+    const updateSql = 'UPDATE orders SET status = $1 WHERE id = $2';
+    const params = ['complete', 2];
+    // Execute an UPDATE with positional parameters so the recording driver receives the args intact.
+    await driver.query(updateSql, params);
+
+    expect(recording.queries.at(-1)?.sql).toBe(updateSql);
+    expect(recording.queries.at(-1)?.params).toEqual(params);
+
+    await driver.close();
+  });
+
+  it('lets wrapPostgresDriver pass DELETE statements through when using QueryConfig and scoped fixtures', async () => {
+    const recording = createRecordingConnection();
+    const wrapped = wrapPostgresDriver(recording.driver, {
+      fixtures: [userFixture],
+    });
+
+    const scoped = wrapped.withFixtures([ordersFixture]);
+    const deleteConfig: QueryConfig = {
+      text: 'DELETE FROM orders WHERE status = $1',
+      values: ['pending'],
+    };
+    // Run a DELETE via the scoped wrapper to confirm QueryConfig overloads still bypass the rewriter.
+    await scoped.query(deleteConfig);
+
+    expect(recording.queries.at(-1)?.sql).toBe(deleteConfig.text);
+    expect(recording.queries.at(-1)?.params).toEqual(deleteConfig.values);
   });
 });

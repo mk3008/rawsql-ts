@@ -9,6 +9,7 @@ import type {
   WrappedPostgresQueryLogEntry,
 } from '../types';
 import { withPostgresFormatterDefaults } from '../utils/postgresFormatterOptions';
+import { isSelectableQuery } from '@rawsql-ts/testkit-core';
 
 const normalizePostgresQueryArgs = (
   args: unknown[]
@@ -72,24 +73,6 @@ const normalizePostgresQueryArgs = (
       return reconstructed;
     },
   };
-};
-
-const isSelectableQuery = (sql: string): boolean => {
-  const trimmed = sql.trimStart();
-  if (trimmed.length === 0) {
-    return false;
-  }
-
-  const upper = trimmed.toUpperCase();
-  if (upper.startsWith('SELECT') || upper.startsWith('WITH')) {
-    return true;
-  }
-
-  if (upper.startsWith('EXPLAIN')) {
-    return /\bSELECT\b/i.test(upper);
-  }
-
-  return false;
 };
 
 export const wrapPostgresDriver = <T extends PostgresConnectionLike>(
