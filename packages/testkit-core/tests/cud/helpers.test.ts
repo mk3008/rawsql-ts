@@ -6,8 +6,8 @@ import {
   validateInsertShape,
   TableDef,
 } from '../../src/cud/helpers';
+import { CastExpression, SqlParser, TypeValue } from 'rawsql-ts';
 import type { InsertQuery, SelectQuery, SimpleSelectQuery } from 'rawsql-ts';
-import { SqlParser } from 'rawsql-ts';
 
 describe('CUD helper functions', () => {
   const userTable: TableDef = {
@@ -68,6 +68,23 @@ describe('CUD helper functions', () => {
     const issues = validateDtoSelectRuntime(dtoSelect, userTable);
     expect(issues).toHaveLength(1);
     expect(issues[0]?.kind).toBe('RuntimeDtoWithoutFrom');
+  });
+
+  it('validateDtoSelectRuntime reports null violations for DTO selects', () => {
+    const dtoSelect = (SqlParser.parse('SELECT NULL AS id, \'x\' AS email') as SelectQuery).toSimpleQuery();
+    applyTypeCastsToSelect(dtoSelect, userTable);
+    const issues = validateDtoSelectRuntime(dtoSelect, userTable);
+    expect(issues.some((issue) => issue.kind === 'NullOnNotNullColumn')).toBe(true);
+  });
+
+  it('validateDtoSelectRuntime flags CAST mismatches as DbTypeError', () => {
+    const dtoSelect = (SqlParser.parse("SELECT 1 AS id") as SelectQuery).toSimpleQuery();
+    applyTypeCastsToSelect(dtoSelect, userTable);
+    const castItemValue = dtoSelect.selectClause.items[0].value;
+    expect(castItemValue).toBeInstanceOf(CastExpression);
+    (castItemValue as CastExpression).castType = new TypeValue(null, 'TEXT');
+    const issues = validateDtoSelectRuntime(dtoSelect, userTable);
+    expect(issues.some((issue) => issue.kind === 'DbTypeError')).toBe(true);
   });
 
   it('validateDtoSelectRuntime passes when FROM is present', () => {

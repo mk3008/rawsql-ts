@@ -2,8 +2,12 @@ import {
   CastExpression,
   ColumnReference,
   InsertQuery,
+  LiteralValue,
+  ParameterExpression,
+  RawString,
   SimpleSelectQuery,
   TypeValue,
+  ValueComponent,
   ValuesQuery,
 } from 'rawsql-ts';
 import { QueryBuilder } from 'rawsql-ts';
@@ -24,7 +28,9 @@ export type CudValidationIssue =
   | { kind: 'MissingColumn'; column: string; message: string }
   | { kind: 'ExtraColumn'; column: string; message: string }
   | { kind: 'RequiredColumnMissing'; column: string; message: string }
-  | { kind: 'RuntimeDtoWithoutFrom'; column: string; message: string };
+  | { kind: 'RuntimeDtoWithoutFrom'; column: string; message: string }
+  | { kind: 'NullOnNotNullColumn'; column: string; message: string }
+  | { kind: 'DbTypeError'; column: string; message: string };
 
 const buildColumnLookup = (table: TableDef): Record<string, ColumnDef> => {
   const lookup: Record<string, ColumnDef> = {};
@@ -130,16 +136,55 @@ export const validateInsertShape = (insert: InsertQuery, table: TableDef): CudVa
 };
 
 export const validateDtoSelectRuntime = (select: SimpleSelectQuery, table: TableDef): CudValidationIssue[] => {
-  // DTO selects without a FROM clause require runtime validation to guarantee shape.
+  const issues: CudValidationIssue[] = [];
+
+  // DTO selects without a FROM clause need runtime enforcement before execution.
   if (!select.fromClause) {
-    return [
-      {
-        kind: 'RuntimeDtoWithoutFrom',
-        column: table.tableName,
-        message: `DTO select for "${table.tableName}" lacks a FROM clause`,
-      },
-    ];
+    issues.push({
+      kind: 'RuntimeDtoWithoutFrom',
+      column: table.tableName,
+      message: `DTO select for "${table.tableName}" lacks a FROM clause`,
+    });
+
+    const columnLookup = buildColumnLookup(table);
+
+    // Check each projected column for null violations or CAST mismatches.
+    select.selectClause.items.forEach((item, index) => {
+      const columnName = deriveSelectItemName(index, item);
+      const columnDef = columnLookup[columnName.toLowerCase()];
+      if (!columnDef) {
+        return;
+      }
+
+      const valueUnderCast = item.value instanceof CastExpression ? item.value.input : item.value;
+
+      // Detect NULL literals or parameter entries hitting NOT NULL targets.
+      if (!columnDef.nullable && isNullExpression(valueUnderCast)) {
+        issues.push({
+          kind: 'NullOnNotNullColumn',
+          column: columnDef.name,
+          message: `Column "${columnDef.name}" cannot receive NULL in DTO select for "${table.tableName}"`,
+        });
+      }
+
+      // Ensure the CAST target matches the declared column type.
+      if (item.value instanceof CastExpression) {
+        const castTarget = item.value.castType.getTypeName().toLowerCase();
+        if (castTarget !== columnDef.dbType.toLowerCase()) {
+          issues.push({
+            kind: 'DbTypeError',
+            column: columnDef.name,
+            message: `DTO select for "${table.tableName}" casts "${columnDef.name}" to ${castTarget} instead of ${columnDef.dbType}`,
+          });
+        }
+      }
+    });
   }
 
-  return [];
+  return issues;
 };
+
+const isNullExpression = (value: ValueComponent): boolean =>
+  (value instanceof LiteralValue && value.value === null) ||
+  (value instanceof ParameterExpression && value.value === null) ||
+  (value instanceof RawString && value.value.toLowerCase() === 'null');

@@ -54,8 +54,8 @@ const { sql } = rewriter.rewrite('SELECT id, name FROM users');
 ### Option reference
 
 - `enableTypeCasts` (default `true`): wrap each SELECT value with a CAST to the column’s `dbType`.
-- `enableRuntimeDtoValidation` (default `true`): ensure DTO-derived SELECTs include a FROM clause before execution.
-- Runtime DTO validation exists because FROM-less SELECTs represent the standard DTO shape, and the guard prevents stray scalar queries from executing without the additional shape/runtime checks a real table would provide.
+- `enableRuntimeDtoValidation` (default `true`): ensure DTO-derived SELECTs include a FROM clause before execution and catch NULL assignments or CAST mismatches against the provided `TableDef`.
+- Runtime DTO validation exists because FROM-less SELECTs represent the standard DTO shape, and the guard keeps those scalars from bypassing the nullability and type constraints a real table imposes.
 - `failOnShapeIssues`: when `true`, `CudValidationError` is thrown for missing or extra columns; otherwise, you can log warnings or fall back to passthrough behavior downstream.
   - When `failOnShapeIssues` is `false`, `TestkitDbAdapter` returns `null` so callers can let the native driver execute the original SQL and handle retired diagnostics.
 
