@@ -1,5 +1,5 @@
 import { SelectFixtureRewriter, TestkitDbAdapter } from '@rawsql-ts/testkit-core';
-import { InsertQuery, SqlFormatter, SqlParser } from 'rawsql-ts';
+import { InsertQuery, SimpleSelectQuery, SqlFormatter, SqlParser } from 'rawsql-ts';
 import type { TableFixture, TableDef, TestkitCudOptions } from '@rawsql-ts/testkit-core';
 import type { QueryConfig } from 'pg';
 import type {
@@ -87,6 +87,7 @@ export const wrapPostgresDriver = <T extends PostgresConnectionLike>(
   const cudAdapter = tableDefs ? new TestkitDbAdapter(tableDefs) : undefined;
   const cudOptions: TestkitCudOptions = options.cudOptions ?? {};
   const insertFormatter = cudAdapter ? new SqlFormatter(rewriterOptions.formatterOptions ?? {}) : undefined;
+  const simulateReturning = Boolean(options.simulateCudReturning);
 
   const isInsertStatement = (sql: string): boolean => {
     try {
@@ -98,7 +99,9 @@ export const wrapPostgresDriver = <T extends PostgresConnectionLike>(
   };
 
   // Route INSERT statements through the TestkitDbAdapter when table metadata is available.
-  const rewriteInsertSql = (sql: string): string | undefined => {
+  const rewriteInsertSql = (
+    sql: string,
+  ): { insert: InsertQuery; selectSql: string } | undefined => {
     if (!cudAdapter || !insertFormatter) {
       return undefined;
     }
@@ -112,8 +115,17 @@ export const wrapPostgresDriver = <T extends PostgresConnectionLike>(
       return undefined;
     }
 
-    const { formattedSql } = insertFormatter.format(rewritten);
-    return formattedSql;
+    // Focus on the normalized SELECT payload so that the connection only observes the DTO evaluation.
+    const selectQuery =
+      rewritten.selectQuery instanceof SimpleSelectQuery
+        ? rewritten.selectQuery
+        : rewritten.selectQuery?.toSimpleQuery();
+    if (!selectQuery) {
+      return undefined;
+    }
+
+    const { formattedSql: selectSql } = insertFormatter.format(selectQuery);
+    return { insert: rewritten, selectSql };
   };
 
   const buildProxy = (scopedFixtures?: TableFixture[]): WrappedPostgresDriver<T> => {
@@ -156,10 +168,34 @@ export const wrapPostgresDriver = <T extends PostgresConnectionLike>(
             return value.apply(target, normalized.buildArgs(rewritten.sql));
           }
 
-          const rewrittenInsert = rewriteInsertSql(normalized.text);
-          if (rewrittenInsert) {
-            handleExecution(rewrittenInsert, normalized.values);
-            return value.apply(target, normalized.buildArgs(rewrittenInsert));
+            const rewrittenInsert = rewriteInsertSql(normalized.text);
+            if (rewrittenInsert) {
+              // Record the DTO SELECT even though the RETURNING rows are simulated separately.
+              handleExecution(rewrittenInsert.selectSql, normalized.values);
+              const promise = value.apply(
+                target,
+                normalized.buildArgs(rewrittenInsert.selectSql),
+              );
+              if (!simulateReturning || !cudAdapter) {
+                return promise;
+              }
+
+            // When DAL simulation is active, swap in the DTO-derived RETURNING rows.
+            return promise.then((result) => {
+              const simulatedRows = cudAdapter.simulateReturningRows(
+                rewrittenInsert.insert,
+                normalized.values,
+              );
+              if (!simulatedRows) {
+                return result;
+              }
+
+              return {
+                ...result,
+                rows: simulatedRows,
+                rowCount: simulatedRows.length,
+              };
+            });
           }
 
           // Pass through non-rewritten statements untouched.

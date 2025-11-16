@@ -3,6 +3,7 @@ import { mapCustomerRow } from './mappers/customerMapper';
 import type { Customer } from '../models/Customer';
 
 type QueryResultRow = Record<string, unknown>;
+type NewCustomerInput = Omit<Customer, 'id'>;
 
 export class CustomerRepository {
   constructor(private readonly connection: PostgresConnectionLike) {}
@@ -18,6 +19,23 @@ export class CustomerRepository {
     if (result.rowCount === 0) {
       return null;
     }
+    return mapCustomerRow(result.rows[0] as QueryResultRow);
+  }
+
+  public async create(newCustomer: NewCustomerInput): Promise<Customer> {
+    const sql = `
+      INSERT INTO public.customers (email, display_name, tier, suspended_at)
+      VALUES ($1, $2, $3, $4)
+      RETURNING id, email, display_name, tier, suspended_at
+    `;
+    const params = [
+      newCustomer.email,
+      newCustomer.displayName,
+      newCustomer.tier,
+      newCustomer.suspendedAt,
+    ];
+    const result = await this.connection.query(sql, params);
+    // Return the inserted row normalized to the shared Customer shape.
     return mapCustomerRow(result.rows[0] as QueryResultRow);
   }
 

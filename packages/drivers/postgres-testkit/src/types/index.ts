@@ -51,6 +51,8 @@ export interface WrapPostgresDriverOptions extends SelectRewriterOptions {
   recordQueries?: boolean;
   tableDefs?: TableDef[];
   cudOptions?: TestkitCudOptions;
+  /** Enable DAL CUD simulation mode so RETURNING rows are generated in memory. */
+  simulateCudReturning?: boolean;
 }
 
 export type WrappedPostgresDriver<T> = T & {

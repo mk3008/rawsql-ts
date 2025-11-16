@@ -93,6 +93,13 @@ Use `cudOptions` to control `TestkitDbAdapter` behaviors:
 
 `CudValidationError` includes an `issues` array of `{ kind, column, message }` diagnostics so calling code can render structured hints or surface telemetry.
 
+### DAL CUD simulation mode
+
+Enabling `simulateCudReturning` on `wrapPostgresDriver` tells the adapter to simulate `INSERT ... RETURNING` rows directly from the DTO `SELECT` that Testkit builds.
+When this mode is active, the underlying connection only needs to accept the rewritten SQL; the RETURNING payload is synthesized inside the DAL pipeline using `tableDefs` metadata and deterministic auto-number counters.
+Because the rows come from the schema snapshot, the adapter never touches real sequences or default generation, which is why we call it **DAL CUD simulation mode**: the behavior is purely logical emulation.
+Use this mode to run repository-style tests that verify DTO transformation without requiring physical tables, and keep in mind that auto-number columns are populated via a stable counter (e.g., id values start from 1). If you re-enable physical INSERTs later, disable `simulateCudReturning` so the real database handles RETURNING rows again.
+
 Postgres-specific column types such as `NUMERIC`, `JSONB`, or `ENUM` currently flow through the pipeline as the literal `dbType` text, so any tailored CAST or validation logic for those types is a future extensibility point you can layer on top of the existing model.
 
 ### Positional parameters and dynamic filters

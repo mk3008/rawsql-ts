@@ -1,27 +1,90 @@
-# rawsql-ts Workspace
+# rawsql-ts Workspace (Revised DAL C Version)
 
 ## Scope
-- Monorepo that houses the rawsql-ts parser plus supporting packages (`packages/core`, `packages/testkit-core`, `packages/drivers/sqlite-testkit`, `packages/rawsql-ts-cli`).
-- Use this file for repo-wide rules; each package with extra constraints has its own `AGENTS.md` nearby.
+- Monorepo housing the rawsql-ts parser and supporting packages.
+- Repository-wide rules live here; package-specific rules live in each package's subfolder.
 
 ## Working Agreements
-- Use `pnpm` for workspace tasks; prefer `pnpm --filter <package> <command>` for targeted work.
-- Docs, code comments, and identifiers stay in English even if discussions happen in other languages.
-- Place throwaway assets under `./tmp` and delete them when you are done.
-- Keep console debugging local-remove `console.log`/`Debugger` statements before sending patches.
+- Use pnpm for all workspace tasks.
+- Code comments, docs, and identifiers remain in English.
+- Temporary assets go under ./tmp.
+- Remove console.log / debugger statements before creating patches.
 
 ## SQL Parsing Policy (AST First)
-- Any package that touches SQL (core parser, testkit-core, driver adapters, CLI) must rely on `rawsql-ts` AST utilities (`SelectQueryParser`, `SelectAnalyzer`, `splitQueries`, etc.).
-- Regex-based rewrites are acceptable only as guarded fallbacks; include comments that explain why AST analysis could not be used and open an issue when the fallback becomes persistent.
-- When reviewing contributions, block changes that introduce new regex parsing paths if an AST-driven alternative exists or can be added.
+- Any package that touches SQL must use rawsql-ts AST utilities.
+- Regex rewrites are allowed only as fallback with an explanation.
+- Block PRs that introduce regex parsing when an AST alternative exists.
 
-## Validation Checklist
-1. `pnpm lint` - formatting + ESLint across the workspace.
-2. `pnpm test` - fast regression sweep; use `pnpm --filter <pkg> test` for focused runs.
-3. `pnpm build` - ensures TS project references compile before publishing.
-4. Large changes touching SQL rewriting should also run `pnpm benchmark` or targeted demos when applicable (see package-level AGENTS).
+# DAL C INSERT Guidelines (Revised)
 
-## Collaboration Tips
-- Follow the TDD loop (Red -> Compile -> Green -> Refactor) to keep fixtures and AST updates safe.
-- Prefer incremental commits scoped to one package; cross-package changes should note dependency order in the commit message.
-- Before editing a sub-package, read its local `AGENTS.md` for package-specific workflows (fixture schema rules, driver setup, etc.).
+## Core Principle
+DAL C rewrites `INSERT ... RETURNING` into a pure SELECT.
+The SELECT is evaluated by the Testkit to produce the logical RETURNING row
+using DTO + TableDef, NOT NULL rules, nullable columns, auto-number counters, etc.
+
+The repository continues to call `repo.create(dto)` normally,
+but the executed query is the DAL-generated SELECT.
+
+# Testkit Responsibilities
+- `TestkitDbAdapter` provides a helper (e.g., `simulateReturningRows`) that:
+  - Accepts a DTO and TableDef
+  - Applies required and nullable constraints
+  - Coerces types when needed
+  - Fills auto-number columns from a stable counter
+  - Returns a fully materialized RETURNING row
+
+# Connection Behavior (Revised & Clean)
+
+## DAL C tests do **not** rely on driver-style QueryResult.
+- No dummy `command`
+- No `rowCount`
+- No `fields`
+- No fake INSERT/SELECT metadata
+- No `{ rows: [] }` placeholders
+- No SQL recording unless explicitly needed by a test (rare)
+
+The minimal connection implementation may simply be:
+
+```ts
+query(sql, params) {
+  return testkit.execute(sql, params); // Execute DAL-generated SELECT
+}
+```
+
+The connection does not fabricate results and does not participate
+in DAL logic beyond forwarding the SQL.
+
+# DAL C Test Requirements
+DAL C tests must assert only:
+
+1. **Returned row correctness**
+   - Required columns filled
+   - Nullable constraints respected
+   - Auto-number assigned
+   - Values derived from DTO + schema
+
+2. **SELECT rewriting correctness**
+   - The DAL-generated SELECT is valid and can be executed by Testkit
+
+Tests must NOT assert:
+- Number of executed queries
+- driver QueryResult metadata
+- command, rowCount, oid, fields
+- dummy rows or mock RETURNING rows
+
+# DAL C Acceptance Criteria
+1. DAL C tests pass by executing the DAL-generated SELECT via Testkit.
+2. No driver-side overrides or fabricated rows.
+3. No hand-crafted RETURNING rows in any tests.
+4. Returned rows rely solely on DTO + TableDef.
+
+# Validation Checklist
+- pnpm lint
+- pnpm test
+- pnpm build
+- Run benchmarks if rewriting logic changed
+
+# Collaboration Tips
+- Use small TDD cycles.
+- Keep cross-package commits minimal.
+- Read each package's AGENTS.md before modifying its internals.

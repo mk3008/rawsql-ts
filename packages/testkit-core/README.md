@@ -64,3 +64,7 @@ Because `TestkitDbAdapter` surfaces `CudValidationError` (which carries an `issu
 When tableDefs are missing or you configure a passthrough path (e.g., `failOnShapeIssues: false` or parsing failures), `TestkitDbAdapter.rewriteInsert` returns `null` so the native driver executes the original SQL unchanged.
 
 Integration tests under `packages/testkit-core/tests/cud/` cover VALUES normalization, CAST injection, DTO validation, and the adapter pipeline to keep downstream drivers table-independent while honoring the DAL1.0 CUD strategy.
+
+### Simulating INSERT ... RETURNING
+
+`TestkitDbAdapter` can now synthesize `RETURNING` rows entirely from the DTO `SELECT` that it builds during normalization. When downstream drivers such as `wrapPostgresDriver` enable DAL CUD simulation mode, the adapter evaluates the DTO rows, enforces the `TableDef` constraints (missing columns, NOT NULL violations, casts), and returns deterministic payloads (auto-number columns use a stable counter). This keeps repository tests fully detached from real tables: the underlying connection only needs to accept the rewritten SQL, while the Testkit pipeline feeds the caller the expected result row.

@@ -333,3 +333,74 @@ describe('postgres DML passthrough', () => {
     expect(recording.queries.at(-1)?.params).toEqual(deleteConfig.values);
   });
 });
+
+const createDalRecordingConnection = () => {
+  const queries: RecordedQuery[] = [];
+  const driver: PostgresConnectionLike = {
+    query: async (
+      textOrConfig: string | QueryConfig,
+      valuesOrCallback?: unknown[] | PostgresQueryCallback,
+      callback?: PostgresQueryCallback
+    ) => {
+      const sql = typeof textOrConfig === 'string' ? textOrConfig : textOrConfig.text;
+      const params =
+        typeof textOrConfig === 'string'
+          ? (Array.isArray(valuesOrCallback) ? valuesOrCallback : undefined)
+          : textOrConfig.values ?? (Array.isArray(valuesOrCallback) ? valuesOrCallback : undefined);
+
+      // Record every SQL execution while pretending the connection returns no payload.
+      queries.push({ sql, params });
+      return {
+        command: 'SELECT',
+        rowCount: 0,
+        oid: 0,
+        rows: [],
+        fields: [] as FieldDef[],
+      };
+    },
+  };
+
+  return { driver, queries };
+};
+
+describe('postgres DAL insert simulation', () => {
+  const insertSql =
+    "INSERT INTO users (email, status) VALUES ('demo@example.com', 'active') RETURNING id, email, status";
+
+  it('runs the DTO SELECT and returns the simulated RETURNING row', async () => {
+    const recording = createDalRecordingConnection();
+    const wrapped = wrapPostgresDriver(recording.driver, {
+      fixtures: [],
+      tableDefs: [userTableDef],
+      simulateCudReturning: true,
+    });
+
+    const result = await wrapped.query(insertSql);
+
+    expect(result.rows[0]).toMatchObject({
+      id: 1,
+      email: 'demo@example.com',
+      status: 'active',
+    });
+
+    const recorded = (recording.queries.at(-1)?.sql ?? '').trim().toLowerCase();
+    expect(recorded.startsWith('select')).toBe(true);
+    expect(recorded).not.toContain('insert into');
+  });
+
+  it('increments auto-number columns even when the connection returns nothing', async () => {
+    const recording = createDalRecordingConnection();
+    const wrapped = wrapPostgresDriver(recording.driver, {
+      fixtures: [],
+      tableDefs: [userTableDef],
+      simulateCudReturning: true,
+    });
+
+    const first = await wrapped.query(insertSql);
+    const second = await wrapped.query(insertSql);
+
+    expect(first.rows[0].id).toBe(1);
+    expect(second.rows[0].id).toBe(2);
+    expect(recording.queries).toHaveLength(2);
+  });
+});

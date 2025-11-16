@@ -14,6 +14,7 @@
 - Provide `createPostgresSelectTestDriver` and `wrapPostgresDriver` helpers that behave like the sqlite equivalents.
 - Ensure `.query()` rewrites before delegating to the connection and `.close()`/`.end()` dispose the underlying handle if available.
 - Log execution details only when `recordQueries` or `onExecute` are configured and keep hooks optional-safe.
+- Support DAL CUD simulation mode by wiring `simulateCudReturning` through the driver layer so RETURNING rows can be synthesized from DTOs without touching sequences.
 
 ## Testing & Tooling
 - Use `Vitest` suites under `tests/` that cover rewrite, `withFixtures`, logging, and passthrough behavior.

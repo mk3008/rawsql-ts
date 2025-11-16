@@ -5,7 +5,9 @@ import {
   LiteralValue,
   ParameterExpression,
   RawString,
+  SelectQuery,
   SimpleSelectQuery,
+  TupleExpression,
   TypeValue,
   ValueComponent,
   ValuesQuery,
@@ -188,3 +190,115 @@ const isNullExpression = (value: ValueComponent): boolean =>
   (value instanceof LiteralValue && value.value === null) ||
   (value instanceof ParameterExpression && value.value === null) ||
   (value instanceof RawString && value.value.toLowerCase() === 'null');
+
+const evaluateValueExpression = (value: ValueComponent, params?: unknown[]): unknown => {
+  // Unwrap CAST wrappers before evaluating the underlying literal or parameter.
+  if (value instanceof CastExpression) {
+    return evaluateValueExpression(value.input, params);
+  }
+
+  // Literal constants are used as-is.
+  if (value instanceof LiteralValue) {
+    return value.value;
+  }
+
+  // Parameter expressions resolve against the positional parameter list.
+  if (value instanceof ParameterExpression) {
+    return resolveParameterValue(value, params);
+  }
+
+  // Raw strings cover simple tokens such as NULL/TRUE/FALSE or raw SQL fragments.
+  if (value instanceof RawString) {
+    const normalized = value.value.trim().toLowerCase();
+    if (normalized === 'null') {
+      return null;
+    }
+    if (normalized === 'true') {
+      return true;
+    }
+    if (normalized === 'false') {
+      return false;
+    }
+    return value.value;
+  }
+
+  throw new Error(
+    `Unsupported DTO value expression "${value.constructor.name}" for CUD simulation`,
+  );
+};
+
+const resolveParameterValue = (parameter: ParameterExpression, params?: unknown[]): unknown => {
+  // Use any value already attached to the AST before falling back to positional arguments.
+  if (parameter.value !== undefined) {
+    return parameter.value;
+  }
+
+  // Positional values must be supplied by the calling code to resolve $n placeholders.
+  if (!params || params.length === 0) {
+    throw new Error(
+      'Parameterized INSERT statements require positional values to simulate RETURNING rows',
+    );
+  }
+
+  const placeholder = parameter.name.value;
+  // Detect numeric placeholders (e.g. $1) and map them to the provided array.
+  const digits = placeholder.match(/\d+/);
+  if (digits) {
+    const index = Number(digits[0]) - 1;
+    if (index < 0 || index >= params.length) {
+      throw new Error(`Parameter ${placeholder} refers to missing value`);
+    }
+    return params[index];
+  }
+
+  throw new Error(`Cannot resolve parameter placeholder "${placeholder}" for CUD simulation`);
+};
+
+const deriveColumnNames = (select: SimpleSelectQuery): string[] =>
+  select.selectClause.items.map((item, index) => deriveSelectItemName(index, item));
+
+export const extractDtoRowsFromSelect = (
+  select: SimpleSelectQuery,
+  params?: unknown[],
+): Record<string, unknown>[] | null => {
+  const columnNames = deriveColumnNames(select);
+  if (!select.fromClause) {
+    const row: Record<string, unknown> = {};
+
+    // Evaluate each select item when the DTO select emits literals or parameters directly.
+    columnNames.forEach((name, index) => {
+      const value = select.selectClause.items[index].value;
+      row[name] = evaluateValueExpression(value, params);
+    });
+
+    return [row];
+  }
+
+  // Detect the VALUES subquery by looking for a datasource that exposes a `.query`.
+  const datasource = select.fromClause.source.datasource as { query?: SelectQuery } | null;
+  const valuesQuery =
+    datasource && datasource.query instanceof ValuesQuery ? datasource.query : null;
+  if (valuesQuery) {
+
+    // Use column aliases derived from the select clause order to stay synchronized with DTO output.
+    return valuesQuery.tuples.map((tuple, tupleIndex) => {
+      if (tuple.values.length !== columnNames.length) {
+        throw new Error(
+          `Tuple at index ${tupleIndex} has ${tuple.values.length} values but ${columnNames.length} columns are expected`,
+        );
+      }
+
+      const row: Record<string, unknown> = {};
+
+      // Map each tuple entry to its column name after evaluating expressions.
+      tuple.values.forEach((value, valueIndex) => {
+        const target = columnNames[valueIndex];
+        row[target] = evaluateValueExpression(value, params);
+      });
+
+      return row;
+    });
+  }
+
+  return null;
+};

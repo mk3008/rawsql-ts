@@ -6,6 +6,8 @@ import {
 } from 'rawsql-ts';
 import {
   applyTypeCastsToSelect,
+  ColumnDef,
+  extractDtoRowsFromSelect,
   normalizeInsertValuesToSelect,
   validateDtoSelectRuntime,
   validateInsertShape,
@@ -28,6 +30,7 @@ export class CudValidationError extends Error {
 
 export class TestkitDbAdapter {
   private readonly tables: Record<string, TableDef>;
+  private readonly autoNumberCounters: Record<string, number> = {};
 
   constructor(tableDefs: TableDef[]) {
     this.tables = {};
@@ -90,11 +93,103 @@ export class TestkitDbAdapter {
     return insert;
   }
 
+  public simulateReturningRows(insert: InsertQuery, params?: unknown[]): Record<string, unknown>[] | null {
+    if (!insert.selectQuery) {
+      return null;
+    }
+
+    const tableName = this.resolveTableName(insert);
+    const table = this.tables[tableName.toLowerCase()];
+    if (!table) {
+      return null;
+    }
+
+    const simpleSelect =
+      insert.selectQuery instanceof SimpleSelectQuery
+        ? insert.selectQuery
+        : insert.selectQuery.toSimpleQuery();
+    const dtoRows = extractDtoRowsFromSelect(simpleSelect, params);
+    if (!dtoRows || dtoRows.length === 0) {
+      return null;
+    }
+
+    const returningColumns = this.determineReturningTargets(insert, table);
+    return dtoRows.map((dtoRow) =>
+      this.buildReturningRow(dtoRow, table, returningColumns, tableName),
+    );
+  }
+
   private resolveTableName(insert: InsertQuery): string {
     const alias = insert.insertClause.source.getAliasName();
     if (!alias) {
       throw new Error('Unsupported insert target expression.');
     }
     return alias;
+  }
+
+  private determineReturningTargets(insert: InsertQuery, table: TableDef): string[] {
+    const returning = insert.returningClause?.columns;
+    if (returning && returning.length > 0) {
+      return returning.map((identifier) => identifier.name);
+    }
+
+    const insertColumns = insert.insertClause.columns;
+    if (insertColumns && insertColumns.length > 0) {
+      return insertColumns.map((identifier) => identifier.name);
+    }
+
+    return table.columns.map((column) => column.name);
+  }
+
+  private buildReturningRow(
+    dtoRow: Record<string, unknown>,
+    table: TableDef,
+    targets: string[],
+    tableName: string,
+  ): Record<string, unknown> {
+    const lowerCasedValues = new Map<string, unknown>();
+    // Respect DTO column casing by normalizing to lowercase for lookups.
+    Object.entries(dtoRow).forEach(([key, value]) => {
+      lowerCasedValues.set(key.toLowerCase(), value);
+    });
+
+    const row: Record<string, unknown> = {};
+
+    // Populate each requested returning column, defaulting to auto-number values when needed.
+    targets.forEach((target) => {
+      const normalized = target.toLowerCase();
+      if (lowerCasedValues.has(normalized)) {
+        row[target] = lowerCasedValues.get(normalized);
+        return;
+      }
+
+      const columnDef = table.columns.find((column) => column.name.toLowerCase() === normalized);
+      row[target] = columnDef ? this.resolveDefaultValue(tableName, columnDef) : undefined;
+    });
+
+    return row;
+  }
+
+  private resolveDefaultValue(tableName: string, column: ColumnDef): unknown {
+    if (column.hasDefault && this.isAutoNumber(column.dbType)) {
+      return this.nextAutoNumberValue(tableName, column);
+    }
+
+    if (column.nullable) {
+      return null;
+    }
+
+    return undefined;
+  }
+
+  private isAutoNumber(dbType: string): boolean {
+    return /(int|serial|bigint|numeric)/i.test(dbType);
+  }
+
+  private nextAutoNumberValue(tableName: string, column: ColumnDef): number {
+    const key = `${tableName.toLowerCase()}.${column.name.toLowerCase()}`;
+    const next = (this.autoNumberCounters[key] ?? 0) + 1;
+    this.autoNumberCounters[key] = next;
+    return next;
   }
 }
