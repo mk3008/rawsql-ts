@@ -1,4 +1,4 @@
-# DataAccessLayer 1.0 – CUD & Migration Feature Task List
+﻿# DataAccessLayer 1.0 – CUD & Migration Feature Task List
 _For AI agents implementing new functionality in rawsql-ts_
 
 このドキュメントは、既存の「SELECT テストツール」だけを持つ状態から、  
