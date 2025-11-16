@@ -34,25 +34,14 @@ Add coverage that satisfies both phases of the DataAccessLayer 1.0 CRUD expectat
 
 ## Current status
 
-- **Implemented tasks**
-  - Phase A (Postgres driver CRUD smoke tests): covers INSERT/UPDATE/DELETE via `packages/drivers/postgres-testkit/tests/postgres-driver.test.ts`, proving `createPostgresSelectTestDriver`, `wrapPostgresDriver`, and scoped fixtures forward original DML.
-  - Phase B helpers: `packages/testkit-core/src/cud/helpers.ts` now contains `normalizeInsertValuesToSelect`, `applyTypeCastsToSelect`, `validateInsertShape`, and `validateDtoSelectRuntime`, with corresponding tests in `packages/testkit-core/tests/cud/helpers.test.ts` covering VALUES, parameterized values, and column order.
-  - Phase B pipeline: `TestkitDbAdapter` (`packages/testkit-core/src/cud/TestkitDbAdapter.ts`) plus `packages/testkit-core/tests/cud/TestkitDbAdapter.test.ts` rewrite INSERT → INSERT...SELECT, apply casts, and run shape/runtime validation solely using TableDef snapshots. The README (`packages/testkit-core/README.md`) now explains the DAL1.0 CUD pipeline, including the minimal TableDef schema (columns/dbType/nullable/default), how to generate snapshots, and how TestkitDbAdapter consumes them.
-  - Shared utilities: AST-based `isSelectableQuery` lives in `testkit-core` and is reused by the Postgres driver and `wrapPostgresDriver`.
-  - Driver integration documentation: Postgres/sqlite READMEs and AGENTS now describe the SELECT/CUD/other routing, `cudOptions` flag propagation, `CudValidationError` diagnostics, TableDef snapshot usage, and note that AST parsing (via `SqlParser`/`InsertQuery`) determines INSERT detection instead of regex.
+- **Completed work**
+  - Phase A smoke coverage now lives in `packages/drivers/postgres-testkit/tests/postgres-driver.test.ts`, where `createPostgresSelectTestDriver` proves the SELECT rewriter, `wrapPostgresDriver` rewrites INSERTs into `INSERT ... SELECT`, `CudValidationError` surfaces and `cudOptions` toggles are exercised, and UPDATE/DELETE flows (via positional params, `QueryConfig`, and `withFixtures`) remain passthrough to the recording connection.
+  - Phase B helper coverage in `packages/testkit-core/src/cud/helpers.ts` implements `normalizeInsertValuesToSelect`, `applyTypeCastsToSelect`, `validateInsertShape`, and `validateDtoSelectRuntime`, and the tests in `packages/testkit-core/tests/cud/helpers.test.ts` exercise VALUES normalization, parameterized inserts, column ordering, missing/extra columns, null enforcement, and CAST verification without touching a real DB.
+  - Phase B pipeline coverage: `packages/testkit-core/src/cud/TestkitDbAdapter.ts` rewrites INSERTs, injects casts, and runs runtime validation purely against `TableDef` snapshots, while `packages/testkit-core/tests/cud/TestkitDbAdapter.test.ts` proves the strict/fallback behaviors and option gating. `packages/testkit-core/README.md`, `packages/drivers/postgres-testkit/README.md`, and the packages' AGENTS now document the DAL1.0 CUD pipeline, TableDef schema assets, and `cudOptions` propagation so the docs match code.
+  - Shared AST helpers such as `packages/testkit-core/src/utils/isSelectableQuery.ts` are exercised by the Postgres wrappers and their tests, keeping SELECT detection AST-first so only the intended SQL paths hit the rewrite pipeline.
 
-- **Incomplete tasks**
- 1. Docker demo tests (`demo/tests/*`) still require Postgres; rerun `pnpm --filter @rawsql-ts/postgres-testkit test` in that environment as the final verification.
-
-
-
-- **Open decisions**
-  - **Default policy for CUD validation.** Should casts and runtime validation be enabled by default, and should environments (CI vs local) be able to toggle them?
-  - **Storage format for TableDef snapshots.** Should we store them as TS, JSON, or generate them automatically, and where should those artifacts live?
-  - **DBMS-specific CAST strategy.** How do we map Postgres-specific types like NUMERIC, JSONB, and ENUM into the CAST pipeline safely?
-
-- **CudValidationError exposure**
-  - Should `CudValidationError` surface as structured diagnostics (kind/column/message) so callers can react programmatically, or as consolidated plain messages for humans?
+- **Outstanding verification**
+  - The Docker-backed demos under `packages/drivers/postgres-testkit/demo/tests` still require a live Postgres instance, so rerunning `pnpm --filter @rawsql-ts/postgres-testkit test` in that environment remains the final manual verification before closing the loop.
 
 ## Reflection
 - Migrated the driver routing logic to an AST-first approach, documented the SELECT/CUD/pass-through split, and aligned the README/AGENTS doc set with the DAL1.0 expectations so every downstream consumer understands how `cudOptions` flow through the pipelines.
