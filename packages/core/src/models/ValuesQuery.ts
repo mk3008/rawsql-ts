@@ -10,6 +10,7 @@ import type {
 import { SimpleSelectQuery } from "./SimpleSelectQuery";
 import { SqlParameterValue } from "./ValueComponent";
 import { SqlComponent } from "./SqlComponent";
+import { WithClause } from "./Clause";
 import { TupleExpression } from "./ValueComponent";
 import type { InsertQuery } from "./InsertQuery";
 import type { UpdateQuery } from "./UpdateQuery";
@@ -23,6 +24,7 @@ export class ValuesQuery extends SqlComponent implements SelectQuery {
     static kind = Symbol("ValuesQuery");
     readonly __selectQueryType: 'SelectQuery' = 'SelectQuery'; // Discriminator for type safety
     headerComments: string[] | null = null; // Comments that appear before VALUES clause
+    withClause: WithClause | null = null;
     tuples: TupleExpression[];
     /**
      * Column aliases for the VALUES query.

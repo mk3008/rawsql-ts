@@ -231,12 +231,9 @@ export class QueryBuilder {
         const options = QueryBuilder.normalizeInsertOptions(targetOrOptions, explicitColumns);
         // Determine the final column order either from user-provided options or by inferring from the select list.
         const columnNames = QueryBuilder.prepareInsertColumns(selectQuery, options.columns ?? null);
-        // Promote WITH clauses to the INSERT statement so the SELECT body remains self-contained.
-        const withClause = QueryBuilder.extractWithClause(selectQuery);
 
         const sourceExpr = SourceExpressionParser.parse(options.target);
         return new InsertQuery({
-            withClause: withClause ?? undefined,
             insertClause: new InsertClause(sourceExpr, columnNames),
             selectQuery
         });

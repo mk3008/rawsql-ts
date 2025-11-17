@@ -144,6 +144,26 @@ describe('InsertResultSelectConverter', () => {
         ).toThrowError(/fixture coverage: users/i);
     });
 
+    it('ignores CTE aliases when checking fixture coverage', () => {
+        const insert = InsertQueryParser.parse(`
+            WITH source AS (
+                SELECT CAST('2025-01-01' AS date) AS sale_date, 100 AS price
+            )
+            INSERT INTO sale (sale_date, price)
+            SELECT sale_date, price FROM source
+            RETURNING sale_date, price
+        `);
+
+        const converted = InsertResultSelectConverter.toSelectQuery(insert, {
+            tableDefinitions: { sale: tableDefinition }
+        });
+        const sql = formatter().format(converted).formattedSql;
+
+        expect(sql).toBe(
+            "with \"source\" as (select cast('2025-01-01' as date) as \"sale_date\", 100 as \"price\"), \"__inserted_rows\"(\"sale_date\", \"price\") as (select cast(\"sale_date\" as date) as \"sale_date\", cast(\"price\" as int) as \"price\" from \"source\") select \"__inserted_rows\".\"sale_date\", \"__inserted_rows\".\"price\" from \"__inserted_rows\""
+        );
+    });
+
     it('allows passthrough when missing fixtures are tolerated', () => {
         const insert = InsertQueryParser.parse(
             "INSERT INTO sale (sale_date, price) SELECT sale_date, price FROM users RETURNING sale_date, price"

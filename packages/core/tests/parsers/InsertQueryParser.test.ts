@@ -1,6 +1,6 @@
 import { InsertQueryParser } from "../../src/parsers/InsertQueryParser";
 import { InsertQuery } from "../../src/models/InsertQuery";
-import { SelectQuery } from "../../src/models/SelectQuery";
+import { SelectQuery, SimpleSelectQuery } from "../../src/models/SelectQuery";
 import { describe, it, expect } from "vitest";
 import { SqlFormatter } from "../../src/transformers/SqlFormatter";
 import { TableSource, ParenSource, SourceExpression } from "../../src/models/Clause";
@@ -31,7 +31,9 @@ describe("InsertQueryParser", () => {
         const query = new SqlFormatter().format(insert).formattedSql;
 
         expect(query).toBe("with \"t\" as (select 1 as \"id\", 'a' as \"name\") insert into \"users\"(\"id\", \"name\") select * from \"t\"");
-        expect(insert.withClause).not.toBeNull();
+        const dataSelect = insert.selectQuery;
+        expect(dataSelect).toBeInstanceOf(SimpleSelectQuery);
+        expect((dataSelect as SimpleSelectQuery).withClause).not.toBeNull();
     });
 
     it("parses INSERT INTO db.schema.users (col1) SELECT ...", () => {

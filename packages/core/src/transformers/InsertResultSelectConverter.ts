@@ -11,6 +11,7 @@ import {
 } from '../models/TableDefinitionModel';
 import { TableSourceCollector } from './TableSourceCollector';
 import { FixtureCteBuilder, FixtureTableDefinition } from './FixtureCteBuilder';
+import { SelectQueryWithClauseHelper } from "../utils/SelectQueryWithClauseHelper";
 
 /** Options that drive how the insert-to-select transformation resolves table metadata. */
 export interface InsertResultSelectOptions {
@@ -53,13 +54,15 @@ export class InsertResultSelectConverter {
             throw new Error('Cannot convert INSERT query without a data source.');
         }
 
+        const sourceWithClause = SelectQueryWithClauseHelper.detachWithClause(sourceQuery);
+
         const targetTableName = this.extractTargetTableName(preparedInsert.insertClause);
         const tableDefinition = this.resolveTableDefinition(targetTableName, options);
 
         const fixtureTables = options?.fixtureTables ?? [];
         const fixtureMap = this.buildFixtureTableMap(fixtureTables);
         const missingStrategy = options?.missingFixtureStrategy ?? this.DEFAULT_MISSING_FIXTURE_STRATEGY;
-        this.ensureFixtureCoverage(sourceQuery, fixtureMap, missingStrategy);
+        this.ensureFixtureCoverage(sourceQuery, fixtureMap, missingStrategy, sourceWithClause);
 
         const insertColumnNames = this.resolveInsertColumns(preparedInsert.insertClause, sourceQuery, tableDefinition);
         const selectColumnCount = this.getSelectColumnCount(sourceQuery);
@@ -72,12 +75,11 @@ export class InsertResultSelectConverter {
         this.assertRequiredColumns(columnMetadataMap, tableDefinition);
         this.applyColumnCasts(sourceQuery, insertColumnNames, columnMetadataMap);
 
-        // Build the simulated inserted row set as a CTE so downstream queries can select from it safely.
-        const cteName = this.generateUniqueCteName(preparedInsert.withClause);
+        const fixtureCtes = this.buildFixtureCtes(fixtureTables);
+        const cteName = this.generateUniqueCteName(sourceWithClause, fixtureCtes);
         const cteAlias = new SourceAliasExpression(cteName, insertColumnNames);
         const insertedRowsCte = new CommonTable(sourceQuery, cteAlias, null);
-        const fixtureCtes = this.buildFixtureCtes(fixtureTables);
-        const withClause = this.buildWithClause(preparedInsert.withClause, fixtureCtes, insertedRowsCte);
+        const withClause = this.buildWithClause(sourceWithClause, fixtureCtes, insertedRowsCte);
 
         if (!preparedInsert.returningClause) {
             return this.buildCountSelect(withClause, cteName);
@@ -104,7 +106,6 @@ export class InsertResultSelectConverter {
             fromClause
         });
     }
-
     private static prepareInsertQuery(insertQuery: InsertQuery): InsertQuery {
         // Values-based inserts need to be rewritten into INSERT ... SELECT before further processing.
         if (insertQuery.selectQuery instanceof ValuesQuery) {
@@ -128,7 +129,7 @@ export class InsertResultSelectConverter {
         // Prefer resolver results but fall back to the registry when the resolver cannot handle the table name.
         if (options?.tableDefinitionResolver) {
             const resolved = options.tableDefinitionResolver(tableName);
-            if (resolved) {
+            if (resolved !== undefined) {
                 return resolved;
             }
         }
@@ -375,11 +376,23 @@ export class InsertResultSelectConverter {
     private static ensureFixtureCoverage(
         selectQuery: SelectQuery,
         fixtureMap: Map<string, FixtureTableDefinition>,
-        strategy: MissingFixtureStrategy
+        strategy: MissingFixtureStrategy,
+        withClause?: WithClause | null
     ): void {
         // Evaluate the SELECT expression before proceeding.
         const referencedTables = this.collectReferencedTables(selectQuery);
-        const missingTables = this.getMissingFixtureTables(referencedTables, fixtureMap);
+        const ignoredTables = this.collectCteNamesFromWithClause(withClause);
+
+        // Filter out CTE aliases so fixture coverage only targets real tables.
+        const tablesToCheck = new Set<string>();
+        for (const table of referencedTables) {
+            if (ignoredTables.has(table)) {
+                continue;
+            }
+            tablesToCheck.add(table);
+        }
+
+        const missingTables = this.getMissingFixtureTables(tablesToCheck, fixtureMap);
         if (missingTables.length === 0) {
             return;
         }
@@ -403,6 +416,29 @@ export class InsertResultSelectConverter {
         return referenced;
     }
 
+    private static collectCteNamesFromWithClause(withClause?: WithClause | null): Set<string> {
+        const names = new Set<string>();
+        if (!withClause?.tables) {
+            return names;
+        }
+
+        // Normalize alias names before storing so they line up with referenced table normalization.
+        for (const table of withClause.tables) {
+            names.add(this.normalizeIdentifier(table.getSourceAliasName()));
+        }
+
+        return names;
+    }
+
+    private static addCteNames(usedNames: Set<string>, tables?: CommonTable[]): void {
+        if (!tables) {
+            return;
+        }
+        for (const table of tables) {
+            usedNames.add(this.normalizeIdentifier(table.getSourceAliasName()));
+        }
+    }
+
     private static getMissingFixtureTables(
         referencedTables: Set<string>,
         fixtureMap: Map<string, FixtureTableDefinition>
@@ -417,13 +453,11 @@ export class InsertResultSelectConverter {
         return missing;
     }
 
-    private static generateUniqueCteName(withClause: WithClause | null): string {
-        // Avoid clashing with user-defined CTE names by adding numeric suffixes when needed.
+    private static generateUniqueCteName(withClause: WithClause | null, fixtureCtes: CommonTable[]): string {
         const usedNames = new Set<string>();
-        if (withClause?.tables) {
-            for (const table of withClause.tables) {
-                usedNames.add(this.normalizeIdentifier(table.aliasExpression.table.name));
-            }
+        this.addCteNames(usedNames, fixtureCtes);
+        for (const name of this.collectCteNamesFromWithClause(withClause)) {
+            usedNames.add(name);
         }
         let candidate = this.BASE_CTE_NAME;
         let suffix = 0;

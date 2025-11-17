@@ -3,6 +3,7 @@ import { HintClause } from "../models/HintClause";
 import { BinarySelectQuery, SimpleSelectQuery, ValuesQuery } from "../models/SelectQuery";
 import { SqlComponent, SqlComponentVisitor, PositionedComment } from "../models/SqlComponent";
 import { SqlPrintToken, SqlPrintTokenType, SqlPrintTokenContainerType } from "../models/SqlPrintToken";
+import { SelectQueryWithClauseHelper } from "../utils/SelectQueryWithClauseHelper";
 import {
     ValueComponent,
     ValueList,
@@ -2701,9 +2702,11 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
     private visitInsertQuery(arg: InsertQuery): SqlPrintToken {
         const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.InsertQuery);
+        const selectQuery = arg.selectQuery;
+        const extractedWithClause = selectQuery ? SelectQueryWithClauseHelper.detachWithClause(selectQuery) : null;
 
-        if (arg.withClause) {
-            token.innerTokens.push(arg.withClause.accept(this));
+        if (extractedWithClause) {
+            token.innerTokens.push(extractedWithClause.accept(this));
         }
 
         token.innerTokens.push(this.visit(arg.insertClause));
@@ -2717,6 +2720,9 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         if (arg.returningClause) {
             token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
             token.innerTokens.push(arg.returningClause.accept(this));
+        }
+        if (selectQuery && extractedWithClause) {
+            SelectQueryWithClauseHelper.setWithClause(selectQuery, extractedWithClause);
         }
         return token;
     }
