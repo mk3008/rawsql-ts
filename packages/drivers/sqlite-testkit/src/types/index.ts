@@ -34,6 +34,7 @@ export interface WrappedSqlQueryLogEntry {
   method: string;
   sql: string;
   params?: unknown;
+  fixtures?: string[];
 }
 
 export interface WrapSqliteDriverOptions extends SelectRewriterOptions {

@@ -13,6 +13,7 @@ import { CTEDisabler } from './CTEDisabler';
 import { SourceExpressionParser } from '../parsers/SourceExpressionParser';
 import type { InsertQueryConversionOptions, UpdateQueryConversionOptions, DeleteQueryConversionOptions, MergeQueryConversionOptions } from "../models/SelectQuery";
 import { InsertQuerySelectValuesConverter } from "./InsertQuerySelectValuesConverter";
+import { InsertResultSelectConverter, InsertResultSelectOptions } from "./InsertResultSelectConverter";
 
 /**
  * QueryBuilder provides static methods to build or convert various SQL query objects.
@@ -230,12 +231,9 @@ export class QueryBuilder {
         const options = QueryBuilder.normalizeInsertOptions(targetOrOptions, explicitColumns);
         // Determine the final column order either from user-provided options or by inferring from the select list.
         const columnNames = QueryBuilder.prepareInsertColumns(selectQuery, options.columns ?? null);
-        // Promote WITH clauses to the INSERT statement so the SELECT body remains self-contained.
-        const withClause = QueryBuilder.extractWithClause(selectQuery);
 
         const sourceExpr = SourceExpressionParser.parse(options.target);
         return new InsertQuery({
-            withClause: withClause ?? undefined,
             insertClause: new InsertClause(sourceExpr, columnNames),
             selectQuery
         });
@@ -257,6 +255,16 @@ export class QueryBuilder {
      */
     public static convertInsertSelectToValues(insertQuery: InsertQuery): InsertQuery {
         return InsertQuerySelectValuesConverter.toValues(insertQuery);
+    }
+
+    /**
+     * Builds a SELECT query that reflects the INSERT's RETURNING output (or count when RETURNING is absent).
+     */
+    public static convertInsertToReturningSelect(
+        insertQuery: InsertQuery,
+        options?: InsertResultSelectOptions
+    ): SimpleSelectQuery {
+        return InsertResultSelectConverter.toSelectQuery(insertQuery, options);
     }
 
     /**

@@ -68,7 +68,12 @@ export const wrapSqliteDriver = <T extends SqliteConnectionLike>(
     const shouldObserve = Boolean(options.onExecute || queryLog);
 
     // Fan out execution details to the configured hook and optional in-memory log.
-    const handleExecution = (method: string | symbol, sql: string, args: unknown[]): void => {
+    const handleExecution = (
+      method: string | symbol,
+      sql: string,
+      args: unknown[],
+      fixtures?: string[]
+    ): void => {
       if (!shouldObserve) {
         return;
       }
@@ -78,10 +83,15 @@ export const wrapSqliteDriver = <T extends SqliteConnectionLike>(
         method: typeof method === 'string' ? method : String(method),
         sql,
         params,
+        fixtures,
       });
     };
 
-    const wrapStatement = (statement: SqliteStatementLike, sql: string): SqliteStatementLike => {
+    const wrapStatement = (
+      statement: SqliteStatementLike,
+      sql: string,
+      fixtures?: string[]
+    ): SqliteStatementLike => {
       if (!shouldObserve || !statement) {
         return statement;
       }
@@ -94,7 +104,7 @@ export const wrapSqliteDriver = <T extends SqliteConnectionLike>(
 
           if (stmtProp === 'all' || stmtProp === 'get' || stmtProp === 'run') {
             return (...stmtArgs: unknown[]) => {
-              handleExecution(stmtProp, sql, stmtArgs);
+              handleExecution(stmtProp, sql, stmtArgs, fixtures);
               return stmtValue.apply(stmtTarget, stmtArgs);
             };
           }
@@ -128,7 +138,7 @@ export const wrapSqliteDriver = <T extends SqliteConnectionLike>(
             const context = scopedFixtures ? { fixtures: scopedFixtures } : undefined;
             const rewritten = rewriter.rewrite(sql, context);
             const statement = value.apply(target, [rewritten.sql, ...rest]) as SqliteStatementLike;
-            return wrapStatement(statement, rewritten.sql);
+            return wrapStatement(statement, rewritten.sql, rewritten.fixturesApplied);
           };
         }
 
@@ -139,7 +149,7 @@ export const wrapSqliteDriver = <T extends SqliteConnectionLike>(
             }
             const context = scopedFixtures ? { fixtures: scopedFixtures } : undefined;
             const rewritten = rewriter.rewrite(sql, context);
-            handleExecution(prop, rewritten.sql, rest);
+            handleExecution(prop, rewritten.sql, rest, rewritten.fixturesApplied);
             return value.apply(target, [rewritten.sql, ...rest]);
           };
         }
@@ -151,7 +161,7 @@ export const wrapSqliteDriver = <T extends SqliteConnectionLike>(
             }
             const context = scopedFixtures ? { fixtures: scopedFixtures } : undefined;
             const rewritten = rewriter.rewrite(sql, context);
-            handleExecution(prop, rewritten.sql, rest);
+            handleExecution(prop, rewritten.sql, rest, rewritten.fixturesApplied);
             return value.apply(target, [rewritten.sql, ...rest]);
           };
         }

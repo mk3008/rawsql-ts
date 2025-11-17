@@ -4,6 +4,7 @@ import { SimpleSelectQuery } from "../models/SimpleSelectQuery";
 import { BinarySelectQuery } from "../models/BinarySelectQuery";
 import { SelectClause, SelectItem } from "../models/Clause";
 import { TupleExpression, ValueComponent } from "../models/ValueComponent";
+import { SelectQueryWithClauseHelper } from "../utils/SelectQueryWithClauseHelper";
 import type { SelectQuery } from "../models/SelectQuery";
 
 /**
@@ -23,6 +24,8 @@ export class InsertQuerySelectValuesConverter {
         if (!valuesQuery.tuples.length) {
             throw new Error("VALUES query does not contain any tuples.");
         }
+
+        const preservedWithClause = SelectQueryWithClauseHelper.getWithClause(valuesQuery);
 
         const columns = insertQuery.insertClause.columns;
         if (!columns || columns.length === 0) {
@@ -50,8 +53,9 @@ export class InsertQuerySelectValuesConverter {
             }
         }
 
+        SelectQueryWithClauseHelper.setWithClause(combined, preservedWithClause);
+
         return new InsertQuery({
-            withClause: insertQuery.withClause,
             insertClause: insertQuery.insertClause,
             selectQuery: combined,
             returning: insertQuery.returningClause
@@ -70,6 +74,8 @@ export class InsertQuerySelectValuesConverter {
         if (!insertQuery.selectQuery) {
             throw new Error("InsertQuery does not have a selectQuery to convert.");
         }
+
+        const preservedWithClause = SelectQueryWithClauseHelper.getWithClause(insertQuery.selectQuery);
 
         const columnNames = columns.map(col => col.name);
         const simpleQueries = this.flattenSelectQueries(insertQuery.selectQuery);
@@ -103,8 +109,9 @@ export class InsertQuerySelectValuesConverter {
         });
 
         const valuesQuery = new ValuesQuery(tuples, columnNames);
+        SelectQueryWithClauseHelper.setWithClause(valuesQuery, preservedWithClause);
+
         return new InsertQuery({
-            withClause: insertQuery.withClause,
             insertClause: insertQuery.insertClause,
             selectQuery: valuesQuery,
             returning: insertQuery.returningClause

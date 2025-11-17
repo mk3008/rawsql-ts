@@ -1,4 +1,4 @@
-﻿// filepath: src/parsers/InsertQueryParser.ts
+// filepath: src/parsers/InsertQueryParser.ts
 // Provides parsing for INSERT queries, supporting optional columns and WITH/SELECT/VALUES structure.
 import { InsertQuery } from "../models/InsertQuery";
 import { Lexeme, TokenType } from "../models/Lexeme";
@@ -6,6 +6,7 @@ import { SqlTokenizer } from "./SqlTokenizer";
 import { SelectQuery } from "../models/SelectQuery";
 import { SelectQueryParser } from "./SelectQueryParser";
 import { InsertClause, ReturningClause, WithClause } from "../models/Clause";
+import { SelectQueryWithClauseHelper } from "../utils/SelectQueryWithClauseHelper";
 import { WithClauseParser } from "./WithClauseParser";
 import { SourceExpressionParser } from "./SourceExpressionParser";
 import { ValuesQueryParser } from "./ValuesQueryParser";
@@ -166,9 +167,12 @@ export class InsertQueryParser {
             insertClause.addPositionedComments("after", trailingInsertComments);
         }
 
+        if (withClause) {
+            SelectQueryWithClauseHelper.setWithClause(dataQuery, withClause);
+        }
+
         return {
             value: new InsertQuery({
-                withClause,
                 insertClause,
                 selectQuery: dataQuery,
                 returning: returningClause
