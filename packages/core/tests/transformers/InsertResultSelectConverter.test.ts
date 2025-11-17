@@ -3,6 +3,7 @@ import { InsertQueryParser } from '../../src/parsers/InsertQueryParser';
 import { SqlFormatter } from '../../src/transformers/SqlFormatter';
 import { InsertResultSelectConverter } from '../../src/transformers/InsertResultSelectConverter';
 import type { TableDefinitionModel } from '../../src/models/TableDefinitionModel';
+import type { FixtureTableDefinition } from '../../src/transformers/FixtureCteBuilder';
 
 const formatter = () => new SqlFormatter();
 
@@ -62,6 +63,66 @@ describe('InsertResultSelectConverter', () => {
 
         expect(sql).toBe(
             "with \"__inserted_rows\"(\"sale_date\", \"price\") as (select '2025-01-01' as \"sale_date\", 100 as \"price\" union all select '2025-01-02' as \"sale_date\", 200 as \"price\") select \"__inserted_rows\".\"sale_date\", \"__inserted_rows\".\"price\" from \"__inserted_rows\""
+        );
+    });
+
+    it('injects fixture CTEs when the source selects from physical tables', () => {
+        const fixtures: FixtureTableDefinition[] = [
+            {
+                tableName: 'users',
+                columns: [
+                    { name: 'sale_date', typeName: 'date' },
+                    { name: 'price', typeName: 'int' }
+                ],
+                rows: [
+                    ['2025-01-01', 100],
+                    ['2025-01-02', 200]
+                ]
+            }
+        ];
+
+        const insert = InsertQueryParser.parse(
+            "INSERT INTO sale (sale_date, price) SELECT sale_date, price FROM users RETURNING sale_date, price"
+        );
+
+        const converted = InsertResultSelectConverter.toSelectQuery(insert, {
+            tableDefinitions: { sale: tableDefinition },
+            fixtureTables: fixtures
+        });
+
+        const sql = formatter().format(converted).formattedSql;
+
+        expect(sql).toBe(
+            "with \"users\" as (select cast('2025-01-01' as date) as \"sale_date\", cast(100 as int) as \"price\" union all select cast('2025-01-02' as date) as \"sale_date\", cast(200 as int) as \"price\"), \"__inserted_rows\"(\"sale_date\", \"price\") as (select cast(\"sale_date\" as date) as \"sale_date\", cast(\"price\" as int) as \"price\" from \"users\") select \"__inserted_rows\".\"sale_date\", \"__inserted_rows\".\"price\" from \"__inserted_rows\""
+        );
+    });
+
+    it('throws when a referenced table lacks fixtures and the strategy is error', () => {
+        const insert = InsertQueryParser.parse(
+            "INSERT INTO sale (sale_date, price) SELECT sale_date, price FROM users RETURNING sale_date, price"
+        );
+
+        expect(() =>
+            InsertResultSelectConverter.toSelectQuery(insert, {
+                tableDefinitions: { sale: tableDefinition }
+            })
+        ).toThrowError(/fixture coverage: users/i);
+    });
+
+    it('allows passthrough when missing fixtures are tolerated', () => {
+        const insert = InsertQueryParser.parse(
+            "INSERT INTO sale (sale_date, price) SELECT sale_date, price FROM users RETURNING sale_date, price"
+        );
+
+        const converted = InsertResultSelectConverter.toSelectQuery(insert, {
+            tableDefinitions: { sale: tableDefinition },
+            missingFixtureStrategy: 'passthrough'
+        });
+
+        const sql = formatter().format(converted).formattedSql;
+
+        expect(sql).toBe(
+            "with \"__inserted_rows\"(\"sale_date\", \"price\") as (select cast(\"sale_date\" as date) as \"sale_date\", cast(\"price\" as int) as \"price\" from \"users\") select \"__inserted_rows\".\"sale_date\", \"__inserted_rows\".\"price\" from \"__inserted_rows\""
         );
     });
 });

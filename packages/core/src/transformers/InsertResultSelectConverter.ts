@@ -9,6 +9,8 @@ import {
     TableDefinitionRegistry,
     TableColumnDefinitionModel as TableColumnDefinition
 } from '../models/TableDefinitionModel';
+import { TableSourceCollector } from './TableSourceCollector';
+import { FixtureCteBuilder, FixtureTableDefinition } from './FixtureCteBuilder';
 
 /** Options that drive how the insert-to-select transformation resolves table metadata. */
 export interface InsertResultSelectOptions {
@@ -16,7 +18,14 @@ export interface InsertResultSelectOptions {
     tableDefinitions?: TableDefinitionRegistry;
     /** Optional callback to resolve metadata by full table name (useful for schemified names). */
     tableDefinitionResolver?: (tableName: string) => TableDefinitionModel | undefined;
+    /** Optional fixtures that should shadow real tables inside the generated SELECT. */
+    fixtureTables?: FixtureTableDefinition[];
+    /** Strategy to control behavior when fixtures are missing for real tables. */
+    missingFixtureStrategy?: MissingFixtureStrategy;
 }
+
+/** Strategy choices for how missing fixtures are handled during transformation. */
+export type MissingFixtureStrategy = 'error' | 'warn' | 'passthrough';
 
 interface ColumnMetadata {
     name: string;
@@ -29,6 +38,8 @@ interface ColumnMetadata {
 
 export class InsertResultSelectConverter {
     private static readonly BASE_CTE_NAME = '__inserted_rows';
+
+    private static readonly DEFAULT_MISSING_FIXTURE_STRATEGY: MissingFixtureStrategy = 'error';
 
     /**
      * Converts an INSERT ... SELECT/VALUES query into a SELECT that mirrors its RETURNING output
@@ -45,6 +56,11 @@ export class InsertResultSelectConverter {
         const targetTableName = this.extractTargetTableName(preparedInsert.insertClause);
         const tableDefinition = this.resolveTableDefinition(targetTableName, options);
 
+        const fixtureTables = options?.fixtureTables ?? [];
+        const fixtureMap = this.buildFixtureTableMap(fixtureTables);
+        const missingStrategy = options?.missingFixtureStrategy ?? this.DEFAULT_MISSING_FIXTURE_STRATEGY;
+        this.ensureFixtureCoverage(sourceQuery, fixtureMap, missingStrategy);
+
         const insertColumnNames = this.resolveInsertColumns(preparedInsert.insertClause, sourceQuery, tableDefinition);
         const selectColumnCount = this.getSelectColumnCount(sourceQuery);
 
@@ -60,7 +76,8 @@ export class InsertResultSelectConverter {
         const cteName = this.generateUniqueCteName(preparedInsert.withClause);
         const cteAlias = new SourceAliasExpression(cteName, insertColumnNames);
         const insertedRowsCte = new CommonTable(sourceQuery, cteAlias, null);
-        const withClause = this.buildWithClause(preparedInsert.withClause, insertedRowsCte);
+        const fixtureCtes = this.buildFixtureCtes(fixtureTables);
+        const withClause = this.buildWithClause(preparedInsert.withClause, fixtureCtes, insertedRowsCte);
 
         if (!preparedInsert.returningClause) {
             return this.buildCountSelect(withClause, cteName);
@@ -308,10 +325,18 @@ export class InsertResultSelectConverter {
         return new TypeValue(namespaces, new RawString(namePart));
     }
 
-    private static buildWithClause(original: WithClause | null, insertedCte: CommonTable): WithClause {
-        // Preserve any existing CTEs while appending the simulated insert result CTE.
+    private static buildFixtureCtes(fixtures?: FixtureTableDefinition[]): CommonTable[] {
+        if (!fixtures || fixtures.length === 0) {
+            return [];
+        }
+
+        return FixtureCteBuilder.buildFixtures(fixtures);
+    }
+
+    private static buildWithClause(original: WithClause | null, fixtureCtes: CommonTable[], insertedCte: CommonTable): WithClause {
+        // Preserve any existing CTEs while prefixing fixture-based definitions before the simulated inserted rows CTE.
         const originalTables = original?.tables ?? [];
-        const combinedTables = [...originalTables, insertedCte];
+        const combinedTables = [...fixtureCtes, ...originalTables, insertedCte];
         const withClause = new WithClause(original?.recursive ?? false, combinedTables);
         withClause.globalComments = original?.globalComments ? [...original.globalComments] : null;
         withClause.trailingComments = original?.trailingComments ? [...original.trailingComments] : null;
@@ -328,6 +353,64 @@ export class InsertResultSelectConverter {
         const fromExpr = new SourceExpression(new TableSource(null, cteName), null);
         const fromClause = new FromClause(fromExpr, null);
         return new SimpleSelectQuery({ withClause, selectClause, fromClause });
+    }
+
+    private static buildFixtureTableMap(fixtures?: FixtureTableDefinition[]): Map<string, FixtureTableDefinition> {
+        const map = new Map<string, FixtureTableDefinition>();
+        if (!fixtures) {
+            return map;
+        }
+
+        // Normalize table names so lookups are case-insensitive.
+        for (const fixture of fixtures) {
+            map.set(this.normalizeIdentifier(fixture.tableName), fixture);
+        }
+        return map;
+    }
+
+    private static ensureFixtureCoverage(
+        selectQuery: SelectQuery,
+        fixtureMap: Map<string, FixtureTableDefinition>,
+        strategy: MissingFixtureStrategy
+    ): void {
+        // Evaluate the SELECT expression before proceeding.
+        const referencedTables = this.collectReferencedTables(selectQuery);
+        const missingTables = this.getMissingFixtureTables(referencedTables, fixtureMap);
+        if (missingTables.length === 0) {
+            return;
+        }
+
+        if (strategy === 'error') {
+            throw new Error(
+                `Insert SELECT refers to tables without fixture coverage: ${missingTables.join(', ')}.`
+            );
+        }
+        // 'warn' and 'passthrough' intentionally allow the conversion to continue.
+    }
+
+    private static collectReferencedTables(query: SelectQuery): Set<string> {
+        // Extract the set of physical table names referenced by the SELECT body.
+        const collector = new TableSourceCollector();
+        const sources = collector.collect(query);
+        const referenced = new Set<string>();
+        for (const source of sources) {
+            referenced.add(this.normalizeIdentifier(source.getSourceName()));
+        }
+        return referenced;
+    }
+
+    private static getMissingFixtureTables(
+        referencedTables: Set<string>,
+        fixtureMap: Map<string, FixtureTableDefinition>
+    ): string[] {
+        // Compare normalized table names against the fixtures that were supplied.
+        const missing: string[] = [];
+        for (const table of referencedTables) {
+            if (!fixtureMap.has(table)) {
+                missing.push(table);
+            }
+        }
+        return missing;
     }
 
     private static generateUniqueCteName(withClause: WithClause | null): string {

@@ -53,10 +53,12 @@ export * from './transformers/PostgresJsonQueryBuilder';
 export * from './transformers/QueryBuilder'; // old name:QueryConverter
 export * from './transformers/InsertQuerySelectValuesConverter';
 export * from './transformers/InsertResultSelectConverter';
+export type { MissingFixtureStrategy } from './transformers/InsertResultSelectConverter';
 export * from './transformers/SelectValueCollector';
 export * from './transformers/SelectableColumnCollector';
 export { DuplicateDetectionMode } from './transformers/SelectableColumnCollector';
 export * from './transformers/FilterableItemCollector';
+export { FixtureCteBuilder, FixtureTableDefinition, FixtureColumnDefinition } from './transformers/FixtureCteBuilder';
 export * from './transformers/DynamicQueryBuilder';
 export * from './transformers/TableColumnResolver';
 export * from './transformers/TableSourceCollector';
