@@ -30,6 +30,7 @@ export * from './models/DeleteQuery';
 export * from './models/CreateTableQuery';
 export * from './models/MergeQuery';
 export * from './models/DDLStatements';
+export * from './models/TableDefinitionModel';
 
 export * from './transformers/CTECollector';
 export * from './transformers/CTENormalizer';
@@ -51,6 +52,7 @@ export * from './transformers/SqlFormatter';
 export * from './transformers/PostgresJsonQueryBuilder';
 export * from './transformers/QueryBuilder'; // old name:QueryConverter
 export * from './transformers/InsertQuerySelectValuesConverter';
+export * from './transformers/InsertResultSelectConverter';
 export * from './transformers/SelectValueCollector';
 export * from './transformers/SelectableColumnCollector';
 export { DuplicateDetectionMode } from './transformers/SelectableColumnCollector';

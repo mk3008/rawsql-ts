@@ -13,6 +13,7 @@ import { CTEDisabler } from './CTEDisabler';
 import { SourceExpressionParser } from '../parsers/SourceExpressionParser';
 import type { InsertQueryConversionOptions, UpdateQueryConversionOptions, DeleteQueryConversionOptions, MergeQueryConversionOptions } from "../models/SelectQuery";
 import { InsertQuerySelectValuesConverter } from "./InsertQuerySelectValuesConverter";
+import { InsertResultSelectConverter, InsertResultSelectOptions } from "./InsertResultSelectConverter";
 
 /**
  * QueryBuilder provides static methods to build or convert various SQL query objects.
@@ -257,6 +258,16 @@ export class QueryBuilder {
      */
     public static convertInsertSelectToValues(insertQuery: InsertQuery): InsertQuery {
         return InsertQuerySelectValuesConverter.toValues(insertQuery);
+    }
+
+    /**
+     * Builds a SELECT query that reflects the INSERT's RETURNING output (or count when RETURNING is absent).
+     */
+    public static convertInsertToReturningSelect(
+        insertQuery: InsertQuery,
+        options?: InsertResultSelectOptions
+    ): SimpleSelectQuery {
+        return InsertResultSelectConverter.toSelectQuery(insertQuery, options);
     }
 
     /**
