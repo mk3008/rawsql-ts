@@ -31,6 +31,28 @@ describe('InsertResultSelectConverter', () => {
         );
     });
 
+    it('falls back to the registry when the resolver cannot resolve the table', () => {
+        // Use a resolver that intentionally returns undefined to exercise the fallback path.
+        const insert = InsertQueryParser.parse(
+            `INSERT INTO sale (sale_date, price) VALUES ('2025-01-01', 100), ('2025-01-02', 200) RETURNING sale_date, price, created_at`
+        );
+        let resolverCalls: string[] = [];
+
+        const converted = InsertResultSelectConverter.toSelectQuery(insert, {
+            tableDefinitions: { sale: tableDefinition },
+            tableDefinitionResolver: (tableName) => {
+                resolverCalls.push(tableName);
+                return undefined;
+            }
+        });
+        const sql = formatter().format(converted).formattedSql;
+
+        expect(resolverCalls).toEqual(['sale']);
+        expect(sql).toBe(
+            "with \"__inserted_rows\"(\"sale_date\", \"price\") as (select cast('2025-01-01' as date) as \"sale_date\", cast(100 as int) as \"price\" union all select cast('2025-01-02' as date) as \"sale_date\", cast(200 as int) as \"price\") select \"__inserted_rows\".\"sale_date\", \"__inserted_rows\".\"price\", now() as \"created_at\" from \"__inserted_rows\""
+        );
+    });
+
     it('throws when a required column without default is missing', () => {
         const insert = InsertQueryParser.parse(
             "INSERT INTO sale (sale_date) VALUES ('2025-01-01') RETURNING sale_date"
@@ -100,6 +122,19 @@ describe('InsertResultSelectConverter', () => {
     it('throws when a referenced table lacks fixtures and the strategy is error', () => {
         const insert = InsertQueryParser.parse(
             "INSERT INTO sale (sale_date, price) SELECT sale_date, price FROM users RETURNING sale_date, price"
+        );
+
+        expect(() =>
+            InsertResultSelectConverter.toSelectQuery(insert, {
+                tableDefinitions: { sale: tableDefinition }
+            })
+        ).toThrowError(/fixture coverage: users/i);
+    });
+
+    it('checks fixtures for tables referenced inside subqueries', () => {
+        // The missing fixture should still be reported when the table lives inside a nested FROM-source.
+        const insert = InsertQueryParser.parse(
+            "INSERT INTO sale (sale_date, price) SELECT sub.sale_date, sub.price FROM (SELECT sale_date, price FROM users) AS sub RETURNING sale_date, price"
         );
 
         expect(() =>

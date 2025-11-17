@@ -125,8 +125,12 @@ export class InsertResultSelectConverter {
         tableName: string,
         options?: InsertResultSelectOptions
     ): TableDefinitionModel | undefined {
+        // Prefer resolver results but fall back to the registry when the resolver cannot handle the table name.
         if (options?.tableDefinitionResolver) {
-            return options.tableDefinitionResolver(tableName);
+            const resolved = options.tableDefinitionResolver(tableName);
+            if (resolved) {
+                return resolved;
+            }
         }
 
         if (!options?.tableDefinitions) {
@@ -389,8 +393,8 @@ export class InsertResultSelectConverter {
     }
 
     private static collectReferencedTables(query: SelectQuery): Set<string> {
-        // Extract the set of physical table names referenced by the SELECT body.
-        const collector = new TableSourceCollector();
+        // Scan every part of the query (including subqueries) so fixture coverage validates all referenced tables.
+        const collector = new TableSourceCollector(false);
         const sources = collector.collect(query);
         const referenced = new Set<string>();
         for (const source of sources) {
