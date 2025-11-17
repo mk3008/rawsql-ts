@@ -14,6 +14,7 @@ import { SourceExpressionParser } from '../parsers/SourceExpressionParser';
 import type { InsertQueryConversionOptions, UpdateQueryConversionOptions, DeleteQueryConversionOptions, MergeQueryConversionOptions } from "../models/SelectQuery";
 import { InsertQuerySelectValuesConverter } from "./InsertQuerySelectValuesConverter";
 import { InsertResultSelectConverter, InsertResultSelectOptions } from "./InsertResultSelectConverter";
+import { UpdateResultSelectConverter, UpdateResultSelectOptions } from "./UpdateResultSelectConverter";
 
 /**
  * QueryBuilder provides static methods to build or convert various SQL query objects.
@@ -265,6 +266,13 @@ export class QueryBuilder {
         options?: InsertResultSelectOptions
     ): SimpleSelectQuery {
         return InsertResultSelectConverter.toSelectQuery(insertQuery, options);
+    }
+
+    public static convertUpdateToReturningSelect(
+        updateQuery: UpdateQuery,
+        options?: UpdateResultSelectOptions
+    ): SimpleSelectQuery {
+        return UpdateResultSelectConverter.toSelectQuery(updateQuery, options);
     }
 
     /**
