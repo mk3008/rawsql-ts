@@ -60,7 +60,11 @@ jobs:
             exit 0
           fi
           git commit -m "docs: refresh API reference [skip ci]"
-          git push
+          if git push; then
+            echo "docs: pushed API reference updates"
+          else
+            echo "docs: failed to push API reference updates; please push manually if needed" >&2
+          fi
 
       - name: Upload static site
         uses: actions/upload-pages-artifact@v3
