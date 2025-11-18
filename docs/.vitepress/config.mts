@@ -34,13 +34,26 @@ export default defineConfig({
         {
           text: 'Conversion Guides',
           items: [
+            { text: 'Conversion Philosophy', link: '/guide/conversion-philosophy' },
             { text: 'SELECT → INSERT', link: '/guide/insert-conversion' },
             { text: 'SELECT → UPDATE', link: '/guide/update-conversion' },
             { text: 'SELECT → DELETE', link: '/guide/delete-conversion' },
             { text: 'SELECT → CREATE TABLE', link: '/guide/create-table-conversion' },
             { text: 'SELECT → MERGE', link: '/guide/merge-conversion' },
           ]
-        }
+        },
+
+        {
+          text: 'Result-to-SELECT Guides',
+          items: [
+            { text: 'Select-Centered Philosophy', link: '/guide/select-centered-philosophy' },
+            { text: 'SELECT → SELECT(table-independent)', link: '/guide/select-to-select' },
+            { text: 'INSERT → SELECT', link: '/guide/insert-result-select' },
+            { text: 'UPDATE → SELECT', link: '/guide/update-result-select' },
+            { text: 'DELETE → SELECT', link: '/guide/delete-result-select' },
+            { text: 'MERGE → SELECT', link: '/guide/merge-result-select' },
+          ]
+        },
       ],
       '/api/': apiSidebarWithIndex
     },
