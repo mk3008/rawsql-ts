@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: FormattingLexeme
 
-Defined in: [packages/core/src/models/FormattingLexeme.ts:6](https://github.com/mk3008/rawsql-ts/blob/931f6c594a3d00fa39b6fcdb6143e285443101ee/packages/core/src/models/FormattingLexeme.ts#L6)
+Defined in: [packages/core/src/models/FormattingLexeme.ts:6](https://github.com/mk3008/rawsql-ts/blob/20e77930050634d1683aacac0cbdcebfe1978871/packages/core/src/models/FormattingLexeme.ts#L6)
 
 Extended lexeme interface that preserves formatting information
 
@@ -15,7 +15,7 @@ Extended lexeme interface that preserves formatting information
 
 > **followingWhitespace**: `string`
 
-Defined in: [packages/core/src/models/FormattingLexeme.ts:10](https://github.com/mk3008/rawsql-ts/blob/931f6c594a3d00fa39b6fcdb6143e285443101ee/packages/core/src/models/FormattingLexeme.ts#L10)
+Defined in: [packages/core/src/models/FormattingLexeme.ts:10](https://github.com/mk3008/rawsql-ts/blob/20e77930050634d1683aacac0cbdcebfe1978871/packages/core/src/models/FormattingLexeme.ts#L10)
 
 Whitespace that follows this lexeme (spaces, tabs, newlines)
 
@@ -25,7 +25,7 @@ Whitespace that follows this lexeme (spaces, tabs, newlines)
 
 > **inlineComments**: `string`[]
 
-Defined in: [packages/core/src/models/FormattingLexeme.ts:15](https://github.com/mk3008/rawsql-ts/blob/931f6c594a3d00fa39b6fcdb6143e285443101ee/packages/core/src/models/FormattingLexeme.ts#L15)
+Defined in: [packages/core/src/models/FormattingLexeme.ts:15](https://github.com/mk3008/rawsql-ts/blob/20e77930050634d1683aacac0cbdcebfe1978871/packages/core/src/models/FormattingLexeme.ts#L15)
 
 Inline comments that appear on the same line as this lexeme
 
@@ -35,7 +35,7 @@ Inline comments that appear on the same line as this lexeme
 
 > **position**: [`LexemePosition`](LexemePosition.md)
 
-Defined in: [packages/core/src/models/FormattingLexeme.ts:20](https://github.com/mk3008/rawsql-ts/blob/931f6c594a3d00fa39b6fcdb6143e285443101ee/packages/core/src/models/FormattingLexeme.ts#L20)
+Defined in: [packages/core/src/models/FormattingLexeme.ts:20](https://github.com/mk3008/rawsql-ts/blob/20e77930050634d1683aacac0cbdcebfe1978871/packages/core/src/models/FormattingLexeme.ts#L20)
 
 Enhanced position information for precise reconstruction
 
@@ -49,7 +49,7 @@ Enhanced position information for precise reconstruction
 
 > **type**: `number`
 
-Defined in: [packages/core/src/models/Lexeme.ts:43](https://github.com/mk3008/rawsql-ts/blob/931f6c594a3d00fa39b6fcdb6143e285443101ee/packages/core/src/models/Lexeme.ts#L43)
+Defined in: [packages/core/src/models/Lexeme.ts:43](https://github.com/mk3008/rawsql-ts/blob/20e77930050634d1683aacac0cbdcebfe1978871/packages/core/src/models/Lexeme.ts#L43)
 
 #### Inherited from
 
@@ -61,7 +61,7 @@ Defined in: [packages/core/src/models/Lexeme.ts:43](https://github.com/mk3008/ra
 
 > **value**: `string`
 
-Defined in: [packages/core/src/models/Lexeme.ts:44](https://github.com/mk3008/rawsql-ts/blob/931f6c594a3d00fa39b6fcdb6143e285443101ee/packages/core/src/models/Lexeme.ts#L44)
+Defined in: [packages/core/src/models/Lexeme.ts:44](https://github.com/mk3008/rawsql-ts/blob/20e77930050634d1683aacac0cbdcebfe1978871/packages/core/src/models/Lexeme.ts#L44)
 
 #### Inherited from
 
@@ -73,7 +73,7 @@ Defined in: [packages/core/src/models/Lexeme.ts:44](https://github.com/mk3008/ra
 
 > **comments**: `null` \| `string`[]
 
-Defined in: [packages/core/src/models/Lexeme.ts:45](https://github.com/mk3008/rawsql-ts/blob/931f6c594a3d00fa39b6fcdb6143e285443101ee/packages/core/src/models/Lexeme.ts#L45)
+Defined in: [packages/core/src/models/Lexeme.ts:45](https://github.com/mk3008/rawsql-ts/blob/20e77930050634d1683aacac0cbdcebfe1978871/packages/core/src/models/Lexeme.ts#L45)
 
 #### Inherited from
 
@@ -85,7 +85,7 @@ Defined in: [packages/core/src/models/Lexeme.ts:45](https://github.com/mk3008/ra
 
 > `optional` **positionedComments**: [`LexemePositionedComment`](LexemePositionedComment.md)[]
 
-Defined in: [packages/core/src/models/Lexeme.ts:46](https://github.com/mk3008/rawsql-ts/blob/931f6c594a3d00fa39b6fcdb6143e285443101ee/packages/core/src/models/Lexeme.ts#L46)
+Defined in: [packages/core/src/models/Lexeme.ts:46](https://github.com/mk3008/rawsql-ts/blob/20e77930050634d1683aacac0cbdcebfe1978871/packages/core/src/models/Lexeme.ts#L46)
 
 #### Inherited from
 
