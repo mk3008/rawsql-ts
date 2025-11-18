@@ -122,4 +122,23 @@ describe('UpdateResultSelectConverter', () => {
             })
         ).toThrowError(/fixture coverage.*sale/i);
     });
+
+    it('ignores CTE aliases when checking fixture coverage', () => {
+        const update = UpdateQueryParser.parse(`
+            WITH source AS (
+                SELECT CAST('2025-01-01' AS date) AS sale_date, 100 AS price
+            )
+            UPDATE sale SET price = price + 10 FROM source WHERE sale.sale_date = source.sale_date RETURNING sale_date, price
+        `);
+
+        const converted = UpdateResultSelectConverter.toSelectQuery(update, {
+            tableDefinitions: { sale: tableDefinition },
+            fixtureTables: fixtures
+        });
+
+        const sql = formatter().format(converted).formattedSql;
+        expect(sql).toBe(
+            "with \"sale\" as (select cast('2025-01-01' as date) as \"sale_date\", cast(100 as int) as \"price\" union all select cast('2025-01-02' as date) as \"sale_date\", cast(200 as int) as \"price\"), \"source\" as (select cast('2025-01-01' as date) as \"sale_date\", 100 as \"price\") select \"sale\".\"sale_date\", \"price\" + 10 as \"price\" from \"sale\" cross join \"source\" where \"sale\".\"sale_date\" = \"source\".\"sale_date\""
+        );
+    });
 });

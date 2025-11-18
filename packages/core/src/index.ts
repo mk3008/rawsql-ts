@@ -55,6 +55,7 @@ export * from './transformers/InsertQuerySelectValuesConverter';
 export * from './transformers/InsertResultSelectConverter';
 export type { MissingFixtureStrategy } from './transformers/InsertResultSelectConverter';
 export * from './transformers/UpdateResultSelectConverter';
+export * from './transformers/DeleteResultSelectConverter';
 export * from './transformers/SelectValueCollector';
 export * from './transformers/SelectableColumnCollector';
 export { DuplicateDetectionMode } from './transformers/SelectableColumnCollector';
