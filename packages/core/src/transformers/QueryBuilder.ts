@@ -15,6 +15,7 @@ import type { InsertQueryConversionOptions, UpdateQueryConversionOptions, Delete
 import { InsertQuerySelectValuesConverter } from "./InsertQuerySelectValuesConverter";
 import { InsertResultSelectConverter, InsertResultSelectOptions } from "./InsertResultSelectConverter";
 import { UpdateResultSelectConverter, UpdateResultSelectOptions } from "./UpdateResultSelectConverter";
+import { DeleteResultSelectConverter, DeleteResultSelectOptions } from "./DeleteResultSelectConverter";
 
 /**
  * QueryBuilder provides static methods to build or convert various SQL query objects.
@@ -273,6 +274,13 @@ export class QueryBuilder {
         options?: UpdateResultSelectOptions
     ): SimpleSelectQuery {
         return UpdateResultSelectConverter.toSelectQuery(updateQuery, options);
+    }
+
+    public static convertDeleteToReturningSelect(
+        deleteQuery: DeleteQuery,
+        options?: DeleteResultSelectOptions
+    ): SimpleSelectQuery {
+        return DeleteResultSelectConverter.toSelectQuery(deleteQuery, options);
     }
 
     /**
