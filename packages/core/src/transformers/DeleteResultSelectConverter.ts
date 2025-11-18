@@ -5,6 +5,7 @@ import {
     ReturningClause,
     SelectClause,
     SelectItem,
+    SourceExpression,
     TableSource,
     UsingClause,
     WithClause
@@ -20,6 +21,7 @@ import { TableSourceCollector } from './TableSourceCollector';
 import { FixtureCteBuilder, FixtureTableDefinition } from './FixtureCteBuilder';
 import { SelectQueryWithClauseHelper } from '../utils/SelectQueryWithClauseHelper';
 import type { MissingFixtureStrategy } from './InsertResultSelectConverter';
+import { FullNameParser } from '../parsers/FullNameParser';
 
 /** Options that control how DELETE-to-SELECT conversion resolves metadata and fixtures. */
 export interface DeleteResultSelectOptions {
@@ -31,6 +33,24 @@ export interface DeleteResultSelectOptions {
     fixtureTables?: FixtureTableDefinition[];
     /** Strategy for how missing fixtures should be tolerated. */
     missingFixtureStrategy?: MissingFixtureStrategy;
+}
+
+interface TableAliasContext {
+    alias: string;
+    tableName: string;
+    tableDefinition?: TableDefinitionModel;
+}
+
+interface ReturningContext {
+    targetAlias: string | null;
+    targetDefinition?: TableDefinitionModel;
+    aliasMap: Map<string, TableAliasContext>;
+    tableNameMap: Map<string, TableAliasContext>;
+}
+
+interface ParsedReturningColumn {
+    namespaces: string[] | null;
+    column: string;
 }
 
 export class DeleteResultSelectConverter {
@@ -45,8 +65,11 @@ export class DeleteResultSelectConverter {
         const targetAlias = deleteQuery.deleteClause.getSourceAliasName();
 
         // Build the SELECT structure that mirrors the DELETE source/join semantics.
+        const returningContext = deleteQuery.returningClause
+            ? this.buildReturningContext(deleteQuery.deleteClause, deleteQuery.usingClause, targetAlias, tableDefinition, options)
+            : null;
         const selectClause = deleteQuery.returningClause
-            ? this.buildReturningSelectClause(deleteQuery.returningClause, targetAlias, tableDefinition)
+            ? this.buildReturningSelectClause(deleteQuery.returningClause, returningContext!)
             : this.buildCountSelectClause();
         const fromClause = this.buildFromClause(deleteQuery.deleteClause, deleteQuery.usingClause);
         const whereClause = deleteQuery.whereClause ?? null;
@@ -75,13 +98,13 @@ export class DeleteResultSelectConverter {
 
     private static buildReturningSelectClause(
         returning: ReturningClause,
-        targetAlias: string | null,
-        tableDefinition?: TableDefinitionModel
+        context: ReturningContext
     ): SelectClause {
-        const requestedColumns = this.resolveReturningColumns(returning, tableDefinition);
+        const requestedColumns = this.resolveReturningColumns(returning, context.targetDefinition);
         const selectItems = requestedColumns.map((columnName) => {
-            const expression = this.buildReturningExpression(columnName, targetAlias, tableDefinition);
-            return new SelectItem(expression, columnName);
+            const parsed = this.parseReturningColumnName(columnName);
+            const expression = this.buildReturningExpression(columnName, context, parsed);
+            return new SelectItem(expression, parsed.column);
         });
         return new SelectClause(selectItems);
     }
@@ -119,13 +142,128 @@ export class DeleteResultSelectConverter {
         return requested;
     }
 
-    private static buildReturningExpression(
-        columnName: string,
+    private static buildReturningExpression(columnName: string, context: ReturningContext, parsed?: ParsedReturningColumn): ColumnReference {
+        const parsedColumn = parsed ?? this.parseReturningColumnName(columnName);
+
+        // Determine if any namespace hint can locate a richer context for column validation.
+        const tableContext = this.findTableContextForNamespaces(parsedColumn.namespaces, context);
+        const definitionToValidate = tableContext?.tableDefinition ??
+            (parsedColumn.namespaces ? undefined : context.targetDefinition);
+        if (definitionToValidate) {
+            this.ensureColumnExists(parsedColumn.column, definitionToValidate);
+        }
+
+        const columnNamespace = parsedColumn.namespaces && parsedColumn.namespaces.length > 0
+            ? [...parsedColumn.namespaces]
+            : context.targetAlias
+                ? [context.targetAlias]
+                : null;
+        return new ColumnReference(columnNamespace, parsedColumn.column);
+    }
+
+    private static buildReturningContext(
+        deleteClause: DeleteQuery['deleteClause'],
+        usingClause: UsingClause | null,
         targetAlias: string | null,
-        tableDefinition?: TableDefinitionModel
-    ): ColumnReference {
-        this.ensureColumnExists(columnName, tableDefinition);
-        return new ColumnReference(targetAlias, columnName);
+        targetDefinition: TableDefinitionModel | undefined,
+        options?: DeleteResultSelectOptions
+    ): ReturningContext {
+        const { aliasMap, tableNameMap } = this.buildTableContexts(deleteClause, usingClause, options);
+        return {
+            aliasMap,
+            tableNameMap,
+            targetAlias,
+            targetDefinition
+        };
+    }
+
+    private static buildTableContexts(
+        deleteClause: DeleteQuery['deleteClause'],
+        usingClause: UsingClause | null,
+        options?: DeleteResultSelectOptions
+    ): { aliasMap: Map<string, TableAliasContext>; tableNameMap: Map<string, TableAliasContext> } {
+        const aliasMap = new Map<string, TableAliasContext>();
+        const tableNameMap = new Map<string, TableAliasContext>();
+
+        // Capture alias and table name contexts to resolve metadata for both identifiers.
+        const collectSource = (source: SourceExpression): void => {
+            const alias = source.getAliasName();
+            if (!alias || !(source.datasource instanceof TableSource)) {
+                return;
+            }
+            const normalizedAlias = this.normalizeIdentifier(alias);
+            if (aliasMap.has(normalizedAlias)) {
+                return;
+            }
+            const tableName = source.datasource.getSourceName();
+            const tableDefinition = this.resolveTableDefinition(tableName, options);
+            const context: TableAliasContext = {
+                alias,
+                tableName,
+                tableDefinition
+            };
+            aliasMap.set(normalizedAlias, context);
+            const normalizedTableName = this.normalizeIdentifier(tableName);
+            if (!tableNameMap.has(normalizedTableName)) {
+                tableNameMap.set(normalizedTableName, context);
+            }
+        };
+
+        collectSource(deleteClause.source);
+        if (usingClause) {
+            for (const source of usingClause.sources) {
+                collectSource(source);
+            }
+        }
+
+        return { aliasMap, tableNameMap };
+    }
+
+    private static parseReturningColumnName(columnName: string): ParsedReturningColumn {
+        const trimmed = columnName.trim();
+        if (!trimmed) {
+            throw new Error('Returning column name cannot be empty.');
+        }
+        try {
+            const parsed = FullNameParser.parse(trimmed);
+            return {
+                namespaces: parsed.namespaces,
+                column: parsed.name.name
+            };
+        } catch {
+            const parts = trimmed.split('.').map((segment) => segment.trim()).filter((segment) => segment.length > 0);
+            if (parts.length === 0) {
+                return { namespaces: null, column: trimmed };
+            }
+            const column = parts.pop()!;
+            return {
+                namespaces: parts.length > 0 ? parts : null,
+                column
+            };
+        }
+    }
+
+    private static findTableContextForNamespaces(
+        namespaces: string[] | null,
+        context: ReturningContext
+    ): TableAliasContext | undefined {
+        if (!namespaces?.length) {
+            return undefined;
+        }
+        for (let depth = namespaces.length; depth > 0; depth--) {
+            const candidateParts = namespaces.slice(namespaces.length - depth);
+            const identifier = candidateParts.join('.');
+            const normalized = this.normalizeIdentifier(identifier);
+            const aliasContext = context.aliasMap.get(normalized);
+            if (aliasContext) {
+                return aliasContext;
+            }
+            const tableContext = context.tableNameMap.get(normalized);
+            if (tableContext) {
+                return tableContext;
+            }
+        }
+        return undefined;
     }
 
     private static ensureColumnExists(columnName: string, tableDefinition?: TableDefinitionModel): void {

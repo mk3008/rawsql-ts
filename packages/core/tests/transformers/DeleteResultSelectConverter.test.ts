@@ -129,6 +129,48 @@ describe('DeleteResultSelectConverter', () => {
         );
     });
 
+    it('allows RETURNING columns from USING tables', () => {
+        const userDefinition: TableDefinitionModel = {
+            name: 'users',
+            columns: [
+                { name: 'sale_date', typeName: 'date', required: true },
+                { name: 'price', typeName: 'int', required: true }
+            ]
+        };
+
+        const fixtureTablesForUsers: FixtureTableDefinition[] = [
+            ...fixtures,
+            {
+                tableName: 'users',
+                columns: [
+                    { name: 'sale_date', typeName: 'date' },
+                    { name: 'price', typeName: 'int' }
+                ],
+                rows: [
+                    ['2025-01-01', 100],
+                    ['2025-01-02', 200]
+                ]
+            }
+        ];
+
+        const deleteQuery = DeleteQueryParser.parse(
+            'DELETE FROM sale USING users WHERE sale.sale_date = users.sale_date RETURNING users.sale_date'
+        );
+
+        const converted = DeleteResultSelectConverter.toSelectQuery(deleteQuery, {
+            tableDefinitions: {
+                sale: tableDefinition,
+                users: userDefinition
+            },
+            fixtureTables: fixtureTablesForUsers
+        });
+
+        const sql = formatter().format(converted).formattedSql;
+        expect(sql).toBe(
+            "with \"sale\" as (select cast('2025-01-01' as date) as \"sale_date\", cast(100 as int) as \"price\" union all select cast('2025-01-02' as date) as \"sale_date\", cast(200 as int) as \"price\"), \"users\" as (select cast('2025-01-01' as date) as \"sale_date\", cast(100 as int) as \"price\" union all select cast('2025-01-02' as date) as \"sale_date\", cast(200 as int) as \"price\") select \"users\".\"sale_date\" from \"sale\" cross join \"users\" where \"sale\".\"sale_date\" = \"users\".\"sale_date\""
+        );
+    });
+
     it('requires fixture coverage for referenced tables by default', () => {
         const deleteQuery = DeleteQueryParser.parse('DELETE FROM sale USING users WHERE sale.sale_date = users.sale_date RETURNING sale_date');
 

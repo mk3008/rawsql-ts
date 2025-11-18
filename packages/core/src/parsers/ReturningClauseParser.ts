@@ -2,6 +2,7 @@
 import { Lexeme, TokenType } from "../models/Lexeme";
 import { IdentifierString } from "../models/ValueComponent";
 import { ReturningClause } from "../models/Clause";
+import { FullNameParser } from "./FullNameParser";
 import { extractLexemeComments } from "./utils/LexemeCommentUtils";
 
 export class ReturningClauseParser {
@@ -26,17 +27,30 @@ export class ReturningClauseParser {
             const lexeme = lexemes[idx];
 
             let column: IdentifierString | null = null;
-            if (lexeme.type & TokenType.Identifier) {
-                column = new IdentifierString(lexeme.value);
-            } else if (lexeme.value === "*") {
+            let lastLexemeForComments: Lexeme | null = null;
+            let nextIndex = idx;
+
+            if (lexeme.value === "*") {
                 column = new IdentifierString("*");
+                lastLexemeForComments = lexeme;
+                nextIndex = idx + 1;
+            } else if (lexeme.type & TokenType.Identifier) {
+                const parsed = FullNameParser.parseFromLexeme(lexemes, idx);
+                const parts: string[] = [];
+                if (parsed.namespaces) {
+                    parts.push(...parsed.namespaces);
+                }
+                parts.push(parsed.name.name);
+                column = new IdentifierString(parts.join('.'));
+                lastLexemeForComments = lexemes[parsed.newIndex - 1];
+                nextIndex = parsed.newIndex;
             }
 
-            if (!column) {
+            if (!column || !lastLexemeForComments) {
                 break;
             }
 
-            const columnComments = extractLexemeComments(lexeme);
+            const columnComments = extractLexemeComments(lastLexemeForComments);
             const beforeComments: string[] = [];
             if (pendingBeforeForNext.length > 0) {
                 beforeComments.push(...pendingBeforeForNext);
@@ -53,7 +67,7 @@ export class ReturningClauseParser {
 
             columns.push(column);
             pendingBeforeForNext = [];
-            idx++;
+            idx = nextIndex;
 
             if (lexemes[idx]?.type === TokenType.Comma) {
                 const commaComments = extractLexemeComments(lexemes[idx]);
