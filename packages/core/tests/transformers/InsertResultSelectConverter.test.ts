@@ -144,6 +144,23 @@ describe('InsertResultSelectConverter', () => {
         ).toThrowError(/fixture coverage: users/i);
     });
 
+    it('requires fixtures for tables referenced inside WITH clauses', () => {
+        const insert = InsertQueryParser.parse(`
+            WITH source AS (
+                SELECT sale_date, price FROM users
+            )
+            INSERT INTO sale (sale_date, price)
+            SELECT sale_date, price FROM source
+            RETURNING sale_date, price
+        `);
+
+        expect(() =>
+            InsertResultSelectConverter.toSelectQuery(insert, {
+                tableDefinitions: { sale: tableDefinition }
+            })
+        ).toThrowError(/fixture coverage.*users/i);
+    });
+
     it('ignores CTE aliases when checking fixture coverage', () => {
         const insert = InsertQueryParser.parse(`
             WITH source AS (
@@ -161,6 +178,38 @@ describe('InsertResultSelectConverter', () => {
 
         expect(sql).toBe(
             "with \"source\" as (select cast('2025-01-01' as date) as \"sale_date\", 100 as \"price\"), \"__inserted_rows\"(\"sale_date\", \"price\") as (select cast(\"sale_date\" as date) as \"sale_date\", cast(\"price\" as int) as \"price\" from \"source\") select \"__inserted_rows\".\"sale_date\", \"__inserted_rows\".\"price\" from \"__inserted_rows\""
+        );
+    });
+
+    it('ignores unused fixture definitions', () => {
+        const insert = InsertQueryParser.parse(
+            `INSERT INTO sale (sale_date, price) VALUES ('2025-01-01', 100), ('2025-01-02', 200) RETURNING sale_date, price, created_at`
+        );
+
+        const fixtures: FixtureTableDefinition[] = [
+            {
+                tableName: 'users',
+                columns: [
+                    { name: 'id', typeName: 'int' },
+                    { name: 'name', typeName: 'varchar' },
+                    { name: 'email', typeName: 'varchar' }
+                ],
+                rows: [
+                    [1, 'Alice', 'alice@example.com'],
+                    [2, 'Bob', 'bob@example.com']
+                ]
+            }
+        ];
+
+        const converted = InsertResultSelectConverter.toSelectQuery(insert, {
+            tableDefinitions: { sale: tableDefinition },
+            fixtureTables: fixtures
+        });
+
+        const sql = formatter().format(converted).formattedSql;
+
+        expect(sql).toBe(
+            "with \"__inserted_rows\"(\"sale_date\", \"price\") as (select cast('2025-01-01' as date) as \"sale_date\", cast(100 as int) as \"price\" union all select cast('2025-01-02' as date) as \"sale_date\", cast(200 as int) as \"price\") select \"__inserted_rows\".\"sale_date\", \"__inserted_rows\".\"price\", now() as \"created_at\" from \"__inserted_rows\""
         );
     });
 

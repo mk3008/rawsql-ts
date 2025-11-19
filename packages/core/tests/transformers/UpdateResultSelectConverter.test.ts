@@ -142,6 +142,51 @@ describe('UpdateResultSelectConverter', () => {
         );
     });
 
+    it('requires fixtures for tables referenced inside WITH clauses', () => {
+        const update = UpdateQueryParser.parse(`
+            WITH lookup AS (
+                SELECT sale_date, price FROM users
+            )
+            UPDATE sale
+            SET price = price + lookup.price
+            FROM lookup
+            WHERE sale.sale_date = lookup.sale_date
+            RETURNING sale_date, price
+        `);
+
+        expect(() =>
+            UpdateResultSelectConverter.toSelectQuery(update, {
+                tableDefinitions: { sale: tableDefinition }
+            })
+        ).toThrowError(/fixture coverage.*users/i);
+    });
+
+    it('ignores unused fixture definitions', () => {
+        const update = UpdateQueryParser.parse(
+            "UPDATE sale SET price = price + 10 RETURNING sale_date, price"
+        );
+
+        const unusedFixture: FixtureTableDefinition = {
+            tableName: 'users',
+            columns: [
+                { name: 'id', typeName: 'int' },
+                { name: 'name', typeName: 'varchar' }
+            ],
+            rows: [
+                [1, 'Alice'],
+                [2, 'Bob']
+            ]
+        };
+
+        const converted = UpdateResultSelectConverter.toSelectQuery(update, {
+            tableDefinitions: { sale: tableDefinition },
+            fixtureTables: [...fixtures, unusedFixture]
+        });
+
+        const sql = formatter().format(converted).formattedSql;
+        expect(sql.toLowerCase()).not.toContain('"users" as');
+    });
+
     it('preserves expressions in the RETURNING list', () => {
         const update = UpdateQueryParser.parse(
             "UPDATE sale SET price = price + 10 WHERE sale_date = '2025-01-01' RETURNING lower(price) as lower_price"

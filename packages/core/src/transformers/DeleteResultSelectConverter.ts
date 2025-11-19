@@ -88,9 +88,16 @@ export class DeleteResultSelectConverter {
         const missingStrategy = options?.missingFixtureStrategy ?? this.DEFAULT_MISSING_FIXTURE_STRATEGY;
 
         const originalWithClause = SelectQueryWithClauseHelper.detachWithClause(selectQuery);
-        this.ensureFixtureCoverage(selectQuery, fixtureMap, missingStrategy, originalWithClause);
+        const referencedTables = this.collectPhysicalTableReferences(selectQuery, originalWithClause);
+        const cteNames = this.collectCteNamesFromWithClause(originalWithClause);
+        const normalizedTarget = this.normalizeIdentifier(targetTableName);
+        if (!cteNames.has(normalizedTarget)) {
+            referencedTables.add(normalizedTarget);
+        }
+        this.ensureFixtureCoverage(referencedTables, fixtureMap, missingStrategy);
 
-        const fixtureCtes = this.buildFixtureCtes(fixtureTables);
+        const filteredFixtures = this.filterFixtureTablesForReferences(fixtureTables, referencedTables);
+        const fixtureCtes = this.buildFixtureCtes(filteredFixtures);
         const mergedWithClause = this.mergeWithClause(originalWithClause, fixtureCtes);
         SelectQueryWithClauseHelper.setWithClause(selectQuery, mergedWithClause);
 
@@ -364,6 +371,33 @@ export class DeleteResultSelectConverter {
         return FixtureCteBuilder.buildFixtures(fixtures);
     }
 
+    private static collectPhysicalTableReferences(
+        selectQuery: SelectQuery,
+        withClause: WithClause | null
+    ): Set<string> {
+        const referencedTables = this.collectReferencedTables(selectQuery);
+        const ignoredTables = this.collectCteNamesFromWithClause(withClause);
+
+        const tablesToShadow = new Set<string>();
+        // Keep only concrete tables that are not defined via WITH clause aliases.
+        for (const table of referencedTables) {
+            if (ignoredTables.has(table)) {
+                continue;
+            }
+            tablesToShadow.add(table);
+        }
+
+        const cteReferencedTables = this.collectReferencedTablesFromWithClause(withClause);
+        for (const table of cteReferencedTables) {
+            if (ignoredTables.has(table)) {
+                continue;
+            }
+            tablesToShadow.add(table);
+        }
+
+        return tablesToShadow;
+    }
+
     private static buildFixtureTableMap(fixtures: FixtureTableDefinition[]): Map<string, FixtureTableDefinition> {
         const map = new Map<string, FixtureTableDefinition>();
         for (const fixture of fixtures) {
@@ -372,25 +406,49 @@ export class DeleteResultSelectConverter {
         return map;
     }
 
-    private static ensureFixtureCoverage(
-        selectQuery: SelectQuery,
-        fixtureMap: Map<string, FixtureTableDefinition>,
-        strategy: MissingFixtureStrategy,
-        withClause: WithClause | null
-    ): void {
-        // Identify every table referenced directly by the SELECT query.
-        const referencedTables = this.collectReferencedTables(selectQuery);
-        const ignoredTables = this.collectCteNamesFromWithClause(withClause);
-
-        const tablesToCheck = new Set<string>();
-        for (const table of referencedTables) {
-            if (ignoredTables.has(table)) {
-                continue;
-            }
-            tablesToCheck.add(table);
+    private static filterFixtureTablesForReferences(
+        fixtures: FixtureTableDefinition[],
+        referencedTables: Set<string>
+    ): FixtureTableDefinition[] {
+        if (!fixtures.length || referencedTables.size === 0) {
+            return [];
         }
 
-        const missingTables = this.getMissingFixtureTables(tablesToCheck, fixtureMap);
+        const filtered: FixtureTableDefinition[] = [];
+        for (const fixture of fixtures) {
+            if (referencedTables.has(this.normalizeIdentifier(fixture.tableName))) {
+                filtered.push(fixture);
+            }
+        }
+
+        return filtered;
+    }
+
+    private static collectReferencedTablesFromWithClause(withClause: WithClause | null): Set<string> {
+        const tables = new Set<string>();
+        if (!withClause?.tables) {
+            return tables;
+        }
+
+        for (const cte of withClause.tables) {
+            for (const table of this.collectReferencedTables(cte.query)) {
+                tables.add(table);
+            }
+        }
+
+        return tables;
+    }
+
+    private static ensureFixtureCoverage(
+        referencedTables: Set<string>,
+        fixtureMap: Map<string, FixtureTableDefinition>,
+        strategy: MissingFixtureStrategy
+    ): void {
+        if (referencedTables.size === 0) {
+            return;
+        }
+
+        const missingTables = this.getMissingFixtureTables(referencedTables, fixtureMap);
         if (missingTables.length === 0) {
             return;
         }

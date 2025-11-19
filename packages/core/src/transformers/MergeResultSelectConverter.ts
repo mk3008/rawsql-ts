@@ -1,4 +1,4 @@
-import { CommonTable, FromClause, JoinClause, JoinOnClause, SelectClause, SelectItem, SourceAliasExpression, SourceExpression, SubQuerySource, WithClause, WhereClause } from '../models/Clause';
+import { CommonTable, FromClause, JoinClause, JoinOnClause, SelectClause, SelectItem, SourceAliasExpression, SourceExpression, SubQuerySource, TableSource, WithClause, WhereClause } from '../models/Clause';
 import { MergeQuery, MergeWhenClause, MergeUpdateAction, MergeDeleteAction, MergeInsertAction, MergeDoNothingAction } from '../models/MergeQuery';
 import { BinaryExpression, FunctionCall, InlineQuery, LiteralValue, RawString, UnaryExpression, ValueComponent } from '../models/ValueComponent';
 import { BinarySelectQuery, SimpleSelectQuery, SelectQuery } from '../models/SelectQuery';
@@ -44,11 +44,18 @@ export class MergeResultSelectConverter {
         const missingStrategy = options?.missingFixtureStrategy ?? this.DEFAULT_MISSING_FIXTURE_STRATEGY;
         const nativeWithClause = mergeQuery.withClause ?? null;
 
+        const referencedTables = this.collectPhysicalTableReferences(unionSource, nativeWithClause);
+        const cteNames = this.collectCteNamesFromWithClause(nativeWithClause);
+        const targetName = this.normalizeIdentifier(this.extractTargetTableName(mergeQuery.target));
+        if (!cteNames.has(targetName)) {
+            referencedTables.add(targetName);
+        }
         // Ensure every referenced physical table is backed by a fixture when required.
-        this.ensureFixtureCoverage(finalSelect, fixtureMap, missingStrategy, nativeWithClause);
+        this.ensureFixtureCoverage(referencedTables, fixtureMap, missingStrategy);
 
         // Merge fixture CTEs ahead of any original MERGE WITH clause definitions.
-        const fixtureCtes = this.buildFixtureCtes(fixtureTables);
+        const filteredFixtures = this.filterFixtureTablesForReferences(fixtureTables, referencedTables);
+        const fixtureCtes = this.buildFixtureCtes(filteredFixtures);
         const combinedWithClause = this.mergeWithClause(nativeWithClause, fixtureCtes);
         SelectQueryWithClauseHelper.setWithClause(finalSelect, combinedWithClause);
 
@@ -205,6 +212,72 @@ export class MergeResultSelectConverter {
         return FixtureCteBuilder.buildFixtures(fixtures);
     }
 
+    private static collectPhysicalTableReferences(query: SelectQuery, withClause: WithClause | null): Set<string> {
+        const referencedTables = this.collectReferencedTables(query);
+        const ignoredTables = this.collectCteNamesFromWithClause(withClause);
+
+        const tablesToShadow = new Set<string>();
+        // Retain only tables that are not defined via WITH clauses so fixtures shadow physical sources.
+        for (const table of referencedTables) {
+            if (ignoredTables.has(table)) {
+                continue;
+            }
+            tablesToShadow.add(table);
+        }
+
+        const cteReferencedTables = this.collectReferencedTablesFromWithClause(withClause);
+        for (const table of cteReferencedTables) {
+            if (ignoredTables.has(table)) {
+                continue;
+            }
+            tablesToShadow.add(table);
+        }
+
+        return tablesToShadow;
+    }
+
+    private static filterFixtureTablesForReferences(
+        fixtures: FixtureTableDefinition[],
+        referencedTables: Set<string>
+    ): FixtureTableDefinition[] {
+        if (!fixtures.length || referencedTables.size === 0) {
+            return [];
+        }
+
+        const filtered: FixtureTableDefinition[] = [];
+        // Keep fixtures only for tables that actually appear in the converted SELECT.
+        for (const fixture of fixtures) {
+            if (referencedTables.has(this.normalizeIdentifier(fixture.tableName))) {
+                filtered.push(fixture);
+            }
+        }
+
+        return filtered;
+    }
+
+    private static collectReferencedTablesFromWithClause(withClause: WithClause | null): Set<string> {
+        const tables = new Set<string>();
+        if (!withClause?.tables) {
+            return tables;
+        }
+
+        for (const cte of withClause.tables) {
+            for (const table of this.collectReferencedTables(cte.query)) {
+                tables.add(table);
+            }
+        }
+
+        return tables;
+    }
+
+    private static extractTargetTableName(target: SourceExpression): string {
+        const datasource = target.datasource;
+        if (datasource instanceof TableSource) {
+            return datasource.getSourceName();
+        }
+        throw new Error('Merge target must be a table source for conversion.');
+    }
+
     private static buildFixtureTableMap(fixtures: FixtureTableDefinition[]): Map<string, FixtureTableDefinition> {
         const map = new Map<string, FixtureTableDefinition>();
         for (const fixture of fixtures) {
@@ -214,25 +287,16 @@ export class MergeResultSelectConverter {
     }
 
     private static ensureFixtureCoverage(
-        selectQuery: SelectQuery,
+        referencedTables: Set<string>,
         fixtureMap: Map<string, FixtureTableDefinition>,
-        strategy: MissingFixtureStrategy,
-        withClause: WithClause | null
+        strategy: MissingFixtureStrategy
     ): void {
-        // Enumerate the tables the query touches so we know which fixtures must exist.
-        const referencedTables = this.collectReferencedTables(selectQuery);
-        const ignoredTables = this.collectCteNamesFromWithClause(withClause);
-
-        const tablesToCheck = new Set<string>();
-        for (const table of referencedTables) {
-            if (ignoredTables.has(table)) {
-                continue;
-            }
-            tablesToCheck.add(table);
+        if (referencedTables.size === 0) {
+            return;
         }
 
         // Compare the referenced tables against the fixtures that were supplied.
-        const missingTables = this.getMissingFixtureTables(tablesToCheck, fixtureMap);
+        const missingTables = this.getMissingFixtureTables(referencedTables, fixtureMap);
         if (missingTables.length === 0) {
             return;
         }

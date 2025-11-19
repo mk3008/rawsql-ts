@@ -96,6 +96,74 @@ describe('MergeResultSelectConverter', () => {
         expect(sql.toLowerCase()).toContain('"sale" as');
     });
 
+    it('requires fixtures for tables referenced inside WITH clauses', () => {
+        const merge = MergeQueryParser.parse(`
+            WITH source AS (
+                SELECT id, sale_date, price FROM users
+            )
+            MERGE INTO sale AS target
+            USING source
+            ON target.id = source.id
+            WHEN MATCHED THEN UPDATE SET price = source.price
+        `);
+
+        expect(() =>
+            MergeResultSelectConverter.toSelectQuery(merge, {
+                missingFixtureStrategy: 'error'
+            })
+        ).toThrowError(/merge select refers to tables without fixture coverage.*users/i);
+    });
+
+    it('ignores unused fixture definitions', () => {
+        const fixtures: FixtureTableDefinition[] = [
+            {
+                tableName: 'sale',
+                columns: [
+                    { name: 'id', typeName: 'int' },
+                    { name: 'price', typeName: 'int' }
+                ],
+                rows: [
+                    [1, 100]
+                ]
+            },
+            {
+                tableName: 'users',
+                columns: [
+                    { name: 'id', typeName: 'int' },
+                    { name: 'price', typeName: 'int' }
+                ],
+                rows: [
+                    [1, 150]
+                ]
+            },
+            {
+                tableName: 'products',
+                columns: [
+                    { name: 'id', typeName: 'int' },
+                    { name: 'sku', typeName: 'varchar' }
+                ],
+                rows: [
+                    [42, 'X42']
+                ]
+            }
+        ];
+
+        const merge = MergeQueryParser.parse(`
+            MERGE INTO sale AS target
+            USING users AS source
+            ON target.id = source.id
+            WHEN MATCHED THEN UPDATE SET price = source.price
+        `);
+
+        const converted = MergeResultSelectConverter.toSelectQuery(merge, {
+            fixtureTables: fixtures,
+            missingFixtureStrategy: 'passthrough'
+        });
+        const sql = formatter().format(converted).formattedSql;
+
+        expect(sql.toLowerCase()).not.toContain('"products" as');
+    });
+
     it('throws when fixture coverage is missing', () => {
         const merge = MergeQueryParser.parse(`
             MERGE INTO sale AS target

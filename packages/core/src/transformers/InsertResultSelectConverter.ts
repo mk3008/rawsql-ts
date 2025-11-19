@@ -63,7 +63,9 @@ export class InsertResultSelectConverter {
         const fixtureTables = options?.fixtureTables ?? [];
         const fixtureMap = this.buildFixtureTableMap(fixtureTables);
         const missingStrategy = options?.missingFixtureStrategy ?? this.DEFAULT_MISSING_FIXTURE_STRATEGY;
-        this.ensureFixtureCoverage(sourceQuery, fixtureMap, missingStrategy, sourceWithClause);
+        const referencedTables = this.collectPhysicalTableReferences(sourceQuery, sourceWithClause);
+        this.ensureFixtureCoverage(referencedTables, fixtureMap, missingStrategy);
+        const filteredFixtures = this.filterFixtureTablesForReferences(fixtureTables, referencedTables);
 
         const insertColumnNames = this.resolveInsertColumns(preparedInsert.insertClause, sourceQuery, tableDefinition);
         const selectColumnCount = this.getSelectColumnCount(sourceQuery);
@@ -76,7 +78,7 @@ export class InsertResultSelectConverter {
         this.assertRequiredColumns(columnMetadataMap, tableDefinition);
         this.applyColumnCasts(sourceQuery, insertColumnNames, columnMetadataMap);
 
-        const fixtureCtes = this.buildFixtureCtes(fixtureTables);
+        const fixtureCtes = this.buildFixtureCtes(filteredFixtures);
         const cteName = this.generateUniqueCteName(sourceWithClause, fixtureCtes);
         const cteAlias = new SourceAliasExpression(cteName, insertColumnNames);
         const insertedRowsCte = new CommonTable(sourceQuery, cteAlias, null);
@@ -399,12 +401,73 @@ export class InsertResultSelectConverter {
         return new TypeValue(namespaces, new RawString(namePart));
     }
 
+    private static collectPhysicalTableReferences(
+        selectQuery: SelectQuery,
+        withClause?: WithClause | null
+    ): Set<string> {
+        const referencedTables = this.collectReferencedTables(selectQuery);
+        const ignoredTables = this.collectCteNamesFromWithClause(withClause);
+
+        const tablesToShadow = new Set<string>();
+        // Retain only concrete tables that are not defined via CTE aliases.
+        for (const table of referencedTables) {
+            if (ignoredTables.has(table)) {
+                continue;
+            }
+            tablesToShadow.add(table);
+        }
+
+        const cteReferencedTables = this.collectReferencedTablesFromWithClause(withClause);
+        for (const table of cteReferencedTables) {
+            if (ignoredTables.has(table)) {
+                continue;
+            }
+            tablesToShadow.add(table);
+        }
+
+        return tablesToShadow;
+    }
+
     private static buildFixtureCtes(fixtures?: FixtureTableDefinition[]): CommonTable[] {
         if (!fixtures || fixtures.length === 0) {
             return [];
         }
 
         return FixtureCteBuilder.buildFixtures(fixtures);
+    }
+
+    private static filterFixtureTablesForReferences(
+        fixtures: FixtureTableDefinition[],
+        referencedTables: Set<string>
+    ): FixtureTableDefinition[] {
+        if (!fixtures.length || referencedTables.size === 0) {
+            return [];
+        }
+
+        const filtered: FixtureTableDefinition[] = [];
+        // Keep fixtures only for the tables that the INSERT actually touches.
+        for (const fixture of fixtures) {
+            if (referencedTables.has(this.normalizeIdentifier(fixture.tableName))) {
+                filtered.push(fixture);
+            }
+        }
+
+        return filtered;
+    }
+
+    private static collectReferencedTablesFromWithClause(withClause?: WithClause | null): Set<string> {
+        const tables = new Set<string>();
+        if (!withClause?.tables) {
+            return tables;
+        }
+
+        for (const cte of withClause.tables) {
+            for (const table of this.collectReferencedTables(cte.query)) {
+                tables.add(table);
+            }
+        }
+
+        return tables;
     }
 
     private static buildWithClause(original: WithClause | null, fixtureCtes: CommonTable[], insertedCte: CommonTable): WithClause {
@@ -443,25 +506,16 @@ export class InsertResultSelectConverter {
     }
 
     private static ensureFixtureCoverage(
-        selectQuery: SelectQuery,
+        referencedTables: Set<string>,
         fixtureMap: Map<string, FixtureTableDefinition>,
-        strategy: MissingFixtureStrategy,
-        withClause?: WithClause | null
+        strategy: MissingFixtureStrategy
     ): void {
-        // Evaluate the SELECT expression before proceeding.
-        const referencedTables = this.collectReferencedTables(selectQuery);
-        const ignoredTables = this.collectCteNamesFromWithClause(withClause);
-
-        // Filter out CTE aliases so fixture coverage only targets real tables.
-        const tablesToCheck = new Set<string>();
-        for (const table of referencedTables) {
-            if (ignoredTables.has(table)) {
-                continue;
-            }
-            tablesToCheck.add(table);
+        if (referencedTables.size === 0) {
+            return;
         }
 
-        const missingTables = this.getMissingFixtureTables(tablesToCheck, fixtureMap);
+        // Identify any referenced table that lacks a fixture override.
+        const missingTables = this.getMissingFixtureTables(referencedTables, fixtureMap);
         if (missingTables.length === 0) {
             return;
         }
