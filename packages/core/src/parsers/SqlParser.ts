@@ -457,24 +457,12 @@ export class SqlParser {
 
     private static getCommandAfterWith(lexemes: Lexeme[]): string | null {
         try {
-            const clone = this.cloneLexemeArray(lexemes);
-            const withResult = WithClauseParser.parseFromLexeme(clone, 0);
+            const withResult = WithClauseParser.parseFromLexeme(lexemes, 0);
             const next = lexemes[withResult.newIndex];
             return next?.value.toLowerCase() ?? null;
         } catch {
             return null;
         }
-    }
-
-    private static cloneLexemeArray(lexemes: Lexeme[]): Lexeme[] {
-        return lexemes.map((lexeme) => ({
-            ...lexeme,
-            comments: lexeme.comments ? [...lexeme.comments] : null,
-            positionedComments: lexeme.positionedComments
-                ? lexeme.positionedComments.map(pc => ({ position: pc.position, comments: [...pc.comments] }))
-                : undefined,
-            position: lexeme.position ? { ...lexeme.position } : undefined
-        }));
     }
 
     private static consumeNextStatement(
