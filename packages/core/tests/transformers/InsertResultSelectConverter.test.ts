@@ -164,6 +164,38 @@ describe('InsertResultSelectConverter', () => {
         );
     });
 
+    it('ignores unused fixture definitions', () => {
+        const insert = InsertQueryParser.parse(
+            `INSERT INTO sale (sale_date, price) VALUES ('2025-01-01', 100), ('2025-01-02', 200) RETURNING sale_date, price, created_at`
+        );
+
+        const fixtures: FixtureTableDefinition[] = [
+            {
+                tableName: 'users',
+                columns: [
+                    { name: 'id', typeName: 'int' },
+                    { name: 'name', typeName: 'varchar' },
+                    { name: 'email', typeName: 'varchar' }
+                ],
+                rows: [
+                    [1, 'Alice', 'alice@example.com'],
+                    [2, 'Bob', 'bob@example.com']
+                ]
+            }
+        ];
+
+        const converted = InsertResultSelectConverter.toSelectQuery(insert, {
+            tableDefinitions: { sale: tableDefinition },
+            fixtureTables: fixtures
+        });
+
+        const sql = formatter().format(converted).formattedSql;
+
+        expect(sql).toBe(
+            "with \"__inserted_rows\"(\"sale_date\", \"price\") as (select cast('2025-01-01' as date) as \"sale_date\", cast(100 as int) as \"price\" union all select cast('2025-01-02' as date) as \"sale_date\", cast(200 as int) as \"price\") select \"__inserted_rows\".\"sale_date\", \"__inserted_rows\".\"price\", now() as \"created_at\" from \"__inserted_rows\""
+        );
+    });
+
     it('allows passthrough when missing fixtures are tolerated', () => {
         const insert = InsertQueryParser.parse(
             "INSERT INTO sale (sale_date, price) SELECT sale_date, price FROM users RETURNING sale_date, price"

@@ -142,6 +142,32 @@ describe('UpdateResultSelectConverter', () => {
         );
     });
 
+    it('ignores unused fixture definitions', () => {
+        const update = UpdateQueryParser.parse(
+            "UPDATE sale SET price = price + 10 RETURNING sale_date, price"
+        );
+
+        const unusedFixture: FixtureTableDefinition = {
+            tableName: 'users',
+            columns: [
+                { name: 'id', typeName: 'int' },
+                { name: 'name', typeName: 'varchar' }
+            ],
+            rows: [
+                [1, 'Alice'],
+                [2, 'Bob']
+            ]
+        };
+
+        const converted = UpdateResultSelectConverter.toSelectQuery(update, {
+            tableDefinitions: { sale: tableDefinition },
+            fixtureTables: [...fixtures, unusedFixture]
+        });
+
+        const sql = formatter().format(converted).formattedSql;
+        expect(sql.toLowerCase()).not.toContain('"users" as');
+    });
+
     it('preserves expressions in the RETURNING list', () => {
         const update = UpdateQueryParser.parse(
             "UPDATE sale SET price = price + 10 WHERE sale_date = '2025-01-01' RETURNING lower(price) as lower_price"

@@ -84,6 +84,32 @@ describe('DeleteResultSelectConverter', () => {
         );
     });
 
+    it('ignores unused fixture definitions', () => {
+        const deleteQuery = DeleteQueryParser.parse(
+            "DELETE FROM sale RETURNING sale_date, price"
+        );
+
+        const unusedFixture: FixtureTableDefinition = {
+            tableName: 'users',
+            columns: [
+                { name: 'id', typeName: 'int' },
+                { name: 'name', typeName: 'varchar' }
+            ],
+            rows: [
+                [1, 'Alice'],
+                [2, 'Bob']
+            ]
+        };
+
+        const converted = DeleteResultSelectConverter.toSelectQuery(deleteQuery, {
+            tableDefinitions: { sale: tableDefinition },
+            fixtureTables: [...fixtures, unusedFixture]
+        });
+
+        const sql = formatter().format(converted).formattedSql;
+        expect(sql.toLowerCase()).not.toContain('"users" as');
+    });
+
     it('expands RETURNING * when a table definition is supplied', () => {
         const deleteQuery = DeleteQueryParser.parse("DELETE FROM sale RETURNING *");
 
