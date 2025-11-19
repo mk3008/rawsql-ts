@@ -72,8 +72,9 @@ describe("InsertQueryParser", () => {
         const query = new SqlFormatter().format(insert).formattedSql;
 
         expect(query).toBe("insert into \"users\"(\"id\", \"name\") values (1, 'a') returning *");
-        expect(insert.returningClause?.columns).toHaveLength(1);
-        expect(insert.returningClause?.columns[0].name).toBe("*");
+        expect(insert.returningClause?.items).toHaveLength(1);
+        // items[0] is a SelectItem, check its value
+        expect(insert.returningClause?.items[0].value).toBeDefined();
     });
 
     it("preserves comments across insert targets and returning columns", () => {
@@ -99,9 +100,9 @@ describe("InsertQueryParser", () => {
         expect(column?.getPositionedComments('before')).toEqual(['before id']);
         expect(column?.getPositionedComments('after')).toEqual(['after id']);
 
-        const returningColumn = insert.returningClause?.columns[0];
-        expect(returningColumn).toBeDefined();
-        expect(returningColumn?.getPositionedComments('before')).toEqual(['return before col']);
-        expect(returningColumn?.getPositionedComments('after')).toEqual(['return after col']);
+        const returningItem = insert.returningClause?.items[0];
+        expect(returningItem).toBeDefined();
+        expect(returningItem?.getPositionedComments('before')).toEqual(['return before col']);
+        expect(returningItem?.getPositionedComments('after')).toEqual(['return after col']);
     });
 });

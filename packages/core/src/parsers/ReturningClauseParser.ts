@@ -1,9 +1,8 @@
 // Provides parsing for RETURNING clauses in SQL (used in UPDATE, INSERT, DELETE, etc.)
 import { Lexeme, TokenType } from "../models/Lexeme";
-import { IdentifierString } from "../models/ValueComponent";
-import { ReturningClause } from "../models/Clause";
-import { FullNameParser } from "./FullNameParser";
+import { ReturningClause, SelectItem } from "../models/Clause";
 import { extractLexemeComments } from "./utils/LexemeCommentUtils";
+import { SelectItemParser } from "./SelectClauseParser";
 
 export class ReturningClauseParser {
     /**
@@ -20,77 +19,48 @@ export class ReturningClauseParser {
         const returningComments = extractLexemeComments(returningLexeme);
         idx++;
 
-        const columns: IdentifierString[] = [];
-        // Track inline comments that should precede the next returning column.
-        let pendingBeforeForNext: string[] = [...returningComments.after];
-        while (idx < lexemes.length) {
-            const lexeme = lexemes[idx];
+        const items: SelectItem[] = [];
 
-            let column: IdentifierString | null = null;
-            let lastLexemeForComments: Lexeme | null = null;
-            let nextIndex = idx;
+        // Parse first item
+        const firstItemResult = SelectItemParser.parseItem(lexemes, idx);
+        items.push(firstItemResult.value);
+        idx = firstItemResult.newIndex;
 
-            if (lexeme.value === "*") {
-                column = new IdentifierString("*");
-                lastLexemeForComments = lexeme;
-                nextIndex = idx + 1;
-            } else if (lexeme.type & TokenType.Identifier) {
-                const parsed = FullNameParser.parseFromLexeme(lexemes, idx);
-                const parts: string[] = [];
-                if (parsed.namespaces) {
-                    parts.push(...parsed.namespaces);
-                }
-                parts.push(parsed.name.name);
-                column = new IdentifierString(parts.join('.'));
-                lastLexemeForComments = lexemes[parsed.newIndex - 1];
-                nextIndex = parsed.newIndex;
-            }
+        // Parse subsequent items separated by commas
+        while (idx < lexemes.length && (lexemes[idx].type & TokenType.Comma)) {
+            const commaLexeme = lexemes[idx];
+            // We might want to attach comma comments to the previous item or next item
+            // SelectItemParser handles its own leading comments, but comma trailing comments might need handling.
+            // For simplicity, we let SelectItemParser handle comments attached to the item start.
+            // If we want to preserve comma comments precisely, we might need more logic, 
+            // but SelectClauseParser doesn't seem to do anything special for comma comments other than skipping them.
+            // However, ReturningClauseParser had complex comment handling.
+            // Let's rely on SelectItemParser for now as it is robust for SELECT lists.
 
-            if (!column || !lastLexemeForComments) {
-                break;
-            }
-
-            const columnComments = extractLexemeComments(lastLexemeForComments);
-            const beforeComments: string[] = [];
-            if (pendingBeforeForNext.length > 0) {
-                beforeComments.push(...pendingBeforeForNext);
-            }
-            if (columnComments.before.length > 0) {
-                beforeComments.push(...columnComments.before);
-            }
-            if (beforeComments.length > 0) {
-                column.addPositionedComments("before", beforeComments);
-            }
-            if (columnComments.after.length > 0) {
-                column.addPositionedComments("after", columnComments.after);
-            }
-
-            columns.push(column);
-            pendingBeforeForNext = [];
-            idx = nextIndex;
-
-            if (lexemes[idx]?.type === TokenType.Comma) {
-                const commaComments = extractLexemeComments(lexemes[idx]);
-                pendingBeforeForNext = [...commaComments.after];
-                idx++;
-                continue;
-            }
-
-            break;
+            idx++; // skip comma
+            const itemResult = SelectItemParser.parseItem(lexemes, idx);
+            items.push(itemResult.value);
+            idx = itemResult.newIndex;
         }
 
-        if (pendingBeforeForNext.length > 0 && columns.length > 0) {
-            columns[columns.length - 1].addPositionedComments("after", pendingBeforeForNext);
-        }
-
-        if (columns.length === 0) {
+        if (items.length === 0) {
             const position = lexemes[idx]?.position?.startPosition ?? idx;
             throw new Error(`[ReturningClauseParser] Expected a column or '*' after RETURNING at position ${position}.`);
         }
 
-        const clause = new ReturningClause(columns);
+        const clause = new ReturningClause(items);
         if (returningComments.before.length > 0) {
             clause.addPositionedComments("before", returningComments.before);
+        }
+        // returningComments.after are usually attached to the first item by SelectItemParser if they are immediately before it?
+        // Actually extractLexemeComments(returningLexeme) gets comments attached to RETURNING token.
+        // If there are comments after RETURNING, they should be attached to the clause or the first item.
+        // In the original parser:
+        // let pendingBeforeForNext: string[] = [...returningComments.after];
+        // And then added to the first column.
+
+        if (returningComments.after.length > 0 && items.length > 0) {
+            items[0].addPositionedComments("before", returningComments.after);
         }
 
         return { value: clause, newIndex: idx };

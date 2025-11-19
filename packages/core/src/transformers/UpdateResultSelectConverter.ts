@@ -58,11 +58,11 @@ export class UpdateResultSelectConverter {
         // Decide whether RETURNING or a row count should drive the SELECT clause.
         const selectClause = updateQuery.returningClause
             ? this.buildReturningSelectClause(
-                  updateQuery.returningClause,
-                  updateQuery.setClause,
-                  targetAlias,
-                  tableDefinition
-              )
+                updateQuery.returningClause,
+                updateQuery.setClause,
+                targetAlias,
+                tableDefinition
+            )
             : this.buildCountSelectClause();
 
         // Assemble the skeleton SELECT that mirrors the UPDATE's source and predicates.
@@ -169,7 +169,14 @@ export class UpdateResultSelectConverter {
         returning: ReturningClause,
         tableDefinition?: TableDefinitionModel
     ): string[] {
-        const requested = returning.columns.map((column) => column.name);
+        const requested = returning.items.map((item) => {
+            if (item.value instanceof ColumnReference) {
+                // Use toString() to get the full qualified name
+                return item.value.toString();
+            }
+            // For expressions, use the alias if available
+            return item.identifier?.name ?? "";
+        });
         // Expand RETURNING * with metadata if the caller supplied a table definition.
         if (requested.some((name) => name === '*')) {
             if (!tableDefinition) {

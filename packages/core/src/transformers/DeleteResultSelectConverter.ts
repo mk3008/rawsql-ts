@@ -132,7 +132,14 @@ export class DeleteResultSelectConverter {
         returning: ReturningClause,
         tableDefinition?: TableDefinitionModel
     ): string[] {
-        const requested = returning.columns.map((column) => column.name);
+        const requested = returning.items.map((item) => {
+            if (item.value instanceof ColumnReference) {
+                // Use toString() to get the full qualified name (e.g., "users.sale_date")
+                return item.value.toString();
+            }
+            // For expressions, use the alias if available
+            return item.identifier?.name ?? "";
+        });
         if (requested.some((name) => name === '*')) {
             if (!tableDefinition) {
                 throw new Error('Cannot expand RETURNING * without table definition.');

@@ -519,7 +519,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     public parse(arg: SqlComponent): { token: SqlPrintToken, params: any[] | Record<string, any>[] | Record<string, any> } {
         // reset parameter index before parsing
         this.index = 1;
-        
+
 
         const token = this.visit(arg);
         const paramsRaw = ParameterCollector.collect(arg).sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
@@ -632,7 +632,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
                 token.innerTokens.push(commentBlock);
             }
         }
-        
+
         // Clear positioned comments to prevent duplicate processing (unified spec)
         // Only clear for specific component types that are known to have duplication issues
         const componentsWithDuplicationIssues = [
@@ -669,14 +669,14 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
      */
     private createInlineCommentSequence(comments: string[]): SqlPrintToken[] {
         const commentTokens: SqlPrintToken[] = [];
-        
+
         for (let i = 0; i < comments.length; i++) {
             const comment = comments[i];
             if (comment.trim()) {
                 // Add comment token directly
                 const commentToken = new SqlPrintToken(SqlPrintTokenType.comment, this.formatComment(comment));
                 commentTokens.push(commentToken);
-                
+
                 // Add space between comments (except after last comment)
                 if (i < comments.length - 1) {
                     const spaceToken = new SqlPrintToken(SqlPrintTokenType.space, ' ');
@@ -684,7 +684,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
                 }
             }
         }
-        
+
         return commentTokens;
     }
 
@@ -814,7 +814,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
             token.innerTokens.push(...commentBlocks);
             return;
         }
-        
+
         // Special handling for SelectClause to add space between keyword and comment
         if (token.containerType === SqlPrintTokenContainerType.SelectClause) {
             // For SelectClause, comments need to be inserted after the keyword with a space separator
@@ -823,7 +823,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
             token.innerTokens.unshift(SqlPrintTokenParser.SPACE_TOKEN, ...commentBlocks);
             return;
         }
-        
+
         // Special handling for IdentifierString to add space before comment
         if (token.containerType === SqlPrintTokenContainerType.IdentifierString) {
             if (token.innerTokens.length > 0) {
@@ -835,26 +835,26 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
             token.innerTokens.push(...commentBlocks);
             return;
         }
-        
+
         token.innerTokens.unshift(...commentBlocks);
-        
+
         // Add a separator space after comments only for certain container types
         // where comments need to be separated from main content
         const needsSeparatorSpace = this.shouldAddSeparatorSpace(token.containerType);
-        
+
         if (needsSeparatorSpace) {
             const separatorSpace = new SqlPrintToken(SqlPrintTokenType.space, ' ');
             token.innerTokens.splice(commentBlocks.length, 0, separatorSpace);
-            
+
             // Remove the original space token after our separator if it exists 
             // This prevents duplicate spaces when comments are added
-            if (token.innerTokens.length > commentBlocks.length + 1 && 
+            if (token.innerTokens.length > commentBlocks.length + 1 &&
                 token.innerTokens[commentBlocks.length + 1].type === SqlPrintTokenType.space) {
                 token.innerTokens.splice(commentBlocks.length + 1, 1);
             }
         } else {
             // For containers that don't need separator space, still remove duplicate spaces
-            if (token.innerTokens.length > commentBlocks.length && 
+            if (token.innerTokens.length > commentBlocks.length &&
                 token.innerTokens[commentBlocks.length].type === SqlPrintTokenType.space) {
                 token.innerTokens.splice(commentBlocks.length, 1);
             }
@@ -872,7 +872,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
         // For ParenExpression: (/* comment */ content /* comment */)
         // Comments should be placed immediately after opening paren and before closing paren
-        
+
         // Handle 'before' comments - place after opening parenthesis without space
         const beforeComments = component.getPositionedComments('before');
         if (beforeComments.length > 0) {
@@ -1132,7 +1132,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
         token.innerTokens.push(this.visit(arg.left));
         token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
-        
+
         // Visit the operator to handle its comments properly
         const operatorToken = this.visit(arg.operator);
         const operatorLower = operatorToken.text.toLowerCase();
@@ -1140,7 +1140,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
             operatorToken.type = SqlPrintTokenType.operator;
         }
         token.innerTokens.push(operatorToken);
-        
+
         token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
         token.innerTokens.push(this.visit(arg.right));
 
@@ -1165,7 +1165,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
             text,
             SqlPrintTokenContainerType.LiteralValue
         );
-        
+
         // Handle positioned comments for LiteralValue
         if (arg.positionedComments && arg.positionedComments.length > 0) {
             this.addPositionedCommentsToToken(token, arg);
@@ -1174,7 +1174,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         } else if (arg.comments && arg.comments.length > 0) {
             this.addCommentsToToken(token, arg.comments);
         }
-        
+
         return token;
     }
 
@@ -1254,7 +1254,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         token.innerTokens.push(this.visit(arg.key));        // Create THEN clause
         token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
         token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'then'));
-        
+
         // Add THEN keyword comments if present
         if (arg.comments && arg.comments.length > 0) {
             token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
@@ -1283,7 +1283,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
     private visitIdentifierString(arg: IdentifierString): SqlPrintToken {
         // Create an identifier token and decorate it using the identifierDecorator
         const text = arg.name === "*" ? arg.name : this.identifierDecorator.decorate(arg.name)
-        
+
         // Handle positioned comments for IdentifierString
         if (arg.positionedComments && arg.positionedComments.length > 0) {
             const token = new SqlPrintToken(
@@ -1291,19 +1291,19 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
                 '',
                 SqlPrintTokenContainerType.IdentifierString
             );
-            
+
             // Add positioned comments
             this.addPositionedCommentsToToken(token, arg);
             // Clear positioned comments to prevent duplicate processing
             arg.positionedComments = null;
-            
+
             // Add the identifier text as the main token
             const valueToken = new SqlPrintToken(SqlPrintTokenType.value, text);
             token.innerTokens.push(valueToken);
-            
+
             return token;
         }
-        
+
         // If there are legacy comments, create a container instead of a simple value token
         if (arg.comments && arg.comments.length > 0) {
             const token = new SqlPrintToken(
@@ -1321,7 +1321,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
             return token;
         }
-        
+
         const token = new SqlPrintToken(
             SqlPrintTokenType.value,
             text,
@@ -1336,7 +1336,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         // Handle positioned comments for ParenExpression - check both self and inner expression
         const hasOwnComments = arg.positionedComments && arg.positionedComments.length > 0;
         const hasInnerComments = arg.expression.positionedComments && arg.expression.positionedComments.length > 0;
-        
+
         // Store inner comments for later processing and clear to prevent duplicate processing
         let innerBeforeComments: string[] = [];
         let innerAfterComments: string[] = [];
@@ -1350,7 +1350,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         token.innerTokens.push(SqlPrintTokenParser.PAREN_OPEN_TOKEN);
         token.innerTokens.push(this.visit(arg.expression));
         token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
-        
+
         // Now add positioned comments in the correct positions manually
         if (innerBeforeComments.length > 0) {
             const commentBlocks = this.createCommentBlocks(innerBeforeComments);
@@ -1361,7 +1361,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
                 insertIndex++;
             }
         }
-        
+
         if (innerAfterComments.length > 0) {
             const commentBlocks = this.createCommentBlocks(innerAfterComments);
             // Insert before closing paren (last position) without separator space
@@ -1370,7 +1370,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
                 token.innerTokens.splice(insertIndex - 1, 0, commentBlock);
             }
         }
-        
+
         if (hasOwnComments) {
             this.addPositionedCommentsToParenExpression(token, arg);
             // Clear positioned comments to prevent duplicate processing in parent containers
@@ -1609,23 +1609,23 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
         // array expression
         token.innerTokens.push(this.visit(arg.array));
-        
+
         // opening bracket
         token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.parenthesis, '['));
-        
+
         // start index (optional)
         if (arg.startIndex) {
             token.innerTokens.push(this.visit(arg.startIndex));
         }
-        
+
         // colon separator
         token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.operator, ':'));
-        
+
         // end index (optional)
         if (arg.endIndex) {
             token.innerTokens.push(this.visit(arg.endIndex));
         }
-        
+
         // closing bracket
         token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.parenthesis, ']'));
 
@@ -1637,13 +1637,13 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
         // array expression
         token.innerTokens.push(this.visit(arg.array));
-        
+
         // opening bracket
         token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.parenthesis, '['));
-        
+
         // index
         token.innerTokens.push(this.visit(arg.index));
-        
+
         // closing bracket
         token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.parenthesis, ']'));
 
@@ -1685,7 +1685,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.TypeValue);
 
         this.addComponentComments(token, arg);
-        
+
         token.innerTokens.push(arg.qualifiedName.accept(this));
         if (arg.argument) {
             token.innerTokens.push(SqlPrintTokenParser.PAREN_OPEN_TOKEN);
@@ -1872,7 +1872,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
         // Add alias if it is different from the default name
         token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
-        
+
         // Handle AS keyword positioned comments (before AS)
         const asKeywordPositionedComments = 'asKeywordPositionedComments' in arg ? (arg as any).asKeywordPositionedComments : null;
         if (asKeywordPositionedComments) {
@@ -1885,9 +1885,9 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
                 }
             }
         }
-        
+
         token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'as'));
-        
+
         // Handle AS keyword positioned comments (after AS)
         if (asKeywordPositionedComments) {
             const afterComments = asKeywordPositionedComments.filter((pc: any) => pc.position === 'after');
@@ -1899,7 +1899,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
                 }
             }
         }
-        
+
         // Fallback: Add AS keyword legacy comments if present
         const asKeywordComments = 'asKeywordComments' in arg ? (arg as any).asKeywordComments : null;
         if (asKeywordComments && asKeywordComments.length > 0) {
@@ -1907,13 +1907,13 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
             const commentTokens = this.createInlineCommentSequence(asKeywordComments);
             token.innerTokens.push(...commentTokens);
         }
-        
+
         token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
-        
+
         // Visit identifier to get alias with proper spacing
         const identifierToken = this.visit(arg.identifier);
         token.innerTokens.push(identifierToken);
-        
+
         // Handle alias positioned comments (after alias)
         const aliasPositionedComments = 'aliasPositionedComments' in arg ? (arg as any).aliasPositionedComments : null;
         if (aliasPositionedComments) {
@@ -1926,7 +1926,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
                 }
             }
         }
-        
+
         // Fallback: Add alias legacy comments if present
         const aliasComments = (arg as any).aliasComments;
         if (aliasComments && aliasComments.length > 0) {
@@ -1934,13 +1934,13 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
             const commentTokens = this.createInlineCommentSequence(aliasComments);
             token.innerTokens.push(...commentTokens);
         }
-        
+
         return token;
     }
 
     private visitSelectClause(arg: SelectClause): SqlPrintToken {
         const token = new SqlPrintToken(SqlPrintTokenType.keyword, 'select', SqlPrintTokenContainerType.SelectClause);
-        
+
         // Handle positioned comments for SelectClause (unified spec)
         if (arg.positionedComments && arg.positionedComments.length > 0) {
             this.addPositionedCommentsToToken(token, arg);
@@ -1950,7 +1950,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
         // Handle hints and DISTINCT as part of the keyword line
         let selectKeywordText = 'select';
-        
+
         // Add hint clauses immediately after SELECT (before DISTINCT)
         for (const hint of arg.hints) {
             selectKeywordText += ' ' + this.visit(hint).text;
@@ -2002,14 +2002,14 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
     private visitDistinct(arg: Distinct): SqlPrintToken {
         const token = new SqlPrintToken(SqlPrintTokenType.keyword, 'distinct');
-        
+
         // Handle positioned comments for Distinct (unified spec)
         if (arg.positionedComments && arg.positionedComments.length > 0) {
             this.addPositionedCommentsToToken(token, arg);
             // Clear positioned comments to prevent duplicate processing
             arg.positionedComments = null;
         }
-        
+
         return token;
     }
 
@@ -2032,9 +2032,9 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         }
         fullName += arg.table.accept(this).text;
         const token = new SqlPrintToken(SqlPrintTokenType.value, fullName);
-        
+
         this.addComponentComments(token, arg);
-        
+
         // alias (if present and different from table name)
         if (arg.identifier && arg.identifier.name !== arg.table.name) {
 
@@ -2125,7 +2125,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
         // join type (e.g. inner join, left join, etc)
         token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, arg.joinType.value));
-        
+
         // Handle JOIN keyword positioned comments (after JOIN)
         if (joinKeywordPositionedComments) {
             const afterComments = joinKeywordPositionedComments.filter((pc: any) => pc.position === 'after');
@@ -2137,7 +2137,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
                 }
             }
         }
-        
+
         // Fallback: Add JOIN keyword legacy comments if present
         const joinKeywordComments = (arg as any).joinKeywordComments;
         if (joinKeywordComments && joinKeywordComments.length > 0) {
@@ -2561,7 +2561,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         if (arg.comments && arg.comments.length > 0) {
             const commentBlocks = this.createCommentBlocks(arg.comments);
             token.innerTokens.push(...commentBlocks);
-            
+
             // Add a space separator after comments if there are more tokens coming
             if (arg.selectClause) {
                 token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
@@ -2641,7 +2641,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
     public visitValuesQuery(arg: ValuesQuery): SqlPrintToken {
         const token = new SqlPrintToken(SqlPrintTokenType.keyword, 'values', SqlPrintTokenContainerType.ValuesQuery);
-        
+
         // Add headerComments before VALUES keyword
         if (arg.headerComments && arg.headerComments.length > 0) {
             if (this.shouldMergeHeaderComments(arg.headerComments)) {
@@ -2656,7 +2656,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
                 }
             }
         }
-        
+
         token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
 
         const values = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.Values);
@@ -2668,10 +2668,10 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         }
 
         token.innerTokens.push(values);
-        
+
         // Add regular comments to the token
         this.addCommentsToToken(token, arg.comments);
-        
+
         return token;
     }
 
@@ -2684,7 +2684,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         queryToken.innerTokens.push(arg.selectQuery.accept(this));
 
         token.innerTokens.push(queryToken);
-        
+
         // Add comments from the InlineQuery to the closing parenthesis
         if (arg.comments && arg.comments.length > 0) {
             const closingParenToken = new SqlPrintToken(SqlPrintTokenType.parenthesis, ')');
@@ -3022,11 +3022,11 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         const token = new SqlPrintToken(SqlPrintTokenType.keyword, 'returning', SqlPrintTokenContainerType.ReturningClause);
 
         token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
-        for (let i = 0; i < arg.columns.length; i++) {
+        for (let i = 0; i < arg.items.length; i++) {
             if (i > 0) {
                 token.innerTokens.push(...SqlPrintTokenParser.commaSpaceTokens());
             }
-            token.innerTokens.push(this.visit(arg.columns[i]));
+            token.innerTokens.push(this.visit(arg.items[i]));
         }
         return token;
     }

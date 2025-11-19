@@ -207,8 +207,8 @@ export class InsertResultSelectConverter {
         const metadataMap = new Map<string, ColumnMetadata>();
         const columnDefinitionMap = tableDefinition
             ? new Map<string, TableColumnDefinition>(
-                  tableDefinition.columns.map((col) => [this.normalizeIdentifier(col.name), col])
-              )
+                tableDefinition.columns.map((col) => [this.normalizeIdentifier(col.name), col])
+            )
             : null;
 
         for (const columnName of insertColumns) {
@@ -281,7 +281,14 @@ export class InsertResultSelectConverter {
         tableDefinition: TableDefinitionModel | undefined,
         insertColumns: string[]
     ): string[] {
-        const requested = returning.columns.map((col) => col.name);
+        const requested = returning.items.map((item) => {
+            if (item.value instanceof ColumnReference) {
+                // Use toString() to get the full qualified name
+                return item.value.toString();
+            }
+            // For expressions, use the alias if available
+            return item.identifier?.name ?? "";
+        });
         const hasStar = requested.some((name) => name === '*');
         if (hasStar) {
             // RETURNING * expands to the full table definition (fallback to explicit columns if available).
