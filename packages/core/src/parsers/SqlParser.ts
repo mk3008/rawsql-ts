@@ -126,76 +126,68 @@ export class SqlParser {
 
         const firstToken = segment.lexemes[0].value.toLowerCase();
 
-        if (firstToken === 'with') {
-            const commandAfterWith = this.getCommandAfterWith(segment.lexemes);
-            if (commandAfterWith === 'insert into') {
+        switch (firstToken) {
+            case 'with': {
+                const commandAfterWith = this.getCommandAfterWith(segment.lexemes);
+                switch (commandAfterWith) {
+                    case 'insert into':
+                        return this.parseInsertStatement(segment, statementIndex);
+                    case 'update':
+                        return this.parseUpdateStatement(segment, statementIndex);
+                    case 'delete from':
+                        return this.parseDeleteStatement(segment, statementIndex);
+                    case 'merge into':
+                        return this.parseMergeStatement(segment, statementIndex);
+                    default:
+                        return this.parseSelectStatement(segment, statementIndex);
+                }
+            }
+
+            case 'select':
+            case 'values':
+                return this.parseSelectStatement(segment, statementIndex);
+
+            case 'insert into':
                 return this.parseInsertStatement(segment, statementIndex);
-            }
-            if (commandAfterWith === 'update') {
+
+            case 'update':
                 return this.parseUpdateStatement(segment, statementIndex);
-            }
-            if (commandAfterWith === 'delete from') {
+
+            case 'delete from':
                 return this.parseDeleteStatement(segment, statementIndex);
-            }
-            if (commandAfterWith === 'merge into') {
+
+            case 'create table':
+            case 'create temporary table':
+                return this.parseCreateTableStatement(segment, statementIndex);
+
+            case 'merge into':
                 return this.parseMergeStatement(segment, statementIndex);
-            }
-            return this.parseSelectStatement(segment, statementIndex);
-        }
 
-        if (firstToken === 'select' || firstToken === 'values') {
-            return this.parseSelectStatement(segment, statementIndex);
-        }
+            case 'create index':
+            case 'create unique index':
+                return this.parseCreateIndexStatement(segment, statementIndex);
 
-        if (firstToken === 'insert into') {
-            return this.parseInsertStatement(segment, statementIndex);
-        }
+            case 'drop table':
+                return this.parseDropTableStatement(segment, statementIndex);
 
-        if (firstToken === 'update') {
-            return this.parseUpdateStatement(segment, statementIndex);
-        }
+            case 'drop index':
+                return this.parseDropIndexStatement(segment, statementIndex);
 
-        if (firstToken === 'delete from') {
-            return this.parseDeleteStatement(segment, statementIndex);
-        }
+            case 'alter table':
+                return this.parseAlterTableStatement(segment, statementIndex);
 
-        if (firstToken === 'create table' || firstToken === 'create temporary table') {
-            return this.parseCreateTableStatement(segment, statementIndex);
-        }
+            case 'drop constraint':
+                return this.parseDropConstraintStatement(segment, statementIndex);
 
-        if (firstToken === 'merge into') {
-            return this.parseMergeStatement(segment, statementIndex);
-        }
+            case 'analyze':
+                return this.parseAnalyzeStatement(segment, statementIndex);
 
-        if (firstToken === 'create index' || firstToken === 'create unique index') {
-            return this.parseCreateIndexStatement(segment, statementIndex);
-        }
+            case 'explain':
+                return this.parseExplainStatement(segment, statementIndex);
 
-        if (firstToken === 'drop table') {
-            return this.parseDropTableStatement(segment, statementIndex);
+            default:
+                throw new Error(`[SqlParser] Statement ${statementIndex} starts with unsupported token "${segment.lexemes[0].value}". Support for additional statement types will be introduced soon.`);
         }
-
-        if (firstToken === 'drop index') {
-            return this.parseDropIndexStatement(segment, statementIndex);
-        }
-
-        if (firstToken === 'alter table') {
-            return this.parseAlterTableStatement(segment, statementIndex);
-        }
-
-        if (firstToken === 'drop constraint') {
-            return this.parseDropConstraintStatement(segment, statementIndex);
-        }
-
-        if (firstToken === 'analyze') {
-            return this.parseAnalyzeStatement(segment, statementIndex);
-        }
-
-        if (firstToken === 'explain') {
-            return this.parseExplainStatement(segment, statementIndex);
-        }
-
-        throw new Error(`[SqlParser] Statement ${statementIndex} starts with unsupported token "${segment.lexemes[0].value}". Support for additional statement types will be introduced soon.`);
     }
 
     private static parseSelectStatement(segment: StatementLexemeResult, statementIndex: number): SelectQuery {
