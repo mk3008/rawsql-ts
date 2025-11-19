@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: LexemePosition
 
-Defined in: [packages/core/src/models/Lexeme.ts:22](https://github.com/mk3008/rawsql-ts/blob/06f158deb6834abe60efae28a401b9ba4bb89ac2/packages/core/src/models/Lexeme.ts#L22)
+Defined in: [packages/core/src/models/Lexeme.ts:22](https://github.com/mk3008/rawsql-ts/blob/4ed5433376f3d2e35a68a48a1db4b0391ec65db1/packages/core/src/models/Lexeme.ts#L22)
 
 Position information for a lexeme in the source text
 
@@ -11,7 +11,7 @@ Position information for a lexeme in the source text
 
 > **startPosition**: `number`
 
-Defined in: [packages/core/src/models/Lexeme.ts:23](https://github.com/mk3008/rawsql-ts/blob/06f158deb6834abe60efae28a401b9ba4bb89ac2/packages/core/src/models/Lexeme.ts#L23)
+Defined in: [packages/core/src/models/Lexeme.ts:23](https://github.com/mk3008/rawsql-ts/blob/4ed5433376f3d2e35a68a48a1db4b0391ec65db1/packages/core/src/models/Lexeme.ts#L23)
 
 ***
 
@@ -19,7 +19,7 @@ Defined in: [packages/core/src/models/Lexeme.ts:23](https://github.com/mk3008/ra
 
 > **endPosition**: `number`
 
-Defined in: [packages/core/src/models/Lexeme.ts:24](https://github.com/mk3008/rawsql-ts/blob/06f158deb6834abe60efae28a401b9ba4bb89ac2/packages/core/src/models/Lexeme.ts#L24)
+Defined in: [packages/core/src/models/Lexeme.ts:24](https://github.com/mk3008/rawsql-ts/blob/4ed5433376f3d2e35a68a48a1db4b0391ec65db1/packages/core/src/models/Lexeme.ts#L24)
 
 ***
 
@@ -27,7 +27,7 @@ Defined in: [packages/core/src/models/Lexeme.ts:24](https://github.com/mk3008/ra
 
 > `optional` **startLine**: `number`
 
-Defined in: [packages/core/src/models/Lexeme.ts:25](https://github.com/mk3008/rawsql-ts/blob/06f158deb6834abe60efae28a401b9ba4bb89ac2/packages/core/src/models/Lexeme.ts#L25)
+Defined in: [packages/core/src/models/Lexeme.ts:25](https://github.com/mk3008/rawsql-ts/blob/4ed5433376f3d2e35a68a48a1db4b0391ec65db1/packages/core/src/models/Lexeme.ts#L25)
 
 ***
 
@@ -35,7 +35,7 @@ Defined in: [packages/core/src/models/Lexeme.ts:25](https://github.com/mk3008/ra
 
 > `optional` **startColumn**: `number`
 
-Defined in: [packages/core/src/models/Lexeme.ts:26](https://github.com/mk3008/rawsql-ts/blob/06f158deb6834abe60efae28a401b9ba4bb89ac2/packages/core/src/models/Lexeme.ts#L26)
+Defined in: [packages/core/src/models/Lexeme.ts:26](https://github.com/mk3008/rawsql-ts/blob/4ed5433376f3d2e35a68a48a1db4b0391ec65db1/packages/core/src/models/Lexeme.ts#L26)
 
 ***
 
@@ -43,7 +43,7 @@ Defined in: [packages/core/src/models/Lexeme.ts:26](https://github.com/mk3008/ra
 
 > `optional` **endLine**: `number`
 
-Defined in: [packages/core/src/models/Lexeme.ts:27](https://github.com/mk3008/rawsql-ts/blob/06f158deb6834abe60efae28a401b9ba4bb89ac2/packages/core/src/models/Lexeme.ts#L27)
+Defined in: [packages/core/src/models/Lexeme.ts:27](https://github.com/mk3008/rawsql-ts/blob/4ed5433376f3d2e35a68a48a1db4b0391ec65db1/packages/core/src/models/Lexeme.ts#L27)
 
 ***
 
@@ -51,5 +51,5 @@ Defined in: [packages/core/src/models/Lexeme.ts:27](https://github.com/mk3008/ra
 
 > `optional` **endColumn**: `number`
 
-Defined in: [packages/core/src/models/Lexeme.ts:28](https://github.com/mk3008/rawsql-ts/blob/06f158deb6834abe60efae28a401b9ba4bb89ac2/packages/core/src/models/Lexeme.ts#L28)
+Defined in: [packages/core/src/models/Lexeme.ts:28](https://github.com/mk3008/rawsql-ts/blob/4ed5433376f3d2e35a68a48a1db4b0391ec65db1/packages/core/src/models/Lexeme.ts#L28)
 </div>

@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: BaseMermaidOptions
 
-Defined in: [packages/core/src/transformers/QueryFlowDiagramGenerator.ts:11](https://github.com/mk3008/rawsql-ts/blob/06f158deb6834abe60efae28a401b9ba4bb89ac2/packages/core/src/transformers/QueryFlowDiagramGenerator.ts#L11)
+Defined in: [packages/core/src/transformers/QueryFlowDiagramGenerator.ts:11](https://github.com/mk3008/rawsql-ts/blob/4ed5433376f3d2e35a68a48a1db4b0391ec65db1/packages/core/src/transformers/QueryFlowDiagramGenerator.ts#L11)
 
 ## Extended by
 
@@ -13,7 +13,7 @@ Defined in: [packages/core/src/transformers/QueryFlowDiagramGenerator.ts:11](htt
 
 > `optional` **title**: `string`
 
-Defined in: [packages/core/src/transformers/QueryFlowDiagramGenerator.ts:13](https://github.com/mk3008/rawsql-ts/blob/06f158deb6834abe60efae28a401b9ba4bb89ac2/packages/core/src/transformers/QueryFlowDiagramGenerator.ts#L13)
+Defined in: [packages/core/src/transformers/QueryFlowDiagramGenerator.ts:13](https://github.com/mk3008/rawsql-ts/blob/4ed5433376f3d2e35a68a48a1db4b0391ec65db1/packages/core/src/transformers/QueryFlowDiagramGenerator.ts#L13)
 
 Diagram title
 </div>
