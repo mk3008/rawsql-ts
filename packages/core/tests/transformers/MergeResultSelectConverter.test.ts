@@ -96,6 +96,24 @@ describe('MergeResultSelectConverter', () => {
         expect(sql.toLowerCase()).toContain('"sale" as');
     });
 
+    it('requires fixtures for tables referenced inside WITH clauses', () => {
+        const merge = MergeQueryParser.parse(`
+            WITH source AS (
+                SELECT id, sale_date, price FROM users
+            )
+            MERGE INTO sale AS target
+            USING source
+            ON target.id = source.id
+            WHEN MATCHED THEN UPDATE SET price = source.price
+        `);
+
+        expect(() =>
+            MergeResultSelectConverter.toSelectQuery(merge, {
+                missingFixtureStrategy: 'error'
+            })
+        ).toThrowError(/merge select refers to tables without fixture coverage.*users/i);
+    });
+
     it('ignores unused fixture definitions', () => {
         const fixtures: FixtureTableDefinition[] = [
             {

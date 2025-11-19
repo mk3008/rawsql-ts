@@ -334,6 +334,14 @@ export class UpdateResultSelectConverter {
             tablesToShadow.add(table);
         }
 
+        const cteReferencedTables = this.collectReferencedTablesFromWithClause(withClause);
+        for (const table of cteReferencedTables) {
+            if (ignoredTables.has(table)) {
+                continue;
+            }
+            tablesToShadow.add(table);
+        }
+
         return tablesToShadow;
     }
 
@@ -353,6 +361,21 @@ export class UpdateResultSelectConverter {
         }
 
         return filtered;
+    }
+
+    private static collectReferencedTablesFromWithClause(withClause: WithClause | null): Set<string> {
+        const tables = new Set<string>();
+        if (!withClause?.tables) {
+            return tables;
+        }
+
+        for (const cte of withClause.tables) {
+            for (const table of this.collectReferencedTables(cte.query)) {
+                tables.add(table);
+            }
+        }
+
+        return tables;
     }
 
     private static buildFixtureTableMap(fixtures: FixtureTableDefinition[]): Map<string, FixtureTableDefinition> {

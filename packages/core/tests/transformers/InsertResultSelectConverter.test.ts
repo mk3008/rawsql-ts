@@ -144,6 +144,23 @@ describe('InsertResultSelectConverter', () => {
         ).toThrowError(/fixture coverage: users/i);
     });
 
+    it('requires fixtures for tables referenced inside WITH clauses', () => {
+        const insert = InsertQueryParser.parse(`
+            WITH source AS (
+                SELECT sale_date, price FROM users
+            )
+            INSERT INTO sale (sale_date, price)
+            SELECT sale_date, price FROM source
+            RETURNING sale_date, price
+        `);
+
+        expect(() =>
+            InsertResultSelectConverter.toSelectQuery(insert, {
+                tableDefinitions: { sale: tableDefinition }
+            })
+        ).toThrowError(/fixture coverage.*users/i);
+    });
+
     it('ignores CTE aliases when checking fixture coverage', () => {
         const insert = InsertQueryParser.parse(`
             WITH source AS (

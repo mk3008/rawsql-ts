@@ -84,6 +84,24 @@ describe('DeleteResultSelectConverter', () => {
         );
     });
 
+    it('requires fixtures for tables referenced inside WITH clauses', () => {
+        const deleteQuery = DeleteQueryParser.parse(`
+            WITH source AS (
+                SELECT sale_date, price FROM users
+            )
+            DELETE FROM sale
+            USING source
+            WHERE sale.sale_date = source.sale_date
+            RETURNING sale_date, price
+        `);
+
+        expect(() =>
+            DeleteResultSelectConverter.toSelectQuery(deleteQuery, {
+                tableDefinitions: { sale: tableDefinition }
+            })
+        ).toThrowError(/fixture coverage.*users/i);
+    });
+
     it('ignores unused fixture definitions', () => {
         const deleteQuery = DeleteQueryParser.parse(
             "DELETE FROM sale RETURNING sale_date, price"
