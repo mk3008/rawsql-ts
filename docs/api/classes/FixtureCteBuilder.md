@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: FixtureCteBuilder
 
-Defined in: [packages/core/src/transformers/FixtureCteBuilder.ts:17](https://github.com/mk3008/rawsql-ts/blob/4ed5433376f3d2e35a68a48a1db4b0391ec65db1/packages/core/src/transformers/FixtureCteBuilder.ts#L17)
+Defined in: [packages/core/src/transformers/FixtureCteBuilder.ts:17](https://github.com/mk3008/rawsql-ts/blob/bca39f409b31840a186a150beab840c26a0a1a87/packages/core/src/transformers/FixtureCteBuilder.ts#L17)
 
 ## Constructors
 
@@ -19,7 +19,7 @@ Defined in: [packages/core/src/transformers/FixtureCteBuilder.ts:17](https://git
 
 > `static` **buildFixtures**(`fixtures`): `CommonTable`[]
 
-Defined in: [packages/core/src/transformers/FixtureCteBuilder.ts:19](https://github.com/mk3008/rawsql-ts/blob/4ed5433376f3d2e35a68a48a1db4b0391ec65db1/packages/core/src/transformers/FixtureCteBuilder.ts#L19)
+Defined in: [packages/core/src/transformers/FixtureCteBuilder.ts:19](https://github.com/mk3008/rawsql-ts/blob/bca39f409b31840a186a150beab840c26a0a1a87/packages/core/src/transformers/FixtureCteBuilder.ts#L19)
 
 Builds CommonTable representations for the provided fixtures.
 

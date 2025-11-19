@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: SelectQueryParser
 
-Defined in: [packages/core/src/parsers/SelectQueryParser.ts:31](https://github.com/mk3008/rawsql-ts/blob/4ed5433376f3d2e35a68a48a1db4b0391ec65db1/packages/core/src/parsers/SelectQueryParser.ts#L31)
+Defined in: [packages/core/src/parsers/SelectQueryParser.ts:31](https://github.com/mk3008/rawsql-ts/blob/bca39f409b31840a186a150beab840c26a0a1a87/packages/core/src/parsers/SelectQueryParser.ts#L31)
 
 Legacy SELECT-only parser.
 Prefer using SqlParser as the canonical entry point for multi-statement or mixed-statement workflows.
@@ -22,7 +22,7 @@ Prefer using SqlParser as the canonical entry point for multi-statement or mixed
 
 > `static` **parse**(`query`): [`SelectQuery`](../interfaces/SelectQuery.md)
 
-Defined in: [packages/core/src/parsers/SelectQueryParser.ts:33](https://github.com/mk3008/rawsql-ts/blob/4ed5433376f3d2e35a68a48a1db4b0391ec65db1/packages/core/src/parsers/SelectQueryParser.ts#L33)
+Defined in: [packages/core/src/parsers/SelectQueryParser.ts:33](https://github.com/mk3008/rawsql-ts/blob/bca39f409b31840a186a150beab840c26a0a1a87/packages/core/src/parsers/SelectQueryParser.ts#L33)
 
 #### Parameters
 
@@ -40,7 +40,7 @@ Defined in: [packages/core/src/parsers/SelectQueryParser.ts:33](https://github.c
 
 > `static` **analyze**(`query`): [`ParseAnalysisResult`](../interfaces/ParseAnalysisResult.md)
 
-Defined in: [packages/core/src/parsers/SelectQueryParser.ts:86](https://github.com/mk3008/rawsql-ts/blob/4ed5433376f3d2e35a68a48a1db4b0391ec65db1/packages/core/src/parsers/SelectQueryParser.ts#L86)
+Defined in: [packages/core/src/parsers/SelectQueryParser.ts:86](https://github.com/mk3008/rawsql-ts/blob/bca39f409b31840a186a150beab840c26a0a1a87/packages/core/src/parsers/SelectQueryParser.ts#L86)
 
 #### Parameters
 
@@ -58,7 +58,7 @@ Defined in: [packages/core/src/parsers/SelectQueryParser.ts:86](https://github.c
 
 > `static` **parseAsync**(`query`): `Promise`&lt;[`SelectQuery`](../interfaces/SelectQuery.md)\&gt;
 
-Defined in: [packages/core/src/parsers/SelectQueryParser.ts:142](https://github.com/mk3008/rawsql-ts/blob/4ed5433376f3d2e35a68a48a1db4b0391ec65db1/packages/core/src/parsers/SelectQueryParser.ts#L142)
+Defined in: [packages/core/src/parsers/SelectQueryParser.ts:142](https://github.com/mk3008/rawsql-ts/blob/bca39f409b31840a186a150beab840c26a0a1a87/packages/core/src/parsers/SelectQueryParser.ts#L142)
 
 Asynchronously parse SQL string to AST.
 This method wraps the synchronous parse logic in a Promise for future extensibility.
@@ -83,7 +83,7 @@ SQL string to parse
 
 > `static` **parseFromLexeme**(`lexemes`, `index`): `object`
 
-Defined in: [packages/core/src/parsers/SelectQueryParser.ts:191](https://github.com/mk3008/rawsql-ts/blob/4ed5433376f3d2e35a68a48a1db4b0391ec65db1/packages/core/src/parsers/SelectQueryParser.ts#L191)
+Defined in: [packages/core/src/parsers/SelectQueryParser.ts:191](https://github.com/mk3008/rawsql-ts/blob/bca39f409b31840a186a150beab840c26a0a1a87/packages/core/src/parsers/SelectQueryParser.ts#L191)
 
 #### Parameters
 
@@ -113,7 +113,7 @@ Defined in: [packages/core/src/parsers/SelectQueryParser.ts:191](https://github.
 
 > `static` **getCursorCte**(`sql`, `cursorPosition`): `null` \| `string`
 
-Defined in: [packages/core/src/parsers/SelectQueryParser.ts:631](https://github.com/mk3008/rawsql-ts/blob/4ed5433376f3d2e35a68a48a1db4b0391ec65db1/packages/core/src/parsers/SelectQueryParser.ts#L631)
+Defined in: [packages/core/src/parsers/SelectQueryParser.ts:631](https://github.com/mk3008/rawsql-ts/blob/bca39f409b31840a186a150beab840c26a0a1a87/packages/core/src/parsers/SelectQueryParser.ts#L631)
 
 Get the CTE name at the specified cursor position.
 
@@ -158,7 +158,7 @@ console.log(cteName); // "users"
 
 > `static` **getCursorCteAt**(`sql`, `line`, `column`): `null` \| `string`
 
-Defined in: [packages/core/src/parsers/SelectQueryParser.ts:654](https://github.com/mk3008/rawsql-ts/blob/4ed5433376f3d2e35a68a48a1db4b0391ec65db1/packages/core/src/parsers/SelectQueryParser.ts#L654)
+Defined in: [packages/core/src/parsers/SelectQueryParser.ts:654](https://github.com/mk3008/rawsql-ts/blob/bca39f409b31840a186a150beab840c26a0a1a87/packages/core/src/parsers/SelectQueryParser.ts#L654)
 
 Get the CTE name at the specified 2D coordinates (line, column).
 
@@ -209,7 +209,7 @@ console.log(cteName); // "users"
 
 > `static` **positionToLineColumn**(`text`, `position`): `null` \| \{ `line`: `number`; `column`: `number`; \}
 
-Defined in: [packages/core/src/parsers/SelectQueryParser.ts:666](https://github.com/mk3008/rawsql-ts/blob/4ed5433376f3d2e35a68a48a1db4b0391ec65db1/packages/core/src/parsers/SelectQueryParser.ts#L666)
+Defined in: [packages/core/src/parsers/SelectQueryParser.ts:666](https://github.com/mk3008/rawsql-ts/blob/bca39f409b31840a186a150beab840c26a0a1a87/packages/core/src/parsers/SelectQueryParser.ts#L666)
 
 Convert character position to line/column coordinates.
 
