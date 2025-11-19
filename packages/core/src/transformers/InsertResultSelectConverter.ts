@@ -2,7 +2,7 @@ import { CommonTable, FromClause, ReturningClause, SelectClause, SelectItem, Sou
 import { InsertQuery } from '../models/InsertQuery';
 import { BinarySelectQuery, SelectQuery, SimpleSelectQuery, ValuesQuery } from '../models/SelectQuery';
 import { InsertQuerySelectValuesConverter } from './InsertQuerySelectValuesConverter';
-import { CastExpression, ColumnReference, FunctionCall, LiteralValue, RawString, TypeValue, ValueComponent } from '../models/ValueComponent';
+import { CastExpression, ColumnReference, FunctionCall, IdentifierString, LiteralValue, RawString, TypeValue, ValueComponent } from '../models/ValueComponent';
 import { ValueParser } from '../parsers/ValueParser';
 import {
     TableDefinitionModel,
@@ -12,6 +12,7 @@ import {
 import { TableSourceCollector } from './TableSourceCollector';
 import { FixtureCteBuilder, FixtureTableDefinition } from './FixtureCteBuilder';
 import { SelectQueryWithClauseHelper } from "../utils/SelectQueryWithClauseHelper";
+import { rewriteValueComponentWithColumnResolver } from '../utils/ValueComponentRewriter';
 
 /** Options that drive how the insert-to-select transformation resolves table metadata. */
 export interface InsertResultSelectOptions {
@@ -85,17 +86,13 @@ export class InsertResultSelectConverter {
             return this.buildCountSelect(withClause, cteName);
         }
 
-        const returningColumns = this.resolveReturningColumns(
+        const selectItems = this.buildReturningSelectItems(
             preparedInsert.returningClause,
             tableDefinition,
-            insertColumnNames
+            insertColumnNames,
+            columnMetadataMap,
+            cteName
         );
-
-        const selectItems = returningColumns.map((columnName) => {
-            const metadata = this.getColumnMetadata(columnMetadataMap, columnName);
-            const expression = this.buildColumnExpression(metadata, cteName);
-            return new SelectItem(expression, columnName);
-        });
 
         const fromExpr = new SourceExpression(new TableSource(null, cteName), null);
         const fromClause = new FromClause(fromExpr, null);
@@ -207,8 +204,8 @@ export class InsertResultSelectConverter {
         const metadataMap = new Map<string, ColumnMetadata>();
         const columnDefinitionMap = tableDefinition
             ? new Map<string, TableColumnDefinition>(
-                  tableDefinition.columns.map((col) => [this.normalizeIdentifier(col.name), col])
-              )
+                tableDefinition.columns.map((col) => [this.normalizeIdentifier(col.name), col])
+            )
             : null;
 
         for (const columnName of insertColumns) {
@@ -276,24 +273,96 @@ export class InsertResultSelectConverter {
         }
     }
 
-    private static resolveReturningColumns(
+    private static buildReturningSelectItems(
         returning: ReturningClause,
         tableDefinition: TableDefinitionModel | undefined,
-        insertColumns: string[]
-    ): string[] {
-        const requested = returning.columns.map((col) => col.name);
-        const hasStar = requested.some((name) => name === '*');
-        if (hasStar) {
-            // RETURNING * expands to the full table definition (fallback to explicit columns if available).
-            if (tableDefinition) {
-                return tableDefinition.columns.map((col) => col.name);
+        insertColumns: string[],
+        columnMetadataMap: Map<string, ColumnMetadata>,
+        cteName: string
+    ): SelectItem[] {
+        // Build SelectItems from the parsed RETURNING entries, expanding wildcard specs as needed.
+        const selectItems: SelectItem[] = [];
+        for (const item of returning.items) {
+            if (this.isWildcardReturningItem(item)) {
+                selectItems.push(
+                    ...this.expandReturningWildcard(tableDefinition, insertColumns, columnMetadataMap, cteName)
+                );
+                continue;
             }
-            if (insertColumns.length > 0) {
-                return insertColumns;
-            }
+            selectItems.push(this.buildReturningSelectItem(item, columnMetadataMap, cteName));
+        }
+        return selectItems;
+    }
+
+    private static isWildcardReturningItem(item: SelectItem): boolean {
+        return (
+            item.value instanceof ColumnReference &&
+            item.value.column.name === '*'
+        );
+    }
+
+    private static expandReturningWildcard(
+        tableDefinition: TableDefinitionModel | undefined,
+        insertColumns: string[],
+        columnMetadataMap: Map<string, ColumnMetadata>,
+        cteName: string
+    ): SelectItem[] {
+        // Expand RETURNING * into a concrete column list derived from metadata for accurate defaults.
+        const columnNames = tableDefinition
+            ? tableDefinition.columns.map((column) => column.name)
+            : insertColumns.length > 0
+                ? insertColumns
+                : null;
+        if (!columnNames) {
             throw new Error('Cannot expand RETURNING * without table definition or column list.');
         }
-        return requested;
+        return columnNames.map((columnName) => {
+            const metadata = this.getColumnMetadata(columnMetadataMap, columnName);
+            const expression = this.buildColumnExpression(metadata, cteName);
+            return new SelectItem(expression, columnName);
+        });
+    }
+
+    private static buildReturningSelectItem(
+        item: SelectItem,
+        columnMetadataMap: Map<string, ColumnMetadata>,
+        cteName: string
+    ): SelectItem {
+        // Rewrite the parsed expression tree so its column references point to the inserted rows.
+        const expression = rewriteValueComponentWithColumnResolver(item.value, (column) =>
+            this.buildInsertColumnExpression(column, columnMetadataMap, cteName)
+        );
+        const alias = this.getReturningAlias(item);
+        return new SelectItem(expression, alias);
+    }
+
+    private static buildInsertColumnExpression(
+        column: ColumnReference,
+        columnMetadataMap: Map<string, ColumnMetadata>,
+        cteName: string
+    ): ValueComponent {
+        // Use metadata to decide whether the column expression comes from inserted data or a default.
+        const columnName = this.extractColumnName(column);
+        const metadata = this.getColumnMetadata(columnMetadataMap, columnName);
+        return this.buildColumnExpression(metadata, cteName);
+    }
+
+    private static extractColumnName(column: ColumnReference): string {
+        const nameComponent = column.qualifiedName.name;
+        if (nameComponent instanceof IdentifierString) {
+            return nameComponent.name;
+        }
+        return nameComponent.value;
+    }
+
+    private static getReturningAlias(item: SelectItem): string | null {
+        if (item.identifier?.name) {
+            return item.identifier.name;
+        }
+        if (item.value instanceof ColumnReference) {
+            return item.value.toString();
+        }
+        return null;
     }
 
     private static getColumnMetadata(

@@ -1,6 +1,6 @@
 import { SelectQuery, SimpleSelectQuery } from "./SelectQuery";
 import { SqlComponent } from "./SqlComponent";
-import { IdentifierString, RawString, TupleExpression, ValueComponent, WindowFrameExpression, QualifiedName } from "./ValueComponent";
+import { IdentifierString, RawString, TupleExpression, ValueComponent, WindowFrameExpression, QualifiedName, ColumnReference } from "./ValueComponent";
 import { HintClause } from "./HintClause";
 
 export class SelectItem extends SqlComponent {
@@ -462,14 +462,27 @@ export class SourceAliasExpression extends SqlComponent {
 
 export class ReturningClause extends SqlComponent {
     static kind = Symbol("ReturningClause");
-    columns: IdentifierString[];
+    items: SelectItem[];
     /**
      * Constructs a ReturningClause.
-     * @param columns Array of IdentifierString or string representing column names.
+     * @param items Array of SelectItem.
      */
-    constructor(columns: (IdentifierString | string)[]) {
+    constructor(items: SelectItem[]) {
         super();
-        this.columns = columns.map(col => typeof col === "string" ? new IdentifierString(col) : col);
+        this.items = items;
+    }
+
+    /**
+     * @deprecated Use items instead. This getter is for backward compatibility and may not return accurate results for expressions.
+     */
+    get columns(): IdentifierString[] {
+        return this.items.map(item => {
+            if (item.value instanceof ColumnReference) {
+                return item.value.column;
+            }
+            // Fallback for expressions: use alias if available, otherwise empty
+            return new IdentifierString(item.identifier?.name ?? "");
+        });
     }
 }
 

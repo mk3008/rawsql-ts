@@ -141,4 +141,20 @@ describe('UpdateResultSelectConverter', () => {
             "with \"sale\" as (select cast('2025-01-01' as date) as \"sale_date\", cast(100 as int) as \"price\" union all select cast('2025-01-02' as date) as \"sale_date\", cast(200 as int) as \"price\"), \"source\" as (select cast('2025-01-01' as date) as \"sale_date\", 100 as \"price\") select \"sale\".\"sale_date\", \"price\" + 10 as \"price\" from \"sale\" cross join \"source\" where \"sale\".\"sale_date\" = \"source\".\"sale_date\""
         );
     });
+
+    it('preserves expressions in the RETURNING list', () => {
+        const update = UpdateQueryParser.parse(
+            "UPDATE sale SET price = price + 10 WHERE sale_date = '2025-01-01' RETURNING lower(price) as lower_price"
+        );
+
+        const converted = UpdateResultSelectConverter.toSelectQuery(update, {
+            tableDefinitions: { sale: tableDefinition },
+            fixtureTables: fixtures
+        });
+
+        const sql = formatter().format(converted).formattedSql;
+        expect(sql).toBe(
+            "with \"sale\" as (select cast('2025-01-01' as date) as \"sale_date\", cast(100 as int) as \"price\" union all select cast('2025-01-02' as date) as \"sale_date\", cast(200 as int) as \"price\") select lower(\"price\" + 10) as \"lower_price\" from \"sale\" where \"sale_date\" = '2025-01-01'"
+        );
+    });
 });

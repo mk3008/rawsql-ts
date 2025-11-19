@@ -16,6 +16,7 @@ import { SimpleSelectQuery, SelectQuery } from '../models/SelectQuery';
 import {
     ColumnReference,
     FunctionCall,
+    IdentifierString,
     RawString,
     ValueComponent
 } from '../models/ValueComponent';
@@ -27,6 +28,7 @@ import {
 import { TableSourceCollector } from './TableSourceCollector';
 import { FixtureCteBuilder, FixtureTableDefinition } from './FixtureCteBuilder';
 import { SelectQueryWithClauseHelper } from '../utils/SelectQueryWithClauseHelper';
+import { rewriteValueComponentWithColumnResolver } from '../utils/ValueComponentRewriter';
 import type { MissingFixtureStrategy } from './InsertResultSelectConverter';
 
 /** Options that control how UPDATE-to-SELECT conversion resolves metadata and fixtures. */
@@ -58,11 +60,11 @@ export class UpdateResultSelectConverter {
         // Decide whether RETURNING or a row count should drive the SELECT clause.
         const selectClause = updateQuery.returningClause
             ? this.buildReturningSelectClause(
-                  updateQuery.returningClause,
-                  updateQuery.setClause,
-                  targetAlias,
-                  tableDefinition
-              )
+                updateQuery.returningClause,
+                updateQuery.setClause,
+                targetAlias,
+                tableDefinition
+            )
             : this.buildCountSelectClause();
 
         // Assemble the skeleton SELECT that mirrors the UPDATE's source and predicates.
@@ -97,22 +99,117 @@ export class UpdateResultSelectConverter {
         targetAlias: string | null,
         tableDefinition?: TableDefinitionModel
     ): SelectClause {
-        const requestedColumns = this.resolveReturningColumns(returning, tableDefinition);
-        // Index SET expressions so we can substitute updated columns later.
         const setExpressionMap = this.mapSetExpressions(setClause);
+        const selectItems = this.buildReturningSelectItems(
+            returning,
+            setExpressionMap,
+            targetAlias,
+            tableDefinition
+        );
 
-        // Create select items that either use the SET expressions or the target column references.
-        const selectItems = requestedColumns.map((columnName) => {
-            const expression = this.buildReturningExpression(
-                columnName,
-                setExpressionMap,
+        return new SelectClause(selectItems);
+    }
+
+    private static buildReturningSelectItems(
+        returning: ReturningClause,
+        setExpressions: Map<string, ValueComponent>,
+        targetAlias: string | null,
+        tableDefinition?: TableDefinitionModel
+    ): SelectItem[] {
+        // Convert each RETURNING item into a select entry, expanding wildcards up front.
+        const selectItems: SelectItem[] = [];
+        for (const item of returning.items) {
+            if (this.isWildcardReturningItem(item)) {
+                selectItems.push(
+                    ...this.expandReturningWildcard(tableDefinition, setExpressions, targetAlias)
+                );
+                continue;
+            }
+            selectItems.push(
+                this.buildUpdateReturningSelectItem(item, setExpressions, targetAlias, tableDefinition)
+            );
+        }
+        return selectItems;
+    }
+
+    private static isWildcardReturningItem(item: SelectItem): boolean {
+        return (
+            item.value instanceof ColumnReference &&
+            item.value.column.name === '*'
+        );
+    }
+
+    private static expandReturningWildcard(
+        tableDefinition: TableDefinitionModel | undefined,
+        setExpressions: Map<string, ValueComponent>,
+        targetAlias: string | null
+    ): SelectItem[] {
+        // Use metadata to expand RETURNING * so each column can honor SET overrides.
+        if (!tableDefinition) {
+            throw new Error('Cannot expand RETURNING * without table definition.');
+        }
+        return tableDefinition.columns.map((column) => {
+            const expression = this.buildUpdateColumnExpression(
+                column.name,
+                setExpressions,
                 targetAlias,
                 tableDefinition
             );
-            return new SelectItem(expression, columnName);
+            return new SelectItem(expression, column.name);
         });
+    }
 
-        return new SelectClause(selectItems);
+    private static buildUpdateReturningSelectItem(
+        item: SelectItem,
+        setExpressions: Map<string, ValueComponent>,
+        targetAlias: string | null,
+        tableDefinition?: TableDefinitionModel
+    ): SelectItem {
+        // Rewrite the item expression so column references honor SET overrides.
+        const expression = rewriteValueComponentWithColumnResolver(item.value, (column) =>
+            this.buildUpdateColumnExpression(column, setExpressions, targetAlias, tableDefinition)
+        );
+        const alias = this.getReturningAlias(item);
+        return new SelectItem(expression, alias);
+    }
+
+    private static buildUpdateColumnExpression(
+        columnOrName: ColumnReference | string,
+        setExpressions: Map<string, ValueComponent>,
+        targetAlias: string | null,
+        tableDefinition?: TableDefinitionModel
+    ): ValueComponent {
+        const columnName =
+            typeof columnOrName === 'string'
+                ? columnOrName
+                : this.getColumnReferenceName(columnOrName);
+        const normalized = this.normalizeIdentifier(columnName);
+        const overrideExpression = setExpressions.get(normalized);
+        // Prefer the SET expression when the column is updated, otherwise preserve the target reference.
+        if (overrideExpression) {
+            return overrideExpression;
+        }
+
+        this.ensureColumnExists(columnName, tableDefinition);
+        return new ColumnReference(targetAlias, columnName);
+    }
+
+    private static getColumnReferenceName(column: ColumnReference): string {
+        const nameComponent = column.qualifiedName.name;
+        if (nameComponent instanceof IdentifierString) {
+            return nameComponent.name;
+        }
+        return nameComponent.value;
+    }
+
+    private static getReturningAlias(item: SelectItem): string | null {
+        if (item.identifier?.name) {
+            return item.identifier.name;
+        }
+        if (item.value instanceof ColumnReference) {
+            return item.value.toString();
+        }
+        return null;
     }
 
     private static buildCountSelectClause(): SelectClause {
@@ -145,39 +242,6 @@ export class UpdateResultSelectConverter {
             expressionMap.set(this.normalizeIdentifier(columnName), item.value);
         }
         return expressionMap;
-    }
-
-    private static buildReturningExpression(
-        columnName: string,
-        setExpressions: Map<string, ValueComponent>,
-        targetAlias: string | null,
-        tableDefinition?: TableDefinitionModel
-    ): ValueComponent {
-        const normalized = this.normalizeIdentifier(columnName);
-        const overrideExpression = setExpressions.get(normalized);
-        // Prefer the updated expression when the column is part of the SET clause.
-        if (overrideExpression) {
-            return overrideExpression;
-        }
-
-        this.ensureColumnExists(columnName, tableDefinition);
-        // Fall back to the original target column when no SET override exists.
-        return new ColumnReference(targetAlias, columnName);
-    }
-
-    private static resolveReturningColumns(
-        returning: ReturningClause,
-        tableDefinition?: TableDefinitionModel
-    ): string[] {
-        const requested = returning.columns.map((column) => column.name);
-        // Expand RETURNING * with metadata if the caller supplied a table definition.
-        if (requested.some((name) => name === '*')) {
-            if (!tableDefinition) {
-                throw new Error('Cannot expand RETURNING * without table definition.');
-            }
-            return tableDefinition.columns.map((column) => column.name);
-        }
-        return requested;
     }
 
     private static ensureColumnExists(columnName: string, tableDefinition?: TableDefinitionModel): void {
