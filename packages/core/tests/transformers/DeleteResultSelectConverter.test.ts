@@ -194,4 +194,20 @@ describe('DeleteResultSelectConverter', () => {
             "select \"sale\".\"sale_date\" from \"sale\" cross join \"users\" where \"sale\".\"sale_date\" = \"users\".\"sale_date\""
         );
     });
+
+    it('keeps RETURNING expressions intact', () => {
+        const deleteQuery = DeleteQueryParser.parse(
+            "DELETE FROM sale WHERE sale_date = '2025-01-01' RETURNING lower(price) as lower_price"
+        );
+
+        const converted = DeleteResultSelectConverter.toSelectQuery(deleteQuery, {
+            tableDefinitions: { sale: tableDefinition },
+            fixtureTables: fixtures
+        });
+
+        const sql = formatter().format(converted).formattedSql;
+        expect(sql).toBe(
+            "with \"sale\" as (select cast('2025-01-01' as date) as \"sale_date\", cast(100 as int) as \"price\" union all select cast('2025-01-02' as date) as \"sale_date\", cast(200 as int) as \"price\") select lower(\"sale\".\"price\") as \"lower_price\" from \"sale\" where \"sale_date\" = '2025-01-01'"
+        );
+    });
 });

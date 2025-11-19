@@ -180,4 +180,19 @@ describe('InsertResultSelectConverter', () => {
             "with \"__inserted_rows\"(\"sale_date\", \"price\") as (select cast(\"sale_date\" as date) as \"sale_date\", cast(\"price\" as int) as \"price\" from \"users\") select \"__inserted_rows\".\"sale_date\", \"__inserted_rows\".\"price\" from \"__inserted_rows\""
         );
     });
+
+    it('preserves expressions and aliases in RETURNING', () => {
+        const insert = InsertQueryParser.parse(
+            "INSERT INTO sale (sale_date, price) VALUES ('2025-01-01', 100) RETURNING lower(price) as lower_price"
+        );
+
+        const converted = InsertResultSelectConverter.toSelectQuery(insert, {
+            tableDefinitions: { sale: tableDefinition }
+        });
+
+        const sql = formatter().format(converted).formattedSql;
+        expect(sql).toBe(
+            "with \"__inserted_rows\"(\"sale_date\", \"price\") as (select cast('2025-01-01' as date) as \"sale_date\", cast(100 as int) as \"price\") select lower(\"__inserted_rows\".\"price\") as \"lower_price\" from \"__inserted_rows\""
+        );
+    });
 });

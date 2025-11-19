@@ -20,6 +20,7 @@ import {
 import { TableSourceCollector } from './TableSourceCollector';
 import { FixtureCteBuilder, FixtureTableDefinition } from './FixtureCteBuilder';
 import { SelectQueryWithClauseHelper } from '../utils/SelectQueryWithClauseHelper';
+import { rewriteValueComponentWithColumnResolver } from '../utils/ValueComponentRewriter';
 import type { MissingFixtureStrategy } from './InsertResultSelectConverter';
 import { FullNameParser } from '../parsers/FullNameParser';
 
@@ -100,13 +101,87 @@ export class DeleteResultSelectConverter {
         returning: ReturningClause,
         context: ReturningContext
     ): SelectClause {
-        const requestedColumns = this.resolveReturningColumns(returning, context.targetDefinition);
-        const selectItems = requestedColumns.map((columnName) => {
-            const parsed = this.parseReturningColumnName(columnName);
-            const expression = this.buildReturningExpression(columnName, context, parsed);
-            return new SelectItem(expression, parsed.column);
-        });
+        const selectItems = this.buildReturningSelectItems(returning, context);
         return new SelectClause(selectItems);
+    }
+
+    private static buildReturningSelectItems(
+        returning: ReturningClause,
+        context: ReturningContext
+    ): SelectItem[] {
+        // Build SELECT entries from RETURNING items, expanding wildcards before expression rewriting.
+        const selectItems: SelectItem[] = [];
+        for (const item of returning.items) {
+            if (this.isWildcardReturningItem(item)) {
+                selectItems.push(...this.expandReturningWildcard(context));
+                continue;
+            }
+            selectItems.push(this.buildDeleteReturningSelectItem(item, context));
+        }
+        return selectItems;
+    }
+
+    private static isWildcardReturningItem(item: SelectItem): boolean {
+        return (
+            item.value instanceof ColumnReference &&
+            item.value.column.name === '*'
+        );
+    }
+
+    private static expandReturningWildcard(context: ReturningContext): SelectItem[] {
+        if (!context.targetDefinition) {
+            throw new Error('Cannot expand RETURNING * without table definition.');
+        }
+        return context.targetDefinition.columns.map((column) => {
+            const expression = this.composeDeleteColumnReference(
+                { namespaces: null, column: column.name },
+                context
+            );
+            return new SelectItem(expression, column.name);
+        });
+    }
+
+    private static buildDeleteReturningSelectItem(item: SelectItem, context: ReturningContext): SelectItem {
+        const expression = rewriteValueComponentWithColumnResolver(item.value, (column) =>
+            this.buildDeleteColumnReference(column, context)
+        );
+        const alias = this.getReturningAlias(item);
+        return new SelectItem(expression, alias);
+    }
+
+    private static buildDeleteColumnReference(column: ColumnReference, context: ReturningContext): ColumnReference {
+        const parsed = this.parseReturningColumnName(column.toString());
+        return this.composeDeleteColumnReference(parsed, context);
+    }
+
+    private static composeDeleteColumnReference(
+        parsedColumn: ParsedReturningColumn,
+        context: ReturningContext
+    ): ColumnReference {
+        const tableContext = this.findTableContextForNamespaces(parsedColumn.namespaces, context);
+        const definitionToValidate =
+            tableContext?.tableDefinition ??
+            (parsedColumn.namespaces ? undefined : context.targetDefinition);
+        if (definitionToValidate) {
+            this.ensureColumnExists(parsedColumn.column, definitionToValidate);
+        }
+        const columnNamespace =
+            parsedColumn.namespaces && parsedColumn.namespaces.length > 0
+                ? [...parsedColumn.namespaces]
+                : context.targetAlias
+                    ? [context.targetAlias]
+                    : null;
+        return new ColumnReference(columnNamespace, parsedColumn.column);
+    }
+
+    private static getReturningAlias(item: SelectItem): string | null {
+        if (item.identifier?.name) {
+            return item.identifier.name;
+        }
+        if (item.value instanceof ColumnReference) {
+            return item.value.toString();
+        }
+        return null;
     }
 
     private static buildCountSelectClause(): SelectClause {
@@ -126,46 +201,6 @@ export class DeleteResultSelectConverter {
             new JoinClause('cross join', source, null, false)
         );
         return new FromClause(deleteClause.source, joins);
-    }
-
-    private static resolveReturningColumns(
-        returning: ReturningClause,
-        tableDefinition?: TableDefinitionModel
-    ): string[] {
-        const requested = returning.items.map((item) => {
-            if (item.value instanceof ColumnReference) {
-                // Use toString() to get the full qualified name (e.g., "users.sale_date")
-                return item.value.toString();
-            }
-            // For expressions, use the alias if available
-            return item.identifier?.name ?? "";
-        });
-        if (requested.some((name) => name === '*')) {
-            if (!tableDefinition) {
-                throw new Error('Cannot expand RETURNING * without table definition.');
-            }
-            return tableDefinition.columns.map((column) => column.name);
-        }
-        return requested;
-    }
-
-    private static buildReturningExpression(columnName: string, context: ReturningContext, parsed?: ParsedReturningColumn): ColumnReference {
-        const parsedColumn = parsed ?? this.parseReturningColumnName(columnName);
-
-        // Determine if any namespace hint can locate a richer context for column validation.
-        const tableContext = this.findTableContextForNamespaces(parsedColumn.namespaces, context);
-        const definitionToValidate = tableContext?.tableDefinition ??
-            (parsedColumn.namespaces ? undefined : context.targetDefinition);
-        if (definitionToValidate) {
-            this.ensureColumnExists(parsedColumn.column, definitionToValidate);
-        }
-
-        const columnNamespace = parsedColumn.namespaces && parsedColumn.namespaces.length > 0
-            ? [...parsedColumn.namespaces]
-            : context.targetAlias
-                ? [context.targetAlias]
-                : null;
-        return new ColumnReference(columnNamespace, parsedColumn.column);
     }
 
     private static buildReturningContext(
