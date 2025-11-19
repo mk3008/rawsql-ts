@@ -3,7 +3,7 @@
 
 > **createTableDefinitionRegistryFromCreateTableQueries**(`queries`): [`TableDefinitionRegistry`](../type-aliases/TableDefinitionRegistry.md)
 
-Defined in: [packages/core/src/models/TableDefinitionModel.ts:118](https://github.com/mk3008/rawsql-ts/blob/50886164fc846d18024a28a60370e980d03ef1bd/packages/core/src/models/TableDefinitionModel.ts#L118)
+Defined in: [packages/core/src/models/TableDefinitionModel.ts:118](https://github.com/mk3008/rawsql-ts/blob/06f158deb6834abe60efae28a401b9ba4bb89ac2/packages/core/src/models/TableDefinitionModel.ts#L118)
 
 Build a registry of table definitions from a batch of CREATE TABLE AST results.
 

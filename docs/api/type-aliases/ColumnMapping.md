@@ -3,7 +3,7 @@
 
 > **ColumnMapping** = `string` \| [`ColumnConfig`](../interfaces/ColumnConfig.md)
 
-Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:28](https://github.com/mk3008/rawsql-ts/blob/50886164fc846d18024a28a60370e980d03ef1bd/packages/core/src/transformers/EnhancedJsonMapping.ts#L28)
+Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:28](https://github.com/mk3008/rawsql-ts/blob/06f158deb6834abe60efae28a401b9ba4bb89ac2/packages/core/src/transformers/EnhancedJsonMapping.ts#L28)
 
 Column mapping can be either a simple string or enhanced configuration.
 </div>

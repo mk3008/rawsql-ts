@@ -3,7 +3,7 @@
 
 > **SortConditions** = `object`
 
-Defined in: [packages/core/src/transformers/SqlSortInjector.ts:184](https://github.com/mk3008/rawsql-ts/blob/50886164fc846d18024a28a60370e980d03ef1bd/packages/core/src/transformers/SqlSortInjector.ts#L184)
+Defined in: [packages/core/src/transformers/SqlSortInjector.ts:184](https://github.com/mk3008/rawsql-ts/blob/06f158deb6834abe60efae28a401b9ba4bb89ac2/packages/core/src/transformers/SqlSortInjector.ts#L184)
 
 ## Index Signature
 

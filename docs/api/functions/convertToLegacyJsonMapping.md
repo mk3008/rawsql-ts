@@ -3,7 +3,7 @@
 
 > **convertToLegacyJsonMapping**(`input`): [`LegacyJsonMapping`](../interfaces/LegacyJsonMapping.md)
 
-Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:210](https://github.com/mk3008/rawsql-ts/blob/50886164fc846d18024a28a60370e980d03ef1bd/packages/core/src/transformers/EnhancedJsonMapping.ts#L210)
+Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:210](https://github.com/mk3008/rawsql-ts/blob/06f158deb6834abe60efae28a401b9ba4bb89ac2/packages/core/src/transformers/EnhancedJsonMapping.ts#L210)
 
 Converts any unified JSON mapping format to legacy JsonMapping format.
 

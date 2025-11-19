@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: Position
 
-Defined in: [packages/core/src/transformers/SqlIdentifierRenamer.ts:4](https://github.com/mk3008/rawsql-ts/blob/50886164fc846d18024a28a60370e980d03ef1bd/packages/core/src/transformers/SqlIdentifierRenamer.ts#L4)
+Defined in: [packages/core/src/transformers/SqlIdentifierRenamer.ts:4](https://github.com/mk3008/rawsql-ts/blob/06f158deb6834abe60efae28a401b9ba4bb89ac2/packages/core/src/transformers/SqlIdentifierRenamer.ts#L4)
 
 Represents a position in the SQL text
 
@@ -11,7 +11,7 @@ Represents a position in the SQL text
 
 > **line**: `number`
 
-Defined in: [packages/core/src/transformers/SqlIdentifierRenamer.ts:5](https://github.com/mk3008/rawsql-ts/blob/50886164fc846d18024a28a60370e980d03ef1bd/packages/core/src/transformers/SqlIdentifierRenamer.ts#L5)
+Defined in: [packages/core/src/transformers/SqlIdentifierRenamer.ts:5](https://github.com/mk3008/rawsql-ts/blob/06f158deb6834abe60efae28a401b9ba4bb89ac2/packages/core/src/transformers/SqlIdentifierRenamer.ts#L5)
 
 ***
 
@@ -19,5 +19,5 @@ Defined in: [packages/core/src/transformers/SqlIdentifierRenamer.ts:5](https://g
 
 > **column**: `number`
 
-Defined in: [packages/core/src/transformers/SqlIdentifierRenamer.ts:6](https://github.com/mk3008/rawsql-ts/blob/50886164fc846d18024a28a60370e980d03ef1bd/packages/core/src/transformers/SqlIdentifierRenamer.ts#L6)
+Defined in: [packages/core/src/transformers/SqlIdentifierRenamer.ts:6](https://github.com/mk3008/rawsql-ts/blob/06f158deb6834abe60efae28a401b9ba4bb89ac2/packages/core/src/transformers/SqlIdentifierRenamer.ts#L6)
 </div>
