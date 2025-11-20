@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: UpdateQuery
 
-Defined in: [packages/core/src/models/UpdateQuery.ts:8](https://github.com/mk3008/rawsql-ts/blob/bca39f409b31840a186a150beab840c26a0a1a87/packages/core/src/models/UpdateQuery.ts#L8)
+Defined in: [packages/core/src/models/UpdateQuery.ts:8](https://github.com/mk3008/rawsql-ts/blob/92142303681e2096368e1351195d7eb6b51f472b/packages/core/src/models/UpdateQuery.ts#L8)
 
 ## Extends
 
@@ -13,7 +13,7 @@ Defined in: [packages/core/src/models/UpdateQuery.ts:8](https://github.com/mk300
 
 > **new UpdateQuery**(`params`): `UpdateQuery`
 
-Defined in: [packages/core/src/models/UpdateQuery.ts:25](https://github.com/mk3008/rawsql-ts/blob/bca39f409b31840a186a150beab840c26a0a1a87/packages/core/src/models/UpdateQuery.ts#L25)
+Defined in: [packages/core/src/models/UpdateQuery.ts:25](https://github.com/mk3008/rawsql-ts/blob/92142303681e2096368e1351195d7eb6b51f472b/packages/core/src/models/UpdateQuery.ts#L25)
 
 #### Parameters
 
@@ -61,7 +61,7 @@ RETURNING clause (optional)
 
 > **comments**: `null` \| `string`[] = `null`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:29](https://github.com/mk3008/rawsql-ts/blob/bca39f409b31840a186a150beab840c26a0a1a87/packages/core/src/models/SqlComponent.ts#L29)
+Defined in: [packages/core/src/models/SqlComponent.ts:29](https://github.com/mk3008/rawsql-ts/blob/92142303681e2096368e1351195d7eb6b51f472b/packages/core/src/models/SqlComponent.ts#L29)
 
 #### Inherited from
 
@@ -73,7 +73,7 @@ Defined in: [packages/core/src/models/SqlComponent.ts:29](https://github.com/mk3
 
 > **positionedComments**: `null` \| [`PositionedComment`](../interfaces/PositionedComment.md)[] = `null`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:32](https://github.com/mk3008/rawsql-ts/blob/bca39f409b31840a186a150beab840c26a0a1a87/packages/core/src/models/SqlComponent.ts#L32)
+Defined in: [packages/core/src/models/SqlComponent.ts:32](https://github.com/mk3008/rawsql-ts/blob/92142303681e2096368e1351195d7eb6b51f472b/packages/core/src/models/SqlComponent.ts#L32)
 
 #### Inherited from
 
@@ -85,7 +85,7 @@ Defined in: [packages/core/src/models/SqlComponent.ts:32](https://github.com/mk3
 
 > `static` **kind**: `symbol`
 
-Defined in: [packages/core/src/models/UpdateQuery.ts:9](https://github.com/mk3008/rawsql-ts/blob/bca39f409b31840a186a150beab840c26a0a1a87/packages/core/src/models/UpdateQuery.ts#L9)
+Defined in: [packages/core/src/models/UpdateQuery.ts:9](https://github.com/mk3008/rawsql-ts/blob/92142303681e2096368e1351195d7eb6b51f472b/packages/core/src/models/UpdateQuery.ts#L9)
 
 #### Overrides
 
@@ -97,7 +97,7 @@ Defined in: [packages/core/src/models/UpdateQuery.ts:9](https://github.com/mk300
 
 > **withClause**: `null` \| `WithClause`
 
-Defined in: [packages/core/src/models/UpdateQuery.ts:10](https://github.com/mk3008/rawsql-ts/blob/bca39f409b31840a186a150beab840c26a0a1a87/packages/core/src/models/UpdateQuery.ts#L10)
+Defined in: [packages/core/src/models/UpdateQuery.ts:10](https://github.com/mk3008/rawsql-ts/blob/92142303681e2096368e1351195d7eb6b51f472b/packages/core/src/models/UpdateQuery.ts#L10)
 
 ***
 
@@ -105,7 +105,7 @@ Defined in: [packages/core/src/models/UpdateQuery.ts:10](https://github.com/mk30
 
 > **updateClause**: `UpdateClause`
 
-Defined in: [packages/core/src/models/UpdateQuery.ts:11](https://github.com/mk3008/rawsql-ts/blob/bca39f409b31840a186a150beab840c26a0a1a87/packages/core/src/models/UpdateQuery.ts#L11)
+Defined in: [packages/core/src/models/UpdateQuery.ts:11](https://github.com/mk3008/rawsql-ts/blob/92142303681e2096368e1351195d7eb6b51f472b/packages/core/src/models/UpdateQuery.ts#L11)
 
 ***
 
@@ -113,7 +113,7 @@ Defined in: [packages/core/src/models/UpdateQuery.ts:11](https://github.com/mk30
 
 > **setClause**: `SetClause`
 
-Defined in: [packages/core/src/models/UpdateQuery.ts:12](https://github.com/mk3008/rawsql-ts/blob/bca39f409b31840a186a150beab840c26a0a1a87/packages/core/src/models/UpdateQuery.ts#L12)
+Defined in: [packages/core/src/models/UpdateQuery.ts:12](https://github.com/mk3008/rawsql-ts/blob/92142303681e2096368e1351195d7eb6b51f472b/packages/core/src/models/UpdateQuery.ts#L12)
 
 ***
 
@@ -121,7 +121,7 @@ Defined in: [packages/core/src/models/UpdateQuery.ts:12](https://github.com/mk30
 
 > **whereClause**: `null` \| `WhereClause`
 
-Defined in: [packages/core/src/models/UpdateQuery.ts:13](https://github.com/mk3008/rawsql-ts/blob/bca39f409b31840a186a150beab840c26a0a1a87/packages/core/src/models/UpdateQuery.ts#L13)
+Defined in: [packages/core/src/models/UpdateQuery.ts:13](https://github.com/mk3008/rawsql-ts/blob/92142303681e2096368e1351195d7eb6b51f472b/packages/core/src/models/UpdateQuery.ts#L13)
 
 ***
 
@@ -129,7 +129,7 @@ Defined in: [packages/core/src/models/UpdateQuery.ts:13](https://github.com/mk30
 
 > **fromClause**: `null` \| `FromClause`
 
-Defined in: [packages/core/src/models/UpdateQuery.ts:14](https://github.com/mk3008/rawsql-ts/blob/bca39f409b31840a186a150beab840c26a0a1a87/packages/core/src/models/UpdateQuery.ts#L14)
+Defined in: [packages/core/src/models/UpdateQuery.ts:14](https://github.com/mk3008/rawsql-ts/blob/92142303681e2096368e1351195d7eb6b51f472b/packages/core/src/models/UpdateQuery.ts#L14)
 
 ***
 
@@ -137,7 +137,7 @@ Defined in: [packages/core/src/models/UpdateQuery.ts:14](https://github.com/mk30
 
 > **returningClause**: `null` \| `ReturningClause`
 
-Defined in: [packages/core/src/models/UpdateQuery.ts:15](https://github.com/mk3008/rawsql-ts/blob/bca39f409b31840a186a150beab840c26a0a1a87/packages/core/src/models/UpdateQuery.ts#L15)
+Defined in: [packages/core/src/models/UpdateQuery.ts:15](https://github.com/mk3008/rawsql-ts/blob/92142303681e2096368e1351195d7eb6b51f472b/packages/core/src/models/UpdateQuery.ts#L15)
 
 ## Methods
 
@@ -145,7 +145,7 @@ Defined in: [packages/core/src/models/UpdateQuery.ts:15](https://github.com/mk30
 
 > **getKind**(): `symbol`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:15](https://github.com/mk3008/rawsql-ts/blob/bca39f409b31840a186a150beab840c26a0a1a87/packages/core/src/models/SqlComponent.ts#L15)
+Defined in: [packages/core/src/models/SqlComponent.ts:15](https://github.com/mk3008/rawsql-ts/blob/92142303681e2096368e1351195d7eb6b51f472b/packages/core/src/models/SqlComponent.ts#L15)
 
 #### Returns
 
@@ -161,7 +161,7 @@ Defined in: [packages/core/src/models/SqlComponent.ts:15](https://github.com/mk3
 
 > **accept**&lt;`T`\&gt;(`visitor`): `T`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:19](https://github.com/mk3008/rawsql-ts/blob/bca39f409b31840a186a150beab840c26a0a1a87/packages/core/src/models/SqlComponent.ts#L19)
+Defined in: [packages/core/src/models/SqlComponent.ts:19](https://github.com/mk3008/rawsql-ts/blob/92142303681e2096368e1351195d7eb6b51f472b/packages/core/src/models/SqlComponent.ts#L19)
 
 #### Type Parameters
 
@@ -189,7 +189,7 @@ Defined in: [packages/core/src/models/SqlComponent.ts:19](https://github.com/mk3
 
 > **toSqlString**(`formatter`): `string`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:23](https://github.com/mk3008/rawsql-ts/blob/bca39f409b31840a186a150beab840c26a0a1a87/packages/core/src/models/SqlComponent.ts#L23)
+Defined in: [packages/core/src/models/SqlComponent.ts:23](https://github.com/mk3008/rawsql-ts/blob/92142303681e2096368e1351195d7eb6b51f472b/packages/core/src/models/SqlComponent.ts#L23)
 
 #### Parameters
 
@@ -211,7 +211,7 @@ Defined in: [packages/core/src/models/SqlComponent.ts:23](https://github.com/mk3
 
 > **addPositionedComments**(`position`, `comments`): `void`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:37](https://github.com/mk3008/rawsql-ts/blob/bca39f409b31840a186a150beab840c26a0a1a87/packages/core/src/models/SqlComponent.ts#L37)
+Defined in: [packages/core/src/models/SqlComponent.ts:37](https://github.com/mk3008/rawsql-ts/blob/92142303681e2096368e1351195d7eb6b51f472b/packages/core/src/models/SqlComponent.ts#L37)
 
 Add comments at a specific position
 
@@ -239,7 +239,7 @@ Add comments at a specific position
 
 > **getPositionedComments**(`position`): `string`[]
 
-Defined in: [packages/core/src/models/SqlComponent.ts:56](https://github.com/mk3008/rawsql-ts/blob/bca39f409b31840a186a150beab840c26a0a1a87/packages/core/src/models/SqlComponent.ts#L56)
+Defined in: [packages/core/src/models/SqlComponent.ts:56](https://github.com/mk3008/rawsql-ts/blob/92142303681e2096368e1351195d7eb6b51f472b/packages/core/src/models/SqlComponent.ts#L56)
 
 Get comments for a specific position
 
@@ -263,7 +263,7 @@ Get comments for a specific position
 
 > **getAllPositionedComments**(): `string`[]
 
-Defined in: [packages/core/src/models/SqlComponent.ts:66](https://github.com/mk3008/rawsql-ts/blob/bca39f409b31840a186a150beab840c26a0a1a87/packages/core/src/models/SqlComponent.ts#L66)
+Defined in: [packages/core/src/models/SqlComponent.ts:66](https://github.com/mk3008/rawsql-ts/blob/92142303681e2096368e1351195d7eb6b51f472b/packages/core/src/models/SqlComponent.ts#L66)
 
 Get all positioned comments as a flat array in order (before, after)
 

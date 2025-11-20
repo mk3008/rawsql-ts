@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: ColumnReferenceCollector
 
-Defined in: [packages/core/src/transformers/ColumnReferenceCollector.ts:78](https://github.com/mk3008/rawsql-ts/blob/bca39f409b31840a186a150beab840c26a0a1a87/packages/core/src/transformers/ColumnReferenceCollector.ts#L78)
+Defined in: [packages/core/src/transformers/ColumnReferenceCollector.ts:78](https://github.com/mk3008/rawsql-ts/blob/92142303681e2096368e1351195d7eb6b51f472b/packages/core/src/transformers/ColumnReferenceCollector.ts#L78)
 
 A comprehensive collector for all ColumnReference instances in SQL query structures.
 
@@ -86,7 +86,7 @@ columnRefs.forEach(ref => {
 
 > **new ColumnReferenceCollector**(): `ColumnReferenceCollector`
 
-Defined in: [packages/core/src/transformers/ColumnReferenceCollector.ts:83](https://github.com/mk3008/rawsql-ts/blob/bca39f409b31840a186a150beab840c26a0a1a87/packages/core/src/transformers/ColumnReferenceCollector.ts#L83)
+Defined in: [packages/core/src/transformers/ColumnReferenceCollector.ts:83](https://github.com/mk3008/rawsql-ts/blob/92142303681e2096368e1351195d7eb6b51f472b/packages/core/src/transformers/ColumnReferenceCollector.ts#L83)
 
 #### Returns
 
@@ -98,7 +98,7 @@ Defined in: [packages/core/src/transformers/ColumnReferenceCollector.ts:83](http
 
 > **collect**(`query`): [`ColumnReference`](ColumnReference.md)[]
 
-Defined in: [packages/core/src/transformers/ColumnReferenceCollector.ts:171](https://github.com/mk3008/rawsql-ts/blob/bca39f409b31840a186a150beab840c26a0a1a87/packages/core/src/transformers/ColumnReferenceCollector.ts#L171)
+Defined in: [packages/core/src/transformers/ColumnReferenceCollector.ts:171](https://github.com/mk3008/rawsql-ts/blob/92142303681e2096368e1351195d7eb6b51f472b/packages/core/src/transformers/ColumnReferenceCollector.ts#L171)
 
 Collects all ColumnReference instances from the given SQL query component.
 
@@ -161,7 +161,7 @@ columnRefs.forEach(ref => {
 
 > **visit**(`component`): `void`
 
-Defined in: [packages/core/src/transformers/ColumnReferenceCollector.ts:275](https://github.com/mk3008/rawsql-ts/blob/bca39f409b31840a186a150beab840c26a0a1a87/packages/core/src/transformers/ColumnReferenceCollector.ts#L275)
+Defined in: [packages/core/src/transformers/ColumnReferenceCollector.ts:275](https://github.com/mk3008/rawsql-ts/blob/92142303681e2096368e1351195d7eb6b51f472b/packages/core/src/transformers/ColumnReferenceCollector.ts#L275)
 
 #### Parameters
 
