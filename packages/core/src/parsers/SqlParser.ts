@@ -146,7 +146,6 @@ export class SqlParser {
                         return this.parseSelectStatement(segment, statementIndex);
                 }
             }
-
             case 'insert into':
                 return this.parseInsertStatement(segment, statementIndex);
 
