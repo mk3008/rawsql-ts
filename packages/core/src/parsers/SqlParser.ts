@@ -127,6 +127,10 @@ export class SqlParser {
         const firstToken = segment.lexemes[0].value.toLowerCase();
 
         switch (firstToken) {
+            case 'select':
+            case 'values':
+                return this.parseSelectStatement(segment, statementIndex);
+
             case 'with': {
                 const commandAfterWith = this.getCommandAfterWith(segment.lexemes);
                 switch (commandAfterWith) {
@@ -142,10 +146,6 @@ export class SqlParser {
                         return this.parseSelectStatement(segment, statementIndex);
                 }
             }
-
-            case 'select':
-            case 'values':
-                return this.parseSelectStatement(segment, statementIndex);
 
             case 'insert into':
                 return this.parseInsertStatement(segment, statementIndex);
