@@ -57,6 +57,7 @@ export type { MissingFixtureStrategy } from './transformers/InsertResultSelectCo
 export * from './transformers/UpdateResultSelectConverter';
 export * from './transformers/DeleteResultSelectConverter';
 export * from './transformers/MergeResultSelectConverter';
+export * from './transformers/SelectResultSelectConverter';
 export * from './transformers/SelectValueCollector';
 export * from './transformers/SelectableColumnCollector';
 export { DuplicateDetectionMode } from './transformers/SelectableColumnCollector';
@@ -112,16 +113,16 @@ export type { CTERegion, CursorPositionInfo } from './utils/CTERegionDetector';
 export * from './utils/CursorContextAnalyzer';
 export type { IntelliSenseContext } from './utils/CursorContextAnalyzer';
 export * from './utils/ScopeResolver';
-export type { 
-    ScopeInfo, 
-    AvailableTable, 
-    AvailableCTE, 
-    AvailableColumn 
+export type {
+    ScopeInfo,
+    AvailableTable,
+    AvailableCTE,
+    AvailableColumn
 } from './utils/ScopeResolver';
 export * from './utils/PositionAwareParser';
-export type { 
-    ParseToPositionOptions, 
-    PositionParseResult 
+export type {
+    ParseToPositionOptions,
+    PositionParseResult
 } from './utils/PositionAwareParser';
 export * from './utils/MultiQuerySplitter';
 export type { QueryInfo, QueryCollection } from './utils/MultiQuerySplitter';
