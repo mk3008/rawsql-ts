@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: FixtureColumnDefinition
 
-Defined in: [packages/core/src/transformers/FixtureCteBuilder.ts:5](https://github.com/mk3008/rawsql-ts/blob/bca39f409b31840a186a150beab840c26a0a1a87/packages/core/src/transformers/FixtureCteBuilder.ts#L5)
+Defined in: [packages/core/src/transformers/FixtureCteBuilder.ts:5](https://github.com/mk3008/rawsql-ts/blob/92142303681e2096368e1351195d7eb6b51f472b/packages/core/src/transformers/FixtureCteBuilder.ts#L5)
 
 Describes a single column in a fixture used for query rewriting.
 
@@ -11,7 +11,7 @@ Describes a single column in a fixture used for query rewriting.
 
 > **name**: `string`
 
-Defined in: [packages/core/src/transformers/FixtureCteBuilder.ts:6](https://github.com/mk3008/rawsql-ts/blob/bca39f409b31840a186a150beab840c26a0a1a87/packages/core/src/transformers/FixtureCteBuilder.ts#L6)
+Defined in: [packages/core/src/transformers/FixtureCteBuilder.ts:6](https://github.com/mk3008/rawsql-ts/blob/92142303681e2096368e1351195d7eb6b51f472b/packages/core/src/transformers/FixtureCteBuilder.ts#L6)
 
 ***
 
@@ -19,5 +19,5 @@ Defined in: [packages/core/src/transformers/FixtureCteBuilder.ts:6](https://gith
 
 > `optional` **typeName**: `string`
 
-Defined in: [packages/core/src/transformers/FixtureCteBuilder.ts:7](https://github.com/mk3008/rawsql-ts/blob/bca39f409b31840a186a150beab840c26a0a1a87/packages/core/src/transformers/FixtureCteBuilder.ts#L7)
+Defined in: [packages/core/src/transformers/FixtureCteBuilder.ts:7](https://github.com/mk3008/rawsql-ts/blob/92142303681e2096368e1351195d7eb6b51f472b/packages/core/src/transformers/FixtureCteBuilder.ts#L7)
 </div>
