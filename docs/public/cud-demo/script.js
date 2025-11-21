@@ -139,45 +139,131 @@ function initStyleConfig() {
 // Sample data
 const samples = {
     single: {
-        sql: `INSERT INTO users (name, email) VALUES ('Alice', 'alice@example.com') RETURNING *;
-UPDATE users SET name = 'Bob' WHERE id = 1 RETURNING *;
+        sql: `CREATE TABLE users (
+  id INTEGER PRIMARY KEY DEFAULT nextval('users_id_seq'),
+  name TEXT,
+  email TEXT,
+  created_at TIMESTAMP DEFAULT now()
+);
+
+INSERT INTO users (name, email) 
+VALUES ('Alice', 'alice@example.com') 
+RETURNING *;
+
+UPDATE users 
+SET name = 'Bob' 
+WHERE id = 1 
+RETURNING *;
+
+DELETE FROM users 
+WHERE id = 1 
+RETURNING *;
+
+MERGE INTO users t 
+USING (SELECT 1 as id, 'Charlie' as name, 'charlie@example.com' as email) s ON t.id = s.id
+WHEN MATCHED THEN UPDATE 
+SET name = s.name
+WHEN NOT MATCHED THEN INSERT (id, name, email) 
+VALUES (s.id, s.name, s.email);
+
 SELECT * FROM users WHERE id = 1;`,
         fixture: `{
   "users": {
     "columns": [
-      { "name": "id", "type": "integer", "primaryKey": true },
+      { "name": "id", "type": "integer", "primaryKey": true, "default": "nextval('users_id_seq')" },
       { "name": "name", "type": "text" },
       { "name": "email", "type": "text" },
-      { "name": "created_at", "type": "timestamp" }
+      { "name": "created_at", "type": "timestamp", "default": "now()" }
+    ],
+    "rows": [
+      { "id": 1, "name": "Alice", "email": "alice@example.com", "created_at": "2023-01-01 10:00:00" },
+      { "id": 2, "name": "Bob", "email": "bob@example.com", "created_at": "2023-01-02 11:00:00" }
     ]
   }
 }`
     },
     multi: {
-        sql: `INSERT INTO users (name, email) VALUES ('Charlie', 'charlie@example.com') RETURNING id;
-INSERT INTO posts (user_id, title, content) VALUES (1, 'Hello World', 'This is my first post') RETURNING *;
-SELECT u.name, p.title FROM users u JOIN posts p ON u.id = p.user_id;`,
+        sql: `CREATE TABLE users (
+  id INTEGER PRIMARY KEY DEFAULT nextval('users_id_seq'),
+  name TEXT,
+  email TEXT
+);
+
+CREATE TABLE posts (
+  id INTEGER PRIMARY KEY DEFAULT nextval('posts_id_seq'),
+  user_id INTEGER,
+  title TEXT,
+  content TEXT
+);
+
+CREATE TABLE comments (
+  id INTEGER PRIMARY KEY DEFAULT nextval('comments_id_seq'),
+  post_id INTEGER,
+  content TEXT
+);
+
+INSERT INTO users (name, email) 
+VALUES ('Charlie', 'charlie@example.com') 
+RETURNING id;
+
+INSERT INTO posts (user_id, title, content) 
+VALUES (1, 'Hello World', 'This is my first post') 
+RETURNING *;
+
+UPDATE posts 
+SET title = 'Updated Title' 
+WHERE id = 1 
+RETURNING *;
+
+DELETE FROM posts 
+WHERE id = 1 
+RETURNING *;
+
+MERGE INTO users t 
+USING (SELECT 2 as id, 'Dave' as name, 'dave@example.com' as email) s ON t.id = s.id
+WHEN MATCHED THEN UPDATE 
+SET name = s.name
+WHEN NOT MATCHED THEN INSERT (id, name, email) 
+VALUES (s.id, s.name, s.email);
+
+SELECT u.name, p.title 
+FROM users u 
+JOIN posts p ON u.id = p.user_id;`,
         fixture: `{
   "users": {
     "columns": [
-      { "name": "id", "type": "integer", "primaryKey": true },
+      { "name": "id", "type": "integer", "primaryKey": true, "default": "nextval('users_id_seq')" },
       { "name": "name", "type": "text" },
       { "name": "email", "type": "text" }
+    ],
+    "rows": [
+      { "id": 1, "name": "Alice", "email": "alice@example.com" },
+      { "id": 2, "name": "Bob", "email": "bob@example.com" }
     ]
   },
   "posts": {
     "columns": [
-      { "name": "id", "type": "integer", "primaryKey": true },
+      { "name": "id", "type": "integer", "primaryKey": true, "default": "nextval('posts_id_seq')" },
       { "name": "user_id", "type": "integer" },
       { "name": "title", "type": "text" },
       { "name": "content", "type": "text" }
+    ],
+    "rows": [
+      { "id": 1, "user_id": 1, "title": "Hello World", "content": "This is my first post" },
+      { "id": 2, "user_id": 1, "title": "Second Post", "content": "Another post" },
+      { "id": 3, "user_id": 2, "title": "Bob's Post", "content": "Bob's first post" }
     ]
   },
   "comments": {
     "columns": [
-      { "name": "id", "type": "integer", "primaryKey": true },
+      { "name": "id", "type": "integer", "primaryKey": true, "default": "nextval('comments_id_seq')" },
       { "name": "post_id", "type": "integer" },
       { "name": "content", "type": "text" }
+    ],
+    "rows": [
+      { "id": 1, "post_id": 1, "content": "Great post!" },
+      { "id": 2, "post_id": 1, "content": "Thanks for sharing" },
+      { "id": 3, "post_id": 2, "content": "Interesting" }
     ]
   }
 }`
@@ -202,10 +288,22 @@ function buildFixtureTables(tableDefinitions) {
 
     for (const [tableName, def] of Object.entries(tableDefinitions)) {
         if (def && Array.isArray(def.columns)) {
+            const columns = def.columns.map(c => ({ name: c.name, typeName: c.type, defaultValue: c.default }));
+            let rows = [];
+
+            if (Array.isArray(def.rows)) {
+                // Convert array of objects to array of arrays based on column order
+                rows = def.rows.map(rowObj => {
+                    return columns.map(col => {
+                        return rowObj[col.name] !== undefined ? rowObj[col.name] : null;
+                    });
+                });
+            }
+
             fixtures.push({
                 tableName: tableName,
-                columns: def.columns.map(c => ({ name: c.name, typeName: c.type })),
-                rows: [] // Empty rows to create empty result set
+                columns: columns,
+                rows: rows
             });
         }
     }
@@ -277,6 +375,10 @@ function convertAndFormat() {
         const segments = [];
         const formatter = new SqlFormatter(formatOptions);
 
+        // Output mode check
+        const outputModeSelector = document.getElementById('output-mode-selector');
+        const outputMode = outputModeSelector ? outputModeSelector.value : 'convert';
+
         for (const query of splitResult.queries) {
             if (query.isEmpty) continue;
 
@@ -284,31 +386,38 @@ function convertAndFormat() {
                 const ast = SqlParser.parse(query.sql);
                 let convertedAst = ast;
 
-                const options = {
-                    missingFixtureStrategy: 'passthrough',
-                    tableDefinitions: tableDefinitions,
-                    fixtureTables: fixtureTables
-                };
+                if (outputMode === 'convert') {
+                    const options = {
+                        missingFixtureStrategy: 'passthrough',
+                        tableDefinitions: null, // Rely on fixtureTables for metadata to ensure correct type mapping
+                        fixtureTables: fixtureTables
+                    };
 
-                if (ast instanceof InsertQuery) {
-                    convertedAst = InsertResultSelectConverter.toSelectQuery(ast, options);
-                } else if (ast instanceof UpdateQuery) {
-                    convertedAst = UpdateResultSelectConverter.toSelectQuery(ast, options);
-                } else if (ast instanceof DeleteQuery) {
-                    convertedAst = DeleteResultSelectConverter.toSelectQuery(ast, options);
-                } else if (ast instanceof MergeQuery) {
-                    convertedAst = MergeResultSelectConverter.toSelectQuery(ast, options);
-                } else if (ast.__selectQueryType === 'SelectQuery') {
-                    if (SelectResultSelectConverter) {
-                        convertedAst = SelectResultSelectConverter.toSelectQuery(ast, options);
+                    if (ast instanceof InsertQuery) {
+                        convertedAst = InsertResultSelectConverter.toSelectQuery(ast, options);
+                    } else if (ast instanceof UpdateQuery) {
+                        convertedAst = UpdateResultSelectConverter.toSelectQuery(ast, options);
+                    } else if (ast instanceof DeleteQuery) {
+                        convertedAst = DeleteResultSelectConverter.toSelectQuery(ast, options);
+                    } else if (ast instanceof MergeQuery) {
+                        convertedAst = MergeResultSelectConverter.toSelectQuery(ast, options);
+                    } else if (ast.__selectQueryType === 'SelectQuery') {
+                        if (SelectResultSelectConverter) {
+                            convertedAst = SelectResultSelectConverter.toSelectQuery(ast, options);
+                        }
                     }
+                }
+
+                // If convertedAst is a SelectQuery object (not AST yet), convert it
+                if (convertedAst && typeof convertedAst.toAst === 'function') {
+                    convertedAst = convertedAst.toAst();
                 }
 
                 const { formattedSql } = formatter.format(convertedAst);
                 segments.push(formattedSql + '\n;');
             } catch (e) {
                 console.error("Error processing statement:", e);
-                segments.push(`/* Error processing statement: ${e.message} */\n${query.sql}`);
+                segments.push(`/* Error processing statement: ${e.message} */\n${query.sql}\n;`);
             }
         }
 
@@ -318,6 +427,14 @@ function convertAndFormat() {
         console.error("Global error:", e);
         updateStatusBar('Error: ' + e.message, true);
     }
+}
+
+// Output mode selector event listener
+const outputModeSelector = document.getElementById('output-mode-selector');
+if (outputModeSelector) {
+    outputModeSelector.addEventListener('change', () => {
+        convertAndFormat();
+    });
 }
 
 let debounceTimer = null;
