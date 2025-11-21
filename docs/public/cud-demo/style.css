@@ -8,17 +8,21 @@ body {
     height: 100vh;
     box-sizing: border-box;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
 }
 
-.container {
+/* Header area */
+.header-wrapper {
+    flex: 0 0 auto;
     display: flex;
-    gap: 20px;
-    height: calc(100% - 80px);
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 15px;
 }
 
 h1 {
-    margin-top: 0;
-    margin-bottom: 15px;
+    margin: 0;
     font-size: 1.8rem;
     font-weight: 600;
     background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%);
@@ -37,6 +41,17 @@ a:hover {
     color: #93c5fd;
 }
 
+/* Main container for left/right panes */
+.container {
+    flex: 1;
+    display: flex;
+    gap: 20px;
+    min-height: 0;
+    /* Crucial for nested flex scrolling */
+    margin-bottom: 15px;
+}
+
+/* Editor container (left and right panes) */
 .editor-container {
     flex: 1;
     display: flex;
@@ -49,7 +64,9 @@ a:hover {
     border: 1px solid #2d2d44;
 }
 
+/* Header inside editor */
 .editor-header {
+    flex: 0 0 auto;
     display: flex;
     align-items: center;
     padding: 12px 20px;
@@ -67,6 +84,7 @@ a:hover {
     letter-spacing: 1px;
 }
 
+/* Tabs */
 .tabs {
     display: flex;
     gap: 4px;
@@ -82,38 +100,38 @@ a:hover {
     transition: all 0.2s;
     font-size: 0.85rem;
     font-weight: 500;
-    box-shadow: none;
 }
 
 .tab-btn:hover {
-    background: rgba(96, 165, 250, 0.1);
+    background: rgba(96, 165, 250, .1);
     color: #60a5fa;
-    transform: none;
-    box-shadow: none;
 }
 
 .tab-btn.active {
-    background: rgba(96, 165, 250, 0.2);
+    background: rgba(96, 165, 250, .2);
     color: #60a5fa;
 }
 
 .tab-content {
     display: none;
-    flex-grow: 1;
+    flex: 1;
+    min-height: 0;
+    /* Allow content to scroll */
+    flex-direction: column;
 }
 
 .tab-content.active {
     display: flex;
-    flex-direction: column;
 }
 
+/* Sample loader button */
 #sample-loader {
     background: #2d2d44;
     color: #e4e4e7;
     border: 1px solid #3d3d5c;
     padding: 6px 12px;
     border-radius: 4px;
-    font-size: 0.85rem;
+    font-size: .85rem;
     cursor: pointer;
 }
 
@@ -121,12 +139,35 @@ a:hover {
     border-color: #60a5fa;
 }
 
+/* CodeMirror editor */
 .CodeMirror {
-    flex-grow: 1;
-    height: auto !important;
+    flex: 1;
+    height: 100% !important;
     font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
     font-size: 14px;
     line-height: 1.6;
+}
+
+/* Style tab specific */
+.style-config-container {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+}
+
+.style-editor-form {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.style-editor-form .CodeMirror {
+    flex: 1;
+    height: 100% !important;
 }
 
 /* Scrollbar styling */
@@ -150,37 +191,47 @@ a:hover {
     background: #4d4d6c;
 }
 
+/* Buttons */
 button {
     background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-    color: white;
+    color: #fff;
     border: none;
     padding: 8px 16px;
     border-radius: 6px;
     cursor: pointer;
-    transition: all 0.2s;
-    font-size: 0.85rem;
+    transition: all .2s;
+    font-size: .85rem;
     font-weight: 500;
-    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+    box-shadow: 0 2px 8px rgba(59, 130, 246, .3);
 }
 
 button:hover {
     background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, .4);
     transform: translateY(-1px);
 }
 
 button:active {
     transform: translateY(0);
-    box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+    box-shadow: 0 2px 4px rgba(59, 130, 246, .3);
 }
 
+/* Status bar and Footer */
 #status-bar {
-    margin-top: 15px;
+    flex: 0 0 auto;
     padding: 8px 12px;
     background-color: #1e1e2e;
     border-radius: 6px;
     color: #71717a;
-    font-size: 0.85rem;
+    font-size: .85rem;
     height: 20px;
     border: 1px solid #2d2d44;
+    margin-bottom: 10px;
+}
+
+.footer-text {
+    flex: 0 0 auto;
+    text-align: center;
+    font-size: 0.8em;
+    color: #666;
 }
