@@ -154,8 +154,10 @@ export class FixtureCteBuilder {
             return new LiteralValue(Number.isFinite(value) ? value : null);
         }
         if (typeof value === 'bigint') {
-            // Convert bigint to number or string depending on size
-            return new LiteralValue(Number(value));
+            // Convert bigint to string to preserve precision
+            // LiteralValue accepts string|number|boolean|null, and when isStringLiteral is false,
+            // the printer will output it as-is without quotes
+            return new LiteralValue(value.toString());
         }
         if (typeof Buffer !== 'undefined' && value instanceof Buffer) {
             // For Buffer, we'll create a hex string literal
