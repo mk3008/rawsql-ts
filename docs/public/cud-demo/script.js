@@ -87,6 +87,8 @@ function updateStatusBar(message, isError = false) {
     const statusBar = document.getElementById('status-bar');
     statusBar.textContent = message;
     statusBar.className = isError ? 'error' : '';
+    // Set color for better visibility: Green for success, Red for error
+    statusBar.style.color = isError ? '#ef4444' : '#4ade80';
 }
 
 // Global variable to hold the loaded module
@@ -287,6 +289,8 @@ sampleLoader.addEventListener('change', (e) => {
         fixtureEditor.setValue(samples[value].fixture);
         // Trigger conversion
         convertAndFormat();
+        // Reset selection to "Load Sample..."
+        e.target.value = '';
     }
 });
 
