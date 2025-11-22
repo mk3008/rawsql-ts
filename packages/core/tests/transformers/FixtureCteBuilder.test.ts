@@ -55,4 +55,15 @@ describe('FixtureCteBuilder', () => {
         expect(selectSql).toBe('select null as "id", null as "value"');
         expect(cte.query.toSimpleQuery().whereClause).not.toBeNull();
     });
+
+    it('creates fixtures from SQL string', () => {
+        const sql = `
+            CREATE TABLE users (id INT, name TEXT);
+            INSERT INTO users VALUES (1, 'Alice');
+        `;
+        const fixtures = FixtureCteBuilder.fromSQL(sql);
+        expect(fixtures).toHaveLength(1);
+        expect(fixtures[0].tableName).toBe('users');
+        expect(fixtures[0].rows).toEqual([[1, 'Alice']]);
+    });
 });

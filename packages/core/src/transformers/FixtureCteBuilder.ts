@@ -2,6 +2,7 @@ import { CommonTable, SourceAliasExpression, SelectClause, SelectItem, WhereClau
 import { SimpleSelectQuery } from '../models/SelectQuery';
 import { BinarySelectQuery } from '../models/BinarySelectQuery';
 import { CastExpression, LiteralValue, TypeValue, RawString, BinaryExpression, ValueComponent } from '../models/ValueComponent';
+import { DDLToFixtureConverter } from './DDLToFixtureConverter';
 
 /** Describes a single column in a fixture used for query rewriting. */
 export interface FixtureColumnDefinition {
@@ -18,6 +19,17 @@ export interface FixtureTableDefinition {
 }
 
 export class FixtureCteBuilder {
+    /**
+     * Creates fixture definitions from a SQL string containing DDL (CREATE TABLE) and INSERT statements.
+     * 
+     * @param sql The SQL string containing DDL and INSERTs.
+     * @returns An array of FixtureTableDefinition objects.
+     */
+    public static fromSQL(sql: string): FixtureTableDefinition[] {
+        const fixtureJson = DDLToFixtureConverter.convert(sql);
+        return this.fromJSON(fixtureJson);
+    }
+
     /**
      * Converts JSON fixture definitions to FixtureTableDefinition format.
      * Accepts an object where keys are table names and values contain columns and rows.

@@ -101,6 +101,8 @@ tabs.forEach(tab => {
             styleJsonEditor.refresh();
         } else if (target === 'generated-fixture') {
             generatedFixtureEditor.refresh();
+        } else if (target === 'output') {
+            formattedSqlEditor.refresh();
         }
     });
 });

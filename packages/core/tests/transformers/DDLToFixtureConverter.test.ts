@@ -42,19 +42,102 @@ describe('DDLToFixtureConverter', () => {
         expect(Object.keys(fixture)).toEqual(['users', 'posts']);
     });
 
-    it('should ignore non-DDL statements', () => {
+    it('should process INSERT statements', () => {
+        const sql = `
+            CREATE TABLE users (id INT, name TEXT);
+            INSERT INTO users VALUES (1, 'Alice');
+            INSERT INTO users (name, id) VALUES ('Bob', 2);
+        `;
+        const fixture = DDLToFixtureConverter.convert(sql);
+        expect(fixture.users.rows).toEqual([
+            { id: 1, name: "Alice" },
+            { id: 2, name: "Bob" }
+        ]);
+    });
+
+    it('should handle default values in INSERT', () => {
+        const sql = `
+            CREATE TABLE users (
+                id INT, 
+                active BOOLEAN DEFAULT true,
+                role TEXT DEFAULT 'user'
+            );
+            INSERT INTO users (id) VALUES (1);
+        `;
+        const fixture = DDLToFixtureConverter.convert(sql);
+        expect(fixture.users.rows[0]).toEqual({
+            id: 1,
+            active: true,
+            role: 'user'
+        });
+    });
+
+    it('should handle nextval sequences', () => {
+        const sql = `
+            CREATE TABLE users (
+                id INT DEFAULT nextval('users_id_seq'),
+                name TEXT
+            );
+            INSERT INTO users (name) VALUES ('Alice');
+            INSERT INTO users (name) VALUES ('Bob');
+        `;
+        const fixture = DDLToFixtureConverter.convert(sql);
+        expect(fixture.users.rows).toEqual([
+            { id: 1, name: "Alice" },
+            { id: 2, name: "Bob" }
+        ]);
+    });
+
+    it('should handle timestamp defaults', () => {
+        const sql = `
+            CREATE TABLE logs (
+                msg TEXT,
+                created_at TIMESTAMP DEFAULT now()
+            );
+            INSERT INTO logs (msg) VALUES ('test');
+        `;
+        const fixture = DDLToFixtureConverter.convert(sql);
+        expect(fixture.logs.rows[0].msg).toBe("test");
+        expect(fixture.logs.rows[0].created_at).toBe("2023-01-01 00:00:00");
+    });
+
+    it('should throw error for missing NOT NULL column without default', () => {
+        const sql = `
+            CREATE TABLE users (
+                id INT NOT NULL,
+                name TEXT
+            );
+            INSERT INTO users (name) VALUES ('Alice');
+        `;
+        expect(() => DDLToFixtureConverter.convert(sql)).toThrow(/cannot be null/);
+    });
+
+    it('should ignore INSERTs for unknown tables', () => {
         const sql = `
             CREATE TABLE users (id INT);
-            INSERT INTO users VALUES (1);
-            SELECT * FROM users;
+            INSERT INTO unknown_table VALUES (1);
         `;
         const fixture = DDLToFixtureConverter.convert(sql);
         expect(Object.keys(fixture)).toEqual(['users']);
+        expect(fixture.users.rows).toEqual([]);
+    });
+
+    it('should ignore unsupported INSERT forms', () => {
+        const sql = `
+            CREATE TABLE users (id INT);
+            INSERT INTO users SELECT * FROM other_table;
+        `;
+        const fixture = DDLToFixtureConverter.convert(sql);
+        expect(fixture.users.rows).toEqual([]);
     });
 
     it('should handle schema qualifiers', () => {
-        const sql = `CREATE TABLE public.users (id INT);`;
+        const sql = `
+            CREATE TABLE public.users (id INT);
+            INSERT INTO public.users VALUES (1);
+        `;
         const fixture = DDLToFixtureConverter.convert(sql);
         expect(Object.keys(fixture)).toEqual(['public.users']);
+        expect(fixture['public.users'].rows).toEqual([{ id: 1 }]);
     });
 });
