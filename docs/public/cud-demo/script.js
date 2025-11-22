@@ -503,7 +503,8 @@ function convertAndFormat() {
         MergeQuery,
         TableSourceCollector,
         CTECollector,
-        FixtureCteBuilder
+        FixtureCteBuilder,
+        SimulatedSelectConverter
     } = rawSqlModule;
 
     const sqlText = sqlInputEditor.getValue();
@@ -578,19 +579,12 @@ function convertAndFormat() {
                         fixtureTables: fixtureTables
                     };
 
-                    if (ast instanceof InsertQuery) {
-                        convertedAst = InsertResultSelectConverter.toSelectQuery(ast, options);
-                    } else if (ast instanceof UpdateQuery) {
-                        convertedAst = UpdateResultSelectConverter.toSelectQuery(ast, options);
-                    } else if (ast instanceof DeleteQuery) {
-                        convertedAst = DeleteResultSelectConverter.toSelectQuery(ast, options);
-                    } else if (ast instanceof MergeQuery) {
-                        convertedAst = MergeResultSelectConverter.toSelectQuery(ast, options);
-                    } else if (ast.__selectQueryType === 'SelectQuery') {
-                        if (SelectResultSelectConverter) {
-                            convertedAst = SelectResultSelectConverter.toSelectQuery(ast, options);
-                        }
+                    const result = SimulatedSelectConverter.convert(ast, options);
+                    if (!result) {
+                        // Ignored statement (e.g. DDL)
+                        continue;
                     }
+                    convertedAst = result;
                 }
 
                 // If convertedAst is a SelectQuery object (not AST yet), convert it

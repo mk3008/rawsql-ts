@@ -58,6 +58,7 @@ export * from './transformers/UpdateResultSelectConverter';
 export * from './transformers/DeleteResultSelectConverter';
 export * from './transformers/MergeResultSelectConverter';
 export * from './transformers/SelectResultSelectConverter';
+export * from './transformers/SimulatedSelectConverter';
 export * from './transformers/SelectValueCollector';
 export * from './transformers/SelectableColumnCollector';
 export { DuplicateDetectionMode } from './transformers/SelectableColumnCollector';
