@@ -6,7 +6,8 @@ import {
     RawString
 } from "./ValueComponent";
 import {
-    TableConstraintDefinition
+    TableConstraintDefinition,
+    TableColumnDefinition
 } from "./CreateTableQuery";
 
 export type DropBehavior = 'cascade' | 'restrict' | null;
@@ -212,7 +213,25 @@ export class AlterTableDropColumn extends SqlComponent {
     }
 }
 
-export type AlterTableAction = AlterTableAddConstraint | AlterTableDropConstraint | AlterTableDropColumn;
+/**
+ * ALTER TABLE ... ADD COLUMN action.
+ */
+export class AlterTableAddColumn extends SqlComponent {
+    static kind = Symbol("AlterTableAddColumn");
+    column: TableColumnDefinition;
+    ifNotExists: boolean;
+
+    constructor(params: {
+        column: TableColumnDefinition;
+        ifNotExists?: boolean;
+    }) {
+        super();
+        this.column = params.column;
+        this.ifNotExists = params.ifNotExists ?? false;
+    }
+}
+
+export type AlterTableAction = AlterTableAddConstraint | AlterTableDropConstraint | AlterTableDropColumn | AlterTableAddColumn;
 
 /**
  * ALTER TABLE statement representation with constraint-centric actions.

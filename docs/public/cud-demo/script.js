@@ -69,6 +69,7 @@ tabs.forEach(tab => {
         // Find tabs and contents within the same container
         const containerTabs = container.querySelectorAll('.tab-btn');
         const containerContents = container.querySelectorAll('.tab-content');
+        const containerControls = container.querySelectorAll('.tab-controls');
 
         containerTabs.forEach(t => t.classList.remove('active'));
         tab.classList.add('active');
@@ -78,6 +79,16 @@ tabs.forEach(tab => {
                 c.classList.add('active');
             } else {
                 c.classList.remove('active');
+            }
+        });
+
+        containerControls.forEach(c => {
+            if (c.getAttribute('data-tab') === target) {
+                c.classList.add('active');
+                c.style.display = 'flex';
+            } else {
+                c.classList.remove('active');
+                c.style.display = 'none';
             }
         });
 
@@ -524,6 +535,9 @@ function convertAndFormat() {
         formattedSqlEditor.setValue('');
         updateStatusBar('Ready');
         updateResourceTab(''); // Clear resources
+        if (generatedFixtureEditor) {
+            generatedFixtureEditor.setValue('');
+        }
         return;
     }
 
@@ -624,7 +638,7 @@ function convertAndFormat() {
         } catch (e) {
             console.error("Error generating fixture JSON:", e);
             if (generatedFixtureEditor) {
-                generatedFixtureEditor.setValue("// Error generating fixture JSON\n" + e.message);
+                generatedFixtureEditor.setValue('');
             }
         }
 

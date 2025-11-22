@@ -85,19 +85,49 @@
                         All Settings</button>
                 </div>
             </div>
-            <div id="table-list-container" style="padding: 0; overflow-y: auto; max-height: 40%;">
-                <ul id="table-list" style="margin: 0; padding-left: 0; list-style: none;"></ul>
+        </div>
+
+        <div class="editor-container" id="right-pane">
+            <div class="editor-header">
+                <div class="tabs">
+                    <button class="tab-btn active" data-tab="output">Output</button>
+                    <button class="tab-btn" data-tab="resource">Resource</button>
+                    <button class="tab-btn" data-tab="generated-fixture">Fixture</button>
+                </div>
+                <div class="tab-controls active" data-tab="output" style="display: flex; gap: 10px; margin-left: auto;">
+                    <select id="output-mode-selector">
+                        <option value="convert">Convert (Simulate)</option>
+                        <option value="format">Format Only</option>
+                    </select>
+                    <button id="copy-output-btn">Copy</button>
+                </div>
             </div>
-            <div class="header-wrapper"
-                style="margin-top: 10px; border-top: 1px solid #3f3f46; padding: 10px 0; display: flex; justify-content: space-between; align-items: center;">
-                <h3 style="margin: 0;">CTE List</h3>
-                <div id="cte-actions" style="display: flex; gap: 5px;"></div>
+            <div id="output-content" class="tab-content active" data-tab="output">
+                <textarea id="formatted-sql"></textarea>
             </div>
-            <div id="cte-list-container" style="padding: 0; overflow-y: auto; max-height: 40%;">
-                <ul id="cte-list" style="margin: 0; padding-left: 0; list-style: none;"></ul>
+            <div id="resource-content" class="tab-content" data-tab="resource" style="padding: 20px; overflow-y: auto;">
+                <div class="header-wrapper"
+                    style="border-bottom: 1px solid #3f3f46; padding-bottom: 10px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="margin: 0;">Tables</h3>
+                    <div id="table-actions" style="display: flex; gap: 5px;"></div>
+                </div>
+                <div id="table-list-container" style="margin-bottom: 20px;">
+                    <ul id="table-list" style="margin: 0; padding-left: 0; list-style: none;"></ul>
+                </div>
+
+                <div class="header-wrapper"
+                    style="border-bottom: 1px solid #3f3f46; padding-bottom: 10px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="margin: 0;">CTE List</h3>
+                    <div id="cte-actions" style="display: flex; gap: 5px;"></div>
+                </div>
+                <div id="cte-list-container">
+                    <ul id="cte-list" style="margin: 0; padding-left: 0; list-style: none;"></ul>
+                </div>
+            </div>
+            <div id="generated-fixture-content" class="tab-content" data-tab="generated-fixture">
+                <textarea id="generated-fixture-json"></textarea>
             </div>
         </div>
-    </div>
     </div>
 
     <div id="status-bar">Ready</div>

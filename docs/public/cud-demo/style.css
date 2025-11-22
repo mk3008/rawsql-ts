@@ -124,8 +124,9 @@ a:hover {
     display: flex;
 }
 
-/* Sample loader button */
-#sample-loader {
+/* Sample loader button and Output mode selector */
+#sample-loader,
+#output-mode-selector {
     background: #2d2d44;
     color: #e4e4e7;
     border: 1px solid #3d3d5c;
@@ -135,7 +136,8 @@ a:hover {
     cursor: pointer;
 }
 
-#sample-loader:hover {
+#sample-loader:hover,
+#output-mode-selector:hover {
     border-color: #60a5fa;
 }
 
