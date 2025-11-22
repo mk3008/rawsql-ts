@@ -481,33 +481,7 @@ function initQuickStyleSelect() {
     document.getElementById('delete-style-btn').addEventListener('click', () => setTimeout(updateOptions, 100));
 }
 
-function buildFixtureTables(tableDefinitions) {
-    const fixtures = [];
-    if (!tableDefinitions || typeof tableDefinitions !== 'object') return fixtures;
-
-    for (const [tableName, def] of Object.entries(tableDefinitions)) {
-        if (def && Array.isArray(def.columns)) {
-            const columns = def.columns.map(c => ({ name: c.name, typeName: c.type, defaultValue: c.default }));
-            let rows = [];
-
-            if (Array.isArray(def.rows)) {
-                // Convert array of objects to array of arrays based on column order
-                rows = def.rows.map(rowObj => {
-                    return columns.map(col => {
-                        return rowObj[col.name] !== undefined ? rowObj[col.name] : null;
-                    });
-                });
-            }
-
-            fixtures.push({
-                tableName: tableName,
-                columns: columns,
-                rows: rows
-            });
-        }
-    }
-    return fixtures;
-}
+// buildFixtureTables function removed - now using FixtureCteBuilder.fromJSON from core package
 
 function convertAndFormat() {
     if (!rawSqlModule) {
@@ -528,7 +502,8 @@ function convertAndFormat() {
         DeleteQuery,
         MergeQuery,
         TableSourceCollector,
-        CTECollector
+        CTECollector,
+        FixtureCteBuilder
     } = rawSqlModule;
 
     const sqlText = sqlInputEditor.getValue();
@@ -572,7 +547,7 @@ function convertAndFormat() {
                         }
                     }
                 }
-                fixtureTables = buildFixtureTables(tableDefinitions);
+                fixtureTables = FixtureCteBuilder.fromJSON(tableDefinitions);
             } catch (e) {
                 console.warn('Invalid fixture JSON:', e);
                 updateStatusBar('Warning: Invalid fixture JSON', true);

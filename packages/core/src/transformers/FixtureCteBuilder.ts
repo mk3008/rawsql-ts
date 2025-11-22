@@ -18,6 +18,66 @@ export interface FixtureTableDefinition {
 }
 
 export class FixtureCteBuilder {
+    /**
+     * Converts JSON fixture definitions to FixtureTableDefinition format.
+     * Accepts an object where keys are table names and values contain columns and rows.
+     * 
+     * @param jsonDefinitions Object with table definitions
+     * @returns Array of FixtureTableDefinition
+     * 
+     * @example
+     * ```typescript
+     * const json = {
+     *   users: {
+     *     columns: [
+     *       { name: 'id', type: 'integer' },
+     *       { name: 'name', type: 'text' }
+     *     ],
+     *     rows: [
+     *       { id: 1, name: 'Alice' },
+     *       { id: 2, name: 'Bob' }
+     *     ]
+     *   }
+     * };
+     * const fixtures = FixtureCteBuilder.fromJSON(json);
+     * ```
+     */
+    public static fromJSON(jsonDefinitions: Record<string, {
+        columns: Array<{ name: string; type?: string; default?: string }>;
+        rows?: Array<Record<string, any>>;
+    }>): FixtureTableDefinition[] {
+        const fixtures: FixtureTableDefinition[] = [];
+
+        for (const [tableName, def] of Object.entries(jsonDefinitions)) {
+            if (def && Array.isArray(def.columns)) {
+                const columns: FixtureColumnDefinition[] = def.columns.map(c => ({
+                    name: c.name,
+                    typeName: c.type,
+                    defaultValue: c.default
+                }));
+
+                let rows: (string | number | bigint | Buffer | null)[][] = [];
+
+                if (Array.isArray(def.rows)) {
+                    // Convert array of objects to array of arrays based on column order
+                    rows = def.rows.map(rowObj => {
+                        return columns.map(col => {
+                            return rowObj[col.name] !== undefined ? rowObj[col.name] : null;
+                        });
+                    });
+                }
+
+                fixtures.push({
+                    tableName,
+                    columns,
+                    rows
+                });
+            }
+        }
+
+        return fixtures;
+    }
+
     /** Builds CommonTable representations for the provided fixtures. */
     public static buildFixtures(fixtures: FixtureTableDefinition[]): CommonTable[] {
         return fixtures.map((fixture) => this.buildFixture(fixture));
