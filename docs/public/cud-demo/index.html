@@ -85,47 +85,19 @@
                         All Settings</button>
                 </div>
             </div>
-        </div>
-
-        <div class="editor-container" id="right-pane">
-            <div class="editor-header">
-                <div class="tabs">
-                    <button class="tab-btn active" data-tab="formatted">Output</button>
-                    <button class="tab-btn" data-tab="resources">Resources</button>
-                </div>
-                <div style="margin-left: auto; display: flex; gap: 10px; align-items: center;">
-                    <select id="quick-style-select" title="Change style for preview"
-                        style="max-width: 150px; background: #2d2d44; color: #e4e4e7; border: 1px solid #3d3d5c; padding: 6px; border-radius: 4px;"></select>
-                    <select id="output-mode-selector"
-                        style="background: #2d2d44; color: #e4e4e7; border: 1px solid #3d3d5c; padding: 6px; border-radius: 4px;">
-                        <option value="convert">Simulated SELECT</option>
-                        <option value="format">Format Only</option>
-                    </select>
-                    <button id="copy-output-btn">Copy</button>
-                </div>
+            <div id="table-list-container" style="padding: 0; overflow-y: auto; max-height: 40%;">
+                <ul id="table-list" style="margin: 0; padding-left: 0; list-style: none;"></ul>
             </div>
-            <div id="formatted-content" class="tab-content active" data-tab="formatted">
-                <textarea id="formatted-sql"></textarea>
+            <div class="header-wrapper"
+                style="margin-top: 10px; border-top: 1px solid #3f3f46; padding: 10px 0; display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="margin: 0;">CTE List</h3>
+                <div id="cte-actions" style="display: flex; gap: 5px;"></div>
             </div>
-            <div id="resources-content" class="tab-content" data-tab="resources" style="padding: 0 20px;">
-                <div class="header-wrapper"
-                    style="padding: 10px 0; display: flex; justify-content: space-between; align-items: center;">
-                    <h3 style="margin: 0;">Physical Tables</h3>
-                    <div id="table-actions" style="display: flex; gap: 5px;"></div>
-                </div>
-                <div id="table-list-container" style="padding: 0; overflow-y: auto; max-height: 40%;">
-                    <ul id="table-list" style="margin: 0; padding-left: 0; list-style: none;"></ul>
-                </div>
-                <div class="header-wrapper"
-                    style="margin-top: 10px; border-top: 1px solid #3f3f46; padding: 10px 0; display: flex; justify-content: space-between; align-items: center;">
-                    <h3 style="margin: 0;">CTE List</h3>
-                    <div id="cte-actions" style="display: flex; gap: 5px;"></div>
-                </div>
-                <div id="cte-list-container" style="padding: 0; overflow-y: auto; max-height: 40%;">
-                    <ul id="cte-list" style="margin: 0; padding-left: 0; list-style: none;"></ul>
-                </div>
+            <div id="cte-list-container" style="padding: 0; overflow-y: auto; max-height: 40%;">
+                <ul id="cte-list" style="margin: 0; padding-left: 0; list-style: none;"></ul>
             </div>
         </div>
+    </div>
     </div>
 
     <div id="status-bar">Ready</div>

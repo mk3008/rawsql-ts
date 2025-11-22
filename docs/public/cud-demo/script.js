@@ -40,11 +40,20 @@ const styleJsonEditor = CodeMirror.fromTextArea(document.getElementById('style-j
     lineWrapping: false
 });
 
+const generatedFixtureEditor = CodeMirror.fromTextArea(document.getElementById('generated-fixture-json'), {
+    mode: 'application/json',
+    lineNumbers: true,
+    theme: 'dracula',
+    readOnly: true,
+    lineWrapping: false
+});
+
 // Expose editors to window for testing
 window.sqlInputEditor = sqlInputEditor;
 window.formattedSqlEditor = formattedSqlEditor;
 window.fixtureEditor = fixtureEditor;
 window.styleJsonEditor = styleJsonEditor;
+window.generatedFixtureEditor = generatedFixtureEditor;
 
 // Tab switching logic
 // Tab switching logic
@@ -79,6 +88,8 @@ tabs.forEach(tab => {
             fixtureEditor.refresh();
         } else if (target === 'style') {
             styleJsonEditor.refresh();
+        } else if (target === 'generated-fixture') {
+            generatedFixtureEditor.refresh();
         }
     });
 });
@@ -504,7 +515,8 @@ function convertAndFormat() {
         TableSourceCollector,
         CTECollector,
         FixtureCteBuilder,
-        SimulatedSelectConverter
+        SimulatedSelectConverter,
+        DDLToFixtureConverter
     } = rawSqlModule;
 
     const sqlText = sqlInputEditor.getValue();
@@ -601,6 +613,21 @@ function convertAndFormat() {
         }
 
         formattedSqlEditor.setValue(segments.join('\n\n'));
+
+        // Generate Fixture JSON from DDL
+        try {
+            const fixtureJson = DDLToFixtureConverter.convert(sqlText);
+            const jsonString = JSON.stringify(fixtureJson, null, 2);
+            if (generatedFixtureEditor) {
+                generatedFixtureEditor.setValue(jsonString);
+            }
+        } catch (e) {
+            console.error("Error generating fixture JSON:", e);
+            if (generatedFixtureEditor) {
+                generatedFixtureEditor.setValue("// Error generating fixture JSON\n" + e.message);
+            }
+        }
+
         updateStatusBar('Conversion successful');
     } catch (e) {
         console.error("Global error:", e);
