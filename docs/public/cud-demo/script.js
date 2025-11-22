@@ -306,7 +306,7 @@ function updateResourceTab(sqlText, SqlParser, MultiQuerySplitter, TableSourceCo
     const createListItem = (name) => {
         const li = document.createElement('li');
         li.style.padding = '5px 0';
-        li.style.borderBottom = '1px solid #3f3f46';
+        // li.style.borderBottom = '1px solid #3f3f46';
         li.textContent = name;
         return li;
     };
