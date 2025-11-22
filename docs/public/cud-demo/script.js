@@ -47,17 +47,24 @@ window.fixtureEditor = fixtureEditor;
 window.styleJsonEditor = styleJsonEditor;
 
 // Tab switching logic
+// Tab switching logic
 const tabs = document.querySelectorAll('.tab-btn');
-const tabContents = document.querySelectorAll('.tab-content');
 
 tabs.forEach(tab => {
     tab.addEventListener('click', () => {
         const target = tab.getAttribute('data-tab');
+        const container = tab.closest('.editor-container');
 
-        tabs.forEach(t => t.classList.remove('active'));
+        if (!container) return;
+
+        // Find tabs and contents within the same container
+        const containerTabs = container.querySelectorAll('.tab-btn');
+        const containerContents = container.querySelectorAll('.tab-content');
+
+        containerTabs.forEach(t => t.classList.remove('active'));
         tab.classList.add('active');
 
-        tabContents.forEach(c => {
+        containerContents.forEach(c => {
             if (c.getAttribute('data-tab') === target) {
                 c.classList.add('active');
             } else {
@@ -99,6 +106,7 @@ async function loadModule() {
 
         // Initialize style config
         initStyleConfig();
+        initQuickStyleSelect();
 
         updateStatusBar('Ready');
         // Trigger initial conversion
@@ -282,6 +290,193 @@ sampleLoader.addEventListener('change', (e) => {
     }
 });
 
+function updateResourceTab(sqlText, SqlParser, MultiQuerySplitter, TableSourceCollector, CTECollector) {
+    const tableListElement = document.getElementById('table-list');
+    const cteListElement = document.getElementById('cte-list');
+    const tableActionsElement = document.getElementById('table-actions');
+    const cteActionsElement = document.getElementById('cte-actions');
+
+    if (!tableListElement || !cteListElement) return;
+
+    tableListElement.innerHTML = '';
+    cteListElement.innerHTML = '';
+    if (tableActionsElement) tableActionsElement.innerHTML = '';
+    if (cteActionsElement) cteActionsElement.innerHTML = '';
+
+    const createListItem = (name) => {
+        const li = document.createElement('li');
+        li.style.padding = '5px 0';
+        li.style.borderBottom = '1px solid #3f3f46';
+        li.textContent = name;
+        return li;
+    };
+
+    const createButton = (text, onClick, color = '#3f3f46', textColor = '#e4e4e7') => {
+        const btn = document.createElement('button');
+        btn.textContent = text;
+        btn.style.padding = '2px 8px';
+        btn.style.fontSize = '0.8rem';
+        btn.style.background = color;
+        btn.style.border = 'none';
+        btn.style.borderRadius = '3px';
+        btn.style.color = textColor;
+        btn.style.cursor = 'pointer';
+        btn.onclick = onClick;
+        return btn;
+    };
+
+    if (!sqlText || !sqlText.trim()) {
+        const li = document.createElement('li');
+        li.textContent = '(SQL input is empty)';
+        li.style.color = '#888';
+        tableListElement.appendChild(li);
+        cteListElement.appendChild(li.cloneNode(true));
+        return;
+    }
+
+    try {
+        const splitResult = MultiQuerySplitter.split(sqlText);
+        const tableNames = new Set();
+        const cteNames = new Set();
+
+        for (const query of splitResult.queries) {
+            if (query.isEmpty) continue;
+            try {
+                const ast = SqlParser.parse(query.sql);
+
+                // Collect Tables
+                const tableCollector = new TableSourceCollector(false); // false = don't include CTEs in table list
+                const tables = tableCollector.collect(ast);
+                tables.forEach(t => {
+                    if (t && t.table && t.table.name) {
+                        tableNames.add(t.table.name);
+                    }
+                });
+
+                // Collect CTEs
+                const cteCollector = new CTECollector();
+                const ctes = cteCollector.collect(ast);
+                ctes.forEach(cte => {
+                    const name = cte.getSourceAliasName();
+                    if (name) {
+                        cteNames.add(name);
+                    }
+                });
+
+            } catch (e) {
+                // Ignore parse errors for resource collection
+            }
+        }
+
+        if (tableNames.size === 0) {
+            const li = document.createElement('li');
+            li.textContent = '(No tables found)';
+            li.style.color = '#888';
+            tableListElement.appendChild(li);
+        } else {
+            const sortedTables = Array.from(tableNames).sort();
+            sortedTables.forEach(name => {
+                tableListElement.appendChild(createListItem(name));
+            });
+
+            if (tableActionsElement) {
+                // Copy List Button
+                const copyListBtn = createButton('Copy List', () => {
+                    const text = sortedTables.join('\n');
+                    navigator.clipboard.writeText(text).then(() => updateStatusBar('Copied table list'));
+                });
+                tableActionsElement.appendChild(copyListBtn);
+
+                // Copy Analyze Button
+                const copyAnalyzeBtn = createButton('Copy Analyze', () => {
+                    const text = sortedTables.map(t => `ANALYZE ${t};`).join('\n');
+                    navigator.clipboard.writeText(text).then(() => updateStatusBar('Copied analyze statements'));
+                }, '#2563eb', '#ffffff');
+                tableActionsElement.appendChild(copyAnalyzeBtn);
+            }
+        }
+
+        if (cteNames.size === 0) {
+            const li = document.createElement('li');
+            li.textContent = '(No CTEs found)';
+            li.style.color = '#888';
+            cteListElement.appendChild(li);
+        } else {
+            const sortedCtes = Array.from(cteNames).sort();
+            sortedCtes.forEach(name => {
+                cteListElement.appendChild(createListItem(name));
+            });
+
+            if (cteActionsElement) {
+                // Copy List Button
+                const copyListBtn = createButton('Copy List', () => {
+                    const text = sortedCtes.join('\n');
+                    navigator.clipboard.writeText(text).then(() => updateStatusBar('Copied CTE list'));
+                });
+                cteActionsElement.appendChild(copyListBtn);
+            }
+        }
+
+    } catch (e) {
+        console.error("Error updating resource tab:", e);
+    }
+}
+
+function initQuickStyleSelect() {
+    const quickStyleSelect = document.getElementById('quick-style-select');
+    const styleSelect = document.getElementById('style-select');
+
+    if (!quickStyleSelect || !styleConfigModule) return;
+
+    const updateOptions = () => {
+        const styles = styleConfigModule.getCurrentStyles();
+        quickStyleSelect.innerHTML = '';
+
+        Object.keys(styles).forEach(name => {
+            const opt = document.createElement('option');
+            opt.value = name;
+            opt.textContent = name;
+            quickStyleSelect.appendChild(opt);
+        });
+
+        // Restore from localStorage if available
+        const savedStyle = localStorage.getItem('cud-demo-style');
+        if (savedStyle && styles[savedStyle]) {
+            quickStyleSelect.value = savedStyle;
+        } else if (styleSelect) {
+            // Fallback to main style select if no saved style
+            quickStyleSelect.value = styleSelect.value;
+        }
+
+        // Sync with main style select
+        if (styleSelect) {
+            styleSelect.value = quickStyleSelect.value;
+        }
+    };
+
+    // Initial population
+    updateOptions();
+
+    // Listen for changes
+    quickStyleSelect.addEventListener('change', () => {
+        localStorage.setItem('cud-demo-style', quickStyleSelect.value);
+
+        // Also update the main style select to keep them in sync
+        if (styleSelect) {
+            styleSelect.value = quickStyleSelect.value;
+            // Trigger change event on main select to update editor
+            styleSelect.dispatchEvent(new Event('change'));
+        } else {
+            convertAndFormat();
+        }
+    });
+
+    // Listen for style updates (this is a bit hacky, ideally we'd have an event)
+    // For now, we can hook into the save/delete buttons or just refresh on mouseover of the header
+    document.getElementById('save-style-btn').addEventListener('click', () => setTimeout(updateOptions, 100));
+    document.getElementById('delete-style-btn').addEventListener('click', () => setTimeout(updateOptions, 100));
+}
+
 function buildFixtureTables(tableDefinitions) {
     const fixtures = [];
     if (!tableDefinitions || typeof tableDefinitions !== 'object') return fixtures;
@@ -327,13 +522,16 @@ function convertAndFormat() {
         InsertQuery,
         UpdateQuery,
         DeleteQuery,
-        MergeQuery
+        MergeQuery,
+        TableSourceCollector,
+        CTECollector
     } = rawSqlModule;
 
     const sqlText = sqlInputEditor.getValue();
     if (!sqlText.trim()) {
         formattedSqlEditor.setValue('');
         updateStatusBar('Ready');
+        updateResourceTab(''); // Clear resources
         return;
     }
 
@@ -342,10 +540,18 @@ function convertAndFormat() {
     if (styleConfigModule) {
         const currentStyles = styleConfigModule.getCurrentStyles();
         const styleSelect = document.getElementById('style-select');
-        if (styleSelect && styleSelect.value && currentStyles[styleSelect.value]) {
+        // Check quick style select first if available
+        const quickStyleSelect = document.getElementById('quick-style-select');
+
+        if (quickStyleSelect && quickStyleSelect.value && currentStyles[quickStyleSelect.value]) {
+            formatOptions = currentStyles[quickStyleSelect.value];
+        } else if (styleSelect && styleSelect.value && currentStyles[styleSelect.value]) {
             formatOptions = currentStyles[styleSelect.value];
         }
     }
+
+    // Update Resource Tab
+    updateResourceTab(sqlText, SqlParser, MultiQuerySplitter, TableSourceCollector, CTECollector);
 
     // Parse fixture JSON
     let tableDefinitions = null;
@@ -432,7 +638,12 @@ function convertAndFormat() {
 // Output mode selector event listener
 const outputModeSelector = document.getElementById('output-mode-selector');
 if (outputModeSelector) {
-    outputModeSelector.addEventListener('change', () => {
+    // Initialize from localStorage or default to 'format'
+    const savedOutputMode = localStorage.getItem('cud-demo-output-mode');
+    outputModeSelector.value = savedOutputMode || 'format';
+
+    outputModeSelector.addEventListener('change', (e) => {
+        localStorage.setItem('cud-demo-output-mode', e.target.value);
         convertAndFormat();
     });
 }

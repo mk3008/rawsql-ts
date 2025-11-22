@@ -171,4 +171,11 @@ describe('SqlParser', () => {
 
         expect(() => SqlParser.parseMany(sql)).toThrow(/statement 2/i);
     });
+    test('parse throws error with clean message for unsupported token', () => {
+        const sql = 'selet * from table_a';
+
+        expect(() => SqlParser.parse(sql)).toThrowError(
+            '[SqlParser] Statement 1 starts with unsupported token "selet".'
+        );
+    });
 });

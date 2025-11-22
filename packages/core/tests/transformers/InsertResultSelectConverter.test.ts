@@ -244,4 +244,31 @@ describe('InsertResultSelectConverter', () => {
             "with \"__inserted_rows\"(\"sale_date\", \"price\") as (select cast('2025-01-01' as date) as \"sale_date\", cast(100 as int) as \"price\") select lower(\"__inserted_rows\".\"price\") as \"lower_price\" from \"__inserted_rows\""
         );
     });
+
+    it('uses fixture definitions to apply casts when tableDefinitions are missing', () => {
+        const insert = InsertQueryParser.parse(
+            `INSERT INTO users (name, email) VALUES ('Alice', 'alice@example.com') RETURNING name, email`
+        );
+
+        const fixtures: FixtureTableDefinition[] = [
+            {
+                tableName: 'users',
+                columns: [
+                    { name: 'id', typeName: 'int' },
+                    { name: 'name', typeName: 'text' },
+                    { name: 'email', typeName: 'text' }
+                ],
+                rows: []
+            }
+        ];
+
+        const converted = InsertResultSelectConverter.toSelectQuery(insert, {
+            fixtureTables: fixtures
+        });
+        const sql = formatter().format(converted).formattedSql;
+
+        expect(sql).toBe(
+            "with \"__inserted_rows\"(\"name\", \"email\") as (select cast('Alice' as text) as \"name\", cast('alice@example.com' as text) as \"email\") select \"__inserted_rows\".\"name\", \"__inserted_rows\".\"email\" from \"__inserted_rows\""
+        );
+    });
 });

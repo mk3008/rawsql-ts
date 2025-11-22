@@ -5,6 +5,7 @@ import { SelectQueryParser } from '../parsers/SelectQueryParser';
 export interface FixtureColumnDefinition {
     name: string;
     typeName?: string;
+    defaultValue?: string;
 }
 
 /** Defines the data required to represent a fixture table as a CTE. */
@@ -62,7 +63,7 @@ export class FixtureCteBuilder {
         if (typeof value === 'bigint') {
             return value.toString();
         }
-        if (value instanceof Buffer) {
+        if (typeof Buffer !== 'undefined' && value instanceof Buffer) {
             return `X'${value.toString('hex')}'`;
         }
         if (typeof value === 'string') {

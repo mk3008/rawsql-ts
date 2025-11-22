@@ -185,7 +185,7 @@ export class SqlParser {
                 return this.parseExplainStatement(segment, statementIndex);
 
             default:
-                throw new Error(`[SqlParser] Statement ${statementIndex} starts with unsupported token "${segment.lexemes[0].value}". Support for additional statement types will be introduced soon.`);
+                throw new Error(`[SqlParser] Statement ${statementIndex} starts with unsupported token "${segment.lexemes[0].value}".`);
         }
     }
 

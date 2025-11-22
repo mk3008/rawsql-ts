@@ -133,13 +133,36 @@ export class InsertResultSelectConverter {
             }
         }
 
-        if (!options?.tableDefinitions) {
-            return undefined;
+        const normalized = this.normalizeIdentifier(tableName);
+
+        if (options?.tableDefinitions) {
+            const normalizedMap = this.buildTableDefinitionMap(options.tableDefinitions);
+            const definition = normalizedMap.get(normalized);
+            if (definition) {
+                return definition;
+            }
         }
 
-        const normalized = this.normalizeIdentifier(tableName);
-        const normalizedMap = this.buildTableDefinitionMap(options.tableDefinitions);
-        return normalizedMap.get(normalized);
+        if (options?.fixtureTables) {
+            const fixture = options.fixtureTables.find(f => this.normalizeIdentifier(f.tableName) === normalized);
+            if (fixture) {
+                return this.convertFixtureToTableDefinition(fixture);
+            }
+        }
+
+        return undefined;
+    }
+
+    private static convertFixtureToTableDefinition(fixture: FixtureTableDefinition): TableDefinitionModel {
+        return {
+            name: fixture.tableName,
+            columns: fixture.columns.map(col => ({
+                name: col.name,
+                typeName: col.typeName,
+                required: false,
+                defaultValue: col.defaultValue ?? null
+            }))
+        };
     }
 
     private static buildTableDefinitionMap(
@@ -647,7 +670,9 @@ export class InsertResultSelectConverter {
     ): void {
         const items = simple.selectClause.items;
         for (let i = 0; i < items.length; i++) {
-            const metadata = metadataMap.get(this.normalizeIdentifier(insertColumns[i]));
+            const colName = insertColumns[i];
+            const metadata = metadataMap.get(this.normalizeIdentifier(colName));
+
             if (!metadata || !metadata.typeName) {
                 continue;
             }

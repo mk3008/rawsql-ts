@@ -338,12 +338,37 @@ export class DeleteResultSelectConverter {
                 return resolved;
             }
         }
-        if (!options?.tableDefinitions) {
-            return undefined;
-        }
+
         const normalized = this.normalizeIdentifier(tableName);
-        const map = this.buildTableDefinitionMap(options.tableDefinitions);
-        return map.get(normalized);
+
+        if (options?.tableDefinitions) {
+            const map = this.buildTableDefinitionMap(options.tableDefinitions);
+            const definition = map.get(normalized);
+            if (definition) {
+                return definition;
+            }
+        }
+
+        if (options?.fixtureTables) {
+            const fixture = options.fixtureTables.find(f => this.normalizeIdentifier(f.tableName) === normalized);
+            if (fixture) {
+                return this.convertFixtureToTableDefinition(fixture);
+            }
+        }
+
+        return undefined;
+    }
+
+    private static convertFixtureToTableDefinition(fixture: FixtureTableDefinition): TableDefinitionModel {
+        return {
+            name: fixture.tableName,
+            columns: fixture.columns.map(col => ({
+                name: col.name,
+                typeName: col.typeName,
+                required: false,
+                defaultValue: col.defaultValue ?? null
+            }))
+        };
     }
 
     private static buildTableDefinitionMap(
