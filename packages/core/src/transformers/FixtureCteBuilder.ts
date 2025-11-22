@@ -44,14 +44,12 @@ export class FixtureCteBuilder {
 
         // Build UNION ALL chain for multiple rows
         for (let i = 1; i < selectQueries.length; i++) {
-            // toUnionAll only exists on SimpleSelectQuery, but result might be BinarySelectQuery after first iteration
+            // Both SimpleSelectQuery and BinarySelectQuery have toUnionAll/unionAll methods
             if (result instanceof SimpleSelectQuery) {
                 result = result.toUnionAll(selectQueries[i]);
             } else {
-                // BinarySelectQuery - need to wrap in a new SimpleSelectQuery and union
-                // This shouldn't happen in practice since we start with SimpleSelectQuery
-                // and toUnionAll returns BinarySelectQuery
-                throw new Error('Unexpected BinarySelectQuery in fixture building');
+                // BinarySelectQuery has unionAll method
+                result = result.unionAll(selectQueries[i]);
             }
         }
 
