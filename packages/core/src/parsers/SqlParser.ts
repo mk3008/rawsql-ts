@@ -127,6 +127,10 @@ export class SqlParser {
         const firstToken = segment.lexemes[0].value.toLowerCase();
 
         switch (firstToken) {
+            case 'select':
+            case 'values':
+                return this.parseSelectStatement(segment, statementIndex);
+
             case 'with': {
                 const commandAfterWith = this.getCommandAfterWith(segment.lexemes);
                 switch (commandAfterWith) {
@@ -142,11 +146,6 @@ export class SqlParser {
                         return this.parseSelectStatement(segment, statementIndex);
                 }
             }
-
-            case 'select':
-            case 'values':
-                return this.parseSelectStatement(segment, statementIndex);
-
             case 'insert into':
                 return this.parseInsertStatement(segment, statementIndex);
 
@@ -186,7 +185,7 @@ export class SqlParser {
                 return this.parseExplainStatement(segment, statementIndex);
 
             default:
-                throw new Error(`[SqlParser] Statement ${statementIndex} starts with unsupported token "${segment.lexemes[0].value}". Support for additional statement types will be introduced soon.`);
+                throw new Error(`[SqlParser] Statement ${statementIndex} starts with unsupported token "${segment.lexemes[0].value}".`);
         }
     }
 

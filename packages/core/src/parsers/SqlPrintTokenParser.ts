@@ -57,6 +57,7 @@ import {
     AlterTableStatement,
     AlterTableAddConstraint,
     AlterTableDropConstraint,
+    AlterTableAddColumn,
     AlterTableDropColumn,
     DropConstraintStatement,
     ExplainOption,
@@ -374,6 +375,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         this.handlers.set(AlterTableStatement.kind, (expr) => this.visitAlterTableStatement(expr as AlterTableStatement));
         this.handlers.set(AlterTableAddConstraint.kind, (expr) => this.visitAlterTableAddConstraint(expr as AlterTableAddConstraint));
         this.handlers.set(AlterTableDropConstraint.kind, (expr) => this.visitAlterTableDropConstraint(expr as AlterTableDropConstraint));
+        this.handlers.set(AlterTableAddColumn.kind, (expr) => this.visitAlterTableAddColumn(expr as AlterTableAddColumn));
         this.handlers.set(AlterTableDropColumn.kind, (expr) => this.visitAlterTableDropColumn(expr as AlterTableDropColumn));
         this.handlers.set(DropConstraintStatement.kind, (expr) => this.visitDropConstraintStatement(expr as DropConstraintStatement));
         this.handlers.set(ExplainStatement.kind, (expr) => this.visitExplainStatement(expr as ExplainStatement));
@@ -3534,6 +3536,19 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
             token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
             token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, arg.behavior));
         }
+
+        return token;
+    }
+
+    private visitAlterTableAddColumn(arg: AlterTableAddColumn): SqlPrintToken {
+        let keyword = 'add column';
+        if (arg.ifNotExists) {
+            keyword += ' if not exists';
+        }
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.AlterTableAddColumn);
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, keyword));
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(arg.column.accept(this));
 
         return token;
     }

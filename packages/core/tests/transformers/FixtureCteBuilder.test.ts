@@ -34,6 +34,26 @@ describe('FixtureCteBuilder', () => {
         );
     });
 
+    it('renders boolean literals without quotes', () => {
+        const booleanRows = [
+            [true],
+            [false]
+        ] as unknown as (string | number | bigint | Buffer | null)[][];
+
+        const fixtures: FixtureTableDefinition[] = [
+            {
+                tableName: 'flags',
+                columns: [{ name: 'flag' }],
+                rows: booleanRows
+            }
+        ];
+
+        const [cte] = FixtureCteBuilder.buildFixtures(fixtures);
+        const selectSql = formatter.format(cte.query).formattedSql;
+
+        expect(selectSql).toBe('select true as "flag" union all select false as "flag"');
+    });
+
     it('emits a null row with a WHERE 1 = 0 guard when no fixture rows exist', () => {
         // Force the builder to fall back to a placeholder row so callers can still inject the CTE.
         const fixtures: FixtureTableDefinition[] = [
@@ -54,5 +74,16 @@ describe('FixtureCteBuilder', () => {
 
         expect(selectSql).toBe('select null as "id", null as "value"');
         expect(cte.query.toSimpleQuery().whereClause).not.toBeNull();
+    });
+
+    it('creates fixtures from SQL string', () => {
+        const sql = `
+            CREATE TABLE users (id INT, name TEXT);
+            INSERT INTO users VALUES (1, 'Alice');
+        `;
+        const fixtures = FixtureCteBuilder.fromSQL(sql);
+        expect(fixtures).toHaveLength(1);
+        expect(fixtures[0].tableName).toBe('users');
+        expect(fixtures[0].rows).toEqual([[1, 'Alice']]);
     });
 });

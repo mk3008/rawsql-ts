@@ -82,7 +82,7 @@ export class LiteralTokenReader extends BaseTokenReader {
                 }
                 pos++;
             }
-            
+
             if (hasDecimalOrComma) {
                 this.position++; // Skip $
                 const numberPart = this.readMoneyDigit();
@@ -275,6 +275,13 @@ export class LiteralTokenReader extends BaseTokenReader {
                 continue;
             }
             else if (char === '\'') {
+                // Check if this is an escaped quote ('')
+                if (this.canRead() && this.input[this.position] === '\'') {
+                    // This is an escaped quote, skip the second quote and continue
+                    this.position++;
+                    continue;
+                }
+                // This is the closing quote
                 closed = true;
                 break;
             }
@@ -321,28 +328,28 @@ export class LiteralTokenReader extends BaseTokenReader {
      */
     private readDollarQuotedString(): string {
         const start = this.position;
-        
+
         // Read the opening tag
         this.position++; // Skip initial $
         let tag = '';
-        
+
         // Read tag characters until the closing $
         while (this.canRead() && this.input[this.position] !== '$') {
             tag += this.input[this.position];
             this.position++;
         }
-        
+
         if (!this.canRead()) {
             throw new Error(`Unexpected end of input while reading dollar-quoted string tag at position ${start}`);
         }
-        
+
         this.position++; // Skip closing $ of opening tag
-        
+
         // Now read the content until we find the closing tag
         const openingTag = '$' + tag + '$';
         const closingTag = openingTag;
         let content = '';
-        
+
         while (this.canRead()) {
             // Check if we're at the start of the closing tag
             if (this.input.substring(this.position, this.position + closingTag.length) === closingTag) {
@@ -350,11 +357,11 @@ export class LiteralTokenReader extends BaseTokenReader {
                 this.position += closingTag.length;
                 return openingTag + content + closingTag;
             }
-            
+
             content += this.input[this.position];
             this.position++;
         }
-        
+
         throw new Error(`Unclosed dollar-quoted string starting at position ${start}. Expected closing tag: ${closingTag}`);
     }
 
@@ -366,7 +373,7 @@ export class LiteralTokenReader extends BaseTokenReader {
         const code = char.charCodeAt(0);
         // Check if digit (0-9) or letter (a-z, A-Z)
         return (code >= 48 && code <= 57) ||  // 0-9
-               (code >= 65 && code <= 90) ||  // A-Z
-               (code >= 97 && code <= 122);   // a-z
+            (code >= 65 && code <= 90) ||  // A-Z
+            (code >= 97 && code <= 122);   // a-z
     }
 }
