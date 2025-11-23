@@ -561,12 +561,15 @@ function convertAndFormat() {
     // Update Resource Tab
     updateResourceTab(sqlText, SqlParser, MultiQuerySplitter, TableSourceCollector, CTECollector);
 
-    // Parse fixture JSON
+    // Parse fixture JSON or Generate from DDL
     let tableDefinitions = null;
     let fixtureTables = [];
+    let useManualFixture = false;
+
     if (fixtureEditor) {
         const fixtureText = fixtureEditor.getValue().trim();
         if (fixtureText) {
+            useManualFixture = true;
             try {
                 tableDefinitions = JSON.parse(fixtureText);
                 if (tableDefinitions && typeof tableDefinitions === 'object') {
@@ -581,6 +584,31 @@ function convertAndFormat() {
                 console.warn('Invalid fixture JSON:', e);
                 updateStatusBar('Warning: Invalid fixture JSON', true);
             }
+        }
+    }
+
+    if (!useManualFixture) {
+        // Generate Fixture JSON from DDL
+        try {
+            const fixtureJson = DDLToFixtureConverter.convert(sqlText);
+            const jsonString = JSON.stringify(fixtureJson, null, 2);
+            if (generatedFixtureEditor) {
+                generatedFixtureEditor.setValue(jsonString);
+            }
+
+            // Use generated fixture for simulation
+            tableDefinitions = fixtureJson;
+            fixtureTables = FixtureCteBuilder.fromJSON(tableDefinitions);
+        } catch (e) {
+            console.error("Error generating fixture JSON:", e);
+            if (generatedFixtureEditor) {
+                generatedFixtureEditor.setValue('');
+            }
+        }
+    } else {
+        // If using manual fixture, clear generated fixture editor to avoid confusion
+        if (generatedFixtureEditor) {
+            generatedFixtureEditor.setValue('');
         }
     }
 
@@ -629,20 +657,6 @@ function convertAndFormat() {
         }
 
         formattedSqlEditor.setValue(segments.join('\n\n'));
-
-        // Generate Fixture JSON from DDL
-        try {
-            const fixtureJson = DDLToFixtureConverter.convert(sqlText);
-            const jsonString = JSON.stringify(fixtureJson, null, 2);
-            if (generatedFixtureEditor) {
-                generatedFixtureEditor.setValue(jsonString);
-            }
-        } catch (e) {
-            console.error("Error generating fixture JSON:", e);
-            if (generatedFixtureEditor) {
-                generatedFixtureEditor.setValue('');
-            }
-        }
 
         updateStatusBar('Conversion successful');
     } catch (e) {
