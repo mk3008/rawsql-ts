@@ -110,32 +110,47 @@ export class DDLToFixtureConverter {
                     if (hasDefault) {
                         const defaultValStr = this.formatDefaultValue(colDef.defaultValue);
                         if (defaultValStr) {
-                            if (defaultValStr.toLowerCase().includes('nextval')) {
+                            const trimmedDefault = defaultValStr.trim();
+                            const lowerTrimmed = trimmedDefault.toLowerCase();
+                            const stringLiteralValue =
+                                trimmedDefault.startsWith("'") && trimmedDefault.endsWith("'")
+                                    ? trimmedDefault.slice(1, -1).replace(/''/g, "'")
+                                    : trimmedDefault;
+
+                            // Normalize literal NULLs (even when quoted) into JS null
+                            if (stringLiteralValue.toLowerCase() === 'null') {
+                                row[colDef.name] = null;
+                            } else if (lowerTrimmed.includes('nextval')) {
                                 // Handle nextval sequence
                                 if (!sequences[tableName]) sequences[tableName] = {};
                                 if (!sequences[tableName][colDef.name]) sequences[tableName][colDef.name] = 0;
                                 sequences[tableName][colDef.name]++;
                                 row[colDef.name] = sequences[tableName][colDef.name];
-                            } else if (defaultValStr.toLowerCase().includes('now') || defaultValStr.toLowerCase().includes('current_timestamp')) {
+                            } else if (lowerTrimmed.includes('now') || lowerTrimmed.includes('current_timestamp')) {
                                 // Handle timestamp defaults - use a fixed date for consistency or current date
                                 // Using a fixed date makes tests deterministic
                                 row[colDef.name] = "2023-01-01 00:00:00";
                             } else {
                                 // Use the literal default value
                                 // Try to unquote if it's a string literal
-                                if (defaultValStr.startsWith("'") && defaultValStr.endsWith("'")) {
-                                    row[colDef.name] = defaultValStr.slice(1, -1).replace(/''/g, "'");
+                                if (trimmedDefault.startsWith("'") && trimmedDefault.endsWith("'")) {
+                                    row[colDef.name] = stringLiteralValue;
                                 } else {
-                                    // Try to parse number/boolean
-                                    const num = Number(defaultValStr);
+                                    // Try to parse number/boolean/null
+                                    const num = Number(trimmedDefault);
                                     if (!isNaN(num)) {
                                         row[colDef.name] = num;
-                                    } else if (defaultValStr.toLowerCase() === 'true') {
-                                        row[colDef.name] = true;
-                                    } else if (defaultValStr.toLowerCase() === 'false') {
-                                        row[colDef.name] = false;
                                     } else {
-                                        row[colDef.name] = defaultValStr;
+                                        const lower = trimmedDefault.toLowerCase();
+                                        if (lower === 'true') {
+                                            row[colDef.name] = true;
+                                        } else if (lower === 'false') {
+                                            row[colDef.name] = false;
+                                        } else if (lower === 'null') {
+                                            row[colDef.name] = null;
+                                        } else {
+                                            row[colDef.name] = trimmedDefault;
+                                        }
                                     }
                                 }
                             }

@@ -72,6 +72,28 @@ describe('DDLToFixtureConverter', () => {
         });
     });
 
+    it('should normalize DEFAULT NULL literals to actual null', () => {
+        const sql = `
+            CREATE TABLE records (
+                id INT,
+                numeric_null INT DEFAULT NULL,
+                quoted_null TEXT DEFAULT 'NULL',
+                mixed_case_null TEXT DEFAULT 'nUlL',
+                bool_flag BOOLEAN DEFAULT false
+            );
+            INSERT INTO records (id) VALUES (1);
+        `;
+
+        const fixture = DDLToFixtureConverter.convert(sql);
+        expect(fixture.records.rows[0]).toEqual({
+            id: 1,
+            numeric_null: null,
+            quoted_null: null,
+            mixed_case_null: null,
+            bool_flag: false
+        });
+    });
+
     it('should handle nextval sequences', () => {
         const sql = `
             CREATE TABLE users (

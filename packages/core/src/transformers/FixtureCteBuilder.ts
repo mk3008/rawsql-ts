@@ -165,6 +165,10 @@ export class FixtureCteBuilder {
         if (typeof value === 'number') {
             return new LiteralValue(Number.isFinite(value) ? value : null);
         }
+        if (typeof value === 'boolean') {
+            // Preserve boolean literals so the printer emits TRUE/FALSE instead of quoted strings
+            return new LiteralValue(value);
+        }
         if (typeof value === 'bigint') {
             // Convert bigint to string to preserve precision
             // LiteralValue accepts string|number|boolean|null, and when isStringLiteral is false,
