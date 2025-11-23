@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: FixtureCteBuilder
 
-Defined in: [packages/core/src/transformers/FixtureCteBuilder.ts:17](https://github.com/mk3008/rawsql-ts/blob/92142303681e2096368e1351195d7eb6b51f472b/packages/core/src/transformers/FixtureCteBuilder.ts#L17)
+Defined in: [packages/core/src/transformers/FixtureCteBuilder.ts:21](https://github.com/mk3008/rawsql-ts/blob/51bbec6ef0d7055aa2566e8bbb783d462b3eba39/packages/core/src/transformers/FixtureCteBuilder.ts#L21)
 
 ## Constructors
 
@@ -15,11 +15,78 @@ Defined in: [packages/core/src/transformers/FixtureCteBuilder.ts:17](https://git
 
 ## Methods
 
+### fromSQL()
+
+> `static` **fromSQL**(`sql`): [`FixtureTableDefinition`](../interfaces/FixtureTableDefinition.md)[]
+
+Defined in: [packages/core/src/transformers/FixtureCteBuilder.ts:28](https://github.com/mk3008/rawsql-ts/blob/51bbec6ef0d7055aa2566e8bbb783d462b3eba39/packages/core/src/transformers/FixtureCteBuilder.ts#L28)
+
+Creates fixture definitions from a SQL string containing DDL (CREATE TABLE) and INSERT statements.
+
+#### Parameters
+
+##### sql
+
+`string`
+
+The SQL string containing DDL and INSERTs.
+
+#### Returns
+
+[`FixtureTableDefinition`](../interfaces/FixtureTableDefinition.md)[]
+
+An array of FixtureTableDefinition objects.
+
+***
+
+### fromJSON()
+
+> `static` **fromJSON**(`jsonDefinitions`): [`FixtureTableDefinition`](../interfaces/FixtureTableDefinition.md)[]
+
+Defined in: [packages/core/src/transformers/FixtureCteBuilder.ts:57](https://github.com/mk3008/rawsql-ts/blob/51bbec6ef0d7055aa2566e8bbb783d462b3eba39/packages/core/src/transformers/FixtureCteBuilder.ts#L57)
+
+Converts JSON fixture definitions to FixtureTableDefinition format.
+Accepts an object where keys are table names and values contain columns and rows.
+
+#### Parameters
+
+##### jsonDefinitions
+
+`Record`&lt;`string`, \{ `columns`: `object`[]; `rows?`: `Record`\<`string`, `any`\&gt;[]; \}\>
+
+Object with table definitions
+
+#### Returns
+
+[`FixtureTableDefinition`](../interfaces/FixtureTableDefinition.md)[]
+
+Array of FixtureTableDefinition
+
+#### Example
+
+```typescript
+const json = {
+  users: {
+    columns: [
+      { name: 'id', type: 'integer' },
+      { name: 'name', type: 'text' }
+    ],
+    rows: [
+      { id: 1, name: 'Alice' },
+      { id: 2, name: 'Bob' }
+    ]
+  }
+};
+const fixtures = FixtureCteBuilder.fromJSON(json);
+```
+
+***
+
 ### buildFixtures()
 
 > `static` **buildFixtures**(`fixtures`): `CommonTable`[]
 
-Defined in: [packages/core/src/transformers/FixtureCteBuilder.ts:19](https://github.com/mk3008/rawsql-ts/blob/92142303681e2096368e1351195d7eb6b51f472b/packages/core/src/transformers/FixtureCteBuilder.ts#L19)
+Defined in: [packages/core/src/transformers/FixtureCteBuilder.ts:94](https://github.com/mk3008/rawsql-ts/blob/51bbec6ef0d7055aa2566e8bbb783d462b3eba39/packages/core/src/transformers/FixtureCteBuilder.ts#L94)
 
 Builds CommonTable representations for the provided fixtures.
 

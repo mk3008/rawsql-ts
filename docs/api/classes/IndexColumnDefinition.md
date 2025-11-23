@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: IndexColumnDefinition
 
-Defined in: [packages/core/src/models/DDLStatements.ts:77](https://github.com/mk3008/rawsql-ts/blob/92142303681e2096368e1351195d7eb6b51f472b/packages/core/src/models/DDLStatements.ts#L77)
+Defined in: [packages/core/src/models/DDLStatements.ts:78](https://github.com/mk3008/rawsql-ts/blob/51bbec6ef0d7055aa2566e8bbb783d462b3eba39/packages/core/src/models/DDLStatements.ts#L78)
 
 Column definition within CREATE INDEX clause.
 
@@ -15,7 +15,7 @@ Column definition within CREATE INDEX clause.
 
 > **new IndexColumnDefinition**(`params`): `IndexColumnDefinition`
 
-Defined in: [packages/core/src/models/DDLStatements.ts:85](https://github.com/mk3008/rawsql-ts/blob/92142303681e2096368e1351195d7eb6b51f472b/packages/core/src/models/DDLStatements.ts#L85)
+Defined in: [packages/core/src/models/DDLStatements.ts:86](https://github.com/mk3008/rawsql-ts/blob/51bbec6ef0d7055aa2566e8bbb783d462b3eba39/packages/core/src/models/DDLStatements.ts#L86)
 
 #### Parameters
 
@@ -55,7 +55,7 @@ Defined in: [packages/core/src/models/DDLStatements.ts:85](https://github.com/mk
 
 > `static` **kind**: `symbol`
 
-Defined in: [packages/core/src/models/DDLStatements.ts:78](https://github.com/mk3008/rawsql-ts/blob/92142303681e2096368e1351195d7eb6b51f472b/packages/core/src/models/DDLStatements.ts#L78)
+Defined in: [packages/core/src/models/DDLStatements.ts:79](https://github.com/mk3008/rawsql-ts/blob/51bbec6ef0d7055aa2566e8bbb783d462b3eba39/packages/core/src/models/DDLStatements.ts#L79)
 
 #### Overrides
 
@@ -67,7 +67,7 @@ Defined in: [packages/core/src/models/DDLStatements.ts:78](https://github.com/mk
 
 > **expression**: [`ValueComponent`](../type-aliases/ValueComponent.md)
 
-Defined in: [packages/core/src/models/DDLStatements.ts:79](https://github.com/mk3008/rawsql-ts/blob/92142303681e2096368e1351195d7eb6b51f472b/packages/core/src/models/DDLStatements.ts#L79)
+Defined in: [packages/core/src/models/DDLStatements.ts:80](https://github.com/mk3008/rawsql-ts/blob/51bbec6ef0d7055aa2566e8bbb783d462b3eba39/packages/core/src/models/DDLStatements.ts#L80)
 
 ***
 
@@ -75,7 +75,7 @@ Defined in: [packages/core/src/models/DDLStatements.ts:79](https://github.com/mk
 
 > **sortOrder**: [`IndexSortOrder`](../type-aliases/IndexSortOrder.md)
 
-Defined in: [packages/core/src/models/DDLStatements.ts:80](https://github.com/mk3008/rawsql-ts/blob/92142303681e2096368e1351195d7eb6b51f472b/packages/core/src/models/DDLStatements.ts#L80)
+Defined in: [packages/core/src/models/DDLStatements.ts:81](https://github.com/mk3008/rawsql-ts/blob/51bbec6ef0d7055aa2566e8bbb783d462b3eba39/packages/core/src/models/DDLStatements.ts#L81)
 
 ***
 
@@ -83,7 +83,7 @@ Defined in: [packages/core/src/models/DDLStatements.ts:80](https://github.com/mk
 
 > **nullsOrder**: [`IndexNullsOrder`](../type-aliases/IndexNullsOrder.md)
 
-Defined in: [packages/core/src/models/DDLStatements.ts:81](https://github.com/mk3008/rawsql-ts/blob/92142303681e2096368e1351195d7eb6b51f472b/packages/core/src/models/DDLStatements.ts#L81)
+Defined in: [packages/core/src/models/DDLStatements.ts:82](https://github.com/mk3008/rawsql-ts/blob/51bbec6ef0d7055aa2566e8bbb783d462b3eba39/packages/core/src/models/DDLStatements.ts#L82)
 
 ***
 
@@ -91,7 +91,7 @@ Defined in: [packages/core/src/models/DDLStatements.ts:81](https://github.com/mk
 
 > `optional` **collation**: `null` \| [`QualifiedName`](QualifiedName.md)
 
-Defined in: [packages/core/src/models/DDLStatements.ts:82](https://github.com/mk3008/rawsql-ts/blob/92142303681e2096368e1351195d7eb6b51f472b/packages/core/src/models/DDLStatements.ts#L82)
+Defined in: [packages/core/src/models/DDLStatements.ts:83](https://github.com/mk3008/rawsql-ts/blob/51bbec6ef0d7055aa2566e8bbb783d462b3eba39/packages/core/src/models/DDLStatements.ts#L83)
 
 ***
 
@@ -99,7 +99,7 @@ Defined in: [packages/core/src/models/DDLStatements.ts:82](https://github.com/mk
 
 > `optional` **operatorClass**: `null` \| [`QualifiedName`](QualifiedName.md)
 
-Defined in: [packages/core/src/models/DDLStatements.ts:83](https://github.com/mk3008/rawsql-ts/blob/92142303681e2096368e1351195d7eb6b51f472b/packages/core/src/models/DDLStatements.ts#L83)
+Defined in: [packages/core/src/models/DDLStatements.ts:84](https://github.com/mk3008/rawsql-ts/blob/51bbec6ef0d7055aa2566e8bbb783d462b3eba39/packages/core/src/models/DDLStatements.ts#L84)
 
 ***
 
@@ -107,7 +107,7 @@ Defined in: [packages/core/src/models/DDLStatements.ts:83](https://github.com/mk
 
 > **comments**: `null` \| `string`[] = `null`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:29](https://github.com/mk3008/rawsql-ts/blob/92142303681e2096368e1351195d7eb6b51f472b/packages/core/src/models/SqlComponent.ts#L29)
+Defined in: [packages/core/src/models/SqlComponent.ts:29](https://github.com/mk3008/rawsql-ts/blob/51bbec6ef0d7055aa2566e8bbb783d462b3eba39/packages/core/src/models/SqlComponent.ts#L29)
 
 #### Inherited from
 
@@ -119,7 +119,7 @@ Defined in: [packages/core/src/models/SqlComponent.ts:29](https://github.com/mk3
 
 > **positionedComments**: `null` \| [`PositionedComment`](../interfaces/PositionedComment.md)[] = `null`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:32](https://github.com/mk3008/rawsql-ts/blob/92142303681e2096368e1351195d7eb6b51f472b/packages/core/src/models/SqlComponent.ts#L32)
+Defined in: [packages/core/src/models/SqlComponent.ts:32](https://github.com/mk3008/rawsql-ts/blob/51bbec6ef0d7055aa2566e8bbb783d462b3eba39/packages/core/src/models/SqlComponent.ts#L32)
 
 #### Inherited from
 
@@ -131,7 +131,7 @@ Defined in: [packages/core/src/models/SqlComponent.ts:32](https://github.com/mk3
 
 > **getKind**(): `symbol`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:15](https://github.com/mk3008/rawsql-ts/blob/92142303681e2096368e1351195d7eb6b51f472b/packages/core/src/models/SqlComponent.ts#L15)
+Defined in: [packages/core/src/models/SqlComponent.ts:15](https://github.com/mk3008/rawsql-ts/blob/51bbec6ef0d7055aa2566e8bbb783d462b3eba39/packages/core/src/models/SqlComponent.ts#L15)
 
 #### Returns
 
@@ -147,7 +147,7 @@ Defined in: [packages/core/src/models/SqlComponent.ts:15](https://github.com/mk3
 
 > **accept**&lt;`T`\&gt;(`visitor`): `T`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:19](https://github.com/mk3008/rawsql-ts/blob/92142303681e2096368e1351195d7eb6b51f472b/packages/core/src/models/SqlComponent.ts#L19)
+Defined in: [packages/core/src/models/SqlComponent.ts:19](https://github.com/mk3008/rawsql-ts/blob/51bbec6ef0d7055aa2566e8bbb783d462b3eba39/packages/core/src/models/SqlComponent.ts#L19)
 
 #### Type Parameters
 
@@ -175,7 +175,7 @@ Defined in: [packages/core/src/models/SqlComponent.ts:19](https://github.com/mk3
 
 > **toSqlString**(`formatter`): `string`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:23](https://github.com/mk3008/rawsql-ts/blob/92142303681e2096368e1351195d7eb6b51f472b/packages/core/src/models/SqlComponent.ts#L23)
+Defined in: [packages/core/src/models/SqlComponent.ts:23](https://github.com/mk3008/rawsql-ts/blob/51bbec6ef0d7055aa2566e8bbb783d462b3eba39/packages/core/src/models/SqlComponent.ts#L23)
 
 #### Parameters
 
@@ -197,7 +197,7 @@ Defined in: [packages/core/src/models/SqlComponent.ts:23](https://github.com/mk3
 
 > **addPositionedComments**(`position`, `comments`): `void`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:37](https://github.com/mk3008/rawsql-ts/blob/92142303681e2096368e1351195d7eb6b51f472b/packages/core/src/models/SqlComponent.ts#L37)
+Defined in: [packages/core/src/models/SqlComponent.ts:37](https://github.com/mk3008/rawsql-ts/blob/51bbec6ef0d7055aa2566e8bbb783d462b3eba39/packages/core/src/models/SqlComponent.ts#L37)
 
 Add comments at a specific position
 
@@ -225,7 +225,7 @@ Add comments at a specific position
 
 > **getPositionedComments**(`position`): `string`[]
 
-Defined in: [packages/core/src/models/SqlComponent.ts:56](https://github.com/mk3008/rawsql-ts/blob/92142303681e2096368e1351195d7eb6b51f472b/packages/core/src/models/SqlComponent.ts#L56)
+Defined in: [packages/core/src/models/SqlComponent.ts:56](https://github.com/mk3008/rawsql-ts/blob/51bbec6ef0d7055aa2566e8bbb783d462b3eba39/packages/core/src/models/SqlComponent.ts#L56)
 
 Get comments for a specific position
 
@@ -249,7 +249,7 @@ Get comments for a specific position
 
 > **getAllPositionedComments**(): `string`[]
 
-Defined in: [packages/core/src/models/SqlComponent.ts:66](https://github.com/mk3008/rawsql-ts/blob/92142303681e2096368e1351195d7eb6b51f472b/packages/core/src/models/SqlComponent.ts#L66)
+Defined in: [packages/core/src/models/SqlComponent.ts:66](https://github.com/mk3008/rawsql-ts/blob/51bbec6ef0d7055aa2566e8bbb783d462b3eba39/packages/core/src/models/SqlComponent.ts#L66)
 
 Get all positioned comments as a flat array in order (before, after)
 
