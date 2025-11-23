@@ -13,7 +13,7 @@ hero:
       link: /api/index
     - theme: alt
       text: Open Playground
-      link: /demo/index.html
+      link: /cud-demo/index.html
       target: _blank
       rel: noopener
 features:
