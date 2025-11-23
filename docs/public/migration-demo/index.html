@@ -33,6 +33,72 @@
         </div>
     </div>
 
+    <div class="container" style="flex-direction: column; height: calc(100vh - 100px);">
+        <div class="top-area" style="display: flex; flex: 1; min-height: 40%; border-bottom: 1px solid #3f3f46;">
+            <!-- SQL 1 -->
+            <div class="editor-container" id="left-pane"
+                style="flex: 1; display: flex; flex-direction: column; border-right: 1px solid #3f3f46;">
+                <div class="editor-header">
+                    <div class="tabs">
+                        <button class="tab-btn active">SQL 1</button>
+                    </div>
+                    <button id="clear-sql1-btn">Clear</button>
+                </div>
+                <div id="sql1-content" class="tab-content active" style="flex: 1; position: relative;">
+                    <textarea id="sql1-input"></textarea>
+                </div>
+            </div>
+
+            <!-- Control Bar (Vertical) -->
+            <div class="control-bar"
+                style="width: 50px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #1e1e2e; border-right: 1px solid #3f3f46; gap: 20px;">
+                <div class="direction-selector" style="transform: rotate(90deg); white-space: nowrap;">
+                    <select id="migration-direction"
+                        style="background: #2d2d44; color: #e4e4e7; border: 1px solid #3d3d5c; padding: 4px; border-radius: 4px;">
+                        <option value="1to2">SQL 1 -> SQL 2</option>
+                        <option value="2to1">SQL 2 -> SQL 1</option>
+                    </select>
+                </div>
+                <button id="generate-btn"
+                    style="writing-mode: vertical-rl; text-orientation: mixed; padding: 10px 5px; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer;">Generate</button>
+            </div>
+
+            <!-- SQL 2 -->
+            <div class="editor-container" id="right-pane" style="flex: 1; display: flex; flex-direction: column;">
+                <div class="editor-header">
+                    <div class="tabs">
+                        <button class="tab-btn active">SQL 2</button>
+                    </div>
+                    <button id="clear-sql2-btn">Clear</button>
+                </div>
+                <div id="sql2-content" class="tab-content active" style="flex: 1; position: relative;">
+                    <textarea id="sql2-input"></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Pane (Output) -->
+        <div class="bottom-pane" style="flex: 1; display: flex; flex-direction: column; min-height: 40%;">
+            <div class="editor-header">
+                <div class="tabs">
+                    <button class="tab-btn active">Migration Script</button>
+                </div>
+                <div class="options-bar" style="display: flex; gap: 15px; margin-left: 20px; align-items: center;">
+                    <label style="color: #e4e4e7; font-size: 0.9rem;"><input type="checkbox" id="opt-drop-columns"
+                            checked> Drop Columns</label>
+                    <label style="color: #e4e4e7; font-size: 0.9rem;"><input type="checkbox" id="opt-drop-constraints"
+                            checked> Drop Constraints</label>
+                    <label style="color: #e4e4e7; font-size: 0.9rem;"><input type="checkbox" id="opt-check-names"> Check
+                        Names</label>
+                </div>
+                <button id="copy-output-btn" style="margin-left: auto;">Copy</button>
+            </div>
+            <div id="output-content" class="tab-content active" style="flex: 1; position: relative;">
+                <textarea id="migration-output"></textarea>
+            </div>
+        </div>
+    </div>
+
     <script type="module" src="script.js"></script>
 </body>
 
