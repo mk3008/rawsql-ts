@@ -34,6 +34,7 @@
   "devDependencies": {
     "@types/pg": "^8.11.10",
     "@testcontainers/postgresql": "^10.8.0",
+    "drizzle-orm": "^0.31.2",
     "testcontainers": "^10.18.0",
     "typescript": "^5.8.2",
     "vitest": "^4.0.7"

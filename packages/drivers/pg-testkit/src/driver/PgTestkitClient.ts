@@ -56,10 +56,17 @@ export class PgTestkitClient {
       return this.buildEmptyResult<T>('NOOP');
     }
 
-    const normalizeResult = this.alignRewrittenParameters(rewritten.sql, typeof textOrConfig === 'string' ? values : textOrConfig.values);
-    const payload = typeof textOrConfig === 'string'
-      ? normalizeResult.sql
-      : { ...textOrConfig, text: normalizeResult.sql, values: normalizeResult.params };
+    const incomingParams =
+      typeof textOrConfig === 'string'
+        ? values
+        : (textOrConfig as { values?: unknown[]; params?: unknown[] }).values ??
+          (textOrConfig as { values?: unknown[]; params?: unknown[] }).params;
+
+    const normalizeResult = this.alignRewrittenParameters(rewritten.sql, incomingParams);
+    const payload =
+      typeof textOrConfig === 'string'
+        ? normalizeResult.sql
+        : { ...textOrConfig, text: normalizeResult.sql, values: normalizeResult.params };
     const connection = await this.getConnection();
 
     // Surface the post-rewrite SQL so callers can log or assert against it.
