@@ -1,22 +1,21 @@
+import { FullNameParser } from '../parsers/FullNameParser';
+
 /**
- * Normalizes table identifiers that may include schema qualifiers or quotes so
- * driver fixtures can match the actual SQL names Prisma emits.
+ * Parses a table name through the SQL parser so all supported identifier
+ * syntaxes (quoted, bracketed, backtick) converge to a consistent key.
  */
 export const normalizeTableName = (tableName: string): string => {
-  const cleaned = tableName.replace(/"/g, '').trim();
-  return cleaned.toLowerCase();
+  // Parse with the same rules as the main AST to avoid regex-based drift.
+  const parsed = FullNameParser.parse(tableName);
+  const namespaces = parsed.namespaces ?? [];
+  const parts = [...namespaces, parsed.name.name];
+  return parts.join('.').toLowerCase();
 };
 
 /**
- * Returns both the original normalized name and the schema-stripped variant so
- * callers can match either qualified or unqualified references.
+ * For schema-sensitive matching we no longer drop qualifiers; a single
+ * normalized key is sufficient and safer than heuristic variants.
  */
 export const tableNameVariants = (tableName: string): string[] => {
-  const normalized = normalizeTableName(tableName);
-  const baseName = normalized.includes('.') ? normalized.split('.').pop() ?? normalized : normalized;
-  const variants = new Set<string>([normalized]);
-  if (baseName && baseName !== normalized) {
-    variants.add(baseName);
-  }
-  return [...variants];
+  return [normalizeTableName(tableName)];
 };
