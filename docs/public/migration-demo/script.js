@@ -81,6 +81,7 @@ function generateMigration() {
 
     const options = {
         dropColumns: document.getElementById('opt-drop-columns').checked,
+        dropTables: document.getElementById('opt-drop-columns').checked,
         dropConstraints: document.getElementById('opt-drop-constraints').checked,
         checkConstraintNames: document.getElementById('opt-check-names').checked
     };
@@ -169,7 +170,8 @@ ALTER TABLE items ADD CHECK (quantity >= 0);`
     multi: {
         v1: `CREATE TABLE users (
     id INTEGER PRIMARY KEY,
-    name TEXT
+    name TEXT,
+    age INTEGER CHECK (age >= 0)
 );
 
 CREATE TABLE posts (
@@ -177,16 +179,23 @@ CREATE TABLE posts (
     user_id INTEGER,
     title TEXT
 );
+CREATE INDEX idx_posts_user_id ON posts(user_id);
 
 CREATE TABLE comments (
     id INTEGER PRIMARY KEY,
     post_id INTEGER,
     content TEXT
+);
+
+CREATE TABLE products (
+    id INTEGER PRIMARY KEY,
+    price INTEGER CONSTRAINT chk_price_positive CHECK (price > 0)
 );`,
         v2: `CREATE TABLE users (
     id INTEGER PRIMARY KEY,
     name TEXT,
-    email TEXT
+    email TEXT,
+    age INTEGER CHECK (age >= 0)
 );
 
 CREATE TABLE posts (
@@ -194,10 +203,16 @@ CREATE TABLE posts (
     user_id INTEGER,
     title TEXT
 );
+CREATE INDEX idx_posts_user_id ON posts(user_id);
 
 CREATE TABLE tags (
     id INTEGER PRIMARY KEY,
     name TEXT
+);
+
+CREATE TABLE products (
+    id INTEGER PRIMARY KEY,
+    price INTEGER CONSTRAINT chk_price_gt_zero CHECK (price > 0)
 );`
     }
 };

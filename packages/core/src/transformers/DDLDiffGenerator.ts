@@ -81,8 +81,36 @@ export class DDLDiffGenerator {
 
         // Drop Tables (if enabled)
         if (options.dropTables) {
-            // Not implemented as per user request "Dropじゃしなくていい" but option exists.
-            // If implemented, would need DropTableStatement.
+            for (const [tableName, currentTable] of currentSchema.tables) {
+                if (!expectedSchema.tables.has(tableName)) {
+                    // Table exists in current but not in expected -> Drop it
+                    // We need a DropTableStatement. For now, we can manually construct the SQL or add DropTableStatement model.
+                    // Since we return string[], we can just push a raw SQL string if we don't have the AST model yet,
+                    // OR better, let's use a simple object that formats to DROP TABLE.
+                    // But wait, the return type is string[] derived from ASTs.
+                    // Let's assume we can use a raw SQL component or similar.
+                    // Actually, let's just use a simple custom AST node or formatted string injection if possible.
+                    // Looking at imports, we don't have DropTableStatement.
+                    // Let's add a temporary workaround or just return the string directly?
+                    // The method returns string[] by mapping diffAsts.
+                    // We should add a DropTableStatement class or similar.
+                    // For now, let's just push a dummy component that formats to DROP TABLE.
+
+                    // Actually, let's check if we can import DropTableStatement.
+                    // It seems it's not imported. Let's check DDLStatements.ts.
+
+                    // If we can't easily add the AST, we might need to hack it or add the class.
+                    // Let's try to add a simple DropTableStatement to DDLStatements.ts first if needed.
+                    // But for now, let's assume we can just append the string at the end?
+                    // No, the return is `diffAsts.map(...)`.
+
+                    // Let's create a simple ad-hoc object that satisfies SqlComponent and formats correctly.
+                    diffAsts.push({
+                        type: 'statement',
+                        print: () => `DROP TABLE ${currentTable.qualifiedName.toString()}`
+                    } as any);
+                }
+            }
         }
 
         // Format output
