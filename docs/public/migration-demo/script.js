@@ -41,6 +41,14 @@ async function loadModule() {
     try {
         updateStatusBar('Loading modules...');
         rawSqlModule = await import('../demo/vendor/rawsql.browser.js');
+
+        // Load style-config
+        const styleConfigModule = await import('../demo/style-config.js');
+        if (styleConfigModule.loadStylesData) {
+            styleConfigModule.loadStylesData();
+        }
+        initStyleSelect(styleConfigModule);
+
         updateStatusBar('Ready');
         // Set initial sample data
         sql1Editor.setValue(samples.users.v1);
@@ -50,6 +58,35 @@ async function loadModule() {
         console.error("Failed to load modules:", e);
         updateStatusBar('Error: Failed to load modules.', true);
     }
+}
+
+let currentStyles = {};
+
+function initStyleSelect(styleConfigModule) {
+    const styleSelect = document.getElementById('style-select');
+    if (!styleSelect || !styleConfigModule) return;
+
+    // Load styles
+    currentStyles = styleConfigModule.getCurrentStyles();
+
+    styleSelect.innerHTML = '';
+    Object.keys(currentStyles).forEach(name => {
+        const opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name;
+        styleSelect.appendChild(opt);
+    });
+
+    // Restore selection
+    const savedStyle = localStorage.getItem('cud-demo-style');
+    if (savedStyle && currentStyles[savedStyle]) {
+        styleSelect.value = savedStyle;
+    }
+
+    styleSelect.addEventListener('change', () => {
+        localStorage.setItem('cud-demo-style', styleSelect.value);
+        generateMigration();
+    });
 }
 
 function updateStatusBar(message, isError = false) {
@@ -83,8 +120,14 @@ function generateMigration() {
         dropColumns: document.getElementById('opt-drop-columns').checked,
         dropTables: document.getElementById('opt-drop-columns').checked,
         dropConstraints: document.getElementById('opt-drop-constraints').checked,
-        checkConstraintNames: document.getElementById('opt-check-names').checked
+        checkConstraintNames: document.getElementById('opt-check-names').checked,
+        formatOptions: defaultFormatOptions
     };
+
+    const styleSelect = document.getElementById('style-select');
+    if (styleSelect && styleSelect.value && currentStyles[styleSelect.value]) {
+        options.formatOptions = currentStyles[styleSelect.value];
+    }
 
     try {
         const diff = DDLDiffGenerator.generateDiff(currentDDL, expectedDDL, options);

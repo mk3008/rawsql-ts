@@ -12,6 +12,7 @@ export interface DDLDiffOptions {
     dropColumns?: boolean;
     dropConstraints?: boolean;
     checkConstraintNames?: boolean;
+    formatOptions?: any;
 }
 
 interface ColumnModel {
@@ -114,7 +115,7 @@ export class DDLDiffGenerator {
         }
 
         // Format output
-        const formatter = new SqlFormatter({ keywordCase: 'upper' });
+        const formatter = new SqlFormatter(options.formatOptions || { keywordCase: 'upper' });
         return diffAsts.map(ast => formatter.format(ast).formattedSql + ';');
     }
 
