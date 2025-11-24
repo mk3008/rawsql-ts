@@ -3,7 +3,7 @@ import { SqlFormatter } from "./SqlFormatter";
 import { DDLGeneralizer } from "./DDLGeneralizer";
 import { MultiQuerySplitter } from "../utils/MultiQuerySplitter";
 import { CreateTableQuery, TableColumnDefinition, TableConstraintDefinition } from "../models/CreateTableQuery";
-import { AlterTableStatement, AlterTableAddConstraint, AlterTableAddColumn, AlterTableDropColumn, AlterTableDropConstraint } from "../models/DDLStatements";
+import { AlterTableStatement, AlterTableAddConstraint, AlterTableAddColumn, AlterTableDropColumn, AlterTableDropConstraint, DropTableStatement } from "../models/DDLStatements";
 import { SqlComponent } from "../models/SqlComponent";
 import { QualifiedName, RawString, IdentifierString } from "../models/ValueComponent";
 
@@ -106,10 +106,10 @@ export class DDLDiffGenerator {
                     // No, the return is `diffAsts.map(...)`.
 
                     // Let's create a simple ad-hoc object that satisfies SqlComponent and formats correctly.
-                    diffAsts.push({
-                        type: 'statement',
-                        print: () => `DROP TABLE ${currentTable.qualifiedName.toString()}`
-                    } as any);
+                    diffAsts.push(new DropTableStatement({
+                        tables: [currentTable.qualifiedName],
+                        ifExists: false
+                    }));
                 }
             }
         }
