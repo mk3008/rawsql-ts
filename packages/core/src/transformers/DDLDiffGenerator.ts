@@ -3,7 +3,7 @@ import { SqlFormatter } from "./SqlFormatter";
 import { DDLGeneralizer } from "./DDLGeneralizer";
 import { MultiQuerySplitter } from "../utils/MultiQuerySplitter";
 import { CreateTableQuery, TableColumnDefinition, TableConstraintDefinition } from "../models/CreateTableQuery";
-import { AlterTableStatement, AlterTableAddConstraint, AlterTableAddColumn, AlterTableDropColumn, AlterTableDropConstraint, DropTableStatement } from "../models/DDLStatements";
+import { AlterTableStatement, AlterTableAddConstraint, AlterTableAddColumn, AlterTableDropColumn, AlterTableDropConstraint, DropTableStatement, CreateIndexStatement, DropIndexStatement } from "../models/DDLStatements";
 import { SqlComponent } from "../models/SqlComponent";
 import { QualifiedName, RawString, IdentifierString } from "../models/ValueComponent";
 
@@ -27,11 +27,18 @@ interface ConstraintModel {
     formatted: string; // For comparison
 }
 
+interface IndexModel {
+    name: string;
+    definition: CreateIndexStatement;
+    formatted: string;
+}
+
 interface TableModel {
     name: string;
     qualifiedName: QualifiedName;
     columns: Map<string, ColumnModel>;
     constraints: ConstraintModel[];
+    indexes: IndexModel[];
 }
 
 export class DDLDiffGenerator {
@@ -73,10 +80,16 @@ export class DDLDiffGenerator {
                         actions: [new AlterTableAddConstraint({ constraint: constraint.definition })]
                     }));
                 }
+
+                // And add indexes
+                for (const index of expectedTable.indexes) {
+                    diffAsts.push(index.definition);
+                }
             } else {
                 // Table exists -> Compare columns and constraints
                 this.compareColumns(currentTable, expectedTable, diffAsts, options);
                 this.compareConstraints(currentTable, expectedTable, diffAsts, options);
+                this.compareIndexes(currentTable, expectedTable, diffAsts, options);
             }
         }
 
@@ -149,7 +162,8 @@ export class DDLDiffGenerator {
                     name: key,
                     qualifiedName: qName,
                     columns: new Map(),
-                    constraints: []
+                    constraints: [],
+                    indexes: []
                 };
 
                 for (const col of ast.columns) {
@@ -181,6 +195,17 @@ export class DDLDiffGenerator {
                             });
                         }
                     }
+                }
+            } else if (ast instanceof CreateIndexStatement) {
+                const key = this.getQualifiedNameKey(ast.tableName);
+                const tableModel = tables.get(key);
+                if (tableModel) {
+                    const formatted = formatter.format(ast).formattedSql;
+                    tableModel.indexes.push({
+                        name: ast.indexName.toString(),
+                        definition: ast,
+                        formatted: formatted
+                    });
                 }
             }
         }
@@ -258,6 +283,47 @@ export class DDLDiffGenerator {
                     } else {
                         console.warn("Cannot drop unnamed constraint:", currentC.formatted);
                     }
+                }
+            }
+        }
+    }
+
+    private static compareIndexes(current: TableModel, expected: TableModel, diffs: SqlComponent[], options: DDLDiffOptions) {
+        const formatter = new SqlFormatter({ keywordCase: 'none' });
+
+        const getIndexSignature = (idx: IndexModel) => {
+            if (options.checkConstraintNames) {
+                // When Check Names is enabled, index name matters
+                return idx.name;
+            }
+            // When Check Names is disabled, compare by formatted definition (excluding name)
+            // Format: "CREATE INDEX name ON table(columns)"
+            // We want to compare just the table and columns part
+            return idx.formatted.replace(/CREATE\s+(UNIQUE\s+)?INDEX\s+\S+\s+ON\s+/, 'INDEX ON ');
+        };
+
+        const currentSignatures = new Set(current.indexes.map(getIndexSignature));
+
+        // Add missing indexes
+        for (const expectedIdx of expected.indexes) {
+            const sig = getIndexSignature(expectedIdx);
+            if (!currentSignatures.has(sig)) {
+                diffs.push(expectedIdx.definition);
+            }
+        }
+
+        // Drop extra indexes
+        // When checkConstraintNames is enabled, we should drop indexes with different names
+        // When dropConstraints is enabled, we should drop all extra indexes
+        if (options.checkConstraintNames || options.dropConstraints) {
+            const expectedSignatures = new Set(expected.indexes.map(getIndexSignature));
+            for (const currentIdx of current.indexes) {
+                const sig = getIndexSignature(currentIdx);
+                if (!expectedSignatures.has(sig)) {
+                    diffs.push(new DropIndexStatement({
+                        indexNames: [currentIdx.definition.indexName],
+                        ifExists: false
+                    }));
                 }
             }
         }

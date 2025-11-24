@@ -246,7 +246,7 @@ CREATE TABLE posts (
     user_id INTEGER,
     title TEXT
 );
-CREATE INDEX idx_posts_user_id ON posts(user_id);
+CREATE INDEX idx_posts_1 ON posts(user_id);
 
 CREATE TABLE tags (
     id INTEGER PRIMARY KEY,
