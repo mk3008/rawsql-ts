@@ -1,0 +1,19 @@
+// Prisma schema for pg-testkit + Prisma adapter tests
+// English comments per repository conventions
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../tmp/prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id     Int     @id @default(autoincrement())
+  email  String  @unique
+  active Boolean @default(true)
+
+  @@map("users_prisma")
+}

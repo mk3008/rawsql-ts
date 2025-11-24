@@ -1,4 +1,4 @@
-import { Client, ClientBase } from 'pg';
+import { Client, ClientBase, PoolClient } from 'pg';
 import { boolean, pgTable, serial, text } from 'drizzle-orm/pg-core';
 import { drizzle, NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { sql } from 'drizzle-orm';
@@ -39,7 +39,7 @@ class DrizzleUserRepository {
     const result = await this.db.execute(
       sql<{ email: string; active: boolean }>`insert into users_drizzle (email, active) values (${email}, ${active}) returning email, active`
     );
-    return result.rows[0];
+    return result.rows[0] as { email: string; active: boolean };
   }
 
   // Update a user and surface row count.
@@ -90,7 +90,9 @@ describe('UserRepository with drizzle + pg-testkit driver', () => {
         const params = values ?? (typeof text === 'string' ? undefined : text.values ?? text.params);
         return (driver as unknown as ClientBase).query(queryText, params ?? []);
       },
-    } as unknown as ClientBase;
+      // Drizzle's pg driver expects `release` when a PoolClient is provided.
+      release: () => undefined,
+    } as unknown as PoolClient;
 
     db = drizzle(proxyClient);
   });

@@ -1,7 +1,22 @@
-import { Client, ClientBase } from 'pg';
+import { Client, Pool, PoolConfig, QueryResult, QueryResultRow } from 'pg';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { execSync } from 'node:child_process';
+import { existsSync, mkdirSync } from 'node:fs';
+import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import { createPgTestkitClient } from '../src';
-import type { PgFixture } from '../src';
+import type { PgFixture, PgQueryable, PgQueryInput } from '../src';
+import type {
+  QueryArrayConfig,
+  QueryArrayResult,
+  QueryConfig,
+  QueryConfigValues,
+  QueryResult,
+  QueryResultRow,
+  Submittable,
+} from 'pg';
+import type { PrismaClient as PrismaClientType } from '@prisma/client';
+import { UserRepository } from './prisma-app/UserRepository';
 
 declare module 'vitest' {
   interface ProvidedContext {
@@ -22,81 +37,129 @@ const userFixture: PgFixture = {
   ],
 };
 
-type UserRow = { id: number; email: string; active: boolean };
+const prismaTmpDir = path.resolve(__dirname, '../tmp/prisma');
+const prismaClientOutput = path.join(prismaTmpDir, 'client');
+const prismaSchemaPath = path.resolve(__dirname, './prisma-app/schema.prisma');
+const prismaConfigPath = path.resolve(__dirname, '../prisma.config.ts');
 
-// Minimal Prisma-like client that routes CRUD calls to pg-testkit via raw SQL.
-class FakePrismaClient {
-  constructor(private readonly db: ClientBase) {}
+// Generate a Prisma Client into tmp so production artifacts remain untouched.
+const ensurePrismaClient = (databaseUrl: string): void => {
+  if (existsSync(path.join(prismaClientOutput, 'index.js'))) {
+    return;
+  }
 
-  public user = {
-    create: async ({ data }: { data: { email: string; active: boolean } }): Promise<UserRow> => {
-      const res = await this.db.query<UserRow>(
-        'insert into users_prisma (email, active) values ($1, $2) returning id, email, active',
-        [data.email, data.active]
+  mkdirSync(prismaTmpDir, { recursive: true });
+
+  execSync(
+    `pnpm --filter @rawsql-ts/pg-testkit exec prisma generate --schema "${prismaSchemaPath}" --config "${prismaConfigPath}"`,
+    {
+      stdio: 'inherit',
+      env: {
+        ...process.env,
+        DATABASE_URL: databaseUrl,
+        NODE_PATH: path.resolve(__dirname, '..', 'node_modules'),
+      },
+      cwd: path.resolve(__dirname, '..'),
+    }
+  );
+};
+
+// Load the generated Prisma Client from tmp to keep it separate from published output.
+const importPrismaClient = async (): Promise<{ PrismaClient: new (...args: unknown[]) => PrismaClientType }> => {
+  // @ts-expect-error generated client lives in tmp during tests
+  return import('../tmp/prisma/client');
+};
+
+// Build a pg.Pool whose clients route queries through pg-testkit while preserving transaction commands.
+const buildTestkitPool = (pgUri: string, ...fixtures: PgFixture[]): Pool => {
+  class TestkitClient extends Client {
+    private readonly testkit = createPgTestkitClient({
+      connectionFactory: async () => {
+        const baseQuery = Client.prototype.query as (
+          queryTextOrConfig: PgQueryInput,
+          values?: unknown[]
+        ) => Promise<QueryResult<QueryResultRow>>;
+        const connection: PgQueryable = {
+          query: <T extends QueryResultRow = QueryResultRow>(
+            queryTextOrConfig: PgQueryInput,
+            values?: unknown[]
+          ) => baseQuery.call(this, queryTextOrConfig as never, values) as Promise<QueryResult<T>>,
+        };
+
+        // Let pg-testkit execute rewritten SQL via the raw client so transactional commands stay untouched.
+        return connection;
+      },
+      fixtures,
+    });
+
+    public override query<T extends Submittable>(queryStream: T): T;
+    public override query<R extends any[] = any[], I = any[]>(
+      queryConfig: QueryArrayConfig<I>,
+      values?: QueryConfigValues<I>
+    ): Promise<QueryArrayResult<R>>;
+    public override query<R extends QueryResultRow = any, I = any>(
+      queryConfig: QueryConfig<I>
+    ): Promise<QueryResult<R>>;
+    public override query<R extends QueryResultRow = any, I = any[]>(
+      queryTextOrConfig: string | QueryConfig<I>,
+      values?: QueryConfigValues<I>
+    ): Promise<QueryResult<R>>;
+    public override query<R extends QueryResultRow = any, I = any[]>(
+      queryTextOrConfig: string,
+      values: QueryConfigValues<I>,
+      callback: (err: Error, result: QueryResult<R>) => void
+    ): void;
+    public override query<R extends QueryResultRow = any, I = any[]>(
+      queryTextOrConfig: string | QueryConfig<I>,
+      callback: (err: Error, result: QueryResult<R>) => void
+    ): void;
+    public override query(...args: unknown[]): unknown {
+      const [
+        queryTextOrConfig,
+        valuesOrCallback,
+        callbackOrUndefined,
+      ] = args as [
+        string | { text: string; values?: unknown[]; params?: unknown[] },
+        unknown[] | ((err: Error, result: QueryResult<QueryResultRow>) => void) | undefined,
+        ((err: Error, result: QueryResult<QueryResultRow>) => void) | undefined
+      ];
+      const callback =
+        typeof valuesOrCallback === 'function' ? valuesOrCallback : callbackOrUndefined;
+      const values = typeof valuesOrCallback === 'function' ? undefined : valuesOrCallback;
+      const sqlText = typeof queryTextOrConfig === 'string' ? queryTextOrConfig : queryTextOrConfig.text;
+      const configPayload =
+        typeof queryTextOrConfig === 'string' ? undefined : queryTextOrConfig;
+      const normalizedValues = values ?? configPayload?.values ?? configPayload?.params;
+
+      if (sqlText && /^\s*(BEGIN|COMMIT|ROLLBACK|SAVEPOINT|RELEASE)/i.test(sqlText)) {
+        return Client.prototype.query.apply(this, args as any);
+      }
+
+      const execution = this.testkit.query(
+        queryTextOrConfig as PgQueryInput,
+        normalizedValues
       );
-      return res.rows[0];
-    },
-    update: async ({ where, data }: { where: { id: number }; data: { active: boolean } }): Promise<UserRow | null> => {
-      const res = await this.db.query<UserRow>(
-        'update users_prisma set active = $2 where id = $1 returning id, email, active',
-        [where.id, data.active]
-      );
-      return res.rows[0] ?? null;
-    },
-    delete: async ({ where }: { where: { id: number } }): Promise<UserRow | null> => {
-      const res = await this.db.query<UserRow>('delete from users_prisma where id = $1 returning id, email, active', [
-        where.id,
-      ]);
-      return res.rows[0] ?? null;
-    },
-    findUnique: async ({ where }: { where: { id: number } }): Promise<UserRow | null> => {
-      const res = await this.db.query<UserRow>('select id, email, active from users_prisma where id = $1', [where.id]);
-      return res.rows[0] ?? null;
-    },
-    findMany: async ({ where, take }: { where?: { active?: boolean }; take?: number } = {}): Promise<UserRow[]> => {
-      const clauses: string[] = [];
-      const params: unknown[] = [];
-      if (where?.active !== undefined) {
-        params.push(where.active);
-        clauses.push(`active = $${params.length}`);
-      }
-      let sql = 'select id, email, active from users_prisma';
-      if (clauses.length > 0) {
-        sql += ` where ${clauses.join(' and ')}`;
-      }
-      if (take) {
-        params.push(take);
-        sql += ` limit $${params.length}`;
-      }
-      const res = await this.db.query<UserRow>(sql, params);
-      return res.rows;
-    },
-  };
-}
 
-class PrismaUserRepository {
-  constructor(private readonly prisma: FakePrismaClient) {}
+      if (typeof callback === 'function') {
+        execution
+          .then((result) => callback(null as unknown as Error, result))
+          .catch((error) => callback(error as Error, undefined as unknown as QueryResult<QueryResultRow>));
+        return undefined;
+      }
 
-  public async createUser(email: string, active: boolean): Promise<{ email: string; active: boolean }> {
-    const created = await this.prisma.user.create({ data: { email, active } });
-    return { email: created.email, active: created.active };
+      return execution;
+    }
   }
 
-  public async updateActive(id: number, active: boolean): Promise<number> {
-    const updated = await this.prisma.user.update({ where: { id }, data: { active } });
-    return updated ? 1 : 0;
-  }
+  const poolConfig: PoolConfig = { connectionString: pgUri, Client: TestkitClient };
+  return new Pool(poolConfig);
+};
 
-  public async deleteById(id: number): Promise<number> {
-    const deleted = await this.prisma.user.delete({ where: { id } });
-    return deleted ? 1 : 0;
-  }
-}
-
-describe('UserRepository with Prisma-like client + pg-testkit', () => {
-  let client: Client | undefined;
-  let driver: ReturnType<typeof createPgTestkitClient> | undefined;
-  let prisma: FakePrismaClient | undefined;
+describe('UserRepository (Prisma) with pg-testkit driver adapter', () => {
+  let baseClient: Client | undefined;
+  let prismaPool: Pool | undefined;
+  let prisma: PrismaClientType | undefined;
+  let repository: UserRepository | undefined;
 
   beforeAll(async () => {
     const pgUri = inject('TEST_PG_URI') ?? process.env.TEST_PG_URI;
@@ -104,52 +167,66 @@ describe('UserRepository with Prisma-like client + pg-testkit', () => {
       throw new Error('TEST_PG_URI is missing; ensure the Vitest global setup provided a connection.');
     }
 
-    client = new Client({ connectionString: pgUri });
-    await client.connect();
-    await client.query(`
+    baseClient = new Client({ connectionString: pgUri });
+    await baseClient.connect();
+
+    // Materialize the physical table so Prisma defaults (like serial sequences) exist even though fixtures drive reads.
+    await baseClient.query(`
       CREATE TABLE IF NOT EXISTS users_prisma (
         id serial PRIMARY KEY,
-        email text NOT NULL,
+        email text NOT NULL UNIQUE,
         active bool NOT NULL DEFAULT true
       );
     `);
-    await client.query('TRUNCATE TABLE users_prisma RESTART IDENTITY;');
+    await baseClient.query('TRUNCATE TABLE users_prisma RESTART IDENTITY;');
 
-    driver = createPgTestkitClient({
-      connectionFactory: () => client!,
-      fixtures: [userFixture],
-    });
+    ensurePrismaClient(pgUri);
 
-    prisma = new FakePrismaClient(driver as unknown as ClientBase);
+    prismaPool = buildTestkitPool(pgUri, userFixture);
+
+    const prismaModule = await importPrismaClient();
+    const adapter = new PrismaPg(prismaPool);
+    prisma = new prismaModule.PrismaClient({
+      adapter,
+      log: [{ emit: 'event', level: 'query' }],
+    }) as PrismaClientType;
+    repository = new UserRepository(prisma);
   });
 
   afterAll(async () => {
-    if (client) {
-      await client.end();
+    await Promise.all([
+      (prisma as { $disconnect?: () => Promise<void> })?.$disconnect?.(),
+      prismaPool?.end(),
+    ]);
+    if (baseClient) {
+      await baseClient.end();
     }
   });
 
-  it('propagates RETURNING row on insert', async () => {
-    const repo = new PrismaUserRepository(prisma!);
-    const created = await repo.createUser('carol@example.com', true);
-    expect(created).toEqual({ email: 'carol@example.com', active: true });
+  it('createUser returns a Prisma user shape', async () => {
+    const created = await repository!.createUser({ email: 'carol@example.com', active: true });
+    expect(created).toMatchObject({ email: 'carol@example.com', active: true });
+    expect(typeof (created as { id?: unknown }).id).toBe('number');
   });
 
-  it('returns row count for updates', async () => {
-    const repo = new PrismaUserRepository(prisma!);
-    const updated = await repo.updateActive(2, true);
-    expect(updated).toBe(1);
-
-    const updatedMissing = await repo.updateActive(99, true);
-    expect(updatedMissing).toBe(0);
+  it('findById surfaces fixture-backed rows', async () => {
+    const found = await repository!.findById(1);
+    expect(found).toEqual({ id: 1, email: 'alice@example.com', active: true });
   });
 
-  it('returns row count for deletes', async () => {
-    const repo = new PrismaUserRepository(prisma!);
-    const deleted = await repo.deleteById(2);
-    expect(deleted).toBe(1);
+  it('updateActive returns Prisma BatchPayload counts', async () => {
+    const updated = await repository!.updateActive(2, true);
+    expect(updated.count).toBe(1);
 
-    const deletedMissing = await repo.deleteById(99);
-    expect(deletedMissing).toBe(0);
+    const updatedMissing = await repository!.updateActive(99, true);
+    expect(updatedMissing.count).toBe(0);
+  });
+
+  it('deleteById returns Prisma BatchPayload counts', async () => {
+    const deleted = await repository!.deleteById(2);
+    expect(deleted.count).toBe(1);
+
+    const deletedMissing = await repository!.deleteById(99);
+    expect(deletedMissing.count).toBe(0);
   });
 });
