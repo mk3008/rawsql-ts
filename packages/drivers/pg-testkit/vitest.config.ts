@@ -1,9 +1,12 @@
 import { defineConfig } from 'vitest/config';
+import { resolve } from 'path';
 
 export default defineConfig({
   test: {
     environment: 'node',
     globals: true,
     testTimeout: 60000,
+    globalSetup: resolve(__dirname, '../../../vitest.global-setup.ts'),
+    tsconfig: resolve(__dirname, '../../../tsconfig.tests.json'),
   },
 });

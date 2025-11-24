@@ -1,13 +1,26 @@
-import { PostgreSqlContainer, StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { Client, ClientBase } from 'pg';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import { createPgTestkitClient } from '../src';
 import type { PgFixture } from '../src';
+
+declare module 'vitest' {
+  interface ProvidedContext {
+    /**
+     * URI for the Postgres container managed by the Vitest global setup.
+     */
+    TEST_PG_URI: string;
+  }
+}
 
 const userFixture: PgFixture = {
   tableName: 'users',
   columns: [
-    { name: 'id', typeName: 'int', required: true },
+    {
+      name: 'id',
+      typeName: 'int',
+      required: true,
+      defaultValue: "nextval('users_id_seq'::regclass)",
+    },
     { name: 'email', typeName: 'text' },
     { name: 'active', typeName: 'bool', defaultValue: 'true' },
   ],
@@ -16,25 +29,6 @@ const userFixture: PgFixture = {
     { id: 2, email: 'bob@example.com', active: false },
   ],
 };
-
-let container: StartedPostgreSqlContainer | null = null;
-let runtimeAvailable = true;
-
-beforeAll(async () => {
-  // Attempt to start a PostgreSQL container for the repository integration tests.
-  try {
-    container = await new PostgreSqlContainer('postgres:16-alpine').start();
-  } catch (error) {
-    runtimeAvailable = false;
-  }
-});
-
-afterAll(async () => {
-  // Ensure the container is stopped even if some tests skipped the runtime.
-  if (container) {
-    await container.stop();
-  }
-});
 
 class UserRepository {
   /**
@@ -45,8 +39,8 @@ class UserRepository {
 
   public async createUser(email: string, active: boolean): Promise<{ email: string; active: boolean }> {
     const result = await this.db.query<{ email: string; active: boolean }>(
-      'insert into users (id, email, active) values ($1, $2, $3) returning email, active',
-      [Date.now(), email, active]
+      'insert into users (email, active) values ($1, $2) returning email, active',
+      [email, active]
     );
     return result.rows[0];
   }
@@ -60,7 +54,7 @@ class UserRepository {
   }
 
   public async updateActive(id: number, active: boolean): Promise<number> {
-    const result = await this.db.query('update users set active = $1 where id = $2', [active, id]);
+    const result = await this.db.query('update users set active = $2 where id = $1', [id, active]);
     return result.rowCount ?? 0;
   }
 
@@ -79,47 +73,59 @@ class UserRepository {
 }
 
 describe('UserRepository with pg-testkit driver', () => {
-  let client: Client;
-  let driver: ReturnType<typeof createPgTestkitClient>;
+  let client: Client | undefined;
+  let driver: ReturnType<typeof createPgTestkitClient> | undefined;
 
   beforeAll(async () => {
-    if (!runtimeAvailable || !container) {
-      return;
+    // Fail early if the global setup did not provide a Postgres URI.
+    const pgUri = inject('TEST_PG_URI') ?? process.env.TEST_PG_URI;
+    if (!pgUri) {
+      throw new Error('TEST_PG_URI is missing; ensure the Vitest global setup provided a connection.');
     }
-    // Provision a lightweight PostgreSQL runtime for the test suite.
-    client = new Client({ connectionString: container.getConnectionUri() });
+
+    // Reuse the shared connection string to open a pg Client for the suite.
+    client = new Client({ connectionString: pgUri });
     await client.connect();
 
+    // Prepare a minimal users table so Postgres can resolve column types.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id serial PRIMARY KEY,
+        email text NOT NULL,
+        active bool NOT NULL DEFAULT true
+      );
+    `);
+    await client.query('TRUNCATE TABLE users RESTART IDENTITY;');
+
+    // Wrap the persistent client in a pg-testkit driver with the shared fixtures.
     driver = createPgTestkitClient({
-      connectionFactory: () => client,
+      connectionFactory: () => client!,
       fixtures: [userFixture],
     });
   });
 
   afterAll(async () => {
-    // Clean up both the testkit driver and the underlying PostgreSQL connection.
+    // Dispose the driver so it stops managing fixtures before the client closes.
     if (driver) {
       await driver.close();
     }
+
+    // Terminate the Client connection to release the Postgres session.
     if (client) {
       await client.end();
     }
   });
 
-  const buildRepository = (): UserRepository | null => {
-    // Guard against missing runtime so tests can opt out when the container failed to start.
-    if (!runtimeAvailable || !driver) {
-      return null;
+  const buildRepository = (): UserRepository => {
+    // Guard against misconfigured test suites that failed to initialize the driver.
+    if (!driver) {
+      throw new Error('pg-testkit driver is not initialized');
     }
     return new UserRepository(driver as unknown as ClientBase);
   };
 
   it('propagates the RETURNING row when inserting a user', async () => {
     const repo = buildRepository();
-    if (!repo) {
-      expect(true).toBe(true);
-      return;
-    }
 
     // Ensure RETURNING produces the projected shape the caller expects.
     const created = await repo.createUser('carol@example.com', true);
@@ -128,10 +134,6 @@ describe('UserRepository with pg-testkit driver', () => {
 
   it('delivers the row count shape for update operations', async () => {
     const repo = buildRepository();
-    if (!repo) {
-      expect(true).toBe(true);
-      return;
-    }
 
     // Verify both matched and unmatched rows surface the row count produced by vanilla pg clients.
     const updated = await repo.updateActive(2, true);
@@ -143,10 +145,6 @@ describe('UserRepository with pg-testkit driver', () => {
 
   it('delivers the row count shape for delete operations', async () => {
     const repo = buildRepository();
-    if (!repo) {
-      expect(true).toBe(true);
-      return;
-    }
 
     // Only the returned count matters; the underlying persistence change is owned by pg-testkit.
     const deleted = await repo.deleteById(2);
@@ -158,9 +156,10 @@ describe('UserRepository with pg-testkit driver', () => {
 
   it('only uses fixtures to drive SELECT inputs when scoping', async () => {
     const repo = buildRepository();
-    if (!repo || !driver) {
-      expect(true).toBe(true);
-      return;
+
+    // Double-check the shared driver before creating a scoped driver slice.
+    if (!driver) {
+      throw new Error('pg-testkit driver is unexpectedly undefined');
     }
 
     const scopedDriver = driver.withFixtures([

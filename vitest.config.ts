@@ -5,28 +5,17 @@ import { resolve } from 'path'
 export default defineConfig({
     test: {
         environment: 'node',
-        include: [
-            'packages/*/tests/**/*.test.[jt]s'
-        ],
-        exclude: [
-            '**/dist/**',
-            '**/node_modules/**'
-        ],
+        include: ['packages/*/tests/**/*.test.[jt]s'],
+        exclude: ['**/dist/**', '**/node_modules/**'],
         root: resolve(__dirname),
         testTimeout: 10000,
-        // モノレポ内の各パッケージのテストを並列実行
         pool: 'threads',
-        poolOptions: {
-            threads: {
-                singleThread: false,
-                isolate: true
-            }
-        }
+        tsconfig: resolve(__dirname, 'tsconfig.tests.json'),
+        globalSetup: resolve(__dirname, 'vitest.global-setup.ts'),
     },
-    // 各パッケージのtsconfig.jsonを認識するためのresolve設定
     resolve: {
         alias: {
-            'rawsql-ts': resolve(__dirname, 'packages/core/src')
-        }
-    }
+            'rawsql-ts': resolve(__dirname, 'packages/core/src'),
+        },
+    },
 })

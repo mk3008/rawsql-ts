@@ -1,0 +1,19 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "composite": false,
+    "rootDir": ".",
+    "outDir": "node_modules/.cache/ts-test-output"
+  },
+  "include": [
+    "packages/*/tests/**/*.ts",
+    "packages/*/tests/**/*.tsx",
+    "packages/*/vitest.config.ts",
+    "packages/*/vitest.workspace.ts",
+    "vitest.global-setup.ts"
+  ],
+  "references": [
+    { "path": "./packages/core" },
+    { "path": "./packages/drivers/pg-testkit" }
+  ]
+}

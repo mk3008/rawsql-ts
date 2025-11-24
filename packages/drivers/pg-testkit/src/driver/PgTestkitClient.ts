@@ -56,18 +56,66 @@ export class PgTestkitClient {
       return this.buildEmptyResult<T>('NOOP');
     }
 
-    const payload = typeof textOrConfig === 'string' ? rewritten.sql : { ...textOrConfig, text: rewritten.sql };
+    const normalizeResult = this.alignRewrittenParameters(rewritten.sql, typeof textOrConfig === 'string' ? values : textOrConfig.values);
+    const payload = typeof textOrConfig === 'string'
+      ? normalizeResult.sql
+      : { ...textOrConfig, text: normalizeResult.sql, values: normalizeResult.params };
     const connection = await this.getConnection();
-    const params = typeof textOrConfig === 'string' ? values : textOrConfig.values;
 
     // Surface the post-rewrite SQL so callers can log or assert against it.
-    this.options.onExecute?.(rewritten.sql, params, rewritten.fixturesApplied);
+    this.options.onExecute?.(normalizeResult.sql, normalizeResult.params, rewritten.fixturesApplied);
 
-    if (typeof payload === 'string') {
-      return connection.query<T>(payload, values);
+    const rawResult = typeof payload === 'string'
+      ? await connection.query<T>(payload, normalizeResult.params)
+      : await connection.query<T>(payload);
+
+    return this.normalizeRowCount(rawResult);
+  }
+
+  private alignRewrittenParameters(sql: string, params?: unknown[]): { sql: string; params?: unknown[] } {
+    if (!params || params.length === 0) {
+      return { sql, params };
     }
 
-    return connection.query<T>(payload);
+    const matches = Array.from(sql.matchAll(/\$(\d+)/g));
+    if (matches.length === 0) {
+      return { sql, params: [] };
+    }
+
+    const placeholderSet = new Map<number, number>();
+    const orderedIndexes = [...new Set(matches.map((match) => Number(match[1])))].sort((a, b) => a - b);
+    orderedIndexes.forEach((index, idx) => {
+      placeholderSet.set(index, idx + 1);
+    });
+
+    const alignedSql = [...placeholderSet.entries()]
+      .sort((a, b) => b[0] - a[0])
+      .reduce((acc, [original, mapped]) => acc.split(`$${original}`).join(`$${mapped}`), sql);
+
+    const alignedValues = [...placeholderSet.entries()]
+      .sort((a, b) => a[1] - b[1])
+      .map(([original]) => params[original - 1]);
+
+    return { sql: alignedSql, params: alignedValues };
+  }
+
+  private normalizeRowCount<T extends QueryResultRow>(result: QueryResult<T>): QueryResult<T> {
+    if ((result.command ?? '').toUpperCase() !== 'SELECT' || result.rows.length !== 1) {
+      return result;
+    }
+
+    const [field] = result.fields ?? [];
+    if (!field || field.name !== 'count') {
+      return result;
+    }
+
+    const countValue = (result.rows[0] as Record<string, unknown>)['count'];
+    const numericCount = typeof countValue === 'string' ? Number(countValue) : Number(countValue ?? 0);
+    if (Number.isNaN(numericCount)) {
+      return result;
+    }
+
+    return { ...result, rowCount: numericCount };
   }
 
   /**
