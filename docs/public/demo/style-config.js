@@ -43,11 +43,7 @@ function initStyleConfig(elements, editorInstance, formatterFunc, statusBarUpdat
     console.log("Style config initialized with all dependencies.");
 }
 
-function loadStyles() {
-    if (!domFullyInitialized) {
-        console.warn("loadStyles called before style system is fully initialized.");
-        return;
-    }
+function loadStylesData() {
     const storedStyles = localStorage.getItem(DEFAULT_STYLE_KEY);
     if (storedStyles) {
         currentStyles = JSON.parse(storedStyles);
@@ -158,6 +154,16 @@ function loadStyles() {
         };
         localStorage.setItem(DEFAULT_STYLE_KEY, JSON.stringify(currentStyles));
     }
+}
+
+function loadStyles() {
+    loadStylesData();
+
+    if (!domFullyInitialized) {
+        console.warn("loadStyles called before style system is fully initialized.");
+        return;
+    }
+
     populateStyleSelect();
 
     let lastStyle = localStorage.getItem('rawsql-selected-style');
@@ -182,75 +188,57 @@ function loadStyles() {
     console.log("Styles loaded and UI updated.");
 }
 
-function saveStylesInternal() {
-    localStorage.setItem(DEFAULT_STYLE_KEY, JSON.stringify(currentStyles));
-    if (typeof updateStatusBarFunction === 'function') updateStatusBarFunction('Styles saved.', false);
+function getCurrentStyles() {
+    return currentStyles;
+}
+
+function populateStyleSelect() {
+    if (!styleSelect) return;
+    styleSelect.innerHTML = '';
+    Object.keys(currentStyles).forEach(name => {
+        const option = document.createElement('option');
+        option.value = name;
+        option.textContent = name;
+        styleSelect.appendChild(option);
+    });
+
+    // Also update the quick style select if it exists
+    if (quickStyleSelectElementGlobal) {
+        quickStyleSelectElementGlobal.innerHTML = '';
+        Object.keys(currentStyles).forEach(name => {
+            const option = document.createElement('option');
+            option.value = name;
+            option.textContent = name;
+            quickStyleSelectElementGlobal.appendChild(option);
+        });
+    }
+}
+
+function displayStyle(styleName) {
+    if (!currentStyles[styleName]) return;
+    const style = currentStyles[styleName];
+    if (styleNameInput) styleNameInput.value = styleName;
+    if (styleJsonEditor) {
+        styleJsonEditor.setValue(JSON.stringify(style, null, 4));
+    }
 }
 
 function saveStylesAndFormat() {
-    saveStylesInternal();
+    localStorage.setItem(DEFAULT_STYLE_KEY, JSON.stringify(currentStyles));
     if (typeof formatSqlFunction === 'function') {
         formatSqlFunction();
     }
 }
 
-function populateStyleSelect() {
-    if (!styleSelect || !quickStyleSelectElementGlobal) {
-        console.warn("populateStyleSelect: Select elements not ready.");
-        return;
-    }
-    styleSelect.innerHTML = '';
-    quickStyleSelectElementGlobal.innerHTML = '';
-
-    for (const styleName in currentStyles) {
-        const option = document.createElement('option');
-        option.value = styleName;
-        option.textContent = styleName;
-        styleSelect.appendChild(option.cloneNode(true));
-        quickStyleSelectElementGlobal.appendChild(option);
-    }
-    console.log("Style select populated.");
-}
-
-function displayStyle(styleName) {
-    if (!domFullyInitialized) {
-        console.warn("displayStyle called before style system is fully initialized.");
-        return;
-    }
-    if (currentStyles[styleName]) {
-        if (styleNameInput) styleNameInput.value = styleName;
-        try {
-            const styleJsonString = JSON.stringify(currentStyles[styleName], null, 2);
-            if (styleJsonEditor) styleJsonEditor.setValue(styleJsonString);
-        } catch (e) {
-            console.error("Error stringifying style JSON:", e);
-            if (styleJsonEditor) styleJsonEditor.setValue("Error displaying style: Invalid JSON structure.");
-            if (typeof updateStatusBarFunction === 'function') updateStatusBarFunction("Error displaying style: Invalid JSON structure.", true);
-        }
-        if (styleJsonEditor) styleJsonEditor.refresh();
-    } else {
-        if (styleNameInput) styleNameInput.value = '';
-        if (styleJsonEditor) {
-            styleJsonEditor.setValue('');
-            styleJsonEditor.refresh();
-        }
-    }
-    console.log(`Displayed style: ${styleName}`);
-}
-
-// Function to be exported to get currentStyles
-function getCurrentStyles() {
-    return currentStyles;
-}
-
 export {
     initStyleConfig,
     loadStyles,
+    loadStylesData, // Exported
     saveStylesAndFormat,
     populateStyleSelect,
     displayStyle,
     DEFAULT_STYLE_KEY,
-    getCurrentStyles // MODIFIED: Export the function
+    getCurrentStyles
 };
 
 function handleStyleSelectChange() {
