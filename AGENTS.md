@@ -25,3 +25,6 @@
 - Follow the TDD loop (Red -> Compile -> Green -> Refactor) to keep fixtures and AST updates safe.
 - Prefer incremental commits scoped to one package; cross-package changes should note dependency order in the commit message.
 - Before editing a sub-package, read its local `AGENTS.md` for package-specific workflows (fixture schema rules, driver setup, etc.).
+
+## Public API Documentation
+- In `src/` code, any class, interface, or type that the package exposes to the outside (i.e., re-exported through `index.ts` or otherwise part of the published entry points) must carry a clear English JSDoc comment explaining its intent and usage. This keeps the public surface well documented for downstream consumers.

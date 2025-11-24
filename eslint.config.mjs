@@ -7,10 +7,7 @@ export default [
     },
     {
         files: [
-            "packages/*/src/**/*.ts",
-            "packages/*/tests/**/*.ts",
-            "src/**/*.ts",
-            "tests/**/*.ts"
+            "**/*.ts"
         ], // Target package files
         languageOptions: {
             parser: typescriptParser,

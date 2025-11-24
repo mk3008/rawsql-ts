@@ -131,6 +131,9 @@ export type {
 export * from './utils/MultiQuerySplitter';
 export type { QueryInfo, QueryCollection } from './utils/MultiQuerySplitter';
 
+// Generic fixtures for driver/test-kit layers
+export * from './types/GenericFixture';
+
 // Convenience functions for IntelliSense integration
 export {
     /** Parse SQL up to cursor position with error recovery */
