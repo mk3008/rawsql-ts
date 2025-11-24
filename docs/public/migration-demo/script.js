@@ -82,7 +82,7 @@ function generateMigration() {
     const options = {
         dropColumns: document.getElementById('opt-drop-columns').checked,
         dropConstraints: document.getElementById('opt-drop-constraints').checked,
-        checkConstraintNames: document.getElementById('opt-check-constraint-names').checked
+        checkConstraintNames: document.getElementById('opt-check-names').checked
     };
 
     try {
@@ -116,8 +116,7 @@ sql2Editor.on('changes', triggerGeneration);
 document.getElementById('migration-direction').addEventListener('change', generateMigration);
 document.getElementById('opt-drop-columns').addEventListener('change', generateMigration);
 document.getElementById('opt-drop-constraints').addEventListener('change', generateMigration);
-document.getElementById('opt-check-constraint-names').addEventListener('change', generateMigration);
-document.getElementById('generate-btn').addEventListener('click', generateMigration);
+document.getElementById('opt-check-names').addEventListener('change', generateMigration);
 
 document.getElementById('clear-sql1-btn').addEventListener('click', () => {
     sql1Editor.setValue('');
@@ -150,19 +149,12 @@ const samples = {
 );`
 };
 
-document.getElementById('sample-loader-1').addEventListener('change', (e) => {
+document.getElementById('sample-loader').addEventListener('change', (e) => {
     const val = e.target.value;
-    if (val && samples[val]) {
-        sql1Editor.setValue(samples[val]);
-        e.target.value = '';
-    }
-});
-
-document.getElementById('sample-loader-2').addEventListener('change', (e) => {
-    const val = e.target.value;
-    if (val && samples[val]) {
-        sql2Editor.setValue(samples[val]);
-        e.target.value = '';
+    if (val === 'users') {
+        sql1Editor.setValue(samples.v1);
+        sql2Editor.setValue(samples.v2);
+        e.target.value = ''; // Reset selection
     }
 });
 

@@ -1,89 +1,150 @@
-<div id="style-content" class="tab-content" data-tab="style">
-    <div class="style-config-container" style="padding: 20px; color: #e4e4e7; overflow-y: auto;">
-        <div class="style-selector-controls"
-            style="margin-bottom: 15px; display: flex; gap: 10px; align-items: center;">
-            <label for="style-select">Style:</label>
-            <select id="style-select"
-                style="background: #2d2d44; color: #e4e4e7; border: 1px solid #3d3d5c; padding: 6px; border-radius: 4px; flex-grow: 1;"></select>
-            <button id="add-new-style-btn">Add New</button>
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>rawsql-ts Zero Table Dependency Demo</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/theme/dracula.min.css">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/mode/sql/sql.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/mode/javascript/javascript.min.js"></script>
+</head>
+
+<body>
+    <div class="header-wrapper">
+        <h1>rawsql-ts Zero Table Dependency</h1>
+        <div style="margin-left: auto; display: flex; align-items: center; gap: 15px;">
+            <a href="../migration-demo/index.html"
+                style="color: #e4e4e7; text-decoration: none; font-weight: bold; font-size: 0.9rem; margin-right: 15px;">Migration
+                Demo</a>
+            <a href="https://www.npmjs.com/package/rawsql-ts" target="_blank" rel="noopener noreferrer"
+                style="color: #e4e4e7; text-decoration: none; font-weight: bold; font-size: 0.9rem;">NPM</a>
+            <a href="https://github.com/mk3008/rawsql-ts" target="_blank" aria-label="GitHub"
+                style="color: #888; text-decoration: none; display: flex; align-items: center;">
+                <svg height="24" width="24" viewBox="0 0 16 16" version="1.1" style="fill: currentColor;">
+                    <path fill-rule="evenodd"
+                        d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z">
+                    </path>
+                </svg>
+            </a>
         </div>
-        <hr style="border-color: #3d3d5c; margin-bottom: 15px;">
-        <div class="style-editor-form">
-            <div style="margin-bottom: 10px;">
-                <label for="style-name-input">Name:</label>
-                <input type="text" id="style-name-input" placeholder="Enter style name"
-                    style="background: #2d2d44; color: #e4e4e7; border: 1px solid #3d3d5c; padding: 6px; border-radius: 4px; width: 100%; box-sizing: border-box; margin-top: 5px;">
+    </div>
+
+    <div class="container">
+        <!-- Left Pane -->
+        <div class="editor-container" id="left-pane">
+            <div class="editor-header">
+                <div class="tabs">
+                    <button class="tab-btn active" data-tab="sql">SQL Input</button>
+                    <button class="tab-btn" data-tab="fixture">Fixture</button>
+                    <button class="tab-btn" data-tab="style">Style</button>
+                </div>
+                <div class="tab-controls active" data-tab="sql" style="display: flex; gap: 10px;">
+                    <select id="sample-loader"
+                        style="background: #2d2d44; color: #e4e4e7; border: 1px solid #3d3d5c; padding: 4px; border-radius: 4px;">
+                        <option value="">Load Sample...</option>
+                        <option value="single">Single Table (CRUD)</option>
+                        <option value="multi">Multi Table (Join/CTE)</option>
+                    </select>
+                    <button id="clear-input-btn">Clear</button>
+                </div>
             </div>
-            <label for="style-json-editor" style="display: block; margin-top: 10px;">
-                Style JSON: <a href="../../../guide/formatting-recipes.html" target="_blank"
-                    style="color: #60a5fa; font-size: 0.9em; margin-left: 5px;">(Help)</a>
-            </label>
-            <textarea id="style-json-editor"></textarea>
-        </div>
-        <div class="style-action-buttons" style="margin-top: 15px; display: flex; gap: 10px;">
-            <button id="save-style-btn">Save</button>
-            <button id="delete-style-btn"
-                style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">Delete</button>
-            <button id="revert-style-btn"
-                style="background: linear-gradient(135deg, #64748b 0%, #475569 100%);">Revert</button>
-        </div>
-        <button id="reset-all-settings-btn"
-            style="margin-top: 20px; width: 100%; background: transparent; border: 1px solid #ef4444; color: #ef4444;">Reset
-            All Settings</button>
-    </div>
-</div>
-</div>
-
-<div class="editor-container" id="right-pane">
-    <div class="editor-header">
-        <div class="tabs">
-            <button class="tab-btn active" data-tab="output">Output</button>
-            <button class="tab-btn" data-tab="resource">Resource</button>
-            <button class="tab-btn" data-tab="generated-fixture">Fixture</button>
-        </div>
-        <div class="tab-controls active" data-tab="output" style="display: flex; gap: 10px; margin-left: auto;">
-            <select id="output-mode-selector">
-                <option value="convert">Convert (Simulate)</option>
-                <option value="format">Format Only</option>
-            </select>
-            <button id="copy-output-btn">Copy</button>
-        </div>
-    </div>
-    <div id="output-content" class="tab-content active" data-tab="output">
-        <textarea id="formatted-sql"></textarea>
-    </div>
-    <div id="resource-content" class="tab-content" data-tab="resource" style="padding: 20px; overflow-y: auto;">
-        <div class="header-wrapper"
-            style="border-bottom: 1px solid #3f3f46; padding-bottom: 10px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
-            <h3 style="margin: 0;">Tables</h3>
-            <div id="table-actions" style="display: flex; gap: 5px;"></div>
-        </div>
-        <div id="table-list-container" style="margin-bottom: 20px;">
-            <ul id="table-list" style="margin: 0; padding-left: 0; list-style: none;"></ul>
+            <div id="sql-content" class="tab-content active" data-tab="sql">
+                <textarea id="sql-input"></textarea>
+            </div>
+            <div id="fixture-content" class="tab-content" data-tab="fixture">
+                <textarea id="fixture-input"></textarea>
+            </div>
+            <div id="style-content" class="tab-content" data-tab="style">
+                <div class="style-config-container" style="padding: 20px; color: #e4e4e7; overflow-y: auto;">
+                    <div class="style-selector-controls"
+                        style="margin-bottom: 15px; display: flex; gap: 10px; align-items: center;">
+                        <label for="style-select">Style:</label>
+                        <select id="style-select"
+                            style="background: #2d2d44; color: #e4e4e7; border: 1px solid #3d3d5c; padding: 6px; border-radius: 4px; flex-grow: 1;"></select>
+                        <button id="add-new-style-btn">Add New</button>
+                    </div>
+                    <hr style="border-color: #3d3d5c; margin-bottom: 15px;">
+                    <div class="style-editor-form">
+                        <div style="margin-bottom: 10px;">
+                            <label for="style-name-input">Name:</label>
+                            <input type="text" id="style-name-input" placeholder="Enter style name"
+                                style="background: #2d2d44; color: #e4e4e7; border: 1px solid #3d3d5c; padding: 6px; border-radius: 4px; width: 100%; box-sizing: border-box; margin-top: 5px;">
+                        </div>
+                        <label for="style-json-editor" style="display: block; margin-top: 10px;">
+                            Style JSON: <a href="../../../guide/formatting-recipes.html" target="_blank"
+                                style="color: #60a5fa; font-size: 0.9em; margin-left: 5px;">(Help)</a>
+                        </label>
+                        <textarea id="style-json-editor"></textarea>
+                    </div>
+                    <div class="style-action-buttons" style="margin-top: 15px; display: flex; gap: 10px;">
+                        <button id="save-style-btn">Save</button>
+                        <button id="delete-style-btn"
+                            style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">Delete</button>
+                        <button id="revert-style-btn"
+                            style="background: linear-gradient(135deg, #64748b 0%, #475569 100%);">Revert</button>
+                    </div>
+                    <button id="reset-all-settings-btn"
+                        style="margin-top: 20px; width: 100%; background: transparent; border: 1px solid #ef4444; color: #ef4444;">Reset
+                        All Settings</button>
+                </div>
+            </div>
         </div>
 
-        <div class="header-wrapper"
-            style="border-bottom: 1px solid #3f3f46; padding-bottom: 10px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
-            <h3 style="margin: 0;">CTE List</h3>
-            <div id="cte-actions" style="display: flex; gap: 5px;"></div>
-        </div>
-        <div id="cte-list-container">
-            <ul id="cte-list" style="margin: 0; padding-left: 0; list-style: none;"></ul>
+        <!-- Right Pane -->
+        <div class="editor-container" id="right-pane">
+            <div class="editor-header">
+                <div class="tabs">
+                    <button class="tab-btn active" data-tab="output">Output</button>
+                    <button class="tab-btn" data-tab="resource">Resource</button>
+                    <button class="tab-btn" data-tab="generated-fixture">Fixture</button>
+                </div>
+                <div class="tab-controls active" data-tab="output" style="display: flex; gap: 10px; margin-left: auto;">
+                    <select id="output-mode-selector">
+                        <option value="convert">Convert (Simulate)</option>
+                        <option value="format">Format Only</option>
+                    </select>
+                    <button id="copy-output-btn">Copy</button>
+                </div>
+            </div>
+            <div id="output-content" class="tab-content active" data-tab="output">
+                <textarea id="formatted-sql"></textarea>
+            </div>
+            <div id="resource-content" class="tab-content" data-tab="resource" style="padding: 20px; overflow-y: auto;">
+                <div class="header-wrapper"
+                    style="border-bottom: 1px solid #3f3f46; padding-bottom: 10px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="margin: 0;">Tables</h3>
+                    <div id="table-actions" style="display: flex; gap: 5px;"></div>
+                </div>
+                <div id="table-list-container" style="margin-bottom: 20px;">
+                    <ul id="table-list" style="margin: 0; padding-left: 0; list-style: none;"></ul>
+                </div>
+
+                <div class="header-wrapper"
+                    style="border-bottom: 1px solid #3f3f46; padding-bottom: 10px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="margin: 0;">CTE List</h3>
+                    <div id="cte-actions" style="display: flex; gap: 5px;"></div>
+                </div>
+                <div id="cte-list-container">
+                    <ul id="cte-list" style="margin: 0; padding-left: 0; list-style: none;"></ul>
+                </div>
+            </div>
+            <div id="generated-fixture-content" class="tab-content" data-tab="generated-fixture">
+                <textarea id="generated-fixture-json"></textarea>
+            </div>
         </div>
     </div>
-    <div id="generated-fixture-content" class="tab-content" data-tab="generated-fixture">
-        <textarea id="generated-fixture-json"></textarea>
+
+    <div id="status-bar">Ready</div>
+    <div class="footer-text">
+        Powered by <a href="https://codemirror.net/" target="_blank" style="color: #888;">CodeMirror</a>.
+        Released under the MIT License.
     </div>
-</div>
-</div>
 
-<div id="status-bar">Ready</div>
-<div class="footer-text">
-    Powered by <a href="https://codemirror.net/" target="_blank" style="color: #888;">CodeMirror</a>.
-    Released under the MIT License.
-</div>
-
-<script type="module" src="script.js"></script>
+    <script type="module" src="script.js"></script>
 </body>
 
 </html>
