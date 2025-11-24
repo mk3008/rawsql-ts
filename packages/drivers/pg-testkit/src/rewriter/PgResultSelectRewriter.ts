@@ -15,6 +15,7 @@ import {
   SqlComponent,
   UpdateQuery,
   ValuesQuery,
+  tableNameVariants,
 } from 'rawsql-ts';
 import { FixtureCteBuilder } from 'rawsql-ts';
 import { TableSourceCollector } from 'rawsql-ts';
@@ -96,7 +97,8 @@ export class PgResultSelectRewriter {
       return null;
     }
 
-    return this.formatter.format(converted).formattedSql.trim();
+    const formattedSql = this.formatter.format(converted).formattedSql.trim();
+    return this.stripSchemaQualifiers(formattedSql, inputs.fixtureTables);
   }
 
   private convertToResultSelect(statement: ParsedStatement, inputs: RewriteInputs): SqlComponent | null {
@@ -170,9 +172,15 @@ export class PgResultSelectRewriter {
 
     const collector = new TableSourceCollector(false);
     const referenced = new Set<string>();
-    collector.collect(query).forEach((source) => referenced.add(source.getSourceName().toLowerCase()));
+    for (const source of collector.collect(query)) {
+      for (const variant of tableNameVariants(source.getSourceName())) {
+        referenced.add(variant);
+      }
+    }
 
-    return fixtures.filter((fixture) => referenced.has(fixture.tableName.toLowerCase()));
+    return fixtures.filter((fixture) =>
+      tableNameVariants(fixture.tableName).some((variant) => referenced.has(variant))
+    );
   }
 
   private normalizeParameters(sql: string): { sql: string; placeholders: Map<string, string> } {
@@ -192,5 +200,25 @@ export class PgResultSelectRewriter {
       restored = restored.split(token).join(original);
     }
     return restored;
+  }
+
+  private stripSchemaQualifiers(sql: string, fixtures: FixtureTableDefinition[]): string {
+    if (!fixtures.length) {
+      return sql;
+    }
+
+    const tableNames = [...new Set(fixtures.map((fixture) => fixture.tableName))];
+    let normalized = sql;
+    for (const tableName of tableNames) {
+      const qualifiedPattern = new RegExp(`"[^"]+"\\."${this.escapeRegExp(tableName)}"\\.`, 'g');
+      normalized = normalized.replace(qualifiedPattern, `"${tableName}".`);
+      const simplePattern = new RegExp(`"[^"]+"\\."${this.escapeRegExp(tableName)}"`, 'g');
+      normalized = normalized.replace(simplePattern, `"${tableName}"`);
+    }
+    return normalized;
+  }
+
+  private escapeRegExp(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 }

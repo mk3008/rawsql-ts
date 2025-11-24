@@ -41,14 +41,15 @@ export class PgTestkitClient {
    * @param values Optional positional parameters
    * @returns pg-style QueryResult with rows simulated from fixtures
    */
-  public async query<T extends QueryResultRow = QueryResultRow>(
-    textOrConfig: PgQueryInput,
-    values?: unknown[]
-  ): Promise<QueryResult<T>> {
+    public async query<T extends QueryResultRow = QueryResultRow>(
+        textOrConfig: PgQueryInput,
+        values?: unknown[]
+    ): Promise<QueryResult<T>> {
     const sql = typeof textOrConfig === 'string' ? textOrConfig : textOrConfig.text;
     if (!sql) {
       throw new Error('Query text is required for pg-testkit execution.');
     }
+    const sourceCommand = this.extractSqlCommand(sql);
 
     // Rewrite CRUD and SELECT statements into fixture-backed SELECT queries.
     const rewritten = this.rewriter.rewrite(sql, this.scopedFixtures);
@@ -70,11 +71,19 @@ export class PgTestkitClient {
     const connection = await this.getConnection();
 
     // Surface the post-rewrite SQL so callers can log or assert against it.
+    console.log('pg-testkit sql ->', normalizeResult.sql);
     this.options.onExecute?.(normalizeResult.sql, normalizeResult.params, rewritten.fixturesApplied);
 
     const rawResult = typeof payload === 'string'
       ? await connection.query<T>(payload, normalizeResult.params)
       : await connection.query<T>(payload);
+
+    const countValue = this.extractCountValue(rawResult);
+    if (countValue !== null && sourceCommand && this.isCrudCommand(sourceCommand)) {
+      // Treat fixture-driven CRUD rewrites as their original command so Prisma trusts the derived row count.
+      rawResult.rowCount = countValue;
+      rawResult.command = sourceCommand.toUpperCase() as typeof rawResult.command;
+    }
 
     return this.normalizeRowCount(rawResult);
   }
@@ -123,6 +132,50 @@ export class PgTestkitClient {
     }
 
     return { ...result, rowCount: numericCount };
+  }
+
+  private extractCountValue<T extends QueryResultRow>(result: QueryResult<T>): number | null {
+    if ((result.command ?? '').toUpperCase() !== 'SELECT') {
+      return null;
+    }
+
+    const [field] = result.fields ?? [];
+    if (!field || field.name !== 'count' || result.rows.length !== 1) {
+      return null;
+    }
+
+    const row = result.rows[0];
+    const value = Array.isArray(row)
+      ? row[0]
+      : (row as Record<string, unknown>)[field.name];
+
+    const numericCount = typeof value === 'string' ? Number(value) : Number(value ?? 0);
+    return Number.isNaN(numericCount) ? null : numericCount;
+  }
+
+  private isCrudCommand(command: string): boolean {
+    return ['INSERT', 'UPDATE', 'DELETE', 'MERGE'].includes(command.toUpperCase());
+  }
+
+  private extractSqlCommand(sql: string): string | null {
+    const trimmed = sql.trimStart();
+    if (!trimmed) {
+      return null;
+    }
+
+    const firstWordMatch = trimmed.match(/^([A-Za-z]+)/);
+    if (!firstWordMatch) {
+      return null;
+    }
+
+    const firstWord = firstWordMatch[1].toUpperCase();
+    if (firstWord === 'WITH') {
+      const remaining = trimmed.slice(firstWordMatch[0].length).trimStart();
+      const nextMatch = remaining.match(/^([A-Za-z]+)/);
+      return nextMatch ? nextMatch[1].toUpperCase() : null;
+    }
+
+    return firstWord;
   }
 
   /**

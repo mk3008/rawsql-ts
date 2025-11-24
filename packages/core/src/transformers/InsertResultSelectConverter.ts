@@ -13,6 +13,7 @@ import { TableSourceCollector } from './TableSourceCollector';
 import { FixtureCteBuilder, FixtureTableDefinition } from './FixtureCteBuilder';
 import { SelectQueryWithClauseHelper } from "../utils/SelectQueryWithClauseHelper";
 import { rewriteValueComponentWithColumnResolver } from '../utils/ValueComponentRewriter';
+import { tableNameVariants } from '../utils/TableNameUtils';
 
 /** Options that drive how the insert-to-select transformation resolves table metadata. */
 export interface InsertResultSelectOptions {
@@ -133,18 +134,22 @@ export class InsertResultSelectConverter {
             }
         }
 
-        const normalized = this.normalizeIdentifier(tableName);
+        const normalizedVariants = new Set(tableNameVariants(tableName));
 
         if (options?.tableDefinitions) {
             const normalizedMap = this.buildTableDefinitionMap(options.tableDefinitions);
-            const definition = normalizedMap.get(normalized);
-            if (definition) {
-                return definition;
+            for (const variant of normalizedVariants) {
+                const definition = normalizedMap.get(variant);
+                if (definition) {
+                    return definition;
+                }
             }
         }
 
         if (options?.fixtureTables) {
-            const fixture = options.fixtureTables.find(f => this.normalizeIdentifier(f.tableName) === normalized);
+            const fixture = options.fixtureTables.find((f) =>
+                tableNameVariants(f.tableName).some((variant) => normalizedVariants.has(variant))
+            );
             if (fixture) {
                 return this.convertFixtureToTableDefinition(fixture);
             }
@@ -174,7 +179,9 @@ export class InsertResultSelectConverter {
         }
 
         for (const definition of Object.values(registry)) {
-            map.set(this.normalizeIdentifier(definition.name), definition);
+            for (const variant of tableNameVariants(definition.name)) {
+                map.set(variant, definition);
+            }
         }
 
         return map;
@@ -470,7 +477,8 @@ export class InsertResultSelectConverter {
         const filtered: FixtureTableDefinition[] = [];
         // Keep fixtures only for the tables that the INSERT actually touches.
         for (const fixture of fixtures) {
-            if (referencedTables.has(this.normalizeIdentifier(fixture.tableName))) {
+            const fixtureVariants = tableNameVariants(fixture.tableName);
+            if (fixtureVariants.some((variant) => referencedTables.has(variant))) {
                 filtered.push(fixture);
             }
         }
@@ -523,7 +531,9 @@ export class InsertResultSelectConverter {
 
         // Normalize table names so lookups are case-insensitive.
         for (const fixture of fixtures) {
-            map.set(this.normalizeIdentifier(fixture.tableName), fixture);
+            for (const variant of tableNameVariants(fixture.tableName)) {
+                map.set(variant, fixture);
+            }
         }
         return map;
     }
@@ -557,7 +567,9 @@ export class InsertResultSelectConverter {
         const sources = collector.collect(query);
         const referenced = new Set<string>();
         for (const source of sources) {
-            referenced.add(this.normalizeIdentifier(source.getSourceName()));
+            for (const variant of tableNameVariants(source.getSourceName())) {
+                referenced.add(variant);
+            }
         }
         return referenced;
     }
@@ -592,7 +604,8 @@ export class InsertResultSelectConverter {
         // Compare normalized table names against the fixtures that were supplied.
         const missing: string[] = [];
         for (const table of referencedTables) {
-            if (!fixtureMap.has(table)) {
+            const covered = tableNameVariants(table).some((variant) => fixtureMap.has(variant));
+            if (!covered) {
                 missing.push(table);
             }
         }

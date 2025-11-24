@@ -131,6 +131,8 @@ export type {
 export * from './utils/MultiQuerySplitter';
 export type { QueryInfo, QueryCollection } from './utils/MultiQuerySplitter';
 
+export * from './utils/TableNameUtils';
+
 // Generic fixtures for driver/test-kit layers
 export * from './types/GenericFixture';
 

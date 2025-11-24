@@ -21,6 +21,7 @@ import { TableSourceCollector } from './TableSourceCollector';
 import { FixtureCteBuilder, FixtureTableDefinition } from './FixtureCteBuilder';
 import { SelectQueryWithClauseHelper } from '../utils/SelectQueryWithClauseHelper';
 import { rewriteValueComponentWithColumnResolver } from '../utils/ValueComponentRewriter';
+import { tableNameVariants } from '../utils/TableNameUtils';
 import type { MissingFixtureStrategy } from './InsertResultSelectConverter';
 import { FullNameParser } from '../parsers/FullNameParser';
 
@@ -90,9 +91,11 @@ export class DeleteResultSelectConverter {
         const originalWithClause = SelectQueryWithClauseHelper.detachWithClause(selectQuery);
         const referencedTables = this.collectPhysicalTableReferences(selectQuery, originalWithClause);
         const cteNames = this.collectCteNamesFromWithClause(originalWithClause);
-        const normalizedTarget = this.normalizeIdentifier(targetTableName);
-        if (!cteNames.has(normalizedTarget)) {
-            referencedTables.add(normalizedTarget);
+        const targetVariants = tableNameVariants(targetTableName);
+        for (const variant of targetVariants) {
+            if (!cteNames.has(variant)) {
+                referencedTables.add(variant);
+            }
         }
         this.ensureFixtureCoverage(referencedTables, fixtureMap, missingStrategy);
 
@@ -252,9 +255,10 @@ export class DeleteResultSelectConverter {
                 tableDefinition
             };
             aliasMap.set(normalizedAlias, context);
-            const normalizedTableName = this.normalizeIdentifier(tableName);
-            if (!tableNameMap.has(normalizedTableName)) {
-                tableNameMap.set(normalizedTableName, context);
+            for (const variant of tableNameVariants(tableName)) {
+                if (!tableNameMap.has(variant)) {
+                    tableNameMap.set(variant, context);
+                }
             }
         };
 
@@ -339,18 +343,22 @@ export class DeleteResultSelectConverter {
             }
         }
 
-        const normalized = this.normalizeIdentifier(tableName);
+        const normalizedVariants = new Set(tableNameVariants(tableName));
 
         if (options?.tableDefinitions) {
             const map = this.buildTableDefinitionMap(options.tableDefinitions);
-            const definition = map.get(normalized);
-            if (definition) {
-                return definition;
+            for (const variant of normalizedVariants) {
+                const definition = map.get(variant);
+                if (definition) {
+                    return definition;
+                }
             }
         }
 
         if (options?.fixtureTables) {
-            const fixture = options.fixtureTables.find(f => this.normalizeIdentifier(f.tableName) === normalized);
+            const fixture = options.fixtureTables.find((f) =>
+                tableNameVariants(f.tableName).some((variant) => normalizedVariants.has(variant))
+            );
             if (fixture) {
                 return this.convertFixtureToTableDefinition(fixture);
             }
@@ -376,7 +384,9 @@ export class DeleteResultSelectConverter {
     ): Map<string, TableDefinitionModel> {
         const map = new Map<string, TableDefinitionModel>();
         for (const definition of Object.values(registry)) {
-            map.set(this.normalizeIdentifier(definition.name), definition);
+            for (const variant of tableNameVariants(definition.name)) {
+                map.set(variant, definition);
+            }
         }
         return map;
     }
@@ -426,7 +436,9 @@ export class DeleteResultSelectConverter {
     private static buildFixtureTableMap(fixtures: FixtureTableDefinition[]): Map<string, FixtureTableDefinition> {
         const map = new Map<string, FixtureTableDefinition>();
         for (const fixture of fixtures) {
-            map.set(this.normalizeIdentifier(fixture.tableName), fixture);
+            for (const variant of tableNameVariants(fixture.tableName)) {
+                map.set(variant, fixture);
+            }
         }
         return map;
     }
@@ -441,7 +453,8 @@ export class DeleteResultSelectConverter {
 
         const filtered: FixtureTableDefinition[] = [];
         for (const fixture of fixtures) {
-            if (referencedTables.has(this.normalizeIdentifier(fixture.tableName))) {
+            const fixtureVariants = tableNameVariants(fixture.tableName);
+            if (fixtureVariants.some((variant) => referencedTables.has(variant))) {
                 filtered.push(fixture);
             }
         }
@@ -490,7 +503,9 @@ export class DeleteResultSelectConverter {
         const sources = collector.collect(query);
         const normalized = new Set<string>();
         for (const source of sources) {
-            normalized.add(this.normalizeIdentifier(source.getSourceName()));
+            for (const variant of tableNameVariants(source.getSourceName())) {
+                normalized.add(variant);
+            }
         }
         return normalized;
     }
@@ -501,7 +516,9 @@ export class DeleteResultSelectConverter {
             return names;
         }
         for (const table of withClause.tables) {
-            names.add(this.normalizeIdentifier(table.getSourceAliasName()));
+            for (const variant of tableNameVariants(table.getSourceAliasName())) {
+                names.add(variant);
+            }
         }
         return names;
     }
@@ -512,7 +529,8 @@ export class DeleteResultSelectConverter {
     ): string[] {
         const missing: string[] = [];
         for (const table of referencedTables) {
-            if (!fixtureMap.has(table)) {
+            const covered = tableNameVariants(table).some((variant) => fixtureMap.has(variant));
+            if (!covered) {
                 missing.push(table);
             }
         }

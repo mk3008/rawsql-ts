@@ -34,6 +34,7 @@
   "devDependencies": {
     "@prisma/adapter-pg": "^7.0.0",
     "@prisma/client": "^7.0.0",
+    "@prisma/client-runtime-utils": "^7.0.0",
     "@types/pg": "^8.11.10",
     "@testcontainers/postgresql": "^10.8.0",
     "drizzle-orm": "^0.31.2",
