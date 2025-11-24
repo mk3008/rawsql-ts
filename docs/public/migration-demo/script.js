@@ -136,24 +136,77 @@ document.getElementById('copy-output-btn').addEventListener('click', () => {
 });
 
 // Sample Data
+// Sample Data
 const samples = {
-    v1: `CREATE TABLE users (
+    users: {
+        v1: `CREATE TABLE users (
     id INTEGER PRIMARY KEY,
     name TEXT NOT NULL
 );`,
-    v2: `CREATE TABLE users (
+        v2: `CREATE TABLE users (
     id INTEGER PRIMARY KEY,
     name TEXT NOT NULL,
     email TEXT UNIQUE,
     created_at TIMESTAMP DEFAULT now()
 );`
+    },
+    normalization: {
+        v1: `CREATE TABLE items (
+    id INTEGER PRIMARY KEY,
+    code TEXT UNIQUE,
+    quantity INTEGER CHECK (quantity >= 0)
+);`,
+        v2: `CREATE TABLE items (
+    id INTEGER,
+    code TEXT,
+    quantity INTEGER
+);
+
+ALTER TABLE items ADD PRIMARY KEY (id);
+ALTER TABLE items ADD UNIQUE (code);
+ALTER TABLE items ADD CHECK (quantity >= 0);`
+    },
+    multi: {
+        v1: `CREATE TABLE users (
+    id INTEGER PRIMARY KEY,
+    name TEXT
+);
+
+CREATE TABLE posts (
+    id INTEGER PRIMARY KEY,
+    user_id INTEGER,
+    title TEXT
+);
+
+CREATE TABLE comments (
+    id INTEGER PRIMARY KEY,
+    post_id INTEGER,
+    content TEXT
+);`,
+        v2: `CREATE TABLE users (
+    id INTEGER PRIMARY KEY,
+    name TEXT,
+    email TEXT
+);
+
+CREATE TABLE posts (
+    id INTEGER PRIMARY KEY,
+    user_id INTEGER,
+    title TEXT
+);
+
+CREATE TABLE tags (
+    id INTEGER PRIMARY KEY,
+    name TEXT
+);`
+    }
 };
 
 document.getElementById('sample-loader').addEventListener('change', (e) => {
     const val = e.target.value;
-    if (val === 'users') {
-        sql1Editor.setValue(samples.v1);
-        sql2Editor.setValue(samples.v2);
+    if (val && samples[val]) {
+        sql1Editor.setValue(samples[val].v1);
+        sql2Editor.setValue(samples[val].v2);
         e.target.value = ''; // Reset selection
     }
 });
