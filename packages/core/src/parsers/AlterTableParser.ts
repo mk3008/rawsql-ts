@@ -97,7 +97,7 @@ export class AlterTableParser {
         while (idx < lexemes.length) {
             const value = lexemes[idx].value.toLowerCase();
 
-            if (value === "add constraint") {
+            if (value === "add constraint" || value === "add") {
                 const result = this.parseAddConstraintAction(lexemes, idx);
                 actions.push(result.value);
                 idx = result.newIndex;

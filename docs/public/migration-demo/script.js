@@ -43,8 +43,8 @@ async function loadModule() {
         rawSqlModule = await import('../demo/vendor/rawsql.browser.js');
         updateStatusBar('Ready');
         // Set initial sample data
-        sql1Editor.setValue(samples.v1);
-        sql2Editor.setValue(samples.v2);
+        sql1Editor.setValue(samples.users.v1);
+        sql2Editor.setValue(samples.users.v2);
         generateMigration();
     } catch (e) {
         console.error("Failed to load modules:", e);
