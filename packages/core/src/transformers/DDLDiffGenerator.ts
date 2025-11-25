@@ -7,12 +7,15 @@ import { AlterTableStatement, AlterTableAddConstraint, AlterTableAddColumn, Alte
 import { SqlComponent } from "../models/SqlComponent";
 import { QualifiedName, RawString, IdentifierString } from "../models/ValueComponent";
 
+import { SqlFormatterOptions } from "./SqlFormatter";
+
 export interface DDLDiffOptions {
     dropTables?: boolean;
     dropColumns?: boolean;
     dropConstraints?: boolean;
+    dropIndexes?: boolean;
     checkConstraintNames?: boolean;
-    formatOptions?: any;
+    formatOptions?: SqlFormatterOptions;
 }
 
 interface ColumnModel {
@@ -289,17 +292,49 @@ export class DDLDiffGenerator {
     }
 
     private static compareIndexes(current: TableModel, expected: TableModel, diffs: SqlComponent[], options: DDLDiffOptions) {
-        const formatter = new SqlFormatter({ keywordCase: 'none' });
-
         const getIndexSignature = (idx: IndexModel) => {
             if (options.checkConstraintNames) {
                 // When Check Names is enabled, index name matters
                 return idx.name;
             }
-            // When Check Names is disabled, compare by formatted definition (excluding name)
-            // Format: "CREATE INDEX name ON table(columns)"
-            // We want to compare just the table and columns part
-            return idx.formatted.replace(/CREATE\s+(UNIQUE\s+)?INDEX\s+\S+\s+ON\s+/, 'INDEX ON ');
+            // When Check Names is disabled, compare by structural properties from AST
+            // Compare: table name, columns (expressions), unique flag, using method, where clause
+            const def = idx.definition;
+            const parts: string[] = [];
+
+            // Table name
+            parts.push(def.tableName.toString());
+
+            // Unique flag
+            if (def.unique) {
+                parts.push('UNIQUE');
+            }
+
+            // Using method (e.g., BTREE, HASH)
+            if (def.usingMethod) {
+                parts.push(`USING:${def.usingMethod.toString()}`);
+            }
+
+            // Columns (expressions and sort orders)
+            const columnSigs = def.columns.map(col => {
+                const expr = col.expression.toString();
+                const sort = col.sortOrder || '';
+                const nulls = col.nullsOrder || '';
+                return `${expr}${sort}${nulls}`;
+            });
+            parts.push(`COLS:${columnSigs.join(',')}`);
+
+            // Include columns
+            if (def.include && def.include.length > 0) {
+                parts.push(`INCLUDE:${def.include.map(i => i.toString()).join(',')}`);
+            }
+
+            // Where clause
+            if (def.where) {
+                parts.push(`WHERE:${def.where.toString()}`);
+            }
+
+            return parts.join('|');
         };
 
         const currentSignatures = new Set(current.indexes.map(getIndexSignature));
@@ -314,8 +349,8 @@ export class DDLDiffGenerator {
 
         // Drop extra indexes
         // When checkConstraintNames is enabled, we should drop indexes with different names
-        // When dropConstraints is enabled, we should drop all extra indexes
-        if (options.checkConstraintNames || options.dropConstraints) {
+        // When dropIndexes is enabled, we should drop all extra indexes
+        if (options.checkConstraintNames || options.dropIndexes) {
             const expectedSignatures = new Set(expected.indexes.map(getIndexSignature));
             for (const currentIdx of current.indexes) {
                 const sig = getIndexSignature(currentIdx);

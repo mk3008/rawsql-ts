@@ -118,8 +118,9 @@ function generateMigration() {
 
     const options = {
         dropColumns: document.getElementById('opt-drop-columns').checked,
-        dropTables: document.getElementById('opt-drop-columns').checked,
+        dropTables: document.getElementById('opt-drop-tables').checked,
         dropConstraints: document.getElementById('opt-drop-constraints').checked,
+        dropIndexes: document.getElementById('opt-drop-constraints').checked, // Sync with dropConstraints for now
         checkConstraintNames: document.getElementById('opt-check-names').checked,
         formatOptions: defaultFormatOptions
     };

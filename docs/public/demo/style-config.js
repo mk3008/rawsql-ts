@@ -192,26 +192,20 @@ function getCurrentStyles() {
     return currentStyles;
 }
 
-function populateStyleSelect() {
-    if (!styleSelect) return;
-    styleSelect.innerHTML = '';
+function populateSelectWithStyles(selectElement) {
+    if (!selectElement) return;
+    selectElement.innerHTML = '';
     Object.keys(currentStyles).forEach(name => {
         const option = document.createElement('option');
         option.value = name;
         option.textContent = name;
-        styleSelect.appendChild(option);
+        selectElement.appendChild(option);
     });
+}
 
-    // Also update the quick style select if it exists
-    if (quickStyleSelectElementGlobal) {
-        quickStyleSelectElementGlobal.innerHTML = '';
-        Object.keys(currentStyles).forEach(name => {
-            const option = document.createElement('option');
-            option.value = name;
-            option.textContent = name;
-            quickStyleSelectElementGlobal.appendChild(option);
-        });
-    }
+function populateStyleSelect() {
+    populateSelectWithStyles(styleSelect);
+    populateSelectWithStyles(quickStyleSelectElementGlobal);
 }
 
 function displayStyle(styleName) {

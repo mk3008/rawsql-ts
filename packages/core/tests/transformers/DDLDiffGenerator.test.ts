@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, test } from 'vitest';
 import { DDLDiffGenerator } from '../../src/transformers/DDLDiffGenerator';
 
 describe('DDLDiffGenerator', () => {
@@ -49,32 +49,41 @@ describe('DDLDiffGenerator', () => {
         expect(diff.length).toBe(0);
     });
 
-    // TODO: Fix these tests - they are failing
-    // it('should detect index name difference when checkConstraintNames is enabled', () => {
-    //     const current = `CREATE TABLE posts (id INT, user_id INT);
-    // CREATE INDEX idx_posts_user_id ON posts(user_id);`;
-    //     const expected = `CREATE TABLE posts (id INT, user_id INT);
-    // CREATE INDEX idx_posts_1 ON posts(user_id);`;
-    //     const diff = DDLDiffGenerator.generateDiff(current, expected, {
-    //         checkConstraintNames: true,
-    //         dropConstraints: true
-    //     });
-    //     expect(diff.length).toBe(2);
-    //     expect(diff[0]).toContain('DROP INDEX');
-    //     expect(diff[0]).toContain('idx_posts_user_id');
-    //     expect(diff[1]).toContain('CREATE INDEX');
-    //     expect(diff[1]).toContain('idx_posts_1');
-    // });
+    test('should drop index with different name when checkConstraintNames is true', () => {
+        const sql1 = `
+            CREATE TABLE users (id INTEGER);
+            CREATE INDEX idx_users_id ON users(id);
+        `;
+        const sql2 = `
+            CREATE TABLE users (id INTEGER);
+            CREATE INDEX idx_users_id_v2 ON users(id);
+        `;
 
-    // it('should not detect index difference when checkConstraintNames is disabled and columns match', () => {
-    //     const current = `CREATE TABLE posts (id INT, user_id INT);
-    // CREATE INDEX idx_posts_user_id ON posts(user_id);`;
-    //     const expected = `CREATE TABLE posts (id INT, user_id INT);
-    // CREATE INDEX idx_posts_1 ON posts(user_id);`;
-    //     const diff = DDLDiffGenerator.generateDiff(current, expected, {
-    //         checkConstraintNames: false,
-    //         dropConstraints: true
-    //     });
-    //     expect(diff.length).toBe(0);
-    // });
+        const diffs = DDLDiffGenerator.generateDiff(sql1, sql2, {
+            checkConstraintNames: true
+        });
+
+        expect(diffs.length).toBe(2);
+        expect(diffs[0]).toContain('CREATE INDEX');
+        expect(diffs[0]).toContain('idx_users_id_v2');
+        expect(diffs[1]).toContain('DROP INDEX');
+        expect(diffs[1]).toContain('idx_users_id');
+    });
+
+    test('should not drop index with different name when checkConstraintNames is false', () => {
+        const sql1 = `
+            CREATE TABLE users (id INTEGER);
+            CREATE INDEX idx_users_id ON users(id);
+        `;
+        const sql2 = `
+            CREATE TABLE users (id INTEGER);
+            CREATE INDEX idx_users_id_v2 ON users(id);
+        `;
+
+        const diffs = DDLDiffGenerator.generateDiff(sql1, sql2, {
+            checkConstraintNames: false
+        });
+
+        expect(diffs.length).toBe(0);
+    });
 });

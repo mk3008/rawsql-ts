@@ -452,94 +452,6 @@ function updateResourceTab(sqlText, SqlParser, MultiQuerySplitter, TableSourceCo
 
 function initQuickStyleSelect() {
     const quickStyleSelect = document.getElementById('quick-style-select');
-    const outputStyleSelect = document.getElementById('output-style-select');
-    const styleSelect = document.getElementById('style-select');
-
-    if (!styleConfigModule) return;
-
-    const updateOptions = () => {
-        const styles = styleConfigModule.getCurrentStyles();
-
-        if (quickStyleSelect) {
-            quickStyleSelect.innerHTML = '';
-            Object.keys(styles).forEach(name => {
-                const opt = document.createElement('option');
-                opt.value = name;
-                opt.textContent = name;
-                quickStyleSelect.appendChild(opt);
-            });
-        }
-
-        if (outputStyleSelect) {
-            outputStyleSelect.innerHTML = '';
-            Object.keys(styles).forEach(name => {
-                const opt = document.createElement('option');
-                opt.value = name;
-                opt.textContent = name;
-                outputStyleSelect.appendChild(opt);
-            });
-        }
-
-        // Restore from localStorage if available
-        const savedStyle = localStorage.getItem('cud-demo-style');
-        if (savedStyle && styles[savedStyle]) {
-            if (quickStyleSelect) quickStyleSelect.value = savedStyle;
-            if (outputStyleSelect) outputStyleSelect.value = savedStyle;
-        } else if (styleSelect) {
-            // Fallback to main style select if no saved style
-            if (quickStyleSelect) quickStyleSelect.value = styleSelect.value;
-            if (outputStyleSelect) outputStyleSelect.value = styleSelect.value;
-        }
-
-        // Sync with main style select
-        if (styleSelect) {
-            styleSelect.value = outputStyleSelect ? outputStyleSelect.value : (quickStyleSelect ? quickStyleSelect.value : styleSelect.value);
-        }
-    };
-
-    // Initial population
-    updateOptions();
-
-    // Listen for changes
-    if (quickStyleSelect) {
-        quickStyleSelect.addEventListener('change', () => {
-            localStorage.setItem('cud-demo-style', quickStyleSelect.value);
-
-            // Also update the main style select to keep them in sync
-            if (styleSelect) {
-                styleSelect.value = quickStyleSelect.value;
-                // Trigger change event on main select to update editor
-                styleSelect.dispatchEvent(new Event('change'));
-            }
-            if (outputStyleSelect) {
-                outputStyleSelect.value = quickStyleSelect.value;
-            }
-            if (!styleSelect) {
-                convertAndFormat();
-            }
-        });
-    }
-
-    if (outputStyleSelect) {
-        outputStyleSelect.addEventListener('change', () => {
-            localStorage.setItem('cud-demo-style', outputStyleSelect.value);
-
-            if (styleSelect) {
-                styleSelect.value = outputStyleSelect.value;
-                styleSelect.dispatchEvent(new Event('change'));
-            }
-            if (quickStyleSelect) {
-                quickStyleSelect.value = outputStyleSelect.value;
-            }
-            if (!styleSelect) {
-                convertAndFormat();
-            }
-        });
-    }
-
-    // Listen for style updates (this is a bit hacky, ideally we'd have an event)
-    // For now, we can hook into the save/delete buttons or just refresh on mouseover of the header
-    document.getElementById('save-style-btn').addEventListener('click', () => setTimeout(updateOptions, 100));
     document.getElementById('delete-style-btn').addEventListener('click', () => setTimeout(updateOptions, 100));
 }
 
@@ -640,8 +552,10 @@ function convertAndFormat() {
             // Use generated fixture for simulation
             tableDefinitions = fixtureJson;
             fixtureTables = FixtureCteBuilder.fromJSON(tableDefinitions);
+            updateStatusBar('Fixture generated from DDL');
         } catch (e) {
             console.error("Error generating fixture JSON:", e);
+            updateStatusBar('Warning: Could not generate fixture from DDL', true);
             if (generatedFixtureEditor) {
                 generatedFixtureEditor.setValue('');
             }

@@ -75,36 +75,17 @@
         <div class="bottom-pane" style="flex: 1; display: flex; flex-direction: column; min-height: 40%;">
             <div class="editor-header">
                 <div class="tabs">
-                    <button class="tab-btn active">Migration Script</button>
                 </div>
-                <div class="options-bar" style="display: flex; gap: 15px; margin-left: 20px; align-items: center;">
-                    <select id="migration-direction"
-                        style="background: #2d2d44; color: #e4e4e7; border: 1px solid #3d3d5c; padding: 4px; border-radius: 4px;">
-                        <option value="1to2">SQL 1 -> SQL 2</option>
-                        <option value="2to1">SQL 2 -> SQL 1</option>
-                    </select>
-                    <label style="color: #e4e4e7; font-size: 0.9rem;"><input type="checkbox" id="opt-drop-columns"> Drop
-                        Columns</label>
-                    <label style="color: #e4e4e7; font-size: 0.9rem;"><input type="checkbox" id="opt-drop-constraints">
-                        Drop Constraints</label>
-                    <label style="color: #e4e4e7; font-size: 0.9rem;"><input type="checkbox" id="opt-check-names"> Check
-                        Names</label>
-                </div>
-                <button id="copy-output-btn" style="margin-left: auto;">Copy</button>
-            </div>
-            <div id="output-content" class="tab-content active" style="flex: 1; position: relative;">
-                <textarea id="migration-output"></textarea>
             </div>
         </div>
-    </div>
 
-    <div id="status-bar">Ready</div>
-    <div class="footer-text">
-        Powered by <a href="https://codemirror.net/" target="_blank" style="color: #888;">CodeMirror</a>.
-        Released under the MIT License.
-    </div>
+        <div id="status-bar">Ready</div>
+        <div class="footer-text">
+            Powered by <a href="https://codemirror.net/" target="_blank" style="color: #888;">CodeMirror</a>.
+            Released under the MIT License.
+        </div>
 
-    <script type="module" src="script.js"></script>
+        <script type="module" src="script.js"></script>
 </body>
 
 </html>
