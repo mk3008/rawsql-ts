@@ -132,7 +132,7 @@ async function loadModule() {
 
         // Initialize style config
         initStyleConfig();
-        initQuickStyleSelect();
+
 
         updateStatusBar('Ready');
         // Trigger initial conversion
@@ -450,10 +450,7 @@ function updateResourceTab(sqlText, SqlParser, MultiQuerySplitter, TableSourceCo
     }
 }
 
-function initQuickStyleSelect() {
-    const quickStyleSelect = document.getElementById('quick-style-select');
-    document.getElementById('delete-style-btn').addEventListener('click', () => setTimeout(updateOptions, 100));
-}
+
 
 // buildFixtureTables function removed - now using FixtureCteBuilder.fromJSON from core package
 
