@@ -17,5 +17,14 @@ export const normalizeTableName = (tableName: string): string => {
  * normalized key is sufficient and safer than heuristic variants.
  */
 export const tableNameVariants = (tableName: string): string[] => {
-  return [normalizeTableName(tableName)];
+  const parsed = FullNameParser.parse(tableName);
+  const namespaces = parsed.namespaces ?? [];
+  const normalized = normalizeTableName(tableName);
+  // Return the parsed-normalized key alone when no schema qualifier is present.
+  if (namespaces.length === 0) {
+    return [normalized];
+  }
+
+  // DONOT return an unqualified variant; schema-qualified normalization is required to avoid mixing distinct tables.
+  return [normalized];
 };

@@ -24,8 +24,9 @@ declare module 'vitest' {
   }
 }
 
+// Prisma emits schema-qualified table names; fixtures stay unqualified but TableNameUtils maps variants so they still match.
 const userFixture: PgFixture = {
-  tableName: 'users_prisma',
+  tableName: 'public.users_prisma',
   columns: [
     { name: 'id', typeName: 'int', required: true, defaultValue: "nextval('users_prisma_id_seq'::regclass)" },
     { name: 'email', typeName: 'text', required: true },
@@ -172,13 +173,13 @@ describe('UserRepository (Prisma) with pg-testkit driver adapter', () => {
 
     // Materialize the physical table so Prisma defaults (like serial sequences) exist even though fixtures drive reads.
     await baseClient.query(`
-      CREATE TABLE IF NOT EXISTS users_prisma (
+    CREATE TABLE IF NOT EXISTS public.users_prisma (
         id serial PRIMARY KEY,
         email text NOT NULL UNIQUE,
         active bool NOT NULL DEFAULT true
       );
     `);
-    await baseClient.query('TRUNCATE TABLE users_prisma RESTART IDENTITY;');
+    await baseClient.query('TRUNCATE TABLE public.users_prisma RESTART IDENTITY;');
 
     ensurePrismaClient(pgUri);
 
