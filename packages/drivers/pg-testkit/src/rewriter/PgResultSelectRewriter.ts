@@ -34,21 +34,19 @@ import {
   SqlFormatter,
   SqlParser,
   ParsedStatement,
-  tableNameVariants,
-  normalizeTableName,
-} from 'rawsql-ts';
-import {
   CommonTable,
   FunctionSource,
   JoinClause,
   JoinOnClause,
   JoinUsingClause,
   ParenSource,
-  SourceComponent,
   SourceExpression,
+  SourceComponent,
   SubQuerySource,
   TableSource,
-} from '../../../../core/src/models/Clause';
+  tableNameVariants,
+  normalizeTableName,
+} from 'rawsql-ts';
 import { FixtureCteBuilder } from 'rawsql-ts';
 import { TableSourceCollector } from 'rawsql-ts';
 import type {
@@ -346,7 +344,7 @@ export class PgResultSelectRewriter {
     if (query.orderByClause?.order) {
       for (const item of query.orderByClause.order) {
         if (item && typeof item === 'object' && 'value' in item && item.value) {
-          this.rewriteValueComponent(item.value, aliasMap);
+          this.rewriteValueComponent(item.value as ValueComponent, aliasMap);
         } else if (item && typeof item === 'object' && 'accept' in item) {
           this.rewriteValueComponent(item as ValueComponent, aliasMap);
         }
@@ -525,7 +523,7 @@ export class PgResultSelectRewriter {
     if (expression.order?.order) {
       for (const orderItem of expression.order.order) {
         if (orderItem && typeof orderItem === 'object' && 'value' in orderItem && orderItem.value) {
-          this.rewriteValueComponent(orderItem.value, aliasMap);
+          this.rewriteValueComponent(orderItem.value as ValueComponent, aliasMap);
         }
       }
     }

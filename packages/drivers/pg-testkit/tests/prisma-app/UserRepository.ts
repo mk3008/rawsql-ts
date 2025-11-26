@@ -1,9 +1,9 @@
-import type { PrismaClient, Prisma } from '../../tmp/prisma/client';
+import type { PrismaClientType, Prisma } from './prisma-client-shim';
 
 export class UserRepository {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly prisma: PrismaClientType) {}
 
-  async createUser(data: Prisma.UserCreateInput) {
+  async createUser(data: Prisma['UserCreateInput']) {
     return this.prisma.user.create({
       data,
     });

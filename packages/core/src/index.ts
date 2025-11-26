@@ -21,6 +21,7 @@ export * from './models/SelectQuery';
 export * from './models/SqlComponent';
 export * from './models/ValueComponent';
 export * from './models/ValuesQuery';
+export * from './models/Clause';
 export * from './models/CTEError';
 export * from './models/Lexeme';
 export * from './models/FormattingLexeme';

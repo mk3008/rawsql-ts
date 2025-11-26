@@ -1,4 +1,4 @@
-import { Client, Pool, PoolConfig, QueryResult, QueryResultRow } from 'pg';
+import { Client, Pool, PoolConfig } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { execSync } from 'node:child_process';
 import { existsSync, mkdirSync } from 'node:fs';
@@ -15,7 +15,7 @@ import type {
   QueryResultRow,
   Submittable,
 } from 'pg';
-import type { PrismaClient as PrismaClientType } from '@prisma/client';
+import type { PrismaClientType } from './prisma-app/prisma-client-shim';
 import { UserRepository } from './prisma-app/UserRepository';
 
 declare module 'vitest' {
