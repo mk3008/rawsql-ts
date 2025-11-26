@@ -43,13 +43,6 @@
                     <div class="tabs">
                         <button class="tab-btn active">SQL 1</button>
                     </div>
-                    <select id="sample-loader"
-                        style="background: #2d2d44; color: #e4e4e7; border: 1px solid #3d3d5c; padding: 4px; border-radius: 4px; margin-right: 10px;">
-                        <option value="">Load Sample...</option>
-                        <option value="users">Users (v1 -> v2)</option>
-                        <option value="normalization">Normalization (Ignore Syntax Diff)</option>
-                        <option value="multi">Multi-table Comparison</option>
-                    </select>
                     <button id="clear-sql1-btn">Clear</button>
                 </div>
                 <div id="sql1-content" class="tab-content active" style="flex: 1; position: relative;">
@@ -75,7 +68,40 @@
         <div class="bottom-pane" style="flex: 1; display: flex; flex-direction: column; min-height: 40%;">
             <div class="editor-header">
                 <div class="tabs">
+                    <button class="tab-btn active">Migration Script</button>
                 </div>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <select id="migration-direction"
+                        style="background: #2d2d44; color: #e4e4e7; border: 1px solid #3d3d5c; padding: 4px; border-radius: 4px;">
+                        <option value="1to2">SQL 1 -> SQL 2</option>
+                        <option value="2to1">SQL 2 -> SQL 1</option>
+                    </select>
+                    <select id="sample-loader"
+                        style="background: #2d2d44; color: #e4e4e7; border: 1px solid #3d3d5c; padding: 4px; border-radius: 4px;">
+                        <option value="">Load Sample...</option>
+                        <option value="users">Users (v1 -> v2)</option>
+                        <option value="normalization">Normalization (Ignore Syntax Diff)</option>
+                        <option value="multi">Multi-table Comparison</option>
+                    </select>
+                    <button id="copy-output-btn">Copy</button>
+                </div>
+            </div>
+            <div class="options-bar"
+                style="padding: 10px; background: #1e1e2e; border-bottom: 1px solid #3f3f46; display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+                <label><input type="checkbox" id="opt-drop-columns" checked> Drop Columns</label>
+                <label><input type="checkbox" id="opt-drop-tables"> Drop Tables</label>
+                <label><input type="checkbox" id="opt-drop-constraints" checked> Drop Constraints/Indexes</label>
+                <label><input type="checkbox" id="opt-check-names" checked> Check Names</label>
+                <div style="margin-left: auto; display: flex; align-items: center; gap: 5px;">
+                    <span style="font-size: 0.8rem; color: #a1a1aa;">Style:</span>
+                    <select id="style-select"
+                        style="background: #2d2d44; color: #e4e4e7; border: 1px solid #3d3d5c; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem;">
+                        <option value="default">Default</option>
+                    </select>
+                </div>
+            </div>
+            <div id="migration-content" class="tab-content active" style="flex: 1; position: relative;">
+                <textarea id="migration-output"></textarea>
             </div>
         </div>
 
@@ -84,8 +110,9 @@
             Powered by <a href="https://codemirror.net/" target="_blank" style="color: #888;">CodeMirror</a>.
             Released under the MIT License.
         </div>
+    </div>
 
-        <script type="module" src="script.js"></script>
+    <script type="module" src="script.js"></script>
 </body>
 
 </html>

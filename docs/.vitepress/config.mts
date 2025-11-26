@@ -21,7 +21,8 @@ export default defineConfig({
     nav: [
       { text: 'Guide', link: '/guide/overview' },
       { text: 'API', link: '/api/index' },
-      { text: 'Playground', link: '/cud-demo/index.html', target: '_blank', rel: 'noopener' }
+      { text: 'Playground', link: '/cud-demo/index.html', target: '_blank', rel: 'noopener' },
+      { text: 'Migration Demo', link: '/migration-demo/index.html', target: '_blank', rel: 'noopener' }
     ],
     sidebar: {
       '/guide/': [
