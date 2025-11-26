@@ -86,4 +86,29 @@ describe('DDLDiffGenerator', () => {
 
         expect(diffs.length).toBe(0);
     });
+
+    test('should not drop primary key with different name even when checkConstraintNames is true', () => {
+        const sql1 = `
+            CREATE TABLE posts (
+                id INTEGER,
+                user_id INTEGER,
+                title TEXT
+            );
+            ALTER TABLE posts ADD CONSTRAINT pkey PRIMARY KEY (id);
+        `;
+        const sql2 = `
+            CREATE TABLE posts (
+                id INTEGER PRIMARY KEY,
+                user_id INTEGER,
+                title TEXT
+            );
+        `;
+
+        const diffs = DDLDiffGenerator.generateDiff(sql1, sql2, {
+            checkConstraintNames: true,
+            dropConstraints: true
+        });
+
+        expect(diffs.length).toBe(0);
+    });
 });

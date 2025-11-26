@@ -249,13 +249,20 @@ export class DDLDiffGenerator {
 
         const getConstraintSignature = (c: ConstraintModel) => {
             if (options.checkConstraintNames) {
+                // Special handling for PRIMARY KEY: ignore name difference
+                if (c.kind === 'primary-key') {
+                    // Strip "CONSTRAINT name" prefix, handling both quoted and unquoted names
+                    // Match: CONSTRAINT "name" or CONSTRAINT name (case-insensitive)
+                    const sig = c.formatted.replace(/^constraint\s+("[^"]+"|[^\s]+)\s+/i, '').trim();
+                    return sig;
+                }
                 return c.name || c.formatted; // Fallback if no name?
             }
             // Remove name from definition for comparison
             // "CONSTRAINT name PRIMARY KEY ..." vs "PRIMARY KEY ..."
             // If we format it, it might include CONSTRAINT name.
             // We can regex remove it?
-            return c.formatted.replace(/CONSTRAINT\s+\S+\s+/, '');
+            return c.formatted.replace(/^constraint\s+("[^"]+"|[^\s]+)\s+/i, '').trim();
         };
 
         const currentSignatures = new Set(current.constraints.map(getConstraintSignature));
