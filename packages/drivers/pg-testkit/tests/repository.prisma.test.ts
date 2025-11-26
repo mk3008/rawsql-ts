@@ -1,20 +1,11 @@
-import { Client, Pool, PoolConfig } from 'pg';
+import { Client, Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { execSync } from 'node:child_process';
 import { existsSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
-import { createPgTestkitClient } from '../src';
-import type { PgFixture, PgQueryable, PgQueryInput } from '../src';
-import type {
-  QueryArrayConfig,
-  QueryArrayResult,
-  QueryConfig,
-  QueryConfigValues,
-  QueryResult,
-  QueryResultRow,
-  Submittable,
-} from 'pg';
+import { createPgTestkitPool } from '../src';
+import type { PgFixture } from '../src';
 import type { PrismaClientType } from './prisma-app/prisma-client-shim';
 import { UserRepository } from './prisma-app/UserRepository';
 
@@ -24,7 +15,8 @@ declare module 'vitest' {
   }
 }
 
-// Prisma emits schema-qualified table names; fixtures stay unqualified but TableNameUtils maps variants so they still match.
+// Prisma emits schema-qualified table names; fixtures use the same qualified identifiers,
+// and TableNameUtils only normalizes quotes/casing instead of guessing search_path.
 const userFixture: PgFixture = {
   tableName: 'public.users_prisma',
   columns: [
@@ -71,91 +63,6 @@ const importPrismaClient = async (): Promise<{ PrismaClient: new (...args: unkno
   return import('../tmp/prisma/client');
 };
 
-// Build a pg.Pool whose clients route queries through pg-testkit while preserving transaction commands.
-const buildTestkitPool = (pgUri: string, ...fixtures: PgFixture[]): Pool => {
-  class TestkitClient extends Client {
-    private readonly testkit = createPgTestkitClient({
-      connectionFactory: async () => {
-        const baseQuery = Client.prototype.query as (
-          queryTextOrConfig: PgQueryInput,
-          values?: unknown[]
-        ) => Promise<QueryResult<QueryResultRow>>;
-        const connection: PgQueryable = {
-          query: <T extends QueryResultRow = QueryResultRow>(
-            queryTextOrConfig: PgQueryInput,
-            values?: unknown[]
-          ) => baseQuery.call(this, queryTextOrConfig as never, values) as Promise<QueryResult<T>>,
-        };
-
-        // Let pg-testkit execute rewritten SQL via the raw client so transactional commands stay untouched.
-        return connection;
-      },
-      fixtures,
-    });
-
-    public override query<T extends Submittable>(queryStream: T): T;
-    public override query<R extends any[] = any[], I = any[]>(
-      queryConfig: QueryArrayConfig<I>,
-      values?: QueryConfigValues<I>
-    ): Promise<QueryArrayResult<R>>;
-    public override query<R extends QueryResultRow = any, I = any>(
-      queryConfig: QueryConfig<I>
-    ): Promise<QueryResult<R>>;
-    public override query<R extends QueryResultRow = any, I = any[]>(
-      queryTextOrConfig: string | QueryConfig<I>,
-      values?: QueryConfigValues<I>
-    ): Promise<QueryResult<R>>;
-    public override query<R extends QueryResultRow = any, I = any[]>(
-      queryTextOrConfig: string,
-      values: QueryConfigValues<I>,
-      callback: (err: Error, result: QueryResult<R>) => void
-    ): void;
-    public override query<R extends QueryResultRow = any, I = any[]>(
-      queryTextOrConfig: string | QueryConfig<I>,
-      callback: (err: Error, result: QueryResult<R>) => void
-    ): void;
-    public override query(...args: unknown[]): unknown {
-      const [
-        queryTextOrConfig,
-        valuesOrCallback,
-        callbackOrUndefined,
-      ] = args as [
-        string | { text: string; values?: unknown[]; params?: unknown[] },
-        unknown[] | ((err: Error, result: QueryResult<QueryResultRow>) => void) | undefined,
-        ((err: Error, result: QueryResult<QueryResultRow>) => void) | undefined
-      ];
-      const callback =
-        typeof valuesOrCallback === 'function' ? valuesOrCallback : callbackOrUndefined;
-      const values = typeof valuesOrCallback === 'function' ? undefined : valuesOrCallback;
-      const sqlText = typeof queryTextOrConfig === 'string' ? queryTextOrConfig : queryTextOrConfig.text;
-      const configPayload =
-        typeof queryTextOrConfig === 'string' ? undefined : queryTextOrConfig;
-      const normalizedValues = values ?? configPayload?.values ?? configPayload?.params;
-
-      if (sqlText && /^\s*(BEGIN|COMMIT|ROLLBACK|SAVEPOINT|RELEASE)/i.test(sqlText)) {
-        return Client.prototype.query.apply(this, args as any);
-      }
-
-      const execution = this.testkit.query(
-        queryTextOrConfig as PgQueryInput,
-        normalizedValues
-      );
-
-      if (typeof callback === 'function') {
-        execution
-          .then((result) => callback(null as unknown as Error, result))
-          .catch((error) => callback(error as Error, undefined as unknown as QueryResult<QueryResultRow>));
-        return undefined;
-      }
-
-      return execution;
-    }
-  }
-
-  const poolConfig: PoolConfig = { connectionString: pgUri, Client: TestkitClient };
-  return new Pool(poolConfig);
-};
-
 describe('UserRepository (Prisma) with pg-testkit driver adapter', () => {
   let baseClient: Client | undefined;
   let prismaPool: Pool | undefined;
@@ -171,7 +78,8 @@ describe('UserRepository (Prisma) with pg-testkit driver adapter', () => {
     baseClient = new Client({ connectionString: pgUri });
     await baseClient.connect();
 
-    // Materialize the physical table so Prisma defaults (like serial sequences) exist even though fixtures drive reads.
+    // Materialize the physical table so Prisma defaults (like serial sequences) exist,
+    // while reads and logical behavior still come from fixtures via pg-testkit.
     await baseClient.query(`
     CREATE TABLE IF NOT EXISTS public.users_prisma (
         id serial PRIMARY KEY,
@@ -183,7 +91,7 @@ describe('UserRepository (Prisma) with pg-testkit driver adapter', () => {
 
     ensurePrismaClient(pgUri);
 
-    prismaPool = buildTestkitPool(pgUri, userFixture);
+    prismaPool = createPgTestkitPool(pgUri, userFixture);
 
     const prismaModule = await importPrismaClient();
     const adapter = new PrismaPg(prismaPool);

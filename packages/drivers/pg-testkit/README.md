@@ -36,6 +36,28 @@ console.log(result.rows); // => [{ email: 'alice@example.com' }]
 
 Use `client.withFixtures([...])` to derive a scoped view that layers scenario-specific fixtures on top of the base configuration.
 
+## `createPgTestkitPool`
+
+For suites that already rely on `pg.Pool`, this helper produces a pool where every connection runs through pg-testkit while transaction and savepoint commands still execute on the raw client.
+
+```ts
+import { createPgTestkitPool } from '@rawsql-ts/pg-testkit';
+
+const pool = createPgTestkitPool(process.env.PG_URL!, {
+  tableName: 'users',
+  columns: [
+    { name: 'id', typeName: 'int', required: true },
+    { name: 'email', typeName: 'text' },
+  ],
+  rows: [{ id: 1, email: 'alice@example.com' }],
+});
+
+const rows = await pool.query('select email from users where id = $1', [1]);
+console.log(rows.rows); // => [{ email: 'alice@example.com' }]
+
+`createPgTestkitPool` accepts any number of fixtures, so call it like `createPgTestkitPool(pgUri, fixtureA, fixtureB, fixtureC)` to layer multiple fixtures at once.
+```
+
 ## `wrapPgClient`
 
 Wrap an existing `pg.Client`/`pg.Pool` instance so consumers can keep calling `.query` unchanged while fixtures inject CTEs under the hood.
@@ -72,3 +94,4 @@ Call `wrapped.withFixtures([...])` to produce an isolated proxy that shadows dif
 - `$1`-style parameters are normalized internally so parser limitations do not block rewrites; placeholders are restored before execution.
 - The driver relies on `rawsql-ts` result-select converters, so fixture definitions should include column types when you need precise casts or defaults.
 - Integration tests use `@testcontainers/postgresql`; ensure Docker is available when running `pnpm --filter @rawsql-ts/pg-testkit test`.
+- Defaults that rely on `nextval` (sequence-backed columns) still require the sequence to exist in PostgreSQL because the database evaluates the default expression; only the sequence definition must live in the real database while pg-testkit keeps the rest of the schema fixture-driven.
