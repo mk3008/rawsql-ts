@@ -1,7 +1,7 @@
 'use strict';
 
 // Global variables for style config, managed within this module
-const DEFAULT_STYLE_KEY = 'rawsql-formatter-styles';
+const DEFAULT_STYLE_KEY = 'rawsql-formatter-styles-v2';
 let currentStyles = {};
 
 // DOM elements and external functions - these will be initialized via initStyleConfig
