@@ -156,8 +156,8 @@ function initStyleConfig() {
         revertStyleBtn: document.getElementById('revert-style-btn')
     };
 
-    // We don't have a quick style select in the header for this demo, pass a dummy element
-    const quickStyleSelectElem = document.createElement('select');
+    // Use the output style select in the header as the quick style select
+    const quickStyleSelectElem = document.getElementById('output-style-select');
 
     styleConfigModule.initStyleConfig(
         elements,
