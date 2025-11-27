@@ -3,15 +3,19 @@ import { SqlFormatter } from "./SqlFormatter";
 import { DDLGeneralizer } from "./DDLGeneralizer";
 import { MultiQuerySplitter } from "../utils/MultiQuerySplitter";
 import { CreateTableQuery, TableColumnDefinition, TableConstraintDefinition } from "../models/CreateTableQuery";
-import { AlterTableStatement, AlterTableAddConstraint, AlterTableAddColumn, AlterTableDropColumn, AlterTableDropConstraint } from "../models/DDLStatements";
+import { AlterTableStatement, AlterTableAddConstraint, AlterTableAddColumn, AlterTableDropColumn, AlterTableDropConstraint, DropTableStatement, CreateIndexStatement, DropIndexStatement } from "../models/DDLStatements";
 import { SqlComponent } from "../models/SqlComponent";
 import { QualifiedName, RawString, IdentifierString } from "../models/ValueComponent";
+
+import { SqlFormatterOptions } from "./SqlFormatter";
 
 export interface DDLDiffOptions {
     dropTables?: boolean;
     dropColumns?: boolean;
     dropConstraints?: boolean;
+    dropIndexes?: boolean;
     checkConstraintNames?: boolean;
+    formatOptions?: SqlFormatterOptions;
 }
 
 interface ColumnModel {
@@ -26,11 +30,18 @@ interface ConstraintModel {
     formatted: string; // For comparison
 }
 
+interface IndexModel {
+    name: string;
+    definition: CreateIndexStatement;
+    formatted: string;
+}
+
 interface TableModel {
     name: string;
     qualifiedName: QualifiedName;
     columns: Map<string, ColumnModel>;
     constraints: ConstraintModel[];
+    indexes: IndexModel[];
 }
 
 export class DDLDiffGenerator {
@@ -72,21 +83,55 @@ export class DDLDiffGenerator {
                         actions: [new AlterTableAddConstraint({ constraint: constraint.definition })]
                     }));
                 }
+
+                // And add indexes
+                for (const index of expectedTable.indexes) {
+                    diffAsts.push(index.definition);
+                }
             } else {
                 // Table exists -> Compare columns and constraints
                 this.compareColumns(currentTable, expectedTable, diffAsts, options);
                 this.compareConstraints(currentTable, expectedTable, diffAsts, options);
+                this.compareIndexes(currentTable, expectedTable, diffAsts, options);
             }
         }
 
         // Drop Tables (if enabled)
         if (options.dropTables) {
-            // Not implemented as per user request "Dropじゃしなくていい" but option exists.
-            // If implemented, would need DropTableStatement.
+            for (const [tableName, currentTable] of currentSchema.tables) {
+                if (!expectedSchema.tables.has(tableName)) {
+                    // Table exists in current but not in expected -> Drop it
+                    // We need a DropTableStatement. For now, we can manually construct the SQL or add DropTableStatement model.
+                    // Since we return string[], we can just push a raw SQL string if we don't have the AST model yet,
+                    // OR better, let's use a simple object that formats to DROP TABLE.
+                    // But wait, the return type is string[] derived from ASTs.
+                    // Let's assume we can use a raw SQL component or similar.
+                    // Actually, let's just use a simple custom AST node or formatted string injection if possible.
+                    // Looking at imports, we don't have DropTableStatement.
+                    // Let's add a temporary workaround or just return the string directly?
+                    // The method returns string[] by mapping diffAsts.
+                    // We should add a DropTableStatement class or similar.
+                    // For now, let's just push a dummy component that formats to DROP TABLE.
+
+                    // Actually, let's check if we can import DropTableStatement.
+                    // It seems it's not imported. Let's check DDLStatements.ts.
+
+                    // If we can't easily add the AST, we might need to hack it or add the class.
+                    // Let's try to add a simple DropTableStatement to DDLStatements.ts first if needed.
+                    // But for now, let's assume we can just append the string at the end?
+                    // No, the return is `diffAsts.map(...)`.
+
+                    // Let's create a simple ad-hoc object that satisfies SqlComponent and formats correctly.
+                    diffAsts.push(new DropTableStatement({
+                        tables: [currentTable.qualifiedName],
+                        ifExists: false
+                    }));
+                }
+            }
         }
 
         // Format output
-        const formatter = new SqlFormatter({ keywordCase: 'upper' });
+        const formatter = new SqlFormatter(options.formatOptions || { keywordCase: 'upper' });
         return diffAsts.map(ast => formatter.format(ast).formattedSql + ';');
     }
 
@@ -120,7 +165,8 @@ export class DDLDiffGenerator {
                     name: key,
                     qualifiedName: qName,
                     columns: new Map(),
-                    constraints: []
+                    constraints: [],
+                    indexes: []
                 };
 
                 for (const col of ast.columns) {
@@ -152,6 +198,17 @@ export class DDLDiffGenerator {
                             });
                         }
                     }
+                }
+            } else if (ast instanceof CreateIndexStatement) {
+                const key = this.getQualifiedNameKey(ast.tableName);
+                const tableModel = tables.get(key);
+                if (tableModel) {
+                    const formatted = formatter.format(ast).formattedSql;
+                    tableModel.indexes.push({
+                        name: ast.indexName.toString(),
+                        definition: ast,
+                        formatted: formatted
+                    });
                 }
             }
         }
@@ -192,13 +249,20 @@ export class DDLDiffGenerator {
 
         const getConstraintSignature = (c: ConstraintModel) => {
             if (options.checkConstraintNames) {
+                // Special handling for PRIMARY KEY: ignore name difference
+                if (c.kind === 'primary-key') {
+                    // Strip "CONSTRAINT name" prefix, handling both quoted and unquoted names
+                    // Match: CONSTRAINT "name" or CONSTRAINT name (case-insensitive)
+                    const sig = c.formatted.replace(/^constraint\s+("[^"]+"|[^\s]+)\s+/i, '').trim();
+                    return sig;
+                }
                 return c.name || c.formatted; // Fallback if no name?
             }
             // Remove name from definition for comparison
             // "CONSTRAINT name PRIMARY KEY ..." vs "PRIMARY KEY ..."
             // If we format it, it might include CONSTRAINT name.
             // We can regex remove it?
-            return c.formatted.replace(/CONSTRAINT\s+\S+\s+/, '');
+            return c.formatted.replace(/^constraint\s+("[^"]+"|[^\s]+)\s+/i, '').trim();
         };
 
         const currentSignatures = new Set(current.constraints.map(getConstraintSignature));
@@ -229,6 +293,79 @@ export class DDLDiffGenerator {
                     } else {
                         console.warn("Cannot drop unnamed constraint:", currentC.formatted);
                     }
+                }
+            }
+        }
+    }
+
+    private static compareIndexes(current: TableModel, expected: TableModel, diffs: SqlComponent[], options: DDLDiffOptions) {
+        const getIndexSignature = (idx: IndexModel) => {
+            if (options.checkConstraintNames) {
+                // When Check Names is enabled, index name matters
+                return idx.name;
+            }
+            // When Check Names is disabled, compare by structural properties from AST
+            // Compare: table name, columns (expressions), unique flag, using method, where clause
+            const def = idx.definition;
+            const parts: string[] = [];
+
+            // Table name
+            parts.push(def.tableName.toString());
+
+            // Unique flag
+            if (def.unique) {
+                parts.push('UNIQUE');
+            }
+
+            // Using method (e.g., BTREE, HASH)
+            if (def.usingMethod) {
+                parts.push(`USING:${def.usingMethod.toString()}`);
+            }
+
+            // Columns (expressions and sort orders)
+            const columnSigs = def.columns.map(col => {
+                const expr = col.expression.toString();
+                const sort = col.sortOrder || '';
+                const nulls = col.nullsOrder || '';
+                return `${expr}${sort}${nulls}`;
+            });
+            parts.push(`COLS:${columnSigs.join(',')}`);
+
+            // Include columns
+            if (def.include && def.include.length > 0) {
+                parts.push(`INCLUDE:${def.include.map(i => i.toString()).join(',')}`);
+            }
+
+            // Where clause
+            if (def.where) {
+                parts.push(`WHERE:${def.where.toString()}`);
+            }
+
+            return parts.join('|');
+        };
+
+        const currentSignatures = new Set(current.indexes.map(getIndexSignature));
+
+        // Add missing indexes
+        for (const expectedIdx of expected.indexes) {
+            const sig = getIndexSignature(expectedIdx);
+            if (!currentSignatures.has(sig)) {
+                diffs.push(expectedIdx.definition);
+            }
+        }
+
+        // Drop extra indexes
+        // When checkConstraintNames is enabled, we should drop indexes with different names
+        // When dropIndexes is enabled, we should drop all extra indexes
+        if (options.checkConstraintNames || options.dropIndexes) {
+            const expectedSignatures = new Set(expected.indexes.map(getIndexSignature));
+            for (const currentIdx of current.indexes) {
+                const sig = getIndexSignature(currentIdx);
+                if (!expectedSignatures.has(sig)) {
+                    diffs.push(new DropIndexStatement({
+                        indexNames: [currentIdx.definition.indexName],
+                        ifExists: false
+                    }));
                 }
             }
         }

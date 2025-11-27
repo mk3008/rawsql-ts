@@ -132,14 +132,14 @@ async function loadModule() {
 
         // Initialize style config
         initStyleConfig();
-        initQuickStyleSelect();
+
 
         updateStatusBar('Ready');
         // Trigger initial conversion
         convertAndFormat();
     } catch (e) {
         console.error("Failed to load modules:", e);
-        updateStatusBar('Error: Failed to load modules. Check console for details.', true);
+        updateStatusBar('Error: Failed to load modules. ' + e.message, true);
     }
 }
 
@@ -450,60 +450,7 @@ function updateResourceTab(sqlText, SqlParser, MultiQuerySplitter, TableSourceCo
     }
 }
 
-function initQuickStyleSelect() {
-    const quickStyleSelect = document.getElementById('quick-style-select');
-    const styleSelect = document.getElementById('style-select');
 
-    if (!quickStyleSelect || !styleConfigModule) return;
-
-    const updateOptions = () => {
-        const styles = styleConfigModule.getCurrentStyles();
-        quickStyleSelect.innerHTML = '';
-
-        Object.keys(styles).forEach(name => {
-            const opt = document.createElement('option');
-            opt.value = name;
-            opt.textContent = name;
-            quickStyleSelect.appendChild(opt);
-        });
-
-        // Restore from localStorage if available
-        const savedStyle = localStorage.getItem('cud-demo-style');
-        if (savedStyle && styles[savedStyle]) {
-            quickStyleSelect.value = savedStyle;
-        } else if (styleSelect) {
-            // Fallback to main style select if no saved style
-            quickStyleSelect.value = styleSelect.value;
-        }
-
-        // Sync with main style select
-        if (styleSelect) {
-            styleSelect.value = quickStyleSelect.value;
-        }
-    };
-
-    // Initial population
-    updateOptions();
-
-    // Listen for changes
-    quickStyleSelect.addEventListener('change', () => {
-        localStorage.setItem('cud-demo-style', quickStyleSelect.value);
-
-        // Also update the main style select to keep them in sync
-        if (styleSelect) {
-            styleSelect.value = quickStyleSelect.value;
-            // Trigger change event on main select to update editor
-            styleSelect.dispatchEvent(new Event('change'));
-        } else {
-            convertAndFormat();
-        }
-    });
-
-    // Listen for style updates (this is a bit hacky, ideally we'd have an event)
-    // For now, we can hook into the save/delete buttons or just refresh on mouseover of the header
-    document.getElementById('save-style-btn').addEventListener('click', () => setTimeout(updateOptions, 100));
-    document.getElementById('delete-style-btn').addEventListener('click', () => setTimeout(updateOptions, 100));
-}
 
 // buildFixtureTables function removed - now using FixtureCteBuilder.fromJSON from core package
 
@@ -550,9 +497,12 @@ function convertAndFormat() {
         const styleSelect = document.getElementById('style-select');
         // Check quick style select first if available
         const quickStyleSelect = document.getElementById('quick-style-select');
+        const outputStyleSelect = document.getElementById('output-style-select');
 
         if (quickStyleSelect && quickStyleSelect.value && currentStyles[quickStyleSelect.value]) {
             formatOptions = currentStyles[quickStyleSelect.value];
+        } else if (outputStyleSelect && outputStyleSelect.value && currentStyles[outputStyleSelect.value]) {
+            formatOptions = currentStyles[outputStyleSelect.value];
         } else if (styleSelect && styleSelect.value && currentStyles[styleSelect.value]) {
             formatOptions = currentStyles[styleSelect.value];
         }
@@ -561,12 +511,15 @@ function convertAndFormat() {
     // Update Resource Tab
     updateResourceTab(sqlText, SqlParser, MultiQuerySplitter, TableSourceCollector, CTECollector);
 
-    // Parse fixture JSON
+    // Parse fixture JSON or Generate from DDL
     let tableDefinitions = null;
     let fixtureTables = [];
+    let useManualFixture = false;
+
     if (fixtureEditor) {
         const fixtureText = fixtureEditor.getValue().trim();
         if (fixtureText) {
+            useManualFixture = true;
             try {
                 tableDefinitions = JSON.parse(fixtureText);
                 if (tableDefinitions && typeof tableDefinitions === 'object') {
@@ -581,6 +534,33 @@ function convertAndFormat() {
                 console.warn('Invalid fixture JSON:', e);
                 updateStatusBar('Warning: Invalid fixture JSON', true);
             }
+        }
+    }
+
+    if (!useManualFixture) {
+        // Generate Fixture JSON from DDL
+        try {
+            const fixtureJson = DDLToFixtureConverter.convert(sqlText);
+            const jsonString = JSON.stringify(fixtureJson, null, 2);
+            if (generatedFixtureEditor) {
+                generatedFixtureEditor.setValue(jsonString);
+            }
+
+            // Use generated fixture for simulation
+            tableDefinitions = fixtureJson;
+            fixtureTables = FixtureCteBuilder.fromJSON(tableDefinitions);
+            updateStatusBar('Fixture generated from DDL');
+        } catch (e) {
+            console.error("Error generating fixture JSON:", e);
+            updateStatusBar('Warning: Could not generate fixture from DDL', true);
+            if (generatedFixtureEditor) {
+                generatedFixtureEditor.setValue('');
+            }
+        }
+    } else {
+        // If using manual fixture, clear generated fixture editor to avoid confusion
+        if (generatedFixtureEditor) {
+            generatedFixtureEditor.setValue('');
         }
     }
 
@@ -629,20 +609,6 @@ function convertAndFormat() {
         }
 
         formattedSqlEditor.setValue(segments.join('\n\n'));
-
-        // Generate Fixture JSON from DDL
-        try {
-            const fixtureJson = DDLToFixtureConverter.convert(sqlText);
-            const jsonString = JSON.stringify(fixtureJson, null, 2);
-            if (generatedFixtureEditor) {
-                generatedFixtureEditor.setValue(jsonString);
-            }
-        } catch (e) {
-            console.error("Error generating fixture JSON:", e);
-            if (generatedFixtureEditor) {
-                generatedFixtureEditor.setValue('');
-            }
-        }
 
         updateStatusBar('Conversion successful');
     } catch (e) {

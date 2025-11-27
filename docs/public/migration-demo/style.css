@@ -1,0 +1,239 @@
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+    margin: 0;
+    padding: 20px;
+    background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 100%);
+    color: #e4e4e7;
+    font-size: 14px;
+    height: 100vh;
+    box-sizing: border-box;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Header area */
+.header-wrapper {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 15px;
+}
+
+h1 {
+    margin: 0;
+    font-size: 1.8rem;
+    font-weight: 600;
+    background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+a {
+    color: #60a5fa;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+a:hover {
+    color: #93c5fd;
+}
+
+/* Main container for left/right panes */
+.container {
+    flex: 1;
+    display: flex;
+    gap: 20px;
+    min-height: 0;
+    /* Crucial for nested flex scrolling */
+    margin-bottom: 15px;
+}
+
+/* Editor container (left and right panes) */
+.editor-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    background-color: #1e1e2e;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    border: 1px solid #2d2d44;
+}
+
+/* Header inside editor */
+.editor-header {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    padding: 12px 20px;
+    background: linear-gradient(135deg, #2d2d44 0%, #1e1e2e 100%);
+    border-bottom: 1px solid #3d3d5c;
+    gap: 20px;
+}
+
+.editor-header h2 {
+    margin: 0;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #a1a1aa;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* Tabs */
+.tabs {
+    display: flex;
+    gap: 4px;
+}
+
+.tab-btn {
+    background: transparent;
+    color: #a1a1aa;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.tab-btn:hover {
+    background: rgba(96, 165, 250, .1);
+    color: #60a5fa;
+}
+
+.tab-btn.active {
+    background: rgba(96, 165, 250, .2);
+    color: #60a5fa;
+}
+
+.tab-content {
+    display: none;
+    flex: 1;
+    min-height: 0;
+    /* Allow content to scroll */
+    flex-direction: column;
+}
+
+.tab-content.active {
+    display: flex;
+}
+
+/* Sample loader button and Output mode selector */
+#sample-loader,
+#output-mode-selector {
+    background: #2d2d44;
+    color: #e4e4e7;
+    border: 1px solid #3d3d5c;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: .85rem;
+    cursor: pointer;
+}
+
+#sample-loader:hover,
+#output-mode-selector:hover {
+    border-color: #60a5fa;
+}
+
+/* CodeMirror editor */
+.CodeMirror {
+    flex: 1;
+    height: 100% !important;
+    font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+/* Style tab specific */
+.style-config-container {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+}
+
+.style-editor-form {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.style-editor-form .CodeMirror {
+    flex: 1;
+    height: 100% !important;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+}
+
+::-webkit-scrollbar-track {
+    background: #16162a;
+    border-radius: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #3d3d5c;
+    border-radius: 6px;
+    border: 2px solid #16162a;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #4d4d6c;
+}
+
+/* Buttons */
+button {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: #fff;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all .2s;
+    font-size: .85rem;
+    font-weight: 500;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, .3);
+}
+
+button:hover {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, .4);
+    transform: translateY(-1px);
+}
+
+button:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(59, 130, 246, .3);
+}
+
+/* Status bar and Footer */
+#status-bar {
+    flex: 0 0 auto;
+    padding: 8px 12px;
+    background-color: #1e1e2e;
+    border-radius: 6px;
+    color: #71717a;
+    font-size: .85rem;
+    height: 20px;
+    border: 1px solid #2d2d44;
+    margin-bottom: 10px;
+}
+
+.footer-text {
+    flex: 0 0 auto;
+    text-align: center;
+    font-size: 0.8em;
+    color: #666;
+}
