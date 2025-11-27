@@ -3,7 +3,7 @@
 
 > **ExtractedStructure** = `"primitive"` \| \{\[`key`: `string`\]: `ExtractedStructure`; \} \| `ExtractedStructure`[]
 
-Defined in: [packages/core/src/utils/JsonSchemaValidator.ts:11](https://github.com/mk3008/rawsql-ts/blob/51bbec6ef0d7055aa2566e8bbb783d462b3eba39/packages/core/src/utils/JsonSchemaValidator.ts#L11)
+Defined in: [packages/core/src/utils/JsonSchemaValidator.ts:11](https://github.com/mk3008/rawsql-ts/blob/d15b52f58a5f1892ed05d2ab4829bbebde506c12/packages/core/src/utils/JsonSchemaValidator.ts#L11)
 
 Represents the structure extracted from JsonMapping analysis
 </div>
