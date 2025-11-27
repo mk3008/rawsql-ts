@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: DeleteQueryParser
 
-Defined in: [packages/core/src/parsers/DeleteQueryParser.ts:12](https://github.com/mk3008/rawsql-ts/blob/d15b52f58a5f1892ed05d2ab4829bbebde506c12/packages/core/src/parsers/DeleteQueryParser.ts#L12)
+Defined in: [packages/core/src/parsers/DeleteQueryParser.ts:12](https://github.com/mk3008/rawsql-ts/blob/f6bbef44f8af5ec6c2ca7cae709c0f77fc593271/packages/core/src/parsers/DeleteQueryParser.ts#L12)
 
 ## Constructors
 
@@ -19,7 +19,7 @@ Defined in: [packages/core/src/parsers/DeleteQueryParser.ts:12](https://github.c
 
 > `static` **parse**(`query`): [`DeleteQuery`](DeleteQuery.md)
 
-Defined in: [packages/core/src/parsers/DeleteQueryParser.ts:17](https://github.com/mk3008/rawsql-ts/blob/d15b52f58a5f1892ed05d2ab4829bbebde506c12/packages/core/src/parsers/DeleteQueryParser.ts#L17)
+Defined in: [packages/core/src/parsers/DeleteQueryParser.ts:17](https://github.com/mk3008/rawsql-ts/blob/f6bbef44f8af5ec6c2ca7cae709c0f77fc593271/packages/core/src/parsers/DeleteQueryParser.ts#L17)
 
 Parse SQL string to DeleteQuery AST.
 
@@ -41,7 +41,7 @@ SQL string
 
 > `static` **parseFromLexeme**(`lexemes`, `index`): `object`
 
-Defined in: [packages/core/src/parsers/DeleteQueryParser.ts:32](https://github.com/mk3008/rawsql-ts/blob/d15b52f58a5f1892ed05d2ab4829bbebde506c12/packages/core/src/parsers/DeleteQueryParser.ts#L32)
+Defined in: [packages/core/src/parsers/DeleteQueryParser.ts:32](https://github.com/mk3008/rawsql-ts/blob/f6bbef44f8af5ec6c2ca7cae709c0f77fc593271/packages/core/src/parsers/DeleteQueryParser.ts#L32)
 
 Parse from lexeme array (for internal use and tests).
 

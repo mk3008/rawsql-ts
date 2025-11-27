@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: PositionAwareParser
 
-Defined in: [packages/core/src/utils/PositionAwareParser.ts:57](https://github.com/mk3008/rawsql-ts/blob/d15b52f58a5f1892ed05d2ab4829bbebde506c12/packages/core/src/utils/PositionAwareParser.ts#L57)
+Defined in: [packages/core/src/utils/PositionAwareParser.ts:57](https://github.com/mk3008/rawsql-ts/blob/f6bbef44f8af5ec6c2ca7cae709c0f77fc593271/packages/core/src/utils/PositionAwareParser.ts#L57)
 
 Position-aware SQL parser with error recovery for IntelliSense
 
@@ -38,7 +38,7 @@ console.log(result.success); // true (with recovery)
 
 > `static` **parseToPosition**(`sql`, `cursorPosition`, `options`): [`PositionParseResult`](../interfaces/PositionParseResult.md)
 
-Defined in: [packages/core/src/utils/PositionAwareParser.ts:66](https://github.com/mk3008/rawsql-ts/blob/d15b52f58a5f1892ed05d2ab4829bbebde506c12/packages/core/src/utils/PositionAwareParser.ts#L66)
+Defined in: [packages/core/src/utils/PositionAwareParser.ts:66](https://github.com/mk3008/rawsql-ts/blob/f6bbef44f8af5ec6c2ca7cae709c0f77fc593271/packages/core/src/utils/PositionAwareParser.ts#L66)
 
 Parse SQL text up to a specific position with error recovery
 
@@ -74,7 +74,7 @@ Parse result with position-specific information
 
 > `static` **parseCurrentQuery**(`sql`, `cursorPosition`, `options`): [`PositionParseResult`](../interfaces/PositionParseResult.md)
 
-Defined in: [packages/core/src/utils/PositionAwareParser.ts:113](https://github.com/mk3008/rawsql-ts/blob/d15b52f58a5f1892ed05d2ab4829bbebde506c12/packages/core/src/utils/PositionAwareParser.ts#L113)
+Defined in: [packages/core/src/utils/PositionAwareParser.ts:113](https://github.com/mk3008/rawsql-ts/blob/f6bbef44f8af5ec6c2ca7cae709c0f77fc593271/packages/core/src/utils/PositionAwareParser.ts#L113)
 
 Parse current query from multi-query text at cursor position
 

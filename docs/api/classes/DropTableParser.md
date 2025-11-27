@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: DropTableParser
 
-Defined in: [packages/core/src/parsers/DropTableParser.ts:10](https://github.com/mk3008/rawsql-ts/blob/d15b52f58a5f1892ed05d2ab4829bbebde506c12/packages/core/src/parsers/DropTableParser.ts#L10)
+Defined in: [packages/core/src/parsers/DropTableParser.ts:10](https://github.com/mk3008/rawsql-ts/blob/f6bbef44f8af5ec6c2ca7cae709c0f77fc593271/packages/core/src/parsers/DropTableParser.ts#L10)
 
 Parses DROP TABLE statements.
 
@@ -21,7 +21,7 @@ Parses DROP TABLE statements.
 
 > `static` **parse**(`sql`): [`DropTableStatement`](DropTableStatement.md)
 
-Defined in: [packages/core/src/parsers/DropTableParser.ts:11](https://github.com/mk3008/rawsql-ts/blob/d15b52f58a5f1892ed05d2ab4829bbebde506c12/packages/core/src/parsers/DropTableParser.ts#L11)
+Defined in: [packages/core/src/parsers/DropTableParser.ts:11](https://github.com/mk3008/rawsql-ts/blob/f6bbef44f8af5ec6c2ca7cae709c0f77fc593271/packages/core/src/parsers/DropTableParser.ts#L11)
 
 #### Parameters
 
@@ -39,7 +39,7 @@ Defined in: [packages/core/src/parsers/DropTableParser.ts:11](https://github.com
 
 > `static` **parseFromLexeme**(`lexemes`, `index`): `object`
 
-Defined in: [packages/core/src/parsers/DropTableParser.ts:21](https://github.com/mk3008/rawsql-ts/blob/d15b52f58a5f1892ed05d2ab4829bbebde506c12/packages/core/src/parsers/DropTableParser.ts#L21)
+Defined in: [packages/core/src/parsers/DropTableParser.ts:21](https://github.com/mk3008/rawsql-ts/blob/f6bbef44f8af5ec6c2ca7cae709c0f77fc593271/packages/core/src/parsers/DropTableParser.ts#L21)
 
 #### Parameters
 

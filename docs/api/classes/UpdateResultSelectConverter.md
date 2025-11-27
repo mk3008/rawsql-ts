@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: UpdateResultSelectConverter
 
-Defined in: [packages/core/src/transformers/UpdateResultSelectConverter.ts:46](https://github.com/mk3008/rawsql-ts/blob/d15b52f58a5f1892ed05d2ab4829bbebde506c12/packages/core/src/transformers/UpdateResultSelectConverter.ts#L46)
+Defined in: [packages/core/src/transformers/UpdateResultSelectConverter.ts:46](https://github.com/mk3008/rawsql-ts/blob/f6bbef44f8af5ec6c2ca7cae709c0f77fc593271/packages/core/src/transformers/UpdateResultSelectConverter.ts#L46)
 
 ## Constructors
 
@@ -19,7 +19,7 @@ Defined in: [packages/core/src/transformers/UpdateResultSelectConverter.ts:46](h
 
 > `static` **toSelectQuery**(`updateQuery`, `options?`): [`SimpleSelectQuery`](SimpleSelectQuery.md)
 
-Defined in: [packages/core/src/transformers/UpdateResultSelectConverter.ts:52](https://github.com/mk3008/rawsql-ts/blob/d15b52f58a5f1892ed05d2ab4829bbebde506c12/packages/core/src/transformers/UpdateResultSelectConverter.ts#L52)
+Defined in: [packages/core/src/transformers/UpdateResultSelectConverter.ts:52](https://github.com/mk3008/rawsql-ts/blob/f6bbef44f8af5ec6c2ca7cae709c0f77fc593271/packages/core/src/transformers/UpdateResultSelectConverter.ts#L52)
 
 Converts an UPDATE with RETURNING (or a bare UPDATE) into a SELECT that mirrors its output rows.
 

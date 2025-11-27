@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: FilterableItem
 
-Defined in: [packages/core/src/transformers/FilterableItemCollector.ts:22](https://github.com/mk3008/rawsql-ts/blob/d15b52f58a5f1892ed05d2ab4829bbebde506c12/packages/core/src/transformers/FilterableItemCollector.ts#L22)
+Defined in: [packages/core/src/transformers/FilterableItemCollector.ts:22](https://github.com/mk3008/rawsql-ts/blob/f6bbef44f8af5ec6c2ca7cae709c0f77fc593271/packages/core/src/transformers/FilterableItemCollector.ts#L22)
 
 Represents a filterable item that can be used in DynamicQueryBuilder
 Can be either a table column or a SQL parameter
@@ -12,7 +12,7 @@ Can be either a table column or a SQL parameter
 
 > **new FilterableItem**(`name`, `type`, `tableName?`): `FilterableItem`
 
-Defined in: [packages/core/src/transformers/FilterableItemCollector.ts:23](https://github.com/mk3008/rawsql-ts/blob/d15b52f58a5f1892ed05d2ab4829bbebde506c12/packages/core/src/transformers/FilterableItemCollector.ts#L23)
+Defined in: [packages/core/src/transformers/FilterableItemCollector.ts:23](https://github.com/mk3008/rawsql-ts/blob/f6bbef44f8af5ec6c2ca7cae709c0f77fc593271/packages/core/src/transformers/FilterableItemCollector.ts#L23)
 
 #### Parameters
 
@@ -38,7 +38,7 @@ Defined in: [packages/core/src/transformers/FilterableItemCollector.ts:23](https
 
 > `readonly` **name**: `string`
 
-Defined in: [packages/core/src/transformers/FilterableItemCollector.ts:24](https://github.com/mk3008/rawsql-ts/blob/d15b52f58a5f1892ed05d2ab4829bbebde506c12/packages/core/src/transformers/FilterableItemCollector.ts#L24)
+Defined in: [packages/core/src/transformers/FilterableItemCollector.ts:24](https://github.com/mk3008/rawsql-ts/blob/f6bbef44f8af5ec6c2ca7cae709c0f77fc593271/packages/core/src/transformers/FilterableItemCollector.ts#L24)
 
 ***
 
@@ -46,7 +46,7 @@ Defined in: [packages/core/src/transformers/FilterableItemCollector.ts:24](https
 
 > `readonly` **type**: `"column"` \| `"parameter"`
 
-Defined in: [packages/core/src/transformers/FilterableItemCollector.ts:25](https://github.com/mk3008/rawsql-ts/blob/d15b52f58a5f1892ed05d2ab4829bbebde506c12/packages/core/src/transformers/FilterableItemCollector.ts#L25)
+Defined in: [packages/core/src/transformers/FilterableItemCollector.ts:25](https://github.com/mk3008/rawsql-ts/blob/f6bbef44f8af5ec6c2ca7cae709c0f77fc593271/packages/core/src/transformers/FilterableItemCollector.ts#L25)
 
 ***
 
@@ -54,5 +54,5 @@ Defined in: [packages/core/src/transformers/FilterableItemCollector.ts:25](https
 
 > `readonly` `optional` **tableName**: `string`
 
-Defined in: [packages/core/src/transformers/FilterableItemCollector.ts:26](https://github.com/mk3008/rawsql-ts/blob/d15b52f58a5f1892ed05d2ab4829bbebde506c12/packages/core/src/transformers/FilterableItemCollector.ts#L26)
+Defined in: [packages/core/src/transformers/FilterableItemCollector.ts:26](https://github.com/mk3008/rawsql-ts/blob/f6bbef44f8af5ec6c2ca7cae709c0f77fc593271/packages/core/src/transformers/FilterableItemCollector.ts#L26)
 </div>

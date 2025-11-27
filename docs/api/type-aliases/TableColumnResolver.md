@@ -3,7 +3,7 @@
 
 > **TableColumnResolver** = (`tableName`) => `string`[]
 
-Defined in: [packages/core/src/transformers/TableColumnResolver.ts:18](https://github.com/mk3008/rawsql-ts/blob/d15b52f58a5f1892ed05d2ab4829bbebde506c12/packages/core/src/transformers/TableColumnResolver.ts#L18)
+Defined in: [packages/core/src/transformers/TableColumnResolver.ts:18](https://github.com/mk3008/rawsql-ts/blob/f6bbef44f8af5ec6c2ca7cae709c0f77fc593271/packages/core/src/transformers/TableColumnResolver.ts#L18)
 
 Type definition for a function that resolves column names from a table name.
 
