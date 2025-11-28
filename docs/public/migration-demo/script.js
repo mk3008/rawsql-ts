@@ -160,6 +160,7 @@ sql1Editor.on('changes', triggerGeneration);
 sql2Editor.on('changes', triggerGeneration);
 document.getElementById('migration-direction').addEventListener('change', generateMigration);
 document.getElementById('opt-drop-columns').addEventListener('change', generateMigration);
+document.getElementById('opt-drop-tables').addEventListener('change', generateMigration);
 document.getElementById('opt-drop-constraints').addEventListener('change', generateMigration);
 document.getElementById('opt-check-names').addEventListener('change', generateMigration);
 
