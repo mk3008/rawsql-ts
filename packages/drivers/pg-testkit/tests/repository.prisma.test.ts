@@ -53,12 +53,14 @@ const ensurePrismaClient = (databaseUrl: string): void => {
   );
 };
 
-const importPrismaClient = async (): Promise<{ PrismaClient: new (...args: unknown[]) => PrismaClientType }> => {
+type PrismaClientModule = typeof import('../tmp/prisma/client');
+
+const importPrismaClient = async (): Promise<PrismaClientModule> => {
   return import('../tmp/prisma/client');
 };
 
 describe('UserRepository (Prisma) with pg-testkit driver adapter', () => {
-  let prismaModule: { PrismaClient: new (...args: unknown[]) => PrismaClientType } | undefined;
+  let prismaModule: PrismaClientModule | undefined;
   let testPgUri: string | undefined;
 
   beforeAll(async () => {
@@ -99,7 +101,7 @@ describe('UserRepository (Prisma) with pg-testkit driver adapter', () => {
     const prismaClient = new prismaModule.PrismaClient({
       adapter,
       log: [{ emit: 'event', level: 'query' }],
-    }) as PrismaClientType;
+    }) as unknown as PrismaClientType;
     const repository = new UserRepository(prismaClient);
 
     // Ensure we always disconnect the Prisma client and close the pool, even if the test throws.

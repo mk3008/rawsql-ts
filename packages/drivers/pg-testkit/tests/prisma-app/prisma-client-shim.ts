@@ -26,6 +26,7 @@ export class PrismaClient {
     }): Promise<Prisma['BatchPayload']>;
     deleteMany(args: { where: Prisma['UserWhereUniqueInput'] }): Promise<Prisma['BatchPayload']>;
   };
+  public $disconnect!: () => Promise<void>;
 }
 
 export type PrismaClientType = PrismaClient;
