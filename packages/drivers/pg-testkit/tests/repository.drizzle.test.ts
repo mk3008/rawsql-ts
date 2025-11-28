@@ -1,8 +1,8 @@
-import { sql } from 'drizzle-orm';
-import { drizzle, NodePgDatabase } from 'drizzle-orm/node-postgres';
+import { drizzle } from 'drizzle-orm/node-postgres';
 import { beforeAll, describe, expect, inject, it } from 'vitest';
 import { createPgTestkitFixtureRunner } from './helpers/pgFixtureRunner';
 import { usersDrizzleTableDefinition } from './fixtures/TableDefinitions';
+import { DrizzleUserRepository } from './drizzle-app/DrizzleUserRepository';
 
 type DrizzleRow = { id: number; email: string; active: boolean };
 const baseDrizzleRows: DrizzleRow[] = [
@@ -18,49 +18,6 @@ const fixtureRunner = createPgTestkitFixtureRunner<DrizzleRow>({
   tableDefinitions: [usersDrizzleTableDefinition],
   buildTableRows: (rows) => [{ tableName: 'users_drizzle', rows }],
 });
-
-/** Plain SQL repository that exercises inserts, updates, and deletes via Drizzle. */
-class DrizzleUserRepository {
-  constructor(private readonly db: NodePgDatabase) {}
-
-  /**
-   * INSERT ... RETURNING is rewritten to a fixture-backed SELECT so the returned
-   * tuple comes entirely from pg-testkit instead of a physical write.
-   */
-  public async createUser(email: string, active: boolean): Promise<{ email: string; active: boolean }> {
-    // Run the INSERT statement the test would normally issue; pg-testkit captures
-    // the SQL and synthesizes a returning row based on the current fixtures.
-    const result = await this.db.execute(
-      sql<{ email: string; active: boolean }>`
-        insert into users_drizzle (email, active)
-        values (${email}, ${active})
-        returning email, active
-      `
-    );
-    return result.rows[0] as { email: string; active: boolean };
-  }
-
-  /**
-   * UPDATE is rewritten so rowCount reflects how many fixture rows the
-   * WHERE clause matches, without touching a real table.
-   */
-  public async updateActive(id: number, active: boolean): Promise<number> {
-    // Execute the SQL that would update the table; pg-testkit evaluates the
-    // WHERE clause against the fixtures and returns a synthesized rowCount.
-    const result = await this.db.execute(sql`update users_drizzle set active = ${active} where id = ${id}`);
-    return result.rowCount ?? 0;
-  }
-
-  /**
-   * DELETE is treated similarly: pg-testkit computes rowCount from fixtures.
-   */
-  public async deleteById(id: number): Promise<number> {
-    // The SQL itself is unchanged, but pg-testkit runs it against the fixtures
-    // so the method proves rowCount still matches the logical dataset.
-    const result = await this.db.execute(sql`delete from users_drizzle where id = ${id}`);
-    return result.rowCount ?? 0;
-  }
-}
 
 describe('UserRepository with drizzle + pg-testkit driver', () => {
   let connectionString: string | undefined;
