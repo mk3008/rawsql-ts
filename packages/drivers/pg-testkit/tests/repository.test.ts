@@ -1,4 +1,4 @@
-import type { ClientBase } from 'pg';
+import type { TableRowsFixture } from '@rawsql-ts/testkit-core';
 import { beforeAll, describe, expect, inject, it } from 'vitest';
 import { createPgTestkitFixtureRunner } from './helpers/pgFixtureRunner';
 import { usersTableDefinition } from './fixtures/TableDefinitions';
@@ -11,13 +11,14 @@ const baseUserRows: UserRow[] = [
   { id: 2, email: 'bob@example.com', active: false },
 ];
 
+const buildUserFixtures = (rows: UserRow[]): TableRowsFixture[] => [{ tableName: 'users', rows }];
+
 /**
  * Helper that drives every repository test through a pg-testkit pool with explicit table metadata.
  * Each run delivers a clean fixture set that prevents shared state between tests.
  */
-const fixtureRunner = createPgTestkitFixtureRunner<UserRow>({
+const fixtureRunner = createPgTestkitFixtureRunner({
   tableDefinitions: [usersTableDefinition],
-  buildTableRows: (rows) => [{ tableName: 'users', rows }],
 });
 
 describe('UserRepository with pg-testkit driver', () => {
@@ -38,10 +39,13 @@ describe('UserRepository with pg-testkit driver', () => {
       throw new Error('Connection string is missing; call beforeAll() before running tests.');
     }
 
+    // Build fixture payload so the runner can accept multi-table input when needed.
+    const fixtures = buildUserFixtures(rows);
+
     // Route the pg-testkit pool through each run so SQL is applied to fixture data only.
-    await fixtureRunner(connectionString, rows, async (pool) => {
+    await fixtureRunner(connectionString, fixtures, async (pool) => {
       // Instantiate the repository over the fixture-backed pool so every query uses simulated data.
-      const repository = new UserRepository(pool as unknown as ClientBase);
+      const repository = new UserRepository(pool);
       await testFn(repository);
     });
   };

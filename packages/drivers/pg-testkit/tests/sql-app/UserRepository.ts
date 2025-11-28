@@ -1,7 +1,17 @@
-import type { ClientBase } from 'pg';
+interface RepositoryQueryResult<T> {
+  rows: T[];
+  rowCount?: number | null;
+}
+
+/**
+ * Minimal query executor that keeps repositories driver-agnostic.
+ */
+export interface QueryExecutor {
+  query<T>(queryText: string, values?: readonly unknown[]): Promise<RepositoryQueryResult<T>>;
+}
 
 export class UserRepository {
-  constructor(private readonly db: ClientBase) {}
+  constructor(private readonly db: QueryExecutor) {}
 
   public async createUser(email: string, active: boolean): Promise<{ email: string; active: boolean }> {
     // pg-testkit rewrites this INSERT ... RETURNING into a fixture-backed SELECT result.

@@ -3,36 +3,29 @@ import type { TableRowsFixture } from '@rawsql-ts/testkit-core';
 import type { CreatePgTestkitPoolOptions } from '../../src';
 import { createPgTestkitPool } from '../../src';
 
-export type TableRowsBuilder<Row> = (rows: Row[]) => TableRowsFixture[];
-
-interface FixtureRunnerConfig<Row> {
+interface FixtureRunnerConfig {
   ddlRoot?: string;
   tableDefinitions?: TableDefinitionModel[];
-  buildTableRows: TableRowsBuilder<Row>;
 }
 
 /**
  * Creates a runner that wires the pg-testkit pool around each invocation and
  * enforces cleanup after every test block.
  */
-export const createPgTestkitFixtureRunner = <Row>({
+export const createPgTestkitFixtureRunner = ({
   ddlRoot,
   tableDefinitions,
-  buildTableRows,
-}: FixtureRunnerConfig<Row>) => {
+}: FixtureRunnerConfig) => {
   return async <T>(
     connectionString: string,
-    rows: Row[],
+    fixtures: TableRowsFixture[],
     testFn: (pool: ReturnType<typeof createPgTestkitPool>) => Promise<T>
   ): Promise<T> => {
-    // Translate the provided row data into pg-testkit table fixtures.
-    const fixturePayload = buildTableRows(rows);
-
-    // Collect optional pool configuration such as schema definitions or DDL roots.
+    // Pass fixture metadata through so multi-table scenarios can be described by consumers.
     const poolOptions: CreatePgTestkitPoolOptions = {};
 
     if (tableDefinitions) {
-      // Supply explicit table metadata when the test depends on column-level accuracy.
+      // Supply explicit table metadata when tests rely on column-level accuracy.
       poolOptions.tableDefinitions = tableDefinitions;
     }
 
@@ -41,10 +34,10 @@ export const createPgTestkitFixtureRunner = <Row>({
       poolOptions.ddl = { directories: [ddlRoot] };
     }
 
-    // Choose whether to pass explicit options so the helper stays flexible for plain setups.
+    // Create the pool with the accumulated fixtures and any optional metadata.
     const pool = Object.keys(poolOptions).length > 0
-      ? createPgTestkitPool(connectionString, ...fixturePayload, poolOptions)
-      : createPgTestkitPool(connectionString, ...fixturePayload);
+      ? createPgTestkitPool(connectionString, ...fixtures, poolOptions)
+      : createPgTestkitPool(connectionString, ...fixtures);
 
     try {
       return await testFn(pool);

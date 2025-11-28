@@ -1,3 +1,4 @@
+import type { TableRowsFixture } from '@rawsql-ts/testkit-core';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { beforeAll, describe, expect, inject, it } from 'vitest';
 import { createPgTestkitFixtureRunner } from './helpers/pgFixtureRunner';
@@ -10,13 +11,16 @@ const baseDrizzleRows: DrizzleRow[] = [
   { id: 2, email: 'bob@example.com', active: false },
 ];
 
+const buildDrizzleFixtures = (rows: DrizzleRow[]): TableRowsFixture[] => [
+  { tableName: 'users_drizzle', rows },
+];
+
 /**
  * Prepares fixture-backed execution for every test so pg-testkit rewrites
  * CRUD operations into SELECT plans that derive their data from fixtures.
  */
-const fixtureRunner = createPgTestkitFixtureRunner<DrizzleRow>({
+const fixtureRunner = createPgTestkitFixtureRunner({
   tableDefinitions: [usersDrizzleTableDefinition],
-  buildTableRows: (rows) => [{ tableName: 'users_drizzle', rows }],
 });
 
 describe('UserRepository with drizzle + pg-testkit driver', () => {
@@ -44,8 +48,11 @@ describe('UserRepository with drizzle + pg-testkit driver', () => {
       throw new Error('Connection string is missing; call beforeAll() before running tests.');
     }
 
+    // Build the fixture payload so the runner can handle multi-table configurations.
+    const fixtures = buildDrizzleFixtures(rows);
+
     // Start a fixture-driven pool so each test sees only the provided data.
-    await fixtureRunner(connectionString, rows, async (pool) => {
+    await fixtureRunner(connectionString, fixtures, async (pool) => {
       const db = drizzle(pool);
       const repository = new DrizzleUserRepository(db);
       await testFn(repository);

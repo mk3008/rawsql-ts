@@ -6,6 +6,7 @@ import { usersPrismaTableDefinition } from './fixtures/TableDefinitions';
 import { UserRepository } from './prisma-app/UserRepository';
 import { createPgTestkitFixtureRunner } from './helpers/pgFixtureRunner';
 import { createPrismaRepositoryTestHarness } from './helpers/prismaRepositoryTestHarness';
+import { createPgTestkitPool } from '../../src';
 
 declare module 'vitest' {
   interface ProvidedContext {
@@ -34,11 +35,20 @@ const buildUserRows = (rows: UserFixtureRow[]) => ({
   rows,
 });
 
-const fixtureRunner = createPgTestkitFixtureRunner<UserFixtureRow>({
+const fixtureRunner = createPgTestkitFixtureRunner({
   ddlRoot,
   tableDefinitions: [usersPrismaTableDefinition],
-  buildTableRows: (rows) => [buildUserRows(rows)],
 });
+
+const fixtureRunnerWithUserRows = async (
+  connectionString: string,
+  rows: UserFixtureRow[],
+  testFn: (pool: ReturnType<typeof createPgTestkitPool>) => Promise<void>
+): Promise<void> => {
+  // Convert schema-specific row arrays into the multi-table payload expected by the runner.
+  const fixtures = [buildUserRows(rows)];
+  await fixtureRunner(connectionString, fixtures, testFn);
+};
 
 /**
  * Ensures that Prisma Client is generated before tests run.
@@ -81,7 +91,7 @@ const importPrismaClient = async (): Promise<PrismaClientModule> => {
 };
 
 const prismaTestHarness = createPrismaRepositoryTestHarness<UserFixtureRow, UserRepository>({
-  fixtureRunner,
+  fixtureRunner: fixtureRunnerWithUserRows,
   ensurePrismaClient,
   importPrismaClient,
   createRepository: (client) => new UserRepository(client),
