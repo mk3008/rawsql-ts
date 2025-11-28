@@ -158,11 +158,53 @@ const triggerGeneration = () => {
 
 sql1Editor.on('changes', triggerGeneration);
 sql2Editor.on('changes', triggerGeneration);
-document.getElementById('migration-direction').addEventListener('change', generateMigration);
-document.getElementById('opt-drop-columns').addEventListener('change', generateMigration);
-document.getElementById('opt-drop-tables').addEventListener('change', generateMigration);
-document.getElementById('opt-drop-constraints').addEventListener('change', generateMigration);
-document.getElementById('opt-check-names').addEventListener('change', generateMigration);
+document.getElementById('migration-direction').addEventListener('change', () => {
+    saveOptions();
+    generateMigration();
+});
+document.getElementById('opt-drop-columns').addEventListener('change', () => {
+    saveOptions();
+    generateMigration();
+});
+document.getElementById('opt-drop-tables').addEventListener('change', () => {
+    saveOptions();
+    generateMigration();
+});
+document.getElementById('opt-drop-constraints').addEventListener('change', () => {
+    saveOptions();
+    generateMigration();
+});
+document.getElementById('opt-check-names').addEventListener('change', () => {
+    saveOptions();
+    generateMigration();
+});
+
+function saveOptions() {
+    const options = {
+        direction: document.getElementById('migration-direction').value,
+        dropColumns: document.getElementById('opt-drop-columns').checked,
+        dropTables: document.getElementById('opt-drop-tables').checked,
+        dropConstraints: document.getElementById('opt-drop-constraints').checked,
+        checkNames: document.getElementById('opt-check-names').checked
+    };
+    localStorage.setItem('migration-demo-options', JSON.stringify(options));
+}
+
+function loadOptions() {
+    const saved = localStorage.getItem('migration-demo-options');
+    if (saved) {
+        try {
+            const options = JSON.parse(saved);
+            if (options.direction) document.getElementById('migration-direction').value = options.direction;
+            if (options.dropColumns !== undefined) document.getElementById('opt-drop-columns').checked = options.dropColumns;
+            if (options.dropTables !== undefined) document.getElementById('opt-drop-tables').checked = options.dropTables;
+            if (options.dropConstraints !== undefined) document.getElementById('opt-drop-constraints').checked = options.dropConstraints;
+            if (options.checkNames !== undefined) document.getElementById('opt-check-names').checked = options.checkNames;
+        } catch (e) {
+            console.error("Failed to load options:", e);
+        }
+    }
+}
 
 document.getElementById('clear-sql1-btn').addEventListener('click', () => {
     sql1Editor.setValue('');
@@ -272,4 +314,5 @@ document.getElementById('sample-loader').addEventListener('change', (e) => {
 });
 
 // Initial Load
+loadOptions();
 loadModule();
