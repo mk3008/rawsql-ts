@@ -56,7 +56,7 @@ import type {
   TableDefinitionRegistry,
   SelectQuery,
 } from 'rawsql-ts';
-import type { PgFixture, PgFixtureProvider } from '../types';
+import type { PgFixtureProvider, TableRowsFixture } from '../types';
 
 interface RewriteInputs {
   fixtureTables: ReturnType<PgFixtureProvider['resolve']>['fixtureTables'];
@@ -71,6 +71,7 @@ interface RewriteResult {
 
 export class PgResultSelectRewriter {
   private readonly formatter: SqlFormatter;
+  private visitedComponents = new WeakSet<SqlComponent>();
 
   constructor(
     private readonly fixtures: PgFixtureProvider,
@@ -85,7 +86,7 @@ export class PgResultSelectRewriter {
     });
   }
 
-  public rewrite(sql: string, scopedFixtures?: PgFixture[]): RewriteResult {
+  public rewrite(sql: string, scopedFixtures?: TableRowsFixture[]): RewriteResult {
     const inputs = this.prepareInputs(scopedFixtures);
     const normalized = this.normalizeParameters(sql);
     const parsedStatements = this.parseStatements(normalized.sql);
@@ -104,7 +105,7 @@ export class PgResultSelectRewriter {
     };
   }
 
-  private prepareInputs(scopedFixtures?: PgFixture[]): RewriteInputs {
+  private prepareInputs(scopedFixtures?: TableRowsFixture[]): RewriteInputs {
     const snapshot = this.fixtures.resolve(scopedFixtures);
     return {
       fixtureTables: snapshot.fixtureTables,
@@ -119,6 +120,7 @@ export class PgResultSelectRewriter {
   }
 
   private convertStatement(statement: ParsedStatement, inputs: RewriteInputs): string | null {
+    this.visitedComponents = new WeakSet<SqlComponent>();
     // Convert CRUD + SELECT into result-bearing SELECT statements while ignoring unsupported DDL.
     const converted = this.convertToResultSelect(statement, inputs);
 
@@ -390,6 +392,11 @@ export class PgResultSelectRewriter {
     if (!component) {
       return;
     }
+
+    if (this.visitedComponents.has(component)) {
+      return;
+    }
+    this.visitedComponents.add(component);
 
     if (component instanceof SimpleSelectQuery) {
       this.rewriteColumnReferencesInQuery(component, aliasMap);

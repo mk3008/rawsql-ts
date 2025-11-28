@@ -4,26 +4,13 @@ import { drizzle, NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import { createPgTestkitClient } from '../src';
-import type { PgFixture } from '../src';
+import { usersDrizzleTableDefinition } from './fixtures/TableDefinitions';
 
-declare module 'vitest' {
-  interface ProvidedContext {
-    TEST_PG_URI: string;
-  }
-}
-
-const userFixture: PgFixture = {
-  tableName: 'users_drizzle',
-  columns: [
-    { name: 'id', typeName: 'int', required: true, defaultValue: "nextval('users_drizzle_id_seq'::regclass)" },
-    { name: 'email', typeName: 'text', required: true },
-    { name: 'active', typeName: 'bool', defaultValue: 'true' },
-  ],
-  rows: [
-    { id: 1, email: 'alice@example.com', active: true },
-    { id: 2, email: 'bob@example.com', active: false },
-  ],
-};
+type DrizzleRow = { id: number; email: string; active: boolean };
+const baseDrizzleRows: DrizzleRow[] = [
+  { id: 1, email: 'alice@example.com', active: true },
+  { id: 2, email: 'bob@example.com', active: false },
+];
 
 const users = pgTable('users_drizzle', {
   id: serial('id').primaryKey(),
@@ -34,7 +21,6 @@ const users = pgTable('users_drizzle', {
 class DrizzleUserRepository {
   constructor(private readonly db: NodePgDatabase) {}
 
-  // Insert a user and return projected fields.
   public async createUser(email: string, active: boolean): Promise<{ email: string; active: boolean }> {
     const result = await this.db.execute(
       sql<{ email: string; active: boolean }>`insert into users_drizzle (email, active) values (${email}, ${active}) returning email, active`
@@ -42,15 +28,11 @@ class DrizzleUserRepository {
     return result.rows[0] as { email: string; active: boolean };
   }
 
-  // Update a user and surface row count.
   public async updateActive(id: number, active: boolean): Promise<number> {
-    const result = await this.db.execute(
-      sql`update users_drizzle set active = ${active} where id = ${id}`
-    );
+    const result = await this.db.execute(sql`update users_drizzle set active = ${active} where id = ${id}`);
     return result.rowCount ?? 0;
   }
 
-  // Delete a user and surface row count.
   public async deleteById(id: number): Promise<number> {
     const result = await this.db.execute(sql`delete from users_drizzle where id = ${id}`);
     return result.rowCount ?? 0;
@@ -81,7 +63,8 @@ describe('UserRepository with drizzle + pg-testkit driver', () => {
 
     driver = createPgTestkitClient({
       connectionFactory: () => client!,
-      fixtures: [userFixture],
+      tableDefinitions: [usersDrizzleTableDefinition],
+      tableRows: [{ tableName: 'users_drizzle', rows: baseDrizzleRows }],
     });
 
     const proxyClient = {
@@ -90,7 +73,6 @@ describe('UserRepository with drizzle + pg-testkit driver', () => {
         const params = values ?? (typeof text === 'string' ? undefined : text.values ?? text.params);
         return (driver as unknown as ClientBase).query(queryText, params ?? []);
       },
-      // Drizzle's pg driver expects `release` when a PoolClient is provided.
       release: () => undefined,
     } as unknown as PoolClient;
 

@@ -1,23 +1,22 @@
 import type { QueryConfig, QueryResult, QueryResultRow } from 'pg';
 import type {
   FixtureTableDefinition,
-  GenericFixture,
-  GenericFixtureColumn,
   MissingFixtureStrategy,
   SqlFormatterOptions,
+  TableDefinitionModel,
   TableDefinitionRegistry,
 } from 'rawsql-ts';
+export type { TableDefinitionModel } from 'rawsql-ts';
+import type { TableRowsFixture } from '@rawsql-ts/testkit-core';
+import type { DdlFixtureLoaderOptions } from '@rawsql-ts/testkit-core';
 
-/** Generic fixture metadata shared with PgTestkit consumers. */
-export type PgFixture = GenericFixture;
+/** Rows-only fixtures authored by pg-testkit consumers. */
+export type PgTableRowsFixture = TableRowsFixture;
 
-/** Column metadata for fixtures provided through PgTestkit. */
-export type PgFixtureColumn = GenericFixtureColumn;
+/** Table definitions shared across testkits and derived from DDL. */
+export type PgTableDefinition = TableDefinitionModel;
 
-/**
- * Snapshot returned after fixture resolution, containing the tables,
- * resolver-generated registry, and the applied fixture names.
- */
+/** Snapshot returned after fixture resolution, containing the tables, resolver-generated registry, and the applied fixture names. */
 export interface PgFixtureSnapshot {
   fixtureTables: FixtureTableDefinition[];
   tableDefinitions: TableDefinitionRegistry;
@@ -26,7 +25,7 @@ export interface PgFixtureSnapshot {
 
 /** Resolves fixture overrides and exposes the most recently applied snapshot. */
 export interface PgFixtureProvider {
-  resolve(overrides?: PgFixture[]): PgFixtureSnapshot;
+  resolve(overrides?: TableRowsFixture[]): PgFixtureSnapshot;
 }
 
 /** Input accepted by driver query helpers (raw SQL or pg `QueryConfig`). */
@@ -48,7 +47,8 @@ export interface PgQueryable {
  */
 export interface CreatePgTestkitClientOptions {
   connectionFactory: () => PgQueryable | Promise<PgQueryable>;
-  fixtures?: PgFixture[];
+  tableDefinitions?: TableDefinitionModel[];
+  tableRows?: TableRowsFixture[];
   formatterOptions?: SqlFormatterOptions;
   missingFixtureStrategy?: MissingFixtureStrategy;
   onExecute?(
@@ -56,6 +56,8 @@ export interface CreatePgTestkitClientOptions {
     params?: unknown[] | QueryConfig['values'],
     fixtures?: string[]
   ): void;
+  /** Directories whose SQL files are converted into fixtures automatically. */
+  ddl?: DdlFixtureLoaderOptions;
 }
 
 /**
@@ -63,7 +65,8 @@ export interface CreatePgTestkitClientOptions {
  * creation options but omitting the connection factory.
  */
 export interface WrapPgClientOptions {
-  fixtures?: PgFixture[];
+  tableDefinitions?: TableDefinitionModel[];
+  tableRows?: TableRowsFixture[];
   formatterOptions?: SqlFormatterOptions;
   missingFixtureStrategy?: MissingFixtureStrategy;
   onExecute?(
@@ -71,9 +74,19 @@ export interface WrapPgClientOptions {
     params?: unknown[] | QueryConfig['values'],
     fixtures?: string[]
   ): void;
+  /** Shared DDL directory configuration used to infer fixtures for wrapped clients. */
+  ddl?: DdlFixtureLoaderOptions;
 }
 
 /** Extends any Pg client instance with fixture-aware helper methods. */
 export type WrappedPgClient<T> = T & {
-  withFixtures(fixtures: PgFixture[]): WrappedPgClient<T>;
+  withFixtures(fixtures: TableRowsFixture[]): WrappedPgClient<T>;
 };
+
+export interface CreatePgTestkitPoolOptions {
+  tableDefinitions?: TableDefinitionModel[];
+  tableRows?: TableRowsFixture[];
+  /** DDL paths that should populate the base fixture set for the pool. */
+  ddl?: DdlFixtureLoaderOptions;
+}
+export type { TableRowsFixture } from '@rawsql-ts/testkit-core';

@@ -9,16 +9,43 @@ import type {
 } from 'pg';
 import { Client, Pool, PoolConfig } from 'pg';
 import { createPgTestkitClient } from './PgTestkitClient';
-import type { PgFixture, PgQueryInput, PgQueryable } from '../types';
+import type {
+  CreatePgTestkitPoolOptions,
+  PgQueryInput,
+  PgQueryable,
+  TableRowsFixture,
+} from '../types';
 
 const TRANSACTION_COMMAND_RE = /^\s*(BEGIN|COMMIT|ROLLBACK|SAVEPOINT|RELEASE)/i;
 
+const isPoolOptions = (value: TableRowsFixture | CreatePgTestkitPoolOptions): value is CreatePgTestkitPoolOptions => {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    ('ddl' in value || 'tableRows' in value || 'tableDefinitions' in value)
+  );
+};
+
 /** Builds a pool whose clients rewrite CRUD traffic through pg-testkit while leaving transactions alone. */
-export const createPgTestkitPool = (connectionString: string, ...fixtures: PgFixture[]): Pool => {
+export const createPgTestkitPool = (
+  connectionString: string,
+  ...fixturesOrOptions: Array<TableRowsFixture | CreatePgTestkitPoolOptions>
+): Pool => {
+  const hasOptions = fixturesOrOptions.length > 0 && isPoolOptions(fixturesOrOptions[fixturesOrOptions.length - 1]);
+  const poolOptions = hasOptions
+    ? (fixturesOrOptions[fixturesOrOptions.length - 1] as CreatePgTestkitPoolOptions)
+    : undefined;
+  const baseFixtures = hasOptions
+    ? (fixturesOrOptions.slice(0, -1) as TableRowsFixture[])
+    : (fixturesOrOptions as TableRowsFixture[]);
+  // Combine ad-hoc rows with option-provided ones so callers can mix styles.
+  const combinedFixtures = [...baseFixtures, ...(poolOptions?.tableRows ?? [])];
   class TestkitClient extends Client {
     private readonly testkit = createPgTestkitClient({
       connectionFactory: async () => this.buildRawConnection(),
-      fixtures,
+      tableRows: combinedFixtures,
+      ddl: poolOptions?.ddl,
+      tableDefinitions: poolOptions?.tableDefinitions,
     });
 
     private buildRawConnection(): PgQueryable {

@@ -1,4 +1,5 @@
-import type { SqlFormatterOptions } from 'rawsql-ts';
+import type { SqlFormatterOptions, TableDefinitionModel } from 'rawsql-ts';
+export type { TableDefinitionModel } from 'rawsql-ts';
 
 export type SqliteAffinity = 'TEXT' | 'INTEGER' | 'REAL' | 'NUMERIC' | 'BLOB';
 
@@ -7,17 +8,22 @@ export interface TableSchemaDefinition {
 }
 
 export interface SchemaRegistry {
-  getTable(name: string): TableSchemaDefinition | undefined;
+  getTable(
+    name: string
+  ): TableSchemaDefinition | TableDefinitionModel | undefined;
 }
 
 export interface FixtureRow {
   [column: string]: unknown;
 }
 
-export interface TableFixture {
+export interface TableRowsFixture {
   tableName: string;
   rows: FixtureRow[];
-  schema?: TableSchemaDefinition;
+}
+
+export interface TableFixture extends TableRowsFixture {
+  schema?: TableSchemaDefinition | TableDefinitionModel;
 }
 
 export type MissingFixtureStrategy = 'error' | 'passthrough' | 'warn';

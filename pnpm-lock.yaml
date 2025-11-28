@@ -144,6 +144,9 @@ importers:
 
   packages/drivers/pg-testkit:
     dependencies:
+      '@rawsql-ts/testkit-core':
+        specifier: workspace:*
+        version: link:../../testkit-core
       pg:
         specifier: ^8.13.1
         version: 8.16.3

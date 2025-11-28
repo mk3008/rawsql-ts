@@ -3,10 +3,12 @@ import { PgFixtureStore } from '../fixtures/PgFixtureStore';
 import { PgResultSelectRewriter } from '../rewriter/PgResultSelectRewriter';
 import type {
   CreatePgTestkitClientOptions,
-  PgFixture,
   PgQueryInput,
   PgQueryable,
 } from '../types';
+import { DdlFixtureLoader } from '@rawsql-ts/testkit-core';
+import type { DdlProcessedFixture } from '@rawsql-ts/testkit-core';
+import type { TableDefinitionModel, TableRowsFixture } from '../types';
 
 /**
  * Lightweight client that rewrites CRUD/SELECT statements into fixture-backed SELECTs
@@ -18,19 +20,44 @@ import type {
 export class PgTestkitClient {
   private connection?: PgQueryable;
   private readonly rewriter: PgResultSelectRewriter;
+  private readonly ddlFixtures: DdlProcessedFixture[];
 
   constructor(
     private readonly options: CreatePgTestkitClientOptions,
-    private readonly scopedFixtures?: PgFixture[],
+    private readonly scopedRows?: TableRowsFixture[],
     seedConnection?: PgQueryable
   ) {
-    const fixtureStore = new PgFixtureStore(options.fixtures ?? []);
+    this.ddlFixtures = this.loadDdlFixtures();
+    const fixtureStore = new PgFixtureStore(
+      this.collectDefinitions(),
+      this.collectBaseRows()
+    );
     this.rewriter = new PgResultSelectRewriter(
       fixtureStore,
       options.missingFixtureStrategy ?? 'error',
       options.formatterOptions
     );
     this.connection = seedConnection;
+  }
+
+  private collectDefinitions(): TableDefinitionModel[] {
+    // Combine DDL-derived definitions with any explicit configuration the user provided.
+    return [
+      ...this.ddlFixtures.map((fixture) => fixture.tableDefinition),
+      ...(this.options.tableDefinitions ?? []),
+    ];
+  }
+
+  private collectBaseRows(): TableRowsFixture[] {
+    const ddlRows: TableRowsFixture[] = [];
+    for (const fixture of this.ddlFixtures) {
+      if (!fixture.rows || fixture.rows.length === 0) {
+        continue;
+      }
+      ddlRows.push({ tableName: fixture.tableDefinition.name, rows: fixture.rows });
+    }
+    // DDL rows are merged before caller-supplied ones so test authors can override them.
+    return [...ddlRows, ...(this.options.tableRows ?? [])];
   }
 
   /**
@@ -41,10 +68,10 @@ export class PgTestkitClient {
    * @param values Optional positional parameters
    * @returns pg-style QueryResult with rows simulated from fixtures
    */
-    public async query<T extends QueryResultRow = QueryResultRow>(
-        textOrConfig: PgQueryInput,
-        values?: unknown[]
-    ): Promise<QueryResult<T>> {
+  public async query<T extends QueryResultRow = QueryResultRow>(
+    textOrConfig: PgQueryInput,
+    values?: unknown[]
+  ): Promise<QueryResult<T>> {
     const sql = typeof textOrConfig === 'string' ? textOrConfig : textOrConfig.text;
     if (!sql) {
       throw new Error('Query text is required for pg-testkit execution.');
@@ -52,7 +79,7 @@ export class PgTestkitClient {
     const sourceCommand = this.extractSqlCommand(sql);
 
     // Rewrite CRUD and SELECT statements into fixture-backed SELECT queries.
-    const rewritten = this.rewriter.rewrite(sql, this.scopedFixtures);
+    const rewritten = this.rewriter.rewrite(sql, this.scopedRows);
     if (!rewritten.sql) {
       return this.buildEmptyResult<T>('NOOP');
     }
@@ -70,8 +97,6 @@ export class PgTestkitClient {
         : { ...textOrConfig, text: normalizeResult.sql, values: normalizeResult.params };
     const connection = await this.getConnection();
 
-    // Surface the post-rewrite SQL so callers can log or assert against it.
-    console.log('pg-testkit sql ->', normalizeResult.sql);
     this.options.onExecute?.(normalizeResult.sql, normalizeResult.params, rewritten.fixturesApplied);
 
     const rawResult = typeof payload === 'string'
@@ -80,7 +105,6 @@ export class PgTestkitClient {
 
     const countValue = this.extractCountValue(rawResult);
     if (countValue !== null && sourceCommand && this.isCrudCommand(sourceCommand)) {
-      // Treat fixture-driven CRUD rewrites as their original command so Prisma trusts the derived row count.
       rawResult.rowCount = countValue;
       rawResult.command = sourceCommand.toUpperCase() as typeof rawResult.command;
     }
@@ -181,8 +205,7 @@ export class PgTestkitClient {
   /**
    * Derives a scoped client that overlays additional fixtures while reusing the same connection.
    */
-  public withFixtures(fixtures: PgFixture[]): PgTestkitClient {
-    // Reuse the same connection so scoped drivers stay lightweight.
+  public withFixtures(fixtures: TableRowsFixture[]): PgTestkitClient {
     return new PgTestkitClient(this.options, fixtures, this.connection);
   }
 
@@ -197,7 +220,6 @@ export class PgTestkitClient {
     const closable = this.connection;
     this.connection = undefined;
 
-    // Prefer release() for pooled clients; fall back to end() when available.
     if (typeof closable.release === 'function') {
       closable.release();
       return;
@@ -213,7 +235,6 @@ export class PgTestkitClient {
       return this.connection;
     }
 
-    // Lazily hydrate the connection so tests can swap factories per suite.
     this.connection = await this.options.connectionFactory();
     return this.connection;
   }
@@ -226,6 +247,15 @@ export class PgTestkitClient {
       rows: [],
       fields: [],
     };
+  }
+
+  private loadDdlFixtures(): DdlProcessedFixture[] {
+    if (!this.options.ddl?.directories?.length) {
+      return [];
+    }
+
+    const loader = new DdlFixtureLoader(this.options.ddl);
+    return loader.getFixtures();
   }
 }
 

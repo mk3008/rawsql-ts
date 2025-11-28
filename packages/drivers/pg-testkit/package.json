@@ -28,6 +28,7 @@
     "node": ">=20"
   },
   "dependencies": {
+    "@rawsql-ts/testkit-core": "workspace:*",
     "pg": "^8.13.1",
     "rawsql-ts": "workspace:*"
   },

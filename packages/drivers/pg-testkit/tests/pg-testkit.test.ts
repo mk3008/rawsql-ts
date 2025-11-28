@@ -2,32 +2,20 @@ import { PostgreSqlContainer, StartedPostgreSqlContainer } from '@testcontainers
 import { Client } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createPgTestkitClient, wrapPgClient } from '../src';
-import type { PgFixture, PgQueryable } from '../src';
+import { ordersTableDefinition, usersTableDefinition } from './fixtures/TableDefinitions';
+import type { PgQueryable } from '../src';
+import path from 'node:path';
+import { mkdir, rm, writeFile } from 'node:fs/promises';
 
-const userFixture: PgFixture = {
-  tableName: 'users',
-  columns: [
-    { name: 'id', typeName: 'int', required: true },
-    { name: 'email', typeName: 'text' },
-    { name: 'active', typeName: 'bool', defaultValue: 'true' },
-  ],
-  rows: [
-    { id: 1, email: 'alice@example.com', active: true },
-    { id: 2, email: 'bob@example.com', active: false },
-  ],
-};
+const userRows = [
+  { id: 1, email: 'alice@example.com', active: true },
+  { id: 2, email: 'bob@example.com', active: false },
+];
 
-const orderFixture: PgFixture = {
-  tableName: 'orders',
-  columns: [
-    { name: 'id', typeName: 'int' },
-    { name: 'total', typeName: 'numeric' },
-  ],
-  rows: [
-    { id: 10, total: 125.5 },
-    { id: 11, total: 45.25 },
-  ],
-};
+const orderRows = [
+  { id: 10, total: 125.5 },
+  { id: 11, total: 45.25 },
+];
 
 let container: StartedPostgreSqlContainer | null = null;
 let client: Client | null = null;
@@ -60,7 +48,8 @@ describe('createPgTestkitClient', () => {
     }
     const driver = createPgTestkitClient({
       connectionFactory: () => client,
-      fixtures: [userFixture],
+      tableDefinitions: [usersTableDefinition],
+      tableRows: [{ tableName: 'users', rows: userRows }],
     });
 
     const result = await driver.query<{ id: number; email: string }>(
@@ -78,7 +67,8 @@ describe('createPgTestkitClient', () => {
     }
     const driver = createPgTestkitClient({
       connectionFactory: () => client,
-      fixtures: [userFixture],
+      tableDefinitions: [usersTableDefinition],
+      tableRows: [{ tableName: 'users', rows: userRows }],
     });
 
     const insert = await driver.query<{ email: string; active: boolean }>(
@@ -103,7 +93,8 @@ describe('createPgTestkitClient', () => {
     }
     const driver = createPgTestkitClient({
       connectionFactory: () => client,
-      fixtures: [userFixture],
+      tableDefinitions: [usersTableDefinition],
+      tableRows: [{ tableName: 'users', rows: userRows }],
     });
 
     const ddl = await driver.query('create table phantom_users (id int)');
@@ -113,6 +104,45 @@ describe('createPgTestkitClient', () => {
     expect(check.rows[0]?.name).toBeNull();
   });
 
+  it('infers fixtures from configured DDL files', async () => {
+    if (!runtimeAvailable || !client) {
+      expect(true).toBe(true);
+      return;
+    }
+
+    const ddlRoot = path.join('tmp', 'pg-testkit-ddl');
+    const schemaDir = path.join(ddlRoot, 'public');
+    await mkdir(schemaDir, { recursive: true });
+
+    try {
+      await writeFile(
+        path.join(schemaDir, 'users.sql'),
+        `
+          CREATE TABLE public.users (
+            id int PRIMARY KEY,
+            email text NOT NULL,
+            active boolean
+          );
+
+          INSERT INTO public.users (id, email, active) VALUES (1, 'alice@example.com', false);
+        `
+      );
+
+      const driver = createPgTestkitClient({
+        connectionFactory: () => client,
+        ddl: { directories: [ddlRoot] },
+      });
+
+      const result = await driver.query<{ id: number; email: string; active: string }>(
+        'select id, email, active from users where id = $1',
+        [1]
+      );
+
+      expect(result.rows).toEqual([{ id: 1, email: 'alice@example.com', active: false }]);
+    } finally {
+      await rm(ddlRoot, { recursive: true, force: true });
+    }
+  });
 });
 
 describe('wrapPgClient', () => {
@@ -121,7 +151,11 @@ describe('wrapPgClient', () => {
       expect(true).toBe(true);
       return;
     }
-    const wrapped = wrapPgClient(client, { fixtures: [orderFixture] });
+
+    const wrapped = wrapPgClient(client, {
+      tableDefinitions: [ordersTableDefinition],
+      tableRows: [{ tableName: 'orders', rows: orderRows }],
+    });
 
     const rows = await wrapped.query<{ total: number }>('select total from orders where id = $1', [10]);
     expect(rows.rows).toEqual([{ total: '125.5' }]);
@@ -132,10 +166,14 @@ describe('wrapPgClient', () => {
       expect(true).toBe(true);
       return;
     }
-    const wrapped = wrapPgClient(client, { fixtures: [orderFixture] });
+
+    const wrapped = wrapPgClient(client, {
+      tableDefinitions: [ordersTableDefinition],
+      tableRows: [{ tableName: 'orders', rows: orderRows }],
+    });
     const scoped = wrapped.withFixtures([
       {
-        ...orderFixture,
+        tableName: 'orders',
         rows: [{ id: 77, total: 999.99 }],
       },
     ]);

@@ -2,9 +2,9 @@
     "name": "rawsql-ts",
     "version": "0.12.0",
     "description": "High-performance SQL parser and AST analyzer written in TypeScript. Provides fast parsing and advanced transformation capabilities.",
-    "main": "dist/src/index.js",
+    "main": "dist/index.js",
     "module": "dist/esm/index.js",
-    "types": "dist/src/index.d.ts",
+    "types": "dist/index.d.ts",
     "browser": "dist/esm/index.min.js",
     "homepage": "https://github.com/mk3008/rawsql-ts/tree/main/packages/core",
     "scripts": {

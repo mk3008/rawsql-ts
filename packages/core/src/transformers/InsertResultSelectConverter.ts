@@ -2,7 +2,30 @@ import { CommonTable, FromClause, ReturningClause, SelectClause, SelectItem, Sou
 import { InsertQuery } from '../models/InsertQuery';
 import { BinarySelectQuery, SelectQuery, SimpleSelectQuery, ValuesQuery } from '../models/SelectQuery';
 import { InsertQuerySelectValuesConverter } from './InsertQuerySelectValuesConverter';
-import { CastExpression, ColumnReference, FunctionCall, IdentifierString, LiteralValue, RawString, TypeValue, ValueComponent } from '../models/ValueComponent';
+import {
+    ArrayExpression,
+    ArrayIndexExpression,
+    ArrayQueryExpression,
+    ArraySliceExpression,
+    BinaryExpression,
+    BetweenExpression,
+    CaseExpression,
+    CaseKeyValuePair,
+    CastExpression,
+    ColumnReference,
+    FunctionCall,
+    IdentifierString,
+    InlineQuery,
+    LiteralValue,
+    ParenExpression,
+    RawString,
+    SwitchCaseArgument,
+    TupleExpression,
+    TypeValue,
+    UnaryExpression,
+    ValueComponent,
+    ValueList,
+} from '../models/ValueComponent';
 import { ValueParser } from '../parsers/ValueParser';
 import {
     TableDefinitionModel,
@@ -648,12 +671,103 @@ export class InsertResultSelectConverter {
             return null;
         }
 
-        if (typeof definition.defaultValue === 'string') {
-            // Re-parse text defaults so callers always work with ValueComponent data.
-            return this.parseDefaultValue(definition.defaultValue);
+        const defaultValue = definition.defaultValue;
+        if (typeof defaultValue === 'string') {
+            const parsed = this.parseDefaultValue(defaultValue);
+            if (this.referencesSequence(parsed)) {
+                return this.parseDefaultValue('row_number() over ()');
+            }
+            return parsed;
         }
 
-        return definition.defaultValue;
+        return defaultValue ?? null;
+    }
+
+    private static referencesSequence(component: ValueComponent): boolean {
+        if (component instanceof FunctionCall) {
+            if (this.isSequenceFunction(component)) {
+                return true;
+            }
+            if (component.argument && this.referencesSequence(component.argument)) {
+                return true;
+            }
+        }
+        if (component instanceof ValueList) {
+            return component.values.some((value) => this.referencesSequence(value));
+        }
+        if (component instanceof BinaryExpression) {
+            return this.referencesSequence(component.left) || this.referencesSequence(component.right);
+        }
+        if (component instanceof UnaryExpression) {
+            return this.referencesSequence(component.expression);
+        }
+        if (component instanceof CastExpression) {
+            return this.referencesSequence(component.input);
+        }
+        if (component instanceof ParenExpression) {
+            return this.referencesSequence(component.expression);
+        }
+        if (component instanceof InlineQuery) {
+            return this.referencesSelect(component.selectQuery);
+        }
+        if (component instanceof ArrayExpression) {
+            return this.referencesSequence(component.expression);
+        }
+        if (component instanceof ArrayQueryExpression) {
+            return this.referencesSelect(component.query);
+        }
+        if (component instanceof BetweenExpression) {
+            return (
+                this.referencesSequence(component.expression) ||
+                this.referencesSequence(component.lower) ||
+                this.referencesSequence(component.upper)
+            );
+        }
+        if (component instanceof ArraySliceExpression) {
+            return (
+                this.referencesSequence(component.array) ||
+                (component.startIndex ? this.referencesSequence(component.startIndex) : false) ||
+                (component.endIndex ? this.referencesSequence(component.endIndex) : false)
+            );
+        }
+        if (component instanceof ArrayIndexExpression) {
+            return this.referencesSequence(component.array) || this.referencesSequence(component.index);
+        }
+        if (component instanceof SwitchCaseArgument) {
+            for (const pair of component.cases) {
+                if (this.referencesSequence(pair.key) || this.referencesSequence(pair.value)) {
+                    return true;
+                }
+            }
+            return component.elseValue ? this.referencesSequence(component.elseValue) : false;
+        }
+        if (component instanceof CaseExpression) {
+            return (
+                (component.condition ? this.referencesSequence(component.condition) : false) ||
+                this.referencesSequence(component.switchCase)
+            );
+        }
+        if (component instanceof CaseKeyValuePair) {
+            return (
+                this.referencesSequence(component.key) ||
+                this.referencesSequence(component.value)
+            );
+        }
+        if (component instanceof TupleExpression) {
+            return component.values.some((value) => this.referencesSequence(value));
+        }
+
+        return false;
+    }
+
+    private static referencesSelect(query: SelectQuery): boolean {
+        return false;
+    }
+
+    private static isSequenceFunction(call: FunctionCall): boolean {
+        const name = call.qualifiedName.name;
+        const value = name instanceof RawString ? name.value : name.name;
+        return value.toLowerCase() === 'nextval';
     }
 
     private static applyColumnCasts(

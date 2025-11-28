@@ -2,12 +2,14 @@ import type { QueryConfig, QueryResult, QueryResultRow } from 'pg';
 import { PgFixtureStore } from '../fixtures/PgFixtureStore';
 import { PgResultSelectRewriter } from '../rewriter/PgResultSelectRewriter';
 import type {
-  PgFixture,
   PgQueryInput,
   PgQueryable,
   WrapPgClientOptions,
   WrappedPgClient,
 } from '../types';
+import { DdlFixtureLoader } from '@rawsql-ts/testkit-core';
+import type { DdlProcessedFixture } from '@rawsql-ts/testkit-core';
+import type { TableDefinitionModel, TableRowsFixture } from '../types';
 
 const buildEmptyResult = <T extends QueryResultRow = QueryResultRow>(command = 'NOOP'): QueryResult<T> => ({
   command,
@@ -24,20 +26,40 @@ const extractParams = (query: PgQueryInput, values?: unknown[]): unknown[] | Que
   return query.values;
 };
 
+const resolveOptionsState = (options: WrapPgClientOptions) => {
+  const ddlFixtures: DdlProcessedFixture[] = options.ddl?.directories?.length
+    ? new DdlFixtureLoader(options.ddl).getFixtures()
+    : [];
+  const tableDefinitions: TableDefinitionModel[] = [
+    ...ddlFixtures.map((fixture) => fixture.tableDefinition),
+    ...(options.tableDefinitions ?? []),
+  ];
+  const tableRows: TableRowsFixture[] = [
+    ...ddlFixtures.flatMap((fixture) =>
+      fixture.rows && fixture.rows.length
+        ? [{ tableName: fixture.tableDefinition.name, rows: fixture.rows }]
+        : []
+    ),
+    ...(options.tableRows ?? []),
+  ];
+  return { tableDefinitions, tableRows };
+};
+
 /** Wraps an existing Postgres client with fixture-aware query rewriting. */
 export const wrapPgClient = <T extends PgQueryable>(client: T, options: WrapPgClientOptions): WrappedPgClient<T> => {
-  const fixtureStore = new PgFixtureStore(options.fixtures ?? []);
+  const overridden = resolveOptionsState(options);
+  const fixtureStore = new PgFixtureStore(overridden.tableDefinitions, overridden.tableRows);
   const rewriter = new PgResultSelectRewriter(
     fixtureStore,
     options.missingFixtureStrategy ?? 'error',
     options.formatterOptions
   );
 
-  const buildProxy = (scopedFixtures?: PgFixture[]): WrappedPgClient<T> => {
+  const buildProxy = (scopedFixtures?: TableRowsFixture[]): WrappedPgClient<T> => {
     return new Proxy(client, {
       get(target, prop, receiver) {
         if (prop === 'withFixtures') {
-          return (fixtures: PgFixture[]) => buildProxy(fixtures);
+          return (fixtures: TableRowsFixture[]) => buildProxy(fixtures);
         }
 
         const value = Reflect.get(target, prop, receiver);
@@ -52,7 +74,7 @@ export const wrapPgClient = <T extends PgQueryable>(client: T, options: WrapPgCl
             }
 
             // Inject fixture-backed CTEs into CRUD/SELECT statements and skip unsupported DDL.
-            const rewritten = rewriter.rewrite(sql, scopedFixtures);
+          const rewritten = rewriter.rewrite(sql, scopedFixtures);
             if (!rewritten.sql) {
               return buildEmptyResult();
             }
