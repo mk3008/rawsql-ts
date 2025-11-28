@@ -1,142 +1,89 @@
-import { Client, ClientBase } from 'pg';
-import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
-import { createPgTestkitClient } from '../src';
+import type { ClientBase } from 'pg';
+import { beforeAll, describe, expect, inject, it } from 'vitest';
+import { createPgTestkitFixtureRunner } from './helpers/pgFixtureRunner';
 import { usersTableDefinition } from './fixtures/TableDefinitions';
+import { UserRepository } from './sql-app/UserRepository';
 
-declare module 'vitest' {
-  interface ProvidedContext {
-    /**
-     * URI for the Postgres container managed by the Vitest global setup.
-     */
-    TEST_PG_URI: string;
-  }
-}
+type UserRow = { id: number; email: string; active: boolean };
 
-const userRows = [
+const baseUserRows: UserRow[] = [
   { id: 1, email: 'alice@example.com', active: true },
   { id: 2, email: 'bob@example.com', active: false },
 ];
 
-class UserRepository {
-  constructor(private readonly db: ClientBase) {}
-
-  public async createUser(email: string, active: boolean): Promise<{ email: string; active: boolean }> {
-    const result = await this.db.query<{ email: string; active: boolean }>(
-      'insert into users (email, active) values ($1, $2) returning email, active',
-      [email, active]
-    );
-    return result.rows[0];
-  }
-
-  public async findById(id: number): Promise<{ id: number; email: string; active: boolean } | null> {
-    const result = await this.db.query<{ id: number; email: string; active: boolean }>(
-      'select id, email, active from users where id = $1',
-      [id]
-    );
-    return result.rows[0] ?? null;
-  }
-
-  public async updateActive(id: number, active: boolean): Promise<number> {
-    const result = await this.db.query('update users set active = $2 where id = $1', [id, active]);
-    return result.rowCount ?? 0;
-  }
-
-  public async deleteById(id: number): Promise<number> {
-    const result = await this.db.query('delete from users where id = $1', [id]);
-    return result.rowCount ?? 0;
-  }
-
-  public async listActive(limit: number): Promise<string[]> {
-    const result = await this.db.query<{ email: string }>(
-      'select email from users where active = true order by id limit $1',
-      [limit]
-    );
-    return result.rows.map((row: { email: string }) => row.email);
-  }
-}
+/**
+ * Helper that drives every repository test through a pg-testkit pool with explicit table metadata.
+ * Each run delivers a clean fixture set that prevents shared state between tests.
+ */
+const fixtureRunner = createPgTestkitFixtureRunner<UserRow>({
+  tableDefinitions: [usersTableDefinition],
+  buildTableRows: (rows) => [{ tableName: 'users', rows }],
+});
 
 describe('UserRepository with pg-testkit driver', () => {
-  let client: Client | undefined;
-  let driver: ReturnType<typeof createPgTestkitClient> | undefined;
+  let connectionString: string | undefined;
 
-  beforeAll(async () => {
-    const pgUri = inject('TEST_PG_URI') ?? process.env.TEST_PG_URI;
-    if (!pgUri) {
+  beforeAll(() => {
+    connectionString = inject('TEST_PG_URI') ?? process.env.TEST_PG_URI;
+    if (!connectionString) {
       throw new Error('TEST_PG_URI is missing; ensure the Vitest global setup provided a connection.');
     }
+  });
 
-    client = new Client({ connectionString: pgUri });
-    await client.connect();
+  const runWithRepository = async (
+    rows: UserRow[],
+    testFn: (repository: UserRepository) => Promise<void>
+  ) => {
+    if (!connectionString) {
+      throw new Error('Connection string is missing; call beforeAll() before running tests.');
+    }
 
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS users (
-        id serial PRIMARY KEY,
-        email text NOT NULL,
-        active bool NOT NULL DEFAULT true
-      );
-    `);
-    await client.query('TRUNCATE TABLE users RESTART IDENTITY;');
-
-    driver = createPgTestkitClient({
-      connectionFactory: () => client!,
-      tableDefinitions: [usersTableDefinition],
-      tableRows: [{ tableName: 'users', rows: userRows }],
+    // Route the pg-testkit pool through each run so SQL is applied to fixture data only.
+    await fixtureRunner(connectionString, rows, async (pool) => {
+      // Instantiate the repository over the fixture-backed pool so every query uses simulated data.
+      const repository = new UserRepository(pool as unknown as ClientBase);
+      await testFn(repository);
     });
-  });
-
-  afterAll(async () => {
-    if (driver) {
-      await driver.close();
-    }
-    if (client) {
-      await client.end();
-    }
-  });
-
-  const buildRepository = (): UserRepository => {
-    if (!driver) {
-      throw new Error('pg-testkit driver is not initialized');
-    }
-    return new UserRepository(driver as unknown as ClientBase);
   };
 
   it('propagates the RETURNING row when inserting a user', async () => {
-    const repo = buildRepository();
-    const created = await repo.createUser('carol@example.com', true);
-    expect(created).toEqual({ email: 'carol@example.com', active: true });
+    // INSERT ... RETURNING is simulated entirely via fixtures so the repository sees the expected tuple.
+    await runWithRepository([], async (repo) => {
+      const created = await repo.createUser('carol@example.com', true);
+      expect(created).toEqual({ email: 'carol@example.com', active: true });
+    });
   });
 
   it('delivers the row count shape for update operations', async () => {
-    const repo = buildRepository();
-    const updated = await repo.updateActive(2, true);
-    expect(updated).toBe(1);
-    const updatedNonExists = await repo.updateActive(99, true);
-    expect(updatedNonExists).toBe(0);
+    // UPDATE rowCount reflects how many fixture rows match, without touching a real table.
+    await runWithRepository(baseUserRows, async (repo) => {
+      const updated = await repo.updateActive(2, true);
+      expect(updated).toBe(1);
+      const updatedNonExists = await repo.updateActive(99, true);
+      expect(updatedNonExists).toBe(0);
+    });
   });
 
   it('delivers the row count shape for delete operations', async () => {
-    const repo = buildRepository();
-    const deleted = await repo.deleteById(2);
-    expect(deleted).toBe(1);
-    const deletedNonExists = await repo.deleteById(99);
-    expect(deletedNonExists).toBe(0);
+    // DELETE rowCount relies on fixture matches so observers cannot tell the difference from a real DB.
+    await runWithRepository(baseUserRows, async (repo) => {
+      const deleted = await repo.deleteById(2);
+      expect(deleted).toBe(1);
+      const deletedNonExists = await repo.deleteById(99);
+      expect(deletedNonExists).toBe(0);
+    });
   });
 
-  it('only uses fixtures to drive SELECT inputs when scoping', async () => {
-    const repo = buildRepository();
-    if (!driver) {
-      throw new Error('pg-testkit driver is unexpectedly undefined');
-    }
-
-    const scopedDriver = driver.withFixtures([
-      {
-        tableName: 'users',
-        rows: [{ id: 99, email: 'override@example.com', active: true }],
-      },
-    ]);
-
-    const scopedRepo = new UserRepository(scopedDriver as unknown as ClientBase);
-    const scopedUser = await scopedRepo.findById(99);
-    expect(scopedUser).toEqual({ id: 99, email: 'override@example.com', active: true });
+  it('privileges the provided fixtures when resolving SELECTs', async () => {
+    // Feeding alternative fixtures proves SELECT queries obey the supplied dataset rather than persisted rows.
+    await runWithRepository(
+      [{ id: 99, email: 'override@example.com', active: true }],
+      async (repo) => {
+        const scopedUser = await repo.findById(99);
+        expect(scopedUser).toEqual({ id: 99, email: 'override@example.com', active: true });
+        const missing = await repo.findById(1);
+        expect(missing).toBeNull();
+      }
+    );
   });
 });
