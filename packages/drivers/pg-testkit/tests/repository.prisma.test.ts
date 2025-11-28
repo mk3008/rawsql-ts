@@ -1,12 +1,11 @@
-import { PrismaPg } from '@prisma/adapter-pg';
 import { execSync } from 'node:child_process';
 import { existsSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { beforeAll, describe, expect, inject, it } from 'vitest';
-import { createPgTestkitPool } from '../src';
 import { usersPrismaTableDefinition } from './fixtures/TableDefinitions';
-import type { PrismaClientType } from './prisma-app/prisma-client-shim';
 import { UserRepository } from './prisma-app/UserRepository';
+import { createPgTestkitFixtureRunner } from './helpers/pgFixtureRunner';
+import { createPrismaRepositoryTestHarness } from './helpers/prismaRepositoryTestHarness';
 
 declare module 'vitest' {
   interface ProvidedContext {
@@ -26,19 +25,38 @@ type UserFixtureRow = {
   active: boolean;
 };
 
+/**
+ * Creates a fixture object representing the logical contents of the table.
+ * Tests rely entirely on these rows instead of real database tables.
+ */
 const buildUserRows = (rows: UserFixtureRow[]) => ({
   tableName: 'public.users_prisma',
   rows,
 });
 
+const fixtureRunner = createPgTestkitFixtureRunner<UserFixtureRow>({
+  ddlRoot,
+  tableDefinitions: [usersPrismaTableDefinition],
+  buildTableRows: (rows) => [buildUserRows(rows)],
+});
+
+/**
+ * Ensures that Prisma Client is generated before tests run.
+ *
+ * The tests still use Prisma normally, so this step prepares the usual
+ * Prisma-generated client. Later, the database connection behind this client
+ * will be replaced by a simulation layer that responds using fixtures.
+ */
 const ensurePrismaClient = (databaseUrl: string): void => {
+  // Skip any work when the generated client already exists for the temporary directory.
   if (existsSync(path.join(prismaClientOutput, 'index.js'))) {
     return;
   }
 
+  // Prepare the temporary tree where Prisma will emit the client artifacts.
   mkdirSync(prismaTmpDir, { recursive: true });
 
-  // Run the Prisma generator once so the client module can be imported by the tests.
+  // Drive `prisma generate` so the client reflects the test schema and connection.
   execSync(
     `pnpm --filter @rawsql-ts/pg-testkit exec prisma generate --schema "${prismaSchemaPath}" --config "${prismaConfigPath}"`,
     {
@@ -55,74 +73,52 @@ const ensurePrismaClient = (databaseUrl: string): void => {
 
 type PrismaClientModule = typeof import('../tmp/prisma/client');
 
+/**
+ * Prisma Client must be imported dynamically because it is generated during test setup.
+ */
 const importPrismaClient = async (): Promise<PrismaClientModule> => {
   return import('../tmp/prisma/client');
 };
 
-describe('UserRepository (Prisma) with pg-testkit driver adapter', () => {
-  let prismaModule: PrismaClientModule | undefined;
-  let testPgUri: string | undefined;
+const prismaTestHarness = createPrismaRepositoryTestHarness<UserFixtureRow, UserRepository>({
+  fixtureRunner,
+  ensurePrismaClient,
+  importPrismaClient,
+  createRepository: (client) => new UserRepository(client),
+});
 
+describe('UserRepository (Prisma) with fixture-backed Postgres simulation', () => {
   beforeAll(async () => {
-    // Capture the database URI that Vitest injects for pg-testkit.
+    /**
+     * Vitest injects a connection URL that points to a lightweight Postgres instance.
+     * Although a real connection exists, the test never uses real tables.
+     * Instead, all table access is simulated using fixtures and structural metadata.
+     */
     const pgUri = inject('TEST_PG_URI') ?? process.env.TEST_PG_URI;
     if (!pgUri) {
       throw new Error('TEST_PG_URI is missing; ensure the Vitest global setup provided a connection.');
     }
-    testPgUri = pgUri;
-
-    // Ensure the Prisma client has been generated with the current connection URL.
-    ensurePrismaClient(pgUri);
-    prismaModule = await importPrismaClient();
+    await prismaTestHarness.setup(pgUri);
   });
 
-  const runWithRepository = async (
-    rows: UserFixtureRow[] = [],
-    testFn: (repository: UserRepository) => Promise<void>
-  ): Promise<void> => {
-    if (!testPgUri) {
-      throw new Error('TEST_PG_URI is missing; ensure beforeAll set it.');
-    }
-    if (!prismaModule) {
-      throw new Error('Prisma Client module was not loaded before running tests.');
-    }
-
-    // Set up a pg-testkit pool with the fixture rows and DDL metadata so Prisma sees the expected schema.
-    const pool = createPgTestkitPool(
-      testPgUri,
-      buildUserRows(rows),
-      {
-        ddl: { directories: [ddlRoot] },
-        tableDefinitions: [usersPrismaTableDefinition],
-      }
-    );
-
-    const adapter = new PrismaPg(pool);
-    const prismaClient = new prismaModule.PrismaClient({
-      adapter,
-      log: [{ emit: 'event', level: 'query' }],
-    }) as unknown as PrismaClientType;
-    const repository = new UserRepository(prismaClient);
-
-    // Ensure we always disconnect the Prisma client and close the pool, even if the test throws.
-    try {
-      await testFn(repository);
-    } finally {
-      await prismaClient.$disconnect();
-      await pool.end();
-    }
-  };
-
   it('createUser returns a Prisma user shape', async () => {
-    await runWithRepository([], async (repo) => {
+    /**
+     * No initial rows. The simulation layer evaluates the INSERT operation
+     * and generates an auto-incremented id as a real database would.
+     */
+    await prismaTestHarness.run([], async (repo) => {
       const created = await repo.createUser({ email: 'carol@example.com', active: true });
       expect(created).toMatchObject({ email: 'carol@example.com', active: true });
       expect(typeof (created as { id?: unknown }).id).toBe('number');
     });
   });
 
-  it('findById surfaces fixture-backed rows', async () => {
-    await runWithRepository(
+  it('findById reads rows from the fixture data', async () => {
+    /**
+     * Reads back the exact row provided by the fixture.
+     * This proves SELECT queries operate on the simulated table contents.
+     */
+    await prismaTestHarness.run(
       [{ id: 1, email: 'alice@example.com', active: true }],
       async (repo) => {
         const found = await repo.findById(1);
@@ -131,8 +127,13 @@ describe('UserRepository (Prisma) with pg-testkit driver adapter', () => {
     );
   });
 
-  it('updateActive returns Prisma BatchPayload counts', async () => {
-    await runWithRepository(
+  it('updateActive returns the correct count values', async () => {
+    /**
+     * UPDATE is evaluated purely using the fixture data.
+     * The simulation layer determines whether the WHERE clause matches,
+     * and returns the same “count” value Prisma expects from a real DB.
+     */
+    await prismaTestHarness.run(
       [{ id: 2, email: 'bob@example.com', active: false }],
       async (repo) => {
         const updated = await repo.updateActive(2, true);
@@ -144,8 +145,12 @@ describe('UserRepository (Prisma) with pg-testkit driver adapter', () => {
     );
   });
 
-  it('deleteById returns Prisma BatchPayload counts', async () => {
-    await runWithRepository(
+  it('deleteById returns the correct count values', async () => {
+    /**
+     * DELETE behaves the same way: only fixture rows determine the result.
+     * No real table is touched.
+     */
+    await prismaTestHarness.run(
       [{ id: 2, email: 'bob@example.com', active: false }],
       async (repo) => {
         const deleted = await repo.deleteById(2);
