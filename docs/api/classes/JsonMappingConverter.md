@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: JsonMappingConverter
 
-Defined in: [packages/core/src/transformers/JsonMappingConverter.ts:225](https://github.com/mk3008/rawsql-ts/blob/9500e016cd69eeba79110f829feb7e699e7361d9/packages/core/src/transformers/JsonMappingConverter.ts#L225)
+Defined in: [packages/core/src/transformers/JsonMappingConverter.ts:225](https://github.com/mk3008/rawsql-ts/blob/08ef245e1b92295c0c83cf10a43bc6449a2ba4d3/packages/core/src/transformers/JsonMappingConverter.ts#L225)
 
 Unified JSON mapping converter that handles all supported formats using the Strategy pattern.
 
@@ -26,7 +26,7 @@ const legacyMapping = converter.toLegacyMapping(someMapping);
 
 > **new JsonMappingConverter**(): `JsonMappingConverter`
 
-Defined in: [packages/core/src/transformers/JsonMappingConverter.ts:237](https://github.com/mk3008/rawsql-ts/blob/9500e016cd69eeba79110f829feb7e699e7361d9/packages/core/src/transformers/JsonMappingConverter.ts#L237)
+Defined in: [packages/core/src/transformers/JsonMappingConverter.ts:237](https://github.com/mk3008/rawsql-ts/blob/08ef245e1b92295c0c83cf10a43bc6449a2ba4d3/packages/core/src/transformers/JsonMappingConverter.ts#L237)
 
 Creates a new JsonMappingConverter with all supported strategies.
 
@@ -45,7 +45,7 @@ Strategies are checked in order of specificity:
 
 > **detectFormat**(`input`): [`MappingFormat`](../type-aliases/MappingFormat.md)
 
-Defined in: [packages/core/src/transformers/JsonMappingConverter.ts:262](https://github.com/mk3008/rawsql-ts/blob/9500e016cd69eeba79110f829feb7e699e7361d9/packages/core/src/transformers/JsonMappingConverter.ts#L262)
+Defined in: [packages/core/src/transformers/JsonMappingConverter.ts:262](https://github.com/mk3008/rawsql-ts/blob/08ef245e1b92295c0c83cf10a43bc6449a2ba4d3/packages/core/src/transformers/JsonMappingConverter.ts#L262)
 
 Detects the format of the input mapping without performing conversion.
 
@@ -83,7 +83,7 @@ console.log(`Detected format: ${format}`); // "enhanced", "model-driven", or "le
 
 > **convert**(`input`): [`ConversionResult`](../interfaces/ConversionResult.md)
 
-Defined in: [packages/core/src/transformers/JsonMappingConverter.ts:297](https://github.com/mk3008/rawsql-ts/blob/9500e016cd69eeba79110f829feb7e699e7361d9/packages/core/src/transformers/JsonMappingConverter.ts#L297)
+Defined in: [packages/core/src/transformers/JsonMappingConverter.ts:297](https://github.com/mk3008/rawsql-ts/blob/08ef245e1b92295c0c83cf10a43bc6449a2ba4d3/packages/core/src/transformers/JsonMappingConverter.ts#L297)
 
 Converts any supported JSON mapping format to a comprehensive result with metadata.
 
@@ -131,7 +131,7 @@ const queryBuilder = new PostgresJsonQueryBuilder(result.mapping);
 
 > **toLegacyMapping**(`input`): [`JsonMapping`](../interfaces/JsonMapping.md)
 
-Defined in: [packages/core/src/transformers/JsonMappingConverter.ts:327](https://github.com/mk3008/rawsql-ts/blob/9500e016cd69eeba79110f829feb7e699e7361d9/packages/core/src/transformers/JsonMappingConverter.ts#L327)
+Defined in: [packages/core/src/transformers/JsonMappingConverter.ts:327](https://github.com/mk3008/rawsql-ts/blob/08ef245e1b92295c0c83cf10a43bc6449a2ba4d3/packages/core/src/transformers/JsonMappingConverter.ts#L327)
 
 Extracts only the legacy JsonMapping for direct use with PostgresJsonQueryBuilder.
 
@@ -175,7 +175,7 @@ const query = queryBuilder.build(selectQuery);
 
 > **getTypeProtection**(`input`): [`TypeProtectionConfig`](../interfaces/TypeProtectionConfig.md)
 
-Defined in: [packages/core/src/transformers/JsonMappingConverter.ts:355](https://github.com/mk3008/rawsql-ts/blob/9500e016cd69eeba79110f829feb7e699e7361d9/packages/core/src/transformers/JsonMappingConverter.ts#L355)
+Defined in: [packages/core/src/transformers/JsonMappingConverter.ts:355](https://github.com/mk3008/rawsql-ts/blob/08ef245e1b92295c0c83cf10a43bc6449a2ba4d3/packages/core/src/transformers/JsonMappingConverter.ts#L355)
 
 Extracts type protection configuration for runtime type checking.
 
@@ -220,7 +220,7 @@ for (const field of typeProtection.protectedStringFields) {
 
 > **validate**(`input`): `string`[]
 
-Defined in: [packages/core/src/transformers/JsonMappingConverter.ts:389](https://github.com/mk3008/rawsql-ts/blob/9500e016cd69eeba79110f829feb7e699e7361d9/packages/core/src/transformers/JsonMappingConverter.ts#L389)
+Defined in: [packages/core/src/transformers/JsonMappingConverter.ts:389](https://github.com/mk3008/rawsql-ts/blob/08ef245e1b92295c0c83cf10a43bc6449a2ba4d3/packages/core/src/transformers/JsonMappingConverter.ts#L389)
 
 Validates that the input mapping is well-formed and can be successfully converted.
 
@@ -271,7 +271,7 @@ const result = converter.convert(suspiciousMapping);
 
 > **upgradeToEnhanced**(`legacy`, `typeInfo?`): [`EnhancedJsonMapping`](../interfaces/EnhancedJsonMapping.md)
 
-Defined in: [packages/core/src/transformers/JsonMappingConverter.ts:450](https://github.com/mk3008/rawsql-ts/blob/9500e016cd69eeba79110f829feb7e699e7361d9/packages/core/src/transformers/JsonMappingConverter.ts#L450)
+Defined in: [packages/core/src/transformers/JsonMappingConverter.ts:450](https://github.com/mk3008/rawsql-ts/blob/08ef245e1b92295c0c83cf10a43bc6449a2ba4d3/packages/core/src/transformers/JsonMappingConverter.ts#L450)
 
 Creates a new enhanced mapping from legacy mapping.
 

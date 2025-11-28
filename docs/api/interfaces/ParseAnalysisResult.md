@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: ParseAnalysisResult
 
-Defined in: [packages/core/src/parsers/SelectQueryParser.ts:19](https://github.com/mk3008/rawsql-ts/blob/9500e016cd69eeba79110f829feb7e699e7361d9/packages/core/src/parsers/SelectQueryParser.ts#L19)
+Defined in: [packages/core/src/parsers/SelectQueryParser.ts:19](https://github.com/mk3008/rawsql-ts/blob/08ef245e1b92295c0c83cf10a43bc6449a2ba4d3/packages/core/src/parsers/SelectQueryParser.ts#L19)
 
 ## Extended by
 
@@ -13,7 +13,7 @@ Defined in: [packages/core/src/parsers/SelectQueryParser.ts:19](https://github.c
 
 > **success**: `boolean`
 
-Defined in: [packages/core/src/parsers/SelectQueryParser.ts:20](https://github.com/mk3008/rawsql-ts/blob/9500e016cd69eeba79110f829feb7e699e7361d9/packages/core/src/parsers/SelectQueryParser.ts#L20)
+Defined in: [packages/core/src/parsers/SelectQueryParser.ts:20](https://github.com/mk3008/rawsql-ts/blob/08ef245e1b92295c0c83cf10a43bc6449a2ba4d3/packages/core/src/parsers/SelectQueryParser.ts#L20)
 
 ***
 
@@ -21,7 +21,7 @@ Defined in: [packages/core/src/parsers/SelectQueryParser.ts:20](https://github.c
 
 > `optional` **query**: [`SelectQuery`](SelectQuery.md)
 
-Defined in: [packages/core/src/parsers/SelectQueryParser.ts:21](https://github.com/mk3008/rawsql-ts/blob/9500e016cd69eeba79110f829feb7e699e7361d9/packages/core/src/parsers/SelectQueryParser.ts#L21)
+Defined in: [packages/core/src/parsers/SelectQueryParser.ts:21](https://github.com/mk3008/rawsql-ts/blob/08ef245e1b92295c0c83cf10a43bc6449a2ba4d3/packages/core/src/parsers/SelectQueryParser.ts#L21)
 
 ***
 
@@ -29,7 +29,7 @@ Defined in: [packages/core/src/parsers/SelectQueryParser.ts:21](https://github.c
 
 > `optional` **error**: `string`
 
-Defined in: [packages/core/src/parsers/SelectQueryParser.ts:22](https://github.com/mk3008/rawsql-ts/blob/9500e016cd69eeba79110f829feb7e699e7361d9/packages/core/src/parsers/SelectQueryParser.ts#L22)
+Defined in: [packages/core/src/parsers/SelectQueryParser.ts:22](https://github.com/mk3008/rawsql-ts/blob/08ef245e1b92295c0c83cf10a43bc6449a2ba4d3/packages/core/src/parsers/SelectQueryParser.ts#L22)
 
 ***
 
@@ -37,7 +37,7 @@ Defined in: [packages/core/src/parsers/SelectQueryParser.ts:22](https://github.c
 
 > `optional` **errorPosition**: `number`
 
-Defined in: [packages/core/src/parsers/SelectQueryParser.ts:23](https://github.com/mk3008/rawsql-ts/blob/9500e016cd69eeba79110f829feb7e699e7361d9/packages/core/src/parsers/SelectQueryParser.ts#L23)
+Defined in: [packages/core/src/parsers/SelectQueryParser.ts:23](https://github.com/mk3008/rawsql-ts/blob/08ef245e1b92295c0c83cf10a43bc6449a2ba4d3/packages/core/src/parsers/SelectQueryParser.ts#L23)
 
 ***
 
@@ -45,5 +45,5 @@ Defined in: [packages/core/src/parsers/SelectQueryParser.ts:23](https://github.c
 
 > `optional` **remainingTokens**: `string`[]
 
-Defined in: [packages/core/src/parsers/SelectQueryParser.ts:24](https://github.com/mk3008/rawsql-ts/blob/9500e016cd69eeba79110f829feb7e699e7361d9/packages/core/src/parsers/SelectQueryParser.ts#L24)
+Defined in: [packages/core/src/parsers/SelectQueryParser.ts:24](https://github.com/mk3008/rawsql-ts/blob/08ef245e1b92295c0c83cf10a43bc6449a2ba4d3/packages/core/src/parsers/SelectQueryParser.ts#L24)
 </div>

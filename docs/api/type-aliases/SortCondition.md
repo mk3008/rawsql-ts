@@ -3,7 +3,7 @@
 
 > **SortCondition** = `object`
 
-Defined in: [packages/core/src/transformers/SqlSortInjector.ts:177](https://github.com/mk3008/rawsql-ts/blob/9500e016cd69eeba79110f829feb7e699e7361d9/packages/core/src/transformers/SqlSortInjector.ts#L177)
+Defined in: [packages/core/src/transformers/SqlSortInjector.ts:177](https://github.com/mk3008/rawsql-ts/blob/08ef245e1b92295c0c83cf10a43bc6449a2ba4d3/packages/core/src/transformers/SqlSortInjector.ts#L177)
 
 ## Properties
 
@@ -11,7 +11,7 @@ Defined in: [packages/core/src/transformers/SqlSortInjector.ts:177](https://gith
 
 > `optional` **asc**: `boolean`
 
-Defined in: [packages/core/src/transformers/SqlSortInjector.ts:178](https://github.com/mk3008/rawsql-ts/blob/9500e016cd69eeba79110f829feb7e699e7361d9/packages/core/src/transformers/SqlSortInjector.ts#L178)
+Defined in: [packages/core/src/transformers/SqlSortInjector.ts:178](https://github.com/mk3008/rawsql-ts/blob/08ef245e1b92295c0c83cf10a43bc6449a2ba4d3/packages/core/src/transformers/SqlSortInjector.ts#L178)
 
 ***
 
@@ -19,7 +19,7 @@ Defined in: [packages/core/src/transformers/SqlSortInjector.ts:178](https://gith
 
 > `optional` **desc**: `boolean`
 
-Defined in: [packages/core/src/transformers/SqlSortInjector.ts:179](https://github.com/mk3008/rawsql-ts/blob/9500e016cd69eeba79110f829feb7e699e7361d9/packages/core/src/transformers/SqlSortInjector.ts#L179)
+Defined in: [packages/core/src/transformers/SqlSortInjector.ts:179](https://github.com/mk3008/rawsql-ts/blob/08ef245e1b92295c0c83cf10a43bc6449a2ba4d3/packages/core/src/transformers/SqlSortInjector.ts#L179)
 
 ***
 
@@ -27,7 +27,7 @@ Defined in: [packages/core/src/transformers/SqlSortInjector.ts:179](https://gith
 
 > `optional` **nullsFirst**: `boolean`
 
-Defined in: [packages/core/src/transformers/SqlSortInjector.ts:180](https://github.com/mk3008/rawsql-ts/blob/9500e016cd69eeba79110f829feb7e699e7361d9/packages/core/src/transformers/SqlSortInjector.ts#L180)
+Defined in: [packages/core/src/transformers/SqlSortInjector.ts:180](https://github.com/mk3008/rawsql-ts/blob/08ef245e1b92295c0c83cf10a43bc6449a2ba4d3/packages/core/src/transformers/SqlSortInjector.ts#L180)
 
 ***
 
@@ -35,5 +35,5 @@ Defined in: [packages/core/src/transformers/SqlSortInjector.ts:180](https://gith
 
 > `optional` **nullsLast**: `boolean`
 
-Defined in: [packages/core/src/transformers/SqlSortInjector.ts:181](https://github.com/mk3008/rawsql-ts/blob/9500e016cd69eeba79110f829feb7e699e7361d9/packages/core/src/transformers/SqlSortInjector.ts#L181)
+Defined in: [packages/core/src/transformers/SqlSortInjector.ts:181](https://github.com/mk3008/rawsql-ts/blob/08ef245e1b92295c0c83cf10a43bc6449a2ba4d3/packages/core/src/transformers/SqlSortInjector.ts#L181)
 </div>

@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: CTEDependencyAnalyzer
 
-Defined in: [packages/core/src/transformers/CTEDependencyAnalyzer.ts:44](https://github.com/mk3008/rawsql-ts/blob/9500e016cd69eeba79110f829feb7e699e7361d9/packages/core/src/transformers/CTEDependencyAnalyzer.ts#L44)
+Defined in: [packages/core/src/transformers/CTEDependencyAnalyzer.ts:44](https://github.com/mk3008/rawsql-ts/blob/08ef245e1b92295c0c83cf10a43bc6449a2ba4d3/packages/core/src/transformers/CTEDependencyAnalyzer.ts#L44)
 
 Analyzer for CTE dependencies in SQL queries.
 Provides functionality to analyze dependencies, detect circular references,
@@ -13,7 +13,7 @@ and generate topological ordering of CTEs.
 
 > **new CTEDependencyAnalyzer**(): `CTEDependencyAnalyzer`
 
-Defined in: [packages/core/src/transformers/CTEDependencyAnalyzer.ts:58](https://github.com/mk3008/rawsql-ts/blob/9500e016cd69eeba79110f829feb7e699e7361d9/packages/core/src/transformers/CTEDependencyAnalyzer.ts#L58)
+Defined in: [packages/core/src/transformers/CTEDependencyAnalyzer.ts:58](https://github.com/mk3008/rawsql-ts/blob/08ef245e1b92295c0c83cf10a43bc6449a2ba4d3/packages/core/src/transformers/CTEDependencyAnalyzer.ts#L58)
 
 #### Returns
 
@@ -25,7 +25,7 @@ Defined in: [packages/core/src/transformers/CTEDependencyAnalyzer.ts:58](https:/
 
 > **analyzeDependencies**(`query`): [`CTEDependencyGraph`](../interfaces/CTEDependencyGraph.md)
 
-Defined in: [packages/core/src/transformers/CTEDependencyAnalyzer.ts:75](https://github.com/mk3008/rawsql-ts/blob/9500e016cd69eeba79110f829feb7e699e7361d9/packages/core/src/transformers/CTEDependencyAnalyzer.ts#L75)
+Defined in: [packages/core/src/transformers/CTEDependencyAnalyzer.ts:75](https://github.com/mk3008/rawsql-ts/blob/08ef245e1b92295c0c83cf10a43bc6449a2ba4d3/packages/core/src/transformers/CTEDependencyAnalyzer.ts#L75)
 
 Analyzes the dependencies between CTEs in the given query
 
@@ -49,7 +49,7 @@ The dependency graph
 
 > **getDependencies**(`cteName`): `string`[]
 
-Defined in: [packages/core/src/transformers/CTEDependencyAnalyzer.ts:87](https://github.com/mk3008/rawsql-ts/blob/9500e016cd69eeba79110f829feb7e699e7361d9/packages/core/src/transformers/CTEDependencyAnalyzer.ts#L87)
+Defined in: [packages/core/src/transformers/CTEDependencyAnalyzer.ts:87](https://github.com/mk3008/rawsql-ts/blob/08ef245e1b92295c0c83cf10a43bc6449a2ba4d3/packages/core/src/transformers/CTEDependencyAnalyzer.ts#L87)
 
 Gets the list of CTEs that the specified CTE depends on
 
@@ -73,7 +73,7 @@ Array of CTE names this CTE depends on
 
 > **getDependents**(`cteName`): `string`[]
 
-Defined in: [packages/core/src/transformers/CTEDependencyAnalyzer.ts:98](https://github.com/mk3008/rawsql-ts/blob/9500e016cd69eeba79110f829feb7e699e7361d9/packages/core/src/transformers/CTEDependencyAnalyzer.ts#L98)
+Defined in: [packages/core/src/transformers/CTEDependencyAnalyzer.ts:98](https://github.com/mk3008/rawsql-ts/blob/08ef245e1b92295c0c83cf10a43bc6449a2ba4d3/packages/core/src/transformers/CTEDependencyAnalyzer.ts#L98)
 
 Gets the list of CTEs that depend on the specified CTE
 
@@ -97,7 +97,7 @@ Array of CTE names that depend on this CTE
 
 > **getMainQueryDependencies**(): `string`[]
 
-Defined in: [packages/core/src/transformers/CTEDependencyAnalyzer.ts:108](https://github.com/mk3008/rawsql-ts/blob/9500e016cd69eeba79110f829feb7e699e7361d9/packages/core/src/transformers/CTEDependencyAnalyzer.ts#L108)
+Defined in: [packages/core/src/transformers/CTEDependencyAnalyzer.ts:108](https://github.com/mk3008/rawsql-ts/blob/08ef245e1b92295c0c83cf10a43bc6449a2ba4d3/packages/core/src/transformers/CTEDependencyAnalyzer.ts#L108)
 
 Gets the list of CTEs that are directly referenced by the main query
 
@@ -113,7 +113,7 @@ Array of CTE names referenced by the main query
 
 > **getNodesByType**(`nodeType`): [`CTENode`](../interfaces/CTENode.md)[]
 
-Defined in: [packages/core/src/transformers/CTEDependencyAnalyzer.ts:119](https://github.com/mk3008/rawsql-ts/blob/9500e016cd69eeba79110f829feb7e699e7361d9/packages/core/src/transformers/CTEDependencyAnalyzer.ts#L119)
+Defined in: [packages/core/src/transformers/CTEDependencyAnalyzer.ts:119](https://github.com/mk3008/rawsql-ts/blob/08ef245e1b92295c0c83cf10a43bc6449a2ba4d3/packages/core/src/transformers/CTEDependencyAnalyzer.ts#L119)
 
 Gets nodes by type (CTE or ROOT)
 
@@ -137,7 +137,7 @@ Array of nodes of the specified type
 
 > **getMainQueryNode**(): `undefined` \| [`CTENode`](../interfaces/CTENode.md)
 
-Defined in: [packages/core/src/transformers/CTEDependencyAnalyzer.ts:128](https://github.com/mk3008/rawsql-ts/blob/9500e016cd69eeba79110f829feb7e699e7361d9/packages/core/src/transformers/CTEDependencyAnalyzer.ts#L128)
+Defined in: [packages/core/src/transformers/CTEDependencyAnalyzer.ts:128](https://github.com/mk3008/rawsql-ts/blob/08ef245e1b92295c0c83cf10a43bc6449a2ba4d3/packages/core/src/transformers/CTEDependencyAnalyzer.ts#L128)
 
 Gets the main query node
 
@@ -153,7 +153,7 @@ The main query node or undefined if not found
 
 > **hasCircularDependency**(): `boolean`
 
-Defined in: [packages/core/src/transformers/CTEDependencyAnalyzer.ts:137](https://github.com/mk3008/rawsql-ts/blob/9500e016cd69eeba79110f829feb7e699e7361d9/packages/core/src/transformers/CTEDependencyAnalyzer.ts#L137)
+Defined in: [packages/core/src/transformers/CTEDependencyAnalyzer.ts:137](https://github.com/mk3008/rawsql-ts/blob/08ef245e1b92295c0c83cf10a43bc6449a2ba4d3/packages/core/src/transformers/CTEDependencyAnalyzer.ts#L137)
 
 Checks if there are any circular dependencies in the CTE graph
 
@@ -169,7 +169,7 @@ true if circular dependencies exist, false otherwise
 
 > **getExecutionOrder**(): `string`[]
 
-Defined in: [packages/core/src/transformers/CTEDependencyAnalyzer.ts:155](https://github.com/mk3008/rawsql-ts/blob/9500e016cd69eeba79110f829feb7e699e7361d9/packages/core/src/transformers/CTEDependencyAnalyzer.ts#L155)
+Defined in: [packages/core/src/transformers/CTEDependencyAnalyzer.ts:155](https://github.com/mk3008/rawsql-ts/blob/08ef245e1b92295c0c83cf10a43bc6449a2ba4d3/packages/core/src/transformers/CTEDependencyAnalyzer.ts#L155)
 
 Gets the topological sort order for CTE execution
 

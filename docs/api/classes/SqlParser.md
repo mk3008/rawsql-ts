@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: SqlParser
 
-Defined in: [packages/core/src/parsers/SqlParser.ts:61](https://github.com/mk3008/rawsql-ts/blob/9500e016cd69eeba79110f829feb7e699e7361d9/packages/core/src/parsers/SqlParser.ts#L61)
+Defined in: [packages/core/src/parsers/SqlParser.ts:61](https://github.com/mk3008/rawsql-ts/blob/08ef245e1b92295c0c83cf10a43bc6449a2ba4d3/packages/core/src/parsers/SqlParser.ts#L61)
 
 Canonical entry point for SQL parsing.
 Delegates to dedicated parsers for SELECT, INSERT, UPDATE, and DELETE statements, and is designed to embrace additional statement types next.
@@ -22,7 +22,7 @@ Delegates to dedicated parsers for SELECT, INSERT, UPDATE, and DELETE statements
 
 > `static` **parse**(`sql`, `options`): [`ParsedStatement`](../type-aliases/ParsedStatement.md)
 
-Defined in: [packages/core/src/parsers/SqlParser.ts:62](https://github.com/mk3008/rawsql-ts/blob/9500e016cd69eeba79110f829feb7e699e7361d9/packages/core/src/parsers/SqlParser.ts#L62)
+Defined in: [packages/core/src/parsers/SqlParser.ts:62](https://github.com/mk3008/rawsql-ts/blob/08ef245e1b92295c0c83cf10a43bc6449a2ba4d3/packages/core/src/parsers/SqlParser.ts#L62)
 
 #### Parameters
 
@@ -44,7 +44,7 @@ Defined in: [packages/core/src/parsers/SqlParser.ts:62](https://github.com/mk300
 
 > `static` **parseMany**(`sql`, `options`): [`ParsedStatement`](../type-aliases/ParsedStatement.md)[]
 
-Defined in: [packages/core/src/parsers/SqlParser.ts:86](https://github.com/mk3008/rawsql-ts/blob/9500e016cd69eeba79110f829feb7e699e7361d9/packages/core/src/parsers/SqlParser.ts#L86)
+Defined in: [packages/core/src/parsers/SqlParser.ts:86](https://github.com/mk3008/rawsql-ts/blob/08ef245e1b92295c0c83cf10a43bc6449a2ba4d3/packages/core/src/parsers/SqlParser.ts#L86)
 
 #### Parameters
 

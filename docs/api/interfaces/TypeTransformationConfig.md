@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: TypeTransformationConfig
 
-Defined in: [packages/core/src/transformers/TypeTransformationPostProcessor.ts:6](https://github.com/mk3008/rawsql-ts/blob/9500e016cd69eeba79110f829feb7e699e7361d9/packages/core/src/transformers/TypeTransformationPostProcessor.ts#L6)
+Defined in: [packages/core/src/transformers/TypeTransformationPostProcessor.ts:6](https://github.com/mk3008/rawsql-ts/blob/08ef245e1b92295c0c83cf10a43bc6449a2ba4d3/packages/core/src/transformers/TypeTransformationPostProcessor.ts#L6)
 
 Post-processor for transforming database values to appropriate TypeScript types
 after JSON serialization from PostgreSQL
@@ -12,7 +12,7 @@ after JSON serialization from PostgreSQL
 
 > `optional` **columnTransformations**: `object`
 
-Defined in: [packages/core/src/transformers/TypeTransformationPostProcessor.ts:8](https://github.com/mk3008/rawsql-ts/blob/9500e016cd69eeba79110f829feb7e699e7361d9/packages/core/src/transformers/TypeTransformationPostProcessor.ts#L8)
+Defined in: [packages/core/src/transformers/TypeTransformationPostProcessor.ts:8](https://github.com/mk3008/rawsql-ts/blob/08ef245e1b92295c0c83cf10a43bc6449a2ba4d3/packages/core/src/transformers/TypeTransformationPostProcessor.ts#L8)
 
 Column transformations mapping - takes precedence over value-based detection
 
@@ -26,7 +26,7 @@ Column transformations mapping - takes precedence over value-based detection
 
 > `optional` **globalTransformations**: `object`
 
-Defined in: [packages/core/src/transformers/TypeTransformationPostProcessor.ts:12](https://github.com/mk3008/rawsql-ts/blob/9500e016cd69eeba79110f829feb7e699e7361d9/packages/core/src/transformers/TypeTransformationPostProcessor.ts#L12)
+Defined in: [packages/core/src/transformers/TypeTransformationPostProcessor.ts:12](https://github.com/mk3008/rawsql-ts/blob/08ef245e1b92295c0c83cf10a43bc6449a2ba4d3/packages/core/src/transformers/TypeTransformationPostProcessor.ts#L12)
 
 Global transformation rules by SQL data type
 
@@ -40,7 +40,7 @@ Global transformation rules by SQL data type
 
 > `optional` **customTransformers**: `object`
 
-Defined in: [packages/core/src/transformers/TypeTransformationPostProcessor.ts:16](https://github.com/mk3008/rawsql-ts/blob/9500e016cd69eeba79110f829feb7e699e7361d9/packages/core/src/transformers/TypeTransformationPostProcessor.ts#L16)
+Defined in: [packages/core/src/transformers/TypeTransformationPostProcessor.ts:16](https://github.com/mk3008/rawsql-ts/blob/08ef245e1b92295c0c83cf10a43bc6449a2ba4d3/packages/core/src/transformers/TypeTransformationPostProcessor.ts#L16)
 
 Custom transformation functions
 
@@ -54,7 +54,7 @@ Custom transformation functions
 
 > `optional` **enableValueBasedDetection**: `boolean`
 
-Defined in: [packages/core/src/transformers/TypeTransformationPostProcessor.ts:20](https://github.com/mk3008/rawsql-ts/blob/9500e016cd69eeba79110f829feb7e699e7361d9/packages/core/src/transformers/TypeTransformationPostProcessor.ts#L20)
+Defined in: [packages/core/src/transformers/TypeTransformationPostProcessor.ts:20](https://github.com/mk3008/rawsql-ts/blob/08ef245e1b92295c0c83cf10a43bc6449a2ba4d3/packages/core/src/transformers/TypeTransformationPostProcessor.ts#L20)
 
 Enable value-based type detection when column mapping is not provided (default: true)
 
@@ -64,7 +64,7 @@ Enable value-based type detection when column mapping is not provided (default: 
 
 > `optional` **strictDateDetection**: `boolean`
 
-Defined in: [packages/core/src/transformers/TypeTransformationPostProcessor.ts:22](https://github.com/mk3008/rawsql-ts/blob/9500e016cd69eeba79110f829feb7e699e7361d9/packages/core/src/transformers/TypeTransformationPostProcessor.ts#L22)
+Defined in: [packages/core/src/transformers/TypeTransformationPostProcessor.ts:22](https://github.com/mk3008/rawsql-ts/blob/08ef245e1b92295c0c83cf10a43bc6449a2ba4d3/packages/core/src/transformers/TypeTransformationPostProcessor.ts#L22)
 
 Strict date detection - only convert ISO 8601 with 'T' separator (default: false)
 </div>
