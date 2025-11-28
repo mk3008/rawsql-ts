@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: EditedCTE
 
-Defined in: [packages/core/src/transformers/CTEComposer.ts:13](https://github.com/mk3008/rawsql-ts/blob/1a1d14ee3824180691b24e85de0d461b902114ea/packages/core/src/transformers/CTEComposer.ts#L13)
+Defined in: [packages/core/src/transformers/CTEComposer.ts:13](https://github.com/mk3008/rawsql-ts/blob/9500e016cd69eeba79110f829feb7e699e7361d9/packages/core/src/transformers/CTEComposer.ts#L13)
 
 Interface representing an edited CTE with simplified structure
 
@@ -11,7 +11,7 @@ Interface representing an edited CTE with simplified structure
 
 > **name**: `string`
 
-Defined in: [packages/core/src/transformers/CTEComposer.ts:15](https://github.com/mk3008/rawsql-ts/blob/1a1d14ee3824180691b24e85de0d461b902114ea/packages/core/src/transformers/CTEComposer.ts#L15)
+Defined in: [packages/core/src/transformers/CTEComposer.ts:15](https://github.com/mk3008/rawsql-ts/blob/9500e016cd69eeba79110f829feb7e699e7361d9/packages/core/src/transformers/CTEComposer.ts#L15)
 
 Name of the CTE
 
@@ -21,7 +21,7 @@ Name of the CTE
 
 > **query**: `string`
 
-Defined in: [packages/core/src/transformers/CTEComposer.ts:17](https://github.com/mk3008/rawsql-ts/blob/1a1d14ee3824180691b24e85de0d461b902114ea/packages/core/src/transformers/CTEComposer.ts#L17)
+Defined in: [packages/core/src/transformers/CTEComposer.ts:17](https://github.com/mk3008/rawsql-ts/blob/9500e016cd69eeba79110f829feb7e699e7361d9/packages/core/src/transformers/CTEComposer.ts#L17)
 
 SQL query for this CTE, may contain WITH clause from editing
 </div>
