@@ -21,6 +21,14 @@ let container: StartedPostgreSqlContainer | null = null;
 let client: Client | null = null;
 let runtimeAvailable = true;
 
+const requireClient = (): Client => {
+  // Guard against misusing the pg client when the container startup failed.
+  if (!client) {
+    throw new Error('Postgres client has not been initialized');
+  }
+  return client;
+};
+
 beforeAll(async () => {
   try {
     container = await new PostgreSqlContainer('postgres:16-alpine').start();
@@ -42,12 +50,14 @@ afterAll(async () => {
 
 describe('createPgTestkitClient', () => {
   it('shadows SELECT queries with fixture-backed CTEs', async () => {
+    // Skip the test when the container could not be started.
     if (!runtimeAvailable || !client) {
       expect(true).toBe(true);
       return;
     }
+    const safeClient = requireClient();
     const driver = createPgTestkitClient({
-      connectionFactory: () => client,
+      connectionFactory: () => safeClient,
       tableDefinitions: [usersTableDefinition],
       tableRows: [{ tableName: 'users', rows: userRows }],
     });
@@ -61,12 +71,14 @@ describe('createPgTestkitClient', () => {
   });
 
   it('converts CRUD statements into result-select queries', async () => {
+    // Skip the test when the container could not be started.
     if (!runtimeAvailable || !client) {
       expect(true).toBe(true);
       return;
     }
+    const safeClient = requireClient();
     const driver = createPgTestkitClient({
-      connectionFactory: () => client,
+      connectionFactory: () => safeClient,
       tableDefinitions: [usersTableDefinition],
       tableRows: [{ tableName: 'users', rows: userRows }],
     });
@@ -87,12 +99,14 @@ describe('createPgTestkitClient', () => {
   });
 
   it('ignores unsupported DDL statements', async () => {
+    // Skip the test when the container could not be started.
     if (!runtimeAvailable || !client) {
       expect(true).toBe(true);
       return;
     }
+    const safeClient = requireClient();
     const driver = createPgTestkitClient({
-      connectionFactory: () => client,
+      connectionFactory: () => safeClient,
       tableDefinitions: [usersTableDefinition],
       tableRows: [{ tableName: 'users', rows: userRows }],
     });
@@ -100,15 +114,17 @@ describe('createPgTestkitClient', () => {
     const ddl = await driver.query('create table phantom_users (id int)');
     expect(ddl.rowCount).toBe(0);
 
-    const check = await client.query<{ name: string | null }>("select to_regclass('public.phantom_users') as name");
+    const check = await safeClient.query<{ name: string | null }>("select to_regclass('public.phantom_users') as name");
     expect(check.rows[0]?.name).toBeNull();
   });
 
   it('infers fixtures from configured DDL files', async () => {
+    // Skip the test when the container could not be started.
     if (!runtimeAvailable || !client) {
       expect(true).toBe(true);
       return;
     }
+    const safeClient = requireClient();
 
     const ddlRoot = path.join('tmp', 'pg-testkit-ddl');
     const schemaDir = path.join(ddlRoot, 'public');
@@ -129,7 +145,7 @@ describe('createPgTestkitClient', () => {
       );
 
       const driver = createPgTestkitClient({
-        connectionFactory: () => client,
+        connectionFactory: () => safeClient,
         ddl: { directories: [ddlRoot] },
       });
 
@@ -147,12 +163,14 @@ describe('createPgTestkitClient', () => {
 
 describe('wrapPgClient', () => {
   it('rewrites pg.Client queries without creating physical tables', async () => {
+    // Skip the test when the container could not be started.
     if (!runtimeAvailable || !client) {
       expect(true).toBe(true);
       return;
     }
 
-    const wrapped = wrapPgClient(client, {
+    const safeClient = requireClient();
+    const wrapped = wrapPgClient(safeClient, {
       tableDefinitions: [ordersTableDefinition],
       tableRows: [{ tableName: 'orders', rows: orderRows }],
     });
@@ -162,12 +180,14 @@ describe('wrapPgClient', () => {
   });
 
   it('derives scoped wrappers with isolated fixtures', async () => {
+    // Skip the test when the container could not be started.
     if (!runtimeAvailable || !client) {
       expect(true).toBe(true);
       return;
     }
 
-    const wrapped = wrapPgClient(client, {
+    const safeClient = requireClient();
+    const wrapped = wrapPgClient(safeClient, {
       tableDefinitions: [ordersTableDefinition],
       tableRows: [{ tableName: 'orders', rows: orderRows }],
     });
