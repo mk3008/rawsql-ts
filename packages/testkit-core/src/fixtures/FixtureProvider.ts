@@ -5,10 +5,11 @@ import type {
   TableDefinitionModel,
   TableDefinitionRegistry,
 } from 'rawsql-ts';
-import type { FixtureRow } from '@rawsql-ts/testkit-core';
-import type { TableRowsFixture, PgFixtureProvider, PgFixtureSnapshot } from '../types';
+import type { TableRowsFixture } from '../types';
+import type { FixtureResolver, FixtureSnapshot } from '../types';
 
-export class PgFixtureStore implements PgFixtureProvider {
+/** Resolves fixtures while unifying table metadata coming from DDL or explicit configuration. */
+export class DefaultFixtureProvider implements FixtureResolver {
   private readonly definitionMap = new Map<string, TableDefinitionModel>();
 
   constructor(
@@ -18,9 +19,9 @@ export class PgFixtureStore implements PgFixtureProvider {
     this.registerDefinitions(tableDefinitions);
   }
 
-  public resolve(overrides?: TableRowsFixture[]): PgFixtureSnapshot {
+  public resolve(overrides?: TableRowsFixture[]): FixtureSnapshot {
     const mergedRows = this.mergeRows(overrides);
-    const snapshot: PgFixtureSnapshot = {
+    const snapshot: FixtureSnapshot = {
       fixtureTables: this.buildFixtureTables(mergedRows),
       tableDefinitions: this.buildDefinitionRegistry(),
       fixturesApplied: mergedRows.map((fixture) => fixture.tableName),
@@ -67,7 +68,7 @@ export class PgFixtureStore implements PgFixtureProvider {
         defaultValue: typeof column.defaultValue === 'string' ? column.defaultValue : undefined,
       }));
 
-      const rows = fixture.rows.map((row: FixtureRow, rowIndex: number) =>
+      const rows = fixture.rows.map((row: Record<string, unknown>, rowIndex: number) =>
         this.buildRow(row, columns, fixture.tableName, rowIndex, definition)
       );
 

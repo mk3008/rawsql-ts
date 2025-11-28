@@ -1,6 +1,5 @@
 import type { QueryResult, QueryResultRow } from 'pg';
-import { PgFixtureStore } from '../fixtures/PgFixtureStore';
-import { PgResultSelectRewriter } from '../rewriter/PgResultSelectRewriter';
+import { DefaultFixtureProvider, ResultSelectRewriter } from '@rawsql-ts/testkit-core';
 import type {
   CreatePgTestkitClientOptions,
   PgQueryInput,
@@ -19,7 +18,7 @@ import type { TableDefinitionModel, TableRowsFixture } from '../types';
  */
 export class PgTestkitClient {
   private connection?: PgQueryable;
-  private readonly rewriter: PgResultSelectRewriter;
+  private readonly rewriter: ResultSelectRewriter;
   private readonly ddlFixtures: DdlProcessedFixture[];
 
   constructor(
@@ -28,11 +27,11 @@ export class PgTestkitClient {
     seedConnection?: PgQueryable
   ) {
     this.ddlFixtures = this.loadDdlFixtures();
-    const fixtureStore = new PgFixtureStore(
+    const fixtureStore = new DefaultFixtureProvider(
       this.collectDefinitions(),
       this.collectBaseRows()
     );
-    this.rewriter = new PgResultSelectRewriter(
+    this.rewriter = new ResultSelectRewriter(
       fixtureStore,
       options.missingFixtureStrategy ?? 'error',
       options.formatterOptions

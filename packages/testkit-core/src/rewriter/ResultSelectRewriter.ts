@@ -56,10 +56,10 @@ import type {
   TableDefinitionRegistry,
   SelectQuery,
 } from 'rawsql-ts';
-import type { PgFixtureProvider, TableRowsFixture } from '../types';
+import type { FixtureResolver, TableRowsFixture } from '../types';
 
 interface RewriteInputs {
-  fixtureTables: ReturnType<PgFixtureProvider['resolve']>['fixtureTables'];
+  fixtureTables: ReturnType<FixtureResolver['resolve']>['fixtureTables'];
   tableDefinitions: TableDefinitionRegistry;
   fixturesApplied: string[];
 }
@@ -69,12 +69,13 @@ interface RewriteResult {
   fixturesApplied: string[];
 }
 
-export class PgResultSelectRewriter {
+/** Rewrites CRUD/SELECT statements into fixture-backed SELECTs while ignoring unsupported DDL. */
+export class ResultSelectRewriter {
   private readonly formatter: SqlFormatter;
   private visitedComponents = new WeakSet<SqlComponent>();
 
   constructor(
-    private readonly fixtures: PgFixtureProvider,
+    private readonly fixtures: FixtureResolver,
     private readonly missingFixtureStrategy: MissingFixtureStrategy = 'error',
     formatterOptions?: SqlFormatterOptions
   ) {

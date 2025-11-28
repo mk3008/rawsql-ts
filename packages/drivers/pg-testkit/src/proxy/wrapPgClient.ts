@@ -1,6 +1,5 @@
 import type { QueryConfig, QueryResult, QueryResultRow } from 'pg';
-import { PgFixtureStore } from '../fixtures/PgFixtureStore';
-import { PgResultSelectRewriter } from '../rewriter/PgResultSelectRewriter';
+import { DefaultFixtureProvider, ResultSelectRewriter } from '@rawsql-ts/testkit-core';
 import type {
   PgQueryInput,
   PgQueryable,
@@ -48,8 +47,8 @@ const resolveOptionsState = (options: WrapPgClientOptions) => {
 /** Wraps an existing Postgres client with fixture-aware query rewriting. */
 export const wrapPgClient = <T extends PgQueryable>(client: T, options: WrapPgClientOptions): WrappedPgClient<T> => {
   const overridden = resolveOptionsState(options);
-  const fixtureStore = new PgFixtureStore(overridden.tableDefinitions, overridden.tableRows);
-  const rewriter = new PgResultSelectRewriter(
+  const fixtureStore = new DefaultFixtureProvider(overridden.tableDefinitions, overridden.tableRows);
+  const rewriter = new ResultSelectRewriter(
     fixtureStore,
     options.missingFixtureStrategy ?? 'error',
     options.formatterOptions

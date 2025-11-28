@@ -1,4 +1,9 @@
-import type { SqlFormatterOptions, TableDefinitionModel } from 'rawsql-ts';
+import type {
+  FixtureTableDefinition,
+  SqlFormatterOptions,
+  TableDefinitionModel,
+  TableDefinitionRegistry,
+} from 'rawsql-ts';
 export type { TableDefinitionModel } from 'rawsql-ts';
 
 export type SqliteAffinity = 'TEXT' | 'INTEGER' | 'REAL' | 'NUMERIC' | 'BLOB';
@@ -56,5 +61,17 @@ export interface SelectRewriteContext {
   fixtures?: TableFixture[];
   formatterOptions?: SqlFormatterOptions;
   analyzerFailureBehavior?: AnalyzerFailureBehavior;
+}
+
+/** Represents the resolved state returned by a fixture provider. */
+export interface FixtureSnapshot {
+  fixtureTables: FixtureTableDefinition[];
+  tableDefinitions: TableDefinitionRegistry;
+  fixturesApplied: string[];
+}
+
+/** Responsible for resolving fixture overrides and exposing the latest snapshot. */
+export interface FixtureResolver {
+  resolve(overrides?: TableRowsFixture[]): FixtureSnapshot;
 }
 
