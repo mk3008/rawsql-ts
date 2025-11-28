@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: LexemeCursor
 
-Defined in: [packages/core/src/utils/LexemeCursor.ts:25](https://github.com/mk3008/rawsql-ts/blob/f6bbef44f8af5ec6c2ca7cae709c0f77fc593271/packages/core/src/utils/LexemeCursor.ts#L25)
+Defined in: [packages/core/src/utils/LexemeCursor.ts:25](https://github.com/mk3008/rawsql-ts/blob/1a1d14ee3824180691b24e85de0d461b902114ea/packages/core/src/utils/LexemeCursor.ts#L25)
 
 Utility class for cursor-to-lexeme mapping in SQL text.
 
@@ -32,7 +32,7 @@ console.log(lexeme?.value); // 'id'
 
 > `static` **findLexemeAtLineColumn**(`sql`, `position`): `null` \| [`Lexeme`](../interfaces/Lexeme.md)
 
-Defined in: [packages/core/src/utils/LexemeCursor.ts:48](https://github.com/mk3008/rawsql-ts/blob/f6bbef44f8af5ec6c2ca7cae709c0f77fc593271/packages/core/src/utils/LexemeCursor.ts#L48)
+Defined in: [packages/core/src/utils/LexemeCursor.ts:48](https://github.com/mk3008/rawsql-ts/blob/1a1d14ee3824180691b24e85de0d461b902114ea/packages/core/src/utils/LexemeCursor.ts#L48)
 
 Find the lexeme at the specified line and column position.
 
@@ -73,7 +73,7 @@ console.log(lexeme?.value); // 'user_id'
 
 > `static` **findLexemeAtPosition**(`sql`, `cursorPosition`): `null` \| [`Lexeme`](../interfaces/Lexeme.md)
 
-Defined in: [packages/core/src/utils/LexemeCursor.ts:73](https://github.com/mk3008/rawsql-ts/blob/f6bbef44f8af5ec6c2ca7cae709c0f77fc593271/packages/core/src/utils/LexemeCursor.ts#L73)
+Defined in: [packages/core/src/utils/LexemeCursor.ts:73](https://github.com/mk3008/rawsql-ts/blob/1a1d14ee3824180691b24e85de0d461b902114ea/packages/core/src/utils/LexemeCursor.ts#L73)
 
 Find the lexeme at the specified cursor position.
 
@@ -114,7 +114,7 @@ console.log(lexeme?.value); // 'user_id'
 
 > `static` **getAllLexemesWithPosition**(`sql`): [`Lexeme`](../interfaces/Lexeme.md)[]
 
-Defined in: [packages/core/src/utils/LexemeCursor.ts:107](https://github.com/mk3008/rawsql-ts/blob/f6bbef44f8af5ec6c2ca7cae709c0f77fc593271/packages/core/src/utils/LexemeCursor.ts#L107)
+Defined in: [packages/core/src/utils/LexemeCursor.ts:107](https://github.com/mk3008/rawsql-ts/blob/1a1d14ee3824180691b24e85de0d461b902114ea/packages/core/src/utils/LexemeCursor.ts#L107)
 
 Get all lexemes with position information from SQL text.
 
@@ -149,7 +149,7 @@ lexemes.forEach(l => console.log(`${l.value} at ${l.position.startPosition}`));
 
 > `static` **charOffsetToLineColumn**(`sql`, `charOffset`): `null` \| [`LineColumn`](../interfaces/LineColumn.md)
 
-Defined in: [packages/core/src/utils/LexemeCursor.ts:323](https://github.com/mk3008/rawsql-ts/blob/f6bbef44f8af5ec6c2ca7cae709c0f77fc593271/packages/core/src/utils/LexemeCursor.ts#L323)
+Defined in: [packages/core/src/utils/LexemeCursor.ts:323](https://github.com/mk3008/rawsql-ts/blob/1a1d14ee3824180691b24e85de0d461b902114ea/packages/core/src/utils/LexemeCursor.ts#L323)
 
 Convert character offset to line and column position.
 
