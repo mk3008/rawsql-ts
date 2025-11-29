@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: SqlComponentVisitor&lt;T\&gt;
 
-Defined in: [packages/core/src/models/SqlComponent.ts:83](https://github.com/mk3008/rawsql-ts/blob/24a3c8345b2b19492777bf7dfaaa046f943ebb07/packages/core/src/models/SqlComponent.ts#L83)
+Defined in: [packages/core/src/models/SqlComponent.ts:83](https://github.com/mk3008/rawsql-ts/blob/178c748123fdac6f78b4287de916003e473264a6/packages/core/src/models/SqlComponent.ts#L83)
 
 ## Type Parameters
 
@@ -15,7 +15,7 @@ Defined in: [packages/core/src/models/SqlComponent.ts:83](https://github.com/mk3
 
 > **visit**(`expr`): `T`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:84](https://github.com/mk3008/rawsql-ts/blob/24a3c8345b2b19492777bf7dfaaa046f943ebb07/packages/core/src/models/SqlComponent.ts#L84)
+Defined in: [packages/core/src/models/SqlComponent.ts:84](https://github.com/mk3008/rawsql-ts/blob/178c748123fdac6f78b4287de916003e473264a6/packages/core/src/models/SqlComponent.ts#L84)
 
 #### Parameters
 
