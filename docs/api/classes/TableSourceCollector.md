@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: TableSourceCollector
 
-Defined in: [packages/core/src/transformers/TableSourceCollector.ts:30](https://github.com/mk3008/rawsql-ts/blob/08ef245e1b92295c0c83cf10a43bc6449a2ba4d3/packages/core/src/transformers/TableSourceCollector.ts#L30)
+Defined in: [packages/core/src/transformers/TableSourceCollector.ts:30](https://github.com/mk3008/rawsql-ts/blob/a144fd7d4226a2aae5356e601ddda75e9b266e1b/packages/core/src/transformers/TableSourceCollector.ts#L30)
 
 A visitor that collects all table source names from a SQL query structure.
 
@@ -26,7 +26,7 @@ For UNION-like queries, it scans both the left and right parts.
 
 > **new TableSourceCollector**(`selectableOnly`): `TableSourceCollector`
 
-Defined in: [packages/core/src/transformers/TableSourceCollector.ts:39](https://github.com/mk3008/rawsql-ts/blob/08ef245e1b92295c0c83cf10a43bc6449a2ba4d3/packages/core/src/transformers/TableSourceCollector.ts#L39)
+Defined in: [packages/core/src/transformers/TableSourceCollector.ts:39](https://github.com/mk3008/rawsql-ts/blob/a144fd7d4226a2aae5356e601ddda75e9b266e1b/packages/core/src/transformers/TableSourceCollector.ts#L39)
 
 #### Parameters
 
@@ -42,23 +42,23 @@ Defined in: [packages/core/src/transformers/TableSourceCollector.ts:39](https://
 
 ### getTableSources()
 
-> **getTableSources**(): `TableSource`[]
+> **getTableSources**(): [`TableSource`](TableSource.md)[]
 
-Defined in: [packages/core/src/transformers/TableSourceCollector.ts:103](https://github.com/mk3008/rawsql-ts/blob/08ef245e1b92295c0c83cf10a43bc6449a2ba4d3/packages/core/src/transformers/TableSourceCollector.ts#L103)
+Defined in: [packages/core/src/transformers/TableSourceCollector.ts:103](https://github.com/mk3008/rawsql-ts/blob/a144fd7d4226a2aae5356e601ddda75e9b266e1b/packages/core/src/transformers/TableSourceCollector.ts#L103)
 
 Gets all collected table sources
 
 #### Returns
 
-`TableSource`[]
+[`TableSource`](TableSource.md)[]
 
 ***
 
 ### collect()
 
-> **collect**(`query`): `TableSource`[]
+> **collect**(`query`): [`TableSource`](TableSource.md)[]
 
-Defined in: [packages/core/src/transformers/TableSourceCollector.ts:129](https://github.com/mk3008/rawsql-ts/blob/08ef245e1b92295c0c83cf10a43bc6449a2ba4d3/packages/core/src/transformers/TableSourceCollector.ts#L129)
+Defined in: [packages/core/src/transformers/TableSourceCollector.ts:129](https://github.com/mk3008/rawsql-ts/blob/a144fd7d4226a2aae5356e601ddda75e9b266e1b/packages/core/src/transformers/TableSourceCollector.ts#L129)
 
 #### Parameters
 
@@ -68,7 +68,7 @@ Defined in: [packages/core/src/transformers/TableSourceCollector.ts:129](https:/
 
 #### Returns
 
-`TableSource`[]
+[`TableSource`](TableSource.md)[]
 
 ***
 
@@ -76,7 +76,7 @@ Defined in: [packages/core/src/transformers/TableSourceCollector.ts:129](https:/
 
 > **visit**(`arg`): `void`
 
-Defined in: [packages/core/src/transformers/TableSourceCollector.ts:139](https://github.com/mk3008/rawsql-ts/blob/08ef245e1b92295c0c83cf10a43bc6449a2ba4d3/packages/core/src/transformers/TableSourceCollector.ts#L139)
+Defined in: [packages/core/src/transformers/TableSourceCollector.ts:139](https://github.com/mk3008/rawsql-ts/blob/a144fd7d4226a2aae5356e601ddda75e9b266e1b/packages/core/src/transformers/TableSourceCollector.ts#L139)
 
 Main entry point for the visitor pattern.
 Implements the shallow visit pattern to distinguish between root and recursive visits.

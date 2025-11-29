@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: WithClauseParser
 
-Defined in: [packages/core/src/parsers/WithClauseParser.ts:22](https://github.com/mk3008/rawsql-ts/blob/08ef245e1b92295c0c83cf10a43bc6449a2ba4d3/packages/core/src/parsers/WithClauseParser.ts#L22)
+Defined in: [packages/core/src/parsers/WithClauseParser.ts:22](https://github.com/mk3008/rawsql-ts/blob/a144fd7d4226a2aae5356e601ddda75e9b266e1b/packages/core/src/parsers/WithClauseParser.ts#L22)
 
 Parser for SQL WITH clauses (Common Table Expressions - CTEs).
 Parses only the WITH clause portion of SQL, not the entire query.
@@ -33,9 +33,9 @@ console.log(withClause.tables.length); // 1
 
 ### parse()
 
-> `static` **parse**(`query`): `WithClause`
+> `static` **parse**(`query`): [`WithClause`](WithClause.md)
 
-Defined in: [packages/core/src/parsers/WithClauseParser.ts:41](https://github.com/mk3008/rawsql-ts/blob/08ef245e1b92295c0c83cf10a43bc6449a2ba4d3/packages/core/src/parsers/WithClauseParser.ts#L41)
+Defined in: [packages/core/src/parsers/WithClauseParser.ts:41](https://github.com/mk3008/rawsql-ts/blob/a144fd7d4226a2aae5356e601ddda75e9b266e1b/packages/core/src/parsers/WithClauseParser.ts#L41)
 
 Parses a SQL string containing only a WITH clause into a WithClause AST.
 The input should contain only the WITH clause, not the subsequent main query.
@@ -50,7 +50,7 @@ The SQL string containing only the WITH clause
 
 #### Returns
 
-`WithClause`
+[`WithClause`](WithClause.md)
 
 The parsed WithClause object
 
@@ -75,7 +75,7 @@ const withClause = WithClauseParser.parse(sql);
 
 > `static` **parseFromLexeme**(`lexemes`, `index`): `object`
 
-Defined in: [packages/core/src/parsers/WithClauseParser.ts:73](https://github.com/mk3008/rawsql-ts/blob/08ef245e1b92295c0c83cf10a43bc6449a2ba4d3/packages/core/src/parsers/WithClauseParser.ts#L73)
+Defined in: [packages/core/src/parsers/WithClauseParser.ts:73](https://github.com/mk3008/rawsql-ts/blob/a144fd7d4226a2aae5356e601ddda75e9b266e1b/packages/core/src/parsers/WithClauseParser.ts#L73)
 
 Parses a WITH clause from an array of lexemes starting at the specified index.
 
@@ -101,7 +101,7 @@ Object containing the parsed WithClause and the new index position
 
 ##### value
 
-> **value**: `WithClause`
+> **value**: [`WithClause`](WithClause.md)
 
 ##### newIndex
 
