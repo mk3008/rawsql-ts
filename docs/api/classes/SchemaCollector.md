@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: SchemaCollector
 
-Defined in: [packages/core/src/transformers/SchemaCollector.ts:39](https://github.com/mk3008/rawsql-ts/blob/a144fd7d4226a2aae5356e601ddda75e9b266e1b/packages/core/src/transformers/SchemaCollector.ts#L39)
+Defined in: [packages/core/src/transformers/SchemaCollector.ts:39](https://github.com/mk3008/rawsql-ts/blob/24a3c8345b2b19492777bf7dfaaa046f943ebb07/packages/core/src/transformers/SchemaCollector.ts#L39)
 
 Collects schema information (table names and resolved columns) from SelectQuery instances.
 
@@ -24,7 +24,7 @@ Related tests: packages/core/tests/transformers/SchemaCollector.test.ts
 
 > **new SchemaCollector**(`tableColumnResolver`, `allowWildcardWithoutResolver`): `SchemaCollector`
 
-Defined in: [packages/core/src/transformers/SchemaCollector.ts:52](https://github.com/mk3008/rawsql-ts/blob/a144fd7d4226a2aae5356e601ddda75e9b266e1b/packages/core/src/transformers/SchemaCollector.ts#L52)
+Defined in: [packages/core/src/transformers/SchemaCollector.ts:52](https://github.com/mk3008/rawsql-ts/blob/24a3c8345b2b19492777bf7dfaaa046f943ebb07/packages/core/src/transformers/SchemaCollector.ts#L52)
 
 #### Parameters
 
@@ -46,7 +46,7 @@ Defined in: [packages/core/src/transformers/SchemaCollector.ts:52](https://githu
 
 > **collect**(`arg`): [`TableSchema`](TableSchema.md)[]
 
-Defined in: [packages/core/src/transformers/SchemaCollector.ts:70](https://github.com/mk3008/rawsql-ts/blob/a144fd7d4226a2aae5356e601ddda75e9b266e1b/packages/core/src/transformers/SchemaCollector.ts#L70)
+Defined in: [packages/core/src/transformers/SchemaCollector.ts:70](https://github.com/mk3008/rawsql-ts/blob/24a3c8345b2b19492777bf7dfaaa046f943ebb07/packages/core/src/transformers/SchemaCollector.ts#L70)
 
 Collects schema information (table names and column names) from a SQL query structure.
 This method ensures that the collected schema information is unique and sorted.
@@ -70,7 +70,7 @@ The SQL query structure to analyze.
 
 > **analyze**(`arg`): [`SchemaAnalysisResult`](../interfaces/SchemaAnalysisResult.md)
 
-Defined in: [packages/core/src/transformers/SchemaCollector.ts:83](https://github.com/mk3008/rawsql-ts/blob/a144fd7d4226a2aae5356e601ddda75e9b266e1b/packages/core/src/transformers/SchemaCollector.ts#L83)
+Defined in: [packages/core/src/transformers/SchemaCollector.ts:83](https://github.com/mk3008/rawsql-ts/blob/24a3c8345b2b19492777bf7dfaaa046f943ebb07/packages/core/src/transformers/SchemaCollector.ts#L83)
 
 Analyzes schema information from a SQL query structure without throwing errors.
 Returns a result object containing successfully resolved schemas, unresolved columns,
@@ -96,7 +96,7 @@ Analysis result containing schemas, unresolved columns, and success status.
 
 > **visit**(`arg`): `void`
 
-Defined in: [packages/core/src/transformers/SchemaCollector.ts:112](https://github.com/mk3008/rawsql-ts/blob/a144fd7d4226a2aae5356e601ddda75e9b266e1b/packages/core/src/transformers/SchemaCollector.ts#L112)
+Defined in: [packages/core/src/transformers/SchemaCollector.ts:112](https://github.com/mk3008/rawsql-ts/blob/24a3c8345b2b19492777bf7dfaaa046f943ebb07/packages/core/src/transformers/SchemaCollector.ts#L112)
 
 Main entry point for the visitor pattern.
 Implements the shallow visit pattern to distinguish between root and recursive visits.

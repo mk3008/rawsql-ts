@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: TypeTransformation
 
-Defined in: [packages/core/src/transformers/TypeTransformationPostProcessor.ts:25](https://github.com/mk3008/rawsql-ts/blob/a144fd7d4226a2aae5356e601ddda75e9b266e1b/packages/core/src/transformers/TypeTransformationPostProcessor.ts#L25)
+Defined in: [packages/core/src/transformers/TypeTransformationPostProcessor.ts:25](https://github.com/mk3008/rawsql-ts/blob/24a3c8345b2b19492777bf7dfaaa046f943ebb07/packages/core/src/transformers/TypeTransformationPostProcessor.ts#L25)
 
 ## Properties
 
@@ -9,7 +9,7 @@ Defined in: [packages/core/src/transformers/TypeTransformationPostProcessor.ts:2
 
 > **sourceType**: `"NUMERIC"` \| `"TIMESTAMP"` \| `"DATE"` \| `"BIGINT"` \| `"JSONB"` \| `"custom"`
 
-Defined in: [packages/core/src/transformers/TypeTransformationPostProcessor.ts:27](https://github.com/mk3008/rawsql-ts/blob/a144fd7d4226a2aae5356e601ddda75e9b266e1b/packages/core/src/transformers/TypeTransformationPostProcessor.ts#L27)
+Defined in: [packages/core/src/transformers/TypeTransformationPostProcessor.ts:27](https://github.com/mk3008/rawsql-ts/blob/24a3c8345b2b19492777bf7dfaaa046f943ebb07/packages/core/src/transformers/TypeTransformationPostProcessor.ts#L27)
 
 Source SQL data type
 
@@ -19,7 +19,7 @@ Source SQL data type
 
 > **targetType**: `"string"` \| `"number"` \| `"bigint"` \| `"object"` \| `"custom"` \| `"Date"`
 
-Defined in: [packages/core/src/transformers/TypeTransformationPostProcessor.ts:29](https://github.com/mk3008/rawsql-ts/blob/a144fd7d4226a2aae5356e601ddda75e9b266e1b/packages/core/src/transformers/TypeTransformationPostProcessor.ts#L29)
+Defined in: [packages/core/src/transformers/TypeTransformationPostProcessor.ts:29](https://github.com/mk3008/rawsql-ts/blob/24a3c8345b2b19492777bf7dfaaa046f943ebb07/packages/core/src/transformers/TypeTransformationPostProcessor.ts#L29)
 
 Target TypeScript type representation
 
@@ -29,7 +29,7 @@ Target TypeScript type representation
 
 > `optional` **customTransformer**: `string`
 
-Defined in: [packages/core/src/transformers/TypeTransformationPostProcessor.ts:31](https://github.com/mk3008/rawsql-ts/blob/a144fd7d4226a2aae5356e601ddda75e9b266e1b/packages/core/src/transformers/TypeTransformationPostProcessor.ts#L31)
+Defined in: [packages/core/src/transformers/TypeTransformationPostProcessor.ts:31](https://github.com/mk3008/rawsql-ts/blob/24a3c8345b2b19492777bf7dfaaa046f943ebb07/packages/core/src/transformers/TypeTransformationPostProcessor.ts#L31)
 
 Custom transformer function name (for custom type)
 
@@ -39,7 +39,7 @@ Custom transformer function name (for custom type)
 
 > `optional` **handleNull**: `boolean`
 
-Defined in: [packages/core/src/transformers/TypeTransformationPostProcessor.ts:33](https://github.com/mk3008/rawsql-ts/blob/a144fd7d4226a2aae5356e601ddda75e9b266e1b/packages/core/src/transformers/TypeTransformationPostProcessor.ts#L33)
+Defined in: [packages/core/src/transformers/TypeTransformationPostProcessor.ts:33](https://github.com/mk3008/rawsql-ts/blob/24a3c8345b2b19492777bf7dfaaa046f943ebb07/packages/core/src/transformers/TypeTransformationPostProcessor.ts#L33)
 
 Whether to handle null values (default: true)
 
@@ -49,7 +49,7 @@ Whether to handle null values (default: true)
 
 > `optional` **validator**: (`value`) => `boolean`
 
-Defined in: [packages/core/src/transformers/TypeTransformationPostProcessor.ts:35](https://github.com/mk3008/rawsql-ts/blob/a144fd7d4226a2aae5356e601ddda75e9b266e1b/packages/core/src/transformers/TypeTransformationPostProcessor.ts#L35)
+Defined in: [packages/core/src/transformers/TypeTransformationPostProcessor.ts:35](https://github.com/mk3008/rawsql-ts/blob/24a3c8345b2b19492777bf7dfaaa046f943ebb07/packages/core/src/transformers/TypeTransformationPostProcessor.ts#L35)
 
 Validation function for the value
 

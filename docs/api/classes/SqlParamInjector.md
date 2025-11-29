@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: SqlParamInjector
 
-Defined in: [packages/core/src/transformers/SqlParamInjector.ts:28](https://github.com/mk3008/rawsql-ts/blob/a144fd7d4226a2aae5356e601ddda75e9b266e1b/packages/core/src/transformers/SqlParamInjector.ts#L28)
+Defined in: [packages/core/src/transformers/SqlParamInjector.ts:28](https://github.com/mk3008/rawsql-ts/blob/24a3c8345b2b19492777bf7dfaaa046f943ebb07/packages/core/src/transformers/SqlParamInjector.ts#L28)
 
 SqlParamInjector injects state parameters into a SelectQuery model,
 creating WHERE conditions and setting parameter values.
@@ -12,7 +12,7 @@ creating WHERE conditions and setting parameter values.
 
 > **new SqlParamInjector**(`optionsOrResolver?`, `options?`): `SqlParamInjector`
 
-Defined in: [packages/core/src/transformers/SqlParamInjector.ts:32](https://github.com/mk3008/rawsql-ts/blob/a144fd7d4226a2aae5356e601ddda75e9b266e1b/packages/core/src/transformers/SqlParamInjector.ts#L32)
+Defined in: [packages/core/src/transformers/SqlParamInjector.ts:32](https://github.com/mk3008/rawsql-ts/blob/24a3c8345b2b19492777bf7dfaaa046f943ebb07/packages/core/src/transformers/SqlParamInjector.ts#L32)
 
 #### Parameters
 
@@ -34,7 +34,7 @@ Defined in: [packages/core/src/transformers/SqlParamInjector.ts:32](https://gith
 
 > **inject**(`query`, `state`): [`SelectQuery`](../interfaces/SelectQuery.md)
 
-Defined in: [packages/core/src/transformers/SqlParamInjector.ts:50](https://github.com/mk3008/rawsql-ts/blob/a144fd7d4226a2aae5356e601ddda75e9b266e1b/packages/core/src/transformers/SqlParamInjector.ts#L50)
+Defined in: [packages/core/src/transformers/SqlParamInjector.ts:50](https://github.com/mk3008/rawsql-ts/blob/24a3c8345b2b19492777bf7dfaaa046f943ebb07/packages/core/src/transformers/SqlParamInjector.ts#L50)
 
 Injects parameters as WHERE conditions into the given query model.
 
