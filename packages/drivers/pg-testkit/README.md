@@ -173,6 +173,10 @@ Fixtures compose in layers, and later layers override earlier ones to keep inten
 
 When you instantiate a new driver (pool client, wrapped client, or scoped client via `withFixtures`), the DDL loader runs before the first rewrite and then the manually supplied fixtures plus the scoped fixtures layer on top before each query executes.
 
+## Testing
+
+The pg-testkit package has no persistent tables or shared schema state, so Vitest is free to run suites in parallel. The workspace `vitest.config.ts` keeps the default worker/threads settings and relies on the shared Dockerized Postgres container from `vitest.global-setup.ts`, but every test run routes through `createPgTestkitPool` and the fixture runner so each file/query works against its own isolated dataset. Feel free to run `pnpm --filter @rawsql-ts/pg-testkit test` (or `vitest` directly) without forcing serial execution.
+
 ## Notes
 
 - **Parameter handling**
