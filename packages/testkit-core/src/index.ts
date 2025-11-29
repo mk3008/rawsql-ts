@@ -9,3 +9,4 @@ export type { SelectAnalysisResult } from './rewriter/SelectAnalyzer';
 export { TableDefinitionSchemaRegistry } from './fixtures/TableDefinitionSchemaRegistry';
 export type { DdlProcessedFixture } from './fixtures/DdlFixtureLoader';
 export { ResultSelectRewriter } from './rewriter/ResultSelectRewriter';
+export { alignRewrittenParameters, applyCountWrapper, extractCountValue, CountableResult } from './utils/queryHelpers';

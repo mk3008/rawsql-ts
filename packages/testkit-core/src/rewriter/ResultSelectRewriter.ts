@@ -67,6 +67,8 @@ interface RewriteInputs {
 interface RewriteResult {
   sql: string;
   fixturesApplied: string[];
+  sourceCommand: string | null;
+  isCountWrapper: boolean;
 }
 
 /** Rewrites CRUD/SELECT statements into fixture-backed SELECTs while ignoring unsupported DDL. */
@@ -92,17 +94,31 @@ export class ResultSelectRewriter {
     const normalized = this.normalizeParameters(sql);
     const parsedStatements = this.parseStatements(normalized.sql);
 
-    const rewrittenStatements = parsedStatements
-      .map((statement) => this.convertStatement(statement, inputs))
-      .filter((value): value is string => Boolean(value));
+    const rewrittenStatements: string[] = [];
+    let sourceCommand: string | null = null;
+    let isCountWrapper = false;
+    for (const statement of parsedStatements) {
+      const converted = this.convertStatement(statement, inputs);
+      if (!converted.sql) {
+        continue;
+      }
+      // Capture metadata from the first rewritten statement to normalize the final result.
+      if (!sourceCommand && converted.sourceCommand) {
+        sourceCommand = converted.sourceCommand;
+        isCountWrapper = converted.isCountWrapper;
+      }
+      rewrittenStatements.push(converted.sql);
+    }
 
     if (rewrittenStatements.length === 0) {
-      return { sql: '', fixturesApplied: [] };
+      return { sql: '', fixturesApplied: [], sourceCommand: null, isCountWrapper: false };
     }
 
     return {
       sql: this.restoreParameters(rewrittenStatements.join('; '), normalized.placeholders),
       fixturesApplied: inputs.fixturesApplied,
+      sourceCommand,
+      isCountWrapper,
     };
   }
 
@@ -120,22 +136,25 @@ export class ResultSelectRewriter {
     return SqlParser.parseMany(sql, { skipEmptyStatements: true });
   }
 
-  private convertStatement(statement: ParsedStatement, inputs: RewriteInputs): string | null {
+  private convertStatement(statement: ParsedStatement, inputs: RewriteInputs): { sql: string | null; sourceCommand: string | null; isCountWrapper: boolean } {
     this.visitedComponents = new WeakSet<SqlComponent>();
     // Convert CRUD + SELECT into result-bearing SELECT statements while ignoring unsupported DDL.
     const converted = this.convertToResultSelect(statement, inputs);
 
-    if (!converted) {
-      return null;
+    if (!converted.sql) {
+      return { sql: null, sourceCommand: null, isCountWrapper: false };
     }
 
-    this.rewriteSchemaQualifiers(converted, inputs.fixtureTables);
+    this.rewriteSchemaQualifiers(converted.sql, inputs.fixtureTables);
 
-    const formattedSql = this.formatter.format(converted).formattedSql.trim();
-    return formattedSql;
+    const formattedSql = this.formatter.format(converted.sql).formattedSql.trim();
+    return { sql: formattedSql, sourceCommand: converted.sourceCommand, isCountWrapper: converted.isCountWrapper };
   }
 
-  private convertToResultSelect(statement: ParsedStatement, inputs: RewriteInputs): SqlComponent | null {
+  private convertToResultSelect(
+    statement: ParsedStatement,
+    inputs: RewriteInputs
+  ): { sql: SqlComponent | null; sourceCommand: string | null; isCountWrapper: boolean } {
     const options = {
       fixtureTables: inputs.fixtureTables,
       tableDefinitions: inputs.tableDefinitions,
@@ -143,29 +162,53 @@ export class ResultSelectRewriter {
     };
 
     if (statement instanceof InsertQuery) {
-      return InsertResultSelectConverter.toSelectQuery(statement, options);
+      return {
+        sql: InsertResultSelectConverter.toSelectQuery(statement, options),
+        sourceCommand: 'insert',
+        isCountWrapper: !statement.returningClause,
+      };
     }
 
     if (statement instanceof UpdateQuery) {
-      return UpdateResultSelectConverter.toSelectQuery(statement, options);
+      return {
+        sql: UpdateResultSelectConverter.toSelectQuery(statement, options),
+        sourceCommand: 'update',
+        isCountWrapper: !statement.returningClause,
+      };
     }
 
     if (statement instanceof DeleteQuery) {
-      return DeleteResultSelectConverter.toSelectQuery(statement, options);
+      return {
+        sql: DeleteResultSelectConverter.toSelectQuery(statement, options),
+        sourceCommand: 'delete',
+        isCountWrapper: !statement.returningClause,
+      };
     }
 
     if (statement instanceof MergeQuery) {
-      return MergeResultSelectConverter.toSelectQuery(statement, options);
+      return {
+        sql: MergeResultSelectConverter.toSelectQuery(statement, options),
+        sourceCommand: 'merge',
+        isCountWrapper: true,
+      };
     }
 
     if (statement instanceof SimpleSelectQuery) {
-      return this.injectFixtures(statement, inputs.fixtureTables);
+      return {
+        sql: this.injectFixtures(statement, inputs.fixtureTables),
+        sourceCommand: 'select',
+        isCountWrapper: false,
+      };
     }
 
     if (statement instanceof BinarySelectQuery || statement instanceof ValuesQuery) {
       // Normalize complex select shapes into a simple query so fixture CTEs can be prefixed consistently.
       const simple = QueryBuilder.buildSimpleQuery(statement);
-      return this.injectFixtures(simple, inputs.fixtureTables);
+      return {
+        sql: this.injectFixtures(simple, inputs.fixtureTables),
+        sourceCommand: 'select',
+        isCountWrapper: false,
+      };
     }
 
     if (statement instanceof CreateTableQuery) {
@@ -175,12 +218,12 @@ export class ResultSelectRewriter {
           ? statement.asSelectQuery
           : QueryBuilder.buildSimpleQuery(statement.asSelectQuery);
         statement.asSelectQuery = this.injectFixtures(innerSimple, inputs.fixtureTables);
-        return statement;
+        return { sql: statement, sourceCommand: 'create', isCountWrapper: false };
       }
-      return null;
+      return { sql: null, sourceCommand: null, isCountWrapper: false };
     }
 
-    return null;
+    return { sql: null, sourceCommand: null, isCountWrapper: false };
   }
 
   private injectFixtures(select: SimpleSelectQuery, fixtures: FixtureTableDefinition[]): SimpleSelectQuery {

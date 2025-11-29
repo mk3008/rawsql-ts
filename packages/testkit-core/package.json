@@ -27,9 +27,11 @@
     "node": ">=20"
   },
   "dependencies": {
+    "pg": "^8.16.3",
     "rawsql-ts": "workspace:*"
   },
   "devDependencies": {
+    "@types/pg": "^8.11.10",
     "typescript": "^5.8.2",
     "vitest": "^4.0.7"
   },

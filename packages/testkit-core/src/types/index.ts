@@ -44,6 +44,8 @@ export interface TestkitLogger {
 export interface SelectRewriteResult {
   sql: string;
   fixturesApplied: string[];
+  sourceCommand?: string | null;
+  isCountWrapper?: boolean;
 }
 
 export interface SelectRewriterOptions {

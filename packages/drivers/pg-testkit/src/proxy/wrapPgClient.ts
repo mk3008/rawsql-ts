@@ -1,5 +1,5 @@
 import type { QueryConfig, QueryResult, QueryResultRow } from 'pg';
-import { DefaultFixtureProvider, ResultSelectRewriter } from '@rawsql-ts/testkit-core';
+import { DefaultFixtureProvider, ResultSelectRewriter, alignRewrittenParameters, applyCountWrapper } from '@rawsql-ts/testkit-core';
 import type {
   PgQueryInput,
   PgQueryable,
@@ -17,13 +17,6 @@ const buildEmptyResult = <T extends QueryResultRow = QueryResultRow>(command = '
   rows: [],
   fields: [],
 });
-
-const extractParams = (query: PgQueryInput, values?: unknown[]): unknown[] | QueryConfig['values'] | undefined => {
-  if (typeof query === 'string') {
-    return values;
-  }
-  return query.values;
-};
 
 const resolveOptionsState = (options: WrapPgClientOptions) => {
   const ddlFixtures: DdlProcessedFixture[] = options.ddl?.directories?.length
@@ -73,20 +66,36 @@ export const wrapPgClient = <T extends PgQueryable>(client: T, options: WrapPgCl
             }
 
             // Inject fixture-backed CTEs into CRUD/SELECT statements and skip unsupported DDL.
-          const rewritten = rewriter.rewrite(sql, scopedFixtures);
+            const rewritten = rewriter.rewrite(sql, scopedFixtures);
             if (!rewritten.sql) {
               return buildEmptyResult();
             }
 
-            const payload =
-              typeof textOrConfig === 'string' ? rewritten.sql : { ...textOrConfig, text: rewritten.sql };
+            // Align caller parameters with the rewritten SQL so placeholders stay contiguous.
+            const incomingParams =
+              typeof textOrConfig === 'string'
+                ? values
+                : values ??
+                  (textOrConfig as { values?: unknown[]; params?: unknown[] }).values ??
+                  (textOrConfig as { values?: unknown[]; params?: unknown[] }).params;
 
-            const result: QueryResult<TRow> =
+            const normalized = alignRewrittenParameters(rewritten.sql, incomingParams);
+
+            const payload =
+              typeof textOrConfig === 'string'
+                ? normalized.sql
+                : { ...textOrConfig, text: normalized.sql, values: normalized.params };
+
+            let result: QueryResult<TRow> =
               typeof payload === 'string'
-                ? await value.call(target, payload, values)
+                ? await value.call(target, payload, normalized.params)
                 : await value.call(target, payload);
 
-            options.onExecute?.(rewritten.sql, extractParams(textOrConfig, values), rewritten.fixturesApplied);
+            options.onExecute?.(normalized.sql, normalized.params, rewritten.fixturesApplied);
+
+            // Normalize rowCount/command only when the rewriter produced a count-wrapper SELECT.
+            result = applyCountWrapper(result, rewritten.sourceCommand, rewritten.isCountWrapper);
+
             return result;
           };
         }

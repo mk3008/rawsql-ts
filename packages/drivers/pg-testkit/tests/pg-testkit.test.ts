@@ -179,6 +179,38 @@ describe('wrapPgClient', () => {
     expect(rows.rows).toEqual([{ total: '125.5' }]);
   });
 
+  it('reports rowCount/command correctly for rewritten UPDATE statements', async () => {
+    // Skip the test when the container could not be started.
+    if (!runtimeAvailable || !client) {
+      expect(true).toBe(true);
+      return;
+    }
+
+    const safeClient = requireClient();
+    const wrapped = wrapPgClient(safeClient, {
+      tableDefinitions: [ordersTableDefinition],
+      tableRows: [{ tableName: 'orders', rows: orderRows }],
+    });
+
+    // Verify no-match updates return zero rowCount instead of 1 SELECT row.
+    const missing = await wrapped.query<{ count: string }>(
+      'update orders set total = total where id = $1',
+      [999]
+    );
+
+    expect(missing.command).toBe('update');
+    expect(missing.rowCount).toBe(0);
+
+    // Verify matched updates preserve the original command and row count.
+    const updated = await wrapped.query<{ count: string }>(
+      'update orders set total = $1 where id = $2',
+      [200, 10]
+    );
+
+    expect(updated.command).toBe('update');
+    expect(updated.rowCount).toBe(1);
+  });
+
   it('derives scoped wrappers with isolated fixtures', async () => {
     // Skip the test when the container could not be started.
     if (!runtimeAvailable || !client) {

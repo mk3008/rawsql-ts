@@ -215,10 +215,16 @@ importers:
 
   packages/testkit-core:
     dependencies:
+      pg:
+        specifier: ^8.16.3
+        version: 8.16.3
       rawsql-ts:
         specifier: workspace:*
         version: link:../core
     devDependencies:
+      '@types/pg':
+        specifier: ^8.11.10
+        version: 8.15.6
       typescript:
         specifier: ^5.8.2
         version: 5.9.2
