@@ -53,6 +53,10 @@ export function rewriteValueComponentWithColumnResolver(
         const rewrittenInternalOrderBy = value.internalOrderBy
             ? rewriteOrderByClause(value.internalOrderBy, resolver)
             : null;
+        // Preserve FILTER predicates so aggregate behaviour remains intact.
+        const rewrittenFilterCondition = value.filterCondition
+            ? rewriteValueComponentWithColumnResolver(value.filterCondition, resolver)
+            : null;
 
         return new FunctionCall(
             value.qualifiedName.namespaces,
@@ -61,7 +65,8 @@ export function rewriteValueComponentWithColumnResolver(
             rewrittenOver,
             rewrittenWithinGroup,
             value.withOrdinality,
-            rewrittenInternalOrderBy
+            rewrittenInternalOrderBy,
+            rewrittenFilterCondition
         );
     }
 

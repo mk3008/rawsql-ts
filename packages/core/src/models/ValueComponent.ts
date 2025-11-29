@@ -89,6 +89,7 @@ export class FunctionCall extends SqlComponent {
     withinGroup: OrderByClause | null;
     withOrdinality: boolean;
     internalOrderBy: OrderByClause | null;
+    filterCondition: ValueComponent | null;
     
     constructor(
         namespaces: string | string[] | IdentifierString[] | null,
@@ -97,7 +98,8 @@ export class FunctionCall extends SqlComponent {
         over: OverExpression | null,
         withinGroup: OrderByClause | null = null,
         withOrdinality: boolean = false,
-        internalOrderBy: OrderByClause | null = null
+        internalOrderBy: OrderByClause | null = null,
+        filterCondition: ValueComponent | null = null
     ) {
         super();
         this.qualifiedName = new QualifiedName(namespaces, name);
@@ -106,6 +108,7 @@ export class FunctionCall extends SqlComponent {
         this.withinGroup = withinGroup;
         this.withOrdinality = withOrdinality;
         this.internalOrderBy = internalOrderBy;
+        this.filterCondition = filterCondition;
     }
 
     /**

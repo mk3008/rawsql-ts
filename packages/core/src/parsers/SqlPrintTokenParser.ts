@@ -1094,6 +1094,17 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         } else {
             token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
         }
+        if (arg.filterCondition) {
+            // Emit FILTER clause so the aggregate preserves its predicate.
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'filter'));
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(SqlPrintTokenParser.PAREN_OPEN_TOKEN);
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'where'));
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(this.visit(arg.filterCondition));
+            token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
+        }
         if (arg.withOrdinality) {
             token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
             token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'with ordinality'));
