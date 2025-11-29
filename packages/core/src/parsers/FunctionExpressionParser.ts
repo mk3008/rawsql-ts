@@ -184,6 +184,14 @@ export class FunctionExpressionParser {
                 idx = withinGroupResult.newIndex;
             }
 
+            // Check for FILTER clause that applies a WHERE predicate to the aggregate
+            let filterCondition: ValueComponent | null = null;
+            if (idx < lexemes.length && lexemes[idx].value === "filter") {
+                const filterResult = this.parseFilterClause(lexemes, idx);
+                filterCondition = filterResult.condition;
+                idx = filterResult.newIndex;
+            }
+
             // Check for WITH ORDINALITY clause
             let withOrdinality = false;
             if (idx < lexemes.length && lexemes[idx].value === "with ordinality") {
@@ -194,14 +202,14 @@ export class FunctionExpressionParser {
             if (idx < lexemes.length && lexemes[idx].value === "over") {
                 const over = OverExpressionParser.parseFromLexeme(lexemes, idx);
                 idx = over.newIndex;
-                const value = new FunctionCall(namespaces, name.name, arg.value, over.value, withinGroup, withOrdinality, internalOrderBy);
+                const value = new FunctionCall(namespaces, name.name, arg.value, over.value, withinGroup, withOrdinality, internalOrderBy, filterCondition);
                 // Set closing comments if available
                 if (closingComments && closingComments.length > 0) {
                     value.addPositionedComments("after", closingComments);
                 }
                 return { value, newIndex: idx };
             } else {
-                const value = new FunctionCall(namespaces, name.name, arg.value, null, withinGroup, withOrdinality, internalOrderBy);
+                const value = new FunctionCall(namespaces, name.name, arg.value, null, withinGroup, withOrdinality, internalOrderBy, filterCondition);
                 // Set closing comments if available
                 if (closingComments && closingComments.length > 0) {
                     value.addPositionedComments("after", closingComments);
@@ -350,6 +358,39 @@ export class FunctionExpressionParser {
         idx++;
 
         return { value: orderByResult.value, newIndex: idx };
+    }
+
+    private static parseFilterClause(lexemes: Lexeme[], index: number): { condition: ValueComponent; newIndex: number } {
+        let idx = index;
+
+        // Confirm the FILTER keyword is present before processing the clause.
+        if (idx >= lexemes.length || lexemes[idx].value !== "filter") {
+            throw ParseError.fromUnparsedLexemes(lexemes, idx, `Expected 'FILTER' keyword.`);
+        }
+        idx++;
+
+        // Expect parentheses surrounding the WHERE predicate.
+        if (idx >= lexemes.length || !(lexemes[idx].type & TokenType.OpenParen)) {
+            throw ParseError.fromUnparsedLexemes(lexemes, idx, `Expected '(' after FILTER.`);
+        }
+        idx++;
+
+        // Require the WHERE keyword inside the FILTER clause.
+        if (idx >= lexemes.length || lexemes[idx].value !== "where") {
+            throw ParseError.fromUnparsedLexemes(lexemes, idx, `Expected 'WHERE' inside FILTER clause.`);
+        }
+        idx++;
+
+        // Parse the predicate inside the FILTER clause and stop at the closing parenthesis.
+        const conditionResult = ValueParser.parseFromLexeme(lexemes, idx);
+        idx = conditionResult.newIndex;
+
+        if (idx >= lexemes.length || !(lexemes[idx].type & TokenType.CloseParen)) {
+            throw ParseError.fromUnparsedLexemes(lexemes, idx, `Expected ')' after FILTER predicate.`);
+        }
+        idx++;
+
+        return { condition: conditionResult.value, newIndex: idx };
     }
 
     /**

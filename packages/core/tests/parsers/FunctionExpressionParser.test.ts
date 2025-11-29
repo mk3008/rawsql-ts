@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { FunctionExpressionParser } from '../../src/parsers/FunctionExpressionParser';
 import { SqlTokenizer } from '../../src/parsers/SqlTokenizer';
+import { BinaryExpression, ColumnReference, FunctionCall, LiteralValue } from '../../src/models/ValueComponent';
 
 describe('FunctionExpressionParser', () => {
     describe('standard function calls', () => {
@@ -70,6 +71,39 @@ describe('FunctionExpressionParser', () => {
             // Function should have WITHIN GROUP clause populated
             const functionCall = result.value as any;
             expect(functionCall.withinGroup).not.toBeNull();
+        });
+    });
+
+    describe('FILTER clause', () => {
+        test('parses aggregates with FILTER predicates', () => {
+            const tokenizer = new SqlTokenizer('SUM(amount) FILTER (WHERE year = 2023)');
+            const lexemes = tokenizer.readLexmes();
+
+            const result = FunctionExpressionParser.parseFromLexeme(lexemes, 0);
+
+            expect(result.newIndex).toBe(lexemes.length);
+            expect(result.value).toBeInstanceOf(FunctionCall);
+
+            const functionCall = result.value as FunctionCall;
+            expect(functionCall.filterCondition).not.toBeNull();
+
+            const filterExpression = functionCall.filterCondition as BinaryExpression;
+            expect(filterExpression.operator.value).toBe('=');
+            expect(filterExpression.left).toBeInstanceOf(ColumnReference);
+            expect(filterExpression.right).toBeInstanceOf(LiteralValue);
+            expect((filterExpression.right as LiteralValue).value).toBe(2023);
+        });
+
+        test('retains FILTER clause before OVER expressions', () => {
+            const tokenizer = new SqlTokenizer('SUM(amount) FILTER (WHERE year = 2024) OVER ()');
+            const lexemes = tokenizer.readLexmes();
+
+            const result = FunctionExpressionParser.parseFromLexeme(lexemes, 0);
+
+            expect(result.newIndex).toBe(lexemes.length);
+            const functionCall = result.value as FunctionCall;
+            expect(functionCall.filterCondition).not.toBeNull();
+            expect(functionCall.over).not.toBeNull();
         });
     });
 });
