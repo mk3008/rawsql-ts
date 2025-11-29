@@ -235,7 +235,7 @@ export class SqlPrinter {
             this.linePrinter.lines[0].level = level;
         }
 
-        this.appendToken(token, level, undefined, 0, false);
+        this.appendToken(token, level, undefined, 0, false, undefined, false);
 
         return this.linePrinter.print();
     }
@@ -285,7 +285,8 @@ export class SqlPrinter {
         parentContainerType?: SqlPrintTokenContainerType,
         caseContextDepth: number = 0,
         indentParentActive: boolean = false,
-        commentContext?: CommentRenderContext
+        commentContext?: CommentRenderContext,
+        previousSiblingWasOpenParen: boolean = false
     ): void {
         // Track WITH clause context for full-oneline formatting
         const wasInsideWithClause = this.insideWithClause;
@@ -346,7 +347,8 @@ export class SqlPrinter {
                 token.containerType,
                 caseContextDepth,
                 indentParentActive,
-                leading.context
+                leading.context,
+                false
             );
         }
 
@@ -383,7 +385,7 @@ export class SqlPrinter {
         const current = this.linePrinter.getCurrentLine();
         const isCaseContext = this.isCaseContext(token.containerType);
         const nextCaseContextDepth = isCaseContext ? caseContextDepth + 1 : caseContextDepth;
-        const shouldIndentNested = this.shouldIndentNestedParentheses(token);
+        const shouldIndentNested = this.shouldIndentNestedParentheses(token, previousSiblingWasOpenParen);
 
         // Handle different token types
         if (token.type === SqlPrintTokenType.keyword) {
@@ -425,7 +427,15 @@ export class SqlPrinter {
         if (token.keywordTokens && token.keywordTokens.length > 0) {
             for (let i = 0; i < token.keywordTokens.length; i++) {
                 const keywordToken = token.keywordTokens[i];
-                this.appendToken(keywordToken, level, token.containerType, nextCaseContextDepth, indentParentActive);
+                this.appendToken(
+                    keywordToken,
+                    level,
+                    token.containerType,
+                    nextCaseContextDepth,
+                    indentParentActive,
+                    undefined,
+                    false
+                );
             }
         }
 
@@ -531,6 +541,8 @@ export class SqlPrinter {
                 continue;
             }
 
+            const previousChildWasOpenParen =
+                previousChild?.type === SqlPrintTokenType.parenthesis && previousChild.text.trim() === '(';
             const childIndentParentActive = token.containerType === SqlPrintTokenContainerType.ParenExpression ? shouldIndentNested : indentParentActive;
             if (inMergePredicate) {
                 this.mergeWhenPredicateDepth++;
@@ -538,7 +550,15 @@ export class SqlPrinter {
             const childCommentContext: CommentRenderContext | undefined = child.containerType === SqlPrintTokenContainerType.CommentBlock
                 ? { position: 'inline', isTopLevelContainer: containerIsTopLevel }
                 : undefined;
-            this.appendToken(child, innerLevel, token.containerType, nextCaseContextDepth, childIndentParentActive, childCommentContext);
+            this.appendToken(
+                child,
+                innerLevel,
+                token.containerType,
+                nextCaseContextDepth,
+                childIndentParentActive,
+                childCommentContext,
+                previousChildWasOpenParen
+            );
             if (inMergePredicate) {
                 this.mergeWhenPredicateDepth--;
             }
@@ -867,7 +887,7 @@ export class SqlPrinter {
      * Decide whether a parentheses group should increase indentation when inside nested structures.
      * We only expand groups that contain further parentheses so simple comparisons stay compact.
      */
-    private shouldIndentNestedParentheses(token: SqlPrintToken): boolean {
+    private shouldIndentNestedParentheses(token: SqlPrintToken, previousSiblingWasOpenParen: boolean = false): boolean {
         if (!this.indentNestedParentheses) {
             return false;
         }
@@ -876,7 +896,7 @@ export class SqlPrinter {
         }
 
         // Look for nested parentheses containers. If present, indent to highlight grouping.
-        return token.innerTokens.some((child) => this.containsParenExpression(child));
+        return previousSiblingWasOpenParen || token.innerTokens.some((child) => this.containsParenExpression(child));
     }
 
     /**
@@ -1183,7 +1203,7 @@ export class SqlPrinter {
                     isTopLevelContainer: context.isTopLevelContainer,
                     forceRender: true,
                 };
-                this.appendToken(child, level, token.containerType, 0, false, childContext);
+                this.appendToken(child, level, token.containerType, 0, false, childContext, false);
             }
             return;
         }

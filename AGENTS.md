@@ -26,5 +26,11 @@
 - Prefer incremental commits scoped to one package; cross-package changes should note dependency order in the commit message.
 - Before editing a sub-package, read its local `AGENTS.md` for package-specific workflows (fixture schema rules, driver setup, etc.).
 
+## Updating the Docs Demos
+- When you ship parser/formatter features that should appear in the hosted demos, rebuild the browser bundle used under `docs/public/demo/vendor/rawsql.browser.js`.
+- Run `pnpm --filter rawsql-ts build:browser` inside the workspace to refresh `packages/core/dist` (includes the browser config that rewrites relative imports) and keep `dist/esm/src/index.js` up to date.
+- Re-bundle the demo artifact with `pnpm --filter rawsql-ts exec esbuild src/index.ts --bundle --platform=browser --format=esm --target=es2022 --minify-syntax --minify-whitespace --outfile=../../docs/public/demo/vendor/rawsql.browser.js`. This produces a compressed `rawsql.browser.js` that the cud-demo, migration-demo, and other docs frontends import.
+- After the rebuild, inspect `git status` for `docs/public/demo/vendor/rawsql.browser.js` and include the updated bundle in the same change so the demos immediately reflect the latest code.
+
 ## Public API Documentation
 - In `src/` code, any class, interface, or type that the package exposes to the outside (i.e., re-exported through `index.ts` or otherwise part of the published entry points) must carry a clear English JSDoc comment explaining its intent and usage. This keeps the public surface well documented for downstream consumers.
