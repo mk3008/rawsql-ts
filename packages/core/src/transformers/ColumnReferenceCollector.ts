@@ -249,8 +249,14 @@ export class ColumnReferenceCollector implements SqlComponentVisitor<void> {
             this.collectFromValueComponent(value.right);
         } else if (value instanceof UnaryExpression) {
             this.collectFromValueComponent(value.expression);
-        } else if (value instanceof FunctionCall && value.argument) {
-            this.collectFromValueComponent(value.argument);
+        } else if (value instanceof FunctionCall) {
+            if (value.argument) {
+                this.collectFromValueComponent(value.argument);
+            }
+            if (value.filterCondition) {
+                // Visit FILTER predicates so their columns are captured during collection.
+                this.collectFromValueComponent(value.filterCondition);
+            }
         } else if (value instanceof CaseExpression) {
             if (value.condition) this.collectFromValueComponent(value.condition);
             if (value.switchCase && value.switchCase.cases) {
@@ -425,6 +431,10 @@ export class ColumnReferenceCollector implements SqlComponentVisitor<void> {
     private visitFunctionCall(func: FunctionCall): void {
         if (func.argument) {
             func.argument.accept(this);
+        }
+        if (func.filterCondition) {
+            // Capture columns introduced by FILTER predicates on aggregates.
+            func.filterCondition.accept(this);
         }
     }
 

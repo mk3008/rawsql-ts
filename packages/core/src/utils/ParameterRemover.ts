@@ -746,11 +746,17 @@ export class ParameterRemover implements SqlComponentVisitor<SqlComponent | null
     private visitFunctionCall(call: FunctionCall): FunctionCall {
         const argument = call.argument ? this.visit(call.argument) as ValueComponent : null;
         const over = call.over ? this.visit(call.over) as OverExpression : null;
+        // Preserve any surviving FILTER predicates when rebuilding aggregate calls.
+        const filterCondition = call.filterCondition ? this.visit(call.filterCondition) as ValueComponent : null;
         return new FunctionCall(
             call.qualifiedName.namespaces,
             call.qualifiedName.name,
             argument,
-            over
+            over,
+            call.withinGroup,
+            call.withOrdinality,
+            call.internalOrderBy,
+            filterCondition
         );
     }
 
