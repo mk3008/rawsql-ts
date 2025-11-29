@@ -143,8 +143,38 @@ export class ValueParser {
      * Transfer positioned comments from lexeme to value component if the component doesn't already handle them
      */
     private static transferPositionedComments(lexeme: Lexeme, value: ValueComponent): void {
-        if (lexeme.positionedComments && lexeme.positionedComments.length > 0 && !value.positionedComments) {
-            value.positionedComments = lexeme.positionedComments;
+        if (lexeme.positionedComments && lexeme.positionedComments.length > 0) {
+            const beforeComments = lexeme.positionedComments.filter(comment => comment.position === 'before');
+            const afterComments = lexeme.positionedComments.filter(comment => comment.position === 'after');
+
+            if (beforeComments.length > 0) {
+                const clonedBefore = beforeComments.map(comment => ({
+                    position: comment.position,
+                    comments: [...comment.comments],
+                }));
+                value.positionedComments = value.positionedComments
+                    ? [...clonedBefore, ...value.positionedComments]
+                    : clonedBefore;
+            }
+
+            if (afterComments.length > 0) {
+                const clonedAfter = afterComments.map(comment => ({
+                    position: comment.position,
+                    comments: [...comment.comments],
+                }));
+                value.positionedComments = value.positionedComments
+                    ? [...value.positionedComments, ...clonedAfter]
+                    : clonedAfter;
+            }
+
+            // Preserve other comment positions when no before/after segments were processed.
+            if (!beforeComments.length && !afterComments.length && !value.positionedComments) {
+                value.positionedComments = lexeme.positionedComments.map(comment => ({
+                    position: comment.position,
+                    comments: [...comment.comments],
+                }));
+            }
+            return;
         }
         // Fall back to legacy comments if positioned comments aren't available
         else if (value.comments === null && lexeme.comments && lexeme.comments.length > 0) {
