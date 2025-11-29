@@ -480,6 +480,10 @@ export class TableSourceCollector implements SqlComponentVisitor<void> {
         if (func.argument) {
             func.argument.accept(this);
         }
+        if (func.filterCondition) {
+            // Visit FILTER predicates so their table references are tracked.
+            func.filterCondition.accept(this);
+        }
 
         if (func.over) {
             func.over.accept(this);

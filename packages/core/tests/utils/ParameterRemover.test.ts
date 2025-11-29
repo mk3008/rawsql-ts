@@ -4,6 +4,8 @@ import { SelectQueryParser } from '../../src/parsers/SelectQueryParser';
 import { SqlFormatter } from '../../src/transformers/SqlFormatter';
 import { WhereClause } from '../../src/models/Clause';
 import { ParameterRemover } from '../../src/utils/ParameterRemover';
+import { SimpleSelectQuery } from '../../src/models/SelectQuery';
+import { BinaryExpression, ColumnReference, FunctionCall, LiteralValue, RawString } from '../../src/models/ValueComponent';
 
 describe('ParameterRemover', () => {
     describe('SqlComponent-level unit tests', () => {
@@ -259,6 +261,31 @@ describe('ParameterRemover', () => {
             const formattedResult = formatter.format(result!);
             const formattedSql = formattedResult.formattedSql; const expectedSql = 'select "department_id", count(*) as "employee_count" from "employees" group by "department_id" having avg("salary") > 50000';
             expect(formattedSql).toBe(expectedSql);
+        });
+
+        test('retains FILTER predicates when no parameters exist', () => {
+            // Arrange
+            const sql = `SELECT SUM(amount) FILTER (WHERE region = 'US') FROM sales`;
+            const query = SelectQueryParser.parse(sql);
+
+            // Act
+            const result = ParameterRemover.remove(query) as SimpleSelectQuery | null;
+
+            // Assert: The FILTER clause should still be preserved in the AST.
+            expect(result).not.toBeNull();
+            const functionCall = result!.selectClause.items[0].value as FunctionCall;
+            expect(functionCall.filterCondition).not.toBeNull();
+
+            const filterExpression = functionCall.filterCondition as BinaryExpression;
+            expect(filterExpression.operator.value).toBe('=');
+            expect(filterExpression.left).toBeInstanceOf(ColumnReference);
+            const columnRef = filterExpression.left as ColumnReference;
+            const columnName = columnRef.qualifiedName.name instanceof RawString
+                ? columnRef.qualifiedName.name.value
+                : columnRef.qualifiedName.name.name;
+            expect(columnName).toBe('region');
+            expect(filterExpression.right).toBeInstanceOf(LiteralValue);
+            expect((filterExpression.right as LiteralValue).value).toBe('US');
         });
 
         test('handles UNION queries with parameters', () => {
