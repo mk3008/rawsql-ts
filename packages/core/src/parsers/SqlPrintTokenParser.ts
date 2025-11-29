@@ -1077,6 +1077,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         token.innerTokens.push(arg.qualifiedName.accept(this));
         token.innerTokens.push(SqlPrintTokenParser.PAREN_OPEN_TOKEN);
         if (arg.argument) {
+            this.relocateGroupingSetComments(arg);
             token.innerTokens.push(this.visit(arg.argument));
         }
         if (arg.internalOrderBy) {
@@ -1128,6 +1129,66 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         this.addComponentComments(token, arg);
 
         return token;
+    }
+
+    private relocateGroupingSetComments(arg: FunctionCall): void {
+        if (!this.isGroupingSetsFunction(arg)) {
+            return;
+        }
+
+        const argument = arg.argument;
+        if (!(argument instanceof ValueList)) {
+            return;
+        }
+
+        const values = argument.values;
+        for (let i = 1; i < values.length; i++) {
+            const current = values[i] as SqlComponent;
+            const previous = values[i - 1] as SqlComponent;
+            const leadingComments = this.extractPositionedComments(current, 'before');
+            if (leadingComments.length === 0) {
+                continue;
+            }
+
+            const trailingBlock = leadingComments.map(comment => ({
+                position: 'after' as const,
+                comments: [...comment.comments],
+            }));
+
+            // Append the moved comments after the previous grouping set entry.
+            previous.positionedComments = previous.positionedComments
+                ? [...previous.positionedComments, ...trailingBlock]
+                : trailingBlock;
+        }
+    }
+
+    private isGroupingSetsFunction(arg: FunctionCall): boolean {
+        const nameComponent = arg.qualifiedName.name;
+        const rawName = nameComponent instanceof RawString ? nameComponent.value : nameComponent.name;
+        return rawName.trim().toLowerCase() === 'grouping sets';
+    }
+
+    private extractPositionedComments(component: SqlComponent, position: 'before' | 'after'): PositionedComment[] {
+        if (!component.positionedComments || component.positionedComments.length === 0) {
+            return [];
+        }
+
+        const kept: PositionedComment[] = [];
+        const extracted: PositionedComment[] = [];
+
+        for (const comment of component.positionedComments) {
+            if (comment.position === position) {
+                extracted.push({
+                    position: comment.position,
+                    comments: [...comment.comments],
+                });
+            } else {
+                kept.push(comment);
+            }
+        }
+
+        component.positionedComments = kept.length > 0 ? kept : null;
+        return extracted;
     }
 
     private visitUnaryExpression(arg: UnaryExpression): SqlPrintToken {
