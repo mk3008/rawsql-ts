@@ -1,0 +1,50 @@
+{
+  "name": "@rawsql-ts/pg-testkit",
+  "version": "0.1.0",
+  "description": "Postgres driver wrapper that simulates CRUD statements via fixture-backed CTEs.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src tests --ext .ts",
+    "release": "npm run lint && npm run test && npm run build && npm pack --dry-run && npm publish --access public"
+  },
+  "keywords": [
+    "postgres",
+    "testing",
+    "fixtures",
+    "rawsql"
+  ],
+  "license": "MIT",
+  "author": "msugiura",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mk3008/rawsql-ts.git",
+    "directory": "packages/drivers/pg-testkit"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@rawsql-ts/testkit-core": "workspace:*",
+    "pg": "^8.13.1",
+    "rawsql-ts": "workspace:*"
+  },
+  "devDependencies": {
+    "@prisma/adapter-pg": "^7.0.0",
+    "@prisma/client": "^7.0.0",
+    "@prisma/client-runtime-utils": "^7.0.0",
+    "@types/pg": "^8.15.6",
+    "@testcontainers/postgresql": "^10.8.0",
+    "drizzle-orm": "^0.31.2",
+    "prisma": "^7.0.0",
+    "testcontainers": "^10.18.0",
+    "typescript": "^5.8.2",
+    "vitest": "^4.0.7"
+  },
+  "files": [
+    "dist"
+  ]
+}

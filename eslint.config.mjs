@@ -1,45 +1,48 @@
+import { resolve } from 'path';
 import typescriptEslint from '@typescript-eslint/eslint-plugin';
 import typescriptParser from '@typescript-eslint/parser';
 
+const tsProjectFiles = [
+    resolve(process.cwd(), 'tsconfig.json'),
+    resolve(process.cwd(), 'tsconfig.tests.json'),
+];
+
+const sharedParserOptions = {
+    ecmaVersion: 2022,
+    sourceType: 'module',
+    project: tsProjectFiles,
+    tsconfigRootDir: process.cwd(),
+};
+
 export default [
     {
-        ignores: ["node_modules", "dist", "packages/*/node_modules", "packages/*/dist"] // Exclude folders
+        ignores: ['node_modules', 'dist', 'packages/*/node_modules', 'packages/*/dist'],
     },
     {
-        files: [
-            "packages/*/src/**/*.ts",
-            "packages/*/tests/**/*.ts",
-            "src/**/*.ts",
-            "tests/**/*.ts"
-        ], // Target package files
+        files: ['**/*.ts'],
         languageOptions: {
             parser: typescriptParser,
-            ecmaVersion: 2022,
-            sourceType: 'module'
+            parserOptions: sharedParserOptions,
         },
         plugins: {
-            "@typescript-eslint": typescriptEslint
+            '@typescript-eslint': typescriptEslint,
         },
         rules: {
-            // Naming convention constraints
-            "@typescript-eslint/naming-convention": [
-                "error",
-                // Class names must be in PascalCase
+            '@typescript-eslint/naming-convention': [
+                'error',
                 {
-                    "selector": "class",
-                    "format": ["PascalCase"]
+                    selector: 'class',
+                    format: ['PascalCase'],
                 },
-                // Function names must be in camelCase
                 {
-                    "selector": "function",
-                    "format": ["camelCase"]
+                    selector: 'function',
+                    format: ['camelCase'],
                 },
-                // Method names must be in camelCase
                 {
-                    "selector": "method",
-                    "format": ["camelCase"]
-                }
-            ]
+                    selector: 'method',
+                    format: ['camelCase'],
+                },
+            ],
         },
     },
 ];

@@ -2,7 +2,30 @@ import { CommonTable, FromClause, ReturningClause, SelectClause, SelectItem, Sou
 import { InsertQuery } from '../models/InsertQuery';
 import { BinarySelectQuery, SelectQuery, SimpleSelectQuery, ValuesQuery } from '../models/SelectQuery';
 import { InsertQuerySelectValuesConverter } from './InsertQuerySelectValuesConverter';
-import { CastExpression, ColumnReference, FunctionCall, IdentifierString, LiteralValue, RawString, TypeValue, ValueComponent } from '../models/ValueComponent';
+import {
+    ArrayExpression,
+    ArrayIndexExpression,
+    ArrayQueryExpression,
+    ArraySliceExpression,
+    BinaryExpression,
+    BetweenExpression,
+    CaseExpression,
+    CaseKeyValuePair,
+    CastExpression,
+    ColumnReference,
+    FunctionCall,
+    IdentifierString,
+    InlineQuery,
+    LiteralValue,
+    ParenExpression,
+    RawString,
+    SwitchCaseArgument,
+    TupleExpression,
+    TypeValue,
+    UnaryExpression,
+    ValueComponent,
+    ValueList,
+} from '../models/ValueComponent';
 import { ValueParser } from '../parsers/ValueParser';
 import {
     TableDefinitionModel,
@@ -13,6 +36,7 @@ import { TableSourceCollector } from './TableSourceCollector';
 import { FixtureCteBuilder, FixtureTableDefinition } from './FixtureCteBuilder';
 import { SelectQueryWithClauseHelper } from "../utils/SelectQueryWithClauseHelper";
 import { rewriteValueComponentWithColumnResolver } from '../utils/ValueComponentRewriter';
+import { tableNameVariants } from '../utils/TableNameUtils';
 
 /** Options that drive how the insert-to-select transformation resolves table metadata. */
 export interface InsertResultSelectOptions {
@@ -133,18 +157,22 @@ export class InsertResultSelectConverter {
             }
         }
 
-        const normalized = this.normalizeIdentifier(tableName);
+        const normalizedVariants = new Set(tableNameVariants(tableName));
 
         if (options?.tableDefinitions) {
             const normalizedMap = this.buildTableDefinitionMap(options.tableDefinitions);
-            const definition = normalizedMap.get(normalized);
-            if (definition) {
-                return definition;
+            for (const variant of normalizedVariants) {
+                const definition = normalizedMap.get(variant);
+                if (definition) {
+                    return definition;
+                }
             }
         }
 
         if (options?.fixtureTables) {
-            const fixture = options.fixtureTables.find(f => this.normalizeIdentifier(f.tableName) === normalized);
+            const fixture = options.fixtureTables.find((f) =>
+                tableNameVariants(f.tableName).some((variant) => normalizedVariants.has(variant))
+            );
             if (fixture) {
                 return this.convertFixtureToTableDefinition(fixture);
             }
@@ -174,7 +202,9 @@ export class InsertResultSelectConverter {
         }
 
         for (const definition of Object.values(registry)) {
-            map.set(this.normalizeIdentifier(definition.name), definition);
+            for (const variant of tableNameVariants(definition.name)) {
+                map.set(variant, definition);
+            }
         }
 
         return map;
@@ -470,7 +500,8 @@ export class InsertResultSelectConverter {
         const filtered: FixtureTableDefinition[] = [];
         // Keep fixtures only for the tables that the INSERT actually touches.
         for (const fixture of fixtures) {
-            if (referencedTables.has(this.normalizeIdentifier(fixture.tableName))) {
+            const fixtureVariants = tableNameVariants(fixture.tableName);
+            if (fixtureVariants.some((variant) => referencedTables.has(variant))) {
                 filtered.push(fixture);
             }
         }
@@ -523,7 +554,9 @@ export class InsertResultSelectConverter {
 
         // Normalize table names so lookups are case-insensitive.
         for (const fixture of fixtures) {
-            map.set(this.normalizeIdentifier(fixture.tableName), fixture);
+            for (const variant of tableNameVariants(fixture.tableName)) {
+                map.set(variant, fixture);
+            }
         }
         return map;
     }
@@ -557,7 +590,9 @@ export class InsertResultSelectConverter {
         const sources = collector.collect(query);
         const referenced = new Set<string>();
         for (const source of sources) {
-            referenced.add(this.normalizeIdentifier(source.getSourceName()));
+            for (const variant of tableNameVariants(source.getSourceName())) {
+                referenced.add(variant);
+            }
         }
         return referenced;
     }
@@ -592,7 +627,8 @@ export class InsertResultSelectConverter {
         // Compare normalized table names against the fixtures that were supplied.
         const missing: string[] = [];
         for (const table of referencedTables) {
-            if (!fixtureMap.has(table)) {
+            const covered = tableNameVariants(table).some((variant) => fixtureMap.has(variant));
+            if (!covered) {
                 missing.push(table);
             }
         }
@@ -635,12 +671,103 @@ export class InsertResultSelectConverter {
             return null;
         }
 
-        if (typeof definition.defaultValue === 'string') {
-            // Re-parse text defaults so callers always work with ValueComponent data.
-            return this.parseDefaultValue(definition.defaultValue);
+        const defaultValue = definition.defaultValue;
+        if (typeof defaultValue === 'string') {
+            const parsed = this.parseDefaultValue(defaultValue);
+            if (this.referencesSequence(parsed)) {
+                return this.parseDefaultValue('row_number() over ()');
+            }
+            return parsed;
         }
 
-        return definition.defaultValue;
+        return defaultValue ?? null;
+    }
+
+    private static referencesSequence(component: ValueComponent): boolean {
+        if (component instanceof FunctionCall) {
+            if (this.isSequenceFunction(component)) {
+                return true;
+            }
+            if (component.argument && this.referencesSequence(component.argument)) {
+                return true;
+            }
+        }
+        if (component instanceof ValueList) {
+            return component.values.some((value) => this.referencesSequence(value));
+        }
+        if (component instanceof BinaryExpression) {
+            return this.referencesSequence(component.left) || this.referencesSequence(component.right);
+        }
+        if (component instanceof UnaryExpression) {
+            return this.referencesSequence(component.expression);
+        }
+        if (component instanceof CastExpression) {
+            return this.referencesSequence(component.input);
+        }
+        if (component instanceof ParenExpression) {
+            return this.referencesSequence(component.expression);
+        }
+        if (component instanceof InlineQuery) {
+            return this.referencesSelect(component.selectQuery);
+        }
+        if (component instanceof ArrayExpression) {
+            return this.referencesSequence(component.expression);
+        }
+        if (component instanceof ArrayQueryExpression) {
+            return this.referencesSelect(component.query);
+        }
+        if (component instanceof BetweenExpression) {
+            return (
+                this.referencesSequence(component.expression) ||
+                this.referencesSequence(component.lower) ||
+                this.referencesSequence(component.upper)
+            );
+        }
+        if (component instanceof ArraySliceExpression) {
+            return (
+                this.referencesSequence(component.array) ||
+                (component.startIndex ? this.referencesSequence(component.startIndex) : false) ||
+                (component.endIndex ? this.referencesSequence(component.endIndex) : false)
+            );
+        }
+        if (component instanceof ArrayIndexExpression) {
+            return this.referencesSequence(component.array) || this.referencesSequence(component.index);
+        }
+        if (component instanceof SwitchCaseArgument) {
+            for (const pair of component.cases) {
+                if (this.referencesSequence(pair.key) || this.referencesSequence(pair.value)) {
+                    return true;
+                }
+            }
+            return component.elseValue ? this.referencesSequence(component.elseValue) : false;
+        }
+        if (component instanceof CaseExpression) {
+            return (
+                (component.condition ? this.referencesSequence(component.condition) : false) ||
+                this.referencesSequence(component.switchCase)
+            );
+        }
+        if (component instanceof CaseKeyValuePair) {
+            return (
+                this.referencesSequence(component.key) ||
+                this.referencesSequence(component.value)
+            );
+        }
+        if (component instanceof TupleExpression) {
+            return component.values.some((value) => this.referencesSequence(value));
+        }
+
+        return false;
+    }
+
+    private static referencesSelect(query: SelectQuery): boolean {
+        return false;
+    }
+
+    private static isSequenceFunction(call: FunctionCall): boolean {
+        const name = call.qualifiedName.name;
+        const value = name instanceof RawString ? name.value : name.name;
+        return value.toLowerCase() === 'nextval';
     }
 
     private static applyColumnCasts(

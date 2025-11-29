@@ -1,6 +1,13 @@
-﻿import { SchemaValidationError } from '../errors';
+import { SchemaValidationError } from '../errors';
 import { normalizeIdentifier } from './naming';
-import type { TableFixture, SchemaRegistry, TableSchemaDefinition, SqliteAffinity } from '../types';
+import type {
+  TableDefinitionModel,
+  TableFixture,
+  SchemaRegistry,
+  TableSchemaDefinition,
+  SqliteAffinity,
+} from '../types';
+import { guessAffinity } from './ColumnAffinity';
 
 export interface ColumnDefinition {
   name: string;
@@ -66,7 +73,10 @@ export class FixtureStore {
     return map;
   }
 
-  private getRegisteredSchema(tableName: string, normalized: string): TableSchemaDefinition | undefined {
+  private getRegisteredSchema(
+    tableName: string,
+    normalized: string
+  ): TableSchemaDefinition | TableDefinitionModel | undefined {
     if (!this.schemaRegistry) {
       return undefined;
     }
@@ -86,7 +96,9 @@ export class FixtureStore {
     }
 
     const columns = this.buildColumns(schema, fixture.tableName);
-    const rows = fixture.rows.map((row, rowIndex) => this.normalizeRow(row, columns, fixture.tableName, rowIndex));
+    const rows = fixture.rows.map((row, rowIndex) =>
+      this.normalizeRow(row, columns, fixture.tableName, rowIndex)
+    );
 
     return {
       name: fixture.tableName,
@@ -95,13 +107,45 @@ export class FixtureStore {
     };
   }
 
-  private buildColumns(schema: TableSchemaDefinition, fixtureName: string): ColumnDefinition[] {
+  private buildColumns(
+    schema: TableSchemaDefinition | TableDefinitionModel,
+    fixtureName: string
+  ): ColumnDefinition[] {
+    if (this.isTableDefinitionModel(schema)) {
+      // Table definitions carry richer metadata that we can reuse for affinity guesses.
+      return this.buildColumnsFromDefinition(schema, fixtureName);
+    }
+
+    return this.buildColumnsFromSchema(schema, fixtureName);
+  }
+
+  private buildColumnsFromSchema(schema: TableSchemaDefinition, fixtureName: string): ColumnDefinition[] {
     const entries = Object.entries(schema.columns);
     if (entries.length === 0) {
       throw new SchemaValidationError(`Schema for "${fixtureName}" must declare at least one column.`);
     }
 
     return entries.map(([name, affinity]) => ({ name, affinity }));
+  }
+
+  private buildColumnsFromDefinition(
+    definition: TableDefinitionModel,
+    fixtureName: string
+  ): ColumnDefinition[] {
+    if (definition.columns.length === 0) {
+      throw new SchemaValidationError(`Schema for "${fixtureName}" must declare at least one column.`);
+    }
+
+    return definition.columns.map((column) => ({
+      name: column.name,
+      affinity: guessAffinity(column.typeName),
+    }));
+  }
+
+  private isTableDefinitionModel(
+    schema: TableSchemaDefinition | TableDefinitionModel
+  ): schema is TableDefinitionModel {
+    return Array.isArray(schema.columns);
   }
 
   private normalizeRow(
@@ -128,9 +172,7 @@ export class FixtureStore {
         continue;
       }
 
-      normalizedRow.push(
-        this.normalizeValue(value, column.affinity, fixtureName, column.name, rowIndex)
-      );
+      normalizedRow.push(this.normalizeValue(value, column.affinity, fixtureName, column.name, rowIndex));
     }
 
     return normalizedRow;

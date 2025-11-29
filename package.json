@@ -39,6 +39,7 @@
     "url": "https://github.com/mk3008/rawsql-ts.git"
   },
   "devDependencies": {
+    "@testcontainers/postgresql": "^10.28.0",
     "@types/benchmark": "^2.1.5",
     "@types/node": "^22.13.10",
     "@typescript-eslint/eslint-plugin": "^8.26.1",
@@ -54,6 +55,7 @@
     "node-sql-parser": "^5.3.8",
     "sql-formatter": "^15.5.2",
     "sql-parser-cst": "^0.33.1",
+    "testcontainers": "^10.28.0",
     "ts-node": "^10.9.2",
     "typedoc": "^0.28.13",
     "typedoc-plugin-markdown": "^4.9.0",

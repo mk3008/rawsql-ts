@@ -21,6 +21,7 @@ export * from './models/SelectQuery';
 export * from './models/SqlComponent';
 export * from './models/ValueComponent';
 export * from './models/ValuesQuery';
+export * from './models/Clause';
 export * from './models/CTEError';
 export * from './models/Lexeme';
 export * from './models/FormattingLexeme';
@@ -130,6 +131,11 @@ export type {
 } from './utils/PositionAwareParser';
 export * from './utils/MultiQuerySplitter';
 export type { QueryInfo, QueryCollection } from './utils/MultiQuerySplitter';
+
+export * from './utils/TableNameUtils';
+
+// Generic fixtures for driver/test-kit layers
+export * from './types/GenericFixture';
 
 // Convenience functions for IntelliSense integration
 export {
