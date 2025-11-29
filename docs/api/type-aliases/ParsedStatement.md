@@ -3,5 +3,5 @@
 
 > **ParsedStatement** = [`SelectQuery`](../interfaces/SelectQuery.md) \| [`InsertQuery`](../classes/InsertQuery.md) \| [`UpdateQuery`](../classes/UpdateQuery.md) \| [`DeleteQuery`](../classes/DeleteQuery.md) \| [`CreateTableQuery`](../classes/CreateTableQuery.md) \| [`MergeQuery`](../classes/MergeQuery.md) \| [`DropTableStatement`](../classes/DropTableStatement.md) \| [`DropIndexStatement`](../classes/DropIndexStatement.md) \| [`CreateIndexStatement`](../classes/CreateIndexStatement.md) \| [`AlterTableStatement`](../classes/AlterTableStatement.md) \| [`DropConstraintStatement`](../classes/DropConstraintStatement.md) \| [`AnalyzeStatement`](../classes/AnalyzeStatement.md) \| [`ExplainStatement`](../classes/ExplainStatement.md)
 
-Defined in: [packages/core/src/parsers/SqlParser.ts:33](https://github.com/mk3008/rawsql-ts/blob/ba0d5a5f2250835b8b10e16a23b02b837e358b03/packages/core/src/parsers/SqlParser.ts#L33)
+Defined in: [packages/core/src/parsers/SqlParser.ts:33](https://github.com/mk3008/rawsql-ts/blob/475003f6d0f577c6e069ca316c6d3fed750ef893/packages/core/src/parsers/SqlParser.ts#L33)
 </div>

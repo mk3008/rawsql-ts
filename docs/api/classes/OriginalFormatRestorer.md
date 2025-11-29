@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: OriginalFormatRestorer
 
-Defined in: [packages/core/src/formatters/OriginalFormatRestorer.ts:7](https://github.com/mk3008/rawsql-ts/blob/ba0d5a5f2250835b8b10e16a23b02b837e358b03/packages/core/src/formatters/OriginalFormatRestorer.ts#L7)
+Defined in: [packages/core/src/formatters/OriginalFormatRestorer.ts:7](https://github.com/mk3008/rawsql-ts/blob/475003f6d0f577c6e069ca316c6d3fed750ef893/packages/core/src/formatters/OriginalFormatRestorer.ts#L7)
 
 Restores SQL strings from FormattingLexeme arrays while preserving original formatting
 This class handles the restoration of SQL text with exact whitespace, comments, and indentation
@@ -22,7 +22,7 @@ This class handles the restoration of SQL text with exact whitespace, comments, 
 
 > **restore**(`lexemes`): `string`
 
-Defined in: [packages/core/src/formatters/OriginalFormatRestorer.ts:14](https://github.com/mk3008/rawsql-ts/blob/ba0d5a5f2250835b8b10e16a23b02b837e358b03/packages/core/src/formatters/OriginalFormatRestorer.ts#L14)
+Defined in: [packages/core/src/formatters/OriginalFormatRestorer.ts:14](https://github.com/mk3008/rawsql-ts/blob/475003f6d0f577c6e069ca316c6d3fed750ef893/packages/core/src/formatters/OriginalFormatRestorer.ts#L14)
 
 Restores SQL string from FormattingLexeme array preserving original formatting
 
@@ -46,7 +46,7 @@ Restored SQL string with original formatting preserved
 
 > **restoreWithComments**(`lexemes`, `includeComments`): `string`
 
-Defined in: [packages/core/src/formatters/OriginalFormatRestorer.ts:40](https://github.com/mk3008/rawsql-ts/blob/ba0d5a5f2250835b8b10e16a23b02b837e358b03/packages/core/src/formatters/OriginalFormatRestorer.ts#L40)
+Defined in: [packages/core/src/formatters/OriginalFormatRestorer.ts:40](https://github.com/mk3008/rawsql-ts/blob/475003f6d0f577c6e069ca316c6d3fed750ef893/packages/core/src/formatters/OriginalFormatRestorer.ts#L40)
 
 Restores SQL with inline comments preserved at their original positions
 
@@ -76,7 +76,7 @@ Restored SQL string
 
 > **analyzeFormatting**(`lexemes`): `object`
 
-Defined in: [packages/core/src/formatters/OriginalFormatRestorer.ts:75](https://github.com/mk3008/rawsql-ts/blob/ba0d5a5f2250835b8b10e16a23b02b837e358b03/packages/core/src/formatters/OriginalFormatRestorer.ts#L75)
+Defined in: [packages/core/src/formatters/OriginalFormatRestorer.ts:75](https://github.com/mk3008/rawsql-ts/blob/475003f6d0f577c6e069ca316c6d3fed750ef893/packages/core/src/formatters/OriginalFormatRestorer.ts#L75)
 
 Extracts formatting patterns from FormattingLexemes for analysis
 
@@ -116,7 +116,7 @@ Object containing formatting statistics
 
 > **validateFormattingLexemes**(`lexemes`): `object`
 
-Defined in: [packages/core/src/formatters/OriginalFormatRestorer.ts:135](https://github.com/mk3008/rawsql-ts/blob/ba0d5a5f2250835b8b10e16a23b02b837e358b03/packages/core/src/formatters/OriginalFormatRestorer.ts#L135)
+Defined in: [packages/core/src/formatters/OriginalFormatRestorer.ts:135](https://github.com/mk3008/rawsql-ts/blob/475003f6d0f577c6e069ca316c6d3fed750ef893/packages/core/src/formatters/OriginalFormatRestorer.ts#L135)
 
 Validates that lexemes contain proper formatting information
 

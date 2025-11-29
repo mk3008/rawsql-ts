@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: QueryCollection
 
-Defined in: [packages/core/src/utils/MultiQuerySplitter.ts:27](https://github.com/mk3008/rawsql-ts/blob/ba0d5a5f2250835b8b10e16a23b02b837e358b03/packages/core/src/utils/MultiQuerySplitter.ts#L27)
+Defined in: [packages/core/src/utils/MultiQuerySplitter.ts:27](https://github.com/mk3008/rawsql-ts/blob/475003f6d0f577c6e069ca316c6d3fed750ef893/packages/core/src/utils/MultiQuerySplitter.ts#L27)
 
 Collection of queries from multi-query text
 
@@ -11,7 +11,7 @@ Collection of queries from multi-query text
 
 > **queries**: [`QueryInfo`](QueryInfo.md)[]
 
-Defined in: [packages/core/src/utils/MultiQuerySplitter.ts:29](https://github.com/mk3008/rawsql-ts/blob/ba0d5a5f2250835b8b10e16a23b02b837e358b03/packages/core/src/utils/MultiQuerySplitter.ts#L29)
+Defined in: [packages/core/src/utils/MultiQuerySplitter.ts:29](https://github.com/mk3008/rawsql-ts/blob/475003f6d0f577c6e069ca316c6d3fed750ef893/packages/core/src/utils/MultiQuerySplitter.ts#L29)
 
 All queries found in the text
 
@@ -21,7 +21,7 @@ All queries found in the text
 
 > **originalText**: `string`
 
-Defined in: [packages/core/src/utils/MultiQuerySplitter.ts:31](https://github.com/mk3008/rawsql-ts/blob/ba0d5a5f2250835b8b10e16a23b02b837e358b03/packages/core/src/utils/MultiQuerySplitter.ts#L31)
+Defined in: [packages/core/src/utils/MultiQuerySplitter.ts:31](https://github.com/mk3008/rawsql-ts/blob/475003f6d0f577c6e069ca316c6d3fed750ef893/packages/core/src/utils/MultiQuerySplitter.ts#L31)
 
 Original text that was split
 
@@ -31,7 +31,7 @@ Original text that was split
 
 > **getActive**(`cursorPosition`): `undefined` \| [`QueryInfo`](QueryInfo.md)
 
-Defined in: [packages/core/src/utils/MultiQuerySplitter.ts:37](https://github.com/mk3008/rawsql-ts/blob/ba0d5a5f2250835b8b10e16a23b02b837e358b03/packages/core/src/utils/MultiQuerySplitter.ts#L37)
+Defined in: [packages/core/src/utils/MultiQuerySplitter.ts:37](https://github.com/mk3008/rawsql-ts/blob/475003f6d0f577c6e069ca316c6d3fed750ef893/packages/core/src/utils/MultiQuerySplitter.ts#L37)
 
 Get the query that contains the specified cursor position
 
@@ -53,7 +53,7 @@ Cursor position (character offset or line/column)
 
 > **getQuery**(`index`): `undefined` \| [`QueryInfo`](QueryInfo.md)
 
-Defined in: [packages/core/src/utils/MultiQuerySplitter.ts:43](https://github.com/mk3008/rawsql-ts/blob/ba0d5a5f2250835b8b10e16a23b02b837e358b03/packages/core/src/utils/MultiQuerySplitter.ts#L43)
+Defined in: [packages/core/src/utils/MultiQuerySplitter.ts:43](https://github.com/mk3008/rawsql-ts/blob/475003f6d0f577c6e069ca316c6d3fed750ef893/packages/core/src/utils/MultiQuerySplitter.ts#L43)
 
 Get the query at the specified index
 
@@ -75,7 +75,7 @@ Query index (0-based)
 
 > **getNonEmpty**(): [`QueryInfo`](QueryInfo.md)[]
 
-Defined in: [packages/core/src/utils/MultiQuerySplitter.ts:48](https://github.com/mk3008/rawsql-ts/blob/ba0d5a5f2250835b8b10e16a23b02b837e358b03/packages/core/src/utils/MultiQuerySplitter.ts#L48)
+Defined in: [packages/core/src/utils/MultiQuerySplitter.ts:48](https://github.com/mk3008/rawsql-ts/blob/475003f6d0f577c6e069ca316c6d3fed750ef893/packages/core/src/utils/MultiQuerySplitter.ts#L48)
 
 Get all non-empty queries
 

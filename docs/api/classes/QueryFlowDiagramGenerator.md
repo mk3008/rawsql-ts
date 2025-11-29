@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: QueryFlowDiagramGenerator
 
-Defined in: [packages/core/src/transformers/QueryFlowDiagramGenerator.ts:29](https://github.com/mk3008/rawsql-ts/blob/ba0d5a5f2250835b8b10e16a23b02b837e358b03/packages/core/src/transformers/QueryFlowDiagramGenerator.ts#L29)
+Defined in: [packages/core/src/transformers/QueryFlowDiagramGenerator.ts:29](https://github.com/mk3008/rawsql-ts/blob/475003f6d0f577c6e069ca316c6d3fed750ef893/packages/core/src/transformers/QueryFlowDiagramGenerator.ts#L29)
 
 QueryFlowDiagramGenerator using model-based architecture
 Generates Mermaid diagrams from SQL queries following consistent principles
@@ -12,7 +12,7 @@ Generates Mermaid diagrams from SQL queries following consistent principles
 
 > **new QueryFlowDiagramGenerator**(): `QueryFlowDiagramGenerator`
 
-Defined in: [packages/core/src/transformers/QueryFlowDiagramGenerator.ts:36](https://github.com/mk3008/rawsql-ts/blob/ba0d5a5f2250835b8b10e16a23b02b837e358b03/packages/core/src/transformers/QueryFlowDiagramGenerator.ts#L36)
+Defined in: [packages/core/src/transformers/QueryFlowDiagramGenerator.ts:36](https://github.com/mk3008/rawsql-ts/blob/475003f6d0f577c6e069ca316c6d3fed750ef893/packages/core/src/transformers/QueryFlowDiagramGenerator.ts#L36)
 
 #### Returns
 
@@ -24,7 +24,7 @@ Defined in: [packages/core/src/transformers/QueryFlowDiagramGenerator.ts:36](htt
 
 > **generateMermaidFlow**(`query`, `options?`): `string`
 
-Defined in: [packages/core/src/transformers/QueryFlowDiagramGenerator.ts:44](https://github.com/mk3008/rawsql-ts/blob/ba0d5a5f2250835b8b10e16a23b02b837e358b03/packages/core/src/transformers/QueryFlowDiagramGenerator.ts#L44)
+Defined in: [packages/core/src/transformers/QueryFlowDiagramGenerator.ts:44](https://github.com/mk3008/rawsql-ts/blob/475003f6d0f577c6e069ca316c6d3fed750ef893/packages/core/src/transformers/QueryFlowDiagramGenerator.ts#L44)
 
 #### Parameters
 
@@ -46,7 +46,7 @@ Defined in: [packages/core/src/transformers/QueryFlowDiagramGenerator.ts:44](htt
 
 > `static` **generate**(`sql`): `string`
 
-Defined in: [packages/core/src/transformers/QueryFlowDiagramGenerator.ts:69](https://github.com/mk3008/rawsql-ts/blob/ba0d5a5f2250835b8b10e16a23b02b837e358b03/packages/core/src/transformers/QueryFlowDiagramGenerator.ts#L69)
+Defined in: [packages/core/src/transformers/QueryFlowDiagramGenerator.ts:69](https://github.com/mk3008/rawsql-ts/blob/475003f6d0f577c6e069ca316c6d3fed750ef893/packages/core/src/transformers/QueryFlowDiagramGenerator.ts#L69)
 
 #### Parameters
 
