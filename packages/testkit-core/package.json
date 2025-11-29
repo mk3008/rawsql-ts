@@ -31,7 +31,7 @@
     "rawsql-ts": "workspace:*"
   },
   "devDependencies": {
-    "@types/pg": "^8.11.10",
+    "@types/pg": "^8.15.6",
     "typescript": "^5.8.2",
     "vitest": "^4.0.7"
   },

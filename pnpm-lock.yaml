@@ -167,7 +167,7 @@ importers:
         specifier: ^10.8.0
         version: 10.28.0
       '@types/pg':
-        specifier: ^8.11.10
+        specifier: ^8.15.6
         version: 8.15.6
       drizzle-orm:
         specifier: ^0.31.2
@@ -223,7 +223,7 @@ importers:
         version: link:../core
     devDependencies:
       '@types/pg':
-        specifier: ^8.11.10
+        specifier: ^8.15.6
         version: 8.15.6
       typescript:
         specifier: ^5.8.2
