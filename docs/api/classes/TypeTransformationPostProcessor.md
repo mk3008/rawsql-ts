@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: TypeTransformationPostProcessor
 
-Defined in: [packages/core/src/transformers/TypeTransformationPostProcessor.ts:41](https://github.com/mk3008/rawsql-ts/blob/178c748123fdac6f78b4287de916003e473264a6/packages/core/src/transformers/TypeTransformationPostProcessor.ts#L41)
+Defined in: [packages/core/src/transformers/TypeTransformationPostProcessor.ts:41](https://github.com/mk3008/rawsql-ts/blob/ba0d5a5f2250835b8b10e16a23b02b837e358b03/packages/core/src/transformers/TypeTransformationPostProcessor.ts#L41)
 
 Applies type transformations to JSON results from PostgreSQL
 
@@ -11,7 +11,7 @@ Applies type transformations to JSON results from PostgreSQL
 
 > **new TypeTransformationPostProcessor**(`config`): `TypeTransformationPostProcessor`
 
-Defined in: [packages/core/src/transformers/TypeTransformationPostProcessor.ts:42](https://github.com/mk3008/rawsql-ts/blob/178c748123fdac6f78b4287de916003e473264a6/packages/core/src/transformers/TypeTransformationPostProcessor.ts#L42)
+Defined in: [packages/core/src/transformers/TypeTransformationPostProcessor.ts:42](https://github.com/mk3008/rawsql-ts/blob/ba0d5a5f2250835b8b10e16a23b02b837e358b03/packages/core/src/transformers/TypeTransformationPostProcessor.ts#L42)
 
 #### Parameters
 
@@ -29,7 +29,7 @@ Defined in: [packages/core/src/transformers/TypeTransformationPostProcessor.ts:4
 
 > **transformResult**&lt;`T`\&gt;(`result`): `T`
 
-Defined in: [packages/core/src/transformers/TypeTransformationPostProcessor.ts:55](https://github.com/mk3008/rawsql-ts/blob/178c748123fdac6f78b4287de916003e473264a6/packages/core/src/transformers/TypeTransformationPostProcessor.ts#L55)
+Defined in: [packages/core/src/transformers/TypeTransformationPostProcessor.ts:55](https://github.com/mk3008/rawsql-ts/blob/ba0d5a5f2250835b8b10e16a23b02b837e358b03/packages/core/src/transformers/TypeTransformationPostProcessor.ts#L55)
 
 Transform a single result object
 
@@ -59,7 +59,7 @@ Transformed result with proper TypeScript types
 
 > `static` **createDefaultConfig**(): [`TypeTransformationConfig`](../interfaces/TypeTransformationConfig.md)
 
-Defined in: [packages/core/src/transformers/TypeTransformationPostProcessor.ts:291](https://github.com/mk3008/rawsql-ts/blob/178c748123fdac6f78b4287de916003e473264a6/packages/core/src/transformers/TypeTransformationPostProcessor.ts#L291)
+Defined in: [packages/core/src/transformers/TypeTransformationPostProcessor.ts:291](https://github.com/mk3008/rawsql-ts/blob/ba0d5a5f2250835b8b10e16a23b02b837e358b03/packages/core/src/transformers/TypeTransformationPostProcessor.ts#L291)
 
 Create a default configuration for common PostgreSQL types
 Enables value-based detection with loose date detection by default
@@ -74,7 +74,7 @@ Enables value-based detection with loose date detection by default
 
 > `static` **createSafeConfig**(`columnMappings?`): [`TypeTransformationConfig`](../interfaces/TypeTransformationConfig.md)
 
-Defined in: [packages/core/src/transformers/TypeTransformationPostProcessor.ts:332](https://github.com/mk3008/rawsql-ts/blob/178c748123fdac6f78b4287de916003e473264a6/packages/core/src/transformers/TypeTransformationPostProcessor.ts#L332)
+Defined in: [packages/core/src/transformers/TypeTransformationPostProcessor.ts:332](https://github.com/mk3008/rawsql-ts/blob/ba0d5a5f2250835b8b10e16a23b02b837e358b03/packages/core/src/transformers/TypeTransformationPostProcessor.ts#L332)
 
 Create a safe configuration for handling user input
 Disables value-based detection and uses strict date detection
