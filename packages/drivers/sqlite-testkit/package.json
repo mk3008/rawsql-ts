@@ -1,6 +1,6 @@
 {
   "name": "@rawsql-ts/sqlite-testkit",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "SQLite driver adapters for the rawsql-ts select query test harness.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -23,7 +23,7 @@
   "author": "msugiura",
   "repository": {
     "type": "git",
-    "url": "https://github.com/mk3008/rawsql-ts.git",
+    "url": "git+https://github.com/mk3008/rawsql-ts.git",
     "directory": "packages/drivers/sqlite-testkit"
   },
   "engines": {
