@@ -21,6 +21,21 @@ let container: StartedPostgreSqlContainer | null = null;
 let client: Client | null = null;
 let runtimeAvailable = true;
 
+/*
+  NOTE:
+  This test uses Testcontainers to spin up a disposable PostgreSQL instance,
+  but pg-testkit NEVER writes to physical tables.
+
+  The container exists only to provide a real PostgreSQL engine so that
+  type casting, query planning, and parameter handling round-trip correctly.
+
+  Because pg-testkit rewrites all CRUD into fixture-backed SELECT queries,
+  no tables are created or modified in the database.
+
+  Therefore: Docker is NOT required for correctness.
+  A shared Postgres instance or any existing development database works fine,
+  as long as the connection is available and does not require table writes.
+*/
 const requireClient = (): Client => {
   // Guard against misusing the pg client when the container startup failed.
   if (!client) {
@@ -30,7 +45,7 @@ const requireClient = (): Client => {
 };
 
 beforeAll(async () => {
-  try {
+  try {    
     container = await new PostgreSqlContainer('postgres:16-alpine').start();
     client = new Client({ connectionString: container.getConnectionUri() });
     await client.connect();
