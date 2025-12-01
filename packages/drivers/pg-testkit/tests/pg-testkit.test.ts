@@ -23,18 +23,15 @@ let runtimeAvailable = true;
 
 /*
   NOTE:
-  This test uses Testcontainers to spin up a disposable PostgreSQL instance,
-  but pg-testkit NEVER writes to physical tables.
+  This test uses Testcontainers to spin up a temporary PostgreSQL instance,
+  but pg-testkit itself does not require Docker.
 
-  The container exists only to provide a real PostgreSQL engine so that
-  type casting, query planning, and parameter handling round-trip correctly.
+  Docker is used here only to provide a standalone Postgres process for tests,
+  ensuring that queries still round-trip through a real database engine.
 
-  Because pg-testkit rewrites all CRUD into fixture-backed SELECT queries,
-  no tables are created or modified in the database.
-
-  Therefore: Docker is NOT required for correctness.
-  A shared Postgres instance or any existing development database works fine,
-  as long as the connection is available and does not require table writes.
+  Since pg-testkit does not create or modify physical tables, any existing
+  Postgres instance can be used instead of Docker—local or shared—whichever
+  is convenient in your development environment.
 */
 const requireClient = (): Client => {
   // Guard against misusing the pg client when the container startup failed.
