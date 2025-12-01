@@ -8,7 +8,8 @@
     "build": "tsc -p tsconfig.json",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "eslint src --ext .ts"
+    "lint": "eslint src --ext .ts",
+    "release": "npm run lint && npm run test && npm run build && npm pack --dry-run && npm publish --access public"
   },
   "keywords": [
     "sqlite",
@@ -27,11 +28,9 @@
     "node": ">=20"
   },
   "dependencies": {
-    "pg": "^8.16.3",
     "rawsql-ts": "workspace:*"
   },
   "devDependencies": {
-    "@types/pg": "^8.15.6",
     "typescript": "^5.8.2",
     "vitest": "^4.0.7"
   },

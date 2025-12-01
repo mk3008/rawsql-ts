@@ -2,106 +2,11 @@ import Database from 'better-sqlite3';
 import { describe, expect, it, vi } from 'vitest';
 import { createSqliteSelectTestDriver } from '../src/driver/SqliteSelectTestDriver';
 import { wrapSqliteDriver } from '../src/proxy/wrapSqliteDriver';
-import type { SqliteConnectionLike, SqliteStatementLike } from '../src/types';
-import type { TableFixture } from '@rawsql-ts/testkit-core';
+import { createRecordingConnection } from './helpers/recordingConnection';
+import { ordersFixture, userFixture } from './fixtures/TableFixtures';
+import type { SqliteConnectionLike } from '../src/types';
 
-const userFixture = {
-  tableName: 'users',
-  rows: [{ id: 1, email: 'alice@example.com' }],
-  schema: { columns: { id: 'INTEGER', email: 'TEXT' } },
-} satisfies TableFixture;
-
-const ordersFixture = {
-  tableName: 'orders',
-  rows: [{ id: 2 }],
-  schema: { columns: { id: 'INTEGER' } },
-} satisfies TableFixture;
-
-type RecordedStatement = {
-  sql: string;
-  stage: 'prepare' | 'direct' | 'statement';
-};
-
-const wrapStatement = (
-  statement: SqliteStatementLike,
-  sql: string,
-  statements: RecordedStatement[]
-): SqliteStatementLike => {
-  return new Proxy(statement, {
-    get(target, prop, receiver) {
-      const value = Reflect.get(target, prop, receiver);
-      if (typeof value !== 'function') {
-        return value;
-      }
-
-      if (prop === 'all' || prop === 'get' || prop === 'run') {
-        return (...args: unknown[]) => {
-          // Record the rewritten SQL whenever the statement executes.
-          statements.push({ sql, stage: 'statement' });
-          return value.apply(target, args);
-        };
-      }
-
-      return value.bind(target);
-    },
-  });
-};
-
-type RecordingConnection = {
-  driver: SqliteConnectionLike;
-  statements: RecordedStatement[];
-  close: () => void;
-};
-
-const createRecordingConnection = (): RecordingConnection => {
-  const db = new Database(':memory:');
-  const statements: RecordedStatement[] = [];
-  let closed = false;
-
-  const close = () => {
-    if (!closed) {
-      // Ensure we dispose the native handle exactly once.
-      closed = true;
-      db.close();
-    }
-  };
-
-  const proxy = new Proxy(db, {
-    get(target, prop, receiver) {
-      if (prop === 'close') {
-        return close;
-      }
-
-      const value = Reflect.get(target, prop, receiver);
-      if (typeof value !== 'function') {
-        return value;
-      }
-
-      if (prop === 'prepare') {
-        return (sql: string, ...args: unknown[]) => {
-          // Track the SQL entering the driver before execution.
-          statements.push({ sql, stage: 'prepare' });
-          const statement = value.apply(target, [sql, ...args]) as SqliteStatementLike;
-          return wrapStatement(statement, sql, statements);
-        };
-      }
-
-      if (prop === 'exec' || prop === 'all' || prop === 'get' || prop === 'run') {
-        return (sql: string, ...args: unknown[]) => {
-          // Capture high-level helpers that bypass prepare().
-          statements.push({ sql, stage: 'direct' });
-          return value.apply(target, [sql, ...args]);
-        };
-      }
-
-      return value.bind(target);
-    },
-  });
-
-  return { driver: proxy as SqliteConnectionLike, statements, close };
-};
-
-describe('sqlite select test driver', () => {
+describe('createSqliteSelectTestDriver', () => {
   it('rewrites SQL before hitting the underlying driver', async () => {
     const recording = createRecordingConnection();
     const driver = createSqliteSelectTestDriver({
@@ -269,4 +174,3 @@ describe('wrapSqliteDriver', () => {
     recording.close();
   });
 });
-

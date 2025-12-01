@@ -8,6 +8,7 @@ import type {
 import { DdlFixtureLoader, alignRewrittenParameters, applyCountWrapper } from '@rawsql-ts/testkit-core';
 import type { DdlProcessedFixture } from '@rawsql-ts/testkit-core';
 import type { TableDefinitionModel, TableRowsFixture } from '../types';
+import { validateFixtureRowsAgainstTableDefinitions } from '../utils/fixtureValidation';
 
 /**
  * Lightweight client that rewrites CRUD/SELECT statements into fixture-backed SELECTs
@@ -27,8 +28,13 @@ export class PgTestkitClient {
     seedConnection?: PgQueryable
   ) {
     this.ddlFixtures = this.loadDdlFixtures();
+    const tableDefinitions = this.collectDefinitions();
+    // Validate fixtures declared by callers so typographical errors fail during client setup.
+    validateFixtureRowsAgainstTableDefinitions(this.options.tableRows, tableDefinitions, 'base tableRows');
+    validateFixtureRowsAgainstTableDefinitions(scopedRows, tableDefinitions, 'scoped fixtures');
+
     const fixtureStore = new DefaultFixtureProvider(
-      this.collectDefinitions(),
+      tableDefinitions,
       this.collectBaseRows()
     );
     this.rewriter = new ResultSelectRewriter(
