@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: CursorContextAnalyzer
 
-Defined in: [packages/core/src/utils/CursorContextAnalyzer.ts:60](https://github.com/mk3008/rawsql-ts/blob/475003f6d0f577c6e069ca316c6d3fed750ef893/packages/core/src/utils/CursorContextAnalyzer.ts#L60)
+Defined in: [packages/core/src/utils/CursorContextAnalyzer.ts:60](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/utils/CursorContextAnalyzer.ts#L60)
 
 ## Constructors
 
@@ -19,7 +19,7 @@ Defined in: [packages/core/src/utils/CursorContextAnalyzer.ts:60](https://github
 
 > `static` **analyzeIntelliSense**(`sql`, `cursorPosition`): [`IntelliSenseContext`](../interfaces/IntelliSenseContext.md)
 
-Defined in: [packages/core/src/utils/CursorContextAnalyzer.ts:206](https://github.com/mk3008/rawsql-ts/blob/475003f6d0f577c6e069ca316c6d3fed750ef893/packages/core/src/utils/CursorContextAnalyzer.ts#L206)
+Defined in: [packages/core/src/utils/CursorContextAnalyzer.ts:206](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/utils/CursorContextAnalyzer.ts#L206)
 
 Analyze cursor position for IntelliSense suggestions
 
@@ -52,7 +52,7 @@ IntelliSense context focused on what suggestions can be provided
 
 > `static` **analyzeIntelliSenseAt**(`sql`, `position`): [`IntelliSenseContext`](../interfaces/IntelliSenseContext.md)
 
-Defined in: [packages/core/src/utils/CursorContextAnalyzer.ts:365](https://github.com/mk3008/rawsql-ts/blob/475003f6d0f577c6e069ca316c6d3fed750ef893/packages/core/src/utils/CursorContextAnalyzer.ts#L365)
+Defined in: [packages/core/src/utils/CursorContextAnalyzer.ts:365](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/utils/CursorContextAnalyzer.ts#L365)
 
 Analyze cursor position for IntelliSense at line/column position
 

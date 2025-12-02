@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: CommentEditor
 
-Defined in: [packages/core/src/utils/CommentEditor.ts:8](https://github.com/mk3008/rawsql-ts/blob/475003f6d0f577c6e069ca316c6d3fed750ef893/packages/core/src/utils/CommentEditor.ts#L8)
+Defined in: [packages/core/src/utils/CommentEditor.ts:8](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/utils/CommentEditor.ts#L8)
 
 Utility class for editing comments on SQL components.
 Provides functions to add, edit, delete, and search comments in SQL AST.
@@ -22,7 +22,7 @@ Provides functions to add, edit, delete, and search comments in SQL AST.
 
 > `static` **addComment**(`component`, `comment`, `position`): `void`
 
-Defined in: [packages/core/src/utils/CommentEditor.ts:17](https://github.com/mk3008/rawsql-ts/blob/475003f6d0f577c6e069ca316c6d3fed750ef893/packages/core/src/utils/CommentEditor.ts#L17)
+Defined in: [packages/core/src/utils/CommentEditor.ts:17](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/utils/CommentEditor.ts#L17)
 
 Add a comment to a SQL component using positioned comments system
 For SelectQuery components, adds to headerComments for query-level comments
@@ -58,7 +58,7 @@ Optional position for comment ('before' | 'after'), defaults to 'before'
 
 > `static` **editComment**(`component`, `index`, `newComment`, `position`): `void`
 
-Defined in: [packages/core/src/utils/CommentEditor.ts:53](https://github.com/mk3008/rawsql-ts/blob/475003f6d0f577c6e069ca316c6d3fed750ef893/packages/core/src/utils/CommentEditor.ts#L53)
+Defined in: [packages/core/src/utils/CommentEditor.ts:53](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/utils/CommentEditor.ts#L53)
 
 Edit an existing comment by index
 For SelectQuery components, edits headerComments
@@ -104,7 +104,7 @@ Error if index is invalid
 
 > `static` **deleteComment**(`component`, `index`, `position`): `void`
 
-Defined in: [packages/core/src/utils/CommentEditor.ts:82](https://github.com/mk3008/rawsql-ts/blob/475003f6d0f577c6e069ca316c6d3fed750ef893/packages/core/src/utils/CommentEditor.ts#L82)
+Defined in: [packages/core/src/utils/CommentEditor.ts:82](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/utils/CommentEditor.ts#L82)
 
 Delete a comment by index
 For SelectQuery components, deletes from headerComments
@@ -144,7 +144,7 @@ Error if index is invalid
 
 > `static` **deleteAllComments**(`component`): `void`
 
-Defined in: [packages/core/src/utils/CommentEditor.ts:116](https://github.com/mk3008/rawsql-ts/blob/475003f6d0f577c6e069ca316c6d3fed750ef893/packages/core/src/utils/CommentEditor.ts#L116)
+Defined in: [packages/core/src/utils/CommentEditor.ts:116](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/utils/CommentEditor.ts#L116)
 
 Delete all comments from a component
 
@@ -166,7 +166,7 @@ The SQL component to clear comments from
 
 > `static` **getComments**(`component`): `string`[]
 
-Defined in: [packages/core/src/utils/CommentEditor.ts:132](https://github.com/mk3008/rawsql-ts/blob/475003f6d0f577c6e069ca316c6d3fed750ef893/packages/core/src/utils/CommentEditor.ts#L132)
+Defined in: [packages/core/src/utils/CommentEditor.ts:132](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/utils/CommentEditor.ts#L132)
 
 Get all comments from a component
 For SelectQuery components, returns headerComments
@@ -192,7 +192,7 @@ Array of comment strings (empty array if no comments)
 
 > `static` **findComponentsWithComment**(`root`, `searchText`, `caseSensitive`): [`SqlComponent`](SqlComponent.md)[]
 
-Defined in: [packages/core/src/utils/CommentEditor.ts:147](https://github.com/mk3008/rawsql-ts/blob/475003f6d0f577c6e069ca316c6d3fed750ef893/packages/core/src/utils/CommentEditor.ts#L147)
+Defined in: [packages/core/src/utils/CommentEditor.ts:147](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/utils/CommentEditor.ts#L147)
 
 Find all components in the AST that have comments containing the search text
 
@@ -228,7 +228,7 @@ Array of components that have matching comments
 
 > `static` **replaceInComments**(`root`, `searchText`, `replaceText`, `caseSensitive`): `number`
 
-Defined in: [packages/core/src/utils/CommentEditor.ts:204](https://github.com/mk3008/rawsql-ts/blob/475003f6d0f577c6e069ca316c6d3fed750ef893/packages/core/src/utils/CommentEditor.ts#L204)
+Defined in: [packages/core/src/utils/CommentEditor.ts:204](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/utils/CommentEditor.ts#L204)
 
 Replace all occurrences of a text in comments across the entire AST
 
@@ -270,7 +270,7 @@ Number of replacements made
 
 > `static` **countComments**(`root`): `number`
 
-Defined in: [packages/core/src/utils/CommentEditor.ts:283](https://github.com/mk3008/rawsql-ts/blob/475003f6d0f577c6e069ca316c6d3fed750ef893/packages/core/src/utils/CommentEditor.ts#L283)
+Defined in: [packages/core/src/utils/CommentEditor.ts:283](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/utils/CommentEditor.ts#L283)
 
 Count total number of comments in the AST
 
@@ -294,7 +294,7 @@ Total number of comments
 
 > `static` **getAllComments**(`root`): `object`[]
 
-Defined in: [packages/core/src/utils/CommentEditor.ts:324](https://github.com/mk3008/rawsql-ts/blob/475003f6d0f577c6e069ca316c6d3fed750ef893/packages/core/src/utils/CommentEditor.ts#L324)
+Defined in: [packages/core/src/utils/CommentEditor.ts:324](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/utils/CommentEditor.ts#L324)
 
 Get all comments from the entire AST as a flat array with their source components
 

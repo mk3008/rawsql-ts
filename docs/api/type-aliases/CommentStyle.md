@@ -3,7 +3,7 @@
 
 > **CommentStyle** = `"block"` \| `"smart"`
 
-Defined in: [packages/core/src/transformers/SqlFormatter.ts:26](https://github.com/mk3008/rawsql-ts/blob/475003f6d0f577c6e069ca316c6d3fed750ef893/packages/core/src/transformers/SqlFormatter.ts#L26)
+Defined in: [packages/core/src/transformers/SqlFormatter.ts:26](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/transformers/SqlFormatter.ts#L26)
 
 CommentStyle determines how comments are formatted in the output.
 - 'block': Keep original comment style (default)

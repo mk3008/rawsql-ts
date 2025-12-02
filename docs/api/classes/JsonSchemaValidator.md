@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: JsonSchemaValidator
 
-Defined in: [packages/core/src/utils/JsonSchemaValidator.ts:34](https://github.com/mk3008/rawsql-ts/blob/475003f6d0f577c6e069ca316c6d3fed750ef893/packages/core/src/utils/JsonSchemaValidator.ts#L34)
+Defined in: [packages/core/src/utils/JsonSchemaValidator.ts:34](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/utils/JsonSchemaValidator.ts#L34)
 
 ## Constructors
 
@@ -19,7 +19,7 @@ Defined in: [packages/core/src/utils/JsonSchemaValidator.ts:34](https://github.c
 
 > `static` **validate**(`jsonMapping`, `expectedStructure`): [`ValidationResult`](../interfaces/ValidationResult.md)
 
-Defined in: [packages/core/src/utils/JsonSchemaValidator.ts:43](https://github.com/mk3008/rawsql-ts/blob/475003f6d0f577c6e069ca316c6d3fed750ef893/packages/core/src/utils/JsonSchemaValidator.ts#L43)
+Defined in: [packages/core/src/utils/JsonSchemaValidator.ts:43](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/utils/JsonSchemaValidator.ts#L43)
 
 Validates JsonMapping structure against an expected type structure.
 Checks if the JsonMapping covers all required properties and relationships.
@@ -50,7 +50,7 @@ ValidationResult containing validation status and detailed errors
 
 > `static` **validateStrict**(`jsonMapping`, `expectedStructure`): `void`
 
-Defined in: [packages/core/src/utils/JsonSchemaValidator.ts:59](https://github.com/mk3008/rawsql-ts/blob/475003f6d0f577c6e069ca316c6d3fed750ef893/packages/core/src/utils/JsonSchemaValidator.ts#L59)
+Defined in: [packages/core/src/utils/JsonSchemaValidator.ts:59](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/utils/JsonSchemaValidator.ts#L59)
 
 Validates JsonMapping structure and throws an error if validation fails.
 Convenience method for strict validation scenarios.
@@ -83,7 +83,7 @@ Error if validation fails with detailed error messages
 
 > `static` **validateAgainstSample**&lt;`T`\&gt;(`jsonMapping`, `sampleObject`): [`ValidationResult`](../interfaces/ValidationResult.md)
 
-Defined in: [packages/core/src/utils/JsonSchemaValidator.ts:220](https://github.com/mk3008/rawsql-ts/blob/475003f6d0f577c6e069ca316c6d3fed750ef893/packages/core/src/utils/JsonSchemaValidator.ts#L220)
+Defined in: [packages/core/src/utils/JsonSchemaValidator.ts:220](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/utils/JsonSchemaValidator.ts#L220)
 
 Validates JsonMapping structure against a sample object that implements the expected type.
 This method extracts structure from the sample object and compares it with JsonMapping.
@@ -120,7 +120,7 @@ ValidationResult containing validation status and detailed errors
 
 > `static` **validateAgainstSampleStrict**&lt;`T`\&gt;(`jsonMapping`, `sampleObject`): `void`
 
-Defined in: [packages/core/src/utils/JsonSchemaValidator.ts:236](https://github.com/mk3008/rawsql-ts/blob/475003f6d0f577c6e069ca316c6d3fed750ef893/packages/core/src/utils/JsonSchemaValidator.ts#L236)
+Defined in: [packages/core/src/utils/JsonSchemaValidator.ts:236](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/utils/JsonSchemaValidator.ts#L236)
 
 Validates JsonMapping structure against a sample object and throws an error if validation fails.
 Convenience method for strict validation scenarios with sample objects.

@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: SqlParserOptions
 
-Defined in: [packages/core/src/parsers/SqlParser.ts:48](https://github.com/mk3008/rawsql-ts/blob/475003f6d0f577c6e069ca316c6d3fed750ef893/packages/core/src/parsers/SqlParser.ts#L48)
+Defined in: [packages/core/src/parsers/SqlParser.ts:48](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/parsers/SqlParser.ts#L48)
 
 ## Properties
 
@@ -9,7 +9,7 @@ Defined in: [packages/core/src/parsers/SqlParser.ts:48](https://github.com/mk300
 
 > `optional` **mode**: `"single"` \| `"multiple"`
 
-Defined in: [packages/core/src/parsers/SqlParser.ts:49](https://github.com/mk3008/rawsql-ts/blob/475003f6d0f577c6e069ca316c6d3fed750ef893/packages/core/src/parsers/SqlParser.ts#L49)
+Defined in: [packages/core/src/parsers/SqlParser.ts:49](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/parsers/SqlParser.ts#L49)
 
 ***
 
@@ -17,5 +17,5 @@ Defined in: [packages/core/src/parsers/SqlParser.ts:49](https://github.com/mk300
 
 > `optional` **skipEmptyStatements**: `boolean`
 
-Defined in: [packages/core/src/parsers/SqlParser.ts:50](https://github.com/mk3008/rawsql-ts/blob/475003f6d0f577c6e069ca316c6d3fed750ef893/packages/core/src/parsers/SqlParser.ts#L50)
+Defined in: [packages/core/src/parsers/SqlParser.ts:50](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/parsers/SqlParser.ts#L50)
 </div>

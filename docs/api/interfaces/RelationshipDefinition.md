@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: RelationshipDefinition
 
-Defined in: [packages/core/src/utils/SchemaManager.ts:49](https://github.com/mk3008/rawsql-ts/blob/475003f6d0f577c6e069ca316c6d3fed750ef893/packages/core/src/utils/SchemaManager.ts#L49)
+Defined in: [packages/core/src/utils/SchemaManager.ts:49](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/utils/SchemaManager.ts#L49)
 
 Table relationship definition
 
@@ -11,7 +11,7 @@ Table relationship definition
 
 > **type**: `"object"` \| `"array"`
 
-Defined in: [packages/core/src/utils/SchemaManager.ts:51](https://github.com/mk3008/rawsql-ts/blob/475003f6d0f577c6e069ca316c6d3fed750ef893/packages/core/src/utils/SchemaManager.ts#L51)
+Defined in: [packages/core/src/utils/SchemaManager.ts:51](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/utils/SchemaManager.ts#L51)
 
 Type of relationship
 
@@ -21,7 +21,7 @@ Type of relationship
 
 > **table**: `string`
 
-Defined in: [packages/core/src/utils/SchemaManager.ts:53](https://github.com/mk3008/rawsql-ts/blob/475003f6d0f577c6e069ca316c6d3fed750ef893/packages/core/src/utils/SchemaManager.ts#L53)
+Defined in: [packages/core/src/utils/SchemaManager.ts:53](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/utils/SchemaManager.ts#L53)
 
 Target table name
 
@@ -31,7 +31,7 @@ Target table name
 
 > **propertyName**: `string`
 
-Defined in: [packages/core/src/utils/SchemaManager.ts:55](https://github.com/mk3008/rawsql-ts/blob/475003f6d0f577c6e069ca316c6d3fed750ef893/packages/core/src/utils/SchemaManager.ts#L55)
+Defined in: [packages/core/src/utils/SchemaManager.ts:55](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/utils/SchemaManager.ts#L55)
 
 Property name in JSON output
 
@@ -41,7 +41,7 @@ Property name in JSON output
 
 > `optional` **targetKey**: `string`
 
-Defined in: [packages/core/src/utils/SchemaManager.ts:57](https://github.com/mk3008/rawsql-ts/blob/475003f6d0f577c6e069ca316c6d3fed750ef893/packages/core/src/utils/SchemaManager.ts#L57)
+Defined in: [packages/core/src/utils/SchemaManager.ts:57](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/utils/SchemaManager.ts#L57)
 
 Optional: Override target table's primary key
 </div>
