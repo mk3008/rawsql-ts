@@ -7,6 +7,5 @@ export default defineConfig({
     globals: true,
     testTimeout: 60000,
     globalSetup: resolve(__dirname, '../../../vitest.global-setup.ts'),
-    tsconfig: resolve(__dirname, '../../../tsconfig.tests.json'),
   },
 });

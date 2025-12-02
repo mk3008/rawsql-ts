@@ -111,6 +111,10 @@ Housing schema files under a dedicated folder (for example, `ddl/schemas/users.s
 
 Point pg-testkit at those directories through the `ddl` option and it will parse every `CREATE TABLE`/`INSERT` before rewriting the first query; the DDL is loaded once per `PgTestkitClient`/`wrapPgClient` instance (or per pool client) so the schema snapshot remains stable until you rebuild the driver. Because pg-testkit runs before every rewrite, temporary tables needed by queries keep working too.
 
+When you supply `ddl.directories`, each directory is walked recursively so subfolders are scanned the same as the root. The default extensions filter is `['.sql']`, but you can configure `ddl.extensions` to pull from alternate suffixes. Files are parsed via `DDLToFixtureConverter`, so every `CREATE TABLE`/`INSERT` statement inside a file produces a fixture entry regardless of the file name; however, keeping the file name close to the table(s) it defines (for example `users.sql` covering the `users` table) makes navigation easier. A single file may declare multiple tables, and the loader skips duplicate table names (case-insensitively) to prevent accidental overrides.
+
+> **Schema-first guidance:** Treat the DDL files as the authoritative, project-wide schema definition, and keep test-case–specific seed data in the consuming tests. INSERT statements in the DDL are supported, but they should only define shared baseline data that truly belongs next to the schema (for example, critical lookup rows that every suite needs). Avoid scattering per-test fixtures across many DDL files, because that can make the fixtures harder to evolve alongside the tests. When you do rely on DDL INSERTs, document the exceptional nature of that data in the file so readers understand it is not the default workflow.
+
 ```ts
 import { Client } from 'pg';
 import { createPgTestkitClient, createPgTestkitPool, wrapPgClient } from '@rawsql-ts/pg-testkit';
@@ -172,6 +176,10 @@ Fixtures compose in layers, and later layers override earlier ones to keep inten
 3. `withFixtures` overlays the resulting driver with scenario-specific data, so its rows and columns take priority for the lifetime of that scoped client.
 
 When you instantiate a new driver (pool client, wrapped client, or scoped client via `withFixtures`), the DDL loader runs before the first rewrite and then the manually supplied fixtures plus the scoped fixtures layer on top before each query executes.
+
+## Testing
+
+The pg-testkit package has no persistent tables or shared schema state, so Vitest is free to run suites in parallel. The workspace `vitest.config.ts` keeps the default worker/threads settings and relies on the shared Dockerized Postgres container from `vitest.global-setup.ts`, but every test run routes through `createPgTestkitPool` and the fixture runner so each file/query works against its own isolated dataset. Feel free to run `pnpm --filter @rawsql-ts/pg-testkit test` (or `vitest` directly) without forcing serial execution.
 
 ## Notes
 

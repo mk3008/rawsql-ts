@@ -6,7 +6,7 @@ import { usersPrismaTableDefinition } from './fixtures/TableDefinitions';
 import { UserRepository } from './prisma-app/UserRepository';
 import { createPgTestkitFixtureRunner } from './helpers/pgFixtureRunner';
 import { createPrismaRepositoryTestHarness } from './helpers/prismaRepositoryTestHarness';
-import { createPgTestkitPool } from '../../src';
+import { createPgTestkitPool } from '../src';
 
 declare module 'vitest' {
   interface ProvidedContext {

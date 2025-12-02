@@ -19,6 +19,10 @@ type RawFixtureDefinition = {
   rows?: FixtureRow[];
 };
 
+type SqlDiagnostics = {
+  sqlFileCount: number;
+};
+
 export class DdlFixtureLoader {
   private static readonly cache = new Map<string, DdlProcessedFixture[]>();
   private readonly resolvedDirectories: string[];
@@ -77,17 +81,48 @@ export class DdlFixtureLoader {
   }
 
   private loadFromDirectories(): DdlProcessedFixture[] {
-    const fixtures: DdlProcessedFixture[] = [];
+    // Verify every configured directory exists before scanning to provide fail-fast diagnostics.
+    const missingDirectories = this.resolvedDirectories.filter((directory) => !existsSync(directory));
+    if (missingDirectories.length) {
+      throw new Error(
+        `DDL directories were not found: ${missingDirectories.join(
+          ', '
+        )}. Please review the configured ddl.directories paths.`
+      );
+    }
 
-    // Examine each configured directory for SQL fixtures.
+    const fixtures: DdlProcessedFixture[] = [];
+    const diagnostics: SqlDiagnostics = { sqlFileCount: 0 };
+
+    // Walk each directory recursively to collect SQL files and keep track of what was discovered.
     for (const directory of this.resolvedDirectories) {
-      this.collectSqlFiles(directory, fixtures);
+      this.collectSqlFiles(directory, fixtures, diagnostics);
+    }
+
+    if (diagnostics.sqlFileCount === 0) {
+      throw new Error(
+        `No SQL files (${this.extensions.join(', ')}) were discovered under ${this.resolvedDirectories.join(
+          ', '
+        )}. Please place valid SQL fixtures in the configured directories.`
+      );
+    }
+
+    if (fixtures.length === 0) {
+      throw new Error(
+        `SQL files were found under ${this.resolvedDirectories.join(
+          ', '
+        )}, but no CREATE TABLE statements produced fixtures. Please verify the files contain valid DDL.`
+      );
     }
 
     return fixtures;
   }
 
-  private collectSqlFiles(directory: string, fixtures: DdlProcessedFixture[]): void {
+  private collectSqlFiles(
+    directory: string,
+    fixtures: DdlProcessedFixture[],
+    diagnostics: SqlDiagnostics
+  ): void {
     // Skip directories that are missing so optional paths are acceptable.
     if (!existsSync(directory)) {
       return;
@@ -97,7 +132,7 @@ export class DdlFixtureLoader {
     for (const entry of entries) {
       const resolved = path.join(directory, entry.name);
       if (entry.isDirectory()) {
-        this.collectSqlFiles(resolved, fixtures);
+        this.collectSqlFiles(resolved, fixtures, diagnostics);
         continue;
       }
 
@@ -105,6 +140,9 @@ export class DdlFixtureLoader {
       if (!entry.isFile() || !this.extensions.includes(extension)) {
         continue;
       }
+
+      // Record that a SQL file was encountered regardless of whether it contained definitions.
+      diagnostics.sqlFileCount += 1;
 
       this.loadFile(resolved, fixtures);
     }

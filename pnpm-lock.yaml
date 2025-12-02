@@ -145,14 +145,14 @@ importers:
   packages/drivers/pg-testkit:
     dependencies:
       '@rawsql-ts/testkit-core':
-        specifier: workspace:*
-        version: link:../../testkit-core
+        specifier: ^0.1.0
+        version: 0.1.1
       pg:
         specifier: ^8.13.1
         version: 8.16.3
       rawsql-ts:
-        specifier: workspace:*
-        version: link:../../core
+        specifier: ^0.12.0
+        version: 0.12.1
     devDependencies:
       '@prisma/adapter-pg':
         specifier: ^7.0.0
@@ -188,11 +188,11 @@ importers:
   packages/drivers/sqlite-testkit:
     dependencies:
       '@rawsql-ts/testkit-core':
-        specifier: workspace:*
-        version: link:../../testkit-core
+        specifier: ^0.1.0
+        version: 0.1.1
       rawsql-ts:
-        specifier: workspace:*
-        version: link:../../core
+        specifier: ^0.12.0
+        version: 0.12.1
     devDependencies:
       '@types/better-sqlite3':
         specifier: ^7.6.13
@@ -215,16 +215,10 @@ importers:
 
   packages/testkit-core:
     dependencies:
-      pg:
-        specifier: ^8.16.3
-        version: 8.16.3
       rawsql-ts:
         specifier: workspace:*
         version: link:../core
     devDependencies:
-      '@types/pg':
-        specifier: ^8.15.6
-        version: 8.15.6
       typescript:
         specifier: ^5.8.2
         version: 5.9.2
@@ -892,6 +886,10 @@ packages:
 
   '@protobufjs/utf8@1.1.0':
     resolution: {integrity: sha512-Vvn3zZrhQZkkBE8LSuW3em98c0FwgO4nxzv6OdSxPKJIEKY2bGbHn+mhGIPerzI4twdxaP8/0+06HBpwf345Lw==}
+
+  '@rawsql-ts/testkit-core@0.1.1':
+    resolution: {integrity: sha512-jgeJXpiqGx0nAcr1SFDvfpVGcJfD86zWHV8zCq6dg9+FSxawi8oDkS9smjcaAWG3ranVX2sPjYI39x2NoMpy5Q==}
+    engines: {node: '>=20'}
 
   '@rollup/rollup-android-arm-eabi@4.52.3':
     resolution: {integrity: sha512-h6cqHGZ6VdnwliFG1NXvMPTy/9PS3h8oLh7ImwR+kl+oYnQizgjxsONmmPSb2C66RksfkfIxEVtDSEcJiO0tqw==}
@@ -2522,6 +2520,9 @@ packages:
     resolution: {integrity: sha512-80WNmd9DA0tmZrw9qQa62GPPWfuXJknrmVmLcxvq4uZBdYqb1wYoKTmnlGUchvVWe0XiLupYkBoXVOxz3C8DYQ==}
     engines: {node: '>=0.12'}
 
+  rawsql-ts@0.12.1:
+    resolution: {integrity: sha512-ugX8BFBKozeds74nF8lmQyXh6pOd5f0wPfMQscSRHuI1J1e0RmGIeH/bbFgLXJENGA30tLVPZf5vAGflX84ALw==}
+
   rc9@2.1.2:
     resolution: {integrity: sha512-btXCnMmRIBINM2LDZoEmOogIZU7Qe7zn4BpomSKZ/ykbLObuBdvG+mFq11DL6fjH1DRwHhrlgtYWG96bJiC7Cg==}
 
@@ -3668,6 +3669,10 @@ snapshots:
   '@protobufjs/pool@1.1.0': {}
 
   '@protobufjs/utf8@1.1.0': {}
+
+  '@rawsql-ts/testkit-core@0.1.1':
+    dependencies:
+      rawsql-ts: link:packages/core
 
   '@rollup/rollup-android-arm-eabi@4.52.3':
     optional: true
@@ -5299,6 +5304,8 @@ snapshots:
     dependencies:
       discontinuous-range: 1.0.0
       ret: 0.1.15
+
+  rawsql-ts@0.12.1: {}
 
   rc9@2.1.2:
     dependencies:

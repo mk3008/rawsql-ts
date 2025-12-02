@@ -6,6 +6,7 @@ import type {
   WrapPgClientOptions,
   WrappedPgClient,
 } from '../types';
+import { validateFixtureRowsAgainstTableDefinitions } from '../utils/fixtureValidation';
 import { DdlFixtureLoader } from '@rawsql-ts/testkit-core';
 import type { DdlProcessedFixture } from '@rawsql-ts/testkit-core';
 import type { TableDefinitionModel, TableRowsFixture } from '../types';
@@ -26,6 +27,8 @@ const resolveOptionsState = (options: WrapPgClientOptions) => {
     ...ddlFixtures.map((fixture) => fixture.tableDefinition),
     ...(options.tableDefinitions ?? []),
   ];
+  // Validate caller-provided fixtures before instantiating the fixture provider.
+  validateFixtureRowsAgainstTableDefinitions(options.tableRows, tableDefinitions, 'wrap tableRows');
   const tableRows: TableRowsFixture[] = [
     ...ddlFixtures.flatMap((fixture) =>
       fixture.rows && fixture.rows.length
@@ -51,7 +54,10 @@ export const wrapPgClient = <T extends PgQueryable>(client: T, options: WrapPgCl
     return new Proxy(client, {
       get(target, prop, receiver) {
         if (prop === 'withFixtures') {
-          return (fixtures: TableRowsFixture[]) => buildProxy(fixtures);
+          return (fixtures: TableRowsFixture[]) => {
+            validateFixtureRowsAgainstTableDefinitions(fixtures, overridden.tableDefinitions, 'scoped fixtures');
+            return buildProxy(fixtures);
+          };
         }
 
         const value = Reflect.get(target, prop, receiver);
