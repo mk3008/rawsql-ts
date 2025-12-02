@@ -3,6 +3,15 @@ import type { TableDefinitionModel, TableRowsFixture } from '../types';
 
 const normalizeColumnName = (value: string): string => value.toLowerCase();
 
+/** 
+ * Validates fixture rows against table definitions, ensuring every referenced
+ * table and column exists in the configured DDL or explicit definitions.
+ *
+ * @param tableRows - Fixtures to validate; undefined or empty arrays are no-ops.
+ * @param tableDefinitions - Table metadata to validate against.
+ * @param contextLabel - Optional label prefixed to thrown error messages for clarity.
+ * @throws Error when a fixture references a missing table or column.
+ */
 export const validateFixtureRowsAgainstTableDefinitions = (
   tableRows: TableRowsFixture[] | undefined,
   tableDefinitions: TableDefinitionModel[],
