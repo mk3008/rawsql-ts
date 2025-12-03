@@ -32,6 +32,9 @@ function warnUnknownSqlType(typeName: string | undefined, context?: string): voi
   );
 }
 
+/**
+ * Maps PostgreSQL data types (basic numeric, string, temporal, JSON/binary types) to serializable TypeScript types, falling back to `unknown` when unmatched.
+ */
 export function mapSqlTypeToTs(typeName?: string, context?: string): string {
   // Log when the AST omitted a type so callers can track down why type inference failed.
   if (!typeName) {

@@ -23,6 +23,9 @@ interface TableMetadata {
   columns: ColumnMetadata[];
 }
 
+/**
+ * Processes the configured DDL sources and writes the generated entity interfaces to the supplied output file.
+ */
 export function runGenerateEntities(options: GenEntitiesOptions): void {
   const sources = collectSqlFiles(options.directories, options.extensions);
   if (sources.length === 0) {
@@ -41,8 +44,7 @@ export function runGenerateEntities(options: GenEntitiesOptions): void {
 }
 
 /**
- * Capture metadata from every CREATE TABLE statement so entity sources can be rendered deterministically.
- * The rawsql AST supports optional clauses such as IF NOT EXISTS or UNLOGGED, so those forms still yield CreateTableQuery instances.
+ * Parses CREATE TABLE AST nodes from the provided SQL sources and returns the derived table metadata needed for entity generation.
  */
 export function snapshotTableMetadata(sources: SqlSource[]): TableMetadata[] {
   // Track tables by their SQL name to avoid duplicate definitions.

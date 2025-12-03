@@ -5,6 +5,9 @@ export interface PgDumpOptions {
   pgDumpPath?: string;
 }
 
+/**
+ * Wraps `pg_dump` in schema-only mode for the given connection URL and returns the captured DDL output.
+ */
 export function runPgDump(options: PgDumpOptions): string {
   const executable = options.pgDumpPath ?? process.env.PG_DUMP_PATH ?? 'pg_dump';
   const args = ['--schema-only', '--no-owner', '--no-privileges', '--dbname', options.url];

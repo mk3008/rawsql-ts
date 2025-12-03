@@ -6,6 +6,10 @@ export interface SqlSource {
   sql: string;
 }
 
+/**
+ * Scans the supplied directories (recursively) for SQL files matching the configured extensions and aggregates their contents.
+ * @returns Sorted list of `SqlSource` records containing workspace-relative paths and SQL text for each discovered file.
+ */
 export function collectSqlFiles(directories: string[], extensions: string[]): SqlSource[] {
   // Guard against caller forgetting to supply directories; defaults should be applied upstream.
   if (directories.length === 0) {
