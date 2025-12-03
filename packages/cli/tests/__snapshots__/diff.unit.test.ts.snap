@@ -1,0 +1,28 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`diff schema renderer produces unified patch with deterministic header 1`] = `
+"-- rawsql ddl diff plan
+-- Local DDL: <tmp/cli-diff/ddl>
+-- Database: postgres://test
+-- Generated: 2025-01-01T12:00:00.000Z
+
+===================================================================
+--- local	
++++ database	
+@@ -1,6 +1,6 @@
+ 
+-      CREATE TABLE public.users (
+-        id serial PRIMARY KEY,
+-        email text NOT NULL
+-      );
+-    
+\\ No newline at end of file
++    CREATE TABLE public.accounts (
++      id bigint PRIMARY KEY,
++      balance numeric
++    );
++  
+\\ No newline at end of file
+
+"
+`;

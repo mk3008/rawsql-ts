@@ -18,6 +18,8 @@ export interface TableColumnDefinitionModel extends ColumnDefinition {
     required?: boolean;
     /** Expression text or AST from DDL that represents the column default, if any. */
     defaultValue?: string | ValueComponent | null;
+    /** Whether the column can accept null values, based on DDL constraints. */
+    isNotNull?: boolean;
 }
 
 /**
@@ -99,7 +101,8 @@ function adaptColumn(column: CreateTableColumnDefinition): TableColumnDefinition
         name: column.name.name,
         typeName: getColumnTypeName(column),
         required,
-        defaultValue: defaultConstraint?.defaultValue ?? null
+        defaultValue: defaultConstraint?.defaultValue ?? null,
+        isNotNull: hasNotNull
     };
 }
 
