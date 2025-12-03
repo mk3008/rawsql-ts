@@ -2,11 +2,13 @@
 
 import { Command } from 'commander';
 import { registerDdlCommands } from './commands/ddl';
+import { registerInitCommand } from './commands/init';
 
 async function main(): Promise<void> {
   const program = new Command();
   program.name('rawsql').description('CLI for rawsql-ts DDL workflows');
 
+  registerInitCommand(program);
   registerDdlCommands(program);
 
   await program.parseAsync(process.argv);

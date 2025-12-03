@@ -5,7 +5,7 @@ import { collectSqlFiles, SqlSource } from '../utils/collectSqlFiles';
 import { mapSqlTypeToTs } from '../utils/typeMapper';
 import { ensureDirectory } from '../utils/fs';
 
-interface GenEntitiesOptions {
+export interface GenEntitiesOptions {
   directories: string[];
   extensions: string[];
   out: string;
