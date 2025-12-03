@@ -1,0 +1,40 @@
+{
+  "name": "@rawsql-ts/cli",
+  "version": "0.1.0",
+  "description": "CLI for rawsql-ts DDL workflows",
+  "main": "dist/index.js",
+  "bin": {
+    "rawsql": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "lint": "eslint src --ext .ts",
+    "release": "npm run lint && npm run test && npm run build"
+  },
+  "keywords": [
+    "rawsql",
+    "ddl",
+    "cli"
+  ],
+  "author": "msugiura",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@rawsql-ts/testkit-core": "workspace:*",
+    "commander": "^12.0.0",
+    "diff": "^5.1.0",
+    "rawsql-ts": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/diff": "^5.0.1",
+    "@types/node": "^22.13.10",
+    "typescript": "^5.8.2",
+    "vitest": "^4.0.7"
+  },
+  "files": [
+    "dist"
+  ]
+}

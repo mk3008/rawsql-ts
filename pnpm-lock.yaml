@@ -17,6 +17,9 @@ importers:
       '@types/node':
         specifier: ^22.13.10
         version: 22.18.7
+      '@types/pg':
+        specifier: ^8.15.6
+        version: 8.15.6
       '@typescript-eslint/eslint-plugin':
         specifier: ^8.26.1
         version: 8.45.0(@typescript-eslint/parser@8.45.0(eslint@9.36.0(jiti@2.6.1))(typescript@5.9.2))(eslint@9.36.0(jiti@2.6.1))(typescript@5.9.2)
@@ -50,6 +53,9 @@ importers:
       node-sql-parser:
         specifier: ^5.3.8
         version: 5.3.12
+      pg:
+        specifier: ^8.11.1
+        version: 8.16.3
       sql-formatter:
         specifier: ^15.5.2
         version: 15.6.9
@@ -87,6 +93,34 @@ importers:
       '@rollup/rollup-win32-x64-msvc':
         specifier: ^4.44.0
         version: 4.52.3
+
+  packages/cli:
+    dependencies:
+      '@rawsql-ts/testkit-core':
+        specifier: workspace:*
+        version: link:../testkit-core
+      commander:
+        specifier: ^12.0.0
+        version: 12.1.0
+      diff:
+        specifier: ^5.1.0
+        version: 5.2.0
+      rawsql-ts:
+        specifier: workspace:*
+        version: link:../core
+    devDependencies:
+      '@types/diff':
+        specifier: ^5.0.1
+        version: 5.2.3
+      '@types/node':
+        specifier: ^22.13.10
+        version: 22.18.7
+      typescript:
+        specifier: ^5.8.2
+        version: 5.9.2
+      vitest:
+        specifier: ^4.0.7
+        version: 4.0.7(@types/node@22.18.7)(jiti@2.6.1)(yaml@2.8.1)
 
   packages/core:
     devDependencies:
@@ -1067,6 +1101,9 @@ packages:
   '@types/deep-eql@4.0.2':
     resolution: {integrity: sha512-c9h9dVVMigMPc4bwTvC5dxqtqJZwQPePsWjPlpSOnojbor6pGqdk541lfA7AqFQr5pB1BRdq0juY9db81BwyFw==}
 
+  '@types/diff@5.2.3':
+    resolution: {integrity: sha512-K0Oqlrq3kQMaO2RhfrNQX5trmt+XLyom88zS0u84nnIcLvFnRUMRRHmrGny5GSM+kNO9IZLARsdQHDzkhAgmrQ==}
+
   '@types/docker-modem@3.0.6':
     resolution: {integrity: sha512-yKpAGEuKRSS8wwx0joknWxsmLha78wNMe9R2S3UNsVOkZded8UqOrV8KoeDXoXsjndxwyF3eIhyClGbO1SEhEg==}
 
@@ -1541,6 +1578,10 @@ packages:
   comma-separated-tokens@2.0.3:
     resolution: {integrity: sha512-Fu4hJdvzeylCfQPp9SGWidpzrMs7tTrlu6Vb8XGaRGck8QSNZJJp538Wrb60Lax4fPwR64ViY468OIUTbRlGZg==}
 
+  commander@12.1.0:
+    resolution: {integrity: sha512-Vw8qHK3bZM9y/P10u3Vib8o/DdkvA2OtPtZvD871QKjy74Wj1WSKFILMPRPSdUSx5RFK1arlJzEtA4PkFgnbuA==}
+    engines: {node: '>=18'}
+
   commander@2.20.3:
     resolution: {integrity: sha512-GpVkmM8vF2vQUkj2LvZmD35JxeJOLCwJ9cUkugyk2nuhbv3+mJvpLYYt+0+USMxE+oj+ey/lJEnhZw75x/OMcQ==}
 
@@ -1638,6 +1679,10 @@ packages:
 
   diff@4.0.2:
     resolution: {integrity: sha512-58lmxKSA4BNyLz+HHMUzlOEpg09FV+ev6ZMe3vJihgdxzgcwZ8VoEEPmALCZG9LmqfVoNMMKpttIYTVG6uDY7A==}
+    engines: {node: '>=0.3.1'}
+
+  diff@5.2.0:
+    resolution: {integrity: sha512-uIFDxqpRZGZ6ThOk84hEfqWoHx2devRFvpTZcTHur85vImfaxUbTW9Ryh4CpCuDnToOP1CEtXKIgytHBPVff5A==}
     engines: {node: '>=0.3.1'}
 
   discontinuous-range@1.0.0:
@@ -3830,6 +3875,8 @@ snapshots:
 
   '@types/deep-eql@4.0.2': {}
 
+  '@types/diff@5.2.3': {}
+
   '@types/docker-modem@3.0.6':
     dependencies:
       '@types/node': 22.18.7
@@ -4388,6 +4435,8 @@ snapshots:
 
   comma-separated-tokens@2.0.3: {}
 
+  commander@12.1.0: {}
+
   commander@2.20.3: {}
 
   compress-commons@6.0.2:
@@ -4464,6 +4513,8 @@ snapshots:
       dequal: 2.0.3
 
   diff@4.0.2: {}
+
+  diff@5.2.0: {}
 
   discontinuous-range@1.0.0: {}
 
