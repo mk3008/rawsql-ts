@@ -1,10 +1,20 @@
 import { PostgreSqlContainer } from '@testcontainers/postgresql';
 
+/**
+ * Minimal contract that allows Vitest to pass shared setup values between modules.
+ */
 interface GlobalSetupContextLike {
   provide: (key: string, value: string) => void;
 }
 
+/**
+ * Container image tag used for the shared Postgres fixture during local runs.
+ */
 const POSTGRES_IMAGE = 'postgres:16-alpine';
+
+/**
+ * Runtime type returned when a PostgreSqlContainer instance has been started.
+ */
 type StartedPostgresContainer = Awaited<ReturnType<PostgreSqlContainer['start']>>;
 
 /**
@@ -44,6 +54,7 @@ export default async function setupGlobalPostgres({ provide }: GlobalSetupContex
     };
   } catch (error) {
     if (isMissingRuntimeError(error)) {
+      // Fall back when no container runtime is available on the host.
       console.warn('Skipping Postgres fixture because no container runtime is available.');
       return cleanup;
     }
