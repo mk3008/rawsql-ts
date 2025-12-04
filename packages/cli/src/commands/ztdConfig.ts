@@ -129,7 +129,7 @@ function buildTestRowInterfaceName(tableName: string): string {
 export function renderZtdConfigFile(tables: TableMetadata[]): string {
   // Prepend warnings so downstream code clearly understands this file is test-only.
   const header = [
-    '// ZTD TEST ROW TYPES ? AUTO GENERATED',
+    '// ZTD TEST ROW TYPES - AUTO GENERATED',
     '// DO NOT import this file from src.',
     '// Test-only. Not domain entities.',
     '// Synchronized with DDL via ztd-config generator.',

@@ -24,9 +24,9 @@
   },
   "dependencies": {
     "@rawsql-ts/testkit-core": "workspace:*",
+    "chokidar": "^5.0.0",
     "commander": "^12.0.0",
     "diff": "^5.1.0",
-    "chokidar": "^3.5.3",
     "rawsql-ts": "workspace:*"
   },
   "devDependencies": {

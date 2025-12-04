@@ -1,7 +1,7 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
 exports[`generates ZTD row map from CREATE TABLE statements 1`] = `
-"// ZTD TEST ROW TYPES ? AUTO GENERATED
+"// ZTD TEST ROW TYPES - AUTO GENERATED
 // DO NOT import this file from src.
 // Test-only. Not domain entities.
 // Synchronized with DDL via ztd-config generator.
@@ -25,7 +25,7 @@ export interface PublicUsersTestRow {
 `;
 
 exports[`handles multiple sources with composite keys and cross-schema references 1`] = `
-"// ZTD TEST ROW TYPES ? AUTO GENERATED
+"// ZTD TEST ROW TYPES - AUTO GENERATED
 // DO NOT import this file from src.
 // Test-only. Not domain entities.
 // Synchronized with DDL via ztd-config generator.

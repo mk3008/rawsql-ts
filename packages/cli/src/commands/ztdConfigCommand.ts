@@ -31,7 +31,7 @@ export function registerZtdConfigCommand(program: Command): void {
 
       // Regenerate continuously while watch mode is active.
       if (options.watch) {
-        console.log(`[watch] Updated: ${generationOptions.out}`);
+        console.log(`[watch] Initial generation complete: ${generationOptions.out}`);
         await watchZtdConfig(generationOptions);
       }
     });

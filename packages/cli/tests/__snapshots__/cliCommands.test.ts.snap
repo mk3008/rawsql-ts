@@ -1,7 +1,7 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
 exports[`ztd-config CLI produces the expected TypeScript snapshot 1`] = `
-"// ZTD TEST ROW TYPES ? AUTO GENERATED
+"// ZTD TEST ROW TYPES - AUTO GENERATED
 // DO NOT import this file from src.
 // Test-only. Not domain entities.
 // Synchronized with DDL via ztd-config generator.

@@ -65,13 +65,13 @@ This command parses every `CREATE TABLE` in the configured DDL sources and emits
 
 #### Watch mode
 
-```
+```bash
 rawsql-ts ztd-config --watch --ddl-dir ddl --extensions .sql --out tests/ztd-config.ts
 ```
 
 Watch mode monitors `ddl/**/*.sql`, regenerates `tests/ztd-config.ts` whenever the DDL changes, and only touches the row map (never fixtures or `src/`). It logs:
 
-```
+```text
 [watch] DDL changed: ddl/public.example.sql
 [watch] Updated: tests/ztd-config.ts
 ```
