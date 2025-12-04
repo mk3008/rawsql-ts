@@ -7,6 +7,9 @@ interface GlobalSetupContextLike {
 const POSTGRES_IMAGE = 'postgres:16-alpine';
 type StartedPostgresContainer = Awaited<ReturnType<PostgreSqlContainer['start']>>;
 
+/**
+ * Detects whether TestContainers failed because no container runtime strategy was found.
+ */
 function isMissingRuntimeError(error: unknown): boolean {
   return (
     error instanceof Error &&
@@ -14,6 +17,9 @@ function isMissingRuntimeError(error: unknown): boolean {
   );
 }
 
+/**
+ * Ensures a shared Postgres fixture is available for Vitest and exposes the URI globally.
+ */
 export default async function setupGlobalPostgres({ provide }: GlobalSetupContextLike) {
   if (process.env.TEST_PG_URI) {
     // Respect externally supplied connections and skip container creation.
