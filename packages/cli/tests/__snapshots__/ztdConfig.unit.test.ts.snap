@@ -1,0 +1,57 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`generates ZTD row map from CREATE TABLE statements 1`] = `
+"// ZTD TEST ROW TYPES ? AUTO GENERATED
+// DO NOT import this file from src.
+// Test-only. Not domain entities.
+// Synchronized with DDL via ztd-config generator.
+export interface TestRowMap {
+  'public.profiles': PublicProfilesTestRow;
+  'public.users': PublicUsersTestRow;
+}
+
+export interface PublicProfilesTestRow {
+  user_id: number;
+  bio: string | null;
+  rating: string | null;
+}
+
+export interface PublicUsersTestRow {
+  id: number;
+  email: string;
+  created_at: string;
+}
+"
+`;
+
+exports[`handles multiple sources with composite keys and cross-schema references 1`] = `
+"// ZTD TEST ROW TYPES ? AUTO GENERATED
+// DO NOT import this file from src.
+// Test-only. Not domain entities.
+// Synchronized with DDL via ztd-config generator.
+export interface TestRowMap {
+  'analytics.weekly_stats': AnalyticsWeeklyStatsTestRow;
+  'public.users': PublicUsersTestRow;
+  'sales.orders': SalesOrdersTestRow;
+}
+
+export interface AnalyticsWeeklyStatsTestRow {
+  stats_id: number;
+  order_id: number;
+  order_line: number;
+  sales_amount: string;
+}
+
+export interface PublicUsersTestRow {
+  id: number;
+  name: string;
+}
+
+export interface SalesOrdersTestRow {
+  order_id: number;
+  line: number;
+  customer_id: number;
+  total: string;
+}
+"
+`;

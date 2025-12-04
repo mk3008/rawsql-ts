@@ -5,14 +5,14 @@ exports[`init wizard bootstraps a repo when writing DDL manually 1`] = `
 
 Created:
  - ddl/schema.sql
- - tests/entities.ts
+ - tests/ztd-config.ts
  - README-ZTD.md
  - src/ZTD-GUIDE.md
  - tests/ZTD-TEST-GUIDE.md
 
 Next steps:
  1. Review ddl/schema.sql
- 2. Implement repositories based on tests/entities.ts
+ 2. Implement repositories based on tests/ztd-config.ts
  3. Run ZTD tests using pg-testkit"
 `;
 
@@ -21,13 +21,13 @@ exports[`init wizard pulls schema if pg_dump is available 1`] = `
 
 Created:
  - ddl/schema.sql
- - tests/entities.ts
+ - tests/ztd-config.ts
  - README-ZTD.md
  - src/ZTD-GUIDE.md
  - tests/ZTD-TEST-GUIDE.md
 
 Next steps:
  1. Review ddl/schema.sql
- 2. Implement repositories based on tests/entities.ts
+ 2. Implement repositories based on tests/ztd-config.ts
  3. Run ZTD tests using pg-testkit"
 `;

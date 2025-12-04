@@ -5,7 +5,7 @@ import path from 'node:path';
 import readline from 'node:readline/promises';
 
 import { ensureDirectory } from '../utils/fs';
-import { runGenerateEntities, type GenEntitiesOptions } from './genEntities';
+import { runGenerateZtdConfig, type ZtdConfigGenerationOptions } from './ztdConfig';
 import { runPullSchema, type PullSchemaOptions } from './pull';
 
 export interface Prompter {
@@ -80,7 +80,7 @@ export function createConsolePrompter(): Prompter {
   };
 }
 
-type FileKey = 'schema' | 'entities' | 'readme' | 'srcGuide' | 'testsGuide';
+type FileKey = 'schema' | 'ztdConfig' | 'readme' | 'srcGuide' | 'testsGuide';
 
 export interface FileSummary {
   relativePath: string;
@@ -97,7 +97,7 @@ export interface InitDependencies {
   writeFile: (filePath: string, contents: string) => void;
   fileExists: (filePath: string) => boolean;
   runPullSchema: (options: PullSchemaOptions) => Promise<void> | void;
-  runGenerateEntities: (options: GenEntitiesOptions) => Promise<void> | void;
+  runGenerateZtdConfig: (options: ZtdConfigGenerationOptions) => Promise<void> | void;
   checkPgDump: () => boolean;
   log: (message: string) => void;
 }
@@ -116,45 +116,42 @@ const README_CONTENT = `# Zero Table Dependency (ZTD)
 
 Zero Table Dependency keeps your tests aligned with a real Postgres engine without touching physical tables.
 All INSERT / UPDATE / DELETE statements are rewritten into fixture-backed SELECT queries, so tests never create or mutate real tables.
-DDL files stay in version control, entities describe the row shapes in TypeScript, and pg-testkit routes all CRUD requests through the rewrite pipeline instead of hitting physical tables.
-This flow lets you regenerate entity models, write repositories, and execute deterministic tests while preserving DDL as the single source of truth for schema.
+DDL files stay in version control, the ZTD row map lives in tests/ztd-config.ts, and pg-testkit routes all CRUD requests through the rewrite pipeline instead of hitting physical tables.
+This flow lets you regenerate row mappings, write repositories, and execute deterministic tests while preserving DDL as the single source of truth for schema.
 
 ## How the Workflow Fits Together
 
-1. **DDL**: Declare your tables, indexes, and constraints under the \`ddl/\` directory. These files are the authoritative schema.
-2. **Entities**: Use \`tests/entities.ts\` to describe each table row type for repositories and tests. These interfaces are generated from DDL and exist only at the TypeScript level.
-3. **Repository + ZTD Tests**: Build your data access layer against those entities, then run pg-testkit, which rewrites CRUD into fixture-backed SELECT queries and keeps tests zero-table dependent.
+1. **DDL**: Declare your tables, indexes, and constraints under the ddl/ directory. These files are the authoritative schema.
+2. **ZTD row map**: tests/ztd-config.ts exports TestRowMap plus <TableName>TestRow interfaces derived from your DDL. This file is auto-generated, lives under tests/, and should never be imported from src.
+3. **Repository + ZTD Tests**: Build your data access layer against those test rows, then run pg-testkit, which rewrites CRUD into fixture-backed SELECT queries and keeps tests zero-table dependent.
 
-This project embraces ZTD so you can focus on reliable SQL, AI-assisted development, and repeatable integration tests without ever provisioning test tables.
-`;
+This project embraces ZTD so you can focus on reliable SQL, AI-assisted development, and repeatable integration tests without ever provisioning test tables.`;
 
 const SRC_GUIDE_CONTENT = `# ZTD Implementation Guide
 
 Repositories describe the data access surface, but they never execute migrations.
 Instead of creating tables or inserting seed data, pg-testkit rewrites INSERT / UPDATE / DELETE statements into fixture-backed SELECT queries so the test database stays read-only.
-Entity interfaces in \`tests/entities.ts\` provide a TypeScript view of each row shape, while the actual schema definition lives in DDL under \`ddl/\`.
-Always build repository methods from the entity interfaces, let pg-testkit handle the execution plan, and avoid mocking \`QueryResult\` in your code or tests.
-
-If you need to modify schema, update the DDL in \`ddl/\`, regenerate \`tests/entities.ts\`, and rerun the ZTD test suite.
-`;
+The TestRowMap definitions in tests/ztd-config.ts describe each table's columns. Keep these definitions in tests/ only and never import them from production code.
+If you need to modify schema, update the DDL in ddl/, rerun rawsql ztd-config (or restart rawsql ztd-config --watch) to refresh tests/ztd-config.ts, and rerun the ZTD test suite.`;
 
 const TESTS_GUIDE_CONTENT = `# ZTD Test Guide
 
-Generated entities capture each table's column types and nullability so tests know the exact row shape to expect.
+Generated test rows capture each table's column types and nullability so tests know the exact row shape to expect.
 Fixtures describe a virtual table state that queries run against: pg-testkit rewrites CRUD into SELECT queries that read from those fixtures without ever updating real tables.
 This keeps tests fast, deterministic, and independent of physical tables or migrations.
 
 ## Template
 
-1. Import the table interface from \`tests/entities.ts\`.
+1. Import the table interface from tests/ztd-config.ts.
 2. Write CRUD helper wrappers that build SQL to exercise the repository.
 3. Assert against the rows returned from your repository or client, knowing they are derived from fixtures rather than real table state.
-4. Rerun \`pnpm test\` whenever you adjust DDL or entities so the rewrite pipeline stays in sync.
-`;
+4. Rerun pnpm test whenever you adjust DDL or rerun rawsql ztd-config.
+
+If you prefer automatic regeneration, keep rawsql ztd-config --watch running while editing DDL so the row map updates immediately before rerunning tests.`;
 
 const NEXT_STEPS = [
   ' 1. Review ddl/schema.sql',
-  ' 2. Implement repositories based on tests/entities.ts',
+  ' 2. Implement repositories based on tests/ztd-config.ts',
   ' 3. Run ZTD tests using pg-testkit'
 ];
 
@@ -163,7 +160,7 @@ const DEFAULT_DEPENDENCIES: InitDependencies = {
   writeFile: (filePath, contents) => writeFileSync(filePath, contents, 'utf8'),
   fileExists: (filePath) => existsSync(filePath),
   runPullSchema,
-  runGenerateEntities,
+  runGenerateZtdConfig,
   checkPgDump: () => {
     const executable = process.env.PG_DUMP_PATH ?? 'pg_dump';
     const result = spawnSync(executable, ['--version'], { stdio: 'ignore' });
@@ -183,7 +180,7 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
 
   const absolutePaths: Record<FileKey, string> = {
     schema: path.join(rootDir, 'ddl', 'schema.sql'),
-    entities: path.join(rootDir, 'tests', 'entities.ts'),
+    ztdConfig: path.join(rootDir, 'tests', 'ztd-config.ts'),
     readme: path.join(rootDir, 'README-ZTD.md'),
     srcGuide: path.join(rootDir, 'src', 'ZTD-GUIDE.md'),
     testsGuide: path.join(rootDir, 'tests', 'ZTD-TEST-GUIDE.md')
@@ -244,26 +241,26 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     summaries.schema = createdSchema;
   }
 
-  const entitiesNeeded = await confirmOverwriteIfExists(
-    absolutePaths.entities,
-    relativePath('entities'),
+  const ztdConfigNeeded = await confirmOverwriteIfExists(
+    absolutePaths.ztdConfig,
+    relativePath('ztdConfig'),
     dependencies,
     prompter
   );
 
-  if (entitiesNeeded.write) {
-    await dependencies.runGenerateEntities({
+  if (ztdConfigNeeded.write) {
+    await dependencies.runGenerateZtdConfig({
       directories: [path.resolve(path.dirname(absolutePaths.schema))],
       extensions: ['.sql'],
-      out: absolutePaths.entities
+      out: absolutePaths.ztdConfig
     });
   } else {
-    dependencies.log('Skipping entity generation; existing tests/entities.ts preserved.');
+    dependencies.log('Skipping ZTD config generation; existing tests/ztd-config.ts preserved.');
   }
 
-  summaries.entities = {
-    relativePath: relativePath('entities'),
-    outcome: entitiesNeeded.existed ? (entitiesNeeded.write ? 'overwritten' : 'unchanged') : 'created'
+  summaries.ztdConfig = {
+    relativePath: relativePath('ztdConfig'),
+    outcome: ztdConfigNeeded.existed ? (ztdConfigNeeded.write ? 'overwritten' : 'unchanged') : 'created'
   };
 
   summaries.readme = await writeDocFile(
@@ -364,7 +361,7 @@ async function writeDocFile(
 
 function buildSummaryLines(summaries: Record<FileKey, FileSummary>): string[] {
   // Maintain a fixed order so the summary consistently lists the same files.
-  const orderedKeys: FileKey[] = ['schema', 'entities', 'readme', 'srcGuide', 'testsGuide'];
+  const orderedKeys: FileKey[] = ['schema', 'ztdConfig', 'readme', 'srcGuide', 'testsGuide'];
   const lines = ['rawsql-ts project initialized.', '', 'Created:'];
 
   for (const key of orderedKeys) {

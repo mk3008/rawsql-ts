@@ -65,10 +65,10 @@ test('init wizard bootstraps a repo when writing DDL manually', async () => {
 
   expect(result.summary).toMatchSnapshot();
   expect(existsSync(path.join(workspace, 'ddl', 'schema.sql'))).toBe(true);
-  expect(existsSync(path.join(workspace, 'tests', 'entities.ts'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'tests', 'ztd-config.ts'))).toBe(true);
   expect(readNormalizedFile(path.join(workspace, 'README-ZTD.md'))).toContain('Zero Table Dependency');
   expect(readNormalizedFile(path.join(workspace, 'ddl', 'schema.sql'))).toContain('CREATE TABLE public.example');
-  expect(readNormalizedFile(path.join(workspace, 'tests', 'entities.ts'))).toContain('export interface Entities');
+  expect(readNormalizedFile(path.join(workspace, 'tests', 'ztd-config.ts'))).toContain('export interface TestRowMap');
 });
 
 test('init wizard pulls schema if pg_dump is available', async () => {
@@ -98,7 +98,7 @@ test('init wizard pulls schema if pg_dump is available', async () => {
   expect(readNormalizedFile(path.join(workspace, 'ddl', 'schema.sql'))).toContain('CREATE TABLE public.migrated');
   expect(existsSync(path.join(workspace, 'README-ZTD.md'))).toBe(true);
   expect(readNormalizedFile(path.join(workspace, 'README-ZTD.md'))).toContain('Zero Table Dependency');
-  expect(readNormalizedFile(path.join(workspace, 'tests', 'entities.ts'))).toContain('export interface Entities');
+  expect(readNormalizedFile(path.join(workspace, 'tests', 'ztd-config.ts'))).toContain('export interface TestRowMap');
 });
 
 test('init wizard rejects when pg_dump is missing', async () => {
