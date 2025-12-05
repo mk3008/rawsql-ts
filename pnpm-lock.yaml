@@ -97,8 +97,8 @@ importers:
   packages/cli:
     dependencies:
       '@rawsql-ts/testkit-core':
-        specifier: workspace:*
-        version: link:../testkit-core
+        specifier: ^0.1.2
+        version: 0.1.2
       commander:
         specifier: ^12.0.0
         version: 12.1.0
@@ -106,8 +106,8 @@ importers:
         specifier: ^5.1.0
         version: 5.2.0
       rawsql-ts:
-        specifier: workspace:*
-        version: link:../core
+        specifier: ^0.12.1
+        version: 0.12.1
     devDependencies:
       '@types/diff':
         specifier: ^5.0.1
@@ -250,8 +250,8 @@ importers:
   packages/testkit-core:
     dependencies:
       rawsql-ts:
-        specifier: workspace:*
-        version: link:../core
+        specifier: ^0.12.1
+        version: 0.12.1
     devDependencies:
       typescript:
         specifier: ^5.8.2
@@ -923,6 +923,10 @@ packages:
 
   '@rawsql-ts/testkit-core@0.1.1':
     resolution: {integrity: sha512-jgeJXpiqGx0nAcr1SFDvfpVGcJfD86zWHV8zCq6dg9+FSxawi8oDkS9smjcaAWG3ranVX2sPjYI39x2NoMpy5Q==}
+    engines: {node: '>=20'}
+
+  '@rawsql-ts/testkit-core@0.1.2':
+    resolution: {integrity: sha512-BLs2zfnppU6BjoQeallzyB9MknLmjWhgEVSfj7V7OORzXtTO6OA40lGBJfmNedIyfThBvrm7FPszbzc0ucn8bg==}
     engines: {node: '>=20'}
 
   '@rollup/rollup-android-arm-eabi@4.52.3':
@@ -3718,6 +3722,10 @@ snapshots:
   '@rawsql-ts/testkit-core@0.1.1':
     dependencies:
       rawsql-ts: link:packages/core
+
+  '@rawsql-ts/testkit-core@0.1.2':
+    dependencies:
+      rawsql-ts: 0.12.1
 
   '@rollup/rollup-android-arm-eabi@4.52.3':
     optional: true
