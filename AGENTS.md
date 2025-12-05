@@ -17,8 +17,7 @@ All schema information and seed rows must come from **DDL files and fixtures**, 
 -   `packages/pg-testkit` --- Postgres-specific adapter using a real pg
     engine
 -   `packages/sqlite-testkit` --- SQLite-specific adapter
--   `packages/cli` --- future scaffolding & DDL utilities (empty for
-    now)
+-   `packages/ztd-cli` --- Zero Table Dependency scaffolding, DDL helpers, and AGENTS-aware project templates
 
 Dependency direction:
 

@@ -69,7 +69,7 @@ async function seedProductsTable(client: Client) {
   `);
 }
 
-test('gen-entities CLI produces the expected TypeScript snapshot', () => {
+test('ztd-config CLI produces the expected TypeScript snapshot', () => {
   const ddlDir = createTempDir('cli-gen-ddl');
   writeFileSync(
     path.join(ddlDir, 'tables.sql'),
@@ -90,10 +90,10 @@ test('gen-entities CLI produces the expected TypeScript snapshot', () => {
   );
 
   const outDir = createTempDir('cli-gen-out');
-  const outputFile = path.join(outDir, 'entities.ts');
+  const outputFile = path.join(outDir, 'ztd-config.ts');
 
-  const result = runCli(['ddl', 'gen-entities', '--ddl-dir', ddlDir, '--extensions', '.sql', '--out', outputFile]);
-  assertCliSuccess(result, 'ddl gen-entities');
+  const result = runCli(['ztd-config', '--ddl-dir', ddlDir, '--extensions', '.sql', '--out', outputFile]);
+  assertCliSuccess(result, 'ztd-config');
 
   const content = readNormalizedFile(outputFile);
   expect(content).toMatchSnapshot();

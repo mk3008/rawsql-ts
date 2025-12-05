@@ -1,32 +1,34 @@
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { createTableDefinitionFromCreateTableQuery, CreateTableQuery, MultiQuerySplitter, SqlParser } from 'rawsql-ts';
+import {
+  createTableDefinitionFromCreateTableQuery,
+  CreateTableQuery,
+  MultiQuerySplitter,
+  SqlParser
+} from 'rawsql-ts';
 import { collectSqlFiles, SqlSource } from '../utils/collectSqlFiles';
 import { mapSqlTypeToTs } from '../utils/typeMapper';
 import { ensureDirectory } from '../utils/fs';
 
-export interface GenEntitiesOptions {
+export interface ZtdConfigGenerationOptions {
   directories: string[];
   extensions: string[];
   out: string;
 }
 
-interface ColumnMetadata {
+export interface ColumnMetadata {
   name: string;
   typeName?: string;
   isNullable: boolean;
 }
 
-interface TableMetadata {
+export interface TableMetadata {
   name: string;
-  interfaceName: string;
+  testRowInterfaceName: string;
   columns: ColumnMetadata[];
 }
 
-/**
- * Processes the configured DDL sources and writes the generated entity interfaces to the supplied output file.
- */
-export function runGenerateEntities(options: GenEntitiesOptions): void {
+export function runGenerateZtdConfig(options: ZtdConfigGenerationOptions): void {
   const sources = collectSqlFiles(options.directories, options.extensions);
   if (sources.length === 0) {
     throw new Error(`No SQL files were discovered under ${options.directories.join(', ')}`);
@@ -37,21 +39,17 @@ export function runGenerateEntities(options: GenEntitiesOptions): void {
     throw new Error('The provided DDL sources did not contain any CREATE TABLE statements.');
   }
 
-  const output = renderEntitiesFile(tables);
+  const output = renderZtdConfigFile(tables);
   ensureDirectory(path.dirname(options.out));
   writeFileSync(options.out, output, 'utf8');
-  console.log(`Generated ${tables.length} entity interfaces at ${options.out}`);
+  console.log(`Generated ${tables.length} ZTD test rows at ${options.out}`);
 }
 
-/**
- * Parses CREATE TABLE AST nodes from the provided SQL sources and returns the derived table metadata needed for entity generation.
- */
 export function snapshotTableMetadata(sources: SqlSource[]): TableMetadata[] {
-  // Track tables by their SQL name to avoid duplicate definitions.
   const registry = new Map<string, TableMetadata>();
-
+  // Track tables by their SQL name so each definition is emitted only once.
   for (const source of sources) {
-    // Iterate through every SQL statement to capture CREATE TABLE declarations.
+    // Split multi-statement files so each CREATE TABLE can be processed independently.
     const batch = MultiQuerySplitter.split(source.sql);
 
     for (const query of batch.queries) {
@@ -66,7 +64,6 @@ export function snapshotTableMetadata(sources: SqlSource[]): TableMetadata[] {
           ast = parsed;
         }
       } catch (_error) {
-        // Ignore parse failures so a single bad statement does not halt the CLI run.
         continue;
       }
 
@@ -76,16 +73,14 @@ export function snapshotTableMetadata(sources: SqlSource[]): TableMetadata[] {
 
       const definition = createTableDefinitionFromCreateTableQuery(ast);
 
-      // Avoid reprocessing a table that was already captured in this run.
       if (registry.has(definition.name)) {
         continue;
       }
-      // Collect column metadata while honoring NOT NULL/PRIMARY KEY hints.
+
+      // Match column metadata by name so AST-driven nullability honors both DDL and constraints.
       const columns = ast.columns.map((column) => {
-        // Match column metadata by name rather than by ordinal to avoid misalignment between AST and TableDefinition.
         const columnMeta = definition.columns.find((candidate) => candidate.name === column.name.name);
         if (!columnMeta) {
-          // Fail fast so we never emit an interface that lacks schema metadata.
           throw new Error(`Missing metadata for ${column.name.name} in ${definition.name}`);
         }
         const constraintKinds = new Set(column.constraints.map((constraint) => constraint.kind));
@@ -98,11 +93,10 @@ export function snapshotTableMetadata(sources: SqlSource[]): TableMetadata[] {
           isNullable: !hasNotNull
         };
       });
-      // The column iteration order honors the DDL order so generated interfaces stay deterministic.
 
       registry.set(definition.name, {
         name: definition.name,
-        interfaceName: buildInterfaceName(definition.name),
+        testRowInterfaceName: buildTestRowInterfaceName(definition.name),
         columns
       });
     }
@@ -111,8 +105,8 @@ export function snapshotTableMetadata(sources: SqlSource[]): TableMetadata[] {
   return Array.from(registry.values()).sort((a, b) => a.name.localeCompare(b.name));
 }
 
-function buildInterfaceName(tableName: string): string {
-  // Split schema and table portions before applying PascalCase so each part remains distinguishable.
+function buildTestRowInterfaceName(tableName: string): string {
+  // Preserve schema and table segments when Pascal-casing to keep names unique.
   const namespaceParts = tableName.split('.');
   const pascalize = (segment: string): string =>
     segment
@@ -127,24 +121,24 @@ function buildInterfaceName(tableName: string): string {
   const pascalSegments = namespaceParts.map((segment) => pascalize(segment)).filter(Boolean);
   const combined = pascalSegments.join('');
   const normalized = combined.replace(/^[0-9]+/, '');
-  // Guarantee the name starts with an alphabetic character or underscore.
+  // Guarantee the interface name starts with a letter or underscore.
   const prefix = /^[A-Za-z_]/.test(normalized.charAt(0) ?? '') ? normalized : `_${normalized}`;
-  return `${prefix || 'Table'}Entity`;
+  return `${prefix || 'Table'}TestRow`;
 }
 
-/**
- * Emit the TypeScript module that declares both the Entities map and each table row interface.
- */
-export function renderEntitiesFile(tables: TableMetadata[]): string {
-  // Provide a consistent header so generated files can be traced back to the CLI tool.
-  const header = '// Generated by rawsql ddl gen-entities. Do not edit manually.\n\n';
-  // Build the Entities interface so tests can reference tables via their SQL names.
+export function renderZtdConfigFile(tables: TableMetadata[]): string {
+  const header = [
+    '// ZTD TEST ROW MAP - AUTO GENERATED',
+    '// Tests must import TestRowMap from this file and never from src.',
+    '// This file is synchronized with DDL using ztd-config.',
+    ''
+  ].join('\n');
+
   const entries = tables
-    .map((table) => `  '${table.name}': ${table.interfaceName};`)
+    .map((table) => `  '${table.name}': ${table.testRowInterfaceName};`)
     .join('\n');
 
-  // Emit each table row interface using the collected column metadata.
-  // Tables are sorted by their SQL name and columns follow the original DDL order.
+  // Build each table interface while preserving the column order from the DDL.
   const definitions = tables
     .map((table) => {
       const fields = table.columns
@@ -154,12 +148,16 @@ export function renderEntitiesFile(tables: TableMetadata[]): string {
           return `  ${column.name}: ${tsType};`;
         })
         .join('\n');
-
-      return `export interface ${table.interfaceName} {\n${fields}\n}`;
+      return `export interface ${table.testRowInterfaceName} {\n${fields}\n}`;
     })
     .join('\n\n');
 
-  // Always end the generated module with exactly one newline for stability.
-  const trailingNewline = '\n';
-  return `${header}export interface Entities {\n${entries}\n}\n\n${definitions}${trailingNewline}`;
+  const footer = [
+    '',
+    'export type TestRow<K extends keyof TestRowMap> = TestRowMap[K];',
+    'export type ZtdTableName = keyof TestRowMap;',
+    ''
+  ].join('\n');
+
+  return `${header}export interface TestRowMap {\n${entries}\n}\n\n${definitions}\n${footer}`;
 }
