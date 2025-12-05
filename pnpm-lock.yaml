@@ -94,34 +94,6 @@ importers:
         specifier: ^4.44.0
         version: 4.52.3
 
-  packages/cli:
-    dependencies:
-      '@rawsql-ts/testkit-core':
-        specifier: workspace:*
-        version: link:../testkit-core
-      commander:
-        specifier: ^12.0.0
-        version: 12.1.0
-      diff:
-        specifier: ^5.1.0
-        version: 5.2.0
-      rawsql-ts:
-        specifier: workspace:*
-        version: link:../core
-    devDependencies:
-      '@types/diff':
-        specifier: ^5.0.1
-        version: 5.2.3
-      '@types/node':
-        specifier: ^22.13.10
-        version: 22.18.7
-      typescript:
-        specifier: ^5.8.2
-        version: 5.9.2
-      vitest:
-        specifier: ^4.0.7
-        version: 4.0.7(@types/node@22.18.7)(jiti@2.6.1)(yaml@2.8.1)
-
   packages/core:
     devDependencies:
       '@types/benchmark':
@@ -253,6 +225,37 @@ importers:
         specifier: workspace:*
         version: link:../core
     devDependencies:
+      typescript:
+        specifier: ^5.8.2
+        version: 5.9.2
+      vitest:
+        specifier: ^4.0.7
+        version: 4.0.7(@types/node@22.18.7)(jiti@2.6.1)(yaml@2.8.1)
+
+  packages/ztd-cli:
+    dependencies:
+      '@rawsql-ts/testkit-core':
+        specifier: workspace:*
+        version: link:../testkit-core
+      chokidar:
+        specifier: ^5.0.0
+        version: 5.0.0
+      commander:
+        specifier: ^12.0.0
+        version: 12.1.0
+      diff:
+        specifier: ^5.1.0
+        version: 5.2.0
+      rawsql-ts:
+        specifier: workspace:*
+        version: link:../core
+    devDependencies:
+      '@types/diff':
+        specifier: ^5.0.1
+        version: 5.2.3
+      '@types/node':
+        specifier: ^22.13.10
+        version: 22.18.7
       typescript:
         specifier: ^5.8.2
         version: 5.9.2
@@ -1558,6 +1561,10 @@ packages:
     resolution: {integrity: sha512-Qgzu8kfBvo+cA4962jnP1KkS6Dop5NS6g7R5LFYJr4b8Ub94PPQXUksCw9PvXoeXPRRddRNC5C1JQUR2SMGtnA==}
     engines: {node: '>= 14.16.0'}
 
+  chokidar@5.0.0:
+    resolution: {integrity: sha512-TQMmc3w+5AxjpL8iIiwebF73dRDF4fBIieAqGn9RGCWaEVwQ6Fb2cGe31Yns0RRIzii5goJ1Y7xbMwo1TxMplw==}
+    engines: {node: '>= 20.19.0'}
+
   chownr@1.1.4:
     resolution: {integrity: sha512-jJ0bqzaylmJtVnNgzTeSOs8DPavpbYgEr/b0YL8/2GO3xJEhInFmhKMUnEJQjZumK7KXGFhUy89PrsJWlakBVg==}
 
@@ -2601,6 +2608,10 @@ packages:
   readdirp@4.1.2:
     resolution: {integrity: sha512-GDhwkLfywWL2s6vEjyhri+eXmfH6j1L7JE27WhqLeYzoh/A3DBaYGEj2H/HFZCn/kMfim73FXxEJTw06WtxQwg==}
     engines: {node: '>= 14.18.0'}
+
+  readdirp@5.0.0:
+    resolution: {integrity: sha512-9u/XQ1pvrQtYyMpZe7DXKv2p5CNvyVwzUB6uhLAnQwHMSgKMBR62lc7AHljaeteeHXn11XTAaLLUVZYVZyuRBQ==}
+    engines: {node: '>= 20.19.0'}
 
   regex-recursion@6.0.2:
     resolution: {integrity: sha512-0YCaSCq2VRIebiaUviZNs0cBz1kg5kVS2UKUfNIx8YVs1cN3AV7NTctO5FOKBA+UT2BPJIWZauYHPqJODG50cg==}
@@ -4415,6 +4426,10 @@ snapshots:
     dependencies:
       readdirp: 4.1.2
 
+  chokidar@5.0.0:
+    dependencies:
+      readdirp: 5.0.0
+
   chownr@1.1.4: {}
 
   citty@0.1.6:
@@ -5406,6 +5421,8 @@ snapshots:
       minimatch: 5.1.6
 
   readdirp@4.1.2: {}
+
+  readdirp@5.0.0: {}
 
   regex-recursion@6.0.2:
     dependencies:

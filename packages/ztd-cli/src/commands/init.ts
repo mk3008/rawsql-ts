@@ -5,8 +5,11 @@ import path from 'node:path';
 import readline from 'node:readline/promises';
 
 import { ensureDirectory } from '../utils/fs';
-import { runGenerateEntities, type GenEntitiesOptions } from './genEntities';
+import { copyAgentsTemplate } from '../utils/agents';
+import { DEFAULT_ZTD_CONFIG, writeZtdProjectConfig } from '../utils/ztdProjectConfig';
+import { runGenerateZtdConfig, type ZtdConfigGenerationOptions } from './ztdConfig';
 import { runPullSchema, type PullSchemaOptions } from './pull';
+import { DEFAULT_DDL_DIRECTORY, DEFAULT_EXTENSIONS } from './options';
 
 export interface Prompter {
   selectChoice(question: string, choices: string[]): Promise<number>;
@@ -23,13 +26,11 @@ export function createConsolePrompter(): Prompter {
   });
 
   async function requestLine(question: string): Promise<string> {
-    // Trim whitespace so downstream logic can detect intentional empty answers.
     return (await rl.question(question)).trim();
   }
 
   return {
     async selectChoice(question: string, choices: string[]): Promise<number> {
-      // Loop until the user selects a numeric option that maps to the list.
       while (true) {
         console.log(question);
         for (let i = 0; i < choices.length; i += 1) {
@@ -41,13 +42,11 @@ export function createConsolePrompter(): Prompter {
         if (Number.isFinite(selected) && selected >= 1 && selected <= choices.length) {
           return selected - 1;
         }
-
         console.log('Please choose a valid option number.');
       }
     },
 
     async promptInput(question: string, example?: string): Promise<string> {
-      // Require a non-empty answer so this prompt always returns a meaningful value.
       while (true) {
         const answer = await requestLine(`${question}${example ? ` (${example})` : ''}: `);
         if (answer.length > 0) {
@@ -58,7 +57,6 @@ export function createConsolePrompter(): Prompter {
     },
 
     async confirm(question: string): Promise<boolean> {
-      // Accept simple yes/no variations and keep asking until the input is recognizable.
       while (true) {
         const answer = (await requestLine(`${question} (y/N): `)).toLowerCase();
         if (answer === '') {
@@ -80,7 +78,7 @@ export function createConsolePrompter(): Prompter {
   };
 }
 
-type FileKey = 'schema' | 'entities' | 'readme' | 'srcGuide' | 'testsGuide';
+type FileKey = 'schema' | 'config' | 'ztdConfig' | 'readme' | 'srcGuide' | 'testsGuide' | 'agents';
 
 export interface FileSummary {
   relativePath: string;
@@ -92,19 +90,20 @@ export interface InitResult {
   files: FileSummary[];
 }
 
-export interface InitDependencies {
+export interface ZtdConfigWriterDependencies {
   ensureDirectory: (directory: string) => void;
   writeFile: (filePath: string, contents: string) => void;
   fileExists: (filePath: string) => boolean;
   runPullSchema: (options: PullSchemaOptions) => Promise<void> | void;
-  runGenerateEntities: (options: GenEntitiesOptions) => Promise<void> | void;
+  runGenerateZtdConfig: (options: ZtdConfigGenerationOptions) => Promise<void> | void;
   checkPgDump: () => boolean;
   log: (message: string) => void;
+  copyAgentsTemplate: (rootDir: string) => string | null;
 }
 
 export interface InitCommandOptions {
   rootDir?: string;
-  dependencies?: Partial<InitDependencies>;
+  dependencies?: Partial<ZtdConfigWriterDependencies>;
 }
 
 const SAMPLE_SCHEMA = `CREATE TABLE public.example (
@@ -112,58 +111,39 @@ const SAMPLE_SCHEMA = `CREATE TABLE public.example (
   name text NOT NULL
 );
 `;
-const README_CONTENT = `# Zero Table Dependency (ZTD)
 
-Zero Table Dependency keeps your tests aligned with a real Postgres engine without touching physical tables.
-All INSERT / UPDATE / DELETE statements are rewritten into fixture-backed SELECT queries, so tests never create or mutate real tables.
-DDL files stay in version control, entities describe the row shapes in TypeScript, and pg-testkit routes all CRUD requests through the rewrite pipeline instead of hitting physical tables.
-This flow lets you regenerate entity models, write repositories, and execute deterministic tests while preserving DDL as the single source of truth for schema.
+const README_CONTENT = `# Zero Table Dependency Project
 
-## How the Workflow Fits Together
+This project follows the ZTD flow: change the DDL in \`ddl/\`, regenerate \`tests/ztd-config.ts\`, and drive tests through a companion driver such as \`@rawsql-ts/pg-testkit\`.
 
-1. **DDL**: Declare your tables, indexes, and constraints under the \`ddl/\` directory. These files are the authoritative schema.
-2. **Entities**: Use \`tests/entities.ts\` to describe each table row type for repositories and tests. These interfaces are generated from DDL and exist only at the TypeScript level.
-3. **Repository + ZTD Tests**: Build your data access layer against those entities, then run pg-testkit, which rewrites CRUD into fixture-backed SELECT queries and keeps tests zero-table dependent.
+## Workflow
 
-This project embraces ZTD so you can focus on reliable SQL, AI-assisted development, and repeatable integration tests without ever provisioning test tables.
+1. Edit \`ddl/schema.sql\` to declare tables and indexes.
+2. Run \`npx ztd ztd-config\` (or \`--watch\`) to refresh \`tests/ztd-config.ts\`.
+3. Build tests and fixtures that consume \`TestRowMap\`.
+4. Execute tests via \`pg-testkit\` or another driver so the rewrite pipeline stays intact.
 `;
 
 const SRC_GUIDE_CONTENT = `# ZTD Implementation Guide
 
-Repositories describe the data access surface, but they never execute migrations.
-Instead of creating tables or inserting seed data, pg-testkit rewrites INSERT / UPDATE / DELETE statements into fixture-backed SELECT queries so the test database stays read-only.
-Entity interfaces in \`tests/entities.ts\` provide a TypeScript view of each row shape, while the actual schema definition lives in DDL under \`ddl/\`.
-Always build repository methods from the entity interfaces, let pg-testkit handle the execution plan, and avoid mocking \`QueryResult\` in your code or tests.
-
-If you need to modify schema, update the DDL in \`ddl/\`, regenerate \`tests/entities.ts\`, and rerun the ZTD test suite.
+The \`src/\` directory should contain pure TypeScript logic that depends on the row interfaces produced by \`tests/ztd-config.ts\`.
+Avoid importing \`tests/ztd-config.ts\` from production code; tests import the row map, repositories import DTOs, and fixtures live under \`tests/\`.
 `;
 
 const TESTS_GUIDE_CONTENT = `# ZTD Test Guide
 
-Generated entities capture each table's column types and nullability so tests know the exact row shape to expect.
-Fixtures describe a virtual table state that queries run against: pg-testkit rewrites CRUD into SELECT queries that read from those fixtures without ever updating real tables.
-This keeps tests fast, deterministic, and independent of physical tables or migrations.
-
-## Template
-
-1. Import the table interface from \`tests/entities.ts\`.
-2. Write CRUD helper wrappers that build SQL to exercise the repository.
-3. Assert against the rows returned from your repository or client, knowing they are derived from fixtures rather than real table state.
-4. Rerun \`pnpm test\` whenever you adjust DDL or entities so the rewrite pipeline stays in sync.
+Fixtures are generated from \`ddl/\` definitions and reused by \`pg-testkit\`.
+Always import table types from \`tests/ztd-config.ts\` before writing scenarios, and rerun \`npx ztd ztd-config\` whenever the schema changes.
 `;
 
-const NEXT_STEPS = [
-  ' 1. Review ddl/schema.sql',
-  ' 2. Implement repositories based on tests/entities.ts',
-  ' 3. Run ZTD tests using pg-testkit'
-];
+const NEXT_STEPS = [' 1. Review ddl/schema.sql', ' 2. Run npx ztd ztd-config', ' 3. Run ZTD tests with pg-testkit'];
 
-const DEFAULT_DEPENDENCIES: InitDependencies = {
+const DEFAULT_DEPENDENCIES: ZtdConfigWriterDependencies = {
   ensureDirectory,
   writeFile: (filePath, contents) => writeFileSync(filePath, contents, 'utf8'),
   fileExists: (filePath) => existsSync(filePath),
   runPullSchema,
-  runGenerateEntities,
+  runGenerateZtdConfig,
   checkPgDump: () => {
     const executable = process.env.PG_DUMP_PATH ?? 'pg_dump';
     const result = spawnSync(executable, ['--version'], { stdio: 'ignore' });
@@ -171,49 +151,49 @@ const DEFAULT_DEPENDENCIES: InitDependencies = {
   },
   log: (message: string) => {
     console.log(message);
-  }
+  },
+  copyAgentsTemplate
 };
 
 export async function runInitCommand(prompter: Prompter, options?: InitCommandOptions): Promise<InitResult> {
   const rootDir = options?.rootDir ?? process.cwd();
-  const dependencies: InitDependencies = {
+  const dependencies: ZtdConfigWriterDependencies = {
     ...DEFAULT_DEPENDENCIES,
     ...(options?.dependencies ?? {})
   };
 
   const absolutePaths: Record<FileKey, string> = {
-    schema: path.join(rootDir, 'ddl', 'schema.sql'),
-    entities: path.join(rootDir, 'tests', 'entities.ts'),
-    readme: path.join(rootDir, 'README-ZTD.md'),
+    schema: path.join(rootDir, DEFAULT_ZTD_CONFIG.ddlDir, 'schema.sql'),
+    config: path.join(rootDir, 'ztd.config.json'),
+    ztdConfig: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'ztd-config.ts'),
+    readme: path.join(rootDir, 'README.md'),
     srcGuide: path.join(rootDir, 'src', 'ZTD-GUIDE.md'),
-    testsGuide: path.join(rootDir, 'tests', 'ZTD-TEST-GUIDE.md')
+    testsGuide: path.join(rootDir, 'tests', 'ZTD-TEST-GUIDE.md'),
+    agents: path.join(rootDir, 'AGENTS.md')
   };
 
-  // Collect every relevant file so the summary can reference consistent relative paths.
   const relativePath = (key: FileKey): string =>
     path.relative(rootDir, absolutePaths[key]).replace(/\\/g, '/') || absolutePaths[key];
 
   const summaries: Partial<Record<FileKey, FileSummary>> = {};
 
-  // Prompt the user for their preferred initialization workflow.
+  // Ask how the user prefers to populate the initial schema.
   const workflow = await prompter.selectChoice(
     'How do you want to start your database workflow?',
-    ['I already have a Postgres database (pull schema)', 'I want to start by writing DDL manually']
+    ['Pull schema from Postgres (DDL-first)', 'Write DDL manually']
   );
 
   if (workflow === 0) {
-    // Database-first: pull schema from postgres before generating entities.
+    // Database-first path: pull the schema before writing any DDL files.
     if (!dependencies.checkPgDump()) {
-      throw new Error(
-        'Unable to find pg_dump. Install Postgres or set PG_DUMP_PATH before running rawsql-ts init.'
-      );
+      throw new Error('Unable to find pg_dump. Install Postgres or set PG_DUMP_PATH before running ztd init.');
     }
     const connectionString = await prompter.promptInput(
       'Enter the Postgres connection string for your database',
       'postgres://user:pass@host:5432/db'
     );
 
-    const createdSchema = await writeFileWithConsent(
+    const schemaSummary = await writeFileWithConsent(
       absolutePaths.schema,
       relativePath('schema'),
       dependencies,
@@ -227,10 +207,10 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
       }
     );
 
-    summaries.schema = createdSchema;
+    summaries.schema = schemaSummary;
   } else {
-    // DDL-first: create starter schema text before entity generation.
-    const createdSchema = await writeFileWithConsent(
+    // Manual path: seed the DDL directory with a starter schema so ztd-config can run.
+    const schemaSummary = await writeFileWithConsent(
       absolutePaths.schema,
       relativePath('schema'),
       dependencies,
@@ -241,31 +221,50 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
       }
     );
 
-    summaries.schema = createdSchema;
+    summaries.schema = schemaSummary;
   }
 
-  const entitiesNeeded = await confirmOverwriteIfExists(
-    absolutePaths.entities,
-    relativePath('entities'),
+  // Seed the ztd.config.json defaults so downstream tooling knows where ddl/tests live.
+  const configSummary = await writeFileWithConsent(
+    absolutePaths.config,
+    relativePath('config'),
+    dependencies,
+    prompter,
+    () => {
+      writeZtdProjectConfig(rootDir);
+    }
+  );
+  summaries.config = configSummary;
+
+  const ztdConfigTarget = await confirmOverwriteIfExists(
+    absolutePaths.ztdConfig,
+    relativePath('ztdConfig'),
     dependencies,
     prompter
   );
 
-  if (entitiesNeeded.write) {
-    await dependencies.runGenerateEntities({
+  if (ztdConfigTarget.write) {
+    // Regenerate tests/ztd-config.ts so TestRowMap reflects the DDL snapshot.
+    dependencies.ensureDirectory(path.dirname(absolutePaths.ztdConfig));
+    dependencies.runGenerateZtdConfig({
       directories: [path.resolve(path.dirname(absolutePaths.schema))],
-      extensions: ['.sql'],
-      out: absolutePaths.entities
+      extensions: DEFAULT_EXTENSIONS,
+      out: absolutePaths.ztdConfig
     });
   } else {
-    dependencies.log('Skipping entity generation; existing tests/entities.ts preserved.');
+    dependencies.log('Skipping ZTD config generation; existing tests/ztd-config.ts preserved.');
   }
 
-  summaries.entities = {
-    relativePath: relativePath('entities'),
-    outcome: entitiesNeeded.existed ? (entitiesNeeded.write ? 'overwritten' : 'unchanged') : 'created'
+  summaries.ztdConfig = {
+    relativePath: relativePath('ztdConfig'),
+    outcome: ztdConfigTarget.existed
+      ? ztdConfigTarget.write
+        ? 'overwritten'
+        : 'unchanged'
+      : 'created'
   };
 
+  // Emit supporting documentation that describes the workflow for contributors.
   summaries.readme = await writeDocFile(
     absolutePaths.readme,
     relativePath('readme'),
@@ -288,6 +287,12 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     prompter
   );
 
+  // Copy the AGENTS template so every project ships the same AI guardrails.
+  const agentsRelative = await ensureAgentsFile(rootDir, relativePath('agents'), dependencies);
+  if (agentsRelative) {
+    summaries.agents = agentsRelative;
+  }
+
   const summaryLines = buildSummaryLines(summaries as Record<FileKey, FileSummary>);
   summaryLines.forEach(dependencies.log);
 
@@ -297,20 +302,36 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
   };
 }
 
+async function ensureAgentsFile(
+  rootDir: string,
+  fallbackRelative: string,
+  dependencies: ZtdConfigWriterDependencies
+): Promise<FileSummary | null> {
+  const templateTarget = dependencies.copyAgentsTemplate(rootDir);
+  if (templateTarget) {
+    const relative = path.relative(rootDir, templateTarget).replace(/\\/g, '/');
+    return { relativePath: relative || fallbackRelative, outcome: 'created' };
+  }
+
+  const candidates = ['AGENTS.md', 'AGENTS_ZTD.md'];
+  for (const candidate of candidates) {
+    const candidatePath = path.join(rootDir, candidate);
+    if (dependencies.fileExists(candidatePath)) {
+      return { relativePath: candidate, outcome: 'unchanged' };
+    }
+  }
+
+  return null;
+}
+
 async function writeFileWithConsent(
   absolutePath: string,
   relative: string,
-  dependencies: InitDependencies,
+  dependencies: ZtdConfigWriterDependencies,
   prompter: Prompter,
   writer: () => Promise<void> | void
 ): Promise<FileSummary> {
-  // Confirm overwriting so we never replace files without explicit approval.
-  const { existed, write } = await confirmOverwriteIfExists(
-    absolutePath,
-    relative,
-    dependencies,
-    prompter
-  );
+  const { existed, write } = await confirmOverwriteIfExists(absolutePath, relative, dependencies, prompter);
   if (!write) {
     return { relativePath: relative, outcome: 'unchanged' };
   }
@@ -326,10 +347,9 @@ interface OverwriteCheck {
 async function confirmOverwriteIfExists(
   absolutePath: string,
   relative: string,
-  dependencies: InitDependencies,
+  dependencies: ZtdConfigWriterDependencies,
   prompter: Prompter
 ): Promise<OverwriteCheck> {
-  // Only prompt when the file is present so we can skip unnecessary confirmation.
   const existed = dependencies.fileExists(absolutePath);
   if (!existed) {
     return { existed: false, write: true };
@@ -345,16 +365,15 @@ async function writeDocFile(
   absolutePath: string,
   relative: string,
   contents: string,
-  dependencies: InitDependencies,
+  dependencies: ZtdConfigWriterDependencies,
   prompter: Prompter
 ): Promise<FileSummary> {
-  // Keep the documentation helpers DRY while honoring overwrite consent.
   const summary = await writeFileWithConsent(
     absolutePath,
     relative,
     dependencies,
     prompter,
-    async () => {
+    () => {
       dependencies.ensureDirectory(path.dirname(absolutePath));
       dependencies.writeFile(absolutePath, contents);
     }
@@ -363,19 +382,28 @@ async function writeDocFile(
 }
 
 function buildSummaryLines(summaries: Record<FileKey, FileSummary>): string[] {
-  // Maintain a fixed order so the summary consistently lists the same files.
-  const orderedKeys: FileKey[] = ['schema', 'entities', 'readme', 'srcGuide', 'testsGuide'];
-  const lines = ['rawsql-ts project initialized.', '', 'Created:'];
+  const orderedKeys: FileKey[] = [
+    'schema',
+    'config',
+    'ztdConfig',
+    'readme',
+    'srcGuide',
+    'testsGuide',
+    'agents'
+  ];
+  const lines = ['ZTD project initialized.', '', 'Created:'];
 
   for (const key of orderedKeys) {
     const summary = summaries[key];
     const note =
-      summary.outcome === 'created'
+      summary?.outcome === 'created'
         ? ''
-        : summary.outcome === 'overwritten'
+        : summary?.outcome === 'overwritten'
         ? ' (overwritten existing file)'
         : ' (existing file preserved)';
-    lines.push(` - ${summary.relativePath}${note}`);
+    if (summary) {
+      lines.push(` - ${summary.relativePath}${note}`);
+    }
   }
 
   lines.push('', 'Next steps:', ...NEXT_STEPS);

@@ -11,7 +11,7 @@
     "lint": "eslint src tests --ext .ts",
     "schema:generate": "ts-node --project tsconfig.json src/cli/generateSchema.ts",
     "postinstall": "node ./scripts/install-better-sqlite3.cjs",
-    "release": "npm run lint && npm run test && npm run build && npm pack --dry-run && npm publish --access public"
+    "release": "npm run lint && npm run test && npm run build && npm pack --dry-run && pnpm publish --access public"
   },
   "keywords": [
     "sqlite",
