@@ -5,6 +5,7 @@ import {
     AlterTableAddConstraint,
     AlterTableDropConstraint,
     AlterTableDropColumn,
+    AlterTableAlterColumnDefault,
     DropBehavior
 } from "../models/DDLStatements";
 import {
@@ -107,6 +108,13 @@ export class AlterTableParser {
                 idx = result.newIndex;
             } else if (value === "drop column" || (value === "drop" && lexemes[idx + 1]?.value.toLowerCase() === "column")) {
                 const result = this.parseDropColumnAction(lexemes, idx);
+                actions.push(result.value);
+                idx = result.newIndex;
+            } else if (
+                value === "alter column" ||
+                (value === "alter" && lexemes[idx + 1]?.value.toLowerCase() === "column")
+            ) {
+                const result = this.parseAlterColumnDefaultAction(lexemes, idx);
                 actions.push(result.value);
                 idx = result.newIndex;
             } else if (value === "add column" || (value === "add" && lexemes[idx + 1]?.value.toLowerCase() === "column")) {
@@ -286,6 +294,60 @@ export class AlterTableParser {
             }),
             newIndex: idx
         };
+    }
+
+    private static parseAlterColumnDefaultAction(
+        lexemes: Lexeme[],
+        index: number
+    ): { value: AlterTableAlterColumnDefault; newIndex: number } {
+        let idx = index;
+        const descriptor = lexemes[idx]?.value.toLowerCase();
+
+        // Accept both combined and separate ALTER/COLUMN keywords for maximum flexibility.
+        if (descriptor === "alter column") {
+            idx++;
+        } else if (descriptor === "alter") {
+            idx++;
+            if (lexemes[idx]?.value.toLowerCase() !== "column") {
+                throw new Error(`[AlterTableParser] Expected COLUMN keyword after ALTER at index ${idx}.`);
+            }
+            idx++;
+        } else {
+            throw new Error(`[AlterTableParser] Expected ALTER COLUMN at index ${idx}.`);
+        }
+
+        // Parse the column identifier, keeping comment metadata in place.
+        const nameResult = FullNameParser.parseFromLexeme(lexemes, idx);
+        const columnName = nameResult.name;
+        idx = nameResult.newIndex;
+
+        // Distinguish between SET DEFAULT and DROP DEFAULT actions.
+        const nextToken = lexemes[idx]?.value.toLowerCase();
+        if (nextToken === "set default" || (nextToken === "set" && lexemes[idx + 1]?.value.toLowerCase() === "default")) {
+            idx += nextToken === "set default" ? 1 : 2;
+            const defaultResult = ValueParser.parseFromLexeme(lexemes, idx);
+            idx = defaultResult.newIndex;
+            return {
+                value: new AlterTableAlterColumnDefault({
+                    columnName,
+                    setDefault: defaultResult.value
+                }),
+                newIndex: idx
+            };
+        }
+
+        if (nextToken === "drop default" || (nextToken === "drop" && lexemes[idx + 1]?.value.toLowerCase() === "default")) {
+            idx += nextToken === "drop default" ? 1 : 2;
+            return {
+                value: new AlterTableAlterColumnDefault({
+                    columnName,
+                    dropDefault: true
+                }),
+                newIndex: idx
+            };
+        }
+
+        throw new Error(`[AlterTableParser] Expected SET DEFAULT or DROP DEFAULT at index ${idx}.`);
     }
 
     private static parseTableConstraintDefinition(

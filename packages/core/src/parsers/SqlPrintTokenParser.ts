@@ -59,10 +59,14 @@ import {
     AlterTableDropConstraint,
     AlterTableAddColumn,
     AlterTableDropColumn,
+    AlterTableAlterColumnDefault,
     DropConstraintStatement,
     ExplainOption,
     ExplainStatement,
-    AnalyzeStatement
+    AnalyzeStatement,
+    CreateSequenceStatement,
+    AlterSequenceStatement,
+    SequenceOptionClause
 } from "../models/DDLStatements";
 
 export enum ParameterStyle {
@@ -370,6 +374,8 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         this.handlers.set(ReferenceDefinition.kind, (expr) => this.visitReferenceDefinition(expr as ReferenceDefinition));
         this.handlers.set(CreateIndexStatement.kind, (expr) => this.visitCreateIndexStatement(expr as CreateIndexStatement));
         this.handlers.set(IndexColumnDefinition.kind, (expr) => this.visitIndexColumnDefinition(expr as IndexColumnDefinition));
+        this.handlers.set(CreateSequenceStatement.kind, (expr) => this.visitCreateSequenceStatement(expr as CreateSequenceStatement));
+        this.handlers.set(AlterSequenceStatement.kind, (expr) => this.visitAlterSequenceStatement(expr as AlterSequenceStatement));
         this.handlers.set(DropTableStatement.kind, (expr) => this.visitDropTableStatement(expr as DropTableStatement));
         this.handlers.set(DropIndexStatement.kind, (expr) => this.visitDropIndexStatement(expr as DropIndexStatement));
         this.handlers.set(AlterTableStatement.kind, (expr) => this.visitAlterTableStatement(expr as AlterTableStatement));
@@ -377,6 +383,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         this.handlers.set(AlterTableDropConstraint.kind, (expr) => this.visitAlterTableDropConstraint(expr as AlterTableDropConstraint));
         this.handlers.set(AlterTableAddColumn.kind, (expr) => this.visitAlterTableAddColumn(expr as AlterTableAddColumn));
         this.handlers.set(AlterTableDropColumn.kind, (expr) => this.visitAlterTableDropColumn(expr as AlterTableDropColumn));
+        this.handlers.set(AlterTableAlterColumnDefault.kind, (expr) => this.visitAlterTableAlterColumnDefault(expr as AlterTableAlterColumnDefault));
         this.handlers.set(DropConstraintStatement.kind, (expr) => this.visitDropConstraintStatement(expr as DropConstraintStatement));
         this.handlers.set(ExplainStatement.kind, (expr) => this.visitExplainStatement(expr as ExplainStatement));
         this.handlers.set(AnalyzeStatement.kind, (expr) => this.visitAnalyzeStatement(expr as AnalyzeStatement));
@@ -3474,6 +3481,146 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         return token;
     }
 
+    private visitCreateSequenceStatement(arg: CreateSequenceStatement): SqlPrintToken {
+        const keywordParts = ['create', 'sequence'];
+        if (arg.ifNotExists) {
+            keywordParts.push('if not exists');
+        }
+        const token = new SqlPrintToken(
+            SqlPrintTokenType.keyword,
+            keywordParts.join(' '),
+            SqlPrintTokenContainerType.CreateSequenceStatement
+        );
+
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(arg.sequenceName.accept(this));
+
+        if (arg.clauses.length > 0) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(this.visitSequenceClauses(arg.clauses));
+        }
+
+        return token;
+    }
+
+    private visitAlterSequenceStatement(arg: AlterSequenceStatement): SqlPrintToken {
+        const keywordParts = ['alter', 'sequence'];
+        if (arg.ifExists) {
+            keywordParts.push('if exists');
+        }
+        const token = new SqlPrintToken(
+            SqlPrintTokenType.keyword,
+            keywordParts.join(' '),
+            SqlPrintTokenContainerType.AlterSequenceStatement
+        );
+
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(arg.sequenceName.accept(this));
+
+        if (arg.clauses.length > 0) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(this.visitSequenceClauses(arg.clauses));
+        }
+
+        return token;
+    }
+
+    private visitSequenceClauses(clauses: SequenceOptionClause[]): SqlPrintToken {
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.SequenceOptionList);
+
+        // Separate each clause with a space to mimic standard SQL layout.
+        for (let i = 0; i < clauses.length; i++) {
+            if (i > 0) {
+                token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            }
+            token.innerTokens.push(this.visitSequenceClause(clauses[i]));
+        }
+
+        return token;
+    }
+
+    private visitSequenceClause(clause: SequenceOptionClause): SqlPrintToken {
+        const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.SequenceOptionClause);
+
+        // Convert each clause kind into its keyword/value representation.
+        switch (clause.kind) {
+            case 'increment':
+                token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'increment'));
+                token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+                token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'by'));
+                token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+                token.innerTokens.push(clause.value.accept(this));
+                break;
+            case 'start':
+                token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'start'));
+                token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+                token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'with'));
+                token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+                token.innerTokens.push(clause.value.accept(this));
+                break;
+            case 'minValue':
+                if (clause.noValue) {
+                    token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'no'));
+                    token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+                    token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'minvalue'));
+                } else if (clause.value) {
+                    token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'minvalue'));
+                    token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+                    token.innerTokens.push(clause.value.accept(this));
+                }
+                break;
+            case 'maxValue':
+                if (clause.noValue) {
+                    token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'no'));
+                    token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+                    token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'maxvalue'));
+                } else if (clause.value) {
+                    token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'maxvalue'));
+                    token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+                    token.innerTokens.push(clause.value.accept(this));
+                }
+                break;
+            case 'cache':
+                if (clause.noValue) {
+                    token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'no'));
+                    token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+                    token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'cache'));
+                } else if (clause.value) {
+                    token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'cache'));
+                    token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+                    token.innerTokens.push(clause.value.accept(this));
+                }
+                break;
+            case 'cycle':
+                token.innerTokens.push(
+                    new SqlPrintToken(SqlPrintTokenType.keyword, clause.enabled ? 'cycle' : 'no cycle')
+                );
+                break;
+            case 'restart':
+                token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'restart'));
+                if (clause.value) {
+                    token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+                    token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'with'));
+                    token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+                    token.innerTokens.push(clause.value.accept(this));
+                }
+                break;
+            case 'ownedBy':
+                token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'owned'));
+                token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+                token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'by'));
+                token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+                if (clause.none) {
+                    token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'none'));
+                } else if (clause.target) {
+                    token.innerTokens.push(clause.target.accept(this));
+                }
+                break;
+        }
+
+        return token;
+    }
+
     private visitIndexColumnDefinition(arg: IndexColumnDefinition): SqlPrintToken {
         const token = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.IndexColumnDefinition);
         token.innerTokens.push(this.visit(arg.expression));
@@ -3638,6 +3785,35 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         if (arg.behavior) {
             token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
             token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, arg.behavior));
+        }
+
+        return token;
+    }
+
+    private visitAlterTableAlterColumnDefault(arg: AlterTableAlterColumnDefault): SqlPrintToken {
+        const token = new SqlPrintToken(
+            SqlPrintTokenType.container,
+            '',
+            SqlPrintTokenContainerType.AlterTableAlterColumnDefault
+        );
+
+        // Begin with ALTER COLUMN and the targeted column name.
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'alter column'));
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(arg.columnName.accept(this));
+
+        // Emit either SET DEFAULT or DROP DEFAULT depending on the action.
+        if (arg.dropDefault) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'drop default'));
+        } else if (arg.setDefault) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'set default'));
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(arg.setDefault.accept(this));
+        } else {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'set default'));
         }
 
         return token;
