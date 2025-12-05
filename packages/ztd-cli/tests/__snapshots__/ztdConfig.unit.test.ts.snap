@@ -1,10 +1,9 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
 exports[`generates ZTD row map from CREATE TABLE statements 1`] = `
-"// ZTD TEST ROW TYPES - AUTO GENERATED
-// DO NOT import this file from src.
-// Test-only. Not domain entities.
-// Synchronized with DDL via ztd-config generator.
+"// ZTD TEST ROW MAP - AUTO GENERATED
+// Tests must import TestRowMap from this file and never from src.
+// This file is synchronized with DDL using ztd-config.
 export interface TestRowMap {
   'public.profiles': PublicProfilesTestRow;
   'public.users': PublicUsersTestRow;
@@ -21,14 +20,16 @@ export interface PublicUsersTestRow {
   email: string;
   created_at: string;
 }
+
+export type TestRow<K extends keyof TestRowMap> = TestRowMap[K];
+export type ZtdTableName = keyof TestRowMap;
 "
 `;
 
 exports[`handles multiple sources with composite keys and cross-schema references 1`] = `
-"// ZTD TEST ROW TYPES - AUTO GENERATED
-// DO NOT import this file from src.
-// Test-only. Not domain entities.
-// Synchronized with DDL via ztd-config generator.
+"// ZTD TEST ROW MAP - AUTO GENERATED
+// Tests must import TestRowMap from this file and never from src.
+// This file is synchronized with DDL using ztd-config.
 export interface TestRowMap {
   'analytics.weekly_stats': AnalyticsWeeklyStatsTestRow;
   'public.users': PublicUsersTestRow;
@@ -53,5 +54,8 @@ export interface SalesOrdersTestRow {
   customer_id: number;
   total: string;
 }
+
+export type TestRow<K extends keyof TestRowMap> = TestRowMap[K];
+export type ZtdTableName = keyof TestRowMap;
 "
 `;

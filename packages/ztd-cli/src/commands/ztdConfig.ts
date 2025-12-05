@@ -16,13 +16,13 @@ export interface ZtdConfigGenerationOptions {
   out: string;
 }
 
-interface ColumnMetadata {
+export interface ColumnMetadata {
   name: string;
   typeName?: string;
   isNullable: boolean;
 }
 
-interface TableMetadata {
+export interface TableMetadata {
   name: string;
   testRowInterfaceName: string;
   columns: ColumnMetadata[];
@@ -127,21 +127,18 @@ function buildTestRowInterfaceName(tableName: string): string {
 }
 
 export function renderZtdConfigFile(tables: TableMetadata[]): string {
-  // Prepend warnings so downstream code clearly understands this file is test-only.
   const header = [
-    '// ZTD TEST ROW TYPES - AUTO GENERATED',
-    '// DO NOT import this file from src.',
-    '// Test-only. Not domain entities.',
-    '// Synchronized with DDL via ztd-config generator.',
+    '// ZTD TEST ROW MAP - AUTO GENERATED',
+    '// Tests must import TestRowMap from this file and never from src.',
+    '// This file is synchronized with DDL using ztd-config.',
     ''
   ].join('\n');
 
-  // Build the TestRowMap so the CLI exposes every table→row mapping.
   const entries = tables
     .map((table) => `  '${table.name}': ${table.testRowInterfaceName};`)
     .join('\n');
 
-  // Emit each table's test-row interface while honoring the original column order.
+  // Build each table interface while preserving the column order from the DDL.
   const definitions = tables
     .map((table) => {
       const fields = table.columns
@@ -151,10 +148,16 @@ export function renderZtdConfigFile(tables: TableMetadata[]): string {
           return `  ${column.name}: ${tsType};`;
         })
         .join('\n');
-
       return `export interface ${table.testRowInterfaceName} {\n${fields}\n}`;
     })
     .join('\n\n');
 
-  return `${header}export interface TestRowMap {\n${entries}\n}\n\n${definitions}\n`;
+  const footer = [
+    '',
+    'export type TestRow<K extends keyof TestRowMap> = TestRowMap[K];',
+    'export type ZtdTableName = keyof TestRowMap;',
+    ''
+  ].join('\n');
+
+  return `${header}export interface TestRowMap {\n${entries}\n}\n\n${definitions}\n${footer}`;
 }

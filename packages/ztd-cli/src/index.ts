@@ -7,7 +7,7 @@ import { registerZtdConfigCommand } from './commands/ztdConfigCommand';
 
 async function main(): Promise<void> {
   const program = new Command();
-  program.name('rawsql').description('CLI for rawsql-ts DDL workflows');
+  program.name('ztd').description('Zero Table Dependency scaffolding and DDL helpers');
 
   registerInitCommand(program);
   registerZtdConfigCommand(program);
@@ -17,7 +17,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((error) => {
-  // Report errors to the console and ensure the process exits with failure status.
   console.error(error instanceof Error ? error.message : error);
   process.exit(1);
 });

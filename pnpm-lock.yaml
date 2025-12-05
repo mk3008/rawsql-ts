@@ -94,37 +94,6 @@ importers:
         specifier: ^4.44.0
         version: 4.52.3
 
-  packages/cli:
-    dependencies:
-      '@rawsql-ts/testkit-core':
-        specifier: workspace:*
-        version: link:../testkit-core
-      chokidar:
-        specifier: ^5.0.0
-        version: 5.0.0
-      commander:
-        specifier: ^12.0.0
-        version: 12.1.0
-      diff:
-        specifier: ^5.1.0
-        version: 5.2.0
-      rawsql-ts:
-        specifier: workspace:*
-        version: link:../core
-    devDependencies:
-      '@types/diff':
-        specifier: ^5.0.1
-        version: 5.2.3
-      '@types/node':
-        specifier: ^22.13.10
-        version: 22.18.7
-      typescript:
-        specifier: ^5.8.2
-        version: 5.9.2
-      vitest:
-        specifier: ^4.0.7
-        version: 4.0.7(@types/node@22.18.7)(jiti@2.6.1)(yaml@2.8.1)
-
   packages/core:
     devDependencies:
       '@types/benchmark':
@@ -256,6 +225,37 @@ importers:
         specifier: workspace:*
         version: link:../core
     devDependencies:
+      typescript:
+        specifier: ^5.8.2
+        version: 5.9.2
+      vitest:
+        specifier: ^4.0.7
+        version: 4.0.7(@types/node@22.18.7)(jiti@2.6.1)(yaml@2.8.1)
+
+  packages/ztd-cli:
+    dependencies:
+      '@rawsql-ts/testkit-core':
+        specifier: workspace:*
+        version: link:../testkit-core
+      chokidar:
+        specifier: ^5.0.0
+        version: 5.0.0
+      commander:
+        specifier: ^12.0.0
+        version: 12.1.0
+      diff:
+        specifier: ^5.1.0
+        version: 5.2.0
+      rawsql-ts:
+        specifier: workspace:*
+        version: link:../core
+    devDependencies:
+      '@types/diff':
+        specifier: ^5.0.1
+        version: 5.2.3
+      '@types/node':
+        specifier: ^22.13.10
+        version: 22.18.7
       typescript:
         specifier: ^5.8.2
         version: 5.9.2

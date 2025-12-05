@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 
 import path from 'node:path';
 import { expect, test } from 'vitest';
 
-import { runInitCommand, type InitDependencies, type Prompter } from '../src/commands/init';
+import { runInitCommand, type ZtdConfigWriterDependencies, type Prompter } from '../src/commands/init';
 
 const repoRoot = path.resolve(__dirname, '..', '..', '..');
 const tmpRoot = path.join(repoRoot, 'tmp');
@@ -58,7 +58,6 @@ class TestPrompter implements Prompter {
 
 test('init wizard bootstraps a repo when writing DDL manually', async () => {
   const workspace = createTempDir('cli-init-ddl');
-  // '2' selects the manual DDL workflow so we get the starter schema.
   const prompter = new TestPrompter(['2']);
 
   const result = await runInitCommand(prompter, { rootDir: workspace });
@@ -66,9 +65,11 @@ test('init wizard bootstraps a repo when writing DDL manually', async () => {
   expect(result.summary).toMatchSnapshot();
   expect(existsSync(path.join(workspace, 'ddl', 'schema.sql'))).toBe(true);
   expect(existsSync(path.join(workspace, 'tests', 'ztd-config.ts'))).toBe(true);
-  expect(readNormalizedFile(path.join(workspace, 'README-ZTD.md'))).toContain('Zero Table Dependency');
+  expect(existsSync(path.join(workspace, 'ztd.config.json'))).toBe(true);
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('Zero Table Dependency');
   expect(readNormalizedFile(path.join(workspace, 'ddl', 'schema.sql'))).toContain('CREATE TABLE public.example');
   expect(readNormalizedFile(path.join(workspace, 'tests', 'ztd-config.ts'))).toContain('export interface TestRowMap');
+  expect(existsSync(path.join(workspace, 'AGENTS.md')) || existsSync(path.join(workspace, 'AGENTS_ZTD.md'))).toBe(true);
 });
 
 test('init wizard pulls schema if pg_dump is available', async () => {
@@ -82,7 +83,7 @@ test('init wizard pulls schema if pg_dump is available', async () => {
   let pullCount = 0;
 
   const prompter = new TestPrompter(['1', 'postgres://user@host/db']);
-  const dependencies: Partial<InitDependencies> = {
+  const dependencies: Partial<ZtdConfigWriterDependencies> = {
     checkPgDump: () => true,
     runPullSchema: async (options) => {
       pullCount += 1;
@@ -96,9 +97,11 @@ test('init wizard pulls schema if pg_dump is available', async () => {
   expect(pullCount).toBe(1);
   expect(result.summary).toMatchSnapshot();
   expect(readNormalizedFile(path.join(workspace, 'ddl', 'schema.sql'))).toContain('CREATE TABLE public.migrated');
-  expect(existsSync(path.join(workspace, 'README-ZTD.md'))).toBe(true);
-  expect(readNormalizedFile(path.join(workspace, 'README-ZTD.md'))).toContain('Zero Table Dependency');
+  expect(existsSync(path.join(workspace, 'README.md'))).toBe(true);
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('Zero Table Dependency');
+  expect(existsSync(path.join(workspace, 'ztd.config.json'))).toBe(true);
   expect(readNormalizedFile(path.join(workspace, 'tests', 'ztd-config.ts'))).toContain('export interface TestRowMap');
+  expect(existsSync(path.join(workspace, 'AGENTS.md')) || existsSync(path.join(workspace, 'AGENTS_ZTD.md'))).toBe(true);
 });
 
 test('init wizard rejects when pg_dump is missing', async () => {
@@ -115,7 +118,7 @@ test('init wizard rejects when pg_dump is missing', async () => {
   ).rejects.toThrow('Unable to find pg_dump');
   expect(existsSync(path.join(workspace, 'ddl'))).toBe(false);
   expect(existsSync(path.join(workspace, 'tests'))).toBe(false);
-  expect(existsSync(path.join(workspace, 'README-ZTD.md'))).toBe(false);
+  expect(existsSync(path.join(workspace, 'README.md'))).toBe(false);
 });
 
 test('TestPrompter.confirm maps yes and no variants', async () => {
