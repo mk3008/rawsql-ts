@@ -18,6 +18,7 @@
         "release": "npm run build:all && npm pack --dry-run && npm publish",
         "clean": "tsc --build --clean && node -e \"const fs = require('fs'); if (fs.existsSync('dist')) fs.rmSync('dist', {recursive: true, force: true});\"",
         "lint": "eslint . --ext .ts,.tsx --fix",
+        "postbuild": "node ../../scripts/sync-rawsql-dist.js",
         "benchmark": "ts-node ../../benchmarks/parse-benchmark.ts"
     },
     "keywords": [
