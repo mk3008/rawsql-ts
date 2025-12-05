@@ -1,164 +1,187 @@
-# Zero Table Dependency (ZTD) - Theory Overview
+# Zero Table Dependency (ZTD) - Theoretical Overview
 
-Zero Table Dependency (ZTD) is a model that enables SQL to be tested as if it were a **pure function**.
+Zero Table Dependency (ZTD) is a new model that makes SQL unit testing, which has traditionally been difficult, practical by treating SQL like a pure function that does not depend on external state.
 
-## 1. Challenges of Traditional SQL Unit Testing
+By evaluating SQL without reading from or writing to physical tables, ZTD eliminates many long-standing problems in SQL testing at their root.
 
-Conventional SQL testing faces several difficulties:
+## 1. Problems in SQL Unit Testing
 
-- migrations  
-- seeding  
-- cleaning/resetting state  
-- data conflicts and non-determinism  
+Traditional SQL tests involve several forms of state management that make fast, deterministic, and parallel execution difficult:
 
-These make it difficult to run SQL tests quickly, deterministically, and in parallel.
+- Migrations
+- Seeding
+- State cleanup
+- Data conflicts and nondeterministic behavior during parallel execution
 
-ZTD eliminates all of these issues and allows SQL to be tested **with zero side effects**, similar to how pure functions are tested.
+These problems arise because SQL depends on physical tables as external state.  
+As long as a real database is used, these issues have largely been accepted as unavoidable, and very few people question them.
 
-## 2. Core Idea of ZTD
+However, what SQL fundamentally operates on is not “tables” but “data.”  
+A physical table is only one way of storing data, and it is not the only way to represent it.
 
-ZTD can be summarized in one sentence:
+In other words, it is theoretically possible to remove SQL's dependency on physical tables.  
+If SQL can be evaluated without relying on physical tables, the major problems of SQL unit testing can be eliminated.
 
-> **Use a real database engine, but never read or write any physical tables.  
-> (Table definitions themselves are not required.)**
+This operation of removing dependency on physical tables is what we call ZTD.
 
-Because no table is ever touched, executing SQL under ZTD produces **no side effects** of any kind.
+## 2. What ZTD Is
 
-This enables:
+ZTD is a mechanism for evaluating SQL independently of physical tables, with the following characteristics:
 
-- deterministic tests  
-- parallel execution with no conflicts  
-- no migration or seeding steps  
-- no cleanup  
-- no shared state issues  
+- It uses a real database engine  
+  The behavior of types, runtime logic, parsing, and parameter handling is identical to production.
+- It never reads from or writes to physical tables  
+  No side effects occur, and evaluation does not depend on external state.
 
-## 3. Technical Foundations of ZTD
+As a result, constraints that were traditionally considered unavoidable can be removed completely:
 
-ZTD is enabled by the following mechanisms.
+- No migrations
+- No seeding
+- No cleanup
+- No conflicts
+- Fully deterministic test results
+
+Furthermore, ZTD is designed to be applied dynamically to existing SQL.  
+This makes it possible to run SQL unit tests without changing any source code.  
+The speed of trial and error becomes far greater than with conventional approaches.
+
+## 3. How ZTD Works
+
+To evaluate SQL without depending on physical tables, ZTD combines the following four mechanisms:
+
+- CTE Shadowing  
+  Virtualizes reads from physical tables.
+- Result-SELECT Query  
+  Converts write operations into side-effect-free SELECT queries.
+- Query Conversion  
+  Parses and transforms SQL at the syntax level.
+- SQL Interceptor  
+  Intercepts SQL at runtime and applies transformations dynamically.
+
+Each mechanism is described in the following sections.
 
 ### 3.1 CTE Shadowing
 
-Every table reference is overridden by a CTE of the same name, fully shadowing physical tables.
-
-Example:
+In CTE Shadowing, all table references are overridden by a CTE (common table expression) with the same name.  
+As a result, even if a physical table exists, the query always refers to the CTE, and the physical table is completely hidden.
 
 ```sql
+-- origin
+select * from users;
+```
+
+```sql
+-- ZTD
 with users as (
-  values (1, 'alice@example.com')
+  select 1::int as id, 'alice'::text as name
+  union all
+  select 2::int as id, 'bob'::text as name
 )
 select * from users;
 ```
 
-This ensures that even if physical tables exist, they are never referenced.
+Through this mechanism, reads from physical tables are virtualized by CTEs, and SQL always refers only to virtual tables.
 
-### 3.2 CRUD to Result-SELECT Query  
-(Purifying side-effectful operations into “result-only” SELECTs)
+### 3.2 Result-SELECT Query
 
-In ZTD, operations like INSERT / UPDATE / DELETE / MERGE—which normally carry side effects—are treated as:
+Operations with side effects, such as INSERT, UPDATE, DELETE, and MERGE, are evaluated in ZTD by focusing on the result that would be produced by executing the operation.  
+The operation itself is not executed; only the result is reproduced using a SELECT query.  
+From the perspective of unit testing, this is sufficient.
 
-> **“A query that returns the rows that *would* result from executing that operation.”**
-
-This is a semantic reinterpretation, not an algorithmic description.
-
-#### INSERT example (conceptual equivalence)
+Consider an UPDATE statement:
 
 ```sql
-insert into users (email, active)
-values ($1, $2)
-returning id, email, active;
+-- origin
+update users
+set
+  name = 'Alice'
+where
+  id = $1
+returning
+  id, name;
 ```
 
-Semantically, this means:
-
-> “Return the row that would be inserted.”
-
-Thus, in ZTD, it is equivalent in meaning to a pure SELECT, such as:
+In ZTD, this is reinterpreted in terms of the final result, and expressed as the following SELECT:
 
 ```sql
+-- ZTD
+with users as (
+  select 1::int as id, 'alice'::text as name
+  union all
+  select 2::int as id, 'bob'::text as name
+)
 select
-  1 as id,      -- illustrative example of a new primary key
-  $1 as email,
-  $2 as active;
+  id,
+  'Alice' as name -- simulate
+from
+  users
+where
+  id = $1;
 ```
 
-ZTD views CRUD not as “state-changing commands” but as  
-**operations that describe row generation or transformation**.
+Here, CTE Shadowing reconstructs the current table state, and the effect of the UPDATE is represented as a side-effect-free SELECT.
 
-Because they are interpreted as pure result construction,  
-**tables do not need to exist at all**.
+Write operations without RETURNING can be represented using count queries:
 
-### 3.3 AST-Based Query Transformation
-
-ZTD does *not* use regex rewriting.
-
-Instead, a SQL parser converts incoming SQL into an AST and applies ZTD rules safely:
-
-- detect CRUD  
-- apply semantic rewriting  
-- inject fixtures  
-- inject CTE shadowing  
-- rebuild a valid SELECT query  
-
-This ensures preservation of:
-
-- semantics  
-- placeholders  
-- structure  
-- type consistency  
-
-### 3.4 SQL Interception
-
-ZTD intercepts queries issued by the DB driver and applies rewriting automatically.
-
-Because rewriting happens internally:
-
-- existing SQL does not need to be modified  
-- hand-written SQL works  
-- ORM-generated SQL also works  
-
-ZTD is not a DSL—it's a transparent SQL transformation layer.
-
-## 4. ZTD Testing Model
-
-Under ZTD, tests never modify database state.
-
-```
-Start test → Run SQL → Evaluate result → End test (state unchanged)
+```sql
+-- ZTD
+with users as (
+  ...
+)
+select
+  count(*)
+from
+  users
+where
+  id = $1;
 ```
 
-All tests use the same fixed fixture state.
+### 3.3 Query Conversion
 
-This provides:
+Implementing CTE Shadowing and Result-SELECT Query requires advanced query transformation.  
+To support this, we developed a custom SQL parser from scratch in Pure TypeScript with zero external dependencies.
 
-- full determinism  
-- no shared state  
-- highly parallelizable tests  
-- zero cleanup  
-- no dependency between tests  
+This parser makes it possible to treat SQL as an abstract syntax tree (AST) and automate the following kinds of analysis and transformation:
 
-## 5. What ZTD Covers and What It Does Not
+- Detecting CRUD operations
+- Detecting tables and columns
+- Expanding fixtures and inserting type information
+- Injecting CTE Shadowing
+- Converting into SELECT statements
 
-### ZTD *does* guarantee:
+Even after these large-scale transformations, the following properties are preserved:
 
-- correctness of CRUD results (RETURNING, updated rows, deleted rows)  
-- type checking  
-- structure and semantics of rewritten queries  
-- evaluation of expressions (WHERE, SET, RETURNING, etc.)  
+- Semantics
+- Placeholders
+- Syntactic structure
 
-### ZTD does *not* attempt to cover:
+### 3.4 SQL Interceptor
 
-- transactional consistency across multiple operations  
-- multi-step stateful ETL flows  
-- physical performance concerns (locks, indexes, plans, I/O)  
+The SQL Interceptor hooks into SQL issued by the database driver and applies Query Conversion dynamically.  
+This enables the following:
 
-ZTD is focused on **unit testing SQL logic**, not simulating full database behavior.
+- No changes are required to existing SQL
+- Both handwritten SQL and ORM-generated SQL work as they are
+- No additional DSL is required; existing SQL can be used directly
 
-## 6. Summary
+## 4. What ZTD Does Not Cover
 
-ZTD is a new model for SQL testing that:
+ZTD is a model specialized for unit testing of SQL logic.  
+For this reason, the following areas are outside its scope:
 
-- treats SQL like a pure function  
-- eliminates all table dependencies  
-- removes side effects entirely  
-- enables fast, deterministic, parallel execution  
-- works with existing SQL (hand-written or ORM-generated)  
+- Transaction consistency spanning multiple operations
+- ETL flows that require stateful processing
+- Physical optimization (locks, indexes, execution plans, and so on)
+- Database-dependent features (stored procedures, views, and the like)
+
+## 5. Summary
+
+ZTD is a new model for SQL testing with the following characteristics:
+
+- SQL can be treated like a pure function
+- Physical tables are not required
+- Zero side effects
+- Fast and parallel test execution is easy
+- Existing SQL can be used unchanged (both handwritten and ORM-generated)
+
+This makes it possible to validate SQL quickly and deterministically, greatly reducing the uncertainty associated with placing application logic in SQL.
