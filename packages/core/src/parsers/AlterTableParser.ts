@@ -5,6 +5,7 @@ import {
     AlterTableAddConstraint,
     AlterTableDropConstraint,
     AlterTableDropColumn,
+    AlterTableAlterColumnDefault,
     DropBehavior
 } from "../models/DDLStatements";
 import {
@@ -109,27 +110,15 @@ export class AlterTableParser {
                 const result = this.parseDropColumnAction(lexemes, idx);
                 actions.push(result.value);
                 idx = result.newIndex;
+            } else if (
+                value === "alter column" ||
+                (value === "alter" && lexemes[idx + 1]?.value.toLowerCase() === "column")
+            ) {
+                const result = this.parseAlterColumnDefaultAction(lexemes, idx);
+                actions.push(result.value);
+                idx = result.newIndex;
             } else if (value === "add column" || (value === "add" && lexemes[idx + 1]?.value.toLowerCase() === "column")) {
-                // We don't have parseAddColumnAction yet, but let's at least handle the token or throw specific error?
-                // Or maybe we should support it?
-                // For now, let's just throw unsupported if we don't have the parser method, 
-                // BUT the previous code had logic for it?
-                // Looking at imports, we have AlterTableAddColumn.
-                // But I don't see parseAddColumnAction method in the file.
-                // Let's assume for now we only support constraints and drop column as per previous state.
-                // Wait, the previous code I saw in the diff had:
-                // if (action instanceof AlterTableAddConstraint || action instanceof AlterTableAddColumn)
-                // So AddColumn WAS supported?
-                // Let's check if I can find parseAddColumnAction in the file content I viewed.
-                // I viewed lines 1-485. I don't see parseAddColumnAction.
-                // So maybe it was never there or I missed it.
-                // Let's stick to what was there: add constraint, drop constraint, drop column.
-                // And generic "add" which might be add column or add constraint.
-
-                // Re-reading the broken code:
-                // } else if(value === "drop column" || value === "drop") {
-
-                // It seems I should just implement the loop for what I have.
+                // TODO: add column parsing is not implemented yet.
                 throw new Error(`[AlterTableParser] Unsupported ALTER TABLE action '${lexemes[idx].value}' at index ${idx}.`);
             } else {
                 throw new Error(`[AlterTableParser] Unsupported ALTER TABLE action '${lexemes[idx].value}' at index ${idx}.`);
@@ -286,6 +275,60 @@ export class AlterTableParser {
             }),
             newIndex: idx
         };
+    }
+
+    private static parseAlterColumnDefaultAction(
+        lexemes: Lexeme[],
+        index: number
+    ): { value: AlterTableAlterColumnDefault; newIndex: number } {
+        let idx = index;
+        const descriptor = lexemes[idx]?.value.toLowerCase();
+
+        // Accept both combined and separate ALTER/COLUMN keywords for maximum flexibility.
+        if (descriptor === "alter column") {
+            idx++;
+        } else if (descriptor === "alter") {
+            idx++;
+            if (lexemes[idx]?.value.toLowerCase() !== "column") {
+                throw new Error(`[AlterTableParser] Expected COLUMN keyword after ALTER at index ${idx}.`);
+            }
+            idx++;
+        } else {
+            throw new Error(`[AlterTableParser] Expected ALTER COLUMN at index ${idx}.`);
+        }
+
+        // Parse the column identifier, keeping comment metadata in place.
+        const nameResult = FullNameParser.parseFromLexeme(lexemes, idx);
+        const columnName = nameResult.name;
+        idx = nameResult.newIndex;
+
+        // Distinguish between SET DEFAULT and DROP DEFAULT actions.
+        const nextToken = lexemes[idx]?.value.toLowerCase();
+        if (nextToken === "set default" || (nextToken === "set" && lexemes[idx + 1]?.value.toLowerCase() === "default")) {
+            idx += nextToken === "set default" ? 1 : 2;
+            const defaultResult = ValueParser.parseFromLexeme(lexemes, idx);
+            idx = defaultResult.newIndex;
+            return {
+                value: new AlterTableAlterColumnDefault({
+                    columnName,
+                    setDefault: defaultResult.value
+                }),
+                newIndex: idx
+            };
+        }
+
+        if (nextToken === "drop default" || (nextToken === "drop" && lexemes[idx + 1]?.value.toLowerCase() === "default")) {
+            idx += nextToken === "drop default" ? 1 : 2;
+            return {
+                value: new AlterTableAlterColumnDefault({
+                    columnName,
+                    dropDefault: true
+                }),
+                newIndex: idx
+            };
+        }
+
+        throw new Error(`[AlterTableParser] Expected SET DEFAULT or DROP DEFAULT at index ${idx}.`);
     }
 
     private static parseTableConstraintDefinition(

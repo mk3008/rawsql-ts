@@ -12,7 +12,9 @@ import type {
     AlterTableStatement,
     DropConstraintStatement,
     AnalyzeStatement,
-    ExplainStatement
+    ExplainStatement,
+    CreateSequenceStatement,
+    AlterSequenceStatement
 } from '../models/DDLStatements';
 import { SqlTokenizer, StatementLexemeResult } from './SqlTokenizer';
 import { SelectQueryParser } from './SelectQueryParser';
@@ -29,6 +31,7 @@ import { AlterTableParser } from './AlterTableParser';
 import { DropConstraintParser } from './DropConstraintParser';
 import { AnalyzeStatementParser } from './AnalyzeStatementParser';
 import { ExplainStatementParser } from './ExplainStatementParser';
+import { CreateSequenceParser, AlterSequenceParser } from './SequenceParser';
 
 export type ParsedStatement =
     | SelectQuery
@@ -40,7 +43,9 @@ export type ParsedStatement =
     | DropTableStatement
     | DropIndexStatement
     | CreateIndexStatement
+    | CreateSequenceStatement
     | AlterTableStatement
+    | AlterSequenceStatement
     | DropConstraintStatement
     | AnalyzeStatement
     | ExplainStatement;
@@ -166,6 +171,11 @@ export class SqlParser {
             case 'create unique index':
                 return this.parseCreateIndexStatement(segment, statementIndex);
 
+            case 'create sequence':
+            case 'create temporary sequence':
+            case 'create temp sequence':
+                return this.parseCreateSequenceStatement(segment, statementIndex);
+
             case 'drop table':
                 return this.parseDropTableStatement(segment, statementIndex);
 
@@ -174,6 +184,9 @@ export class SqlParser {
 
             case 'alter table':
                 return this.parseAlterTableStatement(segment, statementIndex);
+
+            case 'alter sequence':
+                return this.parseAlterSequenceStatement(segment, statementIndex);
 
             case 'drop constraint':
                 return this.parseDropConstraintStatement(segment, statementIndex);
@@ -368,6 +381,42 @@ export class SqlParser {
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
             throw new Error(`[SqlParser] Failed to parse CREATE INDEX statement ${statementIndex}: ${message}`);
+        }
+    }
+
+    private static parseCreateSequenceStatement(segment: StatementLexemeResult, statementIndex: number): CreateSequenceStatement {
+        try {
+            const result = CreateSequenceParser.parseFromLexeme(segment.lexemes, 0);
+            // Ensure no trailing lexemes remain after the CREATE SEQUENCE clause.
+            if (result.newIndex < segment.lexemes.length) {
+                const unexpected = segment.lexemes[result.newIndex];
+                const position = unexpected.position?.startPosition ?? segment.statementStart;
+                throw new Error(
+                    `[SqlParser] Unexpected token "${unexpected.value}" in statement ${statementIndex} at character ${position}.`
+                );
+            }
+            return result.value;
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            throw new Error(`[SqlParser] Failed to parse CREATE SEQUENCE statement ${statementIndex}: ${message}`);
+        }
+    }
+
+    private static parseAlterSequenceStatement(segment: StatementLexemeResult, statementIndex: number): AlterSequenceStatement {
+        try {
+            const result = AlterSequenceParser.parseFromLexeme(segment.lexemes, 0);
+            // Validate that the ALTER SEQUENCE statement consumed all available tokens.
+            if (result.newIndex < segment.lexemes.length) {
+                const unexpected = segment.lexemes[result.newIndex];
+                const position = unexpected.position?.startPosition ?? segment.statementStart;
+                throw new Error(
+                    `[SqlParser] Unexpected token "${unexpected.value}" in statement ${statementIndex} at character ${position}.`
+                );
+            }
+            return result.value;
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            throw new Error(`[SqlParser] Failed to parse ALTER SEQUENCE statement ${statementIndex}: ${message}`);
         }
     }
 
