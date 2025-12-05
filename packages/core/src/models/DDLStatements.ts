@@ -249,6 +249,10 @@ export class AlterTableAlterColumnDefault extends SqlComponent {
         this.columnName = params.columnName;
         this.setDefault = params.setDefault ?? null;
         this.dropDefault = params.dropDefault ?? false;
+        // Guard against constructing an action that tries to both set and drop the default.
+        if (this.setDefault !== null && this.dropDefault) {
+            throw new Error("[AlterTableAlterColumnDefault] Cannot set and drop a default at the same time.");
+        }
     }
 }
 

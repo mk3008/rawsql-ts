@@ -144,6 +144,7 @@ WHERE active = true`;
         expect(minClause?.value).toBeInstanceOf(LiteralValue);
         expect((minClause?.value as LiteralValue).value).toBe(1);
         expect(maxClause?.value).toBeInstanceOf(LiteralValue);
+        // Note: 9223372036854775807 exceeds Number.MAX_SAFE_INTEGER, so the parsed literal is rounded.
         expect((maxClause?.value as LiteralValue).value).toBe(9223372036854776000);
         expect(formatted).toContain('create sequence "user_id_seq"');
         expect(formatted).toContain("increment by 1");
@@ -171,6 +172,21 @@ WHERE active = true`;
         );
         expect(ownedClause?.target?.toString()).toBe("users.id");
         expect(formatted).toContain('alter sequence "user_id_seq" restart with 1000 owned by "users"."id"');
+    });
+
+    it("parses ALTER SEQUENCE restart without WITH clause", () => {
+        const sql = `ALTER SEQUENCE user_id_seq
+    RESTART 5000
+    OWNED BY users.id`;
+        const ast = AlterSequenceParser.parse(sql);
+        const formatted = new SqlFormatter().format(ast).formattedSql;
+
+        const restartClause = ast.clauses.find(
+            (clause): clause is SequenceRestartClause => clause.kind === "restart"
+        );
+        expect(restartClause?.value).toBeInstanceOf(LiteralValue);
+        expect((restartClause?.value as LiteralValue).value).toBe(5000);
+        expect(formatted).toContain('alter sequence "user_id_seq" restart with 5000 owned by "users"."id"');
     });
 
     it("parses ALTER TABLE ALTER COLUMN SET DEFAULT", () => {

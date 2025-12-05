@@ -10,6 +10,16 @@ const CREATE_SEQUENCE_COMMANDS = new Set([
     "create temporary sequence",
     "create temp sequence"
 ]);
+const SEQUENCE_CLAUSE_STARTERS = new Set([
+    "increment",
+    "start",
+    "minvalue",
+    "maxvalue",
+    "cache",
+    "cycle",
+    "owned",
+    "no"
+]);
 
 export class CreateSequenceParser {
     public static parse(sql: string): CreateSequenceStatement {
@@ -180,12 +190,13 @@ function parseSequenceClauses(lexemes: Lexeme[], index: number): { clauses: Sequ
             continue;
         }
 
-        // RESTART optionally accepts a WITH <value> clause.
+        // RESTART may be followed by an optional WITH keyword and/or a value before the next clause starts.
         if (token === "restart") {
             idx++;
+            idx = consumeOptionalKeyword(lexemes, idx, "with");
             let restartValue;
-            if (lexemes[idx]?.value.toLowerCase() === "with") {
-                idx++;
+            const nextToken = lexemes[idx]?.value.toLowerCase();
+            if (nextToken && !SEQUENCE_CLAUSE_STARTERS.has(nextToken)) {
                 const restartResult = ValueParser.parseFromLexeme(lexemes, idx);
                 restartValue = restartResult.value;
                 idx = restartResult.newIndex;
