@@ -2,7 +2,6 @@ import type { DdlFixtureLoaderOptions, DdlProcessedFixture, TableRowsFixture } f
 import { DdlFixtureLoader } from '@rawsql-ts/testkit-core';
 import type { TableDefinitionModel } from 'rawsql-ts';
 import type { TableNameResolver } from '@rawsql-ts/testkit-core';
-import { validateFixtureRowsAgainstTableDefinitions } from './fixtureValidation';
 
 export interface FixtureResolutionOptions {
   tableDefinitions?: TableDefinitionModel[];
@@ -19,8 +18,7 @@ export interface ResolvedFixtureState {
 /** Produces the merged fixture metadata for any pg-testkit entry point. */
 export const resolveFixtureState = (
   options: FixtureResolutionOptions,
-  tableNameResolver: TableNameResolver,
-  contextLabel?: string
+  tableNameResolver: TableNameResolver
 ): ResolvedFixtureState => {
   // Load DDL-derived fixtures when directories were supplied so every consumer shares the same resolver rules.
   const loader = options.ddl?.directories?.length
@@ -36,14 +34,6 @@ export const resolveFixtureState = (
     ...ddlFixtures.map((fixture: DdlProcessedFixture) => fixture.tableDefinition),
     ...(options.tableDefinitions ?? []),
   ];
-
-  // Ensure user-provided rows match the aggregated columns before instantiating the provider.
-  validateFixtureRowsAgainstTableDefinitions(
-    options.tableRows,
-    tableDefinitions,
-    contextLabel,
-    tableNameResolver
-  );
 
   // Merge DDL-sourced rows ahead of caller-supplied fixtures so overrides take precedence.
   const tableRows: TableRowsFixture[] = [

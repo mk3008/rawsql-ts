@@ -44,8 +44,15 @@ export class PgTestkitClient {
         tableDefinitions: options.tableDefinitions,
         tableRows: options.tableRows,
       },
-      this.tableNameResolver,
-      'base tableRows'
+      this.tableNameResolver
+    );
+
+    // Validate the caller-provided row fixtures once through the resolver before wiring up the provider.
+    validateFixtureRowsAgainstTableDefinitions(
+      options.tableRows,
+      fixturesState.tableDefinitions,
+      'base tableRows',
+      this.tableNameResolver
     );
     // Confirm scoped overlays still match the aggregated definitions.
     validateFixtureRowsAgainstTableDefinitions(

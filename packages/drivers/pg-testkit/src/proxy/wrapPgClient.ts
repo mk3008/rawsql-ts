@@ -38,8 +38,15 @@ export const wrapPgClient = <T extends PgQueryable>(client: T, options: WrapPgCl
       tableDefinitions: options.tableDefinitions,
       tableRows: options.tableRows,
     },
-    tableNameResolver,
-    'wrap tableRows'
+    tableNameResolver
+  );
+
+  // Ensure the provided fixtures align with the shared definitions before creating the fixture store.
+  validateFixtureRowsAgainstTableDefinitions(
+    options.tableRows,
+    fixtureState.tableDefinitions,
+    'wrap tableRows',
+    tableNameResolver
   );
   const fixtureStore = new DefaultFixtureProvider(
     fixtureState.tableDefinitions,
@@ -58,12 +65,13 @@ export const wrapPgClient = <T extends PgQueryable>(client: T, options: WrapPgCl
       get(target, prop, receiver) {
         if (prop === 'withFixtures') {
           return (fixtures: TableRowsFixture[]) => {
-          validateFixtureRowsAgainstTableDefinitions(
-            fixtures,
-            fixtureState.tableDefinitions,
-            'scoped fixtures',
-            tableNameResolver
-          );
+            // Confirm each overlay matches the resolved definitions before reusing the proxy.
+            validateFixtureRowsAgainstTableDefinitions(
+              fixtures,
+              fixtureState.tableDefinitions,
+              'scoped fixtures',
+              tableNameResolver
+            );
             return buildProxy(fixtures);
           };
         }
