@@ -54,6 +54,11 @@ Reverse dependencies are forbidden.
     pg-testkit will automatically rewrite them into `SELECT` queries.\
     Library code must never bypass the rewriter.
 
+## Schema Resolution
+
+-   Application SQL can omit schema qualifiers (e.g., `SELECT ... FROM users`). pg-testkit maps those references to canonical `schema.table` keys by consulting the `ddl.defaultSchema` / `ddl.searchPath` block in `ztd.config.json` before looking up fixtures or DDL metadata.
+-   DDL files, row fixtures, and TestRowMap entries should be aware of the configured schema search path so the canonical keys remain consistent. Update `ztd.config.json` whenever you change the target schema or search path so the rewrite pipeline still matches tables as expected.
+
 ## Working Agreements
 
 -   Use `pnpm` and `pnpm --filter <package>` for scoped tasks.

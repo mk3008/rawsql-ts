@@ -10,6 +10,11 @@ export type { TableDefinitionModel } from 'rawsql-ts';
 import type { TableRowsFixture } from '@rawsql-ts/testkit-core';
 import type { DdlFixtureLoaderOptions } from '@rawsql-ts/testkit-core';
 
+interface SchemaResolutionOptions {
+  defaultSchema?: string;
+  searchPath?: string[];
+}
+
 /** Rows-only fixtures authored by pg-testkit consumers. */
 export type PgTableRowsFixture = TableRowsFixture;
 
@@ -45,7 +50,7 @@ export interface PgQueryable {
  * Options accepted when creating a PgTestkit client, including the
  * connection factory and fixture resolution hooks.
  */
-export interface CreatePgTestkitClientOptions {
+export interface CreatePgTestkitClientOptions extends SchemaResolutionOptions {
   connectionFactory: () => PgQueryable | Promise<PgQueryable>;
   tableDefinitions?: TableDefinitionModel[];
   tableRows?: TableRowsFixture[];
@@ -64,7 +69,7 @@ export interface CreatePgTestkitClientOptions {
  * Options accepted when wrapping an existing Postgres client, mirroring
  * creation options but omitting the connection factory.
  */
-export interface WrapPgClientOptions {
+export interface WrapPgClientOptions extends SchemaResolutionOptions {
   tableDefinitions?: TableDefinitionModel[];
   tableRows?: TableRowsFixture[];
   formatterOptions?: SqlFormatterOptions;
@@ -83,7 +88,7 @@ export type WrappedPgClient<T> = T & {
   withFixtures(fixtures: TableRowsFixture[]): WrappedPgClient<T>;
 };
 
-export interface CreatePgTestkitPoolOptions {
+export interface CreatePgTestkitPoolOptions extends SchemaResolutionOptions {
   tableDefinitions?: TableDefinitionModel[];
   tableRows?: TableRowsFixture[];
   /** DDL paths that should populate the base fixture set for the pool. */

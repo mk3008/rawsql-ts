@@ -3,10 +3,12 @@ import path from 'node:path';
 import { normalizeTableName, DDLToFixtureConverter } from 'rawsql-ts';
 import type { TableDefinitionModel } from 'rawsql-ts';
 import type { FixtureRow } from '../types';
+import { TableNameResolver } from './TableNameResolver';
 
 export interface DdlFixtureLoaderOptions {
   directories: string[];
   extensions?: string[];
+  tableNameResolver?: TableNameResolver;
 }
 
 export interface DdlProcessedFixture {
@@ -31,12 +33,14 @@ export class DdlFixtureLoader {
   private fixtures: DdlProcessedFixture[] = [];
   private fixturesByName = new Map<string, DdlProcessedFixture>();
   private loaded = false;
+  private readonly tableNameResolver?: TableNameResolver;
 
   constructor(private readonly options: DdlFixtureLoaderOptions) {
     // Resolve directories up front so cache keys stay consistent across calls.
     this.resolvedDirectories = options.directories.map((directory) => path.resolve(directory));
     this.extensions = (options.extensions ?? ['.sql']).map((ext) => ext.toLowerCase());
     this.cacheKey = DdlFixtureLoader.buildCacheKey(this.resolvedDirectories, this.extensions);
+    this.tableNameResolver = options.tableNameResolver;
   }
 
   public getFixtures(): DdlProcessedFixture[] {
@@ -75,7 +79,7 @@ export class DdlFixtureLoader {
     this.fixturesByName = new Map();
 
     for (const fixture of fixtures) {
-      const normalized = normalizeTableName(fixture.tableDefinition.name);
+      const normalized = this.resolveTableKey(fixture.tableDefinition.name);
       this.fixturesByName.set(normalized, fixture);
     }
   }
@@ -171,14 +175,14 @@ export class DdlFixtureLoader {
         Array.isArray(rawDefinition.rows) && rawDefinition.rows.length > 0 ? rawDefinition.rows : undefined;
 
       for (const variant of this.buildTableNameVariants(tableName)) {
-        const normalized = normalizeTableName(variant);
-        if (fixtures.some((fixture) => normalizeTableName(fixture.tableDefinition.name) === normalized)) {
+        const normalized = this.resolveTableKey(variant);
+        if (fixtures.some((fixture) => this.resolveTableKey(fixture.tableDefinition.name) === normalized)) {
           continue;
         }
 
         fixtures.push({
           tableDefinition: {
-            name: variant,
+            name: normalized,
             columns,
           },
           rows,
@@ -197,6 +201,10 @@ export class DdlFixtureLoader {
   }
 
   private buildTableNameVariants(tableName: string): string[] {
+    if (this.tableNameResolver) {
+      return [tableName];
+    }
+
     const normalized = normalizeTableName(tableName);
     const parts = normalized.split('.');
     if (parts.length <= 1) {
@@ -204,5 +212,13 @@ export class DdlFixtureLoader {
     }
 
     return [normalized, parts[parts.length - 1]];
+  }
+
+  // Map raw table names into their canonical schema-qualified keys for deduplication.
+  private resolveTableKey(tableName: string): string {
+    if (!this.tableNameResolver) {
+      return normalizeTableName(tableName);
+    }
+    return this.tableNameResolver.resolve(tableName);
   }
 }

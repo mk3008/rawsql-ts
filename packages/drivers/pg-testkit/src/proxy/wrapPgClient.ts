@@ -1,5 +1,5 @@
 import type { QueryConfig, QueryResult, QueryResultRow } from 'pg';
-import { DefaultFixtureProvider, ResultSelectRewriter, alignRewrittenParameters, applyCountWrapper } from '@rawsql-ts/testkit-core';
+import { DefaultFixtureProvider, ResultSelectRewriter, TableNameResolver, alignRewrittenParameters, applyCountWrapper } from '@rawsql-ts/testkit-core';
 import type {
   PgQueryInput,
   PgQueryable,
@@ -19,16 +19,24 @@ const buildEmptyResult = <T extends QueryResultRow = QueryResultRow>(command = '
   fields: [],
 });
 
-const resolveOptionsState = (options: WrapPgClientOptions) => {
+const resolveOptionsState = (options: WrapPgClientOptions, tableNameResolver: TableNameResolver) => {
   const ddlFixtures: DdlProcessedFixture[] = options.ddl?.directories?.length
-    ? new DdlFixtureLoader(options.ddl).getFixtures()
+    ? new DdlFixtureLoader({
+        ...options.ddl!,
+        tableNameResolver,
+      }).getFixtures()
     : [];
   const tableDefinitions: TableDefinitionModel[] = [
     ...ddlFixtures.map((fixture) => fixture.tableDefinition),
     ...(options.tableDefinitions ?? []),
   ];
   // Validate caller-provided fixtures before instantiating the fixture provider.
-  validateFixtureRowsAgainstTableDefinitions(options.tableRows, tableDefinitions, 'wrap tableRows');
+  validateFixtureRowsAgainstTableDefinitions(
+    options.tableRows,
+    tableDefinitions,
+    'wrap tableRows',
+    tableNameResolver
+  );
   const tableRows: TableRowsFixture[] = [
     ...ddlFixtures.flatMap((fixture) =>
       fixture.rows && fixture.rows.length
@@ -42,12 +50,22 @@ const resolveOptionsState = (options: WrapPgClientOptions) => {
 
 /** Wraps an existing Postgres client with fixture-aware query rewriting. */
 export const wrapPgClient = <T extends PgQueryable>(client: T, options: WrapPgClientOptions): WrappedPgClient<T> => {
-  const overridden = resolveOptionsState(options);
-  const fixtureStore = new DefaultFixtureProvider(overridden.tableDefinitions, overridden.tableRows);
+  // Keep resolver configuration in sync with the pg-testkit options.
+  const tableNameResolver = new TableNameResolver({
+    defaultSchema: options.defaultSchema,
+    searchPath: options.searchPath,
+  });
+  const overridden = resolveOptionsState(options, tableNameResolver);
+  const fixtureStore = new DefaultFixtureProvider(
+    overridden.tableDefinitions,
+    overridden.tableRows,
+    tableNameResolver
+  );
   const rewriter = new ResultSelectRewriter(
     fixtureStore,
     options.missingFixtureStrategy ?? 'error',
-    options.formatterOptions
+    options.formatterOptions,
+    tableNameResolver
   );
 
   const buildProxy = (scopedFixtures?: TableRowsFixture[]): WrappedPgClient<T> => {
@@ -55,7 +73,12 @@ export const wrapPgClient = <T extends PgQueryable>(client: T, options: WrapPgCl
       get(target, prop, receiver) {
         if (prop === 'withFixtures') {
           return (fixtures: TableRowsFixture[]) => {
-            validateFixtureRowsAgainstTableDefinitions(fixtures, overridden.tableDefinitions, 'scoped fixtures');
+            validateFixtureRowsAgainstTableDefinitions(
+              fixtures,
+              overridden.tableDefinitions,
+              'scoped fixtures',
+              tableNameResolver
+            );
             return buildProxy(fixtures);
           };
         }

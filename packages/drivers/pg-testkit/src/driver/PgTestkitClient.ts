@@ -1,5 +1,5 @@
 import type { QueryResult, QueryResultRow } from 'pg';
-import { DefaultFixtureProvider, ResultSelectRewriter } from '@rawsql-ts/testkit-core';
+import { DefaultFixtureProvider, ResultSelectRewriter, TableNameResolver } from '@rawsql-ts/testkit-core';
 import type {
   CreatePgTestkitClientOptions,
   PgQueryInput,
@@ -20,6 +20,7 @@ import { validateFixtureRowsAgainstTableDefinitions } from '../utils/fixtureVali
 export class PgTestkitClient {
   private connection?: PgQueryable;
   private readonly rewriter: ResultSelectRewriter;
+  private readonly tableNameResolver: TableNameResolver;
   private readonly ddlFixtures: DdlProcessedFixture[];
 
   constructor(
@@ -27,20 +28,37 @@ export class PgTestkitClient {
     private readonly scopedRows?: TableRowsFixture[],
     seedConnection?: PgQueryable
   ) {
+    // Keep a resolver around so every fixture/DDL lookup uses the same schema rules.
+    this.tableNameResolver = new TableNameResolver({
+      defaultSchema: options.defaultSchema,
+      searchPath: options.searchPath,
+    });
     this.ddlFixtures = this.loadDdlFixtures();
     const tableDefinitions = this.collectDefinitions();
     // Validate fixtures declared by callers so typographical errors fail during client setup.
-    validateFixtureRowsAgainstTableDefinitions(this.options.tableRows, tableDefinitions, 'base tableRows');
-    validateFixtureRowsAgainstTableDefinitions(scopedRows, tableDefinitions, 'scoped fixtures');
+    validateFixtureRowsAgainstTableDefinitions(
+      this.options.tableRows,
+      tableDefinitions,
+      'base tableRows',
+      this.tableNameResolver
+    );
+    validateFixtureRowsAgainstTableDefinitions(
+      scopedRows,
+      tableDefinitions,
+      'scoped fixtures',
+      this.tableNameResolver
+    );
 
     const fixtureStore = new DefaultFixtureProvider(
       tableDefinitions,
-      this.collectBaseRows()
+      this.collectBaseRows(),
+      this.tableNameResolver
     );
     this.rewriter = new ResultSelectRewriter(
       fixtureStore,
       options.missingFixtureStrategy ?? 'error',
-      options.formatterOptions
+      options.formatterOptions,
+      this.tableNameResolver
     );
     this.connection = seedConnection;
   }
@@ -164,7 +182,10 @@ export class PgTestkitClient {
       return [];
     }
 
-    const loader = new DdlFixtureLoader(this.options.ddl);
+    const loader = new DdlFixtureLoader({
+      ...this.options.ddl!,
+      tableNameResolver: this.tableNameResolver,
+    });
     return loader.getFixtures();
   }
 }

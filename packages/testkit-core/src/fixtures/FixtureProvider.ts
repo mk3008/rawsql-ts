@@ -1,4 +1,4 @@
-import { normalizeTableName, tableNameVariants } from 'rawsql-ts';
+import { normalizeTableName } from 'rawsql-ts';
 import type {
   FixtureColumnDefinition,
   FixtureTableDefinition,
@@ -7,6 +7,7 @@ import type {
 } from 'rawsql-ts';
 import type { TableRowsFixture } from '../types';
 import type { FixtureResolver, FixtureSnapshot } from '../types';
+import { TableNameResolver } from './TableNameResolver';
 
 /** Resolves fixtures while unifying table metadata coming from DDL or explicit configuration. */
 export class DefaultFixtureProvider implements FixtureResolver {
@@ -14,7 +15,8 @@ export class DefaultFixtureProvider implements FixtureResolver {
 
   constructor(
     tableDefinitions: TableDefinitionModel[] = [],
-    private readonly baseRows: TableRowsFixture[] = []
+    private readonly baseRows: TableRowsFixture[] = [],
+    private readonly tableNameResolver?: TableNameResolver
   ) {
     this.registerDefinitions(tableDefinitions);
   }
@@ -31,9 +33,8 @@ export class DefaultFixtureProvider implements FixtureResolver {
 
   private registerDefinitions(definitions: TableDefinitionModel[]): void {
     for (const definition of definitions) {
-      for (const variant of tableNameVariants(definition.name)) {
-        this.definitionMap.set(variant, definition);
-      }
+      const key = this.resolveDefinitionKey(definition.name);
+      this.definitionMap.set(key, definition);
     }
   }
 
@@ -42,12 +43,18 @@ export class DefaultFixtureProvider implements FixtureResolver {
 
     // Start with the baseline rows so overrides only need to supply deltas.
     for (const fixture of this.baseRows) {
-      merged.set(normalizeTableName(fixture.tableName), fixture);
+      const lookupKey = this.resolveDefinitionKey(fixture.tableName, (candidate) =>
+        this.definitionMap.has(candidate)
+      );
+      merged.set(lookupKey, fixture);
     }
 
     // Apply overrides so callers can shadow specific tables per scope.
     for (const fixture of overrides ?? []) {
-      merged.set(normalizeTableName(fixture.tableName), fixture);
+      const lookupKey = this.resolveDefinitionKey(fixture.tableName, (candidate) =>
+        this.definitionMap.has(candidate)
+      );
+      merged.set(lookupKey, fixture);
     }
 
     return [...merged.values()];
@@ -83,25 +90,28 @@ export class DefaultFixtureProvider implements FixtureResolver {
     const seen = new Set<string>();
 
     for (const definition of this.definitionMap.values()) {
-      if (seen.has(definition.name)) {
+      const key = this.resolveDefinitionKey(definition.name);
+      if (seen.has(key)) {
         continue;
       }
-      registry[definition.name] = definition;
-      seen.add(definition.name);
+      registry[key] = definition;
+      seen.add(key);
     }
 
     return registry;
   }
 
   private findDefinition(tableName: string): TableDefinitionModel | undefined {
-    const normalized = normalizeTableName(tableName);
-    for (const variant of tableNameVariants(normalized)) {
-      const candidate = this.definitionMap.get(variant);
-      if (candidate) {
-        return candidate;
-      }
+    const key = this.resolveDefinitionKey(tableName, (candidate) => this.definitionMap.has(candidate));
+    return this.definitionMap.get(key);
+  }
+
+  // Resolve the canonical key for a table name, optionally preferring any registered schema entry.
+  private resolveDefinitionKey(tableName: string, lookup?: (candidate: string) => boolean): string {
+    if (!this.tableNameResolver) {
+      return normalizeTableName(tableName);
     }
-    return undefined;
+    return this.tableNameResolver.resolve(tableName, lookup);
   }
 
   private buildRow(
