@@ -43,6 +43,16 @@ Every `ztd ddl` subcommand targets the shared DDL directory defined in `ztd.conf
 
 Fetches the schema via `pg_dump` and writes it into `ddl/schema.sql` so you can keep PostgreSQL as the schema source without mutating real tables.
 
+> **Note:** `ztd ddl` commands that contact your database depend on the `pg_dump` executable. Ensure `pg_dump` is installed and reachable via your `PATH`, or set the `PG_DUMP_PATH` environment variable to the absolute path of the executable before running the command.
+
+On Windows, register the executable for future PowerShell sessions:
+
+```powershell
+setx PG_DUMP_PATH "C:\Program Files\PostgreSQL\18\bin\pg_dump.exe"
+```
+
+Open a new PowerShell window after running this command so the updated environment variable is available to `ztd` commands.
+
 ### `ztd ddl gen-entities`
 
 Reads the DDL directory and generates `entities.ts` (optional reference for helpers). Use it when you want TypeScript helpers for ad-hoc schema inspection without replacing `TestRowMap` as the source of truth.

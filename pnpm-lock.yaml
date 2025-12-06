@@ -263,6 +263,37 @@ importers:
         specifier: ^4.0.7
         version: 4.0.7(@types/node@22.18.7)(jiti@2.6.1)(yaml@2.8.1)
 
+  playgrounds/ztd-playground:
+    dependencies:
+      '@rawsql-ts/pg-testkit':
+        specifier: workspace:*
+        version: link:../../packages/drivers/pg-testkit
+      '@rawsql-ts/testkit-core':
+        specifier: workspace:*
+        version: link:../../packages/testkit-core
+      '@rawsql-ts/ztd-cli':
+        specifier: workspace:*
+        version: link:../../packages/ztd-cli
+      pg:
+        specifier: ^8.11.1
+        version: 8.16.3
+    devDependencies:
+      '@testcontainers/postgresql':
+        specifier: ^10.28.0
+        version: 10.28.0
+      '@types/node':
+        specifier: ^22.13.10
+        version: 22.18.7
+      '@types/pg':
+        specifier: ^8.15.6
+        version: 8.15.6
+      typescript:
+        specifier: ^5.8.2
+        version: 5.9.2
+      vitest:
+        specifier: ^4.0.7
+        version: 4.0.7(@types/node@22.18.7)(jiti@2.6.1)(yaml@2.8.1)
+
 packages:
 
   '@algolia/abtesting@1.5.0':
