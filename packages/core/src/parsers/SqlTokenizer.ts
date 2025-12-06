@@ -1,5 +1,5 @@
 ﻿import { FormattingLexeme } from '../models/FormattingLexeme';
-import { Lexeme, TokenType } from '../models/Lexeme';
+import { Lexeme, LexemePositionedComment, TokenType } from '../models/Lexeme';
 import { CommandTokenReader } from '../tokenReaders/CommandTokenReader';
 import { EscapedIdentifierTokenReader } from '../tokenReaders/EscapedIdentifierTokenReader';
 import { FunctionTokenReader } from '../tokenReaders/FunctionTokenReader';
@@ -327,6 +327,7 @@ export class SqlTokenizer {
             lexemes[i] = lexeme;
         }
 
+        this.relocateOrderByComments(lexemes);
         return lexemes;
     }
 
@@ -349,6 +350,42 @@ export class SqlTokenizer {
         }
 
         return base ? [...base] : null;
+    }
+
+    private relocateOrderByComments(lexemes: Lexeme[]): void {
+        // Move ORDER BY trailing comments onto the next token so the following expression inherits them.
+        for (let i = 0; i < lexemes.length - 1; i++) {
+            const current = lexemes[i];
+            if (current.value.toLowerCase() !== 'order by' || !current.positionedComments) {
+                continue;
+            }
+
+            // Gather only the trailing comment sets that should move with the clause.
+            const afterComments = current.positionedComments.filter(comment => comment.position === 'after' && comment.comments && comment.comments.length > 0);
+            if (afterComments.length === 0) {
+                continue;
+            }
+
+            // Strip the relocated comments from the ORDER BY token so duplicates do not remain.
+            current.positionedComments = current.positionedComments.filter(comment => comment.position !== 'after');
+            if (current.positionedComments.length === 0) {
+                current.positionedComments = undefined;
+            }
+
+            const target = lexemes[i + 1];
+            // Convert trailing comments into before-positioned comments for the next expression.
+            const beforeComments: LexemePositionedComment[] = afterComments.map(comment => ({
+                position: 'before',
+                comments: [...comment.comments],
+            }));
+
+            // Prepend the relocated comments so they remain adjacent to the next lexeme.
+            if (target.positionedComments && target.positionedComments.length > 0) {
+                target.positionedComments = [...beforeComments, ...target.positionedComments];
+            } else {
+                target.positionedComments = beforeComments;
+            }
+        }
     }
 
     // Attach comments to lexeme directly (no collection then assignment anti-pattern)

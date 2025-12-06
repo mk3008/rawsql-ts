@@ -144,6 +144,28 @@ describe('SqlFormatter - SELECT Comments (Bug 3)', () => {
         });
     });
 
+    describe('ORDER BY comments', () => {
+        test('should keep comments attached to ORDER BY expressions', () => {
+            const inputSql = `
+                select
+                    region,
+                    product,
+                    sum(amount) as total_amount
+                from sales
+                group by cube (region, product)
+                order by
+                  --comment
+                  coalesce(region, 'ZZZ'), coalesce(product, 'ZZZ')
+            `;
+
+            const query = SelectQueryParser.parse(inputSql);
+            const formatter = new SqlFormatter({ exportComment: true });
+            const result = formatter.format(query);
+
+            expect(result.formattedSql).toContain('comment');
+        });
+    });
+
     describe('Edge Cases', () => {
         test('should work when exportComment is false', () => {
             const inputSql = `
