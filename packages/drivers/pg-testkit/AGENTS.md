@@ -12,6 +12,11 @@ All CRUD statements are rewritten into **fixture‑backed SELECT queries**, whil
 The driver must never bypass rewrite logic or attempt any real
 migration.
 
+## ZTD Coordination
+
+- When a ZTD project contains `tests/ztd-config.ts` and an `ddl/` directory, treat those artifacts as the canonical schema + row map. Load fixtures from them rather than reverse-engineering the database structure.
+- Do not reconstruct DDL or row-type definitions inside pg-testkit when the project already ships those files; rely on the generated TestRowMap instead.
+
 ## Responsibilities
 
 -   Adapt `testkit-core` rewrite results to PostgreSQL.

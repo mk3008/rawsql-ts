@@ -17,8 +17,7 @@ All schema information and seed rows must come from **DDL files and fixtures**, 
 -   `packages/pg-testkit` --- Postgres-specific adapter using a real pg
     engine
 -   `packages/sqlite-testkit` --- SQLite-specific adapter
--   `packages/cli` --- future scaffolding & DDL utilities (empty for
-    now)
+-   `packages/ztd-cli` --- Zero Table Dependency scaffolding, DDL helpers, and AGENTS-aware project templates
 
 Dependency direction:
 
@@ -61,6 +60,7 @@ Reverse dependencies are forbidden.
 -   All identifiers, comments, and docs remain in English.
 -   Use `./tmp` for throwaway assets.
 -   Remove console debugging before committing.
+-   `packages/core/dist` outputs must stay synchronized with the pnpm store copy that CLI tests consume (`node_modules/.pnpm/rawsql-ts@<version>/node_modules/rawsql-ts/dist`). `pnpm --filter rawsql-ts build` already runs `scripts/sync-rawsql-dist.js` as a `postbuild` step, but you can rerun that script manually if a CLI test complains about outdated `rawsql-ts` artifacts.
 
 ## Validation Checklist
 

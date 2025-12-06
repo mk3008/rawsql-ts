@@ -1,9 +1,9 @@
 import { expect, test } from 'vitest';
-import { renderEntitiesFile, snapshotTableMetadata } from '../src/commands/genEntities';
+import { renderZtdConfigFile, snapshotTableMetadata } from '../src/commands/ztdConfig';
 import type { SqlSource } from '../src/utils/collectSqlFiles';
 import { normalizeLineEndings } from './utils/normalize';
 
-test('generates TypeScript entities from CREATE TABLE statements', () => {
+test('generates ZTD row map from CREATE TABLE statements', () => {
   const sources: SqlSource[] = [
     {
       path: 'DDL/users.sql',
@@ -28,7 +28,7 @@ test('generates TypeScript entities from CREATE TABLE statements', () => {
   expect(tables.map((table) => table.name)).toEqual(['public.profiles', 'public.users']);
 
   // Normalize line endings so snapshots remain stable across platforms.
-  const output = normalizeLineEndings(renderEntitiesFile(tables));
+  const output = normalizeLineEndings(renderZtdConfigFile(tables));
 
   expect(output).toMatchSnapshot();
 });
@@ -99,7 +99,7 @@ test('handles multiple sources with composite keys and cross-schema references',
   expect(nonNullStats.columns.slice(1, 3).every((column) => !column.isNullable)).toBe(true);
 
   // Normalize line endings so snapshots remain stable across platforms.
-  const output = normalizeLineEndings(renderEntitiesFile(tables));
+  const output = normalizeLineEndings(renderZtdConfigFile(tables));
 
   expect(output).toMatchSnapshot();
 });

@@ -231,7 +231,37 @@ export class AlterTableAddColumn extends SqlComponent {
     }
 }
 
-export type AlterTableAction = AlterTableAddConstraint | AlterTableDropConstraint | AlterTableDropColumn | AlterTableAddColumn;
+/**
+ * ALTER TABLE ... ALTER COLUMN ... SET/DROP DEFAULT action.
+ */
+export class AlterTableAlterColumnDefault extends SqlComponent {
+    static kind = Symbol("AlterTableAlterColumnDefault");
+    columnName: IdentifierString;
+    setDefault: ValueComponent | null;
+    dropDefault: boolean;
+
+    constructor(params: {
+        columnName: IdentifierString;
+        setDefault?: ValueComponent | null;
+        dropDefault?: boolean;
+    }) {
+        super();
+        this.columnName = params.columnName;
+        this.setDefault = params.setDefault ?? null;
+        this.dropDefault = params.dropDefault ?? false;
+        // Guard against constructing an action that tries to both set and drop the default.
+        if (this.setDefault !== null && this.dropDefault) {
+            throw new Error("[AlterTableAlterColumnDefault] Cannot set and drop a default at the same time.");
+        }
+    }
+}
+
+export type AlterTableAction =
+    | AlterTableAddConstraint
+    | AlterTableDropConstraint
+    | AlterTableDropColumn
+    | AlterTableAddColumn
+    | AlterTableAlterColumnDefault;
 
 /**
  * ALTER TABLE statement representation with constraint-centric actions.
@@ -326,5 +356,97 @@ export class AnalyzeStatement extends SqlComponent {
         } else {
             this.columns = null;
         }
+    }
+}
+
+/**
+ * Sequence option clauses are collected in order and emitted as the user wrote them.
+ * Each clause is specialized by its discriminating `kind`.
+ */
+export interface SequenceIncrementClause {
+    kind: "increment";
+    value: ValueComponent;
+}
+
+export interface SequenceStartClause {
+    kind: "start";
+    value: ValueComponent;
+}
+
+export interface SequenceMinValueClause {
+    kind: "minValue";
+    value?: ValueComponent;
+    noValue?: boolean;
+}
+
+export interface SequenceMaxValueClause {
+    kind: "maxValue";
+    value?: ValueComponent;
+    noValue?: boolean;
+}
+
+export interface SequenceCacheClause {
+    kind: "cache";
+    value?: ValueComponent;
+    noValue?: boolean;
+}
+
+export interface SequenceCycleClause {
+    kind: "cycle";
+    enabled: boolean;
+}
+
+export interface SequenceRestartClause {
+    kind: "restart";
+    value?: ValueComponent;
+}
+
+export interface SequenceOwnedByClause {
+    kind: "ownedBy";
+    target?: QualifiedName;
+    none?: boolean;
+}
+
+export type SequenceOptionClause =
+    | SequenceIncrementClause
+    | SequenceStartClause
+    | SequenceMinValueClause
+    | SequenceMaxValueClause
+    | SequenceCacheClause
+    | SequenceCycleClause
+    | SequenceRestartClause
+    | SequenceOwnedByClause;
+
+/**
+ * CREATE SEQUENCE statement representation.
+ */
+export class CreateSequenceStatement extends SqlComponent {
+    static kind = Symbol("CreateSequenceStatement");
+    sequenceName: QualifiedName;
+    ifNotExists: boolean;
+    clauses: SequenceOptionClause[];
+
+    constructor(params: { sequenceName: QualifiedName; ifNotExists?: boolean; clauses?: SequenceOptionClause[] }) {
+        super();
+        this.sequenceName = new QualifiedName(params.sequenceName.namespaces, params.sequenceName.name);
+        this.ifNotExists = params.ifNotExists ?? false;
+        this.clauses = params.clauses ? [...params.clauses] : [];
+    }
+}
+
+/**
+ * ALTER SEQUENCE statement representation.
+ */
+export class AlterSequenceStatement extends SqlComponent {
+    static kind = Symbol("AlterSequenceStatement");
+    sequenceName: QualifiedName;
+    ifExists: boolean;
+    clauses: SequenceOptionClause[];
+
+    constructor(params: { sequenceName: QualifiedName; ifExists?: boolean; clauses?: SequenceOptionClause[] }) {
+        super();
+        this.sequenceName = new QualifiedName(params.sequenceName.namespaces, params.sequenceName.name);
+        this.ifExists = params.ifExists ?? false;
+        this.clauses = params.clauses ? [...params.clauses] : [];
     }
 }

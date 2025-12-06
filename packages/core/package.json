@@ -15,9 +15,10 @@
         "build:browser": "tsc --project tsconfig.browser.json",
         "build:minify": "esbuild src/index.ts --bundle --minify-syntax --minify-whitespace --outfile=dist/index.min.js --format=cjs --sourcemap && esbuild src/index.ts --bundle --minify-syntax --minify-whitespace --outfile=dist/esm/index.min.js --format=esm --sourcemap",
         "build:all": "npm run clean && npm run build && npm run build:browser && npm run build:minify",
-        "release": "npm run build:all && npm pack --dry-run && npm publish",
+        "release": "npm run build:all && npm pack --dry-run && pnpm publish",
         "clean": "tsc --build --clean && node -e \"const fs = require('fs'); if (fs.existsSync('dist')) fs.rmSync('dist', {recursive: true, force: true});\"",
         "lint": "eslint . --ext .ts,.tsx --fix",
+        "postbuild": "node ../../scripts/sync-rawsql-dist.js",
         "benchmark": "ts-node ../../benchmarks/parse-benchmark.ts"
     },
     "keywords": [
