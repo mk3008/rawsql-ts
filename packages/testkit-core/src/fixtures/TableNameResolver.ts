@@ -84,4 +84,9 @@ export class TableNameResolver {
     }
     return normalizeTableName(`${schemaParts.join('.')}.${table}`);
   }
+
+  /** Provides a stable key that captures the resolver's configured schema rules. */
+  public getCacheKey(): string {
+    return `${this.defaultSchema}|${this.searchPath.join(',')}`;
+  }
 }

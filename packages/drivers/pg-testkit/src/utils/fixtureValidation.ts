@@ -25,7 +25,7 @@ export const validateFixtureRowsAgainstTableDefinitions = (
 
   const prefix = contextLabel ? `${contextLabel}: ` : '';
 
-  // Build a lookup keyed by normalized table names so definitions can be resolved quickly.
+  // Build a lookup keyed by resolved table names so definitions can be resolved quickly.
   const definitionLookup = new Map<string, TableDefinitionModel>();
   for (const definition of tableDefinitions) {
     const key = tableNameResolver?.resolve(definition.name) ?? normalizeTableName(definition.name);
@@ -45,11 +45,11 @@ export const validateFixtureRowsAgainstTableDefinitions = (
       );
     }
 
-    // Cache column names per table to avoid recomputing the same metadata for every row.
-    let columnNames = columnCache.get(normalizedTableName);
+    // Memoize column metadata for each resolved table to avoid repeated work.
+    let columnNames = columnCache.get(resolvedTableName);
     if (!columnNames) {
       columnNames = new Set(tableDefinition.columns.map((column) => normalizeColumnName(column.name)));
-      columnCache.set(normalizedTableName, columnNames);
+      columnCache.set(resolvedTableName, columnNames);
     }
 
     // Validate each row so mistyped columns surface immediately during setup.

@@ -39,7 +39,12 @@ export class DdlFixtureLoader {
     // Resolve directories up front so cache keys stay consistent across calls.
     this.resolvedDirectories = options.directories.map((directory) => path.resolve(directory));
     this.extensions = (options.extensions ?? ['.sql']).map((ext) => ext.toLowerCase());
-    this.cacheKey = DdlFixtureLoader.buildCacheKey(this.resolvedDirectories, this.extensions);
+    // Include resolver settings in the cache key to avoid mixing schema snapshots.
+    this.cacheKey = DdlFixtureLoader.buildCacheKey(
+      this.resolvedDirectories,
+      this.extensions,
+      options.tableNameResolver?.getCacheKey()
+    );
     this.tableNameResolver = options.tableNameResolver;
   }
 
@@ -174,44 +179,30 @@ export class DdlFixtureLoader {
       const rows =
         Array.isArray(rawDefinition.rows) && rawDefinition.rows.length > 0 ? rawDefinition.rows : undefined;
 
-      for (const variant of this.buildTableNameVariants(tableName)) {
-        const normalized = this.resolveTableKey(variant);
-        if (fixtures.some((fixture) => this.resolveTableKey(fixture.tableDefinition.name) === normalized)) {
-          continue;
-        }
-
-        fixtures.push({
-          tableDefinition: {
-            name: normalized,
-            columns,
-          },
-          rows,
-        });
+      // Avoid duplicate fixtures for the same canonical table key.
+      const canonicalKey = this.resolveTableKey(tableName);
+      if (fixtures.some((fixture) => this.resolveTableKey(fixture.tableDefinition.name) === canonicalKey)) {
+        continue;
       }
+
+      fixtures.push({
+        tableDefinition: {
+          name: tableName,
+          columns,
+        },
+        rows,
+      });
     }
   }
 
-  private static buildCacheKey(directories: string[], extensions: string[]): string {
+  private static buildCacheKey(directories: string[], extensions: string[], resolverKey?: string): string {
     const normalizedDirectories = [...directories].sort();
     const normalizedExtensions = [...extensions]
       .map((ext) => ext.toLowerCase())
       .sort();
 
-    return `${normalizedDirectories.join('|')}|${normalizedExtensions.join('|')}`;
-  }
-
-  private buildTableNameVariants(tableName: string): string[] {
-    if (this.tableNameResolver) {
-      return [tableName];
-    }
-
-    const normalized = normalizeTableName(tableName);
-    const parts = normalized.split('.');
-    if (parts.length <= 1) {
-      return [normalized];
-    }
-
-    return [normalized, parts[parts.length - 1]];
+    const resolverSegment = resolverKey ? `|resolver:${resolverKey}` : '';
+    return `${normalizedDirectories.join('|')}|${normalizedExtensions.join('|')}${resolverSegment}`;
   }
 
   // Map raw table names into their canonical schema-qualified keys for deduplication.
