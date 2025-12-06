@@ -222,8 +222,8 @@ importers:
   packages/testkit-core:
     dependencies:
       rawsql-ts:
-        specifier: workspace:*
-        version: link:../core
+        specifier: ^0.12.1
+        version: 0.12.1
     devDependencies:
       typescript:
         specifier: ^5.8.2

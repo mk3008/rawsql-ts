@@ -1,6 +1,6 @@
 {
   "name": "@rawsql-ts/ztd-cli",
-  "version": "0.1.0",
+  "version": "0.1.4",
   "description": "DB-agnostic scaffolding and DDL helpers for Zero Table Dependency projects",
   "main": "dist/index.js",
   "bin": {
@@ -10,7 +10,7 @@
     "build": "tsc -p tsconfig.json",
     "test": "vitest run",
     "lint": "eslint src --ext .ts",
-    "release": "npm run lint && npm run test && npm run build && pnpm publish --access public"
+    "release": "npm run lint && npm run test && npm run build && npm pack --dry-run && npm publish --access public"
   },
   "keywords": [
     "rawsql-ts",

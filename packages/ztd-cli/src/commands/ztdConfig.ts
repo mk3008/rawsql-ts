@@ -84,8 +84,7 @@ export function snapshotTableMetadata(sources: SqlSource[]): TableMetadata[] {
           throw new Error(`Missing metadata for ${column.name.name} in ${definition.name}`);
         }
         const constraintKinds = new Set(column.constraints.map((constraint) => constraint.kind));
-        const hasNotNull =
-          columnMeta.isNotNull || constraintKinds.has('not-null') || constraintKinds.has('primary-key');
+        const hasNotNull = constraintKinds.has('not-null') || constraintKinds.has('primary-key');
 
         return {
           name: column.name.name,
