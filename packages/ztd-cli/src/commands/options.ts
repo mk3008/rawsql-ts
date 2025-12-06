@@ -33,3 +33,10 @@ export function resolveExtensions(input: string[] | undefined, fallback: string[
   const normalized = input?.length ? input : fallback;
   return Array.from(new Set(normalized));
 }
+
+export function parseCsvList(value: string): string[] {
+  return value
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
+}

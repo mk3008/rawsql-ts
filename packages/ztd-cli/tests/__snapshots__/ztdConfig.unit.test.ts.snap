@@ -4,6 +4,8 @@ exports[`generates ZTD row map from CREATE TABLE statements 1`] = `
 "// ZTD TEST ROW MAP - AUTO GENERATED
 // Tests must import TestRowMap from this file and never from src.
 // This file is synchronized with DDL using ztd-config.
+
+import type { TableFixture, TableSchemaDefinition } from '@rawsql-ts/testkit-core';
 export interface TestRowMap {
   'public.profiles': PublicProfilesTestRow;
   'public.users': PublicUsersTestRow;
@@ -22,7 +24,20 @@ export interface PublicUsersTestRow {
 }
 
 export type TestRow<K extends keyof TestRowMap> = TestRowMap[K];
+export type ZtdRowShapes = TestRowMap;
 export type ZtdTableName = keyof TestRowMap;
+
+export interface ZtdConfig {
+  tables: ZtdTableName[];
+}
+
+export function tableFixture<K extends ZtdTableName>(
+  tableName: K,
+  rows: ZtdRowShapes[K][],
+  schema?: TableSchemaDefinition
+): TableFixture {
+  return { tableName, rows, schema };
+}
 "
 `;
 
@@ -30,6 +45,8 @@ exports[`handles multiple sources with composite keys and cross-schema reference
 "// ZTD TEST ROW MAP - AUTO GENERATED
 // Tests must import TestRowMap from this file and never from src.
 // This file is synchronized with DDL using ztd-config.
+
+import type { TableFixture, TableSchemaDefinition } from '@rawsql-ts/testkit-core';
 export interface TestRowMap {
   'analytics.weekly_stats': AnalyticsWeeklyStatsTestRow;
   'public.users': PublicUsersTestRow;
@@ -56,6 +73,19 @@ export interface SalesOrdersTestRow {
 }
 
 export type TestRow<K extends keyof TestRowMap> = TestRowMap[K];
+export type ZtdRowShapes = TestRowMap;
 export type ZtdTableName = keyof TestRowMap;
+
+export interface ZtdConfig {
+  tables: ZtdTableName[];
+}
+
+export function tableFixture<K extends ZtdTableName>(
+  tableName: K,
+  rows: ZtdRowShapes[K][],
+  schema?: TableSchemaDefinition
+): TableFixture {
+  return { tableName, rows, schema };
+}
 "
 `;

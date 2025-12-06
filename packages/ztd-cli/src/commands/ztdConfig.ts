@@ -130,6 +130,8 @@ export function renderZtdConfigFile(tables: TableMetadata[]): string {
     '// ZTD TEST ROW MAP - AUTO GENERATED',
     '// Tests must import TestRowMap from this file and never from src.',
     '// This file is synchronized with DDL using ztd-config.',
+    '',
+    "import type { TableFixture, TableSchemaDefinition } from '@rawsql-ts/testkit-core';",
     ''
   ].join('\n');
 
@@ -154,7 +156,20 @@ export function renderZtdConfigFile(tables: TableMetadata[]): string {
   const footer = [
     '',
     'export type TestRow<K extends keyof TestRowMap> = TestRowMap[K];',
+    'export type ZtdRowShapes = TestRowMap;',
     'export type ZtdTableName = keyof TestRowMap;',
+    '',
+    'export interface ZtdConfig {',
+    '  tables: ZtdTableName[];',
+    '}',
+    '',
+    'export function tableFixture<K extends ZtdTableName>(',
+    '  tableName: K,',
+    '  rows: ZtdRowShapes[K][],',
+    '  schema?: TableSchemaDefinition',
+    '): TableFixture {',
+    '  return { tableName, rows, schema };',
+    '}',
     ''
   ].join('\n');
 

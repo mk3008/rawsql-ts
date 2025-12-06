@@ -8,9 +8,10 @@ import {
   resolveExtensions,
   DEFAULT_DDL_DIRECTORY,
   DEFAULT_EXTENSIONS,
-  DEFAULT_TESTS_DIRECTORY
+  DEFAULT_TESTS_DIRECTORY,
+  parseCsvList
 } from './options';
-import { loadZtdProjectConfig } from '../utils/ztdProjectConfig';
+import { loadZtdProjectConfig, writeZtdProjectConfig, type ZtdProjectConfig } from '../utils/ztdProjectConfig';
 import { runGenerateZtdConfig, type ZtdConfigGenerationOptions } from './ztdConfig';
 
 const WATCH_DEBOUNCE_MS = 150;
@@ -22,6 +23,8 @@ export function registerZtdConfigCommand(program: Command): void {
     .option('--ddl-dir <directory>', 'DDL directory to scan (repeatable)', collectDirectories, [])
     .option('--extensions <list>', 'Comma-separated extensions to include', parseExtensions, DEFAULT_EXTENSIONS)
     .option('--out <file>', 'Destination TypeScript file for generated config')
+    .option('--default-schema <schema>', 'Override ddl.defaultSchema stored in ztd.config.json')
+    .option('--search-path <list>', 'Comma-separated schema search path entries', parseCsvList)
     .option('--watch', 'Watch DDL files and regenerate when schema changes', false)
     .action(async (options) => {
       const projectConfig = loadZtdProjectConfig();
@@ -29,6 +32,24 @@ export function registerZtdConfigCommand(program: Command): void {
       const extensions = resolveExtensions(options.extensions as string[], DEFAULT_EXTENSIONS);
       const defaultOut = path.join(projectConfig.testsDir ?? DEFAULT_TESTS_DIRECTORY, 'ztd-config.ts');
       const output = options.out ?? defaultOut;
+
+      const ddlOverrides: ZtdProjectConfig['ddl'] = { ...projectConfig.ddl };
+      let shouldUpdateConfig = false;
+
+      if (options.defaultSchema) {
+        ddlOverrides.defaultSchema = options.defaultSchema;
+        shouldUpdateConfig = true;
+      }
+
+      if (options.searchPath && options.searchPath.length > 0) {
+        ddlOverrides.searchPath = options.searchPath;
+        shouldUpdateConfig = true;
+      }
+
+      if (shouldUpdateConfig) {
+        writeZtdProjectConfig(process.cwd(), { ddl: ddlOverrides });
+        console.log('[notice] ztd.config.json ddl schema settings updated.');
+      }
 
       const generationOptions: ZtdConfigGenerationOptions = {
         directories,

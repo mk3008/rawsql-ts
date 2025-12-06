@@ -7,6 +7,7 @@ export { DefaultFixtureProvider } from './fixtures/FixtureProvider';
 export { SelectFixtureRewriter } from './rewriter/SelectFixtureRewriter';
 export type { SelectAnalysisResult } from './rewriter/SelectAnalyzer';
 export { TableDefinitionSchemaRegistry } from './fixtures/TableDefinitionSchemaRegistry';
+export { TableNameResolver, type TableNameResolverOptions, type TableLookup } from './fixtures/TableNameResolver';
 export type { DdlProcessedFixture } from './fixtures/DdlFixtureLoader';
 export { ResultSelectRewriter } from './rewriter/ResultSelectRewriter';
 export { alignRewrittenParameters, applyCountWrapper, extractCountValue, CountableResult } from './utils/queryHelpers';

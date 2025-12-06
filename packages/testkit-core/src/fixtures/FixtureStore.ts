@@ -8,6 +8,7 @@ import type {
   SqliteAffinity,
 } from '../types';
 import { guessAffinity } from './ColumnAffinity';
+import { TableNameResolver } from './TableNameResolver';
 
 export interface ColumnDefinition {
   name: string;
@@ -29,10 +30,12 @@ export interface FixtureColumnDescription {
 
 export class FixtureStore {
   private readonly schemaRegistry?: SchemaRegistry;
+  private readonly tableNameResolver?: TableNameResolver;
   private readonly baseMap: Map<string, NormalizedFixture>;
 
-  constructor(fixtures: TableFixture[] = [], schema?: SchemaRegistry) {
+  constructor(fixtures: TableFixture[] = [], schema?: SchemaRegistry, tableNameResolver?: TableNameResolver) {
     this.schemaRegistry = schema;
+    this.tableNameResolver = tableNameResolver;
     this.baseMap = this.buildMap(fixtures);
   }
 
@@ -50,13 +53,13 @@ export class FixtureStore {
   }
 
   public describeColumns(tableName: string): FixtureColumnDescription | undefined {
-    const normalized = normalizeIdentifier(tableName);
-    const fixture = this.baseMap.get(normalized);
+    const target = this.resolveTableKey(tableName, (candidate) => this.baseMap.has(candidate));
+    const fixture = this.baseMap.get(target);
     if (fixture) {
       return { columns: fixture.columns, source: 'fixture' };
     }
 
-    const schema = this.getRegisteredSchema(tableName, normalized);
+    const schema = this.getRegisteredSchema(tableName);
     if (!schema) {
       return undefined;
     }
@@ -67,28 +70,29 @@ export class FixtureStore {
   private buildMap(fixtures: TableFixture[]): Map<string, NormalizedFixture> {
     const map = new Map<string, NormalizedFixture>();
     for (const fixture of fixtures) {
-      const normalizedName = normalizeIdentifier(fixture.tableName);
-      map.set(normalizedName, this.normalizeFixture(fixture));
+      const lookupKey = this.resolveTableKey(fixture.tableName);
+      map.set(lookupKey, this.normalizeFixture(fixture));
     }
     return map;
   }
 
-  private getRegisteredSchema(
-    tableName: string,
-    normalized: string
-  ): TableSchemaDefinition | TableDefinitionModel | undefined {
+  private getRegisteredSchema(tableName: string): TableSchemaDefinition | TableDefinitionModel | undefined {
     if (!this.schemaRegistry) {
       return undefined;
     }
-    return (
-      this.schemaRegistry.getTable(tableName) ??
-      this.schemaRegistry.getTable(normalized) ??
-      this.schemaRegistry.getTable(tableName.toLowerCase())
-    );
+
+    for (const candidate of this.resolveLookupCandidates(tableName)) {
+      const schema = this.schemaRegistry.getTable(candidate);
+      if (schema) {
+        return schema;
+      }
+    }
+
+    return undefined;
   }
 
   private normalizeFixture(fixture: TableFixture): NormalizedFixture {
-    const schema = fixture.schema ?? this.schemaRegistry?.getTable(fixture.tableName);
+    const schema = fixture.schema ?? this.getRegisteredSchema(fixture.tableName);
     if (!schema) {
       throw new SchemaValidationError(
         `Table "${fixture.tableName}" is missing a schema definition. Provide fixture.schema or register the table.`
@@ -105,6 +109,22 @@ export class FixtureStore {
       columns,
       rows,
     };
+  }
+
+  // Prefer configured resolver results so the canonical key matches schema-aware expectations.
+  private resolveTableKey(tableName: string, lookup?: (candidate: string) => boolean): string {
+    if (!this.tableNameResolver) {
+      return normalizeIdentifier(tableName);
+    }
+    return this.tableNameResolver.resolve(tableName, lookup);
+  }
+
+  // Provide multiple lookup candidates so schema registries can be probed by both qualified and unqualified names.
+  private resolveLookupCandidates(tableName: string): string[] {
+    if (!this.tableNameResolver) {
+      return [normalizeIdentifier(tableName)];
+    }
+    return this.tableNameResolver.buildLookupCandidates(tableName);
   }
 
   private buildColumns(

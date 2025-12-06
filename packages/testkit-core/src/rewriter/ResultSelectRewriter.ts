@@ -44,7 +44,6 @@ import {
   SourceComponent,
   SubQuerySource,
   TableSource,
-  tableNameVariants,
   normalizeTableName,
 } from 'rawsql-ts';
 import { FixtureCteBuilder } from 'rawsql-ts';
@@ -57,6 +56,7 @@ import type {
   SelectQuery,
 } from 'rawsql-ts';
 import type { FixtureResolver, TableRowsFixture } from '../types';
+import { TableNameResolver } from '../fixtures/TableNameResolver';
 
 interface RewriteInputs {
   fixtureTables: ReturnType<FixtureResolver['resolve']>['fixtureTables'];
@@ -79,7 +79,8 @@ export class ResultSelectRewriter {
   constructor(
     private readonly fixtures: FixtureResolver,
     private readonly missingFixtureStrategy: MissingFixtureStrategy = 'error',
-    formatterOptions?: SqlFormatterOptions
+    formatterOptions?: SqlFormatterOptions,
+    private readonly tableNameResolver?: TableNameResolver
   ) {
     this.formatter = new SqlFormatter({
       preset: 'postgres',
@@ -247,7 +248,7 @@ export class ResultSelectRewriter {
     const aliasMap = this.buildFixtureAliasMap(fixtures);
 
     for (const cte of ctes) {
-      const alias = aliasMap.get(normalizeTableName(cte.aliasExpression.table.name));
+      const alias = aliasMap.get(this.getPrimaryKey(cte.aliasExpression.table.name));
       if (!alias) {
         continue;
       }
@@ -260,7 +261,7 @@ export class ResultSelectRewriter {
   private buildFixtureAliasMap(fixtures: FixtureTableDefinition[]): Map<string, string> {
     const aliasMap = new Map<string, string>();
     for (const fixture of fixtures) {
-      aliasMap.set(normalizeTableName(fixture.tableName), this.buildFixtureAlias(fixture.tableName));
+      aliasMap.set(this.getPrimaryKey(fixture.tableName), this.buildFixtureAlias(fixture.tableName));
     }
     return aliasMap;
   }
@@ -275,17 +276,39 @@ export class ResultSelectRewriter {
       return [];
     }
 
+    const referenced = this.collectReferencedTableKeys(query);
+
+    return fixtures.filter((fixture) =>
+      this.getLookupCandidates(fixture.tableName).some((variant) => referenced.has(variant))
+    );
+  }
+
+  // Capture every canonical key referenced by the query so fixtures can be matched even when schemas differ.
+  private collectReferencedTableKeys(query: SelectQuery): Set<string> {
     const collector = new TableSourceCollector(false);
     const referenced = new Set<string>();
     for (const source of collector.collect(query)) {
-      for (const variant of tableNameVariants(source.getSourceName())) {
-        referenced.add(variant);
+      for (const candidate of this.getLookupCandidates(source.getSourceName())) {
+        referenced.add(candidate);
       }
     }
+    return referenced;
+  }
 
-    return fixtures.filter((fixture) =>
-      tableNameVariants(fixture.tableName).some((variant) => referenced.has(variant))
-    );
+  // Provide all candidate keys to consult when looking up tables in maps or registries.
+  private getLookupCandidates(tableName: string): string[] {
+    if (!this.tableNameResolver) {
+      return [normalizeTableName(tableName)];
+    }
+    return this.tableNameResolver.buildLookupCandidates(tableName);
+  }
+
+  // Return the preferred canonical key to use for alias mapping and rewriting.
+  private getPrimaryKey(tableName: string): string {
+    if (!this.tableNameResolver) {
+      return normalizeTableName(tableName);
+    }
+    return this.tableNameResolver.resolve(tableName);
   }
 
   private normalizeParameters(sql: string): { sql: string; placeholders: Map<string, string> } {
@@ -316,7 +339,7 @@ export class ResultSelectRewriter {
 
     const collector = new TableSourceCollector(false);
     for (const source of collector.collect(component)) {
-      const referencedName = normalizeTableName(source.getSourceName());
+      const referencedName = this.getPrimaryKey(source.getSourceName());
       const alias = fixtureAliasMap.get(referencedName);
       if (!alias) {
         continue;
@@ -345,7 +368,7 @@ export class ResultSelectRewriter {
   private rewriteColumnReferencesInQuery(query: SimpleSelectQuery, aliasMap: Map<string, string>): void {
     if (query.withClause?.tables) {
       for (const cte of query.withClause.tables) {
-        const normalized = normalizeTableName(cte.aliasExpression.table.name);
+        const normalized = this.getPrimaryKey(cte.aliasExpression.table.name);
         const alias = aliasMap.get(normalized);
         if (alias) {
           // Align the WITH clause alias with the names used later in the main query.
@@ -586,7 +609,7 @@ export class ResultSelectRewriter {
       return;
     }
 
-    const alias = aliasMap.get(normalizeTableName(namespaceKey));
+    const alias = aliasMap.get(this.getPrimaryKey(namespaceKey));
     if (!alias) {
       return;
     }

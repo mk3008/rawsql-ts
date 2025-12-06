@@ -1,0 +1,5 @@
+{
+  "dialect": "postgres",
+  "ddlDir": "ddl/schemas",
+  "testsDir": "tests"
+}

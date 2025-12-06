@@ -1,26 +1,42 @@
-// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
-
-exports[`ztd-config CLI produces the expected TypeScript snapshot 1`] = `
-"// ZTD TEST ROW MAP - AUTO GENERATED
+// ZTD TEST ROW MAP - AUTO GENERATED
 // Tests must import TestRowMap from this file and never from src.
 // This file is synchronized with DDL using ztd-config.
 
 import type { TableFixture, TableSchemaDefinition } from '@rawsql-ts/testkit-core';
 export interface TestRowMap {
-  'public.sessions': PublicSessionsTestRow;
-  'public.users': PublicUsersTestRow;
+  'order_items': OrderItemsTestRow;
+  'orders': OrdersTestRow;
+  'products': ProductsTestRow;
+  'users': UsersTestRow;
 }
 
-export interface PublicSessionsTestRow {
-  id: number;
+export interface OrderItemsTestRow {
+  order_items_id: number;
+  order_id: number;
+  product_id: number;
+  quantity: number;
+  unit_price: string;
+}
+
+export interface OrdersTestRow {
+  orders_id: number;
   user_id: number;
-  expires_at: string;
+  order_date: string;
+  status: string;
 }
 
-export interface PublicUsersTestRow {
-  id: number;
+export interface ProductsTestRow {
+  products_id: number;
+  name: string;
+  price: string;
+  category_id: number | null;
+}
+
+export interface UsersTestRow {
+  users_id: number;
+  name: string;
   email: string;
-  score: string | null;
+  created_at: string;
 }
 
 export type TestRow<K extends keyof TestRowMap> = TestRowMap[K];
@@ -38,5 +54,3 @@ export function tableFixture<K extends ZtdTableName>(
 ): TableFixture {
   return { tableName, rows, schema };
 }
-"
-`;

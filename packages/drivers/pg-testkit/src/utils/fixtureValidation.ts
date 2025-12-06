@@ -1,5 +1,6 @@
 import { normalizeTableName } from 'rawsql-ts';
 import type { TableDefinitionModel, TableRowsFixture } from '../types';
+import type { TableNameResolver } from '@rawsql-ts/testkit-core';
 
 const normalizeColumnName = (value: string): string => value.toLowerCase();
 
@@ -15,7 +16,8 @@ const normalizeColumnName = (value: string): string => value.toLowerCase();
 export const validateFixtureRowsAgainstTableDefinitions = (
   tableRows: TableRowsFixture[] | undefined,
   tableDefinitions: TableDefinitionModel[],
-  contextLabel?: string
+  contextLabel?: string,
+  tableNameResolver?: TableNameResolver
 ): void => {
   if (!tableRows?.length) {
     return;
@@ -23,28 +25,31 @@ export const validateFixtureRowsAgainstTableDefinitions = (
 
   const prefix = contextLabel ? `${contextLabel}: ` : '';
 
-  // Build a lookup keyed by normalized table names so definitions can be resolved quickly.
+  // Build a lookup keyed by resolved table names so definitions can be resolved quickly.
   const definitionLookup = new Map<string, TableDefinitionModel>();
   for (const definition of tableDefinitions) {
-    definitionLookup.set(normalizeTableName(definition.name), definition);
+    const key = tableNameResolver?.resolve(definition.name) ?? normalizeTableName(definition.name);
+    definitionLookup.set(key, definition);
   }
 
   const columnCache = new Map<string, Set<string>>();
 
   for (const fixture of tableRows) {
-    const normalizedTableName = normalizeTableName(fixture.tableName);
-    const tableDefinition = definitionLookup.get(normalizedTableName);
+    const resolvedTableName = tableNameResolver
+      ? tableNameResolver.resolve(fixture.tableName, (candidate) => definitionLookup.has(candidate))
+      : normalizeTableName(fixture.tableName);
+    const tableDefinition = definitionLookup.get(resolvedTableName);
     if (!tableDefinition) {
       throw new Error(
         `${prefix}Table '${fixture.tableName}' is not defined by the configured DDL or explicit table definitions.`
       );
     }
 
-    // Cache column names per table to avoid recomputing the same metadata for every row.
-    let columnNames = columnCache.get(normalizedTableName);
+    // Memoize column metadata for each resolved table to avoid repeated work.
+    let columnNames = columnCache.get(resolvedTableName);
     if (!columnNames) {
       columnNames = new Set(tableDefinition.columns.map((column) => normalizeColumnName(column.name)));
-      columnCache.set(normalizedTableName, columnNames);
+      columnCache.set(resolvedTableName, columnNames);
     }
 
     // Validate each row so mistyped columns surface immediately during setup.

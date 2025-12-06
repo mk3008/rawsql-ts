@@ -46,6 +46,8 @@ export const createPgTestkitPool = (
       tableRows: combinedFixtures,
       ddl: poolOptions?.ddl,
       tableDefinitions: poolOptions?.tableDefinitions,
+      defaultSchema: poolOptions?.defaultSchema,
+      searchPath: poolOptions?.searchPath,
     });
 
     private buildRawConnection(): PgQueryable {
