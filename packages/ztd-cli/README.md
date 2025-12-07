@@ -43,7 +43,7 @@ Every `ztd ddl` subcommand targets the shared DDL directory defined in `ztd.conf
 
  Fetches the schema via `pg_dump`, normalizes the DDL, and writes one file per schema under `ddl/schemas/<schema>.sql` instead of a single `schema.sql`. The output drops headers, `SET` statements, and `\restrict` markers, sorts objects (schemas, tables, alterations, sequences, indexes) deterministically, and ensures each schema file ends with a clean newline so `ztd gen-config` and your AI flows always see stable input.
 
- The command resolves the database connection in three steps: prefer a `DATABASE_URL` environment variable, honor explicit flags (`--db-host`, `--db-port`, `--db-user`, `--db-password`, `--db-name`) when supplied, and finally fall back to a `connection` block in `ztd.config.json` if present. Flags that provide partial credentials will cause the CLI to error before invoking `pg_dump` so you know exactly what is missing, and the generated error message always mentions the connection target together with concrete fixes.
+ The command resolves the database connection in three steps: prefer a `DATABASE_URL` environment variable, honor explicit CLI overrides (`--url` or the `--db-*` flags) when supplied, and finally fall back to a `connection` block in `ztd.config.json` if present. Flags that provide partial credentials will cause the CLI to error before invoking `pg_dump` so you know exactly what is missing, and the generated error message always mentions the connection target together with concrete fixes. You only need to pass `--url` when no other resolver (environment or config) is configured; the CLI will reuse the resolved URL for every downstream tool invocation once the connection is determined.
 
  A sample `connection` block looks like:
 

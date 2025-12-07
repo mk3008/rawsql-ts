@@ -5,6 +5,7 @@ import { runGenerateEntities } from './genEntities';
 import { runPullSchema } from './pull';
 import { loadZtdProjectConfig } from '../utils/ztdProjectConfig';
 import { resolveDatabaseConnection } from '../utils/dbConnection';
+import type { DbConnectionFlags, ResolvedDatabaseConnection } from '../utils/dbConnection';
 import {
   collectDirectories,
   collectValues,
@@ -15,13 +16,35 @@ import {
   DEFAULT_EXTENSIONS
 } from './options';
 
+interface ConnectionCliOptions {
+  url?: string;
+  pgDumpPath?: string;
+  dbHost?: string;
+  dbPort?: string;
+  dbUser?: string;
+  dbPassword?: string;
+  dbName?: string;
+}
+
+interface PullCommandOptions extends ConnectionCliOptions {
+  out?: string;
+  schema?: string[];
+  table?: string[];
+}
+
+interface DiffCommandOptions extends ConnectionCliOptions {
+  ddlDir?: string[];
+  extensions?: string[];
+  out?: string;
+}
+
 export function registerDdlCommands(program: Command): void {
   const ddl = program.command('ddl').description('DDL-focused workflows');
 
     ddl
       .command('pull')
       .description('Retrieve the current schema DDL from a PostgreSQL database')
-      .requiredOption('--url <databaseUrl>', 'Connection string to use for pg_dump')
+      .option('--url <databaseUrl>', 'Connection string to use for pg_dump (optional; fallback to env/config)')
       .option('--out <directory>', 'Destination directory for the pulled DDL', DEFAULT_DDL_DIRECTORY)
       .option('--db-host <host>', 'Database host to use instead of DATABASE_URL')
       .option('--db-port <port>', 'Database port (defaults to 5432)')
@@ -31,24 +54,14 @@ export function registerDdlCommands(program: Command): void {
       .option('--pg-dump-path <path>', 'Custom pg_dump executable path')
       .option('--schema <schema>', 'Schema name to include (repeatable)', collectValues, [])
       .option('--table <table>', 'Table spec (schema.table) to include (repeatable)', collectValues, [])
-      .action(async (options) => {
-        const connection = resolveDatabaseConnection(
-          {
-            host: options.dbHost,
-            port: options.dbPort,
-            user: options.dbUser,
-            password: options.dbPassword,
-            database: options.dbName
-          },
-          loadZtdProjectConfig(),
-          options.url
-        );
+      .action(async (options: PullCommandOptions) => {
+        const connection = resolveCliConnection(options);
         await runPullSchema({
-          url: options.url,
-          out: options.out,
-          pgDumpPath: options.pgDumpPath as string | undefined,
-          schemas: options.schema as string[],
-          tables: options.table as string[],
+          url: connection.url,
+          out: options.out ?? DEFAULT_DDL_DIRECTORY,
+          pgDumpPath: options.pgDumpPath,
+          schemas: options.schema ?? [],
+          tables: options.table ?? [],
           connectionContext: connection.context
         });
       });
@@ -74,7 +87,7 @@ export function registerDdlCommands(program: Command): void {
       .description('Compare local DDL against a live PostgreSQL database and emit a plan')
       .option('--ddl-dir <directory>', 'DDL directory to scan (repeatable)', collectDirectories, [])
       .option('--extensions <list>', 'Comma-separated extensions to include', parseExtensions, DEFAULT_EXTENSIONS)
-      .requiredOption('--url <databaseUrl>', 'Connection string to use for pg_dump')
+      .option('--url <databaseUrl>', 'Connection string to use for pg_dump (optional; fallback to env/config)')
       .requiredOption('--out <file>', 'Output path for the generated plan file')
       .option('--db-host <host>', 'Database host to use instead of DATABASE_URL')
       .option('--db-port <port>', 'Database port (defaults to 5432)')
@@ -82,29 +95,34 @@ export function registerDdlCommands(program: Command): void {
       .option('--db-password <password>', 'Database password')
       .option('--db-name <name>', 'Database name to connect to')
       .option('--pg-dump-path <path>', 'Custom pg_dump executable path')
-      .action(async (options) => {
-        const directories = normalizeDirectoryList(options.ddlDir as string[], DEFAULT_DDL_DIRECTORY);
-        const extensions = resolveExtensions(options.extensions as string[], DEFAULT_EXTENSIONS);
-        const connection = resolveDatabaseConnection(
-          {
-            host: options.dbHost,
-            port: options.dbPort,
-            user: options.dbUser,
-            password: options.dbPassword,
-            database: options.dbName
-          },
-          loadZtdProjectConfig(),
-          options.url
-        );
+      .action(async (options: DiffCommandOptions) => {
+        const directories = normalizeDirectoryList(options.ddlDir ?? [], DEFAULT_DDL_DIRECTORY);
+        const extensions = resolveExtensions(options.extensions, DEFAULT_EXTENSIONS);
+        const connection = resolveCliConnection(options);
         await runDiffSchema({
           directories,
           extensions,
-          url: options.url,
-          out: options.out,
-          pgDumpPath: options.pgDumpPath as string | undefined,
+          url: connection.url,
+          out: options.out!,
+          pgDumpPath: options.pgDumpPath,
           connectionContext: connection.context
         });
       });
   }
+
+function resolveCliConnection(options: ConnectionCliOptions): ResolvedDatabaseConnection {
+  // Gather configuration once per command so overrides and defaults stay synchronized.
+  return resolveDatabaseConnection(buildFlagSet(options), loadZtdProjectConfig(), options.url);
+}
+
+function buildFlagSet(options: ConnectionCliOptions): DbConnectionFlags {
+  return {
+    host: options.dbHost,
+    port: options.dbPort,
+    user: options.dbUser,
+    password: options.dbPassword,
+    database: options.dbName
+  };
+}
 
 export { collectDirectories, parseExtensions, DEFAULT_EXTENSIONS, DEFAULT_DDL_DIRECTORY } from './options';

@@ -3,7 +3,7 @@
 exports[`diff schema renderer produces unified patch with deterministic header 1`] = `
 "-- ztd ddl diff plan
 -- Local DDL: <tmp/cli-diff/ddl>
--- Database: postgres://test
+-- Database: target: source=flags, host=cli-host, port=5432, db=diff-db, user=diff-user
 -- Generated: 2025-01-01T12:00:00.000Z
 
 ===================================================================

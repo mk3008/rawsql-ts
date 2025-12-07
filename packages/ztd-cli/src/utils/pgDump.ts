@@ -1,6 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import os from 'node:os';
 import type { DbConnectionContext } from './dbConnection';
+import { describeConnectionContext } from './connectionSummary';
 
 export interface PgDumpOptions {
   url: string;
@@ -54,28 +55,6 @@ export function runPgDump(options: PgDumpOptions): string {
   }
 
   return result.stdout;
-}
-
-function describeConnectionContext(context?: DbConnectionContext): string {
-  if (!context) {
-    return '';
-  }
-
-  const parts = [`source=${context.source}`];
-  if (context.host) {
-    parts.push(`host=${context.host}`);
-  }
-  if (context.port) {
-    parts.push(`port=${context.port}`);
-  }
-  if (context.database) {
-    parts.push(`db=${context.database}`);
-  }
-  if (context.user) {
-    parts.push(`user=${context.user}`);
-  }
-
-  return ` (target: ${parts.join(', ')})`;
 }
 
 function isExecutableMissing(error: NodeJS.ErrnoException, stderr?: string): boolean {

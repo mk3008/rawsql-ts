@@ -31,24 +31,7 @@ export function resolveDatabaseConnection(
   config: ZtdProjectConfig,
   explicitUrl?: string
 ): ResolvedDatabaseConnection {
-  // Explicit CLI flags always take priority so they override any other source.
-  if (hasExplicitFlags(flags)) {
-    return resolveFromFlags(flags);
-  }
-
-  const trimmedExplicitUrl = explicitUrl?.trim();
-  if (trimmedExplicitUrl) {
-    // Use the caller-provided connection string directly when no other overrides exist.
-    return {
-      url: trimmedExplicitUrl,
-      context: {
-        source: 'flags',
-        ...parseUrlContext(trimmedExplicitUrl)
-      }
-    };
-  }
-
-  // Treat DATABASE_URL as a fallback when no explicit CLI inputs exist.
+  // Prefer DATABASE_URL when provided so the consumer can rely on a single override.
   const envUrl = (process.env.DATABASE_URL ?? '').trim();
   if (envUrl) {
     return {
@@ -60,15 +43,33 @@ export function resolveDatabaseConnection(
     };
   }
 
+  const trimmedExplicitUrl = explicitUrl?.trim();
+  if (trimmedExplicitUrl) {
+    // Use the caller-provided connection string directly when no environment override exists.
+    return {
+      url: trimmedExplicitUrl,
+      context: {
+        source: 'flags',
+        ...parseUrlContext(trimmedExplicitUrl)
+      }
+    };
+  }
+
+  // Explicit CLI flags are the next fallback if no URL context is available.
+  if (hasExplicitFlags(flags)) {
+    return resolveFromFlags(flags);
+  }
+
   const connectionConfig = config.connection;
   if (connectionConfig) {
-    // Fall back to the config block only when neither explicit flags nor env variables were present.
+    // Fall back to the config block only when neither env nor CLI overrides exist.
     if (connectionConfig.url) {
+      const trimmedConfigUrl = connectionConfig.url.trim();
       return {
-        url: connectionConfig.url,
+        url: trimmedConfigUrl,
         context: {
           source: 'config',
-          ...parseUrlContext(connectionConfig.url),
+          ...parseUrlContext(trimmedConfigUrl),
           ...(connectionConfig.host ? { host: connectionConfig.host } : {}),
           ...(connectionConfig.user ? { user: connectionConfig.user } : {}),
           ...(connectionConfig.database ? { database: connectionConfig.database } : {}),

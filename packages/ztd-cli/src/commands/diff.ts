@@ -4,6 +4,7 @@ import { createTwoFilesPatch } from 'diff';
 import { collectSqlFiles } from '../utils/collectSqlFiles';
 import { ensureDirectory } from '../utils/fs';
 import { runPgDump } from '../utils/pgDump';
+import { formatConnectionTarget } from '../utils/connectionSummary';
 import type { DbConnectionContext } from '../utils/dbConnection';
 
 export interface DiffSchemaOptions {
@@ -35,7 +36,8 @@ export function runDiffSchema(options: DiffSchemaOptions): void {
     ? createTwoFilesPatch('local', 'database', localSql, remoteSql, '', '', { context: 3 })
     : '-- No schema differences detected.';
 
-  const header = `-- ztd ddl diff plan\n-- Local DDL: ${options.directories.join(', ')}\n-- Database: ${options.url}\n-- Generated: ${new Date().toISOString()}\n\n`;
+  const databaseTarget = formatConnectionTarget(options.connectionContext) || 'target: unknown';
+  const header = `-- ztd ddl diff plan\n-- Local DDL: ${options.directories.join(', ')}\n-- Database: ${databaseTarget}\n-- Generated: ${new Date().toISOString()}\n\n`;
 
   // Guarantee the target path exists before emitting the plan file.
   ensureDirectory(path.dirname(options.out));

@@ -20,8 +20,9 @@ function withEnv<T>(value: string | undefined, fn: () => T): T {
   }
 }
 
-test('explicit --db-* flags override DATABASE_URL', () => {
-  const connection = withEnv('postgres://env:user@envhost:5432/envdb', () =>
+test('DATABASE_URL takes precedence over CLI overrides', () => {
+  const envUrl = 'postgres://env:user@envhost:5432/envdb';
+  const connection = withEnv(envUrl, () =>
     resolveDatabaseConnection(
       {
         host: 'flags.example',
@@ -30,40 +31,51 @@ test('explicit --db-* flags override DATABASE_URL', () => {
         password: 'p@ss',
         database: 'flag_db'
       },
-      DEFAULT_ZTD_CONFIG
+      DEFAULT_ZTD_CONFIG,
+      'postgres://cli-user:secret@cli-host:3421/cli-db'
     )
-  );
-
-  expect(connection.context.source).toBe('flags');
-  expect(connection.context.host).toBe('flags.example');
-  expect(connection.context.port).toBe(6543);
-  expect(connection.context.database).toBe('flag_db');
-  expect(connection.url).toContain('flags.example');
-  expect(connection.url).toContain('flag_db');
-});
-
-test('DATABASE_URL is used when no flags provided', () => {
-  const url = 'postgres://envuser:envpass@envhost:5432/envdb';
-  const connection = withEnv(url, () =>
-    resolveDatabaseConnection({}, DEFAULT_ZTD_CONFIG)
   );
 
   expect(connection.context.source).toBe('environment');
   expect(connection.context.host).toBe('envhost');
+  expect(connection.context.port).toBe(5432);
+  expect(connection.context.user).toBe('env');
   expect(connection.context.database).toBe('envdb');
-  expect(connection.url).toBe(url);
+  expect(connection.url).toBe(envUrl);
+});
+
+test('explicit --db-* flags are used when DATABASE_URL is absent', () => {
+  withEnv(undefined, () => {
+    const connection = resolveDatabaseConnection(
+      {
+        host: 'flags.example',
+        port: '6543',
+        user: 'flag-user',
+        password: 'p@ss',
+        database: 'flag_db'
+      },
+      DEFAULT_ZTD_CONFIG
+    );
+
+    expect(connection.context.source).toBe('flags');
+    expect(connection.context.host).toBe('flags.example');
+    expect(connection.context.port).toBe(6543);
+    expect(connection.context.database).toBe('flag_db');
+  });
 });
 
 test('explicit URL argument supplies context when provided without other overrides', () => {
-  const url = 'postgres://cli-user:secret@cli-host:3421/cli-db';
-  const connection = resolveDatabaseConnection({}, DEFAULT_ZTD_CONFIG, url);
+  withEnv(undefined, () => {
+    const url = 'postgres://cli-user:secret@cli-host:3421/cli-db';
+    const connection = resolveDatabaseConnection({}, DEFAULT_ZTD_CONFIG, url);
 
-  expect(connection.context.source).toBe('flags');
-  expect(connection.context.host).toBe('cli-host');
-  expect(connection.context.port).toBe(3421);
-  expect(connection.context.user).toBe('cli-user');
-  expect(connection.context.database).toBe('cli-db');
-  expect(connection.url).toBe(url);
+    expect(connection.context.source).toBe('flags');
+    expect(connection.context.host).toBe('cli-host');
+    expect(connection.context.port).toBe(3421);
+    expect(connection.context.user).toBe('cli-user');
+    expect(connection.context.database).toBe('cli-db');
+    expect(connection.url).toBe(url);
+  });
 });
 
 test('configuration block is used when no env or flags exist', () => {

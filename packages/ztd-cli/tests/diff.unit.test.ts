@@ -50,8 +50,15 @@ test('diff schema renderer produces unified patch with deterministic header', ()
     runDiffSchema({
       directories: [ddlDir],
       extensions: ['.sql'],
-      url: 'postgres://test',
-      out: outputFile
+      url: 'postgres://test:secret@cli-host:5432/diff-db',
+      out: outputFile,
+      connectionContext: {
+        source: 'flags',
+        host: 'cli-host',
+        port: 5432,
+        user: 'diff-user',
+        database: 'diff-db'
+      }
     });
     expect(spy).toHaveBeenCalled();
   } finally {
@@ -65,5 +72,7 @@ test('diff schema renderer produces unified patch with deterministic header', ()
     /-- Local DDL: .*tmp[\\/]+cli-diff-[^\\/]+[\\/]+ddl/,
     '-- Local DDL: <tmp/cli-diff/ddl>'
   );
+  expect(normalized).toContain('-- Database: target: source=flags, host=cli-host, port=5432, db=diff-db, user=diff-user');
+  expect(normalized).not.toContain('secret');
   expect(normalized).toMatchSnapshot();
 });
