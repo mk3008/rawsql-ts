@@ -5,6 +5,7 @@ import { runGenerateEntities } from './genEntities';
 import { runPullSchema } from './pull';
 import {
   collectDirectories,
+  collectValues,
   normalizeDirectoryList,
   parseExtensions,
   resolveExtensions,
@@ -21,11 +22,15 @@ export function registerDdlCommands(program: Command): void {
     .requiredOption('--url <databaseUrl>', 'Connection string to use for pg_dump')
     .option('--out <directory>', 'Destination directory for the pulled DDL', DEFAULT_DDL_DIRECTORY)
     .option('--pg-dump-path <path>', 'Custom pg_dump executable path')
+    .option('--schema <schema>', 'Schema name to include (repeatable)', collectValues, [])
+    .option('--table <table>', 'Table spec (schema.table) to include (repeatable)', collectValues, [])
     .action(async (options) => {
       await runPullSchema({
         url: options.url,
         out: options.out,
-        pgDumpPath: options.pgDumpPath as string | undefined
+        pgDumpPath: options.pgDumpPath as string | undefined,
+        schemas: options.schema as string[],
+        tables: options.table as string[]
       });
     });
 
