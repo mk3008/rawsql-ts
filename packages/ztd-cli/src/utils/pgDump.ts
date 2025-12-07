@@ -27,15 +27,19 @@ export function runPgDump(options: PgDumpOptions): string {
   });
 
   if (result.error) {
+    // Surface any extra arguments so the user can relate the failure to their filters.
+    const extraArgsNote = options.extraArgs?.length ? ` (extra args: ${options.extraArgs.join(' ')})` : '';
     throw new Error(
-      `Failed to launch pg_dump (${executable}). Ensure it is installed and available in PATH or specify --pg-dump-path.`
+      `Failed to launch pg_dump (${executable}). Ensure it is installed and available in PATH or specify --pg-dump-path.${extraArgsNote}`
     );
   }
 
   // Fail fast when the dump output is missing or the tool reported an error.
   if (result.status !== 0 || !result.stdout) {
     const stderr = result.stderr ? result.stderr.toString().trim() : 'Unknown error';
-    throw new Error(`pg_dump reported an error: ${stderr}`);
+    // Surface any extra arguments so the user can relate the failure to their filters.
+    const extraArgsNote = options.extraArgs?.length ? ` (extra args: ${options.extraArgs.join(' ')})` : '';
+    throw new Error(`pg_dump reported an error: ${stderr}${extraArgsNote}`);
   }
 
   return result.stdout;

@@ -82,18 +82,27 @@ export function normalizePulledSchema(rawSql: string, options: NormalizationOpti
 }
 
 function stripPgDumpNoise(rawSql: string): string {
-  // Remove meta commands emitted by pg_dump so the parser only sees SQL.
+  // Remove pg_dump meta commands and standalone comments so the parser only sees SQL statements.
   const normalizedNewlines = rawSql.replace(/\r\n/g, '\n');
   return normalizedNewlines
     .split('\n')
-    .filter((line) => !line.trim().startsWith('\\'))
+    .filter((line) => {
+      const trimmed = line.trim();
+      if (!trimmed) {
+        return true;
+      }
+      if (trimmed.startsWith('\\') || trimmed.startsWith('--')) {
+        return false;
+      }
+      return true;
+    })
     .join('\n');
 }
 
 function shouldSkipStatement(statement: string): boolean {
-  // Filter out configuration or query statements that are irrelevant for normalized DDL.
+  // Strip handles comments and meta commands earlier, so skip only runtime statements we still want to ignore.
   const lower = statement.toLowerCase();
-  if (lower.startsWith('--') || lower.startsWith('set ') || lower.startsWith('select ')) {
+  if (lower.startsWith('set ') || lower.startsWith('select ')) {
     return true;
   }
   if (lower.startsWith('comment ') || lower.startsWith('drop ')) {
@@ -141,6 +150,7 @@ function processStatement(statement: string): NormalizedStatement | null {
 }
 
 function buildCreateSchemaStatement(statement: string): NormalizedStatement | null {
+  // SqlParser does not yet support CREATE SCHEMA statements, so fall back to regex parsing.
   const match = statement.match(/create\s+schema\s+(?:if\s+not\s+exists\s+)?(.+?)(?:\s|;|$)/i);
   if (!match) {
     return null;
@@ -155,6 +165,7 @@ function buildCreateSchemaStatement(statement: string): NormalizedStatement | nu
 }
 
 function buildViewStatement(statement: string): NormalizedStatement | null {
+  // SqlParser is not able to parse CREATE VIEW statements yet, so use a regex fallback.
   const match = statement.match(/create\s+(?:or\s+replace\s+)?view\s+(.+?)\s+as\b/i);
   if (!match) {
     return null;

@@ -34,7 +34,16 @@ export function runPullSchema(options: PullSchemaOptions): void {
     allowedSchemas: allowedSchemas.size ? allowedSchemas : undefined
   });
   if (normalizedMap.size === 0) {
-    throw new Error('The dump did not contain any supported DDL statements.');
+    // Help callers realize their filters may have excluded everything from the dump.
+    const filterHints: string[] = [];
+    if (schemaFilters.length) {
+      filterHints.push(`--schema ${schemaFilters.join(', ')}`);
+    }
+    if (tableFilters.length) {
+      filterHints.push(`--table ${tableFilters.map((table) => table.original).join(', ')}`);
+    }
+    const hint = filterHints.length ? ` Filters applied: ${filterHints.join('; ')}.` : '';
+    throw new Error(`The dump did not contain any supported DDL statements.${hint} Verify the schema/table filters match your database.`);
   }
 
   const outDir = path.resolve(options.out);
@@ -86,7 +95,8 @@ function buildSchemaFile(statements: NormalizedStatement[]): string {
 
 function sanitizeSchemaFileName(schema: string): string {
   const sanitized = schema.replace(/[^a-z0-9_-]/g, '_').replace(/^_+|_+$/g, '');
-  return sanitized || schema || 'schema';
+  // Fall back to a safe default when all characters were stripped away.
+  return sanitized || 'schema';
 }
 
 function normalizeSchemaName(value: string): string {

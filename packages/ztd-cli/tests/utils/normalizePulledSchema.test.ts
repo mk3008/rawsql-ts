@@ -48,3 +48,18 @@ test('normalizePulledSchema extracts relevant statements per schema', () => {
   expect(content).toContain('create index');
   expect(content).not.toContain('drop table');
 });
+
+test('normalizePulledSchema ignores pg_dump header comments before statements', () => {
+  const headerDump = `
+    -- PostgreSQL database dump
+    -- Name: products; Type: TABLE; Schema: public; Owner: postgres
+    -- Description: Table for items
+    CREATE TABLE public.products (
+      id serial PRIMARY KEY
+    );
+  `;
+
+  const normalized = normalizePulledSchema(headerDump);
+  const statements = normalized.get('public') ?? [];
+  expect(statements.some((entry) => entry.group === 'createTable')).toBe(true);
+});

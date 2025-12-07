@@ -45,6 +45,8 @@ Fetches the schema via `pg_dump`, normalizes the DDL, and writes one file per sc
 
 You can scope the pull with `--schema <name>` (repeatable) or `--table <schema.table>` (repeatable); filtered pulls only emit the requested schemas/tables and their dependent objects. If no filters are provided, the command retrieves the full schema and still splits it by namespace.
 
+Unqualified table references are treated as belonging to the `public` schema by default, so `users` is interpreted as `public.users`. If your project relies on a different namespace, update the `ddl.defaultSchema`/`ddl.searchPath` block in `ztd.config.json` so the CLI and downstream tests agree on how unqualified names are resolved.
+
 > **Note:** `ztd ddl` commands that contact your database depend on the `pg_dump` executable. Ensure `pg_dump` is installed and reachable via your `PATH`, or set the `PG_DUMP_PATH` environment variable to the absolute path of the executable before running the command.
 
 On Windows, register the executable for future PowerShell sessions:
