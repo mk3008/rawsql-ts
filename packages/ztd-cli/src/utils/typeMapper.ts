@@ -28,7 +28,7 @@ function warnUnknownSqlType(typeName: string | undefined, context?: string): voi
   // Keep developers aware when the generator sees an unmapped SQL type.
   const subject = context ?? 'column';
   console.warn(
-    `[rawsql ddl] Unknown SQL type for ${subject}: ${typeName ?? 'undefined'}. Defaulting to unknown.`
+    `[ztd ddl] Unknown SQL type for ${subject}: ${typeName ?? 'undefined'}. Defaulting to unknown.`
   );
 }
 
