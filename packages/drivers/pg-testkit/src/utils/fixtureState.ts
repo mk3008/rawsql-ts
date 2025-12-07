@@ -16,10 +16,10 @@ export interface ResolvedFixtureState {
 }
 
 /** Produces the merged fixture metadata for any pg-testkit entry point. */
-export const resolveOptionsState = (
+export function resolveFixtureState(
   options: FixtureResolutionOptions,
   tableNameResolver: TableNameResolver
-): ResolvedFixtureState => {
+): ResolvedFixtureState {
   // Load DDL-derived fixtures when directories were supplied so every consumer shares the same resolver rules.
   const loader = options.ddl?.directories?.length
     ? new DdlFixtureLoader({
@@ -50,6 +50,4 @@ export const resolveOptionsState = (
     tableDefinitions,
     tableRows,
   };
-};
-
-export const resolveFixtureState = resolveOptionsState;
+}

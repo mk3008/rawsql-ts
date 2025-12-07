@@ -13,7 +13,7 @@ import type {
   TableRowsFixture,
 } from '../types';
 import { validateFixtureRowsAgainstTableDefinitions } from '../utils/fixtureValidation';
-import { resolveOptionsState } from '../utils/fixtureState';
+import { resolveFixtureState } from '../utils/fixtureState';
 
 /**
  * Lightweight client that rewrites CRUD/SELECT statements into fixture-backed SELECTs
@@ -38,7 +38,7 @@ export class PgTestkitClient {
       searchPath: options.searchPath,
     });
     // Align DDL metadata and explicit overrides under the shared resolver rules.
-    const fixturesState = resolveOptionsState(
+    const fixturesState = resolveFixtureState(
       {
         ddl: options.ddl,
         tableDefinitions: options.tableDefinitions,
