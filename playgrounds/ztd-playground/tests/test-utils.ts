@@ -1,5 +1,6 @@
 import path from 'node:path';
-import { Client, type ClientConfig, type QueryResultRow, types } from 'pg';
+import { Client, types } from 'pg';
+import type { ClientConfig, QueryResultRow } from 'pg';
 import { PostgreSqlContainer } from '@testcontainers/postgresql';
 import { createPgTestkitClient } from '@rawsql-ts/pg-testkit';
 import type { PgQueryInput, PgQueryable } from '@rawsql-ts/pg-testkit';
