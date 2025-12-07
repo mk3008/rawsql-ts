@@ -18,11 +18,13 @@ interface TableSpecifier {
 }
 
 export function runPullSchema(options: PullSchemaOptions): void {
-  // Canonicalize CLI filters before launching pg_dump and normalizing the results.
+  // Canonicalize CLI filters before invoking pg_dump so later steps can rely on consistent casing.
   const schemaFilters = (options.schemas ?? []).map((value) => normalizeSchemaName(value));
   const tableFilters = (options.tables ?? []).map((value) => parseTableSpecifier(value));
+  // Build the schema set that should survive the normalization pass.
   const allowedSchemas = buildAllowedSchemas(schemaFilters, tableFilters);
 
+  // Invoke pg_dump once with the normalized filters so only the desired objects are exported.
   const ddlSql = runPgDump({
     url: options.url,
     pgDumpPath: options.pgDumpPath,
@@ -48,7 +50,7 @@ export function runPullSchema(options: PullSchemaOptions): void {
 
   const outDir = path.resolve(options.out);
   ensureDirectory(outDir);
-  // Remove the legacy schema.sql snapshot to keep the output directory clean.
+  // Remove the legacy schema.sql snapshot only when it is still present.
   const legacySchemaFile = path.join(outDir, 'schema.sql');
   if (existsSync(legacySchemaFile)) {
     rmSync(legacySchemaFile, { force: true });
@@ -80,6 +82,7 @@ function buildPgDumpArguments(schemaFilters: string[], tableFilters: TableSpecif
 }
 
 function buildAllowedSchemas(schemaFilters: string[], tableFilters: TableSpecifier[]): Set<string> {
+  // Combine the schemas referenced via filters so the normalizer can limit output.
   const combined = new Set<string>(schemaFilters);
   for (const table of tableFilters) {
     combined.add(table.schema);
@@ -100,6 +103,7 @@ function sanitizeSchemaFileName(schema: string): string {
 }
 
 function normalizeSchemaName(value: string): string {
+  // Trim, unquote, and lowercase schema names to keep filter comparison predictable.
   return value.trim().replace(/^"|"$/g, '').toLowerCase();
 }
 
@@ -107,6 +111,7 @@ function parseTableSpecifier(value: string): TableSpecifier {
   const trimmed = value.trim();
   const qualifiedPattern = /^\s*(?:"([^"]+)"|([^".\s]+))\.(?:"([^"]+)"|([^".\s]+))\s*$/;
   const match = trimmed.match(qualifiedPattern);
+  // Resolve the schema portion, falling back to public when the specifier is unqualified.
   const schema = match ? match[1] ?? match[2] ?? 'public' : 'public';
   return {
     schema: normalizeSchemaName(schema),
