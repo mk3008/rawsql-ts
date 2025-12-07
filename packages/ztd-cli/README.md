@@ -69,6 +69,10 @@ Pass `--default-schema` or `--search-path` when running `ztd ztd-config` to upda
 
 Watch mode is safe: it regenerates the tests file as soon as DDL changes are saved and logs every write so you can confirm no additional files were modified.
 
+## gen-config
+
+`ztd gen-config` is a lightweight alternative that targets setups where the schema lives under `ddl/schemas` and the row map always goes into `tests/ztd-config.ts`. It mirrors the same AST-backed metadata generation as `ztd ztd-config` but skips the interactive config updates and watcher plumbing so you can regenerate the canonical helpers inside fixtures-only playgrounds and demos. Pass `--ddl-dir`, `--extensions`, `--default-schema`, `--search-path`, or `--out` when you need to override the default paths.
+
 ## ZTD Testing
 
 Driver responsibilities live in companion packages:

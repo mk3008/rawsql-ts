@@ -16,6 +16,20 @@ const cliEnv = {
 };
 const tmpRoot = path.join(repoRoot, 'tmp');
 
+const SAMPLE_TABLES_SQL = `
+      CREATE TABLE public.users (
+        id serial PRIMARY KEY,
+        email text NOT NULL,
+        score numeric
+      );
+
+      CREATE TABLE public.sessions (
+        id bigint PRIMARY KEY,
+        user_id int NOT NULL REFERENCES public.users(id),
+        expires_at timestamptz NOT NULL
+      );
+    `;
+
 function createTempDir(prefix: string): string {
   // Ensure the shared tmp directory exists before deriving per-test folders.
   if (!existsSync(tmpRoot)) {
@@ -71,29 +85,27 @@ async function seedProductsTable(client: Client) {
 
 test('ztd-config CLI produces the expected TypeScript snapshot', () => {
   const ddlDir = createTempDir('cli-gen-ddl');
-  writeFileSync(
-    path.join(ddlDir, 'tables.sql'),
-    `
-      CREATE TABLE public.users (
-        id serial PRIMARY KEY,
-        email text NOT NULL,
-        score numeric
-      );
-
-      CREATE TABLE public.sessions (
-        id bigint PRIMARY KEY,
-        user_id int NOT NULL REFERENCES public.users(id),
-        expires_at timestamptz NOT NULL
-      );
-    `,
-    'utf8'
-  );
+  writeFileSync(path.join(ddlDir, 'tables.sql'), SAMPLE_TABLES_SQL, 'utf8');
 
   const outDir = createTempDir('cli-gen-out');
   const outputFile = path.join(outDir, 'ztd-config.ts');
 
   const result = runCli(['ztd-config', '--ddl-dir', ddlDir, '--extensions', '.sql', '--out', outputFile]);
   assertCliSuccess(result, 'ztd-config');
+
+  const content = readNormalizedFile(outputFile);
+  expect(content).toMatchSnapshot();
+});
+
+test('gen-config CLI produces the expected TypeScript snapshot', () => {
+  const ddlDir = createTempDir('cli-gen-ddl');
+  writeFileSync(path.join(ddlDir, 'tables.sql'), SAMPLE_TABLES_SQL, 'utf8');
+
+  const outDir = createTempDir('cli-gen-out');
+  const outputFile = path.join(outDir, 'ztd-config.ts');
+
+  const result = runCli(['gen-config', '--ddl-dir', ddlDir, '--extensions', '.sql', '--out', outputFile]);
+  assertCliSuccess(result, 'gen-config');
 
   const content = readNormalizedFile(outputFile);
   expect(content).toMatchSnapshot();

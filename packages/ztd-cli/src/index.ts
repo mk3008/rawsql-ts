@@ -2,6 +2,7 @@
 
 import { Command } from 'commander';
 import { registerDdlCommands } from './commands/ddl';
+import { registerGenConfigCommand } from './commands/genConfigCommand';
 import { registerInitCommand } from './commands/init';
 import { registerZtdConfigCommand } from './commands/ztdConfigCommand';
 
@@ -10,6 +11,7 @@ async function main(): Promise<void> {
   program.name('ztd').description('Zero Table Dependency scaffolding and DDL helpers');
 
   registerInitCommand(program);
+  registerGenConfigCommand(program);
   registerZtdConfigCommand(program);
   registerDdlCommands(program);
 

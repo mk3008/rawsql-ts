@@ -16,7 +16,7 @@ DDL ➜ `ztd-config.ts` ➜ type definitions ➜ fixtures ➜ ZTD rewrite ➜ te
 ## Postgres execution
 
 - Use `tests/test-utils.ts` to create a `@rawsql-ts/pg-testkit` client so fixtures are rewritten into Postgres `SELECT` queries rather than touching the real schema.
-- `DATABASE_URL` must point to a live Postgres database before running tests or the helper will throw a clear error. The connection is shared across the suite, and the helper keeps the same `pg.Client` open without issuing any DDL.
+- `DATABASE_URL` should point to a live Postgres database before running tests so the helper can reuse a persistent connection. When the env var is missing and a container runtime exists, the helper spins up a disposable `postgres:16-alpine` container via `@testcontainers`, still shares the same `pg.Client`, and never issues DDL. If no runtime is available, the helper raises a clear error that points back to this README so you can configure `DATABASE_URL`.
 - Because ZTD never creates tables, the same Postgres database can be reused safely even when the tests run in parallel.
 
 ## Sample domain

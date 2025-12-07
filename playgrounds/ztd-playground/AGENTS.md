@@ -12,7 +12,7 @@ This playground exists to validate the ZTD development loop end-to-end against a
 - Do not hand-edit `ztd-config.ts`; regenerate it with:
 
 ```bash
-pnpm --filter ztd-playground exec ztd ztd-config
+pnpm --filter ztd-playground exec ztd gen-config
 ```
 
 ## 3. `ztd-config.ts` defines typed fixtures
