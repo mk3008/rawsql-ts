@@ -41,7 +41,7 @@ export class SelectFixtureRewriter {
   private readonly analyzerFailureBehavior: AnalyzerFailureBehavior;
 
   constructor(options: SelectRewriterOptions = {}) {
-    this.fixtureStore = new FixtureStore(options.fixtures ?? [], options.schema);
+    this.fixtureStore = new FixtureStore(options.fixtures ?? [], options.schema, options.tableNameResolver);
     this.logger = createLogger(options.logger);
     this.missingFixtureStrategy = options.missingFixtureStrategy ?? 'error';
     const passthrough = options.passthroughTables ?? [];

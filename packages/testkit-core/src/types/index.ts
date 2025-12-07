@@ -5,6 +5,7 @@ import type {
   TableDefinitionRegistry,
 } from 'rawsql-ts';
 export type { TableDefinitionModel } from 'rawsql-ts';
+import type { TableNameResolver } from '../fixtures/TableNameResolver';
 
 export type SqliteAffinity = 'TEXT' | 'INTEGER' | 'REAL' | 'NUMERIC' | 'BLOB';
 
@@ -57,6 +58,7 @@ export interface SelectRewriterOptions {
   formatterOptions?: SqlFormatterOptions;
   cteConflictBehavior?: 'error' | 'override';
   analyzerFailureBehavior?: AnalyzerFailureBehavior;
+  tableNameResolver?: TableNameResolver;
 }
 
 export interface SelectRewriteContext {

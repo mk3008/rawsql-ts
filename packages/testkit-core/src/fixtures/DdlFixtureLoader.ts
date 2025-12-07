@@ -3,10 +3,12 @@ import path from 'node:path';
 import { normalizeTableName, DDLToFixtureConverter } from 'rawsql-ts';
 import type { TableDefinitionModel } from 'rawsql-ts';
 import type { FixtureRow } from '../types';
+import { TableNameResolver } from './TableNameResolver';
 
 export interface DdlFixtureLoaderOptions {
   directories: string[];
   extensions?: string[];
+  tableNameResolver?: TableNameResolver;
 }
 
 export interface DdlProcessedFixture {
@@ -31,12 +33,19 @@ export class DdlFixtureLoader {
   private fixtures: DdlProcessedFixture[] = [];
   private fixturesByName = new Map<string, DdlProcessedFixture>();
   private loaded = false;
+  private readonly tableNameResolver?: TableNameResolver;
 
   constructor(private readonly options: DdlFixtureLoaderOptions) {
     // Resolve directories up front so cache keys stay consistent across calls.
     this.resolvedDirectories = options.directories.map((directory) => path.resolve(directory));
     this.extensions = (options.extensions ?? ['.sql']).map((ext) => ext.toLowerCase());
-    this.cacheKey = DdlFixtureLoader.buildCacheKey(this.resolvedDirectories, this.extensions);
+    // Include resolver settings in the cache key to avoid mixing schema snapshots.
+    this.cacheKey = DdlFixtureLoader.buildCacheKey(
+      this.resolvedDirectories,
+      this.extensions,
+      options.tableNameResolver
+    );
+    this.tableNameResolver = options.tableNameResolver;
   }
 
   public getFixtures(): DdlProcessedFixture[] {
@@ -75,7 +84,7 @@ export class DdlFixtureLoader {
     this.fixturesByName = new Map();
 
     for (const fixture of fixtures) {
-      const normalized = normalizeTableName(fixture.tableDefinition.name);
+      const normalized = this.resolveTableKey(fixture.tableDefinition.name);
       this.fixturesByName.set(normalized, fixture);
     }
   }
@@ -170,39 +179,43 @@ export class DdlFixtureLoader {
       const rows =
         Array.isArray(rawDefinition.rows) && rawDefinition.rows.length > 0 ? rawDefinition.rows : undefined;
 
-      for (const variant of this.buildTableNameVariants(tableName)) {
-        const normalized = normalizeTableName(variant);
-        if (fixtures.some((fixture) => normalizeTableName(fixture.tableDefinition.name) === normalized)) {
-          continue;
-        }
-
-        fixtures.push({
-          tableDefinition: {
-            name: variant,
-            columns,
-          },
-          rows,
-        });
+      // Avoid duplicate fixtures for the same canonical table key.
+      const canonicalKey = this.resolveTableKey(tableName);
+      if (fixtures.some((fixture) => this.resolveTableKey(fixture.tableDefinition.name) === canonicalKey)) {
+        continue;
       }
+
+      fixtures.push({
+        tableDefinition: {
+          name: tableName,
+          columns,
+        },
+        rows,
+      });
     }
   }
 
-  private static buildCacheKey(directories: string[], extensions: string[]): string {
+  private static buildCacheKey(
+    directories: string[],
+    extensions: string[],
+    resolver?: TableNameResolver
+  ): string {
+    // Normalize directories and extensions so the cache key stays deterministic regardless of iteration order.
     const normalizedDirectories = [...directories].sort();
     const normalizedExtensions = [...extensions]
       .map((ext) => ext.toLowerCase())
       .sort();
 
-    return `${normalizedDirectories.join('|')}|${normalizedExtensions.join('|')}`;
+    // Include resolver configuration in the key so different schema search paths do not share the same cache.
+    const resolverSegment = `|resolver:${resolver?.toCacheKey() ?? 'none'}`;
+    return `${normalizedDirectories.join('|')}|${normalizedExtensions.join('|')}${resolverSegment}`;
   }
 
-  private buildTableNameVariants(tableName: string): string[] {
-    const normalized = normalizeTableName(tableName);
-    const parts = normalized.split('.');
-    if (parts.length <= 1) {
-      return [normalized];
+  // Map raw table names into their canonical schema-qualified keys for deduplication.
+  private resolveTableKey(tableName: string): string {
+    if (!this.tableNameResolver) {
+      return normalizeTableName(tableName);
     }
-
-    return [normalized, parts[parts.length - 1]];
+    return this.tableNameResolver.resolve(tableName);
   }
 }

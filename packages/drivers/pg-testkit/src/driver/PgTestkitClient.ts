@@ -1,14 +1,19 @@
 import type { QueryResult, QueryResultRow } from 'pg';
-import { DefaultFixtureProvider, ResultSelectRewriter } from '@rawsql-ts/testkit-core';
+import {
+  DefaultFixtureProvider,
+  ResultSelectRewriter,
+  TableNameResolver,
+  alignRewrittenParameters,
+  applyCountWrapper,
+} from '@rawsql-ts/testkit-core';
 import type {
   CreatePgTestkitClientOptions,
   PgQueryInput,
   PgQueryable,
+  TableRowsFixture,
 } from '../types';
-import { DdlFixtureLoader, alignRewrittenParameters, applyCountWrapper } from '@rawsql-ts/testkit-core';
-import type { DdlProcessedFixture } from '@rawsql-ts/testkit-core';
-import type { TableDefinitionModel, TableRowsFixture } from '../types';
 import { validateFixtureRowsAgainstTableDefinitions } from '../utils/fixtureValidation';
+import { resolveFixtureState } from '../utils/fixtureState';
 
 /**
  * Lightweight client that rewrites CRUD/SELECT statements into fixture-backed SELECTs
@@ -20,49 +25,49 @@ import { validateFixtureRowsAgainstTableDefinitions } from '../utils/fixtureVali
 export class PgTestkitClient {
   private connection?: PgQueryable;
   private readonly rewriter: ResultSelectRewriter;
-  private readonly ddlFixtures: DdlProcessedFixture[];
+  private readonly tableNameResolver: TableNameResolver;
 
   constructor(
     private readonly options: CreatePgTestkitClientOptions,
     private readonly scopedRows?: TableRowsFixture[],
     seedConnection?: PgQueryable
   ) {
-    this.ddlFixtures = this.loadDdlFixtures();
-    const tableDefinitions = this.collectDefinitions();
-    // Validate fixtures declared by callers so typographical errors fail during client setup.
-    validateFixtureRowsAgainstTableDefinitions(this.options.tableRows, tableDefinitions, 'base tableRows');
-    validateFixtureRowsAgainstTableDefinitions(scopedRows, tableDefinitions, 'scoped fixtures');
+    // Keep a resolver around so every fixture/DDL lookup uses the same schema rules.
+    this.tableNameResolver = new TableNameResolver({
+      defaultSchema: options.defaultSchema,
+      searchPath: options.searchPath,
+    });
+    // Align DDL metadata and explicit overrides under the shared resolver rules.
+    const fixturesState = resolveFixtureState(
+      {
+        ddl: options.ddl,
+        tableDefinitions: options.tableDefinitions,
+        tableRows: options.tableRows,
+      },
+      this.tableNameResolver
+    );
+
+    // Combine the base and scoped fixtures so they are validated exactly once through the resolver.
+    const mergedTableRows = [...(options.tableRows ?? []), ...(scopedRows ?? [])];
+    validateFixtureRowsAgainstTableDefinitions(
+      mergedTableRows,
+      fixturesState.tableDefinitions,
+      'tableRows',
+      this.tableNameResolver
+    );
 
     const fixtureStore = new DefaultFixtureProvider(
-      tableDefinitions,
-      this.collectBaseRows()
+      fixturesState.tableDefinitions,
+      fixturesState.tableRows,
+      this.tableNameResolver
     );
     this.rewriter = new ResultSelectRewriter(
       fixtureStore,
       options.missingFixtureStrategy ?? 'error',
-      options.formatterOptions
+      options.formatterOptions,
+      this.tableNameResolver
     );
     this.connection = seedConnection;
-  }
-
-  private collectDefinitions(): TableDefinitionModel[] {
-    // Combine DDL-derived definitions with any explicit configuration the user provided.
-    return [
-      ...this.ddlFixtures.map((fixture) => fixture.tableDefinition),
-      ...(this.options.tableDefinitions ?? []),
-    ];
-  }
-
-  private collectBaseRows(): TableRowsFixture[] {
-    const ddlRows: TableRowsFixture[] = [];
-    for (const fixture of this.ddlFixtures) {
-      if (!fixture.rows || fixture.rows.length === 0) {
-        continue;
-      }
-      ddlRows.push({ tableName: fixture.tableDefinition.name, rows: fixture.rows });
-    }
-    // DDL rows are merged before caller-supplied ones so test authors can override them.
-    return [...ddlRows, ...(this.options.tableRows ?? [])];
   }
 
   /**
@@ -159,14 +164,6 @@ export class PgTestkitClient {
     };
   }
 
-  private loadDdlFixtures(): DdlProcessedFixture[] {
-    if (!this.options.ddl?.directories?.length) {
-      return [];
-    }
-
-    const loader = new DdlFixtureLoader(this.options.ddl);
-    return loader.getFixtures();
-  }
 }
 
 /** Factory that instantiates a `PgTestkitClient` with the provided fixture-driven options. */

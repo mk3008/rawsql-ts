@@ -27,7 +27,7 @@ Then use the CLI through `npx ztd` or the installed `ztd` bin.
 `ztd init` scaffolds the ZTD workflow:
 
 - `ddl/schema.sql` (starter schema you can edit or replace)
-- `ztd.config.json` (hints for AI and CLI defaults: `dialect`, `ddlDir`, `testsDir`)
+ - `ztd.config.json` (hints for AI and CLI defaults: `dialect`, `ddlDir`, `testsDir`, plus a `ddl` block that controls `defaultSchema`/`searchPath` so pg-testkit can resolve unqualified tables)
 - `tests/ztd-config.ts` (auto-generated `TestRowMap`, the canonical row type contract)
 - `README.md` describing the workflow and commands
 - `AGENTS.md` (copied from the package template unless the project already has one)
@@ -43,6 +43,16 @@ Every `ztd ddl` subcommand targets the shared DDL directory defined in `ztd.conf
 
 Fetches the schema via `pg_dump` and writes it into `ddl/schema.sql` so you can keep PostgreSQL as the schema source without mutating real tables.
 
+> **Note:** `ztd ddl` commands that contact your database depend on the `pg_dump` executable. Ensure `pg_dump` is installed and reachable via your `PATH`, or set the `PG_DUMP_PATH` environment variable to the absolute path of the executable before running the command.
+
+On Windows, register the executable for future PowerShell sessions:
+
+```powershell
+setx PG_DUMP_PATH "C:\Program Files\PostgreSQL\18\bin\pg_dump.exe"
+```
+
+Open a new PowerShell window after running this command so the updated environment variable is available to `ztd` commands.
+
 ### `ztd ddl gen-entities`
 
 Reads the DDL directory and generates `entities.ts` (optional reference for helpers). Use it when you want TypeScript helpers for ad-hoc schema inspection without replacing `TestRowMap` as the source of truth.
@@ -54,6 +64,8 @@ Diffs the local DDL snapshot against a live Postgres database. It uses the share
 ## ztd-config
 
 `ztd ztd-config` reads every `.sql` file under the configured DDL directory and produces `tests/ztd-config.ts`, which exports `TestRowMap` plus the table-specific test-row interfaces. This file is the only place your tests should look for column shapes and nullability. The command can `--watch` the DDL sources and automatically regenerate the row map, but the watcher **only overwrites `tests/ztd-config.ts`**; no other folders (`src/`, fixtures, `AGENTS.md`, etc.) are touched during the watch cycle.
+
+Pass `--default-schema` or `--search-path` when running `ztd ztd-config` to update the `ddl.defaultSchema`/`ddl.searchPath` block in `ztd.config.json` so pg-testkit and the CLI agree on how unqualified table names should be resolved.
 
 Watch mode is safe: it regenerates the tests file as soon as DDL changes are saved and logs every write so you can confirm no additional files were modified.
 

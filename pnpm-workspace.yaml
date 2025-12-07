@@ -1,3 +1,4 @@
 ﻿packages:
   - "packages/*"
   - "packages/drivers/*"
+  - "playgrounds/*"
