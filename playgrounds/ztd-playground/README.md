@@ -35,7 +35,8 @@ Each query is expressed as a raw SQL string so the rewrite pipeline can be exerc
 
 - `ztd-config.ts` re-exports the generated ZTD helpers (table names, row shapes, and `tableFixture`).
 - Tests import `tableFixture`, the row shape types, and `createTestkitClient` from `tests/test-utils.ts`. The helper wires a Postgres client into `@rawsql-ts/pg-testkit`, adds the `ddl/schemas` directory, and shares the connection across fixtures.
-- Every test provides explicit fixtures for `users`, `products`, `orders`, and `order_items`, keeping the rewrite results deterministic.
+- Every test provides fixtures for `public.users`, `public.products`, `public.orders`, and `public.order_items`, keeping the rewrite results deterministic.
+- TableNameResolver normalizes every DDL and fixture reference to canonical schema-qualified identifiers, so the playground keeps using schema-qualified names (e.g., `public.users`) end-to-end.
 
 ## Scope
 

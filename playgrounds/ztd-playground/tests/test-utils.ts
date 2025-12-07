@@ -1,9 +1,9 @@
 import path from 'node:path';
-import type { ClientConfig } from 'pg';
 import { Client, types } from 'pg';
+import type { ClientConfig, QueryResultRow } from 'pg';
 import { PostgreSqlContainer } from '@testcontainers/postgresql';
 import { createPgTestkitClient } from '@rawsql-ts/pg-testkit';
-import type { PgQueryable } from '@rawsql-ts/pg-testkit';
+import type { PgQueryInput, PgQueryable } from '@rawsql-ts/pg-testkit';
 import type { TableFixture } from '@rawsql-ts/testkit-core';
 
 const ddlDirectories = [path.resolve(__dirname, '../ddl/schemas')];
@@ -104,24 +104,29 @@ async function getPgQueryable(): Promise<PgQueryable> {
   const client = await getPgClient();
 
   // Wrap the pg.Client to expose only the subset needed by pg-testkit.
-  sharedQueryable = {
-    query: (textOrConfig, values) => client.query(textOrConfig as never, values),
+  const wrappedQueryable: PgQueryable = {
+    query: <T extends QueryResultRow>(textOrConfig: PgQueryInput, values?: unknown[]) =>
+      client.query<T>(textOrConfig as never, values),
     release: () => {
       // Release is intentionally a no-op because the shared client should stay open.
       return;
     }
   };
 
-  return sharedQueryable;
+  sharedQueryable = wrappedQueryable;
+  return wrappedQueryable;
 }
 
+export type ZtdPlaygroundQueryResult<T extends QueryResultRow = QueryResultRow> = Promise<T[]>;
+
 export type ZtdPlaygroundClient = {
-  query<T>(text: string, values?: unknown[]): Promise<T[]>;
+  query<T extends QueryResultRow = QueryResultRow>(text: string, values?: unknown[]): ZtdPlaygroundQueryResult<T>;
   close(): Promise<void>;
 };
 
 export async function createTestkitClient(fixtures: TableFixture[]): Promise<ZtdPlaygroundClient> {
   const queryable = await getPgQueryable();
+  // TableNameResolver keeps DDL and fixtures aligned on canonical schema-qualified identifiers like 'public.users'.
   const driver = createPgTestkitClient({
     connectionFactory: () => queryable,
     tableRows: fixtures,
@@ -130,9 +135,9 @@ export async function createTestkitClient(fixtures: TableFixture[]): Promise<Ztd
 
   // Expose a simplified query API so tests can assert on plain row arrays.
   return {
-    async query(text, values) {
-      const result = await driver.query(text, values);
-      return result.rows as T[];
+    async query<T extends QueryResultRow>(text: string, values?: unknown[]) {
+      const result = await driver.query<T>(text, values);
+      return result.rows;
     },
     close() {
       return driver.close();

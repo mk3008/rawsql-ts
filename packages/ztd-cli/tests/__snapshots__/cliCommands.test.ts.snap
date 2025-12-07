@@ -5,19 +5,19 @@ exports[`ztd-config CLI produces the expected TypeScript snapshot 1`] = `
 // Tests must import TestRowMap from this file and never from src.
 // This file is synchronized with DDL using ztd-config.
 
-import type { TableFixture, TableSchemaDefinition } from '@rawsql-ts/testkit-core';
+import type { FixtureRow, TableFixture, TableSchemaDefinition } from '@rawsql-ts/testkit-core';
 export interface TestRowMap {
   'public.sessions': PublicSessionsTestRow;
   'public.users': PublicUsersTestRow;
 }
 
-export interface PublicSessionsTestRow {
+export interface PublicSessionsTestRow extends FixtureRow {
   id: number;
   user_id: number;
   expires_at: string;
 }
 
-export interface PublicUsersTestRow {
+export interface PublicUsersTestRow extends FixtureRow {
   id: number;
   email: string;
   score: string | null;

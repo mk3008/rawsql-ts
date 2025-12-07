@@ -6,6 +6,7 @@ import {
   MultiQuerySplitter,
   SqlParser
 } from 'rawsql-ts';
+import { TableNameResolver } from '@rawsql-ts/testkit-core';
 import { collectSqlFiles, SqlSource } from '../utils/collectSqlFiles';
 import { mapSqlTypeToTs } from '../utils/typeMapper';
 import { ensureDirectory } from '../utils/fs';
@@ -14,6 +15,8 @@ export interface ZtdConfigGenerationOptions {
   directories: string[];
   extensions: string[];
   out: string;
+  defaultSchema?: string;
+  searchPath?: string[];
 }
 
 export interface ColumnMetadata {
@@ -34,7 +37,12 @@ export function runGenerateZtdConfig(options: ZtdConfigGenerationOptions): void 
     throw new Error(`No SQL files were discovered under ${options.directories.join(', ')}`);
   }
 
-  const tables = snapshotTableMetadata(sources);
+  // Build a resolver that honors the configured schema/search path so the generated rows stay canonical.
+  const resolver = new TableNameResolver({
+    defaultSchema: options.defaultSchema,
+    searchPath: options.searchPath
+  });
+  const tables = snapshotTableMetadata(sources, resolver);
   if (tables.length === 0) {
     throw new Error('The provided DDL sources did not contain any CREATE TABLE statements.');
   }
@@ -45,7 +53,7 @@ export function runGenerateZtdConfig(options: ZtdConfigGenerationOptions): void 
   console.log(`Generated ${tables.length} ZTD test rows at ${options.out}`);
 }
 
-export function snapshotTableMetadata(sources: SqlSource[]): TableMetadata[] {
+export function snapshotTableMetadata(sources: SqlSource[], resolver?: TableNameResolver): TableMetadata[] {
   const registry = new Map<string, TableMetadata>();
   // Track tables by their SQL name so each definition is emitted only once.
   for (const source of sources) {
@@ -73,7 +81,10 @@ export function snapshotTableMetadata(sources: SqlSource[]): TableMetadata[] {
 
       const definition = createTableDefinitionFromCreateTableQuery(ast);
 
-      if (registry.has(definition.name)) {
+      // Normalize table names so the generated config mirrors resolver expectations.
+      const canonicalName = resolver?.resolve(definition.name) ?? definition.name;
+
+      if (registry.has(canonicalName)) {
         continue;
       }
 
@@ -93,9 +104,9 @@ export function snapshotTableMetadata(sources: SqlSource[]): TableMetadata[] {
         };
       });
 
-      registry.set(definition.name, {
-        name: definition.name,
-        testRowInterfaceName: buildTestRowInterfaceName(definition.name),
+      registry.set(canonicalName, {
+        name: canonicalName,
+        testRowInterfaceName: buildTestRowInterfaceName(canonicalName),
         columns
       });
     }
@@ -131,7 +142,7 @@ export function renderZtdConfigFile(tables: TableMetadata[]): string {
     '// Tests must import TestRowMap from this file and never from src.',
     '// This file is synchronized with DDL using ztd-config.',
     '',
-    "import type { TableFixture, TableSchemaDefinition } from '@rawsql-ts/testkit-core';",
+    "import type { FixtureRow, TableFixture, TableSchemaDefinition } from '@rawsql-ts/testkit-core';",
     ''
   ].join('\n');
 
@@ -149,7 +160,7 @@ export function renderZtdConfigFile(tables: TableMetadata[]): string {
           return `  ${column.name}: ${tsType};`;
         })
         .join('\n');
-      return `export interface ${table.testRowInterfaceName} {\n${fields}\n}`;
+      return `export interface ${table.testRowInterfaceName} extends FixtureRow {\n${fields}\n}`;
     })
     .join('\n\n');
 

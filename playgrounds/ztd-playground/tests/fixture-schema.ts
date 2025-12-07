@@ -1,5 +1,6 @@
 import type { TableSchemaDefinition } from '@rawsql-ts/testkit-core';
 
+// TableSchemaDefinition accepts SQLite affinity names, so these values (INTEGER/TEXT/NUMERIC) mirror the Postgres column semantics from the DDL.
 // Table schemas describe Postgres column types for the rewrite fixtures.
 export const userSchema: TableSchemaDefinition = {
   columns: {
@@ -22,7 +23,7 @@ export const productSchema: TableSchemaDefinition = {
 export const orderSchema: TableSchemaDefinition = {
   columns: {
     orders_id: 'INTEGER',
-    user_id: 'BIGINT',
+    user_id: 'INTEGER',
     order_date: 'TEXT',
     status: 'TEXT'
   }

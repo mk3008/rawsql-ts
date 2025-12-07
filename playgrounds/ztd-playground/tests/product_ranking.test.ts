@@ -5,12 +5,12 @@ import { orderItemSchema, orderSchema, productSchema, userSchema } from './fixtu
 import { createTestkitClient } from './test-utils';
 import { productRankingSql } from '../src/product_ranking';
 
-function buildRankingUsers(): TestRowMap['users'][] {
+function buildRankingUsers(): TestRowMap['public.users'][] {
   // Publish a single user since revenue comes from order items.
   return [{ users_id: 1, name: 'Enterprise', email: 'enterprise@example.com', created_at: '2025-12-01T00:00:00Z' }];
 }
 
-function buildRankingProducts(): TestRowMap['products'][] {
+function buildRankingProducts(): TestRowMap['public.products'][] {
   return [
     { products_id: 30, name: 'Gadget', price: '60.00', category_id: 8 },
     { products_id: 31, name: 'Widget', price: '15.00', category_id: 8 },
@@ -18,14 +18,14 @@ function buildRankingProducts(): TestRowMap['products'][] {
   ];
 }
 
-function buildRankingOrders(): TestRowMap['orders'][] {
+function buildRankingOrders(): TestRowMap['public.orders'][] {
   return [
     { orders_id: 800, user_id: 1, order_date: '2025-12-07', status: 'completed' },
     { orders_id: 801, user_id: 1, order_date: '2025-12-08', status: 'completed' }
   ];
 }
 
-function buildRankingOrderItems(): TestRowMap['order_items'][] {
+function buildRankingOrderItems(): TestRowMap['public.order_items'][] {
   return [
     { order_items_id: 8001, order_id: 800, product_id: 30, quantity: 2, unit_price: '60.00' },
     { order_items_id: 8002, order_id: 801, product_id: 31, quantity: 3, unit_price: '15.00' }
@@ -35,10 +35,10 @@ function buildRankingOrderItems(): TestRowMap['order_items'][] {
 function buildFixtures(): TableFixture[] {
   // Cover every table so the ranking query has data to join against.
   return [
-    tableFixture('users', buildRankingUsers(), userSchema),
-    tableFixture('products', buildRankingProducts(), productSchema),
-    tableFixture('orders', buildRankingOrders(), orderSchema),
-    tableFixture('order_items', buildRankingOrderItems(), orderItemSchema)
+    tableFixture('public.users', buildRankingUsers(), userSchema),
+    tableFixture('public.products', buildRankingProducts(), productSchema),
+    tableFixture('public.orders', buildRankingOrders(), orderSchema),
+    tableFixture('public.order_items', buildRankingOrderItems(), orderItemSchema)
   ];
 }
 

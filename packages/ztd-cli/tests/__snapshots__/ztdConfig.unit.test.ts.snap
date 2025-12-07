@@ -5,19 +5,19 @@ exports[`generates ZTD row map from CREATE TABLE statements 1`] = `
 // Tests must import TestRowMap from this file and never from src.
 // This file is synchronized with DDL using ztd-config.
 
-import type { TableFixture, TableSchemaDefinition } from '@rawsql-ts/testkit-core';
+import type { FixtureRow, TableFixture, TableSchemaDefinition } from '@rawsql-ts/testkit-core';
 export interface TestRowMap {
   'public.profiles': PublicProfilesTestRow;
   'public.users': PublicUsersTestRow;
 }
 
-export interface PublicProfilesTestRow {
+export interface PublicProfilesTestRow extends FixtureRow {
   user_id: number;
   bio: string | null;
   rating: string | null;
 }
 
-export interface PublicUsersTestRow {
+export interface PublicUsersTestRow extends FixtureRow {
   id: number;
   email: string;
   created_at: string;
@@ -46,26 +46,26 @@ exports[`handles multiple sources with composite keys and cross-schema reference
 // Tests must import TestRowMap from this file and never from src.
 // This file is synchronized with DDL using ztd-config.
 
-import type { TableFixture, TableSchemaDefinition } from '@rawsql-ts/testkit-core';
+import type { FixtureRow, TableFixture, TableSchemaDefinition } from '@rawsql-ts/testkit-core';
 export interface TestRowMap {
   'analytics.weekly_stats': AnalyticsWeeklyStatsTestRow;
   'public.users': PublicUsersTestRow;
   'sales.orders': SalesOrdersTestRow;
 }
 
-export interface AnalyticsWeeklyStatsTestRow {
+export interface AnalyticsWeeklyStatsTestRow extends FixtureRow {
   stats_id: number;
   order_id: number;
   order_line: number;
   sales_amount: string;
 }
 
-export interface PublicUsersTestRow {
+export interface PublicUsersTestRow extends FixtureRow {
   id: number;
   name: string;
 }
 
-export interface SalesOrdersTestRow {
+export interface SalesOrdersTestRow extends FixtureRow {
   order_id: number;
   line: number;
   customer_id: number;

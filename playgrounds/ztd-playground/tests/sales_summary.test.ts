@@ -5,7 +5,7 @@ import { orderItemSchema, orderSchema, productSchema, userSchema } from './fixtu
 import { createTestkitClient } from './test-utils';
 import { salesSummarySql } from '../src/sales_summary';
 
-function buildSalesUsers(): TestRowMap['users'][] {
+function buildSalesUsers(): TestRowMap['public.users'][] {
   // Two active customers cover multiple months.
   return [
     { users_id: 1, name: 'Acme', email: 'acme@example.com', created_at: '2025-12-01T00:00:00Z' },
@@ -13,7 +13,7 @@ function buildSalesUsers(): TestRowMap['users'][] {
   ];
 }
 
-function buildSalesProducts(): TestRowMap['products'][] {
+function buildSalesProducts(): TestRowMap['public.products'][] {
   // Products include a nullable category_id to keep DDL coverage broad.
   return [
     { products_id: 20, name: 'Bundle', price: '40.00', category_id: 3 },
@@ -21,7 +21,7 @@ function buildSalesProducts(): TestRowMap['products'][] {
   ];
 }
 
-function buildSalesOrders(): TestRowMap['orders'][] {
+function buildSalesOrders(): TestRowMap['public.orders'][] {
   return [
     { orders_id: 500, user_id: 1, order_date: '2025-11-30', status: 'completed' },
     { orders_id: 501, user_id: 2, order_date: '2025-12-02', status: 'completed' },
@@ -29,7 +29,7 @@ function buildSalesOrders(): TestRowMap['orders'][] {
   ];
 }
 
-function buildSalesOrderItems(): TestRowMap['order_items'][] {
+function buildSalesOrderItems(): TestRowMap['public.order_items'][] {
   // Quantities and prices are arranged so November and December produce distinct sums.
   return [
     { order_items_id: 5001, order_id: 500, product_id: 20, quantity: 2, unit_price: '40.00' },
@@ -41,10 +41,10 @@ function buildSalesOrderItems(): TestRowMap['order_items'][] {
 function buildFixtures(): TableFixture[] {
   // Pair every table fixture with its rows so the rewriter can materialize them.
   return [
-    tableFixture('users', buildSalesUsers(), userSchema),
-    tableFixture('products', buildSalesProducts(), productSchema),
-    tableFixture('orders', buildSalesOrders(), orderSchema),
-    tableFixture('order_items', buildSalesOrderItems(), orderItemSchema)
+    tableFixture('public.users', buildSalesUsers(), userSchema),
+    tableFixture('public.products', buildSalesProducts(), productSchema),
+    tableFixture('public.orders', buildSalesOrders(), orderSchema),
+    tableFixture('public.order_items', buildSalesOrderItems(), orderItemSchema)
   ];
 }
 
