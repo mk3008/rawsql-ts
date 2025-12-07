@@ -7,6 +7,10 @@ export function collectDirectories(value: string, previous: string[]): string[] 
   return [...previous, value];
 }
 
+export function collectValues(value: string, previous: string[]): string[] {
+  return [...previous, value];
+}
+
 export function normalizeDirectoryList(userDirectories: string[] | undefined, fallback: string): string[] {
   const candidates = (userDirectories ?? []).map((entry) => entry.trim()).filter(Boolean);
   // Fall back to the configured default directory when no explicit paths are provided.

@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process';
 export interface PgDumpOptions {
   url: string;
   pgDumpPath?: string;
+  extraArgs?: string[];
 }
 
 /**
@@ -10,7 +11,14 @@ export interface PgDumpOptions {
  */
 export function runPgDump(options: PgDumpOptions): string {
   const executable = options.pgDumpPath ?? process.env.PG_DUMP_PATH ?? 'pg_dump';
-  const args = ['--schema-only', '--no-owner', '--no-privileges', '--dbname', options.url];
+  const args = [
+    '--schema-only',
+    '--no-owner',
+    '--no-privileges',
+    ...(options.extraArgs ?? []),
+    '--dbname',
+    options.url
+  ];
 
   // Execute pg_dump in schema-only mode to capture the database definitions.
   const result = spawnSync(executable, args, {

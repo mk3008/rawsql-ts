@@ -41,7 +41,9 @@ Every `ztd ddl` subcommand targets the shared DDL directory defined in `ztd.conf
 
 ### `ztd ddl pull`
 
-Fetches the schema via `pg_dump` and writes it into `ddl/schema.sql` so you can keep PostgreSQL as the schema source without mutating real tables.
+Fetches the schema via `pg_dump`, normalizes the DDL, and writes one file per schema under `ddl/schemas/<schema>.sql` instead of a single `schema.sql`. The output drops headers, `SET` statements, and `\restrict` markers, sorts objects (schemas, tables, alterations, sequences, indexes) deterministically, and ensures each schema file ends with a clean newline so `ztd gen-config` and your AI flows always see stable input.
+
+You can scope the pull with `--schema <name>` (repeatable) or `--table <schema.table>` (repeatable); filtered pulls only emit the requested schemas/tables and their dependent objects. If no filters are provided, the command retrieves the full schema and still splits it by namespace.
 
 > **Note:** `ztd ddl` commands that contact your database depend on the `pg_dump` executable. Ensure `pg_dump` is installed and reachable via your `PATH`, or set the `PG_DUMP_PATH` environment variable to the absolute path of the executable before running the command.
 
