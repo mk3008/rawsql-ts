@@ -2,15 +2,15 @@
 // Tests must import TestRowMap from this file and never from src.
 // This file is synchronized with DDL using ztd-config.
 
-import type { TableFixture, TableSchemaDefinition } from '@rawsql-ts/testkit-core';
+import type { FixtureRow, TableFixture, TableSchemaDefinition } from '@rawsql-ts/testkit-core';
 export interface TestRowMap {
-  'order_items': OrderItemsTestRow;
-  'orders': OrdersTestRow;
-  'products': ProductsTestRow;
-  'users': UsersTestRow;
+  'public.order_items': PublicOrderItemsTestRow;
+  'public.orders': PublicOrdersTestRow;
+  'public.products': PublicProductsTestRow;
+  'public.users': PublicUsersTestRow;
 }
 
-export interface OrderItemsTestRow {
+export interface PublicOrderItemsTestRow extends FixtureRow {
   order_items_id: number;
   order_id: number;
   product_id: number;
@@ -18,21 +18,21 @@ export interface OrderItemsTestRow {
   unit_price: string;
 }
 
-export interface OrdersTestRow {
+export interface PublicOrdersTestRow extends FixtureRow {
   orders_id: number;
   user_id: number;
   order_date: string;
   status: string;
 }
 
-export interface ProductsTestRow {
+export interface PublicProductsTestRow extends FixtureRow {
   products_id: number;
   name: string;
   price: string;
   category_id: number | null;
 }
 
-export interface UsersTestRow {
+export interface PublicUsersTestRow extends FixtureRow {
   users_id: number;
   name: string;
   email: string;

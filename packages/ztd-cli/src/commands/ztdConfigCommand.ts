@@ -54,7 +54,9 @@ export function registerZtdConfigCommand(program: Command): void {
       const generationOptions: ZtdConfigGenerationOptions = {
         directories,
         extensions,
-        out: output
+        out: output,
+        defaultSchema: ddlOverrides.defaultSchema,
+        searchPath: ddlOverrides.searchPath
       };
 
       runGenerateZtdConfig(generationOptions);

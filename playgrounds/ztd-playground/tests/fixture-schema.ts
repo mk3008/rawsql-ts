@@ -22,7 +22,7 @@ export const productSchema: TableSchemaDefinition = {
 export const orderSchema: TableSchemaDefinition = {
   columns: {
     orders_id: 'INTEGER',
-    user_id: 'BIGINT',
+    user_id: 'INTEGER',
     order_date: 'TEXT',
     status: 'TEXT'
   }

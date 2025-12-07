@@ -14,7 +14,7 @@ interface UserSummaryRow {
   last_order_date: string | null;
 }
 
-function buildUsers(): TestRowMap['users'][] {
+function buildUsers(): TestRowMap['public.users'][] {
   // Seed three users so the aggregation covers multiple scenarios.
   return [
     { users_id: 1, name: 'Alice', email: 'alice@example.com', created_at: '2025-12-01T08:00:00Z' },
@@ -23,7 +23,7 @@ function buildUsers(): TestRowMap['users'][] {
   ];
 }
 
-function buildProducts(): TestRowMap['products'][] {
+function buildProducts(): TestRowMap['public.products'][] {
   // Keep the catalog minimal but cover nullable category IDs.
   return [
     { products_id: 10, name: 'Widget', price: '25.00', category_id: 1 },
@@ -32,7 +32,7 @@ function buildProducts(): TestRowMap['products'][] {
   ];
 }
 
-function buildOrders(): TestRowMap['orders'][] {
+function buildOrders(): TestRowMap['public.orders'][] {
   // Assign orders to different users and dates used in the summary.
   return [
     { orders_id: 100, user_id: 1, order_date: '2025-12-04', status: 'completed' },
@@ -41,7 +41,7 @@ function buildOrders(): TestRowMap['orders'][] {
   ];
 }
 
-function buildOrderItems(): TestRowMap['order_items'][] {
+function buildOrderItems(): TestRowMap['public.order_items'][] {
   // Attach item rows that produce measurable revenue per order.
   return [
     { order_items_id: 1001, order_id: 100, product_id: 10, quantity: 2, unit_price: '25.00' },
@@ -52,13 +52,13 @@ function buildOrderItems(): TestRowMap['order_items'][] {
 
 function buildFixtures(): TableFixture[] {
   // Provide fixtures for every domain table so rewrites can resolve joins.
-  return [
-    tableFixture('users', buildUsers(), userSchema),
-    tableFixture('products', buildProducts(), productSchema),
-    tableFixture('orders', buildOrders(), orderSchema),
-    tableFixture('order_items', buildOrderItems(), orderItemSchema)
-  ];
-}
+    return [
+      tableFixture('public.users', buildUsers(), userSchema),
+      tableFixture('public.products', buildProducts(), productSchema),
+      tableFixture('public.orders', buildOrders(), orderSchema),
+      tableFixture('public.order_items', buildOrderItems(), orderItemSchema)
+    ];
+  }
 
 describe('user_summary query', () => {
   test('totals, spend, and last order appear for each user', async () => {

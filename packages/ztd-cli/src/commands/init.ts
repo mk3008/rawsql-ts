@@ -6,7 +6,7 @@ import readline from 'node:readline/promises';
 
 import { ensureDirectory } from '../utils/fs';
 import { copyAgentsTemplate } from '../utils/agents';
-import { DEFAULT_ZTD_CONFIG, writeZtdProjectConfig } from '../utils/ztdProjectConfig';
+import { DEFAULT_ZTD_CONFIG, loadZtdProjectConfig, writeZtdProjectConfig } from '../utils/ztdProjectConfig';
 import { runGenerateZtdConfig, type ZtdConfigGenerationOptions } from './ztdConfig';
 import { runPullSchema, type PullSchemaOptions } from './pull';
 import { DEFAULT_DDL_DIRECTORY, DEFAULT_EXTENSIONS } from './options';
@@ -236,6 +236,8 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
   );
   summaries.config = configSummary;
 
+  const projectConfig = loadZtdProjectConfig(rootDir);
+
   const ztdConfigTarget = await confirmOverwriteIfExists(
     absolutePaths.ztdConfig,
     relativePath('ztdConfig'),
@@ -249,7 +251,9 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     dependencies.runGenerateZtdConfig({
       directories: [path.resolve(path.dirname(absolutePaths.schema))],
       extensions: DEFAULT_EXTENSIONS,
-      out: absolutePaths.ztdConfig
+      out: absolutePaths.ztdConfig,
+      defaultSchema: projectConfig.ddl.defaultSchema,
+      searchPath: projectConfig.ddl.searchPath
     });
   } else {
     dependencies.log('Skipping ZTD config generation; existing tests/ztd-config.ts preserved.');
