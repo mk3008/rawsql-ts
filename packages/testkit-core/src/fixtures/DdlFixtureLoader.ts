@@ -43,7 +43,7 @@ export class DdlFixtureLoader {
     this.cacheKey = DdlFixtureLoader.buildCacheKey(
       this.resolvedDirectories,
       this.extensions,
-      options.tableNameResolver?.toCacheKey()
+      options.tableNameResolver
     );
     this.tableNameResolver = options.tableNameResolver;
   }
@@ -195,7 +195,11 @@ export class DdlFixtureLoader {
     }
   }
 
-  private static buildCacheKey(directories: string[], extensions: string[], resolverKey?: string): string {
+  private static buildCacheKey(
+    directories: string[],
+    extensions: string[],
+    resolver?: TableNameResolver
+  ): string {
     // Normalize directories and extensions so the cache key stays deterministic regardless of iteration order.
     const normalizedDirectories = [...directories].sort();
     const normalizedExtensions = [...extensions]
@@ -203,7 +207,7 @@ export class DdlFixtureLoader {
       .sort();
 
     // Include resolver configuration in the key so different schema search paths do not share the same cache.
-    const resolverSegment = `|resolver:${resolverKey ?? 'none'}`;
+    const resolverSegment = `|resolver:${resolver?.toCacheKey() ?? 'none'}`;
     return `${normalizedDirectories.join('|')}|${normalizedExtensions.join('|')}${resolverSegment}`;
   }
 

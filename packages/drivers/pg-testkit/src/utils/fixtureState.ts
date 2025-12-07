@@ -16,7 +16,7 @@ export interface ResolvedFixtureState {
 }
 
 /** Produces the merged fixture metadata for any pg-testkit entry point. */
-export const resolveFixtureState = (
+export const resolveOptionsState = (
   options: FixtureResolutionOptions,
   tableNameResolver: TableNameResolver
 ): ResolvedFixtureState => {
@@ -51,3 +51,5 @@ export const resolveFixtureState = (
     tableRows,
   };
 };
+
+export const resolveFixtureState = resolveOptionsState;

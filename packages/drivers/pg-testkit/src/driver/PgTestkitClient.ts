@@ -13,7 +13,7 @@ import type {
   TableRowsFixture,
 } from '../types';
 import { validateFixtureRowsAgainstTableDefinitions } from '../utils/fixtureValidation';
-import { resolveFixtureState } from '../utils/fixtureState';
+import { resolveOptionsState } from '../utils/fixtureState';
 
 /**
  * Lightweight client that rewrites CRUD/SELECT statements into fixture-backed SELECTs
@@ -38,7 +38,7 @@ export class PgTestkitClient {
       searchPath: options.searchPath,
     });
     // Align DDL metadata and explicit overrides under the shared resolver rules.
-    const fixturesState = resolveFixtureState(
+    const fixturesState = resolveOptionsState(
       {
         ddl: options.ddl,
         tableDefinitions: options.tableDefinitions,
@@ -47,18 +47,12 @@ export class PgTestkitClient {
       this.tableNameResolver
     );
 
-    // Validate the caller-provided row fixtures once through the resolver before wiring up the provider.
+    // Combine the base and scoped fixtures so they are validated exactly once through the resolver.
+    const mergedTableRows = [...(options.tableRows ?? []), ...(scopedRows ?? [])];
     validateFixtureRowsAgainstTableDefinitions(
-      options.tableRows,
+      mergedTableRows,
       fixturesState.tableDefinitions,
-      'base tableRows',
-      this.tableNameResolver
-    );
-    // Confirm scoped overlays still match the aggregated definitions.
-    validateFixtureRowsAgainstTableDefinitions(
-      scopedRows,
-      fixturesState.tableDefinitions,
-      'scoped fixtures',
+      'tableRows',
       this.tableNameResolver
     );
 

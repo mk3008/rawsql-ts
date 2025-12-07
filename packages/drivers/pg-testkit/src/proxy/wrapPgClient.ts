@@ -14,7 +14,7 @@ import type {
   TableRowsFixture,
 } from '../types';
 import { validateFixtureRowsAgainstTableDefinitions } from '../utils/fixtureValidation';
-import { resolveFixtureState } from '../utils/fixtureState';
+import { resolveOptionsState } from '../utils/fixtureState';
 
 const buildEmptyResult = <T extends QueryResultRow = QueryResultRow>(command = 'NOOP'): QueryResult<T> => ({
   command,
@@ -32,7 +32,7 @@ export const wrapPgClient = <T extends PgQueryable>(client: T, options: WrapPgCl
     searchPath: options.searchPath,
   });
   // Align shared fixtures with the resolver so every consumer sees the same schema snapshot.
-  const fixtureState = resolveFixtureState(
+  const fixtureState = resolveOptionsState(
     {
       ddl: options.ddl,
       tableDefinitions: options.tableDefinitions,
