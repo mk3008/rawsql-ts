@@ -1,6 +1,5 @@
 import path from 'node:path';
-import { Client, types } from 'pg';
-import type { ClientConfig, QueryResultRow } from 'pg';
+import { Client, type ClientConfig, type QueryResultRow, types } from 'pg';
 import { PostgreSqlContainer } from '@testcontainers/postgresql';
 import { createPgTestkitClient } from '@rawsql-ts/pg-testkit';
 import type { PgQueryInput, PgQueryable } from '@rawsql-ts/pg-testkit';
@@ -117,13 +116,16 @@ async function getPgQueryable(): Promise<PgQueryable> {
   return wrappedQueryable;
 }
 
+export type ZtdPlaygroundQueryResult<T extends QueryResultRow = QueryResultRow> = Promise<T[]>;
+
 export type ZtdPlaygroundClient = {
-  query<T extends QueryResultRow>(text: string, values?: unknown[]): Promise<T[]>;
+  query<T extends QueryResultRow = QueryResultRow>(text: string, values?: unknown[]): ZtdPlaygroundQueryResult<T>;
   close(): Promise<void>;
 };
 
 export async function createTestkitClient(fixtures: TableFixture[]): Promise<ZtdPlaygroundClient> {
   const queryable = await getPgQueryable();
+  // TableNameResolver keeps DDL and fixtures aligned on canonical schema-qualified identifiers like 'public.users'.
   const driver = createPgTestkitClient({
     connectionFactory: () => queryable,
     tableRows: fixtures,
