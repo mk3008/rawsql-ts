@@ -1,5 +1,10 @@
 {
   "extends": "./tsconfig.json",
+  "references": [
+    {
+      "path": "../../testkit-core"
+    }
+  ],
   "compilerOptions": {
     "outDir": "dist",
     "rootDir": "src"
