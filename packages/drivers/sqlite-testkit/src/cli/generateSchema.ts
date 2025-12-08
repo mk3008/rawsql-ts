@@ -36,6 +36,9 @@ type BetterSqliteConnection = {
 
 type BetterSqliteConstructor = new (filename: string, options?: BetterSqliteOptions) => BetterSqliteConnection;
 
+/**
+ * Entry point that parses CLI arguments, builds the SQLite schema map, and writes the output.
+ */
 async function main(): Promise<void> {
   // Normalize CLI paths to keep behavior consistent regardless of the caller's location.
   const options = parseArgs(process.argv.slice(2));
@@ -54,6 +57,11 @@ async function main(): Promise<void> {
   console.log(`Saved schema for ${Object.keys(schema).length} tables to ${resolvedOutput}`);
 }
 
+/**
+ * Parses the CLI arguments consumed by `pnpm schema:generate`.
+ * @param rawArgs - Raw argument tokens provided by the caller.
+ * @returns The normalized CLI options object.
+ */
 function parseArgs(rawArgs: string[]): CliOptions {
   const options: Partial<CliOptions> = {};
   // Walk through the raw arguments and stash values for recognized flags.
@@ -98,6 +106,12 @@ function parseArgs(rawArgs: string[]): CliOptions {
   };
 }
 
+/**
+ * Reads CREATE TABLE definitions from the SQLite master table and accumulates parsed column metadata.
+ * @param databasePath - Absolute path to the SQLite database file.
+ * @param filters - Optional list of lower-cased table names to include.
+ * @returns A mapping from normalized table names to schema definitions.
+ */
 async function buildSchema(databasePath: string, filters?: string[]): Promise<Record<string, TableSchemaDefinition>> {
   // Dynamically import better-sqlite3 so we can surface a clear error when it is missing.
   const betterSqliteModule = await import('better-sqlite3');
@@ -161,6 +175,11 @@ async function buildSchema(databasePath: string, filters?: string[]): Promise<Re
   return schema;
 }
 
+/**
+ * Serializes the schema map to the specified JSON file, sorting the tables for deterministic output.
+ * @param outputPath - Destination path for the schema JSON document.
+ * @param schema - Table schema definitions to persist.
+ */
 function writeSchema(outputPath: string, schema: Record<string, TableSchemaDefinition>): void {
   // Sort table entries to keep the generated JSON deterministic.
   const ordered: Record<string, TableSchemaDefinition> = {};
@@ -176,6 +195,11 @@ function writeSchema(outputPath: string, schema: Record<string, TableSchemaDefin
   writeFileSync(outputPath, `${JSON.stringify(ordered, null, 2)}\n`, 'utf8');
 }
 
+/**
+ * Emits one JSON file per table schema so downstream diffs can focus on individual tables.
+ * @param directory - Directory to persist the per-table JSON artifacts.
+ * @param schema - Table schema definitions to emit individually.
+ */
 function writeSchemaPerTable(directory: string, schema: Record<string, TableSchemaDefinition>): void {
   mkdirSync(directory, { recursive: true });
   // Persist each table schema inside its own JSON file for easier diffs.
@@ -186,10 +210,19 @@ function writeSchemaPerTable(directory: string, schema: Record<string, TableSche
   }
 }
 
+/**
+ * Guards on CREATE TABLE statements and filters out any other parsed SQL nodes.
+ * @param statement - The AST node emitted by the parser.
+ */
 function isCreateTableStatement(statement: ParsedStatement): statement is CreateTableQuery {
   return statement.getKind() === CreateTableQuery.kind;
 }
 
+/**
+ * Retrieves the declared type name from the parser metadata, falling back to literal tokens when necessary.
+ * @param dataType - AST node describing the column's declared type.
+ * @returns The original type text or an empty string when unavailable.
+ */
 function getDeclaredType(dataType?: TypeValue | RawString | null): string {
   if (!dataType) {
     return '';
@@ -208,6 +241,9 @@ function getDeclaredType(dataType?: TypeValue | RawString | null): string {
   return '';
 }
 
+/**
+ * Prints the human-friendly CLI usage instructions and exits the process.
+ */
 function printUsage(): void {
   console.log(`
 Usage:

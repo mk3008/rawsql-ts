@@ -13,6 +13,9 @@ export interface MissingFixtureDiagnostics {
   schemaSource?: 'fixture' | 'schema';
 }
 
+/**
+ * Raised when the rewriter cannot locate fixture data for a referenced table.
+ */
 export class MissingFixtureError extends Error {
   constructor(public readonly diagnostics: MissingFixtureDiagnostics) {
     super(MissingFixtureError.buildMessage(diagnostics));
@@ -53,6 +56,9 @@ export class MissingFixtureError extends Error {
     return lines.join('\n');
   }
 
+  /**
+   * Produces a compact preview of the provided SQL snippet for diagnostics.
+   */
   private static formatSqlSnippet(sql: string): string {
     const compact = sql.replace(/\s+/g, ' ').trim();
     const limit = 280;
@@ -62,6 +68,9 @@ export class MissingFixtureError extends Error {
     return `${compact.slice(0, limit)}…`;
   }
 
+  /**
+   * Builds a human-readable template that mirrors the missing fixture schema.
+   */
   private static buildFixtureTemplate(
     tableName: string,
     columns: MissingFixtureColumnDetail[]
@@ -87,6 +96,9 @@ export class MissingFixtureError extends Error {
   }
 }
 
+/**
+ * Signals that a fixture schema definition lacks required metadata or is inconsistent.
+ */
 export class SchemaValidationError extends Error {
   constructor(message: string) {
     super(message);
@@ -94,6 +106,9 @@ export class SchemaValidationError extends Error {
   }
 }
 
+/**
+ * Wraps unexpected failures encountered during select statement rewriting.
+ */
 export class QueryRewriteError extends Error {
   constructor(message: string, public readonly cause?: unknown) {
     super(message);

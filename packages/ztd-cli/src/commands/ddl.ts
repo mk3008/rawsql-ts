@@ -38,11 +38,15 @@ interface DiffCommandOptions extends ConnectionCliOptions {
   out?: string;
 }
 
+/**
+ * Registers all DDL-related commands (`pull`, `gen-entities`, `diff`) on the top-level CLI program.
+ * @param program - The Commander program instance to extend.
+ */
 export function registerDdlCommands(program: Command): void {
   const ddl = program.command('ddl').description('DDL-focused workflows');
 
-    ddl
-      .command('pull')
+  ddl
+    .command('pull')
       .description('Retrieve the current schema DDL from a PostgreSQL database')
       .option('--url <databaseUrl>', 'Connection string to use for pg_dump (optional; fallback to env/config)')
       .option('--out <directory>', 'Destination directory for the pulled DDL', DEFAULT_DDL_DIRECTORY)
@@ -82,8 +86,8 @@ export function registerDdlCommands(program: Command): void {
       });
     });
 
-    ddl
-      .command('diff')
+  ddl
+    .command('diff')
       .description('Compare local DDL against a live PostgreSQL database and emit a plan')
       .option('--ddl-dir <directory>', 'DDL directory to scan (repeatable)', collectDirectories, [])
       .option('--extensions <list>', 'Comma-separated extensions to include', parseExtensions, DEFAULT_EXTENSIONS)
@@ -108,13 +112,23 @@ export function registerDdlCommands(program: Command): void {
           connectionContext: connection.context
         });
       });
-  }
+}
 
+/**
+ * Resolves connection metadata for CLI commands using flags, environment, and project config.
+ * @param options - CLI options containing optional overrides.
+ * @returns The resolved connection and context.
+ */
 function resolveCliConnection(options: ConnectionCliOptions): ResolvedDatabaseConnection {
   // Gather configuration once per command so overrides and defaults stay synchronized.
   return resolveDatabaseConnection(buildFlagSet(options), loadZtdProjectConfig(), options.url);
 }
 
+/**
+ * Normalizes the incoming CLI flag values into the shared DbConnectionFlags shape.
+ * @param options - CLI options exposing partial connection pieces.
+ * @returns Flag object consumed by the `resolveDatabaseConnection` helper.
+ */
 function buildFlagSet(options: ConnectionCliOptions): DbConnectionFlags {
   return {
     host: options.dbHost,

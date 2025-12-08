@@ -26,6 +26,13 @@ export interface ResolvedDatabaseConnection {
 
 const DEFAULT_PORT = 5432;
 
+/**
+ * Resolves the database connection URL/context by checking environment variables, CLI flags, and project config.
+ * @param flags - CLI overrides supplied by the user.
+ * @param config - Project-level defaults defined in ztd.config.json.
+ * @param explicitUrl - Optional explicit URL argument supplied to the CLI command.
+ * @returns The resolved URL plus contextual metadata.
+ */
 export function resolveDatabaseConnection(
   flags: DbConnectionFlags,
   config: ZtdProjectConfig,
@@ -85,6 +92,7 @@ export function resolveDatabaseConnection(
   );
 }
 
+/** Determines whether the CLI provided explicit connection flags. */
 function hasExplicitFlags(flags: DbConnectionFlags): boolean {
   return Boolean(
     flags.host ||
@@ -95,6 +103,11 @@ function hasExplicitFlags(flags: DbConnectionFlags): boolean {
   );
 }
 
+/**
+ * Builds a complete connection when explicit CLI flags are present.
+ * @param flags - The parsed CLI flags containing host/user details.
+ * @returns The resolved connection that includes a canonical URL and context metadata.
+ */
 function resolveFromFlags(flags: DbConnectionFlags): ResolvedDatabaseConnection {
   // Validate that all required pieces are present when the user asked for flag-based overrides.
   const missing = [];
@@ -137,6 +150,11 @@ function resolveFromFlags(flags: DbConnectionFlags): ResolvedDatabaseConnection 
   };
 }
 
+/**
+ * Converts a legacy connection block from ztd.config.json into a resolved connection context.
+ * @param connection - Configuration-provided connection metadata.
+ * @returns The resolved connection derived from the config block.
+ */
 function resolveFromConfig(connection: ZtdProjectConfig['connection']): ResolvedDatabaseConnection {
   // Treat the config connection as the last resort and ensure it contains the minimum information.
   const missing = [];
@@ -179,6 +197,11 @@ function resolveFromConfig(connection: ZtdProjectConfig['connection']): Resolved
   };
 }
 
+/**
+ * Normalizes a port string/number into a valid TCP port or undefined when absent.
+ * @param port - User-supplied port string or number.
+ * @returns The validated numeric port or undefined when the input is missing.
+ */
 function normalizePort(port?: string | number): number | undefined {
   // Skip validation when the caller did not provide a port string/value.
   if (port === undefined) {
@@ -192,6 +215,15 @@ function normalizePort(port?: string | number): number | undefined {
   return parsed;
 }
 
+/**
+ * Builds a canonical PostgreSQL connection URL from parsed segments.
+ * @param host - The database host address.
+ * @param port - The numeric TCP port to target.
+ * @param user - Username to embed in the URL.
+ * @param password - Optional password component.
+ * @param database - Database name applied to the pathname.
+ * @returns Fully-qualified PostgreSQL URL.
+ */
 function buildConnectionUrl({
   host,
   port,
@@ -217,6 +249,11 @@ function buildConnectionUrl({
   return url.toString();
 }
 
+/**
+ * Extracts host/user/database metadata from a PostgreSQL-style URL.
+ * @param urlValue - Connection string provided by the user or environment.
+ * @returns Partial context describing host, port, user, and database.
+ */
 function parseUrlContext(urlValue: string): Partial<DbConnectionContext> {
   // Extract context metadata from the URL when it is well-formed.
   try {

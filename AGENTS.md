@@ -89,4 +89,25 @@ Reverse dependencies are forbidden.
 
 ## Public API Documentation
 
-All exported classes/types must include clear English JSDoc in `src/`.
+This repository enforces docstring coverage in CI.
+
+- All **exported classes, functions, and types in `src/`** are considered part of the public API.
+- Every exported symbol in `src/` **must have clear English JSDoc** attached to its declaration.
+- The GitHub Actions job `docstring coverage` will fail if:
+  - an exported symbol has no JSDoc, or
+  - the JSDoc is missing the parts that explain in plain English what the API does and what the inputs/outputs are.
+
+### Rules for contributors and AI assistants
+
+- When you **add a new exported symbol** in `src/` (class, function, type, interface, enum, etc.):
+  - Always add English JSDoc in the same commit.
+  - The JSDoc should briefly explain the role of the API and how to consume it.
+- When you **modify an exported symbol**:
+  - Update the existing docstring to keep it truthful.
+  - Never delete a docstring merely to keep the diff small.
+- If the CI error references **docstring coverage**:
+  - Do **not** change the coverage threshold or disable the workflow.
+  - Identify the exported symbols lacking documentation and add concise yet descriptive English JSDoc.
+  - Prefer clarifying intended usage over placeholder text.
+- If a helper is **not meant to be public**:
+  - Make it non-exported, or add `@internal` to its docstring rather than leaving an undocumented export.

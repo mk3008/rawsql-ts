@@ -10,6 +10,9 @@ const affinityPatterns: Array<{ pattern: RegExp; affinity: ColumnAffinity }> = [
   { pattern: /(text|char|string|clob|json)/i, affinity: 'TEXT' },
 ];
 
+/**
+ * Guesses the SQLite affinity category from the declared type name using SQLite's affinity rules.
+ */
 export function guessAffinity(typeName?: string): ColumnAffinity {
   if (!typeName) {
     // Fall back to TEXT when the column lacks an explicit type hint.

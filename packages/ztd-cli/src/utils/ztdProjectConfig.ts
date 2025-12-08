@@ -35,10 +35,20 @@ export const DEFAULT_ZTD_CONFIG: ZtdProjectConfig = {
   ddl: { ...DEFAULT_DDL_PROPERTIES }
 };
 
+/**
+ * Resolves the path to the project's ztd.config.json from a provided root.
+ * @param rootDir - Directory to start searching from (defaults to current working directory).
+ * @returns Absolute path to ztd.config.json.
+ */
 export function resolveZtdConfigPath(rootDir: string = process.cwd()): string {
   return path.join(rootDir, CONFIG_NAME);
 }
 
+/**
+ * Loads the project configuration, merging against defaults when the file is missing or partially provided.
+ * @param rootDir - Directory containing the ztd.config.json file.
+ * @returns A fully-resolved ZtdProjectConfig instance.
+ */
 export function loadZtdProjectConfig(rootDir: string = process.cwd()): ZtdProjectConfig {
   const filePath = resolveZtdConfigPath(rootDir);
   if (!existsSync(filePath)) {
@@ -84,6 +94,11 @@ export function loadZtdProjectConfig(rootDir: string = process.cwd()): ZtdProjec
   }
 }
 
+/**
+ * Persists the provided overrides on top of the existing project configuration.
+ * @param rootDir - Directory that hosts ztd.config.json.
+ * @param overrides - Partial configuration values to merge.
+ */
 export function writeZtdProjectConfig(
   rootDir: string,
   overrides: Partial<ZtdProjectConfig> = {}
@@ -108,6 +123,11 @@ export function writeZtdProjectConfig(
   writeFileSync(resolveZtdConfigPath(rootDir), serialized, 'utf8');
 }
 
+/**
+ * Normalizes a raw connection object into the typed connection configuration.
+ * @param rawConnection - Value read from ztd.config.json that may describe a connection.
+ * @returns A typed connection config or undefined when the input is invalid.
+ */
 function normalizeConnectionConfig(rawConnection: unknown): ZtdConnectionConfig | undefined {
   if (typeof rawConnection !== 'object' || rawConnection === null) {
     return undefined;
@@ -157,6 +177,12 @@ function normalizeConnectionConfig(rawConnection: unknown): ZtdConnectionConfig 
   return connection;
 }
 
+/**
+ * Merges two connection config objects, preferring values from the overrides.
+ * @param base - Existing connection configuration.
+ * @param overrides - Incoming override values from CLI or other sources.
+ * @returns Combined configuration or undefined when nothing is specified.
+ */
 function mergeConnectionConfig(
   base?: ZtdConnectionConfig,
   overrides?: ZtdConnectionConfig

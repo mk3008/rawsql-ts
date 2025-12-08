@@ -29,6 +29,9 @@ export interface FixtureColumnDescription {
   source: FixtureColumnSource;
 }
 
+/**
+ * Normalizes and indexes fixture metadata so rewrites can resolve tables and columns deterministically.
+ */
 export class FixtureStore {
   private readonly schemaRegistry?: SchemaRegistry;
   private readonly tableNameResolver?: TableNameResolver;
@@ -40,6 +43,11 @@ export class FixtureStore {
     this.baseMap = this.buildMap(fixtures);
   }
 
+  /**
+   * Builds a fixture lookup map that layers per-call overrides on top of the base fixtures.
+   * @param overrides - Additional fixtures to merge with the base set.
+   * @returns A map keyed by normalized table names.
+   */
   public withOverrides(overrides?: TableFixture[]): Map<string, NormalizedFixture> {
     if (!overrides || overrides.length === 0) {
       return new Map(this.baseMap);
@@ -53,6 +61,11 @@ export class FixtureStore {
     return next;
   }
 
+  /**
+   * Retrieves column metadata for the requested table from fixtures or registered schema information.
+   * @param tableName - The table identifier potentially qualified by schema.
+   * @returns Column details assembled from fixtures or schema registry entries.
+   */
   public describeColumns(tableName: string): FixtureColumnDescription | undefined {
     const target = this.resolveTableKey(tableName, (candidate) => this.baseMap.has(candidate));
     const fixture = this.baseMap.get(target);

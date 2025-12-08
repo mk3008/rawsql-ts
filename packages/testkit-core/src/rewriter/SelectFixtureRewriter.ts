@@ -29,6 +29,9 @@ const DEFAULT_FORMATTER_OPTIONS: SqlFormatterOptions = {
   exportComment: 'top-header-only',
 };
 
+/**
+ * Rewrites SELECT statements by injecting fixture CTEs so tests can run without physical tables.
+ */
 export class SelectFixtureRewriter {
   private readonly fixtureStore: FixtureStore;
   private readonly analyzer = new SelectAnalyzer();
@@ -55,6 +58,11 @@ export class SelectFixtureRewriter {
     this.analyzerFailureBehavior = options.analyzerFailureBehavior ?? 'error';
   }
 
+  /**
+   * Rewrites the provided SQL text, applying fixtures and formatting the final query.
+   * @param sql - Original SQL that may include multiple statements.
+   * @param context - Optional rewrite customization hooks.
+   */
   public rewrite(sql: string, context?: SelectRewriteContext): SelectRewriteResult {
     try {
       // Split multi-statement SQL and handle each query independently so fixtures are injected per statement.
