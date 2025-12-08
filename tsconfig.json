@@ -112,11 +112,8 @@
     },
     "files": [],
     "references": [
-        {
+    {
             "path": "./packages/core"
-        },
-        {
-            "path": "./packages/testkit-core"
         }
     ]
 }

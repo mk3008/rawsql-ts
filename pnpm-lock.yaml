@@ -197,7 +197,7 @@ importers:
   packages/drivers/sqlite-testkit:
     dependencies:
       '@rawsql-ts/testkit-core':
-        specifier: link:../../testkit-core
+        specifier: workspace:*
         version: link:../../testkit-core
       rawsql-ts:
         specifier: ^0.12.0

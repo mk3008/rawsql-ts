@@ -6,14 +6,9 @@
     "declaration": true,
     "declarationMap": false,
     "sourceMap": true,
-    "composite": true,
+    "composite": false,
     "tsBuildInfoFile": "dist/.tsbuildinfo"
   },
   "include": ["src/**/*.ts"],
-  "exclude": ["dist", "node_modules"],
-  "references": [
-    {
-      "path": "../core"
-    }
-  ]
+  "exclude": ["dist", "node_modules"]
 }

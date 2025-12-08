@@ -6,14 +6,9 @@
     "declaration": true,
     "declarationDir": "dist",
     "sourceMap": true,
-    "composite": true,
+    "composite": false,
     "tsBuildInfoFile": "dist/.tsbuildinfo"
   },
-  "references": [
-    {
-      "path": "../../testkit-core"
-    }
-  ],
   "include": ["src/**/*.ts"],
   "exclude": ["dist", "node_modules", "src/**/*.js", "src/**/*.d.ts"]
 }
