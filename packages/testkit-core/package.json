@@ -4,6 +4,12 @@
   "description": "Core fixtures, schema validation, and SQL rewrite utilities for rawsql-ts SELECT query testing.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "vitest run",

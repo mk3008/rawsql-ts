@@ -26,6 +26,7 @@
         // "moduleDetection": "auto",                        /* Control what method is used to detect module-format JS files. */
         /* Modules */
         "module": "commonjs", /* Specify what module code is generated. */
+        "moduleResolution": "node",
         "baseUrl": ".", /* Base directory for non-relative module names. */
         "paths": {
             "@rawsql-ts/testkit-core": ["packages/testkit-core/src"],
