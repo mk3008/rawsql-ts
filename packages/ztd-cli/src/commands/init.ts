@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import { spawnSync } from 'node:child_process';
-import { existsSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import readline from 'node:readline/promises';
 
@@ -78,7 +78,17 @@ export function createConsolePrompter(): Prompter {
   };
 }
 
-type FileKey = 'schema' | 'config' | 'ztdConfig' | 'readme' | 'srcGuide' | 'testsGuide' | 'agents';
+type FileKey =
+  | 'schema'
+  | 'config'
+  | 'ztdConfig'
+  | 'readme'
+  | 'srcGuide'
+  | 'testsGuide'
+  | 'agents'
+  | 'editorconfig'
+  | 'prettier'
+  | 'package';
 
 export interface FileSummary {
   relativePath: string;
@@ -137,6 +147,7 @@ Always import table types from \`tests/ztd-config.ts\` before writing scenarios,
 `;
 
 const NEXT_STEPS = [' 1. Review ddl/schema.sql', ' 2. Run npx ztd ztd-config', ' 3. Run ZTD tests with pg-testkit'];
+const TEMPLATE_DIRECTORY = path.resolve(__dirname, '..', '..', 'templates');
 
 const DEFAULT_DEPENDENCIES: ZtdConfigWriterDependencies = {
   ensureDirectory,
@@ -169,7 +180,10 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     readme: path.join(rootDir, 'README.md'),
     srcGuide: path.join(rootDir, 'src', 'ZTD-GUIDE.md'),
     testsGuide: path.join(rootDir, 'tests', 'ZTD-TEST-GUIDE.md'),
-    agents: path.join(rootDir, 'AGENTS.md')
+    agents: path.join(rootDir, 'AGENTS.md'),
+    editorconfig: path.join(rootDir, '.editorconfig'),
+    prettier: path.join(rootDir, '.prettierrc'),
+    package: path.join(rootDir, 'package.json')
   };
 
   const relativePath = (key: FileKey): string =>
@@ -291,6 +305,31 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     prompter
   );
 
+  const editorconfigSummary = copyTemplateFileIfMissing(
+    rootDir,
+    relativePath('editorconfig'),
+    '.editorconfig',
+    dependencies
+  );
+  if (editorconfigSummary) {
+    summaries.editorconfig = editorconfigSummary;
+  }
+
+  const prettierSummary = copyTemplateFileIfMissing(
+    rootDir,
+    relativePath('prettier'),
+    '.prettierrc',
+    dependencies
+  );
+  if (prettierSummary) {
+    summaries.prettier = prettierSummary;
+  }
+
+  const packageSummary = ensurePackageJsonFormatting(rootDir, relativePath('package'), dependencies);
+  if (packageSummary) {
+    summaries.package = packageSummary;
+  }
+
   // Copy the AGENTS template so every project ships the same AI guardrails.
   const agentsRelative = await ensureAgentsFile(rootDir, relativePath('agents'), dependencies);
   if (agentsRelative) {
@@ -326,6 +365,109 @@ async function ensureAgentsFile(
   }
 
   return null;
+}
+
+function copyTemplateFileIfMissing(
+  rootDir: string,
+  relative: string,
+  templateName: string,
+  dependencies: ZtdConfigWriterDependencies
+): FileSummary | null {
+  const templatePath = path.join(TEMPLATE_DIRECTORY, templateName);
+  // Skip copying when the CLI package does not include the requested template.
+  if (!existsSync(templatePath)) {
+    return null;
+  }
+
+  const targetPath = path.join(rootDir, relative);
+  // Avoid overwriting a file that the project already maintains.
+  if (dependencies.fileExists(targetPath)) {
+    return null;
+  }
+
+  dependencies.ensureDirectory(path.dirname(targetPath));
+  // Emit the template content so the generated project gets the same formatting defaults.
+  dependencies.writeFile(targetPath, readFileSync(templatePath, 'utf8'));
+  return { relativePath: relative, outcome: 'created' };
+}
+
+function ensurePackageJsonFormatting(
+  rootDir: string,
+  relative: string,
+  dependencies: ZtdConfigWriterDependencies
+): FileSummary | null {
+  const packagePath = path.join(rootDir, 'package.json');
+  // Skip wiring defaults when the project does not yet have a package manifest.
+  if (!dependencies.fileExists(packagePath)) {
+    return null;
+  }
+
+  const document = readFileSync(packagePath, 'utf8');
+  const parsed = JSON.parse(document) as Record<string, unknown>;
+  let changed = false;
+
+  const scripts = (parsed.scripts as Record<string, string> | undefined) ?? {};
+  const requiredScripts: Record<string, string> = {
+    format: 'prettier . --write',
+    lint: 'eslint .',
+    'lint:fix': 'eslint . --fix'
+  };
+
+  // Ensure the canonical formatting and lint scripts exist without overwriting custom commands.
+  for (const [name, value] of Object.entries(requiredScripts)) {
+    if (name in scripts) {
+      continue;
+    }
+    scripts[name] = value;
+    changed = true;
+  }
+
+  if (changed) {
+    parsed.scripts = scripts;
+  }
+
+  // Provide lint-staged wiring for the formatting pipeline when no configuration is present.
+  if (!('lint-staged' in parsed)) {
+    parsed['lint-staged'] = {
+      '*.{ts,tsx,js,jsx,json,md,sql}': ['pnpm format']
+    };
+    changed = true;
+  }
+
+  // Wire simple-git-hooks only if the user has not already customized it.
+  if (!('simple-git-hooks' in parsed)) {
+    parsed['simple-git-hooks'] = {
+      'pre-commit': 'pnpm lint-staged'
+    };
+    changed = true;
+  }
+
+  const devDependencies = (parsed.devDependencies as Record<string, string> | undefined) ?? {};
+  const formattingDeps: Record<string, string> = {
+    eslint: '^9.22.0',
+    'lint-staged': '^16.2.7',
+    'prettier': '^3.7.4',
+    'prettier-plugin-sql': '^0.19.2',
+    'simple-git-hooks': '^2.13.1'
+  };
+  // Add the formatting toolchain dependencies that back the scripts and hooks.
+  for (const [dep, version] of Object.entries(formattingDeps)) {
+    if (dep in devDependencies) {
+      continue;
+    }
+    devDependencies[dep] = version;
+    changed = true;
+  }
+
+  if (!changed) {
+    return null;
+  }
+
+  parsed.devDependencies = devDependencies;
+  dependencies.ensureDirectory(path.dirname(packagePath));
+  // Persist the updated manifest so the new scripts and tools are available immediately.
+  dependencies.writeFile(packagePath, `${JSON.stringify(parsed, null, 2)}\n`);
+  return { relativePath: relative, outcome: 'overwritten' };
 }
 
 async function writeFileWithConsent(
@@ -393,7 +535,10 @@ function buildSummaryLines(summaries: Record<FileKey, FileSummary>): string[] {
     'readme',
     'srcGuide',
     'testsGuide',
-    'agents'
+    'agents',
+    'editorconfig',
+    'prettier',
+    'package'
   ];
   const lines = ['ZTD project initialized.', '', 'Created:'];
 

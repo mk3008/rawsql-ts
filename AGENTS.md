@@ -67,6 +67,12 @@ Reverse dependencies are forbidden.
 -   Remove console debugging before committing.
 -   `packages/core/dist` outputs must stay synchronized with the pnpm store copy that CLI tests consume (`node_modules/.pnpm/rawsql-ts@<version>/node_modules/rawsql-ts/dist`). `pnpm --filter rawsql-ts build` already runs `scripts/sync-rawsql-dist.js` as a `postbuild` step, but you can rerun that script manually if a CLI test complains about outdated `rawsql-ts` artifacts.
 
+## Formatting and linting operations
+
+-   Run `pnpm format` to normalize TypeScript, SQL, Markdown, and config files; avoid touching formatting manually and keep `pnpm lint:fix` as the only way to mutate lintable files.
+-   The `simple-git-hooks` + `lint-staged` pre-commit pipeline runs `pnpm lint-staged`, which in turn executes `pnpm format` over staged files before a commit is recorded.
+-   Document any deviations from the standard formatting workflow in AGENTS so AI contributors understand that formatting is owned by the scripts, not by hand edits.
+
 ## Validation Checklist
 
 1.  `pnpm lint`

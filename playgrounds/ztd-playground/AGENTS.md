@@ -35,3 +35,8 @@ tableFixture('schema.table', [{ ... }])
   - minimal SQL examples in `src/`
   - ZTD-focused tests under `tests/`
 - Avoid adding application logic, persistence layers, or business services.
+
+## 6. Formatting and linting
+- Use `pnpm format` to normalize TypeScript, SQL, Markdown, and config files; do not hand-edit whitespace or indentation.
+- Run `pnpm lint` regularly and `pnpm lint:fix` when ESLint reports autofixable issues; these scripts are the single source of truth for formatting/linting.
+- The `simple-git-hooks` pre-commit hook triggers `lint-staged`, so staged files already run through `pnpm format` before commits land.
