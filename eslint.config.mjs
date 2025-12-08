@@ -1,11 +1,14 @@
+import { existsSync } from 'node:fs';
 import { resolve } from 'path';
 import typescriptEslint from '@typescript-eslint/eslint-plugin';
 import typescriptParser from '@typescript-eslint/parser';
 
-const tsProjectFiles = [
-    resolve(process.cwd(), 'tsconfig.json'),
-    resolve(process.cwd(), 'tsconfig.tests.json'),
-];
+const tsProjectFiles = [resolve(process.cwd(), 'tsconfig.json')];
+const testsConfigFile = resolve(process.cwd(), 'tsconfig.tests.json');
+if (existsSync(testsConfigFile)) {
+    // Only include the tests config when it exists in the current workspace.
+    tsProjectFiles.push(testsConfigFile);
+}
 
 const sharedParserOptions = {
     ecmaVersion: 2022,

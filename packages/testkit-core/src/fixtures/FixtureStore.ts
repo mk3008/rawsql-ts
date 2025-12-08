@@ -5,14 +5,15 @@ import type {
   TableFixture,
   SchemaRegistry,
   TableSchemaDefinition,
-  SqliteAffinity,
 } from '../types';
 import { guessAffinity } from './ColumnAffinity';
+import type { ColumnAffinity } from './ColumnAffinity';
 import { TableNameResolver } from './TableNameResolver';
 
 export interface ColumnDefinition {
   name: string;
-  affinity: SqliteAffinity;
+  typeName: string;
+  affinity: ColumnAffinity;
 }
 
 export interface NormalizedFixture {
@@ -28,6 +29,9 @@ export interface FixtureColumnDescription {
   source: FixtureColumnSource;
 }
 
+/**
+ * Normalizes and indexes fixture metadata so rewrites can resolve tables and columns deterministically.
+ */
 export class FixtureStore {
   private readonly schemaRegistry?: SchemaRegistry;
   private readonly tableNameResolver?: TableNameResolver;
@@ -39,6 +43,11 @@ export class FixtureStore {
     this.baseMap = this.buildMap(fixtures);
   }
 
+  /**
+   * Builds a fixture lookup map that layers per-call overrides on top of the base fixtures.
+   * @param overrides - Additional fixtures to merge with the base set.
+   * @returns A map keyed by normalized table names.
+   */
   public withOverrides(overrides?: TableFixture[]): Map<string, NormalizedFixture> {
     if (!overrides || overrides.length === 0) {
       return new Map(this.baseMap);
@@ -52,6 +61,11 @@ export class FixtureStore {
     return next;
   }
 
+  /**
+   * Retrieves column metadata for the requested table from fixtures or registered schema information.
+   * @param tableName - The table identifier potentially qualified by schema.
+   * @returns Column details assembled from fixtures or schema registry entries.
+   */
   public describeColumns(tableName: string): FixtureColumnDescription | undefined {
     const target = this.resolveTableKey(tableName, (candidate) => this.baseMap.has(candidate));
     const fixture = this.baseMap.get(target);
@@ -145,7 +159,7 @@ export class FixtureStore {
       throw new SchemaValidationError(`Schema for "${fixtureName}" must declare at least one column.`);
     }
 
-    return entries.map(([name, affinity]) => ({ name, affinity }));
+    return entries.map(([name, typeName]) => this.buildColumnDefinition(name, typeName ?? ''));
   }
 
   private buildColumnsFromDefinition(
@@ -156,10 +170,17 @@ export class FixtureStore {
       throw new SchemaValidationError(`Schema for "${fixtureName}" must declare at least one column.`);
     }
 
-    return definition.columns.map((column) => ({
-      name: column.name,
-      affinity: guessAffinity(column.typeName),
-    }));
+    return definition.columns.map((column) =>
+      this.buildColumnDefinition(column.name, column.typeName ?? '')
+    );
+  }
+
+  private buildColumnDefinition(name: string, typeName: string): ColumnDefinition {
+    return {
+      name,
+      typeName,
+      affinity: guessAffinity(typeName),
+    };
   }
 
   private isTableDefinitionModel(
@@ -200,7 +221,7 @@ export class FixtureStore {
 
   private normalizeValue(
     value: unknown,
-    affinity: SqliteAffinity,
+    affinity: ColumnAffinity,
     fixtureName: string,
     columnName: string,
     rowIndex: number

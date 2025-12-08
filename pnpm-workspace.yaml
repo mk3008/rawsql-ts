@@ -1,4 +1,5 @@
-﻿packages:
+packages:
+  - "packages/testkit-core"
   - "packages/*"
   - "packages/drivers/*"
   - "playgrounds/*"

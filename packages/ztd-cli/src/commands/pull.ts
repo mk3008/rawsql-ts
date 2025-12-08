@@ -3,6 +3,7 @@ import path from 'node:path';
 import { runPgDump } from '../utils/pgDump';
 import { ensureDirectory } from '../utils/fs';
 import { normalizePulledSchema, NormalizedStatement } from '../utils/normalizePulledSchema';
+import type { DbConnectionContext } from '../utils/dbConnection';
 
 export interface PullSchemaOptions {
   url: string;
@@ -10,6 +11,7 @@ export interface PullSchemaOptions {
   pgDumpPath?: string;
   schemas?: string[];
   tables?: string[];
+  connectionContext?: DbConnectionContext;
 }
 
 interface TableSpecifier {
@@ -28,7 +30,8 @@ export function runPullSchema(options: PullSchemaOptions): void {
   const ddlSql = runPgDump({
     url: options.url,
     pgDumpPath: options.pgDumpPath,
-    extraArgs: buildPgDumpArguments(schemaFilters, tableFilters)
+    extraArgs: buildPgDumpArguments(schemaFilters, tableFilters),
+    connectionContext: options.connectionContext
   });
 
   // Normalize and bucket the pg_dump output while respecting the requested schema set.

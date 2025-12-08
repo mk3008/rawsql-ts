@@ -9,3 +9,9 @@
 - Never duplicate DDL definitions or re-derive schema metadata outside of `tests/ztd-config.ts`. If a table or column already exists in the row map, reuse it instead of redefining it.
 - Tests must import the appropriate row interface from `TestRowMap` (e.g., `TestRowMap['public.users']`) rather than crafting new interfaces.
 - The AGENTS template is copied verbatim: `ztd init` writes this into `AGENTS.md` (falling back to `AGENTS_ZTD.md` if a file already exists).
+
+## Formatting and linting
+
+- Run `pnpm format` to normalize TypeScript, SQL, Markdown, and configuration files; do not hand-edit whitespace or indentation when the script is available.
+- Use `pnpm lint` before publishing and `pnpm lint:fix` whenever ESLint reports fixable issues; these commands are the single source of truth for linting behavior.
+- The generated project wires `simple-git-hooks` + `lint-staged` together so the pre-commit hook executes `pnpm format` on staged files automatically.

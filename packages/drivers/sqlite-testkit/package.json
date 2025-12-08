@@ -30,7 +30,7 @@
     "node": ">=20"
   },
   "dependencies": {
-    "@rawsql-ts/testkit-core": "^0.1.0",
+    "@rawsql-ts/testkit-core": "workspace:*",
     "rawsql-ts": "^0.12.0"
   },
   "devDependencies": {

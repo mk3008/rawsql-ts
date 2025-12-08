@@ -41,13 +41,30 @@ Every `ztd ddl` subcommand targets the shared DDL directory defined in `ztd.conf
 
 ### `ztd ddl pull`
 
-Fetches the schema via `pg_dump`, normalizes the DDL, and writes one file per schema under `ddl/schemas/<schema>.sql` instead of a single `schema.sql`. The output drops headers, `SET` statements, and `\restrict` markers, sorts objects (schemas, tables, alterations, sequences, indexes) deterministically, and ensures each schema file ends with a clean newline so `ztd gen-config` and your AI flows always see stable input.
+ Fetches the schema via `pg_dump`, normalizes the DDL, and writes one file per schema under `ddl/schemas/<schema>.sql` instead of a single `schema.sql`. The output drops headers, `SET` statements, and `\restrict` markers, sorts objects (schemas, tables, alterations, sequences, indexes) deterministically, and ensures each schema file ends with a clean newline so `ztd gen-config` and your AI flows always see stable input.
+
+ The command resolves the database connection in three steps: prefer a `DATABASE_URL` environment variable, honor explicit CLI overrides (`--url` or the `--db-*` flags) when supplied, and finally fall back to a `connection` block in `ztd.config.json` if present. Flags that provide partial credentials will cause the CLI to error before invoking `pg_dump` so you know exactly what is missing, and the generated error message always mentions the connection target together with concrete fixes. You only need to pass `--url` when no other resolver (environment or config) is configured; the CLI will reuse the resolved URL for every downstream tool invocation once the connection is determined.
+
+ A sample `connection` block looks like:
+
+ ```json
+ {
+   "connection": {
+     "host": "db.example",
+     "port": 5432,
+     "user": "app",
+     "password": "secret",
+     "database": "app_db"
+   }
+ }
+ ```
+
 
 You can scope the pull with `--schema <name>` (repeatable) or `--table <schema.table>` (repeatable); filtered pulls only emit the requested schemas/tables and their dependent objects. If no filters are provided, the command retrieves the full schema and still splits it by namespace.
 
 Unqualified table references are treated as belonging to the `public` schema by default, so `users` is interpreted as `public.users`. If your project relies on a different namespace, update the `ddl.defaultSchema`/`ddl.searchPath` block in `ztd.config.json` so the CLI and downstream tests agree on how unqualified names are resolved.
 
-> **Note:** `ztd ddl` commands that contact your database depend on the `pg_dump` executable. Ensure `pg_dump` is installed and reachable via your `PATH`, or set the `PG_DUMP_PATH` environment variable to the absolute path of the executable before running the command.
+ > **Note:** `ztd ddl` commands that contact your database depend on the `pg_dump` executable. Ensure `pg_dump` is installed and reachable via your `PATH` (Windows users can add `C:\Program Files\PostgreSQL\<version>\bin` or open a shell that already exposes `pg_dump`), or pass `--pg-dump-path <path>` / set `PG_DUMP_PATH` to the absolute path before running the command. When authentication fails the CLI echoes the target host/port/database/user so you know what credential set to double-check.
 
 On Windows, register the executable for future PowerShell sessions:
 

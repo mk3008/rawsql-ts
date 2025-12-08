@@ -6,7 +6,7 @@
     "declarationDir": "dist",
     "declaration": true,
     "sourceMap": true,
-    "composite": true,
+    "composite": false,
     "tsBuildInfoFile": "dist/.tsbuildinfo"
   },
   "include": ["src/**/*.ts"],

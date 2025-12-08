@@ -1,8 +1,8 @@
-import type { MissingFixtureStrategy, SqliteAffinity } from '../types';
+import type { MissingFixtureStrategy } from '../types';
 
 export interface MissingFixtureColumnDetail {
   name: string;
-  affinity: SqliteAffinity;
+  typeName: string;
 }
 
 export interface MissingFixtureDiagnostics {
@@ -13,6 +13,9 @@ export interface MissingFixtureDiagnostics {
   schemaSource?: 'fixture' | 'schema';
 }
 
+/**
+ * Raised when the rewriter cannot locate fixture data for a referenced table.
+ */
 export class MissingFixtureError extends Error {
   constructor(public readonly diagnostics: MissingFixtureDiagnostics) {
     super(MissingFixtureError.buildMessage(diagnostics));
@@ -35,7 +38,7 @@ export class MissingFixtureError extends Error {
         diagnostics.schemaSource === 'schema' ? 'schema registry' : 'fixture metadata';
       lines.push(`  - Required columns (${sourceLabel}):`);
       diagnostics.schemaColumns.forEach((column) => {
-        lines.push(`      • ${column.name} (${column.affinity})`);
+        lines.push(`      • ${column.name} (${column.typeName})`);
       });
       lines.push('  - Suggested fixture template:');
       lines.push(...MissingFixtureError.buildFixtureTemplate(diagnostics.tableName, diagnostics.schemaColumns));
@@ -53,6 +56,9 @@ export class MissingFixtureError extends Error {
     return lines.join('\n');
   }
 
+  /**
+   * Produces a compact preview of the provided SQL snippet for diagnostics.
+   */
   private static formatSqlSnippet(sql: string): string {
     const compact = sql.replace(/\s+/g, ' ').trim();
     const limit = 280;
@@ -62,6 +68,9 @@ export class MissingFixtureError extends Error {
     return `${compact.slice(0, limit)}…`;
   }
 
+  /**
+   * Builds a human-readable template that mirrors the missing fixture schema.
+   */
   private static buildFixtureTemplate(
     tableName: string,
     columns: MissingFixtureColumnDetail[]
@@ -74,12 +83,12 @@ export class MissingFixtureError extends Error {
     template.push(`${indent(5)}columns: {`);
     columns.forEach((column, index) => {
       const suffix = index === columns.length - 1 ? '' : ',';
-      template.push(`${indent(6)}${column.name}: '${column.affinity}'${suffix}`);
+      template.push(`${indent(6)}${column.name}: '${column.typeName}'${suffix}`);
     });
     template.push(`${indent(5)}}`);
     template.push(`${indent(4)}},`);
     template.push(`${indent(4)}rows: [`);
-    const rowExample = columns.map((column) => `${column.name}: /* ${column.affinity} */`).join(', ');
+    const rowExample = columns.map((column) => `${column.name}: /* ${column.typeName} */`).join(', ');
     template.push(`${indent(5)}{ ${rowExample} }`);
     template.push(`${indent(4)}],`);
     template.push(`${indent(3)}}`);
@@ -87,6 +96,9 @@ export class MissingFixtureError extends Error {
   }
 }
 
+/**
+ * Signals that a fixture schema definition lacks required metadata or is inconsistent.
+ */
 export class SchemaValidationError extends Error {
   constructor(message: string) {
     super(message);
@@ -94,6 +106,9 @@ export class SchemaValidationError extends Error {
   }
 }
 
+/**
+ * Wraps unexpected failures encountered during select statement rewriting.
+ */
 export class QueryRewriteError extends Error {
   constructor(message: string, public readonly cause?: unknown) {
     super(message);

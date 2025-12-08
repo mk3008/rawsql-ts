@@ -1,7 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import type { TableFixture } from '@rawsql-ts/testkit-core';
-import { tableFixture, TestRowMap } from '../ztd-config';
-import { orderItemSchema, orderSchema, productSchema, userSchema } from './fixture-schema';
+import { tableFixture, TestRowMap, tableSchemas } from '../ztd-config';
 import { createTestkitClient } from './test-utils';
 import { userSummarySql } from '../src/user_summary';
 
@@ -52,13 +51,13 @@ function buildOrderItems(): TestRowMap['public.order_items'][] {
 
 function buildFixtures(): TableFixture[] {
   // Provide fixtures for every domain table so rewrites can resolve joins.
-    return [
-      tableFixture('public.users', buildUsers(), userSchema),
-      tableFixture('public.products', buildProducts(), productSchema),
-      tableFixture('public.orders', buildOrders(), orderSchema),
-      tableFixture('public.order_items', buildOrderItems(), orderItemSchema)
-    ];
-  }
+  return [
+    tableFixture('public.users', buildUsers(), tableSchemas['public.users']),
+    tableFixture('public.products', buildProducts(), tableSchemas['public.products']),
+    tableFixture('public.orders', buildOrders(), tableSchemas['public.orders']),
+    tableFixture('public.order_items', buildOrderItems(), tableSchemas['public.order_items'])
+  ];
+}
 
 describe('user_summary query', () => {
   test('totals, spend, and last order appear for each user', async () => {

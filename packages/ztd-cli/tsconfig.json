@@ -1,16 +1,13 @@
 {
   "extends": "../../tsconfig.json",
-  "references": [
-    { "path": "../core" },
-    { "path": "../testkit-core" }
-  ],
   "compilerOptions": {
     "rootDir": "src",
     "outDir": "dist",
     "declarationDir": "dist",
     "declaration": true,
     "sourceMap": true,
-    "composite": true,
+    "composite": false,
+    "paths": {},
     "resolveJsonModule": true,
     "tsBuildInfoFile": "dist/.tsbuildinfo"
   },

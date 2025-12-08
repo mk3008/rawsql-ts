@@ -67,6 +67,12 @@ Reverse dependencies are forbidden.
 -   Remove console debugging before committing.
 -   `packages/core/dist` outputs must stay synchronized with the pnpm store copy that CLI tests consume (`node_modules/.pnpm/rawsql-ts@<version>/node_modules/rawsql-ts/dist`). `pnpm --filter rawsql-ts build` already runs `scripts/sync-rawsql-dist.js` as a `postbuild` step, but you can rerun that script manually if a CLI test complains about outdated `rawsql-ts` artifacts.
 
+## Formatting and linting operations
+
+-   Run `pnpm format` to normalize TypeScript, SQL, Markdown, and config files; avoid touching formatting manually and keep `pnpm lint:fix` as the only way to mutate lintable files.
+-   The `simple-git-hooks` + `lint-staged` pre-commit pipeline runs `pnpm lint-staged`, which in turn executes `pnpm format` over staged files before a commit is recorded.
+-   Document any deviations from the standard formatting workflow in AGENTS so AI contributors understand that formatting is owned by the scripts, not by hand edits.
+
 ## Validation Checklist
 
 1.  `pnpm lint`
@@ -83,4 +89,25 @@ Reverse dependencies are forbidden.
 
 ## Public API Documentation
 
-All exported classes/types must include clear English JSDoc in `src/`.
+This repository enforces docstring coverage in CI.
+
+- All **exported classes, functions, and types in `src/`** are considered part of the public API.
+- Every exported symbol in `src/` **must have clear English JSDoc** attached to its declaration.
+- The GitHub Actions job `docstring coverage` will fail if:
+  - an exported symbol has no JSDoc, or
+  - the JSDoc is missing the parts that explain in plain English what the API does and what the inputs/outputs are.
+
+### Rules for contributors and AI assistants
+
+- When you **add a new exported symbol** in `src/` (class, function, type, interface, enum, etc.):
+  - Always add English JSDoc in the same commit.
+  - The JSDoc should briefly explain the role of the API and how to consume it.
+- When you **modify an exported symbol**:
+  - Update the existing docstring to keep it truthful.
+  - Never delete a docstring merely to keep the diff small.
+- If the CI error references **docstring coverage**:
+  - Do **not** change the coverage threshold or disable the workflow.
+  - Identify the exported symbols lacking documentation and add concise yet descriptive English JSDoc.
+  - Prefer clarifying intended usage over placeholder text.
+- If a helper is **not meant to be public**:
+  - Make it non-exported, or add `@internal` to its docstring rather than leaving an undocumented export.

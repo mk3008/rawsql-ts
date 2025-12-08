@@ -11,6 +11,8 @@ Created:
  - src/ZTD-GUIDE.md
  - tests/ZTD-TEST-GUIDE.md
  - AGENTS.md
+ - .editorconfig
+ - .prettierrc
 
 Next steps:
  1. Review ddl/schema.sql
@@ -29,6 +31,8 @@ Created:
  - src/ZTD-GUIDE.md
  - tests/ZTD-TEST-GUIDE.md
  - AGENTS.md
+ - .editorconfig
+ - .prettierrc
 
 Next steps:
  1. Review ddl/schema.sql

@@ -125,18 +125,28 @@ pullTest('pull CLI emits schema from Postgres via pg_dump', async () => {
     await seedProductsTable(client);
 
     const outDir = createTempDir('cli-pull');
-    const result = runCli(['ddl', 'pull', '--url', connectionString, '--out', outDir]);
-    assertCliSuccess(result, 'ddl pull');
-    const schemaDir = path.join(outDir, 'schemas');
-    expect(existsSync(schemaDir)).toBe(true);
-    const schemaFiles = readdirSync(schemaDir);
-    expect(schemaFiles).toContain('public.sql');
-    const schema = readNormalizedFile(path.join(schemaDir, 'public.sql'));
-    const normalizedSchema = schema.toLowerCase();
-    expect(normalizedSchema).toContain('create schema public;');
-    expect(normalizedSchema).toContain('create table public.products');
-    expect(normalizedSchema).not.toContain('set ');
-    expect(existsSync(path.join(outDir, 'schema.sql'))).toBe(false);
+    const previousDatabaseUrl = process.env.DATABASE_URL;
+    process.env.DATABASE_URL = connectionString;
+    try {
+      const result = runCli(['ddl', 'pull', '--out', outDir]);
+      assertCliSuccess(result, 'ddl pull');
+      const schemaDir = path.join(outDir, 'schemas');
+      expect(existsSync(schemaDir)).toBe(true);
+      const schemaFiles = readdirSync(schemaDir);
+      expect(schemaFiles).toContain('public.sql');
+      const schema = readNormalizedFile(path.join(schemaDir, 'public.sql'));
+      const normalizedSchema = schema.toLowerCase();
+      expect(normalizedSchema).toContain('create schema public;');
+      expect(normalizedSchema).toContain('create table public.products');
+      expect(normalizedSchema).not.toContain('set ');
+      expect(existsSync(path.join(outDir, 'schema.sql'))).toBe(false);
+    } finally {
+      if (previousDatabaseUrl === undefined) {
+        delete process.env.DATABASE_URL;
+      } else {
+        process.env.DATABASE_URL = previousDatabaseUrl;
+      }
+    }
   } finally {
     await resetPublicSchema(client);
     await client.end();

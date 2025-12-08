@@ -1,7 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import type { TableFixture } from '@rawsql-ts/testkit-core';
-import { tableFixture, TestRowMap } from '../ztd-config';
-import { orderItemSchema, orderSchema, productSchema, userSchema } from './fixture-schema';
+import { tableFixture, TestRowMap, tableSchemas } from '../ztd-config';
 import { createTestkitClient } from './test-utils';
 import { salesSummarySql } from '../src/sales_summary';
 
@@ -41,10 +40,10 @@ function buildSalesOrderItems(): TestRowMap['public.order_items'][] {
 function buildFixtures(): TableFixture[] {
   // Pair every table fixture with its rows so the rewriter can materialize them.
   return [
-    tableFixture('public.users', buildSalesUsers(), userSchema),
-    tableFixture('public.products', buildSalesProducts(), productSchema),
-    tableFixture('public.orders', buildSalesOrders(), orderSchema),
-    tableFixture('public.order_items', buildSalesOrderItems(), orderItemSchema)
+    tableFixture('public.users', buildSalesUsers(), tableSchemas['public.users']),
+    tableFixture('public.products', buildSalesProducts(), tableSchemas['public.products']),
+    tableFixture('public.orders', buildSalesOrders(), tableSchemas['public.orders']),
+    tableFixture('public.order_items', buildSalesOrderItems(), tableSchemas['public.order_items'])
   ];
 }
 
