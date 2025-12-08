@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import type { TableFixture } from '@rawsql-ts/testkit-core';
-import { tableFixture, TestRowMap, tableSchemas } from '../ztd-config';
+import { tableFixture, TestRowMap, tableSchemas } from './ztd-config';
 import { createTestkitClient } from './test-utils';
 import { salesSummarySql } from '../src/sales_summary';
 

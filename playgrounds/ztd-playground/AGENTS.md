@@ -7,16 +7,12 @@ This playground exists to validate the ZTD development loop end-to-end against a
 - Set `DATABASE_URL` before running `pnpm playground:test` (or any spec that touches the helper); the helper throws a clear error when it is missing.
 - Never issue DDL statements against Postgres from the playground. All CRUD operations must flow through pg-testkit so they resolve to fixture-backed `SELECT` queries.
 
-## 2. Treat `ddl/schemas` as the single source of truth
-- Keep every table definition inside `ddl/schemas/*.sql`.
-- Do not hand-edit `ztd-config.ts`; regenerate it with:
+## 2. Treat the `sql/` layout as the single source of truth
+- Keep every table definition inside `sql/ddl/schemas/*.sql`, enums under `sql/enums/*.sql`, and executable specs inside `sql/domain-specs/*.sql`.
+- Do not hand-edit `tests/ztd.config.ts`; regenerate it with `pnpm playground:gen-config` (or `pnpm --filter ztd-playground exec ztd ztd-config`) so the CLI and tests stay aligned. The row map lives in `tests/ztd-config.ts`, which is the canonical place to import fixtures from.
 
-```bash
-pnpm --filter ztd-playground exec ztd ztd-config
-```
-
-## 3. `ztd-config.ts` defines typed fixtures
-- Import `ZtdConfig`, `ZtdRowShapes`, `ZtdTableName`, and `tableFixture()` from the generated file.
+## 3. `tests/ztd-config.ts` defines typed fixtures
+- Import `ZtdConfig`, `ZtdRowShapes`, `ZtdTableName`, and `tableFixture()` from `tests/ztd-config.ts`.
 - Trust the generated helpers for row shapes instead of duplicating row interfaces inside tests.
 
 ## 4. Keep tests deterministic

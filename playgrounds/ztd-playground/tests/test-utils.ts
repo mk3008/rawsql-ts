@@ -6,7 +6,7 @@ import { createPgTestkitClient } from '@rawsql-ts/pg-testkit';
 import type { PgQueryInput, PgQueryable } from '@rawsql-ts/pg-testkit';
 import type { TableFixture } from '@rawsql-ts/testkit-core';
 
-const ddlDirectories = [path.resolve(__dirname, '../ddl/schemas')];
+const ddlDirectories = [path.resolve(__dirname, '../sql/ddl')];
 
 let sharedPgClient: Client | undefined;
 let sharedQueryable: PgQueryable | undefined;
