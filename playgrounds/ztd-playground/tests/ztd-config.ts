@@ -3,7 +3,6 @@
 // This file is synchronized with DDL using ztd-config.
 
 import type { FixtureRow, TableFixture, TableSchemaDefinition } from '@rawsql-ts/testkit-core';
-
 export interface TestRowMap {
   'public.order_items': PublicOrderItemsTestRow;
   'public.orders': PublicOrdersTestRow;
@@ -49,37 +48,37 @@ export type ZtdTableSchemas = Record<ZtdTableName, TableSchemaDefinition>;
 export const tableSchemas: ZtdTableSchemas = {
   'public.order_items': {
     columns: {
-      order_items_id: 'BIGINT',
-      order_id: 'BIGINT',
-      product_id: 'BIGINT',
-      quantity: 'INTEGER',
-      unit_price: 'NUMERIC'
+      order_items_id: "bigint",
+      order_id: "bigint",
+      product_id: "bigint",
+      quantity: "int",
+      unit_price: "numeric",
     }
   },
   'public.orders': {
     columns: {
-      orders_id: 'BIGINT',
-      user_id: 'BIGINT',
-      order_date: 'DATE',
-      status: 'TEXT'
+      orders_id: "bigint",
+      user_id: "bigint",
+      order_date: "date",
+      status: "text",
     }
   },
   'public.products': {
     columns: {
-      products_id: 'BIGINT',
-      name: 'TEXT',
-      price: 'NUMERIC',
-      category_id: 'BIGINT'
+      products_id: "bigint",
+      name: "text",
+      price: "numeric",
+      category_id: "bigint",
     }
   },
   'public.users': {
     columns: {
-      users_id: 'BIGINT',
-      name: 'TEXT',
-      email: 'TEXT',
-      created_at: 'TIMESTAMP'
+      users_id: "bigint",
+      name: "text",
+      email: "text",
+      created_at: "timestamp",
     }
-  }
+  },
 };
 
 export function tableSchema<K extends ZtdTableName>(tableName: K): TableSchemaDefinition {
@@ -111,12 +110,3 @@ export function tableFixtureWithSchema<K extends ZtdTableName>(
   // Always pair fixture rows with the canonical schema generated from DDL.
   return { tableName, rows, schema: tableSchemas[tableName] };
 }
-
-// Type guard demonstrating arbitrary DDL type strings stay permissible.
-const stringTypeSchema: TableSchemaDefinition = {
-  columns: {
-    placeholder_bigint: 'BIGINT',
-    placeholder_custom: 'USER_STATUS',
-  },
-};
-void stringTypeSchema;
