@@ -7,10 +7,8 @@ import type {
 export type { TableDefinitionModel } from 'rawsql-ts';
 import type { TableNameResolver } from '../fixtures/TableNameResolver';
 
-export type SqliteAffinity = 'TEXT' | 'INTEGER' | 'REAL' | 'NUMERIC' | 'BLOB';
-
 export interface TableSchemaDefinition {
-  columns: Record<string, SqliteAffinity>;
+  columns: Record<string, string>;
 }
 
 export interface SchemaRegistry {

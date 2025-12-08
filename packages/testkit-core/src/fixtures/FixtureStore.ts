@@ -5,14 +5,15 @@ import type {
   TableFixture,
   SchemaRegistry,
   TableSchemaDefinition,
-  SqliteAffinity,
 } from '../types';
 import { guessAffinity } from './ColumnAffinity';
+import type { ColumnAffinity } from './ColumnAffinity';
 import { TableNameResolver } from './TableNameResolver';
 
 export interface ColumnDefinition {
   name: string;
-  affinity: SqliteAffinity;
+  typeName: string;
+  affinity: ColumnAffinity;
 }
 
 export interface NormalizedFixture {
@@ -145,7 +146,7 @@ export class FixtureStore {
       throw new SchemaValidationError(`Schema for "${fixtureName}" must declare at least one column.`);
     }
 
-    return entries.map(([name, affinity]) => ({ name, affinity }));
+    return entries.map(([name, typeName]) => this.buildColumnDefinition(name, typeName ?? ''));
   }
 
   private buildColumnsFromDefinition(
@@ -156,10 +157,17 @@ export class FixtureStore {
       throw new SchemaValidationError(`Schema for "${fixtureName}" must declare at least one column.`);
     }
 
-    return definition.columns.map((column) => ({
-      name: column.name,
-      affinity: guessAffinity(column.typeName),
-    }));
+    return definition.columns.map((column) =>
+      this.buildColumnDefinition(column.name, column.typeName ?? '')
+    );
+  }
+
+  private buildColumnDefinition(name: string, typeName: string): ColumnDefinition {
+    return {
+      name,
+      typeName,
+      affinity: guessAffinity(typeName),
+    };
   }
 
   private isTableDefinitionModel(
@@ -200,7 +208,7 @@ export class FixtureStore {
 
   private normalizeValue(
     value: unknown,
-    affinity: SqliteAffinity,
+    affinity: ColumnAffinity,
     fixtureName: string,
     columnName: string,
     rowIndex: number

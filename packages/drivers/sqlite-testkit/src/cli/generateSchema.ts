@@ -1,6 +1,6 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import type { TableSchemaDefinition, SqliteAffinity } from '@rawsql-ts/testkit-core';
+import type { TableSchemaDefinition } from '@rawsql-ts/testkit-core';
 import {
   CreateTableQuery,
   SqlParser,
@@ -142,7 +142,7 @@ async function buildSchema(databasePath: string, filters?: string[]): Promise<Re
           columns: Object.fromEntries(
             createTable.columns.map((column: TableColumnDefinition) => [
               column.name.name,
-              mapDeclaredTypeToAffinity(getDeclaredType(column.dataType)),
+              getDeclaredType(column.dataType),
             ])
           ),
         };
@@ -194,31 +194,18 @@ function getDeclaredType(dataType?: TypeValue | RawString | null): string {
   if (!dataType) {
     return '';
   }
-  if ('getTypeName' in dataType && typeof dataType.getTypeName === 'function') {
-    return dataType.getTypeName();
-  }
-  if ('value' in dataType && typeof dataType.value === 'string') {
-    return dataType.value;
-  }
-  return '';
-}
 
-function mapDeclaredTypeToAffinity(typeName: string): SqliteAffinity {
-  const normalized = typeName.trim().toUpperCase();
-  // Apply SQLite affinity precedence rules derived from official documentation.
-  if (normalized === '' || normalized.includes('BLOB')) {
-    return 'BLOB';
+  // Prefer the parser's helper when it exposes the declarative type text.
+  if ('getTypeName' in dataType && typeof dataType.getTypeName === 'function') {
+    return dataType.getTypeName().trim();
   }
-  if (normalized.includes('INT')) {
-    return 'INTEGER';
+
+  // Fall back to direct literal values for simple AST nodes.
+  if ('value' in dataType && typeof dataType.value === 'string') {
+    return dataType.value.trim();
   }
-  if (normalized.includes('CHAR') || normalized.includes('CLOB') || normalized.includes('TEXT')) {
-    return 'TEXT';
-  }
-  if (normalized.includes('REAL') || normalized.includes('FLOA') || normalized.includes('DOUB')) {
-    return 'REAL';
-  }
-  return 'NUMERIC';
+
+  return '';
 }
 
 function printUsage(): void {

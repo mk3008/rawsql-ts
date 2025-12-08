@@ -153,7 +153,7 @@ export class SelectFixtureRewriter {
         const columnDescriptor = this.fixtureStore.describeColumns(table);
         const schemaColumns = columnDescriptor?.columns.map((column) => ({
           name: column.name,
-          affinity: column.affinity,
+          typeName: column.typeName,
         }));
         this.handleMissingFixture(table, sql, schemaColumns, columnDescriptor?.source);
         continue;

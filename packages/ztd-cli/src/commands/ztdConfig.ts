@@ -9,7 +9,6 @@ import {
 import { TableNameResolver } from '@rawsql-ts/testkit-core';
 import { collectSqlFiles, SqlSource } from '../utils/collectSqlFiles';
 import { mapSqlTypeToTs } from '../utils/typeMapper';
-import { mapSqlTypeToAffinity } from '../utils/sqliteAffinity';
 import { ensureDirectory } from '../utils/fs';
 
 export interface ZtdConfigGenerationOptions {
@@ -168,13 +167,13 @@ export function renderZtdConfigFile(tables: TableMetadata[]): string {
   // Assemble a schema map that mirrors TestRowMap so tests can reuse canonical affinity metadata.
   const schemaEntries = tables
     .map((table) => {
-      const columnAffinities = table.columns
+      const columnDefinitions = table.columns
         .map((column) => {
-          const affinity = mapSqlTypeToAffinity(column.typeName, `${table.name}.${column.name}`);
-          return `      ${column.name}: '${affinity}',`;
+          const typeLiteral = JSON.stringify(column.typeName ?? '');
+          return `      ${column.name}: ${typeLiteral},`;
         })
         .join('\n');
-      return `  '${table.name}': {\n    columns: {\n${columnAffinities}\n    }\n  },`;
+      return `  '${table.name}': {\n    columns: {\n${columnDefinitions}\n    }\n  },`;
     })
     .join('\n');
 

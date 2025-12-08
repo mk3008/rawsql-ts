@@ -32,16 +32,16 @@ export type ZtdTableSchemas = Record<ZtdTableName, TableSchemaDefinition>;
 export const tableSchemas: ZtdTableSchemas = {
   'public.sessions': {
     columns: {
-      id: 'INTEGER',
-      user_id: 'INTEGER',
-      expires_at: 'TEXT',
+      id: "bigint",
+      user_id: "int",
+      expires_at: "timestamptz",
     }
   },
   'public.users': {
     columns: {
-      id: 'NUMERIC',
-      email: 'TEXT',
-      score: 'NUMERIC',
+      id: "serial",
+      email: "text",
+      score: "numeric",
     }
   },
 };

@@ -32,16 +32,16 @@ export type ZtdTableSchemas = Record<ZtdTableName, TableSchemaDefinition>;
 export const tableSchemas: ZtdTableSchemas = {
   'public.profiles': {
     columns: {
-      user_id: 'INTEGER',
-      bio: 'TEXT',
-      rating: 'NUMERIC',
+      user_id: "bigint",
+      bio: "text",
+      rating: "numeric",
     }
   },
   'public.users': {
     columns: {
-      id: 'NUMERIC',
-      email: 'TEXT',
-      created_at: 'TEXT',
+      id: "serial",
+      email: "text",
+      created_at: "timestamptz",
     }
   },
 };
@@ -118,24 +118,24 @@ export type ZtdTableSchemas = Record<ZtdTableName, TableSchemaDefinition>;
 export const tableSchemas: ZtdTableSchemas = {
   'analytics.weekly_stats': {
     columns: {
-      stats_id: 'NUMERIC',
-      order_id: 'INTEGER',
-      order_line: 'INTEGER',
-      sales_amount: 'NUMERIC',
+      stats_id: "serial",
+      order_id: "bigint",
+      order_line: "bigint",
+      sales_amount: "numeric",
     }
   },
   'public.users': {
     columns: {
-      id: 'NUMERIC',
-      name: 'TEXT',
+      id: "serial",
+      name: "text",
     }
   },
   'sales.orders': {
     columns: {
-      order_id: 'INTEGER',
-      line: 'INTEGER',
-      customer_id: 'INTEGER',
-      total: 'NUMERIC',
+      order_id: "bigint",
+      line: "bigint",
+      customer_id: "bigint",
+      total: "numeric",
     }
   },
 };

@@ -49,35 +49,35 @@ export type ZtdTableSchemas = Record<ZtdTableName, TableSchemaDefinition>;
 export const tableSchemas: ZtdTableSchemas = {
   'public.order_items': {
     columns: {
-      order_items_id: 'INTEGER',
-      order_id: 'INTEGER',
-      product_id: 'INTEGER',
+      order_items_id: 'BIGINT',
+      order_id: 'BIGINT',
+      product_id: 'BIGINT',
       quantity: 'INTEGER',
       unit_price: 'NUMERIC'
     }
   },
   'public.orders': {
     columns: {
-      orders_id: 'INTEGER',
-      user_id: 'INTEGER',
-      order_date: 'TEXT',
+      orders_id: 'BIGINT',
+      user_id: 'BIGINT',
+      order_date: 'DATE',
       status: 'TEXT'
     }
   },
   'public.products': {
     columns: {
-      products_id: 'INTEGER',
+      products_id: 'BIGINT',
       name: 'TEXT',
       price: 'NUMERIC',
-      category_id: 'INTEGER'
+      category_id: 'BIGINT'
     }
   },
   'public.users': {
     columns: {
-      users_id: 'INTEGER',
+      users_id: 'BIGINT',
       name: 'TEXT',
       email: 'TEXT',
-      created_at: 'TEXT'
+      created_at: 'TIMESTAMP'
     }
   }
 };
@@ -111,3 +111,12 @@ export function tableFixtureWithSchema<K extends ZtdTableName>(
   // Always pair fixture rows with the canonical schema generated from DDL.
   return { tableName, rows, schema: tableSchemas[tableName] };
 }
+
+// Type guard demonstrating arbitrary DDL type strings stay permissible.
+const stringTypeSchema: TableSchemaDefinition = {
+  columns: {
+    placeholder_bigint: 'BIGINT',
+    placeholder_custom: 'USER_STATUS',
+  },
+};
+void stringTypeSchema;

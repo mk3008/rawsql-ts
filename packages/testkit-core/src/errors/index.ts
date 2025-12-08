@@ -1,8 +1,8 @@
-import type { MissingFixtureStrategy, SqliteAffinity } from '../types';
+import type { MissingFixtureStrategy } from '../types';
 
 export interface MissingFixtureColumnDetail {
   name: string;
-  affinity: SqliteAffinity;
+  typeName: string;
 }
 
 export interface MissingFixtureDiagnostics {
@@ -35,7 +35,7 @@ export class MissingFixtureError extends Error {
         diagnostics.schemaSource === 'schema' ? 'schema registry' : 'fixture metadata';
       lines.push(`  - Required columns (${sourceLabel}):`);
       diagnostics.schemaColumns.forEach((column) => {
-        lines.push(`      • ${column.name} (${column.affinity})`);
+        lines.push(`      • ${column.name} (${column.typeName})`);
       });
       lines.push('  - Suggested fixture template:');
       lines.push(...MissingFixtureError.buildFixtureTemplate(diagnostics.tableName, diagnostics.schemaColumns));
@@ -74,12 +74,12 @@ export class MissingFixtureError extends Error {
     template.push(`${indent(5)}columns: {`);
     columns.forEach((column, index) => {
       const suffix = index === columns.length - 1 ? '' : ',';
-      template.push(`${indent(6)}${column.name}: '${column.affinity}'${suffix}`);
+      template.push(`${indent(6)}${column.name}: '${column.typeName}'${suffix}`);
     });
     template.push(`${indent(5)}}`);
     template.push(`${indent(4)}},`);
     template.push(`${indent(4)}rows: [`);
-    const rowExample = columns.map((column) => `${column.name}: /* ${column.affinity} */`).join(', ');
+    const rowExample = columns.map((column) => `${column.name}: /* ${column.typeName} */`).join(', ');
     template.push(`${indent(5)}{ ${rowExample} }`);
     template.push(`${indent(4)}],`);
     template.push(`${indent(3)}}`);
