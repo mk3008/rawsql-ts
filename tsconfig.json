@@ -10,9 +10,9 @@
         // "disableReferencedProjectLoad": true,             /* Reduce the number of projects loaded automatically by TypeScript. */
         /* Language and Environment */
         "target": "es2019", /* Set the JavaScript language version for emitted JavaScript and include compatible library declarations. */
-        "lib": [
-            "es2019"
-        ], /* Specify a set of bundled library declaration files that describe the target runtime environment. */
+    "lib": [
+        "es2019"
+    ], /* Specify a set of bundled library declaration files that describe the target runtime environment. */
         // "jsx": "preserve",                                /* Specify what JSX code is generated. */
         // "libReplacement": true,                           /* Enable lib replacement. */
         // "experimentalDecorators": true,                   /* Enable experimental support for legacy experimental decorators. */
@@ -26,6 +26,13 @@
         // "moduleDetection": "auto",                        /* Control what method is used to detect module-format JS files. */
         /* Modules */
         "module": "commonjs", /* Specify what module code is generated. */
+        "baseUrl": ".", /* Base directory for non-relative module names. */
+        "paths": {
+            "@rawsql-ts/testkit-core": ["packages/testkit-core/src"],
+            "@rawsql-ts/ztd-cli": ["packages/ztd-cli/src"],
+            "@rawsql-ts/sqlite-testkit": ["packages/drivers/sqlite-testkit/src"],
+            "@rawsql-ts/pg-testkit": ["packages/drivers/pg-testkit/src"]
+        },
         // "rootDir": "./",                                  /* Specify the root folder within your source files. */
         // "moduleResolution": "node10",                     /* Specify how TypeScript looks up a file from a given module specifier. */
         // "baseUrl": "./",                                  /* Specify the base directory to resolve non-relative module names. */
@@ -106,6 +113,9 @@
     "references": [
         {
             "path": "./packages/core"
+        },
+        {
+            "path": "./packages/testkit-core"
         }
     ]
 }
