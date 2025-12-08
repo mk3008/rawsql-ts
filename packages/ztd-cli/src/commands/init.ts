@@ -9,7 +9,7 @@ import { copyAgentsTemplate } from '../utils/agents';
 import { DEFAULT_ZTD_CONFIG, loadZtdProjectConfig, writeZtdProjectConfig } from '../utils/ztdProjectConfig';
 import { runGenerateZtdConfig, type ZtdConfigGenerationOptions } from './ztdConfig';
 import { runPullSchema, type PullSchemaOptions } from './pull';
-import { DEFAULT_DDL_DIRECTORY, DEFAULT_EXTENSIONS } from './options';
+import { DEFAULT_EXTENSIONS } from './options';
 
 export interface Prompter {
   selectChoice(question: string, choices: string[]): Promise<number>;
@@ -82,9 +82,13 @@ type FileKey =
   | 'schema'
   | 'config'
   | 'ztdConfig'
+  | 'testsConfig'
   | 'readme'
   | 'srcGuide'
   | 'testsGuide'
+  | 'sqlDdlAgent'
+  | 'sqlEnumsAgent'
+  | 'sqlDomainSpecsAgent'
   | 'agents'
   | 'editorconfig'
   | 'prettier'
@@ -122,31 +126,71 @@ const SAMPLE_SCHEMA = `CREATE TABLE public.example (
 );
 `;
 
-const README_CONTENT = `# Zero Table Dependency Project
+const README_TEMPLATE = 'README.md';
+const SRC_GUIDE_TEMPLATE = 'ZTD-GUIDE.md';
+const TESTS_GUIDE_TEMPLATE = 'ZTD-TEST-GUIDE.md';
+const TESTS_CONFIG_TEMPLATE = 'tests-ztd.config.ts';
 
-This project follows the ZTD flow: change the DDL in \`ddl/\`, regenerate \`tests/ztd-config.ts\`, and drive tests through a companion driver such as \`@rawsql-ts/pg-testkit\`.
+type SqlFolderAgentKey = Extract<FileKey, 'sqlDdlAgent' | 'sqlEnumsAgent' | 'sqlDomainSpecsAgent'>;
 
-## Workflow
+const SQL_FOLDER_AGENT_TARGETS: { key: SqlFolderAgentKey; relativePath: string; content: string }[] = [
+  {
+    key: 'sqlDdlAgent',
+    relativePath: 'sql/ddl/AGENTS.md',
+    content: `# DDL Definitions
 
-1. Edit \`ddl/schema.sql\` to declare tables and indexes.
-2. Run \`npx ztd ztd-config\` (or \`--watch\`) to refresh \`tests/ztd-config.ts\`.
-3. Build tests and fixtures that consume \`TestRowMap\`.
-4. Execute tests via \`pg-testkit\` or another driver so the rewrite pipeline stays intact.
-`;
+This folder stores table structure definitions (CREATE TABLE, ALTER TABLE, indexes, constraints).
+ZTD treats the SQL files here as the single source of truth for schemas.
 
-const SRC_GUIDE_CONTENT = `# ZTD Implementation Guide
+AI and humans must reference this directory when modifying or understanding table structures.
+`
+  },
+  {
+    key: 'sqlEnumsAgent',
+    relativePath: 'sql/enums/AGENTS.md',
+    content: `# Domain Enums
 
-The \`src/\` directory should contain pure TypeScript logic that depends on the row interfaces produced by \`tests/ztd-config.ts\`.
-Avoid importing \`tests/ztd-config.ts\` from production code; tests import the row map, repositories import DTOs, and fixtures live under \`tests/\`.
-`;
+This folder stores ENUM-like domain definitions using simple SQL-like VALUES syntax.
 
-const TESTS_GUIDE_CONTENT = `# ZTD Test Guide
+Example:
 
-Fixtures are generated from \`ddl/\` definitions and reused by \`pg-testkit\`.
-Always import table types from \`tests/ztd-config.ts\` before writing scenarios, and rerun \`npx ztd ztd-config\` whenever the schema changes.
-`;
+VALUES
+  (1, 'ACTIVE',  '有効会員'),
+  (2, 'STOPPED', '退会中');
 
-const NEXT_STEPS = [' 1. Review ddl/schema.sql', ' 2. Run npx ztd ztd-config', ' 3. Run ZTD tests with pg-testkit'];
+AI must reference these files instead of inventing magic numbers.
+ZTD-cli may later generate TS constants, labels, or constraints from this folder.
+`
+  },
+  {
+    key: 'sqlDomainSpecsAgent',
+    relativePath: 'sql/domain-specs/AGENTS.md',
+    content: `# Domain Specifications (Executable SQL Specs)
+
+This folder stores SELECT-based specifications for domain behaviors.
+Each file must contain a full executable SELECT statement.
+
+Example:
+
+SELECT
+  m.*
+FROM
+  members m
+WHERE
+  m.member_status = @MemberStatus.ACTIVE
+  AND m.contract_start_at <= :as_of
+  AND (m.contract_end_at IS NULL OR :as_of <= m.contract_end_at);
+AI uses these specifications to correctly interpret domain terms (e.g., “active member”).
+`
+  }
+];
+
+const NEXT_STEPS = [
+  ' 1. Review sql/ddl/schema.sql',
+  ' 2. Inspect tests/ztd.config.ts for the SQL layout',
+  ' 3. Run npx ztd ztd-config',
+  ' 4. Run ZTD tests with pg-testkit'
+];
 const TEMPLATE_DIRECTORY = path.resolve(__dirname, '..', '..', 'templates');
 
 const DEFAULT_DEPENDENCIES: ZtdConfigWriterDependencies = {
@@ -177,10 +221,14 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     schema: path.join(rootDir, DEFAULT_ZTD_CONFIG.ddlDir, 'schema.sql'),
     config: path.join(rootDir, 'ztd.config.json'),
     ztdConfig: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'ztd-config.ts'),
+    testsConfig: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'ztd.config.ts'),
     readme: path.join(rootDir, 'README.md'),
     srcGuide: path.join(rootDir, 'src', 'ZTD-GUIDE.md'),
     testsGuide: path.join(rootDir, 'tests', 'ZTD-TEST-GUIDE.md'),
     agents: path.join(rootDir, 'AGENTS.md'),
+    sqlDdlAgent: path.join(rootDir, 'sql', 'ddl', 'AGENTS.md'),
+    sqlEnumsAgent: path.join(rootDir, 'sql', 'enums', 'AGENTS.md'),
+    sqlDomainSpecsAgent: path.join(rootDir, 'sql', 'domain-specs', 'AGENTS.md'),
     editorconfig: path.join(rootDir, '.editorconfig'),
     prettier: path.join(rootDir, '.prettierrc'),
     package: path.join(rootDir, 'package.json')
@@ -283,27 +331,37 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
   };
 
   // Emit supporting documentation that describes the workflow for contributors.
-  summaries.readme = await writeDocFile(
+  summaries.readme = await writeTemplateFile(
     absolutePaths.readme,
     relativePath('readme'),
-    README_CONTENT,
+    README_TEMPLATE,
     dependencies,
     prompter
   );
-  summaries.srcGuide = await writeDocFile(
+  summaries.srcGuide = await writeTemplateFile(
     absolutePaths.srcGuide,
     relativePath('srcGuide'),
-    SRC_GUIDE_CONTENT,
+    SRC_GUIDE_TEMPLATE,
     dependencies,
     prompter
   );
-  summaries.testsGuide = await writeDocFile(
+  summaries.testsGuide = await writeTemplateFile(
     absolutePaths.testsGuide,
     relativePath('testsGuide'),
-    TESTS_GUIDE_CONTENT,
+    TESTS_GUIDE_TEMPLATE,
     dependencies,
     prompter
   );
+
+  summaries.testsConfig = await writeTemplateFile(
+    absolutePaths.testsConfig,
+    relativePath('testsConfig'),
+    TESTS_CONFIG_TEMPLATE,
+    dependencies,
+    prompter
+  );
+
+  Object.assign(summaries, ensureSqlFolderAgents(rootDir, dependencies, relativePath));
 
   const editorconfigSummary = copyTemplateFileIfMissing(
     rootDir,
@@ -527,14 +585,39 @@ async function writeDocFile(
   return summary;
 }
 
+async function writeTemplateFile(
+  absolutePath: string,
+  relative: string,
+  templateName: string,
+  dependencies: ZtdConfigWriterDependencies,
+  prompter: Prompter
+): Promise<FileSummary> {
+  // Load shared documentation templates so every new project gets the same guidance.
+  const contents = loadTemplate(templateName);
+  return writeDocFile(absolutePath, relative, contents, dependencies, prompter);
+}
+
+function loadTemplate(templateName: string): string {
+  const templatePath = path.join(TEMPLATE_DIRECTORY, templateName);
+  // Fail fast if the template bundle was shipped without the requested file.
+  if (!existsSync(templatePath)) {
+    throw new Error(`Missing template file: ${templateName}`);
+  }
+  return readFileSync(templatePath, 'utf8');
+}
+
 function buildSummaryLines(summaries: Record<FileKey, FileSummary>): string[] {
   const orderedKeys: FileKey[] = [
     'schema',
     'config',
+    'testsConfig',
     'ztdConfig',
     'readme',
     'srcGuide',
     'testsGuide',
+    'sqlDdlAgent',
+    'sqlEnumsAgent',
+    'sqlDomainSpecsAgent',
     'agents',
     'editorconfig',
     'prettier',
@@ -557,6 +640,29 @@ function buildSummaryLines(summaries: Record<FileKey, FileSummary>): string[] {
 
   lines.push('', 'Next steps:', ...NEXT_STEPS);
   return lines;
+}
+
+function ensureSqlFolderAgents(
+  rootDir: string,
+  dependencies: ZtdConfigWriterDependencies,
+  relativePath: (key: FileKey) => string
+): Partial<Record<FileKey, FileSummary>> {
+  const summaries: Partial<Record<FileKey, FileSummary>> = {};
+  for (const target of SQL_FOLDER_AGENT_TARGETS) {
+    const targetPath = path.join(rootDir, target.relativePath);
+    // Make sure the directory exists before writing the AGENT guidance.
+    dependencies.ensureDirectory(path.dirname(targetPath));
+    const existed = dependencies.fileExists(targetPath);
+    if (!existed) {
+      // Only emit a new AGENTS.md when there is no existing file to preserve custom guidance.
+      dependencies.writeFile(targetPath, target.content);
+    }
+    summaries[target.key] = {
+      relativePath: relativePath(target.key),
+      outcome: existed ? 'unchanged' : 'created'
+    };
+  }
+  return summaries;
 }
 
 export function registerInitCommand(program: Command): void {
