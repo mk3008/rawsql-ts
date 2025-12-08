@@ -27,6 +27,35 @@ export type TestRow<K extends keyof TestRowMap> = TestRowMap[K];
 export type ZtdRowShapes = TestRowMap;
 export type ZtdTableName = keyof TestRowMap;
 
+export type ZtdTableSchemas = Record<ZtdTableName, TableSchemaDefinition>;
+
+export const tableSchemas: ZtdTableSchemas = {
+  'public.profiles': {
+    columns: {
+      user_id: 'INTEGER',
+      bio: 'TEXT',
+      rating: 'NUMERIC',
+    }
+  },
+  'public.users': {
+    columns: {
+      id: 'NUMERIC',
+      email: 'TEXT',
+      created_at: 'TEXT',
+    }
+  },
+};
+
+export function tableSchema<K extends ZtdTableName>(tableName: K): TableSchemaDefinition {
+  return tableSchemas[tableName];
+}
+
+export type ZtdTableFixture<K extends ZtdTableName> = TableFixture & {
+  tableName: K;
+  rows: ZtdRowShapes[K][];
+  schema: TableSchemaDefinition;
+};
+
 export interface ZtdConfig {
   tables: ZtdTableName[];
 }
@@ -37,6 +66,14 @@ export function tableFixture<K extends ZtdTableName>(
   schema?: TableSchemaDefinition
 ): TableFixture {
   return { tableName, rows, schema };
+}
+
+export function tableFixtureWithSchema<K extends ZtdTableName>(
+  tableName: K,
+  rows: ZtdRowShapes[K][]
+): ZtdTableFixture<K> {
+  // Always pair fixture rows with the canonical schema generated from DDL.
+  return { tableName, rows, schema: tableSchemas[tableName] };
 }
 "
 `;
@@ -76,6 +113,43 @@ export type TestRow<K extends keyof TestRowMap> = TestRowMap[K];
 export type ZtdRowShapes = TestRowMap;
 export type ZtdTableName = keyof TestRowMap;
 
+export type ZtdTableSchemas = Record<ZtdTableName, TableSchemaDefinition>;
+
+export const tableSchemas: ZtdTableSchemas = {
+  'analytics.weekly_stats': {
+    columns: {
+      stats_id: 'NUMERIC',
+      order_id: 'INTEGER',
+      order_line: 'INTEGER',
+      sales_amount: 'NUMERIC',
+    }
+  },
+  'public.users': {
+    columns: {
+      id: 'NUMERIC',
+      name: 'TEXT',
+    }
+  },
+  'sales.orders': {
+    columns: {
+      order_id: 'INTEGER',
+      line: 'INTEGER',
+      customer_id: 'INTEGER',
+      total: 'NUMERIC',
+    }
+  },
+};
+
+export function tableSchema<K extends ZtdTableName>(tableName: K): TableSchemaDefinition {
+  return tableSchemas[tableName];
+}
+
+export type ZtdTableFixture<K extends ZtdTableName> = TableFixture & {
+  tableName: K;
+  rows: ZtdRowShapes[K][];
+  schema: TableSchemaDefinition;
+};
+
 export interface ZtdConfig {
   tables: ZtdTableName[];
 }
@@ -86,6 +160,14 @@ export function tableFixture<K extends ZtdTableName>(
   schema?: TableSchemaDefinition
 ): TableFixture {
   return { tableName, rows, schema };
+}
+
+export function tableFixtureWithSchema<K extends ZtdTableName>(
+  tableName: K,
+  rows: ZtdRowShapes[K][]
+): ZtdTableFixture<K> {
+  // Always pair fixture rows with the canonical schema generated from DDL.
+  return { tableName, rows, schema: tableSchemas[tableName] };
 }
 "
 `;

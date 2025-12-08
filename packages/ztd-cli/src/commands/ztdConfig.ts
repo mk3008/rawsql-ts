@@ -9,6 +9,7 @@ import {
 import { TableNameResolver } from '@rawsql-ts/testkit-core';
 import { collectSqlFiles, SqlSource } from '../utils/collectSqlFiles';
 import { mapSqlTypeToTs } from '../utils/typeMapper';
+import { mapSqlTypeToAffinity } from '../utils/sqliteAffinity';
 import { ensureDirectory } from '../utils/fs';
 
 export interface ZtdConfigGenerationOptions {
@@ -164,11 +165,40 @@ export function renderZtdConfigFile(tables: TableMetadata[]): string {
     })
     .join('\n\n');
 
+  // Assemble a schema map that mirrors TestRowMap so tests can reuse canonical affinity metadata.
+  const schemaEntries = tables
+    .map((table) => {
+      const columnAffinities = table.columns
+        .map((column) => {
+          const affinity = mapSqlTypeToAffinity(column.typeName, `${table.name}.${column.name}`);
+          return `      ${column.name}: '${affinity}',`;
+        })
+        .join('\n');
+      return `  '${table.name}': {\n    columns: {\n${columnAffinities}\n    }\n  },`;
+    })
+    .join('\n');
+
   const footer = [
     '',
     'export type TestRow<K extends keyof TestRowMap> = TestRowMap[K];',
     'export type ZtdRowShapes = TestRowMap;',
     'export type ZtdTableName = keyof TestRowMap;',
+    '',
+    'export type ZtdTableSchemas = Record<ZtdTableName, TableSchemaDefinition>;',
+    '',
+    'export const tableSchemas: ZtdTableSchemas = {',
+    `${schemaEntries}`,
+    '};',
+    '',
+    'export function tableSchema<K extends ZtdTableName>(tableName: K): TableSchemaDefinition {',
+    '  return tableSchemas[tableName];',
+    '}',
+    '',
+    'export type ZtdTableFixture<K extends ZtdTableName> = TableFixture & {',
+    '  tableName: K;',
+    '  rows: ZtdRowShapes[K][];',
+    '  schema: TableSchemaDefinition;',
+    '};',
     '',
     'export interface ZtdConfig {',
     '  tables: ZtdTableName[];',
@@ -180,6 +210,14 @@ export function renderZtdConfigFile(tables: TableMetadata[]): string {
     '  schema?: TableSchemaDefinition',
     '): TableFixture {',
     '  return { tableName, rows, schema };',
+    '}',
+    '',
+    'export function tableFixtureWithSchema<K extends ZtdTableName>(',
+    '  tableName: K,',
+    '  rows: ZtdRowShapes[K][]',
+    '): ZtdTableFixture<K> {',
+    '  // Always pair fixture rows with the canonical schema generated from DDL.',
+    '  return { tableName, rows, schema: tableSchemas[tableName] };',
     '}',
     ''
   ].join('\n');

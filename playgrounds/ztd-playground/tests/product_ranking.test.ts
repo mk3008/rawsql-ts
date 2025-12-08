@@ -1,7 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import type { TableFixture } from '@rawsql-ts/testkit-core';
-import { tableFixture, TestRowMap } from '../ztd-config';
-import { orderItemSchema, orderSchema, productSchema, userSchema } from './fixture-schema';
+import { tableFixture, TestRowMap, tableSchemas } from '../ztd-config';
 import { createTestkitClient } from './test-utils';
 import { productRankingSql } from '../src/product_ranking';
 
@@ -35,10 +34,10 @@ function buildRankingOrderItems(): TestRowMap['public.order_items'][] {
 function buildFixtures(): TableFixture[] {
   // Cover every table so the ranking query has data to join against.
   return [
-    tableFixture('public.users', buildRankingUsers(), userSchema),
-    tableFixture('public.products', buildRankingProducts(), productSchema),
-    tableFixture('public.orders', buildRankingOrders(), orderSchema),
-    tableFixture('public.order_items', buildRankingOrderItems(), orderItemSchema)
+    tableFixture('public.users', buildRankingUsers(), tableSchemas['public.users']),
+    tableFixture('public.products', buildRankingProducts(), tableSchemas['public.products']),
+    tableFixture('public.orders', buildRankingOrders(), tableSchemas['public.orders']),
+    tableFixture('public.order_items', buildRankingOrderItems(), tableSchemas['public.order_items'])
   ];
 }
 

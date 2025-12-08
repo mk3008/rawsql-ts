@@ -27,6 +27,35 @@ export type TestRow<K extends keyof TestRowMap> = TestRowMap[K];
 export type ZtdRowShapes = TestRowMap;
 export type ZtdTableName = keyof TestRowMap;
 
+export type ZtdTableSchemas = Record<ZtdTableName, TableSchemaDefinition>;
+
+export const tableSchemas: ZtdTableSchemas = {
+  'public.sessions': {
+    columns: {
+      id: 'INTEGER',
+      user_id: 'INTEGER',
+      expires_at: 'TEXT',
+    }
+  },
+  'public.users': {
+    columns: {
+      id: 'NUMERIC',
+      email: 'TEXT',
+      score: 'NUMERIC',
+    }
+  },
+};
+
+export function tableSchema<K extends ZtdTableName>(tableName: K): TableSchemaDefinition {
+  return tableSchemas[tableName];
+}
+
+export type ZtdTableFixture<K extends ZtdTableName> = TableFixture & {
+  tableName: K;
+  rows: ZtdRowShapes[K][];
+  schema: TableSchemaDefinition;
+};
+
 export interface ZtdConfig {
   tables: ZtdTableName[];
 }
@@ -37,6 +66,14 @@ export function tableFixture<K extends ZtdTableName>(
   schema?: TableSchemaDefinition
 ): TableFixture {
   return { tableName, rows, schema };
+}
+
+export function tableFixtureWithSchema<K extends ZtdTableName>(
+  tableName: K,
+  rows: ZtdRowShapes[K][]
+): ZtdTableFixture<K> {
+  // Always pair fixture rows with the canonical schema generated from DDL.
+  return { tableName, rows, schema: tableSchemas[tableName] };
 }
 "
 `;
