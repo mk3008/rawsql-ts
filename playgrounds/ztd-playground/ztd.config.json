@@ -1,5 +1,9 @@
 {
   "dialect": "postgres",
-  "ddlDir": "ddl/schemas",
-  "testsDir": "tests"
+  "ddlDir": "sql/ddl",
+  "testsDir": "tests",
+  "ddl": {
+    "defaultSchema": "public",
+    "searchPath": ["public"]
+  }
 }

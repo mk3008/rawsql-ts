@@ -30,7 +30,7 @@ const DEFAULT_DDL_PROPERTIES = {
 
 export const DEFAULT_ZTD_CONFIG: ZtdProjectConfig = {
   dialect: 'postgres',
-  ddlDir: 'ddl',
+  ddlDir: 'sql/ddl',
   testsDir: 'tests',
   ddl: { ...DEFAULT_DDL_PROPERTIES }
 };

@@ -29,10 +29,10 @@ export function runGenerateEntities(options: GenerateEntitiesOptions): void {
 }
 
 function renderEntitiesFile(tables: TableMetadata[]): string {
-  // The header reminds maintainers that this file is a secondary reference next to tests/ztd-config.ts.
+  // The header reminds maintainers that this file is a secondary reference next to tests/ztd-row-map.generated.ts.
   const header = [
     '// ENTITY HELPERS - AUTO GENERATED',
-    '// Complementary reference for tooling. TestRowMap in tests/ztd-config.ts remains authoritative.',
+    '// Complementary reference for tooling. TestRowMap in tests/ztd-row-map.generated.ts remains authoritative.',
     ''
   ].join('\n');
 

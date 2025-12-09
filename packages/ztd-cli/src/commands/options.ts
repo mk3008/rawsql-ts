@@ -1,5 +1,5 @@
 export const DEFAULT_EXTENSIONS = ['.sql'];
-export const DEFAULT_DDL_DIRECTORY = 'ddl';
+export const DEFAULT_DDL_DIRECTORY = 'sql/ddl';
 export const DEFAULT_TESTS_DIRECTORY = 'tests';
 const EXTENSION_TOKEN_PATTERN = /^[A-Za-z0-9_]+$/;
 

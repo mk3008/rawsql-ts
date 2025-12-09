@@ -4,38 +4,50 @@ exports[`init wizard bootstraps a repo when writing DDL manually 1`] = `
 "ZTD project initialized.
 
 Created:
- - ddl/schema.sql
+ - sql/ddl/schema.sql
  - ztd.config.json
- - tests/ztd-config.ts
+ - tests/ztd-layout.generated.ts
+ - tests/ztd-row-map.generated.ts
  - README.md
  - src/ZTD-GUIDE.md
  - tests/ZTD-TEST-GUIDE.md
+ - tests/testkit-client.ts
+ - sql/ddl/AGENTS.md
+ - sql/enums/AGENTS.md
+ - sql/domain-specs/AGENTS.md
  - AGENTS.md
  - .editorconfig
  - .prettierrc
 
 Next steps:
- 1. Review ddl/schema.sql
- 2. Run npx ztd ztd-config
- 3. Run ZTD tests with pg-testkit"
+ 1. Review sql/ddl/schema.sql
+ 2. Inspect tests/ztd-layout.generated.ts for the SQL layout
+ 3. Run npx ztd ztd-config
+ 4. Run ZTD tests with pg-testkit"
 `;
 
 exports[`init wizard pulls schema if pg_dump is available 1`] = `
 "ZTD project initialized.
 
 Created:
- - ddl/schema.sql
+ - sql/ddl/schema.sql
  - ztd.config.json
- - tests/ztd-config.ts
+ - tests/ztd-layout.generated.ts
+ - tests/ztd-row-map.generated.ts
  - README.md
  - src/ZTD-GUIDE.md
  - tests/ZTD-TEST-GUIDE.md
+ - tests/testkit-client.ts
+ - sql/ddl/AGENTS.md
+ - sql/enums/AGENTS.md
+ - sql/domain-specs/AGENTS.md
  - AGENTS.md
  - .editorconfig
  - .prettierrc
 
 Next steps:
- 1. Review ddl/schema.sql
- 2. Run npx ztd ztd-config
- 3. Run ZTD tests with pg-testkit"
+ 1. Review sql/ddl/schema.sql
+ 2. Inspect tests/ztd-layout.generated.ts for the SQL layout
+ 3. Run npx ztd ztd-config
+ 4. Run ZTD tests with pg-testkit"
 `;

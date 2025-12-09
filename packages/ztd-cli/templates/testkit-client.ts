@@ -1,3 +1,7 @@
+// ZTD testkit helper - AUTO GENERATED
+// ztd-cli emits this file during project bootstrapping to wire pg-testkit.
+// Regenerate via pnpm playground:gen-config or ztd init; avoid manual edits.
+
 import path from 'node:path';
 import { Client, types } from 'pg';
 import type { ClientConfig, QueryResultRow } from 'pg';
@@ -6,7 +10,7 @@ import { createPgTestkitClient } from '@rawsql-ts/pg-testkit';
 import type { PgQueryInput, PgQueryable } from '@rawsql-ts/pg-testkit';
 import type { TableFixture } from '@rawsql-ts/testkit-core';
 
-const ddlDirectories = [path.resolve(__dirname, '../ddl/schemas')];
+const ddlDirectories = [path.resolve(__dirname, '../sql/ddl')];
 
 let sharedPgClient: Client | undefined;
 let sharedQueryable: PgQueryable | undefined;

@@ -8,7 +8,6 @@
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
     "noEmit": true,
-    "rootDir": ".",
     "types": [
       "node",
       "vitest/globals"
