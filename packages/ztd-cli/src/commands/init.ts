@@ -83,6 +83,7 @@ type FileKey =
   | 'config'
   | 'ztdConfig'
   | 'testsConfig'
+  | 'testkitClient'
   | 'readme'
   | 'srcGuide'
   | 'testsGuide'
@@ -129,7 +130,8 @@ const SAMPLE_SCHEMA = `CREATE TABLE public.example (
 const README_TEMPLATE = 'README.md';
 const SRC_GUIDE_TEMPLATE = 'ZTD-GUIDE.md';
 const TESTS_GUIDE_TEMPLATE = 'ZTD-TEST-GUIDE.md';
-const TESTS_CONFIG_TEMPLATE = 'tests-ztd.config.ts';
+const TESTS_CONFIG_TEMPLATE = 'tests-ztd-layout.generated.ts';
+const TESTKIT_CLIENT_TEMPLATE = 'testkit-client.ts';
 
 type SqlFolderAgentKey = Extract<FileKey, 'sqlDdlAgent' | 'sqlEnumsAgent' | 'sqlDomainSpecsAgent'>;
 
@@ -187,7 +189,7 @@ AI uses these specifications to correctly interpret domain terms (e.g., “activ
 
 const NEXT_STEPS = [
   ' 1. Review sql/ddl/schema.sql',
-  ' 2. Inspect tests/ztd.config.ts for the SQL layout',
+  ' 2. Inspect tests/ztd-layout.generated.ts for the SQL layout',
   ' 3. Run npx ztd ztd-config',
   ' 4. Run ZTD tests with pg-testkit'
 ];
@@ -220,11 +222,12 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
   const absolutePaths: Record<FileKey, string> = {
     schema: path.join(rootDir, DEFAULT_ZTD_CONFIG.ddlDir, 'schema.sql'),
     config: path.join(rootDir, 'ztd.config.json'),
-    ztdConfig: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'ztd-config.ts'),
-    testsConfig: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'ztd.config.ts'),
+    ztdConfig: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'ztd-row-map.generated.ts'),
+    testsConfig: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'ztd-layout.generated.ts'),
     readme: path.join(rootDir, 'README.md'),
     srcGuide: path.join(rootDir, 'src', 'ZTD-GUIDE.md'),
     testsGuide: path.join(rootDir, 'tests', 'ZTD-TEST-GUIDE.md'),
+    testkitClient: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'testkit-client.ts'),
     agents: path.join(rootDir, 'AGENTS.md'),
     sqlDdlAgent: path.join(rootDir, 'sql', 'ddl', 'AGENTS.md'),
     sqlEnumsAgent: path.join(rootDir, 'sql', 'enums', 'AGENTS.md'),
@@ -308,7 +311,7 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
   );
 
   if (ztdConfigTarget.write) {
-    // Regenerate tests/ztd-config.ts so TestRowMap reflects the DDL snapshot.
+    // Regenerate tests/ztd-row-map.generated.ts so TestRowMap reflects the DDL snapshot.
     dependencies.ensureDirectory(path.dirname(absolutePaths.ztdConfig));
     dependencies.runGenerateZtdConfig({
       directories: [path.resolve(path.dirname(absolutePaths.schema))],
@@ -318,7 +321,7 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
       searchPath: projectConfig.ddl.searchPath
     });
   } else {
-    dependencies.log('Skipping ZTD config generation; existing tests/ztd-config.ts preserved.');
+    dependencies.log('Skipping ZTD config generation; existing tests/ztd-row-map.generated.ts preserved.');
   }
 
   summaries.ztdConfig = {
@@ -349,6 +352,14 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     absolutePaths.testsGuide,
     relativePath('testsGuide'),
     TESTS_GUIDE_TEMPLATE,
+    dependencies,
+    prompter
+  );
+
+  summaries.testkitClient = await writeTemplateFile(
+    absolutePaths.testkitClient,
+    relativePath('testkitClient'),
+    TESTKIT_CLIENT_TEMPLATE,
     dependencies,
     prompter
   );
@@ -615,6 +626,7 @@ function buildSummaryLines(summaries: Record<FileKey, FileSummary>): string[] {
     'readme',
     'srcGuide',
     'testsGuide',
+    'testkitClient',
     'sqlDdlAgent',
     'sqlEnumsAgent',
     'sqlDomainSpecsAgent',

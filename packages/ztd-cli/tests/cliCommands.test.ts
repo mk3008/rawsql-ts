@@ -69,7 +69,7 @@ async function seedProductsTable(client: Client) {
   `);
 }
 
-test('ztd-config CLI produces the expected TypeScript snapshot', () => {
+test('ztd-config CLI produces the expected tests/ztd-row-map.generated.ts snapshot', () => {
   const ddlDir = createTempDir('cli-gen-ddl');
   writeFileSync(
     path.join(ddlDir, 'tables.sql'),
@@ -90,7 +90,7 @@ test('ztd-config CLI produces the expected TypeScript snapshot', () => {
   );
 
   const outDir = createTempDir('cli-gen-out');
-  const outputFile = path.join(outDir, 'ztd-config.ts');
+  const outputFile = path.join(outDir, 'ztd-row-map.generated.ts');
 
   const result = runCli(['ztd-config', '--ddl-dir', ddlDir, '--extensions', '.sql', '--out', outputFile]);
   assertCliSuccess(result, 'ztd-config');
