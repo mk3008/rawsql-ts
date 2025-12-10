@@ -62,11 +62,10 @@ export function runPullSchema(options: PullSchemaOptions): void {
   if (existsSync(schemasDir)) {
     rmSync(schemasDir, { recursive: true, force: true });
   }
-  ensureDirectory(schemasDir);
 
-  // Persist each schema snapshot so downstream tooling can consume them independently.
+  // Persist each schema snapshot directly under the DDL directory for easier discovery.
   for (const [schema, statements] of normalizedMap) {
-    const filePath = path.join(schemasDir, `${sanitizeSchemaFileName(schema)}.sql`);
+    const filePath = path.join(outDir, `${sanitizeSchemaFileName(schema)}.sql`);
     writeFileSync(filePath, buildSchemaFile(statements), 'utf8');
     console.log(`Wrote normalized schema for ${schema} at ${filePath}`);
   }

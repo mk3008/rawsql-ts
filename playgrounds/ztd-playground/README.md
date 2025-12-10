@@ -10,7 +10,7 @@ The `ztd-playground` workspace is a focused environment for validating the entir
 
 ## Quick loop
 
-1. Edit the schema files under `sql/ddl/schemas`.
+1. Edit the schema files under `sql/ddl/<schema>.sql` (e.g., `sql/ddl/ecommerce.sql`).
 2. Regenerate the type-safe config: `pnpm playground:gen-config`.
 3. Run type checking so the generated helpers stay verified: `pnpm playground:typecheck`.
 4. Execute the tests against Postgres: `pnpm playground:test`.
@@ -21,7 +21,7 @@ DDL -> `tests/ztd-row-map.generated.ts` -> type definitions -> fixtures -> ZTD r
 
 ## SQL layout
 
-- `sql/ddl/schemas/` keeps every CREATE/ALTER TABLE statement along with indexes, constraints, and optional seed rows that make the rewrite pipeline deterministic.
+- `sql/ddl/` keeps every CREATE/ALTER TABLE statement along with indexes, constraints, and optional seed rows that make the rewrite pipeline deterministic. Each namespace lives in `sql/ddl/<schema>.sql`.
 - `sql/enums/` captures domain enums and value lists so downstream tooling uses the same symbols as the fixtures.
 - `sql/domain-specs/` hosts executable SELECT-based specs that describe domain behaviors for humans and AI agents.
 - `tests/ztd-layout.generated.ts` records this layout so the CLI and your tests all resolve DDL, enum, and domain-spec directories consistently when they regenerate `tests/ztd-row-map.generated.ts`.
@@ -34,7 +34,7 @@ DDL -> `tests/ztd-row-map.generated.ts` -> type definitions -> fixtures -> ZTD r
 
 ## Sample domain
 
-The EC schema under `sql/ddl/schemas/ecommerce.sql` defines four tables: `users`, `products`, `orders`, and `order_items`. All fixtures, queries, and tests draw from these definitions so the model stays deterministic.
+The EC schema under `sql/ddl/ecommerce.sql` defines four tables: `users`, `products`, `orders`, and `order_items`. All fixtures, queries, and tests draw from these definitions so the model stays deterministic.
 
 ## Sample queries
 

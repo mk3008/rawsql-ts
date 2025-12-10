@@ -24,9 +24,7 @@ Then use the CLI through `npx ztd` or the installed `ztd` bin.
 
 ## ztd init
 
-`ztd init` scaffolds the ZTD workflow:
-
-- `sql/ddl/schema.sql` (starter schema you can edit or replace)
+- `sql/ddl/<schema>.sql` (starter schema files you can edit or replace; the default schema is `public.sql`)
 - `ztd.config.json` (hints for AI and CLI defaults: `dialect`, `ddlDir`, `testsDir`, plus a `ddl` block that controls `defaultSchema`/`searchPath` so pg-testkit can resolve unqualified tables)
 - `tests/ztd-layout.generated.ts` (records the `sql/` layout so CLI helpers know where to find DDL, enums, and domain specs)
 - `tests/ztd-row-map.generated.ts` (auto-generated `TestRowMap`, the canonical row type contract)
@@ -44,7 +42,7 @@ Every `ztd ddl` subcommand targets the shared DDL directory defined in `ztd.conf
 
 ### `ztd ddl pull`
 
- Fetches the schema via `pg_dump`, normalizes the DDL, and writes one file per schema under `sql/ddl/schemas/<schema>.sql` instead of a single `schema.sql`. The output drops headers, `SET` statements, and `\restrict` markers, sorts objects (schemas, tables, alterations, sequences, indexes) deterministically, and ensures each schema file ends with a clean newline so `ztd gen-config` and your AI flows always see stable input.
+ Fetches the schema via `pg_dump`, normalizes the DDL, and writes one file per schema under `sql/ddl/<schema>.sql` (no `schemas/` subdirectory so each namespace lives at the DDL root). The output drops headers, `SET` statements, and `\restrict` markers, sorts objects (schemas, tables, alterations, sequences, indexes) deterministically, and ensures each schema file ends with a clean newline so `ztd gen-config` and your AI flows always see stable input.
 
  The command resolves the database connection in three steps: prefer a `DATABASE_URL` environment variable, honor explicit CLI overrides (`--url` or the `--db-*` flags) when supplied, and finally fall back to a `connection` block in `ztd.config.json` if present. Flags that provide partial credentials will cause the CLI to error before invoking `pg_dump` so you know exactly what is missing, and the generated error message always mentions the connection target together with concrete fixes. You only need to pass `--url` when no other resolver (environment or config) is configured; the CLI will reuse the resolved URL for every downstream tool invocation once the connection is determined.
 
@@ -106,7 +104,7 @@ Both drivers sit downstream of `testkit-core` and apply the rewrite + fixture pi
 
 ## AI Coding Workflow
 
-1. Update `sql/ddl/schema.sql` with the desired schema and keep `tests/ztd-layout.generated.ts` synchronized with any directory moves.
+1. Update the relevant `sql/ddl/<schema>.sql` file (for example, `sql/ddl/public.sql`) with the desired schema and keep `tests/ztd-layout.generated.ts` synchronized with any directory moves.
 2. Run `npx ztd ztd-config` (or `--watch`) to regenerate the authoritative `TestRowMap`.
 3. Use the row map + fixtures to write repositories, tests, and fixtures.
 4. Run tests through `pg-testkit` (or another driver) since `ztd-cli` itself never executes SQL.

@@ -8,7 +8,7 @@ This playground exists to validate the ZTD development loop end-to-end against a
 - Never issue DDL statements against Postgres from the playground. All CRUD operations must flow through pg-testkit so they resolve to fixture-backed `SELECT` queries.
 
 ## 2. Treat the `sql/` layout as the single source of truth
-- Keep every table definition inside `sql/ddl/schemas/*.sql`, enums under `sql/enums/*.sql`, and executable specs inside `sql/domain-specs/*.sql`.
+- Keep every table definition inside `sql/ddl/<schema>.sql`, enums under `sql/enums/*.sql`, and executable specs inside `sql/domain-specs/*.sql`.
 - Do not hand-edit `tests/ztd-layout.generated.ts`; regenerate it with `pnpm playground:gen-config` (or `pnpm --filter ztd-playground exec ztd ztd-config`) so the CLI and tests stay aligned. The row map lives in `tests/ztd-row-map.generated.ts`, which is the canonical place to import fixtures from.
 
 ## 3. `tests/ztd-row-map.generated.ts` defines typed fixtures

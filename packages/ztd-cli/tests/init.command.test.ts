@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 
 import path from 'node:path';
 import { expect, test } from 'vitest';
 
+import { DEFAULT_ZTD_CONFIG } from '../src/utils/ztdProjectConfig';
 import { runInitCommand, type ZtdConfigWriterDependencies, type Prompter } from '../src/commands/init';
 
 const repoRoot = path.resolve(__dirname, '..', '..', '..');
@@ -13,6 +14,9 @@ function createTempDir(prefix: string): string {
   }
   return mkdtempSync(path.join(tmpRoot, `${prefix}-`));
 }
+
+const schemaFileName = `${DEFAULT_ZTD_CONFIG.ddl.defaultSchema}.sql`;
+const schemaFilePath = (workspace: string): string => path.join(workspace, 'sql', 'ddl', schemaFileName);
 
 function readNormalizedFile(filePath: string): string {
   const contents = readFileSync(filePath, 'utf8');
@@ -63,12 +67,12 @@ test('init wizard bootstraps a repo when writing DDL manually', async () => {
   const result = await runInitCommand(prompter, { rootDir: workspace });
 
   expect(result.summary).toMatchSnapshot();
-  expect(existsSync(path.join(workspace, 'sql', 'ddl', 'schema.sql'))).toBe(true);
+  expect(existsSync(schemaFilePath(workspace))).toBe(true);
   expect(existsSync(path.join(workspace, 'tests', 'ztd-row-map.generated.ts'))).toBe(true);
   expect(existsSync(path.join(workspace, 'tests', 'ztd-layout.generated.ts'))).toBe(true);
   expect(existsSync(path.join(workspace, 'ztd.config.json'))).toBe(true);
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('Zero Table Dependency');
-  expect(readNormalizedFile(path.join(workspace, 'sql', 'ddl', 'schema.sql'))).toContain('CREATE TABLE public.example');
+  expect(readNormalizedFile(schemaFilePath(workspace))).toContain('CREATE TABLE public.example');
   expect(readNormalizedFile(path.join(workspace, 'tests', 'ztd-row-map.generated.ts'))).toContain('export interface TestRowMap');
   expect(readNormalizedFile(path.join(workspace, 'tests', 'ztd-layout.generated.ts'))).toContain(`sqlRootDir`);
   expect(existsSync(path.join(workspace, 'AGENTS.md')) || existsSync(path.join(workspace, 'AGENTS_ZTD.md'))).toBe(true);
@@ -93,7 +97,7 @@ test('init wizard pulls schema if pg_dump is available', async () => {
     runPullSchema: async (options) => {
       pullCount += 1;
       mkdirSync(options.out, { recursive: true });
-      writeFileSync(path.join(options.out, 'schema.sql'), pulledSchema, 'utf8');
+      writeFileSync(path.join(options.out, schemaFileName), pulledSchema, 'utf8');
     }
   };
 
@@ -101,7 +105,7 @@ test('init wizard pulls schema if pg_dump is available', async () => {
 
   expect(pullCount).toBe(1);
   expect(result.summary).toMatchSnapshot();
-  expect(readNormalizedFile(path.join(workspace, 'sql', 'ddl', 'schema.sql'))).toContain('CREATE TABLE public.migrated');
+  expect(readNormalizedFile(schemaFilePath(workspace))).toContain('CREATE TABLE public.migrated');
   expect(existsSync(path.join(workspace, 'README.md'))).toBe(true);
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('Zero Table Dependency');
   expect(existsSync(path.join(workspace, 'ztd.config.json'))).toBe(true);
