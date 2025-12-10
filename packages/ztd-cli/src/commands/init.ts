@@ -188,7 +188,7 @@ AI uses these specifications to correctly interpret domain terms (e.g., “activ
 ];
 
 const NEXT_STEPS = [
-  ' 1. Review sql/ddl/schema.sql',
+  ' 1. Review the schema files under sql/ddl/<schema>.sql',
   ' 2. Inspect tests/ztd-layout.generated.ts for the SQL layout',
   ' 3. Run npx ztd ztd-config',
   ' 4. Run ZTD tests with pg-testkit'
@@ -219,8 +219,10 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     ...(options?.dependencies ?? {})
   };
 
+  const schemaFileName = `${DEFAULT_ZTD_CONFIG.ddl.defaultSchema}.sql`;
+
   const absolutePaths: Record<FileKey, string> = {
-    schema: path.join(rootDir, DEFAULT_ZTD_CONFIG.ddlDir, 'schema.sql'),
+    schema: path.join(rootDir, DEFAULT_ZTD_CONFIG.ddlDir, schemaFileName),
     config: path.join(rootDir, 'ztd.config.json'),
     ztdConfig: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'ztd-row-map.generated.ts'),
     testsConfig: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'ztd-layout.generated.ts'),

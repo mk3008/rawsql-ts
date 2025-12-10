@@ -4,7 +4,7 @@ exports[`init wizard bootstraps a repo when writing DDL manually 1`] = `
 "ZTD project initialized.
 
 Created:
- - sql/ddl/schema.sql
+ - sql/ddl/public.sql
  - ztd.config.json
  - tests/ztd-layout.generated.ts
  - tests/ztd-row-map.generated.ts
@@ -20,7 +20,7 @@ Created:
  - .prettierrc
 
 Next steps:
- 1. Review sql/ddl/schema.sql
+ 1. Review the schema files under sql/ddl/<schema>.sql
  2. Inspect tests/ztd-layout.generated.ts for the SQL layout
  3. Run npx ztd ztd-config
  4. Run ZTD tests with pg-testkit"
@@ -30,7 +30,7 @@ exports[`init wizard pulls schema if pg_dump is available 1`] = `
 "ZTD project initialized.
 
 Created:
- - sql/ddl/schema.sql
+ - sql/ddl/public.sql
  - ztd.config.json
  - tests/ztd-layout.generated.ts
  - tests/ztd-row-map.generated.ts
@@ -46,7 +46,7 @@ Created:
  - .prettierrc
 
 Next steps:
- 1. Review sql/ddl/schema.sql
+ 1. Review the schema files under sql/ddl/<schema>.sql
  2. Inspect tests/ztd-layout.generated.ts for the SQL layout
  3. Run npx ztd ztd-config
  4. Run ZTD tests with pg-testkit"

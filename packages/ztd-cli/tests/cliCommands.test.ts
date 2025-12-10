@@ -1,5 +1,5 @@
 import { spawnSync, type SpawnSyncReturns } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync, readdirSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { Client } from 'pg';
 import { expect, test } from 'vitest';
@@ -130,11 +130,10 @@ pullTest('pull CLI emits schema from Postgres via pg_dump', async () => {
     try {
       const result = runCli(['ddl', 'pull', '--out', outDir]);
       assertCliSuccess(result, 'ddl pull');
-      const schemaDir = path.join(outDir, 'schemas');
-      expect(existsSync(schemaDir)).toBe(true);
-      const schemaFiles = readdirSync(schemaDir);
-      expect(schemaFiles).toContain('public.sql');
-      const schema = readNormalizedFile(path.join(schemaDir, 'public.sql'));
+      const schemaFile = path.join(outDir, 'public.sql');
+      expect(existsSync(schemaFile)).toBe(true);
+      const schema = readNormalizedFile(schemaFile);
+      expect(existsSync(path.join(outDir, 'schemas'))).toBe(false);
       const normalizedSchema = schema.toLowerCase();
       expect(normalizedSchema).toContain('create schema public;');
       expect(normalizedSchema).toContain('create table public.products');

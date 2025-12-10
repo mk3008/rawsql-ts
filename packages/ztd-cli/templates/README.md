@@ -9,7 +9,7 @@ This project organizes SQL artifacts under `sql/` so each concern gets its own f
 
 ## Workflow
 
-1. Edit `sql/ddl/schema.sql` to declare tables and indexes.
+1. Edit the schema file(s) under `sql/ddl/<schema>.sql` (e.g., `sql/ddl/public.sql`) to declare tables and indexes.
 2. Run `npx ztd ztd-config` (or `--watch`) to refresh `tests/ztd-row-map.generated.ts`.
 3. Build tests and fixtures that consume `TestRowMap`.
 4. Execute tests via `pg-testkit` or another driver so the rewrite pipeline stays intact.
