@@ -1,7 +1,5 @@
 # @rawsql-ts/ztd-cli - AGENTS
 
-This document mirrors templates/AGENTS_ZTD.md, which is the template bundle that ztd init copies into new projects.
-
 ## AI Guardrails
 
 - For **Postgres dialect** projects, always write ZTD tests using `@rawsql-ts/pg-testkit`. Every CRUD path must flow through its rewrite pipeline; do **not** reimplement fixtures or SELECT rewrites yourself.

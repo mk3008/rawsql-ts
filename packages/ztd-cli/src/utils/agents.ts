@@ -6,7 +6,8 @@ const TEMPLATE_NAME = 'AGENTS_ZTD.md';
 const TARGET_FILES = ['AGENTS.md', 'AGENTS_ZTD.md'];
 
 export function copyAgentsTemplate(projectRoot: string): string | null {
-  const templatePath = path.resolve(__dirname, '..', '..', TEMPLATE_NAME);
+  // Use the shared template bundle so generated AGENTS.md matches the distributable templates directory.
+  const templatePath = path.resolve(__dirname, '..', '..', 'templates', TEMPLATE_NAME);
   if (!existsSync(templatePath)) {
     return null;
   }

@@ -135,55 +135,21 @@ const TESTKIT_CLIENT_TEMPLATE = 'testkit-client.ts';
 
 type SqlFolderAgentKey = Extract<FileKey, 'sqlDdlAgent' | 'sqlEnumsAgent' | 'sqlDomainSpecsAgent'>;
 
-const SQL_FOLDER_AGENT_TARGETS: { key: SqlFolderAgentKey; relativePath: string; content: string }[] = [
+const SQL_FOLDER_AGENT_TARGETS: { key: SqlFolderAgentKey; relativePath: string; templateName: string }[] = [
   {
     key: 'sqlDdlAgent',
     relativePath: 'sql/ddl/AGENTS.md',
-    content: `# DDL Definitions
-
-This folder stores table structure definitions (CREATE TABLE, ALTER TABLE, indexes, constraints).
-ZTD treats the SQL files here as the single source of truth for schemas.
-
-AI and humans must reference this directory when modifying or understanding table structures.
-`
+    templateName: 'sql/ddl/AGENTS.md'
   },
   {
     key: 'sqlEnumsAgent',
     relativePath: 'sql/enums/AGENTS.md',
-    content: `# Domain Enums
-
-This folder stores ENUM-like domain definitions using simple SQL-like VALUES syntax.
-
-Example:
-
-VALUES
-  (1, 'ACTIVE',  '有効会員'),
-  (2, 'STOPPED', '退会中');
-
-AI must reference these files instead of inventing magic numbers.
-ZTD-cli may later generate TS constants, labels, or constraints from this folder.
-`
+    templateName: 'sql/enums/AGENTS.md'
   },
   {
     key: 'sqlDomainSpecsAgent',
     relativePath: 'sql/domain-specs/AGENTS.md',
-    content: `# Domain Specifications (Executable SQL Specs)
-
-This folder stores SELECT-based specifications for domain behaviors.
-Each file must contain a full executable SELECT statement.
-
-Example:
-
-SELECT
-  m.*
-FROM
-  members m
-WHERE
-  m.member_status = @MemberStatus.ACTIVE
-  AND m.contract_start_at <= :as_of
-  AND (m.contract_end_at IS NULL OR :as_of <= m.contract_end_at);
-AI uses these specifications to correctly interpret domain terms (e.g., “active member”).
-`
+    templateName: 'sql/domain-specs/AGENTS.md'
   }
 ];
 
@@ -664,12 +630,14 @@ function ensureSqlFolderAgents(
   const summaries: Partial<Record<FileKey, FileSummary>> = {};
   for (const target of SQL_FOLDER_AGENT_TARGETS) {
     const targetPath = path.join(rootDir, target.relativePath);
+    // Load the shared guidance so every generated project gets the canonical AGENTS content.
+    const templateContents = loadTemplate(target.templateName);
     // Make sure the directory exists before writing the AGENT guidance.
     dependencies.ensureDirectory(path.dirname(targetPath));
     const existed = dependencies.fileExists(targetPath);
     if (!existed) {
       // Only emit a new AGENTS.md when there is no existing file to preserve custom guidance.
-      dependencies.writeFile(targetPath, target.content);
+      dependencies.writeFile(targetPath, templateContents);
     }
     summaries[target.key] = {
       relativePath: relativePath(target.key),
