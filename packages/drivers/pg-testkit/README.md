@@ -120,7 +120,7 @@ import { Client } from 'pg';
 import { createPgTestkitClient, createPgTestkitPool, wrapPgClient } from '@rawsql-ts/pg-testkit';
 import path from 'node:path';
 
-const ddlPath = path.join(__dirname, '..', 'ddl', 'schemas');
+const ddlPath = path.join(__dirname, '..', 'sql', 'ddl');
 const tableDefinitions = [
   {
     name: 'users',
