@@ -12,7 +12,7 @@ function createTempDir(prefix: string): string {
   return mkdtempSync(path.join(tmpRoot, `${prefix}-`));
 }
 
-test('copyAgentsTemplate writes AGENTS.md and falls back to AGENTS_ZTD.md when needed', () => {
+test('copyAgentsTemplate writes AGENTS.md and falls back to AGENTS_ztd.md when needed', () => {
   const workspace = createTempDir('ztd-agents');
   const first = copyAgentsTemplate(workspace);
   expect(first).toBeTruthy();
@@ -20,7 +20,7 @@ test('copyAgentsTemplate writes AGENTS.md and falls back to AGENTS_ZTD.md when n
 
   const second = copyAgentsTemplate(workspace);
   expect(second).toBeTruthy();
-  expect(existsSync(path.join(workspace, 'AGENTS_ZTD.md'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'AGENTS_ztd.md'))).toBe(true);
 
   const third = copyAgentsTemplate(workspace);
   expect(third).toBe(null);

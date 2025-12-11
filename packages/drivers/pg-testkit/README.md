@@ -107,7 +107,7 @@ Call `wrapped.withFixtures([...])` to produce an isolated proxy that shadows dif
 2. A single source of truth eliminates the need to hand-write table/column metadata for every fixture.
 3. Comparing the files that migrations and pg-testkit both consume closes the gap between the evolving schema and what tests expect.
 
-Housing schema files under `sql/ddl/<schema>.sql` (for example, `sql/ddl/users.sql`, `sql/ddl/orders.sql`) keeps each namespace in a predictable spot and makes it obvious which tables exist alongside their seeds. Each `.sql` file can contain `CREATE TABLE` statements plus optional `INSERT` statements, and the loader turns those inserts into fixture rows so your tests reuse the seeds declared next to the schema.
+Housing schema files under `ztd/ddl/<schema>.sql` (for example, `ztd/ddl/users.sql`, `ztd/ddl/orders.sql`) keeps each namespace in a predictable spot and makes it obvious which tables exist alongside their seeds. Each `.sql` file can contain `CREATE TABLE` statements plus optional `INSERT` statements, and the loader turns those inserts into fixture rows so your tests reuse the seeds declared next to the schema.
 
 Point pg-testkit at those directories through the `ddl` option and it will parse every `CREATE TABLE`/`INSERT` before rewriting the first query; the DDL is loaded once per `PgTestkitClient`/`wrapPgClient` instance (or per pool client) so the schema snapshot remains stable until you rebuild the driver. Because pg-testkit runs before every rewrite, temporary tables needed by queries keep working too.
 

@@ -10,7 +10,7 @@ The `ztd-playground` workspace is a focused environment for validating the entir
 
 ## Quick loop
 
-1. Edit the schema files under `sql/ddl/<schema>.sql` (e.g., `sql/ddl/ecommerce.sql`).
+1. Edit the schema files under `ztd/ddl/<schema>.sql` (e.g., `ztd/ddl/ecommerce.sql`).
 2. Regenerate the type-safe config: `pnpm playground:gen-config`.
 3. Run type checking so the generated helpers stay verified: `pnpm playground:typecheck`.
 4. Execute the tests against Postgres: `pnpm playground:test`.
@@ -19,11 +19,11 @@ This loop exercises:
 
 DDL -> `tests/ztd-row-map.generated.ts` -> type definitions -> fixtures -> ZTD rewrite -> test results.
 
-## SQL layout
+## ZTD layout
 
-- `sql/ddl/` keeps every CREATE/ALTER TABLE statement along with indexes, constraints, and optional seed rows that make the rewrite pipeline deterministic. Each namespace lives in `sql/ddl/<schema>.sql`.
-- `sql/enums/` captures domain enums and value lists so downstream tooling uses the same symbols as the fixtures.
-- `sql/domain-specs/` hosts executable SELECT-based specs that describe domain behaviors for humans and AI agents.
+- `ztd/ddl/` keeps every CREATE/ALTER TABLE statement along with indexes, constraints, and optional seed rows that make the rewrite pipeline deterministic. Each namespace lives in `ztd/ddl/<schema>.sql`.
+- `ztd/enums/` captures domain enums and value lists so downstream tooling uses the same symbols as the fixtures.
+- `ztd/domain-specs/` hosts executable SELECT-based specs that describe domain behaviors for humans and AI agents.
 - `tests/ztd-layout.generated.ts` records this layout so the CLI and your tests all resolve DDL, enum, and domain-spec directories consistently when they regenerate `tests/ztd-row-map.generated.ts`.
 
 ## Postgres execution
@@ -34,7 +34,7 @@ DDL -> `tests/ztd-row-map.generated.ts` -> type definitions -> fixtures -> ZTD r
 
 ## Sample domain
 
-The EC schema under `sql/ddl/ecommerce.sql` defines four tables: `users`, `products`, `orders`, and `order_items`. All fixtures, queries, and tests draw from these definitions so the model stays deterministic.
+The EC schema under `ztd/ddl/ecommerce.sql` defines four tables: `users`, `products`, `orders`, and `order_items`. All fixtures, queries, and tests draw from these definitions so the model stays deterministic.
 
 ## Sample queries
 
@@ -47,8 +47,8 @@ Each query is expressed as a raw SQL string so the rewrite pipeline can be exerc
 ## Fixtures and tests
 
 - `tests/ztd-row-map.generated.ts` exports the generated ZTD helpers (table names, row shapes, and `tableFixture`). Prefer importing directly from that file so downstream tooling resolves relative paths consistently.
-- Tests import `tableFixture`, the row shape types, and `createTestkitClient` from `tests/testkit-client.ts`. The helper wires a Postgres client into `@rawsql-ts/pg-testkit`, adds the `sql/ddl` directory, and shares the connection across fixtures.
-- `tests/ztd-layout.generated.ts` documents the SQL layout so the CLI and your tests all agree on where to find DDL, enum, and domain-spec files.
+- Tests import `tableFixture`, the row shape types, and `createTestkitClient` from `tests/testkit-client.ts`. The helper wires a Postgres client into `@rawsql-ts/pg-testkit`, adds the `ztd/ddl` directory, and shares the connection across fixtures.
+- `tests/ztd-layout.generated.ts` documents the ZTD layout so the CLI and your tests all agree on where to find DDL, enum, and domain-spec files.
 - TableNameResolver normalizes every DDL and fixture reference to canonical schema-qualified identifiers, so the playground keeps using schema-qualified names (e.g., `public.users`) end-to-end.
 
 ## Scope

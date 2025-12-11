@@ -24,25 +24,25 @@ Then use the CLI through `npx ztd` or the installed `ztd` bin.
 
 ## ztd init
 
-- `sql/ddl/<schema>.sql` (starter schema files you can edit or replace; the default schema is `public.sql`)
+- `ztd/ddl/<schema>.sql` (starter schema files you can edit or replace; the default schema is `public.sql`)
 - `ztd.config.json` (hints for AI and CLI defaults: `dialect`, `ddlDir`, `testsDir`, plus a `ddl` block that controls `defaultSchema`/`searchPath` so pg-testkit can resolve unqualified tables)
-- `tests/ztd-layout.generated.ts` (records the `sql/` layout so CLI helpers know where to find DDL, enums, and domain specs)
+- `tests/ztd-layout.generated.ts` (records the ZTD layout so CLI helpers know where to find DDL, enums, and domain specs)
 - `tests/ztd-row-map.generated.ts` (auto-generated `TestRowMap`, the canonical row type contract)
 - `tests/testkit-client.ts` (auto-generated helper that boots a Postgres client, wires `@rawsql-ts/pg-testkit`, and shares fixtures across the suite)
 - `README.md` describing the workflow and commands
 - `AGENTS.md` (copied from the package template unless the project already has one)
-- `sql/ddl/AGENTS.md`, `sql/enums/AGENTS.md`, and `sql/domain-specs/AGENTS.md` (folder-specific instructions for people and agents)
+- `ztd/AGENTS.md` and `ztd/README.md` (folder-specific instructions that describe the new schema/domain layout)
 - Optional guide stubs under `src/` and `tests/` if requested
 
 The resulting project follows the "DDL -> ztd-config -> ZTD test -> AI coding" flow so you can regenerate everything from SQL-first artifacts.
 
 ## DDL workflow
 
-Every `ztd ddl` subcommand targets the shared DDL directory defined in `ztd.config.json` (default `sql/ddl/`).
+Every `ztd ddl` subcommand targets the shared DDL directory defined in `ztd.config.json` (default `ztd/ddl/`).
 
 ### `ztd ddl pull`
 
- Fetches the schema via `pg_dump`, normalizes the DDL, and writes one file per schema under `sql/ddl/<schema>.sql` (no `schemas/` subdirectory so each namespace lives at the DDL root). The output drops headers, `SET` statements, and `\restrict` markers, sorts objects (schemas, tables, alterations, sequences, indexes) deterministically, and ensures each schema file ends with a clean newline so `ztd gen-config` and your AI flows always see stable input.
+ Fetches the schema via `pg_dump`, normalizes the DDL, and writes one file per schema under `ztd/ddl/<schema>.sql` (no `schemas/` subdirectory so each namespace lives at the DDL root). The output drops headers, `SET` statements, and `\restrict` markers, sorts objects (schemas, tables, alterations, sequences, indexes) deterministically, and ensures each schema file ends with a clean newline so `ztd gen-config` and your AI flows always see stable input.
 
  The command resolves the database connection in three steps: prefer a `DATABASE_URL` environment variable, honor explicit CLI overrides (`--url` or the `--db-*` flags) when supplied, and finally fall back to a `connection` block in `ztd.config.json` if present. Flags that provide partial credentials will cause the CLI to error before invoking `pg_dump` so you know exactly what is missing, and the generated error message always mentions the connection target together with concrete fixes. You only need to pass `--url` when no other resolver (environment or config) is configured; the CLI will reuse the resolved URL for every downstream tool invocation once the connection is determined.
 
@@ -87,7 +87,7 @@ Diffs the local DDL snapshot against a live Postgres database. It uses the share
 
 `ztd ztd-config` reads every `.sql` file under the configured DDL directory and produces `tests/ztd-row-map.generated.ts`, which exports `TestRowMap` plus the table-specific test-row interfaces. This file is the only place your tests should look for column shapes and nullability. The command can `--watch` the DDL sources and automatically regenerate the row map, but the watcher **only overwrites `tests/ztd-row-map.generated.ts`**; no other folders (`src/`, fixtures, `AGENTS.md`, etc.) are touched during the watch cycle.
 
-`tests/ztd-layout.generated.ts` records the `sql/` layout, so update it whenever you move schema, enum, or domain-spec files to keep downstream helpers in sync.
+`tests/ztd-layout.generated.ts` records the ZTD layout, so update it whenever you move schema, enum, or domain-spec files to keep downstream helpers in sync.
 
 Pass `--default-schema` or `--search-path` when running `ztd ztd-config` to update the `ddl.defaultSchema`/`ddl.searchPath` block in `ztd.config.json` so pg-testkit and the CLI agree on how unqualified table names should be resolved.
 
@@ -104,7 +104,7 @@ Both drivers sit downstream of `testkit-core` and apply the rewrite + fixture pi
 
 ## AI Coding Workflow
 
-1. Update the relevant `sql/ddl/<schema>.sql` file (for example, `sql/ddl/public.sql`) with the desired schema and keep `tests/ztd-layout.generated.ts` synchronized with any directory moves.
+1. Update the relevant `ztd/ddl/<schema>.sql` file (for example, `ztd/ddl/public.sql`) with the desired schema and keep `tests/ztd-layout.generated.ts` synchronized with any directory moves.
 2. Run `npx ztd ztd-config` (or `--watch`) to regenerate the authoritative `TestRowMap`.
 3. Use the row map + fixtures to write repositories, tests, and fixtures.
 4. Run tests through `pg-testkit` (or another driver) since `ztd-cli` itself never executes SQL.
@@ -112,6 +112,6 @@ Both drivers sit downstream of `testkit-core` and apply the rewrite + fixture pi
 
 ## AGENTS.md
 
-`ztd init` copies the AGENTS template from this package into the project root, preferring `AGENTS.md` unless a file already exists (then it falls back to `AGENTS_ZTD.md`). The template explains the conventions for AI agents, including which testkit to use, how to treat `tests/ztd-row-map.generated.ts`, and how to avoid mutating schema files. Keep the generated AGENTS file in version control so every future AI assistant receives the same guidance.
+`ztd init` copies the AGENTS template from this package into the project root, preferring `AGENTS.md` unless a file already exists (then it falls back to `AGENTS_ztd.md`). The template explains the conventions for AI agents, including which testkit to use, how to treat `tests/ztd-row-map.generated.ts`, and how to avoid mutating schema files. Keep the generated AGENTS file in version control so every future AI assistant receives the same guidance.
 
-`ztd init` also creates `AGENTS.md` inside `sql/ddl`, `sql/enums`, and `sql/domain-specs` to describe the purpose of each folder.
+`ztd init` also creates `ztd/AGENTS.md` and `ztd/README.md` so contributors always see the canonical DDL, enum, and domain-spec guidance inside the new layout.

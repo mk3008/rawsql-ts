@@ -2,8 +2,8 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { ensureDirectory } from './fs';
 
-const TEMPLATE_NAME = 'AGENTS_ZTD.md';
-const TARGET_FILES = ['AGENTS.md', 'AGENTS_ZTD.md'];
+const TEMPLATE_NAME = 'AGENTS.md';
+const TARGET_FILES = ['AGENTS.md', 'AGENTS_ztd.md'];
 
 export function copyAgentsTemplate(projectRoot: string): string | null {
   // Use the shared template bundle so generated AGENTS.md matches the distributable templates directory.
