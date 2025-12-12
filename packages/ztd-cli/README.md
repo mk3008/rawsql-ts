@@ -1,12 +1,8 @@
 # @rawsql-ts/ztd-cli
 
-## What is ZTD?
+Scaffold **Zero Table Dependency (ZTD)** projects and keep DDL-derived test types in sync.
 
-Zero Table Dependency (ZTD) keeps your tests aligned with a real database engine without ever creating or mutating physical tables during the test run. All CRUD statements are rewritten into fixture-backed `SELECT` queries, and every schema change is expressed through SQL files and their generated row map. Tests consume those rows, not the live database, which keeps the suite deterministic, repeatable, and safe for automated generation tools.
-
-## What is @rawsql-ts/ztd-cli?
-
-`@rawsql-ts/ztd-cli` is a **DB-independent** scaffolding engine for ZTD workflows. It never executes SQL itself; instead, it inspects DDL files, produces the `tests/generated/ztd-row-map.generated.ts` row map, and keeps project metadata (like `ztd.config.json`) in sync. To execute real SQL or run fixtures, install a companion driver such as `@rawsql-ts/pg-testkit` (Postgres) or `@rawsql-ts/sqlite-testkit` and connect your tests through that driver.
+`@rawsql-ts/ztd-cli` does **not** execute SQL. To run queries in tests, install a driver such as `@rawsql-ts/pg-testkit` (Postgres).
 
 ## Install
 
@@ -22,29 +18,85 @@ pnpm add -D @rawsql-ts/pg-testkit
 
 Then use the CLI through `npx ztd` or the installed `ztd` bin.
 
-## ztd init
+## Getting Started (Fast Path)
+
+1. Initialize a ZTD layout:
+
+   ```bash
+   npx ztd init
+   ```
+
+2. Put your schema into `ztd/ddl/`:
+
+   - Edit the starter file (default): `ztd/ddl/public.sql`, or
+   - Pull from a live Postgres database: `npx ztd ddl pull` (Postgres only; uses `pg_dump`)
+
+3. Generate test types (`TestRowMap`) from DDL:
+
+   ```bash
+   npx ztd ztd-config
+   # or keep it updated while you edit SQL:
+   npx ztd ztd-config --watch
+   ```
+
+4. Write tests using the generated test types + the driver wiring:
+
+   - `tests/generated/ztd-row-map.generated.ts` (generated test types; authoritative `TestRowMap`)
+   - `tests/support/testkit-client.ts` (driver wiring helper)
+
+If you already have a database, the most common loop is:
+`ztd ddl pull` -> edit `ztd/ddl/*.sql` -> `ztd ztd-config --watch` -> write tests.
+
+At this point, you can write deterministic DB tests without creating tables or running migrations.
+
+You can introduce ZTD incrementally; existing tests and ORMs can remain untouched.
+
+## What `ztd init` Generates
 
 - `ztd/ddl/<schema>.sql` (starter schema files you can edit or replace; the default schema is `public.sql`)
-- `ztd.config.json` (hints for AI and CLI defaults: `dialect`, `ddlDir`, `testsDir`, plus a `ddl` block that controls `defaultSchema`/`searchPath` so pg-testkit can resolve unqualified tables)
+- `tests/generated/ztd-row-map.generated.ts` (auto-generated `TestRowMap`, the canonical test type contract)
+- `tests/support/testkit-client.ts` (auto-generated helper that boots a database client, wires a driver, and shares fixtures across the suite)
+- `ztd.config.json` (CLI defaults and resolver hints: `dialect`, `ddlDir`, `testsDir`, plus `ddl.defaultSchema`/`ddl.searchPath` for resolving unqualified tables)
 - `tests/generated/ztd-layout.generated.ts` (records the ZTD layout so CLI helpers know where to find DDL, enums, and domain specs)
-- `tests/generated/ztd-row-map.generated.ts` (auto-generated `TestRowMap`, the canonical row type contract)
-- `tests/support/testkit-client.ts` (auto-generated helper that boots a Postgres client, wires `@rawsql-ts/pg-testkit`, and shares fixtures across the suite)
+- `tests/support/global-setup.ts` (shared test setup used by the generated testkit client)
 - `README.md` describing the workflow and commands
 - `AGENTS.md` (copied from the package template unless the project already has one)
 - `ztd/AGENTS.md` and `ztd/README.md` (folder-specific instructions that describe the new schema/domain layout)
 - Optional guide stubs under `src/` and `tests/` if requested
 
-The resulting project follows the "DDL -> ztd-config -> ZTD test -> AI coding" flow so you can regenerate everything from SQL-first artifacts.
+The resulting project follows the "DDL -> ztd-config -> tests" flow so you can regenerate everything from SQL-first artifacts.
 
-## DDL workflow
+## Commands
+
+### `ztd init`
+
+Creates a ZTD-ready project layout (DDL folder, config, generated layout, and test support stubs). It does not connect to your database.
+
+### `ztd ztd-config`
+
+Reads every `.sql` file under the configured DDL directory and produces `tests/generated/ztd-row-map.generated.ts`.
+
+- The row map exports `TestRowMap` plus table-specific test-row interfaces.
+- `--watch` only overwrites `tests/generated/ztd-row-map.generated.ts` (no other folders are touched during the watch cycle).
+- Pass `--default-schema` or `--search-path` to update the `ddl.defaultSchema`/`ddl.searchPath` block in `ztd.config.json` so the CLI and drivers resolve unqualified tables the same way.
+- Keep `tests/generated/ztd-layout.generated.ts` synchronized if you move schema / enum / domain-spec files so downstream helpers can find them.
+
+### `ztd ddl ...`
 
 Every `ztd ddl` subcommand targets the shared DDL directory defined in `ztd.config.json` (default `ztd/ddl/`).
 
 ### `ztd ddl pull`
 
- Fetches the schema via `pg_dump`, normalizes the DDL, and writes one file per schema under `ztd/ddl/<schema>.sql` (no `schemas/` subdirectory so each namespace lives at the DDL root). The output drops headers, `SET` statements, and `\restrict` markers, sorts objects (schemas, tables, alterations, sequences, indexes) deterministically, and ensures each schema file ends with a clean newline so `ztd gen-config` and your AI flows always see stable input.
+Fetches the schema via `pg_dump`, normalizes the DDL, and writes one file per schema under `ztd/ddl/<schema>.sql` (no `schemas/` subdirectory so each namespace lives at the DDL root).
 
- The command resolves the database connection in three steps: prefer a `DATABASE_URL` environment variable, honor explicit CLI overrides (`--url` or the `--db-*` flags) when supplied, and finally fall back to a `connection` block in `ztd.config.json` if present. Flags that provide partial credentials will cause the CLI to error before invoking `pg_dump` so you know exactly what is missing, and the generated error message always mentions the connection target together with concrete fixes. You only need to pass `--url` when no other resolver (environment or config) is configured; the CLI will reuse the resolved URL for every downstream tool invocation once the connection is determined.
+- Output is deterministic: it drops headers/`SET` statements, sorts objects, and ensures each schema file ends with a clean newline so diffs stay stable.
+- You can scope the pull with `--schema <name>` (repeatable) or `--table <schema.table>` (repeatable).
+
+Connection resolution (in order):
+
+1. `DATABASE_URL`
+2. CLI overrides (`--url` / `--db-*` flags)
+3. A `connection` block in `ztd.config.json`
 
  A sample `connection` block looks like:
 
@@ -59,9 +111,6 @@ Every `ztd ddl` subcommand targets the shared DDL directory defined in `ztd.conf
    }
  }
  ```
-
-
-You can scope the pull with `--schema <name>` (repeatable) or `--table <schema.table>` (repeatable); filtered pulls only emit the requested schemas/tables and their dependent objects. If no filters are provided, the command retrieves the full schema and still splits it by namespace.
 
 Unqualified table references are treated as belonging to the `public` schema by default, so `users` is interpreted as `public.users`. If your project relies on a different namespace, update the `ddl.defaultSchema`/`ddl.searchPath` block in `ztd.config.json` so the CLI and downstream tests agree on how unqualified names are resolved.
 
@@ -83,26 +132,34 @@ Reads the DDL directory and generates `entities.ts` (optional reference for help
 
 Diffs the local DDL snapshot against a live Postgres database. It uses the shared DDL directory, respects configured extensions, and outputs a human-readable plan with `pg_dump`.
 
-## ztd-config
-
-`ztd ztd-config` reads every `.sql` file under the configured DDL directory and produces `tests/generated/ztd-row-map.generated.ts`, which exports `TestRowMap` plus the table-specific test-row interfaces. This file is the only place your tests should look for column shapes and nullability. The command can `--watch` the DDL sources and automatically regenerate the row map, but the watcher **only overwrites `tests/generated/ztd-row-map.generated.ts`**; no other folders (`src/`, fixtures, `AGENTS.md`, etc.) are touched during the watch cycle.
-
-`tests/generated/ztd-layout.generated.ts` records the ZTD layout, so update it whenever you move schema, enum, or domain-spec files to keep downstream helpers in sync.
-
-Pass `--default-schema` or `--search-path` when running `ztd ztd-config` to update the `ddl.defaultSchema`/`ddl.searchPath` block in `ztd.config.json` so pg-testkit and the CLI agree on how unqualified table names should be resolved.
-
-Watch mode is safe: it regenerates the tests file as soon as DDL changes are saved and logs every write so you can confirm no additional files were modified.
-
 ## ZTD Testing
 
-Driver responsibilities live in companion packages:
+Driver responsibilities live in companion packages such as `@rawsql-ts/pg-testkit` for Postgres.
 
-- `@rawsql-ts/pg-testkit` for Postgres
-- `@rawsql-ts/sqlite-testkit` for SQLite
+The driver sits downstream of `testkit-core` and applies the rewrite + fixture pipeline before running any database interaction. Install the driver, configure it in your tests, and point it at the row map from `tests/generated/ztd-row-map.generated.ts`.
 
-Both drivers sit downstream of `testkit-core` and apply the rewrite + fixture pipeline before running any database interaction. Install the driver that matches your engine, configure it in your tests, and point it at the row map from `tests/generated/ztd-row-map.generated.ts`.
+## Concepts (Why ZTD?)
 
-## AI Coding Workflow
+### What is ZTD?
+
+Zero Table Dependency (ZTD) keeps your tests aligned with a real database engine without ever creating or mutating physical tables during the test run.
+
+- Application CRUD statements are rewritten into fixture-backed `SELECT` queries.
+- Schema changes are expressed via SQL files (DDL) and their generated row map.
+- Tests consume fixtures + types, not a live mutable schema, which keeps the suite deterministic and safe for automated code generation.
+
+### Schema resolution (`defaultSchema` / `searchPath`)
+
+Application SQL can omit schema qualifiers (for example, `SELECT ... FROM users`). Drivers resolve those references using the `ddl.defaultSchema` and `ddl.searchPath` settings in `ztd.config.json` before matching fixtures / DDL metadata.
+
+## Glossary
+
+- **DDL**: SQL files that define schema objects (tables, enums, indexes, etc.).
+- **Row map (`TestRowMap`)**: Generated TypeScript types describing test rows for each table from DDL.
+- **Fixture**: Static rows used by the driver to answer queries deterministically.
+- **Driver**: The package that connects to your database engine and runs the rewrite + fixture pipeline (for example, `@rawsql-ts/pg-testkit`).
+
+## AI Coding Workflow (Optional)
 
 1. Update the relevant `ztd/ddl/<schema>.sql` file (for example, `ztd/ddl/public.sql`) with the desired schema and keep `tests/generated/ztd-layout.generated.ts` synchronized with any directory moves.
 2. Run `npx ztd ztd-config` (or `--watch`) to regenerate the authoritative `TestRowMap`.
