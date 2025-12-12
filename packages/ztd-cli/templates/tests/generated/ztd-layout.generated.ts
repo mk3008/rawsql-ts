@@ -4,3 +4,4 @@ export default {
   enumsDir: 'ztd/enums',
   domainSpecsDir: 'ztd/domain-specs',
 };
+

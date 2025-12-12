@@ -1,18 +1,18 @@
+// ZTD testkit helper - AUTO GENERATED
+// ztd-cli emits this file during project bootstrapping to wire pg-testkit.
+// Regenerate via pnpm playground:gen-config or ztd init; avoid manual edits.
+
 import path from 'node:path';
 import { Client, types } from 'pg';
 import type { ClientConfig, QueryResultRow } from 'pg';
-import { PostgreSqlContainer } from '@testcontainers/postgresql';
 import { createPgTestkitClient } from '@rawsql-ts/pg-testkit';
 import type { PgQueryInput, PgQueryable } from '@rawsql-ts/pg-testkit';
 import type { TableFixture } from '@rawsql-ts/testkit-core';
 
-const ddlDirectories = [path.resolve(__dirname, '../ztd/ddl')];
+const ddlDirectories = [path.resolve(__dirname, '../../ztd/ddl')];
 
 let sharedPgClient: Client | undefined;
 let sharedQueryable: PgQueryable | undefined;
-const POSTGRES_IMAGE = 'postgres:16-alpine';
-type StartedPostgreSqlContainer = Awaited<ReturnType<PostgreSqlContainer['start']>>;
-let sharedContainer: StartedPostgreSqlContainer | undefined;
 
 const { INT2, INT4, INT8, NUMERIC, DATE } = types.builtins;
 const parseInteger = (value: string | null) => (value === null ? null : Number(value));
@@ -25,47 +25,13 @@ types.setTypeParser(INT8, parseInteger);
 types.setTypeParser(NUMERIC, parseNumeric);
 types.setTypeParser(DATE, (value) => value);
 
-function isMissingRuntimeError(error: unknown): boolean {
-  return (
-    error instanceof Error &&
-    error.message.includes('Could not find a working container runtime strategy')
-  );
-}
-
 async function resolveDatabaseUrl(): Promise<string> {
   const configuredUrl = process.env.DATABASE_URL;
   if (configuredUrl) {
     return configuredUrl;
   }
 
-  if (!sharedContainer) {
-    const container = new PostgreSqlContainer(POSTGRES_IMAGE)
-      .withDatabase('ztd_playground')
-      .withUsername('postgres')
-      .withPassword('postgres');
-
-    try {
-      // Create and start a disposable Postgres instance when no DATABASE_URL is provided.
-      sharedContainer = await container.start();
-    } catch (error) {
-      if (isMissingRuntimeError(error)) {
-        throw new Error(
-          'Could not start a Postgres testcontainer; ensure Docker is running and accessible, or set DATABASE_URL.',
-        );
-      }
-      throw error;
-    }
-
-    // Stop the temporary container when the node process is shutting down.
-    process.once('exit', () => {
-      if (!sharedContainer) {
-        return;
-      }
-      void sharedContainer.stop();
-    });
-  }
-
-  return sharedContainer.getConnectionUri();
+  throw new Error('DATABASE_URL is required. It should be provided by Vitest globalSetup or your environment.');
 }
 
 async function getPgClient(): Promise<Client> {
@@ -110,7 +76,7 @@ async function getPgQueryable(): Promise<PgQueryable> {
     release: () => {
       // Release is intentionally a no-op because the shared client should stay open.
       return;
-    },
+    }
   };
 
   sharedQueryable = wrappedQueryable;
@@ -120,20 +86,17 @@ async function getPgQueryable(): Promise<PgQueryable> {
 export type ZtdPlaygroundQueryResult<T extends QueryResultRow = QueryResultRow> = Promise<T[]>;
 
 export type ZtdPlaygroundClient = {
-  query<T extends QueryResultRow = QueryResultRow>(
-    text: string,
-    values?: unknown[],
-  ): ZtdPlaygroundQueryResult<T>;
+  query<T extends QueryResultRow = QueryResultRow>(text: string, values?: unknown[]): ZtdPlaygroundQueryResult<T>;
   close(): Promise<void>;
 };
 
 export async function createTestkitClient(fixtures: TableFixture[]): Promise<ZtdPlaygroundClient> {
   const queryable = await getPgQueryable();
-  // TableNameResolver keeps DDL and fixtures aligned on canonical schema-qualified identifiers like 'public.customer'.
+  // TableNameResolver keeps DDL and fixtures aligned on canonical schema-qualified identifiers like 'public.table_name'.
   const driver = createPgTestkitClient({
     connectionFactory: () => queryable,
     tableRows: fixtures,
-    ddl: { directories: ddlDirectories },
+    ddl: { directories: ddlDirectories }
   });
 
   // Expose a simplified query API so tests can assert on plain row arrays.
@@ -144,6 +107,7 @@ export async function createTestkitClient(fixtures: TableFixture[]): Promise<Ztd
     },
     close() {
       return driver.close();
-    },
+    }
   };
 }
+

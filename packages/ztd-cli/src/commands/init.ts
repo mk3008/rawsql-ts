@@ -84,6 +84,8 @@ type FileKey =
   | 'ztdConfig'
   | 'testsConfig'
   | 'testkitClient'
+  | 'globalSetup'
+  | 'vitestConfig'
   | 'readme'
   | 'ztdDocsAgent'
   | 'ztdDocsReadme'
@@ -125,12 +127,14 @@ const SAMPLE_SCHEMA = `CREATE TABLE public.example (
 `;
 
 const README_TEMPLATE = 'README.md';
-const TESTS_CONFIG_TEMPLATE = 'tests/tests-ztd-layout.generated.ts';
-const TESTKIT_CLIENT_TEMPLATE = 'tests/testkit-client.ts';
+const TESTS_CONFIG_TEMPLATE = 'tests/generated/ztd-layout.generated.ts';
+const TESTKIT_CLIENT_TEMPLATE = 'tests/support/testkit-client.ts';
+const GLOBAL_SETUP_TEMPLATE = 'tests/support/global-setup.ts';
+const VITEST_CONFIG_TEMPLATE = 'vitest.config.ts';
 
 const NEXT_STEPS = [
   ' 1. Review the schema files under ztd/ddl/<schema>.sql',
-  ' 2. Inspect tests/ztd-layout.generated.ts for the SQL layout',
+  ' 2. Inspect tests/generated/ztd-layout.generated.ts for the SQL layout',
   ' 3. Run npx ztd ztd-config',
   ' 4. Run ZTD tests with pg-testkit'
 ];
@@ -163,19 +167,21 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
   const schemaFileName = `${DEFAULT_ZTD_CONFIG.ddl.defaultSchema}.sql`;
 
   const absolutePaths: Record<FileKey, string> = {
-  schema: path.join(rootDir, DEFAULT_ZTD_CONFIG.ddlDir, schemaFileName),
-  config: path.join(rootDir, 'ztd.config.json'),
-  ztdConfig: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'ztd-row-map.generated.ts'),
-  testsConfig: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'ztd-layout.generated.ts'),
-  readme: path.join(rootDir, 'README.md'),
-  testkitClient: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'testkit-client.ts'),
-  ztdDocsAgent: path.join(rootDir, 'ztd', 'AGENTS.md'),
-  ztdDocsReadme: path.join(rootDir, 'ztd', 'README.md'),
-  agents: path.join(rootDir, 'AGENTS.md'),
-  editorconfig: path.join(rootDir, '.editorconfig'),
-  prettier: path.join(rootDir, '.prettierrc'),
-  package: path.join(rootDir, 'package.json')
-};
+    schema: path.join(rootDir, DEFAULT_ZTD_CONFIG.ddlDir, schemaFileName),
+    config: path.join(rootDir, 'ztd.config.json'),
+    ztdConfig: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'generated', 'ztd-row-map.generated.ts'),
+    testsConfig: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'generated', 'ztd-layout.generated.ts'),
+    readme: path.join(rootDir, 'README.md'),
+    testkitClient: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'support', 'testkit-client.ts'),
+    globalSetup: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'support', 'global-setup.ts'),
+    vitestConfig: path.join(rootDir, 'vitest.config.ts'),
+    ztdDocsAgent: path.join(rootDir, 'ztd', 'AGENTS.md'),
+    ztdDocsReadme: path.join(rootDir, 'ztd', 'README.md'),
+    agents: path.join(rootDir, 'AGENTS.md'),
+    editorconfig: path.join(rootDir, '.editorconfig'),
+    prettier: path.join(rootDir, '.prettierrc'),
+    package: path.join(rootDir, 'package.json')
+  };
 
   const relativePath = (key: FileKey): string =>
     path.relative(rootDir, absolutePaths[key]).replace(/\\/g, '/') || absolutePaths[key];
@@ -251,7 +257,7 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
   );
 
   if (ztdConfigTarget.write) {
-    // Regenerate tests/ztd-row-map.generated.ts so TestRowMap reflects the DDL snapshot.
+    // Regenerate tests/generated/ztd-row-map.generated.ts so TestRowMap reflects the DDL snapshot.
     dependencies.ensureDirectory(path.dirname(absolutePaths.ztdConfig));
     dependencies.runGenerateZtdConfig({
       directories: [path.resolve(path.dirname(absolutePaths.schema))],
@@ -261,7 +267,9 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
       searchPath: projectConfig.ddl.searchPath
     });
   } else {
-    dependencies.log('Skipping ZTD config generation; existing tests/ztd-row-map.generated.ts preserved.');
+    dependencies.log(
+      'Skipping ZTD config generation; existing tests/generated/ztd-row-map.generated.ts preserved.'
+    );
   }
 
   summaries.ztdConfig = {
@@ -297,6 +305,30 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
   );
   if (testkitSummary) {
     summaries.testkitClient = testkitSummary;
+  }
+
+  const globalSetupSummary = await writeTemplateFile(
+    rootDir,
+    absolutePaths.globalSetup,
+    relativePath('globalSetup'),
+    GLOBAL_SETUP_TEMPLATE,
+    dependencies,
+    prompter
+  );
+  if (globalSetupSummary) {
+    summaries.globalSetup = globalSetupSummary;
+  }
+
+  const vitestConfigSummary = await writeTemplateFile(
+    rootDir,
+    absolutePaths.vitestConfig,
+    relativePath('vitestConfig'),
+    VITEST_CONFIG_TEMPLATE,
+    dependencies,
+    prompter
+  );
+  if (vitestConfigSummary) {
+    summaries.vitestConfig = vitestConfigSummary;
   }
 
   const testsConfigSummary = await writeTemplateFile(
@@ -642,6 +674,8 @@ function buildSummaryLines(summaries: Record<FileKey, FileSummary>): string[] {
     'ztdConfig',
     'readme',
     'testkitClient',
+    'globalSetup',
+    'vitestConfig',
     'ztdDocsAgent',
     'ztdDocsReadme',
     'agents',

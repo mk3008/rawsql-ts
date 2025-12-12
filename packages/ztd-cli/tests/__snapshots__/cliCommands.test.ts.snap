@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`ztd-config CLI produces the expected tests/ztd-row-map.generated.ts snapshot 1`] = `
+exports[`ztd-config CLI produces the expected tests/generated/ztd-row-map.generated.ts snapshot 1`] = `
 "// ZTD TEST ROW MAP - AUTO GENERATED
 // Tests must import TestRowMap from this file and never from src.
 // This file is synchronized with DDL using ztd-config.

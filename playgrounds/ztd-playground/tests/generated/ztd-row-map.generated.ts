@@ -48,36 +48,36 @@ export type ZtdTableSchemas = Record<ZtdTableName, TableSchemaDefinition>;
 export const tableSchemas: ZtdTableSchemas = {
   'public.customer': {
     columns: {
-      customer_id: 'bigint',
-      customer_name: 'text',
-      customer_email: 'text',
-      registered_at: 'timestamp',
-    },
+      customer_id: "bigint",
+      customer_name: "text",
+      customer_email: "text",
+      registered_at: "timestamp",
+    }
   },
   'public.product': {
     columns: {
-      product_id: 'bigint',
-      product_name: 'text',
-      list_price: 'numeric',
-      product_category_id: 'bigint',
-    },
+      product_id: "bigint",
+      product_name: "text",
+      list_price: "numeric",
+      product_category_id: "bigint",
+    }
   },
   'public.sales_order': {
     columns: {
-      sales_order_id: 'bigint',
-      customer_id: 'bigint',
-      sales_order_date: 'date',
-      sales_order_status_code: 'int',
-    },
+      sales_order_id: "bigint",
+      customer_id: "bigint",
+      sales_order_date: "date",
+      sales_order_status_code: "int",
+    }
   },
   'public.sales_order_item': {
     columns: {
-      sales_order_item_id: 'bigint',
-      sales_order_id: 'bigint',
-      product_id: 'bigint',
-      quantity: 'int',
-      unit_price: 'numeric',
-    },
+      sales_order_item_id: "bigint",
+      sales_order_id: "bigint",
+      product_id: "bigint",
+      quantity: "int",
+      unit_price: "numeric",
+    }
   },
 };
 
@@ -98,14 +98,14 @@ export interface ZtdConfig {
 export function tableFixture<K extends ZtdTableName>(
   tableName: K,
   rows: ZtdRowShapes[K][],
-  schema?: TableSchemaDefinition,
+  schema?: TableSchemaDefinition
 ): TableFixture {
   return { tableName, rows, schema };
 }
 
 export function tableFixtureWithSchema<K extends ZtdTableName>(
   tableName: K,
-  rows: ZtdRowShapes[K][],
+  rows: ZtdRowShapes[K][]
 ): ZtdTableFixture<K> {
   // Always pair fixture rows with the canonical schema generated from DDL.
   return { tableName, rows, schema: tableSchemas[tableName] };

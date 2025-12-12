@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import type { TableFixture } from '@rawsql-ts/testkit-core';
-import { tableFixture, TestRowMap, tableSchemas } from './ztd-row-map.generated';
-import { createTestkitClient } from './testkit-client';
+import { tableFixture, TestRowMap, tableSchemas } from './generated/ztd-row-map.generated';
+import { createTestkitClient } from './support/testkit-client';
 import { customerSummarySql } from '../src/customer_summary';
 
 interface CustomerSummaryRow {

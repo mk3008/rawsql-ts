@@ -17,18 +17,18 @@ The `ztd-playground` workspace is a focused environment for validating the entir
 
 This loop exercises:
 
-DDL -> `tests/ztd-row-map.generated.ts` -> type definitions -> fixtures -> ZTD rewrite -> test results.
+DDL -> `tests/generated/ztd-row-map.generated.ts` -> type definitions -> fixtures -> ZTD rewrite -> test results.
 
 ## ZTD layout
 
 - `ztd/ddl/` keeps every CREATE/ALTER TABLE statement along with indexes, constraints, and optional seed rows that make the rewrite pipeline deterministic. Each namespace lives in `ztd/ddl/<schema>.sql`.
 - `ztd/enums/` captures domain enums and value lists so downstream tooling uses the same symbols as the fixtures.
 - `ztd/domain-specs/` hosts executable SELECT-based specs that describe domain behaviors for humans and AI agents.
-- `tests/ztd-layout.generated.ts` records this layout so the CLI and your tests all resolve DDL, enum, and domain-spec directories consistently when they regenerate `tests/ztd-row-map.generated.ts`.
+- `tests/generated/ztd-layout.generated.ts` records this layout so the CLI and your tests all resolve DDL, enum, and domain-spec directories consistently when they regenerate `tests/generated/ztd-row-map.generated.ts`.
 
 ## Postgres execution
 
-- Use `tests/testkit-client.ts` to create a `@rawsql-ts/pg-testkit` client so fixtures are rewritten into Postgres `SELECT` queries rather than touching the real schema.
+- Use `tests/support/testkit-client.ts` to create a `@rawsql-ts/pg-testkit` client so fixtures are rewritten into Postgres `SELECT` queries rather than touching the real schema.
 - `DATABASE_URL` must point to a live Postgres database before running tests or the helper will throw a clear error. The connection is shared across the suite, and the helper keeps the same `pg.Client` open without issuing any DDL.
 - Because ZTD never creates tables, the same Postgres database can be reused safely even when the tests run in parallel.
 
@@ -46,9 +46,9 @@ Each query is expressed as a raw SQL string so the rewrite pipeline can be exerc
 
 ## Fixtures and tests
 
-- `tests/ztd-row-map.generated.ts` exports the generated ZTD helpers (table names, row shapes, and `tableFixture`). Prefer importing directly from that file so downstream tooling resolves relative paths consistently.
-- Tests import `tableFixture`, the row shape types, and `createTestkitClient` from `tests/testkit-client.ts`. The helper wires a Postgres client into `@rawsql-ts/pg-testkit`, adds the `ztd/ddl` directory, and shares the connection across fixtures.
-- `tests/ztd-layout.generated.ts` documents the ZTD layout so the CLI and your tests all agree on where to find DDL, enum, and domain-spec files.
+- `tests/generated/ztd-row-map.generated.ts` exports the generated ZTD helpers (table names, row shapes, and `tableFixture`). Prefer importing directly from that file so downstream tooling resolves relative paths consistently.
+- Tests import `tableFixture`, the row shape types, and `createTestkitClient` from `tests/support/testkit-client.ts`. The helper wires a Postgres client into `@rawsql-ts/pg-testkit`, adds the `ztd/ddl` directory, and shares the connection across fixtures.
+- `tests/generated/ztd-layout.generated.ts` documents the ZTD layout so the CLI and your tests all agree on where to find DDL, enum, and domain-spec files.
 - TableNameResolver normalizes every DDL and fixture reference to canonical schema-qualified identifiers, so the playground keeps using schema-qualified names (e.g., `public.customer`) end-to-end.
 
 ## Scope

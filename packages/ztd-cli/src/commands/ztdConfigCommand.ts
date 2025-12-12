@@ -30,7 +30,11 @@ export function registerZtdConfigCommand(program: Command): void {
       const projectConfig = loadZtdProjectConfig();
       const directories = normalizeDirectoryList(options.ddlDir as string[], projectConfig.ddlDir ?? DEFAULT_DDL_DIRECTORY);
       const extensions = resolveExtensions(options.extensions as string[], DEFAULT_EXTENSIONS);
-      const defaultOut = path.join(projectConfig.testsDir ?? DEFAULT_TESTS_DIRECTORY, 'ztd-row-map.generated.ts');
+      const defaultOut = path.join(
+        projectConfig.testsDir ?? DEFAULT_TESTS_DIRECTORY,
+        'generated',
+        'ztd-row-map.generated.ts'
+      );
       const output = options.out ?? defaultOut;
 
       const ddlOverrides: ZtdProjectConfig['ddl'] = { ...projectConfig.ddl };
@@ -74,7 +78,7 @@ async function watchZtdConfig(options: ZtdConfigGenerationOptions): Promise<void
     options.extensions.map((extension) => path.join(dir, '**', `*${extension}`))
   );
 
-  // Only the tests/ztd-row-map.generated.ts output is overwritten while watching DDL changes.
+  // Only the tests/generated/ztd-row-map.generated.ts output is overwritten while watching DDL changes.
   const watcher = chokidar.watch(patterns, {
     ignoreInitial: true,
     awaitWriteFinish: { stabilityThreshold: 80, pollInterval: 20 }
@@ -105,7 +109,7 @@ async function watchZtdConfig(options: ZtdConfigGenerationOptions): Promise<void
       console.log(`[watch] Updated: ${options.out}`);
     } catch (error) {
       console.error(
-        `[watch] Failed to regenerate tests/ztd-row-map.generated.ts: ${error instanceof Error ? error.message : String(error)}`
+        `[watch] Failed to regenerate tests/generated/ztd-row-map.generated.ts: ${error instanceof Error ? error.message : String(error)}`
       );
     }
   };

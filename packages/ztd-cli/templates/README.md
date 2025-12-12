@@ -17,7 +17,7 @@ This project organizes all SQL‑related artifacts under the `ztd/` directory, s
 /tests               <- ZTD tests, fixtures, generated maps
 ```
 
-`tests/ztd-layout.generated.ts` declares the directories above so the CLI and your tests always point at the correct files.
+`tests/generated/ztd-layout.generated.ts` declares the directories above so the CLI and your tests always point at the correct files.
 
 ---
 
@@ -60,7 +60,7 @@ Different tasks start from different entry points. Choose the workflow that matc
    npx ztd ztd-config
    ```
 
-   This regenerates `tests/ztd-row-map.generated.ts` from the new schema.
+   This regenerates `tests/generated/ztd-row-map.generated.ts` from the new schema.
 
 3. Update repository SQL so it matches the new schema.
 4. Update fixtures if shapes changed.
