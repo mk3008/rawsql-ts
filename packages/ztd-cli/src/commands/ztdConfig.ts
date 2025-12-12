@@ -138,8 +138,8 @@ function buildTestRowInterfaceName(tableName: string): string {
 
 export function renderZtdConfigFile(tables: TableMetadata[]): string {
   const header = [
-    '// ZTD TEST ROW MAP - AUTO GENERATED',
-    '// Tests must import TestRowMap from this file and never from src.',
+    '// GENERATED FILE. DO NOT EDIT.',
+    '// ZTD TEST ROW MAP',
     '// This file is synchronized with DDL using ztd-config.',
     '',
     "import type { FixtureRow, TableFixture, TableSchemaDefinition } from '@rawsql-ts/testkit-core';",

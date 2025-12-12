@@ -2,6 +2,21 @@
 
 The `ztd-playground` workspace is a focused environment for validating the entire ZTD development loop on a real Postgres connection while keeping physical schema changes off the table. The playground relies on `@rawsql-ts/pg-testkit` to translate CRUD statements into fixture-backed `SELECT` queries, so every step still runs without creating tables, migrations, or persisted data inside the Postgres instance.
 
+## Generated files (important)
+
+`tests/generated/` is auto-generated and must never be committed to git.
+
+After cloning the repository (or in a clean environment), run:
+
+```bash
+pnpm --filter rawsql-ts run build
+pnpm --filter @rawsql-ts/testkit-core run build
+pnpm --filter @rawsql-ts/ztd-cli run build
+pnpm --filter ztd-playground exec ztd ztd-config
+```
+
+If TypeScript reports missing modules or type errors because `tests/generated/` is missing, run the same command.
+
 ## Environment setup
 
 - Run `pnpm install` from the repository root before touching the playground so all workspace dependencies are available.
@@ -11,7 +26,7 @@ The `ztd-playground` workspace is a focused environment for validating the entir
 ## Quick loop
 
 1. Edit the schema files under `ztd/ddl/<schema>.sql` (e.g., `ztd/ddl/ecommerce.sql`).
-2. Regenerate the type-safe config: `pnpm playground:gen-config`.
+2. Regenerate the type-safe config: `pnpm --filter ztd-playground exec ztd ztd-config`.
 3. Run type checking so the generated helpers stay verified: `pnpm playground:typecheck`.
 4. Execute the tests against Postgres: `pnpm playground:test`.
 

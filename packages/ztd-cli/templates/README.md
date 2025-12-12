@@ -17,6 +17,18 @@ This project organizes all SQL‑related artifacts under the `ztd/` directory, s
 /tests               <- ZTD tests, fixtures, generated maps
 ```
 
+## Generated files (important)
+
+`tests/generated/` is auto-generated and must never be committed to git.
+
+After cloning the repository (or in a clean environment), run:
+
+```bash
+npx ztd ztd-config
+```
+
+If TypeScript reports missing modules or type errors because `tests/generated/` is missing, run `npx ztd ztd-config`.
+
 `tests/generated/ztd-layout.generated.ts` declares the directories above so the CLI and your tests always point at the correct files.
 
 ---

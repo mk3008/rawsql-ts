@@ -90,7 +90,9 @@ type FileKey =
   | 'ztdDocsAgent'
   | 'ztdDocsReadme'
   | 'agents'
+  | 'gitignore'
   | 'editorconfig'
+  | 'prettierignore'
   | 'prettier'
   | 'package';
 
@@ -178,7 +180,9 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     ztdDocsAgent: path.join(rootDir, 'ztd', 'AGENTS.md'),
     ztdDocsReadme: path.join(rootDir, 'ztd', 'README.md'),
     agents: path.join(rootDir, 'AGENTS.md'),
+    gitignore: path.join(rootDir, '.gitignore'),
     editorconfig: path.join(rootDir, '.editorconfig'),
+    prettierignore: path.join(rootDir, '.prettierignore'),
     prettier: path.join(rootDir, '.prettierrc'),
     package: path.join(rootDir, 'package.json')
   };
@@ -387,6 +391,26 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
   );
   if (prettierSummary) {
     summaries.prettier = prettierSummary;
+  }
+
+  const gitignoreSummary = copyTemplateFileIfMissing(
+    rootDir,
+    relativePath('gitignore'),
+    '.gitignore',
+    dependencies
+  );
+  if (gitignoreSummary) {
+    summaries.gitignore = gitignoreSummary;
+  }
+
+  const prettierignoreSummary = copyTemplateFileIfMissing(
+    rootDir,
+    relativePath('prettierignore'),
+    '.prettierignore',
+    dependencies
+  );
+  if (prettierignoreSummary) {
+    summaries.prettierignore = prettierignoreSummary;
   }
 
   const packageSummary = ensurePackageJsonFormatting(rootDir, relativePath('package'), dependencies);
@@ -679,7 +703,9 @@ function buildSummaryLines(summaries: Record<FileKey, FileSummary>): string[] {
     'ztdDocsAgent',
     'ztdDocsReadme',
     'agents',
+    'gitignore',
     'editorconfig',
+    'prettierignore',
     'prettier',
     'package'
   ];

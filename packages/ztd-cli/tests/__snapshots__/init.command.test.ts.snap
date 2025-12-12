@@ -15,7 +15,9 @@ Created:
  - ztd/AGENTS.md
  - ztd/README.md
  - AGENTS.md
+ - .gitignore
  - .editorconfig
+ - .prettierignore
  - .prettierrc
 
 Next steps:
@@ -40,7 +42,9 @@ Created:
  - ztd/AGENTS.md
  - ztd/README.md
  - AGENTS.md
+ - .gitignore
  - .editorconfig
+ - .prettierignore
  - .prettierrc
 
 Next steps:

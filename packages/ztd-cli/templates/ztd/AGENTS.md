@@ -1,5 +1,11 @@
 ﻿# AGENTS: Zero Table Dependency Definitions
 
+## Generated files (important)
+
+- `tests/generated/` is auto-generated and must never be committed.
+- After cloning the repository (or in a clean environment), run `npx ztd ztd-config`.
+- If TypeScript reports missing modules or type errors because `tests/generated/` is missing, run `npx ztd ztd-config`.
+
 ## DDL Specifications
 
 You are an AI assistant responsible for reading and respecting the contents of this /ztd/ddl directory.

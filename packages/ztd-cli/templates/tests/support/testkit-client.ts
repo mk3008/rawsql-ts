@@ -1,6 +1,6 @@
 // ZTD testkit helper - AUTO GENERATED
 // ztd-cli emits this file during project bootstrapping to wire pg-testkit.
-// Regenerate via pnpm playground:gen-config or ztd init; avoid manual edits.
+// Regenerate via npx ztd init (choose overwrite when prompted); avoid manual edits.
 
 import path from 'node:path';
 import { Client, types } from 'pg';
@@ -110,4 +110,3 @@ export async function createTestkitClient(fixtures: TableFixture[]): Promise<Ztd
     }
   };
 }
-

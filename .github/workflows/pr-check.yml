@@ -25,6 +25,18 @@ jobs:
         
     - name: Install dependencies
       run: pnpm install --frozen-lockfile
+
+    - name: Build ZTD CLI dependencies
+      run: |
+        pnpm --filter rawsql-ts run build
+        pnpm --filter @rawsql-ts/testkit-core run build
+        pnpm --filter @rawsql-ts/ztd-cli run build
+
+    - name: Generate ZTD artifacts (playground)
+      run: pnpm --filter ztd-playground exec ztd ztd-config
+
+    - name: Verify working tree is clean after generation
+      run: git diff --exit-code
       
     - name: Lint check
       run: pnpm -r run lint

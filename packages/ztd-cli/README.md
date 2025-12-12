@@ -39,6 +39,8 @@ Then use the CLI through `npx ztd` or the installed `ztd` bin.
    npx ztd ztd-config --watch
    ```
 
+   This step writes files under `tests/generated/`. Treat everything in that directory as generated output: never edit it and never commit it. If you clone the repo into a clean environment and TypeScript reports missing modules under `tests/generated/`, rerun `npx ztd ztd-config`.
+
 4. Write tests using the generated test types + the driver wiring:
 
    - `tests/generated/ztd-row-map.generated.ts` (generated test types; authoritative `TestRowMap`)
@@ -54,10 +56,10 @@ You can introduce ZTD incrementally; existing tests and ORMs can remain untouche
 ## What `ztd init` Generates
 
 - `ztd/ddl/<schema>.sql` (starter schema files you can edit or replace; the default schema is `public.sql`)
-- `tests/generated/ztd-row-map.generated.ts` (auto-generated `TestRowMap`, the canonical test type contract)
+- `tests/generated/ztd-row-map.generated.ts` (auto-generated `TestRowMap`, the canonical test type contract; do not commit)
 - `tests/support/testkit-client.ts` (auto-generated helper that boots a database client, wires a driver, and shares fixtures across the suite)
 - `ztd.config.json` (CLI defaults and resolver hints: `dialect`, `ddlDir`, `testsDir`, plus `ddl.defaultSchema`/`ddl.searchPath` for resolving unqualified tables)
-- `tests/generated/ztd-layout.generated.ts` (records the ZTD layout so CLI helpers know where to find DDL, enums, and domain specs)
+- `tests/generated/ztd-layout.generated.ts` (generated layout snapshot; do not commit)
 - `tests/support/global-setup.ts` (shared test setup used by the generated testkit client)
 - `README.md` describing the workflow and commands
 - `AGENTS.md` (copied from the package template unless the project already has one)
@@ -74,12 +76,14 @@ Creates a ZTD-ready project layout (DDL folder, config, generated layout, and te
 
 ### `ztd ztd-config`
 
-Reads every `.sql` file under the configured DDL directory and produces `tests/generated/ztd-row-map.generated.ts`.
+Reads every `.sql` file under the configured DDL directory and produces the generated artifacts under `tests/generated/`:
+- `tests/generated/ztd-row-map.generated.ts`
+- `tests/generated/ztd-layout.generated.ts`
 
 - The row map exports `TestRowMap` plus table-specific test-row interfaces.
-- `--watch` only overwrites `tests/generated/ztd-row-map.generated.ts` (no other folders are touched during the watch cycle).
+- `--watch` overwrites only the `tests/generated/` outputs (no other folders are touched during the watch cycle).
 - Pass `--default-schema` or `--search-path` to update the `ddl.defaultSchema`/`ddl.searchPath` block in `ztd.config.json` so the CLI and drivers resolve unqualified tables the same way.
-- Keep `tests/generated/ztd-layout.generated.ts` synchronized if you move schema / enum / domain-spec files so downstream helpers can find them.
+- Never edit `tests/generated/` by hand. Rerun `npx ztd ztd-config` whenever schema/layout inputs change.
 
 ### `ztd ddl ...`
 
@@ -161,8 +165,8 @@ Application SQL can omit schema qualifiers (for example, `SELECT ... FROM users`
 
 ## AI Coding Workflow (Optional)
 
-1. Update the relevant `ztd/ddl/<schema>.sql` file (for example, `ztd/ddl/public.sql`) with the desired schema and keep `tests/generated/ztd-layout.generated.ts` synchronized with any directory moves.
-2. Run `npx ztd ztd-config` (or `--watch`) to regenerate the authoritative `TestRowMap`.
+1. Update the relevant `ztd/ddl/<schema>.sql` file (for example, `ztd/ddl/public.sql`) with the desired schema.
+2. Run `npx ztd ztd-config` (or `--watch`) to regenerate the generated outputs under `tests/generated/`.
 3. Use the row map + fixtures to write repositories, tests, and fixtures.
 4. Run tests through `pg-testkit` (or another driver) since `ztd-cli` itself never executes SQL.
 5. When generating code with an AI tool, feed it `tests/generated/ztd-row-map.generated.ts`, `tests/generated/ztd-layout.generated.ts`, `ztd.config.json`, and any AGENTS guidance so it can respect the ZTD contract.

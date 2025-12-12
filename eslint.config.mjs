@@ -19,7 +19,13 @@ const sharedParserOptions = {
 
 export default [
     {
-        ignores: ['node_modules', 'dist', 'packages/*/node_modules', 'packages/*/dist'],
+        ignores: [
+            'node_modules',
+            'dist',
+            'packages/*/node_modules',
+            'packages/*/dist',
+            '**/tests/generated/**',
+        ],
     },
     {
         files: ['**/*.ts'],
