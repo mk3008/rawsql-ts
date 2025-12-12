@@ -33,8 +33,7 @@ jobs:
         pnpm --filter @rawsql-ts/ztd-cli run build
 
     - name: Generate ZTD artifacts (playground)
-      working-directory: ./playgrounds/ztd-playground
-      run: pnpm exec ztd ztd-config
+      run: pnpm --filter @rawsql-ts/ztd-playground exec ztd ztd-config
 
     - name: Verify working tree is clean after generation
       run: git diff --exit-code
