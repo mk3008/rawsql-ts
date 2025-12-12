@@ -1,43 +1,76 @@
 import { describe, expect, test } from 'vitest';
 import type { TableFixture } from '@rawsql-ts/testkit-core';
-import { tableFixture, TestRowMap, tableSchemas } from './ztd-config';
+import { tableFixture, TestRowMap, tableSchemas } from './ztd-row-map.generated';
 import { createTestkitClient } from './testkit-client';
 import { productRankingSql } from '../src/product_ranking';
 
-function buildRankingUsers(): TestRowMap['public.users'][] {
-  // Publish a single user since revenue comes from order items.
-  return [{ users_id: 1, name: 'Enterprise', email: 'enterprise@example.com', created_at: '2025-12-01T00:00:00Z' }];
-}
-
-function buildRankingProducts(): TestRowMap['public.products'][] {
+function buildCustomers(): TestRowMap['public.customer'][] {
+  // Publish a single customer since revenue comes from order items.
   return [
-    { products_id: 30, name: 'Gadget', price: '60.00', category_id: 8 },
-    { products_id: 31, name: 'Widget', price: '15.00', category_id: 8 },
-    { products_id: 32, name: 'Accessory', price: '5.00', category_id: null }
+    {
+      customer_id: 1,
+      customer_name: 'Enterprise',
+      customer_email: 'enterprise@example.com',
+      registered_at: '2025-12-01T00:00:00Z',
+    },
   ];
 }
 
-function buildRankingOrders(): TestRowMap['public.orders'][] {
+function buildProducts(): TestRowMap['public.product'][] {
   return [
-    { orders_id: 800, user_id: 1, order_date: '2025-12-07', status: 'completed' },
-    { orders_id: 801, user_id: 1, order_date: '2025-12-08', status: 'completed' }
+    { product_id: 30, product_name: 'Gadget', list_price: '60.00', product_category_id: 8 },
+    { product_id: 31, product_name: 'Widget', list_price: '15.00', product_category_id: 8 },
+    { product_id: 32, product_name: 'Accessory', list_price: '5.00', product_category_id: null },
   ];
 }
 
-function buildRankingOrderItems(): TestRowMap['public.order_items'][] {
+function buildSalesOrders(): TestRowMap['public.sales_order'][] {
   return [
-    { order_items_id: 8001, order_id: 800, product_id: 30, quantity: 2, unit_price: '60.00' },
-    { order_items_id: 8002, order_id: 801, product_id: 31, quantity: 3, unit_price: '15.00' }
+    {
+      sales_order_id: 800,
+      customer_id: 1,
+      sales_order_date: '2025-12-07',
+      sales_order_status_code: 2,
+    },
+    {
+      sales_order_id: 801,
+      customer_id: 1,
+      sales_order_date: '2025-12-08',
+      sales_order_status_code: 2,
+    },
+  ];
+}
+
+function buildSalesOrderItems(): TestRowMap['public.sales_order_item'][] {
+  return [
+    {
+      sales_order_item_id: 8001,
+      sales_order_id: 800,
+      product_id: 30,
+      quantity: 2,
+      unit_price: '60.00',
+    },
+    {
+      sales_order_item_id: 8002,
+      sales_order_id: 801,
+      product_id: 31,
+      quantity: 3,
+      unit_price: '15.00',
+    },
   ];
 }
 
 function buildFixtures(): TableFixture[] {
   // Cover every table so the ranking query has data to join against.
   return [
-    tableFixture('public.users', buildRankingUsers(), tableSchemas['public.users']),
-    tableFixture('public.products', buildRankingProducts(), tableSchemas['public.products']),
-    tableFixture('public.orders', buildRankingOrders(), tableSchemas['public.orders']),
-    tableFixture('public.order_items', buildRankingOrderItems(), tableSchemas['public.order_items'])
+    tableFixture('public.customer', buildCustomers(), tableSchemas['public.customer']),
+    tableFixture('public.product', buildProducts(), tableSchemas['public.product']),
+    tableFixture('public.sales_order', buildSalesOrders(), tableSchemas['public.sales_order']),
+    tableFixture(
+      'public.sales_order_item',
+      buildSalesOrderItems(),
+      tableSchemas['public.sales_order_item'],
+    ),
   ];
 }
 
@@ -48,11 +81,15 @@ describe('product_ranking query', () => {
 
     try {
       // Confirm the ranking honors revenue ordering and includes zero-sales products.
-      const rows = await client.query<{ products_id: number; name: string; total_revenue: number }>(productRankingSql);
+      const rows = await client.query<{
+        product_id: number;
+        product_name: string;
+        total_revenue: number;
+      }>(productRankingSql);
       expect(rows).toEqual([
-        { products_id: 30, name: 'Gadget', total_revenue: 120 },
-        { products_id: 31, name: 'Widget', total_revenue: 45 },
-        { products_id: 32, name: 'Accessory', total_revenue: 0 }
+        { product_id: 30, product_name: 'Gadget', total_revenue: 120 },
+        { product_id: 31, product_name: 'Widget', total_revenue: 45 },
+        { product_id: 32, product_name: 'Accessory', total_revenue: 0 },
       ]);
     } finally {
       await client.close();

@@ -22,7 +22,7 @@ This directory contains all canonical definitions of database structure, includi
 
 ### Interaction with Other Sources
 
-- Refer to /ztd/domain-specs for domain logic and behavioral definitions. These dictate *what* should exist in the schema.
+- Refer to /ztd/domain-specs for domain logic and behavioral definitions. These dictate _what_ should exist in the schema.
 - Refer to /ztd/enums for allowable value sets when defining enum-like columns or constraints.
 - Always use those definitions as context when writing or editing this schema.
 
@@ -37,18 +37,19 @@ You are an AI agent reading this directory to interpret domain logic.
 - Treat each Markdown file as defining **one domain behavior**.
 - Use the embedded SQL block (`sql ... `) as the **reference SELECT**.
 - Only the first top-level SELECT block should be considered executable logic.
-- Parameters may be written in :named format (e.g., :as_of). You must bind them as positional placeholders (e.g., $1, $2, 乧) in generated code.
+- Parameters may be written in :named format (e.g., :as_of). You must bind them as positional placeholders (e.g., $1, $2, ?) in generated code.
 - Do not generate or modify files in this directory unless explicitly asked.
 
 ### Assumptions
 
-- This folder is **not** parsed by ztd-cli directly.
-- These specifications are for **AI consumption only**.
+- `ztd-config` parses only DDL (`ztd/ddl/**/*.sql`) to generate row shapes.
+- These specifications are for **humans and AI consumption** (documentation + reference SQL).
 - Comments and descriptions exist to help you interpret logic correctly.
 
 ### Rules
 
 - Never ignore the human-written description above the SQL block.
+- Keep exactly one executable SQL block per file (one file = one behavior).
 - Do not reorder or optimize the SQL unless explicitly instructed.
 - Preserve the semantic meaning as given in the specification.
 - This folder defines **what** logic means. Your job is to reproduce that logic elsewhere (e.g., in src/ or tests).
@@ -72,6 +73,7 @@ This directory defines canonical value sets (enums) such as status codes and pla
 ### SQL Rules
 
 - Each SQL block defines an enum set.
+- Keep exactly one executable SQL block per file (one file = one enum set).
 - All blocks follow the form:
 
 `sql
@@ -83,13 +85,13 @@ from (
 `
 
 - You must extract key and value pairs as the authoritative mapping.
-- display_name, 
-anking, or other metadata may be used where helpful (e.g., UI rendering or sorting).
+- display_name,
+  ranking, or other metadata may be used where helpful (e.g., UI rendering or sorting).
 
 ### Use in Code Generation
 
 - Use these enums when generating SQL WHERE clauses, conditionals, or constants.
-- When translating logic from /ztd/domain-specs, map references like :status__established to corresponding values here.
+- When translating logic from /ztd/domain-specs, map references like :status\_\_established to corresponding values here.
 - Maintain full consistency with enum names and intent.
 
 If a required enum is missing, raise an error or ask for human clarification.

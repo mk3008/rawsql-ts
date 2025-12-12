@@ -22,6 +22,8 @@ The `src/` directory should contain pure TypeScript logic that operates on the r
 
 Fixtures come from the `ztd/ddl/` definitions and power `pg-testkit`. Always import table types from `tests/ztd-row-map.generated.ts` when constructing scenarios, and rerun `npx ztd ztd-config` whenever schema changes to keep the fixtures and row map synchronized.
 
+If you are working inside this repository's `ztd-playground`, you can regenerate the row map (TestRowMap) with `pnpm playground:gen-config`, which runs `ztd ztd-config` for the playground workspace.
+
 ---
 
 # ZTD Directory Layout
@@ -29,13 +31,13 @@ Fixtures come from the `ztd/ddl/` definitions and power `pg-testkit`. Always imp
 ```
 /ztd
   /ddl
-    *.sql / *.md        <- physical schema definitions
+    *.sql               <- physical schema definitions
 
   /domain-specs
-    *.md                <- one behavioral SELECT per file
+    *.md                <- one behavioral SELECT per file (one SQL block)
 
   /enums
-    enums.md            <- all enum definitions combined
+    *.md                <- one enum definition per file (one SQL block)
 
   README.md             <- documentation for the layout
   AGENTS.md             <- combined guidance for DDL, enums, and specs
@@ -129,7 +131,7 @@ Business rule changes or conceptual model updates.
 
 ## Editing enums:
 
-1. Update `ztd/enums/enums.md`.
+1. Update the relevant `.md` file under `ztd/enums/`.
 2. Run:
 
    ```bash
@@ -199,7 +201,6 @@ AI decides **how to implement**, but not **what is correct**.
 ZTD CLI:
 
 - Parses DDL to compute schema shapes  
-- Reads enums and domain-specs to infer domain constraints  
 - Rewrites SQL via CTE shadowing for testing  
 - Generates `ztd-row-map.generated.ts`  
 - Enables deterministic, parallel SQL unit tests  

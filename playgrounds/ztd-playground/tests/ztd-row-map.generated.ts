@@ -4,39 +4,39 @@
 
 import type { FixtureRow, TableFixture, TableSchemaDefinition } from '@rawsql-ts/testkit-core';
 export interface TestRowMap {
-  'public.order_items': PublicOrderItemsTestRow;
-  'public.orders': PublicOrdersTestRow;
-  'public.products': PublicProductsTestRow;
-  'public.users': PublicUsersTestRow;
+  'public.customer': PublicCustomerTestRow;
+  'public.product': PublicProductTestRow;
+  'public.sales_order': PublicSalesOrderTestRow;
+  'public.sales_order_item': PublicSalesOrderItemTestRow;
 }
 
-export interface PublicOrderItemsTestRow extends FixtureRow {
-  order_items_id: number;
-  order_id: number;
+export interface PublicCustomerTestRow extends FixtureRow {
+  customer_id: number;
+  customer_name: string;
+  customer_email: string;
+  registered_at: string;
+}
+
+export interface PublicProductTestRow extends FixtureRow {
+  product_id: number;
+  product_name: string;
+  list_price: string;
+  product_category_id: number | null;
+}
+
+export interface PublicSalesOrderTestRow extends FixtureRow {
+  sales_order_id: number;
+  customer_id: number;
+  sales_order_date: string;
+  sales_order_status_code: number;
+}
+
+export interface PublicSalesOrderItemTestRow extends FixtureRow {
+  sales_order_item_id: number;
+  sales_order_id: number;
   product_id: number;
   quantity: number;
   unit_price: string;
-}
-
-export interface PublicOrdersTestRow extends FixtureRow {
-  orders_id: number;
-  user_id: number;
-  order_date: string;
-  status: string;
-}
-
-export interface PublicProductsTestRow extends FixtureRow {
-  products_id: number;
-  name: string;
-  price: string;
-  category_id: number | null;
-}
-
-export interface PublicUsersTestRow extends FixtureRow {
-  users_id: number;
-  name: string;
-  email: string;
-  created_at: string;
 }
 
 export type TestRow<K extends keyof TestRowMap> = TestRowMap[K];
@@ -46,38 +46,38 @@ export type ZtdTableName = keyof TestRowMap;
 export type ZtdTableSchemas = Record<ZtdTableName, TableSchemaDefinition>;
 
 export const tableSchemas: ZtdTableSchemas = {
-  'public.order_items': {
+  'public.customer': {
     columns: {
-      order_items_id: "bigint",
-      order_id: "bigint",
-      product_id: "bigint",
-      quantity: "int",
-      unit_price: "numeric",
-    }
+      customer_id: 'bigint',
+      customer_name: 'text',
+      customer_email: 'text',
+      registered_at: 'timestamp',
+    },
   },
-  'public.orders': {
+  'public.product': {
     columns: {
-      orders_id: "bigint",
-      user_id: "bigint",
-      order_date: "date",
-      status: "text",
-    }
+      product_id: 'bigint',
+      product_name: 'text',
+      list_price: 'numeric',
+      product_category_id: 'bigint',
+    },
   },
-  'public.products': {
+  'public.sales_order': {
     columns: {
-      products_id: "bigint",
-      name: "text",
-      price: "numeric",
-      category_id: "bigint",
-    }
+      sales_order_id: 'bigint',
+      customer_id: 'bigint',
+      sales_order_date: 'date',
+      sales_order_status_code: 'int',
+    },
   },
-  'public.users': {
+  'public.sales_order_item': {
     columns: {
-      users_id: "bigint",
-      name: "text",
-      email: "text",
-      created_at: "timestamp",
-    }
+      sales_order_item_id: 'bigint',
+      sales_order_id: 'bigint',
+      product_id: 'bigint',
+      quantity: 'int',
+      unit_price: 'numeric',
+    },
   },
 };
 
@@ -98,14 +98,14 @@ export interface ZtdConfig {
 export function tableFixture<K extends ZtdTableName>(
   tableName: K,
   rows: ZtdRowShapes[K][],
-  schema?: TableSchemaDefinition
+  schema?: TableSchemaDefinition,
 ): TableFixture {
   return { tableName, rows, schema };
 }
 
 export function tableFixtureWithSchema<K extends ZtdTableName>(
   tableName: K,
-  rows: ZtdRowShapes[K][]
+  rows: ZtdRowShapes[K][],
 ): ZtdTableFixture<K> {
   // Always pair fixture rows with the canonical schema generated from DDL.
   return { tableName, rows, schema: tableSchemas[tableName] };

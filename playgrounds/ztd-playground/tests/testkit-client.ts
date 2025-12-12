@@ -50,7 +50,7 @@ async function resolveDatabaseUrl(): Promise<string> {
     } catch (error) {
       if (isMissingRuntimeError(error)) {
         throw new Error(
-          'Could not start a Postgres container because no container runtime was found; set DATABASE_URL per README.'
+          'Could not start a Postgres testcontainer; ensure Docker is running and accessible, or set DATABASE_URL.',
         );
       }
       throw error;
@@ -110,7 +110,7 @@ async function getPgQueryable(): Promise<PgQueryable> {
     release: () => {
       // Release is intentionally a no-op because the shared client should stay open.
       return;
-    }
+    },
   };
 
   sharedQueryable = wrappedQueryable;
@@ -120,17 +120,20 @@ async function getPgQueryable(): Promise<PgQueryable> {
 export type ZtdPlaygroundQueryResult<T extends QueryResultRow = QueryResultRow> = Promise<T[]>;
 
 export type ZtdPlaygroundClient = {
-  query<T extends QueryResultRow = QueryResultRow>(text: string, values?: unknown[]): ZtdPlaygroundQueryResult<T>;
+  query<T extends QueryResultRow = QueryResultRow>(
+    text: string,
+    values?: unknown[],
+  ): ZtdPlaygroundQueryResult<T>;
   close(): Promise<void>;
 };
 
 export async function createTestkitClient(fixtures: TableFixture[]): Promise<ZtdPlaygroundClient> {
   const queryable = await getPgQueryable();
-  // TableNameResolver keeps DDL and fixtures aligned on canonical schema-qualified identifiers like 'public.users'.
+  // TableNameResolver keeps DDL and fixtures aligned on canonical schema-qualified identifiers like 'public.customer'.
   const driver = createPgTestkitClient({
     connectionFactory: () => queryable,
     tableRows: fixtures,
-    ddl: { directories: ddlDirectories }
+    ddl: { directories: ddlDirectories },
   });
 
   // Expose a simplified query API so tests can assert on plain row arrays.
@@ -141,6 +144,6 @@ export async function createTestkitClient(fixtures: TableFixture[]): Promise<Ztd
     },
     close() {
       return driver.close();
-    }
+    },
   };
 }

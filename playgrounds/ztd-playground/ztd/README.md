@@ -37,6 +37,7 @@ Each Markdown file describes one business concept, explains it in natural langua
 ### Format and Best Practices
 
 - One file per concept with a prose explanation followed by an example SELECT.
+- Keep exactly one executable SQL block per file (one file = one behavior).
 - Named parameters (e.g., :as_of) signal intent; you may translate them into positional placeholders when generating code.
 - Focus on semantics—use Markdown structuring (tables, bullets, etc.) to clarify the behavior.
 - Always update the description before touching the SQL when the behavior evolves.
@@ -67,8 +68,8 @@ These enums are human-maintained and support:
 ### Required Structure
 
 - Each row must include at least key and value columns.
-- Optional metadata like display_name, 
-anking, or sort_order may be added for UI/logic purposes.
+- Optional metadata like display_name,
+  ranking, or sort_order may be added for UI/logic purposes.
 
 ### Guidelines
 

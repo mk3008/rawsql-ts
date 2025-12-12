@@ -34,12 +34,12 @@ DDL -> `tests/ztd-row-map.generated.ts` -> type definitions -> fixtures -> ZTD r
 
 ## Sample domain
 
-The EC schema under `ztd/ddl/ecommerce.sql` defines four tables: `users`, `products`, `orders`, and `order_items`. All fixtures, queries, and tests draw from these definitions so the model stays deterministic.
+The EC schema under `ztd/ddl/ecommerce.sql` defines four tables: `customer`, `product`, `sales_order`, and `sales_order_item`. All fixtures, queries, and tests draw from these definitions so the model stays deterministic.
 
 ## Sample queries
 
-- `src/user_summary.ts` projects total orders, spend, and last order date per user.
-- `src/sales_summary.ts` aggregates monthly sales by summing `order_items.quantity * order_items.unit_price`.
+- `src/customer_summary.ts` projects total orders, spend, and last order date per customer.
+- `src/sales_summary.ts` aggregates monthly sales by summing `sales_order_item.quantity * sales_order_item.unit_price`.
 - `src/product_ranking.ts` ranks products by cumulative revenue while including the full catalog in the result set.
 
 Each query is expressed as a raw SQL string so the rewrite pipeline can be exercised directly.
@@ -49,7 +49,7 @@ Each query is expressed as a raw SQL string so the rewrite pipeline can be exerc
 - `tests/ztd-row-map.generated.ts` exports the generated ZTD helpers (table names, row shapes, and `tableFixture`). Prefer importing directly from that file so downstream tooling resolves relative paths consistently.
 - Tests import `tableFixture`, the row shape types, and `createTestkitClient` from `tests/testkit-client.ts`. The helper wires a Postgres client into `@rawsql-ts/pg-testkit`, adds the `ztd/ddl` directory, and shares the connection across fixtures.
 - `tests/ztd-layout.generated.ts` documents the ZTD layout so the CLI and your tests all agree on where to find DDL, enum, and domain-spec files.
-- TableNameResolver normalizes every DDL and fixture reference to canonical schema-qualified identifiers, so the playground keeps using schema-qualified names (e.g., `public.users`) end-to-end.
+- TableNameResolver normalizes every DDL and fixture reference to canonical schema-qualified identifiers, so the playground keeps using schema-qualified names (e.g., `public.customer`) end-to-end.
 
 ## Scope
 

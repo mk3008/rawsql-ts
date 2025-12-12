@@ -5,11 +5,11 @@ This project organizes all SQL‑related artifacts under the `ztd/` directory, s
 ```
 /ztd
   /ddl
-    *.sql or *.md    <- schema definitions
+    *.sql            <- schema definitions
   /domain-specs
-    *.md             <- one behavior per file
+    *.md             <- one behavior per file (one SQL block)
   /enums
-    enums.md         <- all enums in one file
+    *.md             <- one enum per file (one SQL block)
   README.md          <- documentation for the layout
   AGENTS.md          <- combined guidance for people and agents
 
@@ -108,7 +108,7 @@ Different tasks start from different entry points. Choose the workflow that matc
 
 ## For enums:
 
-1. Update `ztd/enums/enums.md`.
+1. Update the relevant `.md` file under `ztd/enums/`.
 2. Regenerate row-map:
 
    ```bash
@@ -180,8 +180,7 @@ AI decides “how to implement” within those constraints.
 ZTD CLI:
 
 - Parses DDL files to build accurate table/column shapes
-- Reads enums and domain-specs to infer domain constraints
-- Rewrites SQL with fixture-based CTE shadowing
+- Rewrites SQL with fixture-based CTE shadowing (via testkit adapters)
 - Generates `ztd-row-map.generated.ts`
 - Produces deterministic, parallelizable tests
 
