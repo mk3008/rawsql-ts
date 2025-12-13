@@ -33,6 +33,7 @@ jobs:
           version: pnpm changeset version
           commit: "chore(release): version packages"
           title: "chore(release): version packages"
-          commitMode: github-api
+          # Use git commits to avoid GitHub Contents API limitations (e.g., executable file modes in the repo).
+          commitMode: git
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
