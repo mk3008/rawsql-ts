@@ -46,6 +46,12 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Build workspace packages
+        run: |
+          pnpm --filter rawsql-ts run build
+          pnpm --filter @rawsql-ts/testkit-core run build
+          pnpm --filter @rawsql-ts/ztd-cli run build
+
       - name: Build documentation
         run: pnpm run docs:build
 
