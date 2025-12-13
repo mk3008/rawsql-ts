@@ -1,26 +1,16 @@
 #!/bin/sh
 # Run tests, build, and lint before commit
+set -e
+
 echo "[pre-commit] Running checks..."
 
 echo "[pre-commit] Running tests..."
 pnpm test
-if [ $? -ne 0 ]; then
-  echo "[pre-commit] Tests failed. Commit aborted."
-  exit 1
-fi
 
 echo "[pre-commit] Building project..."
 pnpm build
-if [ $? -ne 0 ]; then
-  echo "[pre-commit] Build failed. Commit aborted."
-  exit 1
-fi
 
 echo "[pre-commit] Running lint..."
 pnpm lint
-if [ $? -ne 0 ]; then
-  echo "[pre-commit] Lint failed. Commit aborted."
-  exit 1
-fi
 
 echo "[pre-commit] All checks passed."
