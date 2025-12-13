@@ -34,6 +34,6 @@ jobs:
           commit: "chore(release): version packages"
           title: "chore(release): version packages"
           # Use git commits to avoid GitHub Contents API limitations (e.g., executable file modes in the repo).
-          commitMode: git
+          commitMode: git-cli
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
