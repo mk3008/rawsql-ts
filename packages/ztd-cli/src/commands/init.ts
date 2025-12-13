@@ -263,7 +263,7 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
   if (ztdConfigTarget.write) {
     // Regenerate tests/generated/ztd-row-map.generated.ts so TestRowMap reflects the DDL snapshot.
     dependencies.ensureDirectory(path.dirname(absolutePaths.ztdConfig));
-    dependencies.runGenerateZtdConfig({
+    await dependencies.runGenerateZtdConfig({
       directories: [path.resolve(path.dirname(absolutePaths.schema))],
       extensions: DEFAULT_EXTENSIONS,
       out: absolutePaths.ztdConfig,
