@@ -36,4 +36,5 @@ jobs:
           # Use git commits to avoid GitHub Contents API limitations (e.g., executable file modes in the repo).
           commitMode: git-cli
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Use a PAT if provided, since the default GITHUB_TOKEN may be restricted from creating PRs by repo settings.
+          GITHUB_TOKEN: ${{ secrets.CHANGESETS_TOKEN || secrets.GITHUB_TOKEN }}
