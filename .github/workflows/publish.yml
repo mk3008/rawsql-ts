@@ -1,0 +1,41 @@
+name: Publish (manual)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: "https://registry.npmjs.org"
+
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+
+      # 安全装置：未適用の changeset があったら止める
+      - name: Fail if there are unapplied changesets
+        shell: bash
+        run: |
+          if ls .changeset/*.md >/dev/null 2>&1; then
+            echo "Unapplied changesets exist. Run Release PR first."
+            exit 1
+          fi
+
+      - name: Publish to npm and create GitHub Release
+        uses: changesets/action@v1
+        with:
+          publish: pnpm changeset publish
+          createGithubReleases: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
