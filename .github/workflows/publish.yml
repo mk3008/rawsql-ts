@@ -23,7 +23,14 @@ jobs:
       - run: corepack enable
       - run: pnpm install --frozen-lockfile
 
-      # 安全装置：未適用の changeset があったら止める
+      - name: Update npm for OIDC
+        shell: bash
+        run: |
+          # npm Trusted Publishing (OIDC) requires npm >= 11.5.1.
+          npm install -g "npm@^11.5.1"
+          npm --version
+
+      # Safety guard: fail if changesets haven't been versioned yet.
       - name: Fail if there are unapplied changesets
         shell: bash
         run: |
@@ -32,6 +39,19 @@ jobs:
             exit 1
           fi
 
+      - name: Verify npm authentication (token path)
+        shell: bash
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN || secrets.NODE_AUTH_TOKEN }}
+        run: |
+          if [ -z "${NODE_AUTH_TOKEN}" ]; then
+            echo "NODE_AUTH_TOKEN is not set; assuming npm Trusted Publishing (OIDC)."
+            exit 0
+          fi
+
+          # Fail fast with a clear error when the token is expired/revoked or lacks publish access.
+          npm whoami
+
       - name: Publish to npm and create GitHub Release
         uses: changesets/action@v1
         with:
@@ -39,3 +59,4 @@ jobs:
           createGithubReleases: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN || secrets.NODE_AUTH_TOKEN }}
