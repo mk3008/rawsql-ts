@@ -22,15 +22,28 @@ jobs:
       with:
         node-version: 20.x
         cache: 'pnpm'
-        
+
     - name: Install dependencies
       run: pnpm install --frozen-lockfile
+
+    - name: Build ZTD CLI dependencies
+      run: |
+        pnpm --filter rawsql-ts run build
+        pnpm --filter @rawsql-ts/testkit-core run build
+        pnpm --filter @rawsql-ts/ztd-cli run build
+
+    - name: Generate ZTD artifacts (playground)
+      working-directory: ./playgrounds/ztd-playground
+      run: node ../../packages/ztd-cli/dist/index.js ztd-config
+
+    - name: Verify working tree is clean after generation
+      run: git diff --exit-code
       
     - name: Lint check
       run: pnpm -r run lint
       
     - name: TypeScript compilation check
-      run: pnpm -r run build
+      run: pnpm -r --workspace-concurrency=1 run build
       
     - name: Run unit tests (core)
       run: pnpm --filter "./packages/core" run test
@@ -55,7 +68,7 @@ jobs:
       with:
         node-version: 20.x
         cache: 'pnpm'
-        
+
     - name: Install dependencies
       run: pnpm install --frozen-lockfile
       

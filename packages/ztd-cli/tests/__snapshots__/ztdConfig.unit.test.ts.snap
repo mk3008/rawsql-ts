@@ -1,8 +1,8 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
 exports[`generates ZTD row map from CREATE TABLE statements 1`] = `
-"// ZTD TEST ROW MAP - AUTO GENERATED
-// Tests must import TestRowMap from this file and never from src.
+"// GENERATED FILE. DO NOT EDIT.
+// ZTD TEST ROW MAP
 // This file is synchronized with DDL using ztd-config.
 
 import type { FixtureRow, TableFixture, TableSchemaDefinition } from '@rawsql-ts/testkit-core';
@@ -79,8 +79,8 @@ export function tableFixtureWithSchema<K extends ZtdTableName>(
 `;
 
 exports[`handles multiple sources with composite keys and cross-schema references 1`] = `
-"// ZTD TEST ROW MAP - AUTO GENERATED
-// Tests must import TestRowMap from this file and never from src.
+"// GENERATED FILE. DO NOT EDIT.
+// ZTD TEST ROW MAP
 // This file is synchronized with DDL using ztd-config.
 
 import type { FixtureRow, TableFixture, TableSchemaDefinition } from '@rawsql-ts/testkit-core';

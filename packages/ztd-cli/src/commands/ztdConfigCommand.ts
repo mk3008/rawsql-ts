@@ -1,4 +1,5 @@
 import chokidar from 'chokidar';
+import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { Command } from 'commander';
 import {
@@ -13,9 +14,41 @@ import {
 } from './options';
 import { loadZtdProjectConfig, writeZtdProjectConfig, type ZtdProjectConfig } from '../utils/ztdProjectConfig';
 import { runGenerateZtdConfig, type ZtdConfigGenerationOptions } from './ztdConfig';
+import { ensureDirectory } from '../utils/fs';
 
 const WATCH_DEBOUNCE_MS = 150;
 
+function renderZtdLayoutGeneratedFile(config: ZtdProjectConfig): string {
+  // Derive the canonical ztd root directory from the configured DDL path.
+  const ddlDir = config.ddlDir.replace(/\\/g, '/');
+  const ztdRootDir = path.posix.dirname(ddlDir);
+
+  // Keep default sibling directories deterministic for downstream tooling.
+  const enumsDir = path.posix.join(ztdRootDir, 'enums');
+  const domainSpecsDir = path.posix.join(ztdRootDir, 'domain-specs');
+
+  return [
+    '// GENERATED FILE. DO NOT EDIT.',
+    '',
+    'export default {',
+    `  ztdRootDir: ${JSON.stringify(ztdRootDir)},`,
+    `  ddlDir: ${JSON.stringify(ddlDir)},`,
+    `  enumsDir: ${JSON.stringify(enumsDir)},`,
+    `  domainSpecsDir: ${JSON.stringify(domainSpecsDir)},`,
+    '};',
+    ''
+  ].join('\n');
+}
+
+function writeZtdLayoutFile(layoutFilePath: string, config: ZtdProjectConfig): void {
+  // Ensure the generated folder exists before emitting the layout snapshot.
+  ensureDirectory(path.dirname(layoutFilePath));
+  writeFileSync(layoutFilePath, renderZtdLayoutGeneratedFile(config), 'utf8');
+}
+
+/**
+ * Registers the `ztd-config` CLI command, which generates the canonical ZTD TestRowMap from DDL sources.
+ */
 export function registerZtdConfigCommand(program: Command): void {
   program
     .command('ztd-config')
@@ -30,8 +63,13 @@ export function registerZtdConfigCommand(program: Command): void {
       const projectConfig = loadZtdProjectConfig();
       const directories = normalizeDirectoryList(options.ddlDir as string[], projectConfig.ddlDir ?? DEFAULT_DDL_DIRECTORY);
       const extensions = resolveExtensions(options.extensions as string[], DEFAULT_EXTENSIONS);
-      const defaultOut = path.join(projectConfig.testsDir ?? DEFAULT_TESTS_DIRECTORY, 'ztd-row-map.generated.ts');
+      const defaultOut = path.join(
+        projectConfig.testsDir ?? DEFAULT_TESTS_DIRECTORY,
+        'generated',
+        'ztd-row-map.generated.ts'
+      );
       const output = options.out ?? defaultOut;
+      const layoutOut = path.join(path.dirname(output), 'ztd-layout.generated.ts');
 
       const ddlOverrides: ZtdProjectConfig['ddl'] = { ...projectConfig.ddl };
       let shouldUpdateConfig = false;
@@ -59,22 +97,28 @@ export function registerZtdConfigCommand(program: Command): void {
         searchPath: ddlOverrides.searchPath
       };
 
-      runGenerateZtdConfig(generationOptions);
+      await runGenerateZtdConfig(generationOptions);
+      const layoutConfig: ZtdProjectConfig = { ...projectConfig, ddl: ddlOverrides };
+      writeZtdLayoutFile(layoutOut, layoutConfig);
 
       if (options.watch) {
         console.log(`[watch] Initial generation complete: ${generationOptions.out}`);
-        await watchZtdConfig(generationOptions);
+        await watchZtdConfig(generationOptions, layoutOut, layoutConfig);
       }
     });
 }
 
-async function watchZtdConfig(options: ZtdConfigGenerationOptions): Promise<void> {
+async function watchZtdConfig(
+  options: ZtdConfigGenerationOptions,
+  layoutOut: string,
+  layoutConfig: ZtdProjectConfig
+): Promise<void> {
   const cwd = process.cwd();
   const patterns = options.directories.flatMap((dir) =>
     options.extensions.map((extension) => path.join(dir, '**', `*${extension}`))
   );
 
-  // Only the tests/ztd-row-map.generated.ts output is overwritten while watching DDL changes.
+  // Only the configured output file (`options.out`) is overwritten while watching DDL changes.
   const watcher = chokidar.watch(patterns, {
     ignoreInitial: true,
     awaitWriteFinish: { stabilityThreshold: 80, pollInterval: 20 }
@@ -92,7 +136,7 @@ async function watchZtdConfig(options: ZtdConfigGenerationOptions): Promise<void
     }
     debounceTimer = setTimeout(() => {
       debounceTimer = null;
-      executeReload(scheduledPath);
+      void executeReload(scheduledPath);
       scheduledPath = null;
     }, WATCH_DEBOUNCE_MS);
   };
@@ -101,11 +145,12 @@ async function watchZtdConfig(options: ZtdConfigGenerationOptions): Promise<void
     const relativePath = changedPath ? path.relative(cwd, changedPath) : 'unknown';
     console.log(`[watch] DDL changed: ${relativePath}`);
     try {
-      runGenerateZtdConfig(options);
+      await runGenerateZtdConfig(options);
+      writeZtdLayoutFile(layoutOut, layoutConfig);
       console.log(`[watch] Updated: ${options.out}`);
     } catch (error) {
       console.error(
-        `[watch] Failed to regenerate tests/ztd-row-map.generated.ts: ${error instanceof Error ? error.message : String(error)}`
+        `[watch] Failed to regenerate ${options.out}: ${error instanceof Error ? error.message : String(error)}`
       );
     }
   };

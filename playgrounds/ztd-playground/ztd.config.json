@@ -1,6 +1,6 @@
 {
   "dialect": "postgres",
-  "ddlDir": "sql/ddl",
+  "ddlDir": "ztd/ddl",
   "testsDir": "tests",
   "ddl": {
     "defaultSchema": "public",

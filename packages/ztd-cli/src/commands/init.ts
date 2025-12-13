@@ -84,14 +84,15 @@ type FileKey =
   | 'ztdConfig'
   | 'testsConfig'
   | 'testkitClient'
+  | 'globalSetup'
+  | 'vitestConfig'
   | 'readme'
-  | 'srcGuide'
-  | 'testsGuide'
-  | 'sqlDdlAgent'
-  | 'sqlEnumsAgent'
-  | 'sqlDomainSpecsAgent'
+  | 'ztdDocsAgent'
+  | 'ztdDocsReadme'
   | 'agents'
+  | 'gitignore'
   | 'editorconfig'
+  | 'prettierignore'
   | 'prettier'
   | 'package';
 
@@ -128,34 +129,14 @@ const SAMPLE_SCHEMA = `CREATE TABLE public.example (
 `;
 
 const README_TEMPLATE = 'README.md';
-const SRC_GUIDE_TEMPLATE = 'ZTD-GUIDE.md';
-const TESTS_GUIDE_TEMPLATE = 'ZTD-TEST-GUIDE.md';
-const TESTS_CONFIG_TEMPLATE = 'tests-ztd-layout.generated.ts';
-const TESTKIT_CLIENT_TEMPLATE = 'testkit-client.ts';
-
-type SqlFolderAgentKey = Extract<FileKey, 'sqlDdlAgent' | 'sqlEnumsAgent' | 'sqlDomainSpecsAgent'>;
-
-const SQL_FOLDER_AGENT_TARGETS: { key: SqlFolderAgentKey; relativePath: string; templateName: string }[] = [
-  {
-    key: 'sqlDdlAgent',
-    relativePath: 'sql/ddl/AGENTS.md',
-    templateName: 'sql/ddl/AGENTS.md'
-  },
-  {
-    key: 'sqlEnumsAgent',
-    relativePath: 'sql/enums/AGENTS.md',
-    templateName: 'sql/enums/AGENTS.md'
-  },
-  {
-    key: 'sqlDomainSpecsAgent',
-    relativePath: 'sql/domain-specs/AGENTS.md',
-    templateName: 'sql/domain-specs/AGENTS.md'
-  }
-];
+const TESTS_CONFIG_TEMPLATE = 'tests/generated/ztd-layout.generated.ts';
+const TESTKIT_CLIENT_TEMPLATE = 'tests/support/testkit-client.ts';
+const GLOBAL_SETUP_TEMPLATE = 'tests/support/global-setup.ts';
+const VITEST_CONFIG_TEMPLATE = 'vitest.config.ts';
 
 const NEXT_STEPS = [
-  ' 1. Review the schema files under sql/ddl/<schema>.sql',
-  ' 2. Inspect tests/ztd-layout.generated.ts for the SQL layout',
+  ' 1. Review the schema files under ztd/ddl/<schema>.sql',
+  ' 2. Inspect tests/generated/ztd-layout.generated.ts for the SQL layout',
   ' 3. Run npx ztd ztd-config',
   ' 4. Run ZTD tests with pg-testkit'
 ];
@@ -190,17 +171,18 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
   const absolutePaths: Record<FileKey, string> = {
     schema: path.join(rootDir, DEFAULT_ZTD_CONFIG.ddlDir, schemaFileName),
     config: path.join(rootDir, 'ztd.config.json'),
-    ztdConfig: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'ztd-row-map.generated.ts'),
-    testsConfig: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'ztd-layout.generated.ts'),
+    ztdConfig: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'generated', 'ztd-row-map.generated.ts'),
+    testsConfig: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'generated', 'ztd-layout.generated.ts'),
     readme: path.join(rootDir, 'README.md'),
-    srcGuide: path.join(rootDir, 'src', 'ZTD-GUIDE.md'),
-    testsGuide: path.join(rootDir, 'tests', 'ZTD-TEST-GUIDE.md'),
-    testkitClient: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'testkit-client.ts'),
+    testkitClient: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'support', 'testkit-client.ts'),
+    globalSetup: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'support', 'global-setup.ts'),
+    vitestConfig: path.join(rootDir, 'vitest.config.ts'),
+    ztdDocsAgent: path.join(rootDir, 'ztd', 'AGENTS.md'),
+    ztdDocsReadme: path.join(rootDir, 'ztd', 'README.md'),
     agents: path.join(rootDir, 'AGENTS.md'),
-    sqlDdlAgent: path.join(rootDir, 'sql', 'ddl', 'AGENTS.md'),
-    sqlEnumsAgent: path.join(rootDir, 'sql', 'enums', 'AGENTS.md'),
-    sqlDomainSpecsAgent: path.join(rootDir, 'sql', 'domain-specs', 'AGENTS.md'),
+    gitignore: path.join(rootDir, '.gitignore'),
     editorconfig: path.join(rootDir, '.editorconfig'),
+    prettierignore: path.join(rootDir, '.prettierignore'),
     prettier: path.join(rootDir, '.prettierrc'),
     package: path.join(rootDir, 'package.json')
   };
@@ -279,9 +261,9 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
   );
 
   if (ztdConfigTarget.write) {
-    // Regenerate tests/ztd-row-map.generated.ts so TestRowMap reflects the DDL snapshot.
+    // Regenerate tests/generated/ztd-row-map.generated.ts so TestRowMap reflects the DDL snapshot.
     dependencies.ensureDirectory(path.dirname(absolutePaths.ztdConfig));
-    dependencies.runGenerateZtdConfig({
+    await dependencies.runGenerateZtdConfig({
       directories: [path.resolve(path.dirname(absolutePaths.schema))],
       extensions: DEFAULT_EXTENSIONS,
       out: absolutePaths.ztdConfig,
@@ -289,7 +271,9 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
       searchPath: projectConfig.ddl.searchPath
     });
   } else {
-    dependencies.log('Skipping ZTD config generation; existing tests/ztd-row-map.generated.ts preserved.');
+    dependencies.log(
+      'Skipping ZTD config generation; existing tests/generated/ztd-row-map.generated.ts preserved.'
+    );
   }
 
   summaries.ztdConfig = {
@@ -302,45 +286,92 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
   };
 
   // Emit supporting documentation that describes the workflow for contributors.
-  summaries.readme = await writeTemplateFile(
+  const readmeSummary = await writeTemplateFile(
+    rootDir,
     absolutePaths.readme,
     relativePath('readme'),
     README_TEMPLATE,
     dependencies,
-    prompter
+    prompter,
+    true
   );
-  summaries.srcGuide = await writeTemplateFile(
-    absolutePaths.srcGuide,
-    relativePath('srcGuide'),
-    SRC_GUIDE_TEMPLATE,
-    dependencies,
-    prompter
-  );
-  summaries.testsGuide = await writeTemplateFile(
-    absolutePaths.testsGuide,
-    relativePath('testsGuide'),
-    TESTS_GUIDE_TEMPLATE,
-    dependencies,
-    prompter
-  );
+  if (readmeSummary) {
+    summaries.readme = readmeSummary;
+  }
 
-  summaries.testkitClient = await writeTemplateFile(
+  const testkitSummary = await writeTemplateFile(
+    rootDir,
     absolutePaths.testkitClient,
     relativePath('testkitClient'),
     TESTKIT_CLIENT_TEMPLATE,
     dependencies,
     prompter
   );
+  if (testkitSummary) {
+    summaries.testkitClient = testkitSummary;
+  }
 
-  summaries.testsConfig = await writeTemplateFile(
+  const globalSetupSummary = await writeTemplateFile(
+    rootDir,
+    absolutePaths.globalSetup,
+    relativePath('globalSetup'),
+    GLOBAL_SETUP_TEMPLATE,
+    dependencies,
+    prompter
+  );
+  if (globalSetupSummary) {
+    summaries.globalSetup = globalSetupSummary;
+  }
+
+  const vitestConfigSummary = await writeTemplateFile(
+    rootDir,
+    absolutePaths.vitestConfig,
+    relativePath('vitestConfig'),
+    VITEST_CONFIG_TEMPLATE,
+    dependencies,
+    prompter
+  );
+  if (vitestConfigSummary) {
+    summaries.vitestConfig = vitestConfigSummary;
+  }
+
+  const testsConfigSummary = await writeTemplateFile(
+    rootDir,
     absolutePaths.testsConfig,
     relativePath('testsConfig'),
     TESTS_CONFIG_TEMPLATE,
     dependencies,
     prompter
   );
+  if (testsConfigSummary) {
+    summaries.testsConfig = testsConfigSummary;
+  }
 
-  Object.assign(summaries, ensureSqlFolderAgents(rootDir, dependencies, relativePath));
+  // Seed the shared guidance that lives inside the ztd/ directory so contributors see the new instructions.
+  const ztdDocsAgentSummary = await writeTemplateFile(
+    rootDir,
+    absolutePaths.ztdDocsAgent,
+    relativePath('ztdDocsAgent'),
+    'ztd/AGENTS.md',
+    dependencies,
+    prompter
+  );
+  if (ztdDocsAgentSummary) {
+    summaries.ztdDocsAgent = ztdDocsAgentSummary;
+  }
+
+  // Provide the companion README inside ztd/ so maintainers understand the schema, spec, and enum intentions.
+  const ztdDocsReadmeSummary = await writeTemplateFile(
+    rootDir,
+    absolutePaths.ztdDocsReadme,
+    relativePath('ztdDocsReadme'),
+    'ztd/README.md',
+    dependencies,
+    prompter
+  );
+  if (ztdDocsReadmeSummary) {
+    summaries.ztdDocsReadme = ztdDocsReadmeSummary;
+  }
 
   const editorconfigSummary = copyTemplateFileIfMissing(
     rootDir,
@@ -360,6 +391,26 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
   );
   if (prettierSummary) {
     summaries.prettier = prettierSummary;
+  }
+
+  const gitignoreSummary = copyTemplateFileIfMissing(
+    rootDir,
+    relativePath('gitignore'),
+    '.gitignore',
+    dependencies
+  );
+  if (gitignoreSummary) {
+    summaries.gitignore = gitignoreSummary;
+  }
+
+  const prettierignoreSummary = copyTemplateFileIfMissing(
+    rootDir,
+    relativePath('prettierignore'),
+    '.prettierignore',
+    dependencies
+  );
+  if (prettierignoreSummary) {
+    summaries.prettierignore = prettierignoreSummary;
   }
 
   const packageSummary = ensurePackageJsonFormatting(rootDir, relativePath('package'), dependencies);
@@ -393,7 +444,7 @@ async function ensureAgentsFile(
     return { relativePath: relative || fallbackRelative, outcome: 'created' };
   }
 
-  const candidates = ['AGENTS.md', 'AGENTS_ZTD.md'];
+  const candidates = ['AGENTS.md', 'AGENTS_ztd.md'];
   for (const candidate of candidates) {
     const candidatePath = path.join(rootDir, candidate);
     if (dependencies.fileExists(candidatePath)) {
@@ -565,15 +616,69 @@ async function writeDocFile(
 }
 
 async function writeTemplateFile(
+  rootDir: string,
   absolutePath: string,
   relative: string,
   templateName: string,
   dependencies: ZtdConfigWriterDependencies,
-  prompter: Prompter
-): Promise<FileSummary> {
+  prompter: Prompter,
+  allowFallback?: boolean
+): Promise<FileSummary | null> {
+  const templateTarget = resolveTemplateTarget(rootDir, absolutePath, relative, dependencies, allowFallback);
+  if (!templateTarget) {
+    return null;
+  }
+
   // Load shared documentation templates so every new project gets the same guidance.
   const contents = loadTemplate(templateName);
-  return writeDocFile(absolutePath, relative, contents, dependencies, prompter);
+  return writeDocFile(templateTarget.absolutePath, templateTarget.relativePath, contents, dependencies, prompter);
+}
+
+interface TemplateTarget {
+  absolutePath: string;
+  relativePath: string;
+}
+
+function resolveTemplateTarget(
+  rootDir: string,
+  absolutePath: string,
+  relative: string,
+  dependencies: ZtdConfigWriterDependencies,
+  allowFallback?: boolean
+): TemplateTarget | null {
+  if (!dependencies.fileExists(absolutePath)) {
+    return { absolutePath, relativePath: relative };
+  }
+
+  if (!allowFallback || !isRootMarkdown(relative)) {
+    dependencies.log(`Skipping template ${relative} because the target file already exists.`);
+    return null;
+  }
+
+  // When the preferred destination already exists, try emitting a sibling with a "_ztd" suffix.
+  const parsed = path.parse(absolutePath);
+  const fallbackAbsolute = path.join(parsed.dir, `${parsed.name}_ztd${parsed.ext}`);
+  if (dependencies.fileExists(fallbackAbsolute)) {
+    const existingRelative = normalizeRelative(rootDir, fallbackAbsolute);
+    dependencies.log(
+      `Skipping template ${relative} because both ${relative} and ${existingRelative} already exist.`
+    );
+    return null;
+  }
+
+  const fallbackRelative = normalizeRelative(rootDir, fallbackAbsolute);
+  dependencies.log(`Existing ${relative} preserved; writing template as ${fallbackRelative}.`);
+  return { absolutePath: fallbackAbsolute, relativePath: fallbackRelative };
+}
+
+function normalizeRelative(rootDir: string, absolutePath: string): string {
+  // Normalize the path relative to the project root so summaries use forward slashes.
+  const relative = path.relative(rootDir, absolutePath).replace(/\\/g, '/');
+  return relative || absolutePath;
+}
+
+function isRootMarkdown(relative: string): boolean {
+  return relative.toLowerCase().endsWith('.md') && !relative.includes('/');
 }
 
 function loadTemplate(templateName: string): string {
@@ -592,14 +697,15 @@ function buildSummaryLines(summaries: Record<FileKey, FileSummary>): string[] {
     'testsConfig',
     'ztdConfig',
     'readme',
-    'srcGuide',
-    'testsGuide',
     'testkitClient',
-    'sqlDdlAgent',
-    'sqlEnumsAgent',
-    'sqlDomainSpecsAgent',
+    'globalSetup',
+    'vitestConfig',
+    'ztdDocsAgent',
+    'ztdDocsReadme',
     'agents',
+    'gitignore',
     'editorconfig',
+    'prettierignore',
     'prettier',
     'package'
   ];
@@ -620,31 +726,6 @@ function buildSummaryLines(summaries: Record<FileKey, FileSummary>): string[] {
 
   lines.push('', 'Next steps:', ...NEXT_STEPS);
   return lines;
-}
-
-function ensureSqlFolderAgents(
-  rootDir: string,
-  dependencies: ZtdConfigWriterDependencies,
-  relativePath: (key: FileKey) => string
-): Partial<Record<FileKey, FileSummary>> {
-  const summaries: Partial<Record<FileKey, FileSummary>> = {};
-  for (const target of SQL_FOLDER_AGENT_TARGETS) {
-    const targetPath = path.join(rootDir, target.relativePath);
-    // Load the shared guidance so every generated project gets the canonical AGENTS content.
-    const templateContents = loadTemplate(target.templateName);
-    // Make sure the directory exists before writing the AGENT guidance.
-    dependencies.ensureDirectory(path.dirname(targetPath));
-    const existed = dependencies.fileExists(targetPath);
-    if (!existed) {
-      // Only emit a new AGENTS.md when there is no existing file to preserve custom guidance.
-      dependencies.writeFile(targetPath, templateContents);
-    }
-    summaries[target.key] = {
-      relativePath: relativePath(target.key),
-      outcome: existed ? 'unchanged' : 'created'
-    };
-  }
-  return summaries;
 }
 
 export function registerInitCommand(program: Command): void {

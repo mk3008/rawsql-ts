@@ -16,7 +16,8 @@ function createTempDir(prefix: string): string {
 }
 
 const schemaFileName = `${DEFAULT_ZTD_CONFIG.ddl.defaultSchema}.sql`;
-const schemaFilePath = (workspace: string): string => path.join(workspace, 'sql', 'ddl', schemaFileName);
+const schemaFilePath = (workspace: string): string =>
+  path.join(workspace, DEFAULT_ZTD_CONFIG.ddlDir, schemaFileName);
 
 function readNormalizedFile(filePath: string): string {
   const contents = readFileSync(filePath, 'utf8');
@@ -68,17 +69,24 @@ test('init wizard bootstraps a repo when writing DDL manually', async () => {
 
   expect(result.summary).toMatchSnapshot();
   expect(existsSync(schemaFilePath(workspace))).toBe(true);
-  expect(existsSync(path.join(workspace, 'tests', 'ztd-row-map.generated.ts'))).toBe(true);
-  expect(existsSync(path.join(workspace, 'tests', 'ztd-layout.generated.ts'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'tests', 'generated', 'ztd-row-map.generated.ts'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'tests', 'generated', 'ztd-layout.generated.ts'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'tests', 'support', 'global-setup.ts'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'vitest.config.ts'))).toBe(true);
   expect(existsSync(path.join(workspace, 'ztd.config.json'))).toBe(true);
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('Zero Table Dependency');
   expect(readNormalizedFile(schemaFilePath(workspace))).toContain('CREATE TABLE public.example');
-  expect(readNormalizedFile(path.join(workspace, 'tests', 'ztd-row-map.generated.ts'))).toContain('export interface TestRowMap');
-  expect(readNormalizedFile(path.join(workspace, 'tests', 'ztd-layout.generated.ts'))).toContain(`sqlRootDir`);
-  expect(existsSync(path.join(workspace, 'AGENTS.md')) || existsSync(path.join(workspace, 'AGENTS_ZTD.md'))).toBe(true);
-  ['sql/ddl/AGENTS.md', 'sql/enums/AGENTS.md', 'sql/domain-specs/AGENTS.md'].forEach((agentsPath) => {
-    expect(existsSync(path.join(workspace, ...agentsPath.split('/')))).toBe(true);
-  });
+  expect(
+    readNormalizedFile(path.join(workspace, 'tests', 'generated', 'ztd-row-map.generated.ts'))
+  ).toContain('export interface TestRowMap');
+  expect(readNormalizedFile(path.join(workspace, 'tests', 'generated', 'ztd-layout.generated.ts'))).toContain(
+    `ztdRootDir`
+  );
+  expect(
+    existsSync(path.join(workspace, 'AGENTS.md')) || existsSync(path.join(workspace, 'AGENTS_ztd.md'))
+  ).toBe(true);
+  expect(existsSync(path.join(workspace, 'ztd', 'AGENTS.md'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'ztd', 'README.md'))).toBe(true);
 });
 
 test('init wizard pulls schema if pg_dump is available', async () => {
@@ -109,14 +117,21 @@ test('init wizard pulls schema if pg_dump is available', async () => {
   expect(existsSync(path.join(workspace, 'README.md'))).toBe(true);
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('Zero Table Dependency');
   expect(existsSync(path.join(workspace, 'ztd.config.json'))).toBe(true);
-  expect(existsSync(path.join(workspace, 'tests', 'ztd-row-map.generated.ts'))).toBe(true);
-  expect(readNormalizedFile(path.join(workspace, 'tests', 'ztd-row-map.generated.ts'))).toContain('export interface TestRowMap');
-  expect(existsSync(path.join(workspace, 'tests', 'ztd-layout.generated.ts'))).toBe(true);
-  expect(readNormalizedFile(path.join(workspace, 'tests', 'ztd-layout.generated.ts'))).toContain('enumsDir');
-  expect(existsSync(path.join(workspace, 'AGENTS.md')) || existsSync(path.join(workspace, 'AGENTS_ZTD.md'))).toBe(true);
-  ['sql/ddl/AGENTS.md', 'sql/enums/AGENTS.md', 'sql/domain-specs/AGENTS.md'].forEach((agentsPath) => {
-    expect(existsSync(path.join(workspace, ...agentsPath.split('/')))).toBe(true);
-  });
+  expect(existsSync(path.join(workspace, 'tests', 'generated', 'ztd-row-map.generated.ts'))).toBe(true);
+  expect(
+    readNormalizedFile(path.join(workspace, 'tests', 'generated', 'ztd-row-map.generated.ts'))
+  ).toContain('export interface TestRowMap');
+  expect(existsSync(path.join(workspace, 'tests', 'generated', 'ztd-layout.generated.ts'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'tests', 'support', 'global-setup.ts'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'vitest.config.ts'))).toBe(true);
+  expect(readNormalizedFile(path.join(workspace, 'tests', 'generated', 'ztd-layout.generated.ts'))).toContain(
+    'enumsDir'
+  );
+  expect(
+    existsSync(path.join(workspace, 'AGENTS.md')) || existsSync(path.join(workspace, 'AGENTS_ztd.md'))
+  ).toBe(true);
+  expect(existsSync(path.join(workspace, 'ztd', 'AGENTS.md'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'ztd', 'README.md'))).toBe(true);
 });
 
 test('init wizard rejects when pg_dump is missing', async () => {
@@ -131,7 +146,7 @@ test('init wizard rejects when pg_dump is missing', async () => {
       }
     })
   ).rejects.toThrow('Unable to find pg_dump');
-    expect(existsSync(path.join(workspace, 'sql'))).toBe(false);
+    expect(existsSync(path.join(workspace, 'ztd'))).toBe(false);
   expect(existsSync(path.join(workspace, 'tests'))).toBe(false);
   expect(existsSync(path.join(workspace, 'README.md'))).toBe(false);
 });

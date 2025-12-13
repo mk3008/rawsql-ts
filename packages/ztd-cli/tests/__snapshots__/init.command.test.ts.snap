@@ -4,24 +4,25 @@ exports[`init wizard bootstraps a repo when writing DDL manually 1`] = `
 "ZTD project initialized.
 
 Created:
- - sql/ddl/public.sql
+ - ztd/ddl/public.sql
  - ztd.config.json
- - tests/ztd-layout.generated.ts
- - tests/ztd-row-map.generated.ts
+ - tests/generated/ztd-layout.generated.ts
+ - tests/generated/ztd-row-map.generated.ts
  - README.md
- - src/ZTD-GUIDE.md
- - tests/ZTD-TEST-GUIDE.md
- - tests/testkit-client.ts
- - sql/ddl/AGENTS.md
- - sql/enums/AGENTS.md
- - sql/domain-specs/AGENTS.md
+ - tests/support/testkit-client.ts
+ - tests/support/global-setup.ts
+ - vitest.config.ts
+ - ztd/AGENTS.md
+ - ztd/README.md
  - AGENTS.md
+ - .gitignore
  - .editorconfig
+ - .prettierignore
  - .prettierrc
 
 Next steps:
- 1. Review the schema files under sql/ddl/<schema>.sql
- 2. Inspect tests/ztd-layout.generated.ts for the SQL layout
+ 1. Review the schema files under ztd/ddl/<schema>.sql
+ 2. Inspect tests/generated/ztd-layout.generated.ts for the SQL layout
  3. Run npx ztd ztd-config
  4. Run ZTD tests with pg-testkit"
 `;
@@ -30,24 +31,25 @@ exports[`init wizard pulls schema if pg_dump is available 1`] = `
 "ZTD project initialized.
 
 Created:
- - sql/ddl/public.sql
+ - ztd/ddl/public.sql
  - ztd.config.json
- - tests/ztd-layout.generated.ts
- - tests/ztd-row-map.generated.ts
+ - tests/generated/ztd-layout.generated.ts
+ - tests/generated/ztd-row-map.generated.ts
  - README.md
- - src/ZTD-GUIDE.md
- - tests/ZTD-TEST-GUIDE.md
- - tests/testkit-client.ts
- - sql/ddl/AGENTS.md
- - sql/enums/AGENTS.md
- - sql/domain-specs/AGENTS.md
+ - tests/support/testkit-client.ts
+ - tests/support/global-setup.ts
+ - vitest.config.ts
+ - ztd/AGENTS.md
+ - ztd/README.md
  - AGENTS.md
+ - .gitignore
  - .editorconfig
+ - .prettierignore
  - .prettierrc
 
 Next steps:
- 1. Review the schema files under sql/ddl/<schema>.sql
- 2. Inspect tests/ztd-layout.generated.ts for the SQL layout
+ 1. Review the schema files under ztd/ddl/<schema>.sql
+ 2. Inspect tests/generated/ztd-layout.generated.ts for the SQL layout
  3. Run npx ztd ztd-config
  4. Run ZTD tests with pg-testkit"
 `;
