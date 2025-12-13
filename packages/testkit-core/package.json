@@ -34,7 +34,7 @@
     "node": ">=20"
   },
   "dependencies": {
-    "rawsql-ts": "^0.13.0"
+    "rawsql-ts": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.8.2",

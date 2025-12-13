@@ -166,7 +166,7 @@ importers:
         specifier: ^8.13.1
         version: 8.16.3
       rawsql-ts:
-        specifier: ^0.13.0
+        specifier: workspace:*
         version: link:../../core
     devDependencies:
       '@prisma/adapter-pg':
@@ -206,7 +206,7 @@ importers:
         specifier: workspace:*
         version: link:../../testkit-core
       rawsql-ts:
-        specifier: ^0.13.0
+        specifier: workspace:*
         version: link:../../core
     devDependencies:
       '@types/better-sqlite3':
@@ -231,7 +231,7 @@ importers:
   packages/testkit-core:
     dependencies:
       rawsql-ts:
-        specifier: ^0.13.0
+        specifier: workspace:*
         version: link:../core
     devDependencies:
       typescript:
