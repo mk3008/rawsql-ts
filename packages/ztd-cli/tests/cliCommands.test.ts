@@ -9,11 +9,6 @@ const tsNodeRegister = require.resolve('ts-node/register');
 const cliRoot = path.resolve(__dirname, '..');
 const repoRoot = path.resolve(__dirname, '..', '..', '..');
 const cliEntry = path.join(cliRoot, 'src', 'index.ts');
-const cliEnv = {
-  ...process.env,
-  NODE_ENV: 'test',
-  TS_NODE_PROJECT: path.join(cliRoot, 'tsconfig.json'),
-};
 const tmpRoot = path.join(repoRoot, 'tmp');
 
 function createTempDir(prefix: string): string {
@@ -32,11 +27,21 @@ function commandExists(command: string): boolean {
   return result.status === 0 && !result.error;
 }
 
-function runCli(args: string[]): SpawnSyncReturns<string> {
+function buildCliEnv(overrides: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
+  return {
+    // Copy the current environment so per-test mutations (e.g. DATABASE_URL) propagate to the CLI.
+    ...process.env,
+    NODE_ENV: 'test',
+    TS_NODE_PROJECT: path.join(cliRoot, 'tsconfig.json'),
+    ...overrides,
+  };
+}
+
+function runCli(args: string[], envOverrides: NodeJS.ProcessEnv = {}): SpawnSyncReturns<string> {
   // Invoke the CLI entry point through ts-node so the test avoids a prior build.
   return spawnSync(nodeExecutable, ['-r', tsNodeRegister, cliEntry, ...args], {
     cwd: repoRoot,
-    env: cliEnv,
+    env: buildCliEnv(envOverrides),
     encoding: 'utf8',
   });
 }
@@ -125,27 +130,17 @@ pullTest('pull CLI emits schema from Postgres via pg_dump', async () => {
     await seedProductsTable(client);
 
     const outDir = createTempDir('cli-pull');
-    const previousDatabaseUrl = process.env.DATABASE_URL;
-    process.env.DATABASE_URL = connectionString;
-    try {
-      const result = runCli(['ddl', 'pull', '--out', outDir]);
-      assertCliSuccess(result, 'ddl pull');
-      const schemaFile = path.join(outDir, 'public.sql');
-      expect(existsSync(schemaFile)).toBe(true);
-      const schema = readNormalizedFile(schemaFile);
-      expect(existsSync(path.join(outDir, 'schemas'))).toBe(false);
-      const normalizedSchema = schema.toLowerCase();
-      expect(normalizedSchema).toContain('create schema public;');
-      expect(normalizedSchema).toContain('create table public.products');
-      expect(normalizedSchema).not.toContain('set ');
-      expect(existsSync(path.join(outDir, 'schema.sql'))).toBe(false);
-    } finally {
-      if (previousDatabaseUrl === undefined) {
-        delete process.env.DATABASE_URL;
-      } else {
-        process.env.DATABASE_URL = previousDatabaseUrl;
-      }
-    }
+    const result = runCli(['ddl', 'pull', '--out', outDir], { DATABASE_URL: connectionString });
+    assertCliSuccess(result, 'ddl pull');
+    const schemaFile = path.join(outDir, 'public.sql');
+    expect(existsSync(schemaFile)).toBe(true);
+    const schema = readNormalizedFile(schemaFile);
+    expect(existsSync(path.join(outDir, 'schemas'))).toBe(false);
+    const normalizedSchema = schema.toLowerCase();
+    expect(normalizedSchema).toContain('create schema public;');
+    expect(normalizedSchema).toContain('create table public.products');
+    expect(normalizedSchema).not.toContain('set ');
+    expect(existsSync(path.join(outDir, 'schema.sql'))).toBe(false);
   } finally {
     await resetPublicSchema(client);
     await client.end();
