@@ -21,6 +21,19 @@ jobs:
           registry-url: "https://registry.npmjs.org"
 
       - run: corepack enable
+
+      - name: Export NODE_AUTH_TOKEN when provided
+        shell: bash
+        run: |
+          TOKEN="${{ secrets.NPM_TOKEN }}"
+          if [ -z "${TOKEN}" ]; then
+            TOKEN="${{ secrets.NODE_AUTH_TOKEN }}"
+          fi
+
+          if [ -n "${TOKEN}" ]; then
+            echo "NODE_AUTH_TOKEN=${TOKEN}" >> "${GITHUB_ENV}"
+          fi
+
       - run: pnpm install --frozen-lockfile
 
       - name: Update npm for OIDC
@@ -41,8 +54,6 @@ jobs:
 
       - name: Verify npm authentication (token path)
         shell: bash
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN || secrets.NODE_AUTH_TOKEN }}
         run: |
           if [ -z "${NODE_AUTH_TOKEN}" ]; then
             echo "NODE_AUTH_TOKEN is not set; assuming npm Trusted Publishing (OIDC)."
@@ -55,11 +66,14 @@ jobs:
       - name: Build publish artifacts (dist/)
         run: pnpm build:publish
 
-      - name: Publish to npm and create GitHub Release
-        uses: changesets/action@v1
-        with:
-          publish: pnpm changeset publish
-          createGithubReleases: true
+      - name: Configure git identity for tags
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Publish to npm (OIDC-compatible), tag, and create GitHub Releases
+        shell: bash
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN || secrets.NODE_AUTH_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node ./scripts/ci-publish.mjs
