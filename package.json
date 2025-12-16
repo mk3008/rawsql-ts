@@ -12,6 +12,7 @@
     "coverage:workspaces": "pnpm -r --if-present coverage",
     "build": "pnpm -r --if-present build",
     "build:core": "pnpm --filter rawsql-ts build",
+    "build:publish": "pnpm --filter rawsql-ts build:all && pnpm --filter @rawsql-ts/testkit-core build && pnpm --filter @rawsql-ts/pg-testkit build && pnpm --filter @rawsql-ts/sqlite-testkit build && pnpm --filter @rawsql-ts/ztd-cli build",
     "changeset": "changeset",
     "changesets:version": "changeset version",
     "changesets:publish": "changeset publish",
