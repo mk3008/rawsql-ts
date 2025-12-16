@@ -25,6 +25,39 @@ function run(command, args, options = {}) {
   }
 }
 
+function runWithOutput(command, args, options = {}) {
+  // Capture output so we can classify failures (npm often reports auth issues as E404).
+  const result = spawnSync(command, args, {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+    shell: IS_WINDOWS,
+    ...options,
+  });
+
+  if (result.stdout) process.stdout.write(result.stdout);
+  if (result.stderr) process.stderr.write(result.stderr);
+
+  if (result.error) {
+    throw result.error;
+  }
+
+  const status = typeof result.status === "number" ? result.status : null;
+  if (status !== null && status !== 0) {
+    const combined = `${result.stdout ?? ""}\n${result.stderr ?? ""}`.trim();
+    const snippet = combined ? combined.split(/\r?\n/).slice(-40).join("\n") : "";
+    throw new Error(
+      [
+        `${command} ${args.join(" ")} failed with exit code ${status}`,
+        snippet ? `---\n${snippet}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    );
+  }
+
+  return { stdout: result.stdout ?? "", stderr: result.stderr ?? "" };
+}
+
 function tryRun(command, args, options = {}) {
   // Best-effort command probe; callers decide how to interpret failures.
   const result = spawnSync(command, args, {
@@ -94,6 +127,24 @@ function detectPublishAuth() {
   return fallback;
 }
 
+function logOidcEnvironment(publishAuth) {
+  // Provide actionable context when OIDC publishing fails in CI.
+  if (publishAuth !== "oidc") return;
+
+  const idTokenUrlSet = Boolean(process.env.ACTIONS_ID_TOKEN_REQUEST_URL);
+  const idTokenTokenSet = Boolean(process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN);
+
+  console.log(
+    [
+      "[publish] oidc diagnostics:",
+      `  ACTIONS_ID_TOKEN_REQUEST_URL=${idTokenUrlSet ? "(set)" : "(missing)"}`,
+      `  ACTIONS_ID_TOKEN_REQUEST_TOKEN=${idTokenTokenSet ? "(set)" : "(missing)"}`,
+      `  NPM_CONFIG_PROVENANCE=${process.env.NPM_CONFIG_PROVENANCE ? process.env.NPM_CONFIG_PROVENANCE : "(unset)"}`,
+      `  NODE_AUTH_TOKEN=${process.env.NODE_AUTH_TOKEN ? "(set)" : "(unset)"}`,
+    ].join("\n"),
+  );
+}
+
 function npmPackageVersionExists(packageName, version) {
   // Public registry lookup; this should not require any credentials.
   // Treat only "not found" (404) as "doesn't exist"; other failures should stop the publish.
@@ -138,7 +189,30 @@ function publishWithNpm(packageDir, publishAuth) {
     args.push("--provenance");
   }
 
-  run(NPM, args, { cwd: packageDir });
+  try {
+    runWithOutput(NPM, args, { cwd: packageDir });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+
+    // npm sometimes returns 404 for auth/permission issues when publishing.
+    const looksLike404 = /\bE404\b/i.test(message) || /\bnpm ERR!\s*404\b/i.test(message) || /\b404\b.*\bNot Found\b/i.test(message);
+    const looksLike401 = /\bE401\b/i.test(message) || /\b401\b.*\bUnauthorized\b/i.test(message);
+    const looksLike403 = /\bE403\b/i.test(message) || /\b403\b.*\bForbidden\b/i.test(message);
+
+    if (publishAuth === "oidc") {
+      // Add guidance without hiding the original npm output.
+      const hint =
+        looksLike401 || looksLike403
+          ? "The registry rejected authentication/authorization. Verify npm Trusted Publishing (OIDC) is configured for this package and workflow."
+          : looksLike404
+            ? "npm returned 404 for the publish request. This often indicates missing publish permissions or missing Trusted Publishing (OIDC) configuration for the package."
+            : "The publish request failed. Check the npm output above for details.";
+
+      throw new Error([hint, `---\n${message}`].join("\n"));
+    }
+
+    throw error;
+  }
 }
 
 function gitTagExists(tagName) {
@@ -190,6 +264,7 @@ function main() {
   const workspaceRoot = process.cwd();
   const dryRun = process.env.RAWSQL_CI_DRY_RUN === "1";
   const publishAuth = detectPublishAuth();
+  logOidcEnvironment(publishAuth);
   const fixedPackageNames = getFixedPackageNames(workspaceRoot);
   const dirByName = getWorkspacePackageDirByName();
 
