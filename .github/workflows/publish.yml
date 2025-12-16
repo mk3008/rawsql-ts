@@ -52,6 +52,9 @@ jobs:
           # Fail fast with a clear error when the token is expired/revoked or lacks publish access.
           npm whoami
 
+      - name: Build publish artifacts (dist/)
+        run: pnpm build:publish
+
       - name: Publish to npm and create GitHub Release
         uses: changesets/action@v1
         with:

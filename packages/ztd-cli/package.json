@@ -7,6 +7,7 @@
     "ztd": "dist/index.js"
   },
   "scripts": {
+    "prepack": "node -e \"const fs=require('fs');const cp=require('child_process');const npm=process.platform==='win32'?'npm.cmd':'npm';if(!fs.existsSync('dist/index.js')){process.exit(cp.spawnSync(npm,['run','build'],{stdio:'inherit'}).status??1)}\"",
     "build": "tsc -p tsconfig.json",
     "test": "vitest run",
     "lint": "eslint src --ext .ts",
