@@ -27,8 +27,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          registry-url: "https://registry.npmjs.org"
           cache: "pnpm"
+
+      - name: Force OIDC auth (unset NODE_AUTH_TOKEN)
+        shell: bash
+        run: |
+          # Ensure npm does not attempt token-based auth on the registry.
+          echo "NODE_AUTH_TOKEN=" >> "${GITHUB_ENV}"
 
       - run: corepack enable
 
@@ -79,4 +84,5 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_CONFIG_PROVENANCE: "true"
           RAWSQL_PUBLISH_AUTH: "oidc"
+          NODE_AUTH_TOKEN: ""
         run: node ./scripts/ci-publish.mjs
