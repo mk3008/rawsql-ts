@@ -2,15 +2,6 @@ name: Publish (manual)
 
 on:
   workflow_dispatch:
-    inputs:
-      auth:
-        description: "Authentication method for npm publish"
-        required: false
-        default: "oidc"
-        type: choice
-        options:
-          - oidc
-          - token
 
 concurrency:
   group: publish-npm
@@ -18,92 +9,11 @@ concurrency:
 
 permissions:
   contents: write
+  id-token: write
 
 jobs:
-  publish_token:
-    if: ${{ inputs.auth == 'token' }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          run_install: false
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          registry-url: "https://registry.npmjs.org"
-          cache: "pnpm"
-
-      - run: corepack enable
-
-      - run: pnpm --version
-
-      - name: Export NODE_AUTH_TOKEN (token auth only)
-        shell: bash
-        run: |
-          TOKEN="${{ secrets.NPM_TOKEN }}"
-          if [ -z "${TOKEN}" ]; then
-            TOKEN="${{ secrets.NODE_AUTH_TOKEN }}"
-          fi
-
-          if [ -z "${TOKEN}" ]; then
-            echo "Token auth selected, but no NPM_TOKEN or NODE_AUTH_TOKEN secret was provided."
-            exit 1
-          fi
-
-          echo "NODE_AUTH_TOKEN=${TOKEN}" >> "${GITHUB_ENV}"
-
-      - run: pnpm install --frozen-lockfile
-
-      - name: Update npm
-        shell: bash
-        run: |
-          # npm Trusted Publishing (OIDC) requires npm >= 11.5.1.
-          npm install -g "npm@^11.5.1"
-          npm --version
-
-      # Safety guard: fail if changesets haven't been versioned yet.
-      - name: Fail if there are unapplied changesets
-        shell: bash
-        run: |
-          if find .changeset -maxdepth 1 -type f -name '*.md' ! -name 'README.md' | grep -q .; then
-            echo "Unapplied changesets exist. Run Release PR first."
-            exit 1
-          fi
-
-      - name: Verify npm authentication (token path)
-        shell: bash
-        run: |
-          # Fail fast with a clear error when the token is expired/revoked or lacks publish access.
-          npm whoami
-
-      - name: Build publish artifacts (dist/)
-        run: pnpm build:publish
-
-      - name: Configure git identity for tags
-        shell: bash
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-      - name: Publish to npm (OIDC-compatible), tag, and create GitHub Releases
-        shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RAWSQL_PUBLISH_AUTH: "token"
-        run: node ./scripts/ci-publish.mjs
-
   publish_oidc:
-    if: ${{ inputs.auth == 'oidc' }}
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      id-token: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -151,10 +61,22 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
+      - name: OIDC diagnostics
+        shell: bash
+        run: |
+          echo "RAWSQL_PUBLISH_AUTH=oidc"
+          echo "NPM_CONFIG_PROVENANCE=true"
+          echo "ACTIONS_ID_TOKEN_REQUEST_URL=${ACTIONS_ID_TOKEN_REQUEST_URL:+(set)}"
+          echo "ACTIONS_ID_TOKEN_REQUEST_TOKEN=${ACTIONS_ID_TOKEN_REQUEST_TOKEN:+(set)}"
+          echo "NODE_AUTH_TOKEN=${NODE_AUTH_TOKEN:+(set)}"
+          npm config get registry
+          npm config get provenance || true
+          npm whoami && echo "npm auth: token/session is active (unexpected for pure OIDC)" || echo "npm auth: no token/session (expected for OIDC)"
+
       - name: Publish to npm (OIDC-compatible), tag, and create GitHub Releases
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RAWSQL_PUBLISH_AUTH: "oidc"
           NPM_CONFIG_PROVENANCE: "true"
+          RAWSQL_PUBLISH_AUTH: "oidc"
         run: node ./scripts/ci-publish.mjs
