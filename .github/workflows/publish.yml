@@ -2,6 +2,15 @@ name: Publish (manual)
 
 on:
   workflow_dispatch:
+    inputs:
+      auth:
+        description: "Authentication method for npm publish"
+        required: false
+        default: "oidc"
+        type: choice
+        options:
+          - oidc
+          - token
 
 permissions:
   contents: write
@@ -22,7 +31,8 @@ jobs:
 
       - run: corepack enable
 
-      - name: Export NODE_AUTH_TOKEN when provided
+      - name: Export NODE_AUTH_TOKEN (token auth only)
+        if: ${{ inputs.auth == 'token' }}
         shell: bash
         run: |
           TOKEN="${{ secrets.NPM_TOKEN }}"
@@ -30,9 +40,12 @@ jobs:
             TOKEN="${{ secrets.NODE_AUTH_TOKEN }}"
           fi
 
-          if [ -n "${TOKEN}" ]; then
-            echo "NODE_AUTH_TOKEN=${TOKEN}" >> "${GITHUB_ENV}"
+          if [ -z "${TOKEN}" ]; then
+            echo "Token auth selected, but no NPM_TOKEN or NODE_AUTH_TOKEN secret was provided."
+            exit 1
           fi
+
+          echo "NODE_AUTH_TOKEN=${TOKEN}" >> "${GITHUB_ENV}"
 
       - run: pnpm install --frozen-lockfile
 
@@ -53,13 +66,9 @@ jobs:
           fi
 
       - name: Verify npm authentication (token path)
+        if: ${{ inputs.auth == 'token' }}
         shell: bash
         run: |
-          if [ -z "${NODE_AUTH_TOKEN}" ]; then
-            echo "NODE_AUTH_TOKEN is not set; assuming npm Trusted Publishing (OIDC)."
-            exit 0
-          fi
-
           # Fail fast with a clear error when the token is expired/revoked or lacks publish access.
           npm whoami
 
