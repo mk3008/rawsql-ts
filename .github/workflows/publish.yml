@@ -90,7 +90,7 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_CONFIG_PROVENANCE: "true"
+          RAWSQL_PUBLISH_AUTH: "token"
         run: node ./scripts/ci-publish.mjs
 
   publish_oidc:
@@ -145,5 +145,6 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RAWSQL_PUBLISH_AUTH: "oidc"
           NPM_CONFIG_PROVENANCE: "true"
         run: node ./scripts/ci-publish.mjs

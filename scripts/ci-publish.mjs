@@ -10,6 +10,7 @@ const GIT = "git";
 const GH = "gh";
 
 function run(command, args, options = {}) {
+  // Use sync execution to keep CI logs ordered and failures deterministic.
   const result = spawnSync(command, args, {
     stdio: "inherit",
     shell: IS_WINDOWS,
@@ -25,6 +26,7 @@ function run(command, args, options = {}) {
 }
 
 function tryRun(command, args, options = {}) {
+  // Best-effort command probe; callers decide how to interpret failures.
   const result = spawnSync(command, args, {
     stdio: "ignore",
     shell: IS_WINDOWS,
@@ -42,6 +44,7 @@ function readJson(filePath) {
 }
 
 function ensureDir(dirPath) {
+  // Create the directory only when needed to avoid touching the working tree unexpectedly.
   if (!fs.existsSync(dirPath)) {
     fs.mkdirSync(dirPath, { recursive: true });
   }
@@ -77,18 +80,61 @@ function getWorkspacePackageDirByName() {
   return map;
 }
 
-function npmPackageVersionExists(packageName, version) {
-  // Public registry lookup; this should not require any credentials.
-  const view = tryRun(NPM, ["view", `${packageName}@${version}`, "version"]);
-  return view.ok;
+function detectPublishAuth() {
+  // Prefer explicit auth selection to avoid implicit behavior changes across CI environments.
+  const raw = process.env.RAWSQL_PUBLISH_AUTH;
+  if (raw === "oidc" || raw === "token") {
+    console.log(`[publish] auth=${raw} (source=RAWSQL_PUBLISH_AUTH)`);
+    return raw;
+  }
+
+  // Backward-compatible default: token when NODE_AUTH_TOKEN exists, otherwise oidc.
+  const fallback = process.env.NODE_AUTH_TOKEN ? "token" : "oidc";
+  console.log(`[publish] auth=${fallback} (source=default:${process.env.NODE_AUTH_TOKEN ? "NODE_AUTH_TOKEN" : "no-token"})`);
+  return fallback;
 }
 
-function publishWithNpm(packageDir) {
+function npmPackageVersionExists(packageName, version) {
+  // Public registry lookup; this should not require any credentials.
+  // Treat only "not found" (404) as "doesn't exist"; other failures should stop the publish.
+  const result = spawnSync(NPM, ["view", `${packageName}@${version}`, "version"], {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+    shell: IS_WINDOWS,
+  });
+
+  if (result.error) {
+    throw result.error;
+  }
+
+  if (result.status === 0) {
+    return true;
+  }
+
+  const combined = `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
+  const looksLike404 = /\bE404\b/i.test(combined) || /\b404\b.*\bNot Found\b/i.test(combined) || /\bnpm ERR!\s*404\b/i.test(combined);
+  if (looksLike404) {
+    return false;
+  }
+
+  // Preserve enough context for debugging while avoiding huge log spam.
+  const snippet = combined.trim().split(/\r?\n/).slice(-25).join("\n");
+  throw new Error(
+    [
+      `[publish] npm view failed for ${packageName}@${version} (exit=${result.status ?? "unknown"})`,
+      snippet ? `---\n${snippet}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n"),
+  );
+}
+
+function publishWithNpm(packageDir, publishAuth) {
   const args = ["publish", "--access", "public"];
 
   // When publishing via npm Trusted Publishing (OIDC), npm requires --provenance.
-  // Keep the token-based path compatible by not forcing provenance when NODE_AUTH_TOKEN is present.
-  if (!process.env.NODE_AUTH_TOKEN) {
+  // Do not infer auth from NODE_AUTH_TOKEN; auth is selected explicitly by RAWSQL_PUBLISH_AUTH.
+  if (publishAuth === "oidc") {
     args.push("--provenance");
   }
 
@@ -143,6 +189,7 @@ function createGitHubRelease(tagName, notesFilePath) {
 function main() {
   const workspaceRoot = process.cwd();
   const dryRun = process.env.RAWSQL_CI_DRY_RUN === "1";
+  const publishAuth = detectPublishAuth();
   const fixedPackageNames = getFixedPackageNames(workspaceRoot);
   const dirByName = getWorkspacePackageDirByName();
 
@@ -184,7 +231,7 @@ function main() {
     }
 
     console.log(`[publish] publishing ${pkg.name}@${pkg.version}`);
-    publishWithNpm(pkg.dir);
+    publishWithNpm(pkg.dir, publishAuth);
     publishedNow.push(`${pkg.name}@${pkg.version}`);
   }
 
