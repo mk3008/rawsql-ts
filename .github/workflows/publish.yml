@@ -6,7 +6,7 @@ on:
       auth:
         description: "Authentication method for npm publish"
         required: false
-        default: "token"
+        default: "oidc"
         type: choice
         options:
           - oidc
