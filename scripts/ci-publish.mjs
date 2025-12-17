@@ -389,6 +389,29 @@ function classifyNpmFailure(text) {
   return code;
 }
 
+function logNpmViewDiagnostics(packageName) {
+  // Provide a small amount of read-only registry context to help distinguish:
+  // - "package does not exist" vs
+  // - "package exists but publish auth failed" (Trusted Publishing mismatch, missing permissions, etc).
+  // Keep output small and avoid dumping any auth-related config.
+  const latest = tryCaptureOutput(NPM, ["view", "--registry", NPM_PUBLIC_REGISTRY, packageName, "version"]);
+  const distTags = tryCaptureOutput(NPM, ["view", "--registry", NPM_PUBLIC_REGISTRY, packageName, "dist-tags", "--json"]);
+
+  const latestLine = latest.ok ? latest.stdout.trim() : "(failed)";
+  const distTagsLine = distTags.ok ? distTags.stdout.trim() : "(failed)";
+
+  const trimmedDistTags = distTagsLine.length > 2000 ? `${distTagsLine.slice(0, 2000)}…` : distTagsLine;
+
+  console.log(
+    [
+      "[publish] npm view diagnostics:",
+      `  package=${packageName}`,
+      `  latest=${latestLine || "(empty)"}`,
+      `  dist-tags=${trimmedDistTags || "(empty)"}`,
+    ].join("\n"),
+  );
+}
+
 function ensureOidcPrereqs(publishAuth) {
   if (publishAuth !== "oidc") return;
 
@@ -454,6 +477,11 @@ function publishWithNpm(packageDir, publishAuth, opts) {
     const c = classifyNpmFailure(message);
 
     if (publishAuth === "oidc") {
+      if (opts?.packageName && (c.needAuth || c.e401 || c.e403 || c.e404)) {
+        // Add extra context that can be correlated with Trusted Publisher settings in npm.
+        logNpmViewDiagnostics(opts.packageName);
+      }
+
       const canFallback =
         opts?.allowTokenFallback === true && Boolean(opts?.preservedNodeAuthToken) && Boolean(opts?.workspaceRoot);
 
@@ -495,6 +523,7 @@ function publishWithNpm(packageDir, publishAuth, opts) {
         "[publish] npm publish failed (OIDC mode).",
         reasons.length ? `Reason signals: ${reasons.join(", ")}` : "Reason signals: (unknown)",
         "Checklist (most likely first):",
+        "  0) see docs/oidc-publish-troubleshooting.md in this repo",
         "  1) npm Trusted Publisher is configured for THIS package and THIS workflow file in THIS repo",
         "  2) workflow permissions include: id-token: write",
         "  3) NODE_AUTH_TOKEN is NOT set anywhere (env, secrets, org vars)",
@@ -611,6 +640,7 @@ async function main() {
 
     console.log(`[publish] publishing ${pkg.name}@${pkg.version}`);
     publishWithNpm(pkg.dir, publishAuth, {
+      packageName: pkg.name,
       allowTokenFallback,
       preservedNodeAuthToken,
       workspaceRoot,
