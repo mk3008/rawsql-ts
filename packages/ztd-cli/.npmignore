@@ -1,0 +1,1 @@
+# Intentionally empty: rely on package.json "files" so the templates/ bundle is shipped as-is.
