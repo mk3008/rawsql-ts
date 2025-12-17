@@ -1,5 +1,15 @@
 # @rawsql-ts/ztd-cli
 
+## 0.13.3
+
+### Patch Changes
+
+- [#304](https://github.com/mk3008/rawsql-ts/pull/304) [`e213234`](https://github.com/mk3008/rawsql-ts/commit/e213234f7bbbc709750ba40f798e2ffe7ee3d539) Thanks [@mk3008](https://github.com/mk3008)! - fix(ztd-cli): include templates in npm package and make init template resolution robust
+
+- Updated dependencies []:
+  - rawsql-ts@0.13.3
+  - @rawsql-ts/testkit-core@0.13.3
+
 ## 0.13.2
 
 ### Patch Changes
