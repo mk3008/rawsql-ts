@@ -140,6 +140,17 @@ function logOidcEnvironment(publishAuth) {
   );
 }
 
+function sanitizeOidcEnvironment(publishAuth) {
+  if (publishAuth !== "oidc") return;
+
+  // npm can prefer token-based auth when NODE_AUTH_TOKEN exists, which can break OIDC Trusted Publishing.
+  // Remove it proactively so downstream npm commands run in a clean OIDC environment.
+  if (process.env.NODE_AUTH_TOKEN) {
+    console.warn("[publish] warning: NODE_AUTH_TOKEN is set; removing it to avoid token-based auth overriding OIDC.");
+    delete process.env.NODE_AUTH_TOKEN;
+  }
+}
+
 function getNpmVersion() {
   const res = spawnSync(NPM, ["--version"], {
     encoding: "utf8",
@@ -179,17 +190,6 @@ function classifyNpmFailure(text) {
 
 function ensureOidcPrereqs(publishAuth) {
   if (publishAuth !== "oidc") return;
-
-  // The single most common misconfiguration: token env var exists and npm chooses token auth.
-  if (process.env.NODE_AUTH_TOKEN) {
-    throw new Error(
-      [
-        "[publish] OIDC was requested but NODE_AUTH_TOKEN is set.",
-        "npm will prefer token-based auth when NODE_AUTH_TOKEN exists, which can break OIDC Trusted Publishing.",
-        "Fix: remove NODE_AUTH_TOKEN from the workflow/job/environment (do not set it to empty).",
-      ].join("\n"),
-    );
-  }
 
   const npmVer = getNpmVersion();
   console.log(`[publish] npm version=${npmVer}`);
@@ -325,6 +325,7 @@ function main() {
   const workspaceRoot = process.cwd();
   const dryRun = process.env.RAWSQL_CI_DRY_RUN === "1";
   const publishAuth = detectPublishAuth();
+  sanitizeOidcEnvironment(publishAuth);
   logOidcEnvironment(publishAuth);
   ensureOidcPrereqs(publishAuth);
 
