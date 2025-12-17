@@ -9,24 +9,27 @@ const NPM = "npm";
 const GIT = "git";
 const GH = "gh";
 
+// Always target the public npm registry explicitly to avoid .npmrc/env quirks.
+const NPM_PUBLIC_REGISTRY = "https://registry.npmjs.org";
+
+// If true, a GitHub Release failure will fail the script (even if npm publish succeeded).
+// Default: false (publish is the primary responsibility).
+const FAIL_ON_RELEASE_ERROR = process.env.RAWSQL_FAIL_ON_RELEASE_ERROR === "1";
+
 function run(command, args, options = {}) {
-  // Use sync execution to keep CI logs ordered and failures deterministic.
   const result = spawnSync(command, args, {
     stdio: "inherit",
     shell: IS_WINDOWS,
     ...options,
   });
 
-  if (result.error) {
-    throw result.error;
-  }
+  if (result.error) throw result.error;
   if (typeof result.status === "number" && result.status !== 0) {
     throw new Error(`${command} ${args.join(" ")} failed with exit code ${result.status}`);
   }
 }
 
 function runWithOutput(command, args, options = {}) {
-  // Capture output so we can classify failures (npm often reports auth issues as E404).
   const result = spawnSync(command, args, {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
@@ -37,14 +40,12 @@ function runWithOutput(command, args, options = {}) {
   if (result.stdout) process.stdout.write(result.stdout);
   if (result.stderr) process.stderr.write(result.stderr);
 
-  if (result.error) {
-    throw result.error;
-  }
+  if (result.error) throw result.error;
 
   const status = typeof result.status === "number" ? result.status : null;
   if (status !== null && status !== 0) {
     const combined = `${result.stdout ?? ""}\n${result.stderr ?? ""}`.trim();
-    const snippet = combined ? combined.split(/\r?\n/).slice(-40).join("\n") : "";
+    const snippet = combined ? combined.split(/\r?\n/).slice(-60).join("\n") : "";
     throw new Error(
       [
         `${command} ${args.join(" ")} failed with exit code ${status}`,
@@ -59,16 +60,13 @@ function runWithOutput(command, args, options = {}) {
 }
 
 function tryRun(command, args, options = {}) {
-  // Best-effort command probe; callers decide how to interpret failures.
   const result = spawnSync(command, args, {
     stdio: "ignore",
     shell: IS_WINDOWS,
     ...options,
   });
 
-  if (result.error) {
-    return { ok: false, status: null };
-  }
+  if (result.error) return { ok: false, status: null };
   return { ok: result.status === 0, status: result.status };
 }
 
@@ -77,7 +75,6 @@ function readJson(filePath) {
 }
 
 function ensureDir(dirPath) {
-  // Create the directory only when needed to avoid touching the working tree unexpectedly.
   if (!fs.existsSync(dirPath)) {
     fs.mkdirSync(dirPath, { recursive: true });
   }
@@ -87,7 +84,6 @@ function getFixedPackageNames(workspaceRoot) {
   const configPath = path.join(workspaceRoot, ".changeset", "config.json");
   const config = readJson(configPath);
 
-  // The repo uses a fixed group, so we treat the first entry as the publish set.
   const fixedGroups = Array.isArray(config.fixed) ? config.fixed : [];
   const fixedGroup = fixedGroups[0];
   if (!Array.isArray(fixedGroup) || fixedGroup.length === 0) {
@@ -97,7 +93,6 @@ function getFixedPackageNames(workspaceRoot) {
 }
 
 function getWorkspacePackageDirByName() {
-  // Use pnpm itself to resolve workspace package locations reliably.
   const raw = execFileSync(PNPM, ["-r", "list", "--depth", "-1", "--json"], {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "inherit"],
@@ -114,21 +109,21 @@ function getWorkspacePackageDirByName() {
 }
 
 function detectPublishAuth() {
-  // Prefer explicit auth selection to avoid implicit behavior changes across CI environments.
+  // Make auth mode explicit and stable:
+  // - RAWSQL_PUBLISH_AUTH=oidc (recommended in CI)
+  // - RAWSQL_PUBLISH_AUTH=token (local fallback / emergency)
   const raw = process.env.RAWSQL_PUBLISH_AUTH;
   if (raw === "oidc" || raw === "token") {
     console.log(`[publish] auth=${raw} (source=RAWSQL_PUBLISH_AUTH)`);
     return raw;
   }
 
-  // Backward-compatible default: token when NODE_AUTH_TOKEN exists, otherwise oidc.
-  const fallback = process.env.NODE_AUTH_TOKEN ? "token" : "oidc";
-  console.log(`[publish] auth=${fallback} (source=default:${process.env.NODE_AUTH_TOKEN ? "NODE_AUTH_TOKEN" : "no-token"})`);
-  return fallback;
+  // Default to OIDC to avoid accidental token-based auth (which can mask OIDC issues).
+  console.log("[publish] auth=oidc (source=default)");
+  return "oidc";
 }
 
 function logOidcEnvironment(publishAuth) {
-  // Provide actionable context when OIDC publishing fails in CI.
   if (publishAuth !== "oidc") return;
 
   const idTokenUrlSet = Boolean(process.env.ACTIONS_ID_TOKEN_REQUEST_URL);
@@ -145,31 +140,94 @@ function logOidcEnvironment(publishAuth) {
   );
 }
 
+function getNpmVersion() {
+  const res = spawnSync(NPM, ["--version"], {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+    shell: IS_WINDOWS,
+  });
+  if (res.error) throw res.error;
+  if (res.status !== 0) {
+    const combined = `${res.stdout ?? ""}\n${res.stderr ?? ""}`.trim();
+    throw new Error(`[publish] npm --version failed (exit=${res.status ?? "unknown"})\n---\n${combined}`);
+  }
+  return (res.stdout ?? "").trim();
+}
+
+function compareSemver(a, b) {
+  const pa = String(a).split(".").map((x) => Number.parseInt(x, 10));
+  const pb = String(b).split(".").map((x) => Number.parseInt(x, 10));
+  for (let i = 0; i < 3; i += 1) {
+    const da = Number.isFinite(pa[i]) ? pa[i] : 0;
+    const db = Number.isFinite(pb[i]) ? pb[i] : 0;
+    if (da < db) return -1;
+    if (da > db) return 1;
+  }
+  return 0;
+}
+
+function classifyNpmFailure(text) {
+  const t = String(text ?? "");
+  const code = {
+    needAuth: /\bENEEDAUTH\b/i.test(t) || /\bneed auth\b/i.test(t),
+    e401: /\bE401\b/i.test(t) || /\b401\b.*\bUnauthorized\b/i.test(t),
+    e403: /\bE403\b/i.test(t) || /\b403\b.*\bForbidden\b/i.test(t),
+    e404: /\bE404\b/i.test(t) || /\bnpm ERR!\s*404\b/i.test(t) || /\b404\b.*\bNot Found\b/i.test(t),
+  };
+  return code;
+}
+
+function ensureOidcPrereqs(publishAuth) {
+  if (publishAuth !== "oidc") return;
+
+  // The single most common misconfiguration: token env var exists and npm chooses token auth.
+  if (process.env.NODE_AUTH_TOKEN) {
+    throw new Error(
+      [
+        "[publish] OIDC was requested but NODE_AUTH_TOKEN is set.",
+        "npm will prefer token-based auth when NODE_AUTH_TOKEN exists, which can break OIDC Trusted Publishing.",
+        "Fix: remove NODE_AUTH_TOKEN from the workflow/job/environment (do not set it to empty).",
+      ].join("\n"),
+    );
+  }
+
+  const npmVer = getNpmVersion();
+  console.log(`[publish] npm version=${npmVer}`);
+
+  const min = "11.5.1";
+  if (compareSemver(npmVer, min) < 0) {
+    throw new Error(
+      [
+        `[publish] npm ${npmVer} is too old for OIDC Trusted Publishing.`,
+        `Install npm >= ${min} (e.g., "npm i -g npm@^${min}") in the workflow before running this script.`,
+      ].join("\n"),
+    );
+  }
+
+  const reg = runWithOutput(NPM, ["config", "get", "registry"]).stdout.trim();
+  console.log(`[publish] npm registry=${reg || "(empty)"}`);
+  if (reg && reg !== `${NPM_PUBLIC_REGISTRY}/` && reg !== NPM_PUBLIC_REGISTRY) {
+    console.log(
+      `[publish] warning: npm registry is not the public registry. This script forces --registry ${NPM_PUBLIC_REGISTRY} for publish/view.`,
+    );
+  }
+}
+
 function npmPackageVersionExists(packageName, version) {
-  // Public registry lookup; this should not require any credentials.
-  // Treat only "not found" (404) as "doesn't exist"; other failures should stop the publish.
-  const result = spawnSync(NPM, ["view", `${packageName}@${version}`, "version"], {
+  const result = spawnSync(NPM, ["view", "--registry", NPM_PUBLIC_REGISTRY, `${packageName}@${version}`, "version"], {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
     shell: IS_WINDOWS,
   });
 
-  if (result.error) {
-    throw result.error;
-  }
-
-  if (result.status === 0) {
-    return true;
-  }
+  if (result.error) throw result.error;
+  if (result.status === 0) return true;
 
   const combined = `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
-  const looksLike404 = /\bE404\b/i.test(combined) || /\b404\b.*\bNot Found\b/i.test(combined) || /\bnpm ERR!\s*404\b/i.test(combined);
-  if (looksLike404) {
-    return false;
-  }
+  const { e404 } = classifyNpmFailure(combined);
+  if (e404) return false;
 
-  // Preserve enough context for debugging while avoiding huge log spam.
-  const snippet = combined.trim().split(/\r?\n/).slice(-25).join("\n");
+  const snippet = combined.trim().split(/\r?\n/).slice(-40).join("\n");
   throw new Error(
     [
       `[publish] npm view failed for ${packageName}@${version} (exit=${result.status ?? "unknown"})`,
@@ -181,11 +239,10 @@ function npmPackageVersionExists(packageName, version) {
 }
 
 function publishWithNpm(packageDir, publishAuth) {
-  const args = ["publish", "--access", "public"];
+  const args = ["publish", "--registry", NPM_PUBLIC_REGISTRY, "--access", "public"];
 
-  // When publishing via npm Trusted Publishing (OIDC), npm requires --provenance.
-  // Do not infer auth from NODE_AUTH_TOKEN; auth is selected explicitly by RAWSQL_PUBLISH_AUTH.
   if (publishAuth === "oidc") {
+    // OIDC Trusted Publishing requires provenance.
     args.push("--provenance");
   }
 
@@ -193,20 +250,25 @@ function publishWithNpm(packageDir, publishAuth) {
     runWithOutput(NPM, args, { cwd: packageDir });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-
-    // npm sometimes returns 404 for auth/permission issues when publishing.
-    const looksLike404 = /\bE404\b/i.test(message) || /\bnpm ERR!\s*404\b/i.test(message) || /\b404\b.*\bNot Found\b/i.test(message);
-    const looksLike401 = /\bE401\b/i.test(message) || /\b401\b.*\bUnauthorized\b/i.test(message);
-    const looksLike403 = /\bE403\b/i.test(message) || /\b403\b.*\bForbidden\b/i.test(message);
+    const c = classifyNpmFailure(message);
 
     if (publishAuth === "oidc") {
-      // Add guidance without hiding the original npm output.
-      const hint =
-        looksLike401 || looksLike403
-          ? "The registry rejected authentication/authorization. Verify npm Trusted Publishing (OIDC) is configured for this package and workflow."
-          : looksLike404
-            ? "npm returned 404 for the publish request. This often indicates missing publish permissions or missing Trusted Publishing (OIDC) configuration for the package."
-            : "The publish request failed. Check the npm output above for details.";
+      const reasons = [];
+      if (c.needAuth) reasons.push("ENEEDAUTH (npm thinks you are not logged in)");
+      if (c.e401) reasons.push("E401 Unauthorized");
+      if (c.e403) reasons.push("E403 Forbidden");
+      if (c.e404) reasons.push("E404 Not Found (sometimes permission/auth is masked as 404)");
+
+      const hint = [
+        "[publish] npm publish failed (OIDC mode).",
+        reasons.length ? `Reason signals: ${reasons.join(", ")}` : "Reason signals: (unknown)",
+        "Checklist (most likely first):",
+        "  1) npm Trusted Publisher is configured for THIS package and THIS workflow file in THIS repo",
+        "  2) workflow permissions include: id-token: write",
+        "  3) NODE_AUTH_TOKEN is NOT set anywhere (env, secrets, org vars)",
+        `  4) npm >= 11.5.1 and registry is ${NPM_PUBLIC_REGISTRY}`,
+        "  5) npm publish includes --provenance (this script adds it in oidc mode)",
+      ].join("\n");
 
       throw new Error([hint, `---\n${message}`].join("\n"));
     }
@@ -249,7 +311,6 @@ function extractChangelogSection(changelogMarkdown, version) {
     content.push(line);
   }
 
-  // Trim leading/trailing empty lines to keep notes compact.
   while (content.length > 0 && content[0].trim() === "") content.shift();
   while (content.length > 0 && content[content.length - 1].trim() === "") content.pop();
 
@@ -265,6 +326,8 @@ function main() {
   const dryRun = process.env.RAWSQL_CI_DRY_RUN === "1";
   const publishAuth = detectPublishAuth();
   logOidcEnvironment(publishAuth);
+  ensureOidcPrereqs(publishAuth);
+
   const fixedPackageNames = getFixedPackageNames(workspaceRoot);
   const dirByName = getWorkspacePackageDirByName();
 
@@ -274,15 +337,11 @@ function main() {
   const packages = [];
   for (const packageName of fixedPackageNames) {
     const packageDir = dirByName.get(packageName);
-    if (!packageDir) {
-      throw new Error(`Workspace package directory not found for "${packageName}"`);
-    }
+    if (!packageDir) throw new Error(`Workspace package directory not found for "${packageName}"`);
 
     const pkgJsonPath = path.join(packageDir, "package.json");
     const pkg = readJson(pkgJsonPath);
-    if (pkg.private) {
-      continue;
-    }
+    if (pkg.private) continue;
 
     packages.push({
       name: pkg.name,
@@ -293,6 +352,9 @@ function main() {
   }
 
   const publishedNow = [];
+  const releaseErrors = [];
+
+  // Publish packages
   for (const pkg of packages) {
     const exists = npmPackageVersionExists(pkg.name, pkg.version);
     if (exists) {
@@ -310,7 +372,7 @@ function main() {
     publishedNow.push(`${pkg.name}@${pkg.version}`);
   }
 
-  // Create tags for the current versions so GitHub releases can attach to them.
+  // Create tags
   for (const pkg of packages) {
     const tagName = `${pkg.name}@${pkg.version}`;
     if (gitTagExists(tagName)) {
@@ -327,20 +389,22 @@ function main() {
     createAnnotatedGitTag(tagName);
   }
 
-  // Push tags so releases can be created on the remote.
+  // Push tags
   if (!dryRun) {
     pushAllTags();
   } else {
     console.log("[tag] (dry-run) would push tags");
   }
 
-  // Create GitHub releases per package/tag, using the package CHANGELOG section when available.
+  // Create GitHub releases (best-effort by default)
   for (const pkg of packages) {
     const tagName = `${pkg.name}@${pkg.version}`;
+
     if (dryRun) {
       console.log(`[release] (dry-run) would create ${tagName}`);
       continue;
     }
+
     if (ghReleaseExists(tagName)) {
       console.log(`[release] ${tagName} already exists; skipping`);
       continue;
@@ -350,23 +414,39 @@ function main() {
     if (fs.existsSync(pkg.changelogPath)) {
       const changelog = fs.readFileSync(pkg.changelogPath, "utf8");
       const section = extractChangelogSection(changelog, pkg.version);
-      if (section) {
-        // Use the version section as release notes to stay aligned with Changesets output.
-        notes = section;
-      }
+      if (section) notes = section;
     }
 
     const notesFile = path.join(tmpNotesDir, `${sanitizeFilename(tagName)}.md`);
     fs.writeFileSync(notesFile, notes, "utf8");
 
-    console.log(`[release] creating ${tagName}`);
-    createGitHubRelease(tagName, notesFile);
+    try {
+      console.log(`[release] creating ${tagName}`);
+      createGitHubRelease(tagName, notesFile);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      const full = `[release] failed to create ${tagName}\n---\n${msg}`;
+      releaseErrors.push(full);
+      console.error(full);
+
+      if (FAIL_ON_RELEASE_ERROR) {
+        throw new Error(full);
+      }
+    }
   }
 
+  // Summary
   if (publishedNow.length === 0) {
     console.log("[publish] no packages were published (all versions already exist)");
   } else {
     console.log(`[publish] published: ${publishedNow.join(", ")}`);
+  }
+
+  if (releaseErrors.length > 0) {
+    console.log(`[release] completed with ${releaseErrors.length} error(s).`);
+    console.log(
+      "[release] To fail the workflow on release errors, set RAWSQL_FAIL_ON_RELEASE_ERROR=1.",
+    );
   }
 }
 
