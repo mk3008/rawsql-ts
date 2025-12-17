@@ -140,6 +140,25 @@ function logOidcEnvironment(publishAuth) {
   );
 }
 
+function ensureTokenUserConfig(workspaceRoot) {
+  // Create a dedicated npmrc that uses NODE_AUTH_TOKEN for auth, independent of actions/setup-node output.
+  const tokenNpmrcDir = path.join(workspaceRoot, "tmp", "publish-token");
+  ensureDir(tokenNpmrcDir);
+
+  const tokenUserConfig = path.join(tokenNpmrcDir, "npmrc");
+  fs.writeFileSync(
+    tokenUserConfig,
+    [
+      `registry=${NPM_PUBLIC_REGISTRY}`,
+      `//registry.npmjs.org/:_authToken=\${NODE_AUTH_TOKEN}`,
+      "",
+    ].join("\n"),
+    "utf8",
+  );
+
+  return tokenUserConfig;
+}
+
 function sanitizeOidcEnvironment(publishAuth, workspaceRoot) {
   if (publishAuth !== "oidc") return;
 
@@ -261,7 +280,7 @@ function npmPackageVersionExists(packageName, version) {
   );
 }
 
-function publishWithNpm(packageDir, publishAuth) {
+function publishWithNpm(packageDir, publishAuth, opts) {
   const args = ["publish", "--registry", NPM_PUBLIC_REGISTRY, "--access", "public"];
 
   if (publishAuth === "oidc") {
@@ -276,11 +295,26 @@ function publishWithNpm(packageDir, publishAuth) {
     const c = classifyNpmFailure(message);
 
     if (publishAuth === "oidc") {
+      const canFallback =
+        opts?.allowTokenFallback === true && Boolean(opts?.preservedNodeAuthToken) && Boolean(opts?.workspaceRoot);
+
       const reasons = [];
       if (c.needAuth) reasons.push("ENEEDAUTH (npm thinks you are not logged in)");
       if (c.e401) reasons.push("E401 Unauthorized");
       if (c.e403) reasons.push("E403 Forbidden");
       if (c.e404) reasons.push("E404 Not Found (sometimes permission/auth is masked as 404)");
+
+      if (canFallback && (c.needAuth || c.e401 || c.e403)) {
+        // OIDC can fail if Trusted Publishers isn't configured or the workflow context doesn't match.
+        // When allowed, retry with token auth so releases aren't blocked.
+        console.warn("[publish] OIDC publish failed; retrying with token auth fallback.");
+
+        process.env.NODE_AUTH_TOKEN = opts.preservedNodeAuthToken;
+        process.env.NPM_CONFIG_USERCONFIG = ensureTokenUserConfig(opts.workspaceRoot);
+
+        runWithOutput(NPM, ["publish", "--registry", NPM_PUBLIC_REGISTRY, "--access", "public"], { cwd: packageDir });
+        return;
+      }
 
       const hint = [
         "[publish] npm publish failed (OIDC mode).",
@@ -291,6 +325,9 @@ function publishWithNpm(packageDir, publishAuth) {
         "  3) NODE_AUTH_TOKEN is NOT set anywhere (env, secrets, org vars)",
         `  4) npm >= 11.5.1 and registry is ${NPM_PUBLIC_REGISTRY}`,
         "  5) npm publish includes --provenance (this script adds it in oidc mode)",
+        opts?.allowTokenFallback === true
+          ? "  6) (fallback enabled) ensure a valid NODE_AUTH_TOKEN is available for token auth retry"
+          : "  6) (optional) enable RAWSQL_PUBLISH_OIDC_FALLBACK_TO_TOKEN=1 to retry with NODE_AUTH_TOKEN",
       ].join("\n");
 
       throw new Error([hint, `---\n${message}`].join("\n"));
@@ -348,6 +385,10 @@ function main() {
   const workspaceRoot = process.cwd();
   const dryRun = process.env.RAWSQL_CI_DRY_RUN === "1";
   const publishAuth = detectPublishAuth();
+
+  const preservedNodeAuthToken = process.env.NODE_AUTH_TOKEN || "";
+  const allowTokenFallback = process.env.RAWSQL_PUBLISH_OIDC_FALLBACK_TO_TOKEN === "1";
+
   sanitizeOidcEnvironment(publishAuth, workspaceRoot);
   logOidcEnvironment(publishAuth);
   ensureOidcPrereqs(publishAuth);
@@ -392,7 +433,11 @@ function main() {
     }
 
     console.log(`[publish] publishing ${pkg.name}@${pkg.version}`);
-    publishWithNpm(pkg.dir, publishAuth);
+    publishWithNpm(pkg.dir, publishAuth, {
+      allowTokenFallback,
+      preservedNodeAuthToken,
+      workspaceRoot,
+    });
     publishedNow.push(`${pkg.name}@${pkg.version}`);
   }
 
