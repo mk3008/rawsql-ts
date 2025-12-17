@@ -7,6 +7,7 @@ When publishing fails, the most important clue is **which authentication path np
 - GitHub context (`GITHUB_*`) and OIDC availability (`ACTIONS_ID_TOKEN_REQUEST_*`)
 - A small, safe subset of OIDC token **claims** (not the token)
 - Minimal npm auth diagnostics (`npm whoami`, `npm config get userconfig`, etc.)
+- On OIDC auth-related failures, a small `npm view` summary (latest version + dist-tags) to confirm the package exists on the public registry
 
 ## Common failure modes
 
@@ -22,6 +23,7 @@ Most likely causes:
 
 What to do:
 - Check the OIDC claim logs in the workflow output (issuer, audience, subject, repository, ref, workflow).
+- Check `npm view diagnostics` in the logs. If `npm view` succeeds but `npm publish` fails with `ENEEDAUTH`, it strongly suggests a Trusted Publisher configuration mismatch rather than a missing package.
 - Update npm Trusted Publishers configuration to match the workflow context.
 
 ### Token fallback fails with "Access token expired or revoked"
