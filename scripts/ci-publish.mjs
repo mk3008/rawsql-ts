@@ -59,6 +59,30 @@ function runWithOutput(command, args, options = {}) {
   return { stdout: result.stdout ?? "", stderr: result.stderr ?? "" };
 }
 
+function tryCaptureOutput(command, args, options = {}) {
+  const result = spawnSync(command, args, {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+    shell: IS_WINDOWS,
+    ...options,
+  });
+
+  if (result.error) {
+    const msg = result.error instanceof Error ? result.error.message : String(result.error);
+    return { ok: false, stdout: "", stderr: "", status: null, error: msg };
+  }
+
+  const status = typeof result.status === "number" ? result.status : null;
+  const ok = status === 0;
+  return {
+    ok,
+    stdout: result.stdout ?? "",
+    stderr: result.stderr ?? "",
+    status,
+    error: ok ? null : `${command} ${args.join(" ")} failed with exit code ${status ?? "unknown"}`,
+  };
+}
+
 function tryRun(command, args, options = {}) {
   const result = spawnSync(command, args, {
     stdio: "ignore",
@@ -78,6 +102,73 @@ function ensureDir(dirPath) {
   if (!fs.existsSync(dirPath)) {
     fs.mkdirSync(dirPath, { recursive: true });
   }
+}
+
+function appendQueryParam(urlString, key, value) {
+  const u = new URL(urlString);
+  u.searchParams.set(key, value);
+  return u.toString();
+}
+
+function decodeJwtPart(part) {
+  // JWT parts are base64url encoded. Convert to standard base64 first.
+  const normalized = String(part)
+    .replace(/-/g, "+")
+    .replace(/_/g, "/")
+    .padEnd(Math.ceil(part.length / 4) * 4, "=");
+  return Buffer.from(normalized, "base64").toString("utf8");
+}
+
+function safeJsonParse(text) {
+  try {
+    return { ok: true, value: JSON.parse(text) };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return { ok: false, value: null, error: msg };
+  }
+}
+
+async function fetchOidcClaims() {
+  const requestUrl = process.env.ACTIONS_ID_TOKEN_REQUEST_URL;
+  const requestToken = process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN;
+  if (!requestUrl || !requestToken) {
+    return { ok: false, claims: null, error: "ACTIONS_ID_TOKEN_REQUEST_* is missing" };
+  }
+
+  // Ask for a token with an explicit audience to help debug audience mismatches.
+  const url = appendQueryParam(requestUrl, "audience", "npm");
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${requestToken}` },
+  });
+
+  const body = await res.text();
+  if (!res.ok) {
+    return {
+      ok: false,
+      claims: null,
+      error: `OIDC token request failed (status=${res.status})`,
+      details: body.trim().split(/\r?\n/).slice(-10).join("\n"),
+    };
+  }
+
+  const parsed = safeJsonParse(body);
+  const token = parsed.ok && parsed.value?.value ? String(parsed.value.value) : "";
+  if (!token) {
+    return { ok: false, claims: null, error: "OIDC token response JSON parse failed" };
+  }
+
+  const parts = token.split(".");
+  if (parts.length < 2) {
+    return { ok: false, claims: null, error: "OIDC token is not a JWT" };
+  }
+
+  const payload = decodeJwtPart(parts[1]);
+  const payloadJson = safeJsonParse(payload);
+  if (!payloadJson.ok) {
+    return { ok: false, claims: null, error: "OIDC token payload JSON parse failed" };
+  }
+
+  return { ok: true, claims: payloadJson.value, error: null };
 }
 
 function getFixedPackageNames(workspaceRoot) {
@@ -130,16 +221,80 @@ function logOidcEnvironment(publishAuth) {
   const idTokenTokenSet = Boolean(process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN);
   const workflowRef = process.env.GITHUB_WORKFLOW_REF || "(unset)";
   const ref = process.env.GITHUB_REF || "(unset)";
+  const repo = process.env.GITHUB_REPOSITORY || "(unset)";
+  const sha = process.env.GITHUB_SHA || "(unset)";
+  const runId = process.env.GITHUB_RUN_ID || "(unset)";
+  const attempt = process.env.GITHUB_RUN_ATTEMPT || "(unset)";
+  const actor = process.env.GITHUB_ACTOR || "(unset)";
+  const eventName = process.env.GITHUB_EVENT_NAME || "(unset)";
 
   console.log(
     [
       "[publish] oidc diagnostics:",
+      `  GITHUB_REPOSITORY=${repo}`,
       `  GITHUB_WORKFLOW_REF=${workflowRef}`,
       `  GITHUB_REF=${ref}`,
+      `  GITHUB_SHA=${sha}`,
+      `  GITHUB_RUN_ID=${runId}`,
+      `  GITHUB_RUN_ATTEMPT=${attempt}`,
+      `  GITHUB_ACTOR=${actor}`,
+      `  GITHUB_EVENT_NAME=${eventName}`,
       `  ACTIONS_ID_TOKEN_REQUEST_URL=${idTokenUrlSet ? "(set)" : "(missing)"}`,
       `  ACTIONS_ID_TOKEN_REQUEST_TOKEN=${idTokenTokenSet ? "(set)" : "(missing)"}`,
       `  NPM_CONFIG_PROVENANCE=${process.env.NPM_CONFIG_PROVENANCE ? process.env.NPM_CONFIG_PROVENANCE : "(unset)"}`,
       `  NODE_AUTH_TOKEN=${process.env.NODE_AUTH_TOKEN ? "(set)" : "(unset)"}`,
+    ].join("\n"),
+  );
+}
+
+async function logOidcTokenClaims(publishAuth) {
+  if (publishAuth !== "oidc") return;
+
+  // Fetch an OIDC token and print a small set of claims to debug Trusted Publishing configuration mismatches.
+  // Do NOT print the token itself.
+  const res = await fetchOidcClaims();
+  if (!res.ok) {
+    console.warn(`[publish] oidc token claims: unavailable (${res.error})`);
+    if (res.details) console.warn(`[publish] oidc token claims details:\n${res.details}`);
+    return;
+  }
+
+  const claims = res.claims ?? {};
+  const pick = (k) => (typeof claims[k] === "string" || typeof claims[k] === "number" ? claims[k] : "(unset)");
+
+  console.log(
+    [
+      "[publish] oidc token claims (selected):",
+      `  iss=${pick("iss")}`,
+      `  aud=${Array.isArray(claims.aud) ? claims.aud.join(",") : pick("aud")}`,
+      `  sub=${pick("sub")}`,
+      `  repository=${pick("repository")}`,
+      `  ref=${pick("ref")}`,
+      `  workflow=${pick("workflow")}`,
+      `  job_workflow_ref=${pick("job_workflow_ref")}`,
+      `  sha=${pick("sha")}`,
+      `  run_id=${pick("run_id")}`,
+      `  actor=${pick("actor")}`,
+    ].join("\n"),
+  );
+}
+
+function logNpmAuthDiagnostics(publishAuth) {
+  if (publishAuth !== "oidc") return;
+
+  // Print minimal npm config and auth state. Avoid dumping full config to reduce risk of leaking secrets.
+  const userconfig = tryCaptureOutput(NPM, ["config", "get", "userconfig"]);
+  const globalconfig = tryCaptureOutput(NPM, ["config", "get", "globalconfig"]);
+  const authToken = tryCaptureOutput(NPM, ["config", "get", "//registry.npmjs.org/:_authToken"]);
+  const whoami = tryCaptureOutput(NPM, ["whoami"]);
+
+  console.log(
+    [
+      "[publish] npm auth diagnostics:",
+      `  userconfig=${userconfig.ok ? userconfig.stdout.trim() : "(error)"}`,
+      `  globalconfig=${globalconfig.ok ? globalconfig.stdout.trim() : "(error)"}`,
+      `  //registry.npmjs.org/:_authToken=${authToken.ok ? (authToken.stdout.trim() ? "(set)" : "(unset)") : "(error)"}`,
+      `  npm whoami=${whoami.ok ? whoami.stdout.trim() : "(failed)"}`,
     ].join("\n"),
   );
 }
@@ -401,7 +556,7 @@ function createGitHubRelease(tagName, notesFilePath) {
   run(GH, ["release", "create", tagName, "--title", tagName, "--notes-file", notesFilePath]);
 }
 
-function main() {
+async function main() {
   const workspaceRoot = process.cwd();
   const dryRun = process.env.RAWSQL_CI_DRY_RUN === "1";
   const publishAuth = detectPublishAuth();
@@ -411,6 +566,8 @@ function main() {
 
   sanitizeOidcEnvironment(publishAuth, workspaceRoot);
   logOidcEnvironment(publishAuth);
+  logNpmAuthDiagnostics(publishAuth);
+  await logOidcTokenClaims(publishAuth);
   ensureOidcPrereqs(publishAuth);
 
   const fixedPackageNames = getFixedPackageNames(workspaceRoot);
@@ -539,4 +696,4 @@ function main() {
   }
 }
 
-main();
+await main();
