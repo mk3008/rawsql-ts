@@ -19,6 +19,17 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Fail unless running from main
+        shell: bash
+        run: |
+          # npm Trusted Publishing (OIDC) is typically configured against the workflow file on the default branch.
+          # Running this workflow from a feature branch can fail with ENEEDAUTH even if id-token is available.
+          if [ "${GITHUB_REF}" != "refs/heads/main" ]; then
+            echo "This publish workflow must be run from the main branch."
+            echo "Current ref: ${GITHUB_REF}"
+            exit 1
+          fi
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:

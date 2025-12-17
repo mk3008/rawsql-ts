@@ -128,10 +128,14 @@ function logOidcEnvironment(publishAuth) {
 
   const idTokenUrlSet = Boolean(process.env.ACTIONS_ID_TOKEN_REQUEST_URL);
   const idTokenTokenSet = Boolean(process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN);
+  const workflowRef = process.env.GITHUB_WORKFLOW_REF || "(unset)";
+  const ref = process.env.GITHUB_REF || "(unset)";
 
   console.log(
     [
       "[publish] oidc diagnostics:",
+      `  GITHUB_WORKFLOW_REF=${workflowRef}`,
+      `  GITHUB_REF=${ref}`,
       `  ACTIONS_ID_TOKEN_REQUEST_URL=${idTokenUrlSet ? "(set)" : "(missing)"}`,
       `  ACTIONS_ID_TOKEN_REQUEST_TOKEN=${idTokenTokenSet ? "(set)" : "(missing)"}`,
       `  NPM_CONFIG_PROVENANCE=${process.env.NPM_CONFIG_PROVENANCE ? process.env.NPM_CONFIG_PROVENANCE : "(unset)"}`,
@@ -179,7 +183,6 @@ function sanitizeOidcEnvironment(publishAuth, workspaceRoot) {
     oidcUserConfig,
     [
       `registry=${NPM_PUBLIC_REGISTRY}`,
-      "always-auth=false",
       "",
     ].join("\n"),
     "utf8",
