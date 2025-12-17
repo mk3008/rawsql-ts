@@ -81,8 +81,6 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_CONFIG_PROVENANCE: "true"
           RAWSQL_PUBLISH_AUTH: "oidc"
-          # If OIDC isn't configured correctly in npm Trusted Publishers yet, retry once using NODE_AUTH_TOKEN.
-          # This keeps releases unblocked while migrating to OIDC.
-          RAWSQL_PUBLISH_OIDC_FALLBACK_TO_TOKEN: "1"
         run: |
-          node ./scripts/ci-publish.mjs
+          # Prevent token-based auth from overriding OIDC Trusted Publishing.
+          env -u NODE_AUTH_TOKEN node ./scripts/ci-publish.mjs
