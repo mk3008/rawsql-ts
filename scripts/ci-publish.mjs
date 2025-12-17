@@ -140,7 +140,7 @@ function logOidcEnvironment(publishAuth) {
   );
 }
 
-function sanitizeOidcEnvironment(publishAuth) {
+function sanitizeOidcEnvironment(publishAuth, workspaceRoot) {
   if (publishAuth !== "oidc") return;
 
   // npm can prefer token-based auth when NODE_AUTH_TOKEN exists, which can break OIDC Trusted Publishing.
@@ -149,6 +149,29 @@ function sanitizeOidcEnvironment(publishAuth) {
     console.warn("[publish] warning: NODE_AUTH_TOKEN is set; removing it to avoid token-based auth overriding OIDC.");
     delete process.env.NODE_AUTH_TOKEN;
   }
+
+  // Ensure npm doesn't pick up token auth from user-level config written by actions/setup-node or pre-existing runner config.
+  // Use an empty, explicit user config in tmp/ so OIDC Trusted Publishing can work reliably.
+  const oidcNpmrcDir = path.join(workspaceRoot, "tmp", "oidc");
+  ensureDir(oidcNpmrcDir);
+
+  const oidcUserConfig = path.join(oidcNpmrcDir, "npmrc");
+  fs.writeFileSync(
+    oidcUserConfig,
+    [
+      `registry=${NPM_PUBLIC_REGISTRY}`,
+      "always-auth=false",
+      "",
+    ].join("\n"),
+    "utf8",
+  );
+
+  if (process.env.NPM_CONFIG_USERCONFIG && process.env.NPM_CONFIG_USERCONFIG !== oidcUserConfig) {
+    console.warn(
+      `[publish] warning: overriding NPM_CONFIG_USERCONFIG (${process.env.NPM_CONFIG_USERCONFIG}) for OIDC Trusted Publishing.`,
+    );
+  }
+  process.env.NPM_CONFIG_USERCONFIG = oidcUserConfig;
 }
 
 function getNpmVersion() {
@@ -325,7 +348,7 @@ function main() {
   const workspaceRoot = process.cwd();
   const dryRun = process.env.RAWSQL_CI_DRY_RUN === "1";
   const publishAuth = detectPublishAuth();
-  sanitizeOidcEnvironment(publishAuth);
+  sanitizeOidcEnvironment(publishAuth, workspaceRoot);
   logOidcEnvironment(publishAuth);
   ensureOidcPrereqs(publishAuth);
 
