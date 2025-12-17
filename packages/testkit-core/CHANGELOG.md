@@ -1,5 +1,12 @@
 # @rawsql-ts/testkit-core
 
+## 0.13.3
+
+### Patch Changes
+
+- Updated dependencies []:
+  - rawsql-ts@0.13.3
+
 ## 0.13.2
 
 ### Patch Changes
