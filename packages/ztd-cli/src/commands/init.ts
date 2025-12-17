@@ -129,7 +129,7 @@ const SAMPLE_SCHEMA = `CREATE TABLE public.example (
 `;
 
 const README_TEMPLATE = 'README.md';
-const TESTS_CONFIG_TEMPLATE = 'tests/generated/ztd-layout.generated.ts';
+const TESTS_CONFIG_TEMPLATE = 'tests/ztd-layout.generated.ts';
 const TESTKIT_CLIENT_TEMPLATE = 'tests/support/testkit-client.ts';
 const GLOBAL_SETUP_TEMPLATE = 'tests/support/global-setup.ts';
 const VITEST_CONFIG_TEMPLATE = 'vitest.config.ts';
@@ -140,7 +140,29 @@ const NEXT_STEPS = [
   ' 3. Run npx ztd ztd-config',
   ' 4. Run ZTD tests with pg-testkit'
 ];
-const TEMPLATE_DIRECTORY = path.resolve(__dirname, '..', '..', 'templates');
+
+function resolveTemplateDirectory(): string {
+  const candidates = [
+    // Prefer the installed package layout: <pkg>/dist/commands → <pkg>/templates.
+    path.resolve(__dirname, '..', '..', '..', 'templates'),
+    // Support legacy layouts that copied templates into dist/.
+    path.resolve(__dirname, '..', '..', 'templates'),
+    // Support running tests directly from the monorepo source tree.
+    path.resolve(process.cwd(), 'packages', 'ztd-cli', 'templates')
+  ];
+
+  // Pick the first directory that contains the expected template entrypoint.
+  for (const candidate of candidates) {
+    if (existsSync(path.join(candidate, README_TEMPLATE))) {
+      return candidate;
+    }
+  }
+
+  return candidates[0];
+}
+
+// Resolve templates from a shipped directory so `ztd init` works after `npm install`.
+const TEMPLATE_DIRECTORY = resolveTemplateDirectory();
 
 const DEFAULT_DEPENDENCIES: ZtdConfigWriterDependencies = {
   ensureDirectory,
