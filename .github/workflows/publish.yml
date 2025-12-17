@@ -72,7 +72,8 @@ jobs:
           npm --version
           npm config get registry
           npm config get provenance || true
-          npm whoami && echo "npm auth: token/session is active (unexpected for pure OIDC)" || echo "npm auth: no token/session (expected for OIDC)"
+          # OIDC Trusted Publishing should not run with token auth. Drop NODE_AUTH_TOKEN for this check.
+          env -u NODE_AUTH_TOKEN npm whoami && echo "npm auth: token/session is active (unexpected for pure OIDC)" || echo "npm auth: no token/session (expected for OIDC)"
 
       - name: Publish to npm (OIDC-compatible), tag, and create GitHub Releases
         shell: bash
@@ -80,4 +81,6 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_CONFIG_PROVENANCE: "true"
           RAWSQL_PUBLISH_AUTH: "oidc"
-        run: node ./scripts/ci-publish.mjs
+        run: |
+          # Prevent token-based auth from overriding OIDC Trusted Publishing.
+          env -u NODE_AUTH_TOKEN node ./scripts/ci-publish.mjs
