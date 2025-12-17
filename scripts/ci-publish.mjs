@@ -226,6 +226,7 @@ function classifyNpmFailure(text) {
     e401: /\bE401\b/i.test(t) || /\b401\b.*\bUnauthorized\b/i.test(t),
     e403: /\bE403\b/i.test(t) || /\b403\b.*\bForbidden\b/i.test(t),
     e404: /\bE404\b/i.test(t) || /\bnpm ERR!\s*404\b/i.test(t) || /\b404\b.*\bNot Found\b/i.test(t),
+    tokenExpiredOrRevoked: /\bAccess token expired or revoked\b/i.test(t),
   };
   return code;
 }
@@ -312,8 +313,24 @@ function publishWithNpm(packageDir, publishAuth, opts) {
         process.env.NODE_AUTH_TOKEN = opts.preservedNodeAuthToken;
         process.env.NPM_CONFIG_USERCONFIG = ensureTokenUserConfig(opts.workspaceRoot);
 
-        runWithOutput(NPM, ["publish", "--registry", NPM_PUBLIC_REGISTRY, "--access", "public"], { cwd: packageDir });
-        return;
+        try {
+          runWithOutput(NPM, ["publish", "--registry", NPM_PUBLIC_REGISTRY, "--access", "public"], { cwd: packageDir });
+          return;
+        } catch (fallbackError) {
+          const fallbackMessage = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
+          const fc = classifyNpmFailure(fallbackMessage);
+
+          const fallbackHint = [
+            "[publish] token auth fallback failed.",
+            fc.tokenExpiredOrRevoked ? "Reason signals: token expired or revoked" : "Reason signals: (unknown)",
+            "Checklist (most likely first):",
+            "  1) rotate the npm token secret (classic tokens may be revoked; use a valid granular/automation token)",
+            "  2) ensure the token has publish access to this package",
+            "  3) or disable fallback and configure npm Trusted Publishers for OIDC",
+          ].join("\n");
+
+          throw new Error([fallbackHint, `---\n${fallbackMessage}`].join("\n"));
+        }
       }
 
       const hint = [
