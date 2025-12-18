@@ -11,6 +11,9 @@ import { runGenerateZtdConfig, type ZtdConfigGenerationOptions } from './ztdConf
 import { runPullSchema, type PullSchemaOptions } from './pull';
 import { DEFAULT_EXTENSIONS } from './options';
 
+type PackageManager = 'pnpm' | 'npm' | 'yarn';
+type PackageInstallKind = 'devDependencies' | 'install';
+
 export interface Prompter {
   selectChoice(question: string, choices: string[]): Promise<number>;
   promptInput(question: string, example?: string): Promise<string>;
@@ -115,6 +118,12 @@ export interface ZtdConfigWriterDependencies {
   checkPgDump: () => boolean;
   log: (message: string) => void;
   copyAgentsTemplate: (rootDir: string) => string | null;
+  installPackages: (options: {
+    rootDir: string;
+    kind: PackageInstallKind;
+    packages: string[];
+    packageManager: PackageManager;
+  }) => Promise<void> | void;
 }
 
 export interface InitCommandOptions {
@@ -178,7 +187,22 @@ const DEFAULT_DEPENDENCIES: ZtdConfigWriterDependencies = {
   log: (message: string) => {
     console.log(message);
   },
-  copyAgentsTemplate
+  copyAgentsTemplate,
+  installPackages: ({ rootDir, kind, packages, packageManager }) => {
+    // Use the Windows shim executables so spawnSync finds the package manager in PATH.
+    const executable = resolvePackageManagerExecutable(packageManager);
+    const args = buildPackageManagerArgs(kind, packageManager, packages);
+    if (args.length === 0) {
+      return;
+    }
+
+    const result = spawnSync(executable, args, { cwd: rootDir, stdio: 'inherit' });
+    if (result.error || result.status !== 0) {
+      const base = `Failed to run ${packageManager} ${args.join(' ')}`;
+      const reason = result.error ? `: ${result.error.message}` : '';
+      throw new Error(`${base}${reason}`);
+    }
+  }
 };
 
 export async function runInitCommand(prompter: Prompter, options?: InitCommandOptions): Promise<InitResult> {
@@ -446,6 +470,8 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     summaries.agents = agentsRelative;
   }
 
+  await ensureTemplateDependenciesInstalled(rootDir, absolutePaths, summaries, dependencies);
+
   const summaryLines = buildSummaryLines(summaries as Record<FileKey, FileSummary>);
   summaryLines.forEach(dependencies.log);
 
@@ -475,6 +501,198 @@ async function ensureAgentsFile(
   }
 
   return null;
+}
+
+function resolvePackageManagerExecutable(packageManager: PackageManager): string {
+  if (process.platform !== 'win32') {
+    return packageManager;
+  }
+
+  if (packageManager === 'npm') {
+    return 'npm.cmd';
+  }
+  if (packageManager === 'pnpm') {
+    return 'pnpm.cmd';
+  }
+  if (packageManager === 'yarn') {
+    return 'yarn.cmd';
+  }
+
+  return packageManager;
+}
+
+function buildPackageManagerArgs(
+  kind: PackageInstallKind,
+  packageManager: PackageManager,
+  packages: string[]
+): string[] {
+  if (kind === 'install') {
+    return ['install'];
+  }
+
+  if (packages.length === 0) {
+    return [];
+  }
+
+  if (packageManager === 'npm') {
+    return ['install', '-D', ...packages];
+  }
+
+  return ['add', '-D', ...packages];
+}
+
+function detectPackageManager(rootDir: string): PackageManager {
+  // Prefer lockfiles to avoid guessing when multiple package managers are installed.
+  if (existsSync(path.join(rootDir, 'pnpm-lock.yaml'))) {
+    return 'pnpm';
+  }
+  if (existsSync(path.join(rootDir, 'yarn.lock'))) {
+    return 'yarn';
+  }
+  if (existsSync(path.join(rootDir, 'package-lock.json'))) {
+    return 'npm';
+  }
+
+  // Fall back to pnpm because rawsql-ts itself standardizes on pnpm.
+  return 'pnpm';
+}
+
+function extractPackageName(specifier: string): string | null {
+  if (
+    specifier.startsWith('.') ||
+    specifier.startsWith('/') ||
+    specifier.startsWith('node:') ||
+    specifier.startsWith('#')
+  ) {
+    return null;
+  }
+
+  if (specifier.startsWith('@')) {
+    const [scope, name] = specifier.split('/');
+    if (!scope || !name) {
+      return null;
+    }
+    return `${scope}/${name}`;
+  }
+
+  const [name] = specifier.split('/');
+  return name || null;
+}
+
+function listReferencedPackagesFromSource(source: string): string[] {
+  const packages = new Set<string>();
+  const patterns = [
+    // Capture ESM imports and re-exports, including `import type`.
+    /\bfrom\s+['"]([^'"]+)['"]/g,
+    // Capture dynamic imports.
+    /\bimport\s*\(\s*['"]([^'"]+)['"]\s*\)/g,
+    // Capture CommonJS requires.
+    /\brequire\s*\(\s*['"]([^'"]+)['"]\s*\)/g
+  ];
+
+  for (const pattern of patterns) {
+    for (const match of source.matchAll(pattern)) {
+      const specifier = match[1];
+      if (!specifier) {
+        continue;
+      }
+
+      const packageName = extractPackageName(specifier);
+      if (!packageName) {
+        continue;
+      }
+      packages.add(packageName);
+    }
+  }
+
+  return [...packages];
+}
+
+function listDeclaredPackages(rootDir: string): Set<string> {
+  const packagePath = path.join(rootDir, 'package.json');
+  if (!existsSync(packagePath)) {
+    return new Set<string>();
+  }
+
+  const parsed = JSON.parse(readFileSync(packagePath, 'utf8')) as Record<string, unknown>;
+  const keys = ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies'] as const;
+  const declared = new Set<string>();
+
+  for (const key of keys) {
+    const record = parsed[key];
+    if (!record || typeof record !== 'object') {
+      continue;
+    }
+
+    for (const name of Object.keys(record as Record<string, unknown>)) {
+      declared.add(name);
+    }
+  }
+
+  return declared;
+}
+
+function listTemplateReferencedPackages(
+  absolutePaths: Record<FileKey, string>,
+  summaries: Partial<Record<FileKey, FileSummary>>
+): string[] {
+  const packages = new Set<string>(['@rawsql-ts/pg-testkit']);
+  const touchedKeys = Object.entries(summaries)
+    .filter((entry): entry is [FileKey, FileSummary] => Boolean(entry[1]))
+    .filter(([, summary]) => summary.outcome === 'created' || summary.outcome === 'overwritten')
+    .map(([key]) => key);
+
+  for (const key of touchedKeys) {
+    const filePath = absolutePaths[key];
+    if (!filePath.endsWith('.ts') && !filePath.endsWith('.tsx') && !filePath.endsWith('.js')) {
+      continue;
+    }
+    if (!existsSync(filePath)) {
+      continue;
+    }
+
+    // Parse template output after it is written so the detected packages match the emitted scaffold exactly.
+    const contents = readFileSync(filePath, 'utf8');
+    listReferencedPackagesFromSource(contents).forEach((name) => packages.add(name));
+  }
+
+  return [...packages].sort();
+}
+
+async function ensureTemplateDependenciesInstalled(
+  rootDir: string,
+  absolutePaths: Record<FileKey, string>,
+  summaries: Partial<Record<FileKey, FileSummary>>,
+  dependencies: ZtdConfigWriterDependencies
+): Promise<void> {
+  const packageJsonPath = path.join(rootDir, 'package.json');
+  if (!dependencies.fileExists(packageJsonPath)) {
+    dependencies.log('Skipping dependency installation because package.json is missing.');
+    return;
+  }
+
+  const packageManager = detectPackageManager(rootDir);
+  const referencedPackages = listTemplateReferencedPackages(absolutePaths, summaries);
+  const declaredPackages = listDeclaredPackages(rootDir);
+
+  // Install only packages that are not declared yet to avoid unintentionally bumping pinned versions.
+  const missingPackages = referencedPackages.filter((name) => !declaredPackages.has(name));
+  if (missingPackages.length > 0) {
+    dependencies.log(`Installing devDependencies referenced by templates (${packageManager}): ${missingPackages.join(', ')}`);
+    await dependencies.installPackages({
+      rootDir,
+      kind: 'devDependencies',
+      packages: missingPackages,
+      packageManager
+    });
+    return;
+  }
+
+  // If package.json was updated earlier in the init run, run install so the new entries resolve in node_modules.
+  if (summaries.package?.outcome === 'overwritten') {
+    dependencies.log(`Running ${packageManager} install to sync dependencies.`);
+    await dependencies.installPackages({ rootDir, kind: 'install', packages: [], packageManager });
+  }
 }
 
 function copyTemplateFileIfMissing(
