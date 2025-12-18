@@ -10,6 +10,29 @@ export class ParameterTokenReader extends BaseTokenReader {
         super(input);
     }
 
+    private looksLikeSqlServerMoneyLiteral(): boolean {
+        if (!this.canRead(1) || this.input[this.position] !== '$' || !CharLookupTable.isDigit(this.input[this.position + 1])) {
+            return false;
+        }
+
+        // Read the leading digit run after '$' and then look for a decimal point or thousands separator.
+        // This avoids mis-classifying PostgreSQL positional params like `$1, $2` as a MONEY literal.
+        let pos = this.position + 1;
+        while (pos < this.input.length && CharLookupTable.isDigit(this.input[pos])) {
+            pos++;
+        }
+
+        if (pos + 1 < this.input.length && this.input[pos] === '.' && CharLookupTable.isDigit(this.input[pos + 1])) {
+            return true;
+        }
+
+        if (pos + 1 < this.input.length && this.input[pos] === ',' && CharLookupTable.isDigit(this.input[pos + 1])) {
+            return true;
+        }
+
+        return false;
+    }
+
     /**
      * Try to read a parameter token
      */
@@ -61,22 +84,8 @@ export class ParameterTokenReader extends BaseTokenReader {
 
             // Special handling for SQL Server MONEY literals ($123.45)
             // Only treat as MONEY if it contains decimal point or comma (not just $123)
-            if (char === '$' && this.canRead(1) && CharLookupTable.isDigit(this.input[this.position + 1])) {
-                // Look ahead to see if this looks like a MONEY literal (has . or ,)
-                let pos = this.position + 1;
-                let hasDecimalOrComma = false;
-                while (pos < this.input.length && (CharLookupTable.isDigit(this.input[pos]) || this.input[pos] === ',' || this.input[pos] === '.')) {
-                    if (this.input[pos] === '.' || this.input[pos] === ',') {
-                        hasDecimalOrComma = true;
-                        break;
-                    }
-                    pos++;
-                }
-                
-                if (hasDecimalOrComma) {
-                    return null; // Let LiteralTokenReader handle it as MONEY
-                }
-                // Otherwise, treat as parameter (e.g., $1, $123)
+            if (char === '$' && this.looksLikeSqlServerMoneyLiteral()) {
+                return null; // Let LiteralTokenReader handle it as MONEY
             }
 
             this.position++;

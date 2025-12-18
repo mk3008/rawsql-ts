@@ -5,7 +5,7 @@ import { InsertQuery } from '../../src/models/InsertQuery';
 import { CreateTableQuery } from '../../src/models/CreateTableQuery';
 import { MergeQuery } from '../../src/models/MergeQuery';
 import { AnalyzeStatement, ExplainStatement } from '../../src/models/DDLStatements';
-import { RawString, IdentifierString } from '../../src/models/ValueComponent';
+import { RawString, IdentifierString, ParameterExpression } from '../../src/models/ValueComponent';
 
 describe('SqlParser', () => {
     test('parse returns a SelectQuery for single-statement input', () => {
@@ -18,6 +18,19 @@ describe('SqlParser', () => {
             throw new Error('SqlParser.parse should return SimpleSelectQuery for SELECT statements');
         }
         expect(() => result.toSimpleQuery()).not.toThrow();
+    });
+
+    test('parse supports PostgreSQL positional parameters in select list', () => {
+        const result = SqlParser.parse('select $1, $2');
+
+        expect(result).toBeInstanceOf(SimpleSelectQuery);
+        if (!(result instanceof SimpleSelectQuery)) {
+            throw new Error('SqlParser.parse should return SimpleSelectQuery for SELECT statements');
+        }
+
+        expect(result.selectClause.items).toHaveLength(2);
+        expect(result.selectClause.items[0].value).toBeInstanceOf(ParameterExpression);
+        expect(result.selectClause.items[1].value).toBeInstanceOf(ParameterExpression);
     });
 
     test('parse returns an InsertQuery for INSERT statements', () => {
