@@ -28,6 +28,15 @@ Then use the CLI through `npx ztd` or the installed `ztd` bin.
    npx ztd init
    ```
 
+   For tutorials and greenfield projects, we recommend the optional SQL client seam:
+
+   ```bash
+   npx ztd init --with-sqlclient
+   ```
+
+   Use `--with-sqlclient` when you want a minimal `SqlClient` boundary for repositories. Skip it if your project
+   already has a database abstraction (Prisma, Drizzle, Kysely, custom adapters) to avoid duplicating layers.
+
 2. Put your schema into `ztd/ddl/`:
 
    - Edit the starter file (default): `ztd/ddl/public.sql`, or
@@ -66,6 +75,7 @@ You can introduce ZTD incrementally; existing tests and ORMs can remain untouche
 - `README.md` describing the workflow and commands
 - `AGENTS.md` (copied from the package template unless the project already has one)
 - `ztd/AGENTS.md` and `ztd/README.md` (folder-specific instructions that describe the new schema/domain layout)
+- `src/db/sql-client.ts` (optional; generated only with `--with-sqlclient`)
 - Optional guide stubs under `src/` and `tests/` if requested
 
 The resulting project follows the "DDL -> ztd-config -> tests" flow so you can regenerate everything from SQL-first artifacts.
@@ -75,6 +85,10 @@ The resulting project follows the "DDL -> ztd-config -> tests" flow so you can r
 ### `ztd init`
 
 Creates a ZTD-ready project layout (DDL folder, config, generated layout, and test support stubs). It does not connect to your database.
+
+Use `--with-sqlclient` to scaffold a minimal repository-facing SQL client for tutorials and new projects. It is opt-in
+to avoid colliding with existing database layers. If you use `pg`, adapt `client.query(...)` so it returns a plain row
+array (`T[]`) that satisfies the generated `SqlClient` interface.
 
 ### `ztd ztd-config`
 
