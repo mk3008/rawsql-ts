@@ -171,6 +171,17 @@ export class DDLToFixtureConverter {
         return fixtureJson;
     }
 
+    /**
+     * Applies `ALTER TABLE ... ALTER COLUMN ... SET/DROP DEFAULT` actions to the table registry.
+     *
+     * Uses normalization-based resolution to map `ALTER TABLE` targets to matching `CREATE TABLE` entries.
+     * Ambiguous or unresolved table names are skipped to avoid accidental cross-table updates.
+     *
+     * Only `AlterTableAlterColumnDefault` actions are processed; all other ALTER TABLE actions are ignored.
+     *
+     * @param registry The table definition registry built from `CREATE TABLE` statements.
+     * @param alterStatements The `ALTER TABLE` statements to apply.
+     */
     private static applyAlterTableStatements(
         registry: ReturnType<typeof createTableDefinitionRegistryFromCreateTableQueries>,
         alterStatements: AlterTableStatement[]
