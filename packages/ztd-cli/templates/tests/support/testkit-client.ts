@@ -52,10 +52,19 @@ function isTruthyEnv(value: string | undefined): boolean {
 }
 
 function safeJsonStringify(value: unknown): string {
+  const seen = new WeakSet<object>();
   return JSON.stringify(value, (_key, item) => {
     // Avoid JSON.stringify throwing on BigInt params when logging is enabled.
     if (typeof item === 'bigint') {
       return item.toString();
+    }
+
+    // Avoid JSON.stringify throwing on circular references when logging is enabled.
+    if (typeof item === 'object' && item !== null) {
+      if (seen.has(item)) {
+        return '[Circular]';
+      }
+      seen.add(item);
     }
     return item;
   });
