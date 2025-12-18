@@ -16,6 +16,8 @@ For actual test execution:
 pnpm add -D @rawsql-ts/pg-testkit
 ```
 
+If you run `npx ztd init`, the CLI will automatically add and install the devDependencies referenced by the generated templates (Postgres defaults to `@rawsql-ts/pg-testkit`).
+
 Then use the CLI through `npx ztd` or the installed `ztd` bin.
 
 ## Getting Started (Fast Path)

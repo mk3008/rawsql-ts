@@ -89,6 +89,39 @@ test('init wizard bootstraps a repo when writing DDL manually', async () => {
   expect(existsSync(path.join(workspace, 'ztd', 'README.md'))).toBe(true);
 });
 
+test('init installs template-referenced packages when package.json exists', async () => {
+  const workspace = createTempDir('cli-init-deps');
+  writeFileSync(
+    path.join(workspace, 'package.json'),
+    JSON.stringify({ name: 'ztd-project', version: '0.0.0' }, null, 2),
+    'utf8'
+  );
+
+  const prompter = new TestPrompter(['2']);
+  const installs: Array<{ kind: string; packages: string[]; packageManager: string }> = [];
+  const dependencies: Partial<ZtdConfigWriterDependencies> = {
+    log: () => undefined,
+    installPackages: ({ kind, packages, packageManager }) => {
+      installs.push({ kind, packages, packageManager });
+    }
+  };
+
+  await runInitCommand(prompter, { rootDir: workspace, dependencies });
+
+  expect(installs.length).toBe(1);
+  expect(installs[0].kind).toBe('devDependencies');
+  expect(installs[0].packageManager).toBe('pnpm');
+  expect(installs[0].packages).toEqual(
+    expect.arrayContaining([
+      '@rawsql-ts/pg-testkit',
+      '@rawsql-ts/testkit-core',
+      '@testcontainers/postgresql',
+      'pg',
+      'vitest'
+    ])
+  );
+});
+
 test('init wizard pulls schema if pg_dump is available', async () => {
   const workspace = createTempDir('cli-init-db');
   const pulledSchema = `
