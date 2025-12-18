@@ -67,11 +67,14 @@ test('init wizard bootstraps a repo when writing DDL manually', async () => {
 
   const result = await runInitCommand(prompter, { rootDir: workspace });
 
+  const testkitClientPath = path.join(workspace, 'tests', 'support', 'testkit-client.ts');
+
   expect(result.summary).toMatchSnapshot();
   expect(existsSync(schemaFilePath(workspace))).toBe(true);
   expect(existsSync(path.join(workspace, 'tests', 'generated', 'ztd-row-map.generated.ts'))).toBe(true);
   expect(existsSync(path.join(workspace, 'tests', 'generated', 'ztd-layout.generated.ts'))).toBe(true);
   expect(existsSync(path.join(workspace, 'tests', 'support', 'global-setup.ts'))).toBe(true);
+  expect(existsSync(testkitClientPath)).toBe(true);
   expect(existsSync(path.join(workspace, 'vitest.config.ts'))).toBe(true);
   expect(existsSync(path.join(workspace, 'ztd.config.json'))).toBe(true);
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('Zero Table Dependency');
@@ -87,6 +90,9 @@ test('init wizard bootstraps a repo when writing DDL manually', async () => {
   ).toBe(true);
   expect(existsSync(path.join(workspace, 'ztd', 'AGENTS.md'))).toBe(true);
   expect(existsSync(path.join(workspace, 'ztd', 'README.md'))).toBe(true);
+
+  // Ensure the generated testkit client can safely log params with circular references.
+  expect(readNormalizedFile(testkitClientPath)).toContain('[Circular]');
 });
 
 test('init installs template-referenced packages when package.json exists', async () => {
@@ -144,6 +150,8 @@ test('init wizard pulls schema if pg_dump is available', async () => {
 
   const result = await runInitCommand(prompter, { rootDir: workspace, dependencies });
 
+  const testkitClientPath = path.join(workspace, 'tests', 'support', 'testkit-client.ts');
+
   expect(pullCount).toBe(1);
   expect(result.summary).toMatchSnapshot();
   expect(readNormalizedFile(schemaFilePath(workspace))).toContain('CREATE TABLE public.migrated');
@@ -156,6 +164,7 @@ test('init wizard pulls schema if pg_dump is available', async () => {
   ).toContain('export interface TestRowMap');
   expect(existsSync(path.join(workspace, 'tests', 'generated', 'ztd-layout.generated.ts'))).toBe(true);
   expect(existsSync(path.join(workspace, 'tests', 'support', 'global-setup.ts'))).toBe(true);
+  expect(existsSync(testkitClientPath)).toBe(true);
   expect(existsSync(path.join(workspace, 'vitest.config.ts'))).toBe(true);
   expect(readNormalizedFile(path.join(workspace, 'tests', 'generated', 'ztd-layout.generated.ts'))).toContain(
     'enumsDir'
@@ -165,6 +174,9 @@ test('init wizard pulls schema if pg_dump is available', async () => {
   ).toBe(true);
   expect(existsSync(path.join(workspace, 'ztd', 'AGENTS.md'))).toBe(true);
   expect(existsSync(path.join(workspace, 'ztd', 'README.md'))).toBe(true);
+
+  // Ensure the generated testkit client can safely log params with circular references.
+  expect(readNormalizedFile(testkitClientPath)).toContain('[Circular]');
 });
 
 test('init wizard rejects when pg_dump is missing', async () => {

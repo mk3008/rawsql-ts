@@ -14,6 +14,24 @@ const ddlDirectories = [path.resolve(__dirname, '../../ztd/ddl')];
 let sharedPgClient: Client | undefined;
 let sharedQueryable: PgQueryable | undefined;
 
+type ZtdSqlLogPhase = 'original' | 'rewritten';
+
+type ZtdSqlLogEvent = {
+  kind: 'ztd-sql';
+  phase: ZtdSqlLogPhase;
+  queryId: number;
+  sql: string;
+  params?: unknown[];
+  fixturesApplied?: string[];
+  timestamp: string;
+};
+
+export type ZtdSqlLogOptions = {
+  enabled?: boolean;
+  includeParams?: boolean;
+  logger?: (event: ZtdSqlLogEvent) => void;
+};
+
 const { INT2, INT4, INT8, NUMERIC, DATE } = types.builtins;
 const parseInteger = (value: string | null) => (value === null ? null : Number(value));
 const parseNumeric = (value: string | null) => (value === null ? null : Number(value));
@@ -24,6 +42,33 @@ types.setTypeParser(INT4, parseInteger);
 types.setTypeParser(INT8, parseInteger);
 types.setTypeParser(NUMERIC, parseNumeric);
 types.setTypeParser(DATE, (value) => value);
+
+function isTruthyEnv(value: string | undefined): boolean {
+  if (!value) {
+    return false;
+  }
+
+  return value === '1' || value.toLowerCase() === 'true' || value.toLowerCase() === 'yes';
+}
+
+function safeJsonStringify(value: unknown): string {
+  const seen = new WeakSet<object>();
+  return JSON.stringify(value, (_key, item) => {
+    // Avoid JSON.stringify throwing on BigInt params when logging is enabled.
+    if (typeof item === 'bigint') {
+      return item.toString();
+    }
+
+    // Avoid JSON.stringify throwing on circular references when logging is enabled.
+    if (typeof item === 'object' && item !== null) {
+      if (seen.has(item)) {
+        return '[Circular]';
+      }
+      seen.add(item);
+    }
+    return item;
+  });
+}
 
 async function resolveDatabaseUrl(): Promise<string> {
   const configuredUrl = process.env.DATABASE_URL;
@@ -90,20 +135,69 @@ export type ZtdPlaygroundClient = {
   close(): Promise<void>;
 };
 
-export async function createTestkitClient(fixtures: TableFixture[]): Promise<ZtdPlaygroundClient> {
+export async function createTestkitClient(
+  fixtures: TableFixture[],
+  options: ZtdSqlLogOptions = {}
+): Promise<ZtdPlaygroundClient> {
+  const logEnabled = options.enabled ?? isTruthyEnv(process.env.ZTD_SQL_LOG);
+  const logParams = options.includeParams ?? isTruthyEnv(process.env.ZTD_SQL_LOG_PARAMS);
+  const logSink =
+    options.logger ??
+    ((event: ZtdSqlLogEvent) => {
+      console.log(safeJsonStringify(event));
+    });
+
+  let nextQueryId = 1;
+  const queryIdStack: number[] = [];
+
   const queryable = await getPgQueryable();
   // TableNameResolver keeps DDL and fixtures aligned on canonical schema-qualified identifiers like 'public.table_name'.
   const driver = createPgTestkitClient({
     connectionFactory: () => queryable,
     tableRows: fixtures,
-    ddl: { directories: ddlDirectories }
+    ddl: { directories: ddlDirectories },
+    onExecute: (rewrittenSql, params, fixturesApplied) => {
+      if (!logEnabled) {
+        return;
+      }
+
+      // Use a stack so concurrent async queries can still correlate "original" and "rewritten" logs.
+      const queryId = queryIdStack.at(-1) ?? -1;
+      logSink({
+        kind: 'ztd-sql',
+        phase: 'rewritten',
+        queryId,
+        sql: rewrittenSql,
+        params: logParams ? (params as unknown[] | undefined) : undefined,
+        fixturesApplied,
+        timestamp: new Date().toISOString(),
+      });
+    },
   });
 
   // Expose a simplified query API so tests can assert on plain row arrays.
   return {
     async query<T extends QueryResultRow>(text: string, values?: unknown[]) {
-      const result = await driver.query<T>(text, values);
-      return result.rows;
+      const queryId = nextQueryId++;
+
+      if (logEnabled) {
+        logSink({
+          kind: 'ztd-sql',
+          phase: 'original',
+          queryId,
+          sql: text,
+          params: logParams ? values : undefined,
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      queryIdStack.push(queryId);
+      try {
+        const result = await driver.query<T>(text, values);
+        return result.rows;
+      } finally {
+        queryIdStack.pop();
+      }
     },
     close() {
       return driver.close();
