@@ -5,16 +5,11 @@ import { InsertQuery } from '../models/InsertQuery';
 import { ValuesQuery } from '../models/ValuesQuery';
 import { createTableDefinitionRegistryFromCreateTableQueries } from '../models/TableDefinitionModel';
 import { ValueComponent, LiteralValue } from '../models/ValueComponent';
+import { AlterTableStatement, AlterTableAlterColumnDefault } from '../models/DDLStatements';
+import { normalizeTableName } from '../utils/TableNameUtils';
 import { SqlFormatter } from './SqlFormatter';
 
 export class DDLToFixtureConverter {
-    /**
-     * Converts DDL statements (CREATE TABLE) in the provided SQL text to a Fixture JSON object.
-     * Ignores non-DDL statements and parse errors.
-     * 
-     * @param ddlSql The SQL text containing CREATE TABLE statements.
-     * @returns A Record representing the Fixture JSON.
-     */
     /**
      * Converts DDL statements (CREATE TABLE) in the provided SQL text to a Fixture JSON object.
      * Ignores non-DDL statements and parse errors.
@@ -26,6 +21,7 @@ export class DDLToFixtureConverter {
         const splitResult = MultiQuerySplitter.split(ddlSql);
         const createTableQueries: CreateTableQuery[] = [];
         const insertQueries: InsertQuery[] = [];
+        const alterTableStatements: AlterTableStatement[] = [];
 
         for (const query of splitResult.queries) {
             if (query.isEmpty) continue;
@@ -35,6 +31,8 @@ export class DDLToFixtureConverter {
                     createTableQueries.push(ast);
                 } else if (ast instanceof InsertQuery) {
                     insertQueries.push(ast);
+                } else if (ast instanceof AlterTableStatement) {
+                    alterTableStatements.push(ast);
                 }
             } catch (e) {
                 // Ignore parse errors for non-DDL or invalid SQL
@@ -42,6 +40,11 @@ export class DDLToFixtureConverter {
         }
 
         const registry = createTableDefinitionRegistryFromCreateTableQueries(createTableQueries);
+
+        // Apply ALTER TABLE effects on top of CREATE TABLE so defaults reflect the final schema state.
+        // This is critical for ZTD: omitted INSERT columns must consult the correct default metadata.
+        this.applyAlterTableStatements(registry, alterTableStatements);
+
         const fixtureJson: Record<string, any> = {};
 
         // Initialize fixtureJson with empty rows
@@ -166,6 +169,84 @@ export class DDLToFixtureConverter {
         }
 
         return fixtureJson;
+    }
+
+    private static applyAlterTableStatements(
+        registry: ReturnType<typeof createTableDefinitionRegistryFromCreateTableQueries>,
+        alterStatements: AlterTableStatement[]
+    ): void {
+        if (alterStatements.length === 0) {
+            return;
+        }
+
+        // Build a stable lookup so ALTER TABLE targets can find the matching CREATE TABLE definition.
+        const normalizedToKey = new Map<string, string>();
+        const ambiguous = new Set<string>();
+
+        for (const tableKey of Object.keys(registry)) {
+            const normalized = normalizeTableName(tableKey);
+            const existing = normalizedToKey.get(normalized);
+            if (existing && existing !== tableKey) {
+                normalizedToKey.delete(normalized);
+                ambiguous.add(normalized);
+                continue;
+            }
+            if (!ambiguous.has(normalized)) {
+                normalizedToKey.set(normalized, tableKey);
+            }
+        }
+
+        const resolveTableKey = (tableName: string): string | undefined => {
+            // Prefer exact matching for schema-qualified names to avoid accidental cross-table updates.
+            if (registry[tableName]) {
+                return tableName;
+            }
+
+            const normalized = normalizeTableName(tableName);
+            if (ambiguous.has(normalized)) {
+                return undefined;
+            }
+            return normalizedToKey.get(normalized);
+        };
+
+        for (const alter of alterStatements) {
+            const tableName = alter.table.toString();
+            const registryKey = resolveTableKey(tableName);
+            if (!registryKey) {
+                continue;
+            }
+
+            const tableDef = registry[registryKey];
+            for (const action of alter.actions) {
+                if (!(action instanceof AlterTableAlterColumnDefault)) {
+                    continue;
+                }
+
+                const targetName = action.columnName.name;
+                const column = tableDef.columns.find(
+                    (col) => col.name.toLowerCase() === targetName.toLowerCase()
+                );
+                if (!column) {
+                    continue;
+                }
+
+                // Only flip `required` when we are certain: SET DEFAULT always makes the column optional;
+                // DROP DEFAULT only makes it required when it previously relied on an explicit default.
+                const hadDefault =
+                    column.defaultValue !== null && column.defaultValue !== undefined;
+
+                if (action.dropDefault) {
+                    column.defaultValue = null;
+                    if (column.isNotNull && hadDefault) {
+                        column.required = true;
+                    }
+                    continue;
+                }
+
+                column.defaultValue = action.setDefault ?? null;
+                column.required = false;
+            }
+        }
     }
 
     private static extractValue(value: ValueComponent): any {

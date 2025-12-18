@@ -162,4 +162,54 @@ describe('DDLToFixtureConverter', () => {
         expect(Object.keys(fixture)).toEqual(['public.users']);
         expect(fixture['public.users'].rows).toEqual([{ id: 1 }]);
     });
+
+    it('should apply ALTER TABLE SET DEFAULT to fixture metadata and inserts', () => {
+        const sql = `
+            CREATE SEQUENCE t_seq2;
+
+            CREATE TABLE t_default_nextval_alter (
+              id bigint PRIMARY KEY,
+              name text
+            );
+
+            ALTER TABLE t_default_nextval_alter
+              ALTER COLUMN id SET DEFAULT nextval('t_seq2');
+
+            INSERT INTO t_default_nextval_alter (name) VALUES ('Alice');
+            INSERT INTO t_default_nextval_alter (name) VALUES ('Bob');
+        `;
+
+        const fixture = DDLToFixtureConverter.convert(sql);
+        expect(fixture.t_default_nextval_alter.columns).toEqual([
+            { name: 'id', type: 'bigint', default: "nextval('t_seq2')" },
+            { name: 'name', type: 'text', default: undefined }
+        ]);
+        expect(fixture.t_default_nextval_alter.rows).toEqual([
+            { id: 1, name: 'Alice' },
+            { id: 2, name: 'Bob' }
+        ]);
+    });
+
+    it('should apply ALTER TABLE SET DEFAULT for non-sequence expressions', () => {
+        const sql = `
+            CREATE TABLE t_default_now_alter (
+              message text,
+              created_at timestamptz
+            );
+
+            ALTER TABLE t_default_now_alter
+              ALTER COLUMN created_at SET DEFAULT now();
+
+            INSERT INTO t_default_now_alter (message) VALUES ('hello');
+        `;
+
+        const fixture = DDLToFixtureConverter.convert(sql);
+        expect(fixture.t_default_now_alter.columns).toEqual([
+            { name: 'message', type: 'text', default: undefined },
+            { name: 'created_at', type: 'timestamptz', default: 'now()' }
+        ]);
+        expect(fixture.t_default_now_alter.rows).toEqual([
+            { message: 'hello', created_at: '2023-01-01 00:00:00' }
+        ]);
+    });
 });
