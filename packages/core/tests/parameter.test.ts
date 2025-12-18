@@ -28,6 +28,23 @@ test('tokenizes positional parameter in PostgreSQL', () => {
     expect(tokens[0].value).toBe('$1');
 });
 
+test('tokenizes PostgreSQL positional params separated by commas', () => {
+    // Arrange
+    const tokenizer = new SqlTokenizer('$1, $2');
+
+    // Act
+    const tokens = tokenizer.readLexmes();
+
+    // Assert
+    expect(tokens.length).toBe(3);
+    expect(tokens[0].type).toBe(TokenType.Parameter);
+    expect(tokens[0].value).toBe('$1');
+    expect(tokens[1].type).toBe(TokenType.Comma);
+    expect(tokens[1].value).toBe(',');
+    expect(tokens[2].type).toBe(TokenType.Parameter);
+    expect(tokens[2].value).toBe('$2');
+});
+
 test('tokenizes unnamed parameter in MySQL', () => {
     // Arrange
     const tokenizer = new SqlTokenizer('?');
