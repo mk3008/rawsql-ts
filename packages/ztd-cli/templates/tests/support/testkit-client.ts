@@ -30,6 +30,39 @@ export type ZtdSqlLogOptions = {
   enabled?: boolean;
   includeParams?: boolean;
   logger?: (event: ZtdSqlLogEvent) => void;
+  profile?: ZtdProfileOptions;
+};
+
+type ZtdProfilePhase = 'connection' | 'setup' | 'query' | 'teardown';
+
+type ZtdProfileEvent = {
+  kind: 'ztd-profile';
+  phase: ZtdProfilePhase;
+  testName?: string;
+  workerId?: string;
+  processId: number;
+  executionMode?: 'serial' | 'parallel' | 'unknown';
+  connectionReused?: boolean;
+  queryId?: number;
+  queryCount?: number;
+  durationMs?: number;
+  totalQueryMs?: number;
+  sql?: string;
+  params?: unknown[];
+  fixturesApplied?: string[];
+  sampleSql?: string[];
+  timestamp: string;
+};
+
+export type ZtdProfileOptions = {
+  enabled?: boolean;
+  perQuery?: boolean;
+  includeParams?: boolean;
+  includeSql?: boolean;
+  sampleLimit?: number;
+  testName?: string;
+  executionMode?: 'serial' | 'parallel' | 'unknown';
+  logger?: (event: ZtdProfileEvent) => void;
 };
 
 const { INT2, INT4, INT8, NUMERIC, DATE } = types.builtins;
@@ -49,6 +82,15 @@ function isTruthyEnv(value: string | undefined): boolean {
   }
 
   return value === '1' || value.toLowerCase() === 'true' || value.toLowerCase() === 'yes';
+}
+
+function resolveNumberEnv(value: string | undefined): number | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
 }
 
 function safeJsonStringify(value: unknown): string {
@@ -147,16 +189,71 @@ export async function createTestkitClient(
       console.log(safeJsonStringify(event));
     });
 
+  // Resolve profiling knobs from options/env to keep overhead near-zero when disabled.
+  const profileOptions = options.profile ?? {};
+  const profileEnabled = profileOptions.enabled ?? isTruthyEnv(process.env.ZTD_PROFILE);
+  const profilePerQuery = profileOptions.perQuery ?? isTruthyEnv(process.env.ZTD_PROFILE_PER_QUERY);
+  const profileParams = profileOptions.includeParams ?? isTruthyEnv(process.env.ZTD_PROFILE_PARAMS);
+  const profileIncludeSql = profileOptions.includeSql ?? isTruthyEnv(process.env.ZTD_PROFILE_SQL);
+  const profileSampleLimit =
+    profileOptions.sampleLimit ?? resolveNumberEnv(process.env.ZTD_PROFILE_SAMPLE_LIMIT) ?? 5;
+  const profileTestName = profileOptions.testName ?? process.env.ZTD_PROFILE_TEST_NAME;
+  const profileExecutionMode =
+    profileOptions.executionMode ??
+    (process.env.ZTD_PROFILE_EXECUTION as 'serial' | 'parallel' | 'unknown' | undefined) ??
+    (process.env.VITEST_WORKER_ID ? 'parallel' : 'serial');
+  const profileWorkerId = process.env.VITEST_WORKER_ID ?? process.env.JEST_WORKER_ID;
+  const profileSink =
+    profileOptions.logger ??
+    ((event: ZtdProfileEvent) => {
+      console.log(safeJsonStringify(event));
+    });
+
   let nextQueryId = 1;
   const queryIdStack: number[] = [];
+  // Keep fixture info aligned with the active query so profiling includes applied fixtures.
+  const queryFixtureMap = new Map<number, string[] | undefined>();
+  // Track aggregate timings so teardown logs can summarize the run.
+  const profileStats = {
+    queryCount: 0,
+    totalQueryMs: 0,
+    sampleSql: [] as string[],
+  };
 
+  // Capture a consistent timestamp baseline for the setup phase.
+  const setupStartedAt = profileEnabled ? Date.now() : 0;
+
+  const hadSharedConnection = Boolean(sharedPgClient);
+  const connectionStartedAt = profileEnabled ? Date.now() : 0;
   const queryable = await getPgQueryable();
+  if (profileEnabled) {
+    profileSink({
+      kind: 'ztd-profile',
+      phase: 'connection',
+      testName: profileTestName,
+      workerId: profileWorkerId,
+      processId: process.pid,
+      executionMode: profileExecutionMode,
+      connectionReused: hadSharedConnection,
+      durationMs: Date.now() - connectionStartedAt,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
   // TableNameResolver keeps DDL and fixtures aligned on canonical schema-qualified identifiers like 'public.table_name'.
   const driver = createPgTestkitClient({
     connectionFactory: () => queryable,
     tableRows: fixtures,
     ddl: { directories: ddlDirectories },
     onExecute: (rewrittenSql, params, fixturesApplied) => {
+      if (profileEnabled) {
+        // Capture fixture metadata while the original query is still on the stack.
+        const activeQueryId = queryIdStack.at(-1);
+        if (typeof activeQueryId === 'number') {
+          queryFixtureMap.set(activeQueryId, fixturesApplied);
+        }
+      }
+
       if (!logEnabled) {
         return;
       }
@@ -175,6 +272,19 @@ export async function createTestkitClient(
     },
   });
 
+  if (profileEnabled) {
+    profileSink({
+      kind: 'ztd-profile',
+      phase: 'setup',
+      testName: profileTestName,
+      workerId: profileWorkerId,
+      processId: process.pid,
+      executionMode: profileExecutionMode,
+      durationMs: Date.now() - setupStartedAt,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
   // Expose a simplified query API so tests can assert on plain row arrays.
   return {
     async query<T extends QueryResultRow>(text: string, values?: unknown[]) {
@@ -191,16 +301,68 @@ export async function createTestkitClient(
         });
       }
 
+      const queryStartedAt = profileEnabled ? Date.now() : 0;
       queryIdStack.push(queryId);
       try {
         const result = await driver.query<T>(text, values);
         return result.rows;
       } finally {
         queryIdStack.pop();
+
+        if (profileEnabled) {
+          // Record per-query timing and keep a small SQL sample for teardown summaries.
+          const durationMs = Date.now() - queryStartedAt;
+          profileStats.queryCount += 1;
+          profileStats.totalQueryMs += durationMs;
+
+          if (profileIncludeSql && profileSampleLimit > 0 && profileStats.sampleSql.length < profileSampleLimit) {
+            profileStats.sampleSql.push(text);
+          }
+
+          const fixturesApplied = queryFixtureMap.get(queryId);
+          queryFixtureMap.delete(queryId);
+
+          if (profilePerQuery) {
+            profileSink({
+              kind: 'ztd-profile',
+              phase: 'query',
+              testName: profileTestName,
+              workerId: profileWorkerId,
+              processId: process.pid,
+              executionMode: profileExecutionMode,
+              queryId,
+              durationMs,
+              sql: profileIncludeSql ? text : undefined,
+              params: profileParams ? values : undefined,
+              fixturesApplied,
+              timestamp: new Date().toISOString(),
+            });
+          }
+        }
       }
     },
-    close() {
-      return driver.close();
+    async close() {
+      const teardownStartedAt = profileEnabled ? Date.now() : 0;
+      try {
+        await driver.close();
+      } finally {
+        if (profileEnabled) {
+          // Always emit the teardown summary, even if close fails mid-flight.
+          profileSink({
+            kind: 'ztd-profile',
+            phase: 'teardown',
+            testName: profileTestName,
+            workerId: profileWorkerId,
+            processId: process.pid,
+            executionMode: profileExecutionMode,
+            durationMs: Date.now() - teardownStartedAt,
+            queryCount: profileStats.queryCount,
+            totalQueryMs: profileStats.totalQueryMs,
+            sampleSql: profileIncludeSql ? profileStats.sampleSql : undefined,
+            timestamp: new Date().toISOString(),
+          });
+        }
+      }
     }
   };
 }
