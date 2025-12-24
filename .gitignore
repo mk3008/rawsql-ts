@@ -189,3 +189,5 @@ docs/.vitepress/dist
 
 # Vite/VitePress cache
 docs/.vitepress/cache
+
+CONTINUITY.md
