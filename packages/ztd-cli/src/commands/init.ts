@@ -90,6 +90,7 @@ type FileKey =
   | 'globalSetup'
   | 'vitestConfig'
   | 'readme'
+  | 'sqlClient'
   | 'ztdDocsAgent'
   | 'ztdDocsReadme'
   | 'agents'
@@ -129,6 +130,7 @@ export interface ZtdConfigWriterDependencies {
 export interface InitCommandOptions {
   rootDir?: string;
   dependencies?: Partial<ZtdConfigWriterDependencies>;
+  withSqlClient?: boolean;
 }
 
 const SAMPLE_SCHEMA = `CREATE TABLE public.example (
@@ -142,6 +144,7 @@ const TESTS_CONFIG_TEMPLATE = 'tests/ztd-layout.generated.ts';
 const TESTKIT_CLIENT_TEMPLATE = 'tests/support/testkit-client.ts';
 const GLOBAL_SETUP_TEMPLATE = 'tests/support/global-setup.ts';
 const VITEST_CONFIG_TEMPLATE = 'vitest.config.ts';
+const SQL_CLIENT_TEMPLATE = 'src/db/sql-client.ts';
 
 const NEXT_STEPS = [
   ' 1. Review the schema files under ztd/ddl/<schema>.sql',
@@ -220,6 +223,7 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     ztdConfig: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'generated', 'ztd-row-map.generated.ts'),
     testsConfig: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'generated', 'ztd-layout.generated.ts'),
     readme: path.join(rootDir, 'README.md'),
+    sqlClient: path.join(rootDir, 'src', 'db', 'sql-client.ts'),
     testkitClient: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'support', 'testkit-client.ts'),
     globalSetup: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'support', 'global-setup.ts'),
     vitestConfig: path.join(rootDir, 'vitest.config.ts'),
@@ -343,6 +347,18 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
   );
   if (readmeSummary) {
     summaries.readme = readmeSummary;
+  }
+
+  if (options?.withSqlClient) {
+    const sqlClientSummary = writeOptionalTemplateFile(
+      absolutePaths.sqlClient,
+      relativePath('sqlClient'),
+      SQL_CLIENT_TEMPLATE,
+      dependencies
+    );
+    if (sqlClientSummary) {
+      summaries.sqlClient = sqlClientSummary;
+    }
   }
 
   const testkitSummary = await writeTemplateFile(
@@ -719,6 +735,29 @@ function copyTemplateFileIfMissing(
   return { relativePath: relative, outcome: 'created' };
 }
 
+function writeOptionalTemplateFile(
+  absolutePath: string,
+  relative: string,
+  templateName: string,
+  dependencies: ZtdConfigWriterDependencies
+): FileSummary | null {
+  const templatePath = path.join(TEMPLATE_DIRECTORY, templateName);
+  // Skip when the template is missing from the installed package.
+  if (!existsSync(templatePath)) {
+    return null;
+  }
+
+  if (dependencies.fileExists(absolutePath)) {
+    // Preserve existing files for opt-in scaffolds without prompting.
+    dependencies.log(`Skipping ${relative} because the file already exists.`);
+    return { relativePath: relative, outcome: 'unchanged' };
+  }
+
+  dependencies.ensureDirectory(path.dirname(absolutePath));
+  dependencies.writeFile(absolutePath, readFileSync(templatePath, 'utf8'));
+  return { relativePath: relative, outcome: 'created' };
+}
+
 function ensurePackageJsonFormatting(
   rootDir: string,
   relative: string,
@@ -937,6 +976,7 @@ function buildSummaryLines(summaries: Record<FileKey, FileSummary>): string[] {
     'testsConfig',
     'ztdConfig',
     'readme',
+    'sqlClient',
     'testkitClient',
     'globalSetup',
     'vitestConfig',
@@ -972,10 +1012,11 @@ export function registerInitCommand(program: Command): void {
   program
     .command('init')
     .description('Automate project setup for Zero Table Dependency workflows')
-    .action(async () => {
+    .option('--with-sqlclient', 'Generate a minimal SqlClient interface for repositories')
+    .action(async (options: { withSqlclient?: boolean }) => {
       const prompter = createConsolePrompter();
       try {
-        await runInitCommand(prompter);
+        await runInitCommand(prompter, { withSqlClient: options.withSqlclient });
       } finally {
         prompter.close();
       }

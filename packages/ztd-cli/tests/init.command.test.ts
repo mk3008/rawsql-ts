@@ -95,6 +95,39 @@ test('init wizard bootstraps a repo when writing DDL manually', async () => {
   expect(readNormalizedFile(testkitClientPath)).toContain('[Circular]');
 });
 
+test('init wizard can scaffold the optional SqlClient seam', async () => {
+  const workspace = createTempDir('cli-init-sqlclient');
+  const prompter = new TestPrompter(['2']);
+
+  const result = await runInitCommand(prompter, { rootDir: workspace, withSqlClient: true });
+
+  const sqlClientPath = path.join(workspace, 'src', 'db', 'sql-client.ts');
+
+  expect(existsSync(sqlClientPath)).toBe(true);
+  expect(readNormalizedFile(sqlClientPath)).toContain('export type SqlClient');
+  expect(result.summary).toContain('src/db/sql-client.ts');
+});
+
+test('init wizard preserves existing SqlClient files when opted in', async () => {
+  const workspace = createTempDir('cli-init-sqlclient-existing');
+  const sqlClientPath = path.join(workspace, 'src', 'db', 'sql-client.ts');
+  mkdirSync(path.dirname(sqlClientPath), { recursive: true });
+  writeFileSync(sqlClientPath, '// existing\n', 'utf8');
+
+  const prompter = new TestPrompter(['2']);
+  const logs: string[] = [];
+  const dependencies: Partial<ZtdConfigWriterDependencies> = {
+    log: (message) => logs.push(message),
+  };
+
+  await runInitCommand(prompter, { rootDir: workspace, withSqlClient: true, dependencies });
+
+  expect(readNormalizedFile(sqlClientPath)).toBe('// existing\n');
+  expect(logs.some((message) => message.includes('Skipping src/db/sql-client.ts because the file already exists.'))).toBe(
+    true
+  );
+});
+
 test('init installs template-referenced packages when package.json exists', async () => {
   const workspace = createTempDir('cli-init-deps');
   writeFileSync(

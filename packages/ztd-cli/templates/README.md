@@ -33,6 +33,17 @@ If TypeScript reports missing modules or type errors because `tests/generated/` 
 
 ---
 
+# Optional SqlClient seam
+
+If this project was initialized with `npx ztd init --with-sqlclient`, you'll also have `src/db/sql-client.ts`.
+It defines a minimal `SqlClient` interface that repositories can depend on:
+
+- Use it for tutorials and greenfield projects to keep repository SQL decoupled from drivers.
+- Skip it when you already have a database abstraction (Prisma, Drizzle, Kysely, custom adapters).
+- For `pg`, adapt `client.query(...)` so it returns a plain `T[]` row array that matches the interface.
+
+---
+
 # Principles
 
 ### 1. Humans own the *definitions*
