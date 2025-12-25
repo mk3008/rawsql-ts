@@ -2,7 +2,6 @@ name: Refresh Demo Browser Bundle
 
 on:
   workflow_dispatch:
-    description: Rebuild rawsql-ts browser bundle and generate a PR with the refreshed demo vendor build.
 
 jobs:
   recreate-demo-bundle:
@@ -40,8 +39,8 @@ jobs:
         uses: peter-evans/create-pull-request@v5
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: chore: refresh demo browser bundle
-          branch: refresh-demo-bundle-${{ github.run_id }}
+          commit-message: 'chore: refresh demo browser bundle'
+          branch: 'refresh-demo-bundle-${{ github.run_id }}'
           title: Refresh demo browser bundle
           body: |
             ## Summary
@@ -50,5 +49,3 @@ jobs:
           labels: demo
           base: main
           delete-branch: true
-          paths: docs/public/demo/vendor/rawsql.browser.js
-          fail-on-no-changes: false
