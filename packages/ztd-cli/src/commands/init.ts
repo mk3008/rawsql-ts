@@ -131,6 +131,7 @@ export interface InitCommandOptions {
   rootDir?: string;
   dependencies?: Partial<ZtdConfigWriterDependencies>;
   withSqlClient?: boolean;
+  withAppInterface?: boolean;
 }
 
 const SAMPLE_SCHEMA = `CREATE TABLE public.example (
@@ -152,6 +153,21 @@ const NEXT_STEPS = [
   ' 3. Run npx ztd ztd-config',
   ' 4. Run ZTD tests with pg-testkit'
 ];
+
+const AGENTS_FILE_CANDIDATES = ['AGENTS.md', 'AGENTS_ztd.md'];
+
+const APP_INTERFACE_SECTION_MARKER = '## Application Interface Guidance';
+const APP_INTERFACE_SECTION = `---
+## Application Interface Guidance
+
+1. Repository interfaces follow Command in, Domain out so commands capture inputs and repositories return domain shapes.
+2. Command definitions and validation stay unified to prevent divergence between surface APIs and SQL expectations.
+3. Input validation relies on zod v4 or later and happens at the repository boundary before any SQL runs.
+4. Only validated inputs reach SQL execution; reject raw external objects as soon as possible.
+5. Domain models live under a dedicated src/domain location so semantics stay centralized.
+6. Build the CRUD behavior first and revisit repository interfaces during review, not before the SQL works.
+7. Guard every behavioral change with unit tests so regression risks stay low.
+`;
 
 function resolveTemplateDirectory(): string {
   const candidates = [
@@ -241,6 +257,16 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     path.relative(rootDir, absolutePaths[key]).replace(/\\/g, '/') || absolutePaths[key];
 
   const summaries: Partial<Record<FileKey, FileSummary>> = {};
+
+  if (options?.withAppInterface) {
+    // Provide the documentation-only path before triggering any scaffolding work.
+    const summary = await appendAppInterfaceGuidance(rootDir, dependencies);
+    dependencies.log(`Appended application interface guidance to ${summary.relativePath}.`);
+    return {
+      summary: `App interface guidance appended to ${summary.relativePath}.`,
+      files: [summary]
+    };
+  }
 
   // Ask how the user prefers to populate the initial schema.
   const workflow = await prompter.selectChoice(
@@ -502,21 +528,15 @@ async function ensureAgentsFile(
   fallbackRelative: string,
   dependencies: ZtdConfigWriterDependencies
 ): Promise<FileSummary | null> {
-  const templateTarget = dependencies.copyAgentsTemplate(rootDir);
-  if (templateTarget) {
-    const relative = path.relative(rootDir, templateTarget).replace(/\\/g, '/');
-    return { relativePath: relative || fallbackRelative, outcome: 'created' };
+  const resolution = resolveOrCreateAgentsFile(rootDir, dependencies);
+  if (!resolution) {
+    return null;
   }
-
-  const candidates = ['AGENTS.md', 'AGENTS_ztd.md'];
-  for (const candidate of candidates) {
-    const candidatePath = path.join(rootDir, candidate);
-    if (dependencies.fileExists(candidatePath)) {
-      return { relativePath: candidate, outcome: 'unchanged' };
-    }
-  }
-
-  return null;
+  const relative = normalizeRelative(rootDir, resolution.absolutePath);
+  return {
+    relativePath: relative || fallbackRelative,
+    outcome: resolution.created ? 'created' : 'unchanged'
+  };
 }
 
 function resolvePackageManagerExecutable(packageManager: PackageManager): string {
@@ -956,6 +976,59 @@ function normalizeRelative(rootDir: string, absolutePath: string): string {
   return relative || absolutePath;
 }
 
+interface AgentsFileResolution {
+  absolutePath: string;
+  created: boolean;
+}
+
+function resolveOrCreateAgentsFile(
+  rootDir: string,
+  dependencies: ZtdConfigWriterDependencies
+): AgentsFileResolution | null {
+  // Prefer materializing the bundled template before looking for existing attention files.
+  const templateTarget = dependencies.copyAgentsTemplate(rootDir);
+  if (templateTarget) {
+    return { absolutePath: templateTarget, created: true };
+  }
+
+  for (const candidate of AGENTS_FILE_CANDIDATES) {
+    const candidatePath = path.join(rootDir, candidate);
+    if (dependencies.fileExists(candidatePath)) {
+      return { absolutePath: candidatePath, created: false };
+    }
+  }
+
+  return null;
+}
+
+async function appendAppInterfaceGuidance(
+  rootDir: string,
+  dependencies: ZtdConfigWriterDependencies
+): Promise<FileSummary> {
+  const resolution = resolveOrCreateAgentsFile(rootDir, dependencies);
+  if (!resolution) {
+    throw new Error('Failed to locate or create an AGENTS file for application guidance.');
+  }
+
+  const relativePath = normalizeRelative(rootDir, resolution.absolutePath);
+  const existingContents = readFileSync(resolution.absolutePath, 'utf8');
+
+  // Skip appending when the guidance section already exists to avoid duplicates.
+  if (existingContents.includes(APP_INTERFACE_SECTION_MARKER)) {
+    return { relativePath, outcome: 'unchanged' };
+  }
+
+  // Ensure the appended block is separated by blank lines for readability.
+  const baseline = existingContents.endsWith('\n') ? existingContents : `${existingContents}\n`;
+  const spacer = baseline.endsWith('\n\n') ? '' : '\n';
+  dependencies.writeFile(
+    resolution.absolutePath,
+    `${baseline}${spacer}${APP_INTERFACE_SECTION}\n`
+  );
+
+  return { relativePath, outcome: 'overwritten' };
+}
+
 function isRootMarkdown(relative: string): boolean {
   return relative.toLowerCase().endsWith('.md') && !relative.includes('/');
 }
@@ -1013,10 +1086,14 @@ export function registerInitCommand(program: Command): void {
     .command('init')
     .description('Automate project setup for Zero Table Dependency workflows')
     .option('--with-sqlclient', 'Generate a minimal SqlClient interface for repositories')
-    .action(async (options: { withSqlclient?: boolean }) => {
+    .option('--with-app-interface', 'Append application interface guidance to AGENTS.md only')
+    .action(async (options: { withSqlclient?: boolean; withAppInterface?: boolean }) => {
       const prompter = createConsolePrompter();
       try {
-        await runInitCommand(prompter, { withSqlClient: options.withSqlclient });
+        await runInitCommand(prompter, {
+          withSqlClient: options.withSqlclient,
+          withAppInterface: options.withAppInterface
+        });
       } finally {
         prompter.close();
       }

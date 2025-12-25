@@ -30,12 +30,18 @@ Then use the CLI through `npx ztd` or the installed `ztd` bin.
 
    For tutorials and greenfield projects, we recommend the optional SQL client seam:
 
-   ```bash
-   npx ztd init --with-sqlclient
-   ```
+  ```bash
+  npx ztd init --with-sqlclient
+  ```
 
-   Use `--with-sqlclient` when you want a minimal `SqlClient` boundary for repositories. Skip it if your project
-   already has a database abstraction (Prisma, Drizzle, Kysely, custom adapters) to avoid duplicating layers.
+  Use `--with-sqlclient` when you want a minimal `SqlClient` boundary for repositories. Skip it if your project
+  already has a database abstraction (Prisma, Drizzle, Kysely, custom adapters) to avoid duplicating layers.
+
+  ```bash
+  npx ztd init --with-app-interface
+  ```
+
+  Use `--with-app-interface` to append the application interface guidance block to `AGENTS.md` without generating the ZTD layout or touching other files.
 
 2. Put your schema into `ztd/ddl/`:
 
@@ -73,7 +79,7 @@ You can introduce ZTD incrementally; existing tests and ORMs can remain untouche
 - `tests/generated/ztd-layout.generated.ts` (generated layout snapshot; do not commit)
 - `tests/support/global-setup.ts` (shared test setup used by the generated testkit client)
 - `README.md` describing the workflow and commands
-- `AGENTS.md` (copied from the package template unless the project already has one)
+ - `AGENTS.md` (copied from the package template unless the project already has one; `--with-app-interface` adds the application interface guidance block at the end)
 - `ztd/AGENTS.md` and `ztd/README.md` (folder-specific instructions that describe the new schema/domain layout)
 - `src/db/sql-client.ts` (optional; generated only with `--with-sqlclient`)
 - Optional guide stubs under `src/` and `tests/` if requested
@@ -89,6 +95,8 @@ Creates a ZTD-ready project layout (DDL folder, config, generated layout, and te
 Use `--with-sqlclient` to scaffold a minimal repository-facing SQL client for tutorials and new projects. It is opt-in
 to avoid colliding with existing database layers. If you use `pg`, adapt `client.query(...)` so it returns a plain row
 array (`T[]`) that satisfies the generated `SqlClient` interface.
+
+Use `--with-app-interface` to append the application interface guidance block to `AGENTS.md`. This documentation-only option leaves every other file untouched, making it easy to apply the guidance to existing repositories without rerunning the full layout generator.
 
 ### `ztd ztd-config`
 
