@@ -9,6 +9,8 @@ import type {
     DropTableStatement,
     DropIndexStatement,
     CreateIndexStatement,
+    CreateSchemaStatement,
+    DropSchemaStatement,
     AlterTableStatement,
     DropConstraintStatement,
     AnalyzeStatement,
@@ -32,6 +34,8 @@ import { DropConstraintParser } from './DropConstraintParser';
 import { AnalyzeStatementParser } from './AnalyzeStatementParser';
 import { ExplainStatementParser } from './ExplainStatementParser';
 import { CreateSequenceParser, AlterSequenceParser } from './SequenceParser';
+import { CreateSchemaParser } from './CreateSchemaParser';
+import { DropSchemaParser } from './DropSchemaParser';
 
 export type ParsedStatement =
     | SelectQuery
@@ -42,7 +46,9 @@ export type ParsedStatement =
     | MergeQuery
     | DropTableStatement
     | DropIndexStatement
+    | DropSchemaStatement
     | CreateIndexStatement
+    | CreateSchemaStatement
     | CreateSequenceStatement
     | AlterTableStatement
     | AlterSequenceStatement
@@ -171,6 +177,9 @@ export class SqlParser {
             case 'create unique index':
                 return this.parseCreateIndexStatement(segment, statementIndex);
 
+            case 'create schema':
+                return this.parseCreateSchemaStatement(segment, statementIndex);
+
             case 'create sequence':
             case 'create temporary sequence':
             case 'create temp sequence':
@@ -178,6 +187,9 @@ export class SqlParser {
 
             case 'drop table':
                 return this.parseDropTableStatement(segment, statementIndex);
+
+            case 'drop schema':
+                return this.parseDropSchemaStatement(segment, statementIndex);
 
             case 'drop index':
                 return this.parseDropIndexStatement(segment, statementIndex);
@@ -350,6 +362,23 @@ export class SqlParser {
         }
     }
 
+    private static parseDropSchemaStatement(segment: StatementLexemeResult, statementIndex: number): DropSchemaStatement {
+        try {
+            const result = DropSchemaParser.parseFromLexeme(segment.lexemes, 0);
+            if (result.newIndex < segment.lexemes.length) {
+                const unexpected = segment.lexemes[result.newIndex];
+                const position = unexpected.position?.startPosition ?? segment.statementStart;
+                throw new Error(
+                    `[SqlParser] Unexpected token "${unexpected.value}" in statement ${statementIndex} at character ${position}.`
+                );
+            }
+            return result.value;
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            throw new Error(`[SqlParser] Failed to parse DROP SCHEMA statement ${statementIndex}: ${message}`);
+        }
+    }
+
     private static parseDropIndexStatement(segment: StatementLexemeResult, statementIndex: number): DropIndexStatement {
         try {
             const result = DropIndexParser.parseFromLexeme(segment.lexemes, 0);
@@ -381,6 +410,23 @@ export class SqlParser {
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
             throw new Error(`[SqlParser] Failed to parse CREATE INDEX statement ${statementIndex}: ${message}`);
+        }
+    }
+
+    private static parseCreateSchemaStatement(segment: StatementLexemeResult, statementIndex: number): CreateSchemaStatement {
+        try {
+            const result = CreateSchemaParser.parseFromLexeme(segment.lexemes, 0);
+            if (result.newIndex < segment.lexemes.length) {
+                const unexpected = segment.lexemes[result.newIndex];
+                const position = unexpected.position?.startPosition ?? segment.statementStart;
+                throw new Error(
+                    `[SqlParser] Unexpected token "${unexpected.value}" in statement ${statementIndex} at character ${position}.`
+                );
+            }
+            return result.value;
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            throw new Error(`[SqlParser] Failed to parse CREATE SCHEMA statement ${statementIndex}: ${message}`);
         }
     }
 

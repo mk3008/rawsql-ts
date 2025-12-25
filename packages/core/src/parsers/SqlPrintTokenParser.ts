@@ -53,6 +53,8 @@ import {
     DropTableStatement,
     DropIndexStatement,
     CreateIndexStatement,
+    CreateSchemaStatement,
+    DropSchemaStatement,
     IndexColumnDefinition,
     AlterTableStatement,
     AlterTableAddConstraint,
@@ -373,11 +375,13 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         this.handlers.set(TableConstraintDefinition.kind, (expr) => this.visitTableConstraintDefinition(expr as TableConstraintDefinition));
         this.handlers.set(ReferenceDefinition.kind, (expr) => this.visitReferenceDefinition(expr as ReferenceDefinition));
         this.handlers.set(CreateIndexStatement.kind, (expr) => this.visitCreateIndexStatement(expr as CreateIndexStatement));
+        this.handlers.set(CreateSchemaStatement.kind, (expr) => this.visitCreateSchemaStatement(expr as CreateSchemaStatement));
         this.handlers.set(IndexColumnDefinition.kind, (expr) => this.visitIndexColumnDefinition(expr as IndexColumnDefinition));
         this.handlers.set(CreateSequenceStatement.kind, (expr) => this.visitCreateSequenceStatement(expr as CreateSequenceStatement));
         this.handlers.set(AlterSequenceStatement.kind, (expr) => this.visitAlterSequenceStatement(expr as AlterSequenceStatement));
         this.handlers.set(DropTableStatement.kind, (expr) => this.visitDropTableStatement(expr as DropTableStatement));
         this.handlers.set(DropIndexStatement.kind, (expr) => this.visitDropIndexStatement(expr as DropIndexStatement));
+        this.handlers.set(DropSchemaStatement.kind, (expr) => this.visitDropSchemaStatement(expr as DropSchemaStatement));
         this.handlers.set(AlterTableStatement.kind, (expr) => this.visitAlterTableStatement(expr as AlterTableStatement));
         this.handlers.set(AlterTableAddConstraint.kind, (expr) => this.visitAlterTableAddConstraint(expr as AlterTableAddConstraint));
         this.handlers.set(AlterTableDropConstraint.kind, (expr) => this.visitAlterTableDropConstraint(expr as AlterTableDropConstraint));
@@ -426,6 +430,27 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
 
         token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
         token.innerTokens.push(this.visit(arg.right));
+
+        return token;
+    }
+
+    private visitCreateSchemaStatement(arg: CreateSchemaStatement): SqlPrintToken {
+        const keywordParts = ['create', 'schema'];
+        if (arg.ifNotExists) {
+            keywordParts.push('if not exists');
+        }
+        const token = new SqlPrintToken(SqlPrintTokenType.keyword, keywordParts.join(' '), SqlPrintTokenContainerType.CreateSchemaStatement);
+
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(arg.schemaName.accept(this));
+
+        // Render AUTHORIZATION clause when the owner is explicitly specified.
+        if (arg.authorization) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'authorization'));
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(arg.authorization.accept(this));
+        }
 
         return token;
     }
@@ -3692,6 +3717,30 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         }
         token.innerTokens.push(indexList);
 
+        if (arg.behavior) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, arg.behavior));
+        }
+
+        return token;
+    }
+
+    private visitDropSchemaStatement(arg: DropSchemaStatement): SqlPrintToken {
+        const keyword = arg.ifExists ? 'drop schema if exists' : 'drop schema';
+        const token = new SqlPrintToken(SqlPrintTokenType.keyword, keyword, SqlPrintTokenContainerType.DropSchemaStatement);
+
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        const schemaList = new SqlPrintToken(SqlPrintTokenType.container, '', SqlPrintTokenContainerType.ValueList);
+        // Render comma-separated schema identifiers.
+        for (let i = 0; i < arg.schemaNames.length; i++) {
+            if (i > 0) {
+                schemaList.innerTokens.push(...SqlPrintTokenParser.commaSpaceTokens());
+            }
+            schemaList.innerTokens.push(arg.schemaNames[i].accept(this));
+        }
+        token.innerTokens.push(schemaList);
+
+        // Render optional behavior clause (CASCADE/RESTRICT).
         if (arg.behavior) {
             token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
             token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, arg.behavior));

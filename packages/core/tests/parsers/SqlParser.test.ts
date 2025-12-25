@@ -4,7 +4,7 @@ import { SimpleSelectQuery } from '../../src/models/SelectQuery';
 import { InsertQuery } from '../../src/models/InsertQuery';
 import { CreateTableQuery } from '../../src/models/CreateTableQuery';
 import { MergeQuery } from '../../src/models/MergeQuery';
-import { AnalyzeStatement, ExplainStatement } from '../../src/models/DDLStatements';
+import { AnalyzeStatement, ExplainStatement, CreateSchemaStatement, DropSchemaStatement } from '../../src/models/DDLStatements';
 import { RawString, IdentifierString, ParameterExpression } from '../../src/models/ValueComponent';
 
 describe('SqlParser', () => {
@@ -51,6 +51,32 @@ describe('SqlParser', () => {
         const result = SqlParser.parse(sql);
 
         expect(result).toBeInstanceOf(CreateTableQuery);
+    });
+
+    test('parse returns a CreateSchemaStatement for CREATE SCHEMA statements', () => {
+        const sql = 'CREATE SCHEMA IF NOT EXISTS tenant AUTHORIZATION admin';
+
+        const result = SqlParser.parse(sql);
+
+        expect(result).toBeInstanceOf(CreateSchemaStatement);
+        if (result instanceof CreateSchemaStatement) {
+            expect(result.ifNotExists).toBe(true);
+            expect(result.schemaName.toString()).toBe('tenant');
+            expect(result.authorization?.name).toBe('admin');
+        }
+    });
+
+    test('parse returns a DropSchemaStatement for DROP SCHEMA statements', () => {
+        const sql = 'DROP SCHEMA IF EXISTS public, audit CASCADE';
+
+        const result = SqlParser.parse(sql);
+
+        expect(result).toBeInstanceOf(DropSchemaStatement);
+        if (result instanceof DropSchemaStatement) {
+            expect(result.ifExists).toBe(true);
+            expect(result.schemaNames.map((schema) => schema.toString())).toEqual(['public', 'audit']);
+            expect(result.behavior).toBe('cascade');
+        }
     });
 
     test('parse returns a MergeQuery for MERGE statements', () => {

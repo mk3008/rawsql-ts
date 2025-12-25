@@ -99,6 +99,8 @@ export enum SqlPrintTokenContainerType {
     SequenceOptionClause = "SequenceOptionClause",
     DropTableStatement = "DropTableStatement",
     DropIndexStatement = "DropIndexStatement",
+    CreateSchemaStatement = "CreateSchemaStatement",
+    DropSchemaStatement = "DropSchemaStatement",
     AlterTableStatement = "AlterTableStatement",
     AlterTableAddConstraint = "AlterTableAddConstraint",
     AlterTableDropConstraint = "AlterTableDropConstraint",
