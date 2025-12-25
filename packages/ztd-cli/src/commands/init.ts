@@ -435,6 +435,11 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     summaries.ztdDocsReadme = ztdDocsReadmeSummary;
   }
 
+  const ztdRootDir = path.join(rootDir, 'ztd');
+  // Ensure the domain-specs and enums anchors exist so contributors immediately see where those artifacts belong.
+  dependencies.ensureDirectory(path.join(ztdRootDir, 'domain-specs'));
+  dependencies.ensureDirectory(path.join(ztdRootDir, 'enums'));
+
   const editorconfigSummary = copyTemplateFileIfMissing(
     rootDir,
     relativePath('editorconfig'),
