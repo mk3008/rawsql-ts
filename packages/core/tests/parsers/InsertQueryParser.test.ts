@@ -1,6 +1,6 @@
 import { InsertQueryParser } from "../../src/parsers/InsertQueryParser";
 import { InsertQuery } from "../../src/models/InsertQuery";
-import { SelectQuery, SimpleSelectQuery } from "../../src/models/SelectQuery";
+import { SelectQuery, SimpleSelectQuery, ValuesQuery } from "../../src/models/SelectQuery";
 import { describe, it, expect } from "vitest";
 import { SqlFormatter } from "../../src/transformers/SqlFormatter";
 import { TableSource, ParenSource, SourceExpression } from "../../src/models/Clause";
@@ -104,5 +104,27 @@ describe("InsertQueryParser", () => {
         expect(returningItem).toBeDefined();
         expect(returningItem?.getPositionedComments('before')).toEqual(['return before col']);
         expect(returningItem?.getPositionedComments('after')).toEqual(['return after col']);
+    });
+
+    it("parses multi-row VALUES inserts that use positional parameters for each row", () => {
+        const sql = [
+            'INSERT INTO sales_order_item (sales_order_item_id, sales_order_id, product_id, quantity, unit_price)',
+            'VALUES',
+            '    ($1, $2, $3, $4, $5),',
+            '    ($6, $7, $8, $9, $10),',
+            '    ($11, $12, $13, $14, $15)'
+        ].join('\n');
+
+        const insert = InsertQueryParser.parse(sql);
+        const query = new SqlFormatter().format(insert).formattedSql;
+
+        expect(query).toBe('insert into "sales_order_item"("sales_order_item_id", "sales_order_id", "product_id", "quantity", "unit_price") values (:1, :2, :3, :4, :5), (:6, :7, :8, :9, :10), (:11, :12, :13, :14, :15)');
+        expect(insert.selectQuery).toBeInstanceOf(ValuesQuery);
+
+        const valuesQuery = insert.selectQuery as ValuesQuery;
+        expect(valuesQuery.tuples).toHaveLength(3);
+        expect(valuesQuery.tuples[0].values).toHaveLength(5);
+        expect(valuesQuery.tuples[1].values).toHaveLength(5);
+        expect(valuesQuery.tuples[2].values).toHaveLength(5);
     });
 });

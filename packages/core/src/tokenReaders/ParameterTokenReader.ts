@@ -1,6 +1,7 @@
 ﻿import { BaseTokenReader } from './BaseTokenReader';
 import { Lexeme, TokenType } from '../models/Lexeme';
 import { CharLookupTable } from '../utils/charLookupTable';
+import { looksLikeSqlServerMoneyLiteral } from './SqlServerMoneyLiteralDetector';
 
 /**
  * Reads SQL parameter tokens (@param, :param, $param, ?, ${param})
@@ -8,29 +9,6 @@ import { CharLookupTable } from '../utils/charLookupTable';
 export class ParameterTokenReader extends BaseTokenReader {
     constructor(input: string) {
         super(input);
-    }
-
-    private looksLikeSqlServerMoneyLiteral(): boolean {
-        if (!this.canRead(1) || this.input[this.position] !== '$' || !CharLookupTable.isDigit(this.input[this.position + 1])) {
-            return false;
-        }
-
-        // Read the leading digit run after '$' and then look for a decimal point or thousands separator.
-        // This avoids mis-classifying PostgreSQL positional params like `$1, $2` as a MONEY literal.
-        let pos = this.position + 1;
-        while (pos < this.input.length && CharLookupTable.isDigit(this.input[pos])) {
-            pos++;
-        }
-
-        if (pos + 1 < this.input.length && this.input[pos] === '.' && CharLookupTable.isDigit(this.input[pos + 1])) {
-            return true;
-        }
-
-        if (pos + 1 < this.input.length && this.input[pos] === ',' && CharLookupTable.isDigit(this.input[pos + 1])) {
-            return true;
-        }
-
-        return false;
     }
 
     /**
@@ -84,7 +62,7 @@ export class ParameterTokenReader extends BaseTokenReader {
 
             // Special handling for SQL Server MONEY literals ($123.45)
             // Only treat as MONEY if it contains decimal point or comma (not just $123)
-            if (char === '$' && this.looksLikeSqlServerMoneyLiteral()) {
+            if (char === '$' && looksLikeSqlServerMoneyLiteral(this.input, this.position)) {
                 return null; // Let LiteralTokenReader handle it as MONEY
             }
 
