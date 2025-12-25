@@ -224,7 +224,7 @@ Because real-world ORM workflows usually add both query generation and migration
 | 30 | ZTD | 1 | 2480.84 | 957.91 | 1522.94 | 38.6% | 82.69 | 30 | 44.82 |
 | 30 | ZTD | 4 | 1507.46 | 944.57 | 562.88 | 62.7% | 50.25 | 30 | 17.69 |
 
-**What this shows**
+### What this shows
 - **Small suites (3 tests) are dominated by runner startup.** At this scale, Traditional is faster (both serial and 4-worker), because fixed startup overhead and per-test harness work overwhelm ZTD’s per-test savings.
 - **As suite size grows (30 tests), ZTD becomes faster end-to-end.**
   - Serial: ZTD 2480.84 ms vs Traditional 3085.48 ms
@@ -260,7 +260,7 @@ This approximates watch/CI iterations where the runner has already started (firs
 | ZTD (30 tests) | 1 | 93.73 | 30 | 30.08 | 32.00 | 20.42 |
 | ZTD (30 tests) | 4 | 91.14 | 30 | 29.95 | 30.75 | 19.40 |
 
-**What this shows**
+### What this shows
 - Traditional steady-state is dominated by DB time (~1040 ms out of ~1260 ms).
 - ZTD steady-state is dominated by **rewrite (~31 ms) + fixture (~20 ms)**; DB time is ~30 ms.
 - Parallelism has limited impact in ZTD steady-state here because the per-iteration work is already small and may be bounded by coordination / shared overheads.
@@ -277,7 +277,7 @@ To regenerate the report, run:
 
 ```bash
 pnpm ztd:bench
-````
+```
 
 The report is written to `tmp/bench/report.md`.
 

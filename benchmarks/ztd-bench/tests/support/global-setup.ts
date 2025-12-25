@@ -30,11 +30,11 @@ export default async function globalSetup() {
   const started = await container.start();
   process.env.DATABASE_URL = started.getConnectionUri();
 
-    return async () => {
-      await closeDbPool();
-      writeExecutionMetrics(executionStart);
-      await started.stop();
-    };
+  return async () => {
+    await closeDbPool();
+    writeExecutionMetrics(executionStart);
+    await started.stop();
+  };
 }
 
 function writeExecutionMetrics(executionStart: bigint): void {
