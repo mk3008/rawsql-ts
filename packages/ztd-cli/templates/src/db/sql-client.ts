@@ -1,3 +1,9 @@
+/**
+ * Promise that resolves to the array of rows produced by an SQL query.
+ * @template T Shape of each row yielded by the SQL client.
+ * @example
+ * const rows: SqlQueryRows<{ id: number; name: string }> = client.query('SELECT id, name FROM users');
+ */
 export type SqlQueryRows<T> = Promise<T[]>;
 
 /**
