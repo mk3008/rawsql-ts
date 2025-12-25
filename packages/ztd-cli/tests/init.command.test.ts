@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { expect, test } from 'vitest';
 
@@ -90,9 +90,30 @@ test('init wizard bootstraps a repo when writing DDL manually', async () => {
   ).toBe(true);
   expect(existsSync(path.join(workspace, 'ztd', 'AGENTS.md'))).toBe(true);
   expect(existsSync(path.join(workspace, 'ztd', 'README.md'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'ztd', 'domain-specs'))).toBe(true);
+  expect(readdirSync(path.join(workspace, 'ztd', 'domain-specs'))).toEqual([]);
+  expect(existsSync(path.join(workspace, 'ztd', 'enums'))).toBe(true);
+  expect(readdirSync(path.join(workspace, 'ztd', 'enums'))).toEqual([]);
 
   // Ensure the generated testkit client can safely log params with circular references.
   expect(readNormalizedFile(testkitClientPath)).toContain('[Circular]');
+});
+
+test('init wizard leaves existing ztd anchor directories untouched', async () => {
+  const workspace = createTempDir('cli-init-existing-ztd-dirs');
+  const domainSpecsDir = path.join(workspace, 'ztd', 'domain-specs');
+  const enumsDir = path.join(workspace, 'ztd', 'enums');
+  // Pre-create the anchors to prove init leaves them intact.
+  mkdirSync(domainSpecsDir, { recursive: true });
+  mkdirSync(enumsDir, { recursive: true });
+
+  const prompter = new TestPrompter(['2']);
+  await runInitCommand(prompter, { rootDir: workspace });
+
+  expect(existsSync(domainSpecsDir)).toBe(true);
+  expect(existsSync(enumsDir)).toBe(true);
+  expect(readdirSync(domainSpecsDir)).toEqual([]);
+  expect(readdirSync(enumsDir)).toEqual([]);
 });
 
 test('init wizard can scaffold the optional SqlClient seam', async () => {
