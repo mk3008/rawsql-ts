@@ -19,6 +19,7 @@
     "clean": "pnpm -r --if-present clean",
     "lint": "pnpm -r --if-present lint",
     "benchmark": "pnpm --filter rawsql-ts benchmark",
+    "ztd:bench": "ts-node benchmarks/ztd-test-benchmark.ts",
     "demo:complex-sql": "node packages/core/demo/complex-sql-demo.js",
     "playground:gen-config": "pnpm --filter ztd-playground exec ztd ztd-config",
     "playground:typecheck": "pnpm --filter ztd-playground typecheck",
@@ -43,6 +44,8 @@
     "url": "https://github.com/mk3008/rawsql-ts.git"
   },
   "devDependencies": {
+    "@rawsql-ts/pg-testkit": "workspace:*",
+    "@rawsql-ts/testkit-core": "workspace:*",
     "@changesets/changelog-github": "^0.5.2",
     "@changesets/cli": "^2.29.8",
     "@testcontainers/postgresql": "^10.28.0",

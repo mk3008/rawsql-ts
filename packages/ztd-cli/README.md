@@ -169,6 +169,132 @@ Enable it via environment variables:
 
 You can also enable/disable logging per call by passing `ZtdSqlLogOptions` as the second argument to `createTestkitClient`.
 
+## Benchmark summary
+
+### Purpose
+
+This benchmark executes the same repository implementation with two different supporting stacks: the Traditional schema/migration workflow (schema setup + seed + query + cleanup) and the ZTD fixture-backed workflow (repository query → rewrite → fixture materialization). The comparison highlights:
+
+- End-to-end wall-clock time including runner startup.
+- DB execution time and SQL count so Traditional’s higher SQL volume is explicit.
+- ZTD rewrite and fixture breakdowns so the internal costs of the pg-testkit pipeline are visible.
+- Parallelism effects, runner startup costs, and where the break-even point lies as suite size grows.
+
+### Assumptions and environment
+
+This benchmark compares ZTD-style repository tests against a traditional migration-based workflow while exercising the same repository methods. All numbers are measured with the test runner included unless stated otherwise.
+
+#### Environment (measured run)
+
+- Node.js: v22.14.0
+- OS: Windows 10 (build 26100)
+- CPU: AMD Ryzen 7 7800X3D (16 logical cores)
+- Database: PostgreSQL 18.1 (containerized; `testcontainers`)
+- Parallel workers: 4
+- Report date: 2025-12-20
+
+#### Benchmark shape
+
+- Repository test cases: 3 (`customer_summary`, `product_ranking`, `sales_summary`)
+- Each test performs: 1 repository call (1 SQL execution per test case)
+- The Traditional workflow wraps every repository execution with migration, seeding, and cleanup SQL, whereas the ZTD workflow captures the same query, feeds it to pg-testkit, and replays the rewritten/select-only statements backed by fixtures.
+- Suite sizes shown in the report:
+  - 3 tests (baseline)
+  - 30 tests (the same 3 cases repeated to approximate a larger suite)
+
+The 30-test suite exists to show how runner overhead amortizes as the number of executed tests grows, while keeping the tested SQL and data constant.
+
+#### What is included / excluded
+
+- **Runner-included runs (main comparison):** wall-clock time including `pnpm` + `vitest` startup and test execution.
+- **Steady-state section:** measures incremental cost per iteration after the runner is warm (first iteration excluded), to approximate watch/CI-like “many tests per single runner invocation”.
+- **Container startup:** excluded (the Postgres container is shared across runs).
+
+#### Fairness / bias notes (important)
+
+This benchmark intentionally measures the **Traditional** workflow under favorable assumptions:
+
+- **Traditional SQL construction cost is treated as zero**: queries are hard-coded raw SQL strings (no ORM/query-builder generation time).
+- **Traditional migration/DDL generation cost is treated as zero**: schema/migration SQL is also written directly (no ORM schema DSL or migration generation time).
+
+In contrast, the **ZTD** benchmark includes the repository layer’s normal SQL usage:
+
+- **ZTD includes SQL construction time as exercised by the repository layer** (i.e., whatever the test code does to produce the SQL text), in addition to rewrite/fixture overhead.
+
+Because real-world ORM workflows usually add both query generation and migration generation overhead on top of what is measured here, this setup should be interpreted as a **lower bound for Traditional** and a relatively conservative comparison against ZTD.
+
+### Results (runner included)
+
+#### End-to-end runtime
+
+| Suite size | Scenario | Workers | Avg Total (ms) | Avg Startup (ms) | Avg Execution (ms) | Startup % | Avg ms/test | Avg SQL Count | Avg DB (ms) |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 3 | Traditional | 1 | 1951.08 | 1013.22 | 937.86 | 51.8% | 650.36 | 36 | 123.06 |
+| 3 | Traditional | 4 | 1301.56 | 967.02 | 334.54 | 74.3% | 433.85 | 36 | 39.06 |
+| 3 | ZTD | 1 | 2283.66 | 979.91 | 1303.74 | 42.9% | 761.22 | 3 | 11.34 |
+| 3 | ZTD | 4 | 1430.64 | 957.75 | 472.89 | 66.9% | 476.88 | 3 | 3.81 |
+| 30 | Traditional | 1 | 3085.48 | 1018.71 | 2066.77 | 33.0% | 102.85 | 360 | 1009.85 |
+| 30 | Traditional | 4 | 1788.35 | 996.66 | 791.68 | 55.8% | 59.61 | 360 | 392.83 |
+| 30 | ZTD | 1 | 2480.84 | 957.91 | 1522.94 | 38.6% | 82.69 | 30 | 44.82 |
+| 30 | ZTD | 4 | 1507.46 | 944.57 | 562.88 | 62.7% | 50.25 | 30 | 17.69 |
+
+### What this shows
+- **Small suites (3 tests) are dominated by runner startup.** At this scale, Traditional is faster (both serial and 4-worker), because fixed startup overhead and per-test harness work overwhelm ZTD’s per-test savings.
+- **As suite size grows (30 tests), ZTD becomes faster end-to-end.**
+  - Serial: ZTD 2480.84 ms vs Traditional 3085.48 ms
+  - 4 workers: ZTD 1507.46 ms vs Traditional 1788.35 ms
+- **Parallel execution helps both approaches**, but the improvement is constrained by startup overhead:
+  - With 4 workers, the startup share rises (more of the total becomes fixed runner cost), so scaling is not linear.
+
+### Break-even intuition (where ZTD starts to win)
+
+From these results, the practical break-even is **between 3 and 30 tests** under the current environment and runner-included setup.
+
+Why:
+- Traditional has high per-test DB work (many SQL statements + significant DB time).
+- ZTD has low per-test DB work (few SQL statements), but adds rewrite + fixture overhead.
+- Once the suite is large enough that **execution dominates startup**, ZTD’s reduced DB work overtakes its rewrite/fixture costs.
+
+### ZTD cost structure (what is expensive)
+
+ZTD’s incremental work per test is primarily:
+- **SQL-to-ZTD rewrite time**
+- **Fixture materialization time**
+- **DB query time** (typically small compared to Traditional)
+
+A concrete view is easiest in the steady-state section below, where the runner is warm.
+
+### Steady-state (runner warm) incremental cost
+
+This approximates watch/CI iterations where the runner has already started (first repetition excluded as warmup).
+
+| Suite | Workers | Avg incremental time per iteration (ms) | Avg SQL Count | Avg DB time (ms) | Avg rewrite (ms) | Avg fixture (ms) |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Traditional (30 tests) | 1 | 1260.20 | 360 | 1039.98 | - | - |
+| ZTD (30 tests) | 1 | 93.73 | 30 | 30.08 | 32.00 | 20.42 |
+| ZTD (30 tests) | 4 | 91.14 | 30 | 29.95 | 30.75 | 19.40 |
+
+### What this shows
+- Traditional steady-state is dominated by DB time (~1040 ms out of ~1260 ms).
+- ZTD steady-state is dominated by **rewrite (~31 ms) + fixture (~20 ms)**; DB time is ~30 ms.
+- Parallelism has limited impact in ZTD steady-state here because the per-iteration work is already small and may be bounded by coordination / shared overheads.
+
+### Conclusion
+
+- **Runner included (realistic)**:
+  - For very small suites, startup dominates and Traditional can be faster.
+  - For larger suites, ZTD wins end-to-end due to dramatically lower DB work and SQL count.
+- **Parallel execution matters**, but it mainly reduces the execution portion; runner startup becomes the limiting floor.
+- **ZTD’s main costs are rewrite and fixture preparation**, not DB time. This is good news: optimizing rewrite/fixture logic is the highest-leverage path for further speedups.
+
+To regenerate the report, run:
+
+```bash
+pnpm ztd:bench
+```
+
+The report is written to `tmp/bench/report.md`.
+
 ## Concepts (Why ZTD?)
 
 ### What is ZTD?
