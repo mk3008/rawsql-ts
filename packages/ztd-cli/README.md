@@ -79,7 +79,7 @@ You can introduce ZTD incrementally; existing tests and ORMs can remain untouche
 - `tests/generated/ztd-layout.generated.ts` (generated layout snapshot; do not commit)
 - `tests/support/global-setup.ts` (shared test setup used by the generated testkit client)
 - `README.md` describing the workflow and commands
- - `AGENTS.md` (copied from the package template unless the project already has one; `--with-app-interface` adds the application interface guidance block at the end)
+- `AGENTS.md` (copied from the package template unless the project already has one; `--with-app-interface` adds the application interface guidance block at the end)
 - `ztd/AGENTS.md` and `ztd/README.md` (folder-specific instructions that describe the new schema/domain layout)
 - `src/db/sql-client.ts` (optional; generated only with `--with-sqlclient`)
 - Optional guide stubs under `src/` and `tests/` if requested
