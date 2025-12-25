@@ -1,0 +1,54 @@
+name: Refresh Demo Browser Bundle
+
+on:
+  workflow_dispatch:
+    description: Rebuild rawsql-ts browser bundle and generate a PR with the refreshed demo vendor build.
+
+jobs:
+  recreate-demo-bundle:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build rawsql-ts browser output
+        run: pnpm --filter rawsql-ts build:browser
+
+      - name: Regenerate demo browser bundle
+        run: |
+          mkdir -p docs/public/demo/vendor
+          pnpm exec esbuild packages/core/src/index.ts \
+            --bundle \
+            --platform=browser \
+            --format=esm \
+            --outfile=docs/public/demo/vendor/rawsql.browser.js \
+            --minify-syntax \
+            --minify-whitespace \
+            --log-level=info
+
+      - name: Create PR with refreshed bundle
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: chore: refresh demo browser bundle
+          branch: refresh-demo-bundle-${{ github.run_id }}
+          title: Refresh demo browser bundle
+          body: |
+            ## Summary
+            - rebuild the rawsql-ts browser output via `pnpm --filter rawsql-ts build:browser`
+            - regenerate `docs/public/demo/vendor/rawsql.browser.js` via esbuild
+          labels: demo
+          base: main
+          delete-branch: true
+          paths: docs/public/demo/vendor/rawsql.browser.js
+          fail-on-no-changes: false
