@@ -8,6 +8,12 @@ import { QualifiedName } from "../models/ValueComponent";
  * Parses DROP SCHEMA statements.
  */
 export class DropSchemaParser {
+    /**
+     * Parses a DROP SCHEMA statement from raw SQL and validates that the entire string is consumed.
+     * @param sql - The SQL string to parse
+     * @returns The parsed DropSchemaStatement
+     * @throws Error if the SQL string contains unexpected trailing tokens or is malformed
+     */
     public static parse(sql: string): DropSchemaStatement {
         const tokenizer = new SqlTokenizer(sql);
         const lexemes = tokenizer.readLexemes();
@@ -18,6 +24,12 @@ export class DropSchemaParser {
         return result.value;
     }
 
+    /**
+     * Parses a DROP SCHEMA statement from lexemes starting at the provided index.
+     * @param lexemes - The lexeme stream that contains the statement
+     * @param index - The position within the lexeme stream where DROP SCHEMA should begin
+     * @returns An object containing the parsed DropSchemaStatement and the new lexeme index
+     */
     public static parseFromLexeme(lexemes: Lexeme[], index: number): { value: DropSchemaStatement; newIndex: number } {
         let idx = index;
 
