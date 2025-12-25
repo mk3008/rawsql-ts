@@ -73,6 +73,40 @@ export class DropIndexStatement extends SqlComponent {
 }
 
 /**
+ * CREATE SCHEMA statement representation.
+ */
+export class CreateSchemaStatement extends SqlComponent {
+    static kind = Symbol("CreateSchemaStatement");
+    schemaName: QualifiedName;
+    ifNotExists: boolean;
+    authorization: IdentifierString | null;
+
+    constructor(params: { schemaName: QualifiedName; ifNotExists?: boolean; authorization?: IdentifierString | null }) {
+        super();
+        this.schemaName = new QualifiedName(params.schemaName.namespaces, params.schemaName.name);
+        this.ifNotExists = params.ifNotExists ?? false;
+        this.authorization = params.authorization ? cloneIdentifierWithComments(params.authorization) : null;
+    }
+}
+
+/**
+ * DROP SCHEMA statement representation.
+ */
+export class DropSchemaStatement extends SqlComponent {
+    static kind = Symbol("DropSchemaStatement");
+    schemaNames: QualifiedName[];
+    ifExists: boolean;
+    behavior: DropBehavior;
+
+    constructor(params: { schemaNames: QualifiedName[]; ifExists?: boolean; behavior?: DropBehavior }) {
+        super();
+        this.schemaNames = params.schemaNames.map(schema => new QualifiedName(schema.namespaces, schema.name));
+        this.ifExists = params.ifExists ?? false;
+        this.behavior = params.behavior ?? null;
+    }
+}
+
+/**
  * Column definition within CREATE INDEX clause.
  */
 export class IndexColumnDefinition extends SqlComponent {

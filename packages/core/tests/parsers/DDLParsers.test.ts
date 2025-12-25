@@ -5,6 +5,8 @@ import { CreateIndexParser } from "../../src/parsers/CreateIndexParser";
 import { AlterTableParser } from "../../src/parsers/AlterTableParser";
 import { DropConstraintParser } from "../../src/parsers/DropConstraintParser";
 import { CreateSequenceParser, AlterSequenceParser } from "../../src/parsers/SequenceParser";
+import { CreateSchemaParser } from "../../src/parsers/CreateSchemaParser";
+import { DropSchemaParser } from "../../src/parsers/DropSchemaParser";
 import { SqlFormatter } from "../../src/transformers/SqlFormatter";
 import { FunctionCall, LiteralValue } from "../../src/models/ValueComponent";
 import {
@@ -115,6 +117,28 @@ WHERE active = true`;
         expect(ast.ifExists).toBe(true);
         expect(ast.behavior).toBe("restrict");
         expect(formatted).toBe('drop constraint if exists "orphan_check" restrict');
+    });
+
+    it("parses CREATE SCHEMA with IF NOT EXISTS and AUTHORIZATION", () => {
+        const sql = "CREATE SCHEMA IF NOT EXISTS tenant AUTHORIZATION admin";
+        const ast = CreateSchemaParser.parse(sql);
+        const formatted = new SqlFormatter().format(ast).formattedSql;
+
+        expect(ast.ifNotExists).toBe(true);
+        expect(ast.schemaName.toString()).toBe("tenant");
+        expect(ast.authorization?.name).toBe("admin");
+        expect(formatted).toBe('create schema if not exists "tenant" authorization "admin"');
+    });
+
+    it("parses DROP SCHEMA with multiple targets and behavior", () => {
+        const sql = "DROP SCHEMA IF EXISTS public, audit CASCADE";
+        const ast = DropSchemaParser.parse(sql);
+        const formatted = new SqlFormatter().format(ast).formattedSql;
+
+        expect(ast.ifExists).toBe(true);
+        expect(ast.schemaNames.map(schema => schema.toString())).toEqual(["public", "audit"]);
+        expect(ast.behavior).toBe("cascade");
+        expect(formatted).toBe('drop schema if exists "public", "audit" cascade');
     });
 
     it("parses CREATE SEQUENCE with sequence options", () => {
