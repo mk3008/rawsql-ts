@@ -66,6 +66,18 @@ export function normalizePulledSchema(rawSql: string, options: NormalizationOpti
     bucket.push(normalized);
     schemaMap.set(normalized.schema, bucket);
   }
+  // Ensure every included schema has a CREATE SCHEMA statement even if pg_dump omitted it.
+  for (const [schema, statements] of schemaMap) {
+    if (statements.some((entry) => entry.group === 'createSchema')) {
+      continue;
+    }
+    statements.push({
+      schema,
+      objectName: schema,
+      group: 'createSchema',
+      sql: finalizeRawStatement(`create schema ${schema}`)
+    });
+  }
 
   // Ensure the statements for each schema are returned in a deterministic order.
   for (const statements of schemaMap.values()) {
