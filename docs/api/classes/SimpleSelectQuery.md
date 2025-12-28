@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: SimpleSelectQuery
 
-Defined in: [packages/core/src/models/SimpleSelectQuery.ts:44](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SimpleSelectQuery.ts#L44)
+Defined in: [packages/core/src/models/SimpleSelectQuery.ts:44](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SimpleSelectQuery.ts#L44)
 
 Represents a single SELECT statement with full clause support (WITH, JOIN, GROUP BY, etc.).
 Provides the fluent CTE management API used throughout packages/core/tests/models/SelectQuery.cte-management.test.ts.
@@ -32,7 +32,7 @@ query
 
 > **new SimpleSelectQuery**(`params`): `SimpleSelectQuery`
 
-Defined in: [packages/core/src/models/SimpleSelectQuery.ts:65](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SimpleSelectQuery.ts#L65)
+Defined in: [packages/core/src/models/SimpleSelectQuery.ts:65](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SimpleSelectQuery.ts#L65)
 
 #### Parameters
 
@@ -100,7 +100,7 @@ Defined in: [packages/core/src/models/SimpleSelectQuery.ts:65](https://github.co
 
 > `static` **kind**: `symbol`
 
-Defined in: [packages/core/src/models/SimpleSelectQuery.ts:46](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SimpleSelectQuery.ts#L46)
+Defined in: [packages/core/src/models/SimpleSelectQuery.ts:46](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SimpleSelectQuery.ts#L46)
 
 #### Overrides
 
@@ -112,7 +112,7 @@ Defined in: [packages/core/src/models/SimpleSelectQuery.ts:46](https://github.co
 
 > `readonly` **\_\_selectQueryType**: `"SelectQuery"` = `'SelectQuery'`
 
-Defined in: [packages/core/src/models/SimpleSelectQuery.ts:47](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SimpleSelectQuery.ts#L47)
+Defined in: [packages/core/src/models/SimpleSelectQuery.ts:47](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SimpleSelectQuery.ts#L47)
 
 #### Implementation of
 
@@ -124,7 +124,7 @@ Defined in: [packages/core/src/models/SimpleSelectQuery.ts:47](https://github.co
 
 > **headerComments**: `null` \| `string`[] = `null`
 
-Defined in: [packages/core/src/models/SimpleSelectQuery.ts:48](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SimpleSelectQuery.ts#L48)
+Defined in: [packages/core/src/models/SimpleSelectQuery.ts:48](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SimpleSelectQuery.ts#L48)
 
 #### Implementation of
 
@@ -136,7 +136,7 @@ Defined in: [packages/core/src/models/SimpleSelectQuery.ts:48](https://github.co
 
 > **withClause**: `null` \| [`WithClause`](WithClause.md)
 
-Defined in: [packages/core/src/models/SimpleSelectQuery.ts:49](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SimpleSelectQuery.ts#L49)
+Defined in: [packages/core/src/models/SimpleSelectQuery.ts:49](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SimpleSelectQuery.ts#L49)
 
 ***
 
@@ -144,7 +144,7 @@ Defined in: [packages/core/src/models/SimpleSelectQuery.ts:49](https://github.co
 
 > **selectClause**: [`SelectClause`](SelectClause.md)
 
-Defined in: [packages/core/src/models/SimpleSelectQuery.ts:50](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SimpleSelectQuery.ts#L50)
+Defined in: [packages/core/src/models/SimpleSelectQuery.ts:50](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SimpleSelectQuery.ts#L50)
 
 ***
 
@@ -152,7 +152,7 @@ Defined in: [packages/core/src/models/SimpleSelectQuery.ts:50](https://github.co
 
 > **fromClause**: `null` \| [`FromClause`](FromClause.md)
 
-Defined in: [packages/core/src/models/SimpleSelectQuery.ts:51](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SimpleSelectQuery.ts#L51)
+Defined in: [packages/core/src/models/SimpleSelectQuery.ts:51](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SimpleSelectQuery.ts#L51)
 
 ***
 
@@ -160,7 +160,7 @@ Defined in: [packages/core/src/models/SimpleSelectQuery.ts:51](https://github.co
 
 > **whereClause**: `null` \| [`WhereClause`](WhereClause.md)
 
-Defined in: [packages/core/src/models/SimpleSelectQuery.ts:52](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SimpleSelectQuery.ts#L52)
+Defined in: [packages/core/src/models/SimpleSelectQuery.ts:52](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SimpleSelectQuery.ts#L52)
 
 ***
 
@@ -168,7 +168,7 @@ Defined in: [packages/core/src/models/SimpleSelectQuery.ts:52](https://github.co
 
 > **groupByClause**: `null` \| [`GroupByClause`](GroupByClause.md)
 
-Defined in: [packages/core/src/models/SimpleSelectQuery.ts:53](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SimpleSelectQuery.ts#L53)
+Defined in: [packages/core/src/models/SimpleSelectQuery.ts:53](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SimpleSelectQuery.ts#L53)
 
 ***
 
@@ -176,7 +176,7 @@ Defined in: [packages/core/src/models/SimpleSelectQuery.ts:53](https://github.co
 
 > **havingClause**: `null` \| [`HavingClause`](HavingClause.md)
 
-Defined in: [packages/core/src/models/SimpleSelectQuery.ts:54](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SimpleSelectQuery.ts#L54)
+Defined in: [packages/core/src/models/SimpleSelectQuery.ts:54](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SimpleSelectQuery.ts#L54)
 
 ***
 
@@ -184,7 +184,7 @@ Defined in: [packages/core/src/models/SimpleSelectQuery.ts:54](https://github.co
 
 > **orderByClause**: `null` \| [`OrderByClause`](OrderByClause.md)
 
-Defined in: [packages/core/src/models/SimpleSelectQuery.ts:55](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SimpleSelectQuery.ts#L55)
+Defined in: [packages/core/src/models/SimpleSelectQuery.ts:55](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SimpleSelectQuery.ts#L55)
 
 ***
 
@@ -192,7 +192,7 @@ Defined in: [packages/core/src/models/SimpleSelectQuery.ts:55](https://github.co
 
 > **windowClause**: `null` \| [`WindowsClause`](WindowsClause.md)
 
-Defined in: [packages/core/src/models/SimpleSelectQuery.ts:56](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SimpleSelectQuery.ts#L56)
+Defined in: [packages/core/src/models/SimpleSelectQuery.ts:56](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SimpleSelectQuery.ts#L56)
 
 ***
 
@@ -200,7 +200,7 @@ Defined in: [packages/core/src/models/SimpleSelectQuery.ts:56](https://github.co
 
 > **limitClause**: `null` \| [`LimitClause`](LimitClause.md)
 
-Defined in: [packages/core/src/models/SimpleSelectQuery.ts:57](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SimpleSelectQuery.ts#L57)
+Defined in: [packages/core/src/models/SimpleSelectQuery.ts:57](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SimpleSelectQuery.ts#L57)
 
 ***
 
@@ -208,7 +208,7 @@ Defined in: [packages/core/src/models/SimpleSelectQuery.ts:57](https://github.co
 
 > **offsetClause**: `null` \| [`OffsetClause`](OffsetClause.md)
 
-Defined in: [packages/core/src/models/SimpleSelectQuery.ts:58](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SimpleSelectQuery.ts#L58)
+Defined in: [packages/core/src/models/SimpleSelectQuery.ts:58](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SimpleSelectQuery.ts#L58)
 
 ***
 
@@ -216,7 +216,7 @@ Defined in: [packages/core/src/models/SimpleSelectQuery.ts:58](https://github.co
 
 > **fetchClause**: `null` \| [`FetchClause`](FetchClause.md)
 
-Defined in: [packages/core/src/models/SimpleSelectQuery.ts:59](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SimpleSelectQuery.ts#L59)
+Defined in: [packages/core/src/models/SimpleSelectQuery.ts:59](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SimpleSelectQuery.ts#L59)
 
 ***
 
@@ -224,7 +224,7 @@ Defined in: [packages/core/src/models/SimpleSelectQuery.ts:59](https://github.co
 
 > **forClause**: `null` \| [`ForClause`](ForClause.md)
 
-Defined in: [packages/core/src/models/SimpleSelectQuery.ts:60](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SimpleSelectQuery.ts#L60)
+Defined in: [packages/core/src/models/SimpleSelectQuery.ts:60](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SimpleSelectQuery.ts#L60)
 
 ***
 
@@ -232,7 +232,7 @@ Defined in: [packages/core/src/models/SimpleSelectQuery.ts:60](https://github.co
 
 > **comments**: `null` \| `string`[] = `null`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:29](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SqlComponent.ts#L29)
+Defined in: [packages/core/src/models/SqlComponent.ts:29](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SqlComponent.ts#L29)
 
 #### Implementation of
 
@@ -248,7 +248,7 @@ Defined in: [packages/core/src/models/SqlComponent.ts:29](https://github.com/mk3
 
 > **positionedComments**: `null` \| [`PositionedComment`](../interfaces/PositionedComment.md)[] = `null`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:32](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SqlComponent.ts#L32)
+Defined in: [packages/core/src/models/SqlComponent.ts:32](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SqlComponent.ts#L32)
 
 #### Implementation of
 
@@ -264,7 +264,7 @@ Defined in: [packages/core/src/models/SqlComponent.ts:32](https://github.com/mk3
 
 > **toUnion**(`rightQuery`): [`BinarySelectQuery`](BinarySelectQuery.md)
 
-Defined in: [packages/core/src/models/SimpleSelectQuery.ts:118](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SimpleSelectQuery.ts#L118)
+Defined in: [packages/core/src/models/SimpleSelectQuery.ts:118](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SimpleSelectQuery.ts#L118)
 
 Creates a new BinarySelectQuery with this query as the left side and the provided query as the right side,
 using UNION as the operator.
@@ -289,7 +289,7 @@ A new BinarySelectQuery representing "this UNION rightQuery"
 
 > **toUnionAll**(`rightQuery`): [`BinarySelectQuery`](BinarySelectQuery.md)
 
-Defined in: [packages/core/src/models/SimpleSelectQuery.ts:129](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SimpleSelectQuery.ts#L129)
+Defined in: [packages/core/src/models/SimpleSelectQuery.ts:129](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SimpleSelectQuery.ts#L129)
 
 Creates a new BinarySelectQuery with this query as the left side and the provided query as the right side,
 using UNION ALL as the operator.
@@ -314,7 +314,7 @@ A new BinarySelectQuery representing "this UNION ALL rightQuery"
 
 > **toInsertQuery**(`options`): [`InsertQuery`](InsertQuery.md)
 
-Defined in: [packages/core/src/models/SimpleSelectQuery.ts:138](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SimpleSelectQuery.ts#L138)
+Defined in: [packages/core/src/models/SimpleSelectQuery.ts:138](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SimpleSelectQuery.ts#L138)
 
 Converts this query into an INSERT statement definition.
 
@@ -342,7 +342,7 @@ Calling this method may reorder the current SELECT clause to match the requested
 
 > **toUpdateQuery**(`options`): [`UpdateQuery`](UpdateQuery.md)
 
-Defined in: [packages/core/src/models/SimpleSelectQuery.ts:147](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SimpleSelectQuery.ts#L147)
+Defined in: [packages/core/src/models/SimpleSelectQuery.ts:147](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SimpleSelectQuery.ts#L147)
 
 Converts this query into an UPDATE statement definition.
 
@@ -370,7 +370,7 @@ The conversion may reorder the SELECT list so that primary keys and updated colu
 
 > **toDeleteQuery**(`options`): [`DeleteQuery`](DeleteQuery.md)
 
-Defined in: [packages/core/src/models/SimpleSelectQuery.ts:156](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SimpleSelectQuery.ts#L156)
+Defined in: [packages/core/src/models/SimpleSelectQuery.ts:156](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SimpleSelectQuery.ts#L156)
 
 Converts this query into a DELETE statement definition.
 
@@ -398,7 +398,7 @@ The SELECT clause may be reordered to ensure primary keys and comparison columns
 
 > **toMergeQuery**(`options`): [`MergeQuery`](MergeQuery.md)
 
-Defined in: [packages/core/src/models/SimpleSelectQuery.ts:165](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SimpleSelectQuery.ts#L165)
+Defined in: [packages/core/src/models/SimpleSelectQuery.ts:165](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SimpleSelectQuery.ts#L165)
 
 Converts this query into a MERGE statement definition.
 
@@ -426,7 +426,7 @@ This method may reorder the SELECT clause to align with the specified MERGE colu
 
 > **toIntersect**(`rightQuery`): [`BinarySelectQuery`](BinarySelectQuery.md)
 
-Defined in: [packages/core/src/models/SimpleSelectQuery.ts:176](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SimpleSelectQuery.ts#L176)
+Defined in: [packages/core/src/models/SimpleSelectQuery.ts:176](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SimpleSelectQuery.ts#L176)
 
 Creates a new BinarySelectQuery with this query as the left side and the provided query as the right side,
 using INTERSECT as the operator.
@@ -451,7 +451,7 @@ A new BinarySelectQuery representing "this INTERSECT rightQuery"
 
 > **toIntersectAll**(`rightQuery`): [`BinarySelectQuery`](BinarySelectQuery.md)
 
-Defined in: [packages/core/src/models/SimpleSelectQuery.ts:187](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SimpleSelectQuery.ts#L187)
+Defined in: [packages/core/src/models/SimpleSelectQuery.ts:187](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SimpleSelectQuery.ts#L187)
 
 Creates a new BinarySelectQuery with this query as the left side and the provided query as the right side,
 using INTERSECT ALL as the operator.
@@ -476,7 +476,7 @@ A new BinarySelectQuery representing "this INTERSECT ALL rightQuery"
 
 > **toExcept**(`rightQuery`): [`BinarySelectQuery`](BinarySelectQuery.md)
 
-Defined in: [packages/core/src/models/SimpleSelectQuery.ts:198](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SimpleSelectQuery.ts#L198)
+Defined in: [packages/core/src/models/SimpleSelectQuery.ts:198](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SimpleSelectQuery.ts#L198)
 
 Creates a new BinarySelectQuery with this query as the left side and the provided query as the right side,
 using EXCEPT as the operator.
@@ -501,7 +501,7 @@ A new BinarySelectQuery representing "this EXCEPT rightQuery"
 
 > **toExceptAll**(`rightQuery`): [`BinarySelectQuery`](BinarySelectQuery.md)
 
-Defined in: [packages/core/src/models/SimpleSelectQuery.ts:209](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SimpleSelectQuery.ts#L209)
+Defined in: [packages/core/src/models/SimpleSelectQuery.ts:209](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SimpleSelectQuery.ts#L209)
 
 Creates a new BinarySelectQuery with this query as the left side and the provided query as the right side,
 using EXCEPT ALL as the operator.
@@ -526,7 +526,7 @@ A new BinarySelectQuery representing "this EXCEPT ALL rightQuery"
 
 > **toBinaryQuery**(`operator`, `rightQuery`): [`BinarySelectQuery`](BinarySelectQuery.md)
 
-Defined in: [packages/core/src/models/SimpleSelectQuery.ts:221](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SimpleSelectQuery.ts#L221)
+Defined in: [packages/core/src/models/SimpleSelectQuery.ts:221](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SimpleSelectQuery.ts#L221)
 
 Creates a new BinarySelectQuery with this query as the left side and the provided query as the right side,
 using the specified operator.
@@ -557,7 +557,7 @@ A new BinarySelectQuery representing "this [operator] rightQuery"
 
 > **appendWhereRaw**(`rawCondition`): `void`
 
-Defined in: [packages/core/src/models/SimpleSelectQuery.ts:231](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SimpleSelectQuery.ts#L231)
+Defined in: [packages/core/src/models/SimpleSelectQuery.ts:231](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SimpleSelectQuery.ts#L231)
 
 Appends a new condition to the query's WHERE clause using AND logic.
 The condition is provided as a raw SQL string which is parsed internally.
@@ -580,7 +580,7 @@ Raw SQL string representing the condition (e.g. "status = 'active'")
 
 > **appendWhere**(`condition`): `void`
 
-Defined in: [packages/core/src/models/SimpleSelectQuery.ts:242](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SimpleSelectQuery.ts#L242)
+Defined in: [packages/core/src/models/SimpleSelectQuery.ts:242](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SimpleSelectQuery.ts#L242)
 
 Appends a new condition to the query's WHERE clause using AND logic.
 The condition is provided as a ValueComponent object.
@@ -603,7 +603,7 @@ ValueComponent representing the condition
 
 > **appendHavingRaw**(`rawCondition`): `void`
 
-Defined in: [packages/core/src/models/SimpleSelectQuery.ts:260](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SimpleSelectQuery.ts#L260)
+Defined in: [packages/core/src/models/SimpleSelectQuery.ts:260](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SimpleSelectQuery.ts#L260)
 
 Appends a new condition to the query's HAVING clause using AND logic.
 The condition is provided as a raw SQL string which is parsed internally.
@@ -626,7 +626,7 @@ Raw SQL string representing the condition (e.g. "count(*) > 5")
 
 > **appendHaving**(`condition`): `void`
 
-Defined in: [packages/core/src/models/SimpleSelectQuery.ts:271](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SimpleSelectQuery.ts#L271)
+Defined in: [packages/core/src/models/SimpleSelectQuery.ts:271](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SimpleSelectQuery.ts#L271)
 
 Appends a new condition to the query's HAVING clause using AND logic.
 The condition is provided as a ValueComponent object.
@@ -649,7 +649,7 @@ ValueComponent representing the condition
 
 > **innerJoinRaw**(`joinSourceRawText`, `alias`, `columns`, `resolver`): `void`
 
-Defined in: [packages/core/src/models/SimpleSelectQuery.ts:289](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SimpleSelectQuery.ts#L289)
+Defined in: [packages/core/src/models/SimpleSelectQuery.ts:289](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SimpleSelectQuery.ts#L289)
 
 Appends an INNER JOIN clause to the query.
 
@@ -687,7 +687,7 @@ The columns to use for the join condition (e.g. ["user_id"] or "user_id")
 
 > **leftJoinRaw**(`joinSourceRawText`, `alias`, `columns`, `resolver`): `void`
 
-Defined in: [packages/core/src/models/SimpleSelectQuery.ts:299](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SimpleSelectQuery.ts#L299)
+Defined in: [packages/core/src/models/SimpleSelectQuery.ts:299](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SimpleSelectQuery.ts#L299)
 
 Appends a LEFT JOIN clause to the query.
 
@@ -725,7 +725,7 @@ The columns to use for the join condition
 
 > **rightJoinRaw**(`joinSourceRawText`, `alias`, `columns`, `resolver`): `void`
 
-Defined in: [packages/core/src/models/SimpleSelectQuery.ts:309](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SimpleSelectQuery.ts#L309)
+Defined in: [packages/core/src/models/SimpleSelectQuery.ts:309](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SimpleSelectQuery.ts#L309)
 
 Appends a RIGHT JOIN clause to the query.
 
@@ -763,7 +763,7 @@ The columns to use for the join condition
 
 > **innerJoin**(`sourceExpr`, `columns`, `resolver`): `void`
 
-Defined in: [packages/core/src/models/SimpleSelectQuery.ts:318](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SimpleSelectQuery.ts#L318)
+Defined in: [packages/core/src/models/SimpleSelectQuery.ts:318](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SimpleSelectQuery.ts#L318)
 
 Appends an INNER JOIN clause to the query using a SourceExpression.
 
@@ -795,7 +795,7 @@ The columns to use for the join condition
 
 > **leftJoin**(`sourceExpr`, `columns`, `resolver`): `void`
 
-Defined in: [packages/core/src/models/SimpleSelectQuery.ts:327](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SimpleSelectQuery.ts#L327)
+Defined in: [packages/core/src/models/SimpleSelectQuery.ts:327](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SimpleSelectQuery.ts#L327)
 
 Appends a LEFT JOIN clause to the query using a SourceExpression.
 
@@ -827,7 +827,7 @@ The columns to use for the join condition
 
 > **rightJoin**(`sourceExpr`, `columns`, `resolver`): `void`
 
-Defined in: [packages/core/src/models/SimpleSelectQuery.ts:336](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SimpleSelectQuery.ts#L336)
+Defined in: [packages/core/src/models/SimpleSelectQuery.ts:336](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SimpleSelectQuery.ts#L336)
 
 Appends a RIGHT JOIN clause to the query using a SourceExpression.
 
@@ -859,7 +859,7 @@ The columns to use for the join condition
 
 > **toSource**(`alias`): [`SourceExpression`](SourceExpression.md)
 
-Defined in: [packages/core/src/models/SimpleSelectQuery.ts:419](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SimpleSelectQuery.ts#L419)
+Defined in: [packages/core/src/models/SimpleSelectQuery.ts:419](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SimpleSelectQuery.ts#L419)
 
 #### Parameters
 
@@ -877,7 +877,7 @@ Defined in: [packages/core/src/models/SimpleSelectQuery.ts:419](https://github.c
 
 > **appendWith**(`commonTable`): `void`
 
-Defined in: [packages/core/src/models/SimpleSelectQuery.ts:429](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SimpleSelectQuery.ts#L429)
+Defined in: [packages/core/src/models/SimpleSelectQuery.ts:429](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SimpleSelectQuery.ts#L429)
 
 #### Parameters
 
@@ -895,7 +895,7 @@ Defined in: [packages/core/src/models/SimpleSelectQuery.ts:429](https://github.c
 
 > **appendWithRaw**(`rawText`, `alias`): `void`
 
-Defined in: [packages/core/src/models/SimpleSelectQuery.ts:448](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SimpleSelectQuery.ts#L448)
+Defined in: [packages/core/src/models/SimpleSelectQuery.ts:448](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SimpleSelectQuery.ts#L448)
 
 Appends a CommonTable (CTE) to the WITH clause from raw SQL text and alias.
 If alias is provided, it will be used as the CTE name.
@@ -924,7 +924,7 @@ Optional alias for the CTE (e.g. 'cte_name')
 
 > **overrideSelectItemExpr**(`columnName`, `fn`): `void`
 
-Defined in: [packages/core/src/models/SimpleSelectQuery.ts:465](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SimpleSelectQuery.ts#L465)
+Defined in: [packages/core/src/models/SimpleSelectQuery.ts:465](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SimpleSelectQuery.ts#L465)
 
 Overrides a select item using a template literal function.
 The callback receives the SQL string of the original expression and must return a new SQL string.
@@ -957,7 +957,7 @@ Callback that receives the SQL string of the original expression and returns a n
 
 > **appendWhereExpr**(`columnName`, `exprBuilder`, `options?`): `void`
 
-Defined in: [packages/core/src/models/SimpleSelectQuery.ts:489](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SimpleSelectQuery.ts#L489)
+Defined in: [packages/core/src/models/SimpleSelectQuery.ts:489](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SimpleSelectQuery.ts#L489)
 
 Appends a WHERE clause using the expression for the specified column.
 If `options.upstream` is true, applies to all upstream queries containing the column.
@@ -995,7 +995,7 @@ Optional settings. If `upstream` is true, applies to upstream queries.
 
 > **setParameter**(`name`, `value`): `this`
 
-Defined in: [packages/core/src/models/SimpleSelectQuery.ts:528](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SimpleSelectQuery.ts#L528)
+Defined in: [packages/core/src/models/SimpleSelectQuery.ts:528](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SimpleSelectQuery.ts#L528)
 
 Sets the value of a parameter by name in this query.
 
@@ -1027,7 +1027,7 @@ Value to set
 
 > **toSimpleQuery**(): `SimpleSelectQuery`
 
-Defined in: [packages/core/src/models/SimpleSelectQuery.ts:537](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SimpleSelectQuery.ts#L537)
+Defined in: [packages/core/src/models/SimpleSelectQuery.ts:537](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SimpleSelectQuery.ts#L537)
 
 Returns this SimpleSelectQuery instance (identity function).
 
@@ -1047,7 +1047,7 @@ This SimpleSelectQuery instance
 
 > **addCTE**(`name`, `query`, `options?`): `this`
 
-Defined in: [packages/core/src/models/SimpleSelectQuery.ts:572](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SimpleSelectQuery.ts#L572)
+Defined in: [packages/core/src/models/SimpleSelectQuery.ts:572](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SimpleSelectQuery.ts#L572)
 
 Adds a CTE (Common Table Expression) to the query.
 
@@ -1115,7 +1115,7 @@ query.addCTE('simple_view', simpleQuery, { materialized: false });
 
 > **removeCTE**(`name`): `this`
 
-Defined in: [packages/core/src/models/SimpleSelectQuery.ts:613](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SimpleSelectQuery.ts#L613)
+Defined in: [packages/core/src/models/SimpleSelectQuery.ts:613](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SimpleSelectQuery.ts#L613)
 
 Removes a CTE by name from the query.
 
@@ -1161,7 +1161,7 @@ query.removeCTE('non_existent');
 
 > **hasCTE**(`name`): `boolean`
 
-Defined in: [packages/core/src/models/SimpleSelectQuery.ts:655](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SimpleSelectQuery.ts#L655)
+Defined in: [packages/core/src/models/SimpleSelectQuery.ts:655](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SimpleSelectQuery.ts#L655)
 
 Checks if a CTE with the given name exists in the query.
 Optimized with O(1) lookup using internal cache.
@@ -1210,7 +1210,7 @@ console.log(query.hasCTE('user_stats')); // false
 
 > **getCTENames**(): `string`[]
 
-Defined in: [packages/core/src/models/SimpleSelectQuery.ts:690](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SimpleSelectQuery.ts#L690)
+Defined in: [packages/core/src/models/SimpleSelectQuery.ts:690](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SimpleSelectQuery.ts#L690)
 
 Returns an array of all CTE names in the query.
 
@@ -1258,7 +1258,7 @@ const missingCTEs = expectedCTEs.filter(name => !actualCTEs.includes(name));
 
 > **replaceCTE**(`name`, `query`, `options?`): `this`
 
-Defined in: [packages/core/src/models/SimpleSelectQuery.ts:733](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SimpleSelectQuery.ts#L733)
+Defined in: [packages/core/src/models/SimpleSelectQuery.ts:733](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SimpleSelectQuery.ts#L733)
 
 Replaces an existing CTE or adds a new one with the given name.
 
@@ -1331,7 +1331,7 @@ query
 
 > **getKind**(): `symbol`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:15](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SqlComponent.ts#L15)
+Defined in: [packages/core/src/models/SqlComponent.ts:15](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SqlComponent.ts#L15)
 
 #### Returns
 
@@ -1351,7 +1351,7 @@ Defined in: [packages/core/src/models/SqlComponent.ts:15](https://github.com/mk3
 
 > **accept**&lt;`T`\&gt;(`visitor`): `T`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:19](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SqlComponent.ts#L19)
+Defined in: [packages/core/src/models/SqlComponent.ts:19](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SqlComponent.ts#L19)
 
 #### Type Parameters
 
@@ -1383,7 +1383,7 @@ Defined in: [packages/core/src/models/SqlComponent.ts:19](https://github.com/mk3
 
 > **toSqlString**(`formatter`): `string`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:23](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SqlComponent.ts#L23)
+Defined in: [packages/core/src/models/SqlComponent.ts:23](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SqlComponent.ts#L23)
 
 #### Parameters
 
@@ -1409,7 +1409,7 @@ Defined in: [packages/core/src/models/SqlComponent.ts:23](https://github.com/mk3
 
 > **addPositionedComments**(`position`, `comments`): `void`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:37](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SqlComponent.ts#L37)
+Defined in: [packages/core/src/models/SqlComponent.ts:37](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SqlComponent.ts#L37)
 
 Add comments at a specific position
 
@@ -1441,7 +1441,7 @@ Add comments at a specific position
 
 > **getPositionedComments**(`position`): `string`[]
 
-Defined in: [packages/core/src/models/SqlComponent.ts:56](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SqlComponent.ts#L56)
+Defined in: [packages/core/src/models/SqlComponent.ts:56](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SqlComponent.ts#L56)
 
 Get comments for a specific position
 
@@ -1469,7 +1469,7 @@ Get comments for a specific position
 
 > **getAllPositionedComments**(): `string`[]
 
-Defined in: [packages/core/src/models/SqlComponent.ts:66](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SqlComponent.ts#L66)
+Defined in: [packages/core/src/models/SqlComponent.ts:66](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SqlComponent.ts#L66)
 
 Get all positioned comments as a flat array in order (before, after)
 

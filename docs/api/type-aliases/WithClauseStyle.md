@@ -3,7 +3,7 @@
 
 > **WithClauseStyle** = `"standard"` \| `"cte-oneline"` \| `"full-oneline"`
 
-Defined in: [packages/core/src/transformers/SqlFormatter.ts:19](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/transformers/SqlFormatter.ts#L19)
+Defined in: [packages/core/src/transformers/SqlFormatter.ts:19](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/transformers/SqlFormatter.ts#L19)
 
 WithClauseStyle determines how WITH clauses are formatted.
 - 'standard': Normal formatting with proper indentation
