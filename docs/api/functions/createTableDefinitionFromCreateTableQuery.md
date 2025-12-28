@@ -3,7 +3,7 @@
 
 > **createTableDefinitionFromCreateTableQuery**(`query`): [`TableDefinitionModel`](../interfaces/TableDefinitionModel.md)
 
-Defined in: [packages/core/src/models/TableDefinitionModel.ts:109](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/TableDefinitionModel.ts#L109)
+Defined in: [packages/core/src/models/TableDefinitionModel.ts:112](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/TableDefinitionModel.ts#L112)
 
 Convert a parsed CREATE TABLE query into the table definition model used by transformers.
 
