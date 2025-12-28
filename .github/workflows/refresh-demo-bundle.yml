@@ -6,6 +6,8 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  pages: write
+  id-token: write
 
 jobs:
   recreate-demo-bundle:
@@ -53,6 +55,18 @@ jobs:
             --minify-syntax \
             --minify-whitespace \
             --log-level=info
+
+      - name: Build documentation site
+        run: pnpm run docs:build
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/.vitepress/dist
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
 
       - name: Create PR with refreshed bundle
         uses: peter-evans/create-pull-request@v5
