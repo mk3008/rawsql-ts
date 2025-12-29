@@ -1,7 +1,5 @@
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
-import { spawn } from 'node:child_process';
 import { PostgreSqlContainer } from '@testcontainers/postgresql';
 import {
   CUSTOMER_ROWS,
@@ -10,33 +8,34 @@ import {
   SALES_ORDER_ROWS,
   TRADITIONAL_CASES,
 } from './support/traditional-bench-data';
-import {
-  runCustomerSummaryCase,
-  runProductRankingCase,
-  runSalesSummaryCase,
-} from './ztd-bench/tests/support/ztd-bench-cases';
 import type { ZtdBenchMetrics } from './ztd-bench/tests/support/testkit-client';
 import { buildBenchSchemaName } from './ztd-bench/tests/support/bench-suite';
 import {
   ConnectionLogger,
   ConnectionModel,
+  DbConcurrencyMode,
   RunPhase,
+  SessionStat,
+  appendSessionStats,
   clearConnectionEvents,
   clearSessionStats,
+  getConnectionEvents,
+  getSessionStats,
   recordConnectionEvent,
   recordSessionStat,
+  type ConnectionLoggerEntry,
 } from './ztd-bench/tests/support/diagnostics';
 import { getDbClient, releaseWorkerClient, closeDbPool } from './support/db-client';
 import { runTraditionalParallelismValidation } from './support/traditional-parallelism-validation';
 import { safeStopSampler, SessionSampler } from './support/session-sampler';
 import {
   BenchContext,
-  BenchPhaseLogEntry,
   closeBenchmarkLogger,
   configureBenchmarkLogger,
   getBenchPhaseEntries,
   logBenchPhase,
   logBenchProgress,
+  resetBenchmarkLog,
 } from './support/benchmark-logger';
 import {
   clearZtdDiagnostics,
@@ -44,307 +43,83 @@ import {
   getZtdWaitingMap,
   recordZtdSession,
 } from './ztd-bench/tests/support/bench-diagnostics';
+import {
+  loadPersistedSessionStats,
+  persistSessionStatsToDisk,
+} from './bench-runner/diagnostics/session-stats';
+import { persistConnectionEventsToDisk } from './bench-runner/diagnostics/connection-events';
+import { platformCommand, runCommand } from './bench-runner/runner/commands';
+import {
+  BENCH_LOG_PATH,
+  APPENDIX_REPORT_PATH,
+  REPORT_PATH,
+  REPORT_METADATA_PATH,
+  ROOT_DIR,
+  RUN_TAG_PREFIX,
+  TMP_DIR,
+  TRADITIONAL_SQL_LOG_DIR,
+} from './bench-runner/runtime/paths';
+import {
+  startPgConcurrencyMonitor,
+  type PgConcurrencySummary,
+} from './support/pg-concurrency';
+import { appendWorkerTag } from './support/worker-tag';
+import {
+  resolveBenchConnectionModels,
+  resolveBenchProfile,
+  resolveBenchScenarios,
+  resolveDbConcurrencyMode,
+  resolveNumberSetting,
+  resolveParallelWorkerCounts,
+  resolveSuiteMultipliers,
+  resolveSteadyStateIterations,
+  resolveTraditionalDbSerialLockKey,
+} from './bench-runner/config';
+import {
+  aggregateTraditionalMetrics,
+  clearMetricsFiles,
+  clearMetricsStatus,
+  configureMetricsContext,
+  getMetricsStatusEntries,
+  loadRunMetricsFromDisk,
+  readExecutionMetrics,
+  readSteadyStateMetrics,
+  recordMetricsStatus,
+} from './bench-runner/metrics';
+import { formatMs } from './bench-runner/utils';
+import type {
+  BenchScenarioSelection,
+  ExecutionMode,
+  RecordedStatement,
+  RunMetrics,
+  Scenario,
+  SteadyStateMetrics,
+  TraditionalParallelDiagnostic,
+} from './bench-runner/types';
+import {
+  captureAndResetWorkerTimeRanges,
+  clearCurrentTraditionalDiagnostic,
+  clearWorkerActivities,
+  getActiveConnectionModel,
+  getActiveParallelWorkers,
+  getCurrentTraditionalDiagnostic,
+  parallelValidationTokens,
+  recordWorkerCaseCompletion,
+  recordWorkerCaseStart,
+  recordWorkerMigrationStatements,
+  setActiveConnectionModel,
+  setActiveParallelWorkers,
+  setCurrentTraditionalDiagnostic,
+} from './bench-runner/state';
+import {
+  TRADITIONAL_CASE_COUNT,
+  ZTD_CASE_RUNNERS,
+} from './bench-runner/benchmark-data';
+import { resolveMeasuredRunsForMultiplier, shouldWarmupMultiplier } from './bench-runner/benchmark-helpers';
+import { writeBenchmarkReports } from './bench-runner/report/report-writer';
+import { writeReportMetadata } from './bench-runner/report/report-metadata';
+import { runAnalysisOnlyFromDisk } from './bench-runner/report/report-analysis';
 
-type ExecutionMode = 'serial' | 'parallel';
-type Scenario =
-  | 'ztd-runner'
-  | 'traditional-runner'
-  | 'traditional-in-process'
-  | 'ztd-in-process'
-  | 'ztd-steady-state'
-  | 'traditional-steady-state';
-type BenchProfileName = 'quick' | 'dev' | 'ci';
-type BenchProfile = {
-  name: BenchProfileName;
-  defaults: {
-    warmupRuns: number;
-    measuredRuns: number;
-    suiteMultipliers: number[];
-    steadyStateIterations: number;
-    steadyStateSuiteMultiplier: number;
-  };
-};
-type BenchScenarioSelection = {
-  label: string;
-  includeRunner: boolean;
-  includeSteady: boolean;
-  includeLowerBound: boolean;
-};
-
-type SteadyStateMetrics = {
-  iterationTotalMs: number[];
-  iterationSqlCount: number[];
-  iterationDbMs: number[];
-  iterationRewriteMs?: number[];
-  iterationFixtureMs?: number[];
-  iterationSqlGenerationMs?: number[];
-  iterationOtherMs?: number[];
-};
-
-type RunMetrics = {
-  scenario: Scenario;
-  phase: RunPhase;
-  mode: ExecutionMode;
-  durationMs: number;
-  suiteMultiplier: number;
-  suiteSize: number;
-  sqlCount?: number;
-  totalDbMs?: number;
-  totalQueryMs?: number;
-  rewriteMs?: number;
-  fixtureMaterializationMs?: number;
-  sqlGenerationMs?: number;
-  otherProcessingMs?: number;
-  startupMs?: number;
-  executionMs?: number;
-  perTestMs?: number;
-  startupShare?: number;
-  executionShare?: number;
-  steadyState?: SteadyStateMetrics;
-  parallelWorkerCount?: number;
-  traditionalPeakConnections?: number;
-  traditionalCasesPerWorker?: Record<string, number>;
-  runIndex?: number;
-  traditionalWorkerTimeRanges?: WorkerTimeRange[];
-};
-
-type MetricsStatusEntry = {
-  scenario: Scenario;
-  mode: ExecutionMode;
-  suiteMultiplier: number;
-  phase: RunPhase;
-  runIndex: number;
-  metricsPresent: boolean;
-  usedFiles: string[];
-  missingFiles: string[];
-};
-
-type WorkerActivity = {
-  connectionModel: ConnectionModel;
-  scenarioLabel: string;
-  mode: ExecutionMode;
-  workerId: string;
-  cases: number;
-  startMs?: number;
-  endMs?: number;
-  migrationStatements: number;
-};
-
-const workerActivities = new Map<string, WorkerActivity>();
-
-type WorkerTimeRange = {
-  workerId: string;
-  cases: number;
-  startOffsetMs?: number;
-  endOffsetMs?: number;
-};
-
-type TraditionalParallelDiagnostic = {
-  casesPerWorker: Map<string, number>;
-  activeConnections: number;
-  peakConnections: number;
-};
-
-let currentTraditionalDiagnostic: TraditionalParallelDiagnostic | null = null;
-const parallelValidationTokens = new Set<string>();
-
-function normalizeWorkerId(workerId?: string): string {
-  return workerId && workerId.length > 0 ? workerId : 'unknown';
-}
-
-function buildWorkerActivityKey(
-  connectionModel: ConnectionModel,
-  scenarioLabel: string,
-  mode: ExecutionMode,
-  workerId: string,
-): string {
-  return `${connectionModel}|${scenarioLabel}|${mode}|${workerId}`;
-}
-
-function getOrCreateWorkerActivity(
-  connectionModel: ConnectionModel,
-  scenarioLabel: string,
-  mode: ExecutionMode,
-  workerId: string,
-): WorkerActivity {
-  const normalizedWorker = normalizeWorkerId(workerId);
-  const key = buildWorkerActivityKey(connectionModel, scenarioLabel, mode, normalizedWorker);
-  let activity = workerActivities.get(key);
-  if (!activity) {
-    activity = {
-      connectionModel,
-      scenarioLabel,
-      mode,
-      workerId: normalizedWorker,
-      cases: 0,
-      migrationStatements: 0,
-    };
-    workerActivities.set(key, activity);
-  }
-  return activity;
-}
-
-function recordWorkerCaseStart(
-  connectionModel: ConnectionModel,
-  scenarioLabel: string,
-  mode: ExecutionMode,
-  workerId?: string,
-): void {
-  const activity = getOrCreateWorkerActivity(connectionModel, scenarioLabel, mode, workerId ?? 'unknown');
-  const startedAt = Date.now();
-  if (activity.startMs === undefined || startedAt < activity.startMs) {
-    activity.startMs = startedAt;
-  }
-}
-
-function recordWorkerCaseCompletion(
-  connectionModel: ConnectionModel,
-  scenarioLabel: string,
-  mode: ExecutionMode,
-  workerId?: string,
-): void {
-  const activity = getOrCreateWorkerActivity(connectionModel, scenarioLabel, mode, workerId ?? 'unknown');
-  const completedAt = Date.now();
-  activity.endMs = activity.endMs === undefined ? completedAt : Math.max(activity.endMs, completedAt);
-  activity.cases += 1;
-}
-
-function recordWorkerMigrationStatements(
-  connectionModel: ConnectionModel,
-  scenarioLabel: string,
-  mode: ExecutionMode,
-  workerId: string | undefined,
-  count: number,
-): void {
-  if (count <= 0) {
-    return;
-  }
-  const activity = getOrCreateWorkerActivity(connectionModel, scenarioLabel, mode, workerId ?? 'unknown');
-  activity.migrationStatements += count;
-}
-
-function getWorkerActivities(): WorkerActivity[] {
-  return Array.from(workerActivities.values());
-}
-
-function captureAndResetWorkerTimeRanges(runStartMs: number): WorkerTimeRange[] {
-  const ranges = getWorkerActivities().map((activity) => ({
-    workerId: activity.workerId,
-    cases: activity.cases,
-    startOffsetMs:
-      activity.startMs !== undefined ? activity.startMs - runStartMs : undefined,
-    endOffsetMs: activity.endMs !== undefined ? activity.endMs - runStartMs : undefined,
-  }));
-  workerActivities.clear();
-  return ranges.sort((a, b) => a.workerId.localeCompare(b.workerId));
-}
-
-const DEFAULT_CONNECTION_MODEL: ConnectionModel = 'perWorker';
-const DEFAULT_CONNECTION_MODELS: ConnectionModel[] = ['perWorker', 'caseLocal'];
-const CONNECTION_MODEL_ALIASES: Record<string, ConnectionModel> = {
-  perworker: 'perWorker',
-  caselocal: 'caseLocal',
-  shared: 'perWorker',
-};
-
-function normalizeConnectionModelKey(value: string): string {
-  return value.trim().toLowerCase().replace(/[\s_-]+/gu, '');
-}
-
-function parseConnectionModelToken(value: string, source: string): ConnectionModel {
-  const trimmed = value.trim();
-  if (trimmed.length === 0) {
-    throw new Error(`Empty connection model provided in ${source}`);
-  }
-  const normalized = normalizeConnectionModelKey(trimmed);
-  const resolved = CONNECTION_MODEL_ALIASES[normalized];
-  if (!resolved) {
-    throw new Error(
-      `Invalid connection model "${value}" for ${source}. Supported values: perWorker and caseLocal (aliases: shared, case-local, per-worker).`,
-    );
-  }
-  return resolved;
-}
-
-function resolveLegacyConnectionModel(envVar: string): ConnectionModel | undefined {
-  const value = process.env[envVar];
-  if (!value) {
-    return undefined;
-  }
-  return parseConnectionModelToken(value, envVar);
-}
-
-function resolveBenchConnectionModels(): ConnectionModel[] {
-  const explicitSingle = process.env.BENCH_CONNECTION_MODEL
-    ? parseConnectionModelToken(process.env.BENCH_CONNECTION_MODEL, 'BENCH_CONNECTION_MODEL')
-    : undefined;
-  const legacyZtd = resolveLegacyConnectionModel('ZTD_BENCH_CONNECTION_MODEL');
-  const legacyTraditional = resolveLegacyConnectionModel('TRADITIONAL_BENCH_CONNECTION_MODEL');
-
-  if (legacyZtd && legacyTraditional && legacyZtd !== legacyTraditional) {
-    throw new Error(
-      'ZTD_BENCH_CONNECTION_MODEL and TRADITIONAL_BENCH_CONNECTION_MODEL must agree; remove the legacy variables or ensure they match.',
-    );
-  }
-
-  // Legacy variables must agree and can still seed the default connection model.
-  const legacyModel = legacyZtd ?? legacyTraditional;
-  if (explicitSingle && legacyModel && explicitSingle !== legacyModel) {
-    throw new Error(
-      'BENCH_CONNECTION_MODEL must match the legacy ZTD_BENCH_CONNECTION_MODEL/TRADITIONAL_BENCH_CONNECTION_MODEL values when supplied.',
-    );
-  }
-
-  const multiRaw = process.env.BENCH_CONNECTION_MODELS;
-  if (multiRaw && multiRaw.trim().length > 0) {
-    // Multi-run mode enumerates each connection model we want to exercise sequentially.
-    const tokens = multiRaw
-      .split(',')
-      .map((entry) => entry.trim())
-      .filter((entry) => entry.length > 0);
-    const resolvedModels: ConnectionModel[] = [];
-    const seen = new Set<ConnectionModel>();
-    for (const token of tokens) {
-      const model = parseConnectionModelToken(token, 'BENCH_CONNECTION_MODELS');
-      if (!seen.has(model)) {
-        resolvedModels.push(model);
-        seen.add(model);
-      }
-    }
-    if (resolvedModels.length === 0) {
-      throw new Error('BENCH_CONNECTION_MODELS must include at least one connection model.');
-    }
-    if (explicitSingle && explicitSingle !== resolvedModels[0]) {
-      throw new Error('BENCH_CONNECTION_MODEL must match the first entry of BENCH_CONNECTION_MODELS.');
-    }
-    if (legacyModel && !resolvedModels.includes(legacyModel)) {
-      throw new Error(
-        'Legacy connection model must appear in BENCH_CONNECTION_MODELS when legacy variables are set.',
-      );
-    }
-    return resolvedModels;
-  }
-
-  const baseModel = explicitSingle ?? legacyModel;
-  if (baseModel) {
-    return [baseModel];
-  }
-  return DEFAULT_CONNECTION_MODELS;
-}
-
-let currentConnectionModel: ConnectionModel = DEFAULT_CONNECTION_MODEL;
-
-function setActiveConnectionModel(model: ConnectionModel): void {
-  currentConnectionModel = model;
-}
-
-function getActiveConnectionModel(): ConnectionModel {
-  return currentConnectionModel;
-}
-
-function clearWorkerActivities(): void {
-  workerActivities.clear();
-}
 
 type TraditionalAcquireOptions = {
   connectionModel: ConnectionModel;
@@ -358,10 +133,15 @@ async function acquireTraditionalQueryable(options: TraditionalAcquireOptions): 
   queryable: (text: string, values?: unknown[]) => Promise<unknown>;
   pid: number;
   release: () => Promise<void>;
+  applicationName: string;
 }> {
   // Resolve the per-case vs per-worker scope so the connection model stays explicit.
   const scope = options.connectionModel === 'perWorker' ? 'worker' : 'case';
-  const connectionAppName = `ztd-bench-traditional-${options.mode}-${options.caseName}`;
+  const connectionAppNameBase = `ztd-bench-traditional-${options.mode}-${options.caseName}`;
+  const connectionAppName =
+    options.connectionModel === 'perWorker'
+      ? appendWorkerTag(connectionAppNameBase, options.workerId)
+      : connectionAppNameBase;
   const { client, pid, release } = await getDbClient({
     scope,
     workerId: options.workerId,
@@ -369,17 +149,9 @@ async function acquireTraditionalQueryable(options: TraditionalAcquireOptions): 
   });
   // Wrap the raw client so the caller only needs a simple query helper.
   const queryable = (text: string, values?: unknown[]) => client.query(text, values);
-  return { queryable, pid, release };
+  return { queryable, pid, release, applicationName: connectionAppName };
 }
 
-const METRICS_STATUS_LOG: MetricsStatusEntry[] = [];
-
-const ROOT_DIR = path.resolve(__dirname, '..');
-const TMP_DIR = path.join(ROOT_DIR, 'tmp', 'bench');
-const REPORT_PATH = process.env.ZTD_BENCH_REPORT_PATH ?? path.join(TMP_DIR, 'report.md');
-const TRADITIONAL_SQL_LOG_DIR = path.join(TMP_DIR, 'traditional-sql');
-const BENCH_LOG_PATH =
-  process.env.ZTD_BENCH_LOG_PATH ?? path.join(TMP_DIR, 'log.jsonl');
 const CLI_LOG_LEVEL = process.argv.includes('--debug')
   ? 'debug'
   : process.argv.includes('--verbose')
@@ -394,6 +166,10 @@ configureBenchmarkLogger({
 
 const DIAGNOSTIC_MODE = process.env.ZTD_BENCH_DIAGNOSTIC === '1';
 const BENCH_PROFILE = resolveBenchProfile();
+configureMetricsContext({
+  rootDir: ROOT_DIR,
+  benchProfileName: BENCH_PROFILE.name,
+});
 const DEFAULT_SCENARIO_SELECTION: BenchScenarioSelection =
   BENCH_PROFILE.name === 'quick'
     ? {
@@ -426,9 +202,8 @@ const WARMUP_RUNS = DIAGNOSTIC_MODE
 const MEASURED_RUNS = DIAGNOSTIC_MODE
   ? 1
   : resolveNumberSetting(process.env.ZTD_BENCH_RUNS, BENCH_PROFILE.defaults.measuredRuns, 1);
-const MEASURED_RUNS_OVERRIDDEN = DIAGNOSTIC_MODE || process.env.ZTD_BENCH_RUNS !== undefined;
-const PARALLEL_WORKER_COUNTS = resolveParallelWorkerCounts();
-let activeParallelWorkers = PARALLEL_WORKER_COUNTS[0] ?? (DIAGNOSTIC_MODE ? 1 : 4);
+const PARALLEL_WORKER_COUNTS = resolveParallelWorkerCounts(DIAGNOSTIC_MODE);
+setActiveParallelWorkers(PARALLEL_WORKER_COUNTS[0] ?? (DIAGNOSTIC_MODE ? 1 : 4));
 const STEADY_STATE_ITERATIONS = resolveSteadyStateIterations(
   BENCH_PROFILE.defaults.steadyStateIterations,
 );
@@ -439,6 +214,13 @@ const STEADY_STATE_SUITE_MULTIPLIER = resolveNumberSetting(
 );
 const BENCH_CONNECTION_MODELS = resolveBenchConnectionModels();
 setActiveConnectionModel(BENCH_CONNECTION_MODELS[0]);
+const DB_CONCURRENCY_MODE = resolveDbConcurrencyMode();
+const ANALYSIS_ONLY = process.env.ZTD_BENCH_ANALYSIS_ONLY === '1';
+const ENFORCE_PER_WORKER_CONCURRENCY =
+  process.env.ZTD_BENCH_ENFORCE_PER_WORKER_CONCURRENCY !== '0';
+const TRADITIONAL_DB_SERIAL_LOCK = process.env.TRADITIONAL_DB_SERIAL_LOCK === '1';
+const TRADITIONAL_DB_SERIAL_GUARD_OVERRIDE = process.env.TRADITIONAL_DB_SERIAL_GUARD_OVERRIDE === '1';
+const TRADITIONAL_DB_SERIAL_LOCK_KEY = resolveTraditionalDbSerialLockKey();
 const sharedConnectionLogger: ConnectionLogger = (entry) => {
   recordConnectionEvent(entry);
 };
@@ -447,13 +229,7 @@ const RUNNER_MEASURED_RUNS = 1;
 const STEADY_STATE_WARMUPS = 1;
 const STEADY_STATE_MEASURED_RUNS = 3;
 
-const TRADITIONAL_CASE_COUNT = TRADITIONAL_CASES.length;
 const TRADITIONAL_SQL_LOGGED_CASES = new Set<string>();
-const ZTD_CASE_RUNNERS = [
-  { caseName: 'customer-summary', runner: runCustomerSummaryCase },
-  { caseName: 'product-ranking', runner: runProductRankingCase },
-  { caseName: 'sales-summary', runner: runSalesSummaryCase },
-];
 
 function createEmptyZtdMetrics(): ZtdBenchMetrics {
   return {
@@ -467,26 +243,9 @@ function createEmptyZtdMetrics(): ZtdBenchMetrics {
   };
 }
 
-function clearMetricsStatus(): void {
-  METRICS_STATUS_LOG.length = 0;
-}
-
-function logMetricsStatus(entry: MetricsStatusEntry): void {
-  METRICS_STATUS_LOG.push(entry);
-}
-
-function getMetricsStatusEntries(): MetricsStatusEntry[] {
-  return [...METRICS_STATUS_LOG];
-}
-
 function ensureDirectories(): void {
-  fs.mkdirSync(path.dirname(REPORT_PATH), { recursive: true });
+  fs.mkdirSync(TMP_DIR, { recursive: true });
 }
-
-type RecordedStatement = {
-  text: string;
-  values?: unknown[];
-};
 
 function logTraditionalSqlStatements(caseName: string, statements: RecordedStatement[]): void {
   if (statements.length === 0 || TRADITIONAL_SQL_LOGGED_CASES.has(caseName)) {
@@ -510,271 +269,44 @@ function logTraditionalSqlStatements(caseName: string, statements: RecordedState
   fs.writeFileSync(logPath, lines.join('\n\n'), 'utf8');
 }
 
-function platformCommand(command: string): string {
-  return process.platform === 'win32' ? `${command}.cmd` : command;
-}
-
-function quoteArg(arg: string): string {
-  if (/[\s"]/u.test(arg)) {
-    return `"${arg.replace(/"/g, '\\"')}"`;
-  }
-  return arg;
-}
-
-function formatMs(value: number): string {
-  if (value < 1) {
-    return value.toFixed(3);
-  }
-  return value.toFixed(2);
-}
-
-function average(values: number[]): number {
-  if (values.length === 0) {
-    return 0;
-  }
-  const total = values.reduce((sum, value) => sum + value, 0);
-  return total / values.length;
-}
-
-function stddev(values: number[]): number {
-  if (values.length < 2) {
-    return 0;
-  }
-  const avg = average(values);
-  const variance = average(values.map((value) => (value - avg) ** 2));
-  return Math.sqrt(variance);
-}
-
-function median(values: number[]): number {
-  if (values.length === 0) {
-    return 0;
-  }
-  // Sort a copy so we can pick the middle element without mutating caller data.
-  const sorted = [...values].sort((a, b) => a - b);
-  const mid = Math.floor(sorted.length / 2);
-  if (sorted.length % 2 === 1) {
-    return sorted[mid];
-  }
-  return (sorted[mid - 1] + sorted[mid]) / 2;
-}
-
-function computePercentile(values: number[], percentile: number): number | undefined {
-  if (values.length === 0) {
-    return undefined;
-  }
-  const clamped = Math.min(1, Math.max(0, percentile));
-  const sorted = [...values].sort((a, b) => a - b);
-  const index = Math.min(sorted.length - 1, Math.max(0, Math.ceil(clamped * sorted.length) - 1));
-  return sorted[index];
-}
-
-function resolveBenchProfile(): BenchProfile {
-  const raw = (process.env.BENCH_PROFILE ?? 'quick').toLowerCase().trim();
-  if (raw === 'ci' || raw === 'full') {
-    return {
-      name: 'ci',
-      defaults: {
-        warmupRuns: 2,
-        measuredRuns: 10,
-        suiteMultipliers: [10, 20, 40, 80],
-        steadyStateIterations: 10,
-        steadyStateSuiteMultiplier: 50,
-      },
-    };
-  }
-  if (raw === 'dev') {
-    return {
-      name: 'dev',
-      defaults: {
-        warmupRuns: 1,
-        measuredRuns: 10,
-        suiteMultipliers: [10, 20, 40, 80],
-        steadyStateIterations: 5,
-        steadyStateSuiteMultiplier: 10,
-      },
-    };
-  }
-  return {
-    name: 'quick',
-    defaults: {
-      warmupRuns: 1,
-      measuredRuns: 3,
-      suiteMultipliers: [10, 20, 40, 80],
-      steadyStateIterations: 3,
-      steadyStateSuiteMultiplier: 10,
-    },
-  };
-}
-
-function resolveBenchScenarios(defaultSelection: BenchScenarioSelection): BenchScenarioSelection {
-  const raw = process.env.BENCH_SCENARIOS?.toLowerCase().trim();
-  if (raw === 'runner') {
-    return {
-      label: 'runner',
-      includeRunner: true,
-      includeSteady: false,
-      includeLowerBound: false,
-    };
-  }
-  if (raw === 'steady') {
-    return {
-      label: 'steady',
-      includeRunner: false,
-      includeSteady: true,
-      includeLowerBound: false,
-    };
-  }
-  if (raw === 'all') {
-    return {
-      label: 'all',
-      includeRunner: true,
-      includeSteady: true,
-      includeLowerBound: true,
-    };
-  }
-
-  return defaultSelection;
-}
-
-function resolveNumberSetting(value: string | undefined, fallback: number, min: number): number {
-  const parsed = Number(value ?? fallback);
-  if (!Number.isFinite(parsed) || parsed < min) {
-    return fallback;
-  }
-  return Math.floor(parsed);
-}
-
-function resolveSuiteMultipliers(defaults: number[]): number[] {
-  const raw = process.env.SUITE_MULTIPLIERS;
-  const values = (raw ?? defaults.join(','))
-    .split(',')
-    .map((value) => Number(value.trim()))
-    .filter((value) => Number.isFinite(value) && value > 0)
-    .map((value) => Math.floor(value));
-  // Ensure at least one multiplier so the benchmark always has output.
-  return values.length > 0 ? values : defaults.length > 0 ? defaults : [1];
-}
-
-function resolveSteadyStateIterations(defaultValue: number): number {
-  const raw = Number(process.env.ITERATIONS ?? defaultValue);
-  if (!Number.isFinite(raw) || raw < 1) {
-    return defaultValue;
-  }
-  return Math.floor(raw);
-}
-
-function normalizeWorkerCounts(raw: string): number[] {
-  return raw
-    .split(',')
-    .map((entry) => Number(entry.trim()))
-    .map((value) => Math.floor(value))
-    .filter((value) => Number.isFinite(value) && value > 0)
-    .reduce<number[]>((acc, value) => {
-      if (!acc.includes(value)) {
-        acc.push(value);
-      }
-      return acc;
-    }, []);
-}
-
-function resolveParallelWorkerCounts(): number[] {
-  if (DIAGNOSTIC_MODE) {
-    return [1];
-  }
-  const explicitList = process.env.BENCH_PARALLEL_WORKER_COUNTS;
-  if (explicitList && explicitList.trim().length > 0) {
-    const parsed = normalizeWorkerCounts(explicitList);
-    if (parsed.length > 0) {
-      return parsed;
-    }
-  }
-  const legacyWorkers = Number(process.env.ZTD_BENCH_WORKERS ?? '');
-  if (Number.isFinite(legacyWorkers) && legacyWorkers > 0) {
-    return [Math.floor(legacyWorkers)];
-  }
-  return [4, 8];
-}
-
-function setActiveParallelWorkers(count: number): void {
-  activeParallelWorkers = count;
-}
-
-function getActiveParallelWorkers(): number {
-  return activeParallelWorkers;
-}
-
 function annotateParallelWorkerCount(runMetrics: RunMetrics, mode: ExecutionMode): void {
   runMetrics.parallelWorkerCount = mode === 'parallel' ? getActiveParallelWorkers() : 1;
 }
 
 
-function shouldWarmupMultiplier(multiplier: number, baselineMultiplier: number): boolean {
-  return multiplier === baselineMultiplier && WARMUP_RUNS > 0;
-}
+type ScenarioMatrixOptions = {
+  scenarios: Scenario[];
+  modes: ExecutionMode[];
+  runs: number;
+  suiteMultiplier: number;
+  phase: RunPhase;
+  databaseUrl: string;
+  forceTraditionalSerial?: boolean;
+};
 
-function resolveMeasuredRunsForMultiplier(multiplier: number): number {
-  return MEASURED_RUNS;
-}
-
-function resolveLowerBoundMeasuredRuns(): number {
-  if (MEASURED_RUNS_OVERRIDDEN || BENCH_PROFILE.name !== 'dev') {
-    return MEASURED_RUNS;
-  }
-  return 1;
-}
-
-function formatRunPlan(
-  suiteMultipliers: number[],
-  baselineMultiplier: number,
-  measuredRunsByMultiplier: (multiplier: number) => number,
-): string {
-  return suiteMultipliers
-    .map((multiplier) => {
-      const warmups = shouldWarmupMultiplier(multiplier, baselineMultiplier) ? WARMUP_RUNS : 0;
-      const measured = measuredRunsByMultiplier(multiplier);
-      const suiteSize = TRADITIONAL_CASE_COUNT * multiplier;
-      return `${suiteSize} tests: ${warmups} warmup / ${measured} measured`;
-    })
-    .join('; ');
-}
-
-async function runCommand(command: string, args: string[], env: NodeJS.ProcessEnv): Promise<void> {
-  const commandLine = [command, ...args].map(quoteArg).join(' ');
-  await new Promise<void>((resolve, reject) => {
-    const child = spawn(commandLine, {
-      cwd: ROOT_DIR,
-      env,
-      shell: true,
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
-
-    let stdout = '';
-    let stderr = '';
-
-    child.stdout?.on('data', (chunk) => {
-      stdout += chunk.toString();
-    });
-    child.stderr?.on('data', (chunk) => {
-      stderr += chunk.toString();
-    });
-
-    child.on('error', reject);
-    child.on('close', (code) => {
-      if (code === 0) {
-        resolve();
-        return;
+async function runScenarioMatrix(options: ScenarioMatrixOptions): Promise<RunMetrics[]> {
+  const results: RunMetrics[] = [];
+  for (const scenario of options.scenarios) {
+    for (const mode of options.modes) {
+      const workerCounts = mode === 'parallel' ? PARALLEL_WORKER_COUNTS : [1];
+      for (const workerCount of workerCounts) {
+        // Align active worker count with the scenario/mode combination.
+        setActiveParallelWorkers(workerCount);
+        results.push(
+          ...(await runScenario(
+            scenario,
+            mode,
+            options.databaseUrl,
+            options.runs,
+            options.suiteMultiplier,
+            options.phase,
+            options.forceTraditionalSerial ?? false,
+          )),
+        );
       }
-
-      const message = [
-        `Command failed: ${command} ${args.join(' ')}`,
-        stdout.trim(),
-        stderr.trim(),
-      ]
-        .filter((line) => line.length > 0)
-        .join('\n');
-      reject(new Error(message));
-    });
-  });
+    }
+  }
+  return results;
 }
 
 async function runZtdRunnerSuite(
@@ -788,7 +320,7 @@ async function runZtdRunnerSuite(
   const parallelWorkerCount = getActiveParallelWorkers();
   const metricsPrefix = path.join(
     TMP_DIR,
-    `ztd-runner-${phase}-${mode}-${suiteMultiplier}-${runIndex}-${parallelWorkerCount}`,
+    `${RUN_TAG_PREFIX}ztd-runner-${phase}-${mode}-${suiteMultiplier}-${runIndex}-${parallelWorkerCount}`,
   );
   const metricsPath = `${metricsPrefix}.json`;
   const suiteSize = TRADITIONAL_CASE_COUNT * suiteMultiplier;
@@ -819,7 +351,7 @@ async function runZtdRunnerSuite(
   };
 
   const start = process.hrtime.bigint();
-  await runCommand(pnpm, args, env);
+  await runCommand(pnpm, args, env, { cwd: ROOT_DIR });
   const durationMs = Number(process.hrtime.bigint() - start) / 1_000_000;
 
   const executionMs = readExecutionMetrics(metricsPrefix);
@@ -886,8 +418,10 @@ async function runZtdInProcessSuite(
   const parallelWorkerCount = getActiveParallelWorkers();
   const metricsPrefix = path.join(
     TMP_DIR,
-    `ztd-in-process-${phase}-${mode}-${suiteMultiplier}-${runIndex}-${parallelWorkerCount}`,
+    `${RUN_TAG_PREFIX}ztd-in-process-${DB_CONCURRENCY_MODE}-${phase}-${mode}-${suiteMultiplier}-${runIndex}-${parallelWorkerCount}`,
   );
+  const concurrencyLabel = DB_CONCURRENCY_MODE === 'perWorker' ? 'perworker' : 'single';
+  const applicationName = `ztd-bench-${concurrencyLabel}`;
   const metricsPath = `${metricsPrefix}.json`;
 
   const previousDatabaseUrl = process.env.DATABASE_URL;
@@ -897,6 +431,8 @@ async function runZtdInProcessSuite(
     perWorkerConnections && mode === 'parallel'
       ? Math.max(1, getActiveParallelWorkers())
       : 1;
+  // Keep report worker counts aligned with the Vitest worker count even when DB concurrency is serialized.
+  const reportWorkerCount = mode === 'parallel' ? Math.max(1, getActiveParallelWorkers()) : 1;
   const workerSlots = perWorkerConnections ? sessionWorkerCount : 1;
   const workerTokens = new Set<string>();
   try {
@@ -939,7 +475,9 @@ async function runZtdInProcessSuite(
           suiteMultiplier,
           runIndex,
           phase,
-          parallelWorkerCount: sessionWorkerCount,
+          parallelWorkerCount: reportWorkerCount,
+          applicationName,
+          dbConcurrencyMode: DB_CONCURRENCY_MODE,
         });
       } finally {
         recordWorkerCaseCompletion(getActiveConnectionModel(), scenarioLabel, mode, workerId);
@@ -1020,6 +558,7 @@ async function runZtdInProcessSuite(
       fixtureMaterializationMs: aggregated.fixtureMaterializationMs,
       sqlGenerationMs: aggregated.sqlGenerationMs,
       otherProcessingMs: aggregated.otherProcessingMs,
+      dbConcurrencyMode: DB_CONCURRENCY_MODE,
     };
 
     recordMetricsStatus(
@@ -1036,7 +575,7 @@ async function runZtdInProcessSuite(
     fs.writeFileSync(metricsPath, JSON.stringify(runMetrics, null, 2), 'utf8');
     return runMetrics;
   } finally {
-    currentTraditionalDiagnostic = null;
+    clearCurrentTraditionalDiagnostic();
     const sessionSummary = await safeStopSampler(sampler);
     recordZtdSession(
       {
@@ -1045,9 +584,13 @@ async function runZtdInProcessSuite(
         mode,
         phase,
         suiteMultiplier,
-        workerCount: sessionWorkerCount,
+        workerCount: reportWorkerCount,
+        dbConcurrencyMode: DB_CONCURRENCY_MODE,
       },
-      sessionSummary.maxActive,
+      {
+        maxActiveExecuting: sessionSummary.maxActiveExecuting,
+        maxLockWait: sessionSummary.maxLockWait,
+      },
     );
     recordSessionStat({
       scenarioLabel: 'ztd-in-process',
@@ -1055,8 +598,11 @@ async function runZtdInProcessSuite(
       phase,
       suiteMultiplier,
       runIndex,
+      workerCount: reportWorkerCount,
+      dbConcurrencyMode: DB_CONCURRENCY_MODE,
       maxTotalSessions: sessionSummary.maxTotal,
-      maxActiveSessions: sessionSummary.maxActive,
+      maxActiveExecutingSessions: sessionSummary.maxActiveExecuting,
+      maxLockWaitSessions: sessionSummary.maxLockWait,
       sampleCount: sessionSummary.sampleCount,
     });
     if (perWorkerConnections && workerTokens.size > 0) {
@@ -1083,6 +629,9 @@ async function runMigrationCase(
     workerId?: string;
     connectionModel: ConnectionModel;
     workerSlot?: number;
+    enforceSerialDb?: boolean;
+    serialLockKey?: number;
+    parallelWorkerCount?: number;
   },
 ): Promise<{ statements: number; totalDbMs: number }> {
   const connectionModel = context.connectionModel;
@@ -1095,17 +644,40 @@ async function runMigrationCase(
     caseName,
     workerId: context.workerId,
     approach: 'traditional',
+    note: context.enforceSerialDb ? 'serial-lock' : undefined,
   };
   const workerId = context.workerId;
   recordWorkerCaseStart(connectionModel, context.scenarioLabel, mode, workerId);
-  const { queryable, pid, release } = await acquireTraditionalQueryable({
+  const { queryable, pid, release, applicationName } = await acquireTraditionalQueryable({
     connectionModel,
     workerId: context.workerId,
     mode,
     caseName,
     context: benchContext,
   });
-  const diagnostic = currentTraditionalDiagnostic;
+  const serialLockKey = context.serialLockKey ?? TRADITIONAL_DB_SERIAL_LOCK_KEY;
+  const lockPayload = { lockKey: serialLockKey };
+  let serialLockActive = false;
+  const acquireSerialLock = async (): Promise<void> => {
+    if (!context.enforceSerialDb) {
+      return;
+    }
+    logBenchPhase('serial-lock', 'start', benchContext, lockPayload);
+    await queryable('SELECT pg_advisory_lock($1)', [serialLockKey]);
+    serialLockActive = true;
+  };
+  const releaseSerialLock = async (): Promise<void> => {
+    if (!serialLockActive) {
+      return;
+    }
+    try {
+      await queryable('SELECT pg_advisory_unlock($1)', [serialLockKey]);
+    } finally {
+      serialLockActive = false;
+      logBenchPhase('serial-lock', 'end', benchContext, lockPayload);
+    }
+  };
+  const diagnostic = getCurrentTraditionalDiagnostic();
   if (diagnostic) {
     const workerKey = workerId ?? 'unknown';
     diagnostic.casesPerWorker.set(
@@ -1126,6 +698,10 @@ async function runMigrationCase(
     caseName,
     pid,
     connectionModel,
+    applicationName,
+    dbConcurrencyMode: DB_CONCURRENCY_MODE,
+    workerCount: context.parallelWorkerCount ?? Math.max(1, getActiveParallelWorkers()),
+    traditionalDbSerialLock: Boolean(context.enforceSerialDb),
   });
 
   let statements = 0;
@@ -1157,6 +733,7 @@ async function runMigrationCase(
   };
 
   const schemaName = `bench_${mode}_${runIndex}_${caseIndex}`;
+  await acquireSerialLock();
   const migrationStart = process.hrtime.bigint();
   logBenchPhase('migration', 'start', benchContext);
   try {
@@ -1235,6 +812,11 @@ async function runMigrationCase(
     try {
       await execute(`DROP SCHEMA IF EXISTS "${schemaName}" CASCADE`);
     } finally {
+      try {
+        await releaseSerialLock();
+      } catch (error) {
+        console.warn('Failed to release the traditional serial lock', error);
+      }
       const releaseStart = process.hrtime.bigint();
       logBenchPhase('releaseClient', 'start', benchContext);
       try {
@@ -1273,6 +855,8 @@ async function runTraditionalSuiteLowerBound(
   databaseUrl: string,
   suiteMultiplier: number,
   phase: RunPhase,
+  scenario: Scenario,
+  forceTraditionalSerial: boolean,
 ): Promise<RunMetrics> {
   const start = process.hrtime.bigint();
   const runStartMs = Date.now();
@@ -1280,6 +864,10 @@ async function runTraditionalSuiteLowerBound(
   await sampler.start();
   const suiteSize = TRADITIONAL_CASE_COUNT * suiteMultiplier;
   const parallelWorkerCount = getActiveParallelWorkers();
+  const enforceSerialDb =
+    (TRADITIONAL_DB_SERIAL_LOCK || forceTraditionalSerial) &&
+    scenario === 'traditional-in-process' &&
+    mode === 'parallel';
   const validationKey = `${getActiveConnectionModel()}:${suiteMultiplier}:${mode}:${phase}:${parallelWorkerCount}`;
   const shouldCaptureValidation =
     mode === 'parallel' && phase === 'measured' && !parallelValidationTokens.has(validationKey);
@@ -1301,9 +889,10 @@ async function runTraditionalSuiteLowerBound(
     }
     parallelValidationTokens.add(validationKey);
   }
+  const metricsVariant = enforceSerialDb ? 'serial-lock' : 'parallel';
   const metricsPath = path.join(
     TMP_DIR,
-    `traditional-in-process-${phase}-${mode}-${suiteMultiplier}-${runIndex}-${parallelWorkerCount}.json`,
+    `${RUN_TAG_PREFIX}traditional-in-process-${metricsVariant}-${phase}-${mode}-${suiteMultiplier}-${runIndex}-${parallelWorkerCount}.json`,
   );
   const workerToken = `${mode}-${runIndex}`;
   const diagnostic: TraditionalParallelDiagnostic = {
@@ -1311,7 +900,7 @@ async function runTraditionalSuiteLowerBound(
     activeConnections: 0,
     peakConnections: 0,
   };
-  currentTraditionalDiagnostic = diagnostic;
+  setCurrentTraditionalDiagnostic(diagnostic);
   try {
     void databaseUrl;
     const runWorkerId = (caseIndex: number, repetition: number) =>
@@ -1334,10 +923,13 @@ async function runTraditionalSuiteLowerBound(
         scenarioLabel: 'traditional-in-process',
         phase,
         suiteMultiplier,
-        workerId: resolveWorkerId(caseIndex, repetition, workerIdOverride),
-        connectionModel: getActiveConnectionModel(),
-      };
+      workerId: resolveWorkerId(caseIndex, repetition, workerIdOverride),
+      connectionModel: getActiveConnectionModel(),
+      enforceSerialDb,
+      serialLockKey: enforceSerialDb ? TRADITIONAL_DB_SERIAL_LOCK_KEY : undefined,
+      parallelWorkerCount: Math.max(1, getActiveParallelWorkers()),
     };
+  };
 
     clearWorkerActivities();
 
@@ -1427,23 +1019,31 @@ async function runTraditionalSuiteLowerBound(
       traditionalPeakConnections: shouldCaptureValidation ? diagnostic.peakConnections : undefined,
       traditionalCasesPerWorker: shouldCaptureValidation ? casesPerWorkerRecord : undefined,
       traditionalWorkerTimeRanges: shouldCaptureValidation ? workerTimeRanges : undefined,
+      traditionalDbSerialLock: enforceSerialDb,
     };
     annotateParallelWorkerCount(runMetrics, mode);
     fs.writeFileSync(metricsPath, JSON.stringify(runMetrics, null, 2), 'utf8');
     return runMetrics;
   } finally {
     const sessionSummary = await safeStopSampler(sampler);
+      if (enforceSerialDb && !TRADITIONAL_DB_SERIAL_GUARD_OVERRIDE && sessionSummary.maxActiveExecuting > 2) {
+      throw new Error(
+        `Traditional serial mode observed ${sessionSummary.maxActiveExecuting} active executing sessions (goal <= 2). Lock waits: ${sessionSummary.maxLockWait}.`,
+      );
+    }
     recordSessionStat({
       scenarioLabel: 'traditional-in-process',
       mode,
       phase,
       suiteMultiplier,
       runIndex,
+      workerCount: parallelWorkerCount,
       maxTotalSessions: sessionSummary.maxTotal,
-      maxActiveSessions: sessionSummary.maxActive,
+      maxActiveExecutingSessions: sessionSummary.maxActiveExecuting,
+      maxLockWaitSessions: sessionSummary.maxLockWait,
       sampleCount: sessionSummary.sampleCount,
     });
-    currentTraditionalDiagnostic = null;
+    clearCurrentTraditionalDiagnostic();
   }
 }
 
@@ -1496,7 +1096,7 @@ async function runTraditionalSuiteViaRunner(
   };
 
   const start = process.hrtime.bigint();
-  await runCommand(pnpm, args, env);
+  await runCommand(pnpm, args, env, { cwd: ROOT_DIR });
   const durationMs = Number(process.hrtime.bigint() - start) / 1_000_000;
 
   const aggregation = aggregateTraditionalMetrics(metricsPrefix, mode);
@@ -1593,7 +1193,7 @@ async function runZtdSteadyStateSuite(
   };
 
   const start = process.hrtime.bigint();
-  await runCommand(pnpm, args, env);
+  await runCommand(pnpm, args, env, { cwd: ROOT_DIR });
   const durationMs = Number(process.hrtime.bigint() - start) / 1_000_000;
 
   const steadyState = readSteadyStateMetrics(metricsPrefix);
@@ -1675,7 +1275,7 @@ async function runTraditionalSteadyStateSuite(
   };
 
   const start = process.hrtime.bigint();
-  await runCommand(pnpm, args, env);
+  await runCommand(pnpm, args, env, { cwd: ROOT_DIR });
   const durationMs = Number(process.hrtime.bigint() - start) / 1_000_000;
 
   const steadyState = readSteadyStateMetrics(metricsPrefix);
@@ -1733,969 +1333,6 @@ async function insertRows(
   );
 }
 
-function summarizeRuns(runs: RunMetrics[]) {
-  const sqlCounts = runs
-    .map((run) => run.sqlCount)
-    .filter((count): count is number => typeof count === 'number');
-  const totalDbTimes = runs
-    .map((run) => run.totalDbMs)
-    .filter((value): value is number => typeof value === 'number');
-  const perStatementTimes = runs
-    .map((run) =>
-      typeof run.totalDbMs === 'number' && typeof run.sqlCount === 'number' && run.sqlCount > 0
-        ? run.totalDbMs / run.sqlCount
-        : undefined,
-    )
-    .filter((value): value is number => typeof value === 'number');
-
-  return {
-    averageDuration: average(runs.map((run) => run.durationMs)),
-    stddevDuration: stddev(runs.map((run) => run.durationMs)),
-    averageSqlCount: sqlCounts.length > 0 ? average(sqlCounts) : undefined,
-    averageTotalDbMs: totalDbTimes.length > 0 ? average(totalDbTimes) : undefined,
-    averagePerStatementMs: perStatementTimes.length > 0 ? average(perStatementTimes) : undefined,
-    stddevPerStatementMs: perStatementTimes.length > 1 ? stddev(perStatementTimes) : 0,
-  };
-}
-
-function summarizeComponent(
-  runs: RunMetrics[],
-  selector: (run: RunMetrics) => number | undefined,
-): { average?: number; stddev?: number } {
-  const values = runs.map(selector).filter((value): value is number => typeof value === 'number');
-  if (values.length === 0) {
-    return {};
-  }
-  return {
-    average: average(values),
-    stddev: values.length > 1 ? stddev(values) : 0,
-  };
-}
-
-function averageOptional(values: Array<number | undefined>): number | undefined {
-  const filtered = values.filter((value): value is number => typeof value === 'number');
-  if (filtered.length === 0) {
-    return undefined;
-  }
-  return average(filtered);
-}
-
-function clearMetricsFiles(prefix: string): void {
-  const dir = path.dirname(prefix);
-  const base = path.basename(prefix);
-  if (!fs.existsSync(dir)) {
-    return;
-  }
-
-  // Ensure stale metrics from previous runs do not bleed into new aggregates.
-  for (const entry of fs.readdirSync(dir)) {
-    if (entry.startsWith(`${base}-`) && entry.endsWith('.json')) {
-      fs.rmSync(path.join(dir, entry), { force: true });
-    }
-  }
-  fs.rmSync(`${prefix}.json`, { force: true });
-  fs.rmSync(`${prefix}-execution.json`, { force: true });
-  fs.rmSync(`${prefix}-steady.json`, { force: true });
-  fs.rmSync(`${prefix}-summary.json`, { force: true });
-}
-
-type MetricsAggregateResult = {
-  metrics: Partial<RunMetrics>;
-  usedFiles: string[];
-  missingFiles: string[];
-};
-
-function aggregateTraditionalMetrics(prefix: string, mode: ExecutionMode): MetricsAggregateResult {
-  const dir = path.dirname(prefix);
-  const base = path.basename(prefix);
-  if (!fs.existsSync(dir)) {
-    return { metrics: {}, usedFiles: [], missingFiles: ['metrics files'] };
-  }
-
-  const entries = fs
-    .readdirSync(dir)
-    .filter((entry) => entry.startsWith(`${base}-`) && entry.endsWith('.json'));
-  const excludedSuffixes = ['-execution.json', '-steady.json', '-summary.json'];
-  const metricEntries = entries.filter(
-    (entry) => !excludedSuffixes.some((suffix) => entry.endsWith(suffix)),
-  );
-  const files = metricEntries.map((entry) => path.join(dir, entry));
-
-  if (files.length === 0) {
-    return { metrics: {}, usedFiles: [], missingFiles: ['metrics files'] };
-  }
-
-  const metrics = files.map((filePath) => {
-    const raw = fs.readFileSync(filePath, 'utf8');
-    return JSON.parse(raw) as { sqlCount: number; totalDbMs: number };
-  });
-
-  const sumCount = (values: number[]) => values.reduce((a, b) => a + b, 0);
-  const combineDb = (values: number[]) =>
-    mode === 'parallel' ? Math.max(...values) : values.reduce((a, b) => a + b, 0);
-
-  return {
-    metrics: {
-      sqlCount: sumCount(metrics.map((item) => item.sqlCount)),
-      totalDbMs: combineDb(metrics.map((item) => item.totalDbMs)),
-    },
-    usedFiles: files,
-    missingFiles: [],
-  };
-}
-
-function normalizeMissingEntries(entries: string[]): string[] {
-  return Array.from(new Set(entries.filter((entry) => entry.length > 0)));
-}
-
-// Track which metric files were produced and optionally escalate on missing data.
-function recordMetricsStatus(
-  scenario: Scenario,
-  mode: ExecutionMode,
-  suiteMultiplier: number,
-  phase: RunPhase,
-  runIndex: number,
-  usedFiles: string[],
-  missingFiles: string[],
-): void {
-  const normalizedMissing = normalizeMissingEntries(missingFiles);
-  const relativeUsedFiles = usedFiles.map((filePath) => path.relative(ROOT_DIR, filePath));
-  const entry: MetricsStatusEntry = {
-    scenario,
-    mode,
-    suiteMultiplier,
-    phase,
-    runIndex,
-    metricsPresent: relativeUsedFiles.length > 0,
-    usedFiles: relativeUsedFiles,
-    missingFiles: normalizedMissing,
-  };
-  logMetricsStatus(entry);
-  warnOrFailOnMissingMetrics(entry);
-}
-
-// Decide whether missing metric files should fail CI or just warn for developer runs.
-function warnOrFailOnMissingMetrics(entry: MetricsStatusEntry): void {
-  if (entry.missingFiles.length === 0) {
-    return;
-  }
-  const descriptor = `${entry.scenario} (${entry.mode}) multiplier ${entry.suiteMultiplier} ${entry.phase} run ${entry.runIndex}`;
-  const message = `Metrics incomplete for ${descriptor}: missing ${entry.missingFiles.join(', ')}.`;
-  if (BENCH_PROFILE.name === 'ci') {
-    throw new Error(message);
-  }
-  console.warn(message);
-}
-
-function readExecutionMetrics(prefix: string): number | undefined {
-  const filePath = `${prefix}-execution.json`;
-  if (!fs.existsSync(filePath)) {
-    return undefined;
-  }
-
-  const raw = fs.readFileSync(filePath, 'utf8');
-  const metrics = JSON.parse(raw) as { executionMs?: number };
-  return typeof metrics.executionMs === 'number' ? metrics.executionMs : undefined;
-}
-
-function readSteadyStateMetrics(prefix: string): SteadyStateMetrics | undefined {
-  const filePath = `${prefix}-steady.json`;
-  if (!fs.existsSync(filePath)) {
-    return undefined;
-  }
-
-  const raw = fs.readFileSync(filePath, 'utf8');
-  return JSON.parse(raw) as SteadyStateMetrics;
-}
-
-function loadRunMetricsFromDisk(): RunMetrics[] {
-  if (!fs.existsSync(TMP_DIR)) {
-    return [];
-  }
-
-  const results: RunMetrics[] = [];
-  for (const entry of fs.readdirSync(TMP_DIR)) {
-    if (!entry.endsWith('.json')) {
-      continue;
-    }
-
-    const filePath = path.join(TMP_DIR, entry);
-    const raw = fs.readFileSync(filePath, 'utf8');
-    const parsed = JSON.parse(raw) as Partial<RunMetrics>;
-    if (parsed.scenario && parsed.mode && typeof parsed.durationMs === 'number') {
-      results.push(parsed as RunMetrics);
-    }
-  }
-
-  return results;
-}
-
-function renderReport(
-  results: RunMetrics[],
-  databaseInfo: string,
-  suiteMultipliers: number[],
-  steadyStateSuiteMultiplier: number,
-  totalBenchmarkDurationMs: number,
-): string {
-  const now = new Date().toISOString();
-  const cpuModel = os.cpus()[0]?.model ?? 'Unknown CPU';
-  const logicalCores = os.cpus().length;
-  const testCaseNames = ['customer_summary', 'product_ranking', 'sales_summary'];
-  const testCaseCount = TRADITIONAL_CASE_COUNT;
-  const repositoryCallsPerTest = 1;
-  const measured = results.filter((run) => run.phase === 'measured');
-  const metricsStatusEntries = getMetricsStatusEntries();
-  const suiteSizes = suiteMultipliers.map((multiplier) => TRADITIONAL_CASE_COUNT * multiplier);
-  const baselineMultiplier = suiteMultipliers[0] ?? 1;
-  const baselineSuiteSize = TRADITIONAL_CASE_COUNT * baselineMultiplier;
-  const steadyStateSuiteSize = TRADITIONAL_CASE_COUNT * steadyStateSuiteMultiplier;
-  const scenarioSummary = [
-    BENCH_SCENARIOS.includeRunner ? 'runner-overhead' : null,
-    BENCH_SCENARIOS.includeLowerBound ? 'variable-cost' : null,
-    BENCH_SCENARIOS.includeSteady ? 'steady-state' : null,
-  ]
-    .filter((value): value is string => typeof value === 'string')
-    .join(', ');
-  const steadyStateWarmups = BENCH_SCENARIOS.includeSteady ? STEADY_STATE_WARMUPS : 0;
-  const steadyStateMeasuredRuns = BENCH_SCENARIOS.includeSteady ? STEADY_STATE_MEASURED_RUNS : 0;
-  const runnerWarmups = BENCH_SCENARIOS.includeRunner ? RUNNER_WARMUP_RUNS : 0;
-  const runnerMeasuredRuns = BENCH_SCENARIOS.includeRunner ? RUNNER_MEASURED_RUNS : 0;
-
-  
-
-  type VariableRow = {
-
-    suiteSize: number;
-
-    mode: ExecutionMode;
-
-    scenario: Scenario;
-
-    duration?: number;
-
-    durationStddev?: number;
-
-    dbMs?: number;
-
-    rewriteMs?: number;
-
-    fixtureMs?: number;
-
-    sqlGenMs?: number;
-
-    workerCount: number;
-
-  };
-
-
-
-  const variableScenarios: Array<'traditional-in-process' | 'ztd-in-process'> = [
-
-    'traditional-in-process',
-
-    'ztd-in-process',
-
-  ];
-
-  const variableModes: ExecutionMode[] = ['serial', 'parallel'];
-
-
-
-  const variableRows: VariableRow[] = [];
-
-  // Collect in-process timing summaries per suite so the new tables can look them up by scenario/mode/worker count.
-
-  for (const multiplier of suiteMultipliers) {
-
-    const suiteSize = TRADITIONAL_CASE_COUNT * multiplier;
-
-    for (const scenario of variableScenarios) {
-
-      for (const mode of variableModes) {
-
-        const workerCounts = mode === 'parallel' ? PARALLEL_WORKER_COUNTS : [1];
-
-        for (const workerCount of workerCounts) {
-
-          const runs = measured.filter(
-
-            (run) =>
-
-              run.scenario === scenario &&
-
-              run.mode === mode &&
-
-              run.suiteMultiplier === multiplier &&
-
-              (run.parallelWorkerCount ?? 1) === workerCount,
-
-          );
-
-          if (runs.length === 0) {
-
-            continue;
-
-          }
-
-          const summary = summarizeRuns(runs);
-
-          const rewriteMs = summarizeComponent(runs, (run) => run.rewriteMs).average;
-
-          const fixtureMs = summarizeComponent(
-
-            runs,
-
-            (run) => run.fixtureMaterializationMs,
-
-          ).average;
-
-          const sqlGenMs = summarizeComponent(runs, (run) => run.sqlGenerationMs).average;
-
-          variableRows.push({
-
-            suiteSize,
-
-            mode,
-
-            scenario,
-
-            duration: summary.averageDuration,
-
-            durationStddev: summary.stddevDuration,
-
-            dbMs: summary.averageTotalDbMs,
-
-            rewriteMs,
-
-            fixtureMs,
-
-            sqlGenMs,
-
-            workerCount,
-
-          });
-
-        }
-
-      }
-
-    }
-
-  }
-
-
-
-  const runnerSerialRuns = measured.filter(
-    (run) =>
-      (run.scenario === 'traditional-runner' || run.scenario === 'ztd-runner') &&
-      run.mode === 'serial' &&
-      run.suiteMultiplier === baselineMultiplier,
-  );
-  const runnerStartupMean = summarizeComponent(runnerSerialRuns, (run) => run.startupMs).average;
-  const runnerExecutionMean = summarizeComponent(runnerSerialRuns, (run) => run.executionMs).average;
-
-
-  const variableLookup = new Map<string, VariableRow>();
-
-  // Index each variable row so the summary tables can retrieve measurements without repeated filtering.
-
-  variableRows.forEach((row) => {
-
-    variableLookup.set(
-
-      `${row.suiteSize}:${row.scenario}:${row.mode}:${row.workerCount}`,
-
-      row,
-
-    );
-
-  });
-
-
-
-  const suiteTargetConfigs = [
-
-    { label: '30 tests', multiplier: 10 },
-
-    { label: '60 tests', multiplier: 20 },
-
-    { label: '120 tests', multiplier: 40 },
-
-    { label: '240 tests', multiplier: 80 },
-
-  ];
-
-  const suiteTargets = suiteTargetConfigs
-
-    .map((config) => ({
-
-      ...config,
-
-      suiteSize: TRADITIONAL_CASE_COUNT * config.multiplier,
-
-    }))
-
-    .filter((config) => suiteMultipliers.includes(config.multiplier));
-  const mediumSuiteTarget = suiteTargets[1] ?? suiteTargets[suiteTargets.length - 1];
-  const largeSuiteTarget = suiteTargets[suiteTargets.length - 1] ?? suiteTargets[0];
-  const benchPhaseEntries = getBenchPhaseEntries();
-  const traditionalWaitingP95 = computePercentile(
-    collectTraditionalMetric(benchPhaseEntries, 'acquireClient', 'waitingMs'),
-    0.95,
-  );
-  const traditionalMigrationP95 = computePercentile(
-    collectTraditionalMetric(benchPhaseEntries, 'migration', 'durationMs'),
-    0.95,
-  );
-  const traditionalCleanupP95 = computePercentile(
-    collectTraditionalMetric(benchPhaseEntries, 'releaseClient', 'cleanupMs'),
-    0.95,
-  );
-  const highlightConnectionModel = BENCH_CONNECTION_MODELS[0] ?? 'perWorker';
-  const highlightWorkerCount =
-    PARALLEL_WORKER_COUNTS.length > 0
-      ? PARALLEL_WORKER_COUNTS.includes(8)
-        ? 8
-        : PARALLEL_WORKER_COUNTS[PARALLEL_WORKER_COUNTS.length - 1]
-      : 1;
-  const highlightSuiteMultiplier =
-    largeSuiteTarget?.multiplier ??
-    suiteMultipliers[suiteMultipliers.length - 1] ??
-    1;
-  const highlightSuiteLabel =
-    largeSuiteTarget?.label ?? `${TRADITIONAL_CASE_COUNT * highlightSuiteMultiplier} tests`;
-  const highlightKey = `ztd-in-process|${highlightConnectionModel}|parallel|measured|${highlightSuiteMultiplier}|${highlightWorkerCount}`;
-  const ztdWaitingMap = getZtdWaitingMap();
-  const ztdSessionMap = getZtdSessionMap();
-  const highlightWaitingValues = ztdWaitingMap.get(highlightKey) ?? [];
-  const highlightWaitingP95 = computePercentile(highlightWaitingValues, 0.95);
-  const highlightSessionValues = ztdSessionMap.get(highlightKey) ?? [];
-  const highlightMaxActive =
-    highlightSessionValues.length > 0 ? Math.max(...highlightSessionValues) : undefined;
-
-
-
-  type MethodDefinition = {
-
-    method: 'traditional' | 'ztd';
-
-    scenario: 'traditional-in-process' | 'ztd-in-process';
-
-    mode: ExecutionMode;
-
-    workerCount: number;
-
-  };
-
-
-
-  const traditionalParallelEntries: MethodDefinition[] = PARALLEL_WORKER_COUNTS.map((count) => ({
-    method: 'traditional',
-    scenario: 'traditional-in-process',
-    mode: 'parallel',
-    workerCount: count,
-  }));
-  const ztdParallelEntries: MethodDefinition[] = PARALLEL_WORKER_COUNTS.map((count) => ({
-    method: 'ztd',
-    scenario: 'ztd-in-process',
-    mode: 'parallel',
-    workerCount: count,
-  }));
-  const methodDefinitions: MethodDefinition[] = [
-    {
-      method: 'traditional',
-      scenario: 'traditional-in-process',
-      mode: 'serial',
-      workerCount: 1,
-    },
-    ...traditionalParallelEntries,
-    {
-      method: 'ztd',
-      scenario: 'ztd-in-process',
-      mode: 'serial',
-      workerCount: 1,
-    },
-    ...ztdParallelEntries,
-  ];
-
-
-
-  const formatMsOrNa = (value?: number): string =>
-
-    typeof value === 'number' ? formatMs(value) : 'N/A';
-
-  const formatPercentage = (value?: number): string =>
-
-    typeof value === 'number' ? value.toFixed(1) : 'N/A';
-
-
-
-  const ztdSteadyRuns = measured.filter(
-
-    (run) => run.scenario === 'ztd-steady-state' && run.phase === 'measured',
-
-  );
-
-  const flattenSteadyValues = (key: keyof SteadyStateMetrics): number[] => {
-
-    const values: number[] = [];
-
-    for (const run of ztdSteadyRuns) {
-
-      const steady = run.steadyState;
-
-      if (!steady) {
-
-        continue;
-
-      }
-
-      const metric = steady[key];
-
-      if (Array.isArray(metric)) {
-
-        values.push(...metric);
-
-      }
-
-    }
-
-    return values;
-
-  };
-
-  const averageIfAny = (values: number[]): number | undefined =>
-
-    values.length > 0 ? average(values) : undefined;
-
-  const componentEntries = [
-
-    { name: 'Parse', mean: averageIfAny(flattenSteadyValues('iterationOtherMs')) },
-
-    { name: 'ZTD transform', mean: averageIfAny(flattenSteadyValues('iterationRewriteMs')) },
-
-    { name: 'Stringify', mean: averageIfAny(flattenSteadyValues('iterationSqlGenerationMs')) },
-
-    { name: 'DB execution', mean: averageIfAny(flattenSteadyValues('iterationDbMs')) },
-
-  ];
-
-  const componentTotal = componentEntries.reduce(
-
-    (sum, entry) => sum + (typeof entry.mean === 'number' ? entry.mean : 0),
-
-    0,
-
-  );
-
-  const percentageFor = (value?: number): number | undefined =>
-
-    componentTotal > 0 && typeof value === 'number' ? (value / componentTotal) * 100 : undefined;
-
-
-
-  const reportLines: string[] = [];
-
-  reportLines.push('## ZTD Benchmark Results');
-
-  reportLines.push('');
-
-  reportLines.push('**Environment**');
-
-  reportLines.push(`- Node.js: ${process.version}`);
-
-  reportLines.push(`- Database: ${databaseInfo}`);
-
-  reportLines.push(`- OS: ${os.type()} ${os.release()}`);
-
-  reportLines.push(`- CPU: ${cpuModel.trim()} (${logicalCores} logical cores)`);
-
-  reportLines.push(`- Date: ${now}`);
-
-  reportLines.push('');
-
-  reportLines.push('**Benchmark Configuration**');
-
-  reportLines.push(`- Profile: ${BENCH_PROFILE.name}`);
-
-  reportLines.push(`- Scenarios: ${scenarioSummary.length > 0 ? scenarioSummary : 'none'}`);
-
-  reportLines.push(`- Warmup runs (baseline multiplier only): ${WARMUP_RUNS}`);
-
-  reportLines.push(`- Measured runs base: ${MEASURED_RUNS}`);
-
-  reportLines.push(
-
-    `- Suite sizes tested: ${suiteSizes.map((size) => `${size} tests`).join(', ')}`,
-
-  );
-
-  reportLines.push(
-
-    `- Steady-state suite size: ${steadyStateSuiteSize} tests`,
-
-  );
-
-  if (BENCH_SCENARIOS.includeSteady) {
-
-    reportLines.push(
-
-      `- Steady-state runs: ${steadyStateWarmups} warmup / ${steadyStateMeasuredRuns} measured`,
-
-    );
-
-  }
-
-  if (BENCH_SCENARIOS.includeLowerBound) {
-
-    reportLines.push(
-
-      `- Variable cost suites measured: ${suiteSizes.map((size) => `${size} tests`).join(', ')}`,
-
-    );
-
-  }
-
-  reportLines.push(
-
-    `- Parallel workers tested: ${PARALLEL_WORKER_COUNTS.join(', ')}`,
-
-  );
-
-  reportLines.push(
-
-    `- Total benchmark duration: ${formatMsOrNa(totalBenchmarkDurationMs)} ms`,
-
-  );
-
-  reportLines.push('');
-
-
-
-  const measuredRunsLabel = resolveMeasuredRunsForMultiplier(suiteMultipliers[0] ?? baselineMultiplier);
-
-  const formatSpeedup = (value?: number): string =>
-
-    typeof value === 'number' ? value.toFixed(2) : 'N/A';
-
-
-
-  reportLines.push('### Variable Cost Comparison');
-
-  reportLines.push('');
-
-  reportLines.push(
-
-    'This section compares per-iteration variable work. Fixed runner and worker startup costs are excluded so that watch-style iterations highlight the work that grows with suite size.',
-
-  );
-
-  reportLines.push('');
-
-  reportLines.push(
-
-    `- Means/StdDev computed over ${measuredRunsLabel} measured runs (warmups excluded).`,
-
-  );
-
-  reportLines.push(
-
-    '- Parallelism reflects Vitest worker processes (test runner workers), not DB threads.',
-
-  );
-
-  reportLines.push(
-
-    '- Speedup vs traditional (1 worker) uses the traditional serial mean as the baseline for each suite size.',
-
-  );
-
-  reportLines.push('');
-
-  for (const target of suiteTargets) {
-
-    reportLines.push(`#### ${target.label}`);
-
-    reportLines.push('');
-
-    reportLines.push(
-
-      '| Method | Parallelism (workers) | Mean (ms) | StdDev (ms) | Speedup vs traditional (1 worker) |',
-
-    );
-
-    reportLines.push('| --- | ---: | ---: | ---: | ---: |');
-
-    const baselineKey = `${target.suiteSize}:traditional-in-process:serial:1`;
-
-    const baselineMean = variableLookup.get(baselineKey)?.duration;
-
-    if (typeof baselineMean !== 'number' || baselineMean <= 0) {
-
-      reportLines.push(
-
-        '| _Insufficient baseline data_ |  |  |  |  |',
-
-      );
-
-      reportLines.push('');
-
-      continue;
-
-    }
-
-    for (const method of methodDefinitions) {
-
-      const key = `${target.suiteSize}:${method.scenario}:${method.mode}:${method.workerCount}`;
-
-      const row = variableLookup.get(key);
-
-      if (!row || typeof row.duration !== 'number') {
-
-        continue;
-
-      }
-
-      const mean = row.duration;
-
-      const stddev = row.durationStddev;
-
-      const baselineSpeedup =
-
-        typeof baselineMean === 'number' && baselineMean > 0 ? baselineMean / mean : undefined;
-
-      const speedup =
-
-        method.method === 'traditional' && method.workerCount === 1 ? 1 : baselineSpeedup;
-
-      reportLines.push(
-
-        `| ${method.method} | ${method.workerCount} | ${formatMsOrNa(mean)} | ${formatMsOrNa(
-
-          stddev,
-
-        )} | ${formatSpeedup(speedup)} |`,
-
-      );
-
-    }
-
-    reportLines.push('');
-
-  }
-
-
-
-  const parallelTraditionalRuns = measured.filter(
-    (run) => run.scenario === 'traditional-in-process' && run.mode === 'parallel' && run.phase === 'measured',
-  );
-  const formatInteger = (value?: number): string => (typeof value === 'number' ? value.toFixed(0) : 'N/A');
-  const formatWorkerOffset = (value?: number): string =>
-    typeof value === 'number' ? `${formatMs(value)}ms` : 'N/A';
-  const parallelDurations = parallelTraditionalRuns
-    .map((run) => run.durationMs)
-    .filter((value): value is number => typeof value === 'number');
-  const traditionalParallelP95 = computePercentile(parallelDurations, 0.95);
-  reportLines.push(
-    `- Traditional parallel duration p95: ${formatMsOrNa(traditionalParallelP95)}`,
-  );
-  reportLines.push(
-    `- Traditional parallel waiting p95: ${formatMsOrNa(traditionalWaitingP95)} ms`,
-  );
-  reportLines.push(
-    `- Traditional migration p95: ${formatMsOrNa(traditionalMigrationP95)} ms`,
-  );
-  reportLines.push(
-    `- Traditional cleanup p95: ${formatMsOrNa(traditionalCleanupP95)} ms`,
-  );
-  reportLines.push('### Traditional Parallelism Validation');
-  reportLines.push('');
-  reportLines.push(
-    'Traditional parallel runs show overlapping worker time ranges and multiple concurrent PostgreSQL sessions in the first measured iteration for each suite and worker count.',
-  );
-  reportLines.push('');
-  for (const target of suiteTargets) {
-    reportLines.push(`- ${target.label}:`);
-    for (const workerCount of PARALLEL_WORKER_COUNTS) {
-      const candidateRuns = parallelTraditionalRuns
-        .filter(
-          (run) =>
-            run.suiteMultiplier === target.multiplier &&
-            run.parallelWorkerCount === workerCount,
-        )
-        .sort((a, b) => (a.runIndex ?? 0) - (b.runIndex ?? 0));
-      if (candidateRuns.length === 0) {
-        reportLines.push(`  - Workers: ${workerCount}: no measured run recorded.`);
-        continue;
-      }
-      const representative = candidateRuns[0];
-      reportLines.push(`  - Workers: ${workerCount}`);
-      reportLines.push(
-        `    - Peak concurrent PG sessions: ${formatInteger(
-          representative.traditionalPeakConnections,
-        )}`,
-      );
-      const ranges = representative.traditionalWorkerTimeRanges;
-      if (ranges && ranges.length > 0) {
-        reportLines.push('    - Worker time ranges:');
-        ranges.forEach((range) => {
-          reportLines.push(
-            `      - ${range.workerId}: ${formatWorkerOffset(range.startOffsetMs)}..${formatWorkerOffset(
-              range.endOffsetMs,
-            )} (cases: ${range.cases})`,
-          );
-        });
-      } else {
-        reportLines.push('    - Worker time ranges: N/A');
-      }
-    }
-  }
-  reportLines.push('');
-
-  reportLines.push('### ZTD Concurrency Diagnostics');
-  reportLines.push('');
-  reportLines.push(
-    `- Highlighted ZTD in-process run: ${highlightSuiteLabel} with ${highlightWorkerCount} workers (${highlightConnectionModel} connection model, parallel measured).`,
-  );
-  reportLines.push(
-    `  - Waiting p95: ${formatMsOrNa(highlightWaitingP95)} ms`,
-  );
-  reportLines.push(
-    `  - Max active PostgreSQL sessions observed: ${typeof highlightMaxActive === 'number' ? highlightMaxActive : 'N/A'}`,
-  );
-  reportLines.push('');
-
-  reportLines.push('### Runner Overhead (Supplementary)');
-
-  reportLines.push('');
-
-  reportLines.push('Runner overhead (first run only):');
-  reportLines.push(`- Startup: ${formatMsOrNa(runnerStartupMean)} ms`);
-  reportLines.push(`- Execution (no-op suite): ${formatMsOrNa(runnerExecutionMean)} ms`);
-  reportLines.push('');
-
-  reportLines.push(
-
-    'This overhead is paid once in watch or iterative workflows and is amortized away. For one-shot executions (manual runs or fresh CI jobs), this cost is incurred on every run and should be added to the variable cost.',
-
-  );
-
-  reportLines.push('');
-
-
-
-  reportLines.push('### ZTD Internal Cost Breakdown');
-
-  reportLines.push('');
-
-  reportLines.push('| Component | Mean (ms) | Percentage (%) |');
-
-  reportLines.push('| --- | ---: | ---: |');
-
-  for (const entry of componentEntries) {
-
-    reportLines.push(
-
-      `| ${entry.name} | ${formatMsOrNa(entry.mean)} | ${formatPercentage(
-
-        percentageFor(entry.mean),
-
-      )} |`,
-
-    );
-
-  }
-
-  reportLines.push('');
-
-
-
-  reportLines.push('### Notes');
-
-  if (mediumSuiteTarget) {
-    reportLines.push(
-
-      `- The ${mediumSuiteTarget.label} suite repeats the same ${testCaseCount} cases to approximate larger suite sizes for the variable cost measurements.`,
-
-    );
-  }
-
-  if (largeSuiteTarget) {
-    reportLines.push(
-
-      `- The ${largeSuiteTarget.label} suite relies on the existing suite-scaling mechanism to repeat the same case set while preserving the measurement scope.`,
-
-    );
-  }
-
-  reportLines.push(
-
-    '- Traditional variable cost assumes hand-authored SQL and DDL, so SQL generation plus migration creation are treated as zero to keep this baseline as a best-case scenario.',
-
-  );
-
-  reportLines.push(
-
-    '- Traditional parallel runs rely on schema-isolated setup (unique schemas/search_path per test) to avoid shared state, which adds hidden engineering work to generate and track isolation metadata.',
-
-  );
-
-  reportLines.push(
-
-    '- Traditional in-process runs open per-case PG connections to mirror migration workflows, whereas ZTD in-process runs reuse a shared pg-testkit connection because fixture materialization couples to that queryable; further pooling is not feasible.',
-
-  );
-
-  reportLines.push(
-
-    '- Aggressive multi-statement batching (minimum round-trip optimization) was intentionally not used because it weakens failure isolation, cleanup guarantees, and schema/search_path isolation in parallel runs.',
-
-  );
-
-  reportLines.push(
-
-    '- Representative Traditional SQL sequences are written to tmp/bench/traditional-sql/<case>.sql (one file per case) so you can inspect the migration, seeding, query, and cleanup statements without capturing every repetition.',
-
-  );
-
-  reportLines.push(
-
-    '- ZTD variable cost includes repository SQL generation (when applicable), rewrite, fixture materialization, and DB execution within each measured run.',
-
-  );
-
-  reportLines.push(
-
-    '- Runner-only overhead rows measure pnpm + vitest startup and execution through a minimal no-op suite so fixed runner cost is isolated from variable measurements.',
-
-  );
-
-  reportLines.push('- Postgres container startup is excluded (the container is shared across all runs).');
-
-  reportLines.push(
-
-    '- Results are averaged over the measured run counts listed above (warmups excluded).',
-
-  );
-
-  reportLines.push('');
-
-  reportLines.push('### Reproduction');
-
-  reportLines.push('```bash');
-
-  reportLines.push('pnpm ztd:bench');
-
-  reportLines.push('```');
-
-  reportLines.push(`Report path: ${path.relative(ROOT_DIR, REPORT_PATH)}`);
-
-
-
-  return `${reportLines.join('\n')}\n`;
-
-}
-
 async function fetchPostgresVersion(databaseUrl: string): Promise<string> {
   void databaseUrl;
   const { client, release } = await getDbClient({
@@ -2718,14 +1355,22 @@ async function runScenario(
   runs: number,
   suiteMultiplier: number,
   phase: RunPhase,
+  forceTraditionalSerial = false,
 ): Promise<RunMetrics[]> {
+  const connectionModel = getActiveConnectionModel();
+  const parallelWorkerCount = mode === 'parallel' ? getActiveParallelWorkers() : 1;
   const scenarioStartMs = Date.now();
   const scenarioStart = new Date(scenarioStartMs).toISOString();
   console.log(
-    `[${scenarioStart}] Starting ${scenario} (${mode}, phase=${phase}) suite x${suiteMultiplier} (${runs} runs planned).`,
+    `[${scenarioStart}] Starting ${scenario} (${mode}, phase=${phase}, connectionModel=${connectionModel}, workers=${parallelWorkerCount}) suite x${suiteMultiplier} (${runs} runs planned).`,
   );
   const results: RunMetrics[] = [];
   for (let runIndex = 0; runIndex < runs; runIndex += 1) {
+    const runStartIso = new Date().toISOString();
+    // Emit per-run progress so long suites do not look stalled in the console.
+    console.log(
+      `[${runStartIso}] Run ${runIndex + 1}/${runs} starting: ${scenario} (${mode}, phase=${phase}, suite x${suiteMultiplier}, workers=${parallelWorkerCount}).`,
+    );
     const runContext: BenchContext = {
       scenario,
       mode,
@@ -2765,47 +1410,75 @@ async function runScenario(
         databaseUrl,
         suiteMultiplier,
         phase,
+        scenario,
+        forceTraditionalSerial,
       );
     }
     logBenchProgress('run.end', runContext, {
       durationMs: runMetrics.durationMs,
     });
+    const runEndIso = new Date().toISOString();
+    console.log(
+      `[${runEndIso}] Run ${runIndex + 1}/${runs} completed: ${scenario} (${mode}, phase=${phase}, suite x${suiteMultiplier}, workers=${parallelWorkerCount}) in ${formatMs(
+        runMetrics.durationMs,
+      )} ms.`,
+    );
     runMetrics.runIndex = runIndex;
     runMetrics.parallelWorkerCount =
       runMetrics.mode === 'parallel' ? getActiveParallelWorkers() : 1;
     results.push(runMetrics);
+    await closeDbPool();
   }
   const scenarioEndMs = Date.now();
   const scenarioEnd = new Date(scenarioEndMs).toISOString();
   console.log(
-    `[${scenarioEnd}] Completed ${scenario} (${mode}, phase=${phase}) suite x${suiteMultiplier} (${runs} runs) in ${formatMs(
+    `[${scenarioEnd}] Completed ${scenario} (${mode}, phase=${phase}, connectionModel=${connectionModel}, workers=${parallelWorkerCount}) suite x${suiteMultiplier} (${runs} runs) in ${formatMs(
       scenarioEndMs - scenarioStartMs,
     )} ms.`,
   );
   return results;
 }
 
-function collectTraditionalMetric(
-  entries: BenchPhaseLogEntry[],
-  phaseName: string,
-  metric: 'waitingMs' | 'durationMs' | 'cleanupMs',
-): number[] {
-  return entries
-    .filter(
-      (entry) =>
-        entry.phase === phaseName &&
-        entry.status === 'end' &&
-        entry.context?.approach === 'traditional' &&
-        entry.context.phase === 'measured' &&
-        entry.context.mode === 'parallel' &&
-        typeof entry[metric] === 'number',
-    )
-    .map((entry) => entry[metric] as number);
+function enforcePerWorkerConcurrency(summary: PgConcurrencySummary): void {
+  // Skip the guard when the environment requests a relaxed check for active sessions.
+  if (!ENFORCE_PER_WORKER_CONCURRENCY) {
+    return;
+  }
+  const targetWorkers = PARALLEL_WORKER_COUNTS.includes(8)
+    ? 8
+    : PARALLEL_WORKER_COUNTS[PARALLEL_WORKER_COUNTS.length - 1] ?? 1;
+  if (targetWorkers < 8) {
+    return;
+  }
+  const methodKey = 'ztd-bench-perworker';
+  const perWorkerStats = summary.byApplication?.[methodKey];
+  const dedicatedConnections = summary.distinctBackendPidsByMethod?.[methodKey] ?? 0;
+  if (dedicatedConnections < targetWorkers) {
+    throw new Error(
+      `Per-worker concurrency target not reached: only ${dedicatedConnections} distinct PG connections for ${targetWorkers} workers (worker tags: ${Object.keys(
+        summary.distinctBackendPidsByWorkerTag ?? {},
+      ).join(', ')})`,
+    );
+  }
+  const activeExecuting = perWorkerStats?.maxActiveExecutingSessions ?? 0;
+  if (activeExecuting < Math.max(1, Math.floor(targetWorkers * 0.7))) {
+    throw new Error(
+      `Per-worker concurrency target not reached: observed ${activeExecuting} active executing sessions for ${targetWorkers} workers (>= ${
+        Math.max(1, Math.floor(targetWorkers * 0.7))
+      } expected).`,
+    );
+  }
 }
 
 async function main(): Promise<void> {
+  if (ANALYSIS_ONLY) {
+    await runAnalysisOnlyFromDisk();
+    return;
+  }
+
   const benchStartMs = Date.now();
   ensureDirectories();
+  resetBenchmarkLog();
   clearMetricsStatus();
   clearConnectionEvents();
   clearSessionStats();
@@ -2841,10 +1514,11 @@ async function main(): Promise<void> {
       steadyStateMeasuredRuns,
       runnerWarmups,
       runnerMeasuredRuns,
+      dbConcurrencyMode: DB_CONCURRENCY_MODE,
     },
   );
   console.log(
-    `Starting ZTD benchmark (profile=${BENCH_PROFILE.name}, scenarios=${BENCH_SCENARIOS.label}, log level=${REQUESTED_LOG_LEVEL}).`,
+    `Starting ZTD benchmark (profile=${BENCH_PROFILE.name}, scenarios=${BENCH_SCENARIOS.label}, log level=${REQUESTED_LOG_LEVEL}, dbConcurrency=${DB_CONCURRENCY_MODE}).`,
   );
 
   const container = await new PostgreSqlContainer('postgres:18-alpine')
@@ -2855,6 +1529,22 @@ async function main(): Promise<void> {
 
   const databaseUrl = container.getConnectionUri();
   process.env.DATABASE_URL = databaseUrl;
+
+  const concurrencyMonitor = await startPgConcurrencyMonitor({
+    connectionString: databaseUrl,
+    intervalMs: 500,
+    outputDir: TMP_DIR,
+  });
+  let concurrencySummary: PgConcurrencySummary | undefined;
+  let monitorStopped = false;
+  const ensureMonitorStopped = async (): Promise<PgConcurrencySummary> => {
+    if (monitorStopped && concurrencySummary) {
+      return concurrencySummary;
+    }
+    concurrencySummary = await concurrencyMonitor.stop();
+    monitorStopped = true;
+    return concurrencySummary;
+  };
 
   try {
 
@@ -2892,24 +1582,16 @@ async function main(): Promise<void> {
               warmupRuns: runnerWarmups,
             },
           );
-          for (const scenario of runnerScenarios) {
-            for (const mode of runnerModes) {
-              const workerCounts = mode === 'parallel' ? PARALLEL_WORKER_COUNTS : [1];
-              for (const workerCount of workerCounts) {
-                setActiveParallelWorkers(workerCount);
-                warmups.push(
-                  ...(await runScenario(
-                    scenario,
-                    mode,
-                    databaseUrl,
-                    runnerWarmups,
-                    baselineMultiplier,
-                    'warmup',
-                  )),
-                );
-              }
-            }
-          }
+          warmups.push(
+            ...(await runScenarioMatrix({
+              scenarios: runnerScenarios,
+              modes: runnerModes,
+              runs: runnerWarmups,
+              suiteMultiplier: baselineMultiplier,
+              phase: 'warmup',
+              databaseUrl,
+            })),
+          );
         }
 
         logBenchProgress(
@@ -2919,29 +1601,21 @@ async function main(): Promise<void> {
             mode: 'measured',
             suiteMultiplier: baselineMultiplier,
           },
-          {
-            detail: `Measured: runner-only overhead (${baselineSuiteSize} tests baseline configuration)`,
-            measuredRuns: runnerMeasuredRuns,
-          },
+            {
+              detail: `Measured: runner-only overhead (${baselineSuiteSize} tests baseline configuration)`,
+              measuredRuns: runnerMeasuredRuns,
+            },
+          );
+        measured.push(
+          ...(await runScenarioMatrix({
+            scenarios: runnerScenarios,
+            modes: runnerModes,
+            runs: runnerMeasuredRuns,
+            suiteMultiplier: baselineMultiplier,
+            phase: 'measured',
+            databaseUrl,
+          })),
         );
-        for (const scenario of runnerScenarios) {
-          for (const mode of runnerModes) {
-            const workerCounts = mode === 'parallel' ? PARALLEL_WORKER_COUNTS : [1];
-            for (const workerCount of workerCounts) {
-              setActiveParallelWorkers(workerCount);
-              measured.push(
-                ...(await runScenario(
-                  scenario,
-                  mode,
-                  databaseUrl,
-                  runnerMeasuredRuns,
-                  baselineMultiplier,
-                  'measured',
-                )),
-              );
-            }
-          }
-        }
       }
 
       if (BENCH_SCENARIOS.includeLowerBound) {
@@ -2949,10 +1623,14 @@ async function main(): Promise<void> {
         const variableModes: ExecutionMode[] = ['serial', 'parallel'];
         for (const suiteMultiplier of suiteMultipliers) {
           const suiteSize = TRADITIONAL_CASE_COUNT * suiteMultiplier;
-          const warmupRuns = shouldWarmupMultiplier(suiteMultiplier, baselineMultiplier)
+          const warmupRuns = shouldWarmupMultiplier(
+            suiteMultiplier,
+            baselineMultiplier,
+            WARMUP_RUNS,
+          )
             ? WARMUP_RUNS
             : 0;
-          const measuredRuns = resolveMeasuredRunsForMultiplier(suiteMultiplier);
+          const measuredRuns = resolveMeasuredRunsForMultiplier(suiteMultiplier, MEASURED_RUNS);
 
           if (warmupRuns > 0) {
             logBenchProgress(
@@ -2967,24 +1645,39 @@ async function main(): Promise<void> {
                 warmupRuns,
               },
             );
-            for (const scenario of variableScenarios) {
-              for (const mode of variableModes) {
-                const workerCounts = mode === 'parallel' ? PARALLEL_WORKER_COUNTS : [1];
-                for (const workerCount of workerCounts) {
-                  setActiveParallelWorkers(workerCount);
-                  warmups.push(
-                    ...(await runScenario(
-                      scenario,
-                      mode,
-                      databaseUrl,
-                      warmupRuns,
-                      suiteMultiplier,
-                      'warmup',
-                    )),
-                  );
-                }
-              }
-            }
+            warmups.push(
+              ...(await runScenarioMatrix({
+                scenarios: variableScenarios,
+                modes: variableModes,
+                runs: warmupRuns,
+                suiteMultiplier,
+                phase: 'warmup',
+                databaseUrl,
+              })),
+            );
+            logBenchProgress(
+              'bench.stage',
+              {
+                scenario: 'variable-cost',
+                mode: 'warmup',
+                suiteMultiplier,
+              },
+              {
+                detail: `Warmup: Traditional DB serial lock (${suiteSize} tests)`,
+                warmupRuns,
+              },
+            );
+            warmups.push(
+              ...(await runScenarioMatrix({
+                scenarios: ['traditional-in-process'],
+                modes: ['parallel'],
+                runs: warmupRuns,
+                suiteMultiplier,
+                phase: 'warmup',
+                databaseUrl,
+                forceTraditionalSerial: true,
+              })),
+            );
           }
 
           logBenchProgress(
@@ -2999,135 +1692,177 @@ async function main(): Promise<void> {
               measuredRuns,
             },
           );
-          for (const scenario of variableScenarios) {
-            for (const mode of variableModes) {
-              const workerCounts = mode === 'parallel' ? PARALLEL_WORKER_COUNTS : [1];
-              for (const workerCount of workerCounts) {
-                setActiveParallelWorkers(workerCount);
-                measured.push(
-                  ...(await runScenario(
-                    scenario,
-                    mode,
-                    databaseUrl,
-                    measuredRuns,
-                    suiteMultiplier,
-                    'measured',
-                  )),
-                );
-              }
-            }
-          }
-        }
-      }
-
-      if (BENCH_SCENARIOS.includeSteady) {
-      if (steadyStateWarmups > 0) {
-        logBenchProgress(
-          'bench.stage',
-          {
-            scenario: 'steady-state',
-            mode: 'warmup',
-            suiteMultiplier: steadyStateSuiteMultiplier,
-          },
-          {
-            detail: `Warmup: steady-state (suite multiplier ${steadyStateSuiteMultiplier})`,
-            warmupRuns: steadyStateWarmups,
-          },
-        );
-        warmups.push(
-          ...(await runScenario(
-            'traditional-steady-state',
-            'serial',
-            databaseUrl,
-            steadyStateWarmups,
-            steadyStateSuiteMultiplier,
-            'warmup',
-          )),
-        );
-        warmups.push(
-          ...(await runScenario(
-            'ztd-steady-state',
-            'serial',
-            databaseUrl,
-            steadyStateWarmups,
-            steadyStateSuiteMultiplier,
-            'warmup',
-          )),
-        );
-        for (const workerCount of PARALLEL_WORKER_COUNTS) {
-          setActiveParallelWorkers(workerCount);
-          warmups.push(
-            ...(await runScenario(
-              'ztd-steady-state',
-              'parallel',
+          measured.push(
+            ...(await runScenarioMatrix({
+              scenarios: variableScenarios,
+              modes: variableModes,
+              runs: measuredRuns,
+              suiteMultiplier,
+              phase: 'measured',
               databaseUrl,
-              steadyStateWarmups,
-              steadyStateSuiteMultiplier,
-              'warmup',
-            )),
+            })),
+          );
+          logBenchProgress(
+            'bench.stage',
+            {
+              scenario: 'variable-cost',
+              mode: 'measured',
+              suiteMultiplier,
+            },
+            {
+              detail: `Measured: Traditional DB serial lock (${suiteSize} tests)`,
+              measuredRuns,
+            },
+          );
+          measured.push(
+            ...(await runScenarioMatrix({
+              scenarios: ['traditional-in-process'],
+              modes: ['parallel'],
+              runs: measuredRuns,
+              suiteMultiplier,
+              phase: 'measured',
+              databaseUrl,
+              forceTraditionalSerial: true,
+            })),
           );
         }
       }
 
-      logBenchProgress(
-        'bench.stage',
-        {
-          scenario: 'steady-state',
-          mode: 'measured',
-          suiteMultiplier: steadyStateSuiteMultiplier,
-        },
-        {
-          detail: `Measured: steady-state (suite multiplier ${steadyStateSuiteMultiplier})`,
-          measuredRuns: steadyStateMeasuredRuns,
-        },
-      );
-      measured.push(
-        ...(await runScenario(
-          'traditional-steady-state',
-          'serial',
-          databaseUrl,
-          steadyStateMeasuredRuns,
-          steadyStateSuiteMultiplier,
-          'measured',
-        )),
-      );
-      measured.push(
-        ...(await runScenario(
-          'ztd-steady-state',
-          'serial',
-          databaseUrl,
-          steadyStateMeasuredRuns,
-          steadyStateSuiteMultiplier,
-          'measured',
-        )),
-      );
-      for (const workerCount of PARALLEL_WORKER_COUNTS) {
-        setActiveParallelWorkers(workerCount);
+      if (BENCH_SCENARIOS.includeSteady) {
+        if (steadyStateWarmups > 0) {
+          logBenchProgress(
+            'bench.stage',
+            {
+              scenario: 'steady-state',
+              mode: 'warmup',
+              suiteMultiplier: steadyStateSuiteMultiplier,
+            },
+            {
+              detail: `Warmup: steady-state (suite multiplier ${steadyStateSuiteMultiplier})`,
+              warmupRuns: steadyStateWarmups,
+            },
+          );
+          warmups.push(
+            ...(await runScenarioMatrix({
+              scenarios: ['traditional-steady-state', 'ztd-steady-state'],
+              modes: ['serial'],
+              runs: steadyStateWarmups,
+              suiteMultiplier: steadyStateSuiteMultiplier,
+              phase: 'warmup',
+              databaseUrl,
+            })),
+          );
+          warmups.push(
+            ...(await runScenarioMatrix({
+              scenarios: ['ztd-steady-state'],
+              modes: ['parallel'],
+              runs: steadyStateWarmups,
+              suiteMultiplier: steadyStateSuiteMultiplier,
+              phase: 'warmup',
+              databaseUrl,
+            })),
+          );
+        }
+
+        logBenchProgress(
+          'bench.stage',
+          {
+            scenario: 'steady-state',
+            mode: 'measured',
+            suiteMultiplier: steadyStateSuiteMultiplier,
+          },
+          {
+            detail: `Measured: steady-state (suite multiplier ${steadyStateSuiteMultiplier})`,
+            measuredRuns: steadyStateMeasuredRuns,
+          },
+        );
         measured.push(
-          ...(await runScenario(
-            'ztd-steady-state',
-            'parallel',
+          ...(await runScenarioMatrix({
+            scenarios: ['traditional-steady-state', 'ztd-steady-state'],
+            modes: ['serial'],
+            runs: steadyStateMeasuredRuns,
+            suiteMultiplier: steadyStateSuiteMultiplier,
+            phase: 'measured',
             databaseUrl,
-            steadyStateMeasuredRuns,
-            steadyStateSuiteMultiplier,
-            'measured',
-          )),
+          })),
+        );
+        measured.push(
+          ...(await runScenarioMatrix({
+            scenarios: ['ztd-steady-state'],
+            modes: ['parallel'],
+            runs: steadyStateMeasuredRuns,
+            suiteMultiplier: steadyStateSuiteMultiplier,
+            phase: 'measured',
+            databaseUrl,
+          })),
         );
       }
     }
-  }
 
     const postgresVersion = await fetchPostgresVersion(databaseUrl);
-    const recordedRuns = loadRunMetricsFromDisk();
+    const recordedRuns = loadRunMetricsFromDisk(TMP_DIR, RUN_TAG_PREFIX);
+    const currentSessionStats = getSessionStats();
+    const persistedSessionStats = loadPersistedSessionStats(TMP_DIR, RUN_TAG_PREFIX);
+    const aggregatedSessionStats = [...persistedSessionStats, ...currentSessionStats];
+    clearSessionStats();
+    appendSessionStats(aggregatedSessionStats);
     const totalBenchmarkDurationMs = Date.now() - benchStartMs;
-    const report = renderReport(
-      recordedRuns,
-      postgresVersion,
+    const concurrencySummaryResult = await ensureMonitorStopped();
+    writeReportMetadata(REPORT_METADATA_PATH, {
+      metadataVersion: 1,
+      databaseInfo: postgresVersion,
       suiteMultipliers,
       steadyStateSuiteMultiplier,
       totalBenchmarkDurationMs,
-    );
-    fs.writeFileSync(REPORT_PATH, report, 'utf8');
+      benchProfileName: BENCH_PROFILE.name,
+      benchScenarios: BENCH_SCENARIOS,
+      warmupRuns: WARMUP_RUNS,
+      measuredRuns: MEASURED_RUNS,
+      steadyStateWarmups: STEADY_STATE_WARMUPS,
+      steadyStateMeasuredRuns: STEADY_STATE_MEASURED_RUNS,
+      parallelWorkerCounts: PARALLEL_WORKER_COUNTS,
+      benchConnectionModels: BENCH_CONNECTION_MODELS,
+      traditionalDbSerialLock: TRADITIONAL_DB_SERIAL_LOCK,
+      reportPath: REPORT_PATH,
+      appendixReportPath: APPENDIX_REPORT_PATH,
+      rootDir: ROOT_DIR,
+      runTagPrefix: RUN_TAG_PREFIX,
+    });
+    // TODO: Emit a run-tagged report metadata file to avoid overwriting when multiple run tags are used.
+    writeBenchmarkReports({
+      results: recordedRuns,
+      databaseInfo: postgresVersion,
+      suiteMultipliers,
+      steadyStateSuiteMultiplier,
+      totalBenchmarkDurationMs,
+      concurrencySummary: concurrencySummaryResult,
+      benchProfileName: BENCH_PROFILE.name,
+      benchScenarios: BENCH_SCENARIOS,
+      warmupRuns: WARMUP_RUNS,
+      measuredRuns: MEASURED_RUNS,
+      steadyStateWarmups: STEADY_STATE_WARMUPS,
+      steadyStateMeasuredRuns: STEADY_STATE_MEASURED_RUNS,
+      parallelWorkerCounts: PARALLEL_WORKER_COUNTS,
+      benchConnectionModels: BENCH_CONNECTION_MODELS,
+      traditionalDbSerialLock: TRADITIONAL_DB_SERIAL_LOCK,
+      reportPath: REPORT_PATH,
+      appendixReportPath: APPENDIX_REPORT_PATH,
+      rootDir: ROOT_DIR,
+    });
+    const currentConnectionEvents = getConnectionEvents();
+    persistConnectionEventsToDisk({
+      tmpDir: TMP_DIR,
+      runTagPrefix: RUN_TAG_PREFIX,
+      events: currentConnectionEvents,
+    });
+    persistSessionStatsToDisk({
+      tmpDir: TMP_DIR,
+      runTagPrefix: RUN_TAG_PREFIX,
+      stats: currentSessionStats,
+    });
+    if (DB_CONCURRENCY_MODE === 'perWorker') {
+      enforcePerWorkerConcurrency(concurrencySummaryResult);
+    }
 
     logBenchProgress(
       'bench.end',
@@ -3137,6 +1872,7 @@ async function main(): Promise<void> {
         warmupRuns: warmups.length,
         measuredRuns: measured.length,
         reportPath: path.relative(ROOT_DIR, REPORT_PATH),
+        appendixReportPath: path.relative(ROOT_DIR, APPENDIX_REPORT_PATH),
         logPath: path.relative(ROOT_DIR, BENCH_LOG_PATH),
         totalDurationMs: totalBenchmarkDurationMs,
       },
@@ -3145,11 +1881,15 @@ async function main(): Promise<void> {
       `ZTD benchmark complete (warmups: ${warmups.length}, measured: ${measured.length}). Report: ${path.relative(
         ROOT_DIR,
         REPORT_PATH,
-      )}; log: ${path.relative(ROOT_DIR, BENCH_LOG_PATH)}.`,
+      )}; appendix: ${path.relative(ROOT_DIR, APPENDIX_REPORT_PATH)}; log: ${path.relative(
+        ROOT_DIR,
+        BENCH_LOG_PATH,
+      )}.`,
     );
   } finally {
     // Ensure the benchmark log stream flushes before closing database resources.
     closeBenchmarkLogger();
+    await ensureMonitorStopped().catch(() => {});
     // Tear down the shared pool before stopping the container so connections cleanly release.
     await closeDbPool();
     await container.stop();

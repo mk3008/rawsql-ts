@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import type { Pool } from 'pg';
-import type { ConnectionModel } from '../ztd-bench/tests/support/diagnostics';
+import type { ConnectionModel, DbConcurrencyMode } from '../ztd-bench/tests/support/diagnostics';
 
 export type BenchContext = {
   scenario?: string;
@@ -14,6 +14,7 @@ export type BenchContext = {
   approach?: string;
   note?: string;
   connectionModel?: ConnectionModel;
+  dbConcurrencyMode?: DbConcurrencyMode;
   parallelWorkerCount?: number;
 };
 
@@ -112,6 +113,17 @@ export function configureBenchmarkLogger(options?: {
   clearBenchPhaseEntries();
 }
 
+export function resetBenchmarkLog(): void {
+  if (logStream) {
+    logStream.end();
+    logStream = null;
+  }
+  // Truncate the log so each benchmark run starts with a clean file.
+  fs.mkdirSync(path.dirname(configuredLogPath), { recursive: true });
+  fs.writeFileSync(configuredLogPath, '', 'utf8');
+  clearBenchPhaseEntries();
+}
+
 export function closeBenchmarkLogger(): void {
   if (logStream) {
     logStream.end();
@@ -164,6 +176,16 @@ export function logBenchProgress(
       ...extra,
     },
     'info',
+  );
+}
+
+export function logBenchDebug(event: Record<string, unknown>): void {
+  log(
+    {
+      type: 'bench-debug',
+      ...event,
+    },
+    'debug',
   );
 }
 

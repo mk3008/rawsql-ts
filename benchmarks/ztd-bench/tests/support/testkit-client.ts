@@ -8,9 +8,11 @@ import type { TableFixture } from '@rawsql-ts/testkit-core';
 import {
   ConnectionLogger,
   ConnectionModel,
+  DbConcurrencyMode,
   ModeLabel,
   RunPhase,
 } from './diagnostics';
+import { appendWorkerTag } from '../../../support/worker-tag';
 import { getDbClient } from '../../../support/db-client';
 import { BenchContext, logBenchPhase } from '../../../support/benchmark-logger';
 import { recordZtdWaiting } from './bench-diagnostics';
@@ -45,6 +47,7 @@ type AcquireOptions = {
   workerId?: string;
   applicationName: string;
   context?: BenchContext;
+  dbConcurrencyMode?: DbConcurrencyMode;
 };
 
 async function acquireQueryable(options: AcquireOptions): Promise<{
@@ -53,21 +56,45 @@ async function acquireQueryable(options: AcquireOptions): Promise<{
   release: () => Promise<void>;
   acquireMs?: number;
 }> {
-  const { connectionModel, workerId, applicationName, context } = options;
-  // Map the connection model to the DB pool scope so acquisitions stay consistent.
-  const scope = connectionModel === 'perWorker' ? 'worker' : 'case';
+  const { connectionModel, workerId, applicationName, context, dbConcurrencyMode } = options;
+  // Force a shared scope when single-connection mode is requested.
+  const scope =
+    dbConcurrencyMode === 'single' ? 'shared' : connectionModel === 'perWorker' ? 'worker' : 'case';
   // Pull a client from the shared pool and keep the release hook for cleanup.
-  const { client, pid, release, acquireMs } = await getDbClient({
+  logBenchPhase('connection', 'start', context ?? {}, {
     scope,
     workerId,
     applicationName,
+  });
+  const { client, pid, release, acquireMs } = await getDbClient({
+    applicationName,
     context,
+  });
+  logBenchPhase('connection', 'end', context ?? {}, {
+    scope,
+    workerId,
+    pid,
+    applicationName,
   });
   // Wrap the raw client so pg-testkit sees the minimal PgQueryable surface.
   const queryable: PgQueryable = {
     query: <T extends QueryResultRow>(textOrConfig: PgQueryInput, values?: unknown[]) =>
       client.query<T>(textOrConfig as never, values),
-    release,
+    release: async () => {
+      logBenchPhase('connection', 'start', context ?? {}, {
+        scope,
+        workerId,
+        pid,
+        applicationName,
+      });
+      await release();
+      logBenchPhase('connection', 'end', context ?? {}, {
+        scope,
+        workerId,
+        pid,
+        applicationName,
+      });
+    },
   };
   return {
     queryable,
@@ -101,6 +128,7 @@ type TestkitClientOptions = {
   phase?: RunPhase;
   parallelWorkerCount?: number;
   applicationName?: string;
+  dbConcurrencyMode?: DbConcurrencyMode;
 };
 
 export async function createTestkitClient(
@@ -121,6 +149,7 @@ export async function createTestkitClient(
     phase = 'measured',
     parallelWorkerCount = 1,
     applicationName,
+    dbConcurrencyMode = 'single',
   } = options;
   const metricsPath = resolveMetricsPath();
   const sqlLogPath = resolveSqlLogPath();
@@ -136,14 +165,18 @@ export async function createTestkitClient(
     workerId,
     parallelWorkerCount,
     approach: 'ztd',
+    connectionModel,
+    dbConcurrencyMode,
   };
 
-  const connectionAppName = applicationName ?? `ztd-bench-${scenarioLabel}-${mode}`;
+  const baseConnectionName = applicationName ?? `ztd-bench-${scenarioLabel}-${mode}`;
+  const connectionAppName = appendWorkerTag(baseConnectionName, workerId);
   const { queryable, pid, release, acquireMs } = await acquireQueryable({
     connectionModel,
     workerId,
     applicationName: connectionAppName,
     context: benchContext,
+    dbConcurrencyMode,
   });
   connectionLogger?.({
     scenarioLabel,
@@ -155,6 +188,9 @@ export async function createTestkitClient(
     caseName,
     pid,
     connectionModel,
+    applicationName: connectionAppName,
+    dbConcurrencyMode,
+    workerCount: benchContext.parallelWorkerCount,
   });
   if (typeof acquireMs === 'number') {
     recordZtdWaiting(
@@ -165,6 +201,7 @@ export async function createTestkitClient(
         phase,
         suiteMultiplier,
         workerCount: parallelWorkerCount,
+        dbConcurrencyMode,
       },
       acquireMs,
     );
