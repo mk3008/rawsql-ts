@@ -19,6 +19,7 @@ This playground exists to validate the ZTD development loop end-to-end against a
 ## 1. Use the Postgres testkit helper
 
 - Always wire Postgres execution through `tests/support/testkit-client.ts`, which opens a `pg.Client`, passes it into `@rawsql-ts/pg-testkit`, and shares the connection across tests.
+- Set `ZTD_EXECUTION_MODE=traditional` or pass `{ mode: 'traditional', traditional: { isolation: 'schema', cleanup: 'drop_schema' } }` to the helper when you must test against a real schema (locking, isolation, constraints, etc.). Traditional mode creates/drops an isolated schema, executes `ztd/ddl`, seeds the fixtures, runs any optional `setupSql`, and honors the configured cleanup strategy so the database stays tidy.
 - `DATABASE_URL` may be provided explicitly, but when it is missing the test runner starts exactly one disposable Postgres testcontainer via `tests/support/global-setup.ts`.
 - Never issue DDL statements against Postgres from the playground. All CRUD operations must flow through pg-testkit so they resolve to fixture-backed `SELECT` queries.
 

@@ -2,6 +2,7 @@
 // ztd-cli emits this file during project bootstrapping to wire pg-testkit.
 // Regenerate via npx ztd init (choose overwrite when prompted); avoid manual edits.
 
+import { existsSync, promises as fsPromises } from 'node:fs';
 import path from 'node:path';
 import { Client, types } from 'pg';
 import type { ClientConfig, QueryResultRow } from 'pg';
@@ -26,11 +27,26 @@ type ZtdSqlLogEvent = {
   timestamp: string;
 };
 
+export type ZtdExecutionMode = 'ztd' | 'traditional';
+
+export type TraditionalIsolationMode = 'schema' | 'none';
+export type TraditionalCleanupStrategy = 'drop_schema' | 'custom_sql' | 'none';
+
+export interface TraditionalExecutionConfig {
+  isolation?: TraditionalIsolationMode;
+  setupSql?: string[];
+  cleanup?: TraditionalCleanupStrategy;
+  cleanupSql?: string[];
+  schemaName?: string;
+}
+
 export type ZtdSqlLogOptions = {
   enabled?: boolean;
   includeParams?: boolean;
   logger?: (event: ZtdSqlLogEvent) => void;
   profile?: ZtdProfileOptions;
+  mode?: ZtdExecutionMode;
+  traditional?: TraditionalExecutionConfig;
 };
 
 type ZtdProfilePhase = 'connection' | 'setup' | 'query' | 'teardown';
@@ -181,33 +197,32 @@ export async function createTestkitClient(
   fixtures: TableFixture[],
   options: ZtdSqlLogOptions = {}
 ): Promise<ZtdPlaygroundClient> {
-  const logEnabled = options.enabled ?? isTruthyEnv(process.env.ZTD_SQL_LOG);
-  const logParams = options.includeParams ?? isTruthyEnv(process.env.ZTD_SQL_LOG_PARAMS);
-  const logSink =
-    options.logger ??
-    ((event: ZtdSqlLogEvent) => {
-      console.log(safeJsonStringify(event));
-    });
+  const mode = resolveExecutionMode(options.mode);
+  if (mode === 'traditional') {
+    return createTraditionalPlaygroundClient(fixtures, options);
+  }
 
-  // Resolve profiling knobs from options/env to keep overhead near-zero when disabled.
-  const profileOptions = options.profile ?? {};
-  const profileEnabled = profileOptions.enabled ?? isTruthyEnv(process.env.ZTD_PROFILE);
-  const profilePerQuery = profileOptions.perQuery ?? isTruthyEnv(process.env.ZTD_PROFILE_PER_QUERY);
-  const profileParams = profileOptions.includeParams ?? isTruthyEnv(process.env.ZTD_PROFILE_PARAMS);
-  const profileIncludeSql = profileOptions.includeSql ?? isTruthyEnv(process.env.ZTD_PROFILE_SQL);
-  const profileSampleLimit =
-    profileOptions.sampleLimit ?? resolveNumberEnv(process.env.ZTD_PROFILE_SAMPLE_LIMIT) ?? 5;
-  const profileTestName = profileOptions.testName ?? process.env.ZTD_PROFILE_TEST_NAME;
-  const profileExecutionMode =
-    profileOptions.executionMode ??
-    (process.env.ZTD_PROFILE_EXECUTION as 'serial' | 'parallel' | 'unknown' | undefined) ??
-    (process.env.VITEST_WORKER_ID ? 'parallel' : 'serial');
-  const profileWorkerId = process.env.VITEST_WORKER_ID ?? process.env.JEST_WORKER_ID;
-  const profileSink =
-    profileOptions.logger ??
-    ((event: ZtdProfileEvent) => {
-      console.log(safeJsonStringify(event));
-    });
+  return createZtdPlaygroundClient(fixtures, options);
+}
+
+async function createZtdPlaygroundClient(
+  fixtures: TableFixture[],
+  options: ZtdSqlLogOptions
+): Promise<ZtdPlaygroundClient> {
+  const {
+    logEnabled,
+    logParams,
+    logSink,
+    profileEnabled,
+    profilePerQuery,
+    profileParams,
+    profileIncludeSql,
+    profileSampleLimit,
+    profileTestName,
+    profileExecutionMode,
+    profileWorkerId,
+    profileSink,
+  } = buildLoggingState(options);
 
   let nextQueryId = 1;
   const queryIdStack: number[] = [];
@@ -245,7 +260,7 @@ export async function createTestkitClient(
     connectionFactory: () => queryable,
     tableRows: fixtures,
     ddl: { directories: ddlDirectories },
-    onExecute: (rewrittenSql, params, fixturesApplied) => {
+    onExecute: (rewrittenSql: string, params: unknown[] | undefined, fixturesApplied: string[]) => {
       if (profileEnabled) {
         // Capture fixture metadata while the original query is still on the stack.
         const activeQueryId = queryIdStack.at(-1);
@@ -365,4 +380,347 @@ export async function createTestkitClient(
       }
     }
   };
+}
+
+
+async function createTraditionalPlaygroundClient(
+  fixtures: TableFixture[],
+  options: ZtdSqlLogOptions
+): Promise<ZtdPlaygroundClient> {
+  const {
+    logEnabled,
+    logParams,
+    logSink,
+    profileEnabled,
+    profilePerQuery,
+    profileParams,
+    profileIncludeSql,
+    profileSampleLimit,
+    profileTestName,
+    profileExecutionMode,
+    profileWorkerId,
+    profileSink,
+  } = buildLoggingState(options);
+
+  const databaseUrl = await resolveDatabaseUrl();
+  const clientConfig: ClientConfig = { connectionString: databaseUrl };
+  const client = new Client(clientConfig);
+  await client.connect();
+
+  const traditional = options.traditional;
+  const isolation = traditional?.isolation ?? 'schema';
+  const schemaName = isolation === 'schema' ? traditional?.schemaName ?? generateSchemaName() : undefined;
+  const setupSql = traditional?.setupSql ?? [];
+  const cleanupSql = traditional?.cleanupSql ?? [];
+  const cleanupStrategy: TraditionalCleanupStrategy =
+    traditional?.cleanup ?? (schemaName ? 'drop_schema' : 'none');
+
+  let initializationPromise: Promise<void> | null = null;
+  const setupStartedAt = profileEnabled ? Date.now() : 0;
+  let setupLogged = false;
+
+  const ensureInitialized = (): Promise<void> => {
+    if (!initializationPromise) {
+      initializationPromise = (async () => {
+        if (schemaName) {
+          await client.query(`CREATE SCHEMA IF NOT EXISTS ${quoteIdentifier(schemaName)}`);
+          await client.query(`SET search_path TO ${quoteIdentifier(schemaName)}, public`);
+        }
+
+        // Build the schema objects before seeding or running custom setup SQL.
+        await applySqlFiles(client, ddlDirectories);
+
+        // Allow callers to run additional setup steps before the fixtures load.
+        for (const sql of setupSql) {
+          if (!sql.trim()) {
+            continue;
+          }
+          await client.query(sql);
+        }
+
+        // Materialize the fixture rows into the isolated schema.
+        await seedFixtureRows(client, fixtures, schemaName);
+      })().then(() => {
+        if (profileEnabled && !setupLogged) {
+          profileSink({
+            kind: 'ztd-profile',
+            phase: 'setup',
+            testName: profileTestName,
+            workerId: profileWorkerId,
+            processId: process.pid,
+            executionMode: profileExecutionMode,
+            durationMs: Date.now() - setupStartedAt,
+            timestamp: new Date().toISOString(),
+          });
+          setupLogged = true;
+        }
+      });
+    }
+    return initializationPromise;
+  };
+
+  let cleanupRun = false;
+  const runCleanup = async () => {
+    if (cleanupRun) {
+      return;
+    }
+    cleanupRun = true;
+
+    // Execute any caller-supplied cleanup statements before further teardown.
+    if (cleanupStrategy === 'custom_sql') {
+      for (const sql of cleanupSql) {
+        if (!sql.trim()) {
+          continue;
+        }
+        await client.query(sql);
+      }
+    }
+
+    // Tear down the isolated schema when requested.
+    if (cleanupStrategy === 'drop_schema' && schemaName) {
+      await client.query(`DROP SCHEMA IF EXISTS ${quoteIdentifier(schemaName)} CASCADE`);
+    }
+  };
+
+  const connectionStartedAt = profileEnabled ? Date.now() : 0;
+  if (profileEnabled) {
+    profileSink({
+      kind: 'ztd-profile',
+      phase: 'connection',
+      testName: profileTestName,
+      workerId: profileWorkerId,
+      processId: process.pid,
+      executionMode: profileExecutionMode,
+      connectionReused: false,
+      durationMs: Date.now() - connectionStartedAt,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  let nextQueryId = 1;
+  const queryIdStack: number[] = [];
+  const profileStats = {
+    queryCount: 0,
+    totalQueryMs: 0,
+    sampleSql: [] as string[],
+  };
+
+  return {
+    async query<T extends QueryResultRow>(text: string, values?: unknown[]) {
+      const queryId = nextQueryId++;
+
+      // Emit the original SQL so the tracing/logging pipeline stays consistent.
+      if (logEnabled) {
+        logSink({
+          kind: 'ztd-sql',
+          phase: 'original',
+          queryId,
+          sql: text,
+          params: logParams ? values : undefined,
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      const queryStartedAt = profileEnabled ? Date.now() : 0;
+      queryIdStack.push(queryId);
+      try {
+        await ensureInitialized();
+        const result = await client.query<T>(text, values);
+        return result.rows;
+      } finally {
+        queryIdStack.pop();
+
+        if (profileEnabled) {
+          const durationMs = Date.now() - queryStartedAt;
+          profileStats.queryCount += 1;
+          profileStats.totalQueryMs += durationMs;
+
+          if (profileIncludeSql && profileSampleLimit > 0 && profileStats.sampleSql.length < profileSampleLimit) {
+            profileStats.sampleSql.push(text);
+          }
+
+          if (profilePerQuery) {
+            profileSink({
+              kind: 'ztd-profile',
+              phase: 'query',
+              testName: profileTestName,
+              workerId: profileWorkerId,
+              processId: process.pid,
+              executionMode: profileExecutionMode,
+              queryId,
+              durationMs,
+              sql: profileIncludeSql ? text : undefined,
+              params: profileParams ? values : undefined,
+              timestamp: new Date().toISOString(),
+            });
+          }
+        }
+      }
+    },
+    async close() {
+      const teardownStartedAt = profileEnabled ? Date.now() : 0;
+      try {
+        if (initializationPromise) {
+          await initializationPromise.catch(() => undefined);
+        }
+        await runCleanup();
+      } finally {
+        if (profileEnabled) {
+          profileSink({
+            kind: 'ztd-profile',
+            phase: 'teardown',
+            testName: profileTestName,
+            workerId: profileWorkerId,
+            processId: process.pid,
+            executionMode: profileExecutionMode,
+            durationMs: Date.now() - teardownStartedAt,
+            queryCount: profileStats.queryCount,
+            totalQueryMs: profileStats.totalQueryMs,
+            sampleSql: profileIncludeSql ? profileStats.sampleSql : undefined,
+            timestamp: new Date().toISOString(),
+          });
+        }
+
+        await client.end();
+      }
+    },
+  };
+}
+
+function buildLoggingState(options: ZtdSqlLogOptions) {
+  const logEnabled = options.enabled ?? isTruthyEnv(process.env.ZTD_SQL_LOG);
+  const logParams = options.includeParams ?? isTruthyEnv(process.env.ZTD_SQL_LOG_PARAMS);
+  const logSink =
+    options.logger ??
+    ((event: ZtdSqlLogEvent) => {
+      console.log(safeJsonStringify(event));
+    });
+
+  const profileOptions = options.profile ?? {};
+  const profileEnabled = profileOptions.enabled ?? isTruthyEnv(process.env.ZTD_PROFILE);
+  const profilePerQuery = profileOptions.perQuery ?? isTruthyEnv(process.env.ZTD_PROFILE_PER_QUERY);
+  const profileParams = profileOptions.includeParams ?? isTruthyEnv(process.env.ZTD_PROFILE_PARAMS);
+  const profileIncludeSql = profileOptions.includeSql ?? isTruthyEnv(process.env.ZTD_PROFILE_SQL);
+  const profileSampleLimit =
+    profileOptions.sampleLimit ?? resolveNumberEnv(process.env.ZTD_PROFILE_SAMPLE_LIMIT) ?? 5;
+  const profileTestName = profileOptions.testName ?? process.env.ZTD_PROFILE_TEST_NAME;
+  const profileExecutionMode =
+    profileOptions.executionMode ??
+    (process.env.ZTD_PROFILE_EXECUTION as 'serial' | 'parallel' | 'unknown' | undefined) ??
+    (process.env.VITEST_WORKER_ID ? 'parallel' : 'serial');
+  const profileWorkerId = process.env.VITEST_WORKER_ID ?? process.env.JEST_WORKER_ID;
+  const profileSink =
+    profileOptions.logger ??
+    ((event: ZtdProfileEvent) => {
+      console.log(safeJsonStringify(event));
+    });
+
+  return {
+    logEnabled,
+    logParams,
+    logSink,
+    profileEnabled,
+    profilePerQuery,
+    profileParams,
+    profileIncludeSql,
+    profileSampleLimit,
+    profileTestName,
+    profileExecutionMode,
+    profileWorkerId,
+    profileSink,
+  };
+}
+
+function resolveExecutionMode(mode?: ZtdExecutionMode): ZtdExecutionMode {
+  if (mode === 'traditional') {
+    return 'traditional';
+  }
+
+  const envMode = process.env.ZTD_EXECUTION_MODE as ZtdExecutionMode | undefined;
+  return envMode === 'traditional' ? 'traditional' : 'ztd';
+}
+
+function generateSchemaName(): string {
+  const timestamp = Date.now().toString(36);
+  const random = Math.random().toString(36).slice(2, 7);
+  return `ztd_traditional_${timestamp}_${random}`;
+}
+
+async function applySqlFiles(client: Client, directories: string[]): Promise<void> {
+  // Execute each .sql file so the physical schema matches the ZTD definitions.
+  for (const directory of directories) {
+    if (!existsSync(directory)) {
+      continue;
+    }
+
+    const entries = await fsPromises.readdir(directory, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isFile() || !entry.name.toLowerCase().endsWith('.sql')) {
+        continue;
+      }
+
+      const filePath = path.join(directory, entry.name);
+      const sql = await fsPromises.readFile(filePath, 'utf8');
+      if (!sql.trim()) {
+        continue;
+      }
+
+      await client.query(sql);
+    }
+  }
+}
+
+async function seedFixtureRows(client: Client, fixtures: TableFixture[], isolationSchema?: string): Promise<void> {
+  for (const fixture of fixtures) {
+    if (fixture.rows.length === 0) {
+      continue;
+    }
+
+    const columnNames = getColumnNamesFromFixture(fixture);
+    if (columnNames.length === 0) {
+      continue;
+    }
+
+    const tableIdentifier = buildTableIdentifier(fixture.tableName, isolationSchema);
+    const columnsSql = columnNames.map(quoteIdentifier).join(', ');
+
+    for (const row of fixture.rows) {
+      const values = columnNames.map((column) =>
+        Object.prototype.hasOwnProperty.call(row, column) ? row[column] : null,
+      );
+      const placeholders = values.map((_, index) => `$${index + 1}`).join(', ');
+      await client.query(`INSERT INTO ${tableIdentifier} (${columnsSql}) VALUES (${placeholders})`, values);
+    }
+  }
+}
+
+function getColumnNamesFromFixture(fixture: TableFixture): string[] {
+  if (fixture.schema && Array.isArray((fixture.schema as { columns?: unknown }).columns)) {
+    return (fixture.schema as { columns: { name: string }[] }).columns.map((column) => column.name);
+  }
+
+  if (fixture.schema && 'columns' in fixture.schema && typeof fixture.schema.columns === 'object') {
+    return Object.keys(fixture.schema.columns);
+  }
+
+  if (fixture.rows.length > 0) {
+    return Object.keys(fixture.rows[0]);
+  }
+
+  return [];
+}
+
+function buildTableIdentifier(tableName: string, isolationSchema?: string): string {
+  const segments = tableName.split('.');
+  const baseTable = segments.length > 1 ? segments[segments.length - 1] : tableName;
+  const schema = isolationSchema ?? (segments.length > 1 ? segments.slice(0, -1).join('.') : undefined);
+  if (schema) {
+    return `${quoteIdentifier(schema)}.${quoteIdentifier(baseTable)}`;
+  }
+  return quoteIdentifier(baseTable);
+}
+
+function quoteIdentifier(value: string): string {
+  const escaped = value.replace(/"/g, '""');
+  return `"${escaped}"`;
 }
