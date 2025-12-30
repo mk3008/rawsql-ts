@@ -209,6 +209,11 @@ ZTD CLI:
 
 ZTD is the verification engine guaranteeing correctness.
 
+## Traditional execution mode
+
+- Set `ZTD_EXECUTION_MODE=traditional` or pass `{ mode: 'traditional', traditional: { isolation: 'schema', cleanup: 'drop_schema' } }` when you need to run the tests against a real Postgres schema (locking, isolation, constraints). The helper still applies the DDL inside `ztd/ddl/`, loads the fixture rows into the schema, optionally executes `setupSql`, and carries out the chosen cleanup strategy (`drop_schema`, `custom_sql`, or `none`).
+- Use `isolation: 'none'` if you need to target a schema that is already defined or if your SQL embeds schema qualifiers explicitly.
+
 ---
 
 # Summary

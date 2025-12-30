@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: ValuesQuery
 
-Defined in: [packages/core/src/models/ValuesQuery.ts:23](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/ValuesQuery.ts#L23)
+Defined in: [packages/core/src/models/ValuesQuery.ts:23](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/ValuesQuery.ts#L23)
 
 Represents a VALUES query in SQL.
 
@@ -19,7 +19,7 @@ Represents a VALUES query in SQL.
 
 > **new ValuesQuery**(`tuples`, `columnAliases`): `ValuesQuery`
 
-Defined in: [packages/core/src/models/ValuesQuery.ts:36](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/ValuesQuery.ts#L36)
+Defined in: [packages/core/src/models/ValuesQuery.ts:36](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/ValuesQuery.ts#L36)
 
 #### Parameters
 
@@ -45,7 +45,7 @@ Defined in: [packages/core/src/models/ValuesQuery.ts:36](https://github.com/mk30
 
 > **comments**: `null` \| `string`[] = `null`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:29](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SqlComponent.ts#L29)
+Defined in: [packages/core/src/models/SqlComponent.ts:29](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SqlComponent.ts#L29)
 
 #### Implementation of
 
@@ -61,7 +61,7 @@ Defined in: [packages/core/src/models/SqlComponent.ts:29](https://github.com/mk3
 
 > **positionedComments**: `null` \| [`PositionedComment`](../interfaces/PositionedComment.md)[] = `null`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:32](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SqlComponent.ts#L32)
+Defined in: [packages/core/src/models/SqlComponent.ts:32](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SqlComponent.ts#L32)
 
 #### Implementation of
 
@@ -77,7 +77,7 @@ Defined in: [packages/core/src/models/SqlComponent.ts:32](https://github.com/mk3
 
 > `static` **kind**: `symbol`
 
-Defined in: [packages/core/src/models/ValuesQuery.ts:24](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/ValuesQuery.ts#L24)
+Defined in: [packages/core/src/models/ValuesQuery.ts:24](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/ValuesQuery.ts#L24)
 
 #### Overrides
 
@@ -89,7 +89,7 @@ Defined in: [packages/core/src/models/ValuesQuery.ts:24](https://github.com/mk30
 
 > `readonly` **\_\_selectQueryType**: `"SelectQuery"` = `'SelectQuery'`
 
-Defined in: [packages/core/src/models/ValuesQuery.ts:25](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/ValuesQuery.ts#L25)
+Defined in: [packages/core/src/models/ValuesQuery.ts:25](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/ValuesQuery.ts#L25)
 
 #### Implementation of
 
@@ -101,7 +101,7 @@ Defined in: [packages/core/src/models/ValuesQuery.ts:25](https://github.com/mk30
 
 > **headerComments**: `null` \| `string`[] = `null`
 
-Defined in: [packages/core/src/models/ValuesQuery.ts:26](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/ValuesQuery.ts#L26)
+Defined in: [packages/core/src/models/ValuesQuery.ts:26](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/ValuesQuery.ts#L26)
 
 #### Implementation of
 
@@ -113,7 +113,7 @@ Defined in: [packages/core/src/models/ValuesQuery.ts:26](https://github.com/mk30
 
 > **withClause**: `null` \| [`WithClause`](WithClause.md) = `null`
 
-Defined in: [packages/core/src/models/ValuesQuery.ts:27](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/ValuesQuery.ts#L27)
+Defined in: [packages/core/src/models/ValuesQuery.ts:27](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/ValuesQuery.ts#L27)
 
 ***
 
@@ -121,7 +121,7 @@ Defined in: [packages/core/src/models/ValuesQuery.ts:27](https://github.com/mk30
 
 > **tuples**: [`TupleExpression`](TupleExpression.md)[]
 
-Defined in: [packages/core/src/models/ValuesQuery.ts:28](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/ValuesQuery.ts#L28)
+Defined in: [packages/core/src/models/ValuesQuery.ts:28](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/ValuesQuery.ts#L28)
 
 ***
 
@@ -129,7 +129,7 @@ Defined in: [packages/core/src/models/ValuesQuery.ts:28](https://github.com/mk30
 
 > **columnAliases**: `null` \| `string`[]
 
-Defined in: [packages/core/src/models/ValuesQuery.ts:34](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/ValuesQuery.ts#L34)
+Defined in: [packages/core/src/models/ValuesQuery.ts:34](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/ValuesQuery.ts#L34)
 
 Column aliases for the VALUES query.
 These represent the logical column names for each value tuple.
@@ -141,7 +141,7 @@ Note: This property is optional and is not referenced during SQL output, but is 
 
 > **getKind**(): `symbol`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:15](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SqlComponent.ts#L15)
+Defined in: [packages/core/src/models/SqlComponent.ts:15](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SqlComponent.ts#L15)
 
 #### Returns
 
@@ -161,7 +161,7 @@ Defined in: [packages/core/src/models/SqlComponent.ts:15](https://github.com/mk3
 
 > **accept**&lt;`T`\&gt;(`visitor`): `T`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:19](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SqlComponent.ts#L19)
+Defined in: [packages/core/src/models/SqlComponent.ts:19](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SqlComponent.ts#L19)
 
 #### Type Parameters
 
@@ -193,7 +193,7 @@ Defined in: [packages/core/src/models/SqlComponent.ts:19](https://github.com/mk3
 
 > **toSqlString**(`formatter`): `string`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:23](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SqlComponent.ts#L23)
+Defined in: [packages/core/src/models/SqlComponent.ts:23](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SqlComponent.ts#L23)
 
 #### Parameters
 
@@ -219,7 +219,7 @@ Defined in: [packages/core/src/models/SqlComponent.ts:23](https://github.com/mk3
 
 > **addPositionedComments**(`position`, `comments`): `void`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:37](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SqlComponent.ts#L37)
+Defined in: [packages/core/src/models/SqlComponent.ts:37](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SqlComponent.ts#L37)
 
 Add comments at a specific position
 
@@ -251,7 +251,7 @@ Add comments at a specific position
 
 > **getPositionedComments**(`position`): `string`[]
 
-Defined in: [packages/core/src/models/SqlComponent.ts:56](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SqlComponent.ts#L56)
+Defined in: [packages/core/src/models/SqlComponent.ts:56](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SqlComponent.ts#L56)
 
 Get comments for a specific position
 
@@ -279,7 +279,7 @@ Get comments for a specific position
 
 > **getAllPositionedComments**(): `string`[]
 
-Defined in: [packages/core/src/models/SqlComponent.ts:66](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/SqlComponent.ts#L66)
+Defined in: [packages/core/src/models/SqlComponent.ts:66](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/SqlComponent.ts#L66)
 
 Get all positioned comments as a flat array in order (before, after)
 
@@ -301,7 +301,7 @@ Get all positioned comments as a flat array in order (before, after)
 
 > **toSimpleQuery**(): [`SimpleSelectQuery`](SimpleSelectQuery.md)
 
-Defined in: [packages/core/src/models/ValuesQuery.ts:42](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/ValuesQuery.ts#L42)
+Defined in: [packages/core/src/models/ValuesQuery.ts:42](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/ValuesQuery.ts#L42)
 
 #### Returns
 
@@ -317,7 +317,7 @@ Defined in: [packages/core/src/models/ValuesQuery.ts:42](https://github.com/mk30
 
 > **toInsertQuery**(`options`): [`InsertQuery`](InsertQuery.md)
 
-Defined in: [packages/core/src/models/ValuesQuery.ts:50](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/ValuesQuery.ts#L50)
+Defined in: [packages/core/src/models/ValuesQuery.ts:50](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/ValuesQuery.ts#L50)
 
 Converts this VALUES query into an INSERT statement definition.
 
@@ -345,7 +345,7 @@ The conversion may reorder the generated SELECT clause to align with the request
 
 > **toUpdateQuery**(`options`): [`UpdateQuery`](UpdateQuery.md)
 
-Defined in: [packages/core/src/models/ValuesQuery.ts:58](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/ValuesQuery.ts#L58)
+Defined in: [packages/core/src/models/ValuesQuery.ts:58](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/ValuesQuery.ts#L58)
 
 Converts this VALUES query into an UPDATE statement definition.
 
@@ -373,7 +373,7 @@ The conversion may reorder the generated SELECT clause to align with the request
 
 > **toDeleteQuery**(`options`): [`DeleteQuery`](DeleteQuery.md)
 
-Defined in: [packages/core/src/models/ValuesQuery.ts:66](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/ValuesQuery.ts#L66)
+Defined in: [packages/core/src/models/ValuesQuery.ts:66](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/ValuesQuery.ts#L66)
 
 Converts this VALUES query into a DELETE statement definition.
 
@@ -401,7 +401,7 @@ The conversion may reorder the generated SELECT clause to align with the request
 
 > **toMergeQuery**(`options`): [`MergeQuery`](MergeQuery.md)
 
-Defined in: [packages/core/src/models/ValuesQuery.ts:74](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/ValuesQuery.ts#L74)
+Defined in: [packages/core/src/models/ValuesQuery.ts:74](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/ValuesQuery.ts#L74)
 
 Converts this VALUES query into a MERGE statement definition.
 
@@ -429,7 +429,7 @@ The conversion may reorder the generated SELECT clause to align with the request
 
 > **setParameter**(`name`, `value`): `this`
 
-Defined in: [packages/core/src/models/ValuesQuery.ts:83](https://github.com/mk3008/rawsql-ts/blob/32bd620456f37d0f73edb1a04e1d0fdef970cd1c/packages/core/src/models/ValuesQuery.ts#L83)
+Defined in: [packages/core/src/models/ValuesQuery.ts:83](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/models/ValuesQuery.ts#L83)
 
 Sets the value of a parameter by name in this query.
 

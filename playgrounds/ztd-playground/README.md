@@ -44,6 +44,7 @@ DDL -> `tests/generated/ztd-row-map.generated.ts` -> type definitions -> fixture
 ## Postgres execution
 
 - Use `tests/support/testkit-client.ts` to create a `@rawsql-ts/pg-testkit` client so fixtures are rewritten into Postgres `SELECT` queries rather than touching the real schema.
+- Set `ZTD_EXECUTION_MODE=traditional` or pass `{ mode: 'traditional', traditional: { isolation: 'schema', cleanup: 'drop_schema' } }` to `createTestkitClient()` when you need to exercise real Postgres behavior such as locks or isolation levels. Traditional mode creates an isolated schema, applies the DDL in `ztd/ddl`, runs optional `setupSql`, seeds the fixtures into physical tables, and cleans up via the configured strategy (`drop_schema`, `custom_sql`, or `none` for debugging). Provide `isolation: 'none'` or a `schemaName` if your SQL needs to reference an existing schema directly.
 - `DATABASE_URL` must point to a live Postgres database before running tests or the helper will throw a clear error. The connection is shared across the suite, and the helper keeps the same `pg.Client` open without issuing any DDL.
 - Because ZTD never creates tables, the same Postgres database can be reused safely even when the tests run in parallel.
 
