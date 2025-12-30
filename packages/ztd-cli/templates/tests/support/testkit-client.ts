@@ -559,11 +559,16 @@ async function createTraditionalPlaygroundClient(
     },
     async close() {
       const teardownStartedAt = profileEnabled ? Date.now() : 0;
+      // Preserve the first teardown error so we can rethrow it after ensuring the client closes.
+      let teardownError: unknown;
+
       try {
         if (initializationPromise) {
           await initializationPromise.catch(() => undefined);
         }
         await runCleanup();
+      } catch (error) {
+        teardownError = error;
       } finally {
         if (profileEnabled) {
           profileSink({
@@ -581,7 +586,18 @@ async function createTraditionalPlaygroundClient(
           });
         }
 
-        await client.end();
+        // Always attempt to close the client and record any failure without overriding earlier errors.
+        try {
+          await client.end();
+        } catch (clientError) {
+          if (!teardownError) {
+            teardownError = clientError;
+          }
+        }
+      }
+
+      if (teardownError) {
+        throw teardownError;
       }
     },
   };
