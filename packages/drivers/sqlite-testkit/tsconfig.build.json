@@ -3,7 +3,9 @@
   "compilerOptions": {
     "outDir": "dist",
     "rootDir": "src",
-    "paths": {}
+    "paths": {
+      "@rawsql-ts/testkit-core": ["../../packages/testkit-core/dist/index"]
+    }
   },
   "include": ["src/**/*.ts"],
   "exclude": ["tests", "node_modules", "dist"]

@@ -56,6 +56,9 @@ Fixtures come from the `ztd/ddl/` definitions and power `pg-testkit`. Always imp
 
 If you are working inside this repository's `ztd-playground`, regenerate the generated artifacts with `pnpm --filter ztd-playground exec ztd ztd-config`.
 
+- Set `ZTD_EXECUTION_MODE=traditional` or pass `{ mode: 'traditional', traditional: { isolation: 'schema', cleanup: 'drop_schema' } }` to `createTestkitClient()` when you must exercise real Postgres semantics (locks, isolation, constraints). Traditional mode still runs the DDL inside `ztd/ddl/`, seeds the fixtures, executes any optional `setupSql`, and honors the configured `cleanup` strategy (`drop_schema` by default, `custom_sql`, or `none` for debugging) so the environment stays tidy. Use `isolation: 'none'` when your queries explicitly reference an existing schema and you cannot rely on schema-based isolation.
+
+
 ### ID expectations in tests (important)
 
 - Do not assert auto-generated ID values (sequence / identity), such as "the next id is 11".
