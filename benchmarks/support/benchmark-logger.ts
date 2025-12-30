@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import type { Pool } from 'pg';
-import type { ConnectionModel, DbConcurrencyMode } from '../ztd-bench/tests/support/diagnostics';
+import type { ConnectionModel, DbConcurrencyMode } from '../ztd-bench-vs-raw/tests/support/diagnostics';
 
 export type BenchContext = {
   scenario?: string;

@@ -6,9 +6,9 @@ import type {
   DbConcurrencyMode,
   RunPhase,
   SessionStat,
-} from '../ztd-bench/tests/support/diagnostics';
-import { getConnectionEvents, getSessionStats } from '../ztd-bench/tests/support/diagnostics';
-import { getZtdSessionMap, getZtdWaitingMap } from '../ztd-bench/tests/support/bench-diagnostics';
+} from '../ztd-bench-vs-raw/tests/support/diagnostics';
+import { getConnectionEvents, getSessionStats } from '../ztd-bench-vs-raw/tests/support/diagnostics';
+import { getZtdSessionMap, getZtdWaitingMap } from '../ztd-bench-vs-raw/tests/support/bench-diagnostics';
 import { getBenchPhaseEntries } from '../support/benchmark-logger';
 import type { PgConcurrencySummary } from '../support/pg-concurrency';
 import { getMetricsStatusEntries } from './metrics';

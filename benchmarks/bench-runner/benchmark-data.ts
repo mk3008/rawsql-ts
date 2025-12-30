@@ -2,7 +2,7 @@ import {
   runCustomerSummaryCase,
   runProductRankingCase,
   runSalesSummaryCase,
-} from '../ztd-bench/tests/support/ztd-bench-cases';
+} from '../ztd-bench-vs-raw/tests/support/ztd-bench-cases';
 import { TRADITIONAL_CASES } from '../support/traditional-bench-data';
 
 export const TRADITIONAL_CASE_COUNT = TRADITIONAL_CASES.length;

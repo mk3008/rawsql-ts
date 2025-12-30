@@ -21,6 +21,7 @@
     "benchmark": "pnpm --filter rawsql-ts benchmark",
     "ztd:bench": "ts-node benchmarks/ztd-test-benchmark.ts",
     "ztd:bench:perworker": "cross-env ZTD_DB_CONCURRENCY=perWorker pnpm ztd:bench",
+    "ztd:bench:pg-testkit-mode": "ts-node benchmarks/pg-testkit-mode-benchmark.ts",
     "demo:complex-sql": "node packages/core/demo/complex-sql-demo.js",
     "playground:gen-config": "pnpm --filter ztd-playground exec ztd ztd-config",
     "playground:typecheck": "pnpm --filter ztd-playground typecheck",

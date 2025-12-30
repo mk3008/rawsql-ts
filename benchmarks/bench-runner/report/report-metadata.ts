@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import type { ConnectionModel } from '../../ztd-bench/tests/support/diagnostics';
+import type { ConnectionModel } from '../../ztd-bench-vs-raw/tests/support/diagnostics';
 import type { BenchScenarioSelection, BenchProfileName } from '../types';
 
 export type ReportMetadata = {

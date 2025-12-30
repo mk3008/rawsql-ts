@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import type { SessionStat } from '../../ztd-bench/tests/support/diagnostics';
+import type { SessionStat } from '../../ztd-bench-vs-raw/tests/support/diagnostics';
 
 export function getSessionStatsFileName(tagPrefix: string): string {
   return `${tagPrefix}session-stats.json`;

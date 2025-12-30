@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import type { BenchProfileName, ExecutionMode, MetricsStatusEntry, RunMetrics, Scenario, SteadyStateMetrics } from '../types';
-import type { RunPhase } from '../../ztd-bench/tests/support/diagnostics';
+import type { RunPhase } from '../../ztd-bench-vs-raw/tests/support/diagnostics';
 
 type MetricsContext = {
   rootDir: string;

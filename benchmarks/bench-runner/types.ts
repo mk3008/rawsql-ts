@@ -1,4 +1,4 @@
-import type { ConnectionModel, DbConcurrencyMode, RunPhase } from '../ztd-bench/tests/support/diagnostics';
+import type { ConnectionModel, DbConcurrencyMode, RunPhase } from '../ztd-bench-vs-raw/tests/support/diagnostics';
 
 export type ExecutionMode = 'serial' | 'parallel';
 export type Scenario =

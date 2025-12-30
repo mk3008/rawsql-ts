@@ -1,4 +1,4 @@
-import type { ConnectionModel, DbConcurrencyMode } from '../../ztd-bench/tests/support/diagnostics';
+import type { ConnectionModel, DbConcurrencyMode } from '../../ztd-bench-vs-raw/tests/support/diagnostics';
 import type { BenchProfile, BenchScenarioSelection } from '../types';
 
 export const DEFAULT_CONNECTION_MODEL: ConnectionModel = 'perWorker';

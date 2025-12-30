@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import type { ConnectionLoggerEntry } from '../../ztd-bench/tests/support/diagnostics';
+import type { ConnectionLoggerEntry } from '../../ztd-bench-vs-raw/tests/support/diagnostics';
 
 export function getConnectionEventsFileName(tagPrefix: string): string {
   return `${tagPrefix}connection-events.json`;

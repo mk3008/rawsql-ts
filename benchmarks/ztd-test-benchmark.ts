@@ -8,8 +8,8 @@ import {
   SALES_ORDER_ROWS,
   TRADITIONAL_CASES,
 } from './support/traditional-bench-data';
-import type { ZtdBenchMetrics } from './ztd-bench/tests/support/testkit-client';
-import { buildBenchSchemaName } from './ztd-bench/tests/support/bench-suite';
+import type { ZtdBenchMetrics } from './ztd-bench-vs-raw/tests/support/testkit-client';
+import { buildBenchSchemaName } from './ztd-bench-vs-raw/tests/support/bench-suite';
 import {
   ConnectionLogger,
   ConnectionModel,
@@ -24,7 +24,7 @@ import {
   recordConnectionEvent,
   recordSessionStat,
   type ConnectionLoggerEntry,
-} from './ztd-bench/tests/support/diagnostics';
+} from './ztd-bench-vs-raw/tests/support/diagnostics';
 import { getDbClient, releaseWorkerClient, closeDbPool } from './support/db-client';
 import { runTraditionalParallelismValidation } from './support/traditional-parallelism-validation';
 import { safeStopSampler, SessionSampler } from './support/session-sampler';
@@ -42,7 +42,7 @@ import {
   getZtdSessionMap,
   getZtdWaitingMap,
   recordZtdSession,
-} from './ztd-bench/tests/support/bench-diagnostics';
+} from './ztd-bench-vs-raw/tests/support/bench-diagnostics';
 import {
   loadPersistedSessionStats,
   persistSessionStatsToDisk,
@@ -332,9 +332,9 @@ async function runZtdRunnerSuite(
     'vitest',
     'run',
     '--config',
-    'benchmarks/ztd-bench/vitest.config.ts',
+    'benchmarks/ztd-bench-vs-raw/vitest.config.ts',
     '--reporter=dot',
-    'benchmarks/ztd-bench/tests/runner/runner-overhead.test.ts',
+    'benchmarks/ztd-bench-vs-raw/tests/runner/runner-overhead.test.ts',
   ];
 
   if (mode === 'serial') {
@@ -1071,9 +1071,9 @@ async function runTraditionalSuiteViaRunner(
     'vitest',
     'run',
     '--config',
-    'benchmarks/ztd-bench/vitest.config.ts',
+    'benchmarks/ztd-bench-vs-raw/vitest.config.ts',
     '--reporter=dot',
-    'benchmarks/ztd-bench/tests',
+    'benchmarks/ztd-bench-vs-raw/tests',
   ];
 
   if (mode === 'serial') {
@@ -1172,7 +1172,7 @@ async function runZtdSteadyStateSuite(
     'vitest',
     'run',
     '--config',
-      'benchmarks/ztd-bench/vitest.config.ts',
+      'benchmarks/ztd-bench-vs-raw/vitest.config.ts',
     '--reporter=dot',
   ];
 
@@ -1248,9 +1248,9 @@ async function runTraditionalSteadyStateSuite(
     'vitest',
     'run',
     '--config',
-    'benchmarks/ztd-bench/vitest.config.ts',
+    'benchmarks/ztd-bench-vs-raw/vitest.config.ts',
     '--reporter=dot',
-    'benchmarks/ztd-bench/tests',
+    'benchmarks/ztd-bench-vs-raw/tests',
   ];
 
   if (mode === 'serial') {

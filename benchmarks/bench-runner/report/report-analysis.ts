@@ -7,7 +7,7 @@ import {
   clearSessionStats,
   type ConnectionLoggerEntry,
   type SessionStat,
-} from '../../ztd-bench/tests/support/diagnostics';
+} from '../../ztd-bench-vs-raw/tests/support/diagnostics';
 import { loadPersistedConnectionEvents } from '../diagnostics/connection-events';
 import { loadPersistedSessionStats } from '../diagnostics/session-stats';
 import { loadRunMetricsFromDisk } from '../metrics';

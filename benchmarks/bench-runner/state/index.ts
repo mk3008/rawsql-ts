@@ -1,4 +1,4 @@
-import type { ConnectionModel } from '../../ztd-bench/tests/support/diagnostics';
+import type { ConnectionModel } from '../../ztd-bench-vs-raw/tests/support/diagnostics';
 import { DEFAULT_CONNECTION_MODEL } from '../config';
 import type {
   ExecutionMode,
