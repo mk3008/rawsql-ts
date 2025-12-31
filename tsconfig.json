@@ -29,10 +29,13 @@
         "moduleResolution": "node",
         "baseUrl": ".", /* Base directory for non-relative module names. */
         "paths": {
-            "@rawsql-ts/testkit-core": ["packages/testkit-core/src"],
-            "@rawsql-ts/ztd-cli": ["packages/ztd-cli/src"],
-            "@rawsql-ts/sqlite-testkit": ["packages/drivers/sqlite-testkit/src"],
-            "@rawsql-ts/pg-testkit": ["packages/drivers/pg-testkit/src"]
+        "@rawsql-ts/core": ["packages/core/src"],
+        "@rawsql-ts/core/*": ["packages/core/src/*"],
+        "@rawsql-ts/core/dist/src/*": ["packages/core/src/*"],
+        "@rawsql-ts/testkit-core": ["packages/testkit-core/src"],
+        "@rawsql-ts/ztd-cli": ["packages/ztd-cli/src"],
+        "@rawsql-ts/sqlite-testkit": ["packages/drivers/sqlite-testkit/src"],
+        "@rawsql-ts/pg-testkit": ["packages/drivers/pg-testkit/src"]
         },
         // "rootDir": "./",                                  /* Specify the root folder within your source files. */
         // "moduleResolution": "node10",                     /* Specify how TypeScript looks up a file from a given module specifier. */

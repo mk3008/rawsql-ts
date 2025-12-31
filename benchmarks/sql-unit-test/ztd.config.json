@@ -1,0 +1,11 @@
+{
+  "dialect": "postgres",
+  "ddlDir": "ztd/ddl",
+  "testsDir": "tests",
+  "ddl": {
+    "defaultSchema": "public",
+    "searchPath": [
+      "public"
+    ]
+  }
+}

@@ -71,6 +71,7 @@
     "sql-parser-cst": "^0.33.1",
     "testcontainers": "^10.28.0",
     "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
     "typedoc": "^0.28.13",
     "typedoc-plugin-markdown": "^4.9.0",
     "typedoc-vitepress-theme": "^1.1.2",
