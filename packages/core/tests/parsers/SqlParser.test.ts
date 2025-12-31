@@ -4,7 +4,16 @@ import { SimpleSelectQuery } from '../../src/models/SelectQuery';
 import { InsertQuery } from '../../src/models/InsertQuery';
 import { CreateTableQuery } from '../../src/models/CreateTableQuery';
 import { MergeQuery } from '../../src/models/MergeQuery';
-import { AnalyzeStatement, ExplainStatement, CreateSchemaStatement, DropSchemaStatement } from '../../src/models/DDLStatements';
+import {
+    AnalyzeStatement,
+    ExplainStatement,
+    CreateSchemaStatement,
+    DropSchemaStatement,
+    VacuumStatement,
+    ReindexStatement,
+    ClusterStatement,
+    CheckpointStatement,
+} from '../../src/models/DDLStatements';
 import { RawString, IdentifierString, ParameterExpression } from '../../src/models/ValueComponent';
 
 describe('SqlParser', () => {
@@ -142,6 +151,38 @@ describe('SqlParser', () => {
                 }
             }
         }
+    });
+
+    test('parse returns a VacuumStatement for VACUUM statements', () => {
+        const sql = 'VACUUM FULL VERBOSE public.logs';
+
+        const result = SqlParser.parse(sql);
+
+        expect(result).toBeInstanceOf(VacuumStatement);
+    });
+
+    test('parse returns a ReindexStatement for REINDEX statements', () => {
+        const sql = 'REINDEX CONCURRENTLY TABLE public.logs';
+
+        const result = SqlParser.parse(sql);
+
+        expect(result).toBeInstanceOf(ReindexStatement);
+    });
+
+    test('parse returns a ClusterStatement for CLUSTER statements', () => {
+        const sql = 'CLUSTER public.logs USING log_idx';
+
+        const result = SqlParser.parse(sql);
+
+        expect(result).toBeInstanceOf(ClusterStatement);
+    });
+
+    test('parse returns a CheckpointStatement for CHECKPOINT statements', () => {
+        const sql = 'CHECKPOINT';
+
+        const result = SqlParser.parse(sql);
+
+        expect(result).toBeInstanceOf(CheckpointStatement);
     });
 
     test('parse throws when EXPLAIN lacks a nested statement', () => {

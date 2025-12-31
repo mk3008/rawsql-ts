@@ -484,3 +484,77 @@ export class AlterSequenceStatement extends SqlComponent {
         this.clauses = params.clauses ? [...params.clauses] : [];
     }
 }
+
+/**
+ * VACUUM statement representation.
+ */
+export class VacuumStatement extends SqlComponent {
+    static kind = Symbol("VacuumStatement");
+    full: boolean;
+    verbose: boolean;
+    freeze: boolean;
+    analyze: boolean;
+    targets: QualifiedName[];
+
+    constructor(params?: {
+        full?: boolean;
+        verbose?: boolean;
+        freeze?: boolean;
+        analyze?: boolean;
+        targets?: QualifiedName[];
+    }) {
+        super();
+        this.full = params?.full ?? false;
+        this.verbose = params?.verbose ?? false;
+        this.freeze = params?.freeze ?? false;
+        this.analyze = params?.analyze ?? false;
+        this.targets = params?.targets ? [...params.targets] : [];
+    }
+}
+
+/**
+ * REINDEX statement representation.
+ */
+export class ReindexStatement extends SqlComponent {
+    static kind = Symbol("ReindexStatement");
+    concurrently: boolean;
+    targets: QualifiedName[];
+    targetType: 'table' | 'index' | null;
+
+    constructor(params?: { concurrently?: boolean; targets?: QualifiedName[]; targetType?: 'table' | 'index' | null }) {
+        super();
+        this.concurrently = params?.concurrently ?? false;
+        this.targets = params?.targets ? [...params.targets] : [];
+        this.targetType = params?.targetType ?? null;
+    }
+}
+
+/**
+ * CLUSTER statement representation.
+ */
+export class ClusterStatement extends SqlComponent {
+    static kind = Symbol("ClusterStatement");
+    verbose: boolean;
+    table: QualifiedName | null;
+    index: QualifiedName | null;
+
+    constructor(params?: { verbose?: boolean; table?: QualifiedName | null; index?: QualifiedName | null }) {
+        super();
+        this.verbose = params?.verbose ?? false;
+        this.table = params?.table ?? null;
+        this.index = params?.index ?? null;
+    }
+}
+
+/**
+ * CHECKPOINT statement representation.
+ */
+export class CheckpointStatement extends SqlComponent {
+    static kind = Symbol("CheckpointStatement");
+    options: string[];
+
+    constructor(params?: { options?: string[] }) {
+        super();
+        this.options = params?.options ? [...params.options] : [];
+    }
+}
