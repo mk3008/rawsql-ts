@@ -16,7 +16,11 @@ import type {
     AnalyzeStatement,
     ExplainStatement,
     CreateSequenceStatement,
-    AlterSequenceStatement
+    AlterSequenceStatement,
+    VacuumStatement,
+    ReindexStatement,
+    ClusterStatement,
+    CheckpointStatement
 } from '../models/DDLStatements';
 import { SqlTokenizer, StatementLexemeResult } from './SqlTokenizer';
 import { SelectQueryParser } from './SelectQueryParser';
@@ -36,6 +40,10 @@ import { ExplainStatementParser } from './ExplainStatementParser';
 import { CreateSequenceParser, AlterSequenceParser } from './SequenceParser';
 import { CreateSchemaParser } from './CreateSchemaParser';
 import { DropSchemaParser } from './DropSchemaParser';
+import { VacuumStatementParser } from './VacuumStatementParser';
+import { ReindexStatementParser } from './ReindexStatementParser';
+import { ClusterStatementParser } from './ClusterStatementParser';
+import { CheckpointStatementParser } from './CheckpointStatementParser';
 
 export type ParsedStatement =
     | SelectQuery
@@ -54,7 +62,11 @@ export type ParsedStatement =
     | AlterSequenceStatement
     | DropConstraintStatement
     | AnalyzeStatement
-    | ExplainStatement;
+    | ExplainStatement
+    | VacuumStatement
+    | ReindexStatement
+    | ClusterStatement
+    | CheckpointStatement;
 
 export interface SqlParserOptions {
     mode?: 'single' | 'multiple';
@@ -209,6 +221,22 @@ export class SqlParser {
             case 'explain':
                 return this.parseExplainStatement(segment, statementIndex);
 
+            case 'vacuum':
+            case 'vacuum full':
+                return this.parseVacuumStatement(segment, statementIndex);
+
+            case 'reindex':
+            case 'reindex table':
+            case 'reindex index':
+            case 'reindex schema':
+                return this.parseReindexStatement(segment, statementIndex);
+
+            case 'cluster':
+                return this.parseClusterStatement(segment, statementIndex);
+
+            case 'checkpoint':
+                return this.parseCheckpointStatement(segment, statementIndex);
+
             default:
                 throw new Error(`[SqlParser] Statement ${statementIndex} starts with unsupported token "${segment.lexemes[0].value}".`);
         }
@@ -265,6 +293,74 @@ export class SqlParser {
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
             throw new Error(`[SqlParser] Failed to parse EXPLAIN statement ${statementIndex}: ${message}`);
+        }
+    }
+
+    private static parseVacuumStatement(segment: StatementLexemeResult, statementIndex: number): VacuumStatement {
+        try {
+            const result = VacuumStatementParser.parseFromLexeme(segment.lexemes, 0);
+            if (result.newIndex < segment.lexemes.length) {
+                const unexpected = segment.lexemes[result.newIndex];
+                const position = unexpected.position?.startPosition ?? segment.statementStart;
+                throw new Error(
+                    `[SqlParser] Unexpected token "${unexpected.value}" in VACUUM statement ${statementIndex} at character ${position}.`
+                );
+            }
+            return result.value;
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            throw new Error(`[SqlParser] Failed to parse VACUUM statement ${statementIndex}: ${message}`);
+        }
+    }
+
+    private static parseReindexStatement(segment: StatementLexemeResult, statementIndex: number): ReindexStatement {
+        try {
+            const result = ReindexStatementParser.parseFromLexeme(segment.lexemes, 0);
+            if (result.newIndex < segment.lexemes.length) {
+                const unexpected = segment.lexemes[result.newIndex];
+                const position = unexpected.position?.startPosition ?? segment.statementStart;
+                throw new Error(
+                    `[SqlParser] Unexpected token "${unexpected.value}" in REINDEX statement ${statementIndex} at character ${position}.`
+                );
+            }
+            return result.value;
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            throw new Error(`[SqlParser] Failed to parse REINDEX statement ${statementIndex}: ${message}`);
+        }
+    }
+
+    private static parseClusterStatement(segment: StatementLexemeResult, statementIndex: number): ClusterStatement {
+        try {
+            const result = ClusterStatementParser.parseFromLexeme(segment.lexemes, 0);
+            if (result.newIndex < segment.lexemes.length) {
+                const unexpected = segment.lexemes[result.newIndex];
+                const position = unexpected.position?.startPosition ?? segment.statementStart;
+                throw new Error(
+                    `[SqlParser] Unexpected token "${unexpected.value}" in CLUSTER statement ${statementIndex} at character ${position}.`
+                );
+            }
+            return result.value;
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            throw new Error(`[SqlParser] Failed to parse CLUSTER statement ${statementIndex}: ${message}`);
+        }
+    }
+
+    private static parseCheckpointStatement(segment: StatementLexemeResult, statementIndex: number): CheckpointStatement {
+        try {
+            const result = CheckpointStatementParser.parseFromLexeme(segment.lexemes, 0);
+            if (result.newIndex < segment.lexemes.length) {
+                const unexpected = segment.lexemes[result.newIndex];
+                const position = unexpected.position?.startPosition ?? segment.statementStart;
+                throw new Error(
+                    `[SqlParser] Unexpected token "${unexpected.value}" in CHECKPOINT statement ${statementIndex} at character ${position}.`
+                );
+            }
+            return result.value;
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            throw new Error(`[SqlParser] Failed to parse CHECKPOINT statement ${statementIndex}: ${message}`);
         }
     }
 

@@ -216,6 +216,12 @@ export function buildCustomerSummaryFixtures(schemaName: string): TableFixture[]
 
 export function buildProductRankingFixtures(schemaName: string): TableFixture[] {
   return [
+    // Seed the customer table before sales orders so foreign keys have targets.
+    tableFixture(
+      `${schemaName}.customer` as keyof TestRowMap,
+      buildCustomerRows(),
+      tableSchemas['public.customer'],
+    ),
     tableFixture(
       `${schemaName}.product` as keyof TestRowMap,
       buildProductRows(),
@@ -236,6 +242,18 @@ export function buildProductRankingFixtures(schemaName: string): TableFixture[] 
 
 export function buildSalesSummaryFixtures(schemaName: string): TableFixture[] {
   return [
+    // Keep customer rows present so the sales order foreign key can resolve.
+    tableFixture(
+      `${schemaName}.customer` as keyof TestRowMap,
+      buildCustomerRows(),
+      tableSchemas['public.customer'],
+    ),
+    // Product rows are needed by the sales order items that follow.
+    tableFixture(
+      `${schemaName}.product` as keyof TestRowMap,
+      buildProductRows(),
+      tableSchemas['public.product'],
+    ),
     tableFixture(
       `${schemaName}.sales_order` as keyof TestRowMap,
       buildSalesOrderRows(),

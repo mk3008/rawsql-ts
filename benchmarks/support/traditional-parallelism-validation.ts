@@ -1,5 +1,5 @@
 import type { DbConnection } from './db-client';
-import { getDbClient, releaseWorkerClient } from './db-client';
+import { getDbClient } from './db-client';
 import { safeStopSampler, SessionSampler } from './session-sampler';
 
 type Barrier = {
@@ -73,8 +73,6 @@ async function executeValidationWorker(
   try {
     const applicationName = `${workerApplicationNamePrefix}-${workerId}`;
     connection = await getDbClient({
-      scope: 'worker',
-      workerId,
       applicationName,
     });
     const result = await connection.client.query<{ pid: number }>(
@@ -87,7 +85,7 @@ async function executeValidationWorker(
     await connection.client.query('SELECT pg_sleep($1)', [sleepSeconds]);
   } finally {
     if (connection) {
-      await releaseWorkerClient(workerId);
+      await connection.release();
     }
   }
 }

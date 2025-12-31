@@ -1,7 +1,7 @@
 import { SqlTokenizer } from "./SqlTokenizer";
 import { ExplainOption, ExplainStatement } from "../models/DDLStatements";
 import { IdentifierString, RawString, ValueComponent } from "../models/ValueComponent";
-import { Lexeme, TokenType } from "../models/Lexeme";
+import { Lexeme, LexemePositionedComment, TokenType } from "../models/Lexeme";
 import { ValueParser } from "./ValueParser";
 import { SqlComponent } from "../models/SqlComponent";
 
@@ -181,7 +181,7 @@ export class ExplainStatementParser {
 
         if (token.positionedComments && token.positionedComments.length > 0) {
             // Split out 'after' comments so they can be reassigned to the following token.
-            const retained = [];
+            const retained: LexemePositionedComment[] = [];
             for (const posComment of token.positionedComments) {
                 if (posComment.position === 'after' && posComment.comments && posComment.comments.length > 0) {
                     if (!collected) {

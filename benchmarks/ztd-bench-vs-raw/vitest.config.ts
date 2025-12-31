@@ -6,11 +6,11 @@ const rootDir = path.resolve(__dirname, '../..');
 export default defineConfig({
   root: rootDir,
   test: {
-    include: ['benchmarks/ztd-bench/tests/**/*.test.ts'],
+    include: ['benchmarks/ztd-bench-vs-raw/tests/**/*.test.ts'],
     environment: 'node',
     globals: true,
     testTimeout: 60_000,
     hookTimeout: 60_000,
-    globalSetup: ['benchmarks/ztd-bench/tests/support/global-setup.ts'],
+    globalSetup: ['benchmarks/ztd-bench-vs-raw/tests/support/global-setup.ts'],
   },
 });

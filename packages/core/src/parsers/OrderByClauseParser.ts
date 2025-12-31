@@ -60,7 +60,7 @@ export class OrderByClauseParser {
 
         // Capture comments from ASC/DESC tokens (both legacy comments and positioned comments)
         let sortDirectionComments: string[] | null = null;
-        let sortDirection = null;
+        let sortDirection: SortDirection | null = null;
 
         if (idx < lexemes.length) {
             const token = lexemes[idx];

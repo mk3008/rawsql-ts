@@ -1,4 +1,4 @@
-import type { RunPhase } from './diagnostics';
+import type { DbConcurrencyMode, RunPhase } from './diagnostics';
 import type { ConnectionModel, ModeLabel } from './diagnostics';
 
 type DiagnosticKeyParams = {
@@ -8,14 +8,21 @@ type DiagnosticKeyParams = {
   phase: RunPhase;
   suiteMultiplier: number;
   workerCount: number;
+  dbConcurrencyMode?: DbConcurrencyMode;
+};
+
+export type ZtdSessionSample = {
+  maxActiveExecuting: number;
+  maxLockWait: number;
 };
 
 function buildDiagnosticKey(params: DiagnosticKeyParams): string {
-  return `${params.scenario}|${params.connectionModel}|${params.mode}|${params.phase}|${params.suiteMultiplier}|${params.workerCount}`;
+  const concurrencyMode = params.dbConcurrencyMode ?? 'single';
+  return `${params.scenario}|${params.connectionModel}|${params.mode}|${params.phase}|${params.suiteMultiplier}|${params.workerCount}|${concurrencyMode}`;
 }
 
 const ztdWaitingMap = new Map<string, number[]>();
-const ztdSessionMap = new Map<string, number[]>();
+const ztdSessionMap = new Map<string, { maxActiveExecuting: number; maxLockWait: number }[]>();
 
 export function recordZtdWaiting(params: DiagnosticKeyParams, waitingMs: number): void {
   const key = buildDiagnosticKey(params);
@@ -24,10 +31,13 @@ export function recordZtdWaiting(params: DiagnosticKeyParams, waitingMs: number)
   ztdWaitingMap.set(key, entry);
 }
 
-export function recordZtdSession(params: DiagnosticKeyParams, maxActive: number): void {
+export function recordZtdSession(
+  params: DiagnosticKeyParams,
+  sample: { maxActiveExecuting: number; maxLockWait: number },
+): void {
   const key = buildDiagnosticKey(params);
   const entry = ztdSessionMap.get(key) ?? [];
-  entry.push(maxActive);
+  entry.push(sample);
   ztdSessionMap.set(key, entry);
 }
 
@@ -35,7 +45,7 @@ export function getZtdWaitingMap(): Map<string, number[]> {
   return ztdWaitingMap;
 }
 
-export function getZtdSessionMap(): Map<string, number[]> {
+export function getZtdSessionMap(): Map<string, { maxActiveExecuting: number; maxLockWait: number }[]> {
   return ztdSessionMap;
 }
 

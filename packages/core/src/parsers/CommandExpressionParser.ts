@@ -1,6 +1,8 @@
-import { Lexeme, TokenType } from "../models/Lexeme";
+import { Lexeme, LexemePositionedComment, TokenType } from "../models/Lexeme";
 import { ArrayExpression, CaseExpression, CaseKeyValuePair, SwitchCaseArgument, UnaryExpression, ValueComponent } from "../models/ValueComponent";
 import { ValueParser } from "./ValueParser";
+
+type KeywordCommentPayload = { legacy: string[] | null; positioned: LexemePositionedComment[] | undefined };
 
 export class CommandExpressionParser {
     public static parseFromLexeme(lexemes: Lexeme[], index: number): { value: ValueComponent; newIndex: number } {
@@ -129,9 +131,9 @@ export class CommandExpressionParser {
     }
 
     // Parse optional ELSE clause
-    private static parseElseClause(lexemes: Lexeme[], index: number): { elseValue: any; elseComments: any; newIndex: number } {
-        let elseValue = null;
-        let elseComments = null;
+    private static parseElseClause(lexemes: Lexeme[], index: number): { elseValue: ValueComponent | null; elseComments: KeywordCommentPayload | null; newIndex: number } {
+        let elseValue: ValueComponent | null = null;
+        let elseComments: KeywordCommentPayload | null = null;
         let idx = index;
 
         if (idx < lexemes.length && this.isCommandWithValue(lexemes[idx], "else")) {
@@ -147,9 +149,9 @@ export class CommandExpressionParser {
     }
 
     // Parse required END clause
-    private static parseEndClause(lexemes: Lexeme[], index: number): { endComments: any; newIndex: number } {
+    private static parseEndClause(lexemes: Lexeme[], index: number): { endComments: KeywordCommentPayload | null; newIndex: number } {
         let idx = index;
-        let endComments = null;
+        let endComments: KeywordCommentPayload | null = null;
 
         if (idx < lexemes.length && this.isCommandWithValue(lexemes[idx], "end")) {
             // Extract comments from END keyword before consuming
@@ -163,7 +165,7 @@ export class CommandExpressionParser {
     }
 
     // Extract comments from a keyword token
-    private static extractKeywordComments(token: Lexeme): { legacy: string[] | null; positioned: any } {
+    private static extractKeywordComments(token: Lexeme): KeywordCommentPayload {
         return {
             legacy: token.comments,
             positioned: token.positionedComments
@@ -171,7 +173,7 @@ export class CommandExpressionParser {
     }
 
     // Apply comments to SwitchCaseArgument directly (no collection then assignment)
-    private static applySwitchCaseComments(switchCaseArg: SwitchCaseArgument, elseComments: any, endComments: any): void {
+    private static applySwitchCaseComments(switchCaseArg: SwitchCaseArgument, elseComments: KeywordCommentPayload | null, endComments: KeywordCommentPayload | null): void {
         const allPositionedComments: any[] = [];
         const allLegacyComments: string[] = [];
 

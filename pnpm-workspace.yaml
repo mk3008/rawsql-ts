@@ -3,3 +3,4 @@ packages:
   - "packages/*"
   - "packages/drivers/*"
   - "playgrounds/*"
+  - "benchmarks/sql-unit-test"

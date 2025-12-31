@@ -1,6 +1,6 @@
 import type { TableFixture } from '@rawsql-ts/testkit-core';
-import type { ZtdBenchMetricsCollector } from './testkit-client';
-import { ConnectionLogger, ConnectionModel, ModeLabel, RunPhase } from './diagnostics';
+import type { ZtdBenchMetricsCollector, ZtdExecutionMode } from './testkit-client';
+import { ConnectionLogger, ConnectionModel, DbConcurrencyMode, ModeLabel, RunPhase } from './diagnostics';
 import { createTestkitClient } from './testkit-client';
 import { BenchmarkRepository, assertExpectedRows } from './bench-repository';
 import {
@@ -9,7 +9,7 @@ import {
   buildSalesSummaryFixtures,
 } from './bench-fixtures';
 
-type ZtdBenchCaseOptions = {
+export type ZtdBenchCaseOptions = {
   schemaName: string;
   metricsCollector?: ZtdBenchMetricsCollector;
   connectionModel?: ConnectionModel;
@@ -22,6 +22,9 @@ type ZtdBenchCaseOptions = {
   runIndex?: number;
   phase?: RunPhase;
   parallelWorkerCount?: number;
+  applicationName?: string;
+  dbConcurrencyMode?: DbConcurrencyMode;
+  executionMode?: ZtdExecutionMode;
 };
 
 async function runCase(
@@ -42,6 +45,9 @@ async function runCase(
     runIndex: options.runIndex,
     phase: options.phase,
     parallelWorkerCount: options.parallelWorkerCount,
+    applicationName: options.applicationName,
+    dbConcurrencyMode: options.dbConcurrencyMode,
+    executionMode: options.executionMode,
   });
 
   try {

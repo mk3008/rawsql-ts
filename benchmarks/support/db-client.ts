@@ -1,28 +1,20 @@
 import { Pool, PoolClient } from 'pg';
-import { BenchContext, logBenchPhase, logPoolStats } from './benchmark-logger';
+import { BenchContext, logBenchDebug, logBenchPhase, logPoolStats } from './benchmark-logger';
 
 const DEFAULT_PARALLEL_WORKERS = 4;
 const DEFAULT_POOL_INCREMENT = 2;
 const DEFAULT_POOL_MULTIPLIER = 8;
+const DEFAULT_POOL_END_TIMEOUT_MS = 2_000;
 
 let pool: Pool | undefined;
-const workerConnections = new Map<string, PoolClient>();
 
-type DbClientScope = 'worker' | 'case';
-
-/**
- * Options for acquiring a database client from the shared benchmark pool.
- */
 export type AcquireDbClientOptions = {
-  scope: DbClientScope;
-  workerId?: string;
   applicationName?: string;
   context?: BenchContext;
+  scope?: 'case' | 'worker';
+  workerId?: string;
 };
 
-/**
- * A database connection taken from the shared benchmark pool.
- */
 export type DbConnection = {
   client: PoolClient;
   pid: number;
@@ -50,6 +42,14 @@ function resolvePoolMax(): number {
   return Math.max(1, Math.max(preferredByWorkers, fallback));
 }
 
+function resolvePoolEndTimeoutMs(): number {
+  const configured = Number(process.env.ZTD_BENCH_POOL_END_TIMEOUT_MS ?? DEFAULT_POOL_END_TIMEOUT_MS);
+  if (!Number.isFinite(configured)) {
+    return DEFAULT_POOL_END_TIMEOUT_MS;
+  }
+  return Math.max(0, Math.floor(configured));
+}
+
 function ensurePool(): Pool {
   if (pool) {
     return pool;
@@ -61,9 +61,40 @@ function ensurePool(): Pool {
   return pool;
 }
 
-async function fetchBackendPid(client: PoolClient): Promise<number> {
-  const result = await client.query<{ pid: number }>('SELECT pg_backend_pid() AS pid');
-  return result.rows[0]?.pid ?? 0;
+function getPoolClients(targetPool: Pool): PoolClient[] {
+  const poolAny = targetPool as unknown as {
+    _clients?: PoolClient[];
+    _idle?: PoolClient[];
+  };
+  const clients = new Set<PoolClient>();
+  (poolAny._clients ?? []).forEach((client) => clients.add(client));
+  (poolAny._idle ?? []).forEach((client) => clients.add(client));
+  return Array.from(clients);
+}
+
+type PoolClientSnapshot = {
+  pid?: number;
+  applicationName?: string;
+  isIdle: boolean;
+};
+
+function snapshotPoolClients(targetPool: Pool): PoolClientSnapshot[] {
+  const poolAny = targetPool as unknown as {
+    _clients?: PoolClient[];
+    _idle?: PoolClient[];
+  };
+  const idleClients = new Set<PoolClient>(poolAny._idle ?? []);
+  return getPoolClients(targetPool).map((client) => {
+    const clientAny = client as unknown as {
+      processID?: number;
+      connection?: { parameters?: { application_name?: string } };
+    };
+    return {
+      pid: clientAny.processID,
+      applicationName: clientAny.connection?.parameters?.application_name,
+      isIdle: idleClients.has(client),
+    };
+  });
 }
 
 async function configureApplicationName(client: PoolClient, applicationName: string): Promise<void> {
@@ -74,121 +105,100 @@ async function configureApplicationName(client: PoolClient, applicationName: str
   await client.query(`SET application_name = '${sanitized}'`);
 }
 
-function resolveWorkerToken(workerId?: string): string {
-  if (workerId && workerId.length > 0) {
-    return workerId;
-  }
-  throw new Error('workerId is required for worker-scoped benchmark clients.');
-}
-
-async function prepareWorkerClient(
-  workerToken: string,
-  applicationName: string,
-  context?: BenchContext,
-): Promise<DbConnection> {
-  const start = process.hrtime.bigint();
-  // Reuse the worker's client if it already exists; otherwise grab a fresh connection.
-  const client = workerConnections.get(workerToken) ?? (await ensurePool().connect());
-  if (!workerConnections.has(workerToken)) {
-    workerConnections.set(workerToken, client);
-  }
-  const acquireMs = Number(process.hrtime.bigint() - start) / 1_000_000;
-  logPoolStats(ensurePool(), context ?? {}, 'worker-configured');
-  await configureApplicationName(client, applicationName);
-  const pid = await fetchBackendPid(client);
-  return {
-    client,
-    pid,
-    release: async () => Promise.resolve(),
-    acquireMs,
-  };
+function resolveBackendPid(client: PoolClient): number {
+  const clientAny = client as unknown as { processID?: number };
+  return clientAny.processID ?? 0;
 }
 
 async function prepareCaseClient(applicationName: string, context?: BenchContext): Promise<DbConnection> {
   const start = process.hrtime.bigint();
-  // Case-local scopes always grab a new pool connection so parallel cases stay isolated.
+  logBenchDebug({
+    event: 'open-case-client',
+    scope: 'case',
+    applicationName,
+  });
+  // Acquire a fresh pool client for every request so parallel cases remain isolated.
   const poolClient = await ensurePool().connect();
   const acquireMs = Number(process.hrtime.bigint() - start) / 1_000_000;
   await configureApplicationName(poolClient, applicationName);
+  const pid = resolveBackendPid(poolClient);
+  logBenchDebug({
+    event: 'case-client-configured',
+    scope: 'case',
+    applicationName,
+    pid,
+  });
   logPoolStats(ensurePool(), context ?? {}, 'case-acquired');
-  const pid = await fetchBackendPid(poolClient);
   return {
     client: poolClient,
     pid,
+    acquireMs,
     release: async () => {
       poolClient.release();
     },
-    acquireMs,
   };
 }
 
-/**
- * Acquire a database client from the shared benchmark pool.
- */
 export async function getDbClient(options: AcquireDbClientOptions): Promise<DbConnection> {
   const applicationName = options.applicationName ?? 'ztd-bench';
-  if (options.scope === 'worker') {
-    if (!options.workerId || options.workerId.length === 0) {
-      throw new Error('workerId must be specified for worker-scoped benchmark clients.');
-    }
-    // Worker identities must be explicit so we do not reuse tokens that serialize parallel runs.
-    const workerToken = resolveWorkerToken(options.workerId);
-    logBenchPhase('acquireClient', 'start', options.context ?? {}, {
-      scope: 'worker',
-      workerToken,
-    });
-    const connection = await prepareWorkerClient(workerToken, applicationName, options.context);
-    logBenchPhase(
-      'acquireClient',
-      'end',
-      options.context ?? {},
-      {
-        waitingMs: connection.acquireMs ?? 0,
-        scope: 'worker',
-        workerToken,
-      },
-    );
-    return connection;
-  }
-  logBenchPhase('acquireClient', 'start', options.context ?? {}, {
-    scope: 'case',
+  const context: BenchContext = options.context ?? {};
+  const scope = options.scope ?? 'case';
+  logBenchPhase('acquireClient', 'start', context, {
+    scope,
   });
+  // Acquire a disposable connection so no work is shared between cases/workers.
   const connection = await prepareCaseClient(applicationName, options.context);
-  logBenchPhase(
-    'acquireClient',
-    'end',
-    options.context ?? {},
-    {
-      waitingMs: connection.acquireMs ?? 0,
-      scope: 'case',
-    },
-  );
+  logBenchPhase('acquireClient', 'end', context, {
+    waitingMs: connection.acquireMs ?? 0,
+    scope,
+  });
   return connection;
 }
 
-/**
- * Release the worker-scoped client associated with a token.
- */
-export async function releaseWorkerClient(workerId?: string): Promise<void> {
-  const workerToken = resolveWorkerToken(workerId);
-  const client = workerConnections.get(workerToken);
-  if (!client) {
-    return;
-  }
-  workerConnections.delete(workerToken);
-  client.release();
+export async function releaseWorkerClient(token: string): Promise<void> {
+  logBenchDebug({
+    event: 'release-worker-client',
+    token,
+  });
 }
 
-/**
- * Close the shared benchmark pool and free any held worker clients.
- */
 export async function closeDbPool(): Promise<void> {
-  for (const [workerToken, client] of workerConnections.entries()) {
-    workerConnections.delete(workerToken);
-    client.release();
+  if (!pool) {
+    return;
   }
-  if (pool) {
-    await pool.end();
-    pool = undefined;
+  const targetPool = pool;
+  pool = undefined;
+  // Capture the current pool counts so diagnostics explain what was still checked out.
+  const poolCounts = {
+    totalCount: targetPool.totalCount,
+    idleCount: targetPool.idleCount,
+    waitingCount: targetPool.waitingCount,
+  };
+  logBenchDebug({
+    event: 'closing-pool',
+    ...poolCounts,
+  });
+  const timeoutMs = resolvePoolEndTimeoutMs();
+  const endPromise = targetPool.end();
+  if (timeoutMs > 0) {
+    // Fail fast if the pool does not end within the configured timeout window.
+    const endSignal = endPromise.then(() => true).catch(() => true);
+    const timeoutSignal = new Promise<boolean>((resolve) => {
+      setTimeout(() => resolve(false), timeoutMs);
+    });
+    const ended = await Promise.race([endSignal, timeoutSignal]);
+    if (!ended) {
+      const snapshot = snapshotPoolClients(targetPool);
+      logBenchDebug({
+        event: 'closing-pool-timeout',
+        timeoutMs,
+        ...poolCounts,
+        clients: snapshot,
+      });
+      const errorMessage = `[bench] Pool shutdown timed out after ${timeoutMs}ms; total=${poolCounts.totalCount}, idle=${poolCounts.idleCount}, waiting=${poolCounts.waitingCount}; clients=${JSON.stringify(snapshot)}`;
+      console.error(errorMessage);
+      throw new Error(errorMessage);
+    }
   }
+  await endPromise;
 }

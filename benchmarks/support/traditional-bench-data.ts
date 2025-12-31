@@ -1,6 +1,6 @@
-import { customerSummarySql } from '../ztd-bench/sql/customer_summary';
-import { productRankingSql } from '../ztd-bench/sql/product_ranking';
-import { salesSummarySql } from '../ztd-bench/sql/sales_summary';
+import { customerSummarySql } from '../ztd-bench-vs-raw/sql/customer_summary';
+import { productRankingSql } from '../ztd-bench-vs-raw/sql/product_ranking';
+import { salesSummarySql } from '../ztd-bench-vs-raw/sql/sales_summary';
 
 export type TraditionalCase = {
   name: string;

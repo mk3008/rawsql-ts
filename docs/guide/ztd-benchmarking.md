@@ -5,7 +5,7 @@ This benchmark compares traditional migration-style repository tests with ZTD fi
 ## Comparison rules
 
 - Both workflows exercise the same repository class and query definitions so differences stem only from the surrounding test infrastructure.
-- Traditional runs create a schema per repetition, apply the `benchmarks/ztd-bench/ddl/ecommerce.sql` migration, seed the required tables, call the repository method, then drop the schema.
+- Traditional runs create a schema per repetition, apply the `benchmarks/ztd-bench-vs-raw/ddl/ecommerce.sql` migration, seed the required tables, call the repository method, then drop the schema.
 - ZTD runs skip migration/seed/cleanup, hook into the repository query to capture the emitted SQL, feed that SQL into pg-testkit for rewrite/fixture generation, and execute the rewritten statements.
 - Measurements cover variable suite sizes and steady-state loops so the report can show the impact of runner startup, warm runs, and incremental iteration cost.
 
@@ -29,7 +29,7 @@ This benchmark compares traditional migration-style repository tests with ZTD fi
 pnpm ztd:bench
 ```
 
-The command runs the Vitest suites defined under `benchmarks/ztd-bench`, ensuring the benchmark logic and fixtures remain inside this directory rather than depending on the playground workspace.
+The command runs the Vitest suites defined under `benchmarks/ztd-bench-vs-raw`, ensuring the benchmark logic and fixtures remain inside this directory rather than depending on the playground workspace.
 
 The report is written to `tmp/bench/report.md`.
 Detailed JSON diagnostics stream to `tmp/bench/log.jsonl`; keep the default `quiet` level for minimal output or bump `BENCH_LOG_LEVEL`/use `--verbose`/`--debug` when you want to follow the JSON lines on the console.
@@ -57,7 +57,7 @@ You can adjust the benchmark without editing code using environment variables:
 
 ## Directory Layout
 
-Everything the benchmark needs lives under `benchmarks/ztd-bench`:
+Everything the benchmark needs lives under `benchmarks/ztd-bench-vs-raw`:
 
 - `sql/` contains the canonical query strings executed by both traditional and ZTD tests.
 - `ddl/` holds the schema file that pg-testkit uses to validate and plan each rewrite.
@@ -67,7 +67,13 @@ Keeping the benchmark code self-contained makes it clear that this directory is 
 
 ## Reproducing Results
 
-The benchmark uses SQL from `benchmarks/ztd-bench/sql`, fixtures defined under `benchmarks/ztd-bench/tests/support`, and schema metadata in `benchmarks/ztd-bench/ddl`. Run it from the repository root to ensure the benchmark runner and package dependencies resolve correctly.
+The benchmark uses SQL from `benchmarks/ztd-bench-vs-raw/sql`, fixtures defined under `benchmarks/ztd-bench-vs-raw/tests/support`, and schema metadata in `benchmarks/ztd-bench-vs-raw/ddl`. Run it from the repository root to ensure the benchmark runner and package dependencies resolve correctly.
+
+## pg-testkit mode comparison
+
+Use `pnpm ztd:bench:pg-testkit-mode` when you want to look at pg-testkit’s two migration modes in isolation. The script runs every case under both the fixture-driven ZTD path and the Traditional DDL/seeding path inside pg-testkit, then writes `tmp/pg-testkit-mode-report.md` with per-case averages for duration, SQL count, DB time, migration time, and cleanup time.
+
+The report is a lightweight complement to the full `pnpm ztd:bench` dataset and is a good place to start when you only need the driver-level comparison without the runner/parallelism instrumentation.
 
 ## Assumptions
 
@@ -79,9 +85,9 @@ The benchmark uses SQL from `benchmarks/ztd-bench/sql`, fixtures defined under `
 
 - The traditional parallel summary in `tmp/bench/report.md` now reports the 95th percentile of connection waiting, migration, and cleanup durations, so you can immediately see which of those steps is limiting throughput when parallel workers are added.
 - The new **ZTD Concurrency Diagnostics** section highlights the measured parallel run with the largest suite (typically 120 tests) and the highest worker count; it surfaces the waiting p95 plus the peak `pg_stat_activity` active sessions so you can explain why adding more workers stops improving the runtime.
-- A lightweight Vitest smoke test lives at `benchmarks/ztd-bench/tests/diagnostics/traditional-parallelism.test.ts`. It runs a barriered `pg_sleep` workload through `runTraditionalParallelismValidation` and fails if the requested number of PostgreSQL sessions never go active simultaneously. You can rerun it directly with:
+- A lightweight Vitest smoke test lives at `benchmarks/ztd-bench-vs-raw/tests/diagnostics/traditional-parallelism.test.ts`. It runs a barriered `pg_sleep` workload through `runTraditionalParallelismValidation` and fails if the requested number of PostgreSQL sessions never go active simultaneously. You can rerun it directly with:
   ```bash
-  pnpm vitest --config benchmarks/ztd-bench/vitest.config.ts run benchmarks/ztd-bench/tests/diagnostics/traditional-parallelism.test.ts
+  pnpm vitest --config benchmarks/ztd-bench-vs-raw/vitest.config.ts run benchmarks/ztd-bench-vs-raw/tests/diagnostics/traditional-parallelism.test.ts
   ```
   The test runs before the full benchmark and gives CI/local runs a quick fail-fast surface if PostgreSQL cannot open the expected number of concurrent sessions.
 
@@ -90,7 +96,7 @@ The benchmark uses SQL from `benchmarks/ztd-bench/sql`, fixtures defined under `
 - Purpose: get trustworthy μs/nanosecond measurements for the AST→SQL stringify step so the team can decide whether further optimization is needed.
 - Run the dedicated script (it parses the real repository SQL, warms up the formatter, and loops `SqlFormatter.format()` repeatedly):
   ```bash
-  pnpm ts-node benchmarks/ztd-bench/stringify-only-benchmark.ts
+  pnpm ts-node benchmarks/ztd-bench-vs-raw/stringify-only-benchmark.ts
   ```
 - Environment knobs:
   - `STRINGIFY_ITERATIONS` controls how many measured iterations run (default `100000`).

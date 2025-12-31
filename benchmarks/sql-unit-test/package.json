@@ -1,0 +1,29 @@
+{
+  "name": "@rawsql-ts/sql-unit-test-bench",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Workspace helper for running the local ztd-cli inside benchmarks/sql-unit-test",
+  "scripts": {
+    "test": "vitest",
+    "ztd": "ztd",
+    "format": "prettier . --write",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
+  },
+  "devDependencies": {
+    "@rawsql-ts/ztd-cli": "link:../../packages/ztd-cli",
+    "eslint": "^9.22.0",
+    "lint-staged": "^16.2.7",
+    "prettier": "^3.7.4",
+    "prettier-plugin-sql": "^0.19.2",
+    "simple-git-hooks": "^2.13.1"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx,json,md,sql}": [
+      "pnpm format"
+    ]
+  },
+  "simple-git-hooks": {
+    "pre-commit": "pnpm lint-staged"
+  }
+}

@@ -4,7 +4,18 @@ import { SimpleSelectQuery } from '../../src/models/SelectQuery';
 import { InsertQuery } from '../../src/models/InsertQuery';
 import { CreateTableQuery } from '../../src/models/CreateTableQuery';
 import { MergeQuery } from '../../src/models/MergeQuery';
-import { AnalyzeStatement, ExplainStatement, CreateSchemaStatement, DropSchemaStatement } from '../../src/models/DDLStatements';
+import {
+    AnalyzeStatement,
+    ExplainStatement,
+    CreateSchemaStatement,
+    DropSchemaStatement,
+    VacuumStatement,
+    ReindexStatement,
+    ClusterStatement,
+    CheckpointStatement,
+    CreateIndexStatement,
+    DropIndexStatement,
+} from '../../src/models/DDLStatements';
 import { RawString, IdentifierString, ParameterExpression } from '../../src/models/ValueComponent';
 
 describe('SqlParser', () => {
@@ -142,6 +153,60 @@ describe('SqlParser', () => {
                 }
             }
         }
+    });
+
+    test('parse returns a VacuumStatement for VACUUM statements', () => {
+        const sql = 'VACUUM FULL VERBOSE public.logs';
+
+        const result = SqlParser.parse(sql);
+
+        expect(result).toBeInstanceOf(VacuumStatement);
+    });
+
+    test('parse returns a CreateIndexStatement for CREATE INDEX CONCURRENTLY statements', () => {
+        const sql = 'CREATE INDEX CONCURRENTLY idx_logs ON public.logs (log_id)';
+
+        const result = SqlParser.parse(sql);
+
+        expect(result).toBeInstanceOf(CreateIndexStatement);
+        if (result instanceof CreateIndexStatement) {
+            expect(result.concurrently).toBe(true);
+        }
+    });
+
+    test('parse returns a DropIndexStatement for DROP INDEX CONCURRENTLY statements', () => {
+        const sql = 'DROP INDEX CONCURRENTLY public.logs_log_id_idx';
+
+        const result = SqlParser.parse(sql);
+
+        expect(result).toBeInstanceOf(DropIndexStatement);
+        if (result instanceof DropIndexStatement) {
+            expect(result.concurrently).toBe(true);
+        }
+    });
+
+    test('parse returns a ReindexStatement for REINDEX statements', () => {
+        const sql = 'REINDEX CONCURRENTLY TABLE public.logs';
+
+        const result = SqlParser.parse(sql);
+
+        expect(result).toBeInstanceOf(ReindexStatement);
+    });
+
+    test('parse returns a ClusterStatement for CLUSTER statements', () => {
+        const sql = 'CLUSTER public.logs USING log_idx';
+
+        const result = SqlParser.parse(sql);
+
+        expect(result).toBeInstanceOf(ClusterStatement);
+    });
+
+    test('parse returns a CheckpointStatement for CHECKPOINT statements', () => {
+        const sql = 'CHECKPOINT';
+
+        const result = SqlParser.parse(sql);
+
+        expect(result).toBeInstanceOf(CheckpointStatement);
     });
 
     test('parse throws when EXPLAIN lacks a nested statement', () => {
