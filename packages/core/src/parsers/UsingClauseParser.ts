@@ -1,4 +1,4 @@
-import { UsingClause } from "../models/Clause";
+import { UsingClause, SourceExpression } from "../models/Clause";
 import { Lexeme, TokenType } from "../models/Lexeme";
 import { SourceExpressionParser } from "./SourceExpressionParser";
 
@@ -12,7 +12,7 @@ export class UsingClauseParser {
         }
 
         let idx = index + 1;
-        const sources = [];
+        const sources: SourceExpression[] = [];
 
         // Parse the first source expression referenced by USING.
         const firstSource = SourceExpressionParser.parseFromLexeme(lexemes, idx);

@@ -16,6 +16,8 @@ import { FetchClauseParser } from "./FetchClauseParser";
 import { OffsetClauseParser } from "./OffsetClauseParser";
 import { CTERegionDetector } from "../utils/CTERegionDetector";
 
+type WithClauseResult = ReturnType<typeof WithClauseParser.parseFromLexeme>;
+
 export interface ParseAnalysisResult {
     success: boolean;
     query?: SelectQuery;
@@ -310,12 +312,12 @@ export class SelectQueryParser {
 
     // Parse WITH clause and collect header comments
     private static parseWithClauseAndComments(lexemes: Lexeme[], index: number): {
-        withClauseResult: any;
+        withClauseResult: WithClauseResult | null;
         newIndex: number;
         selectQuery: { headerComments?: string[]; betweenClauseComments?: string[]; mainSelectPrefixComments?: string[] }
     } {
         let idx = index;
-        let withClauseResult = null;
+        let withClauseResult: WithClauseResult | null = null;
         const queryTemplate: any = {};
 
         // Collect header comments before WITH or SELECT
