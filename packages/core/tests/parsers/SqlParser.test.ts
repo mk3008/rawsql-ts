@@ -13,6 +13,8 @@ import {
     ReindexStatement,
     ClusterStatement,
     CheckpointStatement,
+    CreateIndexStatement,
+    DropIndexStatement,
 } from '../../src/models/DDLStatements';
 import { RawString, IdentifierString, ParameterExpression } from '../../src/models/ValueComponent';
 
@@ -159,6 +161,28 @@ describe('SqlParser', () => {
         const result = SqlParser.parse(sql);
 
         expect(result).toBeInstanceOf(VacuumStatement);
+    });
+
+    test('parse returns a CreateIndexStatement for CREATE INDEX CONCURRENTLY statements', () => {
+        const sql = 'CREATE INDEX CONCURRENTLY idx_logs ON public.logs (log_id)';
+
+        const result = SqlParser.parse(sql);
+
+        expect(result).toBeInstanceOf(CreateIndexStatement);
+        if (result instanceof CreateIndexStatement) {
+            expect(result.concurrently).toBe(true);
+        }
+    });
+
+    test('parse returns a DropIndexStatement for DROP INDEX CONCURRENTLY statements', () => {
+        const sql = 'DROP INDEX CONCURRENTLY public.logs_log_id_idx';
+
+        const result = SqlParser.parse(sql);
+
+        expect(result).toBeInstanceOf(DropIndexStatement);
+        if (result instanceof DropIndexStatement) {
+            expect(result.concurrently).toBe(true);
+        }
     });
 
     test('parse returns a ReindexStatement for REINDEX statements', () => {
