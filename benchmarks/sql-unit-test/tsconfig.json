@@ -5,5 +5,5 @@
     "noEmit": true,
     "noImplicitAny": false
   },
-  "include": ["tests/**/*.ts", "scripts/**/*.ts", "vite.config.ts"]
+  "include": ["tests/**/*.ts", "scripts/**/*.ts", "vitest.config.ts"]
 }
