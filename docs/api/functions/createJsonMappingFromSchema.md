@@ -3,7 +3,7 @@
 
 > **createJsonMappingFromSchema**(`schemas`, `rootTableName`): [`JsonMapping`](../interfaces/JsonMapping.md)
 
-Defined in: [packages/core/src/utils/SchemaManager.ts:291](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/utils/SchemaManager.ts#L291)
+Defined in: [packages/core/src/utils/SchemaManager.ts:291](https://github.com/mk3008/rawsql-ts/blob/52cdfc64a16473ecb6ab0064c5360071f2d8b841/packages/core/src/utils/SchemaManager.ts#L291)
 
 Create JSON mapping from schema definitions
 

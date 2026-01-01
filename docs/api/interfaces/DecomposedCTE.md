@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: DecomposedCTE
 
-Defined in: [packages/core/src/transformers/CTEQueryDecomposer.ts:14](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/transformers/CTEQueryDecomposer.ts#L14)
+Defined in: [packages/core/src/transformers/CTEQueryDecomposer.ts:14](https://github.com/mk3008/rawsql-ts/blob/52cdfc64a16473ecb6ab0064c5360071f2d8b841/packages/core/src/transformers/CTEQueryDecomposer.ts#L14)
 
 Interface representing a decomposed CTE with executable query
 
@@ -11,7 +11,7 @@ Interface representing a decomposed CTE with executable query
 
 > **name**: `string`
 
-Defined in: [packages/core/src/transformers/CTEQueryDecomposer.ts:16](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/transformers/CTEQueryDecomposer.ts#L16)
+Defined in: [packages/core/src/transformers/CTEQueryDecomposer.ts:16](https://github.com/mk3008/rawsql-ts/blob/52cdfc64a16473ecb6ab0064c5360071f2d8b841/packages/core/src/transformers/CTEQueryDecomposer.ts#L16)
 
 Name of the CTE
 
@@ -21,7 +21,7 @@ Name of the CTE
 
 > **query**: `string`
 
-Defined in: [packages/core/src/transformers/CTEQueryDecomposer.ts:18](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/transformers/CTEQueryDecomposer.ts#L18)
+Defined in: [packages/core/src/transformers/CTEQueryDecomposer.ts:18](https://github.com/mk3008/rawsql-ts/blob/52cdfc64a16473ecb6ab0064c5360071f2d8b841/packages/core/src/transformers/CTEQueryDecomposer.ts#L18)
 
 Executable SQL query for this CTE (includes dependencies)
 
@@ -31,7 +31,7 @@ Executable SQL query for this CTE (includes dependencies)
 
 > **dependencies**: `string`[]
 
-Defined in: [packages/core/src/transformers/CTEQueryDecomposer.ts:20](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/transformers/CTEQueryDecomposer.ts#L20)
+Defined in: [packages/core/src/transformers/CTEQueryDecomposer.ts:20](https://github.com/mk3008/rawsql-ts/blob/52cdfc64a16473ecb6ab0064c5360071f2d8b841/packages/core/src/transformers/CTEQueryDecomposer.ts#L20)
 
 Array of CTE names that this CTE depends on
 
@@ -41,7 +41,7 @@ Array of CTE names that this CTE depends on
 
 > **dependents**: `string`[]
 
-Defined in: [packages/core/src/transformers/CTEQueryDecomposer.ts:22](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/transformers/CTEQueryDecomposer.ts#L22)
+Defined in: [packages/core/src/transformers/CTEQueryDecomposer.ts:22](https://github.com/mk3008/rawsql-ts/blob/52cdfc64a16473ecb6ab0064c5360071f2d8b841/packages/core/src/transformers/CTEQueryDecomposer.ts#L22)
 
 Array of CTE names that depend on this CTE
 
@@ -51,7 +51,7 @@ Array of CTE names that depend on this CTE
 
 > **isRecursive**: `boolean`
 
-Defined in: [packages/core/src/transformers/CTEQueryDecomposer.ts:24](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/transformers/CTEQueryDecomposer.ts#L24)
+Defined in: [packages/core/src/transformers/CTEQueryDecomposer.ts:24](https://github.com/mk3008/rawsql-ts/blob/52cdfc64a16473ecb6ab0064c5360071f2d8b841/packages/core/src/transformers/CTEQueryDecomposer.ts#L24)
 
 Whether this CTE is recursive
 </div>

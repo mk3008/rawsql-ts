@@ -3,7 +3,7 @@
 
 > **toLegacyMapping**(`enhanced`): [`LegacyJsonMapping`](../interfaces/LegacyJsonMapping.md)
 
-Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:258](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/transformers/EnhancedJsonMapping.ts#L258)
+Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:258](https://github.com/mk3008/rawsql-ts/blob/52cdfc64a16473ecb6ab0064c5360071f2d8b841/packages/core/src/transformers/EnhancedJsonMapping.ts#L258)
 
 Converts enhanced mapping to legacy format for backward compatibility.
 
