@@ -237,9 +237,10 @@ export class SqlTokenizer {
         for (let i = 0; i < tokenData.length; i++) {
             const current = tokenData[i];
             const lexeme = current.lexeme;
+            const lexemeValue = lexeme.value;
 
             // Redirect SELECT suffix comments to the first meaningful select item.
-            if (lexeme.value.toLowerCase() === 'select' && current.suffixComments && current.suffixComments.length > 0) {
+            if (lexemeValue === 'select' && current.suffixComments && current.suffixComments.length > 0) {
                 const suffixComments = current.suffixComments;
                 let targetIndex = i + 1;
                 while (targetIndex < tokenData.length) {
@@ -263,7 +264,7 @@ export class SqlTokenizer {
                 }
             }
 
-            if (lexeme.value.toLowerCase() === 'from' && current.suffixComments && current.suffixComments.length > 0) {
+            if (lexemeValue === 'from' && current.suffixComments && current.suffixComments.length > 0) {
                 const suffixComments = current.suffixComments;
                 let targetIndex = i + 1;
                 while (targetIndex < tokenData.length) {
