@@ -40,7 +40,11 @@ export class StringUtils {
          * Benchmark results show that this optimization does not slow down short queries,
          * and can make long/indented queries more stable and slightly faster.
          */
-        while (position + 4 <= length && input.slice(position, position + 4) === '    ') {
+        while (position + 4 <= length &&
+               input.charCodeAt(position) === 32 &&
+               input.charCodeAt(position + 1) === 32 &&
+               input.charCodeAt(position + 2) === 32 &&
+               input.charCodeAt(position + 3) === 32) {
             position += 4;
         }
 
