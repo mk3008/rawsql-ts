@@ -3,7 +3,7 @@
 
 > **createTableColumnResolver**(`schemas`): (`tableName`) => `string`[]
 
-Defined in: [packages/core/src/utils/SchemaManager.ts:280](https://github.com/mk3008/rawsql-ts/blob/52cdfc64a16473ecb6ab0064c5360071f2d8b841/packages/core/src/utils/SchemaManager.ts#L280)
+Defined in: [packages/core/src/utils/SchemaManager.ts:280](https://github.com/mk3008/rawsql-ts/blob/5afba95c60fb400d9054799e9d9c76aefae1898d/packages/core/src/utils/SchemaManager.ts#L280)
 
 Create TableColumnResolver function from schema definitions
 
