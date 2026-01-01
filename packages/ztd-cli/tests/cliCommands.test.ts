@@ -144,7 +144,8 @@ pullTest('pull CLI emits schema from Postgres via pg_dump', async () => {
     const normalizedSchema = normalizeSchemaDump(schema);
     expect(normalizedSchema).toContain('create schema public;');
     expect(normalizedSchema).toContain('create table public.products');
-    expect(normalizedSchema).not.toContain('set ');
+    // Ensure pg_dump SET statements are removed without blocking ALTER ... SET DEFAULT.
+    expect(normalizedSchema).not.toMatch(/(^|\n)set\s+/);
     expect(existsSync(path.join(outDir, 'schema.sql'))).toBe(false);
   } finally {
     await resetPublicSchema(client);
