@@ -52,6 +52,11 @@ function readNormalizedFile(filePath: string): string {
   return contents.replace(/\r\n/g, '\n');
 }
 
+function normalizeSchemaDump(contents: string): string {
+  // Normalize casing and strip quotes so pg_dump identifier quoting stays stable across versions.
+  return contents.toLowerCase().replace(/"/g, '');
+}
+
 function assertCliSuccess(result: SpawnSyncReturns<string>, label?: string) {
   expect(result.error).toBeUndefined();
   const context = label ? `${label}: ` : '';
@@ -136,7 +141,7 @@ pullTest('pull CLI emits schema from Postgres via pg_dump', async () => {
     expect(existsSync(schemaFile)).toBe(true);
     const schema = readNormalizedFile(schemaFile);
     expect(existsSync(path.join(outDir, 'schemas'))).toBe(false);
-    const normalizedSchema = schema.toLowerCase();
+    const normalizedSchema = normalizeSchemaDump(schema);
     expect(normalizedSchema).toContain('create schema public;');
     expect(normalizedSchema).toContain('create table public.products');
     expect(normalizedSchema).not.toContain('set ');
