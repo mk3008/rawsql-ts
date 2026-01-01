@@ -1,5 +1,8 @@
 import { CommonTable, ForClause, FromClause, GroupByClause, HavingClause, JoinClause, JoinConditionComponent, JoinOnClause, JoinUsingClause, LimitClause, OrderByClause, OrderByComponent, OrderByItem, ParenSource, PartitionByClause, SelectClause, SelectItem, SourceAliasExpression, SourceComponent, SourceExpression, SubQuerySource, TableSource, WhereClause, WindowFrameClause, WindowsClause, WithClause } from "../models/Clause";
 import { BinarySelectQuery, SimpleSelectQuery, SelectQuery, ValuesQuery } from "../models/SelectQuery";
+import { InsertQuery } from "../models/InsertQuery";
+import { UpdateQuery } from "../models/UpdateQuery";
+import { DeleteQuery } from "../models/DeleteQuery";
 import { SqlComponent, SqlComponentVisitor } from "../models/SqlComponent";
 import {
     ArrayExpression, ArrayQueryExpression, ArraySliceExpression, ArrayIndexExpression, BetweenExpression, BinaryExpression, CaseExpression, CaseKeyValuePair,
@@ -36,6 +39,11 @@ export class CTEDisabler implements SqlComponentVisitor<SqlComponent> {
         this.handlers.set(SimpleSelectQuery.kind, (expr) => this.visitSimpleSelectQuery(expr as SimpleSelectQuery));
         this.handlers.set(BinarySelectQuery.kind, (expr) => this.visitBinarySelectQuery(expr as BinarySelectQuery));
         this.handlers.set(ValuesQuery.kind, (expr) => this.visitValuesQuery(expr as ValuesQuery));
+
+        // Writable CTE statements should be traversable without throwing.
+        this.handlers.set(InsertQuery.kind, (expr) => this.visitInsertQuery(expr as InsertQuery));
+        this.handlers.set(UpdateQuery.kind, (expr) => this.visitUpdateQuery(expr as UpdateQuery));
+        this.handlers.set(DeleteQuery.kind, (expr) => this.visitDeleteQuery(expr as DeleteQuery));
 
         // SelectComponent types
         this.handlers.set(SelectItem.kind, (expr) => this.visitSelectItem(expr as SelectItem));
@@ -191,6 +199,21 @@ export class CTEDisabler implements SqlComponentVisitor<SqlComponent> {
     visitValuesQuery(query: ValuesQuery): SqlComponent {
         const newTuples = query.tuples.map(tuple => this.visit(tuple) as TupleExpression);
         return new ValuesQuery(newTuples);
+    }
+
+    visitInsertQuery(query: InsertQuery): SqlComponent {
+        // Writable CTE statements are preserved; only SELECT CTE removal is required here.
+        return query;
+    }
+
+    visitUpdateQuery(query: UpdateQuery): SqlComponent {
+        // Writable CTE statements are preserved; only SELECT CTE removal is required here.
+        return query;
+    }
+
+    visitDeleteQuery(query: DeleteQuery): SqlComponent {
+        // Writable CTE statements are preserved; only SELECT CTE removal is required here.
+        return query;
     }
 
     visitSelectClause(clause: SelectClause): SqlComponent {

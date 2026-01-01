@@ -7,6 +7,7 @@ import { TableSourceCollector } from "./TableSourceCollector";
 import { ColumnReferenceCollector } from "./ColumnReferenceCollector";
 import { KeywordParser } from "../parsers/KeywordParser";
 import { commandKeywordTrie } from "../tokenReaders/CommandTokenReader";
+import { SqlComponent } from "../models/SqlComponent";
 
 /**
  * Represents an alias scope within SQL query structure
@@ -389,7 +390,10 @@ export class AliasRenamer {
         if (query instanceof SimpleSelectQuery && query.withClause?.tables) {
             for (const cte of query.withClause.tables) {
                 if (cte.aliasExpression.table.name === cteName) {
-                    return cte.query;
+                    if (this.isSelectQuery(cte.query)) {
+                        return cte.query;
+                    }
+                    return null;
                 }
             }
         } else if (query instanceof BinarySelectQuery) {
@@ -403,6 +407,10 @@ export class AliasRenamer {
         }
         
         return null;
+    }
+
+    private isSelectQuery(query: SqlComponent): query is SelectQuery {
+        return '__selectQueryType' in query && (query as SelectQuery).__selectQueryType === 'SelectQuery';
     }
 
     /**

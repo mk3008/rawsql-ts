@@ -1,10 +1,13 @@
 import { SelectQuery, SimpleSelectQuery } from "../models/SelectQuery";
 import { BinarySelectQuery } from "../models/BinarySelectQuery";
 import { SelectableColumnCollector, DuplicateDetectionMode } from "./SelectableColumnCollector";
-import { BinaryExpression, FunctionCall, ParameterExpression, ParenExpression, ValueComponent, ValueList, SqlParameterValue } from "../models/ValueComponent";
+import { BinaryExpression, ColumnReference, FunctionCall, ParameterExpression, ParenExpression, ValueComponent, ValueList, SqlParameterValue } from "../models/ValueComponent";
 import { UpstreamSelectQueryFinder } from "./UpstreamSelectQueryFinder";
 import { SelectQueryParser } from "../parsers/SelectQueryParser";
-import { TableSource, SourceExpression } from "../models/Clause";
+import { CTEQuery, SelectItem, SourceExpression, TableSource } from "../models/Clause";
+import { InsertQuery } from "../models/InsertQuery";
+import { UpdateQuery } from "../models/UpdateQuery";
+import { DeleteQuery } from "../models/DeleteQuery";
 
 /**
  * Options for SqlParamInjector
@@ -884,7 +887,7 @@ export class SqlParamInjector {
         if (query.withClause) {
             for (const cte of query.withClause.tables) {
                 try {
-                    const columns = this.collectColumnsFromSelectQuery(cte.query);
+                    const columns = this.collectColumnsFromCteQuery(cte.query);
                     cteColumns.push(...columns);
                 } catch (error) {
                     // Log error but continue processing other CTEs
@@ -899,6 +902,14 @@ export class SqlParamInjector {
     /**
      * Recursively collects columns from any SelectQuery type
      */
+    private collectColumnsFromCteQuery(query: CTEQuery): { name: string; value: ValueComponent }[] {
+        if (!this.isSelectQuery(query)) {
+            return this.collectColumnsFromReturning(query);
+        }
+
+        return this.collectColumnsFromSelectQuery(query);
+    }
+
     private collectColumnsFromSelectQuery(query: SelectQuery): { name: string; value: ValueComponent }[] {
         if (query instanceof SimpleSelectQuery) {
             const collector = new SelectableColumnCollector(
@@ -914,6 +925,40 @@ export class SqlParamInjector {
             return this.collectColumnsFromSelectQuery(query.left);
         }
         return [];
+    }
+
+    private collectColumnsFromReturning(query: CTEQuery): { name: string; value: ValueComponent }[] {
+        // Writable CTEs surface columns via RETURNING when available.
+        if (query instanceof InsertQuery || query instanceof UpdateQuery || query instanceof DeleteQuery) {
+            if (!query.returningClause) {
+                return [];
+            }
+
+            const columns: { name: string; value: ValueComponent }[] = [];
+            for (const item of query.returningClause.items) {
+                const columnName = item.identifier?.name ?? this.extractColumnName(item);
+                if (columnName) {
+                    columns.push({ name: columnName, value: item.value });
+                }
+            }
+            return columns;
+        }
+
+        return [];
+    }
+
+    private extractColumnName(item: SelectItem): string | null {
+        if (item.identifier) {
+            return item.identifier.name;
+        }
+        if (item.value instanceof ColumnReference) {
+            return item.value.column.name;
+        }
+        return null;
+    }
+
+    private isSelectQuery(query: CTEQuery): query is SelectQuery {
+        return '__selectQueryType' in query && (query as SelectQuery).__selectQueryType === 'SelectQuery';
     }
 
     /**

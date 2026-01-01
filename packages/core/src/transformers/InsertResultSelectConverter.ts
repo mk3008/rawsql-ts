@@ -1,6 +1,7 @@
 import { CommonTable, FromClause, ReturningClause, SelectClause, SelectItem, SourceAliasExpression, SourceExpression, TableSource, WithClause } from '../models/Clause';
 import { InsertQuery } from '../models/InsertQuery';
 import { BinarySelectQuery, SelectQuery, SimpleSelectQuery, ValuesQuery } from '../models/SelectQuery';
+import { SqlComponent } from '../models/SqlComponent';
 import { InsertQuerySelectValuesConverter } from './InsertQuerySelectValuesConverter';
 import {
     ArrayExpression,
@@ -584,7 +585,7 @@ export class InsertResultSelectConverter {
         // 'warn' and 'passthrough' intentionally allow the conversion to continue.
     }
 
-    private static collectReferencedTables(query: SelectQuery): Set<string> {
+    private static collectReferencedTables(query: SqlComponent): Set<string> {
         // Scan every part of the query (including subqueries) so fixture coverage validates all referenced tables.
         const collector = new TableSourceCollector(false);
         const sources = collector.collect(query);

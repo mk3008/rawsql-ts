@@ -1,5 +1,8 @@
-import { CommonTable, ForClause, FromClause, FunctionSource, GroupByClause, HavingClause, JoinClause, JoinOnClause, JoinUsingClause, LimitClause, OrderByClause, OrderByItem, ParenSource, PartitionByClause, SelectClause, SelectItem, SourceExpression, SubQuerySource, TableSource, WhereClause, WindowFrameClause, WindowsClause, WithClause } from "../models/Clause";
-import { BinarySelectQuery, SimpleSelectQuery, SelectQuery, ValuesQuery } from "../models/SelectQuery";
+import { CommonTable, ForClause, FromClause, FunctionSource, GroupByClause, HavingClause, JoinClause, JoinOnClause, JoinUsingClause, LimitClause, OrderByClause, OrderByItem, ParenSource, PartitionByClause, SelectClause, SelectItem, SourceExpression, SubQuerySource, TableSource, WhereClause, WindowFrameClause, WindowsClause, WithClause, ReturningClause } from "../models/Clause";
+import { BinarySelectQuery, SimpleSelectQuery, ValuesQuery } from "../models/SelectQuery";
+import { InsertQuery } from "../models/InsertQuery";
+import { UpdateQuery } from "../models/UpdateQuery";
+import { DeleteQuery } from "../models/DeleteQuery";
 import { SqlComponent, SqlComponentVisitor } from "../models/SqlComponent";
 import {
     ArrayExpression, ArrayQueryExpression, BetweenExpression, BinaryExpression, CaseExpression, CaseKeyValuePair,
@@ -37,6 +40,11 @@ export class CTECollector implements SqlComponentVisitor<void> {
         this.handlers.set(SimpleSelectQuery.kind, (expr) => this.visitSimpleSelectQuery(expr as SimpleSelectQuery));
         this.handlers.set(BinarySelectQuery.kind, (expr) => this.visitBinarySelectQuery(expr as BinarySelectQuery));
         this.handlers.set(ValuesQuery.kind, (expr) => this.visitValuesQuery(expr as ValuesQuery));
+
+        // DML queries (writable CTE bodies)
+        this.handlers.set(InsertQuery.kind, (expr) => this.visitInsertQuery(expr as InsertQuery));
+        this.handlers.set(UpdateQuery.kind, (expr) => this.visitUpdateQuery(expr as UpdateQuery));
+        this.handlers.set(DeleteQuery.kind, (expr) => this.visitDeleteQuery(expr as DeleteQuery));
 
         // WITH clause that directly contains CommonTables
         this.handlers.set(WithClause.kind, (expr) => this.visitWithClause(expr as WithClause));
@@ -117,7 +125,7 @@ export class CTECollector implements SqlComponentVisitor<void> {
         this.visitedNodes.clear();
     }
 
-    public collect(query: SelectQuery): CommonTable[] {
+    public collect(query: SqlComponent): CommonTable[] {
         // Visit the query to collect all CommonTables
         this.visit(query);
         return this.getCommonTables();
@@ -234,6 +242,56 @@ export class CTECollector implements SqlComponentVisitor<void> {
         // VALUES queries might contain subqueries in tuple expressions
         for (const tuple of query.tuples) {
             tuple.accept(this);
+        }
+    }
+
+    private visitInsertQuery(query: InsertQuery): void {
+        if (query.selectQuery) {
+            query.selectQuery.accept(this);
+        }
+    }
+
+    private visitUpdateQuery(query: UpdateQuery): void {
+        if (query.withClause) {
+            query.withClause.accept(this);
+        }
+
+        // Traverse update expressions to locate nested CTEs in subqueries.
+        query.updateClause.source.accept(this);
+        query.setClause.items.forEach(item => item.value.accept(this));
+
+        if (query.fromClause) {
+            query.fromClause.accept(this);
+        }
+        if (query.whereClause) {
+            query.whereClause.accept(this);
+        }
+        if (query.returningClause) {
+            this.visitReturningClause(query.returningClause);
+        }
+    }
+
+    private visitDeleteQuery(query: DeleteQuery): void {
+        if (query.withClause) {
+            query.withClause.accept(this);
+        }
+
+        query.deleteClause.source.accept(this);
+
+        if (query.usingClause) {
+            query.usingClause.sources.forEach(source => source.accept(this));
+        }
+        if (query.whereClause) {
+            query.whereClause.accept(this);
+        }
+        if (query.returningClause) {
+            this.visitReturningClause(query.returningClause);
+        }
+    }
+
+    private visitReturningClause(clause: ReturningClause): void {
+        for (const item of clause.items) {
+            item.accept(this);
         }
     }
 

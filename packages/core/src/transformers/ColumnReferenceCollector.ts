@@ -1,5 +1,8 @@
-import { CommonTable, ForClause, FromClause, GroupByClause, HavingClause, LimitClause, OrderByClause, SelectClause, WhereClause, WindowFrameClause, WindowsClause, JoinClause, JoinOnClause, JoinUsingClause, TableSource, SubQuerySource, SourceExpression, SelectItem, PartitionByClause, FetchClause, OffsetClause, WithClause } from "../models/Clause";
+import { CommonTable, ForClause, FromClause, GroupByClause, HavingClause, LimitClause, OrderByClause, SelectClause, WhereClause, WindowFrameClause, WindowsClause, JoinClause, JoinOnClause, JoinUsingClause, TableSource, SubQuerySource, SourceExpression, SelectItem, PartitionByClause, FetchClause, OffsetClause, WithClause, ReturningClause } from "../models/Clause";
 import { SimpleSelectQuery, BinarySelectQuery } from "../models/SelectQuery";
+import { InsertQuery } from "../models/InsertQuery";
+import { UpdateQuery } from "../models/UpdateQuery";
+import { DeleteQuery } from "../models/DeleteQuery";
 import { SqlComponent, SqlComponentVisitor } from "../models/SqlComponent";
 import { ArrayExpression, ArrayQueryExpression, BetweenExpression, BinaryExpression, CaseExpression, CastExpression, ColumnReference, FunctionCall, InlineQuery, ParenExpression, UnaryExpression, ValueComponent, ValueList, WindowFrameExpression } from "../models/ValueComponent";
 
@@ -109,6 +112,11 @@ export class ColumnReferenceCollector implements SqlComponentVisitor<void> {
         this.handlers.set(SourceExpression.kind, (source) => this.visitSourceExpression(source as SourceExpression));
         this.handlers.set(SubQuerySource.kind, (source) => this.visitSubQuerySource(source as SubQuerySource));
 
+        // DML query handlers for writable CTEs
+        this.handlers.set(InsertQuery.kind, (query) => this.visitInsertQuery(query as InsertQuery));
+        this.handlers.set(UpdateQuery.kind, (query) => this.visitUpdateQuery(query as UpdateQuery));
+        this.handlers.set(DeleteQuery.kind, (query) => this.visitDeleteQuery(query as DeleteQuery));
+
         // Value component handlers
         this.handlers.set(ColumnReference.kind, (ref) => this.visitColumnReference(ref as ColumnReference));
         this.handlers.set(BinaryExpression.kind, (expr) => this.visitBinaryExpression(expr as BinaryExpression));
@@ -187,7 +195,15 @@ export class ColumnReferenceCollector implements SqlComponentVisitor<void> {
         // First collect from CTEs (this is the key difference from SelectableColumnCollector)
         if (query.withClause && query.withClause.tables) {
             for (const cte of query.withClause.tables) {
-                this.collectFromSimpleQuery(cte.query as SimpleSelectQuery);
+                const cteQuery = cte.query;
+                if (cteQuery instanceof SimpleSelectQuery) {
+                    this.collectFromSimpleQuery(cteQuery);
+                } else if (cteQuery instanceof BinarySelectQuery) {
+                    this.collectFromSimpleQuery(cteQuery.toSimpleQuery());
+                } else {
+                    // Handle writable CTEs by traversing their statements.
+                    cteQuery.accept(this);
+                }
             }
         }
 
@@ -412,6 +428,63 @@ export class ColumnReferenceCollector implements SqlComponentVisitor<void> {
 
     private visitSubQuerySource(source: SubQuerySource): void {
         source.query.accept(this);
+    }
+
+    private visitInsertQuery(query: InsertQuery): void {
+        if (query.selectQuery) {
+            if (query.selectQuery instanceof SimpleSelectQuery) {
+                this.collectFromSimpleQuery(query.selectQuery);
+            } else if (query.selectQuery instanceof BinarySelectQuery) {
+                this.collectFromSimpleQuery(query.selectQuery.toSimpleQuery());
+            } else {
+                query.selectQuery.accept(this);
+            }
+        }
+
+        if (query.returningClause) {
+            this.visitReturningClause(query.returningClause);
+        }
+    }
+
+    private visitUpdateQuery(query: UpdateQuery): void {
+        if (query.withClause) {
+            query.withClause.accept(this);
+        }
+
+        // Traverse SET expressions for column references and nested queries.
+        query.setClause.items.forEach(item => item.value.accept(this));
+
+        if (query.fromClause) {
+            query.fromClause.accept(this);
+        }
+        if (query.whereClause) {
+            query.whereClause.accept(this);
+        }
+        if (query.returningClause) {
+            this.visitReturningClause(query.returningClause);
+        }
+    }
+
+    private visitDeleteQuery(query: DeleteQuery): void {
+        if (query.withClause) {
+            query.withClause.accept(this);
+        }
+
+        if (query.usingClause) {
+            query.usingClause.sources.forEach(source => source.accept(this));
+        }
+        if (query.whereClause) {
+            query.whereClause.accept(this);
+        }
+        if (query.returningClause) {
+            this.visitReturningClause(query.returningClause);
+        }
+    }
+
+    private visitReturningClause(clause: ReturningClause): void {
+        for (const item of clause.items) {
+            item.value.accept(this);
+        }
     }
 
     // Value component visitors

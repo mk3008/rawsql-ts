@@ -1,5 +1,8 @@
 import { CommonTable, Distinct, DistinctComponent, DistinctOn, ForClause, FromClause, GroupByClause, HavingClause, JoinClause, JoinConditionComponent, JoinOnClause, JoinUsingClause, LimitClause, OffsetClause, FetchClause, FetchExpression, FetchType, FetchUnit, OrderByClause, OrderByComponent, OrderByItem, ParenSource, PartitionByClause, SelectClause, SelectItem, SourceAliasExpression, SourceComponent, SourceExpression, SubQuerySource, TableSource, WhereClause, WindowFrameClause, WindowsClause, WithClause } from "../models/Clause";
 import { BinarySelectQuery, SimpleSelectQuery, SelectQuery, ValuesQuery } from "../models/SelectQuery";
+import { InsertQuery } from "../models/InsertQuery";
+import { UpdateQuery } from "../models/UpdateQuery";
+import { DeleteQuery } from "../models/DeleteQuery";
 import { SqlComponent, SqlComponentVisitor } from "../models/SqlComponent";
 import {
     ArrayExpression, BetweenExpression, BinaryExpression, CaseExpression, CaseKeyValuePair,
@@ -117,6 +120,11 @@ export class ParameterRemover implements SqlComponentVisitor<SqlComponent | null
         this.handlers.set(SimpleSelectQuery.kind, (expr) => this.visitSimpleSelectQuery(expr as SimpleSelectQuery));
         this.handlers.set(BinarySelectQuery.kind, (expr) => this.visitBinarySelectQuery(expr as BinarySelectQuery));
         this.handlers.set(ValuesQuery.kind, (expr) => this.visitValuesQuery(expr as ValuesQuery));
+
+        // Writable CTE statements should pass through without parameter removal for now.
+        this.handlers.set(InsertQuery.kind, (expr) => this.visitInsertQuery(expr as InsertQuery));
+        this.handlers.set(UpdateQuery.kind, (expr) => this.visitUpdateQuery(expr as UpdateQuery));
+        this.handlers.set(DeleteQuery.kind, (expr) => this.visitDeleteQuery(expr as DeleteQuery));
 
         // WithClause and CommonTable
         this.handlers.set(WithClause.kind, (expr) => this.visitWithClause(expr as WithClause));
@@ -313,6 +321,18 @@ export class ParameterRemover implements SqlComponentVisitor<SqlComponent | null
         return query;
     }
 
+    private visitInsertQuery(query: InsertQuery): InsertQuery {
+        return query;
+    }
+
+    private visitUpdateQuery(query: UpdateQuery): UpdateQuery {
+        return query;
+    }
+
+    private visitDeleteQuery(query: DeleteQuery): DeleteQuery {
+        return query;
+    }
+
     /**
      * Visit WithClause node
      */
@@ -343,6 +363,11 @@ export class ParameterRemover implements SqlComponentVisitor<SqlComponent | null
         const aliasExpression = this.visit(table.aliasExpression) as SourceAliasExpression;
         if (!aliasExpression) {
             return null;
+        }
+
+        if (!this.isSelectQuery(table.query)) {
+            // Preserve writable CTEs without parameter removal.
+            return new CommonTable(table.query, aliasExpression, table.materialized);
         }
 
         const selectQuery = this.visit(table.query) as SelectQuery;
@@ -923,6 +948,10 @@ export class ParameterRemover implements SqlComponentVisitor<SqlComponent | null
      */
     private visitFetchExpression(expression: FetchExpression): FetchExpression {
         const count = this.visit(expression.count) as ValueComponent; return new FetchExpression(expression.type, count, expression.unit);
+    }
+
+    private isSelectQuery(component: SqlComponent): component is SelectQuery {
+        return '__selectQueryType' in component && (component as SelectQuery).__selectQueryType === 'SelectQuery';
     }
 
     /**

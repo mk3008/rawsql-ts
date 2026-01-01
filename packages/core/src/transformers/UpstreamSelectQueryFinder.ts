@@ -1,5 +1,9 @@
 import { SelectQuery, SimpleSelectQuery, BinarySelectQuery, ValuesQuery } from "../models/SelectQuery";
-import { CommonTable, SubQuerySource, TableSource, WithClause } from "../models/Clause";
+import { CommonTable, CTEQuery, ReturningClause, SelectItem, SubQuerySource, TableSource } from "../models/Clause";
+import { InsertQuery } from "../models/InsertQuery";
+import { UpdateQuery } from "../models/UpdateQuery";
+import { DeleteQuery } from "../models/DeleteQuery";
+import { ColumnReference } from "../models/ValueComponent";
 import { SelectableColumnCollector, DuplicateDetectionMode } from "./SelectableColumnCollector";
 import { CTECollector } from "./CTECollector";
 
@@ -56,6 +60,9 @@ export class UpstreamSelectQueryFinder {
             // Remove the current CTE name from the map to prevent infinite recursion
             const nextCteMap = new Map(cteMap);
             nextCteMap.delete(src.table.name);
+            if (!this.isSelectQuery(cte.query)) {
+                return null;
+            }
             const result = this.findUpstream(cte.query, columnNames, nextCteMap);
             if (result.length === 0) {
                 return null;
@@ -171,7 +178,7 @@ export class UpstreamSelectQueryFinder {
         if (query.withClause) {
             for (const cte of query.withClause.tables) {
                 // Collect columns from CTE query
-                const columns = this.collectColumnsFromSelectQuery(cte.query);
+                const columns = this.collectColumnsFromCteQuery(cte.query);
                 cteColumns.push(...columns);
             }
         }
@@ -182,6 +189,14 @@ export class UpstreamSelectQueryFinder {
     /**
      * Recursively collects columns from SelectQuery
      */
+    private collectColumnsFromCteQuery(query: CTEQuery): string[] {
+        if (!this.isSelectQuery(query)) {
+            return this.collectColumnsFromReturning(query);
+        }
+
+        return this.collectColumnsFromSelectQuery(query);
+    }
+
     private collectColumnsFromSelectQuery(query: SelectQuery): string[] {
         if (query instanceof SimpleSelectQuery) {
             try {
@@ -197,5 +212,42 @@ export class UpstreamSelectQueryFinder {
             return this.collectColumnsFromSelectQuery(query.left);
         }
         return [];
+    }
+
+    private collectColumnsFromReturning(query: CTEQuery): string[] {
+        if (query instanceof InsertQuery || query instanceof UpdateQuery || query instanceof DeleteQuery) {
+            return this.extractReturningColumns(query.returningClause);
+        }
+        return [];
+    }
+
+    private extractReturningColumns(returningClause: ReturningClause | null): string[] {
+        if (!returningClause) {
+            return [];
+        }
+
+        const columns: string[] = [];
+        for (const item of returningClause.items) {
+            const name = item.identifier?.name ?? this.extractColumnName(item);
+            if (name) {
+                columns.push(name);
+            }
+        }
+
+        return columns;
+    }
+
+    private extractColumnName(item: SelectItem): string | null {
+        if (item.identifier) {
+            return item.identifier.name;
+        }
+        if (item.value instanceof ColumnReference) {
+            return item.value.column.name;
+        }
+        return null;
+    }
+
+    private isSelectQuery(query: CTEQuery): query is SelectQuery {
+        return '__selectQueryType' in query && (query as SelectQuery).__selectQueryType === 'SelectQuery';
     }
 }
