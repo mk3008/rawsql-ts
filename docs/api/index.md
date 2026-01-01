@@ -303,6 +303,7 @@ outline: deep
 - [OrderByComponent](type-aliases/OrderByComponent.md)
 - [SourceComponent](type-aliases/SourceComponent.md)
 - [JoinConditionComponent](type-aliases/JoinConditionComponent.md)
+- [CTEQuery](type-aliases/CTEQuery.md)
 - [ReferentialAction](type-aliases/ReferentialAction.md)
 - [ConstraintDeferrability](type-aliases/ConstraintDeferrability.md)
 - [ConstraintInitially](type-aliases/ConstraintInitially.md)

@@ -1,7 +1,7 @@
 <div v-pre>
 # Enumeration: LockMode
 
-Defined in: [packages/core/src/models/Clause.ts:436](https://github.com/mk3008/rawsql-ts/blob/52cdfc64a16473ecb6ab0064c5360071f2d8b841/packages/core/src/models/Clause.ts#L436)
+Defined in: [packages/core/src/models/Clause.ts:444](https://github.com/mk3008/rawsql-ts/blob/5afba95c60fb400d9054799e9d9c76aefae1898d/packages/core/src/models/Clause.ts#L444)
 
 ## Enumeration Members
 
@@ -9,7 +9,7 @@ Defined in: [packages/core/src/models/Clause.ts:436](https://github.com/mk3008/r
 
 > **Update**: `"update"`
 
-Defined in: [packages/core/src/models/Clause.ts:437](https://github.com/mk3008/rawsql-ts/blob/52cdfc64a16473ecb6ab0064c5360071f2d8b841/packages/core/src/models/Clause.ts#L437)
+Defined in: [packages/core/src/models/Clause.ts:445](https://github.com/mk3008/rawsql-ts/blob/5afba95c60fb400d9054799e9d9c76aefae1898d/packages/core/src/models/Clause.ts#L445)
 
 ***
 
@@ -17,7 +17,7 @@ Defined in: [packages/core/src/models/Clause.ts:437](https://github.com/mk3008/r
 
 > **Share**: `"share"`
 
-Defined in: [packages/core/src/models/Clause.ts:438](https://github.com/mk3008/rawsql-ts/blob/52cdfc64a16473ecb6ab0064c5360071f2d8b841/packages/core/src/models/Clause.ts#L438)
+Defined in: [packages/core/src/models/Clause.ts:446](https://github.com/mk3008/rawsql-ts/blob/5afba95c60fb400d9054799e9d9c76aefae1898d/packages/core/src/models/Clause.ts#L446)
 
 ***
 
@@ -25,7 +25,7 @@ Defined in: [packages/core/src/models/Clause.ts:438](https://github.com/mk3008/r
 
 > **KeyShare**: `"key share"`
 
-Defined in: [packages/core/src/models/Clause.ts:439](https://github.com/mk3008/rawsql-ts/blob/52cdfc64a16473ecb6ab0064c5360071f2d8b841/packages/core/src/models/Clause.ts#L439)
+Defined in: [packages/core/src/models/Clause.ts:447](https://github.com/mk3008/rawsql-ts/blob/5afba95c60fb400d9054799e9d9c76aefae1898d/packages/core/src/models/Clause.ts#L447)
 
 ***
 
@@ -33,5 +33,5 @@ Defined in: [packages/core/src/models/Clause.ts:439](https://github.com/mk3008/r
 
 > **NokeyUpdate**: `"no key update"`
 
-Defined in: [packages/core/src/models/Clause.ts:440](https://github.com/mk3008/rawsql-ts/blob/52cdfc64a16473ecb6ab0064c5360071f2d8b841/packages/core/src/models/Clause.ts#L440)
+Defined in: [packages/core/src/models/Clause.ts:448](https://github.com/mk3008/rawsql-ts/blob/5afba95c60fb400d9054799e9d9c76aefae1898d/packages/core/src/models/Clause.ts#L448)
 </div>

@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: CTEOptions
 
-Defined in: [packages/core/src/models/SelectQuery.ts:23](https://github.com/mk3008/rawsql-ts/blob/52cdfc64a16473ecb6ab0064c5360071f2d8b841/packages/core/src/models/SelectQuery.ts#L23)
+Defined in: [packages/core/src/models/SelectQuery.ts:23](https://github.com/mk3008/rawsql-ts/blob/5afba95c60fb400d9054799e9d9c76aefae1898d/packages/core/src/models/SelectQuery.ts#L23)
 
 Options that control how a Common Table Expression is materialized when the query is executed.
 
@@ -21,5 +21,5 @@ Related tests: packages/core/tests/models/SelectQuery.cte-management.test.ts
 
 > `optional` **materialized**: `null` \| `boolean`
 
-Defined in: [packages/core/src/models/SelectQuery.ts:24](https://github.com/mk3008/rawsql-ts/blob/52cdfc64a16473ecb6ab0064c5360071f2d8b841/packages/core/src/models/SelectQuery.ts#L24)
+Defined in: [packages/core/src/models/SelectQuery.ts:24](https://github.com/mk3008/rawsql-ts/blob/5afba95c60fb400d9054799e9d9c76aefae1898d/packages/core/src/models/SelectQuery.ts#L24)
 </div>

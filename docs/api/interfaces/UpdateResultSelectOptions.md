@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: UpdateResultSelectOptions
 
-Defined in: [packages/core/src/transformers/UpdateResultSelectConverter.ts:36](https://github.com/mk3008/rawsql-ts/blob/52cdfc64a16473ecb6ab0064c5360071f2d8b841/packages/core/src/transformers/UpdateResultSelectConverter.ts#L36)
+Defined in: [packages/core/src/transformers/UpdateResultSelectConverter.ts:37](https://github.com/mk3008/rawsql-ts/blob/5afba95c60fb400d9054799e9d9c76aefae1898d/packages/core/src/transformers/UpdateResultSelectConverter.ts#L37)
 
 Options that control how UPDATE-to-SELECT conversion resolves metadata and fixtures.
 
@@ -11,7 +11,7 @@ Options that control how UPDATE-to-SELECT conversion resolves metadata and fixtu
 
 > `optional` **tableDefinitions**: [`TableDefinitionRegistry`](../type-aliases/TableDefinitionRegistry.md)
 
-Defined in: [packages/core/src/transformers/UpdateResultSelectConverter.ts:38](https://github.com/mk3008/rawsql-ts/blob/52cdfc64a16473ecb6ab0064c5360071f2d8b841/packages/core/src/transformers/UpdateResultSelectConverter.ts#L38)
+Defined in: [packages/core/src/transformers/UpdateResultSelectConverter.ts:39](https://github.com/mk3008/rawsql-ts/blob/5afba95c60fb400d9054799e9d9c76aefae1898d/packages/core/src/transformers/UpdateResultSelectConverter.ts#L39)
 
 Optional registry keyed by table name (matching the target table name case).
 
@@ -21,7 +21,7 @@ Optional registry keyed by table name (matching the target table name case).
 
 > `optional` **tableDefinitionResolver**: (`tableName`) => `undefined` \| [`TableDefinitionModel`](TableDefinitionModel.md)
 
-Defined in: [packages/core/src/transformers/UpdateResultSelectConverter.ts:40](https://github.com/mk3008/rawsql-ts/blob/52cdfc64a16473ecb6ab0064c5360071f2d8b841/packages/core/src/transformers/UpdateResultSelectConverter.ts#L40)
+Defined in: [packages/core/src/transformers/UpdateResultSelectConverter.ts:41](https://github.com/mk3008/rawsql-ts/blob/5afba95c60fb400d9054799e9d9c76aefae1898d/packages/core/src/transformers/UpdateResultSelectConverter.ts#L41)
 
 Optional callback that resolves metadata by table name (useful for schemified targets).
 
@@ -41,7 +41,7 @@ Optional callback that resolves metadata by table name (useful for schemified ta
 
 > `optional` **fixtureTables**: [`FixtureTableDefinition`](FixtureTableDefinition.md)[]
 
-Defined in: [packages/core/src/transformers/UpdateResultSelectConverter.ts:42](https://github.com/mk3008/rawsql-ts/blob/52cdfc64a16473ecb6ab0064c5360071f2d8b841/packages/core/src/transformers/UpdateResultSelectConverter.ts#L42)
+Defined in: [packages/core/src/transformers/UpdateResultSelectConverter.ts:43](https://github.com/mk3008/rawsql-ts/blob/5afba95c60fb400d9054799e9d9c76aefae1898d/packages/core/src/transformers/UpdateResultSelectConverter.ts#L43)
 
 Optional fixtures that should shadow real tables inside the generated SELECT.
 
@@ -51,7 +51,7 @@ Optional fixtures that should shadow real tables inside the generated SELECT.
 
 > `optional` **missingFixtureStrategy**: [`MissingFixtureStrategy`](../type-aliases/MissingFixtureStrategy.md)
 
-Defined in: [packages/core/src/transformers/UpdateResultSelectConverter.ts:44](https://github.com/mk3008/rawsql-ts/blob/52cdfc64a16473ecb6ab0064c5360071f2d8b841/packages/core/src/transformers/UpdateResultSelectConverter.ts#L44)
+Defined in: [packages/core/src/transformers/UpdateResultSelectConverter.ts:45](https://github.com/mk3008/rawsql-ts/blob/5afba95c60fb400d9054799e9d9c76aefae1898d/packages/core/src/transformers/UpdateResultSelectConverter.ts#L45)
 
 Strategy for how missing fixtures should be tolerated.
 </div>

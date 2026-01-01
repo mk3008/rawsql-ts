@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: AvailableColumn
 
-Defined in: [packages/core/src/utils/ScopeResolver.ts:45](https://github.com/mk3008/rawsql-ts/blob/52cdfc64a16473ecb6ab0064c5360071f2d8b841/packages/core/src/utils/ScopeResolver.ts#L45)
+Defined in: [packages/core/src/utils/ScopeResolver.ts:46](https://github.com/mk3008/rawsql-ts/blob/5afba95c60fb400d9054799e9d9c76aefae1898d/packages/core/src/utils/ScopeResolver.ts#L46)
 
 Information about columns available for a specific table
 
@@ -11,7 +11,7 @@ Information about columns available for a specific table
 
 > **name**: `string`
 
-Defined in: [packages/core/src/utils/ScopeResolver.ts:47](https://github.com/mk3008/rawsql-ts/blob/52cdfc64a16473ecb6ab0064c5360071f2d8b841/packages/core/src/utils/ScopeResolver.ts#L47)
+Defined in: [packages/core/src/utils/ScopeResolver.ts:48](https://github.com/mk3008/rawsql-ts/blob/5afba95c60fb400d9054799e9d9c76aefae1898d/packages/core/src/utils/ScopeResolver.ts#L48)
 
 Column name
 
@@ -21,7 +21,7 @@ Column name
 
 > **tableName**: `string`
 
-Defined in: [packages/core/src/utils/ScopeResolver.ts:49](https://github.com/mk3008/rawsql-ts/blob/52cdfc64a16473ecb6ab0064c5360071f2d8b841/packages/core/src/utils/ScopeResolver.ts#L49)
+Defined in: [packages/core/src/utils/ScopeResolver.ts:50](https://github.com/mk3008/rawsql-ts/blob/5afba95c60fb400d9054799e9d9c76aefae1898d/packages/core/src/utils/ScopeResolver.ts#L50)
 
 Table name the column belongs to
 
@@ -31,7 +31,7 @@ Table name the column belongs to
 
 > `optional` **tableAlias**: `string`
 
-Defined in: [packages/core/src/utils/ScopeResolver.ts:51](https://github.com/mk3008/rawsql-ts/blob/52cdfc64a16473ecb6ab0064c5360071f2d8b841/packages/core/src/utils/ScopeResolver.ts#L51)
+Defined in: [packages/core/src/utils/ScopeResolver.ts:52](https://github.com/mk3008/rawsql-ts/blob/5afba95c60fb400d9054799e9d9c76aefae1898d/packages/core/src/utils/ScopeResolver.ts#L52)
 
 Table alias (if any)
 
@@ -41,7 +41,7 @@ Table alias (if any)
 
 > `optional` **type**: `string`
 
-Defined in: [packages/core/src/utils/ScopeResolver.ts:53](https://github.com/mk3008/rawsql-ts/blob/52cdfc64a16473ecb6ab0064c5360071f2d8b841/packages/core/src/utils/ScopeResolver.ts#L53)
+Defined in: [packages/core/src/utils/ScopeResolver.ts:54](https://github.com/mk3008/rawsql-ts/blob/5afba95c60fb400d9054799e9d9c76aefae1898d/packages/core/src/utils/ScopeResolver.ts#L54)
 
 Data type (if known)
 
@@ -51,7 +51,7 @@ Data type (if known)
 
 > `optional` **nullable**: `boolean`
 
-Defined in: [packages/core/src/utils/ScopeResolver.ts:55](https://github.com/mk3008/rawsql-ts/blob/52cdfc64a16473ecb6ab0064c5360071f2d8b841/packages/core/src/utils/ScopeResolver.ts#L55)
+Defined in: [packages/core/src/utils/ScopeResolver.ts:56](https://github.com/mk3008/rawsql-ts/blob/5afba95c60fb400d9054799e9d9c76aefae1898d/packages/core/src/utils/ScopeResolver.ts#L56)
 
 Whether column is nullable
 
@@ -61,7 +61,7 @@ Whether column is nullable
 
 > **fullReference**: `string`
 
-Defined in: [packages/core/src/utils/ScopeResolver.ts:57](https://github.com/mk3008/rawsql-ts/blob/52cdfc64a16473ecb6ab0064c5360071f2d8b841/packages/core/src/utils/ScopeResolver.ts#L57)
+Defined in: [packages/core/src/utils/ScopeResolver.ts:58](https://github.com/mk3008/rawsql-ts/blob/5afba95c60fb400d9054799e9d9c76aefae1898d/packages/core/src/utils/ScopeResolver.ts#L58)
 
 Full qualified column reference
 </div>

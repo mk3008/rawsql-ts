@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: DeleteResultSelectConverter
 
-Defined in: [packages/core/src/transformers/DeleteResultSelectConverter.ts:58](https://github.com/mk3008/rawsql-ts/blob/52cdfc64a16473ecb6ab0064c5360071f2d8b841/packages/core/src/transformers/DeleteResultSelectConverter.ts#L58)
+Defined in: [packages/core/src/transformers/DeleteResultSelectConverter.ts:59](https://github.com/mk3008/rawsql-ts/blob/5afba95c60fb400d9054799e9d9c76aefae1898d/packages/core/src/transformers/DeleteResultSelectConverter.ts#L59)
 
 ## Constructors
 
@@ -19,7 +19,7 @@ Defined in: [packages/core/src/transformers/DeleteResultSelectConverter.ts:58](h
 
 > `static` **toSelectQuery**(`deleteQuery`, `options?`): [`SimpleSelectQuery`](SimpleSelectQuery.md)
 
-Defined in: [packages/core/src/transformers/DeleteResultSelectConverter.ts:64](https://github.com/mk3008/rawsql-ts/blob/52cdfc64a16473ecb6ab0064c5360071f2d8b841/packages/core/src/transformers/DeleteResultSelectConverter.ts#L64)
+Defined in: [packages/core/src/transformers/DeleteResultSelectConverter.ts:65](https://github.com/mk3008/rawsql-ts/blob/5afba95c60fb400d9054799e9d9c76aefae1898d/packages/core/src/transformers/DeleteResultSelectConverter.ts#L65)
 
 Converts a DELETE (with optional RETURNING) into a SELECT that mirrors its output rows.
 
