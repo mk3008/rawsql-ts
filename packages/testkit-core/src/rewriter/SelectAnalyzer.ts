@@ -25,10 +25,11 @@ export class SelectAnalyzer {
     };
   }
 
-  private collectTables(root: SelectQuery, cteQueries: SelectQuery[]): Set<string> {
+  private collectTables(root: SelectQuery, cteQueries: SqlComponent[]): Set<string> {
     const tables = new Set<string>();
     this.collectFromComponent(root, tables);
 
+    // CTE bodies can be writable statements, so treat them as generic SQL components.
     for (const query of cteQueries) {
       this.collectFromComponent(query, tables);
     }

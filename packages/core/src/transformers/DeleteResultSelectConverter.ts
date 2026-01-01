@@ -12,6 +12,7 @@ import {
 } from '../models/Clause';
 import { DeleteQuery } from '../models/DeleteQuery';
 import { SimpleSelectQuery, SelectQuery } from '../models/SelectQuery';
+import { SqlComponent } from '../models/SqlComponent';
 import { ColumnReference, FunctionCall, RawString } from '../models/ValueComponent';
 import {
     TableDefinitionModel,
@@ -498,7 +499,7 @@ export class DeleteResultSelectConverter {
         }
     }
 
-    private static collectReferencedTables(query: SelectQuery): Set<string> {
+    private static collectReferencedTables(query: SqlComponent): Set<string> {
         const collector = new TableSourceCollector(false);
         const sources = collector.collect(query);
         const normalized = new Set<string>();

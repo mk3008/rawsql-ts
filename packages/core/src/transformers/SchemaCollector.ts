@@ -1,12 +1,15 @@
 import { SqlComponent, SqlComponentVisitor } from '../models/SqlComponent';
-import { CommonTable, SubQuerySource, TableSource } from '../models/Clause';
+import { CommonTable, CTEQuery, ReturningClause, SelectItem, SubQuerySource, TableSource } from '../models/Clause';
 import { SimpleSelectQuery } from '../models/SimpleSelectQuery';
 import { CTECollector } from './CTECollector';
 import { SelectableColumnCollector, DuplicateDetectionMode } from './SelectableColumnCollector';
 import { ColumnReference, ValueComponent } from '../models/ValueComponent';
-import { BinarySelectQuery } from '../models/SelectQuery';
+import { BinarySelectQuery, SelectQuery } from '../models/SelectQuery';
 import { SourceExpression } from '../models/Clause';
 import { TableColumnResolver } from './TableColumnResolver';
+import { InsertQuery } from '../models/InsertQuery';
+import { UpdateQuery } from '../models/UpdateQuery';
+import { DeleteQuery } from '../models/DeleteQuery';
 
 export class TableSchema {
     public name: string;
@@ -490,8 +493,17 @@ export class SchemaCollector implements SqlComponentVisitor<void> {
             if (cte.query instanceof SimpleSelectQuery && cte.query.selectClause) {
                 return this.extractColumnsFromSelectItems(cte.query.selectClause.items, cte);
             }
-            
-            return this.extractColumnsUsingCollector(cte.query);
+
+            // Writable CTEs expose columns via RETURNING when present.
+            if (cte.query instanceof InsertQuery || cte.query instanceof UpdateQuery || cte.query instanceof DeleteQuery) {
+                return this.extractColumnsFromReturning(cte.query.returningClause);
+            }
+
+            if (this.isSelectQuery(cte.query)) {
+                return this.extractColumnsUsingCollector(cte.query);
+            }
+
+            return [];
         } catch (error) {
             return [];
         }
@@ -583,6 +595,35 @@ export class SchemaCollector implements SqlComponentVisitor<void> {
 
     private removeDuplicates(columns: string[]): string[] {
         return columns.filter((name, index, array) => array.indexOf(name) === index);
+    }
+
+    private extractColumnsFromReturning(clause: ReturningClause | null): string[] {
+        if (!clause) {
+            return [];
+        }
+
+        const columns: string[] = [];
+        for (const item of clause.items) {
+            const name = item.identifier?.name ?? this.extractSelectItemName(item);
+            if (name) {
+                columns.push(name);
+            }
+        }
+        return this.removeDuplicates(columns);
+    }
+
+    private extractSelectItemName(item: SelectItem): string | null {
+        if (item.identifier) {
+            return item.identifier.name;
+        }
+        if (item.value instanceof ColumnReference) {
+            return item.value.column.name;
+        }
+        return null;
+    }
+
+    private isSelectQuery(query: CTEQuery): query is SelectQuery {
+        return '__selectQueryType' in query && (query as SelectQuery).__selectQueryType === 'SelectQuery';
     }
 }
 

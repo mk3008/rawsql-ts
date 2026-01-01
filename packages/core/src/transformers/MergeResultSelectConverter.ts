@@ -2,6 +2,7 @@ import { CommonTable, FromClause, JoinClause, JoinOnClause, SelectClause, Select
 import { MergeQuery, MergeWhenClause, MergeUpdateAction, MergeDeleteAction, MergeInsertAction, MergeDoNothingAction } from '../models/MergeQuery';
 import { BinaryExpression, FunctionCall, InlineQuery, LiteralValue, RawString, UnaryExpression, ValueComponent } from '../models/ValueComponent';
 import { BinarySelectQuery, SimpleSelectQuery, SelectQuery } from '../models/SelectQuery';
+import { SqlComponent } from '../models/SqlComponent';
 import { FixtureCteBuilder, FixtureTableDefinition } from './FixtureCteBuilder';
 import { TableSourceCollector } from './TableSourceCollector';
 import { SelectQueryWithClauseHelper } from '../utils/SelectQueryWithClauseHelper';
@@ -307,7 +308,7 @@ export class MergeResultSelectConverter {
     }
 
     // Use the collector to track every concrete table source referenced by the SELECT.
-    private static collectReferencedTables(query: SelectQuery): Set<string> {
+    private static collectReferencedTables(query: SqlComponent): Set<string> {
         const collector = new TableSourceCollector(false);
         const sources = collector.collect(query);
         const normalized = new Set<string>();

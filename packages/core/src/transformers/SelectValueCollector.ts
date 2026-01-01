@@ -1,5 +1,8 @@
-import { CommonTable, FromClause, JoinClause, ParenSource, SelectClause, SelectItem, SourceExpression, SubQuerySource, TableSource } from "../models/Clause";
+import { CommonTable, CTEQuery, FromClause, JoinClause, ParenSource, ReturningClause, SelectClause, SelectItem, SourceExpression, SubQuerySource, TableSource } from "../models/Clause";
 import { BinarySelectQuery, SimpleSelectQuery, SelectQuery, ValuesQuery } from "../models/SelectQuery";
+import { InsertQuery } from "../models/InsertQuery";
+import { UpdateQuery } from "../models/UpdateQuery";
+import { DeleteQuery } from "../models/DeleteQuery";
 import { SqlComponent, SqlComponentVisitor } from "../models/SqlComponent";
 import { ColumnReference, InlineQuery, LiteralValue, ValueComponent } from "../models/ValueComponent";
 import { CTECollector } from "./CTECollector";
@@ -183,8 +186,7 @@ export class SelectValueCollector implements SqlComponentVisitor<void> {
             // Exclude this CTE from consideration to prevent self-reference
             const innerCommonTables = this.commonTables.filter(item => item.aliasExpression.table.name !== sourceName);
 
-            const innerCollector = new SelectValueCollector(this.tableColumnResolver, innerCommonTables);
-            const innerSelected = innerCollector.collect(commonTable.query);
+            const innerSelected = this.collectValuesFromCteQuery(commonTable.query, innerCommonTables);
             innerSelected.forEach(item => {
                 this.addSelectValueAsUnique(item.name, new ColumnReference(sourceName ? [sourceName] : null, item.name));
             });
@@ -265,5 +267,54 @@ export class SelectValueCollector implements SqlComponentVisitor<void> {
         if (!this.selectValues.some(item => item.name === name)) {
             this.selectValues.push({ name, value });
         }
+    }
+
+    private collectValuesFromCteQuery(query: CTEQuery, commonTables: CommonTable[]): { name: string, value: ValueComponent }[] {
+        if (this.isSelectQuery(query)) {
+            const innerCollector = new SelectValueCollector(this.tableColumnResolver, commonTables);
+            return innerCollector.collect(query);
+        }
+
+        // Writable CTEs expose their output via RETURNING.
+        return this.collectValuesFromReturning(query);
+    }
+
+    private collectValuesFromReturning(query: CTEQuery): { name: string, value: ValueComponent }[] {
+        if (!(query instanceof InsertQuery || query instanceof UpdateQuery || query instanceof DeleteQuery)) {
+            return [];
+        }
+
+        if (!query.returningClause) {
+            return [];
+        }
+
+        return this.extractValuesFromReturningClause(query.returningClause);
+    }
+
+    private extractValuesFromReturningClause(clause: ReturningClause): { name: string, value: ValueComponent }[] {
+        const values: { name: string, value: ValueComponent }[] = [];
+
+        for (const item of clause.items) {
+            const name = item.identifier?.name ?? this.extractSelectItemName(item);
+            if (name) {
+                values.push({ name, value: item.value });
+            }
+        }
+
+        return values;
+    }
+
+    private extractSelectItemName(item: SelectItem): string | null {
+        if (item.identifier) {
+            return item.identifier.name;
+        }
+        if (item.value instanceof ColumnReference) {
+            return item.value.column.name;
+        }
+        return null;
+    }
+
+    private isSelectQuery(query: CTEQuery): query is SelectQuery {
+        return '__selectQueryType' in query && (query as SelectQuery).__selectQueryType === 'SelectQuery';
     }
 }

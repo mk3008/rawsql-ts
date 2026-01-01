@@ -323,9 +323,12 @@ export class CTERenamer {
             return;
         }
 
-        // Traverse each CTE and update table sources in their FROM clauses
+        // Traverse each CTE and update table sources in their FROM clauses     
         for (const cte of query.withClause.tables) {
-            this.updateTableSourcesInQuery(cte.query as SimpleSelectQuery, oldName, newName);
+            // Writable CTEs don't expose FROM/JOIN sources for renaming here.
+            if (cte.query instanceof SimpleSelectQuery) {
+                this.updateTableSourcesInQuery(cte.query, oldName, newName);
+            }
         }
     }
 

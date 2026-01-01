@@ -70,3 +70,39 @@ test('common table with complex query', () => {
     // Assert
     expect(sql).toEqual(`"filtered_data" as (select "p"."id", "p"."name", "c"."name" as "category" from "products" as "p" join "categories" as "c" on "p"."category_id" = "c"."id" where "p"."price" > 100 order by "p"."name" limit 10)`);
 });
+
+test('common table with INSERT ... RETURNING', () => {
+    // Arrange
+    const text = `inserted AS (INSERT INTO users (name) VALUES ('Alice') RETURNING id, name)`;
+
+    // Act
+    const commonTable = CommonTableParser.parse(text);
+    const sql = formatter.format(commonTable);
+
+    // Assert
+    expect(sql).toEqual(`"inserted" as (insert into "users"("name") values ('Alice') returning "id", "name")`);
+});
+
+test('common table with UPDATE ... RETURNING', () => {
+    // Arrange
+    const text = `updated AS (UPDATE users SET name = 'Bob' WHERE id = 1 RETURNING id, name)`;
+
+    // Act
+    const commonTable = CommonTableParser.parse(text);
+    const sql = formatter.format(commonTable);
+
+    // Assert
+    expect(sql).toEqual(`"updated" as (update "users" set "name" = 'Bob' where "id" = 1 returning "id", "name")`);
+});
+
+test('common table with DELETE ... RETURNING', () => {
+    // Arrange
+    const text = `removed AS (DELETE FROM users WHERE id = 1 RETURNING id)`;
+
+    // Act
+    const commonTable = CommonTableParser.parse(text);
+    const sql = formatter.format(commonTable);
+
+    // Assert
+    expect(sql).toEqual(`"removed" as (delete from "users" where "id" = 1 returning "id")`);
+});

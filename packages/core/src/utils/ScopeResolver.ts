@@ -1,10 +1,11 @@
 import { SelectQuery, SimpleSelectQuery, BinarySelectQuery } from '../models/SelectQuery';
-import { FromClause, JoinClause, TableSource, SubQuerySource } from '../models/Clause';
-import { CommonTable } from '../models/Clause';
-import { SqlComponent, SqlComponentVisitor } from '../models/SqlComponent';
+import { CTEQuery, FromClause, JoinClause, SelectItem, SubQuerySource, TableSource } from '../models/Clause';
+import { InsertQuery } from '../models/InsertQuery';
+import { UpdateQuery } from '../models/UpdateQuery';
+import { DeleteQuery } from '../models/DeleteQuery';
 import { CTECollector } from '../transformers/CTECollector';
 import { CursorContextAnalyzer } from './CursorContextAnalyzer';
-import { QualifiedName } from '../models/ValueComponent';
+import { ColumnReference, QualifiedName, ValueComponent } from '../models/ValueComponent';
 import { TextPositionUtils } from './TextPositionUtils';
 
 /**
@@ -34,7 +35,7 @@ export interface AvailableCTE {
     /** Column names if determinable */
     columns?: string[];
     /** The CTE query definition */
-    query: SelectQuery;
+    query: CTEQuery;
     /** Whether the CTE is materialized */
     materialized?: boolean;
 }
@@ -299,40 +300,62 @@ export class ScopeResolver {
         return parts.length > 1 ? parts[parts.length - 2] : undefined;
     }
     
-    private static extractCTEColumns(query: SelectQuery): string[] | undefined {
-        // Try to extract column names from CTE SELECT clause
+    private static extractCTEColumns(query: CTEQuery): string[] | undefined {
         try {
-            if (query instanceof SimpleSelectQuery && query.selectClause) {
-                const columns: string[] = [];
-                
-                for (const item of query.selectClause.items) {
-                    // Use alias if available, otherwise try to extract from expression
-                    if (item.identifier) {
-                        columns.push(item.identifier.name);
-                    } else {
-                        // Try to extract column name from expression
-                        const columnName = this.extractColumnNameFromExpression(item.value);
-                        if (columnName) {
-                            columns.push(columnName);
-                        }
-                    }
+            if (this.isSelectQuery(query)) {
+                if (query instanceof SimpleSelectQuery && query.selectClause) {
+                    return this.extractColumnsFromItems(query.selectClause.items);
                 }
-                
-                return columns;
+                return undefined;
+            }
+
+            // Writable CTEs expose columns through RETURNING when available.
+            if (query instanceof InsertQuery || query instanceof UpdateQuery || query instanceof DeleteQuery) {
+                if (query.returningClause) {
+                    return this.extractColumnsFromItems(query.returningClause.items);
+                }
             }
         } catch (error) {
             // If extraction fails, return undefined
         }
-        
+
         return undefined;
     }
-    
-    private static extractColumnNameFromExpression(expression: any): string | undefined {
-        // Simple extraction - can be enhanced based on ValueComponent types
-        if (expression && typeof expression === 'object' && 'value' in expression) {
-            return expression.value;
+
+    private static extractColumnsFromItems(items: SelectItem[]): string[] | undefined {
+        const columns: string[] = [];
+
+        for (const item of items) {
+            // Use alias if available, otherwise try to extract from expression
+            if (item.identifier) {
+                columns.push(item.identifier.name);
+                continue;
+            }
+
+            const columnName = this.extractColumnNameFromExpression(item.value);
+            if (columnName) {
+                columns.push(columnName);
+            }
         }
+
+        return columns.length > 0 ? columns : undefined;
+    }
+
+    private static extractColumnNameFromExpression(expression: ValueComponent): string | undefined {
+        if (expression instanceof ColumnReference) {
+            return expression.column.name;
+        }
+
+        // Fallback for simple literal wrappers
+        if (expression && typeof expression === 'object' && 'value' in expression) {
+            return (expression as { value?: string }).value;
+        }
+
         return undefined;
+    }
+
+    private static isSelectQuery(query: CTEQuery): query is SelectQuery {
+        return '__selectQueryType' in query && (query as SelectQuery).__selectQueryType === 'SelectQuery';
     }
     
     private static collectVisibleColumns(tables: AvailableTable[], ctes: AvailableCTE[]): AvailableColumn[] {

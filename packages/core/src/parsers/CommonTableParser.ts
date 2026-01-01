@@ -1,8 +1,17 @@
-import { CommonTable } from "../models/Clause";
+import { CommonTable, CTEQuery } from "../models/Clause";
 import { Lexeme, TokenType } from "../models/Lexeme";
 import { SqlTokenizer } from "./SqlTokenizer";
 import { SelectQueryParser } from "./SelectQueryParser";
 import { SourceAliasExpressionParser } from "./SourceAliasExpressionParser";
+import { InsertQueryParser } from "./InsertQueryParser";
+import { UpdateQueryParser } from "./UpdateQueryParser";
+import { DeleteQueryParser } from "./DeleteQueryParser";
+import { InsertQuery } from "../models/InsertQuery";
+import { UpdateQuery } from "../models/UpdateQuery";
+import { DeleteQuery } from "../models/DeleteQuery";
+import { SelectQuery } from "../models/SelectQuery";
+import { SelectQueryWithClauseHelper } from "../utils/SelectQueryWithClauseHelper";
+import { WithClauseParser } from "./WithClauseParser";
 
 export class CommonTableParser {
     // Parse SQL string to AST (was: parse)
@@ -39,12 +48,12 @@ export class CommonTableParser {
         const { materialized, newIndex: materializedIndex } = this.parseMaterializedFlag(lexemes, idx);
         idx = materializedIndex;
 
-        // 5. Parse inner SELECT query with parentheses
-        const { selectQuery, trailingComments, newIndex: selectIndex } = this.parseInnerSelectQuery(lexemes, idx);
-        idx = selectIndex;
+        // 5. Parse inner CTE query with parentheses
+        const { query, trailingComments, newIndex: queryIndex } = this.parseInnerQuery(lexemes, idx);
+        idx = queryIndex;
 
         // 6. Create CommonTable instance
-        const value = new CommonTable(selectQuery, aliasResult.value, materialized);
+        const value = new CommonTable(query, aliasResult.value, materialized);
 
         return {
             value,
@@ -146,7 +155,7 @@ export class CommonTableParser {
     }
 
     // Parse inner SELECT query with parentheses
-    private static parseInnerSelectQuery(lexemes: Lexeme[], index: number): { selectQuery: any; trailingComments: string[] | null; newIndex: number } {
+    private static parseInnerQuery(lexemes: Lexeme[], index: number): { query: CTEQuery; trailingComments: string[] | null; newIndex: number } {
         let idx = index;
 
         if (idx < lexemes.length && lexemes[idx].type !== TokenType.OpenParen) {
@@ -157,17 +166,11 @@ export class CommonTableParser {
         const cteQueryHeaderComments = this.extractComments(lexemes[idx]);
         idx++; // Skip opening parenthesis
 
-        const queryResult = SelectQueryParser.parseFromLexeme(lexemes, idx);
+        const queryResult = this.parseCteQuery(lexemes, idx);
         idx = queryResult.newIndex;
 
-        // Add comments from the opening parenthesis as header comments for the inner query
-        if (cteQueryHeaderComments.length > 0) {
-            if (queryResult.value.headerComments) {
-                queryResult.value.headerComments = [...cteQueryHeaderComments, ...queryResult.value.headerComments];
-            } else {
-                queryResult.value.headerComments = cteQueryHeaderComments;
-            }
-        }
+        // Attach comments from the opening parenthesis to the start of the inner query.
+        this.applyCteHeaderComments(queryResult.value, cteQueryHeaderComments);
 
         if (idx < lexemes.length && lexemes[idx].type !== TokenType.CloseParen) {
             throw new Error(`Syntax error at position ${idx}: Expected ')' after CTE query but found "${lexemes[idx].value}".`);
@@ -178,10 +181,93 @@ export class CommonTableParser {
         idx++; // Skip closing parenthesis
 
         return {
-            selectQuery: queryResult.value,
+            query: queryResult.value,
             trailingComments: closingParenComments.length > 0 ? closingParenComments : null,
             newIndex: idx
         };
+    }
+
+    private static parseCteQuery(lexemes: Lexeme[], index: number): { value: CTEQuery; newIndex: number } {
+        if (index >= lexemes.length) {
+            throw new Error(`Syntax error at position ${index}: Expected CTE query but found end of input.`);
+        }
+
+        const firstToken = lexemes[index].value.toLowerCase();
+
+        switch (firstToken) {
+            case "select":
+            case "values":
+                return SelectQueryParser.parseFromLexeme(lexemes, index);
+            case "insert into":
+                return InsertQueryParser.parseFromLexeme(lexemes, index);
+            case "update":
+                return UpdateQueryParser.parseFromLexeme(lexemes, index);
+            case "delete from":
+                return DeleteQueryParser.parseFromLexeme(lexemes, index);
+            case "with": {
+                // Determine statement type after WITH to route to the correct parser.
+                const commandAfterWith = this.getCommandAfterWith(lexemes, index);
+                switch (commandAfterWith) {
+                    case "insert into":
+                        return InsertQueryParser.parseFromLexeme(lexemes, index);
+                    case "update":
+                        return UpdateQueryParser.parseFromLexeme(lexemes, index);
+                    case "delete from":
+                        return DeleteQueryParser.parseFromLexeme(lexemes, index);
+                    default:
+                        return SelectQueryParser.parseFromLexeme(lexemes, index);
+                }
+            }
+            default:
+                throw new Error(`Syntax error at position ${index}: Expected SELECT, INSERT, UPDATE, DELETE, or WITH in CTE query but found "${lexemes[index].value}".`);
+        }
+    }
+
+    private static applyCteHeaderComments(query: CTEQuery, headerComments: string[]): void {
+        if (headerComments.length === 0) {
+            return;
+        }
+
+        if (this.isSelectQuery(query)) {
+            if (query.headerComments) {
+                query.headerComments = [...headerComments, ...query.headerComments];
+            } else {
+                query.headerComments = headerComments;
+            }
+            return;
+        }
+
+        if (query instanceof InsertQuery) {
+            const withClause = SelectQueryWithClauseHelper.getWithClause(query.selectQuery);
+            const target = withClause ?? query.insertClause;
+            target.addPositionedComments("before", headerComments);
+            return;
+        }
+
+        if (query instanceof UpdateQuery) {
+            const target = query.withClause ?? query.updateClause;
+            target.addPositionedComments("before", headerComments);
+            return;
+        }
+
+        if (query instanceof DeleteQuery) {
+            const target = query.withClause ?? query.deleteClause;
+            target.addPositionedComments("before", headerComments);
+        }
+    }
+
+    private static isSelectQuery(query: CTEQuery): query is SelectQuery {
+        return "__selectQueryType" in query && (query as SelectQuery).__selectQueryType === "SelectQuery";
+    }
+
+    private static getCommandAfterWith(lexemes: Lexeme[], index: number): string | null {
+        try {
+            const withResult = WithClauseParser.parseFromLexeme(lexemes, index);
+            const next = lexemes[withResult.newIndex];
+            return next?.value.toLowerCase() ?? null;
+        } catch {
+            return null;
+        }
     }
 
     // Extract comments from a lexeme (both positioned and legacy)

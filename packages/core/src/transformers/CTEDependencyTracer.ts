@@ -1,5 +1,9 @@
 import { SelectQuery, SimpleSelectQuery, BinarySelectQuery } from "../models/SelectQuery";
-import { CommonTable } from "../models/Clause";
+import { CommonTable, CTEQuery, ReturningClause, SelectItem } from "../models/Clause";
+import { InsertQuery } from "../models/InsertQuery";
+import { UpdateQuery } from "../models/UpdateQuery";
+import { DeleteQuery } from "../models/DeleteQuery";
+import { ColumnReference } from "../models/ValueComponent";
 import { CTECollector } from "./CTECollector";
 import { SelectableColumnCollector } from "./SelectableColumnCollector";
 import { TableSourceCollector } from "./TableSourceCollector";
@@ -12,7 +16,7 @@ export interface CTENode {
     columns: string[];
     dependencies: string[];
     dependents: string[];
-    query: SelectQuery;
+    query: CTEQuery;
     level: number; // Depth in dependency tree
 }
 
@@ -52,8 +56,12 @@ export class CTEDependencyTracer {
             let columns: string[] = [];
 
             try {
-                const columnRefs = this.columnCollector.collect(cte.query);
-                columns = columnRefs.map(col => col.name);
+                if (this.isSelectQuery(cte.query)) {
+                    const columnRefs = this.columnCollector.collect(cte.query);
+                    columns = columnRefs.map(col => col.name);
+                } else {
+                    columns = this.extractReturningColumns(cte.query);
+                }
             } catch (error) {
                 if (!this.silent) {
                     console.warn(`Failed to collect columns for CTE ${cteName}: ${error instanceof Error ? error.message : String(error)}`);
@@ -240,7 +248,7 @@ export class CTEDependencyTracer {
      * Find CTEs that are actually referenced in the given query.
      * Uses TableSourceCollector to properly identify table references from the AST.
      */
-    private findReferencedCTEs(query: SelectQuery, allCTEs: Map<string, CTENode>): string[] {
+    private findReferencedCTEs(query: CTEQuery, allCTEs: Map<string, CTENode>): string[] {
         // Use TableSourceCollector to get all table references from the query
         const tableCollector = new TableSourceCollector();
         const tableSources = tableCollector.collect(query);
@@ -258,6 +266,43 @@ export class CTEDependencyTracer {
         }
 
         return referenced;
+    }
+
+    private extractReturningColumns(query: CTEQuery): string[] {
+        // Writable CTEs expose columns via RETURNING, if present.
+        if (query instanceof InsertQuery || query instanceof UpdateQuery || query instanceof DeleteQuery) {
+            return this.extractColumnsFromItems(query.returningClause);
+        }
+        return [];
+    }
+
+    private extractColumnsFromItems(returningClause: ReturningClause | null): string[] {
+        if (!returningClause) {
+            return [];
+        }
+
+        const columns: string[] = [];
+        for (const item of returningClause.items) {
+            const name = item.identifier?.name ?? this.extractColumnName(item);
+            if (name) {
+                columns.push(name);
+            }
+        }
+        return columns;
+    }
+
+    private extractColumnName(item: SelectItem): string | null {
+        if (item.identifier) {
+            return item.identifier.name;
+        }
+        if (item.value instanceof ColumnReference) {
+            return item.value.column.name;
+        }
+        return null;
+    }
+
+    private isSelectQuery(query: CTEQuery): query is SelectQuery {
+        return '__selectQueryType' in query && (query as SelectQuery).__selectQueryType === 'SelectQuery';
     }
 
     private calculateLevels(nodes: Map<string, CTENode>): void {

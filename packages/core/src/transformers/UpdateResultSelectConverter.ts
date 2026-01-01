@@ -13,6 +13,7 @@ import {
 } from '../models/Clause';
 import { UpdateQuery } from '../models/UpdateQuery';
 import { SimpleSelectQuery, SelectQuery } from '../models/SelectQuery';
+import { SqlComponent } from '../models/SqlComponent';
 import {
     ColumnReference,
     FunctionCall,
@@ -445,7 +446,7 @@ export class UpdateResultSelectConverter {
         }
     }
 
-    private static collectReferencedTables(query: SelectQuery): Set<string> {
+    private static collectReferencedTables(query: SqlComponent): Set<string> {   
         // Use the collector to track every TableSource referenced by the SELECT.
         const collector = new TableSourceCollector(false);
         const sources = collector.collect(query);
