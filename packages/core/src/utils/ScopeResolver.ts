@@ -34,7 +34,7 @@ export interface AvailableCTE {
     name: string;
     /** Column names if determinable */
     columns?: string[];
-    /** The CTE query definition */
+    /** The CTE query definition (SELECT or writable DML with RETURNING) */
     query: CTEQuery;
     /** Whether the CTE is materialized */
     materialized?: boolean;
