@@ -3,7 +3,7 @@
 
 > **getCompletionSuggestions**(`sql`, `cursorPosition`): `object`[]
 
-Defined in: [packages/core/src/utils/IntelliSenseApi.ts:180](https://github.com/mk3008/rawsql-ts/blob/3694f22c4fff67ce981d69b1be52d0a4e9e2f730/packages/core/src/utils/IntelliSenseApi.ts#L180)
+Defined in: [packages/core/src/utils/IntelliSenseApi.ts:180](https://github.com/mk3008/rawsql-ts/blob/52cdfc64a16473ecb6ab0064c5360071f2d8b841/packages/core/src/utils/IntelliSenseApi.ts#L180)
 
 Get completion suggestions based on cursor context and scope
 
