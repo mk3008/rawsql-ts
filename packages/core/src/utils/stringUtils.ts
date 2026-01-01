@@ -220,9 +220,11 @@ export class StringUtils {
 
     public static tryReadRegularIdentifier(input: string, position: number): { identifier: string, newPosition: number } | null {
         const start = position;
+        const length = input.length;
 
-        while (position < input.length) {
-            if (CharLookupTable.isDelimiter(input[position])) {
+        // Scan the identifier using char codes to avoid per-character string allocations.
+        while (position < length) {
+            if (CharLookupTable.isDelimiterCode(input.charCodeAt(position))) {
                 break;
             }
             position++;
