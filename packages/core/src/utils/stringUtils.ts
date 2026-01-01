@@ -40,7 +40,11 @@ export class StringUtils {
          * Benchmark results show that this optimization does not slow down short queries,
          * and can make long/indented queries more stable and slightly faster.
          */
-        while (position + 4 <= length && input.slice(position, position + 4) === '    ') {
+        while (position + 4 <= length &&
+               input.charCodeAt(position) === 32 &&
+               input.charCodeAt(position + 1) === 32 &&
+               input.charCodeAt(position + 2) === 32 &&
+               input.charCodeAt(position + 3) === 32) {
             position += 4;
         }
 
@@ -216,9 +220,11 @@ export class StringUtils {
 
     public static tryReadRegularIdentifier(input: string, position: number): { identifier: string, newPosition: number } | null {
         const start = position;
+        const length = input.length;
 
-        while (position < input.length) {
-            if (CharLookupTable.isDelimiter(input[position])) {
+        // Scan the identifier using char codes to avoid per-character string allocations.
+        while (position < length) {
+            if (CharLookupTable.isDelimiterCode(input.charCodeAt(position))) {
                 break;
             }
             position++;

@@ -42,6 +42,15 @@ export class CharLookupTable {
         if (char.length !== 1) return false;
         const code = char.charCodeAt(0);
 
+        return this.isDelimiterCode(code);
+    }
+
+    /**
+     * Check if a character code represents a SQL delimiter or operator token boundary.
+     * @param code - Character code to classify.
+     * @returns True when the character code should terminate identifiers.
+     */
+    public static isDelimiterCode(code: number): boolean {
         // First check delimiters: '.'=46, ','=44, '('=40, ')'=41, '['=91, ']'=93, '{'=123, '}'=125, ';'=59
         if (code === 46 || code === 44 || code === 40 || code === 41 ||
             code === 91 || code === 93 || code === 123 || code === 125 || code === 59) {
@@ -54,7 +63,7 @@ export class CharLookupTable {
         }
 
         // Finally check for operator symbols
-        // '+'=43, '-'=45, '*'=42, '/'=47, '%'=37, '~'=126, '@'=64, '#'=35, '^'=94, 
+        // '+'=43, '-'=45, '*'=42, '/'=47, '%'=37, '~'=126, '@'=64, '#'=35, '^'=94,
         // '&'=38, ':'=58, '!'=33, '<'=60, '>'=62, '='=61, '|'=124, '?'=63
         return code === 43 || code === 45 || code === 42 || code === 47 ||
             code === 37 || code === 126 || code === 64 || code === 35 ||
