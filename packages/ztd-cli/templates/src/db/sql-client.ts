@@ -11,6 +11,10 @@ export type SqlQueryRows<T> = Promise<T[]>;
  *
  * - Production: adapt `pg` (or other drivers) to normalize results into `T[]`
  * - Tests: compatible with `pg-testkit` clients returned by `createTestkitClient()`
+ *
+ * Connection strategy note:
+ * - Prefer a shared client per worker process for performance.
+ * - Do not share a live client across parallel workers.
  */
 export type SqlClient = {
   query<T extends Record<string, unknown> = Record<string, unknown>>(

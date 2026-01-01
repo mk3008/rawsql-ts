@@ -41,6 +41,22 @@ It defines a minimal `SqlClient` interface that repositories can depend on:
 - Use it for tutorials and greenfield projects to keep repository SQL decoupled from drivers.
 - Skip it when you already have a database abstraction (Prisma, Drizzle, Kysely, custom adapters).
 - For `pg`, adapt `client.query(...)` so it returns a plain `T[]` row array that matches the interface.
+- Prefer a shared client per worker process so tests and scripts do not reconnect on every query.
+- Do not share a live connection across parallel workers; each worker should own its own shared client.
+
+Example (driver-agnostic):
+
+```ts
+let sharedClient: SqlClient | undefined;
+
+export function getSqlClient(): SqlClient {
+  if (!sharedClient) {
+    // Create the client once using your chosen driver (pg, mysql, etc.).
+    sharedClient = createSqlClientOnce();
+  }
+  return sharedClient;
+}
+```
 
 ---
 
