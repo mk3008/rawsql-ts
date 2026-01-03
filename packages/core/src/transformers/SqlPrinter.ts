@@ -184,6 +184,7 @@ export class SqlPrinter {
         this.indentIncrementContainers = new Set(
             options?.indentIncrementContainerTypes ?? [
                 SqlPrintTokenContainerType.SelectClause,
+                SqlPrintTokenContainerType.ReturningClause,
                 SqlPrintTokenContainerType.FromClause,
                 SqlPrintTokenContainerType.WhereClause,
                 SqlPrintTokenContainerType.GroupByClause,
@@ -1512,6 +1513,9 @@ export class SqlPrinter {
             // Ensure EXPLAIN targets print header comments on a dedicated line.
             return true;
         }
+        if (parentType === SqlPrintTokenContainerType.ReturningClause) {
+            return true;
+        }
         return false;
     }
 
@@ -1522,7 +1526,8 @@ export class SqlPrinter {
         if (
             parentType === SqlPrintTokenContainerType.InsertClause ||
             parentType === SqlPrintTokenContainerType.MergeInsertAction ||
-            parentType === SqlPrintTokenContainerType.SelectClause
+            parentType === SqlPrintTokenContainerType.SelectClause ||
+            parentType === SqlPrintTokenContainerType.ReturningClause
         ) {
             return currentLevel + 1;
         }
@@ -1539,8 +1544,6 @@ export class SqlPrinter {
     private isOnelineMode(): boolean {
         return this.newline === ' ';
     }
-
-
 
     /**
      * Handles CTE tokens with one-liner formatting.
@@ -1626,7 +1629,8 @@ export class SqlPrinter {
         }
         if (
             parentType === SqlPrintTokenContainerType.InsertClause ||
-            parentType === SqlPrintTokenContainerType.MergeInsertAction
+            parentType === SqlPrintTokenContainerType.MergeInsertAction ||
+            parentType === SqlPrintTokenContainerType.ReturningClause
         ) {
             return !this.isInsertClauseOneline(parentType);
         }
