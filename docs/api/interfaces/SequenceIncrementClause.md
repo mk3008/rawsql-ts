@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: SequenceIncrementClause
 
-Defined in: [packages/core/src/models/DDLStatements.ts:400](https://github.com/mk3008/rawsql-ts/blob/5afba95c60fb400d9054799e9d9c76aefae1898d/packages/core/src/models/DDLStatements.ts#L400)
+Defined in: [packages/core/src/models/DDLStatements.ts:400](https://github.com/mk3008/rawsql-ts/blob/9d78b38bce5ba5c7fb3babe52a60d8f5587a75bf/packages/core/src/models/DDLStatements.ts#L400)
 
 Sequence option clauses are collected in order and emitted as the user wrote them.
 Each clause is specialized by its discriminating `kind`.
@@ -12,7 +12,7 @@ Each clause is specialized by its discriminating `kind`.
 
 > **kind**: `"increment"`
 
-Defined in: [packages/core/src/models/DDLStatements.ts:401](https://github.com/mk3008/rawsql-ts/blob/5afba95c60fb400d9054799e9d9c76aefae1898d/packages/core/src/models/DDLStatements.ts#L401)
+Defined in: [packages/core/src/models/DDLStatements.ts:401](https://github.com/mk3008/rawsql-ts/blob/9d78b38bce5ba5c7fb3babe52a60d8f5587a75bf/packages/core/src/models/DDLStatements.ts#L401)
 
 ***
 
@@ -20,5 +20,5 @@ Defined in: [packages/core/src/models/DDLStatements.ts:401](https://github.com/m
 
 > **value**: [`ValueComponent`](../type-aliases/ValueComponent.md)
 
-Defined in: [packages/core/src/models/DDLStatements.ts:402](https://github.com/mk3008/rawsql-ts/blob/5afba95c60fb400d9054799e9d9c76aefae1898d/packages/core/src/models/DDLStatements.ts#L402)
+Defined in: [packages/core/src/models/DDLStatements.ts:402](https://github.com/mk3008/rawsql-ts/blob/9d78b38bce5ba5c7fb3babe52a60d8f5587a75bf/packages/core/src/models/DDLStatements.ts#L402)
 </div>
