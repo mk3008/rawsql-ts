@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: ValidationResult
 
-Defined in: [packages/core/src/utils/JsonSchemaValidator.ts:27](https://github.com/mk3008/rawsql-ts/blob/5afba95c60fb400d9054799e9d9c76aefae1898d/packages/core/src/utils/JsonSchemaValidator.ts#L27)
+Defined in: [packages/core/src/utils/JsonSchemaValidator.ts:27](https://github.com/mk3008/rawsql-ts/blob/9d78b38bce5ba5c7fb3babe52a60d8f5587a75bf/packages/core/src/utils/JsonSchemaValidator.ts#L27)
 
 Result of JsonMapping validation
 
@@ -11,7 +11,7 @@ Result of JsonMapping validation
 
 > **isValid**: `boolean`
 
-Defined in: [packages/core/src/utils/JsonSchemaValidator.ts:28](https://github.com/mk3008/rawsql-ts/blob/5afba95c60fb400d9054799e9d9c76aefae1898d/packages/core/src/utils/JsonSchemaValidator.ts#L28)
+Defined in: [packages/core/src/utils/JsonSchemaValidator.ts:28](https://github.com/mk3008/rawsql-ts/blob/9d78b38bce5ba5c7fb3babe52a60d8f5587a75bf/packages/core/src/utils/JsonSchemaValidator.ts#L28)
 
 ***
 
@@ -19,7 +19,7 @@ Defined in: [packages/core/src/utils/JsonSchemaValidator.ts:28](https://github.c
 
 > **errors**: `string`[]
 
-Defined in: [packages/core/src/utils/JsonSchemaValidator.ts:29](https://github.com/mk3008/rawsql-ts/blob/5afba95c60fb400d9054799e9d9c76aefae1898d/packages/core/src/utils/JsonSchemaValidator.ts#L29)
+Defined in: [packages/core/src/utils/JsonSchemaValidator.ts:29](https://github.com/mk3008/rawsql-ts/blob/9d78b38bce5ba5c7fb3babe52a60d8f5587a75bf/packages/core/src/utils/JsonSchemaValidator.ts#L29)
 
 ***
 
@@ -27,7 +27,7 @@ Defined in: [packages/core/src/utils/JsonSchemaValidator.ts:29](https://github.c
 
 > **missingProperties**: `string`[]
 
-Defined in: [packages/core/src/utils/JsonSchemaValidator.ts:30](https://github.com/mk3008/rawsql-ts/blob/5afba95c60fb400d9054799e9d9c76aefae1898d/packages/core/src/utils/JsonSchemaValidator.ts#L30)
+Defined in: [packages/core/src/utils/JsonSchemaValidator.ts:30](https://github.com/mk3008/rawsql-ts/blob/9d78b38bce5ba5c7fb3babe52a60d8f5587a75bf/packages/core/src/utils/JsonSchemaValidator.ts#L30)
 
 ***
 
@@ -35,5 +35,5 @@ Defined in: [packages/core/src/utils/JsonSchemaValidator.ts:30](https://github.c
 
 > **extraProperties**: `string`[]
 
-Defined in: [packages/core/src/utils/JsonSchemaValidator.ts:31](https://github.com/mk3008/rawsql-ts/blob/5afba95c60fb400d9054799e9d9c76aefae1898d/packages/core/src/utils/JsonSchemaValidator.ts#L31)
+Defined in: [packages/core/src/utils/JsonSchemaValidator.ts:31](https://github.com/mk3008/rawsql-ts/blob/9d78b38bce5ba5c7fb3babe52a60d8f5587a75bf/packages/core/src/utils/JsonSchemaValidator.ts#L31)
 </div>

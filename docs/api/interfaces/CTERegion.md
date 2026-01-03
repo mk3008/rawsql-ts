@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: CTERegion
 
-Defined in: [packages/core/src/utils/CTERegionDetector.ts:18](https://github.com/mk3008/rawsql-ts/blob/5afba95c60fb400d9054799e9d9c76aefae1898d/packages/core/src/utils/CTERegionDetector.ts#L18)
+Defined in: [packages/core/src/utils/CTERegionDetector.ts:18](https://github.com/mk3008/rawsql-ts/blob/9d78b38bce5ba5c7fb3babe52a60d8f5587a75bf/packages/core/src/utils/CTERegionDetector.ts#L18)
 
 Information about a CTE (Common Table Expression) region in SQL text.
 Provides boundaries and content for SQL editor integration.
@@ -23,7 +23,7 @@ const region: CTERegion = {
 
 > **name**: `string`
 
-Defined in: [packages/core/src/utils/CTERegionDetector.ts:20](https://github.com/mk3008/rawsql-ts/blob/5afba95c60fb400d9054799e9d9c76aefae1898d/packages/core/src/utils/CTERegionDetector.ts#L20)
+Defined in: [packages/core/src/utils/CTERegionDetector.ts:20](https://github.com/mk3008/rawsql-ts/blob/9d78b38bce5ba5c7fb3babe52a60d8f5587a75bf/packages/core/src/utils/CTERegionDetector.ts#L20)
 
 The name of the CTE (e.g., 'monthly_sales')
 
@@ -33,7 +33,7 @@ The name of the CTE (e.g., 'monthly_sales')
 
 > **startPosition**: `number`
 
-Defined in: [packages/core/src/utils/CTERegionDetector.ts:22](https://github.com/mk3008/rawsql-ts/blob/5afba95c60fb400d9054799e9d9c76aefae1898d/packages/core/src/utils/CTERegionDetector.ts#L22)
+Defined in: [packages/core/src/utils/CTERegionDetector.ts:22](https://github.com/mk3008/rawsql-ts/blob/9d78b38bce5ba5c7fb3babe52a60d8f5587a75bf/packages/core/src/utils/CTERegionDetector.ts#L22)
 
 Starting character position in the original SQL text (0-based)
 
@@ -43,7 +43,7 @@ Starting character position in the original SQL text (0-based)
 
 > **endPosition**: `number`
 
-Defined in: [packages/core/src/utils/CTERegionDetector.ts:24](https://github.com/mk3008/rawsql-ts/blob/5afba95c60fb400d9054799e9d9c76aefae1898d/packages/core/src/utils/CTERegionDetector.ts#L24)
+Defined in: [packages/core/src/utils/CTERegionDetector.ts:24](https://github.com/mk3008/rawsql-ts/blob/9d78b38bce5ba5c7fb3babe52a60d8f5587a75bf/packages/core/src/utils/CTERegionDetector.ts#L24)
 
 Ending character position in the original SQL text (0-based)
 
@@ -53,7 +53,7 @@ Ending character position in the original SQL text (0-based)
 
 > **sqlContent**: `string`
 
-Defined in: [packages/core/src/utils/CTERegionDetector.ts:26](https://github.com/mk3008/rawsql-ts/blob/5afba95c60fb400d9054799e9d9c76aefae1898d/packages/core/src/utils/CTERegionDetector.ts#L26)
+Defined in: [packages/core/src/utils/CTERegionDetector.ts:26](https://github.com/mk3008/rawsql-ts/blob/9d78b38bce5ba5c7fb3babe52a60d8f5587a75bf/packages/core/src/utils/CTERegionDetector.ts#L26)
 
 The executable SQL content of the CTE (SELECT statement without CTE wrapper)
 </div>

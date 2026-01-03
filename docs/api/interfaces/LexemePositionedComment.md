@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: LexemePositionedComment
 
-Defined in: [packages/core/src/models/Lexeme.ts:34](https://github.com/mk3008/rawsql-ts/blob/5afba95c60fb400d9054799e9d9c76aefae1898d/packages/core/src/models/Lexeme.ts#L34)
+Defined in: [packages/core/src/models/Lexeme.ts:34](https://github.com/mk3008/rawsql-ts/blob/9d78b38bce5ba5c7fb3babe52a60d8f5587a75bf/packages/core/src/models/Lexeme.ts#L34)
 
 Positioned comment information for lexemes
 
@@ -11,7 +11,7 @@ Positioned comment information for lexemes
 
 > **position**: `"before"` \| `"after"`
 
-Defined in: [packages/core/src/models/Lexeme.ts:35](https://github.com/mk3008/rawsql-ts/blob/5afba95c60fb400d9054799e9d9c76aefae1898d/packages/core/src/models/Lexeme.ts#L35)
+Defined in: [packages/core/src/models/Lexeme.ts:35](https://github.com/mk3008/rawsql-ts/blob/9d78b38bce5ba5c7fb3babe52a60d8f5587a75bf/packages/core/src/models/Lexeme.ts#L35)
 
 ***
 
@@ -19,5 +19,5 @@ Defined in: [packages/core/src/models/Lexeme.ts:35](https://github.com/mk3008/ra
 
 > **comments**: `string`[]
 
-Defined in: [packages/core/src/models/Lexeme.ts:36](https://github.com/mk3008/rawsql-ts/blob/5afba95c60fb400d9054799e9d9c76aefae1898d/packages/core/src/models/Lexeme.ts#L36)
+Defined in: [packages/core/src/models/Lexeme.ts:36](https://github.com/mk3008/rawsql-ts/blob/9d78b38bce5ba5c7fb3babe52a60d8f5587a75bf/packages/core/src/models/Lexeme.ts#L36)
 </div>
