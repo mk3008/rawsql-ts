@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: SelectableColumnCollector
 
-Defined in: [packages/core/src/transformers/SelectableColumnCollector.ts:76](https://github.com/mk3008/rawsql-ts/blob/9d78b38bce5ba5c7fb3babe52a60d8f5587a75bf/packages/core/src/transformers/SelectableColumnCollector.ts#L76)
+Defined in: [packages/core/src/transformers/SelectableColumnCollector.ts:76](https://github.com/mk3008/rawsql-ts/blob/1af371e77f92414f10e9ef00ffbf5a544037fea3/packages/core/src/transformers/SelectableColumnCollector.ts#L76)
 
 A visitor that collects all ColumnReference instances from SQL query structures.
 This visitor scans through all clauses and collects all unique ColumnReference objects.
@@ -62,7 +62,7 @@ Related tests: packages/core/tests/transformers/SelectableColumnCollector.test.t
 
 > **new SelectableColumnCollector**(`tableColumnResolver?`, `includeWildCard?`, `duplicateDetection?`, `options?`): `SelectableColumnCollector`
 
-Defined in: [packages/core/src/transformers/SelectableColumnCollector.ts:99](https://github.com/mk3008/rawsql-ts/blob/9d78b38bce5ba5c7fb3babe52a60d8f5587a75bf/packages/core/src/transformers/SelectableColumnCollector.ts#L99)
+Defined in: [packages/core/src/transformers/SelectableColumnCollector.ts:99](https://github.com/mk3008/rawsql-ts/blob/1af371e77f92414f10e9ef00ffbf5a544037fea3/packages/core/src/transformers/SelectableColumnCollector.ts#L99)
 
 Creates a new instance of SelectableColumnCollector.
 
@@ -112,7 +112,7 @@ If true, collect all columns available from upstream sources for maximum search 
 
 > **getValues**(): `object`[]
 
-Defined in: [packages/core/src/transformers/SelectableColumnCollector.ts:185](https://github.com/mk3008/rawsql-ts/blob/9d78b38bce5ba5c7fb3babe52a60d8f5587a75bf/packages/core/src/transformers/SelectableColumnCollector.ts#L185)
+Defined in: [packages/core/src/transformers/SelectableColumnCollector.ts:185](https://github.com/mk3008/rawsql-ts/blob/1af371e77f92414f10e9ef00ffbf5a544037fea3/packages/core/src/transformers/SelectableColumnCollector.ts#L185)
 
 #### Returns
 
@@ -124,7 +124,7 @@ Defined in: [packages/core/src/transformers/SelectableColumnCollector.ts:185](ht
 
 > **collect**(`arg`): `object`[]
 
-Defined in: [packages/core/src/transformers/SelectableColumnCollector.ts:189](https://github.com/mk3008/rawsql-ts/blob/9d78b38bce5ba5c7fb3babe52a60d8f5587a75bf/packages/core/src/transformers/SelectableColumnCollector.ts#L189)
+Defined in: [packages/core/src/transformers/SelectableColumnCollector.ts:189](https://github.com/mk3008/rawsql-ts/blob/1af371e77f92414f10e9ef00ffbf5a544037fea3/packages/core/src/transformers/SelectableColumnCollector.ts#L189)
 
 #### Parameters
 
@@ -142,7 +142,7 @@ Defined in: [packages/core/src/transformers/SelectableColumnCollector.ts:189](ht
 
 > **visit**(`arg`): `void`
 
-Defined in: [packages/core/src/transformers/SelectableColumnCollector.ts:262](https://github.com/mk3008/rawsql-ts/blob/9d78b38bce5ba5c7fb3babe52a60d8f5587a75bf/packages/core/src/transformers/SelectableColumnCollector.ts#L262)
+Defined in: [packages/core/src/transformers/SelectableColumnCollector.ts:262](https://github.com/mk3008/rawsql-ts/blob/1af371e77f92414f10e9ef00ffbf5a544037fea3/packages/core/src/transformers/SelectableColumnCollector.ts#L262)
 
 Main entry point for the visitor pattern.
 Implements the shallow visit pattern to distinguish between root and recursive visits.

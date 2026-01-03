@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: SmartRenameResult
 
-Defined in: [packages/core/src/transformers/SmartRenamer.ts:14](https://github.com/mk3008/rawsql-ts/blob/9d78b38bce5ba5c7fb3babe52a60d8f5587a75bf/packages/core/src/transformers/SmartRenamer.ts#L14)
+Defined in: [packages/core/src/transformers/SmartRenamer.ts:14](https://github.com/mk3008/rawsql-ts/blob/1af371e77f92414f10e9ef00ffbf5a544037fea3/packages/core/src/transformers/SmartRenamer.ts#L14)
 
 Result of smart rename operation
 
@@ -11,7 +11,7 @@ Result of smart rename operation
 
 > **success**: `boolean`
 
-Defined in: [packages/core/src/transformers/SmartRenamer.ts:15](https://github.com/mk3008/rawsql-ts/blob/9d78b38bce5ba5c7fb3babe52a60d8f5587a75bf/packages/core/src/transformers/SmartRenamer.ts#L15)
+Defined in: [packages/core/src/transformers/SmartRenamer.ts:15](https://github.com/mk3008/rawsql-ts/blob/1af371e77f92414f10e9ef00ffbf5a544037fea3/packages/core/src/transformers/SmartRenamer.ts#L15)
 
 ***
 
@@ -19,7 +19,7 @@ Defined in: [packages/core/src/transformers/SmartRenamer.ts:15](https://github.c
 
 > **originalSql**: `string`
 
-Defined in: [packages/core/src/transformers/SmartRenamer.ts:16](https://github.com/mk3008/rawsql-ts/blob/9d78b38bce5ba5c7fb3babe52a60d8f5587a75bf/packages/core/src/transformers/SmartRenamer.ts#L16)
+Defined in: [packages/core/src/transformers/SmartRenamer.ts:16](https://github.com/mk3008/rawsql-ts/blob/1af371e77f92414f10e9ef00ffbf5a544037fea3/packages/core/src/transformers/SmartRenamer.ts#L16)
 
 ***
 
@@ -27,7 +27,7 @@ Defined in: [packages/core/src/transformers/SmartRenamer.ts:16](https://github.c
 
 > `optional` **newSql**: `string`
 
-Defined in: [packages/core/src/transformers/SmartRenamer.ts:17](https://github.com/mk3008/rawsql-ts/blob/9d78b38bce5ba5c7fb3babe52a60d8f5587a75bf/packages/core/src/transformers/SmartRenamer.ts#L17)
+Defined in: [packages/core/src/transformers/SmartRenamer.ts:17](https://github.com/mk3008/rawsql-ts/blob/1af371e77f92414f10e9ef00ffbf5a544037fea3/packages/core/src/transformers/SmartRenamer.ts#L17)
 
 ***
 
@@ -35,7 +35,7 @@ Defined in: [packages/core/src/transformers/SmartRenamer.ts:17](https://github.c
 
 > **renamerType**: `"unknown"` \| `"cte"` \| `"alias"`
 
-Defined in: [packages/core/src/transformers/SmartRenamer.ts:18](https://github.com/mk3008/rawsql-ts/blob/9d78b38bce5ba5c7fb3babe52a60d8f5587a75bf/packages/core/src/transformers/SmartRenamer.ts#L18)
+Defined in: [packages/core/src/transformers/SmartRenamer.ts:18](https://github.com/mk3008/rawsql-ts/blob/1af371e77f92414f10e9ef00ffbf5a544037fea3/packages/core/src/transformers/SmartRenamer.ts#L18)
 
 ***
 
@@ -43,7 +43,7 @@ Defined in: [packages/core/src/transformers/SmartRenamer.ts:18](https://github.c
 
 > **originalName**: `string`
 
-Defined in: [packages/core/src/transformers/SmartRenamer.ts:19](https://github.com/mk3008/rawsql-ts/blob/9d78b38bce5ba5c7fb3babe52a60d8f5587a75bf/packages/core/src/transformers/SmartRenamer.ts#L19)
+Defined in: [packages/core/src/transformers/SmartRenamer.ts:19](https://github.com/mk3008/rawsql-ts/blob/1af371e77f92414f10e9ef00ffbf5a544037fea3/packages/core/src/transformers/SmartRenamer.ts#L19)
 
 ***
 
@@ -51,7 +51,7 @@ Defined in: [packages/core/src/transformers/SmartRenamer.ts:19](https://github.c
 
 > **newName**: `string`
 
-Defined in: [packages/core/src/transformers/SmartRenamer.ts:20](https://github.com/mk3008/rawsql-ts/blob/9d78b38bce5ba5c7fb3babe52a60d8f5587a75bf/packages/core/src/transformers/SmartRenamer.ts#L20)
+Defined in: [packages/core/src/transformers/SmartRenamer.ts:20](https://github.com/mk3008/rawsql-ts/blob/1af371e77f92414f10e9ef00ffbf5a544037fea3/packages/core/src/transformers/SmartRenamer.ts#L20)
 
 ***
 
@@ -59,7 +59,7 @@ Defined in: [packages/core/src/transformers/SmartRenamer.ts:20](https://github.c
 
 > `optional` **error**: `string`
 
-Defined in: [packages/core/src/transformers/SmartRenamer.ts:21](https://github.com/mk3008/rawsql-ts/blob/9d78b38bce5ba5c7fb3babe52a60d8f5587a75bf/packages/core/src/transformers/SmartRenamer.ts#L21)
+Defined in: [packages/core/src/transformers/SmartRenamer.ts:21](https://github.com/mk3008/rawsql-ts/blob/1af371e77f92414f10e9ef00ffbf5a544037fea3/packages/core/src/transformers/SmartRenamer.ts#L21)
 
 ***
 
@@ -67,7 +67,7 @@ Defined in: [packages/core/src/transformers/SmartRenamer.ts:21](https://github.c
 
 > `optional` **formattingPreserved**: `boolean`
 
-Defined in: [packages/core/src/transformers/SmartRenamer.ts:23](https://github.com/mk3008/rawsql-ts/blob/9d78b38bce5ba5c7fb3babe52a60d8f5587a75bf/packages/core/src/transformers/SmartRenamer.ts#L23)
+Defined in: [packages/core/src/transformers/SmartRenamer.ts:23](https://github.com/mk3008/rawsql-ts/blob/1af371e77f92414f10e9ef00ffbf5a544037fea3/packages/core/src/transformers/SmartRenamer.ts#L23)
 
 ***
 
@@ -75,5 +75,5 @@ Defined in: [packages/core/src/transformers/SmartRenamer.ts:23](https://github.c
 
 > `optional` **formattingMethod**: `"sql-identifier-renamer"` \| `"smart-renamer-only"`
 
-Defined in: [packages/core/src/transformers/SmartRenamer.ts:24](https://github.com/mk3008/rawsql-ts/blob/9d78b38bce5ba5c7fb3babe52a60d8f5587a75bf/packages/core/src/transformers/SmartRenamer.ts#L24)
+Defined in: [packages/core/src/transformers/SmartRenamer.ts:24](https://github.com/mk3008/rawsql-ts/blob/1af371e77f92414f10e9ef00ffbf5a544037fea3/packages/core/src/transformers/SmartRenamer.ts#L24)
 </div>

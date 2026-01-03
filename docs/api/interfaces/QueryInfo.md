@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: QueryInfo
 
-Defined in: [packages/core/src/utils/MultiQuerySplitter.ts:7](https://github.com/mk3008/rawsql-ts/blob/9d78b38bce5ba5c7fb3babe52a60d8f5587a75bf/packages/core/src/utils/MultiQuerySplitter.ts#L7)
+Defined in: [packages/core/src/utils/MultiQuerySplitter.ts:7](https://github.com/mk3008/rawsql-ts/blob/1af371e77f92414f10e9ef00ffbf5a544037fea3/packages/core/src/utils/MultiQuerySplitter.ts#L7)
 
 Information about a single query within multi-query text
 
@@ -11,7 +11,7 @@ Information about a single query within multi-query text
 
 > **sql**: `string`
 
-Defined in: [packages/core/src/utils/MultiQuerySplitter.ts:9](https://github.com/mk3008/rawsql-ts/blob/9d78b38bce5ba5c7fb3babe52a60d8f5587a75bf/packages/core/src/utils/MultiQuerySplitter.ts#L9)
+Defined in: [packages/core/src/utils/MultiQuerySplitter.ts:9](https://github.com/mk3008/rawsql-ts/blob/1af371e77f92414f10e9ef00ffbf5a544037fea3/packages/core/src/utils/MultiQuerySplitter.ts#L9)
 
 SQL text of this query
 
@@ -21,7 +21,7 @@ SQL text of this query
 
 > **start**: `number`
 
-Defined in: [packages/core/src/utils/MultiQuerySplitter.ts:11](https://github.com/mk3008/rawsql-ts/blob/9d78b38bce5ba5c7fb3babe52a60d8f5587a75bf/packages/core/src/utils/MultiQuerySplitter.ts#L11)
+Defined in: [packages/core/src/utils/MultiQuerySplitter.ts:11](https://github.com/mk3008/rawsql-ts/blob/1af371e77f92414f10e9ef00ffbf5a544037fea3/packages/core/src/utils/MultiQuerySplitter.ts#L11)
 
 Start position in the original text (0-based character offset)
 
@@ -31,7 +31,7 @@ Start position in the original text (0-based character offset)
 
 > **end**: `number`
 
-Defined in: [packages/core/src/utils/MultiQuerySplitter.ts:13](https://github.com/mk3008/rawsql-ts/blob/9d78b38bce5ba5c7fb3babe52a60d8f5587a75bf/packages/core/src/utils/MultiQuerySplitter.ts#L13)
+Defined in: [packages/core/src/utils/MultiQuerySplitter.ts:13](https://github.com/mk3008/rawsql-ts/blob/1af371e77f92414f10e9ef00ffbf5a544037fea3/packages/core/src/utils/MultiQuerySplitter.ts#L13)
 
 End position in the original text (0-based character offset)
 
@@ -41,7 +41,7 @@ End position in the original text (0-based character offset)
 
 > **startLine**: `number`
 
-Defined in: [packages/core/src/utils/MultiQuerySplitter.ts:15](https://github.com/mk3008/rawsql-ts/blob/9d78b38bce5ba5c7fb3babe52a60d8f5587a75bf/packages/core/src/utils/MultiQuerySplitter.ts#L15)
+Defined in: [packages/core/src/utils/MultiQuerySplitter.ts:15](https://github.com/mk3008/rawsql-ts/blob/1af371e77f92414f10e9ef00ffbf5a544037fea3/packages/core/src/utils/MultiQuerySplitter.ts#L15)
 
 Line number where query starts (1-based)
 
@@ -51,7 +51,7 @@ Line number where query starts (1-based)
 
 > **endLine**: `number`
 
-Defined in: [packages/core/src/utils/MultiQuerySplitter.ts:17](https://github.com/mk3008/rawsql-ts/blob/9d78b38bce5ba5c7fb3babe52a60d8f5587a75bf/packages/core/src/utils/MultiQuerySplitter.ts#L17)
+Defined in: [packages/core/src/utils/MultiQuerySplitter.ts:17](https://github.com/mk3008/rawsql-ts/blob/1af371e77f92414f10e9ef00ffbf5a544037fea3/packages/core/src/utils/MultiQuerySplitter.ts#L17)
 
 Line number where query ends (1-based)
 
@@ -61,7 +61,7 @@ Line number where query ends (1-based)
 
 > **index**: `number`
 
-Defined in: [packages/core/src/utils/MultiQuerySplitter.ts:19](https://github.com/mk3008/rawsql-ts/blob/9d78b38bce5ba5c7fb3babe52a60d8f5587a75bf/packages/core/src/utils/MultiQuerySplitter.ts#L19)
+Defined in: [packages/core/src/utils/MultiQuerySplitter.ts:19](https://github.com/mk3008/rawsql-ts/blob/1af371e77f92414f10e9ef00ffbf5a544037fea3/packages/core/src/utils/MultiQuerySplitter.ts#L19)
 
 Query index in the original text (0-based)
 
@@ -71,7 +71,7 @@ Query index in the original text (0-based)
 
 > **isEmpty**: `boolean`
 
-Defined in: [packages/core/src/utils/MultiQuerySplitter.ts:21](https://github.com/mk3008/rawsql-ts/blob/9d78b38bce5ba5c7fb3babe52a60d8f5587a75bf/packages/core/src/utils/MultiQuerySplitter.ts#L21)
+Defined in: [packages/core/src/utils/MultiQuerySplitter.ts:21](https://github.com/mk3008/rawsql-ts/blob/1af371e77f92414f10e9ef00ffbf5a544037fea3/packages/core/src/utils/MultiQuerySplitter.ts#L21)
 
 Whether this query is empty or contains only whitespace/comments
 </div>

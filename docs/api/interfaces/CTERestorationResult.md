@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: CTERestorationResult
 
-Defined in: [packages/core/src/transformers/CTEQueryDecomposer.ts:40](https://github.com/mk3008/rawsql-ts/blob/9d78b38bce5ba5c7fb3babe52a60d8f5587a75bf/packages/core/src/transformers/CTEQueryDecomposer.ts#L40)
+Defined in: [packages/core/src/transformers/CTEQueryDecomposer.ts:40](https://github.com/mk3008/rawsql-ts/blob/1af371e77f92414f10e9ef00ffbf5a544037fea3/packages/core/src/transformers/CTEQueryDecomposer.ts#L40)
 
 Result of CTE SQL restoration containing executable query and metadata
 
@@ -11,7 +11,7 @@ Result of CTE SQL restoration containing executable query and metadata
 
 > **name**: `string`
 
-Defined in: [packages/core/src/transformers/CTEQueryDecomposer.ts:42](https://github.com/mk3008/rawsql-ts/blob/9d78b38bce5ba5c7fb3babe52a60d8f5587a75bf/packages/core/src/transformers/CTEQueryDecomposer.ts#L42)
+Defined in: [packages/core/src/transformers/CTEQueryDecomposer.ts:42](https://github.com/mk3008/rawsql-ts/blob/1af371e77f92414f10e9ef00ffbf5a544037fea3/packages/core/src/transformers/CTEQueryDecomposer.ts#L42)
 
 Name of the CTE
 
@@ -21,7 +21,7 @@ Name of the CTE
 
 > **executableSql**: `string`
 
-Defined in: [packages/core/src/transformers/CTEQueryDecomposer.ts:44](https://github.com/mk3008/rawsql-ts/blob/9d78b38bce5ba5c7fb3babe52a60d8f5587a75bf/packages/core/src/transformers/CTEQueryDecomposer.ts#L44)
+Defined in: [packages/core/src/transformers/CTEQueryDecomposer.ts:44](https://github.com/mk3008/rawsql-ts/blob/1af371e77f92414f10e9ef00ffbf5a544037fea3/packages/core/src/transformers/CTEQueryDecomposer.ts#L44)
 
 Executable SQL query including all dependencies
 
@@ -31,7 +31,7 @@ Executable SQL query including all dependencies
 
 > **dependencies**: `string`[]
 
-Defined in: [packages/core/src/transformers/CTEQueryDecomposer.ts:46](https://github.com/mk3008/rawsql-ts/blob/9d78b38bce5ba5c7fb3babe52a60d8f5587a75bf/packages/core/src/transformers/CTEQueryDecomposer.ts#L46)
+Defined in: [packages/core/src/transformers/CTEQueryDecomposer.ts:46](https://github.com/mk3008/rawsql-ts/blob/1af371e77f92414f10e9ef00ffbf5a544037fea3/packages/core/src/transformers/CTEQueryDecomposer.ts#L46)
 
 Array of CTE names that this CTE depends on (in execution order)
 
@@ -41,7 +41,7 @@ Array of CTE names that this CTE depends on (in execution order)
 
 > **warnings**: `string`[]
 
-Defined in: [packages/core/src/transformers/CTEQueryDecomposer.ts:48](https://github.com/mk3008/rawsql-ts/blob/9d78b38bce5ba5c7fb3babe52a60d8f5587a75bf/packages/core/src/transformers/CTEQueryDecomposer.ts#L48)
+Defined in: [packages/core/src/transformers/CTEQueryDecomposer.ts:48](https://github.com/mk3008/rawsql-ts/blob/1af371e77f92414f10e9ef00ffbf5a544037fea3/packages/core/src/transformers/CTEQueryDecomposer.ts#L48)
 
 Any warnings encountered during restoration
 </div>
