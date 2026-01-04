@@ -6,7 +6,15 @@ import {
   MultiQuerySplitter,
   SqlParser
 } from 'rawsql-ts';
-import { TableNameResolver } from '@rawsql-ts/testkit-core';
+import {
+  DdlLintError,
+  TableNameResolver,
+  applyDdlLintMode,
+  formatDdlLintDiagnostics,
+  lintDdlSources,
+  normalizeDdlLintMode,
+  type DdlLintMode,
+} from '@rawsql-ts/testkit-core';
 import { collectSqlFiles, SqlSource } from '../utils/collectSqlFiles';
 import { mapSqlTypeToTs } from '../utils/typeMapper';
 import { ensureDirectory } from '../utils/fs';
@@ -17,6 +25,7 @@ export interface ZtdConfigGenerationOptions {
   out: string;
   defaultSchema?: string;
   searchPath?: string[];
+  ddlLint?: DdlLintMode;
 }
 
 export interface ColumnMetadata {
@@ -42,6 +51,20 @@ export function runGenerateZtdConfig(options: ZtdConfigGenerationOptions): void 
     defaultSchema: options.defaultSchema,
     searchPath: options.searchPath
   });
+
+  // Validate the DDL sources up front so fixture metadata is generated from a consistent schema.
+  const lintMode = normalizeDdlLintMode(options.ddlLint);
+  if (lintMode !== 'off') {
+    const diagnostics = lintDdlSources(sources, { tableNameResolver: resolver });
+    if (diagnostics.length > 0) {
+      const adjusted = applyDdlLintMode(diagnostics, lintMode);
+      if (lintMode === 'strict') {
+        throw new DdlLintError(adjusted);
+      }
+      console.warn(formatDdlLintDiagnostics(adjusted));
+    }
+  }
+
   const tables = snapshotTableMetadata(sources, resolver);
   if (tables.length === 0) {
     throw new Error('The provided DDL sources did not contain any CREATE TABLE statements.');

@@ -344,7 +344,8 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
       extensions: DEFAULT_EXTENSIONS,
       out: absolutePaths.ztdConfig,
       defaultSchema: projectConfig.ddl.defaultSchema,
-      searchPath: projectConfig.ddl.searchPath
+      searchPath: projectConfig.ddl.searchPath,
+      ddlLint: projectConfig.ddlLint
     });
   } else {
     dependencies.log(

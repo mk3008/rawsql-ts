@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import type { DdlLintMode } from '@rawsql-ts/testkit-core';
 
 export interface ZtdConnectionConfig {
   url?: string;
@@ -18,6 +19,8 @@ export interface ZtdProjectConfig {
     defaultSchema: string;
     searchPath: string[];
   };
+  /** Controls DDL integrity validation during config generation and tests. */
+  ddlLint: DdlLintMode;
   connection?: ZtdConnectionConfig;
 }
 
@@ -32,7 +35,8 @@ export const DEFAULT_ZTD_CONFIG: ZtdProjectConfig = {
   dialect: 'postgres',
   ddlDir: 'ztd/ddl',
   testsDir: 'tests',
-  ddl: { ...DEFAULT_DDL_PROPERTIES }
+  ddl: { ...DEFAULT_DDL_PROPERTIES },
+  ddlLint: 'strict'
 };
 
 /**
@@ -60,6 +64,7 @@ export function loadZtdProjectConfig(rootDir: string = process.cwd()): ZtdProjec
     const raw = JSON.parse(readFileSync(filePath, 'utf8'));
     const rawDdl = typeof raw.ddl === 'object' && raw.ddl !== null ? raw.ddl : undefined;
     const rawConnection = typeof raw.connection === 'object' && raw.connection !== null ? raw.connection : undefined;
+    const rawLintMode = typeof raw.ddlLint === 'string' ? raw.ddlLint.trim().toLowerCase() : undefined;
     // Treat only non-empty ddl.searchPath arrays as explicit overrides.
     const rawSearchPath = Array.isArray(rawDdl?.searchPath) ? rawDdl.searchPath : undefined;
     // Detect override intent only when a non-empty searchPath array is provided.
@@ -87,11 +92,16 @@ export function loadZtdProjectConfig(rootDir: string = process.cwd()): ZtdProjec
         searchPath: resolvedSearchPath
       }
       ,
+      ddlLint: isDdlLintMode(rawLintMode) ? rawLintMode : DEFAULT_ZTD_CONFIG.ddlLint,
       connection: normalizeConnectionConfig(rawConnection)
     };
   } catch (error) {
     throw new Error(`${CONFIG_NAME} is malformed: ${error instanceof Error ? error.message : String(error)}`);
   }
+}
+
+function isDdlLintMode(value?: string): value is DdlLintMode {
+  return value === 'strict' || value === 'warn' || value === 'off';
 }
 
 /**
