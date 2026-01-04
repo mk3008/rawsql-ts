@@ -6,9 +6,20 @@ import type {
 } from 'rawsql-ts';
 export type { TableDefinitionModel } from 'rawsql-ts';
 import type { TableNameResolver } from '../fixtures/TableNameResolver';
+import type { ColumnAffinity } from '../fixtures/ColumnAffinity';
 
+/**
+ * Declared column type tokens for schema metadata. Accepts raw DDL type names
+ * and precomputed affinity values for compatibility.
+ */
+export type SchemaColumnType = string | ColumnAffinity;
+
+/**
+ * Minimal schema metadata used by fixtures when no full table model is
+ * available.
+ */
 export interface TableSchemaDefinition {
-  columns: Record<string, string>;
+  columns: Record<string, SchemaColumnType>;
 }
 
 export interface SchemaRegistry {
