@@ -1,5 +1,4 @@
 import { describe, expect, it, vi } from 'vitest';
-import { MissingFixtureError, QueryRewriteError } from '../src/errors';
 import { SelectFixtureRewriter } from '../src/rewriter/SelectFixtureRewriter';
 import type { SchemaRegistry, TableSchemaDefinition } from '../src/types';
 
@@ -140,8 +139,11 @@ Next steps:
       rewriter.rewrite('SELECT id, name FROM users');
       throw new Error('Expected MissingFixtureError');
     } catch (error) {
-      expect(error).toBeInstanceOf(MissingFixtureError);
-      const message = (error as MissingFixtureError).message;
+      if (!(error instanceof Error)) {
+        throw new Error('Expected Error instance');
+      }
+      expect(error.name).toBe('MissingFixtureError');
+      const message = error.message;
       expect(message).toContain('Required columns');
       expect(message).toContain('id (INTEGER)');
       expect(message).toContain('name (TEXT)');
@@ -300,9 +302,15 @@ SELECT id, name FROM users -- trailing`;
         },
       ],
     });
-    expect(() => rewriter.rewrite(`UPDATE users SET role = 'user' WHERE id = 1`)).toThrowError(
-      QueryRewriteError
-    );
+    try {
+      rewriter.rewrite(`UPDATE users SET role = 'user' WHERE id = 1`);
+      throw new Error('Expected QueryRewriteError');
+    } catch (error) {
+      if (!(error instanceof Error)) {
+        throw new Error('Expected Error instance');
+      }
+      expect(error.name).toBe('QueryRewriteError');
+    }
   });
 
   it('skips rewriting when analyzer failure behavior is set to skip', () => {
