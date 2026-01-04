@@ -215,7 +215,11 @@ const DEFAULT_DEPENDENCIES: ZtdConfigWriterDependencies = {
       return;
     }
 
-    const result = spawnSync(executable, args, { cwd: rootDir, stdio: 'inherit' });
+    let result = spawnSync(executable, args, { cwd: rootDir, stdio: 'inherit' });
+    if (result.error && executable !== packageManager) {
+      // Retry with the bare command name in case a resolved path is rejected.
+      result = spawnSync(packageManager, args, { cwd: rootDir, stdio: 'inherit' });
+    }
     if (result.error || result.status !== 0) {
       const base = `Failed to run ${packageManager} ${args.join(' ')}`;
       const reason = result.error ? `: ${result.error.message}` : '';
@@ -546,21 +550,68 @@ async function ensureAgentsFile(
 }
 
 function resolvePackageManagerExecutable(packageManager: PackageManager): string {
+  const override = process.env.ZTD_PACKAGE_MANAGER_PATH;
+  if (override) {
+    return override;
+  }
+
   if (process.platform !== 'win32') {
     return packageManager;
   }
 
-  if (packageManager === 'npm') {
-    return 'npm.cmd';
-  }
-  if (packageManager === 'pnpm') {
-    return 'pnpm.cmd';
-  }
-  if (packageManager === 'yarn') {
-    return 'yarn.cmd';
+  // Prefer a concrete path when available so spawnSync can resolve reliably.
+  const resolved = resolveExecutableInPath(packageManager);
+  if (resolved) {
+    return resolved;
   }
 
-  return packageManager;
+  const cmdFallbacks: Record<PackageManager, string> = {
+    npm: 'npm.cmd',
+    pnpm: 'pnpm.cmd',
+    yarn: 'yarn.cmd'
+  };
+  const cmdResolved = resolveExecutableInPath(cmdFallbacks[packageManager]);
+  if (cmdResolved) {
+    return cmdResolved;
+  }
+
+  return cmdFallbacks[packageManager] ?? packageManager;
+}
+
+function resolveExecutableInPath(executable: string): string | null {
+  const pathValue = process.env.PATH ?? '';
+  if (!pathValue) {
+    return null;
+  }
+
+  const pathEntries = pathValue.split(path.delimiter).filter(Boolean);
+  const hasExtension = path.extname(executable).length > 0;
+  const extensions =
+    process.platform === 'win32'
+      ? (process.env.PATHEXT ?? '.EXE;.CMD;.BAT;.COM')
+          .split(';')
+          .filter(Boolean)
+      : [''];
+
+  // Check each PATH entry with PATHEXT so we can resolve shim executables.
+  for (const entry of pathEntries) {
+    if (hasExtension) {
+      const candidate = path.join(entry, executable);
+      if (existsSync(candidate)) {
+        return candidate;
+      }
+      continue;
+    }
+
+    for (const ext of extensions) {
+      const candidate = path.join(entry, `${executable}${ext}`);
+      if (existsSync(candidate)) {
+        return candidate;
+      }
+    }
+  }
+
+  return null;
 }
 
 function buildPackageManagerArgs(
