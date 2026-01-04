@@ -77,6 +77,9 @@ importers:
       pg:
         specifier: ^8.11.1
         version: 8.16.3
+      prettier-plugin-sql:
+        specifier: ^0.19.2
+        version: 0.19.2(prettier@3.7.4)
       sql-formatter:
         specifier: ^15.5.2
         version: 15.6.9
