@@ -1,5 +1,15 @@
 # @rawsql-ts/ztd-cli
 
+## 0.14.2
+
+### Patch Changes
+
+- [#374](https://github.com/mk3008/rawsql-ts/pull/374) [`9201657`](https://github.com/mk3008/rawsql-ts/commit/920165791046546db3b3e0f5fe25313ea332e66c) Thanks [@mk3008](https://github.com/mk3008)! - Improve Windows package manager resolution during `ztd init` dependency installation.
+
+- Updated dependencies []:
+  - rawsql-ts@0.14.2
+  - @rawsql-ts/testkit-core@0.14.2
+
 ## 0.14.1
 
 ### Patch Changes
