@@ -1,6 +1,6 @@
 {
   "name": "@rawsql-ts/sql-unit-test-bench",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "private": true,
   "description": "Workspace helper for running the local ztd-cli inside benchmarks/sql-unit-test",
   "scripts": {
