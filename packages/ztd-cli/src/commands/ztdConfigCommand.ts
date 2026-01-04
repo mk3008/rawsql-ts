@@ -115,12 +115,12 @@ async function watchZtdConfig(
   layoutConfig: ZtdProjectConfig
 ): Promise<void> {
   const cwd = process.cwd();
-  const patterns = options.directories.flatMap((dir) =>
-    options.extensions.map((extension) => path.join(dir, '**', `*${extension}`))
-  );
+  const extensionSet = new Set(options.extensions.map((extension) => extension.toLowerCase()));
+  // Watch directories directly to avoid platform-specific glob quirks.
+  const watchRoots = options.directories.map((dir) => path.resolve(dir));
 
   // Only the configured output file (`options.out`) is overwritten while watching DDL changes.
-  const watcher = chokidar.watch(patterns, {
+  const watcher = chokidar.watch(watchRoots, {
     ignoreInitial: true,
     awaitWriteFinish: { stabilityThreshold: 80, pollInterval: 20 }
   });
@@ -142,6 +142,15 @@ async function watchZtdConfig(
     }, WATCH_DEBOUNCE_MS);
   };
 
+  const scheduleReloadIfDdl = (changedPath: string): void => {
+    // Filter to DDL extensions so unrelated file changes do not trigger regeneration.
+    const extension = path.extname(changedPath).toLowerCase();
+    if (!extensionSet.has(extension)) {
+      return;
+    }
+    scheduleReload(changedPath);
+  };
+
   const executeReload = async (changedPath: string | null): Promise<void> => {
     const relativePath = changedPath ? path.relative(cwd, changedPath) : 'unknown';
     console.log(`[watch] DDL changed: ${relativePath}`);
@@ -156,9 +165,9 @@ async function watchZtdConfig(
     }
   };
 
-  watcher.on('add', scheduleReload);
-  watcher.on('change', scheduleReload);
-  watcher.on('unlink', scheduleReload);
+  watcher.on('add', scheduleReloadIfDdl);
+  watcher.on('change', scheduleReloadIfDdl);
+  watcher.on('unlink', scheduleReloadIfDdl);
 
   await new Promise<void>((resolve) => {
     const stop = async (): Promise<void> => {
