@@ -25,6 +25,9 @@
     "url": "https://github.com/mk3008/rawsql-ts.git",
     "directory": "packages/drivers/pg-testkit"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "engines": {
     "node": ">=20"
   },

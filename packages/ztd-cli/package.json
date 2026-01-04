@@ -22,6 +22,9 @@
   ],
   "author": "msugiura",
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
   "engines": {
     "node": ">=20"
   },

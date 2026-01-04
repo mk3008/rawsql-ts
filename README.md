@@ -122,6 +122,34 @@ For comprehensive documentation and advanced use cases:
 
 ---
 
+## Publishing
+
+Publishing requires valid npm credentials and public access for scoped packages.
+
+1. Verify authentication before publishing:
+
+   ```bash
+   npm whoami
+   ```
+
+2. If authentication fails, sign in again (or refresh CI tokens):
+
+   ```bash
+   npm login
+   ```
+
+3. Ensure scoped packages publish publicly. This repo sets `publishConfig.access = "public"` for `@rawsql-ts/*`, but you can also pass `--access public` if publishing manually.
+
+4. Publish the changesets:
+
+   ```bash
+   pnpm changeset publish
+   ```
+
+If you see `E404 Not Found` along with `Access token expired or revoked`, the npm token is no longer valid for the registry or scope. Refresh the token and retry.
+
+---
+
 ## Benchmarks
 
 This project includes a comprehensive benchmark suite to evaluate the performance of `rawsql-ts` in comparison with other popular libraries such as `node-sql-parser` and `sql-formatter`.
