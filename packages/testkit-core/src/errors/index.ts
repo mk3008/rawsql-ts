@@ -1,4 +1,6 @@
 import type { MissingFixtureStrategy } from '../types';
+import type { DdlLintDiagnostic } from '../fixtures/ddlLint';
+import { formatDdlLintDiagnostics } from '../fixtures/ddlLint';
 
 export interface MissingFixtureColumnDetail {
   name: string;
@@ -113,6 +115,16 @@ export class QueryRewriteError extends Error {
   constructor(message: string, public readonly cause?: unknown) {
     super(message);
     this.name = 'QueryRewriteError';
+  }
+}
+
+/**
+ * Raised when DDL linting detects integrity issues.
+ */
+export class DdlLintError extends Error {
+  constructor(public readonly diagnostics: DdlLintDiagnostic[]) {
+    super(formatDdlLintDiagnostics(diagnostics));
+    this.name = 'DdlLintError';
   }
 }
 

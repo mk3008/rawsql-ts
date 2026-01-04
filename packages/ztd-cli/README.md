@@ -75,7 +75,7 @@ You can introduce ZTD incrementally; existing tests and ORMs can remain untouche
 - `ztd/ddl/<schema>.sql` (starter schema files you can edit or replace; the default schema is `public.sql`)
 - `tests/generated/ztd-row-map.generated.ts` (auto-generated `TestRowMap`, the canonical test type contract; do not commit)
 - `tests/support/testkit-client.ts` (auto-generated helper that boots a database client, wires a driver, and shares fixtures across the suite)
-- `ztd.config.json` (CLI defaults and resolver hints: `dialect`, `ddlDir`, `testsDir`, plus `ddl.defaultSchema`/`ddl.searchPath` for resolving unqualified tables)
+- `ztd.config.json` (CLI defaults and resolver hints: `dialect`, `ddlDir`, `testsDir`, `ddlLint`, plus `ddl.defaultSchema`/`ddl.searchPath` for resolving unqualified tables)
 - `tests/generated/ztd-layout.generated.ts` (generated layout snapshot; do not commit)
 - `tests/support/global-setup.ts` (shared test setup used by the generated testkit client)
 - `README.md` describing the workflow and commands

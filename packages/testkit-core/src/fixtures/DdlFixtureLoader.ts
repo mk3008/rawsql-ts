@@ -4,11 +4,22 @@ import { normalizeTableName, DDLToFixtureConverter } from 'rawsql-ts';
 import type { TableDefinitionModel } from 'rawsql-ts';
 import type { FixtureRow } from '../types';
 import { TableNameResolver } from './TableNameResolver';
+import {
+  applyDdlLintMode,
+  DEFAULT_DDL_LINT_MODE,
+  formatDdlLintDiagnostics,
+  lintDdlSources,
+  normalizeDdlLintMode,
+  type DdlLintMode,
+  type DdlLintSource,
+} from './ddlLint';
+import { DdlLintError } from '../errors';
 
 export interface DdlFixtureLoaderOptions {
   directories: string[];
   extensions?: string[];
   tableNameResolver?: TableNameResolver;
+  ddlLint?: DdlLintMode;
 }
 
 export interface DdlProcessedFixture {
@@ -34,6 +45,7 @@ export class DdlFixtureLoader {
   private fixturesByName = new Map<string, DdlProcessedFixture>();
   private loaded = false;
   private readonly tableNameResolver?: TableNameResolver;
+  private readonly ddlLintMode: DdlLintMode;
 
   constructor(private readonly options: DdlFixtureLoaderOptions) {
     // Resolve directories up front so cache keys stay consistent across calls.
@@ -43,9 +55,11 @@ export class DdlFixtureLoader {
     this.cacheKey = DdlFixtureLoader.buildCacheKey(
       this.resolvedDirectories,
       this.extensions,
-      options.tableNameResolver
+      options.tableNameResolver,
+      normalizeDdlLintMode(options.ddlLint)
     );
     this.tableNameResolver = options.tableNameResolver;
+    this.ddlLintMode = normalizeDdlLintMode(options.ddlLint);
   }
 
   public getFixtures(): DdlProcessedFixture[] {
@@ -102,10 +116,11 @@ export class DdlFixtureLoader {
 
     const fixtures: DdlProcessedFixture[] = [];
     const diagnostics: SqlDiagnostics = { sqlFileCount: 0 };
+    const sources: DdlLintSource[] = [];
 
     // Walk each directory recursively to collect SQL files and keep track of what was discovered.
     for (const directory of this.resolvedDirectories) {
-      this.collectSqlFiles(directory, fixtures, diagnostics);
+      this.collectSqlFiles(directory, fixtures, diagnostics, sources);
     }
 
     if (diagnostics.sqlFileCount === 0) {
@@ -115,6 +130,9 @@ export class DdlFixtureLoader {
         )}. Please place valid SQL fixtures in the configured directories.`
       );
     }
+
+    // Run lint checks before enforcing CREATE TABLE presence so actionable diagnostics surface first.
+    this.runDdlLint(sources);
 
     if (fixtures.length === 0) {
       throw new Error(
@@ -130,7 +148,8 @@ export class DdlFixtureLoader {
   private collectSqlFiles(
     directory: string,
     fixtures: DdlProcessedFixture[],
-    diagnostics: SqlDiagnostics
+    diagnostics: SqlDiagnostics,
+    sources: DdlLintSource[]
   ): void {
     // Skip directories that are missing so optional paths are acceptable.
     if (!existsSync(directory)) {
@@ -141,7 +160,7 @@ export class DdlFixtureLoader {
     for (const entry of entries) {
       const resolved = path.join(directory, entry.name);
       if (entry.isDirectory()) {
-        this.collectSqlFiles(resolved, fixtures, diagnostics);
+        this.collectSqlFiles(resolved, fixtures, diagnostics, sources);
         continue;
       }
 
@@ -153,15 +172,25 @@ export class DdlFixtureLoader {
       // Record that a SQL file was encountered regardless of whether it contained definitions.
       diagnostics.sqlFileCount += 1;
 
-      this.loadFile(resolved, fixtures);
+      this.loadFile(resolved, fixtures, sources);
     }
   }
 
-  private loadFile(filePath: string, fixtures: DdlProcessedFixture[]): void {
+  private loadFile(
+    filePath: string,
+    fixtures: DdlProcessedFixture[],
+    sources: DdlLintSource[]
+  ): void {
     const sql = readFileSync(filePath, 'utf8');
     if (!sql.trim()) {
       return;
     }
+
+    // Preserve a workspace-relative path so diagnostics remain portable.
+    const sourcePath = path
+      .relative(process.cwd(), filePath)
+      .replace(/\\/g, '/');
+    sources.push({ path: sourcePath, sql });
 
     // Convert every CREATE TABLE/INSERT block into a table definition bundle.
     const fixtureJson = DDLToFixtureConverter.convert(sql);
@@ -198,7 +227,8 @@ export class DdlFixtureLoader {
   private static buildCacheKey(
     directories: string[],
     extensions: string[],
-    resolver?: TableNameResolver
+    resolver?: TableNameResolver,
+    ddlLintMode: DdlLintMode = DEFAULT_DDL_LINT_MODE
   ): string {
     // Normalize directories and extensions so the cache key stays deterministic regardless of iteration order.
     const normalizedDirectories = [...directories].sort();
@@ -208,7 +238,28 @@ export class DdlFixtureLoader {
 
     // Include resolver configuration in the key so different schema search paths do not share the same cache.
     const resolverSegment = `|resolver:${resolver?.toCacheKey() ?? 'none'}`;
-    return `${normalizedDirectories.join('|')}|${normalizedExtensions.join('|')}${resolverSegment}`;
+    return `${normalizedDirectories.join('|')}|${normalizedExtensions.join('|')}${resolverSegment}|ddlLint:${ddlLintMode}`;
+  }
+
+  private runDdlLint(sources: DdlLintSource[]): void {
+    if (this.ddlLintMode === 'off' || sources.length === 0) {
+      return;
+    }
+
+    // Always lint with resolver context so unqualified references resolve deterministically.
+    const diagnostics = lintDdlSources(sources, {
+      tableNameResolver: this.tableNameResolver,
+    });
+    if (diagnostics.length === 0) {
+      return;
+    }
+
+    const adjusted = applyDdlLintMode(diagnostics, this.ddlLintMode);
+    if (this.ddlLintMode === 'strict') {
+      throw new DdlLintError(adjusted);
+    }
+
+    console.warn(formatDdlLintDiagnostics(adjusted));
   }
 
   // Map raw table names into their canonical schema-qualified keys for deduplication.

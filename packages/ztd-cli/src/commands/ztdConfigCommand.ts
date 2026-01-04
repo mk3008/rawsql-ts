@@ -94,7 +94,8 @@ export function registerZtdConfigCommand(program: Command): void {
         extensions,
         out: output,
         defaultSchema: ddlOverrides.defaultSchema,
-        searchPath: ddlOverrides.searchPath
+        searchPath: ddlOverrides.searchPath,
+        ddlLint: projectConfig.ddlLint
       };
 
       await runGenerateZtdConfig(generationOptions);
