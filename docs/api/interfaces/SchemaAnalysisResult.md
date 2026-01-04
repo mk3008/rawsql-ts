@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: SchemaAnalysisResult
 
-Defined in: [packages/core/src/transformers/SchemaCollector.ts:24](https://github.com/mk3008/rawsql-ts/blob/1af371e77f92414f10e9ef00ffbf5a544037fea3/packages/core/src/transformers/SchemaCollector.ts#L24)
+Defined in: [packages/core/src/transformers/SchemaCollector.ts:24](https://github.com/mk3008/rawsql-ts/blob/7ed76bb57a262268db148cceb82b6cde3d707d8a/packages/core/src/transformers/SchemaCollector.ts#L24)
 
 ## Properties
 
@@ -9,7 +9,7 @@ Defined in: [packages/core/src/transformers/SchemaCollector.ts:24](https://githu
 
 > **success**: `boolean`
 
-Defined in: [packages/core/src/transformers/SchemaCollector.ts:25](https://github.com/mk3008/rawsql-ts/blob/1af371e77f92414f10e9ef00ffbf5a544037fea3/packages/core/src/transformers/SchemaCollector.ts#L25)
+Defined in: [packages/core/src/transformers/SchemaCollector.ts:25](https://github.com/mk3008/rawsql-ts/blob/7ed76bb57a262268db148cceb82b6cde3d707d8a/packages/core/src/transformers/SchemaCollector.ts#L25)
 
 ***
 
@@ -17,7 +17,7 @@ Defined in: [packages/core/src/transformers/SchemaCollector.ts:25](https://githu
 
 > **schemas**: [`TableSchema`](../classes/TableSchema.md)[]
 
-Defined in: [packages/core/src/transformers/SchemaCollector.ts:26](https://github.com/mk3008/rawsql-ts/blob/1af371e77f92414f10e9ef00ffbf5a544037fea3/packages/core/src/transformers/SchemaCollector.ts#L26)
+Defined in: [packages/core/src/transformers/SchemaCollector.ts:26](https://github.com/mk3008/rawsql-ts/blob/7ed76bb57a262268db148cceb82b6cde3d707d8a/packages/core/src/transformers/SchemaCollector.ts#L26)
 
 ***
 
@@ -25,7 +25,7 @@ Defined in: [packages/core/src/transformers/SchemaCollector.ts:26](https://githu
 
 > **unresolvedColumns**: `string`[]
 
-Defined in: [packages/core/src/transformers/SchemaCollector.ts:27](https://github.com/mk3008/rawsql-ts/blob/1af371e77f92414f10e9ef00ffbf5a544037fea3/packages/core/src/transformers/SchemaCollector.ts#L27)
+Defined in: [packages/core/src/transformers/SchemaCollector.ts:27](https://github.com/mk3008/rawsql-ts/blob/7ed76bb57a262268db148cceb82b6cde3d707d8a/packages/core/src/transformers/SchemaCollector.ts#L27)
 
 ***
 
@@ -33,5 +33,5 @@ Defined in: [packages/core/src/transformers/SchemaCollector.ts:27](https://githu
 
 > `optional` **error**: `string`
 
-Defined in: [packages/core/src/transformers/SchemaCollector.ts:28](https://github.com/mk3008/rawsql-ts/blob/1af371e77f92414f10e9ef00ffbf5a544037fea3/packages/core/src/transformers/SchemaCollector.ts#L28)
+Defined in: [packages/core/src/transformers/SchemaCollector.ts:28](https://github.com/mk3008/rawsql-ts/blob/7ed76bb57a262268db148cceb82b6cde3d707d8a/packages/core/src/transformers/SchemaCollector.ts#L28)
 </div>

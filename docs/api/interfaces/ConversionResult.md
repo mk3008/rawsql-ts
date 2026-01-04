@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: ConversionResult
 
-Defined in: [packages/core/src/transformers/JsonMappingConverter.ts:26](https://github.com/mk3008/rawsql-ts/blob/1af371e77f92414f10e9ef00ffbf5a544037fea3/packages/core/src/transformers/JsonMappingConverter.ts#L26)
+Defined in: [packages/core/src/transformers/JsonMappingConverter.ts:26](https://github.com/mk3008/rawsql-ts/blob/7ed76bb57a262268db148cceb82b6cde3d707d8a/packages/core/src/transformers/JsonMappingConverter.ts#L26)
 
 Conversion result with metadata.
 
@@ -11,7 +11,7 @@ Conversion result with metadata.
 
 > **format**: [`MappingFormat`](../type-aliases/MappingFormat.md)
 
-Defined in: [packages/core/src/transformers/JsonMappingConverter.ts:28](https://github.com/mk3008/rawsql-ts/blob/1af371e77f92414f10e9ef00ffbf5a544037fea3/packages/core/src/transformers/JsonMappingConverter.ts#L28)
+Defined in: [packages/core/src/transformers/JsonMappingConverter.ts:28](https://github.com/mk3008/rawsql-ts/blob/7ed76bb57a262268db148cceb82b6cde3d707d8a/packages/core/src/transformers/JsonMappingConverter.ts#L28)
 
 Detected input format
 
@@ -21,7 +21,7 @@ Detected input format
 
 > **mapping**: [`JsonMapping`](JsonMapping.md)
 
-Defined in: [packages/core/src/transformers/JsonMappingConverter.ts:30](https://github.com/mk3008/rawsql-ts/blob/1af371e77f92414f10e9ef00ffbf5a544037fea3/packages/core/src/transformers/JsonMappingConverter.ts#L30)
+Defined in: [packages/core/src/transformers/JsonMappingConverter.ts:30](https://github.com/mk3008/rawsql-ts/blob/7ed76bb57a262268db148cceb82b6cde3d707d8a/packages/core/src/transformers/JsonMappingConverter.ts#L30)
 
 Converted legacy mapping for PostgresJsonQueryBuilder
 
@@ -31,7 +31,7 @@ Converted legacy mapping for PostgresJsonQueryBuilder
 
 > **typeProtection**: [`TypeProtectionConfig`](TypeProtectionConfig.md)
 
-Defined in: [packages/core/src/transformers/JsonMappingConverter.ts:32](https://github.com/mk3008/rawsql-ts/blob/1af371e77f92414f10e9ef00ffbf5a544037fea3/packages/core/src/transformers/JsonMappingConverter.ts#L32)
+Defined in: [packages/core/src/transformers/JsonMappingConverter.ts:32](https://github.com/mk3008/rawsql-ts/blob/7ed76bb57a262268db148cceb82b6cde3d707d8a/packages/core/src/transformers/JsonMappingConverter.ts#L32)
 
 Type protection configuration
 
@@ -41,7 +41,7 @@ Type protection configuration
 
 > **originalInput**: [`JsonMappingInput`](../type-aliases/JsonMappingInput.md)
 
-Defined in: [packages/core/src/transformers/JsonMappingConverter.ts:34](https://github.com/mk3008/rawsql-ts/blob/1af371e77f92414f10e9ef00ffbf5a544037fea3/packages/core/src/transformers/JsonMappingConverter.ts#L34)
+Defined in: [packages/core/src/transformers/JsonMappingConverter.ts:34](https://github.com/mk3008/rawsql-ts/blob/7ed76bb57a262268db148cceb82b6cde3d707d8a/packages/core/src/transformers/JsonMappingConverter.ts#L34)
 
 Original input for reference
 
@@ -51,7 +51,7 @@ Original input for reference
 
 > `optional` **metadata**: `object`
 
-Defined in: [packages/core/src/transformers/JsonMappingConverter.ts:36](https://github.com/mk3008/rawsql-ts/blob/1af371e77f92414f10e9ef00ffbf5a544037fea3/packages/core/src/transformers/JsonMappingConverter.ts#L36)
+Defined in: [packages/core/src/transformers/JsonMappingConverter.ts:36](https://github.com/mk3008/rawsql-ts/blob/7ed76bb57a262268db148cceb82b6cde3d707d8a/packages/core/src/transformers/JsonMappingConverter.ts#L36)
 
 Additional metadata
 

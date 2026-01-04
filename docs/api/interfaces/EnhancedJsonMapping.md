@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: EnhancedJsonMapping
 
-Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:69](https://github.com/mk3008/rawsql-ts/blob/1af371e77f92414f10e9ef00ffbf5a544037fea3/packages/core/src/transformers/EnhancedJsonMapping.ts#L69)
+Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:69](https://github.com/mk3008/rawsql-ts/blob/7ed76bb57a262268db148cceb82b6cde3d707d8a/packages/core/src/transformers/EnhancedJsonMapping.ts#L69)
 
 Enhanced JSON mapping with type safety and metadata support.
 
@@ -11,7 +11,7 @@ Enhanced JSON mapping with type safety and metadata support.
 
 > **rootName**: `string`
 
-Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:71](https://github.com/mk3008/rawsql-ts/blob/1af371e77f92414f10e9ef00ffbf5a544037fea3/packages/core/src/transformers/EnhancedJsonMapping.ts#L71)
+Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:71](https://github.com/mk3008/rawsql-ts/blob/7ed76bb57a262268db148cceb82b6cde3d707d8a/packages/core/src/transformers/EnhancedJsonMapping.ts#L71)
 
 Root entity name
 
@@ -21,7 +21,7 @@ Root entity name
 
 > **rootEntity**: [`EnhancedEntity`](EnhancedEntity.md)
 
-Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:73](https://github.com/mk3008/rawsql-ts/blob/1af371e77f92414f10e9ef00ffbf5a544037fea3/packages/core/src/transformers/EnhancedJsonMapping.ts#L73)
+Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:73](https://github.com/mk3008/rawsql-ts/blob/7ed76bb57a262268db148cceb82b6cde3d707d8a/packages/core/src/transformers/EnhancedJsonMapping.ts#L73)
 
 Root entity definition
 
@@ -31,7 +31,7 @@ Root entity definition
 
 > **nestedEntities**: [`EnhancedNestedEntity`](EnhancedNestedEntity.md)[]
 
-Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:75](https://github.com/mk3008/rawsql-ts/blob/1af371e77f92414f10e9ef00ffbf5a544037fea3/packages/core/src/transformers/EnhancedJsonMapping.ts#L75)
+Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:75](https://github.com/mk3008/rawsql-ts/blob/7ed76bb57a262268db148cceb82b6cde3d707d8a/packages/core/src/transformers/EnhancedJsonMapping.ts#L75)
 
 Nested entities
 
@@ -41,7 +41,7 @@ Nested entities
 
 > `optional` **resultFormat**: `"array"` \| `"single"`
 
-Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:77](https://github.com/mk3008/rawsql-ts/blob/1af371e77f92414f10e9ef00ffbf5a544037fea3/packages/core/src/transformers/EnhancedJsonMapping.ts#L77)
+Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:77](https://github.com/mk3008/rawsql-ts/blob/7ed76bb57a262268db148cceb82b6cde3d707d8a/packages/core/src/transformers/EnhancedJsonMapping.ts#L77)
 
 Result format
 
@@ -51,7 +51,7 @@ Result format
 
 > `optional` **emptyResult**: `string`
 
-Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:79](https://github.com/mk3008/rawsql-ts/blob/1af371e77f92414f10e9ef00ffbf5a544037fea3/packages/core/src/transformers/EnhancedJsonMapping.ts#L79)
+Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:79](https://github.com/mk3008/rawsql-ts/blob/7ed76bb57a262268db148cceb82b6cde3d707d8a/packages/core/src/transformers/EnhancedJsonMapping.ts#L79)
 
 Empty result fallback
 
@@ -61,7 +61,7 @@ Empty result fallback
 
 > `optional` **typeInfo**: `object`
 
-Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:81](https://github.com/mk3008/rawsql-ts/blob/1af371e77f92414f10e9ef00ffbf5a544037fea3/packages/core/src/transformers/EnhancedJsonMapping.ts#L81)
+Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:81](https://github.com/mk3008/rawsql-ts/blob/7ed76bb57a262268db148cceb82b6cde3d707d8a/packages/core/src/transformers/EnhancedJsonMapping.ts#L81)
 
 Type information
 
@@ -83,7 +83,7 @@ Type information
 
 > `optional` **typeProtection**: [`TypeProtectionConfig`](TypeProtectionConfig.md)
 
-Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:87](https://github.com/mk3008/rawsql-ts/blob/1af371e77f92414f10e9ef00ffbf5a544037fea3/packages/core/src/transformers/EnhancedJsonMapping.ts#L87)
+Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:87](https://github.com/mk3008/rawsql-ts/blob/7ed76bb57a262268db148cceb82b6cde3d707d8a/packages/core/src/transformers/EnhancedJsonMapping.ts#L87)
 
 Type protection configuration
 
@@ -93,7 +93,7 @@ Type protection configuration
 
 > `optional` **metadata**: `object`
 
-Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:89](https://github.com/mk3008/rawsql-ts/blob/1af371e77f92414f10e9ef00ffbf5a544037fea3/packages/core/src/transformers/EnhancedJsonMapping.ts#L89)
+Defined in: [packages/core/src/transformers/EnhancedJsonMapping.ts:89](https://github.com/mk3008/rawsql-ts/blob/7ed76bb57a262268db148cceb82b6cde3d707d8a/packages/core/src/transformers/EnhancedJsonMapping.ts#L89)
 
 Mapping metadata
 
