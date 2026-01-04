@@ -37,6 +37,9 @@
         "url": "https://github.com/mk3008/rawsql-ts.git",
         "directory": "packages/core"
     },
+    "publishConfig": {
+        "access": "public"
+    },
     "devDependencies": {
         "@types/benchmark": "^2.1.5",
         "@types/node": "^22.13.10",
