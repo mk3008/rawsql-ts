@@ -27,6 +27,9 @@
     "url": "git+https://github.com/mk3008/rawsql-ts.git",
     "directory": "packages/drivers/sqlite-testkit"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "engines": {
     "node": ">=20"
   },
