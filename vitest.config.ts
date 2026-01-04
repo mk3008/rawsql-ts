@@ -16,6 +16,7 @@ export default defineConfig({
     resolve: {
         alias: {
             'rawsql-ts': resolve(__dirname, 'packages/core/src'),
+            '@rawsql-ts/testkit-core': resolve(__dirname, 'packages/testkit-core/src'),
         },
     },
 })

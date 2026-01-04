@@ -6,6 +6,7 @@ import { expect, test } from 'vitest';
 
 const nodeExecutable = process.execPath;
 const tsNodeRegister = require.resolve('ts-node/register');
+const tsConfigPathsRegister = require.resolve('tsconfig-paths/register');
 const cliRoot = path.resolve(__dirname, '..');
 const repoRoot = path.resolve(__dirname, '..', '..', '..');
 const cliEntry = path.join(cliRoot, 'src', 'index.ts');
@@ -32,14 +33,14 @@ function buildCliEnv(overrides: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
     // Copy the current environment so per-test mutations (e.g. DATABASE_URL) propagate to the CLI.
     ...process.env,
     NODE_ENV: 'test',
-    TS_NODE_PROJECT: path.join(cliRoot, 'tsconfig.json'),
+    TS_NODE_PROJECT: path.join(cliRoot, 'tsconfig.test.json'),
     ...overrides,
   };
 }
 
 function runCli(args: string[], envOverrides: NodeJS.ProcessEnv = {}): SpawnSyncReturns<string> {
   // Invoke the CLI entry point through ts-node so the test avoids a prior build.
-  return spawnSync(nodeExecutable, ['-r', tsNodeRegister, cliEntry, ...args], {
+  return spawnSync(nodeExecutable, ['-r', tsNodeRegister, '-r', tsConfigPathsRegister, cliEntry, ...args], {
     cwd: repoRoot,
     env: buildCliEnv(envOverrides),
     encoding: 'utf8',
