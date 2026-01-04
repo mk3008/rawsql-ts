@@ -1,5 +1,13 @@
 # @rawsql-ts/ztd-cli
 
+## 0.14.1
+
+### Patch Changes
+
+- Updated dependencies [[`0746dce`](https://github.com/mk3008/rawsql-ts/commit/0746dceb58ae2270feab896d1f1a2caf64ec338f)]:
+  - @rawsql-ts/testkit-core@0.14.1
+  - rawsql-ts@0.14.1
+
 ## 0.14.0
 
 ### Minor Changes
