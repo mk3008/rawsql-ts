@@ -1,5 +1,14 @@
 # @rawsql-ts/testkit-core
 
+## 0.14.1
+
+### Patch Changes
+
+- [#372](https://github.com/mk3008/rawsql-ts/pull/372) [`0746dce`](https://github.com/mk3008/rawsql-ts/commit/0746dceb58ae2270feab896d1f1a2caf64ec338f) Thanks [@mk3008](https://github.com/mk3008)! - Allow table schema column metadata to accept raw DDL type names alongside affinity values.
+
+- Updated dependencies []:
+  - rawsql-ts@0.14.1
+
 ## 0.14.0
 
 ### Minor Changes
