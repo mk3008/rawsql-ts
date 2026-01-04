@@ -1,6 +1,6 @@
 {
   "name": "@rawsql-ts/pg-testkit",
-  "version": "0.14.1",
+  "version": "0.14.2",
   "description": "Postgres driver wrapper that simulates CRUD statements via fixture-backed CTEs.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
