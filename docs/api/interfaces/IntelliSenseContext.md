@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: IntelliSenseContext
 
-Defined in: [packages/core/src/utils/CursorContextAnalyzer.ts:10](https://github.com/mk3008/rawsql-ts/blob/3d7678f88db64ace33375c092bf5dd94b6428633/packages/core/src/utils/CursorContextAnalyzer.ts#L10)
+Defined in: [packages/core/src/utils/CursorContextAnalyzer.ts:10](https://github.com/mk3008/rawsql-ts/blob/de060eb277dbae69467affb854aff63649885052/packages/core/src/utils/CursorContextAnalyzer.ts#L10)
 
 IntelliSense context focused on what suggestions can be provided
 
@@ -11,7 +11,7 @@ IntelliSense context focused on what suggestions can be provided
 
 > **suggestTables**: `boolean`
 
-Defined in: [packages/core/src/utils/CursorContextAnalyzer.ts:12](https://github.com/mk3008/rawsql-ts/blob/3d7678f88db64ace33375c092bf5dd94b6428633/packages/core/src/utils/CursorContextAnalyzer.ts#L12)
+Defined in: [packages/core/src/utils/CursorContextAnalyzer.ts:12](https://github.com/mk3008/rawsql-ts/blob/de060eb277dbae69467affb854aff63649885052/packages/core/src/utils/CursorContextAnalyzer.ts#L12)
 
 Whether to suggest table names (can provide actual table list)
 
@@ -21,7 +21,7 @@ Whether to suggest table names (can provide actual table list)
 
 > **suggestColumns**: `boolean`
 
-Defined in: [packages/core/src/utils/CursorContextAnalyzer.ts:15](https://github.com/mk3008/rawsql-ts/blob/3d7678f88db64ace33375c092bf5dd94b6428633/packages/core/src/utils/CursorContextAnalyzer.ts#L15)
+Defined in: [packages/core/src/utils/CursorContextAnalyzer.ts:15](https://github.com/mk3008/rawsql-ts/blob/de060eb277dbae69467affb854aff63649885052/packages/core/src/utils/CursorContextAnalyzer.ts#L15)
 
 Whether to suggest column names (can provide actual column list)
 
@@ -31,7 +31,7 @@ Whether to suggest column names (can provide actual column list)
 
 > **suggestKeywords**: `boolean`
 
-Defined in: [packages/core/src/utils/CursorContextAnalyzer.ts:18](https://github.com/mk3008/rawsql-ts/blob/3d7678f88db64ace33375c092bf5dd94b6428633/packages/core/src/utils/CursorContextAnalyzer.ts#L18)
+Defined in: [packages/core/src/utils/CursorContextAnalyzer.ts:18](https://github.com/mk3008/rawsql-ts/blob/de060eb277dbae69467affb854aff63649885052/packages/core/src/utils/CursorContextAnalyzer.ts#L18)
 
 Whether to suggest SQL keywords (can provide keyword list)
 
@@ -41,7 +41,7 @@ Whether to suggest SQL keywords (can provide keyword list)
 
 > `optional` **tableScope**: `string`
 
-Defined in: [packages/core/src/utils/CursorContextAnalyzer.ts:21](https://github.com/mk3008/rawsql-ts/blob/3d7678f88db64ace33375c092bf5dd94b6428633/packages/core/src/utils/CursorContextAnalyzer.ts#L21)
+Defined in: [packages/core/src/utils/CursorContextAnalyzer.ts:21](https://github.com/mk3008/rawsql-ts/blob/de060eb277dbae69467affb854aff63649885052/packages/core/src/utils/CursorContextAnalyzer.ts#L21)
 
 If suggesting columns, limit to this table's columns (for table.| syntax)
 
@@ -51,7 +51,7 @@ If suggesting columns, limit to this table's columns (for table.| syntax)
 
 > `optional` **requiredKeywords**: `string`[]
 
-Defined in: [packages/core/src/utils/CursorContextAnalyzer.ts:24](https://github.com/mk3008/rawsql-ts/blob/3d7678f88db64ace33375c092bf5dd94b6428633/packages/core/src/utils/CursorContextAnalyzer.ts#L24)
+Defined in: [packages/core/src/utils/CursorContextAnalyzer.ts:24](https://github.com/mk3008/rawsql-ts/blob/de060eb277dbae69467affb854aff63649885052/packages/core/src/utils/CursorContextAnalyzer.ts#L24)
 
 If suggesting keywords, these specific keywords are required
 
@@ -61,7 +61,7 @@ If suggesting keywords, these specific keywords are required
 
 > `optional` **currentToken**: [`Lexeme`](Lexeme.md)
 
-Defined in: [packages/core/src/utils/CursorContextAnalyzer.ts:29](https://github.com/mk3008/rawsql-ts/blob/3d7678f88db64ace33375c092bf5dd94b6428633/packages/core/src/utils/CursorContextAnalyzer.ts#L29)
+Defined in: [packages/core/src/utils/CursorContextAnalyzer.ts:29](https://github.com/mk3008/rawsql-ts/blob/de060eb277dbae69467affb854aff63649885052/packages/core/src/utils/CursorContextAnalyzer.ts#L29)
 
 Token at cursor position (if any)
 
@@ -71,7 +71,7 @@ Token at cursor position (if any)
 
 > `optional` **previousToken**: [`Lexeme`](Lexeme.md)
 
-Defined in: [packages/core/src/utils/CursorContextAnalyzer.ts:32](https://github.com/mk3008/rawsql-ts/blob/3d7678f88db64ace33375c092bf5dd94b6428633/packages/core/src/utils/CursorContextAnalyzer.ts#L32)
+Defined in: [packages/core/src/utils/CursorContextAnalyzer.ts:32](https://github.com/mk3008/rawsql-ts/blob/de060eb277dbae69467affb854aff63649885052/packages/core/src/utils/CursorContextAnalyzer.ts#L32)
 
 Token immediately before cursor position
 </div>
