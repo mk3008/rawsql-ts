@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: AliasRenamer
 
-Defined in: [packages/core/src/transformers/AliasRenamer.ts:113](https://github.com/mk3008/rawsql-ts/blob/7ed76bb57a262268db148cceb82b6cde3d707d8a/packages/core/src/transformers/AliasRenamer.ts#L113)
+Defined in: [packages/core/src/transformers/AliasRenamer.ts:113](https://github.com/mk3008/rawsql-ts/blob/3d7678f88db64ace33375c092bf5dd94b6428633/packages/core/src/transformers/AliasRenamer.ts#L113)
 
 A utility class for renaming table and column aliases in SQL queries.
 
@@ -46,7 +46,7 @@ Related tests: packages/core/tests/transformers/AliasRenamer.functional.test.ts
 
 > **new AliasRenamer**(): `AliasRenamer`
 
-Defined in: [packages/core/src/transformers/AliasRenamer.ts:121](https://github.com/mk3008/rawsql-ts/blob/7ed76bb57a262268db148cceb82b6cde3d707d8a/packages/core/src/transformers/AliasRenamer.ts#L121)
+Defined in: [packages/core/src/transformers/AliasRenamer.ts:121](https://github.com/mk3008/rawsql-ts/blob/3d7678f88db64ace33375c092bf5dd94b6428633/packages/core/src/transformers/AliasRenamer.ts#L121)
 
 Creates a new instance of AliasRenamer.
 
@@ -60,7 +60,7 @@ Creates a new instance of AliasRenamer.
 
 > **renameAlias**(`sql`, `position`, `newName`, `options`): [`RenameResult`](../interfaces/RenameResult.md)
 
-Defined in: [packages/core/src/transformers/AliasRenamer.ts:152](https://github.com/mk3008/rawsql-ts/blob/7ed76bb57a262268db148cceb82b6cde3d707d8a/packages/core/src/transformers/AliasRenamer.ts#L152)
+Defined in: [packages/core/src/transformers/AliasRenamer.ts:152](https://github.com/mk3008/rawsql-ts/blob/3d7678f88db64ace33375c092bf5dd94b6428633/packages/core/src/transformers/AliasRenamer.ts#L152)
 
 Renames an alias based on the cursor position in GUI editor.
 

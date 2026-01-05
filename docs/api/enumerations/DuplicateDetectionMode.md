@@ -1,7 +1,7 @@
 <div v-pre>
 # Enumeration: DuplicateDetectionMode
 
-Defined in: [packages/core/src/transformers/SelectableColumnCollector.ts:5](https://github.com/mk3008/rawsql-ts/blob/7ed76bb57a262268db148cceb82b6cde3d707d8a/packages/core/src/transformers/SelectableColumnCollector.ts#L5)
+Defined in: [packages/core/src/transformers/SelectableColumnCollector.ts:5](https://github.com/mk3008/rawsql-ts/blob/3d7678f88db64ace33375c092bf5dd94b6428633/packages/core/src/transformers/SelectableColumnCollector.ts#L5)
 
 Enum for duplicate detection modes in SelectableColumnCollector.
 Determines how duplicates are identified during column collection.
@@ -12,7 +12,7 @@ Determines how duplicates are identified during column collection.
 
 > **ColumnNameOnly**: `"columnNameOnly"`
 
-Defined in: [packages/core/src/transformers/SelectableColumnCollector.ts:11](https://github.com/mk3008/rawsql-ts/blob/7ed76bb57a262268db148cceb82b6cde3d707d8a/packages/core/src/transformers/SelectableColumnCollector.ts#L11)
+Defined in: [packages/core/src/transformers/SelectableColumnCollector.ts:11](https://github.com/mk3008/rawsql-ts/blob/3d7678f88db64ace33375c092bf5dd94b6428633/packages/core/src/transformers/SelectableColumnCollector.ts#L11)
 
 Detect duplicates based only on column names.
 This mode ignores the table name, so columns with the same name
@@ -24,7 +24,7 @@ from different tables are considered duplicates.
 
 > **FullName**: `"fullName"`
 
-Defined in: [packages/core/src/transformers/SelectableColumnCollector.ts:17](https://github.com/mk3008/rawsql-ts/blob/7ed76bb57a262268db148cceb82b6cde3d707d8a/packages/core/src/transformers/SelectableColumnCollector.ts#L17)
+Defined in: [packages/core/src/transformers/SelectableColumnCollector.ts:17](https://github.com/mk3008/rawsql-ts/blob/3d7678f88db64ace33375c092bf5dd94b6428633/packages/core/src/transformers/SelectableColumnCollector.ts#L17)
 
 Detect duplicates based on both table and column names.
 This mode ensures that columns with the same name from different
