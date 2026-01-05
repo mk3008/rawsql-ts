@@ -1,14 +1,22 @@
 # Appendix: Development Workflow Using Zero Table Dependency (ZTD)
 
-This application uses **Zero Table Dependency (ZTD)** as an internal development workflow for writing, testing, and maintaining SQL logic.  
+This application uses **Zero Table Dependency (ZTD)** as an internal development workflow for writing, testing, and maintaining SQL logic.
 ZTD is not part of the application's runtime behavior; rather, it provides a framework for:
 
-- Maintaining consistent SQL across the project  
-- Keeping schema, domain specifications, and enums synchronized  
-- Ensuring deterministic SQL unit tests  
-- Enabling structured collaboration between humans and AI  
+- Maintaining consistent SQL across the project
+- Keeping schema, domain specifications, and enums synchronized
+- Ensuring deterministic SQL unit tests
+- Enabling structured collaboration between humans and AI
 
-This section documents how ZTD is used *inside this repository* as a development methodology.
+This section documents how ZTD is used inside this repository as a development methodology.
+
+---
+
+## Defaults (important)
+
+- This project adopts **ZTD as the default development and testing methodology**.
+- ZTD is assumed unless explicitly stated otherwise.
+- Detailed rules about test execution modes are defined in `templates/tests/AGENTS.md`.
 
 ---
 
@@ -61,14 +69,14 @@ The `src/` directory should contain pure TypeScript logic that operates on the r
 ### Sequence / identity column policy (important)
 
 - Sequence / identity columns (auto-generated IDs) are infrastructure concerns.
-- Do **not** explicitly assign values to sequence / identity columns in `INSERT` statements unless explicitly instructed.
+- Do not explicitly assign values to sequence / identity columns in `INSERT` statements unless explicitly instructed.
 - Repository method inputs should omit sequence / identity columns by default.
 - Only treat an ID as input data when it represents a business rule (e.g. natural keys, externally assigned IDs).
 
 ### No test-driven fallbacks in production code (important)
 
-- **Do not add fallbacks in `src/` that exist only to accommodate ZTD/testkit/rewriter limitations.**
-- If a query fails to be rewritten into ZTD form (e.g. rawsql-ts parsing/rewrite failure), **do not “paper over” it** by changing runtime behavior, adding `max(id)+1`, or introducing alternative logic paths.
+- Do not add fallbacks in `src/` that exist only to accommodate ZTD/testkit/rewriter limitations.
+- If a query fails to be rewritten into ZTD form (e.g. rawsql-ts parsing/rewrite failure), do not paper over it by changing runtime behavior, adding `max(id)+1`, or introducing alternative logic paths.
 - Instead, stop and report the issue with evidence:
   - The exact SQL that fails
   - The error message / symptoms
@@ -81,51 +89,11 @@ Rationale: Production code must not diverge from the intended SQL semantics due 
 
 ## ZTD Test Guide (tests/)
 
-Fixtures come from the `ztd/ddl/` definitions and power `pg-testkit`. Always import table types from `tests/generated/ztd-row-map.generated.ts` when constructing scenarios, and rerun `npx ztd ztd-config` whenever schema changes to keep the fixtures and row map synchronized.
+Testing under ZTD follows dedicated, directory-scoped rules.
 
-If you are working inside this repository's `ztd-playground`, regenerate the generated artifacts with `pnpm --filter ztd-playground exec ztd ztd-config`.
-
-- Set `ZTD_EXECUTION_MODE=traditional` or pass `{ mode: 'traditional', traditional: { isolation: 'schema', cleanup: 'drop_schema' } }` to `createTestkitClient()` when you must exercise real Postgres semantics (locks, isolation, constraints). Traditional mode still runs the DDL inside `ztd/ddl/`, seeds the fixtures, executes any optional `setupSql`, and honors the configured `cleanup` strategy (`drop_schema` by default, `custom_sql`, or `none` for debugging) so the environment stays tidy. Use `isolation: 'none'` when your queries explicitly reference an existing schema and you cannot rely on schema-based isolation.
-
-
-### Tests: What to Care About
-
-#### Test Intent
-- Each test should have a single clear observation point.
-- Decide whether the test verifies:
-  - Query semantics (input to output behavior), or
-  - Structural properties (ordering, filtering, boundary cases).
-
-#### Fixtures
-- Keep fixtures minimal and intention-revealing.
-- Prefer small datasets over large ones.
-- Avoid adding rows or columns that are not directly related to the test intent.
-
-#### Assertions
-- Assert only on relevant columns and values.
-- Do not rely on implicit ordering; if order matters, make it explicit in SQL and assertions.
-- Avoid custom verification logic; rely on query results and straightforward assertions.
-
-#### Relationship to Repositories
-- Tests for repositories should focus on observable behavior, not internal implementation details.
-- Avoid duplicating repository logic inside tests.
-
-### Notes
-- These guidelines are intentionally lightweight.
-- They are expected to evolve based on actual usage and failure cases.
-- If user instructions conflict with these guidelines, follow user instructions.
-
-### ID expectations in tests (important)
-
-- Do not assert auto-generated ID values (sequence / identity), such as "the next id is 11".
-- When creating rows, assert only that an ID exists and has the correct type, or that it differs from known existing IDs.
-- Only assert specific ID values when the ID is part of a business rule (not infrastructure), e.g. a natural key or a fixed, meaningful identifier.
-
-## Parallel test policy (important)
-
-- ZTD tests should be safe to run in parallel against a single Postgres instance because pg-testkit rewrites CRUD into fixture-backed SELECT queries (no physical schema changes).
-- Do not start multiple Postgres instances per test file/worker, and do not isolate tests by creating per-test databases or schemas. This is unnecessary for ZTD and adds failure modes.
-- Prefer one shared Postgres instance + multiple connections, limited only by your DB resources.
+- Test design, execution mode selection, and constraints are defined in:
+  - `templates/tests/AGENTS.md`
+- This file intentionally avoids duplicating test-specific operational rules to prevent divergence.
 
 ---
 
@@ -153,25 +121,40 @@ The file `tests/generated/ztd-layout.generated.ts` ensures ZTD CLI always points
 
 ---
 
+# Protected directories and edit ownership (important)
+
+- DDL editing is human-led: `ztd/ddl/`
+- Domain specs editing is human-led: `ztd/domain-specs/`
+- Enums editing is human-led: `ztd/enums/`
+- Application code is shared ownership: `src/`
+- Tests are shared ownership: `tests/`
+  - Detailed test constraints live in `templates/tests/AGENTS.md`.
+
+Additionally:
+- Never modify `ztd/AGENTS.md` or `ztd/README.md` without explicit instruction.
+- When changes are required in human-led directories, prefer proposing a patch and explaining the impact before applying it.
+
+---
+
 # Principles of ZTD in This Repository
 
-### 1. Humans own the **definitions**
+### 1. Humans own the definitions
 - Physical schema (DDL)
 - Domain semantics (domain-specs)
 - Enumerations (enums)
 - Repository interfaces
 
-### 2. AI assists with **implementation**
+### 2. AI assists with implementation
 - Generating repository SQL
 - Updating fixtures
 - Producing intermediate TypeScript structures
 - Ensuring SQL adheres to DDL, enums, and domain-specs
 
-### 3. ZTD enforces **consistency**
+### 3. ZTD enforces consistency
 ZTD tests verify that:
-- SQL logic matches DDL shapes  
-- SQL semantics match domain-specs  
-- SQL values match enumerations  
+- SQL logic matches DDL shapes
+- SQL semantics match domain-specs
+- SQL values match enumerations
 
 If anything diverges, ZTD failures surface immediately and deterministically.
 
@@ -183,27 +166,20 @@ Different types of changes start from different entry points. Use the workflow a
 
 ---
 
-# Workflow A — Starting From *DDL Changes*
+# Workflow A - Starting From DDL Changes
 Modifying tables, columns, constraints, indexes.
 
 1. Edit DDL files in `ztd/ddl/`.
-2. Run:
-
-   ```bash
-   npx ztd ztd-config
-   ```
-
-   This regenerates `tests/generated/ztd-row-map.generated.ts` from the updated schema.
-
+2. Run `npx ztd ztd-config`.
 3. Update repository SQL to match the new schema.
 4. Update fixtures if result shapes changed.
 5. Run tests.
 
-**Flow:** DDL -> Repository SQL -> Fixtures/Tests -> Application
+Flow: DDL to Repository SQL to Fixtures and Tests to Application
 
 ---
 
-# Workflow B — Starting From *Repository Interface Changes*
+# Workflow B - Starting From Repository Interface Changes
 Changing method signatures, adding new repository methods, etc.
 
 1. Modify the repository interface or implementation in `/src`.
@@ -212,11 +188,11 @@ Changing method signatures, adding new repository methods, etc.
 4. Run ZTD tests.
 5. Regenerate config if SQL output shape changed.
 
-**Flow:** Interface -> SQL -> Specs (if needed) -> Tests
+Flow: Interface to SQL to Specs (if needed) to Tests
 
 ---
 
-# Workflow C — Starting From *Repository SQL Logic Changes*
+# Workflow C - Starting From Repository SQL Logic Changes
 Bug fixes, refactoring, rewriting queries.
 
 1. Edit SQL inside the repository.
@@ -225,46 +201,27 @@ Bug fixes, refactoring, rewriting queries.
 4. Update fixtures as needed.
 5. Regenerate config if result shape changed.
 
-**Flow:** SQL -> Domain-specs -> Tests
+Flow: SQL to Domain-specs to Tests
 
 ---
 
-# Workflow D — Starting From *Enum or Domain Specification Changes*
+# Workflow D - Starting From Enum or Domain Specification Changes
 Business rule changes or conceptual model updates.
 
-## Editing enums:
-
-1. Update the relevant `.md` file under `ztd/enums/`.
-2. Run:
-
-   ```bash
-   npx ztd ztd-config
-   ```
-
-3. Update repository SQL referencing enum values.
-4. Update fixtures/tests.
-
-## Editing domain-specs:
-
-1. Update the relevant `.md` file under `ztd/domain-specs/`.
-2. Update repository SQL to reflect the new semantics.
-3. Update or add tests.
-4. Update DDL only if the new rules require schema changes.
-
-**Flow:** Specs/Enums -> SQL -> Tests -> (DDL if required)
+Flow: Specs or Enums to SQL to Tests to (DDL if required)
 
 ---
 
 # Combined Real-World Examples
 
-- Adding a new contract state:  
-  enums -> domain-spec -> SQL -> config -> tests
+- Adding a new contract state:
+  enums to domain-spec to SQL to config to tests
 
-- Adding a new table:  
-  DDL -> config -> SQL -> fixtures -> tests
+- Adding a new table:
+  DDL to config to SQL to fixtures to tests
 
-- Fixing business logic:  
-  SQL -> domain-spec -> tests
+- Fixing business logic:
+  SQL to domain-spec to tests
 
 ZTD ensures the development always converges into a consistent, validated workflow.
 
@@ -278,9 +235,9 @@ Humans maintain:
 - Domain logic definitions (`ztd/domain-specs`)
 - Domain enumerations (`ztd/enums`)
 - Repository interfaces and architectural decisions
-- Acceptance/review of AI-generated patches
+- Acceptance and review of AI-generated patches
 
-Humans decide **what is correct**.
+Humans decide what is correct.
 
 ---
 
@@ -288,14 +245,14 @@ Humans decide **what is correct**.
 
 AI must:
 
-- Use domain-specs as the semantic source of truth  
-- Use enums as the canonical vocabulary source  
-- Use DDL as the physical structure constraint  
-- Generate SQL consistent with all definitions  
-- Update fixtures when needed  
-- Never modify `ztd/AGENTS.md` or `ztd/README.md` without explicit instruction  
+- Use domain-specs as the semantic source of truth
+- Use enums as the canonical vocabulary source
+- Use DDL as the physical structure constraint
+- Generate SQL consistent with all definitions
+- Update fixtures when needed
+- Never modify `ztd/AGENTS.md` or `ztd/README.md` without explicit instruction
 
-AI decides **how to implement**, but not **what is correct**.
+AI decides how to implement, but not what is correct.
 
 ---
 
@@ -303,10 +260,10 @@ AI decides **how to implement**, but not **what is correct**.
 
 ZTD CLI:
 
-- Parses DDL to compute schema shapes  
-- Rewrites SQL via CTE shadowing for testing  
-- Generates `ztd-row-map.generated.ts`  
-- Enables deterministic, parallel SQL unit tests  
+- Parses DDL to compute schema shapes
+- Rewrites SQL via CTE shadowing for testing
+- Generates `ztd-row-map.generated.ts`
+- Enables deterministic, parallel SQL unit tests
 
 ZTD is the verification engine that validates correctness beyond static typing.
 
@@ -314,13 +271,13 @@ ZTD is the verification engine that validates correctness beyond static typing.
 
 # Summary
 
-This appendix documents how ZTD is used strictly as an **internal implementation and maintenance guide**.  
-It does not affect the runtime behavior of the application.  
+This appendix documents how ZTD is used strictly as an internal implementation and maintenance guide.
+It does not affect the runtime behavior of the application.
 Its purpose is ensuring:
 
-- Schema integrity  
-- SQL correctness  
-- Domain consistency  
-- Reliable AI-assisted development  
+- Schema integrity
+- SQL correctness
+- Domain consistency
+- Reliable AI-assisted development
 
-With ZTD, **humans define the meaning**, **AI writes the implementation**, and **tests guarantee correctness**.
+With ZTD, humans define the meaning, AI writes the implementation, and tests guarantee correctness.
