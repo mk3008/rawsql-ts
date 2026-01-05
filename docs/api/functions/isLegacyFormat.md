@@ -3,7 +3,7 @@
 
 > **isLegacyFormat**(`input`): `boolean`
 
-Defined in: [packages/core/src/transformers/JsonMappingUnifier.ts:244](https://github.com/mk3008/rawsql-ts/blob/3d7678f88db64ace33375c092bf5dd94b6428633/packages/core/src/transformers/JsonMappingUnifier.ts#L244)
+Defined in: [packages/core/src/transformers/JsonMappingUnifier.ts:244](https://github.com/mk3008/rawsql-ts/blob/de060eb277dbae69467affb854aff63649885052/packages/core/src/transformers/JsonMappingUnifier.ts#L244)
 
 Type guard to check if input uses legacy format.
 
