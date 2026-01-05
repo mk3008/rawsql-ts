@@ -1,5 +1,13 @@
 # @rawsql-ts/pg-testkit
 
+## 0.14.3
+
+### Patch Changes
+
+- Updated dependencies [[`1cfcc2a`](https://github.com/mk3008/rawsql-ts/commit/1cfcc2ab7502b9f01f4ba53d8e8540b8ca40e3d7)]:
+  - rawsql-ts@0.14.3
+  - @rawsql-ts/testkit-core@0.14.3
+
 ## 0.14.2
 
 ### Patch Changes

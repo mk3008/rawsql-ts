@@ -1,5 +1,15 @@
 # @rawsql-ts/ztd-cli
 
+## 0.14.3
+
+### Patch Changes
+
+- [#376](https://github.com/mk3008/rawsql-ts/pull/376) [`5a11604`](https://github.com/mk3008/rawsql-ts/commit/5a11604a6f2fd166156762c621874f35d3e26c46) Thanks [@mk3008](https://github.com/mk3008)! - Clarify ZTD template guidance for defaults, test rules, and protected directories.
+
+- Updated dependencies [[`1cfcc2a`](https://github.com/mk3008/rawsql-ts/commit/1cfcc2ab7502b9f01f4ba53d8e8540b8ca40e3d7)]:
+  - rawsql-ts@0.14.3
+  - @rawsql-ts/testkit-core@0.14.3
+
 ## 0.14.2
 
 ### Patch Changes
