@@ -24,23 +24,28 @@ import { CTECollector } from "./CTECollector";
  * - Excludes inline queries, subqueries, and CTEs
  * 
  * When selectableOnly is false:
- * - Scans all parts of the query including WITH clauses, subqueries, etc.
+ * - Scans all parts of the query including WITH clauses, subqueries, etc.      
  * - Collects all table sources from the entire query
  * - Excludes tables that are managed by CTEs
+ *
+ * When dedupe is true (default behavior), repeated table sources are collapsed
+ * by their qualified name; pass dedupe=false to retain duplicates.
  * 
  * For UNION-like queries, it scans both the left and right parts.
  */
-export class TableSourceCollector implements SqlComponentVisitor<void> {
+export class TableSourceCollector implements SqlComponentVisitor<void> {        
     private handlers: Map<symbol, (arg: any) => void>;
     private tableSources: TableSource[] = [];
     private visitedNodes: Set<SqlComponent> = new Set();
-    private tableNameMap: Map<string, boolean> = new Map<string, boolean>();
+    private tableNameMap: Map<string, boolean> = new Map<string, boolean>();    
     private selectableOnly: boolean;
+    private dedupe: boolean;
     private cteNames: Set<string> = new Set<string>();
     private isRootVisit: boolean = true;
 
-    constructor(selectableOnly: boolean = true) {
+    constructor(selectableOnly: boolean = true, dedupe: boolean = true) {
         this.selectableOnly = selectableOnly;
+        this.dedupe = dedupe;
         this.handlers = new Map<symbol, (arg: any) => void>();
 
         // Setup handlers for query components
@@ -370,11 +375,21 @@ export class TableSourceCollector implements SqlComponentVisitor<void> {
         // Get the table identifier for uniqueness check
         const identifier = this.getTableIdentifier(source);
 
-        // Check if this is a table managed by a CTE
-        if (!this.tableNameMap.has(identifier) && !this.isCTETable(source.table.name)) {
-            this.tableNameMap.set(identifier, true);
-            this.tableSources.push(source);
+        // Avoid collecting tables that are provided by CTEs.
+        if (this.isCTETable(source.table.name)) {
+            return;
         }
+
+        // When deduping, skip repeated table identifiers so callers can treat the
+        // output as a unique set of sources.
+        if (this.dedupe) {
+            if (this.tableNameMap.has(identifier)) {
+                return;
+            }
+            this.tableNameMap.set(identifier, true);
+        }
+
+        this.tableSources.push(source);
     }
 
     private visitFunctionSource(source: FunctionSource): void {
