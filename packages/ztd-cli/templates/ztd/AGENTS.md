@@ -109,8 +109,7 @@ These enums are the **only allowed vocabulary** for such concepts.
 - Each file contains exactly one executable SQL block.
 - Enum definitions follow this canonical pattern:
 
-```
-sql
+```sql
 select v.*
 from (
   values

@@ -24,7 +24,7 @@ Tests are a shared workspace for humans and AI, but must respect ZTD-specific co
 
 Forbidden example:
 
-```
+```typescript
 type CategoryTestRow = {
   category_id: number;
   parent_id: number | null;
