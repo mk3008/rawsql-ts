@@ -251,6 +251,25 @@ describe('TableSourceCollector', () => {
         expect(tableNames.sort()).toEqual(['orders', 'premium_users', 'status_codes', 'users'].sort());
     });
 
+    test('collects duplicate table sources when dedupe is disabled', () => {
+        // Arrange
+        const sql = `
+            SELECT c.category_id, p.category_id
+            FROM public.category c
+            LEFT JOIN public.category p ON c.parent_id = p.category_id
+        `;
+        const query = SelectQueryParser.parse(sql);
+        const collector = new TableSourceCollector(true, false);
+
+        // Act
+        collector.visit(query);
+        const tableSources = collector.getTableSources();
+
+        // Assert
+        expect(tableSources.length).toBe(2);
+        expect(tableSources.map(ts => ts.table.name)).toEqual(['category', 'category']);
+    });
+
     test('collects table sources from complex query with various clauses when selectableOnly is false', () => {
         // Arrange
         const sql = `
@@ -783,3 +802,4 @@ order by
         }).not.toThrow();
     });
 });
+

@@ -337,7 +337,8 @@ export class ResultSelectRewriter {
       return;
     }
 
-    const collector = new TableSourceCollector(false);
+    // Collect every table occurrence so self-joins rewrite each source.
+    const collector = new TableSourceCollector(false, false);
     for (const source of collector.collect(component)) {
       const referencedName = this.getPrimaryKey(source.getSourceName());
       const alias = fixtureAliasMap.get(referencedName);
