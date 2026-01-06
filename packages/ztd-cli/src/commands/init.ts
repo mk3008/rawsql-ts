@@ -14,6 +14,9 @@ import { DEFAULT_EXTENSIONS } from './options';
 type PackageManager = 'pnpm' | 'npm' | 'yarn';
 type PackageInstallKind = 'devDependencies' | 'install';
 
+/**
+ * Prompt interface for interactive input during `ztd init`.
+ */
 export interface Prompter {
   selectChoice(question: string, choices: string[]): Promise<number>;
   promptInput(question: string, example?: string): Promise<string>;
@@ -21,6 +24,9 @@ export interface Prompter {
   close(): void;
 }
 
+/**
+ * Create a readline-backed prompter that reads from stdin/stdout.
+ */
 export function createConsolePrompter(): Prompter {
   const rl = readline.createInterface({
     input: process.stdin,
@@ -100,16 +106,25 @@ type FileKey =
   | 'prettier'
   | 'package';
 
+/**
+ * Summarizes how an individual file was created during initialization.
+ */
 export interface FileSummary {
   relativePath: string;
   outcome: 'created' | 'overwritten' | 'unchanged';
 }
 
+/**
+ * Result payload for `ztd init` describing outputs and next steps.
+ */
 export interface InitResult {
   summary: string;
   files: FileSummary[];
 }
 
+/**
+ * Dependency overrides used to orchestrate the init flow and IO side effects.
+ */
 export interface ZtdConfigWriterDependencies {
   ensureDirectory: (directory: string) => void;
   writeFile: (filePath: string, contents: string) => void;
@@ -127,6 +142,9 @@ export interface ZtdConfigWriterDependencies {
   }) => Promise<void> | void;
 }
 
+/**
+ * Options for configuring the `ztd init` command execution.
+ */
 export interface InitCommandOptions {
   rootDir?: string;
   dependencies?: Partial<ZtdConfigWriterDependencies>;
@@ -251,6 +269,9 @@ const DEFAULT_DEPENDENCIES: ZtdConfigWriterDependencies = {
   }
 };
 
+/**
+ * Run the interactive `ztd init` workflow and return the resulting summary.
+ */
 export async function runInitCommand(prompter: Prompter, options?: InitCommandOptions): Promise<InitResult> {
   const rootDir = options?.rootDir ?? process.cwd();
   const dependencies: ZtdConfigWriterDependencies = {
