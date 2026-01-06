@@ -1,5 +1,15 @@
 # @rawsql-ts/ztd-cli
 
+## 0.14.4
+
+### Patch Changes
+
+- [#380](https://github.com/mk3008/rawsql-ts/pull/380) [`89c5f0d`](https://github.com/mk3008/rawsql-ts/commit/89c5f0d1bac9d7801401e145ee096c811d9ac077) Thanks [@mk3008](https://github.com/mk3008)! - Improve Windows package manager spawning during `ztd init` so pnpm `.cmd` shims resolve reliably.
+
+- Updated dependencies []:
+  - rawsql-ts@0.14.4
+  - @rawsql-ts/testkit-core@0.14.4
+
 ## 0.14.3
 
 ### Patch Changes
