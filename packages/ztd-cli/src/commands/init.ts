@@ -14,6 +14,9 @@ import { DEFAULT_EXTENSIONS } from './options';
 type PackageManager = 'pnpm' | 'npm' | 'yarn';
 type PackageInstallKind = 'devDependencies' | 'install';
 
+/**
+ * Prompt interface for interactive input during `ztd init`.
+ */
 export interface Prompter {
   selectChoice(question: string, choices: string[]): Promise<number>;
   promptInput(question: string, example?: string): Promise<string>;
@@ -21,6 +24,9 @@ export interface Prompter {
   close(): void;
 }
 
+/**
+ * Create a readline-backed prompter that reads from stdin/stdout.
+ */
 export function createConsolePrompter(): Prompter {
   const rl = readline.createInterface({
     input: process.stdin,
@@ -100,16 +106,25 @@ type FileKey =
   | 'prettier'
   | 'package';
 
+/**
+ * Summarizes how an individual file was created during initialization.
+ */
 export interface FileSummary {
   relativePath: string;
   outcome: 'created' | 'overwritten' | 'unchanged';
 }
 
+/**
+ * Result payload for `ztd init` describing outputs and next steps.
+ */
 export interface InitResult {
   summary: string;
   files: FileSummary[];
 }
 
+/**
+ * Dependency overrides used to orchestrate the init flow and IO side effects.
+ */
 export interface ZtdConfigWriterDependencies {
   ensureDirectory: (directory: string) => void;
   writeFile: (filePath: string, contents: string) => void;
@@ -127,6 +142,9 @@ export interface ZtdConfigWriterDependencies {
   }) => Promise<void> | void;
 }
 
+/**
+ * Options for configuring the `ztd init` command execution.
+ */
 export interface InitCommandOptions {
   rootDir?: string;
   dependencies?: Partial<ZtdConfigWriterDependencies>;
@@ -215,19 +233,45 @@ const DEFAULT_DEPENDENCIES: ZtdConfigWriterDependencies = {
       return;
     }
 
-    let result = spawnSync(executable, args, { cwd: rootDir, stdio: 'inherit' });
+    const isWin32 = process.platform === 'win32';
+    // Prefer shell execution for .cmd/.bat on Windows to avoid a guaranteed failure.
+    const preferShell = isWin32 && /\.(cmd|bat)$/i.test(executable);
+    const baseSpawnOptions = {
+      cwd: rootDir,
+      stdio: 'inherit' as const,
+      shell: false
+    };
+    const shellSpawnOptions = {
+      ...baseSpawnOptions,
+      shell: true
+    };
+
+    let result = spawnSync(executable, args, preferShell ? shellSpawnOptions : baseSpawnOptions);
+    if (result.error && isWin32 && !preferShell) {
+      // Retry with cmd.exe only on Windows so .cmd shims resolve reliably.
+      result = spawnSync(executable, args, shellSpawnOptions);
+    }
     if (result.error && executable !== packageManager) {
       // Retry with the bare command name in case a resolved path is rejected.
-      result = spawnSync(packageManager, args, { cwd: rootDir, stdio: 'inherit' });
+      result = spawnSync(packageManager, args, baseSpawnOptions);
+      if (result.error && isWin32) {
+        // Final fallback to shell when the bare command still fails on Windows.
+        result = spawnSync(packageManager, args, shellSpawnOptions);
+      }
     }
     if (result.error || result.status !== 0) {
       const base = `Failed to run ${packageManager} ${args.join(' ')}`;
-      const reason = result.error ? `: ${result.error.message}` : '';
+      const reason = result.error
+        ? `: ${result.error.message}`
+        : ` (exit code: ${result.status ?? 'unknown'}, signal: ${result.signal ?? 'none'})`;
       throw new Error(`${base}${reason}`);
     }
   }
 };
 
+/**
+ * Run the interactive `ztd init` workflow and return the resulting summary.
+ */
 export async function runInitCommand(prompter: Prompter, options?: InitCommandOptions): Promise<InitResult> {
   const rootDir = options?.rootDir ?? process.cwd();
   const dependencies: ZtdConfigWriterDependencies = {
@@ -559,12 +603,7 @@ function resolvePackageManagerExecutable(packageManager: PackageManager): string
     return packageManager;
   }
 
-  // Prefer a concrete path when available so spawnSync can resolve reliably.
-  const resolved = resolveExecutableInPath(packageManager);
-  if (resolved) {
-    return resolved;
-  }
-
+  // Prefer .cmd shims first on Windows so they take precedence over extension-less files.
   const cmdFallbacks: Record<PackageManager, string> = {
     npm: 'npm.cmd',
     pnpm: 'pnpm.cmd',
@@ -575,21 +614,40 @@ function resolvePackageManagerExecutable(packageManager: PackageManager): string
     return cmdResolved;
   }
 
+  // Fall back to the extension-less name if no cmd shim is found.
+  const resolved = resolveExecutableInPath(packageManager);
+  if (resolved) {
+    return resolved;
+  }
+
   return cmdFallbacks[packageManager] ?? packageManager;
 }
 
 function resolveExecutableInPath(executable: string): string | null {
-  const pathValue = process.env.PATH ?? '';
+  const pathValue = process.env.PATH ?? process.env.Path ?? '';
   if (!pathValue) {
     return null;
   }
 
-  const pathEntries = pathValue.split(path.delimiter).filter(Boolean);
+  const pathEntries = pathValue
+    .split(path.delimiter)
+    .map((entry) => {
+      const trimmed = entry.trim();
+      if (process.platform !== 'win32') {
+        return trimmed;
+      }
+      if (trimmed.startsWith('"') && trimmed.endsWith('"') && trimmed.length >= 2) {
+        return trimmed.slice(1, -1);
+      }
+      return trimmed;
+    })
+    .filter(Boolean);
   const hasExtension = path.extname(executable).length > 0;
   const extensions =
     process.platform === 'win32'
       ? (process.env.PATHEXT ?? '.EXE;.CMD;.BAT;.COM')
           .split(';')
+          .map((ext) => ext.trim())
           .filter(Boolean)
       : [''];
 
