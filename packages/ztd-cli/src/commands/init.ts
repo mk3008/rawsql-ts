@@ -92,6 +92,7 @@ type FileKey =
   | 'config'
   | 'ztdConfig'
   | 'testsConfig'
+  | 'testsAgents'
   | 'testkitClient'
   | 'globalSetup'
   | 'vitestConfig'
@@ -160,6 +161,7 @@ const SAMPLE_SCHEMA = `CREATE TABLE public.example (
 
 const README_TEMPLATE = 'README.md';
 const TESTS_CONFIG_TEMPLATE = 'tests/ztd-layout.generated.ts';
+const TESTS_AGENTS_TEMPLATE = 'tests/AGENTS.md';
 const TESTKIT_CLIENT_TEMPLATE = 'tests/support/testkit-client.ts';
 const GLOBAL_SETUP_TEMPLATE = 'tests/support/global-setup.ts';
 const VITEST_CONFIG_TEMPLATE = 'vitest.config.ts';
@@ -286,6 +288,7 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     config: path.join(rootDir, 'ztd.config.json'),
     ztdConfig: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'generated', 'ztd-row-map.generated.ts'),
     testsConfig: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'generated', 'ztd-layout.generated.ts'),
+    testsAgents: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'AGENTS.md'),
     readme: path.join(rootDir, 'README.md'),
     sqlClient: path.join(rootDir, 'src', 'db', 'sql-client.ts'),
     testkitClient: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'support', 'testkit-client.ts'),
@@ -482,6 +485,19 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
   );
   if (testsConfigSummary) {
     summaries.testsConfig = testsConfigSummary;
+  }
+
+  // Ensure the generated tests guidance lands beside the generated layout config.
+  const testsAgentsSummary = await writeTemplateFile(
+    rootDir,
+    absolutePaths.testsAgents,
+    relativePath('testsAgents'),
+    TESTS_AGENTS_TEMPLATE,
+    dependencies,
+    prompter
+  );
+  if (testsAgentsSummary) {
+    summaries.testsAgents = testsAgentsSummary;
   }
 
   // Seed the shared guidance that lives inside the ztd/ directory so contributors see the new instructions.
@@ -1162,6 +1178,7 @@ function buildSummaryLines(summaries: Record<FileKey, FileSummary>): string[] {
     'schema',
     'config',
     'testsConfig',
+    'testsAgents',
     'ztdConfig',
     'readme',
     'sqlClient',
