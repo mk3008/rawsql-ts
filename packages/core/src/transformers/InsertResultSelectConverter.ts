@@ -38,6 +38,7 @@ import { FixtureCteBuilder, FixtureTableDefinition } from './FixtureCteBuilder';
 import { SelectQueryWithClauseHelper } from "../utils/SelectQueryWithClauseHelper";
 import { rewriteValueComponentWithColumnResolver } from '../utils/ValueComponentRewriter';
 import { tableNameVariants } from '../utils/TableNameUtils';
+import { normalizeSerialPseudoType } from '../utils/serialTypeNormalization';
 
 /** Options that drive how the insert-to-select transformation resolves table metadata. */
 export interface InsertResultSelectOptions {
@@ -448,9 +449,10 @@ export class InsertResultSelectConverter {
     }
 
     private static buildTypeValue(typeName: string): TypeValue {
-        // Split schema-qualified type names so namespaces become TypeValue namespaces.
-        const parts = typeName.split('.');
-        const namePart = parts.pop()?.trim() ?? typeName.trim();
+        // Normalize serial pseudo-types before splitting so CAST targets use real types.
+        const normalizedTypeName = normalizeSerialPseudoType(typeName) ?? typeName.trim();
+        const parts = normalizedTypeName.split('.');
+        const namePart = parts.pop()?.trim() ?? normalizedTypeName.trim();
         const namespaces = parts.length > 0 ? parts.map((part) => part.trim()) : null;
         return new TypeValue(namespaces, new RawString(namePart));
     }

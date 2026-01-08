@@ -30,7 +30,28 @@ describe('FixtureCteBuilder', () => {
         const selectSql = formatter.format(ctes[0].query).formattedSql;
 
         expect(selectSql).toBe(
-            'select cast(\'2025-01-01\' as date) as "sale_date", cast(100 as int) as "price", X\'616263\' as "blob_data" union all select cast(\'2025-01-02\' as date) as "sale_date", cast(200 as int) as "price", null as "blob_data"'
+            'select cast(\'2025-01-01\' as date) as "sale_date", cast(100 as int) as "price", X\'616263\' as "blob_data" union all select cast(\'2025-01-02\' as date) as "sale_date", cast(200 as int) as "price", null as "blob_data"'        
+        );
+    });
+
+    it('normalizes serial pseudo-types when emitting CAST targets', () => {
+        const fixtures: FixtureTableDefinition[] = [
+            {
+                tableName: 'serials',
+                columns: [
+                    { name: 'id', typeName: 'serial' },
+                    { name: 'big_id', typeName: 'bigserial' },
+                    { name: 'small_id', typeName: 'smallserial' }
+                ],
+                rows: [[1, 2, 3]]
+            }
+        ];
+
+        const [cte] = FixtureCteBuilder.buildFixtures(fixtures);
+        const selectSql = formatter.format(cte.query).formattedSql;
+
+        expect(selectSql).toBe(
+            'select cast(1 as integer) as "id", cast(2 as bigint) as "big_id", cast(3 as smallint) as "small_id"'
         );
     });
 

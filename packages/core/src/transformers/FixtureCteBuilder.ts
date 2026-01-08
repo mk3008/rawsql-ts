@@ -3,6 +3,7 @@ import { SimpleSelectQuery } from '../models/SelectQuery';
 import { BinarySelectQuery } from '../models/BinarySelectQuery';
 import { CastExpression, LiteralValue, TypeValue, RawString, BinaryExpression, ValueComponent } from '../models/ValueComponent';
 import { DDLToFixtureConverter } from './DDLToFixtureConverter';
+import { normalizeSerialPseudoType } from '../utils/serialTypeNormalization';
 
 /** Describes a single column in a fixture used for query rewriting. */
 export interface FixtureColumnDefinition {
@@ -146,8 +147,10 @@ export class FixtureCteBuilder {
 
             let expression: ValueComponent = literalValue;
 
-            if (column.typeName) {
-                const typeValue = new TypeValue(null, new RawString(column.typeName));
+            // Serial pseudo-types are not valid CAST targets, so normalize them to their storage type.
+            const castTarget = normalizeSerialPseudoType(column.typeName);
+            if (castTarget) {
+                const typeValue = new TypeValue(null, new RawString(castTarget));
                 expression = new CastExpression(literalValue, typeValue);
             }
 
