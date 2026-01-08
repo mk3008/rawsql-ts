@@ -7,6 +7,7 @@ Created:
  - ztd/ddl/public.sql
  - ztd.config.json
  - tests/generated/ztd-layout.generated.ts
+ - tests/AGENTS.md
  - tests/generated/ztd-row-map.generated.ts
  - README.md
  - tests/support/testkit-client.ts
@@ -34,6 +35,7 @@ Created:
  - ztd/ddl/public.sql
  - ztd.config.json
  - tests/generated/ztd-layout.generated.ts
+ - tests/AGENTS.md
  - tests/generated/ztd-row-map.generated.ts
  - README.md
  - tests/support/testkit-client.ts
