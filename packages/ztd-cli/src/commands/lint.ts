@@ -89,7 +89,8 @@ export async function runSqlLint(options: RunSqlLintOptions): Promise<RunSqlLint
     tableRows,
     defaultSchema,
     searchPath,
-    onExecute: (sql) => {
+    // Track the rewritten SQL so we can show it when a validation failure occurs.
+    onExecute: (sql: string) => {
       rewrittenStatement = sql;
     }
   });
