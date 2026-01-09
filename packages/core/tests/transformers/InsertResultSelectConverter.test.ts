@@ -31,6 +31,27 @@ describe('InsertResultSelectConverter', () => {
         );
     });
 
+    it('normalizes serial pseudo-types when applying column casts', () => {
+        const serialTable: TableDefinitionModel = {
+            name: 'serials',
+            columns: [
+                { name: 'id', typeName: 'serial', required: true },
+                { name: 'value', typeName: 'text', required: true },
+            ],
+        };
+
+        const insert = InsertQueryParser.parse(
+            `INSERT INTO serials (id, value) VALUES (5, 'foo') RETURNING id, value`
+        );
+
+        const converted = InsertResultSelectConverter.toSelectQuery(insert, {
+            tableDefinitions: { serials: serialTable },
+        });
+        const sql = formatter().format(converted).formattedSql;
+
+        expect(sql).toContain('cast(5 as integer) as "id"');
+    });
+
     it('falls back to the registry when the resolver cannot resolve the table', () => {
         // Use a resolver that intentionally returns undefined to exercise the fallback path.
         const insert = InsertQueryParser.parse(
