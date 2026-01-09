@@ -76,6 +76,7 @@ export class TestkitProvider<
   private sharedConnectionPromise?: Promise<TConnection>;
   private sharedConnection?: TConnection;
   private closed = false;
+  private sharedQueue: Promise<void> = Promise.resolve();
 
   private readonly releaseResource: (
     resource: TResource
@@ -118,6 +119,8 @@ export class TestkitProvider<
       return;
     }
     this.closed = true;
+    // Ensure no shared scenario is still running before cleanup.
+    await this.sharedQueue.catch(() => undefined);
     if (!this.sharedConnectionPromise) {
       return;
     }
@@ -130,24 +133,35 @@ export class TestkitProvider<
     fixtures: TableFixture[],
     callback: (resource: TResource) => Promise<Result> | Result
   ): Promise<Result> {
-    const connection = await this.ensureSharedConnection();
-    const resetOption = this.options.reset ?? DEFAULT_RESET;
-    const transactionStarted = await this.beginTransactionIfNeeded(
-      connection,
-      resetOption
-    );
-    let resource: TResource | undefined;
-    try {
-      // Create the resource tied to this shared connection before invoking the callback.
-      resource = await this.options.resourceFactory(connection, fixtures);
-      return await callback(resource);
-    } finally {
-      if (resource !== undefined) {
-        await this.releaseResource(resource);
+    const runScenario = async (): Promise<Result> => {
+      const connection = await this.ensureSharedConnection();
+      const resetOption = this.options.reset ?? DEFAULT_RESET;
+      const transactionStarted = await this.beginTransactionIfNeeded(
+        connection,
+        resetOption
+      );
+      let resource: TResource | undefined;
+      try {
+        // Create the resource tied to this shared connection before invoking the callback.
+        resource = await this.options.resourceFactory(connection, fixtures);
+        return await callback(resource);
+      } finally {
+        if (resource !== undefined) {
+          await this.releaseResource(resource);
+        }
+        // Run the configured reset after the scenario so the connection stays clean.
+        await this.executeReset(connection, resetOption, transactionStarted);
       }
-      // Run the configured reset after the scenario so the connection stays clean.
-      await this.executeReset(connection, resetOption, transactionStarted);
-    }
+    };
+
+    // Serialize shared usage so scenarios never run in parallel.
+    const next = this.sharedQueue.catch(() => undefined);
+    const task = next.then(() => runScenario());
+    this.sharedQueue = task.then(
+      () => undefined,
+      () => undefined
+    );
+    return task;
   }
 
   private async runWithPerTestConnection<Result>(
