@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: Lexeme
 
-Defined in: [packages/core/src/models/Lexeme.ts:42](https://github.com/mk3008/rawsql-ts/blob/de060eb277dbae69467affb854aff63649885052/packages/core/src/models/Lexeme.ts#L42)
+Defined in: [packages/core/src/models/Lexeme.ts:42](https://github.com/mk3008/rawsql-ts/blob/91d42e83cf18d5aa89f15811c30826dcf6b4e437/packages/core/src/models/Lexeme.ts#L42)
 
 Represents a lexical token in SQL parsing
 
@@ -15,7 +15,7 @@ Represents a lexical token in SQL parsing
 
 > **type**: `number`
 
-Defined in: [packages/core/src/models/Lexeme.ts:43](https://github.com/mk3008/rawsql-ts/blob/de060eb277dbae69467affb854aff63649885052/packages/core/src/models/Lexeme.ts#L43)
+Defined in: [packages/core/src/models/Lexeme.ts:43](https://github.com/mk3008/rawsql-ts/blob/91d42e83cf18d5aa89f15811c30826dcf6b4e437/packages/core/src/models/Lexeme.ts#L43)
 
 ***
 
@@ -23,7 +23,7 @@ Defined in: [packages/core/src/models/Lexeme.ts:43](https://github.com/mk3008/ra
 
 > **value**: `string`
 
-Defined in: [packages/core/src/models/Lexeme.ts:44](https://github.com/mk3008/rawsql-ts/blob/de060eb277dbae69467affb854aff63649885052/packages/core/src/models/Lexeme.ts#L44)
+Defined in: [packages/core/src/models/Lexeme.ts:44](https://github.com/mk3008/rawsql-ts/blob/91d42e83cf18d5aa89f15811c30826dcf6b4e437/packages/core/src/models/Lexeme.ts#L44)
 
 ***
 
@@ -31,7 +31,7 @@ Defined in: [packages/core/src/models/Lexeme.ts:44](https://github.com/mk3008/ra
 
 > **comments**: `null` \| `string`[]
 
-Defined in: [packages/core/src/models/Lexeme.ts:45](https://github.com/mk3008/rawsql-ts/blob/de060eb277dbae69467affb854aff63649885052/packages/core/src/models/Lexeme.ts#L45)
+Defined in: [packages/core/src/models/Lexeme.ts:45](https://github.com/mk3008/rawsql-ts/blob/91d42e83cf18d5aa89f15811c30826dcf6b4e437/packages/core/src/models/Lexeme.ts#L45)
 
 ***
 
@@ -39,7 +39,7 @@ Defined in: [packages/core/src/models/Lexeme.ts:45](https://github.com/mk3008/ra
 
 > `optional` **positionedComments**: [`LexemePositionedComment`](LexemePositionedComment.md)[]
 
-Defined in: [packages/core/src/models/Lexeme.ts:46](https://github.com/mk3008/rawsql-ts/blob/de060eb277dbae69467affb854aff63649885052/packages/core/src/models/Lexeme.ts#L46)
+Defined in: [packages/core/src/models/Lexeme.ts:46](https://github.com/mk3008/rawsql-ts/blob/91d42e83cf18d5aa89f15811c30826dcf6b4e437/packages/core/src/models/Lexeme.ts#L46)
 
 ***
 
@@ -47,5 +47,5 @@ Defined in: [packages/core/src/models/Lexeme.ts:46](https://github.com/mk3008/ra
 
 > `optional` **position**: [`LexemePosition`](LexemePosition.md)
 
-Defined in: [packages/core/src/models/Lexeme.ts:47](https://github.com/mk3008/rawsql-ts/blob/de060eb277dbae69467affb854aff63649885052/packages/core/src/models/Lexeme.ts#L47)
+Defined in: [packages/core/src/models/Lexeme.ts:47](https://github.com/mk3008/rawsql-ts/blob/91d42e83cf18d5aa89f15811c30826dcf6b4e437/packages/core/src/models/Lexeme.ts#L47)
 </div>
