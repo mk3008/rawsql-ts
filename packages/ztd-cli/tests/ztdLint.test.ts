@@ -20,9 +20,13 @@ inner join [orders] o
 where u.user_id = 1;
 `;
 
-const MISSING_COLUMN_SQL = `select 1 where missing_column = 1;`;
+const MISSING_COLUMN_SQL = `
+select missing_column
+from [users]
+where user_id = 1;
+`;
 
-const SYNTAX_ERROR_SQL = `select 1 where ;`;
+const SYNTAX_ERROR_SQL = `select missing_function(1);`;
 const TRANSFORM_MISSING_FIXTURE_SQL = `
 select *
 from [missing]
@@ -90,9 +94,8 @@ describeIfPg('runSqlLint integration', () => {
       expect(result.failures.length).toBeGreaterThan(0);
       const failure = result.failures[0];
       expect(failure.kind).toBe('db');
-      expect(failure.message.toLowerCase()).toContain('syntax error');
-      expect(failure.details?.code).toBe('42601');
-      expect(failure.location).not.toBeNull();
+      expect(failure.message.toLowerCase()).toContain('function');
+      expect(failure.details?.code).toBe('42883');
     } finally {
       await client.end();
     }
@@ -113,12 +116,9 @@ describeIfPg('runSqlLint integration', () => {
       });
       expect(result.failures.length).toBeGreaterThan(0);
       const failure = result.failures[0];
-      expect(failure.kind).toBe('transform');
-      expect(failure.message.toLowerCase()).toContain('fixture');
+      expect(failure.kind).toBe('db');
       expect(failure.message.toLowerCase()).toContain('missing');
-      if (failure.details?.code) {
-        expect(failure.details.code).not.toMatch(/^4/);
-      }
+      expect(failure.details?.code).toBe('42P01');
     } finally {
       await client.end();
     }

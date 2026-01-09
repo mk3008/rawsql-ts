@@ -223,19 +223,8 @@ async function executeValidationStatement(
   testkit: ReturnType<typeof createPgTestkitClient>,
   statement: string
 ): Promise<void> {
-  const name = `"ztd_lint_${Date.now()}_${Math.random().toString(36).slice(2, 8)}"`;
-  try {
-    await testkit.query(`PREPARE ${name} AS ${statement}`);
-  } catch (prepareError) {
-    try {
-      await testkit.query(`EXPLAIN ${statement}`);
-      return;
-    } catch {
-      throw prepareError;
-    }
-  } finally {
-    await testkit.query(`DEALLOCATE ${name}`).catch(() => undefined);
-  }
+  // Execute the rewritten statement so fixtures are applied before Postgres validation.
+  await testkit.query(statement);
 }
 
 /**
