@@ -42,6 +42,47 @@ const query = builder.buildQuery(baseSql, {
 
 The injector also honors `in`, `any`, and explicit `column` overrides for edge cases such as JSON paths.
 
+## Column-Anchored EXISTS filters
+
+You can now attach `EXISTS`/`NOT EXISTS` predicates directly to filter targets, which is useful when the relationship requires correlated subqueries. For a single column you can add an `exists` or `notExists` object:
+
+```ts
+const query = builder.buildQuery(baseSql, {
+  filter: {
+    'users.id': {
+      exists: {
+        sql: `
+          SELECT 1 FROM orders o
+          WHERE o.user_id = $c0
+            AND o.status = :status
+        `,
+        params: { status: 'paid' }
+      }
+    }
+  }
+});
+```
+
+The placeholder tokens `$c0`, `$c1`, … refer to the filters’ anchor columns in declaration order, so every anchor column must appear in the subquery. `$exists`/`$notExists` metadata blocks let you declare multi-column anchors together:
+
+```ts
+filter: {
+  $exists: [
+    {
+      on: ['users.id', 'users.tenant_id'],
+      sql: `
+        SELECT 1 FROM subscriptions s
+        WHERE s.user_id = $c0
+          AND s.tenant_id = $c1
+      `,
+      params: { status: 'active' }
+    }
+  ]
+}
+```
+
+If placeholder numbering or column resolution fails the builder skips the predicate by default, but enabling `existsStrict: true` in `QueryBuildOptions` surfaces the error so you can fix the metadata.
+
 ## Combining Filters With Sorts And Paging
 
 You can layer `filter`, `sort`, and `paging` in one call. The builder parses the base SQL once, injects filters, then applies ordering and pagination so each step sees the updated projection.
