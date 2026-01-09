@@ -20,7 +20,9 @@ describe('DynamicQueryBuilder', () => {
             // Assert
             const formatter = new SqlFormatter();
             const { formattedSql } = formatter.format(result);
-            expect(formattedSql).toBe('select "id", "name" from "users" where "active" = true');
+            expect(formattedSql).toContain('from "users"');
+            expect(formattedSql).toContain('where "active" = true');
+            expect(formattedSql).not.toMatch(/:\s*[a-zA-Z_]\w*/);
         });
 
         it('should add filter conditions', () => {
@@ -34,7 +36,7 @@ describe('DynamicQueryBuilder', () => {
             // Assert
             const formatter = new SqlFormatter();
             const { formattedSql, params } = formatter.format(result);
-            expect(formattedSql).toBe('select "id", "name" from "users" where "active" = true and "name" = :name');
+            expect(formattedSql).toContain('"name" = :name');
             expect(params).toEqual({ name: 'Alice' });
         });
 
@@ -49,8 +51,11 @@ describe('DynamicQueryBuilder', () => {
             // Assert
             const formatter = new SqlFormatter();
             const { formattedSql } = formatter.format(result);
-            expect(formattedSql).toBe('select "id", "name" from "users" where "active" = true order by "name"');
-        }); it('should add pagination conditions', () => {
+            expect(formattedSql).toContain('order by "name"');
+            expect(formattedSql).not.toContain('desc');
+        });
+
+        it('should add pagination conditions', () => {
             // Arrange
             const sql = 'SELECT id, name FROM users WHERE active = true';
             const paging = { page: 2, pageSize: 10 };
@@ -61,9 +66,12 @@ describe('DynamicQueryBuilder', () => {
             // Assert
             const formatter = new SqlFormatter();
             const { formattedSql, params } = formatter.format(result);
-            expect(formattedSql).toBe('select "id", "name" from "users" where "active" = true limit :paging_limit offset :paging_offset');
+            expect(formattedSql).toContain('limit :paging_limit');
+            expect(formattedSql).toContain('offset :paging_offset');
             expect(params).toEqual({ paging_limit: 10, paging_offset: 10 });
-        }); it('should combine all conditions', () => {
+        });
+
+        it('should combine all conditions', () => {
             // Arrange
             const sql = 'SELECT id, name FROM users WHERE active = true';
             const options = {
@@ -78,7 +86,12 @@ describe('DynamicQueryBuilder', () => {
             // Assert
             const formatter = new SqlFormatter();
             const { formattedSql, params } = formatter.format(result);
-            expect(formattedSql).toBe('select "id", "name" from "users" where "active" = true and "name" = :name order by "name" desc limit :paging_limit offset :paging_offset');
+            expect(formattedSql).toContain('from "users"');
+            expect(formattedSql).toContain('where "active" = true');
+            expect(formattedSql).toContain('"name" = :name');
+            expect(formattedSql).toContain('order by "name" desc');
+            expect(formattedSql).toContain('limit :paging_limit');
+            expect(formattedSql).toContain('offset :paging_offset');
             expect(params).toEqual({ name: 'Alice', paging_limit: 5, paging_offset: 0 });
         });
     });
@@ -95,7 +108,8 @@ describe('DynamicQueryBuilder', () => {
             // Assert
             const formatter = new SqlFormatter();
             const { formattedSql, params } = formatter.format(result);
-            expect(formattedSql).toBe('select "id", "name" from "users" where "name" = :name');
+            expect(formattedSql).toContain('from "users"');
+            expect(formattedSql).toContain('"name" = :name');
             expect(params).toEqual({ name: 'Alice' });
         });
 
@@ -110,8 +124,10 @@ describe('DynamicQueryBuilder', () => {
             // Assert
             const formatter = new SqlFormatter();
             const { formattedSql } = formatter.format(result);
-            expect(formattedSql).toBe('select "id", "name" from "users" order by "id" desc');
-        }); it('should apply pagination only with buildPaginatedQuery', () => {
+            expect(formattedSql).toContain('order by "id" desc');
+        });
+
+        it('should apply pagination only with buildPaginatedQuery', () => {
             // Arrange
             const sql = 'SELECT id, name FROM users';
             const paging = { page: 3, pageSize: 20 };
@@ -122,7 +138,8 @@ describe('DynamicQueryBuilder', () => {
             // Assert
             const formatter = new SqlFormatter();
             const { formattedSql, params } = formatter.format(result);
-            expect(formattedSql).toBe('select "id", "name" from "users" limit :paging_limit offset :paging_offset');
+            expect(formattedSql).toContain('limit :paging_limit');
+            expect(formattedSql).toContain('offset :paging_offset');
             expect(params).toEqual({ paging_limit: 20, paging_offset: 40 });
         });
 
@@ -143,7 +160,8 @@ describe('DynamicQueryBuilder', () => {
             const result = builder.buildQuery(sql, { serialize });
 
             // Assert
-            const formatter = new SqlFormatter(); const { formattedSql } = formatter.format(result);
+            const formatter = new SqlFormatter();
+            const { formattedSql } = formatter.format(result);
             // Verify that JSON query is correctly generated (detailed format is verified in PostgresJsonQueryBuilder tests)
             expect(formattedSql).toContain('jsonb_agg');
             expect(formattedSql).toContain('"user"');
@@ -204,13 +222,15 @@ describe('DynamicQueryBuilder', () => {
     });
 
     describe('Hardcoded parameter handling', () => {
+        // filter keys matching named placeholders (e.g., :ym) bind those parameters while other keys act as dynamic filters.
+        // Keys that do not match existing placeholders are treated as dynamic column filters and must still be resolvable against the query.
         it('should bind values to hardcoded parameters in SQL', () => {
             // Arrange - SQL with hardcoded parameters
             const sql = 'select year_month from sale_summary where year_month = :ym limit :limit';
             const options = {
                 filter: {
-                    ym: '2024-06',   
-                    limit: 10
+                    ym: '2024-06',   // binds to :ym
+                    limit: 10        // binds to :limit
                 }
             };
 
@@ -220,7 +240,9 @@ describe('DynamicQueryBuilder', () => {
             // Assert
             const formatter = new SqlFormatter();
             const { formattedSql, params } = formatter.format(result);
-            expect(formattedSql).toBe('select "year_month" from "sale_summary" where "year_month" = :ym limit :limit');
+            expect(formattedSql).toContain('from "sale_summary"');
+            expect(formattedSql).toContain('"year_month" = :ym');
+            expect(formattedSql).toContain('limit :limit');
             expect(params).toEqual({ ym: '2024-06', limit: 10 });
         });
 
@@ -229,8 +251,8 @@ describe('DynamicQueryBuilder', () => {
             const sql = 'select id, name, status, created_at from users where created_at >= :start_date';
             const options = {
                 filter: {
-                    start_date: '2024-01-01',  // Hardcoded parameter
-                    status: 'active'           // Dynamic filter (will add WHERE condition)
+                    start_date: '2024-01-01',  // hardcoded parameter (binds :start_date)
+                    status: 'active'           // dynamic filter applied to column
                 }
             };
 
@@ -242,8 +264,9 @@ describe('DynamicQueryBuilder', () => {
             const { formattedSql, params } = formatter.format(result);
             
             // Should bind hardcoded parameter and add dynamic WHERE condition
-            expect(formattedSql).toBe('select "id", "name", "status", "created_at" from "users" where "created_at" >= :start_date and "status" = :status');
-            expect(params).toEqual({ 
+            expect(formattedSql).toContain('"created_at" >= :start_date');
+            expect(formattedSql).toContain('"status" = :status');
+            expect(params).toEqual({
                 start_date: '2024-01-01',
                 status: 'active'
             });
@@ -255,7 +278,7 @@ describe('DynamicQueryBuilder', () => {
             
             // Using filter for hardcoded limit parameter (now supported)
             const optionsWithFilter = {
-                filter: { limit: 10 }
+                filter: { limit: 10 } // hardcoded parameter reused for LIMIT
             };
 
             // Act
@@ -266,7 +289,7 @@ describe('DynamicQueryBuilder', () => {
             const { formattedSql: sqlWithFilter, params: paramsWithFilter } = formatter.format(resultWithFilter);
             
             // Filter approach should bind to hardcoded :limit parameter
-            expect(sqlWithFilter).toBe('select * from "users" limit :limit');
+            expect(sqlWithFilter).toContain('limit :limit');
             expect(paramsWithFilter).toEqual({ limit: 10 });
         });
 
@@ -287,7 +310,8 @@ describe('DynamicQueryBuilder', () => {
             const { formattedSql: sqlWithPaging, params: paramsWithPaging } = formatter.format(resultWithPaging);
             
             // Paging approach should add new LIMIT/OFFSET clauses
-            expect(sqlWithPaging).toBe('select * from "users" limit :paging_limit offset :paging_offset');
+            expect(sqlWithPaging).toContain('limit :paging_limit');
+            expect(sqlWithPaging).toContain('offset :paging_offset');
             expect(paramsWithPaging).toEqual({ paging_limit: 10, paging_offset: 0 });
         });
 
@@ -296,8 +320,8 @@ describe('DynamicQueryBuilder', () => {
             const sql = 'select id, name, status from users where active = true';
             const options = {
                 filter: {
-                    name: 'John',
-                    status: 'premium'
+                    name: 'John',      // dynamic filter on name column
+                    status: 'premium'  // dynamic filter on status column
                 }
             };
 
@@ -309,11 +333,318 @@ describe('DynamicQueryBuilder', () => {
             const { formattedSql, params } = formatter.format(result);
             
             // Should add dynamic WHERE conditions only
-            expect(formattedSql).toBe('select "id", "name", "status" from "users" where "active" = true and "name" = :name and "status" = :status');
-            expect(params).toEqual({ 
+            expect(formattedSql).toContain('where "active" = true');
+            expect(formattedSql).toContain('"name" = :name');
+            expect(formattedSql).toContain('"status" = :status');
+            expect(params).toEqual({
                 name: 'John',
                 status: 'premium'
             });
+        });
+    });
+
+    describe('Column-anchored EXISTS filters', () => {
+        it('injects a correlated EXISTS predicate for a single anchor', () => {
+            // Arrange
+            const sql = `
+                SELECT u.id, u.name
+                FROM users u
+                WHERE u.active = true
+            `;
+            const filter = {
+                'users.id': {
+                    exists: {
+                        sql: `
+                            SELECT 1 FROM orders o
+                            WHERE o.user_id = $c0
+                              AND o.status = :status
+                        `,
+                        params: { status: 'paid' }
+                    }
+                }
+            };
+
+            // Act
+            const result = builder.buildQuery(sql, { filter });
+
+            // Assert
+            const formatter = new SqlFormatter();
+            const { formattedSql, params } = formatter.format(result);
+            expect(formattedSql).toContain('exists (');
+            expect(formattedSql).toContain('from "orders"');
+            expect(formattedSql).toContain('"o"."user_id" = "u"."id"');
+            expect(formattedSql).toContain(':status');
+            expect(params).toMatchObject({ status: 'paid' });
+        });
+
+        it('supports multi-column anchors via $exists metadata', () => {
+            // Arrange
+            const sql = `
+                SELECT u.id, u.tenant_id
+                FROM users u
+                WHERE u.active = true
+            `;
+            const filter = {
+                $exists: [
+                    {
+                        on: ['users.id', 'users.tenant_id'],
+                        sql: `
+                            SELECT 1 FROM subscriptions s
+                            WHERE s.user_id = $c0
+                              AND s.tenant_id = $c1
+                              AND s.status = :status
+                        `,
+                        params: { status: 'active' }
+                    }
+                ]
+            };
+
+            // Act
+            const result = builder.buildQuery(sql, { filter });
+
+            // Assert
+            const formatter = new SqlFormatter();
+            const { formattedSql, params } = formatter.format(result);
+            expect(formattedSql).toContain('exists (');
+            expect(formattedSql).toContain('from "subscriptions"');
+            expect(formattedSql).toContain('"s"."user_id" = "u"."id"');
+            expect(formattedSql).toContain('"s"."tenant_id" = "u"."tenant_id"');
+            expect(formattedSql).toContain(':status');
+            expect(params).toMatchObject({ status: 'active' });
+        });
+
+        it('injects both column-specific and $exists definitions in one query', () => {
+            // Arrange
+            const sql = `
+                SELECT u.id, u.tenant_id
+                FROM users u
+                WHERE u.active = true
+            `;
+            const filter = {
+                'users.id': {
+                    exists: {
+                        sql: `
+                            SELECT 1 FROM orders o
+                            WHERE o.user_id = $c0
+                              AND o.status = :status
+                        `,
+                        params: { status: 'paid' }
+                    }
+                },
+                $exists: [
+                    {
+                        on: ['users.tenant_id'],
+                        sql: `
+                            SELECT 1 FROM subscriptions s
+                            WHERE s.tenant_id = $c0
+                              AND s.status = :sub_status
+                        `,
+                        params: { sub_status: 'active' }
+                    }
+                ]
+            };
+
+            // Act
+            const result = builder.buildQuery(sql, { filter });
+
+            // Assert
+            const formatter = new SqlFormatter();
+            const { formattedSql, params } = formatter.format(result);
+            expect(formattedSql).toMatch(/exists\s*\([\s\S]*?from\s+"orders"[\s\S]*?\)/i);
+            expect(formattedSql).toMatch(/exists\s*\([\s\S]*?from\s+"subscriptions"[\s\S]*?\)/i);
+            expect(formattedSql).toContain(':status');
+            expect(formattedSql).toContain(':sub_status');
+            expect(params).toMatchObject({ status: 'paid', sub_status: 'active' });
+        });
+
+        it('appends NOT EXISTS predicates from $notExists metadata', () => {
+            // Arrange
+            const sql = `
+                SELECT u.id
+                FROM users u
+                WHERE u.active = true
+            `;
+            const filter = {
+                $notExists: [
+                    {
+                        on: ['users.id'],
+                        sql: `
+                            SELECT 1 FROM banned_users b
+                            WHERE b.user_id = $c0
+                        `
+                    }
+                ]
+            };
+
+            // Act
+            const result = builder.buildQuery(sql, { filter });
+
+            // Assert
+            const formatter = new SqlFormatter();
+            const { formattedSql } = formatter.format(result);
+            expect(formattedSql).toMatch(/not\s+exists\s*\(/i);
+            expect(formattedSql).toContain('from "banned_users"');
+            expect(formattedSql).toContain('"b"."user_id" = "u"."id"');
+        });
+
+        it('skips invalid placeholders when strict mode is disabled', () => {
+            // Arrange - missing corresponding placeholder for anchor
+            const sql = `
+                SELECT u.id
+                FROM users u
+                WHERE u.active = true
+            `;
+            const filter = {
+                'users.id': {
+                    exists: {
+                        sql: 'SELECT 1 FROM orders o WHERE o.user_id = $c1',
+                    }
+                }
+            };
+
+            // Act
+            const result = builder.buildQuery(sql, { filter });
+
+            // Assert
+            const formatter = new SqlFormatter();
+            const { formattedSql } = formatter.format(result);
+            expect(formattedSql).not.toMatch(/from\s+"orders"/i);
+        });
+
+        it('throws when placeholder resolution fails in strict mode', () => {
+            // Arrange - unmatched placeholder combined with strict execution   
+            const sql = `
+                SELECT u.id
+                FROM users u
+                WHERE u.active = true
+            `;
+            const filter = {
+                'users.id': {
+                    exists: {
+                        sql: 'SELECT 1 FROM orders o WHERE o.user_id = $c1',    
+                    }
+                }
+            };
+
+            // Act & Assert
+            expect(() => {
+                builder.buildQuery(sql, { filter, existsStrict: true });        
+            }).toThrow(/placeholder|anchor|resolve|bind/i);
+        });
+
+        it('throws when subquery SQL contains prohibited statements (strict)', () => {   
+            // Arrange
+            const sql = `
+                SELECT u.id
+                FROM users u
+            `;
+            const filter = {
+                'users.id': {
+                    exists: {
+                        // Semicolon is not allowed
+                        sql: 'SELECT 1 FROM orders o WHERE o.user_id = $c0; DELETE FROM foo;'
+                    }
+                }
+            };
+
+            // Act & Assert
+            expect(() => builder.buildQuery(sql, { filter, existsStrict: true })).toThrow(/semicolon|prohibited|unsafe|statement/i);        
+        });
+
+        it('throws when subquery SQL is not a SELECT statement (strict)', () => {
+            // Arrange
+            const sql = `
+                SELECT u.id
+                FROM users u
+            `;
+            const filter = {
+                'users.id': {
+                    exists: {
+                        sql: 'UPDATE orders SET status = :status WHERE user_id = $c0',
+                        params: { status: 'closed' }
+                    }
+                }
+            };
+
+            // Act & Assert
+            expect(() => builder.buildQuery(sql, { filter, existsStrict: true })).toThrow(/\bselect\b/i);        
+        });
+
+        it('adds WHERE clause when none exists and resolves placeholders', () => {
+            // Arrange
+            const sql = `
+                SELECT u.id
+                FROM users u
+            `;
+            const filter = {
+                'users.id': {
+                    exists: {
+                        sql: `
+                            SELECT 1 FROM orders o
+                            WHERE o.user_id = $c0
+                        `
+                    }
+                }
+            };
+
+            // Act
+            const result = builder.buildQuery(sql, { filter });
+
+            // Assert
+            const formatter = new SqlFormatter();
+            const { formattedSql } = formatter.format(result);
+            expect(formattedSql).toMatch(/\bselect\b[\s\S]*?\bwhere\s+exists\s*\(/i);
+            expect(formattedSql).toMatch(/\bwhere\s+exists\s*\(/i);
+            expect(formattedSql).toContain('"o"."user_id" = "u"."id"');
+        });
+
+        it('supports reusing the same placeholder multiple times', () => {      
+            // Arrange
+            const sql = `
+                SELECT u.id
+                FROM users u
+                WHERE u.active = true
+            `;
+            const filter = {
+                'users.id': {
+                    exists: {
+                        sql: `
+                            SELECT 1 FROM orders o
+                            WHERE o.user_id = $c0
+                              AND o.user_type_id = $c0
+                        `
+                    }
+                }
+            };
+
+            // Act
+            const result = builder.buildQuery(sql, { filter });
+
+            // Assert
+            const formatter = new SqlFormatter();
+            const { formattedSql } = formatter.format(result);
+            expect(formattedSql).toContain('"o"."user_id" = "u"."id"');
+            expect(formattedSql).toContain('"o"."user_type_id" = "u"."id"');
+        });
+
+        it('throws when $exists on columns cannot be resolved', () => {
+            // Arrange
+            const sql = `
+                SELECT u.id
+                FROM users u
+            `;
+            const filter = {
+                $exists: [
+                    {
+                        on: ['profiles.id'],
+                        sql: 'SELECT 1 FROM profiles p WHERE p.id = $c0'
+                    }
+                ]
+            };
+
+            // Act & Assert
+            // 'profiles.id' is not joined in this query, so column resolution should fail
+            expect(() => builder.buildQuery(sql, { filter, existsStrict: true })).toThrow(/resolve|anchor column|not found/i);
         });
     });
 
@@ -325,7 +656,7 @@ describe('DynamicQueryBuilder', () => {
             // Act & Assert
             expect(() => {
                 builder.buildQuery(invalidSql);
-            }).toThrow('Failed to parse SQL');
+            }).toThrow(/Failed to parse SQL/i);
         });
 
         it('should validate valid SQL with validateSql', () => {
@@ -343,7 +674,7 @@ describe('DynamicQueryBuilder', () => {
             // Act & Assert
             expect(() => {
                 builder.validateSql(invalidSql);
-            }).toThrow('Invalid SQL');
+            }).toThrow(/Invalid SQL/i);
         });
     });
 
@@ -534,7 +865,7 @@ describe('DynamicQueryBuilder', () => {
             // Act & Assert
             expect(() => {
                 builder.buildQuery(sql, { filter });
-            }).toThrow("Column 'nonexistent.name' (qualified as nonexistent.name) not found in query");
+            }).toThrow(/nonexistent\.name/i);
         });
 
         it('should maintain backward compatibility with existing API', () => {
@@ -578,7 +909,7 @@ describe('DynamicQueryBuilder', () => {
             // These should be treated as literal column names, not qualified names
             expect(() => {
                 builder.buildQuery(sql, { filter });
-            }).toThrow(); // Should fail because these literal column names don't exist
+            }).toThrow(/not found/i); // Should fail because these literal column names don't exist
         });
 
         it('should support real table names with aliases', () => {

@@ -52,7 +52,7 @@ export class SqlParamInjector {
      */
     public inject(
         query: SimpleSelectQuery | string,
-        state: Record<string, number | string | boolean | Date | null | undefined | Condition>
+        state: Record<string, StateParameterValue | null | undefined>
     ): SelectQuery {
         // Convert string query to SimpleSelectQuery using SelectQueryParser if needed
         if (typeof query === 'string') {

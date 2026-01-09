@@ -1,6 +1,6 @@
 import { SelectQuery, SimpleSelectQuery } from "../models/SelectQuery";
 import { SelectQueryParser } from "../parsers/SelectQueryParser";
-import { SqlParamInjector } from "./SqlParamInjector";
+import { SqlParamInjector, StateParameterValue } from "./SqlParamInjector";
 import { SqlSortInjector, SortConditions } from "./SqlSortInjector";
 import { SqlPaginationInjector, PaginationOptions } from "./SqlPaginationInjector";
 import { PostgresJsonQueryBuilder, JsonMapping } from "./PostgresJsonQueryBuilder";
@@ -8,6 +8,7 @@ import { QueryBuilder } from "./QueryBuilder";
 import { SqlParameterBinder } from "./SqlParameterBinder";
 import { ParameterDetector } from "../utils/ParameterDetector";
 import { SqlParameterValue } from "../models/ValueComponent";
+import { ExistsInstruction, injectExistsPredicates } from "./ExistsPredicateInjector";
 /**
  * Value union accepted for a single filter entry in DynamicQueryBuilder.
  *
@@ -21,7 +22,7 @@ import { SqlParameterValue } from "../models/ValueComponent";
  */
 
 
-export type FilterConditionValue = SqlParameterValue | SqlParameterValue[] | {
+export interface FilterConditionObject {
     min?: SqlParameterValue;
     max?: SqlParameterValue;
     like?: string;
@@ -37,8 +38,32 @@ export type FilterConditionValue = SqlParameterValue | SqlParameterValue[] | {
     '<>'?: SqlParameterValue;
     or?: { column: string; [operator: string]: SqlParameterValue | string }[];
     and?: { column: string; [operator: string]: SqlParameterValue | string }[];
+
     column?: string;
-};
+    exists?: ExistsSubqueryDefinition;
+    notExists?: ExistsSubqueryDefinition;
+}
+
+export interface MultiColumnExistsDefinition extends ExistsSubqueryDefinition {
+    on: string[];
+}
+
+export type FilterConditionValue =
+    | SqlParameterValue
+    | SqlParameterValue[]
+    | FilterConditionObject
+    | MultiColumnExistsDefinition[];
+
+
+/**
+ * Describes the correlated subquery that feeds an `exists`/`notExists` filter.
+ */
+export interface ExistsSubqueryDefinition {
+    /** SQL text that uses `$c0`, `$c1`, … to reference the anchor columns. */
+    sql: string;
+    /** Optional named parameters that the subquery requires. */
+    params?: Record<string, SqlParameterValue>;
+ }
 
 /**
  * Filter conditions for dynamic query building.
@@ -91,12 +116,17 @@ export interface QueryBuildOptions {
      * - false/undefined: no serialization
      */
     serialize?: JsonMapping | boolean;
-    /** 
+    /**
      * JSONB usage setting. Must be true (default) for PostgreSQL GROUP BY compatibility.
      * Setting to false will throw an error as JSON type cannot be used in GROUP BY clauses.
      * @default true
      */
     jsonb?: boolean;
+    /**
+     * Throw when column-anchored EXISTS filters fail to resolve.
+     * Defaults to false so invalid definitions are skipped silently.
+     */
+    existsStrict?: boolean;
 }
 
 /**
@@ -152,19 +182,28 @@ export class DynamicQueryBuilder {
         // 1. Bind hardcoded parameters first (before any other transformations)
         if (options.filter && Object.keys(options.filter).length > 0) {
             const { hardcodedParams, dynamicFilters } = ParameterDetector.separateFilters(modifiedQuery, options.filter);
-            
+
             // Bind hardcoded parameters if any exist
             if (Object.keys(hardcodedParams).length > 0) {
                 const parameterBinder = new SqlParameterBinder({ requireAllParameters: false });
                 modifiedQuery = parameterBinder.bind(modifiedQuery, hardcodedParams);
             }
-            
-            // Apply dynamic filtering only if there are non-hardcoded filters
-            if (Object.keys(dynamicFilters).length > 0) {
+
+            // Extract and remove any column-anchored EXISTS filters before injecting traditional ones.
+            const { filters: cleanedFilters, instructions: existsInstructions } = this.extractExistsInstructions(dynamicFilters);
+
+            if (Object.keys(cleanedFilters).length > 0) {
                 const paramInjector = new SqlParamInjector(this.tableColumnResolver);
                 // Ensure we have a SimpleSelectQuery for the injector
                 const simpleQuery = QueryBuilder.buildSimpleQuery(modifiedQuery);
-                modifiedQuery = paramInjector.inject(simpleQuery, dynamicFilters);
+                modifiedQuery = paramInjector.inject(simpleQuery, cleanedFilters);
+            }
+
+            if (existsInstructions.length > 0) {
+                modifiedQuery = injectExistsPredicates(modifiedQuery, existsInstructions, {
+                    tableColumnResolver: this.tableColumnResolver,
+                    strict: !!options.existsStrict
+                });
             }
         }
 
@@ -195,6 +234,112 @@ export class DynamicQueryBuilder {
         }
 
         return modifiedQuery;
+    }
+
+    private extractExistsInstructions(filters: Record<string, FilterConditionValue>) {
+        const cleanedFilters: Record<string, StateParameterValue> = {};        
+        const instructions: ExistsInstruction[] = [];
+
+        for (const [key, value] of Object.entries(filters)) {
+            if (key === "$exists" || key === "$notExists") {
+                // Multi-anchor metadata arrives as arrays keyed by the special markers.
+                if (!this.isMultiColumnDefinitionArray(value)) {
+                    throw new Error(`'${key}' must be an array of EXISTS definitions.`);
+                }
+                this.handleMultiAnchorDefinitions(key, value, instructions);
+                continue;
+            }
+
+            if (this.isFilterConditionObject(value)) {
+                const { leftover, exists, notExists } = this.splitExistsProperties(value);
+
+                if (exists) {
+                    instructions.push(this.createExistsInstruction([key], exists, "exists"));
+                }
+                if (notExists) {
+                    instructions.push(this.createExistsInstruction([key], notExists, "notExists"));
+                }
+
+                if (leftover) {
+                    cleanedFilters[key] = leftover;
+                }
+                continue;
+            }
+
+            if (this.isMultiColumnDefinitionArray(value)) {
+                continue;
+            }
+            cleanedFilters[key] = value as StateParameterValue;
+        }
+
+        return { filters: cleanedFilters, instructions };
+    }
+
+    private handleMultiAnchorDefinitions(
+        key: "$exists" | "$notExists",
+        definitions: MultiColumnExistsDefinition[],
+        instructions: ExistsInstruction[]
+    ): void {
+        // Build instructions for each multi-anchor definition in the batch.
+        for (const definition of definitions) {
+            if (!definition.on || definition.on.length === 0) {
+                throw new Error(`Every ${key} instruction must specify an "on" array.`);
+            }
+            instructions.push(
+                this.createExistsInstruction(
+                    definition.on,
+                    definition,
+                    key === "$notExists" ? "notExists" : "exists"
+                )
+            );
+        }
+    }
+
+    private splitExistsProperties(value: FilterConditionObject) {
+        const { exists, notExists, ...rest } = value;
+        const hasRemaining = Object.keys(rest).length > 0;
+        return {
+            leftover: hasRemaining ? (rest as StateParameterValue) : undefined,
+            exists: exists as ExistsSubqueryDefinition | undefined,
+            notExists: notExists as ExistsSubqueryDefinition | undefined        
+        };
+    }
+
+    private isFilterConditionObject(value: FilterConditionValue): value is FilterConditionObject {
+        return value !== null && typeof value === "object" && !Array.isArray(value);
+    }
+
+    private isMultiColumnDefinitionArray(value: FilterConditionValue): value is MultiColumnExistsDefinition[] {
+        return Array.isArray(value) && value.every(entry => this.isMultiColumnDefinition(entry));
+    }
+
+    private isMultiColumnDefinition(value: unknown): value is MultiColumnExistsDefinition {
+        if (!value || typeof value !== "object") {
+            return false;
+        }
+        const candidate = value as MultiColumnExistsDefinition;
+        return (
+            Array.isArray(candidate.on) &&
+            candidate.on.length > 0 &&
+            candidate.on.every(column => typeof column === "string") &&
+            typeof candidate.sql === "string"
+        );
+    }
+
+    private createExistsInstruction(
+        anchors: string[],
+        definition: ExistsSubqueryDefinition,
+        mode: "exists" | "notExists"
+    ): ExistsInstruction {
+        if (!definition.sql || typeof definition.sql !== "string") {
+            throw new Error("EXISTS definition must include a SQL string.");
+        }
+        return {
+            mode,
+            anchorColumns: anchors,
+            sql: definition.sql,
+            params: definition.params
+        };
     }
 
     /**
