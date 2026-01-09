@@ -24,3 +24,14 @@ export type {
 } from './fixtures/ddlLint';
 export { ResultSelectRewriter } from './rewriter/ResultSelectRewriter';
 export { alignRewrittenParameters, applyCountWrapper, extractCountValue, CountableResult } from './utils/queryHelpers';
+export {
+  TestkitProvider,
+  createTestkitProvider,
+} from './provider/TestkitProvider';
+export type {
+  CreateTestkitProviderOptions,
+  ConnectionResetHook,
+  ConnectionResetOption,
+  ConnectionStrategy,
+  TestkitConnection,
+} from './provider/TestkitProvider';

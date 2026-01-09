@@ -8,8 +8,15 @@ Tests are a shared workspace for humans and AI, but must respect ZTD-specific co
 ## Default execution mode (important)
 
 - The default execution mode for tests is **ZTD**.
+- ZTD tests run through the new `createTestkitProvider` helper, which keeps a single
+  shared backend connection per worker and wraps each scenario in a rollback
+  transaction by default.
 - Do not switch to Traditional mode unless explicitly instructed by a human.
 - Do not set `ZTD_EXECUTION_MODE=traditional` or pass `{ mode: "traditional" }` to `createTestkitClient()` without explicit instruction.
+- When you need session-level changes (temporary tables, `SET` commands, etc.), opt
+  into per-test isolation via `provider.perTest()` or by passing `{ strategy:
+  'perTest' }` to `provider.withRepositoryFixture`. Shared mode otherwise keeps the
+  default behavior fast and deterministic.
 - If instructions are ambiguous, assume ZTD mode and proceed.
 
 ---
