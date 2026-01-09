@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: SmartRenamer
 
-Defined in: [packages/core/src/transformers/SmartRenamer.ts:47](https://github.com/mk3008/rawsql-ts/blob/91d42e83cf18d5aa89f15811c30826dcf6b4e437/packages/core/src/transformers/SmartRenamer.ts#L47)
+Defined in: [packages/core/src/transformers/SmartRenamer.ts:47](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/transformers/SmartRenamer.ts#L47)
 
 Smart renamer that detects whether a cursor points to a CTE or table alias and routes to the correct renamer.
 
@@ -29,7 +29,7 @@ Related tests: packages/core/tests/transformers/SmartRenamer.demo.test.ts
 
 > **new SmartRenamer**(): `SmartRenamer`
 
-Defined in: [packages/core/src/transformers/SmartRenamer.ts:52](https://github.com/mk3008/rawsql-ts/blob/91d42e83cf18d5aa89f15811c30826dcf6b4e437/packages/core/src/transformers/SmartRenamer.ts#L52)
+Defined in: [packages/core/src/transformers/SmartRenamer.ts:52](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/transformers/SmartRenamer.ts#L52)
 
 #### Returns
 
@@ -41,7 +41,7 @@ Defined in: [packages/core/src/transformers/SmartRenamer.ts:52](https://github.c
 
 > **isRenameable**(`sql`, `position`): `object`
 
-Defined in: [packages/core/src/transformers/SmartRenamer.ts:67](https://github.com/mk3008/rawsql-ts/blob/91d42e83cf18d5aa89f15811c30826dcf6b4e437/packages/core/src/transformers/SmartRenamer.ts#L67)
+Defined in: [packages/core/src/transformers/SmartRenamer.ts:67](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/transformers/SmartRenamer.ts#L67)
 
 Check if the token at the given position is renameable (CTE name or table alias).
 This is a lightweight check for GUI applications to determine if a rename context menu
@@ -89,7 +89,7 @@ Object indicating if renameable and what type of renamer would be used
 
 > **rename**(`sql`, `position`, `newName`, `options?`): [`SmartRenameResult`](../interfaces/SmartRenameResult.md)
 
-Defined in: [packages/core/src/transformers/SmartRenamer.ts:138](https://github.com/mk3008/rawsql-ts/blob/91d42e83cf18d5aa89f15811c30826dcf6b4e437/packages/core/src/transformers/SmartRenamer.ts#L138)
+Defined in: [packages/core/src/transformers/SmartRenamer.ts:138](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/transformers/SmartRenamer.ts#L138)
 
 Automatically detect and rename CTE names or table aliases based on cursor position.
 
@@ -133,7 +133,7 @@ Result object with success status and details
 
 > **batchRename**(`sql`, `renames`, `options?`): [`SmartRenameResult`](../interfaces/SmartRenameResult.md)
 
-Defined in: [packages/core/src/transformers/SmartRenamer.ts:437](https://github.com/mk3008/rawsql-ts/blob/91d42e83cf18d5aa89f15811c30826dcf6b4e437/packages/core/src/transformers/SmartRenamer.ts#L437)
+Defined in: [packages/core/src/transformers/SmartRenamer.ts:437](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/transformers/SmartRenamer.ts#L437)
 
 Batch rename multiple identifiers with optional formatting preservation.
 

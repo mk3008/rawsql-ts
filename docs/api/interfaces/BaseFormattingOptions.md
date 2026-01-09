@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: BaseFormattingOptions
 
-Defined in: [packages/core/src/transformers/SqlFormatter.ts:39](https://github.com/mk3008/rawsql-ts/blob/91d42e83cf18d5aa89f15811c30826dcf6b4e437/packages/core/src/transformers/SqlFormatter.ts#L39)
+Defined in: [packages/core/src/transformers/SqlFormatter.ts:39](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/transformers/SqlFormatter.ts#L39)
 
 Common formatting knobs shared by SqlFormatter and SqlPrinter.
 
@@ -23,7 +23,7 @@ Related tests: packages/core/tests/transformers/SqlFormatter.case.test.ts
 
 > `optional` **indentSize**: `number`
 
-Defined in: [packages/core/src/transformers/SqlFormatter.ts:41](https://github.com/mk3008/rawsql-ts/blob/91d42e83cf18d5aa89f15811c30826dcf6b4e437/packages/core/src/transformers/SqlFormatter.ts#L41)
+Defined in: [packages/core/src/transformers/SqlFormatter.ts:41](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/transformers/SqlFormatter.ts#L41)
 
 Number of spaces for indentation
 
@@ -33,7 +33,7 @@ Number of spaces for indentation
 
 > `optional` **indentChar**: `string`
 
-Defined in: [packages/core/src/transformers/SqlFormatter.ts:43](https://github.com/mk3008/rawsql-ts/blob/91d42e83cf18d5aa89f15811c30826dcf6b4e437/packages/core/src/transformers/SqlFormatter.ts#L43)
+Defined in: [packages/core/src/transformers/SqlFormatter.ts:43](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/transformers/SqlFormatter.ts#L43)
 
 Character to use for indentation (logical 'space'/'tab' or literal control character)
 
@@ -43,7 +43,7 @@ Character to use for indentation (logical 'space'/'tab' or literal control chara
 
 > `optional` **newline**: `NewlineOption`
 
-Defined in: [packages/core/src/transformers/SqlFormatter.ts:45](https://github.com/mk3008/rawsql-ts/blob/91d42e83cf18d5aa89f15811c30826dcf6b4e437/packages/core/src/transformers/SqlFormatter.ts#L45)
+Defined in: [packages/core/src/transformers/SqlFormatter.ts:45](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/transformers/SqlFormatter.ts#L45)
 
 Newline character style (logical 'lf'/'crlf'/'cr' or literal newline string)
 
@@ -53,7 +53,7 @@ Newline character style (logical 'lf'/'crlf'/'cr' or literal newline string)
 
 > `optional` **keywordCase**: `"none"` \| `"upper"` \| `"lower"`
 
-Defined in: [packages/core/src/transformers/SqlFormatter.ts:47](https://github.com/mk3008/rawsql-ts/blob/91d42e83cf18d5aa89f15811c30826dcf6b4e437/packages/core/src/transformers/SqlFormatter.ts#L47)
+Defined in: [packages/core/src/transformers/SqlFormatter.ts:47](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/transformers/SqlFormatter.ts#L47)
 
 Case transformation for SQL keywords
 
@@ -63,7 +63,7 @@ Case transformation for SQL keywords
 
 > `optional` **commaBreak**: `CommaBreakStyle`
 
-Defined in: [packages/core/src/transformers/SqlFormatter.ts:49](https://github.com/mk3008/rawsql-ts/blob/91d42e83cf18d5aa89f15811c30826dcf6b4e437/packages/core/src/transformers/SqlFormatter.ts#L49)
+Defined in: [packages/core/src/transformers/SqlFormatter.ts:49](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/transformers/SqlFormatter.ts#L49)
 
 Style for comma line breaks
 
@@ -73,7 +73,7 @@ Style for comma line breaks
 
 > `optional` **cteCommaBreak**: `CommaBreakStyle`
 
-Defined in: [packages/core/src/transformers/SqlFormatter.ts:51](https://github.com/mk3008/rawsql-ts/blob/91d42e83cf18d5aa89f15811c30826dcf6b4e437/packages/core/src/transformers/SqlFormatter.ts#L51)
+Defined in: [packages/core/src/transformers/SqlFormatter.ts:51](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/transformers/SqlFormatter.ts#L51)
 
 Style for comma line breaks inside WITH clause definitions
 
@@ -83,7 +83,7 @@ Style for comma line breaks inside WITH clause definitions
 
 > `optional` **valuesCommaBreak**: `CommaBreakStyle`
 
-Defined in: [packages/core/src/transformers/SqlFormatter.ts:53](https://github.com/mk3008/rawsql-ts/blob/91d42e83cf18d5aa89f15811c30826dcf6b4e437/packages/core/src/transformers/SqlFormatter.ts#L53)
+Defined in: [packages/core/src/transformers/SqlFormatter.ts:53](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/transformers/SqlFormatter.ts#L53)
 
 Style for comma line breaks inside VALUES clauses
 
@@ -93,7 +93,7 @@ Style for comma line breaks inside VALUES clauses
 
 > `optional` **andBreak**: `AndBreakStyle`
 
-Defined in: [packages/core/src/transformers/SqlFormatter.ts:55](https://github.com/mk3008/rawsql-ts/blob/91d42e83cf18d5aa89f15811c30826dcf6b4e437/packages/core/src/transformers/SqlFormatter.ts#L55)
+Defined in: [packages/core/src/transformers/SqlFormatter.ts:55](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/transformers/SqlFormatter.ts#L55)
 
 Style for AND line breaks
 
@@ -103,7 +103,7 @@ Style for AND line breaks
 
 > `optional` **orBreak**: `OrBreakStyle`
 
-Defined in: [packages/core/src/transformers/SqlFormatter.ts:57](https://github.com/mk3008/rawsql-ts/blob/91d42e83cf18d5aa89f15811c30826dcf6b4e437/packages/core/src/transformers/SqlFormatter.ts#L57)
+Defined in: [packages/core/src/transformers/SqlFormatter.ts:57](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/transformers/SqlFormatter.ts#L57)
 
 Style for OR line breaks
 
@@ -113,7 +113,7 @@ Style for OR line breaks
 
 > `optional` **exportComment**: `boolean` \| [`CommentExportMode`](../type-aliases/CommentExportMode.md)
 
-Defined in: [packages/core/src/transformers/SqlFormatter.ts:59](https://github.com/mk3008/rawsql-ts/blob/91d42e83cf18d5aa89f15811c30826dcf6b4e437/packages/core/src/transformers/SqlFormatter.ts#L59)
+Defined in: [packages/core/src/transformers/SqlFormatter.ts:59](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/transformers/SqlFormatter.ts#L59)
 
 Whether to export comments in formatted output
 
@@ -123,7 +123,7 @@ Whether to export comments in formatted output
 
 > `optional` **commentStyle**: [`CommentStyle`](../type-aliases/CommentStyle.md)
 
-Defined in: [packages/core/src/transformers/SqlFormatter.ts:61](https://github.com/mk3008/rawsql-ts/blob/91d42e83cf18d5aa89f15811c30826dcf6b4e437/packages/core/src/transformers/SqlFormatter.ts#L61)
+Defined in: [packages/core/src/transformers/SqlFormatter.ts:61](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/transformers/SqlFormatter.ts#L61)
 
 Comment formatting style
 
@@ -133,7 +133,7 @@ Comment formatting style
 
 > `optional` **withClauseStyle**: [`WithClauseStyle`](../type-aliases/WithClauseStyle.md)
 
-Defined in: [packages/core/src/transformers/SqlFormatter.ts:63](https://github.com/mk3008/rawsql-ts/blob/91d42e83cf18d5aa89f15811c30826dcf6b4e437/packages/core/src/transformers/SqlFormatter.ts#L63)
+Defined in: [packages/core/src/transformers/SqlFormatter.ts:63](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/transformers/SqlFormatter.ts#L63)
 
 Formatting style for WITH clauses
 
@@ -143,7 +143,7 @@ Formatting style for WITH clauses
 
 > `optional` **parenthesesOneLine**: `boolean`
 
-Defined in: [packages/core/src/transformers/SqlFormatter.ts:65](https://github.com/mk3008/rawsql-ts/blob/91d42e83cf18d5aa89f15811c30826dcf6b4e437/packages/core/src/transformers/SqlFormatter.ts#L65)
+Defined in: [packages/core/src/transformers/SqlFormatter.ts:65](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/transformers/SqlFormatter.ts#L65)
 
 Keep parentheses content on one line regardless of AND/OR break settings
 
@@ -153,7 +153,7 @@ Keep parentheses content on one line regardless of AND/OR break settings
 
 > `optional` **betweenOneLine**: `boolean`
 
-Defined in: [packages/core/src/transformers/SqlFormatter.ts:67](https://github.com/mk3008/rawsql-ts/blob/91d42e83cf18d5aa89f15811c30826dcf6b4e437/packages/core/src/transformers/SqlFormatter.ts#L67)
+Defined in: [packages/core/src/transformers/SqlFormatter.ts:67](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/transformers/SqlFormatter.ts#L67)
 
 Keep BETWEEN expressions on one line regardless of AND break settings
 
@@ -163,7 +163,7 @@ Keep BETWEEN expressions on one line regardless of AND break settings
 
 > `optional` **valuesOneLine**: `boolean`
 
-Defined in: [packages/core/src/transformers/SqlFormatter.ts:69](https://github.com/mk3008/rawsql-ts/blob/91d42e83cf18d5aa89f15811c30826dcf6b4e437/packages/core/src/transformers/SqlFormatter.ts#L69)
+Defined in: [packages/core/src/transformers/SqlFormatter.ts:69](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/transformers/SqlFormatter.ts#L69)
 
 Keep VALUES clause on one line regardless of comma break settings
 
@@ -173,7 +173,7 @@ Keep VALUES clause on one line regardless of comma break settings
 
 > `optional` **joinOneLine**: `boolean`
 
-Defined in: [packages/core/src/transformers/SqlFormatter.ts:71](https://github.com/mk3008/rawsql-ts/blob/91d42e83cf18d5aa89f15811c30826dcf6b4e437/packages/core/src/transformers/SqlFormatter.ts#L71)
+Defined in: [packages/core/src/transformers/SqlFormatter.ts:71](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/transformers/SqlFormatter.ts#L71)
 
 Keep JOIN conditions on one line regardless of AND/OR break settings
 
@@ -183,7 +183,7 @@ Keep JOIN conditions on one line regardless of AND/OR break settings
 
 > `optional` **caseOneLine**: `boolean`
 
-Defined in: [packages/core/src/transformers/SqlFormatter.ts:73](https://github.com/mk3008/rawsql-ts/blob/91d42e83cf18d5aa89f15811c30826dcf6b4e437/packages/core/src/transformers/SqlFormatter.ts#L73)
+Defined in: [packages/core/src/transformers/SqlFormatter.ts:73](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/transformers/SqlFormatter.ts#L73)
 
 Keep CASE expressions on one line regardless of formatting settings
 
@@ -193,7 +193,7 @@ Keep CASE expressions on one line regardless of formatting settings
 
 > `optional` **subqueryOneLine**: `boolean`
 
-Defined in: [packages/core/src/transformers/SqlFormatter.ts:75](https://github.com/mk3008/rawsql-ts/blob/91d42e83cf18d5aa89f15811c30826dcf6b4e437/packages/core/src/transformers/SqlFormatter.ts#L75)
+Defined in: [packages/core/src/transformers/SqlFormatter.ts:75](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/transformers/SqlFormatter.ts#L75)
 
 Keep subqueries (inline queries) on one line regardless of formatting settings
 
@@ -203,7 +203,7 @@ Keep subqueries (inline queries) on one line regardless of formatting settings
 
 > `optional` **indentNestedParentheses**: `boolean`
 
-Defined in: [packages/core/src/transformers/SqlFormatter.ts:77](https://github.com/mk3008/rawsql-ts/blob/91d42e83cf18d5aa89f15811c30826dcf6b4e437/packages/core/src/transformers/SqlFormatter.ts#L77)
+Defined in: [packages/core/src/transformers/SqlFormatter.ts:77](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/transformers/SqlFormatter.ts#L77)
 
 Indent nested parentheses when boolean groups contain additional parentheses
 
@@ -213,7 +213,7 @@ Indent nested parentheses when boolean groups contain additional parentheses
 
 > `optional` **insertColumnsOneLine**: `boolean`
 
-Defined in: [packages/core/src/transformers/SqlFormatter.ts:79](https://github.com/mk3008/rawsql-ts/blob/91d42e83cf18d5aa89f15811c30826dcf6b4e437/packages/core/src/transformers/SqlFormatter.ts#L79)
+Defined in: [packages/core/src/transformers/SqlFormatter.ts:79](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/transformers/SqlFormatter.ts#L79)
 
 Keep INSERT column lists on one line regardless of comma break settings
 
@@ -223,7 +223,7 @@ Keep INSERT column lists on one line regardless of comma break settings
 
 > `optional` **whenOneLine**: `boolean`
 
-Defined in: [packages/core/src/transformers/SqlFormatter.ts:81](https://github.com/mk3008/rawsql-ts/blob/91d42e83cf18d5aa89f15811c30826dcf6b4e437/packages/core/src/transformers/SqlFormatter.ts#L81)
+Defined in: [packages/core/src/transformers/SqlFormatter.ts:81](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/transformers/SqlFormatter.ts#L81)
 
 Keep MERGE WHEN clause predicates on one line regardless of AND break settings
 
@@ -233,7 +233,7 @@ Keep MERGE WHEN clause predicates on one line regardless of AND break settings
 
 > `optional` **joinConditionOrderByDeclaration**: `boolean`
 
-Defined in: [packages/core/src/transformers/SqlFormatter.ts:83](https://github.com/mk3008/rawsql-ts/blob/91d42e83cf18d5aa89f15811c30826dcf6b4e437/packages/core/src/transformers/SqlFormatter.ts#L83)
+Defined in: [packages/core/src/transformers/SqlFormatter.ts:83](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/transformers/SqlFormatter.ts#L83)
 
 Reorder JOIN ON column comparisons to follow table declaration order
 </div>

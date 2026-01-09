@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: SequenceStartClause
 
-Defined in: [packages/core/src/models/DDLStatements.ts:405](https://github.com/mk3008/rawsql-ts/blob/91d42e83cf18d5aa89f15811c30826dcf6b4e437/packages/core/src/models/DDLStatements.ts#L405)
+Defined in: [packages/core/src/models/DDLStatements.ts:405](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/models/DDLStatements.ts#L405)
 
 ## Properties
 
@@ -9,7 +9,7 @@ Defined in: [packages/core/src/models/DDLStatements.ts:405](https://github.com/m
 
 > **kind**: `"start"`
 
-Defined in: [packages/core/src/models/DDLStatements.ts:406](https://github.com/mk3008/rawsql-ts/blob/91d42e83cf18d5aa89f15811c30826dcf6b4e437/packages/core/src/models/DDLStatements.ts#L406)
+Defined in: [packages/core/src/models/DDLStatements.ts:406](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/models/DDLStatements.ts#L406)
 
 ***
 
@@ -17,5 +17,5 @@ Defined in: [packages/core/src/models/DDLStatements.ts:406](https://github.com/m
 
 > **value**: [`ValueComponent`](../type-aliases/ValueComponent.md)
 
-Defined in: [packages/core/src/models/DDLStatements.ts:407](https://github.com/mk3008/rawsql-ts/blob/91d42e83cf18d5aa89f15811c30826dcf6b4e437/packages/core/src/models/DDLStatements.ts#L407)
+Defined in: [packages/core/src/models/DDLStatements.ts:407](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/models/DDLStatements.ts#L407)
 </div>

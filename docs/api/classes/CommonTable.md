@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: CommonTable
 
-Defined in: [packages/core/src/models/Clause.ts:358](https://github.com/mk3008/rawsql-ts/blob/91d42e83cf18d5aa89f15811c30826dcf6b4e437/packages/core/src/models/Clause.ts#L358)
+Defined in: [packages/core/src/models/Clause.ts:358](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/models/Clause.ts#L358)
 
 ## Extends
 
@@ -13,7 +13,7 @@ Defined in: [packages/core/src/models/Clause.ts:358](https://github.com/mk3008/r
 
 > **new CommonTable**(`query`, `aliasExpression`, `materialized`): `CommonTable`
 
-Defined in: [packages/core/src/models/Clause.ts:363](https://github.com/mk3008/rawsql-ts/blob/91d42e83cf18d5aa89f15811c30826dcf6b4e437/packages/core/src/models/Clause.ts#L363)
+Defined in: [packages/core/src/models/Clause.ts:363](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/models/Clause.ts#L363)
 
 #### Parameters
 
@@ -43,7 +43,7 @@ Defined in: [packages/core/src/models/Clause.ts:363](https://github.com/mk3008/r
 
 > `static` **kind**: `symbol`
 
-Defined in: [packages/core/src/models/Clause.ts:359](https://github.com/mk3008/rawsql-ts/blob/91d42e83cf18d5aa89f15811c30826dcf6b4e437/packages/core/src/models/Clause.ts#L359)
+Defined in: [packages/core/src/models/Clause.ts:359](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/models/Clause.ts#L359)
 
 #### Overrides
 
@@ -55,7 +55,7 @@ Defined in: [packages/core/src/models/Clause.ts:359](https://github.com/mk3008/r
 
 > **query**: [`CTEQuery`](../type-aliases/CTEQuery.md)
 
-Defined in: [packages/core/src/models/Clause.ts:360](https://github.com/mk3008/rawsql-ts/blob/91d42e83cf18d5aa89f15811c30826dcf6b4e437/packages/core/src/models/Clause.ts#L360)
+Defined in: [packages/core/src/models/Clause.ts:360](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/models/Clause.ts#L360)
 
 ***
 
@@ -63,7 +63,7 @@ Defined in: [packages/core/src/models/Clause.ts:360](https://github.com/mk3008/r
 
 > **materialized**: `null` \| `boolean`
 
-Defined in: [packages/core/src/models/Clause.ts:361](https://github.com/mk3008/rawsql-ts/blob/91d42e83cf18d5aa89f15811c30826dcf6b4e437/packages/core/src/models/Clause.ts#L361)
+Defined in: [packages/core/src/models/Clause.ts:361](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/models/Clause.ts#L361)
 
 ***
 
@@ -71,7 +71,7 @@ Defined in: [packages/core/src/models/Clause.ts:361](https://github.com/mk3008/r
 
 > **aliasExpression**: [`SourceAliasExpression`](SourceAliasExpression.md)
 
-Defined in: [packages/core/src/models/Clause.ts:362](https://github.com/mk3008/rawsql-ts/blob/91d42e83cf18d5aa89f15811c30826dcf6b4e437/packages/core/src/models/Clause.ts#L362)
+Defined in: [packages/core/src/models/Clause.ts:362](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/models/Clause.ts#L362)
 
 ***
 
@@ -79,7 +79,7 @@ Defined in: [packages/core/src/models/Clause.ts:362](https://github.com/mk3008/r
 
 > **comments**: `null` \| `string`[] = `null`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:29](https://github.com/mk3008/rawsql-ts/blob/91d42e83cf18d5aa89f15811c30826dcf6b4e437/packages/core/src/models/SqlComponent.ts#L29)
+Defined in: [packages/core/src/models/SqlComponent.ts:29](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/models/SqlComponent.ts#L29)
 
 #### Inherited from
 
@@ -91,7 +91,7 @@ Defined in: [packages/core/src/models/SqlComponent.ts:29](https://github.com/mk3
 
 > **positionedComments**: `null` \| [`PositionedComment`](../interfaces/PositionedComment.md)[] = `null`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:32](https://github.com/mk3008/rawsql-ts/blob/91d42e83cf18d5aa89f15811c30826dcf6b4e437/packages/core/src/models/SqlComponent.ts#L32)
+Defined in: [packages/core/src/models/SqlComponent.ts:32](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/models/SqlComponent.ts#L32)
 
 #### Inherited from
 
@@ -103,7 +103,7 @@ Defined in: [packages/core/src/models/SqlComponent.ts:32](https://github.com/mk3
 
 > **getSourceAliasName**(): `string`
 
-Defined in: [packages/core/src/models/Clause.ts:373](https://github.com/mk3008/rawsql-ts/blob/91d42e83cf18d5aa89f15811c30826dcf6b4e437/packages/core/src/models/Clause.ts#L373)
+Defined in: [packages/core/src/models/Clause.ts:373](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/models/Clause.ts#L373)
 
 #### Returns
 
@@ -115,7 +115,7 @@ Defined in: [packages/core/src/models/Clause.ts:373](https://github.com/mk3008/r
 
 > **getKind**(): `symbol`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:15](https://github.com/mk3008/rawsql-ts/blob/91d42e83cf18d5aa89f15811c30826dcf6b4e437/packages/core/src/models/SqlComponent.ts#L15)
+Defined in: [packages/core/src/models/SqlComponent.ts:15](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/models/SqlComponent.ts#L15)
 
 #### Returns
 
@@ -131,7 +131,7 @@ Defined in: [packages/core/src/models/SqlComponent.ts:15](https://github.com/mk3
 
 > **accept**&lt;`T`\&gt;(`visitor`): `T`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:19](https://github.com/mk3008/rawsql-ts/blob/91d42e83cf18d5aa89f15811c30826dcf6b4e437/packages/core/src/models/SqlComponent.ts#L19)
+Defined in: [packages/core/src/models/SqlComponent.ts:19](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/models/SqlComponent.ts#L19)
 
 #### Type Parameters
 
@@ -159,7 +159,7 @@ Defined in: [packages/core/src/models/SqlComponent.ts:19](https://github.com/mk3
 
 > **toSqlString**(`formatter`): `string`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:23](https://github.com/mk3008/rawsql-ts/blob/91d42e83cf18d5aa89f15811c30826dcf6b4e437/packages/core/src/models/SqlComponent.ts#L23)
+Defined in: [packages/core/src/models/SqlComponent.ts:23](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/models/SqlComponent.ts#L23)
 
 #### Parameters
 
@@ -181,7 +181,7 @@ Defined in: [packages/core/src/models/SqlComponent.ts:23](https://github.com/mk3
 
 > **addPositionedComments**(`position`, `comments`): `void`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:37](https://github.com/mk3008/rawsql-ts/blob/91d42e83cf18d5aa89f15811c30826dcf6b4e437/packages/core/src/models/SqlComponent.ts#L37)
+Defined in: [packages/core/src/models/SqlComponent.ts:37](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/models/SqlComponent.ts#L37)
 
 Add comments at a specific position
 
@@ -209,7 +209,7 @@ Add comments at a specific position
 
 > **getPositionedComments**(`position`): `string`[]
 
-Defined in: [packages/core/src/models/SqlComponent.ts:56](https://github.com/mk3008/rawsql-ts/blob/91d42e83cf18d5aa89f15811c30826dcf6b4e437/packages/core/src/models/SqlComponent.ts#L56)
+Defined in: [packages/core/src/models/SqlComponent.ts:56](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/models/SqlComponent.ts#L56)
 
 Get comments for a specific position
 
@@ -233,7 +233,7 @@ Get comments for a specific position
 
 > **getAllPositionedComments**(): `string`[]
 
-Defined in: [packages/core/src/models/SqlComponent.ts:66](https://github.com/mk3008/rawsql-ts/blob/91d42e83cf18d5aa89f15811c30826dcf6b4e437/packages/core/src/models/SqlComponent.ts#L66)
+Defined in: [packages/core/src/models/SqlComponent.ts:66](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/models/SqlComponent.ts#L66)
 
 Get all positioned comments as a flat array in order (before, after)
 
