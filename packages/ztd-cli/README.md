@@ -160,6 +160,20 @@ Reads the DDL directory and generates `entities.ts` (optional reference for help
 
 Diffs the local DDL snapshot against a live Postgres database. It uses the shared DDL directory, respects configured extensions, and outputs a human-readable plan with `pg_dump`.
 
+### `ztd lint`
+
+Lint SQL files before writing ZTD tests so syntax and analysis issues surface immediately.
+
+```bash
+npx ztd lint path/to/query.sql
+```
+
+- Accepts a single `.sql` file, glob pattern, or directory (directories expand to `**/*.sql`).
+- Spins up a temporary PostgreSQL container through `@testcontainers/postgresql` (Docker must be available) and rewrites every statement via `@rawsql-ts/pg-testkit` so no physical tables or migrations are required.
+- Executes each rewritten query using `PREPARE ... AS ...` (falling back to `EXPLAIN`) so Postgres performs the same parsing/type resolution used in tests.
+- Reports the file path, line/column (when provided), the error code/message/detail/hint, and a caret-marked excerpt to make fixes actionable before running tests.
+- Override the database image with `ZTD_LINT_DB_IMAGE` (default `postgres:16-alpine`) when a different Postgres version or variant is desired.
+
 ## ZTD Testing
 
 Driver responsibilities live in companion packages such as `@rawsql-ts/pg-testkit` for Postgres.

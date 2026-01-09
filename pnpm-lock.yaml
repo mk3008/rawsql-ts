@@ -286,9 +286,15 @@ importers:
 
   packages/ztd-cli:
     dependencies:
+      '@rawsql-ts/pg-testkit':
+        specifier: workspace:*
+        version: link:../drivers/pg-testkit
       '@rawsql-ts/testkit-core':
         specifier: workspace:*
         version: link:../testkit-core
+      '@testcontainers/postgresql':
+        specifier: ^10.28.0
+        version: 10.28.0
       chokidar:
         specifier: ^5.0.0
         version: 5.0.0
@@ -298,9 +304,18 @@ importers:
       diff:
         specifier: ^5.1.0
         version: 5.2.0
+      fast-glob:
+        specifier: ^3.3.3
+        version: 3.3.3
+      pg:
+        specifier: ^8.11.1
+        version: 8.16.3
       rawsql-ts:
         specifier: workspace:*
         version: link:../core
+      testcontainers:
+        specifier: ^10.28.0
+        version: 10.28.0
     devDependencies:
       '@types/diff':
         specifier: ^5.0.1
