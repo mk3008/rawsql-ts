@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: PositionParseResult
 
-Defined in: [packages/core/src/utils/PositionAwareParser.ts:25](https://github.com/mk3008/rawsql-ts/blob/efa96500610e9fc3a9f71149a5ff13c786488297/packages/core/src/utils/PositionAwareParser.ts#L25)
+Defined in: [packages/core/src/utils/PositionAwareParser.ts:25](https://github.com/mk3008/rawsql-ts/blob/a59e3ea64dee225318ef045179f256984bc4cfe6/packages/core/src/utils/PositionAwareParser.ts#L25)
 
 Result of position-aware parsing
 
@@ -15,7 +15,7 @@ Result of position-aware parsing
 
 > **success**: `boolean`
 
-Defined in: [packages/core/src/parsers/SelectQueryParser.ts:22](https://github.com/mk3008/rawsql-ts/blob/efa96500610e9fc3a9f71149a5ff13c786488297/packages/core/src/parsers/SelectQueryParser.ts#L22)
+Defined in: [packages/core/src/parsers/SelectQueryParser.ts:22](https://github.com/mk3008/rawsql-ts/blob/a59e3ea64dee225318ef045179f256984bc4cfe6/packages/core/src/parsers/SelectQueryParser.ts#L22)
 
 #### Inherited from
 
@@ -27,7 +27,7 @@ Defined in: [packages/core/src/parsers/SelectQueryParser.ts:22](https://github.c
 
 > `optional` **query**: [`SelectQuery`](SelectQuery.md)
 
-Defined in: [packages/core/src/parsers/SelectQueryParser.ts:23](https://github.com/mk3008/rawsql-ts/blob/efa96500610e9fc3a9f71149a5ff13c786488297/packages/core/src/parsers/SelectQueryParser.ts#L23)
+Defined in: [packages/core/src/parsers/SelectQueryParser.ts:23](https://github.com/mk3008/rawsql-ts/blob/a59e3ea64dee225318ef045179f256984bc4cfe6/packages/core/src/parsers/SelectQueryParser.ts#L23)
 
 #### Inherited from
 
@@ -39,7 +39,7 @@ Defined in: [packages/core/src/parsers/SelectQueryParser.ts:23](https://github.c
 
 > `optional` **error**: `string`
 
-Defined in: [packages/core/src/parsers/SelectQueryParser.ts:24](https://github.com/mk3008/rawsql-ts/blob/efa96500610e9fc3a9f71149a5ff13c786488297/packages/core/src/parsers/SelectQueryParser.ts#L24)
+Defined in: [packages/core/src/parsers/SelectQueryParser.ts:24](https://github.com/mk3008/rawsql-ts/blob/a59e3ea64dee225318ef045179f256984bc4cfe6/packages/core/src/parsers/SelectQueryParser.ts#L24)
 
 #### Inherited from
 
@@ -51,7 +51,7 @@ Defined in: [packages/core/src/parsers/SelectQueryParser.ts:24](https://github.c
 
 > `optional` **errorPosition**: `number`
 
-Defined in: [packages/core/src/parsers/SelectQueryParser.ts:25](https://github.com/mk3008/rawsql-ts/blob/efa96500610e9fc3a9f71149a5ff13c786488297/packages/core/src/parsers/SelectQueryParser.ts#L25)
+Defined in: [packages/core/src/parsers/SelectQueryParser.ts:25](https://github.com/mk3008/rawsql-ts/blob/a59e3ea64dee225318ef045179f256984bc4cfe6/packages/core/src/parsers/SelectQueryParser.ts#L25)
 
 #### Inherited from
 
@@ -63,7 +63,7 @@ Defined in: [packages/core/src/parsers/SelectQueryParser.ts:25](https://github.c
 
 > `optional` **remainingTokens**: `string`[]
 
-Defined in: [packages/core/src/parsers/SelectQueryParser.ts:26](https://github.com/mk3008/rawsql-ts/blob/efa96500610e9fc3a9f71149a5ff13c786488297/packages/core/src/parsers/SelectQueryParser.ts#L26)
+Defined in: [packages/core/src/parsers/SelectQueryParser.ts:26](https://github.com/mk3008/rawsql-ts/blob/a59e3ea64dee225318ef045179f256984bc4cfe6/packages/core/src/parsers/SelectQueryParser.ts#L26)
 
 #### Inherited from
 
@@ -75,7 +75,7 @@ Defined in: [packages/core/src/parsers/SelectQueryParser.ts:26](https://github.c
 
 > `optional` **parsedTokens**: [`Lexeme`](Lexeme.md)[]
 
-Defined in: [packages/core/src/utils/PositionAwareParser.ts:27](https://github.com/mk3008/rawsql-ts/blob/efa96500610e9fc3a9f71149a5ff13c786488297/packages/core/src/utils/PositionAwareParser.ts#L27)
+Defined in: [packages/core/src/utils/PositionAwareParser.ts:27](https://github.com/mk3008/rawsql-ts/blob/a59e3ea64dee225318ef045179f256984bc4cfe6/packages/core/src/utils/PositionAwareParser.ts#L27)
 
 Tokens that were parsed up to the cursor position
 
@@ -85,7 +85,7 @@ Tokens that were parsed up to the cursor position
 
 > `optional` **tokenBeforeCursor**: [`Lexeme`](Lexeme.md)
 
-Defined in: [packages/core/src/utils/PositionAwareParser.ts:29](https://github.com/mk3008/rawsql-ts/blob/efa96500610e9fc3a9f71149a5ff13c786488297/packages/core/src/utils/PositionAwareParser.ts#L29)
+Defined in: [packages/core/src/utils/PositionAwareParser.ts:29](https://github.com/mk3008/rawsql-ts/blob/a59e3ea64dee225318ef045179f256984bc4cfe6/packages/core/src/utils/PositionAwareParser.ts#L29)
 
 Token immediately before the cursor position
 
@@ -95,7 +95,7 @@ Token immediately before the cursor position
 
 > `optional` **stoppedAtCursor**: `boolean`
 
-Defined in: [packages/core/src/utils/PositionAwareParser.ts:31](https://github.com/mk3008/rawsql-ts/blob/efa96500610e9fc3a9f71149a5ff13c786488297/packages/core/src/utils/PositionAwareParser.ts#L31)
+Defined in: [packages/core/src/utils/PositionAwareParser.ts:31](https://github.com/mk3008/rawsql-ts/blob/a59e3ea64dee225318ef045179f256984bc4cfe6/packages/core/src/utils/PositionAwareParser.ts#L31)
 
 Whether parsing stopped at the cursor position
 
@@ -105,7 +105,7 @@ Whether parsing stopped at the cursor position
 
 > `optional` **recoveryAttempts**: `number`
 
-Defined in: [packages/core/src/utils/PositionAwareParser.ts:33](https://github.com/mk3008/rawsql-ts/blob/efa96500610e9fc3a9f71149a5ff13c786488297/packages/core/src/utils/PositionAwareParser.ts#L33)
+Defined in: [packages/core/src/utils/PositionAwareParser.ts:33](https://github.com/mk3008/rawsql-ts/blob/a59e3ea64dee225318ef045179f256984bc4cfe6/packages/core/src/utils/PositionAwareParser.ts#L33)
 
 Number of error recovery attempts made
 
@@ -115,7 +115,7 @@ Number of error recovery attempts made
 
 > `optional` **partialAST**: [`SelectQuery`](SelectQuery.md)
 
-Defined in: [packages/core/src/utils/PositionAwareParser.ts:35](https://github.com/mk3008/rawsql-ts/blob/efa96500610e9fc3a9f71149a5ff13c786488297/packages/core/src/utils/PositionAwareParser.ts#L35)
+Defined in: [packages/core/src/utils/PositionAwareParser.ts:35](https://github.com/mk3008/rawsql-ts/blob/a59e3ea64dee225318ef045179f256984bc4cfe6/packages/core/src/utils/PositionAwareParser.ts#L35)
 
 Partial AST even if parsing failed
 </div>

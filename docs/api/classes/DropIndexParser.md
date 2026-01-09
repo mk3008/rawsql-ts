@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: DropIndexParser
 
-Defined in: [packages/core/src/parsers/DropIndexParser.ts:10](https://github.com/mk3008/rawsql-ts/blob/efa96500610e9fc3a9f71149a5ff13c786488297/packages/core/src/parsers/DropIndexParser.ts#L10)
+Defined in: [packages/core/src/parsers/DropIndexParser.ts:10](https://github.com/mk3008/rawsql-ts/blob/a59e3ea64dee225318ef045179f256984bc4cfe6/packages/core/src/parsers/DropIndexParser.ts#L10)
 
 Parses DROP INDEX statements.
 
@@ -21,7 +21,7 @@ Parses DROP INDEX statements.
 
 > `static` **parse**(`sql`): [`DropIndexStatement`](DropIndexStatement.md)
 
-Defined in: [packages/core/src/parsers/DropIndexParser.ts:11](https://github.com/mk3008/rawsql-ts/blob/efa96500610e9fc3a9f71149a5ff13c786488297/packages/core/src/parsers/DropIndexParser.ts#L11)
+Defined in: [packages/core/src/parsers/DropIndexParser.ts:11](https://github.com/mk3008/rawsql-ts/blob/a59e3ea64dee225318ef045179f256984bc4cfe6/packages/core/src/parsers/DropIndexParser.ts#L11)
 
 #### Parameters
 
@@ -39,7 +39,7 @@ Defined in: [packages/core/src/parsers/DropIndexParser.ts:11](https://github.com
 
 > `static` **parseFromLexeme**(`lexemes`, `index`): `object`
 
-Defined in: [packages/core/src/parsers/DropIndexParser.ts:21](https://github.com/mk3008/rawsql-ts/blob/efa96500610e9fc3a9f71149a5ff13c786488297/packages/core/src/parsers/DropIndexParser.ts#L21)
+Defined in: [packages/core/src/parsers/DropIndexParser.ts:21](https://github.com/mk3008/rawsql-ts/blob/a59e3ea64dee225318ef045179f256984bc4cfe6/packages/core/src/parsers/DropIndexParser.ts#L21)
 
 #### Parameters
 

@@ -1,7 +1,7 @@
 <div v-pre>
 # Enumeration: TokenType
 
-Defined in: [packages/core/src/models/Lexeme.ts:1](https://github.com/mk3008/rawsql-ts/blob/efa96500610e9fc3a9f71149a5ff13c786488297/packages/core/src/models/Lexeme.ts#L1)
+Defined in: [packages/core/src/models/Lexeme.ts:1](https://github.com/mk3008/rawsql-ts/blob/a59e3ea64dee225318ef045179f256984bc4cfe6/packages/core/src/models/Lexeme.ts#L1)
 
 ## Enumeration Members
 
@@ -9,7 +9,7 @@ Defined in: [packages/core/src/models/Lexeme.ts:1](https://github.com/mk3008/raw
 
 > **None**: `0`
 
-Defined in: [packages/core/src/models/Lexeme.ts:2](https://github.com/mk3008/rawsql-ts/blob/efa96500610e9fc3a9f71149a5ff13c786488297/packages/core/src/models/Lexeme.ts#L2)
+Defined in: [packages/core/src/models/Lexeme.ts:2](https://github.com/mk3008/rawsql-ts/blob/a59e3ea64dee225318ef045179f256984bc4cfe6/packages/core/src/models/Lexeme.ts#L2)
 
 ***
 
@@ -17,7 +17,7 @@ Defined in: [packages/core/src/models/Lexeme.ts:2](https://github.com/mk3008/raw
 
 > **Literal**: `1`
 
-Defined in: [packages/core/src/models/Lexeme.ts:3](https://github.com/mk3008/rawsql-ts/blob/efa96500610e9fc3a9f71149a5ff13c786488297/packages/core/src/models/Lexeme.ts#L3)
+Defined in: [packages/core/src/models/Lexeme.ts:3](https://github.com/mk3008/rawsql-ts/blob/a59e3ea64dee225318ef045179f256984bc4cfe6/packages/core/src/models/Lexeme.ts#L3)
 
 ***
 
@@ -25,7 +25,7 @@ Defined in: [packages/core/src/models/Lexeme.ts:3](https://github.com/mk3008/raw
 
 > **Operator**: `2`
 
-Defined in: [packages/core/src/models/Lexeme.ts:4](https://github.com/mk3008/rawsql-ts/blob/efa96500610e9fc3a9f71149a5ff13c786488297/packages/core/src/models/Lexeme.ts#L4)
+Defined in: [packages/core/src/models/Lexeme.ts:4](https://github.com/mk3008/rawsql-ts/blob/a59e3ea64dee225318ef045179f256984bc4cfe6/packages/core/src/models/Lexeme.ts#L4)
 
 ***
 
@@ -33,7 +33,7 @@ Defined in: [packages/core/src/models/Lexeme.ts:4](https://github.com/mk3008/raw
 
 > **OpenParen**: `4`
 
-Defined in: [packages/core/src/models/Lexeme.ts:5](https://github.com/mk3008/rawsql-ts/blob/efa96500610e9fc3a9f71149a5ff13c786488297/packages/core/src/models/Lexeme.ts#L5)
+Defined in: [packages/core/src/models/Lexeme.ts:5](https://github.com/mk3008/rawsql-ts/blob/a59e3ea64dee225318ef045179f256984bc4cfe6/packages/core/src/models/Lexeme.ts#L5)
 
 ***
 
@@ -41,7 +41,7 @@ Defined in: [packages/core/src/models/Lexeme.ts:5](https://github.com/mk3008/raw
 
 > **CloseParen**: `8`
 
-Defined in: [packages/core/src/models/Lexeme.ts:6](https://github.com/mk3008/rawsql-ts/blob/efa96500610e9fc3a9f71149a5ff13c786488297/packages/core/src/models/Lexeme.ts#L6)
+Defined in: [packages/core/src/models/Lexeme.ts:6](https://github.com/mk3008/rawsql-ts/blob/a59e3ea64dee225318ef045179f256984bc4cfe6/packages/core/src/models/Lexeme.ts#L6)
 
 ***
 
@@ -49,7 +49,7 @@ Defined in: [packages/core/src/models/Lexeme.ts:6](https://github.com/mk3008/raw
 
 > **Comma**: `16`
 
-Defined in: [packages/core/src/models/Lexeme.ts:7](https://github.com/mk3008/rawsql-ts/blob/efa96500610e9fc3a9f71149a5ff13c786488297/packages/core/src/models/Lexeme.ts#L7)
+Defined in: [packages/core/src/models/Lexeme.ts:7](https://github.com/mk3008/rawsql-ts/blob/a59e3ea64dee225318ef045179f256984bc4cfe6/packages/core/src/models/Lexeme.ts#L7)
 
 ***
 
@@ -57,7 +57,7 @@ Defined in: [packages/core/src/models/Lexeme.ts:7](https://github.com/mk3008/raw
 
 > **Dot**: `32`
 
-Defined in: [packages/core/src/models/Lexeme.ts:8](https://github.com/mk3008/rawsql-ts/blob/efa96500610e9fc3a9f71149a5ff13c786488297/packages/core/src/models/Lexeme.ts#L8)
+Defined in: [packages/core/src/models/Lexeme.ts:8](https://github.com/mk3008/rawsql-ts/blob/a59e3ea64dee225318ef045179f256984bc4cfe6/packages/core/src/models/Lexeme.ts#L8)
 
 ***
 
@@ -65,7 +65,7 @@ Defined in: [packages/core/src/models/Lexeme.ts:8](https://github.com/mk3008/raw
 
 > **Identifier**: `64`
 
-Defined in: [packages/core/src/models/Lexeme.ts:9](https://github.com/mk3008/rawsql-ts/blob/efa96500610e9fc3a9f71149a5ff13c786488297/packages/core/src/models/Lexeme.ts#L9)
+Defined in: [packages/core/src/models/Lexeme.ts:9](https://github.com/mk3008/rawsql-ts/blob/a59e3ea64dee225318ef045179f256984bc4cfe6/packages/core/src/models/Lexeme.ts#L9)
 
 ***
 
@@ -73,7 +73,7 @@ Defined in: [packages/core/src/models/Lexeme.ts:9](https://github.com/mk3008/raw
 
 > **Command**: `128`
 
-Defined in: [packages/core/src/models/Lexeme.ts:10](https://github.com/mk3008/rawsql-ts/blob/efa96500610e9fc3a9f71149a5ff13c786488297/packages/core/src/models/Lexeme.ts#L10)
+Defined in: [packages/core/src/models/Lexeme.ts:10](https://github.com/mk3008/rawsql-ts/blob/a59e3ea64dee225318ef045179f256984bc4cfe6/packages/core/src/models/Lexeme.ts#L10)
 
 ***
 
@@ -81,7 +81,7 @@ Defined in: [packages/core/src/models/Lexeme.ts:10](https://github.com/mk3008/ra
 
 > **Parameter**: `256`
 
-Defined in: [packages/core/src/models/Lexeme.ts:11](https://github.com/mk3008/rawsql-ts/blob/efa96500610e9fc3a9f71149a5ff13c786488297/packages/core/src/models/Lexeme.ts#L11)
+Defined in: [packages/core/src/models/Lexeme.ts:11](https://github.com/mk3008/rawsql-ts/blob/a59e3ea64dee225318ef045179f256984bc4cfe6/packages/core/src/models/Lexeme.ts#L11)
 
 ***
 
@@ -89,7 +89,7 @@ Defined in: [packages/core/src/models/Lexeme.ts:11](https://github.com/mk3008/ra
 
 > **OpenBracket**: `512`
 
-Defined in: [packages/core/src/models/Lexeme.ts:12](https://github.com/mk3008/rawsql-ts/blob/efa96500610e9fc3a9f71149a5ff13c786488297/packages/core/src/models/Lexeme.ts#L12)
+Defined in: [packages/core/src/models/Lexeme.ts:12](https://github.com/mk3008/rawsql-ts/blob/a59e3ea64dee225318ef045179f256984bc4cfe6/packages/core/src/models/Lexeme.ts#L12)
 
 ***
 
@@ -97,7 +97,7 @@ Defined in: [packages/core/src/models/Lexeme.ts:12](https://github.com/mk3008/ra
 
 > **CloseBracket**: `1024`
 
-Defined in: [packages/core/src/models/Lexeme.ts:13](https://github.com/mk3008/rawsql-ts/blob/efa96500610e9fc3a9f71149a5ff13c786488297/packages/core/src/models/Lexeme.ts#L13)
+Defined in: [packages/core/src/models/Lexeme.ts:13](https://github.com/mk3008/rawsql-ts/blob/a59e3ea64dee225318ef045179f256984bc4cfe6/packages/core/src/models/Lexeme.ts#L13)
 
 ***
 
@@ -105,7 +105,7 @@ Defined in: [packages/core/src/models/Lexeme.ts:13](https://github.com/mk3008/ra
 
 > **Function**: `2048`
 
-Defined in: [packages/core/src/models/Lexeme.ts:14](https://github.com/mk3008/rawsql-ts/blob/efa96500610e9fc3a9f71149a5ff13c786488297/packages/core/src/models/Lexeme.ts#L14)
+Defined in: [packages/core/src/models/Lexeme.ts:14](https://github.com/mk3008/rawsql-ts/blob/a59e3ea64dee225318ef045179f256984bc4cfe6/packages/core/src/models/Lexeme.ts#L14)
 
 ***
 
@@ -113,7 +113,7 @@ Defined in: [packages/core/src/models/Lexeme.ts:14](https://github.com/mk3008/ra
 
 > **StringSpecifier**: `4096`
 
-Defined in: [packages/core/src/models/Lexeme.ts:15](https://github.com/mk3008/rawsql-ts/blob/efa96500610e9fc3a9f71149a5ff13c786488297/packages/core/src/models/Lexeme.ts#L15)
+Defined in: [packages/core/src/models/Lexeme.ts:15](https://github.com/mk3008/rawsql-ts/blob/a59e3ea64dee225318ef045179f256984bc4cfe6/packages/core/src/models/Lexeme.ts#L15)
 
 ***
 
@@ -121,5 +121,5 @@ Defined in: [packages/core/src/models/Lexeme.ts:15](https://github.com/mk3008/ra
 
 > **Type**: `8192`
 
-Defined in: [packages/core/src/models/Lexeme.ts:16](https://github.com/mk3008/rawsql-ts/blob/efa96500610e9fc3a9f71149a5ff13c786488297/packages/core/src/models/Lexeme.ts#L16)
+Defined in: [packages/core/src/models/Lexeme.ts:16](https://github.com/mk3008/rawsql-ts/blob/a59e3ea64dee225318ef045179f256984bc4cfe6/packages/core/src/models/Lexeme.ts#L16)
 </div>

@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: SelectValueCollector
 
-Defined in: [packages/core/src/transformers/SelectValueCollector.ts:16](https://github.com/mk3008/rawsql-ts/blob/efa96500610e9fc3a9f71149a5ff13c786488297/packages/core/src/transformers/SelectValueCollector.ts#L16)
+Defined in: [packages/core/src/transformers/SelectValueCollector.ts:16](https://github.com/mk3008/rawsql-ts/blob/a59e3ea64dee225318ef045179f256984bc4cfe6/packages/core/src/transformers/SelectValueCollector.ts#L16)
 
 A visitor that collects all SelectItem instances from a SQL query structure.
 This visitor scans through select clauses and collects all the SelectItem objects.
@@ -17,7 +17,7 @@ It can also resolve wildcard selectors (table.* or *) using a provided table col
 
 > **new SelectValueCollector**(`tableColumnResolver`, `initialCommonTables`): `SelectValueCollector`
 
-Defined in: [packages/core/src/transformers/SelectValueCollector.ts:26](https://github.com/mk3008/rawsql-ts/blob/efa96500610e9fc3a9f71149a5ff13c786488297/packages/core/src/transformers/SelectValueCollector.ts#L26)
+Defined in: [packages/core/src/transformers/SelectValueCollector.ts:26](https://github.com/mk3008/rawsql-ts/blob/a59e3ea64dee225318ef045179f256984bc4cfe6/packages/core/src/transformers/SelectValueCollector.ts#L26)
 
 #### Parameters
 
@@ -39,7 +39,7 @@ Defined in: [packages/core/src/transformers/SelectValueCollector.ts:26](https://
 
 > **initialCommonTables**: `null` \| [`CommonTable`](CommonTable.md)[]
 
-Defined in: [packages/core/src/transformers/SelectValueCollector.ts:24](https://github.com/mk3008/rawsql-ts/blob/efa96500610e9fc3a9f71149a5ff13c786488297/packages/core/src/transformers/SelectValueCollector.ts#L24)
+Defined in: [packages/core/src/transformers/SelectValueCollector.ts:24](https://github.com/mk3008/rawsql-ts/blob/a59e3ea64dee225318ef045179f256984bc4cfe6/packages/core/src/transformers/SelectValueCollector.ts#L24)
 
 ## Methods
 
@@ -47,7 +47,7 @@ Defined in: [packages/core/src/transformers/SelectValueCollector.ts:24](https://
 
 > **getValues**(): `object`[]
 
-Defined in: [packages/core/src/transformers/SelectValueCollector.ts:44](https://github.com/mk3008/rawsql-ts/blob/efa96500610e9fc3a9f71149a5ff13c786488297/packages/core/src/transformers/SelectValueCollector.ts#L44)
+Defined in: [packages/core/src/transformers/SelectValueCollector.ts:44](https://github.com/mk3008/rawsql-ts/blob/a59e3ea64dee225318ef045179f256984bc4cfe6/packages/core/src/transformers/SelectValueCollector.ts#L44)
 
 Get all collected SelectItems as an array of objects with name and value properties
 
@@ -63,7 +63,7 @@ An array of objects with name (string) and value (ValueComponent) properties
 
 > **collect**(`arg`): `object`[]
 
-Defined in: [packages/core/src/transformers/SelectValueCollector.ts:61](https://github.com/mk3008/rawsql-ts/blob/efa96500610e9fc3a9f71149a5ff13c786488297/packages/core/src/transformers/SelectValueCollector.ts#L61)
+Defined in: [packages/core/src/transformers/SelectValueCollector.ts:61](https://github.com/mk3008/rawsql-ts/blob/a59e3ea64dee225318ef045179f256984bc4cfe6/packages/core/src/transformers/SelectValueCollector.ts#L61)
 
 #### Parameters
 
@@ -81,7 +81,7 @@ Defined in: [packages/core/src/transformers/SelectValueCollector.ts:61](https://
 
 > **visit**(`arg`): `void`
 
-Defined in: [packages/core/src/transformers/SelectValueCollector.ts:73](https://github.com/mk3008/rawsql-ts/blob/efa96500610e9fc3a9f71149a5ff13c786488297/packages/core/src/transformers/SelectValueCollector.ts#L73)
+Defined in: [packages/core/src/transformers/SelectValueCollector.ts:73](https://github.com/mk3008/rawsql-ts/blob/a59e3ea64dee225318ef045179f256984bc4cfe6/packages/core/src/transformers/SelectValueCollector.ts#L73)
 
 Main entry point for the visitor pattern.
 Implements the shallow visit pattern to distinguish between root and recursive visits.
