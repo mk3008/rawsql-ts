@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: FixtureTableDefinition
 
-Defined in: [packages/core/src/transformers/FixtureCteBuilder.ts:15](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/transformers/FixtureCteBuilder.ts#L15)
+Defined in: [packages/core/src/transformers/FixtureCteBuilder.ts:16](https://github.com/mk3008/rawsql-ts/blob/efa96500610e9fc3a9f71149a5ff13c786488297/packages/core/src/transformers/FixtureCteBuilder.ts#L16)
 
 Defines the data required to represent a fixture table as a CTE.
 
@@ -11,7 +11,7 @@ Defines the data required to represent a fixture table as a CTE.
 
 > **tableName**: `string`
 
-Defined in: [packages/core/src/transformers/FixtureCteBuilder.ts:16](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/transformers/FixtureCteBuilder.ts#L16)
+Defined in: [packages/core/src/transformers/FixtureCteBuilder.ts:17](https://github.com/mk3008/rawsql-ts/blob/efa96500610e9fc3a9f71149a5ff13c786488297/packages/core/src/transformers/FixtureCteBuilder.ts#L17)
 
 ***
 
@@ -19,7 +19,7 @@ Defined in: [packages/core/src/transformers/FixtureCteBuilder.ts:16](https://git
 
 > **columns**: [`FixtureColumnDefinition`](FixtureColumnDefinition.md)[]
 
-Defined in: [packages/core/src/transformers/FixtureCteBuilder.ts:17](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/transformers/FixtureCteBuilder.ts#L17)
+Defined in: [packages/core/src/transformers/FixtureCteBuilder.ts:18](https://github.com/mk3008/rawsql-ts/blob/efa96500610e9fc3a9f71149a5ff13c786488297/packages/core/src/transformers/FixtureCteBuilder.ts#L18)
 
 ***
 
@@ -27,5 +27,5 @@ Defined in: [packages/core/src/transformers/FixtureCteBuilder.ts:17](https://git
 
 > **rows**: (`null` \| `string` \| `number` \| `bigint` \| `Buffer`&lt;`ArrayBufferLike`\&gt;)[][]
 
-Defined in: [packages/core/src/transformers/FixtureCteBuilder.ts:18](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/transformers/FixtureCteBuilder.ts#L18)
+Defined in: [packages/core/src/transformers/FixtureCteBuilder.ts:19](https://github.com/mk3008/rawsql-ts/blob/efa96500610e9fc3a9f71149a5ff13c786488297/packages/core/src/transformers/FixtureCteBuilder.ts#L19)
 </div>

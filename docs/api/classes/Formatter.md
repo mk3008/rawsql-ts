@@ -1,7 +1,7 @@
 <div v-pre>
 # ~~Class: Formatter~~
 
-Defined in: [packages/core/src/transformers/Formatter.ts:9](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/transformers/Formatter.ts#L9)
+Defined in: [packages/core/src/transformers/Formatter.ts:9](https://github.com/mk3008/rawsql-ts/blob/efa96500610e9fc3a9f71149a5ff13c786488297/packages/core/src/transformers/Formatter.ts#L9)
 
 ## Deprecated
 
@@ -17,7 +17,7 @@ The Formatter class is deprecated. Use SqlFormatter instead.
 
 > **new Formatter**(): `Formatter`
 
-Defined in: [packages/core/src/transformers/Formatter.ts:12](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/transformers/Formatter.ts#L12)
+Defined in: [packages/core/src/transformers/Formatter.ts:12](https://github.com/mk3008/rawsql-ts/blob/efa96500610e9fc3a9f71149a5ff13c786488297/packages/core/src/transformers/Formatter.ts#L12)
 
 #### Returns
 
@@ -29,7 +29,7 @@ Defined in: [packages/core/src/transformers/Formatter.ts:12](https://github.com/
 
 > **format**(`arg`, `config`): `string`
 
-Defined in: [packages/core/src/transformers/Formatter.ts:20](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/transformers/Formatter.ts#L20)
+Defined in: [packages/core/src/transformers/Formatter.ts:20](https://github.com/mk3008/rawsql-ts/blob/efa96500610e9fc3a9f71149a5ff13c786488297/packages/core/src/transformers/Formatter.ts#L20)
 
 #### Parameters
 
@@ -51,7 +51,7 @@ Defined in: [packages/core/src/transformers/Formatter.ts:20](https://github.com/
 
 > **formatWithParameters**(`arg`, `config`): `object`
 
-Defined in: [packages/core/src/transformers/Formatter.ts:29](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/transformers/Formatter.ts#L29)
+Defined in: [packages/core/src/transformers/Formatter.ts:29](https://github.com/mk3008/rawsql-ts/blob/efa96500610e9fc3a9f71149a5ff13c786488297/packages/core/src/transformers/Formatter.ts#L29)
 
 #### Parameters
 
@@ -81,7 +81,7 @@ Defined in: [packages/core/src/transformers/Formatter.ts:29](https://github.com/
 
 > **visit**(`arg`): `string`
 
-Defined in: [packages/core/src/transformers/Formatter.ts:38](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/transformers/Formatter.ts#L38)
+Defined in: [packages/core/src/transformers/Formatter.ts:38](https://github.com/mk3008/rawsql-ts/blob/efa96500610e9fc3a9f71149a5ff13c786488297/packages/core/src/transformers/Formatter.ts#L38)
 
 #### Parameters
 

@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: TableDefinitionModel
 
-Defined in: [packages/core/src/models/TableDefinitionModel.ts:28](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/models/TableDefinitionModel.ts#L28)
+Defined in: [packages/core/src/models/TableDefinitionModel.ts:28](https://github.com/mk3008/rawsql-ts/blob/efa96500610e9fc3a9f71149a5ff13c786488297/packages/core/src/models/TableDefinitionModel.ts#L28)
 
 A description of a table that is rich enough to drive insert simulation.
 
@@ -11,7 +11,7 @@ A description of a table that is rich enough to drive insert simulation.
 
 > **name**: `string`
 
-Defined in: [packages/core/src/models/TableDefinitionModel.ts:30](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/models/TableDefinitionModel.ts#L30)
+Defined in: [packages/core/src/models/TableDefinitionModel.ts:30](https://github.com/mk3008/rawsql-ts/blob/efa96500610e9fc3a9f71149a5ff13c786488297/packages/core/src/models/TableDefinitionModel.ts#L30)
 
 The actual name of the table (including schema if provided).
 
@@ -21,7 +21,7 @@ The actual name of the table (including schema if provided).
 
 > **columns**: [`TableColumnDefinitionModel`](TableColumnDefinitionModel.md)[]
 
-Defined in: [packages/core/src/models/TableDefinitionModel.ts:32](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/models/TableDefinitionModel.ts#L32)
+Defined in: [packages/core/src/models/TableDefinitionModel.ts:32](https://github.com/mk3008/rawsql-ts/blob/efa96500610e9fc3a9f71149a5ff13c786488297/packages/core/src/models/TableDefinitionModel.ts#L32)
 
 Columns in the order they are defined in the table.
 </div>

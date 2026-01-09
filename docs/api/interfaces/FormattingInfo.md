@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: FormattingInfo
 
-Defined in: [packages/core/src/models/FormattingLexeme.ts:46](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/models/FormattingLexeme.ts#L46)
+Defined in: [packages/core/src/models/FormattingLexeme.ts:46](https://github.com/mk3008/rawsql-ts/blob/efa96500610e9fc3a9f71149a5ff13c786488297/packages/core/src/models/FormattingLexeme.ts#L46)
 
 Container for formatting information associated with AST nodes
 
@@ -11,7 +11,7 @@ Container for formatting information associated with AST nodes
 
 > **originalLexemes**: [`FormattingLexeme`](FormattingLexeme.md)[]
 
-Defined in: [packages/core/src/models/FormattingLexeme.ts:50](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/models/FormattingLexeme.ts#L50)
+Defined in: [packages/core/src/models/FormattingLexeme.ts:50](https://github.com/mk3008/rawsql-ts/blob/efa96500610e9fc3a9f71149a5ff13c786488297/packages/core/src/models/FormattingLexeme.ts#L50)
 
 Original lexemes with formatting information
 
@@ -21,7 +21,7 @@ Original lexemes with formatting information
 
 > **startPosition**: `number`
 
-Defined in: [packages/core/src/models/FormattingLexeme.ts:55](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/models/FormattingLexeme.ts#L55)
+Defined in: [packages/core/src/models/FormattingLexeme.ts:55](https://github.com/mk3008/rawsql-ts/blob/efa96500610e9fc3a9f71149a5ff13c786488297/packages/core/src/models/FormattingLexeme.ts#L55)
 
 Start position in original text
 
@@ -31,7 +31,7 @@ Start position in original text
 
 > **endPosition**: `number`
 
-Defined in: [packages/core/src/models/FormattingLexeme.ts:60](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/models/FormattingLexeme.ts#L60)
+Defined in: [packages/core/src/models/FormattingLexeme.ts:60](https://github.com/mk3008/rawsql-ts/blob/efa96500610e9fc3a9f71149a5ff13c786488297/packages/core/src/models/FormattingLexeme.ts#L60)
 
 End position in original text
 
@@ -41,7 +41,7 @@ End position in original text
 
 > `optional` **modifications**: [`ModificationInfo`](ModificationInfo.md)
 
-Defined in: [packages/core/src/models/FormattingLexeme.ts:65](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/models/FormattingLexeme.ts#L65)
+Defined in: [packages/core/src/models/FormattingLexeme.ts:65](https://github.com/mk3008/rawsql-ts/blob/efa96500610e9fc3a9f71149a5ff13c786488297/packages/core/src/models/FormattingLexeme.ts#L65)
 
 Modifications made during transformations
 
@@ -51,7 +51,7 @@ Modifications made during transformations
 
 > `optional` **whitespacePatterns**: `string`[]
 
-Defined in: [packages/core/src/models/FormattingLexeme.ts:70](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/models/FormattingLexeme.ts#L70)
+Defined in: [packages/core/src/models/FormattingLexeme.ts:70](https://github.com/mk3008/rawsql-ts/blob/efa96500610e9fc3a9f71149a5ff13c786488297/packages/core/src/models/FormattingLexeme.ts#L70)
 
 Original whitespace patterns for reconstruction
 </div>

@@ -3,7 +3,7 @@
 
 > **transformDatabaseResult**&lt;`T`\&gt;(`result`, `config?`): `T`
 
-Defined in: [packages/core/src/transformers/TypeTransformationPostProcessor.ts:374](https://github.com/mk3008/rawsql-ts/blob/94f584d3b9d408ecdd3b1321aec85354f4a34e6c/packages/core/src/transformers/TypeTransformationPostProcessor.ts#L374)
+Defined in: [packages/core/src/transformers/TypeTransformationPostProcessor.ts:374](https://github.com/mk3008/rawsql-ts/blob/efa96500610e9fc3a9f71149a5ff13c786488297/packages/core/src/transformers/TypeTransformationPostProcessor.ts#L374)
 
 Convenience function to create and apply transformations
 
