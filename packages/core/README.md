@@ -584,9 +584,13 @@ const isValid = builder.validateSql('SELECT id FROM users');
 console.log(isValid); // true
 ```
 
-For more details, see the [DynamicQueryBuilder Usage Guide](../../docs/usage-guides/class-DynamicQueryBuilder-usage-guide.md).
+For more details, see the [DynamicQueryBuilder Usage Guide](../../docs/guide/querybuilding-recipes.md).
 
 ---
+
+### Correlated EXISTS filtering
+
+`DynamicQueryBuilder` can append correlated `EXISTS`/`NOT EXISTS` predicates directly from filter metadata. Attach an `exists` or `notExists` object to a column entry, or use `$exists`/`$notExists` arrays when you need multiple anchors. Inside each subquery use `$c0`, `$c1`, … placeholders that correspond to the anchor columns, and pass `params` to bind any additional named parameters. Enable `existsStrict: true` in `QueryBuildOptions` to throw when placeholder numbering or anchor resolution fails instead of silently skipping the predicate.
 
 ## Query Flow Diagram Generation
 

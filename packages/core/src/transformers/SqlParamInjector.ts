@@ -52,7 +52,7 @@ export class SqlParamInjector {
      */
     public inject(
         query: SimpleSelectQuery | string,
-        state: Record<string, number | string | boolean | Date | null | undefined | Condition>
+        state: Record<string, StateParameterValue | null | undefined>
     ): SelectQuery {
         // Convert string query to SimpleSelectQuery using SelectQueryParser if needed
         if (typeof query === 'string') {
@@ -889,9 +889,8 @@ export class SqlParamInjector {
                 try {
                     const columns = this.collectColumnsFromCteQuery(cte.query);
                     cteColumns.push(...columns);
-                } catch (error) {
-                    // Log error but continue processing other CTEs
-                    console.warn(`Failed to collect columns from CTE '${cte.getSourceAliasName()}':`, error);
+                } catch {
+                    // Continue processing other CTEs on error
                 }
             }
         }
@@ -995,9 +994,8 @@ export class SqlParamInjector {
                     }
                 }
             }
-        } catch (error) {
-            // Log warning but continue with empty mapping for safety
-            console.warn('Failed to build table mapping:', error);
+        } catch {
+            // Continue with an empty mapping when table resolution fails
         }
 
         return { aliasToRealTable, realTableToAlias };
@@ -1027,9 +1025,8 @@ export class SqlParamInjector {
                     }
                 }
             }
-        } catch (error) {
-            // Log warning but continue processing other sources
-            console.warn('Failed to process source for mapping:', error);
+        } catch {
+            // Continue processing other sources when mapping a table fails
         }
     }
 }
