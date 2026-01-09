@@ -23,8 +23,10 @@ import {
   buildLintFixtureRow
 } from '../utils/sqlLintHelpers';
 
+/** Categorizes the type of failure encountered when validating SQL statements. */
 export type LintFailureKind = 'parser' | 'transform' | 'db';
 
+/** Captures diagnostic details contributed by PostgreSQL or the SQL rewriter. */
 export interface LintFailureDetails {
   code?: string;
   position?: number;
@@ -32,6 +34,7 @@ export interface LintFailureDetails {
   hint?: string;
 }
 
+/** Describes a single linting failure observed while processing a SQL file. */
 export interface LintFailure {
   kind: LintFailureKind;
   filePath: string;
@@ -42,6 +45,7 @@ export interface LintFailure {
   details?: LintFailureDetails;
 }
 
+/** Configuration for a lint run, including file discovery and schema fixtures. */
 export interface RunSqlLintOptions {
   sqlFiles: string[];
   ddlDirectories: string[];
@@ -51,11 +55,18 @@ export interface RunSqlLintOptions {
   client: Client;
 }
 
+/** Outcome summary for a lint run. */
 export interface RunSqlLintResult {
   failures: LintFailure[];
   filesChecked: number;
 }
 
+/**
+ * Validate every SQL file against the configured DDL fixtures by replaying each
+ * statement inside a pg-testkit-backed Postgres instance.
+ * @param options Configuration values that describe which files and schemas to lint.
+ * @returns A summary of the failures observed and how many files were processed.
+ */
 export async function runSqlLint(options: RunSqlLintOptions): Promise<RunSqlLintResult> {
   const { sqlFiles, ddlDirectories, defaultSchema, searchPath, ddlLint, client } = options;
   let tableDefinitions: TableDefinitionModel[];
@@ -122,6 +133,7 @@ export async function runSqlLint(options: RunSqlLintOptions): Promise<RunSqlLint
 
 /**
  * Register the `ztd lint` CLI command that validates raw SQL with a temporary Postgres instance.
+ * @param program CLI root command that receives the lint subcommand.
  */
 export function registerLintCommand(program: Command): void {
   program
@@ -163,9 +175,7 @@ async function runLintCommand(pattern: string): Promise<void> {
       throw new Error('ztd lint failed');
     }
 
-    console.log(
-      `ztd lint passed (${result.filesChecked} file${result.filesChecked === 1 ? '' : 's'})`
-    );
+    // Success is implied by the absence of failures, so the command stays silent.
   } finally {
     await client.end().catch(() => undefined);
     await container.stop();
@@ -201,7 +211,6 @@ async function lintFile(
     if (!statement) {
       continue;
     }
-    console.log('linting statement', statement);
     try {
       SqlParser.parse(statement);
     } catch (parseError) {
@@ -211,7 +220,6 @@ async function lintFile(
     try {
       resetRewritten();
       await executeValidationStatement(testkit, statement);
-      console.log('rewritten SQL', getRewritten());
     } catch (error) {
       failures.push(
         buildStatementFailure(filePath, statement, contents, error, getRewritten())
@@ -230,6 +238,10 @@ async function executeValidationStatement(
 
 /**
  * Build a parser failure record that surfaces rawsql-ts errors from runSqlLint.
+ * @param filePath The SQL file that triggered the parser issue.
+ * @param contents Statement contents to display alongside the error.
+ * @param error The parser error produced by rawsql-ts.
+ * @returns A failure record that keeps the command output consistent.
  */
 export function buildParserFailure(
   filePath: string,
