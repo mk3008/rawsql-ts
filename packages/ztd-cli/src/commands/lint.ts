@@ -1,0 +1,463 @@
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { Command } from 'commander';
+import { Client } from 'pg';
+import { MultiQuerySplitter, SqlParser } from 'rawsql-ts';
+import type { TableDefinitionModel } from 'rawsql-ts';
+import {
+  DdlFixtureLoader,
+  TableNameResolver,
+  MissingFixtureError,
+  SchemaValidationError,
+  QueryRewriteError,
+  DdlLintError,
+  type DdlLintMode,
+  type TableRowsFixture
+} from '@rawsql-ts/testkit-core';
+import { createPgTestkitClient } from '@rawsql-ts/pg-testkit';
+import { PostgreSqlContainer } from '@testcontainers/postgresql';
+import { loadZtdProjectConfig } from '../utils/ztdProjectConfig';
+import {
+  resolveSqlFiles,
+  extractEnumLabels,
+  buildLintFixtureRow
+} from '../utils/sqlLintHelpers';
+
+export type LintFailureKind = 'parser' | 'transform' | 'db';
+
+export interface LintFailureDetails {
+  code?: string;
+  position?: number;
+  detail?: string;
+  hint?: string;
+}
+
+export interface LintFailure {
+  kind: LintFailureKind;
+  filePath: string;
+  statement?: string;
+  message: string;
+  location: { line: number; column: number } | null;
+  rewritten?: string | null;
+  details?: LintFailureDetails;
+}
+
+export interface RunSqlLintOptions {
+  sqlFiles: string[];
+  ddlDirectories: string[];
+  defaultSchema: string;
+  searchPath: string[];
+  ddlLint: DdlLintMode;
+  client: Client;
+}
+
+export interface RunSqlLintResult {
+  failures: LintFailure[];
+  filesChecked: number;
+}
+
+export async function runSqlLint(options: RunSqlLintOptions): Promise<RunSqlLintResult> {
+  const { sqlFiles, ddlDirectories, defaultSchema, searchPath, ddlLint, client } = options;
+  let tableDefinitions: TableDefinitionModel[];
+  try {
+    const resolver = new TableNameResolver({ defaultSchema, searchPath });
+    const loader = new DdlFixtureLoader({
+      directories: ddlDirectories,
+      tableNameResolver: resolver,
+      ddlLint
+    });
+    const fixtures = loader.getFixtures();
+    tableDefinitions = fixtures.map((fixture) => fixture.tableDefinition);
+  } catch (error) {
+    return {
+      failures: [buildTransformFailureFromLoaderError(error, ddlDirectories)],
+      filesChecked: sqlFiles.length
+    };
+  }
+
+  const enumLabels = extractEnumLabels(ddlDirectories);
+  const tableRows: TableRowsFixture[] = tableDefinitions.map((definition) => ({
+    tableName: definition.name,
+    rows: [buildLintFixtureRow(definition, enumLabels)]
+  }));
+
+  // Build fixture data so that required columns pass the Postgres checks.
+  let rewrittenStatement: string | null = null;
+  const testkit = createPgTestkitClient({
+    connectionFactory: async () => client,
+    tableDefinitions,
+    tableRows,
+    defaultSchema,
+    searchPath,
+    onExecute: (sql) => {
+      rewrittenStatement = sql;
+    }
+  });
+
+  const failures: LintFailure[] = [];
+  try {
+    for (const filePath of sqlFiles) {
+      const contents = readFileSafe(filePath);
+      await lintFile(
+        filePath,
+        contents,
+        testkit,
+        failures,
+        () => {
+          rewrittenStatement = null;
+        },
+        () => rewrittenStatement
+      );
+    }
+  } finally {
+    await testkit.close();
+  }
+
+  return {
+    failures,
+    filesChecked: sqlFiles.length
+  };
+}
+
+/**
+ * Register the `ztd lint` CLI command that validates raw SQL with a temporary Postgres instance.
+ */
+export function registerLintCommand(program: Command): void {
+  program
+    .command('lint <path>')
+    .description('Lint SQL files for syntax and analysis correctness via ZTD')
+    .action(async (pattern: string) => {
+      await runLintCommand(pattern);
+    });
+}
+
+async function runLintCommand(pattern: string): Promise<void> {
+  const config = loadZtdProjectConfig();
+  const projectRoot = process.cwd();
+  const ddlRoot = path.resolve(projectRoot, config.ddlDir);
+  const sqlFiles = resolveSqlFiles(pattern);
+
+  const containerImage = process.env.ZTD_LINT_DB_IMAGE ?? 'postgres:16-alpine';
+  const container = await new PostgreSqlContainer(containerImage)
+    .withDatabase('ztdlint')
+    .withUsername('ztd')
+    .withPassword('ztd')
+    .start();
+  const client = new Client({ connectionString: container.getConnectionUri() });
+  await client.connect();
+
+  try {
+    const result = await runSqlLint({
+      sqlFiles,
+      ddlDirectories: [ddlRoot],
+      defaultSchema: config.ddl.defaultSchema,
+      searchPath: config.ddl.searchPath,
+      ddlLint: config.ddlLint,
+      client
+    });
+
+    if (result.failures.length > 0) {
+      reportFailures(result.failures);
+      process.exitCode = 1;
+      throw new Error('ztd lint failed');
+    }
+
+    console.log(
+      `ztd lint passed (${result.filesChecked} file${result.filesChecked === 1 ? '' : 's'})`
+    );
+  } finally {
+    await client.end().catch(() => undefined);
+    await container.stop();
+  }
+}
+
+function readFileSafe(filePath: string): string {
+  return readFileSync(filePath, 'utf8');
+}
+
+async function lintFile(
+  filePath: string,
+  contents: string,
+  testkit: ReturnType<typeof createPgTestkitClient>,
+  failures: LintFailure[],
+  resetRewritten: () => void,
+  getRewritten: () => string | null
+): Promise<void> {
+  let split;
+  try {
+    split = MultiQuerySplitter.split(contents);
+  } catch (error) {
+    failures.push(buildParserFailure(filePath, contents, error));
+    return;
+  }
+
+  // Validate every statement that survives the splitter to catch syntax and semantic issues.
+  for (const chunk of split.queries) {
+    if (chunk.isEmpty) {
+      continue;
+    }
+    const statement = chunk.sql.trim();
+    if (!statement) {
+      continue;
+    }
+    console.log('linting statement', statement);
+    try {
+      SqlParser.parse(statement);
+    } catch (parseError) {
+      failures.push(buildParserFailure(filePath, statement, parseError));
+      continue;
+    }
+    try {
+      resetRewritten();
+      await executeValidationStatement(testkit, statement);
+      console.log('rewritten SQL', getRewritten());
+    } catch (error) {
+      failures.push(
+        buildStatementFailure(filePath, statement, contents, error, getRewritten())
+      );
+    }
+  }
+}
+
+async function executeValidationStatement(
+  testkit: ReturnType<typeof createPgTestkitClient>,
+  statement: string
+): Promise<void> {
+  const name = `"ztd_lint_${Date.now()}_${Math.random().toString(36).slice(2, 8)}"`;
+  try {
+    await testkit.query(`PREPARE ${name} AS ${statement}`);
+  } catch (prepareError) {
+    try {
+      await testkit.query(`EXPLAIN ${statement}`);
+      return;
+    } catch {
+      throw prepareError;
+    }
+  } finally {
+    await testkit.query(`DEALLOCATE ${name}`).catch(() => undefined);
+  }
+}
+
+/**
+ * Build a parser failure record that surfaces rawsql-ts errors from runSqlLint.
+ */
+export function buildParserFailure(
+  filePath: string,
+  contents: string,
+  error: unknown
+): LintFailure {
+  const message =
+    `RawSQL parser: ${error instanceof Error ? error.message : 'Unknown parser error'}`;
+  return buildLintFailure({
+    kind: 'parser',
+    filePath,
+    statement: contents,
+    message,
+    location: null
+  });
+}
+
+function buildStatementFailure(
+  filePath: string,
+  statement: string,
+  contents: string,
+  error: unknown,
+  rewritten: string | null
+): LintFailure {
+  if (isTransformError(error)) {
+    return buildTransformFailureFromStatement(filePath, statement, error, rewritten);
+  }
+  return buildDbFailure(filePath, statement, contents, error, rewritten);
+}
+
+function buildDbFailure(
+  filePath: string,
+  statement: string,
+  contents: string,
+  error: unknown,
+  rewritten: string | null
+): LintFailure {
+  const pgError = error as Record<string, unknown>;
+  const position =
+    typeof pgError.position === 'string'
+      ? Number(pgError.position) - 1
+      : typeof pgError.position === 'number'
+        ? pgError.position
+        : undefined;
+  const location =
+    position !== undefined ? findLineColumn(contents, position) : null;
+  const details: LintFailureDetails = {};
+  if (typeof pgError.code === 'string') {
+    details.code = pgError.code;
+  }
+  if (typeof pgError.position === 'string' && !Number.isNaN(Number(pgError.position))) {
+    details.position = Number(pgError.position);
+  } else if (typeof pgError.position === 'number') {
+    details.position = pgError.position;
+  }
+  if (typeof pgError.detail === 'string') {
+    details.detail = pgError.detail;
+  }
+  if (typeof pgError.hint === 'string') {
+    details.hint = pgError.hint;
+  }
+  return buildLintFailure({
+    kind: 'db',
+    filePath,
+    statement,
+    message: (pgError.message as string) ?? 'Unknown error',
+    location,
+    rewritten,
+    details: Object.keys(details).length > 0 ? details : undefined
+  });
+}
+
+function buildTransformFailureFromStatement(
+  filePath: string,
+  statement: string,
+  error: MissingFixtureError | SchemaValidationError | QueryRewriteError,
+  rewritten: string | null
+): LintFailure {
+  const message = `ZTD transform: ${error.message}`;
+  const details = getTransformDetails(error);
+  return buildLintFailure({
+    kind: 'transform',
+    filePath,
+    statement,
+    message,
+    location: null,
+    rewritten,
+    details
+  });
+}
+
+function buildTransformFailureFromLoaderError(
+  error: unknown,
+  ddlDirectories: string[]
+): LintFailure {
+  if (error instanceof DdlLintError && error.diagnostics.length > 0) {
+    const diag = error.diagnostics[0];
+    const filePath = resolveDdlFailurePath(diag.source, ddlDirectories);
+    return buildLintFailure({
+      kind: 'transform',
+      filePath,
+      message: `ZTD transform: ${diag.message}`,
+      location: null,
+      details: { code: diag.code }
+    });
+  }
+  const filePath = resolveDdlFailurePath(undefined, ddlDirectories);
+  return buildLintFailure({
+    kind: 'transform',
+    filePath,
+    message: `ZTD transform: ${error instanceof Error ? error.message : 'Unknown transform error'}`,
+    location: null
+  });
+}
+
+function resolveDdlFailurePath(
+  source: string | undefined,
+  directories: string[]
+): string {
+  if (source) {
+    return path.resolve(process.cwd(), source);
+  }
+  if (directories.length) {
+    return path.resolve(directories[0]);
+  }
+  return process.cwd();
+}
+
+function getTransformDetails(
+  error: MissingFixtureError | SchemaValidationError | QueryRewriteError
+): LintFailureDetails | undefined {
+  if (error instanceof MissingFixtureError) {
+    return { code: 'missing-fixture' };
+  }
+  if (error instanceof SchemaValidationError) {
+    return { code: 'schema-validation' };
+  }
+  if (error instanceof QueryRewriteError) {
+    return { code: 'query-rewrite' };
+  }
+  return undefined;
+}
+
+function isTransformError(
+  error: unknown
+): error is MissingFixtureError | SchemaValidationError | QueryRewriteError {
+  return (
+    error instanceof MissingFixtureError ||
+    error instanceof SchemaValidationError ||
+    error instanceof QueryRewriteError
+  );
+}
+
+function buildLintFailure(params: {
+  kind: LintFailureKind;
+  filePath: string;
+  statement?: string;
+  message: string;
+  location: { line: number; column: number } | null;
+  rewritten?: string | null;
+  details?: LintFailureDetails;
+}): LintFailure {
+  return {
+    kind: params.kind,
+    filePath: params.filePath,
+    statement: params.statement,
+    message: params.message,
+    location: params.location ?? null,
+    rewritten: params.rewritten ?? null,
+    details: params.details
+  };
+}
+
+function findLineColumn(
+  contents: string,
+  position: number
+): { line: number; column: number } {
+  const lines = contents.split(/\r?\n/);
+  let offset = 0;
+  for (let i = 0; i < lines.length; i += 1) {
+    const lineLength = lines[i].length + 1;
+    if (position < offset + lineLength) {
+      return {
+        line: i + 1,
+        column: position - offset + 1
+      };
+    }
+    offset += lineLength;
+  }
+  return {
+    line: lines.length,
+    column: lines[lines.length - 1].length + 1
+  };
+}
+
+function reportFailures(failures: LintFailure[]): void {
+  for (const failure of failures) {
+    console.error(`\n[${failure.filePath}] (${failure.kind}) ${failure.message}`);
+    if (failure.location) {
+      console.error(
+        `at line ${failure.location.line} column ${failure.location.column}`
+      );
+    }
+    if (failure.details?.position !== undefined) {
+      console.error(`position: ${failure.details.position}`);
+    }
+    if (failure.details?.code) {
+      console.error(`code: ${failure.details.code}`);
+    }
+    if (failure.details?.detail) {
+      console.error(`detail: ${failure.details.detail}`);
+    }
+    if (failure.details?.hint) {
+      console.error(`hint: ${failure.details.hint}`);
+    }
+    if (failure.rewritten) {
+      console.error('rewritten SQL:');
+      console.error(failure.rewritten);
+    }
+  }
+}

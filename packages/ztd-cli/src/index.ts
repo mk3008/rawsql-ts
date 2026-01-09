@@ -3,6 +3,7 @@
 import { Command } from 'commander';
 import { registerDdlCommands } from './commands/ddl';
 import { registerInitCommand } from './commands/init';
+import { registerLintCommand } from './commands/lint';
 import { registerZtdConfigCommand } from './commands/ztdConfigCommand';
 
 async function main(): Promise<void> {
@@ -10,6 +11,7 @@ async function main(): Promise<void> {
   program.name('ztd').description('Zero Table Dependency scaffolding and DDL helpers');
 
   registerInitCommand(program);
+  registerLintCommand(program);
   registerZtdConfigCommand(program);
   registerDdlCommands(program);
 
