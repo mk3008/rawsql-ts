@@ -90,7 +90,8 @@
       "@eslint/eslintrc>js-yaml": "4.1.1",
       "mdast-util-to-hast": "13.2.1",
       "vite>esbuild": "0.25.10",
-      "vitepress>vite": "5.4.21"
+      "vitepress>vite": "5.4.21",
+      "preact": "10.27.3"
     }
   }
 }
