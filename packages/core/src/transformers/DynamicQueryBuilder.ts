@@ -8,17 +8,24 @@ import { QueryBuilder } from "./QueryBuilder";
 import { SqlParameterBinder } from "./SqlParameterBinder";
 import { ParameterDetector } from "../utils/ParameterDetector";
 import { SqlParameterValue } from "../models/ValueComponent";
-import { ExistsInstruction, injectExistsPredicates } from "./ExistsPredicateInjector";
+import {
+    ExistsInstruction,
+    injectExistsPredicates,
+    type ExistsSubqueryDefinition
+} from "./ExistsPredicateInjector";
+
+export type { ExistsSubqueryDefinition };
 /**
- * Value union accepted for a single filter entry in DynamicQueryBuilder.
+ * Object-form filter condition supporting scalar operators, logical grouping,
+ * and column-anchored EXISTS/NOT EXISTS predicates.
  *
  * @example
- * ```typescript
- * const options = { filter: { price: { min: 10, max: 100 }, status: ['active', 'pending'] } };
- * builder.buildQuery('SELECT * FROM orders', options);
- * ```
+ * const filter: FilterConditionObject = {
+ *   min: 10,
+ *   max: 100,
+ *   exists: { sql: 'SELECT 1 FROM orders WHERE user_id = $c0' }
+ * };
  * Related tests: packages/core/tests/transformers/DynamicQueryBuilder.test.ts
-
  */
 
 
@@ -54,16 +61,6 @@ export type FilterConditionValue =
     | FilterConditionObject
     | MultiColumnExistsDefinition[];
 
-
-/**
- * Describes the correlated subquery that feeds an `exists`/`notExists` filter.
- */
-export interface ExistsSubqueryDefinition {
-    /** SQL text that uses `$c0`, `$c1`, … to reference the anchor columns. */
-    sql: string;
-    /** Optional named parameters that the subquery requires. */
-    params?: Record<string, SqlParameterValue>;
- }
 
 /**
  * Filter conditions for dynamic query building.

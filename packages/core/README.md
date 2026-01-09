@@ -584,7 +584,7 @@ const isValid = builder.validateSql('SELECT id FROM users');
 console.log(isValid); // true
 ```
 
-For more details, see the [DynamicQueryBuilder Usage Guide](../../docs/usage-guides/class-DynamicQueryBuilder-usage-guide.md).
+For more details, see the [DynamicQueryBuilder Usage Guide](../../docs/guide/querybuilding-recipes.md).
 
 ---
 
