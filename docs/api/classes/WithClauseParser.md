@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: WithClauseParser
 
-Defined in: [packages/core/src/parsers/WithClauseParser.ts:22](https://github.com/mk3008/rawsql-ts/blob/b67effd3c0d482ecdd9c112f2ecdaab94d2121ab/packages/core/src/parsers/WithClauseParser.ts#L22)
+Defined in: [packages/core/src/parsers/WithClauseParser.ts:22](https://github.com/mk3008/rawsql-ts/blob/8426433abb6f727425f333ca1e1200e90752ea40/packages/core/src/parsers/WithClauseParser.ts#L22)
 
 Parser for SQL WITH clauses (Common Table Expressions - CTEs).
 Parses only the WITH clause portion of SQL, not the entire query.
@@ -35,7 +35,7 @@ console.log(withClause.tables.length); // 1
 
 > `static` **parse**(`query`): [`WithClause`](WithClause.md)
 
-Defined in: [packages/core/src/parsers/WithClauseParser.ts:41](https://github.com/mk3008/rawsql-ts/blob/b67effd3c0d482ecdd9c112f2ecdaab94d2121ab/packages/core/src/parsers/WithClauseParser.ts#L41)
+Defined in: [packages/core/src/parsers/WithClauseParser.ts:41](https://github.com/mk3008/rawsql-ts/blob/8426433abb6f727425f333ca1e1200e90752ea40/packages/core/src/parsers/WithClauseParser.ts#L41)
 
 Parses a SQL string containing only a WITH clause into a WithClause AST.
 The input should contain only the WITH clause, not the subsequent main query.
@@ -75,7 +75,7 @@ const withClause = WithClauseParser.parse(sql);
 
 > `static` **parseFromLexeme**(`lexemes`, `index`): `object`
 
-Defined in: [packages/core/src/parsers/WithClauseParser.ts:73](https://github.com/mk3008/rawsql-ts/blob/b67effd3c0d482ecdd9c112f2ecdaab94d2121ab/packages/core/src/parsers/WithClauseParser.ts#L73)
+Defined in: [packages/core/src/parsers/WithClauseParser.ts:73](https://github.com/mk3008/rawsql-ts/blob/8426433abb6f727425f333ca1e1200e90752ea40/packages/core/src/parsers/WithClauseParser.ts#L73)
 
 Parses a WITH clause from an array of lexemes starting at the specified index.
 

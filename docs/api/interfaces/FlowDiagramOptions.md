@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: FlowDiagramOptions
 
-Defined in: [packages/core/src/transformers/QueryFlowDiagramGenerator.ts:16](https://github.com/mk3008/rawsql-ts/blob/b67effd3c0d482ecdd9c112f2ecdaab94d2121ab/packages/core/src/transformers/QueryFlowDiagramGenerator.ts#L16)
+Defined in: [packages/core/src/transformers/QueryFlowDiagramGenerator.ts:16](https://github.com/mk3008/rawsql-ts/blob/8426433abb6f727425f333ca1e1200e90752ea40/packages/core/src/transformers/QueryFlowDiagramGenerator.ts#L16)
 
 ## Extends
 
@@ -13,7 +13,7 @@ Defined in: [packages/core/src/transformers/QueryFlowDiagramGenerator.ts:16](htt
 
 > `optional` **title**: `string`
 
-Defined in: [packages/core/src/transformers/QueryFlowDiagramGenerator.ts:13](https://github.com/mk3008/rawsql-ts/blob/b67effd3c0d482ecdd9c112f2ecdaab94d2121ab/packages/core/src/transformers/QueryFlowDiagramGenerator.ts#L13)
+Defined in: [packages/core/src/transformers/QueryFlowDiagramGenerator.ts:13](https://github.com/mk3008/rawsql-ts/blob/8426433abb6f727425f333ca1e1200e90752ea40/packages/core/src/transformers/QueryFlowDiagramGenerator.ts#L13)
 
 Diagram title
 
@@ -27,7 +27,7 @@ Diagram title
 
 > `optional` **showDetails**: `boolean`
 
-Defined in: [packages/core/src/transformers/QueryFlowDiagramGenerator.ts:18](https://github.com/mk3008/rawsql-ts/blob/b67effd3c0d482ecdd9c112f2ecdaab94d2121ab/packages/core/src/transformers/QueryFlowDiagramGenerator.ts#L18)
+Defined in: [packages/core/src/transformers/QueryFlowDiagramGenerator.ts:18](https://github.com/mk3008/rawsql-ts/blob/8426433abb6f727425f333ca1e1200e90752ea40/packages/core/src/transformers/QueryFlowDiagramGenerator.ts#L18)
 
 Show detailed information (columns, conditions)
 
@@ -37,7 +37,7 @@ Show detailed information (columns, conditions)
 
 > `optional` **showCTEDependencies**: `boolean`
 
-Defined in: [packages/core/src/transformers/QueryFlowDiagramGenerator.ts:20](https://github.com/mk3008/rawsql-ts/blob/b67effd3c0d482ecdd9c112f2ecdaab94d2121ab/packages/core/src/transformers/QueryFlowDiagramGenerator.ts#L20)
+Defined in: [packages/core/src/transformers/QueryFlowDiagramGenerator.ts:20](https://github.com/mk3008/rawsql-ts/blob/8426433abb6f727425f333ca1e1200e90752ea40/packages/core/src/transformers/QueryFlowDiagramGenerator.ts#L20)
 
 Include CTE dependencies
 
@@ -47,7 +47,7 @@ Include CTE dependencies
 
 > `optional` **direction**: `"TD"` \| `"LR"` \| `"TB"` \| `"RL"`
 
-Defined in: [packages/core/src/transformers/QueryFlowDiagramGenerator.ts:22](https://github.com/mk3008/rawsql-ts/blob/b67effd3c0d482ecdd9c112f2ecdaab94d2121ab/packages/core/src/transformers/QueryFlowDiagramGenerator.ts#L22)
+Defined in: [packages/core/src/transformers/QueryFlowDiagramGenerator.ts:22](https://github.com/mk3008/rawsql-ts/blob/8426433abb6f727425f333ca1e1200e90752ea40/packages/core/src/transformers/QueryFlowDiagramGenerator.ts#L22)
 
 Direction of flow (top-down, left-right)
 </div>

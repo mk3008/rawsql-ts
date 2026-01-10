@@ -3,7 +3,7 @@
 
 > **createSchemaManager**(`schemas`): [`SchemaManager`](../classes/SchemaManager.md)
 
-Defined in: [packages/core/src/utils/SchemaManager.ts:271](https://github.com/mk3008/rawsql-ts/blob/b67effd3c0d482ecdd9c112f2ecdaab94d2121ab/packages/core/src/utils/SchemaManager.ts#L271)
+Defined in: [packages/core/src/utils/SchemaManager.ts:271](https://github.com/mk3008/rawsql-ts/blob/8426433abb6f727425f333ca1e1200e90752ea40/packages/core/src/utils/SchemaManager.ts#L271)
 
 Create a SchemaManager instance from schema definitions
 
