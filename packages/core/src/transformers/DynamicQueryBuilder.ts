@@ -13,8 +13,14 @@ import {
     injectExistsPredicates,
     type ExistsSubqueryDefinition
 } from "./ExistsPredicateInjector";
+import {
+    SchemaInfo,
+    optimizeUnusedLeftJoinsToFixedPoint,
+    optimizeUnusedCtesToFixedPoint
+} from "./OptimizeUnusedLeftJoins";
 
 export type { ExistsSubqueryDefinition };
+
 /**
  * Object-form filter condition supporting scalar operators, logical grouping,
  * and column-anchored EXISTS/NOT EXISTS predicates.
@@ -27,8 +33,6 @@ export type { ExistsSubqueryDefinition };
  * };
  * Related tests: packages/core/tests/transformers/DynamicQueryBuilder.test.ts
  */
-
-
 export interface FilterConditionObject {
     min?: SqlParameterValue;
     max?: SqlParameterValue;
@@ -124,6 +128,32 @@ export interface QueryBuildOptions {
      * Defaults to false so invalid definitions are skipped silently.
      */
     existsStrict?: boolean;
+    /**
+     * Schema metadata used when removing unused LEFT JOINs; overrides builder defaults.
+     */
+    schemaInfo?: SchemaInfo;
+    /**
+     * Remove unused LEFT JOINs before further processing when schema info is available.
+     */
+    removeUnusedLeftJoins?: boolean;
+    /**
+     * Remove unused Common Table Expressions (CTEs) when they can be safely pruned.
+     * Defaults to false to preserve original WITH definitions.
+     */
+    removeUnusedCtes?: boolean;
+}
+
+/**
+ * Builder-level configuration that can be reused across multiple build calls.
+ */
+export interface DynamicQueryBuilderOptions {
+    /** Optional resolver for table column names (retains backward compatibility). */
+    tableColumnResolver?: (tableName: string) => string[];
+    /**
+     * Schema metadata that may be applied by default when the optimizer is enabled.
+     * Schema info provided via QueryBuildOptions takes precedence.
+     */
+    schemaInfo?: SchemaInfo;
 }
 
 /**
@@ -136,12 +166,23 @@ export interface QueryBuildOptions {
  */
 export class DynamicQueryBuilder {
     private tableColumnResolver?: (tableName: string) => string[];
+    private defaultSchemaInfo?: SchemaInfo;
+
     /**
-     * Creates a new DynamicQueryBuilder instance
-     * @param tableColumnResolver Optional function to resolve table columns for wildcard queries
+     * Creates a new DynamicQueryBuilder instance.
+     * Accepts either the legacy table resolver or an options object that can provide schema metadata.
+     *
+     * @param resolverOrOptions Optional resolver or configuration object
      */
-    constructor(tableColumnResolver?: (tableName: string) => string[]) {
-        this.tableColumnResolver = tableColumnResolver;
+    constructor(
+        resolverOrOptions?: ((tableName: string) => string[]) | DynamicQueryBuilderOptions
+    ) {
+        if (typeof resolverOrOptions === "function") {
+            this.tableColumnResolver = resolverOrOptions;
+        } else if (resolverOrOptions) {
+            this.tableColumnResolver = resolverOrOptions.tableColumnResolver;
+            this.defaultSchemaInfo = resolverOrOptions.schemaInfo;
+        }
     }
 
     /**
@@ -210,7 +251,9 @@ export class DynamicQueryBuilder {
             // Ensure we have a SimpleSelectQuery for the injector
             const simpleQuery = QueryBuilder.buildSimpleQuery(modifiedQuery);
             modifiedQuery = sortInjector.inject(simpleQuery, options.sort);
-        }        // 3. Apply pagination third (after filtering and sorting)
+        }        
+        
+        // 3. Apply pagination third (after filtering and sorting)
         if (options.paging) {
             const { page = 1, pageSize } = options.paging;
             if (pageSize !== undefined) {
@@ -221,9 +264,18 @@ export class DynamicQueryBuilder {
                 modifiedQuery = paginationInjector.inject(simpleQuery, paginationOptions);
             }
         }
-        // 4. Apply serialization last (transform the final query structure to JSON)
+        // 4. Remove unused LEFT JOINs when asked before serialization.
+        const effectiveSchemaInfo = options.schemaInfo ?? this.defaultSchemaInfo;
+        if (options.removeUnusedLeftJoins && effectiveSchemaInfo?.length) {
+            modifiedQuery = optimizeUnusedLeftJoinsToFixedPoint(modifiedQuery, effectiveSchemaInfo);
+        }
+        // Remove unused CTEs before serialization when requested.
+        if (options.removeUnusedCtes) {
+            modifiedQuery = optimizeUnusedCtesToFixedPoint(modifiedQuery);
+        }
+        // Apply serialization last (transform the final query structure to JSON)
         // Note: boolean values are handled at RawSqlClient level for auto-loading
-        if (options.serialize && typeof options.serialize === 'object') {
+        if (options.serialize && typeof options.serialize === 'object') {       
             const jsonBuilder = new PostgresJsonQueryBuilder();
             // Ensure we have a SimpleSelectQuery for the JSON builder
             const simpleQuery = QueryBuilder.buildSimpleQuery(modifiedQuery);

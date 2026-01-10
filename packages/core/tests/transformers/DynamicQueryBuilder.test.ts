@@ -1,8 +1,16 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { DynamicQueryBuilder } from '../../src/transformers/DynamicQueryBuilder';
 import { SqlFormatter } from '../../src/transformers/SqlFormatter';
+import { SchemaInfo } from '../../src/transformers/OptimizeUnusedLeftJoins';
 
 describe('DynamicQueryBuilder', () => {
+    const schemaInfo: SchemaInfo = [
+        { name: 'profiles', columns: ['id', 'user_id'], uniqueKeys: [['id']] },
+        { name: 'settings', columns: ['id', 'profile_id'], uniqueKeys: [['profile_id']] }
+    ];
+    const schemaInfoWithoutUnique: SchemaInfo = [
+        { name: 'profiles', columns: ['id', 'user_id'], uniqueKeys: [] }
+    ];
     let builder: DynamicQueryBuilder;
 
     beforeEach(() => {
@@ -998,6 +1006,212 @@ describe('DynamicQueryBuilder', () => {
                 profiles_name: 'Alice Profile',
                 orders_total: 100
             });
+        });
+    });
+
+    describe('Unused left join optimizer', () => {
+        it('drops unused LEFT JOINs when schema metadata is provided', () => {
+            const sql = `
+                SELECT u.id
+                FROM users u
+                LEFT JOIN profiles p ON p.id = u.profile_id
+            `;
+            const result = builder.buildQuery(sql, {
+                removeUnusedLeftJoins: true,
+                schemaInfo
+            });
+            const formatter = new SqlFormatter();
+            const { formattedSql } = formatter.format(result);
+            expect(formattedSql).not.toContain('left join "profiles"');
+            expect(formattedSql).toContain('from "users"');
+        });
+
+        it('keeps the join when the right side alias is referenced elsewhere', () => {
+            const sql = `
+                SELECT u.id, p.name
+                FROM users u
+                LEFT JOIN profiles p ON p.id = u.profile_id
+            `;
+            const result = builder.buildQuery(sql, {
+                removeUnusedLeftJoins: true,
+                schemaInfo
+            });
+            const formatter = new SqlFormatter();
+            const { formattedSql } = formatter.format(result);
+            expect(formattedSql).toContain('left join "profiles"');
+        });
+
+        it('requires a single equality expression in the join condition', () => {
+            const sql = `
+                SELECT u.id
+                FROM users u
+                LEFT JOIN profiles p ON p.id = u.profile_id AND p.active = true
+            `;
+            const result = builder.buildQuery(sql, {
+                removeUnusedLeftJoins: true,
+                schemaInfo
+            });
+            const formatter = new SqlFormatter();
+            const { formattedSql } = formatter.format(result);
+            expect(formattedSql).toContain('left join "profiles"');
+        });
+
+        it('recursively removes joined tables that become unused', () => {      
+            const sql = `
+                SELECT u.id
+                FROM users u
+                LEFT JOIN profiles p ON p.id = u.profile_id
+                LEFT JOIN settings s ON p.id = s.profile_id
+            `;
+            const result = builder.buildQuery(sql, {
+                removeUnusedLeftJoins: true,
+                schemaInfo
+            });
+            const formatter = new SqlFormatter();
+            const { formattedSql } = formatter.format(result);
+            expect(formattedSql).not.toContain('left join "profiles"');
+            expect(formattedSql).not.toContain('left join "settings"');
+        });
+
+        it('retains joins whose alias is referenced only in another active join ON clause', () => {
+            const sql = `
+                SELECT u.id, s.profile_id
+                FROM users u
+                LEFT JOIN profiles p ON p.id = u.profile_id
+                LEFT JOIN settings s ON p.id = s.profile_id
+            `;
+            const result = builder.buildQuery(sql, {
+                removeUnusedLeftJoins: true,
+                schemaInfo
+            });
+            const formatter = new SqlFormatter();
+            const { formattedSql } = formatter.format(result);
+            expect(formattedSql).toContain('left join "profiles"');
+            expect(formattedSql).toContain('left join "settings"');
+        });
+
+        it('uses builder-level schema info when provided', () => {
+            const sql = `
+                SELECT u.id
+                FROM users u
+                LEFT JOIN profiles p ON p.id = u.profile_id
+            `;
+            const configuredBuilder = new DynamicQueryBuilder({ schemaInfo });
+            const result = configuredBuilder.buildQuery(sql, { removeUnusedLeftJoins: true });
+            const formatter = new SqlFormatter();
+            const { formattedSql } = formatter.format(result);
+            expect(formattedSql).not.toContain('left join "profiles"');
+        });
+
+        it('does nothing when schema info is missing', () => {
+            const sql = `
+                SELECT u.id
+                FROM users u
+                LEFT JOIN profiles p ON p.id = u.profile_id
+            `;
+            const result = builder.buildQuery(sql, { removeUnusedLeftJoins: true });
+            const formatter = new SqlFormatter();
+            const { formattedSql } = formatter.format(result);
+            expect(formattedSql).toContain('left join "profiles"');
+        });
+
+        it('keeps the join when the target column lacks a uniqueness declaration', () => {
+            const sql = `
+                SELECT u.id
+                FROM users u
+                LEFT JOIN profiles p ON p.id = u.profile_id
+            `;
+            const result = builder.buildQuery(sql, {
+                removeUnusedLeftJoins: true,
+                schemaInfo: schemaInfoWithoutUnique
+            });
+            const formatter = new SqlFormatter();
+            const { formattedSql } = formatter.format(result);
+            expect(formattedSql).toContain('left join "profiles"');
+        });
+
+        it('removes the join even when the join-target column appears on the left side of the equality', () => {
+            const sql = `
+                SELECT u.id
+                FROM users u
+                LEFT JOIN profiles p ON u.profile_id = p.id
+            `;
+            const result = builder.buildQuery(sql, {
+                removeUnusedLeftJoins: true,
+                schemaInfo
+            });
+            const formatter = new SqlFormatter();
+            const { formattedSql } = formatter.format(result);
+            expect(formattedSql).not.toContain('left join "profiles"');
+        });
+    });
+
+    describe('Unused CTE optimizer', () => {
+        it('removes unused SELECT CTEs when requested', () => {
+            const sql = `
+                WITH unused_cte AS (
+                    SELECT id FROM users
+                ),
+                active_users AS (
+                    SELECT id FROM users WHERE active = true
+                )
+                SELECT * FROM active_users
+            `;
+            const result = builder.buildQuery(sql, { removeUnusedCtes: true });
+            const formatter = new SqlFormatter();
+            const { formattedSql } = formatter.format(result);
+            expect(formattedSql).toMatch(/\bactive_users\b/i);
+            expect(formattedSql).not.toMatch(/unused_cte/i);
+        });
+
+        it('keeps data-modifying CTEs with RETURNING even when unused', () => {
+            const sql = `
+                WITH inserted_log AS (
+                    INSERT INTO audit_logs (message) VALUES ('ping') RETURNING id
+                )
+                SELECT 1
+            `;
+            const result = builder.buildQuery(sql, { removeUnusedCtes: true });
+            const formatter = new SqlFormatter();
+            const { formattedSql } = formatter.format(result);
+            expect(formattedSql).toMatch(/\binserted_log\b/i);
+        });
+
+        it('retains WITH RECURSIVE clauses even when the CTE is unused', () => {
+            const sql = `
+                WITH RECURSIVE numbers AS (
+                    SELECT 1 AS value
+                    UNION ALL
+                    SELECT value + 1 FROM numbers WHERE value < 2
+                )
+                SELECT 1
+            `;
+            const result = builder.buildQuery(sql, { removeUnusedCtes: true });
+            const formatter = new SqlFormatter();
+            const { formattedSql } = formatter.format(result);
+            const normalizedSql = formattedSql.toLowerCase();
+            expect(normalizedSql).toContain('with recursive');
+        });
+
+        it('recursively removes chained unused CTEs', () => {
+            const sql = `
+                WITH base_cte AS (
+                    SELECT 1 AS value
+                ),
+                mid_cte AS (
+                    SELECT * FROM base_cte
+                ),
+                final_cte AS (
+                    SELECT 1 AS value
+                )
+                SELECT * FROM final_cte
+            `;
+            const result = builder.buildQuery(sql, { removeUnusedCtes: true });
+            const formatter = new SqlFormatter();
+            const { formattedSql } = formatter.format(result);
+            expect(formattedSql).toMatch(/\bfinal_cte\b/i);
+            expect(formattedSql).not.toMatch(/\bbase_cte\b/i);
+            expect(formattedSql).not.toMatch(/\bmid_cte\b/i);
         });
     });
 });
