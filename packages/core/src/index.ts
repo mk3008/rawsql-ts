@@ -73,6 +73,13 @@ export { DuplicateDetectionMode } from './transformers/SelectableColumnCollector
 export * from './transformers/FilterableItemCollector';
 export { FixtureCteBuilder, FixtureTableDefinition, FixtureColumnDefinition } from './transformers/FixtureCteBuilder';
 export * from './transformers/DynamicQueryBuilder';
+export {
+    SchemaInfo,
+    optimizeUnusedLeftJoins,
+    optimizeUnusedLeftJoinsToFixedPoint,
+    optimizeUnusedCtes,
+    optimizeUnusedCtesToFixedPoint
+} from './transformers/OptimizeUnusedLeftJoins';
 export * from './transformers/TableColumnResolver';
 export * from './transformers/TableSourceCollector';
 export * from './transformers/JsonMappingConverter';

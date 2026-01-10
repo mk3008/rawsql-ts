@@ -111,6 +111,15 @@ const { formattedSql, params } = formatter.format(query);
 
 Reuse the formatter recipes to tune whitespace or switch placeholder conventions when sharing queries with analysts or logging pipelines.
 
+## Pruning unused structures
+
+`DynamicQueryBuilder` exposes two opt-in clean-up knobs that run after filters, sorts, and paging have been applied:
+
+- `removeUnusedLeftJoins`: when supplied together with `schemaInfo`, the builder will iteratively strip LEFT JOINs whose target alias is never referenced beyond the join itself and whose ON clause maps to a single column equality on a declared unique key.
+- `removeUnusedCtes`: removes SELECT-only, non-recursive CTEs that never feed the final query (including chained dependencies) while leaving data-modifying, recursive, or otherwise ambiguous CTEs untouched.
+
+Both options must be explicitly enabled via `QueryBuildOptions` (or builder defaults) and rely on AST-driven reference analysis rather than string matching. Supplying accurate `schemaInfo` metadata is critical for safely pruning joins, and the fixed-point updater ensures cascading deletions are handled predictably.
+
 ## Learn More
 
 - [`FilterConditions` API](../api/type-aliases/FilterConditions.md) documents every supported operator shape.
