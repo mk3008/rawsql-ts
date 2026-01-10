@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: CTENotFoundError
 
-Defined in: [packages/core/src/models/CTEError.ts:24](https://github.com/mk3008/rawsql-ts/blob/a59e3ea64dee225318ef045179f256984bc4cfe6/packages/core/src/models/CTEError.ts#L24)
+Defined in: [packages/core/src/models/CTEError.ts:24](https://github.com/mk3008/rawsql-ts/blob/b67effd3c0d482ecdd9c112f2ecdaab94d2121ab/packages/core/src/models/CTEError.ts#L24)
 
 Error thrown when trying to operate on a non-existent CTE
 
@@ -15,7 +15,7 @@ Error thrown when trying to operate on a non-existent CTE
 
 > **new CTENotFoundError**(`cteName`): `CTENotFoundError`
 
-Defined in: [packages/core/src/models/CTEError.ts:25](https://github.com/mk3008/rawsql-ts/blob/a59e3ea64dee225318ef045179f256984bc4cfe6/packages/core/src/models/CTEError.ts#L25)
+Defined in: [packages/core/src/models/CTEError.ts:25](https://github.com/mk3008/rawsql-ts/blob/b67effd3c0d482ecdd9c112f2ecdaab94d2121ab/packages/core/src/models/CTEError.ts#L25)
 
 #### Parameters
 
@@ -59,7 +59,7 @@ not capture any frames.
 
 > **cteName**: `string`
 
-Defined in: [packages/core/src/models/CTEError.ts:25](https://github.com/mk3008/rawsql-ts/blob/a59e3ea64dee225318ef045179f256984bc4cfe6/packages/core/src/models/CTEError.ts#L25)
+Defined in: [packages/core/src/models/CTEError.ts:25](https://github.com/mk3008/rawsql-ts/blob/b67effd3c0d482ecdd9c112f2ecdaab94d2121ab/packages/core/src/models/CTEError.ts#L25)
 
 ***
 
