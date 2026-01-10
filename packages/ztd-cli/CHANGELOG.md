@@ -1,5 +1,19 @@
 # @rawsql-ts/ztd-cli
 
+## 0.15.0
+
+### Patch Changes
+
+- [#387](https://github.com/mk3008/rawsql-ts/pull/387) [`95525f7`](https://github.com/mk3008/rawsql-ts/commit/95525f72f37576f0ef4e78bf77f8681644311f82) Thanks [@mk3008](https://github.com/mk3008)! - - ztd init now writes the tests/AGENTS.md guidance next to the generated tests layout so the CLI includes the latest testing rules without manual steps.
+  - Expanded the AGENTS templates to spell out the required validation and testing expectations for general and tests directories.
+
+- [#391](https://github.com/mk3008/rawsql-ts/pull/391) [`4e14a23`](https://github.com/mk3008/rawsql-ts/commit/4e14a23b405c1ba729229330baf725d09837aca2) Thanks [@mk3008](https://github.com/mk3008)! - Add deterministic ztd lint integration coverage and relax parser/default-value assertions.
+
+- Updated dependencies [[`8fc296a`](https://github.com/mk3008/rawsql-ts/commit/8fc296a24f1dc8190c3561bc265f5b32d537eab3), [`ee41f6d`](https://github.com/mk3008/rawsql-ts/commit/ee41f6d270c8174f0c6128ece3f3abd55a726f3d), [`45c55bd`](https://github.com/mk3008/rawsql-ts/commit/45c55bd58f0e1b969ce7bcc6cc35d53d2248ebdd), [`efc6e3f`](https://github.com/mk3008/rawsql-ts/commit/efc6e3fd2c1a9dec3bc54ed446101ed53191fea3)]:
+  - @rawsql-ts/testkit-core@0.15.0
+  - rawsql-ts@0.15.0
+  - @rawsql-ts/pg-testkit@0.15.0
+
 ## 0.14.4
 
 ### Patch Changes

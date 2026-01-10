@@ -1,5 +1,16 @@
 # rawsql-ts
 
+## 0.15.0
+
+### Patch Changes
+
+- [#393](https://github.com/mk3008/rawsql-ts/pull/393) [`ee41f6d`](https://github.com/mk3008/rawsql-ts/commit/ee41f6d270c8174f0c6128ece3f3abd55a726f3d) Thanks [@mk3008](https://github.com/mk3008)! - Document the DynamicQueryBuilder pruning options and stabilize the accompanying optimizer tests with formatter-agnostic assertions.
+
+- [#390](https://github.com/mk3008/rawsql-ts/pull/390) [`45c55bd`](https://github.com/mk3008/rawsql-ts/commit/45c55bd58f0e1b969ce7bcc6cc35d53d2248ebdd) Thanks [@mk3008](https://github.com/mk3008)! - - Hardened the DynamicQueryBuilder test suite by matching specific named parameters, ORDER BY direction, and EXISTS/NOT EXISTS clause structures so the assertions remain stable regardless of formatter or error-message changes.
+
+- [#385](https://github.com/mk3008/rawsql-ts/pull/385) [`efc6e3f`](https://github.com/mk3008/rawsql-ts/commit/efc6e3fd2c1a9dec3bc54ed446101ed53191fea3) Thanks [@mk3008](https://github.com/mk3008)! - ### Normalize ZTD fixture casts
+  - Fixture casts now translate Postgres serial pseudo-types (serial, bigserial, smallserial, etc.) into their real integer targets, so generated SQL never attempts to cast into invalid pseudo-types.
+
 ## 0.14.4
 
 ## 0.14.3
