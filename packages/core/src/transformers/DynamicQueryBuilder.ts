@@ -7,7 +7,8 @@ import { PostgresJsonQueryBuilder, JsonMapping } from "./PostgresJsonQueryBuilde
 import { QueryBuilder } from "./QueryBuilder";
 import { SqlParameterBinder } from "./SqlParameterBinder";
 import { ParameterDetector } from "../utils/ParameterDetector";
-import { SqlParameterValue } from "../models/ValueComponent";
+import { ColumnReference, SqlParameterValue } from "../models/ValueComponent";
+import { SelectItem } from "../models/Clause";
 import {
     ExistsInstruction,
     injectExistsPredicates,
@@ -111,6 +112,16 @@ export interface QueryBuildOptions {
     sort?: SortConditions;
     /** Pagination options to inject LIMIT/OFFSET clauses */
     paging?: PaginationOptions;
+    /**
+     * Columns that should remain in the SELECT clause.
+     * When specified, every other column is removed so the output matches this whitelist.
+     */
+    includeColumns?: string[];
+    /**
+     * Columns that should be removed from the SELECT clause.
+     * Filters apply subtractively and only drop columns that exist in the original output.
+     */
+    excludeColumns?: string[];
     /** JSON serialization mapping to transform results into hierarchical JSON
      * - JsonMapping object: explicit mapping configuration
      * - true: auto-load mapping from corresponding .json file
@@ -264,12 +275,14 @@ export class DynamicQueryBuilder {
                 modifiedQuery = paginationInjector.inject(simpleQuery, paginationOptions);
             }
         }
-        // 4. Remove unused LEFT JOINs when asked before serialization.
+        // 4. Apply column projection filters before any optimizer passes.
+        modifiedQuery = this.applyColumnFilters(modifiedQuery, options);
+        // 5. Remove unused LEFT JOINs when asked before serialization.
         const effectiveSchemaInfo = options.schemaInfo ?? this.defaultSchemaInfo;
         if (options.removeUnusedLeftJoins && effectiveSchemaInfo?.length) {
             modifiedQuery = optimizeUnusedLeftJoinsToFixedPoint(modifiedQuery, effectiveSchemaInfo);
         }
-        // Remove unused CTEs before serialization when requested.
+        // 6. Remove unused CTEs before serialization when requested.
         if (options.removeUnusedCtes) {
             modifiedQuery = optimizeUnusedCtesToFixedPoint(modifiedQuery);
         }
@@ -389,6 +402,114 @@ export class DynamicQueryBuilder {
             sql: definition.sql,
             params: definition.params
         };
+    }
+
+    private applyColumnFilters(query: SelectQuery, options: QueryBuildOptions): SelectQuery {
+        const hasIncludeFilters = Array.isArray(options.includeColumns) && options.includeColumns.length > 0;
+        const hasExcludeFilters = Array.isArray(options.excludeColumns) && options.excludeColumns.length > 0;
+
+        if (!hasIncludeFilters && !hasExcludeFilters) {
+            return query;
+        }
+
+        if (hasIncludeFilters && hasExcludeFilters) {
+            throw new Error("includeColumns and excludeColumns cannot be used together.");
+        }
+
+        const simpleQuery = QueryBuilder.buildSimpleQuery(query);
+        const metadata = simpleQuery.selectClause.items.map(item => {
+            const name = this.getSelectItemName(item);
+            return {
+                item,
+                normalized: name ? this.normalizeColumnIdentifier(name) : null
+            };
+        });
+
+        const availableColumns = new Set(
+            metadata
+                .map(entry => entry.normalized)
+                .filter((name): name is string => name !== null)
+        );
+
+        const includeFilters = hasIncludeFilters ? this.normalizeColumnList(options.includeColumns!) : null;
+        const excludeFilters = hasExcludeFilters ? this.normalizeColumnList(options.excludeColumns!) : null;
+
+        const includeSet = includeFilters ? new Set(includeFilters.map(entry => entry.normalized)) : null;
+        const excludeSet = excludeFilters ? new Set(excludeFilters.map(entry => entry.normalized)) : null;
+
+        if (includeFilters) {
+            const missing = includeFilters.filter(entry => !availableColumns.has(entry.normalized));
+            if (missing.length > 0) {
+                throw new Error(
+                    `Column${missing.length === 1 ? "" : "s"} not found in SELECT clause: ${missing
+                        .map(entry => `'${entry.original}'`)
+                        .join(", ")}.`
+                );
+            }
+        }
+
+        if (excludeFilters) {
+            const missing = excludeFilters.filter(entry => !availableColumns.has(entry.normalized));
+            if (missing.length > 0) {
+                throw new Error(
+                    `Column${missing.length === 1 ? "" : "s"} not found in SELECT clause: ${missing
+                        .map(entry => `'${entry.original}'`)
+                        .join(", ")}.`
+                );
+            }
+        }
+
+        const filteredItems = metadata
+            .filter(entry => {
+                if (!entry.normalized) {
+                    return true;
+                }
+                if (includeSet) {
+                    return includeSet.has(entry.normalized);
+                }
+                if (excludeSet) {
+                    return !excludeSet.has(entry.normalized);
+                }
+                return true;
+            })
+            .map(entry => entry.item);
+
+        if (filteredItems.length === 0) {
+            throw new Error("Column filtering removed every SELECT item.");
+        }
+
+        simpleQuery.selectClause.items = filteredItems;
+        return simpleQuery;
+    }
+
+    private normalizeColumnList(columns: string[]): { normalized: string; original: string }[] {
+        return columns.map(column => {
+            if (typeof column !== "string") {
+                throw new Error("Column filters must be strings.");
+            }
+            const trimmed = column.trim();
+            if (trimmed === "") {
+                throw new Error("Column filters must not be empty.");
+            }
+            return {
+                normalized: this.normalizeColumnIdentifier(trimmed),
+                original: trimmed
+            };
+        });
+    }
+
+    private normalizeColumnIdentifier(value: string): string {
+        return value.trim().toLowerCase();
+    }
+
+    private getSelectItemName(item: SelectItem): string | null {
+        if (item.identifier) {
+            return item.identifier.name;
+        }
+        if (item.value instanceof ColumnReference) {
+            return item.value.column.name;
+        }
+        return null;
     }
 
     /**

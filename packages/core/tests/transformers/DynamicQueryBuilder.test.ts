@@ -104,6 +104,48 @@ describe('DynamicQueryBuilder', () => {
         });
     });
 
+    describe('Column projection filters', () => {
+        const sql = 'SELECT id, name, email FROM users WHERE active = true';
+
+        it('should remove excluded columns without reordering the rest', () => {
+            // Act
+            const result = builder.buildQuery(sql, { excludeColumns: ['email'] });
+
+            // Assert
+            const formatter = new SqlFormatter();
+            const { formattedSql } = formatter.format(result);
+            expect(formattedSql).toContain('"id"');
+            expect(formattedSql).toContain('"name"');
+            expect(formattedSql).not.toContain('"email"');
+            expect(formattedSql.indexOf('"name"')).toBeGreaterThan(formattedSql.indexOf('"id"'));
+        });
+
+        it('should keep only whitelisted columns in the original order', () => {
+            // Act
+            const result = builder.buildQuery(sql, { includeColumns: ['email', 'name'] });
+
+            // Assert
+            const formatter = new SqlFormatter();
+            const { formattedSql } = formatter.format(result);
+            expect(formattedSql).toContain('"name"');
+            expect(formattedSql).toContain('"email"');
+            expect(formattedSql).not.toContain('"id"');
+            expect(formattedSql.indexOf('"email"')).toBeGreaterThan(formattedSql.indexOf('"name"'));
+        });
+
+        it('should throw when both includeColumns and excludeColumns are provided', () => {
+            expect(() =>
+                builder.buildQuery(sql, { includeColumns: ['id'], excludeColumns: ['email'] })
+            ).toThrow(/includeColumns and excludeColumns cannot be used together/);
+        });
+
+        it('should throw when a referenced column is not present', () => {
+            expect(() =>
+                builder.buildQuery(sql, { excludeColumns: ['missing_column'] })
+            ).toThrow(/'missing_column'/);
+        });
+    });
+
     describe('Convenience methods', () => {
         it('should apply filter only with buildFilteredQuery', () => {
             // Arrange
