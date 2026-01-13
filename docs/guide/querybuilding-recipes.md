@@ -111,6 +111,27 @@ const { formattedSql, params } = formatter.format(query);
 
 Reuse the formatter recipes to tune whitespace or switch placeholder conventions when sharing queries with analysts or logging pipelines.
 
+## Controlling output columns
+
+`DynamicQueryBuilder` exposes `includeColumns`/`excludeColumns` when you need to shrink the `SELECT` list without rewriting the source SQL. Provide one of the lists (they cannot be combined) and the builder will prune every column that is not whitelisted or is explicitly blacklisted, all while preserving the original order of the remaining select items. Column names are matched case-insensitively, and the builder raises an error if you reference a column that does not exist in the current projection so mistakes are caught early.
+
+```ts
+const query = builder.buildQuery(baseSql, {
+  filter: { 'orders.status': 'active' },
+  includeColumns: ['id', 'status', 'customer_name']
+});
+```
+
+Use `excludeColumns` when you want to drop a handful of sensitive or expensive fields while keeping everything else untouched:
+
+```ts
+const query = builder.buildQuery(baseSql, {
+  excludeColumns: ['audit_notes', 'internal_flag']
+});
+```
+
+Every projection change runs after pagination and before the optimizer passes, so unused-join/CTE pruning still sees the final column set.
+
 ## Pruning unused structures
 
 `DynamicQueryBuilder` exposes two opt-in clean-up knobs that run after filters, sorts, and paging have been applied:
