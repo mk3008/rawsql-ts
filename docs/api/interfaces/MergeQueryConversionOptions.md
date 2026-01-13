@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: MergeQueryConversionOptions
 
-Defined in: [packages/core/src/models/SelectQuery.ts:66](https://github.com/mk3008/rawsql-ts/blob/8426433abb6f727425f333ca1e1200e90752ea40/packages/core/src/models/SelectQuery.ts#L66)
+Defined in: [packages/core/src/models/SelectQuery.ts:66](https://github.com/mk3008/rawsql-ts/blob/5d06fb06f498f93eb4e681336982f83d09f58d21/packages/core/src/models/SelectQuery.ts#L66)
 
 ## Properties
 
@@ -9,7 +9,7 @@ Defined in: [packages/core/src/models/SelectQuery.ts:66](https://github.com/mk30
 
 > **target**: `string`
 
-Defined in: [packages/core/src/models/SelectQuery.ts:67](https://github.com/mk3008/rawsql-ts/blob/8426433abb6f727425f333ca1e1200e90752ea40/packages/core/src/models/SelectQuery.ts#L67)
+Defined in: [packages/core/src/models/SelectQuery.ts:67](https://github.com/mk3008/rawsql-ts/blob/5d06fb06f498f93eb4e681336982f83d09f58d21/packages/core/src/models/SelectQuery.ts#L67)
 
 ***
 
@@ -17,7 +17,7 @@ Defined in: [packages/core/src/models/SelectQuery.ts:67](https://github.com/mk30
 
 > **primaryKeys**: `string` \| `string`[]
 
-Defined in: [packages/core/src/models/SelectQuery.ts:68](https://github.com/mk3008/rawsql-ts/blob/8426433abb6f727425f333ca1e1200e90752ea40/packages/core/src/models/SelectQuery.ts#L68)
+Defined in: [packages/core/src/models/SelectQuery.ts:68](https://github.com/mk3008/rawsql-ts/blob/5d06fb06f498f93eb4e681336982f83d09f58d21/packages/core/src/models/SelectQuery.ts#L68)
 
 ***
 
@@ -25,7 +25,7 @@ Defined in: [packages/core/src/models/SelectQuery.ts:68](https://github.com/mk30
 
 > `optional` **updateColumns**: `string`[]
 
-Defined in: [packages/core/src/models/SelectQuery.ts:69](https://github.com/mk3008/rawsql-ts/blob/8426433abb6f727425f333ca1e1200e90752ea40/packages/core/src/models/SelectQuery.ts#L69)
+Defined in: [packages/core/src/models/SelectQuery.ts:69](https://github.com/mk3008/rawsql-ts/blob/5d06fb06f498f93eb4e681336982f83d09f58d21/packages/core/src/models/SelectQuery.ts#L69)
 
 ***
 
@@ -33,7 +33,7 @@ Defined in: [packages/core/src/models/SelectQuery.ts:69](https://github.com/mk30
 
 > `optional` **insertColumns**: `string`[]
 
-Defined in: [packages/core/src/models/SelectQuery.ts:70](https://github.com/mk3008/rawsql-ts/blob/8426433abb6f727425f333ca1e1200e90752ea40/packages/core/src/models/SelectQuery.ts#L70)
+Defined in: [packages/core/src/models/SelectQuery.ts:70](https://github.com/mk3008/rawsql-ts/blob/5d06fb06f498f93eb4e681336982f83d09f58d21/packages/core/src/models/SelectQuery.ts#L70)
 
 ***
 
@@ -41,7 +41,7 @@ Defined in: [packages/core/src/models/SelectQuery.ts:70](https://github.com/mk30
 
 > `optional` **sourceAlias**: `string`
 
-Defined in: [packages/core/src/models/SelectQuery.ts:71](https://github.com/mk3008/rawsql-ts/blob/8426433abb6f727425f333ca1e1200e90752ea40/packages/core/src/models/SelectQuery.ts#L71)
+Defined in: [packages/core/src/models/SelectQuery.ts:71](https://github.com/mk3008/rawsql-ts/blob/5d06fb06f498f93eb4e681336982f83d09f58d21/packages/core/src/models/SelectQuery.ts#L71)
 
 ***
 
@@ -49,7 +49,7 @@ Defined in: [packages/core/src/models/SelectQuery.ts:71](https://github.com/mk30
 
 > `optional` **matchedAction**: [`MergeMatchedAction`](../type-aliases/MergeMatchedAction.md)
 
-Defined in: [packages/core/src/models/SelectQuery.ts:72](https://github.com/mk3008/rawsql-ts/blob/8426433abb6f727425f333ca1e1200e90752ea40/packages/core/src/models/SelectQuery.ts#L72)
+Defined in: [packages/core/src/models/SelectQuery.ts:72](https://github.com/mk3008/rawsql-ts/blob/5d06fb06f498f93eb4e681336982f83d09f58d21/packages/core/src/models/SelectQuery.ts#L72)
 
 ***
 
@@ -57,7 +57,7 @@ Defined in: [packages/core/src/models/SelectQuery.ts:72](https://github.com/mk30
 
 > `optional` **notMatchedAction**: [`MergeNotMatchedAction`](../type-aliases/MergeNotMatchedAction.md)
 
-Defined in: [packages/core/src/models/SelectQuery.ts:73](https://github.com/mk3008/rawsql-ts/blob/8426433abb6f727425f333ca1e1200e90752ea40/packages/core/src/models/SelectQuery.ts#L73)
+Defined in: [packages/core/src/models/SelectQuery.ts:73](https://github.com/mk3008/rawsql-ts/blob/5d06fb06f498f93eb4e681336982f83d09f58d21/packages/core/src/models/SelectQuery.ts#L73)
 
 ***
 
@@ -65,5 +65,5 @@ Defined in: [packages/core/src/models/SelectQuery.ts:73](https://github.com/mk30
 
 > `optional` **notMatchedBySourceAction**: [`MergeNotMatchedBySourceAction`](../type-aliases/MergeNotMatchedBySourceAction.md)
 
-Defined in: [packages/core/src/models/SelectQuery.ts:74](https://github.com/mk3008/rawsql-ts/blob/8426433abb6f727425f333ca1e1200e90752ea40/packages/core/src/models/SelectQuery.ts#L74)
+Defined in: [packages/core/src/models/SelectQuery.ts:74](https://github.com/mk3008/rawsql-ts/blob/5d06fb06f498f93eb4e681336982f83d09f58d21/packages/core/src/models/SelectQuery.ts#L74)
 </div>

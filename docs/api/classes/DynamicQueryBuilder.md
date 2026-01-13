@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: DynamicQueryBuilder
 
-Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:167](https://github.com/mk3008/rawsql-ts/blob/8426433abb6f727425f333ca1e1200e90752ea40/packages/core/src/transformers/DynamicQueryBuilder.ts#L167)
+Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:178](https://github.com/mk3008/rawsql-ts/blob/5d06fb06f498f93eb4e681336982f83d09f58d21/packages/core/src/transformers/DynamicQueryBuilder.ts#L178)
 
 DynamicQueryBuilder combines SQL parsing with dynamic condition injection (filters, sorts, paging, JSON serialization).
 
@@ -16,7 +16,7 @@ Key behaviours verified in packages/core/tests/transformers/DynamicQueryBuilder.
 
 > **new DynamicQueryBuilder**(`resolverOrOptions?`): `DynamicQueryBuilder`
 
-Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:177](https://github.com/mk3008/rawsql-ts/blob/8426433abb6f727425f333ca1e1200e90752ea40/packages/core/src/transformers/DynamicQueryBuilder.ts#L177)
+Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:188](https://github.com/mk3008/rawsql-ts/blob/5d06fb06f498f93eb4e681336982f83d09f58d21/packages/core/src/transformers/DynamicQueryBuilder.ts#L188)
 
 Creates a new DynamicQueryBuilder instance.
 Accepts either the legacy table resolver or an options object that can provide schema metadata.
@@ -39,7 +39,7 @@ Optional resolver or configuration object
 
 > **buildQuery**(`sqlContent`, `options`): [`SelectQuery`](../interfaces/SelectQuery.md)
 
-Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:208](https://github.com/mk3008/rawsql-ts/blob/8426433abb6f727425f333ca1e1200e90752ea40/packages/core/src/transformers/DynamicQueryBuilder.ts#L208)
+Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:219](https://github.com/mk3008/rawsql-ts/blob/5d06fb06f498f93eb4e681336982f83d09f58d21/packages/core/src/transformers/DynamicQueryBuilder.ts#L219)
 
 Builds a SelectQuery from SQL content with dynamic conditions.
 This is a pure function that does not perform any I/O operations.
@@ -85,7 +85,7 @@ const query = builder.buildQuery(
 
 > **buildFilteredQuery**(`sqlContent`, `filter`): [`SelectQuery`](../interfaces/SelectQuery.md)
 
-Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:402](https://github.com/mk3008/rawsql-ts/blob/8426433abb6f727425f333ca1e1200e90752ea40/packages/core/src/transformers/DynamicQueryBuilder.ts#L402)
+Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:523](https://github.com/mk3008/rawsql-ts/blob/5d06fb06f498f93eb4e681336982f83d09f58d21/packages/core/src/transformers/DynamicQueryBuilder.ts#L523)
 
 Builds a SelectQuery with only filtering applied.
 Convenience method for when you only need dynamic WHERE conditions.
@@ -116,7 +116,7 @@ Modified SelectQuery with filter conditions applied
 
 > **buildSortedQuery**(`sqlContent`, `sort`): [`SelectQuery`](../interfaces/SelectQuery.md)
 
-Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:414](https://github.com/mk3008/rawsql-ts/blob/8426433abb6f727425f333ca1e1200e90752ea40/packages/core/src/transformers/DynamicQueryBuilder.ts#L414)
+Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:535](https://github.com/mk3008/rawsql-ts/blob/5d06fb06f498f93eb4e681336982f83d09f58d21/packages/core/src/transformers/DynamicQueryBuilder.ts#L535)
 
 Builds a SelectQuery with only sorting applied.
 Convenience method for when you only need dynamic ORDER BY clauses.
@@ -147,7 +147,7 @@ Modified SelectQuery with sort conditions applied
 
 > **buildPaginatedQuery**(`sqlContent`, `paging`): [`SelectQuery`](../interfaces/SelectQuery.md)
 
-Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:424](https://github.com/mk3008/rawsql-ts/blob/8426433abb6f727425f333ca1e1200e90752ea40/packages/core/src/transformers/DynamicQueryBuilder.ts#L424)
+Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:545](https://github.com/mk3008/rawsql-ts/blob/5d06fb06f498f93eb4e681336982f83d09f58d21/packages/core/src/transformers/DynamicQueryBuilder.ts#L545)
 
 #### Parameters
 
@@ -169,7 +169,7 @@ Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:424](https://
 
 > **buildSerializedQuery**(`sqlContent`, `serialize`): [`SelectQuery`](../interfaces/SelectQuery.md)
 
-Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:436](https://github.com/mk3008/rawsql-ts/blob/8426433abb6f727425f333ca1e1200e90752ea40/packages/core/src/transformers/DynamicQueryBuilder.ts#L436)
+Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:557](https://github.com/mk3008/rawsql-ts/blob/5d06fb06f498f93eb4e681336982f83d09f58d21/packages/core/src/transformers/DynamicQueryBuilder.ts#L557)
 
 Builds a SelectQuery with only JSON serialization applied.
 Convenience method for when you only need hierarchical JSON transformation.
@@ -200,7 +200,7 @@ Modified SelectQuery with JSON serialization applied
 
 > **validateSql**(`sqlContent`): `boolean`
 
-Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:448](https://github.com/mk3008/rawsql-ts/blob/8426433abb6f727425f333ca1e1200e90752ea40/packages/core/src/transformers/DynamicQueryBuilder.ts#L448)
+Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:569](https://github.com/mk3008/rawsql-ts/blob/5d06fb06f498f93eb4e681336982f83d09f58d21/packages/core/src/transformers/DynamicQueryBuilder.ts#L569)
 
 Validates SQL content by attempting to parse it.
 Useful for testing SQL validity without applying any modifications.
