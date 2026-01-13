@@ -38,7 +38,7 @@ import { FixtureCteBuilder, FixtureTableDefinition } from './FixtureCteBuilder';
 import { SelectQueryWithClauseHelper } from "../utils/SelectQueryWithClauseHelper";
 import { rewriteValueComponentWithColumnResolver } from '../utils/ValueComponentRewriter';
 import { tableNameVariants } from '../utils/TableNameUtils';
-import { normalizeSerialPseudoType } from '../utils/serialTypeNormalization';
+import { isSerialPseudoType, normalizeSerialPseudoType } from '../utils/serialTypeNormalization';   
 
 /** Options that drive how the insert-to-select transformation resolves table metadata. */
 export interface InsertResultSelectOptions {
@@ -268,11 +268,12 @@ export class InsertResultSelectConverter {
         for (const columnName of insertColumns) {
             const normalized = this.normalizeIdentifier(columnName);
             const definition = columnDefinitionMap?.get(normalized);
+            const normalizedTypeName = normalizeSerialPseudoType(definition?.typeName);
             metadataMap.set(normalized, {
                 name: columnName,
                 normalized,
                 provided: true,
-                typeName: definition?.typeName,
+                typeName: normalizedTypeName,
                 required: definition?.required,
                 defaultValue: this.resolveDefaultValueExpression(definition)
             });
@@ -281,11 +282,12 @@ export class InsertResultSelectConverter {
         if (columnDefinitionMap) {
             for (const [normalized, definition] of columnDefinitionMap.entries()) {
                 if (!metadataMap.has(normalized)) {
+                    const normalizedTypeName = normalizeSerialPseudoType(definition.typeName);
                     metadataMap.set(normalized, {
                         name: definition.name,
                         normalized,
                         provided: false,
-                        typeName: definition.typeName,
+                        typeName: normalizedTypeName,
                         required: definition.required,
                         defaultValue: this.resolveDefaultValueExpression(definition)
                     });
@@ -670,7 +672,7 @@ export class InsertResultSelectConverter {
     private static resolveDefaultValueExpression(
         definition?: TableColumnDefinition
     ): ValueComponent | null {
-        if (!definition?.defaultValue) {
+        if (!definition) {
             return null;
         }
 
@@ -683,7 +685,29 @@ export class InsertResultSelectConverter {
             return parsed;
         }
 
+        if (defaultValue && this.referencesSequence(defaultValue)) {
+            // Normalize AST defaults that use sequences into deterministic row_number expressions.
+            return this.parseDefaultValue('row_number() over ()');
+        }
+
+        if (this.shouldUseSerialDefault(definition)) {
+            return this.parseDefaultValue('row_number() over ()');
+        }
+
         return defaultValue ?? null;
+    }
+
+    private static shouldUseSerialDefault(
+        definition?: TableColumnDefinition
+    ): boolean {
+        if (!definition) {
+            return false;
+        }
+        if (definition.defaultValue != null) {
+            return false;
+        }
+        // Treat serial pseudo-types without defaults as needing a deterministic default expression.
+        return isSerialPseudoType(definition.typeName);
     }
 
     private static referencesSequence(component: ValueComponent): boolean {

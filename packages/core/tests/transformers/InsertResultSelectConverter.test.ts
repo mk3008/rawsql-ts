@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { InsertQueryParser } from '../../src/parsers/InsertQueryParser';
+import { ValueParser } from '../../src/parsers/ValueParser';
 import { SqlFormatter } from '../../src/transformers/SqlFormatter';
 import { InsertResultSelectConverter } from '../../src/transformers/InsertResultSelectConverter';
 import type { TableDefinitionModel } from '../../src/models/TableDefinitionModel';
@@ -31,7 +32,7 @@ describe('InsertResultSelectConverter', () => {
         );
     });
 
-    it('normalizes serial pseudo-types when applying column casts', () => {
+    it('normalizes serial pseudo-types when applying column casts', () => {     
         const serialTable: TableDefinitionModel = {
             name: 'serials',
             columns: [
@@ -44,12 +45,78 @@ describe('InsertResultSelectConverter', () => {
             `INSERT INTO serials (id, value) VALUES (5, 'foo') RETURNING id, value`
         );
 
-        const converted = InsertResultSelectConverter.toSelectQuery(insert, {
+        const converted = InsertResultSelectConverter.toSelectQuery(insert, {   
             tableDefinitions: { serials: serialTable },
         });
         const sql = formatter().format(converted).formattedSql;
 
         expect(sql).toContain('cast(5 as integer) as "id"');
+    });
+
+    it('rewrites AST defaults referencing sequences into deterministic expressions', () => {
+        const serial8Default: TableDefinitionModel = {
+            name: 'serials',
+            columns: [
+                { name: 'id', typeName: 'bigint', required: true, defaultValue: ValueParser.parse("nextval('serials_id_seq'::regclass)") },
+                { name: 'value', typeName: 'text', required: true },
+            ],
+        };
+
+        const insert = InsertQueryParser.parse(
+            "INSERT INTO serials (value) VALUES ('foo') RETURNING id, value"
+        );
+
+        const converted = InsertResultSelectConverter.toSelectQuery(insert, {
+            tableDefinitions: { serials: serial8Default },
+        });
+        const sql = formatter().format(converted).formattedSql;
+
+        expect(sql).toContain('row_number() over() as "id"');
+        expect(sql).not.toContain('nextval(');
+    });
+
+    it('rewrites string defaults referencing sequences into deterministic expressions', () => {
+        const serial8Default: TableDefinitionModel = {
+            name: 'serials',
+            columns: [
+                { name: 'id', typeName: 'bigint', required: true, defaultValue: "nextval('serials_id_seq'::regclass)" },
+                { name: 'value', typeName: 'text', required: true },
+            ],
+        };
+
+        const insert = InsertQueryParser.parse(
+            "INSERT INTO serials (value) VALUES ('foo') RETURNING id, value"    
+        );
+
+        const converted = InsertResultSelectConverter.toSelectQuery(insert, {   
+            tableDefinitions: { serials: serial8Default },
+        });
+        const sql = formatter().format(converted).formattedSql;
+
+        expect(sql).toContain('row_number() over() as "id"');
+        expect(sql).not.toContain('nextval(');
+    });
+
+    it('applies serial pseudo-type defaults when the column is omitted', () => {
+        const serialTable: TableDefinitionModel = {
+            name: 'serials',
+            columns: [
+                { name: 'id', typeName: 'serial', required: true },
+                { name: 'value', typeName: 'text', required: true },
+            ],
+        };
+
+        const insert = InsertQueryParser.parse(
+            "INSERT INTO serials (value) VALUES ('foo') RETURNING id, value"    
+        );
+
+        const converted = InsertResultSelectConverter.toSelectQuery(insert, {   
+            tableDefinitions: { serials: serialTable },
+        });
+        const sql = formatter().format(converted).formattedSql;
+
+        expect(sql).toContain('row_number() over() as "id"');
+        expect(sql).not.toContain('nextval(');
     });
 
     it('falls back to the registry when the resolver cannot resolve the table', () => {
