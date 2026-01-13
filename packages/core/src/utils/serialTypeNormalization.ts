@@ -39,3 +39,25 @@ export function normalizeSerialPseudoType(typeName?: string): string | undefined
   segments.push(normalizedBase);
   return segments.join('.');
 }
+
+/**
+ * Returns true when the provided type name resolves to a known serial pseudo-type.
+ */
+export function isSerialPseudoType(typeName?: string): boolean {
+  if (!typeName) {
+    return false;
+  }
+
+  const trimmed = typeName.trim();
+  if (!trimmed) {
+    return false;
+  }
+
+  const segments = trimmed.split('.');
+  const base = segments.pop();
+  if (!base) {
+    return false;
+  }
+
+  return Boolean(SERIAL_PSEUDO_TYPE_MAP[base.toLowerCase()]);
+}
