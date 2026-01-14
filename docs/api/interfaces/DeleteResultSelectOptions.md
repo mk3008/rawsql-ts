@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: DeleteResultSelectOptions
 
-Defined in: [packages/core/src/transformers/DeleteResultSelectConverter.ts:30](https://github.com/mk3008/rawsql-ts/blob/5d06fb06f498f93eb4e681336982f83d09f58d21/packages/core/src/transformers/DeleteResultSelectConverter.ts#L30)
+Defined in: [packages/core/src/transformers/DeleteResultSelectConverter.ts:30](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/DeleteResultSelectConverter.ts#L30)
 
 Options that control how DELETE-to-SELECT conversion resolves metadata and fixtures.
 
@@ -11,7 +11,7 @@ Options that control how DELETE-to-SELECT conversion resolves metadata and fixtu
 
 > `optional` **tableDefinitions**: [`TableDefinitionRegistry`](../type-aliases/TableDefinitionRegistry.md)
 
-Defined in: [packages/core/src/transformers/DeleteResultSelectConverter.ts:32](https://github.com/mk3008/rawsql-ts/blob/5d06fb06f498f93eb4e681336982f83d09f58d21/packages/core/src/transformers/DeleteResultSelectConverter.ts#L32)
+Defined in: [packages/core/src/transformers/DeleteResultSelectConverter.ts:32](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/DeleteResultSelectConverter.ts#L32)
 
 Optional registry keyed by table name (matching the target table name case).
 
@@ -21,7 +21,7 @@ Optional registry keyed by table name (matching the target table name case).
 
 > `optional` **tableDefinitionResolver**: (`tableName`) => `undefined` \| [`TableDefinitionModel`](TableDefinitionModel.md)
 
-Defined in: [packages/core/src/transformers/DeleteResultSelectConverter.ts:34](https://github.com/mk3008/rawsql-ts/blob/5d06fb06f498f93eb4e681336982f83d09f58d21/packages/core/src/transformers/DeleteResultSelectConverter.ts#L34)
+Defined in: [packages/core/src/transformers/DeleteResultSelectConverter.ts:34](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/DeleteResultSelectConverter.ts#L34)
 
 Optional callback that resolves metadata by table name (useful for schemified targets).
 
@@ -41,7 +41,7 @@ Optional callback that resolves metadata by table name (useful for schemified ta
 
 > `optional` **fixtureTables**: [`FixtureTableDefinition`](FixtureTableDefinition.md)[]
 
-Defined in: [packages/core/src/transformers/DeleteResultSelectConverter.ts:36](https://github.com/mk3008/rawsql-ts/blob/5d06fb06f498f93eb4e681336982f83d09f58d21/packages/core/src/transformers/DeleteResultSelectConverter.ts#L36)
+Defined in: [packages/core/src/transformers/DeleteResultSelectConverter.ts:36](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/DeleteResultSelectConverter.ts#L36)
 
 Optional fixtures that should shadow real tables inside the generated SELECT.
 
@@ -51,7 +51,7 @@ Optional fixtures that should shadow real tables inside the generated SELECT.
 
 > `optional` **missingFixtureStrategy**: [`MissingFixtureStrategy`](../type-aliases/MissingFixtureStrategy.md)
 
-Defined in: [packages/core/src/transformers/DeleteResultSelectConverter.ts:38](https://github.com/mk3008/rawsql-ts/blob/5d06fb06f498f93eb4e681336982f83d09f58d21/packages/core/src/transformers/DeleteResultSelectConverter.ts#L38)
+Defined in: [packages/core/src/transformers/DeleteResultSelectConverter.ts:38](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/DeleteResultSelectConverter.ts#L38)
 
 Strategy for how missing fixtures should be tolerated.
 </div>

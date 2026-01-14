@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: SqlIdentifierRenamer
 
-Defined in: [packages/core/src/transformers/SqlIdentifierRenamer.ts:39](https://github.com/mk3008/rawsql-ts/blob/5d06fb06f498f93eb4e681336982f83d09f58d21/packages/core/src/transformers/SqlIdentifierRenamer.ts#L39)
+Defined in: [packages/core/src/transformers/SqlIdentifierRenamer.ts:39](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/SqlIdentifierRenamer.ts#L39)
 
 Handles safe renaming of SQL identifiers within plain SQL strings.
 
@@ -30,7 +30,7 @@ Related tests: packages/core/tests/transformers/SqlIdentifierRenamer.test.ts
 
 > **renameIdentifiers**(`sql`, `renames`): `string`
 
-Defined in: [packages/core/src/transformers/SqlIdentifierRenamer.ts:47](https://github.com/mk3008/rawsql-ts/blob/5d06fb06f498f93eb4e681336982f83d09f58d21/packages/core/src/transformers/SqlIdentifierRenamer.ts#L47)
+Defined in: [packages/core/src/transformers/SqlIdentifierRenamer.ts:47](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/SqlIdentifierRenamer.ts#L47)
 
 Safely renames identifiers in SQL string while preserving context
 
@@ -60,7 +60,7 @@ Modified SQL string with renamed identifiers
 
 > **renameIdentifier**(`sql`, `oldIdentifier`, `newIdentifier`): `string`
 
-Defined in: [packages/core/src/transformers/SqlIdentifierRenamer.ts:69](https://github.com/mk3008/rawsql-ts/blob/5d06fb06f498f93eb4e681336982f83d09f58d21/packages/core/src/transformers/SqlIdentifierRenamer.ts#L69)
+Defined in: [packages/core/src/transformers/SqlIdentifierRenamer.ts:69](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/SqlIdentifierRenamer.ts#L69)
 
 Renames a single identifier in SQL string
 
@@ -96,7 +96,7 @@ Modified SQL string
 
 > **renameIdentifierInScope**(`sql`, `oldIdentifier`, `newIdentifier`, `scopeRange?`): `string`
 
-Defined in: [packages/core/src/transformers/SqlIdentifierRenamer.ts:81](https://github.com/mk3008/rawsql-ts/blob/5d06fb06f498f93eb4e681336982f83d09f58d21/packages/core/src/transformers/SqlIdentifierRenamer.ts#L81)
+Defined in: [packages/core/src/transformers/SqlIdentifierRenamer.ts:81](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/SqlIdentifierRenamer.ts#L81)
 
 Renames a single identifier within a specified scope range
 
@@ -138,7 +138,7 @@ Modified SQL string
 
 > **checkRenameability**(`sql`, `position`): [`Renameability`](../interfaces/Renameability.md)
 
-Defined in: [packages/core/src/transformers/SqlIdentifierRenamer.ts:105](https://github.com/mk3008/rawsql-ts/blob/5d06fb06f498f93eb4e681336982f83d09f58d21/packages/core/src/transformers/SqlIdentifierRenamer.ts#L105)
+Defined in: [packages/core/src/transformers/SqlIdentifierRenamer.ts:105](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/SqlIdentifierRenamer.ts#L105)
 
 Checks if an identifier at the given position can be renamed
 
@@ -168,7 +168,7 @@ Renameability result
 
 > **renameAtPosition**(`sql`, `position`, `newName`): `string`
 
-Defined in: [packages/core/src/transformers/SqlIdentifierRenamer.ts:148](https://github.com/mk3008/rawsql-ts/blob/5d06fb06f498f93eb4e681336982f83d09f58d21/packages/core/src/transformers/SqlIdentifierRenamer.ts#L148)
+Defined in: [packages/core/src/transformers/SqlIdentifierRenamer.ts:148](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/SqlIdentifierRenamer.ts#L148)
 
 Renames identifier at the specified position
 
@@ -204,7 +204,7 @@ Modified SQL string
 
 > **validateRename**(`originalSql`, `modifiedSql`, `oldIdentifier`, `newIdentifier`): `boolean`
 
-Defined in: [packages/core/src/transformers/SqlIdentifierRenamer.ts:382](https://github.com/mk3008/rawsql-ts/blob/5d06fb06f498f93eb4e681336982f83d09f58d21/packages/core/src/transformers/SqlIdentifierRenamer.ts#L382)
+Defined in: [packages/core/src/transformers/SqlIdentifierRenamer.ts:382](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/SqlIdentifierRenamer.ts#L382)
 
 Validates that the rename operation was successful
 

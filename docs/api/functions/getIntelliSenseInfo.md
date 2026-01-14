@@ -3,7 +3,7 @@
 
 > **getIntelliSenseInfo**(`sql`, `cursorPosition`, `options`): `undefined` \| \{ `context`: [`IntelliSenseContext`](../interfaces/IntelliSenseContext.md); `scope`: [`ScopeInfo`](../interfaces/ScopeInfo.md); `parseResult`: [`PositionParseResult`](../interfaces/PositionParseResult.md); `currentQuery`: `string`; `relativePosition`: `number`; \}
 
-Defined in: [packages/core/src/utils/IntelliSenseApi.ts:124](https://github.com/mk3008/rawsql-ts/blob/5d06fb06f498f93eb4e681336982f83d09f58d21/packages/core/src/utils/IntelliSenseApi.ts#L124)
+Defined in: [packages/core/src/utils/IntelliSenseApi.ts:124](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/utils/IntelliSenseApi.ts#L124)
 
 Get IntelliSense information for a cursor position in multi-query context
 

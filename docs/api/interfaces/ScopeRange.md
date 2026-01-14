@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: ScopeRange
 
-Defined in: [packages/core/src/transformers/SqlIdentifierRenamer.ts:12](https://github.com/mk3008/rawsql-ts/blob/5d06fb06f498f93eb4e681336982f83d09f58d21/packages/core/src/transformers/SqlIdentifierRenamer.ts#L12)
+Defined in: [packages/core/src/transformers/SqlIdentifierRenamer.ts:12](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/SqlIdentifierRenamer.ts#L12)
 
 Represents a scope range for identifier renaming
 
@@ -11,7 +11,7 @@ Represents a scope range for identifier renaming
 
 > **start**: `number`
 
-Defined in: [packages/core/src/transformers/SqlIdentifierRenamer.ts:13](https://github.com/mk3008/rawsql-ts/blob/5d06fb06f498f93eb4e681336982f83d09f58d21/packages/core/src/transformers/SqlIdentifierRenamer.ts#L13)
+Defined in: [packages/core/src/transformers/SqlIdentifierRenamer.ts:13](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/SqlIdentifierRenamer.ts#L13)
 
 ***
 
@@ -19,5 +19,5 @@ Defined in: [packages/core/src/transformers/SqlIdentifierRenamer.ts:13](https://
 
 > **end**: `number`
 
-Defined in: [packages/core/src/transformers/SqlIdentifierRenamer.ts:14](https://github.com/mk3008/rawsql-ts/blob/5d06fb06f498f93eb4e681336982f83d09f58d21/packages/core/src/transformers/SqlIdentifierRenamer.ts#L14)
+Defined in: [packages/core/src/transformers/SqlIdentifierRenamer.ts:14](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/SqlIdentifierRenamer.ts#L14)
 </div>

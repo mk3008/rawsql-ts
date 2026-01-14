@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: SqlDialectConfiguration
 
-Defined in: [packages/core/src/models/SqlComponent.ts:87](https://github.com/mk3008/rawsql-ts/blob/5d06fb06f498f93eb4e681336982f83d09f58d21/packages/core/src/models/SqlComponent.ts#L87)
+Defined in: [packages/core/src/models/SqlComponent.ts:87](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/models/SqlComponent.ts#L87)
 
 ## Constructors
 
@@ -19,7 +19,7 @@ Defined in: [packages/core/src/models/SqlComponent.ts:87](https://github.com/mk3
 
 > **parameterSymbol**: `string` = `":"`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:88](https://github.com/mk3008/rawsql-ts/blob/5d06fb06f498f93eb4e681336982f83d09f58d21/packages/core/src/models/SqlComponent.ts#L88)
+Defined in: [packages/core/src/models/SqlComponent.ts:88](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/models/SqlComponent.ts#L88)
 
 ***
 
@@ -27,7 +27,7 @@ Defined in: [packages/core/src/models/SqlComponent.ts:88](https://github.com/mk3
 
 > **identifierEscape**: `object`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:89](https://github.com/mk3008/rawsql-ts/blob/5d06fb06f498f93eb4e681336982f83d09f58d21/packages/core/src/models/SqlComponent.ts#L89)
+Defined in: [packages/core/src/models/SqlComponent.ts:89](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/models/SqlComponent.ts#L89)
 
 #### start
 
@@ -43,5 +43,5 @@ Defined in: [packages/core/src/models/SqlComponent.ts:89](https://github.com/mk3
 
 > **exportComment**: [`CommentExportMode`](../type-aliases/CommentExportMode.md) = `"none"`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:90](https://github.com/mk3008/rawsql-ts/blob/5d06fb06f498f93eb4e681336982f83d09f58d21/packages/core/src/models/SqlComponent.ts#L90)
+Defined in: [packages/core/src/models/SqlComponent.ts:90](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/models/SqlComponent.ts#L90)
 </div>

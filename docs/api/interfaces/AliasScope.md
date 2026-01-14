@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: AliasScope
 
-Defined in: [packages/core/src/transformers/AliasRenamer.ts:15](https://github.com/mk3008/rawsql-ts/blob/5d06fb06f498f93eb4e681336982f83d09f58d21/packages/core/src/transformers/AliasRenamer.ts#L15)
+Defined in: [packages/core/src/transformers/AliasRenamer.ts:15](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/AliasRenamer.ts#L15)
 
 Represents an alias scope within SQL query structure
 
@@ -11,7 +11,7 @@ Represents an alias scope within SQL query structure
 
 > **type**: `"cte"` \| `"subquery"` \| `"main"`
 
-Defined in: [packages/core/src/transformers/AliasRenamer.ts:16](https://github.com/mk3008/rawsql-ts/blob/5d06fb06f498f93eb4e681336982f83d09f58d21/packages/core/src/transformers/AliasRenamer.ts#L16)
+Defined in: [packages/core/src/transformers/AliasRenamer.ts:16](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/AliasRenamer.ts#L16)
 
 ***
 
@@ -19,7 +19,7 @@ Defined in: [packages/core/src/transformers/AliasRenamer.ts:16](https://github.c
 
 > `optional` **name**: `string`
 
-Defined in: [packages/core/src/transformers/AliasRenamer.ts:17](https://github.com/mk3008/rawsql-ts/blob/5d06fb06f498f93eb4e681336982f83d09f58d21/packages/core/src/transformers/AliasRenamer.ts#L17)
+Defined in: [packages/core/src/transformers/AliasRenamer.ts:17](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/AliasRenamer.ts#L17)
 
 ***
 
@@ -27,7 +27,7 @@ Defined in: [packages/core/src/transformers/AliasRenamer.ts:17](https://github.c
 
 > **query**: [`SelectQuery`](SelectQuery.md)
 
-Defined in: [packages/core/src/transformers/AliasRenamer.ts:18](https://github.com/mk3008/rawsql-ts/blob/5d06fb06f498f93eb4e681336982f83d09f58d21/packages/core/src/transformers/AliasRenamer.ts#L18)
+Defined in: [packages/core/src/transformers/AliasRenamer.ts:18](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/AliasRenamer.ts#L18)
 
 ***
 
@@ -35,7 +35,7 @@ Defined in: [packages/core/src/transformers/AliasRenamer.ts:18](https://github.c
 
 > **startPosition**: `number`
 
-Defined in: [packages/core/src/transformers/AliasRenamer.ts:19](https://github.com/mk3008/rawsql-ts/blob/5d06fb06f498f93eb4e681336982f83d09f58d21/packages/core/src/transformers/AliasRenamer.ts#L19)
+Defined in: [packages/core/src/transformers/AliasRenamer.ts:19](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/AliasRenamer.ts#L19)
 
 ***
 
@@ -43,5 +43,5 @@ Defined in: [packages/core/src/transformers/AliasRenamer.ts:19](https://github.c
 
 > **endPosition**: `number`
 
-Defined in: [packages/core/src/transformers/AliasRenamer.ts:20](https://github.com/mk3008/rawsql-ts/blob/5d06fb06f498f93eb4e681336982f83d09f58d21/packages/core/src/transformers/AliasRenamer.ts#L20)
+Defined in: [packages/core/src/transformers/AliasRenamer.ts:20](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/AliasRenamer.ts#L20)
 </div>
