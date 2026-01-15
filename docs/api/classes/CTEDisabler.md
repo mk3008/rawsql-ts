@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: CTEDisabler
 
-Defined in: [packages/core/src/transformers/CTEDisabler.ts:28](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/CTEDisabler.ts#L28)
+Defined in: [packages/core/src/transformers/CTEDisabler.ts:28](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/CTEDisabler.ts#L28)
 
 A visitor that disables all WITH clauses in a SQL query structure.
 This processes and removes WITH clauses from:
@@ -23,7 +23,7 @@ the WITH clause syntactical construct.
 
 > **new CTEDisabler**(): `CTEDisabler`
 
-Defined in: [packages/core/src/transformers/CTEDisabler.ts:33](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/CTEDisabler.ts#L33)
+Defined in: [packages/core/src/transformers/CTEDisabler.ts:33](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/CTEDisabler.ts#L33)
 
 #### Returns
 
@@ -35,7 +35,7 @@ Defined in: [packages/core/src/transformers/CTEDisabler.ts:33](https://github.co
 
 > **execute**(`arg`): [`SelectQuery`](../interfaces/SelectQuery.md)
 
-Defined in: [packages/core/src/transformers/CTEDisabler.ts:117](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/CTEDisabler.ts#L117)
+Defined in: [packages/core/src/transformers/CTEDisabler.ts:117](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/CTEDisabler.ts#L117)
 
 #### Parameters
 
@@ -53,7 +53,7 @@ Defined in: [packages/core/src/transformers/CTEDisabler.ts:117](https://github.c
 
 > **visit**(`arg`): [`SqlComponent`](SqlComponent.md)
 
-Defined in: [packages/core/src/transformers/CTEDisabler.ts:127](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/CTEDisabler.ts#L127)
+Defined in: [packages/core/src/transformers/CTEDisabler.ts:127](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/CTEDisabler.ts#L127)
 
 Main entry point for the visitor pattern.
 Implements the shallow visit pattern to distinguish between root and recursive visits.
@@ -78,7 +78,7 @@ Implements the shallow visit pattern to distinguish between root and recursive v
 
 > **visitSimpleSelectQuery**(`arg`): [`SqlComponent`](SqlComponent.md)
 
-Defined in: [packages/core/src/transformers/CTEDisabler.ts:169](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/CTEDisabler.ts#L169)
+Defined in: [packages/core/src/transformers/CTEDisabler.ts:169](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/CTEDisabler.ts#L169)
 
 #### Parameters
 
@@ -96,7 +96,7 @@ Defined in: [packages/core/src/transformers/CTEDisabler.ts:169](https://github.c
 
 > **visitBinarySelectQuery**(`query`): [`SqlComponent`](SqlComponent.md)
 
-Defined in: [packages/core/src/transformers/CTEDisabler.ts:193](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/CTEDisabler.ts#L193)
+Defined in: [packages/core/src/transformers/CTEDisabler.ts:193](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/CTEDisabler.ts#L193)
 
 #### Parameters
 
@@ -114,7 +114,7 @@ Defined in: [packages/core/src/transformers/CTEDisabler.ts:193](https://github.c
 
 > **visitValuesQuery**(`query`): [`SqlComponent`](SqlComponent.md)
 
-Defined in: [packages/core/src/transformers/CTEDisabler.ts:199](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/CTEDisabler.ts#L199)
+Defined in: [packages/core/src/transformers/CTEDisabler.ts:199](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/CTEDisabler.ts#L199)
 
 #### Parameters
 
@@ -132,7 +132,7 @@ Defined in: [packages/core/src/transformers/CTEDisabler.ts:199](https://github.c
 
 > **visitInsertQuery**(`query`): [`SqlComponent`](SqlComponent.md)
 
-Defined in: [packages/core/src/transformers/CTEDisabler.ts:204](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/CTEDisabler.ts#L204)
+Defined in: [packages/core/src/transformers/CTEDisabler.ts:204](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/CTEDisabler.ts#L204)
 
 #### Parameters
 
@@ -150,7 +150,7 @@ Defined in: [packages/core/src/transformers/CTEDisabler.ts:204](https://github.c
 
 > **visitUpdateQuery**(`query`): [`SqlComponent`](SqlComponent.md)
 
-Defined in: [packages/core/src/transformers/CTEDisabler.ts:209](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/CTEDisabler.ts#L209)
+Defined in: [packages/core/src/transformers/CTEDisabler.ts:209](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/CTEDisabler.ts#L209)
 
 #### Parameters
 
@@ -168,7 +168,7 @@ Defined in: [packages/core/src/transformers/CTEDisabler.ts:209](https://github.c
 
 > **visitDeleteQuery**(`query`): [`SqlComponent`](SqlComponent.md)
 
-Defined in: [packages/core/src/transformers/CTEDisabler.ts:214](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/CTEDisabler.ts#L214)
+Defined in: [packages/core/src/transformers/CTEDisabler.ts:214](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/CTEDisabler.ts#L214)
 
 #### Parameters
 
@@ -186,7 +186,7 @@ Defined in: [packages/core/src/transformers/CTEDisabler.ts:214](https://github.c
 
 > **visitSelectClause**(`clause`): [`SqlComponent`](SqlComponent.md)
 
-Defined in: [packages/core/src/transformers/CTEDisabler.ts:219](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/CTEDisabler.ts#L219)
+Defined in: [packages/core/src/transformers/CTEDisabler.ts:219](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/CTEDisabler.ts#L219)
 
 #### Parameters
 
@@ -204,7 +204,7 @@ Defined in: [packages/core/src/transformers/CTEDisabler.ts:219](https://github.c
 
 > **visitFromClause**(`clause`): [`SqlComponent`](SqlComponent.md)
 
-Defined in: [packages/core/src/transformers/CTEDisabler.ts:230](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/CTEDisabler.ts#L230)
+Defined in: [packages/core/src/transformers/CTEDisabler.ts:230](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/CTEDisabler.ts#L230)
 
 #### Parameters
 
@@ -222,7 +222,7 @@ Defined in: [packages/core/src/transformers/CTEDisabler.ts:230](https://github.c
 
 > **visitSubQuerySource**(`subQuery`): [`SqlComponent`](SqlComponent.md)
 
-Defined in: [packages/core/src/transformers/CTEDisabler.ts:237](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/CTEDisabler.ts#L237)
+Defined in: [packages/core/src/transformers/CTEDisabler.ts:237](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/CTEDisabler.ts#L237)
 
 #### Parameters
 
@@ -240,7 +240,7 @@ Defined in: [packages/core/src/transformers/CTEDisabler.ts:237](https://github.c
 
 > **visitInlineQuery**(`inlineQuery`): [`SqlComponent`](SqlComponent.md)
 
-Defined in: [packages/core/src/transformers/CTEDisabler.ts:242](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/CTEDisabler.ts#L242)
+Defined in: [packages/core/src/transformers/CTEDisabler.ts:242](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/CTEDisabler.ts#L242)
 
 #### Parameters
 
@@ -258,7 +258,7 @@ Defined in: [packages/core/src/transformers/CTEDisabler.ts:242](https://github.c
 
 > **visitJoinClause**(`joinClause`): [`SqlComponent`](SqlComponent.md)
 
-Defined in: [packages/core/src/transformers/CTEDisabler.ts:247](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/CTEDisabler.ts#L247)
+Defined in: [packages/core/src/transformers/CTEDisabler.ts:247](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/CTEDisabler.ts#L247)
 
 #### Parameters
 
@@ -276,7 +276,7 @@ Defined in: [packages/core/src/transformers/CTEDisabler.ts:247](https://github.c
 
 > **visitJoinOnClause**(`joinOn`): [`SqlComponent`](SqlComponent.md)
 
-Defined in: [packages/core/src/transformers/CTEDisabler.ts:259](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/CTEDisabler.ts#L259)
+Defined in: [packages/core/src/transformers/CTEDisabler.ts:259](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/CTEDisabler.ts#L259)
 
 #### Parameters
 
@@ -294,7 +294,7 @@ Defined in: [packages/core/src/transformers/CTEDisabler.ts:259](https://github.c
 
 > **visitJoinUsingClause**(`joinUsing`): [`SqlComponent`](SqlComponent.md)
 
-Defined in: [packages/core/src/transformers/CTEDisabler.ts:264](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/CTEDisabler.ts#L264)
+Defined in: [packages/core/src/transformers/CTEDisabler.ts:264](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/CTEDisabler.ts#L264)
 
 #### Parameters
 
@@ -312,7 +312,7 @@ Defined in: [packages/core/src/transformers/CTEDisabler.ts:264](https://github.c
 
 > **visitWhereClause**(`whereClause`): [`SqlComponent`](SqlComponent.md)
 
-Defined in: [packages/core/src/transformers/CTEDisabler.ts:269](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/CTEDisabler.ts#L269)
+Defined in: [packages/core/src/transformers/CTEDisabler.ts:269](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/CTEDisabler.ts#L269)
 
 #### Parameters
 
@@ -330,7 +330,7 @@ Defined in: [packages/core/src/transformers/CTEDisabler.ts:269](https://github.c
 
 > **visitGroupByClause**(`clause`): [`SqlComponent`](SqlComponent.md)
 
-Defined in: [packages/core/src/transformers/CTEDisabler.ts:274](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/CTEDisabler.ts#L274)
+Defined in: [packages/core/src/transformers/CTEDisabler.ts:274](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/CTEDisabler.ts#L274)
 
 #### Parameters
 
@@ -348,7 +348,7 @@ Defined in: [packages/core/src/transformers/CTEDisabler.ts:274](https://github.c
 
 > **visitHavingClause**(`clause`): [`SqlComponent`](SqlComponent.md)
 
-Defined in: [packages/core/src/transformers/CTEDisabler.ts:279](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/CTEDisabler.ts#L279)
+Defined in: [packages/core/src/transformers/CTEDisabler.ts:279](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/CTEDisabler.ts#L279)
 
 #### Parameters
 
@@ -366,7 +366,7 @@ Defined in: [packages/core/src/transformers/CTEDisabler.ts:279](https://github.c
 
 > **visitOrderByClause**(`clause`): [`SqlComponent`](SqlComponent.md)
 
-Defined in: [packages/core/src/transformers/CTEDisabler.ts:284](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/CTEDisabler.ts#L284)
+Defined in: [packages/core/src/transformers/CTEDisabler.ts:284](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/CTEDisabler.ts#L284)
 
 #### Parameters
 
@@ -384,7 +384,7 @@ Defined in: [packages/core/src/transformers/CTEDisabler.ts:284](https://github.c
 
 > **visitWindowFrameClause**(`clause`): [`SqlComponent`](SqlComponent.md)
 
-Defined in: [packages/core/src/transformers/CTEDisabler.ts:289](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/CTEDisabler.ts#L289)
+Defined in: [packages/core/src/transformers/CTEDisabler.ts:289](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/CTEDisabler.ts#L289)
 
 #### Parameters
 
@@ -402,7 +402,7 @@ Defined in: [packages/core/src/transformers/CTEDisabler.ts:289](https://github.c
 
 > **visitLimitClause**(`clause`): [`SqlComponent`](SqlComponent.md)
 
-Defined in: [packages/core/src/transformers/CTEDisabler.ts:294](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/CTEDisabler.ts#L294)
+Defined in: [packages/core/src/transformers/CTEDisabler.ts:294](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/CTEDisabler.ts#L294)
 
 #### Parameters
 
@@ -420,7 +420,7 @@ Defined in: [packages/core/src/transformers/CTEDisabler.ts:294](https://github.c
 
 > **visitForClause**(`clause`): [`SqlComponent`](SqlComponent.md)
 
-Defined in: [packages/core/src/transformers/CTEDisabler.ts:299](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/CTEDisabler.ts#L299)
+Defined in: [packages/core/src/transformers/CTEDisabler.ts:299](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/CTEDisabler.ts#L299)
 
 #### Parameters
 
@@ -438,7 +438,7 @@ Defined in: [packages/core/src/transformers/CTEDisabler.ts:299](https://github.c
 
 > **visitParenExpression**(`expr`): [`SqlComponent`](SqlComponent.md)
 
-Defined in: [packages/core/src/transformers/CTEDisabler.ts:303](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/CTEDisabler.ts#L303)
+Defined in: [packages/core/src/transformers/CTEDisabler.ts:303](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/CTEDisabler.ts#L303)
 
 #### Parameters
 
@@ -456,7 +456,7 @@ Defined in: [packages/core/src/transformers/CTEDisabler.ts:303](https://github.c
 
 > **visitBinaryExpression**(`expr`): [`SqlComponent`](SqlComponent.md)
 
-Defined in: [packages/core/src/transformers/CTEDisabler.ts:308](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/CTEDisabler.ts#L308)
+Defined in: [packages/core/src/transformers/CTEDisabler.ts:308](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/CTEDisabler.ts#L308)
 
 #### Parameters
 
@@ -474,7 +474,7 @@ Defined in: [packages/core/src/transformers/CTEDisabler.ts:308](https://github.c
 
 > **visitUnaryExpression**(`expr`): [`SqlComponent`](SqlComponent.md)
 
-Defined in: [packages/core/src/transformers/CTEDisabler.ts:314](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/CTEDisabler.ts#L314)
+Defined in: [packages/core/src/transformers/CTEDisabler.ts:314](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/CTEDisabler.ts#L314)
 
 #### Parameters
 
@@ -492,7 +492,7 @@ Defined in: [packages/core/src/transformers/CTEDisabler.ts:314](https://github.c
 
 > **visitCaseExpression**(`expr`): [`SqlComponent`](SqlComponent.md)
 
-Defined in: [packages/core/src/transformers/CTEDisabler.ts:319](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/CTEDisabler.ts#L319)
+Defined in: [packages/core/src/transformers/CTEDisabler.ts:319](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/CTEDisabler.ts#L319)
 
 #### Parameters
 
@@ -510,7 +510,7 @@ Defined in: [packages/core/src/transformers/CTEDisabler.ts:319](https://github.c
 
 > **visitSwitchCaseArgument**(`switchCase`): [`SqlComponent`](SqlComponent.md)
 
-Defined in: [packages/core/src/transformers/CTEDisabler.ts:325](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/CTEDisabler.ts#L325)
+Defined in: [packages/core/src/transformers/CTEDisabler.ts:325](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/CTEDisabler.ts#L325)
 
 #### Parameters
 
@@ -528,7 +528,7 @@ Defined in: [packages/core/src/transformers/CTEDisabler.ts:325](https://github.c
 
 > **visitCaseKeyValuePair**(`pair`): [`SqlComponent`](SqlComponent.md)
 
-Defined in: [packages/core/src/transformers/CTEDisabler.ts:331](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/CTEDisabler.ts#L331)
+Defined in: [packages/core/src/transformers/CTEDisabler.ts:331](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/CTEDisabler.ts#L331)
 
 #### Parameters
 
@@ -546,7 +546,7 @@ Defined in: [packages/core/src/transformers/CTEDisabler.ts:331](https://github.c
 
 > **visitBetweenExpression**(`expr`): [`SqlComponent`](SqlComponent.md)
 
-Defined in: [packages/core/src/transformers/CTEDisabler.ts:337](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/CTEDisabler.ts#L337)
+Defined in: [packages/core/src/transformers/CTEDisabler.ts:337](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/CTEDisabler.ts#L337)
 
 #### Parameters
 
@@ -564,7 +564,7 @@ Defined in: [packages/core/src/transformers/CTEDisabler.ts:337](https://github.c
 
 > **visitFunctionCall**(`func`): [`SqlComponent`](SqlComponent.md)
 
-Defined in: [packages/core/src/transformers/CTEDisabler.ts:344](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/CTEDisabler.ts#L344)
+Defined in: [packages/core/src/transformers/CTEDisabler.ts:344](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/CTEDisabler.ts#L344)
 
 #### Parameters
 
@@ -582,7 +582,7 @@ Defined in: [packages/core/src/transformers/CTEDisabler.ts:344](https://github.c
 
 > **visitArrayExpression**(`expr`): [`SqlComponent`](SqlComponent.md)
 
-Defined in: [packages/core/src/transformers/CTEDisabler.ts:350](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/CTEDisabler.ts#L350)
+Defined in: [packages/core/src/transformers/CTEDisabler.ts:350](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/CTEDisabler.ts#L350)
 
 #### Parameters
 
@@ -600,7 +600,7 @@ Defined in: [packages/core/src/transformers/CTEDisabler.ts:350](https://github.c
 
 > **visitArrayQueryExpression**(`expr`): [`SqlComponent`](SqlComponent.md)
 
-Defined in: [packages/core/src/transformers/CTEDisabler.ts:355](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/CTEDisabler.ts#L355)
+Defined in: [packages/core/src/transformers/CTEDisabler.ts:355](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/CTEDisabler.ts#L355)
 
 #### Parameters
 
@@ -618,7 +618,7 @@ Defined in: [packages/core/src/transformers/CTEDisabler.ts:355](https://github.c
 
 > **visitTupleExpression**(`expr`): [`SqlComponent`](SqlComponent.md)
 
-Defined in: [packages/core/src/transformers/CTEDisabler.ts:360](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/CTEDisabler.ts#L360)
+Defined in: [packages/core/src/transformers/CTEDisabler.ts:360](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/CTEDisabler.ts#L360)
 
 #### Parameters
 
@@ -636,7 +636,7 @@ Defined in: [packages/core/src/transformers/CTEDisabler.ts:360](https://github.c
 
 > **visitCastExpression**(`expr`): [`SqlComponent`](SqlComponent.md)
 
-Defined in: [packages/core/src/transformers/CTEDisabler.ts:365](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/CTEDisabler.ts#L365)
+Defined in: [packages/core/src/transformers/CTEDisabler.ts:365](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/CTEDisabler.ts#L365)
 
 #### Parameters
 
@@ -654,7 +654,7 @@ Defined in: [packages/core/src/transformers/CTEDisabler.ts:365](https://github.c
 
 > **visitTypeValue**(`typeValue`): [`SqlComponent`](SqlComponent.md)
 
-Defined in: [packages/core/src/transformers/CTEDisabler.ts:371](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/CTEDisabler.ts#L371)
+Defined in: [packages/core/src/transformers/CTEDisabler.ts:371](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/CTEDisabler.ts#L371)
 
 #### Parameters
 
@@ -672,7 +672,7 @@ Defined in: [packages/core/src/transformers/CTEDisabler.ts:371](https://github.c
 
 > **visitSelectItem**(`item`): [`SqlComponent`](SqlComponent.md)
 
-Defined in: [packages/core/src/transformers/CTEDisabler.ts:376](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/CTEDisabler.ts#L376)
+Defined in: [packages/core/src/transformers/CTEDisabler.ts:376](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/CTEDisabler.ts#L376)
 
 #### Parameters
 
@@ -690,7 +690,7 @@ Defined in: [packages/core/src/transformers/CTEDisabler.ts:376](https://github.c
 
 > **visitIdentifierString**(`ident`): [`SqlComponent`](SqlComponent.md)
 
-Defined in: [packages/core/src/transformers/CTEDisabler.ts:381](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/CTEDisabler.ts#L381)
+Defined in: [packages/core/src/transformers/CTEDisabler.ts:381](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/CTEDisabler.ts#L381)
 
 #### Parameters
 
@@ -708,7 +708,7 @@ Defined in: [packages/core/src/transformers/CTEDisabler.ts:381](https://github.c
 
 > **visitRawString**(`raw`): [`SqlComponent`](SqlComponent.md)
 
-Defined in: [packages/core/src/transformers/CTEDisabler.ts:386](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/CTEDisabler.ts#L386)
+Defined in: [packages/core/src/transformers/CTEDisabler.ts:386](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/CTEDisabler.ts#L386)
 
 #### Parameters
 
@@ -726,7 +726,7 @@ Defined in: [packages/core/src/transformers/CTEDisabler.ts:386](https://github.c
 
 > **visitColumnReference**(`column`): [`SqlComponent`](SqlComponent.md)
 
-Defined in: [packages/core/src/transformers/CTEDisabler.ts:391](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/CTEDisabler.ts#L391)
+Defined in: [packages/core/src/transformers/CTEDisabler.ts:391](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/CTEDisabler.ts#L391)
 
 #### Parameters
 
@@ -744,7 +744,7 @@ Defined in: [packages/core/src/transformers/CTEDisabler.ts:391](https://github.c
 
 > **visitSourceExpression**(`source`): [`SqlComponent`](SqlComponent.md)
 
-Defined in: [packages/core/src/transformers/CTEDisabler.ts:396](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/CTEDisabler.ts#L396)
+Defined in: [packages/core/src/transformers/CTEDisabler.ts:396](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/CTEDisabler.ts#L396)
 
 #### Parameters
 
@@ -762,7 +762,7 @@ Defined in: [packages/core/src/transformers/CTEDisabler.ts:396](https://github.c
 
 > **visitTableSource**(`source`): [`SqlComponent`](SqlComponent.md)
 
-Defined in: [packages/core/src/transformers/CTEDisabler.ts:403](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/CTEDisabler.ts#L403)
+Defined in: [packages/core/src/transformers/CTEDisabler.ts:403](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/CTEDisabler.ts#L403)
 
 #### Parameters
 
@@ -780,7 +780,7 @@ Defined in: [packages/core/src/transformers/CTEDisabler.ts:403](https://github.c
 
 > **visitParenSource**(`source`): [`SqlComponent`](SqlComponent.md)
 
-Defined in: [packages/core/src/transformers/CTEDisabler.ts:408](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/CTEDisabler.ts#L408)
+Defined in: [packages/core/src/transformers/CTEDisabler.ts:408](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/CTEDisabler.ts#L408)
 
 #### Parameters
 
@@ -798,7 +798,7 @@ Defined in: [packages/core/src/transformers/CTEDisabler.ts:408](https://github.c
 
 > **visitParameterExpression**(`param`): [`SqlComponent`](SqlComponent.md)
 
-Defined in: [packages/core/src/transformers/CTEDisabler.ts:413](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/CTEDisabler.ts#L413)
+Defined in: [packages/core/src/transformers/CTEDisabler.ts:413](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/CTEDisabler.ts#L413)
 
 #### Parameters
 
@@ -816,7 +816,7 @@ Defined in: [packages/core/src/transformers/CTEDisabler.ts:413](https://github.c
 
 > **visitWindowFrameExpression**(`expr`): [`SqlComponent`](SqlComponent.md)
 
-Defined in: [packages/core/src/transformers/CTEDisabler.ts:418](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/CTEDisabler.ts#L418)
+Defined in: [packages/core/src/transformers/CTEDisabler.ts:418](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/CTEDisabler.ts#L418)
 
 #### Parameters
 
@@ -834,7 +834,7 @@ Defined in: [packages/core/src/transformers/CTEDisabler.ts:418](https://github.c
 
 > **visitWindowFrameSpec**(`spec`): [`SqlComponent`](SqlComponent.md)
 
-Defined in: [packages/core/src/transformers/CTEDisabler.ts:430](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/CTEDisabler.ts#L430)
+Defined in: [packages/core/src/transformers/CTEDisabler.ts:430](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/CTEDisabler.ts#L430)
 
 #### Parameters
 
@@ -852,7 +852,7 @@ Defined in: [packages/core/src/transformers/CTEDisabler.ts:430](https://github.c
 
 > **visitLiteralValue**(`value`): [`SqlComponent`](SqlComponent.md)
 
-Defined in: [packages/core/src/transformers/CTEDisabler.ts:435](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/CTEDisabler.ts#L435)
+Defined in: [packages/core/src/transformers/CTEDisabler.ts:435](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/CTEDisabler.ts#L435)
 
 #### Parameters
 
@@ -870,7 +870,7 @@ Defined in: [packages/core/src/transformers/CTEDisabler.ts:435](https://github.c
 
 > **visitOrderByItem**(`item`): [`SqlComponent`](SqlComponent.md)
 
-Defined in: [packages/core/src/transformers/CTEDisabler.ts:440](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/CTEDisabler.ts#L440)
+Defined in: [packages/core/src/transformers/CTEDisabler.ts:440](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/CTEDisabler.ts#L440)
 
 #### Parameters
 
@@ -888,7 +888,7 @@ Defined in: [packages/core/src/transformers/CTEDisabler.ts:440](https://github.c
 
 > **visitValueList**(`valueList`): [`SqlComponent`](SqlComponent.md)
 
-Defined in: [packages/core/src/transformers/CTEDisabler.ts:445](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/CTEDisabler.ts#L445)
+Defined in: [packages/core/src/transformers/CTEDisabler.ts:445](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/CTEDisabler.ts#L445)
 
 #### Parameters
 
@@ -906,7 +906,7 @@ Defined in: [packages/core/src/transformers/CTEDisabler.ts:445](https://github.c
 
 > **visitArraySliceExpression**(`expr`): [`SqlComponent`](SqlComponent.md)
 
-Defined in: [packages/core/src/transformers/CTEDisabler.ts:450](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/CTEDisabler.ts#L450)
+Defined in: [packages/core/src/transformers/CTEDisabler.ts:450](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/CTEDisabler.ts#L450)
 
 #### Parameters
 
@@ -924,7 +924,7 @@ Defined in: [packages/core/src/transformers/CTEDisabler.ts:450](https://github.c
 
 > **visitArrayIndexExpression**(`expr`): [`SqlComponent`](SqlComponent.md)
 
-Defined in: [packages/core/src/transformers/CTEDisabler.ts:454](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/CTEDisabler.ts#L454)
+Defined in: [packages/core/src/transformers/CTEDisabler.ts:454](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/CTEDisabler.ts#L454)
 
 #### Parameters
 
@@ -942,7 +942,7 @@ Defined in: [packages/core/src/transformers/CTEDisabler.ts:454](https://github.c
 
 > **visitStringSpecifierExpression**(`expr`): [`SqlComponent`](SqlComponent.md)
 
-Defined in: [packages/core/src/transformers/CTEDisabler.ts:458](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/CTEDisabler.ts#L458)
+Defined in: [packages/core/src/transformers/CTEDisabler.ts:458](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/CTEDisabler.ts#L458)
 
 #### Parameters
 
@@ -960,7 +960,7 @@ Defined in: [packages/core/src/transformers/CTEDisabler.ts:458](https://github.c
 
 > **visitPartitionByClause**(`clause`): [`SqlComponent`](SqlComponent.md)
 
-Defined in: [packages/core/src/transformers/CTEDisabler.ts:462](https://github.com/mk3008/rawsql-ts/blob/7b4153bb3da3209d122265094ee6775b1e1f35aa/packages/core/src/transformers/CTEDisabler.ts#L462)
+Defined in: [packages/core/src/transformers/CTEDisabler.ts:462](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/CTEDisabler.ts#L462)
 
 #### Parameters
 
