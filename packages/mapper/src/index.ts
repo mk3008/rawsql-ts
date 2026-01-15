@@ -1,0 +1,976 @@
+/**
+ * A single database row returned by a SQL driver.
+ * Row keys are SQL column names, which must be strings; symbol keys are not supported.
+ */
+export type Row = Record<string, unknown>
+
+/**
+ * Executes SQL and returns the resulting rows.
+ *
+ * The mapper keeps this layer DBMS/driver agnostic; callers inject the concrete
+ * executor that speaks to the desired database.
+ */
+export type QueryExecutor = (sql: string, params: unknown[]) => Promise<Row[]>
+
+/**
+ * Defines how a column prefix, key, and optional overrides map to an entity.
+ */
+export interface EntityOptions<T, K extends Extract<keyof T, string>> {
+  name: string
+  key: K
+  prefix?: string
+  columnMap?: Partial<Record<Extract<keyof T, string>, string>>
+  coerce?: boolean
+  coerceFn?: (value: unknown) => unknown
+}
+
+/**
+ * Describes how a child entity references a parent mapping.
+ */
+export interface BelongsToOptions {
+  optional?: boolean
+}
+
+/**
+ * Controls how raw column names are normalized for simple mapping.
+ */
+export type KeyTransform =
+  | 'snake_to_camel'
+  | 'none'
+  | ((column: string) => string)
+
+export type SimpleMapTypeHint = 'string' | 'number' | 'boolean' | 'date' | 'bigint'
+
+/**
+ * Options that influence simple (duck-typed) row mapping.
+ */
+export interface SimpleMapOptions {
+  keyTransform?: KeyTransform
+  idKeysAsString?: boolean
+  typeHints?: Record<string, SimpleMapTypeHint>
+  coerceDates?: boolean
+  coerceFn?: (args: {
+    key: string
+    sourceKey: string
+    value: unknown
+  }) => unknown
+}
+
+/**
+ * Named presets for simple mapping that avoid implicit inference.
+ */
+export const simpleMapPresets = {
+  safe(): SimpleMapOptions {
+    return {
+      keyTransform: 'none',
+      coerceDates: false,
+    }
+  },
+  pgLike(): SimpleMapOptions {
+    return {
+      keyTransform: 'snake_to_camel',
+      coerceDates: true,
+    }
+  },
+}
+
+type ParentLink<T> = {
+  propertyName: string
+  parent: EntityMapping<any>
+  localKey: string
+  optional: boolean
+}
+
+type TraceFrame = {
+  entity: string
+  relation?: string
+  key: string
+}
+
+type RowContext = {
+  row: Row
+  normalizedColumns: Map<string, string>
+}
+
+/**
+ * Builds an entity mapping that can be consumed by {@link Mapper#query} or {@link mapRows}.
+ */
+export class EntityMapping<
+  T,
+  K extends Extract<keyof T, string> = Extract<keyof T, string>
+> {
+  readonly name: string
+  readonly key: K
+  readonly prefix: string
+  readonly parents: ParentLink<T>[] = []
+
+  private readonly columnMap: Record<string, string>
+  private readonly overrideLookup: Map<string, string>
+  private readonly prefixNormalized: string
+  private readonly prefixLength: number
+  private readonly shouldCoerce: boolean
+  private readonly coerceFn: (value: unknown) => unknown
+
+  constructor(options: EntityOptions<T, K>) {
+    this.name = options.name
+    this.key = options.key
+    this.prefix = options.prefix ?? ''
+    this.columnMap = {}
+    this.overrideLookup = new Map()
+
+    if (options.columnMap) {
+      for (const [property, column] of Object.entries(options.columnMap)) {
+        if (typeof column !== 'string') {
+          throw new Error(
+            `EntityMapping "${this.name}" columnMap["${property}"] must be a string.`
+          )
+        }
+        this.columnMap[property] = column
+        this.overrideLookup.set(column.toLowerCase(), property)
+      }
+    }
+
+    if (!this.prefix && this.overrideLookup.size === 0) {
+      throw new Error(
+        `EntityMapping "${this.name}" must define either "prefix" or "columnMap".`
+      )
+    }
+
+    this.prefixNormalized = this.prefix.toLowerCase()
+    this.prefixLength = this.prefixNormalized.length
+    this.shouldCoerce = options.coerce ?? true
+    this.coerceFn = options.coerceFn ?? coerceColumnValue
+  }
+
+  /**
+   * Registers a parent relationship that will be attached after the current row is mapped.
+   */
+  belongsTo<P, PK extends Extract<keyof P, string>>(
+    propertyName: Extract<keyof T, string>,
+    parent: EntityMapping<P, PK>,
+    localKey: Extract<keyof T, string>,
+    options?: BelongsToOptions
+  ): this {
+    const optional = options?.optional ?? false
+    this.parents.push({
+      propertyName: String(propertyName),
+      parent,
+      localKey,
+      optional,
+    })
+    return this
+  }
+
+  /**
+   * Registers a parent relationship with an explicit local key.
+   */
+  belongsToWithLocalKey<P, PK extends Extract<keyof P, string>>(
+    propertyName: Extract<keyof T, string>,
+    parent: EntityMapping<P, PK>,
+    localKey: Extract<keyof T, string>
+  ): this {
+    return this.belongsTo(propertyName, parent, localKey)
+  }
+
+  /**
+   * Registers an optional parent relationship with an explicit local key.
+   */
+  belongsToOptional<P, PK extends Extract<keyof P, string>>(
+    propertyName: Extract<keyof T, string>,
+    parent: EntityMapping<P, PK>,
+    localKey?: Extract<keyof T, string>
+  ): this {
+    if (localKey == null) {
+      throw new Error(
+        `localKey is required when declaring optional relation "${String(
+          propertyName
+        )}" on "${this.name}"`
+      )
+    }
+    return this.belongsTo(propertyName, parent, localKey, { optional: true })
+  }
+
+  matchColumn(columnName: string): string | undefined {
+    const normalized = columnName.toLowerCase()
+    const override = this.overrideLookup.get(normalized)
+    if (override) {
+      return override
+    }
+
+    if (!this.prefixNormalized) {
+      // When no prefix is provided we rely on explicit column overrides.
+      return undefined
+    }
+
+    if (!normalized.startsWith(this.prefixNormalized)) {
+      return undefined
+    }
+
+    // prefix is expected to include trailing '_' (e.g. 'item_') so remainder begins with the column part.
+    // Prefix matching is case-insensitive and purely string-based.
+    // If the prefix lacks '_', remainder may begin mid-token; prefer "item_" style prefixes.
+    const remainder = normalized.slice(this.prefixLength)
+    return remainder ? toCamelCase(remainder) : undefined
+  }
+
+  resolveColumnName(propertyName: string): string {
+    if (this.columnMap[propertyName]) {
+      return this.columnMap[propertyName]
+    }
+
+    if (!this.prefix) {
+      return propertyName
+    }
+
+    if (propertyName.toLowerCase().startsWith(this.prefixNormalized)) {
+      return propertyName
+    }
+
+    return `${this.prefix}${toSnakeCase(propertyName)}`
+  }
+
+  readKeyValue(ctx: RowContext): unknown {
+    const column = this.resolveColumnName(this.key)
+    return getRowValue(ctx, column)
+  }
+
+  assignFields(target: Record<string, unknown>, ctx: RowContext): void {
+    for (const column of Object.keys(ctx.row)) {
+      const propertyName = this.matchColumn(column)
+      if (!propertyName) {
+        continue
+      }
+      target[propertyName] = this.normalizeColumnValue(ctx.row[column])
+    }
+  }
+
+  private normalizeColumnValue(value: unknown): unknown {
+    if (!this.shouldCoerce) {
+      return value
+    }
+    return this.coerceFn(value)
+  }
+}
+
+/**
+ * Creates a new entity mapping from the provided options.
+ */
+export function entity<
+  T,
+  K extends Extract<keyof T, string> = Extract<keyof T, string>
+>(options: EntityOptions<T, K>): EntityMapping<T, K> {
+  return new EntityMapping<T, K>(options)
+}
+
+/**
+ * Builds a column map by prefixing each property with the provided prefix and
+ * converting property names to snake_case.
+ */
+export function columnMapFromPrefix<K extends string>(
+  prefix: string,
+  properties: readonly K[]
+): Record<K, string> {
+  const columnMap = {} as Record<K, string>
+  for (const property of properties) {
+    columnMap[property] = `${prefix}${toSnakeCase(String(property))}`
+  }
+  return columnMap
+}
+
+/**
+ * Executes SQL via the provided executor and maps the rows using the supplied mapping.
+ */
+export class Mapper {
+  constructor(
+    private readonly executor: QueryExecutor,
+    private readonly defaults: SimpleMapOptions | undefined = undefined
+  ) {}
+
+  async query<T>(
+    sql: string,
+    params: unknown[],
+    mapping: EntityMapping<T>
+  ): Promise<T[]>
+  async query<T>(
+    sql: string,
+    params?: unknown[],
+    options?: SimpleMapOptions
+  ): Promise<T[]>
+  async query<T>(
+    sql: string,
+    params: unknown[] = [],
+    mappingOrOptions?: EntityMapping<T> | SimpleMapOptions
+  ): Promise<T[]> {
+    const rows = await this.executor(sql, params)
+    if (mappingOrOptions instanceof EntityMapping) {
+      return mapRows(rows, mappingOrOptions)
+    }
+
+    return mapSimpleRows<T>(
+      rows,
+      mergeSimpleMapOptions(this.defaults, mappingOrOptions)
+    )
+  }
+
+  async queryOne<T>(
+    sql: string,
+    params: unknown[],
+    mapping: EntityMapping<T>
+  ): Promise<T | undefined>
+  async queryOne<T>(
+    sql: string,
+    params?: unknown[],
+    options?: SimpleMapOptions
+  ): Promise<T | undefined>
+  async queryOne<T>(
+    sql: string,
+    params: unknown[] = [],
+    mappingOrOptions?: EntityMapping<T> | SimpleMapOptions
+  ): Promise<T | undefined> {
+    // Narrow mappingOrOptions before invoking the overload so the compiler can
+    // select the expected signature.
+    if (mappingOrOptions instanceof EntityMapping) {
+      const rows = await this.query<T>(sql, params, mappingOrOptions)
+      return rows[0]
+    }
+
+    const rows = await this.query<T>(sql, params, mappingOrOptions)
+    return rows[0]
+  }
+}
+
+/**
+ * This package maps rows and does not manage DB drivers.
+ * Inject a query executor rather than wiring connections inside the mapper.
+ */
+export function createMapper(
+  executor: QueryExecutor,
+  defaults?: SimpleMapOptions
+): Mapper {
+  return new Mapper(executor, defaults)
+}
+
+/**
+ * Creates a mapper using the supplied executor and user defaults.
+ * This helper is the recommended entry point when wiring an executor because
+ * it clearly signals where defaults are configured.
+ */
+export function createMapperFromExecutor(
+  executor: QueryExecutor,
+  defaults?: SimpleMapOptions
+): Mapper {
+  return createMapper(executor, defaults)
+}
+
+/**
+ * Normalizes an executor returning `{ rows }` so it can be consumed by the mapper.
+ */
+export function toRowsExecutor(
+  executorOrTarget:
+    | ((
+        sql: string,
+        params: unknown[]
+      ) => Promise<{ rows: Row[] } | { rows: Row[]; rowCount?: number } | Row[]>)
+    | { [key: string]: (...args: unknown[]) => Promise<unknown> },
+  methodName?: string
+): QueryExecutor {
+  if (typeof executorOrTarget === 'function') {
+    return async (sql, params) => {
+      const result = await executorOrTarget(sql, params)
+      if (Array.isArray(result)) {
+        return result
+      }
+      if ('rows' in result) {
+        return (result as { rows: Row[] }).rows
+      }
+      return []
+    }
+  }
+
+  const executor = async (sql: string, params: unknown[]) => {
+    if (!methodName) {
+      throw new Error('Method name is required when passing an object/key pair')
+    }
+    const method = executorOrTarget[methodName]
+    if (typeof method !== 'function') {
+      throw new Error(`Method "${methodName}" not found on target`)
+    }
+    const result = await method.call(executorOrTarget, sql, params)
+    if (Array.isArray(result)) {
+      return result
+    }
+    if (result && typeof result === 'object' && 'rows' in result) {
+      return (result as { rows: Row[] }).rows
+    }
+    return []
+  }
+
+  return executor
+}
+
+/**
+ * Maps a pre-fetched row array into typed objects defined by an entity mapping.
+ * Row values remain `unknown`, and the mapper only applies the general-purpose
+ * coercion rules declared in `coerceColumnValue`.
+ */
+export function mapRows<T>(rows: Row[], mapping: EntityMapping<T>): T[] {
+  const cache = new Map<EntityMapping<any>, Map<string, unknown>>()
+  const roots = new Map<string, T>()
+
+  // Deduplicate root entities by key so joined rows map back to the same object.
+  for (const row of rows) {
+    const ctx = createRowContext(row)
+    const keyValue = mapping.readKeyValue(ctx)
+    if (keyValue === undefined || keyValue === null) {
+      throw new Error(
+        `Missing key column for root entity "${mapping.name}" in row ${JSON.stringify(
+          row
+        )}`
+      )
+    }
+
+    const keyString = stringifyKey(keyValue)
+    const entity = buildEntity(
+      ctx,
+      mapping,
+      cache,
+      new Set(),
+      [] as TraceFrame[],
+      undefined
+    )
+
+    // Always hydrate parents per row; cache reuses existing entity references.
+    if (!roots.has(keyString)) {
+      roots.set(keyString, entity)
+    }
+  }
+
+  return Array.from(roots.values())
+}
+
+const builtinSimpleMapOptions: Required<
+  Pick<SimpleMapOptions, 'keyTransform' | 'idKeysAsString'>
+> = {
+  keyTransform: 'snake_to_camel',
+  idKeysAsString: true,
+}
+
+function mergeTypeHints(
+  defaults?: Record<string, SimpleMapTypeHint>,
+  overrides?: Record<string, SimpleMapTypeHint>
+): Record<string, SimpleMapTypeHint> | undefined {
+  if (!defaults && !overrides) {
+    return undefined
+  }
+  return {
+    ...(defaults ?? {}),
+    ...(overrides ?? {}),
+  }
+}
+
+function mergeSimpleMapOptions(
+  defaults?: SimpleMapOptions,
+  overrides?: SimpleMapOptions
+): SimpleMapOptions | undefined {
+  const keyTransform =
+    overrides?.keyTransform ??
+    defaults?.keyTransform ??
+    builtinSimpleMapOptions.keyTransform
+  const coerceDates = overrides?.coerceDates ?? defaults?.coerceDates
+  const coerceFn = overrides?.coerceFn ?? defaults?.coerceFn
+  const typeHints = mergeTypeHints(defaults?.typeHints, overrides?.typeHints)
+  const idKeysAsString =
+    overrides?.idKeysAsString ??
+    defaults?.idKeysAsString ??
+    builtinSimpleMapOptions.idKeysAsString
+
+  return {
+    keyTransform,
+    coerceDates,
+    coerceFn,
+    typeHints,
+    idKeysAsString,
+  }
+}
+
+function createKeyTransformFn(
+  transform?: KeyTransform
+): (column: string) => string {
+  if (!transform || transform === 'snake_to_camel') {
+    return snakeToCamel
+  }
+  if (transform === 'none') {
+    return (column) => column
+  }
+  if (typeof transform === 'function') {
+    return transform
+  }
+  return snakeToCamel
+}
+
+export function mapSimpleRows<T>(
+  rows: Row[],
+  options?: SimpleMapOptions
+): T[] {
+  const coerceFn = options?.coerceFn
+  const keyTransform =
+    options?.keyTransform ?? builtinSimpleMapOptions.keyTransform
+  const keyTransformFn = createKeyTransformFn(keyTransform)
+  const shouldCoerceDates = options?.coerceDates ?? false
+  const typeHints = options?.typeHints
+  const idKeysAsString =
+    options?.idKeysAsString ?? builtinSimpleMapOptions.idKeysAsString
+
+  return rows.map((row) => {
+    const dto: Record<string, unknown> = {}
+    const seen = new Map<string, string>()
+
+    // Map each column to a camelCase key while detecting naming collisions.
+    for (const [column, rawValue] of Object.entries(row)) {
+      const propertyName = keyTransformFn(column)
+      if (!propertyName) {
+        continue
+      }
+
+      const existing = seen.get(propertyName)
+      if (existing && existing !== column) {
+        throw new Error(
+          `Column "${column}" conflicts with "${existing}" after camelCase normalization ("${propertyName}").`
+        )
+      }
+
+      seen.set(propertyName, column)
+      const columnHint = typeHints?.[propertyName]
+      let normalizedValue: unknown = rawValue
+
+      if (columnHint) {
+        normalizedValue = applyTypeHint(
+          normalizedValue,
+          columnHint,
+          propertyName
+        )
+      } else if (shouldCoerceDates && typeof normalizedValue === 'string') {
+        normalizedValue = coerceDateValue(normalizedValue)
+      }
+
+      if (!columnHint && idKeysAsString && isIdentifierProperty(propertyName)) {
+        normalizedValue = stringifyIdentifierValue(normalizedValue)
+      }
+
+      dto[propertyName] =
+        coerceFn?.({
+          key: propertyName,
+          sourceKey: column,
+          value: normalizedValue,
+        }) ?? normalizedValue
+    }
+
+    return dto as T
+  })
+}
+
+function coerceDateValue(value: string): unknown {
+  const trimmed = value.trim()
+  let normalized = trimmed.includes(' ')
+    ? trimmed.replace(' ', 'T')
+    : trimmed
+
+  if (/[+-]\d{2}$/.test(normalized)) {
+    normalized = `${normalized}:00`
+  }
+
+  if (isoDateTimeRegex.test(normalized)) {
+    const parsed = Date.parse(normalized)
+    if (!Number.isNaN(parsed)) {
+      return new Date(parsed)
+    }
+  }
+  return value
+}
+
+function applyTypeHint(
+  value: unknown,
+  hint: SimpleMapTypeHint,
+  propertyName?: string
+): unknown {
+  if (value === undefined || value === null) {
+    return value
+  }
+
+  switch (hint) {
+    case 'string':
+      if (typeof value === 'string') {
+        return value
+      }
+      if (typeof value === 'number' || typeof value === 'bigint') {
+        return String(value)
+      }
+      return value
+    case 'number':
+      if (typeof value === 'number') {
+        return value
+      }
+      if (typeof value === 'string') {
+        const parsed = Number(value)
+        if (!Number.isNaN(parsed)) {
+          return parsed
+        }
+      }
+      return value
+    case 'boolean':
+      if (typeof value === 'boolean') {
+        return value
+      }
+      if (typeof value === 'string') {
+        const normalized = value.trim().toLowerCase()
+        if (normalized === 'true') {
+          return true
+        }
+        if (normalized === 'false') {
+          return false
+        }
+      }
+      return value
+    case 'date':
+      if (value instanceof Date) {
+        return value
+      }
+      if (typeof value === 'string') {
+        const coerced = coerceDateValue(value)
+        if (coerced instanceof Date) {
+          return coerced
+        }
+      }
+      return value
+    case 'bigint':
+      if (typeof value === 'bigint') {
+        return value
+      }
+      if (typeof value === 'number') {
+        return BigInt(value)
+      }
+      if (typeof value === 'string') {
+        try {
+          return BigInt(value)
+        } catch {
+          throw new Error(
+            `Type hint 'bigint' failed for "${propertyName ?? 'value'}": "${value}" is not a valid bigint.`
+          )
+        }
+      }
+      return value
+  }
+}
+
+function isIdentifierProperty(propertyName: string): boolean {
+  if (propertyName === 'id') {
+    return true
+  }
+  if (!propertyName.endsWith('Id')) {
+    return false
+  }
+
+  const firstChar = propertyName.charAt(0)
+  if (firstChar !== firstChar.toLowerCase()) {
+    return false
+  }
+
+  // Only treat camelCase names ending in 'Id' (uppercase I, lowercase d) as identifiers.
+  return true
+}
+
+function stringifyIdentifierValue(value: unknown): unknown {
+  if (value === undefined || value === null) {
+    return value
+  }
+  if (typeof value === 'string') {
+    return value
+  }
+  if (typeof value === 'number' || typeof value === 'bigint') {
+    return String(value)
+  }
+  return value
+}
+
+function buildEntity<T>(
+  ctx: RowContext,
+  mapping: EntityMapping<T>,
+  cache: Map<EntityMapping<any>, Map<string, unknown>>,
+  visited: Set<string>,
+  stack: TraceFrame[],
+  relation?: string
+): T {
+  const { entity, isNew, keyString } = getOrCreateEntity(ctx, mapping, cache)
+  const visitKey = `${mapping.name}:${keyString}`
+  const currentFrame: TraceFrame = {
+    entity: mapping.name,
+    relation,
+    key: keyString,
+  }
+
+  if (visited.has(visitKey)) {
+    const cyclePath = [...stack, currentFrame]
+      .map((frame) => formatFrame(frame))
+      .join(' -> ')
+    throw new Error(`Circular entity mapping detected: ${cyclePath}`)
+  }
+
+  visited.add(visitKey)
+  stack.push(currentFrame)
+  try {
+    if (isNew) {
+      mapping.assignFields(entity as Record<string, unknown>, ctx)
+    }
+
+    hydrateParents(entity, ctx, mapping, cache, visited, stack)
+    return entity
+  } finally {
+    visited.delete(visitKey)
+    stack.pop()
+  }
+}
+
+function getOrCreateEntity<T>(
+  ctx: RowContext,
+  mapping: EntityMapping<T>,
+  cache: Map<EntityMapping<any>, Map<string, unknown>>
+): { entity: T; isNew: boolean; keyString: string } {
+  const keyValue = mapping.readKeyValue(ctx)
+  if (keyValue === undefined || keyValue === null) {
+    throw new Error(
+      `Missing key column for entity "${mapping.name}" during recursion.`
+    )
+  }
+
+  let keyString: string
+  try {
+    keyString = stringifyKey(keyValue)
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? ` (${error.message})` : ''
+    throw new Error(
+      `Entity "${mapping.name}" key must be JSON-serializable${detail}.`
+    )
+  }
+  let entitySet = cache.get(mapping)
+  if (!entitySet) {
+    entitySet = new Map()
+    cache.set(mapping, entitySet)
+  }
+
+  const existing = entitySet.get(keyString) as T | undefined
+  if (existing) {
+    return { entity: existing, isNew: false, keyString }
+  }
+
+  const newEntity = {} as T
+  entitySet.set(keyString, newEntity)
+  return { entity: newEntity, isNew: true, keyString }
+}
+
+function hydrateParents<T>(
+  entity: T,
+  ctx: RowContext,
+  mapping: EntityMapping<T>,
+  cache: Map<EntityMapping<any>, Map<string, unknown>>,
+  visited: Set<string>,
+  stack: TraceFrame[]
+): void {
+  for (const parent of mapping.parents) {
+    const localColumn = mapping.resolveColumnName(parent.localKey)
+    const normalizedLocalColumn = localColumn.toLowerCase()
+
+    if (!ctx.normalizedColumns.has(normalizedLocalColumn)) {
+      missingLocalKey(
+        mapping.name,
+        parent.propertyName,
+        localColumn,
+        parent.parent.name
+      )
+    }
+
+    const localKeyValue = getRowValue(ctx, localColumn)
+
+    if (localKeyValue === undefined || localKeyValue === null) {
+      if (parent.optional) {
+        continue
+      }
+      localKeyIsNull(
+        mapping.name,
+        parent.propertyName,
+        localColumn,
+        parent.parent.name
+      )
+    }
+
+    const parentKeyColumn = parent.parent.resolveColumnName(parent.parent.key)
+    const normalizedParentKeyColumn = parentKeyColumn.toLowerCase()
+    if (!ctx.normalizedColumns.has(normalizedParentKeyColumn)) {
+      missingParentKeyColumn(
+        mapping.name,
+        parent.propertyName,
+        parent.parent.name,
+        parentKeyColumn
+      )
+    }
+    const parentKeyValue = getRowValue(ctx, parentKeyColumn)
+
+    if (parentKeyValue === undefined || parentKeyValue === null) {
+      if (parent.optional) {
+        continue
+      }
+      throw new Error(
+        `Missing key column "${parentKeyColumn}" for parent entity "${parent.parent.name}"`
+      )
+    }
+
+    const parentEntity = buildEntity(
+      ctx,
+      parent.parent,
+      cache,
+      visited,
+      stack,
+      parent.propertyName
+    )
+    ;(entity as Record<string, unknown>)[parent.propertyName] = parentEntity
+  }
+}
+
+function createRowContext(row: Row): RowContext {
+  const normalized = new Map<string, string>()
+  for (const column of Object.keys(row)) {
+    normalized.set(column.toLowerCase(), column)
+  }
+  return { row, normalizedColumns: normalized }
+}
+
+function getRowValue(ctx: RowContext, columnName: string): unknown {
+  const actual = ctx.normalizedColumns.get(columnName.toLowerCase())
+  if (!actual) {
+    return undefined
+  }
+  return ctx.row[actual]
+}
+
+function coerceColumnValue(value: unknown): unknown {
+  if (typeof value !== 'string') {
+    return value
+  }
+
+  const trimmed = value.trim()
+  if (!trimmed) {
+    return value
+  }
+
+  if (/^-?\d+(\.\d+)?$/.test(trimmed)) {
+    const numeric = Number(trimmed)
+    if (!Number.isNaN(numeric)) {
+      return numeric
+    }
+  }
+
+  const lower = trimmed.toLowerCase()
+  if (lower === 'true' || lower === 'false') {
+    return lower === 'true'
+  }
+
+  // Mapper should stay DBMS-agnostic; Date coercion is intentionally limited to ISO 8601 datetime strings that include a timezone designator.
+  const isIsoDateTime = isoDateTimeRegex.test(trimmed)
+  if (isIsoDateTime) {
+    const parsed = Date.parse(trimmed)
+    if (!Number.isNaN(parsed)) {
+      return new Date(parsed)
+    }
+  }
+
+  return value
+}
+
+const isoDateTimeRegex =
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(?:\.\d{1,9})?)?(Z|[+-]\d{2}:?\d{2})$/
+
+function stringifyKey(value: unknown): string {
+  if (typeof value === 'object' && value !== null) {
+    try {
+      return JSON.stringify(value)
+    } catch {
+      throw new Error('Entity key must be JSON-serializable.')
+    }
+  }
+  return String(value)
+}
+
+function missingLocalKey(
+  mappingName: string,
+  propertyName: string,
+  localColumn: string,
+  parentName: string
+): never {
+  throw new Error(
+    `Missing local key column "${localColumn}" for relation "${propertyName}" on ${mappingName} (parent ${parentName})`
+  )
+}
+
+function missingParentKeyColumn(
+  mappingName: string,
+  propertyName: string,
+  parentName: string,
+  parentKeyColumn: string
+): never {
+  throw new Error(
+    `Missing key column "${parentKeyColumn}" for parent "${parentName}" relation "${propertyName}" on ${mappingName}`
+  )
+}
+
+function localKeyIsNull(
+  mappingName: string,
+  propertyName: string,
+  localColumn: string,
+  parentName: string
+): never {
+  throw new Error(
+    `Local key column "${localColumn}" is null for relation "${propertyName}" on ${mappingName} (parent ${parentName})`
+  )
+}
+
+function formatFrame(frame: TraceFrame): string {
+  const relationSuffix = frame.relation ? `.${frame.relation}` : ''
+  return `${frame.entity}${relationSuffix}(${frame.key})`
+}
+                
+function snakeToCamel(raw: string): string {
+  const trimmed = raw.trim()
+  if (!trimmed) {
+    return ''
+  }
+
+  if (trimmed.includes('_')) {
+    return toCamelCase(trimmed)
+  }
+
+  if (trimmed === trimmed.toUpperCase()) {
+    return trimmed.toLowerCase()
+  }
+
+  return `${trimmed.charAt(0).toLowerCase()}${trimmed.slice(1)}`
+}
+
+function toCamelCase(value: string): string {
+  return value
+    .split('_')
+    .filter(Boolean)
+    .map((segment, index) =>
+      index === 0
+        ? segment.toLowerCase()
+        : `${segment.charAt(0).toUpperCase()}${segment.slice(1).toLowerCase()}`
+    )
+    .join('')
+}
+
+function toSnakeCase(value: string): string {
+  return value
+    .replace(/([A-Z])/g, '_$1')
+    .replace(/__+/g, '_')
+    .toLowerCase()
+    .replace(/^_+/, '')
+}
+                  
