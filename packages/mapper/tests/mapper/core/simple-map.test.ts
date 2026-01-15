@@ -312,7 +312,7 @@ describe('mapper simple mapping', () => {
       expect(record.createdAt.toISOString()).toBe('2025-01-01T00:00:00.000Z')
       expect(record.activeFlag).toBe(true)
     })
-    it('stringifies id/userId but leaves userid/grid/identity untouched', async () => {  
+    it('stringifies id/userId but leaves userid/grid/identity untouched', async () => {
       const rows = [
         {
           id: 1,

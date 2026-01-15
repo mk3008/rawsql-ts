@@ -8,6 +8,7 @@ CREATE TABLE public.orders (
   number text NOT NULL,
   customer_id integer NOT NULL REFERENCES public.customers(id)
 );
+
 CREATE TABLE public.invoice (
   invoice_id integer PRIMARY KEY,
   customer_id integer NOT NULL REFERENCES public.customers(id),

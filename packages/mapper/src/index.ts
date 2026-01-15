@@ -39,6 +39,9 @@ export type KeyTransform =
   | 'none'
   | ((column: string) => string)
 
+/**
+ * Supported type hints for `mapSimpleRows`, controlling how primitive values are coerced before identifier normalization.
+ */
 export type SimpleMapTypeHint = 'string' | 'number' | 'boolean' | 'date' | 'bigint'
 
 /**
@@ -508,6 +511,14 @@ function createKeyTransformFn(
   return snakeToCamel
 }
 
+/**
+ * Maps pre-fetched rows into typed DTOs using the simple map preset, honoring key transforms, type hints, and optional coercion settings.
+ *
+ * @template T Target DTO shape.
+ * @param rows Rows produced by the SQL executor.
+ * @param options Optional overrides that control key normalization, coercion, and type hints.
+ * @returns An array of `T` instances synthesized from `rows`.
+ */
 export function mapSimpleRows<T>(
   rows: Row[],
   options?: SimpleMapOptions

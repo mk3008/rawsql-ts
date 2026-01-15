@@ -68,10 +68,10 @@ Relations must be declared explicitly.
 
 ### belongsTo()
 
-  - `localKey` is **never inferred by naming conventions**
-  - Default `localKey` is always `parent.key`
-  - If DTO-style keys are desired (`userId`, `orderId`, etc),
-    they must be passed explicitly via `options.localKey`
+- `localKey` is **never inferred by naming conventions**
+- Default `localKey` is always `parent.key`
+- If DTO-style keys are desired (`userId`, `orderId`, etc.),
+    they must be passed explicitly via `options.localKey`.
   - `optional: true` only removes the requirement to hydrate every row; it still requires the local/parent columns to exist and only allows null/undefined to skip the relation.
 
 This avoids leaking object-model assumptions into SQL design.
