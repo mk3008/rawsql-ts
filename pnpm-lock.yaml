@@ -226,8 +226,8 @@ importers:
         specifier: ^7.2.0
         version: 7.2.0
       '@testcontainers/postgresql':
-        specifier: ^10.8.0
-        version: 10.28.0
+        specifier: ^11.11.0
+        version: 11.11.0
       '@types/pg':
         specifier: ^8.15.6
         version: 8.15.6
@@ -238,8 +238,8 @@ importers:
         specifier: ^7.2.0
         version: 7.2.0(@types/react@19.2.6)(better-sqlite3@12.4.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(typescript@5.9.2)
       testcontainers:
-        specifier: ^10.18.0
-        version: 10.28.0
+        specifier: ^11.11.0
+        version: 11.11.0
       typescript:
         specifier: ^5.8.2
         version: 5.9.2
