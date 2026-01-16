@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: PostgresJsonQueryBuilder
 
-Defined in: [packages/core/src/transformers/PostgresJsonQueryBuilder.ts:38](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/PostgresJsonQueryBuilder.ts#L38)
+Defined in: [packages/core/src/transformers/PostgresJsonQueryBuilder.ts:38](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/transformers/PostgresJsonQueryBuilder.ts#L38)
 
 PostgreSQL JSON query builder that transforms SimpleSelectQuery into queries
 that return JSON arrays or single JSON objects using PostgreSQL JSON functions.
@@ -12,7 +12,7 @@ that return JSON arrays or single JSON objects using PostgreSQL JSON functions.
 
 > **new PostgresJsonQueryBuilder**(): `PostgresJsonQueryBuilder`
 
-Defined in: [packages/core/src/transformers/PostgresJsonQueryBuilder.ts:43](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/PostgresJsonQueryBuilder.ts#L43)
+Defined in: [packages/core/src/transformers/PostgresJsonQueryBuilder.ts:43](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/transformers/PostgresJsonQueryBuilder.ts#L43)
 
 #### Returns
 
@@ -26,7 +26,7 @@ Defined in: [packages/core/src/transformers/PostgresJsonQueryBuilder.ts:43](http
 
 > **buildJsonQuery**(`originalQuery`, `mapping`, `options?`): [`SimpleSelectQuery`](SimpleSelectQuery.md)
 
-Defined in: [packages/core/src/transformers/PostgresJsonQueryBuilder.ts:124](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/PostgresJsonQueryBuilder.ts#L124)
+Defined in: [packages/core/src/transformers/PostgresJsonQueryBuilder.ts:124](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/transformers/PostgresJsonQueryBuilder.ts#L124)
 
 Build JSON query from original query and mapping configuration.
 
@@ -58,7 +58,7 @@ Transformed query with JSON aggregation
 
 > **buildJsonQuery**(`originalQuery`, `mapping`, `options?`): [`SimpleSelectQuery`](SimpleSelectQuery.md)
 
-Defined in: [packages/core/src/transformers/PostgresJsonQueryBuilder.ts:125](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/PostgresJsonQueryBuilder.ts#L125)
+Defined in: [packages/core/src/transformers/PostgresJsonQueryBuilder.ts:125](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/transformers/PostgresJsonQueryBuilder.ts#L125)
 
 Build JSON query from original query and mapping configuration.
 
@@ -92,7 +92,7 @@ Transformed query with JSON aggregation
 
 > **buildJson**(`originalQuery`, `mapping`): [`SimpleSelectQuery`](SimpleSelectQuery.md)
 
-Defined in: [packages/core/src/transformers/PostgresJsonQueryBuilder.ts:151](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/PostgresJsonQueryBuilder.ts#L151)
+Defined in: [packages/core/src/transformers/PostgresJsonQueryBuilder.ts:151](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/transformers/PostgresJsonQueryBuilder.ts#L151)
 
 Build JSON query from original query and mapping configuration.
 

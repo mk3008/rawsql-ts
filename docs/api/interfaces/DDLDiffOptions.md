@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: DDLDiffOptions
 
-Defined in: [packages/core/src/transformers/DDLDiffGenerator.ts:12](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/DDLDiffGenerator.ts#L12)
+Defined in: [packages/core/src/transformers/DDLDiffGenerator.ts:12](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/transformers/DDLDiffGenerator.ts#L12)
 
 ## Properties
 
@@ -9,7 +9,7 @@ Defined in: [packages/core/src/transformers/DDLDiffGenerator.ts:12](https://gith
 
 > `optional` **dropTables**: `boolean`
 
-Defined in: [packages/core/src/transformers/DDLDiffGenerator.ts:13](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/DDLDiffGenerator.ts#L13)
+Defined in: [packages/core/src/transformers/DDLDiffGenerator.ts:13](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/transformers/DDLDiffGenerator.ts#L13)
 
 ***
 
@@ -17,7 +17,7 @@ Defined in: [packages/core/src/transformers/DDLDiffGenerator.ts:13](https://gith
 
 > `optional` **dropColumns**: `boolean`
 
-Defined in: [packages/core/src/transformers/DDLDiffGenerator.ts:14](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/DDLDiffGenerator.ts#L14)
+Defined in: [packages/core/src/transformers/DDLDiffGenerator.ts:14](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/transformers/DDLDiffGenerator.ts#L14)
 
 ***
 
@@ -25,7 +25,7 @@ Defined in: [packages/core/src/transformers/DDLDiffGenerator.ts:14](https://gith
 
 > `optional` **dropConstraints**: `boolean`
 
-Defined in: [packages/core/src/transformers/DDLDiffGenerator.ts:15](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/DDLDiffGenerator.ts#L15)
+Defined in: [packages/core/src/transformers/DDLDiffGenerator.ts:15](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/transformers/DDLDiffGenerator.ts#L15)
 
 ***
 
@@ -33,7 +33,7 @@ Defined in: [packages/core/src/transformers/DDLDiffGenerator.ts:15](https://gith
 
 > `optional` **dropIndexes**: `boolean`
 
-Defined in: [packages/core/src/transformers/DDLDiffGenerator.ts:16](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/DDLDiffGenerator.ts#L16)
+Defined in: [packages/core/src/transformers/DDLDiffGenerator.ts:16](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/transformers/DDLDiffGenerator.ts#L16)
 
 ***
 
@@ -41,7 +41,7 @@ Defined in: [packages/core/src/transformers/DDLDiffGenerator.ts:16](https://gith
 
 > `optional` **checkConstraintNames**: `boolean`
 
-Defined in: [packages/core/src/transformers/DDLDiffGenerator.ts:17](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/DDLDiffGenerator.ts#L17)
+Defined in: [packages/core/src/transformers/DDLDiffGenerator.ts:17](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/transformers/DDLDiffGenerator.ts#L17)
 
 ***
 
@@ -49,5 +49,5 @@ Defined in: [packages/core/src/transformers/DDLDiffGenerator.ts:17](https://gith
 
 > `optional` **formatOptions**: [`SqlFormatterOptions`](SqlFormatterOptions.md)
 
-Defined in: [packages/core/src/transformers/DDLDiffGenerator.ts:18](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/DDLDiffGenerator.ts#L18)
+Defined in: [packages/core/src/transformers/DDLDiffGenerator.ts:18](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/transformers/DDLDiffGenerator.ts#L18)
 </div>

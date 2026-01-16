@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: CTERenamer
 
-Defined in: [packages/core/src/transformers/CTERenamer.ts:84](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/CTERenamer.ts#L84)
+Defined in: [packages/core/src/transformers/CTERenamer.ts:84](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/transformers/CTERenamer.ts#L84)
 
 A utility class for renaming Common Table Expressions (CTEs) in SQL queries.
 
@@ -66,7 +66,7 @@ Related tests: packages/core/tests/transformers/CTERenamer.test.ts
 
 > **new CTERenamer**(): `CTERenamer`
 
-Defined in: [packages/core/src/transformers/CTERenamer.ts:98](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/CTERenamer.ts#L98)
+Defined in: [packages/core/src/transformers/CTERenamer.ts:98](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/transformers/CTERenamer.ts#L98)
 
 Creates a new instance of CTERenamer.
 
@@ -83,7 +83,7 @@ comprehensive CTE renaming operations.
 
 > **renameCTE**(`query`, `oldName`, `newName`): `void`
 
-Defined in: [packages/core/src/transformers/CTERenamer.ts:144](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/CTERenamer.ts#L144)
+Defined in: [packages/core/src/transformers/CTERenamer.ts:144](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/transformers/CTERenamer.ts#L144)
 
 Renames a Common Table Expression (CTE) and updates all references to it.
 
@@ -161,7 +161,7 @@ Related tests: packages/core/tests/transformers/CTERenamer.test.ts
 
 > **renameCTEAtPosition**(`sql`, `position`, `newName`): `string`
 
-Defined in: [packages/core/src/transformers/CTERenamer.ts:421](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/CTERenamer.ts#L421)
+Defined in: [packages/core/src/transformers/CTERenamer.ts:421](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/transformers/CTERenamer.ts#L421)
 
 GUI-integrated CTE renaming with line/column position support.
 

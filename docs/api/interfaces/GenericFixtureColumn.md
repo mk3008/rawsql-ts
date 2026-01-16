@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: GenericFixtureColumn
 
-Defined in: [packages/core/src/types/GenericFixture.ts:2](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/types/GenericFixture.ts#L2)
+Defined in: [packages/core/src/types/GenericFixture.ts:2](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/types/GenericFixture.ts#L2)
 
 Column definition for generic, driver-agnostic fixtures.
 
@@ -11,7 +11,7 @@ Column definition for generic, driver-agnostic fixtures.
 
 > **name**: `string`
 
-Defined in: [packages/core/src/types/GenericFixture.ts:3](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/types/GenericFixture.ts#L3)
+Defined in: [packages/core/src/types/GenericFixture.ts:3](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/types/GenericFixture.ts#L3)
 
 ***
 
@@ -19,7 +19,7 @@ Defined in: [packages/core/src/types/GenericFixture.ts:3](https://github.com/mk3
 
 > `optional` **typeName**: `string`
 
-Defined in: [packages/core/src/types/GenericFixture.ts:5](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/types/GenericFixture.ts#L5)
+Defined in: [packages/core/src/types/GenericFixture.ts:5](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/types/GenericFixture.ts#L5)
 
 Optional database-specific type name (kept as a raw string).
 
@@ -29,7 +29,7 @@ Optional database-specific type name (kept as a raw string).
 
 > `optional` **required**: `boolean`
 
-Defined in: [packages/core/src/types/GenericFixture.ts:7](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/types/GenericFixture.ts#L7)
+Defined in: [packages/core/src/types/GenericFixture.ts:7](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/types/GenericFixture.ts#L7)
 
 Whether the column should be treated as required when simulating writes.
 
@@ -39,7 +39,7 @@ Whether the column should be treated as required when simulating writes.
 
 > `optional` **defaultValue**: `null` \| `string`
 
-Defined in: [packages/core/src/types/GenericFixture.ts:9](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/types/GenericFixture.ts#L9)
+Defined in: [packages/core/src/types/GenericFixture.ts:9](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/types/GenericFixture.ts#L9)
 
 Default expression/value as string when available.
 </div>

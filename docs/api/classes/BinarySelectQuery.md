@@ -1,7 +1,7 @@
 <div v-pre>
 # Class: BinarySelectQuery
 
-Defined in: [packages/core/src/models/BinarySelectQuery.ts:34](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/models/BinarySelectQuery.ts#L34)
+Defined in: [packages/core/src/models/BinarySelectQuery.ts:34](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/models/BinarySelectQuery.ts#L34)
 
 Represents a binary SELECT expression (UNION/INTERSECT/EXCEPT) composed from two SelectQuery values.
 
@@ -30,7 +30,7 @@ Related tests: packages/core/tests/models/SelectQueryUnion.test.ts
 
 > **new BinarySelectQuery**(`left`, `operator`, `right`): `BinarySelectQuery`
 
-Defined in: [packages/core/src/models/BinarySelectQuery.ts:42](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/models/BinarySelectQuery.ts#L42)
+Defined in: [packages/core/src/models/BinarySelectQuery.ts:42](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/models/BinarySelectQuery.ts#L42)
 
 #### Parameters
 
@@ -60,7 +60,7 @@ Defined in: [packages/core/src/models/BinarySelectQuery.ts:42](https://github.co
 
 > `static` **kind**: `symbol`
 
-Defined in: [packages/core/src/models/BinarySelectQuery.ts:35](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/models/BinarySelectQuery.ts#L35)
+Defined in: [packages/core/src/models/BinarySelectQuery.ts:35](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/models/BinarySelectQuery.ts#L35)
 
 #### Overrides
 
@@ -72,7 +72,7 @@ Defined in: [packages/core/src/models/BinarySelectQuery.ts:35](https://github.co
 
 > `readonly` **\_\_selectQueryType**: `"SelectQuery"` = `'SelectQuery'`
 
-Defined in: [packages/core/src/models/BinarySelectQuery.ts:36](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/models/BinarySelectQuery.ts#L36)
+Defined in: [packages/core/src/models/BinarySelectQuery.ts:36](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/models/BinarySelectQuery.ts#L36)
 
 #### Implementation of
 
@@ -84,7 +84,7 @@ Defined in: [packages/core/src/models/BinarySelectQuery.ts:36](https://github.co
 
 > **headerComments**: `null` \| `string`[] = `null`
 
-Defined in: [packages/core/src/models/BinarySelectQuery.ts:37](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/models/BinarySelectQuery.ts#L37)
+Defined in: [packages/core/src/models/BinarySelectQuery.ts:37](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/models/BinarySelectQuery.ts#L37)
 
 #### Implementation of
 
@@ -96,7 +96,7 @@ Defined in: [packages/core/src/models/BinarySelectQuery.ts:37](https://github.co
 
 > **left**: [`SelectQuery`](../interfaces/SelectQuery.md)
 
-Defined in: [packages/core/src/models/BinarySelectQuery.ts:38](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/models/BinarySelectQuery.ts#L38)
+Defined in: [packages/core/src/models/BinarySelectQuery.ts:38](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/models/BinarySelectQuery.ts#L38)
 
 ***
 
@@ -104,7 +104,7 @@ Defined in: [packages/core/src/models/BinarySelectQuery.ts:38](https://github.co
 
 > **operator**: [`RawString`](RawString.md)
 
-Defined in: [packages/core/src/models/BinarySelectQuery.ts:39](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/models/BinarySelectQuery.ts#L39)
+Defined in: [packages/core/src/models/BinarySelectQuery.ts:39](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/models/BinarySelectQuery.ts#L39)
 
 ***
 
@@ -112,7 +112,7 @@ Defined in: [packages/core/src/models/BinarySelectQuery.ts:39](https://github.co
 
 > **right**: [`SelectQuery`](../interfaces/SelectQuery.md)
 
-Defined in: [packages/core/src/models/BinarySelectQuery.ts:40](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/models/BinarySelectQuery.ts#L40)
+Defined in: [packages/core/src/models/BinarySelectQuery.ts:40](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/models/BinarySelectQuery.ts#L40)
 
 ***
 
@@ -120,7 +120,7 @@ Defined in: [packages/core/src/models/BinarySelectQuery.ts:40](https://github.co
 
 > **comments**: `null` \| `string`[] = `null`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:29](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/models/SqlComponent.ts#L29)
+Defined in: [packages/core/src/models/SqlComponent.ts:29](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/models/SqlComponent.ts#L29)
 
 #### Implementation of
 
@@ -136,7 +136,7 @@ Defined in: [packages/core/src/models/SqlComponent.ts:29](https://github.com/mk3
 
 > **positionedComments**: `null` \| [`PositionedComment`](../interfaces/PositionedComment.md)[] = `null`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:32](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/models/SqlComponent.ts#L32)
+Defined in: [packages/core/src/models/SqlComponent.ts:32](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/models/SqlComponent.ts#L32)
 
 #### Implementation of
 
@@ -152,7 +152,7 @@ Defined in: [packages/core/src/models/SqlComponent.ts:32](https://github.com/mk3
 
 > **union**(`query`): `BinarySelectQuery`
 
-Defined in: [packages/core/src/models/BinarySelectQuery.ts:57](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/models/BinarySelectQuery.ts#L57)
+Defined in: [packages/core/src/models/BinarySelectQuery.ts:57](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/models/BinarySelectQuery.ts#L57)
 
 Appends another query to this binary query using UNION as the operator.
 This creates a new BinarySelectQuery where the left side is this binary query
@@ -178,7 +178,7 @@ A new BinarySelectQuery representing "(this) UNION query"
 
 > **unionAll**(`query`): `BinarySelectQuery`
 
-Defined in: [packages/core/src/models/BinarySelectQuery.ts:69](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/models/BinarySelectQuery.ts#L69)
+Defined in: [packages/core/src/models/BinarySelectQuery.ts:69](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/models/BinarySelectQuery.ts#L69)
 
 Appends another query to this binary query using UNION ALL as the operator.
 This creates a new BinarySelectQuery where the left side is this binary query
@@ -204,7 +204,7 @@ A new BinarySelectQuery representing "(this) UNION ALL query"
 
 > **intersect**(`query`): `BinarySelectQuery`
 
-Defined in: [packages/core/src/models/BinarySelectQuery.ts:81](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/models/BinarySelectQuery.ts#L81)
+Defined in: [packages/core/src/models/BinarySelectQuery.ts:81](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/models/BinarySelectQuery.ts#L81)
 
 Appends another query to this binary query using INTERSECT as the operator.
 This creates a new BinarySelectQuery where the left side is this binary query
@@ -230,7 +230,7 @@ A new BinarySelectQuery representing "(this) INTERSECT query"
 
 > **intersectAll**(`query`): `BinarySelectQuery`
 
-Defined in: [packages/core/src/models/BinarySelectQuery.ts:93](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/models/BinarySelectQuery.ts#L93)
+Defined in: [packages/core/src/models/BinarySelectQuery.ts:93](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/models/BinarySelectQuery.ts#L93)
 
 Appends another query to this binary query using INTERSECT ALL as the operator.
 This creates a new BinarySelectQuery where the left side is this binary query
@@ -256,7 +256,7 @@ A new BinarySelectQuery representing "(this) INTERSECT ALL query"
 
 > **except**(`query`): `BinarySelectQuery`
 
-Defined in: [packages/core/src/models/BinarySelectQuery.ts:105](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/models/BinarySelectQuery.ts#L105)
+Defined in: [packages/core/src/models/BinarySelectQuery.ts:105](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/models/BinarySelectQuery.ts#L105)
 
 Appends another query to this binary query using EXCEPT as the operator.
 This creates a new BinarySelectQuery where the left side is this binary query
@@ -282,7 +282,7 @@ A new BinarySelectQuery representing "(this) EXCEPT query"
 
 > **exceptAll**(`query`): `BinarySelectQuery`
 
-Defined in: [packages/core/src/models/BinarySelectQuery.ts:117](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/models/BinarySelectQuery.ts#L117)
+Defined in: [packages/core/src/models/BinarySelectQuery.ts:117](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/models/BinarySelectQuery.ts#L117)
 
 Appends another query to this binary query using EXCEPT ALL as the operator.
 This creates a new BinarySelectQuery where the left side is this binary query
@@ -308,7 +308,7 @@ A new BinarySelectQuery representing "(this) EXCEPT ALL query"
 
 > **appendSelectQuery**(`operator`, `query`): `BinarySelectQuery`
 
-Defined in: [packages/core/src/models/BinarySelectQuery.ts:130](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/models/BinarySelectQuery.ts#L130)
+Defined in: [packages/core/src/models/BinarySelectQuery.ts:130](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/models/BinarySelectQuery.ts#L130)
 
 Appends another query to this binary query using the specified operator.
 This creates a new BinarySelectQuery where the left side is this binary query
@@ -340,7 +340,7 @@ A new BinarySelectQuery representing "(this) [operator] query"
 
 > **unionRaw**(`sql`): `BinarySelectQuery`
 
-Defined in: [packages/core/src/models/BinarySelectQuery.ts:146](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/models/BinarySelectQuery.ts#L146)
+Defined in: [packages/core/src/models/BinarySelectQuery.ts:146](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/models/BinarySelectQuery.ts#L146)
 
 Appends another query to this binary query using UNION as the operator, accepting a raw SQL string.
 This method parses the SQL string and appends the resulting query using UNION.
@@ -365,7 +365,7 @@ A new BinarySelectQuery representing "(this) UNION (parsed query)"
 
 > **unionAllRaw**(`sql`): `BinarySelectQuery`
 
-Defined in: [packages/core/src/models/BinarySelectQuery.ts:150](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/models/BinarySelectQuery.ts#L150)
+Defined in: [packages/core/src/models/BinarySelectQuery.ts:150](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/models/BinarySelectQuery.ts#L150)
 
 #### Parameters
 
@@ -383,7 +383,7 @@ Defined in: [packages/core/src/models/BinarySelectQuery.ts:150](https://github.c
 
 > **intersectRaw**(`sql`): `BinarySelectQuery`
 
-Defined in: [packages/core/src/models/BinarySelectQuery.ts:154](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/models/BinarySelectQuery.ts#L154)
+Defined in: [packages/core/src/models/BinarySelectQuery.ts:154](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/models/BinarySelectQuery.ts#L154)
 
 #### Parameters
 
@@ -401,7 +401,7 @@ Defined in: [packages/core/src/models/BinarySelectQuery.ts:154](https://github.c
 
 > **intersectAllRaw**(`sql`): `BinarySelectQuery`
 
-Defined in: [packages/core/src/models/BinarySelectQuery.ts:158](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/models/BinarySelectQuery.ts#L158)
+Defined in: [packages/core/src/models/BinarySelectQuery.ts:158](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/models/BinarySelectQuery.ts#L158)
 
 #### Parameters
 
@@ -419,7 +419,7 @@ Defined in: [packages/core/src/models/BinarySelectQuery.ts:158](https://github.c
 
 > **exceptRaw**(`sql`): `BinarySelectQuery`
 
-Defined in: [packages/core/src/models/BinarySelectQuery.ts:162](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/models/BinarySelectQuery.ts#L162)
+Defined in: [packages/core/src/models/BinarySelectQuery.ts:162](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/models/BinarySelectQuery.ts#L162)
 
 #### Parameters
 
@@ -437,7 +437,7 @@ Defined in: [packages/core/src/models/BinarySelectQuery.ts:162](https://github.c
 
 > **exceptAllRaw**(`sql`): `BinarySelectQuery`
 
-Defined in: [packages/core/src/models/BinarySelectQuery.ts:166](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/models/BinarySelectQuery.ts#L166)
+Defined in: [packages/core/src/models/BinarySelectQuery.ts:166](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/models/BinarySelectQuery.ts#L166)
 
 #### Parameters
 
@@ -455,7 +455,7 @@ Defined in: [packages/core/src/models/BinarySelectQuery.ts:166](https://github.c
 
 > **toInsertQuery**(`options`): [`InsertQuery`](InsertQuery.md)
 
-Defined in: [packages/core/src/models/BinarySelectQuery.ts:175](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/models/BinarySelectQuery.ts#L175)
+Defined in: [packages/core/src/models/BinarySelectQuery.ts:175](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/models/BinarySelectQuery.ts#L175)
 
 Converts this query into an INSERT statement definition.
 
@@ -483,7 +483,7 @@ The underlying simple query may be reordered so that column order matches the re
 
 > **toUpdateQuery**(`options`): [`UpdateQuery`](UpdateQuery.md)
 
-Defined in: [packages/core/src/models/BinarySelectQuery.ts:183](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/models/BinarySelectQuery.ts#L183)
+Defined in: [packages/core/src/models/BinarySelectQuery.ts:183](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/models/BinarySelectQuery.ts#L183)
 
 Converts this query into an UPDATE statement definition.
 
@@ -511,7 +511,7 @@ The conversion can reorder the SELECT list produced by [toSimpleQuery](#tosimple
 
 > **toDeleteQuery**(`options`): [`DeleteQuery`](DeleteQuery.md)
 
-Defined in: [packages/core/src/models/BinarySelectQuery.ts:191](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/models/BinarySelectQuery.ts#L191)
+Defined in: [packages/core/src/models/BinarySelectQuery.ts:191](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/models/BinarySelectQuery.ts#L191)
 
 Converts this query into a DELETE statement definition.
 
@@ -539,7 +539,7 @@ The conversion can reorder the SELECT list produced by [toSimpleQuery](#tosimple
 
 > **toMergeQuery**(`options`): [`MergeQuery`](MergeQuery.md)
 
-Defined in: [packages/core/src/models/BinarySelectQuery.ts:199](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/models/BinarySelectQuery.ts#L199)
+Defined in: [packages/core/src/models/BinarySelectQuery.ts:199](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/models/BinarySelectQuery.ts#L199)
 
 Converts this query into a MERGE statement definition.
 
@@ -567,7 +567,7 @@ The conversion can reorder the SELECT list produced by [toSimpleQuery](#tosimple
 
 > **toSource**(`alias`): [`SourceExpression`](SourceExpression.md)
 
-Defined in: [packages/core/src/models/BinarySelectQuery.ts:205](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/models/BinarySelectQuery.ts#L205)
+Defined in: [packages/core/src/models/BinarySelectQuery.ts:205](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/models/BinarySelectQuery.ts#L205)
 
 #### Parameters
 
@@ -585,7 +585,7 @@ Defined in: [packages/core/src/models/BinarySelectQuery.ts:205](https://github.c
 
 > **setParameter**(`name`, `value`): `this`
 
-Defined in: [packages/core/src/models/BinarySelectQuery.ts:217](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/models/BinarySelectQuery.ts#L217)
+Defined in: [packages/core/src/models/BinarySelectQuery.ts:217](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/models/BinarySelectQuery.ts#L217)
 
 Sets the value of a parameter by name in this query.
 
@@ -617,7 +617,7 @@ Value to set
 
 > **toSimpleQuery**(): [`SimpleSelectQuery`](SimpleSelectQuery.md)
 
-Defined in: [packages/core/src/models/BinarySelectQuery.ts:227](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/models/BinarySelectQuery.ts#L227)
+Defined in: [packages/core/src/models/BinarySelectQuery.ts:227](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/models/BinarySelectQuery.ts#L227)
 
 Converts this BinarySelectQuery to a SimpleSelectQuery using QueryBuilder.
 This enables CTE management on binary queries by wrapping them as subqueries.
@@ -638,7 +638,7 @@ A SimpleSelectQuery representation of this binary query
 
 > **getKind**(): `symbol`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:15](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/models/SqlComponent.ts#L15)
+Defined in: [packages/core/src/models/SqlComponent.ts:15](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/models/SqlComponent.ts#L15)
 
 #### Returns
 
@@ -658,7 +658,7 @@ Defined in: [packages/core/src/models/SqlComponent.ts:15](https://github.com/mk3
 
 > **accept**&lt;`T`\&gt;(`visitor`): `T`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:19](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/models/SqlComponent.ts#L19)
+Defined in: [packages/core/src/models/SqlComponent.ts:19](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/models/SqlComponent.ts#L19)
 
 #### Type Parameters
 
@@ -690,7 +690,7 @@ Defined in: [packages/core/src/models/SqlComponent.ts:19](https://github.com/mk3
 
 > **toSqlString**(`formatter`): `string`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:23](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/models/SqlComponent.ts#L23)
+Defined in: [packages/core/src/models/SqlComponent.ts:23](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/models/SqlComponent.ts#L23)
 
 #### Parameters
 
@@ -716,7 +716,7 @@ Defined in: [packages/core/src/models/SqlComponent.ts:23](https://github.com/mk3
 
 > **addPositionedComments**(`position`, `comments`): `void`
 
-Defined in: [packages/core/src/models/SqlComponent.ts:37](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/models/SqlComponent.ts#L37)
+Defined in: [packages/core/src/models/SqlComponent.ts:37](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/models/SqlComponent.ts#L37)
 
 Add comments at a specific position
 
@@ -748,7 +748,7 @@ Add comments at a specific position
 
 > **getPositionedComments**(`position`): `string`[]
 
-Defined in: [packages/core/src/models/SqlComponent.ts:56](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/models/SqlComponent.ts#L56)
+Defined in: [packages/core/src/models/SqlComponent.ts:56](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/models/SqlComponent.ts#L56)
 
 Get comments for a specific position
 
@@ -776,7 +776,7 @@ Get comments for a specific position
 
 > **getAllPositionedComments**(): `string`[]
 
-Defined in: [packages/core/src/models/SqlComponent.ts:66](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/models/SqlComponent.ts#L66)
+Defined in: [packages/core/src/models/SqlComponent.ts:66](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/models/SqlComponent.ts#L66)
 
 Get all positioned comments as a flat array in order (before, after)
 

@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: Renameability
 
-Defined in: [packages/core/src/transformers/SqlIdentifierRenamer.ts:20](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/SqlIdentifierRenamer.ts#L20)
+Defined in: [packages/core/src/transformers/SqlIdentifierRenamer.ts:20](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/transformers/SqlIdentifierRenamer.ts#L20)
 
 Result of renameability check
 
@@ -11,7 +11,7 @@ Result of renameability check
 
 > **canRename**: `boolean`
 
-Defined in: [packages/core/src/transformers/SqlIdentifierRenamer.ts:21](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/SqlIdentifierRenamer.ts#L21)
+Defined in: [packages/core/src/transformers/SqlIdentifierRenamer.ts:21](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/transformers/SqlIdentifierRenamer.ts#L21)
 
 ***
 
@@ -19,7 +19,7 @@ Defined in: [packages/core/src/transformers/SqlIdentifierRenamer.ts:21](https://
 
 > `optional` **currentName**: `string`
 
-Defined in: [packages/core/src/transformers/SqlIdentifierRenamer.ts:22](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/SqlIdentifierRenamer.ts#L22)
+Defined in: [packages/core/src/transformers/SqlIdentifierRenamer.ts:22](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/transformers/SqlIdentifierRenamer.ts#L22)
 
 ***
 
@@ -27,7 +27,7 @@ Defined in: [packages/core/src/transformers/SqlIdentifierRenamer.ts:22](https://
 
 > `optional` **type**: `"cte"` \| `"table_alias"` \| `"column_alias"`
 
-Defined in: [packages/core/src/transformers/SqlIdentifierRenamer.ts:23](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/SqlIdentifierRenamer.ts#L23)
+Defined in: [packages/core/src/transformers/SqlIdentifierRenamer.ts:23](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/transformers/SqlIdentifierRenamer.ts#L23)
 
 ***
 
@@ -35,7 +35,7 @@ Defined in: [packages/core/src/transformers/SqlIdentifierRenamer.ts:23](https://
 
 > `optional` **scopeRange**: [`ScopeRange`](ScopeRange.md)
 
-Defined in: [packages/core/src/transformers/SqlIdentifierRenamer.ts:24](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/SqlIdentifierRenamer.ts#L24)
+Defined in: [packages/core/src/transformers/SqlIdentifierRenamer.ts:24](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/transformers/SqlIdentifierRenamer.ts#L24)
 
 ***
 
@@ -43,5 +43,5 @@ Defined in: [packages/core/src/transformers/SqlIdentifierRenamer.ts:24](https://
 
 > `optional` **reason**: `string`
 
-Defined in: [packages/core/src/transformers/SqlIdentifierRenamer.ts:25](https://github.com/mk3008/rawsql-ts/blob/ad9e3f7c443de1bfaed91c626050a5296e016ab4/packages/core/src/transformers/SqlIdentifierRenamer.ts#L25)
+Defined in: [packages/core/src/transformers/SqlIdentifierRenamer.ts:25](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/transformers/SqlIdentifierRenamer.ts#L25)
 </div>
