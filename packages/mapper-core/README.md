@@ -1,10 +1,12 @@
-# @rawsql-ts/mapper
+# @rawsql-ts/mapper-core
 
-`@rawsql-ts/mapper` converts raw SQL result sets into structured DTOs while respecting the column prefixes and explicit column maps emitted by a planner. It operates on the `{ sql, params }` tuple returned by the executor you provide, keeping the mapper itself agnostic to any database, driver, or CLI framework.
+`@rawsql-ts/mapper-core` converts raw SQL result sets into structured DTOs while respecting the column prefixes and explicit column maps emitted by a planner. It operates on the `{ sql, params }` tuple returned by the executor you provide, keeping the mapper itself agnostic to any database, driver, or CLI framework.
+
+This package sticks to read-only transformation: it only consumes `Record<string, unknown>` rows and defers SQL, DDL, RowMaps, `Table`, or `Entity` concerns to callers. The intent is to keep the mapper core small, explicit, and incapable of accumulating ORM or schema knowledge.
 
 ## High-level behavior
 
-The implementation reflects the guardrails defined in `packages/mapper/AGENTS.md`, but this README keeps the focus on what users can rely on and how they override any defaults.
+The implementation reflects the guardrails defined in `packages/mapper-core/AGENTS.md`, but this README keeps the focus on what users can rely on and how they override any defaults.
 
 - **Column normalization remains mechanical.** Columns are treated case-insensitively and normalized with `snake_to_camel` by default. If two columns normalize to the same property name, the mapper throws immediately—there is no automatic winner. Fix the SQL (add an alias) or opt out of normalization for that query by passing `{ keyTransform: 'none' }`.
 - **Identifiers are strings unless you say otherwise.** Properties named `id` or camelCase ending in `Id` are converted to strings when `idKeysAsString` is `true` (the default) so DTOs stay JSON-safe even if the database returns `bigint` PKs. Names that do not follow the camelCase `*Id` shape—such as `userid`, `grid`, or `identity`—remain untouched. To keep a column as `bigint` (or another type), add a matching `typeHints` entry, set `idKeysAsString: false` for that query, or stringify/`BigInt()` it downstream.
@@ -20,7 +22,7 @@ import {
   simpleMapPresets,
   toRowsExecutor,
   entity,
-} from '@rawsql-ts/mapper'
+} from '@rawsql-ts/mapper-core'
 
 const mapper = createMapperFromExecutor(
   toRowsExecutor(pgClient, 'query'),
@@ -35,7 +37,7 @@ const invoices = await mapper.query<Invoice>('SELECT ...', [id])
 ## Minimal usage
 
 ```ts
-import { createMapper, entity } from '@rawsql-ts/mapper'
+import { createMapper, entity } from '@rawsql-ts/mapper-core'
 
 const executor = async (sql: string, params: unknown[]) => {
   // use pg client, sqlite, or any fetcher that returns rows
@@ -89,7 +91,7 @@ When no hint matches, identifier stringification still runs by default so camelC
 Use helpers to reduce boilerplate without introducing hidden inference:
 
 ```ts
-import { columnMapFromPrefix, entity } from '@rawsql-ts/mapper'
+import { columnMapFromPrefix, entity } from '@rawsql-ts/mapper-core'
 
 const country = entity({
   name: 'Country',

@@ -1,7 +1,7 @@
 # AGENTS: Mapper Test Guidelines
 
 This document defines **rules and expectations for tests** under `tests/`
-that exercise `@rawsql-ts/mapper`.
+that exercise `@rawsql-ts/mapper-core`.
 
 These rules exist to ensure that tests validate **intentional behavior**
 rather than accidental implementation details.

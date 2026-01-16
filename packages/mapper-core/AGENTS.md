@@ -1,11 +1,11 @@
 # AGENTS: Mapper Design Principles
 
-This document defines the **non-negotiable design philosophy** of `@rawsql-ts/mapper`.
-It exists to keep the mapper small, predictable, and independent from DBMS,
+This document defines the **non-negotiable design philosophy** of `@rawsql-ts/mapper-core`.
+It exists to keep the mapper core small, predictable, and independent from DBMS,
 drivers, ORMs, and test frameworks.
 
-The mapper is intentionally strict.
-When behavior is ambiguous, it must fail fast rather than guess.
+The core is intentionally strict and read-only.
+It only transforms `Record<string, unknown>` rows and never reaches into SQL, DDL, RowMaps, or entity metadata.
 
 ---
 
