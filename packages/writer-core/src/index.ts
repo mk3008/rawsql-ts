@@ -1,3 +1,4 @@
+/** Primitive values that can be serialized as SQL parameters. */
 export type ParamValue =
   | string
   | number
@@ -7,8 +8,21 @@ export type ParamValue =
   | Date
   | Uint8Array
 
-export type RecordValues = Record<string, unknown | undefined>
-export type Key = Record<string, unknown>
+/** Values keyed by column that may include undefined entries which are dropped. */
+export type RecordValues = Record<string, ParamValue | undefined>
+/** Key columns used for equality-only WHERE clauses in update/remove helpers. */
+export type Key = Record<string, ParamValue>
+
+const identifierPattern = /^[A-Za-z_][A-Za-z0-9_]*$/
+
+const assertColumnIdentifier = (identifier: string) => {
+  if (!identifierPattern.test(identifier)) {
+    throw new Error(`column identifier "${identifier}" must match ${identifierPattern}`)
+  }
+}
+
+const hasParamValueEntry = (entry: [string, ParamValue | undefined]): entry is [string, ParamValue] =>
+  entry[1] !== undefined
 
 const ensureEntries = (entries: readonly unknown[], kind: 'insert' | 'update') => {
   if (entries.length === 0) {
@@ -29,55 +43,71 @@ const buildWhereClause = (key: Key, startIndex: number) => {
     throw new Error('where must not be empty')
   }
 
-  const params = entries.map(([, value]) => {
+  const params: ParamValue[] = []
+  const clauses = entries.map(([column, value], index) => {
+    assertColumnIdentifier(column)
     if (value === undefined) {
       throw new Error('key values must not be undefined')
     }
-    return value
+    params.push(value)
+    return `${column} = ${formatPlaceholder(startIndex + index)}`
   })
 
   // Build a flat AND list of equality checks with placeholders offset by the caller.
-  const clauses = entries
-    .map(([column], index) => `${column} = ${formatPlaceholder(startIndex + index)}`)
-    .join(' AND ')
-
   return {
-    clause: `WHERE ${clauses}`,
+    clause: `WHERE ${clauses.join(' AND ')}`,
     params,
   }
 }
 
+/**
+ * Build an INSERT statement that keeps SQL visible and drops undefined fields.
+ */
 export const insert = (table: string, values: RecordValues) => {
-  const entries = Object.entries(values).filter(([, value]) => value !== undefined)
+  const entries = Object.entries(values).filter(hasParamValueEntry)
   ensureEntries(entries, 'insert')
 
-  const columns = entries.map(([column]) => column).join(', ')
-  const params = entries.map(([, value]) => value)
+  const columns: string[] = []
+  const params: ParamValue[] = []
+  for (const [column, value] of entries) {
+    assertColumnIdentifier(column)
+    columns.push(column)
+    params.push(value)
+  }
+  const columnsList = columns.join(', ')
   const placeholders = buildPlaceholders(params.length).join(', ')
 
   return {
-    sql: `INSERT INTO ${table} (${columns}) VALUES (${placeholders})`,
+    sql: `INSERT INTO ${table} (${columnsList}) VALUES (${placeholders})`,
     params,
   }
 }
 
+/**
+ * Build an UPDATE statement that reuses parameterized placeholders and guards empty sets.
+ */
 export const update = (table: string, values: RecordValues, where: Key) => {    
-  const entries = Object.entries(values).filter(([, value]) => value !== undefined)
+  const entries = Object.entries(values).filter(hasParamValueEntry)
   ensureEntries(entries, 'update')
 
-  const params = entries.map(([, value]) => value)
-  const clauses = entries
-    .map(([column], index) => `${column} = ${formatPlaceholder(index + 1)}`)
-    .join(', ')
+  const params: ParamValue[] = []
+  const clauses = entries.map(([column, value]) => {
+    assertColumnIdentifier(column)
+    params.push(value)
+    return `${column} = ${formatPlaceholder(params.length)}`
+  })
   // Offset WHERE placeholders so they follow the SET parameters.
   const whereClause = buildWhereClause(where, params.length + 1)
 
   return {
-    sql: `UPDATE ${table} SET ${clauses} ${whereClause.clause}`,
+    sql: `UPDATE ${table} SET ${clauses.join(', ')} ${whereClause.clause}`,
     params: [...params, ...whereClause.params],
   }
 }
 
+/**
+ * Build a DELETE statement that only emits equality-only WHERE clauses.
+ */
 export const remove = (table: string, where: Key) => {
   const whereClause = buildWhereClause(where, 1)
 

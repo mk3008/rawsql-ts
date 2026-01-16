@@ -38,11 +38,25 @@ test('insert emits visible SQL with simple table string', () => {
     expect(result.params).toEqual(['active', 10, 2])
   })
 
-  test('remove emits delete with equality-only WHERE from key object', () => {
+  test('remove emits delete with equality-only WHERE from key object', () => {  
     const result = remove('users', { id: 3, tenant_id: 10 })
 
     expect(result.sql).toBe('DELETE FROM users WHERE id = $1 AND tenant_id = $2')
     expect(result.params).toEqual([3, 10])
+  })
+
+  test('insert rejects invalid column identifiers', () => {
+    expect(() =>
+      insert('users', {
+        'bad-column!': 'value',
+      }),
+    ).toThrow('column identifier "bad-column!" must match /^[A-Za-z_][A-Za-z0-9_]*$/')
+  })
+
+  test('remove rejects empty key column identifiers', () => {
+    expect(() => remove('users', { '': 1 })).toThrow(
+      'column identifier "" must match /^[A-Za-z_][A-Za-z0-9_]*$/',
+    )
   })
 })
 
