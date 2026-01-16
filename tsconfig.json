@@ -32,6 +32,8 @@
         "@rawsql-ts/core": ["packages/core/src"],
         "@rawsql-ts/core/*": ["packages/core/src/*"],
         "@rawsql-ts/core/dist/src/*": ["packages/core/src/*"],
+        "@rawsql-ts/writer-core": ["packages/writer-core/src"],
+        "@rawsql-ts/writer-core/*": ["packages/writer-core/src/*"],
         "@rawsql-ts/testkit-core": ["packages/testkit-core/src"],
         "@rawsql-ts/ztd-cli": ["packages/ztd-cli/src"],
         "@rawsql-ts/sqlite-testkit": ["packages/drivers/sqlite-testkit/src"],
@@ -115,8 +117,11 @@
     },
     "files": [],
     "references": [
-    {
+        {
             "path": "./packages/core"
+        },
+        {
+            "path": "./packages/writer-core"
         }
     ]
 }
