@@ -21,6 +21,12 @@ const assertColumnIdentifier = (identifier: string) => {
   }
 }
 
+const assertTableIdentifier = (identifier: string) => {
+  if (!identifierPattern.test(identifier)) {
+    throw new Error(`table identifier "${identifier}" must match ${identifierPattern}`)
+  }
+}
+
 const hasParamValueEntry = (entry: [string, ParamValue | undefined]): entry is [string, ParamValue] =>
   entry[1] !== undefined
 
@@ -64,6 +70,7 @@ const buildWhereClause = (key: Key, startIndex: number) => {
  * Build an INSERT statement that keeps SQL visible and drops undefined fields.
  */
 export const insert = (table: string, values: RecordValues) => {
+  assertTableIdentifier(table)
   const entries = Object.entries(values).filter(hasParamValueEntry)
   ensureEntries(entries, 'insert')
 
@@ -87,6 +94,7 @@ export const insert = (table: string, values: RecordValues) => {
  * Build an UPDATE statement that reuses parameterized placeholders and guards empty sets.
  */
 export const update = (table: string, values: RecordValues, where: Key) => {    
+  assertTableIdentifier(table)
   const entries = Object.entries(values).filter(hasParamValueEntry)
   ensureEntries(entries, 'update')
 
@@ -109,6 +117,7 @@ export const update = (table: string, values: RecordValues, where: Key) => {
  * Build a DELETE statement that only emits equality-only WHERE clauses.
  */
 export const remove = (table: string, where: Key) => {
+  assertTableIdentifier(table)
   const whereClause = buildWhereClause(where, 1)
 
   return {

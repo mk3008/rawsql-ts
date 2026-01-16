@@ -53,9 +53,27 @@ test('insert emits visible SQL with simple table string', () => {
     ).toThrow('column identifier "bad-column!" must match /^[A-Za-z_][A-Za-z0-9_]*$/')
   })
 
+  test('insert rejects invalid table identifiers', () => {
+    expect(() =>
+      insert('bad-table!', { name: 'value' }),
+    ).toThrow('table identifier "bad-table!" must match /^[A-Za-z_][A-Za-z0-9_]*$/')
+  })
+
+  test('update rejects invalid table identifiers', () => {
+    expect(() =>
+      update('bad-table!', { status: 'active' }, { id: 1 }),
+    ).toThrow('table identifier "bad-table!" must match /^[A-Za-z_][A-Za-z0-9_]*$/')
+  })
+
   test('remove rejects empty key column identifiers', () => {
     expect(() => remove('users', { '': 1 })).toThrow(
       'column identifier "" must match /^[A-Za-z_][A-Za-z0-9_]*$/',
+    )
+  })
+
+  test('remove rejects invalid table identifiers', () => {
+    expect(() => remove('bad-table!', { id: 1 })).toThrow(
+      'table identifier "bad-table!" must match /^[A-Za-z_][A-Za-z0-9_]*$/',
     )
   })
 })
