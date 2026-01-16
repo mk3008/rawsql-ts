@@ -53,6 +53,31 @@ test('insert emits visible SQL with simple table string', () => {
     ).toThrow('column identifier "bad-column!" must match /^[A-Za-z_][A-Za-z0-9_]*$/')
   })
 
+  test('insert rejects unicode identifiers by default', () => {
+    expect(() =>
+      insert('ユーザー', { name: 'value' }),
+    ).toThrow('table identifier "ユーザー" must match /^[A-Za-z_][A-Za-z0-9_]*$/')
+  })
+
+  test('insert rejects unicode column names by default', () => {
+    expect(() =>
+      insert('users', { ユーザー: 'value' }),
+    ).toThrow('column identifier "ユーザー" must match /^[A-Za-z_][A-Za-z0-9_]*$/')
+  })
+
+  test('insert allows unicode identifiers when explicitly unsafe', () => {
+    const result = insert(
+      'ユーザー',
+      {
+        ユーザー名: 'value',
+      },
+      { allowUnsafeIdentifiers: true },
+    )
+
+    expect(result.sql).toContain('INSERT INTO ユーザー (ユーザー名)')
+    expect(result.params).toEqual(['value'])
+  })
+
   test('insert rejects invalid table identifiers', () => {
     expect(() =>
       insert('bad-table!', { name: 'value' }),
@@ -67,8 +92,20 @@ test('insert emits visible SQL with simple table string', () => {
 
   test('remove rejects empty key column identifiers', () => {
     expect(() => remove('users', { '': 1 })).toThrow(
-      'column identifier "" must match /^[A-Za-z_][A-Za-z0-9_]*$/',
+      'column identifier must not be empty',
     )
+  })
+
+  test('update allows unicode columns when explicitly unsafe', () => {
+    const result = update(
+      'users',
+      { 表示名: 'Writer Core' },
+      { id: 1 },
+      { allowUnsafeIdentifiers: true },
+    )
+
+    expect(result.sql).toContain('表示名 = $1')
+    expect(result.params).toEqual(['Writer Core', 1])
   })
 
   test('remove rejects invalid table identifiers', () => {

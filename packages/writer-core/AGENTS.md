@@ -13,6 +13,10 @@
 - WHERE clauses are limited to equality-only AND lists keyed by caller-provided objects; no builder functions, OR, IN, or comparison operators are allowed.
 - Table and column identifiers are assumed valid constants; user input must never be used as an identifier because writer-core never validates identifiers by design.
 
+## Identifier policy
+- Default behavior enforces ASCII identifiers via `WriterCoreOptions.allowUnsafeIdentifiers` false. Table/column names must match `^[A-Za-z_][A-Za-z0-9_]*$` and cannot contain control characters.
+- When Unicode identifiers are unavoidable, the caller must explicitly pass `{ allowUnsafeIdentifiers: true }` to `insert`, `update`, or `remove`. This is the caller's deliberate opt-in; writer-core will skip the ASCII check but still rejects empty names and control characters without adding quoting logic.
+
 ## Tempting conveniences that are forbidden
 - Adding a `writerCore.where()` builder that promised to merge filters automatically is too close to a query builder; refuse it.
 - Hiding table or column names behind exported constants or helpers would reintroduce schema awareness; refuse that.

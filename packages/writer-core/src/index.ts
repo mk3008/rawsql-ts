@@ -14,15 +14,33 @@ export type RecordValues = Record<string, ParamValue | undefined>
 export type Key = Record<string, ParamValue>
 
 const identifierPattern = /^[A-Za-z_][A-Za-z0-9_]*$/
+const identifierControlPattern = /[\u0000-\u001F\u007F]/
 
-const assertColumnIdentifier = (identifier: string) => {
-  if (!identifierPattern.test(identifier)) {
+/** Optional writer-core flags; use allowUnsafeIdentifiers when skipping ASCII checks. */
+export type WriterCoreOptions = {
+  allowUnsafeIdentifiers?: boolean
+}
+
+const assertIdentifierBasics = (identifier: string, kind: 'table' | 'column') => {
+  if (identifier.length === 0) {
+    throw new Error(`${kind} identifier must not be empty`)
+  }
+
+  if (identifierControlPattern.test(identifier)) {
+    throw new Error(`identifier "${identifier}" must not contain control characters`)
+  }
+}
+
+const assertColumnIdentifier = (identifier: string, allowUnsafe?: boolean) => {
+  assertIdentifierBasics(identifier, 'column')
+  if (!allowUnsafe && !identifierPattern.test(identifier)) {
     throw new Error(`column identifier "${identifier}" must match ${identifierPattern}`)
   }
 }
 
-const assertTableIdentifier = (identifier: string) => {
-  if (!identifierPattern.test(identifier)) {
+const assertTableIdentifier = (identifier: string, allowUnsafe?: boolean) => {
+  assertIdentifierBasics(identifier, 'table')
+  if (!allowUnsafe && !identifierPattern.test(identifier)) {
     throw new Error(`table identifier "${identifier}" must match ${identifierPattern}`)
   }
 }
@@ -43,7 +61,7 @@ const formatPlaceholder = (index: number) => `$${index}`
 const buildPlaceholders = (count: number, startIndex = 1) =>
   Array.from({ length: count }, (_, index) => formatPlaceholder(startIndex + index))
 
-const buildWhereClause = (key: Key, startIndex: number) => {
+const buildWhereClause = (key: Key, startIndex: number, options?: WriterCoreOptions) => {
   const entries = Object.entries(key)
   if (entries.length === 0) {
     throw new Error('where must not be empty')
@@ -51,7 +69,7 @@ const buildWhereClause = (key: Key, startIndex: number) => {
 
   const params: ParamValue[] = []
   const clauses = entries.map(([column, value], index) => {
-    assertColumnIdentifier(column)
+    assertColumnIdentifier(column, options?.allowUnsafeIdentifiers)
     if (value === undefined) {
       throw new Error('key values must not be undefined')
     }
@@ -68,16 +86,18 @@ const buildWhereClause = (key: Key, startIndex: number) => {
 
 /**
  * Build an INSERT statement that keeps SQL visible and drops undefined fields.
+ * @param options – Pass `allowUnsafeIdentifiers` when you knowingly use Unicode names.
  */
-export const insert = (table: string, values: RecordValues) => {
-  assertTableIdentifier(table)
+export const insert = (table: string, values: RecordValues, options?: WriterCoreOptions) => {
+  const allowUnsafe = options?.allowUnsafeIdentifiers === true
+  assertTableIdentifier(table, allowUnsafe)
   const entries = Object.entries(values).filter(hasParamValueEntry)
   ensureEntries(entries, 'insert')
 
   const columns: string[] = []
   const params: ParamValue[] = []
   for (const [column, value] of entries) {
-    assertColumnIdentifier(column)
+    assertColumnIdentifier(column, allowUnsafe)
     columns.push(column)
     params.push(value)
   }
@@ -92,20 +112,27 @@ export const insert = (table: string, values: RecordValues) => {
 
 /**
  * Build an UPDATE statement that reuses parameterized placeholders and guards empty sets.
+ * @param options – Pass `allowUnsafeIdentifiers` when you knowingly use Unicode names.
  */
-export const update = (table: string, values: RecordValues, where: Key) => {    
-  assertTableIdentifier(table)
+export const update = (
+  table: string,
+  values: RecordValues,
+  where: Key,
+  options?: WriterCoreOptions,
+) => {    
+  const allowUnsafe = options?.allowUnsafeIdentifiers === true
+  assertTableIdentifier(table, allowUnsafe)
   const entries = Object.entries(values).filter(hasParamValueEntry)
   ensureEntries(entries, 'update')
 
   const params: ParamValue[] = []
   const clauses = entries.map(([column, value]) => {
-    assertColumnIdentifier(column)
+    assertColumnIdentifier(column, allowUnsafe)
     params.push(value)
     return `${column} = ${formatPlaceholder(params.length)}`
   })
   // Offset WHERE placeholders so they follow the SET parameters.
-  const whereClause = buildWhereClause(where, params.length + 1)
+  const whereClause = buildWhereClause(where, params.length + 1, options)
 
   return {
     sql: `UPDATE ${table} SET ${clauses.join(', ')} ${whereClause.clause}`,
@@ -115,10 +142,12 @@ export const update = (table: string, values: RecordValues, where: Key) => {
 
 /**
  * Build a DELETE statement that only emits equality-only WHERE clauses.
+ * @param options – Pass `allowUnsafeIdentifiers` when you knowingly use Unicode names.
  */
-export const remove = (table: string, where: Key) => {
-  assertTableIdentifier(table)
-  const whereClause = buildWhereClause(where, 1)
+export const remove = (table: string, where: Key, options?: WriterCoreOptions) => {
+  const allowUnsafe = options?.allowUnsafeIdentifiers === true
+  assertTableIdentifier(table, allowUnsafe)
+  const whereClause = buildWhereClause(where, 1, options)
 
   return {
     sql: `DELETE FROM ${table} ${whereClause.clause}`,
