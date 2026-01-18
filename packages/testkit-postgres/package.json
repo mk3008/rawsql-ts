@@ -1,0 +1,45 @@
+{
+  "name": "@rawsql-ts/testkit-postgres",
+  "version": "0.15.0",
+  "description": "Postgres-specific fixture/rewriter logic that stays driver-agnostic.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "prepack": "node -e \"const fs=require('fs');const cp=require('child_process');const npm=process.platform==='win32'?'npm.cmd':'npm';if(!fs.existsSync('dist/index.js')){process.exit(cp.spawnSync(npm,['run','build'],{stdio:'inherit'}).status??1)}\"",
+    "build": "tsc -p tsconfig.build.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src tests --ext .ts",
+    "release": "npm run lint && npm run test && npm run build && npm pack --dry-run && pnpm publish --access public"
+  },
+  "keywords": [
+    "postgres",
+    "testing",
+    "fixtures",
+    "rawsql"
+  ],
+  "license": "MIT",
+  "author": "msugiura",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mk3008/rawsql-ts.git",
+    "directory": "packages/testkit-postgres"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@rawsql-ts/testkit-core": "workspace:*",
+    "rawsql-ts": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.2",
+    "vitest": "^4.0.7"
+  },
+  "files": [
+    "dist"
+  ]
+}

@@ -37,7 +37,7 @@
         "@rawsql-ts/testkit-core": ["packages/testkit-core/src"],
         "@rawsql-ts/ztd-cli": ["packages/ztd-cli/src"],
         "@rawsql-ts/sqlite-testkit": ["packages/drivers/sqlite-testkit/src"],
-        "@rawsql-ts/pg-testkit": ["packages/drivers/pg-testkit/src"]
+        "@rawsql-ts/adapter-node-pg": ["packages/adapters/adapter-node-pg/src"]
         },
         // "rootDir": "./",                                  /* Specify the root folder within your source files. */
         // "moduleResolution": "node10",                     /* Specify how TypeScript looks up a file from a given module specifier. */

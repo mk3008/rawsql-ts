@@ -6,7 +6,7 @@ This benchmark compares traditional migration-style repository tests with ZTD fi
 
 - Both workflows exercise the same repository class and query definitions so differences stem only from the surrounding test infrastructure.
 - Traditional runs create a schema per repetition, apply the `benchmarks/ztd-bench-vs-raw/ddl/ecommerce.sql` migration, seed the required tables, call the repository method, then drop the schema.
-- ZTD runs skip migration/seed/cleanup, hook into the repository query to capture the emitted SQL, feed that SQL into pg-testkit for rewrite/fixture generation, and execute the rewritten statements.
+- ZTD runs skip migration/seed/cleanup, hook into the repository query to capture the emitted SQL, feed that SQL into testkit-postgres for rewrite/fixture generation, and execute the rewritten statements.
 - Measurements cover variable suite sizes and steady-state loops so the report can show the impact of runner startup, warm runs, and incremental iteration cost.
 
 ## What It Measures
@@ -60,7 +60,7 @@ You can adjust the benchmark without editing code using environment variables:
 Everything the benchmark needs lives under `benchmarks/ztd-bench-vs-raw`:
 
 - `sql/` contains the canonical query strings executed by both traditional and ZTD tests.
-- `ddl/` holds the schema file that pg-testkit uses to validate and plan each rewrite.
+- `ddl/` holds the schema file that testkit-postgres uses to validate and plan each rewrite.
 - `tests/` hosts the Vitest suites, fixtures, and helpers that drive the runner, steady-state, and global setup flows.
 
 Keeping the benchmark code self-contained makes it clear that this directory is the authoritative measurement surface; it does not depend on playground demos and is safe to run from the repository root.
@@ -69,9 +69,9 @@ Keeping the benchmark code self-contained makes it clear that this directory is 
 
 The benchmark uses SQL from `benchmarks/ztd-bench-vs-raw/sql`, fixtures defined under `benchmarks/ztd-bench-vs-raw/tests/support`, and schema metadata in `benchmarks/ztd-bench-vs-raw/ddl`. Run it from the repository root to ensure the benchmark runner and package dependencies resolve correctly.
 
-## pg-testkit mode comparison
+## testkit-postgres mode comparison
 
-Use `pnpm ztd:bench:pg-testkit-mode` when you want to look at pg-testkit’s two migration modes in isolation. The script runs every case under both the fixture-driven ZTD path and the Traditional DDL/seeding path inside pg-testkit, then writes `tmp/pg-testkit-mode-report.md` with per-case averages for duration, SQL count, DB time, migration time, and cleanup time.
+Use `pnpm ztd:bench:testkit-postgres-mode` when you want to look at testkit-postgres’s two migration modes in isolation. The script runs every case under both the fixture-driven ZTD path and the Traditional DDL/seeding path inside testkit-postgres, then writes `tmp/testkit-postgres-mode-report.md` with per-case averages for duration, SQL count, DB time, migration time, and cleanup time.
 
 The report is a lightweight complement to the full `pnpm ztd:bench` dataset and is a good place to start when you only need the driver-level comparison without the runner/parallelism instrumentation.
 

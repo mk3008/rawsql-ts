@@ -1,6 +1,7 @@
 packages:
   - "packages/testkit-core"
   - "packages/*"
+  - "packages/adapters/*"
   - "packages/drivers/*"
   - "playgrounds/*"
   - "benchmarks/sql-unit-test"
