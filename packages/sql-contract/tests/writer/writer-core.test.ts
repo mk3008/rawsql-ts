@@ -144,4 +144,53 @@ describe('sql-contract writer helpers', () => {
       expect(result.params[1]).toBe(occurredAt)
     })
   })
+
+  describe('placeholder styles', () => {
+    const insertValues = {
+      age: 30,
+      name: 'alice',
+    }
+    const updateValues = {
+      name: 'bobby',
+      status: 'active',
+    }
+
+    test('question style emits anonymous placeholders with deterministic parameter order', () => {
+      const options = { placeholderStyle: 'question' }
+
+      const insertResult = insert('users', insertValues, options)
+      expect(insertResult.sql).toBe('INSERT INTO users (age, name) VALUES (?, ?)')
+      expect(insertResult.params).toEqual([30, 'alice'])
+
+      const updateResult = update('users', updateValues, { id: 1 }, options)
+      expect(updateResult.sql).toBe('UPDATE users SET name = ?, status = ? WHERE id = ?')
+      expect(updateResult.params).toEqual(['bobby', 'active', 1])
+
+      const removeResult = remove('users', { id: 1, tenant_id: 2 }, options)
+      expect(removeResult.sql).toBe('DELETE FROM users WHERE id = ? AND tenant_id = ?')
+      expect(removeResult.params).toEqual([1, 2])
+    })
+
+    test('named style mirrors formatter naming and continues numbering across clauses', () => {
+      const options = {
+        placeholderStyle: 'named',
+        namedPlaceholderPrefix: '@',
+        namedPlaceholderNamePrefix: 'p',
+      }
+
+      const insertResult = insert('users', insertValues, options)
+      expect(insertResult.sql).toBe('INSERT INTO users (age, name) VALUES (@p1, @p2)')
+      expect(insertResult.params).toEqual([30, 'alice'])
+
+      const updateResult = update('users', updateValues, { id: 1 }, options)
+      expect(updateResult.sql).toBe(
+        'UPDATE users SET name = @p1, status = @p2 WHERE id = @p3',
+      )
+      expect(updateResult.params).toEqual(['bobby', 'active', 1])
+
+      const removeResult = remove('users', { id: 2, tenant_id: 3 }, options)
+      expect(removeResult.sql).toBe('DELETE FROM users WHERE id = @p1 AND tenant_id = @p2')
+      expect(removeResult.params).toEqual([2, 3])
+    })
+  })
 })

@@ -78,9 +78,8 @@ Defaults and customization:
   - equality AND lists only, via caller-provided key objects
   - no complex expressions, OR, subqueries, or function-based predicates
 - Drop "undefined" values so only present columns appear in SQL.
-- Centralize placeholder numbering ("$1", "$2", ...) and do not introduce:
-  - named placeholders
-  - DBMS-specific placeholder syntax
+- Centralize placeholder numbering (defaulting to `$1`, `$2`, ...) while allowing callers to opt into alternative `placeholderStyle` settings (`indexed`, `question`, `named`) that only adjust syntax (symbol, optional prefix/suffix) without hiding the SQL.
+  - Do not invent DBMS-specific placeholder presets; each style must remain deterministic and rely solely on provided symbols and numbering.
 - Normalize column and key identifiers (alphabetical order) so both the generated SQL string and the `params` array stay deterministic no matter how objects were created.
 
 The writer helpers exist to keep simple CUD statements legible and parameterized without leaking schema assumptions.

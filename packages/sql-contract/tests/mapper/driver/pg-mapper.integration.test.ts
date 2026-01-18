@@ -1,4 +1,3 @@
-import { execSync } from 'node:child_process'
 import { Client } from 'pg'
 import {
   PostgreSqlContainer,
@@ -7,7 +6,6 @@ import {
 import {
   afterAll,
   beforeAll,
-  describe,
   expect,
   it,
 } from 'vitest'
@@ -16,17 +14,7 @@ import {
   SimpleMapOptions,
   toRowsExecutor,
 } from '@rawsql-ts/sql-contract/mapper'
-
-const dockerRuntimeAvailable = (() => {
-  try {
-    execSync('docker info', { stdio: 'ignore' })
-    return true
-  } catch {
-    return false
-  }
-})()
-
-const driverDescribe = dockerRuntimeAvailable ? describe : describe.skip
+import { driverDescribe } from './driver-describe'
 
 let container: StartedPostgreSqlContainer | undefined
 let client: Client | undefined
@@ -45,23 +33,6 @@ const createTestMapper = (options?: SimpleMapOptions) => {
   return createMapperFromExecutor(executor, options)
 }
 
-beforeAll(async () => {
-  if (!dockerRuntimeAvailable) {
-    return
-  }
-
-  container = await new PostgreSqlContainer('postgres:18-alpine').start()
-  client = new Client({
-    connectionString: container.getConnectionUri(),
-  })
-  await client.connect()
-})
-
-afterAll(async () => {
-  await client?.end()
-  await container?.stop()
-})
-
 const decimalCoerce: SimpleMapOptions['coerceFn'] = ({ value }) => {
   if (typeof value !== 'string') {
     return value
@@ -73,6 +44,19 @@ const decimalCoerce: SimpleMapOptions['coerceFn'] = ({ value }) => {
 }
 
 driverDescribe('mapper driver integration (pg)', () => {
+  beforeAll(async () => {
+    container = await new PostgreSqlContainer('postgres:18-alpine').start()
+    client = new Client({
+      connectionString: container.getConnectionUri(),
+    })
+    await client.connect()
+  }, 120000)
+
+  afterAll(async () => {
+    await client?.end()
+    await container?.stop()
+  })
+
   it('coerceDates transforms text/timestamp/timestamptz columns into Date', async () => {
     const mapper = createTestMapper({ coerceDates: true })
 
