@@ -1,7 +1,7 @@
 {
-  "name": "@rawsql-ts/pg-testkit",
+  "name": "@rawsql-ts/adapter-node-pg",
   "version": "0.15.0",
-  "description": "Postgres driver wrapper that simulates CRUD statements via fixture-backed CTEs.",
+  "description": "Node pg adapter that connects PostgreSQL fixtures to @rawsql-ts/testkit-postgres.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
@@ -14,7 +14,7 @@
   },
   "keywords": [
     "postgres",
-    "testing",
+    "adapter",
     "fixtures",
     "rawsql"
   ],
@@ -23,7 +23,7 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/mk3008/rawsql-ts.git",
-    "directory": "packages/drivers/pg-testkit"
+    "directory": "packages/adapters/adapter-node-pg"
   },
   "publishConfig": {
     "access": "public"
@@ -32,6 +32,7 @@
     "node": ">=20"
   },
   "dependencies": {
+    "@rawsql-ts/testkit-postgres": "workspace:*",
     "@rawsql-ts/testkit-core": "workspace:*",
     "pg": "^8.13.1",
     "rawsql-ts": "workspace:*"

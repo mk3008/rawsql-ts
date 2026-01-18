@@ -10,7 +10,7 @@ export type SqlQueryRows<T> = Promise<T[]>;
  * Minimal SQL client interface required by the repository layer.
  *
  * - Production: adapt `pg` (or other drivers) to normalize results into `T[]`
- * - Tests: compatible with `pg-testkit` clients returned by `createTestkitClient()`
+ * - Tests: compatible with the `testkit-postgres` pipeline exposed by `@rawsql-ts/adapter-node-pg` clients returned by `createTestkitClient()`
  *
  * Connection strategy note:
  * - Prefer a shared client per worker process for performance.

@@ -68,7 +68,7 @@ const ensurePrismaClient = (databaseUrl: string): void => {
 
   // Drive `prisma generate` so the client reflects the test schema and connection.
   execSync(
-    `pnpm --filter @rawsql-ts/pg-testkit exec prisma generate --schema "${prismaSchemaPath}" --config "${prismaConfigPath}"`,
+    `pnpm --filter @rawsql-ts/adapter-node-pg exec prisma generate --schema "${prismaSchemaPath}" --config "${prismaConfigPath}"`,
     {
       stdio: 'inherit',
       env: {

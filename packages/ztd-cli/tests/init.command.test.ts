@@ -173,7 +173,8 @@ test('init installs template-referenced packages when package.json exists', asyn
   expect(installs[0].packageManager).toBe('pnpm');
   expect(installs[0].packages).toEqual(
     expect.arrayContaining([
-      '@rawsql-ts/pg-testkit',
+      '@rawsql-ts/testkit-postgres',
+      '@rawsql-ts/adapter-node-pg',
       '@rawsql-ts/testkit-core',
       '@testcontainers/postgresql',
       'pg',

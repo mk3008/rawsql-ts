@@ -14,7 +14,8 @@
     "node": ">=20"
   },
   "dependencies": {
-    "@rawsql-ts/pg-testkit": "workspace:*",
+    "@rawsql-ts/adapter-node-pg": "workspace:*",
+    "@rawsql-ts/testkit-postgres": "workspace:*",
     "@rawsql-ts/testkit-core": "workspace:*",
     "@rawsql-ts/ztd-cli": "workspace:*",
     "pg": "^8.11.1"

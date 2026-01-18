@@ -3,7 +3,7 @@ import { PostgreSqlContainer } from '@testcontainers/postgresql';
 /**
  * Vitest global setup.
  *
- * ZTD tests are safe to run in parallel against a single Postgres instance because pg-testkit
+ * ZTD tests are safe to run in parallel against a single Postgres instance because testkit-postgres
  * rewrites CRUD into fixture-backed SELECT queries (no physical tables are created/mutated).
  *
  * This setup starts exactly one disposable Postgres container when DATABASE_URL is not provided,

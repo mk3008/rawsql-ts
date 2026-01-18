@@ -4,7 +4,7 @@
     "outDir": "dist",
     "rootDir": "src",
     "paths": {
-      "@rawsql-ts/testkit-core": ["../../packages/testkit-core/dist/index"]
+      "@rawsql-ts/testkit-core": ["../../testkit-core/dist/index"]
     }
   },
   "include": ["src/**/*.ts"],

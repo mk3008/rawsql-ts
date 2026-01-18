@@ -12,7 +12,7 @@
     "coverage:workspaces": "pnpm -r --if-present coverage",
     "build": "pnpm -r --if-present build",
     "build:core": "pnpm --filter rawsql-ts build",
-    "build:publish": "pnpm --filter rawsql-ts build:all && pnpm --filter @rawsql-ts/testkit-core build && pnpm --filter @rawsql-ts/pg-testkit build && pnpm --filter @rawsql-ts/sqlite-testkit build && pnpm --filter @rawsql-ts/ztd-cli build",
+    "build:publish": "pnpm --filter rawsql-ts build:all && pnpm --filter @rawsql-ts/testkit-core build && pnpm --filter @rawsql-ts/testkit-postgres build && pnpm --filter @rawsql-ts/adapter-node-pg build && pnpm --filter @rawsql-ts/sqlite-testkit build && pnpm --filter @rawsql-ts/ztd-cli build",
     "changeset": "changeset",
     "changesets:version": "changeset version",
     "changesets:publish": "changeset publish",
@@ -21,7 +21,7 @@
     "benchmark": "pnpm --filter rawsql-ts benchmark",
     "ztd:bench": "ts-node benchmarks/ztd-test-benchmark.ts",
     "ztd:bench:perworker": "cross-env ZTD_DB_CONCURRENCY=perWorker pnpm ztd:bench",
-    "ztd:bench:pg-testkit-mode": "ts-node benchmarks/pg-testkit-mode-benchmark.ts",
+    "ztd:bench:testkit-postgres-mode": "ts-node benchmarks/testkit-postgres-mode-benchmark.ts",
     "demo:complex-sql": "node packages/core/demo/complex-sql-demo.js",
     "playground:gen-config": "pnpm --filter ztd-playground exec ztd ztd-config",
     "playground:typecheck": "pnpm --filter ztd-playground typecheck",
@@ -46,7 +46,8 @@
     "url": "https://github.com/mk3008/rawsql-ts.git"
   },
   "devDependencies": {
-    "@rawsql-ts/pg-testkit": "workspace:*",
+    "@rawsql-ts/testkit-postgres": "workspace:*",
+    "@rawsql-ts/adapter-node-pg": "workspace:*",
     "@rawsql-ts/testkit-core": "workspace:*",
     "@changesets/changelog-github": "^0.5.2",
     "@changesets/cli": "^2.29.8",

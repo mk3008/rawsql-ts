@@ -7,7 +7,7 @@
     "ztd": "dist/index.js"
   },
   "scripts": {
-    "prebuild": "pnpm --filter @rawsql-ts/testkit-core build && pnpm --filter @rawsql-ts/pg-testkit build",
+    "prebuild": "pnpm --filter @rawsql-ts/testkit-core build && pnpm --filter @rawsql-ts/testkit-postgres build && pnpm --filter @rawsql-ts/adapter-node-pg build",
     "prepack": "node -e \"const fs=require('fs');const cp=require('child_process');const npm=process.platform==='win32'?'npm.cmd':'npm';if(!fs.existsSync('dist/index.js')){process.exit(cp.spawnSync(npm,['run','build'],{stdio:'inherit'}).status??1)}\"",
     "build": "tsc -p tsconfig.json",
     "test": "vitest run",
@@ -30,8 +30,9 @@
     "node": ">=20"
   },
   "dependencies": {
-    "@rawsql-ts/pg-testkit": "workspace:*",
+    "@rawsql-ts/adapter-node-pg": "workspace:*",
     "@rawsql-ts/testkit-core": "workspace:*",
+    "@rawsql-ts/testkit-postgres": "workspace:*",
     "@testcontainers/postgresql": "^10.28.0",
     "chokidar": "^5.0.0",
     "commander": "^12.0.0",

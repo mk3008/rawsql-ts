@@ -1612,7 +1612,7 @@ export function renderReport(
 
   reportLines.push(
 
-    '- Traditional in-process runs open per-case PG connections to mirror migration workflows, whereas ZTD in-process runs reuse a shared pg-testkit connection because fixture materialization couples to that queryable; further pooling is not feasible.',
+    '- Traditional in-process runs open per-case PG connections to mirror migration workflows, whereas ZTD in-process runs reuse a shared testkit-postgres connection because fixture materialization couples to that queryable; further pooling is not feasible.',
 
   );
 
