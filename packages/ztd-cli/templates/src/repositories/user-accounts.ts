@@ -14,6 +14,13 @@ type UserProfileRow = {
 
 /**
  * DTO that represents a user account with its optional profile information.
+ * @property {number} userAccountId The primary key for the user account.
+ * @property {string} username The canonical username.
+ * @property {string} email The account email address.
+ * @property {string} displayName The account display name.
+ * @property {Date} createdAt When the account was created.
+ * @property {Date} updatedAt When the account was last updated.
+ * @property {UserProfileRow} [profile] Optional profile payload joined from user_profile.
  */
 export type UserAccountWithProfile = {
   userAccountId: number;
@@ -85,6 +92,7 @@ const createMapperForClient = (client: SqlClient) =>
 /**
  * Queries all user accounts together with their associated profiles.
  * @param client Client proxy that executes the mapper SQL.
+ * @returns {Promise<UserAccountWithProfile[]>} The joined account-with-profile rows.
  */
 export async function listUserProfiles(
   client: SqlClient,
@@ -95,6 +103,9 @@ export async function listUserProfiles(
 
 /**
  * Parameters required to insert a new user account.
+ * @property {string} username The requested username.
+ * @property {string} email The requested email address.
+ * @property {string} displayName The requested display name.
  */
 export type NewUserAccount = {
   username: string;
@@ -104,6 +115,7 @@ export type NewUserAccount = {
 
 /**
  * Payload describing the display name change for an existing account.
+ * @property {string} displayName The new display name to persist.
  */
 export type DisplayNameUpdatePayload = {
   displayName: string;
@@ -112,6 +124,7 @@ export type DisplayNameUpdatePayload = {
 /**
  * Builds an insert statement for the user_account writer.
  * @param input The normalized fields for the new account.
+ * @returns A well-formed insert statement for the user_account writer.
  */
 export function buildInsertUserAccount(
   input: NewUserAccount,
@@ -127,6 +140,7 @@ export function buildInsertUserAccount(
  * Builds an update statement that refreshes the display name and timestamp.
  * @param key The unique key identifying the row to update.
  * @param payload The new display name payload.
+ * @returns A writer update statement that refreshes the display name and updated_at timestamp.
  */
 export function buildUpdateDisplayName(
   key: Key,
@@ -146,6 +160,7 @@ export function buildUpdateDisplayName(
 /**
  * Builds a delete statement for the specified user account key.
  * @param key Identifies the row to remove.
+ * @returns A writer delete statement for the matching user account.
  */
 export function buildRemoveUserAccount(key: Key): ReturnType<typeof remove> {
   return remove(userAccountTable, key);
@@ -153,6 +168,9 @@ export function buildRemoveUserAccount(key: Key): ReturnType<typeof remove> {
 
 /**
  * Column sets that writer tests use to ensure only approved columns are touched.
+ * @property {readonly string[]} insertColumns Columns allowed for new account inserts.
+ * @property {readonly string[]} updateColumns Columns permitted during updates.
+ * @property {readonly string[]} immutableColumns Columns that must remain unchanged.
  */
 export const userAccountWriterColumnSets = {
   insertColumns: ['username', 'email', 'display_name'] as const,
