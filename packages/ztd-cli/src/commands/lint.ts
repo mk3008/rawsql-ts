@@ -14,7 +14,7 @@ import {
   type DdlLintMode,
   type TableRowsFixture
 } from '@rawsql-ts/testkit-core';
-import { createPgTestkitClient } from '@rawsql-ts/pg-testkit';
+import { createPgTestkitClient } from '@rawsql-ts/adapter-node-pg';
 import { PostgreSqlContainer } from '@testcontainers/postgresql';
 import { loadZtdProjectConfig } from '../utils/ztdProjectConfig';
 import {

@@ -171,7 +171,7 @@ const NEXT_STEPS = [
   ' 1. Review the schema files under ztd/ddl/<schema>.sql',
   ' 2. Inspect tests/generated/ztd-layout.generated.ts for the SQL layout',
   ' 3. Run npx ztd ztd-config',
-  ' 4. Run ZTD tests with pg-testkit'
+  ' 4. Run ZTD tests with the testkit-postgres stack'
 ];
 
 const AGENTS_FILE_CANDIDATES = ['AGENTS.md', 'AGENTS_ztd.md'];
@@ -803,7 +803,7 @@ function listTemplateReferencedPackages(
   absolutePaths: Record<FileKey, string>,
   summaries: Partial<Record<FileKey, FileSummary>>
 ): string[] {
-  const packages = new Set<string>(['@rawsql-ts/pg-testkit']);
+  const packages = new Set<string>(['@rawsql-ts/testkit-postgres', '@rawsql-ts/adapter-node-pg']);
   const touchedKeys = Object.entries(summaries)
     .filter((entry): entry is [FileKey, FileSummary] => Boolean(entry[1]))
     .filter(([, summary]) => summary.outcome === 'created' || summary.outcome === 'overwritten')

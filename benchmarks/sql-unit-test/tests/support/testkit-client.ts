@@ -1,13 +1,13 @@
 // ZTD testkit helper - AUTO GENERATED
-// ztd-cli emits this file during project bootstrapping to wire pg-testkit.
+// ztd-cli emits this file during project bootstrapping to wire pg-testkit adapters.
 // Regenerate via npx ztd init (choose overwrite when prompted); avoid manual edits.
 
 import { existsSync, promises as fsPromises } from 'node:fs';
 import path from 'node:path';
 import { Client, types } from 'pg';
 import type { ClientConfig, QueryResultRow } from 'pg';
-import { createPgTestkitClient } from '@rawsql-ts/pg-testkit';
-import type { PgQueryInput, PgQueryable } from '@rawsql-ts/pg-testkit';
+import { createPgTestkitClient } from '@rawsql-ts/adapter-node-pg';
+import type { PgQueryInput, PgQueryable } from '@rawsql-ts/adapter-node-pg';
 import type { TableFixture } from '@rawsql-ts/testkit-core';
 import {
   AnalyzeStatement,

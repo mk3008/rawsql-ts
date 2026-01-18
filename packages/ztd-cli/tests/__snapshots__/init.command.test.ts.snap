@@ -25,7 +25,7 @@ Next steps:
  1. Review the schema files under ztd/ddl/<schema>.sql
  2. Inspect tests/generated/ztd-layout.generated.ts for the SQL layout
  3. Run npx ztd ztd-config
- 4. Run ZTD tests with pg-testkit"
+ 4. Run ZTD tests with the testkit-postgres stack"
 `;
 
 exports[`init wizard pulls schema if pg_dump is available 1`] = `
@@ -53,5 +53,5 @@ Next steps:
  1. Review the schema files under ztd/ddl/<schema>.sql
  2. Inspect tests/generated/ztd-layout.generated.ts for the SQL layout
  3. Run npx ztd ztd-config
- 4. Run ZTD tests with pg-testkit"
+ 4. Run ZTD tests with the testkit-postgres stack"
 `;

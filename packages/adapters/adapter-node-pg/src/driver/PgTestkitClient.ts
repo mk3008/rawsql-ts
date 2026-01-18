@@ -1,0 +1,180 @@
+import type {
+  FieldDef,
+  QueryConfig,
+  QueryResult,
+  QueryResultRow,
+} from 'pg';
+import {
+  createPostgresTestkitClient,
+  type PostgresTestkitClient,
+  type Row,
+} from '@rawsql-ts/testkit-postgres';
+import type { CountableResult } from '@rawsql-ts/testkit-core';
+import type {
+  CreatePgTestkitClientOptions,
+  PgQueryInput,
+  PgQueryable,
+  TableRowsFixture,
+} from '../types';
+
+export class PgTestkitClient {
+  private readonly testkit: PostgresTestkitClient;
+  private connection?: PgQueryable;
+  private released = false;
+  private readonly metadataQueue: QueryResult<Row>[] = [];
+
+  constructor(
+    private readonly options: CreatePgTestkitClientOptions,
+    testkit?: PostgresTestkitClient,
+    connection?: PgQueryable
+  ) {
+    this.connection = connection;
+    this.testkit = testkit ?? this.buildTestkit();
+  }
+
+  public async query<T extends QueryResultRow = QueryResultRow>(
+    textOrConfig: PgQueryInput,
+    values?: unknown[]
+  ): Promise<QueryResult<T>>;
+  public query<R extends any[] = any[], I = any[]>(
+    queryConfig: QueryConfig<I>,
+    values?: QueryConfig['values']
+  ): Promise<any>;
+  public query(...args: unknown[]): unknown {
+    const [queryTextOrConfig, valuesOrCallback, callbackOrUndefined] = args as [
+      PgQueryInput,
+      unknown[] | ((err: Error, result: QueryResult<QueryResultRow>) => void) | undefined,
+      ((err: Error, result: QueryResult<QueryResultRow>) => void) | undefined
+    ];
+    const callback = typeof valuesOrCallback === 'function' ? valuesOrCallback : callbackOrUndefined;
+    const values = typeof valuesOrCallback === 'function' ? undefined : (valuesOrCallback as unknown[] | undefined);
+
+    const payload =
+      typeof queryTextOrConfig === 'string'
+        ? queryTextOrConfig
+        : {
+            text: queryTextOrConfig.text,
+            values: queryTextOrConfig.values ?? values,
+          };
+
+    const execution = this.testkit.query(payload, typeof queryTextOrConfig === 'string' ? values : undefined);
+    const finalize = (result: CountableResult<Row>) => this.toQueryResult(result, this.consumeMetadata());
+
+    if (typeof callback === 'function') {
+      execution
+        .then((result) => callback(null as unknown as Error, finalize(result)))
+        .catch((error) => {
+          this.consumeMetadata();
+          callback(error as Error, undefined as unknown as QueryResult<QueryResultRow>);
+        });
+      return undefined;
+    }
+
+    return execution.then(finalize, (error) => {
+      this.consumeMetadata();
+      throw error;
+    });
+  }
+
+  public withFixtures(fixtures: TableRowsFixture[]): PgTestkitClient {
+    const scopedTestkit = this.testkit.withFixtures(fixtures);
+    return new PgTestkitClient(this.options, scopedTestkit, this.connection);
+  }
+
+  public async close(): Promise<void> {
+    await this.testkit.close();
+  }
+
+  private buildTestkit(): PostgresTestkitClient {
+    return createPostgresTestkitClient({
+      queryExecutor: async (sql, params) => {
+        const pgResult = await this.executeQuery(sql, params);
+        this.metadataQueue.push(pgResult);
+        return pgResult.rows;
+      },
+      tableDefinitions: this.options.tableDefinitions,
+      tableRows: this.options.tableRows,
+      formatterOptions: this.options.formatterOptions,
+      missingFixtureStrategy: this.options.missingFixtureStrategy,
+      ddl: this.options.ddl,
+      defaultSchema: this.options.defaultSchema,
+      searchPath: this.options.searchPath,
+      onExecute: this.options.onExecute,
+      disposeExecutor: () => this.releaseConnection(),
+    });
+  }
+
+  private async executeQuery(
+    sql: string,
+    params?: readonly unknown[]
+  ): Promise<QueryResult<Row>> {
+    const connection = await this.getConnection();
+    return connection.query<Row>(sql, params as unknown[]);
+  }
+
+  private consumeMetadata(): QueryResult<Row> | undefined {
+    return this.metadataQueue.shift();
+  }
+
+  private toQueryResult(result: CountableResult<Row>, metadata?: QueryResult<Row>): QueryResult<Row> {
+    const command = result.command ?? metadata?.command ?? 'select';
+    const rowCount = result.rowCount ?? metadata?.rowCount ?? 0;
+    const fields = (metadata?.fields ?? (result.fields ?? [])) as FieldDef[];
+    const columnNames = fields.map((field) => field.name);
+    const rows = result.rows.map((row) => {
+      const record = row as Record<string, unknown>;
+      Object.defineProperty(record, 'reduce', {
+        value: (callback: (accumulator: unknown, value: unknown, index: number) => unknown, initialValue: unknown) => {
+          let accumulator = initialValue;
+          for (let index = 0; index < columnNames.length; index++) {
+            accumulator = callback(accumulator, record[columnNames[index]], index);
+          }
+          return accumulator;
+        },
+        enumerable: false,
+      });
+      return record;
+    });
+    return {
+      command,
+      fields,
+      oid: 0,
+      rowCount,
+      rows,
+    };
+  }
+
+  private async getConnection(): Promise<PgQueryable> {
+    if (this.connection) {
+      return this.connection;
+    }
+    this.connection = await this.options.connectionFactory();
+    this.released = false;
+    return this.connection;
+  }
+
+  private async releaseConnection(): Promise<void> {
+    if (this.released) {
+      return;
+    }
+    this.released = true;
+    if (!this.connection) {
+      return;
+    }
+
+    const closable = this.connection;
+    this.connection = undefined;
+
+    if (typeof closable.release === 'function') {
+      closable.release();
+      return;
+    }
+    if (typeof closable.end === 'function') {
+      await closable.end();
+    }
+  }
+}
+
+export const createPgTestkitClient = (options: CreatePgTestkitClientOptions): PgTestkitClient => {
+  return new PgTestkitClient(options);
+};

@@ -2,8 +2,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { types } from 'pg';
 import type { QueryResultRow } from 'pg';
-import { createPgTestkitClient } from '@rawsql-ts/pg-testkit';
-import type { PgQueryInput, PgQueryable } from '@rawsql-ts/pg-testkit';
+import { createPgTestkitClient } from '@rawsql-ts/adapter-node-pg';
+import type { PgQueryInput, PgQueryable } from '@rawsql-ts/adapter-node-pg';
 import type { TableFixture } from '@rawsql-ts/testkit-core';
 import {
   ConnectionLogger,
@@ -78,7 +78,7 @@ async function acquireQueryable(options: AcquireOptions): Promise<{
     pid,
     applicationName,
   });
-  // Wrap the raw client so pg-testkit sees the minimal PgQueryable surface.
+  // Wrap the raw client so the adapter sees the minimal PgQueryable surface.
   const queryable: PgQueryable = {
     query: <T extends QueryResultRow>(textOrConfig: PgQueryInput, values?: unknown[]) =>
       client.query<T>(textOrConfig as never, values),

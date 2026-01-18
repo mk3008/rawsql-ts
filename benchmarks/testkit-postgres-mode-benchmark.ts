@@ -38,7 +38,9 @@ const CASE_RUNNERS: CaseRunner[] = [
 const MODES: ZtdExecutionMode[] = ['ztd', 'traditional'];
 const WARMUP_RUNS = Math.max(0, resolveNumberEnv('PG_TESTKIT_MODE_BENCH_WARMUP', 1));
 const MEASURED_RUNS = Math.max(1, resolveNumberEnv('PG_TESTKIT_MODE_BENCH_RUNS', 5));
-const REPORT_PATH = process.env.PG_TESTKIT_MODE_BENCH_REPORT_PATH ?? path.join('tmp', 'pg-testkit-mode-report.md');
+const REPORT_PATH =
+  process.env.TESTKIT_POSTGRES_MODE_BENCH_REPORT_PATH ??
+  path.join('tmp', 'testkit-postgres-mode-report.md');
 
 async function main(): Promise<void> {
   const container = await new PostgreSqlContainer('postgres:18-alpine')
@@ -52,7 +54,7 @@ async function main(): Promise<void> {
     const measuredResults: CaseRunResult[] = [];
 
     for (const mode of MODES) {
-      console.log(`Running pg-testkit mode benchmark: ${mode} (warmups=${WARMUP_RUNS}, measured=${MEASURED_RUNS})`);
+    console.log(`Running testkit-postgres mode benchmark: ${mode} (warmups=${WARMUP_RUNS}, measured=${MEASURED_RUNS})`);
       await runWarmups(mode);
       const modeResults = await runMeasuredRuns(mode);
       measuredResults.push(...modeResults);
@@ -61,7 +63,7 @@ async function main(): Promise<void> {
     const report = buildReport(measuredResults);
     fs.mkdirSync(path.dirname(REPORT_PATH), { recursive: true });
     fs.writeFileSync(REPORT_PATH, report, 'utf8');
-    console.log(`pg-testkit mode comparison report written to ${REPORT_PATH}`);
+    console.log(`testkit-postgres mode comparison report written to ${REPORT_PATH}`);
     console.log(report);
   } finally {
     await closeDbPool();
@@ -89,7 +91,7 @@ async function runAllCases(mode: ZtdExecutionMode, iteration: number, phase: 'wa
     await caseRunner.runner({
       schemaName: buildBenchSchemaName(`${caseRunner.caseName}-${mode}`, `${phase}-${iteration}`),
       executionMode: mode,
-      scenarioLabel: `pg-testkit-${mode}`,
+      scenarioLabel: `testkit-postgres-${mode}`,
       mode: 'serial',
       phase,
       workerId: `${mode}-warmup-${iteration}`,
@@ -109,7 +111,7 @@ async function runAllCasesWithMetrics(mode: ZtdExecutionMode, iteration: number)
     await caseRunner.runner({
       schemaName: buildBenchSchemaName(`${caseRunner.caseName}-${mode}`, `run-${iteration}`),
       executionMode: mode,
-      scenarioLabel: `pg-testkit-${mode}`,
+      scenarioLabel: `testkit-postgres-${mode}`,
       mode: 'serial',
       phase: 'measured',
       workerId: `${mode}-run-${iteration}`,
@@ -174,7 +176,7 @@ function buildReport(results: CaseRunResult[]): string {
   }
 
   const header = [
-    '# pg-testkit Mode Comparison',
+    '# testkit-postgres Mode Comparison',
     '',
     `- Measured suites: ${MEASURED_RUNS} repetitions per mode/case`,
     `- Warmup suites: ${WARMUP_RUNS} repetitions discarded at the start`,
@@ -189,10 +191,10 @@ function buildReport(results: CaseRunResult[]): string {
     '## Reproducing',
     '',
     '```bash',
-    'pnpm ztd:bench:pg-testkit-mode',
+    'pnpm ztd:bench:testkit-postgres-mode',
     '```',
     '',
-    'This benchmark spikes both the pg-testkit ZTD rewrite path and the traditional DDL/seeding path to highlight where the time is spent.',
+    'This benchmark spikes both the testkit-postgres ZTD rewrite path and the traditional DDL/seeding path to highlight where the time is spent.',
   ].join('\n');
 
   return `${reportBody}\n${footer}`;
