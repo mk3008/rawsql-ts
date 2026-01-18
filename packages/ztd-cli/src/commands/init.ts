@@ -153,9 +153,22 @@ export interface InitCommandOptions {
   withAppInterface?: boolean;
 }
 
-const SAMPLE_SCHEMA = `CREATE TABLE public.example (
-  id serial PRIMARY KEY,
-  name text NOT NULL
+const SAMPLE_SCHEMA = `
+CREATE TABLE public.user_account (
+  user_account_id bigserial PRIMARY KEY,
+  username text NOT NULL,
+  email text NOT NULL UNIQUE,
+  display_name text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE public.user_profile (
+  profile_id bigserial PRIMARY KEY,
+  user_account_id bigint NOT NULL REFERENCES public.user_account(user_account_id),
+  bio text,
+  website text,
+  verified boolean NOT NULL DEFAULT false
 );
 `;
 
@@ -513,7 +526,7 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     summaries.ztdDocsAgent = ztdDocsAgentSummary;
   }
 
-  // Provide the companion README inside ztd/ so maintainers understand the schema, spec, and enum intentions.
+  // Provide the companion README inside ztd/ so maintainers understand the schema expectations and doc layout.
   const ztdDocsReadmeSummary = await writeTemplateFile(
     rootDir,
     absolutePaths.ztdDocsReadme,
@@ -525,11 +538,6 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
   if (ztdDocsReadmeSummary) {
     summaries.ztdDocsReadme = ztdDocsReadmeSummary;
   }
-
-  const ztdRootDir = path.join(rootDir, 'ztd');
-  // Ensure the domain-specs and enums anchors exist so contributors immediately see where those artifacts belong.
-  dependencies.ensureDirectory(path.join(ztdRootDir, 'domain-specs'));
-  dependencies.ensureDirectory(path.join(ztdRootDir, 'enums'));
 
   const editorconfigSummary = copyTemplateFileIfMissing(
     rootDir,

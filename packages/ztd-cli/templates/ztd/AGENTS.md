@@ -1,7 +1,8 @@
-﻿# AGENTS: Zero Table Dependency Definitions
+# AGENTS: Zero Table Dependency Definitions
 
 This file defines **protected, human-led domains** under the `ztd/` directory.
 AI must treat these directories as authoritative sources of truth and must not modify them without explicit instruction.
+These rules govern the `ztd/` contents after project initialization and apply regardless of mapper, writer, or runtime architecture decisions.
 
 ---
 
@@ -10,6 +11,7 @@ AI must treat these directories as authoritative sources of truth and must not m
 - `tests/generated/` is auto-generated and must never be committed.
 - After cloning the repository (or in a clean environment), run `npx ztd ztd-config`.
 - If TypeScript reports missing modules or type errors because `tests/generated/` is missing, run `npx ztd ztd-config`.
+- Generated artifacts exist solely to support validation and testing and MUST NEVER influence definitions under `ztd/`.
 
 ---
 
@@ -45,105 +47,30 @@ It is the **single source of truth** for the physical database schema as interpr
 - When asked to extend existing definitions:
   - Do not remove or rewrite existing columns or comments unless explicitly told.
   - Maintain column order and constraint style.
-- Do not introduce schema changes that conflict with:
-  - `ztd/domain-specs`
-  - `ztd/enums`
+- Do not introduce schema changes that conflict with declared enums, if any exist in `ztd/enums/`.
+- The `public.user_account` and `public.user_profile` tables exist to support the mapper/writer sample; any modification to those tables is a maintenance obligation that requires concurrent updates to `src/repositories/user-accounts.ts` and `tests/writer-constraints.test.ts` so the workflow keeps functioning.
+- DDL defines physical truth only and MUST NEVER be reshaped to accommodate mapper, writer, or test tooling.
+- Runtime convenience is never a valid reason to alter DDL.
 
 If there is uncertainty, stop and request clarification instead of guessing.
 
 ---
 
-## Domain Specifications (`ztd/domain-specs/`)
-
-You are an AI agent that **reads** domain specifications to understand business semantics.
-
-### Purpose
-
-Each file in this directory defines **one domain behavior**.
-These files explain *what the data means*, not how the application is implemented.
-
-### Instructions
-
-- Treat each Markdown file as defining exactly **one behavior**.
-- Use the embedded SQL block as the **reference SELECT**.
-- Only the first top-level SQL block is executable logic.
-- Parameters may be written as `:named` placeholders.
-  - When generating executable SQL, bind them as positional placeholders (`$1`, `$2`, `?`).
-- **Never modify files in this directory unless explicitly instructed.**
-
-### Rules (strict)
-
-- Never ignore the human-written explanation above the SQL block.
-- Keep exactly one executable SQL block per file.
-- Do not reorder, optimize, or “simplify” SQL unless explicitly instructed.
-- Preserve the exact semantics described by humans.
-- This directory defines **what is correct behavior**.
-  - Your role is to reproduce that behavior elsewhere (`src/`, `tests/`), not reinterpret it.
-
-If meaning is ambiguous, defer to human judgment and ask.
-
----
-
-## Domain Enums (`ztd/enums/`)
-
-You are an AI assistant responsible for **reading and using** domain enum definitions.
-
-### Purpose
-
-This directory defines canonical value sets such as:
-
-- Status codes
-- Category types
-- Plan tiers
-
-These enums are the **only allowed vocabulary** for such concepts.
-
-### Behavior Guidelines (strict)
-
-- Never invent enum values.
-- Never hardcode magic numbers or strings.
-- Never modify or add enum definitions unless explicitly instructed by a human.
-
-### SQL Rules
-
-- Each file contains exactly one executable SQL block.
-- Enum definitions follow this canonical pattern:
-
-```sql
-select v.*
-from (
-  values
-    (1, 'some_code', 'some_label')
-) v(key, value, display_name);
-```
-
-- `key` and `value` are authoritative.
-- Additional columns (e.g. `display_name`, `ranking`) may be used for:
-  - UI display
-  - Sorting
-  - Documentation
-
-### Use in Code Generation
-
-- Always reference enums when generating:
-  - SQL WHERE conditions
-  - Constants
-  - Conditional logic
-- When translating logic from `ztd/domain-specs`, resolve enum references through this directory.
-- Maintain full consistency with naming and intent.
-
-If a required enum does not exist, stop and ask for human clarification.
+- When present, `ztd/domain-specs/` and `ztd/enums/` are informational references only; AI MUST NOT expect them to exist, MUST NOT treat them as authoritative, and MUST NOT require updates there unless instructed.
+- These directories are optional and MUST NOT be treated as inputs or constraints unless a human explicitly requests them.
+- Do not read domain-specs or enums unless directly instructed; the only authoritative source is `ztd/ddl`.
 
 ---
 
 ## Absolute Restrictions (important)
 
 - AI must not modify anything under `ztd/` by default.
-- DDL, domain-specs, and enums are **human-led artifacts**.
+- DDL is the only **human-led artifact** in this directory.
 - AI may assist by:
   - Reading
   - Explaining
   - Proposing diffs
 - AI may apply changes **only** with explicit instruction.
+- No tooling limitation, test strategy, or runtime design justifies modifying `ztd/` artifacts.
 
 Violation of these rules leads to silent corruption of domain meaning and is unacceptable.
