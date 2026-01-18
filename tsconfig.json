@@ -29,6 +29,8 @@
         "moduleResolution": "node",
         "baseUrl": ".", /* Base directory for non-relative module names. */
         "paths": {
+        "@rawsql-ts/mapper-core": ["packages/mapper-core/src"],
+        "@rawsql-ts/mapper-core/*": ["packages/mapper-core/src/*"],
         "@rawsql-ts/core": ["packages/core/src"],
         "@rawsql-ts/core/*": ["packages/core/src/*"],
         "@rawsql-ts/core/dist/src/*": ["packages/core/src/*"],
