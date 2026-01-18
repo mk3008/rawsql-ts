@@ -27,6 +27,7 @@ type RowsWithResultMetadata = Row[] & {
 export class PgTestkitClient {
   private readonly testkit: PostgresTestkitClient;
   private connection?: PgQueryable;
+  private connectionPromise?: Promise<PgQueryable>;
   private released = false;
 
   /**
@@ -167,9 +168,22 @@ export class PgTestkitClient {
     if (this.connection) {
       return this.connection;
     }
-    this.connection = await this.options.connectionFactory();
-    this.released = false;
-    return this.connection;
+    if (this.connectionPromise) {
+      return this.connectionPromise;
+    }
+
+    this.connectionPromise = (async () => {
+      try {
+        const connection = await this.options.connectionFactory();
+        this.connection = connection;
+        this.released = false;
+        return connection;
+      } finally {
+        this.connectionPromise = undefined;
+      }
+    })();
+
+    return this.connectionPromise;
   }
 
   private async releaseConnection(): Promise<void> {

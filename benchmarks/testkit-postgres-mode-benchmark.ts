@@ -52,6 +52,7 @@ const MEASURED_RUNS = Math.max(
 );
 const REPORT_PATH =
   process.env.TESTKIT_POSTGRES_MODE_BENCH_REPORT_PATH ??
+  process.env.PG_TESTKIT_MODE_BENCH_REPORT_PATH ??
   path.join('tmp', 'testkit-postgres-mode-report.md');
 
 async function main(): Promise<void> {
