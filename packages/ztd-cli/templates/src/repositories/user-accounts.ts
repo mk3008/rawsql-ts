@@ -12,6 +12,9 @@ type UserProfileRow = {
   verified: boolean;
 };
 
+/**
+ * DTO that represents a user account with its optional profile information.
+ */
 export type UserAccountWithProfile = {
   userAccountId: number;
   username: string;
@@ -79,6 +82,10 @@ const createMapperForClient = (client: SqlClient) =>
     },
   );
 
+/**
+ * Queries all user accounts together with their associated profiles.
+ * @param client Client proxy that executes the mapper SQL.
+ */
 export async function listUserProfiles(
   client: SqlClient,
 ): Promise<UserAccountWithProfile[]> {
@@ -86,17 +93,26 @@ export async function listUserProfiles(
   return mapper.query(userProfilesSql, [], userAccountMapping);
 }
 
+/**
+ * Parameters required to insert a new user account.
+ */
 export type NewUserAccount = {
   username: string;
   email: string;
   displayName: string;
 };
 
+/**
+ * Payload describing the display name change for an existing account.
+ */
 export type DisplayNameUpdatePayload = {
   displayName: string;
 };
 
-// Writer helpers keep SQL+params visible and enforce the minimal CUD surface.
+/**
+ * Builds an insert statement for the user_account writer.
+ * @param input The normalized fields for the new account.
+ */
 export function buildInsertUserAccount(
   input: NewUserAccount,
 ): ReturnType<typeof insert> {
@@ -107,6 +123,11 @@ export function buildInsertUserAccount(
   });
 }
 
+/**
+ * Builds an update statement that refreshes the display name and timestamp.
+ * @param key The unique key identifying the row to update.
+ * @param payload The new display name payload.
+ */
 export function buildUpdateDisplayName(
   key: Key,
   payload: DisplayNameUpdatePayload,
@@ -122,11 +143,17 @@ export function buildUpdateDisplayName(
   );
 }
 
+/**
+ * Builds a delete statement for the specified user account key.
+ * @param key Identifies the row to remove.
+ */
 export function buildRemoveUserAccount(key: Key): ReturnType<typeof remove> {
   return remove(userAccountTable, key);
 }
 
-// Tests consume these lists to verify writer callers stay within the approved columns.
+/**
+ * Column sets that writer tests use to ensure only approved columns are touched.
+ */
 export const userAccountWriterColumnSets = {
   insertColumns: ['username', 'email', 'display_name'] as const,
   updateColumns: ['display_name', 'updated_at'] as const,

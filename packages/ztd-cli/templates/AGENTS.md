@@ -105,7 +105,7 @@ Without tests, schema drift and SQL inconsistencies cannot be detected.
 - Do not introduce intermediate `*Row` types when SQL already returns DTO-compatible shapes.
 - Define separate Row types only when SQL intentionally returns database-shaped (snake_case) rows, and always convert them explicitly.
 
--### Mapper + writer guardrails (template-specific)
+### Mapper + writer guardrails (template-specific)
 
 - In this project, `src/repositories/user-accounts.ts` is the authoritative mapper for the columns defined by the DDL and any optional references; it MUST enumerate those columns explicitly so downstream logic never infers metadata at runtime.
 - Writer helpers in the same module MUST emit SQL for `public.user_account` only and MUST remain limited to the explicit insert/update/delete helpers shown there; DO NOT introduce ad-hoc schema discovery.
