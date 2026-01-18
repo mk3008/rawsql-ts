@@ -79,7 +79,7 @@ export class PostgresTestkitClient<RowType extends Row = Row> {
   public async query(
     textOrConfig: string | PostgresQueryInput,
     values?: unknown[]
-  ): Promise<CountableResult<Row>> {
+  ): Promise<CountableResult<RowType>> {
     const sql = typeof textOrConfig === 'string' ? textOrConfig : textOrConfig.text;
     if (!sql) {
       throw new Error('Query text is required for Postgres testkit execution.');
@@ -87,7 +87,7 @@ export class PostgresTestkitClient<RowType extends Row = Row> {
 
     const rewritten = this.rewriter.rewrite(sql, this.scopedRows);
     if (!rewritten.sql) {
-      return this.buildEmptyResult<Row>('NOOP');
+      return this.buildEmptyResult<RowType>('NOOP');
     }
 
     const incomingParams =
@@ -150,6 +150,12 @@ export class PostgresTestkitClient<RowType extends Row = Row> {
   }
 }
 
+/**
+ * Create a `PostgresTestkitClient` that rewrites SQL using the provided fixtures before delegating to the executor.
+ * @template RowType - The shape of rows returned by the query executor.
+ * @param options - Fixture definitions, table rows, formatter settings, and the executor used by the adapter.
+ * @returns A configured `PostgresTestkitClient`.
+ */
 export const createPostgresTestkitClient = <RowType extends Row>(
   options: CreatePostgresTestkitClientOptions<RowType>
 ): PostgresTestkitClient<RowType> => {

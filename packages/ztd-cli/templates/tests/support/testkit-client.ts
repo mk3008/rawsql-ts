@@ -1,5 +1,5 @@
 // ZTD testkit helper - AUTO GENERATED
-// ztd-cli emits this file during project bootstrapping to wire pg-testkit adapters.
+// ztd-cli emits this file during project bootstrapping to wire @rawsql-ts/adapter-node-pg adapters.
 // Regenerate via npx ztd init (choose overwrite when prompted); avoid manual edits.
 
 import { existsSync, promises as fsPromises } from 'node:fs';

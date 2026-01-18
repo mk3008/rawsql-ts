@@ -36,8 +36,20 @@ const CASE_RUNNERS: CaseRunner[] = [
 ];
 
 const MODES: ZtdExecutionMode[] = ['ztd', 'traditional'];
-const WARMUP_RUNS = Math.max(0, resolveNumberEnv('PG_TESTKIT_MODE_BENCH_WARMUP', 1));
-const MEASURED_RUNS = Math.max(1, resolveNumberEnv('PG_TESTKIT_MODE_BENCH_RUNS', 5));
+const WARMUP_RUNS = Math.max(
+  0,
+  resolveNumberEnv(
+    ['TESTKIT_POSTGRES_MODE_BENCH_WARMUP', 'PG_TESTKIT_MODE_BENCH_WARMUP'],
+    1
+  )
+);
+const MEASURED_RUNS = Math.max(
+  1,
+  resolveNumberEnv(
+    ['TESTKIT_POSTGRES_MODE_BENCH_RUNS', 'PG_TESTKIT_MODE_BENCH_RUNS'],
+    5
+  )
+);
 const REPORT_PATH =
   process.env.TESTKIT_POSTGRES_MODE_BENCH_REPORT_PATH ??
   path.join('tmp', 'testkit-postgres-mode-report.md');
@@ -200,12 +212,22 @@ function buildReport(results: CaseRunResult[]): string {
   return `${reportBody}\n${footer}`;
 }
 
-function resolveNumberEnv(key: string, fallback: number): number {
-  const raw = Number(process.env[key] ?? fallback);
-  if (!Number.isFinite(raw)) {
-    return fallback;
+function resolveNumberEnv(keys: string | string[], fallback: number): number {
+  const candidates = Array.isArray(keys) ? keys : [keys];
+  for (const key of candidates) {
+    if (!(key in process.env)) {
+      continue;
+    }
+
+    const raw = Number(process.env[key]);
+    if (!Number.isFinite(raw)) {
+      continue;
+    }
+
+    return Math.max(0, Math.floor(raw));
   }
-  return Math.max(0, Math.floor(raw));
+
+  return fallback;
 }
 
 function createEmptyMetrics(): ZtdBenchMetrics {

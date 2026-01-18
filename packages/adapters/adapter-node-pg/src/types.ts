@@ -75,4 +75,5 @@ export interface CreatePgTestkitPoolOptions extends SchemaResolutionOptions {
   tableRows?: TableRowsFixture[];
   ddl?: DdlFixtureLoaderOptions;
 }
+/** Fixture rows describing the tables/rows used by testkit-postgres and adapter-node-pg helpers. */
 export type { TableRowsFixture } from '@rawsql-ts/testkit-postgres';

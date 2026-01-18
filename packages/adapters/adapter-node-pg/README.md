@@ -12,9 +12,9 @@ pnpm add -D @rawsql-ts/adapter-node-pg pg
 
 ## API highlights
 
-- `createPgTestkitClient(options)` – lazily opens a `pg` connection, rewrites CRUD queries using fixtures, and returns a facade that behaves like `pg.Client`.
-- `createPgTestkitPool(connectionString, ...fixtures, options?)` – builds a `pg.Pool` whose client constructor is replaced with the pg-testkit client so transactions still execute on the raw driver.
-- `wrapPgClient(client, options)` – wraps any existing `pg.Client` or `pg.Pool` instance so queries flow through fixtures without touching your schema.
+- `createPgTestkitClient(options)` - creates a `PgTestkitClient`, lazily opens a `pg` connection, rewrites CRUD queries using fixtures, and returns a facade that behaves like `pg.Client`.
+- `createPgTestkitPool(connectionString, ...fixtures, options?)` - builds a `pg.Pool` whose client constructor is replaced with the `PgTestkitClient` so transactions still execute on the raw driver.
+- `wrapPgClient(client, options)` - wraps any existing `pg.Client` or `pg.Pool` instance so queries flow through the `PgTestkitClient` and the configured fixtures without touching your schema.
 
 Each helper accepts the same fixture configuration as before (`tableDefinitions`, `tableRows`, `ddl`, `missingFixtureStrategy`, etc.) and passes `onExecute` hooks through to `@rawsql-ts/testkit-postgres`.
 

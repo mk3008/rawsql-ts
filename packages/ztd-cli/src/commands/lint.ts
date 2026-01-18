@@ -63,7 +63,7 @@ export interface RunSqlLintResult {
 
 /**
  * Validate every SQL file against the configured DDL fixtures by replaying each
- * statement inside a pg-testkit-backed Postgres instance.
+ * statement through `@rawsql-ts/adapter-node-pg`'s `PgTestkitClient`.
  * @param options Configuration values that describe which files and schemas to lint.
  * @returns A summary of the failures observed and how many files were processed.
  */

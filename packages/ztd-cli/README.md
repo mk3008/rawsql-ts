@@ -195,7 +195,7 @@ You can also enable/disable logging per call by passing `ZtdSqlLogOptions` as th
 
 ### Purpose
 
-This benchmark executes the same repository implementation with two different supporting stacks: the Traditional schema/migration workflow (schema setup + seed + query + cleanup) and the ZTD fixture-backed workflow (repository query ↁErewrite ↁEfixture materialization). The comparison highlights:
+This benchmark executes the same repository implementation with two different supporting stacks: the Traditional schema/migration workflow (schema setup + seed + query + cleanup) and the ZTD fixture-backed workflow (repository query → rewrite → fixture materialization). The comparison highlights:
 
 - End-to-end wall-clock time including runner startup.
 - DB execution time and SQL count so Traditional’s higher SQL volume is explicit.
@@ -229,7 +229,7 @@ The 30-test suite exists to show how runner overhead amortizes as the number of 
 #### What is included / excluded
 
 - **Runner-included runs (main comparison):** wall-clock time including `pnpm` + `vitest` startup and test execution.
-- **Steady-state section:** measures incremental cost per iteration after the runner is warm (first iteration excluded), to approximate watch/CI-like “many tests per single runner invocation E
+- **Steady-state section:** measures incremental cost per iteration after the runner is warm (first iteration excluded), to approximate watch/CI-like “many tests per single runner invocation.”
 - **Container startup:** excluded (the Postgres container is shared across runs).
 
 #### Fairness / bias notes (important)

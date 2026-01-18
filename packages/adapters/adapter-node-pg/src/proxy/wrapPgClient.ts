@@ -2,6 +2,13 @@ import type { PgQueryable } from '../types';
 import { createPgTestkitClient } from '../driver/PgTestkitClient';
 import type { WrapPgClientOptions, WrappedPgClient, TableRowsFixture } from '../types';
 
+/**
+ * Wraps a `PgQueryable` client so queries flow through adapter-node-pg fixtures and rewriting.
+ * @template T - The type of the underlying Pg client or pool being proxied.
+ * @param client - The driver instance whose methods should be forwarded.
+ * @param options - Fixture/DDL configuration forwarded to `createPgTestkitClient`.
+ * @returns A `WrappedPgClient` that proxies queries through the testkit client.
+ */
 export const wrapPgClient = <T extends PgQueryable>(
   client: T,
   options: WrapPgClientOptions

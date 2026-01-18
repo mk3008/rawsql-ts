@@ -17,12 +17,23 @@ import type {
   TableRowsFixture,
 } from '../types';
 
+const RESULT_METADATA_KEY = Symbol('PgTestkitClientResultMetadata');
+
+type RowsWithResultMetadata = Row[] & {
+  [RESULT_METADATA_KEY]?: QueryResult<Row>;
+};
+
+/** A pg-compatible client that routes SQL through @rawsql-ts/testkit-postgres fixtures. */
 export class PgTestkitClient {
   private readonly testkit: PostgresTestkitClient;
   private connection?: PgQueryable;
   private released = false;
-  private readonly metadataQueue: QueryResult<Row>[] = [];
 
+  /**
+   * @param options - Fixture/DDL configuration plus the connection factory to wrap.
+   * @param testkit - Optional testkit client instance used for scoped fixtures.
+   * @param connection - Optional PgQueryable to share across helpers.
+   */
   constructor(
     private readonly options: CreatePgTestkitClientOptions,
     testkit?: PostgresTestkitClient,
@@ -58,20 +69,19 @@ export class PgTestkitClient {
           };
 
     const execution = this.testkit.query(payload, typeof queryTextOrConfig === 'string' ? values : undefined);
-    const finalize = (result: CountableResult<Row>) => this.toQueryResult(result, this.consumeMetadata());
+    const finalize = (result: CountableResult<Row>) =>
+      this.toQueryResult(result, this.extractMetadata(result.rows));
 
     if (typeof callback === 'function') {
       execution
         .then((result) => callback(null as unknown as Error, finalize(result)))
         .catch((error) => {
-          this.consumeMetadata();
           callback(error as Error, undefined as unknown as QueryResult<QueryResultRow>);
         });
       return undefined;
     }
 
     return execution.then(finalize, (error) => {
-      this.consumeMetadata();
       throw error;
     });
   }
@@ -89,7 +99,11 @@ export class PgTestkitClient {
     return createPostgresTestkitClient({
       queryExecutor: async (sql, params) => {
         const pgResult = await this.executeQuery(sql, params);
-        this.metadataQueue.push(pgResult);
+        const rowsWithMetadata = pgResult.rows as RowsWithResultMetadata;
+        Object.defineProperty(rowsWithMetadata, RESULT_METADATA_KEY, {
+          value: pgResult,
+          configurable: true,
+        });
         return pgResult.rows;
       },
       tableDefinitions: this.options.tableDefinitions,
@@ -112,8 +126,13 @@ export class PgTestkitClient {
     return connection.query<Row>(sql, params as unknown[]);
   }
 
-  private consumeMetadata(): QueryResult<Row> | undefined {
-    return this.metadataQueue.shift();
+  private extractMetadata(rows: Row[]): QueryResult<Row> | undefined {
+    const rowsWithMetadata = rows as RowsWithResultMetadata;
+    const metadata = rowsWithMetadata[RESULT_METADATA_KEY];
+    if (metadata) {
+      delete rowsWithMetadata[RESULT_METADATA_KEY];
+    }
+    return metadata;
   }
 
   private toQueryResult(result: CountableResult<Row>, metadata?: QueryResult<Row>): QueryResult<Row> {
@@ -175,6 +194,11 @@ export class PgTestkitClient {
   }
 }
 
+/**
+ * Build a `PgTestkitClient` that replays rewritten SQL through the configured fixtures.
+ * @param options - Fixture definitions, DDL, and connection factory used by the adapter.
+ * @returns A `PgTestkitClient` bound to the provided configuration.
+ */
 export const createPgTestkitClient = (options: CreatePgTestkitClientOptions): PgTestkitClient => {
   return new PgTestkitClient(options);
 };
