@@ -275,14 +275,14 @@ importers:
         specifier: ^4.0.7
         version: 4.0.7(@types/node@22.19.6)(jiti@2.6.1)(yaml@2.8.1)
 
-  packages/mapper-core:
+  packages/sql-contract:
     devDependencies:
       typescript:
         specifier: ^5.8.2
         version: 5.9.2
       vitest:
         specifier: ^4.0.7
-        version: 4.0.15(@types/node@22.18.7)(jiti@2.6.1)(yaml@2.8.1)
+        version: 4.0.15(@types/node@22.19.6)(jiti@2.6.1)(yaml@2.8.1)
 
   packages/testkit-core:
     dependencies:
@@ -296,15 +296,6 @@ importers:
       vitest:
         specifier: ^4.0.7
         version: 4.0.7(@types/node@22.19.6)(jiti@2.6.1)(yaml@2.8.1)
-
-  packages/writer-core:
-    devDependencies:
-      typescript:
-        specifier: ^5.8.2
-        version: 5.9.2
-      vitest:
-        specifier: ^4.0.7
-        version: 4.0.15(@types/node@22.19.6)(jiti@2.6.1)(yaml@2.8.1)
 
   packages/ztd-cli:
     dependencies:

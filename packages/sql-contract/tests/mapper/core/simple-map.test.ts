@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createMapper, mapSimpleRows, simpleMapPresets } from '../../../src'
+import { createMapper, mapSimpleRows, simpleMapPresets } from '@rawsql-ts/sql-contract/mapper'
 
 type UserDto = {
   id: string
@@ -117,8 +117,8 @@ describe('mapper simple mapping', () => {
     })
   })
 
-  describe('simple row mapping', () => {
-    it('maps snake_case scalars to camelCase without coercion', async () => {
+  describe('default normalization behaviors', () => {
+    it('maps snake_case scalars to camelCase and stringifies identifier columns by default', async () => {
       const rows = [
         {
           invoice_id: 101,
@@ -149,7 +149,7 @@ describe('mapper simple mapping', () => {
       expect(record.rateDouble).toBeCloseTo(3.14)
     })
 
-    it('keeps values untouched when no coercion is requested', async () => {
+    it('keeps payloads intact when no coercion is requested', async () => {
       const payload = { nested: true }
       const rows = [
         {
@@ -168,6 +168,78 @@ describe('mapper simple mapping', () => {
       expect(record.payload).toBe(payload)
     })
 
+    it('does not coerce numeric/decimal values by default', async () => {
+      const rows = [
+        {
+          amount: '100.01',
+        },
+      ]
+
+      const mapper = createMapper(async () => rows)
+      const [record] = await mapper.query<{ amount: string }>('SELECT ...', [])
+
+      expect(record.amount).toBe('100.01')
+      expect(typeof record.amount).toBe('string')
+    })
+
+    it('stringifies identifier columns by default while leaving other keys untouched', async () => {
+      const rows = [
+        {
+          id: 1,
+          order_id: 9007199254740993n,
+          grid: 3,
+        },
+      ]
+
+      const mapper = createMapper(async () => rows)
+      const [record] = await mapper.query<{
+        id: string
+        orderId: string
+        grid: number
+      }>('SELECT ...', [])
+
+      expect(record.id).toBe('1')
+      expect(record.orderId).toBe('9007199254740993')
+      expect(record.grid).toBe(3)
+      expect(typeof record.grid).toBe('number')
+    })
+
+    it('stringifies id/userId while keeping userid/grid/identity untouched', async () => {
+      const rows = [
+        {
+          id: 1,
+          userId: 2,
+          userid: 3,
+          grid: 4,
+          identity: 5,
+        },
+      ]
+
+      const mapper = createMapper(async () => rows)
+      const [record] = await mapper.query<{
+        id: string
+        userId: string
+        userid: number
+        grid: number
+        identity: number
+      }>('SELECT ...', [])
+
+      expect(record.id).toBe('1')
+      expect(record.userId).toBe('2')
+      expect(record.userid).toBe(3)
+      expect(record.grid).toBe(4)
+      expect(record.identity).toBe(5)
+      expect(typeof record.identity).toBe('number')
+    })
+
+    it('defaults idKeysAsString to true even when mapSimpleRows runs without options', () => {
+      const rows = [{ id: 1 }]
+      const [dto] = mapSimpleRows<{ id: string }>(rows)
+      expect(dto.id).toBe('1')
+    })
+  })
+
+  describe('opt-in coercion controls', () => {
     it('keeps issuedAt as a string until coerceDates opts in', async () => {
       const rows = [
         {
@@ -191,21 +263,7 @@ describe('mapper simple mapping', () => {
       expect(coerced.issuedAt.toISOString()).toBe('2025-01-01T00:00:00.000Z')
     })
 
-    it('does not coerce numeric/decimal values by default', async () => {
-      const rows = [
-        {
-          amount: '100.01',
-        },
-      ]
-
-      const mapper = createMapper(async () => rows)
-      const [record] = await mapper.query<{ amount: string }>('SELECT ...', [])
-
-      expect(record.amount).toBe('100.01')
-      expect(typeof record.amount).toBe('string')
-    })
-
-    it('applies numeric decimal coercion only when explicitly provided', async () => {
+    it('applies numeric decimal coercion only when explicitly provided via coerceFn', async () => {
       const rows = [
         {
           amount: '123.45',
@@ -236,55 +294,6 @@ describe('mapper simple mapping', () => {
       ).toBe(true)
     })
 
-    it('throws when camelCase normalization collides with existing columns', async () => {
-      const rows = [
-        {
-          invoice_id: 1,
-          invoiceId: 2,
-        },
-      ]
-
-      const mapper = createMapper(async () => rows)
-      await expect(mapper.query('SELECT ...', [])).rejects.toThrow(
-        /conflict|collision|ambiguous/i
-      )
-    })
-
-    it('throws when snake_case and camelCase variants target the same key', async () => {
-      const rows = [
-        {
-          foo_bar: 1,
-          fooBar: 2,
-        },
-      ]
-
-      const mapper = createMapper(async () => rows)
-      await expect(mapper.query('SELECT ...', [])).rejects.toThrow(
-        /conflict|collision|ambiguous/i
-      )
-    })
-    it('stringifies identifier columns by default', async () => {
-      const rows = [
-        {
-          id: 1,
-          order_id: 9007199254740993n,
-          grid: 3,
-        },
-      ]
-
-      const mapper = createMapper(async () => rows)
-      const [record] = await mapper.query<{
-        id: string
-        orderId: string
-        grid: number
-      }>('SELECT ...', [])
-
-      expect(record.id).toBe('1')
-      expect(record.orderId).toBe('9007199254740993')
-      expect(record.grid).toBe(3)
-      expect(typeof record.grid).toBe('number')
-    })
-
     it('lets type hints override identifier defaults', async () => {
       const rows = [
         {
@@ -312,33 +321,7 @@ describe('mapper simple mapping', () => {
       expect(record.createdAt.toISOString()).toBe('2025-01-01T00:00:00.000Z')
       expect(record.activeFlag).toBe(true)
     })
-    it('stringifies id/userId but leaves userid/grid/identity untouched', async () => {
-      const rows = [
-        {
-          id: 1,
-          userId: 2,
-          userid: 3,
-          grid: 4,
-          identity: 5,
-        },
-      ]
 
-      const mapper = createMapper(async () => rows)
-      const [record] = await mapper.query<{
-        id: string
-        userId: string
-        userid: number
-        grid: number
-        identity: number
-      }>('SELECT ...', [])
-
-      expect(record.id).toBe('1')
-      expect(record.userId).toBe('2')
-      expect(record.userid).toBe(3)
-      expect(record.grid).toBe(4)
-      expect(record.identity).toBe(5)
-      expect(typeof record.identity).toBe('number')
-    })
     it('reports a helpful error when bigint hints receive invalid strings', async () => {
       const rows = [{ id: '1.2' }]
       const mapper = createMapper(async () => rows)
@@ -353,10 +336,35 @@ describe('mapper simple mapping', () => {
         /Type hint 'bigint' failed for "id".*"1.2"/
       )
     })
-    it('defaults idKeysAsString to true even when mapSimpleRows runs without options', () => {
-      const rows = [{ id: 1 }]
-      const [dto] = mapSimpleRows<{ id: string }>(rows)
-      expect(dto.id).toBe('1')
+  })
+
+  describe('fail-fast collisions', () => {
+    it('throws when camelCase normalization collides with existing columns', async () => {
+      const rows = [
+        {
+          invoice_id: 1,
+          invoiceId: 2,
+        },
+      ]
+
+      const mapper = createMapper(async () => rows)
+      await expect(mapper.query('SELECT ...', [])).rejects.toThrow(
+        /conflict|collision|ambiguous/i
+      )
+    })
+
+    it('throws when snake_case and camelCase variants target the same key', async () => {
+      const rows = [
+        {
+          foo_bar: 1,
+          fooBar: 2,
+        },
+      ]
+
+      const mapper = createMapper(async () => rows)
+      await expect(mapper.query('SELECT ...', [])).rejects.toThrow(
+        /conflict|collision|ambiguous/i
+      )
     })
   })
 

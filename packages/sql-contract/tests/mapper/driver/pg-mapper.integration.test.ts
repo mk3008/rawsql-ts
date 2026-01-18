@@ -15,7 +15,7 @@ import {
   createMapperFromExecutor,
   SimpleMapOptions,
   toRowsExecutor,
-} from '../../../src'
+} from '@rawsql-ts/sql-contract/mapper'
 
 const dockerRuntimeAvailable = (() => {
   try {
@@ -95,11 +95,14 @@ driverDescribe('mapper driver integration (pg)', () => {
       '2025-01-15T09:00:00.000Z'
     )
     expect(record.issuedAtTimestamp).toBeInstanceOf(Date)
-    const expectedTimestamp = new Date('2025-01-15T09:00:00')
-    // Compare local Date values so the assertion is stable across host time zones.
-    expect(record.issuedAtTimestamp.getTime()).toBe(
-      expectedTimestamp.getTime()
-    )
+    // Timestamp columns are interpreted without timezone info. Assert via UTC fields so the test
+    // remains deterministic regardless of the container clock zone.
+    expect(record.issuedAtTimestamp.getUTCFullYear()).toBe(2025)
+    expect(record.issuedAtTimestamp.getUTCMonth()).toBe(0)
+    expect(record.issuedAtTimestamp.getUTCDate()).toBe(15)
+    expect(record.issuedAtTimestamp.getUTCHours()).toBe(0)
+    expect(record.issuedAtTimestamp.getUTCMinutes()).toBe(0)
+    expect(record.issuedAtTimestamp.getUTCSeconds()).toBe(0)
     expect(record.issuedAtTimestamptz).toBeInstanceOf(Date)
     expect(record.issuedAtTimestamptz.toISOString()).toBe(
       '2025-01-15T09:00:00.000Z'

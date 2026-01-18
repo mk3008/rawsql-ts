@@ -48,6 +48,9 @@ const assertTableIdentifier = (identifier: string, allowUnsafe?: boolean) => {
 const hasParamValueEntry = (entry: [string, ParamValue | undefined]): entry is [string, ParamValue] =>
   entry[1] !== undefined
 
+const sortEntries = (entries: [string, ParamValue][]): [string, ParamValue][] =>
+  entries.slice().sort(([a], [b]) => a.localeCompare(b))
+
 const ensureEntries = (entries: readonly unknown[], kind: 'insert' | 'update') => {
   if (entries.length === 0) {
     throw new Error(
@@ -61,15 +64,19 @@ const formatPlaceholder = (index: number) => `$${index}`
 const buildPlaceholders = (count: number, startIndex = 1) =>
   Array.from({ length: count }, (_, index) => formatPlaceholder(startIndex + index))
 
-const buildWhereClause = (key: Key, startIndex: number, options?: WriterCoreOptions) => {
-  const entries = Object.entries(key)
+const buildWhereClause = (
+  key: Key,
+  startIndex: number,
+  allowUnsafe: boolean
+) => {
+  const entries = sortEntries(Object.entries(key))
   if (entries.length === 0) {
     throw new Error('where must not be empty')
   }
 
   const params: ParamValue[] = []
   const clauses = entries.map(([column, value], index) => {
-    assertColumnIdentifier(column, options?.allowUnsafeIdentifiers)
+    assertColumnIdentifier(column, allowUnsafe)
     if (value === undefined) {
       throw new Error('key values must not be undefined')
     }
@@ -91,7 +98,7 @@ const buildWhereClause = (key: Key, startIndex: number, options?: WriterCoreOpti
 export const insert = (table: string, values: RecordValues, options?: WriterCoreOptions) => {
   const allowUnsafe = options?.allowUnsafeIdentifiers === true
   assertTableIdentifier(table, allowUnsafe)
-  const entries = Object.entries(values).filter(hasParamValueEntry)
+  const entries = sortEntries(Object.entries(values).filter(hasParamValueEntry))
   ensureEntries(entries, 'insert')
 
   const columns: string[] = []
@@ -122,7 +129,7 @@ export const update = (
 ) => {    
   const allowUnsafe = options?.allowUnsafeIdentifiers === true
   assertTableIdentifier(table, allowUnsafe)
-  const entries = Object.entries(values).filter(hasParamValueEntry)
+  const entries = sortEntries(Object.entries(values).filter(hasParamValueEntry))
   ensureEntries(entries, 'update')
 
   const params: ParamValue[] = []
@@ -132,7 +139,7 @@ export const update = (
     return `${column} = ${formatPlaceholder(params.length)}`
   })
   // Offset WHERE placeholders so they follow the SET parameters.
-  const whereClause = buildWhereClause(where, params.length + 1, options)
+  const whereClause = buildWhereClause(where, params.length + 1, allowUnsafe)
 
   return {
     sql: `UPDATE ${table} SET ${clauses.join(', ')} ${whereClause.clause}`,
@@ -147,7 +154,7 @@ export const update = (
 export const remove = (table: string, where: Key, options?: WriterCoreOptions) => {
   const allowUnsafe = options?.allowUnsafeIdentifiers === true
   assertTableIdentifier(table, allowUnsafe)
-  const whereClause = buildWhereClause(where, 1, options)
+  const whereClause = buildWhereClause(where, 1, allowUnsafe)
 
   return {
     sql: `DELETE FROM ${table} ${whereClause.clause}`,

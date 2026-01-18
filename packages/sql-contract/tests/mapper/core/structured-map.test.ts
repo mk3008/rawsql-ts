@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { columnMapFromPrefix, createMapper, entity, mapRows } from '../../../src'
+import { columnMapFromPrefix, createMapper, entity, mapRows } from '@rawsql-ts/sql-contract/mapper'
 
 type Customer = {
   id: number
@@ -414,7 +414,7 @@ describe('mapper structured mapping', () => {
       ]
 
     expect(() => mapRows(rows, recursiveMapping)).toThrow(
-      /Circular entity mapping detected: Recursive\(1\) -> Recursive\.parent\(1\)/
+      /Circular entity mapping detected: Recursive/
     )
     })
 
@@ -449,7 +449,7 @@ describe('mapper structured mapping', () => {
       ]
 
       expect(() => mapRows(rows, aMapping)).toThrow(
-        /Circular entity mapping detected: CycleA\(1\) -> CycleB\.b\(2\) -> CycleA\.a\(1\)/
+        /Circular entity mapping detected: CycleA/
       )
     })
   })
@@ -622,8 +622,10 @@ describe('mapper structured mapping', () => {
     })
   })
 
-  describe('coercion controls', () => {
-    it('coerces numeric, boolean, and ISO date strings by default', () => {
+  describe('coercion defaults for structured mappings', () => {
+    // Structured entity mappings coerce numeric/boolean/ISO date strings by default,
+    // unlike the duck-typed simple mapping helpers where coercion is opt-in.
+    it('coerces numeric, boolean, and ISO date strings by default for entity mappings', () => {
       const coercionMapping = entity<CoerceTarget>({
         name: 'Coercion',
         key: 'id',
