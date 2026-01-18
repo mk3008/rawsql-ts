@@ -18,6 +18,8 @@ Tests are a shared workspace for humans and AI, but must respect ZTD-specific co
   'perTest' }` to `provider.withRepositoryFixture`. Shared mode otherwise keeps the
   default behavior fast and deterministic.
 - If instructions are ambiguous, assume ZTD mode and proceed.
+- Tests MUST NOT mix ZTD mode and Traditional mode within the same test suite.
+- Traditional mode is reserved for integration-style validation; it is not a convenience or performance workaround.
 
 ---
 
@@ -44,6 +46,8 @@ If a required type is missing:
 - Export the correct type from `src/`.
 
 Do not invent substitute models.
+- Tests MUST treat `tests/generated/ztd-row-map.generated.ts` as the single source of truth for table-shaped rows.
+- If a column exists in the database but not in the row map, the schema is considered outdated until regenerated.
 
 ---
 
@@ -65,6 +69,8 @@ Preferred patterns:
 If behavior depends on transactions, isolation, or shared mutable state:
 - That test does not belong in ZTD unit tests.
 - Move it to an integration test and explicitly request Traditional mode.
+- A single repository method call is the maximum scope of observation in ZTD tests.
+- Tests that validate cross-call effects, workflows, or lifecycle transitions do not belong in ZTD tests.
 
 ---
 
@@ -75,6 +81,8 @@ If behavior depends on transactions, isolation, or shared mutable state:
 - Do not add rows or columns unrelated to the test intent.
 - Do not simulate application-side logic in fixtures.
 - Fixtures must satisfy non-nullable columns and required constraints derived from DDL.
+- Fixtures MUST NOT encode business rules, defaults, or derived values.
+- Fixtures exist only to satisfy schema constraints and make SQL executable.
 
 ---
 
@@ -95,6 +103,7 @@ If behavior depends on transactions, isolation, or shared mutable state:
 - Do not test internal helper functions or private implementation details.
 - Tests must match the repository method contract exactly
   (return type, nullability, and error behavior).
+- Tests MUST NOT compensate for mapper or writer limitations by reimplementing logic in the test itself.
 
 ---
 
@@ -125,7 +134,9 @@ If behavior depends on transactions, isolation, or shared mutable state:
 - However:
   - Do not redefine models.
   - Do not change schema assumptions.
-  - Do not edit `ztd/ddl`, `ztd/domain-specs`, or `ztd/enums` from tests.
+- Do not edit `ztd/ddl`. Do not modify optional references (`ztd/domain-specs`, `ztd/enums`) from tests unless explicitly instructed, and do not treat them as inputs or constraints; read them only when a human asks you to.
+- The only authoritative source for tests is `ztd/ddl`.
+- Tests may fail when `ztd/` definitions change; tests MUST be updated to reflect those changes, not the other way around.
 
 ---
 
@@ -137,10 +148,17 @@ If behavior depends on transactions, isolation, or shared mutable state:
 
 ---
 
+## Writer metadata guardrail (template-specific)
+
+- `tests/writer-constraints.test.ts` reads `userAccountWriterColumnSets` together with `tests/generated/ztd-row-map.generated.ts` to ensure every writer column actually exists on `public.user_account`.
+- Run `npx ztd ztd-config` before executing the template tests so the generated row map reflects your current schema changes.
+- When new columns appear in the writer helpers, adjust `userAccountWriterColumnSets`, rerun the row-map generator, and update the constraint test expectations.
+- These tests exist to enforce column correctness at test time so writer helpers remain runtime-safe and schema-agnostic.
+
 ## Guiding principle
 
 ZTD tests exist to validate **repository behavior derived from SQL semantics in isolation**.
-They are not integration tests, migration tests, or transaction tests.
+They are not integration tests, migration tests, or transaction tests.      
 
 Prefer:
 - Clear intent
