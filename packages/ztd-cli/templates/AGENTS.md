@@ -105,6 +105,8 @@ Without tests, schema drift and SQL inconsistencies cannot be detected.
 - Do not introduce intermediate `*Row` types when SQL already returns DTO-compatible shapes.
 - Define separate Row types only when SQL intentionally returns database-shaped (snake_case) rows, and always convert them explicitly.
 
+---
+
 ### Mapper + writer guardrails (template-specific)
 
 - In this project, `src/repositories/user-accounts.ts` is the authoritative mapper for the columns defined by the DDL and any optional references; it MUST enumerate those columns explicitly so downstream logic never infers metadata at runtime.
@@ -269,8 +271,8 @@ Flow: Reference updates to SQL to Tests to (DDL if required)
 
 # Combined Real-World Examples
 
- - Adding a new contract state:
-   DDL (and optional enum documentation) to SQL to config to tests
+- Adding a new contract state:
+  DDL (and optional enum documentation) to SQL to config to tests
 
 - Adding a new table:
   DDL to config to SQL to fixtures to tests

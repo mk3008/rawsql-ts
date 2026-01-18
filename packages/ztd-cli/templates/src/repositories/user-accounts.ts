@@ -91,7 +91,7 @@ const createMapperForClient = (client: SqlClient) =>
 
 /**
  * Queries all user accounts together with their associated profiles.
- * @param client Client proxy that executes the mapper SQL.
+ * @param {SqlClient} client Client proxy that executes the mapper SQL.
  * @returns {Promise<UserAccountWithProfile[]>} The joined account-with-profile rows.
  */
 export async function listUserProfiles(
@@ -123,8 +123,8 @@ export type DisplayNameUpdatePayload = {
 
 /**
  * Builds an insert statement for the user_account writer.
- * @param input The normalized fields for the new account.
- * @returns A well-formed insert statement for the user_account writer.
+ * @param {NewUserAccount} input The normalized fields for the new account.
+ * @returns {ReturnType<typeof insert>} A well-formed insert statement for the user_account writer.
  */
 export function buildInsertUserAccount(
   input: NewUserAccount,
@@ -138,9 +138,9 @@ export function buildInsertUserAccount(
 
 /**
  * Builds an update statement that refreshes the display name and timestamp.
- * @param key The unique key identifying the row to update.
- * @param payload The new display name payload.
- * @returns A writer update statement that refreshes the display name and updated_at timestamp.
+ * @param {Key} key The unique key identifying the row to update.
+ * @param {DisplayNameUpdatePayload} payload The new display name payload.
+ * @returns {ReturnType<typeof update>} A writer update statement that refreshes the display name and updated_at timestamp.
  */
 export function buildUpdateDisplayName(
   key: Key,
@@ -159,8 +159,8 @@ export function buildUpdateDisplayName(
 
 /**
  * Builds a delete statement for the specified user account key.
- * @param key Identifies the row to remove.
- * @returns A writer delete statement for the matching user account.
+ * @param {Key} key Identifies the row to remove.
+ * @returns {ReturnType<typeof remove>} A writer delete statement for the matching user account.
  */
 export function buildRemoveUserAccount(key: Key): ReturnType<typeof remove> {
   return remove(userAccountTable, key);
