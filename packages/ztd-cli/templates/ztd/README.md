@@ -1,6 +1,6 @@
 ﻿# ZTD Definitions
 
-This directory hosts the schema, domain-spec, and enum definitions that feed native ZTD workflows.
+This directory hosts the schema definitions (`ztd/ddl/`) that feed native ZTD workflows, while `ztd/domain-specs/` and `ztd/enums/` are optional documentation spaces used when humans maintain behavioral or vocabulary notes.
 
 ## DDL Definitions
 
@@ -23,12 +23,12 @@ The ztd/ddl/ directory stores **Data Definition Language (DDL)** files that desc
 
 ### Relationships
 
-- /ztd/domain-specs: Translates schema structures into behavioral expectations.
-- /ztd/enums: Provides the enum sets referenced by constraints or column defaults.
+- Optional documentation under `/ztd/domain-specs` and `/ztd/enums` explains behavior or vocabulary when humans choose to include it, but the DDL remains authoritative.
 
 ## Domain Specifications
 
-The ztd/domain-specs/ directory documents key domain behaviors as human-readable specifications.
+The ztd/domain-specs/ directory optionally documents key domain behaviors as human-readable specifications.
+If the directory does not exist, treat the DDL definitions as the canonical behavior and refer to these specs only when humans have provided them.
 
 ### Purpose
 
@@ -49,7 +49,8 @@ Each Markdown file describes one business concept, explains it in natural langua
 
 ## Domain Enums
 
-The ztd/enums/ directory contains enumerated value sets such as statuses, tiers, or lifecycle states.
+The ztd/enums/ directory optionally contains enumerated value sets such as statuses, tiers, or lifecycle states for documentation purposes.
+If the folder is missing, rely on the DDL and fixtures for enumeration knowledge; treat these files as optional, explanatory references when they exist.
 
 ### Purpose
 
@@ -74,11 +75,11 @@ ranking, or sort_order may be added for UI/logic purposes.
 ### Guidelines
 
 - Keep naming conventions consistent and avoid duplicate value identifiers across unrelated enums.
-- Ensure compatibility with /ztd/domain-specs and /ztd/ddl when expanding enums.
+- When optional reference notes exist, ensure they stay compatible with `/ztd/ddl` as enums evolve.
 - Preserve human-readable display_name values as needed for front-end contexts.
 
 ### Relationships
 
 - /ztd/ddl: Referenced by constraints or lookup tables.
-- /ztd/domain-specs: Provides the vocabulary for behavioral rules.
+- /ztd/domain-specs (when present): Provides the vocabulary for behavioral rules.
 - src/: Maps enums to generated constants or query logic.

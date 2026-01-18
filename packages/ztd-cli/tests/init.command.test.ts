@@ -78,42 +78,39 @@ test('init wizard bootstraps a repo when writing DDL manually', async () => {
   expect(existsSync(path.join(workspace, 'vitest.config.ts'))).toBe(true);
   expect(existsSync(path.join(workspace, 'ztd.config.json'))).toBe(true);
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('Zero Table Dependency');
-  expect(readNormalizedFile(schemaFilePath(workspace))).toContain('CREATE TABLE public.example');
+  expect(readNormalizedFile(schemaFilePath(workspace))).toContain('CREATE TABLE public.user_account');
   expect(
     readNormalizedFile(path.join(workspace, 'tests', 'generated', 'ztd-row-map.generated.ts'))
   ).toContain('export interface TestRowMap');
-  expect(readNormalizedFile(path.join(workspace, 'tests', 'generated', 'ztd-layout.generated.ts'))).toContain(
-    `ztdRootDir`
+  const layoutContents = readNormalizedFile(
+    path.join(workspace, 'tests', 'generated', 'ztd-layout.generated.ts'),
   );
+  expect(layoutContents).toContain('ztdRootDir');
+  expect(layoutContents).toContain('ddlDir');
   expect(
     existsSync(path.join(workspace, 'AGENTS.md')) || existsSync(path.join(workspace, 'AGENTS_ztd.md'))
   ).toBe(true);
   expect(existsSync(path.join(workspace, 'ztd', 'AGENTS.md'))).toBe(true);
   expect(existsSync(path.join(workspace, 'ztd', 'README.md'))).toBe(true);
-  expect(existsSync(path.join(workspace, 'ztd', 'domain-specs'))).toBe(true);
-  expect(readdirSync(path.join(workspace, 'ztd', 'domain-specs'))).toEqual([]);
-  expect(existsSync(path.join(workspace, 'ztd', 'enums'))).toBe(true);
-  expect(readdirSync(path.join(workspace, 'ztd', 'enums'))).toEqual([]);
+  expect(existsSync(path.join(workspace, 'ztd', 'ddl'))).toBe(true);
+  expect(readdirSync(path.join(workspace, 'ztd', 'ddl'))).toEqual(
+    expect.arrayContaining([schemaFileName]),
+  );
 
   // Ensure the generated testkit client can safely log params with circular references.
   expect(readNormalizedFile(testkitClientPath)).toContain('[Circular]');
 });
 
-test('init wizard leaves existing ztd anchor directories untouched', async () => {
-  const workspace = createTempDir('cli-init-existing-ztd-dirs');
-  const domainSpecsDir = path.join(workspace, 'ztd', 'domain-specs');
-  const enumsDir = path.join(workspace, 'ztd', 'enums');
-  // Pre-create the anchors to prove init leaves them intact.
-  mkdirSync(domainSpecsDir, { recursive: true });
-  mkdirSync(enumsDir, { recursive: true });
+test('init wizard leaves existing ztd/ddl directory untouched', async () => {
+  const workspace = createTempDir('cli-init-existing-ztd-ddl');
+  const ddlDir = path.join(workspace, 'ztd', 'ddl');
+  mkdirSync(ddlDir, { recursive: true });
 
   const prompter = new TestPrompter(['2']);
   await runInitCommand(prompter, { rootDir: workspace });
 
-  expect(existsSync(domainSpecsDir)).toBe(true);
-  expect(existsSync(enumsDir)).toBe(true);
-  expect(readdirSync(domainSpecsDir)).toEqual([]);
-  expect(readdirSync(enumsDir)).toEqual([]);
+  expect(existsSync(ddlDir)).toBe(true);
+  expect(readdirSync(ddlDir)).toEqual(expect.arrayContaining([schemaFileName]));
 });
 
 test('init wizard can scaffold the optional SqlClient seam', async () => {
@@ -173,7 +170,8 @@ test('init installs template-referenced packages when package.json exists', asyn
   expect(installs[0].packageManager).toBe('pnpm');
   expect(installs[0].packages).toEqual(
     expect.arrayContaining([
-      '@rawsql-ts/pg-testkit',
+      '@rawsql-ts/testkit-postgres',
+      '@rawsql-ts/adapter-node-pg',
       '@rawsql-ts/testkit-core',
       '@testcontainers/postgresql',
       'pg',
@@ -216,13 +214,15 @@ test('init wizard pulls schema if pg_dump is available', async () => {
   expect(
     readNormalizedFile(path.join(workspace, 'tests', 'generated', 'ztd-row-map.generated.ts'))
   ).toContain('export interface TestRowMap');
+  const layoutContents = readNormalizedFile(
+    path.join(workspace, 'tests', 'generated', 'ztd-layout.generated.ts'),
+  );
   expect(existsSync(path.join(workspace, 'tests', 'generated', 'ztd-layout.generated.ts'))).toBe(true);
   expect(existsSync(path.join(workspace, 'tests', 'support', 'global-setup.ts'))).toBe(true);
   expect(existsSync(testkitClientPath)).toBe(true);
   expect(existsSync(path.join(workspace, 'vitest.config.ts'))).toBe(true);
-  expect(readNormalizedFile(path.join(workspace, 'tests', 'generated', 'ztd-layout.generated.ts'))).toContain(
-    'enumsDir'
-  );
+  expect(layoutContents).toContain('ztdRootDir');
+  expect(layoutContents).toContain('ddlDir');
   expect(
     existsSync(path.join(workspace, 'AGENTS.md')) || existsSync(path.join(workspace, 'AGENTS_ztd.md'))
   ).toBe(true);
@@ -241,11 +241,11 @@ test('init wizard rejects when pg_dump is missing', async () => {
     runInitCommand(prompter, {
       rootDir: workspace,
       dependencies: {
-        checkPgDump: () => false
-      }
-    })
+        checkPgDump: () => false,
+      },
+    }),
   ).rejects.toThrow('Unable to find pg_dump');
-    expect(existsSync(path.join(workspace, 'ztd'))).toBe(false);
+  expect(existsSync(path.join(workspace, 'ztd'))).toBe(false);
   expect(existsSync(path.join(workspace, 'tests'))).toBe(false);
   expect(existsSync(path.join(workspace, 'README.md'))).toBe(false);
 });

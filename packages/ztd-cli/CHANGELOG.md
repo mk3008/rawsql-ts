@@ -12,7 +12,8 @@
 - Updated dependencies [[`8fc296a`](https://github.com/mk3008/rawsql-ts/commit/8fc296a24f1dc8190c3561bc265f5b32d537eab3), [`ee41f6d`](https://github.com/mk3008/rawsql-ts/commit/ee41f6d270c8174f0c6128ece3f3abd55a726f3d), [`45c55bd`](https://github.com/mk3008/rawsql-ts/commit/45c55bd58f0e1b969ce7bcc6cc35d53d2248ebdd), [`efc6e3f`](https://github.com/mk3008/rawsql-ts/commit/efc6e3fd2c1a9dec3bc54ed446101ed53191fea3)]:
   - @rawsql-ts/testkit-core@0.15.0
   - rawsql-ts@0.15.0
-  - @rawsql-ts/pg-testkit@0.15.0
+  - @rawsql-ts/testkit-postgres@0.15.0
+  - @rawsql-ts/adapter-node-pg@0.15.0
 
 ## 0.14.4
 
@@ -119,7 +120,7 @@
 
 - [#319](https://github.com/mk3008/rawsql-ts/pull/319) [`f644c8b`](https://github.com/mk3008/rawsql-ts/commit/f644c8bbd33b7537024b43fafeabbe3705fbc40a) Thanks [@mk3008](https://github.com/mk3008)! - Make `ztd init` produce a self-consistent scaffold by installing the devDependencies referenced by the generated templates.
 
-  Postgres remains the default, so `@rawsql-ts/pg-testkit` is automatically added when it is not already declared.
+  Postgres remains the default, so `@rawsql-ts/testkit-postgres` (and optionally `@rawsql-ts/adapter-node-pg`) are automatically added when they are not already declared.
 
 - Updated dependencies [[`e3c97e4`](https://github.com/mk3008/rawsql-ts/commit/e3c97e44ce38e12a21a2a777ea504fd142738037), [`f73ed38`](https://github.com/mk3008/rawsql-ts/commit/f73ed380e888477789efbf27417d8d3451093218), [`18e8ef2`](https://github.com/mk3008/rawsql-ts/commit/18e8ef20ed1c2147e15f807eb91c0f61eb5481ae), [`963a1d1`](https://github.com/mk3008/rawsql-ts/commit/963a1d141612b981a344858fe9b1a2888a28f049), [`07735e5`](https://github.com/mk3008/rawsql-ts/commit/07735e5937fe7d78cffab9d47c213d78fcf24a0c), [`7dde2ab`](https://github.com/mk3008/rawsql-ts/commit/7dde2ab139c9029eb4b87e521bc91cb881695791), [`e8c7eed`](https://github.com/mk3008/rawsql-ts/commit/e8c7eedc454ee11205c5a117d7bf70a2dfdcc4f5), [`88a48d6`](https://github.com/mk3008/rawsql-ts/commit/88a48d63598f941aead4143c0ffeb05792e0af4e), [`e8f025a`](https://github.com/mk3008/rawsql-ts/commit/e8f025afc95004966d0a5f89f5d167bc77ffbeec), [`440133a`](https://github.com/mk3008/rawsql-ts/commit/440133ac48043af3da66cdfa73842a24c5142d84), [`7ac3280`](https://github.com/mk3008/rawsql-ts/commit/7ac328069c5458abd68a5ae78e8b791984a23b57)]:
   - rawsql-ts@0.14.0

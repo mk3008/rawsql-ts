@@ -25,12 +25,15 @@ importers:
       '@changesets/cli':
         specifier: ^2.29.8
         version: 2.29.8(@types/node@22.18.7)
-      '@rawsql-ts/pg-testkit':
+      '@rawsql-ts/adapter-node-pg':
         specifier: workspace:*
-        version: link:packages/drivers/pg-testkit
+        version: link:packages/adapters/adapter-node-pg
       '@rawsql-ts/testkit-core':
         specifier: workspace:*
         version: link:packages/testkit-core
+      '@rawsql-ts/testkit-postgres':
+        specifier: workspace:*
+        version: link:packages/testkit-postgres
       '@testcontainers/mysql':
         specifier: ^11.11.0
         version: 11.11.0
@@ -159,6 +162,52 @@ importers:
         specifier: ^2.13.1
         version: 2.13.1
 
+  packages/adapters/adapter-node-pg:
+    dependencies:
+      '@rawsql-ts/testkit-core':
+        specifier: workspace:*
+        version: link:../../testkit-core
+      '@rawsql-ts/testkit-postgres':
+        specifier: workspace:*
+        version: link:../../testkit-postgres
+      pg:
+        specifier: ^8.13.1
+        version: 8.16.3
+      rawsql-ts:
+        specifier: workspace:*
+        version: link:../../core
+    devDependencies:
+      '@prisma/adapter-pg':
+        specifier: ^7.2.0
+        version: 7.2.0
+      '@prisma/client':
+        specifier: ^7.2.0
+        version: 7.2.0(prisma@7.2.0(@types/react@19.2.6)(better-sqlite3@12.4.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(typescript@5.9.2))(typescript@5.9.2)
+      '@prisma/client-runtime-utils':
+        specifier: ^7.2.0
+        version: 7.2.0
+      '@testcontainers/postgresql':
+        specifier: ^11.11.0
+        version: 11.11.0
+      '@types/pg':
+        specifier: ^8.15.6
+        version: 8.15.6
+      drizzle-orm:
+        specifier: ^0.31.2
+        version: 0.31.4(@electric-sql/pglite@0.3.14)(@prisma/client@7.2.0(prisma@7.2.0(@types/react@19.2.6)(better-sqlite3@12.4.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(typescript@5.9.2))(typescript@5.9.2))(@types/better-sqlite3@7.6.13)(@types/pg@8.15.6)(@types/react@19.2.6)(better-sqlite3@12.4.1)(mysql2@3.15.3)(pg@8.16.3)(postgres@3.4.7)(prisma@7.2.0(@types/react@19.2.6)(better-sqlite3@12.4.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(typescript@5.9.2))(react@19.2.0)(sql.js@1.13.0)
+      prisma:
+        specifier: ^7.2.0
+        version: 7.2.0(@types/react@19.2.6)(better-sqlite3@12.4.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(typescript@5.9.2)
+      testcontainers:
+        specifier: ^11.11.0
+        version: 11.11.0
+      typescript:
+        specifier: ^5.8.2
+        version: 5.9.2
+      vitest:
+        specifier: ^4.0.7
+        version: 4.0.15(@types/node@22.19.6)(jiti@2.6.1)(yaml@2.8.1)
+
   packages/core:
     devDependencies:
       '@types/benchmark':
@@ -216,49 +265,6 @@ importers:
         specifier: ^4.0.15
         version: 4.0.15(@types/node@22.18.7)(jiti@2.6.1)(yaml@2.8.1)
 
-  packages/drivers/pg-testkit:
-    dependencies:
-      '@rawsql-ts/testkit-core':
-        specifier: workspace:*
-        version: link:../../testkit-core
-      pg:
-        specifier: ^8.13.1
-        version: 8.16.3
-      rawsql-ts:
-        specifier: workspace:*
-        version: link:../../core
-    devDependencies:
-      '@prisma/adapter-pg':
-        specifier: ^7.2.0
-        version: 7.2.0
-      '@prisma/client':
-        specifier: ^7.2.0
-        version: 7.2.0(prisma@7.2.0(@types/react@19.2.6)(better-sqlite3@12.4.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(typescript@5.9.2))(typescript@5.9.2)
-      '@prisma/client-runtime-utils':
-        specifier: ^7.2.0
-        version: 7.2.0
-      '@testcontainers/postgresql':
-        specifier: ^11.11.0
-        version: 11.11.0
-      '@types/pg':
-        specifier: ^8.15.6
-        version: 8.15.6
-      drizzle-orm:
-        specifier: ^0.31.2
-        version: 0.31.4(@electric-sql/pglite@0.3.14)(@prisma/client@7.2.0(prisma@7.2.0(@types/react@19.2.6)(better-sqlite3@12.4.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(typescript@5.9.2))(typescript@5.9.2))(@types/better-sqlite3@7.6.13)(@types/pg@8.15.6)(@types/react@19.2.6)(better-sqlite3@12.4.1)(mysql2@3.15.3)(pg@8.16.3)(postgres@3.4.7)(prisma@7.2.0(@types/react@19.2.6)(better-sqlite3@12.4.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(typescript@5.9.2))(react@19.2.0)(sql.js@1.13.0)
-      prisma:
-        specifier: ^7.2.0
-        version: 7.2.0(@types/react@19.2.6)(better-sqlite3@12.4.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(typescript@5.9.2)
-      testcontainers:
-        specifier: ^11.11.0
-        version: 11.11.0
-      typescript:
-        specifier: ^5.8.2
-        version: 5.9.2
-      vitest:
-        specifier: ^4.0.7
-        version: 4.0.7(@types/node@22.19.6)(jiti@2.6.1)(yaml@2.8.1)
-
   packages/drivers/sqlite-testkit:
     dependencies:
       '@rawsql-ts/testkit-core':
@@ -309,14 +315,33 @@ importers:
         specifier: ^4.0.7
         version: 4.0.7(@types/node@22.19.6)(jiti@2.6.1)(yaml@2.8.1)
 
-  packages/ztd-cli:
+  packages/testkit-postgres:
     dependencies:
-      '@rawsql-ts/pg-testkit':
-        specifier: workspace:*
-        version: link:../drivers/pg-testkit
       '@rawsql-ts/testkit-core':
         specifier: workspace:*
         version: link:../testkit-core
+      rawsql-ts:
+        specifier: workspace:*
+        version: link:../core
+    devDependencies:
+      typescript:
+        specifier: ^5.8.2
+        version: 5.9.2
+      vitest:
+        specifier: ^4.0.7
+        version: 4.0.15(@types/node@22.19.6)(jiti@2.6.1)(yaml@2.8.1)
+
+  packages/ztd-cli:
+    dependencies:
+      '@rawsql-ts/adapter-node-pg':
+        specifier: workspace:*
+        version: link:../adapters/adapter-node-pg
+      '@rawsql-ts/testkit-core':
+        specifier: workspace:*
+        version: link:../testkit-core
+      '@rawsql-ts/testkit-postgres':
+        specifier: workspace:*
+        version: link:../testkit-postgres
       '@testcontainers/postgresql':
         specifier: ^10.28.0
         version: 10.28.0
@@ -357,12 +382,15 @@ importers:
 
   playgrounds/ztd-playground:
     dependencies:
-      '@rawsql-ts/pg-testkit':
+      '@rawsql-ts/adapter-node-pg':
         specifier: workspace:*
-        version: link:../../packages/drivers/pg-testkit
+        version: link:../../packages/adapters/adapter-node-pg
       '@rawsql-ts/testkit-core':
         specifier: workspace:*
         version: link:../../packages/testkit-core
+      '@rawsql-ts/testkit-postgres':
+        specifier: workspace:*
+        version: link:../../packages/testkit-postgres
       '@rawsql-ts/ztd-cli':
         specifier: workspace:*
         version: link:../../packages/ztd-cli
@@ -1822,10 +1850,6 @@ packages:
 
   ccount@2.0.1:
     resolution: {integrity: sha512-eyrF0jiFpY+3drT6383f1qhkbGsLSifNAjA61IUjZjmLCWjItY6LB9ft9YhoDgwfmclB2zhu51Lc7+95b8NRAg==}
-
-  chai@6.2.0:
-    resolution: {integrity: sha512-aUTnJc/JipRzJrNADXVvpVqi6CO0dn3nx4EVPxijri+fj3LUUDyZQOgVeW54Ob3Y1Xh9Iz8f+CgaCl8v0mn9bA==}
-    engines: {node: '>=18'}
 
   chai@6.2.1:
     resolution: {integrity: sha512-p4Z49OGG5W/WBCPSS/dH3jQ73kD6tiMmUM+bckNK6Jr5JHMG3k9bg/BvKR8lKmtVBKmOiuVaV2ws8s9oSbwysg==}
@@ -5031,7 +5055,7 @@ snapshots:
 
   '@types/pg@8.15.6':
     dependencies:
-      '@types/node': 22.18.7
+      '@types/node': 22.19.6
       pg-protocol: 1.10.3
       pg-types: 2.2.0
 
@@ -5045,11 +5069,11 @@ snapshots:
 
   '@types/ssh2-streams@0.1.13':
     dependencies:
-      '@types/node': 22.18.7
+      '@types/node': 22.19.6
 
   '@types/ssh2@0.5.52':
     dependencies:
-      '@types/node': 22.18.7
+      '@types/node': 22.19.6
       '@types/ssh2-streams': 0.1.13
 
   '@types/ssh2@1.15.5':
@@ -5252,7 +5276,7 @@ snapshots:
       '@types/chai': 5.2.3
       '@vitest/spy': 4.0.7
       '@vitest/utils': 4.0.7
-      chai: 6.2.0
+      chai: 6.2.1
       tinyrainbow: 3.0.3
 
   '@vitest/mocker@4.0.15(vite@7.2.1(@types/node@22.18.7)(jiti@2.6.1)(yaml@2.8.1))':
@@ -5275,7 +5299,7 @@ snapshots:
     dependencies:
       '@vitest/spy': 4.0.7
       estree-walker: 3.0.3
-      magic-string: 0.30.19
+      magic-string: 0.30.21
     optionalDependencies:
       vite: 7.2.1(@types/node@22.18.7)(jiti@2.6.1)(yaml@2.8.1)
 
@@ -5283,7 +5307,7 @@ snapshots:
     dependencies:
       '@vitest/spy': 4.0.7
       estree-walker: 3.0.3
-      magic-string: 0.30.19
+      magic-string: 0.30.21
     optionalDependencies:
       vite: 7.2.1(@types/node@22.19.6)(jiti@2.6.1)(yaml@2.8.1)
 
@@ -5314,7 +5338,7 @@ snapshots:
   '@vitest/snapshot@4.0.7':
     dependencies:
       '@vitest/pretty-format': 4.0.7
-      magic-string: 0.30.19
+      magic-string: 0.30.21
       pathe: 2.0.3
 
   '@vitest/spy@4.0.15': {}
@@ -5352,7 +5376,7 @@ snapshots:
       '@vue/compiler-ssr': 3.5.22
       '@vue/shared': 3.5.22
       estree-walker: 2.0.2
-      magic-string: 0.30.19
+      magic-string: 0.30.21
       postcss: 8.5.6
       source-map-js: 1.2.1
 
@@ -5673,8 +5697,6 @@ snapshots:
   callsites@3.1.0: {}
 
   ccount@2.0.1: {}
-
-  chai@6.2.0: {}
 
   chai@6.2.1: {}
 
@@ -6986,7 +7008,7 @@ snapshots:
       '@protobufjs/path': 1.1.2
       '@protobufjs/pool': 1.1.0
       '@protobufjs/utf8': 1.1.0
-      '@types/node': 22.18.7
+      '@types/node': 22.19.6
       long: 5.3.2
 
   pump@3.0.3:
