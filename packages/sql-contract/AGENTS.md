@@ -45,7 +45,7 @@ Defaults and customization:
 
 - Default normalization is "snake_to_camel".
 - Default ID handling:
-  - normalize to camelCase, and stringify identifier values for "*Id" keys when configured to do so.
+  - normalize to camelCase, and stringify ID values for "*Id" keys when configured to do so.
 - Callers may override via:
   - "idKeysAsString"
   - "keyTransform"
@@ -65,7 +65,7 @@ Defaults and customization:
 - Require callers to supply table/column identifiers as plain strings.
   - Do not generate identifiers.
   - Do not infer schema.
-- Validate identifiers against "[A-Za-z_][A-Za-z0-9_]*" by default.
+- Validate identifiers against `"[A-Za-z_][A-Za-z0-9_]*"` by default.
   - Allow opt-out only with "allowUnsafeIdentifiers: true".
   - Even with opt-out, still reject:
     - empty names

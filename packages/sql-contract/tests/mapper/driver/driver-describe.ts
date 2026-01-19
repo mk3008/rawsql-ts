@@ -3,7 +3,8 @@ import { describe } from 'vitest'
 
 const dockerRuntimeAvailable = (() => {
   try {
-    execSync('docker info', { stdio: 'ignore' })
+    // Guard against hung docker probes by timing out rather than waiting forever.
+    execSync('docker info', { stdio: 'ignore', timeout: 10000 })
     return true
   } catch {
     return false

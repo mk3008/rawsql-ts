@@ -66,6 +66,10 @@ driverDescribe('mapper driver integration (mysql)', () => {
     expect(record.issuedAtText.toISOString()).toBe(
       '2025-01-15T09:00:00.000Z',
     )
+    expect(record.issuedAtDatetime).toBeInstanceOf(Date)
+    expect(record.issuedAtDatetime.toISOString()).toBe(
+      '2025-01-15T00:00:00.000Z',
+    )
   })
 
   it('keeps strings intact when coerceDates is disabled', async () => {

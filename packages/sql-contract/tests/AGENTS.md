@@ -138,7 +138,7 @@ Each test must:
 When in doubt:
 Make the test stricter, not the mapper looser.
 
---- 
+---
 
 ## Writer tests are about SQL visibility
 

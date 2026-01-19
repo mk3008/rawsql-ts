@@ -19,6 +19,7 @@ const identifierControlPattern = /[\u0000-\u001F\u007F]/
 /** Supported placeholder styles verified against the SQL formatter presets. */
 export type PlaceholderStyle = 'indexed' | 'question' | 'named'
 
+/** Characters that start named placeholders (compatible with sqlformatter presets). */
 export type NamedPlaceholderPrefix = '@' | ':'
 
 /** Optional writer-core flags; use allowUnsafeIdentifiers when skipping ASCII checks. */
