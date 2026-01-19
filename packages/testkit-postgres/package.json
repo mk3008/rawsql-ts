@@ -32,8 +32,8 @@
     "node": ">=20"
   },
   "dependencies": {
-    "@rawsql-ts/testkit-core": "workspace:*",
-    "rawsql-ts": "workspace:*"
+    "@rawsql-ts/testkit-core": "workspace:^",
+    "rawsql-ts": "workspace:^"
   },
   "devDependencies": {
     "typescript": "^5.8.2",

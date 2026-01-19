@@ -165,16 +165,16 @@ importers:
   packages/adapters/adapter-node-pg:
     dependencies:
       '@rawsql-ts/testkit-core':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../testkit-core
       '@rawsql-ts/testkit-postgres':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../testkit-postgres
       pg:
         specifier: ^8.13.1
         version: 8.16.3
       rawsql-ts:
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../core
     devDependencies:
       '@prisma/adapter-pg':
@@ -268,10 +268,10 @@ importers:
   packages/drivers/sqlite-testkit:
     dependencies:
       '@rawsql-ts/testkit-core':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../testkit-core
       rawsql-ts:
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../core
     devDependencies:
       '@types/better-sqlite3':
@@ -305,7 +305,7 @@ importers:
   packages/testkit-core:
     dependencies:
       rawsql-ts:
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../core
     devDependencies:
       typescript:
@@ -318,10 +318,10 @@ importers:
   packages/testkit-postgres:
     dependencies:
       '@rawsql-ts/testkit-core':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../testkit-core
       rawsql-ts:
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../core
     devDependencies:
       typescript:
@@ -334,13 +334,13 @@ importers:
   packages/ztd-cli:
     dependencies:
       '@rawsql-ts/adapter-node-pg':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../adapters/adapter-node-pg
       '@rawsql-ts/testkit-core':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../testkit-core
       '@rawsql-ts/testkit-postgres':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../testkit-postgres
       '@testcontainers/postgresql':
         specifier: ^10.28.0
@@ -361,7 +361,7 @@ importers:
         specifier: ^8.11.1
         version: 8.16.3
       rawsql-ts:
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../core
       testcontainers:
         specifier: ^10.28.0

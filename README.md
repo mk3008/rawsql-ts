@@ -122,6 +122,18 @@ For comprehensive documentation and advanced use cases:
 
 ---
 
+## Versioning
+
+This workspace relies on [Changesets](https://github.com/changesets/changesets) with **independent per-package versioning**. There are no `fixed` groups in `.changeset/config.json`, so a changeset only bumps the packages it lists and leaves the others untouched. When you introduce a change that should be published:
+
+1. Run `pnpm changeset` and select the affected packages plus the release type (patch/minor/major); this creates the changelog fragment.
+2. The Release PR workflow (`.github/workflows/release-pr.yml` via `changesets/action@v1`) uses those fragments to run `pnpm changeset version`, update `package.json`/changelog, and open or refresh the Release PR with the proposed release.
+3. Merge the Release PR after CI passes; publishing follows the workflow configured in `release-pr.yml` (which already runs `pnpm changeset publish` or equivalent for the merged packages).
+
+The `workspace:^` dependency specifiers and this independent configuration keep the local development workflow smooth while letting the CI publish each package on its own cadence.
+
+Internal dependencies should default to `workspace:^` so they only trigger releases when runtime semantics actually change; reserve `workspace:*` for the rare case when strict lockstep across packages is intentionally required.
+
 ## Publishing
 
 Publishing requires valid npm credentials and public access for scoped packages.
