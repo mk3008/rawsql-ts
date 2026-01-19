@@ -34,8 +34,12 @@
         "@rawsql-ts/core": ["packages/core/src"],
         "@rawsql-ts/core/*": ["packages/core/src/*"],
         "@rawsql-ts/core/dist/src/*": ["packages/core/src/*"],
-        "@rawsql-ts/writer-core": ["packages/writer-core/src"],
-        "@rawsql-ts/writer-core/*": ["packages/writer-core/src/*"],
+        "@rawsql-ts/sql-contract": ["packages/sql-contract/src"],
+        "@rawsql-ts/sql-contract/*": ["packages/sql-contract/src/*"],
+        "@rawsql-ts/sql-contract/mapper": ["packages/sql-contract/src/mapper"],
+        "@rawsql-ts/sql-contract/mapper/*": ["packages/sql-contract/src/mapper/*"],
+        "@rawsql-ts/sql-contract/writer": ["packages/sql-contract/src/writer"],
+        "@rawsql-ts/sql-contract/writer/*": ["packages/sql-contract/src/writer/*"],
         "@rawsql-ts/testkit-core": ["packages/testkit-core/src"],
         "@rawsql-ts/ztd-cli": ["packages/ztd-cli/src"],
         "@rawsql-ts/sqlite-testkit": ["packages/drivers/sqlite-testkit/src"],
@@ -123,7 +127,7 @@
             "path": "./packages/core"
         },
         {
-            "path": "./packages/writer-core"
+            "path": "./packages/sql-contract"
         }
     ]
 }

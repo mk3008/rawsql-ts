@@ -1,7 +1,7 @@
-# AGENTS: Mapper Test Guidelines
+# AGENTS: sql-contract Test Guidelines
 
 This document defines **rules and expectations for tests** under `tests/`
-that exercise `@rawsql-ts/mapper-core`.
+that exercise `@rawsql-ts/sql-contract`.
 
 These rules exist to ensure that tests validate **intentional behavior**
 rather than accidental implementation details.
@@ -23,7 +23,7 @@ Mapper tests must NOT:
 - Test driver-specific behavior
 - Test ORM-like conveniences
 
-Rows are treated as **pure input data**.
+Rows are treated as **pure input data** and the mapper never touches SQL generation.
 
 ---
 
@@ -137,3 +137,16 @@ Each test must:
 
 When in doubt:
 Make the test stricter, not the mapper looser.
+
+---
+
+## Writer tests are about SQL visibility
+
+Writer tests must confirm:
+
+- SQL strings remain readable and include exactly the columns supplied (undefined entries drop out).
+- WHERE clauses only contain equality AND lists derived from the provided key object.
+- Identifier validation respects the ASCII restrictions unless `allowUnsafeIdentifiers` is opted into.
+- The returned `params` array preserves primitive values (no coercion) and matches placeholder order.
+
+Avoid testing database interactions, schema inference, or complex builders. The writer surface intentionally refuses to guess joins, create schema-aware helpers, or add convenience methods beyond `insert`, `update`, and `remove`.

@@ -21,6 +21,10 @@ export interface EntityOptions<T, K extends Extract<keyof T, string>> {
   prefix?: string
   columnMap?: Partial<Record<Extract<keyof T, string>, string>>
   coerce?: boolean
+  /**
+   * Entity mappings rely on a very narrow coercion helper; it only receives the
+   * raw column value so callers can swap in their own rules.
+   */
   coerceFn?: (value: unknown) => unknown
 }
 
@@ -52,6 +56,10 @@ export interface SimpleMapOptions {
   idKeysAsString?: boolean
   typeHints?: Record<string, SimpleMapTypeHint>
   coerceDates?: boolean
+  /**
+   * Receives both the normalized property name and the original column name so callers
+   * can implement property-specific logic without re-running normalization.
+   */
   coerceFn?: (args: {
     key: string
     sourceKey: string
@@ -580,6 +588,11 @@ export function mapSimpleRows<T>(
   })
 }
 
+/**
+ * Date coercion helper that mirrors the ISO-with-timezone restriction used by the
+ * structured mapper. Only strings already matching the ISO 8601 timestamp-with-offset
+ * pattern are converted to Date.
+ */
 function coerceDateValue(value: string): unknown {
   const trimmed = value.trim()
   let normalized = trimmed.includes(' ')
