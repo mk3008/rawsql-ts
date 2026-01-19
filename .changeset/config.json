@@ -2,9 +2,6 @@
   "$schema": "https://unpkg.com/@changesets/config/schema.json",
   "changelog": ["@changesets/changelog-github", { "repo": "mk3008/rawsql-ts" }],
   "commit": false,
-  "fixed": [
-    ["rawsql-ts", "@rawsql-ts/testkit-core", "@rawsql-ts/testkit-postgres", "@rawsql-ts/adapter-node-pg", "@rawsql-ts/sqlite-testkit", "@rawsql-ts/ztd-cli"]
-  ],
   "linked": [],
   "access": "public",
   "baseBranch": "main",

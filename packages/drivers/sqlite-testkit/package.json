@@ -34,8 +34,8 @@
     "node": ">=20"
   },
   "dependencies": {
-    "@rawsql-ts/testkit-core": "workspace:*",
-    "rawsql-ts": "workspace:*"
+    "@rawsql-ts/testkit-core": "workspace:^",
+    "rawsql-ts": "workspace:^"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",

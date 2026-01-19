@@ -32,10 +32,10 @@
     "node": ">=20"
   },
   "dependencies": {
-    "@rawsql-ts/testkit-postgres": "workspace:*",
-    "@rawsql-ts/testkit-core": "workspace:*",
+    "@rawsql-ts/testkit-postgres": "workspace:^",
+    "@rawsql-ts/testkit-core": "workspace:^",
     "pg": "^8.13.1",
-    "rawsql-ts": "workspace:*"
+    "rawsql-ts": "workspace:^"
   },
   "devDependencies": {
     "@prisma/adapter-pg": "^7.2.0",
