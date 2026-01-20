@@ -20,6 +20,9 @@ Tests are a shared workspace for humans and AI, but must respect ZTD-specific co
 - If instructions are ambiguous, assume ZTD mode and proceed.
 - Tests MUST NOT mix ZTD mode and Traditional mode within the same test suite.
 - Traditional mode is reserved for integration-style validation; it is not a convenience or performance workaround.
+- Every repository/test change must be followed by `pnpm --filter <package> test` (substitute the real template package name).
+  - `tests/support/global-setup.ts` already uses `@testcontainers/postgresql`, so a disposable Postgres container spins up automatically whenever `DATABASE_URL` is absent.
+  - If the suite fails, resolve the failure and rerun until it succeeds before considering the change complete.
 
 ---
 
@@ -134,7 +137,7 @@ If behavior depends on transactions, isolation, or shared mutable state:
 - However:
   - Do not redefine models.
   - Do not change schema assumptions.
-- Do not edit `ztd/ddl`. Do not modify optional references (`ztd/domain-specs`, `ztd/enums`) from tests unless explicitly instructed, and do not treat them as inputs or constraints; read them only when a human asks you to.
+- Do not edit `ztd/ddl`. `ztd/ddl` is the only authoritative `ztd` directory; do not create or assume additional `ztd` subdirectories without explicit instruction.
 - The only authoritative source for tests is `ztd/ddl`.
 - Tests may fail when `ztd/` definitions change; tests MUST be updated to reflect those changes, not the other way around.
 

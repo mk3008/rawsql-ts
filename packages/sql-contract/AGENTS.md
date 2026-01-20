@@ -81,5 +81,6 @@ Defaults and customization:
 - Centralize placeholder numbering (defaulting to `$1`, `$2`, ...) while allowing callers to opt into alternative `placeholderStyle` settings (`indexed`, `question`, `named`) that only adjust syntax (symbol, optional prefix/suffix) without hiding the SQL.
   - Do not invent DBMS-specific placeholder presets; each style must remain deterministic and rely solely on provided symbols and numbering.
 - Normalize column and key identifiers (alphabetical order) so both the generated SQL string and the `params` array stay deterministic no matter how objects were created.
+- Expose an explicit `returning` option that appends a `RETURNING` clause, but do not assume the caller's database supports it; capability errors remain at execution time.
 
 The writer helpers exist to keep simple CUD statements legible and parameterized without leaking schema assumptions.

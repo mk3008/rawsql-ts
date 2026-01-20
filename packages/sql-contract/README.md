@@ -49,6 +49,8 @@ const updateResult = update(
 
 This package deliberately refuses to guess JOINs, infer columns, or add schema metadata. It keeps SQL visible and focuses on exposing a lightweight contract for clients and planners.
 
+The writer helpers now accept an optional `returning?: readonly string[] | 'all'` option. When provided, the generated SQL is extended with a `RETURNING` clause (`'all'` maps to `RETURNING *`, otherwise the column list is sorted alphabetically). Because the writer only emits SQL, it does not verify backend support for `RETURNING`, so unsupported databases may raise an execution error.
+
 ## Export surface
 
 Besides the top-level exports (mapper defaults plus the writer helpers), you can import the submodules directly:
