@@ -71,15 +71,19 @@ Rules:
 - Tests must call repository methods, not raw SQL files or SQL strings.
 - ZTD fixtures are the only allowed source of database state in tests.
 - A repository change without tests is considered incomplete.
+- Every repository or test modification must be followed by `pnpm --filter <package> test` (replace `<package>` with the template package name).
+  - `tests/support/global-setup.ts` already uses `@testcontainers/postgresql`, so the suite stands up a Postgres container automatically whenever `DATABASE_URL` is absent.
+  - If the suite fails, fix the root cause and rerun the command until it passes before considering the repository change complete.
 
 Rationale:  
 ZTD derives much of its value from deterministic, repository-level tests.
 Without tests, schema drift and SQL inconsistencies cannot be detected.
 
 #### SQL Management
-- Prefer keeping SQL in separate `.sql` files.
-  - If no explicit instruction is given, separate SQL into files by default.
-- Repository classes should reference SQL files by name, not inline long SQL strings.
+- Keep every SELECT statement in a dedicated `.sql` file under `src/sql/` (match the repository name, e.g. `src/sql/user-accounts.sql`).
+  - Load the SQL via `fs.readFileSync` or similar helpers so the repository never embeds long SQL strings inline.
+  - Inline SQL is forbidden unless a human explicitly requests an override; follow the `.sql` file convention by default.
+  - Repository classes should reference those SQL files; the file name should match the repository class or the query method to keep the code/spec alignment clear.
 
 #### Specifications and Documentation
 - If a markdown file with the same base name as the repository or SQL exists, read it before implementation.
@@ -109,7 +113,7 @@ Without tests, schema drift and SQL inconsistencies cannot be detected.
 
 ### Mapper + writer guardrails (template-specific)
 
-- In this project, `src/repositories/user-accounts.ts` is the authoritative mapper for the columns defined by the DDL and any optional references; it MUST enumerate those columns explicitly so downstream logic never infers metadata at runtime.
+- In this project, `src/repositories/user-accounts.ts` is the authoritative mapper for the columns defined by the DDL; it MUST enumerate those columns explicitly so downstream logic never infers metadata at runtime.
 - Writer helpers in the same module MUST emit SQL for `public.user_account` only and MUST remain limited to the explicit insert/update/delete helpers shown there; DO NOT introduce ad-hoc schema discovery.
 - `tests/writer-constraints.test.ts` MUST consume `userAccountWriterColumnSets` together with `tests/generated/ztd-row-map.generated.ts` so CUD callers only reference columns that exist on `public.user_account`.
 - When the schema of `public.user_account` changes, update `src/repositories/user-accounts.ts` column metadata, keep `tests/writer-constraints.test.ts` expectations aligned, and re-run `npx ztd ztd-config` so the generated row map stays synchronized with the tests.
@@ -167,15 +171,14 @@ Testing under ZTD follows dedicated, directory-scoped rules.
   /ddl
     *.sql               <- physical schema definitions
 
-  /domain-specs          <- optional behavioral notes (informational only)
-  /enums                 <- optional canonical value sets (informational only)
-
   README.md             <- documentation for the layout
-  AGENTS.md             <- combined guidance for DDL and optional references
+  AGENTS.md             <- combined guidance for DDL
 
 /src                    <- application & repository logic
 /tests                  <- ZTD tests, fixtures, row-maps
 ```
+
+Only `ztd/ddl` is part of the template contract. Do not create or assume any other `ztd` subdirectories unless the project explicitly adds them.
 
 The file `tests/generated/ztd-layout.generated.ts` ensures ZTD CLI always points to the correct directories.
 
@@ -184,9 +187,7 @@ The file `tests/generated/ztd-layout.generated.ts` ensures ZTD CLI always points
 # Protected directories and edit ownership (important)
 
 - DDL editing is human-led: `ztd/ddl/`
-- Optional reference directories (`ztd/domain-specs/`, `ztd/enums/`) are informational; do not treat them as human-led constraints unless explicitly instructed.
-- These directories are optional and MUST NOT be treated as inputs or constraints unless a human explicitly requests them.
-- Do not read domain-specs or enums unless directly instructed; the only authoritative source is `ztd/ddl`.
+- `ztd/ddl` is the sole human-owned directory inside `/ztd`; other directories must not be assumed or created without explicit instructions.
 - Application code is shared ownership: `src/`
 - Tests are shared ownership: `tests/`
   - Detailed test constraints live in `templates/tests/AGENTS.md`.
@@ -262,23 +263,11 @@ Flow: SQL to Tests
 
 ---
 
-# Workflow D - Starting From Optional Reference Adjustments
-Updates to informational reference files (domain-specs or enums) that describe existing behavior.
-
-Flow: Reference updates to SQL to Tests to (DDL if required)
-
----
-
 # Combined Real-World Examples
 
-- Adding a new contract state:
-  DDL (and optional enum documentation) to SQL to config to tests
-
-- Adding a new table:
-  DDL to config to SQL to fixtures to tests
-
-- Fixing business logic:
-  SQL to tests
+- Adding a new contract state: DDL to SQL to config to tests
+- Adding a new table: DDL to SQL to fixtures/tests
+- Fixing business logic: SQL to tests
 
 ZTD ensures the development always converges into a consistent, validated workflow.
 
@@ -290,7 +279,6 @@ Humans maintain:
 
 - Schema definitions (`ztd/ddl`)
 - Repository interfaces and architectural decisions
-- Optional reference files (`ztd/domain-specs`, `ztd/enums`) when they exist
 - Acceptance and review of AI-generated patches
 
 Humans decide what is correct.
@@ -301,7 +289,7 @@ Humans decide what is correct.
 
 AI must:
 
-- Use DDL as the physical structure constraint and treat domain-specs/enums only as optional documentation when explicitly requested.
+- Use DDL as the physical structure constraint and never assume any additional `ztd` directories exist unless explicitly added.
 - Generate SQL consistent with DDL.
 - Update fixtures when needed.
 - Never modify `ztd/AGENTS.md` or `ztd/README.md` without explicit instruction.

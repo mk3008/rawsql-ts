@@ -47,7 +47,7 @@ It is the **single source of truth** for the physical database schema as interpr
 - When asked to extend existing definitions:
   - Do not remove or rewrite existing columns or comments unless explicitly told.
   - Maintain column order and constraint style.
-- Do not introduce schema changes that conflict with declared enums, if any exist in `ztd/enums/`.
+  - Do not introduce schema changes that conflict with existing constraints or indexes.
 - The `public.user_account` and `public.user_profile` tables exist to support the mapper/writer sample; any modification to those tables is a maintenance obligation that requires concurrent updates to `src/repositories/user-accounts.ts` and `tests/writer-constraints.test.ts` so the workflow keeps functioning.
 - DDL defines physical truth only and MUST NEVER be reshaped to accommodate mapper, writer, or test tooling.
 - Runtime convenience is never a valid reason to alter DDL.
@@ -56,9 +56,7 @@ If there is uncertainty, stop and request clarification instead of guessing.
 
 ---
 
-- When present, `ztd/domain-specs/` and `ztd/enums/` are informational references only; AI MUST NOT expect them to exist, MUST NOT treat them as authoritative, and MUST NOT require updates there unless instructed.
-- These directories are optional and MUST NOT be treated as inputs or constraints unless a human explicitly requests them.
-- Do not read domain-specs or enums unless directly instructed; the only authoritative source is `ztd/ddl`.
+- Only `ztd/ddl` is part of the canonical `ztd` contract; do not create or assume additional subdirectories without explicit human direction.
 
 ---
 

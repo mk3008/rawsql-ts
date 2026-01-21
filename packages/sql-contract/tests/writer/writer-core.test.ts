@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import { insert, remove, update } from '@rawsql-ts/sql-contract/writer'
+import type { WriterCoreOptions } from '@rawsql-ts/sql-contract/writer'
 
 describe('sql-contract writer helpers', () => {
   describe('basic statements', () => {
@@ -43,6 +44,49 @@ describe('sql-contract writer helpers', () => {
 
       expect(result.sql).toBe('DELETE FROM users WHERE id = $1 AND tenant_id = $2')
       expect(result.params).toEqual([3, 10])
+    })
+
+    test('insert appends returning clause with sorted columns and meta', () => {
+      const result = insert(
+        'users',
+        {
+          name: 'alice',
+          nickname: undefined,
+          age: 30,
+        },
+        { returning: ['name', 'age'] },
+      )
+
+      expect(result.sql).toBe('INSERT INTO users (age, name) VALUES ($1, $2) RETURNING age, name')
+      expect(result.params).toEqual([30, 'alice'])
+      expect(result.meta?.returning).toEqual(['age', 'name'])
+    })
+
+    test('update returning keeps WHERE order and exposes meta', () => {
+      const result = update(
+        'user_roles',
+        { status: 'active' },
+        { user_id: 10, role_id: 2 },
+        { returning: ['status', 'role_id'] },
+      )
+
+      expect(result.sql).toBe(
+        'UPDATE user_roles SET status = $1 WHERE role_id = $2 AND user_id = $3 RETURNING role_id, status',
+      )
+      expect(result.params).toEqual(['active', 2, 10])
+      expect(result.meta?.returning).toEqual(['role_id', 'status'])
+    })
+
+    test('remove supports returning all columns without disturbing WHERE order', () => {
+      const result = remove(
+        'users',
+        { tenant_id: 10, id: 3 },
+        { returning: 'all' },
+      )
+
+      expect(result.sql).toBe('DELETE FROM users WHERE id = $1 AND tenant_id = $2 RETURNING *')
+      expect(result.params).toEqual([3, 10])
+      expect(result.meta?.returning).toBe('*')
     })
   })
 
@@ -92,6 +136,28 @@ describe('sql-contract writer helpers', () => {
       ).toThrow(/table identifier/)
     })
 
+    test('returning rejects invalid column identifiers', () => {
+      expect(() =>
+        insert('users', { name: 'value' }, { returning: ['bad-column!'] }),
+      ).toThrow(/column identifier/)
+    })
+
+    test('returning rejects unicode columns by default', () => {
+      expect(() =>
+        insert('users', { name: 'value' }, { returning: ['ユーザー'] }),
+      ).toThrow(/column identifier/)
+    })
+
+    test('returning rejects non-array values', () => {
+      expect(() =>
+        insert(
+          'users',
+          { name: 'value' },
+          { returning: 'id' as unknown as WriterCoreOptions['returning'] },
+        ),
+      ).toThrow('returning must be "all" or an array of column names')
+    })
+
     test('rejects empty key column identifiers', () => {
       expect(() => remove('users', { '': 1 })).toThrow(/identifier must not be empty/)
     })
@@ -106,6 +172,18 @@ describe('sql-contract writer helpers', () => {
 
       expect(result.sql).toContain('表示名 = $1')
       expect(result.params).toEqual(['Writer Core', 1])
+    })
+
+    test('returning allows unicode identifiers when explicitly unsafe', () => {
+      const result = update(
+        'users',
+        { status: 'active' },
+        { id: 1 },
+        { returning: ['表示名'], allowUnsafeIdentifiers: true },
+      )
+
+      expect(result.sql).toContain('RETURNING 表示名')
+      expect(result.meta?.returning).toEqual(['表示名'])
     })
 
     test('remove rejects invalid table identifiers', () => {
@@ -158,16 +236,34 @@ describe('sql-contract writer helpers', () => {
     test('question style emits anonymous placeholders with deterministic parameter order', () => {
       const options = { placeholderStyle: 'question' }
 
-      const insertResult = insert('users', insertValues, options)
-      expect(insertResult.sql).toBe('INSERT INTO users (age, name) VALUES (?, ?)')
+      const insertResult = insert('users', insertValues, {
+        ...options,
+        returning: ['name'],
+      })
+      expect(insertResult.sql).toBe(
+        'INSERT INTO users (age, name) VALUES (?, ?) RETURNING name',
+      )
       expect(insertResult.params).toEqual([30, 'alice'])
 
-      const updateResult = update('users', updateValues, { id: 1 }, options)
-      expect(updateResult.sql).toBe('UPDATE users SET name = ?, status = ? WHERE id = ?')
+      const updateResult = update(
+        'users',
+        updateValues,
+        { id: 1 },
+        { ...options, returning: ['status'] },
+      )
+      expect(updateResult.sql).toBe(
+        'UPDATE users SET name = ?, status = ? WHERE id = ? RETURNING status',
+      )
       expect(updateResult.params).toEqual(['bobby', 'active', 1])
 
-      const removeResult = remove('users', { id: 1, tenant_id: 2 }, options)
-      expect(removeResult.sql).toBe('DELETE FROM users WHERE id = ? AND tenant_id = ?')
+      const removeResult = remove(
+        'users',
+        { id: 1, tenant_id: 2 },
+        { ...options, returning: 'all' },
+      )
+      expect(removeResult.sql).toBe(
+        'DELETE FROM users WHERE id = ? AND tenant_id = ? RETURNING *',
+      )
       expect(removeResult.params).toEqual([1, 2])
     })
 
@@ -178,18 +274,34 @@ describe('sql-contract writer helpers', () => {
         namedPlaceholderNamePrefix: 'p',
       }
 
-      const insertResult = insert('users', insertValues, options)
-      expect(insertResult.sql).toBe('INSERT INTO users (age, name) VALUES (@p1, @p2)')
+      const insertResult = insert('users', insertValues, {
+        ...options,
+        returning: ['name'],
+      })
+      expect(insertResult.sql).toBe(
+        'INSERT INTO users (age, name) VALUES (@p1, @p2) RETURNING name',
+      )
       expect(insertResult.params).toEqual([30, 'alice'])
 
-      const updateResult = update('users', updateValues, { id: 1 }, options)
+      const updateResult = update(
+        'users',
+        updateValues,
+        { id: 1 },
+        { ...options, returning: ['status'] },
+      )
       expect(updateResult.sql).toBe(
-        'UPDATE users SET name = @p1, status = @p2 WHERE id = @p3',
+        'UPDATE users SET name = @p1, status = @p2 WHERE id = @p3 RETURNING status',
       )
       expect(updateResult.params).toEqual(['bobby', 'active', 1])
 
-      const removeResult = remove('users', { id: 2, tenant_id: 3 }, options)
-      expect(removeResult.sql).toBe('DELETE FROM users WHERE id = @p1 AND tenant_id = @p2')
+      const removeResult = remove(
+        'users',
+        { id: 2, tenant_id: 3 },
+        { ...options, returning: ['tenant_id'] },
+      )
+      expect(removeResult.sql).toBe(
+        'DELETE FROM users WHERE id = @p1 AND tenant_id = @p2 RETURNING tenant_id',
+      )
       expect(removeResult.params).toEqual([2, 3])
     })
   })
