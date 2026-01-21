@@ -1,36 +1,28 @@
 Goal (including success criteria):
-- Add optional `returning` support to `@rawsql-ts/sql-contract` writer helpers (`insert`, `update`, `remove`) so SQL output can include a declarative `RETURNING` clause while preserving deterministic placeholder order, no inference, and without affecting params.
-- Success criteria: writer options expose `returning`, generated SQL appends `RETURNING` correctly, validation/tests cover identifiers (including unicode handling), `meta` reflects returning hints, and no existing tests regress.
-- Enforce a runtime guard so callers passing `returning: 'all' | string[]` cannot accidentally hand in any other type—reject non-array values with a clear message before sorting.
+- Align `packages/sql-contract/README.md` with the PR feedback by removing the unused `entity` declaration from the Minimal CRUD sample so readers see only the APIs actually used.
+- Success: the Minimal CRUD sample imports only the mapper helper and writer helpers that appear in the snippet, the SELECT block uses `createMapperFromExecutor` without the stray `entity`, and the documentation matches the existing implementation.
 
 Constraints / Assumptions:
 - Replies must remain in Japanese; documentation and code comments must stay English.
-- Writer focuses on SQL generation only; execution/emulation/capability concerns belong elsewhere.
-- `ztd/ddl` remains off-limits for this work.
+- README edits should not touch other packages or files beyond what the feedback requests.
 
 Key decisions:
-- Keep writer purely declarative: no runtime inference, no SELECT emulation, no DB branching.
-- Normalize and validate identifiers (including `returning` column names) using existing rules, with unicode requiring `allowUnsafeIdentifiers`.
-- Return meta information only when `returning` is provided; parameter ordering and placeholder styles stay unaffected.
+- Drop the unused `entity` import/declaration and keep the sample focused on executor-based mapper usage plus writer helpers.
+- Keep the sample concise so it demonstrates connecting a mapper to an executor without extra model wiring that the reader might misinterpret as required.
 
 State:
-- Returning option implemented for writer, tests updated accordingly, README/AGENTS mention runtime expectation, and the package build/tests ran successfully.
-- Writer helpers now include richer JSDoc, covering the `returning` behavior and the extended documentation surface requested for AI readers.
-- Added a Changeset entry documenting the returning option release impact.
-- Guard added to reject non-array `returning` inputs, test updated, and dist rebuilt; targeted writer tests now pass.
-- README rewrite performed and its claims checked against the mapper/writer implementation for consistency.
+- Returning option in the writer remains implemented and documented; README now reflects that (historical work preserved).
+- Minimal CRUD sample imports only `createMapperFromExecutor`, `simpleMapPresets`, and the writer helpers; no unused entities remain.
 
 Done:
-- Implemented returning clause handling and metadata for the writer functions.
-- Extended writer tests to cover returning semantics, validation, and placeholder styles plus reordered keys.
-- Documented the returning option and the fact that unsupported databases may error at execution time.
-- Ran `pnpm --filter @rawsql-ts/sql-contract build` and `pnpm --filter @rawsql-ts/sql-contract test`.
+- Removed the unused entity declaration from `packages/sql-contract/README.md`.
+- Updated the Minimal CRUD example so only the shown APIs are imported and exercised.
 
 Now:
-- Guard and unit test changes merged, dist rebuilt, and writer-specific tests pass.
+- README minimal sample mirrors the actual mapper and writer usage without stray declarations.
 
 Next:
-- Capture review outcome in documentation/changeset as needed and rerun the full workspace test suite once existing integration flakiness (mssql mapper, ztd-config snapshot) is resolved.
+- Await confirmation or additional review guidance before concluding the PR.
 
 Open questions (mark as UNCONFIRMED if needed):
 - None.
@@ -38,8 +30,5 @@ Open questions (mark as UNCONFIRMED if needed):
 Working set (files, ids, commands):
 ```
 CONTINUITY.md
-packages/sql-contract/src/writer/index.ts
-packages/sql-contract/tests/writer/writer-core.test.ts
 packages/sql-contract/README.md
-packages/sql-contract/AGENTS.md
 ```

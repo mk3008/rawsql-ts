@@ -46,7 +46,6 @@ import { Pool } from 'pg'
 import { insert, update, remove } from '@rawsql-ts/sql-contract/writer'
 import {
   createMapperFromExecutor,
-  entity,
   simpleMapPresets,
 } from '@rawsql-ts/sql-contract/mapper'
 
@@ -61,7 +60,6 @@ async function main() {
   }
 
   // SELECT
-  const customer = entity({ name: 'Customer', key: 'id', prefix: 'customer_' })
   const mapper = createMapperFromExecutor(executor, simpleMapPresets.pgLike())
   const rows = await mapper.query(
     'select * from customers where id = $1',
