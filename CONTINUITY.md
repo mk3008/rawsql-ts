@@ -18,6 +18,7 @@ State:
 - Writer helpers now include richer JSDoc, covering the `returning` behavior and the extended documentation surface requested for AI readers.
 - Added a Changeset entry documenting the returning option release impact.
 - Guard added to reject non-array `returning` inputs, test updated, and dist rebuilt; targeted writer tests now pass.
+- README rewrite performed and its claims checked against the mapper/writer implementation for consistency.
 
 Done:
 - Implemented returning clause handling and metadata for the writer functions.
