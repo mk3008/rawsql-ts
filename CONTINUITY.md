@@ -1,28 +1,27 @@
 Goal (including success criteria):
-- Align `packages/sql-contract/README.md` with the PR feedback by removing the unused `entity` declaration from the Minimal CRUD sample so readers see only the APIs actually used.
-- Success: the Minimal CRUD sample imports only the mapper helper and writer helpers that appear in the snippet, the SELECT block uses `createMapperFromExecutor` without the stray `entity`, and the documentation matches the existing implementation.
+- Ensure `packages/sql-contract/README.md` minimal CRUD sample reflects a usable mapper scenario by showing a typed `Customer` DTO, a simple executor, and the writer helpers, so readers see runnable code that aligns with actual APIs.
+- Success: the sample types the SELECT result, uses `createMapperFromExecutor` with `simpleMapPresets.pgLike()`, keeps SQL visible, and demonstrates insert/update/delete helpers executed through the same executor.
 
 Constraints / Assumptions:
-- Replies must remain in Japanese; documentation and code comments must stay English.
-- README edits should not touch other packages or files beyond what the feedback requests.
+- Responses must remain in Japanese; documentation and code comments must stay English.
+- README edits should stay limited to packages/sql-contract/README.md and associated continuity notes.
 
 Key decisions:
-- Drop the unused `entity` import/declaration and keep the sample focused on executor-based mapper usage plus writer helpers.
-- Keep the sample concise so it demonstrates connecting a mapper to an executor without extra model wiring that the reader might misinterpret as required.
+- Introduce a `Customer` type and a concrete multiline SELECT in the sample so readers can trace how snake_case columns map to DTO fields.
+- Keep the demonstration short yet runnable: show executor creation, mapper usage, and writer helpers, without adding leftover scaffolding.
 
 State:
-- Returning option in the writer remains implemented and documented; README now reflects that (historical work preserved).
-- Minimal CRUD sample imports only `createMapperFromExecutor`, `simpleMapPresets`, and the writer helpers; no unused entities remain.
+- README minimal sample now declares `Customer`, types the mapper query, and uses an inline executor plus writer helpers; this matches current implementation guidance.
 
 Done:
-- Removed the unused entity declaration from `packages/sql-contract/README.md`.
-- Updated the Minimal CRUD example so only the shown APIs are imported and exercised.
+- Added the typed `Customer` DTO and expanded the SELECT block within the minimal CRUD example to illustrate the mapper in action.
+- Kept writer helper usage intact while clarifying that the executor drives all four operations.
 
 Now:
-- README minimal sample mirrors the actual mapper and writer usage without stray declarations.
+- README sample can serve as a copy/paste starting point for teams wiring sql-contract into their driver code.
 
 Next:
-- Await confirmation or additional review guidance before concluding the PR.
+- Await confirmation or any further instructions before finalizing the PR.
 
 Open questions (mark as UNCONFIRMED if needed):
 - None.

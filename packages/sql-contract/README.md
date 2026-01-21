@@ -49,6 +49,12 @@ import {
   simpleMapPresets,
 } from '@rawsql-ts/sql-contract/mapper'
 
+type Customer = {
+  customerId: number
+  customerName: string
+  customerStatus: string
+}
+
 async function main() {
   // Prepare an executor that runs SQL and returns rows.
   // sql-contract stays DBMS/driver-agnostic by depending only on this function.
@@ -59,10 +65,17 @@ async function main() {
     return result.rows
   }
 
-  // SELECT
+  // SELECT (snake_case columns -> typed DTO)
   const mapper = createMapperFromExecutor(executor, simpleMapPresets.pgLike())
-  const rows = await mapper.query(
-    'select * from customers where id = $1',
+  const rows = await mapper.query<Customer>(
+    `
+    select
+      customer_id,
+      customer_name,
+      customer_status
+    from customers
+    where customer_id = $1
+    `,
     [42],
   )
 
