@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import { insert, remove, update } from '@rawsql-ts/sql-contract/writer'
+import type { WriterCoreOptions } from '@rawsql-ts/sql-contract/writer'
 
 describe('sql-contract writer helpers', () => {
   describe('basic statements', () => {
@@ -145,6 +146,16 @@ describe('sql-contract writer helpers', () => {
       expect(() =>
         insert('users', { name: 'value' }, { returning: ['ユーザー'] }),
       ).toThrow(/column identifier/)
+    })
+
+    test('returning rejects non-array values', () => {
+      expect(() =>
+        insert(
+          'users',
+          { name: 'value' },
+          { returning: 'id' as unknown as WriterCoreOptions['returning'] },
+        ),
+      ).toThrow('returning must be "all" or an array of column names')
     })
 
     test('rejects empty key column identifiers', () => {

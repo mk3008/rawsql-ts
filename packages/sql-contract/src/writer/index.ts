@@ -92,6 +92,10 @@ const buildReturningClause = (
     return { clause: 'RETURNING *', meta: '*' }
   }
 
+  if (!Array.isArray(returning)) {
+    throw new Error('returning must be "all" or an array of column names')
+  }
+
   if (returning.length === 0) {
     throw new Error('returning columns must not be empty')
   }
