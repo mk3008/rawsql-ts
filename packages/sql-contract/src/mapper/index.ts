@@ -5,12 +5,19 @@
 export type Row = Record<string, unknown>
 
 /**
+ * Represents either positional or named parameters that can be forwarded to an executor.
+ */
+export type QueryParams =
+  | readonly unknown[]
+  | Readonly<Record<string, unknown>>
+
+/**
  * Executes SQL and returns the resulting rows.
  *
  * The mapper keeps this layer DBMS/driver agnostic; callers inject the concrete
  * executor that speaks to the desired database.
  */
-export type QueryExecutor = (sql: string, params: unknown[]) => Promise<Row[]>
+export type QueryExecutor = (sql: string, params: QueryParams) => Promise<Row[]>
 
 /**
  * Defines how a column prefix, key, and optional overrides map to an entity.
@@ -299,17 +306,17 @@ export class Mapper {
 
   async query<T>(
     sql: string,
-    params: unknown[],
+    params: QueryParams,
     mapping: EntityMapping<T>
   ): Promise<T[]>
   async query<T>(
     sql: string,
-    params?: unknown[],
+    params?: QueryParams,
     options?: SimpleMapOptions
   ): Promise<T[]>
   async query<T>(
     sql: string,
-    params: unknown[] = [],
+    params: QueryParams = [],
     mappingOrOptions?: EntityMapping<T> | SimpleMapOptions
   ): Promise<T[]> {
     const rows = await this.executor(sql, params)
@@ -325,17 +332,17 @@ export class Mapper {
 
   async queryOne<T>(
     sql: string,
-    params: unknown[],
+    params: QueryParams,
     mapping: EntityMapping<T>
   ): Promise<T | undefined>
   async queryOne<T>(
     sql: string,
-    params?: unknown[],
+    params?: QueryParams,
     options?: SimpleMapOptions
   ): Promise<T | undefined>
   async queryOne<T>(
     sql: string,
-    params: unknown[] = [],
+    params: QueryParams = [],
     mappingOrOptions?: EntityMapping<T> | SimpleMapOptions
   ): Promise<T | undefined> {
     // Narrow mappingOrOptions before invoking the overload so the compiler can
@@ -380,7 +387,7 @@ export function toRowsExecutor(
   executorOrTarget:
     | ((
         sql: string,
-        params: unknown[]
+        params: QueryParams
       ) => Promise<{ rows: Row[] } | { rows: Row[]; rowCount?: number } | Row[]>)
     | { [key: string]: (...args: unknown[]) => Promise<unknown> },
   methodName?: string
@@ -398,7 +405,7 @@ export function toRowsExecutor(
     }
   }
 
-  const executor = async (sql: string, params: unknown[]) => {
+  const executor = async (sql: string, params: QueryParams) => {
     if (!methodName) {
       throw new Error('Method name is required when passing an object/key pair')
     }

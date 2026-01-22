@@ -1,4 +1,4 @@
-# @rawsql-ts/sql-contract
+﻿# @rawsql-ts/sql-contract
 
 ## Overview
 
@@ -25,7 +25,7 @@ We treat SELECT queries as direct expressions of domain requirements. Their desi
 
 Based on this assumption, sql-contract intentionally does not provide query-building features for SELECT statements. Instead, it focuses on the unavoidable, mechanical task that accompanies handwritten SQL: mapping query results into application models.
 
-For INSERT, UPDATE, and DELETE operations, the cost often lies in writing repetitive SQL rather than in expressing domain intent. To address this, sql-contract offers a minimal builder tailored to common cases such as primary-key–based updates.
+For INSERT, UPDATE, and DELETE operations, the cost often lies in writing repetitive SQL rather than in expressing domain intent. To address this, sql-contract offers a minimal builder tailored to common cases such as primary-key-based updates.
 
 More complex write operations fall outside the scope of this library and are expected to be expressed as handwritten SQL.
 
@@ -47,6 +47,7 @@ import { insert, update, remove } from '@rawsql-ts/sql-contract/writer'
 import {
   createMapperFromExecutor,
   simpleMapPresets,
+  type QueryParams,
 } from '@rawsql-ts/sql-contract/mapper'
 
 type Customer = {
@@ -60,7 +61,7 @@ async function main() {
   // sql-contract stays DBMS/driver-agnostic by depending only on this function.
   const pool = new Pool({ connectionString: process.env.DATABASE_URL })
 
-  const executor = async (sql: string, params: readonly unknown[]) => {
+  const executor = async (sql: string, params: QueryParams) => {
     const result = await pool.query(sql, params as unknown[])
     return result.rows
   }
@@ -126,11 +127,154 @@ void main()
 
 ---
 
-## Database Support and Executors
+## Database Support, Executors, and Mapping Rules
 
-Database-specific behavior is pushed out to the executor you provide to the mapper helpers or to the code that actually runs the writer SQL. The package itself never depends on Postgres, SQLite, or any driver: it works only with SQL strings, parameter arrays, and the row objects returned from your executor.
+Sql-contract does not bundle a database driver or assume a specific DBMS.  
+Instead, you provide a small amount of wiring up front, and the library operates only on SQL strings, parameter arrays, and row objects.
 
-The mapper exposes `createMapper` and `createMapperFromExecutor`, allowing you to provide a small executor that knows how to plan and run SQL (including driver-specific placeholder styles and connection pooling). That executor decides how to talk to the database, whether it supports `RETURNING`, how to handle dates, and how to coerce types. Sql-contract simply flattens rows according to the entity definitions you provide.
+Before using the mapper or writer helpers, decide the following:
+
+- **Executor**: how SQL is executed and rows are returned
+- **Placeholders**: how parameters are written in SQL
+- **Mapping rules**:
+  - Common rules shared across queries
+  - One-time rules applied per query
+
+The sections below outline each responsibility with minimal examples.
+
+---
+
+### Executor: running SQL and returning rows
+
+An executor is a function that receives `(sql, params)` and returns `Row[]`.  
+The `params` argument matches the exported `QueryParams` type—either a positional array or a named record—because sql-contract simply forwards whatever the mapper passes.
+
+```ts
+const executor = async (sql: string, params: QueryParams) => {
+  const result = await pool.query(sql, params as unknown[])
+  return result.rows // must be Row[]
+}
+```
+
+Key points:
+
+- Sql-contract never executes SQL by itself
+- Connection pooling, transactions, retries, and error handling live in the executor
+- The executor/driver decides how to bind the received `params` (array or object) and how placeholders should be written
+- As long as `Row[]` is returned, the mapper can consume it
+
+---
+
+### Placeholders and DBMS dialects
+
+Sql-contract does not rewrite SQL or interpret placeholders.  
+Keep your SQL consistent with the placeholder style expected by your driver, and forward placeholder bindings exactly as the driver needs them. The mapper accepts either arrays or named records (`QueryParams`), so the executor/driver decides which style to use.
+
+| DBMS / driver | Placeholder style |
+| --- | --- |
+| PostgreSQL / Neon (node-postgres) | `$1`, `$2`, ... |
+| PostgreSQL / pg-promise | `$/name/` + named `values` object |
+| MySQL / SQLite | `?`, `?`, ... |
+| SQL Server | `@p1`, `@p2`, ... |
+| Oracle | `:1`, `:name`, ... |
+
+```ts
+// Positional PostgreSQL-style placeholders with an array
+await executor(
+  'select * from customers where customer_id = $1',
+  [42],
+)
+```
+
+```ts
+// pg-promise named parameters
+await executor(
+  'select * from customers where customer_id = $/customerId/',
+  { customerId: 42 },
+)
+```
+
+```ts
+// Driver-specific named placeholders, bound via an object
+await executor(
+  'select * from customers where customer_id = :customerId',
+  { customerId: 42 },
+)
+```
+
+---
+
+### Mapping rules: common vs one-time
+
+Mapping rules define how raw driver rows are projected into DTOs.
+
+#### Common mapping rules (project-wide defaults)
+
+Use presets when the same conventions apply across most queries.
+
+```ts
+const mapper = createMapperFromExecutor(
+  executor,
+  simpleMapPresets.pgLike(),
+)
+```
+
+| Preset | Column names | Date coercion | Intended use |
+| --- | --- | --- | --- |
+| `pgLike()` | `snake_case` -> `camelCase` | enabled | PostgreSQL-style schemas |
+| `safe()` | unchanged | disabled | Maximum transparency |
+
+---
+
+#### One-time mapping rules (per query)
+
+When a query needs special handling, override mapping locally instead of changing global defaults.
+
+```ts
+const rows = await mapper.query<Customer>(
+  sql,
+  params,
+  {
+    keyTransform: (column) =>
+      column === 'customer_id' ? 'customerId' : column,
+  },
+)
+```
+
+Use one-time rules for edge cases, legacy schemas, or exceptional naming.
+
+---
+
+### Choosing the mapper entry point
+
+Sql-contract expects the mapper to receive `Row[]`.  
+Choose the entry point based on what your database client returns.
+
+#### Case A: your executor already returns `Row[]`
+
+This is the most common case.
+
+```ts
+const mapper = createMapperFromExecutor(
+  executor,
+  simpleMapPresets.pgLike(),
+)
+```
+
+#### Case B: your client returns an object wrapper
+
+Some clients return objects such as `{ rows }` or `{ recordset }`.  
+Normalize this shape once so that sql-contract always sees `Row[]`.
+
+```ts
+const mapper = createMapperFromExecutor(
+  toRowsExecutor(client, 'query'),
+  simpleMapPresets.pgLike(),
+)
+```
+
+In both cases, the mapper behaves identically at runtime.  
+The difference is only how the executor is adapted.
 
 ---
 
