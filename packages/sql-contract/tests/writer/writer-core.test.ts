@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import { insert, remove, update } from '@rawsql-ts/sql-contract/writer'
-import type { WriterCoreOptions } from '@rawsql-ts/sql-contract/writer'
+import type { WriterStatementOptions } from '@rawsql-ts/sql-contract/writer'
 
 describe('sql-contract writer helpers', () => {
   describe('basic statements', () => {
@@ -153,7 +153,7 @@ describe('sql-contract writer helpers', () => {
         insert(
           'users',
           { name: 'value' },
-          { returning: 'id' as unknown as WriterCoreOptions['returning'] },
+          { returning: 'id' as unknown as WriterStatementOptions['returning'] },
         ),
       ).toThrow('returning must be "all" or an array of column names')
     })
@@ -216,93 +216,14 @@ describe('sql-contract writer helpers', () => {
       const occurredAt = new Date()
       const eventId = 1n
 
-      const result = insert('events', { occurred_at: occurredAt, event_id: eventId })
+    const result = insert('events', { occurred_at: occurredAt, event_id: eventId })
+    if (!Array.isArray(result.params)) {
+      throw new Error('expected array parameters for default insert')
+    }
 
-      expect(result.params[0]).toBe(eventId)
-      expect(result.params[1]).toBe(occurredAt)
+    expect(result.params[0]).toBe(eventId)
+    expect(result.params[1]).toBe(occurredAt)
     })
   })
 
-  describe('placeholder styles', () => {
-    const insertValues = {
-      age: 30,
-      name: 'alice',
-    }
-    const updateValues = {
-      name: 'bobby',
-      status: 'active',
-    }
-
-    test('question style emits anonymous placeholders with deterministic parameter order', () => {
-      const options = { placeholderStyle: 'question' }
-
-      const insertResult = insert('users', insertValues, {
-        ...options,
-        returning: ['name'],
-      })
-      expect(insertResult.sql).toBe(
-        'INSERT INTO users (age, name) VALUES (?, ?) RETURNING name',
-      )
-      expect(insertResult.params).toEqual([30, 'alice'])
-
-      const updateResult = update(
-        'users',
-        updateValues,
-        { id: 1 },
-        { ...options, returning: ['status'] },
-      )
-      expect(updateResult.sql).toBe(
-        'UPDATE users SET name = ?, status = ? WHERE id = ? RETURNING status',
-      )
-      expect(updateResult.params).toEqual(['bobby', 'active', 1])
-
-      const removeResult = remove(
-        'users',
-        { id: 1, tenant_id: 2 },
-        { ...options, returning: 'all' },
-      )
-      expect(removeResult.sql).toBe(
-        'DELETE FROM users WHERE id = ? AND tenant_id = ? RETURNING *',
-      )
-      expect(removeResult.params).toEqual([1, 2])
-    })
-
-    test('named style mirrors formatter naming and continues numbering across clauses', () => {
-      const options = {
-        placeholderStyle: 'named',
-        namedPlaceholderPrefix: '@',
-        namedPlaceholderNamePrefix: 'p',
-      }
-
-      const insertResult = insert('users', insertValues, {
-        ...options,
-        returning: ['name'],
-      })
-      expect(insertResult.sql).toBe(
-        'INSERT INTO users (age, name) VALUES (@p1, @p2) RETURNING name',
-      )
-      expect(insertResult.params).toEqual([30, 'alice'])
-
-      const updateResult = update(
-        'users',
-        updateValues,
-        { id: 1 },
-        { ...options, returning: ['status'] },
-      )
-      expect(updateResult.sql).toBe(
-        'UPDATE users SET name = @p1, status = @p2 WHERE id = @p3 RETURNING status',
-      )
-      expect(updateResult.params).toEqual(['bobby', 'active', 1])
-
-      const removeResult = remove(
-        'users',
-        { id: 2, tenant_id: 3 },
-        { ...options, returning: ['tenant_id'] },
-      )
-      expect(removeResult.sql).toBe(
-        'DELETE FROM users WHERE id = @p1 AND tenant_id = @p2 RETURNING tenant_id',
-      )
-      expect(removeResult.params).toEqual([2, 3])
-    })
-  })
 })

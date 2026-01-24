@@ -1,15 +1,12 @@
+import type { QueryParams } from '../query-params'
+
+export type { QueryParams } from '../query-params'
+
 /**
  * A single database row returned by a SQL driver.
  * Row keys are SQL column names, which must be strings; symbol keys are not supported.
  */
 export type Row = Record<string, unknown>
-
-/**
- * Represents either positional or named parameters that can be forwarded to an executor.
- */
-export type QueryParams =
-  | readonly unknown[]
-  | Readonly<Record<string, unknown>>
 
 /**
  * Executes SQL and returns the resulting rows.
@@ -58,7 +55,7 @@ export type SimpleMapTypeHint = 'string' | 'number' | 'boolean' | 'date' | 'bigi
 /**
  * Options that influence simple (duck-typed) row mapping.
  */
-export interface SimpleMapOptions {
+export interface MapperOptions {
   keyTransform?: KeyTransform
   idKeysAsString?: boolean
   typeHints?: Record<string, SimpleMapTypeHint>
@@ -77,14 +74,14 @@ export interface SimpleMapOptions {
 /**
  * Named presets for simple mapping that avoid implicit inference.
  */
-export const simpleMapPresets = {
-  safe(): SimpleMapOptions {
+export const mapperPresets = {
+  safe(): MapperOptions {
     return {
       keyTransform: 'none',
       coerceDates: false,
     }
   },
-  pgLike(): SimpleMapOptions {
+  appLike(): MapperOptions {
     return {
       keyTransform: 'snake_to_camel',
       coerceDates: true,
@@ -301,7 +298,7 @@ export function columnMapFromPrefix<K extends string>(
 export class Mapper {
   constructor(
     private readonly executor: QueryExecutor,
-    private readonly defaults: SimpleMapOptions | undefined = undefined
+    private readonly defaults: MapperOptions | undefined = undefined
   ) {}
 
   async query<T>(
@@ -312,12 +309,12 @@ export class Mapper {
   async query<T>(
     sql: string,
     params?: QueryParams,
-    options?: SimpleMapOptions
+    options?: MapperOptions
   ): Promise<T[]>
   async query<T>(
     sql: string,
     params: QueryParams = [],
-    mappingOrOptions?: EntityMapping<T> | SimpleMapOptions
+    mappingOrOptions?: EntityMapping<T> | MapperOptions
   ): Promise<T[]> {
     const rows = await this.executor(sql, params)
     if (mappingOrOptions instanceof EntityMapping) {
@@ -326,7 +323,7 @@ export class Mapper {
 
     return mapSimpleRows<T>(
       rows,
-      mergeSimpleMapOptions(this.defaults, mappingOrOptions)
+      mergeMapperOptions(this.defaults, mappingOrOptions)
     )
   }
 
@@ -338,12 +335,12 @@ export class Mapper {
   async queryOne<T>(
     sql: string,
     params?: QueryParams,
-    options?: SimpleMapOptions
+    options?: MapperOptions
   ): Promise<T | undefined>
   async queryOne<T>(
     sql: string,
     params: QueryParams = [],
-    mappingOrOptions?: EntityMapping<T> | SimpleMapOptions
+    mappingOrOptions?: EntityMapping<T> | MapperOptions
   ): Promise<T | undefined> {
     // Narrow mappingOrOptions before invoking the overload so the compiler can
     // select the expected signature.
@@ -363,7 +360,7 @@ export class Mapper {
  */
 export function createMapper(
   executor: QueryExecutor,
-  defaults?: SimpleMapOptions
+  defaults?: MapperOptions
 ): Mapper {
   return new Mapper(executor, defaults)
 }
@@ -375,7 +372,7 @@ export function createMapper(
  */
 export function createMapperFromExecutor(
   executor: QueryExecutor,
-  defaults?: SimpleMapOptions
+  defaults?: MapperOptions
 ): Mapper {
   return createMapper(executor, defaults)
 }
@@ -466,8 +463,8 @@ export function mapRows<T>(rows: Row[], mapping: EntityMapping<T>): T[] {
   return Array.from(roots.values())
 }
 
-const builtinSimpleMapOptions: Required<
-  Pick<SimpleMapOptions, 'keyTransform' | 'idKeysAsString'>
+const builtinMapperOptions: Required<
+  Pick<MapperOptions, 'keyTransform' | 'idKeysAsString'>
 > = {
   keyTransform: 'snake_to_camel',
   idKeysAsString: true,
@@ -486,21 +483,21 @@ function mergeTypeHints(
   }
 }
 
-function mergeSimpleMapOptions(
-  defaults?: SimpleMapOptions,
-  overrides?: SimpleMapOptions
-): SimpleMapOptions | undefined {
+function mergeMapperOptions(
+  defaults?: MapperOptions,
+  overrides?: MapperOptions
+): MapperOptions | undefined {
   const keyTransform =
     overrides?.keyTransform ??
     defaults?.keyTransform ??
-    builtinSimpleMapOptions.keyTransform
+    builtinMapperOptions.keyTransform
   const coerceDates = overrides?.coerceDates ?? defaults?.coerceDates
   const coerceFn = overrides?.coerceFn ?? defaults?.coerceFn
   const typeHints = mergeTypeHints(defaults?.typeHints, overrides?.typeHints)
   const idKeysAsString =
     overrides?.idKeysAsString ??
     defaults?.idKeysAsString ??
-    builtinSimpleMapOptions.idKeysAsString
+    builtinMapperOptions.idKeysAsString
 
   return {
     keyTransform,
@@ -536,16 +533,16 @@ function createKeyTransformFn(
  */
 export function mapSimpleRows<T>(
   rows: Row[],
-  options?: SimpleMapOptions
+  options?: MapperOptions
 ): T[] {
   const coerceFn = options?.coerceFn
   const keyTransform =
-    options?.keyTransform ?? builtinSimpleMapOptions.keyTransform
+    options?.keyTransform ?? builtinMapperOptions.keyTransform
   const keyTransformFn = createKeyTransformFn(keyTransform)
   const shouldCoerceDates = options?.coerceDates ?? false
   const typeHints = options?.typeHints
   const idKeysAsString =
-    options?.idKeysAsString ?? builtinSimpleMapOptions.idKeysAsString
+    options?.idKeysAsString ?? builtinMapperOptions.idKeysAsString
 
   return rows.map((row) => {
     const dto: Record<string, unknown> = {}

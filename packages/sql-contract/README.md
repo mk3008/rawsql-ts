@@ -1,33 +1,49 @@
-Ôªø# @rawsql-ts/sql-contract
+# @rawsql-ts/sql-contract
 
 ## Overview
 
-@rawsql-ts/sql-contract is a library designed to reduce the friction of model mapping in SELECT queries and the repetitive boilerplate involved in INSERT, UPDATE, and DELETE statements.
+@rawsql-ts/sql-contract is a lightweight library designed to reduce the repetitive, mechanical code commonly encountered when working with handwritten SQL.
 
-It assumes that SQL itself is written explicitly by developers, and focuses only on the mechanical, repetitive work that surrounds handwritten SQL, keeping the development experience lightweight and centered on SQL.
+It improves the following aspects of the development experience:
+
+- Mapping query results to models
+- Writing simple INSERT, UPDATE, and DELETE statements
 
 ---
 
 ## Features
 
-- DBMS-agnostic by design  
+* Zero runtime dependencies
+  (pure JavaScript; no external packages required at runtime)
+* Zero DBMS dependency
   (tested with PostgreSQL, MySQL, SQL Server, and SQLite)
-- Independent of any specific database client or library  
-  (tested with node-postgres and Neon)
-- SELECT helpers focus on result mapping, not query construction
-- Simple builders for common INSERT, UPDATE, and DELETE cases
+* Zero database client dependency
+  (works with any client that executes SQL and returns rows)
+* Zero framework and ORM dependency
+  (fits into any application architecture that uses raw SQL)
+* No schema models or metadata required
+  (tables, columns, and relationships are defined only in SQL)
+* Result mapping helpers that operate on any SQL returning rows
+  (including SELECT queries and CUD statements with RETURNING or aggregate results)
+* Simple builders for common INSERT, UPDATE, and DELETE cases, without query inference
 
 ---
 
 ## Philosophy
 
-We treat SELECT queries as direct expressions of domain requirements. Their design, implementation, and debugging should therefore happen in fast, tight feedback loops. In this model, the primary development surface is the SQL client itself, while the IDE plays a supporting role.
+sql-contract treats SQL?especially SELECT statements?as a language for expressing domain requirements.
 
-Based on this assumption, sql-contract intentionally does not provide query-building features for SELECT statements. Instead, it focuses on the unavoidable, mechanical task that accompanies handwritten SQL: mapping query results into application models.
+In SQL development, it is essential to iterate quickly through the cycle of design, writing, verification, and refinement. To achieve this, a SQL client is indispensable. SQL must remain SQL, directly executable and verifiable; it cannot be adequately replaced by a DSL without breaking this feedback loop.
 
-For INSERT, UPDATE, and DELETE operations, the cost often lies in writing repetitive SQL rather than in expressing domain intent. To address this, sql-contract offers a minimal builder tailored to common cases such as primary-key-based updates.
+Based on this philosophy, this library intentionally does not provide query construction features for SELECT statements. Queries should be written by humans, as raw SQL, and validated directly against the database.
 
-More complex write operations fall outside the scope of this library and are expected to be expressed as handwritten SQL.
+At the same time, writing SQL inevitably involves mechanical tasks. In particular, mapping returned rows to application-level models is not part of the domain logic, yet it often becomes verbose and error-prone. sql-contract focuses on reducing this burden.
+
+By contrast, write operations such as INSERT, UPDATE, and DELETE generally do not carry the same level of domain significance as SELECT statements. They are often repetitive, consisting of short and predictable patterns such as primary-key-based updates.
+
+To address this, the library provides minimal builder helpers for common cases only.
+
+It deliberately goes no further than this.
 
 ---
 
@@ -38,7 +54,6 @@ More complex write operations fall outside the scope of this library and are exp
 ```sh
 pnpm add @rawsql-ts/sql-contract
 ```
-
 ### Minimal CRUD sample
 
 ```ts
@@ -46,7 +61,7 @@ import { Pool } from 'pg'
 import { insert, update, remove } from '@rawsql-ts/sql-contract/writer'
 import {
   createMapperFromExecutor,
-  simpleMapPresets,
+  mapperPresets,
   type QueryParams,
 } from '@rawsql-ts/sql-contract/mapper'
 
@@ -58,7 +73,7 @@ type Customer = {
 
 async function main() {
   // Prepare an executor that runs SQL and returns rows.
-  // sql-contract stays DBMS/driver-agnostic by depending only on this function.
+  // sql-contract remains DBMS- and driver-agnostic by depending only on this function.
   const pool = new Pool({ connectionString: process.env.DATABASE_URL })
 
   const executor = async (sql: string, params: QueryParams) => {
@@ -66,8 +81,9 @@ async function main() {
     return result.rows
   }
 
-  // SELECT (snake_case columns -> typed DTO)
-  const mapper = createMapperFromExecutor(executor, simpleMapPresets.pgLike())
+  // SELECT:
+  // Map snake_case SQL columns to a typed DTO without writing per-column mapping code.
+  const mapper = createMapperFromExecutor(executor, mapperPresets.appLike())
   const rows = await mapper.query<Customer>(
     `
     select
@@ -80,14 +96,16 @@ async function main() {
     [42],
   )
 
-  // INSERT
+  // INSERT:
+  // Simplify repetitive SQL for common write operations.
   const insertResult = insert('customers', {
     name: 'alice',
     status: 'pending',
   })
   await executor(insertResult.sql, insertResult.params)
 
-  // UPDATE
+  // UPDATE:
+  // Simplify repetitive SQL for common write operations.
   const updateResult = update(
     'customers',
     { status: 'active' },
@@ -95,7 +113,8 @@ async function main() {
   )
   await executor(updateResult.sql, updateResult.params)
 
-  // DELETE
+  // DELETE:
+  // Simplify repetitive SQL for common write operations.
   const deleteResult = remove('customers', { id: 17 })
   await executor(deleteResult.sql, deleteResult.params)
 
@@ -108,46 +127,24 @@ void main()
 
 ---
 
-## Design Principles
+## é¿çsä¬ã´ÇÃèÄîı
 
-- **No inference.**  
-  Every column and relation is defined explicitly. The package never scans the database, infers foreign keys, or guesses which columns are present. It works only with the SQL you already own.
+sql-contract ÇÕè≠ó ÇÃîzê¸Çópà”Ç∑ÇÈÇæÇØÇ≈ÅAÇ≥Ç‹Ç¥Ç‹Ç»DBMSÇ…ëŒâûÇ≥ÇπÇÈÇ±Ç∆Ç™â¬î\Ç≈Ç∑ÅB
 
-- **SQL stays visible.**  
-  You always pass a concrete query string along with a parameter list. Nothing is hidden, rewritten, or regenerated behind the scenes.
+ÉNÉGÉäÇé¿çsÇ∑ÇÈÉRÅ[ÉhÇèëÇ≠ëOÇ…ÅAà»â∫ÇÃì‡óeÇãLèqÇµÇ‹ÇµÇÂÇ§ÅB
 
-- **No schema state.**  
-  Schema knowledge lives outside this package. There is no model registry, no migration lock, and no central schema cache.
-
-- **Executor responsibility.**  
-  Differences between database engines (including placeholder styles, type coercion, or runtime features such as RETURNING) remain in the executor that feeds the mapper or in the client that executes the writer output.
-
-- **Explicit non-goals.**  
-  Sql-contract does not guess joins, infer primary keys, track schema migrations, or become a query builder. It does not manage transactions, execute statements, or wrap rows for ORM-style lazy loading. Those responsibilities belong elsewhere so this package can stay lightweight.
-
----
-
-## Database Support, Executors, and Mapping Rules
-
-Sql-contract does not bundle a database driver or assume a specific DBMS.  
-Instead, you provide a small amount of wiring up front, and the library operates only on SQL strings, parameter arrays, and row objects.
-
-Before using the mapper or writer helpers, decide the following:
-
-- **Executor**: how SQL is executed and rows are returned
-- **Placeholders**: how parameters are written in SQL
-- **Mapping rules**:
-  - Common rules shared across queries
-  - One-time rules applied per query
-
-The sections below outline each responsibility with minimal examples.
+- **ÉGÉOÉ[ÉLÉÖÅ[É^**: SQL ÇÃé¿çsï˚ñ@Ç∆çsÇÃï‘ï˚ñ@
+- **ÉvÉåÅ[ÉXÉzÉãÉ_**: SQL Ç≈ÇÃÉpÉâÉÅÅ[É^ÇÃãLèqï˚ñ@
+- **É}ÉbÉsÉìÉOÉãÅ[Éã**:
+  - ÉNÉGÉää‘Ç≈ã§óLÇ≥ÇÍÇÈã§í ÉãÅ[Éã
+  - ÉNÉGÉäÇ≤Ç∆Ç…ìKópÇ≥ÇÍÇÈ 1 âÒå¿ÇËÇÃÉãÅ[Éã
 
 ---
 
 ### Executor: running SQL and returning rows
 
 An executor is a function that receives `(sql, params)` and returns `Row[]`.  
-The `params` argument matches the exported `QueryParams` type‚Äîeither a positional array or a named record‚Äîbecause sql-contract simply forwards whatever the mapper passes.
+The `params` argument matches the exported `QueryParams` type?either a positional array or a named record?because sql-contract simply forwards whatever the mapper passes.
 
 ```ts
 const executor = async (sql: string, params: QueryParams) => {
@@ -215,13 +212,13 @@ Use presets when the same conventions apply across most queries.
 ```ts
 const mapper = createMapperFromExecutor(
   executor,
-  simpleMapPresets.pgLike(),
+  mapperPresets.appLike(),
 )
 ```
 
 | Preset | Column names | Date coercion | Intended use |
 | --- | --- | --- | --- |
-| `pgLike()` | `snake_case` -> `camelCase` | enabled | PostgreSQL-style schemas |
+| `appLike()` | `snake_case` -> `camelCase` | enabled | PostgreSQL-style schemas |
 | `safe()` | unchanged | disabled | Maximum transparency |
 
 ---
@@ -257,7 +254,7 @@ This is the most common case.
 ```ts
 const mapper = createMapperFromExecutor(
   executor,
-  simpleMapPresets.pgLike(),
+  mapperPresets.appLike(),
 )
 ```
 
@@ -269,7 +266,7 @@ Normalize this shape once so that sql-contract always sees `Row[]`.
 ```ts
 const mapper = createMapperFromExecutor(
   toRowsExecutor(client, 'query'),
-  simpleMapPresets.pgLike(),
+  mapperPresets.appLike(),
 )
 ```
 
@@ -288,15 +285,118 @@ If you pass `returning`, the helper extends the SQL with a `RETURNING` clause. U
 
 The writer remains declarative: it never executes SQL, never infers column names, and never intertwines multiple tables. It formalizes only the contract your code already intends to express.
 
+### Preset-driven writer flow
+
+Advanced writer usage now flows through `createWriterFromExecutor`, which binds your executor to a `writerPresets` configuration. Each preset represents a concrete SQL dialect and deterministically produces:
+
+1. the placeholder text that will be emitted in the SQL,
+2. the `QueryParams` shape (array for positional styles, record for named styles),
+3. a binder that assigns parameters in driver-friendly order.
+
+This keeps the executor agnostic of the placeholder construction while ensuring parameters remain in lockstep with the emitted SQL.
+
+Each statement still takes `returning` and `allowUnsafeIdentifiers` via `WriterStatementOptions`. Placeholder strategy, parameter shape, and naming rules now live exclusively in the preset.
+
+```ts
+import {
+  createWriterFromExecutor,
+  writerPresets,
+} from '@rawsql-ts/sql-contract/writer'
+
+const writer = createWriterFromExecutor(
+  executor,
+  writerPresets.named({
+    formatPlaceholder: (paramName) => ':' + paramName,
+  }),
+)
+
+const built = writer.build.insert(
+  'projects',
+  { name: 'Apollo', owner_id: 7 },
+  { returning: ['project_id'] },
+)
+
+await writer.insert('projects', { name: 'Apollo', owner_id: 7 }, {
+  returning: ['project_id'],
+})
+```
+
+Use `writer.build.<statement>` when you need to inspect the generated `{ sql, params }` tuple (including `returning` metadata) before execution. Call `<writer>.insert|update|remove` to hand the SQL directly to your executor, knowing the preset already prepared the correct placeholders and parameter shape.
+
+#### Presets
+
+| Preset | Placeholder style | Params shape | Description |
+| --- | --- | --- | --- |
+| `writerPresets.indexed()` | `$1, $2, Åc` | `unknown[]` | PostgreSQL-style numbered placeholders. This preset is the `createWriterFromExecutor(executor)` default. |
+| `writerPresets.anonymous()` | `?` | `unknown[]` | Anonymous placeholders used by MySQL/SQLite. |
+| `writerPresets.named({ formatPlaceholder })` | named (e.g. `:name`, `@name`, `$/name/`) | `Record<string, unknown>` | Column-based names with sequential counters so each bind can be formatted for Oracle/SQL Server/pg-promise. Provide `formatPlaceholder` to add the appropriate dialect prefix. |
+
+#### Named placeholder naming
+
+The named preset automatically derives parameter names from column names passed to the writer helpers. Each `insert` value, `update` SET entry, and `WHERE` binding increments a counter, appends it to a sanitized column name (`name_1`, `owner_id_2`, Åc), adds the entry to the params object, and passes the result into `formatPlaceholder`. This produces deterministic driver-ready placeholders such as `:name_1`, `@owner_id_2`, or `$/name_1/`.
+
+```ts
+const writer = createWriterFromExecutor(
+  executor,
+  writerPresets.named({
+    formatPlaceholder: (paramName) => ':' + paramName,
+  }),
+)
+
+await writer.insert('projects', { name: 'Apollo', owner_id: 7 })
+// SQL: INSERT INTO projects (name, owner_id) VALUES (:name_1, :owner_id_2)
+// params: { name_1: 'Apollo', owner_id_2: 7 }
+```
+
 ---
 
 ## Mapper: Advanced Usage (R)
 
 Mapping rows back into DTOs is the core mission of sql-contract. The mapper helpers rely on explicit entity definitions (`entity({ name, key, prefix })`, relations, column maps, and guards) to describe how each SQL result should be shaped.
 
-You can hydrate a single model, map multiple models from the same row set, or lazily duck-type results via `simpleMapPresets` and custom coercion hooks. Because the mapper never fabricates column names or guesses relation keys, the resulting domain logic remains transparent and predictable.
+You can hydrate a single model, map multiple models from the same row set, or lazily duck-type results via `mapperPresets` and custom coercion hooks. Because the mapper never fabricates column names or guesses relation keys, the resulting domain logic remains transparent and predictable.
 
 If you already handwrite SQL, the mapper is the smallest possible addition: it handles the mechanical task of mapping columns to fields so the rest of your code can stay focused on the intent expressed in SQL.
+
+Explicit entity definitions plus relations keep joined queries deterministic and readable:
+
+```ts
+import {
+  createMapperFromExecutor,
+  entity,
+} from '@rawsql-ts/sql-contract/mapper'
+
+const customerEntity = entity({
+  name: 'customer',
+  key: 'customerId',
+  columnMap: {
+    customerId: 'customer_id',
+    customerName: 'customer_name',
+  },
+})
+
+const orderEntity = entity({
+  name: 'order',
+  key: 'orderId',
+  prefix: 'order_',
+}).belongsTo('customer', customerEntity, 'customerId')
+
+const mapper = createMapperFromExecutor(executor)
+const rows = await mapper.query(
+  `
+    select
+      o.order_id,
+      o.order_total,
+      c.customer_id,
+      c.customer_name
+    from orders o
+    join customers c on c.customer_id = o.customer_id
+    where o.order_id = $1
+  `,
+  [123],
+  orderEntity,
+)
+```
 
 ---
 

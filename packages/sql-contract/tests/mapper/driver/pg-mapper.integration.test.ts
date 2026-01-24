@@ -11,7 +11,7 @@ import {
 } from 'vitest'
 import {
   createMapperFromExecutor,
-  SimpleMapOptions,
+  MapperOptions,
   toRowsExecutor,
 } from '@rawsql-ts/sql-contract/mapper'
 import { driverDescribe } from './driver-describe'
@@ -26,14 +26,14 @@ const ensureClient = (): Client => {
   return client
 }
 
-const createTestMapper = (options?: SimpleMapOptions) => {
+const createTestMapper = (options?: MapperOptions) => {
   const executor = toRowsExecutor((sql, params) =>
     ensureClient().query(sql, params)
   )
   return createMapperFromExecutor(executor, options)
 }
 
-const decimalCoerce: SimpleMapOptions['coerceFn'] = ({ value }) => {
+const decimalCoerce: MapperOptions['coerceFn'] = ({ value }) => {
   if (typeof value !== 'string') {
     return value
   }

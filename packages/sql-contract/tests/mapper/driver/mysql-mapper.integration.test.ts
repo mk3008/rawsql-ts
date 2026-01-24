@@ -6,7 +6,7 @@ import {
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import {
   createMapperFromExecutor,
-  SimpleMapOptions,
+  MapperOptions,
   toRowsExecutor,
 } from '@rawsql-ts/sql-contract/mapper'
 import { driverDescribe } from './driver-describe'
@@ -21,7 +21,7 @@ const ensureConnection = (): mysql.Connection => {
   return connection
 }
 
-const createTestMapper = (options?: SimpleMapOptions) => {
+const createTestMapper = (options?: MapperOptions) => {
   const executor = toRowsExecutor(async (sql, params) => {
     const [rows] = await ensureConnection().execute(sql, params)
     return rows
@@ -29,7 +29,7 @@ const createTestMapper = (options?: SimpleMapOptions) => {
   return createMapperFromExecutor(executor, options)
 }
 
-const decimalCoerce: SimpleMapOptions['coerceFn'] = ({ value }) => {
+const decimalCoerce: MapperOptions['coerceFn'] = ({ value }) => {
   if (typeof value !== 'string') {
     return value
   }

@@ -3,7 +3,7 @@ import initSqlJs, { Database as SqlJsDatabase } from 'sql.js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
   createMapperFromExecutor,
-  SimpleMapOptions,
+  MapperOptions,
   toRowsExecutor,
 } from '@rawsql-ts/sql-contract/mapper'
 
@@ -31,7 +31,7 @@ const convertResults = (results: ReturnType<SqlJsDatabase['exec']>) => {
   })
 }
 
-const createTestMapper = (options?: SimpleMapOptions) => {
+const createTestMapper = (options?: MapperOptions) => {
   const executor = toRowsExecutor((sql) => {
     const results = ensureDb().exec(sql)
     return convertResults(results)
@@ -55,7 +55,7 @@ afterAll(() => {
   db?.close()
 })
 
-const decimalCoerce: SimpleMapOptions['coerceFn'] = ({ value }) => {
+const decimalCoerce: MapperOptions['coerceFn'] = ({ value }) => {
   if (typeof value !== 'string') {
     return value
   }

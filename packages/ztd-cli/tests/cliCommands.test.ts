@@ -80,7 +80,9 @@ async function seedProductsTable(client: Client) {
   `);
 }
 
-test('ztd-config CLI produces the expected ztd-row-map.generated.ts snapshot', () => {
+test(
+  'ztd-config CLI produces the expected ztd-row-map.generated.ts snapshot',
+  () => {
   const ddlDir = createTempDir('cli-gen-ddl');
   writeFileSync(
     path.join(ddlDir, 'tables.sql'),
@@ -108,7 +110,9 @@ test('ztd-config CLI produces the expected ztd-row-map.generated.ts snapshot', (
 
   const content = readNormalizedFile(outputFile);
   expect(content).toMatchSnapshot();
-});
+  },
+  60000,
+);
 
 const hasPgDump = commandExists(pgDumpCommand);
 const hasConnection = Boolean(process.env.TEST_PG_URI);

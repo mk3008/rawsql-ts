@@ -11,7 +11,7 @@ import {
 } from 'vitest'
 import {
   createMapperFromExecutor,
-  simpleMapPresets,
+  mapperPresets,
   type QueryParams,
 } from '@rawsql-ts/sql-contract/mapper'
 import { driverDescribe } from './driver-describe'
@@ -75,7 +75,7 @@ driverDescribe('mapper driver named-parameter integration (pg-promise)', () => {
         const rows = await ensureDb().any(sql, params)
         return rows
       },
-      simpleMapPresets.safe()
+      mapperPresets.safe()
     )
     
     const namedSql = `

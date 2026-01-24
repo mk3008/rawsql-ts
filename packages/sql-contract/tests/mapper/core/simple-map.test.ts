@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createMapper, mapSimpleRows, simpleMapPresets } from '@rawsql-ts/sql-contract/mapper'
+import { createMapper, mapSimpleRows, mapperPresets } from '@rawsql-ts/sql-contract/mapper'
 
 type UserDto = {
   id: string
@@ -91,7 +91,7 @@ describe('mapper simple mapping', () => {
         },
       ]
 
-      const mapper = createMapper(async () => rows, simpleMapPresets.safe())
+      const mapper = createMapper(async () => rows, mapperPresets.safe())
       const [record] = await mapper.query<{
         invoice_id: number
         issued_at: string
@@ -102,14 +102,14 @@ describe('mapper simple mapping', () => {
       expect(typeof record.issued_at).toBe('string')
     })
 
-    it('uses the pgLike preset to enable camelCase keys and date coercion', async () => {
+    it('uses the appLike preset to enable camelCase keys and date coercion', async () => {
       const rows = [
         {
           issued_at: '2025-01-01T00:00:00Z',
         },
       ]
 
-      const mapper = createMapper(async () => rows, simpleMapPresets.pgLike())
+      const mapper = createMapper(async () => rows, mapperPresets.appLike())
       const [record] = await mapper.query<{ issuedAt: Date }>('SELECT ...', [])
 
       expect(record.issuedAt).toBeInstanceOf(Date)

@@ -33,7 +33,7 @@ It must not become an ORM, a schema-aware layer, or a query builder.
   - prefixes
   - "belongsTo*" relations
   - "typeHints"
-  - preset "SimpleMapOptions"
+  - preset "MapperOptions"
 - Throw on:
   - missing columns
   - duplicate normalized names
