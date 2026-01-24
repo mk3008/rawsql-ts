@@ -205,7 +205,7 @@ This form mirrors `mapperPresets.appLike()` while allowing targeted overrides fo
 
 ### Duck-typed mapping (no model definitions)
 
-For lightweight or localized use cases, the mapper supports duck-typed projections without defining any schema or entity models.
+For lightweight or localized use cases, the mapper supports duck-typed projections without defining any schema or mapping models.
 
 In duck-typed mapping, the mapper applies no additional structural assumptions beyond its configured defaults.
 The shape of the result is defined locally at the query site, either by providing a TypeScript type or by relying on the raw row shape.
@@ -226,14 +226,13 @@ const rows = await mapper.query(
 ```
 
 Duck-typed mapping is intentionally minimal and local.
-If the shape of the query results is important or reused throughout your application, consider moving to explicit entity-based mapping.
+If the shape of the query results is important or reused throughout your application, consider moving to explicit row mapping.
 
 ---
 
-### Mapping to a single model
+### Mapping to a Single Model
 
-When query results represent a stable shape within a repository, you can map them to a typed DTO without defining an entity.
-This is the same duck-typed projection shown earlier, but you explicitly provide the target shape so TypeScript can type-check each row.
+sql-contract allows you to map query results to typed DTOs.
 
 ```ts
 type Customer = {
@@ -243,29 +242,24 @@ type Customer = {
 
 const rows = await mapper.query<Customer>(
   `
-    select
-      customer_id,
-      customer_name
-    from customers
-    where customer_id = $1
+  select
+    customer_id,
+    customer_name
+  from customers
+  where customer_id = $1
   `,
   [42],
 )
+
+// rows[0].customerName is type-safe
 ```
 
-The mapper presets you configure control the normalization rules applied here:
+The normalization rules applied during mapping are controlled by the selected mapper preset.
 
-* `mapperPresets.appLike()` applies `snake_case`→`camelCase`, coerces ISO dates, and stringifies identifier-like columns.
-* `mapperPresets.safe()` keeps column names and values exactly as they arrive from SQL so you can type the raw output.
-
-Because this path runs the simple-mapping helpers, the same defaults affect `mapper.queryOne<T>`, `mapper.query<T[]>`, and any other helper that omits an entity.
-
-If you need to customize column names, prefixes, or intend to compose the row with other models, define an explicit entity and pass it as the final argument:
+You can also define one-off mapping rules using columnMap.
 
 ```ts
-const customerEntity = entity<Customer>({
-  name: 'Customer',
-  key: 'customerId',
+const customerMapping = rowMapping<Customer>({
   columnMap: {
     customerId: 'customer_id',
     customerName: 'customer_name',
@@ -274,20 +268,23 @@ const customerEntity = entity<Customer>({
 
 const rows = await mapper.query<Customer>(
   `
-    select
-      customer_id,
-      customer_name
-    from customers
-    where customer_id = $1
+  select
+    customer_id,
+    customer_name
+  from customers
+  where customer_id = $1
   `,
   [42],
-  customerEntity,
+  customerMapping, // explicitly specify the mapping rule
 )
 
 // rows[0].customerName is type-safe
 ```
 
-Explicit entity mappings are required when the model participates in joins or relations; that form is covered in the next section.
+The `rowMapping()` helper replaces the previous `entity()` alias. The old name is still supported for now but is deprecated in favor of `rowMapping()`.
+
+When a query includes JOINs or relationships, explicit row mappings are required.
+The structure for such mappings is explained in the next section.
 
 ---
 
@@ -298,11 +295,11 @@ The mapper also supports mapping joined result sets into multiple related models
 Relations are explicitly defined and never inferred.
 
 ```ts
-const orderEntity = entity({
+const orderMapping = rowMapping({
   name: 'order',
   key: 'orderId',
   prefix: 'order_',
-}).belongsTo('customer', customerEntity, 'customerId')
+}).belongsTo('customer', customerMapping, 'customerId')
 ```
 
 Joined queries remain transparent and deterministic:
@@ -322,7 +319,7 @@ const rows = await mapper.query(
     where o.order_id = $1
   `,
   [123],
-  orderEntity,
+  orderMapping,
 )
 ```
 

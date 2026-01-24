@@ -48,7 +48,7 @@ Good examples:
 
 ## Explicit Mapping Is the Default
 
-Most tests SHOULD use `EntityMapping`.
+Most tests SHOULD use `RowMapping`.
 
 Duck-typed mapping is allowed only when:
 - Explicitly testing duck-typed behavior

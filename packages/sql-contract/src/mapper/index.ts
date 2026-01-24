@@ -17,23 +17,25 @@ export type Row = Record<string, unknown>
 export type QueryExecutor = (sql: string, params: QueryParams) => Promise<Row[]>
 
 /**
- * Defines how a column prefix, key, and optional overrides map to an entity.
+ * Defines how a column prefix, key, and optional overrides describe a row mapping.
  */
-export interface EntityOptions<T, K extends Extract<keyof T, string>> {
+export interface RowMappingOptions<T, K extends Extract<keyof T, string>> {
   name: string
   key: K
   prefix?: string
   columnMap?: Partial<Record<Extract<keyof T, string>, string>>
   coerce?: boolean
   /**
-   * Entity mappings rely on a very narrow coercion helper; it only receives the
+   * Row mappings rely on a very narrow coercion helper; it only receives the
    * raw column value so callers can swap in their own rules.
    */
   coerceFn?: (value: unknown) => unknown
 }
 
+export type { RowMappingOptions as EntityOptions }
+
 /**
- * Describes how a child entity references a parent mapping.
+ * Describes how a child mapping references a parent mapping.
  */
 export interface BelongsToOptions {
   optional?: boolean
@@ -91,7 +93,7 @@ export const mapperPresets = {
 
 type ParentLink<T> = {
   propertyName: string
-  parent: EntityMapping<any>
+  parent: RowMapping<any>
   localKey: string
   optional: boolean
 }
@@ -108,9 +110,9 @@ type RowContext = {
 }
 
 /**
- * Builds an entity mapping that can be consumed by {@link Mapper#query} or {@link mapRows}.
+ * Builds a row mapping that can be consumed by {@link Mapper#query} or {@link mapRows}.
  */
-export class EntityMapping<
+export class RowMapping<
   T,
   K extends Extract<keyof T, string> = Extract<keyof T, string>
 > {
@@ -126,7 +128,7 @@ export class EntityMapping<
   private readonly shouldCoerce: boolean
   private readonly coerceFn: (value: unknown) => unknown
 
-  constructor(options: EntityOptions<T, K>) {
+  constructor(options: RowMappingOptions<T, K>) {
     this.name = options.name
     this.key = options.key
     this.prefix = options.prefix ?? ''
@@ -137,7 +139,7 @@ export class EntityMapping<
       for (const [property, column] of Object.entries(options.columnMap)) {
         if (typeof column !== 'string') {
           throw new Error(
-            `EntityMapping "${this.name}" columnMap["${property}"] must be a string.`
+            `RowMapping "${this.name}" columnMap["${property}"] must be a string.`
           )
         }
         this.columnMap[property] = column
@@ -147,7 +149,7 @@ export class EntityMapping<
 
     if (!this.prefix && this.overrideLookup.size === 0) {
       throw new Error(
-        `EntityMapping "${this.name}" must define either "prefix" or "columnMap".`
+        `RowMapping "${this.name}" must define either "prefix" or "columnMap".`
       )
     }
 
@@ -162,7 +164,7 @@ export class EntityMapping<
    */
   belongsTo<P, PK extends Extract<keyof P, string>>(
     propertyName: Extract<keyof T, string>,
-    parent: EntityMapping<P, PK>,
+    parent: RowMapping<P, PK>,
     localKey: Extract<keyof T, string>,
     options?: BelongsToOptions
   ): this {
@@ -181,7 +183,7 @@ export class EntityMapping<
    */
   belongsToWithLocalKey<P, PK extends Extract<keyof P, string>>(
     propertyName: Extract<keyof T, string>,
-    parent: EntityMapping<P, PK>,
+    parent: RowMapping<P, PK>,
     localKey: Extract<keyof T, string>
   ): this {
     return this.belongsTo(propertyName, parent, localKey)
@@ -192,7 +194,7 @@ export class EntityMapping<
    */
   belongsToOptional<P, PK extends Extract<keyof P, string>>(
     propertyName: Extract<keyof T, string>,
-    parent: EntityMapping<P, PK>,
+    parent: RowMapping<P, PK>,
     localKey?: Extract<keyof T, string>
   ): this {
     if (localKey == null) {
@@ -267,14 +269,26 @@ export class EntityMapping<
   }
 }
 
+export { RowMapping as EntityMapping }
+
 /**
- * Creates a new entity mapping from the provided options.
+ * Creates a new row mapping from the provided options.
+ */
+export function rowMapping<
+  T,
+  K extends Extract<keyof T, string> = Extract<keyof T, string>
+>(options: RowMappingOptions<T, K>): RowMapping<T, K> {
+  return new RowMapping<T, K>(options)
+}
+
+/**
+ * @deprecated Use {@link rowMapping} instead.
  */
 export function entity<
   T,
   K extends Extract<keyof T, string> = Extract<keyof T, string>
->(options: EntityOptions<T, K>): EntityMapping<T, K> {
-  return new EntityMapping<T, K>(options)
+>(options: RowMappingOptions<T, K>): RowMapping<T, K> {
+  return rowMapping(options)
 }
 
 /**
@@ -304,7 +318,7 @@ export class Mapper {
   async query<T>(
     sql: string,
     params: QueryParams,
-    mapping: EntityMapping<T>
+    mapping: RowMapping<T>
   ): Promise<T[]>
   async query<T>(
     sql: string,
@@ -314,10 +328,10 @@ export class Mapper {
   async query<T>(
     sql: string,
     params: QueryParams = [],
-    mappingOrOptions?: EntityMapping<T> | MapperOptions
+    mappingOrOptions?: RowMapping<T> | MapperOptions
   ): Promise<T[]> {
     const rows = await this.executor(sql, params)
-    if (mappingOrOptions instanceof EntityMapping) {
+    if (mappingOrOptions instanceof RowMapping) {
       return mapRows(rows, mappingOrOptions)
     }
 
@@ -330,7 +344,7 @@ export class Mapper {
   async queryOne<T>(
     sql: string,
     params: QueryParams,
-    mapping: EntityMapping<T>
+    mapping: RowMapping<T>
   ): Promise<T | undefined>
   async queryOne<T>(
     sql: string,
@@ -340,11 +354,11 @@ export class Mapper {
   async queryOne<T>(
     sql: string,
     params: QueryParams = [],
-    mappingOrOptions?: EntityMapping<T> | MapperOptions
+    mappingOrOptions?: RowMapping<T> | MapperOptions
   ): Promise<T | undefined> {
     // Narrow mappingOrOptions before invoking the overload so the compiler can
     // select the expected signature.
-    if (mappingOrOptions instanceof EntityMapping) {
+    if (mappingOrOptions instanceof RowMapping) {
       const rows = await this.query<T>(sql, params, mappingOrOptions)
       return rows[0]
     }
@@ -424,12 +438,12 @@ export function toRowsExecutor(
 }
 
 /**
- * Maps a pre-fetched row array into typed objects defined by an entity mapping.
+ * Maps a pre-fetched row array into typed objects defined by a row mapping.
  * Row values remain `unknown`, and the mapper only applies the general-purpose
  * coercion rules declared in `coerceColumnValue`.
  */
-export function mapRows<T>(rows: Row[], mapping: EntityMapping<T>): T[] {
-  const cache = new Map<EntityMapping<any>, Map<string, unknown>>()
+export function mapRows<T>(rows: Row[], mapping: RowMapping<T>): T[] {
+  const cache = new Map<RowMapping<any>, Map<string, unknown>>()
   const roots = new Map<string, T>()
 
   // Deduplicate root entities by key so joined rows map back to the same object.
@@ -438,7 +452,7 @@ export function mapRows<T>(rows: Row[], mapping: EntityMapping<T>): T[] {
     const keyValue = mapping.readKeyValue(ctx)
     if (keyValue === undefined || keyValue === null) {
       throw new Error(
-        `Missing key column for root entity "${mapping.name}" in row ${JSON.stringify(
+        `Missing key column for root mapping "${mapping.name}" in row ${JSON.stringify(
           row
         )}`
       )
@@ -722,8 +736,8 @@ function stringifyIdentifierValue(value: unknown): unknown {
 
 function buildEntity<T>(
   ctx: RowContext,
-  mapping: EntityMapping<T>,
-  cache: Map<EntityMapping<any>, Map<string, unknown>>,
+  mapping: RowMapping<T>,
+  cache: Map<RowMapping<any>, Map<string, unknown>>,
   visited: Set<string>,
   stack: TraceFrame[],
   relation?: string
@@ -740,7 +754,7 @@ function buildEntity<T>(
     const cyclePath = [...stack, currentFrame]
       .map((frame) => formatFrame(frame))
       .join(' -> ')
-    throw new Error(`Circular entity mapping detected: ${cyclePath}`)
+    throw new Error(`Circular row mapping detected: ${cyclePath}`)
   }
 
   visited.add(visitKey)
@@ -760,13 +774,13 @@ function buildEntity<T>(
 
 function getOrCreateEntity<T>(
   ctx: RowContext,
-  mapping: EntityMapping<T>,
-  cache: Map<EntityMapping<any>, Map<string, unknown>>
+  mapping: RowMapping<T>,
+  cache: Map<RowMapping<any>, Map<string, unknown>>
 ): { entity: T; isNew: boolean; keyString: string } {
   const keyValue = mapping.readKeyValue(ctx)
   if (keyValue === undefined || keyValue === null) {
     throw new Error(
-      `Missing key column for entity "${mapping.name}" during recursion.`
+      `Missing key column for mapping "${mapping.name}" during recursion.`
     )
   }
 
@@ -776,7 +790,7 @@ function getOrCreateEntity<T>(
   } catch (error) {
     const detail = error instanceof Error && error.message ? ` (${error.message})` : ''
     throw new Error(
-      `Entity "${mapping.name}" key must be JSON-serializable${detail}.`
+      `Row mapping "${mapping.name}" key must be JSON-serializable${detail}.`
     )
   }
   let entitySet = cache.get(mapping)
@@ -798,8 +812,8 @@ function getOrCreateEntity<T>(
 function hydrateParents<T>(
   entity: T,
   ctx: RowContext,
-  mapping: EntityMapping<T>,
-  cache: Map<EntityMapping<any>, Map<string, unknown>>,
+  mapping: RowMapping<T>,
+  cache: Map<RowMapping<any>, Map<string, unknown>>,
   visited: Set<string>,
   stack: TraceFrame[]
 ): void {
@@ -847,7 +861,7 @@ function hydrateParents<T>(
         continue
       }
       throw new Error(
-        `Missing key column "${parentKeyColumn}" for parent entity "${parent.parent.name}"`
+        `Missing key column "${parentKeyColumn}" for parent mapping "${parent.parent.name}"`
       )
     }
 
@@ -921,7 +935,7 @@ function stringifyKey(value: unknown): string {
     try {
       return JSON.stringify(value)
     } catch {
-      throw new Error('Entity key must be JSON-serializable.')
+    throw new Error('Row mapping key must be JSON-serializable.')
     }
   }
   return String(value)
@@ -1002,3 +1016,4 @@ function toSnakeCase(value: string): string {
     .replace(/^_+/, '')
 }
                   
+
