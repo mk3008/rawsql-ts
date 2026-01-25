@@ -1,5 +1,11 @@
 # rawsql-ts
 
+## 0.15.1
+
+### Patch Changes
+
+- Pin lodash consumers to 4.17.23 to resolve GHSA-xxjr-mmjv-4gpg.
+
 ## 0.15.0
 
 ### Patch Changes
