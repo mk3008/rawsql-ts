@@ -172,6 +172,15 @@ This project includes a comprehensive benchmark suite to evaluate the performanc
 npm run benchmark
 ```
 
+When you need to re-run the full benchmark suite, regenerate the generated row map first so the ZTD-backed fixtures exist:
+
+```bash
+cd benchmarks/sql-unit-test
+npx ztd ztd-config
+```
+
+Then run `pnpm bench:test` from the repository root. The dedicated command invokes the benchmark workspace and automatically skips the suite if the generated artifacts are absent, keeping `pnpm -r test` fast and stable while still allowing the bench run after the fixtures are produced.
+
 ### Benchmark Details
 
 The benchmark suite measures SQL parsing and formatting speed across queries of varying complexity:

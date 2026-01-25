@@ -6,7 +6,7 @@ export default defineConfig({
     test: {
         environment: 'node',
         include: ['packages/*/tests/**/*.test.[jt]s'],
-        exclude: ['**/dist/**', '**/node_modules/**'],
+        exclude: ['**/dist/**', '**/node_modules/**', 'benchmarks/**'],
         root: resolve(__dirname),
         testTimeout: 10000,
         pool: 'threads',
@@ -17,12 +17,8 @@ export default defineConfig({
         alias: {
             'rawsql-ts': resolve(__dirname, 'packages/core/src'),
             '@rawsql-ts/testkit-core': resolve(__dirname, 'packages/testkit-core/src'),
-            '@rawsql-ts/sql-contract-zod': resolve(__dirname, 'packages/sql-contract-zod/src'),
-            '@rawsql-ts/sql-contract-core': resolve(__dirname, 'packages/sql-contract/dist'),
-            '@rawsql-ts/sql-contract-core/mapper': resolve(
-                __dirname,
-                'packages/sql-contract/dist/mapper'
-            ),
+        '@rawsql-ts/sql-contract-zod': resolve(__dirname, 'packages/sql-contract-zod/src'),
+        '@rawsql-ts/sql-contract': resolve(__dirname, 'packages/sql-contract/src'),
         },
     },
 })

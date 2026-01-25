@@ -1,5 +1,5 @@
-﻿---
-'@rawsql-ts/sql-contract-zod': patch
 ---
-
-Add the Zod-backed edition of sql-contract to validate mapped DTOs at runtime and provide explicit helper transforms.
+"@rawsql-ts/sql-contract-zod": patch
+"@rawsql-ts/sql-contract": patch
+---
+Document that queryZod/queryOneZod always normalize params to an array and update the related tests so the new behavior is captured.

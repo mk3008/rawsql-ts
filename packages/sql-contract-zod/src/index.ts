@@ -3,7 +3,7 @@ import type {
   MapperOptions,
   QueryParams,
   RowMapping,
-} from '@rawsql-ts/sql-contract-core/mapper'
+} from '@rawsql-ts/sql-contract/mapper'
 
 /**
  * Minimal mapper surface required by the Zod helpers.
@@ -60,9 +60,9 @@ export async function queryZod<T>(
   mapper: MapperLike,
   schema: ZodType<T>,
   sql: string,
-  ...rest: QueryZodRestArgs<T>
+  ...rest: readonly unknown[]
 ): Promise<T[]> {
-  const normalized = normalizeQueryArgs(rest)
+  const normalized = normalizeQueryArgs(rest as QueryZodRestArgs<T>)
   return executeQueryZod(mapper, schema, sql, normalized)
 }
 
@@ -97,9 +97,9 @@ export async function queryOneZod<T>(
   mapper: MapperLike,
   schema: ZodType<T>,
   sql: string,
-  ...rest: QueryZodRestArgs<T>
+  ...rest: readonly unknown[]
 ): Promise<T> {
-  const normalized = normalizeQueryArgs(rest)
+  const normalized = normalizeQueryArgs(rest as QueryZodRestArgs<T>)
   const rows = await executeQueryZod(mapper, schema, sql, normalized)
   const prefix = normalized.options?.label ? `${normalized.options.label}: ` : ''
   if (rows.length === 0) {
@@ -114,13 +114,13 @@ export async function queryOneZod<T>(
 }
 
 type QueryZodRestArgs<T> =
-  | []
-  | [RowMapping<T> | MapperOptions]
-  | [RowMapping<T> | MapperOptions, QueryZodOptions]
-  | [QueryParams]
-  | [QueryParams, QueryZodOptions]
-  | [QueryParams, RowMapping<T> | MapperOptions]
-  | [QueryParams, RowMapping<T> | MapperOptions, QueryZodOptions]
+  | readonly []
+  | readonly [RowMapping<T> | MapperOptions]
+  | readonly [RowMapping<T> | MapperOptions, QueryZodOptions]
+  | readonly [QueryParams]
+  | readonly [QueryParams, QueryZodOptions]
+  | readonly [QueryParams, RowMapping<T> | MapperOptions]
+  | readonly [QueryParams, RowMapping<T> | MapperOptions, QueryZodOptions]
 
 interface QueryZodNormalizedArgs<T> {
   params?: QueryParams

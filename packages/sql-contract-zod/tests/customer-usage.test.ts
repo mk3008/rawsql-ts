@@ -11,7 +11,7 @@ import {
   Row,
   RowMapping,
   type QueryParams,
-} from '@rawsql-ts/sql-contract-core/mapper'
+} from '@rawsql-ts/sql-contract/mapper'
 
 const CustomerSchema = z.object({
   customerId: z.number(),
@@ -87,7 +87,7 @@ describe('customer usage styles', () => {
       customerMapping
     )
 
-    expect(lastParams).toBeUndefined()
+    expect(lastParams).toEqual([])
     expect(customers).toEqual([
       {
         customerId: 42,

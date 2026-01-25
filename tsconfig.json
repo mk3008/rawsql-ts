@@ -36,20 +36,10 @@
         "@rawsql-ts/core/dist/src/*": ["packages/core/src/*"],
         "@rawsql-ts/sql-contract": ["packages/sql-contract/src"],
         "@rawsql-ts/sql-contract/*": ["packages/sql-contract/src/*"],
-        "@rawsql-ts/sql-contract/mapper": ["packages/sql-contract/src/mapper"],
-        "@rawsql-ts/sql-contract/mapper/*": ["packages/sql-contract/src/mapper/*"],
-        "@rawsql-ts/sql-contract/writer": ["packages/sql-contract/src/writer"],
-        "@rawsql-ts/sql-contract/writer/*": ["packages/sql-contract/src/writer/*"],
-        "@rawsql-ts/sql-contract-core": ["packages/sql-contract/dist"],
-        "@rawsql-ts/sql-contract-core/*": ["packages/sql-contract/dist/*"],
-        "@rawsql-ts/sql-contract-core/mapper": ["packages/sql-contract/dist/mapper"],
-        "@rawsql-ts/sql-contract-core/mapper/*": [
-            "packages/sql-contract/dist/mapper/*"
-        ],
-        "@rawsql-ts/sql-contract-core/writer": ["packages/sql-contract/dist/writer"],
-        "@rawsql-ts/sql-contract-core/writer/*": [
-            "packages/sql-contract/dist/writer/*"
-        ],
+        "@rawsql-ts/sql-contract/mapper": ["packages/sql-contract/dist/mapper"],
+        "@rawsql-ts/sql-contract/mapper/*": ["packages/sql-contract/dist/mapper/*"],
+        "@rawsql-ts/sql-contract/writer": ["packages/sql-contract/dist/writer"],
+        "@rawsql-ts/sql-contract/writer/*": ["packages/sql-contract/dist/writer/*"],
         "@rawsql-ts/sql-contract-zod": ["packages/sql-contract-zod/src"],
         "@rawsql-ts/sql-contract-zod/*": ["packages/sql-contract-zod/src/*"],
         "@rawsql-ts/testkit-core": ["packages/testkit-core/src"],

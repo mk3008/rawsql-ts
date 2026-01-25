@@ -38,7 +38,7 @@
     "node": ">=20"
   },
   "dependencies": {
-    "@rawsql-ts/sql-contract-core": "workspace:*",
+    "@rawsql-ts/sql-contract": "workspace:*",
     "zod": "^4.3.6"
   },
   "devDependencies": {

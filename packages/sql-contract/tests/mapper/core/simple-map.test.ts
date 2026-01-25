@@ -125,14 +125,14 @@ describe('mapper simple mapping', () => {
       },
     ]
 
-    it('applies mapperPresets.appLike to camelCase without stringifying numeric identifiers', async () => {
+    it('applies mapperPresets.appLike to camelCase and stringifies numeric identifiers', async () => {
       const mapper = createMapper(async () => customerRows, mapperPresets.appLike())
       const [customer] = await mapper.query<{
-        customerId: number
+        customerId: string
         customerName: string
       }>('SELECT ...', [])
 
-      expect(customer.customerId).toBe(33)
+      expect(customer.customerId).toBe('33')
       expect(customer.customerName).toBe('Maple Corp')
     })
 
@@ -147,14 +147,14 @@ describe('mapper simple mapping', () => {
       expect(customer.customer_name).toBe('Maple Corp')
     })
 
-    it('works without params and still applies appLike', async () => {
+    it('works without params and still applies appLike stringification', async () => {
       const mapper = createMapper(async () => customerRows, mapperPresets.appLike())
       const [customer] = await mapper.query<{
-        customerId: number
+        customerId: string
         customerName: string
       }>('SELECT ...')
 
-      expect(customer.customerId).toBe(33)
+      expect(customer.customerId).toBe('33')
       expect(customer.customerName).toBe('Maple Corp')
     })
   })
