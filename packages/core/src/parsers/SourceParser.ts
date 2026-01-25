@@ -83,8 +83,14 @@ export class SourceParser {
         const argument = ValueParser.parseArgument(TokenType.OpenParen, TokenType.CloseParen, lexemes, idx);
         idx = argument.newIndex;
 
+        let withOrdinality = false;
+        if (idx < lexemes.length && lexemes[idx].value === "with ordinality") {
+            withOrdinality = true;
+            idx++;
+        }
+
         const functionName = name.name;
-        const result = new FunctionSource({ namespaces: namespaces, name: functionName }, argument.value);
+        const result = new FunctionSource({ namespaces: namespaces, name: functionName }, argument.value, withOrdinality);
         return { value: result, newIndex: idx };
     }
 

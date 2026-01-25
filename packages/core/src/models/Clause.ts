@@ -195,9 +195,15 @@ export class FunctionSource extends SqlComponent {
     static kind = Symbol("FunctionSource");
     qualifiedName: QualifiedName;
     argument: ValueComponent | null;
+    /**
+     * Indicates whether the function source was declared with WITH ORDINALITY,
+     * as found in table-function expressions such as `unnest(...) WITH ORDINALITY`.
+     */
+    withOrdinality: boolean;
     constructor(
         name: string | IdentifierString | { namespaces: string[] | IdentifierString[] | null, name: string | RawString | IdentifierString },
-        argument: ValueComponent | null
+        argument: ValueComponent | null,
+        withOrdinality: boolean = false
     ) {
         super();
         if (typeof name === "object" && name !== null && "name" in name) {
@@ -208,6 +214,7 @@ export class FunctionSource extends SqlComponent {
             this.qualifiedName = new QualifiedName(null, name as string | RawString | IdentifierString);
         }
         this.argument = argument;
+        this.withOrdinality = withOrdinality;
     }
 
     /**

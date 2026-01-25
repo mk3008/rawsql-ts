@@ -11,7 +11,7 @@ Defined in: [packages/core/src/models/Clause.ts:194](https://github.com/mk3008/r
 
 ### Constructor
 
-> **new FunctionSource**(`name`, `argument`): `FunctionSource`
+> **new FunctionSource**(`name`, `argument`, `withOrdinality`): `FunctionSource`
 
 Defined in: [packages/core/src/models/Clause.ts:198](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/models/Clause.ts#L198)
 
@@ -24,6 +24,10 @@ Defined in: [packages/core/src/models/Clause.ts:198](https://github.com/mk3008/r
 ##### argument
 
 `null` | [`ValueComponent`](../type-aliases/ValueComponent.md)
+
+##### withOrdinality
+
+`boolean` (default: `false`)
 
 #### Returns
 
@@ -60,6 +64,16 @@ Defined in: [packages/core/src/models/Clause.ts:196](https://github.com/mk3008/r
 > **argument**: `null` \| [`ValueComponent`](../type-aliases/ValueComponent.md)
 
 Defined in: [packages/core/src/models/Clause.ts:197](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/models/Clause.ts#L197)
+
+***
+
+### withOrdinality
+
+> **withOrdinality**: `boolean`
+
+Defined in: [packages/core/src/models/Clause.ts:202](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/models/Clause.ts#L202)
+
+Indicates that the function source was declared with `WITH ORDINALITY`.
 
 ***
 
