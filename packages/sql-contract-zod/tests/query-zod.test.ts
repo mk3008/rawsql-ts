@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+﻿import { describe, expect, it } from 'vitest'
 import { z, ZodError } from 'zod'
 import {
   MapperLike,
@@ -6,12 +6,36 @@ import {
   queryZod,
   zNumberFromString,
 } from '@rawsql-ts/sql-contract-zod'
+import type {
+  MapperOptions,
+  QueryParams,
+  RowMapping,
+} from '@rawsql-ts/sql-contract/mapper'
 
 describe('sql-contract-zod helpers', () => {
-  const createMapper = <T>(rows: T[], singleRow?: T): MapperLike => ({
-    query: async () => rows,
-    queryOne: async () => singleRow ?? rows[0],
-  })
+  const createMapper = <T>(rows: T[], singleRow?: T): MapperLike => {
+    const query: MapperLike['query'] = async function query<U>(
+      _sql: string,
+      _params?: QueryParams,
+      _mapping?: RowMapping<U> | MapperOptions
+    ): Promise<U[]> {
+      return rows as unknown as U[]
+    }
+
+    const queryOne: MapperLike['queryOne'] = async function queryOne<U>(
+      _sql: string,
+      _params?: QueryParams,
+      _mapping?: RowMapping<U> | MapperOptions
+    ): Promise<U | undefined> {
+      if (singleRow !== undefined) {
+        return singleRow as unknown as U
+      }
+      const [row] = rows as unknown as U[]
+      return row
+    }
+
+    return { query, queryOne }
+  }
 
   describe('zNumberFromString', () => {
     it('accepts literal numbers, trimmed numeric strings, and decimals', () => {
@@ -38,7 +62,7 @@ describe('sql-contract-zod helpers', () => {
       const execution = queryZod(mapper, schema, 'select 1')
       await expect(execution).rejects.toBeInstanceOf(ZodError)
 
-      const error = (await execution.catch((err) => err)) as ZodError
+      const error = (await execution.catch((err: unknown) => err)) as ZodError
       expect(error.issues.length).toBeGreaterThan(0)
       expect(error.issues).toEqual(
         expect.arrayContaining([
@@ -69,7 +93,7 @@ describe('sql-contract-zod helpers', () => {
       const execution = queryZod(mapper, schema, 'select profile')
       await expect(execution).rejects.toBeInstanceOf(ZodError)
 
-      const error = (await execution.catch((err) => err)) as ZodError
+      const error = (await execution.catch((err: unknown) => err)) as ZodError
       expect(error.issues).toEqual(
         expect.arrayContaining([
           expect.objectContaining({ path: [0, 'profile', 'age'] }),

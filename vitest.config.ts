@@ -2,15 +2,22 @@
 import { defineConfig } from 'vitest/config'
 import { resolve } from 'path'
 
+const shouldExcludeBenchmarks = process.env.VITEST_INCLUDE_BENCHMARKS !== '1'
+const testExcludes = ['**/dist/**', '**/node_modules/**']
+
+if (shouldExcludeBenchmarks) {
+    // Keep benchmark files out of the default suite unless explicitly requested.
+    testExcludes.push('benchmarks/**')
+}
+
 export default defineConfig({
     test: {
         environment: 'node',
         include: ['packages/*/tests/**/*.test.[jt]s'],
-        exclude: ['**/dist/**', '**/node_modules/**', 'benchmarks/**'],
+        exclude: testExcludes,
         root: resolve(__dirname),
         testTimeout: 10000,
         pool: 'threads',
-        tsconfig: resolve(__dirname, 'tsconfig.tests.json'),
         globalSetup: resolve(__dirname, 'vitest.global-setup.ts'),
     },
     resolve: {

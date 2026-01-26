@@ -169,17 +169,19 @@ This project includes a comprehensive benchmark suite to evaluate the performanc
 ### How to Run
 
 ```bash
-npm run benchmark
+pnpm bench:test
 ```
 
-When you need to re-run the full benchmark suite, regenerate the generated row map first so the ZTD-backed fixtures exist:
+1. Generate the fixtures the bench suite depends on:
 
 ```bash
 cd benchmarks/sql-unit-test
 npx ztd ztd-config
 ```
 
-Then run `pnpm bench:test` from the repository root. The dedicated command invokes the benchmark workspace and automatically skips the suite if the generated artifacts are absent, keeping `pnpm -r test` fast and stable while still allowing the bench run after the fixtures are produced.
+2. Return to the repository root and rerun `pnpm bench:test`. The helper script in `benchmarks/sql-unit-test/scripts/run-vitest.js` prints a clear skip message unless `tests/generated/ztd-row-map.generated.ts` exists, so you can safely keep this command separate from `pnpm -r test`.
+
+> **Note:** The default `pnpm -r test` run excludes `benchmarks/**` so it stays fast and reproducible; set `VITEST_INCLUDE_BENCHMARKS=1` if you need to bring the bench suite into a workspace scan.
 
 ### Benchmark Details
 

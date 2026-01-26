@@ -2,7 +2,7 @@
 import type {
   MapperOptions,
   QueryParams,
-  RowMapping,
+  EntityMapping as RowMapping,
 } from '@rawsql-ts/sql-contract/mapper'
 
 /**
