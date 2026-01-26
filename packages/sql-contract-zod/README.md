@@ -1,113 +1,102 @@
-﻿# @rawsql-ts/sql-contract-zod
+# @rawsql-ts/sql-contract-zod
 
 ## Overview
 
-`sql-contract-zod` layers Zod-based runtime validation on top of the explicit mapper helpers from `@rawsql-ts/sql-contract`. The base package keeps SQL authoritative and mapping deterministic; this edition adds an opt-in runtime guard so that DTOs remain fully validated (and optionally transformed) before they reach the rest of the application.
+`sql-contract-zod` mirrors the structure of `@rawsql-ts/sql-contract` while adding runtime validation on top of the mapper helpers. SQL remains hand-authored, row mappings stay deterministic, and then Zod schemas guard the DTOs before they reach the rest of the application.
 
-- **Runtime vs compile time:** TypeScript types are only compile-time hints. Always validate driver rows with a Zod schema before using them.
-- **No inference:** All validation/coercion is explicit. `sql-contract-zod` never guesses column names or silently converts values.
-- **Composes with any mapper or row mapping:** Use existing `rowMapping` definitions, mapper executors, and mapper options to project rows before validation.
+- **SQL stays executable.** Queries are still written directly in SQL, executed through your mapper/executor pipeline.
+- **Mapping is explicit.** `rowMapping` definitions control how columns become properties, and the mapper never infers semantics.
+- **Validation is opt-in.** Schema checks run only when you call the Zod helpers, keeping performance predictable.
 
-## Installation
+## Features
+
+* Zod-based runtimes for mapper output (`queryZod`, `queryOneZod`, `parseRows`, `parseRow`).
+* Optional coercion helpers (`zNumberFromString`, `zBigIntFromString`, `zDateFromString`).
+* Overloads that accept the same `RowMapping` instances your mapper already uses.
+* Params normalization: omitting params is treated the same as passing `[]`, so executors can rely on `unknown[]`.
+* Throws the original `ZodError`, keeping your logging/monitoring layers intact.
+
+## Philosophy
+
+`sql-contract-zod` follows the same four commitments as `sql-contract`:
+
+1. **SQL remains the domain language.** All queries stay human-written and executable.
+2. **Mapping is mechanical.** DTO projection happens through configured row mappings, not inference.
+3. **Validation is deliberate.** Zod schemas guard DTOs after mapping, never before.
+4. **Runtime safety complements TypeScript.** Compile-time hints stay lightweight while validation runs only when you explicitly request it.
+
+Validation helpers never guess column names or mutate objects outside the schema definition, keeping the feedback loop predictable.
+
+## Getting Started
+
+### Installation
 
 ```sh
 pnpm add @rawsql-ts/sql-contract-zod zod
 ```
 
-> The package depends on `@rawsql-ts/sql-contract` for the mapper helper primitives.
+`sql-contract-zod` depends on `@rawsql-ts/sql-contract` for the mapper helper primitives.
 
-## Runtime validation helpers
-
-### Strict validation
+### Minimal validation sample
 
 ```ts
 import { z } from 'zod'
-import { queryZod } from '@rawsql-ts/sql-contract-zod'
-import { createMapperFromExecutor } from '@rawsql-ts/sql-contract/mapper'
+import { queryZod, zNumberFromString } from '@rawsql-ts/sql-contract-zod'
+import { rowMapping, createMapperFromExecutor } from '@rawsql-ts/sql-contract/mapper'
 
-const CustomerRow = z.object({
+const CustomerSchema = z.object({
   customerId: z.number(),
   customerName: z.string(),
+  balance: zNumberFromString,
 })
 
-const mapper = createMapperFromExecutor(executor)
-const rows = await queryZod(
-  mapper,
-  CustomerRow,
-  'select customer_id as customerId, customer_name as customerName from customers'
-)
-```
-
-`queryZod` validates every row returned by the mapper. If any row violates the schema, the function rethrows the `ZodError` so that the failure remains visible to the caller.
-
-You no longer need to pass `undefined` when skipping the optional parameters—you can call `queryZod(mapper, schema, sql)` or `queryZod(mapper, schema, sql, mapping)` and the helper automatically figures out whether the fourth argument is a params array or a `RowMapping`.
-
-> **Note:** `queryZod` / `queryOneZod` always normalize the params argument to an array. Omitting params is treated the same as providing `[]`, so `queryZod(mapper, schema, sql, mapping)` means “params = `[]`, mapping = the provided `RowMapping`.” This makes the mapper contract simple: you will always receive an `unknown[]` (never `undefined`), and executors can skip defensive null/undefined checks.
-
-### Explicit coercion helpers
-
-Use the helper schemas when the driver sometimes returns numbers as strings or dates as ISO strings. Each conversion is opt-in per field.
-
-```ts
-import { z } from 'zod'
-import { zNumberFromString, queryZod } from '@rawsql-ts/sql-contract-zod'
-
-const InvoiceRow = z.object({
-  invoiceId: z.number(),
-  amount: zNumberFromString,
-})
-```
-
-If the driver returns `{ amount: '33' }`, the helper trims and parses the string before validating it as a number.
-
-### Mapping-aware validation
-
-```ts
-import { rowMapping, createMapperFromExecutor } from '@rawsql-ts/sql-contract/mapper'
-import { queryZod } from '@rawsql-ts/sql-contract-zod'
-
-const mapping = rowMapping({
-  name: 'Invoice',
-  key: 'invoiceId',
+const customerMapping = rowMapping({
+  name: 'Customer',
+  key: 'customerId',
   columnMap: {
-    invoiceId: 'invoice_id',
-    total: 'invoice_total',
+    customerId: 'customer_id',
+    customerName: 'customer_name',
+    balance: 'balance',
   },
 })
 
-const schema = z.object({
-  invoiceId: z.number(),
-  total: zNumberFromString,
-})
-
 const rows = await queryZod(
   mapper,
-  schema,
-  'select * from invoices',
-  mapping
+  CustomerSchema,
+  'select customer_id, customer_name, balance from customers where active = true',
+  customerMapping,
 )
 ```
 
-`queryZod` accepts the same `RowMapping` instance that your mapper already uses, so you can validate DTOs after mapping but before business logic consumes them.
+The Zod helpers accept the same `RowMapping` your mapper already uses, so you can revalidate DTOs after mapping but before business logic consumes them.
 
-## Additional helpers
+## Executor guidance
 
-- `queryOneZod` mirrors `queryZod` but returns exactly one row and throws if the query returns nothing.
-- `parseRows` / `parseRow` let you validate data that was already mapped by `sql-contract` or fetched from another source.
-- `zBigIntFromString` and `zDateFromString` provide explicit transforms for common driver mismatches.
-
-All helpers throw their original `ZodError` so your logging, monitoring, or error-handling layers can inspect the full issue set.
-
-### Mapper / executor guidance
-
-Even when params are omitted from a call site, the mapper always receives an array:
+Each executor still receives `(sql, params, mapping?)` and returns `Row[]`. Because the helpers normalize omitted params to `[]`, treat the `params` argument as `unknown[]` and skip defensive `undefined` checks.
 
 ```ts
 async function executor(
   sql: string,
   params: unknown[],
-  mapping?: RowMapping<unknown>
+  mapping?: RowMapping<unknown>,
 ) { ... }
 ```
 
-Treat `params` as `unknown[]` and skip defensive `undefined`/`null` checks—omitting params and passing `[]` are equivalent by design.
+`queryZod` figures out whether the optional arguments represent params arrays or `RowMapping` instances, so call sites stay succinct.
+
+## Helpers table
+
+| Helper | Description |
+| ------ | ----------- |
+| `queryZod` | Validates every dto produced by a mapper query, rethrowing `ZodError` when violations occur. |
+| `queryOneZod` | Same as `queryZod` but requires exactly one row. |
+| `parseRows` / `parseRow` | Validate DTOs that have already been mapped or came from another source. |
+| `zNumberFromString` | Accepts numbers or numeric strings (trims and parses before validation). |
+| `zBigIntFromString` | Accepts bigints or strings, trimming and parsing safely. |
+| `zDateFromString` | Ensures `Date` objects or ISO strings become valid `Date` instances. |
+
+All helpers propagate the original `ZodError` so monitoring layers can inspect the full issue set.
+
+## Notes
+
+`sql-contract-zod` reuses the mapper presets, row mappings, and mapper options from the base package. Validation runs after mapping, meaning you can keep shared `rowMapping` definitions and layer Zod schemas on top as needed.
