@@ -3,6 +3,7 @@ import { SqlPrintTokenParser } from '../../src/parsers/SqlPrintTokenParser';
 import { SqlPrinter } from '../../src/transformers/SqlPrinter';
 import { SourceExpressionParser } from '../../src/parsers/SourceExpressionParser';
 import { FromClauseParser } from '../../src/parsers/FromClauseParser';
+import { FunctionSource } from '../../src/models/Clause';
 
 describe('SqlPrintTokenParser + SqlPrinter (SourceExpressionParser)', () => {
     it('should print function table source with column alias', () => {
@@ -12,12 +13,38 @@ describe('SqlPrintTokenParser + SqlPrinter (SourceExpressionParser)', () => {
         const parser = new SqlPrintTokenParser();
         const token = parser.visit(node);
 
+        const functionSource = node.source.datasource as FunctionSource;
+        expect(functionSource.withOrdinality).toBe(false);
+
         // Act
         const printer = new SqlPrinter();
         const result = printer.print(token);
 
         // Assert
         const expected = 'from get_product_names("m"."id") as "pname"("id", "name")';
+        expect(result).toBe(expected);
+    });
+
+    it('should print unnest source with WITH ORDINALITY and alias columns', () => {
+        // Arrange
+        const sql = 'FROM unnest(array[\'id_B\', \'id_A\', \'id_C\']) with ordinality as t(id, sort_num)';
+        const node = FromClauseParser.parse(sql);
+        const parser = new SqlPrintTokenParser();
+        const token = parser.visit(node);
+
+        // Ensure the AST captures the WITH ORDINALITY flag
+        const functionSource = node.source.datasource as FunctionSource;
+        expect(functionSource).toBeInstanceOf(FunctionSource);
+        if (functionSource instanceof FunctionSource) {
+            expect(functionSource.withOrdinality).toBe(true);
+        }
+
+        // Act
+        const printer = new SqlPrinter();
+        const result = printer.print(token);
+
+        // Assert
+        const expected = 'from unnest(array[\'id_B\', \'id_A\', \'id_C\']) with ordinality as "t"("id", "sort_num")';
         expect(result).toBe(expected);
     });
 
