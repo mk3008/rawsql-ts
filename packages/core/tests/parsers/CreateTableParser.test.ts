@@ -34,6 +34,20 @@ describe("CreateTableParser", () => {
         expect(formatted).toBe('create temporary table "tmp_daily" as select "id" from "users"');
     });
 
+    it("parses CREATE TEMP TABLE ... AS SELECT", () => {
+        // Arrange
+        const sql = "CREATE TEMP TABLE tmp_quick AS SELECT id FROM users";
+
+        // Act
+        const ast = CreateTableParser.parse(sql);
+        const formatted = new SqlFormatter().format(ast).formattedSql;
+
+        // Assert
+        expect(ast.isTemporary).toBe(true);
+        expect(ast.ifNotExists).toBe(false);
+        expect(formatted).toBe('create temporary table "tmp_quick" as select "id" from "users"');
+    });
+
     it("parses CREATE TABLE IF NOT EXISTS ... AS SELECT", () => {
         // Arrange
         const sql = "CREATE TABLE IF NOT EXISTS reporting.daily AS WITH recent AS (SELECT id FROM users) SELECT id FROM recent";
@@ -94,6 +108,19 @@ describe("CreateTableParser", () => {
         expect(formatted).toContain('create table "public"."users"');
         expect(formatted).toContain('foreign key("role_id") references "auth"."roles"("id") deferrable initially deferred');
         expect(formatted).toContain('with (fillfactor = 80)');
+    });
+
+    const onCommitVariants = ["PRESERVE ROWS", "DELETE ROWS", "DROP"];
+    onCommitVariants.forEach((variant) => {
+        it(`parses CREATE TABLE ... ON COMMIT ${variant}`, () => {
+            const sql = `CREATE TABLE tmp_commit ON COMMIT ${variant} AS SELECT id FROM users`;
+            const ast = CreateTableParser.parse(sql);
+            const formatted = new SqlFormatter().format(ast).formattedSql;
+
+            const normalizedOptions = ast.tableOptions?.value.toLowerCase().replace(/\s+/g, " ");
+            expect(normalizedOptions).toBe(`on commit ${variant.toLowerCase()}`);
+            expect(formatted.toLowerCase()).toContain(`on commit ${variant.toLowerCase()}`);
+        });
     });
 
     it("parses CREATE TABLE ... AS SELECT WITH DATA", () => {
