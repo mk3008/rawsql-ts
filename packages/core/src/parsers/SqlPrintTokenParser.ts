@@ -2427,6 +2427,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         }
         token.innerTokens.push(SqlPrintTokenParser.PAREN_CLOSE_TOKEN);
         if (arg.withOrdinality) {
+            token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
             token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'with ordinality'));
         }
         return token;
