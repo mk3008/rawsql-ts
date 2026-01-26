@@ -1,16 +1,11 @@
-import { describe, expect, it } from 'vitest'
+﻿import { describe, expect, it } from 'vitest'
 import { z, ZodError } from 'zod'
+import { zNumberFromString } from '@rawsql-ts/sql-contract-zod'
 import {
-  MapperLike,
-  queryZod,
-  zNumberFromString,
-} from '@rawsql-ts/sql-contract-zod'
-import {
-  mapRows,
+  createMapper,
   rowMapping,
-  Row,
-  RowMapping,
   type QueryParams,
+  type Row,
 } from '@rawsql-ts/sql-contract/mapper'
 
 const CustomerSchema = z.object({
@@ -21,7 +16,6 @@ const CustomerSchema = z.object({
 
 type Customer = z.infer<typeof CustomerSchema>
 
-// core mapping: snake_case -> camelCase
 const customerMapping = rowMapping<Customer>({
   name: 'Customer',
   key: 'customerId',
@@ -35,57 +29,28 @@ const customerMapping = rowMapping<Customer>({
 const customerSql =
   'select customer_id, customer_name, balance from customers where active = true'
 
-const createMapper = (
+const createMapperFromRows = (
   rows: Row[],
-  onQuery?: (params?: QueryParams) => void
-): MapperLike => {
-  const applyMapping = async <T>(mapping?: RowMapping<T>): Promise<T[]> => {
-    if (mapping) {
-      return mapRows(rows, mapping)
-    }
-    return rows as unknown as T[]
-  }
+  onQuery?: (params: QueryParams) => void
+) =>
+  createMapper(async (_sql: string, params: QueryParams) => {
+    onQuery?.(params)
+    return rows
+  })
 
-  return {
-    query: async <T>(
-      _sql: string,
-      _params?: QueryParams,
-      mapping?: RowMapping<T>
-    ) => {
-      onQuery?.(_params)
-      return applyMapping<T>(mapping)
-    },
-    // Not used in this file, but required by MapperLike.
-    queryOne: async <T>(
-      _sql: string,
-      _params?: QueryParams,
-      mapping?: RowMapping<T>
-    ) => {
-      onQuery?.(_params)
-      const [row] = await applyMapping<T>(mapping)
-      return row
-    },
-  }
-}
-
-// zod boundary: validate + explicit transforms
 describe('customer usage styles', () => {
-  it('queryZod validates and returns Customer[] (mapped + transformed)', async () => {
+  it('reader.list validates and returns Customer[] (mapped + transformed)', async () => {
     const rows: Row[] = [
       { customer_id: 42, customer_name: 'Maple', balance: '33' },
     ]
 
     let lastParams: QueryParams | undefined
-    const mapper = createMapper(rows, (captured) => {
+    const mapper = createMapperFromRows(rows, (captured) => {
       lastParams = captured
     })
 
-    const customers: Customer[] = await queryZod(
-      mapper,
-      CustomerSchema,
-      customerSql,
-      customerMapping
-    )
+    const reader = mapper.zod(CustomerSchema, customerMapping)
+    const customers: Customer[] = await reader.list(customerSql)
 
     expect(lastParams).toEqual([])
     expect(customers).toEqual([
@@ -97,18 +62,14 @@ describe('customer usage styles', () => {
     ])
   })
 
-  it('queryZod fails when mapped identifiers violate the schema', async () => {
+  it('reader.list fails when mapped identifiers violate the schema', async () => {
     const rows: Row[] = [
       { customer_id: 'abc', customer_name: 'Maple', balance: '33' },
     ]
-    const mapper = createMapper(rows)
+    const mapper = createMapperFromRows(rows)
 
-    const resultOrError = await queryZod(
-      mapper,
-      CustomerSchema,
-      customerSql,
-      customerMapping
-    ).catch((error) => error)
+    const reader = mapper.zod(CustomerSchema, customerMapping)
+    const resultOrError = await reader.list(customerSql).catch((error) => error)
 
     expect(resultOrError).toBeInstanceOf(ZodError)
     const error = resultOrError as ZodError
@@ -117,26 +78,21 @@ describe('customer usage styles', () => {
     )
 
     expect(issue).toBeDefined()
-    // Avoid overfitting to `issue.code` (may change across Zod versions).
     expect(issue?.message).toBeTruthy()
   })
 
-  it('queryZod overload: 4th arg is params when mapping is omitted', async () => {
+  it('passes through provided params when supplied', async () => {
     const rows: Row[] = [
-      { customerId: 900, customerName: 'Maple', balance: 77 },
+      { customer_id: 900, customer_name: 'Maple', balance: 77 },
     ]
     const params: QueryParams = [{ turn: 'left' }]
     let lastParams: QueryParams | undefined
-    const mapper = createMapper(rows, (captured) => {
+    const mapper = createMapperFromRows(rows, (captured) => {
       lastParams = captured
     })
 
-    const customers: Customer[] = await queryZod(
-      mapper,
-      CustomerSchema,
-      customerSql,
-      params
-    )
+    const reader = mapper.zod(CustomerSchema, customerMapping)
+    const customers: Customer[] = await reader.list(customerSql, params)
 
     expect(customers).toEqual([
       {
@@ -148,31 +104,64 @@ describe('customer usage styles', () => {
     expect(lastParams).toBe(params)
   })
 
-  it('queryZod overload: accepts params and mapping simultaneously', async () => {
-    const rows: Row[] = [
-      { customer_id: 101, customer_name: 'Maple', balance: '33' },
-    ]
-    const params: QueryParams = [{ turn: 'right' }]
-    let lastParams: QueryParams | undefined
-    const mapper = createMapper(rows, (captured) => {
-      lastParams = captured
+  it('supports joined row mapping with belongsTo', async () => {
+    const OrderCustomerSchema = z.object({
+      customerId: z.number(),
+      customerName: z.string(),
     })
 
-    const customers: Customer[] = await queryZod(
-      mapper,
-      CustomerSchema,
-      customerSql,
-      params,
-      customerMapping
-    )
+    type OrderCustomer = z.infer<typeof OrderCustomerSchema>
 
-    expect(lastParams).toBe(params)
-    expect(customers).toEqual([
-      {
-        customerId: 101,
-        customerName: 'Maple',
-        balance: 33,
+    const orderCustomerMapping = rowMapping<OrderCustomer>({
+      name: 'OrderCustomer',
+      key: 'customerId',
+      columnMap: {
+        customerId: 'customer_id',
+        customerName: 'customer_name',
       },
-    ])
+    })
+
+    const OrderWithCustomerSchema = z.object({
+      orderId: z.number(),
+      orderTotal: z.number(),
+      customerId: z.number(),
+      customer: OrderCustomerSchema,
+    })
+
+    type OrderWithCustomer = z.infer<typeof OrderWithCustomerSchema>
+
+    const orderWithCustomerMapping = rowMapping<OrderWithCustomer>({
+      name: 'Order',
+      key: 'orderId',
+      columnMap: {
+        orderId: 'order_id',
+        orderTotal: 'order_total',
+        customerId: 'customer_id',
+      },
+    }).belongsTo('customer', orderCustomerMapping, 'customerId')
+
+    const rows: Row[] = [
+      {
+        order_id: 123,
+        order_total: 88,
+        customer_id: 9,
+        customer_name: 'Maple',
+      },
+    ]
+
+    const mapper = createMapperFromRows(rows)
+    const reader = mapper.zod(OrderWithCustomerSchema, orderWithCustomerMapping)
+
+    const [result] = await reader.list('select ...')
+
+    expect(result).toEqual({
+      orderId: 123,
+      orderTotal: 88,
+      customerId: 9,
+      customer: {
+        customerId: 9,
+        customerName: 'Maple',
+      },
+    })
   })
 })

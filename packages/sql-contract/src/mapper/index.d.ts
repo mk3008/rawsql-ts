@@ -61,6 +61,13 @@ export interface MapperOptions {
     }) => unknown;
 }
 /**
+ * A mapping-bound reader that executes SQL and enforces row-count contracts.
+ */
+export interface MapperReader<T> {
+    list(sql: string, params?: QueryParams): Promise<T[]>;
+    one(sql: string, params?: QueryParams): Promise<T>;
+}
+/**
  * Named presets for simple mapping that avoid implicit inference.
  */
 export declare const mapperPresets: {
@@ -135,6 +142,10 @@ export declare class Mapper {
     query<T>(sql: string, params?: QueryParams, options?: MapperOptions): Promise<T[]>;
     queryOne<T>(sql: string, params: QueryParams, mapping: RowMapping<T>): Promise<T | undefined>;
     queryOne<T>(sql: string, params?: QueryParams, options?: MapperOptions): Promise<T | undefined>;
+    /**
+     * Binds a structured row mapping to a reader that exposes `list` and `one`.
+     */
+    bind<T>(mapping: RowMapping<T>): MapperReader<T>;
 }
 /**
  * This package maps rows and does not manage DB drivers.

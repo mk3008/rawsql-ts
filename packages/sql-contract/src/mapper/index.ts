@@ -74,6 +74,14 @@ export interface MapperOptions {
 }
 
 /**
+ * A mapping-bound reader that executes SQL and enforces row-count contracts.
+ */
+export interface MapperReader<T> {
+  list(sql: string, params?: QueryParams): Promise<T[]>
+  one(sql: string, params?: QueryParams): Promise<T>
+}
+
+/**
  * Named presets for simple mapping that avoid implicit inference.
  */
 export const mapperPresets = {
@@ -366,6 +374,20 @@ export class Mapper {
     const rows = await this.query<T>(sql, params, mappingOrOptions)
     return rows[0]
   }
+
+  /**
+   * Binds a structured row mapping to a reader that exposes `list` and `one`.
+   */
+  bind<T>(mapping: RowMapping<T>): MapperReader<T> {
+    return {
+      list: async (sql: string, params: QueryParams = []) =>
+        this.query<T>(sql, params, mapping),
+      one: async (sql: string, params: QueryParams = []) => {
+        const rows = await this.query<T>(sql, params, mapping)
+        return expectExactlyOneRow(rows)
+      },
+    }
+  }
 }
 
 /**
@@ -475,6 +497,16 @@ export function mapRows<T>(rows: Row[], mapping: RowMapping<T>): T[] {
   }
 
   return Array.from(roots.values())
+}
+
+function expectExactlyOneRow<T>(rows: T[]): T {
+  if (rows.length === 0) {
+    throw new Error('expected exactly one row but received none.')
+  }
+  if (rows.length > 1) {
+    throw new Error(`expected exactly one row but received ${rows.length}.`)
+  }
+  return rows[0]
 }
 
 const builtinMapperOptions: Required<

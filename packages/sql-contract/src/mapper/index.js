@@ -185,6 +185,18 @@ class Mapper {
         const rows = await this.query(sql, params, mappingOrOptions);
         return rows[0];
     }
+    /**
+     * Binds a structured row mapping to a reader that exposes `list` and `one`.
+     */
+    bind(mapping) {
+        return {
+            list: async (sql, params = []) => this.query(sql, params, mapping),
+            one: async (sql, params = []) => {
+                const rows = await this.query(sql, params, mapping);
+                return expectExactlyOneRow(rows);
+            },
+        };
+    }
 }
 exports.Mapper = Mapper;
 /**
@@ -260,6 +272,15 @@ function mapRows(rows, mapping) {
         }
     }
     return Array.from(roots.values());
+}
+function expectExactlyOneRow(rows) {
+    if (rows.length === 0) {
+        throw new Error('expected exactly one row but received none.');
+    }
+    if (rows.length > 1) {
+        throw new Error(`expected exactly one row but received ${rows.length}.`);
+    }
+    return rows[0];
 }
 const builtinMapperOptions = {
     keyTransform: 'snake_to_camel',

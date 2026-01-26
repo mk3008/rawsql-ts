@@ -1,8 +1,9 @@
 ﻿import { z, ZodError, type ZodType } from 'zod'
-import type {
-  MapperOptions,
-  QueryParams,
-  EntityMapping as RowMapping,
+import {
+  Mapper,
+  type MapperOptions,
+  type QueryParams,
+  type EntityMapping as RowMapping,
 } from '@rawsql-ts/sql-contract/mapper'
 
 /**
@@ -20,6 +21,27 @@ export interface MapperLike {
     mappingOrOptions?: RowMapping<T> | MapperOptions
   ): Promise<T | undefined>
 }
+/**
+ * A Zod-aware reader bound to a schema and mapping.
+ */
+export interface ZodReader<T> {
+  list(sql: string, params?: QueryParams): Promise<T[]>
+  one(sql: string, params?: QueryParams): Promise<T>
+}
+
+declare module '@rawsql-ts/sql-contract/mapper' {
+  interface Mapper {
+    /**
+     * Creates a reader that maps rows using the provided mapping and validates with Zod.
+     */
+    zod<T>(schema: ZodType<T>, mapping: RowMapping<T>): ZodReader<T>
+    /**
+     * Creates a reader that validates duck-typed mapper output with Zod.
+     */
+    zodLoose<T>(schema: ZodType<T>, options?: MapperOptions): ZodReader<T>
+  }
+}
+
 
 /**
  * Optional configuration that enriches error messages with a caller-defined label.
@@ -32,6 +54,8 @@ export interface QueryZodOptions {
 /**
  * Executes the supplied mapper query and validates every mapped row against the schema.
  * Throws the raw `ZodError` if any row is invalid.
+ *
+ * @deprecated Use `mapper.zod(schema, mapping).list(...)` instead.
  */
 export function queryZod<T>(mapper: MapperLike, schema: ZodType<T>, sql: string): Promise<T[]>
 export function queryZod<T>(
@@ -69,6 +93,8 @@ export async function queryZod<T>(
 /**
  * Executes the supplied mapper query and validates a single row.
  * Throws when the mapper returns no rows and rethrows any `ZodError` produced during parsing.
+ *
+ * @deprecated Use `mapper.zod(schema, mapping).one(...)` instead.
  */
 export function queryOneZod<T>(mapper: MapperLike, schema: ZodType<T>, sql: string): Promise<T>
 export function queryOneZod<T>(
@@ -306,4 +332,62 @@ function annotateZodError(error: unknown, label?: string): never {
     error.message = `${label}: ${error.message}`
   }
   throw error
+}
+
+function createZodReader<T>(
+  mapper: Mapper,
+  schema: ZodType<T>,
+  mapping: RowMapping<T>
+): ZodReader<T> {
+  return {
+    list: async (sql: string, params: QueryParams = []) => {
+      const rows = await mapper.query<T>(sql, params, mapping)
+      return parseRows(schema, rows)
+    },
+    one: async (sql: string, params: QueryParams = []) => {
+      const rows = await mapper.query<T>(sql, params, mapping)
+      return expectExactlyOneRow(parseRows(schema, rows))
+    },
+  }
+}
+
+function createZodLooseReader<T>(
+  mapper: Mapper,
+  schema: ZodType<T>,
+  options?: MapperOptions
+): ZodReader<T> {
+  return {
+    list: async (sql: string, params: QueryParams = []) => {
+      const rows = await mapper.query<T>(sql, params, options)
+      return parseRows(schema, rows)
+    },
+    one: async (sql: string, params: QueryParams = []) => {
+      const rows = await mapper.query<T>(sql, params, options)
+      return expectExactlyOneRow(parseRows(schema, rows))
+    },
+  }
+}
+
+function expectExactlyOneRow<T>(rows: T[]): T {
+  if (rows.length === 0) {
+    throw new Error('expected exactly one row but received none.')
+  }
+  if (rows.length > 1) {
+    throw new Error(`expected exactly one row but received ${rows.length}.`)
+  }
+  return rows[0]
+}
+
+Mapper.prototype.zod = function zod<T>(
+  schema: ZodType<T>,
+  mapping: RowMapping<T>
+): ZodReader<T> {
+  return createZodReader(this, schema, mapping)
+}
+
+Mapper.prototype.zodLoose = function zodLoose<T>(
+  schema: ZodType<T>,
+  options?: MapperOptions
+): ZodReader<T> {
+  return createZodLooseReader(this, schema, options)
 }

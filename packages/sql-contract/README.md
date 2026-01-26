@@ -153,6 +153,13 @@ It supports both positional arrays and named records, allowing executors to work
 
 The mapper is responsible for projecting query results (`Row[]`) into DTOs.
 
+R looks like this:
+
+```ts
+const reader = mapper.bind(customerMapping)
+await reader.one('SELECT ...', [42])
+```
+
 In a typical application, a mapper is created once and reused across queries.
 It defines application-wide mapping behavior, while individual queries decide how results are projected.
 

@@ -1,41 +1,95 @@
 ﻿import { describe, expect, it } from 'vitest'
 import { z, ZodError } from 'zod'
+import { zNumberFromString } from '@rawsql-ts/sql-contract-zod'
 import {
-  MapperLike,
-  queryOneZod,
-  queryZod,
-  zNumberFromString,
-} from '@rawsql-ts/sql-contract-zod'
-import type {
-  MapperOptions,
-  QueryParams,
-  RowMapping,
+  createMapper,
+  rowMapping,
+  type QueryParams,
 } from '@rawsql-ts/sql-contract/mapper'
 
-describe('sql-contract-zod helpers', () => {
-  const createMapper = <T>(rows: T[], singleRow?: T): MapperLike => {
-    const query: MapperLike['query'] = async function query<U>(
-      _sql: string,
-      _params?: QueryParams,
-      _mapping?: RowMapping<U> | MapperOptions
-    ): Promise<U[]> {
-      return rows as unknown as U[]
-    }
+type Customer = {
+  customerId: number
+  customerName: string
+}
 
-    const queryOne: MapperLike['queryOne'] = async function queryOne<U>(
-      _sql: string,
-      _params?: QueryParams,
-      _mapping?: RowMapping<U> | MapperOptions
-    ): Promise<U | undefined> {
-      if (singleRow !== undefined) {
-        return singleRow as unknown as U
-      }
-      const [row] = rows as unknown as U[]
-      return row
-    }
+const customerMapping = rowMapping<Customer>({
+  name: 'Customer',
+  key: 'customerId',
+  columnMap: {
+    customerId: 'customer_id',
+    customerName: 'customer_name',
+  },
+})
 
-    return { query, queryOne }
-  }
+describe('sql-contract-zod reader', () => {
+  const createMapperFromRows = (
+    rows: Record<string, unknown>[],
+    onQuery?: (params: QueryParams) => void
+  ) =>
+    createMapper(async (_sql: string, params: QueryParams) => {
+      onQuery?.(params)
+      return rows
+    })
+
+  it('validates mapped rows with list', async () => {
+    const mapper = createMapperFromRows([
+      { customer_id: 1, customer_name: 'Maple' },
+    ])
+    const schema = z.object({
+      customerId: z.number(),
+      customerName: z.string(),
+    })
+
+    const reader = mapper.zod(schema, customerMapping)
+    await expect(reader.list('select ...')).resolves.toEqual([
+      { customerId: 1, customerName: 'Maple' },
+    ])
+  })
+
+  it('throws ZodError when validation fails', async () => {
+    const mapper = createMapperFromRows([
+      { customer_id: 'abc', customer_name: 'Maple' },
+    ])
+    const schema = z.object({
+      customerId: z.number(),
+      customerName: z.string(),
+    })
+    const reader = mapper.zod(schema, customerMapping)
+
+    const execution = reader.list('select ...')
+    await expect(execution).rejects.toBeInstanceOf(ZodError)
+  })
+
+  it('enforces exactly-one contract for one', async () => {
+    const schema = z.object({
+      customerId: z.number(),
+      customerName: z.string(),
+    })
+
+    const none = createMapperFromRows([])
+    const noneReader = none.zod(schema, customerMapping)
+    await expect(noneReader.one('select ...')).rejects.toThrow(
+      /expected exactly one row/i
+    )
+
+    const many = createMapperFromRows([
+      { customer_id: 1, customer_name: 'Maple' },
+      { customer_id: 2, customer_name: 'Pine' },
+    ])
+    const manyReader = many.zod(schema, customerMapping)
+    await expect(manyReader.one('select ...')).rejects.toThrow(
+      /expected exactly one row/i
+    )
+
+    const single = createMapperFromRows([
+      { customer_id: 5, customer_name: 'Oak' },
+    ])
+    const singleReader = single.zod(schema, customerMapping)
+    await expect(singleReader.one('select ...')).resolves.toEqual({
+      customerId: 5,
+      customerName: 'Oak',
+    })
+  })
 
   describe('zNumberFromString', () => {
     it('accepts literal numbers, trimmed numeric strings, and decimals', () => {
@@ -51,83 +105,6 @@ describe('sql-contract-zod helpers', () => {
       expect(() => zNumberFromString.parse(undefined)).toThrow()
       expect(() => zNumberFromString.parse({})).toThrow()
       expect(() => zNumberFromString.parse([])).toThrow()
-    })
-  })
-
-  describe('queryZod validation', () => {
-    it('rethrows ZodError with detailed path information', async () => {
-      const mapper = createMapper([{ id: '33' }])
-      const schema = z.object({ id: z.number() })
-
-      const execution = queryZod(mapper, schema, 'select 1')
-      await expect(execution).rejects.toBeInstanceOf(ZodError)
-
-      const error = (await execution.catch((err: unknown) => err)) as ZodError
-      expect(error.issues.length).toBeGreaterThan(0)
-      expect(error.issues).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({ path: [0, 'id'] }),
-        ])
-      )
-    })
-
-    it('allows optional fields to be omitted', async () => {
-      const mapper = createMapper([{ id: 5 }])
-      const schema = z.object({
-        id: z.number(),
-        displayName: z.string().optional(),
-      })
-
-      const [result] = await queryZod(mapper, schema, 'select 1')
-      expect(result).toEqual({ id: 5 })
-    })
-
-    it('captures nested object failures with nested paths', async () => {
-      const mapper = createMapper([{ profile: { age: 'young' } }])
-      const schema = z.object({
-        profile: z.object({
-          age: z.number(),
-        }),
-      })
-
-      const execution = queryZod(mapper, schema, 'select profile')
-      await expect(execution).rejects.toBeInstanceOf(ZodError)
-
-      const error = (await execution.catch((err: unknown) => err)) as ZodError
-      expect(error.issues).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({ path: [0, 'profile', 'age'] }),
-        ])
-      )
-    })
-  })
-
-  describe('queryOneZod expectations', () => {
-    it('throws when the mapper returns nothing', async () => {
-      const mapper = createMapper([], undefined)
-      const schema = z.object({ id: z.number() })
-
-      await expect(queryOneZod(mapper, schema, 'select 1')).rejects.toThrow(
-        /queryOneZod expected exactly one row/i
-      )
-    })
-
-    it('throws when the mapper returns more than one row', async () => {
-      const mapper = createMapper([{ id: 1 }, { id: 2 }])
-      const schema = z.object({ id: z.number() })
-
-      await expect(queryOneZod(mapper, schema, 'select *')).rejects.toThrow(
-        /received 2/i
-      )
-    })
-
-    it('validates a single row', async () => {
-      const mapper = createMapper([{ id: 99 }])
-      const schema = z.object({ id: z.number() })
-
-      await expect(queryOneZod(mapper, schema, 'select 1')).resolves.toEqual({
-        id: 99,
-      })
     })
   })
 })
