@@ -95,6 +95,7 @@ export const mapperPresets = {
     return {
       keyTransform: 'snake_to_camel',
       coerceDates: true,
+      coerceFn: ({ value }) => coerceColumnValue(value),
     }
   },
 }
@@ -414,6 +415,25 @@ export function createMapperFromExecutor(
 }
 
 /**
+ * Creates a reader-bound mapper using the supplied executor.
+ * When no overrides are provided, the app-like preset is applied so snake_case
+ * columns are normalized to camelCase keys by default.
+ */
+export function createReader(
+  executor: QueryExecutor,
+  options?: MapperOptions
+): Mapper {
+  const resolvedOptions = {
+    ...mapperPresets.appLike(),
+    ...options,
+  }
+  if (options?.idKeysAsString === undefined) {
+    resolvedOptions.idKeysAsString = false
+  }
+  return createMapperFromExecutor(executor, resolvedOptions)
+}
+
+/**
  * Normalizes an executor returning `{ rows }` so it can be consumed by the mapper.
  */
 export function toRowsExecutor(
@@ -611,6 +631,8 @@ export function mapSimpleRows<T>(
       seen.set(propertyName, column)
       const columnHint = typeHints?.[propertyName]
       let normalizedValue: unknown = rawValue
+      const shouldStringifyIdentifier =
+        !columnHint && idKeysAsString && isIdentifierProperty(propertyName)
 
       if (columnHint) {
         normalizedValue = applyTypeHint(
@@ -622,16 +644,20 @@ export function mapSimpleRows<T>(
         normalizedValue = coerceDateValue(normalizedValue)
       }
 
-      if (!columnHint && idKeysAsString && isIdentifierProperty(propertyName)) {
+      if (shouldStringifyIdentifier) {
         normalizedValue = stringifyIdentifierValue(normalizedValue)
       }
 
-      dto[propertyName] =
+      const coercedValue =
         coerceFn?.({
           key: propertyName,
           sourceKey: column,
           value: normalizedValue,
         }) ?? normalizedValue
+
+      dto[propertyName] = shouldStringifyIdentifier
+        ? stringifyIdentifierValue(coercedValue)
+        : coercedValue
     }
 
     return dto as T

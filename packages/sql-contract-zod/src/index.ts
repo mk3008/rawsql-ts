@@ -1,4 +1,4 @@
-﻿import { z, ZodError, type ZodType } from 'zod'
+import { z, ZodError, type ZodType, type ZodTypeAny } from 'zod'
 import {
   Mapper,
   type MapperOptions,
@@ -32,13 +32,10 @@ export interface ZodReader<T> {
 declare module '@rawsql-ts/sql-contract/mapper' {
   interface Mapper {
     /**
-     * Creates a reader that maps rows using the provided mapping and validates with Zod.
+     * Creates a reader that validates mapped DTOs with Zod, optionally using an explicit RowMapping.
      */
-    zod<T>(schema: ZodType<T>, mapping: RowMapping<T>): ZodReader<T>
-    /**
-     * Creates a reader that validates duck-typed mapper output with Zod.
-     */
-    zodLoose<T>(schema: ZodType<T>, options?: MapperOptions): ZodReader<T>
+    zod<S extends ZodTypeAny>(schema: S): ZodReader<z.infer<S>>
+    zod<S extends ZodTypeAny>(schema: S, mapping: RowMapping<z.infer<S>>): ZodReader<z.infer<S>>
   }
 }
 
@@ -55,7 +52,7 @@ export interface QueryZodOptions {
  * Executes the supplied mapper query and validates every mapped row against the schema.
  * Throws the raw `ZodError` if any row is invalid.
  *
- * @deprecated Use `mapper.zod(schema, mapping).list(...)` instead.
+ * @deprecated Use `mapper.zod(schema).list(...)` instead.
  */
 export function queryZod<T>(mapper: MapperLike, schema: ZodType<T>, sql: string): Promise<T[]>
 export function queryZod<T>(
@@ -94,7 +91,7 @@ export async function queryZod<T>(
  * Executes the supplied mapper query and validates a single row.
  * Throws when the mapper returns no rows and rethrows any `ZodError` produced during parsing.
  *
- * @deprecated Use `mapper.zod(schema, mapping).one(...)` instead.
+ * @deprecated Use `mapper.zod(schema).one(...)` instead.
  */
 export function queryOneZod<T>(mapper: MapperLike, schema: ZodType<T>, sql: string): Promise<T>
 export function queryOneZod<T>(
@@ -351,18 +348,17 @@ function createZodReader<T>(
   }
 }
 
-function createZodLooseReader<T>(
+function createZodPresetReader<T>(
   mapper: Mapper,
-  schema: ZodType<T>,
-  options?: MapperOptions
+  schema: ZodType<T>
 ): ZodReader<T> {
   return {
     list: async (sql: string, params: QueryParams = []) => {
-      const rows = await mapper.query<T>(sql, params, options)
+      const rows = await mapper.query<T>(sql, params)
       return parseRows(schema, rows)
     },
     one: async (sql: string, params: QueryParams = []) => {
-      const rows = await mapper.query<T>(sql, params, options)
+      const rows = await mapper.query<T>(sql, params)
       return expectExactlyOneRow(parseRows(schema, rows))
     },
   }
@@ -380,14 +376,10 @@ function expectExactlyOneRow<T>(rows: T[]): T {
 
 Mapper.prototype.zod = function zod<T>(
   schema: ZodType<T>,
-  mapping: RowMapping<T>
+  mapping?: RowMapping<T>
 ): ZodReader<T> {
-  return createZodReader(this, schema, mapping)
-}
-
-Mapper.prototype.zodLoose = function zodLoose<T>(
-  schema: ZodType<T>,
-  options?: MapperOptions
-): ZodReader<T> {
-  return createZodLooseReader(this, schema, options)
+  if (mapping) {
+    return createZodReader(this, schema, mapping)
+  }
+  return createZodPresetReader(this, schema)
 }

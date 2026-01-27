@@ -182,6 +182,8 @@ const mapper = createMapperFromExecutor(
 
 This example shows a typical mapper setup.
 
+For read-heavy flows you can also call `createReader(executor)`, which aliases the same factory and applies `mapperPresets.appLike()` by default so you get camelCase mapping with minimal setup.
+
 `createMapperFromExecutor` binds an executor to a mapper and accepts optional mapping options.
 These options control how column names are normalized, how values are coerced, and how identifiers are treated.
 
@@ -397,8 +399,7 @@ const built = writer.build.insert(
 
 ### Writer presets and placeholder strategies
 
-Advanced usage flows through `createWriterFromExecutor`,
-which binds an executor to a concrete placeholder strategy.
+Advanced usage flows through `createWriter` (aliasing the historic `createWriterFromExecutor`), which binds an executor to a concrete placeholder strategy.
 
 A writer preset defines:
 
@@ -407,12 +408,9 @@ A writer preset defines:
 3. how parameters are ordered and bound.
 
 ```ts
-import {
-  createWriterFromExecutor,
-  writerPresets,
-} from '@rawsql-ts/sql-contract/writer'
+import { createWriter, writerPresets } from '@rawsql-ts/sql-contract/writer'
 
-const writer = createWriterFromExecutor(
+const writer = createWriter(
   executor,
   writerPresets.named({
     formatPlaceholder: (paramName) => ':' + paramName,

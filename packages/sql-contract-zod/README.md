@@ -7,8 +7,10 @@
 R looks like this:
 
 ```ts
-const reader = mapper.zod(CustomerSchema, customerMapping)
-await reader.one(
+// Create a reader (defaults to the appLike preset so snake_case -> camelCase works out of the box).
+const reader = createReader(executor)
+
+const customer = await reader.zod(CustomerSchema).one(
   'SELECT customer_id, customer_name FROM customers WHERE customer_id = $1',
   [42],
 )
@@ -17,50 +19,13 @@ await reader.one(
 C / U / D look like this:
 
 ```ts
-insert('customers', { name: 'alice', status: 'active' })
-update('customers', { status: 'active' }, { id: 42 })
-remove('customers', { id: 17 })
+// Create a writer for executing simple INSERT / UPDATE / DELETE statements.
+const writer = createWriter(executor)
+
+await writer.insert('customers', { name: 'alice', status: 'active' })
+await writer.update('customers', { status: 'active' }, { id: 42 })
+await writer.remove('customers', { id: 17 })
 ```
-
----
-
-## Features
-
-* Runtime dependency on Zod for validation helpers (no other runtime packages are required)
-* Zero DBMS dependency
-  (tested with PostgreSQL, MySQL, SQL Server, and SQLite)
-* Zero database client dependency
-  (works with any client that executes SQL and returns rows)
-* Zero framework and ORM dependency
-  (fits into any application architecture that uses raw SQL)
-* No schema models or metadata required
-  (tables, columns, and relationships are defined only in SQL)
-* Result mapping helpers that operate on any SQL returning rows
-  (including SELECT queries and CUD statements with RETURNING or aggregate results)
-* Simple builders for common INSERT, UPDATE, and DELETE cases, without query inference
-* Zod-aware readers (`mapper.zod`, `mapper.zodLoose`) plus validation helpers (`parseRows`, `parseRow`)
-* Optional coercion helpers (`zNumberFromString`, `zBigIntFromString`, `zDateFromString`)
-* Readers that accept the same `RowMapping` instances your mapper already uses
-* Params normalization: omitting params is treated the same as passing `[]`, so executors can rely on `unknown[]`
-* Throws the original `ZodError`, keeping your logging/monitoring layers intact
-
----
-
-## Philosophy
-
-sql-contract-zod treats SQL—especially SELECT statements—as a language for expressing domain requirements.
-
-In SQL development, it is essential to iterate quickly through the cycle of design, writing, verification, and refinement. To achieve this, a SQL client is indispensable. SQL must remain SQL, directly executable and verifiable; it cannot be adequately replaced by a DSL without breaking this feedback loop.
-
-Based on this philosophy, this library intentionally does not provide query construction features for SELECT statements. Queries should be written by humans, as raw SQL, and validated directly against the database.
-
-At the same time, writing SQL inevitably involves mechanical tasks. In particular, mapping returned rows to application-level models is not part of the domain logic, yet it often becomes verbose and error-prone. sql-contract-zod focuses on reducing this burden while letting you assert the resulting DTOs with Zod once the mapping step completes.
-
-By contrast, write operations such as INSERT, UPDATE, and DELETE generally do not carry the same level of domain significance as SELECT statements. They are often repetitive, consisting of short and predictable patterns such as primary-key-based updates.
-
-To address this, the library provides minimal builder helpers for common cases only.
-
-It deliberately goes no further than this.
 
 ---
 
@@ -78,20 +43,13 @@ pnpm add @rawsql-ts/sql-contract-zod zod
 
 ```ts
 import { Pool } from 'pg'
-import { insert, update, remove } from '@rawsql-ts/sql-contract/writer'
-import {
-  createMapperFromExecutor,
-  mapperPresets,
-  type QueryParams,
-  rowMapping,
-} from '@rawsql-ts/sql-contract/mapper'
-import {
-  zNumberFromString,
-  zDateFromString,
-} from '@rawsql-ts/sql-contract-zod'
+import { createWriter } from '@rawsql-ts/sql-contract/writer'
+import { createReader, type QueryParams } from '@rawsql-ts/sql-contract/mapper'
+import { zNumberFromString, zDateFromString } from '@rawsql-ts/sql-contract-zod'
 import { z } from 'zod'
 
 const CustomerSchema = z.object({
+  // appLike-style conventions map snake_case columns to camelCase keys.
   customerId: z.number(),
   customerName: z.string(),
   customerStatus: z.string(),
@@ -99,19 +57,8 @@ const CustomerSchema = z.object({
   joinedAt: zDateFromString,
 })
 
-type Customer = z.infer<typeof CustomerSchema>
-
-const customerMapping = rowMapping<Customer>({
-  columnMap: {
-    customerId: 'customer_id',
-    customerName: 'customer_name',
-    customerStatus: 'customer_status',
-    balance: 'balance',
-    joinedAt: 'joined_date',
-  },
-})
-
 async function main() {
+  // Define these once for the whole application.
   const pool = new Pool({ connectionString: process.env.DATABASE_URL })
 
   const executor = async (sql: string, params: QueryParams) => {
@@ -119,72 +66,108 @@ async function main() {
     return result.rows
   }
 
-  const mapper = createMapperFromExecutor(executor, mapperPresets.appLike())
+  // Create a reader with common conventions (customizable via presets).
+  const reader = createReader(executor)
 
-  const rows = await mapper.query<Customer>(
-    `
-    select
-      customer_id,
-      customer_name,
-      customer_status,
-      balance,
-      joined_date
-    from customers
-    where customer_id = $1
-    `,
-    [42],
-  )
+  // Create a writer for executing simple INSERT / UPDATE / DELETE statements.
+  const writer = createWriter(executor)
 
-  const insertResult = insert('customers', {
-    name: 'alice',
-    status: 'pending',
-  })
-  await executor(insertResult.sql, insertResult.params)
+  const sql = `
+  SELECT
+    customer_id,
+    customer_name,
+    customer_status,
+    balance,
+    joined_date
+  FROM customers
+  WHERE customer_id = $1
+  `
 
-  const updateResult = update(
-    'customers',
-    { status: 'active' },
-    { id: 42 },
-  )
-  await executor(updateResult.sql, updateResult.params)
+  const customer = await reader.zod(CustomerSchema).one(sql, [42])
 
-  const deleteResult = remove('customers', { id: 17 })
-  await executor(deleteResult.sql, deleteResult.params)
-
-  const reader = mapper.zod(CustomerSchema, customerMapping)
-  const validatedRows = await reader.list(
-    `
-    select
-      customer_id,
-      customer_name,
-      customer_status,
-      balance,
-      joined_date
-    from customers
-    where customer_id = $1
-    `,
-    [42],
-  )
+  await writer.insert('customers', { name: 'alice', status: 'pending' })
+  await writer.update('customers', { status: 'active' }, { id: 42 })
+  await writer.remove('customers', { id: 17 })
 
   await pool.end()
-  void rows
-  void validatedRows
+  void customer
 }
 
 void main()
 ```
 
-The snippet demonstrates the familiar executor, mapper, and writer helpers from the base package while spotlighting the Zod helpers that enforce DTO schemas once mapping completes.
+This snippet shows a typical setup: define an executor, create a reader and writer, validate DTOs with Zod, and execute simple INSERT/UPDATE/DELETE statements.
+
+---
+
+## Features
+
+* Runtime dependency on Zod for validation helpers (no other runtime packages are required)
+* Zero DBMS dependency
+  (tested with PostgreSQL, MySQL, SQL Server, and SQLite)
+* Zero database client dependency
+  (works with any client that executes SQL and returns rows)
+* Zero framework and ORM dependency
+  (fits into any application architecture that uses raw SQL)
+* No schema models or metadata required
+  (tables, columns, and relationships are defined only in SQL)
+* Result mapping helpers that operate on any SQL returning rows
+  (including SELECT queries and CUD statements with RETURNING or aggregate results)
+* Simple builders for common INSERT, UPDATE, and DELETE cases, without query inference
+* Zod-aware reader (`reader.zod`) that validates mapped DTOs with preset-based conventions or an explicit RowMapping
+* Optional coercion helpers (`zNumberFromString`, `zBigIntFromString`, `zDateFromString`)
+* Readers that accept the same `RowMapping` instances your mapper already uses
+* `createReader(executor)` applies `mapperPresets.appLike()` by default, so snake_case columns work without extra setup
+* Params normalization: omitting params is treated the same as passing `[]`
+* Throws the original `ZodError`, keeping logging and monitoring layers intact
+
+---
+
+## Philosophy
+
+### SQL as Specification
+
+How data is retrieved, which fields are selected, how values are transformed, and which conditions are applied are all domain requirements.
+
+SQL is the most precise and unambiguous language for expressing these requirements.
+Natural language is not.
+
+### SQL as Fast Feedback
+
+Effective software development depends on rapid iteration across design, implementation, and verification.
+
+Because SQL is executable and directly verifiable, it provides fast and reliable feedback.
+DSLs do not.
+
+---
+
+## Direction
+
+### Mechanical Work in Read Queries
+
+When working with raw SQL, certain mechanical tasks are unavoidable.
+Mapping returned rows into application-level DTOs is repetitive, straightforward, and not part of the domain logic.
+
+This library focuses on reducing that burden by providing explicit result mapping,
+followed by optional DTO validation using Zod after mapping completes.
+
+### Mechanical Work in Write Queries
+
+Write operations such as INSERT, UPDATE, and DELETE usually carry less domain significance than SELECT queries.
+They tend to be short, predictable, and mechanically structured.
+
+This library provides minimal builder helpers for common write cases only,
+and intentionally goes no further than that.
 
 ---
 
 ## Executor: DBMS / Driver Integration
 
 `sql-contract-zod` is designed as a reusable, DBMS-agnostic library.
-To integrate it with a specific database or driver, **you must define a small executor function**.
+To integrate it with a specific database or driver, you define a small executor function.
 
-An executor receives a SQL string and parameters, executes them using your DB driver, and returns the resulting rows as `Row[]`.
-By doing so, `sql-contract-zod` can consume query results without knowing anything about the underlying database or driver.
+An executor receives a SQL string and parameters, executes them using your DB driver,
+and returns the resulting rows as `Row[]`.
 
 ```ts
 const executor = async (sql: string, params: QueryParams) => {
@@ -194,65 +177,69 @@ const executor = async (sql: string, params: QueryParams) => {
 ```
 
 This function is the single integration point between `sql-contract-zod` and the DBMS.
-Connection pooling, transactions, retries, error handling, and other DBMS- or driver-specific concerns should all be handled within the executor.
+All database- and driver-specific concerns-connection pooling, transactions,
+retries, and error handling-belong entirely inside the executor.
+
+### Parameters
 
 The `params` argument uses the exported `QueryParams` type.
-It supports both positional arrays and named records, allowing executors to work with positional, anonymous, or named parameter styles depending on the driver.
+It supports both positional arrays and named records.
 
-Reader methods always supply a params array (defaulting to `[]`), so executors can treat `params` as `unknown[]` and skip defensive `undefined` checks.
+Reader methods always supply a params array (defaulting to `[]`),
+so executors may safely treat `params` as `unknown[]` without defensive checks.
 
 ---
+
 ## Mapper: Query Result Mapping (R)
 
 The mapper is responsible for projecting query results (`Row[]`) into DTOs.
 
 In a typical application, a mapper is created once and reused across queries.
-It defines application-wide mapping behavior, while individual queries decide how results are projected.
+It defines application-wide projection behavior,
+while individual queries decide the DTO shape.
 
-The mapper operates purely on returned rows and never inspects SQL, parameters, or execution behavior.
+The mapper operates purely on returned rows and never inspects SQL,
+parameters, or execution behavior.
 To keep mapping predictable, it does not guess column semantics or relationships.
-All transformations are applied through explicit configuration.
+It focuses on structural projection and column name normalization only.
+Value coercion is intentionally handled by Zod.
 
 ```ts
-import {
-  createMapperFromExecutor,
-  mapperPresets,
-} from '@rawsql-ts/sql-contract/mapper'
+import { createReader, mapperPresets } from '@rawsql-ts/sql-contract/mapper'
 
-// `executor` is defined according to the Executor section above.
-const mapper = createMapperFromExecutor(
-  executor,
-  mapperPresets.appLike(),
-)
+const reader = createReader(executor)
+const readerWithOverrides = createReader(executor, mapperPresets.safe())
 ```
 
-This example shows a typical mapper setup.
+---
 
-`createMapperFromExecutor` binds an executor to a mapper and accepts optional mapping options.
-These options control how column names are normalized, how values are coerced, and how identifiers are treated.
+### Query result cardinality: `one` and `list`
 
-For convenience, `mapperPresets` provide reusable configurations for common scenarios:
-
-| Preset                    | Description                                                                                                 |
-| ------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `mapperPresets.appLike()` | Applies common application-friendly defaults, such as snake_case to camelCase conversion and date coercion. |
-| `mapperPresets.safe()`    | Leaves column names and values untouched, suitable for exploratory queries or legacy schemas.               |
-
-When a specific query needs fine-grained control, you can also provide a custom options object.
-This allows localized adjustments without changing the preset used elsewhere.
+Reader methods distinguish between queries that return a single row
+and those that return multiple rows.
 
 ```ts
-const mapper = createMapperFromExecutor(executor, {
-  keyTransform: 'snake_to_camel',
-  coerceDates: true,
-  idKeysAsString: true,
-  typeHints: {
-    createdAt: 'date',
-  },
-})
+const row = await reader.zod(Schema).one(sql, params)
+// row is DTO
+
+const rows = await reader.zod(Schema).list(sql, params)
+// rows is DTO[]
 ```
 
-This form mirrors `mapperPresets.appLike()` while allowing targeted overrides for a specific mapping.
+`one(...)` enforces an exact cardinality contract:
+
+- **0 rows** -> throws an error
+- **1 row** -> returns a DTO
+- **n rows (n >= 2)** -> throws an error
+
+`list(...)` performs no cardinality checks:
+
+- **0 rows** -> returns an empty array `[]`
+- **1 row** -> returns an array with one DTO
+- **n rows (n >= 2)** -> returns an array of `n` DTOs
+
+When using `reader.zod(...)`, Zod validation is performed first,
+and the cardinality check is applied afterward.
 
 ---
 
@@ -260,278 +247,134 @@ This form mirrors `mapperPresets.appLike()` while allowing targeted overrides fo
 
 | Helper | Description |
 | ------ | ----------- |
-| `mapper.zod` | Creates a reader that maps rows with `RowMapping` and validates each DTO with Zod. |
-| `mapper.zodLoose` | Creates a reader that validates duck-typed mapper output with Zod. |
-| `parseRows` / `parseRow` | Validate DTOs that have already been mapped or came from another source. |
-| `zNumberFromString` | Accepts numbers or numeric strings (trims and parses before validation). |
-| `zBigIntFromString` | Accepts bigints or strings, trimming and parsing safely. |
-| `zDateFromString` | Ensures `Date` objects or ISO strings become valid `Date` instances. |
+| `reader.zod` | Validates mapped DTOs with Zod before returning them |
+| `parseRows` / `parseRow` | Validate DTOs obtained from other sources |
+| `zNumberFromString` | Accepts numbers or numeric strings |
+| `zBigIntFromString` | Accepts bigints or strings |
+| `zDateFromString` | Accepts `Date` objects or ISO strings |
 
-Legacy helpers `queryZod` and `queryOneZod` remain available but are deprecated in favor of the reader-based API.
-
-All helpers propagate the original `ZodError` so monitoring layers can inspect the full issue set. They share the same mapping configuration as the base library, so you can layer schema validation on top of existing `rowMapping` definitions.
+All helpers propagate the original `ZodError`.
 
 ---
 
 ### Duck-typed mapping (no model definitions)
 
-For lightweight or localized use cases, the mapper supports duck-typed projections without defining any schema or mapping models.
-
-In duck-typed mapping, the mapper applies no additional structural assumptions beyond its configured defaults.
-The shape of the result is defined locally at the query site, either by providing a TypeScript type or by relying on the raw row shape.
+For lightweight or localized use cases,
+the reader supports duck-typed projections without defining schemas.
 
 ```ts
-// Explicitly typed projection
-const rows = await mapper.query<{ customerId: number }>(
+const rows = await reader.list<{ customerId: number }>(
   'select customer_id from customers limit 1',
 )
 ```
 
-Although not recommended, you can omit the DTO type for quick exploration:
+You can also omit the DTO type:
 
 ```ts
-const rows = await mapper.query(
+const rows = await reader.list(
   'select customer_id from customers limit 1',
 )
 ```
-
-Duck-typed mapping is intentionally minimal and local.
-If the shape of the query results is important or reused throughout your application, consider moving to explicit row mapping.
 
 ---
 
-### Mapping to a Single Model
-
-sql-contract-zod allows you to map query results to typed DTOs.
+### Single DTO with Zod (recommended)
 
 ```ts
-type Customer = {
-  customerId: number
-  customerName: string
-}
+import { z } from 'zod'
 
-const rows = await mapper.query<Customer>(
-  `
-  select
-    customer_id,
-    customer_name
-  from customers
-  where customer_id = $1
-  `,
-  [42],
-)
-
-// rows[0].customerName is type-safe
-```
-
-The normalization rules applied during mapping are controlled by the selected mapper preset.
-
-You can also define one-off mapping rules using columnMap.
-
-```ts
-const customerMapping = rowMapping<Customer>({
-  columnMap: {
-    customerId: 'customer_id',
-    customerName: 'customer_name',
-  },
+const CustomerSchema = z.object({
+  customerId: z.number(),
+  customerName: z.string(),
 })
 
-const rows = await mapper.query<Customer>(
-  `
+const sql = `
   select
     customer_id,
     customer_name
   from customers
   where customer_id = $1
-  `,
-  [42],
-  customerMapping, // explicitly specify the mapping rule
-)
+`
 
-// rows[0].customerName is type-safe
+const row = await reader.zod(CustomerSchema).one(sql, [42])
 ```
-
-The `rowMapping()` helper replaces the previous `entity()` alias. The old name is still supported for now but is deprecated in favor of `rowMapping()`.
-
-When a query includes JOINs or relationships, explicit row mappings are required.
-The structure for such mappings is explained in the next section.
-
-Once the rows are mapped, validate them with `mapper.zod(schema, mapping).list(...)` (or `parseRows` / `parseRow`) before business logic consumes them.
 
 ---
 
 ### Mapping to multiple models (joined rows)
 
-The mapper also supports mapping joined result sets into multiple related models.
-
+You can map joined result sets into multiple related DTOs.
 Relations are explicitly defined and never inferred.
 
 ```ts
+const customerMapping = rowMapping({
+  name: 'customer',
+  key: 'customerId',
+})
+
 const orderMapping = rowMapping({
   name: 'order',
   key: 'orderId',
-  prefix: 'order_',
 }).belongsTo('customer', customerMapping, 'customerId')
 ```
 
-Joined queries remain transparent and deterministic:
-
 ```ts
-const mapper = createMapperFromExecutor(executor)
-
-const rows = await mapper.query(
-  `
-    select
-      o.order_id,
-      o.order_total,
-      c.customer_id,
-      c.customer_name
-    from orders o
-    join customers c on c.customer_id = o.customer_id
-    where o.order_id = $1
-  `,
-  [123],
-  orderMapping,
-)
+const rows = await reader.zod(OrderSchema, orderMapping).list(sql, [42])
 ```
 
-After mapping, validate the related DTOs with `mapper.zod` or `parseRows` before you consume the dataset.
+In multi-model mappings, related DTOs are **interned by their key**.
+If multiple rows reference the same key, the same related instance is reused.
+
+```ts
+rows[0].customer === rows[1].customer // true (same customerId)
+```
+
+Mutating related DTOs in place will affect all rows that reference them.
 
 ---
 
 ## Writer: emitting simple C / U / D statements
 
-The writer helpers provide a small, opinionated DSL for common
-INSERT, UPDATE, and DELETE statements.
+The writer helpers provide a small, opinionated DSL for common INSERT,
+UPDATE, and DELETE statements.
 
-They accept table names and plain objects of column-value pairs, and deterministically emit `{ sql, params }`.
+At its core, the writer constructs `{ sql, params }`.
+When bound to an executor, it also executes those statements.
 
-The writer focuses on *construction*, not execution.
-
-### Writer basics
-
-Writer helpers are intentionally limited:
-
-* `undefined` values are omitted
-* identifiers are validated against ASCII-safe patterns unless explicitly allowed
-* WHERE clauses are limited to equality-based AND fragments
-* no inference, no joins, no multi-table logic
-
-If `returning` is provided, a `RETURNING` clause is appended.
-Using `'all'` maps to `RETURNING *`; otherwise, column names are sorted alphabetically.
-
-The writer never checks backend support for `RETURNING`.
-It emits SQL exactly as specified so that success or failure remains observable at execution time.
-
-### INSERT
-
-```ts
-await writer.insert(
-  'projects',
-  { name: 'Apollo', owner_id: 7 },
-  { returning: ['project_id'] },
-)
-```
-
-### UPDATE
-
-```ts
-await writer.update(
-  'projects',
-  { name: 'Apollo' },
-  { project_id: 1 },
-)
-```
-
-### DELETE
-
-```ts
-await writer.remove(
-  'projects',
-  { project_id: 1 },
-)
-```
-
-Statements can also be built without execution:
-
-```ts
-const built = writer.build.insert(
-  'projects',
-  { name: 'Apollo', owner_id: 7 },
-  { returning: ['project_id'] },
-)
-```
-
-### Writer presets and placeholder strategies
-
-Advanced usage flows through `createWriterFromExecutor`,
-which binds an executor to a concrete placeholder strategy.
-
-A writer preset defines:
-
-1. how placeholders are formatted,
-2. whether parameters are positional or named,
-3. how parameters are ordered and bound.
-
-```ts
-import {
-  createWriterFromExecutor,
-  writerPresets,
-} from '@rawsql-ts/sql-contract/writer'
-
-const writer = createWriterFromExecutor(
-  executor,
-  writerPresets.named({
-    formatPlaceholder: (paramName) => ':' + paramName,
-  }),
-)
-```
-
-### Named placeholders
-
-Named presets derive parameter names from column names.
-
-Each bind increments a counter and produces deterministic names such as
-`name_1`, `owner_id_2`.
+### Executing statements
 
 ```ts
 await writer.insert('projects', { name: 'Apollo', owner_id: 7 })
-// SQL: INSERT INTO projects (name, owner_id) VALUES (:name_1, :owner_id_2)
-// params: { name_1: 'Apollo', owner_id_2: 7 }
+await writer.update('projects', { name: 'Apollo' }, { project_id: 1 })
+await writer.remove('projects', { project_id: 1 })
+```
+
+### Building statements without execution
+
+```ts
+const stmt = writer.build.insert('projects', { name: 'Apollo', owner_id: 7 })
+```
+
+---
+
+## CUD with RETURNING
+
+When write statements return rows,
+consume the result with a reader to map and validate DTOs.
+
+```ts
+const stmt = writer.build.insert(
+  'users',
+  { user_name: 'alice' },
+  { returning: ['user_id', 'user_name'] },
+)
+
+const row = await reader.zod(CreatedUserSchema).one(stmt.sql, stmt.params)
 ```
 
 ---
 
 ## DBMS and driver differences
-
-`sql-contract-zod` does not normalize SQL dialects or placeholder styles.
-
-Write SQL using the placeholder syntax required by your driver, and bind parameters exactly as that driver expects.
-Whether parameters are positional or named is a concern of the executor and driver, not `sql-contract-zod`.
-
-Examples of common placeholder styles:
-
-| DBMS / driver                     | Placeholder style  |
-| --------------------------------- | ------------------ |
-| PostgreSQL / Neon (node-postgres) | `$1`, `$2`, ...    |
-| PostgreSQL / pg-promise           | `$/name/`          |
-| MySQL / SQLite                    | `?`                |
-| SQL Server                        | `@p1`, `@p2`, ...  |
-| Oracle                            | `:1`, `:name`, ... |
-
-```ts
-await executor(
-  'select * from customers where customer_id = $1',
-  [42],
-)
-```
-
-```ts
-await executor(
-  'select * from customers where customer_id = :customerId',
-  { customerId: 42 },
-)
-```
 
 All DBMS- and driver-specific concerns live in the executor.
 Both writer and mapper remain independent of these differences.
@@ -540,6 +383,5 @@ Both writer and mapper remain independent of these differences.
 
 ## Influences / Related Ideas
 
-Sql-contract-zod is inspired by minimal mapping libraries such as Dapper and other thin contracts that keep SQL visible while wiring rows to typed results. These projects demonstrate the value of stopping short of a full ORM and instead providing a predictable, testable layer for purely mechanical concerns.
-
-Sql-contract-zod adopts that lesson within the rawsql-ts ecosystem: SQL remains the domain language, and this package automates only the tedious bridging work around it while optionally validating DTOs with Zod.
+sql-contract-zod is inspired by minimal mapping libraries such as Dapper,
+favoring explicit SQL and thin, predictable mapping layers.

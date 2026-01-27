@@ -24,8 +24,12 @@ export default defineConfig({
         alias: {
             'rawsql-ts': resolve(__dirname, 'packages/core/src'),
             '@rawsql-ts/testkit-core': resolve(__dirname, 'packages/testkit-core/src'),
-        '@rawsql-ts/sql-contract-zod': resolve(__dirname, 'packages/sql-contract-zod/src'),
-        '@rawsql-ts/sql-contract': resolve(__dirname, 'packages/sql-contract/src'),
+            '@rawsql-ts/sql-contract-zod': resolve(__dirname, 'packages/sql-contract-zod/src'),
+            '@rawsql-ts/sql-contract/mapper': resolve(__dirname, 'packages/sql-contract/dist/mapper'),
+            '@rawsql-ts/sql-contract/mapper/*': resolve(__dirname, 'packages/sql-contract/dist/mapper/*'),
+            '@rawsql-ts/sql-contract/writer': resolve(__dirname, 'packages/sql-contract/dist/writer'),
+            '@rawsql-ts/sql-contract/writer/*': resolve(__dirname, 'packages/sql-contract/dist/writer/*'),
+            '@rawsql-ts/sql-contract': resolve(__dirname, 'packages/sql-contract/src'),
         },
     },
 })
