@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: RenameOptions
 
-Defined in: [packages/core/src/transformers/AliasRenamer.ts:36](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/transformers/AliasRenamer.ts#L36)
+Defined in: [packages/core/src/transformers/AliasRenamer.ts:36](https://github.com/mk3008/rawsql-ts/blob/eb87c364119e1d94cd289801a211bf4874dd6cee/packages/core/src/transformers/AliasRenamer.ts#L36)
 
 Options for alias renaming operations
 
@@ -11,7 +11,7 @@ Options for alias renaming operations
 
 > `optional` **scopeType**: `"cte"` \| `"subquery"` \| `"main"` \| `"auto"`
 
-Defined in: [packages/core/src/transformers/AliasRenamer.ts:37](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/transformers/AliasRenamer.ts#L37)
+Defined in: [packages/core/src/transformers/AliasRenamer.ts:37](https://github.com/mk3008/rawsql-ts/blob/eb87c364119e1d94cd289801a211bf4874dd6cee/packages/core/src/transformers/AliasRenamer.ts#L37)
 
 ***
 
@@ -19,7 +19,7 @@ Defined in: [packages/core/src/transformers/AliasRenamer.ts:37](https://github.c
 
 > `optional` **dryRun**: `boolean`
 
-Defined in: [packages/core/src/transformers/AliasRenamer.ts:38](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/transformers/AliasRenamer.ts#L38)
+Defined in: [packages/core/src/transformers/AliasRenamer.ts:38](https://github.com/mk3008/rawsql-ts/blob/eb87c364119e1d94cd289801a211bf4874dd6cee/packages/core/src/transformers/AliasRenamer.ts#L38)
 
 ***
 
@@ -27,5 +27,5 @@ Defined in: [packages/core/src/transformers/AliasRenamer.ts:38](https://github.c
 
 > `optional` **preserveFormatting**: `boolean`
 
-Defined in: [packages/core/src/transformers/AliasRenamer.ts:39](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/transformers/AliasRenamer.ts#L39)
+Defined in: [packages/core/src/transformers/AliasRenamer.ts:39](https://github.com/mk3008/rawsql-ts/blob/eb87c364119e1d94cd289801a211bf4874dd6cee/packages/core/src/transformers/AliasRenamer.ts#L39)
 </div>

@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: FilterConditionObject
 
-Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:37](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/transformers/DynamicQueryBuilder.ts#L37)
+Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:37](https://github.com/mk3008/rawsql-ts/blob/eb87c364119e1d94cd289801a211bf4874dd6cee/packages/core/src/transformers/DynamicQueryBuilder.ts#L37)
 
 Object-form filter condition supporting scalar operators, logical grouping,
 and column-anchored EXISTS/NOT EXISTS predicates.
@@ -23,7 +23,7 @@ Related tests: packages/core/tests/transformers/DynamicQueryBuilder.test.ts
 
 > `optional` **min**: [`SqlParameterValue`](../type-aliases/SqlParameterValue.md)
 
-Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:38](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/transformers/DynamicQueryBuilder.ts#L38)
+Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:38](https://github.com/mk3008/rawsql-ts/blob/eb87c364119e1d94cd289801a211bf4874dd6cee/packages/core/src/transformers/DynamicQueryBuilder.ts#L38)
 
 ***
 
@@ -31,7 +31,7 @@ Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:38](https://g
 
 > `optional` **max**: [`SqlParameterValue`](../type-aliases/SqlParameterValue.md)
 
-Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:39](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/transformers/DynamicQueryBuilder.ts#L39)
+Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:39](https://github.com/mk3008/rawsql-ts/blob/eb87c364119e1d94cd289801a211bf4874dd6cee/packages/core/src/transformers/DynamicQueryBuilder.ts#L39)
 
 ***
 
@@ -39,7 +39,7 @@ Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:39](https://g
 
 > `optional` **like**: `string`
 
-Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:40](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/transformers/DynamicQueryBuilder.ts#L40)
+Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:40](https://github.com/mk3008/rawsql-ts/blob/eb87c364119e1d94cd289801a211bf4874dd6cee/packages/core/src/transformers/DynamicQueryBuilder.ts#L40)
 
 ***
 
@@ -47,7 +47,7 @@ Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:40](https://g
 
 > `optional` **ilike**: `string`
 
-Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:41](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/transformers/DynamicQueryBuilder.ts#L41)
+Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:41](https://github.com/mk3008/rawsql-ts/blob/eb87c364119e1d94cd289801a211bf4874dd6cee/packages/core/src/transformers/DynamicQueryBuilder.ts#L41)
 
 ***
 
@@ -55,7 +55,7 @@ Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:41](https://g
 
 > `optional` **in**: [`SqlParameterValue`](../type-aliases/SqlParameterValue.md)[]
 
-Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:42](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/transformers/DynamicQueryBuilder.ts#L42)
+Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:42](https://github.com/mk3008/rawsql-ts/blob/eb87c364119e1d94cd289801a211bf4874dd6cee/packages/core/src/transformers/DynamicQueryBuilder.ts#L42)
 
 ***
 
@@ -63,7 +63,7 @@ Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:42](https://g
 
 > `optional` **any**: [`SqlParameterValue`](../type-aliases/SqlParameterValue.md)[]
 
-Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:43](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/transformers/DynamicQueryBuilder.ts#L43)
+Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:43](https://github.com/mk3008/rawsql-ts/blob/eb87c364119e1d94cd289801a211bf4874dd6cee/packages/core/src/transformers/DynamicQueryBuilder.ts#L43)
 
 ***
 
@@ -71,7 +71,7 @@ Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:43](https://g
 
 > `optional` **=**: [`SqlParameterValue`](../type-aliases/SqlParameterValue.md)
 
-Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:44](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/transformers/DynamicQueryBuilder.ts#L44)
+Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:44](https://github.com/mk3008/rawsql-ts/blob/eb87c364119e1d94cd289801a211bf4874dd6cee/packages/core/src/transformers/DynamicQueryBuilder.ts#L44)
 
 ***
 
@@ -79,7 +79,7 @@ Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:44](https://g
 
 > `optional` **\>**: [`SqlParameterValue`](../type-aliases/SqlParameterValue.md)
 
-Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:45](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/transformers/DynamicQueryBuilder.ts#L45)
+Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:45](https://github.com/mk3008/rawsql-ts/blob/eb87c364119e1d94cd289801a211bf4874dd6cee/packages/core/src/transformers/DynamicQueryBuilder.ts#L45)
 
 ***
 
@@ -87,7 +87,7 @@ Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:45](https://g
 
 > `optional` **\<**: [`SqlParameterValue`](../type-aliases/SqlParameterValue.md)
 
-Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:46](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/transformers/DynamicQueryBuilder.ts#L46)
+Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:46](https://github.com/mk3008/rawsql-ts/blob/eb87c364119e1d94cd289801a211bf4874dd6cee/packages/core/src/transformers/DynamicQueryBuilder.ts#L46)
 
 ***
 
@@ -95,7 +95,7 @@ Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:46](https://g
 
 > `optional` **\>=**: [`SqlParameterValue`](../type-aliases/SqlParameterValue.md)
 
-Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:47](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/transformers/DynamicQueryBuilder.ts#L47)
+Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:47](https://github.com/mk3008/rawsql-ts/blob/eb87c364119e1d94cd289801a211bf4874dd6cee/packages/core/src/transformers/DynamicQueryBuilder.ts#L47)
 
 ***
 
@@ -103,7 +103,7 @@ Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:47](https://g
 
 > `optional` **\<=**: [`SqlParameterValue`](../type-aliases/SqlParameterValue.md)
 
-Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:48](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/transformers/DynamicQueryBuilder.ts#L48)
+Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:48](https://github.com/mk3008/rawsql-ts/blob/eb87c364119e1d94cd289801a211bf4874dd6cee/packages/core/src/transformers/DynamicQueryBuilder.ts#L48)
 
 ***
 
@@ -111,7 +111,7 @@ Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:48](https://g
 
 > `optional` **!=**: [`SqlParameterValue`](../type-aliases/SqlParameterValue.md)
 
-Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:49](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/transformers/DynamicQueryBuilder.ts#L49)
+Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:49](https://github.com/mk3008/rawsql-ts/blob/eb87c364119e1d94cd289801a211bf4874dd6cee/packages/core/src/transformers/DynamicQueryBuilder.ts#L49)
 
 ***
 
@@ -119,7 +119,7 @@ Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:49](https://g
 
 > `optional` **&lt;\&gt;**: [`SqlParameterValue`](../type-aliases/SqlParameterValue.md)
 
-Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:50](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/transformers/DynamicQueryBuilder.ts#L50)
+Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:50](https://github.com/mk3008/rawsql-ts/blob/eb87c364119e1d94cd289801a211bf4874dd6cee/packages/core/src/transformers/DynamicQueryBuilder.ts#L50)
 
 ***
 
@@ -127,7 +127,7 @@ Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:50](https://g
 
 > `optional` **or**: `object`[]
 
-Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:51](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/transformers/DynamicQueryBuilder.ts#L51)
+Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:51](https://github.com/mk3008/rawsql-ts/blob/eb87c364119e1d94cd289801a211bf4874dd6cee/packages/core/src/transformers/DynamicQueryBuilder.ts#L51)
 
 #### Index Signature
 
@@ -143,7 +143,7 @@ Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:51](https://g
 
 > `optional` **and**: `object`[]
 
-Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:52](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/transformers/DynamicQueryBuilder.ts#L52)
+Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:52](https://github.com/mk3008/rawsql-ts/blob/eb87c364119e1d94cd289801a211bf4874dd6cee/packages/core/src/transformers/DynamicQueryBuilder.ts#L52)
 
 #### Index Signature
 
@@ -159,7 +159,7 @@ Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:52](https://g
 
 > `optional` **column**: `string`
 
-Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:54](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/transformers/DynamicQueryBuilder.ts#L54)
+Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:54](https://github.com/mk3008/rawsql-ts/blob/eb87c364119e1d94cd289801a211bf4874dd6cee/packages/core/src/transformers/DynamicQueryBuilder.ts#L54)
 
 ***
 
@@ -167,7 +167,7 @@ Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:54](https://g
 
 > `optional` **exists**: [`ExistsSubqueryDefinition`](ExistsSubqueryDefinition.md)
 
-Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:55](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/transformers/DynamicQueryBuilder.ts#L55)
+Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:55](https://github.com/mk3008/rawsql-ts/blob/eb87c364119e1d94cd289801a211bf4874dd6cee/packages/core/src/transformers/DynamicQueryBuilder.ts#L55)
 
 ***
 
@@ -175,5 +175,5 @@ Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:55](https://g
 
 > `optional` **notExists**: [`ExistsSubqueryDefinition`](ExistsSubqueryDefinition.md)
 
-Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:56](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/transformers/DynamicQueryBuilder.ts#L56)
+Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:56](https://github.com/mk3008/rawsql-ts/blob/eb87c364119e1d94cd289801a211bf4874dd6cee/packages/core/src/transformers/DynamicQueryBuilder.ts#L56)
 </div>

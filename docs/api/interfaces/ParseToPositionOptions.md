@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: ParseToPositionOptions
 
-Defined in: [packages/core/src/utils/PositionAwareParser.ts:11](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/utils/PositionAwareParser.ts#L11)
+Defined in: [packages/core/src/utils/PositionAwareParser.ts:11](https://github.com/mk3008/rawsql-ts/blob/eb87c364119e1d94cd289801a211bf4874dd6cee/packages/core/src/utils/PositionAwareParser.ts#L11)
 
 Options for position-aware parsing
 
@@ -11,7 +11,7 @@ Options for position-aware parsing
 
 > `optional` **errorRecovery**: `boolean`
 
-Defined in: [packages/core/src/utils/PositionAwareParser.ts:13](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/utils/PositionAwareParser.ts#L13)
+Defined in: [packages/core/src/utils/PositionAwareParser.ts:13](https://github.com/mk3008/rawsql-ts/blob/eb87c364119e1d94cd289801a211bf4874dd6cee/packages/core/src/utils/PositionAwareParser.ts#L13)
 
 Enable error recovery to continue parsing after syntax errors
 
@@ -21,7 +21,7 @@ Enable error recovery to continue parsing after syntax errors
 
 > `optional` **insertMissingTokens**: `boolean`
 
-Defined in: [packages/core/src/utils/PositionAwareParser.ts:15](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/utils/PositionAwareParser.ts#L15)
+Defined in: [packages/core/src/utils/PositionAwareParser.ts:15](https://github.com/mk3008/rawsql-ts/blob/eb87c364119e1d94cd289801a211bf4874dd6cee/packages/core/src/utils/PositionAwareParser.ts#L15)
 
 Insert missing tokens (e.g., missing FROM keywords)
 
@@ -31,7 +31,7 @@ Insert missing tokens (e.g., missing FROM keywords)
 
 > `optional` **parseToPosition**: `number` \| \{ `line`: `number`; `column`: `number`; \}
 
-Defined in: [packages/core/src/utils/PositionAwareParser.ts:17](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/utils/PositionAwareParser.ts#L17)
+Defined in: [packages/core/src/utils/PositionAwareParser.ts:17](https://github.com/mk3008/rawsql-ts/blob/eb87c364119e1d94cd289801a211bf4874dd6cee/packages/core/src/utils/PositionAwareParser.ts#L17)
 
 Parse only up to the specified position
 
@@ -41,7 +41,7 @@ Parse only up to the specified position
 
 > `optional` **maxRecoveryAttempts**: `number`
 
-Defined in: [packages/core/src/utils/PositionAwareParser.ts:19](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/utils/PositionAwareParser.ts#L19)
+Defined in: [packages/core/src/utils/PositionAwareParser.ts:19](https://github.com/mk3008/rawsql-ts/blob/eb87c364119e1d94cd289801a211bf4874dd6cee/packages/core/src/utils/PositionAwareParser.ts#L19)
 
 Maximum number of error recovery attempts
 </div>
