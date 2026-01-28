@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: QueryBuildOptions
 
-Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:108](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/transformers/DynamicQueryBuilder.ts#L108)
+Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:108](https://github.com/mk3008/rawsql-ts/blob/eb87c364119e1d94cd289801a211bf4874dd6cee/packages/core/src/transformers/DynamicQueryBuilder.ts#L108)
 
 Options for dynamic query building
 
@@ -11,7 +11,7 @@ Options for dynamic query building
 
 > `optional` **filter**: [`FilterConditions`](../type-aliases/FilterConditions.md)
 
-Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:110](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/transformers/DynamicQueryBuilder.ts#L110)
+Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:110](https://github.com/mk3008/rawsql-ts/blob/eb87c364119e1d94cd289801a211bf4874dd6cee/packages/core/src/transformers/DynamicQueryBuilder.ts#L110)
 
 Filter conditions to inject into WHERE clause
 
@@ -21,7 +21,7 @@ Filter conditions to inject into WHERE clause
 
 > `optional` **sort**: [`SortConditions`](../type-aliases/SortConditions.md)
 
-Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:112](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/transformers/DynamicQueryBuilder.ts#L112)
+Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:112](https://github.com/mk3008/rawsql-ts/blob/eb87c364119e1d94cd289801a211bf4874dd6cee/packages/core/src/transformers/DynamicQueryBuilder.ts#L112)
 
 Sort conditions to inject into ORDER BY clause
 
@@ -31,7 +31,7 @@ Sort conditions to inject into ORDER BY clause
 
 > `optional` **paging**: [`PaginationOptions`](PaginationOptions.md)
 
-Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:114](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/transformers/DynamicQueryBuilder.ts#L114)
+Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:114](https://github.com/mk3008/rawsql-ts/blob/eb87c364119e1d94cd289801a211bf4874dd6cee/packages/core/src/transformers/DynamicQueryBuilder.ts#L114)
 
 Pagination options to inject LIMIT/OFFSET clauses
 
@@ -41,7 +41,7 @@ Pagination options to inject LIMIT/OFFSET clauses
 
 > `optional` **includeColumns**: `string`[]
 
-Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:119](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/transformers/DynamicQueryBuilder.ts#L119)
+Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:119](https://github.com/mk3008/rawsql-ts/blob/eb87c364119e1d94cd289801a211bf4874dd6cee/packages/core/src/transformers/DynamicQueryBuilder.ts#L119)
 
 Columns that should remain in the SELECT clause.
 When specified, every other column is removed so the output matches this whitelist.
@@ -52,7 +52,7 @@ When specified, every other column is removed so the output matches this whiteli
 
 > `optional` **excludeColumns**: `string`[]
 
-Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:124](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/transformers/DynamicQueryBuilder.ts#L124)
+Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:124](https://github.com/mk3008/rawsql-ts/blob/eb87c364119e1d94cd289801a211bf4874dd6cee/packages/core/src/transformers/DynamicQueryBuilder.ts#L124)
 
 Columns that should be removed from the SELECT clause.
 Filters apply subtractively and only drop columns that exist in the original output.
@@ -63,7 +63,7 @@ Filters apply subtractively and only drop columns that exist in the original out
 
 > `optional` **serialize**: `boolean` \| [`JsonMapping`](JsonMapping.md)
 
-Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:130](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/transformers/DynamicQueryBuilder.ts#L130)
+Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:130](https://github.com/mk3008/rawsql-ts/blob/eb87c364119e1d94cd289801a211bf4874dd6cee/packages/core/src/transformers/DynamicQueryBuilder.ts#L130)
 
 JSON serialization mapping to transform results into hierarchical JSON
 - JsonMapping object: explicit mapping configuration
@@ -76,7 +76,7 @@ JSON serialization mapping to transform results into hierarchical JSON
 
 > `optional` **jsonb**: `boolean`
 
-Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:136](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/transformers/DynamicQueryBuilder.ts#L136)
+Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:136](https://github.com/mk3008/rawsql-ts/blob/eb87c364119e1d94cd289801a211bf4874dd6cee/packages/core/src/transformers/DynamicQueryBuilder.ts#L136)
 
 JSONB usage setting. Must be true (default) for PostgreSQL GROUP BY compatibility.
 Setting to false will throw an error as JSON type cannot be used in GROUP BY clauses.
@@ -93,7 +93,7 @@ true
 
 > `optional` **existsStrict**: `boolean`
 
-Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:141](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/transformers/DynamicQueryBuilder.ts#L141)
+Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:141](https://github.com/mk3008/rawsql-ts/blob/eb87c364119e1d94cd289801a211bf4874dd6cee/packages/core/src/transformers/DynamicQueryBuilder.ts#L141)
 
 Throw when column-anchored EXISTS filters fail to resolve.
 Defaults to false so invalid definitions are skipped silently.
@@ -104,7 +104,7 @@ Defaults to false so invalid definitions are skipped silently.
 
 > `optional` **schemaInfo**: [`SchemaInfo`](../type-aliases/SchemaInfo.md)
 
-Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:145](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/transformers/DynamicQueryBuilder.ts#L145)
+Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:145](https://github.com/mk3008/rawsql-ts/blob/eb87c364119e1d94cd289801a211bf4874dd6cee/packages/core/src/transformers/DynamicQueryBuilder.ts#L145)
 
 Schema metadata used when removing unused LEFT JOINs; overrides builder defaults.
 
@@ -114,7 +114,7 @@ Schema metadata used when removing unused LEFT JOINs; overrides builder defaults
 
 > `optional` **removeUnusedLeftJoins**: `boolean`
 
-Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:149](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/transformers/DynamicQueryBuilder.ts#L149)
+Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:149](https://github.com/mk3008/rawsql-ts/blob/eb87c364119e1d94cd289801a211bf4874dd6cee/packages/core/src/transformers/DynamicQueryBuilder.ts#L149)
 
 Remove unused LEFT JOINs before further processing when schema info is available.
 
@@ -124,7 +124,7 @@ Remove unused LEFT JOINs before further processing when schema info is available
 
 > `optional` **removeUnusedCtes**: `boolean`
 
-Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:154](https://github.com/mk3008/rawsql-ts/blob/0c9553e70639b777e5a11e31a87363d288f66c8b/packages/core/src/transformers/DynamicQueryBuilder.ts#L154)
+Defined in: [packages/core/src/transformers/DynamicQueryBuilder.ts:154](https://github.com/mk3008/rawsql-ts/blob/eb87c364119e1d94cd289801a211bf4874dd6cee/packages/core/src/transformers/DynamicQueryBuilder.ts#L154)
 
 Remove unused Common Table Expressions (CTEs) when they can be safely pruned.
 Defaults to false to preserve original WITH definitions.
