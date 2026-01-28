@@ -7,6 +7,7 @@ import {
   type QueryParams,
   type Row,
 } from '@rawsql-ts/sql-contract/mapper'
+import { rewriteFixtureQuery } from './support/testkit'
 
 const CustomerSchema = z.object({
   customerId: z.number(),
@@ -35,6 +36,7 @@ const createMapperFromRows = (
 ) =>
   createMapper(async (_sql: string, params: QueryParams) => {
     onQuery?.(params)
+    rewriteFixtureQuery(_sql, rows)
     return rows
   })
 
@@ -152,7 +154,7 @@ describe('customer usage styles', () => {
     const mapper = createMapperFromRows(rows)
     const reader = mapper.zod(OrderWithCustomerSchema, orderWithCustomerMapping)
 
-    const [result] = await reader.list('select ...')
+    const [result] = await reader.list(customerSql)
 
     expect(result).toEqual({
       orderId: 123,

@@ -4,7 +4,7 @@
 
 @rawsql-ts/sql-contract-zod maps SQL results to DTOs and validates them with Zod.
 
-R looks like this:
+Read (R) looks like this:
 
 ```ts
 // Create a reader (defaults to the appLike preset so snake_case -> camelCase works out of the box).
@@ -16,7 +16,7 @@ const customer = await reader.zod(CustomerSchema).one(
 )
 ```
 
-C / U / D look like this:
+Create (C) / Update (U) / Delete (D) look like this:
 
 ```ts
 // Create a writer for executing simple INSERT / UPDATE / DELETE statements.

@@ -176,6 +176,8 @@ function normalizeQueryArgs<T>(rest: QueryZodRestArgs<T>): QueryZodNormalizedArg
   if (rest.length === 1) {
     if (isRowMapping(first)) {
       normalized.mappingOrOptions = first
+    } else if (isMapperOptions(first)) {
+      normalized.mappingOrOptions = first
     } else {
       normalized.params = first as QueryParams
     }
@@ -184,6 +186,11 @@ function normalizeQueryArgs<T>(rest: QueryZodRestArgs<T>): QueryZodNormalizedArg
 
   if (rest.length === 2) {
     if (isRowMapping(first)) {
+      normalized.mappingOrOptions = first
+      normalized.options = second as QueryZodOptions | undefined
+      return normalized
+    }
+    if (isMapperOptions(first)) {
       normalized.mappingOrOptions = first
       normalized.options = second as QueryZodOptions | undefined
       return normalized
@@ -213,6 +220,22 @@ function isRowMapping<T>(value: unknown): value is RowMapping<T> {
     'assignFields' in value &&
     typeof (value as RowMapping<T>).assignFields === 'function'
   )
+}
+
+function isMapperOptions(value: unknown): value is MapperOptions {
+  if (typeof value !== 'object' || value === null) {
+    return false
+  }
+
+  const optionKeys: Array<keyof MapperOptions> = [
+    'keyTransform',
+    'idKeysAsString',
+    'typeHints',
+    'coerceDates',
+    'coerceFn',
+  ]
+
+  return optionKeys.some((key) => key in value)
 }
 
 function isQueryZodOptions(value: unknown): value is QueryZodOptions {

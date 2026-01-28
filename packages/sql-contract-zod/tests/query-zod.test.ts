@@ -8,6 +8,7 @@ import {
   rowMapping,
   type QueryParams,
 } from '@rawsql-ts/sql-contract/mapper'
+import { rewriteFixtureQuery } from './support/testkit'
 
 type Customer = {
   customerId: number
@@ -22,6 +23,8 @@ const customerMapping = rowMapping<Customer>({
     customerName: 'customer_name',
   },
 })
+const customerSql = 'select customer_id, customer_name, balance from customers'
+const customerSqlWithId = `${customerSql} where customer_id = $1`
 
 describe('sql-contract-zod reader', () => {
   const createMapperFromRows = (
@@ -30,6 +33,7 @@ describe('sql-contract-zod reader', () => {
   ) =>
     createMapper(async (_sql: string, params: QueryParams) => {
       onQuery?.(params)
+      rewriteFixtureQuery(_sql, rows)
       return rows
     })
 
@@ -43,7 +47,7 @@ describe('sql-contract-zod reader', () => {
     })
 
     const reader = mapper.zod(schema, customerMapping)
-    await expect(reader.list('select ...')).resolves.toEqual([
+    await expect(reader.list(customerSql)).resolves.toEqual([
       { customerId: 1, customerName: 'Maple' },
     ])
   })
@@ -59,12 +63,13 @@ describe('sql-contract-zod reader', () => {
     const reader = createReader(
       async (_sql, params) => {
         recorded.push(params)
+        rewriteFixtureQuery(_sql, rows)
         return rows
       },
       mapperPresets.appLike(),
     ).zod(schema)
 
-    await expect(reader.one('select ...')).resolves.toEqual({
+    await expect(reader.one(customerSql)).resolves.toEqual({
       customerId: 1,
       customerName: 'Maple',
     })
@@ -73,14 +78,17 @@ describe('sql-contract-zod reader', () => {
 
   it('defaults to appLike mapping when no options are supplied', async () => {
     const rows = [{ customer_id: 3, customer_name: 'Oak' }]
-    const reader = createReader(async () => rows).zod(
+    const reader = createReader(async (_sql) => {
+      rewriteFixtureQuery(_sql, rows)
+      return rows
+    }).zod(
       z.object({
         customerId: z.number(),
         customerName: z.string(),
       }),
     )
 
-    await expect(reader.one('select ...', [42])).resolves.toEqual({
+    await expect(reader.one(customerSqlWithId, [42])).resolves.toEqual({
       customerId: 3,
       customerName: 'Oak',
     })
@@ -96,7 +104,7 @@ describe('sql-contract-zod reader', () => {
     })
     const reader = mapper.zod(schema, customerMapping)
 
-    const execution = reader.list('select ...')
+    const execution = reader.list(customerSql)
     await expect(execution).rejects.toBeInstanceOf(ZodError)
   })
 
@@ -112,10 +120,10 @@ describe('sql-contract-zod reader', () => {
     })
 
     const reader = mapper.zod(schema)
-    await expect(reader.list('select ...')).resolves.toEqual([
+    await expect(reader.list(customerSql)).resolves.toEqual([
       { customerId: '1', customerName: 'Maple' },
     ])
-    await expect(reader.one('select ...')).resolves.toEqual({
+    await expect(reader.one(customerSql)).resolves.toEqual({
       customerId: '1',
       customerName: 'Maple',
     })
@@ -130,7 +138,7 @@ describe('sql-contract-zod reader', () => {
 
     const none = createMapperFromRows([])
     const noneReader = none.zod(schema, customerMapping)
-    await expect(noneReader.one('select ...')).rejects.toThrow(
+    await expect(noneReader.one(customerSql)).rejects.toThrow(
       /expected exactly one row/i
     )
 
@@ -139,7 +147,7 @@ describe('sql-contract-zod reader', () => {
       { customer_id: 2, customer_name: 'Pine' },
     ])
     const manyReader = many.zod(schema, customerMapping)
-    await expect(manyReader.one('select ...')).rejects.toThrow(
+    await expect(manyReader.one(customerSql)).rejects.toThrow(
       /expected exactly one row/i
     )
 
@@ -147,7 +155,7 @@ describe('sql-contract-zod reader', () => {
       { customer_id: 5, customer_name: 'Oak' },
     ])
     const singleReader = single.zod(schema, customerMapping)
-    await expect(singleReader.one('select ...')).resolves.toEqual({
+    await expect(singleReader.one(customerSql)).resolves.toEqual({
       customerId: 5,
       customerName: 'Oak',
     })
@@ -161,7 +169,7 @@ describe('sql-contract-zod reader', () => {
 
     const none = createMapperFromRows([])
     const noneReader = none.zod(schema)
-    await expect(noneReader.one('select ...')).rejects.toThrow(
+    await expect(noneReader.one(customerSql)).rejects.toThrow(
       /expected exactly one row/i
     )
 
@@ -170,7 +178,7 @@ describe('sql-contract-zod reader', () => {
       { customer_id: 2, customer_name: 'Pine' },
     ])
     const manyReader = many.zod(schema)
-    await expect(manyReader.one('select ...')).rejects.toThrow(
+    await expect(manyReader.one(customerSql)).rejects.toThrow(
       /expected exactly one row/i
     )
 
@@ -178,7 +186,7 @@ describe('sql-contract-zod reader', () => {
       { customer_id: 5, customer_name: 'Oak' },
     ])
     const singleReader = single.zod(schema)
-    await expect(singleReader.one('select ...')).resolves.toEqual({
+    await expect(singleReader.one(customerSql)).resolves.toEqual({
       customerId: '5',
       customerName: 'Oak',
     })

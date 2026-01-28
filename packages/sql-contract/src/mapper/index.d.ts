@@ -159,6 +159,11 @@ export declare function createMapper(executor: QueryExecutor, defaults?: MapperO
  */
 export declare function createMapperFromExecutor(executor: QueryExecutor, defaults?: MapperOptions): Mapper;
 /**
+ * Creates a mapper configured with the app-like preset plus any caller overrides.
+ * This helper is the recommended entry point when wiring a reader because it keeps snake_case → camelCase conventions consistent.
+ */
+export declare function createReader(executor: QueryExecutor, options?: MapperOptions): Mapper;
+/**
  * Normalizes an executor returning `{ rows }` so it can be consumed by the mapper.
  */
 export declare function toRowsExecutor(executorOrTarget: ((sql: string, params: QueryParams) => Promise<{
