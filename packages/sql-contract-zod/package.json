@@ -1,6 +1,6 @@
 {
   "name": "@rawsql-ts/sql-contract-zod",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Runtime DTO validation on top of sql-contract's explicit mapper using Zod schemas.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

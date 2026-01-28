@@ -1,6 +1,6 @@
 {
   "name": "@rawsql-ts/sql-contract",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Lightweight mapper and writer helpers that keep client SQL authoritative while exposing an explicit contract for data hydration and CUD emitters.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
