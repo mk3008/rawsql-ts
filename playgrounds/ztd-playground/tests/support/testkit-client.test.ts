@@ -1,5 +1,5 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Client, QueryResultRow } from 'pg';
+import type { Client, ClientConfig, QueryResultRow } from 'pg';
 import type { TableFixture } from '@rawsql-ts/testkit-core';
 
 const queryLog: Array<{ text: string; values?: unknown[] }> = [];
@@ -17,11 +17,17 @@ class MockClient implements Pick<Client, 'connect' | 'query' | 'end'> {
   end = endMock;
 }
 
+class ClientConstructorMock extends MockClient {
+  constructor(_config?: ClientConfig) {
+    super();
+  }
+}
+
 vi.mock('pg', async () => {
   const actual = await vi.importActual<typeof import('pg')>('pg');
   return {
     ...actual,
-    Client: vi.fn(() => new MockClient()),
+    Client: ClientConstructorMock,
   };
 });
 
