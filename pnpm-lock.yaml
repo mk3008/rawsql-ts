@@ -11,7 +11,7 @@ overrides:
   vitepress>vite: 5.4.21
   preact: 10.27.3
   '@prisma/dev': 0.19.1
-  hono: 4.11.4
+  hono: 4.11.7
   diff: 8.0.3
   lodash: 4.17.23
   undici: 7.18.2
@@ -989,7 +989,7 @@ packages:
     resolution: {integrity: sha512-vUcD0uauS7EU2caukW8z5lJKtoGMokxNbJtBiwHgpqxEXokaHCBkQUmCHhjFB1VUTWdqj25QoMkMKzgjq+uhrw==}
     engines: {node: '>=18.14.1'}
     peerDependencies:
-      hono: 4.11.4
+      hono: 4.11.7
 
   '@humanfs/core@0.19.1':
     resolution: {integrity: sha512-5DyQ4+1JEUzejeK1JGICcideyfUbGixgS9jNgex5nqkW+cY7WZhxBigmieN5Qnw9ZosSNVC9KQKyb+GUaGyKUA==}
@@ -2516,8 +2516,8 @@ packages:
   hast-util-whitespace@3.0.0:
     resolution: {integrity: sha512-88JUN06ipLwsnv+dVn+OIYOvAuvBMy/Qoi6O7mQHxdPXpjy+Cd6xRkWwux7DKO+4sYILtLBRIKgsdpS2gQc7qw==}
 
-  hono@4.11.4:
-    resolution: {integrity: sha512-U7tt8JsyrxSRKspfhtLET79pU8K+tInj5QZXs1jSugO1Vq5dFj3kmZsRldo29mTBfcjDRVRXrEZ6LS63Cog9ZA==}
+  hono@4.11.7:
+    resolution: {integrity: sha512-l7qMiNee7t82bH3SeyUCt9UF15EVmaBvsppY2zQtrbIhl/yzBTny+YUxsVjSjQ6gaqaeVtZmGocom8TzBlA4Yw==}
     engines: {node: '>=16.9.0'}
 
   hookable@5.5.3:
@@ -4683,9 +4683,9 @@ snapshots:
       protobufjs: 7.5.4
       yargs: 17.7.2
 
-  '@hono/node-server@1.19.7(hono@4.11.4)':
+  '@hono/node-server@1.19.7(hono@4.11.7)':
     dependencies:
-      hono: 4.11.4
+      hono: 4.11.7
 
   '@humanfs/core@0.19.1': {}
 
@@ -4811,13 +4811,13 @@ snapshots:
       '@electric-sql/pglite': 0.3.14
       '@electric-sql/pglite-socket': 0.0.19(@electric-sql/pglite@0.3.14)
       '@electric-sql/pglite-tools': 0.2.19(@electric-sql/pglite@0.3.14)
-      '@hono/node-server': 1.19.7(hono@4.11.4)
+      '@hono/node-server': 1.19.7(hono@4.11.7)
       '@mrleebo/prisma-ast': 0.13.1
       '@prisma/get-platform': 7.1.0
       '@prisma/query-plan-executor': 7.1.0
       foreground-child: 3.3.1
       get-port-please: 3.2.0
-      hono: 4.11.4
+      hono: 4.11.7
       http-status-codes: 2.3.0
       pathe: 2.0.3
       proper-lockfile: 4.1.2
@@ -6387,7 +6387,7 @@ snapshots:
     dependencies:
       '@types/hast': 3.0.4
 
-  hono@4.11.4: {}
+  hono@4.11.7: {}
 
   hookable@5.5.3: {}
 
