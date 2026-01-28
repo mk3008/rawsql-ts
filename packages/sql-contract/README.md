@@ -1,4 +1,4 @@
-# @rawsql-ts/sql-contract
+Ôªø# @rawsql-ts/sql-contract
 
 ## Overview
 
@@ -127,261 +127,195 @@ void main()
 
 ---
 
-## é¿çsä¬ã´ÇÃèÄîı
+## Executor: DBMS / Driver Integration
 
-sql-contract ÇÕè≠ó ÇÃîzê¸Çópà”Ç∑ÇÈÇæÇØÇ≈ÅAÇ≥Ç‹Ç¥Ç‹Ç»DBMSÇ…ëŒâûÇ≥ÇπÇÈÇ±Ç∆Ç™â¬î\Ç≈Ç∑ÅB
+`sql-contract` is designed as a reusable, DBMS-agnostic library.
+To integrate it with a specific database or driver, **you must define a small executor function**.
 
-ÉNÉGÉäÇé¿çsÇ∑ÇÈÉRÅ[ÉhÇèëÇ≠ëOÇ…ÅAà»â∫ÇÃì‡óeÇãLèqÇµÇ‹ÇµÇÂÇ§ÅB
-
-- **ÉGÉOÉ[ÉLÉÖÅ[É^**: SQL ÇÃé¿çsï˚ñ@Ç∆çsÇÃï‘ï˚ñ@
-- **ÉvÉåÅ[ÉXÉzÉãÉ_**: SQL Ç≈ÇÃÉpÉâÉÅÅ[É^ÇÃãLèqï˚ñ@
-- **É}ÉbÉsÉìÉOÉãÅ[Éã**:
-  - ÉNÉGÉää‘Ç≈ã§óLÇ≥ÇÍÇÈã§í ÉãÅ[Éã
-  - ÉNÉGÉäÇ≤Ç∆Ç…ìKópÇ≥ÇÍÇÈ 1 âÒå¿ÇËÇÃÉãÅ[Éã
-
----
-
-### Executor: running SQL and returning rows
-
-An executor is a function that receives `(sql, params)` and returns `Row[]`.  
-The `params` argument matches the exported `QueryParams` type?either a positional array or a named record?because sql-contract simply forwards whatever the mapper passes.
+An executor receives a SQL string and parameters, executes them using your DB driver, and returns the resulting rows as `Row[]`.
+By doing so, `sql-contract` can consume query results without knowing anything about the underlying database or driver.
 
 ```ts
 const executor = async (sql: string, params: QueryParams) => {
   const result = await pool.query(sql, params as unknown[])
-  return result.rows // must be Row[]
+  return result.rows
 }
 ```
 
-Key points:
+This function is the single integration point between `sql-contract` and the DBMS.
+Connection pooling, transactions, retries, error handling, and other DBMS- or driver-specific concerns should all be handled within the executor.
 
-- Sql-contract never executes SQL by itself
-- Connection pooling, transactions, retries, and error handling live in the executor
-- The executor/driver decides how to bind the received `params` (array or object) and how placeholders should be written
-- As long as `Row[]` is returned, the mapper can consume it
-
----
-
-### Placeholders and DBMS dialects
-
-Sql-contract does not rewrite SQL or interpret placeholders.  
-Keep your SQL consistent with the placeholder style expected by your driver, and forward placeholder bindings exactly as the driver needs them. The mapper accepts either arrays or named records (`QueryParams`), so the executor/driver decides which style to use.
-
-| DBMS / driver | Placeholder style |
-| --- | --- |
-| PostgreSQL / Neon (node-postgres) | `$1`, `$2`, ... |
-| PostgreSQL / pg-promise | `$/name/` + named `values` object |
-| MySQL / SQLite | `?`, `?`, ... |
-| SQL Server | `@p1`, `@p2`, ... |
-| Oracle | `:1`, `:name`, ... |
-
-```ts
-// Positional PostgreSQL-style placeholders with an array
-await executor(
-  'select * from customers where customer_id = $1',
-  [42],
-)
-```
-
-```ts
-// pg-promise named parameters
-await executor(
-  'select * from customers where customer_id = $/customerId/',
-  { customerId: 42 },
-)
-```
-
-```ts
-// Driver-specific named placeholders, bound via an object
-await executor(
-  'select * from customers where customer_id = :customerId',
-  { customerId: 42 },
-)
-```
+The `params` argument uses the exported `QueryParams` type.
+It supports both positional arrays and named records, allowing executors to work with positional, anonymous, or named parameter styles depending on the driver.
 
 ---
+## Mapper: Query Result Mapping (R)
 
-### Mapping rules: common vs one-time
+The mapper is responsible for projecting query results (`Row[]`) into DTOs.
 
-Mapping rules define how raw driver rows are projected into DTOs.
-
-#### Common mapping rules (project-wide defaults)
-
-Use presets when the same conventions apply across most queries.
+R looks like this:
 
 ```ts
-const mapper = createMapperFromExecutor(
-  executor,
-  mapperPresets.appLike(),
-)
+const reader = mapper.bind(customerMapping)
+await reader.one('SELECT ...', [42])
 ```
 
-| Preset | Column names | Date coercion | Intended use |
-| --- | --- | --- | --- |
-| `appLike()` | `snake_case` -> `camelCase` | enabled | PostgreSQL-style schemas |
-| `safe()` | unchanged | disabled | Maximum transparency |
+In a typical application, a mapper is created once and reused across queries.
+It defines application-wide mapping behavior, while individual queries decide how results are projected.
 
----
-
-#### One-time mapping rules (per query)
-
-When a query needs special handling, override mapping locally instead of changing global defaults.
-
-```ts
-const rows = await mapper.query<Customer>(
-  sql,
-  params,
-  {
-    keyTransform: (column) =>
-      column === 'customer_id' ? 'customerId' : column,
-  },
-)
-```
-
-Use one-time rules for edge cases, legacy schemas, or exceptional naming.
-
----
-
-### Choosing the mapper entry point
-
-Sql-contract expects the mapper to receive `Row[]`.  
-Choose the entry point based on what your database client returns.
-
-#### Case A: your executor already returns `Row[]`
-
-This is the most common case.
-
-```ts
-const mapper = createMapperFromExecutor(
-  executor,
-  mapperPresets.appLike(),
-)
-```
-
-#### Case B: your client returns an object wrapper
-
-Some clients return objects such as `{ rows }` or `{ recordset }`.  
-Normalize this shape once so that sql-contract always sees `Row[]`.
-
-```ts
-const mapper = createMapperFromExecutor(
-  toRowsExecutor(client, 'query'),
-  mapperPresets.appLike(),
-)
-```
-
-In both cases, the mapper behaves identically at runtime.  
-The difference is only how the executor is adapted.
-
----
-
-## Writer: Advanced Usage (C / U / D)
-
-The writer helpers (`insert`, `update`, `remove`) are intentionally opinionated. They accept table names plus plain objects of columns and values, and emit `{ sql, params }`.
-
-Undefined values are omitted, identifiers are validated against ASCII-safe patterns unless `allowUnsafeIdentifiers` is enabled, and WHERE clauses are limited to equality-based AND fragments to avoid speculative logic.
-
-If you pass `returning`, the helper extends the SQL with a `RETURNING` clause. Using `'all'` maps to `RETURNING *`; otherwise, the provided column list is sorted alphabetically. Sql-contract does not check whether the backend supports `RETURNING`; it simply emits the SQL so that support or failure is observable at execution time.
-
-The writer remains declarative: it never executes SQL, never infers column names, and never intertwines multiple tables. It formalizes only the contract your code already intends to express.
-
-### Preset-driven writer flow
-
-Advanced writer usage now flows through `createWriterFromExecutor`, which binds your executor to a `writerPresets` configuration. Each preset represents a concrete SQL dialect and deterministically produces:
-
-1. the placeholder text that will be emitted in the SQL,
-2. the `QueryParams` shape (array for positional styles, record for named styles),
-3. a binder that assigns parameters in driver-friendly order.
-
-This keeps the executor agnostic of the placeholder construction while ensuring parameters remain in lockstep with the emitted SQL.
-
-Each statement still takes `returning` and `allowUnsafeIdentifiers` via `WriterStatementOptions`. Placeholder strategy, parameter shape, and naming rules now live exclusively in the preset.
-
-```ts
-import {
-  createWriterFromExecutor,
-  writerPresets,
-} from '@rawsql-ts/sql-contract/writer'
-
-const writer = createWriterFromExecutor(
-  executor,
-  writerPresets.named({
-    formatPlaceholder: (paramName) => ':' + paramName,
-  }),
-)
-
-const built = writer.build.insert(
-  'projects',
-  { name: 'Apollo', owner_id: 7 },
-  { returning: ['project_id'] },
-)
-
-await writer.insert('projects', { name: 'Apollo', owner_id: 7 }, {
-  returning: ['project_id'],
-})
-```
-
-Use `writer.build.<statement>` when you need to inspect the generated `{ sql, params }` tuple (including `returning` metadata) before execution. Call `<writer>.insert|update|remove` to hand the SQL directly to your executor, knowing the preset already prepared the correct placeholders and parameter shape.
-
-#### Presets
-
-| Preset | Placeholder style | Params shape | Description |
-| --- | --- | --- | --- |
-| `writerPresets.indexed()` | `$1, $2, Åc` | `unknown[]` | PostgreSQL-style numbered placeholders. This preset is the `createWriterFromExecutor(executor)` default. |
-| `writerPresets.anonymous()` | `?` | `unknown[]` | Anonymous placeholders used by MySQL/SQLite. |
-| `writerPresets.named({ formatPlaceholder })` | named (e.g. `:name`, `@name`, `$/name/`) | `Record<string, unknown>` | Column-based names with sequential counters so each bind can be formatted for Oracle/SQL Server/pg-promise. Provide `formatPlaceholder` to add the appropriate dialect prefix. |
-
-#### Named placeholder naming
-
-The named preset automatically derives parameter names from column names passed to the writer helpers. Each `insert` value, `update` SET entry, and `WHERE` binding increments a counter, appends it to a sanitized column name (`name_1`, `owner_id_2`, Åc), adds the entry to the params object, and passes the result into `formatPlaceholder`. This produces deterministic driver-ready placeholders such as `:name_1`, `@owner_id_2`, or `$/name_1/`.
-
-```ts
-const writer = createWriterFromExecutor(
-  executor,
-  writerPresets.named({
-    formatPlaceholder: (paramName) => ':' + paramName,
-  }),
-)
-
-await writer.insert('projects', { name: 'Apollo', owner_id: 7 })
-// SQL: INSERT INTO projects (name, owner_id) VALUES (:name_1, :owner_id_2)
-// params: { name_1: 'Apollo', owner_id_2: 7 }
-```
-
----
-
-## Mapper: Advanced Usage (R)
-
-Mapping rows back into DTOs is the core mission of sql-contract. The mapper helpers rely on explicit entity definitions (`entity({ name, key, prefix })`, relations, column maps, and guards) to describe how each SQL result should be shaped.
-
-You can hydrate a single model, map multiple models from the same row set, or lazily duck-type results via `mapperPresets` and custom coercion hooks. Because the mapper never fabricates column names or guesses relation keys, the resulting domain logic remains transparent and predictable.
-
-If you already handwrite SQL, the mapper is the smallest possible addition: it handles the mechanical task of mapping columns to fields so the rest of your code can stay focused on the intent expressed in SQL.
-
-Explicit entity definitions plus relations keep joined queries deterministic and readable:
+The mapper operates purely on returned rows and never inspects SQL, parameters, or execution behavior.
+To keep mapping predictable, it does not guess column semantics or relationships.
+All transformations are applied through explicit configuration.
 
 ```ts
 import {
   createMapperFromExecutor,
-  entity,
+  mapperPresets,
 } from '@rawsql-ts/sql-contract/mapper'
 
-const customerEntity = entity({
-  name: 'customer',
-  key: 'customerId',
+// `executor` is defined according to the Executor section above.
+const mapper = createMapperFromExecutor(
+  executor,
+  mapperPresets.appLike(),
+)
+```
+
+This example shows a typical mapper setup.
+
+For read-heavy flows you can also call `createReader(executor)`, which aliases the same factory and applies `mapperPresets.appLike()` by default so you get camelCase mapping with minimal setup.
+
+`createMapperFromExecutor` binds an executor to a mapper and accepts optional mapping options.
+These options control how column names are normalized, how values are coerced, and how identifiers are treated.
+
+For convenience, `mapperPresets` provide reusable configurations for common scenarios:
+
+| Preset                    | Description                                                                                                 |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `mapperPresets.appLike()` | Applies common application-friendly defaults, such as snake_case to camelCase conversion and date coercion. |
+| `mapperPresets.safe()`    | Leaves column names and values untouched, suitable for exploratory queries or legacy schemas.               |
+
+When a specific query needs fine-grained control, you can also provide a custom options object.
+This allows localized adjustments without changing the preset used elsewhere.
+
+```ts
+const mapper = createMapperFromExecutor(executor, {
+  keyTransform: 'snake_to_camel',
+  coerceDates: true,
+  idKeysAsString: true,
+  typeHints: {
+    createdAt: 'date',
+  },
+})
+```
+
+This form mirrors `mapperPresets.appLike()` while allowing targeted overrides for a specific mapping.
+
+---
+
+### Duck-typed mapping (no model definitions)
+
+For lightweight or localized use cases, the mapper supports duck-typed projections without defining any schema or mapping models.
+
+In duck-typed mapping, the mapper applies no additional structural assumptions beyond its configured defaults.
+The shape of the result is defined locally at the query site, either by providing a TypeScript type or by relying on the raw row shape.
+
+```ts
+// Explicitly typed projection
+const rows = await mapper.query<{ customerId: number }>(
+  'select customer_id from customers limit 1',
+)
+```
+
+Although not recommended, you can omit the DTO type for quick exploration:
+
+```ts
+const rows = await mapper.query(
+  'select customer_id from customers limit 1',
+)
+```
+
+Duck-typed mapping is intentionally minimal and local.
+If the shape of the query results is important or reused throughout your application, consider moving to explicit row mapping.
+
+---
+
+### Mapping to a Single Model
+
+sql-contract allows you to map query results to typed DTOs.
+
+```ts
+type Customer = {
+  customerId: number
+  customerName: string
+}
+
+const rows = await mapper.query<Customer>(
+  `
+  select
+    customer_id,
+    customer_name
+  from customers
+  where customer_id = $1
+  `,
+  [42],
+)
+
+// rows[0].customerName is type-safe
+```
+
+The normalization rules applied during mapping are controlled by the selected mapper preset.
+
+You can also define one-off mapping rules using columnMap.
+
+```ts
+const customerMapping = rowMapping<Customer>({
   columnMap: {
     customerId: 'customer_id',
     customerName: 'customer_name',
   },
 })
 
-const orderEntity = entity({
+const rows = await mapper.query<Customer>(
+  `
+  select
+    customer_id,
+    customer_name
+  from customers
+  where customer_id = $1
+  `,
+  [42],
+  customerMapping, // explicitly specify the mapping rule
+)
+
+// rows[0].customerName is type-safe
+```
+
+The `rowMapping()` helper replaces the previous `entity()` alias. The old name is still supported for now but is deprecated in favor of `rowMapping()`.
+
+When a query includes JOINs or relationships, explicit row mappings are required.
+The structure for such mappings is explained in the next section.
+
+---
+
+### Mapping to multiple models (joined rows)
+
+The mapper also supports mapping joined result sets into multiple related models.
+
+Relations are explicitly defined and never inferred.
+
+```ts
+const orderMapping = rowMapping({
   name: 'order',
   key: 'orderId',
   prefix: 'order_',
-}).belongsTo('customer', customerEntity, 'customerId')
+}).belongsTo('customer', customerMapping, 'customerId')
+```
 
+Joined queries remain transparent and deterministic:
+
+```ts
 const mapper = createMapperFromExecutor(executor)
+
 const rows = await mapper.query(
   `
     select
@@ -394,9 +328,144 @@ const rows = await mapper.query(
     where o.order_id = $1
   `,
   [123],
-  orderEntity,
+  orderMapping,
 )
 ```
+
+---
+
+## Writer: emitting simple C / U / D statements
+
+The writer helpers provide a small, opinionated DSL for common
+INSERT, UPDATE, and DELETE statements.
+
+They accept table names and plain objects of column-value pairs, and deterministically emit `{ sql, params }`.
+
+The writer focuses on *construction*, not execution.
+
+### Writer basics
+
+Writer helpers are intentionally limited:
+
+* `undefined` values are omitted
+* identifiers are validated against ASCII-safe patterns unless explicitly allowed
+* WHERE clauses are limited to equality-based AND fragments
+* no inference, no joins, no multi-table logic
+
+If `returning` is provided, a `RETURNING` clause is appended.
+Using `'all'` maps to `RETURNING *`; otherwise, column names are sorted alphabetically.
+
+The writer never checks backend support for `RETURNING`.
+It emits SQL exactly as specified so that success or failure remains observable at execution time.
+
+### INSERT
+
+```ts
+await writer.insert(
+  'projects',
+  { name: 'Apollo', owner_id: 7 },
+  { returning: ['project_id'] },
+)
+```
+
+### UPDATE
+
+```ts
+await writer.update(
+  'projects',
+  { name: 'Apollo' },
+  { project_id: 1 },
+)
+```
+
+### DELETE
+
+```ts
+await writer.remove(
+  'projects',
+  { project_id: 1 },
+)
+```
+
+Statements can also be built without execution:
+
+```ts
+const built = writer.build.insert(
+  'projects',
+  { name: 'Apollo', owner_id: 7 },
+  { returning: ['project_id'] },
+)
+```
+
+### Writer presets and placeholder strategies
+
+Advanced usage flows through `createWriter` (aliasing the historic `createWriterFromExecutor`), which binds an executor to a concrete placeholder strategy.
+
+A writer preset defines:
+
+1. how placeholders are formatted,
+2. whether parameters are positional or named,
+3. how parameters are ordered and bound.
+
+```ts
+import { createWriter, writerPresets } from '@rawsql-ts/sql-contract/writer'
+
+const writer = createWriter(
+  executor,
+  writerPresets.named({
+    formatPlaceholder: (paramName) => ':' + paramName,
+  }),
+)
+```
+
+### Named placeholders
+
+Named presets derive parameter names from column names.
+
+Each bind increments a counter and produces deterministic names such as
+`name_1`, `owner_id_2`.
+
+```ts
+await writer.insert('projects', { name: 'Apollo', owner_id: 7 })
+// SQL: INSERT INTO projects (name, owner_id) VALUES (:name_1, :owner_id_2)
+// params: { name_1: 'Apollo', owner_id_2: 7 }
+```
+
+---
+
+## DBMS and driver differences
+
+`sql-contract` does not normalize SQL dialects or placeholder styles.
+
+Write SQL using the placeholder syntax required by your driver, and bind parameters exactly as that driver expects.
+Whether parameters are positional or named is a concern of the executor and driver, not `sql-contract`.
+
+Examples of common placeholder styles:
+
+| DBMS / driver                     | Placeholder style  |
+| --------------------------------- | ------------------ |
+| PostgreSQL / Neon (node-postgres) | `$1`, `$2`, ...    |
+| PostgreSQL / pg-promise           | `$/name/`          |
+| MySQL / SQLite                    | `?`                |
+| SQL Server                        | `@p1`, `@p2`, ...  |
+| Oracle                            | `:1`, `:name`, ... |
+
+```ts
+await executor(
+  'select * from customers where customer_id = $1',
+  [42],
+)
+```
+
+```ts
+await executor(
+  'select * from customers where customer_id = :customerId',
+  { customerId: 42 },
+)
+```
+
+All DBMS- and driver-specific concerns live in the executor.
+Both writer and mapper remain independent of these differences.
 
 ---
 

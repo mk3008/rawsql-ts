@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { columnMapFromPrefix, createMapper, entity, mapRows } from '@rawsql-ts/sql-contract/mapper'
+import {
+  columnMapFromPrefix,
+  createMapper,
+  entity,
+  mapRows,
+  rowMapping,
+} from '@rawsql-ts/sql-contract/mapper'
 
 type Customer = {
   id: number
@@ -71,7 +77,7 @@ interface CycleA {
 
 describe('mapper structured mapping', () => {
   it('maps columnMap aliases with natural names', () => {
-    const mapping = entity<Country>({
+    const mapping = rowMapping<Country>({
       name: 'Country',
       key: 'id',
       columnMap: {
@@ -95,7 +101,7 @@ describe('mapper structured mapping', () => {
   })
 
   it('supports belongsToWithLocalKey when child column is aliased via columnMap', () => {
-    const customerMapping = entity<Customer>({
+    const customerMapping = rowMapping<Customer>({
       name: 'Customer',
       key: 'id',
       columnMap: {
@@ -104,7 +110,7 @@ describe('mapper structured mapping', () => {
       },
     })
 
-    const itemMapping = entity<Item>({
+    const itemMapping = rowMapping<Item>({
       name: 'Item',
       key: 'id',
       columnMap: {
@@ -133,7 +139,7 @@ describe('mapper structured mapping', () => {
   })
 
   it('builds columnMap entries from an explicit prefix helper', () => {
-    const mapping = entity<Country>({
+    const mapping = rowMapping<Country>({
       name: 'Country',
       key: 'id',
       columnMap: columnMapFromPrefix('country_', ['id', 'name'] as const),
@@ -155,7 +161,7 @@ describe('mapper structured mapping', () => {
 
   describe('belongsTo configuration', () => {
     it('captures the explicit local key on the parent relation', () => {
-      const customerMapping = entity<Customer>({
+      const customerMapping = rowMapping<Customer>({
         name: 'Customer',
         key: 'id',
         columnMap: {
@@ -164,7 +170,7 @@ describe('mapper structured mapping', () => {
         },
       })
 
-      const inferredMapping = entity<Item>({
+      const inferredMapping = rowMapping<Item>({
         name: 'Item',
         key: 'id',
         columnMap: {
@@ -176,7 +182,7 @@ describe('mapper structured mapping', () => {
 
       expect(inferredMapping.parents[0].localKey).toBe('customerId')
 
-      const explicitMapping = entity<Item>({
+      const explicitMapping = rowMapping<Item>({
         name: 'ItemDto',
         key: 'id',
         columnMap: {
@@ -191,7 +197,7 @@ describe('mapper structured mapping', () => {
   })
 
   it('hydrates parents and reuses nested parents for repeated join keys', () => {
-    const customerMapping = entity<Customer>({
+    const customerMapping = rowMapping<Customer>({
       name: 'Customer',
       key: 'id',
       columnMap: {
@@ -200,7 +206,7 @@ describe('mapper structured mapping', () => {
       },
     })
 
-    const orderMapping = entity<Order>({
+    const orderMapping = rowMapping<Order>({
       name: 'Order',
       key: 'id',
       columnMap: {
@@ -210,7 +216,7 @@ describe('mapper structured mapping', () => {
       },
     }).belongsToWithLocalKey('customer', customerMapping, 'customerId')
 
-    const itemMapping = entity<Item>({
+    const itemMapping = rowMapping<Item>({
       name: 'Item',
       key: 'id',
       columnMap: {
@@ -254,7 +260,7 @@ describe('mapper structured mapping', () => {
 
   describe('optional parents', () => {
     it('ignores parent columns when local key is null', () => {
-      const productMapping = entity<Product>({
+      const productMapping = rowMapping<Product>({
         name: 'Product',
         key: 'id',
         columnMap: {
@@ -263,7 +269,7 @@ describe('mapper structured mapping', () => {
         },
       })
 
-      const itemMapping = entity<Item>({
+      const itemMapping = rowMapping<Item>({
         name: 'Item',
         key: 'id',
         columnMap: {
@@ -288,7 +294,7 @@ describe('mapper structured mapping', () => {
     })
 
     it('does not hydrate parent when parent key columns are null even if local key exists', () => {
-      const productMapping = entity<Product>({
+      const productMapping = rowMapping<Product>({
         name: 'Product',
         key: 'id',
         columnMap: {
@@ -297,7 +303,7 @@ describe('mapper structured mapping', () => {
         },
       })
 
-      const itemMapping = entity<Item>({
+      const itemMapping = rowMapping<Item>({
         name: 'Item',
         key: 'id',
         columnMap: {
@@ -322,7 +328,7 @@ describe('mapper structured mapping', () => {
     })
 
     it('hydrates optional parent when local key value is zero', () => {
-      const productMapping = entity<Product>({
+      const productMapping = rowMapping<Product>({
         name: 'Product',
         key: 'id',
         columnMap: {
@@ -331,7 +337,7 @@ describe('mapper structured mapping', () => {
         },
       })
 
-      const itemMapping = entity<Item>({
+      const itemMapping = rowMapping<Item>({
         name: 'Item',
         key: 'id',
         columnMap: {
@@ -358,7 +364,7 @@ describe('mapper structured mapping', () => {
     })
 
     it('throws when optional parent local key column is absent', () => {
-      const productMapping = entity<Product>({
+      const productMapping = rowMapping<Product>({
         name: 'Product',
         key: 'id',
         columnMap: {
@@ -367,7 +373,7 @@ describe('mapper structured mapping', () => {
         },
       })
 
-      const itemMapping = entity<Item>({
+      const itemMapping = rowMapping<Item>({
         name: 'Item',
         key: 'id',
         columnMap: {
@@ -391,7 +397,7 @@ describe('mapper structured mapping', () => {
 
   describe('relation cycles', () => {
     it('throws when an entity references itself recursively', () => {
-      const recursiveMapping = entity<RecursiveEntity>({
+      const recursiveMapping = rowMapping<RecursiveEntity>({
         name: 'Recursive',
         key: 'id',
         columnMap: {
@@ -414,12 +420,12 @@ describe('mapper structured mapping', () => {
       ]
 
     expect(() => mapRows(rows, recursiveMapping)).toThrow(
-      /Circular entity mapping detected: Recursive/
+      /Circular row mapping detected: Recursive/
     )
     })
 
     it('throws when mutual relations form a cycle', () => {
-      const aMapping = entity<CycleA>({
+      const aMapping = rowMapping<CycleA>({
         name: 'CycleA',
         key: 'id',
         columnMap: {
@@ -427,7 +433,7 @@ describe('mapper structured mapping', () => {
           bId: 'a_b_id',
         },
       })
-      const bMapping = entity<CycleB>({
+      const bMapping = rowMapping<CycleB>({
         name: 'CycleB',
         key: 'id',
         columnMap: {
@@ -449,13 +455,13 @@ describe('mapper structured mapping', () => {
       ]
 
       expect(() => mapRows(rows, aMapping)).toThrow(
-        /Circular entity mapping detected: CycleA/
+        /Circular row mapping detected: CycleA/
       )
     })
   })
 
   it('hydrates multiple parents on the same row without cross contamination', () => {
-    const orderMapping = entity<Order>({
+    const orderMapping = rowMapping<Order>({
       name: 'Order',
       key: 'id',
       columnMap: {
@@ -464,7 +470,7 @@ describe('mapper structured mapping', () => {
       },
     })
 
-    const productMapping = entity<Product>({
+    const productMapping = rowMapping<Product>({
       name: 'Product',
       key: 'id',
       columnMap: {
@@ -473,7 +479,7 @@ describe('mapper structured mapping', () => {
       },
     })
 
-    const itemMapping = entity<Item>({
+    const itemMapping = rowMapping<Item>({
       name: 'Item',
       key: 'id',
       columnMap: {
@@ -519,7 +525,7 @@ describe('mapper structured mapping', () => {
 
   describe('missing columns', () => {
     it('throws when a required local key column is present but null', () => {
-      const customerMapping = entity<Customer>({
+      const customerMapping = rowMapping<Customer>({
         name: 'Customer',
         key: 'id',
         columnMap: {
@@ -528,7 +534,7 @@ describe('mapper structured mapping', () => {
         },
       })
 
-      const itemMapping = entity<Item>({
+      const itemMapping = rowMapping<Item>({
         name: 'Item',
         key: 'id',
         columnMap: {
@@ -554,7 +560,7 @@ describe('mapper structured mapping', () => {
     })
 
     it('throws when the root key column is absent', () => {
-      const mapping = entity<{ id: number; label: string }>({
+      const mapping = rowMapping<{ id: number; label: string }>({
         name: 'RootEntity',
         key: 'id',
         columnMap: {
@@ -569,7 +575,7 @@ describe('mapper structured mapping', () => {
     })
 
     it('throws when a required parent local key column is absent', () => {
-      const parent = entity<Order>({
+      const parent = rowMapping<Order>({
         name: 'Order',
         key: 'id',
         columnMap: {
@@ -577,7 +583,7 @@ describe('mapper structured mapping', () => {
           number: 'order_number',
         },
       })
-      const child = entity<Item>({
+      const child = rowMapping<Item>({
         name: 'Item',
         key: 'id',
         columnMap: {
@@ -592,7 +598,7 @@ describe('mapper structured mapping', () => {
     })
 
     it('throws when a required parent key column produced by the join is absent', () => {
-      const parent = entity<Order>({
+      const parent = rowMapping<Order>({
         name: 'Order',
         key: 'id',
         columnMap: {
@@ -600,7 +606,7 @@ describe('mapper structured mapping', () => {
           number: 'order_number',
         },
       })
-      const child = entity<Item>({
+      const child = rowMapping<Item>({
         name: 'Item',
         key: 'id',
         columnMap: {
@@ -623,10 +629,10 @@ describe('mapper structured mapping', () => {
   })
 
   describe('coercion defaults for structured mappings', () => {
-    // Structured entity mappings coerce numeric/boolean/ISO date strings by default,
+    // Structured row mappings coerce numeric/boolean/ISO date strings by default,
     // unlike the duck-typed simple mapping helpers where coercion is opt-in.
-    it('coerces numeric, boolean, and ISO date strings by default for entity mappings', () => {
-      const coercionMapping = entity<CoerceTarget>({
+    it('coerces numeric, boolean, and ISO date strings by default for row mappings', () => {
+      const coercionMapping = rowMapping<CoerceTarget>({
         name: 'Coercion',
         key: 'id',
         columnMap: {
@@ -656,7 +662,7 @@ describe('mapper structured mapping', () => {
     })
 
     it('does not attempt Date coercion for arbitrary strings (even when they contain "+")', () => {
-      const safeMapping = entity<NonIsoSnapshotTarget>({
+      const safeMapping = rowMapping<NonIsoSnapshotTarget>({
         name: 'IsoSafety',
         key: 'id',
         columnMap: {
@@ -679,7 +685,7 @@ describe('mapper structured mapping', () => {
     })
 
     it('skips Date coercion for non-ISO yet parseable strings', () => {
-      const safeMapping = entity<NonIsoSnapshotTarget>({
+      const safeMapping = rowMapping<NonIsoSnapshotTarget>({
         name: 'IsoSafety',
         key: 'id',
         columnMap: {
@@ -706,7 +712,7 @@ describe('mapper structured mapping', () => {
     })
 
     it('leaves values untouched when coercion is disabled', () => {
-      const rawMapping = entity<RawNumberTarget>({
+      const rawMapping = rowMapping<RawNumberTarget>({
         name: 'Raw',
         key: 'id',
         columnMap: {
@@ -733,7 +739,7 @@ describe('mapper structured mapping', () => {
   })
 
   it('limits cache reuse to the current query invocation', () => {
-    const orderMapping = entity<Order>({
+    const orderMapping = rowMapping<Order>({
       name: 'Order',
       key: 'id',
       columnMap: {
@@ -742,7 +748,7 @@ describe('mapper structured mapping', () => {
       },
     })
 
-    const itemMapping = entity<Item>({
+    const itemMapping = rowMapping<Item>({
       name: 'Item',
       key: 'id',
       columnMap: {
@@ -777,7 +783,7 @@ describe('mapper structured mapping', () => {
   })
 
   it('mapper.query cache is scoped to each execution', async () => {
-    const orderMapping = entity<Order>({
+    const orderMapping = rowMapping<Order>({
       name: 'Order',
       key: 'id',
       columnMap: {
@@ -786,7 +792,7 @@ describe('mapper structured mapping', () => {
       },
     })
 
-    const itemMapping = entity<Item>({
+    const itemMapping = rowMapping<Item>({
       name: 'Item',
       key: 'id',
       columnMap: {
@@ -814,4 +820,29 @@ describe('mapper structured mapping', () => {
     expect(second.order).toBeDefined()
     expect(first.order).not.toBe(second.order)
   })
+
+  it('entity() remains compatible with rowMapping', () => {
+    const customerAlias = entity<Customer>({
+      name: 'Customer',
+      key: 'id',
+      columnMap: {
+        id: 'customer_id',
+        name: 'customer_name',
+      },
+    })
+
+    const [result] = mapRows(
+      [
+        {
+          customer_id: 999,
+          customer_name: 'Legacy',
+        },
+      ],
+      customerAlias
+    )
+
+    expect(result.id).toBe(999)
+    expect(result.name).toBe('Legacy')
+  })
 })
+

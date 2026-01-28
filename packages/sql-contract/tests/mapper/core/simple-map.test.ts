@@ -117,6 +117,48 @@ describe('mapper simple mapping', () => {
     })
   })
 
+  describe('duck-typed mapping defaults', () => {
+    const customerRows = [
+      {
+        customer_id: 33,
+        customer_name: 'Maple Corp',
+      },
+    ]
+
+    it('applies mapperPresets.appLike to camelCase and stringifies numeric identifiers', async () => {
+      const mapper = createMapper(async () => customerRows, mapperPresets.appLike())
+      const [customer] = await mapper.query<{
+        customerId: string
+        customerName: string
+      }>('SELECT ...', [])
+
+      expect(customer.customerId).toBe('33')
+      expect(customer.customerName).toBe('Maple Corp')
+    })
+
+    it('keeps columns untouched when using mapperPresets.safe', async () => {
+      const mapper = createMapper(async () => customerRows, mapperPresets.safe())
+      const [customer] = await mapper.query<{
+        customer_id: number
+        customer_name: string
+      }>('SELECT ...', [])
+
+      expect(customer.customer_id).toBe(33)
+      expect(customer.customer_name).toBe('Maple Corp')
+    })
+
+    it('works without params and still applies appLike stringification', async () => {
+      const mapper = createMapper(async () => customerRows, mapperPresets.appLike())
+      const [customer] = await mapper.query<{
+        customerId: string
+        customerName: string
+      }>('SELECT ...')
+
+      expect(customer.customerId).toBe('33')
+      expect(customer.customerName).toBe('Maple Corp')
+    })
+  })
+
   describe('default normalization behaviors', () => {
     it('maps snake_case scalars to camelCase and stringifies identifier columns by default', async () => {
       const rows = [

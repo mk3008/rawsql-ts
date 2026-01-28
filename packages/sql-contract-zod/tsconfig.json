@@ -5,10 +5,12 @@
     "outDir": "dist",
     "declarationDir": "dist",
     "composite": true,
-    "tsBuildInfoFile": "dist/.tsbuildinfo"
+    "tsBuildInfoFile": "dist/.tsbuildinfo",
   },
-  "include": [
-    "src",
-    "src/**/*.d.ts"
+  "include": ["src"],
+  "references": [
+    {
+      "path": "../sql-contract"
+    }
   ]
 }

@@ -284,6 +284,9 @@ export function createWriterFromExecutor(
   }
 }
 
+/** Convenience alias for `createWriterFromExecutor`. */
+export const createWriter = createWriterFromExecutor
+
 export type { QueryParams } from '../query-params'
 export { writerPresets }
 export type { WriterPreset }
