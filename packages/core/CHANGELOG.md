@@ -1,5 +1,23 @@
 # rawsql-ts
 
+## 0.16.0
+
+### Minor Changes
+
+- [#400](https://github.com/mk3008/rawsql-ts/pull/400) [`1ad78c5`](https://github.com/mk3008/rawsql-ts/commit/1ad78c5430b2ac24e0fb8fe6fb6ecf913e9b9e54) Thanks [@mk3008](https://github.com/mk3008)! - Add includeColumns/excludeColumns to DynamicQueryBuilder, expand tests, and document how to control the final projection.
+
+### Patch Changes
+
+- [`857a3c3`](https://github.com/mk3008/rawsql-ts/commit/857a3c3f21e32610024aa51f636841f9ff9e4ce4) Thanks [@mk3008](https://github.com/mk3008)! - Allow the CreateTable parser to accept `CREATE TEMP TABLE` as a synonym for `CREATE TEMPORARY TABLE` and to retain `ON COMMIT {PRESERVE ROWS | DELETE ROWS | DROP}` options when handling PostgreSQL-style statements.
+
+- [#411](https://github.com/mk3008/rawsql-ts/pull/411) [`84ec3a0`](https://github.com/mk3008/rawsql-ts/commit/84ec3a0c5f3e16463c1eee532fc9570bf1bcff93) Thanks [@mk3008](https://github.com/mk3008)! - Document that the CLI templates treat ztd/ddl as the only authoritative source, keep optional references purely informational, and ship the mapper/writer sample with its supporting tests.
+
+- [#416](https://github.com/mk3008/rawsql-ts/pull/416) [`2361f3c`](https://github.com/mk3008/rawsql-ts/commit/2361f3cbdf7589984bbbe7779ffb5d8129ff3804) Thanks [@mk3008](https://github.com/mk3008)! - Pin lodash consumers to 4.17.23 to resolve GHSA-xxjr-mmjv-4gpg.
+
+- [#402](https://github.com/mk3008/rawsql-ts/pull/402) [`fc7a80e`](https://github.com/mk3008/rawsql-ts/commit/fc7a80e237850dc3c5f06dd7c8ad5472af1e3dc8) Thanks [@mk3008](https://github.com/mk3008)! - Ensure serial/serial8 pseudo-types are normalized before casts and that columns without explicit defaults get a deterministic `row_number() over ()` expression so RETURNING clauses work when the column is omitted.
+
+- [#417](https://github.com/mk3008/rawsql-ts/pull/417) [`f957e21`](https://github.com/mk3008/rawsql-ts/commit/f957e219ab5f1f27df2bc771fc25032ccf35f226) Thanks [@mk3008](https://github.com/mk3008)! - Handle Postgres table functions (e.g. unnest) that declare WITH ORDINALITY when appearing in FROM sources so the parser, AST, formatter, and docs all expose the flag.
+
 ## 0.15.1
 
 ### Patch Changes

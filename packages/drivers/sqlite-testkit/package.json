@@ -1,6 +1,6 @@
 {
   "name": "@rawsql-ts/sqlite-testkit",
-  "version": "0.15.0",
+  "version": "0.15.1",
   "description": "SQLite driver adapters for the rawsql-ts select query test harness.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
