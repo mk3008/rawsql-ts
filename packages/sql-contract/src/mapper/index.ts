@@ -88,10 +88,19 @@ export interface MapperReader<T> {
  */
 export type ReaderValidator<T, U = T> = (value: T) => U
 
+/**
+ * Minimal schema-like contract recognized by reader validators.
+ * Implementations expose `parse(value)` and use the `U` generic to describe the parsed output type.
+ */
 export interface ReaderSchemaLike<U = unknown> {
   parse(value: any): U
 }
 
+/**
+ * Input accepted by `MapperReader.validator`. The value may be a plain validator function,
+ * or any schema-like object that implements `parse(value): U`. `T` is the row-mapped input type
+ * and `U` is the validated output emitted by the reader.
+ */
 export type ReaderValidatorInput<T, U = T> =
   | ReaderValidator<T, U>
   | ReaderSchemaLike<U>
