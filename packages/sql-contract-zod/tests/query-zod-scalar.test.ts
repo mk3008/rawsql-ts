@@ -4,6 +4,7 @@ import {
   createReader,
   type QueryParams,
 } from '@rawsql-ts/sql-contract/mapper'
+import { rewriteFixtureQuery } from './support/testkit'
 
 const createReaderFromRows = (
   rows: Record<string, unknown>[],
@@ -11,6 +12,7 @@ const createReaderFromRows = (
 ) =>
   createReader(async (_sql: string, params: QueryParams) => {
     onQuery?.(params)
+    rewriteFixtureQuery(_sql, rows)
     return rows
   })
 
