@@ -1,5 +1,5 @@
 ﻿import { describe, expect, it } from 'vitest'
-import { z, ZodError } from 'zod'
+import { z, ZodError, type ZodType } from 'zod'
 import { zNumberFromString } from '@rawsql-ts/sql-contract-zod'
 import {
   createMapper,
@@ -7,6 +7,7 @@ import {
   mapperPresets,
   rowMapping,
   type QueryParams,
+  type RowMapping,
 } from '@rawsql-ts/sql-contract/mapper'
 import { rewriteFixtureQuery } from './support/testkit'
 
@@ -45,8 +46,8 @@ describe('sql-contract-zod reader', () => {
       customerId: z.number(),
       customerName: z.string(),
     })
-
     const reader = baseReader.zod(schema, customerMapping)
+
     await expect(reader.list(customerSql)).resolves.toEqual([
       { customerId: 1, customerName: 'Maple' },
     ])
@@ -111,15 +112,14 @@ describe('sql-contract-zod reader', () => {
   it('applies preset-based conventions when schema-only reader is used', async () => {
     const recorded: QueryParams[] = []
     const rows = [{ customer_id: 1, customer_name: 'Maple' }]
-    const baseReader = createReaderFromRows(rows, (params) => {
-      recorded.push(params)
-    })
     const schema = z.object({
       customerId: z.string(),
       customerName: z.string(),
     })
 
-    const reader = baseReader.zod(schema)
+    const reader = createReaderFromRows(rows, (params) => {
+      recorded.push(params)
+    }).zod(schema)
     await expect(reader.list(customerSql)).resolves.toEqual([
       { customerId: '1', customerName: 'Maple' },
     ])

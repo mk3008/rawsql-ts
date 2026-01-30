@@ -20,26 +20,27 @@ const customerMapping = rowMapping<Customer>({
   },
 })
 
-const createMapperFromRows = (
+const createReaderFromRows = (
   rows: Row[],
   onQuery?: (params: QueryParams) => void
-) =>
-  createMapper(async (_sql: string, params: QueryParams) => {
+) => {
+  const base = createMapper(async (_sql: string, params: QueryParams) => {
     onQuery?.(params)
     return rows
   })
+  return base.bind(customerMapping)
+}
 
-describe('mapper reader', () => {
+describe('reader binding', () => {
   it('lists mapped rows and defaults params to []', async () => {
     const rows: Row[] = [
       { customer_id: 1, customer_name: 'Maple' },
     ]
     let lastParams: QueryParams | undefined
-    const mapper = createMapperFromRows(rows, (captured) => {
+    const reader = createReaderFromRows(rows, (captured) => {
       lastParams = captured
     })
 
-    const reader = mapper.bind(customerMapping)
     const result = await reader.list('select ...')
 
     expect(lastParams).toEqual([])
@@ -49,22 +50,22 @@ describe('mapper reader', () => {
   })
 
   it('enforces exactly-one contract for one', async () => {
-    const none = createMapperFromRows([]).bind(customerMapping)
+    const none = createReaderFromRows([])
     await expect(none.one('select ...')).rejects.toThrow(
       /expected exactly one row/i
     )
 
-    const many = createMapperFromRows([
+    const many = createReaderFromRows([
       { customer_id: 1, customer_name: 'Maple' },
       { customer_id: 2, customer_name: 'Pine' },
-    ]).bind(customerMapping)
+    ])
     await expect(many.one('select ...')).rejects.toThrow(
       /expected exactly one row/i
     )
 
-    const single = createMapperFromRows([
+    const single = createReaderFromRows([
       { customer_id: 5, customer_name: 'Oak' },
-    ]).bind(customerMapping)
+    ])
     await expect(single.one('select ...')).resolves.toEqual({
       customerId: 5,
       customerName: 'Oak',

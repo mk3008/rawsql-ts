@@ -4,11 +4,19 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
   createMapperFromExecutor,
   MapperOptions,
+  type Row,
   toRowsExecutor,
 } from '@rawsql-ts/sql-contract/mapper'
 
-let SQL: typeof initSqlJs | undefined
+let SQL: Awaited<ReturnType<typeof initSqlJs>> | undefined
 let db: SqlJsDatabase | undefined
+
+const ensureSql = (): Awaited<ReturnType<typeof initSqlJs>> => {
+  if (!SQL) {
+    throw new Error('SQL.js module is not ready')
+  }
+  return SQL
+}
 
 const ensureDb = (): SqlJsDatabase => {
   if (!db) {
@@ -17,22 +25,22 @@ const ensureDb = (): SqlJsDatabase => {
   return db
 }
 
-const convertResults = (results: ReturnType<SqlJsDatabase['exec']>) => {
+const convertResults = (results: ReturnType<SqlJsDatabase['exec']>): Row[] => {
   if (!results || results.length === 0) {
     return []
   }
   const { columns, values } = results[0]
-  return values.map((row) => {
+  return values.map((row: unknown[]) => {
     const record: Record<string, unknown> = {}
-    columns.forEach((column, index) => {
+    columns.forEach((column: string, index: number) => {
       record[column] = row[index]
     })
     return record
   })
 }
 
-const createTestMapper = (options?: MapperOptions) => {
-  const executor = toRowsExecutor((sql) => {
+const createTestReader = (options?: MapperOptions) => {
+  const executor = toRowsExecutor(async (sql) => {
     const results = ensureDb().exec(sql)
     return convertResults(results)
   })
@@ -41,14 +49,14 @@ const createTestMapper = (options?: MapperOptions) => {
 
 beforeAll(async () => {
   SQL = await initSqlJs({
-    locateFile: (filename) =>
+    locateFile: (filename: string) =>
       path.join(
         path.dirname(require.resolve('sql.js/package.json')),
         'dist',
         filename,
       ),
   })
-  db = new SQL.Database()
+  db = new (ensureSql().Database)()
 })
 
 afterAll(() => {
@@ -65,11 +73,11 @@ const decimalCoerce: MapperOptions['coerceFn'] = ({ value }) => {
   return Number(value)
 }
 
-describe('mapper driver integration (sqlite)', () => {
+describe('reader driver integration (sqlite)', () => {
   it('coerceDates turns ISO text into Date when enabled', async () => {
-    const mapper = createTestMapper({ coerceDates: true })
+    const reader = createTestReader({ coerceDates: true })
 
-    const [record] = await mapper.query<{ issuedAtText: Date }>(
+    const [record] = await reader.query<{ issuedAtText: Date }>(
       `
         SELECT
           '2025-01-15T09:00:00+00:00' AS issued_at_text
@@ -84,9 +92,9 @@ describe('mapper driver integration (sqlite)', () => {
   })
 
   it('keeps strings unchanged when coerceDates is disabled', async () => {
-    const mapper = createTestMapper()
+    const reader = createTestReader()
 
-    const [record] = await mapper.query<{ issuedAtText: string }>(
+    const [record] = await reader.query<{ issuedAtText: string }>(
       `
         SELECT
           '2025-01-15T09:00:00+00:00' AS issued_at_text
@@ -99,9 +107,9 @@ describe('mapper driver integration (sqlite)', () => {
   })
 
   it('leaves numeric strings untouched unless a custom coerceFn is provided', async () => {
-    const mapper = createTestMapper()
+    const reader = createTestReader()
 
-    const [plain] = await mapper.query<{ amount: string }>(
+    const [plain] = await reader.query<{ amount: string }>(
       `
         SELECT
           '123.45' AS amount
@@ -112,8 +120,8 @@ describe('mapper driver integration (sqlite)', () => {
     expect(plain.amount).toBe('123.45')
     expect(typeof plain.amount).toBe('string')
 
-    const coerced = createTestMapper({ coerceFn: decimalCoerce })
-    const [numberRecord] = await coerced.query<{ amount: number }>(
+    const coercedReader = createTestReader({ coerceFn: decimalCoerce })
+    const [numberRecord] = await coercedReader.query<{ amount: number }>(
       `
         SELECT
           '123.45' AS amount
@@ -125,9 +133,9 @@ describe('mapper driver integration (sqlite)', () => {
   })
 
   it('handles sqlite primitives (bool/int/float/double) without breaking', async () => {
-    const mapper = createTestMapper()
+    const reader = createTestReader()
 
-    const [record] = await mapper.query<{
+    const [record] = await reader.query<{
       active: number
       countInt: number
       rateFloat: number

@@ -47,6 +47,10 @@ Reverse dependencies are forbidden.
 -   Do not hand‑construct `QueryResult` or mock `Client#query`.\
     All tests must flow through the rewrite pipeline + fixtures.
 
+-   Do not let demo helpers silently accept non-array `QueryParams` and drop
+    named bindings; validate the params before calling `toRowsExecutor` so
+    misuse surfaces as an explicit error instead of returning misleading rows.
+
 ## Allowed Application SQL
 
 -   Repository/application SQL may freely use normal CRUD (`INSERT`,
@@ -64,6 +68,9 @@ Reverse dependencies are forbidden.
 -   Use `pnpm` and `pnpm --filter <package>` for scoped tasks.
 -   All identifiers, comments, and docs remain in English.
 -   Use `./tmp` for throwaway assets.
+-   README/driver demos should exercise the rewrite/fixtures helper at
+    `packages/sql-contract/tests/readme/support/postgres-demo.ts` instead of
+    running schema setup through Testcontainers.
 -   Remove console debugging before committing.
 -   `packages/core/dist` outputs must stay synchronized with the pnpm store copy that CLI tests consume (`node_modules/.pnpm/rawsql-ts@<version>/node_modules/rawsql-ts/dist`). `pnpm --filter rawsql-ts build` already runs `scripts/sync-rawsql-dist.js` as a `postbuild` step, but you can rerun that script manually if a CLI test complains about outdated `rawsql-ts` artifacts.
 -   The workspace now uses Changesets with independent versioning; create a changeset for each release-worthy change, run `pnpm changeset version`, and rely on the generated updates rather than editing `package.json` `version` fields by hand.

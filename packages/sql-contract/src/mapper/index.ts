@@ -79,7 +79,31 @@ export interface MapperOptions {
 export interface MapperReader<T> {
   list(sql: string, params?: QueryParams): Promise<T[]>
   one(sql: string, params?: QueryParams): Promise<T>
+  scalar(sql: string, params?: QueryParams): Promise<unknown>
+  validator<U>(validator: ReaderValidatorInput<T, U>): MapperReader<U>
 }
+
+/**
+ * Validates a mapped value and returns the validated output.
+ */
+export type ReaderValidator<T, U = T> = (value: T) => U
+
+/**
+ * Minimal schema-like contract recognized by reader validators.
+ * Implementations expose `parse(value)` and use the `U` generic to describe the parsed output type.
+ */
+export interface ReaderSchemaLike<U = unknown> {
+  parse(value: any): U
+}
+
+/**
+ * Input accepted by `MapperReader.validator`. The value may be a plain validator function,
+ * or any schema-like object that implements `parse(value): U`. `T` is the row-mapped input type
+ * and `U` is the validated output emitted by the reader.
+ */
+export type ReaderValidatorInput<T, U = T> =
+  | ReaderValidator<T, U>
+  | ReaderSchemaLike<U>
 
 /**
  * Named presets for simple mapping that avoid implicit inference.
@@ -380,14 +404,41 @@ export class Mapper {
    * Binds a structured row mapping to a reader that exposes `list` and `one`.
    */
   bind<T>(mapping: RowMapping<T>): MapperReader<T> {
-    return {
-      list: async (sql: string, params: QueryParams = []) =>
-        this.query<T>(sql, params, mapping),
-      one: async (sql: string, params: QueryParams = []) => {
-        const rows = await this.query<T>(sql, params, mapping)
-        return expectExactlyOneRow(rows)
-      },
+    const createReader = <U>(
+      currentValidator?: ReaderValidator<T, U>
+    ): MapperReader<U> => {
+      const validateRows = (rows: T[]): U[] =>
+        applyRowValidator(rows, currentValidator)
+      const validateValue = (value: unknown): U =>
+        applyScalarValidator(value, currentValidator)
+
+      const validator = <V>(
+        nextValidator: ReaderValidatorInput<U, V>
+      ): MapperReader<V> => {
+        const normalizedNext = normalizeReaderValidator(nextValidator)
+        const composed = composeValidators(currentValidator, normalizedNext)
+        return createReader(composed)
+      }
+
+      return {
+        list: async (sql: string, params: QueryParams = []) => {
+          const rows = await this.query<T>(sql, params, mapping)
+          return validateRows(rows)
+        },
+        one: async (sql: string, params: QueryParams = []) => {
+          const rows = await this.query<T>(sql, params, mapping)
+          const row = expectExactlyOneRow(rows)
+          return validateValue(row)
+        },
+        scalar: async (sql: string, params: QueryParams = []) => {
+          const value = await readScalarValue(this.executor, sql, params)
+          return value
+        },
+        validator,
+      }
     }
+
+    return createReader()
   }
 }
 
@@ -527,6 +578,80 @@ function expectExactlyOneRow<T>(rows: T[]): T {
     throw new Error(`expected exactly one row but received ${rows.length}.`)
   }
   return rows[0]
+}
+
+function readScalarValue(
+  executor: QueryExecutor,
+  sql: string,
+  params: QueryParams
+): Promise<unknown> {
+  return executor(sql, params).then((rows) => extractScalar(rows))
+}
+
+function extractScalar(rows: Row[]): unknown {
+  const row = expectExactlyOneRow(rows)
+  const columns = Object.keys(row)
+  if (columns.length !== 1) {
+    throw new Error(`expected exactly one column but received ${columns.length}.`)
+  }
+  return row[columns[0]]
+}
+
+function applyRowValidator<T, U>(
+  rows: T[],
+  validator?: ReaderValidator<T, U>
+): U[] {
+  if (!validator) {
+    return rows as unknown as U[]
+  }
+  return rows.map((row) => validator(row))
+}
+
+function applyScalarValidator<T, U>(
+  value: unknown,
+  validator?: ReaderValidator<T, U>
+): U {
+  if (!validator) {
+    return value as unknown as U
+  }
+  return validator(value as T)
+}
+
+function isReaderSchemaLike<T, U>(
+  value: ReaderValidatorInput<T, U>
+): value is ReaderSchemaLike<U> {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as ReaderSchemaLike<U>).parse === 'function'
+  )
+}
+
+function normalizeReaderValidator<T, U>(
+  validator?: ReaderValidatorInput<T, U>
+): ReaderValidator<T, U> | undefined {
+  if (!validator) {
+    return undefined
+  }
+  if (isReaderSchemaLike(validator)) {
+    const schema = validator
+    return (value: T) =>
+      schema.parse(value as Parameters<typeof schema.parse>[0])
+  }
+  return validator
+}
+
+function composeValidators<T, U, V>(
+  first?: ReaderValidator<T, U>,
+  second?: ReaderValidator<U, V>
+): ReaderValidator<T, V> | undefined {
+  if (!first) {
+    return second as unknown as ReaderValidator<T, V> | undefined
+  }
+  if (!second) {
+    return first as unknown as ReaderValidator<T, V>
+  }
+  return (value: T) => second(first(value))
 }
 
 const builtinMapperOptions: Required<

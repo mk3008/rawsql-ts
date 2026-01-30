@@ -126,6 +126,11 @@ void main()
 ```
 
 ---
+## Coercion helpers
+
+The package exposes `decimalStringToNumberUnsafe` and `bigintStringToBigInt` under `utils/coercions.ts`. These pure helpers operate on raw database output, trim string values, convert them when the input describes a finite number or bigint, and otherwise return the original value. The `Unsafe` suffix on the decimal helper highlights the potential for precision loss, so callers can guard around it if needed.
+
+---
 
 ## Executor: DBMS / Driver Integration
 
@@ -158,6 +163,33 @@ R looks like this:
 ```ts
 const reader = mapper.bind(customerMapping)
 await reader.one('SELECT ...', [42])
+```
+
+### Reader validation
+
+Use `reader.validator(...)` to run runtime validation after row mapping and before the results are returned.
+The validator is library-agnostic: it receives the mapped DTO and should return the validated output or throw.
+
+```ts
+const reader = mapper.bind(customerMapping)
+
+const validated = reader.validator((dto) => CustomerSchema.parse(dto))
+const customers = await validated.list('select * from customers')
+```
+
+### Scalar queries
+
+For single-value results (one row, one column), use `reader.scalar(...)` to avoid DTO workarounds.
+Scalar queries bypass mapping and return the raw column value.
+
+```ts
+const reader = mapper.bind(customerMapping)
+
+const total = await reader.scalar('select count(*) from customers')
+
+const parsedTotal = await reader
+  .validator((value) => Number(value))
+  .scalar('select count(*) from customers')
 ```
 
 In a typical application, a mapper is created once and reused across queries.

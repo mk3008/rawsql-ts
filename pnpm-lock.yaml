@@ -305,6 +305,9 @@ importers:
       vitest:
         specifier: ^4.0.7
         version: 4.0.15(@types/node@22.19.6)(jiti@2.6.1)(yaml@2.8.1)
+      zod:
+        specifier: ^4.3.6
+        version: 4.3.6
 
   packages/sql-contract-zod:
     dependencies:

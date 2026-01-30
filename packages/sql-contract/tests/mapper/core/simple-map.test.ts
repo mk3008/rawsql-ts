@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { createMapper, mapSimpleRows, mapperPresets } from '@rawsql-ts/sql-contract/mapper'
+import {
+  createMapper,
+  mapSimpleRows,
+  mapperPresets,
+  type MapperOptions,
+  type Row,
+} from '@rawsql-ts/sql-contract/mapper'
 
 type UserDto = {
   id: string
@@ -22,7 +28,12 @@ const decimalToNumber = ({
   value: unknown
 }) => (key === 'amount' && typeof value === 'string' ? Number(value) : value)
 
-describe('mapper simple mapping', () => {
+const createReaderFromRows = (
+  rows: Row[],
+  options?: MapperOptions
+) => createMapper(async () => rows, options)
+
+describe('simple mapping', () => {
   it('shows the simplest createMapper + query usage for docs', async () => {
     const rows = [
       {
@@ -31,8 +42,8 @@ describe('mapper simple mapping', () => {
       },
     ]
 
-    const mapper = createMapper(async () => rows)
-    const [user] = await mapper.query<UserDto>('SELECT ...', [])
+    const reader = createReaderFromRows(rows)
+    const [user] = await reader.query<UserDto>('SELECT ...', [])
 
     expect(user.id).toBe('1')
     expect(user.displayName).toBe('Alice')
@@ -47,14 +58,14 @@ describe('mapper simple mapping', () => {
       },
     ]
 
-    const mapper = createMapper(async () => rows)
+    const reader = createReaderFromRows(rows)
     const attempts: Array<{
       key: string
       sourceKey: string
       value: unknown
     }> = []
 
-    const [doc] = await mapper.query<
+    const [doc] = await reader.query<
       { userId: string; displayName: string; amount: number }
     >('SELECT ...', [], {
       coerceFn: ({ key, sourceKey, value }) => {
@@ -91,8 +102,8 @@ describe('mapper simple mapping', () => {
         },
       ]
 
-      const mapper = createMapper(async () => rows, mapperPresets.safe())
-      const [record] = await mapper.query<{
+      const reader = createReaderFromRows(rows, mapperPresets.safe())
+      const [record] = await reader.query<{
         invoice_id: number
         issued_at: string
       }>('SELECT ...', [])
@@ -109,8 +120,8 @@ describe('mapper simple mapping', () => {
         },
       ]
 
-      const mapper = createMapper(async () => rows, mapperPresets.appLike())
-      const [record] = await mapper.query<{ issuedAt: Date }>('SELECT ...', [])
+      const reader = createReaderFromRows(rows, mapperPresets.appLike())
+      const [record] = await reader.query<{ issuedAt: Date }>('SELECT ...', [])
 
       expect(record.issuedAt).toBeInstanceOf(Date)
       expect(record.issuedAt.toISOString()).toBe('2025-01-01T00:00:00.000Z')
@@ -126,8 +137,8 @@ describe('mapper simple mapping', () => {
     ]
 
     it('applies mapperPresets.appLike to camelCase and stringifies numeric identifiers', async () => {
-      const mapper = createMapper(async () => customerRows, mapperPresets.appLike())
-      const [customer] = await mapper.query<{
+      const reader = createReaderFromRows(customerRows, mapperPresets.appLike())
+      const [customer] = await reader.query<{
         customerId: string
         customerName: string
       }>('SELECT ...', [])
@@ -137,8 +148,8 @@ describe('mapper simple mapping', () => {
     })
 
     it('keeps columns untouched when using mapperPresets.safe', async () => {
-      const mapper = createMapper(async () => customerRows, mapperPresets.safe())
-      const [customer] = await mapper.query<{
+      const reader = createReaderFromRows(customerRows, mapperPresets.safe())
+      const [customer] = await reader.query<{
         customer_id: number
         customer_name: string
       }>('SELECT ...', [])
@@ -148,8 +159,8 @@ describe('mapper simple mapping', () => {
     })
 
     it('works without params and still applies appLike stringification', async () => {
-      const mapper = createMapper(async () => customerRows, mapperPresets.appLike())
-      const [customer] = await mapper.query<{
+      const reader = createReaderFromRows(customerRows, mapperPresets.appLike())
+      const [customer] = await reader.query<{
         customerId: string
         customerName: string
       }>('SELECT ...')
@@ -172,8 +183,8 @@ describe('mapper simple mapping', () => {
         },
       ]
 
-      const mapper = createMapper(async () => rows)
-      const [record] = await mapper.query<{
+      const reader = createReaderFromRows(rows)
+      const [record] = await reader.query<{
         invoiceId: string
         customerId: string
         active: boolean
@@ -200,8 +211,8 @@ describe('mapper simple mapping', () => {
         },
       ]
 
-      const mapper = createMapper(async () => rows)
-      const [record] = await mapper.query<{
+      const reader = createReaderFromRows(rows)
+      const [record] = await reader.query<{
         invoiceId: string
         payload: { nested: boolean }
       }>('SELECT ...', [])
@@ -217,8 +228,8 @@ describe('mapper simple mapping', () => {
         },
       ]
 
-      const mapper = createMapper(async () => rows)
-      const [record] = await mapper.query<{ amount: string }>('SELECT ...', [])
+      const reader = createReaderFromRows(rows)
+      const [record] = await reader.query<{ amount: string }>('SELECT ...', [])
 
       expect(record.amount).toBe('100.01')
       expect(typeof record.amount).toBe('string')
@@ -233,8 +244,8 @@ describe('mapper simple mapping', () => {
         },
       ]
 
-      const mapper = createMapper(async () => rows)
-      const [record] = await mapper.query<{
+      const reader = createReaderFromRows(rows)
+      const [record] = await reader.query<{
         id: string
         orderId: string
         grid: number
@@ -257,8 +268,8 @@ describe('mapper simple mapping', () => {
         },
       ]
 
-      const mapper = createMapper(async () => rows)
-      const [record] = await mapper.query<{
+      const reader = createReaderFromRows(rows)
+      const [record] = await reader.query<{
         id: string
         userId: string
         userid: number
@@ -289,13 +300,13 @@ describe('mapper simple mapping', () => {
         },
       ]
 
-      const mapper = createMapper(async () => rows)
-      const [plain] = await mapper.query<{ issuedAt: string }>('SELECT ...', [])
+      const reader = createReaderFromRows(rows)
+      const [plain] = await reader.query<{ issuedAt: string }>('SELECT ...', [])
 
       expect(plain.issuedAt).toBe('2025-01-01T00:00:00Z')
       expect(typeof plain.issuedAt).toBe('string')
 
-      const [coerced] = await mapper.query<{ issuedAt: Date }>(
+      const [coerced] = await reader.query<{ issuedAt: Date }>(
         'SELECT ...',
         [],
         { coerceDates: true }
@@ -313,14 +324,14 @@ describe('mapper simple mapping', () => {
         },
       ]
 
-      const mapper = createMapper(async () => rows)
+      const reader = createReaderFromRows(rows)
       const calls: Array<{
         key: string
         sourceKey: string
         value: unknown
       }> = []
 
-      const [record] = await mapper.query<
+      const [record] = await reader.query<
         { amount: number; otherValue: string }
       >('SELECT ...', [], {
         coerceFn: ({ key, sourceKey, value }) => {
@@ -345,8 +356,8 @@ describe('mapper simple mapping', () => {
         },
       ]
 
-      const mapper = createMapper(async () => rows)
-      const [record] = await mapper.query<{
+      const reader = createReaderFromRows(rows)
+      const [record] = await reader.query<{
         id: bigint
         createdAt: Date
         activeFlag: boolean
@@ -366,10 +377,10 @@ describe('mapper simple mapping', () => {
 
     it('reports a helpful error when bigint hints receive invalid strings', async () => {
       const rows = [{ id: '1.2' }]
-      const mapper = createMapper(async () => rows)
+      const reader = createReaderFromRows(rows)
 
       await expect(
-        mapper.query<{ id: bigint }>('SELECT ...', [], {
+        reader.query<{ id: bigint }>('SELECT ...', [], {
           typeHints: {
             id: 'bigint',
           },
@@ -389,8 +400,8 @@ describe('mapper simple mapping', () => {
         },
       ]
 
-      const mapper = createMapper(async () => rows)
-      await expect(mapper.query('SELECT ...', [])).rejects.toThrow(
+      const reader = createReaderFromRows(rows)
+      await expect(reader.query('SELECT ...', [])).rejects.toThrow(
         /conflict|collision|ambiguous/i
       )
     })
@@ -403,8 +414,8 @@ describe('mapper simple mapping', () => {
         },
       ]
 
-      const mapper = createMapper(async () => rows)
-      await expect(mapper.query('SELECT ...', [])).rejects.toThrow(
+      const reader = createReaderFromRows(rows)
+      await expect(reader.query('SELECT ...', [])).rejects.toThrow(
         /conflict|collision|ambiguous/i
       )
     })
@@ -502,8 +513,8 @@ describe('mapper simple mapping', () => {
         },
       ]
 
-      const mapper = createMapper(async () => rows)
-      const [dto] = await mapper.query<DuckNormalizationSpec>('SELECT ...', [])
+      const reader = createReaderFromRows(rows)
+      const [dto] = await reader.query<DuckNormalizationSpec>('SELECT ...', [])
 
       expect(dto.id).toBe('1')
       expect(dto.displayValue).toBe('UppercaseValue')
@@ -521,16 +532,16 @@ describe('mapper simple mapping', () => {
         },
       ]
 
-      const mapper = createMapper(async () => rows)
-      await expect(mapper.query<UserDto>('SELECT ...', [])).rejects.toThrow(
+      const reader = createReaderFromRows(rows)
+      await expect(reader.query<UserDto>('SELECT ...', [])).rejects.toThrow(
         /conflict|collision|ambiguous/i
       )
     })
   })
 
   it('returns undefined from queryOne when no rows arrive', async () => {
-    const mapper = createMapper(async () => [])
-    const result = await mapper.queryOne<{ foo: number }>('SELECT ...', [])
+    const reader = createReaderFromRows([])
+    const result = await reader.queryOne<{ foo: number }>('SELECT ...', [])
     expect(result).toBeUndefined()
   })
 })

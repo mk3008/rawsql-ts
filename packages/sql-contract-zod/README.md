@@ -39,6 +39,8 @@ pnpm add @rawsql-ts/sql-contract-zod zod
 
 @rawsql-ts/sql-contract-zod depends on `@rawsql-ts/sql-contract` for the mapper helper primitives and adds runtime validation through Zod.
 
+The built-in Zod helpers rely on the core package's `decimalStringToNumberUnsafe` and `bigintStringToBigInt` utilities so the same string-to-number and string-to-bigint coercion policies are shared.
+
 ### Minimal CRUD sample
 
 ```ts

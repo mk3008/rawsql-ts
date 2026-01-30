@@ -10,27 +10,26 @@ import {
   it,
 } from 'vitest'
 import {
-  createMapperFromExecutor,
+  createReader,
+  mapperPresets,
   MapperOptions,
+  type Mapper,
+  type Row,
   toRowsExecutor,
 } from '@rawsql-ts/sql-contract/mapper'
 import { driverDescribe } from './driver-describe'
 
 let container: StartedPostgreSqlContainer | undefined
 let client: Client | undefined
+let baseReader: Mapper | undefined
+let readerWithoutDateCoerce: Mapper | undefined
+let readerWithDecimalCoerce: Mapper | undefined
 
 const ensureClient = (): Client => {
   if (!client) {
     throw new Error('Postgres client is not ready')
   }
   return client
-}
-
-const createTestMapper = (options?: MapperOptions) => {
-  const executor = toRowsExecutor((sql, params) =>
-    ensureClient().query(sql, params)
-  )
-  return createMapperFromExecutor(executor, options)
 }
 
 const decimalCoerce: MapperOptions['coerceFn'] = ({ value }) => {
@@ -43,13 +42,52 @@ const decimalCoerce: MapperOptions['coerceFn'] = ({ value }) => {
   return Number(value)
 }
 
-driverDescribe('mapper driver integration (pg)', () => {
+const ensureBaseReader = (): Mapper => {
+  if (!baseReader) {
+    throw new Error('Base reader is not initialized')
+  }
+  return baseReader
+}
+
+const ensureReaderWithoutDateCoerce = (): Mapper => {
+  if (!readerWithoutDateCoerce) {
+    throw new Error('No reader without date coercion is available')
+  }
+  return readerWithoutDateCoerce
+}
+
+const ensureReaderWithDecimalCoerce = (): Mapper => {
+  if (!readerWithDecimalCoerce) {
+    throw new Error('No decimal reader is available')
+  }
+  return readerWithDecimalCoerce
+}
+
+driverDescribe('reader driver integration (pg)', () => {
   beforeAll(async () => {
     container = await new PostgreSqlContainer('postgres:18-alpine').start()
     client = new Client({
       connectionString: container.getConnectionUri(),
     })
     await client.connect()
+    await ensureClient().query("SET TIME ZONE 'UTC'")
+
+    const executor = toRowsExecutor(async (sql, params): Promise<Row[]> => {
+      const values = Array.isArray(params) ? params : []
+      const result = await ensureClient().query(sql, values)
+      return result.rows as Row[]
+    })
+    const basePreset = mapperPresets.appLike()
+    baseReader = createReader(executor, basePreset)
+    readerWithoutDateCoerce = createReader(executor, {
+      ...basePreset,
+      coerceDates: false,
+      coerceFn: basePreset.coerceFn,
+    })
+    readerWithDecimalCoerce = createReader(executor, {
+      ...basePreset,
+      coerceFn: decimalCoerce,
+    })
   }, 120000)
 
   afterAll(async () => {
@@ -58,9 +96,9 @@ driverDescribe('mapper driver integration (pg)', () => {
   })
 
   it('coerceDates transforms text/timestamp/timestamptz columns into Date', async () => {
-    const mapper = createTestMapper({ coerceDates: true })
+    const reader = ensureBaseReader()
 
-    const [record] = await mapper.query<{
+    const [record] = await reader.query<{
       issuedAtText: Date
       issuedAtTimestamp: Date
       issuedAtTimestamptz: Date
@@ -94,9 +132,9 @@ driverDescribe('mapper driver integration (pg)', () => {
   })
 
   it('retains strings when coerceDates is disabled', async () => {
-    const mapper = createTestMapper()
+    const reader = ensureReaderWithoutDateCoerce()
 
-    const [record] = await mapper.query<{ issuedAtText: string }>(
+    const [record] = await reader.query<{ issuedAtText: string }>(
       `
         SELECT
           '2025-01-15T09:00:00+00:00'::text AS issued_at_text
@@ -109,9 +147,9 @@ driverDescribe('mapper driver integration (pg)', () => {
   })
 
   it('leaves numeric strings untouched unless a custom coerceFn runs', async () => {
-    const mapper = createTestMapper()
+    const reader = ensureBaseReader()
 
-    const [plain] = await mapper.query<{ amount: string }>(
+    const [plain] = await reader.query<{ amount: string }>(
       `
         SELECT
           '123.45'::numeric::text AS amount
@@ -122,8 +160,8 @@ driverDescribe('mapper driver integration (pg)', () => {
     expect(plain.amount).toBe('123.45')
     expect(typeof plain.amount).toBe('string')
 
-    const coerced = createTestMapper({ coerceFn: decimalCoerce })
-    const [numberRecord] = await coerced.query<{ amount: number }>(
+    const coercedReader = ensureReaderWithDecimalCoerce()
+    const [numberRecord] = await coercedReader.query<{ amount: number }>(
       `
         SELECT
           '123.45'::numeric::text AS amount
@@ -135,9 +173,9 @@ driverDescribe('mapper driver integration (pg)', () => {
   })
 
   it('handles pg primitives (uuid/bool/int/float/double) without breaking', async () => {
-    const mapper = createTestMapper()
+    const reader = ensureBaseReader()
 
-    const [record] = await mapper.query<{
+    const [record] = await reader.query<{
       invoiceId: string
       active: boolean
       countInt: number

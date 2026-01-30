@@ -17,6 +17,14 @@
       "types": "./dist/mapper/*.d.ts",
       "default": "./dist/mapper/*.js"
     },
+    "./utils/coercions": {
+      "types": "./dist/utils/coercions.d.ts",
+      "default": "./dist/utils/coercions.js"
+    },
+    "./utils/*": {
+      "types": "./dist/utils/*.d.ts",
+      "default": "./dist/utils/*.js"
+    },
     "./writer": {
       "types": "./dist/writer/index.d.ts",
       "default": "./dist/writer/index.js"
@@ -53,6 +61,7 @@
     "node": ">=20"
   },
   "devDependencies": {
+    "zod": "^4.3.6",
     "typescript": "^5.8.2",
     "vitest": "^4.0.7",
     "pg-promise": "^12.0.0"

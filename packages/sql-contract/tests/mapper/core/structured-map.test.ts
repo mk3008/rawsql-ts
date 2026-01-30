@@ -75,7 +75,7 @@ interface CycleA {
   b?: CycleB
 }
 
-describe('mapper structured mapping', () => {
+describe('structured mapping', () => {
   it('maps columnMap aliases with natural names', () => {
     const mapping = rowMapping<Country>({
       name: 'Country',
@@ -782,7 +782,7 @@ describe('mapper structured mapping', () => {
     expect(third.order).not.toBe(first.order)
   })
 
-  it('mapper.query cache is scoped to each execution', async () => {
+  it('query cache is scoped to each execution', async () => {
     const orderMapping = rowMapping<Order>({
       name: 'Order',
       key: 'id',
@@ -812,9 +812,9 @@ describe('mapper structured mapping', () => {
       },
     ]
 
-    const mapper = createMapper(async () => rows)
-    const [first] = await mapper.query('SELECT ...', [], itemMapping)
-    const [second] = await mapper.query('SELECT ...', [], itemMapping)
+    const reader = createMapper(async () => rows)
+    const [first] = await reader.query('SELECT ...', [], itemMapping)
+    const [second] = await reader.query('SELECT ...', [], itemMapping)
 
     expect(first.order).toBeDefined()
     expect(second.order).toBeDefined()

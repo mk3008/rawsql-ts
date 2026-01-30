@@ -7,6 +7,7 @@ import { afterAll, beforeAll, expect, it } from 'vitest'
 import {
   createMapperFromExecutor,
   MapperOptions,
+  type Row,
   toRowsExecutor,
 } from '@rawsql-ts/sql-contract/mapper'
 import { driverDescribe } from './driver-describe'
@@ -21,10 +22,10 @@ const ensureConnection = (): mysql.Connection => {
   return connection
 }
 
-const createTestMapper = (options?: MapperOptions) => {
-  const executor = toRowsExecutor(async (sql, params) => {
+const createTestReader = (options?: MapperOptions) => {
+  const executor = toRowsExecutor(async (sql, params): Promise<Row[]> => {
     const [rows] = await ensureConnection().execute(sql, params)
-    return rows
+    return Array.isArray(rows) ? (rows as Row[]) : []
   })
   return createMapperFromExecutor(executor, options)
 }
@@ -39,7 +40,7 @@ const decimalCoerce: MapperOptions['coerceFn'] = ({ value }) => {
   return Number(value)
 }
 
-driverDescribe('mapper driver integration (mysql)', () => {
+driverDescribe('reader driver integration (mysql)', () => {
   beforeAll(async () => {
     container = await new MySqlContainer('mysql:8.0').start()
     connection = await mysql.createConnection(container.getConnectionUri())
@@ -51,9 +52,12 @@ driverDescribe('mapper driver integration (mysql)', () => {
   })
 
   it('coerceDates converts ISO strings into Date when enabled', async () => {
-    const mapper = createTestMapper({ coerceDates: true })
+    const reader = createTestReader({ coerceDates: true })
 
-    const [record] = await mapper.query<{ issuedAtText: Date }>(
+    const [record] = await reader.query<{
+      issuedAtText: Date
+      issuedAtDatetime: Date
+    }>(
       `
         SELECT
           '2025-01-15T09:00:00+00:00' AS issued_at_text,
@@ -73,9 +77,9 @@ driverDescribe('mapper driver integration (mysql)', () => {
   })
 
   it('keeps strings intact when coerceDates is disabled', async () => {
-    const mapper = createTestMapper()
+    const reader = createTestReader()
 
-    const [record] = await mapper.query<{ issuedAtText: string }>(
+    const [record] = await reader.query<{ issuedAtText: string }>(
       `
         SELECT
           '2025-01-15T09:00:00+00:00' AS issued_at_text
@@ -88,9 +92,9 @@ driverDescribe('mapper driver integration (mysql)', () => {
   })
 
   it('leaves numeric strings unchanged unless a custom coerceFn runs', async () => {
-    const mapper = createTestMapper()
+    const reader = createTestReader()
 
-    const [plain] = await mapper.query<{ amount: string }>(
+    const [plain] = await reader.query<{ amount: string }>(
       `
         SELECT
           '123.45' AS amount
@@ -101,8 +105,8 @@ driverDescribe('mapper driver integration (mysql)', () => {
     expect(plain.amount).toBe('123.45')
     expect(typeof plain.amount).toBe('string')
 
-    const coerced = createTestMapper({ coerceFn: decimalCoerce })
-    const [numberRecord] = await coerced.query<{ amount: number }>(
+    const coercedReader = createTestReader({ coerceFn: decimalCoerce })
+    const [numberRecord] = await coercedReader.query<{ amount: number }>(
       `
         SELECT
           '123.45' AS amount
@@ -114,9 +118,9 @@ driverDescribe('mapper driver integration (mysql)', () => {
   })
 
   it('handles mysql primitives (bool/int/float/double) without breaking', async () => {
-    const mapper = createTestMapper()
+    const reader = createTestReader()
 
-    const [record] = await mapper.query<{
+    const [record] = await reader.query<{
       active: number
       countInt: number
       rateFloat: number
