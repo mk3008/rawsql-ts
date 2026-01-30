@@ -26,7 +26,7 @@ const ensureClient = (): Client => {
   return client
 }
 
-const createTestMapper = (options?: MapperOptions) => {
+const createTestReader = (options?: MapperOptions) => {
   const executor = toRowsExecutor((sql, params) =>
     ensureClient().query(sql, params)
   )
@@ -43,7 +43,7 @@ const decimalCoerce: MapperOptions['coerceFn'] = ({ value }) => {
   return Number(value)
 }
 
-driverDescribe('mapper driver integration (pg)', () => {
+driverDescribe('reader driver integration (pg)', () => {
   beforeAll(async () => {
     container = await new PostgreSqlContainer('postgres:18-alpine').start()
     client = new Client({
@@ -58,9 +58,9 @@ driverDescribe('mapper driver integration (pg)', () => {
   })
 
   it('coerceDates transforms text/timestamp/timestamptz columns into Date', async () => {
-    const mapper = createTestMapper({ coerceDates: true })
+    const reader = createTestReader({ coerceDates: true })
 
-    const [record] = await mapper.query<{
+    const [record] = await reader.query<{
       issuedAtText: Date
       issuedAtTimestamp: Date
       issuedAtTimestamptz: Date
@@ -94,9 +94,9 @@ driverDescribe('mapper driver integration (pg)', () => {
   })
 
   it('retains strings when coerceDates is disabled', async () => {
-    const mapper = createTestMapper()
+    const reader = createTestReader()
 
-    const [record] = await mapper.query<{ issuedAtText: string }>(
+    const [record] = await reader.query<{ issuedAtText: string }>(
       `
         SELECT
           '2025-01-15T09:00:00+00:00'::text AS issued_at_text
@@ -109,9 +109,9 @@ driverDescribe('mapper driver integration (pg)', () => {
   })
 
   it('leaves numeric strings untouched unless a custom coerceFn runs', async () => {
-    const mapper = createTestMapper()
+    const reader = createTestReader()
 
-    const [plain] = await mapper.query<{ amount: string }>(
+    const [plain] = await reader.query<{ amount: string }>(
       `
         SELECT
           '123.45'::numeric::text AS amount
@@ -122,8 +122,8 @@ driverDescribe('mapper driver integration (pg)', () => {
     expect(plain.amount).toBe('123.45')
     expect(typeof plain.amount).toBe('string')
 
-    const coerced = createTestMapper({ coerceFn: decimalCoerce })
-    const [numberRecord] = await coerced.query<{ amount: number }>(
+    const coercedReader = createTestReader({ coerceFn: decimalCoerce })
+    const [numberRecord] = await coercedReader.query<{ amount: number }>(
       `
         SELECT
           '123.45'::numeric::text AS amount
@@ -135,9 +135,9 @@ driverDescribe('mapper driver integration (pg)', () => {
   })
 
   it('handles pg primitives (uuid/bool/int/float/double) without breaking', async () => {
-    const mapper = createTestMapper()
+    const reader = createTestReader()
 
-    const [record] = await mapper.query<{
+    const [record] = await reader.query<{
       invoiceId: string
       active: boolean
       countInt: number

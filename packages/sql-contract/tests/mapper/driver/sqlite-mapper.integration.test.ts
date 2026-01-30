@@ -31,7 +31,7 @@ const convertResults = (results: ReturnType<SqlJsDatabase['exec']>) => {
   })
 }
 
-const createTestMapper = (options?: MapperOptions) => {
+const createTestReader = (options?: MapperOptions) => {
   const executor = toRowsExecutor((sql) => {
     const results = ensureDb().exec(sql)
     return convertResults(results)
@@ -65,11 +65,11 @@ const decimalCoerce: MapperOptions['coerceFn'] = ({ value }) => {
   return Number(value)
 }
 
-describe('mapper driver integration (sqlite)', () => {
+describe('reader driver integration (sqlite)', () => {
   it('coerceDates turns ISO text into Date when enabled', async () => {
-    const mapper = createTestMapper({ coerceDates: true })
+    const reader = createTestReader({ coerceDates: true })
 
-    const [record] = await mapper.query<{ issuedAtText: Date }>(
+    const [record] = await reader.query<{ issuedAtText: Date }>(
       `
         SELECT
           '2025-01-15T09:00:00+00:00' AS issued_at_text
@@ -84,9 +84,9 @@ describe('mapper driver integration (sqlite)', () => {
   })
 
   it('keeps strings unchanged when coerceDates is disabled', async () => {
-    const mapper = createTestMapper()
+    const reader = createTestReader()
 
-    const [record] = await mapper.query<{ issuedAtText: string }>(
+    const [record] = await reader.query<{ issuedAtText: string }>(
       `
         SELECT
           '2025-01-15T09:00:00+00:00' AS issued_at_text
@@ -99,9 +99,9 @@ describe('mapper driver integration (sqlite)', () => {
   })
 
   it('leaves numeric strings untouched unless a custom coerceFn is provided', async () => {
-    const mapper = createTestMapper()
+    const reader = createTestReader()
 
-    const [plain] = await mapper.query<{ amount: string }>(
+    const [plain] = await reader.query<{ amount: string }>(
       `
         SELECT
           '123.45' AS amount
@@ -112,8 +112,8 @@ describe('mapper driver integration (sqlite)', () => {
     expect(plain.amount).toBe('123.45')
     expect(typeof plain.amount).toBe('string')
 
-    const coerced = createTestMapper({ coerceFn: decimalCoerce })
-    const [numberRecord] = await coerced.query<{ amount: number }>(
+    const coercedReader = createTestReader({ coerceFn: decimalCoerce })
+    const [numberRecord] = await coercedReader.query<{ amount: number }>(
       `
         SELECT
           '123.45' AS amount
@@ -125,9 +125,9 @@ describe('mapper driver integration (sqlite)', () => {
   })
 
   it('handles sqlite primitives (bool/int/float/double) without breaking', async () => {
-    const mapper = createTestMapper()
+    const reader = createTestReader()
 
-    const [record] = await mapper.query<{
+    const [record] = await reader.query<{
       active: number
       countInt: number
       rateFloat: number

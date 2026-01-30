@@ -21,7 +21,7 @@ const ensurePool = (): ConnectionPool => {
   return pool
 }
 
-const createTestMapper = (options?: MapperOptions) => {
+const createTestReader = (options?: MapperOptions) => {
   const executor = toRowsExecutor(async (sql, _params) => {
     const result = await ensurePool().query(sql)
     return result.recordset
@@ -39,7 +39,7 @@ const decimalCoerce: MapperOptions['coerceFn'] = ({ value }) => {
   return Number(value)
 }
 
-driverDescribe('mapper driver integration (mssql)', () => {
+driverDescribe('reader driver integration (mssql)', () => {
   beforeAll(async () => {
     container = await new GenericContainer(IMAGE)
       .withEnvironment({
@@ -72,9 +72,9 @@ driverDescribe('mapper driver integration (mssql)', () => {
   })
 
   it('coerceDates turns ISO text into Date when enabled', async () => {
-    const mapper = createTestMapper({ coerceDates: true })
+    const reader = createTestReader({ coerceDates: true })
 
-    const [record] = await mapper.query<{ issuedAtText: Date }>(
+    const [record] = await reader.query<{ issuedAtText: Date }>(
       `
         SELECT
           '2025-01-15T09:00:00+00:00' AS issued_at_text
@@ -89,9 +89,9 @@ driverDescribe('mapper driver integration (mssql)', () => {
   })
 
   it('keeps text columns as strings when coerceDates is disabled', async () => {
-    const mapper = createTestMapper()
+    const reader = createTestReader()
 
-    const [record] = await mapper.query<{ issuedAtText: string }>(
+    const [record] = await reader.query<{ issuedAtText: string }>(
       `
         SELECT
           '2025-01-15T09:00:00+00:00' AS issued_at_text
@@ -104,9 +104,9 @@ driverDescribe('mapper driver integration (mssql)', () => {
   })
 
   it('leaves numeric strings untouched unless a custom coerceFn is provided', async () => {
-    const mapper = createTestMapper()
+    const reader = createTestReader()
 
-    const [plain] = await mapper.query<{ amount: string }>(
+    const [plain] = await reader.query<{ amount: string }>(
       `
         SELECT
           '123.45' AS amount
@@ -117,8 +117,8 @@ driverDescribe('mapper driver integration (mssql)', () => {
     expect(plain.amount).toBe('123.45')
     expect(typeof plain.amount).toBe('string')
 
-    const coerced = createTestMapper({ coerceFn: decimalCoerce })
-    const [numberRecord] = await coerced.query<{ amount: number }>(
+    const coercedReader = createTestReader({ coerceFn: decimalCoerce })
+    const [numberRecord] = await coercedReader.query<{ amount: number }>(
       `
         SELECT
           '123.45' AS amount
@@ -130,9 +130,9 @@ driverDescribe('mapper driver integration (mssql)', () => {
   })
 
   it('handles mssql primitives (bool/int/real/float) without breaking', async () => {
-    const mapper = createTestMapper()
+    const reader = createTestReader()
 
-    const [record] = await mapper.query<{
+    const [record] = await reader.query<{
       active: boolean
       countInt: number
       rateFloat: number

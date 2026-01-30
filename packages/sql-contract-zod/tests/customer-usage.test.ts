@@ -1,5 +1,5 @@
-﻿import { describe, expect, it } from 'vitest'
-import { z, ZodError } from 'zod'
+import { describe, expect, it } from 'vitest'
+import { z, ZodError, type ZodTypeAny } from 'zod'
 import { zNumberFromString } from '@rawsql-ts/sql-contract-zod'
 import {
   createMapper,
@@ -30,15 +30,19 @@ const customerMapping = rowMapping<Customer>({
 const customerSql =
   'select customer_id, customer_name, balance from customers where active = true'
 
-const createMapperFromRows = (
+const createReaderFromRows = (
   rows: Row[],
+  schema: ZodTypeAny,
+  mapping: ReturnType<typeof rowMapping>,
   onQuery?: (params: QueryParams) => void
-) =>
-  createMapper(async (_sql: string, params: QueryParams) => {
+) => {
+  const base = createMapper(async (_sql: string, params: QueryParams) => {
     onQuery?.(params)
     rewriteFixtureQuery(_sql, rows)
     return rows
   })
+  return base.zod(schema, mapping)
+}
 
 describe('customer usage styles', () => {
   it('reader.list validates and returns Customer[] (mapped + transformed)', async () => {
@@ -47,11 +51,14 @@ describe('customer usage styles', () => {
     ]
 
     let lastParams: QueryParams | undefined
-    const mapper = createMapperFromRows(rows, (captured) => {
-      lastParams = captured
-    })
-
-    const reader = mapper.zod(CustomerSchema, customerMapping)
+    const reader = createReaderFromRows(
+      rows,
+      CustomerSchema,
+      customerMapping,
+      (captured) => {
+        lastParams = captured
+      }
+    )
     const customers: Customer[] = await reader.list(customerSql)
 
     expect(lastParams).toEqual([])
@@ -68,9 +75,7 @@ describe('customer usage styles', () => {
     const rows: Row[] = [
       { customer_id: 'abc', customer_name: 'Maple', balance: '33' },
     ]
-    const mapper = createMapperFromRows(rows)
-
-    const reader = mapper.zod(CustomerSchema, customerMapping)
+    const reader = createReaderFromRows(rows, CustomerSchema, customerMapping)
     const resultOrError = await reader.list(customerSql).catch((error) => error)
 
     expect(resultOrError).toBeInstanceOf(ZodError)
@@ -89,11 +94,14 @@ describe('customer usage styles', () => {
     ]
     const params: QueryParams = [{ turn: 'left' }]
     let lastParams: QueryParams | undefined
-    const mapper = createMapperFromRows(rows, (captured) => {
-      lastParams = captured
-    })
-
-    const reader = mapper.zod(CustomerSchema, customerMapping)
+    const reader = createReaderFromRows(
+      rows,
+      CustomerSchema,
+      customerMapping,
+      (captured) => {
+        lastParams = captured
+      }
+    )
     const customers: Customer[] = await reader.list(customerSql, params)
 
     expect(customers).toEqual([
@@ -151,8 +159,11 @@ describe('customer usage styles', () => {
       },
     ]
 
-    const mapper = createMapperFromRows(rows)
-    const reader = mapper.zod(OrderWithCustomerSchema, orderWithCustomerMapping)
+    const reader = createReaderFromRows(
+      rows,
+      OrderWithCustomerSchema,
+      orderWithCustomerMapping
+    )
 
     const [result] = await reader.list(customerSql)
 
@@ -167,3 +178,4 @@ describe('customer usage styles', () => {
     })
   })
 })
+

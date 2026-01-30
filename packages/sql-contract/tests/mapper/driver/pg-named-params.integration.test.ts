@@ -34,7 +34,7 @@ const ensureDb = (): pgPromise.IDatabase<unknown> => {
   return db
 }
 
-driverDescribe('mapper driver named-parameter integration (pg-promise)', () => {
+driverDescribe('reader driver named-parameter integration (pg-promise)', () => {
   beforeAll(async () => {
     container = await new PostgreSqlContainer('postgres:18-alpine').start()
     db = pgp({
@@ -64,7 +64,7 @@ driverDescribe('mapper driver named-parameter integration (pg-promise)', () => {
     let seenSql: string | undefined
     let seenParams: QueryParams | undefined
 
-    const mapper = createMapperFromExecutor(
+    const reader = createMapperFromExecutor(
       async (sql, params) => {
         seenSql = sql
         seenParams = params
@@ -88,7 +88,7 @@ driverDescribe('mapper driver named-parameter integration (pg-promise)', () => {
     `
     const namedParams = { customerId: 42 }
 
-    const rows = await mapper.query(namedSql, namedParams)
+    const rows = await reader.query(namedSql, namedParams)
 
     expect(rows.length).toBeGreaterThan(0)
     const row = rows[0]
