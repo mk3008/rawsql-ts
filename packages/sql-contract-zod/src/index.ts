@@ -4,6 +4,7 @@ import {
   type MapperOptions,
   type QueryParams,
   type EntityMapping as RowMapping,
+  type Row,
 } from '@rawsql-ts/sql-contract/mapper'
 
 /**
@@ -35,10 +36,20 @@ declare module '@rawsql-ts/sql-contract/mapper' {
      * Creates a reader that validates mapped DTOs with Zod, optionally using an explicit RowMapping.
      */
     zod<S extends ZodTypeAny>(schema: S): ZodReader<z.infer<S>>
-    zod<S extends ZodTypeAny>(schema: S, mapping: RowMapping<z.infer<S>>): ZodReader<z.infer<S>>
+    zod<S extends ZodTypeAny>(
+      schema: S,
+      mapping: RowMapping<z.infer<S>>
+    ): ZodReader<z.infer<S>>
+    /**
+     * Executes a scalar query and validates the single-column result with Zod.
+     */
+    scalar<T>(
+      schema: ZodType<T>,
+      sql: string,
+      params?: QueryParams
+    ): Promise<T>
   }
 }
-
 
 /**
  * Optional configuration that enriches error messages with a caller-defined label.
@@ -395,6 +406,41 @@ function expectExactlyOneRow<T>(rows: T[]): T {
     throw new Error(`expected exactly one row but received ${rows.length}.`)
   }
   return rows[0]
+}
+
+function expectExactlyOneColumn(row: Row): unknown {
+  const columns = Object.keys(row)
+  if (columns.length === 0) {
+    throw new Error(
+      'scalar query expected exactly one column but the result set contained none.'
+    )
+  }
+  if (columns.length > 1) {
+    throw new Error(
+      `scalar query expected exactly one column but the result set contained ${columns.length}.`
+    )
+  }
+  return row[columns[0]]
+}
+
+async function executeScalar<T>(
+  mapper: Mapper,
+  schema: ZodType<T>,
+  sql: string,
+  params: QueryParams
+): Promise<T> {
+  const rows = await mapper.query<Row>(sql, params)
+  const row = expectExactlyOneRow(rows)
+  const value = expectExactlyOneColumn(row)
+  return parseWithLabel(schema, value)
+}
+
+Mapper.prototype.scalar = function scalar<T>(
+  schema: ZodType<T>,
+  sql: string,
+  params: QueryParams = []
+): Promise<T> {
+  return executeScalar(this, schema, sql, params)
 }
 
 Mapper.prototype.zod = function zod<T>(
