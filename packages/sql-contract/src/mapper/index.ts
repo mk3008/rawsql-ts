@@ -432,7 +432,7 @@ export class Mapper {
         },
         scalar: async (sql: string, params: QueryParams = []) => {
           const value = await readScalarValue(this.executor, sql, params)
-          return validateValue(value)
+          return value
         },
         validator,
       }

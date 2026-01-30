@@ -66,41 +66,15 @@ describe('reader validator and scalar', () => {
     await expect(reader.scalar('select count(*)')).resolves.toBe('2')
   })
 
-  it('applies validator to scalar values and allows transform', async () => {
+  it('does not run row validators for scalar results', async () => {
     const readerBase = createReaderFromRows([
       { total_count: '5' },
     ])
-    let called = 0
-
-    const reader = readerBase.validator((value) => {
-      called += 1
-      const parsed = Number(value)
-      if (!Number.isFinite(parsed)) {
-        throw new Error('invalid number')
-      }
-      return parsed
+    const reader = readerBase.validator(() => {
+      throw new Error('row validator should not run for scalar queries')
     })
 
-    await expect(reader.scalar('select count(*)')).resolves.toBe(5)
-    expect(called).toBe(1)
-  })
-
-  it('rejects scalar values when validator throws', async () => {
-    const readerBase = createReaderFromRows([
-      { total_count: 'abc' },
-    ])
-
-    const reader = readerBase.validator((value) => {
-      const parsed = Number(value)
-      if (!Number.isFinite(parsed)) {
-        throw new Error('invalid number')
-      }
-      return parsed
-    })
-
-    await expect(reader.scalar('select count(*)')).rejects.toThrow(
-      /invalid number/i
-    )
+    await expect(reader.scalar('select count(*)')).resolves.toBe('5')
   })
 
   it('throws when scalar results contain zero rows, multiple rows, or multiple columns', async () => {
