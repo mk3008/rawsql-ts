@@ -10,27 +10,26 @@ import {
   it,
 } from 'vitest'
 import {
-  createMapperFromExecutor,
+  createReader,
+  mapperPresets,
   MapperOptions,
+  type Mapper,
+  type Row,
   toRowsExecutor,
 } from '@rawsql-ts/sql-contract/mapper'
 import { driverDescribe } from './driver-describe'
 
 let container: StartedPostgreSqlContainer | undefined
 let client: Client | undefined
+let baseReader: Mapper | undefined
+let readerWithoutDateCoerce: Mapper | undefined
+let readerWithDecimalCoerce: Mapper | undefined
 
 const ensureClient = (): Client => {
   if (!client) {
     throw new Error('Postgres client is not ready')
   }
   return client
-}
-
-const createTestReader = (options?: MapperOptions) => {
-  const executor = toRowsExecutor((sql, params) =>
-    ensureClient().query(sql, params)
-  )
-  return createMapperFromExecutor(executor, options)
 }
 
 const decimalCoerce: MapperOptions['coerceFn'] = ({ value }) => {
@@ -43,6 +42,27 @@ const decimalCoerce: MapperOptions['coerceFn'] = ({ value }) => {
   return Number(value)
 }
 
+const ensureBaseReader = (): Mapper => {
+  if (!baseReader) {
+    throw new Error('Base reader is not initialized')
+  }
+  return baseReader
+}
+
+const ensureReaderWithoutDateCoerce = (): Mapper => {
+  if (!readerWithoutDateCoerce) {
+    throw new Error('No reader without date coercion is available')
+  }
+  return readerWithoutDateCoerce
+}
+
+const ensureReaderWithDecimalCoerce = (): Mapper => {
+  if (!readerWithDecimalCoerce) {
+    throw new Error('No decimal reader is available')
+  }
+  return readerWithDecimalCoerce
+}
+
 driverDescribe('reader driver integration (pg)', () => {
   beforeAll(async () => {
     container = await new PostgreSqlContainer('postgres:18-alpine').start()
@@ -50,6 +70,24 @@ driverDescribe('reader driver integration (pg)', () => {
       connectionString: container.getConnectionUri(),
     })
     await client.connect()
+    await ensureClient().query("SET TIME ZONE 'UTC'")
+
+    const executor = toRowsExecutor(async (sql, params): Promise<Row[]> => {
+      const values = Array.isArray(params) ? params : []
+      const result = await ensureClient().query(sql, values)
+      return result.rows as Row[]
+    })
+    const basePreset = mapperPresets.appLike()
+    baseReader = createReader(executor, basePreset)
+    readerWithoutDateCoerce = createReader(executor, {
+      ...basePreset,
+      coerceDates: false,
+      coerceFn: basePreset.coerceFn,
+    })
+    readerWithDecimalCoerce = createReader(executor, {
+      ...basePreset,
+      coerceFn: decimalCoerce,
+    })
   }, 120000)
 
   afterAll(async () => {
@@ -58,7 +96,7 @@ driverDescribe('reader driver integration (pg)', () => {
   })
 
   it('coerceDates transforms text/timestamp/timestamptz columns into Date', async () => {
-    const reader = createTestReader({ coerceDates: true })
+    const reader = ensureBaseReader()
 
     const [record] = await reader.query<{
       issuedAtText: Date
@@ -94,7 +132,7 @@ driverDescribe('reader driver integration (pg)', () => {
   })
 
   it('retains strings when coerceDates is disabled', async () => {
-    const reader = createTestReader()
+    const reader = ensureReaderWithoutDateCoerce()
 
     const [record] = await reader.query<{ issuedAtText: string }>(
       `
@@ -109,7 +147,7 @@ driverDescribe('reader driver integration (pg)', () => {
   })
 
   it('leaves numeric strings untouched unless a custom coerceFn runs', async () => {
-    const reader = createTestReader()
+    const reader = ensureBaseReader()
 
     const [plain] = await reader.query<{ amount: string }>(
       `
@@ -122,7 +160,7 @@ driverDescribe('reader driver integration (pg)', () => {
     expect(plain.amount).toBe('123.45')
     expect(typeof plain.amount).toBe('string')
 
-    const coercedReader = createTestReader({ coerceFn: decimalCoerce })
+    const coercedReader = ensureReaderWithDecimalCoerce()
     const [numberRecord] = await coercedReader.query<{ amount: number }>(
       `
         SELECT
@@ -135,7 +173,7 @@ driverDescribe('reader driver integration (pg)', () => {
   })
 
   it('handles pg primitives (uuid/bool/int/float/double) without breaking', async () => {
-    const reader = createTestReader()
+    const reader = ensureBaseReader()
 
     const [record] = await reader.query<{
       invoiceId: string

@@ -4,11 +4,19 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
   createMapperFromExecutor,
   MapperOptions,
+  type Row,
   toRowsExecutor,
 } from '@rawsql-ts/sql-contract/mapper'
 
-let SQL: typeof initSqlJs | undefined
+let SQL: Awaited<ReturnType<typeof initSqlJs>> | undefined
 let db: SqlJsDatabase | undefined
+
+const ensureSql = (): Awaited<ReturnType<typeof initSqlJs>> => {
+  if (!SQL) {
+    throw new Error('SQL.js module is not ready')
+  }
+  return SQL
+}
 
 const ensureDb = (): SqlJsDatabase => {
   if (!db) {
@@ -17,14 +25,14 @@ const ensureDb = (): SqlJsDatabase => {
   return db
 }
 
-const convertResults = (results: ReturnType<SqlJsDatabase['exec']>) => {
+const convertResults = (results: ReturnType<SqlJsDatabase['exec']>): Row[] => {
   if (!results || results.length === 0) {
     return []
   }
   const { columns, values } = results[0]
-  return values.map((row) => {
+  return values.map((row: unknown[]) => {
     const record: Record<string, unknown> = {}
-    columns.forEach((column, index) => {
+    columns.forEach((column: string, index: number) => {
       record[column] = row[index]
     })
     return record
@@ -32,7 +40,7 @@ const convertResults = (results: ReturnType<SqlJsDatabase['exec']>) => {
 }
 
 const createTestReader = (options?: MapperOptions) => {
-  const executor = toRowsExecutor((sql) => {
+  const executor = toRowsExecutor(async (sql) => {
     const results = ensureDb().exec(sql)
     return convertResults(results)
   })
@@ -41,14 +49,14 @@ const createTestReader = (options?: MapperOptions) => {
 
 beforeAll(async () => {
   SQL = await initSqlJs({
-    locateFile: (filename) =>
+    locateFile: (filename: string) =>
       path.join(
         path.dirname(require.resolve('sql.js/package.json')),
         'dist',
         filename,
       ),
   })
-  db = new SQL.Database()
+  db = new (ensureSql().Database)()
 })
 
 afterAll(() => {

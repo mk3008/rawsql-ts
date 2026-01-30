@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { z, ZodError, type ZodTypeAny } from 'zod'
+import { z, ZodError, type ZodType } from 'zod'
 import { zNumberFromString } from '@rawsql-ts/sql-contract-zod'
 import {
   createMapper,
@@ -7,6 +7,8 @@ import {
   mapperPresets,
   rowMapping,
   type QueryParams,
+  type Row,
+  type RowMapping,
 } from '@rawsql-ts/sql-contract/mapper'
 import { rewriteFixtureQuery } from './support/testkit'
 
@@ -27,10 +29,10 @@ const customerSql = 'select customer_id, customer_name, balance from customers'
 const customerSqlWithId = `${customerSql} where customer_id = $1`
 
 describe('sql-contract-zod reader', () => {
-  const createReaderFromRows = (
-    rows: Record<string, unknown>[],
-    schema: ZodTypeAny,
-    mapping?: ReturnType<typeof rowMapping>,
+  const createReaderFromRows = <T>(
+    rows: Row[],
+    schema: ZodType<T>,
+    mapping?: RowMapping<T>,
     onQuery?: (params: QueryParams) => void
   ) => {
     const base = createMapper(async (_sql: string, params: QueryParams) => {
@@ -38,7 +40,9 @@ describe('sql-contract-zod reader', () => {
       rewriteFixtureQuery(_sql, rows)
       return rows
     })
-    return mapping ? base.zod(schema, mapping) : base.zod(schema)
+    return mapping
+      ? base.zod(schema, mapping)
+      : base.zod(schema)
   }
 
   it('validates mapped rows with list', async () => {

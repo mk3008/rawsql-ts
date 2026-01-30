@@ -7,6 +7,7 @@ import { afterAll, beforeAll, expect, it } from 'vitest'
 import {
   createMapperFromExecutor,
   MapperOptions,
+  type Row,
   toRowsExecutor,
 } from '@rawsql-ts/sql-contract/mapper'
 import { driverDescribe } from './driver-describe'
@@ -22,9 +23,9 @@ const ensureConnection = (): mysql.Connection => {
 }
 
 const createTestReader = (options?: MapperOptions) => {
-  const executor = toRowsExecutor(async (sql, params) => {
+  const executor = toRowsExecutor(async (sql, params): Promise<Row[]> => {
     const [rows] = await ensureConnection().execute(sql, params)
-    return rows
+    return Array.isArray(rows) ? (rows as Row[]) : []
   })
   return createMapperFromExecutor(executor, options)
 }
@@ -53,7 +54,10 @@ driverDescribe('reader driver integration (mysql)', () => {
   it('coerceDates converts ISO strings into Date when enabled', async () => {
     const reader = createTestReader({ coerceDates: true })
 
-    const [record] = await reader.query<{ issuedAtText: Date }>(
+    const [record] = await reader.query<{
+      issuedAtText: Date
+      issuedAtDatetime: Date
+    }>(
       `
         SELECT
           '2025-01-15T09:00:00+00:00' AS issued_at_text,

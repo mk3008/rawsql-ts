@@ -1,5 +1,9 @@
 import { z, ZodError, type ZodType, type ZodTypeAny } from 'zod'
 import {
+  decimalStringToNumberUnsafe,
+  bigintStringToBigInt,
+} from '@rawsql-ts/sql-contract'
+import {
   Mapper,
   type MapperOptions,
   type QueryParams,
@@ -274,21 +278,11 @@ export function parseRow<T>(
 export const zNumberFromString = z
   .union([z.number(), z.string()])
   .transform((value) => {
-    if (typeof value === 'number') {
-      return value
+    const coerced = decimalStringToNumberUnsafe(value)
+    if (typeof coerced === 'number') {
+      return coerced
     }
-
-    const trimmed = value.trim()
-    if (trimmed === '') {
-      throw new Error('Value must be a numeric string.')
-    }
-
-    const parsed = Number(trimmed)
-    if (Number.isNaN(parsed)) {
-      throw new Error(`'${value}' is not a valid number.`)
-    }
-
-    return parsed
+    throw new Error(`'${value}' is not a valid number.`)
   })
 
 /**
@@ -297,20 +291,11 @@ export const zNumberFromString = z
 export const zBigIntFromString = z
   .union([z.bigint(), z.string()])
   .transform((value) => {
-    if (typeof value === 'bigint') {
-      return value
+    const coerced = bigintStringToBigInt(value)
+    if (typeof coerced === 'bigint') {
+      return coerced
     }
-
-    const trimmed = value.trim()
-    if (trimmed === '') {
-      throw new Error('Value must be a bigint string.')
-    }
-
-    try {
-      return BigInt(trimmed)
-    } catch (error) {
-      throw new Error(`'${value}' is not a valid bigint.`)
-    }
+    throw new Error(`'${value}' is not a valid bigint.`)
   })
 
 /**

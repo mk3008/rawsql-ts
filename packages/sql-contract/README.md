@@ -126,6 +126,11 @@ void main()
 ```
 
 ---
+## Coercion helpers
+
+The package exposes `decimalStringToNumberUnsafe` and `bigintStringToBigInt` under `utils/coercions.ts`. These pure helpers operate on raw database output, trim string values, convert them when the input describes a finite number or bigint, and otherwise return the original value. The `Unsafe` suffix on the decimal helper highlights the potential for precision loss, so callers can guard around it if needed.
+
+---
 
 ## Executor: DBMS / Driver Integration
 

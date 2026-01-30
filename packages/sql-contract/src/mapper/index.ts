@@ -80,13 +80,21 @@ export interface MapperReader<T> {
   list(sql: string, params?: QueryParams): Promise<T[]>
   one(sql: string, params?: QueryParams): Promise<T>
   scalar(sql: string, params?: QueryParams): Promise<unknown>
-  validator<U>(validator: ReaderValidator<T, U>): MapperReader<U>
+  validator<U>(validator: ReaderValidatorInput<T, U>): MapperReader<U>
 }
 
 /**
  * Validates a mapped value and returns the validated output.
  */
 export type ReaderValidator<T, U = T> = (value: T) => U
+
+export interface ReaderSchemaLike<U = unknown> {
+  parse(value: any): U
+}
+
+export type ReaderValidatorInput<T, U = T> =
+  | ReaderValidator<T, U>
+  | ReaderSchemaLike<U>
 
 /**
  * Named presets for simple mapping that avoid implicit inference.
@@ -388,12 +396,20 @@ export class Mapper {
    */
   bind<T>(mapping: RowMapping<T>): MapperReader<T> {
     const createReader = <U>(
-      validator?: ReaderValidator<T, U>
+      currentValidator?: ReaderValidator<T, U>
     ): MapperReader<U> => {
       const validateRows = (rows: T[]): U[] =>
-        applyRowValidator(rows, validator)
+        applyRowValidator(rows, currentValidator)
       const validateValue = (value: unknown): U =>
-        applyScalarValidator(value, validator)
+        applyScalarValidator(value, currentValidator)
+
+      const validator = <V>(
+        nextValidator: ReaderValidatorInput<U, V>
+      ): MapperReader<V> => {
+        const normalizedNext = normalizeReaderValidator(nextValidator)
+        const composed = composeValidators(currentValidator, normalizedNext)
+        return createReader(composed)
+      }
 
       return {
         list: async (sql: string, params: QueryParams = []) => {
@@ -409,10 +425,7 @@ export class Mapper {
           const value = await readScalarValue(this.executor, sql, params)
           return validateValue(value)
         },
-        validator: (nextValidator) => {
-          const composed = composeValidators(validator, nextValidator)
-          return createReader(composed)
-        },
+        validator,
       }
     }
 
@@ -593,6 +606,30 @@ function applyScalarValidator<T, U>(
     return value as unknown as U
   }
   return validator(value as T)
+}
+
+function isReaderSchemaLike<T, U>(
+  value: ReaderValidatorInput<T, U>
+): value is ReaderSchemaLike<U> {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as ReaderSchemaLike<U>).parse === 'function'
+  )
+}
+
+function normalizeReaderValidator<T, U>(
+  validator?: ReaderValidatorInput<T, U>
+): ReaderValidator<T, U> | undefined {
+  if (!validator) {
+    return undefined
+  }
+  if (isReaderSchemaLike(validator)) {
+    const schema = validator
+    return (value: T) =>
+      schema.parse(value as Parameters<typeof schema.parse>[0])
+  }
+  return validator
 }
 
 function composeValidators<T, U, V>(
