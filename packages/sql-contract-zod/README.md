@@ -117,6 +117,7 @@ This snippet shows a typical setup: define an executor, create a reader and writ
   (including SELECT queries and CUD statements with RETURNING or aggregate results)
 * Simple builders for common INSERT, UPDATE, and DELETE cases, without query inference
 * Zod-aware reader (`reader.zod`) that validates mapped DTOs with preset-based conventions or an explicit RowMapping
+* Scalar helper (`reader.scalar`) that validates single-column results before returning them
 * Optional coercion helpers (`zNumberFromString`, `zBigIntFromString`, `zDateFromString`)
 * Readers that accept the same `RowMapping` instances your mapper already uses
 * `createReader(executor)` applies `mapperPresets.appLike()` by default, so snake_case columns work without extra setup
@@ -250,12 +251,27 @@ and the cardinality check is applied afterward.
 | Helper | Description |
 | ------ | ----------- |
 | `reader.zod` | Validates mapped DTOs with Zod before returning them |
+| `reader.scalar` | Validates a single-column result with Zod before returning the scalar value |
 | `parseRows` / `parseRow` | Validate DTOs obtained from other sources |
 | `zNumberFromString` | Accepts numbers or numeric strings |
 | `zBigIntFromString` | Accepts bigints or strings |
 | `zDateFromString` | Accepts `Date` objects or ISO strings |
 
 All helpers propagate the original `ZodError`.
+
+### Scalar queries
+
+Use `reader.scalar` when a query returns exactly one row with a single column.
+The helper throws if the result set contains zero or more than one row or if multiple columns are returned.
+Zod validation applies directly to the scalar value, allowing reuse of helpers such as `zNumberFromString`.
+
+```ts
+const activeCount = await reader.scalar(
+  zNumberFromString,
+  'select count(*) from customers where status = $1',
+  ['active'],
+)
+```
 
 ---
 
