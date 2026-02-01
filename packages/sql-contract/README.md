@@ -270,6 +270,17 @@ Benefits:
 
 ---
 
+#### Composite keys
+
+`rowMapping` keys can now be more than a single column without breaking existing consumers:
+
+* **Array-based composite keys** — pass the raw column names in SQL order (`key: ['col_a', 'col_b']`). These column values are extracted directly from the executor’s row, so `columnMap` / `prefix` rules are not involved.
+* **Derived keys** — supply a function, e.g. `key: (row) => [row.col_a, row.col_b]`, that returns strings/numbers/bigints or an array thereof. The library type-tags each component so `'1'` and `1` are never conflated, and order of the array is preserved.
+
+Both forms feed through a single normalization path, so you can combine mixed types safely and receive clear errors if a value is `null`, `undefined`, or missing. Creating a synthetic column inside SQL (e.g. `SELECT CONCAT(col_a, '|', col_b) AS composite_key`) still works as a workaround, but we recommend using the multi-column helpers because they keep the schema explicit and avoid delimiter collisions.
+
+`name` continues to serve as the user-visible label for error messages, independent of whether the key is scalar, composite, or derived.
+
 #### Multi-model mapping
 
 Reader supports mapping joined results into multiple domain models by composing `rowMapping` definitions.

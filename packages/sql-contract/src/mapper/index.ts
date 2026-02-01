@@ -1,4 +1,5 @@
 import type { QueryParams } from '../query-params'
+import { normalizeKeyFromRow, normalizeKeyValue } from './internal'
 
 export type { QueryParams } from '../query-params'
 
@@ -19,7 +20,10 @@ export type QueryExecutor = (sql: string, params: QueryParams) => Promise<Row[]>
 /**
  * Defines how a column prefix, key, and optional overrides describe a row mapping.
  */
-export interface RowMappingOptions<T, K extends Extract<keyof T, string>> {
+export interface RowMappingOptions<
+  T,
+  K extends RowMappingKey<T> = RowMappingKey<T>
+> {
   name: string
   key: K
   prefix?: string
@@ -73,6 +77,24 @@ export interface MapperOptions {
   }) => unknown
 }
 
+/** Primitive types that can appear in row keys. */
+export type KeyPrimitive = string | number | bigint
+/** A key value: either a single primitive or an ordered list for composites. */
+export type KeyValue = KeyPrimitive | readonly KeyPrimitive[]
+/** Extracts a key value from a row. */
+export type KeyExtractor<T> = (row: T) => KeyValue
+
+/**
+ * Describes how a row mapping derives its key.
+ * - A property name resolves via `resolveColumnName`.
+ * - An array lists explicit column names for composites.
+ * - A key extractor derives the key from a row object.
+ */
+export type RowMappingKey<T> =
+  | Extract<keyof T, string>
+  | readonly string[]
+  | KeyExtractor<T>
+
 /**
  * A mapping-bound reader that executes SQL and enforces row-count contracts.
  */
@@ -90,11 +112,24 @@ export type ReaderValidator<T, U = T> = (value: T) => U
 
 /**
  * Minimal schema-like contract recognized by reader validators.
- * Implementations expose `parse(value)` and use the `U` generic to describe the parsed output type.
+ * Implementations expose either `parse(value)` or `assert(value)` to describe
+ * the validated output type `U`.
  */
-export interface ReaderSchemaLike<U = unknown> {
-  parse(value: any): U
+type ReaderParseLike<U> = {
+  parse(value: unknown): U
 }
+
+type ReaderAssertLike<U> =
+  | {
+      assert(value: unknown): U
+    }
+  | {
+      assert(value: unknown): asserts value is U
+    }
+
+export type ReaderSchemaLike<U = unknown> =
+  | ReaderParseLike<U>
+  | ReaderAssertLike<U>
 
 /**
  * Input accepted by `MapperReader.validator`. The value may be a plain validator function,
@@ -119,7 +154,6 @@ export const mapperPresets = {
     return {
       keyTransform: 'snake_to_camel',
       coerceDates: true,
-      coerceFn: ({ value }) => coerceColumnValue(value),
     }
   },
 }
@@ -145,9 +179,16 @@ type RowContext = {
 /**
  * Builds a row mapping that can be consumed by {@link Mapper#query} or {@link mapRows}.
  */
+const isKeyExtractor = <T>(value: RowMappingKey<T>): value is KeyExtractor<T> =>
+  typeof value === 'function'
+
+const isKeyColumnArray = <T>(
+  value: RowMappingKey<T>
+): value is readonly string[] => Array.isArray(value)
+
 export class RowMapping<
   T,
-  K extends Extract<keyof T, string> = Extract<keyof T, string>
+  K extends RowMappingKey<T> = RowMappingKey<T>
 > {
   readonly name: string
   readonly key: K
@@ -160,6 +201,9 @@ export class RowMapping<
   private readonly prefixLength: number
   private readonly shouldCoerce: boolean
   private readonly coerceFn: (value: unknown) => unknown
+  private readonly keyDescriptor: string
+  private readonly keyExtractor: (ctx: RowContext) => KeyValue | undefined
+  private readonly keyColumns?: readonly string[]
 
   constructor(options: RowMappingOptions<T, K>) {
     this.name = options.name
@@ -190,6 +234,45 @@ export class RowMapping<
     this.prefixLength = this.prefixNormalized.length
     this.shouldCoerce = options.coerce ?? true
     this.coerceFn = options.coerceFn ?? coerceColumnValue
+
+    const keyInput = options.key
+    if (isKeyExtractor(keyInput)) {
+      this.keyDescriptor = 'derived key function'
+      this.keyExtractor = (ctx) => keyInput(this.buildMappedRowForKey(ctx))
+    } else if (isKeyColumnArray(keyInput)) {
+      const columns = keyInput
+      if (columns.length === 0) {
+        throw new Error(
+          `RowMapping "${this.name}" composite key must include at least one column.`
+        )
+      }
+      const resolvedColumns = columns.map((column) =>
+        this.resolveColumnName(column)
+      )
+      this.keyColumns = resolvedColumns
+      this.keyDescriptor = `columns ${columns.join(', ')}`
+      this.keyExtractor = (ctx) =>
+        resolvedColumns.map((column) => {
+          const { found, value } = lookupRowColumn(ctx, column)
+          if (!found) {
+            throwMissingKeyColumn(this, column, ctx)
+          }
+          return value
+        }) as KeyValue
+    } else {
+      const propertyName = keyInput as Extract<keyof T, string>
+      const columnName = this.resolveColumnName(propertyName)
+      this.keyColumns = [columnName]
+      this.keyDescriptor = `property "${String(keyInput)}"`
+      this.keyExtractor = (ctx) =>
+        (() => {
+          const { found, value } = lookupRowColumn(ctx, columnName)
+          if (!found) {
+            throwMissingKeyColumn(this, columnName, ctx)
+          }
+          return value
+        })() as KeyValue | undefined
+    }
   }
 
   /**
@@ -279,9 +362,22 @@ export class RowMapping<
     return `${this.prefix}${toSnakeCase(propertyName)}`
   }
 
-  readKeyValue(ctx: RowContext): unknown {
-    const column = this.resolveColumnName(this.key)
-    return getRowValue(ctx, column)
+  readKeyValue(ctx: RowContext): KeyValue | undefined {
+    return this.keyExtractor(ctx)
+  }
+
+  /**
+   * Returns a human-readable description of the key for error reporting.
+   */
+  get keyDescription(): string {
+    return this.keyDescriptor
+  }
+
+  /**
+   * Lists the resolved key column names, if the key is not derived.
+   */
+  get keyColumnNames(): readonly string[] | undefined {
+    return this.keyColumns
   }
 
   assignFields(target: Record<string, unknown>, ctx: RowContext): void {
@@ -300,6 +396,18 @@ export class RowMapping<
     }
     return this.coerceFn(value)
   }
+
+  private buildMappedRowForKey(ctx: RowContext): T {
+    const target = {} as Record<string, unknown>
+    for (const column of Object.keys(ctx.row)) {
+      const propertyName = this.matchColumn(column)
+      if (!propertyName) {
+        continue
+      }
+      target[propertyName] = ctx.row[column]
+    }
+    return target as T
+  }
 }
 
 export { RowMapping as EntityMapping }
@@ -309,7 +417,7 @@ export { RowMapping as EntityMapping }
  */
 export function rowMapping<
   T,
-  K extends Extract<keyof T, string> = Extract<keyof T, string>
+  K extends RowMappingKey<T> = RowMappingKey<T>
 >(options: RowMappingOptions<T, K>): RowMapping<T, K> {
   return new RowMapping<T, K>(options)
 }
@@ -319,7 +427,7 @@ export function rowMapping<
  */
 export function entity<
   T,
-  K extends Extract<keyof T, string> = Extract<keyof T, string>
+  K extends RowMappingKey<T> = RowMappingKey<T>
 >(options: RowMappingOptions<T, K>): RowMapping<T, K> {
   return rowMapping(options)
 }
@@ -542,16 +650,7 @@ export function mapRows<T>(rows: Row[], mapping: RowMapping<T>): T[] {
   // Deduplicate root entities by key so joined rows map back to the same object.
   for (const row of rows) {
     const ctx = createRowContext(row)
-    const keyValue = mapping.readKeyValue(ctx)
-    if (keyValue === undefined || keyValue === null) {
-      throw new Error(
-        `Missing key column for root mapping "${mapping.name}" in row ${JSON.stringify(
-          row
-        )}`
-      )
-    }
-
-    const keyString = stringifyKey(keyValue)
+    const keyString = normalizeRowKey(mapping.readKeyValue(ctx), mapping, ctx)
     const entity = buildEntity(
       ctx,
       mapping,
@@ -620,12 +719,29 @@ function applyScalarValidator<T, U>(
 function isReaderSchemaLike<T, U>(
   value: ReaderValidatorInput<T, U>
 ): value is ReaderSchemaLike<U> {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    typeof (value as ReaderSchemaLike<U>).parse === 'function'
-  )
+  if (typeof value !== 'object' || value === null) {
+    return false
+  }
+  const candidate = value as Record<string, unknown>
+  if ('parse' in candidate && typeof candidate.parse === 'function') {
+    return true
+  }
+  if ('assert' in candidate && typeof candidate.assert === 'function') {
+    return true
+  }
+  return false
 }
+
+function hasParse<U>(value: ReaderSchemaLike<U>): value is ReaderParseLike<U> {
+  return typeof (value as ReaderParseLike<U>).parse === 'function'
+}
+
+function hasAssert<U>(value: ReaderSchemaLike<U>): value is ReaderAssertLike<U> {
+  return typeof (value as ReaderAssertLike<U>).assert === 'function'
+}
+
+const readerValidatorSchemaError =
+  'reader.validator expects a function or an object with parse/assert methods.'
 
 function normalizeReaderValidator<T, U>(
   validator?: ReaderValidatorInput<T, U>
@@ -633,12 +749,33 @@ function normalizeReaderValidator<T, U>(
   if (!validator) {
     return undefined
   }
-  if (isReaderSchemaLike(validator)) {
-    const schema = validator
-    return (value: T) =>
-      schema.parse(value as Parameters<typeof schema.parse>[0])
+  if (typeof validator === 'function') {
+    return validator
   }
-  return validator
+  if (!isReaderSchemaLike(validator)) {
+    throw new Error(readerValidatorSchemaError)
+  }
+
+  if (hasParse(validator)) {
+    const parser = validator.parse
+    return (value: T) =>
+      parser(value as Parameters<typeof parser>[0])
+  }
+
+  if (hasAssert(validator)) {
+    const assertFn = validator.assert
+    return (value: T) => {
+      const asserted = assertFn(
+        value as Parameters<typeof assertFn>[0]
+      )
+      if (asserted !== undefined) {
+        return asserted as U
+      }
+      return value as unknown as U
+    }
+  }
+
+  throw new Error(readerValidatorSchemaError)
 }
 
 function composeValidators<T, U, V>(
@@ -960,22 +1097,7 @@ function getOrCreateEntity<T>(
   mapping: RowMapping<T>,
   cache: Map<RowMapping<any>, Map<string, unknown>>
 ): { entity: T; isNew: boolean; keyString: string } {
-  const keyValue = mapping.readKeyValue(ctx)
-  if (keyValue === undefined || keyValue === null) {
-    throw new Error(
-      `Missing key column for mapping "${mapping.name}" during recursion.`
-    )
-  }
-
-  let keyString: string
-  try {
-    keyString = stringifyKey(keyValue)
-  } catch (error) {
-    const detail = error instanceof Error && error.message ? ` (${error.message})` : ''
-    throw new Error(
-      `Row mapping "${mapping.name}" key must be JSON-serializable${detail}.`
-    )
-  }
+  const keyString = normalizeRowKey(mapping.readKeyValue(ctx), mapping, ctx)
   let entitySet = cache.get(mapping)
   if (!entitySet) {
     entitySet = new Map()
@@ -1027,24 +1149,30 @@ function hydrateParents<T>(
       )
     }
 
-    const parentKeyColumn = parent.parent.resolveColumnName(parent.parent.key)
-    const normalizedParentKeyColumn = parentKeyColumn.toLowerCase()
-    if (!ctx.normalizedColumns.has(normalizedParentKeyColumn)) {
-      missingParentKeyColumn(
-        mapping.name,
-        parent.propertyName,
-        parent.parent.name,
-        parentKeyColumn
-      )
+    const parentKeyColumns = resolveParentKeyColumns(parent.parent)
+    for (const parentKeyColumn of parentKeyColumns) {
+      const normalizedParentKeyColumn = parentKeyColumn.toLowerCase()
+      if (!ctx.normalizedColumns.has(normalizedParentKeyColumn)) {
+        missingParentKeyColumn(
+          mapping.name,
+          parent.propertyName,
+          parent.parent.name,
+          parentKeyColumn
+        )
+      }
     }
-    const parentKeyValue = getRowValue(ctx, parentKeyColumn)
 
-    if (parentKeyValue === undefined || parentKeyValue === null) {
+    const missingValueColumn = parentKeyColumns.find((parentKeyColumn) => {
+      const parentKeyValue = getRowValue(ctx, parentKeyColumn)
+      return parentKeyValue === undefined || parentKeyValue === null
+    })
+
+    if (missingValueColumn) {
       if (parent.optional) {
         continue
       }
       throw new Error(
-        `Missing key column "${parentKeyColumn}" for parent mapping "${parent.parent.name}"`
+        `Missing key column "${missingValueColumn}" for parent mapping "${parent.parent.name}"`
       )
     }
 
@@ -1058,6 +1186,37 @@ function hydrateParents<T>(
     )
     ;(entity as Record<string, unknown>)[parent.propertyName] = parentEntity
   }
+}
+
+function resolveParentKeyColumns(mapping: RowMapping<any>): readonly string[] {
+  const explicitColumns = mapping.keyColumnNames
+  if (explicitColumns && explicitColumns.length > 0) {
+    return explicitColumns
+  }
+
+  const descriptor = mapping.key as RowMappingKey<unknown>
+  if (isKeyExtractor(descriptor)) {
+    throw new Error(
+      `RowMapping "${mapping.name}" exposes a derived key function that cannot be referenced by belongsTo relations.`
+    )
+  }
+
+  if (Array.isArray(descriptor)) {
+    if (descriptor.length === 0) {
+      throw new Error(
+        `RowMapping "${mapping.name}" composite key must include at least one column.`
+      )
+    }
+    return descriptor.map((column) => mapping.resolveColumnName(column))
+  }
+
+  if (typeof descriptor !== 'string') {
+    throw new Error(
+      `RowMapping "${mapping.name}" key descriptor must be a property name when not derived or composite.`
+    )
+  }
+
+  return [mapping.resolveColumnName(descriptor)]
 }
 
 function createRowContext(row: Row): RowContext {
@@ -1074,6 +1233,25 @@ function getRowValue(ctx: RowContext, columnName: string): unknown {
     return undefined
   }
   return ctx.row[actual]
+}
+
+function lookupRowColumn(
+  ctx: RowContext,
+  columnName: string
+): { found: boolean; value: unknown } {
+  const normalizedKey = columnName.toLowerCase()
+  const actual = ctx.normalizedColumns.get(normalizedKey)
+  if (actual) {
+    return { found: true, value: ctx.row[actual] }
+  }
+
+  for (const column of Object.keys(ctx.row)) {
+    if (column.toLowerCase() === normalizedKey) {
+      return { found: true, value: ctx.row[column] }
+    }
+  }
+
+  return { found: false, value: undefined }
 }
 
 function coerceColumnValue(value: unknown): unknown {
@@ -1113,15 +1291,106 @@ function coerceColumnValue(value: unknown): unknown {
 const isoDateTimeRegex =
   /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(?:\.\d{1,9})?)?(Z|[+-]\d{2}:?\d{2})$/
 
-function stringifyKey(value: unknown): string {
-  if (typeof value === 'object' && value !== null) {
-    try {
-      return JSON.stringify(value)
-    } catch {
-    throw new Error('Row mapping key must be JSON-serializable.')
-    }
+function normalizeRowKey(
+  value: KeyValue | undefined,
+  mapping: RowMapping<any>,
+  ctx: RowContext
+): string {
+  if (value === undefined || value === null) {
+    throwMissingKeyValue(mapping, ctx)
   }
-  return String(value)
+
+  if (!Array.isArray(value)) {
+    return serializeKeyComponent(
+      value as KeyPrimitive,
+      mapping,
+      ctx,
+      0,
+      mapping.keyColumnNames?.[0]
+    )
+  }
+
+  if (value.length === 0) {
+    throw new Error(
+      `Composite key for mapping "${mapping.name}" (${mapping.keyDescription}) must include at least one value.`
+    )
+  }
+
+  return value
+    .map((component, index) =>
+      serializeKeyComponent(
+        component,
+        mapping,
+        ctx,
+        index,
+        mapping.keyColumnNames?.[index]
+      )
+    )
+    .join('|')
+}
+
+function serializeKeyComponent(
+  component: KeyPrimitive | undefined,
+  mapping: RowMapping<any>,
+  ctx: RowContext,
+  index: number,
+  columnName?: string
+): string {
+  if (component === undefined || component === null) {
+    throwMissingKeyValue(mapping, ctx, columnName ?? mapping.keyColumnNames?.[index])
+  }
+
+  if (typeof component === 'string') {
+    return `s:${component.length}:${component}`
+  }
+
+  if (typeof component === 'number') {
+    if (!Number.isFinite(component)) {
+      throw new Error(
+        `Row mapping "${mapping.name}" key component ${
+          index + 1
+        } must be a finite number.`
+      )
+    }
+    return `n:${component}`
+  }
+
+  if (typeof component === 'bigint') {
+    return `b:${component}`
+  }
+
+  throw new Error(
+    `Row mapping "${mapping.name}" key component ${index + 1} must be a string, number, or bigint.`
+  )
+}
+
+function throwMissingKeyColumn(
+  mapping: RowMapping<any, RowMappingKey<any>>,
+  columnName: string,
+  ctx: RowContext
+): never {
+  const descriptor = mapping.keyDescription
+  throw new Error(
+    `${mapping.name}: Missing key column "${columnName}" (${descriptor}) in row ${JSON.stringify(
+      ctx.row
+    )}`
+  )
+}
+
+function throwMissingKeyValue(
+  mapping: RowMapping<any, RowMappingKey<any>>,
+  ctx: RowContext,
+  columnName?: string
+): never {
+  const descriptor = mapping.keyDescription
+  const columnInfo = columnName
+    ? ` for column "${columnName}"`
+    : ''
+  throw new Error(
+    `${mapping.name}: Missing key value${columnInfo} (${descriptor}) in row ${JSON.stringify(
+      ctx.row
+    )}`
+  )
 }
 
 function missingLocalKey(
@@ -1197,6 +1466,11 @@ function toSnakeCase(value: string): string {
     .replace(/__+/g, '_')
     .toLowerCase()
     .replace(/^_+/, '')
+}
+
+export const __internal = {
+  normalizeKeyValue,
+  normalizeKeyFromRow,
 }
                   
 
