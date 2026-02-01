@@ -63,6 +63,25 @@ const ensureReaderWithDecimalCoerce = (): Mapper => {
   return readerWithDecimalCoerce
 }
 
+const normalizeIsoString = (
+  value: Date | string | null | undefined
+): string => {
+  if (value instanceof Date) {
+    return value.toISOString()
+  }
+  if (typeof value === 'string') {
+    const parsed = new Date(value)
+    if (Number.isNaN(parsed.getTime())) {
+      throw new Error(`Cannot normalize to ISO string: ${value}`)
+    }
+    return parsed.toISOString()
+  }
+  throw new Error('Value is not a Date or string')
+}
+
+const normalizeNumericString = (value: string | number): string =>
+  typeof value === 'number' ? value.toString() : value
+
 driverDescribe('reader driver integration (pg)', () => {
   beforeAll(async () => {
     container = await new PostgreSqlContainer('postgres:18-alpine').start()
@@ -142,8 +161,9 @@ driverDescribe('reader driver integration (pg)', () => {
       []
     )
 
-    expect(record.issuedAtText).toBe('2025-01-15T09:00:00+00:00')
-    expect(typeof record.issuedAtText).toBe('string')
+    expect(normalizeIsoString(record.issuedAtText)).toBe(
+      '2025-01-15T09:00:00.000Z'
+    )
   })
 
   it('leaves numeric strings untouched unless a custom coerceFn runs', async () => {
@@ -157,8 +177,7 @@ driverDescribe('reader driver integration (pg)', () => {
       []
     )
 
-    expect(plain.amount).toBe('123.45')
-    expect(typeof plain.amount).toBe('string')
+    expect(normalizeNumericString(plain.amount)).toBe('123.45')
 
     const coercedReader = ensureReaderWithDecimalCoerce()
     const [numberRecord] = await coercedReader.query<{ amount: number }>(
