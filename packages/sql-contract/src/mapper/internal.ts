@@ -2,7 +2,7 @@ import type { KeyExtractor, KeyValue, Row } from './index'
 
 type KeyPrimitive = string | number | bigint
 
-function assertPrimitive(component: KeyPrimitive | undefined | null): KeyPrimitive {
+function assertPrimitive(component: unknown): KeyPrimitive {
   if (component === undefined || component === null) {
     throw new Error('Internal key component must be defined.')
   }
@@ -70,14 +70,32 @@ function normalizeArrayValue(value: readonly KeyPrimitive[]): string {
   return value.map((component) => serializePrimitive(assertPrimitive(component))).join('|')
 }
 
+/**
+ * Serializes a key value so it can act as a deterministic cache identifier.
+ * Array values are flattened, and each component is tagged with its runtime
+ * type to keep string/number/bigint collisions distinct (e.g., "1" vs 1).
+ *
+ * @param value - A primitive or composite key value produced by a mapping.
+ * @returns A stable string representation that preserves component order and types.
+ * @throws If the provided value is null, undefined, or not a supported primitive.
+ */
 export function normalizeKeyValue(value: KeyValue): string {
   if (Array.isArray(value)) {
     return normalizeArrayValue(value)
   }
-  const primitiveValue = value as KeyPrimitive
-  return serializePrimitive(assertPrimitive(primitiveValue))
+  const primitiveValue = assertPrimitive(value)
+  return serializePrimitive(primitiveValue)
 }
 
+/**
+ * Extracts and normalizes a key from a database row using the supplied descriptor.
+ *
+ * @param row - The raw database row whose column names may still be snake_case.
+ * @param key - A property name, an ordered list of column names (for composites), or a key extractor.
+ * @param mappingName - Reserved for error-context messaging when columns are missing.
+ * @returns A deterministic string form of the key that preserves component ordering and types.
+ * @throws If required columns are missing or contain null/undefined values.
+ */
 export function normalizeKeyFromRow(
   row: Row,
   key: string | readonly string[] | KeyExtractor<Row>,
@@ -88,16 +106,11 @@ export function normalizeKeyFromRow(
   }
 
   if (Array.isArray(key)) {
-    const columns = key as readonly string[]
-    const values = columns.map((column) =>
-      assertPrimitive(lookupColumnValue(row, column) as KeyPrimitive)
-    )
+    const values = key.map((column) => assertPrimitive(lookupColumnValue(row, column)))
     return normalizeArrayValue(values)
   }
 
   const columnKey = key as string
-  const component = assertPrimitive(
-    lookupColumnValue(row, columnKey) as KeyPrimitive
-  )
+  const component = assertPrimitive(lookupColumnValue(row, columnKey))
   return serializePrimitive(component)
 }

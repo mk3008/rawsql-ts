@@ -77,10 +77,19 @@ export interface MapperOptions {
   }) => unknown
 }
 
+/** Primitive types that can appear in row keys. */
 export type KeyPrimitive = string | number | bigint
+/** A key value: either a single primitive or an ordered list for composites. */
 export type KeyValue = KeyPrimitive | readonly KeyPrimitive[]
+/** Extracts a key value from a row. */
 export type KeyExtractor<T> = (row: T) => KeyValue
 
+/**
+ * Describes how a row mapping derives its key.
+ * - A property name resolves via `resolveColumnName`.
+ * - An array lists explicit column names for composites.
+ * - A key extractor derives the key from a row object.
+ */
 export type RowMappingKey<T> =
   | Extract<keyof T, string>
   | readonly string[]
@@ -145,7 +154,6 @@ export const mapperPresets = {
     return {
       keyTransform: 'snake_to_camel',
       coerceDates: true,
-      coerceFn: ({ value }) => coerceColumnValue(value),
     }
   },
 }
@@ -355,10 +363,16 @@ export class RowMapping<
     return this.keyExtractor(ctx)
   }
 
+  /**
+   * Returns a human-readable description of the key for error reporting.
+   */
   get keyDescription(): string {
     return this.keyDescriptor
   }
 
+  /**
+   * Lists the resolved key column names, if the key is not derived.
+   */
   get keyColumnNames(): readonly string[] | undefined {
     return this.keyColumns
   }
@@ -1132,26 +1146,30 @@ function hydrateParents<T>(
       )
     }
 
-    const parentKeyColumn = parent.parent.resolveColumnName(
-      parent.parent.key as string
-    )
-    const normalizedParentKeyColumn = parentKeyColumn.toLowerCase()
-    if (!ctx.normalizedColumns.has(normalizedParentKeyColumn)) {
-      missingParentKeyColumn(
-        mapping.name,
-        parent.propertyName,
-        parent.parent.name,
-        parentKeyColumn
-      )
+    const parentKeyColumns = resolveParentKeyColumns(parent.parent)
+    for (const parentKeyColumn of parentKeyColumns) {
+      const normalizedParentKeyColumn = parentKeyColumn.toLowerCase()
+      if (!ctx.normalizedColumns.has(normalizedParentKeyColumn)) {
+        missingParentKeyColumn(
+          mapping.name,
+          parent.propertyName,
+          parent.parent.name,
+          parentKeyColumn
+        )
+      }
     }
-    const parentKeyValue = getRowValue(ctx, parentKeyColumn)
 
-    if (parentKeyValue === undefined || parentKeyValue === null) {
+    const missingValueColumn = parentKeyColumns.find((parentKeyColumn) => {
+      const parentKeyValue = getRowValue(ctx, parentKeyColumn)
+      return parentKeyValue === undefined || parentKeyValue === null
+    })
+
+    if (missingValueColumn) {
       if (parent.optional) {
         continue
       }
       throw new Error(
-        `Missing key column "${parentKeyColumn}" for parent mapping "${parent.parent.name}"`
+        `Missing key column "${missingValueColumn}" for parent mapping "${parent.parent.name}"`
       )
     }
 
@@ -1165,6 +1183,37 @@ function hydrateParents<T>(
     )
     ;(entity as Record<string, unknown>)[parent.propertyName] = parentEntity
   }
+}
+
+function resolveParentKeyColumns(mapping: RowMapping<any>): readonly string[] {
+  const explicitColumns = mapping.keyColumnNames
+  if (explicitColumns && explicitColumns.length > 0) {
+    return explicitColumns
+  }
+
+  const descriptor = mapping.key as RowMappingKey<unknown>
+  if (isKeyExtractor(descriptor)) {
+    throw new Error(
+      `RowMapping "${mapping.name}" exposes a derived key function that cannot be referenced by belongsTo relations.`
+    )
+  }
+
+  if (Array.isArray(descriptor)) {
+    if (descriptor.length === 0) {
+      throw new Error(
+        `RowMapping "${mapping.name}" composite key must include at least one column.`
+      )
+    }
+    return descriptor.map((column) => mapping.resolveColumnName(column))
+  }
+
+  if (typeof descriptor !== 'string') {
+    throw new Error(
+      `RowMapping "${mapping.name}" key descriptor must be a property name when not derived or composite.`
+    )
+  }
+
+  return [mapping.resolveColumnName(descriptor)]
 }
 
 function createRowContext(row: Row): RowContext {
