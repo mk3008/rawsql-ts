@@ -9,7 +9,7 @@
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
     "test:workspaces": "pnpm -r --if-present test",
-    "typecheck": "tsc --build tsconfig.json --noEmit",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
     "bench:test": "pnpm --filter @rawsql-ts/sql-unit-test-bench test",
     "test:watch:workspaces": "pnpm -r --if-present test:watch",
     "coverage:workspaces": "pnpm -r --if-present coverage",
