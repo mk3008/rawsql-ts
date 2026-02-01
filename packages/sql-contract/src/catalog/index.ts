@@ -101,9 +101,13 @@ export class CatalogError extends Error {
   }
 }
 
+/** Wraps failures encountered while loading catalog SQL assets. */
 export class SQLLoaderError extends CatalogError {}
+/** Wraps failures thrown by catalog rewriters. */
 export class RewriterError extends CatalogError {}
+/** Wraps binder failures or invalid binder output. */
 export class BinderError extends CatalogError {}
+/** Wraps failures from the query executor or result shaping. */
 export class CatalogExecutionError extends CatalogError {}
 
 function assertPositionalParams(
@@ -175,7 +179,7 @@ export function createCatalogExecutor(
     spec: QuerySpec<P, R>
   ): Promise<string> {
     const cached = cache.get(spec.sqlFile)
-    if (cached) {
+    if (cached !== undefined) {
       return cached
     }
     try {
