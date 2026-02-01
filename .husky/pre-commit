@@ -4,6 +4,9 @@ set -e
 
 echo "[pre-commit] Running checks..."
 
+echo "[pre-commit] Running typecheck..."
+pnpm typecheck
+
 echo "[pre-commit] Running tests..."
 pnpm test
 
