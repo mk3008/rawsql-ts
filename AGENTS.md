@@ -110,6 +110,7 @@ This repository enforces docstring coverage in CI.
 - When you **add a new exported symbol** in `src/` (class, function, type, interface, enum, etc.):
   - Always add English JSDoc in the same commit.
   - The JSDoc should briefly explain the role of the API and how to consume it.
+- 公開 API には必ず JSDoc を追加する。Always add JSDoc for public API exports to prevent missing documentation.
 - When you **modify an exported symbol**:
   - Update the existing docstring to keep it truthful.
   - Never delete a docstring merely to keep the diff small.
