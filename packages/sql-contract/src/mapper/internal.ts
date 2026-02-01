@@ -53,14 +53,19 @@ function toCamelCase(value: string): string {
     .join('')
 }
 
-function lookupColumnValue(row: Row, columnName: string): unknown {
+function lookupColumnValue(
+  row: Row,
+  columnName: string,
+  mappingName?: string
+): unknown {
   const normalizedKey = columnName.toLowerCase()
   for (const column of Object.keys(row)) {
     if (column.toLowerCase() === normalizedKey) {
       return row[column]
     }
   }
-  throw new Error(`Missing key column "${columnName}"`)
+  const context = mappingName ? ` for mapping "${mappingName}"` : ''
+  throw new Error(`Missing key column "${columnName}"${context}`)
 }
 
 function normalizeArrayValue(value: readonly KeyPrimitive[]): string {
@@ -92,7 +97,7 @@ export function normalizeKeyValue(value: KeyValue): string {
  *
  * @param row - The raw database row whose column names may still be snake_case.
  * @param key - A property name, an ordered list of column names (for composites), or a key extractor.
- * @param mappingName - Reserved for error-context messaging when columns are missing.
+ * @param mappingName - Included in error-context messaging when required columns are missing.
  * @returns A deterministic string form of the key that preserves component ordering and types.
  * @throws If required columns are missing or contain null/undefined values.
  */
@@ -106,11 +111,15 @@ export function normalizeKeyFromRow(
   }
 
   if (Array.isArray(key)) {
-    const values = key.map((column) => assertPrimitive(lookupColumnValue(row, column)))
+    const values = key.map((column) =>
+      assertPrimitive(lookupColumnValue(row, column, mappingName))
+    )
     return normalizeArrayValue(values)
   }
 
   const columnKey = key as string
-  const component = assertPrimitive(lookupColumnValue(row, columnKey))
+  const component = assertPrimitive(
+    lookupColumnValue(row, columnKey, mappingName)
+  )
   return serializePrimitive(component)
 }

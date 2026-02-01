@@ -246,10 +246,13 @@ export class RowMapping<
           `RowMapping "${this.name}" composite key must include at least one column.`
         )
       }
-      this.keyColumns = columns
+      const resolvedColumns = columns.map((column) =>
+        this.resolveColumnName(column)
+      )
+      this.keyColumns = resolvedColumns
       this.keyDescriptor = `columns ${columns.join(', ')}`
       this.keyExtractor = (ctx) =>
-        columns.map((column) => {
+        resolvedColumns.map((column) => {
           const { found, value } = lookupRowColumn(ctx, column)
           if (!found) {
             throwMissingKeyColumn(this, column, ctx)
