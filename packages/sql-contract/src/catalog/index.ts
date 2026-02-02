@@ -14,6 +14,9 @@ export type QuerySpec<P extends QueryParams = QueryParams, R = Row> = {
   }
   output: {
     mapping?: RowMapping<R>
+    /**
+     * Receives each mapped DTO for list/one executions, or the extracted scalar value for scalar().
+     */
     validate?: (row: unknown) => R
     example: R
   }
@@ -23,6 +26,84 @@ export type QuerySpec<P extends QueryParams = QueryParams, R = Row> = {
     allow?: unknown
     optionsExample?: unknown
   }
+}
+
+export type ParamsShape = 'positional' | 'named' | 'unknown'
+
+export interface ExecInput<P extends QueryParams = QueryParams> {
+  specId: string
+  sqlFile: string
+  params: P
+  options?: unknown
+  execId: string
+  attempt: number
+}
+
+export interface ExecOutput<R> {
+  value: R
+  rowCount?: number
+}
+
+export type ExecFn<P extends QueryParams = QueryParams, R = Row> = (
+  input: ExecInput<P>
+) => Promise<ExecOutput<R>>
+
+export interface Extension {
+  name: string
+  wrap<P extends QueryParams, R>(next: ExecFn<P, R>): ExecFn<P, R>
+}
+
+export type QueryErrorKind = 'db' | 'contract' | 'unknown'
+
+export interface ObservabilityEventBase {
+  kind: 'query_start' | 'query_end' | 'query_error'
+  specId: string
+  sqlFile: string
+  execId: string
+  attempt: number
+  timeMs: number
+  attributes?: Record<string, string>
+}
+
+export interface QueryStartEvent extends ObservabilityEventBase {
+  kind: 'query_start'
+  sqlPreview: string
+  paramsShape: ParamsShape
+}
+
+export interface QueryEndEvent extends ObservabilityEventBase {
+  kind: 'query_end'
+  rowCount: number
+  durationMs: number
+}
+
+export interface QueryErrorEvent extends ObservabilityEventBase {
+  kind: 'query_error'
+  durationMs: number
+  errorKind: QueryErrorKind
+  errorMessage: string
+}
+
+export type ObservabilityEvent =
+  | QueryStartEvent
+  | QueryEndEvent
+  | QueryErrorEvent
+
+export interface ObservabilitySink {
+  emit(event: ObservabilityEvent): void
+}
+
+type ExecutionSnapshot = {
+  sql: string
+  params: QueryParams
+  paramsShape: ParamsShape
+  startTime: number
+}
+
+let execIdCounter = 0
+function createExecId(): string {
+  execIdCounter += 1
+  return `catalog-exec-${Date.now()}-${execIdCounter}`
 }
 
 /**
@@ -107,7 +188,12 @@ export class SQLLoaderError extends CatalogError {}
 export class RewriterError extends CatalogError {}
 /** Wraps binder failures or invalid binder output. */
 export class BinderError extends CatalogError {}
-/** Wraps failures from the query executor or result shaping. */
+/** Captures violations of the declared query/catalog contract before hitting the executor. */
+export class ContractViolationError extends CatalogError {}
+/** Wraps failures from the query executor or result shaping.
+ * Contract violations must throw `ContractViolationError` instead so observability
+ * can consistently classify them as `contract`.
+ */
 export class CatalogExecutionError extends CatalogError {}
 
 function assertPositionalParams(
@@ -115,7 +201,7 @@ function assertPositionalParams(
   params: unknown
 ): unknown[] {
   if (!Array.isArray(params)) {
-    throw new CatalogExecutionError(
+    throw new ContractViolationError(
       `Spec "${specId}" expects positional parameters.`,
       specId
     )
@@ -123,21 +209,26 @@ function assertPositionalParams(
   return params
 }
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    return false
+  }
+  const proto = Object.getPrototypeOf(value)
+  // Accept `{}`-like objects and those created via Object.create(null).
+  return proto === Object.prototype || proto === null
+}
+
 function assertNamedParams(
   specId: string,
   params: unknown
 ): Record<string, unknown> {
-  if (
-    params === null ||
-    typeof params !== 'object' ||
-    Array.isArray(params)
-  ) {
-    throw new CatalogExecutionError(
+  if (!isPlainObject(params)) {
+    throw new ContractViolationError(
       `Spec "${specId}" expects named parameters.`,
       specId
     )
   }
-  return params as Record<string, unknown>
+  return params
 }
 
 function assertParamsShape<P extends QueryParams, R>(
@@ -161,6 +252,8 @@ export interface CatalogExecutorOptions {
   binders?: Binder[]
   sqlCache?: Map<string, string>
   allowNamedParamsWithoutBinder?: boolean
+  extensions?: Extension[]
+  observabilitySink?: ObservabilitySink
 }
 
 /**
@@ -174,6 +267,8 @@ export function createCatalogExecutor(
   const rewriters = options.rewriters ?? []
   const binders = options.binders ?? []
   const allowNamedWithoutBinder = options.allowNamedParamsWithoutBinder ?? false
+  const extensions = options.extensions ?? []
+  const sink = options.observabilitySink
 
   async function loadSql<P extends QueryParams, R>(
     spec: QuerySpec<P, R>
@@ -202,10 +297,10 @@ export function createCatalogExecutor(
     if (Array.isArray(value)) {
       return value
     }
-    if (value && typeof value === 'object') {
-      return value as Record<string, unknown>
+    if (isPlainObject(value)) {
+      return value
     }
-    throw new CatalogExecutionError(
+    throw new ContractViolationError(
       `Parameters must be positional or named (array or record).`,
       specId
     )
@@ -295,11 +390,110 @@ export function createCatalogExecutor(
     }
   }
 
+  function describeParamsShape(params: QueryParams): ParamsShape {
+    if (Array.isArray(params)) {
+      return 'positional'
+    }
+    if (isPlainObject(params)) {
+      return 'named'
+    }
+    return 'unknown'
+  }
+
+  function createSqlPreview(sql: string): string {
+    const maxLength = 2_048
+    return sql.length <= maxLength ? sql : sql.slice(0, maxLength)
+  }
+
+  function getErrorKind(error: unknown): QueryErrorKind {
+    if (error instanceof CatalogExecutionError) {
+      return 'db'
+    }
+    if (error instanceof CatalogError) {
+      return 'contract'
+    }
+    return 'unknown'
+  }
+
+  function emitQueryStartEvent(
+    spec: QuerySpec<any, any>,
+    execId: string,
+    attempt: number,
+    snapshot: ExecutionSnapshot
+  ): void {
+    if (!sink) {
+      return
+    }
+    sink.emit({
+      kind: 'query_start',
+      specId: spec.id,
+      sqlFile: spec.sqlFile,
+      execId,
+      attempt,
+      timeMs: snapshot.startTime,
+      attributes: spec.tags,
+      sqlPreview: createSqlPreview(snapshot.sql),
+      paramsShape: snapshot.paramsShape,
+    })
+  }
+
+  function emitQueryEndEvent(
+    spec: QuerySpec<any, any>,
+    execId: string,
+    attempt: number,
+    baseStartTime: number,
+    rowCount: number
+  ): void {
+    if (!sink) {
+      return
+    }
+    const now = Date.now()
+    sink.emit({
+      kind: 'query_end',
+      specId: spec.id,
+      sqlFile: spec.sqlFile,
+      execId,
+      attempt,
+      timeMs: now,
+      attributes: spec.tags,
+      durationMs: Math.max(now - baseStartTime, 0),
+      rowCount,
+    })
+  }
+
+  function emitQueryErrorEvent(
+    spec: QuerySpec<any, any>,
+    execId: string,
+    attempt: number,
+    baseStartTime: number,
+    error: unknown
+  ): void {
+    if (!sink) {
+      return
+    }
+    const now = Date.now()
+    sink.emit({
+      kind: 'query_error',
+      specId: spec.id,
+      sqlFile: spec.sqlFile,
+      execId,
+      attempt,
+      timeMs: now,
+      attributes: spec.tags,
+      durationMs: Math.max(now - baseStartTime, 0),
+      errorKind: getErrorKind(error),
+      errorMessage:
+        error instanceof Error ? error.message : String(error ?? 'unknown'),
+    })
+  }
+
   async function executeRows<P extends QueryParams, R>(
     spec: QuerySpec<P, R>,
     params: P,
-    executionOptions?: unknown
-  ): Promise<Row[]> {
+    executionOptions: unknown,
+    execId: string,
+    attempt: number
+  ): Promise<{ rows: Row[]; snapshot?: ExecutionSnapshot }> {
     const validatedParams = assertParamsShape(
       spec.id,
       spec.params.shape,
@@ -319,8 +513,17 @@ export function createCatalogExecutor(
     )
     assertNamedAllowed(spec, binders, allowNamedWithoutBinder)
     const bound = applyBinders(spec, rewritten.sql, rewrittenParams)
+    const paramsShape = describeParamsShape(bound.params)
+    const snapshot: ExecutionSnapshot = {
+      sql: bound.sql,
+      params: bound.params,
+      paramsShape,
+      startTime: Date.now(),
+    }
+    emitQueryStartEvent(spec, execId, attempt, snapshot)
     try {
-      return await options.executor(bound.sql, bound.params)
+      const rows = await options.executor(bound.sql, bound.params)
+      return { rows, snapshot }
     } catch (cause) {
       throw new CatalogExecutionError(
         `Query executor failed while processing catalog spec "${spec.id}".`,
@@ -328,6 +531,56 @@ export function createCatalogExecutor(
         cause
       )
     }
+  }
+
+  function createPipelineExec<P extends QueryParams, R, Result>(
+    spec: QuerySpec<P, R>,
+    finalize: (rows: Row[]) => Result
+  ): ExecFn<P, Result> {
+    return async (input) => {
+      const invocationStart = Date.now()
+      let snapshot: ExecutionSnapshot | undefined
+      try {
+        const { rows, snapshot: rowSnapshot } = await executeRows(
+          spec,
+          input.params,
+          input.options,
+          input.execId,
+          input.attempt
+        )
+        snapshot = rowSnapshot
+        const value = finalize(rows)
+        const durationBase = snapshot?.startTime ?? invocationStart
+        // durationMs reflects the executor round-trip after loading/rewriting/binding SQL.
+        emitQueryEndEvent(
+          spec,
+          input.execId,
+          input.attempt,
+          durationBase,
+          rows.length
+        )
+        return { value, rowCount: rows.length }
+      } catch (error) {
+        const durationBase = snapshot?.startTime ?? invocationStart
+        emitQueryErrorEvent(
+          spec,
+          input.execId,
+          input.attempt,
+          durationBase,
+          error
+        )
+        throw error
+      }
+    }
+  }
+
+  function wrapWithExtensions<P extends QueryParams, R>(
+    core: ExecFn<P, R>
+  ): ExecFn<P, R> {
+    return extensions.reduceRight(
+      (next, extension) => extension.wrap(next),
+      core
+    )
   }
 
   function applyOutputTransformation<P extends QueryParams, R>(
@@ -343,7 +596,7 @@ export function createCatalogExecutor(
       return mappedRows
     }
 
-    // The decoder/validator is applied after mapping.
+    // The decoder/validator runs after mapping so it receives the mapped DTO.
     return mappedRows.map((value) => decode(value))
   }
 
@@ -352,13 +605,13 @@ export function createCatalogExecutor(
     specId: string
   ): R {
     if (rows.length === 0) {
-      throw new CatalogExecutionError(
+      throw new ContractViolationError(
         'Expected exactly one row but received none.',
         specId
       )
     }
     if (rows.length > 1) {
-      throw new CatalogExecutionError(
+      throw new ContractViolationError(
         `Expected exactly one row but received ${rows.length}.`,
         specId
       )
@@ -370,7 +623,7 @@ export function createCatalogExecutor(
     const row = expectExactlyOneRow(rows, specId)
     const columns = Object.keys(row)
     if (columns.length !== 1) {
-      throw new CatalogExecutionError(
+      throw new ContractViolationError(
         `Expected exactly one column but received ${columns.length}.`,
         specId
       )
@@ -396,37 +649,82 @@ export function createCatalogExecutor(
       params: P,
       options?: unknown
     ) {
-      const rows = await executeRows(spec, params, options)
-      return applyOutputTransformation(spec, rows)
+      const exec = wrapWithExtensions(
+        createPipelineExec(spec, (rows) => applyOutputTransformation(spec, rows))
+      )
+      const execId = createExecId()
+      const attempt = 1
+      const result = await exec({
+        specId: spec.id,
+        sqlFile: spec.sqlFile,
+        params,
+        options,
+        execId,
+        attempt,
+      })
+      return result.value
     },
     async one<P extends QueryParams, R>(
       spec: QuerySpec<P, R>,
       params: P,
       options?: unknown
     ) {
-      const rows = await executeRows(spec, params, options)
-      const transformed = applyOutputTransformation(spec, rows)
-      return expectExactlyOneRow(transformed, spec.id)
+      const exec = wrapWithExtensions(
+        createPipelineExec(
+          spec,
+          (rows) =>
+            expectExactlyOneRow(
+              applyOutputTransformation(spec, rows),
+              spec.id
+            )
+        )
+      )
+      const execId = createExecId()
+      const attempt = 1
+      const result = await exec({
+        specId: spec.id,
+        sqlFile: spec.sqlFile,
+        params,
+        options,
+        execId,
+        attempt,
+      })
+      return result.value
     },
     async scalar<P extends QueryParams, R>(
       spec: QuerySpec<P, R>,
       params: P,
       options?: unknown
     ) {
-      const rows = await executeRows(spec, params, options)
-      const value = extractScalar(rows, spec.id)
-      return applyScalarResult(spec, value)
+      const exec = wrapWithExtensions(
+        createPipelineExec(spec, (rows) => {
+          const value = extractScalar(rows, spec.id)
+          return applyScalarResult(spec, value)
+        })
+      )
+      const execId = createExecId()
+      const attempt = 1
+      const result = await exec({
+        specId: spec.id,
+        sqlFile: spec.sqlFile,
+        params,
+        options,
+        execId,
+        attempt,
+      })
+      return result.value
     },
   }
 }
 
+/** Named parameters are forbidden unless a binder is configured or explicit allowance is granted. */
 function assertNamedAllowed<P extends QueryParams, R>(
   spec: QuerySpec<P, R>,
   binders: Binder[],
   allow: boolean
 ): void {
   if (spec.params.shape === 'named' && binders.length === 0 && !allow) {
-    throw new CatalogExecutionError(
+    throw new ContractViolationError(
       `Spec "${spec.id}" declares named parameters without a binder; enable allowNamedParamsWithoutBinder or add a binder.`,
       spec.id
     )
