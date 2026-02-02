@@ -471,7 +471,9 @@ describe('catalog executor', () => {
   it('validates outputs after the executor completes', async () => {
     const loader = { load: vi.fn(() => Promise.resolve('select id from demo')) }
     const executor = vi.fn(() => Promise.resolve([{ id: 1 }]))
-    const validateSpy = vi.fn((row: { id: number }) => row)
+    const validateSpy = vi.fn<(row: unknown) => { id: number }>((row) => {
+      return row as { id: number }
+    })
     const catalog = createCatalogExecutor({ loader, executor })
 
     const spec: QuerySpec<[], { id: number }> = {
