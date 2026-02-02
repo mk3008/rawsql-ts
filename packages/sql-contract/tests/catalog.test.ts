@@ -1,8 +1,16 @@
 import { describe, expect, it, vi } from 'vitest'
-import type { Binder, QuerySpec, Rewriter } from '../src'
+import type {
+  Binder,
+  ObservabilityEvent,
+  ObservabilitySink,
+  QueryStartEvent,
+  QuerySpec,
+  Rewriter,
+} from '../src'
 import {
   BinderError,
   CatalogExecutionError,
+  ContractViolationError,
   createCatalogExecutor,
   rowMapping,
 } from '../src'
@@ -60,7 +68,9 @@ describe('catalog executor', () => {
   })
 
   it('honors rewriters and binders before executing SQL', async () => {
-    const loader = { load: vi.fn(() => Promise.resolve('select value from demo')) }
+    const loader = {
+      load: vi.fn(() => Promise.resolve('select value from demo')),
+    }
     const executor = vi.fn(() => Promise.resolve([{ value: 'ok' }]))
     const rewriter: Rewriter = {
       name: 'append-rewrite',
@@ -103,7 +113,11 @@ describe('catalog executor', () => {
   })
 
   it('applies row mappings before returning list results', async () => {
-    const loader = { load: vi.fn(() => Promise.resolve('select identifier, label from demo')) }
+    const loader = {
+      load: vi.fn(() =>
+        Promise.resolve('select identifier, label from demo')
+      ),
+    }
     const executor = vi.fn(() =>
       Promise.resolve([{ identifier: 1, label: 'demo-label' }])
     )
@@ -137,7 +151,9 @@ describe('catalog executor', () => {
   })
 
   it('validates scalar values before returning the result', async () => {
-    const loader = { load: vi.fn(() => Promise.resolve('select count(*) as value from demo')) }
+    const loader = {
+      load: vi.fn(() => Promise.resolve('select count(*) as value from demo')),
+    }
     const executor = vi.fn(() => Promise.resolve([{ value: '7' }]))
     const catalog = createCatalogExecutor({ loader, executor })
 
@@ -189,7 +205,7 @@ describe('catalog executor', () => {
     }
 
     const positionalAttempt = catalog.scalar(positionalSpec, { value: 1 } as any)
-    await expect(positionalAttempt).rejects.toBeInstanceOf(CatalogExecutionError)
+    await expect(positionalAttempt).rejects.toBeInstanceOf(ContractViolationError)
     await expect(positionalAttempt).rejects.toMatchObject({
       specId: positionalSpec.id,
     })
@@ -204,7 +220,7 @@ describe('catalog executor', () => {
     }
 
     const namedAttempt = catalog.scalar(namedSpec, [] as any)
-    await expect(namedAttempt).rejects.toBeInstanceOf(CatalogExecutionError)
+    await expect(namedAttempt).rejects.toBeInstanceOf(ContractViolationError)
     await expect(namedAttempt).rejects.toMatchObject({
       specId: namedSpec.id,
     })
@@ -225,7 +241,7 @@ describe('catalog executor', () => {
     }
 
     const attempt = catalog.list(spec, { id: 1 } as any)
-    await expect(attempt).rejects.toBeInstanceOf(CatalogExecutionError)
+    await expect(attempt).rejects.toBeInstanceOf(ContractViolationError)
     await expect(attempt).rejects.toMatchObject({ specId: spec.id })
   })
 
@@ -244,7 +260,7 @@ describe('catalog executor', () => {
     }
 
     const attempt = catalog.list(spec, [] as any)
-    await expect(attempt).rejects.toBeInstanceOf(CatalogExecutionError)
+    await expect(attempt).rejects.toBeInstanceOf(ContractViolationError)
     await expect(attempt).rejects.toMatchObject({
       specId: spec.id,
     })
@@ -265,9 +281,12 @@ describe('catalog executor', () => {
     }
 
     const attempt = catalog.list(spec, { id: 1 })
+    await expect(attempt).rejects.toBeInstanceOf(ContractViolationError)
     await expect(attempt).rejects.toMatchObject({
       specId: spec.id,
-      message: expect.stringContaining('declares named parameters without a binder'),
+      message: expect.stringContaining(
+        'declares named parameters without a binder'
+      ),
     })
   })
 
@@ -405,6 +424,75 @@ describe('catalog executor', () => {
     expect(executor).toHaveBeenCalledTimes(1)
   })
 
+  it('emits observability events for list executions', async () => {
+    const events: ObservabilityEvent[] = []
+    const sink: ObservabilitySink = {
+      emit(event) {
+        events.push(event)
+      },
+    }
+    const loader = { load: vi.fn(() => Promise.resolve('select label from demo')) }
+    const executor = vi.fn(() => Promise.resolve([{ label: 'ok' }]))
+    const catalog = createCatalogExecutor({
+      loader,
+      executor,
+      observabilitySink: sink,
+    })
+
+    const spec: QuerySpec<[], { label: string }> = {
+      id: 'demo.observable',
+      sqlFile: 'observe.sql',
+      params: { shape: 'positional', example: [] },
+      output: {
+        example: { label: 'ok' },
+      },
+    }
+
+    await catalog.list(spec, [])
+
+    expect(events.map((event) => event.kind)).toEqual(['query_start', 'query_end'])
+    const [start, end] = events
+    expect(start).toMatchObject({
+      kind: 'query_start',
+      specId: spec.id,
+      sqlFile: spec.sqlFile,
+      attempt: 1,
+    })
+    expect(end).toMatchObject({
+      kind: 'query_end',
+      specId: spec.id,
+      rowCount: 1,
+      attempt: 1,
+    })
+    expect(start.execId).toBe(end.execId)
+    expect((start as QueryStartEvent).paramsShape).toBe('positional')
+  })
+
+  it('validates outputs after the executor completes', async () => {
+    const loader = { load: vi.fn(() => Promise.resolve('select id from demo')) }
+    const executor = vi.fn(() => Promise.resolve([{ id: 1 }]))
+    const validateSpy = vi.fn((row: { id: number }) => row)
+    const catalog = createCatalogExecutor({ loader, executor })
+
+    const spec: QuerySpec<[], { id: number }> = {
+      id: 'demo.validator.order',
+      sqlFile: 'validate.sql',
+      params: { shape: 'positional', example: [] },
+      output: {
+        example: { id: 1 },
+        validate: validateSpy,
+      },
+    }
+
+    await catalog.list(spec, [])
+
+    expect(executor).toHaveBeenCalledTimes(1)
+    expect(validateSpy).toHaveBeenCalledTimes(1)
+    expect(validateSpy.mock.invocationCallOrder[0]).toBeGreaterThan(
+      executor.mock.invocationCallOrder[0]
+    )
+  })
+
   it('named + binder converts to array', async () => {
     const loader = { load: vi.fn(() => Promise.resolve('select id from demo')) }
     const executor = vi.fn(() => Promise.resolve([{ id: 1 }]))
@@ -436,17 +524,13 @@ describe('catalog executor', () => {
       },
     }
 
-    await expect(catalog.list(spec, { id: 1 })).resolves.toEqual([
-      { id: 1 },
-    ])
+    await expect(catalog.list(spec, { id: 1 })).resolves.toEqual([{ id: 1 }])
     expect(executor).toHaveBeenCalledWith('select id from demo -- bound', [1])
   })
 
   it('scalar throws when more than one row is returned', async () => {
     const loader = { load: vi.fn(() => Promise.resolve('select value from demo')) }
-    const executor = vi.fn(() =>
-      Promise.resolve([{ value: 1 }, { value: 2 }])
-    )
+    const executor = vi.fn(() => Promise.resolve([{ value: 1 }, { value: 2 }]))
     const catalog = createCatalogExecutor({ loader, executor })
 
     const spec: QuerySpec<[], number> = {
@@ -459,7 +543,7 @@ describe('catalog executor', () => {
     }
 
     const attempt = catalog.scalar(spec, [])
-    await expect(attempt).rejects.toBeInstanceOf(CatalogExecutionError)
+    await expect(attempt).rejects.toBeInstanceOf(ContractViolationError)
     await expect(attempt).rejects.toMatchObject({
       specId: spec.id,
     })
@@ -480,17 +564,17 @@ describe('catalog executor', () => {
     }
 
     const attempt = catalog.scalar(spec, [])
-    await expect(attempt).rejects.toBeInstanceOf(CatalogExecutionError)
+    await expect(attempt).rejects.toBeInstanceOf(ContractViolationError)
     await expect(attempt).rejects.toMatchObject({
       specId: spec.id,
     })
   })
 
   it('scalar throws when a row contains multiple columns', async () => {
-    const loader = { load: vi.fn(() => Promise.resolve('select value, extra from demo')) }
-    const executor = vi.fn(() =>
-      Promise.resolve([{ value: 1, extra: 2 }])
-    )
+    const loader = {
+      load: vi.fn(() => Promise.resolve('select value, extra from demo')),
+    }
+    const executor = vi.fn(() => Promise.resolve([{ value: 1, extra: 2 }]))
     const catalog = createCatalogExecutor({ loader, executor })
 
     const spec: QuerySpec<[], number> = {
@@ -503,7 +587,7 @@ describe('catalog executor', () => {
     }
 
     const attempt = catalog.scalar(spec, [])
-    await expect(attempt).rejects.toBeInstanceOf(CatalogExecutionError)
+    await expect(attempt).rejects.toBeInstanceOf(ContractViolationError)
     await expect(attempt).rejects.toMatchObject({
       specId: spec.id,
     })

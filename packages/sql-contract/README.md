@@ -98,6 +98,25 @@ Reader executes SELECT queries and maps raw database rows into application-frien
 It supports multiple levels of mapping depending on your needs,
 from quick projections to fully validated domain models.
 
+### Catalog executor: QuerySpec contract and observability
+
+Catalog executor executes queries through a `QuerySpec` instead of running raw
+SQL directly.
+
+A `QuerySpec` defines a stable query contract that couples an SQL file,
+parameter shape, and output rules. By executing queries through this contract,
+the executor can enforce parameter expectations, apply output mapping or
+validation, and provide a stable identity for debugging and observability.
+
+`createCatalogExecutor` is wired with a SQL loader and a concrete query executor,
+and can optionally apply rewriters, binders, SQL caching,
+`allowNamedParamsWithoutBinder`, extensions, or an `observabilitySink`.
+
+When observability is enabled, execution emits lifecycle events
+(`query_start`, `query_end`, `query_error`) including `spec.id`, `sqlFile`,
+and execution identifiers, allowing queries to be traced and debugged by
+specification rather than raw SQL strings.
+
 ---
 
 #### Basic result APIs: one and list

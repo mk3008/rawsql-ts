@@ -120,3 +120,13 @@ This repository enforces docstring coverage in CI.
   - Prefer clarifying intended usage over placeholder text.
 - If a helper is **not meant to be public**:
   - Make it non-exported, or add `@internal` to its docstring rather than leaving an undocumented export.
+
+## Self-Recovery Procedure
+
+If a commit or push fails, follow the Observe → Classify → Fix minimally → Verify → Report playbook:
+
+1. **Observe** by collecting `git status`, `git diff`, `git log -n 3 --oneline`, `pnpm -r test`, `pnpm -r lint --if-present`, `pnpm -r build --if-present`, and any relevant hook logs (`.husky/pre-commit`, `.husky/pre-push`, `core.hooksPath`) plus rerun `git push --verbose` if needed.
+2. **Classify** the failure into one of the predefined buckets (A–G) based on the collected logs.
+3. **Fix minimally** only the files implicated by the failure, without disabling hooks or bypassing policies.
+4. **Verify** by rerunning the failed checks from step 1 and ensuring the workspace is clean.
+5. **Report** the recovery: include failure bucket, root cause, changed files, commands run, and any follow-up recommendations.
