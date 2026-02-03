@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { tableSchemas } from './generated/ztd-row-map.generated';
-import { userAccountWriterColumnSets } from '../src/repositories/user-accounts';
+import { userAccountWriterColumnSets } from '../src/repositories/tables/user-accounts';
 
 const userColumns = new Set(
   Object.keys(tableSchemas['public.user_account'].columns),

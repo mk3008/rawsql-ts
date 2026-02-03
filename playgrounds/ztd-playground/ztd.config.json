@@ -4,6 +4,9 @@
   "testsDir": "tests",
   "ddl": {
     "defaultSchema": "public",
-    "searchPath": ["public"]
-  }
+    "searchPath": [
+      "public"
+    ]
+  },
+  "ddlLint": "strict"
 }

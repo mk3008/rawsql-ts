@@ -5,9 +5,9 @@ export default defineConfig({
     include: ['tests/**/*.test.ts'],
     environment: 'node',
     globals: true,
-    // Starting the Postgres testcontainer can exceed the default 5s timeout on some machines.
+    globalSetup: ['tests/support/global-setup.ts'],
+    // Starting a Postgres testcontainer can exceed the default 5s timeout on some machines.
     testTimeout: 60_000,
     hookTimeout: 60_000,
-    globalSetup: ['tests/support/global-setup.ts'],
   },
 });

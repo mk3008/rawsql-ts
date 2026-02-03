@@ -48,7 +48,7 @@ It is the **single source of truth** for the physical database schema as interpr
   - Do not remove or rewrite existing columns or comments unless explicitly told.
   - Maintain column order and constraint style.
   - Do not introduce schema changes that conflict with existing constraints or indexes.
-- The `public.user_account` and `public.user_profile` tables exist to support the mapper/writer sample; any modification to those tables is a maintenance obligation that requires concurrent updates to `src/repositories/user-accounts.ts` and `tests/writer-constraints.test.ts` so the workflow keeps functioning.
+- The `public.user_account` and `public.user_profile` tables exist to support the mapper/writer sample; any modification to those tables is a maintenance obligation that requires concurrent updates to `src/repositories/views/user-profiles.ts`, `src/repositories/tables/user-accounts.ts`, and `tests/writer-constraints.test.ts` so the workflow keeps functioning.
 - DDL defines physical truth only and MUST NEVER be reshaped to accommodate mapper, writer, or test tooling.
 - Runtime convenience is never a valid reason to alter DDL.
 

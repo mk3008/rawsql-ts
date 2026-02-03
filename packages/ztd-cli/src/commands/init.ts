@@ -93,10 +93,22 @@ type FileKey =
   | 'ztdConfig'
   | 'testsConfig'
   | 'testsAgents'
+  | 'userProfilesTest'
+  | 'writerConstraintsTest'
   | 'testkitClient'
   | 'globalSetup'
   | 'vitestConfig'
   | 'readme'
+  | 'viewSqlReadme'
+  | 'jobSqlReadme'
+  | 'viewsRepoReadme'
+  | 'tablesRepoReadme'
+  | 'jobsReadme'
+  | 'viewSqlSample'
+  | 'viewRepoSample'
+  | 'tableRepoSample'
+  | 'jobSqlSample'
+  | 'jobRunnerSample'
   | 'sqlClient'
   | 'ztdDocsAgent'
   | 'ztdDocsReadme'
@@ -151,6 +163,40 @@ export interface InitCommandOptions {
   dependencies?: Partial<ZtdConfigWriterDependencies>;
   withSqlClient?: boolean;
   withAppInterface?: boolean;
+  forceOverwrite?: boolean;
+  nonInteractive?: boolean;
+}
+
+type ValidatorBackend = 'zod' | 'arktype';
+
+interface OptionalFeatures {
+  validator: ValidatorBackend;
+}
+
+const MANDATORY_TESTKIT_DEPENDENCIES: Record<string, string> = {
+  '@rawsql-ts/adapter-node-pg': '^0.15.1',
+  '@rawsql-ts/testkit-postgres': '^0.15.1'
+};
+const SQL_CONTRACT_DEPENDENCY: Record<string, string> = {
+  '@rawsql-ts/sql-contract': '^0.1.0'
+};
+const ZOD_DEPENDENCY: Record<string, string> = {
+  zod: '^4.3.6'
+};
+const ARKTYPE_DEPENDENCY: Record<string, string> = {
+  arktype: '^2.1.29'
+};
+
+async function gatherOptionalFeatures(
+  prompter: Prompter,
+  _dependencies: ZtdConfigWriterDependencies
+): Promise<OptionalFeatures> {
+  const validatorChoice = await prompter.selectChoice(
+    'Runtime DTO validation is required for ZTD tests. Which validator backend should we install?',
+    ['Zod (zod, recommended)', 'ArkType (arktype)']
+  );
+  const validator: ValidatorBackend = validatorChoice === 0 ? 'zod' : 'arktype';
+  return { validator };
 }
 
 const SAMPLE_SCHEMA = `
@@ -175,16 +221,28 @@ CREATE TABLE public.user_profile (
 const README_TEMPLATE = 'README.md';
 const TESTS_CONFIG_TEMPLATE = 'tests/ztd-layout.generated.ts';
 const TESTS_AGENTS_TEMPLATE = 'tests/AGENTS.md';
+const USER_PROFILES_TEST_TEMPLATE = 'tests/user-profiles.test.ts';
+const WRITER_CONSTRAINTS_TEST_TEMPLATE = 'tests/writer-constraints.test.ts';
 const TESTKIT_CLIENT_TEMPLATE = 'tests/support/testkit-client.ts';
 const GLOBAL_SETUP_TEMPLATE = 'tests/support/global-setup.ts';
 const VITEST_CONFIG_TEMPLATE = 'vitest.config.ts';
 const SQL_CLIENT_TEMPLATE = 'src/db/sql-client.ts';
+const VIEW_SQL_README_TEMPLATE = 'src/sql/views/README.md';
+const JOB_SQL_README_TEMPLATE = 'src/sql/jobs/README.md';
+const VIEWS_REPO_README_TEMPLATE = 'src/repositories/views/README.md';
+const TABLES_REPO_README_TEMPLATE = 'src/repositories/tables/README.md';
+const JOBS_README_TEMPLATE = 'src/jobs/README.md';
+const VIEW_SQL_SAMPLE_TEMPLATE = 'src/sql/views/user-profiles.sql';
+const VIEW_REPO_SAMPLE_TEMPLATE = 'src/repositories/views/user-profiles.ts';
+const TABLE_REPO_SAMPLE_TEMPLATE = 'src/repositories/tables/user-accounts.ts';
+const JOB_SQL_SAMPLE_TEMPLATE = 'src/sql/jobs/refresh-user-accounts.sql';
+const JOB_RUNNER_SAMPLE_TEMPLATE = 'src/jobs/refresh-user-accounts.ts';
 
 const NEXT_STEPS = [
   ' 1. Review the schema files under ztd/ddl/<schema>.sql',
   ' 2. Inspect tests/generated/ztd-layout.generated.ts for the SQL layout',
   ' 3. Run npx ztd ztd-config',
-  ' 4. Run ZTD tests with the testkit-postgres stack'
+  ' 4. Provide a SqlClient implementation (for example by installing an adapter or mock) before running ZTD tests'
 ];
 
 const AGENTS_FILE_CANDIDATES = ['AGENTS.md', 'AGENTS_ztd.md'];
@@ -293,6 +351,10 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     ...DEFAULT_DEPENDENCIES,
     ...(options?.dependencies ?? {})
   };
+  const overwritePolicy = {
+    force: options?.forceOverwrite ?? false,
+    nonInteractive: options?.nonInteractive ?? false
+  };
 
   const schemaFileName = `${DEFAULT_ZTD_CONFIG.ddl.defaultSchema}.sql`;
 
@@ -302,7 +364,19 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     ztdConfig: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'generated', 'ztd-row-map.generated.ts'),
     testsConfig: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'generated', 'ztd-layout.generated.ts'),
     testsAgents: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'AGENTS.md'),
+    userProfilesTest: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'user-profiles.test.ts'),
+    writerConstraintsTest: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'writer-constraints.test.ts'),
     readme: path.join(rootDir, 'README.md'),
+    viewSqlReadme: path.join(rootDir, 'src', 'sql', 'views', 'README.md'),
+    jobSqlReadme: path.join(rootDir, 'src', 'sql', 'jobs', 'README.md'),
+    viewsRepoReadme: path.join(rootDir, 'src', 'repositories', 'views', 'README.md'),
+    tablesRepoReadme: path.join(rootDir, 'src', 'repositories', 'tables', 'README.md'),
+    jobsReadme: path.join(rootDir, 'src', 'jobs', 'README.md'),
+    viewSqlSample: path.join(rootDir, 'src', 'sql', 'views', 'user-profiles.sql'),
+    viewRepoSample: path.join(rootDir, 'src', 'repositories', 'views', 'user-profiles.ts'),
+    tableRepoSample: path.join(rootDir, 'src', 'repositories', 'tables', 'user-accounts.ts'),
+    jobSqlSample: path.join(rootDir, 'src', 'sql', 'jobs', 'refresh-user-accounts.sql'),
+    jobRunnerSample: path.join(rootDir, 'src', 'jobs', 'refresh-user-accounts.ts'),
     sqlClient: path.join(rootDir, 'src', 'db', 'sql-client.ts'),
     testkitClient: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'support', 'testkit-client.ts'),
     globalSetup: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'support', 'global-setup.ts'),
@@ -353,6 +427,7 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
       relativePath('schema'),
       dependencies,
       prompter,
+      overwritePolicy,
       async () => {
         dependencies.ensureDirectory(path.dirname(absolutePaths.schema));
         await dependencies.runPullSchema({
@@ -370,6 +445,7 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
       relativePath('schema'),
       dependencies,
       prompter,
+      overwritePolicy,
       async () => {
         dependencies.ensureDirectory(path.dirname(absolutePaths.schema));
         dependencies.writeFile(absolutePaths.schema, SAMPLE_SCHEMA);
@@ -385,6 +461,7 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     relativePath('config'),
     dependencies,
     prompter,
+    overwritePolicy,
     () => {
       writeZtdProjectConfig(rootDir);
     }
@@ -393,11 +470,14 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
 
   const projectConfig = loadZtdProjectConfig(rootDir);
 
+  const optionalFeatures = await gatherOptionalFeatures(prompter, dependencies);
+
   const ztdConfigTarget = await confirmOverwriteIfExists(
     absolutePaths.ztdConfig,
     relativePath('ztdConfig'),
     dependencies,
-    prompter
+    prompter,
+    overwritePolicy
   );
 
   if (ztdConfigTarget.write) {
@@ -434,10 +514,141 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     README_TEMPLATE,
     dependencies,
     prompter,
+    overwritePolicy,
     true
   );
   if (readmeSummary) {
     summaries.readme = readmeSummary;
+  }
+
+  const viewSqlReadmeSummary = await writeTemplateFile(
+    rootDir,
+    absolutePaths.viewSqlReadme,
+    relativePath('viewSqlReadme'),
+    VIEW_SQL_README_TEMPLATE,
+    dependencies,
+    prompter,
+    overwritePolicy
+  );
+  if (viewSqlReadmeSummary) {
+    summaries.viewSqlReadme = viewSqlReadmeSummary;
+  }
+
+  const jobSqlReadmeSummary = await writeTemplateFile(
+    rootDir,
+    absolutePaths.jobSqlReadme,
+    relativePath('jobSqlReadme'),
+    JOB_SQL_README_TEMPLATE,
+    dependencies,
+    prompter,
+    overwritePolicy
+  );
+  if (jobSqlReadmeSummary) {
+    summaries.jobSqlReadme = jobSqlReadmeSummary;
+  }
+
+  const viewsRepoReadmeSummary = await writeTemplateFile(
+    rootDir,
+    absolutePaths.viewsRepoReadme,
+    relativePath('viewsRepoReadme'),
+    VIEWS_REPO_README_TEMPLATE,
+    dependencies,
+    prompter,
+    overwritePolicy
+  );
+  if (viewsRepoReadmeSummary) {
+    summaries.viewsRepoReadme = viewsRepoReadmeSummary;
+  }
+
+  const tablesRepoReadmeSummary = await writeTemplateFile(
+    rootDir,
+    absolutePaths.tablesRepoReadme,
+    relativePath('tablesRepoReadme'),
+    TABLES_REPO_README_TEMPLATE,
+    dependencies,
+    prompter,
+    overwritePolicy
+  );
+  if (tablesRepoReadmeSummary) {
+    summaries.tablesRepoReadme = tablesRepoReadmeSummary;
+  }
+
+  const jobsReadmeSummary = await writeTemplateFile(
+    rootDir,
+    absolutePaths.jobsReadme,
+    relativePath('jobsReadme'),
+    JOBS_README_TEMPLATE,
+    dependencies,
+    prompter,
+    overwritePolicy
+  );
+  if (jobsReadmeSummary) {
+    summaries.jobsReadme = jobsReadmeSummary;
+  }
+
+  const viewSqlSampleSummary = await writeTemplateFile(
+    rootDir,
+    absolutePaths.viewSqlSample,
+    relativePath('viewSqlSample'),
+    VIEW_SQL_SAMPLE_TEMPLATE,
+    dependencies,
+    prompter,
+    overwritePolicy
+  );
+  if (viewSqlSampleSummary) {
+    summaries.viewSqlSample = viewSqlSampleSummary;
+  }
+
+  const viewRepoSampleSummary = await writeTemplateFile(
+    rootDir,
+    absolutePaths.viewRepoSample,
+    relativePath('viewRepoSample'),
+    VIEW_REPO_SAMPLE_TEMPLATE,
+    dependencies,
+    prompter,
+    overwritePolicy
+  );
+  if (viewRepoSampleSummary) {
+    summaries.viewRepoSample = viewRepoSampleSummary;
+  }
+
+  const tableRepoSampleSummary = await writeTemplateFile(
+    rootDir,
+    absolutePaths.tableRepoSample,
+    relativePath('tableRepoSample'),
+    TABLE_REPO_SAMPLE_TEMPLATE,
+    dependencies,
+    prompter,
+    overwritePolicy
+  );
+  if (tableRepoSampleSummary) {
+    summaries.tableRepoSample = tableRepoSampleSummary;
+  }
+
+  const jobSqlSampleSummary = await writeTemplateFile(
+    rootDir,
+    absolutePaths.jobSqlSample,
+    relativePath('jobSqlSample'),
+    JOB_SQL_SAMPLE_TEMPLATE,
+    dependencies,
+    prompter,
+    overwritePolicy
+  );
+  if (jobSqlSampleSummary) {
+    summaries.jobSqlSample = jobSqlSampleSummary;
+  }
+
+  const jobRunnerSampleSummary = await writeTemplateFile(
+    rootDir,
+    absolutePaths.jobRunnerSample,
+    relativePath('jobRunnerSample'),
+    JOB_RUNNER_SAMPLE_TEMPLATE,
+    dependencies,
+    prompter,
+    overwritePolicy
+  );
+  if (jobRunnerSampleSummary) {
+    summaries.jobRunnerSample = jobRunnerSampleSummary;
   }
 
   if (options?.withSqlClient) {
@@ -458,7 +669,8 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     relativePath('testkitClient'),
     TESTKIT_CLIENT_TEMPLATE,
     dependencies,
-    prompter
+    prompter,
+    overwritePolicy
   );
   if (testkitSummary) {
     summaries.testkitClient = testkitSummary;
@@ -470,7 +682,8 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     relativePath('globalSetup'),
     GLOBAL_SETUP_TEMPLATE,
     dependencies,
-    prompter
+    prompter,
+    overwritePolicy
   );
   if (globalSetupSummary) {
     summaries.globalSetup = globalSetupSummary;
@@ -482,7 +695,8 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     relativePath('vitestConfig'),
     VITEST_CONFIG_TEMPLATE,
     dependencies,
-    prompter
+    prompter,
+    overwritePolicy
   );
   if (vitestConfigSummary) {
     summaries.vitestConfig = vitestConfigSummary;
@@ -494,7 +708,8 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     relativePath('testsConfig'),
     TESTS_CONFIG_TEMPLATE,
     dependencies,
-    prompter
+    prompter,
+    overwritePolicy
   );
   if (testsConfigSummary) {
     summaries.testsConfig = testsConfigSummary;
@@ -507,10 +722,37 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     relativePath('testsAgents'),
     TESTS_AGENTS_TEMPLATE,
     dependencies,
-    prompter
+    prompter,
+    overwritePolicy
   );
   if (testsAgentsSummary) {
     summaries.testsAgents = testsAgentsSummary;
+  }
+
+  const userProfilesTestSummary = await writeTemplateFile(
+    rootDir,
+    absolutePaths.userProfilesTest,
+    relativePath('userProfilesTest'),
+    USER_PROFILES_TEST_TEMPLATE,
+    dependencies,
+    prompter,
+    overwritePolicy
+  );
+  if (userProfilesTestSummary) {
+    summaries.userProfilesTest = userProfilesTestSummary;
+  }
+
+  const writerConstraintsTestSummary = await writeTemplateFile(
+    rootDir,
+    absolutePaths.writerConstraintsTest,
+    relativePath('writerConstraintsTest'),
+    WRITER_CONSTRAINTS_TEST_TEMPLATE,
+    dependencies,
+    prompter,
+    overwritePolicy
+  );
+  if (writerConstraintsTestSummary) {
+    summaries.writerConstraintsTest = writerConstraintsTestSummary;
   }
 
   // Seed the shared guidance that lives inside the ztd/ directory so contributors see the new instructions.
@@ -520,7 +762,8 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     relativePath('ztdDocsAgent'),
     'ztd/AGENTS.md',
     dependencies,
-    prompter
+    prompter,
+    overwritePolicy
   );
   if (ztdDocsAgentSummary) {
     summaries.ztdDocsAgent = ztdDocsAgentSummary;
@@ -533,7 +776,8 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     relativePath('ztdDocsReadme'),
     'ztd/README.md',
     dependencies,
-    prompter
+    prompter,
+    overwritePolicy
   );
   if (ztdDocsReadmeSummary) {
     summaries.ztdDocsReadme = ztdDocsReadmeSummary;
@@ -579,7 +823,12 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     summaries.prettierignore = prettierignoreSummary;
   }
 
-  const packageSummary = ensurePackageJsonFormatting(rootDir, relativePath('package'), dependencies);
+  const packageSummary = ensurePackageJsonFormatting(
+    rootDir,
+    relativePath('package'),
+    dependencies,
+    optionalFeatures
+  );
   if (packageSummary) {
     summaries.package = packageSummary;
   }
@@ -592,7 +841,10 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
 
   await ensureTemplateDependenciesInstalled(rootDir, absolutePaths, summaries, dependencies);
 
-  const summaryLines = buildSummaryLines(summaries as Record<FileKey, FileSummary>);
+  const summaryLines = buildSummaryLines(
+    summaries as Record<FileKey, FileSummary>,
+    optionalFeatures
+  );
   summaryLines.forEach(dependencies.log);
 
   return {
@@ -811,7 +1063,7 @@ function listTemplateReferencedPackages(
   absolutePaths: Record<FileKey, string>,
   summaries: Partial<Record<FileKey, FileSummary>>
 ): string[] {
-  const packages = new Set<string>(['@rawsql-ts/testkit-postgres', '@rawsql-ts/adapter-node-pg']);
+  const packages = new Set<string>();
   const touchedKeys = Object.entries(summaries)
     .filter((entry): entry is [FileKey, FileSummary] => Boolean(entry[1]))
     .filter(([, summary]) => summary.outcome === 'created' || summary.outcome === 'overwritten')
@@ -920,7 +1172,8 @@ function writeOptionalTemplateFile(
 function ensurePackageJsonFormatting(
   rootDir: string,
   relative: string,
-  dependencies: ZtdConfigWriterDependencies
+  dependencies: ZtdConfigWriterDependencies,
+  optionalFeatures: OptionalFeatures
 ): FileSummary | null {
   const packagePath = path.join(rootDir, 'package.json');
   // Skip wiring defaults when the project does not yet have a package manifest.
@@ -985,6 +1238,24 @@ function ensurePackageJsonFormatting(
     changed = true;
   }
 
+  const stackDependencies: Record<string, string> = {
+    ...MANDATORY_TESTKIT_DEPENDENCIES,
+    ...SQL_CONTRACT_DEPENDENCY
+  };
+  if (optionalFeatures.validator === 'zod') {
+    Object.assign(stackDependencies, ZOD_DEPENDENCY);
+  } else {
+    Object.assign(stackDependencies, ARKTYPE_DEPENDENCY);
+  }
+
+  for (const [dep, version] of Object.entries(stackDependencies)) {
+    if (dep in devDependencies) {
+      continue;
+    }
+    devDependencies[dep] = version;
+    changed = true;
+  }
+
   if (!changed) {
     return null;
   }
@@ -1001,9 +1272,16 @@ async function writeFileWithConsent(
   relative: string,
   dependencies: ZtdConfigWriterDependencies,
   prompter: Prompter,
+  overwritePolicy: OverwritePolicy,
   writer: () => Promise<void> | void
 ): Promise<FileSummary> {
-  const { existed, write } = await confirmOverwriteIfExists(absolutePath, relative, dependencies, prompter);
+  const { existed, write } = await confirmOverwriteIfExists(
+    absolutePath,
+    relative,
+    dependencies,
+    prompter,
+    overwritePolicy
+  );
   if (!write) {
     return { relativePath: relative, outcome: 'unchanged' };
   }
@@ -1016,15 +1294,29 @@ interface OverwriteCheck {
   write: boolean;
 }
 
+interface OverwritePolicy {
+  force: boolean;
+  nonInteractive: boolean;
+}
+
 async function confirmOverwriteIfExists(
   absolutePath: string,
   relative: string,
   dependencies: ZtdConfigWriterDependencies,
-  prompter: Prompter
+  prompter: Prompter,
+  overwritePolicy: OverwritePolicy
 ): Promise<OverwriteCheck> {
   const existed = dependencies.fileExists(absolutePath);
   if (!existed) {
     return { existed: false, write: true };
+  }
+  if (overwritePolicy.force) {
+    return { existed: true, write: true };
+  }
+  if (overwritePolicy.nonInteractive) {
+    throw new Error(
+      `File ${relative} already exists. Re-run with --yes to overwrite or remove the file before running ztd init.`
+    );
   }
   const overwrite = await prompter.confirm(`File ${relative} already exists. Overwrite?`);
   if (!overwrite) {
@@ -1038,13 +1330,15 @@ async function writeDocFile(
   relative: string,
   contents: string,
   dependencies: ZtdConfigWriterDependencies,
-  prompter: Prompter
+  prompter: Prompter,
+  overwritePolicy: OverwritePolicy
 ): Promise<FileSummary> {
   const summary = await writeFileWithConsent(
     absolutePath,
     relative,
     dependencies,
     prompter,
+    overwritePolicy,
     () => {
       dependencies.ensureDirectory(path.dirname(absolutePath));
       dependencies.writeFile(absolutePath, contents);
@@ -1060,6 +1354,7 @@ async function writeTemplateFile(
   templateName: string,
   dependencies: ZtdConfigWriterDependencies,
   prompter: Prompter,
+  overwritePolicy: OverwritePolicy,
   allowFallback?: boolean
 ): Promise<FileSummary | null> {
   const templateTarget = resolveTemplateTarget(rootDir, absolutePath, relative, dependencies, allowFallback);
@@ -1069,7 +1364,14 @@ async function writeTemplateFile(
 
   // Load shared documentation templates so every new project gets the same guidance.
   const contents = loadTemplate(templateName);
-  return writeDocFile(templateTarget.absolutePath, templateTarget.relativePath, contents, dependencies, prompter);
+  return writeDocFile(
+    templateTarget.absolutePath,
+    templateTarget.relativePath,
+    contents,
+    dependencies,
+    prompter,
+    overwritePolicy
+  );
 }
 
 interface TemplateTarget {
@@ -1181,14 +1483,29 @@ function loadTemplate(templateName: string): string {
   return readFileSync(templatePath, 'utf8');
 }
 
-function buildSummaryLines(summaries: Record<FileKey, FileSummary>): string[] {
+function buildSummaryLines(
+  summaries: Record<FileKey, FileSummary>,
+  optionalFeatures: OptionalFeatures
+): string[] {
   const orderedKeys: FileKey[] = [
     'schema',
     'config',
     'testsConfig',
     'testsAgents',
+    'userProfilesTest',
+    'writerConstraintsTest',
     'ztdConfig',
     'readme',
+    'viewSqlReadme',
+    'jobSqlReadme',
+    'viewsRepoReadme',
+    'tablesRepoReadme',
+    'jobsReadme',
+    'viewSqlSample',
+    'viewRepoSample',
+    'tableRepoSample',
+    'jobSqlSample',
+    'jobRunnerSample',
     'sqlClient',
     'testkitClient',
     'globalSetup',
@@ -1217,6 +1534,15 @@ function buildSummaryLines(summaries: Record<FileKey, FileSummary>): string[] {
     }
   }
 
+  lines.push('', 'Validation configuration:');
+  lines.push(
+    ' - SQL catalog/mapping support via @rawsql-ts/sql-contract (see docs/recipes/sql-contract.md)'
+  );
+  const validatorLabel =
+    optionalFeatures.validator === 'zod'
+      ? 'Zod (zod, docs/recipes/validation-zod.md)'
+      : 'ArkType (arktype, docs/recipes/validation-arktype.md)';
+  lines.push(` - Validator backend: ${validatorLabel}`);
   lines.push('', 'Next steps:', ...NEXT_STEPS);
   return lines;
 }
@@ -1227,12 +1553,15 @@ export function registerInitCommand(program: Command): void {
     .description('Automate project setup for Zero Table Dependency workflows')
     .option('--with-sqlclient', 'Generate a minimal SqlClient interface for repositories')
     .option('--with-app-interface', 'Append application interface guidance to AGENTS.md only')
-    .action(async (options: { withSqlclient?: boolean; withAppInterface?: boolean }) => {
+    .option('--yes', 'Overwrite existing scaffold files without prompting')
+    .action(async (options: { withSqlclient?: boolean; withAppInterface?: boolean; yes?: boolean }) => {
       const prompter = createConsolePrompter();
       try {
         await runInitCommand(prompter, {
           withSqlClient: options.withSqlclient,
-          withAppInterface: options.withAppInterface
+          withAppInterface: options.withAppInterface,
+          forceOverwrite: options.yes ?? false,
+          nonInteractive: !process.stdin.isTTY
         });
       } finally {
         prompter.close();

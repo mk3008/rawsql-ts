@@ -1,30 +1,15 @@
-import { PostgreSqlContainer } from '@testcontainers/postgresql';
-
 /**
  * Vitest global setup.
  *
- * ZTD tests are safe to run in parallel against a single Postgres instance because pg-testkit
- * rewrites CRUD into fixture-backed SELECT queries (no physical tables are created/mutated).
- *
- * This setup starts exactly one disposable Postgres container when DATABASE_URL is not provided,
- * and shares the resulting DATABASE_URL with all Vitest workers.
+ * This hook warns when DATABASE_URL is missing so the developer remembers to
+ * install an adapter or provide a connection before running SQL-backed tests.
  */
 export default async function globalSetup() {
-  const configuredUrl = process.env.DATABASE_URL;
-  if (configuredUrl && configuredUrl.length > 0) {
-    return () => undefined;
+  const configuredUrl = process.env.DATABASE_URL?.trim();
+  if (!configuredUrl) {
+    console.warn(
+      'DATABASE_URL is not configured. Install a database adapter or set DATABASE_URL before running SQL-backed tests.',
+    );
   }
-
-  const container = new PostgreSqlContainer('postgres:18-alpine')
-    .withDatabase('ztd_playground')
-    .withUsername('postgres')
-    .withPassword('postgres');
-
-  const started = await container.start();
-  process.env.DATABASE_URL = started.getConnectionUri();
-
-  return async () => {
-    await started.stop();
-  };
+  return () => undefined;
 }
-

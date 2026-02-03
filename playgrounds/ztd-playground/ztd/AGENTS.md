@@ -1,97 +1,74 @@
-﻿# AGENTS: Zero Table Dependency Definitions
+# AGENTS: Zero Table Dependency Definitions
 
-## DDL Specifications
+This file defines **protected, human-led domains** under the `ztd/` directory.
+AI must treat these directories as authoritative sources of truth and must not modify them without explicit instruction.
+These rules govern the `ztd/` contents after project initialization and apply regardless of mapper, writer, or runtime architecture decisions.
 
-You are an AI assistant responsible for reading and respecting the contents of this /ztd/ddl directory.
+---
 
-### Purpose
+## Generated files (important)
 
-This directory contains all canonical definitions of database structure, including CREATE TABLE, ALTER TABLE, constraints, and indexes. It is considered the **single source of truth** for database schema as interpreted by the ztd-cli.
+- `tests/generated/` is auto-generated and must never be committed.
+- After cloning the repository (or in a clean environment), run `npx ztd ztd-config`.
+- If TypeScript reports missing modules or type errors because `tests/generated/` is missing, run `npx ztd ztd-config`.
+- Generated artifacts exist solely to support validation and testing and MUST NEVER influence definitions under `ztd/`.
 
-### Behavior Rules
+---
 
-- **Never modify files in this folder unless explicitly instructed by a human.**
-- You may propose edits, reviews, or new DDL structures when asked, but you must preserve all human-authored structure, naming, and intent.
-- All DDL statements **must be semicolon-terminated** and valid PostgreSQL syntax.
-- You must not reorder statements arbitrarily; semantic meaning and dependency order must be preserved.
-- Respect formatting conventions, identifier styles, and comments written by humans.
-- When generating new tables or columns, infer types and constraints based on other schema examples or enums (if available).
-- Maintain consistency in column ordering, naming style, and constraint patterns.
-- When adding to existing definitions, do not remove human-authored comments unless told to.
-- Do not introduce structural changes that conflict with domain-specs or enums.
+## DDL Specifications (`ztd/ddl/`)
 
-### Interaction with Other Sources
-
-- Refer to /ztd/domain-specs for domain logic and behavioral definitions. These dictate _what_ should exist in the schema.
-- Refer to /ztd/enums for allowable value sets when defining enum-like columns or constraints.
-- Always use those definitions as context when writing or editing this schema.
-
-If uncertain, defer to human authorship and request clarification.
-
-## Domain Specifications
-
-You are an AI agent reading this directory to interpret domain logic.
-
-### Instructions
-
-- Treat each Markdown file as defining **one domain behavior**.
-- Use the embedded SQL block (`sql ... `) as the **reference SELECT**.
-- Only the first top-level SELECT block should be considered executable logic.
-- Parameters may be written in :named format (e.g., :as_of). You must bind them as positional placeholders (e.g., $1, $2, ?) in generated code.
-- Do not generate or modify files in this directory unless explicitly asked.
-
-### Assumptions
-
-- `ztd-config` parses only DDL (`ztd/ddl/**/*.sql`) to generate row shapes.
-- These specifications are for **humans and AI consumption** (documentation + reference SQL).
-- Comments and descriptions exist to help you interpret logic correctly.
-
-### Rules
-
-- Never ignore the human-written description above the SQL block.
-- Keep exactly one executable SQL block per file (one file = one behavior).
-- Do not reorder or optimize the SQL unless explicitly instructed.
-- Preserve the semantic meaning as given in the specification.
-- This folder defines **what** logic means. Your job is to reproduce that logic elsewhere (e.g., in src/ or tests).
-
-If in doubt, ask for clarification or defer to human judgment.
-
-## Domain Enums
-
-You are an AI assistant responsible for reading domain enum definitions from this folder.
+You are an AI assistant responsible for **reading and respecting** the contents of this directory.
 
 ### Purpose
 
-This directory defines canonical value sets (enums) such as status codes and plan tiers. These definitions inform your code generation logic, constraint enforcement, and vocabulary use.
+This directory contains all canonical definitions of database structure, including:
 
-### Behavior Guidelines
+- CREATE TABLE
+- ALTER TABLE
+- Constraints
+- Indexes
 
-- Read from the Markdown file containing SQL select ... from (values ...) blocks.
-- Never invent magic numbers or enum values. Always use those explicitly defined here.
-- Do not modify or append new enums unless explicitly instructed by a human.
+It is the **single source of truth** for the physical database schema as interpreted by ztd-cli.
 
-### SQL Rules
+### Behavior Rules (strict)
 
-- Each SQL block defines an enum set.
-- Keep exactly one executable SQL block per file (one file = one enum set).
-- All blocks follow the form:
+- **Never modify files in this directory unless explicitly instructed by a human.**
+- Do not apply “helpful” refactors, cleanups, or formatting changes on your own.
+- You may propose edits or review changes when asked, but you must not apply them without approval.
+- All DDL statements must be:
+  - Valid PostgreSQL syntax
+  - Explicitly semicolon-terminated
+- Do not reorder statements; dependency and execution order matters.
+- Preserve all human-authored:
+  - Naming
+  - Formatting
+  - Comments
+  - Structural intent
+- When asked to extend existing definitions:
+  - Do not remove or rewrite existing columns or comments unless explicitly told.
+  - Maintain column order and constraint style.
+  - Do not introduce schema changes that conflict with existing constraints or indexes.
+- The `public.user_account` and `public.user_profile` tables exist to support the mapper/writer sample; any modification to those tables is a maintenance obligation that requires concurrent updates to `src/repositories/user-accounts.ts` and `tests/writer-constraints.test.ts` so the workflow keeps functioning.
+- DDL defines physical truth only and MUST NEVER be reshaped to accommodate mapper, writer, or test tooling.
+- Runtime convenience is never a valid reason to alter DDL.
 
-`sql
-select v.*
-from (
-  values
-    (1, 'some_code', 'some_label')
-) v(key, value, display_name);
-`
+If there is uncertainty, stop and request clarification instead of guessing.
 
-- You must extract key and value pairs as the authoritative mapping.
-- display_name,
-  ranking, or other metadata may be used where helpful (e.g., UI rendering or sorting).
+---
 
-### Use in Code Generation
+- Only `ztd/ddl` is part of the canonical `ztd` contract; do not create or assume additional subdirectories without explicit human direction.
 
-- Use these enums when generating SQL WHERE clauses, conditionals, or constants.
-- When translating logic from /ztd/domain-specs, map references like :status\_\_established to corresponding values here.
-- Maintain full consistency with enum names and intent.
+---
 
-If a required enum is missing, raise an error or ask for human clarification.
+## Absolute Restrictions (important)
+
+- AI must not modify anything under `ztd/` by default.
+- DDL is the only **human-led artifact** in this directory.
+- AI may assist by:
+  - Reading
+  - Explaining
+  - Proposing diffs
+- AI may apply changes **only** with explicit instruction.
+- No tooling limitation, test strategy, or runtime design justifies modifying `ztd/` artifacts.
+
+Violation of these rules leads to silent corruption of domain meaning and is unacceptable.

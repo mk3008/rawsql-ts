@@ -63,7 +63,7 @@ class TestPrompter implements Prompter {
 
 test('init wizard bootstraps a repo when writing DDL manually', async () => {
   const workspace = createTempDir('cli-init-ddl');
-  const prompter = new TestPrompter(['2']);
+  const prompter = new TestPrompter(['2', '1']);
 
   const result = await runInitCommand(prompter, { rootDir: workspace });
 
@@ -75,8 +75,20 @@ test('init wizard bootstraps a repo when writing DDL manually', async () => {
   expect(existsSync(path.join(workspace, 'tests', 'generated', 'ztd-layout.generated.ts'))).toBe(true);
   expect(existsSync(path.join(workspace, 'tests', 'support', 'global-setup.ts'))).toBe(true);
   expect(existsSync(testkitClientPath)).toBe(true);
+  expect(existsSync(path.join(workspace, 'tests', 'user-profiles.test.ts'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'tests', 'writer-constraints.test.ts'))).toBe(true);
   expect(existsSync(path.join(workspace, 'vitest.config.ts'))).toBe(true);
   expect(existsSync(path.join(workspace, 'ztd.config.json'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'src', 'sql', 'views', 'README.md'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'src', 'sql', 'jobs', 'README.md'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'src', 'repositories', 'views', 'README.md'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'src', 'repositories', 'tables', 'README.md'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'src', 'jobs', 'README.md'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'src', 'sql', 'views', 'user-profiles.sql'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'src', 'repositories', 'views', 'user-profiles.ts'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'src', 'repositories', 'tables', 'user-accounts.ts'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'src', 'sql', 'jobs', 'refresh-user-accounts.sql'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'src', 'jobs', 'refresh-user-accounts.ts'))).toBe(true);
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('Zero Table Dependency');
   expect(readNormalizedFile(schemaFilePath(workspace))).toContain('CREATE TABLE public.user_account');
   expect(
@@ -98,7 +110,9 @@ test('init wizard bootstraps a repo when writing DDL manually', async () => {
   );
 
   // Ensure the generated testkit client can safely log params with circular references.
-  expect(readNormalizedFile(testkitClientPath)).toContain('[Circular]');
+  expect(readNormalizedFile(testkitClientPath)).toContain(
+    'Provide a SqlClient implementation here',
+  );
 });
 
 test('init wizard leaves existing ztd/ddl directory untouched', async () => {
@@ -106,7 +120,7 @@ test('init wizard leaves existing ztd/ddl directory untouched', async () => {
   const ddlDir = path.join(workspace, 'ztd', 'ddl');
   mkdirSync(ddlDir, { recursive: true });
 
-  const prompter = new TestPrompter(['2']);
+  const prompter = new TestPrompter(['2', '1']);
   await runInitCommand(prompter, { rootDir: workspace });
 
   expect(existsSync(ddlDir)).toBe(true);
@@ -115,7 +129,7 @@ test('init wizard leaves existing ztd/ddl directory untouched', async () => {
 
 test('init wizard can scaffold the optional SqlClient seam', async () => {
   const workspace = createTempDir('cli-init-sqlclient');
-  const prompter = new TestPrompter(['2']);
+  const prompter = new TestPrompter(['2', '1']);
 
   const result = await runInitCommand(prompter, { rootDir: workspace, withSqlClient: true });
 
@@ -132,7 +146,7 @@ test('init wizard preserves existing SqlClient files when opted in', async () =>
   mkdirSync(path.dirname(sqlClientPath), { recursive: true });
   writeFileSync(sqlClientPath, '// existing\n', 'utf8');
 
-  const prompter = new TestPrompter(['2']);
+  const prompter = new TestPrompter(['2', '1']);
   const logs: string[] = [];
   const dependencies: Partial<ZtdConfigWriterDependencies> = {
     log: (message) => logs.push(message),
@@ -154,7 +168,7 @@ test('init installs template-referenced packages when package.json exists', asyn
     'utf8'
   );
 
-  const prompter = new TestPrompter(['2']);
+  const prompter = new TestPrompter(['2', '1']);
   const installs: Array<{ kind: string; packages: string[]; packageManager: string }> = [];
   const dependencies: Partial<ZtdConfigWriterDependencies> = {
     log: () => undefined,
@@ -168,16 +182,7 @@ test('init installs template-referenced packages when package.json exists', asyn
   expect(installs.length).toBe(1);
   expect(installs[0].kind).toBe('devDependencies');
   expect(installs[0].packageManager).toBe('pnpm');
-  expect(installs[0].packages).toEqual(
-    expect.arrayContaining([
-      '@rawsql-ts/testkit-postgres',
-      '@rawsql-ts/adapter-node-pg',
-      '@rawsql-ts/testkit-core',
-      '@testcontainers/postgresql',
-      'pg',
-      'vitest'
-    ])
-  );
+  expect(installs[0].packages).toEqual(['vitest']);
 });
 
 test('init wizard pulls schema if pg_dump is available', async () => {
@@ -190,7 +195,7 @@ test('init wizard pulls schema if pg_dump is available', async () => {
   `;
   let pullCount = 0;
 
-  const prompter = new TestPrompter(['1', 'postgres://user@host/db']);
+  const prompter = new TestPrompter(['1', 'postgres://user@host/db', '1']);
   const dependencies: Partial<ZtdConfigWriterDependencies> = {
     checkPgDump: () => true,
     runPullSchema: async (options) => {
@@ -214,6 +219,8 @@ test('init wizard pulls schema if pg_dump is available', async () => {
   expect(
     readNormalizedFile(path.join(workspace, 'tests', 'generated', 'ztd-row-map.generated.ts'))
   ).toContain('export interface TestRowMap');
+  expect(existsSync(path.join(workspace, 'tests', 'user-profiles.test.ts'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'tests', 'writer-constraints.test.ts'))).toBe(true);
   const layoutContents = readNormalizedFile(
     path.join(workspace, 'tests', 'generated', 'ztd-layout.generated.ts'),
   );
@@ -230,12 +237,14 @@ test('init wizard pulls schema if pg_dump is available', async () => {
   expect(existsSync(path.join(workspace, 'ztd', 'README.md'))).toBe(true);
 
   // Ensure the generated testkit client can safely log params with circular references.
-  expect(readNormalizedFile(testkitClientPath)).toContain('[Circular]');
+  expect(readNormalizedFile(testkitClientPath)).toContain(
+    'Provide a SqlClient implementation here',
+  );
 });
 
 test('init wizard rejects when pg_dump is missing', async () => {
   const workspace = createTempDir('cli-init-pg-missing');
-  const prompter = new TestPrompter(['1', 'postgres://user@host/db']);
+  const prompter = new TestPrompter(['1', 'postgres://user@host/db', '1']);
 
   await expect(
     runInitCommand(prompter, {

@@ -10,6 +10,13 @@ This project organizes all SQL‑related artifacts under the `ztd/` directory, s
   AGENTS.md          <- combined guidance for DDL
 
 /src                 <- application & repository code
+  /sql
+    /views            <- read-only SELECT SQL (view specs)
+    /jobs             <- batch/set-based CUD SQL
+  /repositories
+    /views            <- read-only repositories for view SQL
+    /tables           <- row-based CUD helpers (sql-contract writer DSL)
+  /jobs               <- job runners that execute SQL from src/sql/jobs
 /tests               <- ZTD tests, fixtures, generated maps
 ```
 
@@ -57,13 +64,18 @@ export function getSqlClient(): SqlClient {
 
 ---
 
+# Runtime validation (required)
+
+- `ztd init` always adds `@rawsql-ts/sql-contract` and asks you to pick a validator backend (Zod or ArkType). Use `docs/recipes/sql-contract.md` for the canonical mapping wiring before applying validation.
+- When Zod is selected, follow `docs/recipes/validation-zod.md` (with `zod` as the validator dependency).
+- When ArkType is selected, follow `docs/recipes/validation-arktype.md` (with `arktype` as the validator dependency).
+
 # Mapper + writer sample
 
-- This scaffold already exposes `src/repositories/user-accounts.ts`, which maps `public.user_account` rows together with optional `public.user_profile` data through `@rawsql-ts/sql-contract/mapper` and emits insert/update/remove helpers via `@rawsql-ts/sql-contract/writer`.
-- The SQL used here is defined in `src/repositories/user-accounts.ts`; the template tests exercise that implementation and `ztd/ddl` is the authoritative source for every column and constraint.
-- Two template tests demonstrate how to run the stitch:
-  - `tests/user-profiles.test.ts` seeds fixtures, executes the query through the mapper, and verifies the DTO shape.
-  - `tests/writer-constraints.test.ts` reads `userAccountWriterColumnSets` plus `tests/generated/ztd-row-map.generated.ts` so writer callers stay within the approved column set when referencing `public.user_account`.
+- Read-only repositories live under `src/repositories/views/` and load SQL from `src/sql/views/` (for example `src/repositories/views/user-profiles.ts` + `src/sql/views/user-profiles.sql`).
+- Row-based CUD helpers live under `src/repositories/tables/` and use the sql-contract writer DSL (see `src/repositories/tables/user-accounts.ts`).
+- Batch updates live under `src/sql/jobs/`, with execution wrappers in `src/jobs/` (for example `src/sql/jobs/refresh-user-accounts.sql` + `src/jobs/refresh-user-accounts.ts`).
+- The template tests exercise the example repositories, and `ztd/ddl` is the authoritative source for every column and constraint.
 - Regenerate `tests/generated/ztd-row-map.generated.ts` (`npx ztd ztd-config`) before running the example tests so the row map reflects any schema changes.
 - The example tests require a real PostgreSQL connection via `DATABASE_URL`; they automatically skip when the variable is missing so local tooling stays fast.
 
@@ -190,10 +202,10 @@ AI decides “how to implement” within those constraints.
 
 ZTD CLI:
 
-- Parses DDL files to build accurate table/column shapes
-- Rewrites SQL with fixture-based CTE shadowing (via testkit adapters)
-- Generates `ztd-row-map.generated.ts`
-- Produces deterministic, parallelizable tests
+- Parses DDL files to build accurate table/column shapes.
+- Rewrites SQL and exposes fixture metadata so your chosen adapter can validate statements before runtime execution.
+- Generates `ztd-row-map.generated.ts`.
+- Produces deterministic, parallelizable tests.
 
 ZTD is the verification engine guaranteeing correctness.
 

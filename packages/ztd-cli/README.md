@@ -2,7 +2,8 @@
 
 Scaffold **Zero Table Dependency (ZTD)** projects and keep DDL-derived test types in sync.
 
-`@rawsql-ts/ztd-cli` does **not** execute SQL. To run queries in tests, install the Postgres driver stack `@rawsql-ts/testkit-postgres` plus the Node adapter `@rawsql-ts/adapter-node-pg`.
+`@rawsql-ts/ztd-cli` does **not** execute SQL by itself. It provides an adapter-neutral core that scaffolds a ZTD-ready development environment.  
+To actually run ZTD tests, you plug in a database adapter (driver-specific) and a DBMS-specific testkit (for example, `@rawsql-ts/adapter-node-pg` plus `@rawsql-ts/testkit-postgres` for Postgres).
 
 ## Install
 
@@ -10,13 +11,16 @@ Scaffold **Zero Table Dependency (ZTD)** projects and keep DDL-derived test type
 pnpm add -D @rawsql-ts/ztd-cli
 ```
 
-For actual test execution, install the Postgres fixtures and adapter:
+To run ZTD-style tests, install:
 
-```bash
-pnpm add -D @rawsql-ts/testkit-postgres @rawsql-ts/adapter-node-pg
-```
+* a **database adapter** (driver-specific) to execute SQL, and
+* a **DBMS-specific testkit** to handle fixture resolution, query rewriting, and result validation.
 
-If you run `npx ztd init`, the CLI will automatically add and install the devDependencies referenced by the generated templates (Postgres defaults to `@rawsql-ts/testkit-postgres` plus `@rawsql-ts/adapter-node-pg`).
+For Postgres, the typical ZTD setup is:
+`@rawsql-ts/adapter-node-pg` (driver adapter) +
+`@rawsql-ts/testkit-postgres` (Postgres-specific testkit).
+
+If you run `npx ztd init`, the CLI will install the Postgres driver/testkit stack plus `@rawsql-ts/sql-contract`, and it will always prompt you to select a validator backend (Zod or ArkType). The wizard keeps the required workflow documented in the recipes under `docs/recipes/` (e.g., `docs/recipes/sql-contract.md`, `docs/recipes/validation-zod.md`, and `docs/recipes/validation-arktype.md`), so the implementation path stays centralized and version-controlled.
 
 Then use the CLI through `npx ztd` or the installed `ztd` bin.
 
@@ -42,6 +46,12 @@ Then use the CLI through `npx ztd` or the installed `ztd` bin.
   ```
 
   Use `--with-app-interface` to append the application interface guidance block to `AGENTS.md` without generating the ZTD layout or touching other files.
+
+  ```bash
+  npx ztd init --yes
+  ```
+
+  Use `--yes` to overwrite existing scaffold files without prompting (useful for non-interactive runs).
 
 2. Put your schema into `ztd/ddl/`:
 
@@ -82,7 +92,10 @@ You can introduce ZTD incrementally; existing tests and ORMs can remain untouche
 - `AGENTS.md` (copied from the package template unless the project already has one; `--with-app-interface` adds the application interface guidance block at the end)
 - `ztd/AGENTS.md` and `ztd/README.md` (folder-specific instructions that describe the new schema/domain layout)
 - `src/db/sql-client.ts` (optional; generated only with `--with-sqlclient`)
-- Optional guide stubs under `src/` and `tests/` if requested
+- `src/sql/views/README.md` + `src/sql/jobs/README.md` (SQL file structure)
+- `src/repositories/views/README.md` + `src/repositories/tables/README.md` (repository structure)
+- `src/jobs/README.md` (job runner structure)
+- Example view SQL/repository and job SQL/runner files for the sample schema
 
 The resulting project follows the "DDL -> ztd-config -> tests" flow so you can regenerate everything from SQL-first artifacts.
 
@@ -169,27 +182,27 @@ npx ztd lint path/to/query.sql
 ```
 
 - Accepts a single `.sql` file, glob pattern, or directory (directories expand to `**/*.sql`).
-- Spins up a temporary PostgreSQL container through `@testcontainers/postgresql` (Docker must be available) and rewrites every statement via `@rawsql-ts/adapter-node-pg`/`@rawsql-ts/testkit-postgres` so no physical tables or migrations are required.
-- Executes each rewritten query using `PREPARE ... AS ...` (falling back to `EXPLAIN`) so Postgres performs the same parsing/type resolution used in tests.
-- Reports the file path, line/column (when provided), the error code/message/detail/hint, and a caret-marked excerpt to make fixes actionable before running tests.
-- Override the database image with `ZTD_LINT_DB_IMAGE` (default `postgres:16-alpine`) when a different Postgres version or variant is desired.
+- Resolves `ZTD_LINT_DATABASE_URL` or `DATABASE_URL` for the database connection. When no URL is configured, it loads `@testcontainers/postgresql` (if installed) to spin up a temporary Postgres container.
+- Dynamically loads the registered adapter (for example `@rawsql-ts/adapter-node-pg` plus `@rawsql-ts/testkit-postgres`) so the rewritten statement is inspected through the fixture pipeline before it runs.
+- Executes each rewritten query using `PREPARE ... AS ...` (falling back to `EXPLAIN`) so Postgres (or your adapter) performs the same parsing/type resolution used in tests.
+- Reports the file path, location, error code/message/detail/hint, and a caret-marked excerpt to make fixes actionable before running tests.
+- Override the database image with `ZTD_LINT_DB_IMAGE` (default `postgres:16-alpine`), or supply a URL to reuse an existing server instead of a container.
+- If the adapter is missing, the command stops early with an error that points you at the adapter package to install or instructs you to set `DATABASE_URL`.
 
 ## ZTD Testing
 
-Driver responsibilities live in companion packages such as `@rawsql-ts/testkit-postgres` and `@rawsql-ts/adapter-node-pg` for Postgres.
+The generated `tests/support/testkit-client.ts` is a stub. Replace `createTestkitClient` with a factory that returns an object conforming to `SqlClient` (defined in `src/db/sql-client.ts`). Use it to wire your preferred adapter (for example a Postgres adapter, a mock data source, or a fixture helper) before running the repository tests.
 
-The driver sits downstream of `testkit-core` and applies the rewrite + fixture pipeline before running any database interaction. Install the driver, configure it in your tests, and point it at the row map from `tests/generated/ztd-row-map.generated.ts`.
+ZTD rewrites every statement into a fixture-friendly shape and expects your adapter to execute the rewritten SQL using the metadata under `tests/generated/ztd-row-map.generated.ts`. The CLI avoids bundling a driver so you can choose whatever stack fits your project; install the necessary adapter package and point it at the generated row map before executing DB-backed suites.
 
-### SQL rewrite logging (generated `testkit-client.ts`)
+### SQL rewrite logging
 
-The `tests/support/testkit-client.ts` helper generated by `ztd init` can emit structured logs that show the SQL before and after the adapter rewrites it via `@rawsql-ts/testkit-postgres`.
+If you need to inspect the rewritten SQL, add logging inside your adapter or within `tests/support/testkit-client.ts`. There is no built-in logger in the template, but you can guard logging with environment variables such as:
 
-Enable it via environment variables:
+- `ZTD_SQL_LOG=1` or `true`: log the raw SQL plus the rewritten statement.
+- `ZTD_SQL_LOG_PARAMS=1` or `true`: include query parameters in the emitted logs.
 
-- `ZTD_SQL_LOG=1` (or `true`/`yes`): log original + rewritten SQL
-- `ZTD_SQL_LOG_PARAMS=1` (or `true`/`yes`): include parameters in the logs
-
-You can also enable/disable logging per call by passing `ZtdSqlLogOptions` as the second argument to `createTestkitClient`.
+Add any adapter-specific options or helpers to control logging per call (for example, guard logging with your own `ZtdSqlLogOptions` type) so the test outputs remain deterministic when logging is disabled.
 
 ## Benchmark summary
 

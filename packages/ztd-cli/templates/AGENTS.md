@@ -28,6 +28,12 @@ This section documents how ZTD is used inside this repository as a development m
 
 ---
 
+# Validation tooling (recipes)
+
+- Every generated ZTD workspace includes `@rawsql-ts/sql-contract` plus a validator backend. Use `docs/recipes/sql-contract.md` for the canonical mapping guidance.
+- When `@rawsql-ts/sql-contract` and `zod` are declared, follow `docs/recipes/validation-zod.md` (optional helpers such as `@rawsql-ts/sql-contract-zod` expose `reader.zod` and coercion utilities but are not required).
+- When `@rawsql-ts/sql-contract` is declared without `zod` but `arktype` is installed, follow `docs/recipes/validation-arktype.md`.
+
 ## TypeScript validation (required)
 
 After any code change, TypeScript type checking **must** be performed and must pass.
@@ -72,7 +78,7 @@ Rules:
 - ZTD fixtures are the only allowed source of database state in tests.
 - A repository change without tests is considered incomplete.
 - Every repository or test modification must be followed by `pnpm --filter <package> test` (replace `<package>` with the template package name).
-  - `tests/support/global-setup.ts` already uses `@testcontainers/postgresql`, so the suite stands up a Postgres container automatically whenever `DATABASE_URL` is absent.
+  - `tests/support/global-setup.ts` now emits a warning when `DATABASE_URL` is missing so you remember to install an adapter or provide a connection before running SQL-backed tests.
   - If the suite fails, fix the root cause and rerun the command until it passes before considering the repository change complete.
 
 Rationale:  
@@ -80,10 +86,12 @@ ZTD derives much of its value from deterministic, repository-level tests.
 Without tests, schema drift and SQL inconsistencies cannot be detected.
 
 #### SQL Management
-- Keep every SELECT statement in a dedicated `.sql` file under `src/sql/` (match the repository name, e.g. `src/sql/user-accounts.sql`).
-  - Load the SQL via `fs.readFileSync` or similar helpers so the repository never embeds long SQL strings inline.
-  - Inline SQL is forbidden unless a human explicitly requests an override; follow the `.sql` file convention by default.
-  - Repository classes should reference those SQL files; the file name should match the repository class or the query method to keep the code/spec alignment clear.
+- Keep every SELECT statement in a dedicated `.sql` file under `src/sql/views/` (match the repository name, e.g. `src/sql/views/user-profiles.sql`).
+- Store set-based or batch CUD SQL in `src/sql/jobs/` and execute it through job runners in `src/jobs/`.
+- Load SQL via `fs.readFileSync` or similar helpers so repositories never embed long SQL strings inline.
+- Inline SQL is forbidden unless a human explicitly requests an override; follow the file-based SQL convention by default.
+- Read-only repositories live under `src/repositories/views/` and load SQL from `src/sql/views/`.
+- Row-based CUD helpers live under `src/repositories/tables/` using the sql-contract writer DSL; no SQL files are required there.
 
 #### Specifications and Documentation
 - If a markdown file with the same base name as the repository or SQL exists, read it before implementation.
@@ -113,10 +121,10 @@ Without tests, schema drift and SQL inconsistencies cannot be detected.
 
 ### Mapper + writer guardrails (template-specific)
 
-- In this project, `src/repositories/user-accounts.ts` is the authoritative mapper for the columns defined by the DDL; it MUST enumerate those columns explicitly so downstream logic never infers metadata at runtime.
-- Writer helpers in the same module MUST emit SQL for `public.user_account` only and MUST remain limited to the explicit insert/update/delete helpers shown there; DO NOT introduce ad-hoc schema discovery.
+- In this project, `src/repositories/views/user-profiles.ts` is the authoritative mapper for the columns defined by the DDL; it MUST enumerate those columns explicitly so downstream logic never infers metadata at runtime.
+- Writer helpers in `src/repositories/tables/user-accounts.ts` MUST emit SQL for `public.user_account` only and MUST remain limited to the explicit insert/update/delete helpers shown there; DO NOT introduce ad-hoc schema discovery.
 - `tests/writer-constraints.test.ts` MUST consume `userAccountWriterColumnSets` together with `tests/generated/ztd-row-map.generated.ts` so CUD callers only reference columns that exist on `public.user_account`.
-- When the schema of `public.user_account` changes, update `src/repositories/user-accounts.ts` column metadata, keep `tests/writer-constraints.test.ts` expectations aligned, and re-run `npx ztd ztd-config` so the generated row map stays synchronized with the tests.
+- When the schema of `public.user_account` changes, update `src/repositories/tables/user-accounts.ts` column metadata, keep `tests/writer-constraints.test.ts` expectations aligned, and re-run `npx ztd ztd-config` so the generated row map stays synchronized with the tests.
 
 #### Writer safety contract (important)
 
@@ -132,7 +140,7 @@ If these constraints are insufficient, write the SQL manually.
 
 #### Mapper strictness policy
 
-- Mapping is strict by default: SQL must return exactly the DTO-shaped results that `src/repositories/user-accounts.ts` exposes; missing or mismatched columns are bugs that tests MUST surface.
+- Mapping is strict by default: SQL must return exactly the DTO-shaped results that `src/repositories/views/user-profiles.ts` exposes; missing or mismatched columns are bugs that tests MUST surface.
 - Non-strict behaviors (coercions, key transforms, etc.) MUST be enabled explicitly via named presets or configuration; relying on implicit or silent defaults is prohibited.
 
 ### Sequence / identity column policy (important)
@@ -175,6 +183,13 @@ Testing under ZTD follows dedicated, directory-scoped rules.
   AGENTS.md             <- combined guidance for DDL
 
 /src                    <- application & repository logic
+  /sql
+    /views               <- read-only SELECT SQL
+    /jobs                <- batch/set-based CUD SQL
+  /repositories
+    /views               <- view repositories
+    /tables              <- row-based CUD helpers
+  /jobs                  <- job runners
 /tests                  <- ZTD tests, fixtures, row-maps
 ```
 

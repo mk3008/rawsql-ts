@@ -8,8 +8,20 @@ Created:
  - ztd.config.json
  - tests/generated/ztd-layout.generated.ts
  - tests/AGENTS.md
+ - tests/user-profiles.test.ts
+ - tests/writer-constraints.test.ts
  - tests/generated/ztd-row-map.generated.ts
  - README.md
+ - src/sql/views/README.md
+ - src/sql/jobs/README.md
+ - src/repositories/views/README.md
+ - src/repositories/tables/README.md
+ - src/jobs/README.md
+ - src/sql/views/user-profiles.sql
+ - src/repositories/views/user-profiles.ts
+ - src/repositories/tables/user-accounts.ts
+ - src/sql/jobs/refresh-user-accounts.sql
+ - src/jobs/refresh-user-accounts.ts
  - tests/support/testkit-client.ts
  - tests/support/global-setup.ts
  - vitest.config.ts
@@ -21,11 +33,15 @@ Created:
  - .prettierignore
  - .prettierrc
 
+Validation configuration:
+ - SQL catalog/mapping support via @rawsql-ts/sql-contract (see docs/recipes/sql-contract.md)
+ - Validator backend: Zod (zod, docs/recipes/validation-zod.md)
+
 Next steps:
  1. Review the schema files under ztd/ddl/<schema>.sql
  2. Inspect tests/generated/ztd-layout.generated.ts for the SQL layout
  3. Run npx ztd ztd-config
- 4. Run ZTD tests with the testkit-postgres stack"
+ 4. Provide a SqlClient implementation (for example by installing an adapter or mock) before running ZTD tests"
 `;
 
 exports[`init wizard pulls schema if pg_dump is available 1`] = `
@@ -36,8 +52,20 @@ Created:
  - ztd.config.json
  - tests/generated/ztd-layout.generated.ts
  - tests/AGENTS.md
+ - tests/user-profiles.test.ts
+ - tests/writer-constraints.test.ts
  - tests/generated/ztd-row-map.generated.ts
  - README.md
+ - src/sql/views/README.md
+ - src/sql/jobs/README.md
+ - src/repositories/views/README.md
+ - src/repositories/tables/README.md
+ - src/jobs/README.md
+ - src/sql/views/user-profiles.sql
+ - src/repositories/views/user-profiles.ts
+ - src/repositories/tables/user-accounts.ts
+ - src/sql/jobs/refresh-user-accounts.sql
+ - src/jobs/refresh-user-accounts.ts
  - tests/support/testkit-client.ts
  - tests/support/global-setup.ts
  - vitest.config.ts
@@ -49,9 +77,13 @@ Created:
  - .prettierignore
  - .prettierrc
 
+Validation configuration:
+ - SQL catalog/mapping support via @rawsql-ts/sql-contract (see docs/recipes/sql-contract.md)
+ - Validator backend: Zod (zod, docs/recipes/validation-zod.md)
+
 Next steps:
  1. Review the schema files under ztd/ddl/<schema>.sql
  2. Inspect tests/generated/ztd-layout.generated.ts for the SQL layout
  3. Run npx ztd ztd-config
- 4. Run ZTD tests with the testkit-postgres stack"
+ 4. Provide a SqlClient implementation (for example by installing an adapter or mock) before running ZTD tests"
 `;

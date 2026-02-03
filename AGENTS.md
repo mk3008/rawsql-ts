@@ -136,6 +136,12 @@ Run the following before opening or updating a PR:
 
 ---
 
+## Validation tooling recipes
+
+- Every ZTD project installs `@rawsql-ts/sql-contract` and a validator backend during `ztd init`, so `docs/recipes/sql-contract.md` is the canonical mapping reference.
+- When both `@rawsql-ts/sql-contract` and `zod` are declared, follow the Zod validator flow in `docs/recipes/validation-zod.md`. Installing `@rawsql-ts/sql-contract-zod` is optional sugar that adds `mapper.zod` and coercion helpers on top of the same base stack.
+- When `@rawsql-ts/sql-contract` is present without `zod` but `arktype` is declared, follow the ArkType recipe in `docs/recipes/validation-arktype.md`.
+
 ## Docs Demo Updates
 
 * Rebuild the browser bundle when parser or formatter behavior changes:
