@@ -154,12 +154,10 @@ If behavior depends on transactions, isolation, or shared mutable state:
 
 ---
 
-## Writer metadata guardrail (template-specific)
+## SQL-first guardrail (template-specific)
 
-- `tests/writer-constraints.test.ts` reads `userAccountWriterColumnSets` together with `tests/generated/ztd-row-map.generated.ts` to ensure every writer column actually exists on `public.user_account`.
-- Run `npx ztd ztd-config` before executing the template tests so the generated row map reflects your current schema changes.
-- When new columns appear in the writer helpers, adjust `userAccountWriterColumnSets`, rerun the row-map generator, and update the constraint test expectations.
-- These tests exist to enforce column correctness at test time so writer helpers remain runtime-safe and schema-agnostic.
+- Repository tests must exercise SQL-backed methods only; do not bypass repositories with inline SQL.
+- If SQL files change, update repository tests to match the new contract and run `npx ztd ztd-config`.
 
 ## Guiding principle
 

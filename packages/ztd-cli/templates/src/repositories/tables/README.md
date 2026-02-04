@@ -1,4 +1,4 @@
 # Table repositories
 
-Row-based CUD repositories backed by the sql-contract writer DSL. Keep write helpers here; they do
-not need separate SQL files.
+SQL-first repositories that execute CRUD SQL from `src/sql/<table_name>/`. Keep write helpers
+thin: load SQL, pass params, and map results when needed.

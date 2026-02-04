@@ -1,6 +1,7 @@
 packages:
   - "packages/testkit-core"
   - "packages/*"
+  - "packages/_shared/*"
   - "packages/adapters/*"
   - "packages/drivers/*"
   - "playgrounds/*"

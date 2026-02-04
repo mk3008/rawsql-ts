@@ -9,18 +9,20 @@ Created:
  - tests/generated/ztd-layout.generated.ts
  - tests/AGENTS.md
  - tests/user-profiles.test.ts
- - tests/writer-constraints.test.ts
+ - tests/user-accounts.test.ts
  - tests/generated/ztd-row-map.generated.ts
  - README.md
- - src/sql/views/README.md
- - src/sql/jobs/README.md
+ - src/sql/README.md
  - src/repositories/views/README.md
  - src/repositories/tables/README.md
  - src/jobs/README.md
- - src/sql/views/user-profiles.sql
+ - src/sql/user_account/list_user_profiles.sql
  - src/repositories/views/user-profiles.ts
  - src/repositories/tables/user-accounts.ts
- - src/sql/jobs/refresh-user-accounts.sql
+ - src/sql/user_account/insert_user_account.sql
+ - src/sql/user_account/update_display_name.sql
+ - src/sql/user_account/delete_user_account.sql
+ - src/sql/user_account/refresh_user_accounts.sql
  - src/jobs/refresh-user-accounts.ts
  - tests/support/testkit-client.ts
  - tests/support/global-setup.ts
@@ -53,18 +55,20 @@ Created:
  - tests/generated/ztd-layout.generated.ts
  - tests/AGENTS.md
  - tests/user-profiles.test.ts
- - tests/writer-constraints.test.ts
+ - tests/user-accounts.test.ts
  - tests/generated/ztd-row-map.generated.ts
  - README.md
- - src/sql/views/README.md
- - src/sql/jobs/README.md
+ - src/sql/README.md
  - src/repositories/views/README.md
  - src/repositories/tables/README.md
  - src/jobs/README.md
- - src/sql/views/user-profiles.sql
+ - src/sql/user_account/list_user_profiles.sql
  - src/repositories/views/user-profiles.ts
  - src/repositories/tables/user-accounts.ts
- - src/sql/jobs/refresh-user-accounts.sql
+ - src/sql/user_account/insert_user_account.sql
+ - src/sql/user_account/update_display_name.sql
+ - src/sql/user_account/delete_user_account.sql
+ - src/sql/user_account/refresh_user_accounts.sql
  - src/jobs/refresh-user-accounts.ts
  - tests/support/testkit-client.ts
  - tests/support/global-setup.ts

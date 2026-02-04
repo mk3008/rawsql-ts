@@ -1,7 +1,20 @@
-import type { SqlClient } from '../../db/sql-client';
-import { createWriter, type QueryParams } from '@rawsql-ts/sql-contract';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 
-const userAccountTable = 'public.user_account';
+import type { SqlClient } from '../../db/sql-client';
+
+const insertUserAccountSql = readFileSync(
+  path.join(__dirname, '..', '..', 'sql', 'user_account', 'insert_user_account.sql'),
+  'utf8'
+);
+const updateDisplayNameSql = readFileSync(
+  path.join(__dirname, '..', '..', 'sql', 'user_account', 'update_display_name.sql'),
+  'utf8'
+);
+const deleteUserAccountSql = readFileSync(
+  path.join(__dirname, '..', '..', 'sql', 'user_account', 'delete_user_account.sql'),
+  'utf8'
+);
 
 /**
  * Parameters required to insert a new user account.
@@ -23,69 +36,47 @@ export type DisplayNameUpdatePayload = {
   displayName: string;
 };
 
-const createWriterForClient = (client: SqlClient) =>
-  createWriter((sql, params: QueryParams) => client.query(sql, params as readonly unknown[]));
+/**
+ * Repository helper that executes SQL-first user account CRUD.
+ * @property {(input: NewUserAccount) => Promise<void>} insertUserAccount Inserts a new user account row.
+ * @property {(userAccountId: number, payload: DisplayNameUpdatePayload) => Promise<void>} updateDisplayName Updates the display name for an account.
+ * @property {(userAccountId: number) => Promise<void>} removeUserAccount Removes an account by primary key.
+ */
+export type UserAccountRepository = {
+  insertUserAccount: (input: NewUserAccount) => Promise<void>;
+  updateDisplayName: (userAccountId: number, payload: DisplayNameUpdatePayload) => Promise<void>;
+  removeUserAccount: (userAccountId: number) => Promise<void>;
+};
+
+const createExecutor = (client: SqlClient) =>
+  (sql: string, params?: Record<string, unknown>) => client.query(sql, params);
 
 /**
- * Inserts a new user account row.
+ * Creates a SQL-first repository for user account CRUD.
  * @param {SqlClient} client Client proxy that executes SQL statements.
- * @param {NewUserAccount} input The normalized fields for the new account.
+ * @returns {UserAccountRepository} Repository helpers bound to the provided client.
  */
-export async function insertUserAccount(
-  client: SqlClient,
-  input: NewUserAccount
-): Promise<void> {
-  const writer = createWriterForClient(client);
-  await writer.insert(userAccountTable, {
-    username: input.username,
-    email: input.email,
-    display_name: input.displayName,
-  });
-}
+export const createUserAccountRepository = (client: SqlClient): UserAccountRepository => {
+  const execute = createExecutor(client);
 
-/**
- * Updates the display name for an existing account.
- * @param {SqlClient} client Client proxy that executes SQL statements.
- * @param {number} userAccountId The primary key of the account to update.
- * @param {DisplayNameUpdatePayload} payload The new display name payload.
- */
-export async function updateDisplayName(
-  client: SqlClient,
-  userAccountId: number,
-  payload: DisplayNameUpdatePayload
-): Promise<void> {
-  const writer = createWriterForClient(client);
-  await writer.update(
-    userAccountTable,
-    {
-      display_name: payload.displayName,
-      updated_at: new Date(),
+  return {
+    insertUserAccount: async (input: NewUserAccount) => {
+      await execute(insertUserAccountSql, {
+        username: input.username,
+        email: input.email,
+        display_name: input.displayName,
+      });
     },
-    { user_account_id: userAccountId }
-  );
-}
-
-/**
- * Removes a user account by its primary key.
- * @param {SqlClient} client Client proxy that executes SQL statements.
- * @param {number} userAccountId The primary key of the account to delete.
- */
-export async function removeUserAccount(
-  client: SqlClient,
-  userAccountId: number
-): Promise<void> {
-  const writer = createWriterForClient(client);
-  await writer.remove(userAccountTable, { user_account_id: userAccountId });
-}
-
-/**
- * Column sets that writer tests use to ensure only approved columns are touched.
- * @property {readonly string[]} insertColumns Columns allowed for new account inserts.
- * @property {readonly string[]} updateColumns Columns permitted during updates.
- * @property {readonly string[]} immutableColumns Columns that must remain unchanged.
- */
-export const userAccountWriterColumnSets = {
-  insertColumns: ['username', 'email', 'display_name'] as const,
-  updateColumns: ['display_name', 'updated_at'] as const,
-  immutableColumns: ['user_account_id', 'created_at'] as const,
+    updateDisplayName: async (userAccountId: number, payload: DisplayNameUpdatePayload) => {
+      await execute(updateDisplayNameSql, {
+        user_account_id: userAccountId,
+        display_name: payload.displayName,
+      });
+    },
+    removeUserAccount: async (userAccountId: number) => {
+      await execute(deleteUserAccountSql, {
+        user_account_id: userAccountId,
+      });
+    },
+  };
 };

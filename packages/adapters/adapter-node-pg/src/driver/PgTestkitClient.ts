@@ -9,6 +9,7 @@ import {
   type PostgresTestkitClient,
   type Row,
 } from '@rawsql-ts/testkit-postgres';
+import { compileNamedParameters, type NamedParams } from '@rawsql-ts/_shared/binder';
 import type { CountableResult } from '@rawsql-ts/testkit-core';
 import type {
   CreatePgTestkitClientOptions,
@@ -46,7 +47,7 @@ export class PgTestkitClient {
 
   public async query<T extends QueryResultRow = QueryResultRow>(
     textOrConfig: PgQueryInput,
-    values?: unknown[]
+    values?: unknown[] | NamedParams
   ): Promise<QueryResult<T>>;
   public query<R extends any[] = any[], I = any[]>(
     queryConfig: QueryConfig<I>,
@@ -66,10 +67,18 @@ export class PgTestkitClient {
         ? queryTextOrConfig
         : {
             text: queryTextOrConfig.text,
-            values: queryTextOrConfig.values ?? values,
+            values: queryTextOrConfig.values ?? queryTextOrConfig.params ?? values,
           };
 
-    const execution = this.testkit.query(payload, typeof queryTextOrConfig === 'string' ? values : undefined);
+    const normalized = this.normalizeQuery(
+      typeof payload === 'string' ? payload : payload.text,
+      typeof payload === 'string' ? values : payload.values
+    );
+
+    const execution = this.testkit.query(
+      normalized.sql,
+      normalized.values
+    );
     const finalize = (result: CountableResult<Row>) =>
       this.toQueryResult(result, this.extractMetadata(result.rows));
 
@@ -125,6 +134,22 @@ export class PgTestkitClient {
   ): Promise<QueryResult<Row>> {
     const connection = await this.getConnection();
     return connection.query<Row>(sql, params as unknown[]);
+  }
+
+  private normalizeQuery(
+    sql: string,
+    params?: unknown[] | NamedParams
+  ): { sql: string; values?: unknown[] } {
+    if (!params) {
+      return { sql, values: undefined };
+    }
+
+    if (Array.isArray(params)) {
+      return { sql, values: params };
+    }
+
+    const compiled = compileNamedParameters(sql, params, 'pg-indexed');
+    return { sql: compiled.sql, values: compiled.values };
   }
 
   private extractMetadata(rows: Row[]): QueryResult<Row> | undefined {

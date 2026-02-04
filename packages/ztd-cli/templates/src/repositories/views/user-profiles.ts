@@ -5,7 +5,7 @@ import type { SqlClient } from '../../db/sql-client';
 import { createReader, rowMapping } from '@rawsql-ts/sql-contract';
 
 const userProfilesSql = readFileSync(
-  path.join(__dirname, '..', '..', 'sql', 'views', 'user-profiles.sql'),
+  path.join(__dirname, '..', '..', 'sql', 'user_account', 'list_user_profiles.sql'),
   'utf8'
 );
 
@@ -62,19 +62,29 @@ const userAccountMapping = rowMapping<UserAccountWithProfile>({
   },
 }).belongsToOptional('profile', profileMapping, 'userAccountId');
 
+/**
+ * Repository helper that executes the user profile query.
+ * @property {() => Promise<UserAccountWithProfile[]>} listUserProfiles Lists user accounts and optional profiles.
+ */
+export type UserProfilesRepository = {
+  listUserProfiles: () => Promise<UserAccountWithProfile[]>;
+};
+
 const createReaderForClient = (client: SqlClient) =>
   createReader((sql, params) =>
     client.query<Record<string, unknown>>(sql, params as readonly unknown[])
   );
 
 /**
- * Queries all user accounts together with their associated profiles.
+ * Creates a repository that lists user accounts with optional profile data.
  * @param {SqlClient} client Client proxy that executes the mapper SQL.
- * @returns {Promise<UserAccountWithProfile[]>} The joined account-with-profile rows.
+ * @returns {UserProfilesRepository} Repository helper bound to the provided client.
  */
-export async function listUserProfiles(
-  client: SqlClient
-): Promise<UserAccountWithProfile[]> {
+export const createUserProfilesRepository = (client: SqlClient): UserProfilesRepository => {
   const reader = createReaderForClient(client);
-  return reader.bind(userAccountMapping).list(userProfilesSql);
-}
+  const boundReader = reader.bind(userAccountMapping);
+
+  return {
+    listUserProfiles: () => boundReader.list(userProfilesSql),
+  };
+};

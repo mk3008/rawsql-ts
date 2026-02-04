@@ -94,20 +94,22 @@ type FileKey =
   | 'testsConfig'
   | 'testsAgents'
   | 'userProfilesTest'
-  | 'writerConstraintsTest'
+  | 'userAccountsTest'
   | 'testkitClient'
   | 'globalSetup'
   | 'vitestConfig'
   | 'readme'
-  | 'viewSqlReadme'
-  | 'jobSqlReadme'
+  | 'sqlReadme'
   | 'viewsRepoReadme'
   | 'tablesRepoReadme'
   | 'jobsReadme'
-  | 'viewSqlSample'
+  | 'userProfilesSql'
   | 'viewRepoSample'
   | 'tableRepoSample'
-  | 'jobSqlSample'
+  | 'userAccountInsertSql'
+  | 'userAccountUpdateSql'
+  | 'userAccountDeleteSql'
+  | 'userAccountRefreshSql'
   | 'jobRunnerSample'
   | 'sqlClient'
   | 'ztdDocsAgent'
@@ -222,20 +224,22 @@ const README_TEMPLATE = 'README.md';
 const TESTS_CONFIG_TEMPLATE = 'tests/ztd-layout.generated.ts';
 const TESTS_AGENTS_TEMPLATE = 'tests/AGENTS.md';
 const USER_PROFILES_TEST_TEMPLATE = 'tests/user-profiles.test.ts';
-const WRITER_CONSTRAINTS_TEST_TEMPLATE = 'tests/writer-constraints.test.ts';
+const USER_ACCOUNTS_TEST_TEMPLATE = 'tests/user-accounts.test.ts';
 const TESTKIT_CLIENT_TEMPLATE = 'tests/support/testkit-client.ts';
 const GLOBAL_SETUP_TEMPLATE = 'tests/support/global-setup.ts';
 const VITEST_CONFIG_TEMPLATE = 'vitest.config.ts';
 const SQL_CLIENT_TEMPLATE = 'src/db/sql-client.ts';
-const VIEW_SQL_README_TEMPLATE = 'src/sql/views/README.md';
-const JOB_SQL_README_TEMPLATE = 'src/sql/jobs/README.md';
+const SQL_README_TEMPLATE = 'src/sql/README.md';
 const VIEWS_REPO_README_TEMPLATE = 'src/repositories/views/README.md';
 const TABLES_REPO_README_TEMPLATE = 'src/repositories/tables/README.md';
 const JOBS_README_TEMPLATE = 'src/jobs/README.md';
-const VIEW_SQL_SAMPLE_TEMPLATE = 'src/sql/views/user-profiles.sql';
+const USER_PROFILES_SQL_TEMPLATE = 'src/sql/user_account/list_user_profiles.sql';
 const VIEW_REPO_SAMPLE_TEMPLATE = 'src/repositories/views/user-profiles.ts';
 const TABLE_REPO_SAMPLE_TEMPLATE = 'src/repositories/tables/user-accounts.ts';
-const JOB_SQL_SAMPLE_TEMPLATE = 'src/sql/jobs/refresh-user-accounts.sql';
+const USER_ACCOUNT_INSERT_SQL_TEMPLATE = 'src/sql/user_account/insert_user_account.sql';
+const USER_ACCOUNT_UPDATE_SQL_TEMPLATE = 'src/sql/user_account/update_display_name.sql';
+const USER_ACCOUNT_DELETE_SQL_TEMPLATE = 'src/sql/user_account/delete_user_account.sql';
+const USER_ACCOUNT_REFRESH_SQL_TEMPLATE = 'src/sql/user_account/refresh_user_accounts.sql';
 const JOB_RUNNER_SAMPLE_TEMPLATE = 'src/jobs/refresh-user-accounts.ts';
 
 const NEXT_STEPS = [
@@ -365,17 +369,19 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     testsConfig: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'generated', 'ztd-layout.generated.ts'),
     testsAgents: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'AGENTS.md'),
     userProfilesTest: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'user-profiles.test.ts'),
-    writerConstraintsTest: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'writer-constraints.test.ts'),
+    userAccountsTest: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'user-accounts.test.ts'),
     readme: path.join(rootDir, 'README.md'),
-    viewSqlReadme: path.join(rootDir, 'src', 'sql', 'views', 'README.md'),
-    jobSqlReadme: path.join(rootDir, 'src', 'sql', 'jobs', 'README.md'),
+    sqlReadme: path.join(rootDir, 'src', 'sql', 'README.md'),
     viewsRepoReadme: path.join(rootDir, 'src', 'repositories', 'views', 'README.md'),
     tablesRepoReadme: path.join(rootDir, 'src', 'repositories', 'tables', 'README.md'),
     jobsReadme: path.join(rootDir, 'src', 'jobs', 'README.md'),
-    viewSqlSample: path.join(rootDir, 'src', 'sql', 'views', 'user-profiles.sql'),
+    userProfilesSql: path.join(rootDir, 'src', 'sql', 'user_account', 'list_user_profiles.sql'),
     viewRepoSample: path.join(rootDir, 'src', 'repositories', 'views', 'user-profiles.ts'),
     tableRepoSample: path.join(rootDir, 'src', 'repositories', 'tables', 'user-accounts.ts'),
-    jobSqlSample: path.join(rootDir, 'src', 'sql', 'jobs', 'refresh-user-accounts.sql'),
+    userAccountInsertSql: path.join(rootDir, 'src', 'sql', 'user_account', 'insert_user_account.sql'),
+    userAccountUpdateSql: path.join(rootDir, 'src', 'sql', 'user_account', 'update_display_name.sql'),
+    userAccountDeleteSql: path.join(rootDir, 'src', 'sql', 'user_account', 'delete_user_account.sql'),
+    userAccountRefreshSql: path.join(rootDir, 'src', 'sql', 'user_account', 'refresh_user_accounts.sql'),
     jobRunnerSample: path.join(rootDir, 'src', 'jobs', 'refresh-user-accounts.ts'),
     sqlClient: path.join(rootDir, 'src', 'db', 'sql-client.ts'),
     testkitClient: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'support', 'testkit-client.ts'),
@@ -521,30 +527,17 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     summaries.readme = readmeSummary;
   }
 
-  const viewSqlReadmeSummary = await writeTemplateFile(
+  const sqlReadmeSummary = await writeTemplateFile(
     rootDir,
-    absolutePaths.viewSqlReadme,
-    relativePath('viewSqlReadme'),
-    VIEW_SQL_README_TEMPLATE,
+    absolutePaths.sqlReadme,
+    relativePath('sqlReadme'),
+    SQL_README_TEMPLATE,
     dependencies,
     prompter,
     overwritePolicy
   );
-  if (viewSqlReadmeSummary) {
-    summaries.viewSqlReadme = viewSqlReadmeSummary;
-  }
-
-  const jobSqlReadmeSummary = await writeTemplateFile(
-    rootDir,
-    absolutePaths.jobSqlReadme,
-    relativePath('jobSqlReadme'),
-    JOB_SQL_README_TEMPLATE,
-    dependencies,
-    prompter,
-    overwritePolicy
-  );
-  if (jobSqlReadmeSummary) {
-    summaries.jobSqlReadme = jobSqlReadmeSummary;
+  if (sqlReadmeSummary) {
+    summaries.sqlReadme = sqlReadmeSummary;
   }
 
   const viewsRepoReadmeSummary = await writeTemplateFile(
@@ -586,17 +579,17 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     summaries.jobsReadme = jobsReadmeSummary;
   }
 
-  const viewSqlSampleSummary = await writeTemplateFile(
+  const userProfilesSqlSummary = await writeTemplateFile(
     rootDir,
-    absolutePaths.viewSqlSample,
-    relativePath('viewSqlSample'),
-    VIEW_SQL_SAMPLE_TEMPLATE,
+    absolutePaths.userProfilesSql,
+    relativePath('userProfilesSql'),
+    USER_PROFILES_SQL_TEMPLATE,
     dependencies,
     prompter,
     overwritePolicy
   );
-  if (viewSqlSampleSummary) {
-    summaries.viewSqlSample = viewSqlSampleSummary;
+  if (userProfilesSqlSummary) {
+    summaries.userProfilesSql = userProfilesSqlSummary;
   }
 
   const viewRepoSampleSummary = await writeTemplateFile(
@@ -625,17 +618,56 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     summaries.tableRepoSample = tableRepoSampleSummary;
   }
 
-  const jobSqlSampleSummary = await writeTemplateFile(
+  const userAccountInsertSqlSummary = await writeTemplateFile(
     rootDir,
-    absolutePaths.jobSqlSample,
-    relativePath('jobSqlSample'),
-    JOB_SQL_SAMPLE_TEMPLATE,
+    absolutePaths.userAccountInsertSql,
+    relativePath('userAccountInsertSql'),
+    USER_ACCOUNT_INSERT_SQL_TEMPLATE,
     dependencies,
     prompter,
     overwritePolicy
   );
-  if (jobSqlSampleSummary) {
-    summaries.jobSqlSample = jobSqlSampleSummary;
+  if (userAccountInsertSqlSummary) {
+    summaries.userAccountInsertSql = userAccountInsertSqlSummary;
+  }
+
+  const userAccountUpdateSqlSummary = await writeTemplateFile(
+    rootDir,
+    absolutePaths.userAccountUpdateSql,
+    relativePath('userAccountUpdateSql'),
+    USER_ACCOUNT_UPDATE_SQL_TEMPLATE,
+    dependencies,
+    prompter,
+    overwritePolicy
+  );
+  if (userAccountUpdateSqlSummary) {
+    summaries.userAccountUpdateSql = userAccountUpdateSqlSummary;
+  }
+
+  const userAccountDeleteSqlSummary = await writeTemplateFile(
+    rootDir,
+    absolutePaths.userAccountDeleteSql,
+    relativePath('userAccountDeleteSql'),
+    USER_ACCOUNT_DELETE_SQL_TEMPLATE,
+    dependencies,
+    prompter,
+    overwritePolicy
+  );
+  if (userAccountDeleteSqlSummary) {
+    summaries.userAccountDeleteSql = userAccountDeleteSqlSummary;
+  }
+
+  const userAccountRefreshSqlSummary = await writeTemplateFile(
+    rootDir,
+    absolutePaths.userAccountRefreshSql,
+    relativePath('userAccountRefreshSql'),
+    USER_ACCOUNT_REFRESH_SQL_TEMPLATE,
+    dependencies,
+    prompter,
+    overwritePolicy
+  );
+  if (userAccountRefreshSqlSummary) {
+    summaries.userAccountRefreshSql = userAccountRefreshSqlSummary;
   }
 
   const jobRunnerSampleSummary = await writeTemplateFile(
@@ -742,17 +774,17 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     summaries.userProfilesTest = userProfilesTestSummary;
   }
 
-  const writerConstraintsTestSummary = await writeTemplateFile(
+  const userAccountsTestSummary = await writeTemplateFile(
     rootDir,
-    absolutePaths.writerConstraintsTest,
-    relativePath('writerConstraintsTest'),
-    WRITER_CONSTRAINTS_TEST_TEMPLATE,
+    absolutePaths.userAccountsTest,
+    relativePath('userAccountsTest'),
+    USER_ACCOUNTS_TEST_TEMPLATE,
     dependencies,
     prompter,
     overwritePolicy
   );
-  if (writerConstraintsTestSummary) {
-    summaries.writerConstraintsTest = writerConstraintsTestSummary;
+  if (userAccountsTestSummary) {
+    summaries.userAccountsTest = userAccountsTestSummary;
   }
 
   // Seed the shared guidance that lives inside the ztd/ directory so contributors see the new instructions.
@@ -1493,18 +1525,20 @@ function buildSummaryLines(
     'testsConfig',
     'testsAgents',
     'userProfilesTest',
-    'writerConstraintsTest',
+    'userAccountsTest',
     'ztdConfig',
     'readme',
-    'viewSqlReadme',
-    'jobSqlReadme',
+    'sqlReadme',
     'viewsRepoReadme',
     'tablesRepoReadme',
     'jobsReadme',
-    'viewSqlSample',
+    'userProfilesSql',
     'viewRepoSample',
     'tableRepoSample',
-    'jobSqlSample',
+    'userAccountInsertSql',
+    'userAccountUpdateSql',
+    'userAccountDeleteSql',
+    'userAccountRefreshSql',
     'jobRunnerSample',
     'sqlClient',
     'testkitClient',

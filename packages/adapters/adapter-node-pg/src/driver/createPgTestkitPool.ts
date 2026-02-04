@@ -86,8 +86,8 @@ export const createPgTestkitPool = (
     ): void;
     public override query(...args: unknown[]): unknown {
       const [queryTextOrConfig, valuesOrCallback, callbackOrUndefined] = args as [
-        string | { text: string; values?: unknown[]; params?: unknown[] },
-        unknown[] | ((err: Error, result: QueryResult<QueryResultRow>) => void) | undefined,
+        string | { text: string; values?: unknown[] | Record<string, unknown>; params?: Record<string, unknown> },
+        unknown[] | Record<string, unknown> | ((err: Error, result: QueryResult<QueryResultRow>) => void) | undefined,
         ((err: Error, result: QueryResult<QueryResultRow>) => void) | undefined
       ];
       const callback =

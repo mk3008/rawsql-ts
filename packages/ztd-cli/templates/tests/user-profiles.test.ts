@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import type { SqlClient } from '../src/db/sql-client';
-import { listUserProfiles } from '../src/repositories/views/user-profiles';
+import { createUserProfilesRepository } from '../src/repositories/views/user-profiles';
 
 const sampleRows = [
   {
@@ -33,16 +33,16 @@ const sampleRows = [
 
 function createStubClient(rows: typeof sampleRows): SqlClient {
   return {
-    query: async (_sql, _values) => {
-      return rows;
-    },
+    query: async <T extends Record<string, unknown>>(_sql: string, _values?: readonly unknown[] | Record<string, unknown>) =>
+      rows as T[],
   };
 }
 
 describe('listUserProfiles', () => {
   test('maps joined rows to camelCase DTOs', async () => {
     const client = createStubClient(sampleRows);
-    const actual = await listUserProfiles(client);
+    const repository = createUserProfilesRepository(client);
+    const actual = await repository.listUserProfiles();
     expect(actual).toEqual([
       {
         userAccountId: 1,

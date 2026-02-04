@@ -76,18 +76,20 @@ test('init wizard bootstraps a repo when writing DDL manually', async () => {
   expect(existsSync(path.join(workspace, 'tests', 'support', 'global-setup.ts'))).toBe(true);
   expect(existsSync(testkitClientPath)).toBe(true);
   expect(existsSync(path.join(workspace, 'tests', 'user-profiles.test.ts'))).toBe(true);
-  expect(existsSync(path.join(workspace, 'tests', 'writer-constraints.test.ts'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'tests', 'user-accounts.test.ts'))).toBe(true);
   expect(existsSync(path.join(workspace, 'vitest.config.ts'))).toBe(true);
   expect(existsSync(path.join(workspace, 'ztd.config.json'))).toBe(true);
-  expect(existsSync(path.join(workspace, 'src', 'sql', 'views', 'README.md'))).toBe(true);
-  expect(existsSync(path.join(workspace, 'src', 'sql', 'jobs', 'README.md'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'src', 'sql', 'README.md'))).toBe(true);
   expect(existsSync(path.join(workspace, 'src', 'repositories', 'views', 'README.md'))).toBe(true);
   expect(existsSync(path.join(workspace, 'src', 'repositories', 'tables', 'README.md'))).toBe(true);
   expect(existsSync(path.join(workspace, 'src', 'jobs', 'README.md'))).toBe(true);
-  expect(existsSync(path.join(workspace, 'src', 'sql', 'views', 'user-profiles.sql'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'src', 'sql', 'user_account', 'list_user_profiles.sql'))).toBe(true);
   expect(existsSync(path.join(workspace, 'src', 'repositories', 'views', 'user-profiles.ts'))).toBe(true);
   expect(existsSync(path.join(workspace, 'src', 'repositories', 'tables', 'user-accounts.ts'))).toBe(true);
-  expect(existsSync(path.join(workspace, 'src', 'sql', 'jobs', 'refresh-user-accounts.sql'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'src', 'sql', 'user_account', 'insert_user_account.sql'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'src', 'sql', 'user_account', 'update_display_name.sql'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'src', 'sql', 'user_account', 'delete_user_account.sql'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'src', 'sql', 'user_account', 'refresh_user_accounts.sql'))).toBe(true);
   expect(existsSync(path.join(workspace, 'src', 'jobs', 'refresh-user-accounts.ts'))).toBe(true);
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('Zero Table Dependency');
   expect(readNormalizedFile(schemaFilePath(workspace))).toContain('CREATE TABLE public.user_account');
@@ -220,7 +222,7 @@ test('init wizard pulls schema if pg_dump is available', async () => {
     readNormalizedFile(path.join(workspace, 'tests', 'generated', 'ztd-row-map.generated.ts'))
   ).toContain('export interface TestRowMap');
   expect(existsSync(path.join(workspace, 'tests', 'user-profiles.test.ts'))).toBe(true);
-  expect(existsSync(path.join(workspace, 'tests', 'writer-constraints.test.ts'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'tests', 'user-accounts.test.ts'))).toBe(true);
   const layoutContents = readNormalizedFile(
     path.join(workspace, 'tests', 'generated', 'ztd-layout.generated.ts'),
   );

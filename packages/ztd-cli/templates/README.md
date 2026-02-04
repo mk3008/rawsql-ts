@@ -11,12 +11,11 @@ This project organizes all SQL‑related artifacts under the `ztd/` directory, s
 
 /src                 <- application & repository code
   /sql
-    /views            <- read-only SELECT SQL (view specs)
-    /jobs             <- batch/set-based CUD SQL
+    /<table_name>     <- CRUD + SELECT SQL (named params)
   /repositories
-    /views            <- read-only repositories for view SQL
-    /tables           <- row-based CUD helpers (sql-contract writer DSL)
-  /jobs               <- job runners that execute SQL from src/sql/jobs
+    /views            <- read-only repositories
+    /tables           <- table repositories (SQL-first)
+  /jobs               <- job runners that execute SQL from src/sql/<table_name>
 /tests               <- ZTD tests, fixtures, generated maps
 ```
 
@@ -70,11 +69,11 @@ export function getSqlClient(): SqlClient {
 - When Zod is selected, follow `docs/recipes/validation-zod.md` (with `zod` as the validator dependency).
 - When ArkType is selected, follow `docs/recipes/validation-arktype.md` (with `arktype` as the validator dependency).
 
-# Mapper + writer sample
+# Repository samples (SQL-first)
 
-- Read-only repositories live under `src/repositories/views/` and load SQL from `src/sql/views/` (for example `src/repositories/views/user-profiles.ts` + `src/sql/views/user-profiles.sql`).
-- Row-based CUD helpers live under `src/repositories/tables/` and use the sql-contract writer DSL (see `src/repositories/tables/user-accounts.ts`).
-- Batch updates live under `src/sql/jobs/`, with execution wrappers in `src/jobs/` (for example `src/sql/jobs/refresh-user-accounts.sql` + `src/jobs/refresh-user-accounts.ts`).
+- Read-only repositories live under `src/repositories/views/` and load SQL from `src/sql/<table_name>/` (for example `src/repositories/views/user-profiles.ts` + `src/sql/user_account/list_user_profiles.sql`).
+- CUD helpers live under `src/repositories/tables/` and execute SQL from `src/sql/<table_name>/` (see `src/repositories/tables/user-accounts.ts`).
+- Batch updates live under `src/sql/<table_name>/`, with execution wrappers in `src/jobs/` (for example `src/sql/user_account/refresh_user_accounts.sql` + `src/jobs/refresh-user-accounts.ts`).
 - The template tests exercise the example repositories, and `ztd/ddl` is the authoritative source for every column and constraint.
 - Regenerate `tests/generated/ztd-row-map.generated.ts` (`npx ztd ztd-config`) before running the example tests so the row map reflects any schema changes.
 - The example tests require a real PostgreSQL connection via `DATABASE_URL`; they automatically skip when the variable is missing so local tooling stays fast.
@@ -226,4 +225,4 @@ The project layout and workflows above ensure long-term maintainability, clarity
 
 - `npx ztd ztd-config` (Recommended)
 - `pnpm -C packages/ztd-cli test` (Recommended)
-- `templates/tests/user-profiles.test.ts` runs only when `DATABASE_URL` is configured; otherwise it skips automatically.
+- Template repository tests use stub clients by default; only adapter-backed suites require `DATABASE_URL`.

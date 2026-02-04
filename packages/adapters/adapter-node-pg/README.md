@@ -18,6 +18,8 @@ pnpm add -D @rawsql-ts/adapter-node-pg pg
 
 Each helper accepts the same fixture configuration as before (`tableDefinitions`, `tableRows`, `ddl`, `missingFixtureStrategy`, etc.) and passes `onExecute` hooks through to `@rawsql-ts/testkit-postgres`.
 
+The wrapped query helpers also accept named parameters (e.g. `:user_id`) by compiling them to indexed placeholders (`$1`, `$2`, ...). When using named parameters, pass an object of values keyed by parameter name. Indexed placeholders and positional arrays are still supported for compatibility.
+
 ## Fixtures and validation
 
 This adapter reuses the `resolveFixtureState` and `validateFixtureRowsAgainstTableDefinitions` helpers from `@rawsql-ts/testkit-postgres`, so all adapters share the same schema snapshot and diagnostics.

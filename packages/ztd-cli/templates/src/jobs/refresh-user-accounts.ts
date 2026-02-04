@@ -4,7 +4,7 @@ import path from 'node:path';
 import type { SqlClient } from '../db/sql-client';
 
 const refreshUserAccountsSql = readFileSync(
-  path.join(__dirname, '..', 'sql', 'jobs', 'refresh-user-accounts.sql'),
+  path.join(__dirname, '..', 'sql', 'user_account', 'refresh_user_accounts.sql'),
   'utf8'
 );
 
