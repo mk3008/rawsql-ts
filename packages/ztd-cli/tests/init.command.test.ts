@@ -112,7 +112,7 @@ class TestPrompter implements Prompter {
 
 test('init wizard bootstraps an empty scaffold', async () => {
   const workspace = createTempDir('cli-init-empty');
-  const prompter = new TestPrompter(['2', '', '1']);
+  const prompter = new TestPrompter(['2', '1']);
 
   const result = await runInitCommand(prompter, { rootDir: workspace });
 
@@ -170,24 +170,23 @@ test('init wizard bootstraps an empty scaffold', async () => {
 
 test('init wizard bootstraps a scaffold with demo DDL', async () => {
   const workspace = createTempDir('cli-init-demo');
-  const schemaName = 'sales';
-  const prompter = new TestPrompter(['3', schemaName, '1']);
+  const prompter = new TestPrompter(['3', '1']);
 
   const result = await runInitCommand(prompter, { rootDir: workspace });
 
-  const schemaPath = schemaFilePath(workspace, schemaName);
+  const schemaPath = schemaFilePath(workspace);
 
   expect(result.summary).toMatchSnapshot();
   expect(existsSync(schemaPath)).toBe(true);
-  expect(readNormalizedFile(schemaPath)).toContain(`CREATE TABLE ${schemaName}.example_item`);
+  expect(readNormalizedFile(schemaPath)).toContain('CREATE TABLE public.example_item');
   expect(existsSync(path.join(workspace, 'tests', 'generated', 'ztd-row-map.generated.ts'))).toBe(false);
   expect(existsSync(path.join(workspace, 'tests', 'generated', 'ztd-layout.generated.ts'))).toBe(false);
 
   const config = JSON.parse(readNormalizedFile(path.join(workspace, 'ztd.config.json'))) as {
     ddl: { defaultSchema: string; searchPath: string[] };
   };
-  expect(config.ddl.defaultSchema).toBe(schemaName);
-  expect(config.ddl.searchPath).toEqual([schemaName]);
+  expect(config.ddl.defaultSchema).toBe(defaultSchemaName);
+  expect(config.ddl.searchPath).toEqual([defaultSchemaName]);
 });
 
 test('init wizard leaves existing ztd/ddl directory untouched', async () => {
@@ -195,7 +194,7 @@ test('init wizard leaves existing ztd/ddl directory untouched', async () => {
   const ddlDir = path.join(workspace, 'ztd', 'ddl');
   mkdirSync(ddlDir, { recursive: true });
 
-  const prompter = new TestPrompter(['2', '', '1']);
+  const prompter = new TestPrompter(['2', '1']);
   await runInitCommand(prompter, { rootDir: workspace });
 
   expect(existsSync(ddlDir)).toBe(true);
@@ -204,7 +203,7 @@ test('init wizard leaves existing ztd/ddl directory untouched', async () => {
 
 test('init wizard can scaffold the optional SqlClient seam', async () => {
   const workspace = createTempDir('cli-init-sqlclient');
-  const prompter = new TestPrompter(['2', '', '1']);
+  const prompter = new TestPrompter(['2', '1']);
 
   const result = await runInitCommand(prompter, { rootDir: workspace, withSqlClient: true });
 
@@ -221,7 +220,7 @@ test('init wizard preserves existing SqlClient files when opted in', async () =>
   mkdirSync(path.dirname(sqlClientPath), { recursive: true });
   writeFileSync(sqlClientPath, '// existing\n', 'utf8');
 
-  const prompter = new TestPrompter(['2', '', '1']);
+  const prompter = new TestPrompter(['2', '1']);
   const logs: string[] = [];
   const dependencies: Partial<ZtdConfigWriterDependencies> = {
     log: (message) => logs.push(message),
@@ -243,7 +242,7 @@ test('init installs template-referenced packages when package.json exists', asyn
     'utf8'
   );
 
-  const prompter = new TestPrompter(['2', '', '1']);
+  const prompter = new TestPrompter(['2', '1']);
   const installs: Array<{ kind: string; packages: string[]; packageManager: string }> = [];
   const dependencies: Partial<ZtdConfigWriterDependencies> = {
     log: () => undefined,
@@ -268,17 +267,16 @@ test('init wizard pulls schema if pg_dump is available', async () => {
       payload text
     );
   `;
-  const schemaName = 'analytics';
   let pullCount = 0;
 
-  const prompter = new TestPrompter(['1', schemaName, 'postgres://user@host/db', '1']);
+  const prompter = new TestPrompter(['1', 'postgres://user@host/db', '1']);
   const dependencies: Partial<ZtdConfigWriterDependencies> = {
     checkPgDump: () => true,
     runPullSchema: async (options) => {
       pullCount += 1;
-      expect(options.schemas).toEqual([schemaName]);
+      expect(options.schemas).toEqual([defaultSchemaName]);
       mkdirSync(options.out, { recursive: true });
-      writeFileSync(path.join(options.out, schemaFileName(schemaName)), pulledSchema, 'utf8');
+      writeFileSync(path.join(options.out, schemaFileName(defaultSchemaName)), pulledSchema, 'utf8');
     }
   };
 
@@ -288,7 +286,7 @@ test('init wizard pulls schema if pg_dump is available', async () => {
 
   expect(pullCount).toBe(1);
   expect(result.summary).toMatchSnapshot();
-  expect(readNormalizedFile(schemaFilePath(workspace, schemaName))).toContain('CREATE TABLE public.migrated');
+  expect(readNormalizedFile(schemaFilePath(workspace, defaultSchemaName))).toContain('CREATE TABLE public.migrated');
   expect(existsSync(path.join(workspace, 'README.md'))).toBe(true);
   expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('Zero Table Dependency');
   expect(existsSync(path.join(workspace, 'ztd.config.json'))).toBe(true);
@@ -304,14 +302,14 @@ test('init wizard pulls schema if pg_dump is available', async () => {
   expect(existsSync(path.join(workspace, 'ztd', 'AGENTS.md'))).toBe(true);
   expect(existsSync(path.join(workspace, 'ztd', 'README.md'))).toBe(true);
   expect(readdirSync(path.join(workspace, 'ztd', 'ddl'))).toEqual(
-    expect.arrayContaining([schemaFileName(schemaName)]),
+    expect.arrayContaining([schemaFileName(defaultSchemaName)]),
   );
 
   const config = JSON.parse(readNormalizedFile(path.join(workspace, 'ztd.config.json'))) as {
     ddl: { defaultSchema: string; searchPath: string[] };
   };
-  expect(config.ddl.defaultSchema).toBe(schemaName);
-  expect(config.ddl.searchPath).toEqual([schemaName]);
+  expect(config.ddl.defaultSchema).toBe(defaultSchemaName);
+  expect(config.ddl.searchPath).toEqual([defaultSchemaName]);
 
   // Ensure the generated testkit client can safely log params with circular references.
   expect(readNormalizedFile(testkitClientPath)).toContain(

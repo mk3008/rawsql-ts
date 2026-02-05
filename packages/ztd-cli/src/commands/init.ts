@@ -237,6 +237,7 @@ const JOBS_AGENTS_TEMPLATE = 'src/jobs/AGENTS.md';
 const ZTD_AGENTS_TEMPLATE = 'ztd/AGENTS.md';
 const ZTD_README_TEMPLATE = 'ztd/README.md';
 const ZTD_DDL_AGENTS_TEMPLATE = 'ztd/ddl/AGENTS.md';
+const ZTD_DDL_DEMO_TEMPLATE = 'ztd/ddl/demo.sql';
 
 const EMPTY_SCHEMA_COMMENT = (schemaName: string): string =>
   [
@@ -245,10 +246,8 @@ const EMPTY_SCHEMA_COMMENT = (schemaName: string): string =>
     ''
   ].join('\n');
 
-const DEMO_SCHEMA_TEMPLATE = (schemaName: string): string => {
-  const schemaDeclaration =
-    schemaName === 'public' ? '' : `CREATE SCHEMA IF NOT EXISTS ${schemaName};\n\n`;
-  return `${schemaDeclaration}CREATE TABLE ${schemaName}.example_item (\n  id bigserial PRIMARY KEY,\n  label text NOT NULL,\n  created_at timestamptz NOT NULL DEFAULT now()\n);\n`;
+const DEMO_SCHEMA_TEMPLATE = (_schemaName: string): string => {
+  return loadTemplate(ZTD_DDL_DEMO_TEMPLATE);
 };
 
 const AGENTS_FILE_CANDIDATES = ['AGENTS.md', 'AGENTS_ztd.md'];
@@ -383,12 +382,7 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
   );
   const workflow: InitWorkflow = workflowChoice === 0 ? 'pg_dump' : workflowChoice === 1 ? 'empty' : 'demo';
 
-  const schemaName = normalizeSchemaName(
-    await prompter.promptInputWithDefault(
-      'Enter the schema name to use for DDL files',
-      DEFAULT_ZTD_CONFIG.ddl.defaultSchema
-    )
-  );
+  const schemaName = normalizeSchemaName(DEFAULT_ZTD_CONFIG.ddl.defaultSchema);
   const schemaFileName = `${sanitizeSchemaFileName(schemaName)}.sql`;
 
   const absolutePaths: Record<FileKey, string> = {

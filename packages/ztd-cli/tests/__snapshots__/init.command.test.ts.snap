@@ -4,7 +4,7 @@ exports[`init wizard bootstraps a scaffold with demo DDL 1`] = `
 "ZTD project initialized.
 
 Created:
- - ztd/ddl/sales.sql
+ - ztd/ddl/public.sql
  - ztd.config.json
  - README.md
  - ztd/AGENTS.md
@@ -39,7 +39,7 @@ Validation configuration:
  - Validator backend: Zod (zod, docs/recipes/validation-zod.md)
 
 Next steps:
- 1. If the schema file is empty, edit ztd/ddl/sales.sql
+ 1. If the schema file is empty, edit ztd/ddl/public.sql
  2. Run npx ztd ztd-config
  3. Provide a SqlClient implementation (adapter or mock)
  4. Run tests (pnpm test or npx vitest run)"
@@ -94,7 +94,7 @@ exports[`init wizard pulls schema if pg_dump is available 1`] = `
 "ZTD project initialized.
 
 Created:
- - ztd/ddl/analytics.sql
+ - ztd/ddl/public.sql
  - ztd.config.json
  - README.md
  - ztd/AGENTS.md
@@ -129,7 +129,7 @@ Validation configuration:
  - Validator backend: Zod (zod, docs/recipes/validation-zod.md)
 
 Next steps:
- 1. Review the dumped DDL in ztd/ddl/analytics.sql
+ 1. Review the dumped DDL in ztd/ddl/public.sql
  2. Run npx ztd ztd-config
  3. Provide a SqlClient implementation (adapter or mock)
  4. Run tests (pnpm test or npx vitest run)"
