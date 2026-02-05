@@ -1,4 +1,6 @@
 # SQL Files
 
-Store all CRUD and SELECT statements under `src/sql/<table_name>/` using named parameters.
-Driver-specific placeholders belong in adapters, not SQL files.
+Store SQL statements by table or domain in subfolders.
+
+- Use named parameters (for example `:id`).
+- Keep SQL in files; repositories should load them.

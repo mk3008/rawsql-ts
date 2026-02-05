@@ -1,3 +1,3 @@
-# View repositories
+# View Repositories
 
-Read-only repositories that execute SQL from `src/sql/<table_name>/` and map rows into DTOs.
+Read-only repositories backed by SELECT SQL in `src/sql`.

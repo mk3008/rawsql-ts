@@ -1,2 +1,2 @@
 tests/generated/**
-
+!tests/generated/AGENTS.md

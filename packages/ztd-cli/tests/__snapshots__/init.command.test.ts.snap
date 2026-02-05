@@ -1,34 +1,33 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`init wizard bootstraps a repo when writing DDL manually 1`] = `
+exports[`init wizard bootstraps a scaffold with demo DDL 1`] = `
 "ZTD project initialized.
 
 Created:
- - ztd/ddl/public.sql
+ - ztd/ddl/sales.sql
  - ztd.config.json
- - tests/generated/ztd-layout.generated.ts
- - tests/AGENTS.md
- - tests/user-profiles.test.ts
- - tests/user-accounts.test.ts
- - tests/generated/ztd-row-map.generated.ts
  - README.md
+ - ztd/AGENTS.md
+ - ztd/README.md
+ - ztd/ddl/AGENTS.md
+ - src/AGENTS.md
+ - src/sql/AGENTS.md
+ - src/repositories/AGENTS.md
+ - src/repositories/views/AGENTS.md
+ - src/repositories/tables/AGENTS.md
+ - src/jobs/AGENTS.md
  - src/sql/README.md
  - src/repositories/views/README.md
  - src/repositories/tables/README.md
  - src/jobs/README.md
- - src/sql/user_account/list_user_profiles.sql
- - src/repositories/views/user-profiles.ts
- - src/repositories/tables/user-accounts.ts
- - src/sql/user_account/insert_user_account.sql
- - src/sql/user_account/update_display_name.sql
- - src/sql/user_account/delete_user_account.sql
- - src/sql/user_account/refresh_user_accounts.sql
- - src/jobs/refresh-user-accounts.ts
+ - tests/AGENTS.md
+ - tests/support/AGENTS.md
+ - tests/generated/AGENTS.md
+ - src/db/sql-client.ts
  - tests/support/testkit-client.ts
  - tests/support/global-setup.ts
  - vitest.config.ts
- - ztd/AGENTS.md
- - ztd/README.md
+ - tsconfig.json
  - AGENTS.md
  - .gitignore
  - .editorconfig
@@ -40,41 +39,85 @@ Validation configuration:
  - Validator backend: Zod (zod, docs/recipes/validation-zod.md)
 
 Next steps:
- 1. Review the schema files under ztd/ddl/<schema>.sql
- 2. Inspect tests/generated/ztd-layout.generated.ts for the SQL layout
- 3. Run npx ztd ztd-config
- 4. Provide a SqlClient implementation (for example by installing an adapter or mock) before running ZTD tests"
+ 1. If the schema file is empty, edit ztd/ddl/sales.sql
+ 2. Run npx ztd ztd-config
+ 3. Provide a SqlClient implementation (adapter or mock)
+ 4. Run tests (pnpm test or npx vitest run)"
+`;
+
+exports[`init wizard bootstraps an empty scaffold 1`] = `
+"ZTD project initialized.
+
+Created:
+ - ztd/ddl/public.sql
+ - ztd.config.json
+ - README.md
+ - ztd/AGENTS.md
+ - ztd/README.md
+ - ztd/ddl/AGENTS.md
+ - src/AGENTS.md
+ - src/sql/AGENTS.md
+ - src/repositories/AGENTS.md
+ - src/repositories/views/AGENTS.md
+ - src/repositories/tables/AGENTS.md
+ - src/jobs/AGENTS.md
+ - src/sql/README.md
+ - src/repositories/views/README.md
+ - src/repositories/tables/README.md
+ - src/jobs/README.md
+ - tests/AGENTS.md
+ - tests/support/AGENTS.md
+ - tests/generated/AGENTS.md
+ - src/db/sql-client.ts
+ - tests/support/testkit-client.ts
+ - tests/support/global-setup.ts
+ - vitest.config.ts
+ - tsconfig.json
+ - AGENTS.md
+ - .gitignore
+ - .editorconfig
+ - .prettierignore
+ - .prettierrc
+
+Validation configuration:
+ - SQL catalog/mapping support via @rawsql-ts/sql-contract (see docs/recipes/sql-contract.md)
+ - Validator backend: Zod (zod, docs/recipes/validation-zod.md)
+
+Next steps:
+ 1. If the schema file is empty, edit ztd/ddl/public.sql
+ 2. Run npx ztd ztd-config
+ 3. Provide a SqlClient implementation (adapter or mock)
+ 4. Run tests (pnpm test or npx vitest run)"
 `;
 
 exports[`init wizard pulls schema if pg_dump is available 1`] = `
 "ZTD project initialized.
 
 Created:
- - ztd/ddl/public.sql
+ - ztd/ddl/analytics.sql
  - ztd.config.json
- - tests/generated/ztd-layout.generated.ts
- - tests/AGENTS.md
- - tests/user-profiles.test.ts
- - tests/user-accounts.test.ts
- - tests/generated/ztd-row-map.generated.ts
  - README.md
+ - ztd/AGENTS.md
+ - ztd/README.md
+ - ztd/ddl/AGENTS.md
+ - src/AGENTS.md
+ - src/sql/AGENTS.md
+ - src/repositories/AGENTS.md
+ - src/repositories/views/AGENTS.md
+ - src/repositories/tables/AGENTS.md
+ - src/jobs/AGENTS.md
  - src/sql/README.md
  - src/repositories/views/README.md
  - src/repositories/tables/README.md
  - src/jobs/README.md
- - src/sql/user_account/list_user_profiles.sql
- - src/repositories/views/user-profiles.ts
- - src/repositories/tables/user-accounts.ts
- - src/sql/user_account/insert_user_account.sql
- - src/sql/user_account/update_display_name.sql
- - src/sql/user_account/delete_user_account.sql
- - src/sql/user_account/refresh_user_accounts.sql
- - src/jobs/refresh-user-accounts.ts
+ - tests/AGENTS.md
+ - tests/support/AGENTS.md
+ - tests/generated/AGENTS.md
+ - src/db/sql-client.ts
  - tests/support/testkit-client.ts
  - tests/support/global-setup.ts
  - vitest.config.ts
- - ztd/AGENTS.md
- - ztd/README.md
+ - tsconfig.json
  - AGENTS.md
  - .gitignore
  - .editorconfig
@@ -86,8 +129,8 @@ Validation configuration:
  - Validator backend: Zod (zod, docs/recipes/validation-zod.md)
 
 Next steps:
- 1. Review the schema files under ztd/ddl/<schema>.sql
- 2. Inspect tests/generated/ztd-layout.generated.ts for the SQL layout
- 3. Run npx ztd ztd-config
- 4. Provide a SqlClient implementation (for example by installing an adapter or mock) before running ZTD tests"
+ 1. Review the dumped DDL in ztd/ddl/analytics.sql
+ 2. Run npx ztd ztd-config
+ 3. Provide a SqlClient implementation (adapter or mock)
+ 4. Run tests (pnpm test or npx vitest run)"
 `;

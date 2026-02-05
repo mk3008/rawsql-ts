@@ -1,10 +1,23 @@
-# AGENTS (src/)
+# AGENTS: src/
 
-This directory follows the rules in `../AGENTS.md`.
+## Role
+Host application-facing SQL, repositories, and job runners.
 
-Key reminders:
-- All CRUD must be implemented in `.sql` files under `src/sql/<table_name>/`.
-- SQL files use named parameters; do not write driver-specific placeholders.
-- Do not use `writer.insert/update/remove` for application CRUD.
-- Do not inject audit timestamps in application code.
-- Repositories must be thin wrappers that load SQL and map results.
+## Primary Artifacts
+- src/sql/
+- src/repositories/
+- src/jobs/
+- src/db/sql-client.ts
+
+## Do
+- Keep SQL in files under src/sql.
+- Keep repositories thin and focused on executing SQL.
+
+## Do Not
+- Add DDL or generated artifacts here.
+- Embed demo SQL in TypeScript files.
+
+## Workflow
+- Add or update SQL files.
+- Update repositories or jobs to call the SQL.
+- Run `npx ztd ztd-config` after schema changes, then tests.

@@ -1,4 +1,3 @@
-# Table repositories
+# Table Repositories
 
-SQL-first repositories that execute CRUD SQL from `src/sql/<table_name>/`. Keep write helpers
-thin: load SQL, pass params, and map results when needed.
+Write-focused repositories that execute CRUD SQL from `src/sql`.

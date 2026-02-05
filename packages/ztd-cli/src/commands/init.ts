@@ -6,10 +6,9 @@ import readline from 'node:readline/promises';
 
 import { ensureDirectory } from '../utils/fs';
 import { copyAgentsTemplate } from '../utils/agents';
-import { DEFAULT_ZTD_CONFIG, loadZtdProjectConfig, writeZtdProjectConfig } from '../utils/ztdProjectConfig';
+import { DEFAULT_ZTD_CONFIG, writeZtdProjectConfig } from '../utils/ztdProjectConfig';
 import { runGenerateZtdConfig, type ZtdConfigGenerationOptions } from './ztdConfig';
 import { runPullSchema, type PullSchemaOptions } from './pull';
-import { DEFAULT_EXTENSIONS } from './options';
 
 type PackageManager = 'pnpm' | 'npm' | 'yarn';
 type PackageInstallKind = 'devDependencies' | 'install';
@@ -20,6 +19,7 @@ type PackageInstallKind = 'devDependencies' | 'install';
 export interface Prompter {
   selectChoice(question: string, choices: string[]): Promise<number>;
   promptInput(question: string, example?: string): Promise<string>;
+  promptInputWithDefault(question: string, defaultValue: string, example?: string): Promise<string>;
   confirm(question: string): Promise<boolean>;
   close(): void;
 }
@@ -36,6 +36,16 @@ export function createConsolePrompter(): Prompter {
 
   async function requestLine(question: string): Promise<string> {
     return (await rl.question(question)).trim();
+  }
+
+  async function requestLineWithDefault(
+    question: string,
+    defaultValue: string,
+    example?: string
+  ): Promise<string> {
+    const prompt = `${question}${example ? ` (${example})` : ''} [default: ${defaultValue}]: `;
+    const answer = await requestLine(prompt);
+    return answer.length > 0 ? answer : defaultValue;
   }
 
   return {
@@ -65,6 +75,10 @@ export function createConsolePrompter(): Prompter {
       }
     },
 
+    async promptInputWithDefault(question: string, defaultValue: string, example?: string): Promise<string> {
+      return requestLineWithDefault(question, defaultValue, example);
+    },
+
     async confirm(question: string): Promise<boolean> {
       while (true) {
         const answer = (await requestLine(`${question} (y/N): `)).toLowerCase();
@@ -90,30 +104,28 @@ export function createConsolePrompter(): Prompter {
 type FileKey =
   | 'schema'
   | 'config'
-  | 'ztdConfig'
-  | 'testsConfig'
   | 'testsAgents'
-  | 'userProfilesTest'
-  | 'userAccountsTest'
+  | 'testsSupportAgents'
+  | 'testsGeneratedAgents'
   | 'testkitClient'
   | 'globalSetup'
   | 'vitestConfig'
+  | 'tsconfig'
   | 'readme'
+  | 'ztdDocsAgent'
+  | 'ztdDocsReadme'
+  | 'ztdDdlAgents'
+  | 'srcAgents'
+  | 'srcSqlAgents'
+  | 'srcReposAgents'
+  | 'viewsRepoAgents'
+  | 'tablesRepoAgents'
+  | 'jobsAgents'
   | 'sqlReadme'
   | 'viewsRepoReadme'
   | 'tablesRepoReadme'
   | 'jobsReadme'
-  | 'userProfilesSql'
-  | 'viewRepoSample'
-  | 'tableRepoSample'
-  | 'userAccountInsertSql'
-  | 'userAccountUpdateSql'
-  | 'userAccountDeleteSql'
-  | 'userAccountRefreshSql'
-  | 'jobRunnerSample'
   | 'sqlClient'
-  | 'ztdDocsAgent'
-  | 'ztdDocsReadme'
   | 'agents'
   | 'gitignore'
   | 'editorconfig'
@@ -201,53 +213,43 @@ async function gatherOptionalFeatures(
   return { validator };
 }
 
-const SAMPLE_SCHEMA = `
-CREATE TABLE public.user_account (
-  user_account_id bigserial PRIMARY KEY,
-  username text NOT NULL,
-  email text NOT NULL UNIQUE,
-  display_name text NOT NULL,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now()
-);
-
-CREATE TABLE public.user_profile (
-  profile_id bigserial PRIMARY KEY,
-  user_account_id bigint NOT NULL REFERENCES public.user_account(user_account_id),
-  bio text,
-  website text,
-  verified boolean NOT NULL DEFAULT false
-);
-`;
+type InitWorkflow = 'pg_dump' | 'empty' | 'demo';
 
 const README_TEMPLATE = 'README.md';
-const TESTS_CONFIG_TEMPLATE = 'tests/ztd-layout.generated.ts';
 const TESTS_AGENTS_TEMPLATE = 'tests/AGENTS.md';
-const USER_PROFILES_TEST_TEMPLATE = 'tests/user-profiles.test.ts';
-const USER_ACCOUNTS_TEST_TEMPLATE = 'tests/user-accounts.test.ts';
+const TESTS_SUPPORT_AGENTS_TEMPLATE = 'tests/support/AGENTS.md';
+const TESTS_GENERATED_AGENTS_TEMPLATE = 'tests/generated/AGENTS.md';
 const TESTKIT_CLIENT_TEMPLATE = 'tests/support/testkit-client.ts';
 const GLOBAL_SETUP_TEMPLATE = 'tests/support/global-setup.ts';
 const VITEST_CONFIG_TEMPLATE = 'vitest.config.ts';
+const TSCONFIG_TEMPLATE = 'tsconfig.json';
 const SQL_CLIENT_TEMPLATE = 'src/db/sql-client.ts';
 const SQL_README_TEMPLATE = 'src/sql/README.md';
 const VIEWS_REPO_README_TEMPLATE = 'src/repositories/views/README.md';
 const TABLES_REPO_README_TEMPLATE = 'src/repositories/tables/README.md';
 const JOBS_README_TEMPLATE = 'src/jobs/README.md';
-const USER_PROFILES_SQL_TEMPLATE = 'src/sql/user_account/list_user_profiles.sql';
-const VIEW_REPO_SAMPLE_TEMPLATE = 'src/repositories/views/user-profiles.ts';
-const TABLE_REPO_SAMPLE_TEMPLATE = 'src/repositories/tables/user-accounts.ts';
-const USER_ACCOUNT_INSERT_SQL_TEMPLATE = 'src/sql/user_account/insert_user_account.sql';
-const USER_ACCOUNT_UPDATE_SQL_TEMPLATE = 'src/sql/user_account/update_display_name.sql';
-const USER_ACCOUNT_DELETE_SQL_TEMPLATE = 'src/sql/user_account/delete_user_account.sql';
-const USER_ACCOUNT_REFRESH_SQL_TEMPLATE = 'src/sql/user_account/refresh_user_accounts.sql';
-const JOB_RUNNER_SAMPLE_TEMPLATE = 'src/jobs/refresh-user-accounts.ts';
+const SRC_AGENTS_TEMPLATE = 'src/AGENTS.md';
+const SRC_SQL_AGENTS_TEMPLATE = 'src/sql/AGENTS.md';
+const SRC_REPOS_AGENTS_TEMPLATE = 'src/repositories/AGENTS.md';
+const VIEWS_REPO_AGENTS_TEMPLATE = 'src/repositories/views/AGENTS.md';
+const TABLES_REPO_AGENTS_TEMPLATE = 'src/repositories/tables/AGENTS.md';
+const JOBS_AGENTS_TEMPLATE = 'src/jobs/AGENTS.md';
+const ZTD_AGENTS_TEMPLATE = 'ztd/AGENTS.md';
+const ZTD_README_TEMPLATE = 'ztd/README.md';
+const ZTD_DDL_AGENTS_TEMPLATE = 'ztd/ddl/AGENTS.md';
 
-const NEXT_STEPS = [
-  ' 1. Review the schema files under ztd/ddl/<schema>.sql',
-  ' 2. Inspect tests/generated/ztd-layout.generated.ts for the SQL layout',
-  ' 3. Run npx ztd ztd-config',
-  ' 4. Provide a SqlClient implementation (for example by installing an adapter or mock) before running ZTD tests'
-];
+const EMPTY_SCHEMA_COMMENT = (schemaName: string): string =>
+  [
+    `-- DDL for schema "${schemaName}".`,
+    '-- Add CREATE TABLE statements here.',
+    ''
+  ].join('\n');
+
+const DEMO_SCHEMA_TEMPLATE = (schemaName: string): string => {
+  const schemaDeclaration =
+    schemaName === 'public' ? '' : `CREATE SCHEMA IF NOT EXISTS ${schemaName};\n\n`;
+  return `${schemaDeclaration}CREATE TABLE ${schemaName}.example_item (\n  id bigserial PRIMARY KEY,\n  label text NOT NULL,\n  created_at timestamptz NOT NULL DEFAULT now()\n);\n`;
+};
 
 const AGENTS_FILE_CANDIDATES = ['AGENTS.md', 'AGENTS_ztd.md'];
 
@@ -360,35 +362,60 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     nonInteractive: options?.nonInteractive ?? false
   };
 
-  const schemaFileName = `${DEFAULT_ZTD_CONFIG.ddl.defaultSchema}.sql`;
+  if (options?.withAppInterface) {
+    // Provide the documentation-only path before triggering any scaffolding work.
+    const summary = await appendAppInterfaceGuidance(rootDir, dependencies);
+    dependencies.log(`Appended application interface guidance to ${summary.relativePath}.`);
+    return {
+      summary: `App interface guidance appended to ${summary.relativePath}.`,
+      files: [summary]
+    };
+  }
+
+  // Ask how the user prefers to populate the initial schema.
+  const workflowChoice = await prompter.selectChoice(
+    'How do you want to start your database workflow?',
+    [
+      'Pull schema from Postgres (pg_dump)',
+      'Create empty scaffold (I will write DDL)',
+      'Create scaffold with demo DDL (no app code)'
+    ]
+  );
+  const workflow: InitWorkflow = workflowChoice === 0 ? 'pg_dump' : workflowChoice === 1 ? 'empty' : 'demo';
+
+  const schemaName = normalizeSchemaName(
+    await prompter.promptInputWithDefault(
+      'Enter the schema name to use for DDL files',
+      DEFAULT_ZTD_CONFIG.ddl.defaultSchema
+    )
+  );
+  const schemaFileName = `${sanitizeSchemaFileName(schemaName)}.sql`;
 
   const absolutePaths: Record<FileKey, string> = {
     schema: path.join(rootDir, DEFAULT_ZTD_CONFIG.ddlDir, schemaFileName),
     config: path.join(rootDir, 'ztd.config.json'),
-    ztdConfig: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'generated', 'ztd-row-map.generated.ts'),
-    testsConfig: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'generated', 'ztd-layout.generated.ts'),
     testsAgents: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'AGENTS.md'),
-    userProfilesTest: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'user-profiles.test.ts'),
-    userAccountsTest: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'user-accounts.test.ts'),
+    testsSupportAgents: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'support', 'AGENTS.md'),
+    testsGeneratedAgents: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'generated', 'AGENTS.md'),
     readme: path.join(rootDir, 'README.md'),
     sqlReadme: path.join(rootDir, 'src', 'sql', 'README.md'),
     viewsRepoReadme: path.join(rootDir, 'src', 'repositories', 'views', 'README.md'),
     tablesRepoReadme: path.join(rootDir, 'src', 'repositories', 'tables', 'README.md'),
     jobsReadme: path.join(rootDir, 'src', 'jobs', 'README.md'),
-    userProfilesSql: path.join(rootDir, 'src', 'sql', 'user_account', 'list_user_profiles.sql'),
-    viewRepoSample: path.join(rootDir, 'src', 'repositories', 'views', 'user-profiles.ts'),
-    tableRepoSample: path.join(rootDir, 'src', 'repositories', 'tables', 'user-accounts.ts'),
-    userAccountInsertSql: path.join(rootDir, 'src', 'sql', 'user_account', 'insert_user_account.sql'),
-    userAccountUpdateSql: path.join(rootDir, 'src', 'sql', 'user_account', 'update_display_name.sql'),
-    userAccountDeleteSql: path.join(rootDir, 'src', 'sql', 'user_account', 'delete_user_account.sql'),
-    userAccountRefreshSql: path.join(rootDir, 'src', 'sql', 'user_account', 'refresh_user_accounts.sql'),
-    jobRunnerSample: path.join(rootDir, 'src', 'jobs', 'refresh-user-accounts.ts'),
+    srcAgents: path.join(rootDir, 'src', 'AGENTS.md'),
+    srcSqlAgents: path.join(rootDir, 'src', 'sql', 'AGENTS.md'),
+    srcReposAgents: path.join(rootDir, 'src', 'repositories', 'AGENTS.md'),
+    viewsRepoAgents: path.join(rootDir, 'src', 'repositories', 'views', 'AGENTS.md'),
+    tablesRepoAgents: path.join(rootDir, 'src', 'repositories', 'tables', 'AGENTS.md'),
+    jobsAgents: path.join(rootDir, 'src', 'jobs', 'AGENTS.md'),
     sqlClient: path.join(rootDir, 'src', 'db', 'sql-client.ts'),
     testkitClient: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'support', 'testkit-client.ts'),
     globalSetup: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'support', 'global-setup.ts'),
     vitestConfig: path.join(rootDir, 'vitest.config.ts'),
+    tsconfig: path.join(rootDir, 'tsconfig.json'),
     ztdDocsAgent: path.join(rootDir, 'ztd', 'AGENTS.md'),
     ztdDocsReadme: path.join(rootDir, 'ztd', 'README.md'),
+    ztdDdlAgents: path.join(rootDir, 'ztd', 'ddl', 'AGENTS.md'),
     agents: path.join(rootDir, 'AGENTS.md'),
     gitignore: path.join(rootDir, '.gitignore'),
     editorconfig: path.join(rootDir, '.editorconfig'),
@@ -402,23 +429,8 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
 
   const summaries: Partial<Record<FileKey, FileSummary>> = {};
 
-  if (options?.withAppInterface) {
-    // Provide the documentation-only path before triggering any scaffolding work.
-    const summary = await appendAppInterfaceGuidance(rootDir, dependencies);
-    dependencies.log(`Appended application interface guidance to ${summary.relativePath}.`);
-    return {
-      summary: `App interface guidance appended to ${summary.relativePath}.`,
-      files: [summary]
-    };
-  }
-
   // Ask how the user prefers to populate the initial schema.
-  const workflow = await prompter.selectChoice(
-    'How do you want to start your database workflow?',
-    ['Pull schema from Postgres (DDL-first)', 'Write DDL manually']
-  );
-
-  if (workflow === 0) {
+  if (workflow === 'pg_dump') {
     // Database-first path: pull the schema before writing any DDL files.
     if (!dependencies.checkPgDump()) {
       throw new Error('Unable to find pg_dump. Install Postgres or set PG_DUMP_PATH before running ztd init.');
@@ -438,13 +450,14 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
         dependencies.ensureDirectory(path.dirname(absolutePaths.schema));
         await dependencies.runPullSchema({
           url: connectionString,
-          out: path.dirname(absolutePaths.schema)
+          out: path.dirname(absolutePaths.schema),
+          schemas: [schemaName]
         });
       }
     );
 
     summaries.schema = schemaSummary;
-  } else {
+  } else if (workflow === 'empty') {
     // Manual path: seed the DDL directory with a starter schema so ztd-config can run.
     const schemaSummary = await writeFileWithConsent(
       absolutePaths.schema,
@@ -454,7 +467,21 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
       overwritePolicy,
       async () => {
         dependencies.ensureDirectory(path.dirname(absolutePaths.schema));
-        dependencies.writeFile(absolutePaths.schema, SAMPLE_SCHEMA);
+        dependencies.writeFile(absolutePaths.schema, EMPTY_SCHEMA_COMMENT(schemaName));
+      }
+    );
+
+    summaries.schema = schemaSummary;
+  } else {
+    const schemaSummary = await writeFileWithConsent(
+      absolutePaths.schema,
+      relativePath('schema'),
+      dependencies,
+      prompter,
+      overwritePolicy,
+      async () => {
+        dependencies.ensureDirectory(path.dirname(absolutePaths.schema));
+        dependencies.writeFile(absolutePaths.schema, DEMO_SCHEMA_TEMPLATE(schemaName));
       }
     );
 
@@ -469,48 +496,17 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     prompter,
     overwritePolicy,
     () => {
-      writeZtdProjectConfig(rootDir);
+      writeZtdProjectConfig(rootDir, {
+        ddl: {
+          defaultSchema: schemaName,
+          searchPath: [schemaName]
+        }
+      });
     }
   );
   summaries.config = configSummary;
 
-  const projectConfig = loadZtdProjectConfig(rootDir);
-
   const optionalFeatures = await gatherOptionalFeatures(prompter, dependencies);
-
-  const ztdConfigTarget = await confirmOverwriteIfExists(
-    absolutePaths.ztdConfig,
-    relativePath('ztdConfig'),
-    dependencies,
-    prompter,
-    overwritePolicy
-  );
-
-  if (ztdConfigTarget.write) {
-    // Regenerate tests/generated/ztd-row-map.generated.ts so TestRowMap reflects the DDL snapshot.
-    dependencies.ensureDirectory(path.dirname(absolutePaths.ztdConfig));
-    await dependencies.runGenerateZtdConfig({
-      directories: [path.resolve(path.dirname(absolutePaths.schema))],
-      extensions: DEFAULT_EXTENSIONS,
-      out: absolutePaths.ztdConfig,
-      defaultSchema: projectConfig.ddl.defaultSchema,
-      searchPath: projectConfig.ddl.searchPath,
-      ddlLint: projectConfig.ddlLint
-    });
-  } else {
-    dependencies.log(
-      'Skipping ZTD config generation; existing tests/generated/ztd-row-map.generated.ts preserved.'
-    );
-  }
-
-  summaries.ztdConfig = {
-    relativePath: relativePath('ztdConfig'),
-    outcome: ztdConfigTarget.existed
-      ? ztdConfigTarget.write
-        ? 'overwritten'
-        : 'unchanged'
-      : 'created'
-  };
 
   // Emit supporting documentation that describes the workflow for contributors.
   const readmeSummary = await writeTemplateFile(
@@ -525,6 +521,123 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
   );
   if (readmeSummary) {
     summaries.readme = readmeSummary;
+  }
+
+  const ztdDocsAgentSummary = await writeTemplateFile(
+    rootDir,
+    absolutePaths.ztdDocsAgent,
+    relativePath('ztdDocsAgent'),
+    ZTD_AGENTS_TEMPLATE,
+    dependencies,
+    prompter,
+    overwritePolicy
+  );
+  if (ztdDocsAgentSummary) {
+    summaries.ztdDocsAgent = ztdDocsAgentSummary;
+  }
+
+  const ztdDocsReadmeSummary = await writeTemplateFile(
+    rootDir,
+    absolutePaths.ztdDocsReadme,
+    relativePath('ztdDocsReadme'),
+    ZTD_README_TEMPLATE,
+    dependencies,
+    prompter,
+    overwritePolicy
+  );
+  if (ztdDocsReadmeSummary) {
+    summaries.ztdDocsReadme = ztdDocsReadmeSummary;
+  }
+
+  const ztdDdlAgentsSummary = await writeTemplateFile(
+    rootDir,
+    absolutePaths.ztdDdlAgents,
+    relativePath('ztdDdlAgents'),
+    ZTD_DDL_AGENTS_TEMPLATE,
+    dependencies,
+    prompter,
+    overwritePolicy
+  );
+  if (ztdDdlAgentsSummary) {
+    summaries.ztdDdlAgents = ztdDdlAgentsSummary;
+  }
+
+  const srcAgentsSummary = await writeTemplateFile(
+    rootDir,
+    absolutePaths.srcAgents,
+    relativePath('srcAgents'),
+    SRC_AGENTS_TEMPLATE,
+    dependencies,
+    prompter,
+    overwritePolicy
+  );
+  if (srcAgentsSummary) {
+    summaries.srcAgents = srcAgentsSummary;
+  }
+
+  const srcSqlAgentsSummary = await writeTemplateFile(
+    rootDir,
+    absolutePaths.srcSqlAgents,
+    relativePath('srcSqlAgents'),
+    SRC_SQL_AGENTS_TEMPLATE,
+    dependencies,
+    prompter,
+    overwritePolicy
+  );
+  if (srcSqlAgentsSummary) {
+    summaries.srcSqlAgents = srcSqlAgentsSummary;
+  }
+
+  const srcReposAgentsSummary = await writeTemplateFile(
+    rootDir,
+    absolutePaths.srcReposAgents,
+    relativePath('srcReposAgents'),
+    SRC_REPOS_AGENTS_TEMPLATE,
+    dependencies,
+    prompter,
+    overwritePolicy
+  );
+  if (srcReposAgentsSummary) {
+    summaries.srcReposAgents = srcReposAgentsSummary;
+  }
+
+  const viewsRepoAgentsSummary = await writeTemplateFile(
+    rootDir,
+    absolutePaths.viewsRepoAgents,
+    relativePath('viewsRepoAgents'),
+    VIEWS_REPO_AGENTS_TEMPLATE,
+    dependencies,
+    prompter,
+    overwritePolicy
+  );
+  if (viewsRepoAgentsSummary) {
+    summaries.viewsRepoAgents = viewsRepoAgentsSummary;
+  }
+
+  const tablesRepoAgentsSummary = await writeTemplateFile(
+    rootDir,
+    absolutePaths.tablesRepoAgents,
+    relativePath('tablesRepoAgents'),
+    TABLES_REPO_AGENTS_TEMPLATE,
+    dependencies,
+    prompter,
+    overwritePolicy
+  );
+  if (tablesRepoAgentsSummary) {
+    summaries.tablesRepoAgents = tablesRepoAgentsSummary;
+  }
+
+  const jobsAgentsSummary = await writeTemplateFile(
+    rootDir,
+    absolutePaths.jobsAgents,
+    relativePath('jobsAgents'),
+    JOBS_AGENTS_TEMPLATE,
+    dependencies,
+    prompter,
+    overwritePolicy
+  );
+  if (jobsAgentsSummary) {
+    summaries.jobsAgents = jobsAgentsSummary;
   }
 
   const sqlReadmeSummary = await writeTemplateFile(
@@ -579,120 +692,53 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     summaries.jobsReadme = jobsReadmeSummary;
   }
 
-  const userProfilesSqlSummary = await writeTemplateFile(
+  const sqlClientSummary = writeOptionalTemplateFile(
+    absolutePaths.sqlClient,
+    relativePath('sqlClient'),
+    SQL_CLIENT_TEMPLATE,
+    dependencies
+  );
+  if (sqlClientSummary) {
+    summaries.sqlClient = sqlClientSummary;
+  }
+
+  const testsAgentsSummary = await writeTemplateFile(
     rootDir,
-    absolutePaths.userProfilesSql,
-    relativePath('userProfilesSql'),
-    USER_PROFILES_SQL_TEMPLATE,
+    absolutePaths.testsAgents,
+    relativePath('testsAgents'),
+    TESTS_AGENTS_TEMPLATE,
     dependencies,
     prompter,
     overwritePolicy
   );
-  if (userProfilesSqlSummary) {
-    summaries.userProfilesSql = userProfilesSqlSummary;
+  if (testsAgentsSummary) {
+    summaries.testsAgents = testsAgentsSummary;
   }
 
-  const viewRepoSampleSummary = await writeTemplateFile(
+  const testsSupportAgentsSummary = await writeTemplateFile(
     rootDir,
-    absolutePaths.viewRepoSample,
-    relativePath('viewRepoSample'),
-    VIEW_REPO_SAMPLE_TEMPLATE,
+    absolutePaths.testsSupportAgents,
+    relativePath('testsSupportAgents'),
+    TESTS_SUPPORT_AGENTS_TEMPLATE,
     dependencies,
     prompter,
     overwritePolicy
   );
-  if (viewRepoSampleSummary) {
-    summaries.viewRepoSample = viewRepoSampleSummary;
+  if (testsSupportAgentsSummary) {
+    summaries.testsSupportAgents = testsSupportAgentsSummary;
   }
 
-  const tableRepoSampleSummary = await writeTemplateFile(
+  const testsGeneratedAgentsSummary = await writeTemplateFile(
     rootDir,
-    absolutePaths.tableRepoSample,
-    relativePath('tableRepoSample'),
-    TABLE_REPO_SAMPLE_TEMPLATE,
+    absolutePaths.testsGeneratedAgents,
+    relativePath('testsGeneratedAgents'),
+    TESTS_GENERATED_AGENTS_TEMPLATE,
     dependencies,
     prompter,
     overwritePolicy
   );
-  if (tableRepoSampleSummary) {
-    summaries.tableRepoSample = tableRepoSampleSummary;
-  }
-
-  const userAccountInsertSqlSummary = await writeTemplateFile(
-    rootDir,
-    absolutePaths.userAccountInsertSql,
-    relativePath('userAccountInsertSql'),
-    USER_ACCOUNT_INSERT_SQL_TEMPLATE,
-    dependencies,
-    prompter,
-    overwritePolicy
-  );
-  if (userAccountInsertSqlSummary) {
-    summaries.userAccountInsertSql = userAccountInsertSqlSummary;
-  }
-
-  const userAccountUpdateSqlSummary = await writeTemplateFile(
-    rootDir,
-    absolutePaths.userAccountUpdateSql,
-    relativePath('userAccountUpdateSql'),
-    USER_ACCOUNT_UPDATE_SQL_TEMPLATE,
-    dependencies,
-    prompter,
-    overwritePolicy
-  );
-  if (userAccountUpdateSqlSummary) {
-    summaries.userAccountUpdateSql = userAccountUpdateSqlSummary;
-  }
-
-  const userAccountDeleteSqlSummary = await writeTemplateFile(
-    rootDir,
-    absolutePaths.userAccountDeleteSql,
-    relativePath('userAccountDeleteSql'),
-    USER_ACCOUNT_DELETE_SQL_TEMPLATE,
-    dependencies,
-    prompter,
-    overwritePolicy
-  );
-  if (userAccountDeleteSqlSummary) {
-    summaries.userAccountDeleteSql = userAccountDeleteSqlSummary;
-  }
-
-  const userAccountRefreshSqlSummary = await writeTemplateFile(
-    rootDir,
-    absolutePaths.userAccountRefreshSql,
-    relativePath('userAccountRefreshSql'),
-    USER_ACCOUNT_REFRESH_SQL_TEMPLATE,
-    dependencies,
-    prompter,
-    overwritePolicy
-  );
-  if (userAccountRefreshSqlSummary) {
-    summaries.userAccountRefreshSql = userAccountRefreshSqlSummary;
-  }
-
-  const jobRunnerSampleSummary = await writeTemplateFile(
-    rootDir,
-    absolutePaths.jobRunnerSample,
-    relativePath('jobRunnerSample'),
-    JOB_RUNNER_SAMPLE_TEMPLATE,
-    dependencies,
-    prompter,
-    overwritePolicy
-  );
-  if (jobRunnerSampleSummary) {
-    summaries.jobRunnerSample = jobRunnerSampleSummary;
-  }
-
-  if (options?.withSqlClient) {
-    const sqlClientSummary = writeOptionalTemplateFile(
-      absolutePaths.sqlClient,
-      relativePath('sqlClient'),
-      SQL_CLIENT_TEMPLATE,
-      dependencies
-    );
-    if (sqlClientSummary) {
-      summaries.sqlClient = sqlClientSummary;
-    }
+  if (testsGeneratedAgentsSummary) {
+    summaries.testsGeneratedAgents = testsGeneratedAgentsSummary;
   }
 
   const testkitSummary = await writeTemplateFile(
@@ -734,85 +780,17 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     summaries.vitestConfig = vitestConfigSummary;
   }
 
-  const testsConfigSummary = await writeTemplateFile(
+  const tsconfigSummary = await writeTemplateFile(
     rootDir,
-    absolutePaths.testsConfig,
-    relativePath('testsConfig'),
-    TESTS_CONFIG_TEMPLATE,
+    absolutePaths.tsconfig,
+    relativePath('tsconfig'),
+    TSCONFIG_TEMPLATE,
     dependencies,
     prompter,
     overwritePolicy
   );
-  if (testsConfigSummary) {
-    summaries.testsConfig = testsConfigSummary;
-  }
-
-  // Ensure the generated tests guidance lands beside the generated layout config.
-  const testsAgentsSummary = await writeTemplateFile(
-    rootDir,
-    absolutePaths.testsAgents,
-    relativePath('testsAgents'),
-    TESTS_AGENTS_TEMPLATE,
-    dependencies,
-    prompter,
-    overwritePolicy
-  );
-  if (testsAgentsSummary) {
-    summaries.testsAgents = testsAgentsSummary;
-  }
-
-  const userProfilesTestSummary = await writeTemplateFile(
-    rootDir,
-    absolutePaths.userProfilesTest,
-    relativePath('userProfilesTest'),
-    USER_PROFILES_TEST_TEMPLATE,
-    dependencies,
-    prompter,
-    overwritePolicy
-  );
-  if (userProfilesTestSummary) {
-    summaries.userProfilesTest = userProfilesTestSummary;
-  }
-
-  const userAccountsTestSummary = await writeTemplateFile(
-    rootDir,
-    absolutePaths.userAccountsTest,
-    relativePath('userAccountsTest'),
-    USER_ACCOUNTS_TEST_TEMPLATE,
-    dependencies,
-    prompter,
-    overwritePolicy
-  );
-  if (userAccountsTestSummary) {
-    summaries.userAccountsTest = userAccountsTestSummary;
-  }
-
-  // Seed the shared guidance that lives inside the ztd/ directory so contributors see the new instructions.
-  const ztdDocsAgentSummary = await writeTemplateFile(
-    rootDir,
-    absolutePaths.ztdDocsAgent,
-    relativePath('ztdDocsAgent'),
-    'ztd/AGENTS.md',
-    dependencies,
-    prompter,
-    overwritePolicy
-  );
-  if (ztdDocsAgentSummary) {
-    summaries.ztdDocsAgent = ztdDocsAgentSummary;
-  }
-
-  // Provide the companion README inside ztd/ so maintainers understand the schema expectations and doc layout.
-  const ztdDocsReadmeSummary = await writeTemplateFile(
-    rootDir,
-    absolutePaths.ztdDocsReadme,
-    relativePath('ztdDocsReadme'),
-    'ztd/README.md',
-    dependencies,
-    prompter,
-    overwritePolicy
-  );
-  if (ztdDocsReadmeSummary) {
-    summaries.ztdDocsReadme = ztdDocsReadmeSummary;
+  if (tsconfigSummary) {
+    summaries.tsconfig = tsconfigSummary;
   }
 
   const editorconfigSummary = copyTemplateFileIfMissing(
@@ -873,9 +851,11 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
 
   await ensureTemplateDependenciesInstalled(rootDir, absolutePaths, summaries, dependencies);
 
+  const nextSteps = buildNextSteps(normalizeRelative(rootDir, absolutePaths.schema), workflow);
   const summaryLines = buildSummaryLines(
     summaries as Record<FileKey, FileSummary>,
-    optionalFeatures
+    optionalFeatures,
+    nextSteps
   );
   summaryLines.forEach(dependencies.log);
 
@@ -1126,7 +1106,9 @@ async function ensureTemplateDependenciesInstalled(
 ): Promise<void> {
   const packageJsonPath = path.join(rootDir, 'package.json');
   if (!dependencies.fileExists(packageJsonPath)) {
-    dependencies.log('Skipping dependency installation because package.json is missing.');
+    dependencies.log(
+      'Skipping dependency installation because package.json is missing. Next: run pnpm init (or npm init), install dependencies, then run npx ztd ztd-config.'
+    );
     return;
   }
 
@@ -1449,6 +1431,19 @@ function normalizeRelative(rootDir: string, absolutePath: string): string {
   return relative || absolutePath;
 }
 
+function normalizeSchemaName(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return DEFAULT_ZTD_CONFIG.ddl.defaultSchema;
+  }
+  return trimmed.replace(/^"|"$/g, '').toLowerCase();
+}
+
+function sanitizeSchemaFileName(schemaName: string): string {
+  const sanitized = schemaName.replace(/[^a-z0-9_-]/g, '_').replace(/^_+|_+$/g, '');
+  return sanitized || 'schema';
+}
+
 interface AgentsFileResolution {
   absolutePath: string;
   created: boolean;
@@ -1515,37 +1510,49 @@ function loadTemplate(templateName: string): string {
   return readFileSync(templatePath, 'utf8');
 }
 
+function buildNextSteps(schemaRelativePath: string, workflow: InitWorkflow): string[] {
+  const stepOne =
+    workflow === 'pg_dump'
+      ? ` 1. Review the dumped DDL in ${schemaRelativePath}`
+      : ` 1. If the schema file is empty, edit ${schemaRelativePath}`;
+  return [
+    stepOne,
+    ' 2. Run npx ztd ztd-config',
+    ' 3. Provide a SqlClient implementation (adapter or mock)',
+    ' 4. Run tests (pnpm test or npx vitest run)'
+  ];
+}
+
 function buildSummaryLines(
   summaries: Record<FileKey, FileSummary>,
-  optionalFeatures: OptionalFeatures
+  optionalFeatures: OptionalFeatures,
+  nextSteps: string[]
 ): string[] {
   const orderedKeys: FileKey[] = [
     'schema',
     'config',
-    'testsConfig',
-    'testsAgents',
-    'userProfilesTest',
-    'userAccountsTest',
-    'ztdConfig',
     'readme',
+    'ztdDocsAgent',
+    'ztdDocsReadme',
+    'ztdDdlAgents',
+    'srcAgents',
+    'srcSqlAgents',
+    'srcReposAgents',
+    'viewsRepoAgents',
+    'tablesRepoAgents',
+    'jobsAgents',
     'sqlReadme',
     'viewsRepoReadme',
     'tablesRepoReadme',
     'jobsReadme',
-    'userProfilesSql',
-    'viewRepoSample',
-    'tableRepoSample',
-    'userAccountInsertSql',
-    'userAccountUpdateSql',
-    'userAccountDeleteSql',
-    'userAccountRefreshSql',
-    'jobRunnerSample',
+    'testsAgents',
+    'testsSupportAgents',
+    'testsGeneratedAgents',
     'sqlClient',
     'testkitClient',
     'globalSetup',
     'vitestConfig',
-    'ztdDocsAgent',
-    'ztdDocsReadme',
+    'tsconfig',
     'agents',
     'gitignore',
     'editorconfig',
@@ -1577,7 +1584,7 @@ function buildSummaryLines(
       ? 'Zod (zod, docs/recipes/validation-zod.md)'
       : 'ArkType (arktype, docs/recipes/validation-arktype.md)';
   lines.push(` - Validator backend: ${validatorLabel}`);
-  lines.push('', 'Next steps:', ...NEXT_STEPS);
+  lines.push('', 'Next steps:', ...nextSteps);
   return lines;
 }
 

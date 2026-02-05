@@ -1,3 +1,3 @@
-# Job runners
+# Jobs
 
-Job runners coordinate execution of SQL stored under `src/sql/<table_name>/`.
+Job runners that orchestrate repository or SQL workflows.
