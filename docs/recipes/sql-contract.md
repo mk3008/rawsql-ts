@@ -55,4 +55,4 @@ The reader above can be used directly in tests or shared helpers so the same SQL
 
 ## What’s next
 
-- Wire runtime validation by following either the Zod or ArkType recipe below. Validation is required for every ZTD project, so keep your chosen validator aligned with the reader/writer wiring.
+- Wire runtime validation by following the [Zod](./validation-zod.md) or [ArkType](./validation-arktype.md) recipe. Validation is required for every ZTD project, so keep your chosen validator aligned with the reader/writer wiring.

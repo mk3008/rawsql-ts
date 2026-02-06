@@ -106,6 +106,8 @@ When changing schemas or search paths, update `ztd.config.json` accordingly.
 * Use `pnpm` and `pnpm --filter <package>` for scoped tasks.
 * All identifiers, comments, and documentation must be written in English.
 * Use `./tmp` for throwaway assets.
+* In tests, do not duplicate production normalization or sanitization rules; import shared helpers from source modules whenever those helpers are deterministic and side-effect free.
+* In docs, avoid directional wording like "below" when pointing to separate recipe files; use explicit Markdown links to the target document.
 * README and driver demos must exercise the rewrite and fixture helpers located at
   `packages/sql-contract/tests/readme/support/postgres-demo.ts`.
 * Remove console debugging statements before committing.

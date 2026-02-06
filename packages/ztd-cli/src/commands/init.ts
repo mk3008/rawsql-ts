@@ -1582,7 +1582,11 @@ function normalizeRelative(rootDir: string, absolutePath: string): string {
   return relative || absolutePath;
 }
 
-function normalizeSchemaName(value: string): string {
+/**
+ * Normalizes a schema identifier into the canonical lowercase form used by ztd-cli file naming.
+ * Empty input falls back to the configured default schema.
+ */
+export function normalizeSchemaName(value: string): string {
   const trimmed = value.trim();
   if (!trimmed) {
     return DEFAULT_ZTD_CONFIG.ddl.defaultSchema;
@@ -1590,7 +1594,11 @@ function normalizeSchemaName(value: string): string {
   return trimmed.replace(/^"|"$/g, '').toLowerCase();
 }
 
-function sanitizeSchemaFileName(schemaName: string): string {
+/**
+ * Sanitizes a normalized schema identifier so it can be used as a filesystem-safe file stem.
+ * Returns `schema` when all characters are stripped by sanitization.
+ */
+export function sanitizeSchemaFileName(schemaName: string): string {
   const sanitized = schemaName.replace(/[^a-z0-9_-]/g, '_').replace(/^_+|_+$/g, '');
   return sanitized || 'schema';
 }

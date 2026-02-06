@@ -3,7 +3,13 @@ import path from 'node:path';
 import { expect, test } from 'vitest';
 
 import { DEFAULT_ZTD_CONFIG } from '../src/utils/ztdProjectConfig';
-import { runInitCommand, type ZtdConfigWriterDependencies, type Prompter } from '../src/commands/init';
+import {
+  runInitCommand,
+  normalizeSchemaName,
+  sanitizeSchemaFileName,
+  type ZtdConfigWriterDependencies,
+  type Prompter
+} from '../src/commands/init';
 
 const repoRoot = path.resolve(__dirname, '..', '..', '..');
 const tmpRoot = path.join(repoRoot, 'tmp');
@@ -17,18 +23,8 @@ function createTempDir(prefix: string): string {
 
 const defaultSchemaName = DEFAULT_ZTD_CONFIG.ddl.defaultSchema;
 
-function normalizeSchemaName(value: string): string {
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return defaultSchemaName;
-  }
-  return trimmed.replace(/^"|"$/g, '').toLowerCase();
-}
-
 function schemaFileName(schemaName: string): string {
-  const normalized = normalizeSchemaName(schemaName);
-  const sanitized = normalized.replace(/[^a-z0-9_-]/g, '_').replace(/^_+|_+$/g, '');
-  return `${sanitized || 'schema'}.sql`;
+  return `${sanitizeSchemaFileName(normalizeSchemaName(schemaName))}.sql`;
 }
 
 const schemaFilePath = (workspace: string, schemaName: string = defaultSchemaName): string =>
