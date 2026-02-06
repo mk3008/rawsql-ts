@@ -1,7 +1,7 @@
 <div v-pre>
 # Interface: TableColumnDefinitionModel
 
-Defined in: [packages/core/src/models/TableDefinitionModel.ts:14](https://github.com/mk3008/rawsql-ts/blob/eb87c364119e1d94cd289801a211bf4874dd6cee/packages/core/src/models/TableDefinitionModel.ts#L14)
+Defined in: [packages/core/src/models/TableDefinitionModel.ts:14](https://github.com/mk3008/rawsql-ts/blob/97899341ea23d20c7f2ce4609e59e508e45a84c2/packages/core/src/models/TableDefinitionModel.ts#L14)
 
 Column metadata that augments the SchemaManager definition with
 type, nullability, and default information for insert simulation.
@@ -16,7 +16,7 @@ type, nullability, and default information for insert simulation.
 
 > `optional` **typeName**: `string`
 
-Defined in: [packages/core/src/models/TableDefinitionModel.ts:16](https://github.com/mk3008/rawsql-ts/blob/eb87c364119e1d94cd289801a211bf4874dd6cee/packages/core/src/models/TableDefinitionModel.ts#L16)
+Defined in: [packages/core/src/models/TableDefinitionModel.ts:16](https://github.com/mk3008/rawsql-ts/blob/97899341ea23d20c7f2ce4609e59e508e45a84c2/packages/core/src/models/TableDefinitionModel.ts#L16)
 
 SQL type that should be used when casting inserted values.
 
@@ -26,7 +26,7 @@ SQL type that should be used when casting inserted values.
 
 > `optional` **required**: `boolean`
 
-Defined in: [packages/core/src/models/TableDefinitionModel.ts:18](https://github.com/mk3008/rawsql-ts/blob/eb87c364119e1d94cd289801a211bf4874dd6cee/packages/core/src/models/TableDefinitionModel.ts#L18)
+Defined in: [packages/core/src/models/TableDefinitionModel.ts:18](https://github.com/mk3008/rawsql-ts/blob/97899341ea23d20c7f2ce4609e59e508e45a84c2/packages/core/src/models/TableDefinitionModel.ts#L18)
 
 Whether a value is required in the INSERT statement (NOT NULL without default).
 
@@ -36,7 +36,7 @@ Whether a value is required in the INSERT statement (NOT NULL without default).
 
 > `optional` **defaultValue**: `null` \| `string` \| [`ValueComponent`](../type-aliases/ValueComponent.md)
 
-Defined in: [packages/core/src/models/TableDefinitionModel.ts:20](https://github.com/mk3008/rawsql-ts/blob/eb87c364119e1d94cd289801a211bf4874dd6cee/packages/core/src/models/TableDefinitionModel.ts#L20)
+Defined in: [packages/core/src/models/TableDefinitionModel.ts:20](https://github.com/mk3008/rawsql-ts/blob/97899341ea23d20c7f2ce4609e59e508e45a84c2/packages/core/src/models/TableDefinitionModel.ts#L20)
 
 Expression text or AST from DDL that represents the column default, if any.
 
@@ -46,7 +46,7 @@ Expression text or AST from DDL that represents the column default, if any.
 
 > `optional` **isNotNull**: `boolean`
 
-Defined in: [packages/core/src/models/TableDefinitionModel.ts:22](https://github.com/mk3008/rawsql-ts/blob/eb87c364119e1d94cd289801a211bf4874dd6cee/packages/core/src/models/TableDefinitionModel.ts#L22)
+Defined in: [packages/core/src/models/TableDefinitionModel.ts:22](https://github.com/mk3008/rawsql-ts/blob/97899341ea23d20c7f2ce4609e59e508e45a84c2/packages/core/src/models/TableDefinitionModel.ts#L22)
 
 Whether the column can accept null values, based on DDL constraints.
 
@@ -56,7 +56,7 @@ Whether the column can accept null values, based on DDL constraints.
 
 > **name**: `string`
 
-Defined in: [packages/core/src/utils/SchemaManager.ts:34](https://github.com/mk3008/rawsql-ts/blob/eb87c364119e1d94cd289801a211bf4874dd6cee/packages/core/src/utils/SchemaManager.ts#L34)
+Defined in: [packages/core/src/utils/SchemaManager.ts:34](https://github.com/mk3008/rawsql-ts/blob/97899341ea23d20c7f2ce4609e59e508e45a84c2/packages/core/src/utils/SchemaManager.ts#L34)
 
 Column name in database
 
@@ -70,7 +70,7 @@ Column name in database
 
 > `optional` **isPrimaryKey**: `boolean`
 
-Defined in: [packages/core/src/utils/SchemaManager.ts:36](https://github.com/mk3008/rawsql-ts/blob/eb87c364119e1d94cd289801a211bf4874dd6cee/packages/core/src/utils/SchemaManager.ts#L36)
+Defined in: [packages/core/src/utils/SchemaManager.ts:36](https://github.com/mk3008/rawsql-ts/blob/97899341ea23d20c7f2ce4609e59e508e45a84c2/packages/core/src/utils/SchemaManager.ts#L36)
 
 Primary key indicator - used for UPDATE/DELETE query WHERE conditions
 
@@ -84,7 +84,7 @@ Primary key indicator - used for UPDATE/DELETE query WHERE conditions
 
 > `optional` **foreignKey**: `object`
 
-Defined in: [packages/core/src/utils/SchemaManager.ts:38](https://github.com/mk3008/rawsql-ts/blob/eb87c364119e1d94cd289801a211bf4874dd6cee/packages/core/src/utils/SchemaManager.ts#L38)
+Defined in: [packages/core/src/utils/SchemaManager.ts:38](https://github.com/mk3008/rawsql-ts/blob/97899341ea23d20c7f2ce4609e59e508e45a84c2/packages/core/src/utils/SchemaManager.ts#L38)
 
 Foreign key reference
 
@@ -106,7 +106,7 @@ Foreign key reference
 
 > `optional` **jsonAlias**: `string`
 
-Defined in: [packages/core/src/utils/SchemaManager.ts:43](https://github.com/mk3008/rawsql-ts/blob/eb87c364119e1d94cd289801a211bf4874dd6cee/packages/core/src/utils/SchemaManager.ts#L43)
+Defined in: [packages/core/src/utils/SchemaManager.ts:43](https://github.com/mk3008/rawsql-ts/blob/97899341ea23d20c7f2ce4609e59e508e45a84c2/packages/core/src/utils/SchemaManager.ts#L43)
 
 Alias for JSON output (useful for avoiding conflicts)
 
