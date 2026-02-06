@@ -1,3 +1,7 @@
+import path from 'node:path';
+import { createRequire } from 'node:module';
+import { pathToFileURL } from 'node:url';
+
 const moduleCache = new Map<string, Promise<unknown>>();
 
 async function loadOptionalModule<T>(
@@ -62,6 +66,28 @@ export function clearOptionalDependencyCache(): void {
   moduleCache.clear();
 }
 
+function requireFromWorkspace<T>(specifier: string): T {
+  const require = createRequire(path.resolve(process.cwd(), 'package.json'));
+  return require(specifier) as T;
+}
+
+async function loadAdapterNodePgModule(): Promise<AdapterNodePgModule> {
+  try {
+    return requireFromWorkspace<AdapterNodePgModule>('@rawsql-ts/adapter-node-pg');
+  } catch (error) {
+    // Workspace tests can run before adapter build output exists, so use source entrypoint.
+    const workspaceAdapterSrc = path.resolve(
+      process.cwd(),
+      'packages/adapters/adapter-node-pg/src/index.ts'
+    );
+    try {
+      return (await import(pathToFileURL(workspaceAdapterSrc).href)) as AdapterNodePgModule;
+    } catch {
+      throw error;
+    }
+  }
+}
+
 export async function ensureTestkitCoreModule(): Promise<TestkitCoreModule> {
   return loadOptionalModule(
     '@rawsql-ts/testkit-core',
@@ -74,7 +100,7 @@ export async function ensureTestkitCoreModule(): Promise<TestkitCoreModule> {
 export async function ensureAdapterNodePgModule(): Promise<AdapterNodePgModule> {
   return loadOptionalModule(
     '@rawsql-ts/adapter-node-pg',
-    () => import('@rawsql-ts/adapter-node-pg') as unknown as Promise<AdapterNodePgModule>,
+    loadAdapterNodePgModule,
     'A database adapter (for example @rawsql-ts/adapter-node-pg) is required to execute the rewritten SQL.',
     'pnpm add -D @rawsql-ts/adapter-node-pg'
   );
