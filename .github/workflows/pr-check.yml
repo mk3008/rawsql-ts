@@ -32,7 +32,18 @@ jobs:
         pnpm --filter @rawsql-ts/testkit-core run build
         pnpm --filter @rawsql-ts/ztd-cli run build
 
+    - name: Detect deprecated playground
+      id: playground
+      run: |
+        if [ -d "./playgrounds/ztd-playground" ]; then
+          echo "exists=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "exists=false" >> "$GITHUB_OUTPUT"
+          echo "playgrounds/ztd-playground is removed; skipping playground artifact generation."
+        fi
+
     - name: Generate ZTD artifacts (playground)
+      if: steps.playground.outputs.exists == 'true'
       working-directory: ./playgrounds/ztd-playground
       run: node ../../packages/ztd-cli/dist/index.js ztd-config
 
