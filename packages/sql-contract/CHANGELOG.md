@@ -1,5 +1,26 @@
 # @rawsql-ts/sql-contract
 
+## 0.2.0
+
+### Minor Changes
+
+- [#426](https://github.com/mk3008/rawsql-ts/pull/426) [`47f9e41`](https://github.com/mk3008/rawsql-ts/commit/47f9e41201f88f7b378301b474e8cbc0a1b050c8) Thanks [@mk3008](https://github.com/mk3008)! - Add reader validation hooks and scalar query helpers to support runtime DTO validation and single-value results.
+
+- [#433](https://github.com/mk3008/rawsql-ts/pull/433) [`06ec7ea`](https://github.com/mk3008/rawsql-ts/commit/06ec7ea2c54b9561ff74cbbd6c13d8cc7ef6f9dc) Thanks [@mk3008](https://github.com/mk3008)! - Add a new public `timestampFromDriver(value, fieldName?)` helper in `@rawsql-ts/sql-contract` for fail-fast `Date | string` normalization of driver-returned timestamps.
+
+  Update `@rawsql-ts/ztd-cli` templates to normalize runtime timestamp fields through the shared sql-contract helper (via runtime coercion wiring), add strict guardrails against local timestamp re-implementation, and expand scaffold smoke validation tests for valid and invalid timestamp strings.
+
+### Patch Changes
+
+- [#431](https://github.com/mk3008/rawsql-ts/pull/431) [`eadb311`](https://github.com/mk3008/rawsql-ts/commit/eadb311dcc8c748fcdd30f2b743648783aafc2f6) Thanks [@mk3008](https://github.com/mk3008)! - Corrected the catalog executor test expectations so the cached SQL loader matches the returned rows and keeps the rewrite/binder pipeline aligned.
+
+- [#430](https://github.com/mk3008/rawsql-ts/pull/430) [`0b34920`](https://github.com/mk3008/rawsql-ts/commit/0b34920094c3451dd1263a25b44acf729fe1afae) Thanks [@mk3008](https://github.com/mk3008)! - Describe how composite and derived key normalization now exposes deterministic internals and tests can assert separator/tag/order invariants.
+
+- [#426](https://github.com/mk3008/rawsql-ts/pull/426) [`c0486d6`](https://github.com/mk3008/rawsql-ts/commit/c0486d68a5c517efa5a511a2ea49cdc3b21986d4) Thanks [@mk3008](https://github.com/mk3008)! - - split the Postgres validator demo into five short README-ready test files that share a pg-test helper and keep the API story tidy.
+  - document that the SQL Contract package now exposes `decimalStringToNumberUnsafe` for the Zod demo without importing `sql-contract-zod`, preserving a dependency-free core surface.
+
+- [#432](https://github.com/mk3008/rawsql-ts/pull/432) [`5e01f8e`](https://github.com/mk3008/rawsql-ts/commit/5e01f8eb64894b4aea3b47aa96ccfd8a3b8ccdc3) Thanks [@mk3008](https://github.com/mk3008)! - - tighten catalog executor contracts, add `ContractViolationError`, and improve observability/error classification.
+
 ## 0.1.0
 
 ### Minor Changes

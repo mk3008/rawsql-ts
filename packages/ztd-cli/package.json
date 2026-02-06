@@ -1,6 +1,6 @@
 {
   "name": "@rawsql-ts/ztd-cli",
-  "version": "0.16.0",
+  "version": "0.17.0",
   "description": "DB-agnostic scaffolding and DDL helpers for Zero Table Dependency projects",
   "main": "dist/index.js",
   "bin": {

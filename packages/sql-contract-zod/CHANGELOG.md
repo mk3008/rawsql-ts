@@ -1,5 +1,16 @@
 # @rawsql-ts/sql-contract-zod
 
+## 0.1.1
+
+### Patch Changes
+
+- [#425](https://github.com/mk3008/rawsql-ts/pull/425) [`3e6e493`](https://github.com/mk3008/rawsql-ts/commit/3e6e493f03d85b10d5b9c9033d51e7ece7384d85) Thanks [@mk3008](https://github.com/mk3008)! - - add `reader.scalar` so single-column queries can be validated with Zod without DTO mapping and document the helper
+
+- [#426](https://github.com/mk3008/rawsql-ts/pull/426) [`c0486d6`](https://github.com/mk3008/rawsql-ts/commit/c0486d68a5c517efa5a511a2ea49cdc3b21986d4) Thanks [@mk3008](https://github.com/mk3008)! - - split the Postgres validator demo into five short README-ready test files that share a pg-test helper and keep the API story tidy.
+  - document that the SQL Contract package now exposes `decimalStringToNumberUnsafe` for the Zod demo without importing `sql-contract-zod`, preserving a dependency-free core surface.
+- Updated dependencies [[`47f9e41`](https://github.com/mk3008/rawsql-ts/commit/47f9e41201f88f7b378301b474e8cbc0a1b050c8), [`06ec7ea`](https://github.com/mk3008/rawsql-ts/commit/06ec7ea2c54b9561ff74cbbd6c13d8cc7ef6f9dc), [`eadb311`](https://github.com/mk3008/rawsql-ts/commit/eadb311dcc8c748fcdd30f2b743648783aafc2f6), [`0b34920`](https://github.com/mk3008/rawsql-ts/commit/0b34920094c3451dd1263a25b44acf729fe1afae), [`c0486d6`](https://github.com/mk3008/rawsql-ts/commit/c0486d68a5c517efa5a511a2ea49cdc3b21986d4), [`5e01f8e`](https://github.com/mk3008/rawsql-ts/commit/5e01f8eb64894b4aea3b47aa96ccfd8a3b8ccdc3)]:
+  - @rawsql-ts/sql-contract@0.2.0
+
 ## 0.1.0
 
 ### Minor Changes
