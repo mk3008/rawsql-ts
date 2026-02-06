@@ -23,9 +23,40 @@ async function loadOptionalModule<T>(
 }
 
 export type TestkitCoreModule = typeof import('@rawsql-ts/testkit-core');
-export type AdapterNodePgModule = typeof import('@rawsql-ts/adapter-node-pg');
-export type PgModule = typeof import('pg');
-export type PostgresContainerModule = typeof import('@testcontainers/postgresql');
+
+export interface PgTestkitClientLike {
+  query(statement: string): Promise<unknown>;
+  close(): Promise<unknown>;
+}
+
+export interface AdapterNodePgModule {
+  createPgTestkitClient(options: Record<string, unknown>): PgTestkitClientLike;
+}
+
+export interface PgClientLike {
+  connect(): Promise<unknown>;
+  end(): Promise<unknown>;
+}
+
+export interface PgModule {
+  Client: new (options: { connectionString: string }) => PgClientLike;
+}
+
+export interface PostgresContainerLike {
+  getConnectionUri(): string;
+  stop(): Promise<unknown>;
+}
+
+export interface PostgresContainerBuilderLike {
+  withDatabase(database: string): PostgresContainerBuilderLike;
+  withUsername(username: string): PostgresContainerBuilderLike;
+  withPassword(password: string): PostgresContainerBuilderLike;
+  start(): Promise<PostgresContainerLike>;
+}
+
+export interface PostgresContainerModule {
+  PostgreSqlContainer: new (image?: string) => PostgresContainerBuilderLike;
+}
 
 export function clearOptionalDependencyCache(): void {
   moduleCache.clear();

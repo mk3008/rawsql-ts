@@ -3,7 +3,6 @@ import path from 'node:path';
 import { Command } from 'commander';
 import { MultiQuerySplitter, SqlParser } from 'rawsql-ts';
 import type { TableDefinitionModel } from 'rawsql-ts';
-import type { Client } from 'pg';
 import type { DdlLintMode, TableRowsFixture } from '@rawsql-ts/testkit-core';
 import {
   ensureAdapterNodePgModule,
@@ -11,6 +10,7 @@ import {
   ensurePostgresContainerModule,
   ensureTestkitCoreModule,
   type AdapterNodePgModule,
+  type PgClientLike,
   type TestkitCoreModule
 } from '../utils/optionalDependencies';
 import { loadZtdProjectConfig } from '../utils/ztdProjectConfig';
@@ -49,7 +49,7 @@ export interface RunSqlLintOptions {
   defaultSchema: string;
   searchPath: string[];
   ddlLint: DdlLintMode;
-  client: Client;
+  client: PgClientLike;
 }
 
 /** Outcome summary for a lint run. */
