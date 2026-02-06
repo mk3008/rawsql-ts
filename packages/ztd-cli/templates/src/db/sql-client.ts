@@ -9,16 +9,16 @@ export type SqlQueryRows<T> = Promise<T[]>;
 /**
  * Minimal SQL client interface required by the repository layer.
  *
- * - Production: adapt `pg` (or other drivers) to normalize results into `T[]`
- * - Tests: compatible with the `testkit-postgres` pipeline exposed by `@rawsql-ts/adapter-node-pg` clients returned by `createTestkitClient()`
+ * - Production: adapt this interface to your preferred driver (pg, mysql2, etc.) and normalize the results to `T[]`.
+ * - Tests: replace the implementation with a mock, a fixture helper, or an adapter that follows this contract.
  *
  * Connection strategy note:
- * - Prefer a shared client per worker process for performance.
- * - Do not share a live client across parallel workers.
+ * - Prefer a shared client per worker process for better performance.
+ * - Do not share a live client across parallel workers without proper synchronization.
  */
 export type SqlClient = {
   query<T extends Record<string, unknown> = Record<string, unknown>>(
     text: string,
-    values?: readonly unknown[]
+    values?: readonly unknown[] | Record<string, unknown>
   ): SqlQueryRows<T>;
 };

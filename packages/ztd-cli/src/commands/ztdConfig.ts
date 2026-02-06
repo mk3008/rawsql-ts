@@ -6,15 +6,8 @@ import {
   MultiQuerySplitter,
   SqlParser
 } from 'rawsql-ts';
-import {
-  DdlLintError,
-  TableNameResolver,
-  applyDdlLintMode,
-  formatDdlLintDiagnostics,
-  lintDdlSources,
-  normalizeDdlLintMode,
-  type DdlLintMode,
-} from '@rawsql-ts/testkit-core';
+import type { DdlLintMode, TableNameResolver } from '@rawsql-ts/testkit-core';
+import { ensureTestkitCoreModule } from '../utils/optionalDependencies';
 import { collectSqlFiles, SqlSource } from '../utils/collectSqlFiles';
 import { mapSqlTypeToTs } from '../utils/typeMapper';
 import { ensureDirectory } from '../utils/fs';
@@ -40,7 +33,17 @@ export interface TableMetadata {
   columns: ColumnMetadata[];
 }
 
-export function runGenerateZtdConfig(options: ZtdConfigGenerationOptions): void {
+export async function runGenerateZtdConfig(options: ZtdConfigGenerationOptions): Promise<void> {
+  const testkitCore = await ensureTestkitCoreModule();
+  const {
+    TableNameResolver,
+    DdlLintError,
+    applyDdlLintMode,
+    formatDdlLintDiagnostics,
+    lintDdlSources,
+    normalizeDdlLintMode
+  } = testkitCore;
+
   const sources = collectSqlFiles(options.directories, options.extensions);
   if (sources.length === 0) {
     throw new Error(`No SQL files were discovered under ${options.directories.join(', ')}`);
@@ -165,7 +168,19 @@ export function renderZtdConfigFile(tables: TableMetadata[]): string {
     '// ZTD TEST ROW MAP',
     '// This file is synchronized with DDL using ztd-config.',
     '',
-    "import type { FixtureRow, TableFixture, TableSchemaDefinition } from '@rawsql-ts/testkit-core';",
+    'type ColumnDefinitions = Record<string, string>;',
+    '',
+    'export interface TableSchemaDefinition {',
+    '  columns: ColumnDefinitions;',
+    '}',
+    '',
+    'export type FixtureRow = Record<string, unknown>;',
+    '',
+    'export interface TableFixture<RowShape extends Record<string, unknown> = FixtureRow> {',
+    '  tableName: string;',
+    '  rows: RowShape[];',
+    '  schema: TableSchemaDefinition;',
+    '}',
     ''
   ].join('\n');
 
@@ -216,7 +231,7 @@ export function renderZtdConfigFile(tables: TableMetadata[]): string {
     '  return tableSchemas[tableName];',
     '}',
     '',
-    'export type ZtdTableFixture<K extends ZtdTableName> = TableFixture & {',
+    'export type ZtdTableFixture<K extends ZtdTableName> = TableFixture<ZtdRowShapes[K]> & {',
     '  tableName: K;',
     '  rows: ZtdRowShapes[K][];',
     '  schema: TableSchemaDefinition;',
@@ -230,8 +245,8 @@ export function renderZtdConfigFile(tables: TableMetadata[]): string {
     '  tableName: K,',
     '  rows: ZtdRowShapes[K][],',
     '  schema?: TableSchemaDefinition',
-    '): TableFixture {',
-    '  return { tableName, rows, schema };',
+    '): TableFixture<ZtdRowShapes[K]> {',
+    '  return { tableName, rows, schema: schema ?? tableSchemas[tableName] };',
     '}',
     '',
     'export function tableFixtureWithSchema<K extends ZtdTableName>(',

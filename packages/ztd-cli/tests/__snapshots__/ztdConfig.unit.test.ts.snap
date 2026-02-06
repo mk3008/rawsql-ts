@@ -5,7 +5,19 @@ exports[`generates ZTD row map from CREATE TABLE statements 1`] = `
 // ZTD TEST ROW MAP
 // This file is synchronized with DDL using ztd-config.
 
-import type { FixtureRow, TableFixture, TableSchemaDefinition } from '@rawsql-ts/testkit-core';
+type ColumnDefinitions = Record<string, string>;
+
+export interface TableSchemaDefinition {
+  columns: ColumnDefinitions;
+}
+
+export type FixtureRow = Record<string, unknown>;
+
+export interface TableFixture<RowShape extends Record<string, unknown> = FixtureRow> {
+  tableName: string;
+  rows: RowShape[];
+  schema: TableSchemaDefinition;
+}
 export interface TestRowMap {
   'public.profiles': PublicProfilesTestRow;
   'public.users': PublicUsersTestRow;
@@ -50,7 +62,7 @@ export function tableSchema<K extends ZtdTableName>(tableName: K): TableSchemaDe
   return tableSchemas[tableName];
 }
 
-export type ZtdTableFixture<K extends ZtdTableName> = TableFixture & {
+export type ZtdTableFixture<K extends ZtdTableName> = TableFixture<ZtdRowShapes[K]> & {
   tableName: K;
   rows: ZtdRowShapes[K][];
   schema: TableSchemaDefinition;
@@ -64,8 +76,8 @@ export function tableFixture<K extends ZtdTableName>(
   tableName: K,
   rows: ZtdRowShapes[K][],
   schema?: TableSchemaDefinition
-): TableFixture {
-  return { tableName, rows, schema };
+): TableFixture<ZtdRowShapes[K]> {
+  return { tableName, rows, schema: schema ?? tableSchemas[tableName] };
 }
 
 export function tableFixtureWithSchema<K extends ZtdTableName>(
@@ -83,7 +95,19 @@ exports[`handles multiple sources with composite keys and cross-schema reference
 // ZTD TEST ROW MAP
 // This file is synchronized with DDL using ztd-config.
 
-import type { FixtureRow, TableFixture, TableSchemaDefinition } from '@rawsql-ts/testkit-core';
+type ColumnDefinitions = Record<string, string>;
+
+export interface TableSchemaDefinition {
+  columns: ColumnDefinitions;
+}
+
+export type FixtureRow = Record<string, unknown>;
+
+export interface TableFixture<RowShape extends Record<string, unknown> = FixtureRow> {
+  tableName: string;
+  rows: RowShape[];
+  schema: TableSchemaDefinition;
+}
 export interface TestRowMap {
   'analytics.weekly_stats': AnalyticsWeeklyStatsTestRow;
   'public.users': PublicUsersTestRow;
@@ -144,7 +168,7 @@ export function tableSchema<K extends ZtdTableName>(tableName: K): TableSchemaDe
   return tableSchemas[tableName];
 }
 
-export type ZtdTableFixture<K extends ZtdTableName> = TableFixture & {
+export type ZtdTableFixture<K extends ZtdTableName> = TableFixture<ZtdRowShapes[K]> & {
   tableName: K;
   rows: ZtdRowShapes[K][];
   schema: TableSchemaDefinition;
@@ -158,8 +182,8 @@ export function tableFixture<K extends ZtdTableName>(
   tableName: K,
   rows: ZtdRowShapes[K][],
   schema?: TableSchemaDefinition
-): TableFixture {
-  return { tableName, rows, schema };
+): TableFixture<ZtdRowShapes[K]> {
+  return { tableName, rows, schema: schema ?? tableSchemas[tableName] };
 }
 
 export function tableFixtureWithSchema<K extends ZtdTableName>(

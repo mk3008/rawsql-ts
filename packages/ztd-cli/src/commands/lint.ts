@@ -1,21 +1,18 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { Command } from 'commander';
-import { Client } from 'pg';
 import { MultiQuerySplitter, SqlParser } from 'rawsql-ts';
 import type { TableDefinitionModel } from 'rawsql-ts';
+import type { DdlLintMode, TableRowsFixture } from '@rawsql-ts/testkit-core';
 import {
-  DdlFixtureLoader,
-  TableNameResolver,
-  MissingFixtureError,
-  SchemaValidationError,
-  QueryRewriteError,
-  DdlLintError,
-  type DdlLintMode,
-  type TableRowsFixture
-} from '@rawsql-ts/testkit-core';
-import { createPgTestkitClient } from '@rawsql-ts/adapter-node-pg';
-import { PostgreSqlContainer } from '@testcontainers/postgresql';
+  ensureAdapterNodePgModule,
+  ensurePgModule,
+  ensurePostgresContainerModule,
+  ensureTestkitCoreModule,
+  type AdapterNodePgModule,
+  type PgClientLike,
+  type TestkitCoreModule
+} from '../utils/optionalDependencies';
 import { loadZtdProjectConfig } from '../utils/ztdProjectConfig';
 import {
   resolveSqlFiles,
@@ -52,7 +49,7 @@ export interface RunSqlLintOptions {
   defaultSchema: string;
   searchPath: string[];
   ddlLint: DdlLintMode;
-  client: Client;
+  client: PgClientLike;
 }
 
 /** Outcome summary for a lint run. */
@@ -61,18 +58,43 @@ export interface RunSqlLintResult {
   filesChecked: number;
 }
 
+interface LintModuleConstructors {
+  DdlLintError: TestkitCoreModule['DdlLintError'];
+  TableNameResolver: TestkitCoreModule['TableNameResolver'];
+  DdlFixtureLoader: TestkitCoreModule['DdlFixtureLoader'];
+  MissingFixtureError: TestkitCoreModule['MissingFixtureError'];
+  SchemaValidationError: TestkitCoreModule['SchemaValidationError'];
+  QueryRewriteError: TestkitCoreModule['QueryRewriteError'];
+}
+
+type TransformError =
+  | InstanceType<TestkitCoreModule['MissingFixtureError']>
+  | InstanceType<TestkitCoreModule['SchemaValidationError']>
+  | InstanceType<TestkitCoreModule['QueryRewriteError']>;
+
 /**
  * Validate every SQL file against the configured DDL fixtures by replaying each
- * statement through `@rawsql-ts/adapter-node-pg`'s `PgTestkitClient`.
+ * statement through the adapter-provided testkit client.
  * @param options Configuration values that describe which files and schemas to lint.
  * @returns A summary of the failures observed and how many files were processed.
  */
 export async function runSqlLint(options: RunSqlLintOptions): Promise<RunSqlLintResult> {
   const { sqlFiles, ddlDirectories, defaultSchema, searchPath, ddlLint, client } = options;
+  const testkitCore = await ensureTestkitCoreModule();
+  const adapter = await ensureAdapterNodePgModule();
+  const constructors: LintModuleConstructors = {
+    TableNameResolver: testkitCore.TableNameResolver,
+    DdlFixtureLoader: testkitCore.DdlFixtureLoader,
+    DdlLintError: testkitCore.DdlLintError,
+    MissingFixtureError: testkitCore.MissingFixtureError,
+    SchemaValidationError: testkitCore.SchemaValidationError,
+    QueryRewriteError: testkitCore.QueryRewriteError
+  };
+
   let tableDefinitions: TableDefinitionModel[];
   try {
-    const resolver = new TableNameResolver({ defaultSchema, searchPath });
-    const loader = new DdlFixtureLoader({
+    const resolver = new constructors.TableNameResolver({ defaultSchema, searchPath });
+    const loader = new constructors.DdlFixtureLoader({
       directories: ddlDirectories,
       tableNameResolver: resolver,
       ddlLint
@@ -81,7 +103,7 @@ export async function runSqlLint(options: RunSqlLintOptions): Promise<RunSqlLint
     tableDefinitions = fixtures.map((fixture) => fixture.tableDefinition);
   } catch (error) {
     return {
-      failures: [buildTransformFailureFromLoaderError(error, ddlDirectories)],
+      failures: [buildTransformFailureFromLoaderError(error, ddlDirectories, constructors)],
       filesChecked: sqlFiles.length
     };
   }
@@ -92,15 +114,13 @@ export async function runSqlLint(options: RunSqlLintOptions): Promise<RunSqlLint
     rows: [buildLintFixtureRow(definition, enumLabels)]
   }));
 
-  // Build fixture data so that required columns pass the Postgres checks.
   let rewrittenStatement: string | null = null;
-  const testkit = createPgTestkitClient({
+  const testkit = adapter.createPgTestkitClient({
     connectionFactory: async () => client,
     tableDefinitions,
     tableRows,
     defaultSchema,
     searchPath,
-    // Track the rewritten SQL so we can show it when a validation failure occurs.
     onExecute: (sql: string) => {
       rewrittenStatement = sql;
     }
@@ -118,7 +138,8 @@ export async function runSqlLint(options: RunSqlLintOptions): Promise<RunSqlLint
         () => {
           rewrittenStatement = null;
         },
-        () => rewrittenStatement
+        () => rewrittenStatement,
+        constructors
       );
     }
   } finally {
@@ -150,16 +171,32 @@ async function runLintCommand(pattern: string): Promise<void> {
   const ddlRoot = path.resolve(projectRoot, config.ddlDir);
   const sqlFiles = resolveSqlFiles(pattern);
 
-  const containerImage = process.env.ZTD_LINT_DB_IMAGE ?? 'postgres:16-alpine';
-  const container = await new PostgreSqlContainer(containerImage)
-    .withDatabase('ztdlint')
-    .withUsername('ztd')
-    .withPassword('ztd')
-    .start();
-  const client = new Client({ connectionString: container.getConnectionUri() });
-  await client.connect();
+  const databaseUrl = process.env.ZTD_LINT_DATABASE_URL?.trim() ?? process.env.DATABASE_URL?.trim();
+  const pgModule = await ensurePgModule();
+  const { Client: PgClient } = pgModule;
+  let client: InstanceType<typeof PgClient> | null = null;
+  let container: { getConnectionUri(): string; stop(): Promise<unknown> } | null = null;
+  let connectionUrl = databaseUrl && databaseUrl.length > 0 ? databaseUrl : null;
 
   try {
+    if (!connectionUrl) {
+      const containerModule = await ensurePostgresContainerModule().catch((error) => {
+        const baseMessage = error instanceof Error ? error.message : String(error);
+        throw new Error(`${baseMessage} Or set ZTD_LINT_DATABASE_URL to reuse an existing Postgres connection.`);
+      });
+      const { PostgreSqlContainer } = containerModule;
+      const started = await new PostgreSqlContainer(process.env.ZTD_LINT_DB_IMAGE ?? 'postgres:16-alpine')
+        .withDatabase('ztdlint')
+        .withUsername('ztd')
+        .withPassword('ztd')
+        .start();
+      container = started;
+      connectionUrl = started.getConnectionUri();
+    }
+
+    client = new PgClient({ connectionString: connectionUrl! });
+    await client.connect();
+
     const result = await runSqlLint({
       sqlFiles,
       ddlDirectories: [ddlRoot],
@@ -177,8 +214,8 @@ async function runLintCommand(pattern: string): Promise<void> {
 
     // Success is implied by the absence of failures, so the command stays silent.
   } finally {
-    await client.end().catch(() => undefined);
-    await container.stop();
+    await client?.end().catch(() => undefined);
+    await container?.stop();
   }
 }
 
@@ -189,10 +226,11 @@ function readFileSafe(filePath: string): string {
 async function lintFile(
   filePath: string,
   contents: string,
-  testkit: ReturnType<typeof createPgTestkitClient>,
+  testkit: ReturnType<AdapterNodePgModule['createPgTestkitClient']>,
   failures: LintFailure[],
   resetRewritten: () => void,
-  getRewritten: () => string | null
+  getRewritten: () => string | null,
+  constructors: LintModuleConstructors
 ): Promise<void> {
   let split;
   try {
@@ -222,14 +260,21 @@ async function lintFile(
       await executeValidationStatement(testkit, statement);
     } catch (error) {
       failures.push(
-        buildStatementFailure(filePath, statement, contents, error, getRewritten())
+        buildStatementFailure(
+          filePath,
+          statement,
+          contents,
+          error,
+          getRewritten(),
+          constructors
+        )
       );
     }
   }
 }
 
 async function executeValidationStatement(
-  testkit: ReturnType<typeof createPgTestkitClient>,
+  testkit: ReturnType<AdapterNodePgModule['createPgTestkitClient']>,
   statement: string
 ): Promise<void> {
   // Execute the rewritten statement so fixtures are applied before Postgres validation.
@@ -264,10 +309,11 @@ function buildStatementFailure(
   statement: string,
   contents: string,
   error: unknown,
-  rewritten: string | null
+  rewritten: string | null,
+  constructors: LintModuleConstructors
 ): LintFailure {
-  if (isTransformError(error)) {
-    return buildTransformFailureFromStatement(filePath, statement, error, rewritten);
+  if (isTransformError(error, constructors)) {
+    return buildTransformFailureFromStatement(filePath, statement, error, rewritten, constructors);
   }
   return buildDbFailure(filePath, statement, contents, error, rewritten);
 }
@@ -317,11 +363,12 @@ function buildDbFailure(
 function buildTransformFailureFromStatement(
   filePath: string,
   statement: string,
-  error: MissingFixtureError | SchemaValidationError | QueryRewriteError,
-  rewritten: string | null
+  error: TransformError,
+  rewritten: string | null,
+  constructors: LintModuleConstructors
 ): LintFailure {
   const message = `ZTD transform: ${error.message}`;
-  const details = getTransformDetails(error);
+  const details = getTransformDetails(error, constructors);
   return buildLintFailure({
     kind: 'transform',
     filePath,
@@ -335,9 +382,13 @@ function buildTransformFailureFromStatement(
 
 function buildTransformFailureFromLoaderError(
   error: unknown,
-  ddlDirectories: string[]
+  ddlDirectories: string[],
+  constructors: LintModuleConstructors
 ): LintFailure {
-  if (error instanceof DdlLintError && error.diagnostics.length > 0) {
+  if (
+    error instanceof constructors.DdlLintError &&
+    error.diagnostics.length > 0
+  ) {
     const diag = error.diagnostics[0];
     const filePath = resolveDdlFailurePath(diag.source, ddlDirectories);
     return buildLintFailure({
@@ -371,27 +422,29 @@ function resolveDdlFailurePath(
 }
 
 function getTransformDetails(
-  error: MissingFixtureError | SchemaValidationError | QueryRewriteError
+  error: TransformError,
+  constructors: LintModuleConstructors
 ): LintFailureDetails | undefined {
-  if (error instanceof MissingFixtureError) {
+  if (error instanceof constructors.MissingFixtureError) {
     return { code: 'missing-fixture' };
   }
-  if (error instanceof SchemaValidationError) {
+  if (error instanceof constructors.SchemaValidationError) {
     return { code: 'schema-validation' };
   }
-  if (error instanceof QueryRewriteError) {
+  if (error instanceof constructors.QueryRewriteError) {
     return { code: 'query-rewrite' };
   }
   return undefined;
 }
 
 function isTransformError(
-  error: unknown
-): error is MissingFixtureError | SchemaValidationError | QueryRewriteError {
+  error: unknown,
+  constructors: LintModuleConstructors
+): error is TransformError {
   return (
-    error instanceof MissingFixtureError ||
-    error instanceof SchemaValidationError ||
-    error instanceof QueryRewriteError
+    error instanceof constructors.MissingFixtureError ||
+    error instanceof constructors.SchemaValidationError ||
+    error instanceof constructors.QueryRewriteError
   );
 }
 

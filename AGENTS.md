@@ -106,6 +106,8 @@ When changing schemas or search paths, update `ztd.config.json` accordingly.
 * Use `pnpm` and `pnpm --filter <package>` for scoped tasks.
 * All identifiers, comments, and documentation must be written in English.
 * Use `./tmp` for throwaway assets.
+* In tests, do not duplicate production normalization or sanitization rules; import shared helpers from source modules whenever those helpers are deterministic and side-effect free.
+* In docs, avoid directional wording like "below" when pointing to separate recipe files; use explicit Markdown links to the target document.
 * README and driver demos must exercise the rewrite and fixture helpers located at
   `packages/sql-contract/tests/readme/support/postgres-demo.ts`.
 * Remove console debugging statements before committing.
@@ -135,6 +137,12 @@ Run the following before opening or updating a PR:
 4. Run benchmarks when modifying SQL rewriting logic
 
 ---
+
+## Validation tooling recipes
+
+- Every ZTD project installs `@rawsql-ts/sql-contract` and a validator backend during `ztd init`, so `docs/recipes/sql-contract.md` is the canonical mapping reference.
+- When both `@rawsql-ts/sql-contract` and `zod` are declared, follow the Zod validator flow in `docs/recipes/validation-zod.md`. Installing `@rawsql-ts/sql-contract-zod` is optional sugar that adds `mapper.zod` and coercion helpers on top of the same base stack.
+- When `@rawsql-ts/sql-contract` is present without `zod` but `arktype` is declared, follow the ArkType recipe in `docs/recipes/validation-arktype.md`.
 
 ## Docs Demo Updates
 

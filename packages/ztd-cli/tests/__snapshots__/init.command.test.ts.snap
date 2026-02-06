@@ -1,31 +1,111 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`init wizard bootstraps a repo when writing DDL manually 1`] = `
+exports[`init wizard bootstraps a scaffold with demo DDL 1`] = `
 "ZTD project initialized.
 
 Created:
  - ztd/ddl/public.sql
  - ztd.config.json
- - tests/generated/ztd-layout.generated.ts
- - tests/AGENTS.md
- - tests/generated/ztd-row-map.generated.ts
  - README.md
+ - ztd/AGENTS.md
+ - ztd/README.md
+ - ztd/ddl/AGENTS.md
+ - src/AGENTS.md
+ - src/catalog/AGENTS.md
+ - src/catalog/runtime/AGENTS.md
+ - src/catalog/specs/AGENTS.md
+ - src/sql/AGENTS.md
+ - src/repositories/AGENTS.md
+ - src/repositories/views/AGENTS.md
+ - src/repositories/tables/AGENTS.md
+ - src/jobs/AGENTS.md
+ - src/sql/README.md
+ - src/repositories/views/README.md
+ - src/repositories/tables/README.md
+ - src/jobs/README.md
+ - src/catalog/specs/_smoke.spec.ts
+ - src/catalog/runtime/_coercions.ts
+ - src/catalog/runtime/_smoke.runtime.ts
+ - tests/smoke.validation.test.ts
+ - tests/AGENTS.md
+ - tests/support/AGENTS.md
+ - tests/generated/AGENTS.md
+ - tests/smoke.test.ts
+ - src/db/sql-client.ts
  - tests/support/testkit-client.ts
  - tests/support/global-setup.ts
  - vitest.config.ts
- - ztd/AGENTS.md
- - ztd/README.md
+ - tsconfig.json
  - AGENTS.md
  - .gitignore
  - .editorconfig
  - .prettierignore
  - .prettierrc
+ - package.json
+
+Validation configuration:
+ - SQL catalog/mapping support via @rawsql-ts/sql-contract (see docs/recipes/sql-contract.md)
+ - Validator backend: Zod (zod, docs/recipes/validation-zod.md)
 
 Next steps:
- 1. Review the schema files under ztd/ddl/<schema>.sql
- 2. Inspect tests/generated/ztd-layout.generated.ts for the SQL layout
- 3. Run npx ztd ztd-config
- 4. Run ZTD tests with the testkit-postgres stack"
+ 1. If the schema file is empty, edit ztd/ddl/public.sql
+ 2. Run npx ztd ztd-config
+ 3. Provide a SqlClient implementation (adapter or mock)
+ 4. Run tests (pnpm test or npx vitest run)"
+`;
+
+exports[`init wizard bootstraps an empty scaffold 1`] = `
+"ZTD project initialized.
+
+Created:
+ - ztd/ddl/public.sql
+ - ztd.config.json
+ - README.md
+ - ztd/AGENTS.md
+ - ztd/README.md
+ - ztd/ddl/AGENTS.md
+ - src/AGENTS.md
+ - src/catalog/AGENTS.md
+ - src/catalog/runtime/AGENTS.md
+ - src/catalog/specs/AGENTS.md
+ - src/sql/AGENTS.md
+ - src/repositories/AGENTS.md
+ - src/repositories/views/AGENTS.md
+ - src/repositories/tables/AGENTS.md
+ - src/jobs/AGENTS.md
+ - src/sql/README.md
+ - src/repositories/views/README.md
+ - src/repositories/tables/README.md
+ - src/jobs/README.md
+ - src/catalog/specs/_smoke.spec.ts
+ - src/catalog/runtime/_coercions.ts
+ - src/catalog/runtime/_smoke.runtime.ts
+ - tests/smoke.validation.test.ts
+ - tests/AGENTS.md
+ - tests/support/AGENTS.md
+ - tests/generated/AGENTS.md
+ - tests/smoke.test.ts
+ - src/db/sql-client.ts
+ - tests/support/testkit-client.ts
+ - tests/support/global-setup.ts
+ - vitest.config.ts
+ - tsconfig.json
+ - AGENTS.md
+ - .gitignore
+ - .editorconfig
+ - .prettierignore
+ - .prettierrc
+ - package.json
+
+Validation configuration:
+ - SQL catalog/mapping support via @rawsql-ts/sql-contract (see docs/recipes/sql-contract.md)
+ - Validator backend: Zod (zod, docs/recipes/validation-zod.md)
+
+Next steps:
+ 1. If the schema file is empty, edit ztd/ddl/public.sql
+ 2. Run npx ztd ztd-config
+ 3. Provide a SqlClient implementation (adapter or mock)
+ 4. Run tests (pnpm test or npx vitest run)"
 `;
 
 exports[`init wizard pulls schema if pg_dump is available 1`] = `
@@ -34,24 +114,50 @@ exports[`init wizard pulls schema if pg_dump is available 1`] = `
 Created:
  - ztd/ddl/public.sql
  - ztd.config.json
- - tests/generated/ztd-layout.generated.ts
- - tests/AGENTS.md
- - tests/generated/ztd-row-map.generated.ts
  - README.md
+ - ztd/AGENTS.md
+ - ztd/README.md
+ - ztd/ddl/AGENTS.md
+ - src/AGENTS.md
+ - src/catalog/AGENTS.md
+ - src/catalog/runtime/AGENTS.md
+ - src/catalog/specs/AGENTS.md
+ - src/sql/AGENTS.md
+ - src/repositories/AGENTS.md
+ - src/repositories/views/AGENTS.md
+ - src/repositories/tables/AGENTS.md
+ - src/jobs/AGENTS.md
+ - src/sql/README.md
+ - src/repositories/views/README.md
+ - src/repositories/tables/README.md
+ - src/jobs/README.md
+ - src/catalog/specs/_smoke.spec.ts
+ - src/catalog/runtime/_coercions.ts
+ - src/catalog/runtime/_smoke.runtime.ts
+ - tests/smoke.validation.test.ts
+ - tests/AGENTS.md
+ - tests/support/AGENTS.md
+ - tests/generated/AGENTS.md
+ - tests/smoke.test.ts
+ - src/db/sql-client.ts
  - tests/support/testkit-client.ts
  - tests/support/global-setup.ts
  - vitest.config.ts
- - ztd/AGENTS.md
- - ztd/README.md
+ - tsconfig.json
  - AGENTS.md
  - .gitignore
  - .editorconfig
  - .prettierignore
  - .prettierrc
+ - package.json
+
+Validation configuration:
+ - SQL catalog/mapping support via @rawsql-ts/sql-contract (see docs/recipes/sql-contract.md)
+ - Validator backend: Zod (zod, docs/recipes/validation-zod.md)
 
 Next steps:
- 1. Review the schema files under ztd/ddl/<schema>.sql
- 2. Inspect tests/generated/ztd-layout.generated.ts for the SQL layout
- 3. Run npx ztd ztd-config
- 4. Run ZTD tests with the testkit-postgres stack"
+ 1. Review the dumped DDL in ztd/ddl/public.sql
+ 2. Run npx ztd ztd-config
+ 3. Provide a SqlClient implementation (adapter or mock)
+ 4. Run tests (pnpm test or npx vitest run)"
 `;

@@ -28,7 +28,12 @@ export interface PgFixtureProvider {
   resolve(overrides?: TableRowsFixture[]): PgFixtureSnapshot;
 }
 
-export type PgQueryInput = string | QueryConfig<unknown[]>;
+/** Named parameter bindings for SQL compilation. */
+export type NamedParams = Record<string, unknown>;
+
+export type PgQueryInput =
+  | string
+  | (Omit<QueryConfig<unknown[]>, 'values'> & { values?: unknown[] | NamedParams; params?: NamedParams });
 
 export interface PgQueryable {
   query<T extends QueryResultRow = QueryResultRow>(
