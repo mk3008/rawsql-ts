@@ -167,7 +167,7 @@ importers:
 
   packages/adapters/adapter-node-pg:
     dependencies:
-      '@rawsql-ts/_shared/binder':
+      '@rawsql-ts/shared-binder':
         specifier: workspace:^
         version: link:../../_shared/binder
       '@rawsql-ts/testkit-core':
