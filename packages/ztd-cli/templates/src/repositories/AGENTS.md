@@ -12,16 +12,17 @@ This directory contains repository implementations.
 Repositories orchestrate execution only.
 
 They are responsible for:
-- loading SQL assets from `src/sql`
-- validating external inputs via catalog runtime
-- binding parameters
-- calling `SqlClient`
-- mapping SQL rows to DTOs via catalog runtime
+- calling catalog entries (QuerySpec) through a shared catalog executor
+- validating external inputs via catalog boundary contracts
+- binding parameters for catalog execution
+- handling rowCount-based command outcomes at the boundary
 - returning application-facing results
 
-Repositories MUST remain thin adapters over SQL.
+Repositories MUST remain thin adapters over catalog contracts.
 
 Repositories MUST NOT:
+- load SQL text or SQL file paths
+- call SQL loaders directly (for example `loadSql`)
 - embed business rules
 - infer schema or DTO structure
 - compensate for driver limitations with extra queries
@@ -34,16 +35,17 @@ Repositories MUST NOT:
 
 If a contract is insufficient, update the spec/runtime first.
 
-## Mandatory runtime usage (required)
+## Mandatory catalog usage (required)
 
-Repositories MUST use catalog runtime helpers:
-- `ensure*Params` for all external inputs (`unknown -> typed`)
-- `map*RowToDto` for row-to-DTO mapping and output validation
+Repositories MUST execute via catalog entries and shared executor wiring.
+
+Repositories MUST:
+- reference stable catalog entry identity (`specId` and/or typed spec object)
+- delegate mapping/validation to catalog entries and catalog runtime helpers
 
 Repositories MUST NOT:
-- call spec validators directly
-- bypass runtime normalization
-- return DTOs without runtime validation
+- duplicate row-to-DTO mapping logic in repository methods
+- bypass catalog parameter/output validation
 - assume driver-specific runtime types (e.g. timestamps always `Date`)
 
 ## SQL rules
@@ -52,11 +54,8 @@ Repositories MUST NOT:
 - SQL files MUST use snake_case column names.
 - Repositories MUST NOT push DTO aliasing into SQL.
 - Inline SQL strings are forbidden.
-- Repository SQL loading MUST be centralized in shared runtime/repository infrastructure.
-- Repositories MUST reference SQL assets by stable logical key (example: `user/insert_user.sql`).
-- Repository modules MUST NOT pass caller-relative paths (`./`, `../`) or absolute filesystem paths to SQL loaders.
-- The shared loader MUST resolve logical keys against the `src/sql` root (or catalog SQL registry), never relative to the caller file location.
-- Repository modules MUST NOT implement ad-hoc SQL file loading with `readFileSync`, `__dirname`, `import.meta.url`, or direct path resolution.
+- SQL logical keys (example: `user/insert_user.sql`) MUST be owned by catalog entries.
+- Repository modules MUST NOT implement ad-hoc SQL loading with `readFileSync`, `__dirname`, `import.meta.url`, or direct path resolution.
 
 ## CUD default policy (important)
 

@@ -21,9 +21,16 @@ This directory contains verification code.
   - mapping behavior
   - validation success and failure
   - DTO shape and semantics
+- Repository unit tests MUST verify catalog-boundary behavior:
+  - expected catalog spec identity (`specId` or spec object) is executed
+  - params passed to catalog match the contract shape
+  - rowCount policy outcomes are enforced for UPDATE/DELETE boundaries
 
 - Tests MUST NOT enforce repository behavior that contradicts repository contracts.
 - Tests MUST NOT require follow-up SELECTs after UPDATE or DELETE by default.
+- Repository tests SHOULD NOT assert raw SQL file paths or inline SQL strings.
+- Runtime unit tests should continue covering coercions and mapper/schema parsing.
+- Catalog integration tests (future) should validate SQL execution and mapping with real DB (ZTD), but are not required in this task.
 
 ## CUD test policy (important)
 

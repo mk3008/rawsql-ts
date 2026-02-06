@@ -5,7 +5,7 @@ This directory contains SQL assets executed at runtime.
 ## Runtime classification
 
 - This is a runtime directory.
-- SQL files are loaded and executed by repositories or catalog runtime.
+- SQL files are loaded via catalog entries/executor wiring at runtime.
 
 ## Ownership (important)
 
@@ -45,7 +45,7 @@ Affected-row handling belongs to repositories/runtime, not SQL.
 - INSERT SQL MUST NOT return full rows or DTO-shaped payloads.
 - UPDATE SQL MUST NOT use `RETURNING`.
 - DELETE SQL MUST NOT use `RETURNING`.
-- SQL MUST NOT use `RETURNING` to emulate affected-row detection.
+- SQL MUST NOT use `RETURNING` to emulate affected-row detection (`rowCount` is the source of truth).
 - If affected-row counts are unavailable from the driver/runtime, treat UPDATE/DELETE verification as unsupported at the driver boundary.
 
 ## Safety rules (critical)

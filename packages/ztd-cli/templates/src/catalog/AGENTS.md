@@ -14,7 +14,11 @@ Catalog defines named query entry points by binding:
 ## Directory roles (important)
 
 - "src/catalog/specs": human-owned contracts (params + DTO + semantics)
-- "src/catalog/runtime": AI-assisted runtime wiring (executors, helpers, sinks)
+- "src/catalog/entries": QuerySpec definitions (`specId`, `sqlFile`, params/output contracts, mapping hooks)
+- "src/catalog/executor.ts": shared `createCatalogExecutor` wiring
+- "src/catalog/runtime": normalization helpers and mapping utilities used by catalog entries
+
+Catalog entries are the asset unit for ZTD and docs.
 
 ## Non-negotiable ownership
 
