@@ -6,8 +6,8 @@
     "baseUrl": ".",
     "paths": {
       "@rawsql-ts/testkit-core": ["../../testkit-core/dist/index"],
-      "@rawsql-ts/_shared/binder": ["../../_shared/binder/dist"],
-      "@rawsql-ts/_shared/binder/*": ["../../_shared/binder/dist/*"]
+      "@rawsql-ts/shared-binder": ["../../_shared/binder/dist"],
+      "@rawsql-ts/shared-binder/*": ["../../_shared/binder/dist/*"]
     }
   },
   "include": ["src/**/*.ts"],

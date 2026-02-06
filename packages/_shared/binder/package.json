@@ -1,5 +1,5 @@
 {
-  "name": "@rawsql-ts/_shared/binder",
+  "name": "@rawsql-ts/shared-binder",
   "version": "0.0.0",
   "private": true,
   "main": "dist/index.js",

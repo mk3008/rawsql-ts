@@ -9,7 +9,7 @@ import {
   type PostgresTestkitClient,
   type Row,
 } from '@rawsql-ts/testkit-postgres';
-import { compileNamedParameters, type NamedParams } from '@rawsql-ts/_shared/binder';
+import { compileNamedParameters, type NamedParams } from '@rawsql-ts/shared-binder';
 import type { CountableResult } from '@rawsql-ts/testkit-core';
 import type {
   CreatePgTestkitClientOptions,

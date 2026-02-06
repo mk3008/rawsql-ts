@@ -52,8 +52,8 @@
         "@rawsql-ts/ztd-cli": ["packages/ztd-cli/src"],
         "@rawsql-ts/sqlite-testkit": ["packages/drivers/sqlite-testkit/src"],
         "@rawsql-ts/adapter-node-pg": ["packages/adapters/adapter-node-pg/src"],
-        "@rawsql-ts/_shared/binder": ["packages/_shared/binder/src"],
-        "@rawsql-ts/_shared/binder/*": ["packages/_shared/binder/src/*"]
+        "@rawsql-ts/shared-binder": ["packages/_shared/binder/src"],
+        "@rawsql-ts/shared-binder/*": ["packages/_shared/binder/src/*"]
         },
         // "rootDir": "./",                                  /* Specify the root folder within your source files. */
         // "moduleResolution": "node10",                     /* Specify how TypeScript looks up a file from a given module specifier. */

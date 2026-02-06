@@ -39,8 +39,8 @@ export const integrationConfig = defineConfig({
             '@rawsql-ts/sql-contract': resolve(__dirname, 'packages/sql-contract/src'),
             '@rawsql-ts/adapter-node-pg': resolve(__dirname, 'packages/adapters/adapter-node-pg/src'),
             '@rawsql-ts/adapter-node-pg/*': resolve(__dirname, 'packages/adapters/adapter-node-pg/src/*'),
-            '@rawsql-ts/_shared/binder': resolve(__dirname, 'packages/_shared/binder/src'),
-            '@rawsql-ts/_shared/binder/*': resolve(__dirname, 'packages/_shared/binder/src/*'),
+            '@rawsql-ts/shared-binder': resolve(__dirname, 'packages/_shared/binder/src'),
+            '@rawsql-ts/shared-binder/*': resolve(__dirname, 'packages/_shared/binder/src/*'),
         },
     },
 })
@@ -67,8 +67,8 @@ export default defineConfig({
             '@rawsql-ts/sql-contract': resolve(__dirname, 'packages/sql-contract/src'),
             '@rawsql-ts/adapter-node-pg': resolve(__dirname, 'packages/adapters/adapter-node-pg/src'),
             '@rawsql-ts/adapter-node-pg/*': resolve(__dirname, 'packages/adapters/adapter-node-pg/src/*'),
-            '@rawsql-ts/_shared/binder': resolve(__dirname, 'packages/_shared/binder/src'),
-            '@rawsql-ts/_shared/binder/*': resolve(__dirname, 'packages/_shared/binder/src/*'),
+            '@rawsql-ts/shared-binder': resolve(__dirname, 'packages/_shared/binder/src'),
+            '@rawsql-ts/shared-binder/*': resolve(__dirname, 'packages/_shared/binder/src/*'),
         },
     },
 })

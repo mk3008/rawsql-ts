@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { compileNamedParameters } from '@rawsql-ts/_shared/binder';
+import { compileNamedParameters } from '@rawsql-ts/shared-binder';
 
 describe('compileNamedParameters constraints', () => {
   test('ignores named markers inside string literals', () => {
