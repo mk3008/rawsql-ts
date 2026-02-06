@@ -1,5 +1,26 @@
 # @rawsql-ts/ztd-cli
 
+## 0.17.0
+
+### Minor Changes
+
+- [#433](https://github.com/mk3008/rawsql-ts/pull/433) [`36fd789`](https://github.com/mk3008/rawsql-ts/commit/36fd7898926abf318873350ec3aeb5a28a60e021) Thanks [@mk3008](https://github.com/mk3008)! - Adopt SQL-first scaffolding with named-parameter SQL layout in the ZTD template, and compile named parameters to indexed placeholders in the pg adapter.
+
+- [#433](https://github.com/mk3008/rawsql-ts/pull/433) [`83e870a`](https://github.com/mk3008/rawsql-ts/commit/83e870aa945b75cdf894c8a620309e6d54dba178) Thanks [@mk3008](https://github.com/mk3008)! - Redesign `ztd init` to produce a deterministic minimal scaffold with per-folder AGENTS.md guidance and option-specific DDL seeding only (pg_dump, empty, or demo DDL).
+
+- [#433](https://github.com/mk3008/rawsql-ts/pull/433) [`bf588fd`](https://github.com/mk3008/rawsql-ts/commit/bf588fd73e4fd728b193dd795e449729e6b554b5) Thanks [@mk3008](https://github.com/mk3008)! - Add the new default ZTD scaffold layout with view SQL under "src/sql/views", job SQL under "src/sql/jobs", and repositories split between "src/repositories/views" and "src/repositories/tables". The init command now supports "--yes" to overwrite existing scaffold files without prompts for non-interactive runs.
+
+### Patch Changes
+
+- [#433](https://github.com/mk3008/rawsql-ts/pull/433) [`06ec7ea`](https://github.com/mk3008/rawsql-ts/commit/06ec7ea2c54b9561ff74cbbd6c13d8cc7ef6f9dc) Thanks [@mk3008](https://github.com/mk3008)! - Add a new public `timestampFromDriver(value, fieldName?)` helper in `@rawsql-ts/sql-contract` for fail-fast `Date | string` normalization of driver-returned timestamps.
+
+  Update `@rawsql-ts/ztd-cli` templates to normalize runtime timestamp fields through the shared sql-contract helper (via runtime coercion wiring), add strict guardrails against local timestamp re-implementation, and expand scaffold smoke validation tests for valid and invalid timestamp strings.
+
+- [#435](https://github.com/mk3008/rawsql-ts/pull/435) [`345a4a1`](https://github.com/mk3008/rawsql-ts/commit/345a4a1ad0354e975f47200f0f222696fa67a326) Thanks [@mk3008](https://github.com/mk3008)! - Fix optional adapter resolution during SQL lint execution so workspace and test environments no longer require prebuilt dist artifacts.
+
+- Updated dependencies [[`36fd789`](https://github.com/mk3008/rawsql-ts/commit/36fd7898926abf318873350ec3aeb5a28a60e021)]:
+  - @rawsql-ts/adapter-node-pg@0.15.2
+
 ## 0.16.0
 
 ### Minor Changes

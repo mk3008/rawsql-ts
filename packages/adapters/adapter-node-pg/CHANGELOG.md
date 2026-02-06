@@ -1,5 +1,11 @@
 # @rawsql-ts/adapter-node-pg
 
+## 0.15.2
+
+### Patch Changes
+
+- [#433](https://github.com/mk3008/rawsql-ts/pull/433) [`36fd789`](https://github.com/mk3008/rawsql-ts/commit/36fd7898926abf318873350ec3aeb5a28a60e021) Thanks [@mk3008](https://github.com/mk3008)! - Adopt SQL-first scaffolding with named-parameter SQL layout in the ZTD template, and compile named parameters to indexed placeholders in the pg adapter.
+
 ## 0.15.1
 
 ### Patch Changes
