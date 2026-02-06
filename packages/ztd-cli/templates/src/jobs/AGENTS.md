@@ -1,20 +1,26 @@
-# AGENTS: src/jobs/
+# src/jobs AGENTS
 
-## Role
-Define job runners that orchestrate repository or SQL execution.
+This folder contains script-like operations (procedural SQL execution).
 
-## Primary Artifacts
-- src/jobs/*.ts
+## Scope
 
-## Do
-- Keep jobs thin and focused on orchestration.
-- Delegate SQL execution to repositories.
+- Maintenance jobs
+- Data backfills
+- Batch operations
+- Temporary-table driven workflows
 
-## Do Not
-- Embed DDL or schema definitions here.
-- Inline complex SQL strings in jobs.
+## Safety rules
 
-## Workflow
-- Update SQL and repositories first.
-- Update job runners to call the new logic.
-- Run tests.
+- Be explicit about transaction boundaries.
+- Prefer idempotent design (safe to rerun).
+- Emit clear logs/events at start and end of the job.
+
+## SQL usage
+
+- It is acceptable to run multiple statements in a job (including temp tables).
+- Avoid coupling job logic to tests-only helpers.
+
+## Testing
+
+- Prefer integration-style tests that verify observable outcomes.
+- If the job is heavy, test smaller units or use fixtures to limit scope.

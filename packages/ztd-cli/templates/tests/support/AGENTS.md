@@ -1,20 +1,26 @@
-# AGENTS: tests/support/
+# tests/support AGENTS
 
-## Role
-Provide test wiring and shared setup for ZTD tests.
+This folder contains shared test infrastructure.
 
-## Primary Artifacts
-- tests/support/testkit-client.ts
-- tests/support/global-setup.ts
+## Scope
 
-## Do
-- Implement the SqlClient wiring here.
-- Keep credentials and secrets out of source control.
+- global setup and teardown
+- test clients and helpers for execution
+- environment/bootstrap logic
 
-## Do Not
-- Edit files under tests/generated directly.
-- Add application code here.
+## Rules
 
-## Workflow
-- Configure the SqlClient or adapter.
-- Run tests after wiring is complete.
+- Keep helpers minimal and explicit.
+- Prefer stable interfaces used across tests.
+- Do not place business rules here.
+
+## Boundaries
+
+- Support code may import from "src/" as needed.
+- Runtime code under "src/" MUST NOT import from this folder.
+
+## Changes
+
+When modifying global setup or shared clients:
+- Re-run a representative subset of tests and at least one full run when feasible.
+- Watch for parallelism and resource lifecycle issues.

@@ -1,17 +1,16 @@
-# AGENTS: tests/generated/
+# tests/generated AGENTS
 
-## Role
-Hold generated ZTD artifacts.
+This directory contains generated files.
 
-## Primary Artifacts
-- tests/generated/ztd-row-map.generated.ts
-- tests/generated/ztd-layout.generated.ts
+## Non-negotiable
 
-## Do
-- Regenerate these files with `npx ztd ztd-config`.
+- Do not edit any file in this directory by hand.
+- Do not commit generated artifacts unless the repository explicitly requires it.
 
-## Do Not
-- Edit generated files by hand.
+## Regeneration
 
-## Workflow
-- Run `npx ztd ztd-config` whenever DDL changes.
+If files are missing or stale, regenerate using the project command.
+Example:
+- "npx ztd ztd-config"
+
+If TypeScript reports missing modules referencing generated files, regenerate first.

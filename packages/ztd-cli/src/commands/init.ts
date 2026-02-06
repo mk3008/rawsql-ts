@@ -104,9 +104,14 @@ export function createConsolePrompter(): Prompter {
 type FileKey =
   | 'schema'
   | 'config'
+  | 'smokeSpec'
+  | 'smokeCoercions'
+  | 'smokeRuntime'
+  | 'smokeValidationTest'
   | 'testsAgents'
   | 'testsSupportAgents'
   | 'testsGeneratedAgents'
+  | 'testsSmoke'
   | 'testkitClient'
   | 'globalSetup'
   | 'vitestConfig'
@@ -116,6 +121,9 @@ type FileKey =
   | 'ztdDocsReadme'
   | 'ztdDdlAgents'
   | 'srcAgents'
+  | 'srcCatalogAgents'
+  | 'srcCatalogRuntimeAgents'
+  | 'srcCatalogSpecsAgents'
   | 'srcSqlAgents'
   | 'srcReposAgents'
   | 'viewsRepoAgents'
@@ -219,6 +227,12 @@ const README_TEMPLATE = 'README.md';
 const TESTS_AGENTS_TEMPLATE = 'tests/AGENTS.md';
 const TESTS_SUPPORT_AGENTS_TEMPLATE = 'tests/support/AGENTS.md';
 const TESTS_GENERATED_AGENTS_TEMPLATE = 'tests/generated/AGENTS.md';
+const SMOKE_SPEC_ZOD_TEMPLATE = 'src/catalog/specs/_smoke.spec.zod.ts';
+const SMOKE_SPEC_ARKTYPE_TEMPLATE = 'src/catalog/specs/_smoke.spec.arktype.ts';
+const SMOKE_COERCIONS_TEMPLATE = 'src/catalog/runtime/_coercions.ts';
+const SMOKE_RUNTIME_TEMPLATE = 'src/catalog/runtime/_smoke.runtime.ts';
+const SMOKE_VALIDATION_TEST_TEMPLATE = 'tests/smoke.validation.test.ts';
+const TESTS_SMOKE_TEMPLATE = 'tests/smoke.test.ts';
 const TESTKIT_CLIENT_TEMPLATE = 'tests/support/testkit-client.ts';
 const GLOBAL_SETUP_TEMPLATE = 'tests/support/global-setup.ts';
 const VITEST_CONFIG_TEMPLATE = 'vitest.config.ts';
@@ -229,6 +243,9 @@ const VIEWS_REPO_README_TEMPLATE = 'src/repositories/views/README.md';
 const TABLES_REPO_README_TEMPLATE = 'src/repositories/tables/README.md';
 const JOBS_README_TEMPLATE = 'src/jobs/README.md';
 const SRC_AGENTS_TEMPLATE = 'src/AGENTS.md';
+const SRC_CATALOG_AGENTS_TEMPLATE = 'src/catalog/AGENTS.md';
+const SRC_CATALOG_RUNTIME_AGENTS_TEMPLATE = 'src/catalog/runtime/AGENTS.md';
+const SRC_CATALOG_SPECS_AGENTS_TEMPLATE = 'src/catalog/specs/AGENTS.md';
 const SRC_SQL_AGENTS_TEMPLATE = 'src/sql/AGENTS.md';
 const SRC_REPOS_AGENTS_TEMPLATE = 'src/repositories/AGENTS.md';
 const VIEWS_REPO_AGENTS_TEMPLATE = 'src/repositories/views/AGENTS.md';
@@ -388,15 +405,23 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
   const absolutePaths: Record<FileKey, string> = {
     schema: path.join(rootDir, DEFAULT_ZTD_CONFIG.ddlDir, schemaFileName),
     config: path.join(rootDir, 'ztd.config.json'),
+    smokeSpec: path.join(rootDir, 'src', 'catalog', 'specs', '_smoke.spec.ts'),
+    smokeCoercions: path.join(rootDir, 'src', 'catalog', 'runtime', '_coercions.ts'),
+    smokeRuntime: path.join(rootDir, 'src', 'catalog', 'runtime', '_smoke.runtime.ts'),
+    smokeValidationTest: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'smoke.validation.test.ts'),
     testsAgents: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'AGENTS.md'),
     testsSupportAgents: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'support', 'AGENTS.md'),
     testsGeneratedAgents: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'generated', 'AGENTS.md'),
+    testsSmoke: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'smoke.test.ts'),
     readme: path.join(rootDir, 'README.md'),
     sqlReadme: path.join(rootDir, 'src', 'sql', 'README.md'),
     viewsRepoReadme: path.join(rootDir, 'src', 'repositories', 'views', 'README.md'),
     tablesRepoReadme: path.join(rootDir, 'src', 'repositories', 'tables', 'README.md'),
     jobsReadme: path.join(rootDir, 'src', 'jobs', 'README.md'),
     srcAgents: path.join(rootDir, 'src', 'AGENTS.md'),
+    srcCatalogAgents: path.join(rootDir, 'src', 'catalog', 'AGENTS.md'),
+    srcCatalogRuntimeAgents: path.join(rootDir, 'src', 'catalog', 'runtime', 'AGENTS.md'),
+    srcCatalogSpecsAgents: path.join(rootDir, 'src', 'catalog', 'specs', 'AGENTS.md'),
     srcSqlAgents: path.join(rootDir, 'src', 'sql', 'AGENTS.md'),
     srcReposAgents: path.join(rootDir, 'src', 'repositories', 'AGENTS.md'),
     viewsRepoAgents: path.join(rootDir, 'src', 'repositories', 'views', 'AGENTS.md'),
@@ -569,6 +594,45 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     summaries.srcAgents = srcAgentsSummary;
   }
 
+  const srcCatalogAgentsSummary = await writeTemplateFile(
+    rootDir,
+    absolutePaths.srcCatalogAgents,
+    relativePath('srcCatalogAgents'),
+    SRC_CATALOG_AGENTS_TEMPLATE,
+    dependencies,
+    prompter,
+    overwritePolicy
+  );
+  if (srcCatalogAgentsSummary) {
+    summaries.srcCatalogAgents = srcCatalogAgentsSummary;
+  }
+
+  const srcCatalogRuntimeAgentsSummary = await writeTemplateFile(
+    rootDir,
+    absolutePaths.srcCatalogRuntimeAgents,
+    relativePath('srcCatalogRuntimeAgents'),
+    SRC_CATALOG_RUNTIME_AGENTS_TEMPLATE,
+    dependencies,
+    prompter,
+    overwritePolicy
+  );
+  if (srcCatalogRuntimeAgentsSummary) {
+    summaries.srcCatalogRuntimeAgents = srcCatalogRuntimeAgentsSummary;
+  }
+
+  const srcCatalogSpecsAgentsSummary = await writeTemplateFile(
+    rootDir,
+    absolutePaths.srcCatalogSpecsAgents,
+    relativePath('srcCatalogSpecsAgents'),
+    SRC_CATALOG_SPECS_AGENTS_TEMPLATE,
+    dependencies,
+    prompter,
+    overwritePolicy
+  );
+  if (srcCatalogSpecsAgentsSummary) {
+    summaries.srcCatalogSpecsAgents = srcCatalogSpecsAgentsSummary;
+  }
+
   const srcSqlAgentsSummary = await writeTemplateFile(
     rootDir,
     absolutePaths.srcSqlAgents,
@@ -686,6 +750,60 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     summaries.jobsReadme = jobsReadmeSummary;
   }
 
+  const smokeSpecTemplate =
+    optionalFeatures.validator === 'zod' ? SMOKE_SPEC_ZOD_TEMPLATE : SMOKE_SPEC_ARKTYPE_TEMPLATE;
+  const smokeSpecSummary = await writeTemplateFile(
+    rootDir,
+    absolutePaths.smokeSpec,
+    relativePath('smokeSpec'),
+    smokeSpecTemplate,
+    dependencies,
+    prompter,
+    overwritePolicy
+  );
+  if (smokeSpecSummary) {
+    summaries.smokeSpec = smokeSpecSummary;
+  }
+
+  const smokeCoercionsSummary = await writeTemplateFile(
+    rootDir,
+    absolutePaths.smokeCoercions,
+    relativePath('smokeCoercions'),
+    SMOKE_COERCIONS_TEMPLATE,
+    dependencies,
+    prompter,
+    overwritePolicy
+  );
+  if (smokeCoercionsSummary) {
+    summaries.smokeCoercions = smokeCoercionsSummary;
+  }
+
+  const smokeRuntimeSummary = await writeTemplateFile(
+    rootDir,
+    absolutePaths.smokeRuntime,
+    relativePath('smokeRuntime'),
+    SMOKE_RUNTIME_TEMPLATE,
+    dependencies,
+    prompter,
+    overwritePolicy
+  );
+  if (smokeRuntimeSummary) {
+    summaries.smokeRuntime = smokeRuntimeSummary;
+  }
+
+  const smokeValidationTestSummary = await writeTemplateFile(
+    rootDir,
+    absolutePaths.smokeValidationTest,
+    relativePath('smokeValidationTest'),
+    SMOKE_VALIDATION_TEST_TEMPLATE,
+    dependencies,
+    prompter,
+    overwritePolicy
+  );
+  if (smokeValidationTestSummary) {
+    summaries.smokeValidationTest = smokeValidationTestSummary;
+  }
+
   const sqlClientSummary = writeOptionalTemplateFile(
     absolutePaths.sqlClient,
     relativePath('sqlClient'),
@@ -733,6 +851,19 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
   );
   if (testsGeneratedAgentsSummary) {
     summaries.testsGeneratedAgents = testsGeneratedAgentsSummary;
+  }
+
+  const testsSmokeSummary = await writeTemplateFile(
+    rootDir,
+    absolutePaths.testsSmoke,
+    relativePath('testsSmoke'),
+    TESTS_SMOKE_TEMPLATE,
+    dependencies,
+    prompter,
+    overwritePolicy
+  );
+  if (testsSmokeSummary) {
+    summaries.testsSmoke = testsSmokeSummary;
   }
 
   const testkitSummary = await writeTemplateFile(
@@ -1184,17 +1315,20 @@ function ensurePackageJsonFormatting(
   optionalFeatures: OptionalFeatures
 ): FileSummary | null {
   const packagePath = path.join(rootDir, 'package.json');
-  // Skip wiring defaults when the project does not yet have a package manifest.
-  if (!dependencies.fileExists(packagePath)) {
-    return null;
-  }
-
-  const document = readFileSync(packagePath, 'utf8');
-  const parsed = JSON.parse(document) as Record<string, unknown>;
+  const packageExists = dependencies.fileExists(packagePath);
+  const parsed = packageExists
+    ? (JSON.parse(readFileSync(packagePath, 'utf8')) as Record<string, unknown>)
+    : {
+        name: inferPackageName(rootDir),
+        version: '0.0.0',
+        private: true
+      };
   let changed = false;
 
   const scripts = (parsed.scripts as Record<string, string> | undefined) ?? {};
   const requiredScripts: Record<string, string> = {
+    test: 'vitest run',
+    typecheck: 'tsc --noEmit',
     format: 'prettier . --write',
     lint: 'eslint .',
     'lint:fix': 'eslint . --fix'
@@ -1237,6 +1371,11 @@ function ensurePackageJsonFormatting(
     'prettier-plugin-sql': '^0.19.2',
     'simple-git-hooks': '^2.13.1'
   };
+  const testingDeps: Record<string, string> = {
+    vitest: '^4.0.7',
+    typescript: '^5.8.2',
+    '@types/node': '^22.13.10'
+  };
   // Add the formatting toolchain dependencies that back the scripts and hooks.
   for (const [dep, version] of Object.entries(formattingDeps)) {
     if (dep in devDependencies) {
@@ -1256,6 +1395,15 @@ function ensurePackageJsonFormatting(
     Object.assign(stackDependencies, ARKTYPE_DEPENDENCY);
   }
 
+  // Ensure test and typecheck toolchain dependencies are present for a runnable scaffold.
+  for (const [dep, version] of Object.entries(testingDeps)) {
+    if (dep in devDependencies) {
+      continue;
+    }
+    devDependencies[dep] = version;
+    changed = true;
+  }
+
   for (const [dep, version] of Object.entries(stackDependencies)) {
     if (dep in devDependencies) {
       continue;
@@ -1272,7 +1420,16 @@ function ensurePackageJsonFormatting(
   dependencies.ensureDirectory(path.dirname(packagePath));
   // Persist the updated manifest so the new scripts and tools are available immediately.
   dependencies.writeFile(packagePath, `${JSON.stringify(parsed, null, 2)}\n`);
-  return { relativePath: relative, outcome: 'overwritten' };
+  return { relativePath: relative, outcome: packageExists ? 'overwritten' : 'created' };
+}
+
+function inferPackageName(rootDir: string): string {
+  const baseName = path.basename(rootDir).toLowerCase();
+  const normalized = baseName.replace(/[^a-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '');
+  if (normalized.length > 0) {
+    return normalized;
+  }
+  return 'ztd-project';
 }
 
 async function writeFileWithConsent(
@@ -1530,6 +1687,9 @@ function buildSummaryLines(
     'ztdDocsReadme',
     'ztdDdlAgents',
     'srcAgents',
+    'srcCatalogAgents',
+    'srcCatalogRuntimeAgents',
+    'srcCatalogSpecsAgents',
     'srcSqlAgents',
     'srcReposAgents',
     'viewsRepoAgents',
@@ -1539,9 +1699,14 @@ function buildSummaryLines(
     'viewsRepoReadme',
     'tablesRepoReadme',
     'jobsReadme',
+    'smokeSpec',
+    'smokeCoercions',
+    'smokeRuntime',
+    'smokeValidationTest',
     'testsAgents',
     'testsSupportAgents',
     'testsGeneratedAgents',
+    'testsSmoke',
     'sqlClient',
     'testkitClient',
     'globalSetup',

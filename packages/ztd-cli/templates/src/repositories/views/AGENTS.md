@@ -1,21 +1,25 @@
-# AGENTS: src/repositories/views/
+# src/repositories/views AGENTS
 
-## Role
-Implement read-only repositories that run SELECT queries.
+This folder is for complex read-only queries.
 
-## Primary Artifacts
-- src/repositories/views/*.ts
-- src/sql/**/*.sql
+## Scope
 
-## Do
-- Use SELECT statements only.
-- Map SQL results to DTOs deterministically.
+- Complex SELECT queries (joins, aggregations, window functions).
+- Read models that are not 1:1 with a single table.
 
-## Do Not
-- Perform writes or mutations here.
-- Inline SQL strings in TypeScript.
+## Allowed
 
-## Workflow
-- Add or update SQL files.
-- Update repository logic to match.
-- Run tests.
+- Multi-table joins and aggregations.
+- Purpose-built DTOs for read models.
+- Validation at the boundary (catalog validator or repository-level validator).
+
+## Forbidden
+
+- INSERT/UPDATE/DELETE in this folder by default.
+- Hidden write side-effects.
+
+## Guidance
+
+- Keep query intent clear in naming.
+- Document cardinality assumptions (one, many, optional).
+- Prefer stable ordering if tests rely on order.

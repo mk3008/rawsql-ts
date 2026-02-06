@@ -43,6 +43,9 @@ const requiredDirectories = [
   'ztd',
   'ztd/ddl',
   'src',
+  'src/catalog',
+  'src/catalog/runtime',
+  'src/catalog/specs',
   'src/sql',
   'src/repositories',
   'src/repositories/tables',
@@ -57,6 +60,9 @@ const requiredAgents = [
   'ztd/AGENTS.md',
   'ztd/ddl/AGENTS.md',
   'src/AGENTS.md',
+  'src/catalog/AGENTS.md',
+  'src/catalog/runtime/AGENTS.md',
+  'src/catalog/specs/AGENTS.md',
   'src/sql/AGENTS.md',
   'src/repositories/AGENTS.md',
   'src/repositories/tables/AGENTS.md',
@@ -65,6 +71,13 @@ const requiredAgents = [
   'tests/AGENTS.md',
   'tests/support/AGENTS.md',
   'tests/generated/AGENTS.md'
+];
+
+const requiredInvariantFiles = [
+  'src/catalog/specs/_smoke.spec.ts',
+  'src/catalog/runtime/_coercions.ts',
+  'src/catalog/runtime/_smoke.runtime.ts',
+  'tests/smoke.validation.test.ts'
 ];
 
 class TestPrompter implements Prompter {
@@ -125,9 +138,11 @@ test('init wizard bootstraps an empty scaffold', async () => {
   expect(existsSync(path.join(workspace, 'tests', 'generated', 'ztd-row-map.generated.ts'))).toBe(false);
   expect(existsSync(path.join(workspace, 'tests', 'generated', 'ztd-layout.generated.ts'))).toBe(false);
   expect(existsSync(path.join(workspace, 'tests', 'generated', 'AGENTS.md'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'tests', 'smoke.test.ts'))).toBe(true);
   expect(existsSync(path.join(workspace, 'tests', 'support', 'global-setup.ts'))).toBe(true);
   expect(existsSync(testkitClientPath)).toBe(true);
   expect(existsSync(path.join(workspace, 'vitest.config.ts'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'package.json'))).toBe(true);
   expect(existsSync(path.join(workspace, 'ztd.config.json'))).toBe(true);
   expect(existsSync(path.join(workspace, 'src', 'sql', 'README.md'))).toBe(true);
   expect(existsSync(path.join(workspace, 'src', 'repositories', 'views', 'README.md'))).toBe(true);
@@ -156,11 +171,45 @@ test('init wizard bootstraps an empty scaffold', async () => {
     expect(existsSync(path.join(workspace, agentPath))).toBe(true);
   }
 
+  for (const invariantFile of requiredInvariantFiles) {
+    expect(existsSync(path.join(workspace, invariantFile))).toBe(true);
+  }
+  expect(existsSync(path.join(workspace, 'src', 'sql', 'example-user', 'select_example_user_by_id.sql'))).toBe(
+    false
+  );
+
   const config = JSON.parse(readNormalizedFile(path.join(workspace, 'ztd.config.json'))) as {
     ddl: { defaultSchema: string; searchPath: string[] };
   };
   expect(config.ddl.defaultSchema).toBe(defaultSchemaName);
   expect(config.ddl.searchPath).toEqual([defaultSchemaName]);
+
+  const packageJson = JSON.parse(readNormalizedFile(path.join(workspace, 'package.json'))) as {
+    scripts: Record<string, string>;
+    devDependencies: Record<string, string>;
+  };
+  expect(packageJson.scripts.test).toBe('vitest run');
+  expect(packageJson.scripts.typecheck).toBe('tsc --noEmit');
+  expect(packageJson.devDependencies.vitest).toBeDefined();
+  expect(packageJson.devDependencies.typescript).toBeDefined();
+  expect(packageJson.devDependencies['@types/node']).toBeDefined();
+  expect(packageJson.devDependencies.zod).toBeDefined();
+
+  expect(readNormalizedFile(path.join(workspace, 'src', 'catalog', 'specs', '_smoke.spec.ts'))).toContain(
+    "from 'zod'",
+  );
+  expect(readNormalizedFile(path.join(workspace, 'src', 'catalog', 'runtime', '_smoke.runtime.ts'))).toContain(
+    'parseSmokeOutput',
+  );
+  expect(readNormalizedFile(path.join(workspace, 'src', 'catalog', 'runtime', '_smoke.runtime.ts'))).toContain(
+    "normalizeTimestamp(value.createdAt, 'createdAt')",
+  );
+  expect(readNormalizedFile(path.join(workspace, 'src', 'catalog', 'runtime', '_coercions.ts'))).toContain(
+    'timestampFromDriver as normalizeTimestamp',
+  );
+  expect(readNormalizedFile(path.join(workspace, 'tests', 'smoke.validation.test.ts'))).toContain(
+    'normalizes valid timestamp strings',
+  );
 
   // Ensure the generated testkit client can safely log params with circular references.
   expect(readNormalizedFile(testkitClientPath)).toContain(
@@ -178,9 +227,11 @@ test('init wizard bootstraps a scaffold with demo DDL', async () => {
 
   expect(result.summary).toMatchSnapshot();
   expect(existsSync(schemaPath)).toBe(true);
-  expect(readNormalizedFile(schemaPath)).toContain('CREATE TABLE public.example_item');
+  expect(readNormalizedFile(schemaPath)).toContain('create table "user" (');
   expect(existsSync(path.join(workspace, 'tests', 'generated', 'ztd-row-map.generated.ts'))).toBe(false);
   expect(existsSync(path.join(workspace, 'tests', 'generated', 'ztd-layout.generated.ts'))).toBe(false);
+  expect(existsSync(path.join(workspace, 'tests', 'smoke.test.ts'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'tests', 'smoke.validation.test.ts'))).toBe(true);
 
   const config = JSON.parse(readNormalizedFile(path.join(workspace, 'ztd.config.json'))) as {
     ddl: { defaultSchema: string; searchPath: string[] };
@@ -234,7 +285,7 @@ test('init wizard preserves existing SqlClient files when opted in', async () =>
   );
 });
 
-test('init installs template-referenced packages when package.json exists', async () => {
+test('init runs install when package.json is updated', async () => {
   const workspace = createTempDir('cli-init-deps');
   writeFileSync(
     path.join(workspace, 'package.json'),
@@ -254,9 +305,38 @@ test('init installs template-referenced packages when package.json exists', asyn
   await runInitCommand(prompter, { rootDir: workspace, dependencies });
 
   expect(installs.length).toBe(1);
-  expect(installs[0].kind).toBe('devDependencies');
+  expect(installs[0].kind).toBe('install');
   expect(installs[0].packageManager).toBe('pnpm');
-  expect(installs[0].packages).toEqual(['vitest']);
+  expect(installs[0].packages).toEqual([]);
+
+  const packageJson = JSON.parse(readNormalizedFile(path.join(workspace, 'package.json'))) as {
+    scripts: Record<string, string>;
+    devDependencies: Record<string, string>;
+  };
+  expect(packageJson.scripts.test).toBe('vitest run');
+  expect(packageJson.scripts.typecheck).toBe('tsc --noEmit');
+  expect(packageJson.devDependencies.vitest).toBeDefined();
+  expect(packageJson.devDependencies.typescript).toBeDefined();
+  expect(packageJson.devDependencies['@types/node']).toBeDefined();
+});
+
+test('init generates ArkType spec when ArkType backend is selected', async () => {
+  const workspace = createTempDir('cli-init-arktype');
+  const prompter = new TestPrompter(['2', '2']);
+
+  await runInitCommand(prompter, { rootDir: workspace });
+
+  const specFile = readNormalizedFile(
+    path.join(workspace, 'src', 'catalog', 'specs', '_smoke.spec.ts'),
+  );
+  const packageJson = JSON.parse(readNormalizedFile(path.join(workspace, 'package.json'))) as {
+    devDependencies: Record<string, string>;
+  };
+
+  expect(specFile).toContain("from 'arktype'");
+  expect(specFile).toContain("createdAt: 'Date'");
+  expect(packageJson.devDependencies.arktype).toBeDefined();
+  expect(packageJson.devDependencies.zod).toBeUndefined();
 });
 
 test('init wizard pulls schema if pg_dump is available', async () => {
@@ -293,6 +373,8 @@ test('init wizard pulls schema if pg_dump is available', async () => {
   expect(existsSync(path.join(workspace, 'tests', 'generated', 'ztd-row-map.generated.ts'))).toBe(false);
   expect(existsSync(path.join(workspace, 'tests', 'generated', 'ztd-layout.generated.ts'))).toBe(false);
   expect(existsSync(path.join(workspace, 'tests', 'generated', 'AGENTS.md'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'tests', 'smoke.test.ts'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'tests', 'smoke.validation.test.ts'))).toBe(true);
   expect(existsSync(path.join(workspace, 'tests', 'support', 'global-setup.ts'))).toBe(true);
   expect(existsSync(testkitClientPath)).toBe(true);
   expect(existsSync(path.join(workspace, 'vitest.config.ts'))).toBe(true);

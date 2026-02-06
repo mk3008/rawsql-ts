@@ -1,23 +1,26 @@
-# AGENTS: src/
+# src AGENTS
 
-## Role
-Host application-facing SQL, repositories, and job runners.
+This directory is runtime application code.
 
-## Primary Artifacts
-- src/sql/
-- src/repositories/
-- src/jobs/
-- src/db/sql-client.ts
+## Boundaries
 
-## Do
-- Keep SQL in files under src/sql.
-- Keep repositories thin and focused on executing SQL.
+- Code under "src/" MUST NOT import from:
+  - "tests/"
+  - "tests/generated/"
+  - any test-only helpers
+- Runtime code MUST NOT depend on ZTD internals.
+- Generated artifacts are test-only signals, not runtime dependencies.
 
-## Do Not
-- Add DDL or generated artifacts here.
-- Embed demo SQL in TypeScript files.
+## Implementation principles
 
-## Workflow
-- Add or update SQL files.
-- Update repositories or jobs to call the SQL.
-- Run `npx ztd ztd-config` after schema changes, then tests.
+- Keep modules small and explicit.
+- Prefer explicit contracts over inference.
+- Favor deterministic behavior and clear error surfaces.
+
+## Verification (required)
+
+After changes:
+- Run the project typecheck command (example: "pnpm typecheck").
+- Run relevant tests (example: "pnpm test" or a filtered command).
+
+If you touched SQL contracts or catalog specs, run tests that exercise them.

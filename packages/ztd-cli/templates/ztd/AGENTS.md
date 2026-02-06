@@ -1,21 +1,18 @@
-# AGENTS: ztd/
+# ztd AGENTS
 
-## Role
-Own ZTD schema documentation and the DDL layout under this directory.
+This directory contains ZTD inputs and related documentation.
 
-## Primary Artifacts
-- ztd/ddl/*.sql
-- ztd/README.md
-- ztd/ddl/AGENTS.md
+## Core rule
 
-## Do
-- Keep all schema definitions under ztd/ddl.
-- Keep this documentation aligned with the actual layout.
+- "ztd/ddl/" is the only human-owned source of truth inside "ztd/".
+- Do not create new subdirectories under "ztd/" unless explicitly instructed.
 
-## Do Not
-- Add runtime application code here.
-- Introduce new ztd subdirectories without explicit instruction.
+## Boundaries
 
-## Workflow
-- Edit ztd/ddl/*.sql.
-- Run `npx ztd ztd-config` after DDL changes.
+- Runtime code must not depend on "ztd/".
+- Tests may reference DDL and generated outputs via ZTD tooling.
+
+## Editing policy
+
+- Avoid modifying "ztd/README.md" unless explicitly asked.
+- Prefer adding rules to "ztd/ddl/AGENTS.md" for DDL-related guidance.
