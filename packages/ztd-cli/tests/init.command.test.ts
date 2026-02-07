@@ -201,7 +201,7 @@ test('init wizard bootstraps an empty scaffold', async () => {
     "normalizeTimestamp(value.createdAt, 'createdAt')",
   );
   expect(readNormalizedFile(path.join(workspace, 'src', 'catalog', 'runtime', '_coercions.ts'))).toContain(
-    'timestampFromDriver as normalizeTimestamp',
+    'export function normalizeTimestamp',
   );
   expect(readNormalizedFile(path.join(workspace, 'tests', 'smoke.validation.test.ts'))).toContain(
     'normalizes valid timestamp strings',
