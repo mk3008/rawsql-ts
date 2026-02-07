@@ -1,0 +1,16 @@
+{
+  "case": "crud-basic",
+  "skipAi": false,
+  "keepWorkspace": false,
+  "report": "eval/reports/latest.json",
+  "localDeps": [
+    "@rawsql-ts/shared-binder"
+  ],
+  "env": {
+    "EVAL_WORKSPACE_ROOT": "",
+    "EVAL_CODEX_HOME": "",
+    "CODEX_BIN": "codex",
+    "PNPM_BIN": "pnpm",
+    "NODE_BIN": "node"
+  }
+}

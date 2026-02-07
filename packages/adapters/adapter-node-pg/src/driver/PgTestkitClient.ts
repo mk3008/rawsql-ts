@@ -9,7 +9,6 @@ import {
   type PostgresTestkitClient,
   type Row,
 } from '@rawsql-ts/testkit-postgres';
-import { compileNamedParameters, type NamedParams } from '@rawsql-ts/shared-binder';
 import type { CountableResult } from '@rawsql-ts/testkit-core';
 import type {
   CreatePgTestkitClientOptions,
@@ -17,6 +16,7 @@ import type {
   PgQueryable,
   TableRowsFixture,
 } from '../types';
+import { compileNamedParameters, type NamedParams } from './compileNamedParameters';
 
 const RESULT_METADATA_KEY = Symbol('PgTestkitClientResultMetadata');
 

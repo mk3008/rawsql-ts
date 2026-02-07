@@ -191,4 +191,8 @@ docs/.vitepress/dist
 docs/.vitepress/cache
 
 CONTINUITY.md
+eval/reports/*
+!eval/reports/.gitkeep
+eval/_deps_cache/*
+!eval/_deps_cache/.gitkeep
 playgrounds/ztd-playground/

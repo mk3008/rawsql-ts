@@ -20,7 +20,7 @@ For Postgres, the typical ZTD setup is:
 `@rawsql-ts/adapter-node-pg` (driver adapter) +
 `@rawsql-ts/testkit-postgres` (Postgres-specific testkit).
 
-If you run `npx ztd init`, the CLI will install the Postgres driver/testkit stack plus `@rawsql-ts/sql-contract`, and it will always prompt you to select a validator backend (Zod or ArkType). The wizard keeps the required workflow documented in the recipes under `docs/recipes/` (e.g., `docs/recipes/sql-contract.md`, `docs/recipes/validation-zod.md`, and `docs/recipes/validation-arktype.md`), so the implementation path stays centralized and version-controlled.
+If you run `npx ztd init`, the CLI installs the testkit baseline (`@rawsql-ts/testkit-postgres` + `@rawsql-ts/sql-contract`) and prompts you to select a validator backend (Zod or ArkType). Add a driver adapter such as `@rawsql-ts/adapter-node-pg` when wiring a concrete runtime. The wizard keeps the required workflow documented in the recipes under `docs/recipes/` (e.g., `docs/recipes/sql-contract.md`, `docs/recipes/validation-zod.md`, and `docs/recipes/validation-arktype.md`), so the implementation path stays centralized and version-controlled.
 
 Then use the CLI through `npx ztd` or the installed `ztd` bin.
 

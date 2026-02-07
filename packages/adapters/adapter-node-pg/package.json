@@ -34,7 +34,6 @@
   "dependencies": {
     "@rawsql-ts/testkit-postgres": "workspace:^",
     "@rawsql-ts/testkit-core": "workspace:^",
-    "@rawsql-ts/shared-binder": "workspace:^",
     "pg": "^8.13.1",
     "rawsql-ts": "workspace:^"
   },

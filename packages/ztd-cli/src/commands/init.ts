@@ -196,7 +196,6 @@ interface OptionalFeatures {
 }
 
 const MANDATORY_TESTKIT_DEPENDENCIES: Record<string, string> = {
-  '@rawsql-ts/adapter-node-pg': '^0.15.1',
   '@rawsql-ts/testkit-postgres': '^0.15.1'
 };
 const SQL_CONTRACT_DEPENDENCY: Record<string, string> = {
