@@ -24,6 +24,7 @@ Catalog entries are the asset unit for ZTD and docs.
 
 - Specs are contracts. Do not infer, guess, widen, or narrow them.
 - Do not change params / DTO shapes in "specs" without explicit instruction.
+- Every catalog query contract MUST carry a stable `query_id`.
 
 ## Boundaries
 
@@ -39,3 +40,4 @@ Every spec MUST have tests that verify:
 - SQL executes under ZTD rewriting
 - mapping/validation behavior is correct (success and failure)
 - output DTO shape matches expectations
+- tracing emits events with `query_id`

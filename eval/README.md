@@ -9,6 +9,7 @@ This directory provides an evaluation loop for `ztd-cli` templates and AGENTS gu
 - Isolate `CODEX_HOME` so evaluation does not inherit `~/.codex/AGENTS.md`.
 - Produce machine-readable reports under `eval/reports`.
 - Inject local package tarballs when some `@rawsql-ts/*` packages are not yet published.
+- Score template/AGENTS quality with scope and tracing checks.
 
 ## Quick Start
 
@@ -58,6 +59,7 @@ Each report includes:
 - `sandbox_mode`
 - `commands[]` with exit code and output head
 - `checks[]` with pass/fail and violation count
+- `score_breakdown` (`install`, `typecheck`, `test`, `checks`)
 - `score_total`
 
 ## Local Deps Injection
@@ -90,10 +92,50 @@ Example:
 }
 ```
 
+Disable injection (recommended when published deps are available):
+
+```json
+{
+  "localDeps": []
+}
+```
+
+Storage:
+
+- Repo-side cache: `eval/_deps_cache/` (packed tarballs, reusable across runs).
+- Workspace-side copies: `<workspace>/_deps/*.tgz` (self-contained install inputs).
+
 ## Checks
 
 - `forbidden_refs`: fails if generated workspace files/logs reference the library repo path.
 - `sql_rules`: fails on positional SQL params (`$1`) and quoted camelCase aliases.
+- `scope_check`: fails when AI touches files outside allowed scopes.
+- `trace_presence`: fails if required trace events are missing or malformed.
+
+`scope_check` allowlist:
+
+- `src/ddl/**`, `ztd/ddl/**`
+- `src/sql/**`, `src/catalog/**`
+- `src/dto/**`, `src/repositories/**`
+- `tests/**`
+
+## Trace Metrics
+
+`trace_presence` stores metrics in the report metadata:
+
+- `slowestQueryIds`
+- `errorsByQueryId`
+- `countsByQueryId`
+- `totalEvents`
+
+To capture events during eval, the harness sets `ZTD_TRACE_FILE=<workspace>/tmp/eval-trace-events.jsonl`.
+
+## Score Model
+
+- `install`: 30 points
+- `typecheck`: 30 points
+- `test`: 30 points
+- `checks`: 10 points (`sql_rules`, `forbidden_refs`, `scope_check`, `trace_presence`)
 
 ## Current Limitations
 

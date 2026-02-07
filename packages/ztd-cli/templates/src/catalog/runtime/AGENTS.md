@@ -37,9 +37,9 @@ Runtime MUST normalize driver-dependent values before validating DTOs.
 
 Required normalization rules:
 - Timestamp columns (e.g. timestamptz) may arrive as Date or string.
-  - Runtime MUST use `timestampFromDriver` from `@rawsql-ts/sql-contract`.
-  - Do NOT re-implement `normalizeTimestamp` locally.
-  - Do NOT call `new Date(...)` directly for driver-dependent timestamp normalization.
+  - Runtime MUST normalize with the local runtime helper (`normalizeTimestamp`).
+  - Do NOT bypass the helper in repositories.
+  - Do NOT silently accept invalid timestamp payloads.
 - Numeric columns may arrive as number, string, or bigint depending on driver.
   - Normalization rules MUST be explicit per contract and MUST NOT be silent.
 
@@ -67,6 +67,19 @@ The `map*` functions MUST always validate before returning.
 - Validation errors must fail fast with clear messages.
 - Do not swallow validator errors.
 - Do not silently coerce invalid values unless explicitly defined by the contract.
+
+## Tracing (required)
+
+- Every catalog query execution MUST emit a trace event.
+- Trace payload MUST include:
+  - `query_id`
+  - `phase`
+  - `duration_ms`
+  - `row_count`
+  - `param_shape` (shape only; no raw values)
+  - `error_summary`
+  - `source`
+- Tracing MUST be vendor-agnostic and callback-pluggable.
 
 ## Boundaries
 

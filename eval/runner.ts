@@ -1,7 +1,10 @@
 import path from 'node:path';
 import { existsSync } from 'node:fs';
+import { copyFile, readdir } from 'node:fs/promises';
 import { runForbiddenRefsCheck } from './checks/forbidden_refs';
+import { runScopeCheck } from './checks/scope_check';
 import { runSqlRulesCheck } from './checks/sql_rules';
+import { runTracePresenceCheck } from './checks/trace_presence';
 import { runCommand, type CommandLog } from './lib/exec';
 import { ensureDirectory, readUtf8File, removeDirectoryRecursive, writeUtf8File } from './lib/fs';
 import { assertSandboxMode, buildCaseWorkspaceName, resolveEvalPaths } from './lib/guards';
@@ -12,6 +15,7 @@ import {
   packLocalDeps,
   patchWorkspacePackageJson
 } from './lib/local_deps';
+import { diffWorkspaceSnapshots, snapshotWorkspaceTextFiles } from './lib/workspace_changes';
 
 interface CliOptions {
   caseSlug: string;
@@ -24,9 +28,61 @@ const DEFAULT_CASE = 'crud-basic';
 const DEFAULT_REPORT = path.join('eval', 'reports', 'latest.json');
 const DEFAULT_SANDBOX_MODE = 'workspace-write';
 const DEFAULT_LOCAL_DEPS = ['@rawsql-ts/shared-binder'];
+const MAIN_AI_MARKER_REQUIREMENT = [
+  'First run this command exactly:',
+  'Run: pwsh -NoProfile -Command "Set-Content -NoNewline -Path ./tests/__eval_ai_marker__.txt -Value ok; Get-Content -Raw ./tests/__eval_ai_marker__.txt"',
+  'Then continue with the existing CRUD instructions.'
+].join('\n');
+const PREFLIGHT_WRITE_PROMPT =
+  'Run: pwsh -NoProfile -Command "Set-Content -NoNewline -Path ./__eval_probe_write.txt -Value ok; Get-Content -Raw ./__eval_probe_write.txt"';
+const LOCAL_PREFLIGHT_COMMAND =
+  'Set-Content -NoNewline -Path ./__eval_local_preflight.txt -Value ok; Get-Content -Raw ./__eval_local_preflight.txt';
 
 interface EvalConfig {
   localDeps?: string[];
+}
+
+interface CommandExecutionDetails {
+  exitCode: number | null;
+  stdout: string;
+  stderr: string;
+  log: CommandLog;
+}
+
+interface CodexHomeBootstrapMeta {
+  copied_paths: string[];
+  skipped_paths: string[];
+  reason: string;
+}
+
+function resolveCommandInvocation(
+  command: string,
+  args: string[],
+  env?: NodeJS.ProcessEnv
+): { command: string; args: string[] } {
+  if (process.platform === 'win32' && (command === 'pnpm' || command === 'codex')) {
+    const appData = env?.APPDATA ?? process.env.APPDATA ?? '';
+    const shimCandidate = appData ? path.join(appData, 'npm', `${command}.cmd`) : `${command}.cmd`;
+    const shim = existsSync(shimCandidate) ? shimCandidate : `${command}.cmd`;
+    const shimQuoted = /[ \t"]/g.test(shim) ? `"${shim.replace(/"/g, '\\"')}"` : shim;
+    const quotedArgs = args.map((item) => (/[ \t"]/g.test(item) ? `"${item.replace(/"/g, '\\"')}"` : item)).join(' ');
+    return {
+      command: 'cmd.exe',
+      args: ['/d', '/s', '/c', `${shimQuoted} ${quotedArgs}`.trim()]
+    };
+  }
+
+  return { command, args };
+}
+
+function readHeaderSandbox(outputHead: string): string | null {
+  const match = outputHead.match(/sandbox:\s*([^\r\n]+)/i);
+  return match?.[1]?.trim() ?? null;
+}
+
+function readHeaderWorkdir(outputHead: string): string | null {
+  const match = outputHead.match(/workdir:\s*([^\r\n]+)/i);
+  return match?.[1]?.trim() ?? null;
 }
 
 function parseArgs(argv: string[]): CliOptions {
@@ -68,25 +124,45 @@ async function runAndTrack(
   env?: NodeJS.ProcessEnv,
   stdinText?: string
 ): Promise<void> {
-  let actualCommand = command;
-  let actualArgs = args;
-  if (process.platform === 'win32' && (command === 'pnpm' || command === 'codex')) {
-    const appData = env?.APPDATA ?? process.env.APPDATA ?? '';
-    const shimCandidate = appData ? path.join(appData, 'npm', `${command}.cmd`) : `${command}.cmd`;
-    const shim = existsSync(shimCandidate) ? shimCandidate : `${command}.cmd`;
-    const shimQuoted = /[ \t"]/g.test(shim) ? `"${shim.replace(/"/g, '\\"')}"` : shim;
-    const quotedArgs = args.map((item) => (/[ \t"]/g.test(item) ? `"${item.replace(/"/g, '\\"')}"` : item)).join(' ');
-    actualCommand = 'cmd.exe';
-    actualArgs = ['/d', '/s', '/c', `${shimQuoted} ${quotedArgs}`.trim()];
-  }
-
-  const result = await runCommand({ command: actualCommand, args: actualArgs, cwd, env, stdinText });
+  const invocation = resolveCommandInvocation(command, args, env);
+  const result = await runCommand({
+    command: invocation.command,
+    args: invocation.args,
+    cwd,
+    env,
+    stdinText
+  });
   commandLogs.push(result.log);
   if (result.exitCode !== 0) {
     throw new Error(
       `Command failed: ${command} ${args.join(' ')} (exit=${result.exitCode ?? 'null'})\n${result.log.outputHead}`
     );
   }
+}
+
+async function runAndTrackAllowFailureWithDetails(
+  commandLogs: CommandLog[],
+  command: string,
+  args: string[],
+  cwd: string,
+  env?: NodeJS.ProcessEnv,
+  stdinText?: string
+): Promise<CommandExecutionDetails> {
+  const invocation = resolveCommandInvocation(command, args, env);
+  const result = await runCommand({
+    command: invocation.command,
+    args: invocation.args,
+    cwd,
+    env,
+    stdinText
+  });
+  commandLogs.push(result.log);
+  return {
+    exitCode: result.exitCode,
+    stdout: result.stdout,
+    stderr: result.stderr,
+    log: result.log
+  };
 }
 
 async function runAndTrackAllowFailure(
@@ -113,6 +189,60 @@ async function ensureEvalCodexHome(codexHome: string): Promise<void> {
     '\n'
   );
   await writeUtf8File(agentsPath, minimalAgents);
+}
+
+function isAuthBootstrapCandidate(fileName: string): boolean {
+  const normalized = fileName.toLowerCase();
+  if (normalized === 'agents.md' || normalized === 'config.toml') {
+    return false;
+  }
+  if (normalized.includes('auth') || normalized.includes('token') || normalized.includes('credential')) {
+    return true;
+  }
+  return false;
+}
+
+async function bootstrapCodexHomeAuth(
+  globalCodexHome: string,
+  evalCodexHome: string
+): Promise<CodexHomeBootstrapMeta> {
+  const copied_paths: string[] = [];
+  const skipped_paths: string[] = [];
+
+  if (!existsSync(globalCodexHome)) {
+    return {
+      copied_paths,
+      skipped_paths,
+      reason: `Not observed: global CODEX_HOME not found (${globalCodexHome}).`
+    };
+  }
+
+  const entries = await readdir(globalCodexHome, { withFileTypes: true });
+  const candidates = entries.filter((entry) => entry.isFile() && isAuthBootstrapCandidate(entry.name));
+  if (candidates.length === 0) {
+    return {
+      copied_paths,
+      skipped_paths,
+      reason: 'Not observed: no allowlisted auth-related files found in global CODEX_HOME.'
+    };
+  }
+
+  for (const entry of candidates) {
+    const sourcePath = path.join(globalCodexHome, entry.name);
+    const targetPath = path.join(evalCodexHome, entry.name);
+    if (existsSync(targetPath)) {
+      skipped_paths.push(`${entry.name}: already exists in eval CODEX_HOME`);
+      continue;
+    }
+    await copyFile(sourcePath, targetPath);
+    copied_paths.push(entry.name);
+  }
+
+  return {
+    copied_paths,
+    skipped_paths,
+    reason: 'Copied only allowlisted auth-related files from global CODEX_HOME (AGENTS.md/config.toml excluded).'
+  };
 }
 
 async function loadEvalConfig(repoRoot: string): Promise<EvalConfig> {
@@ -146,11 +276,27 @@ async function run(): Promise<void> {
   const checks: CheckResult[] = [];
   let success = false;
   let errorMessage: string | undefined;
+  let installExit: number | null = null;
+  let typecheckExit: number | null = null;
+  let testExit: number | null = null;
+  let aiExit: number | null = null;
+  let aiTouchedFiles: string[] = [];
+  let aiStdoutHead = '';
+  let aiStderrHead = '';
+  let aiCommandLine = '';
+  const traceFilePath = path.join(workspacePath, 'tmp', 'eval-trace-events.jsonl');
+  const globalCodexHome = path.join(process.env.USERPROFILE ?? process.env.HOME ?? '', '.codex');
+  let codexHomeBootstrap: CodexHomeBootstrapMeta = {
+    copied_paths: [],
+    skipped_paths: [],
+    reason: 'Not executed.'
+  };
 
   assertSandboxMode(sandboxMode);
   await ensureDirectory(evalPaths.workspaceRoot);
   await ensureDirectory(path.dirname(reportPath));
   await ensureEvalCodexHome(evalPaths.codexHome);
+  codexHomeBootstrap = await bootstrapCodexHomeAuth(globalCodexHome, evalPaths.codexHome);
 
   const codexEnv: NodeJS.ProcessEnv = {
     ...process.env,
@@ -158,6 +304,7 @@ async function run(): Promise<void> {
   };
 
   try {
+    await runAndTrackAllowFailure(commandLogs, codexBin, ['exec', '--help'], repoRoot, codexEnv);
     await ensureDirectory(workspacePath);
 
     // Run ztd init from source with a fixed non-interactive prompter.
@@ -170,8 +317,55 @@ async function run(): Promise<void> {
     );
 
     if (!options.skipAi) {
-      const promptText = await readUtf8File(promptPath);
-      await runAndTrack(
+      const localPreflightResult = await runAndTrackAllowFailureWithDetails(
+        commandLogs,
+        'pwsh',
+        ['-NoProfile', '-Command', LOCAL_PREFLIGHT_COMMAND],
+        workspacePath,
+        codexEnv
+      );
+      const localPreflightPath = path.join(workspacePath, '__eval_local_preflight.txt');
+      const localPreflightExists = existsSync(localPreflightPath);
+      const localPreflightContent = localPreflightExists ? await readUtf8File(localPreflightPath) : '';
+      const localPreflightPassed =
+        localPreflightResult.exitCode === 0 && localPreflightExists && localPreflightContent === 'ok';
+      checks.push({
+        name: 'local_preflight',
+        passed: localPreflightPassed,
+        violations: localPreflightPassed ? 0 : 1,
+        details: localPreflightPassed ? [] : ['local_preflight_failed'],
+        meta: {
+          exitCode: localPreflightResult.exitCode,
+          stdout_head: localPreflightResult.stdout.slice(0, 2000),
+          stderr_head: localPreflightResult.stderr.slice(0, 2000),
+          local_exists: localPreflightExists,
+          local_content: localPreflightContent
+        }
+      });
+      if (!localPreflightPassed) {
+        checks.push({
+          name: 'ai_execution',
+          passed: false,
+          violations: 1,
+          details: ['local_preflight_failed'],
+          meta: {
+            exitCode: null,
+            touchedFilesCount: 0,
+            touchedFilesSample: [],
+            marker_file_exists: false,
+            marker_file_content: '',
+            headerSandbox: null,
+            effectiveWrite: false,
+            command: '',
+            stdout_head: '',
+            stderr_head: ''
+          }
+        });
+        errorMessage = 'local_preflight_failed';
+        return;
+      }
+
+      const preflightResult = await runAndTrackAllowFailureWithDetails(
         commandLogs,
         codexBin,
         [
@@ -179,16 +373,139 @@ async function run(): Promise<void> {
           '--cd',
           workspacePath,
           '--skip-git-repo-check',
+          '--full-auto',
           '--sandbox',
           sandboxMode,
-          '--ask-for-approval',
-          'never',
           '-'
         ],
         repoRoot,
         codexEnv,
-        promptText
+        PREFLIGHT_WRITE_PROMPT
       );
+      const preflightProbePath = path.join(workspacePath, '__eval_probe_write.txt');
+      const preflightLocalExists = existsSync(preflightProbePath);
+      const preflightLocalContent = preflightLocalExists ? await readUtf8File(preflightProbePath) : '';
+      const preflightPassed =
+        preflightResult.exitCode === 0 && preflightLocalExists && preflightLocalContent === 'ok';
+      checks.push({
+        name: 'preflight_write',
+        passed: preflightPassed,
+        violations: preflightPassed ? 0 : 1,
+        details: preflightPassed ? [] : ['preflight_write_observed_failure'],
+        meta: {
+          exitCode: preflightResult.exitCode,
+          stdout_head: preflightResult.stdout.slice(0, 2000),
+          stderr_head: preflightResult.stderr.slice(0, 2000),
+          header_workdir: readHeaderWorkdir(preflightResult.log.outputHead),
+          local_exists: preflightLocalExists,
+          local_content: preflightLocalContent
+        }
+      });
+
+      const beforeAiSnapshot = await snapshotWorkspaceTextFiles(workspacePath);
+      const promptText = await readUtf8File(promptPath);
+      const aiPrompt = `${MAIN_AI_MARKER_REQUIREMENT}\n\n${promptText}`;
+      const aiLogIndex = commandLogs.length;
+      const aiResult = await runAndTrackAllowFailureWithDetails(
+        commandLogs,
+        codexBin,
+        [
+          'exec',
+          '--cd',
+          workspacePath,
+          '--skip-git-repo-check',
+          '--full-auto',
+          '--sandbox',
+          sandboxMode,
+          '-'
+        ],
+        repoRoot,
+        codexEnv,
+        aiPrompt
+      );
+      aiExit = aiResult.exitCode;
+      aiStdoutHead = aiResult.stdout.slice(0, 2000);
+      aiStderrHead = aiResult.stderr.slice(0, 2000);
+      const afterAiSnapshot = await snapshotWorkspaceTextFiles(workspacePath);
+      aiTouchedFiles = diffWorkspaceSnapshots(beforeAiSnapshot, afterAiSnapshot).touched;
+      const markerPath = path.join(workspacePath, 'tests', '__eval_ai_marker__.txt');
+      const markerFileExists = existsSync(markerPath);
+      const markerFileContent = markerFileExists ? await readUtf8File(markerPath) : '';
+      const aiCommandLog = commandLogs[aiLogIndex];
+      aiCommandLine = `${aiCommandLog?.command ?? ''} ${(aiCommandLog?.args ?? []).join(' ')}`.trim();
+      const touchedFilesCount = aiTouchedFiles.length;
+      const effectiveWrite = touchedFilesCount > 0;
+      const aiPassed = aiExit === 0 && effectiveWrite;
+      checks.push({
+        name: 'ai_execution',
+        passed: aiPassed,
+        violations: aiPassed ? 0 : 1,
+        details: aiPassed
+          ? []
+          : aiExit !== 0
+            ? [
+                `codex exec failed (exit=${aiExit ?? 'null'})`,
+                aiCommandLog?.outputHead ?? 'No output captured.'
+              ]
+            : ['codex exec exited 0 but no workspace changes were observed'],
+        meta: {
+          exitCode: aiExit,
+          touchedFilesCount,
+          touchedFilesSample: aiTouchedFiles.slice(0, 20),
+          marker_file_exists: markerFileExists,
+          marker_file_content: markerFileContent,
+          headerSandbox: readHeaderSandbox(aiCommandLog?.outputHead ?? ''),
+          effectiveWrite,
+          command: aiCommandLine,
+          stdout_head: aiStdoutHead,
+          stderr_head: aiStderrHead
+        }
+      });
+    } else {
+      checks.push({
+        name: 'local_preflight',
+        passed: true,
+        violations: 0,
+        details: ['AI step skipped'],
+        meta: {
+          exitCode: null,
+          stdout_head: '',
+          stderr_head: '',
+          local_exists: false,
+          local_content: ''
+        }
+      });
+      checks.push({
+        name: 'preflight_write',
+        passed: true,
+        violations: 0,
+        details: ['AI step skipped'],
+        meta: {
+          exitCode: null,
+          stdout_head: '',
+          stderr_head: '',
+          local_exists: false,
+          local_content: ''
+        }
+      });
+      checks.push({
+        name: 'ai_execution',
+        passed: true,
+        violations: 0,
+        details: ['AI step skipped'],
+        meta: {
+          exitCode: null,
+          touchedFilesCount: 0,
+          touchedFilesSample: [],
+          marker_file_exists: false,
+          marker_file_content: '',
+          headerSandbox: null,
+          effectiveWrite: false,
+          command: '',
+          stdout_head: '',
+          stderr_head: ''
+        }
+      });
     }
 
     if (requestedLocalDeps.length > 0) {
@@ -227,30 +544,37 @@ async function run(): Promise<void> {
       });
     }
 
-    const installExit = await runAndTrackAllowFailure(
+    const commandEnv: NodeJS.ProcessEnv = {
+      ...codexEnv,
+      ZTD_TRACE_FILE: traceFilePath
+    };
+
+    installExit = await runAndTrackAllowFailure(
       commandLogs,
       pnpmBin,
       ['--dir', workspacePath, 'install'],
       repoRoot,
-      codexEnv
+      commandEnv
     );
-    const typecheckExit = await runAndTrackAllowFailure(
+    typecheckExit = await runAndTrackAllowFailure(
       commandLogs,
       pnpmBin,
       ['--dir', workspacePath, 'typecheck'],
       repoRoot,
-      codexEnv
+      commandEnv
     );
-    const testExit = await runAndTrackAllowFailure(
+    testExit = await runAndTrackAllowFailure(
       commandLogs,
       pnpmBin,
       ['--dir', workspacePath, 'test'],
       repoRoot,
-      codexEnv
+      commandEnv
     );
 
+    checks.push(runScopeCheck(aiTouchedFiles, !options.skipAi));
     checks.push(await runForbiddenRefsCheck(workspacePath, repoRoot, commandLogs));
     checks.push(await runSqlRulesCheck(workspacePath));
+    checks.push(await runTracePresenceCheck(traceFilePath));
     success = checks.every((item) => item.passed) && installExit === 0 && typecheckExit === 0 && testExit === 0;
     if (!success) {
       const failures: string[] = [];
@@ -280,6 +604,7 @@ async function run(): Promise<void> {
       });
     }
   } finally {
+    const scoreBreakdown = computeScore(installExit, typecheckExit, testExit, checks);
     const report: EvalReport = {
       caseSlug: options.caseSlug,
       workspace_path: workspacePath,
@@ -290,7 +615,9 @@ async function run(): Promise<void> {
       finished_at: new Date().toISOString(),
       commands: commandLogs,
       checks,
-      score_total: success ? computeScore(checks) : 0,
+      codex_home_bootstrap: codexHomeBootstrap,
+      score_breakdown: scoreBreakdown,
+      score_total: scoreBreakdown.total,
       success,
       error: errorMessage
     };

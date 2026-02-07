@@ -20,9 +20,23 @@ export interface EvalReport {
   finished_at: string;
   commands: CommandLog[];
   checks: CheckResult[];
+  codex_home_bootstrap?: {
+    copied_paths: string[];
+    skipped_paths: string[];
+    reason: string;
+  };
+  score_breakdown: ScoreBreakdown;
   score_total: number;
   success: boolean;
   error?: string;
+}
+
+export interface ScoreBreakdown {
+  install: number;
+  typecheck: number;
+  test: number;
+  checks: number;
+  total: number;
 }
 
 export async function writeReport(reportPath: string, report: EvalReport): Promise<void> {
@@ -31,9 +45,26 @@ export async function writeReport(reportPath: string, report: EvalReport): Promi
   await writeUtf8File(absolute, `${JSON.stringify(report, null, 2)}\n`);
 }
 
-export function computeScore(checks: CheckResult[]): number {
-  if (checks.length === 0) {
-    return 100;
-  }
-  return checks.every((item) => item.passed) ? 100 : 0;
+export function computeScore(
+  installExit: number | null,
+  typecheckExit: number | null,
+  testExit: number | null,
+  checks: CheckResult[]
+): ScoreBreakdown {
+  const install = installExit === 0 ? 30 : 0;
+  const typecheck = typecheckExit === 0 ? 30 : 0;
+  const test = testExit === 0 ? 30 : 0;
+
+  const scoredChecks = ['sql_rules', 'forbidden_refs', 'scope_check', 'trace_presence'];
+  const passedChecks = scoredChecks.filter((name) => checks.find((item) => item.name === name)?.passed === true).length;
+  const checksScore = (passedChecks / scoredChecks.length) * 10;
+  const total = install + typecheck + test + checksScore;
+
+  return {
+    install,
+    typecheck,
+    test,
+    checks: checksScore,
+    total
+  };
 }
