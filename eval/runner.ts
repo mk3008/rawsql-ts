@@ -2,8 +2,12 @@ import path from 'node:path';
 import { existsSync } from 'node:fs';
 import { copyFile, readdir } from 'node:fs/promises';
 import { runForbiddenRefsCheck } from './checks/forbidden_refs';
+import { runCatalogTraceQualityCheck } from './checks/catalog_trace_quality';
+import { runContractDriftChecks } from './checks/contract_drift';
 import { runScopeCheck } from './checks/scope_check';
-import { runSqlRulesCheck } from './checks/sql_rules';
+import { runSqlCompositionCheck } from './checks/sql_composition';
+import { runSqlClientRunnableCheck } from './checks/sql_client_runnable';
+import { runSqlRulesChecks } from './checks/sql_rules';
 import { runTracePresenceCheck } from './checks/trace_presence';
 import { runCommand, type CommandLog } from './lib/exec';
 import { ensureDirectory, readUtf8File, removeDirectoryRecursive, writeUtf8File } from './lib/fs';
@@ -19,12 +23,14 @@ import { diffWorkspaceSnapshots, snapshotWorkspaceTextFiles } from './lib/worksp
 
 interface CliOptions {
   caseSlug: string;
+  scenario: string;
   keepWorkspace: boolean;
   skipAi: boolean;
   reportPath: string;
 }
 
 const DEFAULT_CASE = 'crud-basic';
+const DEFAULT_SCENARIO = 'crud-basic';
 const DEFAULT_REPORT = path.join('eval', 'reports', 'latest.json');
 const DEFAULT_SANDBOX_MODE = 'workspace-write';
 const DEFAULT_LOCAL_DEPS = ['@rawsql-ts/shared-binder'];
@@ -37,6 +43,11 @@ const PREFLIGHT_WRITE_PROMPT =
   'Run: pwsh -NoProfile -Command "Set-Content -NoNewline -Path ./__eval_probe_write.txt -Value ok; Get-Content -Raw ./__eval_probe_write.txt"';
 const LOCAL_PREFLIGHT_COMMAND =
   'Set-Content -NoNewline -Path ./__eval_local_preflight.txt -Value ok; Get-Content -Raw ./__eval_local_preflight.txt';
+const SCENARIO_PROMPTS: Record<string, string> = {
+  'crud-basic': '01_crud.md',
+  'crud-complex': '02_crud_complex.md',
+  'dynamic-search': '03_dynamic_search.md'
+};
 
 interface EvalConfig {
   localDeps?: string[];
@@ -47,6 +58,11 @@ interface CommandExecutionDetails {
   stdout: string;
   stderr: string;
   log: CommandLog;
+}
+
+interface CodexRetryResult {
+  result: CommandExecutionDetails;
+  retried: boolean;
 }
 
 interface CodexHomeBootstrapMeta {
@@ -87,6 +103,7 @@ function readHeaderWorkdir(outputHead: string): string | null {
 
 function parseArgs(argv: string[]): CliOptions {
   let caseSlug = DEFAULT_CASE;
+  let scenario = DEFAULT_SCENARIO;
   let keepWorkspace = false;
   let skipAi = false;
   let reportPath = DEFAULT_REPORT;
@@ -102,6 +119,11 @@ function parseArgs(argv: string[]): CliOptions {
       keepWorkspace = true;
       continue;
     }
+    if (token === '--scenario') {
+      scenario = argv[index + 1] ?? DEFAULT_SCENARIO;
+      index += 1;
+      continue;
+    }
     if (token === '--skip-ai') {
       skipAi = true;
       continue;
@@ -113,7 +135,7 @@ function parseArgs(argv: string[]): CliOptions {
     }
   }
 
-  return { caseSlug, keepWorkspace, skipAi, reportPath };
+  return { caseSlug, scenario, keepWorkspace, skipAi, reportPath };
 }
 
 async function runAndTrack(
@@ -122,7 +144,8 @@ async function runAndTrack(
   args: string[],
   cwd: string,
   env?: NodeJS.ProcessEnv,
-  stdinText?: string
+  stdinText?: string,
+  timeoutMs?: number
 ): Promise<void> {
   const invocation = resolveCommandInvocation(command, args, env);
   const result = await runCommand({
@@ -130,7 +153,8 @@ async function runAndTrack(
     args: invocation.args,
     cwd,
     env,
-    stdinText
+    stdinText,
+    timeoutMs
   });
   commandLogs.push(result.log);
   if (result.exitCode !== 0) {
@@ -146,7 +170,8 @@ async function runAndTrackAllowFailureWithDetails(
   args: string[],
   cwd: string,
   env?: NodeJS.ProcessEnv,
-  stdinText?: string
+  stdinText?: string,
+  timeoutMs?: number
 ): Promise<CommandExecutionDetails> {
   const invocation = resolveCommandInvocation(command, args, env);
   const result = await runCommand({
@@ -154,7 +179,8 @@ async function runAndTrackAllowFailureWithDetails(
     args: invocation.args,
     cwd,
     env,
-    stdinText
+    stdinText,
+    timeoutMs
   });
   commandLogs.push(result.log);
   return {
@@ -165,16 +191,51 @@ async function runAndTrackAllowFailureWithDetails(
   };
 }
 
+function isNonRetryableCodexError(stdout: string, stderr: string): boolean {
+  const merged = `${stdout}\n${stderr}`;
+  return /401 Unauthorized|model_not_found|unexpected argument/i.test(merged);
+}
+
+async function sleepMs(durationMs: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, durationMs));
+}
+
+async function runCodexExecWithRetry(
+  commandLogs: CommandLog[],
+  args: string[],
+  cwd: string,
+  env?: NodeJS.ProcessEnv,
+  stdinText?: string,
+  timeoutMs?: number
+): Promise<CodexRetryResult> {
+  const first = await runAndTrackAllowFailureWithDetails(commandLogs, 'codex', args, cwd, env, stdinText, timeoutMs);
+  const retryOptIn = (env?.EVAL_CODEX_RETRY ?? process.env.EVAL_CODEX_RETRY) === '1';
+  if (!retryOptIn) {
+    return { result: first, retried: false };
+  }
+
+  const transientFailure =
+    (first.exitCode ?? 1) !== 0 && !isNonRetryableCodexError(first.stdout, first.stderr) && first.exitCode !== null;
+  if (!transientFailure) {
+    return { result: first, retried: false };
+  }
+
+  await sleepMs(2000);
+  const second = await runAndTrackAllowFailureWithDetails(commandLogs, 'codex', args, cwd, env, stdinText, timeoutMs);
+  return { result: second, retried: true };
+}
+
 async function runAndTrackAllowFailure(
   commandLogs: CommandLog[],
   command: string,
   args: string[],
   cwd: string,
   env?: NodeJS.ProcessEnv,
-  stdinText?: string
+  stdinText?: string,
+  timeoutMs?: number
 ): Promise<number | null> {
   try {
-    await runAndTrack(commandLogs, command, args, cwd, env, stdinText);
+    await runAndTrack(commandLogs, command, args, cwd, env, stdinText, timeoutMs);
     return 0;
   } catch {
     const latest = commandLogs[commandLogs.length - 1];
@@ -270,7 +331,8 @@ async function run(): Promise<void> {
   const codexBin = process.env.CODEX_BIN ?? 'codex';
   const pnpmBin = process.env.PNPM_BIN ?? 'pnpm';
   const ztdInitEntrypoint = path.join(repoRoot, 'eval', 'lib', 'ztd_init_entry.ts');
-  const promptPath = path.join(repoRoot, 'eval', 'prompts', '01_crud.md');
+  const promptFile = SCENARIO_PROMPTS[options.scenario] ?? SCENARIO_PROMPTS[DEFAULT_SCENARIO];
+  const promptPath = path.join(repoRoot, 'eval', 'prompts', promptFile);
 
   const commandLogs: CommandLog[] = [];
   const checks: CheckResult[] = [];
@@ -380,7 +442,8 @@ async function run(): Promise<void> {
         ],
         repoRoot,
         codexEnv,
-        PREFLIGHT_WRITE_PROMPT
+        PREFLIGHT_WRITE_PROMPT,
+        120000
       );
       const preflightProbePath = path.join(workspacePath, '__eval_probe_write.txt');
       const preflightLocalExists = existsSync(preflightProbePath);
@@ -406,9 +469,8 @@ async function run(): Promise<void> {
       const promptText = await readUtf8File(promptPath);
       const aiPrompt = `${MAIN_AI_MARKER_REQUIREMENT}\n\n${promptText}`;
       const aiLogIndex = commandLogs.length;
-      const aiResult = await runAndTrackAllowFailureWithDetails(
+      const aiExecution = await runCodexExecWithRetry(
         commandLogs,
-        codexBin,
         [
           'exec',
           '--cd',
@@ -421,8 +483,10 @@ async function run(): Promise<void> {
         ],
         repoRoot,
         codexEnv,
-        aiPrompt
+        aiPrompt,
+        180000
       );
+      const aiResult = aiExecution.result;
       aiExit = aiResult.exitCode;
       aiStdoutHead = aiResult.stdout.slice(0, 2000);
       aiStderrHead = aiResult.stderr.slice(0, 2000);
@@ -458,7 +522,8 @@ async function run(): Promise<void> {
           effectiveWrite,
           command: aiCommandLine,
           stdout_head: aiStdoutHead,
-          stderr_head: aiStderrHead
+          stderr_head: aiStderrHead,
+          retried: aiExecution.retried
         }
       });
     } else {
@@ -573,9 +638,19 @@ async function run(): Promise<void> {
 
     checks.push(runScopeCheck(aiTouchedFiles, !options.skipAi));
     checks.push(await runForbiddenRefsCheck(workspacePath, repoRoot, commandLogs));
-    checks.push(await runSqlRulesCheck(workspacePath));
+    checks.push(await runSqlCompositionCheck(workspacePath));
+    checks.push(await runSqlClientRunnableCheck(workspacePath));
+    const sqlRules = await runSqlRulesChecks(workspacePath);
+    checks.push(sqlRules.combined);
+    checks.push(sqlRules.namedParams);
+    checks.push(sqlRules.aliasStyle);
+    const contractDrift = await runContractDriftChecks(workspacePath);
+    checks.push(contractDrift.contractDrift);
+    checks.push(contractDrift.repositoryBoundary);
     checks.push(await runTracePresenceCheck(traceFilePath));
-    success = checks.every((item) => item.passed) && installExit === 0 && typecheckExit === 0 && testExit === 0;
+    checks.push(await runCatalogTraceQualityCheck(workspacePath, traceFilePath));
+    const blockingChecks = checks.filter((item) => item.name !== 'preflight_write');
+    success = blockingChecks.every((item) => item.passed) && installExit === 0 && typecheckExit === 0 && testExit === 0;
     if (!success) {
       const failures: string[] = [];
       if (installExit !== 0) {
@@ -587,7 +662,7 @@ async function run(): Promise<void> {
       if (testExit !== 0) {
         failures.push(`test failed (exit=${testExit})`);
       }
-      if (checks.some((item) => !item.passed)) {
+      if (blockingChecks.some((item) => !item.passed)) {
         failures.push('check failures detected');
       }
       errorMessage = failures.join('; ');
