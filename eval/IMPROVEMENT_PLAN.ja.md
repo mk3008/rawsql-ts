@@ -183,6 +183,68 @@
 
 （各項目の詳細・成果・観測・質問はこのファイルに追記する）
 
+### タスク1 進捗（SQLカタログ単体テストの改善）
+
+* Iteration: 1
+* Target item: 1. SQLカタログ単体テストの改善（ZTD / Mapping）
+* Change applied: 提案スタック初期化（候補列挙のみ）
+* Expected effect: 初回反復で選択可能な機械化候補を明確化し、次反復の1件適用を可能にする
+* Observed effect:
+  - `pnpm exec ts-node eval/loop.ts --loop 1 --scenario crud-basic --report-prefix eval/reports/loop-plan-check` が TypeScript コンパイルエラーで失敗し、`loop-plan-check*` report は未生成（Not observed）。
+  - エラー: `eval/loop.ts(483,7): TS2353 Object literal may only specify known properties, and 'timeoutMs' does not exist in type 'ExecOptions'.`
+* Verdict: Pending
+* If Ineffective: N/A
+* Proposal stack:
+  - Pending:
+    - P1: `eval/lib/exec.ts` の `ExecOptions` と `eval/loop.ts` 呼び出し引数の型不一致を解消し、loop ベースライン計測を再開可能にする（機械化・重大）。
+    - P2: ベースライン計測が成功した時点で、`loop-plan-check-summary-*.json` から task1 関連の失敗カテゴリ（SQLカタログ単体テスト観点）を抽出する自動集計手順を追加する（機械化・重大）。
+    - P3: task1 用の最小再現ケース（catalog spec / mapper / fixtures）を `eval` 配下に固定し、反復ごとに同一条件で比較可能にする（再現性・重大）。
+  - Dropped as noise:
+    - なし
+  - Dropped as waste:
+    - なし
+
+* Iteration: 2
+* Target item: 1. SQLカタログ単体テストの改善（ZTD / Mapping）
+* Change applied: P1（`eval/lib/exec.ts` の `ExecOptions` に `timeoutMs?: number` を追加して、`timeoutMs` 呼び出しとの型整合を回復）
+* Expected effect: `eval/loop.ts` がコンパイルエラー（TS2353）なしで実行でき、`loop-plan-check` report が生成される
+* Observed effect:
+  - コマンド: `pnpm exec ts-node eval/loop.ts --loop 1 --scenario crud-basic --report-prefix eval/reports/loop-plan-check`
+  - 結果: exit code 1
+  - エラー: `ENOENT: no such file or directory, open '.../eval/reports/loop-plan-check-20260210040952-01.json'`
+  - `loop-plan-check*` report generated: Not observed
+* Verdict: Ineffective
+* If Ineffective: Waste knowledge: 型不一致の解消だけでは report 生成失敗（ENOENT）までは解決しなかった。
+* Proposal stack:
+  - Pending:
+    - P2: `eval/runner.ts` の report 未生成時に `loop.ts` が失敗理由を観測できるよう、iteration実行結果（stdout/stderr/head）を summary 用に最小記録する。
+    - P3: `eval/runner.ts` 側で report 書き込み前に失敗終了している箇所を観測し、`--report` パス未生成時でも最低限の失敗レポートを書き出す。
+  - Dropped as noise:
+    - なし
+  - Dropped as waste:
+    - P1（型整合のみ）: ENOENT 問題に対する効果なし
+
+* Iteration: 3
+* Target item: 1. SQLカタログ単体テストの改善（ZTD / Mapping）
+* Change applied: P2（`eval/loop.ts` に report 欠損ガードを追加し、`runner_report_missing` として summary に記録）
+* Expected effect: report 欠損時でも `eval/loop.ts` が ENOENT で自爆せず、最低限の summary を生成する
+* Observed effect:
+  - コマンド: `pnpm exec ts-node eval/loop.ts --loop 1 --scenario crud-basic --report-prefix eval/reports/loop-plan-check`
+  - 結果: exit code 0
+  - baseline summary generated: `eval/reports/loop-plan-check-summary-20260210041344.json`（Observed）
+  - baseline report generated: Not observed（`loop-plan-check-...-01.json` は未生成）
+  - summary 内に `aggregate.runner_report_missing_count=1` と `iterations[0].runner_report_missing.next_command` を記録（Observed）
+* Verdict: Effective
+* If Ineffective: N/A
+* Proposal stack:
+  - Pending:
+    - P3: `eval/runner.ts` compile failure時でも `--report` に最低限レポートを書き出す（loop側 missing発生を減らす）。
+    - P4: `runner_report_missing` カテゴリを proposal生成で過剰増幅させない正規化（同一カテゴリのタイトル長文化を抑制）。
+  - Dropped as noise:
+    - なし
+  - Dropped as waste:
+    - なし
+
 ---
 
 ## 反復記録テンプレート（追記用）

@@ -1,5 +1,6 @@
 import path from 'node:path';
 import os from 'node:os';
+import { existsSync } from 'node:fs';
 import { runCommand } from './lib/exec';
 import { ensureDirectory, readUtf8File, writeUtf8File } from './lib/fs';
 import type { EvalReport } from './lib/report';
@@ -49,12 +50,20 @@ interface LoopSummary {
     score_total: number;
     failed_categories: string[];
     duration_ms: number;
+    runner_report_missing?: {
+      exit_code: number | null;
+      output_head: string;
+      stdout_head: string;
+      stderr_head: string;
+      next_command: string;
+    };
   }>;
   aggregate: {
     pass_rate: number;
     average_score: number;
     min_score: number;
     max_score: number;
+    runner_report_missing_count: number;
     preflight_write_present_count: number;
     preflight_write_executed_count: number;
     preflight_write_skipped_count: number;
@@ -86,6 +95,14 @@ interface PreflightWriteStats {
   presentCount: number;
   executedCount: number;
   skippedCount: number;
+}
+
+interface RunnerMissingMeta {
+  exitCode: number | null;
+  outputHead: string;
+  stdoutHead: string;
+  stderrHead: string;
+  nextCommand: string;
 }
 
 function toWindowsCommand(args: string[]): { command: string; args: string[] } {
@@ -156,6 +173,35 @@ function percentile(values: number[], p: number): number {
   const sorted = [...values].sort((a, b) => a - b);
   const index = Math.max(0, Math.min(sorted.length - 1, Math.ceil((p / 100) * sorted.length) - 1));
   return sorted[index];
+}
+
+function buildMissingEvalReport(
+  scenario: string,
+  reportPath: string,
+  runnerExitCode: number | null
+): EvalReport {
+  const now = new Date().toISOString();
+  return {
+    caseSlug: scenario,
+    workspace_path: 'Not observed',
+    cwd_used: 'Not observed',
+    codex_home: 'Not observed',
+    sandbox_mode: 'Not observed',
+    started_at: now,
+    finished_at: now,
+    commands: [],
+    checks: [],
+    score_breakdown: {
+      install: 0,
+      typecheck: 0,
+      test: 0,
+      checks: 0,
+      total: 0
+    },
+    score_total: 0,
+    success: false,
+    error: `runner_report_missing: report file was not generated (${path.basename(reportPath)}; runner_exit=${runnerExitCode ?? 'null'})`
+  };
 }
 
 function addEvidence(
@@ -449,6 +495,7 @@ async function run(): Promise<void> {
   const repoRoot = process.cwd();
   const reportPaths: string[] = [];
   const reports: EvalReport[] = [];
+  const missingReports = new Map<string, RunnerMissingMeta>();
   const tsNodeArgsBase = ['exec', 'ts-node', path.join(repoRoot, 'eval', 'runner.ts')];
   const timestamp = new Date().toISOString().replace(/[-:TZ.]/g, '').slice(0, 14);
 
@@ -486,6 +533,21 @@ async function run(): Promise<void> {
       throw new Error(`Iteration ${index} exited with null code.`);
     }
 
+    const nextCommand = `pnpm exec ts-node ${path.join(repoRoot, 'eval', 'runner.ts')} --case ${options.scenario} --scenario ${options.scenario} --report ${reportPath}`;
+    if (!existsSync(reportPath)) {
+      const missingMeta: RunnerMissingMeta = {
+        exitCode: result.exitCode,
+        outputHead: result.log.outputHead,
+        stdoutHead: result.stdout.slice(0, 2000),
+        stderrHead: result.stderr.slice(0, 2000),
+        nextCommand
+      };
+      missingReports.set(reportPath, missingMeta);
+      reportPaths.push(reportPath);
+      reports.push(buildMissingEvalReport(options.scenario, reportPath, result.exitCode));
+      continue;
+    }
+
     const reportRaw = await readUtf8File(reportPath);
     const report = JSON.parse(reportRaw) as EvalReport;
     reportPaths.push(reportPath);
@@ -511,13 +573,23 @@ async function run(): Promise<void> {
       success: report.success,
       score_total: report.score_total,
       failed_categories: report.checks.filter((check) => isFailureRelevantCheck(check)).map((check) => check.name),
-      duration_ms: durations[index] ?? 0
+      duration_ms: durations[index] ?? 0,
+      runner_report_missing: missingReports.has(reportPaths[index])
+        ? {
+            exit_code: missingReports.get(reportPaths[index])!.exitCode,
+            output_head: missingReports.get(reportPaths[index])!.outputHead,
+            stdout_head: missingReports.get(reportPaths[index])!.stdoutHead,
+            stderr_head: missingReports.get(reportPaths[index])!.stderrHead,
+            next_command: missingReports.get(reportPaths[index])!.nextCommand
+          }
+        : undefined
     })),
     aggregate: {
       pass_rate: reports.length === 0 ? 0 : passCount / reports.length,
       average_score: reports.length === 0 ? 0 : scores.reduce((sum, score) => sum + score, 0) / reports.length,
       min_score: scores.length === 0 ? 0 : Math.min(...scores),
       max_score: scores.length === 0 ? 0 : Math.max(...scores),
+      runner_report_missing_count: missingReports.size,
       preflight_write_present_count: preflightStats.presentCount,
       preflight_write_executed_count: preflightStats.executedCount,
       preflight_write_skipped_count: preflightStats.skippedCount,
