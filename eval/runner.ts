@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { appendFileSync, existsSync } from 'node:fs';
 import { copyFile, readdir } from 'node:fs/promises';
+import { spawn } from 'node:child_process';
 import { runForbiddenRefsCheck } from './checks/forbidden_refs';
 import { runScopeCheck } from './checks/scope_check';
 import { runSqlRulesCheck } from './checks/sql_rules';
@@ -30,6 +31,7 @@ const DEFAULT_SCENARIO = 'crud-basic';
 const DEFAULT_REPORT = path.join('eval', 'reports', 'latest.json');
 const DEFAULT_SANDBOX_MODE = 'workspace-write';
 const DEFAULT_LOCAL_DEPS = ['@rawsql-ts/shared-binder'];
+const DEFAULT_CODEX_EXEC_TIMEOUT_MS = 45_000;
 const EVAL_MARKER_RELATIVE_PATH = 'tests/__eval_ai_marker__.txt';
 const MAIN_AI_MARKER_REQUIREMENT = [
   'First run this command exactly:',
@@ -55,6 +57,8 @@ interface CommandExecutionDetails {
   stdout: string;
   stderr: string;
   log: CommandLog;
+  timedOut?: boolean;
+  timeoutMs?: number;
 }
 
 interface CodexRetryResult {
@@ -255,6 +259,22 @@ function readHeaderWorkdir(outputHead: string): string | null {
   return match?.[1]?.trim() ?? null;
 }
 
+function parseCodexExecTimeoutMs(raw: string | undefined): number {
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return DEFAULT_CODEX_EXEC_TIMEOUT_MS;
+  }
+  return Math.floor(parsed);
+}
+
+function buildOutputHead(stdout: string, stderr: string): string {
+  const merged = [stdout.trim(), stderr.trim()].filter((part) => part.length > 0).join('\n');
+  if (merged.length === 0) {
+    return '';
+  }
+  return merged.split(/\r?\n/).slice(0, 30).join('\n');
+}
+
 function parseArgs(argv: string[]): CliOptions {
   let caseSlug = DEFAULT_CASE;
   let scenario = DEFAULT_SCENARIO;
@@ -345,6 +365,87 @@ async function runAndTrackAllowFailureWithDetails(
   };
 }
 
+async function runCodexCommandWithTimeout(
+  commandLogs: CommandLog[],
+  args: string[],
+  cwd: string,
+  env?: NodeJS.ProcessEnv,
+  stdinText?: string,
+  timeoutMs: number = DEFAULT_CODEX_EXEC_TIMEOUT_MS
+): Promise<CommandExecutionDetails> {
+  const invocation = resolveCommandInvocation('codex', args, env);
+  return new Promise<CommandExecutionDetails>((resolve) => {
+    const child = spawn(invocation.command, invocation.args, {
+      cwd,
+      env,
+      shell: false
+    });
+    let stdout = '';
+    let stderr = '';
+    let timedOut = false;
+    let settled = false;
+    let timeoutHandle: NodeJS.Timeout | undefined;
+
+    const finalize = (rawExitCode: number | null) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      if (timeoutHandle) {
+        clearTimeout(timeoutHandle);
+      }
+      const exitCode = timedOut ? 124 : rawExitCode;
+      const log: CommandLog = {
+        command: invocation.command,
+        args: invocation.args,
+        cwd,
+        exitCode,
+        outputHead: buildOutputHead(stdout, stderr)
+      };
+      commandLogs.push(log);
+      resolve({
+        exitCode,
+        stdout,
+        stderr,
+        log,
+        timedOut,
+        timeoutMs
+      });
+    };
+
+    child.stdout.on('data', (chunk: Buffer) => {
+      stdout += chunk.toString();
+    });
+
+    child.stderr.on('data', (chunk: Buffer) => {
+      stderr += chunk.toString();
+    });
+
+    child.on('error', (error: Error) => {
+      stderr += `${error.message}\n`;
+    });
+
+    if (stdinText !== undefined) {
+      child.stdin.write(stdinText);
+      child.stdin.end();
+    }
+
+    child.on('close', (exitCode: number | null) => {
+      finalize(exitCode);
+    });
+
+    timeoutHandle = setTimeout(() => {
+      if (settled) {
+        return;
+      }
+      timedOut = true;
+      stderr += `codex_exec_timeout: exceeded ${timeoutMs}ms\n`;
+      child.kill('SIGKILL');
+      finalize(124);
+    }, timeoutMs);
+  });
+}
+
 function isNonRetryableCodexError(stdout: string, stderr: string): boolean {
   const merged = `${stdout}\n${stderr}`;
   return /401 Unauthorized|model_not_found|unexpected argument/i.test(merged);
@@ -360,11 +461,11 @@ async function runCodexExecWithRetry(
   cwd: string,
   env?: NodeJS.ProcessEnv,
   stdinText?: string,
-  timeoutMs?: number,
+  timeoutMs: number = DEFAULT_CODEX_EXEC_TIMEOUT_MS,
   onRetryStart?: () => void,
   onRetryEnd?: (retried: boolean) => void
 ): Promise<CodexRetryResult> {
-  const first = await runAndTrackAllowFailureWithDetails(commandLogs, 'codex', args, cwd, env, stdinText, timeoutMs);
+  const first = await runCodexCommandWithTimeout(commandLogs, args, cwd, env, stdinText, timeoutMs);
   const retryOptIn = (env?.EVAL_CODEX_RETRY ?? process.env.EVAL_CODEX_RETRY) === '1';
   if (!retryOptIn) {
     return { result: first, retried: false };
@@ -379,7 +480,7 @@ async function runCodexExecWithRetry(
   }
 
   await sleepMs(2000);
-  const second = await runAndTrackAllowFailureWithDetails(commandLogs, 'codex', args, cwd, env, stdinText, timeoutMs);
+  const second = await runCodexCommandWithTimeout(commandLogs, args, cwd, env, stdinText, timeoutMs);
   onRetryEnd?.(true);
   return { result: second, retried: true };
 }
@@ -721,6 +822,7 @@ async function run(): Promise<void> {
       const aiPrompt = `${MAIN_AI_MARKER_REQUIREMENT}\n\n${promptText}`;
       const aiLogIndex = commandLogs.length;
       emitRunnerEvent(runnerLogger, 'ai_exec_start');
+      const codexExecTimeoutMs = parseCodexExecTimeoutMs(codexEnv.EVAL_CODEX_EXEC_TIMEOUT_MS);
       const aiExecution = await runCodexExecWithRetry(
         commandLogs,
         [
@@ -736,12 +838,13 @@ async function run(): Promise<void> {
         repoRoot,
         codexEnv,
         aiPrompt,
-        180000,
+        codexExecTimeoutMs,
         () => emitRunnerEvent(runnerLogger, 'ai_retry_start'),
         (retried) => emitRunnerEvent(runnerLogger, 'ai_retry_end', { retried })
       );
       const aiResult = aiExecution.result;
       aiExit = aiResult.exitCode;
+      const codexExecTimedOut = aiResult.timedOut === true;
       emitRunnerEvent(runnerLogger, 'ai_exec_end', { exit_code: aiExit ?? 'null' });
       aiStdoutHead = aiResult.stdout.slice(0, 2000);
       aiStderrHead = aiResult.stderr.slice(0, 2000);
@@ -787,7 +890,12 @@ async function run(): Promise<void> {
           blocker_detected: blockerMeta.detected,
           blocker_kind: blockerMeta.kind,
           blocker_excerpt: blockerMeta.excerpt,
-          retried: aiExecution.retried
+          retried: aiExecution.retried,
+          codex_exec_timeout: codexExecTimedOut,
+          codex_exec_timeout_ms: codexExecTimedOut ? aiResult.timeoutMs ?? codexExecTimeoutMs : null,
+          codex_exec_timeout_note: codexExecTimedOut
+            ? `codex exec timed out after ${aiResult.timeoutMs ?? codexExecTimeoutMs}ms`
+            : null
         }
       });
       emitRunnerEvent(runnerLogger, 'ai_end', { passed: aiPassed, exit_code: aiExit ?? 'null' });
