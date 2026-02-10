@@ -502,6 +502,46 @@
   - Dropped as waste:
     - なし
 
+* Iteration: 13
+* Target item: 1. SQLカタログ単体テストの改善（ZTD / Mapping）
+* Change applied: P13（`eval/runner.ts` に dirty worktree ガードを追加）
+* Expected effect: dirty working tree 起因の再現性低下を事前に可視化し、必要時のみ強制停止できる
+* Observed effect:
+  - 追加したチェック名:
+    - `dirty_worktree`
+  - 既定モード（strict 無効）:
+    - dirty を report に記録しつつ処理継続（runner exit 0）
+    - 観測例: `eval/reports/dirty-runner-default.json`
+      - `checks[0].name = "dirty_worktree"`
+      - `meta.git_worktree_dirty = true`
+      - `meta.git_worktree_dirty_count = 5`
+      - `meta.git_worktree_dirty_excerpt` に先頭5行を記録
+  - strict モード（`EVAL_REQUIRE_CLEAN_TREE=1`）:
+    - dirty 即失敗（runner exit 1）
+    - 観測例: `eval/reports/dirty-runner-require-clean-v2.json`
+      - `checks[0].passed = false`
+      - `details[0] = "dirty_worktree_required_clean"`
+      - `success = false`
+  - loop での観測:
+    - `eval/reports/loop-dirty-tree-require-summary-20260210110638.json`
+      - `iterations[0].failed_categories = ["dirty_worktree"]`
+* Verdict: Effective
+* If Ineffective: N/A
+* Proposal stack:
+  - Pending:
+    - P14: dirty_worktree failure の分類を proposal 抽出時に専用カテゴリとして扱い、template/library 提案への誤誘導を抑制する。
+      - 期待効果/検証: dirty 起因失敗で不要な改善案が出にくくなる / failure cluster の上位提案が `dirty_worktree` 文脈に一致することを確認。
+    - P15: loop summary aggregate に dirty_worktree 統計（present/fail count）を追加する。
+      - 期待効果/検証: バッチ実行時の再現性リスクを定量監視 / summary に dirty 指標が安定出力されることを確認。
+    - P16: strict モード時に次アクション（`git status --short` など）を report error に定型文で付与する。
+      - 期待効果/検証: 自動運転停止時の復旧手順を短縮 / report.error に次コマンドが含まれることを確認。
+  - Dropped as noise:
+    - なし
+  - Dropped as waste:
+    - なし
+  - Reason this is not waste:
+    - 自動運転時の混入事故を機械的に検出し、必要時に停止できるため、再試行の再現性と安全性を直接改善できる。
+
 ---
 
 ## 反復記録テンプレート（追記用）
