@@ -70,3 +70,4 @@ Workflow:
 - Test runner configuration (e.g. vitest.config.ts) is considered part of the template contract.
 
 If tests fail due to missing config, this is a template defect, not a user error.
+- If a prompt includes an explicit command, run it first and verify output before additional edits.

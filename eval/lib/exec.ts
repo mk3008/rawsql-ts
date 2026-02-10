@@ -15,6 +15,7 @@ export interface ExecOptions {
   env?: NodeJS.ProcessEnv;
   stdinText?: string;
   shell?: boolean;
+  timeoutMs?: number;
 }
 
 export interface ExecResult {

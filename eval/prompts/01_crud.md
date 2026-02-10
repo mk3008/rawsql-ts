@@ -6,6 +6,13 @@ Constraints:
 - Do not reference any files outside this workspace.
 - Do not configure Codex with additional directories.
 - Keep SQL and repository/catalog changes minimal and testable.
+- Only edit files under these paths:
+  - `src/sql/`
+  - `src/catalog/`
+  - `src/repositories/`
+  - `tests/`
+- Do not edit `src/types/`, `tsconfig.json`, `package.json`, or lockfiles.
+- If typecheck/test cannot be fixed within the allowed paths, stop and report the blocker instead of editing disallowed files.
 
 Deliverables:
 - Add or update SQL under `src/sql`.
