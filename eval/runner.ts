@@ -360,22 +360,27 @@ async function runCodexExecWithRetry(
   cwd: string,
   env?: NodeJS.ProcessEnv,
   stdinText?: string,
-  timeoutMs?: number
+  timeoutMs?: number,
+  onRetryStart?: () => void,
+  onRetryEnd?: (retried: boolean) => void
 ): Promise<CodexRetryResult> {
   const first = await runAndTrackAllowFailureWithDetails(commandLogs, 'codex', args, cwd, env, stdinText, timeoutMs);
   const retryOptIn = (env?.EVAL_CODEX_RETRY ?? process.env.EVAL_CODEX_RETRY) === '1';
   if (!retryOptIn) {
     return { result: first, retried: false };
   }
+  onRetryStart?.();
 
   const transientFailure =
     (first.exitCode ?? 1) !== 0 && !isNonRetryableCodexError(first.stdout, first.stderr) && first.exitCode !== null;
   if (!transientFailure) {
+    onRetryEnd?.(false);
     return { result: first, retried: false };
   }
 
   await sleepMs(2000);
   const second = await runAndTrackAllowFailureWithDetails(commandLogs, 'codex', args, cwd, env, stdinText, timeoutMs);
+  onRetryEnd?.(true);
   return { result: second, retried: true };
 }
 
@@ -542,7 +547,9 @@ async function run(): Promise<void> {
 
   try {
     emitRunnerEvent(runnerLogger, 'preflight_start');
+    emitRunnerEvent(runnerLogger, 'ai_help_start');
     await ensureCodexHelpCheck(commandLogs, codexBin, repoRoot, codexEnv);
+    emitRunnerEvent(runnerLogger, 'ai_help_end');
     gitWorktreeState = await readGitWorktreeState(commandLogs, repoRoot, codexEnv);
     const requireCleanTree = (codexEnv.EVAL_REQUIRE_CLEAN_TREE ?? process.env.EVAL_REQUIRE_CLEAN_TREE) === '1';
     const cleanTreeViolation = requireCleanTree && gitWorktreeState.dirty;
@@ -652,6 +659,7 @@ async function run(): Promise<void> {
       ];
       const preflightWriteOptIn = (codexEnv.EVAL_PREFLIGHT_WRITE ?? process.env.EVAL_PREFLIGHT_WRITE) === '1';
       if (preflightWriteOptIn) {
+        emitRunnerEvent(runnerLogger, 'ai_preflight_write_start');
         const preflightResult = await runAndTrackAllowFailureWithDetails(
           commandLogs,
           codexBin,
@@ -681,7 +689,9 @@ async function run(): Promise<void> {
             skipped: false
           }
         });
+        emitRunnerEvent(runnerLogger, 'ai_preflight_write_end', { exit_code: preflightResult.exitCode ?? 'null' });
       } else {
+        emitRunnerEvent(runnerLogger, 'ai_preflight_write_skip');
         commandLogs.push({
           command: codexBin,
           args: preflightArgs,
@@ -710,6 +720,7 @@ async function run(): Promise<void> {
       const promptText = await readUtf8File(promptPath);
       const aiPrompt = `${MAIN_AI_MARKER_REQUIREMENT}\n\n${promptText}`;
       const aiLogIndex = commandLogs.length;
+      emitRunnerEvent(runnerLogger, 'ai_exec_start');
       const aiExecution = await runCodexExecWithRetry(
         commandLogs,
         [
@@ -725,10 +736,13 @@ async function run(): Promise<void> {
         repoRoot,
         codexEnv,
         aiPrompt,
-        180000
+        180000,
+        () => emitRunnerEvent(runnerLogger, 'ai_retry_start'),
+        (retried) => emitRunnerEvent(runnerLogger, 'ai_retry_end', { retried })
       );
       const aiResult = aiExecution.result;
       aiExit = aiResult.exitCode;
+      emitRunnerEvent(runnerLogger, 'ai_exec_end', { exit_code: aiExit ?? 'null' });
       aiStdoutHead = aiResult.stdout.slice(0, 2000);
       aiStderrHead = aiResult.stderr.slice(0, 2000);
       const afterAiSnapshot = await snapshotWorkspaceTextFiles(workspacePath);
