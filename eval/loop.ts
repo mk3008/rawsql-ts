@@ -1,7 +1,7 @@
 import path from 'node:path';
 import os from 'node:os';
 import { existsSync } from 'node:fs';
-import { runCommand } from './lib/exec';
+import { spawn } from 'node:child_process';
 import { ensureDirectory, readUtf8File, writeUtf8File } from './lib/fs';
 import type { EvalReport } from './lib/report';
 
@@ -53,6 +53,9 @@ interface LoopSummary {
     runner_exit_code: number | null;
     runner_elapsed_ms: number;
     runner_report_written: boolean;
+    runner_wall_timeout: boolean;
+    runner_wall_timeout_ms: number;
+    runner_wall_timeout_note?: string;
     runner_report_missing?: {
       exit_code: number | null;
       output_head: string;
@@ -123,10 +126,112 @@ interface IterationRuntimeMeta {
   runnerExitCode: number | null;
   runnerElapsedMs: number;
   runnerReportWritten: boolean;
+  runnerWallTimeout: boolean;
+  runnerWallTimeoutMs: number;
+  runnerWallTimeoutNote?: string;
+}
+
+interface RunnerCommandResult {
+  exitCode: number | null;
+  stdout: string;
+  stderr: string;
+  log: {
+    outputHead: string;
+  };
+  wallTimedOut: boolean;
+  wallTimeoutMs: number;
 }
 
 function sanitizeLogValue(value: unknown): string {
   return String(value).replace(/\s+/g, ' ').trim();
+}
+
+function parseRunnerWallTimeoutMs(raw: string | undefined): number {
+  const fallbackMs = 15 * 60 * 1000;
+  if (!raw) {
+    return fallbackMs;
+  }
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return fallbackMs;
+  }
+  return Math.floor(parsed);
+}
+
+function buildOutputHead(stdout: string, stderr: string): string {
+  const merged = [stdout.trim(), stderr.trim()].filter((part) => part.length > 0).join('\n');
+  if (merged.length === 0) {
+    return '';
+  }
+  return merged.split(/\r?\n/).slice(0, 30).join('\n');
+}
+
+async function runRunnerCommandWithWallTimeout(options: {
+  command: string;
+  args: string[];
+  cwd: string;
+  env?: NodeJS.ProcessEnv;
+  wallTimeoutMs: number;
+}): Promise<RunnerCommandResult> {
+  return new Promise<RunnerCommandResult>((resolve) => {
+    const child = spawn(options.command, options.args, {
+      cwd: options.cwd,
+      env: options.env,
+      shell: false
+    });
+
+    let stdout = '';
+    let stderr = '';
+    let resolved = false;
+    let wallTimedOut = false;
+    let timeoutHandle: NodeJS.Timeout | undefined;
+
+    const finish = (exitCode: number | null) => {
+      if (resolved) {
+        return;
+      }
+      resolved = true;
+      if (timeoutHandle) {
+        clearTimeout(timeoutHandle);
+      }
+      resolve({
+        exitCode,
+        stdout,
+        stderr,
+        log: {
+          outputHead: buildOutputHead(stdout, stderr)
+        },
+        wallTimedOut,
+        wallTimeoutMs: options.wallTimeoutMs
+      });
+    };
+
+    child.stdout.on('data', (chunk: Buffer) => {
+      stdout += chunk.toString();
+    });
+
+    child.stderr.on('data', (chunk: Buffer) => {
+      stderr += chunk.toString();
+    });
+
+    child.on('error', (error: Error) => {
+      stderr += `${error.message}\n`;
+    });
+
+    child.on('close', (exitCode: number | null) => {
+      finish(exitCode);
+    });
+
+    timeoutHandle = setTimeout(() => {
+      if (resolved) {
+        return;
+      }
+      wallTimedOut = true;
+      stderr += `runner_wall_timeout: exceeded ${options.wallTimeoutMs}ms without run_command_end\n`;
+      child.kill('SIGKILL');
+      finish(124);
+    }, options.wallTimeoutMs);
+  });
 }
 
 function emitLoopEvent(event: string, fields: Record<string, unknown>): void {
@@ -546,6 +651,7 @@ async function applyTopTemplateTextProposal(repoRoot: string, proposals: Proposa
 async function run(): Promise<void> {
   const options = parseArgs(process.argv.slice(2));
   const repoRoot = process.cwd();
+  const runnerWallTimeoutMs = parseRunnerWallTimeoutMs(process.env.EVAL_RUNNER_WALL_TIMEOUT_MS);
   const reportPaths: string[] = [];
   const reports: EvalReport[] = [];
   const missingReports = new Map<string, RunnerMissingMeta>();
@@ -597,12 +703,12 @@ async function run(): Promise<void> {
       iteration: index
     });
     const runStartedAt = Date.now();
-    const result = await runCommand({
+    const result = await runRunnerCommandWithWallTimeout({
       command: commandInvocation.command,
       args: commandInvocation.args,
       cwd: repoRoot,
       env: process.env,
-      timeoutMs: 12 * 60 * 1000
+      wallTimeoutMs: runnerWallTimeoutMs
     });
     const runnerElapsedMs = Date.now() - runStartedAt;
     const exitCodeKey = String(result.exitCode);
@@ -611,7 +717,8 @@ async function run(): Promise<void> {
       run_id: runId,
       iteration: index,
       exit_code: result.exitCode,
-      elapsed_ms: runnerElapsedMs
+      elapsed_ms: runnerElapsedMs,
+      wall_timeout: result.wallTimedOut
     });
     if (result.exitCode === null) {
       throw new Error(`Iteration ${index} exited with null code.`);
@@ -637,7 +744,10 @@ async function run(): Promise<void> {
       runtimeByReportPath.set(reportPath, {
         runnerExitCode: result.exitCode,
         runnerElapsedMs,
-        runnerReportWritten: false
+        runnerReportWritten: false,
+        runnerWallTimeout: result.wallTimedOut,
+        runnerWallTimeoutMs: result.wallTimeoutMs,
+        runnerWallTimeoutNote: result.wallTimedOut ? 'no progress after run_command_start' : undefined
       });
       reportPaths.push(reportPath);
       reports.push(buildMissingEvalReport(options.scenario, reportPath, result.exitCode));
@@ -661,7 +771,10 @@ async function run(): Promise<void> {
     runtimeByReportPath.set(reportPath, {
       runnerExitCode: result.exitCode,
       runnerElapsedMs,
-      runnerReportWritten: true
+      runnerReportWritten: true,
+      runnerWallTimeout: result.wallTimedOut,
+      runnerWallTimeoutMs: result.wallTimeoutMs,
+      runnerWallTimeoutNote: result.wallTimedOut ? 'no progress after run_command_start' : undefined
     });
     reportPaths.push(reportPath);
     reports.push(report);
@@ -681,26 +794,36 @@ async function run(): Promise<void> {
     loop_count: reports.length,
     scenario: options.scenario,
     reports: reportPaths,
-    iterations: reports.map((report, index) => ({
-      index: index + 1,
-      report_path: reportPaths[index],
-      success: report.success,
-      score_total: report.score_total,
-      failed_categories: report.checks.filter((check) => isFailureRelevantCheck(check)).map((check) => check.name),
-      duration_ms: durations[index] ?? 0,
-      runner_exit_code: runtimeByReportPath.get(reportPaths[index])?.runnerExitCode ?? null,
-      runner_elapsed_ms: runtimeByReportPath.get(reportPaths[index])?.runnerElapsedMs ?? 0,
-      runner_report_written: runtimeByReportPath.get(reportPaths[index])?.runnerReportWritten ?? false,
-      runner_report_missing: missingReports.has(reportPaths[index])
-        ? {
-            exit_code: missingReports.get(reportPaths[index])!.exitCode,
-            output_head: missingReports.get(reportPaths[index])!.outputHead,
-            stdout_head: missingReports.get(reportPaths[index])!.stdoutHead,
-            stderr_head: missingReports.get(reportPaths[index])!.stderrHead,
-            next_command: missingReports.get(reportPaths[index])!.nextCommand
-          }
-        : undefined
-    })),
+    iterations: reports.map((report, index) => {
+      const runtimeMeta = runtimeByReportPath.get(reportPaths[index]);
+      const failedCategories = report.checks.filter((check) => isFailureRelevantCheck(check)).map((check) => check.name);
+      if (runtimeMeta?.runnerWallTimeout) {
+        failedCategories.push('runner_wall_timeout');
+      }
+      return {
+        index: index + 1,
+        report_path: reportPaths[index],
+        success: report.success,
+        score_total: report.score_total,
+        failed_categories: failedCategories,
+        duration_ms: durations[index] ?? 0,
+        runner_exit_code: runtimeMeta?.runnerExitCode ?? null,
+        runner_elapsed_ms: runtimeMeta?.runnerElapsedMs ?? 0,
+        runner_report_written: runtimeMeta?.runnerReportWritten ?? false,
+        runner_wall_timeout: runtimeMeta?.runnerWallTimeout ?? false,
+        runner_wall_timeout_ms: runtimeMeta?.runnerWallTimeoutMs ?? runnerWallTimeoutMs,
+        runner_wall_timeout_note: runtimeMeta?.runnerWallTimeoutNote,
+        runner_report_missing: missingReports.has(reportPaths[index])
+          ? {
+              exit_code: missingReports.get(reportPaths[index])!.exitCode,
+              output_head: missingReports.get(reportPaths[index])!.outputHead,
+              stdout_head: missingReports.get(reportPaths[index])!.stdoutHead,
+              stderr_head: missingReports.get(reportPaths[index])!.stderrHead,
+              next_command: missingReports.get(reportPaths[index])!.nextCommand
+            }
+          : undefined
+      };
+    }),
     aggregate: {
       pass_rate: reports.length === 0 ? 0 : passCount / reports.length,
       average_score: reports.length === 0 ? 0 : scores.reduce((sum, score) => sum + score, 0) / reports.length,
