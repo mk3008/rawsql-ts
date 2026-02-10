@@ -74,6 +74,13 @@ interface AiBlockerMeta {
   excerpt: string;
 }
 
+interface AiTouchAnalysis {
+  touchedFilesCount: number;
+  nonMarkerTouchedCount: number;
+  markerOnly: boolean;
+  effectiveWrite: boolean;
+}
+
 function createSkippedCheck(name: string, reason: string): CheckResult {
   return {
     name,
@@ -138,6 +145,18 @@ function normalizeEvalPath(filePath: string): string {
 function isEvalMarkerPath(filePath: string): boolean {
   const normalized = normalizeEvalPath(filePath);
   return normalized === EVAL_MARKER_RELATIVE_PATH || normalized.endsWith(`/${EVAL_MARKER_RELATIVE_PATH}`);
+}
+
+function analyzeAiTouchedFiles(touchedFiles: string[]): AiTouchAnalysis {
+  const touchedFilesCount = touchedFiles.length;
+  const nonMarkerTouchedCount = touchedFiles.filter((filePath) => !isEvalMarkerPath(filePath)).length;
+  const markerOnly = touchedFilesCount > 0 && nonMarkerTouchedCount === 0;
+  return {
+    touchedFilesCount,
+    nonMarkerTouchedCount,
+    markerOnly,
+    effectiveWrite: touchedFilesCount > 0 && !markerOnly
+  };
 }
 
 function resolveCommandInvocation(
@@ -596,12 +615,9 @@ async function run(): Promise<void> {
       const markerFileContent = markerFileExists ? await readUtf8File(markerPath) : '';
       const aiCommandLog = commandLogs[aiLogIndex];
       aiCommandLine = `${aiCommandLog?.command ?? ''} ${(aiCommandLog?.args ?? []).join(' ')}`.trim();
-      const touchedFilesCount = aiTouchedFiles.length;
-      const nonMarkerTouchedCount = aiTouchedFiles.filter((filePath) => !isEvalMarkerPath(filePath)).length;
-      const markerOnly = touchedFilesCount > 0 && nonMarkerTouchedCount === 0;
-      const effectiveWrite = touchedFilesCount > 0 && !markerOnly;
+      const touchAnalysis = analyzeAiTouchedFiles(aiTouchedFiles);
       const blockerMeta = detectAiExecutionBlocker(aiStdoutHead, aiStderrHead);
-      const aiPassed = aiExit === 0 && effectiveWrite && !blockerMeta.detected;
+      const aiPassed = aiExit === 0 && touchAnalysis.effectiveWrite && !blockerMeta.detected;
       checks.push({
         name: 'ai_execution',
         passed: aiPassed,
@@ -615,19 +631,19 @@ async function run(): Promise<void> {
               ]
             : blockerMeta.detected
               ? [`ai blocker detected (${blockerMeta.kind})`, blockerMeta.excerpt]
-            : markerOnly
+            : touchAnalysis.markerOnly
               ? ['codex exec touched only eval marker file; non-marker changes were not observed']
             : ['codex exec exited 0 but no workspace changes were observed'],
         meta: {
           exitCode: aiExit,
-          touchedFilesCount,
+          touchedFilesCount: touchAnalysis.touchedFilesCount,
           touchedFilesSample: aiTouchedFiles.slice(0, 20),
           marker_file_exists: markerFileExists,
           marker_file_content: markerFileContent,
-          marker_only: markerOnly,
-          non_marker_touched_count: nonMarkerTouchedCount,
+          marker_only: touchAnalysis.markerOnly,
+          non_marker_touched_count: touchAnalysis.nonMarkerTouchedCount,
           headerSandbox: readHeaderSandbox(aiCommandLog?.outputHead ?? ''),
-          effectiveWrite,
+          effectiveWrite: touchAnalysis.effectiveWrite,
           command: aiCommandLine,
           stdout_head: aiStdoutHead,
           stderr_head: aiStderrHead,
@@ -817,7 +833,14 @@ async function run(): Promise<void> {
   }
 }
 
-run().catch((error) => {
-  console.error(error instanceof Error ? error.message : String(error));
-  process.exitCode = 1;
-});
+export const __internal = {
+  analyzeAiTouchedFiles,
+  detectAiExecutionBlocker
+};
+
+if (require.main === module) {
+  run().catch((error) => {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exitCode = 1;
+  });
+}

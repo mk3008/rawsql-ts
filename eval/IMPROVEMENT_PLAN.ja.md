@@ -445,6 +445,35 @@
   - Dropped as waste:
     - なし
 
+* Iteration: 11
+* Target item: 1. SQLカタログ単体テストの改善（ZTD / Mapping）
+* Change applied: P11（`eval/tests/runner.regression.test.ts` を追加し、P9/P10 判定の回帰テストを固定）
+* Expected effect: blocker 検出と marker-only 判定が将来変更で壊れても、単体テストで即座に検出できる
+* Observed effect:
+  - 追加テスト:
+    - `detects read-only blocker from observed phrases`
+    - `does not detect blocker on ambiguous wording`
+    - `treats marker-only touched files as non-effective write`
+    - `treats non-marker touch as effective write`
+  - 実行コマンド:
+    - `pnpm exec vitest run --config tmp/eval-vitest.config.ts`
+  - 実行結果:
+    - `eval/tests/runner.regression.test.ts (4 tests) passed`
+* Verdict: Effective
+* If Ineffective: N/A
+* Proposal stack:
+  - Pending:
+    - P12: `ai_execution` の blocker/marker 判定をチェック単位で独立モジュール化し、report meta のスキーマ回帰テストを追加する。
+      - 期待効果/検証: 判定式変更時の破壊影響を局所化 / 既存report fixture比較で差分を可視化。
+    - P13: marker-only 再現シナリオを fixture 化し、loop summary 側の `failed_categories` 伝播を固定する。
+      - 期待効果/検証: runner->loop 連携での偽陽性再発を防止 / summary fixture で `ai_execution` failure を確認。
+    - P14: blocker 検出語彙を定数化し、語彙追加時のテーブル駆動テストを追加する。
+      - 期待効果/検証: 語彙拡張時の誤爆/漏れを防止 / positive/negative ケースの回帰を固定。
+  - Dropped as noise:
+    - なし
+  - Dropped as waste:
+    - なし
+
 ---
 
 ## 反復記録テンプレート（追記用）
