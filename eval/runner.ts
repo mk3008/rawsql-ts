@@ -30,9 +30,10 @@ const DEFAULT_SCENARIO = 'crud-basic';
 const DEFAULT_REPORT = path.join('eval', 'reports', 'latest.json');
 const DEFAULT_SANDBOX_MODE = 'workspace-write';
 const DEFAULT_LOCAL_DEPS = ['@rawsql-ts/shared-binder'];
+const EVAL_MARKER_RELATIVE_PATH = 'tests/__eval_ai_marker__.txt';
 const MAIN_AI_MARKER_REQUIREMENT = [
   'First run this command exactly:',
-  'Run: pwsh -NoProfile -Command "Set-Content -NoNewline -Path ./tests/__eval_ai_marker__.txt -Value ok; Get-Content -Raw ./tests/__eval_ai_marker__.txt"',
+  `Run: pwsh -NoProfile -Command "Set-Content -NoNewline -Path ./${EVAL_MARKER_RELATIVE_PATH} -Value ok; Get-Content -Raw ./${EVAL_MARKER_RELATIVE_PATH}"`,
   'Then continue with the existing CRUD instructions.'
 ].join('\n');
 const PREFLIGHT_WRITE_PROMPT =
@@ -128,6 +129,15 @@ function detectAiExecutionBlocker(stdoutHead: string, stderrHead: string): AiBlo
     kind: 'read_only',
     excerpt
   };
+}
+
+function normalizeEvalPath(filePath: string): string {
+  return filePath.replace(/\\/g, '/').replace(/^\.\/+/, '').replace(/^\/+/, '');
+}
+
+function isEvalMarkerPath(filePath: string): boolean {
+  const normalized = normalizeEvalPath(filePath);
+  return normalized === EVAL_MARKER_RELATIVE_PATH || normalized.endsWith(`/${EVAL_MARKER_RELATIVE_PATH}`);
 }
 
 function resolveCommandInvocation(
@@ -475,6 +485,8 @@ async function run(): Promise<void> {
             touchedFilesSample: [],
             marker_file_exists: false,
             marker_file_content: '',
+            marker_only: false,
+            non_marker_touched_count: 0,
             headerSandbox: null,
             effectiveWrite: false,
             command: '',
@@ -579,13 +591,15 @@ async function run(): Promise<void> {
       aiStderrHead = aiResult.stderr.slice(0, 2000);
       const afterAiSnapshot = await snapshotWorkspaceTextFiles(workspacePath);
       aiTouchedFiles = diffWorkspaceSnapshots(beforeAiSnapshot, afterAiSnapshot).touched;
-      const markerPath = path.join(workspacePath, 'tests', '__eval_ai_marker__.txt');
+      const markerPath = path.join(workspacePath, ...EVAL_MARKER_RELATIVE_PATH.split('/'));
       const markerFileExists = existsSync(markerPath);
       const markerFileContent = markerFileExists ? await readUtf8File(markerPath) : '';
       const aiCommandLog = commandLogs[aiLogIndex];
       aiCommandLine = `${aiCommandLog?.command ?? ''} ${(aiCommandLog?.args ?? []).join(' ')}`.trim();
       const touchedFilesCount = aiTouchedFiles.length;
-      const effectiveWrite = touchedFilesCount > 0;
+      const nonMarkerTouchedCount = aiTouchedFiles.filter((filePath) => !isEvalMarkerPath(filePath)).length;
+      const markerOnly = touchedFilesCount > 0 && nonMarkerTouchedCount === 0;
+      const effectiveWrite = touchedFilesCount > 0 && !markerOnly;
       const blockerMeta = detectAiExecutionBlocker(aiStdoutHead, aiStderrHead);
       const aiPassed = aiExit === 0 && effectiveWrite && !blockerMeta.detected;
       checks.push({
@@ -601,6 +615,8 @@ async function run(): Promise<void> {
               ]
             : blockerMeta.detected
               ? [`ai blocker detected (${blockerMeta.kind})`, blockerMeta.excerpt]
+            : markerOnly
+              ? ['codex exec touched only eval marker file; non-marker changes were not observed']
             : ['codex exec exited 0 but no workspace changes were observed'],
         meta: {
           exitCode: aiExit,
@@ -608,6 +624,8 @@ async function run(): Promise<void> {
           touchedFilesSample: aiTouchedFiles.slice(0, 20),
           marker_file_exists: markerFileExists,
           marker_file_content: markerFileContent,
+          marker_only: markerOnly,
+          non_marker_touched_count: nonMarkerTouchedCount,
           headerSandbox: readHeaderSandbox(aiCommandLog?.outputHead ?? ''),
           effectiveWrite,
           command: aiCommandLine,
@@ -657,6 +675,8 @@ async function run(): Promise<void> {
           touchedFilesSample: [],
           marker_file_exists: false,
           marker_file_content: '',
+          marker_only: false,
+          non_marker_touched_count: 0,
           headerSandbox: null,
           effectiveWrite: false,
           command: '',
