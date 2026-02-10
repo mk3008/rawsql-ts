@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { existsSync } from 'node:fs';
+import { appendFileSync, existsSync } from 'node:fs';
 import { copyFile, readdir } from 'node:fs/promises';
 import { runForbiddenRefsCheck } from './checks/forbidden_refs';
 import { runScopeCheck } from './checks/scope_check';
@@ -91,6 +91,10 @@ interface AiTouchAnalysis {
   effectiveWrite: boolean;
 }
 
+interface RunnerEventLogger {
+  logPath?: string;
+}
+
 function createSkippedCheck(name: string, reason: string): CheckResult {
   return {
     name,
@@ -104,6 +108,35 @@ function createSkippedCheck(name: string, reason: string): CheckResult {
 }
 
 let didCodexHelpCheck = false;
+
+function sanitizeEventValue(value: unknown): string {
+  return String(value).replace(/\s+/g, ' ').trim();
+}
+
+function formatRunnerEventLine(event: string, fields: Record<string, unknown> = {}): string {
+  const parts = [`[eval-runner] event=${sanitizeEventValue(event)}`, `ts=${new Date().toISOString()}`];
+  for (const [key, value] of Object.entries(fields)) {
+    if (value === undefined) {
+      continue;
+    }
+    parts.push(`${key}=${sanitizeEventValue(value)}`);
+  }
+  return parts.join(' ');
+}
+
+function emitRunnerEvent(logger: RunnerEventLogger, event: string, fields: Record<string, unknown> = {}): void {
+  const line = formatRunnerEventLine(event, fields);
+  console.log(line);
+  if (!logger.logPath) {
+    return;
+  }
+  try {
+    appendFileSync(logger.logPath, `${line}\n`, 'utf8');
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`[eval-runner] event=log_write_error ts=${new Date().toISOString()} message=${sanitizeEventValue(message)}`);
+  }
+}
 
 async function readGitWorktreeState(
   commandLogs: CommandLog[],
@@ -478,6 +511,9 @@ async function run(): Promise<void> {
   };
   const traceFilePath = path.join(workspacePath, 'tmp', 'eval-trace-events.jsonl');
   const globalCodexHome = path.join(process.env.USERPROFILE ?? process.env.HOME ?? '', '.codex');
+  const runnerLogPathRaw = process.env.EVAL_RUNNER_LOG_PATH?.trim();
+  const runnerLogPath = runnerLogPathRaw ? path.resolve(repoRoot, runnerLogPathRaw) : undefined;
+  const runnerLogger: RunnerEventLogger = { logPath: runnerLogPath };
   let codexHomeBootstrap: CodexHomeBootstrapMeta = {
     copied_paths: [],
     skipped_paths: [],
@@ -487,6 +523,15 @@ async function run(): Promise<void> {
   assertSandboxMode(sandboxMode);
   await ensureDirectory(evalPaths.workspaceRoot);
   await ensureDirectory(path.dirname(reportPath));
+  if (runnerLogPath) {
+    await ensureDirectory(path.dirname(runnerLogPath));
+  }
+  emitRunnerEvent(runnerLogger, 'runner_start', {
+    case: options.caseSlug,
+    scenario: options.scenario,
+    report_path: reportPath,
+    workspace_path: workspacePath
+  });
   await ensureEvalCodexHome(evalPaths.codexHome);
   codexHomeBootstrap = await bootstrapCodexHomeAuth(globalCodexHome, evalPaths.codexHome);
 
@@ -496,6 +541,7 @@ async function run(): Promise<void> {
   };
 
   try {
+    emitRunnerEvent(runnerLogger, 'preflight_start');
     await ensureCodexHelpCheck(commandLogs, codexBin, repoRoot, codexEnv);
     gitWorktreeState = await readGitWorktreeState(commandLogs, repoRoot, codexEnv);
     const requireCleanTree = (codexEnv.EVAL_REQUIRE_CLEAN_TREE ?? process.env.EVAL_REQUIRE_CLEAN_TREE) === '1';
@@ -523,6 +569,7 @@ async function run(): Promise<void> {
       }
     });
     if (cleanTreeViolation) {
+      emitRunnerEvent(runnerLogger, 'preflight_end', { passed: false, reason: 'dirty_worktree_required_clean' });
       errorMessage = 'dirty_worktree_required_clean';
       process.exitCode = 1;
       return;
@@ -538,8 +585,10 @@ async function run(): Promise<void> {
       repoRoot,
       codexEnv
     );
+    emitRunnerEvent(runnerLogger, 'preflight_end', { passed: true });
 
     if (!options.skipAi) {
+      emitRunnerEvent(runnerLogger, 'ai_start');
       const localPreflightResult = await runAndTrackAllowFailureWithDetails(
         commandLogs,
         'pwsh',
@@ -587,6 +636,7 @@ async function run(): Promise<void> {
           }
         });
         errorMessage = 'local_preflight_failed';
+        emitRunnerEvent(runnerLogger, 'ai_end', { passed: false, reason: 'local_preflight_failed' });
         return;
       }
 
@@ -726,7 +776,9 @@ async function run(): Promise<void> {
           retried: aiExecution.retried
         }
       });
+      emitRunnerEvent(runnerLogger, 'ai_end', { passed: aiPassed, exit_code: aiExit ?? 'null' });
     } else {
+      emitRunnerEvent(runnerLogger, 'ai_start', { skipped: true });
       checks.push({
         name: 'local_preflight',
         passed: true,
@@ -773,6 +825,7 @@ async function run(): Promise<void> {
           stderr_head: ''
         }
       });
+      emitRunnerEvent(runnerLogger, 'ai_end', { skipped: true, passed: true });
     }
 
     if (requestedLocalDeps.length > 0) {
@@ -816,6 +869,7 @@ async function run(): Promise<void> {
       ZTD_TRACE_FILE: traceFilePath
     };
 
+    emitRunnerEvent(runnerLogger, 'install_start');
     installExit = await runAndTrackAllowFailure(
       commandLogs,
       pnpmBin,
@@ -823,6 +877,8 @@ async function run(): Promise<void> {
       repoRoot,
       commandEnv
     );
+    emitRunnerEvent(runnerLogger, 'install_end', { exit_code: installExit ?? 'null' });
+    emitRunnerEvent(runnerLogger, 'typecheck_start');
     typecheckExit = await runAndTrackAllowFailure(
       commandLogs,
       pnpmBin,
@@ -830,6 +886,8 @@ async function run(): Promise<void> {
       repoRoot,
       commandEnv
     );
+    emitRunnerEvent(runnerLogger, 'typecheck_end', { exit_code: typecheckExit ?? 'null' });
+    emitRunnerEvent(runnerLogger, 'test_start');
     testExit = await runAndTrackAllowFailure(
       commandLogs,
       pnpmBin,
@@ -837,7 +895,9 @@ async function run(): Promise<void> {
       repoRoot,
       commandEnv
     );
+    emitRunnerEvent(runnerLogger, 'test_end', { exit_code: testExit ?? 'null' });
 
+    emitRunnerEvent(runnerLogger, 'checks_start');
     checks.push(runScopeCheck(aiTouchedFiles, !options.skipAi));
     checks.push(await runForbiddenRefsCheck(workspacePath, repoRoot, commandLogs));
     checks.push(createSkippedCheck('sql_composition', 'temporarily skipped: check module not found'));
@@ -865,7 +925,12 @@ async function run(): Promise<void> {
       }
       errorMessage = failures.join('; ');
     }
+    emitRunnerEvent(runnerLogger, 'checks_end', { passed: success });
   } catch (error) {
+    emitRunnerEvent(runnerLogger, 'checks_end', {
+      passed: false,
+      error: error instanceof Error ? error.message : String(error)
+    });
     success = false;
     errorMessage = error instanceof Error ? error.message : String(error);
     if (!checks.some((item) => item.name === 'local_deps_injection')) {
@@ -895,9 +960,15 @@ async function run(): Promise<void> {
       error: errorMessage
     };
 
-    await writeReport(reportPath, report);
-    if (!options.keepWorkspace) {
-      await removeDirectoryRecursive(workspacePath);
+    try {
+      emitRunnerEvent(runnerLogger, 'report_write_start', { report_path: reportPath });
+      await writeReport(reportPath, report);
+      emitRunnerEvent(runnerLogger, 'report_write_end', { report_path: reportPath });
+      if (!options.keepWorkspace) {
+        await removeDirectoryRecursive(workspacePath);
+      }
+    } finally {
+      emitRunnerEvent(runnerLogger, 'runner_done', { exit_code: success ? 0 : 1 });
     }
   }
 
