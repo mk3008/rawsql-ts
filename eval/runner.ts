@@ -68,6 +68,16 @@ interface CodexHomeBootstrapMeta {
   reason: string;
 }
 
+interface GitWorktreeState {
+  observed: boolean;
+  dirty: boolean;
+  count: number;
+  excerpt: string[];
+  commandExitCode: number | null;
+  stdoutHead: string;
+  stderrHead: string;
+}
+
 interface AiBlockerMeta {
   detected: boolean;
   kind: 'read_only' | 'none';
@@ -94,6 +104,29 @@ function createSkippedCheck(name: string, reason: string): CheckResult {
 }
 
 let didCodexHelpCheck = false;
+
+async function readGitWorktreeState(
+  commandLogs: CommandLog[],
+  repoRoot: string,
+  env?: NodeJS.ProcessEnv
+): Promise<GitWorktreeState> {
+  const gitStatus = await runAndTrackAllowFailureWithDetails(commandLogs, 'git', ['status', '--porcelain'], repoRoot, env);
+  const lines = gitStatus.stdout
+    .split(/\r?\n/)
+    .map((line) => line.trimEnd())
+    .filter((line) => line.length > 0);
+  const observed = gitStatus.exitCode === 0;
+  const dirty = observed ? lines.length > 0 : false;
+  return {
+    observed,
+    dirty,
+    count: lines.length,
+    excerpt: lines.slice(0, 10),
+    commandExitCode: gitStatus.exitCode,
+    stdoutHead: gitStatus.stdout.slice(0, 2000),
+    stderrHead: gitStatus.stderr.slice(0, 2000)
+  };
+}
 
 async function ensureCodexHelpCheck(
   commandLogs: CommandLog[],
@@ -434,6 +467,15 @@ async function run(): Promise<void> {
   let aiStdoutHead = '';
   let aiStderrHead = '';
   let aiCommandLine = '';
+  let gitWorktreeState: GitWorktreeState = {
+    observed: false,
+    dirty: false,
+    count: 0,
+    excerpt: [],
+    commandExitCode: null,
+    stdoutHead: '',
+    stderrHead: ''
+  };
   const traceFilePath = path.join(workspacePath, 'tmp', 'eval-trace-events.jsonl');
   const globalCodexHome = path.join(process.env.USERPROFILE ?? process.env.HOME ?? '', '.codex');
   let codexHomeBootstrap: CodexHomeBootstrapMeta = {
@@ -455,6 +497,37 @@ async function run(): Promise<void> {
 
   try {
     await ensureCodexHelpCheck(commandLogs, codexBin, repoRoot, codexEnv);
+    gitWorktreeState = await readGitWorktreeState(commandLogs, repoRoot, codexEnv);
+    const requireCleanTree = (codexEnv.EVAL_REQUIRE_CLEAN_TREE ?? process.env.EVAL_REQUIRE_CLEAN_TREE) === '1';
+    const cleanTreeViolation = requireCleanTree && gitWorktreeState.dirty;
+    checks.push({
+      name: 'dirty_worktree',
+      passed: !cleanTreeViolation,
+      violations: cleanTreeViolation ? 1 : 0,
+      details: cleanTreeViolation
+        ? ['dirty_worktree_required_clean']
+        : gitWorktreeState.observed && gitWorktreeState.dirty
+          ? ['dirty_worktree_detected_warning']
+          : gitWorktreeState.observed
+            ? []
+            : ['dirty_worktree_not_observed'],
+      meta: {
+        git_worktree_dirty: gitWorktreeState.dirty,
+        git_worktree_dirty_count: gitWorktreeState.count,
+        git_worktree_dirty_excerpt: gitWorktreeState.excerpt,
+        require_clean_tree: requireCleanTree,
+        observed: gitWorktreeState.observed,
+        command_exit_code: gitWorktreeState.commandExitCode,
+        stdout_head: gitWorktreeState.stdoutHead,
+        stderr_head: gitWorktreeState.stderrHead
+      }
+    });
+    if (cleanTreeViolation) {
+      errorMessage = 'dirty_worktree_required_clean';
+      process.exitCode = 1;
+      return;
+    }
+
     await ensureDirectory(workspacePath);
 
     // Run ztd init from source with a fixed non-interactive prompter.
