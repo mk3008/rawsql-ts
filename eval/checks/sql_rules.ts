@@ -1,16 +1,10 @@
+import path from 'node:path';
 import { collectTextFiles, readUtf8File } from '../lib/fs';
 import type { CheckResult } from '../lib/report';
 
-interface SqlRulesResult {
-  combined: CheckResult;
-  namedParams: CheckResult;
-  aliasStyle: CheckResult;
-}
-
-export async function runSqlRulesChecks(workspacePath: string): Promise<SqlRulesResult> {
+export async function runSqlRulesCheck(workspacePath: string): Promise<CheckResult> {
   const files = await collectTextFiles(workspacePath);
-  const namedParamViolations: string[] = [];
-  const aliasViolations: string[] = [];
+  const violations: string[] = [];
 
   const sqlFiles = files.filter((filePath) => {
     const normalized = filePath.replace(/\\/g, '/').toLowerCase();
@@ -20,10 +14,10 @@ export async function runSqlRulesChecks(workspacePath: string): Promise<SqlRules
   for (const filePath of sqlFiles) {
     const sql = await readUtf8File(filePath);
     if (/\$\d+\b/.test(sql)) {
-      namedParamViolations.push(`${filePath}: positional parameter ($1 style) is forbidden`);
+      violations.push(`${filePath}: positional parameter ($1 style) is forbidden`);
     }
     if (/\bas\s+"[a-z]+[a-z0-9]*[A-Z][A-Za-z0-9]*"/.test(sql)) {
-      aliasViolations.push(`${filePath}: quoted camelCase alias is forbidden`);
+      violations.push(`${filePath}: quoted camelCase alias is forbidden`);
     }
   }
 
@@ -40,7 +34,6 @@ export async function runSqlRulesChecks(workspacePath: string): Promise<SqlRules
     }
   }
 
-  const violations = [...namedParamViolations, ...aliasViolations];
   const details = [...violations];
   if (!hasQueryIdStyle) {
     details.push(
@@ -49,23 +42,9 @@ export async function runSqlRulesChecks(workspacePath: string): Promise<SqlRules
   }
 
   return {
-    combined: {
-      name: 'sql_rules',
-      passed: violations.length === 0,
-      violations: violations.length,
-      details: details.slice(0, 50)
-    },
-    namedParams: {
-      name: 'sql_named_params',
-      passed: namedParamViolations.length === 0,
-      violations: namedParamViolations.length,
-      details: namedParamViolations.slice(0, 50)
-    },
-    aliasStyle: {
-      name: 'sql_alias_style',
-      passed: aliasViolations.length === 0,
-      violations: aliasViolations.length,
-      details: aliasViolations.slice(0, 50)
-    }
+    name: 'sql_rules',
+    passed: violations.length === 0,
+    violations: violations.length,
+    details: details.slice(0, 50)
   };
 }

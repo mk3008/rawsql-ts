@@ -35,29 +35,6 @@ Key folders:
 - Trace events must be vendor-agnostic (plain callback/log), so local/dev/eval can consume the same signal.
 - Use traces to debug query regressions, identify slow paths, and map failures back to catalog specs.
 
-## Eval Prompt Contract
-
-The eval harness runs fixed prompt contracts for:
-- `crud-basic`
-- `crud-complex`
-- `dynamic-search`
-
-Contract expectations:
-- The first step can require a deterministic marker write in `tests/`.
-- AI must keep edits inside allowed scopes and then continue CRUD tasks.
-- Reports score both execution outcomes and architecture/rule compliance.
-
-## Eval Scorecards
-
-Score axes:
-- install/typecheck/test
-- rules (`sql_composition`, named params, alias style)
-- architecture (`catalog_trace_quality`, `repository_catalog_boundary`)
-
-Interpretation:
-- Hard-fail categories (`sql_composition`, `sql_rules`) require immediate fixes.
-- Repeated failures should be converted into stricter AGENTS guidance or template defaults.
-
 Next steps:
 1. Update `ztd/ddl/<schema>.sql` if needed.
 2. Run `npx ztd ztd-config`.

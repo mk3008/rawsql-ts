@@ -55,13 +55,6 @@ Trace requirement:
 Workflow:
 - Observe -> change -> verify (`pnpm typecheck`, `pnpm test`) -> report.
 
-Prompt execution contract (project rule):
-- When a prompt includes `Run: pwsh ...`, execute that command exactly before planning edits.
-- If requested by the prompt, create a deterministic marker file under `tests/` first.
-- If a marker is requested, confirm command output (`ok`) and marker file existence before proceeding.
-- After required prompt commands are complete, continue the requested implementation task.
-- Keep all edits within allowed scope.
-
 ## Where to read next
 
 - "src/catalog/AGENTS.md": catalog layout and contract boundaries
@@ -77,4 +70,3 @@ Prompt execution contract (project rule):
 - Test runner configuration (e.g. vitest.config.ts) is considered part of the template contract.
 
 If tests fail due to missing config, this is a template defect, not a user error.
-- If a prompt includes an explicit command, run it first and verify output before additional edits.

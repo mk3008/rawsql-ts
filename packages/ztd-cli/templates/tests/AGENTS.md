@@ -12,7 +12,6 @@ This directory contains verification code.
 - This project uses ZTD (Zero Table Dependency).
 - DDL and fixtures define the test world.
 - Tests must be deterministic and parallel-safe.
-- If eval prompt requires a marker write command in `tests/`, run it first and verify the marker file content.
 
 ## What to test (important)
 
@@ -68,4 +67,3 @@ Do not add tests that assume manual setup steps.
   - test runner configuration
   - at least one executable test file
 - The initial test run MUST pass or fail only due to user-written logic, not setup.
-- When a prompt requests a deterministic marker under `tests/`, execute and verify it before test changes.

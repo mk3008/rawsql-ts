@@ -1,17 +1,6 @@
 import type { CheckResult } from '../lib/report';
 
-const ALLOWED_PREFIXES = [
-  'src/ddl/',
-  'ztd/ddl/',
-  'src/sql/',
-  'src/catalog/',
-  'src/dto/',
-  'src/repositories/',
-  'src/types/',
-  'tests/',
-  'vitest.config.ts',
-  'pnpm-lock.yaml'
-];
+const ALLOWED_PREFIXES = ['src/ddl/', 'ztd/ddl/', 'src/sql/', 'src/catalog/', 'src/dto/', 'src/repositories/', 'tests/'];
 
 function isAllowedPath(relativePath: string): boolean {
   const normalized = relativePath.replace(/\\/g, '/');
