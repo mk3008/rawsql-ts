@@ -474,6 +474,34 @@
   - Dropped as waste:
     - なし
 
+* Iteration: 12
+* Target item: 1. SQLカタログ単体テストの改善（ZTD / Mapping）
+* Change applied: P12（`vitest.config.ts` の default include に `eval/tests/**/*.test.[jt]s` を追加）
+* Expected effect: 特別な `--config` なしの標準 `vitest run` で eval 回帰テストが必ず実行される
+* Observed effect:
+  - 変更前観測:
+    - `pnpm exec vitest run eval/tests/runner.regression.test.ts` で `No test files found`（default include が `packages/*/tests` のみ）
+  - 実装:
+    - `vitest.config.ts` の `test.include` を
+      - `['packages/*/tests/**/*.test.[jt]s', 'eval/tests/**/*.test.[jt]s']`
+      に更新
+  - 検証:
+    - `pnpm exec vitest run` の出力に `eval/tests/runner.regression.test.ts` が含まれ、終了コード `0` を確認
+* Verdict: Effective
+* If Ineffective: N/A
+* Proposal stack:
+  - Pending:
+    - P13: eval 回帰テスト実行を `pnpm test` から切り離したい場合に備え、`test:eval` スクリプトを追加して選択実行を明示化する。
+      - 期待効果/検証: 長時間テスト時の切り分け容易化 / `pnpm test:eval` で eval テストのみ実行できることを確認。
+    - P14: blocker 検出語彙のテーブル駆動テストを追加し、語彙追加時の誤爆/漏れを固定する。
+      - 期待効果/検証: 検出精度の安定化 / positive/negative fixture が全件 pass することを確認。
+    - P15: loop summary 側で `ai_execution` failure reason の分類キーを固定し、回帰テストで追跡可能にする。
+      - 期待効果/検証: 失敗カテゴリ分析の安定化 / summary fixture 比較でカテゴリキーが不変であることを確認。
+  - Dropped as noise:
+    - なし
+  - Dropped as waste:
+    - なし
+
 ---
 
 ## 反復記録テンプレート（追記用）
