@@ -71,6 +71,29 @@ interface CodexHomeBootstrapMeta {
   reason: string;
 }
 
+let didCodexHelpCheck = false;
+
+async function ensureCodexHelpCheck(
+  commandLogs: CommandLog[],
+  codexBin: string,
+  repoRoot: string,
+  codexEnv: NodeJS.ProcessEnv
+): Promise<void> {
+  if (didCodexHelpCheck) {
+    commandLogs.push({
+      command: codexBin,
+      args: ['exec', '--help'],
+      cwd: repoRoot,
+      exitCode: 0,
+      outputHead: 'Skipped codex exec --help (already checked in this process).'
+    });
+    return;
+  }
+
+  await runAndTrackAllowFailure(commandLogs, codexBin, ['exec', '--help'], repoRoot, codexEnv);
+  didCodexHelpCheck = true;
+}
+
 function resolveCommandInvocation(
   command: string,
   args: string[],
@@ -366,7 +389,7 @@ async function run(): Promise<void> {
   };
 
   try {
-    await runAndTrackAllowFailure(commandLogs, codexBin, ['exec', '--help'], repoRoot, codexEnv);
+    await ensureCodexHelpCheck(commandLogs, codexBin, repoRoot, codexEnv);
     await ensureDirectory(workspacePath);
 
     // Run ztd init from source with a fixed non-interactive prompter.
