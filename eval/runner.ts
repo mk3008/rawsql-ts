@@ -67,6 +67,12 @@ interface CodexHomeBootstrapMeta {
   reason: string;
 }
 
+interface AiBlockerMeta {
+  detected: boolean;
+  kind: 'read_only' | 'none';
+  excerpt: string;
+}
+
 function createSkippedCheck(name: string, reason: string): CheckResult {
   return {
     name,
@@ -100,6 +106,28 @@ async function ensureCodexHelpCheck(
 
   await runAndTrackAllowFailure(commandLogs, codexBin, ['exec', '--help'], repoRoot, codexEnv);
   didCodexHelpCheck = true;
+}
+
+function detectAiExecutionBlocker(stdoutHead: string, stderrHead: string): AiBlockerMeta {
+  const combined = `${stdoutHead}\n${stderrHead}`.toLowerCase();
+  const ruleMatched =
+    (combined.includes('write access is denied in this environment') && combined.includes('read-only sandbox')) ||
+    combined.includes('attempts to create/update files via `apply_patch` were rejected');
+  if (!ruleMatched) {
+    return {
+      detected: false,
+      kind: 'none',
+      excerpt: ''
+    };
+  }
+
+  const excerptSource = stdoutHead || stderrHead;
+  const excerpt = excerptSource.slice(0, 280);
+  return {
+    detected: true,
+    kind: 'read_only',
+    excerpt
+  };
 }
 
 function resolveCommandInvocation(
@@ -558,7 +586,8 @@ async function run(): Promise<void> {
       aiCommandLine = `${aiCommandLog?.command ?? ''} ${(aiCommandLog?.args ?? []).join(' ')}`.trim();
       const touchedFilesCount = aiTouchedFiles.length;
       const effectiveWrite = touchedFilesCount > 0;
-      const aiPassed = aiExit === 0 && effectiveWrite;
+      const blockerMeta = detectAiExecutionBlocker(aiStdoutHead, aiStderrHead);
+      const aiPassed = aiExit === 0 && effectiveWrite && !blockerMeta.detected;
       checks.push({
         name: 'ai_execution',
         passed: aiPassed,
@@ -570,6 +599,8 @@ async function run(): Promise<void> {
                 `codex exec failed (exit=${aiExit ?? 'null'})`,
                 aiCommandLog?.outputHead ?? 'No output captured.'
               ]
+            : blockerMeta.detected
+              ? [`ai blocker detected (${blockerMeta.kind})`, blockerMeta.excerpt]
             : ['codex exec exited 0 but no workspace changes were observed'],
         meta: {
           exitCode: aiExit,
@@ -582,6 +613,9 @@ async function run(): Promise<void> {
           command: aiCommandLine,
           stdout_head: aiStdoutHead,
           stderr_head: aiStderrHead,
+          blocker_detected: blockerMeta.detected,
+          blocker_kind: blockerMeta.kind,
+          blocker_excerpt: blockerMeta.excerpt,
           retried: aiExecution.retried
         }
       });

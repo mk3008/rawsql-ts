@@ -340,6 +340,73 @@
   - Dropped as waste:
     - なし
 
+* Iteration: 8
+* Target item: 1. SQLカタログ単体テストの改善（ZTD / Mapping）
+* Change applied: P8（`eval/prompts/01_crud.md` に scope allowlist外編集禁止を明記）
+* Expected effect: `scope_check`違反（`src/types/*`, `tsconfig.json` など）を抑止し、loop成功率を改善する
+* Observed effect:
+  - コマンド: `pnpm exec ts-node eval/loop.ts --loop 1 --scenario crud-basic --report-prefix eval/reports/loop-task1`
+  - 生成物: `eval/reports/loop-task1-20260210055117-01.json`, `eval/reports/loop-task1-summary-20260210055117.json`
+  - summary観測:
+    - `aggregate.runner_exit_code_counts = { "0": 1 }`
+    - `iterations[0].failed_categories = []`
+    - `aggregate.failure_clusters = []`
+  - report観測:
+    - `checks.scope_check.passed = true`
+    - `checks.ai_execution.meta.touchedFilesSample = ["tests/__eval_ai_marker__.txt"]`
+    - `checks.ai_execution.meta.stdout_head` に read-only blocker 文言あり
+* Verdict: Effective
+* If Ineffective: N/A
+* Proposal stack:
+  - Pending:
+    - P9: `ai_execution`判定を強化し、`stdout_head` に blocker/read-only 文言がある場合は fail にする。
+      - 期待効果/検証: marker-only成功の偽陽性を防ぐ / `loop-task1`再実行で `ai_execution` が失敗カテゴリに出ることを確認。
+    - P10: `ai_execution`に「marker以外のallowlist編集が1件以上必要」条件を追加する（marker-onlyを不合格化）。
+      - 期待効果/検証: SQL/カタログ実装が無い成功を排除 / `touchedFilesSample` が marker のみなら fail になることを確認。
+    - P11: `ai_execution.meta` に sandbox由来失敗フラグ（read-only等）を正規化して出力する。
+      - 期待効果/検証: 失敗原因の機械集計精度向上 / summary の failure cluster に sandbox要因が一貫して出ることを確認。
+  - Dropped as noise:
+    - なし
+  - Dropped as waste:
+    - なし
+
+* Iteration: 9
+* Target item: 1. SQLカタログ単体テストの改善（ZTD / Mapping）
+* Change applied: P9（`eval/runner.ts` の `ai_execution` に read-only blocker 検出を追加）
+* Expected effect: read-only blocker により実作業不能なケースを `ai_execution` failed として扱い、偽陽性を減らす
+* Observed effect:
+  - 検出ルールの根拠（過去report観測）:
+    - `Write access is denied in this environment (read-only sandbox).`
+    - `Attempts to create/update files via \`apply_patch\` were rejected.`
+    - 観測元: `eval/reports/loop-task1-20260210055117-01.json`
+  - 実装:
+    - `detectAiExecutionBlocker(stdoutHead, stderrHead)` を追加
+    - `meta.blocker_detected`, `meta.blocker_kind`, `meta.blocker_excerpt` を出力
+    - `blocker_detected=true` の場合 `ai_execution.passed=false` になるよう最小追加
+  - 検証ラン:
+    - コマンド: `pnpm exec ts-node eval/loop.ts --loop 1 --scenario crud-basic --report-prefix eval/reports/loop-task1-p9`
+    - 生成summary: `eval/reports/loop-task1-p9-summary-20260210055621.json`
+    - 観測値:
+      - `runner_exit_code_counts = { "0": 1 }`
+      - `failed_categories = []`（`ai_execution`失敗は Not observed）
+      - `iterations[0].runner_exit_code = 0`
+      - `iterations[0].runner_report_written = true`
+      - `checks.ai_execution.meta.blocker_detected = false`
+* Verdict: Pending
+* If Ineffective: N/A
+* Proposal stack:
+  - Pending:
+    - P10: marker-only (`tests/__eval_ai_marker__.txt`のみ変更) を `ai_execution` fail にする条件を追加する。
+      - 期待効果/検証: 実装変更なし成功の偽陽性削減 / `touchedFilesSample` がmarkerのみのとき `failed_categories` に `ai_execution` が入ることを確認。
+    - P11: blocker語彙を report fixture で固定し、検出回帰テスト（ユニット）を追加する。
+      - 期待効果/検証: 語彙変化で検出退行しない / 既知blocker文を入力したテストが `blocker_detected=true` で通ることを確認。
+    - P12: `ai_execution` に「blocker未検出でも提案のみで実ファイル編集が不足」の判定メタを追加する。
+      - 期待効果/検証: 実作業未完了ケースの可視化 / summaryで偽陽性パターンを機械抽出できることを確認。
+  - Dropped as noise:
+    - なし
+  - Dropped as waste:
+    - なし
+
 ---
 
 ## 反復記録テンプレート（追記用）
