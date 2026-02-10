@@ -2,6 +2,8 @@
 set -euo pipefail
 
 CASE="crud-basic"
+SCENARIO="crud-basic"
+LOOP=0
 KEEP_WORKSPACE=false
 SKIP_AI=false
 REPORT="eval/reports/latest.json"
@@ -10,6 +12,14 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --case)
       CASE="${2:-crud-basic}"
+      shift 2
+      ;;
+    --scenario)
+      SCENARIO="${2:-crud-basic}"
+      shift 2
+      ;;
+    --loop)
+      LOOP="${2:-0}"
       shift 2
       ;;
     --keep-workspace)
@@ -48,12 +58,19 @@ export CODEX_HOME="${EVAL_CODEX_HOME}"
 
 mkdir -p "${EVAL_CODEX_HOME}"
 
-ARGS=("${REPO_ROOT}/eval/runner.ts" "--case" "${CASE}" "--report" "${REPORT}")
-if [[ "${KEEP_WORKSPACE}" == "true" ]]; then
-  ARGS+=("--keep-workspace")
-fi
-if [[ "${SKIP_AI}" == "true" ]]; then
-  ARGS+=("--skip-ai")
+if [[ "${LOOP}" -gt 0 ]]; then
+  ARGS=("${REPO_ROOT}/eval/loop.ts" "--loop" "${LOOP}" "--scenario" "${SCENARIO}" "--report-prefix" "eval/reports/loop")
+  if [[ "${KEEP_WORKSPACE}" == "true" ]]; then
+    ARGS+=("--keep-workspace")
+  fi
+else
+  ARGS=("${REPO_ROOT}/eval/runner.ts" "--case" "${CASE}" "--scenario" "${SCENARIO}" "--report" "${REPORT}")
+  if [[ "${KEEP_WORKSPACE}" == "true" ]]; then
+    ARGS+=("--keep-workspace")
+  fi
+  if [[ "${SKIP_AI}" == "true" ]]; then
+    ARGS+=("--skip-ai")
+  fi
 fi
 
 pnpm exec ts-node "${ARGS[@]}"

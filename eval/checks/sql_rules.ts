@@ -1,10 +1,16 @@
-import path from 'node:path';
 import { collectTextFiles, readUtf8File } from '../lib/fs';
 import type { CheckResult } from '../lib/report';
 
-export async function runSqlRulesCheck(workspacePath: string): Promise<CheckResult> {
+interface SqlRulesResult {
+  combined: CheckResult;
+  namedParams: CheckResult;
+  aliasStyle: CheckResult;
+}
+
+export async function runSqlRulesChecks(workspacePath: string): Promise<SqlRulesResult> {
   const files = await collectTextFiles(workspacePath);
-  const violations: string[] = [];
+  const namedParamViolations: string[] = [];
+  const aliasViolations: string[] = [];
 
   const sqlFiles = files.filter((filePath) => {
     const normalized = filePath.replace(/\\/g, '/').toLowerCase();
@@ -14,10 +20,10 @@ export async function runSqlRulesCheck(workspacePath: string): Promise<CheckResu
   for (const filePath of sqlFiles) {
     const sql = await readUtf8File(filePath);
     if (/\$\d+\b/.test(sql)) {
-      violations.push(`${filePath}: positional parameter ($1 style) is forbidden`);
+      namedParamViolations.push(`${filePath}: positional parameter ($1 style) is forbidden`);
     }
     if (/\bas\s+"[a-z]+[a-z0-9]*[A-Z][A-Za-z0-9]*"/.test(sql)) {
-      violations.push(`${filePath}: quoted camelCase alias is forbidden`);
+      aliasViolations.push(`${filePath}: quoted camelCase alias is forbidden`);
     }
   }
 
@@ -34,6 +40,7 @@ export async function runSqlRulesCheck(workspacePath: string): Promise<CheckResu
     }
   }
 
+  const violations = [...namedParamViolations, ...aliasViolations];
   const details = [...violations];
   if (!hasQueryIdStyle) {
     details.push(
@@ -42,9 +49,23 @@ export async function runSqlRulesCheck(workspacePath: string): Promise<CheckResu
   }
 
   return {
-    name: 'sql_rules',
-    passed: violations.length === 0,
-    violations: violations.length,
-    details: details.slice(0, 50)
+    combined: {
+      name: 'sql_rules',
+      passed: violations.length === 0,
+      violations: violations.length,
+      details: details.slice(0, 50)
+    },
+    namedParams: {
+      name: 'sql_named_params',
+      passed: namedParamViolations.length === 0,
+      violations: namedParamViolations.length,
+      details: namedParamViolations.slice(0, 50)
+    },
+    aliasStyle: {
+      name: 'sql_alias_style',
+      passed: aliasViolations.length === 0,
+      violations: aliasViolations.length,
+      details: aliasViolations.slice(0, 50)
+    }
   };
 }

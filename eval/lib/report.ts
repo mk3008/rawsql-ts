@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { ensureDirectory, writeUtf8File } from './fs';
 import type { CommandLog } from './exec';
+import { computeScoreBreakdown, type ScoreBreakdown } from '../checks/scoreboard';
 
 export interface CheckResult {
   name: string;
@@ -31,14 +32,6 @@ export interface EvalReport {
   error?: string;
 }
 
-export interface ScoreBreakdown {
-  install: number;
-  typecheck: number;
-  test: number;
-  checks: number;
-  total: number;
-}
-
 export async function writeReport(reportPath: string, report: EvalReport): Promise<void> {
   const absolute = path.resolve(reportPath);
   await ensureDirectory(path.dirname(absolute));
@@ -51,20 +44,5 @@ export function computeScore(
   testExit: number | null,
   checks: CheckResult[]
 ): ScoreBreakdown {
-  const install = installExit === 0 ? 30 : 0;
-  const typecheck = typecheckExit === 0 ? 30 : 0;
-  const test = testExit === 0 ? 30 : 0;
-
-  const scoredChecks = ['sql_rules', 'forbidden_refs', 'scope_check', 'trace_presence'];
-  const passedChecks = scoredChecks.filter((name) => checks.find((item) => item.name === name)?.passed === true).length;
-  const checksScore = (passedChecks / scoredChecks.length) * 10;
-  const total = install + typecheck + test + checksScore;
-
-  return {
-    install,
-    typecheck,
-    test,
-    checks: checksScore,
-    total
-  };
+  return computeScoreBreakdown(installExit, typecheckExit, testExit, checks);
 }

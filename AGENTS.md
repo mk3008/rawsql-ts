@@ -225,3 +225,27 @@ Report using the mandatory format:
 * Capture the root error or first meaningful failure output.
 * Limit scope: one failure, one fix, one verification.
 * Any assumption must be labeled `UNOBSERVED` and followed by the next observation step.
+
+---
+
+## Evaluation Loop Policy (Stabilize over Prompting)
+
+AGENTS.md tuning is a last resort. Prefer deterministic enforcement over textual guidance.
+
+Priority order for changes (highest first):
+1. Hard gates: pre-commit / CI checks that fail fast with clear errors
+2. Tooling: scripts / functions / CLI commands with exit-code based validation
+3. Library-ization: reusable modules with narrow inputs/outputs
+4. Templates: generator/template changes that are mechanically verifiable
+5. AGENTS.md wording tweaks: only when the rule cannot be enforced mechanically yet
+
+Decision rule:
+- If a rule can be expressed as a machine-checkable condition, implement it as (1)-(4) instead of editing AGENTS.md.
+- AGENTS.md edits must include a follow-up plan to convert the rule into a check/tool later.
+
+Loop count policy:
+- Default to 3 runs for iteration speed.
+- Escalate to 5 runs only when pass_rate becomes > 0, or when new failure categories keep increasing, or when entropy worsens significantly.
+
+Scope rule:
+- One hypothesis, one fix, one verification. Do not mix "exploration" and "stabilization" in the same loop.

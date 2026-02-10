@@ -15,6 +15,7 @@ export interface ExecOptions {
   env?: NodeJS.ProcessEnv;
   stdinText?: string;
   shell?: boolean;
+  timeoutMs?: number;
 }
 
 export interface ExecResult {
@@ -57,12 +58,30 @@ export async function runCommand(options: ExecOptions): Promise<ExecResult> {
       stderr += `${error.message}\n`;
     });
 
+    const timeoutHandle =
+      options.timeoutMs && options.timeoutMs > 0
+        ? setTimeout(() => {
+            stderr += `Command timed out after ${options.timeoutMs}ms\n`;
+            if (process.platform === 'win32' && child.pid) {
+              const killer = spawn('taskkill', ['/PID', String(child.pid), '/T', '/F'], { shell: false });
+              killer.on('error', (error: Error) => {
+                stderr += `taskkill failed: ${error.message}\n`;
+              });
+            } else {
+              child.kill();
+            }
+          }, options.timeoutMs)
+        : null;
+
     if (options.stdinText !== undefined) {
       child.stdin.write(options.stdinText);
       child.stdin.end();
     }
 
     child.on('close', (exitCode: number | null) => {
+      if (timeoutHandle) {
+        clearTimeout(timeoutHandle);
+      }
       const log: CommandLog = {
         command: options.command,
         args: options.args,
