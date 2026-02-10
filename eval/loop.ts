@@ -58,8 +58,10 @@ interface LoopSummary {
     runner_report_expected_path: string;
     runner_report_exists: boolean;
     runner_exit_code_mismatch: boolean;
+    termination_reason: 'loop_wall_timeout' | 'runner_completed' | 'unknown';
     runner_wall_timeout: boolean;
     runner_wall_timeout_ms: number;
+    codex_exec_timeout: boolean;
     runner_wall_timeout_note?: string;
     runner_report_missing?: {
       exit_code: number | null;
@@ -85,6 +87,9 @@ interface LoopSummary {
     dirty_worktree_present_count: number;
     dirty_worktree_failed_count: number;
     runner_exit_code_mismatch_count: number;
+    runner_wall_timeout_count: number;
+    loop_wall_timeout_count: number;
+    codex_exec_timeout_count: number;
     failure_clusters: FailureCluster[];
     failure_cluster_entropy: number;
     loop_latency_ms: {
@@ -137,6 +142,7 @@ interface IterationRuntimeMeta {
   runnerReportExpectedPath: string;
   runnerReportExists: boolean;
   runnerExitCodeMismatch: boolean;
+  terminationReason: 'loop_wall_timeout' | 'runner_completed' | 'unknown';
   runnerWallTimeout: boolean;
   runnerWallTimeoutMs: number;
   runnerWallTimeoutNote?: string;
@@ -473,6 +479,14 @@ function computeDirtyWorktreeStats(reports: EvalReport[]): DirtyWorktreeStats {
   }
 
   return { presentCount, failedCount };
+}
+
+function readCodexExecTimeoutFlag(report: EvalReport): boolean {
+  const aiExecution = report.checks.find((check) => check.name === 'ai_execution');
+  if (!aiExecution?.meta || typeof aiExecution.meta !== 'object') {
+    return false;
+  }
+  return (aiExecution.meta as Record<string, unknown>).codex_exec_timeout === true;
 }
 
 function buildFailureClusters(reports: EvalReport[], reportPaths: string[]): FailureCluster[] {
@@ -812,6 +826,7 @@ async function run(): Promise<void> {
         runnerReportExpectedPath: reportPath,
         runnerReportExists: false,
         runnerExitCodeMismatch,
+        terminationReason: result.wallTimedOut ? 'loop_wall_timeout' : 'runner_completed',
         runnerWallTimeout: result.wallTimedOut,
         runnerWallTimeoutMs: result.wallTimeoutMs,
         runnerWallTimeoutNote: result.wallTimedOut ? 'no progress after run_command_start' : undefined
@@ -844,6 +859,7 @@ async function run(): Promise<void> {
       runnerReportExpectedPath: reportPath,
       runnerReportExists: true,
       runnerExitCodeMismatch,
+      terminationReason: result.wallTimedOut ? 'loop_wall_timeout' : 'runner_completed',
       runnerWallTimeout: result.wallTimedOut,
       runnerWallTimeoutMs: result.wallTimeoutMs,
       runnerWallTimeoutNote: result.wallTimedOut ? 'no progress after run_command_start' : undefined
@@ -857,6 +873,7 @@ async function run(): Promise<void> {
   const durations = reports.map((report) => computeDurationMs(report));
   const preflightStats = computePreflightWriteStats(reports);
   const dirtyWorktreeStats = computeDirtyWorktreeStats(reports);
+  const codexExecTimeoutCount = reports.filter((report) => readCodexExecTimeoutFlag(report)).length;
   const failureClusters = buildFailureClusters(reports, reportPaths);
   const proposals = buildProposals(failureClusters);
   const appliedProposal = await applyTopTemplateTextProposal(repoRoot, proposals);
@@ -872,8 +889,11 @@ async function run(): Promise<void> {
     iterations: reports.map((report, index) => {
       const runtimeMeta = runtimeByReportPath.get(reportPaths[index]);
       const failedCategories = report.checks.filter((check) => isFailureRelevantCheck(check)).map((check) => check.name);
-      if (runtimeMeta?.runnerWallTimeout) {
+      if (runtimeMeta?.terminationReason === 'loop_wall_timeout') {
         failedCategories.push('runner_wall_timeout');
+      }
+      if (readCodexExecTimeoutFlag(report)) {
+        failedCategories.push('codex_exec_timeout');
       }
       return {
         index: index + 1,
@@ -890,8 +910,10 @@ async function run(): Promise<void> {
         runner_report_expected_path: runtimeMeta?.runnerReportExpectedPath ?? reportPaths[index],
         runner_report_exists: runtimeMeta?.runnerReportExists ?? false,
         runner_exit_code_mismatch: runtimeMeta?.runnerExitCodeMismatch ?? false,
+        termination_reason: runtimeMeta?.terminationReason ?? 'unknown',
         runner_wall_timeout: runtimeMeta?.runnerWallTimeout ?? false,
         runner_wall_timeout_ms: runtimeMeta?.runnerWallTimeoutMs ?? runnerWallTimeoutMs,
+        codex_exec_timeout: readCodexExecTimeoutFlag(report),
         runner_wall_timeout_note: runtimeMeta?.runnerWallTimeoutNote,
         runner_report_missing: missingReports.has(reportPaths[index])
           ? {
@@ -920,6 +942,13 @@ async function run(): Promise<void> {
       dirty_worktree_present_count: dirtyWorktreeStats.presentCount,
       dirty_worktree_failed_count: dirtyWorktreeStats.failedCount,
       runner_exit_code_mismatch_count: runnerExitCodeMismatchCount,
+      runner_wall_timeout_count: Array.from(runtimeByReportPath.values()).filter(
+        (runtime) => runtime.terminationReason === 'loop_wall_timeout'
+      ).length,
+      loop_wall_timeout_count: Array.from(runtimeByReportPath.values()).filter(
+        (runtime) => runtime.terminationReason === 'loop_wall_timeout'
+      ).length,
+      codex_exec_timeout_count: codexExecTimeoutCount,
       failure_clusters: failureClusters,
       failure_cluster_entropy: new Set(failureClusters.map((cluster) => cluster.category)).size,
       loop_latency_ms: {
