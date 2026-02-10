@@ -61,6 +61,8 @@ interface LoopSummary {
     termination_reason: 'loop_wall_timeout' | 'runner_completed' | 'unknown';
     runner_wall_timeout: boolean;
     runner_wall_timeout_ms: number;
+    runner_wall_kill_attempted: boolean;
+    runner_wall_kill_sent: boolean;
     codex_exec_timeout: boolean;
     runner_wall_timeout_note?: string;
     runner_report_missing?: {
@@ -145,6 +147,8 @@ interface IterationRuntimeMeta {
   terminationReason: 'loop_wall_timeout' | 'runner_completed' | 'unknown';
   runnerWallTimeout: boolean;
   runnerWallTimeoutMs: number;
+  runnerWallKillAttempted: boolean;
+  runnerWallKillSent: boolean;
   runnerWallTimeoutNote?: string;
 }
 
@@ -155,6 +159,9 @@ interface RunnerCommandResult {
   log: {
     outputHead: string;
   };
+  didKill: boolean;
+  killAttempted: boolean;
+  killSent: boolean;
   wallTimedOut: boolean;
   wallTimeoutMs: number;
 }
@@ -243,7 +250,9 @@ async function runRunnerCommandWithWallTimeout(options: {
     let stdout = '';
     let stderr = '';
     let resolved = false;
-    let wallTimedOut = false;
+    let timerTriggered = false;
+    let killAttempted = false;
+    let killSent = false;
     let timeoutHandle: NodeJS.Timeout | undefined;
 
     const finish = (exitCode: number | null) => {
@@ -261,7 +270,10 @@ async function runRunnerCommandWithWallTimeout(options: {
         log: {
           outputHead: buildOutputHead(stdout, stderr)
         },
-        wallTimedOut,
+        didKill: killSent,
+        killAttempted,
+        killSent,
+        wallTimedOut: killSent,
         wallTimeoutMs: options.wallTimeoutMs
       });
     };
@@ -279,6 +291,9 @@ async function runRunnerCommandWithWallTimeout(options: {
     });
 
     child.on('close', (exitCode: number | null) => {
+      if (timerTriggered && killAttempted && !killSent) {
+        stderr += 'runner_wall_timeout: timeout fired but process had already exited before kill signal.\n';
+      }
       finish(exitCode);
     });
 
@@ -286,11 +301,15 @@ async function runRunnerCommandWithWallTimeout(options: {
       if (resolved) {
         return;
       }
-      wallTimedOut = true;
-      stderr += `runner_wall_timeout: exceeded ${options.wallTimeoutMs}ms without run_command_end\n`;
-      child.kill('SIGKILL');
-      finish(124);
+      timerTriggered = true;
+      killAttempted = true;
+      killSent = child.kill('SIGKILL');
+      stderr += `runner_wall_timeout: exceeded ${options.wallTimeoutMs}ms without run_command_end; kill_attempted=${killAttempted} kill_sent=${killSent}\n`;
+      if (killSent) {
+        finish(124);
+      }
     }, options.wallTimeoutMs);
+
   });
 }
 
@@ -794,7 +813,10 @@ async function run(): Promise<void> {
       iteration: index,
       exit_code: result.exitCode,
       elapsed_ms: runnerElapsedMs,
-      wall_timeout: result.wallTimedOut
+      wall_timeout: result.wallTimedOut,
+      did_kill: result.didKill,
+      kill_attempted: result.killAttempted,
+      kill_sent: result.killSent
     });
     if (result.exitCode === null) {
       throw new Error(`Iteration ${index} exited with null code.`);
@@ -826,10 +848,12 @@ async function run(): Promise<void> {
         runnerReportExpectedPath: reportPath,
         runnerReportExists: false,
         runnerExitCodeMismatch,
-        terminationReason: result.wallTimedOut ? 'loop_wall_timeout' : 'runner_completed',
-        runnerWallTimeout: result.wallTimedOut,
+        terminationReason: result.didKill ? 'loop_wall_timeout' : 'runner_completed',
+        runnerWallTimeout: result.didKill,
         runnerWallTimeoutMs: result.wallTimeoutMs,
-        runnerWallTimeoutNote: result.wallTimedOut ? 'no progress after run_command_start' : undefined
+        runnerWallKillAttempted: result.killAttempted,
+        runnerWallKillSent: result.killSent,
+        runnerWallTimeoutNote: result.didKill ? 'no progress after run_command_start' : undefined
       });
       reportPaths.push(reportPath);
       reports.push(buildMissingEvalReport(options.scenario, reportPath, result.exitCode));
@@ -859,10 +883,12 @@ async function run(): Promise<void> {
       runnerReportExpectedPath: reportPath,
       runnerReportExists: true,
       runnerExitCodeMismatch,
-      terminationReason: result.wallTimedOut ? 'loop_wall_timeout' : 'runner_completed',
-      runnerWallTimeout: result.wallTimedOut,
+      terminationReason: result.didKill ? 'loop_wall_timeout' : 'runner_completed',
+      runnerWallTimeout: result.didKill,
       runnerWallTimeoutMs: result.wallTimeoutMs,
-      runnerWallTimeoutNote: result.wallTimedOut ? 'no progress after run_command_start' : undefined
+      runnerWallKillAttempted: result.killAttempted,
+      runnerWallKillSent: result.killSent,
+      runnerWallTimeoutNote: result.didKill ? 'no progress after run_command_start' : undefined
     });
     reportPaths.push(reportPath);
     reports.push(report);
@@ -913,6 +939,8 @@ async function run(): Promise<void> {
         termination_reason: runtimeMeta?.terminationReason ?? 'unknown',
         runner_wall_timeout: runtimeMeta?.runnerWallTimeout ?? false,
         runner_wall_timeout_ms: runtimeMeta?.runnerWallTimeoutMs ?? runnerWallTimeoutMs,
+        runner_wall_kill_attempted: runtimeMeta?.runnerWallKillAttempted ?? false,
+        runner_wall_kill_sent: runtimeMeta?.runnerWallKillSent ?? false,
         codex_exec_timeout: readCodexExecTimeoutFlag(report),
         runner_wall_timeout_note: runtimeMeta?.runnerWallTimeoutNote,
         runner_report_missing: missingReports.has(reportPaths[index])
