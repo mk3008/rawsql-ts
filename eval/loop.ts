@@ -105,6 +105,21 @@ interface RunnerMissingMeta {
   nextCommand: string;
 }
 
+function sanitizeLogValue(value: unknown): string {
+  return String(value).replace(/\s+/g, ' ').trim();
+}
+
+function emitLoopEvent(event: string, fields: Record<string, unknown>): void {
+  const parts = [`[eval-loop] event=${sanitizeLogValue(event)}`];
+  for (const [key, value] of Object.entries(fields)) {
+    if (value === undefined) {
+      continue;
+    }
+    parts.push(`${key}=${sanitizeLogValue(value)}`);
+  }
+  console.log(parts.join(' '));
+}
+
 function toWindowsCommand(args: string[]): { command: string; args: string[] } {
   const appData = process.env.APPDATA ?? '';
   const pnpmCmd = appData ? path.join(appData, 'npm', 'pnpm.cmd') : 'pnpm.cmd';
@@ -498,6 +513,14 @@ async function run(): Promise<void> {
   const missingReports = new Map<string, RunnerMissingMeta>();
   const tsNodeArgsBase = ['exec', 'ts-node', path.join(repoRoot, 'eval', 'runner.ts')];
   const timestamp = new Date().toISOString().replace(/[-:TZ.]/g, '').slice(0, 14);
+  const runId = `${timestamp}-${process.pid}`;
+
+  emitLoopEvent('loop_start', {
+    run_id: runId,
+    report_prefix: options.reportPrefix,
+    loop_count: options.loopCount,
+    scenario: options.scenario
+  });
 
   for (let index = 1; index <= options.loopCount; index += 1) {
     const reportPath = path.resolve(repoRoot, `${options.reportPrefix}-${timestamp}-${String(index).padStart(2, '0')}.json`);
@@ -522,6 +545,18 @@ async function run(): Promise<void> {
             args
           };
 
+    emitLoopEvent('iteration_prepare', {
+      run_id: runId,
+      iteration: index,
+      report_path: reportPath,
+      runner_cmd: `${commandInvocation.command} ${commandInvocation.args.join(' ')}`
+    });
+
+    emitLoopEvent('run_command_start', {
+      run_id: runId,
+      iteration: index
+    });
+    const runStartedAt = Date.now();
     const result = await runCommand({
       command: commandInvocation.command,
       args: commandInvocation.args,
@@ -529,12 +564,25 @@ async function run(): Promise<void> {
       env: process.env,
       timeoutMs: 12 * 60 * 1000
     });
+    emitLoopEvent('run_command_end', {
+      run_id: runId,
+      iteration: index,
+      exit_code: result.exitCode,
+      elapsed_ms: Date.now() - runStartedAt
+    });
     if (result.exitCode === null) {
       throw new Error(`Iteration ${index} exited with null code.`);
     }
 
     const nextCommand = `pnpm exec ts-node ${path.join(repoRoot, 'eval', 'runner.ts')} --case ${options.scenario} --scenario ${options.scenario} --report ${reportPath}`;
     if (!existsSync(reportPath)) {
+      emitLoopEvent('report_read_end', {
+        run_id: runId,
+        iteration: index,
+        report_path: reportPath,
+        exists: false,
+        size_bytes: 0
+      });
       const missingMeta: RunnerMissingMeta = {
         exitCode: result.exitCode,
         outputHead: result.log.outputHead,
@@ -548,7 +596,19 @@ async function run(): Promise<void> {
       continue;
     }
 
+    emitLoopEvent('report_read_start', {
+      run_id: runId,
+      iteration: index,
+      report_path: reportPath
+    });
     const reportRaw = await readUtf8File(reportPath);
+    emitLoopEvent('report_read_end', {
+      run_id: runId,
+      iteration: index,
+      report_path: reportPath,
+      exists: true,
+      size_bytes: Buffer.byteLength(reportRaw, 'utf8')
+    });
     const report = JSON.parse(reportRaw) as EvalReport;
     reportPaths.push(reportPath);
     reports.push(report);
@@ -611,11 +671,29 @@ async function run(): Promise<void> {
 
   const summaryPath = path.resolve(repoRoot, `${options.reportPrefix}-summary-${timestamp}.json`);
   await ensureDirectory(path.dirname(summaryPath));
+  emitLoopEvent('summary_write_start', {
+    run_id: runId,
+    summary_path: summaryPath
+  });
   await writeUtf8File(summaryPath, `${JSON.stringify(summary, null, 2)}\n`);
+  emitLoopEvent('summary_write_end', {
+    run_id: runId,
+    summary_path: summaryPath
+  });
+  emitLoopEvent('loop_done', {
+    run_id: runId,
+    exit_code: process.exitCode ?? 0,
+    reports: reports.length
+  });
   console.log(summaryPath);
 }
 
 run().catch((error) => {
+  emitLoopEvent('loop_done', {
+    run_id: 'unknown',
+    exit_code: 1,
+    error: error instanceof Error ? error.message : String(error)
+  });
   console.error(error instanceof Error ? error.message : String(error));
   process.exitCode = 1;
 });

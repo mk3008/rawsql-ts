@@ -271,6 +271,50 @@
   - 妥当性: compile failure解消を最優先し、`skipped=true` で失敗扱いを避けつつ report 生成可否の観測を可能にした。
   - 戻す条件: 欠損しているcheck module（または同等の実装）を復元した時点で、`createSkippedCheck` の置換を順次撤去する。
 
+* Iteration: 5
+* Target item: 1. SQLカタログ単体テストの改善（ZTD / Mapping）
+* Change applied: なし（observations only）
+* Expected effect: AI有効の loop 実行で、`-01.json` / summary 生成後も親プロセス残留が再現するかを再観測する
+* Observed effect:
+  - クリーンシェル実行: `pwsh -NoProfile -Command "pnpm exec ts-node eval/loop.ts --loop 1 --scenario crud-basic --report-prefix eval/reports/loop-plan-check"`（Observed）
+  - 生成物: `loop-plan-check-20260210042731-01.json` と `loop-plan-check-summary-20260210042731.json`（LastWriteTime: 2026/02/10 13:32:39）
+  - 観測ログ: `tmp/loop-observe-20260210-133054.log` の tick で 13:32:40 以降も `alive=1` が継続し、13:34:25 まで残留（少なくとも約1分46秒）
+  - 実行exit code: Not observed（観測打ち切り時にプロセス停止）
+* Verdict: Effective
+* If Ineffective: N/A
+* Proposal stack:
+  - Pending:
+    - P5: `eval/loop.ts` に固定フォーマット heartbeat を追加し、`runCommand` 待機中/終了後/report読込/summary書込/loop完了を1行イベントで記録する。
+  - Dropped as noise:
+    - なし
+  - Dropped as waste:
+    - なし
+
+* Iteration: 6
+* Target item: 1. SQLカタログ単体テストの改善（ZTD / Mapping）
+* Change applied: P5（`eval/loop.ts` に heartbeat ログを追加。既存処理順・timeout は不変）
+* Expected effect: `loop` がどこで停止しているかをイベント行で確定できる
+* Observed effect:
+  - コマンド: `pnpm exec ts-node eval/loop.ts --loop 1 --scenario crud-basic --report-prefix eval/reports/loop-plan-check`
+  - イベント（Observed）:
+    - `event=loop_start`
+    - `event=iteration_prepare`
+    - `event=run_command_start`
+    - `event=run_command_end exit_code=1 elapsed_ms=102091`
+    - `event=report_read_start` / `event=report_read_end exists=true size_bytes=19415`
+    - `event=summary_write_start` / `event=summary_write_end`
+    - `event=loop_done exit_code=0 reports=1`
+  - 生成物: `loop-plan-check-20260210043546-01.json`, `loop-plan-check-summary-20260210043546.json`
+* Verdict: Effective
+* If Ineffective: N/A
+* Proposal stack:
+  - Pending:
+    - P6: `run_command_end exit_code` と最終 `loop_done` の意味差（runner失敗でもsummaryは成功）を summary 側の明示フィールドへ出す。
+  - Dropped as noise:
+    - なし
+  - Dropped as waste:
+    - なし
+
 ---
 
 ## 反復記録テンプレート（追記用）
