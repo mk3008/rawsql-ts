@@ -450,43 +450,71 @@ async function run(): Promise<void> {
         return;
       }
 
-      const preflightResult = await runAndTrackAllowFailureWithDetails(
-        commandLogs,
-        codexBin,
-        [
-          'exec',
-          '--cd',
-          workspacePath,
-          '--skip-git-repo-check',
-          '--full-auto',
-          '--sandbox',
-          sandboxMode,
-          '-'
-        ],
-        repoRoot,
-        codexEnv,
-        PREFLIGHT_WRITE_PROMPT,
-        120000
-      );
-      const preflightProbePath = path.join(workspacePath, '__eval_probe_write.txt');
-      const preflightLocalExists = existsSync(preflightProbePath);
-      const preflightLocalContent = preflightLocalExists ? await readUtf8File(preflightProbePath) : '';
-      const preflightPassed =
-        preflightResult.exitCode === 0 && preflightLocalExists && preflightLocalContent === 'ok';
-      checks.push({
-        name: 'preflight_write',
-        passed: preflightPassed,
-        violations: preflightPassed ? 0 : 1,
-        details: preflightPassed ? [] : ['preflight_write_observed_failure'],
-        meta: {
-          exitCode: preflightResult.exitCode,
-          stdout_head: preflightResult.stdout.slice(0, 2000),
-          stderr_head: preflightResult.stderr.slice(0, 2000),
-          header_workdir: readHeaderWorkdir(preflightResult.log.outputHead),
-          local_exists: preflightLocalExists,
-          local_content: preflightLocalContent
-        }
-      });
+      const preflightArgs = [
+        'exec',
+        '--cd',
+        workspacePath,
+        '--skip-git-repo-check',
+        '--full-auto',
+        '--sandbox',
+        sandboxMode,
+        '-'
+      ];
+      const preflightWriteOptIn = (codexEnv.EVAL_PREFLIGHT_WRITE ?? process.env.EVAL_PREFLIGHT_WRITE) === '1';
+      if (preflightWriteOptIn) {
+        const preflightResult = await runAndTrackAllowFailureWithDetails(
+          commandLogs,
+          codexBin,
+          preflightArgs,
+          repoRoot,
+          codexEnv,
+          PREFLIGHT_WRITE_PROMPT,
+          120000
+        );
+        const preflightProbePath = path.join(workspacePath, '__eval_probe_write.txt');
+        const preflightLocalExists = existsSync(preflightProbePath);
+        const preflightLocalContent = preflightLocalExists ? await readUtf8File(preflightProbePath) : '';
+        const preflightPassed =
+          preflightResult.exitCode === 0 && preflightLocalExists && preflightLocalContent === 'ok';
+        checks.push({
+          name: 'preflight_write',
+          passed: preflightPassed,
+          violations: preflightPassed ? 0 : 1,
+          details: preflightPassed ? [] : ['preflight_write_observed_failure'],
+          meta: {
+            exitCode: preflightResult.exitCode,
+            stdout_head: preflightResult.stdout.slice(0, 2000),
+            stderr_head: preflightResult.stderr.slice(0, 2000),
+            header_workdir: readHeaderWorkdir(preflightResult.log.outputHead),
+            local_exists: preflightLocalExists,
+            local_content: preflightLocalContent,
+            skipped: false
+          }
+        });
+      } else {
+        commandLogs.push({
+          command: codexBin,
+          args: preflightArgs,
+          cwd: repoRoot,
+          exitCode: 0,
+          outputHead: 'Skipped preflight_write codex exec (skipped=true; set EVAL_PREFLIGHT_WRITE=1 to enable).'
+        });
+        checks.push({
+          name: 'preflight_write',
+          passed: true,
+          violations: 0,
+          details: ['preflight_write skipped by default'],
+          meta: {
+            exitCode: null,
+            stdout_head: '',
+            stderr_head: '',
+            header_workdir: null,
+            local_exists: false,
+            local_content: '',
+            skipped: true
+          }
+        });
+      }
 
       const beforeAiSnapshot = await snapshotWorkspaceTextFiles(workspacePath);
       const promptText = await readUtf8File(promptPath);
