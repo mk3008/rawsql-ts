@@ -74,6 +74,8 @@ interface LoopSummary {
     preflight_write_present_count: number;
     preflight_write_executed_count: number;
     preflight_write_skipped_count: number;
+    dirty_worktree_present_count: number;
+    dirty_worktree_failed_count: number;
     failure_clusters: FailureCluster[];
     failure_cluster_entropy: number;
     loop_latency_ms: {
@@ -102,6 +104,11 @@ interface PreflightWriteStats {
   presentCount: number;
   executedCount: number;
   skippedCount: number;
+}
+
+interface DirtyWorktreeStats {
+  presentCount: number;
+  failedCount: number;
 }
 
 interface RunnerMissingMeta {
@@ -289,6 +296,24 @@ function computePreflightWriteStats(reports: EvalReport[]): PreflightWriteStats 
   }
 
   return { presentCount, executedCount, skippedCount };
+}
+
+function computeDirtyWorktreeStats(reports: EvalReport[]): DirtyWorktreeStats {
+  let presentCount = 0;
+  let failedCount = 0;
+
+  for (const report of reports) {
+    const dirtyWorktree = report.checks.find((check) => check.name === 'dirty_worktree');
+    if (!dirtyWorktree) {
+      continue;
+    }
+    presentCount += 1;
+    if (!dirtyWorktree.passed) {
+      failedCount += 1;
+    }
+  }
+
+  return { presentCount, failedCount };
 }
 
 function buildFailureClusters(reports: EvalReport[], reportPaths: string[]): FailureCluster[] {
@@ -646,6 +671,7 @@ async function run(): Promise<void> {
   const scores = reports.map((report) => report.score_total);
   const durations = reports.map((report) => computeDurationMs(report));
   const preflightStats = computePreflightWriteStats(reports);
+  const dirtyWorktreeStats = computeDirtyWorktreeStats(reports);
   const failureClusters = buildFailureClusters(reports, reportPaths);
   const proposals = buildProposals(failureClusters);
   const appliedProposal = await applyTopTemplateTextProposal(repoRoot, proposals);
@@ -688,6 +714,8 @@ async function run(): Promise<void> {
       preflight_write_present_count: preflightStats.presentCount,
       preflight_write_executed_count: preflightStats.executedCount,
       preflight_write_skipped_count: preflightStats.skippedCount,
+      dirty_worktree_present_count: dirtyWorktreeStats.presentCount,
+      dirty_worktree_failed_count: dirtyWorktreeStats.failedCount,
       failure_clusters: failureClusters,
       failure_cluster_entropy: new Set(failureClusters.map((cluster) => cluster.category)).size,
       loop_latency_ms: {
