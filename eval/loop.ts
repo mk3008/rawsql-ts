@@ -53,6 +53,11 @@ interface LoopSummary {
     runner_exit_code: number | null;
     runner_elapsed_ms: number;
     runner_report_written: boolean;
+    runner_log_path?: string;
+    runner_last_event: string;
+    runner_report_expected_path: string;
+    runner_report_exists: boolean;
+    runner_exit_code_mismatch: boolean;
     runner_wall_timeout: boolean;
     runner_wall_timeout_ms: number;
     runner_wall_timeout_note?: string;
@@ -79,6 +84,7 @@ interface LoopSummary {
     preflight_write_skipped_count: number;
     dirty_worktree_present_count: number;
     dirty_worktree_failed_count: number;
+    runner_exit_code_mismatch_count: number;
     failure_clusters: FailureCluster[];
     failure_cluster_entropy: number;
     loop_latency_ms: {
@@ -126,6 +132,11 @@ interface IterationRuntimeMeta {
   runnerExitCode: number | null;
   runnerElapsedMs: number;
   runnerReportWritten: boolean;
+  runnerLogPath?: string;
+  runnerLastEvent: string;
+  runnerReportExpectedPath: string;
+  runnerReportExists: boolean;
+  runnerExitCodeMismatch: boolean;
   runnerWallTimeout: boolean;
   runnerWallTimeoutMs: number;
   runnerWallTimeoutNote?: string;
@@ -156,6 +167,49 @@ function parseRunnerWallTimeoutMs(raw: string | undefined): number {
     return fallbackMs;
   }
   return Math.floor(parsed);
+}
+
+function sanitizeRunnerLogToken(input: string): string {
+  const normalized = input.replace(/[\\/:*?"<>|]+/g, '_').replace(/\s+/g, '_');
+  return normalized.length > 0 ? normalized : 'loop';
+}
+
+function buildDefaultRunnerLogPath(
+  repoRoot: string,
+  reportPrefix: string,
+  timestamp: string,
+  iteration: number
+): string {
+  const prefixToken = sanitizeRunnerLogToken(reportPrefix);
+  const iterToken = String(iteration).padStart(2, '0');
+  return path.resolve(repoRoot, 'eval', 'tmp', `runner-${prefixToken}-${timestamp}-${iterToken}.log`);
+}
+
+async function readRunnerLastEvent(logPath: string | undefined): Promise<string> {
+  if (!logPath || !existsSync(logPath)) {
+    return '';
+  }
+  try {
+    const raw = await readUtf8File(logPath);
+    const lines = raw
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line.startsWith('[eval-runner]'));
+    return lines[lines.length - 1] ?? '';
+  } catch {
+    return '';
+  }
+}
+
+function detectRunnerExitCodeMismatch(runnerExitCode: number | null, runnerLastEvent: string): boolean {
+  if (runnerExitCode !== 124 || runnerLastEvent.length === 0) {
+    return false;
+  }
+  const match = runnerLastEvent.match(/exit_code=(\d+)/);
+  if (!match) {
+    return false;
+  }
+  return match[1] !== '124';
 }
 
 function buildOutputHead(stdout: string, stderr: string): string {
@@ -670,6 +724,12 @@ async function run(): Promise<void> {
 
   for (let index = 1; index <= options.loopCount; index += 1) {
     const reportPath = path.resolve(repoRoot, `${options.reportPrefix}-${timestamp}-${String(index).padStart(2, '0')}.json`);
+    const runnerLogPath =
+      process.env.EVAL_RUNNER_LOG_PATH?.trim() || buildDefaultRunnerLogPath(repoRoot, options.reportPrefix, timestamp, index);
+    const commandEnv: NodeJS.ProcessEnv = {
+      ...process.env,
+      EVAL_RUNNER_LOG_PATH: runnerLogPath
+    };
     const args = [
       ...tsNodeArgsBase,
       '--case',
@@ -707,9 +767,11 @@ async function run(): Promise<void> {
       command: commandInvocation.command,
       args: commandInvocation.args,
       cwd: repoRoot,
-      env: process.env,
+      env: commandEnv,
       wallTimeoutMs: runnerWallTimeoutMs
     });
+    const runnerLastEvent = await readRunnerLastEvent(runnerLogPath);
+    const runnerExitCodeMismatch = detectRunnerExitCodeMismatch(result.exitCode, runnerLastEvent);
     const runnerElapsedMs = Date.now() - runStartedAt;
     const exitCodeKey = String(result.exitCode);
     runnerExitCodeCounts[exitCodeKey] = (runnerExitCodeCounts[exitCodeKey] ?? 0) + 1;
@@ -745,6 +807,11 @@ async function run(): Promise<void> {
         runnerExitCode: result.exitCode,
         runnerElapsedMs,
         runnerReportWritten: false,
+        runnerLogPath,
+        runnerLastEvent,
+        runnerReportExpectedPath: reportPath,
+        runnerReportExists: false,
+        runnerExitCodeMismatch,
         runnerWallTimeout: result.wallTimedOut,
         runnerWallTimeoutMs: result.wallTimeoutMs,
         runnerWallTimeoutNote: result.wallTimedOut ? 'no progress after run_command_start' : undefined
@@ -772,6 +839,11 @@ async function run(): Promise<void> {
       runnerExitCode: result.exitCode,
       runnerElapsedMs,
       runnerReportWritten: true,
+      runnerLogPath,
+      runnerLastEvent,
+      runnerReportExpectedPath: reportPath,
+      runnerReportExists: true,
+      runnerExitCodeMismatch,
       runnerWallTimeout: result.wallTimedOut,
       runnerWallTimeoutMs: result.wallTimeoutMs,
       runnerWallTimeoutNote: result.wallTimedOut ? 'no progress after run_command_start' : undefined
@@ -788,6 +860,9 @@ async function run(): Promise<void> {
   const failureClusters = buildFailureClusters(reports, reportPaths);
   const proposals = buildProposals(failureClusters);
   const appliedProposal = await applyTopTemplateTextProposal(repoRoot, proposals);
+  const runnerExitCodeMismatchCount = Array.from(runtimeByReportPath.values()).filter(
+    (runtime) => runtime.runnerExitCodeMismatch
+  ).length;
 
   const summary: LoopSummary = {
     generated_at: new Date().toISOString(),
@@ -810,6 +885,11 @@ async function run(): Promise<void> {
         runner_exit_code: runtimeMeta?.runnerExitCode ?? null,
         runner_elapsed_ms: runtimeMeta?.runnerElapsedMs ?? 0,
         runner_report_written: runtimeMeta?.runnerReportWritten ?? false,
+        runner_log_path: runtimeMeta?.runnerLogPath,
+        runner_last_event: runtimeMeta?.runnerLastEvent ?? '',
+        runner_report_expected_path: runtimeMeta?.runnerReportExpectedPath ?? reportPaths[index],
+        runner_report_exists: runtimeMeta?.runnerReportExists ?? false,
+        runner_exit_code_mismatch: runtimeMeta?.runnerExitCodeMismatch ?? false,
         runner_wall_timeout: runtimeMeta?.runnerWallTimeout ?? false,
         runner_wall_timeout_ms: runtimeMeta?.runnerWallTimeoutMs ?? runnerWallTimeoutMs,
         runner_wall_timeout_note: runtimeMeta?.runnerWallTimeoutNote,
@@ -839,6 +919,7 @@ async function run(): Promise<void> {
       preflight_write_skipped_count: preflightStats.skippedCount,
       dirty_worktree_present_count: dirtyWorktreeStats.presentCount,
       dirty_worktree_failed_count: dirtyWorktreeStats.failedCount,
+      runner_exit_code_mismatch_count: runnerExitCodeMismatchCount,
       failure_clusters: failureClusters,
       failure_cluster_entropy: new Set(failureClusters.map((cluster) => cluster.category)).size,
       loop_latency_ms: {
