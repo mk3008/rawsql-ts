@@ -50,6 +50,9 @@ interface LoopSummary {
     score_total: number;
     failed_categories: string[];
     duration_ms: number;
+    runner_exit_code: number | null;
+    runner_elapsed_ms: number;
+    runner_report_written: boolean;
     runner_report_missing?: {
       exit_code: number | null;
       output_head: string;
@@ -64,6 +67,10 @@ interface LoopSummary {
     min_score: number;
     max_score: number;
     runner_report_missing_count: number;
+    runner_exit_code_counts: Record<string, number>;
+    loop_exit_code: number;
+    loop_completed: boolean;
+    exit_code_note: string;
     preflight_write_present_count: number;
     preflight_write_executed_count: number;
     preflight_write_skipped_count: number;
@@ -103,6 +110,12 @@ interface RunnerMissingMeta {
   stdoutHead: string;
   stderrHead: string;
   nextCommand: string;
+}
+
+interface IterationRuntimeMeta {
+  runnerExitCode: number | null;
+  runnerElapsedMs: number;
+  runnerReportWritten: boolean;
 }
 
 function sanitizeLogValue(value: unknown): string {
@@ -511,6 +524,8 @@ async function run(): Promise<void> {
   const reportPaths: string[] = [];
   const reports: EvalReport[] = [];
   const missingReports = new Map<string, RunnerMissingMeta>();
+  const runtimeByReportPath = new Map<string, IterationRuntimeMeta>();
+  const runnerExitCodeCounts: Record<string, number> = {};
   const tsNodeArgsBase = ['exec', 'ts-node', path.join(repoRoot, 'eval', 'runner.ts')];
   const timestamp = new Date().toISOString().replace(/[-:TZ.]/g, '').slice(0, 14);
   const runId = `${timestamp}-${process.pid}`;
@@ -564,11 +579,14 @@ async function run(): Promise<void> {
       env: process.env,
       timeoutMs: 12 * 60 * 1000
     });
+    const runnerElapsedMs = Date.now() - runStartedAt;
+    const exitCodeKey = String(result.exitCode);
+    runnerExitCodeCounts[exitCodeKey] = (runnerExitCodeCounts[exitCodeKey] ?? 0) + 1;
     emitLoopEvent('run_command_end', {
       run_id: runId,
       iteration: index,
       exit_code: result.exitCode,
-      elapsed_ms: Date.now() - runStartedAt
+      elapsed_ms: runnerElapsedMs
     });
     if (result.exitCode === null) {
       throw new Error(`Iteration ${index} exited with null code.`);
@@ -591,6 +609,11 @@ async function run(): Promise<void> {
         nextCommand
       };
       missingReports.set(reportPath, missingMeta);
+      runtimeByReportPath.set(reportPath, {
+        runnerExitCode: result.exitCode,
+        runnerElapsedMs,
+        runnerReportWritten: false
+      });
       reportPaths.push(reportPath);
       reports.push(buildMissingEvalReport(options.scenario, reportPath, result.exitCode));
       continue;
@@ -610,6 +633,11 @@ async function run(): Promise<void> {
       size_bytes: Buffer.byteLength(reportRaw, 'utf8')
     });
     const report = JSON.parse(reportRaw) as EvalReport;
+    runtimeByReportPath.set(reportPath, {
+      runnerExitCode: result.exitCode,
+      runnerElapsedMs,
+      runnerReportWritten: true
+    });
     reportPaths.push(reportPath);
     reports.push(report);
   }
@@ -634,6 +662,9 @@ async function run(): Promise<void> {
       score_total: report.score_total,
       failed_categories: report.checks.filter((check) => isFailureRelevantCheck(check)).map((check) => check.name),
       duration_ms: durations[index] ?? 0,
+      runner_exit_code: runtimeByReportPath.get(reportPaths[index])?.runnerExitCode ?? null,
+      runner_elapsed_ms: runtimeByReportPath.get(reportPaths[index])?.runnerElapsedMs ?? 0,
+      runner_report_written: runtimeByReportPath.get(reportPaths[index])?.runnerReportWritten ?? false,
       runner_report_missing: missingReports.has(reportPaths[index])
         ? {
             exit_code: missingReports.get(reportPaths[index])!.exitCode,
@@ -650,6 +681,10 @@ async function run(): Promise<void> {
       min_score: scores.length === 0 ? 0 : Math.min(...scores),
       max_score: scores.length === 0 ? 0 : Math.max(...scores),
       runner_report_missing_count: missingReports.size,
+      runner_exit_code_counts: runnerExitCodeCounts,
+      loop_exit_code: Number(process.exitCode ?? 0),
+      loop_completed: true,
+      exit_code_note: 'runner_exit_code is per-iteration runner result; loop_exit_code indicates whether loop summary generation completed.',
       preflight_write_present_count: preflightStats.presentCount,
       preflight_write_executed_count: preflightStats.executedCount,
       preflight_write_skipped_count: preflightStats.skippedCount,

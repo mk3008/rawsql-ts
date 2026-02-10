@@ -315,6 +315,31 @@
   - Dropped as waste:
     - なし
 
+* Iteration: 7
+* Target item: 1. SQLカタログ単体テストの改善（ZTD / Mapping）
+* Change applied: P6（`eval/loop.ts` の summary に runner/loop 終了コードの差分メタを追加）
+* Expected effect: summary 単体で「runner失敗」と「loop集約完了」を機械的に判別できる
+* Observed effect:
+  - コマンド: `pnpm exec ts-node eval/loop.ts --loop 1 --scenario crud-basic --report-prefix eval/reports/loop-plan-check`
+  - 生成summary: `eval/reports/loop-plan-check-summary-20260210054249.json`
+  - 追加フィールド（Observed）:
+    - `aggregate.runner_exit_code_counts = { "1": 1 }`
+    - `aggregate.loop_exit_code = 0`
+    - `aggregate.loop_completed = true`
+    - `aggregate.exit_code_note = "runner_exit_code is per-iteration runner result; loop_exit_code indicates whether loop summary generation completed."`
+    - `iterations[0].runner_exit_code = 1`
+    - `iterations[0].runner_elapsed_ms = 268587`
+    - `iterations[0].runner_report_written = true`
+* Verdict: Effective
+* If Ineffective: N/A
+* Proposal stack:
+  - Pending:
+    - P7: `aggregate.runner_exit_code_counts` のキーを数値昇順で安定出力し、比較差分を減らす。
+  - Dropped as noise:
+    - なし
+  - Dropped as waste:
+    - なし
+
 ---
 
 ## 反復記録テンプレート（追記用）
