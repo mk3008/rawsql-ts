@@ -49,6 +49,7 @@ interface LoopSummary {
     success: boolean;
     score_total: number;
     failed_categories: string[];
+    ai_failure_kind: 'blocker_readonly' | 'marker_only' | 'codex_exec_timeout' | 'dirty_worktree' | 'other';
     test_mode: 'eval' | 'full' | 'unknown';
     test_command: string;
     test_excludes: string[];
@@ -95,6 +96,7 @@ interface LoopSummary {
     runner_wall_timeout_count: number;
     loop_wall_timeout_count: number;
     codex_exec_timeout_count: number;
+    ai_failure_kind_counts: Record<string, number>;
     test_mode_counts: Record<string, number>;
     failure_clusters: FailureCluster[];
     failure_cluster_entropy: number;
@@ -512,6 +514,23 @@ function readCodexExecTimeoutFlag(report: EvalReport): boolean {
   return (aiExecution.meta as Record<string, unknown>).codex_exec_timeout === true;
 }
 
+function readAiFailureKind(
+  report: EvalReport
+): 'blocker_readonly' | 'marker_only' | 'codex_exec_timeout' | 'dirty_worktree' | 'other' {
+  const aiExecution = report.checks.find((check) => check.name === 'ai_execution');
+  const value = aiExecution?.meta && typeof aiExecution.meta === 'object' ? aiExecution.meta.ai_failure_kind : undefined;
+  if (
+    value === 'blocker_readonly' ||
+    value === 'marker_only' ||
+    value === 'codex_exec_timeout' ||
+    value === 'dirty_worktree' ||
+    value === 'other'
+  ) {
+    return value;
+  }
+  return 'other';
+}
+
 function readTestMode(report: EvalReport): 'eval' | 'full' | 'unknown' {
   const value = report.meta?.test_mode;
   if (value === 'eval' || value === 'full') {
@@ -922,6 +941,11 @@ async function run(): Promise<void> {
   const preflightStats = computePreflightWriteStats(reports);
   const dirtyWorktreeStats = computeDirtyWorktreeStats(reports);
   const codexExecTimeoutCount = reports.filter((report) => readCodexExecTimeoutFlag(report)).length;
+  const aiFailureKindCounts = reports.reduce<Record<string, number>>((acc, report) => {
+    const kind = readAiFailureKind(report);
+    acc[kind] = (acc[kind] ?? 0) + 1;
+    return acc;
+  }, {});
   const testModeCounts = reports.reduce<Record<string, number>>((acc, report) => {
     const mode = readTestMode(report);
     acc[mode] = (acc[mode] ?? 0) + 1;
@@ -954,6 +978,7 @@ async function run(): Promise<void> {
         success: report.success,
         score_total: report.score_total,
         failed_categories: failedCategories,
+        ai_failure_kind: readAiFailureKind(report),
         test_mode: readTestMode(report),
         test_command: readTestCommand(report),
         test_excludes: readTestExcludes(report),
@@ -1007,6 +1032,7 @@ async function run(): Promise<void> {
         (runtime) => runtime.terminationReason === 'loop_wall_timeout'
       ).length,
       codex_exec_timeout_count: codexExecTimeoutCount,
+      ai_failure_kind_counts: aiFailureKindCounts,
       test_mode_counts: testModeCounts,
       failure_clusters: failureClusters,
       failure_cluster_entropy: new Set(failureClusters.map((cluster) => cluster.category)).size,

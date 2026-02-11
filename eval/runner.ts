@@ -103,6 +103,30 @@ interface RunnerEventLogger {
   logPath?: string;
 }
 
+type AiFailureKind = 'blocker_readonly' | 'marker_only' | 'codex_exec_timeout' | 'dirty_worktree' | 'other';
+
+function classifyAiFailureKind(params: {
+  blockerDetected: boolean;
+  blockerKind: AiBlockerMeta['kind'];
+  markerOnly: boolean;
+  codexExecTimeout: boolean;
+  dirtyWorktree: boolean;
+}): AiFailureKind {
+  if (params.blockerDetected && params.blockerKind === 'read_only') {
+    return 'blocker_readonly';
+  }
+  if (params.markerOnly) {
+    return 'marker_only';
+  }
+  if (params.codexExecTimeout) {
+    return 'codex_exec_timeout';
+  }
+  if (params.dirtyWorktree) {
+    return 'dirty_worktree';
+  }
+  return 'other';
+}
+
 function createSkippedCheck(name: string, reason: string): CheckResult {
   return {
     name,
@@ -863,6 +887,13 @@ async function run(): Promise<void> {
       const touchAnalysis = analyzeAiTouchedFiles(aiTouchedFiles);
       const blockerMeta = detectAiExecutionBlocker(aiStdoutHead, aiStderrHead);
       const aiPassed = aiExit === 0 && touchAnalysis.effectiveWrite && !blockerMeta.detected;
+      const aiFailureKind = classifyAiFailureKind({
+        blockerDetected: blockerMeta.detected,
+        blockerKind: blockerMeta.kind,
+        markerOnly: touchAnalysis.markerOnly,
+        codexExecTimeout: codexExecTimedOut,
+        dirtyWorktree: gitWorktreeState.dirty
+      });
       checks.push({
         name: 'ai_execution',
         passed: aiPassed,
@@ -895,6 +926,7 @@ async function run(): Promise<void> {
           blocker_detected: blockerMeta.detected,
           blocker_kind: blockerMeta.kind,
           blocker_excerpt: blockerMeta.excerpt,
+          ai_failure_kind: aiFailureKind,
           retried: aiExecution.retried,
           codex_exec_timeout: codexExecTimedOut,
           codex_exec_timeout_ms: codexExecTimedOut ? aiResult.timeoutMs ?? codexExecTimeoutMs : null,
@@ -938,6 +970,7 @@ async function run(): Promise<void> {
         violations: 0,
         details: ['AI step skipped'],
         meta: {
+          ai_failure_kind: 'other',
           exitCode: null,
           touchedFilesCount: 0,
           touchedFilesSample: [],
