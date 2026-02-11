@@ -13,6 +13,14 @@ For self-iteration operating rules and task order, see
 - Iteration logs: [`eval/logs/iterations/`](./logs/iterations/)
 - Compressed summaries: [`eval/logs/summary/`](./logs/summary/)
 
+Read in order:
+1. AI entrypoint (`eval/policy/AI_INSTRUCTIONS.ja.md`)
+2. Fixed policy (`eval/policy/POLICY.ja.md`)
+3. Ordered tasks (`eval/plans/TASKS.md`)
+4. Logs (`eval/logs/iterations/`, `eval/logs/summary/`)
+
+Log storage convention: see [`eval/policy/POLICY.ja.md` (ログ保持ポリシー)](./policy/POLICY.ja.md#ログ保持ポリシー).
+
 ## Goals
 
 - Generate playgrounds outside the library repository.
