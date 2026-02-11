@@ -1327,6 +1327,7 @@ function ensurePackageJsonFormatting(
   const scripts = (parsed.scripts as Record<string, string> | undefined) ?? {};
   const requiredScripts: Record<string, string> = {
     test: 'vitest run',
+    'test:eval': 'vitest run --exclude "**/*.integration.test.*" --exclude "**/*testcontainers*"',
     typecheck: 'tsc --noEmit',
     format: 'prettier . --write',
     lint: 'eslint .',

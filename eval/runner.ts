@@ -1013,7 +1013,7 @@ async function run(): Promise<void> {
     testExit = await runAndTrackAllowFailure(
       commandLogs,
       pnpmBin,
-      ['--dir', workspacePath, 'test'],
+      ['--dir', workspacePath, 'test:eval'],
       repoRoot,
       commandEnv
     );
