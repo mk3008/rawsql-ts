@@ -195,4 +195,6 @@ eval/reports/*
 !eval/reports/.gitkeep
 eval/_deps_cache/*
 !eval/_deps_cache/.gitkeep
+!eval/logs/
+!eval/logs/**
 playgrounds/ztd-playground/

@@ -4,6 +4,15 @@ This directory provides an evaluation loop for `ztd-cli` templates and AGENTS gu
 For self-iteration operating rules and task order, see
 [`eval/IMPROVEMENT_PLAN.ja.md`](./IMPROVEMENT_PLAN.ja.md).
 
+## Eval Docs Map
+
+- AI entrypoint: [`eval/policy/AI_INSTRUCTIONS.ja.md`](./policy/AI_INSTRUCTIONS.ja.md)
+- Fixed policy: [`eval/policy/POLICY.ja.md`](./policy/POLICY.ja.md)
+- Human-only decisions: [`eval/policy/HUMAN_RUNBOOK.ja.md`](./policy/HUMAN_RUNBOOK.ja.md)
+- Ordered tasks: [`eval/plans/TASKS.md`](./plans/TASKS.md)
+- Iteration logs: [`eval/logs/iterations/`](./logs/iterations/)
+- Compressed summaries: [`eval/logs/summary/`](./logs/summary/)
+
 ## Goals
 
 - Generate playgrounds outside the library repository.
