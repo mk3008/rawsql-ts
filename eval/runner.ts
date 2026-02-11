@@ -32,6 +32,10 @@ const DEFAULT_REPORT = path.join('eval', 'reports', 'latest.json');
 const DEFAULT_SANDBOX_MODE = 'workspace-write';
 const DEFAULT_LOCAL_DEPS = ['@rawsql-ts/shared-binder'];
 const DEFAULT_CODEX_EXEC_TIMEOUT_MS = 45_000;
+const EVAL_TEST_COMMAND = 'test:eval';
+const EVAL_TEST_EXCLUDES = ['**/*.integration.test.*', '**/*testcontainers*'];
+const EVAL_TEST_MODE: 'eval' = 'eval';
+const EVAL_TEST_FALLBACK_POLICY: 'fail_fast_no_fallback' = 'fail_fast_no_fallback';
 const EVAL_MARKER_RELATIVE_PATH = 'tests/__eval_ai_marker__.txt';
 const MAIN_AI_MARKER_REQUIREMENT = [
   'First run this command exactly:',
@@ -601,6 +605,7 @@ async function run(): Promise<void> {
   let installExit: number | null = null;
   let typecheckExit: number | null = null;
   let testExit: number | null = null;
+  let testFallbackReason: string | undefined;
   let aiExit: number | null = null;
   let aiTouchedFiles: string[] = [];
   let aiStdoutHead = '';
@@ -1013,10 +1018,13 @@ async function run(): Promise<void> {
     testExit = await runAndTrackAllowFailure(
       commandLogs,
       pnpmBin,
-      ['--dir', workspacePath, 'test:eval'],
+      ['--dir', workspacePath, EVAL_TEST_COMMAND],
       repoRoot,
       commandEnv
     );
+    if (testExit !== 0) {
+      testFallbackReason = `${EVAL_TEST_COMMAND} failed (exit=${testExit}); fallback disabled by policy (${EVAL_TEST_FALLBACK_POLICY})`;
+    }
     emitRunnerEvent(runnerLogger, 'test_end', { exit_code: testExit ?? 'null' });
 
     emitRunnerEvent(runnerLogger, 'checks_start');
@@ -1076,6 +1084,14 @@ async function run(): Promise<void> {
       commands: commandLogs,
       checks,
       codex_home_bootstrap: codexHomeBootstrap,
+      meta: {
+        test_command: EVAL_TEST_COMMAND,
+        test_excludes: EVAL_TEST_EXCLUDES,
+        test_mode: EVAL_TEST_MODE,
+        test_fallback_policy: EVAL_TEST_FALLBACK_POLICY,
+        test_fallback_attempted: false,
+        test_fallback_reason: testFallbackReason
+      },
       score_breakdown: scoreBreakdown,
       score_total: scoreBreakdown.total,
       success,

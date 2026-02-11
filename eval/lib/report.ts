@@ -25,6 +25,14 @@ export interface EvalReport {
     skipped_paths: string[];
     reason: string;
   };
+  meta?: {
+    test_command?: string;
+    test_excludes?: string[];
+    test_mode?: 'eval' | 'full';
+    test_fallback_policy?: 'fail_fast_no_fallback' | 'fallback_to_full';
+    test_fallback_attempted?: boolean;
+    test_fallback_reason?: string;
+  };
   score_breakdown: ScoreBreakdown;
   score_total: number;
   success: boolean;

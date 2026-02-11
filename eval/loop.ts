@@ -49,6 +49,9 @@ interface LoopSummary {
     success: boolean;
     score_total: number;
     failed_categories: string[];
+    test_mode: 'eval' | 'full' | 'unknown';
+    test_command: string;
+    test_excludes: string[];
     duration_ms: number;
     runner_exit_code: number | null;
     runner_elapsed_ms: number;
@@ -92,6 +95,7 @@ interface LoopSummary {
     runner_wall_timeout_count: number;
     loop_wall_timeout_count: number;
     codex_exec_timeout_count: number;
+    test_mode_counts: Record<string, number>;
     failure_clusters: FailureCluster[];
     failure_cluster_entropy: number;
     loop_latency_ms: {
@@ -508,6 +512,24 @@ function readCodexExecTimeoutFlag(report: EvalReport): boolean {
   return (aiExecution.meta as Record<string, unknown>).codex_exec_timeout === true;
 }
 
+function readTestMode(report: EvalReport): 'eval' | 'full' | 'unknown' {
+  const value = report.meta?.test_mode;
+  if (value === 'eval' || value === 'full') {
+    return value;
+  }
+  return 'unknown';
+}
+
+function readTestCommand(report: EvalReport): string {
+  return report.meta?.test_command ?? 'Not observed';
+}
+
+function readTestExcludes(report: EvalReport): string[] {
+  return Array.isArray(report.meta?.test_excludes)
+    ? report.meta!.test_excludes.filter((item): item is string => typeof item === 'string')
+    : [];
+}
+
 function buildFailureClusters(reports: EvalReport[], reportPaths: string[]): FailureCluster[] {
   const buckets = new Map<string, { count: number; examples: string[]; evidence: ProposalEvidence[] }>();
 
@@ -900,6 +922,11 @@ async function run(): Promise<void> {
   const preflightStats = computePreflightWriteStats(reports);
   const dirtyWorktreeStats = computeDirtyWorktreeStats(reports);
   const codexExecTimeoutCount = reports.filter((report) => readCodexExecTimeoutFlag(report)).length;
+  const testModeCounts = reports.reduce<Record<string, number>>((acc, report) => {
+    const mode = readTestMode(report);
+    acc[mode] = (acc[mode] ?? 0) + 1;
+    return acc;
+  }, {});
   const failureClusters = buildFailureClusters(reports, reportPaths);
   const proposals = buildProposals(failureClusters);
   const appliedProposal = await applyTopTemplateTextProposal(repoRoot, proposals);
@@ -927,6 +954,9 @@ async function run(): Promise<void> {
         success: report.success,
         score_total: report.score_total,
         failed_categories: failedCategories,
+        test_mode: readTestMode(report),
+        test_command: readTestCommand(report),
+        test_excludes: readTestExcludes(report),
         duration_ms: durations[index] ?? 0,
         runner_exit_code: runtimeMeta?.runnerExitCode ?? null,
         runner_elapsed_ms: runtimeMeta?.runnerElapsedMs ?? 0,
@@ -977,6 +1007,7 @@ async function run(): Promise<void> {
         (runtime) => runtime.terminationReason === 'loop_wall_timeout'
       ).length,
       codex_exec_timeout_count: codexExecTimeoutCount,
+      test_mode_counts: testModeCounts,
       failure_clusters: failureClusters,
       failure_cluster_entropy: new Set(failureClusters.map((cluster) => cluster.category)).size,
       loop_latency_ms: {
