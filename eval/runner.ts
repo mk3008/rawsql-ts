@@ -36,6 +36,7 @@ const EVAL_TEST_COMMAND = 'test:eval';
 const EVAL_TEST_EXCLUDES = ['**/*.integration.test.*', '**/*testcontainers*'];
 const EVAL_TEST_MODE: 'eval' = 'eval';
 const EVAL_TEST_FALLBACK_POLICY: 'fail_fast_no_fallback' = 'fail_fast_no_fallback';
+const CODEX_STDERR_TAIL_MAX_CHARS = 2000;
 const EVAL_MARKER_RELATIVE_PATH = 'tests/__eval_ai_marker__.txt';
 const MAIN_AI_MARKER_REQUIREMENT = [
   'First run this command exactly:',
@@ -66,6 +67,8 @@ interface CommandExecutionDetails {
   stdoutBytes?: number;
   stderrBytes?: number;
   lastOutputElapsedMs?: number | null;
+  stderrTail?: string;
+  stderrTailTruncated?: boolean;
 }
 
 interface CodexRetryResult {
@@ -322,6 +325,19 @@ function buildOutputHead(stdout: string, stderr: string): string {
   return merged.split(/\r?\n/).slice(0, 30).join('\n');
 }
 
+function buildTailText(text: string, maxChars: number): { tail: string; truncated: boolean } {
+  if (text.length <= maxChars) {
+    return {
+      tail: text,
+      truncated: false
+    };
+  }
+  return {
+    tail: text.slice(-maxChars),
+    truncated: true
+  };
+}
+
 function parseArgs(argv: string[]): CliOptions {
   let caseSlug = DEFAULT_CASE;
   let scenario = DEFAULT_SCENARIO;
@@ -454,6 +470,7 @@ async function runCodexCommandWithTimeout(
         outputHead: buildOutputHead(stdout, stderr)
       };
       commandLogs.push(log);
+      const stderrTail = buildTailText(stderr, CODEX_STDERR_TAIL_MAX_CHARS);
       resolve({
         exitCode,
         stdout,
@@ -463,7 +480,9 @@ async function runCodexCommandWithTimeout(
         timeoutMs,
         stdoutBytes,
         stderrBytes,
-        lastOutputElapsedMs: lastOutputAtMs === null ? null : lastOutputAtMs - startedAtMs
+        lastOutputElapsedMs: lastOutputAtMs === null ? null : lastOutputAtMs - startedAtMs,
+        stderrTail: stderrTail.tail,
+        stderrTailTruncated: stderrTail.truncated
       });
     };
 
@@ -978,6 +997,11 @@ async function run(): Promise<void> {
           codex_stdout_bytes: typeof aiResult.stdoutBytes === 'number' ? aiResult.stdoutBytes : 'Not observed',
           codex_stderr_bytes: typeof aiResult.stderrBytes === 'number' ? aiResult.stderrBytes : 'Not observed',
           codex_last_output_ms: codexLastOutputMs,
+          codex_stderr_tail: codexExecTimedOut ? (aiResult.stderrTail ?? '') : null,
+          codex_stderr_tail_truncated:
+            codexExecTimedOut && typeof aiResult.stderrTailTruncated === 'boolean'
+              ? aiResult.stderrTailTruncated
+              : null,
           codex_header_sandbox: headerSandbox ?? 'Not observed',
           codex_flag_sandbox: flagSandbox ?? 'Not observed',
           codex_sandbox_mismatch: codexSandboxMismatch,
