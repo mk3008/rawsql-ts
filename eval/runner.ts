@@ -33,6 +33,7 @@ const DEFAULT_SANDBOX_MODE = 'read-only';
 const DEFAULT_LOCAL_DEPS = ['@rawsql-ts/shared-binder'];
 const DEFAULT_CODEX_EXEC_TIMEOUT_MS = 45_000;
 const DEFAULT_CODEX_EXEC_TIMEOUT_MS_WITH_RUST_LOG = 90_000;
+const WORK_GITIGNORE_PATTERNS = ['tests/generated/'];
 const EVAL_TEST_COMMAND = 'test:eval';
 const EVAL_TEST_EXCLUDES = ['**/*.integration.test.*', '**/*testcontainers*'];
 const EVAL_TEST_MODE: 'eval' = 'eval';
@@ -934,6 +935,10 @@ async function run(): Promise<void> {
             work_git_init_exit_code: 'Not observed',
             work_git_commit_exit_code: 'Not observed',
             work_git_commit_skipped_reason: 'Not observed',
+            work_gitignore_written: 'Not observed',
+            work_gitignore_patterns: 'Not observed',
+            work_gitignore_write_exit: 'Not observed',
+            work_gitignore_write_error_tail: 'Not observed',
             work_git_status_porcelain: 'Not observed',
             work_git_status_dirty: 'Not observed',
             work_git_status_truncated: 'Not observed',
@@ -1088,12 +1093,27 @@ async function run(): Promise<void> {
       let workGitInitExitCode: number | null = null;
       let workGitCommitExitCode: number | null = null;
       let workGitCommitSkippedReason: string | null = null;
+      let workGitignoreWritten = false;
+      let workGitignorePatterns: string[] | null = null;
+      let workGitignoreWriteExit: number | null = null;
+      let workGitignoreWriteErrorTail: string | null = null;
       let workGitStatusPorcelain: string | null = null;
       let workGitStatusDirty: boolean | null = null;
       let workGitStatusTruncated: boolean | null = null;
       let workGitStatusExitCode: number | null = null;
       let workGitStatusErrorTail: string | null = null;
       if (codexMode.mode !== 'exec') {
+        const workGitignorePath = path.join(workspacePath, '.gitignore');
+        try {
+          await writeUtf8File(workGitignorePath, `${WORK_GITIGNORE_PATTERNS.join('\n')}\n`);
+          workGitignoreWritten = true;
+          workGitignorePatterns = [...WORK_GITIGNORE_PATTERNS];
+          workGitignoreWriteExit = 0;
+        } catch (error) {
+          const message = error instanceof Error ? error.stack ?? error.message : String(error);
+          workGitignoreWriteExit = 1;
+          workGitignoreWriteErrorTail = buildTailText(message, 2000).tail;
+        }
         workGitInitExitCode = await runAndTrackAllowFailure(commandLogs, 'git', ['init'], workspacePath, codexEnv);
         if (workGitInitExitCode === 0) {
           const workGitAddExitCode = await runAndTrackAllowFailure(
@@ -1292,6 +1312,13 @@ async function run(): Promise<void> {
           work_git_init_exit_code: workGitInitExitCode ?? 'Not observed',
           work_git_commit_exit_code: workGitCommitExitCode ?? 'Not observed',
           work_git_commit_skipped_reason: workGitCommitSkippedReason,
+          work_gitignore_written: codexMode.mode === 'exec' ? 'Not observed' : workGitignoreWritten,
+          work_gitignore_patterns:
+            codexMode.mode === 'exec' ? 'Not observed' : (workGitignorePatterns ?? ['Not observed']),
+          work_gitignore_write_exit:
+            codexMode.mode === 'exec' ? 'Not observed' : (workGitignoreWriteExit ?? 'Not observed'),
+          work_gitignore_write_error_tail:
+            codexMode.mode === 'exec' ? 'Not observed' : (workGitignoreWriteErrorTail ?? ''),
           work_git_status_porcelain: codexMode.mode === 'review_uncommitted' ? (workGitStatusPorcelain ?? '') : null,
           work_git_status_dirty:
             codexMode.mode === 'review_uncommitted' ? (workGitStatusDirty ?? 'Not observed') : null,
@@ -1388,6 +1415,10 @@ async function run(): Promise<void> {
           work_git_init_exit_code: 'Not observed',
           work_git_commit_exit_code: 'Not observed',
           work_git_commit_skipped_reason: 'Not observed',
+          work_gitignore_written: 'Not observed',
+          work_gitignore_patterns: 'Not observed',
+          work_gitignore_write_exit: 'Not observed',
+          work_gitignore_write_error_tail: 'Not observed',
           work_git_status_porcelain: 'Not observed',
           work_git_status_dirty: 'Not observed',
           work_git_status_truncated: 'Not observed',
