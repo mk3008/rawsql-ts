@@ -32,6 +32,7 @@ const DEFAULT_REPORT = path.join('eval', 'reports', 'latest.json');
 const DEFAULT_SANDBOX_MODE = 'read-only';
 const DEFAULT_LOCAL_DEPS = ['@rawsql-ts/shared-binder'];
 const DEFAULT_CODEX_EXEC_TIMEOUT_MS = 45_000;
+const DEFAULT_CODEX_EXEC_TIMEOUT_MS_WITH_RUST_LOG = 90_000;
 const EVAL_TEST_COMMAND = 'test:eval';
 const EVAL_TEST_EXCLUDES = ['**/*.integration.test.*', '**/*testcontainers*'];
 const EVAL_TEST_MODE: 'eval' = 'eval';
@@ -305,6 +306,28 @@ function parseCodexExecTimeoutMs(raw: string | undefined): number {
     return DEFAULT_CODEX_EXEC_TIMEOUT_MS;
   }
   return Math.floor(parsed);
+}
+
+type CodexExecTimeoutSource = 'explicit' | 'default' | 'rust_log_default';
+
+function resolveCodexExecTimeout(env?: NodeJS.ProcessEnv): { timeoutMs: number; source: CodexExecTimeoutSource } {
+  const explicitRaw = env?.EVAL_CODEX_EXEC_TIMEOUT_MS ?? process.env.EVAL_CODEX_EXEC_TIMEOUT_MS;
+  if (explicitRaw !== undefined && explicitRaw.trim().length > 0) {
+    return {
+      timeoutMs: parseCodexExecTimeoutMs(explicitRaw),
+      source: 'explicit'
+    };
+  }
+  if (resolveCodexRustLog(env)) {
+    return {
+      timeoutMs: DEFAULT_CODEX_EXEC_TIMEOUT_MS_WITH_RUST_LOG,
+      source: 'rust_log_default'
+    };
+  }
+  return {
+    timeoutMs: DEFAULT_CODEX_EXEC_TIMEOUT_MS,
+    source: 'default'
+  };
 }
 
 function resolveCodexRustLog(env?: NodeJS.ProcessEnv): string | null {
@@ -882,6 +905,8 @@ async function run(): Promise<void> {
             marker_only: false,
             non_marker_touched_count: 0,
             headerSandbox: null,
+            codex_exec_timeout_ms_effective: 'Not observed',
+            codex_exec_timeout_ms_source: 'Not observed',
             codex_rust_log: 'Not observed',
             effectiveWrite: false,
             command: '',
@@ -981,7 +1006,8 @@ async function run(): Promise<void> {
         '-'
       ];
       emitRunnerEvent(runnerLogger, 'ai_exec_start');
-      const codexExecTimeoutMs = parseCodexExecTimeoutMs(codexEnv.EVAL_CODEX_EXEC_TIMEOUT_MS);
+      const codexExecTimeout = resolveCodexExecTimeout(codexEnv);
+      const codexExecTimeoutMs = codexExecTimeout.timeoutMs;
       const aiExecution = await runCodexExecWithRetry(
         commandLogs,
         aiCommandArgs,
@@ -1060,6 +1086,8 @@ async function run(): Promise<void> {
           retried: aiExecution.retried,
           codex_exec_timeout: codexExecTimedOut,
           codex_exec_timeout_ms: codexExecTimedOut ? aiResult.timeoutMs ?? codexExecTimeoutMs : null,
+          codex_exec_timeout_ms_effective: codexExecTimeoutMs,
+          codex_exec_timeout_ms_source: codexExecTimeout.source,
           codex_stdout_bytes: typeof aiResult.stdoutBytes === 'number' ? aiResult.stdoutBytes : 'Not observed',
           codex_stderr_bytes: typeof aiResult.stderrBytes === 'number' ? aiResult.stderrBytes : 'Not observed',
           codex_last_output_ms: codexLastOutputMs,
@@ -1131,6 +1159,8 @@ async function run(): Promise<void> {
           marker_only: false,
           non_marker_touched_count: 0,
           headerSandbox: null,
+          codex_exec_timeout_ms_effective: 'Not observed',
+          codex_exec_timeout_ms_source: 'Not observed',
           codex_rust_log: 'Not observed',
           effectiveWrite: false,
           command: '',
