@@ -457,6 +457,70 @@ function buildWorkReportMarkdown(params: {
   ].join('\n');
 }
 
+function buildResumeMarkdown(params: {
+  summary: LoopSummary;
+  summaryPath: string;
+  latestWorkReportPath: string | null;
+}): string {
+  const { summary, summaryPath, latestWorkReportPath } = params;
+  const reportPathLines =
+    summary.iterations.length > 0
+      ? summary.iterations.map((iteration) => `- ${iteration.report_path}`)
+      : ['- Not observed'];
+  const runnerLogPathLines =
+    summary.iterations.length > 0
+      ? summary.iterations.map((iteration) => `- ${iteration.runner_log_path ?? 'Not observed'}`)
+      : ['- Not observed'];
+  const failedCategoryLines =
+    summary.iterations.length > 0
+      ? summary.iterations.map((iteration) => {
+          const failed = iteration.failed_categories.length > 0 ? iteration.failed_categories.join(', ') : 'none';
+          return `- Iteration ${iteration.index}: ${failed}`;
+        })
+      : ['- Not observed'];
+  const aiFailureKindCountEntries = Object.entries(summary.aggregate.ai_failure_kind_counts ?? {});
+  const aiFailureKindCountsText =
+    aiFailureKindCountEntries.length > 0
+      ? aiFailureKindCountEntries.map(([key, value]) => `${key}=${value}`).join(', ')
+      : 'Not observed';
+  const appliedProposalNote =
+    summary.applied_proposal.applied === true && summary.applied_proposal.notes.includes('no file content changes')
+      ? 'applied_proposal は applied=true だが no file content changes が観測されたため、次は手動で1件選ぶ必要あり'
+      : 'Not observed';
+
+  return [
+    '# Eval Resume',
+    '',
+    '## 現在のフェーズ',
+    '- Task0: eval安定化 (TASK1着手前)',
+    '',
+    '## 最新の実行',
+    `- generated_at: ${summary.generated_at || 'Not observed'}`,
+    `- scenario: ${summary.scenario || 'Not observed'}`,
+    `- summary json: ${summaryPath || 'Not observed'}`,
+    '- report json (1..N):',
+    ...reportPathLines.map((line) => `  ${line}`),
+    '- runner log (1..N):',
+    ...runnerLogPathLines.map((line) => `  ${line}`),
+    '',
+    '## 最新の結果(機械可読の要点だけ)',
+    `- pass_rate: ${summary.aggregate.pass_rate}`,
+    '- failed_categories:',
+    ...failedCategoryLines.map((line) => `  ${line}`),
+    `- codex_exec_timeout_count: ${summary.aggregate.codex_exec_timeout_count}`,
+    `- runner_wall_timeout_count: ${summary.aggregate.runner_wall_timeout_count}`,
+    `- runner_report_missing_count: ${summary.aggregate.runner_report_missing_count}`,
+    `- ai_failure_kind_counts: ${aiFailureKindCountsText}`,
+    '',
+    '## 次にやる1件',
+    `- ${appliedProposalNote}`,
+    '',
+    '## 参照',
+    `- latest work report: ${latestWorkReportPath ?? 'Not observed'}`,
+    ''
+  ].join('\n');
+}
+
 function percentile(values: number[], p: number): number {
   if (values.length === 0) {
     return 0;
@@ -1145,6 +1209,21 @@ async function run(): Promise<void> {
   emitLoopEvent('work_report_write_end', {
     run_id: runId,
     work_report_path: workReportPath
+  });
+  const resumePath = path.resolve(repoRoot, 'eval', 'resume.md');
+  const resumeMarkdown = buildResumeMarkdown({
+    summary,
+    summaryPath,
+    latestWorkReportPath: workReportPath
+  });
+  emitLoopEvent('resume_write_start', {
+    run_id: runId,
+    resume_path: resumePath
+  });
+  await writeUtf8File(resumePath, resumeMarkdown);
+  emitLoopEvent('resume_write_end', {
+    run_id: runId,
+    resume_path: resumePath
   });
   emitLoopEvent('loop_done', {
     run_id: runId,
