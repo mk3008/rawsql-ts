@@ -934,6 +934,11 @@ async function run(): Promise<void> {
             work_git_init_exit_code: 'Not observed',
             work_git_commit_exit_code: 'Not observed',
             work_git_commit_skipped_reason: 'Not observed',
+            work_git_status_porcelain: 'Not observed',
+            work_git_status_dirty: 'Not observed',
+            work_git_status_truncated: 'Not observed',
+            work_git_status_exit_code: 'Not observed',
+            work_git_status_error_tail: 'Not observed',
             codex_mode_effective: 'Not observed',
             codex_review_base: 'Not observed',
             codex_review_output_tail: 'Not observed',
@@ -1076,6 +1081,11 @@ async function run(): Promise<void> {
       let workGitInitExitCode: number | null = null;
       let workGitCommitExitCode: number | null = null;
       let workGitCommitSkippedReason: string | null = null;
+      let workGitStatusPorcelain: string | null = null;
+      let workGitStatusDirty: boolean | null = null;
+      let workGitStatusTruncated: boolean | null = null;
+      let workGitStatusExitCode: number | null = null;
+      let workGitStatusErrorTail: string | null = null;
       if (codexMode.mode !== 'exec') {
         workGitInitExitCode = await runAndTrackAllowFailure(commandLogs, 'git', ['init'], workspacePath, codexEnv);
         if (workGitInitExitCode === 0) {
@@ -1110,6 +1120,24 @@ async function run(): Promise<void> {
           }
         } else {
           workGitCommitSkippedReason = 'git_init_failed';
+        }
+      }
+      if (codexMode.mode === 'review_uncommitted') {
+        const workGitStatusResult = await runAndTrackAllowFailureWithDetails(
+          commandLogs,
+          'git',
+          ['status', '--porcelain'],
+          workspacePath,
+          codexEnv
+        );
+        workGitStatusExitCode = workGitStatusResult.exitCode;
+        if (workGitStatusResult.exitCode === 0) {
+          const porcelainText = workGitStatusResult.stdout;
+          workGitStatusPorcelain = porcelainText.slice(0, 2000);
+          workGitStatusTruncated = porcelainText.length > 2000;
+          workGitStatusDirty = porcelainText.trim().length > 0;
+        } else {
+          workGitStatusErrorTail = buildTailText(workGitStatusResult.stderr, 2000).tail;
         }
       }
       const beforeAiSnapshot = await snapshotWorkspaceTextFiles(workspacePath);
@@ -1205,6 +1233,15 @@ async function run(): Promise<void> {
           work_git_init_exit_code: workGitInitExitCode ?? 'Not observed',
           work_git_commit_exit_code: workGitCommitExitCode ?? 'Not observed',
           work_git_commit_skipped_reason: workGitCommitSkippedReason,
+          work_git_status_porcelain: codexMode.mode === 'review_uncommitted' ? (workGitStatusPorcelain ?? '') : null,
+          work_git_status_dirty:
+            codexMode.mode === 'review_uncommitted' ? (workGitStatusDirty ?? 'Not observed') : null,
+          work_git_status_truncated:
+            codexMode.mode === 'review_uncommitted' ? (workGitStatusTruncated ?? 'Not observed') : null,
+          work_git_status_exit_code:
+            codexMode.mode === 'review_uncommitted' ? (workGitStatusExitCode ?? 'Not observed') : null,
+          work_git_status_error_tail:
+            codexMode.mode === 'review_uncommitted' ? (workGitStatusErrorTail ?? '') : null,
           codex_mode_effective: codexMode.mode,
           codex_review_base: codexMode.mode === 'review_base' ? (codexMode.reviewBase ?? 'Not observed') : null,
           codex_review_output_tail: codexReviewOutputTail,
@@ -1285,6 +1322,11 @@ async function run(): Promise<void> {
           work_git_init_exit_code: 'Not observed',
           work_git_commit_exit_code: 'Not observed',
           work_git_commit_skipped_reason: 'Not observed',
+          work_git_status_porcelain: 'Not observed',
+          work_git_status_dirty: 'Not observed',
+          work_git_status_truncated: 'Not observed',
+          work_git_status_exit_code: 'Not observed',
+          work_git_status_error_tail: 'Not observed',
           codex_mode_effective: 'Not observed',
           codex_review_base: 'Not observed',
           codex_review_output_tail: 'Not observed',
