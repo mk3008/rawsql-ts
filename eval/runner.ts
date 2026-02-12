@@ -952,6 +952,7 @@ async function run(): Promise<void> {
             codex_review_no_changes_pattern: 'Not observed',
             codex_review_diff_seen: false,
             codex_review_diff_path_hint: 'Not observed',
+            codex_review_diff_path_hint_source: 'not_observed',
             codex_review_treated_as_success: false,
             codex_review_treated_as_success_reason: 'Not observed',
             codex_rust_log: 'Not observed',
@@ -1215,6 +1216,8 @@ async function run(): Promise<void> {
       let codexReviewNoChangesPattern: string | null = null;
       let codexReviewDiffSeen: boolean | null = null;
       let codexReviewDiffPathHint: string | null = null;
+      let codexReviewDiffPathHintSource: 'name_only_output_tail' | 'inline_git_diff_arg' | 'not_observed' | null =
+        null;
       let codexReviewTreatedAsSuccess = false;
       let codexReviewTreatedAsSuccessReason: 'no_changes' | null = null;
       if (codexMode.mode === 'review_uncommitted') {
@@ -1224,6 +1227,7 @@ async function run(): Promise<void> {
           codexReviewFailureKind = 'not_observed';
           codexReviewNoChangesDetected = false;
           codexReviewDiffSeen = false;
+          codexReviewDiffPathHintSource = 'not_observed';
         } else {
           const noChangesPatterns = [
             'no changes',
@@ -1238,6 +1242,7 @@ async function run(): Promise<void> {
           if (matchedPattern) {
             codexReviewFailureKind = 'no_changes';
             codexReviewDiffSeen = false;
+            codexReviewDiffPathHintSource = 'not_observed';
           } else if (reviewTailText.includes('git diff')) {
             codexReviewFailureKind = 'diff_seen';
             codexReviewDiffSeen = true;
@@ -1248,10 +1253,40 @@ async function run(): Promise<void> {
               const tailAfterMarker = reviewTailRaw.slice(startIndex).trimStart();
               const pathMatch = tailAfterMarker.match(/^([^\s\r\n|;]+)/);
               codexReviewDiffPathHint = pathMatch?.[1] ?? null;
+              if (codexReviewDiffPathHint) {
+                codexReviewDiffPathHintSource = 'inline_git_diff_arg';
+              }
+            }
+
+            // Fall back to name-only style output parsing when inline git diff args are unavailable.
+            if (!codexReviewDiffPathHint) {
+              const excludedTokens = ['git diff', 'bash -lc', 'succeeded', 'exit', 'running', 'stdout', 'stderr'];
+              const pathSuffixes = ['.md', '.ts', '.json', '.sql'];
+              const candidateLine = reviewTailRaw
+                .split(/\r?\n/)
+                .map((line) => line.trim())
+                .find((line) => {
+                  if (line.length === 0) {
+                    return false;
+                  }
+                  const lowerLine = line.toLowerCase();
+                  if (excludedTokens.some((token) => lowerLine.includes(token))) {
+                    return false;
+                  }
+                  return line.includes('/') || pathSuffixes.some((suffix) => lowerLine.includes(suffix));
+                });
+              if (candidateLine) {
+                codexReviewDiffPathHint = candidateLine;
+                codexReviewDiffPathHintSource = 'name_only_output_tail';
+              }
+            }
+            if (!codexReviewDiffPathHintSource) {
+              codexReviewDiffPathHintSource = 'not_observed';
             }
           } else {
             codexReviewFailureKind = 'other';
             codexReviewDiffSeen = false;
+            codexReviewDiffPathHintSource = 'not_observed';
           }
         }
         if (codexReviewFailureKind === 'no_changes') {
@@ -1336,6 +1371,8 @@ async function run(): Promise<void> {
           codex_review_no_changes_pattern: codexReviewNoChangesPattern,
           codex_review_diff_seen: codexReviewDiffSeen,
           codex_review_diff_path_hint: codexReviewDiffPathHint,
+          codex_review_diff_path_hint_source:
+            codexMode.mode === 'review_uncommitted' ? (codexReviewDiffPathHintSource ?? 'not_observed') : null,
           codex_review_treated_as_success: codexReviewTreatedAsSuccess,
           codex_review_treated_as_success_reason: codexReviewTreatedAsSuccessReason,
           codex_stdout_bytes: typeof aiResult.stdoutBytes === 'number' ? aiResult.stdoutBytes : 'Not observed',
@@ -1432,6 +1469,7 @@ async function run(): Promise<void> {
           codex_review_no_changes_pattern: 'Not observed',
           codex_review_diff_seen: false,
           codex_review_diff_path_hint: 'Not observed',
+          codex_review_diff_path_hint_source: 'not_observed',
           codex_review_treated_as_success: false,
           codex_review_treated_as_success_reason: 'Not observed',
           codex_rust_log: 'Not observed',
