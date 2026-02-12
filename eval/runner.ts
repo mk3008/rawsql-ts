@@ -945,6 +945,8 @@ async function run(): Promise<void> {
             codex_review_failure_kind: 'not_observed',
             codex_review_no_changes_detected: false,
             codex_review_no_changes_pattern: 'Not observed',
+            codex_review_diff_seen: false,
+            codex_review_diff_path_hint: 'Not observed',
             codex_rust_log: 'Not observed',
             effectiveWrite: false,
             command: '',
@@ -1186,14 +1188,18 @@ async function run(): Promise<void> {
         codexMode.mode === 'exec'
           ? null
           : buildTailText([aiResult.stdout, aiResult.stderr].filter((part) => part.length > 0).join('\n'), 2000).tail;
-      let codexReviewFailureKind: 'no_changes' | 'other' | 'not_observed' | null = null;
+      let codexReviewFailureKind: 'no_changes' | 'diff_seen' | 'other' | 'not_observed' | null = null;
       let codexReviewNoChangesDetected: boolean | null = null;
       let codexReviewNoChangesPattern: string | null = null;
+      let codexReviewDiffSeen: boolean | null = null;
+      let codexReviewDiffPathHint: string | null = null;
       if (codexMode.mode === 'review_uncommitted') {
+        const reviewTailRaw = codexReviewOutputTail ?? '';
         const reviewTailText = (codexReviewOutputTail ?? '').toLowerCase();
         if (reviewTailText.length === 0) {
           codexReviewFailureKind = 'not_observed';
           codexReviewNoChangesDetected = false;
+          codexReviewDiffSeen = false;
         } else {
           const noChangesPatterns = [
             'no changes',
@@ -1204,8 +1210,25 @@ async function run(): Promise<void> {
           ] as const;
           const matchedPattern = noChangesPatterns.find((pattern) => reviewTailText.includes(pattern));
           codexReviewNoChangesDetected = matchedPattern !== undefined;
-          codexReviewFailureKind = matchedPattern ? 'no_changes' : 'other';
           codexReviewNoChangesPattern = matchedPattern ?? null;
+          if (matchedPattern) {
+            codexReviewFailureKind = 'no_changes';
+            codexReviewDiffSeen = false;
+          } else if (reviewTailText.includes('git diff')) {
+            codexReviewFailureKind = 'diff_seen';
+            codexReviewDiffSeen = true;
+            const diffMarker = 'git diff -- ';
+            const markerIndex = reviewTailRaw.toLowerCase().indexOf(diffMarker);
+            if (markerIndex >= 0) {
+              const startIndex = markerIndex + diffMarker.length;
+              const tailAfterMarker = reviewTailRaw.slice(startIndex).trimStart();
+              const pathMatch = tailAfterMarker.match(/^([^\s\r\n|;]+)/);
+              codexReviewDiffPathHint = pathMatch?.[1] ?? null;
+            }
+          } else {
+            codexReviewFailureKind = 'other';
+            codexReviewDiffSeen = false;
+          }
         }
       }
       const aiPassed = aiExit === 0 && touchAnalysis.effectiveWrite && !blockerMeta.detected;
@@ -1273,6 +1296,8 @@ async function run(): Promise<void> {
           codex_review_failure_kind: codexReviewFailureKind,
           codex_review_no_changes_detected: codexReviewNoChangesDetected,
           codex_review_no_changes_pattern: codexReviewNoChangesPattern,
+          codex_review_diff_seen: codexReviewDiffSeen,
+          codex_review_diff_path_hint: codexReviewDiffPathHint,
           codex_stdout_bytes: typeof aiResult.stdoutBytes === 'number' ? aiResult.stdoutBytes : 'Not observed',
           codex_stderr_bytes: typeof aiResult.stderrBytes === 'number' ? aiResult.stderrBytes : 'Not observed',
           codex_last_output_ms: codexLastOutputMs,
@@ -1361,6 +1386,8 @@ async function run(): Promise<void> {
           codex_review_failure_kind: 'not_observed',
           codex_review_no_changes_detected: false,
           codex_review_no_changes_pattern: 'Not observed',
+          codex_review_diff_seen: false,
+          codex_review_diff_path_hint: 'Not observed',
           codex_rust_log: 'Not observed',
           effectiveWrite: false,
           command: '',
