@@ -521,6 +521,115 @@ function buildResumeMarkdown(params: {
   ].join('\n');
 }
 
+interface KnowledgeEntry {
+  section: 'Codex / AI Execution' | 'Loop / Runner Semantics' | 'Operations';
+  conclusion: string;
+  evidence: string[];
+  firstSeen: string;
+  lastSeen: string;
+}
+
+function toIsoDate(input: string): string {
+  const raw = input.trim();
+  const match = raw.match(/^(\d{4}-\d{2}-\d{2})/);
+  return match?.[1] ?? 'Not observed';
+}
+
+function readAiExecutionMeta(report: EvalReport): Record<string, unknown> {
+  const aiExecution = report.checks.find((check) => check.name === 'ai_execution');
+  if (!aiExecution?.meta || typeof aiExecution.meta !== 'object') {
+    return {};
+  }
+  return aiExecution.meta as Record<string, unknown>;
+}
+
+function buildKnowledgeEntries(summary: LoopSummary, reports: EvalReport[], summaryPath: string): KnowledgeEntry[] {
+  const observedDate = toIsoDate(summary.generated_at);
+  const entries: KnowledgeEntry[] = [];
+
+  const mismatchResolvedButTimeoutPersists = reports.some((report) => {
+    const meta = readAiExecutionMeta(report);
+    return meta.codex_sandbox_mismatch === false && meta.codex_exec_timeout === true;
+  });
+  if (mismatchResolvedButTimeoutPersists) {
+    entries.push({
+      section: 'Codex / AI Execution',
+      conclusion: 'sandbox不一致を解消してもcodex_exec_timeoutは残存したため、sandbox不一致は主因ではない',
+      evidence: [summaryPath],
+      firstSeen: observedDate,
+      lastSeen: observedDate
+    });
+  }
+
+  const evalPathStable =
+    summary.iterations.length > 0 &&
+    summary.iterations.every((iteration) => iteration.test_mode === 'eval' && iteration.test_command === 'test:eval');
+  if (evalPathStable) {
+    entries.push({
+      section: 'Operations',
+      conclusion: 'evalループはtest_mode=evalかつtest_command=test:evalで実行された',
+      evidence: [summaryPath],
+      firstSeen: observedDate,
+      lastSeen: observedDate
+    });
+  }
+
+  return entries;
+}
+
+function buildKnowledgeEntryBlock(entry: KnowledgeEntry): string {
+  return [
+    `- 結論: ${entry.conclusion}`,
+    `  - evidence: ${entry.evidence.join(', ') || 'Not observed'}`,
+    `  - first_seen: ${entry.firstSeen}`,
+    `  - last_seen: ${entry.lastSeen}`
+  ].join('\n');
+}
+
+function ensureKnowledgeScaffold(content: string): string {
+  let next = content.trim().length > 0 ? content : '# Eval Knowledge\n';
+  if (!next.includes('# Eval Knowledge')) {
+    next = `# Eval Knowledge\n\n${next}`;
+  }
+  if (!next.includes('## Codex / AI Execution')) {
+    next += `\n\n## Codex / AI Execution\n`;
+  }
+  if (!next.includes('## Loop / Runner Semantics')) {
+    next += `\n\n## Loop / Runner Semantics\n`;
+  }
+  if (!next.includes('## Operations')) {
+    next += `\n\n## Operations\n`;
+  }
+  return `${next.replace(/\s+$/g, '')}\n`;
+}
+
+function appendKnowledgeEntries(content: string, entries: KnowledgeEntry[]): { content: string; appended: number } {
+  let next = ensureKnowledgeScaffold(content);
+  let appended = 0;
+
+  for (const entry of entries) {
+    if (next.includes(`- 結論: ${entry.conclusion}`)) {
+      continue;
+    }
+    const sectionHeader = `## ${entry.section}`;
+    const sectionIndex = next.indexOf(sectionHeader);
+    if (sectionIndex < 0) {
+      continue;
+    }
+    const sectionBodyStart = next.indexOf('\n', sectionIndex);
+    if (sectionBodyStart < 0) {
+      continue;
+    }
+    const nextSectionIndex = next.indexOf('\n## ', sectionBodyStart + 1);
+    const insertAt = nextSectionIndex >= 0 ? nextSectionIndex : next.length;
+    const block = `\n${buildKnowledgeEntryBlock(entry)}\n`;
+    next = `${next.slice(0, insertAt)}${block}${next.slice(insertAt)}`;
+    appended += 1;
+  }
+
+  return { content: next.replace(/\n{3,}/g, '\n\n'), appended };
+}
+
 function percentile(values: number[], p: number): number {
   if (values.length === 0) {
     return 0;
@@ -1224,6 +1333,21 @@ async function run(): Promise<void> {
   emitLoopEvent('resume_write_end', {
     run_id: runId,
     resume_path: resumePath
+  });
+  const knowledgePath = path.resolve(repoRoot, 'eval', 'knowledge.md');
+  const knowledgeSource = existsSync(knowledgePath) ? await readUtf8File(knowledgePath) : '';
+  const knowledgeEntries = buildKnowledgeEntries(summary, reports, summaryPath);
+  const knowledgeResult = appendKnowledgeEntries(knowledgeSource, knowledgeEntries);
+  emitLoopEvent('knowledge_write_start', {
+    run_id: runId,
+    knowledge_path: knowledgePath,
+    candidate_entries: knowledgeEntries.length
+  });
+  await writeUtf8File(knowledgePath, knowledgeResult.content);
+  emitLoopEvent('knowledge_write_end', {
+    run_id: runId,
+    knowledge_path: knowledgePath,
+    appended_entries: knowledgeResult.appended
   });
   emitLoopEvent('loop_done', {
     run_id: runId,
