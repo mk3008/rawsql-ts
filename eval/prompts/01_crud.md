@@ -6,21 +6,15 @@ Constraints:
 - Do not reference any files outside this workspace.
 - Do not configure Codex with additional directories.
 - Keep SQL and repository/catalog changes minimal and testable.
-- Read these known scaffold files directly before coding (do not scan directories):
-  - `AGENTS.md`
-  - `src/sql/AGENTS.md`
-  - `src/catalog/AGENTS.md`
-  - `src/repositories/AGENTS.md`
-  - `tests/AGENTS.md`
-- If one of the listed files is missing, continue with available listed files and proceed with minimal edits.
-- Do not ask for extra input files; work only with this workspace and listed files.
+- Use existing scaffold guidance in this workspace as needed.
 - Only edit files under these paths:
   - `src/sql/`
   - `src/catalog/`
   - `src/repositories/`
   - `tests/`
 - Do not edit `src/types/`, `tsconfig.json`, `package.json`, or lockfiles.
-- If typecheck/test cannot be fixed within the allowed paths, stop and report the blocker instead of editing disallowed files.
+- If a required file is missing or typecheck/test cannot be fixed within the allowed paths, stop and report:
+  - `Not observed: need <required file path>`
 
 Deliverables:
 - Add or update SQL under `src/sql`.
