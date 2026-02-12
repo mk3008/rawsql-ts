@@ -930,6 +930,10 @@ async function run(): Promise<void> {
             headerSandbox: null,
             codex_exec_timeout_ms_effective: 'Not observed',
             codex_exec_timeout_ms_source: 'Not observed',
+            work_git_initialized: false,
+            work_git_init_exit_code: 'Not observed',
+            work_git_commit_exit_code: 'Not observed',
+            work_git_commit_skipped_reason: 'Not observed',
             codex_mode_effective: 'Not observed',
             codex_review_base: 'Not observed',
             codex_review_output_tail: 'Not observed',
@@ -1014,7 +1018,6 @@ async function run(): Promise<void> {
         });
       }
 
-      const beforeAiSnapshot = await snapshotWorkspaceTextFiles(workspacePath);
       const codexMode = resolveCodexMode(codexEnv);
       let aiStdinText: string | undefined;
       let aiCommandArgs: string[];
@@ -1070,6 +1073,46 @@ async function run(): Promise<void> {
           '-'
         ];
       }
+      let workGitInitExitCode: number | null = null;
+      let workGitCommitExitCode: number | null = null;
+      let workGitCommitSkippedReason: string | null = null;
+      if (codexMode.mode !== 'exec') {
+        workGitInitExitCode = await runAndTrackAllowFailure(commandLogs, 'git', ['init'], workspacePath, codexEnv);
+        if (workGitInitExitCode === 0) {
+          const workGitAddExitCode = await runAndTrackAllowFailure(
+            commandLogs,
+            'git',
+            ['add', '-A'],
+            workspacePath,
+            codexEnv
+          );
+          if (workGitAddExitCode === 0) {
+            workGitCommitExitCode = await runAndTrackAllowFailure(
+              commandLogs,
+              'git',
+              [
+                '-c',
+                'user.name=eval-bot',
+                '-c',
+                'user.email=eval-bot@example.invalid',
+                'commit',
+                '-m',
+                'eval: initial snapshot'
+              ],
+              workspacePath,
+              codexEnv
+            );
+            if (workGitCommitExitCode !== 0) {
+              workGitCommitSkippedReason = 'git_commit_failed';
+            }
+          } else {
+            workGitCommitSkippedReason = 'git_add_failed';
+          }
+        } else {
+          workGitCommitSkippedReason = 'git_init_failed';
+        }
+      }
+      const beforeAiSnapshot = await snapshotWorkspaceTextFiles(workspacePath);
       const aiLogIndex = commandLogs.length;
       emitRunnerEvent(runnerLogger, 'ai_exec_start');
       const codexExecTimeout = resolveCodexExecTimeout(codexEnv);
@@ -1158,6 +1201,10 @@ async function run(): Promise<void> {
           codex_exec_timeout_ms: codexExecTimedOut ? aiResult.timeoutMs ?? codexExecTimeoutMs : null,
           codex_exec_timeout_ms_effective: codexExecTimeoutMs,
           codex_exec_timeout_ms_source: codexExecTimeout.source,
+          work_git_initialized: workGitInitExitCode === 0,
+          work_git_init_exit_code: workGitInitExitCode ?? 'Not observed',
+          work_git_commit_exit_code: workGitCommitExitCode ?? 'Not observed',
+          work_git_commit_skipped_reason: workGitCommitSkippedReason,
           codex_mode_effective: codexMode.mode,
           codex_review_base: codexMode.mode === 'review_base' ? (codexMode.reviewBase ?? 'Not observed') : null,
           codex_review_output_tail: codexReviewOutputTail,
@@ -1234,6 +1281,10 @@ async function run(): Promise<void> {
           headerSandbox: null,
           codex_exec_timeout_ms_effective: 'Not observed',
           codex_exec_timeout_ms_source: 'Not observed',
+          work_git_initialized: false,
+          work_git_init_exit_code: 'Not observed',
+          work_git_commit_exit_code: 'Not observed',
+          work_git_commit_skipped_reason: 'Not observed',
           codex_mode_effective: 'Not observed',
           codex_review_base: 'Not observed',
           codex_review_output_tail: 'Not observed',
