@@ -942,6 +942,9 @@ async function run(): Promise<void> {
             codex_mode_effective: 'Not observed',
             codex_review_base: 'Not observed',
             codex_review_output_tail: 'Not observed',
+            codex_review_failure_kind: 'not_observed',
+            codex_review_no_changes_detected: false,
+            codex_review_no_changes_pattern: 'Not observed',
             codex_rust_log: 'Not observed',
             effectiveWrite: false,
             command: '',
@@ -1183,6 +1186,28 @@ async function run(): Promise<void> {
         codexMode.mode === 'exec'
           ? null
           : buildTailText([aiResult.stdout, aiResult.stderr].filter((part) => part.length > 0).join('\n'), 2000).tail;
+      let codexReviewFailureKind: 'no_changes' | 'other' | 'not_observed' | null = null;
+      let codexReviewNoChangesDetected: boolean | null = null;
+      let codexReviewNoChangesPattern: string | null = null;
+      if (codexMode.mode === 'review_uncommitted') {
+        const reviewTailText = (codexReviewOutputTail ?? '').toLowerCase();
+        if (reviewTailText.length === 0) {
+          codexReviewFailureKind = 'not_observed';
+          codexReviewNoChangesDetected = false;
+        } else {
+          const noChangesPatterns = [
+            'no changes',
+            'nothing to commit',
+            'working tree clean',
+            'no uncommitted changes',
+            'nothing to review'
+          ] as const;
+          const matchedPattern = noChangesPatterns.find((pattern) => reviewTailText.includes(pattern));
+          codexReviewNoChangesDetected = matchedPattern !== undefined;
+          codexReviewFailureKind = matchedPattern ? 'no_changes' : 'other';
+          codexReviewNoChangesPattern = matchedPattern ?? null;
+        }
+      }
       const aiPassed = aiExit === 0 && touchAnalysis.effectiveWrite && !blockerMeta.detected;
       const aiFailureKind = classifyAiFailureKind({
         blockerDetected: blockerMeta.detected,
@@ -1245,6 +1270,9 @@ async function run(): Promise<void> {
           codex_mode_effective: codexMode.mode,
           codex_review_base: codexMode.mode === 'review_base' ? (codexMode.reviewBase ?? 'Not observed') : null,
           codex_review_output_tail: codexReviewOutputTail,
+          codex_review_failure_kind: codexReviewFailureKind,
+          codex_review_no_changes_detected: codexReviewNoChangesDetected,
+          codex_review_no_changes_pattern: codexReviewNoChangesPattern,
           codex_stdout_bytes: typeof aiResult.stdoutBytes === 'number' ? aiResult.stdoutBytes : 'Not observed',
           codex_stderr_bytes: typeof aiResult.stderrBytes === 'number' ? aiResult.stderrBytes : 'Not observed',
           codex_last_output_ms: codexLastOutputMs,
@@ -1330,6 +1358,9 @@ async function run(): Promise<void> {
           codex_mode_effective: 'Not observed',
           codex_review_base: 'Not observed',
           codex_review_output_tail: 'Not observed',
+          codex_review_failure_kind: 'not_observed',
+          codex_review_no_changes_detected: false,
+          codex_review_no_changes_pattern: 'Not observed',
           codex_rust_log: 'Not observed',
           effectiveWrite: false,
           command: '',
