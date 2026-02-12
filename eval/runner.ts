@@ -947,6 +947,8 @@ async function run(): Promise<void> {
             codex_review_no_changes_pattern: 'Not observed',
             codex_review_diff_seen: false,
             codex_review_diff_path_hint: 'Not observed',
+            codex_review_treated_as_success: false,
+            codex_review_treated_as_success_reason: 'Not observed',
             codex_rust_log: 'Not observed',
             effectiveWrite: false,
             command: '',
@@ -1193,6 +1195,8 @@ async function run(): Promise<void> {
       let codexReviewNoChangesPattern: string | null = null;
       let codexReviewDiffSeen: boolean | null = null;
       let codexReviewDiffPathHint: string | null = null;
+      let codexReviewTreatedAsSuccess = false;
+      let codexReviewTreatedAsSuccessReason: 'no_changes' | null = null;
       if (codexMode.mode === 'review_uncommitted') {
         const reviewTailRaw = codexReviewOutputTail ?? '';
         const reviewTailText = (codexReviewOutputTail ?? '').toLowerCase();
@@ -1230,8 +1234,13 @@ async function run(): Promise<void> {
             codexReviewDiffSeen = false;
           }
         }
+        if (codexReviewFailureKind === 'no_changes') {
+          codexReviewTreatedAsSuccess = true;
+          codexReviewTreatedAsSuccessReason = 'no_changes';
+        }
       }
-      const aiPassed = aiExit === 0 && touchAnalysis.effectiveWrite && !blockerMeta.detected;
+      const aiPassed =
+        codexReviewTreatedAsSuccess || (aiExit === 0 && touchAnalysis.effectiveWrite && !blockerMeta.detected);
       const aiFailureKind = classifyAiFailureKind({
         blockerDetected: blockerMeta.detected,
         blockerKind: blockerMeta.kind,
@@ -1244,7 +1253,9 @@ async function run(): Promise<void> {
         passed: aiPassed,
         violations: aiPassed ? 0 : 1,
         details: aiPassed
-          ? []
+          ? codexReviewTreatedAsSuccess
+            ? ['no changes to review']
+            : []
           : aiExit !== 0
             ? [
                 `codex ${codexMode.mode === 'exec' ? 'exec' : 'review'} failed (exit=${aiExit ?? 'null'})`,
@@ -1298,6 +1309,8 @@ async function run(): Promise<void> {
           codex_review_no_changes_pattern: codexReviewNoChangesPattern,
           codex_review_diff_seen: codexReviewDiffSeen,
           codex_review_diff_path_hint: codexReviewDiffPathHint,
+          codex_review_treated_as_success: codexReviewTreatedAsSuccess,
+          codex_review_treated_as_success_reason: codexReviewTreatedAsSuccessReason,
           codex_stdout_bytes: typeof aiResult.stdoutBytes === 'number' ? aiResult.stdoutBytes : 'Not observed',
           codex_stderr_bytes: typeof aiResult.stderrBytes === 'number' ? aiResult.stderrBytes : 'Not observed',
           codex_last_output_ms: codexLastOutputMs,
@@ -1388,6 +1401,8 @@ async function run(): Promise<void> {
           codex_review_no_changes_pattern: 'Not observed',
           codex_review_diff_seen: false,
           codex_review_diff_path_hint: 'Not observed',
+          codex_review_treated_as_success: false,
+          codex_review_treated_as_success_reason: 'Not observed',
           codex_rust_log: 'Not observed',
           effectiveWrite: false,
           command: '',
