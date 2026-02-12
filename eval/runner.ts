@@ -635,6 +635,9 @@ async function run(): Promise<void> {
   let aiStdoutHead = '';
   let aiStderrHead = '';
   let aiCommandLine = '';
+  let aiPromptChars = 0;
+  let aiInputFilesCount = 0;
+  let aiPromptHead = '';
   let gitWorktreeState: GitWorktreeState = {
     observed: false,
     dirty: false,
@@ -849,6 +852,9 @@ async function run(): Promise<void> {
       const beforeAiSnapshot = await snapshotWorkspaceTextFiles(workspacePath);
       const promptText = await readUtf8File(promptPath);
       const aiPrompt = `${MAIN_AI_MARKER_REQUIREMENT}\n\n${promptText}`;
+      aiPromptChars = aiPrompt.length;
+      aiInputFilesCount = 1;
+      aiPromptHead = aiPrompt.slice(0, 400);
       const aiLogIndex = commandLogs.length;
       emitRunnerEvent(runnerLogger, 'ai_exec_start');
       const codexExecTimeoutMs = parseCodexExecTimeoutMs(codexEnv.EVAL_CODEX_EXEC_TIMEOUT_MS);
@@ -1118,6 +1124,11 @@ async function run(): Promise<void> {
       checks,
       codex_home_bootstrap: codexHomeBootstrap,
       meta: {
+        ...( {
+          ai_prompt_chars: aiPromptChars,
+          ai_input_files_count: aiInputFilesCount,
+          ai_prompt_head: aiPromptHead
+        } as Record<string, unknown>),
         test_command: EVAL_TEST_COMMAND,
         test_excludes: EVAL_TEST_EXCLUDES,
         test_mode: EVAL_TEST_MODE,
