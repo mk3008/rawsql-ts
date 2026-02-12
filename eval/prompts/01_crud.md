@@ -6,6 +6,14 @@ Constraints:
 - Do not reference any files outside this workspace.
 - Do not configure Codex with additional directories.
 - Keep SQL and repository/catalog changes minimal and testable.
+- Read these known scaffold files directly before coding (do not scan directories):
+  - `AGENTS.md`
+  - `src/sql/AGENTS.md`
+  - `src/catalog/AGENTS.md`
+  - `src/repositories/AGENTS.md`
+  - `tests/AGENTS.md`
+- If one of the listed files is missing, continue with available listed files and proceed with minimal edits.
+- Do not ask for extra input files; work only with this workspace and listed files.
 - Only edit files under these paths:
   - `src/sql/`
   - `src/catalog/`
