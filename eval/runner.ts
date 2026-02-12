@@ -69,6 +69,12 @@ interface CommandExecutionDetails {
   lastOutputElapsedMs?: number | null;
   stderrTail?: string;
   stderrTailTruncated?: boolean;
+  codexDiagFlags?: {
+    seenConfiguringSession: boolean;
+    seenHyperReuseIdleConnection: boolean;
+    seenChatgptCom: boolean;
+    seenTimeoutMarker: boolean;
+  };
 }
 
 interface CodexRetryResult {
@@ -355,6 +361,32 @@ function buildTailText(text: string, maxChars: number): { tail: string; truncate
   };
 }
 
+function updateCodexDiagFlags(
+  input: string,
+  carry: string,
+  flags: {
+    seenConfiguringSession: boolean;
+    seenHyperReuseIdleConnection: boolean;
+    seenChatgptCom: boolean;
+    seenTimeoutMarker: boolean;
+  }
+): string {
+  const combined = `${carry}${input}`.toLowerCase();
+  if (!flags.seenConfiguringSession && combined.includes('configuring session')) {
+    flags.seenConfiguringSession = true;
+  }
+  if (!flags.seenHyperReuseIdleConnection && combined.includes('reuse idle connection')) {
+    flags.seenHyperReuseIdleConnection = true;
+  }
+  if (!flags.seenChatgptCom && combined.includes('chatgpt.com')) {
+    flags.seenChatgptCom = true;
+  }
+  if (!flags.seenTimeoutMarker && combined.includes('codex_exec_timeout: exceeded')) {
+    flags.seenTimeoutMarker = true;
+  }
+  return combined.slice(-128);
+}
+
 function parseArgs(argv: string[]): CliOptions {
   let caseSlug = DEFAULT_CASE;
   let scenario = DEFAULT_SCENARIO;
@@ -467,6 +499,13 @@ async function runCodexCommandWithTimeout(
     let stdoutBytes = 0;
     let stderrBytes = 0;
     let lastOutputAtMs: number | null = null;
+    let diagCarry = '';
+    const codexDiagFlags = {
+      seenConfiguringSession: false,
+      seenHyperReuseIdleConnection: false,
+      seenChatgptCom: false,
+      seenTimeoutMarker: false
+    };
     let timedOut = false;
     let settled = false;
     let timeoutHandle: NodeJS.Timeout | undefined;
@@ -500,7 +539,8 @@ async function runCodexCommandWithTimeout(
         stderrBytes,
         lastOutputElapsedMs: lastOutputAtMs === null ? null : lastOutputAtMs - startedAtMs,
         stderrTail: stderrTail.tail,
-        stderrTailTruncated: stderrTail.truncated
+        stderrTailTruncated: stderrTail.truncated,
+        codexDiagFlags
       });
     };
 
@@ -511,13 +551,17 @@ async function runCodexCommandWithTimeout(
     });
 
     child.stderr.on('data', (chunk: Buffer) => {
-      stderr += chunk.toString();
+      const text = chunk.toString();
+      stderr += text;
       stderrBytes += chunk.length;
       lastOutputAtMs = Date.now();
+      diagCarry = updateCodexDiagFlags(text, diagCarry, codexDiagFlags);
     });
 
     child.on('error', (error: Error) => {
-      stderr += `${error.message}\n`;
+      const text = `${error.message}\n`;
+      stderr += text;
+      diagCarry = updateCodexDiagFlags(text, diagCarry, codexDiagFlags);
     });
 
     if (stdinText !== undefined) {
@@ -534,7 +578,9 @@ async function runCodexCommandWithTimeout(
         return;
       }
       timedOut = true;
-      stderr += `codex_exec_timeout: exceeded ${timeoutMs}ms\n`;
+      const timeoutText = `codex_exec_timeout: exceeded ${timeoutMs}ms\n`;
+      stderr += timeoutText;
+      diagCarry = updateCodexDiagFlags(timeoutText, diagCarry, codexDiagFlags);
       child.kill('SIGKILL');
       finalize(124);
     }, timeoutMs);
@@ -1022,6 +1068,16 @@ async function run(): Promise<void> {
             codexExecTimedOut && typeof aiResult.stderrTailTruncated === 'boolean'
               ? aiResult.stderrTailTruncated
               : null,
+          codex_diag_seen_configuring_session: codexExecTimedOut
+            ? aiResult.codexDiagFlags?.seenConfiguringSession ?? false
+            : null,
+          codex_diag_seen_hyper_reuse_idle_connection: codexExecTimedOut
+            ? aiResult.codexDiagFlags?.seenHyperReuseIdleConnection ?? false
+            : null,
+          codex_diag_seen_chatgpt_com: codexExecTimedOut ? aiResult.codexDiagFlags?.seenChatgptCom ?? false : null,
+          codex_diag_seen_timeout_marker: codexExecTimedOut
+            ? aiResult.codexDiagFlags?.seenTimeoutMarker ?? false
+            : null,
           codex_rust_log: codexRustLog,
           codex_header_sandbox: headerSandbox ?? 'Not observed',
           codex_flag_sandbox: flagSandbox ?? 'Not observed',
