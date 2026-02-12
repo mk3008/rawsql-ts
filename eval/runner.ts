@@ -29,7 +29,7 @@ interface CliOptions {
 const DEFAULT_CASE = 'crud-basic';
 const DEFAULT_SCENARIO = 'crud-basic';
 const DEFAULT_REPORT = path.join('eval', 'reports', 'latest.json');
-const DEFAULT_SANDBOX_MODE = 'workspace-write';
+const DEFAULT_SANDBOX_MODE = 'read-only';
 const DEFAULT_LOCAL_DEPS = ['@rawsql-ts/shared-binder'];
 const DEFAULT_CODEX_EXEC_TIMEOUT_MS = 45_000;
 const EVAL_TEST_COMMAND = 'test:eval';
@@ -63,6 +63,9 @@ interface CommandExecutionDetails {
   log: CommandLog;
   timedOut?: boolean;
   timeoutMs?: number;
+  stdoutBytes?: number;
+  stderrBytes?: number;
+  lastOutputElapsedMs?: number | null;
 }
 
 interface CodexRetryResult {
@@ -295,6 +298,22 @@ function parseCodexExecTimeoutMs(raw: string | undefined): number {
   return Math.floor(parsed);
 }
 
+function readSandboxFlag(args: string[]): string | null {
+  const index = args.findIndex((item) => item === '--sandbox');
+  if (index < 0) {
+    return null;
+  }
+  const value = args[index + 1];
+  if (!value || value.startsWith('-')) {
+    return null;
+  }
+  return value.trim();
+}
+
+function normalizeSandboxValue(value: string): string {
+  return value.trim().toLowerCase();
+}
+
 function buildOutputHead(stdout: string, stderr: string): string {
   const merged = [stdout.trim(), stderr.trim()].filter((part) => part.length > 0).join('\n');
   if (merged.length === 0) {
@@ -403,6 +422,7 @@ async function runCodexCommandWithTimeout(
 ): Promise<CommandExecutionDetails> {
   const invocation = resolveCommandInvocation('codex', args, env);
   return new Promise<CommandExecutionDetails>((resolve) => {
+    const startedAtMs = Date.now();
     const child = spawn(invocation.command, invocation.args, {
       cwd,
       env,
@@ -410,6 +430,9 @@ async function runCodexCommandWithTimeout(
     });
     let stdout = '';
     let stderr = '';
+    let stdoutBytes = 0;
+    let stderrBytes = 0;
+    let lastOutputAtMs: number | null = null;
     let timedOut = false;
     let settled = false;
     let timeoutHandle: NodeJS.Timeout | undefined;
@@ -437,16 +460,23 @@ async function runCodexCommandWithTimeout(
         stderr,
         log,
         timedOut,
-        timeoutMs
+        timeoutMs,
+        stdoutBytes,
+        stderrBytes,
+        lastOutputElapsedMs: lastOutputAtMs === null ? null : lastOutputAtMs - startedAtMs
       });
     };
 
     child.stdout.on('data', (chunk: Buffer) => {
       stdout += chunk.toString();
+      stdoutBytes += chunk.length;
+      lastOutputAtMs = Date.now();
     });
 
     child.stderr.on('data', (chunk: Buffer) => {
       stderr += chunk.toString();
+      stderrBytes += chunk.length;
+      lastOutputAtMs = Date.now();
     });
 
     child.on('error', (error: Error) => {
@@ -856,20 +886,21 @@ async function run(): Promise<void> {
       aiInputFilesCount = 1;
       aiPromptHead = aiPrompt.slice(0, 400);
       const aiLogIndex = commandLogs.length;
+      const aiCommandArgs = [
+        'exec',
+        '--cd',
+        workspacePath,
+        '--skip-git-repo-check',
+        '--full-auto',
+        '--sandbox',
+        sandboxMode,
+        '-'
+      ];
       emitRunnerEvent(runnerLogger, 'ai_exec_start');
       const codexExecTimeoutMs = parseCodexExecTimeoutMs(codexEnv.EVAL_CODEX_EXEC_TIMEOUT_MS);
       const aiExecution = await runCodexExecWithRetry(
         commandLogs,
-        [
-          'exec',
-          '--cd',
-          workspacePath,
-          '--skip-git-repo-check',
-          '--full-auto',
-          '--sandbox',
-          sandboxMode,
-          '-'
-        ],
+        aiCommandArgs,
         repoRoot,
         codexEnv,
         aiPrompt,
@@ -892,6 +923,14 @@ async function run(): Promise<void> {
       aiCommandLine = `${aiCommandLog?.command ?? ''} ${(aiCommandLog?.args ?? []).join(' ')}`.trim();
       const touchAnalysis = analyzeAiTouchedFiles(aiTouchedFiles);
       const blockerMeta = detectAiExecutionBlocker(aiStdoutHead, aiStderrHead);
+      const headerSandbox = readHeaderSandbox(aiCommandLog?.outputHead ?? '');
+      const flagSandbox = readSandboxFlag(aiCommandArgs);
+      const codexSandboxMismatch: boolean | 'Not observed' =
+        headerSandbox && flagSandbox
+          ? normalizeSandboxValue(headerSandbox) !== normalizeSandboxValue(flagSandbox)
+          : 'Not observed';
+      const codexLastOutputMs: number | 'Not observed' =
+        typeof aiResult.lastOutputElapsedMs === 'number' ? aiResult.lastOutputElapsedMs : 'Not observed';
       const aiPassed = aiExit === 0 && touchAnalysis.effectiveWrite && !blockerMeta.detected;
       const aiFailureKind = classifyAiFailureKind({
         blockerDetected: blockerMeta.detected,
@@ -924,7 +963,7 @@ async function run(): Promise<void> {
           marker_file_content: markerFileContent,
           marker_only: touchAnalysis.markerOnly,
           non_marker_touched_count: touchAnalysis.nonMarkerTouchedCount,
-          headerSandbox: readHeaderSandbox(aiCommandLog?.outputHead ?? ''),
+          headerSandbox,
           effectiveWrite: touchAnalysis.effectiveWrite,
           command: aiCommandLine,
           stdout_head: aiStdoutHead,
@@ -936,6 +975,12 @@ async function run(): Promise<void> {
           retried: aiExecution.retried,
           codex_exec_timeout: codexExecTimedOut,
           codex_exec_timeout_ms: codexExecTimedOut ? aiResult.timeoutMs ?? codexExecTimeoutMs : null,
+          codex_stdout_bytes: typeof aiResult.stdoutBytes === 'number' ? aiResult.stdoutBytes : 'Not observed',
+          codex_stderr_bytes: typeof aiResult.stderrBytes === 'number' ? aiResult.stderrBytes : 'Not observed',
+          codex_last_output_ms: codexLastOutputMs,
+          codex_header_sandbox: headerSandbox ?? 'Not observed',
+          codex_flag_sandbox: flagSandbox ?? 'Not observed',
+          codex_sandbox_mismatch: codexSandboxMismatch,
           codex_exec_timeout_note: codexExecTimedOut
             ? `codex exec timed out after ${aiResult.timeoutMs ?? codexExecTimeoutMs}ms`
             : null
