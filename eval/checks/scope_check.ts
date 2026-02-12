@@ -1,13 +1,24 @@
 import type { CheckResult } from '../lib/report';
 
-const ALLOWED_PREFIXES = ['src/ddl/', 'ztd/ddl/', 'src/sql/', 'src/catalog/', 'src/dto/', 'src/repositories/', 'tests/'];
+const CRUD_BASIC_ALLOWED_PREFIXES = ['src/sql/', 'src/catalog/', 'src/repositories/', 'tests/'];
+const LEGACY_ALLOWED_PREFIXES = ['src/ddl/', 'ztd/ddl/', 'src/sql/', 'src/catalog/', 'src/dto/', 'src/repositories/', 'tests/'];
 
-function isAllowedPath(relativePath: string): boolean {
+function resolveScopeAllowlist(): readonly string[] {
+  // Runner defaults scenario to "crud-basic" when not explicitly provided.
+  const scenario = (process.env.EVAL_SCENARIO ?? 'crud-basic').trim();
+  if (scenario === 'crud-basic') {
+    return CRUD_BASIC_ALLOWED_PREFIXES;
+  }
+  return LEGACY_ALLOWED_PREFIXES;
+}
+
+function isAllowedPath(relativePath: string, allowlist: readonly string[]): boolean {
   const normalized = relativePath.replace(/\\/g, '/');
-  return ALLOWED_PREFIXES.some((prefix) => normalized.startsWith(prefix));
+  return allowlist.some((prefix) => normalized.startsWith(prefix));
 }
 
 export function runScopeCheck(touchedFiles: string[], aiEnabled: boolean): CheckResult {
+  const allowlist = resolveScopeAllowlist();
   if (!aiEnabled) {
     return {
       name: 'scope_check',
@@ -16,12 +27,12 @@ export function runScopeCheck(touchedFiles: string[], aiEnabled: boolean): Check
       details: ['AI step skipped'],
       meta: {
         touchedFiles: [],
-        allowlist: ALLOWED_PREFIXES
+        allowlist
       }
     };
   }
 
-  const violations = touchedFiles.filter((filePath) => !isAllowedPath(filePath));
+  const violations = touchedFiles.filter((filePath) => !isAllowedPath(filePath, allowlist));
   return {
     name: 'scope_check',
     passed: violations.length === 0,
@@ -29,7 +40,7 @@ export function runScopeCheck(touchedFiles: string[], aiEnabled: boolean): Check
     details: violations.slice(0, 50),
     meta: {
       touchedFiles,
-      allowlist: ALLOWED_PREFIXES
+      allowlist
     }
   };
 }
