@@ -963,6 +963,7 @@ async function run(): Promise<void> {
             codex_review_diff_seen: false,
             codex_review_diff_path_hint: 'Not observed',
             codex_review_diff_path_hint_source: 'not_observed',
+            codex_review_diff_seen_reason: 'not_observed',
             codex_review_treated_as_success: false,
             codex_review_treated_as_success_reason: 'Not observed',
             codex_rust_log: 'Not observed',
@@ -1250,8 +1251,13 @@ async function run(): Promise<void> {
       let codexReviewNoChangesPattern: string | null = null;
       let codexReviewDiffSeen: boolean | null = null;
       let codexReviewDiffPathHint: string | null = null;
-      let codexReviewDiffPathHintSource: 'name_only_output_tail' | 'inline_git_diff_arg' | 'not_observed' | null =
-        null;
+      let codexReviewDiffPathHintSource:
+        | 'name_only_output_tail'
+        | 'inline_git_diff_arg'
+        | 'seed_staged'
+        | 'not_observed'
+        | null = null;
+      let codexReviewDiffSeenReason: 'seed_staged' | 'tail_git_diff' | 'not_observed' | null = null;
       let codexReviewTreatedAsSuccess = false;
       let codexReviewTreatedAsSuccessReason: 'no_changes' | null = null;
       if (codexMode.mode === 'review_uncommitted') {
@@ -1262,6 +1268,7 @@ async function run(): Promise<void> {
           codexReviewNoChangesDetected = false;
           codexReviewDiffSeen = false;
           codexReviewDiffPathHintSource = 'not_observed';
+          codexReviewDiffSeenReason = 'not_observed';
         } else {
           const noChangesPatterns = [
             'no changes',
@@ -1277,9 +1284,17 @@ async function run(): Promise<void> {
             codexReviewFailureKind = 'no_changes';
             codexReviewDiffSeen = false;
             codexReviewDiffPathHintSource = 'not_observed';
+            codexReviewDiffSeenReason = 'not_observed';
+          } else if (workGitSeedDiffMode === 'staged' && workGitSeedDiffAddExitCode === 0) {
+            codexReviewFailureKind = 'diff_seen';
+            codexReviewDiffSeen = true;
+            codexReviewDiffPathHint = WORK_GIT_SEED_DIFF_FILE;
+            codexReviewDiffPathHintSource = 'seed_staged';
+            codexReviewDiffSeenReason = 'seed_staged';
           } else if (reviewTailText.includes('git diff')) {
             codexReviewFailureKind = 'diff_seen';
             codexReviewDiffSeen = true;
+            codexReviewDiffSeenReason = 'tail_git_diff';
             const diffMarker = 'git diff -- ';
             const markerIndex = reviewTailRaw.toLowerCase().indexOf(diffMarker);
             if (markerIndex >= 0) {
@@ -1321,6 +1336,7 @@ async function run(): Promise<void> {
             codexReviewFailureKind = 'other';
             codexReviewDiffSeen = false;
             codexReviewDiffPathHintSource = 'not_observed';
+            codexReviewDiffSeenReason = 'not_observed';
           }
         }
         if (codexReviewFailureKind === 'no_changes') {
@@ -1411,6 +1427,8 @@ async function run(): Promise<void> {
           codex_review_diff_path_hint: codexReviewDiffPathHint,
           codex_review_diff_path_hint_source:
             codexMode.mode === 'review_uncommitted' ? (codexReviewDiffPathHintSource ?? 'not_observed') : null,
+          codex_review_diff_seen_reason:
+            codexMode.mode === 'review_uncommitted' ? (codexReviewDiffSeenReason ?? 'not_observed') : null,
           codex_review_treated_as_success: codexReviewTreatedAsSuccess,
           codex_review_treated_as_success_reason: codexReviewTreatedAsSuccessReason,
           codex_stdout_bytes: typeof aiResult.stdoutBytes === 'number' ? aiResult.stdoutBytes : 'Not observed',
@@ -1512,6 +1530,7 @@ async function run(): Promise<void> {
           codex_review_diff_seen: false,
           codex_review_diff_path_hint: 'Not observed',
           codex_review_diff_path_hint_source: 'not_observed',
+          codex_review_diff_seen_reason: 'not_observed',
           codex_review_treated_as_success: false,
           codex_review_treated_as_success_reason: 'Not observed',
           codex_rust_log: 'Not observed',
