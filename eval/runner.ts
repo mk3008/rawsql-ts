@@ -301,6 +301,23 @@ function parseCodexExecTimeoutMs(raw: string | undefined): number {
   return Math.floor(parsed);
 }
 
+function resolveCodexRustLog(env?: NodeJS.ProcessEnv): string | null {
+  const raw = env?.EVAL_CODEX_RUST_LOG ?? process.env.EVAL_CODEX_RUST_LOG;
+  const value = raw?.trim();
+  return value && value.length > 0 ? value : null;
+}
+
+function buildCodexProcessEnv(env?: NodeJS.ProcessEnv): NodeJS.ProcessEnv | undefined {
+  const rustLog = resolveCodexRustLog(env);
+  if (!rustLog) {
+    return env;
+  }
+  return {
+    ...(env ?? process.env),
+    RUST_LOG: rustLog
+  };
+}
+
 function readSandboxFlag(args: string[]): string | null {
   const index = args.findIndex((item) => item === '--sandbox');
   if (index < 0) {
@@ -437,11 +454,12 @@ async function runCodexCommandWithTimeout(
   timeoutMs: number = DEFAULT_CODEX_EXEC_TIMEOUT_MS
 ): Promise<CommandExecutionDetails> {
   const invocation = resolveCommandInvocation('codex', args, env);
+  const codexProcessEnv = buildCodexProcessEnv(env);
   return new Promise<CommandExecutionDetails>((resolve) => {
     const startedAtMs = Date.now();
     const child = spawn(invocation.command, invocation.args, {
       cwd,
-      env,
+      env: codexProcessEnv,
       shell: false
     });
     let stdout = '';
@@ -818,6 +836,7 @@ async function run(): Promise<void> {
             marker_only: false,
             non_marker_touched_count: 0,
             headerSandbox: null,
+            codex_rust_log: 'Not observed',
             effectiveWrite: false,
             command: '',
             stdout_head: '',
@@ -950,6 +969,7 @@ async function run(): Promise<void> {
           : 'Not observed';
       const codexLastOutputMs: number | 'Not observed' =
         typeof aiResult.lastOutputElapsedMs === 'number' ? aiResult.lastOutputElapsedMs : 'Not observed';
+      const codexRustLog = resolveCodexRustLog(codexEnv) ?? 'Not observed';
       const aiPassed = aiExit === 0 && touchAnalysis.effectiveWrite && !blockerMeta.detected;
       const aiFailureKind = classifyAiFailureKind({
         blockerDetected: blockerMeta.detected,
@@ -1002,6 +1022,7 @@ async function run(): Promise<void> {
             codexExecTimedOut && typeof aiResult.stderrTailTruncated === 'boolean'
               ? aiResult.stderrTailTruncated
               : null,
+          codex_rust_log: codexRustLog,
           codex_header_sandbox: headerSandbox ?? 'Not observed',
           codex_flag_sandbox: flagSandbox ?? 'Not observed',
           codex_sandbox_mismatch: codexSandboxMismatch,
@@ -1054,6 +1075,7 @@ async function run(): Promise<void> {
           marker_only: false,
           non_marker_touched_count: 0,
           headerSandbox: null,
+          codex_rust_log: 'Not observed',
           effectiveWrite: false,
           command: '',
           stdout_head: '',
