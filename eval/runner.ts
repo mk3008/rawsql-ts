@@ -964,6 +964,10 @@ async function run(): Promise<void> {
             codex_review_diff_path_hint: 'Not observed',
             codex_review_diff_path_hint_source: 'not_observed',
             codex_review_diff_seen_reason: 'not_observed',
+            codex_review_git_name_only_probe_exit_code: null,
+            codex_review_git_name_only_probe_output_head: null,
+            codex_review_git_name_only_probe_truncated: null,
+            codex_review_git_name_only_probe_error_tail: null,
             codex_review_treated_as_success: false,
             codex_review_treated_as_success_reason: 'Not observed',
             codex_rust_log: 'Not observed',
@@ -1254,10 +1258,15 @@ async function run(): Promise<void> {
       let codexReviewDiffPathHintSource:
         | 'name_only_output_tail'
         | 'inline_git_diff_arg'
+        | 'git_name_only_probe'
         | 'seed_staged'
         | 'not_observed'
         | null = null;
       let codexReviewDiffSeenReason: 'seed_staged' | 'tail_git_diff' | 'not_observed' | null = null;
+      let codexReviewGitNameOnlyProbeExitCode: number | null = null;
+      let codexReviewGitNameOnlyProbeOutputHead: string | null = null;
+      let codexReviewGitNameOnlyProbeTruncated: boolean | null = null;
+      let codexReviewGitNameOnlyProbeErrorTail: string | null = null;
       let codexReviewTreatedAsSuccess = false;
       let codexReviewTreatedAsSuccessReason: 'no_changes' | null = null;
       if (codexMode.mode === 'review_uncommitted') {
@@ -1337,6 +1346,37 @@ async function run(): Promise<void> {
             codexReviewDiffSeen = false;
             codexReviewDiffPathHintSource = 'not_observed';
             codexReviewDiffSeenReason = 'not_observed';
+          }
+        }
+        if (
+          workGitSeedDiffMode === null &&
+          codexReviewFailureKind === 'diff_seen' &&
+          !codexReviewDiffPathHint &&
+          codexReviewDiffSeenReason === 'tail_git_diff'
+        ) {
+          const nameOnlyProbeResult = await runAndTrackAllowFailureWithDetails(
+            commandLogs,
+            'git',
+            ['diff', '--staged', '--name-only'],
+            workspacePath,
+            codexEnv
+          );
+          codexReviewGitNameOnlyProbeExitCode = nameOnlyProbeResult.exitCode;
+          if (nameOnlyProbeResult.exitCode === 0) {
+            codexReviewGitNameOnlyProbeOutputHead = nameOnlyProbeResult.stdout.slice(0, 2000);
+            codexReviewGitNameOnlyProbeTruncated = nameOnlyProbeResult.stdout.length > 2000;
+            const firstNonEmptyLine = nameOnlyProbeResult.stdout
+              .split(/\r?\n/)
+              .map((line) => line.trim())
+              .find((line) => line.length > 0);
+            if (firstNonEmptyLine) {
+              codexReviewDiffPathHint = firstNonEmptyLine;
+              codexReviewDiffPathHintSource = 'git_name_only_probe';
+            }
+          } else {
+            codexReviewGitNameOnlyProbeOutputHead = '';
+            codexReviewGitNameOnlyProbeTruncated = false;
+            codexReviewGitNameOnlyProbeErrorTail = buildTailText(nameOnlyProbeResult.stderr, 2000).tail;
           }
         }
         if (codexReviewFailureKind === 'no_changes') {
@@ -1429,6 +1469,14 @@ async function run(): Promise<void> {
             codexMode.mode === 'review_uncommitted' ? (codexReviewDiffPathHintSource ?? 'not_observed') : null,
           codex_review_diff_seen_reason:
             codexMode.mode === 'review_uncommitted' ? (codexReviewDiffSeenReason ?? 'not_observed') : null,
+          codex_review_git_name_only_probe_exit_code:
+            codexMode.mode === 'review_uncommitted' ? codexReviewGitNameOnlyProbeExitCode : null,
+          codex_review_git_name_only_probe_output_head:
+            codexMode.mode === 'review_uncommitted' ? codexReviewGitNameOnlyProbeOutputHead : null,
+          codex_review_git_name_only_probe_truncated:
+            codexMode.mode === 'review_uncommitted' ? codexReviewGitNameOnlyProbeTruncated : null,
+          codex_review_git_name_only_probe_error_tail:
+            codexMode.mode === 'review_uncommitted' ? codexReviewGitNameOnlyProbeErrorTail : null,
           codex_review_treated_as_success: codexReviewTreatedAsSuccess,
           codex_review_treated_as_success_reason: codexReviewTreatedAsSuccessReason,
           codex_stdout_bytes: typeof aiResult.stdoutBytes === 'number' ? aiResult.stdoutBytes : 'Not observed',
@@ -1531,6 +1579,10 @@ async function run(): Promise<void> {
           codex_review_diff_path_hint: 'Not observed',
           codex_review_diff_path_hint_source: 'not_observed',
           codex_review_diff_seen_reason: 'not_observed',
+          codex_review_git_name_only_probe_exit_code: null,
+          codex_review_git_name_only_probe_output_head: null,
+          codex_review_git_name_only_probe_truncated: null,
+          codex_review_git_name_only_probe_error_tail: null,
           codex_review_treated_as_success: false,
           codex_review_treated_as_success_reason: 'Not observed',
           codex_rust_log: 'Not observed',
