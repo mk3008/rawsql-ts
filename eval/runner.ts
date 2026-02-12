@@ -117,6 +117,7 @@ interface RunnerEventLogger {
 }
 
 type AiFailureKind = 'blocker_readonly' | 'marker_only' | 'codex_exec_timeout' | 'dirty_worktree' | 'other';
+type CodexMode = 'exec' | 'review_uncommitted' | 'review_base';
 
 function classifyAiFailureKind(params: {
   blockerDetected: boolean;
@@ -334,6 +335,28 @@ function resolveCodexRustLog(env?: NodeJS.ProcessEnv): string | null {
   const raw = env?.EVAL_CODEX_RUST_LOG ?? process.env.EVAL_CODEX_RUST_LOG;
   const value = raw?.trim();
   return value && value.length > 0 ? value : null;
+}
+
+function resolveCodexMode(env?: NodeJS.ProcessEnv): { mode: CodexMode; reviewBase: string | null } {
+  const rawMode = (env?.EVAL_CODEX_MODE ?? process.env.EVAL_CODEX_MODE ?? '').trim();
+  if (rawMode === 'review_uncommitted') {
+    return {
+      mode: 'review_uncommitted',
+      reviewBase: null
+    };
+  }
+  if (rawMode === 'review_base') {
+    const rawBase = env?.EVAL_CODEX_REVIEW_BASE ?? process.env.EVAL_CODEX_REVIEW_BASE;
+    const reviewBase = rawBase?.trim() ?? '';
+    return {
+      mode: 'review_base',
+      reviewBase: reviewBase.length > 0 ? reviewBase : null
+    };
+  }
+  return {
+    mode: 'exec',
+    reviewBase: null
+  };
 }
 
 function buildCodexProcessEnv(env?: NodeJS.ProcessEnv): NodeJS.ProcessEnv | undefined {
@@ -907,6 +930,9 @@ async function run(): Promise<void> {
             headerSandbox: null,
             codex_exec_timeout_ms_effective: 'Not observed',
             codex_exec_timeout_ms_source: 'Not observed',
+            codex_mode_effective: 'Not observed',
+            codex_review_base: 'Not observed',
+            codex_review_output_tail: 'Not observed',
             codex_rust_log: 'Not observed',
             effectiveWrite: false,
             command: '',
@@ -989,22 +1015,62 @@ async function run(): Promise<void> {
       }
 
       const beforeAiSnapshot = await snapshotWorkspaceTextFiles(workspacePath);
-      const promptText = await readUtf8File(promptPath);
-      const aiPrompt = `${MAIN_AI_MARKER_REQUIREMENT}\n\n${promptText}`;
-      aiPromptChars = aiPrompt.length;
-      aiInputFilesCount = 1;
-      aiPromptHead = aiPrompt.slice(0, 400);
+      const codexMode = resolveCodexMode(codexEnv);
+      let aiStdinText: string | undefined;
+      let aiCommandArgs: string[];
+      if (codexMode.mode === 'exec') {
+        const promptText = await readUtf8File(promptPath);
+        const aiPrompt = `${MAIN_AI_MARKER_REQUIREMENT}\n\n${promptText}`;
+        aiPromptChars = aiPrompt.length;
+        aiInputFilesCount = 1;
+        aiPromptHead = aiPrompt.slice(0, 400);
+        aiStdinText = aiPrompt;
+        aiCommandArgs = [
+          'exec',
+          '--cd',
+          workspacePath,
+          '--skip-git-repo-check',
+          '--full-auto',
+          '--sandbox',
+          sandboxMode,
+          '-'
+        ];
+      } else if (codexMode.mode === 'review_uncommitted') {
+        aiPromptChars = 0;
+        aiInputFilesCount = 0;
+        aiPromptHead = '';
+        aiStdinText =
+          'Review only uncommitted changes in this workspace. Do not modify files. Return concise findings only.';
+        aiCommandArgs = [
+          'exec',
+          '--cd',
+          workspacePath,
+          '--skip-git-repo-check',
+          '--full-auto',
+          '--sandbox',
+          sandboxMode,
+          '-'
+        ];
+      } else {
+        aiPromptChars = 0;
+        aiInputFilesCount = 0;
+        aiPromptHead = '';
+        aiStdinText =
+          codexMode.reviewBase === null
+            ? 'Review changes against the current branch baseline. Do not modify files. Return concise findings only.'
+            : `Review changes relative to base ${codexMode.reviewBase}. Do not modify files. Return concise findings only.`;
+        aiCommandArgs = [
+          'exec',
+          '--cd',
+          workspacePath,
+          '--skip-git-repo-check',
+          '--full-auto',
+          '--sandbox',
+          sandboxMode,
+          '-'
+        ];
+      }
       const aiLogIndex = commandLogs.length;
-      const aiCommandArgs = [
-        'exec',
-        '--cd',
-        workspacePath,
-        '--skip-git-repo-check',
-        '--full-auto',
-        '--sandbox',
-        sandboxMode,
-        '-'
-      ];
       emitRunnerEvent(runnerLogger, 'ai_exec_start');
       const codexExecTimeout = resolveCodexExecTimeout(codexEnv);
       const codexExecTimeoutMs = codexExecTimeout.timeoutMs;
@@ -1013,7 +1079,7 @@ async function run(): Promise<void> {
         aiCommandArgs,
         repoRoot,
         codexEnv,
-        aiPrompt,
+        aiStdinText,
         codexExecTimeoutMs,
         () => emitRunnerEvent(runnerLogger, 'ai_retry_start'),
         (retried) => emitRunnerEvent(runnerLogger, 'ai_retry_end', { retried })
@@ -1042,6 +1108,10 @@ async function run(): Promise<void> {
       const codexLastOutputMs: number | 'Not observed' =
         typeof aiResult.lastOutputElapsedMs === 'number' ? aiResult.lastOutputElapsedMs : 'Not observed';
       const codexRustLog = resolveCodexRustLog(codexEnv) ?? 'Not observed';
+      const codexReviewOutputTail =
+        codexMode.mode === 'exec'
+          ? null
+          : buildTailText([aiResult.stdout, aiResult.stderr].filter((part) => part.length > 0).join('\n'), 2000).tail;
       const aiPassed = aiExit === 0 && touchAnalysis.effectiveWrite && !blockerMeta.detected;
       const aiFailureKind = classifyAiFailureKind({
         blockerDetected: blockerMeta.detected,
@@ -1058,7 +1128,7 @@ async function run(): Promise<void> {
           ? []
           : aiExit !== 0
             ? [
-                `codex exec failed (exit=${aiExit ?? 'null'})`,
+                `codex ${codexMode.mode === 'exec' ? 'exec' : 'review'} failed (exit=${aiExit ?? 'null'})`,
                 aiCommandLog?.outputHead ?? 'No output captured.'
               ]
             : blockerMeta.detected
@@ -1088,6 +1158,9 @@ async function run(): Promise<void> {
           codex_exec_timeout_ms: codexExecTimedOut ? aiResult.timeoutMs ?? codexExecTimeoutMs : null,
           codex_exec_timeout_ms_effective: codexExecTimeoutMs,
           codex_exec_timeout_ms_source: codexExecTimeout.source,
+          codex_mode_effective: codexMode.mode,
+          codex_review_base: codexMode.mode === 'review_base' ? (codexMode.reviewBase ?? 'Not observed') : null,
+          codex_review_output_tail: codexReviewOutputTail,
           codex_stdout_bytes: typeof aiResult.stdoutBytes === 'number' ? aiResult.stdoutBytes : 'Not observed',
           codex_stderr_bytes: typeof aiResult.stderrBytes === 'number' ? aiResult.stderrBytes : 'Not observed',
           codex_last_output_ms: codexLastOutputMs,
@@ -1161,6 +1234,9 @@ async function run(): Promise<void> {
           headerSandbox: null,
           codex_exec_timeout_ms_effective: 'Not observed',
           codex_exec_timeout_ms_source: 'Not observed',
+          codex_mode_effective: 'Not observed',
+          codex_review_base: 'Not observed',
+          codex_review_output_tail: 'Not observed',
           codex_rust_log: 'Not observed',
           effectiveWrite: false,
           command: '',
