@@ -391,6 +391,72 @@ function computeDurationMs(report: EvalReport): number {
   return end - start;
 }
 
+function formatWorkReportTimestamp(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const seconds = String(date.getSeconds()).padStart(2, '0');
+  return `${year}-${month}-${day}-${hours}${minutes}${seconds}`;
+}
+
+function buildWorkReportMarkdown(params: {
+  summary: LoopSummary;
+  summaryPath: string;
+  reportPrefix: string;
+  workTimestamp: string;
+}): string {
+  const { summary, summaryPath, reportPrefix, workTimestamp } = params;
+  const failedCategoryLines = summary.iterations.map((iteration) => {
+    const failed = iteration.failed_categories.length > 0 ? iteration.failed_categories.join(', ') : 'none';
+    return `- Iteration ${iteration.index}: failed_categories=${failed}, codex_exec_timeout=${iteration.codex_exec_timeout}, runner_wall_timeout=${iteration.runner_wall_timeout}`;
+  });
+  const reportPathLines =
+    summary.iterations.length > 0
+      ? summary.iterations.map((iteration) => `- ${iteration.report_path}`)
+      : ['- Not observed'];
+  const runnerLogPathLines =
+    summary.iterations.length > 0
+      ? summary.iterations.map((iteration) => `- ${iteration.runner_log_path ?? 'Not observed'}`)
+      : ['- Not observed'];
+  const aiFailureKindCounts = JSON.stringify(summary.aggregate.ai_failure_kind_counts ?? {});
+  const nowText = `scenario=${summary.scenario}, loop_count=${summary.loop_count}, pass_rate=${summary.aggregate.pass_rate.toFixed(2)}`;
+  const nextText =
+    summary.aggregate.codex_exec_timeout_count > 0
+      ? 'codex_exec_timeout が継続しているため、次反復で原因切り分けを1件実施する'
+      : 'Not observed';
+
+  // Keep the markdown compact so humans can resume work quickly from the saved file.
+  return [
+    `# Eval Work Report (${workTimestamp})`,
+    '',
+    '## Ledger Snapshot',
+    '- Goal: Not observed',
+    `- Now / Next: Now=${nowText} / Next=${nextText}`,
+    '- Open Questions: なし',
+    '',
+    '## Observations',
+    `- 実行コマンド: pnpm exec ts-node eval/loop.ts --loop ${summary.loop_count} --scenario ${summary.scenario} --report-prefix ${reportPrefix || 'Not observed'}`,
+    '- 生成物パス:',
+    `  - summary json: ${summaryPath}`,
+    '  - report json:',
+    ...reportPathLines.map((line) => `    ${line}`),
+    '  - runner log:',
+    ...runnerLogPathLines.map((line) => `    ${line}`),
+    '- 結果抜粋:',
+    ...failedCategoryLines,
+    `- ai_failure_kind_counts: ${aiFailureKindCounts}`,
+    '',
+    '## Result',
+    '- このレポートは人間向け保存用であり、機械的な正は JSON report/summary を参照する。',
+    '',
+    '## Next',
+    `- ${nextText}`,
+    ''
+  ].join('\n');
+}
+
 function percentile(values: number[], p: number): number {
   if (values.length === 0) {
     return 0;
@@ -1060,6 +1126,25 @@ async function run(): Promise<void> {
   emitLoopEvent('summary_write_end', {
     run_id: runId,
     summary_path: summaryPath
+  });
+  const workLogDir = path.resolve(repoRoot, 'eval', 'logs', 'work');
+  const workTimestamp = formatWorkReportTimestamp(new Date());
+  const workReportPath = path.join(workLogDir, `${workTimestamp}.md`);
+  const workReportMarkdown = buildWorkReportMarkdown({
+    summary,
+    summaryPath,
+    reportPrefix: options.reportPrefix,
+    workTimestamp
+  });
+  await ensureDirectory(workLogDir);
+  emitLoopEvent('work_report_write_start', {
+    run_id: runId,
+    work_report_path: workReportPath
+  });
+  await writeUtf8File(workReportPath, workReportMarkdown);
+  emitLoopEvent('work_report_write_end', {
+    run_id: runId,
+    work_report_path: workReportPath
   });
   emitLoopEvent('loop_done', {
     run_id: runId,
