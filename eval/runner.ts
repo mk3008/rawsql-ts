@@ -40,6 +40,7 @@ const EVAL_TEST_EXCLUDES = ['**/*.integration.test.*', '**/*testcontainers*'];
 const EVAL_TEST_MODE: 'eval' = 'eval';
 const EVAL_TEST_FALLBACK_POLICY: 'fail_fast_no_fallback' = 'fail_fast_no_fallback';
 const CODEX_STDERR_TAIL_MAX_CHARS = 2000;
+const CODEX_TIMEOUT_LOCAL_READ_TOKENS = ['agents.md', 'reading', 'scanning', 'get-content', 'pwsh.exe', 'open'];
 const EVAL_MARKER_RELATIVE_PATH = 'tests/__eval_ai_marker__.txt';
 const MAIN_AI_MARKER_REQUIREMENT = [
   'First run this command exactly:',
@@ -970,6 +971,8 @@ async function run(): Promise<void> {
             codex_review_git_name_only_probe_error_tail: null,
             codex_review_treated_as_success: false,
             codex_review_treated_as_success_reason: 'Not observed',
+            codex_timeout_phase: 'not_observed',
+            codex_timeout_phase_reason: 'not_observed',
             codex_rust_log: 'Not observed',
             effectiveWrite: false,
             command: '',
@@ -1246,6 +1249,27 @@ async function run(): Promise<void> {
       const codexLastOutputMs: number | 'Not observed' =
         typeof aiResult.lastOutputElapsedMs === 'number' ? aiResult.lastOutputElapsedMs : 'Not observed';
       const codexRustLog = resolveCodexRustLog(codexEnv) ?? 'Not observed';
+      const codexDiagSeenConfiguringSession = codexExecTimedOut ? aiResult.codexDiagFlags?.seenConfiguringSession ?? false : false;
+      const codexDiagSeenHyperReuseIdleConnection = codexExecTimedOut
+        ? aiResult.codexDiagFlags?.seenHyperReuseIdleConnection ?? false
+        : false;
+      const codexDiagSeenChatgptCom = codexExecTimedOut ? aiResult.codexDiagFlags?.seenChatgptCom ?? false : false;
+      const codexDiagSeenTimeoutMarker = codexExecTimedOut ? aiResult.codexDiagFlags?.seenTimeoutMarker ?? false : false;
+      const codexStderrTailText = (aiResult.stderrTail ?? '').toLowerCase();
+      let codexTimeoutPhase: 'network_wait' | 'local_read' | 'other' | 'not_observed' = 'not_observed';
+      let codexTimeoutPhaseReason: 'diag_flags' | 'stderr_tail' | 'fallback' | 'not_observed' = 'not_observed';
+      if (codexExecTimedOut) {
+        if (codexDiagSeenChatgptCom || codexDiagSeenHyperReuseIdleConnection || codexDiagSeenConfiguringSession) {
+          codexTimeoutPhase = 'network_wait';
+          codexTimeoutPhaseReason = 'diag_flags';
+        } else if (CODEX_TIMEOUT_LOCAL_READ_TOKENS.some((token) => codexStderrTailText.includes(token))) {
+          codexTimeoutPhase = 'local_read';
+          codexTimeoutPhaseReason = 'stderr_tail';
+        } else {
+          codexTimeoutPhase = 'other';
+          codexTimeoutPhaseReason = 'fallback';
+        }
+      }
       const codexReviewOutputTail =
         codexMode.mode === 'exec'
           ? null
@@ -1487,16 +1511,12 @@ async function run(): Promise<void> {
             codexExecTimedOut && typeof aiResult.stderrTailTruncated === 'boolean'
               ? aiResult.stderrTailTruncated
               : null,
-          codex_diag_seen_configuring_session: codexExecTimedOut
-            ? aiResult.codexDiagFlags?.seenConfiguringSession ?? false
-            : null,
-          codex_diag_seen_hyper_reuse_idle_connection: codexExecTimedOut
-            ? aiResult.codexDiagFlags?.seenHyperReuseIdleConnection ?? false
-            : null,
-          codex_diag_seen_chatgpt_com: codexExecTimedOut ? aiResult.codexDiagFlags?.seenChatgptCom ?? false : null,
-          codex_diag_seen_timeout_marker: codexExecTimedOut
-            ? aiResult.codexDiagFlags?.seenTimeoutMarker ?? false
-            : null,
+          codex_diag_seen_configuring_session: codexExecTimedOut ? codexDiagSeenConfiguringSession : null,
+          codex_diag_seen_hyper_reuse_idle_connection: codexExecTimedOut ? codexDiagSeenHyperReuseIdleConnection : null,
+          codex_diag_seen_chatgpt_com: codexExecTimedOut ? codexDiagSeenChatgptCom : null,
+          codex_diag_seen_timeout_marker: codexExecTimedOut ? codexDiagSeenTimeoutMarker : null,
+          codex_timeout_phase: codexExecTimedOut ? codexTimeoutPhase : 'not_observed',
+          codex_timeout_phase_reason: codexExecTimedOut ? codexTimeoutPhaseReason : 'not_observed',
           codex_rust_log: codexRustLog,
           codex_header_sandbox: headerSandbox ?? 'Not observed',
           codex_flag_sandbox: flagSandbox ?? 'Not observed',
@@ -1585,6 +1605,8 @@ async function run(): Promise<void> {
           codex_review_git_name_only_probe_error_tail: null,
           codex_review_treated_as_success: false,
           codex_review_treated_as_success_reason: 'Not observed',
+          codex_timeout_phase: 'not_observed',
+          codex_timeout_phase_reason: 'not_observed',
           codex_rust_log: 'Not observed',
           effectiveWrite: false,
           command: '',
