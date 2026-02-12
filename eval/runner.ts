@@ -47,6 +47,12 @@ const MAIN_AI_MARKER_REQUIREMENT = [
   `Run: pwsh -NoProfile -Command "Set-Content -NoNewline -Path ./${EVAL_MARKER_RELATIVE_PATH} -Value ok; Get-Content -Raw ./${EVAL_MARKER_RELATIVE_PATH}"`,
   'Then continue with the existing CRUD instructions.'
 ].join('\n');
+const EXEC_INPUT_SCOPE_RULES = [
+  'INPUT FILES only.',
+  'No directory scanning.',
+  'No ripgrep/find/search.',
+  'If a needed file is not listed, stop and report Not observed with the required file path.'
+].join('\n');
 const PREFLIGHT_WRITE_PROMPT =
   'Run: pwsh -NoProfile -Command "Set-Content -NoNewline -Path ./__eval_probe_write.txt -Value ok; Get-Content -Raw ./__eval_probe_write.txt"';
 const LOCAL_PREFLIGHT_COMMAND =
@@ -1059,7 +1065,7 @@ async function run(): Promise<void> {
       let aiCommandArgs: string[];
       if (codexMode.mode === 'exec') {
         const promptText = await readUtf8File(promptPath);
-        const aiPrompt = `${MAIN_AI_MARKER_REQUIREMENT}\n\n${promptText}`;
+        const aiPrompt = `${MAIN_AI_MARKER_REQUIREMENT}\n\n${EXEC_INPUT_SCOPE_RULES}\n\n${promptText}`;
         aiPromptChars = aiPrompt.length;
         aiInputFilesCount = 1;
         aiPromptHead = aiPrompt.slice(0, 400);
