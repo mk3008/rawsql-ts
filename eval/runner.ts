@@ -34,6 +34,7 @@ const DEFAULT_LOCAL_DEPS = ['@rawsql-ts/shared-binder'];
 const DEFAULT_CODEX_EXEC_TIMEOUT_MS = 45_000;
 const DEFAULT_CODEX_EXEC_TIMEOUT_MS_WITH_RUST_LOG = 90_000;
 const WORK_GITIGNORE_PATTERNS = ['tests/generated/'];
+const WORK_GIT_SEED_DIFF_FILE = 'eval_seed_diff.txt';
 const EVAL_TEST_COMMAND = 'test:eval';
 const EVAL_TEST_EXCLUDES = ['**/*.integration.test.*', '**/*testcontainers*'];
 const EVAL_TEST_MODE: 'eval' = 'eval';
@@ -358,6 +359,11 @@ function resolveCodexMode(env?: NodeJS.ProcessEnv): { mode: CodexMode; reviewBas
     mode: 'exec',
     reviewBase: null
   };
+}
+
+function resolveWorkGitSeedDiffMode(env?: NodeJS.ProcessEnv): 'staged' | null {
+  const raw = (env?.EVAL_WORK_GIT_SEED_DIFF ?? process.env.EVAL_WORK_GIT_SEED_DIFF ?? '').trim().toLowerCase();
+  return raw === 'staged' ? 'staged' : null;
 }
 
 function buildCodexProcessEnv(env?: NodeJS.ProcessEnv): NodeJS.ProcessEnv | undefined {
@@ -944,6 +950,10 @@ async function run(): Promise<void> {
             work_git_status_truncated: 'Not observed',
             work_git_status_exit_code: 'Not observed',
             work_git_status_error_tail: 'Not observed',
+            work_git_seed_diff_mode: 'not_observed',
+            work_git_seed_diff_file: null,
+            work_git_seed_diff_add_exit_code: null,
+            work_git_seed_diff_add_error_tail: null,
             codex_mode_effective: 'Not observed',
             codex_review_base: 'Not observed',
             codex_review_output_tail: 'Not observed',
@@ -1103,6 +1113,10 @@ async function run(): Promise<void> {
       let workGitStatusTruncated: boolean | null = null;
       let workGitStatusExitCode: number | null = null;
       let workGitStatusErrorTail: string | null = null;
+      let workGitSeedDiffMode: 'staged' | null = null;
+      let workGitSeedDiffFile: string | null = null;
+      let workGitSeedDiffAddExitCode: number | null = null;
+      let workGitSeedDiffAddErrorTail: string | null = null;
       if (codexMode.mode !== 'exec') {
         const workGitignorePath = path.join(workspacePath, '.gitignore');
         try {
@@ -1142,6 +1156,26 @@ async function run(): Promise<void> {
             );
             if (workGitCommitExitCode !== 0) {
               workGitCommitSkippedReason = 'git_commit_failed';
+            } else {
+              workGitSeedDiffMode = resolveWorkGitSeedDiffMode(codexEnv);
+              if (workGitSeedDiffMode === 'staged') {
+                const seedPath = path.join(workspacePath, WORK_GIT_SEED_DIFF_FILE);
+                const seedLine = `seed:${new Date().toISOString()}`;
+                // Seed one staged file on demand so review_uncommitted can deterministically observe diff output.
+                await writeUtf8File(seedPath, `${seedLine}\n`);
+                const seedAddResult = await runAndTrackAllowFailureWithDetails(
+                  commandLogs,
+                  'git',
+                  ['add', WORK_GIT_SEED_DIFF_FILE],
+                  workspacePath,
+                  codexEnv
+                );
+                workGitSeedDiffFile = WORK_GIT_SEED_DIFF_FILE;
+                workGitSeedDiffAddExitCode = seedAddResult.exitCode;
+                if (seedAddResult.exitCode !== 0) {
+                  workGitSeedDiffAddErrorTail = buildTailText(seedAddResult.stderr, 2000).tail;
+                }
+              }
             }
           } else {
             workGitCommitSkippedReason = 'git_add_failed';
@@ -1363,6 +1397,10 @@ async function run(): Promise<void> {
             codexMode.mode === 'review_uncommitted' ? (workGitStatusExitCode ?? 'Not observed') : null,
           work_git_status_error_tail:
             codexMode.mode === 'review_uncommitted' ? (workGitStatusErrorTail ?? '') : null,
+          work_git_seed_diff_mode: codexMode.mode === 'exec' ? 'not_observed' : (workGitSeedDiffMode ?? 'not_observed'),
+          work_git_seed_diff_file: codexMode.mode === 'exec' ? null : workGitSeedDiffFile,
+          work_git_seed_diff_add_exit_code: codexMode.mode === 'exec' ? null : workGitSeedDiffAddExitCode,
+          work_git_seed_diff_add_error_tail: codexMode.mode === 'exec' ? null : workGitSeedDiffAddErrorTail,
           codex_mode_effective: codexMode.mode,
           codex_review_base: codexMode.mode === 'review_base' ? (codexMode.reviewBase ?? 'Not observed') : null,
           codex_review_output_tail: codexReviewOutputTail,
@@ -1461,6 +1499,10 @@ async function run(): Promise<void> {
           work_git_status_truncated: 'Not observed',
           work_git_status_exit_code: 'Not observed',
           work_git_status_error_tail: 'Not observed',
+          work_git_seed_diff_mode: 'not_observed',
+          work_git_seed_diff_file: null,
+          work_git_seed_diff_add_exit_code: null,
+          work_git_seed_diff_add_error_tail: null,
           codex_mode_effective: 'Not observed',
           codex_review_base: 'Not observed',
           codex_review_output_tail: 'Not observed',
