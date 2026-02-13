@@ -1,6 +1,16 @@
-﻿# @rawsql-ts/sqlite-testkit
+# @rawsql-ts/sqlite-testkit
 
-SQLite adapter utilities that let you run repository tests entirely in-memory by shadowing tables with fixture-backed CTEs. The package builds on `@rawsql-ts/testkit-core` for schema validation and SQL rewrites.
+![npm version](https://img.shields.io/npm/v/@rawsql-ts/sqlite-testkit)
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+
+SQLite driver adapter for running repository tests entirely in-memory by shadowing tables with fixture-backed CTEs. Built on `@rawsql-ts/testkit-core` for schema validation and SQL rewrites.
+
+## Features
+
+- In-memory testing with `better-sqlite3`
+- Transparent query interception via `wrapSqliteDriver`
+- Scenario-specific fixture overrides with `withFixtures`
+- Schema registry support for consistent large test suites
 
 ## Installation
 
@@ -8,27 +18,11 @@ SQLite adapter utilities that let you run repository tests entirely in-memory by
 npm install @rawsql-ts/sqlite-testkit
 ```
 
-## `createSqliteSelectTestDriver`
+## Quick Start
 
 ```ts
 import Database from 'better-sqlite3';
 import { createSqliteSelectTestDriver } from '@rawsql-ts/sqlite-testkit';
-
-const tableSchemas = {
-  users: {
-    columns: {
-      id: 'INTEGER',
-      name: 'TEXT',
-      role: 'TEXT',
-    },
-  },
-};
-
-const schemaRegistry = {
-  getTable(name: string) {
-    return tableSchemas[name as keyof typeof tableSchemas];
-  },
-};
 
 const driver = createSqliteSelectTestDriver({
   connectionFactory: () => new Database(':memory:'),
@@ -36,28 +30,20 @@ const driver = createSqliteSelectTestDriver({
     {
       tableName: 'users',
       rows: [{ id: 1, name: 'Alice', role: 'admin' }],
+      schema: { columns: { id: 'INTEGER', name: 'TEXT', role: 'TEXT' } },
     },
   ],
-  schema: schemaRegistry,
   missingFixtureStrategy: 'error',
 });
 
 const rows = await driver.query('SELECT * FROM users');
 ```
 
-Use `driver.withFixtures([...])` to derive a scoped driver with scenario-specific fixture overrides, and call `driver.close()` to dispose the underlying connection when the suite finishes.
+Use `driver.withFixtures([...])` to derive a scoped driver with scenario-specific overrides, and `driver.close()` to dispose the connection when done.
 
-> ℹ️ You can still pass `schema` per fixture for quick experiments, but providing a registry once via the top-level `schema` option keeps large suites maintainable and consistent.
+## Wrapping an Existing Connection
 
-## `wrapSqliteDriver`
-
-Turn any existing `better-sqlite3` connection into a transparent proxy that:
-
-- intercepts `prepare`, `exec`, `all`, `get`, and `run`
-- rewrites incoming `SELECT` statements into fixture-backed CTEs (and passes through everything else)
-- leaves the underlying repository or DAO code untouched
-
-In other words, you can keep your production query paths as-is and only override read queries during tests.
+`wrapSqliteDriver` turns any `better-sqlite3` connection into a transparent proxy that intercepts `prepare`, `exec`, `all`, `get`, and `run` — rewriting SELECT statements into fixture-backed CTEs while passing through everything else.
 
 ```ts
 import Database from 'better-sqlite3';
@@ -70,19 +56,12 @@ const intercepted = wrapSqliteDriver(raw, {
   ],
   missingFixtureStrategy: 'warn',
   recordQueries: true,
-  onExecute(sql, params) {
-    console.log(`[sql] ${sql}`, params);
-  },
 });
 
 intercepted.prepare('SELECT * FROM orders').all();
-
-// Inspect the final SQL emitted during the test
-console.log(intercepted.queries);
+console.log(intercepted.queries); // inspect emitted SQL
 ```
 
-Call `intercepted.withFixtures([...])` to create an isolated proxy that applies additional fixtures on top of the base configuration.
+## License
 
-## Publishing
-
-Run `npm run release` from `packages/drivers/sqlite-testkit` to execute lint, test, build, `npm pack --dry-run`, and `npm publish --access public`. This mirrors the core package release workflow and lets you publish `@rawsql-ts/sqlite-testkit` directly after bumping the version.
+MIT

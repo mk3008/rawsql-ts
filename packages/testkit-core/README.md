@@ -1,15 +1,24 @@
-﻿# @rawsql-ts/testkit-core
+# @rawsql-ts/testkit-core
 
-Pure TypeScript utilities that help rewrite SELECT statements with fixture-backed CTEs so SQLite drivers can run deterministic unit tests.
+![npm version](https://img.shields.io/npm/v/@rawsql-ts/testkit-core)
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+
+Pure TypeScript utilities for rewriting SELECT statements with fixture-backed CTEs, enabling deterministic unit tests without modifying original query structure.
 
 ## Features
 
-- Validates fixture rows against declarative schemas (or registry lookups).
-- Injects rewritten `WITH` clauses without touching the original query shape.
-- Supports fail-fast, passthrough, or warn-on-missing fixture strategies.
-- Supplies building blocks for driver adapters (see `@rawsql-ts/sqlite-testkit`).
+- Validates fixture rows against declarative schemas (or registry lookups)
+- Injects rewritten `WITH` clauses without touching the original query shape
+- Supports fail-fast, passthrough, or warn-on-missing fixture strategies
+- Supplies building blocks for driver adapters (see `@rawsql-ts/sqlite-testkit`, `@rawsql-ts/testkit-postgres`)
 
-## Usage
+## Installation
+
+```bash
+npm install @rawsql-ts/testkit-core
+```
+
+## Quick Start
 
 ```ts
 import { SelectFixtureRewriter } from '@rawsql-ts/testkit-core';
@@ -32,12 +41,9 @@ const rewriter = new SelectFixtureRewriter({
 const { sql } = rewriter.rewrite('SELECT id, name FROM users');
 ```
 
-## Connection strategy provider
+## Connection Strategy Provider
 
-When your tests need to execute multiple repository calls, `createTestkitProvider`
-lets you keep a single backend connection open by default while still isolating
-each scenario. The shared strategy wraps every call in a transaction so the
-session state never leaks between fixtures.
+When your tests need to execute multiple repository calls, `createTestkitProvider` keeps a single backend connection open by default while isolating each scenario. The shared strategy wraps every call in a transaction so session state never leaks between fixtures.
 
 ```ts
 import { createTestkitProvider } from '@rawsql-ts/testkit-core';
@@ -58,10 +64,8 @@ await provider.withRepositoryFixture(fixtures, async (client) => {
 await provider.close();
 ```
 
-The default configuration uses the `'shared'` strategy plus `reset: 'transaction'`,
-which executes `BEGIN` before each scenario and `ROLLBACK` afterward. If you do
-need to keep persistent schema changes (temporary tables, `SET` commands, etc.)
-for a specific test, call `provider.perTest()` or pass `{ strategy: 'perTest' }`
-to `withRepositoryFixture` so a brand-new connection is created just for that run.
-You can also override `reset` with `'none'` or a custom hook when you need to
-apply bespoke cleanup logic between shared scenarios.
+The default configuration uses the `'shared'` strategy with `reset: 'transaction'` — `BEGIN` before each scenario and `ROLLBACK` afterward. For tests requiring persistent schema changes (temporary tables, `SET` commands, etc.), use `provider.perTest()` or pass `{ strategy: 'perTest' }` to create a new connection per run.
+
+## License
+
+MIT
