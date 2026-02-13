@@ -184,6 +184,9 @@ reports/**/*.md
 # Serena (MCP coding agent)
 .serena/
 
+# Claude Code local settings
+.claude/*.local.json
+
 # VitePress build output
 docs/.vitepress/dist
 
