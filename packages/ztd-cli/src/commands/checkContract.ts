@@ -93,22 +93,27 @@ export function registerCheckContractCommand(program: Command): void {
     .option('--strict', 'Treat safety warnings as violations')
     .option('--specs-dir <path>', 'Override specs directory (default: src/catalog/specs)')
     .action(async (options: CheckCommandOptions & { format: string }) => {
-      const format = normalizeFormat(options.format);
-      const result = runCheckContract({
-        strict: Boolean(options.strict),
-        rootDir: process.env.ZTD_PROJECT_ROOT,
-        specsDir: options.specsDir
-      });
-      const text = formatOutput(result, format);
-      if (options.out) {
-        const absolute = path.resolve(process.cwd(), options.out);
-        mkdirSync(path.dirname(absolute), { recursive: true });
-        writeFileSync(absolute, text, 'utf8');
-      } else {
-        const writer = result.ok ? console.log : console.error;
-        writer(text);
+      try {
+        const format = normalizeFormat(options.format);
+        const result = runCheckContract({
+          strict: Boolean(options.strict),
+          rootDir: process.env.ZTD_PROJECT_ROOT,
+          specsDir: options.specsDir
+        });
+        const text = formatOutput(result, format);
+        if (options.out) {
+          const absolute = path.resolve(process.cwd(), options.out);
+          mkdirSync(path.dirname(absolute), { recursive: true });
+          writeFileSync(absolute, text, 'utf8');
+        } else {
+          const writer = result.ok ? console.log : console.error;
+          writer(text);
+        }
+        process.exitCode = resolveCheckContractExitCode({ result });
+      } catch (error) {
+        process.exitCode = resolveCheckContractExitCode({ error });
+        console.error(error instanceof Error ? error.message : String(error));
       }
-      process.exitCode = resolveCheckContractExitCode({ result });
     });
 }
 
@@ -409,10 +414,10 @@ function loadSpecsFromFile(filePath: string): LoadedSpec[] {
 
   const source = readFileSync(filePath, 'utf8');
   // Intentionally lightweight extraction for TS/JS specs (MVP):
-  // - expects object-literal style `id` + `sqlFile`
+  // - expects object-literal style specs
   // - does not fully parse TS syntax/semantics
   // Prefer JSON specs for strict machine-readability.
-  const blocks = source.match(/\{[\s\S]*?id\s*:\s*['"`][^'"`]+['"`][\s\S]*?sqlFile\s*:\s*['"`][^'"`]+['"`][\s\S]*?\}/g) ?? [];
+  const blocks = extractTsJsSpecBlocks(source);
   return blocks.map((block) => {
     const id = block.match(/id\s*:\s*['"`]([^'"`]+)['"`]/)?.[1];
     const sqlFile = block.match(/sqlFile\s*:\s*['"`]([^'"`]+)['"`]/)?.[1];
@@ -425,6 +430,11 @@ function loadSpecsFromFile(filePath: string): LoadedSpec[] {
     for (const match of Array.from(columnMapBlock.matchAll(/([A-Za-z_$][\w$]*)\s*:\s*['"`]([^'"`]+)['"`]/g))) {
       columnMap[match[1]] = match[2];
     }
+    const prefix = block.match(/prefix\s*:\s*['"`]([^'"`]*)['"`]/)?.[1];
+    const mapping = {
+      ...(typeof prefix === 'string' ? { prefix } : {}),
+      ...(Object.keys(columnMap).length > 0 ? { columnMap } : {})
+    };
 
     return {
       spec: {
@@ -434,11 +444,59 @@ function loadSpecsFromFile(filePath: string): LoadedSpec[] {
           shape,
           example: exampleIsArray ? [] : exampleIsObject ? {} : undefined
         },
-        output: Object.keys(columnMap).length > 0 ? { mapping: { columnMap } } : undefined
+        output: Object.keys(mapping).length > 0 ? { mapping } : undefined
       } as QuerySpecLike,
       filePath
     };
   });
+}
+
+function extractTsJsSpecBlocks(source: string): string[] {
+  const blocks: string[] = [];
+  const seen = new Set<string>();
+  const idRegex = /id\s*:\s*['"`][^'"`]+['"`]/g;
+
+  for (const match of Array.from(source.matchAll(idRegex))) {
+    if (typeof match.index !== 'number') {
+      continue;
+    }
+
+    const start = source.lastIndexOf('{', match.index);
+    if (start < 0) {
+      continue;
+    }
+
+    let depth = 0;
+    let end = -1;
+    for (let i = start; i < source.length; i += 1) {
+      const ch = source[i];
+      if (ch === '{') {
+        depth += 1;
+      } else if (ch === '}') {
+        depth -= 1;
+        if (depth === 0) {
+          end = i;
+          break;
+        }
+      }
+    }
+
+    if (end < 0) {
+      continue;
+    }
+
+    const block = source.slice(start, end + 1);
+    if (!/sqlFile\s*:\s*['"`][^'"`]+['"`]/.test(block)) {
+      continue;
+    }
+
+    if (!seen.has(block)) {
+      seen.add(block);
+      blocks.push(block);
+    }
+  }
+
+  return blocks;
 }
 
 function walkSpecFiles(rootDir: string): string[] {
@@ -456,7 +514,10 @@ function walkSpecFiles(rootDir: string): string[] {
       }
       if (entry.isFile()) {
         const name = entry.name.toLowerCase();
-        if (name.endsWith('.json') || name.endsWith('.ts') || name.endsWith('.js') || name.endsWith('.mts') || name.endsWith('.cts')) {
+        if (
+          (name.endsWith('.json') || name.endsWith('.ts') || name.endsWith('.js') || name.endsWith('.mts') || name.endsWith('.cts'))
+          && !name.includes('.test.')
+        ) {
           files.push(absolute);
         }
       }

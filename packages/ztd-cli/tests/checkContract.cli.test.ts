@@ -92,13 +92,13 @@ test('CLI: check contract prints violations and sets exitCode=1', async () => {
   expect(parsed.violations.some((v: { rule: string }) => v.rule === 'params-shape-mismatch')).toBe(true);
 });
 
-test('CLI: check contract propagates runtime error when spec dir missing', async () => {
+test('CLI: check contract sets exitCode=2 for runtime/config errors', async () => {
   const workspace = mkdtempSync(path.join(os.tmpdir(), 'check-contract-cli-error-'));
   process.env.ZTD_PROJECT_ROOT = workspace;
   const capture = { stdout: [] as string[], stderr: [] as string[] };
   const program = createProgram(capture);
 
-  await expect(
-    program.parseAsync(['check', 'contract'], { from: 'user' })
-  ).rejects.toThrow('Spec directory not found');
+  await program.parseAsync(['check', 'contract'], { from: 'user' });
+
+  expect(process.exitCode).toBe(2);
 });

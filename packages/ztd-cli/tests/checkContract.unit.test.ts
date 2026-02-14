@@ -94,6 +94,19 @@ describe('runCheckContract', () => {
     expect(result.violations.some((v) => v.rule === 'sql-parse-error' && v.severity === 'warning')).toBe(true);
   });
 
+  test('ts/js extractor includes mapping.prefix so mapping validation still runs', () => {
+    const root = createWorkspace();
+    writeFileSync(path.join(root, 'src', 'sql', 'prefix.sql'), 'SELECT 1', 'utf8');
+    writeFileSync(
+      path.join(root, 'src', 'catalog', 'specs', 'prefix.ts'),
+      "export const bad = { id: 'prefix.bad', sqlFile: '../../sql/prefix.sql', params: { shape: 'positional', example: [] }, output: { mapping: { prefix: '' } } };",
+      'utf8'
+    );
+
+    const result = runCheckContract({ strict: true, rootDir: root });
+    expect(result.violations.some((v) => v.rule === 'mapping-invalid-entry')).toBe(true);
+  });
+
   test('formatOutput emits deterministic json', () => {
     const formatted = formatOutput({ ok: false, filesChecked: 1, specsChecked: 1, violations: [{ rule: 'duplicate-spec-id', severity: 'error', specId: 'a', filePath: '/tmp/a.json', message: 'dup' }] }, 'json');
     expect(formatted).toContain('"rule": "duplicate-spec-id"');
