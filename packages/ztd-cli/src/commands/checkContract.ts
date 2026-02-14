@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { Command } from 'commander';
-import { DeleteQuery, MultiQuerySplitter, SqlParser, UpdateQuery } from 'rawsql-ts';
+import { BinarySelectQuery, ColumnReference, DeleteQuery, MultiQuerySplitter, SimpleSelectQuery, SqlParser, UpdateQuery } from 'rawsql-ts';
 
 export type CheckFormat = 'human' | 'json';
 export type ViolationSeverity = 'error' | 'warning';
@@ -258,25 +258,32 @@ function applySafetyChecks(
       continue;
     }
 
-    if (/^\s*select\b/i.test(statement) && hasSelectStar(statement)) {
+    if (hasRootLevelSelectWildcard(parsed)) {
       violations.push({
         rule: 'safety-select-star',
         severity,
         specId,
         filePath: specFilePath,
-        message: 'SELECT * detected.'
+        message: 'SELECT * detected at root query level.'
       });
     }
   }
 }
 
-function hasSelectStar(statement: string): boolean {
-  const match = statement.match(/\bselect\b([\s\S]*?)\bfrom\b/i);
-  if (!match) {
-    return false;
+function hasRootLevelSelectWildcard(parsed: unknown): boolean {
+  if (parsed instanceof SimpleSelectQuery) {
+    return parsed.selectClause.items.some((item) => isWildcardSelectItem(item.value));
   }
-  const selectList = match[1];
-  return /(^|,)\s*(?:[a-zA-Z_][\w]*\s*\.\s*)?\*(?=\s*(,|$))/i.test(selectList.trim());
+
+  if (parsed instanceof BinarySelectQuery) {
+    return hasRootLevelSelectWildcard(parsed.left) || hasRootLevelSelectWildcard(parsed.right);
+  }
+
+  return false;
+}
+
+function isWildcardSelectItem(value: unknown): boolean {
+  return value instanceof ColumnReference && value.column.name === '*';
 }
 
 function validateMapping(

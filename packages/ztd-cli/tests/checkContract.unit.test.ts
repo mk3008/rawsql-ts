@@ -64,6 +64,23 @@ describe('runCheckContract', () => {
     expect(strictResult.violations.some((v) => v.rule === 'safety-missing-where' && v.severity === 'error')).toBe(true);
   });
 
+  test('does not flag wildcard inside EXISTS subquery when root select list is explicit', () => {
+    const root = createWorkspace();
+    writeFileSync(
+      path.join(root, 'src', 'sql', 'exists.sql'),
+      'SELECT id FROM users WHERE EXISTS (SELECT * FROM orders WHERE orders.user_id = users.id);',
+      'utf8'
+    );
+    writeFileSync(
+      path.join(root, 'src', 'catalog', 'specs', 'exists.json'),
+      JSON.stringify({ id: 'exists-safe', sqlFile: '../../sql/exists.sql', params: { shape: 'positional', example: [] } }),
+      'utf8'
+    );
+
+    const result = runCheckContract({ strict: true, rootDir: root });
+    expect(result.violations.some((v) => v.rule === 'safety-select-star')).toBe(false);
+  });
+
   test('formatOutput emits deterministic json', () => {
     const formatted = formatOutput({ ok: false, filesChecked: 1, specsChecked: 1, violations: [{ rule: 'duplicate-spec-id', severity: 'error', specId: 'a', filePath: '/tmp/a.json', message: 'dup' }] }, 'json');
     expect(formatted).toContain('"rule": "duplicate-spec-id"');
