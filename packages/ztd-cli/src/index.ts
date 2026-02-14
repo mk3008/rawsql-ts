@@ -5,6 +5,7 @@ import { registerDdlCommands } from './commands/ddl';
 import { registerInitCommand } from './commands/init';
 import { registerLintCommand } from './commands/lint';
 import { registerZtdConfigCommand } from './commands/ztdConfigCommand';
+import { CheckContractRuntimeError, registerCheckContractCommand } from './commands/checkContract';
 
 async function main(): Promise<void> {
   const program = new Command();
@@ -12,6 +13,7 @@ async function main(): Promise<void> {
 
   registerInitCommand(program);
   registerLintCommand(program);
+  registerCheckContractCommand(program);
   registerZtdConfigCommand(program);
   registerDdlCommands(program);
 
@@ -20,5 +22,8 @@ async function main(): Promise<void> {
 
 main().catch((error) => {
   console.error(error instanceof Error ? error.message : error);
+  if (error instanceof CheckContractRuntimeError) {
+    process.exit(2);
+  }
   process.exit(1);
 });
