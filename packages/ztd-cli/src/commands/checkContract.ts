@@ -6,6 +6,7 @@ import { BinarySelectQuery, ColumnReference, DeleteQuery, MultiQuerySplitter, Si
 export type CheckFormat = 'human' | 'json';
 export type ViolationSeverity = 'error' | 'warning';
 
+/** A single deterministic contract-check violation/warning item. */
 export interface ContractViolation {
   rule:
     | 'duplicate-spec-id'
@@ -14,7 +15,8 @@ export interface ContractViolation {
     | 'mapping-invalid-entry'
     | 'mapping-duplicate-entry'
     | 'safety-select-star'
-    | 'safety-missing-where';
+    | 'safety-missing-where'
+    | 'sql-parse-error';
   severity: ViolationSeverity;
   specId: string;
   filePath: string;
@@ -28,6 +30,12 @@ export interface CheckContractResult {
   specsChecked: number;
 }
 
+/**
+ * Resolve command exit code for contract checks.
+ * @param args.result Completed check result when execution succeeded.
+ * @param args.error Error thrown while running checks.
+ * @returns 0 when result is ok, 1 when violations exist or non-runtime errors occur, 2 for runtime/config errors.
+ */
 export function resolveCheckContractExitCode(args: {
   result?: CheckContractResult;
   error?: unknown;
@@ -61,6 +69,7 @@ interface LoadedSpec {
   filePath: string;
 }
 
+/** Runtime/configuration error for contract check command (maps to exit code 2). */
 export class CheckContractRuntimeError extends Error {
   readonly exitCode = 2;
 }
@@ -72,6 +81,7 @@ interface CheckCommandOptions {
   specsDir?: string;
 }
 
+/** Register `ztd check contract` command on the CLI root program. */
 export function registerCheckContractCommand(program: Command): void {
   const check = program.command('check').description('Contract validation workflows');
 
@@ -113,6 +123,12 @@ function normalizeFormat(format: string): CheckFormat {
   throw new CheckContractRuntimeError(`Unsupported format: ${format}`);
 }
 
+/**
+ * Run deterministic contract checks for catalog specs under a project root.
+ * @param options.strict Treat safety checks as errors when true, warnings otherwise.
+ * @param options.rootDir Optional project root override.
+ * @param options.specsDir Optional specs directory override (relative to rootDir).
+ */
 export function runCheckContract(options: { strict: boolean; rootDir?: string; specsDir?: string }): CheckContractResult {
   const root = path.resolve(options.rootDir ?? process.cwd());
   const specsDir = options.specsDir ? path.resolve(root, options.specsDir) : path.resolve(root, 'src', 'catalog', 'specs');
@@ -239,7 +255,14 @@ function applySafetyChecks(
     let parsed: unknown;
     try {
       parsed = SqlParser.parse(statement);
-    } catch {
+    } catch (error) {
+      violations.push({
+        rule: 'sql-parse-error',
+        severity: 'warning',
+        specId,
+        filePath: specFilePath,
+        message: `SQL parse failed in safety check: ${error instanceof Error ? error.message : String(error)}`
+      });
       continue;
     }
 
@@ -385,6 +408,10 @@ function loadSpecsFromFile(filePath: string): LoadedSpec[] {
   }
 
   const source = readFileSync(filePath, 'utf8');
+  // Intentionally lightweight extraction for TS/JS specs (MVP):
+  // - expects object-literal style `id` + `sqlFile`
+  // - does not fully parse TS syntax/semantics
+  // Prefer JSON specs for strict machine-readability.
   const blocks = source.match(/\{[\s\S]*?id\s*:\s*['"`][^'"`]+['"`][\s\S]*?sqlFile\s*:\s*['"`][^'"`]+['"`][\s\S]*?\}/g) ?? [];
   return blocks.map((block) => {
     const id = block.match(/id\s*:\s*['"`]([^'"`]+)['"`]/)?.[1];
@@ -446,6 +473,7 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return proto === Object.prototype || proto === null;
 }
 
+/** Format check results into human text or deterministic JSON text. */
 export function formatOutput(result: CheckContractResult, format: CheckFormat): string {
   if (format === 'json') {
     return `${JSON.stringify(result, null, 2)}\n`;

@@ -81,6 +81,19 @@ describe('runCheckContract', () => {
     expect(result.violations.some((v) => v.rule === 'safety-select-star')).toBe(false);
   });
 
+  test('records sql parse warning for invalid SQL safety-check phase', () => {
+    const root = createWorkspace();
+    writeFileSync(path.join(root, 'src', 'sql', 'invalid.sql'), 'SELECT FROM', 'utf8');
+    writeFileSync(
+      path.join(root, 'src', 'catalog', 'specs', 'invalid.json'),
+      JSON.stringify({ id: 'invalid.sql', sqlFile: '../../sql/invalid.sql', params: { shape: 'positional', example: [] } }),
+      'utf8'
+    );
+
+    const result = runCheckContract({ strict: true, rootDir: root });
+    expect(result.violations.some((v) => v.rule === 'sql-parse-error' && v.severity === 'warning')).toBe(true);
+  });
+
   test('formatOutput emits deterministic json', () => {
     const formatted = formatOutput({ ok: false, filesChecked: 1, specsChecked: 1, violations: [{ rule: 'duplicate-spec-id', severity: 'error', specId: 'a', filePath: '/tmp/a.json', message: 'dup' }] }, 'json');
     expect(formatted).toContain('"rule": "duplicate-spec-id"');
