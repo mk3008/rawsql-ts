@@ -15,6 +15,7 @@ overrides:
   diff: 8.0.3
   lodash: 4.17.23
   undici: 7.18.2
+  markdown-it: 14.1.1
 
 importers:
 
