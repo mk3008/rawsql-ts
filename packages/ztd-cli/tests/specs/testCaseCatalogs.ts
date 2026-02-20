@@ -15,12 +15,17 @@ export const emailCatalog = defineTestCaseCatalog({
   id: 'unit.normalize-email',
   title: 'normalizeEmail',
   description: 'Executable, inference-free specification for internal normalization behavior.',
+  definitionPath: 'tests/specs/testCaseCatalogs.ts',
   cases: [
     {
       id: 'rejects-invalid-input',
       title: 'throws when @ is missing',
       arrange: () => 'invalid-email',
       act: (value) => () => normalizeEmail(value),
+      evidence: {
+        input: 'invalid-email',
+        output: 'Error: invalid email',
+      },
       assert: (invoke) => {
         try {
           invoke();
@@ -39,6 +44,10 @@ export const emailCatalog = defineTestCaseCatalog({
       title: 'normalizes uppercase + spaces',
       arrange: () => '  USER@Example.COM ',
       act: (value) => () => normalizeEmail(value),
+      evidence: {
+        input: '  USER@Example.COM ',
+        output: 'user@example.com',
+      },
       assert: (invoke) => {
         const actual = invoke();
         if (actual !== 'user@example.com') {
@@ -51,6 +60,10 @@ export const emailCatalog = defineTestCaseCatalog({
       title: 'retains already-normalized email',
       arrange: () => 'alice@example.com',
       act: (value) => () => normalizeEmail(value),
+      evidence: {
+        input: 'alice@example.com',
+        output: 'alice@example.com',
+      },
       assert: (invoke) => {
         const actual = invoke();
         if (actual !== 'alice@example.com') {
@@ -67,12 +80,17 @@ export const emailCatalog = defineTestCaseCatalog({
 export const alphaCatalog = defineTestCaseCatalog({
   id: 'unit.alpha',
   title: 'alpha',
+  definitionPath: 'tests/specs/testCaseCatalogs.ts',
   cases: [
     {
       id: 'a',
       title: 'noop',
       arrange: () => 1,
       act: (value) => () => value,
+      evidence: {
+        input: 1,
+        output: 1,
+      },
       assert: (invoke) => {
         const actual = invoke();
         if (actual !== 1) {

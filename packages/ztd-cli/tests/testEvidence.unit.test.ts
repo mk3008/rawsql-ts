@@ -48,8 +48,9 @@ function writeSpecModule(root: string, options?: { testCaseIds?: string[]; inclu
     '  {',
     "    id: 'unit.users',",
     "    title: 'User behavior',",
+    "    definitionPath: 'tests/specs/users.catalog.ts',",
     '    cases: [',
-    ...testCaseIds.map((id) => `      { id: '${id}', title: '${id.replace(/-/g, ' ')}' },`),
+    ...testCaseIds.map((id) => `      { id: '${id}', title: '${id.replace(/-/g, ' ')}', input: '${id}', output: '${id}-ok' },`),
     '    ]',
     '  }',
     '],',
@@ -127,8 +128,19 @@ test('formatTestEvidenceOutput emits deterministic markdown and json text', () =
   const markdown = formatTestEvidenceOutput(report, 'markdown');
   const json = formatTestEvidenceOutput(report, 'json');
 
-  expect(markdown).toContain('# Test Evidence (Specification Mode)');
-  expect(markdown).toContain('`a`');
+  expect(markdown).toContain('# Test Evidence Preview');
+  expect(markdown).toContain('- catalogs: 1');
+  expect(markdown).toContain('- tests: 1');
+  expect(markdown).toContain('## unit.users — User behavior');
+  expect(markdown).toContain("definition: `tests/specs/users.catalog.ts`");
+  expect(markdown).toContain('### works — works');
+  expect(markdown).not.toContain('\n---\n');
+  expect(markdown).not.toContain('#### ');
+  expect(markdown).not.toContain('## SQL Unit Tests');
+  expect(markdown).not.toContain('## Function Unit Tests');
+  expect(markdown).toContain('"works"');
+  expect(markdown).toContain('"works-ok"');
+  expect(markdown).not.toContain('SELECT');
   expect(JSON.parse(json)).toMatchObject({
     schemaVersion: 1,
     mode: 'specification',
@@ -157,6 +169,9 @@ test('runTestEvidenceSpecification keeps deterministic ordering, normalized path
   const report = runTestEvidenceSpecification({ mode: 'specification', rootDir: root });
   expect(report.sqlCatalogs.map((item) => item.id)).toEqual(['catalog.a', 'catalog.b']);
   expect(report.testCases.map((item) => item.id)).toEqual(['unit.users.a', 'unit.users.b']);
+  expect(report.testCaseCatalogs.map((item) => item.id)).toEqual(['unit.users']);
+  expect(report.testCaseCatalogs[0]?.definitionPath).toBe('tests/specs/users.catalog.ts');
+  expect(report.testCaseCatalogs[0]?.cases[0]).toMatchObject({ id: 'a', input: 'a', output: 'a-ok' });
   expect(report.sqlCatalogs.every((item) => !item.specFile.includes('\\'))).toBe(true);
   expect(JSON.stringify(report)).not.toContain(root);
   expect(JSON.stringify(report)).not.toMatch(/\d{4}-\d{2}-\d{2}T/);

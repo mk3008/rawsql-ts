@@ -33,6 +33,7 @@ export interface SqlCatalogTestSpec<
   id: string;
   title: string;
   description?: string;
+  definitionPath?: string;
   fixtures: TableFixture[];
   catalog: SqlCatalogDefinition<TParams, TRow>;
   cases: SqlCatalogTestCase<TParams, TRow>[];
@@ -117,6 +118,7 @@ export function exportSqlCatalogEvidence(
     id: string;
     title: string;
     description?: string;
+    definitionPath?: string;
     params: { shape: 'named'; example: Record<string, unknown> };
     output: { mapping: { columnMap: Record<string, string> } };
     sql: string;
@@ -140,6 +142,7 @@ export function exportSqlCatalogEvidence(
         id: catalog.id,
         title: catalog.title,
         ...(catalog.description ? { description: catalog.description } : {}),
+        ...(catalog.definitionPath ? { definitionPath: catalog.definitionPath } : {}),
         params: {
           shape: 'named',
           example: { ...catalog.catalog.params.example },

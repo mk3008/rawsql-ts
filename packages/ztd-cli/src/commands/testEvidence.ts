@@ -54,7 +54,25 @@ export interface TestSpecificationEvidence {
   };
   sqlCatalogs: SqlCatalogSpecEvidence[];
   sqlCaseCatalogs: SqlCaseCatalogEvidence[];
+  testCaseCatalogs: TestCaseCatalogEvidence[];
   testCases: TestCaseEvidence[];
+}
+
+/**
+ * Deterministic evidence representation of an executable function test catalog.
+ */
+export interface TestCaseCatalogEvidence {
+  id: string;
+  title: string;
+  description?: string;
+  definitionPath?: string;
+  cases: Array<{
+    id: string;
+    title: string;
+    description?: string;
+    input?: unknown;
+    output?: unknown;
+  }>;
 }
 
 /**
@@ -64,6 +82,7 @@ export interface SqlCaseCatalogEvidence {
   id: string;
   title: string;
   description?: string;
+  definitionPath?: string;
   params: { shape: 'named'; example: Record<string, unknown> };
   output: { mapping: { columnMap: Record<string, string> } };
   sql: string;
@@ -219,7 +238,14 @@ export function runTestEvidenceSpecification(options: {
   const testCaseCatalogFiles = existsSync(testsDir) ? walkFiles(testsDir, isTestCaseCatalogFile) : [];
   const legacyTestCases = evidenceModule ? [] : testCaseCatalogFiles.flatMap((filePath) => loadTestCaseCatalogEvidence(root, filePath));
 
-  const testCaseCatalogs = evidenceModule ? readTestCaseCatalogsFromModule(evidenceModule) : [];
+  const testCaseCatalogs = evidenceModule
+    ? readTestCaseCatalogsFromModule(evidenceModule)
+        .map((catalog) => ({
+          ...catalog,
+          cases: [...catalog.cases].sort((a, b) => a.id.localeCompare(b.id))
+        }))
+        .sort((a, b) => a.id.localeCompare(b.id))
+    : [];
   const testCasesFromModule = flattenTestCaseCatalogs(testCaseCatalogs);
   const sqlCaseCatalogsFromModule = evidenceModule ? readSqlCaseCatalogsFromModule(evidenceModule) : [];
   if (sqlSpecFiles.length === 0 && testCasesFromModule.length === 0 && legacyTestCases.length === 0 && sqlCaseCatalogsFromModule.length === 0) {
@@ -250,6 +276,7 @@ export function runTestEvidenceSpecification(options: {
     },
     sqlCatalogs,
     sqlCaseCatalogs,
+    testCaseCatalogs,
     testCases
   };
 }
@@ -262,40 +289,59 @@ export function formatTestEvidenceOutput(report: TestSpecificationEvidence, form
     return `${JSON.stringify(report, null, 2)}\n`;
   }
 
+  const sqlTestsCount = report.sqlCaseCatalogs.reduce((total, catalog) => total + catalog.cases.length, 0);
+  const functionTestsCount = report.testCaseCatalogs.reduce((total, catalog) => total + catalog.cases.length, 0);
+  const totalCatalogCount = report.sqlCaseCatalogs.length + report.testCaseCatalogs.length;
   const lines: string[] = [];
-  lines.push('# Test Evidence (Specification Mode)');
+  lines.push('# Test Evidence Preview');
   lines.push('');
-  lines.push(`- SQL catalogs: ${report.summary.sqlCatalogCount}`);
-  lines.push(`- SQL case catalogs: ${report.summary.sqlCaseCatalogCount}`);
-  lines.push(`- Test cases: ${report.summary.testCaseCount}`);
-  lines.push(`- Spec files scanned: ${report.summary.specFilesScanned}`);
-  lines.push(`- Test case catalog files scanned: ${report.summary.testFilesScanned}`);
+  lines.push(`- catalogs: ${totalCatalogCount}`);
+  lines.push(`- tests: ${sqlTestsCount + functionTestsCount}`);
   lines.push('');
-  lines.push('## SQL Catalogs');
-  if (report.sqlCatalogs.length === 0) {
-    lines.push('- (none)');
-  } else {
-    for (const item of report.sqlCatalogs) {
-      const sqlInfo = item.sqlFile === null ? '(missing)' : item.sqlFileResolved ? item.sqlFile : `${item.sqlFile} (missing)`;
-      lines.push(`- \`${item.id}\` | params=${item.paramsShape} | sql=${sqlInfo} | spec=${item.specFile}`);
+  for (const catalog of report.sqlCaseCatalogs) {
+    lines.push(`## ${catalog.id} — ${catalog.title}`);
+    lines.push(`- definition: ${catalog.definitionPath ? `\`${catalog.definitionPath}\`` : '(unknown)'}`);
+    lines.push('- fixtures:');
+    for (const fixture of catalog.fixtures) {
+      lines.push(`  - ${fixture.tableName}`);
+    }
+    lines.push('');
+    for (const [index, testCase] of catalog.cases.entries()) {
+      lines.push(`### ${testCase.id} — ${testCase.title}`);
+      lines.push('input:');
+      lines.push('```json');
+      lines.push(JSON.stringify(testCase.params, null, 2));
+      lines.push('```');
+      lines.push('output:');
+      lines.push('```json');
+      lines.push(JSON.stringify(testCase.expected, null, 2));
+      lines.push('```');
+      lines.push('');
+      if (index < catalog.cases.length - 1) {
+        lines.push('---');
+        lines.push('');
+      }
     }
   }
-  lines.push('');
-  lines.push('## SQL Case Catalogs');
-  if (report.sqlCaseCatalogs.length === 0) {
-    lines.push('- (none)');
-  } else {
-    for (const item of report.sqlCaseCatalogs) {
-      lines.push(`- \`${item.id}\` | sqlCases=${item.cases.length}`);
-    }
-  }
-  lines.push('');
-  lines.push('## Test Cases');
-  if (report.testCases.length === 0) {
-    lines.push('- (none)');
-  } else {
-    for (const item of report.testCases) {
-      lines.push(`- \`${item.id}\` | file=${item.filePath}`);
+  for (const catalog of report.testCaseCatalogs) {
+    lines.push(`## ${catalog.id} — ${catalog.title}`);
+    lines.push(`- definition: ${catalog.definitionPath ? `\`${catalog.definitionPath}\`` : '(unknown)'}`);
+    lines.push('');
+    for (const [index, testCase] of catalog.cases.entries()) {
+      lines.push(`### ${testCase.id} — ${testCase.title}`);
+      lines.push('input:');
+      lines.push('```json');
+      lines.push(JSON.stringify(testCase.input, null, 2));
+      lines.push('```');
+      lines.push('output:');
+      lines.push('```json');
+      lines.push(JSON.stringify(testCase.output, null, 2));
+      lines.push('```');
+      lines.push('');
+      if (index < catalog.cases.length - 1) {
+        lines.push('---');
+        lines.push('');
+      }
     }
   }
   lines.push('');
@@ -436,7 +482,14 @@ function readTestCaseCatalogsFromModule(moduleValue: EvidenceModuleLike): Array<
   id: string;
   title: string;
   description?: string;
-  cases: Array<{ id: string; title: string; description?: string }>;
+  definitionPath?: string;
+  cases: Array<{
+    id: string;
+    title: string;
+    description?: string;
+    input?: unknown;
+    output?: unknown;
+  }>;
 }> {
   if (!Array.isArray(moduleValue.testCaseCatalogs)) {
     return [];
@@ -464,19 +517,32 @@ function readTestCaseCatalogsFromModule(moduleValue: EvidenceModuleLike): Array<
       const description = typeof item.description === 'string' && item.description.trim().length > 0
         ? item.description.trim()
         : undefined;
+      const input = Object.prototype.hasOwnProperty.call(item, 'input') ? item.input : undefined;
+      const output = Object.prototype.hasOwnProperty.call(item, 'output') ? item.output : undefined;
+      if (input === undefined || output === undefined) {
+        throw new TestEvidenceRuntimeError(
+          `testCaseCatalogs[${index}].cases[${caseIndex}] requires input/output evidence fields.`
+        );
+      }
       return {
         id: caseId,
         title: caseTitle,
-        ...(description ? { description } : {})
+        ...(description ? { description } : {}),
+        input,
+        output
       };
     });
     const description = typeof catalog.description === 'string' && catalog.description.trim().length > 0
       ? catalog.description.trim()
       : undefined;
+    const definitionPath = typeof catalog.definitionPath === 'string' && catalog.definitionPath.trim().length > 0
+      ? catalog.definitionPath.trim()
+      : undefined;
     return {
       id,
       title,
       ...(description ? { description } : {}),
+      ...(definitionPath ? { definitionPath } : {}),
       cases: normalizedCases
     };
   });
@@ -486,7 +552,14 @@ function flattenTestCaseCatalogs(catalogs: Array<{
   id: string;
   title: string;
   description?: string;
-  cases: Array<{ id: string; title: string; description?: string }>;
+  definitionPath?: string;
+  cases: Array<{
+    id: string;
+    title: string;
+    description?: string;
+    input?: unknown;
+    output?: unknown;
+  }>;
 }>): TestCaseEvidence[] {
   const rows: TestCaseEvidence[] = [];
   for (const catalog of catalogs) {
@@ -580,6 +653,9 @@ function normalizeSqlCaseCatalog(catalog: unknown, index: number): SqlCaseCatalo
     id,
     title,
     ...(description ? { description } : {}),
+    ...(typeof catalog.definitionPath === 'string' && catalog.definitionPath.trim().length > 0
+      ? { definitionPath: catalog.definitionPath.trim() }
+      : {}),
     params: {
       shape: 'named',
       example

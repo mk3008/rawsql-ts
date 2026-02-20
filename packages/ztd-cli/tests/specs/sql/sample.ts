@@ -7,6 +7,7 @@ import { defineSqlCatalog } from '../../utils/sqlCatalog';
 export const sampleSqlCatalog = defineSqlCatalog({
   id: 'sql.sample',
   title: 'sample sql cases',
+  definitionPath: 'src/specs/sql/usersList.catalog.ts',
   fixtures: [
     {
       tableName: 'users',

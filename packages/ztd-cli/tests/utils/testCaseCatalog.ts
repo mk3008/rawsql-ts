@@ -10,6 +10,14 @@ export interface TestCaseCatalogEntry<TContext = unknown, TResult = unknown> {
   arrange?: () => Promise<TContext> | TContext;
   act: (context: TContext) => Promise<TResult> | TResult;
   assert: (result: TResult, context: TContext) => Promise<void> | void;
+  /**
+   * Literal specification payload used by evidence exporters.
+   * This keeps review artifacts aligned with test source facts without inference.
+   */
+  evidence?: {
+    input: unknown;
+    output: unknown;
+  };
 }
 
 /**
@@ -19,6 +27,7 @@ export interface TestCaseCatalog<TContext = unknown, TResult = unknown> {
   id: string;
   title: string;
   description?: string;
+  definitionPath?: string;
   cases: TestCaseCatalogEntry<TContext, TResult>[];
 }
 
@@ -31,10 +40,13 @@ export interface TestCaseCatalogEvidenceDocument {
     id: string;
     title: string;
     description?: string;
+    definitionPath?: string;
     cases: Array<{
       id: string;
       title: string;
       description?: string;
+      input?: unknown;
+      output?: unknown;
     }>;
   }>;
 }
@@ -43,10 +55,13 @@ interface TestCaseCatalogEvidenceInput {
   id: string;
   title: string;
   description?: string;
+  definitionPath?: string;
   cases: Array<{
     id: string;
     title: string;
     description?: string;
+    input?: unknown;
+    output?: unknown;
   }>;
 }
 
@@ -94,12 +109,15 @@ export function exportTestCaseCatalogEvidence(
         id: catalog.id,
         title: catalog.title,
         ...(catalog.description ? { description: catalog.description } : {}),
+        ...(catalog.definitionPath ? { definitionPath: catalog.definitionPath } : {}),
         cases: [...catalog.cases]
           .sort((a, b) => a.id.localeCompare(b.id))
           .map((entry) => ({
             id: entry.id,
             title: entry.title,
             ...(entry.description ? { description: entry.description } : {}),
+            ...(entry.input !== undefined ? { input: entry.input } : {}),
+            ...(entry.output !== undefined ? { output: entry.output } : {}),
           })),
       })),
   };

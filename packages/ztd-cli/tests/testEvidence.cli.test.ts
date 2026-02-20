@@ -32,7 +32,8 @@ function writeSpecModule(root: string): void {
     '  {',
     "    id: 'unit.users',",
     "    title: 'users',",
-    "    cases: [{ id: 'lists-users', title: 'lists users' }]",
+    "    definitionPath: 'tests/specs/users.catalog.ts',",
+    "    cases: [{ id: 'lists-users', title: 'lists users', input: { active: 1 }, output: [{ id: 1 }] }]",
     '  }',
     '],',
     'sqlCatalogCases: [',
@@ -48,7 +49,10 @@ function writeSpecModule(root: string): void {
     "      output: { mapping: { columnMap: { orderId: 'order_id' } } },",
     "      sql: 'select order_id from orders where active = @active'",
     '    },',
-    "    cases: [{ id: 'baseline', title: 'baseline', expected: [{ orderId: 10 }] }]",
+    "    cases: [",
+    "      { id: 'baseline', title: 'baseline', expected: [{ orderId: 10 }] },",
+    "      { id: 'inactive', title: 'inactive', arrange: () => ({ active: 0 }), expected: [{ orderId: 12 }] }",
+    "    ]",
     '  }',
     ']',
     '};',
@@ -85,10 +89,33 @@ test('CLI: evidence writes json and markdown artifacts', async () => {
   expect(parsedJson.testCases[0]).toMatchObject({ id: 'unit.users.lists-users', filePath: 'tests/specs/index' });
   expect(parsedJson.sqlCaseCatalogs[0]).toMatchObject({
     id: 'sql.active-orders',
-    cases: [{ id: 'baseline', params: { active: 1, limit: 2, minTotal: 20 }, expected: [{ orderId: 10 }] }]
+    cases: [
+      { id: 'baseline', params: { active: 1, limit: 2, minTotal: 20 }, expected: [{ orderId: 10 }] },
+      { id: 'inactive', params: { active: 0, limit: 2, minTotal: 20 }, expected: [{ orderId: 12 }] }
+    ]
+  });
+  expect(parsedJson.testCaseCatalogs[0]).toMatchObject({
+    id: 'unit.users',
+    definitionPath: 'tests/specs/users.catalog.ts',
+    cases: [{ id: 'lists-users', title: 'lists users', input: { active: 1 }, output: [{ id: 1 }] }]
   });
   const markdown = readFileSync(path.join(outDir, 'test-specification.md'), 'utf8');
-  expect(markdown).toContain('Test Evidence (Specification Mode)');
+  expect(markdown).toContain('# Test Evidence Preview');
+  expect(markdown).toContain('- catalogs: 2');
+  expect(markdown).toContain('- tests: 3');
+  expect(markdown).toContain('## sql.active-orders — active orders');
+  expect(markdown).toContain('## unit.users — users');
+  expect(markdown).toContain("definition: `tests/specs/users.catalog.ts`");
+  expect(markdown).toContain('### baseline — baseline');
+  expect(markdown).toContain('### lists-users — lists users');
+  expect(markdown).toContain('### inactive — inactive');
+  expect(markdown).toContain('\n---\n\n### inactive — inactive');
+  expect(markdown).not.toContain('#### ');
+  expect(markdown).not.toContain('## SQL Unit Tests');
+  expect(markdown).not.toContain('## Function Unit Tests');
+  expect(markdown).toContain('"active": 1');
+  expect(markdown).toContain('```json');
+  expect(markdown).not.toContain('select order_id from orders where active = @active');
 });
 
 test('CLI: evidence sets exitCode=2 for unsupported mode', async () => {
@@ -107,6 +134,7 @@ test('resolveTestEvidenceExitCode maps success and runtime failures', () => {
     summary: { sqlCatalogCount: 0, sqlCaseCatalogCount: 0, testCaseCount: 0, specFilesScanned: 0, testFilesScanned: 0 },
     sqlCatalogs: [],
     sqlCaseCatalogs: [],
+    testCaseCatalogs: [],
     testCases: []
   } })).toBe(0);
   expect(resolveTestEvidenceExitCode({ error: new Error('x') })).toBe(1);

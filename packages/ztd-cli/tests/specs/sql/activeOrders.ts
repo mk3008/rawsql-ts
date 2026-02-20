@@ -1,11 +1,6 @@
 import type { TableFixture } from '@rawsql-ts/testkit-core';
-import { defineSqlCatalog, defineSqlCatalogDefinition } from '../../utils/sqlCatalog';
-
-type UserOrderDto = {
-  orderId: number;
-  userEmail: string;
-  orderTotal: number;
-};
+import { activeOrdersCatalog } from '../../../src/specs/sql/activeOrders.catalog';
+import { defineSqlCatalog } from '../../utils/sqlCatalog';
 
 const usersFixture: TableFixture = {
   tableName: 'users',
@@ -40,44 +35,13 @@ const ordersFixture: TableFixture = {
   },
 };
 
-const activeOrdersCatalog = defineSqlCatalogDefinition<
-  { active: number; minTotal: number; limit: number },
-  UserOrderDto
->({
-  id: 'orders.active-users.list',
-  params: {
-    shape: 'named',
-    example: { active: 1, minTotal: 20, limit: 2 },
-  },
-  output: {
-    mapping: {
-      columnMap: {
-        orderId: 'order_id',
-        userEmail: 'user_email',
-        orderTotal: 'order_total',
-      },
-    },
-  },
-  sql: `
-      SELECT
-        o.id AS order_id,
-        u.email AS user_email,
-        o.total AS order_total
-      FROM orders o
-      INNER JOIN users u ON u.id = o.user_id
-      WHERE u.active = @active
-        AND o.total >= @minTotal
-      ORDER BY o.total DESC
-      LIMIT @limit
-    `,
-});
-
 /**
  * SQL catalog spec that verifies active-order selection semantics.
  */
 export const activeOrdersSqlCases = defineSqlCatalog({
   id: 'sql.active-orders',
   title: 'Active orders SQL semantics',
+  definitionPath: 'src/specs/sql/activeOrders.catalog.ts',
   fixtures: [usersFixture, ordersFixture],
   catalog: activeOrdersCatalog,
   cases: [
