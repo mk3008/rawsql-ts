@@ -1,6 +1,7 @@
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
+import { execSync } from 'node:child_process';
 import { Command } from 'commander';
 
 /**
@@ -12,6 +13,7 @@ export type TestEvidenceMode = 'specification';
  * Output formats accepted by `ztd evidence`.
  */
 export type TestEvidenceFormat = 'json' | 'markdown' | 'both';
+type RemovedDetailLevel = 'none' | 'input' | 'full';
 
 /**
  * Evidence row summarizing one SQL catalog spec file.
@@ -59,6 +61,60 @@ export interface TestSpecificationEvidence {
 }
 
 /**
+ * Normalized case payload used for deterministic PR diff calculation.
+ */
+export interface PrDiffCase {
+  id: string;
+  title: string;
+  input: unknown;
+  output: unknown;
+}
+
+/**
+ * Normalized catalog payload used for deterministic PR diff calculation.
+ */
+export interface PrDiffCatalog {
+  kind: 'sql' | 'function';
+  catalogId: string;
+  title: string;
+  definition?: string;
+  fixtures?: string[];
+  cases: PrDiffCase[];
+}
+
+/**
+ * Deterministic diff document for PR-focused test evidence output.
+ */
+export interface TestSpecificationPrDiff {
+  version: 1;
+  base: { ref: string; sha: string };
+  head: { ref: string; sha: string };
+  baseMode: 'merge-base' | 'ref';
+  totals: {
+    base: { catalogs: number; tests: number };
+    head: { catalogs: number; tests: number };
+  };
+  summary: {
+    catalogs: { added: number; removed: number; updated: number };
+    cases: { added: number; removed: number; updated: number };
+  };
+  catalogs: {
+    added: Array<{ catalogAfter: PrDiffCatalog }>;
+    removed: Array<{ catalogBefore: PrDiffCatalog }>;
+    updated: Array<{
+      catalogId: string;
+      catalogBefore: PrDiffCatalog;
+      catalogAfter: PrDiffCatalog;
+      cases: {
+        added: Array<{ after: PrDiffCase }>;
+        removed: Array<{ before: PrDiffCase }>;
+        updated: Array<{ before: PrDiffCase; after: PrDiffCase }>;
+      };
+    }>;
+  };
+}
+
+/**
  * Deterministic evidence representation of an executable function test catalog.
  */
 export interface TestCaseCatalogEvidence {
@@ -103,6 +159,18 @@ interface TestEvidenceCommandOptions {
   mode: string;
   format: string;
   outDir: string;
+  specsDir?: string;
+  testsDir?: string;
+  specModule?: string;
+}
+
+interface TestEvidencePrCommandOptions {
+  base?: string;
+  head?: string;
+  baseMode?: string;
+  allowEmptyBase?: boolean;
+  removedDetail?: string;
+  outDir?: string;
   specsDir?: string;
   testsDir?: string;
   specModule?: string;
@@ -170,8 +238,9 @@ export function resolveTestEvidenceExitCode(args: {
  * Register `ztd evidence` command on the CLI root program.
  */
 export function registerTestEvidenceCommand(program: Command): void {
-  program
+  const evidenceCommand = program
     .command('evidence')
+    .alias('test-evidence')
     .description('Generate deterministic test specification evidence artifacts')
     .option('--mode <mode>', 'Evidence mode (specification)', 'specification')
     .option('--format <format>', 'Output format (json|markdown|both)', 'both')
@@ -201,6 +270,39 @@ export function registerTestEvidenceCommand(program: Command): void {
         console.error(error instanceof Error ? error.message : String(error));
       }
     });
+
+  evidenceCommand
+    .command('pr')
+    .description('Generate PR diff evidence from base/head specification JSON projections')
+    .option('--base <ref>', 'Base git ref', 'main')
+    .option('--head <ref>', 'Head git ref', 'HEAD')
+    .option('--base-mode <mode>', 'Base resolution mode (merge-base|ref)', 'merge-base')
+    .option('--allow-empty-base', 'Allow empty base evidence when head has catalogs')
+    .option('--removed-detail <level>', 'Removed case detail level (none|input|full)', 'input')
+    .option('--out-dir <path>', 'Output directory', 'artifacts/test-evidence')
+    .option('--specs-dir <path>', 'Override SQL catalog specs directory (default: src/catalog/specs)')
+    .option('--tests-dir <path>', 'Override tests directory (default: tests)')
+    .option('--spec-module <path>', 'Explicit evidence module path (default: tests/specs/index)')
+    .action((options: TestEvidencePrCommandOptions) => {
+      try {
+        const output = runTestEvidencePr({
+          baseRef: options.base ?? 'main',
+          headRef: options.head ?? 'HEAD',
+          baseMode: normalizeBaseMode(options.baseMode ?? 'merge-base'),
+          allowEmptyBase: Boolean(options.allowEmptyBase),
+          removedDetail: normalizeRemovedDetail(options.removedDetail ?? 'input'),
+          outDir: options.outDir ?? 'artifacts/test-evidence',
+          rootDir: process.env.ZTD_PROJECT_ROOT,
+          specsDir: options.specsDir,
+          testsDir: options.testsDir,
+          specModule: options.specModule
+        });
+        process.exitCode = resolveTestEvidenceExitCode({ result: output.headReport });
+      } catch (error) {
+        process.exitCode = resolveTestEvidenceExitCode({ error });
+        console.error(error instanceof Error ? error.message : String(error));
+      }
+    });
 }
 
 function normalizeMode(mode: string): TestEvidenceMode {
@@ -217,6 +319,22 @@ function normalizeFormat(format: string): TestEvidenceFormat {
     return normalized;
   }
   throw new TestEvidenceRuntimeError(`Unsupported format: ${format}`);
+}
+
+function normalizeBaseMode(mode: string): 'merge-base' | 'ref' {
+  const normalized = mode.trim().toLowerCase();
+  if (normalized === 'merge-base' || normalized === 'ref') {
+    return normalized;
+  }
+  throw new TestEvidenceRuntimeError(`Unsupported base-mode: ${mode}`);
+}
+
+function normalizeRemovedDetail(level: string): RemovedDetailLevel {
+  const normalized = level.trim().toLowerCase();
+  if (normalized === 'none' || normalized === 'input' || normalized === 'full') {
+    return normalized;
+  }
+  throw new TestEvidenceRuntimeError(`Unsupported removed-detail: ${level}`);
 }
 
 /**
@@ -348,6 +466,332 @@ export function formatTestEvidenceOutput(report: TestSpecificationEvidence, form
   return lines.join('\n');
 }
 
+/**
+ * Stable stringify that sorts object keys recursively for deterministic fingerprinting.
+ */
+export function stableStringify(value: unknown): string {
+  return JSON.stringify(toStableValue(value));
+}
+
+/**
+ * Build deterministic PR diff JSON from base/head specification reports.
+ */
+export function buildTestEvidencePrDiff(args: {
+  base: { ref: string; sha: string; report: TestSpecificationEvidence };
+  head: { ref: string; sha: string; report: TestSpecificationEvidence };
+  baseMode: 'merge-base' | 'ref';
+}): TestSpecificationPrDiff {
+  const baseCatalogs = normalizeCatalogsForDiff(args.base.report);
+  const headCatalogs = normalizeCatalogsForDiff(args.head.report);
+  const baseMap = new Map(baseCatalogs.map((catalog) => [catalog.catalogId, catalog]));
+  const headMap = new Map(headCatalogs.map((catalog) => [catalog.catalogId, catalog]));
+
+  const addedCatalogs: Array<{ catalogAfter: PrDiffCatalog }> = [];
+  const removedCatalogs: Array<{ catalogBefore: PrDiffCatalog }> = [];
+  const updatedCatalogs: TestSpecificationPrDiff['catalogs']['updated'] = [];
+
+  for (const catalog of headCatalogs) {
+    if (!baseMap.has(catalog.catalogId)) {
+      addedCatalogs.push({ catalogAfter: catalog });
+    }
+  }
+  for (const catalog of baseCatalogs) {
+    if (!headMap.has(catalog.catalogId)) {
+      removedCatalogs.push({ catalogBefore: catalog });
+    }
+  }
+
+  for (const beforeCatalog of baseCatalogs) {
+    const afterCatalog = headMap.get(beforeCatalog.catalogId);
+    if (!afterCatalog) {
+      continue;
+    }
+    const cases = diffCatalogCases(beforeCatalog, afterCatalog);
+    const catalogChanged =
+      stableStringify({
+        kind: beforeCatalog.kind,
+        catalogId: beforeCatalog.catalogId,
+        title: beforeCatalog.title,
+        definition: beforeCatalog.definition,
+        fixtures: beforeCatalog.fixtures ?? []
+      }) !==
+      stableStringify({
+        kind: afterCatalog.kind,
+        catalogId: afterCatalog.catalogId,
+        title: afterCatalog.title,
+        definition: afterCatalog.definition,
+        fixtures: afterCatalog.fixtures ?? []
+      });
+
+    if (catalogChanged || cases.added.length > 0 || cases.removed.length > 0 || cases.updated.length > 0) {
+      updatedCatalogs.push({
+        catalogId: beforeCatalog.catalogId,
+        catalogBefore: beforeCatalog,
+        catalogAfter: afterCatalog,
+        cases
+      });
+    }
+  }
+
+  const addedCaseCountFromCatalogs = addedCatalogs.reduce((count, entry) => count + entry.catalogAfter.cases.length, 0);
+  const removedCaseCountFromCatalogs = removedCatalogs.reduce((count, entry) => count + entry.catalogBefore.cases.length, 0);
+  const addedCaseCountFromUpdates = updatedCatalogs.reduce((count, entry) => count + entry.cases.added.length, 0);
+  const removedCaseCountFromUpdates = updatedCatalogs.reduce((count, entry) => count + entry.cases.removed.length, 0);
+  const updatedCaseCount = updatedCatalogs.reduce((count, entry) => count + entry.cases.updated.length, 0);
+
+  return {
+    version: 1,
+    base: { ref: args.base.ref, sha: args.base.sha },
+    head: { ref: args.head.ref, sha: args.head.sha },
+    baseMode: args.baseMode,
+    totals: {
+      base: {
+        catalogs: baseCatalogs.length,
+        tests: baseCatalogs.reduce((count, catalog) => count + catalog.cases.length, 0)
+      },
+      head: {
+        catalogs: headCatalogs.length,
+        tests: headCatalogs.reduce((count, catalog) => count + catalog.cases.length, 0)
+      }
+    },
+    summary: {
+      catalogs: {
+        added: addedCatalogs.length,
+        removed: removedCatalogs.length,
+        updated: updatedCatalogs.length
+      },
+      cases: {
+        added: addedCaseCountFromCatalogs + addedCaseCountFromUpdates,
+        removed: removedCaseCountFromCatalogs + removedCaseCountFromUpdates,
+        updated: updatedCaseCount
+      }
+    },
+    catalogs: {
+      added: sortCatalogEntriesByKind(addedCatalogs, (entry) => entry.catalogAfter),
+      removed: sortCatalogEntriesByKind(removedCatalogs, (entry) => entry.catalogBefore),
+      updated: sortCatalogEntriesByKind(updatedCatalogs, (entry) => entry.catalogAfter)
+    }
+  };
+}
+
+/**
+ * Render PR-focused markdown from diff JSON.
+ */
+export function formatTestEvidencePrMarkdown(
+  diff: TestSpecificationPrDiff,
+  options?: { removedDetail?: RemovedDetailLevel }
+): string {
+  const removedDetail = options?.removedDetail ?? 'input';
+  const lines: string[] = [];
+  lines.push('# Test Evidence (PR Diff)');
+  lines.push('');
+  if (diff.baseMode === 'merge-base') {
+    lines.push(`- base: merge-base(${diff.base.ref}, ${diff.head.ref}) (${diff.base.sha})`);
+  } else {
+    lines.push(`- base: ${diff.base.ref} (${diff.base.sha})`);
+  }
+  lines.push(`- head: ${diff.head.ref} (${diff.head.sha})`);
+  lines.push(`- base-mode: ${diff.baseMode}`);
+  lines.push(`- catalogs: +${diff.summary.catalogs.added} / -${diff.summary.catalogs.removed} / ~${diff.summary.catalogs.updated}`);
+  lines.push(`- tests: +${diff.summary.cases.added} / -${diff.summary.cases.removed} / ~${diff.summary.cases.updated}`);
+  lines.push(`- base totals: catalogs=${diff.totals.base.catalogs} tests=${diff.totals.base.tests}`);
+  lines.push(`- head totals: catalogs=${diff.totals.head.catalogs} tests=${diff.totals.head.tests}`);
+  lines.push('');
+
+  lines.push('## Added catalogs');
+  lines.push('');
+  if (diff.catalogs.added.length === 0 && diff.catalogs.updated.every((entry) => entry.cases.added.length === 0)) {
+    lines.push('- (none)');
+    lines.push('');
+  } else {
+    for (const entry of diff.catalogs.added) {
+      renderCatalogHeader(lines, entry.catalogAfter);
+      for (const [index, testCase] of entry.catalogAfter.cases.entries()) {
+        renderCase(lines, testCase);
+        if (index < entry.catalogAfter.cases.length - 1) {
+          lines.push('---');
+          lines.push('');
+        }
+      }
+    }
+  }
+
+  lines.push('## Removed catalogs');
+  lines.push('');
+  if (diff.catalogs.removed.length === 0 && diff.catalogs.updated.every((entry) => entry.cases.removed.length === 0)) {
+    lines.push('- (none)');
+    lines.push('');
+  } else {
+    for (const entry of diff.catalogs.removed) {
+      renderCatalogHeader(lines, entry.catalogBefore);
+      for (const [index, testCase] of entry.catalogBefore.cases.entries()) {
+        renderRemovedCase(lines, testCase, removedDetail);
+        if (index < entry.catalogBefore.cases.length - 1) {
+          lines.push('---');
+          lines.push('');
+        }
+      }
+    }
+  }
+
+  lines.push('## Updated catalogs');
+  lines.push('');
+  if (diff.catalogs.updated.length === 0) {
+    lines.push('- (none)');
+    lines.push('');
+  } else {
+    for (const entry of diff.catalogs.updated) {
+      if (
+        entry.cases.added.length === 0 &&
+        entry.cases.removed.length === 0 &&
+        entry.cases.updated.length === 0
+      ) {
+        continue;
+      }
+      renderCatalogHeader(lines, entry.catalogAfter);
+      if (entry.cases.added.length > 0) {
+        lines.push('Added cases');
+        lines.push('');
+        for (const [index, testCase] of entry.cases.added.map((item) => item.after).entries()) {
+          renderCase(lines, testCase);
+          if (index < entry.cases.added.length - 1) {
+            lines.push('---');
+            lines.push('');
+          }
+        }
+      }
+      if (entry.cases.removed.length > 0) {
+        lines.push('Removed cases');
+        lines.push('');
+        for (const [index, testCase] of entry.cases.removed.map((item) => item.before).entries()) {
+          renderRemovedCase(lines, testCase, removedDetail);
+          if (index < entry.cases.removed.length - 1) {
+            lines.push('---');
+            lines.push('');
+          }
+        }
+      }
+      if (entry.cases.updated.length > 0) {
+        lines.push('Updated cases');
+        lines.push('');
+        for (const [index, updated] of entry.cases.updated.entries()) {
+          lines.push(`### ${updated.after.id} — ${updated.after.title}`);
+          lines.push('input (before):');
+          lines.push('```json');
+          lines.push(JSON.stringify(updated.before.input, null, 2));
+          lines.push('```');
+          lines.push('input (after):');
+          lines.push('```json');
+          lines.push(JSON.stringify(updated.after.input, null, 2));
+          lines.push('```');
+          lines.push('output (before):');
+          lines.push('```json');
+          lines.push(JSON.stringify(updated.before.output, null, 2));
+          lines.push('```');
+          lines.push('output (after):');
+          lines.push('```json');
+          lines.push(JSON.stringify(updated.after.output, null, 2));
+          lines.push('```');
+          lines.push('');
+          if (index < entry.cases.updated.length - 1) {
+            lines.push('---');
+            lines.push('');
+          }
+        }
+      }
+    }
+  }
+
+  lines.push('');
+  return lines.join('\n');
+}
+
+/**
+ * Generate base/head reports, compute PR diff JSON, and write PR artifacts.
+ */
+export function runTestEvidencePr(options: {
+  baseRef: string;
+  headRef: string;
+  baseMode: 'merge-base' | 'ref';
+  allowEmptyBase?: boolean;
+  removedDetail?: RemovedDetailLevel;
+  outDir: string;
+  rootDir?: string;
+  specsDir?: string;
+  testsDir?: string;
+  specModule?: string;
+}): {
+  baseReport: TestSpecificationEvidence;
+  headReport: TestSpecificationEvidence;
+  diff: TestSpecificationPrDiff;
+} {
+  const root = path.resolve(options.rootDir ?? process.cwd());
+  const tempRoot = path.resolve(root, '.tmp', 'test-evidence-worktree');
+  mkdirSync(tempRoot, { recursive: true });
+  const createdWorktrees: string[] = [];
+  const resolvedHeadSha = resolveGitSha(root, options.headRef);
+  const resolvedBaseSha =
+    options.baseMode === 'merge-base'
+      ? resolveGitMergeBase(root, options.baseRef, options.headRef)
+      : resolveGitSha(root, options.baseRef);
+  const currentHeadSha = resolveGitSha(root, 'HEAD');
+
+  try {
+    const headMaterialized = materializeEvidenceForRef({
+      repoRoot: root,
+      ref: options.headRef,
+      resolvedSha: resolvedHeadSha,
+      allowCurrentWorkspace: resolvedHeadSha === currentHeadSha,
+      tempRoot,
+      createdWorktrees,
+      specsDir: options.specsDir,
+      testsDir: options.testsDir,
+      specModule: options.specModule
+    });
+    const baseMaterialized = materializeEvidenceForRef({
+      repoRoot: root,
+      ref: options.baseRef,
+      resolvedSha: resolvedBaseSha,
+      allowCurrentWorkspace: resolvedBaseSha === currentHeadSha,
+      tempRoot,
+      createdWorktrees,
+      specsDir: options.specsDir,
+      testsDir: options.testsDir,
+      specModule: options.specModule
+    });
+    console.log(`base preview: ${baseMaterialized.previewJsonPath}`);
+    console.log(`head preview: ${headMaterialized.previewJsonPath}`);
+
+    const diff = buildTestEvidencePrDiff({
+      base: { ref: options.baseRef, sha: baseMaterialized.sha, report: baseMaterialized.report },
+      head: { ref: options.headRef, sha: headMaterialized.sha, report: headMaterialized.report },
+      baseMode: options.baseMode
+    });
+    if (!options.allowEmptyBase && diff.totals.base.catalogs === 0 && diff.totals.head.catalogs > 0) {
+      throw new TestEvidenceRuntimeError(
+        'Base test evidence is empty.\nThis likely indicates preview generation failed at base ref.\nIf this is intentional, re-run with --allow-empty-base.'
+      );
+    }
+
+    const outDir = path.resolve(root, options.outDir);
+    mkdirSync(outDir, { recursive: true });
+    const diffJsonPath = path.join(outDir, 'test-specification.pr.json');
+    const diffMdPath = path.join(outDir, 'test-specification.pr.md');
+    writeFileSync(diffJsonPath, `${JSON.stringify(diff, null, 2)}\n`, 'utf8');
+    writeFileSync(diffMdPath, formatTestEvidencePrMarkdown(diff, { removedDetail: options.removedDetail }), 'utf8');
+    console.log(`wrote: ${diffJsonPath}`);
+    console.log(`wrote: ${diffMdPath}`);
+
+    return {
+      baseReport: baseMaterialized.report,
+      headReport: headMaterialized.report,
+      diff
+    };
+  } finally {
+    cleanupWorktrees(root, createdWorktrees);
+  }
+}
+
 function writeArtifacts(args: {
   report: TestSpecificationEvidence;
   format: TestEvidenceFormat;
@@ -371,6 +815,280 @@ function writeArtifacts(args: {
   for (const filePath of writtenFiles.sort((a, b) => a.localeCompare(b))) {
     console.log(`wrote: ${filePath}`);
   }
+}
+
+function renderCatalogHeader(lines: string[], catalog: PrDiffCatalog): void {
+  lines.push(`## ${catalog.catalogId} — ${catalog.title}`);
+  if (catalog.kind === 'sql') {
+    lines.push(`- definition: ${catalog.definition ? `\`${catalog.definition}\`` : '(unknown)'}`);
+    lines.push('- fixtures:');
+    for (const tableName of catalog.fixtures ?? []) {
+      lines.push(`  - ${tableName}`);
+    }
+  }
+  lines.push('');
+}
+
+function renderCase(lines: string[], testCase: PrDiffCase): void {
+  lines.push(`### ${testCase.id} — ${testCase.title}`);
+  lines.push('input:');
+  lines.push('```json');
+  lines.push(JSON.stringify(testCase.input, null, 2));
+  lines.push('```');
+  lines.push('output:');
+  lines.push('```json');
+  lines.push(JSON.stringify(testCase.output, null, 2));
+  lines.push('```');
+  lines.push('');
+}
+
+function renderRemovedCase(lines: string[], testCase: PrDiffCase, detail: RemovedDetailLevel): void {
+  lines.push(`### ${testCase.id} — ${testCase.title}`);
+  if (detail === 'none') {
+    lines.push('');
+    return;
+  }
+  lines.push('input:');
+  lines.push('```json');
+  lines.push(JSON.stringify(testCase.input, null, 2));
+  lines.push('```');
+  if (detail === 'full') {
+    lines.push('output:');
+    lines.push('```json');
+    lines.push(JSON.stringify(testCase.output, null, 2));
+    lines.push('```');
+  }
+  lines.push('');
+}
+
+function toStableValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) => toStableValue(item));
+  }
+  if (isPlainObject(value)) {
+    return Object.fromEntries(
+      Object.entries(value)
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([key, nested]) => [key, toStableValue(nested)])
+    );
+  }
+  return value;
+}
+
+function normalizeCatalogsForDiff(report: TestSpecificationEvidence): PrDiffCatalog[] {
+  const sqlCatalogs: PrDiffCatalog[] = report.sqlCaseCatalogs.map((catalog) => ({
+    kind: 'sql',
+    catalogId: catalog.id,
+    title: catalog.title,
+    definition: catalog.definitionPath,
+    fixtures: [...catalog.fixtures.map((item) => item.tableName)].sort((a, b) => a.localeCompare(b)),
+    cases: catalog.cases.map((testCase) => ({
+      id: testCase.id,
+      title: testCase.title,
+      input: testCase.params,
+      output: testCase.expected
+    }))
+  }));
+  const functionCatalogs: PrDiffCatalog[] = report.testCaseCatalogs.map((catalog) => ({
+    kind: 'function',
+    catalogId: catalog.id,
+    title: catalog.title,
+    definition: catalog.definitionPath,
+    cases: catalog.cases.map((testCase) => ({
+      id: testCase.id,
+      title: testCase.title,
+      input: testCase.input,
+      output: testCase.output
+    }))
+  }));
+  return [...sqlCatalogs, ...functionCatalogs].sort((a, b) => a.catalogId.localeCompare(b.catalogId));
+}
+
+function caseFingerprint(args: { catalog: PrDiffCatalog; testCase: PrDiffCase }): string {
+  if (args.catalog.kind === 'sql') {
+    return stableStringify({
+      kind: args.catalog.kind,
+      catalogId: args.catalog.catalogId,
+      caseId: args.testCase.id,
+      input: args.testCase.input,
+      output: args.testCase.output,
+      fixtures: args.catalog.fixtures ?? [],
+      definition: args.catalog.definition ?? ''
+    });
+  }
+  return stableStringify({
+    kind: args.catalog.kind,
+    catalogId: args.catalog.catalogId,
+    caseId: args.testCase.id,
+    input: args.testCase.input,
+    output: args.testCase.output
+  });
+}
+
+function diffCatalogCases(
+  beforeCatalog: PrDiffCatalog,
+  afterCatalog: PrDiffCatalog
+): {
+  added: Array<{ after: PrDiffCase }>;
+  removed: Array<{ before: PrDiffCase }>;
+  updated: Array<{ before: PrDiffCase; after: PrDiffCase }>;
+} {
+  const beforeMap = new Map(beforeCatalog.cases.map((testCase) => [testCase.id, testCase]));
+  const afterMap = new Map(afterCatalog.cases.map((testCase) => [testCase.id, testCase]));
+  const added: Array<{ after: PrDiffCase }> = [];
+  const removed: Array<{ before: PrDiffCase }> = [];
+  const updated: Array<{ before: PrDiffCase; after: PrDiffCase }> = [];
+
+  for (const testCase of afterCatalog.cases) {
+    if (!beforeMap.has(testCase.id)) {
+      added.push({ after: testCase });
+    }
+  }
+  for (const testCase of beforeCatalog.cases) {
+    if (!afterMap.has(testCase.id)) {
+      removed.push({ before: testCase });
+    }
+  }
+  for (const beforeCase of beforeCatalog.cases) {
+    const afterCase = afterMap.get(beforeCase.id);
+    if (!afterCase) {
+      continue;
+    }
+    if (
+      caseFingerprint({ catalog: beforeCatalog, testCase: beforeCase }) !==
+      caseFingerprint({ catalog: afterCatalog, testCase: afterCase })
+    ) {
+      updated.push({ before: beforeCase, after: afterCase });
+    }
+  }
+
+  return {
+    added: [...added].sort((a, b) => a.after.id.localeCompare(b.after.id)),
+    removed: [...removed].sort((a, b) => a.before.id.localeCompare(b.before.id)),
+    updated: [...updated].sort((a, b) => a.after.id.localeCompare(b.after.id))
+  };
+}
+
+function sortCatalogEntriesByKind<T>(
+  entries: T[],
+  toCatalog: (entry: T) => PrDiffCatalog
+): T[] {
+  return [...entries].sort((a, b) => {
+    const catalogA = toCatalog(a);
+    const catalogB = toCatalog(b);
+    if (catalogA.kind !== catalogB.kind) {
+      return catalogA.kind === 'sql' ? -1 : 1;
+    }
+    return catalogA.catalogId.localeCompare(catalogB.catalogId);
+  });
+}
+
+function materializeEvidenceForRef(args: {
+  repoRoot: string;
+  ref: string;
+  resolvedSha: string;
+  allowCurrentWorkspace: boolean;
+  tempRoot: string;
+  createdWorktrees: string[];
+  specsDir?: string;
+  testsDir?: string;
+  specModule?: string;
+}): { sha: string; report: TestSpecificationEvidence; previewJsonPath: string } {
+  const toReport = (rootDir: string): TestSpecificationEvidence => {
+    try {
+      return runTestEvidenceSpecification({
+        mode: 'specification',
+        rootDir,
+        specsDir: args.specsDir,
+        testsDir: args.testsDir,
+        specModule: args.specModule
+      });
+    } catch (error) {
+      if (
+        error instanceof TestEvidenceRuntimeError &&
+        error.message.startsWith('No catalog specs or test-case evidence exports were found.')
+      ) {
+        return createEmptySpecificationEvidence();
+      }
+      throw error;
+    }
+  };
+
+  if (args.allowCurrentWorkspace) {
+    const report = toReport(args.repoRoot);
+    return {
+      sha: args.resolvedSha,
+      report,
+      previewJsonPath: writePreviewSnapshot(args.repoRoot, report)
+    };
+  }
+
+  const worktreeDir = mkdtempSync(path.join(args.tempRoot, 'wt-'));
+  args.createdWorktrees.push(worktreeDir);
+  runGitCommand(args.repoRoot, ['worktree', 'add', '--detach', worktreeDir, args.resolvedSha]);
+  const report = toReport(worktreeDir);
+  return {
+    sha: args.resolvedSha,
+    report,
+    previewJsonPath: writePreviewSnapshot(worktreeDir, report)
+  };
+}
+
+function createEmptySpecificationEvidence(): TestSpecificationEvidence {
+  return {
+    schemaVersion: 1,
+    mode: 'specification',
+    summary: {
+      sqlCatalogCount: 0,
+      sqlCaseCatalogCount: 0,
+      testCaseCount: 0,
+      specFilesScanned: 0,
+      testFilesScanned: 0
+    },
+    sqlCatalogs: [],
+    sqlCaseCatalogs: [],
+    testCaseCatalogs: [],
+    testCases: []
+  };
+}
+
+function writePreviewSnapshot(rootDir: string, report: TestSpecificationEvidence): string {
+  const previewDir = path.resolve(rootDir, 'artifacts', 'test-evidence');
+  mkdirSync(previewDir, { recursive: true });
+  const previewPath = path.join(previewDir, 'test-specification.preview.json');
+  writeFileSync(previewPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
+  return previewPath;
+}
+
+function cleanupWorktrees(repoRoot: string, worktreeDirs: string[]): void {
+  for (const worktreeDir of [...worktreeDirs].reverse()) {
+    try {
+      runGitCommand(repoRoot, ['worktree', 'remove', '--force', worktreeDir]);
+    } catch {
+      rmSync(worktreeDir, { recursive: true, force: true });
+    }
+  }
+}
+
+function runGitCommand(repoRoot: string, args: string[]): string {
+  try {
+    return execSync(`git ${args.map((arg) => `"${arg}"`).join(' ')}`, {
+      cwd: repoRoot,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      encoding: 'utf8'
+    }).trim();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new TestEvidenceRuntimeError(`Git command failed: git ${args.join(' ')} (${message})`);
+  }
+}
+
+function resolveGitSha(repoRoot: string, ref: string): string {
+  return runGitCommand(repoRoot, ['rev-parse', ref]);
+}
+
+function resolveGitMergeBase(repoRoot: string, baseRef: string, headRef: string): string {
+  return runGitCommand(repoRoot, ['merge-base', baseRef, headRef]);
 }
 
 function toSqlEvidence(
@@ -517,8 +1235,22 @@ function readTestCaseCatalogsFromModule(moduleValue: EvidenceModuleLike): Array<
       const description = typeof item.description === 'string' && item.description.trim().length > 0
         ? item.description.trim()
         : undefined;
-      const input = Object.prototype.hasOwnProperty.call(item, 'input') ? item.input : undefined;
-      const output = Object.prototype.hasOwnProperty.call(item, 'output') ? item.output : undefined;
+      const hasDirectInput = Object.prototype.hasOwnProperty.call(item, 'input');
+      const hasDirectOutput = Object.prototype.hasOwnProperty.call(item, 'output');
+      const evidenceValue = Object.prototype.hasOwnProperty.call(item, 'evidence') ? item.evidence : undefined;
+      const hasEvidence = isPlainObject(evidenceValue);
+
+      // Accept both normalized evidence shape (`input`/`output`) and raw test catalog shape (`evidence.input`/`evidence.output`).
+      const input = hasDirectInput
+        ? item.input
+        : hasEvidence && Object.prototype.hasOwnProperty.call(evidenceValue, 'input')
+          ? evidenceValue.input
+          : undefined;
+      const output = hasDirectOutput
+        ? item.output
+        : hasEvidence && Object.prototype.hasOwnProperty.call(evidenceValue, 'output')
+          ? evidenceValue.output
+          : undefined;
       if (input === undefined || output === undefined) {
         throw new TestEvidenceRuntimeError(
           `testCaseCatalogs[${index}].cases[${caseIndex}] requires input/output evidence fields.`

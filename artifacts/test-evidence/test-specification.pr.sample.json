@@ -1,0 +1,274 @@
+{
+  "version": 1,
+  "base": {
+    "ref": "sample-base",
+    "sha": "1111111"
+  },
+  "head": {
+    "ref": "sample-head",
+    "sha": "2222222"
+  },
+  "baseMode": "ref",
+  "totals": {
+    "base": {
+      "catalogs": 3,
+      "tests": 4
+    },
+    "head": {
+      "catalogs": 3,
+      "tests": 5
+    }
+  },
+  "summary": {
+    "catalogs": {
+      "added": 1,
+      "removed": 1,
+      "updated": 2
+    },
+    "cases": {
+      "added": 3,
+      "removed": 2,
+      "updated": 1
+    }
+  },
+  "catalogs": {
+    "added": [
+      {
+        "catalogAfter": {
+          "kind": "sql",
+          "catalogId": "sql.added-catalog",
+          "title": "Added SQL Catalog",
+          "definition": "src/specs/sql/added.catalog.ts",
+          "fixtures": [
+            "added"
+          ],
+          "cases": [
+            {
+              "id": "new",
+              "title": "new",
+              "input": {},
+              "output": [
+                {
+                  "id": 200
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "removed": [
+      {
+        "catalogBefore": {
+          "kind": "sql",
+          "catalogId": "sql.removed-catalog",
+          "title": "Removed SQL Catalog",
+          "definition": "src/specs/sql/removed.catalog.ts",
+          "fixtures": [
+            "removed"
+          ],
+          "cases": [
+            {
+              "id": "gone",
+              "title": "gone",
+              "input": {},
+              "output": [
+                {
+                  "id": 100
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "updated": [
+      {
+        "catalogId": "sql.users",
+        "catalogBefore": {
+          "kind": "sql",
+          "catalogId": "sql.users",
+          "title": "Users SQL",
+          "definition": "src/specs/sql/users.catalog.ts",
+          "fixtures": [
+            "users"
+          ],
+          "cases": [
+            {
+              "id": "baseline",
+              "title": "returns active users",
+              "input": {
+                "active": 1
+              },
+              "output": [
+                {
+                  "id": 1
+                }
+              ]
+            },
+            {
+              "id": "removed-case",
+              "title": "will be removed",
+              "input": {
+                "active": 9
+              },
+              "output": [
+                {
+                  "id": 9
+                }
+              ]
+            }
+          ]
+        },
+        "catalogAfter": {
+          "kind": "sql",
+          "catalogId": "sql.users",
+          "title": "Users SQL",
+          "definition": "src/specs/sql/users.catalog.ts",
+          "fixtures": [
+            "users"
+          ],
+          "cases": [
+            {
+              "id": "baseline",
+              "title": "returns active users",
+              "input": {
+                "active": 0
+              },
+              "output": [
+                {
+                  "id": 2
+                }
+              ]
+            },
+            {
+              "id": "added-case",
+              "title": "newly added",
+              "input": {
+                "active": 2
+              },
+              "output": [
+                {
+                  "id": 3
+                }
+              ]
+            }
+          ]
+        },
+        "cases": {
+          "added": [
+            {
+              "after": {
+                "id": "added-case",
+                "title": "newly added",
+                "input": {
+                  "active": 2
+                },
+                "output": [
+                  {
+                    "id": 3
+                  }
+                ]
+              }
+            }
+          ],
+          "removed": [
+            {
+              "before": {
+                "id": "removed-case",
+                "title": "will be removed",
+                "input": {
+                  "active": 9
+                },
+                "output": [
+                  {
+                    "id": 9
+                  }
+                ]
+              }
+            }
+          ],
+          "updated": [
+            {
+              "before": {
+                "id": "baseline",
+                "title": "returns active users",
+                "input": {
+                  "active": 1
+                },
+                "output": [
+                  {
+                    "id": 1
+                  }
+                ]
+              },
+              "after": {
+                "id": "baseline",
+                "title": "returns active users",
+                "input": {
+                  "active": 0
+                },
+                "output": [
+                  {
+                    "id": 2
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "catalogId": "unit.normalize",
+        "catalogBefore": {
+          "kind": "function",
+          "catalogId": "unit.normalize",
+          "title": "normalize",
+          "definition": "tests/specs/testCaseCatalogs.ts",
+          "cases": [
+            {
+              "id": "stable",
+              "title": "stable",
+              "input": "A",
+              "output": "a"
+            }
+          ]
+        },
+        "catalogAfter": {
+          "kind": "function",
+          "catalogId": "unit.normalize",
+          "title": "normalize",
+          "definition": "tests/specs/testCaseCatalogs.ts",
+          "cases": [
+            {
+              "id": "stable",
+              "title": "stable",
+              "input": "A",
+              "output": "a"
+            },
+            {
+              "id": "fn-added",
+              "title": "function case added",
+              "input": "B",
+              "output": "b"
+            }
+          ]
+        },
+        "cases": {
+          "added": [
+            {
+              "after": {
+                "id": "fn-added",
+                "title": "function case added",
+                "input": "B",
+                "output": "b"
+              }
+            }
+          ],
+          "removed": [],
+          "updated": []
+        }
+      }
+    ]
+  }
+}

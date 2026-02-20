@@ -1,5 +1,5 @@
-import { expect, it } from 'vitest';
 import type { TableFixture } from '@rawsql-ts/testkit-core';
+import { expect, it } from 'vitest';
 import {
   defineSqlCatalogDefinition as defineSqlCatalogDefinitionBase,
   type SqlCatalogDefinition,
