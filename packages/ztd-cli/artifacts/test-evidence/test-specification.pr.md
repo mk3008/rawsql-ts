@@ -9,7 +9,7 @@
 - head totals: catalogs=4 tests=8
 
 ## Added
-## sql.active-orders — Active orders SQL semantics
+### sql.active-orders — Active orders SQL semantics
 - definition: `src/specs/sql/activeOrders.catalog.ts`
 - fixtures:
   - orders
@@ -62,7 +62,7 @@ output:
 ]
 ```
 
-## sql.sample — sample sql cases
+### sql.sample — sample sql cases
 - definition: `src/specs/sql/usersList.catalog.ts`
 - fixtures:
   - users
@@ -154,4 +154,5 @@ output:
 
 ## Updated
 - (none)
+
 

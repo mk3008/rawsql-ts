@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { Command } from 'commander';
 
 /**
@@ -14,6 +14,7 @@ export type TestEvidenceMode = 'specification';
  */
 export type TestEvidenceFormat = 'json' | 'markdown' | 'both';
 type RemovedDetailLevel = 'none' | 'input' | 'full';
+type TestEvidenceErrorCode = 'NO_SPECS_FOUND';
 
 /**
  * Evidence row summarizing one SQL catalog spec file.
@@ -213,6 +214,13 @@ interface EvidenceModuleLike {
  */
 export class TestEvidenceRuntimeError extends Error {
   readonly exitCode = 2;
+  readonly code?: TestEvidenceErrorCode;
+
+  constructor(message: string, options?: { code?: TestEvidenceErrorCode }) {
+    super(message);
+    this.name = 'TestEvidenceRuntimeError';
+    this.code = options?.code;
+  }
 }
 
 /**
@@ -368,7 +376,8 @@ export function runTestEvidenceSpecification(options: {
   const sqlCaseCatalogsFromModule = evidenceModule ? readSqlCaseCatalogsFromModule(evidenceModule) : [];
   if (sqlSpecFiles.length === 0 && testCasesFromModule.length === 0 && legacyTestCases.length === 0 && sqlCaseCatalogsFromModule.length === 0) {
     throw new TestEvidenceRuntimeError(
-      `No catalog specs or test-case evidence exports were found. Checked specsDir=${specsDir}, testsDir=${testsDir}`
+      `No catalog specs or test-case evidence exports were found. Checked specsDir=${specsDir}, testsDir=${testsDir}`,
+      { code: 'NO_SPECS_FOUND' }
     );
   }
 
@@ -650,7 +659,7 @@ export function formatTestEvidencePrMarkdown(
       }
       renderCatalogHeader(lines, entry.catalogAfter);
       if (entry.cases.added.length > 0) {
-        lines.push('Added cases');
+        lines.push('#### Added cases');
         lines.push('');
         for (const [index, testCase] of entry.cases.added.map((item) => item.after).entries()) {
           renderCase(lines, testCase);
@@ -661,7 +670,7 @@ export function formatTestEvidencePrMarkdown(
         }
       }
       if (entry.cases.removed.length > 0) {
-        lines.push('Removed cases');
+        lines.push('#### Removed cases');
         lines.push('');
         for (const [index, testCase] of entry.cases.removed.map((item) => item.before).entries()) {
           renderRemovedCase(lines, testCase, removedDetail);
@@ -672,7 +681,7 @@ export function formatTestEvidencePrMarkdown(
         }
       }
       if (entry.cases.updated.length > 0) {
-        lines.push('Updated cases');
+        lines.push('#### Updated cases');
         lines.push('');
         for (const [index, updated] of entry.cases.updated.entries()) {
           lines.push(`### ${updated.after.id} — ${updated.after.title}`);
@@ -818,7 +827,7 @@ function writeArtifacts(args: {
 }
 
 function renderCatalogHeader(lines: string[], catalog: PrDiffCatalog): void {
-  lines.push(`## ${catalog.catalogId} — ${catalog.title}`);
+  lines.push(`### ${catalog.catalogId} — ${catalog.title}`);
   if (catalog.kind === 'sql') {
     lines.push(`- definition: ${catalog.definition ? `\`${catalog.definition}\`` : '(unknown)'}`);
     lines.push('- fixtures:');
@@ -1006,7 +1015,7 @@ function materializeEvidenceForRef(args: {
     } catch (error) {
       if (
         error instanceof TestEvidenceRuntimeError &&
-        error.message.startsWith('No catalog specs or test-case evidence exports were found.')
+        error.code === 'NO_SPECS_FOUND'
       ) {
         return createEmptySpecificationEvidence();
       }
@@ -1072,7 +1081,7 @@ function cleanupWorktrees(repoRoot: string, worktreeDirs: string[]): void {
 
 function runGitCommand(repoRoot: string, args: string[]): string {
   try {
-    return execSync(`git ${args.map((arg) => `"${arg}"`).join(' ')}`, {
+    return execFileSync('git', args, {
       cwd: repoRoot,
       stdio: ['ignore', 'pipe', 'pipe'],
       encoding: 'utf8'

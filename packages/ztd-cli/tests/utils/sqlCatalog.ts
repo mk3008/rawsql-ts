@@ -1,7 +1,7 @@
 import type { TableFixture } from '@rawsql-ts/testkit-core';
 import { expect, it } from 'vitest';
 import {
-  defineSqlCatalogDefinition as defineSqlCatalogDefinitionBase,
+  defineSqlCatalogDefinition as defineSqlCatalogDefinitionFn,
   type SqlCatalogDefinition,
 } from '../../src/specs/sqlCatalogDefinition';
 
@@ -39,6 +39,11 @@ export interface SqlCatalogTestSpec<
   cases: SqlCatalogTestCase<TParams, TRow>[];
 }
 
+export type SqlCatalog<
+  TParams extends Record<string, unknown> = Record<string, unknown>,
+  TRow extends Record<string, unknown> = Record<string, unknown>,
+> = SqlCatalogTestSpec<TParams, TRow>;
+
 /**
  * Executes SQL with fixtures and projects engine rows into DTO rows by `columnMap`.
  */
@@ -60,12 +65,7 @@ export interface RunSqlCatalogOptions {
 /**
  * Define SQL catalog metadata in a pure, reusable shape.
  */
-export function defineSqlCatalogDefinition<
-  TParams extends Record<string, unknown>,
-  TRow extends Record<string, unknown>,
->(def: SqlCatalogDefinition<TParams, TRow>): SqlCatalogDefinition<TParams, TRow> {
-  return defineSqlCatalogDefinitionBase(def);
-}
+export const defineSqlCatalogDefinition = defineSqlCatalogDefinitionFn;
 
 /**
  * Define deterministic SQL catalog test specs with stable case ordering.
@@ -89,21 +89,17 @@ export function runSqlCatalog<
 >(spec: SqlCatalogTestSpec<TParams, TRow>, opts: RunSqlCatalogOptions): void {
   for (const item of spec.cases) {
     it(`[${spec.catalog.id}] ${item.id} ${item.title}`, async () => {
-      try {
-        const params = item.arrange ? item.arrange() : spec.catalog.params.example;
-        const actualRows = await opts.executor(
-          spec.catalog.sql,
-          params,
-          spec.fixtures,
-          spec.catalog.output.mapping.columnMap
-        );
+      const params = item.arrange ? item.arrange() : spec.catalog.params.example;
+      const actualRows = await opts.executor(
+        spec.catalog.sql,
+        params,
+        spec.fixtures,
+        spec.catalog.output.mapping.columnMap
+      );
 
-        // Keep verification deterministic in the runner, not in spec definitions.
-        expect(actualRows as TRow[]).toEqual(item.expected);
-      } finally {
-        // Best effort callback even when assertions fail.
-        opts.onCaseExecuted?.(item.id);
-      }
+      // Keep verification deterministic in the runner, not in spec definitions.
+      expect(actualRows as TRow[]).toEqual(item.expected);
+      opts.onCaseExecuted?.(item.id);
     });
   }
 }

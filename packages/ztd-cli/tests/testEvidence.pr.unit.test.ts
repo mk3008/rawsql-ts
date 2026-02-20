@@ -225,13 +225,13 @@ test('updated catalog appears once and aggregates added/removed/updated cases', 
     baseMode: 'ref'
   });
   const markdown = formatTestEvidencePrMarkdown(diff);
-  expect(markdown.match(/## sql\.users — users/g)?.length).toBe(1);
+  expect(markdown.match(/### sql\.users — users/g)?.length).toBe(1);
   expect(markdown).toContain('## Updated catalogs');
-  expect(markdown).toContain('\nAdded cases\n');
+  expect(markdown).toContain('\n#### Added cases\n');
   expect(markdown).toContain('### added-case — added');
-  expect(markdown).toContain('\nRemoved cases\n');
+  expect(markdown).toContain('\n#### Removed cases\n');
   expect(markdown).toContain('### removed-case — removed');
-  expect(markdown).toContain('\nUpdated cases\n');
+  expect(markdown).toContain('\n#### Updated cases\n');
   expect(markdown).toContain('### baseline — baseline');
 });
 

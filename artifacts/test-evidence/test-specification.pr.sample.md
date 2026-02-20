@@ -10,7 +10,7 @@
 
 ## Added catalogs
 
-## sql.added-catalog — Added SQL Catalog
+### sql.added-catalog — Added SQL Catalog
 - definition: `src/specs/sql/added.catalog.ts`
 - fixtures:
   - added
@@ -31,7 +31,7 @@ output:
 
 ## Removed catalogs
 
-## sql.removed-catalog — Removed SQL Catalog
+### sql.removed-catalog — Removed SQL Catalog
 - definition: `src/specs/sql/removed.catalog.ts`
 - fixtures:
   - removed
@@ -44,12 +44,12 @@ input:
 
 ## Updated catalogs
 
-## sql.users — Users SQL
+### sql.users — Users SQL
 - definition: `src/specs/sql/users.catalog.ts`
 - fixtures:
   - users
 
-Added cases
+#### Added cases
 
 ### added-case — newly added
 input:
@@ -67,7 +67,7 @@ output:
 ]
 ```
 
-Removed cases
+#### Removed cases
 
 ### removed-case — will be removed
 input:
@@ -77,7 +77,7 @@ input:
 }
 ```
 
-Updated cases
+#### Updated cases
 
 ### baseline — returns active users
 input (before):
@@ -111,7 +111,7 @@ output (after):
 
 ## unit.normalize — normalize
 
-Added cases
+#### Added cases
 
 ### fn-added — function case added
 input:
@@ -122,4 +122,5 @@ output:
 ```json
 "b"
 ```
+
 

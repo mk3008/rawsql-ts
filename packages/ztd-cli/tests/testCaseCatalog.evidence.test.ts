@@ -4,7 +4,7 @@ import { alphaCatalog, emailCatalog } from './specs/testCaseCatalogs';
 
 describe('test case catalog evidence', () => {
   it('is deterministic and sorted by catalog/case id', () => {
-    const unsortedCatalogs = [emailCatalog, alphaCatalog].reverse();
+    const unsortedCatalogs = [emailCatalog, alphaCatalog];
     const exported1 = exportTestCaseCatalogEvidence([...unsortedCatalogs]);
     const exported2 = exportTestCaseCatalogEvidence([...unsortedCatalogs]);
 

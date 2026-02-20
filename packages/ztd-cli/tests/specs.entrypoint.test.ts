@@ -41,7 +41,13 @@ describe('specs entrypoint', () => {
 });
 
 function collectFiles(rootDir: string): string[] {
-  if (!statSync(rootDir).isDirectory()) {
+  let rootStat;
+  try {
+    rootStat = statSync(rootDir);
+  } catch {
+    return [];
+  }
+  if (!rootStat.isDirectory()) {
     return [];
   }
   const entries = readdirSync(rootDir, { withFileTypes: true });
@@ -52,7 +58,7 @@ function collectFiles(rootDir: string): string[] {
       files.push(...collectFiles(entryPath));
       continue;
     }
-    if (entry.isFile() && /\.(?:ts|tsx|mts|cts|js|mjs|cjs|md)$/i.test(entry.name)) {
+    if (entry.isFile() && /\.(?:ts|tsx|mts|cts|js|mjs|cjs)$/i.test(entry.name)) {
       files.push(entryPath);
     }
   }
