@@ -1,5 +1,8 @@
 import { test } from 'vitest';
 
+/**
+ * A deterministic executable test-case entry.
+ */
 export interface TestCaseCatalogEntry<TContext = unknown, TResult = unknown> {
   id: string;
   title: string;
@@ -9,6 +12,9 @@ export interface TestCaseCatalogEntry<TContext = unknown, TResult = unknown> {
   assert: (result: TResult, context: TContext) => Promise<void> | void;
 }
 
+/**
+ * Collection of deterministic test cases grouped under one catalog id.
+ */
 export interface TestCaseCatalog<TContext = unknown, TResult = unknown> {
   id: string;
   title: string;
@@ -16,6 +22,9 @@ export interface TestCaseCatalog<TContext = unknown, TResult = unknown> {
   cases: TestCaseCatalogEntry<TContext, TResult>[];
 }
 
+/**
+ * Stable evidence document format exported from test-case catalogs.
+ */
 export interface TestCaseCatalogEvidenceDocument {
   schemaVersion: 1;
   catalogs: Array<{
@@ -55,6 +64,7 @@ export function defineTestCaseCatalog<TContext = unknown, TResult = unknown>(
 
 /**
  * Register all catalog entries as vitest tests without inferring behavior from source text.
+ * When `arrange` is omitted, the runner passes `undefined` as context.
  */
 export function runTestCaseCatalog<TContext = unknown, TResult = unknown>(
   catalog: TestCaseCatalog<TContext, TResult>,

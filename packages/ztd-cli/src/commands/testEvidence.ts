@@ -1,10 +1,21 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import { Command } from 'commander';
 
+/**
+ * Supported evidence generation modes for `ztd evidence`.
+ */
 export type TestEvidenceMode = 'specification';
+
+/**
+ * Output formats accepted by `ztd evidence`.
+ */
 export type TestEvidenceFormat = 'json' | 'markdown' | 'both';
 
+/**
+ * Evidence row summarizing one SQL catalog spec file.
+ */
 export interface SqlCatalogSpecEvidence {
   kind: 'sql-catalog';
   id: string;
@@ -15,6 +26,9 @@ export interface SqlCatalogSpecEvidence {
   hasOutputMapping: boolean;
 }
 
+/**
+ * Flattened executable test-case evidence row.
+ */
 export interface TestCaseEvidence {
   kind: 'test-case';
   id: string;
@@ -25,17 +39,40 @@ export interface TestCaseEvidence {
   description?: string;
 }
 
+/**
+ * Top-level deterministic evidence document for specification mode.
+ */
 export interface TestSpecificationEvidence {
   schemaVersion: 1;
   mode: TestEvidenceMode;
   summary: {
     sqlCatalogCount: number;
+    sqlCaseCatalogCount: number;
     testCaseCount: number;
     specFilesScanned: number;
     testFilesScanned: number;
   };
   sqlCatalogs: SqlCatalogSpecEvidence[];
+  sqlCaseCatalogs: SqlCaseCatalogEvidence[];
   testCases: TestCaseEvidence[];
+}
+
+/**
+ * Deterministic evidence representation of an executable SQL case catalog.
+ */
+export interface SqlCaseCatalogEvidence {
+  id: string;
+  title: string;
+  description?: string;
+  params: { shape: 'named'; example: Record<string, unknown> };
+  output: { mapping: { columnMap: Record<string, string> } };
+  sql: string;
+  fixtures: Array<{
+    tableName: string;
+    schema?: { columns: Record<string, string> };
+    rowsCount: number;
+  }>;
+  cases: Array<{ id: string; title: string }>;
 }
 
 interface TestEvidenceCommandOptions {
@@ -44,6 +81,7 @@ interface TestEvidenceCommandOptions {
   outDir: string;
   specsDir?: string;
   testsDir?: string;
+  specModule?: string;
 }
 
 interface QuerySpecLike {
@@ -71,6 +109,11 @@ interface TestCaseLike {
   id?: unknown;
   title?: unknown;
   description?: unknown;
+}
+
+interface EvidenceModuleLike {
+  testCaseCatalogs?: unknown;
+  sqlCatalogCases?: unknown;
 }
 
 /**
@@ -111,6 +154,7 @@ export function registerTestEvidenceCommand(program: Command): void {
     .option('--out-dir <path>', 'Output directory', '.ztd/test-evidence')
     .option('--specs-dir <path>', 'Override SQL catalog specs directory (default: src/catalog/specs)')
     .option('--tests-dir <path>', 'Override tests directory (default: tests)')
+    .option('--spec-module <path>', 'Explicit evidence module path (default: tests/specs/index)')
     .action((options: TestEvidenceCommandOptions) => {
       try {
         const mode = normalizeMode(options.mode);
@@ -119,7 +163,8 @@ export function registerTestEvidenceCommand(program: Command): void {
           mode,
           rootDir: process.env.ZTD_PROJECT_ROOT,
           specsDir: options.specsDir,
-          testsDir: options.testsDir
+          testsDir: options.testsDir,
+          specModule: options.specModule
         });
         writeArtifacts({
           report,
@@ -158,16 +203,23 @@ export function runTestEvidenceSpecification(options: {
   rootDir?: string;
   specsDir?: string;
   testsDir?: string;
+  specModule?: string;
 }): TestSpecificationEvidence {
   const root = path.resolve(options.rootDir ?? process.cwd());
   const specsDir = options.specsDir ? path.resolve(root, options.specsDir) : path.resolve(root, 'src', 'catalog', 'specs');
   const testsDir = options.testsDir ? path.resolve(root, options.testsDir) : path.resolve(root, 'tests');
 
   const sqlSpecFiles = existsSync(specsDir) ? walkFiles(specsDir, isSpecLikeFile) : [];
+  const evidenceModule = loadEvidenceModule(root, testsDir, options.specModule);
   const testCaseCatalogFiles = existsSync(testsDir) ? walkFiles(testsDir, isTestCaseCatalogFile) : [];
-  if (sqlSpecFiles.length === 0 && testCaseCatalogFiles.length === 0) {
+  const legacyTestCases = evidenceModule ? [] : testCaseCatalogFiles.flatMap((filePath) => loadTestCaseCatalogEvidence(root, filePath));
+
+  const testCaseCatalogs = evidenceModule ? readTestCaseCatalogsFromModule(evidenceModule) : [];
+  const testCasesFromModule = flattenTestCaseCatalogs(testCaseCatalogs);
+  const sqlCaseCatalogsFromModule = evidenceModule ? readSqlCaseCatalogsFromModule(evidenceModule) : [];
+  if (sqlSpecFiles.length === 0 && testCasesFromModule.length === 0 && legacyTestCases.length === 0 && sqlCaseCatalogsFromModule.length === 0) {
     throw new TestEvidenceRuntimeError(
-      `No catalog specs or test-case catalog exports were found. Checked specsDir=${specsDir}, testsDir=${testsDir}`
+      `No catalog specs or test-case evidence exports were found. Checked specsDir=${specsDir}, testsDir=${testsDir}`
     );
   }
 
@@ -176,20 +228,23 @@ export function runTestEvidenceSpecification(options: {
     .map((loaded) => toSqlEvidence(root, loaded))
     .sort((a, b) => a.id.localeCompare(b.id) || a.specFile.localeCompare(b.specFile));
 
-  const testCases = testCaseCatalogFiles
-    .flatMap((filePath) => loadTestCaseCatalogEvidence(root, filePath))
+  const testCases = [...testCasesFromModule, ...legacyTestCases]
     .sort((a, b) => a.id.localeCompare(b.id) || a.filePath.localeCompare(b.filePath));
+  const sqlCaseCatalogs = sqlCaseCatalogsFromModule
+    .sort((a, b) => a.id.localeCompare(b.id));
 
   return {
     schemaVersion: 1,
     mode: options.mode,
     summary: {
       sqlCatalogCount: sqlCatalogs.length,
+      sqlCaseCatalogCount: sqlCaseCatalogs.length,
       testCaseCount: testCases.length,
       specFilesScanned: sqlSpecFiles.length,
-      testFilesScanned: testCaseCatalogFiles.length
+      testFilesScanned: evidenceModule ? 1 : testCaseCatalogFiles.length
     },
     sqlCatalogs,
+    sqlCaseCatalogs,
     testCases
   };
 }
@@ -206,6 +261,7 @@ export function formatTestEvidenceOutput(report: TestSpecificationEvidence, form
   lines.push('# Test Evidence (Specification Mode)');
   lines.push('');
   lines.push(`- SQL catalogs: ${report.summary.sqlCatalogCount}`);
+  lines.push(`- SQL case catalogs: ${report.summary.sqlCaseCatalogCount}`);
   lines.push(`- Test cases: ${report.summary.testCaseCount}`);
   lines.push(`- Spec files scanned: ${report.summary.specFilesScanned}`);
   lines.push(`- Test case catalog files scanned: ${report.summary.testFilesScanned}`);
@@ -217,6 +273,15 @@ export function formatTestEvidenceOutput(report: TestSpecificationEvidence, form
     for (const item of report.sqlCatalogs) {
       const sqlInfo = item.sqlFile === null ? '(missing)' : item.sqlFileResolved ? item.sqlFile : `${item.sqlFile} (missing)`;
       lines.push(`- \`${item.id}\` | params=${item.paramsShape} | sql=${sqlInfo} | spec=${item.specFile}`);
+    }
+  }
+  lines.push('');
+  lines.push('## SQL Case Catalogs');
+  if (report.sqlCaseCatalogs.length === 0) {
+    lines.push('- (none)');
+  } else {
+    for (const item of report.sqlCaseCatalogs) {
+      lines.push(`- \`${item.id}\` | sqlCases=${item.cases.length}`);
     }
   }
   lines.push('');
@@ -321,6 +386,193 @@ function loadSpecsFromFile(filePath: string): Array<{ filePath: string; spec: Qu
       output: /mapping\s*:/.test(block) ? { mapping: {} } : undefined
     }
   }));
+}
+
+function loadEvidenceModule(rootDir: string, testsDir: string, specModule?: string): EvidenceModuleLike | undefined {
+  const moduleCandidates = resolveEvidenceModuleCandidates(rootDir, testsDir, specModule);
+  const target = moduleCandidates.find((candidate) => existsSync(candidate));
+  if (!target) {
+    return undefined;
+  }
+  try {
+    const requireFn = createRequire(__filename);
+    const loaded = requireFn(target) as Record<string, unknown>;
+    const normalized = loaded?.default && isPlainObject(loaded.default)
+      ? loaded.default as Record<string, unknown>
+      : loaded;
+    return normalized as EvidenceModuleLike;
+  } catch (error) {
+    throw new TestEvidenceRuntimeError(
+      `Failed to load evidence module ${target}: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
+
+function resolveEvidenceModuleCandidates(rootDir: string, testsDir: string, specModule?: string): string[] {
+  if (specModule) {
+    const absolute = path.resolve(rootDir, specModule);
+    return [
+      absolute,
+      `${absolute}.js`,
+      `${absolute}.cjs`,
+      `${absolute}.ts`
+    ];
+  }
+
+  const base = path.resolve(testsDir, 'specs', 'index');
+  return [
+    `${base}.js`,
+    `${base}.cjs`,
+    `${base}.ts`
+  ];
+}
+
+function readTestCaseCatalogsFromModule(moduleValue: EvidenceModuleLike): Array<{
+  id: string;
+  title: string;
+  description?: string;
+  cases: Array<{ id: string; title: string; description?: string }>;
+}> {
+  if (!Array.isArray(moduleValue.testCaseCatalogs)) {
+    return [];
+  }
+
+  return moduleValue.testCaseCatalogs.map((catalog, index) => {
+    if (!isPlainObject(catalog)) {
+      throw new TestEvidenceRuntimeError(`testCaseCatalogs[${index}] must be an object in evidence module.`);
+    }
+    const id = typeof catalog.id === 'string' ? catalog.id.trim() : '';
+    const title = typeof catalog.title === 'string' ? catalog.title.trim() : '';
+    const cases = Array.isArray(catalog.cases) ? catalog.cases : [];
+    if (!id || !title) {
+      throw new TestEvidenceRuntimeError(`testCaseCatalogs[${index}] requires non-empty id/title.`);
+    }
+    const normalizedCases = cases.map((item, caseIndex) => {
+      if (!isPlainObject(item)) {
+        throw new TestEvidenceRuntimeError(`testCaseCatalogs[${index}].cases[${caseIndex}] must be an object.`);
+      }
+      const caseId = typeof item.id === 'string' ? item.id.trim() : '';
+      const caseTitle = typeof item.title === 'string' ? item.title.trim() : '';
+      if (!caseId || !caseTitle) {
+        throw new TestEvidenceRuntimeError(`testCaseCatalogs[${index}].cases[${caseIndex}] requires non-empty id/title.`);
+      }
+      const description = typeof item.description === 'string' && item.description.trim().length > 0
+        ? item.description.trim()
+        : undefined;
+      return {
+        id: caseId,
+        title: caseTitle,
+        ...(description ? { description } : {})
+      };
+    });
+    const description = typeof catalog.description === 'string' && catalog.description.trim().length > 0
+      ? catalog.description.trim()
+      : undefined;
+    return {
+      id,
+      title,
+      ...(description ? { description } : {}),
+      cases: normalizedCases
+    };
+  });
+}
+
+function flattenTestCaseCatalogs(catalogs: Array<{
+  id: string;
+  title: string;
+  description?: string;
+  cases: Array<{ id: string; title: string; description?: string }>;
+}>): TestCaseEvidence[] {
+  const rows: TestCaseEvidence[] = [];
+  for (const catalog of catalogs) {
+    for (const testCase of catalog.cases) {
+      rows.push({
+        kind: 'test-case',
+        id: `${catalog.id}.${testCase.id}`,
+        catalogId: catalog.id,
+        caseId: testCase.id,
+        filePath: 'tests/specs/index',
+        title: testCase.title,
+        ...(testCase.description ? { description: testCase.description } : {})
+      });
+    }
+  }
+  return rows;
+}
+
+function readSqlCaseCatalogsFromModule(moduleValue: EvidenceModuleLike): SqlCaseCatalogEvidence[] {
+  if (!Array.isArray(moduleValue.sqlCatalogCases)) {
+    return [];
+  }
+  return moduleValue.sqlCatalogCases.map((catalog, index) => normalizeSqlCaseCatalog(catalog, index));
+}
+
+function normalizeSqlCaseCatalog(catalog: unknown, index: number): SqlCaseCatalogEvidence {
+  if (!isPlainObject(catalog)) {
+    throw new TestEvidenceRuntimeError(`sqlCatalogCases[${index}] must be an object in evidence module.`);
+  }
+  const id = typeof catalog.id === 'string' ? catalog.id.trim() : '';
+  const title = typeof catalog.title === 'string' ? catalog.title.trim() : '';
+  if (!id || !title) {
+    throw new TestEvidenceRuntimeError(`sqlCatalogCases[${index}] requires non-empty id/title.`);
+  }
+  const details = isPlainObject(catalog.catalog) ? catalog.catalog : {};
+  const params = isPlainObject(details.params) ? details.params : {};
+  const output = isPlainObject(details.output) ? details.output : {};
+  const mapping = isPlainObject(output.mapping) ? output.mapping : {};
+  const columnMapRaw = isPlainObject(mapping.columnMap) ? mapping.columnMap : {};
+  const columnMap = Object.fromEntries(
+    Object.entries(columnMapRaw)
+      .filter((entry): entry is [string, string] => typeof entry[0] === 'string' && typeof entry[1] === 'string')
+      .sort((a, b) => a[0].localeCompare(b[0]))
+  );
+  const sql = typeof details.sql === 'string' ? details.sql : '';
+  const example = isPlainObject(params.example) ? { ...params.example } : {};
+  const fixturesRaw = Array.isArray(catalog.fixtures) ? catalog.fixtures : [];
+  const fixtures = fixturesRaw
+    .filter((item) => isPlainObject(item) && typeof item.tableName === 'string')
+    .map((item) => ({
+      tableName: item.tableName as string,
+      ...(isPlainObject(item.schema) && isPlainObject(item.schema.columns)
+        ? {
+          schema: {
+            columns: Object.fromEntries(
+              Object.entries(item.schema.columns)
+                .filter((entry): entry is [string, string] => typeof entry[0] === 'string' && typeof entry[1] === 'string')
+                .sort((a, b) => a[0].localeCompare(b[0]))
+            )
+          }
+        }
+        : {}),
+      rowsCount: Array.isArray(item.rows) ? item.rows.length : typeof item.rowsCount === 'number' ? item.rowsCount : 0
+    }))
+    .sort((a, b) => a.tableName.localeCompare(b.tableName));
+  const casesRaw = Array.isArray(catalog.cases) ? catalog.cases : [];
+  const cases = casesRaw
+    .filter((item) => isPlainObject(item) && typeof item.id === 'string' && typeof item.title === 'string')
+    .map((item) => ({ id: item.id as string, title: item.title as string }))
+    .sort((a, b) => a.id.localeCompare(b.id));
+
+  const description = typeof catalog.description === 'string' && catalog.description.trim().length > 0
+    ? catalog.description.trim()
+    : undefined;
+  return {
+    id,
+    title,
+    ...(description ? { description } : {}),
+    params: {
+      shape: 'named',
+      example
+    },
+    output: {
+      mapping: {
+        columnMap
+      }
+    },
+    sql: normalizeSql(sql),
+    fixtures,
+    cases
+  };
 }
 
 function loadTestCaseCatalogEvidence(rootDir: string, filePath: string): TestCaseEvidence[] {
@@ -465,4 +717,8 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 
 function normalizePath(input: string): string {
   return input.split(path.sep).join('/');
+}
+
+function normalizeSql(input: string): string {
+  return input.replace(/\r\n/g, '\n').trim();
 }
