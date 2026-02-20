@@ -6,6 +6,7 @@ import { registerInitCommand } from './commands/init';
 import { registerLintCommand } from './commands/lint';
 import { registerZtdConfigCommand } from './commands/ztdConfigCommand';
 import { CheckContractRuntimeError, registerCheckContractCommand } from './commands/checkContract';
+import { TestEvidenceRuntimeError, registerTestEvidenceCommand } from './commands/testEvidence';
 
 async function main(): Promise<void> {
   const program = new Command();
@@ -14,6 +15,7 @@ async function main(): Promise<void> {
   registerInitCommand(program);
   registerLintCommand(program);
   registerCheckContractCommand(program);
+  registerTestEvidenceCommand(program);
   registerZtdConfigCommand(program);
   registerDdlCommands(program);
 
@@ -22,7 +24,7 @@ async function main(): Promise<void> {
 
 main().catch((error) => {
   console.error(error instanceof Error ? error.message : error);
-  if (error instanceof CheckContractRuntimeError) {
+  if (error instanceof CheckContractRuntimeError || error instanceof TestEvidenceRuntimeError) {
     process.exit(2);
   }
   process.exit(1);

@@ -14,6 +14,7 @@ CLI tool for scaffolding **Zero Table Dependency (ZTD)** projects and keeping DD
 - Schema pull from live Postgres via `pg_dump`
 - DDL diff against a live database
 - SQL linting with fixture-backed validation
+- Deterministic test specification evidence export (JSON / Markdown)
 - Watch mode for continuous regeneration
 - Validator selection (Zod or ArkType) during init
 
@@ -58,6 +59,7 @@ The generated artifacts:
 | `ztd ddl diff` | Diff local DDL snapshot against a live database |
 | `ztd ddl gen-entities` | Generate `entities.ts` for ad-hoc schema inspection |
 | `ztd lint <path>` | Lint SQL files with fixture-backed validation |
+| `ztd evidence --mode specification` | Export executable specification evidence from SQL catalogs and test files |
 
 ## What is ZTD?
 

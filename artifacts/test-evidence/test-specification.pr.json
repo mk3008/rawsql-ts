@@ -1,0 +1,172 @@
+{
+  "version": 1,
+  "base": {
+    "ref": "main",
+    "sha": "c8f60f4406390ad953dbf97829de88ab55e7cc40"
+  },
+  "head": {
+    "ref": "HEAD",
+    "sha": "fd7e3e96429d3c1a068306458c0d1d1ea8c60067"
+  },
+  "baseMode": "merge-base",
+  "totals": {
+    "base": {
+      "catalogs": 0,
+      "tests": 0
+    },
+    "head": {
+      "catalogs": 4,
+      "tests": 8
+    }
+  },
+  "summary": {
+    "catalogs": {
+      "added": 4,
+      "removed": 0,
+      "updated": 0
+    },
+    "cases": {
+      "added": 8,
+      "removed": 0,
+      "updated": 0
+    }
+  },
+  "catalogs": {
+    "added": [
+      {
+        "catalogAfter": {
+          "kind": "sql",
+          "catalogId": "sql.active-orders",
+          "title": "Active orders SQL semantics",
+          "definition": "src/specs/sql/activeOrders.catalog.ts",
+          "fixtures": [
+            "orders",
+            "users"
+          ],
+          "cases": [
+            {
+              "id": "baseline",
+              "title": "active users with minimum total",
+              "input": {
+                "active": 1,
+                "limit": 2,
+                "minTotal": 20
+              },
+              "output": [
+                {
+                  "orderId": 10,
+                  "userEmail": "alice@example.com",
+                  "orderTotal": 50
+                },
+                {
+                  "orderId": 13,
+                  "userEmail": "carol@example.com",
+                  "orderTotal": 35
+                }
+              ]
+            },
+            {
+              "id": "inactive-variant",
+              "title": "inactive users return a different result",
+              "input": {
+                "active": 0,
+                "limit": 2,
+                "minTotal": 20
+              },
+              "output": [
+                {
+                  "orderId": 12,
+                  "userEmail": "bob@example.com",
+                  "orderTotal": 40
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "catalogAfter": {
+          "kind": "sql",
+          "catalogId": "sql.sample",
+          "title": "sample sql cases",
+          "definition": "src/specs/sql/usersList.catalog.ts",
+          "fixtures": [
+            "users"
+          ],
+          "cases": [
+            {
+              "id": "returns-active-users",
+              "title": "returns active users",
+              "input": {
+                "active": 1
+              },
+              "output": [
+                {
+                  "id": 1
+                }
+              ]
+            },
+            {
+              "id": "returns-inactive-users-when-active-0",
+              "title": "returns inactive users when active=0",
+              "input": {
+                "active": 0
+              },
+              "output": [
+                {
+                  "id": 2
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "catalogAfter": {
+          "kind": "function",
+          "catalogId": "unit.alpha",
+          "title": "alpha",
+          "definition": "tests/specs/testCaseCatalogs.ts",
+          "cases": [
+            {
+              "id": "a",
+              "title": "noop",
+              "input": 1,
+              "output": 1
+            }
+          ]
+        }
+      },
+      {
+        "catalogAfter": {
+          "kind": "function",
+          "catalogId": "unit.normalize-email",
+          "title": "normalizeEmail",
+          "definition": "tests/specs/testCaseCatalogs.ts",
+          "cases": [
+            {
+              "id": "keeps-valid-address",
+              "title": "retains already-normalized email",
+              "input": "alice@example.com",
+              "output": "alice@example.com"
+            },
+            {
+              "id": "rejects-invalid-input",
+              "title": "throws when @ is missing",
+              "input": "invalid-email",
+              "output": "Error: invalid email"
+            },
+            {
+              "id": "trims-and-lowercases",
+              "title": "normalizes uppercase + spaces",
+              "input": "  USER@Example.COM ",
+              "output": "user@example.com"
+            }
+          ]
+        }
+      }
+    ],
+    "removed": [],
+    "updated": []
+  }
+}
