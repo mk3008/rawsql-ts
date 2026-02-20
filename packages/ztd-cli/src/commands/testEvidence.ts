@@ -72,7 +72,12 @@ export interface SqlCaseCatalogEvidence {
     schema?: { columns: Record<string, string> };
     rowsCount: number;
   }>;
-  cases: Array<{ id: string; title: string }>;
+  cases: Array<{
+    id: string;
+    title: string;
+    params: Record<string, unknown>;
+    expected: unknown[];
+  }>;
 }
 
 interface TestEvidenceCommandOptions {
@@ -548,9 +553,24 @@ function normalizeSqlCaseCatalog(catalog: unknown, index: number): SqlCaseCatalo
     }))
     .sort((a, b) => a.tableName.localeCompare(b.tableName));
   const casesRaw = Array.isArray(catalog.cases) ? catalog.cases : [];
+  const baseParams = isPlainObject(params.example) ? { ...params.example } : {};
   const cases = casesRaw
     .filter((item) => isPlainObject(item) && typeof item.id === 'string' && typeof item.title === 'string')
-    .map((item) => ({ id: item.id as string, title: item.title as string }))
+    .map((item, caseIndex) => {
+      const arrangedParams = resolveCaseArrangeParams(item, index, caseIndex);
+      const mergedParams = arrangedParams ? { ...baseParams, ...arrangedParams } : { ...baseParams };
+      const expected = Array.isArray(item.expected) ? [...item.expected] : [];
+      return {
+        id: item.id as string,
+        title: item.title as string,
+        params: Object.fromEntries(
+          Object.entries(mergedParams)
+            .filter((entry): entry is [string, unknown] => typeof entry[0] === 'string')
+            .sort((a, b) => a[0].localeCompare(b[0]))
+        ),
+        expected
+      };
+    })
     .sort((a, b) => a.id.localeCompare(b.id));
 
   const description = typeof catalog.description === 'string' && catalog.description.trim().length > 0
@@ -569,10 +589,34 @@ function normalizeSqlCaseCatalog(catalog: unknown, index: number): SqlCaseCatalo
         columnMap
       }
     },
-    sql: normalizeSql(sql),
+    // Keep SQL text unchanged so evidence remains a direct projection of test source.
+    sql,
     fixtures,
     cases
   };
+}
+
+function resolveCaseArrangeParams(
+  testCase: Record<string, unknown>,
+  catalogIndex: number,
+  caseIndex: number
+): Record<string, unknown> | undefined {
+  const arrange = testCase.arrange;
+  if (arrange === undefined) {
+    return undefined;
+  }
+  if (typeof arrange !== 'function') {
+    throw new TestEvidenceRuntimeError(
+      `sqlCatalogCases[${catalogIndex}].cases[${caseIndex}].arrange must be a function when provided.`
+    );
+  }
+  const arranged = (arrange as () => unknown)();
+  if (!isPlainObject(arranged)) {
+    throw new TestEvidenceRuntimeError(
+      `sqlCatalogCases[${catalogIndex}].cases[${caseIndex}].arrange must return an object.`
+    );
+  }
+  return arranged;
 }
 
 function loadTestCaseCatalogEvidence(rootDir: string, filePath: string): TestCaseEvidence[] {
@@ -717,8 +761,4 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 
 function normalizePath(input: string): string {
   return input.split(path.sep).join('/');
-}
-
-function normalizeSql(input: string): string {
-  return input.replace(/\r\n/g, '\n').trim();
 }

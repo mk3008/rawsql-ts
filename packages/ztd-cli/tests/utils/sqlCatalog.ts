@@ -125,7 +125,12 @@ export function exportSqlCatalogEvidence(
       schema?: { columns: Record<string, string> };
       rowsCount: number;
     }>;
-    cases: Array<{ id: string; title: string; expected: Record<string, unknown>[] }>;
+    cases: Array<{
+      id: string;
+      title: string;
+      params: Record<string, unknown>;
+      expected: Record<string, unknown>[];
+    }>;
   }>;
 } {
   return {
@@ -146,7 +151,8 @@ export function exportSqlCatalogEvidence(
             ),
           },
         },
-        sql: normalizeSql(catalog.catalog.sql),
+        // Keep SQL as-is so evidence is a lossless projection of primary test inputs.
+        sql: catalog.catalog.sql,
         fixtures: [...catalog.fixtures]
           .map((fixture) => ({
             tableName: fixture.tableName,
@@ -167,12 +173,18 @@ export function exportSqlCatalogEvidence(
           .map((item) => ({
             id: item.id,
             title: item.title,
+            params: buildCaseParams(catalog.catalog.params.example, item.arrange),
             expected: item.expected.map((row) => ({ ...row })),
           })),
       })),
   };
 }
 
-function normalizeSql(sql: string): string {
-  return sql.replace(/\r\n/g, '\n').trim();
+function buildCaseParams(
+  baseParams: Record<string, unknown>,
+  arrange?: () => Record<string, unknown>
+): Record<string, unknown> {
+  const arranged = arrange ? arrange() : undefined;
+  const merged = arranged ? { ...baseParams, ...arranged } : { ...baseParams };
+  return Object.fromEntries(Object.entries(merged).sort((a, b) => a[0].localeCompare(b[0])));
 }

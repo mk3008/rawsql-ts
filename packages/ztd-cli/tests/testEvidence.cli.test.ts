@@ -48,7 +48,7 @@ function writeSpecModule(root: string): void {
     "      output: { mapping: { columnMap: { orderId: 'order_id' } } },",
     "      sql: 'select order_id from orders where active = @active'",
     '    },',
-    "    cases: [{ id: 'baseline', title: 'baseline' }]",
+    "    cases: [{ id: 'baseline', title: 'baseline', expected: [{ orderId: 10 }] }]",
     '  }',
     ']',
     '};',
@@ -83,7 +83,10 @@ test('CLI: evidence writes json and markdown artifacts', async () => {
   const parsedJson = JSON.parse(readFileSync(path.join(outDir, 'test-specification.json'), 'utf8'));
   expect(parsedJson.summary).toMatchObject({ sqlCatalogCount: 1, sqlCaseCatalogCount: 1, testCaseCount: 1 });
   expect(parsedJson.testCases[0]).toMatchObject({ id: 'unit.users.lists-users', filePath: 'tests/specs/index' });
-  expect(parsedJson.sqlCaseCatalogs[0]).toMatchObject({ id: 'sql.active-orders' });
+  expect(parsedJson.sqlCaseCatalogs[0]).toMatchObject({
+    id: 'sql.active-orders',
+    cases: [{ id: 'baseline', params: { active: 1, limit: 2, minTotal: 20 }, expected: [{ orderId: 10 }] }]
+  });
   const markdown = readFileSync(path.join(outDir, 'test-specification.md'), 'utf8');
   expect(markdown).toContain('Test Evidence (Specification Mode)');
 });

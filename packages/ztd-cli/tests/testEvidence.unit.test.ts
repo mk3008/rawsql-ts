@@ -35,8 +35,8 @@ function writeSpecModule(root: string, options?: { testCaseIds?: string[]; inclu
       "      sql: 'select order_id from orders where active = @active'",
       '    },',
       '    cases: [',
-      "      { id: 'baseline', title: 'baseline' },",
-      "      { id: 'inactive', title: 'inactive' }",
+      "      { id: 'baseline', title: 'baseline', expected: [{ orderId: 10 }] },",
+      "      { id: 'inactive', title: 'inactive', arrange: () => ({ active: 0 }), expected: [{ orderId: 12 }] }",
       '    ]',
       '  }',
       '],'
@@ -101,7 +101,10 @@ test('runTestEvidenceSpecification extracts SQL catalogs, SQL case catalogs, and
   ]);
   expect(report.sqlCaseCatalogs[0]).toMatchObject({
     id: 'sql.active-orders',
-    cases: [{ id: 'baseline' }, { id: 'inactive' }]
+    cases: [
+      { id: 'baseline', params: { active: 1, limit: 2, minTotal: 20 }, expected: [{ orderId: 10 }] },
+      { id: 'inactive', params: { active: 0, limit: 2, minTotal: 20 }, expected: [{ orderId: 12 }] },
+    ]
   });
 });
 
