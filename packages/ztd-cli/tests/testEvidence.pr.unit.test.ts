@@ -265,3 +265,29 @@ test('removed-detail controls removed case rendering detail', () => {
   expect(fullMarkdown).toContain('input:');
   expect(fullMarkdown).toContain('output:');
 });
+
+test('diff json uses schemaVersion', () => {
+  const diff = buildTestEvidencePrDiff({
+    base: { ref: 'main', sha: 'aaa', report: createReport({}) },
+    head: { ref: 'HEAD', sha: 'bbb', report: createReport({}) },
+    baseMode: 'merge-base'
+  });
+
+  expect(diff).toMatchObject({ schemaVersion: 1 });
+});
+
+test('unsupported preview schemaVersion is rejected deterministically', () => {
+  const base = {
+    ...createReport({}),
+    schemaVersion: 2
+  } as unknown as TestSpecificationEvidence;
+  const head = createReport({});
+
+  expect(() =>
+    buildTestEvidencePrDiff({
+      base: { ref: 'main', sha: 'aaa', report: base },
+      head: { ref: 'HEAD', sha: 'bbb', report: head },
+      baseMode: 'merge-base'
+    })
+  ).toThrow(/schemaVersion|unsupported/i);
+});

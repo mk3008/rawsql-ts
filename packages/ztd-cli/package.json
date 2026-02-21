@@ -29,6 +29,7 @@
     "node": ">=20"
   },
   "dependencies": {
+    "@rawsql-ts/test-evidence-core": "workspace:*",
     "chokidar": "^5.0.0",
     "commander": "^12.0.0",
     "diff": "^8.0.3",

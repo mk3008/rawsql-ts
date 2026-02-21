@@ -49,6 +49,8 @@
         "@rawsql-ts/sql-contract-zod": ["packages/sql-contract-zod/src"],
         "@rawsql-ts/sql-contract-zod/*": ["packages/sql-contract-zod/src/*"],
         "@rawsql-ts/testkit-core": ["packages/testkit-core/src"],
+        "@rawsql-ts/test-evidence-core": ["packages/test-evidence-core/src"],
+        "@rawsql-ts/test-evidence-core/*": ["packages/test-evidence-core/src/*"],
         "@rawsql-ts/ztd-cli": ["packages/ztd-cli/src"],
         "@rawsql-ts/sqlite-testkit": ["packages/drivers/sqlite-testkit/src"],
         "@rawsql-ts/adapter-node-pg": ["packages/adapters/adapter-node-pg/src"],
@@ -141,6 +143,9 @@
         },
         {
             "path": "./packages/sql-contract-zod"
+        },
+        {
+            "path": "./packages/test-evidence-core"
         }
     ]
 }

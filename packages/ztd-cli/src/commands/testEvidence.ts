@@ -3,6 +3,14 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { Command } from 'commander';
+import {
+  buildDiffJson,
+  stableStringify as coreStableStringify,
+  type DiffCase as CorePrDiffCase,
+  type DiffCatalog as CorePrDiffCatalog,
+  type DiffJson as CoreTestSpecificationPrDiff,
+  type PreviewJson as TestEvidencePreviewJson
+} from '@rawsql-ts/test-evidence-core';
 
 /**
  * Supported evidence generation modes for `ztd evidence`.
@@ -64,56 +72,17 @@ export interface TestSpecificationEvidence {
 /**
  * Normalized case payload used for deterministic PR diff calculation.
  */
-export interface PrDiffCase {
-  id: string;
-  title: string;
-  input: unknown;
-  output: unknown;
-}
+export type PrDiffCase = CorePrDiffCase;
 
 /**
  * Normalized catalog payload used for deterministic PR diff calculation.
  */
-export interface PrDiffCatalog {
-  kind: 'sql' | 'function';
-  catalogId: string;
-  title: string;
-  definition?: string;
-  fixtures?: string[];
-  cases: PrDiffCase[];
-}
+export type PrDiffCatalog = CorePrDiffCatalog;
 
 /**
  * Deterministic diff document for PR-focused test evidence output.
  */
-export interface TestSpecificationPrDiff {
-  version: 1;
-  base: { ref: string; sha: string };
-  head: { ref: string; sha: string };
-  baseMode: 'merge-base' | 'ref';
-  totals: {
-    base: { catalogs: number; tests: number };
-    head: { catalogs: number; tests: number };
-  };
-  summary: {
-    catalogs: { added: number; removed: number; updated: number };
-    cases: { added: number; removed: number; updated: number };
-  };
-  catalogs: {
-    added: Array<{ catalogAfter: PrDiffCatalog }>;
-    removed: Array<{ catalogBefore: PrDiffCatalog }>;
-    updated: Array<{
-      catalogId: string;
-      catalogBefore: PrDiffCatalog;
-      catalogAfter: PrDiffCatalog;
-      cases: {
-        added: Array<{ after: PrDiffCase }>;
-        removed: Array<{ before: PrDiffCase }>;
-        updated: Array<{ before: PrDiffCase; after: PrDiffCase }>;
-      };
-    }>;
-  };
-}
+export type TestSpecificationPrDiff = CoreTestSpecificationPrDiff;
 
 /**
  * Deterministic evidence representation of an executable function test catalog.
@@ -479,7 +448,7 @@ export function formatTestEvidenceOutput(report: TestSpecificationEvidence, form
  * Stable stringify that sorts object keys recursively for deterministic fingerprinting.
  */
 export function stableStringify(value: unknown): string {
-  return JSON.stringify(toStableValue(value));
+  return coreStableStringify(value);
 }
 
 /**
@@ -490,97 +459,19 @@ export function buildTestEvidencePrDiff(args: {
   head: { ref: string; sha: string; report: TestSpecificationEvidence };
   baseMode: 'merge-base' | 'ref';
 }): TestSpecificationPrDiff {
-  const baseCatalogs = normalizeCatalogsForDiff(args.base.report);
-  const headCatalogs = normalizeCatalogsForDiff(args.head.report);
-  const baseMap = new Map(baseCatalogs.map((catalog) => [catalog.catalogId, catalog]));
-  const headMap = new Map(headCatalogs.map((catalog) => [catalog.catalogId, catalog]));
-
-  const addedCatalogs: Array<{ catalogAfter: PrDiffCatalog }> = [];
-  const removedCatalogs: Array<{ catalogBefore: PrDiffCatalog }> = [];
-  const updatedCatalogs: TestSpecificationPrDiff['catalogs']['updated'] = [];
-
-  for (const catalog of headCatalogs) {
-    if (!baseMap.has(catalog.catalogId)) {
-      addedCatalogs.push({ catalogAfter: catalog });
-    }
-  }
-  for (const catalog of baseCatalogs) {
-    if (!headMap.has(catalog.catalogId)) {
-      removedCatalogs.push({ catalogBefore: catalog });
-    }
-  }
-
-  for (const beforeCatalog of baseCatalogs) {
-    const afterCatalog = headMap.get(beforeCatalog.catalogId);
-    if (!afterCatalog) {
-      continue;
-    }
-    const cases = diffCatalogCases(beforeCatalog, afterCatalog);
-    const catalogChanged =
-      stableStringify({
-        kind: beforeCatalog.kind,
-        catalogId: beforeCatalog.catalogId,
-        title: beforeCatalog.title,
-        definition: beforeCatalog.definition,
-        fixtures: beforeCatalog.fixtures ?? []
-      }) !==
-      stableStringify({
-        kind: afterCatalog.kind,
-        catalogId: afterCatalog.catalogId,
-        title: afterCatalog.title,
-        definition: afterCatalog.definition,
-        fixtures: afterCatalog.fixtures ?? []
-      });
-
-    if (catalogChanged || cases.added.length > 0 || cases.removed.length > 0 || cases.updated.length > 0) {
-      updatedCatalogs.push({
-        catalogId: beforeCatalog.catalogId,
-        catalogBefore: beforeCatalog,
-        catalogAfter: afterCatalog,
-        cases
-      });
-    }
-  }
-
-  const addedCaseCountFromCatalogs = addedCatalogs.reduce((count, entry) => count + entry.catalogAfter.cases.length, 0);
-  const removedCaseCountFromCatalogs = removedCatalogs.reduce((count, entry) => count + entry.catalogBefore.cases.length, 0);
-  const addedCaseCountFromUpdates = updatedCatalogs.reduce((count, entry) => count + entry.cases.added.length, 0);
-  const removedCaseCountFromUpdates = updatedCatalogs.reduce((count, entry) => count + entry.cases.removed.length, 0);
-  const updatedCaseCount = updatedCatalogs.reduce((count, entry) => count + entry.cases.updated.length, 0);
-
-  return {
-    version: 1,
-    base: { ref: args.base.ref, sha: args.base.sha },
-    head: { ref: args.head.ref, sha: args.head.sha },
-    baseMode: args.baseMode,
-    totals: {
-      base: {
-        catalogs: baseCatalogs.length,
-        tests: baseCatalogs.reduce((count, catalog) => count + catalog.cases.length, 0)
-      },
-      head: {
-        catalogs: headCatalogs.length,
-        tests: headCatalogs.reduce((count, catalog) => count + catalog.cases.length, 0)
-      }
+  return buildDiffJson({
+    base: {
+      ref: args.base.ref,
+      sha: args.base.sha,
+      previewJson: args.base.report as TestEvidencePreviewJson
     },
-    summary: {
-      catalogs: {
-        added: addedCatalogs.length,
-        removed: removedCatalogs.length,
-        updated: updatedCatalogs.length
-      },
-      cases: {
-        added: addedCaseCountFromCatalogs + addedCaseCountFromUpdates,
-        removed: removedCaseCountFromCatalogs + removedCaseCountFromUpdates,
-        updated: updatedCaseCount
-      }
+    head: {
+      ref: args.head.ref,
+      sha: args.head.sha,
+      previewJson: args.head.report as TestEvidencePreviewJson
     },
-    catalogs: {
-      added: sortCatalogEntriesByKind(addedCatalogs, (entry) => entry.catalogAfter),
-      removed: sortCatalogEntriesByKind(removedCatalogs, (entry) => entry.catalogBefore),
-      updated: sortCatalogEntriesByKind(updatedCatalogs, (entry) => entry.catalogAfter)
-    }
-  };
+    baseMode: args.baseMode
+  }) as TestSpecificationPrDiff;
 }
 
 /**
@@ -868,128 +759,6 @@ function renderRemovedCase(lines: string[], testCase: PrDiffCase, detail: Remove
     lines.push('```');
   }
   lines.push('');
-}
-
-function toStableValue(value: unknown): unknown {
-  if (Array.isArray(value)) {
-    return value.map((item) => toStableValue(item));
-  }
-  if (isPlainObject(value)) {
-    return Object.fromEntries(
-      Object.entries(value)
-        .sort((a, b) => a[0].localeCompare(b[0]))
-        .map(([key, nested]) => [key, toStableValue(nested)])
-    );
-  }
-  return value;
-}
-
-function normalizeCatalogsForDiff(report: TestSpecificationEvidence): PrDiffCatalog[] {
-  const sqlCatalogs: PrDiffCatalog[] = report.sqlCaseCatalogs.map((catalog) => ({
-    kind: 'sql',
-    catalogId: catalog.id,
-    title: catalog.title,
-    definition: catalog.definitionPath,
-    fixtures: [...catalog.fixtures.map((item) => item.tableName)].sort((a, b) => a.localeCompare(b)),
-    cases: catalog.cases.map((testCase) => ({
-      id: testCase.id,
-      title: testCase.title,
-      input: testCase.params,
-      output: testCase.expected
-    }))
-  }));
-  const functionCatalogs: PrDiffCatalog[] = report.testCaseCatalogs.map((catalog) => ({
-    kind: 'function',
-    catalogId: catalog.id,
-    title: catalog.title,
-    definition: catalog.definitionPath,
-    cases: catalog.cases.map((testCase) => ({
-      id: testCase.id,
-      title: testCase.title,
-      input: testCase.input,
-      output: testCase.output
-    }))
-  }));
-  return [...sqlCatalogs, ...functionCatalogs].sort((a, b) => a.catalogId.localeCompare(b.catalogId));
-}
-
-function caseFingerprint(args: { catalog: PrDiffCatalog; testCase: PrDiffCase }): string {
-  if (args.catalog.kind === 'sql') {
-    return stableStringify({
-      kind: args.catalog.kind,
-      catalogId: args.catalog.catalogId,
-      caseId: args.testCase.id,
-      input: args.testCase.input,
-      output: args.testCase.output,
-      fixtures: args.catalog.fixtures ?? [],
-      definition: args.catalog.definition ?? ''
-    });
-  }
-  return stableStringify({
-    kind: args.catalog.kind,
-    catalogId: args.catalog.catalogId,
-    caseId: args.testCase.id,
-    input: args.testCase.input,
-    output: args.testCase.output
-  });
-}
-
-function diffCatalogCases(
-  beforeCatalog: PrDiffCatalog,
-  afterCatalog: PrDiffCatalog
-): {
-  added: Array<{ after: PrDiffCase }>;
-  removed: Array<{ before: PrDiffCase }>;
-  updated: Array<{ before: PrDiffCase; after: PrDiffCase }>;
-} {
-  const beforeMap = new Map(beforeCatalog.cases.map((testCase) => [testCase.id, testCase]));
-  const afterMap = new Map(afterCatalog.cases.map((testCase) => [testCase.id, testCase]));
-  const added: Array<{ after: PrDiffCase }> = [];
-  const removed: Array<{ before: PrDiffCase }> = [];
-  const updated: Array<{ before: PrDiffCase; after: PrDiffCase }> = [];
-
-  for (const testCase of afterCatalog.cases) {
-    if (!beforeMap.has(testCase.id)) {
-      added.push({ after: testCase });
-    }
-  }
-  for (const testCase of beforeCatalog.cases) {
-    if (!afterMap.has(testCase.id)) {
-      removed.push({ before: testCase });
-    }
-  }
-  for (const beforeCase of beforeCatalog.cases) {
-    const afterCase = afterMap.get(beforeCase.id);
-    if (!afterCase) {
-      continue;
-    }
-    if (
-      caseFingerprint({ catalog: beforeCatalog, testCase: beforeCase }) !==
-      caseFingerprint({ catalog: afterCatalog, testCase: afterCase })
-    ) {
-      updated.push({ before: beforeCase, after: afterCase });
-    }
-  }
-
-  return {
-    added: [...added].sort((a, b) => a.after.id.localeCompare(b.after.id)),
-    removed: [...removed].sort((a, b) => a.before.id.localeCompare(b.before.id)),
-    updated: [...updated].sort((a, b) => a.after.id.localeCompare(b.after.id))
-  };
-}
-
-function sortCatalogEntriesByKind<T>(
-  entries: T[],
-  toCatalog: (entry: T) => PrDiffCatalog
-): T[] {
-  return [...entries].sort((a, b) => {
-    const catalogA = toCatalog(a);
-    const catalogB = toCatalog(b);
-    if (catalogA.kind !== catalogB.kind) {
-      return catalogA.kind === 'sql' ? -1 : 1;
-    }
-    return catalogA.catalogId.localeCompare(catalogB.catalogId);
-  });
 }
 
 function materializeEvidenceForRef(args: {
