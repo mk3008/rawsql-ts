@@ -324,6 +324,9 @@ importers:
         specifier: ^4.3.6
         version: 4.3.6
     devDependencies:
+      '@rawsql-ts/test-evidence-core':
+        specifier: workspace:*
+        version: link:../test-evidence-core
       typescript:
         specifier: ^5.8.2
         version: 5.9.2
