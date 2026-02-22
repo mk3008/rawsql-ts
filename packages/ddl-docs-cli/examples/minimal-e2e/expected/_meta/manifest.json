@@ -29,6 +29,7 @@
     "columns": [
       "columns/email.md",
       "columns/index.md",
+      "columns/order-id.md",
       "columns/product-code.md",
       "columns/product-name.md",
       "columns/snapshot-note.md",

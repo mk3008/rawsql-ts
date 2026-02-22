@@ -19,6 +19,14 @@ pnpm --filter @rawsql-ts/ddl-docs-cli build
 ddl-docs generate --ddl-dir ztd/ddl --out-dir ztd/docs/tables
 ```
 
+Show help:
+
+```bash
+ddl-docs help
+ddl-docs help generate
+ddl-docs help prune
+```
+
 Generated layout:
 
 - `ztd/docs/tables/index.md`

@@ -32,9 +32,9 @@
 
 ### Suggest
 
-| From | To | Columns | Match | On Delete | On Update |
-| --- | --- | --- | --- | --- | --- |
-| [public.order](./order.md) | `public.user` | `user_id -> user_id` | `exact` | `none` | `none` |
+| From | To | Columns | Match |
+| --- | --- | --- | --- |
+| [public.order](./order.md) | `public.user` | `user_id -> user_id` | `exact` |
 
 ## Appendix
 

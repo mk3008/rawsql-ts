@@ -2,7 +2,12 @@ import path from 'node:path';
 import type { ReferenceDocModel, TableDocModel } from '../types';
 import { formatCodeCell, formatTableCell } from '../utils/markdown';
 
-export function renderTableMarkdown(table: TableDocModel, suggestedSql: string[]): string {
+interface TableSuggestionSql {
+  columnCommentSql: string[];
+  foreignKeySql: string[];
+}
+
+export function renderTableMarkdown(table: TableDocModel, suggestedSql: TableSuggestionSql): string {
   const lines: string[] = [];
   lines.push('<!-- generated-by: @rawsql-ts/ddl-docs-cli -->');
   lines.push('');
@@ -52,7 +57,7 @@ export function renderTableMarkdown(table: TableDocModel, suggestedSql: string[]
   if (ddlReferences.length === 0) {
     lines.push('- None');
   } else {
-    lines.push(...renderReferenceTable(ddlReferences, table));
+    lines.push(...renderReferenceTable(ddlReferences, table, 'ddl'));
   }
 
   lines.push('');
@@ -65,7 +70,7 @@ export function renderTableMarkdown(table: TableDocModel, suggestedSql: string[]
   if (suggestedReferences.length === 0) {
     lines.push('- None');
   } else {
-    lines.push(...renderReferenceTable(suggestedReferences, table));
+    lines.push(...renderReferenceTable(suggestedReferences, table, 'suggest'));
   }
 
   lines.push('');
@@ -77,13 +82,23 @@ export function renderTableMarkdown(table: TableDocModel, suggestedSql: string[]
   lines.push(table.normalizedSql);
   lines.push('```');
 
-  if (suggestedSql.length > 0) {
+  if (suggestedSql.columnCommentSql.length > 0) {
     lines.push('');
-    lines.push('### Suggested SQL (Optional)');
+    lines.push('### Suggested Column Comment SQL (Optional)');
     lines.push('');
     lines.push('```sql');
     lines.push('-- suggested: v1 (not applied)');
-    lines.push(...suggestedSql);
+    lines.push(...suggestedSql.columnCommentSql);
+    lines.push('```');
+  }
+
+  if (suggestedSql.foreignKeySql.length > 0) {
+    lines.push('');
+    lines.push('### Suggested Foreign Key Constraint SQL (Optional)');
+    lines.push('');
+    lines.push('```sql');
+    lines.push('-- suggested: v1 (not applied)');
+    lines.push(...suggestedSql.foreignKeySql);
     lines.push('```');
   }
 
@@ -104,11 +119,17 @@ function linkFromTablePage(current: TableDocModel, targetSchemaSlug: string, tar
 
 function renderReferenceTable(
   references: ReferenceDocModel[],
-  table: TableDocModel
+  table: TableDocModel,
+  mode: 'ddl' | 'suggest'
 ): string[] {
   const lines: string[] = [];
-  lines.push('| From | To | Columns | Match | On Delete | On Update |');
-  lines.push('| --- | --- | --- | --- | --- | --- |');
+  if (mode === 'ddl') {
+    lines.push('| From | To | Columns | On Delete | On Update |');
+    lines.push('| --- | --- | --- | --- | --- |');
+  } else {
+    lines.push('| From | To | Columns | Match |');
+    lines.push('| --- | --- | --- | --- |');
+  }
   for (const reference of references) {
     const fromCell = renderFromCell(reference, table);
     const toCell = renderToCell(reference, table);
@@ -116,7 +137,11 @@ function renderReferenceTable(
     const matchCell = reference.matchRule ? formatCodeCell(reference.matchRule) : '-';
     const onDeleteCell = formatCodeCell(reference.onDeleteAction ?? 'none');
     const onUpdateCell = formatCodeCell(reference.onUpdateAction ?? 'none');
-    lines.push(`| ${fromCell} | ${toCell} | ${columnsCell} | ${matchCell} | ${onDeleteCell} | ${onUpdateCell} |`);
+    if (mode === 'ddl') {
+      lines.push(`| ${fromCell} | ${toCell} | ${columnsCell} | ${onDeleteCell} | ${onUpdateCell} |`);
+    } else {
+      lines.push(`| ${fromCell} | ${toCell} | ${columnsCell} | ${matchCell} |`);
+    }
   }
   return lines;
 }

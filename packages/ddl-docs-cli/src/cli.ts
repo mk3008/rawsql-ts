@@ -10,8 +10,21 @@ export async function runCli(argv: string[]): Promise<void> {
   const [command, ...rest] = argv;
 
   if (!command || command === '--help' || command === '-h') {
-    printHelp();
+    printHelp('all');
     return;
+  }
+
+  if (command === 'help') {
+    const target = rest[0];
+    if (!target) {
+      printHelp('all');
+      return;
+    }
+    if (target === 'generate' || target === 'prune') {
+      printHelp(target);
+      return;
+    }
+    throw new Error(`Unknown command for help: ${target}`);
   }
 
   if (command === 'generate') {
@@ -120,7 +133,7 @@ function parseGenerateOptions(args: string[]): GenerateDocsOptions {
     }
 
     if (arg === '--help' || arg === '-h') {
-      printHelp();
+      printHelp('generate');
       process.exitCode = 0;
       return options;
     }
@@ -165,7 +178,7 @@ function parsePruneOptions(args: string[]): PruneDocsOptions {
     }
 
     if (arg === '--help' || arg === '-h') {
-      printHelp();
+      printHelp('prune');
       process.exitCode = 0;
       return options;
     }
@@ -209,8 +222,8 @@ function dedupe(values: string[]): string[] {
   return Array.from(new Set(values));
 }
 
-function printHelp(): void {
-  console.log(`ddl-docs generate [options]
+function printHelp(target: 'all' | 'generate' | 'prune'): void {
+  const generateHelp = `ddl-docs generate [options]
   --ddl-dir <directory>   Recursively scan DDL files under directory (repeatable)
   --ddl-file <file>       Include explicit DDL file (repeatable)
   --ddl <file>            Alias of --ddl-file
@@ -225,10 +238,30 @@ function printHelp(): void {
   --no-index              Skip schema/table index page generation
   --strict                Exit non-zero when warnings exist
   --column-order <mode>   Column order: definition|name (default: definition)
+`;
 
-ddl-docs prune [options]
+  const pruneHelp = `ddl-docs prune [options]
   --out-dir <directory>   Output root directory (default: ztd/docs/tables)
   --dry-run               Print deletion targets without deleting files
   --prune-orphans         Also prune generated markdown not listed in manifest
-`);
+`;
+
+  if (target === 'generate') {
+    console.log(generateHelp);
+    return;
+  }
+  if (target === 'prune') {
+    console.log(pruneHelp);
+    return;
+  }
+
+  console.log(`ddl-docs <command> [options]
+
+Commands:
+  generate               Generate markdown docs from DDL
+  prune                  Remove stale generated markdown docs
+  help [command]         Show help for all commands or one command
+
+${generateHelp}
+${pruneHelp}`);
 }

@@ -32,9 +32,9 @@
 
 ### Suggest
 
-| From | To | Columns | Match | On Delete | On Update |
-| --- | --- | --- | --- | --- | --- |
-| [public.order_item](../public/order-item.md) | `master.product` | `product_id -> product_id` | `exact` | `none` | `none` |
+| From | To | Columns | Match |
+| --- | --- | --- | --- |
+| [public.order_item](../public/order-item.md) | `master.product` | `product_id -> product_id` | `exact` |
 
 ## Appendix
 

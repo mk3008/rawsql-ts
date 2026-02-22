@@ -49,3 +49,47 @@ test('does not report type variation for bigint and bigserial aliases', () => {
 
   expect(analysis.findings.some((item) => item.kind === 'COLUMN_NAME_TYPE_DIVERGENCE')).toBe(false);
 });
+
+test('suggests missing column comments with schema-first and stable fallback order', () => {
+  const sources: SqlSource[] = [
+    {
+      path: 'ztd/ddl/public.sql',
+      sql: `
+        CREATE TABLE public.orders (
+          note text
+        );
+        CREATE TABLE public.order_templates (
+          note text
+        );
+        COMMENT ON COLUMN public.order_templates.note IS 'B comment';
+
+        CREATE TABLE public.order_archives (
+          note text
+        );
+        COMMENT ON COLUMN public.order_archives.note IS 'A comment';
+
+        CREATE TABLE sales.orders (
+          note text
+        );
+
+        CREATE TABLE master.orders (
+          note text
+        );
+        COMMENT ON COLUMN master.orders.note IS 'M comment';
+      `,
+    },
+  ];
+
+  const snapshot = snapshotTableDocs(sources, schemaSettings, { columnOrder: 'definition' });
+  const analysis = analyzeColumns(snapshot.tables, { locale: 'en', dictionary: null });
+
+  const publicSuggestion = analysis.suggestions.find(
+    (item) => item.kind === 'column_comment' && item.schema === 'public' && item.table === 'orders' && item.column === 'note'
+  );
+  const salesSuggestion = analysis.suggestions.find(
+    (item) => item.kind === 'column_comment' && item.schema === 'sales' && item.table === 'orders' && item.column === 'note'
+  );
+
+  expect(publicSuggestion?.sql).toContain(`IS 'A comment';`);
+  expect(salesSuggestion?.sql).toContain(`IS 'M comment';`);
+});

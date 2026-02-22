@@ -10,7 +10,7 @@
 
 | Type Key | Count | Comment |
 | --- | --- | --- |
-| `int8` | 2 | - |
+| `int8` | 2 | order identifier |
 | `int8{serial}` | 1 | - |
 
 ## Usages
@@ -18,7 +18,7 @@
 | Location | Type Key | Nullable | Default | Comment |
 | --- | --- | --- | --- | --- |
 | [public.order_item_snapshot.order_id](../order-item-snapshot.md) | `int8` | NO | - | NO |
-| [public.order_item.order_id](../order-item.md) | `int8` | NO | - | NO |
+| [public.order_item.order_id](../order-item.md) | `int8` | NO | - | YES |
 | [public.order.order_id](../order.md) | `int8{serial}` | NO | - | NO |
 
 ## Other Schemas
@@ -27,4 +27,4 @@
 
 ## Alert
 
-- None
+- [Global Alert Page](../../columns/order-id.md)

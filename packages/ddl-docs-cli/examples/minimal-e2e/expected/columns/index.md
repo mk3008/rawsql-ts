@@ -7,6 +7,7 @@
 | Concept | Usages | Type Keys |
 | --- | --- | --- |
 | [email](./email.md) | 1 | raw:text |
+| [order_id](./order-id.md) | 3 | int8, int8{serial} |
 | [product_code](./product-code.md) | 2 | raw:text |
 | [product_name](./product-name.md) | 1 | raw:text |
 | [snapshot_note](./snapshot-note.md) | 1 | raw:text |

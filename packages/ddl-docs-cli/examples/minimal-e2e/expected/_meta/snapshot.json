@@ -267,7 +267,7 @@
         "nullable": false,
         "defaultValue": "",
         "isPrimaryKey": false,
-        "comment": "",
+        "comment": "order identifier",
         "checks": [],
         "unknownType": false
       },
@@ -417,7 +417,7 @@
         "expression": "public.order_item_snapshot: order_id, product_id -> public.order_item(order_id, product_id)"
       }
     ],
-    "normalizedSql": "-- normalized: v1 dialect=postgres\ncreate table \"public\".\"order_item\"(\n  \"order_item_id\" bigserial not null,\n  \"order_id\" bigint not null,\n  \"product_id\" bigint not null,\n  \"product_code\" text not null,\n  \"quantity\" int not null default 1,\n  \"unit_price\" numeric not null\n);\nalter table \"public\".\"order_item\"\n  add constraint \"order_item_qty_chk\" check(\"quantity\" > 0);\nalter table \"public\".\"order_item\"\n  add constraint \"order_item_order_fk\" foreign key(\"order_id\") references \"public\".\"order\"(\"order_id\") on delete cascade;\nalter table \"public\".\"order_item\"\n  add primary key(\"order_item_id\");\nalter table \"public\".\"order_item\"\n  add constraint \"order_item_order_product_uk\" unique(\"order_id\",\n  \"product_id\");"
+    "normalizedSql": "-- normalized: v1 dialect=postgres\ncreate table \"public\".\"order_item\"(\n  \"order_item_id\" bigserial not null,\n  \"order_id\" bigint not null,\n  \"product_id\" bigint not null,\n  \"product_code\" text not null,\n  \"quantity\" int not null default 1,\n  \"unit_price\" numeric not null\n);\nalter table \"public\".\"order_item\"\n  add constraint \"order_item_qty_chk\" check(\"quantity\" > 0);\nalter table \"public\".\"order_item\"\n  add constraint \"order_item_order_fk\" foreign key(\"order_id\") references \"public\".\"order\"(\"order_id\") on delete cascade;\nalter table \"public\".\"order_item\"\n  add primary key(\"order_item_id\");\nalter table \"public\".\"order_item\"\n  add constraint \"order_item_order_product_uk\" unique(\"order_id\",\n  \"product_id\");\ncomment on column \"public\".\"order_item\".\"order_id\" is 'order identifier';"
   },
   {
     "schema": "public",

@@ -112,8 +112,8 @@
           "canonicalType": "int8",
           "nullable": false,
           "defaultValue": "",
-          "comment": "",
-          "hasComment": false
+          "comment": "order identifier",
+          "hasComment": true
         },
         {
           "schema": "public",

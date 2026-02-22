@@ -23,6 +23,7 @@ export function analyzeColumns(tables: TableDocModel[], options: AnalyzeOptions)
   const conceptMap = new Map<string, ObservedColumnConcept>();
   const findings: FindingItem[] = [];
   const suggestions: SuggestionItem[] = [];
+  const commentCatalog = buildCommentCatalog(tables);
 
   for (const table of tables) {
     for (const column of table.columns) {
@@ -61,12 +62,7 @@ export function analyzeColumns(tables: TableDocModel[], options: AnalyzeOptions)
         });
       }
 
-      const dictionaryEntry = options.dictionary?.columns?.[concept];
-      if (!dictionaryEntry) {
-        continue;
-      }
-
-      const suggestedComment = buildSuggestedComment(dictionaryEntry, options.locale);
+      const suggestedComment = pickCommentSuggestion(commentCatalog, table.schema, concept);
       if (!column.comment.trim() && suggestedComment) {
         findings.push({
           kind: 'MISSING_COMMENT_SUGGESTED',
@@ -75,14 +71,21 @@ export function analyzeColumns(tables: TableDocModel[], options: AnalyzeOptions)
           scope: { schema: table.schema, table: table.table, column: column.name, concept },
         });
         suggestions.push({
+          kind: 'column_comment',
           schema: table.schema,
           table: table.table,
           column: column.name,
-          sql: `COMMENT ON COLUMN ${table.schema}.${table.table}.${column.name} IS '${escapeSqlLiteral(suggestedComment)}';`,
+          sql: `COMMENT ON COLUMN ${quoteQualifiedColumn(table.schema, table.table, column.name)} IS '${escapeSqlLiteral(suggestedComment)}';`,
         });
       }
 
-      if (column.comment.trim() && suggestedComment && normalizeCompare(column.comment) !== normalizeCompare(suggestedComment)) {
+      const dictionaryEntry = options.dictionary?.columns?.[concept];
+      if (!dictionaryEntry) {
+        continue;
+      }
+
+      const dictionaryComment = buildSuggestedComment(dictionaryEntry, options.locale);
+      if (column.comment.trim() && dictionaryComment && normalizeCompare(column.comment) !== normalizeCompare(dictionaryComment)) {
         findings.push({
           kind: 'COMMENT_VS_DICTIONARY_MISMATCH',
           severity: 'warning',
@@ -142,4 +145,81 @@ function escapeSqlLiteral(input: string): string {
 
 function normalizeCompare(input: string): string {
   return input.trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+interface ConceptCommentCatalog {
+  sameSchema: Map<string, string[]>;
+  global: Array<{ schema: string; comment: string }>;
+}
+
+function buildCommentCatalog(tables: TableDocModel[]): Map<string, ConceptCommentCatalog> {
+  const catalog = new Map<string, ConceptCommentCatalog>();
+
+  for (const table of tables) {
+    for (const column of table.columns) {
+      const comment = column.comment.trim();
+      if (!comment) {
+        continue;
+      }
+      const concept = column.concept;
+      const entry =
+        catalog.get(concept) ??
+        ({
+          sameSchema: new Map<string, string[]>(),
+          global: [],
+        } satisfies ConceptCommentCatalog);
+
+      const schemaComments = entry.sameSchema.get(table.schema) ?? [];
+      schemaComments.push(comment);
+      entry.sameSchema.set(table.schema, schemaComments);
+      entry.global.push({ schema: table.schema, comment });
+      catalog.set(concept, entry);
+    }
+  }
+
+  for (const entry of catalog.values()) {
+    for (const [schema, comments] of entry.sameSchema.entries()) {
+      entry.sameSchema.set(schema, Array.from(new Set(comments)).sort((a, b) => a.localeCompare(b)));
+    }
+    const deduped = new Map<string, { schema: string; comment: string }>();
+    for (const item of entry.global) {
+      deduped.set(`${item.schema}|${item.comment}`, item);
+    }
+    entry.global = Array.from(deduped.values()).sort(
+      (a, b) => `${a.schema}|${a.comment}`.localeCompare(`${b.schema}|${b.comment}`)
+    );
+  }
+
+  return catalog;
+}
+
+function pickCommentSuggestion(
+  catalog: Map<string, ConceptCommentCatalog>,
+  schema: string,
+  concept: string
+): string {
+  const entry = catalog.get(concept);
+  if (!entry) {
+    return '';
+  }
+
+  const sameSchema = entry.sameSchema.get(schema) ?? [];
+  if (sameSchema.length > 0) {
+    return sameSchema[0] ?? '';
+  }
+
+  if (entry.global.length > 0) {
+    return entry.global[0]?.comment ?? '';
+  }
+
+  return '';
+}
+
+function quoteQualifiedColumn(schema: string, table: string, column: string): string {
+  return [schema, table, column].map(quoteIdentifier).join('.');
+}
+
+function quoteIdentifier(value: string): string {
+  const normalized = value.replace(/^"|"$/g, '');
+  return `"${normalized.replace(/"/g, '""')}"`;
 }

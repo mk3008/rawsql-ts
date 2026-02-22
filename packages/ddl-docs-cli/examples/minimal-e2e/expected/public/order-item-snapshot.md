@@ -25,9 +25,9 @@
 
 ### DDL
 
-| From | To | Columns | Match | On Delete | On Update |
-| --- | --- | --- | --- | --- | --- |
-| `public.order_item_snapshot` | [public.order_item](./order-item.md) | `order_id, product_id -> order_id, product_id` | - | `none` | `none` |
+| From | To | Columns | On Delete | On Update |
+| --- | --- | --- | --- | --- |
+| `public.order_item_snapshot` | [public.order_item](./order-item.md) | `order_id, product_id -> order_id, product_id` | `none` | `none` |
 
 ### Suggest
 
@@ -51,4 +51,11 @@ alter table "public"."order_item_snapshot"
 alter table "public"."order_item_snapshot"
   add constraint "order_item_snapshot_pk" primary key("order_id",
   "product_id");
+```
+
+### Suggested Column Comment SQL (Optional)
+
+```sql
+-- suggested: v1 (not applied)
+COMMENT ON COLUMN "public"."order_item_snapshot"."order_id" IS 'order identifier';
 ```

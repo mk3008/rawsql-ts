@@ -41,3 +41,4 @@ ALTER TABLE public.order_item ADD CONSTRAINT order_item_order_product_uk UNIQUE 
 COMMENT ON TABLE public.user IS 'application user';
 COMMENT ON COLUMN public.user.email IS 'login mail address';
 COMMENT ON TABLE public.order IS 'purchase order';
+COMMENT ON COLUMN public.order_item.order_id IS 'order identifier';

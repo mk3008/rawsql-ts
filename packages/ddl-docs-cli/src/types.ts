@@ -180,6 +180,7 @@ export interface FindingItem {
 }
 
 export interface SuggestionItem {
+  kind: 'column_comment' | 'foreign_key';
   schema: string;
   table: string;
   column: string;

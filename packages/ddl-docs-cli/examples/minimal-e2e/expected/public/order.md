@@ -28,15 +28,15 @@
 
 ### DDL
 
-| From | To | Columns | Match | On Delete | On Update |
-| --- | --- | --- | --- | --- | --- |
-| [public.order_item](./order-item.md) | `public.order` | `order_id -> order_id` | - | `cascade` | `none` |
+| From | To | Columns | On Delete | On Update |
+| --- | --- | --- | --- | --- |
+| [public.order_item](./order-item.md) | `public.order` | `order_id -> order_id` | `cascade` | `none` |
 
 ### Suggest
 
-| From | To | Columns | Match | On Delete | On Update |
-| --- | --- | --- | --- | --- | --- |
-| `public.order` | [public.user](./user.md) | `user_id -> user_id` | `exact` | `none` | `none` |
+| From | To | Columns | Match |
+| --- | --- | --- | --- |
+| `public.order` | [public.user](./user.md) | `user_id -> user_id` | `exact` |
 
 ## Appendix
 
@@ -57,7 +57,14 @@ alter table "public"."order"
 comment on table "public"."order" is 'purchase order';
 ```
 
-### Suggested SQL (Optional)
+### Suggested Column Comment SQL (Optional)
+
+```sql
+-- suggested: v1 (not applied)
+COMMENT ON COLUMN "public"."order"."order_id" IS 'order identifier';
+```
+
+### Suggested Foreign Key Constraint SQL (Optional)
 
 ```sql
 -- suggested: v1 (not applied)

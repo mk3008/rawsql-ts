@@ -48,8 +48,11 @@ export function runGenerateDocs(options: GenerateDocsOptions): void {
   for (const table of snapshot.tables) {
     const outputPath = tableDocPath(options.outDir, table.schemaSlug, table.tableSlug);
     ensureDirectory(path.dirname(outputPath));
-    const suggestionSql = suggestionsByTable.get(`${table.schema}.${table.table}`) ?? [];
-    writeTextFileNormalized(outputPath, renderTableMarkdown(table, suggestionSql));
+    const tableSuggestions = suggestionsByTable.get(`${table.schema}.${table.table}`) ?? {
+      columnCommentSql: [],
+      foreignKeySql: [],
+    };
+    writeTextFileNormalized(outputPath, renderTableMarkdown(table, tableSuggestions));
     generatedFiles.push(outputPath);
     tableOutputs.push(outputPath);
     nameMap[`${table.schema}.${table.table}`] = `${table.schemaSlug}/${table.tableSlug}.md`;
@@ -137,16 +140,25 @@ export function runGenerateDocs(options: GenerateDocsOptions): void {
   }
 }
 
-function groupSuggestionsByTable(suggestions: SuggestionItem[]): Map<string, string[]> {
-  const map = new Map<string, string[]>();
+function groupSuggestionsByTable(
+  suggestions: SuggestionItem[]
+): Map<string, { columnCommentSql: string[]; foreignKeySql: string[] }> {
+  const map = new Map<string, { columnCommentSql: string[]; foreignKeySql: string[] }>();
   for (const suggestion of suggestions) {
     const key = `${suggestion.schema}.${suggestion.table}`;
-    const bucket = map.get(key) ?? [];
-    bucket.push(suggestion.sql);
+    const bucket = map.get(key) ?? { columnCommentSql: [], foreignKeySql: [] };
+    if (suggestion.kind === 'column_comment') {
+      bucket.columnCommentSql.push(suggestion.sql);
+    } else {
+      bucket.foreignKeySql.push(suggestion.sql);
+    }
     map.set(key, bucket);
   }
   for (const [key, bucket] of map.entries()) {
-    map.set(key, Array.from(new Set(bucket)).sort());
+    map.set(key, {
+      columnCommentSql: Array.from(new Set(bucket.columnCommentSql)).sort(),
+      foreignKeySql: Array.from(new Set(bucket.foreignKeySql)).sort(),
+    });
   }
   return map;
 }
@@ -216,6 +228,7 @@ function buildReferenceSuggestions(tables: Array<{ outgoingReferences: Array<{ s
         continue;
       }
       suggestions.push({
+        kind: 'foreign_key',
         schema,
         table: tableName,
         column: reference.fromColumns.join(','),

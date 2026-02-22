@@ -21,5 +21,6 @@
 
 ## Findings
 
+- [MISSING_COMMENT_SUGGESTED] Missing comment for public.order_item.product_code.
 - [UNSUPPORTED_OR_UNKNOWN_TYPE] Unknown type treated as raw for master.product.product_code: text
 - [UNSUPPORTED_OR_UNKNOWN_TYPE] Unknown type treated as raw for public.order_item.product_code: text

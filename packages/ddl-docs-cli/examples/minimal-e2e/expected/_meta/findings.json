@@ -8,6 +8,39 @@
     }
   },
   {
+    "kind": "MISSING_COMMENT_SUGGESTED",
+    "severity": "warning",
+    "message": "Missing comment for public.order_item_snapshot.order_id.",
+    "scope": {
+      "schema": "public",
+      "table": "order_item_snapshot",
+      "column": "order_id",
+      "concept": "order_id"
+    }
+  },
+  {
+    "kind": "MISSING_COMMENT_SUGGESTED",
+    "severity": "warning",
+    "message": "Missing comment for public.order_item.product_code.",
+    "scope": {
+      "schema": "public",
+      "table": "order_item",
+      "column": "product_code",
+      "concept": "product_code"
+    }
+  },
+  {
+    "kind": "MISSING_COMMENT_SUGGESTED",
+    "severity": "warning",
+    "message": "Missing comment for public.order.order_id.",
+    "scope": {
+      "schema": "public",
+      "table": "order",
+      "column": "order_id",
+      "concept": "order_id"
+    }
+  },
+  {
     "kind": "UNSUPPORTED_OR_UNKNOWN_TYPE",
     "severity": "info",
     "message": "Unknown type treated as raw for master.product.product_code: text",
