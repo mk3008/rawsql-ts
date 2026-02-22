@@ -9,6 +9,7 @@ import {
     ExplainStatement,
     CreateSchemaStatement,
     DropSchemaStatement,
+    CommentOnStatement,
     VacuumStatement,
     ReindexStatement,
     ClusterStatement,
@@ -87,6 +88,17 @@ describe('SqlParser', () => {
             expect(result.ifExists).toBe(true);
             expect(result.schemaNames.map((schema) => schema.toString())).toEqual(['public', 'audit']);
             expect(result.behavior).toBe('cascade');
+        }
+    });
+
+    test('parse returns a CommentOnStatement for COMMENT ON TABLE statements', () => {
+        const sql = "COMMENT ON TABLE public.users IS 'application users'";
+        const result = SqlParser.parse(sql);
+
+        expect(result).toBeInstanceOf(CommentOnStatement);
+        if (result instanceof CommentOnStatement) {
+            expect(result.targetKind).toBe('table');
+            expect(result.target.toString()).toBe('public.users');
         }
     });
 

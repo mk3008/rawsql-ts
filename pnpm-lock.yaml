@@ -272,6 +272,22 @@ importers:
         specifier: ^4.0.15
         version: 4.0.15(@types/node@22.18.7)(jiti@2.6.1)(yaml@2.8.1)
 
+  packages/ddl-docs-cli:
+    dependencies:
+      rawsql-ts:
+        specifier: workspace:^
+        version: link:../core
+    devDependencies:
+      '@types/node':
+        specifier: ^22.13.10
+        version: 22.19.6
+      typescript:
+        specifier: ^5.8.2
+        version: 5.9.2
+      vitest:
+        specifier: ^4.0.7
+        version: 4.0.15(@types/node@22.19.6)(jiti@2.6.1)(yaml@2.8.1)
+
   packages/drivers/sqlite-testkit:
     dependencies:
       '@rawsql-ts/testkit-core':
@@ -408,19 +424,6 @@ importers:
       vitest:
         specifier: ^4.0.7
         version: 4.0.7(@types/node@22.18.7)(jiti@2.6.1)(yaml@2.8.1)
-
-  playgrounds/ztd-playground:
-    dependencies:
-      '@rawsql-ts/sql-contract':
-        specifier: workspace:*
-        version: link:../../packages/sql-contract
-    devDependencies:
-      typescript:
-        specifier: ^5.8.2
-        version: 5.9.2
-      vitest:
-        specifier: ^4.0.7
-        version: 4.0.7(@types/node@22.19.6)(jiti@2.6.1)(yaml@2.8.1)
 
 packages:
 
@@ -5026,7 +5029,7 @@ snapshots:
 
   '@types/better-sqlite3@7.6.13':
     dependencies:
-      '@types/node': 22.18.7
+      '@types/node': 22.19.6
 
   '@types/chai@5.2.3':
     dependencies:
@@ -5039,13 +5042,13 @@ snapshots:
 
   '@types/docker-modem@3.0.6':
     dependencies:
-      '@types/node': 22.18.7
+      '@types/node': 22.19.6
       '@types/ssh2': 1.15.5
 
   '@types/dockerode@3.3.47':
     dependencies:
       '@types/docker-modem': 3.0.6
-      '@types/node': 22.18.7
+      '@types/node': 22.19.6
       '@types/ssh2': 1.15.5
 
   '@types/estree@1.0.8': {}

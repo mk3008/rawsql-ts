@@ -1,0 +1,43 @@
+{
+  "name": "@rawsql-ts/ddl-docs-cli",
+  "version": "0.1.0",
+  "description": "CLI tool that generates Markdown table definition docs from DDL files using rawsql-ts",
+  "main": "dist/index.js",
+  "bin": {
+    "ddl-docs": "dist/index.js"
+  },
+  "scripts": {
+    "prepack": "node -e \"const fs=require('fs');const cp=require('child_process');const npm=process.platform==='win32'?'npm.cmd':'npm';if(!fs.existsSync('dist/index.js')){process.exit(cp.spawnSync(npm,['run','build'],{stdio:'inherit'}).status??1)}\"",
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "lint": "eslint src --ext .ts"
+  },
+  "keywords": [
+    "rawsql-ts",
+    "ddl",
+    "markdown",
+    "docs",
+    "cli"
+  ],
+  "author": "msugiura",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "rawsql-ts": "workspace:^"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "typescript": "^5.8.2",
+    "vitest": "^4.0.7"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "AGENTS.md"
+  ]
+}

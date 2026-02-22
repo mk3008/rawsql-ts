@@ -7,6 +7,7 @@ import { DropConstraintParser } from "../../src/parsers/DropConstraintParser";
 import { CreateSequenceParser, AlterSequenceParser } from "../../src/parsers/SequenceParser";
 import { CreateSchemaParser } from "../../src/parsers/CreateSchemaParser";
 import { DropSchemaParser } from "../../src/parsers/DropSchemaParser";
+import { CommentOnParser } from "../../src/parsers/CommentOnParser";
 import { SqlFormatter } from "../../src/transformers/SqlFormatter";
 import { FunctionCall, LiteralValue } from "../../src/models/ValueComponent";
 import {
@@ -16,6 +17,7 @@ import {
     AlterTableDropConstraint,
     AlterTableDropColumn,
     AlterTableAlterColumnDefault,
+    CommentOnStatement,
     SequenceRestartClause,
     SequenceOwnedByClause,
     SequenceMinValueClause,
@@ -139,6 +141,27 @@ WHERE active = true`;
         expect(ast.schemaNames.map(schema => schema.toString())).toEqual(["public", "audit"]);
         expect(ast.behavior).toBe("cascade");
         expect(formatted).toBe('drop schema if exists "public", "audit" cascade');
+    });
+
+    it("parses COMMENT ON TABLE with literal value", () => {
+        const sql = "COMMENT ON TABLE public.users IS 'application users'";
+        const ast = CommentOnParser.parse(sql) as CommentOnStatement;
+        const formatted = new SqlFormatter().format(ast).formattedSql;
+
+        expect(ast.targetKind).toBe("table");
+        expect(ast.target.toString()).toBe("public.users");
+        expect(formatted).toBe('comment on table "public"."users" is \'application users\'');
+    });
+
+    it("parses COMMENT ON COLUMN with NULL value", () => {
+        const sql = "COMMENT ON COLUMN public.users.email IS NULL";
+        const ast = CommentOnParser.parse(sql) as CommentOnStatement;
+        const formatted = new SqlFormatter().format(ast).formattedSql;
+
+        expect(ast.targetKind).toBe("column");
+        expect(ast.target.toString()).toBe("public.users.email");
+        expect(ast.comment).toBeNull();
+        expect(formatted).toBe('comment on column "public"."users"."email" is null');
     });
 
     it("parses CREATE SEQUENCE with sequence options", () => {
