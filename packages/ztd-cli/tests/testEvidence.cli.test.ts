@@ -105,7 +105,7 @@ test('CLI: evidence writes json and markdown artifacts', async () => {
   expect(markdown).toContain('- tests: 3');
   expect(markdown).toContain('## sql.active-orders - active orders');
   expect(markdown).toContain('## unit.users - users');
-  expect(markdown).toContain("definition: `tests/specs/users.catalog.ts`");
+  expect(markdown).toContain("definition: [tests/specs/users.catalog.ts](../tests/specs/users.catalog.ts)");
   expect(markdown).toContain('### baseline - baseline');
   expect(markdown).toContain('### lists-users - lists users');
   expect(markdown).toContain('### inactive - inactive');

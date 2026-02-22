@@ -132,7 +132,7 @@ test('formatTestEvidenceOutput emits deterministic markdown and json text', () =
   expect(markdown).toContain('- catalogs: 1');
   expect(markdown).toContain('- tests: 1');
   expect(markdown).toContain('## unit.users - User behavior');
-  expect(markdown).toContain("definition: `tests/specs/users.catalog.ts`");
+  expect(markdown).toContain("definition: [tests/specs/users.catalog.ts](tests/specs/users.catalog.ts)");
   expect(markdown).toContain('### works - works');
   expect(markdown).not.toContain('\n---\n');
   expect(markdown).toContain('#### input');
@@ -149,6 +149,29 @@ test('formatTestEvidenceOutput emits deterministic markdown and json text', () =
   });
   const parsed = JSON.parse(readFileSync(path.join(root, 'src', 'catalog', 'specs', 'a.spec.json'), 'utf8'));
   expect(parsed.id).toBe('a');
+});
+
+test('formatTestEvidenceOutput uses GitHub HTTPS links when CI metadata exists', () => {
+  const root = createWorkspace('evidence-github-links');
+  writeSpecModule(root, { testCaseIds: ['works'], includeSqlCase: false });
+  const report = runTestEvidenceSpecification({ mode: 'specification', rootDir: root });
+
+  const originalServer = process.env.GITHUB_SERVER_URL;
+  const originalRepo = process.env.GITHUB_REPOSITORY;
+  const originalSha = process.env.GITHUB_SHA;
+  try {
+    process.env.GITHUB_SERVER_URL = 'https://github.com';
+    process.env.GITHUB_REPOSITORY = 'mk3008/rawsql-ts';
+    process.env.GITHUB_SHA = 'abc123';
+    const markdown = formatTestEvidenceOutput(report, 'markdown');
+    expect(markdown).toContain(
+      '[tests/specs/users.catalog.ts](https://github.com/mk3008/rawsql-ts/blob/abc123/tests/specs/users.catalog.ts)'
+    );
+  } finally {
+    process.env.GITHUB_SERVER_URL = originalServer;
+    process.env.GITHUB_REPOSITORY = originalRepo;
+    process.env.GITHUB_SHA = originalSha;
+  }
 });
 
 test('runTestEvidenceSpecification keeps deterministic ordering, normalized paths, and environment-free output', () => {

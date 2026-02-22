@@ -1,7 +1,9 @@
 import { SpecificationModel } from '@rawsql-ts/test-evidence-core';
+import { DefinitionLinkOptions, formatDefinitionMarkdown } from './definitionLink';
 
 export type SpecificationMarkdownOptions = {
   includeFixtures?: boolean;
+  definitionLinks?: DefinitionLinkOptions;
 };
 
 /**
@@ -13,6 +15,7 @@ export function renderSpecificationMarkdown(
   options?: SpecificationMarkdownOptions
 ): string {
   const includeFixtures = options?.includeFixtures ?? true;
+  const definitionLinks = options?.definitionLinks;
   const lines: string[] = [];
 
   lines.push('# Test Evidence Specification');
@@ -27,7 +30,7 @@ export function renderSpecificationMarkdown(
   for (const catalog of model.catalogs) {
     lines.push(`## ${catalog.catalogId} - ${catalog.title}`);
     lines.push(`- kind: ${catalog.kind}`);
-    lines.push(`- definition: ${catalog.definition ? `\`${catalog.definition}\`` : '(unknown)'}`);
+    lines.push(`- definition: ${formatDefinitionMarkdown(catalog.definition, definitionLinks)}`);
     if (catalog.kind === 'sql' && includeFixtures) {
       lines.push(`- fixtures: ${(catalog.fixtures ?? []).join(', ') || '(none)'}`);
     }

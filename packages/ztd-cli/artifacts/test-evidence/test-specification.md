@@ -8,7 +8,7 @@
 
 ## sql.active-orders - Active orders SQL semantics
 - kind: sql
-- definition: `src/specs/sql/activeOrders.catalog.ts`
+- definition: [src/specs/sql/activeOrders.catalog.ts](../../src/specs/sql/activeOrders.catalog.ts)
 - fixtures: orders, users
 
 ### baseline - active users with minimum total
@@ -58,7 +58,7 @@
 
 ## sql.sample - sample sql cases
 - kind: sql
-- definition: `src/specs/sql/usersList.catalog.ts`
+- definition: [src/specs/sql/usersList.catalog.ts](../../src/specs/sql/usersList.catalog.ts)
 - fixtures: users
 
 ### returns-active-users - returns active users
@@ -95,7 +95,7 @@
 
 ## unit.alpha - alpha
 - kind: function
-- definition: `tests/specs/testCaseCatalogs.ts`
+- definition: [tests/specs/testCaseCatalogs.ts](../../tests/specs/testCaseCatalogs.ts)
 
 ### a - noop
 #### input
@@ -109,7 +109,7 @@
 
 ## unit.normalize-email - normalizeEmail
 - kind: function
-- definition: `tests/specs/testCaseCatalogs.ts`
+- definition: [tests/specs/testCaseCatalogs.ts](../../tests/specs/testCaseCatalogs.ts)
 
 ### keeps-valid-address - retains already-normalized email
 #### input

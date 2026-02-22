@@ -1,4 +1,5 @@
 export { renderDiffMarkdown, renderLegacyDiffMarkdown, type RemovedDetailLevel } from './prDiffMarkdown';
+export { type DefinitionLinkOptions } from './definitionLink';
 export {
   renderDiffReportMarkdown,
   evaluateUnsupportedSchemaValidation,

@@ -1,4 +1,5 @@
 import { DiffCase, DiffCatalog, DiffJson } from '@rawsql-ts/test-evidence-core';
+import { DefinitionLinkOptions, formatDefinitionMarkdown, formatFileLinkMarkdown } from './definitionLink';
 
 export type RemovedDetailLevel = 'none' | 'input' | 'full';
 
@@ -22,8 +23,12 @@ type CatalogCaseGroup = {
 /**
  * Legacy PR markdown renderer kept for parity snapshot baseline.
  */
-export function renderLegacyDiffMarkdown(diff: DiffJson, options?: { removedDetail?: RemovedDetailLevel }): string {
+export function renderLegacyDiffMarkdown(
+  diff: DiffJson,
+  options?: { removedDetail?: RemovedDetailLevel; definitionLinks?: DefinitionLinkOptions }
+): string {
   const removedDetail = options?.removedDetail ?? 'input';
+  const definitionLinks = options?.definitionLinks;
   const lines: string[] = [];
   lines.push('# Test Evidence (PR Diff)');
   lines.push('');
@@ -47,7 +52,7 @@ export function renderLegacyDiffMarkdown(diff: DiffJson, options?: { removedDeta
     lines.push('');
   } else {
     for (const entry of diff.catalogs.added) {
-      renderCatalogHeader(lines, entry.catalogAfter);
+      renderCatalogHeader(lines, entry.catalogAfter, definitionLinks);
       for (const [index, testCase] of entry.catalogAfter.cases.entries()) {
         renderCase(lines, testCase);
         if (index < entry.catalogAfter.cases.length - 1) {
@@ -65,7 +70,7 @@ export function renderLegacyDiffMarkdown(diff: DiffJson, options?: { removedDeta
     lines.push('');
   } else {
     for (const entry of diff.catalogs.removed) {
-      renderCatalogHeader(lines, entry.catalogBefore);
+      renderCatalogHeader(lines, entry.catalogBefore, definitionLinks);
       for (const [index, testCase] of entry.catalogBefore.cases.entries()) {
         renderRemovedCase(lines, testCase, removedDetail);
         if (index < entry.catalogBefore.cases.length - 1) {
@@ -90,7 +95,7 @@ export function renderLegacyDiffMarkdown(diff: DiffJson, options?: { removedDeta
       ) {
         continue;
       }
-      renderCatalogHeader(lines, entry.catalogAfter);
+      renderCatalogHeader(lines, entry.catalogAfter, definitionLinks);
       if (entry.cases.added.length > 0) {
         lines.push('#### Added cases');
         lines.push('');
@@ -151,7 +156,8 @@ export function renderLegacyDiffMarkdown(diff: DiffJson, options?: { removedDeta
 /**
  * Test-centric PR markdown renderer.
  */
-export function renderDiffMarkdown(diff: DiffJson): string {
+export function renderDiffMarkdown(diff: DiffJson, options?: { definitionLinks?: DefinitionLinkOptions }): string {
+  const definitionLinks = options?.definitionLinks;
   const lines: string[] = [];
   lines.push('# Test Evidence (PR Diff)');
   lines.push('');
@@ -171,7 +177,7 @@ export function renderDiffMarkdown(diff: DiffJson): string {
   for (const group of groups) {
     lines.push(`## ${group.catalogId} - ${group.title}`);
     lines.push('');
-    lines.push(`[File](${group.definitionPath})`);
+    lines.push(formatFileLinkMarkdown(group.definitionPath, definitionLinks));
     lines.push('');
     for (const testCase of group.cases) {
       lines.push(`### ${testCase.changeType}: ${testCase.id} - ${testCase.title}`);
@@ -340,10 +346,14 @@ function appendCaseBlocks(lines: string[], testCase: CaseDelta): void {
   lines.push('');
 }
 
-function renderCatalogHeader(lines: string[], catalog: DiffCatalog): void {
+function renderCatalogHeader(
+  lines: string[],
+  catalog: DiffCatalog,
+  definitionLinks?: DefinitionLinkOptions
+): void {
   lines.push(`### ${catalog.catalogId} - ${catalog.title}`);
   if (catalog.kind === 'sql') {
-    lines.push(`- definition: ${catalog.definition ? `\`${catalog.definition}\`` : '(unknown)'}`);
+    lines.push(`- definition: ${formatDefinitionMarkdown(catalog.definition, definitionLinks)}`);
     lines.push('- fixtures:');
     for (const tableName of catalog.fixtures ?? []) {
       lines.push(`  - ${tableName}`);

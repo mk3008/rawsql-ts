@@ -15,6 +15,7 @@ import {
 import {
   renderDiffMarkdown,
   renderSpecificationMarkdown,
+  type DefinitionLinkOptions,
   type RemovedDetailLevel
 } from '@rawsql-ts/test-evidence-renderer-md';
 
@@ -241,10 +242,12 @@ export function registerTestEvidenceCommand(program: Command): void {
           testsDir: options.testsDir,
           specModule: options.specModule
         });
+        const sourceRootDir = path.resolve(process.env.ZTD_PROJECT_ROOT ?? process.cwd());
         writeArtifacts({
           report,
           format,
-          outDir: path.resolve(process.cwd(), options.outDir)
+          outDir: path.resolve(process.cwd(), options.outDir),
+          sourceRootDir
         });
         process.exitCode = resolveTestEvidenceExitCode({ result: report });
       } catch (error) {
@@ -385,13 +388,19 @@ export function runTestEvidenceSpecification(options: {
 /**
  * Render deterministic JSON or Markdown output text.
  */
-export function formatTestEvidenceOutput(report: TestSpecificationEvidence, format: Exclude<TestEvidenceFormat, 'both'>): string {
+export function formatTestEvidenceOutput(
+  report: TestSpecificationEvidence,
+  format: Exclude<TestEvidenceFormat, 'both'>,
+  context?: { markdownPath?: string; sourceRootDir?: string }
+): string {
   if (format === 'json') {
     return `${JSON.stringify(report, null, 2)}\n`;
   }
 
   const model = buildSpecificationModel(report as TestEvidencePreviewJson);
-  return `${renderSpecificationMarkdown(model)}\n`;
+  return `${renderSpecificationMarkdown(model, {
+    definitionLinks: resolveDefinitionLinkOptions(context)
+  })}\n`;
 }
 
 /**
@@ -429,10 +438,40 @@ export function buildTestEvidencePrDiff(args: {
  */
 export function formatTestEvidencePrMarkdown(
   diff: TestSpecificationPrDiff,
-  options?: { removedDetail?: RemovedDetailLevel }
+  options?: { removedDetail?: RemovedDetailLevel; markdownPath?: string; sourceRootDir?: string }
 ): string {
-  void options;
-  return renderDiffMarkdown(diff);
+  return renderDiffMarkdown(diff, {
+    definitionLinks: resolveDefinitionLinkOptions({
+      markdownPath: options?.markdownPath,
+      sourceRootDir: options?.sourceRootDir
+    })
+  });
+}
+
+function resolveDefinitionLinkOptions(context?: { markdownPath?: string; sourceRootDir?: string }): DefinitionLinkOptions {
+  const serverUrl = process.env.GITHUB_SERVER_URL?.trim();
+  const repository = process.env.GITHUB_REPOSITORY?.trim();
+  const ref = process.env.GITHUB_SHA?.trim();
+  if (serverUrl && repository && ref) {
+    return {
+      mode: 'github',
+      github: {
+        serverUrl,
+        repository,
+        ref
+      }
+    };
+  }
+  if (context?.markdownPath && context?.sourceRootDir) {
+    return {
+      mode: 'path',
+      path: {
+        markdownDir: path.dirname(context.markdownPath),
+        sourceRootDir: context.sourceRootDir
+      }
+    };
+  }
+  return { mode: 'path' };
 }
 
 /**
@@ -507,7 +546,15 @@ export function runTestEvidencePr(options: {
     const diffJsonPath = path.join(outDir, 'test-specification.pr.json');
     const diffMdPath = path.join(outDir, 'test-specification.pr.md');
     writeFileSync(diffJsonPath, `${JSON.stringify(diff, null, 2)}\n`, 'utf8');
-    writeFileSync(diffMdPath, formatTestEvidencePrMarkdown(diff, { removedDetail: options.removedDetail }), 'utf8');
+    writeFileSync(
+      diffMdPath,
+      formatTestEvidencePrMarkdown(diff, {
+        removedDetail: options.removedDetail,
+        markdownPath: diffMdPath,
+        sourceRootDir: root
+      }),
+      'utf8'
+    );
     console.log(`wrote: ${diffJsonPath}`);
     console.log(`wrote: ${diffMdPath}`);
 
@@ -525,6 +572,7 @@ function writeArtifacts(args: {
   report: TestSpecificationEvidence;
   format: TestEvidenceFormat;
   outDir: string;
+  sourceRootDir: string;
 }): void {
   mkdirSync(args.outDir, { recursive: true });
   const writtenFiles: string[] = [];
@@ -537,7 +585,11 @@ function writeArtifacts(args: {
 
   if (args.format === 'markdown' || args.format === 'both') {
     const mdPath = path.join(args.outDir, 'test-specification.md');
-    writeFileSync(mdPath, formatTestEvidenceOutput(args.report, 'markdown'), 'utf8');
+    writeFileSync(
+      mdPath,
+      formatTestEvidenceOutput(args.report, 'markdown', { markdownPath: mdPath, sourceRootDir: args.sourceRootDir }),
+      'utf8'
+    );
     writtenFiles.push(mdPath);
   }
 

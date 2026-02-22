@@ -9,7 +9,7 @@
 
 ## sql.added-catalog - Added SQL Catalog
 
-[File](src/specs/sql/added.catalog.ts)
+[File](../../packages/ztd-cli/src/specs/sql/added.catalog.ts)
 
 ### ADD: new - new
 
@@ -30,7 +30,7 @@ output
 
 ## sql.removed-catalog - Removed SQL Catalog
 
-[File](src/specs/sql/removed.catalog.ts)
+[File](../../packages/ztd-cli/src/specs/sql/removed.catalog.ts)
 
 ### REMOVE: gone - gone
 
@@ -51,7 +51,7 @@ output
 
 ## sql.users - Users SQL
 
-[File](src/specs/sql/users.catalog.ts)
+[File](../../packages/ztd-cli/src/specs/sql/users.catalog.ts)
 
 ### ADD: added-case - newly added
 
@@ -129,7 +129,7 @@ output
 
 ## unit.normalize - normalize
 
-[File](tests/specs/testCaseCatalogs.ts)
+[File](../../packages/ztd-cli/tests/specs/testCaseCatalogs.ts)
 
 ### ADD: fn-added - function case added
 

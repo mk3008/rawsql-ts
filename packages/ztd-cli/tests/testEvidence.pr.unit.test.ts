@@ -234,6 +234,49 @@ test('test-centric markdown groups changed cases under a single catalog heading'
   expect(markdown).toContain('### UPDATE: baseline - baseline');
 });
 
+test('PR markdown uses GitHub HTTPS file links when CI metadata exists', () => {
+  const base = createReport({
+    sqlCatalogs: [
+      {
+        id: 'sql.users',
+        title: 'users',
+        definitionPath: 'src/specs/sql/users.ts',
+        cases: [{ id: 'baseline', title: 'baseline', input: { active: 1 }, output: [{ id: 1 }] }]
+      }
+    ]
+  });
+  const head = createReport({
+    sqlCatalogs: [
+      {
+        id: 'sql.users',
+        title: 'users',
+        definitionPath: 'src/specs/sql/users.ts',
+        cases: [{ id: 'baseline', title: 'baseline', input: { active: 0 }, output: [{ id: 2 }] }]
+      }
+    ]
+  });
+  const diff = buildTestEvidencePrDiff({
+    base: { ref: 'main', sha: 'a', report: base },
+    head: { ref: 'HEAD', sha: 'b', report: head },
+    baseMode: 'ref'
+  });
+
+  const originalServer = process.env.GITHUB_SERVER_URL;
+  const originalRepo = process.env.GITHUB_REPOSITORY;
+  const originalSha = process.env.GITHUB_SHA;
+  try {
+    process.env.GITHUB_SERVER_URL = 'https://github.com';
+    process.env.GITHUB_REPOSITORY = 'mk3008/rawsql-ts';
+    process.env.GITHUB_SHA = 'abc123';
+    const markdown = formatTestEvidencePrMarkdown(diff);
+    expect(markdown).toContain('[File](https://github.com/mk3008/rawsql-ts/blob/abc123/src/specs/sql/users.ts)');
+  } finally {
+    process.env.GITHUB_SERVER_URL = originalServer;
+    process.env.GITHUB_REPOSITORY = originalRepo;
+    process.env.GITHUB_SHA = originalSha;
+  }
+});
+
 test('removed cases always render before blocks in test-centric markdown', () => {
   const base = createReport({
     sqlCatalogs: [

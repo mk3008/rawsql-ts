@@ -161,3 +161,67 @@ test('renderSpecificationMarkdown options change presentation only', () => {
   expect(withFixtures).not.toContain('output:');
   expect(stableStringify(model)).toBe(modelBefore);
 });
+
+test('definition link rendering supports path and github modes', () => {
+  const preview = createPreview({
+    sqlCatalogs: [
+      {
+        id: 'sql.users',
+        title: 'users',
+        definitionPath: 'src/specs/sql/users.catalog.ts',
+        cases: [{ id: 'baseline', title: 'baseline', input: { active: 1 }, output: [{ id: 1 }] }]
+      }
+    ]
+  });
+  const model = buildSpecificationModel(preview);
+  const diff = buildDiffJson({
+    base: { ref: 'main', sha: 'aaa', previewJson: preview },
+    head: {
+      ref: 'HEAD',
+      sha: 'bbb',
+      previewJson: createPreview({
+        sqlCatalogs: [
+          {
+            id: 'sql.users',
+            title: 'users',
+            definitionPath: 'src/specs/sql/users.catalog.ts',
+            cases: [{ id: 'baseline', title: 'baseline', input: { active: 0 }, output: [{ id: 2 }] }]
+          }
+        ]
+      })
+    },
+    baseMode: 'ref'
+  });
+
+  const specPath = renderSpecificationMarkdown(model, { definitionLinks: { mode: 'path' } });
+  const specGithub = renderSpecificationMarkdown(model, {
+    definitionLinks: {
+      mode: 'github',
+      github: {
+        serverUrl: 'https://github.com',
+        repository: 'mk3008/rawsql-ts',
+        ref: 'abc123'
+      }
+    }
+  });
+  const diffPath = renderDiffMarkdown(diff, { definitionLinks: { mode: 'path' } });
+  const diffGithub = renderDiffMarkdown(diff, {
+    definitionLinks: {
+      mode: 'github',
+      github: {
+        serverUrl: 'https://github.com',
+        repository: 'mk3008/rawsql-ts',
+        ref: 'abc123'
+      }
+    }
+  });
+
+  expect(specPath).toContain('- definition: [src/specs/sql/users.catalog.ts](src/specs/sql/users.catalog.ts)');
+  expect(specGithub).toContain(
+    '- definition: [src/specs/sql/users.catalog.ts](https://github.com/mk3008/rawsql-ts/blob/abc123/src/specs/sql/users.catalog.ts)'
+  );
+  expect(diffPath).toContain('[File](src/specs/sql/users.catalog.ts)');
+  expect(diffGithub).toContain(
+    '[File](https://github.com/mk3008/rawsql-ts/blob/abc123/src/specs/sql/users.catalog.ts)'
+  );
+});

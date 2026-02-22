@@ -9,7 +9,7 @@
 
 ## sql.active-orders - Active orders SQL semantics
 
-[File](src/specs/sql/activeOrders.catalog.ts)
+[File](../../packages/ztd-cli/src/specs/sql/activeOrders.catalog.ts)
 
 ### ADD: baseline - active users with minimum total
 
@@ -64,7 +64,7 @@ output
 
 ## sql.sample - sample sql cases
 
-[File](src/specs/sql/usersList.catalog.ts)
+[File](../../packages/ztd-cli/src/specs/sql/usersList.catalog.ts)
 
 ### ADD: returns-active-users - returns active users
 
@@ -106,7 +106,7 @@ output
 
 ## unit.alpha - alpha
 
-[File](tests/specs/testCaseCatalogs.ts)
+[File](../../packages/ztd-cli/tests/specs/testCaseCatalogs.ts)
 
 ### ADD: a - noop
 
@@ -123,7 +123,7 @@ output
 
 ## unit.normalize-email - normalizeEmail
 
-[File](tests/specs/testCaseCatalogs.ts)
+[File](../../packages/ztd-cli/tests/specs/testCaseCatalogs.ts)
 
 ### ADD: keeps-valid-address - retains already-normalized email
 
