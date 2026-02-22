@@ -92,11 +92,7 @@ function groupBySchema(tables: TableDocModel[]): Map<string, TableDocModel[]> {
   }
 
   for (const bucket of grouped.values()) {
-    bucket.sort((a, b) => {
-      const left = `${a.table}|${a.tableSlug}`;
-      const right = `${b.table}|${b.tableSlug}`;
-      return left.localeCompare(right);
-    });
+    bucket.sort((a, b) => a.table.localeCompare(b.table));
   }
 
   return new Map(Array.from(grouped.entries()).sort(([left], [right]) => left.localeCompare(right)));

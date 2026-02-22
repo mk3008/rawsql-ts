@@ -157,7 +157,9 @@ function renderReferenceTable(
   for (const reference of references) {
     const fromCell = renderFromCell(reference, table);
     const toCell = renderToCell(reference, table);
-    const columnsCell = formatCodeCell(`${reference.fromColumns.join(', ')} -> ${reference.targetColumns.join(', ') || '?'}`);
+    const columnsCell = formatCodeCell(
+      `${reference.fromColumns.join(', ') || '?'} -> ${reference.targetColumns.join(', ') || '?'}`
+    );
     const matchCell = reference.matchRule ? formatCodeCell(reference.matchRule) : '-';
     const onDeleteCell = formatCodeCell(reference.onDeleteAction ?? 'none');
     const onUpdateCell = formatCodeCell(reference.onUpdateAction ?? 'none');
@@ -187,10 +189,14 @@ function renderToCell(reference: ReferenceDocModel, table: TableDocModel): strin
 }
 
 function mergeAndSortReferences(outgoing: ReferenceDocModel[], incoming: ReferenceDocModel[]): ReferenceDocModel[] {
-  const keyed = [...outgoing, ...incoming].map((reference) => ({
-    reference,
-    key: `${reference.direction}|${reference.fromTableKey}|${reference.targetTableKey}|${reference.fromColumns.join(',')}|${reference.targetColumns.join(',')}|${reference.matchRule ?? ''}|${reference.onDeleteAction ?? ''}|${reference.onUpdateAction ?? ''}`,
-  }));
-  keyed.sort((left, right) => left.key.localeCompare(right.key));
-  return keyed.map((entry) => entry.reference);
+  const deduped = new Map<string, ReferenceDocModel>();
+  for (const reference of [...outgoing, ...incoming]) {
+    const key = `${reference.fromTableKey}|${reference.targetTableKey}|${reference.fromColumns.join(',')}|${reference.targetColumns.join(',')}|${reference.matchRule ?? ''}|${reference.onDeleteAction ?? ''}|${reference.onUpdateAction ?? ''}`;
+    if (!deduped.has(key)) {
+      deduped.set(key, reference);
+    }
+  }
+  return Array.from(deduped.entries())
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([, reference]) => reference);
 }
