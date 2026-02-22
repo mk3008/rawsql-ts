@@ -1,11 +1,7 @@
 import path from 'node:path';
 import type { FindingItem, ObservedColumnConcept, ObservedColumnDictionary } from '../types';
 import { formatCodeCell, formatTableCell } from '../utils/markdown';
-
-export interface RenderedPage {
-  path: string;
-  content: string;
-}
+import type { RenderedPage } from './types';
 
 /**
  * Renders schema and global column index/concept pages.
@@ -18,10 +14,7 @@ export function renderColumnPages(
   const pages: RenderedPage[] = [];
   const grouped = groupConceptsBySchema(observed);
   const conceptSchemas = buildConceptSchemaMap(grouped);
-  const alertConceptSet = new Set(
-    findings.map((item) => item.scope.concept).filter((concept): concept is string => Boolean(concept))
-  );
-  const alertConcepts = collectAlertConcepts(observed, findings);
+  const { concepts: alertConcepts, conceptSet: alertConceptSet } = collectAlertConcepts(observed, findings);
 
   pages.push({
     path: path.join(outDir, 'columns', 'index.md'),
@@ -184,10 +177,15 @@ function renderConceptPage(
   return lines.join('\n');
 }
 
-function collectAlertConcepts(observed: ObservedColumnDictionary, findings: FindingItem[]): ObservedColumnConcept[] {
-  const alertConcepts = new Set(findings.map((item) => item.scope.concept).filter((concept): concept is string => Boolean(concept)));
-  return observed.concepts
-    .filter((concept) => alertConcepts.has(concept.concept))
+function collectAlertConcepts(
+  observed: ObservedColumnDictionary,
+  findings: FindingItem[]
+): { concepts: ObservedColumnConcept[]; conceptSet: Set<string> } {
+  const conceptSet = new Set(
+    findings.map((item) => item.scope.concept).filter((concept): concept is string => Boolean(concept))
+  );
+  const concepts = observed.concepts
+    .filter((concept) => conceptSet.has(concept.concept))
     .map((concept) => ({
       ...concept,
       usages: [...concept.usages].sort((a, b) =>
@@ -195,6 +193,7 @@ function collectAlertConcepts(observed: ObservedColumnDictionary, findings: Find
       ),
     }))
     .sort((a, b) => a.concept.localeCompare(b.concept));
+  return { concepts, conceptSet };
 }
 
 function groupConceptsBySchema(observed: ObservedColumnDictionary): Map<string, ObservedColumnConcept[]> {

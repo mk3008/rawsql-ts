@@ -7,6 +7,7 @@ import { renderColumnPages } from '../render/columnPages';
 import { renderIndexPages } from '../render/indexPages';
 import { renderReferencesPage } from '../render/referencesPage';
 import { renderTableMarkdown, tableDocPath } from '../render/tableMarkdown';
+import type { TableSuggestionSql } from '../render/tableMarkdown';
 import { writeManifest } from '../state/manifest';
 import type { GenerateDocsOptions, SuggestionItem } from '../types';
 import { collectSqlFiles, ensureDirectory, expandGlobPatterns } from '../utils/fs';
@@ -76,7 +77,7 @@ export function runGenerateDocs(options: GenerateDocsOptions): void {
     ensureDirectory(path.dirname(page.path));
     writeTextFileNormalized(page.path, page.content);
     generatedFiles.push(page.path);
-      columnOutputs.push(page.path);
+    columnOutputs.push(page.path);
   }
 
   const referencesPage = renderReferencesPage(options.outDir, snapshot.tables);
@@ -129,7 +130,7 @@ export function runGenerateDocs(options: GenerateDocsOptions): void {
     },
     nameMap,
     tableOutputs,
-      columnOutputs,
+    columnOutputs,
   });
 
   console.log(`Generated ${generatedFiles.length} files under ${options.outDir}`);
@@ -145,8 +146,8 @@ export function runGenerateDocs(options: GenerateDocsOptions): void {
 
 function groupSuggestionsByTable(
   suggestions: SuggestionItem[]
-): Map<string, { columnCommentSql: string[]; foreignKeySql: string[] }> {
-  const map = new Map<string, { columnCommentSql: string[]; foreignKeySql: string[] }>();
+): Map<string, TableSuggestionSql> {
+  const map = new Map<string, TableSuggestionSql>();
   for (const suggestion of suggestions) {
     const key = `${suggestion.schema}.${suggestion.table}`;
     const bucket = map.get(key) ?? { columnCommentSql: [], foreignKeySql: [] };
@@ -177,7 +178,7 @@ function renderWarningsMarkdown(warnings: Array<{ kind: string; message: string;
   }
   for (const warning of warnings) {
     lines.push(`- [${warning.kind}] ${warning.message}`);
-    lines.push(`  - source: ${warning.source.filePath}${warning.source.statementIndex ? `#${warning.source.statementIndex}` : ''}`);
+    lines.push(`  - source: ${warning.source.filePath}${warning.source.statementIndex != null ? `#${warning.source.statementIndex}` : ''}`);
     lines.push(`  - statement: ${warning.statementPreview}`);
   }
   lines.push('');
@@ -226,7 +227,9 @@ function buildReferenceSuggestions(tables: Array<{ outgoingReferences: Array<{ s
         continue;
       }
       dedupe.add(key);
-      const [schema, tableName] = reference.fromTableKey.split('.');
+      const tableKeyParts = reference.fromTableKey.split('.');
+      const schema = tableKeyParts[0] ?? '';
+      const tableName = tableKeyParts[1] ?? '';
       if (!schema || !tableName) {
         continue;
       }

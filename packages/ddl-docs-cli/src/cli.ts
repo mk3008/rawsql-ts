@@ -6,6 +6,13 @@ import type { GenerateDocsOptions, PruneDocsOptions } from './types';
 const DEFAULT_DDL_DIRECTORY = 'ztd/ddl';
 const DEFAULT_OUT_DIR = path.join('ztd', 'docs', 'tables');
 
+/**
+ * Runs ddl-docs-cli command dispatch and executes generate/prune subcommands.
+ *
+ * @param argv Command-line arguments without the node executable and script path.
+ * @returns A promise that resolves when command execution completes.
+ * Side effects include console output and filesystem writes/removals via subcommands.
+ */
 export async function runCli(argv: string[]): Promise<void> {
   const [command, ...rest] = argv;
 
@@ -32,7 +39,7 @@ export async function runCli(argv: string[]): Promise<void> {
     if (!options) {
       return;
     }
-    runGenerateDocs(options);
+    await runGenerateDocs(options);
     return;
   }
 
@@ -41,7 +48,7 @@ export async function runCli(argv: string[]): Promise<void> {
     if (!options) {
       return;
     }
-    runPruneDocs(options);
+    await runPruneDocs(options);
     return;
   }
 

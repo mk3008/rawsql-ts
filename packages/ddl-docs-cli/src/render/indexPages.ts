@@ -1,11 +1,7 @@
 import path from 'node:path';
 import type { FindingItem, TableDocModel } from '../types';
 import { formatTableCell } from '../utils/markdown';
-
-export interface RenderedPage {
-  path: string;
-  content: string;
-}
+import type { RenderedPage } from './types';
 
 /**
  * Renders global schema index and per-schema table index pages.

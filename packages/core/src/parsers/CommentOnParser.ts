@@ -11,6 +11,8 @@ import { ValueParser } from "./ValueParser";
 export class CommentOnParser {
     /**
      * Parses a full SQL string containing a single COMMENT ON statement.
+     * @param sql SQL text containing one COMMENT ON TABLE/COLUMN statement.
+     * @returns Parsed COMMENT ON statement model.
      */
     public static parse(sql: string): CommentOnStatement {
         const tokenizer = new SqlTokenizer(sql);
@@ -24,6 +26,9 @@ export class CommentOnParser {
 
     /**
      * Parses COMMENT ON tokens from a lexeme array starting at the specified index.
+     * @param lexemes Tokenized SQL lexemes.
+     * @param index Lexeme index where COMMENT ON parsing starts.
+     * @returns Parsed statement and the next unread lexeme index.
      */
     public static parseFromLexeme(lexemes: Lexeme[], index: number): { value: CommentOnStatement; newIndex: number } {
         let idx = index;

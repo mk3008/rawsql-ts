@@ -2,7 +2,7 @@ import path from 'node:path';
 import type { ReferenceDocModel, TableDocModel } from '../types';
 import { formatCodeCell, formatTableCell } from '../utils/markdown';
 
-interface TableSuggestionSql {
+export interface TableSuggestionSql {
   columnCommentSql: string[];
   foreignKeySql: string[];
 }
@@ -169,9 +169,10 @@ function renderToCell(reference: ReferenceDocModel, table: TableDocModel): strin
 }
 
 function mergeAndSortReferences(outgoing: ReferenceDocModel[], incoming: ReferenceDocModel[]): ReferenceDocModel[] {
-  return [...outgoing, ...incoming].sort((a, b) => {
-    const left = `${a.direction}|${a.fromTableKey}|${a.targetTableKey}|${a.fromColumns.join(',')}|${a.targetColumns.join(',')}|${a.matchRule ?? ''}|${a.onDeleteAction ?? ''}|${a.onUpdateAction ?? ''}`;
-    const right = `${b.direction}|${b.fromTableKey}|${b.targetTableKey}|${b.fromColumns.join(',')}|${b.targetColumns.join(',')}|${b.matchRule ?? ''}|${b.onDeleteAction ?? ''}|${b.onUpdateAction ?? ''}`;
-    return left.localeCompare(right);
-  });
+  const keyed = [...outgoing, ...incoming].map((reference) => ({
+    reference,
+    key: `${reference.direction}|${reference.fromTableKey}|${reference.targetTableKey}|${reference.fromColumns.join(',')}|${reference.targetColumns.join(',')}|${reference.matchRule ?? ''}|${reference.onDeleteAction ?? ''}|${reference.onUpdateAction ?? ''}`,
+  }));
+  keyed.sort((left, right) => left.key.localeCompare(right.key));
+  return keyed.map((entry) => entry.reference);
 }
