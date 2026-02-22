@@ -33,7 +33,7 @@ function writeSpecModule(root: string): void {
     "    id: 'unit.users',",
     "    title: 'users',",
     "    definitionPath: 'tests/specs/users.catalog.ts',",
-    "    cases: [{ id: 'lists-users', title: 'lists users', input: { active: 1 }, output: [{ id: 1 }] }]",
+    "    cases: [{ id: 'lists-users', title: 'lists users', input: { active: 1 }, expected: 'success', output: [{ id: 1 }], tags: ['normalization', 'ep'], focus: 'Ensures user listing behavior remains deterministic.' }]",
     '  }',
     '],',
     'sqlCatalogCases: [',
@@ -97,41 +97,53 @@ test('CLI: evidence writes json and markdown artifacts', async () => {
   expect(parsedJson.testCaseCatalogs[0]).toMatchObject({
     id: 'unit.users',
     definitionPath: 'tests/specs/users.catalog.ts',
-    cases: [{ id: 'lists-users', title: 'lists users', input: { active: 1 }, output: [{ id: 1 }] }]
+    cases: [{
+      id: 'lists-users',
+      title: 'lists users',
+      input: { active: 1 },
+      expected: 'success',
+      output: [{ id: 1 }],
+      tags: ['normalization', 'ep'],
+      focus: 'Ensures user listing behavior remains deterministic.'
+    }]
   });
   const markdownFiles = readdirSync(outDir)
     .filter((name) => name.startsWith('test-specification.') && name.endsWith('.md'))
     .sort();
   expect(markdownFiles).toEqual([
+    'test-specification.catalog.sql-active-orders.md',
+    'test-specification.catalog.unit-users.md',
     'test-specification.index.md',
-    'test-specification.tests__specs__users-catalog.md',
-    'test-specification.unknown.md'
   ]);
   const markdown = markdownFiles
     .map((name) => readFileSync(path.join(outDir, name), 'utf8'))
     .join('\n');
   const indexMarkdown = readFileSync(path.join(outDir, 'test-specification.index.md'), 'utf8');
-  const usersMarkdown = readFileSync(path.join(outDir, 'test-specification.tests__specs__users-catalog.md'), 'utf8');
-  const unknownMarkdown = readFileSync(path.join(outDir, 'test-specification.unknown.md'), 'utf8');
+  const usersCatalogMarkdown = readFileSync(path.join(outDir, 'test-specification.catalog.unit-users.md'), 'utf8');
+  const sqlCatalogMarkdown = readFileSync(path.join(outDir, 'test-specification.catalog.sql-active-orders.md'), 'utf8');
   expect(indexMarkdown).toContain('# Unit Test Index');
-  expect(indexMarkdown).toContain('[test-specification.tests__specs__users-catalog.md](./test-specification.tests__specs__users-catalog.md)');
-  expect(indexMarkdown).toContain('[test-specification.unknown.md](./test-specification.unknown.md)');
-  expect(usersMarkdown).toContain('- index: [Unit Test Index](./test-specification.index.md)');
-  expect(unknownMarkdown).toContain('- index: [Unit Test Index](./test-specification.index.md)');
-  expect(markdown).toContain('# users.catalog.ts');
-  expect(markdown).toContain('# unknown');
-  expect(markdown).toContain('- catalogs: 1');
+  expect(indexMarkdown).toContain('- catalogs: 2');
+  expect(indexMarkdown).toContain('[unit.users](./test-specification.catalog.unit-users.md)');
+  expect(indexMarkdown).toContain('[sql.active-orders](./test-specification.catalog.sql-active-orders.md)');
+  expect(indexMarkdown).toContain('  - title: users');
+  expect(indexMarkdown).toContain('  - title: active orders');
+  expect(indexMarkdown).not.toContain('## Test Case Files');
+  expect(usersCatalogMarkdown).toContain('- index: [Unit Test Index](./test-specification.index.md)');
+  expect(sqlCatalogMarkdown).toContain('- index: [Unit Test Index](./test-specification.index.md)');
+  expect(markdown).toContain('# unit.users Test Cases');
+  expect(markdown).toContain('# sql.active-orders Test Cases');
+  expect(markdown).toContain('- title: users');
+  expect(markdown).toContain('- title: active orders');
+  expect(markdown).toContain('- catalogs: 2');
   expect(markdown).toContain('- tests: 1');
   expect(markdown).toContain('- tests: 2');
-  expect(markdown).toContain('## sql.active-orders - active orders');
-  expect(markdown).toContain('## unit.users - users');
+  expect(markdown).toContain('## lists-users - lists users');
   expect(markdown).toContain("definition: [tests/specs/users.catalog.ts](../tests/specs/users.catalog.ts)");
-  expect(markdown).toContain('### baseline - baseline');
-  expect(markdown).toContain('### lists-users - lists users');
-  expect(markdown).toContain('### inactive - inactive');
+  expect(markdown).toContain('## baseline - baseline');
+  expect(markdown).toContain('## inactive - inactive');
   expect(markdown).not.toContain('\n---\n');
-  expect(markdown).toContain('#### input');
-  expect(markdown).toContain('#### output');
+  expect(markdown).toContain('### input');
+  expect(markdown).toContain('### output');
   expect(markdown).not.toContain('## SQL Unit Tests');
   expect(markdown).not.toContain('## Function Unit Tests');
   expect(markdown).toContain('"active": 1');

@@ -38,6 +38,7 @@ export function createCoercionCatalogPreviewJson(args: {
             id: decimalTrimmedScenario.caseId,
             title: decimalTrimmedScenario.caseTitle,
             input: decimalTrimmedScenario.input,
+            expected: 'success',
             output: args.decimalOutput ?? decimalTrimmedScenario.expectedOutput,
           },
           ...(args.includeBigIntCase
@@ -46,6 +47,7 @@ export function createCoercionCatalogPreviewJson(args: {
                   id: bigintTrimmedScenario.id,
                   title: bigintTrimmedScenario.title,
                   input: bigintTrimmedScenario.input,
+                  expected: 'success',
                   output: `${bigintTrimmedScenario.expectedOutput.toString()}n`,
                 },
               ]

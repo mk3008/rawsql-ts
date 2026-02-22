@@ -18,7 +18,14 @@ function createReport(args: {
     id: string;
     title: string;
     definitionPath?: string;
-    cases: Array<{ id: string; title: string; input: unknown; output: unknown }>;
+    cases: Array<{
+      id: string;
+      title: string;
+      input: unknown;
+      expected?: 'success' | 'throws' | 'errorResult';
+      output?: unknown;
+      error?: { name: string; message: string; match: 'equals' | 'contains' };
+    }>;
   }>;
 }): TestSpecificationEvidence {
   const sqlCatalogs = args.sqlCatalogs ?? [];
@@ -60,7 +67,8 @@ function createReport(args: {
         id: testCase.id,
         title: testCase.title,
         input: testCase.input,
-        output: testCase.output
+        expected: testCase.expected ?? 'success',
+        ...(testCase.expected === 'throws' ? { error: testCase.error } : { output: testCase.output })
       }))
     })),
     testCases: []

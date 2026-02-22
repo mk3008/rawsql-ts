@@ -1,21 +1,10 @@
 # Unit Test Index
 
-- files: 3
-- catalogs: 4
-- tests: 8
+- catalogs: 1
 
-## Specification Files
+## Catalog Files
 
-- [test-specification.src__specs__sql__activeOrders-catalog.md](./test-specification.src__specs__sql__activeOrders-catalog.md)
-  - definition: src/specs/sql/activeOrders.catalog.ts
-  - catalogs: 1
-  - tests: 2
-- [test-specification.src__specs__sql__usersList-catalog.md](./test-specification.src__specs__sql__usersList-catalog.md)
-  - definition: src/specs/sql/usersList.catalog.ts
-  - catalogs: 1
-  - tests: 2
-- [test-specification.tests__specs__testCaseCatalogs.md](./test-specification.tests__specs__testCaseCatalogs.md)
-  - definition: tests/specs/testCaseCatalogs.ts
-  - catalogs: 2
-  - tests: 4
+- [unit.normalize-email](./test-specification.catalog.unit-normalize-email.md)
+  - title: normalizeEmail
+  - tests: 6
 

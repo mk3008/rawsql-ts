@@ -10,6 +10,7 @@ export {
   DIFF_SCHEMA_VERSION,
   DiffCoreError,
   type BuildDiffJsonArgs,
+  type CatalogRefLink,
   type DiffCase,
   type DiffCatalog,
   type DiffCoreErrorCode,

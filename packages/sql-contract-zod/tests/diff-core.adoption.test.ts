@@ -35,6 +35,7 @@ function createPreviewJson(): PreviewJson {
             id: 'trim',
             title: 'trim',
             input: ' A ',
+            expected: 'success',
             output: 'a'
           }
         ]

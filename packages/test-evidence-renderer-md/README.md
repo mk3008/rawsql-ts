@@ -18,3 +18,5 @@ Renderer options are presentation-only.
 
 - Allowed: layout, verbosity, ordering style
 - Not allowed: semantic transforms, model normalization, diff computation changes
+
+For specification markdown, `expected: "throws"` cases render `error` blocks and never render `output` blocks.

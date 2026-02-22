@@ -47,7 +47,21 @@ export interface DiffCase {
   id: string;
   title: string;
   input: unknown;
-  output: unknown;
+  expected: 'success' | 'throws' | 'errorResult';
+  output?: unknown;
+  error?: {
+    name: string;
+    message: string;
+    match: 'equals' | 'contains';
+  };
+  tags?: string[];
+  focus?: string;
+  refs?: CatalogRefLink[];
+}
+
+export interface CatalogRefLink {
+  label: string;
+  url: string;
 }
 
 /**
@@ -59,6 +73,7 @@ export interface DiffCatalog {
   title: string;
   description?: string;
   definition?: string;
+  refs?: CatalogRefLink[];
   fixtures?: string[];
   cases: DiffCase[];
 }
@@ -127,6 +142,7 @@ export interface PreviewSqlCatalog {
   title: string;
   description?: string;
   definitionPath?: string;
+  refs?: CatalogRefLink[];
   fixtures?: Array<{ tableName: string }>;
   cases: PreviewSqlCase[];
 }
@@ -138,7 +154,16 @@ export interface PreviewFunctionCase {
   id: string;
   title: string;
   input: unknown;
-  output: unknown;
+  expected: 'success' | 'throws' | 'errorResult';
+  output?: unknown;
+  error?: {
+    name: string;
+    message: string;
+    match: 'equals' | 'contains';
+  };
+  tags?: string[];
+  focus?: string;
+  refs?: CatalogRefLink[];
 }
 
 /**
@@ -149,6 +174,7 @@ export interface PreviewFunctionCatalog {
   title: string;
   description?: string;
   definitionPath?: string;
+  refs?: CatalogRefLink[];
   cases: PreviewFunctionCase[];
 }
 

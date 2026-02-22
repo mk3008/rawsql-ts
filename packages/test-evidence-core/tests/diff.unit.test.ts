@@ -19,7 +19,14 @@ function createPreview(args: {
     id: string;
     title: string;
     definitionPath?: string;
-    cases: Array<{ id: string; title: string; input: unknown; output: unknown }>;
+    cases: Array<{
+      id: string;
+      title: string;
+      input: unknown;
+      expected?: 'success' | 'throws' | 'errorResult';
+      output?: unknown;
+      error?: { name: string; message: string; match: 'equals' | 'contains' };
+    }>;
   }>;
 }): PreviewJson {
   const sqlCatalogs = args.sqlCatalogs ?? [];
@@ -47,7 +54,8 @@ function createPreview(args: {
         id: testCase.id,
         title: testCase.title,
         input: testCase.input,
-        output: testCase.output
+        expected: testCase.expected ?? 'success',
+        ...(testCase.expected === 'throws' ? { error: testCase.error } : { output: testCase.output })
       }))
     }))
   };
@@ -140,4 +148,29 @@ test('buildSpecificationModel rejects unsupported schemaVersion with preview pat
       schemaVersion: 99
     });
   }
+});
+
+test('buildSpecificationModel validates throws case contract deterministically', () => {
+  const preview = createPreview({
+    functionCatalogs: [
+      {
+        id: 'unit.normalize',
+        title: 'normalize',
+        cases: [
+          {
+            id: 'throws-case',
+            title: 'throws',
+            input: 'invalid',
+            expected: 'throws',
+            error: { name: 'Error', message: 'invalid email', match: 'contains' }
+          }
+        ]
+      }
+    ]
+  });
+  const model = buildSpecificationModel(preview);
+  expect(model.catalogs[0]?.cases[0]).toMatchObject({
+    expected: 'throws',
+    error: { name: 'Error', message: 'invalid email', match: 'contains' }
+  });
 });

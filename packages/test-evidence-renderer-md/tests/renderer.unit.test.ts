@@ -18,6 +18,7 @@ function createPreview(args: {
     title: string;
     description?: string;
     definitionPath?: string;
+    refs?: Array<{ label: string; url: string }>;
     fixtures?: string[];
     cases: Array<{ id: string; title: string; input: Record<string, unknown>; output: unknown[] }>;
   }>;
@@ -26,7 +27,18 @@ function createPreview(args: {
     title: string;
     description?: string;
     definitionPath?: string;
-    cases: Array<{ id: string; title: string; input: unknown; output: unknown }>;
+    refs?: Array<{ label: string; url: string }>;
+    cases: Array<{
+      id: string;
+      title: string;
+      input: unknown;
+      expected?: 'success' | 'throws' | 'errorResult';
+      output?: unknown;
+      error?: { name: string; message: string; match: 'equals' | 'contains' };
+      tags?: string[];
+      focus?: string;
+      refs?: Array<{ label: string; url: string }>;
+    }>;
   }>;
 }): PreviewJson {
   return {
@@ -36,6 +48,7 @@ function createPreview(args: {
       title: catalog.title,
       ...(catalog.description ? { description: catalog.description } : {}),
       ...(catalog.definitionPath ? { definitionPath: catalog.definitionPath } : {}),
+      ...(Array.isArray(catalog.refs) ? { refs: catalog.refs } : {}),
       fixtures: (catalog.fixtures ?? []).map((tableName) => ({ tableName })),
       cases: catalog.cases.map((testCase) => ({
         id: testCase.id,
@@ -49,11 +62,16 @@ function createPreview(args: {
       title: catalog.title,
       ...(catalog.description ? { description: catalog.description } : {}),
       ...(catalog.definitionPath ? { definitionPath: catalog.definitionPath } : {}),
+      ...(Array.isArray(catalog.refs) ? { refs: catalog.refs } : {}),
       cases: catalog.cases.map((testCase) => ({
         id: testCase.id,
         title: testCase.title,
         input: testCase.input,
-        output: testCase.output
+        expected: testCase.expected ?? 'success',
+        ...(testCase.expected === 'throws' ? { error: testCase.error } : { output: testCase.output }),
+        ...(Array.isArray(testCase.tags) ? { tags: testCase.tags } : {}),
+        ...(typeof testCase.focus === 'string' ? { focus: testCase.focus } : {}),
+        ...(Array.isArray(testCase.refs) ? { refs: testCase.refs } : {})
       }))
     }))
   };
@@ -160,13 +178,94 @@ test('renderSpecificationMarkdown options change presentation only', () => {
 
   expect(withoutFixtures).not.toContain('- fixtures: orders, users');
   expect(withFixtures).toContain('- fixtures: orders, users');
-  expect(withFixtures).toContain('## sql.users - users');
+  expect(withFixtures).toContain('# sql.users Test Cases');
   expect(withFixtures).toContain('User SQL catalog summary.');
   expect(withFixtures).not.toContain('- kind: sql');
-  expect(withFixtures).toContain('### baseline - baseline');
-  expect(withFixtures).toContain('#### input');
-  expect(withFixtures).toContain('#### output');
+  expect(withFixtures).toContain('## baseline - baseline');
+  expect(withFixtures).toContain('- expected: success');
+  expect(withFixtures).toContain('### input');
+  expect(withFixtures).toContain('### output');
   expect(stableStringify(model)).toBe(modelBefore);
+});
+
+test('renderSpecificationMarkdown renders throws cases with error and never output', () => {
+  const preview = createPreview({
+    functionCatalogs: [
+      {
+        id: 'unit.normalize-email',
+        title: 'normalizeEmail',
+        refs: [{ label: 'Issue #448', url: 'https://github.com/mk3008/rawsql-ts/issues/448' }],
+        cases: [
+          {
+            id: 'rejects-invalid-input',
+            title: 'throws when @ is missing',
+            input: 'invalid-email',
+            expected: 'throws',
+            error: { name: 'Error', message: 'invalid email', match: 'contains' },
+            tags: ['validation', 'ep'],
+            focus: 'Rejects missing at-sign.',
+            refs: [{ label: 'Case Ref', url: 'https://github.com/mk3008/rawsql-ts/issues/999' }]
+          },
+          {
+            id: 'trims-and-lowercases',
+            title: 'normalizes uppercase + spaces',
+            input: '  USER@Example.COM ',
+            expected: 'success',
+            output: 'user@example.com'
+          }
+        ]
+      }
+    ]
+  });
+  const model = buildSpecificationModel(preview);
+  const markdown = renderSpecificationMarkdown(model);
+
+  expect(markdown).toContain('## rejects-invalid-input - throws when @ is missing');
+  expect(markdown).toContain('- expected: throws');
+  expect(markdown).toContain('- tags: [validation, ep]');
+  expect(markdown).toContain('- focus: Rejects missing at-sign.');
+  expect(markdown).toContain('- refs:');
+  expect(markdown).toContain('- [Issue #448](https://github.com/mk3008/rawsql-ts/issues/448)');
+  expect(markdown).toContain('- [Case Ref](https://github.com/mk3008/rawsql-ts/issues/999)');
+  expect(markdown).toContain('### error');
+  expect(markdown).not.toContain('## rejects-invalid-input - throws when @ is missing\n- expected: throws\n### input\n```json\n"invalid-email"\n```\n### output');
+  expect(markdown).toContain('{\n  "name": "Error",\n  "message": "invalid email",\n  "match": "contains"\n}');
+  expect(markdown).toContain('## trims-and-lowercases - normalizes uppercase + spaces');
+  expect(markdown).toContain('- expected: success');
+});
+
+test('renderSpecificationMarkdown keeps case ordering stable by id', () => {
+  const preview = createPreview({
+    functionCatalogs: [
+      {
+        id: 'unit.ordering',
+        title: 'ordering',
+        cases: [
+          {
+            id: 'z-last',
+            title: 'z',
+            input: { b: 1, a: 2 },
+            output: { b: 1, a: 2 },
+            tags: ['invariant', 'state'],
+            focus: 'Ensures z ordering case remains deterministic.'
+          },
+          {
+            id: 'a-first',
+            title: 'a',
+            input: { y: 1, x: 2 },
+            output: { y: 1, x: 2 },
+            tags: ['invariant', 'state'],
+            focus: 'Ensures a ordering case remains deterministic.'
+          }
+        ]
+      }
+    ]
+  });
+  const model = buildSpecificationModel(preview);
+  const markdown = renderSpecificationMarkdown(model);
+  expect(markdown).toMatchSnapshot();
+  expect(markdown.indexOf('## a-first - a')).toBeLessThan(markdown.indexOf('## z-last - z'));
+  expect(markdown).toContain('{\n  "x": 2,\n  "y": 1\n}');
 });
 
 test('definition link rendering supports path and github modes', () => {

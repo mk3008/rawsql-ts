@@ -18,9 +18,16 @@ describe('test case catalog evidence', () => {
     );
     expect(normalize).toBeDefined();
     expect(normalize!.cases.map((item) => item.id)).toEqual([
+      'accepts-minimal-domain',
+      'keeps-plus-alias',
       'keeps-valid-address',
       'rejects-invalid-input',
+      'throws-empty-after-trim',
       'trims-and-lowercases',
     ]);
+    expect(normalize!.cases.find((item) => item.id === 'rejects-invalid-input')).toMatchObject({
+      expected: 'throws',
+      error: { name: 'Error', message: 'invalid email', match: 'contains' }
+    });
   });
 });

@@ -36,6 +36,7 @@ export function validatePreviewJson(value: unknown, side: 'base' | 'head' | 'pre
     }
     assertNonEmptyString(catalog.id, `${side}.sqlCaseCatalogs[${catalogIndex}].id`);
     assertNonEmptyString(catalog.title, `${side}.sqlCaseCatalogs[${catalogIndex}].title`);
+    validateCatalogRefs(catalog.refs, `${side}.sqlCaseCatalogs[${catalogIndex}].refs`);
     if (!Array.isArray(catalog.cases)) {
       throw invalidInput(`${side}.sqlCaseCatalogs[${catalogIndex}].cases`, 'must be an array');
     }
@@ -54,6 +55,7 @@ export function validatePreviewJson(value: unknown, side: 'base' | 'head' | 'pre
     }
     assertNonEmptyString(catalog.id, `${side}.testCaseCatalogs[${catalogIndex}].id`);
     assertNonEmptyString(catalog.title, `${side}.testCaseCatalogs[${catalogIndex}].title`);
+    validateCatalogRefs(catalog.refs, `${side}.testCaseCatalogs[${catalogIndex}].refs`);
     if (!Array.isArray(catalog.cases)) {
       throw invalidInput(`${side}.testCaseCatalogs[${catalogIndex}].cases`, 'must be an array');
     }
@@ -63,6 +65,34 @@ export function validatePreviewJson(value: unknown, side: 'base' | 'head' | 'pre
       }
       assertNonEmptyString(testCase.id, `${side}.testCaseCatalogs[${catalogIndex}].cases[${caseIndex}].id`);
       assertNonEmptyString(testCase.title, `${side}.testCaseCatalogs[${catalogIndex}].cases[${caseIndex}].title`);
+      const expectedPath = `${side}.testCaseCatalogs[${catalogIndex}].cases[${caseIndex}].expected`;
+      if (testCase.expected !== 'success' && testCase.expected !== 'throws' && testCase.expected !== 'errorResult') {
+        throw invalidInput(expectedPath, 'must be "success", "throws", or "errorResult"');
+      }
+      if (testCase.expected === 'throws') {
+        if (!isPlainObject(testCase.error)) {
+          throw invalidInput(`${side}.testCaseCatalogs[${catalogIndex}].cases[${caseIndex}].error`, 'must be an object');
+        }
+        assertNonEmptyString(testCase.error.name, `${side}.testCaseCatalogs[${catalogIndex}].cases[${caseIndex}].error.name`);
+        assertNonEmptyString(testCase.error.message, `${side}.testCaseCatalogs[${catalogIndex}].cases[${caseIndex}].error.message`);
+        if (testCase.error.match !== 'equals' && testCase.error.match !== 'contains') {
+          throw invalidInput(
+            `${side}.testCaseCatalogs[${catalogIndex}].cases[${caseIndex}].error.match`,
+            'must be "equals" or "contains"'
+          );
+        }
+      } else if (!Object.prototype.hasOwnProperty.call(testCase, 'output')) {
+        throw invalidInput(`${side}.testCaseCatalogs[${catalogIndex}].cases[${caseIndex}].output`, 'must be provided');
+      }
+      if (Object.prototype.hasOwnProperty.call(testCase, 'tags')) {
+        if (!Array.isArray(testCase.tags) || testCase.tags.some((tag: unknown) => typeof tag !== 'string' || tag.trim().length === 0)) {
+          throw invalidInput(`${side}.testCaseCatalogs[${catalogIndex}].cases[${caseIndex}].tags`, 'must be an array of non-empty strings');
+        }
+      }
+      if (Object.prototype.hasOwnProperty.call(testCase, 'focus')) {
+        assertNonEmptyString(testCase.focus, `${side}.testCaseCatalogs[${catalogIndex}].cases[${caseIndex}].focus`);
+      }
+      validateCatalogRefs(testCase.refs, `${side}.testCaseCatalogs[${catalogIndex}].cases[${caseIndex}].refs`);
     }
   }
 
@@ -81,11 +111,16 @@ export function normalizeCatalogsForDiff(report: PreviewJson): DiffCatalog[] {
       ? { description: catalog.description.trim() }
       : {}),
     definition: catalog.definitionPath,
+    ...(Array.isArray(catalog.refs) && catalog.refs.length > 0
+      ? { refs: [...catalog.refs].map((ref) => ({ label: ref.label.trim(), url: ref.url.trim() }))
+          .sort((a, b) => a.label.localeCompare(b.label) || a.url.localeCompare(b.url)) }
+      : {}),
     fixtures: [...(catalog.fixtures ?? []).map((item) => item.tableName)].sort((a, b) => a.localeCompare(b)),
     cases: catalog.cases.map((testCase) => ({
       id: testCase.id,
       title: testCase.title,
       input: testCase.params,
+      expected: 'success',
       output: testCase.expected
     }))
   }));
@@ -98,11 +133,26 @@ export function normalizeCatalogsForDiff(report: PreviewJson): DiffCatalog[] {
       ? { description: catalog.description.trim() }
       : {}),
     definition: catalog.definitionPath,
+    ...(Array.isArray(catalog.refs) && catalog.refs.length > 0
+      ? { refs: [...catalog.refs].map((ref) => ({ label: ref.label.trim(), url: ref.url.trim() }))
+          .sort((a, b) => a.label.localeCompare(b.label) || a.url.localeCompare(b.url)) }
+      : {}),
     cases: catalog.cases.map((testCase) => ({
       id: testCase.id,
       title: testCase.title,
       input: testCase.input,
-      output: testCase.output
+      expected: testCase.expected,
+      ...(testCase.expected === 'throws' ? { error: testCase.error } : { output: testCase.output }),
+      ...(Array.isArray(testCase.tags) && testCase.tags.length > 0
+        ? { tags: [...testCase.tags] }
+        : {}),
+      ...(typeof testCase.focus === 'string' && testCase.focus.trim().length > 0
+        ? { focus: testCase.focus.trim() }
+        : {}),
+      ...(Array.isArray(testCase.refs) && testCase.refs.length > 0
+        ? { refs: [...testCase.refs].map((ref) => ({ label: ref.label.trim(), url: ref.url.trim() }))
+            .sort((a, b) => a.label.localeCompare(b.label) || a.url.localeCompare(b.url)) }
+        : {})
     }))
   }));
 
@@ -125,4 +175,20 @@ function assertNonEmptyString(value: unknown, path: string): void {
 
 function isPlainObject(value: unknown): value is Record<string, any> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function validateCatalogRefs(value: unknown, path: string): void {
+  if (value === undefined) {
+    return;
+  }
+  if (!Array.isArray(value)) {
+    throw invalidInput(path, 'must be an array');
+  }
+  for (const [index, item] of value.entries()) {
+    if (!isPlainObject(item)) {
+      throw invalidInput(`${path}[${index}]`, 'must be an object');
+    }
+    assertNonEmptyString(item.label, `${path}[${index}].label`);
+    assertNonEmptyString(item.url, `${path}[${index}].url`);
+  }
 }

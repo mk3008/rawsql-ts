@@ -98,12 +98,28 @@ export interface TestCaseCatalogEvidence {
   title: string;
   description?: string;
   definitionPath?: string;
+  refs?: Array<{
+    label: string;
+    url: string;
+  }>;
   cases: Array<{
     id: string;
     title: string;
     description?: string;
-    input?: unknown;
+    input: unknown;
+    expected: 'success' | 'throws' | 'errorResult';
     output?: unknown;
+    error?: {
+      name: string;
+      message: string;
+      match: 'equals' | 'contains';
+    };
+    tags?: string[];
+    focus?: string;
+    refs?: Array<{
+      label: string;
+      url: string;
+    }>;
   }>;
 }
 
@@ -600,58 +616,80 @@ function writeSpecificationMarkdownArtifacts(
 ): string[] {
   const indexFileName = 'test-specification.index.md';
   const model = buildSpecificationModel(report as TestEvidencePreviewJson);
-  const catalogsByDefinition = new Map<string, typeof model.catalogs>();
-  for (const catalog of model.catalogs) {
-    const key = catalog.definition ?? '(unknown)';
-    const existing = catalogsByDefinition.get(key);
-    if (existing) {
-      existing.push(catalog);
-    } else {
-      catalogsByDefinition.set(key, [catalog]);
-    }
-  }
-
+  const catalogs = [...model.catalogs].sort((a, b) => a.catalogId.localeCompare(b.catalogId));
   const written: string[] = [];
-  const indexRows: Array<{
+  const catalogRows: Array<{
     fileName: string;
-    definition: string;
-    catalogs: number;
+    catalogId: string;
+    title: string;
     tests: number;
   }> = [];
-  for (const [definition, catalogs] of [...catalogsByDefinition.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
-    const catalogList = [...catalogs].sort((a, b) => a.catalogId.localeCompare(b.catalogId));
-    const partialModel = {
-      ...model,
-      totals: {
-        catalogs: catalogList.length,
-        sqlCatalogs: catalogList.filter((item) => item.kind === 'sql').length,
-        functionCatalogs: catalogList.filter((item) => item.kind === 'function').length,
-        tests: catalogList.reduce((count, item) => count + item.cases.length, 0)
-      },
-      catalogs: catalogList
-    };
-    const slug = toSpecificationSlug(definition);
-    const title = toSpecificationTitleLabel(definition);
-    const mdPath = path.join(outDir, `test-specification.${slug}.md`);
-    const fileName = path.basename(mdPath);
-    const indexLinkLine = `- index: [Unit Test Index](./${indexFileName})`;
-    const rendered = renderSpecificationMarkdown(partialModel, {
-      title,
-      definitionLinks: resolveDefinitionLinkOptions({ markdownPath: mdPath, sourceRootDir })
-    });
-    const lines = rendered.split('\n');
-    lines.splice(2, 0, indexLinkLine, '');
-    writeFileSync(
-      mdPath,
-      `${lines.join('\n')}\n`,
-      'utf8'
-    );
-    written.push(mdPath);
-    indexRows.push({
-      fileName,
-      definition,
-      catalogs: partialModel.totals.catalogs,
-      tests: partialModel.totals.tests
+
+  for (const catalog of catalogs) {
+    const catalogSlug = toSpecificationSlug(catalog.catalogId);
+    const catalogFileName = `test-specification.catalog.${catalogSlug}.md`;
+    const catalogPath = path.join(outDir, catalogFileName);
+    const catalogDefinitionLinks = resolveDefinitionLinkOptions({ markdownPath: catalogPath, sourceRootDir });
+    const catalogLines: string[] = [];
+    catalogLines.push(`# ${catalog.catalogId} Test Cases`);
+    catalogLines.push('');
+    catalogLines.push(`- schemaVersion: ${model.schemaVersion}`);
+    catalogLines.push(`- index: [Unit Test Index](./${indexFileName})`);
+    catalogLines.push(`- title: ${catalog.title}`);
+    catalogLines.push(`- definition: ${formatDefinitionLinkMarkdown(catalog.definition, catalogDefinitionLinks)}`);
+    if (catalog.description) {
+      catalogLines.push(`- description: ${catalog.description}`);
+    }
+    if (Array.isArray(catalog.refs) && catalog.refs.length > 0) {
+      catalogLines.push('- refs:');
+      for (const ref of catalog.refs) {
+        catalogLines.push(`  - [${ref.label}](${ref.url})`);
+      }
+    }
+    catalogLines.push(`- tests: ${catalog.cases.length}`);
+    if (catalog.kind === 'sql') {
+      catalogLines.push(`- fixtures: ${(catalog.fixtures ?? []).join(', ') || '(none)'}`);
+    }
+    catalogLines.push('');
+
+    const sortedCases = [...catalog.cases].sort((a, b) => a.id.localeCompare(b.id));
+    for (const testCase of sortedCases) {
+      catalogLines.push(`## ${testCase.id} - ${testCase.title}`);
+      catalogLines.push(`- expected: ${testCase.expected}`);
+      catalogLines.push(`- tags: ${formatCaseTags(testCase.tags)}`);
+      catalogLines.push(`- focus: ${formatCaseFocus(testCase.focus)}`);
+      if (Array.isArray(testCase.refs) && testCase.refs.length > 0) {
+        catalogLines.push('- refs:');
+        for (const ref of testCase.refs) {
+          catalogLines.push(`  - [${ref.label}](${ref.url})`);
+        }
+      }
+      catalogLines.push('### input');
+      catalogLines.push('```json');
+      catalogLines.push(stringifyStablePretty(testCase.input));
+      catalogLines.push('```');
+      if (testCase.expected === 'throws') {
+        catalogLines.push('### error');
+        catalogLines.push('```json');
+        catalogLines.push(stringifyErrorPretty(testCase.error));
+        catalogLines.push('```');
+      } else {
+        catalogLines.push('### output');
+        catalogLines.push('```json');
+        catalogLines.push(stringifyStablePretty(testCase.output));
+        catalogLines.push('```');
+      }
+      catalogLines.push('');
+    }
+
+    catalogLines.push('');
+    writeFileSync(catalogPath, `${catalogLines.join('\n')}\n`, 'utf8');
+    written.push(catalogPath);
+    catalogRows.push({
+      fileName: catalogFileName,
+      catalogId: catalog.catalogId,
+      title: catalog.title,
+      tests: catalog.cases.length
     });
   }
 
@@ -659,17 +697,13 @@ function writeSpecificationMarkdownArtifacts(
   const indexLines: string[] = [];
   indexLines.push('# Unit Test Index');
   indexLines.push('');
-  indexLines.push(`- files: ${indexRows.length}`);
-  indexLines.push(`- catalogs: ${indexRows.reduce((count, row) => count + row.catalogs, 0)}`);
-  indexLines.push(`- tests: ${indexRows.reduce((count, row) => count + row.tests, 0)}`);
+  indexLines.push(`- catalogs: ${catalogRows.length}`);
   indexLines.push('');
-  indexLines.push('## Specification Files');
+  indexLines.push('## Catalog Files');
   indexLines.push('');
-  for (const row of indexRows.sort((a, b) => a.fileName.localeCompare(b.fileName))) {
-    const definitionLabel = row.definition === '(unknown)' ? '(unknown)' : row.definition;
-    indexLines.push(`- [${row.fileName}](./${row.fileName})`);
-    indexLines.push(`  - definition: ${definitionLabel}`);
-    indexLines.push(`  - catalogs: ${row.catalogs}`);
+  for (const row of catalogRows.sort((a, b) => a.fileName.localeCompare(b.fileName))) {
+    indexLines.push(`- [${row.catalogId}](./${row.fileName})`);
+    indexLines.push(`  - title: ${row.title}`);
     indexLines.push(`  - tests: ${row.tests}`);
   }
   indexLines.push('');
@@ -686,7 +720,6 @@ function toSpecificationSlug(definition: string): string {
   const normalized = definition
     .replace(/\\/g, '/')
     .replace(/^\//, '')
-    .replace(/\.[^.\\/]+$/, '')
     .replace(/[^a-zA-Z0-9/_-]+/g, '-')
     .replace(/\/+/g, '__')
     .replace(/-+/g, '-')
@@ -694,13 +727,34 @@ function toSpecificationSlug(definition: string): string {
   return normalized || 'unknown';
 }
 
-function toSpecificationTitleLabel(definition: string): string {
-  if (definition === '(unknown)') {
-    return 'unknown';
+function formatDefinitionLinkMarkdown(
+  definitionPath: string | undefined,
+  options?: DefinitionLinkOptions
+): string {
+  if (!definitionPath) {
+    return '(unknown)';
   }
-  const normalized = definition.replace(/\\/g, '/').trim();
-  const parts = normalized.split('/').filter((item) => item.length > 0);
-  return parts[parts.length - 1] ?? 'unknown';
+  const normalizedPath = definitionPath.replace(/\\/g, '/').replace(/^\/+/, '');
+  if (!normalizedPath) {
+    return '(unknown)';
+  }
+  if (options?.mode === 'github' && options.github) {
+    const serverUrl = options.github.serverUrl.replace(/\/+$/, '');
+    const repository = options.github.repository.trim();
+    const ref = options.github.ref.trim();
+    if (serverUrl && repository && ref) {
+      const encodedPath = normalizedPath.split('/').map((part) => encodeURIComponent(part)).join('/');
+      const url = `${serverUrl}/${repository}/blob/${encodeURIComponent(ref)}/${encodedPath}`;
+      return `[${normalizedPath}](${url})`;
+    }
+  }
+  if (options?.mode === 'path' && options.path) {
+    const absoluteTarget = path.resolve(options.path.sourceRootDir, normalizedPath);
+    const absoluteMarkdownDir = path.resolve(options.path.markdownDir);
+    const relativePath = path.relative(absoluteMarkdownDir, absoluteTarget).replace(/\\/g, '/');
+    return `[${normalizedPath}](${relativePath || normalizedPath})`;
+  }
+  return `[${normalizedPath}](${normalizedPath})`;
 }
 
 function materializeEvidenceForRef(args: {
@@ -921,12 +975,28 @@ function readTestCaseCatalogsFromModule(moduleValue: EvidenceModuleLike): Array<
   title: string;
   description?: string;
   definitionPath?: string;
+  refs?: Array<{
+    label: string;
+    url: string;
+  }>;
   cases: Array<{
     id: string;
     title: string;
     description?: string;
-    input?: unknown;
+    input: unknown;
+    expected: 'success' | 'throws' | 'errorResult';
     output?: unknown;
+    error?: {
+      name: string;
+      message: string;
+      match: 'equals' | 'contains';
+    };
+    tags?: string[];
+    focus?: string;
+    refs?: Array<{
+      label: string;
+      url: string;
+    }>;
   }>;
 }> {
   if (!Array.isArray(moduleValue.testCaseCatalogs)) {
@@ -957,10 +1027,15 @@ function readTestCaseCatalogsFromModule(moduleValue: EvidenceModuleLike): Array<
         : undefined;
       const hasDirectInput = Object.prototype.hasOwnProperty.call(item, 'input');
       const hasDirectOutput = Object.prototype.hasOwnProperty.call(item, 'output');
+      const hasDirectExpected = Object.prototype.hasOwnProperty.call(item, 'expected');
+      const hasDirectError = Object.prototype.hasOwnProperty.call(item, 'error');
+      const hasDirectTags = Object.prototype.hasOwnProperty.call(item, 'tags');
+      const hasDirectFocus = Object.prototype.hasOwnProperty.call(item, 'focus');
+      const hasDirectRefs = Object.prototype.hasOwnProperty.call(item, 'refs');
       const evidenceValue = Object.prototype.hasOwnProperty.call(item, 'evidence') ? item.evidence : undefined;
       const hasEvidence = isPlainObject(evidenceValue);
 
-      // Accept both normalized evidence shape (`input`/`output`) and raw test catalog shape (`evidence.input`/`evidence.output`).
+      // Accept both normalized evidence shape and raw test catalog shape (`evidence.*`).
       const input = hasDirectInput
         ? item.input
         : hasEvidence && Object.prototype.hasOwnProperty.call(evidenceValue, 'input')
@@ -971,9 +1046,79 @@ function readTestCaseCatalogsFromModule(moduleValue: EvidenceModuleLike): Array<
         : hasEvidence && Object.prototype.hasOwnProperty.call(evidenceValue, 'output')
           ? evidenceValue.output
           : undefined;
-      if (input === undefined || output === undefined) {
+      const expectedRaw = hasDirectExpected
+        ? item.expected
+        : hasEvidence && Object.prototype.hasOwnProperty.call(evidenceValue, 'expected')
+          ? evidenceValue.expected
+          : undefined;
+      const expected: 'success' | 'throws' | 'errorResult' | undefined =
+        expectedRaw === 'success' || expectedRaw === 'throws' || expectedRaw === 'errorResult'
+          ? expectedRaw
+          : output === undefined
+            ? undefined
+            : 'success';
+      const errorRaw = hasDirectError
+        ? item.error
+        : hasEvidence && Object.prototype.hasOwnProperty.call(evidenceValue, 'error')
+          ? evidenceValue.error
+          : undefined;
+      const tagsRaw = hasDirectTags
+        ? item.tags
+        : hasEvidence && Object.prototype.hasOwnProperty.call(evidenceValue, 'tags')
+          ? evidenceValue.tags
+          : undefined;
+      const focusRaw = hasDirectFocus
+        ? item.focus
+        : hasEvidence && Object.prototype.hasOwnProperty.call(evidenceValue, 'focus')
+          ? evidenceValue.focus
+          : undefined;
+      const refsRaw = hasDirectRefs
+        ? item.refs
+        : hasEvidence && Object.prototype.hasOwnProperty.call(evidenceValue, 'refs')
+          ? evidenceValue.refs
+          : undefined;
+      if (input === undefined || expected === undefined) {
         throw new TestEvidenceRuntimeError(
-          `testCaseCatalogs[${index}].cases[${caseIndex}] requires input/output evidence fields.`
+          `testCaseCatalogs[${index}].cases[${caseIndex}] requires input/expected evidence fields.`
+        );
+      }
+      if (expected !== 'throws' && output === undefined) {
+        throw new TestEvidenceRuntimeError(
+          `testCaseCatalogs[${index}].cases[${caseIndex}] requires output when expected is not "throws".`
+        );
+      }
+      if (expected === 'throws') {
+        if (!isPlainObject(errorRaw)) {
+          throw new TestEvidenceRuntimeError(
+            `testCaseCatalogs[${index}].cases[${caseIndex}] requires error when expected is "throws".`
+          );
+        }
+        if (
+          typeof errorRaw.name !== 'string' ||
+          typeof errorRaw.message !== 'string' ||
+          (errorRaw.match !== 'equals' && errorRaw.match !== 'contains')
+        ) {
+          throw new TestEvidenceRuntimeError(
+            `testCaseCatalogs[${index}].cases[${caseIndex}].error must define name/message/match.`
+          );
+        }
+      }
+      const normalizedTags =
+        Array.isArray(tagsRaw) && tagsRaw.every((tag) => typeof tag === 'string' && tag.trim().length > 0)
+          ? normalizeCaseTags(tagsRaw.map((tag) => tag.trim()))
+          : undefined;
+      const normalizedFocus = typeof focusRaw === 'string' && focusRaw.trim().length > 0
+        ? focusRaw.trim()
+        : undefined;
+      const normalizedRefs = normalizeCatalogRefs(refsRaw);
+      if (!normalizedTags || normalizedTags.length !== 2) {
+        throw new TestEvidenceRuntimeError(
+          `testCaseCatalogs[${index}].cases[${caseIndex}] requires tags with exactly 2 axes: [intent, technique].`
+        );
+      }
+      if (!normalizedFocus) {
+        throw new TestEvidenceRuntimeError(
+          `testCaseCatalogs[${index}].cases[${caseIndex}] requires focus sentence.`
         );
       }
       return {
@@ -981,7 +1126,19 @@ function readTestCaseCatalogsFromModule(moduleValue: EvidenceModuleLike): Array<
         title: caseTitle,
         ...(description ? { description } : {}),
         input,
-        output
+        expected,
+        ...(expected === 'throws'
+          ? {
+            error: {
+              name: (errorRaw as { name: string }).name,
+              message: (errorRaw as { message: string }).message,
+              match: (errorRaw as { match: 'equals' | 'contains' }).match
+            }
+          }
+          : { output }),
+        tags: normalizedTags,
+        focus: normalizedFocus,
+        ...(normalizedRefs.length > 0 ? { refs: normalizedRefs } : {})
       };
     });
     const description = typeof catalog.description === 'string' && catalog.description.trim().length > 0
@@ -990,11 +1147,13 @@ function readTestCaseCatalogsFromModule(moduleValue: EvidenceModuleLike): Array<
     const definitionPath = typeof catalog.definitionPath === 'string' && catalog.definitionPath.trim().length > 0
       ? catalog.definitionPath.trim()
       : undefined;
+    const refs = normalizeCatalogRefs(catalog.refs);
     return {
       id,
       title,
       ...(description ? { description } : {}),
       ...(definitionPath ? { definitionPath } : {}),
+      ...(refs.length > 0 ? { refs } : {}),
       cases: normalizedCases
     };
   });
@@ -1289,4 +1448,93 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 
 function normalizePath(input: string): string {
   return input.split(path.sep).join('/');
+}
+
+function normalizeCatalogRefs(value: unknown): Array<{ label: string; url: string }> {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .filter((item): item is Record<string, unknown> => isPlainObject(item))
+    .map((item) => ({
+      label: typeof item.label === 'string' ? item.label.trim() : '',
+      url: typeof item.url === 'string' ? item.url.trim() : ''
+    }))
+    .filter((item) => item.label.length > 0 && item.url.length > 0)
+    .sort((a, b) => a.label.localeCompare(b.label) || a.url.localeCompare(b.url));
+}
+
+const TAG_NORMALIZATION_MAP: Record<string, string> = {
+  boundary: 'bva'
+};
+
+const INTENT_TAGS = ['normalization', 'validation', 'authorization', 'invariant'] as const;
+const TECHNIQUE_TAGS = ['ep', 'bva', 'idempotence', 'state'] as const;
+const INTENT_TAG_SET = new Set<string>(INTENT_TAGS);
+const TECHNIQUE_TAG_SET = new Set<string>(TECHNIQUE_TAGS);
+
+function normalizeCaseTags(tags: string[]): string[] {
+  const normalized = new Set<string>();
+  for (const rawTag of tags) {
+    const lowered = rawTag.trim().toLowerCase();
+    const mapped = TAG_NORMALIZATION_MAP[lowered] ?? lowered;
+    if (INTENT_TAG_SET.has(mapped) || TECHNIQUE_TAG_SET.has(mapped)) {
+      normalized.add(mapped);
+    }
+  }
+  const intent = INTENT_TAGS.find((tag) => normalized.has(tag));
+  const technique = TECHNIQUE_TAGS.find((tag) => normalized.has(tag));
+  const result: string[] = [];
+  if (intent) {
+    result.push(intent);
+  }
+  if (technique) {
+    result.push(technique);
+  }
+  return result;
+}
+
+function formatCaseTags(tags: string[] | undefined): string {
+  const normalized = Array.isArray(tags) ? normalizeCaseTags(tags) : [];
+  return `[${normalized.join(', ')}]`;
+}
+
+function formatCaseFocus(focus: string | undefined): string {
+  if (typeof focus === 'string' && focus.trim().length > 0) {
+    return focus.trim();
+  }
+  return '(not specified)';
+}
+
+function stringifyStablePretty(value: unknown): string {
+  return JSON.stringify(sortDeep(value), null, 2) ?? 'null';
+}
+
+function stringifyErrorPretty(value: unknown): string {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    return 'null';
+  }
+  const source = value as Record<string, unknown>;
+  return JSON.stringify(
+    {
+      name: source.name,
+      message: source.message,
+      match: source.match
+    },
+    null,
+    2
+  ) ?? 'null';
+}
+
+function sortDeep(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) => sortDeep(item));
+  }
+  if (value !== null && typeof value === 'object') {
+    const entries = Object.entries(value as Record<string, unknown>)
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([key, nested]) => [key, sortDeep(nested)] as const);
+    return Object.fromEntries(entries);
+  }
+  return value;
 }

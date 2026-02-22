@@ -37,3 +37,12 @@ Validation failures are deterministic, including stable error shape fields (`cod
 - No markdown strings
 - No IO
 - No side effects
+
+### Function Case Contract
+
+Function test cases in `PreviewJson.testCaseCatalogs[].cases[]` use explicit outcomes:
+
+- `expected: "success" | "throws" | "errorResult"`
+- `expected: "throws"` requires `error: { name, message, match }`
+- non-throw outcomes require `output`
+- optional metadata: `tags: string[]`, `focus: string`

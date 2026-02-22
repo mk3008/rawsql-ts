@@ -50,7 +50,7 @@ function writeSpecModule(root: string, options?: { testCaseIds?: string[]; inclu
     "    title: 'User behavior',",
     "    definitionPath: 'tests/specs/users.catalog.ts',",
     '    cases: [',
-    ...testCaseIds.map((id) => `      { id: '${id}', title: '${id.replace(/-/g, ' ')}', input: '${id}', output: '${id}-ok' },`),
+    ...testCaseIds.map((id) => `      { id: '${id}', title: '${id.replace(/-/g, ' ')}', input: '${id}', expected: 'success', output: '${id}-ok', tags: ['invariant', 'state'], focus: 'Ensures ${id.replace(/-/g, ' ')} behavior remains stable.' },`),
     '    ]',
     '  }',
     '],',
@@ -128,15 +128,13 @@ test('formatTestEvidenceOutput emits deterministic markdown and json text', () =
   const markdown = formatTestEvidenceOutput(report, 'markdown');
   const json = formatTestEvidenceOutput(report, 'json');
 
-  expect(markdown).toContain('# Test Evidence Specification');
-  expect(markdown).toContain('- catalogs: 1');
+  expect(markdown).toContain('# unit.users Test Cases');
   expect(markdown).toContain('- tests: 1');
-  expect(markdown).toContain('## unit.users - User behavior');
   expect(markdown).toContain("definition: [tests/specs/users.catalog.ts](tests/specs/users.catalog.ts)");
-  expect(markdown).toContain('### works - works');
+  expect(markdown).toContain('## works - works');
   expect(markdown).not.toContain('\n---\n');
-  expect(markdown).toContain('#### input');
-  expect(markdown).toContain('#### output');
+  expect(markdown).toContain('### input');
+  expect(markdown).toContain('### output');
   expect(markdown).not.toContain('## SQL Unit Tests');
   expect(markdown).not.toContain('## Function Unit Tests');
   expect(markdown).toContain('"works"');
@@ -195,9 +193,46 @@ test('runTestEvidenceSpecification keeps deterministic ordering, normalized path
   expect(report.testCases.map((item) => item.id)).toEqual(['unit.users.a', 'unit.users.b']);
   expect(report.testCaseCatalogs.map((item) => item.id)).toEqual(['unit.users']);
   expect(report.testCaseCatalogs[0]?.definitionPath).toBe('tests/specs/users.catalog.ts');
-  expect(report.testCaseCatalogs[0]?.cases[0]).toMatchObject({ id: 'a', input: 'a', output: 'a-ok' });
+  expect(report.testCaseCatalogs[0]?.cases[0]).toMatchObject({
+    id: 'a',
+    input: 'a',
+    output: 'a-ok',
+    tags: ['invariant', 'state'],
+    focus: 'Ensures a behavior remains stable.'
+  });
   expect(report.sqlCatalogs.every((item) => !item.specFile.includes('\\'))).toBe(true);
   expect(JSON.stringify(report)).not.toContain(root);
   expect(JSON.stringify(report)).not.toMatch(/\d{4}-\d{2}-\d{2}T/);
+});
+
+test('runTestEvidenceSpecification normalizes tags vocabulary and keeps catalog refs', () => {
+  const root = createWorkspace('evidence-tags-refs');
+  writeFileSync(
+    path.join(root, 'tests', 'specs', 'index.cjs'),
+    [
+      'module.exports = {',
+      'testCaseCatalogs: [',
+      '  {',
+      "    id: 'unit.tags',",
+      "    title: 'tags',",
+      "    refs: [{ label: 'Issue #448', url: 'https://github.com/mk3008/rawsql-ts/issues/448' }],",
+      '    cases: [',
+      "      { id: 'c1', title: 'c1', input: 'x', expected: 'success', output: 'x', tags: ['happy-path', 'validation', 'bva', 'ep'], focus: 'Ensures tags are normalized into two axes.' }",
+      '    ]',
+      '  }',
+      '],',
+      'sqlCatalogCases: []',
+      '};',
+      ''
+    ].join('\n'),
+    'utf8'
+  );
+
+  const report = runTestEvidenceSpecification({ mode: 'specification', rootDir: root });
+  expect(report.testCaseCatalogs[0]?.refs).toEqual([
+    { label: 'Issue #448', url: 'https://github.com/mk3008/rawsql-ts/issues/448' }
+  ]);
+  expect(report.testCaseCatalogs[0]?.cases[0]?.tags).toEqual(['validation', 'ep']);
+  expect(report.testCaseCatalogs[0]?.cases[0]?.focus).toBe('Ensures tags are normalized into two axes.');
 });
 
