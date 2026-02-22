@@ -1,8 +1,8 @@
 import { expect, test } from 'vitest';
 import {
   buildDiffJson,
+  buildSpecificationModel,
   DiffCoreError,
-  renderDiffReportMarkdown,
   stableStringify,
   type PreviewJson
 } from '../src';
@@ -90,83 +90,54 @@ test('unsupported preview schemaVersion throws deterministic typed error', () =>
   }
 });
 
-test('renderDiffReportMarkdown prints deterministic fact-only markdown', () => {
-  const diff = buildDiffJson({
-    base: {
-      ref: 'main',
-      sha: 'aaa111',
-      previewJson: createPreview({
-        functionCatalogs: [
-          {
-            id: 'fn.coercions',
-            title: 'coercion helper parity',
-            definitionPath: 'packages/sql-contract-zod/tests/coercions.test.ts',
-            cases: [{ id: 'decimal-trimmed', title: 'decimal', input: ' 33.5 ', output: 33 }]
-          }
-        ]
-      })
-    },
-    head: {
-      ref: 'HEAD',
-      sha: 'bbb222',
-      previewJson: createPreview({
-        functionCatalogs: [
-          {
-            id: 'fn.coercions',
-            title: 'coercion helper parity',
-            definitionPath: 'packages/sql-contract-zod/tests/coercions.test.ts',
-            cases: [
-              { id: 'decimal-trimmed', title: 'decimal', input: ' 33.5 ', output: 33.5 },
-              {
-                id: 'bigint-trimmed',
-                title: 'bigint',
-                input: ' 123456789012345678901234567890 ',
-                output: '123456789012345678901234567890n'
-              }
-            ]
-          }
-        ]
-      })
-    },
-    baseMode: 'merge-base'
+test('buildSpecificationModel returns deterministic pure intermediate model', () => {
+  const preview = createPreview({
+    sqlCatalogs: [
+      {
+        id: 'sql.users',
+        title: 'users',
+        definitionPath: 'src/specs/sql/users.ts',
+        fixtures: ['users'],
+        cases: [{ id: 'active-users', title: 'active users', input: { active: true }, output: [{ id: 1 }] }]
+      }
+    ],
+    functionCatalogs: [
+      {
+        id: 'fn.normalize',
+        title: 'normalize',
+        definitionPath: 'tests/specs/fn.ts',
+        cases: [{ id: 'trim', title: 'trim', input: ' A ', output: 'a' }]
+      }
+    ]
   });
 
-  const markdown = renderDiffReportMarkdown(diff, {
-    generatedAt: '2026-02-21T00:00:00.000Z',
-    unsupportedSchemaValidation: { checked: true, passed: true }
+  const model = buildSpecificationModel(preview);
+  expect(model.schemaVersion).toBe(1);
+  expect(model.totals).toEqual({
+    catalogs: 2,
+    sqlCatalogs: 1,
+    functionCatalogs: 1,
+    tests: 2
   });
+  expect(model.catalogs.map((catalog) => catalog.catalogId)).toEqual(['fn.normalize', 'sql.users']);
+  expect(stableStringify(model)).toBe(stableStringify(buildSpecificationModel(preview)));
+});
 
-  expect(markdown).toBe(
-    [
-      '# Header',
-      '- generatedAt: 2026-02-21T00:00:00.000Z',
-      '- schemaVersion: 1',
-      '- base.ref: main',
-      '- base.sha: aaa111',
-      '- head.ref: HEAD',
-      '- head.sha: bbb222',
-      '- baseMode: merge-base',
-      '',
-      '# Summary',
-      '- catalogs.added: 0',
-      '- catalogs.removed: 0',
-      '- catalogs.updated: 1',
-      '- cases.added: 1',
-      '- cases.removed: 0',
-      '- cases.updated: 1',
-      '',
-      '# Catalog changes',
-      '- catalogId: fn.coercions',
-      '  - title: coercion helper parity',
-      '  - definitionPath: packages/sql-contract-zod/tests/coercions.test.ts',
-      '  - cases.added: bigint-trimmed',
-      '  - cases.removed: -',
-      '  - cases.updated: decimal-trimmed',
-      '',
-      '# Validation',
-      '- schemaVersionSupported: yes',
-      '- deterministicUnsupportedSchemaErrorPresent: yes',
-      ''
-    ].join('\n')
-  );
+test('buildSpecificationModel rejects unsupported schemaVersion with preview path', () => {
+  const preview = {
+    ...createPreview({}),
+    schemaVersion: 99
+  } as unknown as PreviewJson;
+
+  try {
+    buildSpecificationModel(preview);
+    throw new Error('expected buildSpecificationModel to throw');
+  } catch (error) {
+    expect(error).toBeInstanceOf(DiffCoreError);
+    expect(error).toMatchObject({
+      code: 'UNSUPPORTED_SCHEMA_VERSION',
+      path: 'preview.schemaVersion',
+      schemaVersion: 99
+    });
+  }
 });

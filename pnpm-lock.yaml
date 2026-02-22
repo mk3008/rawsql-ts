@@ -343,6 +343,19 @@ importers:
         specifier: ^4.0.7
         version: 4.0.15(@types/node@22.19.6)(jiti@2.6.1)(yaml@2.8.1)
 
+  packages/test-evidence-renderer-md:
+    dependencies:
+      '@rawsql-ts/test-evidence-core':
+        specifier: workspace:*
+        version: link:../test-evidence-core
+    devDependencies:
+      typescript:
+        specifier: ^5.8.2
+        version: 5.9.2
+      vitest:
+        specifier: ^4.0.7
+        version: 4.0.15(@types/node@22.19.6)(jiti@2.6.1)(yaml@2.8.1)
+
   packages/testkit-core:
     dependencies:
       rawsql-ts:
@@ -377,6 +390,9 @@ importers:
       '@rawsql-ts/test-evidence-core':
         specifier: workspace:*
         version: link:../test-evidence-core
+      '@rawsql-ts/test-evidence-renderer-md':
+        specifier: workspace:*
+        version: link:../test-evidence-renderer-md
       chokidar:
         specifier: ^5.0.0
         version: 5.0.0

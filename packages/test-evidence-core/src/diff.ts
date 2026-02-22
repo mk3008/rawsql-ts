@@ -3,11 +3,9 @@ import {
   DIFF_SCHEMA_VERSION,
   DiffCase,
   DiffCatalog,
-  DiffCoreError,
-  DiffJson,
-  PREVIEW_SCHEMA_VERSION,
-  type PreviewJson
+  DiffJson
 } from './types';
+import { normalizeCatalogsForDiff, validatePreviewJson } from './preview';
 
 /**
  * Stable stringify that sorts object keys recursively for deterministic fingerprints.
@@ -52,7 +50,6 @@ export function buildDiffJson(args: BuildDiffJsonArgs): DiffJson {
     }
   }
 
-  // Compare catalogs shared by both sides and isolate metadata/case-level changes.
   for (const beforeCatalog of baseCatalogs) {
     const afterCatalog = headMap.get(beforeCatalog.catalogId);
     if (!afterCatalog) {
@@ -126,104 +123,6 @@ export function buildDiffJson(args: BuildDiffJsonArgs): DiffJson {
   };
 }
 
-function validatePreviewJson(value: unknown, side: 'base' | 'head'): PreviewJson {
-  if (!isPlainObject(value)) {
-    throw invalidInput(`${side}`, 'must be an object');
-  }
-
-  const schemaVersionRaw = value.schemaVersion;
-  if (typeof schemaVersionRaw !== 'number' || !Number.isInteger(schemaVersionRaw) || schemaVersionRaw < 1) {
-    throw invalidInput(`${side}.schemaVersion`, 'must be a positive integer');
-  }
-  if (schemaVersionRaw !== PREVIEW_SCHEMA_VERSION) {
-    throw new DiffCoreError(
-      `${side}.schemaVersion ${schemaVersionRaw} is unsupported. Supported major version: ${PREVIEW_SCHEMA_VERSION}.`,
-      {
-        code: 'UNSUPPORTED_SCHEMA_VERSION',
-        path: `${side}.schemaVersion`,
-        schemaVersion: schemaVersionRaw
-      }
-    );
-  }
-
-  if (!Array.isArray(value.sqlCaseCatalogs)) {
-    throw invalidInput(`${side}.sqlCaseCatalogs`, 'must be an array');
-  }
-  if (!Array.isArray(value.testCaseCatalogs)) {
-    throw invalidInput(`${side}.testCaseCatalogs`, 'must be an array');
-  }
-
-  // Minimal validation ensures deterministic failure paths before normalization.
-  for (const [catalogIndex, catalog] of value.sqlCaseCatalogs.entries()) {
-    if (!isPlainObject(catalog)) {
-      throw invalidInput(`${side}.sqlCaseCatalogs[${catalogIndex}]`, 'must be an object');
-    }
-    assertNonEmptyString(catalog.id, `${side}.sqlCaseCatalogs[${catalogIndex}].id`);
-    assertNonEmptyString(catalog.title, `${side}.sqlCaseCatalogs[${catalogIndex}].title`);
-    if (!Array.isArray(catalog.cases)) {
-      throw invalidInput(`${side}.sqlCaseCatalogs[${catalogIndex}].cases`, 'must be an array');
-    }
-    for (const [caseIndex, testCase] of catalog.cases.entries()) {
-      if (!isPlainObject(testCase)) {
-        throw invalidInput(`${side}.sqlCaseCatalogs[${catalogIndex}].cases[${caseIndex}]`, 'must be an object');
-      }
-      assertNonEmptyString(testCase.id, `${side}.sqlCaseCatalogs[${catalogIndex}].cases[${caseIndex}].id`);
-      assertNonEmptyString(testCase.title, `${side}.sqlCaseCatalogs[${catalogIndex}].cases[${caseIndex}].title`);
-    }
-  }
-
-  for (const [catalogIndex, catalog] of value.testCaseCatalogs.entries()) {
-    if (!isPlainObject(catalog)) {
-      throw invalidInput(`${side}.testCaseCatalogs[${catalogIndex}]`, 'must be an object');
-    }
-    assertNonEmptyString(catalog.id, `${side}.testCaseCatalogs[${catalogIndex}].id`);
-    assertNonEmptyString(catalog.title, `${side}.testCaseCatalogs[${catalogIndex}].title`);
-    if (!Array.isArray(catalog.cases)) {
-      throw invalidInput(`${side}.testCaseCatalogs[${catalogIndex}].cases`, 'must be an array');
-    }
-    for (const [caseIndex, testCase] of catalog.cases.entries()) {
-      if (!isPlainObject(testCase)) {
-        throw invalidInput(`${side}.testCaseCatalogs[${catalogIndex}].cases[${caseIndex}]`, 'must be an object');
-      }
-      assertNonEmptyString(testCase.id, `${side}.testCaseCatalogs[${catalogIndex}].cases[${caseIndex}].id`);
-      assertNonEmptyString(testCase.title, `${side}.testCaseCatalogs[${catalogIndex}].cases[${caseIndex}].title`);
-    }
-  }
-
-  return value as PreviewJson;
-}
-
-function normalizeCatalogsForDiff(report: PreviewJson): DiffCatalog[] {
-  const sqlCatalogs: DiffCatalog[] = report.sqlCaseCatalogs.map((catalog) => ({
-    kind: 'sql',
-    catalogId: catalog.id,
-    title: catalog.title,
-    definition: catalog.definitionPath,
-    fixtures: [...(catalog.fixtures ?? []).map((item) => item.tableName)].sort((a, b) => a.localeCompare(b)),
-    cases: catalog.cases.map((testCase) => ({
-      id: testCase.id,
-      title: testCase.title,
-      input: testCase.params,
-      output: testCase.expected
-    }))
-  }));
-
-  const functionCatalogs: DiffCatalog[] = report.testCaseCatalogs.map((catalog) => ({
-    kind: 'function',
-    catalogId: catalog.id,
-    title: catalog.title,
-    definition: catalog.definitionPath,
-    cases: catalog.cases.map((testCase) => ({
-      id: testCase.id,
-      title: testCase.title,
-      input: testCase.input,
-      output: testCase.output
-    }))
-  }));
-
-  return [...sqlCatalogs, ...functionCatalogs].sort((a, b) => a.catalogId.localeCompare(b.catalogId));
-}
-
 function caseFingerprint(args: { catalog: DiffCatalog; testCase: DiffCase }): string {
   if (args.catalog.kind === 'sql') {
     return stableStringify({
@@ -271,7 +170,6 @@ function diffCatalogCases(
     }
   }
 
-  // Fingerprint comparison keeps update detection deterministic across key order differences.
   for (const beforeCase of beforeCatalog.cases) {
     const afterCase = afterMap.get(beforeCase.id);
     if (!afterCase) {
@@ -307,7 +205,7 @@ function toStableValue(value: unknown): unknown {
   if (Array.isArray(value)) {
     return value.map((item) => toStableValue(item));
   }
-  if (isPlainObject(value)) {
+  if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
     return Object.fromEntries(
       Object.entries(value)
         .sort((a, b) => a[0].localeCompare(b[0]))
@@ -315,22 +213,4 @@ function toStableValue(value: unknown): unknown {
     );
   }
   return value;
-}
-
-function invalidInput(path: string, details: string): DiffCoreError {
-  return new DiffCoreError(`${path} ${details}.`, {
-    code: 'INVALID_INPUT',
-    path,
-    details
-  });
-}
-
-function assertNonEmptyString(value: unknown, path: string): void {
-  if (typeof value !== 'string' || value.trim().length === 0) {
-    throw invalidInput(path, 'must be a non-empty string');
-  }
-}
-
-function isPlainObject(value: unknown): value is Record<string, any> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

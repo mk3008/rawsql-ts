@@ -1,4 +1,9 @@
-import { DIFF_SCHEMA_VERSION, DiffCoreError, DiffJson, PREVIEW_SCHEMA_VERSION } from './types';
+import {
+  DIFF_SCHEMA_VERSION,
+  DiffCoreError,
+  DiffJson,
+  PREVIEW_SCHEMA_VERSION
+} from '@rawsql-ts/test-evidence-core';
 
 export type DiffReportMarkdownMeta = {
   generatedAt: string;
@@ -108,7 +113,6 @@ export function evaluateUnsupportedSchemaValidation(args: {
 function collectCatalogChangeRows(diff: DiffJson): CatalogChangeRow[] {
   const map = new Map<string, CatalogChangeRow>();
 
-  // Seed with added/removed catalogs so case IDs from full catalog snapshots are included deterministically.
   for (const entry of diff.catalogs.added) {
     map.set(entry.catalogAfter.catalogId, {
       catalogId: entry.catalogAfter.catalogId,

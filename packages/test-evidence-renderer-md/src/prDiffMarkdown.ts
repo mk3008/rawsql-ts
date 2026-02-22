@@ -1,4 +1,4 @@
-import { DiffCase, DiffCatalog, DiffJson } from '../types';
+import { DiffCase, DiffCatalog, DiffJson } from '@rawsql-ts/test-evidence-core';
 
 export type RemovedDetailLevel = 'none' | 'input' | 'full';
 
@@ -42,7 +42,6 @@ export function renderLegacyDiffMarkdown(diff: DiffJson, options?: { removedDeta
 
   lines.push('## Added catalogs');
   lines.push('');
-  // Legacy semantics: "Added catalogs" includes whole added catalogs and added cases from updated catalogs.
   if (diff.catalogs.added.length === 0 && diff.catalogs.updated.every((entry) => entry.cases.added.length === 0)) {
     lines.push('- (none)');
     lines.push('');
@@ -61,7 +60,6 @@ export function renderLegacyDiffMarkdown(diff: DiffJson, options?: { removedDeta
 
   lines.push('## Removed catalogs');
   lines.push('');
-  // Legacy semantics: "Removed catalogs" includes whole removed catalogs and removed cases from updated catalogs.
   if (diff.catalogs.removed.length === 0 && diff.catalogs.updated.every((entry) => entry.cases.removed.length === 0)) {
     lines.push('- (none)');
     lines.push('');
@@ -119,7 +117,7 @@ export function renderLegacyDiffMarkdown(diff: DiffJson, options?: { removedDeta
         lines.push('#### Updated cases');
         lines.push('');
         for (const [index, updated] of entry.cases.updated.entries()) {
-          lines.push(`### ${updated.after.id} — ${updated.after.title}`);
+          lines.push(`### ${updated.after.id} - ${updated.after.title}`);
           lines.push('input (before):');
           lines.push('```json');
           lines.push(JSON.stringify(updated.before.input, null, 2));
@@ -169,15 +167,14 @@ export function renderDiffMarkdown(diff: DiffJson): string {
   lines.push(`- head totals: tests=${diff.totals.head.tests}`);
   lines.push('');
 
-  // Test-centric view groups all case deltas by catalog and omits catalog-level delta labels.
   const groups = buildCatalogCaseGroups(diff);
   for (const group of groups) {
-    lines.push(`## ${group.catalogId} — ${group.title}`);
+    lines.push(`## ${group.catalogId} - ${group.title}`);
     lines.push('');
     lines.push(`[File](${group.definitionPath})`);
     lines.push('');
     for (const testCase of group.cases) {
-      lines.push(`### ${testCase.changeType}: ${testCase.id} — ${testCase.title}`);
+      lines.push(`### ${testCase.changeType}: ${testCase.id} - ${testCase.title}`);
       lines.push('');
       appendCaseBlocks(lines, testCase);
     }
@@ -190,7 +187,6 @@ export function renderDiffMarkdown(diff: DiffJson): string {
 function buildCatalogCaseGroups(diff: DiffJson): CatalogCaseGroup[] {
   const groups = new Map<string, CatalogCaseGroup>();
 
-  // Added catalogs contribute after-only case blocks.
   for (const entry of diff.catalogs.added) {
     const group = getOrCreateGroup(
       groups,
@@ -208,7 +204,6 @@ function buildCatalogCaseGroups(diff: DiffJson): CatalogCaseGroup[] {
       });
     }
   }
-  // Removed catalogs contribute before-only case blocks.
   for (const entry of diff.catalogs.removed) {
     const group = getOrCreateGroup(
       groups,
@@ -226,7 +221,6 @@ function buildCatalogCaseGroups(diff: DiffJson): CatalogCaseGroup[] {
       });
     }
   }
-  // Updated catalogs may contain mixed case deltas (added/removed/updated).
   for (const entry of diff.catalogs.updated) {
     const group = getOrCreateGroup(
       groups,
@@ -347,7 +341,7 @@ function appendCaseBlocks(lines: string[], testCase: CaseDelta): void {
 }
 
 function renderCatalogHeader(lines: string[], catalog: DiffCatalog): void {
-  lines.push(`### ${catalog.catalogId} — ${catalog.title}`);
+  lines.push(`### ${catalog.catalogId} - ${catalog.title}`);
   if (catalog.kind === 'sql') {
     lines.push(`- definition: ${catalog.definition ? `\`${catalog.definition}\`` : '(unknown)'}`);
     lines.push('- fixtures:');
@@ -359,7 +353,7 @@ function renderCatalogHeader(lines: string[], catalog: DiffCatalog): void {
 }
 
 function renderCase(lines: string[], testCase: DiffCase): void {
-  lines.push(`### ${testCase.id} — ${testCase.title}`);
+  lines.push(`### ${testCase.id} - ${testCase.title}`);
   lines.push('input:');
   lines.push('```json');
   lines.push(JSON.stringify(testCase.input, null, 2));
@@ -372,7 +366,7 @@ function renderCase(lines: string[], testCase: DiffCase): void {
 }
 
 function renderRemovedCase(lines: string[], testCase: DiffCase, detail: RemovedDetailLevel): void {
-  lines.push(`### ${testCase.id} — ${testCase.title}`);
+  lines.push(`### ${testCase.id} - ${testCase.title}`);
   if (detail === 'none') {
     lines.push('');
     return;

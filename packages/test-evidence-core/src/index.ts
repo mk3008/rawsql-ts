@@ -2,12 +2,8 @@ export {
   buildDiffJson,
   stableStringify
 } from './diff';
-export {
-  renderDiffReportMarkdown,
-  evaluateUnsupportedSchemaValidation,
-  type DiffReportMarkdownMeta
-} from './reportMarkdown';
-export { renderDiffMarkdown, renderLegacyDiffMarkdown, type RemovedDetailLevel } from './renderer/prDiffMarkdown';
+
+export { buildSpecificationModel } from './specificationModel';
 
 export {
   PREVIEW_SCHEMA_VERSION,
@@ -22,5 +18,6 @@ export {
   type PreviewFunctionCatalog,
   type PreviewJson,
   type PreviewSqlCase,
-  type PreviewSqlCatalog
+  type PreviewSqlCatalog,
+  type SpecificationModel
 } from './types';

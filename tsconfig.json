@@ -51,6 +51,8 @@
         "@rawsql-ts/testkit-core": ["packages/testkit-core/src"],
         "@rawsql-ts/test-evidence-core": ["packages/test-evidence-core/src"],
         "@rawsql-ts/test-evidence-core/*": ["packages/test-evidence-core/src/*"],
+        "@rawsql-ts/test-evidence-renderer-md": ["packages/test-evidence-renderer-md/src"],
+        "@rawsql-ts/test-evidence-renderer-md/*": ["packages/test-evidence-renderer-md/src/*"],
         "@rawsql-ts/ztd-cli": ["packages/ztd-cli/src"],
         "@rawsql-ts/sqlite-testkit": ["packages/drivers/sqlite-testkit/src"],
         "@rawsql-ts/adapter-node-pg": ["packages/adapters/adapter-node-pg/src"],
@@ -146,6 +148,9 @@
         },
         {
             "path": "./packages/test-evidence-core"
+        },
+        {
+            "path": "./packages/test-evidence-renderer-md"
         }
     ]
 }

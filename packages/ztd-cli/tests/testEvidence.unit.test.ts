@@ -128,14 +128,15 @@ test('formatTestEvidenceOutput emits deterministic markdown and json text', () =
   const markdown = formatTestEvidenceOutput(report, 'markdown');
   const json = formatTestEvidenceOutput(report, 'json');
 
-  expect(markdown).toContain('# Test Evidence Preview');
+  expect(markdown).toContain('# Test Evidence Specification');
   expect(markdown).toContain('- catalogs: 1');
   expect(markdown).toContain('- tests: 1');
-  expect(markdown).toContain('## unit.users — User behavior');
+  expect(markdown).toContain('## unit.users - User behavior');
   expect(markdown).toContain("definition: `tests/specs/users.catalog.ts`");
-  expect(markdown).toContain('### works — works');
+  expect(markdown).toContain('### works - works');
   expect(markdown).not.toContain('\n---\n');
-  expect(markdown).not.toContain('#### ');
+  expect(markdown).toContain('#### input');
+  expect(markdown).toContain('#### output');
   expect(markdown).not.toContain('## SQL Unit Tests');
   expect(markdown).not.toContain('## Function Unit Tests');
   expect(markdown).toContain('"works"');
@@ -176,3 +177,4 @@ test('runTestEvidenceSpecification keeps deterministic ordering, normalized path
   expect(JSON.stringify(report)).not.toContain(root);
   expect(JSON.stringify(report)).not.toMatch(/\d{4}-\d{2}-\d{2}T/);
 });
+

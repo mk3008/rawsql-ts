@@ -225,13 +225,13 @@ test('test-centric markdown groups changed cases under a single catalog heading'
     baseMode: 'ref'
   });
   const markdown = formatTestEvidencePrMarkdown(diff);
-  expect(markdown.match(/## sql\.users — users/g)?.length).toBe(1);
+  expect(markdown.match(/## sql\.users - users/g)?.length).toBe(1);
   expect(markdown).toContain('[File](src/specs/sql/users.ts)');
-  expect(markdown).toContain('### ADD: added-case — added');
+  expect(markdown).toContain('### ADD: added-case - added');
   expect(markdown).toContain('**after**');
-  expect(markdown).toContain('### REMOVE: removed-case — removed');
+  expect(markdown).toContain('### REMOVE: removed-case - removed');
   expect(markdown).toContain('**before**');
-  expect(markdown).toContain('### UPDATE: baseline — baseline');
+  expect(markdown).toContain('### UPDATE: baseline - baseline');
 });
 
 test('removed cases always render before blocks in test-centric markdown', () => {
@@ -252,7 +252,7 @@ test('removed cases always render before blocks in test-centric markdown', () =>
   });
 
   const markdown = formatTestEvidencePrMarkdown(diff, { removedDetail: 'none' });
-  expect(markdown).toContain('### REMOVE: removed-case — removed');
+  expect(markdown).toContain('### REMOVE: removed-case - removed');
   expect(markdown).toContain('**before**');
   expect(markdown).toContain('input');
   expect(markdown).toContain('output');
@@ -284,3 +284,4 @@ test('unsupported preview schemaVersion is rejected deterministically', () => {
     })
   ).toThrow(/schemaVersion|unsupported/i);
 });
+

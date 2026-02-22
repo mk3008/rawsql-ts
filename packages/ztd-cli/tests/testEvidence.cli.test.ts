@@ -100,17 +100,18 @@ test('CLI: evidence writes json and markdown artifacts', async () => {
     cases: [{ id: 'lists-users', title: 'lists users', input: { active: 1 }, output: [{ id: 1 }] }]
   });
   const markdown = readFileSync(path.join(outDir, 'test-specification.md'), 'utf8');
-  expect(markdown).toContain('# Test Evidence Preview');
+  expect(markdown).toContain('# Test Evidence Specification');
   expect(markdown).toContain('- catalogs: 2');
   expect(markdown).toContain('- tests: 3');
-  expect(markdown).toContain('## sql.active-orders — active orders');
-  expect(markdown).toContain('## unit.users — users');
+  expect(markdown).toContain('## sql.active-orders - active orders');
+  expect(markdown).toContain('## unit.users - users');
   expect(markdown).toContain("definition: `tests/specs/users.catalog.ts`");
-  expect(markdown).toContain('### baseline — baseline');
-  expect(markdown).toContain('### lists-users — lists users');
-  expect(markdown).toContain('### inactive — inactive');
-  expect(markdown).toContain('\n---\n\n### inactive — inactive');
-  expect(markdown).not.toContain('#### ');
+  expect(markdown).toContain('### baseline - baseline');
+  expect(markdown).toContain('### lists-users - lists users');
+  expect(markdown).toContain('### inactive - inactive');
+  expect(markdown).not.toContain('\n---\n');
+  expect(markdown).toContain('#### input');
+  expect(markdown).toContain('#### output');
   expect(markdown).not.toContain('## SQL Unit Tests');
   expect(markdown).not.toContain('## Function Unit Tests');
   expect(markdown).toContain('"active": 1');
@@ -140,3 +141,4 @@ test('resolveTestEvidenceExitCode maps success and runtime failures', () => {
   expect(resolveTestEvidenceExitCode({ error: new Error('x') })).toBe(1);
   expect(resolveTestEvidenceExitCode({ error: new TestEvidenceRuntimeError('bad config') })).toBe(2);
 });
+

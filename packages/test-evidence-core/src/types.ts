@@ -63,6 +63,20 @@ export interface DiffCatalog {
 }
 
 /**
+ * Pure intermediate specification model derived from PreviewJson.
+ */
+export interface SpecificationModel {
+  schemaVersion: typeof PREVIEW_SCHEMA_VERSION;
+  totals: {
+    catalogs: number;
+    sqlCatalogs: number;
+    functionCatalogs: number;
+    tests: number;
+  };
+  catalogs: DiffCatalog[];
+}
+
+/**
  * Deterministic diff JSON contract generated from base/head preview JSON documents.
  */
 export interface DiffJson {

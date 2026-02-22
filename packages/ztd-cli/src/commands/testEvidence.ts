@@ -4,15 +4,19 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { Command } from 'commander';
 import {
+  buildSpecificationModel,
   buildDiffJson,
-  renderDiffMarkdown,
   stableStringify as coreStableStringify,
   type DiffCase as CorePrDiffCase,
   type DiffCatalog as CorePrDiffCatalog,
   type DiffJson as CoreTestSpecificationPrDiff,
-  type RemovedDetailLevel,
   type PreviewJson as TestEvidencePreviewJson
 } from '@rawsql-ts/test-evidence-core';
+import {
+  renderDiffMarkdown,
+  renderSpecificationMarkdown,
+  type RemovedDetailLevel
+} from '@rawsql-ts/test-evidence-renderer-md';
 
 /**
  * Supported evidence generation modes for `ztd evidence`.
@@ -386,63 +390,8 @@ export function formatTestEvidenceOutput(report: TestSpecificationEvidence, form
     return `${JSON.stringify(report, null, 2)}\n`;
   }
 
-  const sqlTestsCount = report.sqlCaseCatalogs.reduce((total, catalog) => total + catalog.cases.length, 0);
-  const functionTestsCount = report.testCaseCatalogs.reduce((total, catalog) => total + catalog.cases.length, 0);
-  const totalCatalogCount = report.sqlCaseCatalogs.length + report.testCaseCatalogs.length;
-  const lines: string[] = [];
-  lines.push('# Test Evidence Preview');
-  lines.push('');
-  lines.push(`- catalogs: ${totalCatalogCount}`);
-  lines.push(`- tests: ${sqlTestsCount + functionTestsCount}`);
-  lines.push('');
-  for (const catalog of report.sqlCaseCatalogs) {
-    lines.push(`## ${catalog.id} — ${catalog.title}`);
-    lines.push(`- definition: ${catalog.definitionPath ? `\`${catalog.definitionPath}\`` : '(unknown)'}`);
-    lines.push('- fixtures:');
-    for (const fixture of catalog.fixtures) {
-      lines.push(`  - ${fixture.tableName}`);
-    }
-    lines.push('');
-    for (const [index, testCase] of catalog.cases.entries()) {
-      lines.push(`### ${testCase.id} — ${testCase.title}`);
-      lines.push('input:');
-      lines.push('```json');
-      lines.push(JSON.stringify(testCase.params, null, 2));
-      lines.push('```');
-      lines.push('output:');
-      lines.push('```json');
-      lines.push(JSON.stringify(testCase.expected, null, 2));
-      lines.push('```');
-      lines.push('');
-      if (index < catalog.cases.length - 1) {
-        lines.push('---');
-        lines.push('');
-      }
-    }
-  }
-  for (const catalog of report.testCaseCatalogs) {
-    lines.push(`## ${catalog.id} — ${catalog.title}`);
-    lines.push(`- definition: ${catalog.definitionPath ? `\`${catalog.definitionPath}\`` : '(unknown)'}`);
-    lines.push('');
-    for (const [index, testCase] of catalog.cases.entries()) {
-      lines.push(`### ${testCase.id} — ${testCase.title}`);
-      lines.push('input:');
-      lines.push('```json');
-      lines.push(JSON.stringify(testCase.input, null, 2));
-      lines.push('```');
-      lines.push('output:');
-      lines.push('```json');
-      lines.push(JSON.stringify(testCase.output, null, 2));
-      lines.push('```');
-      lines.push('');
-      if (index < catalog.cases.length - 1) {
-        lines.push('---');
-        lines.push('');
-      }
-    }
-  }
-  lines.push('');
-  return lines.join('\n');
+  const model = buildSpecificationModel(report as TestEvidencePreviewJson);
+  return `${renderSpecificationMarkdown(model)}\n`;
 }
 
 /**

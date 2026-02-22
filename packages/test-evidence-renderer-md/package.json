@@ -1,7 +1,7 @@
 {
-  "name": "@rawsql-ts/test-evidence-core",
+  "name": "@rawsql-ts/test-evidence-renderer-md",
   "version": "0.1.0",
-  "description": "Deterministic PreviewJson to DiffJson transformation for rawsql-ts test evidence.",
+  "description": "Markdown projection renderers for rawsql-ts test evidence models.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
@@ -15,26 +15,29 @@
     "build": "tsc -p tsconfig.json",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "eslint src --ext .ts --ignore-pattern \"*.d.ts\""
+    "lint": "eslint src --ext .ts"
   },
   "keywords": [
     "rawsql-ts",
     "test-evidence",
-    "diff",
-    "deterministic"
+    "markdown",
+    "renderer"
   ],
   "license": "MIT",
   "author": "msugiura",
   "repository": {
     "type": "git",
     "url": "https://github.com/mk3008/rawsql-ts.git",
-    "directory": "packages/test-evidence-core"
+    "directory": "packages/test-evidence-renderer-md"
   },
   "publishConfig": {
     "access": "public"
   },
   "engines": {
     "node": ">=20"
+  },
+  "dependencies": {
+    "@rawsql-ts/test-evidence-core": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.8.2",
