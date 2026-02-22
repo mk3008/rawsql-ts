@@ -1,37 +1,49 @@
-import { afterAll, describe, expect, it } from 'vitest';
+import { execSync } from 'node:child_process';
+import { afterAll, beforeAll, describe, expect } from 'vitest';
 import type { TableFixture } from '@rawsql-ts/testkit-core';
 import { createPgTestkitClient } from '@rawsql-ts/adapter-node-pg';
+import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { Client } from 'pg';
 import type { TableDefinitionModel } from 'rawsql-ts';
 import { runSqlCatalog, type SqlCatalogExecutor } from './utils/sqlCatalog';
 import { sampleSqlCatalog } from './specs/sql/sample';
 
-describe('sql catalog runner (ztd)', () => {
-  const connectionString = process.env.TEST_PG_URI;
+const containerRuntimeAvailable = (() => {
+  try {
+    execSync('docker info', { stdio: 'ignore', timeout: 10000 });
+    return true;
+  } catch {
+    return false;
+  }
+})();
+
+const ztdDescribe = containerRuntimeAvailable ? describe : describe.skip;
+
+ztdDescribe('sql catalog runner (ztd)', () => {
+  let container: StartedPostgreSqlContainer | null = null;
   const executedCaseIds = new Set<string>();
   const fixturesAppliedHistory: string[][] = [];
   const rewrittenSqlHistory: string[] = [];
 
-  // Only register container-backed cases when shared Postgres fixture is available.
-  if (connectionString) {
-    runSqlCatalog(sampleSqlCatalog, {
-      executor: createZtdSampleExecutor({
-        onExecute: (sql, _params, fixtures) => {
-          rewrittenSqlHistory.push(sql);
-          fixturesAppliedHistory.push([...(fixtures ?? [])]);
-        },
-        getConnectionString: () => connectionString,
-      }),
-      onCaseExecuted: (id) => executedCaseIds.add(id),
-    });
-  }
-  if (!connectionString) {
-    it.skip('skips sql catalog execution when TEST_PG_URI is unavailable', () => {});
-  }
+  beforeAll(async () => {
+    // Use a disposable real Postgres instance so this test reflects ZTD execution semantics.
+    container = await new PostgreSqlContainer('postgres:18-alpine').start();
+  }, 120000);
+
+  runSqlCatalog(sampleSqlCatalog, {
+    executor: createZtdSampleExecutor({
+      onExecute: (sql, _params, fixtures) => {
+        rewrittenSqlHistory.push(sql);
+        fixturesAppliedHistory.push([...(fixtures ?? [])]);
+      },
+      getConnectionString: () => requireConnectionString(container),
+    }),
+    onCaseExecuted: (id) => executedCaseIds.add(id),
+  });
 
   afterAll(async () => {
-    if (!connectionString) {
-      return;
+    if (container) {
+      await container.stop();
     }
     expect([...executedCaseIds].sort()).toEqual([
       'returns-active-users',
@@ -97,6 +109,13 @@ function getFixtureColumns(fixture: TableFixture): Array<[string, string]> {
     return [];
   }
   return Object.keys(firstRow).map((name) => [name, 'text']);
+}
+
+function requireConnectionString(container: StartedPostgreSqlContainer | null): string {
+  if (!container) {
+    throw new Error('Postgres container is not initialized for sql catalog ZTD runner test.');
+  }
+  return container.getConnectionUri();
 }
 
 function projectRow(

@@ -1,0 +1,202 @@
+import path from 'node:path';
+import type { ReferenceDocModel, TableDocModel } from '../types';
+import { formatCodeCell, formatTableCell } from '../utils/markdown';
+
+/**
+ * Suggested SQL statements grouped by table.
+ */
+export interface TableSuggestionSql {
+  /**
+   * COMMENT ON COLUMN suggestions for missing column comments.
+   */
+  columnCommentSql: string[];
+  /**
+   * ALTER TABLE ... ADD FOREIGN KEY suggestions.
+   */
+  foreignKeySql: string[];
+}
+
+/**
+ * Renders a single table definition markdown page.
+ */
+export function renderTableMarkdown(table: TableDocModel, suggestedSql: TableSuggestionSql): string {
+  const lines: string[] = [];
+  lines.push('<!-- generated-by: @rawsql-ts/ddl-docs-cli -->');
+  lines.push('');
+  lines.push(`# ${table.schema}.${table.table}`);
+  lines.push('');
+  lines.push('[<- All Schemas](../index.md) | [Table Index](./index.md)');
+  lines.push('');
+  lines.push('## Overview');
+  lines.push('');
+  lines.push(`- Comment: ${formatTableCell(table.tableComment)}`);
+  lines.push(`- Source Files: ${formatTableCell(table.sourceFiles.map((entry) => `\`${entry}\``).join('<br>'))}`);
+  lines.push('');
+  lines.push('## Columns');
+  lines.push('');
+  lines.push('| Key | Column | Type | Nullable | Default | Comment | Usages |');
+  lines.push('| --- | --- | --- | --- | --- | --- | --- |');
+
+  for (const column of table.columns) {
+    lines.push(renderColumnRow(column));
+  }
+
+  lines.push('');
+  lines.push('## Constraints');
+  lines.push('');
+  const nonKeyConstraints = table.constraints.filter((constraint) => constraint.kind !== 'PK' && constraint.kind !== 'FK');
+  if (nonKeyConstraints.length === 0) {
+    lines.push('- None');
+  } else {
+    lines.push('| Kind | Name | Expression |');
+    lines.push('| --- | --- | --- |');
+    for (const constraint of nonKeyConstraints) {
+      lines.push(`| ${constraint.kind} | ${formatCodeCell(constraint.name)} | ${formatTableCell(constraint.expression)} |`);
+    }
+  }
+
+  lines.push('');
+  lines.push('## References');
+  lines.push('');
+  lines.push('### DDL');
+  lines.push('');
+  const ddlReferences = mergeAndSortReferences(
+    table.outgoingReferences.filter((reference) => reference.source === 'ddl'),
+    table.incomingReferences.filter((reference) => reference.source === 'ddl')
+  );
+  if (ddlReferences.length === 0) {
+    lines.push('- None');
+  } else {
+    lines.push(...renderReferenceTable(ddlReferences, table, 'ddl'));
+  }
+
+  lines.push('');
+  lines.push('### Suggest');
+  lines.push('');
+  const suggestedReferences = mergeAndSortReferences(
+    table.outgoingReferences.filter((reference) => reference.source === 'suggested'),
+    table.incomingReferences.filter((reference) => reference.source === 'suggested')
+  );
+  if (suggestedReferences.length === 0) {
+    lines.push('- None');
+  } else {
+    lines.push(...renderReferenceTable(suggestedReferences, table, 'suggest'));
+  }
+
+  lines.push('');
+  lines.push('## Appendix');
+  lines.push('');
+  lines.push('### Normalized SQL');
+  lines.push('');
+  lines.push('```sql');
+  lines.push(table.normalizedSql);
+  lines.push('```');
+
+  if (suggestedSql.columnCommentSql.length > 0) {
+    lines.push('');
+    lines.push('### Suggested Column Comment SQL (Optional)');
+    lines.push('');
+    lines.push('```sql');
+    lines.push('-- suggested: v1 (not applied)');
+    lines.push(...suggestedSql.columnCommentSql);
+    lines.push('```');
+  }
+
+  if (suggestedSql.foreignKeySql.length > 0) {
+    lines.push('');
+    lines.push('### Suggested Foreign Key Constraint SQL (Optional)');
+    lines.push('');
+    lines.push('```sql');
+    lines.push('-- suggested: v1 (not applied)');
+    lines.push(...suggestedSql.foreignKeySql);
+    lines.push('```');
+  }
+
+  lines.push('');
+  return lines.join('\n');
+}
+
+/**
+ * Returns output path for a rendered table markdown page.
+ */
+export function tableDocPath(outDir: string, schemaSlug: string, tableSlug: string): string {
+  return path.join(outDir, schemaSlug, `${tableSlug}.md`);
+}
+
+function linkFromTablePage(current: TableDocModel, targetSchemaSlug: string, targetTableSlug: string): string {
+  if (current.schemaSlug === targetSchemaSlug) {
+    return `./${targetTableSlug}.md`;
+  }
+  return `../${targetSchemaSlug}/${targetTableSlug}.md`;
+}
+
+function renderColumnRow(column: TableDocModel['columns'][number]): string {
+  const keyCell = column.isPrimaryKey ? 'PK' : '';
+  const nameCell = formatCodeCell(column.name);
+  const typeCell = formatCodeCell(column.typeName);
+  const nullableCell = column.nullable ? 'YES' : 'NO';
+  const defaultCell = formatCodeCell(column.defaultValue);
+  const commentCell = formatTableCell(column.comment);
+  const usagesCell = `[See usages](./columns/${column.conceptSlug}.md)`;
+  return `| ${keyCell} | ${nameCell} | ${typeCell} | ${nullableCell} | ${defaultCell} | ${commentCell} | ${usagesCell} |`;
+}
+
+function renderReferenceTable(
+  references: ReferenceDocModel[],
+  table: TableDocModel,
+  mode: 'ddl' | 'suggest'
+): string[] {
+  const lines: string[] = [];
+  if (mode === 'ddl') {
+    lines.push('| From | To | Columns | On Delete | On Update |');
+    lines.push('| --- | --- | --- | --- | --- |');
+  } else {
+    lines.push('| From | To | Columns | Match |');
+    lines.push('| --- | --- | --- | --- |');
+  }
+  for (const reference of references) {
+    const fromCell = renderFromCell(reference, table);
+    const toCell = renderToCell(reference, table);
+    const columnsCell = formatCodeCell(
+      `${reference.fromColumns.join(', ') || '?'} -> ${reference.targetColumns.join(', ') || '?'}`
+    );
+    const matchCell = reference.matchRule ? formatCodeCell(reference.matchRule) : '-';
+    const onDeleteCell = formatCodeCell(reference.onDeleteAction ?? 'none');
+    const onUpdateCell = formatCodeCell(reference.onUpdateAction ?? 'none');
+    if (mode === 'ddl') {
+      lines.push(`| ${fromCell} | ${toCell} | ${columnsCell} | ${onDeleteCell} | ${onUpdateCell} |`);
+    } else {
+      lines.push(`| ${fromCell} | ${toCell} | ${columnsCell} | ${matchCell} |`);
+    }
+  }
+  return lines;
+}
+
+function renderFromCell(reference: ReferenceDocModel, table: TableDocModel): string {
+  if (reference.direction === 'outgoing') {
+    return formatCodeCell(reference.fromTableKey);
+  }
+  const linkPath = linkFromTablePage(table, reference.fromSchemaSlug, reference.fromTableSlug);
+  return `[${reference.fromTableKey}](${linkPath})`;
+}
+
+function renderToCell(reference: ReferenceDocModel, table: TableDocModel): string {
+  if (reference.direction === 'incoming') {
+    return formatCodeCell(reference.targetTableKey);
+  }
+  const linkPath = linkFromTablePage(table, reference.targetSchemaSlug, reference.targetTableSlug);
+  return `[${reference.targetTableKey}](${linkPath})`;
+}
+
+function mergeAndSortReferences(outgoing: ReferenceDocModel[], incoming: ReferenceDocModel[]): ReferenceDocModel[] {
+  const deduped = new Map<string, ReferenceDocModel>();
+  for (const reference of [...outgoing, ...incoming]) {
+    const key = `${reference.fromTableKey}|${reference.targetTableKey}|${reference.fromColumns.join(',')}|${reference.targetColumns.join(',')}|${reference.matchRule ?? ''}|${reference.onDeleteAction ?? ''}|${reference.onUpdateAction ?? ''}`;
+    if (!deduped.has(key)) {
+      deduped.set(key, reference);
+    }
+  }
+  return Array.from(deduped.entries())
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([, reference]) => reference);
+}

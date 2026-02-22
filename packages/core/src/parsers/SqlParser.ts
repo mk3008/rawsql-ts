@@ -17,6 +17,7 @@ import type {
     ExplainStatement,
     CreateSequenceStatement,
     AlterSequenceStatement,
+    CommentOnStatement,
     VacuumStatement,
     ReindexStatement,
     ClusterStatement,
@@ -44,6 +45,7 @@ import { VacuumStatementParser } from './VacuumStatementParser';
 import { ReindexStatementParser } from './ReindexStatementParser';
 import { ClusterStatementParser } from './ClusterStatementParser';
 import { CheckpointStatementParser } from './CheckpointStatementParser';
+import { CommentOnParser } from './CommentOnParser';
 
 export type ParsedStatement =
     | SelectQuery
@@ -60,6 +62,7 @@ export type ParsedStatement =
     | CreateSequenceStatement
     | AlterTableStatement
     | AlterSequenceStatement
+    | CommentOnStatement
     | DropConstraintStatement
     | AnalyzeStatement
     | ExplainStatement
@@ -214,6 +217,9 @@ export class SqlParser {
 
             case 'drop constraint':
                 return this.parseDropConstraintStatement(segment, statementIndex);
+            case 'comment on table':
+            case 'comment on column':
+                return this.parseCommentOnStatement(segment, statementIndex);
 
             case 'analyze':
                 return this.parseAnalyzeStatement(segment, statementIndex);
@@ -593,6 +599,23 @@ export class SqlParser {
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
             throw new Error(`[SqlParser] Failed to parse DROP CONSTRAINT statement ${statementIndex}: ${message}`);
+        }
+    }
+
+    private static parseCommentOnStatement(segment: StatementLexemeResult, statementIndex: number): CommentOnStatement {
+        try {
+            const result = CommentOnParser.parseFromLexeme(segment.lexemes, 0);
+            if (result.newIndex < segment.lexemes.length) {
+                const unexpected = segment.lexemes[result.newIndex];
+                const position = unexpected.position?.startPosition ?? segment.statementStart;
+                throw new Error(
+                    `[SqlParser] Unexpected token "${unexpected.value}" in statement ${statementIndex} at character ${position}.`
+                );
+            }
+            return result.value;
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            throw new Error(`[SqlParser] Failed to parse COMMENT ON statement ${statementIndex}: ${message}`);
         }
     }
 
