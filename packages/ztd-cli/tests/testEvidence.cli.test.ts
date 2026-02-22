@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { Command } from 'commander';
@@ -99,10 +99,30 @@ test('CLI: evidence writes json and markdown artifacts', async () => {
     definitionPath: 'tests/specs/users.catalog.ts',
     cases: [{ id: 'lists-users', title: 'lists users', input: { active: 1 }, output: [{ id: 1 }] }]
   });
-  const markdown = readFileSync(path.join(outDir, 'test-specification.md'), 'utf8');
-  expect(markdown).toContain('# Test Evidence Specification');
-  expect(markdown).toContain('- catalogs: 2');
-  expect(markdown).toContain('- tests: 3');
+  const markdownFiles = readdirSync(outDir)
+    .filter((name) => name.startsWith('test-specification.') && name.endsWith('.md'))
+    .sort();
+  expect(markdownFiles).toEqual([
+    'test-specification.index.md',
+    'test-specification.tests__specs__users-catalog.md',
+    'test-specification.unknown.md'
+  ]);
+  const markdown = markdownFiles
+    .map((name) => readFileSync(path.join(outDir, name), 'utf8'))
+    .join('\n');
+  const indexMarkdown = readFileSync(path.join(outDir, 'test-specification.index.md'), 'utf8');
+  const usersMarkdown = readFileSync(path.join(outDir, 'test-specification.tests__specs__users-catalog.md'), 'utf8');
+  const unknownMarkdown = readFileSync(path.join(outDir, 'test-specification.unknown.md'), 'utf8');
+  expect(indexMarkdown).toContain('# Unit Test Index');
+  expect(indexMarkdown).toContain('[test-specification.tests__specs__users-catalog.md](./test-specification.tests__specs__users-catalog.md)');
+  expect(indexMarkdown).toContain('[test-specification.unknown.md](./test-specification.unknown.md)');
+  expect(usersMarkdown).toContain('- index: [Unit Test Index](./test-specification.index.md)');
+  expect(unknownMarkdown).toContain('- index: [Unit Test Index](./test-specification.index.md)');
+  expect(markdown).toContain('# users.catalog.ts');
+  expect(markdown).toContain('# unknown');
+  expect(markdown).toContain('- catalogs: 1');
+  expect(markdown).toContain('- tests: 1');
+  expect(markdown).toContain('- tests: 2');
   expect(markdown).toContain('## sql.active-orders - active orders');
   expect(markdown).toContain('## unit.users - users');
   expect(markdown).toContain("definition: [tests/specs/users.catalog.ts](../tests/specs/users.catalog.ts)");

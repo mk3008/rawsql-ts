@@ -9,7 +9,7 @@
 
 ## sql.added-catalog - Added SQL Catalog
 
-[File](../../packages/ztd-cli/src/specs/sql/added.catalog.ts)
+[File](../../packages/ztd-cli/src/specs/sql/activeOrders.catalog.ts)
 
 ### ADD: new - new
 
@@ -30,7 +30,7 @@ output
 
 ## sql.removed-catalog - Removed SQL Catalog
 
-[File](../../packages/ztd-cli/src/specs/sql/removed.catalog.ts)
+[File](../../packages/ztd-cli/src/specs/sql/usersList.catalog.ts)
 
 ### REMOVE: gone - gone
 
@@ -51,7 +51,7 @@ output
 
 ## sql.users - Users SQL
 
-[File](../../packages/ztd-cli/src/specs/sql/users.catalog.ts)
+[File](../../packages/ztd-cli/src/specs/sql/usersList.catalog.ts)
 
 ### ADD: added-case - newly added
 

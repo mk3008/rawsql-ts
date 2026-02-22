@@ -77,6 +77,9 @@ export function normalizeCatalogsForDiff(report: PreviewJson): DiffCatalog[] {
     kind: 'sql',
     catalogId: catalog.id,
     title: catalog.title,
+    ...(typeof catalog.description === 'string' && catalog.description.trim().length > 0
+      ? { description: catalog.description.trim() }
+      : {}),
     definition: catalog.definitionPath,
     fixtures: [...(catalog.fixtures ?? []).map((item) => item.tableName)].sort((a, b) => a.localeCompare(b)),
     cases: catalog.cases.map((testCase) => ({
@@ -91,6 +94,9 @@ export function normalizeCatalogsForDiff(report: PreviewJson): DiffCatalog[] {
     kind: 'function',
     catalogId: catalog.id,
     title: catalog.title,
+    ...(typeof catalog.description === 'string' && catalog.description.trim().length > 0
+      ? { description: catalog.description.trim() }
+      : {}),
     definition: catalog.definitionPath,
     cases: catalog.cases.map((testCase) => ({
       id: testCase.id,

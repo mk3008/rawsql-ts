@@ -16,6 +16,7 @@ function createPreview(args: {
   sqlCatalogs?: Array<{
     id: string;
     title: string;
+    description?: string;
     definitionPath?: string;
     fixtures?: string[];
     cases: Array<{ id: string; title: string; input: Record<string, unknown>; output: unknown[] }>;
@@ -23,6 +24,7 @@ function createPreview(args: {
   functionCatalogs?: Array<{
     id: string;
     title: string;
+    description?: string;
     definitionPath?: string;
     cases: Array<{ id: string; title: string; input: unknown; output: unknown }>;
   }>;
@@ -32,6 +34,7 @@ function createPreview(args: {
     sqlCaseCatalogs: (args.sqlCatalogs ?? []).map((catalog) => ({
       id: catalog.id,
       title: catalog.title,
+      ...(catalog.description ? { description: catalog.description } : {}),
       ...(catalog.definitionPath ? { definitionPath: catalog.definitionPath } : {}),
       fixtures: (catalog.fixtures ?? []).map((tableName) => ({ tableName })),
       cases: catalog.cases.map((testCase) => ({
@@ -44,6 +47,7 @@ function createPreview(args: {
     testCaseCatalogs: (args.functionCatalogs ?? []).map((catalog) => ({
       id: catalog.id,
       title: catalog.title,
+      ...(catalog.description ? { description: catalog.description } : {}),
       ...(catalog.definitionPath ? { definitionPath: catalog.definitionPath } : {}),
       cases: catalog.cases.map((testCase) => ({
         id: testCase.id,
@@ -143,6 +147,7 @@ test('renderSpecificationMarkdown options change presentation only', () => {
       {
         id: 'sql.users',
         title: 'users',
+        description: 'User SQL catalog summary.',
         fixtures: ['users', 'orders'],
         cases: [{ id: 'baseline', title: 'baseline', input: { active: 1 }, output: [{ id: 1 }] }]
       }
@@ -155,10 +160,12 @@ test('renderSpecificationMarkdown options change presentation only', () => {
 
   expect(withoutFixtures).not.toContain('- fixtures: orders, users');
   expect(withFixtures).toContain('- fixtures: orders, users');
+  expect(withFixtures).toContain('## sql.users - users');
+  expect(withFixtures).toContain('User SQL catalog summary.');
+  expect(withFixtures).not.toContain('- kind: sql');
+  expect(withFixtures).toContain('### baseline - baseline');
   expect(withFixtures).toContain('#### input');
   expect(withFixtures).toContain('#### output');
-  expect(withFixtures).not.toContain('input:');
-  expect(withFixtures).not.toContain('output:');
   expect(stableStringify(model)).toBe(modelBefore);
 });
 

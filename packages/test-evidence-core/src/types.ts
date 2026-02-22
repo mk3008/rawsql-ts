@@ -57,6 +57,7 @@ export interface DiffCatalog {
   kind: 'sql' | 'function';
   catalogId: string;
   title: string;
+  description?: string;
   definition?: string;
   fixtures?: string[];
   cases: DiffCase[];
@@ -124,6 +125,7 @@ export interface PreviewSqlCase {
 export interface PreviewSqlCatalog {
   id: string;
   title: string;
+  description?: string;
   definitionPath?: string;
   fixtures?: Array<{ tableName: string }>;
   cases: PreviewSqlCase[];
@@ -145,6 +147,7 @@ export interface PreviewFunctionCase {
 export interface PreviewFunctionCatalog {
   id: string;
   title: string;
+  description?: string;
   definitionPath?: string;
   cases: PreviewFunctionCase[];
 }

@@ -4,6 +4,7 @@ import { DefinitionLinkOptions, formatDefinitionMarkdown } from './definitionLin
 export type SpecificationMarkdownOptions = {
   includeFixtures?: boolean;
   definitionLinks?: DefinitionLinkOptions;
+  title?: string;
 };
 
 /**
@@ -16,21 +17,22 @@ export function renderSpecificationMarkdown(
 ): string {
   const includeFixtures = options?.includeFixtures ?? true;
   const definitionLinks = options?.definitionLinks;
+  const title = options?.title ?? 'Test Evidence Specification';
   const lines: string[] = [];
 
-  lines.push('# Test Evidence Specification');
+  lines.push(`# ${title}`);
   lines.push('');
   lines.push(`- schemaVersion: ${model.schemaVersion}`);
   lines.push(`- catalogs: ${model.totals.catalogs}`);
-  lines.push(`- sqlCatalogs: ${model.totals.sqlCatalogs}`);
-  lines.push(`- functionCatalogs: ${model.totals.functionCatalogs}`);
-  lines.push(`- tests: ${model.totals.tests}`);
   lines.push('');
 
   for (const catalog of model.catalogs) {
     lines.push(`## ${catalog.catalogId} - ${catalog.title}`);
-    lines.push(`- kind: ${catalog.kind}`);
     lines.push(`- definition: ${formatDefinitionMarkdown(catalog.definition, definitionLinks)}`);
+    if (catalog.description) {
+      lines.push(`- description: ${catalog.description}`);
+    }
+    lines.push(`- tests: ${catalog.cases.length}`);
     if (catalog.kind === 'sql' && includeFixtures) {
       lines.push(`- fixtures: ${(catalog.fixtures ?? []).join(', ') || '(none)'}`);
     }

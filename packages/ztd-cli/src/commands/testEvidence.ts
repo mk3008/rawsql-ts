@@ -584,18 +584,123 @@ function writeArtifacts(args: {
   }
 
   if (args.format === 'markdown' || args.format === 'both') {
-    const mdPath = path.join(args.outDir, 'test-specification.md');
-    writeFileSync(
-      mdPath,
-      formatTestEvidenceOutput(args.report, 'markdown', { markdownPath: mdPath, sourceRootDir: args.sourceRootDir }),
-      'utf8'
-    );
-    writtenFiles.push(mdPath);
+    const markdownPaths = writeSpecificationMarkdownArtifacts(args.report, args.outDir, args.sourceRootDir);
+    writtenFiles.push(...markdownPaths);
   }
 
   for (const filePath of writtenFiles.sort((a, b) => a.localeCompare(b))) {
     console.log(`wrote: ${filePath}`);
   }
+}
+
+function writeSpecificationMarkdownArtifacts(
+  report: TestSpecificationEvidence,
+  outDir: string,
+  sourceRootDir: string
+): string[] {
+  const indexFileName = 'test-specification.index.md';
+  const model = buildSpecificationModel(report as TestEvidencePreviewJson);
+  const catalogsByDefinition = new Map<string, typeof model.catalogs>();
+  for (const catalog of model.catalogs) {
+    const key = catalog.definition ?? '(unknown)';
+    const existing = catalogsByDefinition.get(key);
+    if (existing) {
+      existing.push(catalog);
+    } else {
+      catalogsByDefinition.set(key, [catalog]);
+    }
+  }
+
+  const written: string[] = [];
+  const indexRows: Array<{
+    fileName: string;
+    definition: string;
+    catalogs: number;
+    tests: number;
+  }> = [];
+  for (const [definition, catalogs] of [...catalogsByDefinition.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+    const catalogList = [...catalogs].sort((a, b) => a.catalogId.localeCompare(b.catalogId));
+    const partialModel = {
+      ...model,
+      totals: {
+        catalogs: catalogList.length,
+        sqlCatalogs: catalogList.filter((item) => item.kind === 'sql').length,
+        functionCatalogs: catalogList.filter((item) => item.kind === 'function').length,
+        tests: catalogList.reduce((count, item) => count + item.cases.length, 0)
+      },
+      catalogs: catalogList
+    };
+    const slug = toSpecificationSlug(definition);
+    const title = toSpecificationTitleLabel(definition);
+    const mdPath = path.join(outDir, `test-specification.${slug}.md`);
+    const fileName = path.basename(mdPath);
+    const indexLinkLine = `- index: [Unit Test Index](./${indexFileName})`;
+    const rendered = renderSpecificationMarkdown(partialModel, {
+      title,
+      definitionLinks: resolveDefinitionLinkOptions({ markdownPath: mdPath, sourceRootDir })
+    });
+    const lines = rendered.split('\n');
+    lines.splice(2, 0, indexLinkLine, '');
+    writeFileSync(
+      mdPath,
+      `${lines.join('\n')}\n`,
+      'utf8'
+    );
+    written.push(mdPath);
+    indexRows.push({
+      fileName,
+      definition,
+      catalogs: partialModel.totals.catalogs,
+      tests: partialModel.totals.tests
+    });
+  }
+
+  const indexPath = path.join(outDir, indexFileName);
+  const indexLines: string[] = [];
+  indexLines.push('# Unit Test Index');
+  indexLines.push('');
+  indexLines.push(`- files: ${indexRows.length}`);
+  indexLines.push(`- catalogs: ${indexRows.reduce((count, row) => count + row.catalogs, 0)}`);
+  indexLines.push(`- tests: ${indexRows.reduce((count, row) => count + row.tests, 0)}`);
+  indexLines.push('');
+  indexLines.push('## Specification Files');
+  indexLines.push('');
+  for (const row of indexRows.sort((a, b) => a.fileName.localeCompare(b.fileName))) {
+    const definitionLabel = row.definition === '(unknown)' ? '(unknown)' : row.definition;
+    indexLines.push(`- [${row.fileName}](./${row.fileName})`);
+    indexLines.push(`  - definition: ${definitionLabel}`);
+    indexLines.push(`  - catalogs: ${row.catalogs}`);
+    indexLines.push(`  - tests: ${row.tests}`);
+  }
+  indexLines.push('');
+  writeFileSync(indexPath, `${indexLines.join('\n')}\n`, 'utf8');
+  written.push(indexPath);
+
+  return written;
+}
+
+function toSpecificationSlug(definition: string): string {
+  if (definition === '(unknown)') {
+    return 'unknown';
+  }
+  const normalized = definition
+    .replace(/\\/g, '/')
+    .replace(/^\//, '')
+    .replace(/\.[^.\\/]+$/, '')
+    .replace(/[^a-zA-Z0-9/_-]+/g, '-')
+    .replace(/\/+/g, '__')
+    .replace(/-+/g, '-')
+    .replace(/^[-_]+|[-_]+$/g, '');
+  return normalized || 'unknown';
+}
+
+function toSpecificationTitleLabel(definition: string): string {
+  if (definition === '(unknown)') {
+    return 'unknown';
+  }
+  const normalized = definition.replace(/\\/g, '/').trim();
+  const parts = normalized.split('/').filter((item) => item.length > 0);
+  return parts[parts.length - 1] ?? 'unknown';
 }
 
 function materializeEvidenceForRef(args: {
