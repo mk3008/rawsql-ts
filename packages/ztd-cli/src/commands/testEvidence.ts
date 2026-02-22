@@ -5,10 +5,12 @@ import { execFileSync } from 'node:child_process';
 import { Command } from 'commander';
 import {
   buildDiffJson,
+  renderDiffMarkdown,
   stableStringify as coreStableStringify,
   type DiffCase as CorePrDiffCase,
   type DiffCatalog as CorePrDiffCatalog,
   type DiffJson as CoreTestSpecificationPrDiff,
+  type RemovedDetailLevel,
   type PreviewJson as TestEvidencePreviewJson
 } from '@rawsql-ts/test-evidence-core';
 
@@ -21,7 +23,6 @@ export type TestEvidenceMode = 'specification';
  * Output formats accepted by `ztd evidence`.
  */
 export type TestEvidenceFormat = 'json' | 'markdown' | 'both';
-type RemovedDetailLevel = 'none' | 'input' | 'full';
 type TestEvidenceErrorCode = 'NO_SPECS_FOUND';
 
 /**
@@ -481,129 +482,8 @@ export function formatTestEvidencePrMarkdown(
   diff: TestSpecificationPrDiff,
   options?: { removedDetail?: RemovedDetailLevel }
 ): string {
-  const removedDetail = options?.removedDetail ?? 'input';
-  const lines: string[] = [];
-  lines.push('# Test Evidence (PR Diff)');
-  lines.push('');
-  if (diff.baseMode === 'merge-base') {
-    lines.push(`- base: merge-base(${diff.base.ref}, ${diff.head.ref}) (${diff.base.sha})`);
-  } else {
-    lines.push(`- base: ${diff.base.ref} (${diff.base.sha})`);
-  }
-  lines.push(`- head: ${diff.head.ref} (${diff.head.sha})`);
-  lines.push(`- base-mode: ${diff.baseMode}`);
-  lines.push(`- catalogs: +${diff.summary.catalogs.added} / -${diff.summary.catalogs.removed} / ~${diff.summary.catalogs.updated}`);
-  lines.push(`- tests: +${diff.summary.cases.added} / -${diff.summary.cases.removed} / ~${diff.summary.cases.updated}`);
-  lines.push(`- base totals: catalogs=${diff.totals.base.catalogs} tests=${diff.totals.base.tests}`);
-  lines.push(`- head totals: catalogs=${diff.totals.head.catalogs} tests=${diff.totals.head.tests}`);
-  lines.push('');
-
-  lines.push('## Added catalogs');
-  lines.push('');
-  if (diff.catalogs.added.length === 0 && diff.catalogs.updated.every((entry) => entry.cases.added.length === 0)) {
-    lines.push('- (none)');
-    lines.push('');
-  } else {
-    for (const entry of diff.catalogs.added) {
-      renderCatalogHeader(lines, entry.catalogAfter);
-      for (const [index, testCase] of entry.catalogAfter.cases.entries()) {
-        renderCase(lines, testCase);
-        if (index < entry.catalogAfter.cases.length - 1) {
-          lines.push('---');
-          lines.push('');
-        }
-      }
-    }
-  }
-
-  lines.push('## Removed catalogs');
-  lines.push('');
-  if (diff.catalogs.removed.length === 0 && diff.catalogs.updated.every((entry) => entry.cases.removed.length === 0)) {
-    lines.push('- (none)');
-    lines.push('');
-  } else {
-    for (const entry of diff.catalogs.removed) {
-      renderCatalogHeader(lines, entry.catalogBefore);
-      for (const [index, testCase] of entry.catalogBefore.cases.entries()) {
-        renderRemovedCase(lines, testCase, removedDetail);
-        if (index < entry.catalogBefore.cases.length - 1) {
-          lines.push('---');
-          lines.push('');
-        }
-      }
-    }
-  }
-
-  lines.push('## Updated catalogs');
-  lines.push('');
-  if (diff.catalogs.updated.length === 0) {
-    lines.push('- (none)');
-    lines.push('');
-  } else {
-    for (const entry of diff.catalogs.updated) {
-      if (
-        entry.cases.added.length === 0 &&
-        entry.cases.removed.length === 0 &&
-        entry.cases.updated.length === 0
-      ) {
-        continue;
-      }
-      renderCatalogHeader(lines, entry.catalogAfter);
-      if (entry.cases.added.length > 0) {
-        lines.push('#### Added cases');
-        lines.push('');
-        for (const [index, testCase] of entry.cases.added.map((item) => item.after).entries()) {
-          renderCase(lines, testCase);
-          if (index < entry.cases.added.length - 1) {
-            lines.push('---');
-            lines.push('');
-          }
-        }
-      }
-      if (entry.cases.removed.length > 0) {
-        lines.push('#### Removed cases');
-        lines.push('');
-        for (const [index, testCase] of entry.cases.removed.map((item) => item.before).entries()) {
-          renderRemovedCase(lines, testCase, removedDetail);
-          if (index < entry.cases.removed.length - 1) {
-            lines.push('---');
-            lines.push('');
-          }
-        }
-      }
-      if (entry.cases.updated.length > 0) {
-        lines.push('#### Updated cases');
-        lines.push('');
-        for (const [index, updated] of entry.cases.updated.entries()) {
-          lines.push(`### ${updated.after.id} — ${updated.after.title}`);
-          lines.push('input (before):');
-          lines.push('```json');
-          lines.push(JSON.stringify(updated.before.input, null, 2));
-          lines.push('```');
-          lines.push('input (after):');
-          lines.push('```json');
-          lines.push(JSON.stringify(updated.after.input, null, 2));
-          lines.push('```');
-          lines.push('output (before):');
-          lines.push('```json');
-          lines.push(JSON.stringify(updated.before.output, null, 2));
-          lines.push('```');
-          lines.push('output (after):');
-          lines.push('```json');
-          lines.push(JSON.stringify(updated.after.output, null, 2));
-          lines.push('```');
-          lines.push('');
-          if (index < entry.cases.updated.length - 1) {
-            lines.push('---');
-            lines.push('');
-          }
-        }
-      }
-    }
-  }
-
-  lines.push('');
-  return lines.join('\n');
+  void options;
+  return renderDiffMarkdown(diff);
 }
 
 /**
@@ -715,50 +595,6 @@ function writeArtifacts(args: {
   for (const filePath of writtenFiles.sort((a, b) => a.localeCompare(b))) {
     console.log(`wrote: ${filePath}`);
   }
-}
-
-function renderCatalogHeader(lines: string[], catalog: PrDiffCatalog): void {
-  lines.push(`### ${catalog.catalogId} — ${catalog.title}`);
-  if (catalog.kind === 'sql') {
-    lines.push(`- definition: ${catalog.definition ? `\`${catalog.definition}\`` : '(unknown)'}`);
-    lines.push('- fixtures:');
-    for (const tableName of catalog.fixtures ?? []) {
-      lines.push(`  - ${tableName}`);
-    }
-  }
-  lines.push('');
-}
-
-function renderCase(lines: string[], testCase: PrDiffCase): void {
-  lines.push(`### ${testCase.id} — ${testCase.title}`);
-  lines.push('input:');
-  lines.push('```json');
-  lines.push(JSON.stringify(testCase.input, null, 2));
-  lines.push('```');
-  lines.push('output:');
-  lines.push('```json');
-  lines.push(JSON.stringify(testCase.output, null, 2));
-  lines.push('```');
-  lines.push('');
-}
-
-function renderRemovedCase(lines: string[], testCase: PrDiffCase, detail: RemovedDetailLevel): void {
-  lines.push(`### ${testCase.id} — ${testCase.title}`);
-  if (detail === 'none') {
-    lines.push('');
-    return;
-  }
-  lines.push('input:');
-  lines.push('```json');
-  lines.push(JSON.stringify(testCase.input, null, 2));
-  lines.push('```');
-  if (detail === 'full') {
-    lines.push('output:');
-    lines.push('```json');
-    lines.push(JSON.stringify(testCase.output, null, 2));
-    lines.push('```');
-  }
-  lines.push('');
 }
 
 function materializeEvidenceForRef(args: {

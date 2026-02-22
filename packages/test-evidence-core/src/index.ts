@@ -2,6 +2,12 @@ export {
   buildDiffJson,
   stableStringify
 } from './diff';
+export {
+  renderDiffReportMarkdown,
+  evaluateUnsupportedSchemaValidation,
+  type DiffReportMarkdownMeta
+} from './reportMarkdown';
+export { renderDiffMarkdown, renderLegacyDiffMarkdown, type RemovedDetailLevel } from './renderer/prDiffMarkdown';
 
 export {
   PREVIEW_SCHEMA_VERSION,

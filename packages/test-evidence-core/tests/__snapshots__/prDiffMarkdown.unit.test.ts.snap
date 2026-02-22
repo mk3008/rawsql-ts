@@ -1,0 +1,177 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`renderDiffMarkdown emits test-centric markdown 1`] = `
+"# Test Evidence (PR Diff)
+
+- base: main (a)
+- head: HEAD (b)
+- base-mode: ref
+- tests: +1 / ~1 / -1
+- base totals: tests=2
+- head totals: tests=2
+
+## sql.users — users
+
+[File](src/specs/sql/users.ts)
+
+### ADD: added-case — added
+
+**after**
+
+input
+\`\`\`json
+{
+  "active": 2
+}
+\`\`\`
+output
+\`\`\`json
+[
+  {
+    "id": 3
+  }
+]
+\`\`\`
+
+### UPDATE: baseline — baseline
+
+**before**
+
+input
+\`\`\`json
+{
+  "active": 1
+}
+\`\`\`
+output
+\`\`\`json
+[
+  {
+    "id": 1
+  }
+]
+\`\`\`
+
+**after**
+
+input
+\`\`\`json
+{
+  "active": 0
+}
+\`\`\`
+output
+\`\`\`json
+[
+  {
+    "id": 2
+  }
+]
+\`\`\`
+
+### REMOVE: removed-case — removed
+
+**before**
+
+input
+\`\`\`json
+{
+  "active": 9
+}
+\`\`\`
+output
+\`\`\`json
+[
+  {
+    "id": 9
+  }
+]
+\`\`\`
+
+"
+`;
+
+exports[`renderLegacyDiffMarkdown matches legacy ztd-cli output exactly 1`] = `
+"# Test Evidence (PR Diff)
+
+- base: main (a)
+- head: HEAD (b)
+- base-mode: ref
+- catalogs: +0 / -0 / ~1
+- tests: +1 / -1 / ~1
+- base totals: catalogs=1 tests=2
+- head totals: catalogs=1 tests=2
+
+## Added catalogs
+
+## Removed catalogs
+
+## Updated catalogs
+
+### sql.users — users
+- definition: \`src/specs/sql/users.ts\`
+- fixtures:
+  - users
+
+#### Added cases
+
+### added-case — added
+input:
+\`\`\`json
+{
+  "active": 2
+}
+\`\`\`
+output:
+\`\`\`json
+[
+  {
+    "id": 3
+  }
+]
+\`\`\`
+
+#### Removed cases
+
+### removed-case — removed
+input:
+\`\`\`json
+{
+  "active": 9
+}
+\`\`\`
+
+#### Updated cases
+
+### baseline — baseline
+input (before):
+\`\`\`json
+{
+  "active": 1
+}
+\`\`\`
+input (after):
+\`\`\`json
+{
+  "active": 0
+}
+\`\`\`
+output (before):
+\`\`\`json
+[
+  {
+    "id": 1
+  }
+]
+\`\`\`
+output (after):
+\`\`\`json
+[
+  {
+    "id": 2
+  }
+]
+\`\`\`
+
+"
+`;

@@ -4,6 +4,10 @@ import {
   DiffCoreError,
   type PreviewJson
 } from '@rawsql-ts/test-evidence-core';
+import {
+  createCoercionCatalogPreviewJson,
+  decimalTrimmedScenario
+} from './_fixtures/coercionScenario';
 
 function createPreviewJson(): PreviewJson {
   return {
@@ -76,4 +80,34 @@ test('sql-contract-zod receives deterministic typed error for unsupported schema
       schemaVersion: 99
     });
   }
+});
+
+test('coercion catalog preview produces non-trivial updated and added case summary', () => {
+  const diff = buildDiffJson({
+    base: {
+      ref: 'main',
+      sha: 'base-sha',
+      previewJson: createCoercionCatalogPreviewJson({
+        decimalOutput: 33,
+        includeBigIntCase: false
+      })
+    },
+    head: {
+      ref: 'HEAD',
+      sha: 'head-sha',
+      previewJson: createCoercionCatalogPreviewJson({
+        decimalOutput: decimalTrimmedScenario.expectedOutput,
+        includeBigIntCase: true
+      })
+    },
+    baseMode: 'merge-base'
+  });
+
+  expect(diff.summary).toEqual({
+    catalogs: { added: 0, removed: 0, updated: 1 },
+    cases: { added: 1, removed: 0, updated: 1 }
+  });
+  expect(diff.catalogs.updated).toHaveLength(1);
+  expect(diff.catalogs.updated[0]?.cases.added).toHaveLength(1);
+  expect(diff.catalogs.updated[0]?.cases.updated).toHaveLength(1);
 });

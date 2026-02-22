@@ -190,7 +190,7 @@ test('markdown header shows merge-base expression when baseMode=merge-base', () 
   expect(markdown).toContain('- head: HEAD (bbb)');
 });
 
-test('updated catalog appears once and aggregates added/removed/updated cases', () => {
+test('test-centric markdown groups changed cases under a single catalog heading', () => {
   const base = createReport({
     sqlCatalogs: [
       {
@@ -225,17 +225,16 @@ test('updated catalog appears once and aggregates added/removed/updated cases', 
     baseMode: 'ref'
   });
   const markdown = formatTestEvidencePrMarkdown(diff);
-  expect(markdown.match(/### sql\.users — users/g)?.length).toBe(1);
-  expect(markdown).toContain('## Updated catalogs');
-  expect(markdown).toContain('\n#### Added cases\n');
-  expect(markdown).toContain('### added-case — added');
-  expect(markdown).toContain('\n#### Removed cases\n');
-  expect(markdown).toContain('### removed-case — removed');
-  expect(markdown).toContain('\n#### Updated cases\n');
-  expect(markdown).toContain('### baseline — baseline');
+  expect(markdown.match(/## sql\.users — users/g)?.length).toBe(1);
+  expect(markdown).toContain('[File](src/specs/sql/users.ts)');
+  expect(markdown).toContain('### ADD: added-case — added');
+  expect(markdown).toContain('**after**');
+  expect(markdown).toContain('### REMOVE: removed-case — removed');
+  expect(markdown).toContain('**before**');
+  expect(markdown).toContain('### UPDATE: baseline — baseline');
 });
 
-test('removed-detail controls removed case rendering detail', () => {
+test('removed cases always render before blocks in test-centric markdown', () => {
   const base = createReport({
     sqlCatalogs: [
       {
@@ -252,18 +251,12 @@ test('removed-detail controls removed case rendering detail', () => {
     baseMode: 'ref'
   });
 
-  const noneMarkdown = formatTestEvidencePrMarkdown(diff, { removedDetail: 'none' });
-  expect(noneMarkdown).toContain('### removed-case — removed');
-  expect(noneMarkdown).not.toContain('input:');
-  expect(noneMarkdown).not.toContain('output:');
-
-  const inputMarkdown = formatTestEvidencePrMarkdown(diff, { removedDetail: 'input' });
-  expect(inputMarkdown).toContain('input:');
-  expect(inputMarkdown).not.toContain('output:');
-
-  const fullMarkdown = formatTestEvidencePrMarkdown(diff, { removedDetail: 'full' });
-  expect(fullMarkdown).toContain('input:');
-  expect(fullMarkdown).toContain('output:');
+  const markdown = formatTestEvidencePrMarkdown(diff, { removedDetail: 'none' });
+  expect(markdown).toContain('### REMOVE: removed-case — removed');
+  expect(markdown).toContain('**before**');
+  expect(markdown).toContain('input');
+  expect(markdown).toContain('output');
+  expect(markdown).not.toContain('**after**');
 });
 
 test('diff json uses schemaVersion', () => {

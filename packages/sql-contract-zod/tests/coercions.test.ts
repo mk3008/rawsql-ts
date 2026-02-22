@@ -7,13 +7,18 @@ import {
   zNumberFromString,
   zBigIntFromString,
 } from '@rawsql-ts/sql-contract-zod'
+import {
+  bigintTrimmedScenario,
+  decimalTrimmedScenario,
+} from './_fixtures/coercionScenario'
 
 describe('coercion helper parity', () => {
   it('shares the same decimal conversion behavior as the Zod helper', () => {
-    const valid = '  33.5  '
-    const coerced = decimalStringToNumberUnsafe(valid)
-    expect(coerced).toBeCloseTo(33.5)
-    expect(zNumberFromString.parse(valid)).toBeCloseTo(33.5)
+    const coerced = decimalStringToNumberUnsafe(decimalTrimmedScenario.input)
+    expect(coerced).toBeCloseTo(decimalTrimmedScenario.expectedOutput)
+    expect(zNumberFromString.parse(decimalTrimmedScenario.input)).toBeCloseTo(
+      decimalTrimmedScenario.expectedOutput
+    )
 
     const invalidCases = ['', 'foo', 'Infinity']
     for (const candidate of invalidCases) {
@@ -25,11 +30,10 @@ describe('coercion helper parity', () => {
   })
 
   it('keeps bigint conversion aligned between the helper and Zod', () => {
-    const valid = '  123456789012345678901234567890  '
-    const coerced = bigintStringToBigInt(valid)
-    expect(coerced).toBe(123456789012345678901234567890n)
-    expect(zBigIntFromString.parse(valid)).toBe(
-      123456789012345678901234567890n
+    const coerced = bigintStringToBigInt(bigintTrimmedScenario.input)
+    expect(coerced).toBe(bigintTrimmedScenario.expectedOutput)
+    expect(zBigIntFromString.parse(bigintTrimmedScenario.input)).toBe(
+      bigintTrimmedScenario.expectedOutput
     )
 
     const invalidCases = ['', 'not-a-bigint']
