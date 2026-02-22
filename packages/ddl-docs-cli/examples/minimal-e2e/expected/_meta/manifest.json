@@ -1,0 +1,56 @@
+{
+  "generator": {
+    "version": "1.0.0",
+    "dialect": "postgres",
+    "optionsHash": "cc2bf581259b3df66b149f68655d765b8913e3d5ac5086bd64cfc90e7c419f60"
+  },
+  "naming": {
+    "slugRules": "lowercase; replace non [a-z0-9] with -; trim dashes; fallback unnamed",
+    "nameMap": {
+      "master.product": "master/product.md",
+      "public.order": "public/order.md",
+      "public.order_item": "public/order-item.md",
+      "public.order_item_snapshot": "public/order-item-snapshot.md",
+      "public.user": "public/user.md"
+    }
+  },
+  "outputs": {
+    "tables": [
+      "index.md",
+      "master/index.md",
+      "master/product.md",
+      "public/index.md",
+      "public/order-item-snapshot.md",
+      "public/order-item.md",
+      "public/order.md",
+      "public/user.md",
+      "references.md"
+    ],
+    "columns": [
+      "columns/email.md",
+      "columns/index.md",
+      "columns/product-code.md",
+      "columns/product-name.md",
+      "columns/snapshot-note.md",
+      "columns/unit-price.md",
+      "master/columns/index.md",
+      "master/columns/product-code.md",
+      "master/columns/product-id.md",
+      "master/columns/product-name.md",
+      "master/columns/unit-price.md",
+      "public/columns/age.md",
+      "public/columns/created-at.md",
+      "public/columns/email.md",
+      "public/columns/index.md",
+      "public/columns/order-id.md",
+      "public/columns/order-item-id.md",
+      "public/columns/product-code.md",
+      "public/columns/product-id.md",
+      "public/columns/quantity.md",
+      "public/columns/snapshot-note.md",
+      "public/columns/total-amount.md",
+      "public/columns/unit-price.md",
+      "public/columns/user-id.md"
+    ]
+  }
+}

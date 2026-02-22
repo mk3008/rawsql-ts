@@ -129,6 +129,8 @@ const keywordTrie = new KeywordTrie([
     ["drop", "index"],
     ["drop", "sequence"],
     ["drop", "constraint"],
+    ["comment", "on", "table"],
+    ["comment", "on", "column"],
     ["create", "index"],
     ["create", "unique", "index"],
     ["add"],

@@ -13,6 +13,7 @@ export * from './parsers/DropTableParser';
 export * from './parsers/DropIndexParser';
 export * from './parsers/AlterTableParser';
 export * from './parsers/DropConstraintParser';
+export * from './parsers/CommentOnParser';
 export * from './parsers/VacuumStatementParser';
 export * from './parsers/ReindexStatementParser';
 export * from './parsers/ClusterStatementParser';

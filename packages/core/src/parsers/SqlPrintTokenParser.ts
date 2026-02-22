@@ -55,6 +55,7 @@ import {
     CreateIndexStatement,
     CreateSchemaStatement,
     DropSchemaStatement,
+    CommentOnStatement,
     IndexColumnDefinition,
     AlterTableStatement,
     AlterTableAddConstraint,
@@ -382,6 +383,7 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         this.handlers.set(DropTableStatement.kind, (expr) => this.visitDropTableStatement(expr as DropTableStatement));
         this.handlers.set(DropIndexStatement.kind, (expr) => this.visitDropIndexStatement(expr as DropIndexStatement));
         this.handlers.set(DropSchemaStatement.kind, (expr) => this.visitDropSchemaStatement(expr as DropSchemaStatement));
+        this.handlers.set(CommentOnStatement.kind, (expr) => this.visitCommentOnStatement(expr as CommentOnStatement));
         this.handlers.set(AlterTableStatement.kind, (expr) => this.visitAlterTableStatement(expr as AlterTableStatement));
         this.handlers.set(AlterTableAddConstraint.kind, (expr) => this.visitAlterTableAddConstraint(expr as AlterTableAddConstraint));
         this.handlers.set(AlterTableDropConstraint.kind, (expr) => this.visitAlterTableDropConstraint(expr as AlterTableDropConstraint));
@@ -3748,6 +3750,24 @@ export class SqlPrintTokenParser implements SqlComponentVisitor<SqlPrintToken> {
         if (arg.behavior) {
             token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
             token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, arg.behavior));
+        }
+
+        return token;
+    }
+
+    private visitCommentOnStatement(arg: CommentOnStatement): SqlPrintToken {
+        const keyword = arg.targetKind === 'table' ? 'comment on table' : 'comment on column';
+        const token = new SqlPrintToken(SqlPrintTokenType.keyword, keyword, SqlPrintTokenContainerType.CommentOnStatement);
+
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(arg.target.accept(this));
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'is'));
+        token.innerTokens.push(SqlPrintTokenParser.SPACE_TOKEN);
+        if (arg.comment === null) {
+            token.innerTokens.push(new SqlPrintToken(SqlPrintTokenType.keyword, 'null'));
+        } else {
+            token.innerTokens.push(arg.comment.accept(this));
         }
 
         return token;

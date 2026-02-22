@@ -1,3 +1,4 @@
+import { execSync } from 'node:child_process';
 import { afterAll, beforeAll, describe, expect } from 'vitest';
 import type { TableFixture } from '@rawsql-ts/testkit-core';
 import { createPgTestkitClient } from '@rawsql-ts/adapter-node-pg';
@@ -7,7 +8,18 @@ import type { TableDefinitionModel } from 'rawsql-ts';
 import { runSqlCatalog, type SqlCatalogExecutor } from './utils/sqlCatalog';
 import { sampleSqlCatalog } from './specs/sql/sample';
 
-describe('sql catalog runner (ztd)', () => {
+const containerRuntimeAvailable = (() => {
+  try {
+    execSync('docker info', { stdio: 'ignore', timeout: 10000 });
+    return true;
+  } catch {
+    return false;
+  }
+})();
+
+const ztdDescribe = containerRuntimeAvailable ? describe : describe.skip;
+
+ztdDescribe('sql catalog runner (ztd)', () => {
   let container: StartedPostgreSqlContainer | null = null;
   const executedCaseIds = new Set<string>();
   const fixturesAppliedHistory: string[][] = [];

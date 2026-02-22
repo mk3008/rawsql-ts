@@ -106,6 +106,25 @@ export class DropSchemaStatement extends SqlComponent {
     }
 }
 
+export type CommentTargetKind = 'table' | 'column';
+
+/**
+ * COMMENT ON TABLE/COLUMN statement representation.
+ */
+export class CommentOnStatement extends SqlComponent {
+    static kind = Symbol("CommentOnStatement");
+    targetKind: CommentTargetKind;
+    target: QualifiedName;
+    comment: ValueComponent | null;
+
+    constructor(params: { targetKind: CommentTargetKind; target: QualifiedName; comment: ValueComponent | null }) {
+        super();
+        this.targetKind = params.targetKind;
+        this.target = new QualifiedName(params.target.namespaces, params.target.name);
+        this.comment = params.comment;
+    }
+}
+
 /**
  * Column definition within CREATE INDEX clause.
  */

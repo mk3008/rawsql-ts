@@ -1,0 +1,400 @@
+{
+  "version": 1,
+  "generatedAt": "1970-01-01T00:00:00.000Z",
+  "concepts": [
+    {
+      "concept": "age",
+      "conceptSlug": "age",
+      "typeDistribution": {
+        "int4": 1
+      },
+      "usages": [
+        {
+          "schema": "public",
+          "table": "user",
+          "column": "age",
+          "tableSlug": "user",
+          "schemaSlug": "public",
+          "typeKey": "int4",
+          "canonicalType": "int4",
+          "nullable": true,
+          "defaultValue": "",
+          "comment": "",
+          "hasComment": false
+        }
+      ]
+    },
+    {
+      "concept": "created_at",
+      "conceptSlug": "created-at",
+      "typeDistribution": {
+        "timestamptz": 2
+      },
+      "usages": [
+        {
+          "schema": "public",
+          "table": "order",
+          "column": "created_at",
+          "tableSlug": "order",
+          "schemaSlug": "public",
+          "typeKey": "timestamptz",
+          "canonicalType": "timestamptz",
+          "nullable": true,
+          "defaultValue": "now()",
+          "comment": "",
+          "hasComment": false
+        },
+        {
+          "schema": "public",
+          "table": "user",
+          "column": "created_at",
+          "tableSlug": "user",
+          "schemaSlug": "public",
+          "typeKey": "timestamptz",
+          "canonicalType": "timestamptz",
+          "nullable": true,
+          "defaultValue": "now()",
+          "comment": "",
+          "hasComment": false
+        }
+      ]
+    },
+    {
+      "concept": "email",
+      "conceptSlug": "email",
+      "typeDistribution": {
+        "raw:text": 1
+      },
+      "usages": [
+        {
+          "schema": "public",
+          "table": "user",
+          "column": "email",
+          "tableSlug": "user",
+          "schemaSlug": "public",
+          "typeKey": "raw:text",
+          "canonicalType": "text",
+          "nullable": false,
+          "defaultValue": "",
+          "comment": "login mail address",
+          "hasComment": true
+        }
+      ]
+    },
+    {
+      "concept": "order_id",
+      "conceptSlug": "order-id",
+      "typeDistribution": {
+        "int8{serial}": 1,
+        "int8": 2
+      },
+      "usages": [
+        {
+          "schema": "public",
+          "table": "order_item_snapshot",
+          "column": "order_id",
+          "tableSlug": "order-item-snapshot",
+          "schemaSlug": "public",
+          "typeKey": "int8",
+          "canonicalType": "int8",
+          "nullable": false,
+          "defaultValue": "",
+          "comment": "",
+          "hasComment": false
+        },
+        {
+          "schema": "public",
+          "table": "order_item",
+          "column": "order_id",
+          "tableSlug": "order-item",
+          "schemaSlug": "public",
+          "typeKey": "int8",
+          "canonicalType": "int8",
+          "nullable": false,
+          "defaultValue": "",
+          "comment": "",
+          "hasComment": false
+        },
+        {
+          "schema": "public",
+          "table": "order",
+          "column": "order_id",
+          "tableSlug": "order",
+          "schemaSlug": "public",
+          "typeKey": "int8{serial}",
+          "canonicalType": "int8",
+          "nullable": false,
+          "defaultValue": "",
+          "comment": "",
+          "hasComment": false
+        }
+      ]
+    },
+    {
+      "concept": "order_item_id",
+      "conceptSlug": "order-item-id",
+      "typeDistribution": {
+        "int8{serial}": 1
+      },
+      "usages": [
+        {
+          "schema": "public",
+          "table": "order_item",
+          "column": "order_item_id",
+          "tableSlug": "order-item",
+          "schemaSlug": "public",
+          "typeKey": "int8{serial}",
+          "canonicalType": "int8",
+          "nullable": false,
+          "defaultValue": "",
+          "comment": "",
+          "hasComment": false
+        }
+      ]
+    },
+    {
+      "concept": "product_code",
+      "conceptSlug": "product-code",
+      "typeDistribution": {
+        "raw:text": 2
+      },
+      "usages": [
+        {
+          "schema": "master",
+          "table": "product",
+          "column": "product_code",
+          "tableSlug": "product",
+          "schemaSlug": "master",
+          "typeKey": "raw:text",
+          "canonicalType": "text",
+          "nullable": false,
+          "defaultValue": "",
+          "comment": "business product code",
+          "hasComment": true
+        },
+        {
+          "schema": "public",
+          "table": "order_item",
+          "column": "product_code",
+          "tableSlug": "order-item",
+          "schemaSlug": "public",
+          "typeKey": "raw:text",
+          "canonicalType": "text",
+          "nullable": false,
+          "defaultValue": "",
+          "comment": "",
+          "hasComment": false
+        }
+      ]
+    },
+    {
+      "concept": "product_id",
+      "conceptSlug": "product-id",
+      "typeDistribution": {
+        "int8{serial}": 1,
+        "int8": 2
+      },
+      "usages": [
+        {
+          "schema": "master",
+          "table": "product",
+          "column": "product_id",
+          "tableSlug": "product",
+          "schemaSlug": "master",
+          "typeKey": "int8{serial}",
+          "canonicalType": "int8",
+          "nullable": false,
+          "defaultValue": "",
+          "comment": "",
+          "hasComment": false
+        },
+        {
+          "schema": "public",
+          "table": "order_item_snapshot",
+          "column": "product_id",
+          "tableSlug": "order-item-snapshot",
+          "schemaSlug": "public",
+          "typeKey": "int8",
+          "canonicalType": "int8",
+          "nullable": false,
+          "defaultValue": "",
+          "comment": "",
+          "hasComment": false
+        },
+        {
+          "schema": "public",
+          "table": "order_item",
+          "column": "product_id",
+          "tableSlug": "order-item",
+          "schemaSlug": "public",
+          "typeKey": "int8",
+          "canonicalType": "int8",
+          "nullable": false,
+          "defaultValue": "",
+          "comment": "",
+          "hasComment": false
+        }
+      ]
+    },
+    {
+      "concept": "product_name",
+      "conceptSlug": "product-name",
+      "typeDistribution": {
+        "raw:text": 1
+      },
+      "usages": [
+        {
+          "schema": "master",
+          "table": "product",
+          "column": "product_name",
+          "tableSlug": "product",
+          "schemaSlug": "master",
+          "typeKey": "raw:text",
+          "canonicalType": "text",
+          "nullable": false,
+          "defaultValue": "",
+          "comment": "",
+          "hasComment": false
+        }
+      ]
+    },
+    {
+      "concept": "quantity",
+      "conceptSlug": "quantity",
+      "typeDistribution": {
+        "int4": 1
+      },
+      "usages": [
+        {
+          "schema": "public",
+          "table": "order_item",
+          "column": "quantity",
+          "tableSlug": "order-item",
+          "schemaSlug": "public",
+          "typeKey": "int4",
+          "canonicalType": "int4",
+          "nullable": false,
+          "defaultValue": "1",
+          "comment": "",
+          "hasComment": false
+        }
+      ]
+    },
+    {
+      "concept": "snapshot_note",
+      "conceptSlug": "snapshot-note",
+      "typeDistribution": {
+        "raw:text": 1
+      },
+      "usages": [
+        {
+          "schema": "public",
+          "table": "order_item_snapshot",
+          "column": "snapshot_note",
+          "tableSlug": "order-item-snapshot",
+          "schemaSlug": "public",
+          "typeKey": "raw:text",
+          "canonicalType": "text",
+          "nullable": true,
+          "defaultValue": "",
+          "comment": "",
+          "hasComment": false
+        }
+      ]
+    },
+    {
+      "concept": "total_amount",
+      "conceptSlug": "total-amount",
+      "typeDistribution": {
+        "numeric": 1
+      },
+      "usages": [
+        {
+          "schema": "public",
+          "table": "order",
+          "column": "total_amount",
+          "tableSlug": "order",
+          "schemaSlug": "public",
+          "typeKey": "numeric",
+          "canonicalType": "numeric",
+          "nullable": false,
+          "defaultValue": "",
+          "comment": "",
+          "hasComment": false
+        }
+      ]
+    },
+    {
+      "concept": "unit_price",
+      "conceptSlug": "unit-price",
+      "typeDistribution": {
+        "int4": 1,
+        "numeric": 1
+      },
+      "usages": [
+        {
+          "schema": "master",
+          "table": "product",
+          "column": "unit_price",
+          "tableSlug": "product",
+          "schemaSlug": "master",
+          "typeKey": "int4",
+          "canonicalType": "int4",
+          "nullable": false,
+          "defaultValue": "",
+          "comment": "",
+          "hasComment": false
+        },
+        {
+          "schema": "public",
+          "table": "order_item",
+          "column": "unit_price",
+          "tableSlug": "order-item",
+          "schemaSlug": "public",
+          "typeKey": "numeric",
+          "canonicalType": "numeric",
+          "nullable": false,
+          "defaultValue": "",
+          "comment": "",
+          "hasComment": false
+        }
+      ]
+    },
+    {
+      "concept": "user_id",
+      "conceptSlug": "user-id",
+      "typeDistribution": {
+        "int8": 1,
+        "int8{serial}": 1
+      },
+      "usages": [
+        {
+          "schema": "public",
+          "table": "order",
+          "column": "user_id",
+          "tableSlug": "order",
+          "schemaSlug": "public",
+          "typeKey": "int8",
+          "canonicalType": "int8",
+          "nullable": false,
+          "defaultValue": "",
+          "comment": "",
+          "hasComment": false
+        },
+        {
+          "schema": "public",
+          "table": "user",
+          "column": "user_id",
+          "tableSlug": "user",
+          "schemaSlug": "public",
+          "typeKey": "int8{serial}",
+          "canonicalType": "int8",
+          "nullable": false,
+          "defaultValue": "",
+          "comment": "",
+          "hasComment": false
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,65 @@
+[
+  {
+    "kind": "COLUMN_NAME_TYPE_DIVERGENCE",
+    "severity": "info",
+    "message": "Type variation detected for concept \"unit_price\".",
+    "scope": {
+      "concept": "unit_price"
+    }
+  },
+  {
+    "kind": "UNSUPPORTED_OR_UNKNOWN_TYPE",
+    "severity": "info",
+    "message": "Unknown type treated as raw for master.product.product_code: text",
+    "scope": {
+      "schema": "master",
+      "table": "product",
+      "column": "product_code",
+      "concept": "product_code"
+    }
+  },
+  {
+    "kind": "UNSUPPORTED_OR_UNKNOWN_TYPE",
+    "severity": "info",
+    "message": "Unknown type treated as raw for master.product.product_name: text",
+    "scope": {
+      "schema": "master",
+      "table": "product",
+      "column": "product_name",
+      "concept": "product_name"
+    }
+  },
+  {
+    "kind": "UNSUPPORTED_OR_UNKNOWN_TYPE",
+    "severity": "info",
+    "message": "Unknown type treated as raw for public.order_item_snapshot.snapshot_note: text",
+    "scope": {
+      "schema": "public",
+      "table": "order_item_snapshot",
+      "column": "snapshot_note",
+      "concept": "snapshot_note"
+    }
+  },
+  {
+    "kind": "UNSUPPORTED_OR_UNKNOWN_TYPE",
+    "severity": "info",
+    "message": "Unknown type treated as raw for public.order_item.product_code: text",
+    "scope": {
+      "schema": "public",
+      "table": "order_item",
+      "column": "product_code",
+      "concept": "product_code"
+    }
+  },
+  {
+    "kind": "UNSUPPORTED_OR_UNKNOWN_TYPE",
+    "severity": "info",
+    "message": "Unknown type treated as raw for public.user.email: text",
+    "scope": {
+      "schema": "public",
+      "table": "user",
+      "column": "email",
+      "concept": "email"
+    }
+  }
+]

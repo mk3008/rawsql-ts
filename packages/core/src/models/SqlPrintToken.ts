@@ -101,6 +101,7 @@ export enum SqlPrintTokenContainerType {
     DropIndexStatement = "DropIndexStatement",
     CreateSchemaStatement = "CreateSchemaStatement",
     DropSchemaStatement = "DropSchemaStatement",
+    CommentOnStatement = "CommentOnStatement",
     AlterTableStatement = "AlterTableStatement",
     AlterTableAddConstraint = "AlterTableAddConstraint",
     AlterTableDropConstraint = "AlterTableDropConstraint",
