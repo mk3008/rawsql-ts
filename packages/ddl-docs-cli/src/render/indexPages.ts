@@ -66,7 +66,7 @@ function renderSchemaIndex(
   lines.push('');
   lines.push(`# ${schema} Tables`);
   lines.push('');
-  lines.push('[<- All Schemas](../index.md)');
+  lines.push('- [<- All Schemas](../index.md)');
   lines.push('- [Column Index](./columns/index.md)');
   lines.push('');
   lines.push('| Table | Columns | Comment | Alert | Suggest |');

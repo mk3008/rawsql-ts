@@ -2,8 +2,17 @@ import path from 'node:path';
 import type { ReferenceDocModel, TableDocModel } from '../types';
 import { formatCodeCell, formatTableCell } from '../utils/markdown';
 
+/**
+ * Suggested SQL statements grouped by table.
+ */
 export interface TableSuggestionSql {
+  /**
+   * COMMENT ON COLUMN suggestions for missing column comments.
+   */
   columnCommentSql: string[];
+  /**
+   * ALTER TABLE ... ADD FOREIGN KEY suggestions.
+   */
   foreignKeySql: string[];
 }
 
@@ -29,9 +38,7 @@ export function renderTableMarkdown(table: TableDocModel, suggestedSql: TableSug
   lines.push('| --- | --- | --- | --- | --- | --- | --- |');
 
   for (const column of table.columns) {
-    lines.push(
-      `| ${column.isPrimaryKey ? 'PK' : ''} | ${formatCodeCell(column.name)} | ${formatCodeCell(column.typeName)} | ${column.nullable ? 'YES' : 'NO'} | ${formatCodeCell(column.defaultValue)} | ${formatTableCell(column.comment)} | [See usages](./columns/${column.conceptSlug}.md) |`
-    );
+    lines.push(renderColumnRow(column));
   }
 
   lines.push('');
@@ -121,6 +128,17 @@ function linkFromTablePage(current: TableDocModel, targetSchemaSlug: string, tar
     return `./${targetTableSlug}.md`;
   }
   return `../${targetSchemaSlug}/${targetTableSlug}.md`;
+}
+
+function renderColumnRow(column: TableDocModel['columns'][number]): string {
+  const keyCell = column.isPrimaryKey ? 'PK' : '';
+  const nameCell = formatCodeCell(column.name);
+  const typeCell = formatCodeCell(column.typeName);
+  const nullableCell = column.nullable ? 'YES' : 'NO';
+  const defaultCell = formatCodeCell(column.defaultValue);
+  const commentCell = formatTableCell(column.comment);
+  const usagesCell = `[See usages](./columns/${column.conceptSlug}.md)`;
+  return `| ${keyCell} | ${nameCell} | ${typeCell} | ${nullableCell} | ${defaultCell} | ${commentCell} | ${usagesCell} |`;
 }
 
 function renderReferenceTable(
