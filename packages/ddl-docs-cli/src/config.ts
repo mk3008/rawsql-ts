@@ -9,6 +9,9 @@ interface ZtdConfigLike {
   };
 }
 
+/**
+ * Resolves default schema and search path from CLI options and optional ztd config.
+ */
 export function resolveSchemaSettings(
   explicitConfigPath: string | undefined,
   cliDefaultSchema: string | undefined,

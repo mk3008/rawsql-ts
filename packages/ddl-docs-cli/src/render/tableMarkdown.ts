@@ -7,6 +7,9 @@ interface TableSuggestionSql {
   foreignKeySql: string[];
 }
 
+/**
+ * Renders a single table definition markdown page.
+ */
 export function renderTableMarkdown(table: TableDocModel, suggestedSql: TableSuggestionSql): string {
   const lines: string[] = [];
   lines.push('<!-- generated-by: @rawsql-ts/ddl-docs-cli -->');
@@ -106,6 +109,9 @@ export function renderTableMarkdown(table: TableDocModel, suggestedSql: TableSug
   return lines.join('\n');
 }
 
+/**
+ * Returns output path for a rendered table markdown page.
+ */
 export function tableDocPath(outDir: string, schemaSlug: string, tableSlug: string): string {
   return path.join(outDir, schemaSlug, `${tableSlug}.md`);
 }

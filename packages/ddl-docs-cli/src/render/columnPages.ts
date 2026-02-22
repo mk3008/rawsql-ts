@@ -7,6 +7,9 @@ export interface RenderedPage {
   content: string;
 }
 
+/**
+ * Renders schema and global column index/concept pages.
+ */
 export function renderColumnPages(
   outDir: string,
   observed: ObservedColumnDictionary,

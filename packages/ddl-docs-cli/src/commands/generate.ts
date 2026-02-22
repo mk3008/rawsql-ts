@@ -14,6 +14,9 @@ import { writeTextFileNormalized } from '../utils/io';
 
 const GENERATOR_VERSION = '1.0.0';
 
+/**
+ * Generates markdown docs and metadata files from DDL inputs.
+ */
 export function runGenerateDocs(options: GenerateDocsOptions): void {
   if (options.ddlDirectories.length === 0 && options.ddlFiles.length === 0 && options.ddlGlobs.length === 0) {
     throw new Error('At least one DDL input is required via --ddl-dir, --ddl-file, or --ddl-glob.');

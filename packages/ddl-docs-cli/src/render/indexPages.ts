@@ -7,6 +7,9 @@ export interface RenderedPage {
   content: string;
 }
 
+/**
+ * Renders global schema index and per-schema table index pages.
+ */
 export function renderIndexPages(
   outDir: string,
   tables: TableDocModel[],

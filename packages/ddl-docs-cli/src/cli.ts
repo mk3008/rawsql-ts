@@ -28,19 +28,27 @@ export async function runCli(argv: string[]): Promise<void> {
   }
 
   if (command === 'generate') {
-    runGenerateDocs(parseGenerateOptions(rest));
+    const options = parseGenerateOptions(rest);
+    if (!options) {
+      return;
+    }
+    runGenerateDocs(options);
     return;
   }
 
   if (command === 'prune') {
-    runPruneDocs(parsePruneOptions(rest));
+    const options = parsePruneOptions(rest);
+    if (!options) {
+      return;
+    }
+    runPruneDocs(options);
     return;
   }
 
   throw new Error(`Unknown command: ${command}`);
 }
 
-function parseGenerateOptions(args: string[]): GenerateDocsOptions {
+function parseGenerateOptions(args: string[]): GenerateDocsOptions | null {
   const options: GenerateDocsOptions = {
     ddlDirectories: [],
     ddlFiles: [],
@@ -134,8 +142,7 @@ function parseGenerateOptions(args: string[]): GenerateDocsOptions {
 
     if (arg === '--help' || arg === '-h') {
       printHelp('generate');
-      process.exitCode = 0;
-      return options;
+      return null;
     }
 
     throw new Error(`Unknown option for generate: ${arg}`);
@@ -152,7 +159,7 @@ function parseGenerateOptions(args: string[]): GenerateDocsOptions {
   return options;
 }
 
-function parsePruneOptions(args: string[]): PruneDocsOptions {
+function parsePruneOptions(args: string[]): PruneDocsOptions | null {
   const options: PruneDocsOptions = {
     outDir: DEFAULT_OUT_DIR,
     dryRun: false,
@@ -179,8 +186,7 @@ function parsePruneOptions(args: string[]): PruneDocsOptions {
 
     if (arg === '--help' || arg === '-h') {
       printHelp('prune');
-      process.exitCode = 0;
-      return options;
+      return null;
     }
 
     throw new Error(`Unknown option for prune: ${arg}`);

@@ -5,7 +5,7 @@ Generate Markdown table definition documents from DDL files.
 - DDL is treated as SSOT.
 - SQL parsing uses `rawsql-ts`.
 - `CREATE TABLE` and `ALTER TABLE ... ADD CONSTRAINT` are applied across the full DDL stream.
-- `COMMENT ON TABLE/COLUMN` is supported by guarded fallback parsing because `rawsql-ts` does not parse these statements yet.
+- `COMMENT ON TABLE/COLUMN` is parsed via `rawsql-ts`.
 
 ## Install
 

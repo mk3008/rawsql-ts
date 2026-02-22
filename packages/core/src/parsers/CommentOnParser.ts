@@ -9,6 +9,9 @@ import { ValueParser } from "./ValueParser";
  * Parses COMMENT ON TABLE/COLUMN statements.
  */
 export class CommentOnParser {
+    /**
+     * Parses a full SQL string containing a single COMMENT ON statement.
+     */
     public static parse(sql: string): CommentOnStatement {
         const tokenizer = new SqlTokenizer(sql);
         const lexemes = tokenizer.readLexemes();
@@ -19,6 +22,9 @@ export class CommentOnParser {
         return result.value;
     }
 
+    /**
+     * Parses COMMENT ON tokens from a lexeme array starting at the specified index.
+     */
     public static parseFromLexeme(lexemes: Lexeme[], index: number): { value: CommentOnStatement; newIndex: number } {
         let idx = index;
         const command = lexemes[idx]?.value.toLowerCase();

@@ -1,6 +1,9 @@
 import path from 'node:path';
 import type { TableDocModel } from '../types';
 
+/**
+ * Renders a global foreign key reference index page.
+ */
 export function renderReferencesPage(outDir: string, tables: TableDocModel[]): { path: string; content: string } {
   const lines: string[] = [];
   lines.push('<!-- generated-by: @rawsql-ts/ddl-docs-cli -->');
@@ -23,7 +26,7 @@ export function renderReferencesPage(outDir: string, tables: TableDocModel[]): {
         continue;
       }
       const expression = reference.expression;
-      const to = expression.split('->')[1]?.trim().split('(')[0] ?? '';
+      const to = reference.targetTableKey;
       rows.push({
         from: `${table.schema}.${table.table}`,
         to,
