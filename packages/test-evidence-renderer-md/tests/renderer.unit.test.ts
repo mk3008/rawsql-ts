@@ -3,6 +3,7 @@ import {
   buildDiffJson,
   buildSpecificationModel,
   stableStringify,
+  type DiffJson,
   type PreviewJson
 } from '@rawsql-ts/test-evidence-core';
 import {
@@ -157,6 +158,76 @@ test('renderDiffReportMarkdown prints deterministic summary projection', () => {
   expect(markdown).toContain('- generatedAt: 2026-02-21T00:00:00.000Z');
   expect(markdown).toContain('- schemaVersion: 1');
   expect(markdown).toContain('- deterministicUnsupportedSchemaErrorPresent: yes');
+});
+
+test('renderDiffReportMarkdown keeps existing case lists when updated catalog overlaps added/removed entries', () => {
+  const diff: DiffJson = {
+    schemaVersion: 1,
+    base: { ref: 'main', sha: 'aaa111' },
+    head: { ref: 'HEAD', sha: 'bbb222' },
+    baseMode: 'ref',
+    totals: {
+      base: { catalogs: 1, tests: 1 },
+      head: { catalogs: 1, tests: 2 }
+    },
+    summary: {
+      catalogs: { added: 1, removed: 0, updated: 1 },
+      cases: { added: 2, removed: 0, updated: 1 }
+    },
+    catalogs: {
+      added: [
+        {
+          catalogAfter: {
+            kind: 'sql',
+            catalogId: 'sql.users',
+            title: 'users',
+            definition: 'src/specs/sql/users.catalog.ts',
+            cases: [
+              { id: 'added-from-added', title: 'from added', input: {}, expected: 'success', output: [] }
+            ]
+          }
+        }
+      ],
+      removed: [],
+      updated: [
+        {
+          catalogId: 'sql.users',
+          catalogBefore: {
+            kind: 'sql',
+            catalogId: 'sql.users',
+            title: 'users',
+            definition: 'src/specs/sql/users.catalog.ts',
+            cases: [{ id: 'baseline', title: 'baseline', input: {}, expected: 'success', output: [] }]
+          },
+          catalogAfter: {
+            kind: 'sql',
+            catalogId: 'sql.users',
+            title: 'users',
+            definition: 'src/specs/sql/users.catalog.ts',
+            cases: [
+              { id: 'baseline', title: 'baseline', input: {}, expected: 'success', output: [{ id: 1 }] },
+              { id: 'added-from-updated', title: 'from updated', input: {}, expected: 'success', output: [] }
+            ]
+          },
+          cases: {
+            added: [{ after: { id: 'added-from-updated', title: 'from updated', input: {}, expected: 'success', output: [] } }],
+            removed: [],
+            updated: [
+              {
+                before: { id: 'baseline', title: 'baseline', input: {}, expected: 'success', output: [] },
+                after: { id: 'baseline', title: 'baseline', input: {}, expected: 'success', output: [{ id: 1 }] }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  };
+  const markdown = renderDiffReportMarkdown(diff, { generatedAt: '2026-02-22T00:00:00.000Z' });
+
+  expect(markdown).toContain('- catalogId: sql.users');
+  expect(markdown).toContain('  - cases.added: added-from-added, added-from-updated');
+  expect(markdown).toContain('  - cases.updated: baseline');
 });
 
 test('renderSpecificationMarkdown options change presentation only', () => {

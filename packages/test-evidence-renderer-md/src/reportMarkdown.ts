@@ -145,9 +145,9 @@ function collectCatalogChangeRows(diff: DiffJson): CatalogChangeRow[] {
     };
     row.title = entry.catalogAfter.title;
     row.definitionPath = entry.catalogAfter.definition ?? '';
-    row.casesAdded = entry.cases.added.map((item) => item.after.id).sort((a, b) => a.localeCompare(b));
-    row.casesRemoved = entry.cases.removed.map((item) => item.before.id).sort((a, b) => a.localeCompare(b));
-    row.casesUpdated = entry.cases.updated.map((item) => item.after.id).sort((a, b) => a.localeCompare(b));
+    row.casesAdded = mergeSortedUnique(row.casesAdded, entry.cases.added.map((item) => item.after.id));
+    row.casesRemoved = mergeSortedUnique(row.casesRemoved, entry.cases.removed.map((item) => item.before.id));
+    row.casesUpdated = mergeSortedUnique(row.casesUpdated, entry.cases.updated.map((item) => item.after.id));
     map.set(entry.catalogId, row);
   }
 
@@ -156,4 +156,8 @@ function collectCatalogChangeRows(diff: DiffJson): CatalogChangeRow[] {
 
 function formatIdList(values: string[]): string {
   return values.length > 0 ? values.join(', ') : '-';
+}
+
+function mergeSortedUnique(existing: string[], incoming: string[]): string[] {
+  return [...new Set([...existing, ...incoming])].sort((a, b) => a.localeCompare(b));
 }
