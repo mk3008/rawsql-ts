@@ -2,11 +2,13 @@ import { expect, test } from 'vitest';
 import {
   buildDiffJson,
   buildSpecificationModel,
+  PREVIEW_SCHEMA_VERSION,
   stableStringify,
   type DiffJson,
   type PreviewJson
 } from '@rawsql-ts/test-evidence-core';
 import {
+  evaluateUnsupportedSchemaValidation,
   renderDiffMarkdown,
   renderLegacyDiffMarkdown,
   renderDiffReportMarkdown,
@@ -43,7 +45,7 @@ function createPreview(args: {
   }>;
 }): PreviewJson {
   return {
-    schemaVersion: 1,
+    schemaVersion: PREVIEW_SCHEMA_VERSION,
     sqlCaseCatalogs: (args.sqlCatalogs ?? []).map((catalog) => ({
       id: catalog.id,
       title: catalog.title,
@@ -158,6 +160,51 @@ test('renderDiffReportMarkdown prints deterministic summary projection', () => {
   expect(markdown).toContain('- generatedAt: 2026-02-21T00:00:00.000Z');
   expect(markdown).toContain('- schemaVersion: 1');
   expect(markdown).toContain('- deterministicUnsupportedSchemaErrorPresent: yes');
+});
+
+test('evaluateUnsupportedSchemaValidation returns passed=true for deterministic unsupported schema errors', () => {
+  const base = createPreview({});
+  const head = createPreview({});
+  const probe = evaluateUnsupportedSchemaValidation({
+    buildDiffJson,
+    base: { ref: 'main', sha: 'aaa111', previewJson: base },
+    head: { ref: 'HEAD', sha: 'bbb222', previewJson: head },
+    baseMode: 'ref'
+  });
+
+  expect(probe).toEqual({ checked: true, passed: true });
+});
+
+test('evaluateUnsupportedSchemaValidation returns passed=false when the probe does not throw expected errors', () => {
+  const base = createPreview({});
+  const head = createPreview({});
+  const probe = evaluateUnsupportedSchemaValidation({
+    buildDiffJson: () =>
+      ({
+        schemaVersion: 1,
+        base: { ref: 'main', sha: 'aaa111' },
+        head: { ref: 'HEAD', sha: 'bbb222' },
+        baseMode: 'ref',
+        totals: {
+          base: { catalogs: 0, tests: 0 },
+          head: { catalogs: 0, tests: 0 }
+        },
+        summary: {
+          catalogs: { added: 0, removed: 0, updated: 0 },
+          cases: { added: 0, removed: 0, updated: 0 }
+        },
+        catalogs: {
+          added: [],
+          removed: [],
+          updated: []
+        }
+      }) as DiffJson,
+    base: { ref: 'main', sha: 'aaa111', previewJson: base },
+    head: { ref: 'HEAD', sha: 'bbb222', previewJson: head },
+    baseMode: 'ref'
+  });
+
+  expect(probe).toEqual({ checked: true, passed: false });
 });
 
 test('renderDiffReportMarkdown keeps existing case lists when updated catalog overlaps added/removed entries', () => {
@@ -336,7 +383,7 @@ test('renderSpecificationMarkdown keeps case ordering stable by id', () => {
   const markdown = renderSpecificationMarkdown(model);
   expect(markdown).toMatchSnapshot();
   expect(markdown.indexOf('## a-first - a')).toBeLessThan(markdown.indexOf('## z-last - z'));
-  expect(markdown).toContain('{\n  "x": 2,\n  "y": 1\n}');
+  expect(markdown).toContain(JSON.stringify(JSON.parse(stableStringify({ x: 2, y: 1 })), null, 2));
 });
 
 test('definition link rendering supports path and github modes', () => {

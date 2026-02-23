@@ -2,13 +2,29 @@ import {
   DIFF_SCHEMA_VERSION,
   DiffCoreError,
   DiffJson,
+  type PreviewJson,
   PREVIEW_SCHEMA_VERSION
 } from '@rawsql-ts/test-evidence-core';
 
+/**
+ * Metadata attached to a rendered diff report.
+ */
 export type DiffReportMarkdownMeta = {
+  /**
+   * ISO-8601 timestamp representing when the markdown was generated.
+   */
   generatedAt: string;
+  /**
+   * Optional result of the deterministic unsupported-schema probe.
+   */
   unsupportedSchemaValidation?: {
+    /**
+     * Whether the probe was executed.
+     */
     checked: boolean;
+    /**
+     * Whether the observed error exactly matched the deterministic expectation.
+     */
     passed: boolean;
   };
 };
@@ -23,7 +39,11 @@ type CatalogChangeRow = {
 };
 
 /**
- * Render a deterministic markdown report from DiffJson facts.
+ * Render a deterministic markdown report from diff facts and generation metadata.
+ *
+ * @param diff Diff payload containing header references, summary counters, and catalog changes.
+ * @param meta Report metadata including generated timestamp and optional unsupported-schema probe result.
+ * @returns Markdown with Header, Summary, Catalog changes, and Validation sections. The returned string ends with `\n`.
  */
 export function renderDiffReportMarkdown(diff: DiffJson, meta: DiffReportMarkdownMeta): string {
   const lines: string[] = [];
@@ -76,16 +96,19 @@ export function renderDiffReportMarkdown(diff: DiffJson, meta: DiffReportMarkdow
 }
 
 /**
- * Execute deterministic unsupported-schema validation by probing buildDiffJson with schemaVersion+1.
+ * Probe unsupported preview schema handling by invoking `buildDiffJson` with `schemaVersion + 1`.
+ *
+ * @param args Probe input including `buildDiffJson`, base/head preview payloads, and base mode.
+ * @returns `{ checked, passed }`, where `passed` is true only when `DiffCoreError` matches expected code/path/schemaVersion.
  */
 export function evaluateUnsupportedSchemaValidation(args: {
   buildDiffJson: (input: {
-    base: { ref: string; sha: string; previewJson: any };
-    head: { ref: string; sha: string; previewJson: any };
+    base: { ref: string; sha: string; previewJson: PreviewJson };
+    head: { ref: string; sha: string; previewJson: PreviewJson };
     baseMode: 'merge-base' | 'ref';
   }) => DiffJson;
-  base: { ref: string; sha: string; previewJson: any };
-  head: { ref: string; sha: string; previewJson: any };
+  base: { ref: string; sha: string; previewJson: PreviewJson };
+  head: { ref: string; sha: string; previewJson: PreviewJson };
   baseMode: 'merge-base' | 'ref';
 }): { checked: boolean; passed: boolean } {
   const mutatedBase = {
