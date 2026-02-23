@@ -610,10 +610,10 @@ function writeArtifacts(args: {
 }
 
 function writeSpecificationMarkdownArtifacts(
-  report: TestSpecificationEvidence,
-  outDir: string,
-  sourceRootDir: string
-): string[] {
+    report: TestSpecificationEvidence,
+    outDir: string,
+    sourceRootDir: string
+  ): string[] {
   const indexFileName = 'test-specification.index.md';
   const model = buildSpecificationModel(report as TestEvidencePreviewJson);
   const catalogs = [...model.catalogs].sort((a, b) => a.catalogId.localeCompare(b.catalogId));
@@ -629,14 +629,17 @@ function writeSpecificationMarkdownArtifacts(
     const catalogSlug = toSpecificationSlug(catalog.catalogId);
     const catalogFileName = `test-specification.catalog.${catalogSlug}.md`;
     const catalogPath = path.join(outDir, catalogFileName);
-    const catalogDefinitionLinks = resolveDefinitionLinkOptions({ markdownPath: catalogPath, sourceRootDir });
-    const catalogLines: string[] = [];
-    catalogLines.push(`# ${catalog.catalogId} Test Cases`);
-    catalogLines.push('');
-    catalogLines.push(`- schemaVersion: ${model.schemaVersion}`);
-    catalogLines.push(`- index: [Unit Test Index](./${indexFileName})`);
-    catalogLines.push(`- title: ${catalog.title}`);
-    catalogLines.push(`- definition: ${formatDefinitionLinkMarkdown(catalog.definition, catalogDefinitionLinks)}`);
+      const catalogDefinitionLinks = resolveDefinitionLinkOptions({ markdownPath: catalogPath, sourceRootDir });
+      const catalogLines: string[] = [];
+      catalogLines.push(`# ${catalog.catalogId} Test Cases`);
+      catalogLines.push('');
+      catalogLines.push(`- schemaVersion: ${model.schemaVersion}`);
+      catalogLines.push(`- index: [Unit Test Index](./${indexFileName})`);
+      catalogLines.push(`- title: ${catalog.title}`);
+      const definitionPath =
+        catalog.definition ??
+        findCatalogDefinitionPath(report, catalog.catalogId);
+      catalogLines.push(`- definition: ${formatDefinitionLinkMarkdown(definitionPath, catalogDefinitionLinks)}`);
     if (catalog.description) {
       catalogLines.push(`- description: ${catalog.description}`);
     }
@@ -711,6 +714,18 @@ function writeSpecificationMarkdownArtifacts(
   written.push(indexPath);
 
   return written;
+}
+
+function findCatalogDefinitionPath(report: TestSpecificationEvidence, catalogId: string): string | undefined {
+  const functionCatalog = report.testCaseCatalogs.find((catalog) => catalog.id === catalogId);
+  if (functionCatalog?.definitionPath) {
+    return functionCatalog.definitionPath;
+  }
+  const sqlCatalog = report.sqlCaseCatalogs.find((catalog) => catalog.id === catalogId);
+  if (sqlCatalog?.definitionPath) {
+    return sqlCatalog.definitionPath;
+  }
+  return undefined;
 }
 
 function toSpecificationSlug(definition: string): string {
