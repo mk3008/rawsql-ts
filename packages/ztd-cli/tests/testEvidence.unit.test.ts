@@ -62,6 +62,24 @@ function writeSpecModule(root: string, options?: { testCaseIds?: string[]; inclu
   writeFileSync(path.join(root, 'tests', 'specs', 'index.cjs'), source, 'utf8');
 }
 
+function withoutGitHubEnv<T>(fn: () => T): T {
+  const keys = ['GITHUB_SERVER_URL', 'GITHUB_REPOSITORY', 'GITHUB_SHA'] as const;
+  const originals = keys.map((key) => process.env[key]);
+  try {
+    keys.forEach((key) => delete process.env[key]);
+    return fn();
+  } finally {
+    keys.forEach((key, index) => {
+      const original = originals[index];
+      if (original === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = original;
+      }
+    });
+  }
+}
+
 test('runTestEvidenceSpecification extracts SQL catalogs, SQL case catalogs, and test-case catalogs deterministically', () => {
   const root = createWorkspace('evidence-spec');
   writeFileSync(
@@ -125,8 +143,10 @@ test('formatTestEvidenceOutput emits deterministic markdown and json text', () =
   writeSpecModule(root, { testCaseIds: ['works'], includeSqlCase: false });
 
   const report = runTestEvidenceSpecification({ mode: 'specification', rootDir: root });
-  const markdown = formatTestEvidenceOutput(report, 'markdown');
-  const json = formatTestEvidenceOutput(report, 'json');
+  const { markdown, json } = withoutGitHubEnv(() => ({
+    markdown: formatTestEvidenceOutput(report, 'markdown'),
+    json: formatTestEvidenceOutput(report, 'json'),
+  }));
 
   expect(markdown).toContain('# unit.users Test Cases');
   expect(markdown).toContain('- tests: 1');

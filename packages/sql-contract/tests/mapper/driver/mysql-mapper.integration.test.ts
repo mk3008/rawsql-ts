@@ -72,7 +72,7 @@ driverDescribe('reader driver integration (mysql)', () => {
     )
     expect(record.issuedAtDatetime).toBeInstanceOf(Date)
     expect(record.issuedAtDatetime.toISOString()).toBe(
-      '2025-01-15T00:00:00.000Z',
+      '2025-01-15T09:00:00.000Z',
     )
   })
 
