@@ -1,0 +1,17 @@
+{
+  "name": "@rawsql-ts/ddl-docs-vitepress",
+  "version": "0.1.0",
+  "private": true,
+  "description": "VitePress site for DB schema docs generated from DDL via ddl-docs-cli",
+  "scripts": {
+    "generate": "ddl-docs generate --ddl-dir ddl --out-dir docs/tables --label-separator \" :\"",
+    "dev": "pnpm generate && vitepress dev docs",
+    "build": "pnpm generate && vitepress build docs",
+    "preview": "pnpm generate && vitepress preview docs"
+  },
+  "devDependencies": {
+    "@rawsql-ts/ddl-docs-cli": "workspace:*",
+    "vitepress": "^1.6.4",
+    "vitepress-sidebar": "^1.33.1"
+  }
+}
