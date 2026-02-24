@@ -15,9 +15,20 @@ describe("CreateTableParser", () => {
         // Assert
         expect(ast).toBeInstanceOf(CreateTableQuery);
         expect(ast.isTemporary).toBe(false);
+        expect(ast.isUnlogged).toBe(false);
         expect(ast.ifNotExists).toBe(false);
         expect(ast.asSelectQuery).not.toBeUndefined();
         expect(formatted).toBe('create table "reports" as select "id", "name" from "users"');
+    });
+
+    it("parses CREATE UNLOGGED TABLE ... AS SELECT", () => {
+        const sql = "CREATE UNLOGGED TABLE reports_unlogged AS SELECT id FROM users";
+
+        const ast = CreateTableParser.parse(sql);
+
+        expect(ast.isUnlogged).toBe(true);
+        expect(ast.isTemporary).toBe(false);
+        expect(ast.ifNotExists).toBe(false);
     });
 
     it("parses CREATE TEMPORARY TABLE ... AS SELECT", () => {

@@ -59,6 +59,17 @@ WHERE active = true`;
         expect(formatted).toContain('where "active" = true');
     });
 
+    it("parses CREATE INDEX ... ON ONLY ... with quoted and schema-qualified table", () => {
+        const sql = 'CREATE INDEX idx_parent_created_at ON ONLY "audit"."ParentTable" ("created_at")';
+
+        const ast = CreateIndexParser.parse(sql) as CreateIndexStatement;
+        const formatted = new SqlFormatter().format(ast).formattedSql;
+
+        expect(ast.tableName.toString()).toBe("audit.ParentTable");
+        expect(ast.columns).toHaveLength(1);
+        expect(formatted).toContain('create index "idx_parent_created_at" on "audit"."ParentTable" ("created_at")');
+    });
+
     it("parses DROP INDEX with modifiers", () => {
         const sql = "DROP INDEX CONCURRENTLY IF EXISTS idx_users_email, idx_users_active RESTRICT";
         const ast = DropIndexParser.parse(sql);

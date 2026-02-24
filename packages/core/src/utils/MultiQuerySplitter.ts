@@ -150,111 +150,148 @@ export class MultiQuerySplitter {
     }
     
     /**
-     * Get query boundaries from SQL text with proper semicolon handling
-     * 
-     * @param text - SQL text to analyze
-     * @returns Array of boundary positions
-     */
-    /**
-     * Split text by semicolons while respecting quotes and comments
+     * Split text by semicolons while respecting quotes and comments.
+     * Single-pass O(n) implementation with support for:
+     * - Single-quoted strings ('...' with '' escaping)
+     * - Double-quoted identifiers ("..." with "" escaping)
+     * - Line comments (--)
+     * - Block comments (/* ... *\/)
+     * - PostgreSQL dollar-quoted strings ($$...$$ or $tag$...$tag$)
      */
     private static splitRespectingQuotesAndComments(text: string): Array<{ text: string; start: number; end: number }> {
         const segments: Array<{ text: string; start: number; end: number }> = [];
         let currentStart = 0;
         let i = 0;
-        
-        while (i <= text.length) {
-            // Check if we're at a valid semicolon or end of text
-            const isValidBreakpoint = (i === text.length) || (i < text.length && this.isValidSemicolon(text, i));
-            
-            if (isValidBreakpoint) {
-                const segmentText = text.substring(currentStart, i);
-                if (segmentText.length > 0 || i < text.length) {
-                    segments.push({
-                        text: segmentText,
-                        start: currentStart,
-                        end: i
-                    });
-                }
-                currentStart = i + 1;
-            }
-            
-            i++;
-        }
-        
-        return segments;
-    }
-    
-    /**
-     * Check if character at position is a valid semicolon (not in quotes/comments)
-     */
-    private static isValidSemicolon(text: string, pos: number): boolean {
-        if (text[pos] !== ';') return false;
-        
-        // Check if this semicolon is inside quotes or comments by scanning from start
+
         let inSingleQuote = false;
         let inDoubleQuote = false;
         let inLineComment = false;
         let inBlockComment = false;
-        
-        for (let i = 0; i < pos; i++) {
+        let inDollarQuote = false;
+        let dollarTag = '';
+
+        while (i < text.length) {
             const char = text[i];
-            const nextChar = i + 1 < text.length ? text[i + 1] : '';
-            
-            // Handle line comments
-            if (!inSingleQuote && !inDoubleQuote && !inBlockComment && 
-                char === '-' && nextChar === '-') {
+
+            // --- inside line comment ---
+            if (inLineComment) {
+                if (char === '\n') inLineComment = false;
+                i++;
+                continue;
+            }
+
+            // --- inside block comment ---
+            if (inBlockComment) {
+                if (char === '*' && text[i + 1] === '/') {
+                    inBlockComment = false;
+                    i += 2;
+                } else {
+                    i++;
+                }
+                continue;
+            }
+
+            // --- inside dollar-quoted string ---
+            if (inDollarQuote) {
+                const closing = '$' + dollarTag + '$';
+                if (text.startsWith(closing, i)) {
+                    inDollarQuote = false;
+                    dollarTag = '';
+                    i += closing.length;
+                } else {
+                    i++;
+                }
+                continue;
+            }
+
+            // --- inside single-quoted string ---
+            if (inSingleQuote) {
+                if (char === "'" && text[i + 1] === "'") {
+                    i += 2; // escaped quote
+                } else if (char === "'") {
+                    inSingleQuote = false;
+                    i++;
+                } else {
+                    i++;
+                }
+                continue;
+            }
+
+            // --- inside double-quoted identifier ---
+            if (inDoubleQuote) {
+                if (char === '"' && text[i + 1] === '"') {
+                    i += 2; // escaped quote
+                } else if (char === '"') {
+                    inDoubleQuote = false;
+                    i++;
+                } else {
+                    i++;
+                }
+                continue;
+            }
+
+            // --- unquoted context ---
+
+            // line comment
+            if (char === '-' && text[i + 1] === '-') {
                 inLineComment = true;
-                i++; // Skip next character
+                i += 2;
                 continue;
             }
-            
-            if (inLineComment && char === '\n') {
-                inLineComment = false;
-                continue;
-            }
-            
-            // Handle block comments
-            if (!inSingleQuote && !inDoubleQuote && !inLineComment && 
-                char === '/' && nextChar === '*') {
+
+            // block comment
+            if (char === '/' && text[i + 1] === '*') {
                 inBlockComment = true;
-                i++; // Skip next character
+                i += 2;
                 continue;
             }
-            
-            if (inBlockComment && char === '*' && nextChar === '/') {
-                inBlockComment = false;
-                i++; // Skip next character
-                continue;
-            }
-            
-            // Skip if in any comment
-            if (inLineComment || inBlockComment) {
-                continue;
-            }
-            
-            // Handle quotes
-            if (char === "'" && !inDoubleQuote) {
-                if (inSingleQuote && nextChar === "'") {
-                    i++; // Skip escaped quote
-                } else {
-                    inSingleQuote = !inSingleQuote;
+
+            // dollar-quoted string: $tag$ where tag is empty or [a-zA-Z_]\w*
+            if (char === '$') {
+                const tagEnd = text.indexOf('$', i + 1);
+                if (tagEnd !== -1) {
+                    const tag = text.substring(i + 1, tagEnd);
+                    if (/^([a-zA-Z_]\w*)?$/.test(tag)) {
+                        inDollarQuote = true;
+                        dollarTag = tag;
+                        i = tagEnd + 1;
+                        continue;
+                    }
                 }
+            }
+
+            // single quote
+            if (char === "'") {
+                inSingleQuote = true;
+                i++;
                 continue;
             }
-            
-            if (char === '"' && !inSingleQuote) {
-                if (inDoubleQuote && nextChar === '"') {
-                    i++; // Skip escaped quote
-                } else {
-                    inDoubleQuote = !inDoubleQuote;
-                }
+
+            // double quote
+            if (char === '"') {
+                inDoubleQuote = true;
+                i++;
                 continue;
             }
+
+            // valid semicolon split point
+            if (char === ';') {
+                segments.push({ text: text.substring(currentStart, i), start: currentStart, end: i });
+                currentStart = i + 1;
+                i++;
+                continue;
+            }
+
+            i++;
         }
-        
-        // Return false if we're inside quotes or comments at this position
-        return !inSingleQuote && !inDoubleQuote && !inLineComment && !inBlockComment;
+
+        // remaining text after last semicolon (or entire text if no semicolon)
+        const remaining = text.substring(currentStart);
+        if (remaining.length > 0 || segments.length === 0) {
+            segments.push({ text: remaining, start: currentStart, end: text.length });
+        }
+
+        return segments;
     }
 
     

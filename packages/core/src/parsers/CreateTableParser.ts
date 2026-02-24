@@ -76,6 +76,10 @@ export class CreateTableParser {
         "create temp table"
     ]);
 
+    private static readonly UNLOGGED_CREATE_TABLE_COMMANDS = new Set([
+        "create unlogged table"
+    ]);
+
     private static readonly MATCH_KEYWORDS = new Map<string, MatchType>([
         ["match full", "full"],
         ["match partial", "partial"],
@@ -129,8 +133,9 @@ export class CreateTableParser {
         const leadingCreateComments = this.popLexemeComments(commandLexeme, 'before');
         const commandToken = commandLexeme.value.toLowerCase();
         const isTemporary = this.TEMPORARY_CREATE_TABLE_COMMANDS.has(commandToken);
+        const isUnlogged = this.UNLOGGED_CREATE_TABLE_COMMANDS.has(commandToken);
 
-        if (commandToken !== "create table" && !isTemporary) {
+        if (commandToken !== "create table" && !isTemporary && !isUnlogged) {
             throw new Error(`[CreateTableParser] Syntax error at position ${idx}: expected 'CREATE TABLE' but found '${lexemes[idx].value}'.`);
         }
         idx++;
@@ -202,6 +207,7 @@ export class CreateTableParser {
             tableName: tableName.name,
             namespaces: tableNamespaces,
             isTemporary,
+            isUnlogged,
             ifNotExists,
             columns,
             tableConstraints,

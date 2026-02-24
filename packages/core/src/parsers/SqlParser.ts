@@ -183,6 +183,7 @@ export class SqlParser {
 
             case 'create table':
             case 'create temporary table':
+            case 'create unlogged table':
                 return this.parseCreateTableStatement(segment, statementIndex);
 
             case 'merge into':

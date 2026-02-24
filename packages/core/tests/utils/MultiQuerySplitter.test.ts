@@ -65,6 +65,26 @@ describe('MultiQuerySplitter', () => {
             expect(result.queries[0].sql).toBe(`SELECT 'single;quote' AS col1, "double;quote" AS col2`);
         });
     });
+
+    describe('PostgreSQL dollar-quoted string handling', () => {
+        test('should ignore semicolons inside $$...$$ strings', () => {
+            const sql = "SELECT $$hello;world$$; SELECT 2;";
+            const result = MultiQuerySplitter.split(sql);
+
+            expect(result.queries).toHaveLength(2);
+            expect(result.queries[0].sql).toBe("SELECT $$hello;world$$");
+            expect(result.queries[1].sql).toBe("SELECT 2");
+        });
+
+        test('should ignore semicolons inside $tag$...$tag$ strings', () => {
+            const sql = "SELECT $body$first;second$body$; SELECT 2;";
+            const result = MultiQuerySplitter.split(sql);
+
+            expect(result.queries).toHaveLength(2);
+            expect(result.queries[0].sql).toBe("SELECT $body$first;second$body$");
+            expect(result.queries[1].sql).toBe("SELECT 2");
+        });
+    });
     
     describe('Comment handling', () => {
         test('should ignore semicolons in line comments', () => {
@@ -299,21 +319,36 @@ SELECT 3;`;
             expect(result.queries).toHaveLength(3);
             result.queries.forEach(q => expect(q.isEmpty).toBe(true));
         });
+
+        test('should keep a leading semicolon as an empty first statement', () => {
+            const result = MultiQuerySplitter.split(';SELECT 1;');
+            expect(result.queries).toHaveLength(2);
+            expect(result.queries[0].isEmpty).toBe(true);
+            expect(result.queries[1].sql).toBe('SELECT 1');
+        });
         
         test('should handle unclosed string literals gracefully', () => {
             const sql = "SELECT 'unclosed string; SELECT 2;";
             const result = MultiQuerySplitter.split(sql);
             
-            // Should handle gracefully, even if not perfectly parsed
-            expect(result.queries).toBeDefined();
+            expect(result.queries).toHaveLength(1);
+            expect(result.queries[0].sql).toBe(sql);
         });
         
         test('should handle unclosed block comments gracefully', () => {
             const sql = "SELECT 1 /* unclosed comment; SELECT 2;";
             const result = MultiQuerySplitter.split(sql);
             
-            // Should handle gracefully
-            expect(result.queries).toBeDefined();
+            expect(result.queries).toHaveLength(1);
+            expect(result.queries[0].sql).toBe(sql);
+        });
+
+        test('should handle unclosed dollar-quoted strings gracefully', () => {
+            const sql = "SELECT $tag$unclosed; still in string; SELECT 2;";
+            const result = MultiQuerySplitter.split(sql);
+
+            expect(result.queries).toHaveLength(1);
+            expect(result.queries[0].sql).toBe(sql);
         });
     });
 });
