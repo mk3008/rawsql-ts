@@ -9,7 +9,8 @@ import { renderReferencesPage } from '../render/referencesPage';
 import { renderTableMarkdown, tableDocPath } from '../render/tableMarkdown';
 import type { TableSuggestionSql } from '../render/tableMarkdown';
 import { writeManifest } from '../state/manifest';
-import type { GenerateDocsOptions, SuggestionItem } from '../types';
+import type { DdlInput, GenerateDocsOptions, SuggestionItem } from '../types';
+import { dedupeDdlInputsByInstanceAndPath } from '../utils/ddlInputDedupe';
 import { collectSqlFiles, ensureDirectory, expandGlobPatterns } from '../utils/fs';
 import { writeTextFileNormalized } from '../utils/io';
 
@@ -19,23 +20,35 @@ const GENERATOR_VERSION = '1.0.0';
  * Generates markdown docs and metadata files from DDL inputs.
  */
 export function runGenerateDocs(options: GenerateDocsOptions): void {
-  if (options.ddlDirectories.length === 0 && options.ddlFiles.length === 0 && options.ddlGlobs.length === 0) {
+  const startTime = Date.now();
+  const normalizedDirectories = normalizeDdlInputs(options.ddlDirectories);
+  const normalizedFiles = normalizeDdlInputs(options.ddlFiles);
+  const normalizedGlobs = normalizeDdlInputs(options.ddlGlobs);
+
+  if (normalizedDirectories.length === 0 && normalizedFiles.length === 0 && normalizedGlobs.length === 0) {
     throw new Error('At least one DDL input is required via --ddl-dir, --ddl-file, or --ddl-glob.');
   }
 
-  const globFiles = expandGlobPatterns(options.ddlGlobs);
-  const mergedFiles = Array.from(new Set([...options.ddlFiles, ...globFiles]));
-  const sources = collectSqlFiles(options.ddlDirectories, mergedFiles, options.extensions);
+  const mergedFiles: DdlInput[] = [...normalizedFiles];
+  for (const globInput of normalizedGlobs) {
+    for (const p of expandGlobPatterns([globInput.path])) {
+      mergedFiles.push({ path: p, instance: globInput.instance ?? '' });
+    }
+  }
+  const uniqueFiles = dedupeDdlInputsByInstanceAndPath(mergedFiles);
+  const sources = collectSqlFiles(normalizedDirectories, uniqueFiles, options.extensions);
   if (sources.length === 0) {
     throw new Error('No SQL files were discovered from the provided inputs.');
   }
 
+  console.log(`Found ${sources.length} SQL file(s). Parsing...`);
   const schemaSettings = resolveSchemaSettings(options.configPath, options.defaultSchema, options.searchPath);
   const snapshot = snapshotTableDocs(sources, schemaSettings, { columnOrder: options.columnOrder });
   if (snapshot.tables.length === 0) {
     throw new Error('No table definitions were detected in the supplied DDL.');
   }
 
+  console.log(`Parsed ${snapshot.tables.length} table(s). Analyzing...`);
   const dictionary = loadDictionary(options.dictionaryPath);
   const locale = resolveLocale(options.locale, dictionary);
   const analysis = analyzeColumns(snapshot.tables, { locale, dictionary });
@@ -49,20 +62,25 @@ export function runGenerateDocs(options: GenerateDocsOptions): void {
   const nameMap: Record<string, string> = {};
   const suggestionsByTable = groupSuggestionsByTable(allSuggestions);
 
+  const total = snapshot.tables.length;
+  let tableIndex = 0;
   for (const table of snapshot.tables) {
+    tableIndex++;
+    console.log(`Writing table ${tableIndex}/${total}: ${table.schema}.${table.table}`);
     const outputPath = tableDocPath(options.outDir, table.schemaSlug, table.tableSlug);
     ensureDirectory(path.dirname(outputPath));
     const tableSuggestions = suggestionsByTable.get(`${table.schema}.${table.table}`) ?? {
       columnCommentSql: [],
       foreignKeySql: [],
     };
-    writeTextFileNormalized(outputPath, renderTableMarkdown(table, tableSuggestions));
+    writeTextFileNormalized(outputPath, renderTableMarkdown(table, tableSuggestions, { labelSeparator: options.labelSeparator }));
     generatedFiles.push(outputPath);
     tableOutputs.push(outputPath);
     nameMap[`${table.schema}.${table.table}`] = `${table.schemaSlug}/${table.tableSlug}.md`;
   }
 
   if (options.includeIndexes) {
+    console.log('Writing index pages...');
     const indexPages = renderIndexPages(options.outDir, snapshot.tables, analysis.findings, tableSuggestSet);
     for (const page of indexPages) {
       ensureDirectory(path.dirname(page.path));
@@ -72,6 +90,7 @@ export function runGenerateDocs(options: GenerateDocsOptions): void {
     }
   }
 
+  console.log('Writing column pages...');
   const columnPages = renderColumnPages(options.outDir, analysis.observed, analysis.findings);
   for (const page of columnPages) {
     ensureDirectory(path.dirname(page.path));
@@ -124,16 +143,18 @@ export function runGenerateDocs(options: GenerateDocsOptions): void {
       columnOrder: options.columnOrder,
       strict: options.strict,
       extensions: options.extensions,
-      ddlDirectories: options.ddlDirectories,
-      ddlFiles: mergedFiles,
-      ddlGlobs: options.ddlGlobs,
+      ddlDirectories: normalizedDirectories,
+      ddlFiles: uniqueFiles.map((f) => f.path),
+      ddlGlobs: normalizedGlobs,
     },
     nameMap,
     tableOutputs,
     columnOutputs,
   });
 
-  console.log(`Generated ${generatedFiles.length} files under ${options.outDir}`);
+  const elapsedMs = Date.now() - startTime;
+  const elapsedSec = (elapsedMs / 1000).toFixed(2);
+  console.log(`Generated ${generatedFiles.length} files under ${options.outDir} (${elapsedSec}s)`);
   console.log(`Warnings: ${snapshot.warnings.length} (${warningsJsonPath})`);
   console.log(`Findings: ${analysis.findings.length} (${findingsJsonPath})`);
   console.log(`Manifest: ${manifest}`);
@@ -142,6 +163,17 @@ export function runGenerateDocs(options: GenerateDocsOptions): void {
   if (options.strict && totalIssues > 0) {
     throw new Error(`Strict mode failed: ${totalIssues} issues found.`);
   }
+}
+
+function normalizeDdlInputs(inputs: Array<DdlInput | string>): DdlInput[] {
+  return inputs
+    .map((entry) => {
+      if (typeof entry === 'string') {
+        return { path: entry, instance: '' };
+      }
+      return { path: entry.path, instance: entry.instance ?? '' };
+    })
+    .filter((entry) => Boolean(entry.path));
 }
 
 function groupSuggestionsByTable(
