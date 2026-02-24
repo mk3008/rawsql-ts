@@ -4,7 +4,7 @@
   "private": true,
   "description": "VitePress site for DB schema docs generated from DDL via ddl-docs-cli",
   "scripts": {
-    "generate": "ddl-docs generate --ddl-dir ddl --out-dir docs/tables --label-separator \" :\"",
+    "generate": "node ./scripts/run-generate.cjs",
     "dev": "pnpm generate && vitepress dev docs",
     "build": "pnpm generate && vitepress build docs",
     "preview": "pnpm generate && vitepress preview docs"
