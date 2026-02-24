@@ -106,18 +106,13 @@ export function snapshotTableDocs(
   const warnings: WarningItem[] = [];
 
   for (const source of sources) {
-    console.log(`  Splitting: ${source.path}`);
     // Strip psql meta-commands (\connect, \restrict, etc.) that pg_dump emits
     const cleanedSql = source.sql
       .split('\n')
       .map(line => (/^\s*\\/.test(line) ? '' : line))
       .join('\n');
     const statements = MultiQuerySplitter.split(cleanedSql).queries;
-    console.log(`  ${statements.length} statements found in ${source.path}`);
     for (let statementIndex = 0; statementIndex < statements.length; statementIndex += 1) {
-      if (statementIndex > 0 && statementIndex % 100 === 0) {
-        console.log(`  Parsing statement ${statementIndex}/${statements.length} in ${source.path}`);
-      }
       const statement = statements[statementIndex];
       if (statement.isEmpty) {
         continue;
@@ -186,7 +181,7 @@ export function snapshotTableDocs(
         sqlLower.startsWith('create or replace trigger ') ||
         sqlLower.startsWith('create constraint trigger ')
       ) {
-        collectTrigger(sql, schemaSettings, triggerAccumulator);
+        collectTrigger(sql, source.instance, schemaSettings, triggerAccumulator);
         continue;
       }
       // Silently skip DROP/ALTER TRIGGER
@@ -242,7 +237,7 @@ export function snapshotTableDocs(
       }
 
       if (parsed instanceof CreateIndexStatement) {
-        applyCreateIndex(parsed, schemaSettings, registry);
+        applyCreateIndex(parsed, source, schemaSettings, registry);
         continue;
       }
 
@@ -276,7 +271,8 @@ function applyCreateTable(
   registry: Map<string, WorkingTable>
 ): void {
   const tableKey = buildTableKey(query.namespaces ?? [], query.tableName.name, schemaSettings);
-  const table = registry.get(tableKey) ?? createWorkingTable(tableKey, source.instance);
+  const registryKey = buildRegistryKey(source.instance, tableKey);
+  const table = registry.get(registryKey) ?? createWorkingTable(tableKey, source.instance);
   table.sourceFiles.add(source.path);
 
   const definition = createTableDefinitionFromCreateTableQuery(query);
@@ -313,7 +309,7 @@ function applyCreateTable(
 
   table.constraints = dedupeConstraints(table.constraints);
   table.outgoingReferences = dedupeReferences(table.outgoingReferences);
-  registry.set(tableKey, table);
+  registry.set(registryKey, table);
 }
 
 function applyAlterTable(
@@ -323,7 +319,8 @@ function applyAlterTable(
   registry: Map<string, WorkingTable>
 ): void {
   const tableKey = buildTableKey(statement.table.namespaces ?? [], statement.table.name, schemaSettings);
-  const table = registry.get(tableKey) ?? createWorkingTable(tableKey, source.instance);
+  const registryKey = buildRegistryKey(source.instance, tableKey);
+  const table = registry.get(registryKey) ?? createWorkingTable(tableKey, source.instance);
   table.sourceFiles.add(source.path);
 
   for (const action of statement.actions) {
@@ -335,6 +332,14 @@ function applyAlterTable(
       }
       continue;
     }
+    if (action instanceof AlterTableAlterColumnDefault && action.dropDefault) {
+      const columnName = normalizeIdentifier(action.columnName);
+      const column = table.columns.get(columnName);
+      if (column) {
+        column.defaultValue = '';
+      }
+      continue;
+    }
     if (!(action instanceof AlterTableAddConstraint)) {
       continue;
     }
@@ -343,7 +348,7 @@ function applyAlterTable(
 
   table.constraints = dedupeConstraints(table.constraints);
   table.outgoingReferences = dedupeReferences(table.outgoingReferences);
-  registry.set(tableKey, table);
+  registry.set(registryKey, table);
 }
 
 function applyColumnConstraints(
@@ -506,11 +511,13 @@ function renderExpression(component: ValueComponent): string {
 
 function applyCreateIndex(
   statement: CreateIndexStatement,
+  source: SqlSource,
   schemaSettings: ResolvedSchemaSettings,
   registry: Map<string, WorkingTable>
 ): void {
   const tableKey = buildTableKey(statement.tableName.namespaces ?? [], statement.tableName.name, schemaSettings);
-  const table = registry.get(tableKey);
+  const registryKey = buildRegistryKey(source.instance, tableKey);
+  const table = registry.get(registryKey);
   if (!table) {
     return;
   }
@@ -532,6 +539,7 @@ function applyCreateIndex(
  */
 function collectTrigger(
   sql: string,
+  instance: string,
   schemaSettings: ResolvedSchemaSettings,
   accumulator: TriggerAccumulator
 ): void {
@@ -552,6 +560,7 @@ function collectTrigger(
     parts.length >= 2
       ? `${parts[parts.length - 2]}.${parts[parts.length - 1]}`
       : `${schemaSettings.defaultSchema}.${parts[0]}`;
+  const registryKey = buildRegistryKey(instance, tableKey);
 
   const eventsMatch = normalized.match(/\b(?:before|after|instead\s+of)\b\s+(.*?)\s+\bon\b/i);
   const events: string[] = [];
@@ -570,7 +579,7 @@ function collectTrigger(
   const functionName = funcMatch ? funcMatch[1].replace(/"/g, '').toLowerCase().replace(/\s+/g, '') : '';
 
   const rawSql = normalized.endsWith(';') ? normalized : `${normalized};`;
-  accumulator.items.push({ tableKey, trigger: { name, timing, events, forEach, functionName, rawSql } });
+  accumulator.items.push({ tableKey: registryKey, trigger: { name, timing, events, forEach, functionName, rawSql } });
 }
 
 function applyTriggersToRegistry(
@@ -598,6 +607,10 @@ function buildTableKey(
     return `${schema}.${normalizedTable}`;
   }
   return `${schemaSettings.defaultSchema}.${normalizedTable}`;
+}
+
+function buildRegistryKey(instance: string, tableKey: string): string {
+  return `${instance ?? ''}\u0000${tableKey}`;
 }
 
 function normalizeIdentifier(value: string | { name: string } | { value: string }): string {
@@ -777,11 +790,14 @@ function parseQualifiedParts(input: string): string[] {
 
 function applyCommentsToRegistry(registry: Map<string, WorkingTable>, comments: CommentAccumulator): void {
   for (const [tableKey, comment] of comments.tableComments.entries()) {
-    const table = registry.get(tableKey);
-    if (!table) {
+    const [schema, tableName] = tableKey.split('.');
+    if (!schema || !tableName) {
       continue;
     }
-    table.tableComment = comment;
+    const tables = findTablesBySchemaAndName(registry, schema, tableName);
+    for (const table of tables) {
+      table.tableComment = comment;
+    }
   }
 
   for (const [columnKey, comment] of comments.columnComments.entries()) {
@@ -789,15 +805,14 @@ function applyCommentsToRegistry(registry: Map<string, WorkingTable>, comments: 
     if (!schema || !tableName || !columnName) {
       continue;
     }
-    const table = registry.get(`${schema}.${tableName}`);
-    if (!table) {
-      continue;
+    const tables = findTablesBySchemaAndName(registry, schema, tableName);
+    for (const table of tables) {
+      const column = table.columns.get(columnName);
+      if (!column) {
+        continue;
+      }
+      column.comment = comment;
     }
-    const column = table.columns.get(columnName);
-    if (!column) {
-      continue;
-    }
-    column.comment = comment;
   }
 }
 
@@ -830,9 +845,9 @@ function finalizeTables(registry: Map<string, WorkingTable>, options: SnapshotOp
             direction: 'outgoing',
             source: 'ddl',
             fromTableKey: reference.fromTableKey,
-            fromTableComment: registry.get(reference.fromTableKey)?.tableComment ?? '',
+            fromTableComment: entry.tableComment,
             targetTableKey: reference.targetTableKey,
-            targetTableComment: registry.get(reference.targetTableKey)?.tableComment ?? '',
+            targetTableComment: findTableByTableKey(registry, reference.targetTableKey, entry.instance)?.tableComment ?? '',
             fromColumns: [...reference.fromColumns],
             targetColumns: [...reference.targetColumns],
             onDeleteAction: reference.onDeleteAction,
@@ -864,6 +879,32 @@ function finalizeTables(registry: Map<string, WorkingTable>, options: SnapshotOp
       } satisfies TableDocModel;
     })
     .sort((a, b) => `${a.schema}.${a.table}`.localeCompare(`${b.schema}.${b.table}`));
+}
+
+function findTablesBySchemaAndName(
+  registry: Map<string, WorkingTable>,
+  schema: string,
+  tableName: string
+): WorkingTable[] {
+  return Array.from(registry.values()).filter((table) => table.schema === schema && table.table === tableName);
+}
+
+function findTableByTableKey(
+  registry: Map<string, WorkingTable>,
+  tableKey: string,
+  instance: string
+): WorkingTable | undefined {
+  const [schema, tableName] = tableKey.split('.');
+  if (!schema || !tableName) {
+    return undefined;
+  }
+  const sameInstanceMatch = Array.from(registry.values()).find(
+    (table) => table.schema === schema && table.table === tableName && table.instance === instance
+  );
+  if (sameInstanceMatch) {
+    return sameInstanceMatch;
+  }
+  return Array.from(registry.values()).find((table) => table.schema === schema && table.table === tableName);
 }
 
 function sortColumns(left: WorkingColumn, right: WorkingColumn, mode: 'definition' | 'name'): number {

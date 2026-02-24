@@ -7,7 +7,7 @@
     "generate": "node ./scripts/run-generate.cjs",
     "dev": "pnpm generate && vitepress dev docs",
     "build": "pnpm generate && vitepress build docs",
-    "preview": "pnpm generate && vitepress preview docs"
+    "preview": "pnpm build && vitepress preview docs"
   },
   "devDependencies": {
     "@rawsql-ts/ddl-docs-cli": "workspace:*",

@@ -16,12 +16,23 @@ export interface TableSuggestionSql {
   foreignKeySql: string[];
 }
 
+/**
+ * Rendering options for `renderTableMarkdown`.
+ */
 export interface RenderTableOptions {
+  /**
+   * Optional delimiter (regex syntax) used to split a column comment into label and description.
+   */
   labelSeparator?: string;
 }
 
 /**
- * Renders a single table definition markdown page.
+ * Renders one table documentation page as markdown.
+ *
+ * @param table Table metadata to render.
+ * @param suggestedSql Suggested SQL statements grouped by table.
+ * @param renderOptions Optional rendering options such as label/comment splitting.
+ * @returns A markdown document string for the table page.
  */
 export function renderTableMarkdown(table: TableDocModel, suggestedSql: TableSuggestionSql, renderOptions?: RenderTableOptions): string {
   const labelSeparator = renderOptions?.labelSeparator;
@@ -186,7 +197,7 @@ function isSequenceColumn(column: TableDocModel['columns'][number]): boolean {
 }
 
 function splitComment(comment: string, separator: string): { label: string; description: string } {
-  const regex = new RegExp(separator);
+  const regex = safeSeparatorRegExp(separator);
   const match = regex.exec(comment);
   if (match !== null) {
     return {
@@ -195,6 +206,18 @@ function splitComment(comment: string, separator: string): { label: string; desc
     };
   }
   return { label: comment, description: '' };
+}
+
+function safeSeparatorRegExp(separator: string): RegExp {
+  try {
+    return new RegExp(separator);
+  } catch {
+    return new RegExp(escapeRegExp(separator));
+  }
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function renderColumnRow(column: TableDocModel['columns'][number], labelSeparator: string | undefined): string {

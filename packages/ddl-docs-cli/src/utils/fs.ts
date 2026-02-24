@@ -12,6 +12,14 @@ export function toWorkspaceRelative(filePath: string): string {
   return path.relative(process.cwd(), filePath).replace(/\\/g, '/');
 }
 
+/**
+ * Collects SQL sources from directory and file inputs with instance metadata.
+ *
+ * @param directories Directory inputs as `DdlInput` entries. Each entry carries a path and optional instance.
+ * @param files File inputs as `DdlInput` entries. Each entry carries a path and optional instance.
+ * @param extensions Allowed SQL file extensions. Values are normalized before matching.
+ * @returns Sorted `SqlSource[]` entries containing workspace-relative path, SQL text, and instance.
+ */
 export function collectSqlFiles(directories: DdlInput[], files: DdlInput[], extensions: string[]): SqlSource[] {
   const extensionSet = new Set(extensions.map((entry) => normalizeExtension(entry)));
   const sources: SqlSource[] = [];
@@ -135,14 +143,15 @@ function appendSqlFile(
     return;
   }
   const normalizedPath = path.normalize(filePath);
-  if (seen.has(normalizedPath)) {
+  const dedupeKey = `${instance}\u0000${normalizedPath}`;
+  if (seen.has(dedupeKey)) {
     return;
   }
   const sql = readFileSync(filePath, 'utf8');
   if (!sql.trim()) {
     return;
   }
-  seen.add(normalizedPath);
+  seen.add(dedupeKey);
   sources.push({
     path: toWorkspaceRelative(filePath),
     sql,

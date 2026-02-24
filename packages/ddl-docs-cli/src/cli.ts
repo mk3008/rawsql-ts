@@ -169,7 +169,7 @@ function parseGenerateOptions(args: string[]): GenerateDocsOptions | null {
     throw new Error(`Unknown option for generate: ${arg}`);
   }
 
-  if (options.ddlDirectories.length === 0 && options.ddlFiles.length === 0) {
+  if (options.ddlDirectories.length === 0 && options.ddlFiles.length === 0 && options.ddlGlobs.length === 0) {
     options.ddlDirectories = [{ path: DEFAULT_DDL_DIRECTORY, instance: '' }];
   }
 

@@ -20,7 +20,6 @@ const GENERATOR_VERSION = '1.0.0';
  * Generates markdown docs and metadata files from DDL inputs.
  */
 export function runGenerateDocs(options: GenerateDocsOptions): void {
-  const startTime = Date.now();
   const normalizedDirectories = normalizeDdlInputs(options.ddlDirectories);
   const normalizedFiles = normalizeDdlInputs(options.ddlFiles);
   const normalizedGlobs = normalizeDdlInputs(options.ddlGlobs);
@@ -41,14 +40,12 @@ export function runGenerateDocs(options: GenerateDocsOptions): void {
     throw new Error('No SQL files were discovered from the provided inputs.');
   }
 
-  console.log(`Found ${sources.length} SQL file(s). Parsing...`);
   const schemaSettings = resolveSchemaSettings(options.configPath, options.defaultSchema, options.searchPath);
   const snapshot = snapshotTableDocs(sources, schemaSettings, { columnOrder: options.columnOrder });
   if (snapshot.tables.length === 0) {
     throw new Error('No table definitions were detected in the supplied DDL.');
   }
 
-  console.log(`Parsed ${snapshot.tables.length} table(s). Analyzing...`);
   const dictionary = loadDictionary(options.dictionaryPath);
   const locale = resolveLocale(options.locale, dictionary);
   const analysis = analyzeColumns(snapshot.tables, { locale, dictionary });
@@ -62,11 +59,7 @@ export function runGenerateDocs(options: GenerateDocsOptions): void {
   const nameMap: Record<string, string> = {};
   const suggestionsByTable = groupSuggestionsByTable(allSuggestions);
 
-  const total = snapshot.tables.length;
-  let tableIndex = 0;
   for (const table of snapshot.tables) {
-    tableIndex++;
-    console.log(`Writing table ${tableIndex}/${total}: ${table.schema}.${table.table}`);
     const outputPath = tableDocPath(options.outDir, table.schemaSlug, table.tableSlug);
     ensureDirectory(path.dirname(outputPath));
     const tableSuggestions = suggestionsByTable.get(`${table.schema}.${table.table}`) ?? {
@@ -80,7 +73,6 @@ export function runGenerateDocs(options: GenerateDocsOptions): void {
   }
 
   if (options.includeIndexes) {
-    console.log('Writing index pages...');
     const indexPages = renderIndexPages(options.outDir, snapshot.tables, analysis.findings, tableSuggestSet);
     for (const page of indexPages) {
       ensureDirectory(path.dirname(page.path));
@@ -90,7 +82,6 @@ export function runGenerateDocs(options: GenerateDocsOptions): void {
     }
   }
 
-  console.log('Writing column pages...');
   const columnPages = renderColumnPages(options.outDir, analysis.observed, analysis.findings);
   for (const page of columnPages) {
     ensureDirectory(path.dirname(page.path));
@@ -144,20 +135,13 @@ export function runGenerateDocs(options: GenerateDocsOptions): void {
       strict: options.strict,
       extensions: options.extensions,
       ddlDirectories: normalizedDirectories,
-      ddlFiles: uniqueFiles.map((f) => f.path),
+      ddlFiles: uniqueFiles,
       ddlGlobs: normalizedGlobs,
     },
     nameMap,
     tableOutputs,
     columnOutputs,
   });
-
-  const elapsedMs = Date.now() - startTime;
-  const elapsedSec = (elapsedMs / 1000).toFixed(2);
-  console.log(`Generated ${generatedFiles.length} files under ${options.outDir} (${elapsedSec}s)`);
-  console.log(`Warnings: ${snapshot.warnings.length} (${warningsJsonPath})`);
-  console.log(`Findings: ${analysis.findings.length} (${findingsJsonPath})`);
-  console.log(`Manifest: ${manifest}`);
 
   const totalIssues = snapshot.warnings.length + analysis.findings.length;
   if (options.strict && totalIssues > 0) {

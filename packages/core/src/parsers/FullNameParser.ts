@@ -48,7 +48,11 @@ export class FullNameParser {
             // Preserve legacy comments when positioned comments are absent.
             // This keeps backward-compatible comment transfer behavior for callers
             // that still read from the `comments` field.
-            if (lastLexeme.comments && lastLexeme.comments.length > 0) {
+            if (
+                (!identifierString.positionedComments || identifierString.positionedComments.length === 0) &&
+                lastLexeme.comments &&
+                lastLexeme.comments.length > 0
+            ) {
                 identifierString.comments = [...lastLexeme.comments];
             }
         }
