@@ -22,10 +22,11 @@ function writeSpecModule(root: string, options?: { testCaseIds?: string[]; inclu
     ? 'sqlCatalogCases: [],'
     : [
       'sqlCatalogCases: [',
-      '  {',
-      "    id: 'sql.active-orders',",
-      "    title: 'active orders',",
-      '    fixtures: [',
+    '  {',
+    "    id: 'sql.active-orders',",
+    "    title: 'active orders',",
+    "    definitionPath: 'src/specs/sql/activeOrders.catalog.ts',",
+    '    fixtures: [',
       "      { tableName: 'users', rows: [{ id: 1 }], schema: { columns: { id: 'INTEGER' } } }",
       '    ],',
       '    catalog: {',
@@ -50,7 +51,7 @@ function writeSpecModule(root: string, options?: { testCaseIds?: string[]; inclu
     "    title: 'User behavior',",
     "    definitionPath: 'tests/specs/users.catalog.ts',",
     '    cases: [',
-    ...testCaseIds.map((id) => `      { id: '${id}', title: '${id.replace(/-/g, ' ')}', input: '${id}', output: '${id}-ok' },`),
+    ...testCaseIds.map((id) => `      { id: '${id}', title: '${id.replace(/-/g, ' ')}', input: '${id}', expected: 'success', output: '${id}-ok', tags: ['invariant', 'state'], focus: 'Ensures ${id.replace(/-/g, ' ')} behavior remains stable.' },`),
     '    ]',
     '  }',
     '],',
@@ -60,6 +61,24 @@ function writeSpecModule(root: string, options?: { testCaseIds?: string[]; inclu
   ].join('\n');
 
   writeFileSync(path.join(root, 'tests', 'specs', 'index.cjs'), source, 'utf8');
+}
+
+function withoutGitHubEnv<T>(fn: () => T): T {
+  const keys = ['GITHUB_SERVER_URL', 'GITHUB_REPOSITORY', 'GITHUB_SHA'] as const;
+  const originals = keys.map((key) => process.env[key]);
+  try {
+    keys.forEach((key) => delete process.env[key]);
+    return fn();
+  } finally {
+    keys.forEach((key, index) => {
+      const original = originals[index];
+      if (original === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = original;
+      }
+    });
+  }
 }
 
 test('runTestEvidenceSpecification extracts SQL catalogs, SQL case catalogs, and test-case catalogs deterministically', () => {
@@ -102,6 +121,7 @@ test('runTestEvidenceSpecification extracts SQL catalogs, SQL case catalogs, and
   ]);
   expect(report.sqlCaseCatalogs[0]).toMatchObject({
     id: 'sql.active-orders',
+    definitionPath: 'src/specs/sql/activeOrders.catalog.ts',
     cases: [
       { id: 'baseline', params: { active: 1, limit: 2, minTotal: 20 }, expected: [{ orderId: 10 }] },
       { id: 'inactive', params: { active: 0, limit: 2, minTotal: 20 }, expected: [{ orderId: 12 }] },
@@ -125,17 +145,18 @@ test('formatTestEvidenceOutput emits deterministic markdown and json text', () =
   writeSpecModule(root, { testCaseIds: ['works'], includeSqlCase: false });
 
   const report = runTestEvidenceSpecification({ mode: 'specification', rootDir: root });
-  const markdown = formatTestEvidenceOutput(report, 'markdown');
-  const json = formatTestEvidenceOutput(report, 'json');
+  const { markdown, json } = withoutGitHubEnv(() => ({
+    markdown: formatTestEvidenceOutput(report, 'markdown'),
+    json: formatTestEvidenceOutput(report, 'json'),
+  }));
 
-  expect(markdown).toContain('# Test Evidence Preview');
-  expect(markdown).toContain('- catalogs: 1');
+  expect(markdown).toContain('# unit.users Test Cases');
   expect(markdown).toContain('- tests: 1');
-  expect(markdown).toContain('## unit.users — User behavior');
-  expect(markdown).toContain("definition: `tests/specs/users.catalog.ts`");
-  expect(markdown).toContain('### works — works');
+  expect(markdown).toContain("definition: [tests/specs/users.catalog.ts](tests/specs/users.catalog.ts)");
+  expect(markdown).toContain('## works - works');
   expect(markdown).not.toContain('\n---\n');
-  expect(markdown).not.toContain('#### ');
+  expect(markdown).toContain('### input');
+  expect(markdown).toContain('### output');
   expect(markdown).not.toContain('## SQL Unit Tests');
   expect(markdown).not.toContain('## Function Unit Tests');
   expect(markdown).toContain('"works"');
@@ -148,6 +169,29 @@ test('formatTestEvidenceOutput emits deterministic markdown and json text', () =
   });
   const parsed = JSON.parse(readFileSync(path.join(root, 'src', 'catalog', 'specs', 'a.spec.json'), 'utf8'));
   expect(parsed.id).toBe('a');
+});
+
+test('formatTestEvidenceOutput uses GitHub HTTPS links when CI metadata exists', () => {
+  const root = createWorkspace('evidence-github-links');
+  writeSpecModule(root, { testCaseIds: ['works'], includeSqlCase: false });
+  const report = runTestEvidenceSpecification({ mode: 'specification', rootDir: root });
+
+  const originalServer = process.env.GITHUB_SERVER_URL;
+  const originalRepo = process.env.GITHUB_REPOSITORY;
+  const originalSha = process.env.GITHUB_SHA;
+  try {
+    process.env.GITHUB_SERVER_URL = 'https://github.com';
+    process.env.GITHUB_REPOSITORY = 'mk3008/rawsql-ts';
+    process.env.GITHUB_SHA = 'abc123';
+    const markdown = formatTestEvidenceOutput(report, 'markdown');
+    expect(markdown).toContain(
+      '[tests/specs/users.catalog.ts](https://github.com/mk3008/rawsql-ts/blob/abc123/tests/specs/users.catalog.ts)'
+    );
+  } finally {
+    process.env.GITHUB_SERVER_URL = originalServer;
+    process.env.GITHUB_REPOSITORY = originalRepo;
+    process.env.GITHUB_SHA = originalSha;
+  }
 });
 
 test('runTestEvidenceSpecification keeps deterministic ordering, normalized paths, and environment-free output', () => {
@@ -171,8 +215,46 @@ test('runTestEvidenceSpecification keeps deterministic ordering, normalized path
   expect(report.testCases.map((item) => item.id)).toEqual(['unit.users.a', 'unit.users.b']);
   expect(report.testCaseCatalogs.map((item) => item.id)).toEqual(['unit.users']);
   expect(report.testCaseCatalogs[0]?.definitionPath).toBe('tests/specs/users.catalog.ts');
-  expect(report.testCaseCatalogs[0]?.cases[0]).toMatchObject({ id: 'a', input: 'a', output: 'a-ok' });
+  expect(report.testCaseCatalogs[0]?.cases[0]).toMatchObject({
+    id: 'a',
+    input: 'a',
+    output: 'a-ok',
+    tags: ['invariant', 'state'],
+    focus: 'Ensures a behavior remains stable.'
+  });
   expect(report.sqlCatalogs.every((item) => !item.specFile.includes('\\'))).toBe(true);
   expect(JSON.stringify(report)).not.toContain(root);
   expect(JSON.stringify(report)).not.toMatch(/\d{4}-\d{2}-\d{2}T/);
 });
+
+test('runTestEvidenceSpecification normalizes tags vocabulary and keeps catalog refs', () => {
+  const root = createWorkspace('evidence-tags-refs');
+  writeFileSync(
+    path.join(root, 'tests', 'specs', 'index.cjs'),
+    [
+      'module.exports = {',
+      'testCaseCatalogs: [',
+      '  {',
+      "    id: 'unit.tags',",
+      "    title: 'tags',",
+      "    refs: [{ label: 'Issue #448', url: 'https://github.com/mk3008/rawsql-ts/issues/448' }],",
+      '    cases: [',
+      "      { id: 'c1', title: 'c1', input: 'x', expected: 'success', output: 'x', tags: ['happy-path', 'validation', 'bva', 'ep'], focus: 'Ensures tags are normalized into two axes.' }",
+      '    ]',
+      '  }',
+      '],',
+      'sqlCatalogCases: []',
+      '};',
+      ''
+    ].join('\n'),
+    'utf8'
+  );
+
+  const report = runTestEvidenceSpecification({ mode: 'specification', rootDir: root });
+  expect(report.testCaseCatalogs[0]?.refs).toEqual([
+    { label: 'Issue #448', url: 'https://github.com/mk3008/rawsql-ts/issues/448' }
+  ]);
+  expect(report.testCaseCatalogs[0]?.cases[0]?.tags).toEqual(['validation', 'ep']);
+  expect(report.testCaseCatalogs[0]?.cases[0]?.focus).toBe('Ensures tags are normalized into two axes.');
+});
+

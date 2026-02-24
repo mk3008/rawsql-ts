@@ -11,8 +11,11 @@ describe('test case catalog runner', () => {
 
   afterAll(() => {
     expect([...executedCaseIds].sort()).toEqual([
+      'accepts-minimal-domain',
+      'keeps-plus-alias',
       'keeps-valid-address',
       'rejects-invalid-input',
+      'throws-empty-after-trim',
       'trims-and-lowercases',
     ]);
   });

@@ -38,7 +38,7 @@
           "kind": "sql",
           "catalogId": "sql.added-catalog",
           "title": "Added SQL Catalog",
-          "definition": "src/specs/sql/added.catalog.ts",
+          "definition": "src/specs/sql/activeOrders.catalog.ts",
           "fixtures": [
             "added"
           ],
@@ -63,7 +63,7 @@
           "kind": "sql",
           "catalogId": "sql.removed-catalog",
           "title": "Removed SQL Catalog",
-          "definition": "src/specs/sql/removed.catalog.ts",
+          "definition": "src/specs/sql/usersList.catalog.ts",
           "fixtures": [
             "removed"
           ],
@@ -89,7 +89,7 @@
           "kind": "sql",
           "catalogId": "sql.users",
           "title": "Users SQL",
-          "definition": "src/specs/sql/users.catalog.ts",
+          "definition": "src/specs/sql/usersList.catalog.ts",
           "fixtures": [
             "users"
           ],
@@ -124,7 +124,7 @@
           "kind": "sql",
           "catalogId": "sql.users",
           "title": "Users SQL",
-          "definition": "src/specs/sql/users.catalog.ts",
+          "definition": "src/specs/sql/usersList.catalog.ts",
           "fixtures": [
             "users"
           ],

@@ -156,4 +156,4 @@ pullTest('pull CLI emits schema from Postgres via pg_dump', async () => {
     await resetPublicSchema(client);
     await client.end();
   }
-});
+}, 60_000);

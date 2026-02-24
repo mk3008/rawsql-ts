@@ -3,20 +3,19 @@
 - base: merge-base(main, HEAD) (c8f60f4406390ad953dbf97829de88ab55e7cc40)
 - head: HEAD (fd7e3e96429d3c1a068306458c0d1d1ea8c60067)
 - base-mode: merge-base
-- catalogs: +4 / -0 / ~0
-- tests: +8 / -0 / ~0
-- base totals: catalogs=0 tests=0
-- head totals: catalogs=4 tests=8
+- tests: +8 / ~0 / -0
+- base totals: tests=0
+- head totals: tests=8
 
-## Added
-### sql.active-orders — Active orders SQL semantics
-- definition: `src/specs/sql/activeOrders.catalog.ts`
-- fixtures:
-  - orders
-  - users
+## sql.active-orders - Active orders SQL semantics
 
-### baseline — active users with minimum total
-input:
+[File](../../packages/ztd-cli/src/specs/sql/activeOrders.catalog.ts)
+
+### ADD: baseline - active users with minimum total
+
+**after**
+
+input
 ```json
 {
   "active": 1,
@@ -24,7 +23,7 @@ input:
   "minTotal": 20
 }
 ```
-output:
+output
 ```json
 [
   {
@@ -40,10 +39,11 @@ output:
 ]
 ```
 
----
+### ADD: inactive-variant - inactive users return a different result
 
-### inactive-variant — inactive users return a different result
-input:
+**after**
+
+input
 ```json
 {
   "active": 0,
@@ -51,7 +51,7 @@ input:
   "minTotal": 20
 }
 ```
-output:
+output
 ```json
 [
   {
@@ -62,19 +62,21 @@ output:
 ]
 ```
 
-### sql.sample — sample sql cases
-- definition: `src/specs/sql/usersList.catalog.ts`
-- fixtures:
-  - users
+## sql.sample - sample sql cases
 
-### returns-active-users — returns active users
-input:
+[File](../../packages/ztd-cli/src/specs/sql/usersList.catalog.ts)
+
+### ADD: returns-active-users - returns active users
+
+**after**
+
+input
 ```json
 {
   "active": 1
 }
 ```
-output:
+output
 ```json
 [
   {
@@ -83,16 +85,17 @@ output:
 ]
 ```
 
----
+### ADD: returns-inactive-users-when-active-0 - returns inactive users when active=0
 
-### returns-inactive-users-when-active-0 — returns inactive users when active=0
-input:
+**after**
+
+input
 ```json
 {
   "active": 0
 }
 ```
-output:
+output
 ```json
 [
   {
@@ -101,58 +104,63 @@ output:
 ]
 ```
 
-## unit.alpha — alpha
+## unit.alpha - alpha
 
-### a — noop
-input:
+[File](../../packages/ztd-cli/tests/specs/testCaseCatalogs.ts)
+
+### ADD: a - noop
+
+**after**
+
+input
 ```json
 1
 ```
-output:
+output
 ```json
 1
 ```
 
-## unit.normalize-email — normalizeEmail
+## unit.normalize-email - normalizeEmail
 
-### keeps-valid-address — retains already-normalized email
-input:
+[File](../../packages/ztd-cli/tests/specs/testCaseCatalogs.ts)
+
+### ADD: keeps-valid-address - retains already-normalized email
+
+**after**
+
+input
 ```json
 "alice@example.com"
 ```
-output:
+output
 ```json
 "alice@example.com"
 ```
 
----
+### ADD: rejects-invalid-input - throws when @ is missing
 
-### rejects-invalid-input — throws when @ is missing
-input:
+**after**
+
+input
 ```json
 "invalid-email"
 ```
-output:
+output
 ```json
 "Error: invalid email"
 ```
 
----
+### ADD: trims-and-lowercases - normalizes uppercase + spaces
 
-### trims-and-lowercases — normalizes uppercase + spaces
-input:
+**after**
+
+input
 ```json
 "  USER@Example.COM "
 ```
-output:
+output
 ```json
 "user@example.com"
 ```
-
-## Removed
-- (none)
-
-## Updated
-- (none)
-
 

@@ -1,0 +1,48 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`renderSpecificationMarkdown keeps case ordering stable by id 1`] = `
+"# unit.ordering Test Cases
+
+- schemaVersion: 1
+- title: ordering
+- definition: (unknown)
+- tests: 2
+
+## a-first - a
+- expected: success
+- tags: [invariant, state]
+- focus: Ensures a ordering case remains deterministic.
+### input
+\`\`\`json
+{
+  "x": 2,
+  "y": 1
+}
+\`\`\`
+### output
+\`\`\`json
+{
+  "x": 2,
+  "y": 1
+}
+\`\`\`
+
+## z-last - z
+- expected: success
+- tags: [invariant, state]
+- focus: Ensures z ordering case remains deterministic.
+### input
+\`\`\`json
+{
+  "a": 2,
+  "b": 1
+}
+\`\`\`
+### output
+\`\`\`json
+{
+  "a": 2,
+  "b": 1
+}
+\`\`\`"
+`;

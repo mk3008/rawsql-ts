@@ -6,6 +6,18 @@ import {
   type TestSpecificationEvidence
 } from '../src/commands/testEvidence';
 
+function escapeRegex(input: string): string {
+  return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function expectFileLinkPathOrGithub(markdown: string, definitionPath: string): void {
+  const escapedPath = escapeRegex(definitionPath);
+  const pattern = new RegExp(
+    `\\[File\\]\\((?:${escapedPath}|https://github\\.com/[^\\s)]+/blob/[^\\s)]+/${escapedPath})\\)`
+  );
+  expect(markdown).toMatch(pattern);
+}
+
 function createReport(args: {
   sqlCatalogs?: Array<{
     id: string;
@@ -18,7 +30,14 @@ function createReport(args: {
     id: string;
     title: string;
     definitionPath?: string;
-    cases: Array<{ id: string; title: string; input: unknown; output: unknown }>;
+    cases: Array<{
+      id: string;
+      title: string;
+      input: unknown;
+      expected?: 'success' | 'throws' | 'errorResult';
+      output?: unknown;
+      error?: { name: string; message: string; match: 'equals' | 'contains' };
+    }>;
   }>;
 }): TestSpecificationEvidence {
   const sqlCatalogs = args.sqlCatalogs ?? [];
@@ -60,7 +79,8 @@ function createReport(args: {
         id: testCase.id,
         title: testCase.title,
         input: testCase.input,
-        output: testCase.output
+        expected: testCase.expected ?? 'success',
+        ...(testCase.expected === 'throws' ? { error: testCase.error } : { output: testCase.output })
       }))
     })),
     testCases: []
@@ -190,7 +210,7 @@ test('markdown header shows merge-base expression when baseMode=merge-base', () 
   expect(markdown).toContain('- head: HEAD (bbb)');
 });
 
-test('updated catalog appears once and aggregates added/removed/updated cases', () => {
+test('test-centric markdown groups changed cases under a single catalog heading', () => {
   const base = createReport({
     sqlCatalogs: [
       {
@@ -225,17 +245,59 @@ test('updated catalog appears once and aggregates added/removed/updated cases', 
     baseMode: 'ref'
   });
   const markdown = formatTestEvidencePrMarkdown(diff);
-  expect(markdown.match(/### sql\.users — users/g)?.length).toBe(1);
-  expect(markdown).toContain('## Updated catalogs');
-  expect(markdown).toContain('\n#### Added cases\n');
-  expect(markdown).toContain('### added-case — added');
-  expect(markdown).toContain('\n#### Removed cases\n');
-  expect(markdown).toContain('### removed-case — removed');
-  expect(markdown).toContain('\n#### Updated cases\n');
-  expect(markdown).toContain('### baseline — baseline');
+  expect(markdown.match(/## sql\.users - users/g)?.length).toBe(1);
+  expectFileLinkPathOrGithub(markdown, 'src/specs/sql/users.ts');
+  expect(markdown).toContain('### ADD: added-case - added');
+  expect(markdown).toContain('**after**');
+  expect(markdown).toContain('### REMOVE: removed-case - removed');
+  expect(markdown).toContain('**before**');
+  expect(markdown).toContain('### UPDATE: baseline - baseline');
 });
 
-test('removed-detail controls removed case rendering detail', () => {
+test('PR markdown uses GitHub HTTPS file links when CI metadata exists', () => {
+  const base = createReport({
+    sqlCatalogs: [
+      {
+        id: 'sql.users',
+        title: 'users',
+        definitionPath: 'src/specs/sql/users.ts',
+        cases: [{ id: 'baseline', title: 'baseline', input: { active: 1 }, output: [{ id: 1 }] }]
+      }
+    ]
+  });
+  const head = createReport({
+    sqlCatalogs: [
+      {
+        id: 'sql.users',
+        title: 'users',
+        definitionPath: 'src/specs/sql/users.ts',
+        cases: [{ id: 'baseline', title: 'baseline', input: { active: 0 }, output: [{ id: 2 }] }]
+      }
+    ]
+  });
+  const diff = buildTestEvidencePrDiff({
+    base: { ref: 'main', sha: 'a', report: base },
+    head: { ref: 'HEAD', sha: 'b', report: head },
+    baseMode: 'ref'
+  });
+
+  const originalServer = process.env.GITHUB_SERVER_URL;
+  const originalRepo = process.env.GITHUB_REPOSITORY;
+  const originalSha = process.env.GITHUB_SHA;
+  try {
+    process.env.GITHUB_SERVER_URL = 'https://github.com';
+    process.env.GITHUB_REPOSITORY = 'mk3008/rawsql-ts';
+    process.env.GITHUB_SHA = 'abc123';
+    const markdown = formatTestEvidencePrMarkdown(diff);
+    expect(markdown).toContain('[File](https://github.com/mk3008/rawsql-ts/blob/abc123/src/specs/sql/users.ts)');
+  } finally {
+    process.env.GITHUB_SERVER_URL = originalServer;
+    process.env.GITHUB_REPOSITORY = originalRepo;
+    process.env.GITHUB_SHA = originalSha;
+  }
+});
+
+test('removed cases always render before blocks in test-centric markdown', () => {
   const base = createReport({
     sqlCatalogs: [
       {
@@ -252,16 +314,37 @@ test('removed-detail controls removed case rendering detail', () => {
     baseMode: 'ref'
   });
 
-  const noneMarkdown = formatTestEvidencePrMarkdown(diff, { removedDetail: 'none' });
-  expect(noneMarkdown).toContain('### removed-case — removed');
-  expect(noneMarkdown).not.toContain('input:');
-  expect(noneMarkdown).not.toContain('output:');
-
-  const inputMarkdown = formatTestEvidencePrMarkdown(diff, { removedDetail: 'input' });
-  expect(inputMarkdown).toContain('input:');
-  expect(inputMarkdown).not.toContain('output:');
-
-  const fullMarkdown = formatTestEvidencePrMarkdown(diff, { removedDetail: 'full' });
-  expect(fullMarkdown).toContain('input:');
-  expect(fullMarkdown).toContain('output:');
+  const markdown = formatTestEvidencePrMarkdown(diff, { removedDetail: 'none' });
+  expect(markdown).toContain('### REMOVE: removed-case - removed');
+  expect(markdown).toContain('**before**');
+  expect(markdown).toContain('input');
+  expect(markdown).toContain('output');
+  expect(markdown).not.toContain('**after**');
 });
+
+test('diff json uses schemaVersion', () => {
+  const diff = buildTestEvidencePrDiff({
+    base: { ref: 'main', sha: 'aaa', report: createReport({}) },
+    head: { ref: 'HEAD', sha: 'bbb', report: createReport({}) },
+    baseMode: 'merge-base'
+  });
+
+  expect(diff).toMatchObject({ schemaVersion: 1 });
+});
+
+test('unsupported preview schemaVersion is rejected deterministically', () => {
+  const base = {
+    ...createReport({}),
+    schemaVersion: 2
+  } as unknown as TestSpecificationEvidence;
+  const head = createReport({});
+
+  expect(() =>
+    buildTestEvidencePrDiff({
+      base: { ref: 'main', sha: 'aaa', report: base },
+      head: { ref: 'HEAD', sha: 'bbb', report: head },
+      baseMode: 'merge-base'
+    })
+  ).toThrow(/schemaVersion|unsupported/i);
+});
+

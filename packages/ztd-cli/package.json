@@ -8,7 +8,7 @@
   },
   "scripts": {
     "prepack": "node -e \"const fs=require('fs');const cp=require('child_process');const npm=process.platform==='win32'?'npm.cmd':'npm';if(!fs.existsSync('dist/index.js')){process.exit(cp.spawnSync(npm,['run','build'],{stdio:'inherit'}).status??1)}\"",
-    "build": "tsc -p tsconfig.json",
+    "build": "pnpm --filter @rawsql-ts/testkit-core run build && tsc -p tsconfig.json",
     "test": "vitest run",
     "lint": "eslint src --ext .ts",
     "release": "npm run lint && npm run test && npm run build && npm pack --dry-run && npm publish --access public"
@@ -29,6 +29,8 @@
     "node": ">=20"
   },
   "dependencies": {
+    "@rawsql-ts/test-evidence-core": "workspace:*",
+    "@rawsql-ts/test-evidence-renderer-md": "workspace:*",
     "chokidar": "^5.0.0",
     "commander": "^12.0.0",
     "diff": "^8.0.3",

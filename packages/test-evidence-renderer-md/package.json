@@ -1,0 +1,49 @@
+{
+  "name": "@rawsql-ts/test-evidence-renderer-md",
+  "version": "0.1.0",
+  "description": "Markdown projection renderers for rawsql-ts test evidence models.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "prepack": "node -e \"const fs=require('fs');const cp=require('child_process');const npm=process.platform==='win32'?'npm.cmd':'npm';if(!fs.existsSync('dist/index.js')){process.exit(cp.spawnSync(npm,['run','build'],{stdio:'inherit'}).status??1)}\"",
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src --ext .ts"
+  },
+  "keywords": [
+    "rawsql-ts",
+    "test-evidence",
+    "markdown",
+    "renderer"
+  ],
+  "license": "MIT",
+  "author": "msugiura",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mk3008/rawsql-ts.git",
+    "directory": "packages/test-evidence-renderer-md"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@rawsql-ts/test-evidence-core": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.2",
+    "vitest": "^4.0.7"
+  },
+  "files": [
+    "dist"
+  ]
+}

@@ -16,7 +16,16 @@ export interface TestCaseCatalogEntry<TContext = unknown, TResult = unknown> {
    */
   evidence?: {
     input: unknown;
-    output: unknown;
+    expected: 'success' | 'throws' | 'errorResult';
+    output?: unknown;
+    error?: {
+      name: string;
+      message: string;
+      match: 'equals' | 'contains';
+    };
+    tags?: string[];
+    focus?: string;
+    refs?: Array<{ label: string; url: string }>;
   };
 }
 
@@ -28,6 +37,7 @@ export interface TestCaseCatalog<TContext = unknown, TResult = unknown> {
   title: string;
   description?: string;
   definitionPath?: string;
+  refs?: Array<{ label: string; url: string }>;
   cases: TestCaseCatalogEntry<TContext, TResult>[];
 }
 
@@ -41,12 +51,22 @@ export interface TestCaseCatalogEvidenceDocument {
     title: string;
     description?: string;
     definitionPath?: string;
+    refs?: Array<{ label: string; url: string }>;
     cases: Array<{
       id: string;
       title: string;
       description?: string;
-      input?: unknown;
+      input: unknown;
+      expected: 'success' | 'throws' | 'errorResult';
       output?: unknown;
+      error?: {
+        name: string;
+        message: string;
+        match: 'equals' | 'contains';
+      };
+      tags?: string[];
+      focus?: string;
+      refs?: Array<{ label: string; url: string }>;
     }>;
   }>;
 }
@@ -56,12 +76,35 @@ interface TestCaseCatalogEvidenceInput {
   title: string;
   description?: string;
   definitionPath?: string;
+  refs?: Array<{ label: string; url: string }>;
   cases: Array<{
     id: string;
     title: string;
     description?: string;
     input?: unknown;
+    expected?: 'success' | 'throws' | 'errorResult';
     output?: unknown;
+    error?: {
+      name: string;
+      message: string;
+      match: 'equals' | 'contains';
+    };
+    tags?: string[];
+    focus?: string;
+    refs?: Array<{ label: string; url: string }>;
+    evidence?: {
+      input: unknown;
+      expected: 'success' | 'throws' | 'errorResult';
+      output?: unknown;
+      error?: {
+        name: string;
+        message: string;
+        match: 'equals' | 'contains';
+      };
+      tags?: string[];
+      focus?: string;
+      refs?: Array<{ label: string; url: string }>;
+    };
   }>;
 }
 
@@ -110,15 +153,40 @@ export function exportTestCaseCatalogEvidence(
         title: catalog.title,
         ...(catalog.description ? { description: catalog.description } : {}),
         ...(catalog.definitionPath ? { definitionPath: catalog.definitionPath } : {}),
+        ...(Array.isArray(catalog.refs) && catalog.refs.length > 0
+          ? {
+            refs: [...catalog.refs]
+              .filter((ref) => typeof ref.label === 'string' && ref.label.trim().length > 0 && typeof ref.url === 'string' && ref.url.trim().length > 0)
+              .map((ref) => ({ label: ref.label.trim(), url: ref.url.trim() }))
+              .sort((a, b) => a.label.localeCompare(b.label) || a.url.localeCompare(b.url))
+          }
+          : {}),
         cases: [...catalog.cases]
           .sort((a, b) => a.id.localeCompare(b.id))
-          .map((entry) => ({
-            id: entry.id,
-            title: entry.title,
-            ...(entry.description ? { description: entry.description } : {}),
-            ...(entry.input !== undefined ? { input: entry.input } : {}),
-            ...(entry.output !== undefined ? { output: entry.output } : {}),
-          })),
+          .map((entry) => {
+            const source = entry.evidence ?? entry;
+            const expected = source.expected ?? 'success';
+            return {
+              id: entry.id,
+              title: entry.title,
+              ...(entry.description ? { description: entry.description } : {}),
+              input: source.input,
+              expected,
+              ...(expected === 'throws' ? { error: source.error } : { output: source.output }),
+              ...(source.tags && source.tags.length > 0
+                ? { tags: [...source.tags].sort((a, b) => a.localeCompare(b)) }
+                : {}),
+              ...(source.focus ? { focus: source.focus } : {}),
+              ...(Array.isArray(source.refs) && source.refs.length > 0
+                ? {
+                  refs: [...source.refs]
+                    .filter((ref) => typeof ref.label === 'string' && ref.label.trim().length > 0 && typeof ref.url === 'string' && ref.url.trim().length > 0)
+                    .map((ref) => ({ label: ref.label.trim(), url: ref.url.trim() }))
+                    .sort((a, b) => a.label.localeCompare(b.label) || a.url.localeCompare(b.url))
+                }
+                : {}),
+            };
+          }),
       })),
   };
 }

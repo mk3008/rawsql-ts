@@ -1,9 +1,14 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
+    "baseUrl": ".",
     "paths": {
       "@rawsql-ts/testkit-core": ["../testkit-core/src"],
-      "@rawsql-ts/testkit-core/*": ["../testkit-core/src/*"]
+      "@rawsql-ts/testkit-core/*": ["../testkit-core/src/*"],
+      "@rawsql-ts/test-evidence-core": ["../test-evidence-core/src"],
+      "@rawsql-ts/test-evidence-core/*": ["../test-evidence-core/src/*"],
+      "@rawsql-ts/test-evidence-renderer-md": ["../test-evidence-renderer-md/src"],
+      "@rawsql-ts/test-evidence-renderer-md/*": ["../test-evidence-renderer-md/src/*"]
     }
   }
 }

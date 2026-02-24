@@ -1,0 +1,46 @@
+{
+  "name": "@rawsql-ts/test-evidence-core",
+  "version": "0.1.0",
+  "description": "Deterministic PreviewJson to DiffJson transformation for rawsql-ts test evidence.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "prepack": "node -e \"const fs=require('fs');const cp=require('child_process');const npm=process.platform==='win32'?'npm.cmd':'npm';if(!fs.existsSync('dist/index.js')){process.exit(cp.spawnSync(npm,['run','build'],{stdio:'inherit'}).status??1)}\"",
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src --ext .ts --ignore-pattern \"*.d.ts\""
+  },
+  "keywords": [
+    "rawsql-ts",
+    "test-evidence",
+    "diff",
+    "deterministic"
+  ],
+  "license": "MIT",
+  "author": "msugiura",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mk3008/rawsql-ts.git",
+    "directory": "packages/test-evidence-core"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.2",
+    "vitest": "^4.0.7"
+  },
+  "files": [
+    "dist"
+  ]
+}

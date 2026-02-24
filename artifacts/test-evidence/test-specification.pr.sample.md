@@ -3,24 +3,23 @@
 - base: sample-base (1111111)
 - head: sample-head (2222222)
 - base-mode: ref
-- catalogs: +1 / -1 / ~2
-- tests: +3 / -2 / ~1
-- base totals: catalogs=3 tests=4
-- head totals: catalogs=3 tests=5
+- tests: +3 / ~1 / -2
+- base totals: tests=4
+- head totals: tests=5
 
-## Added catalogs
+## sql.added-catalog - Added SQL Catalog
 
-### sql.added-catalog — Added SQL Catalog
-- definition: `src/specs/sql/added.catalog.ts`
-- fixtures:
-  - added
+[File](../../packages/ztd-cli/src/specs/sql/activeOrders.catalog.ts)
 
-### new — new
-input:
+### ADD: new - new
+
+**after**
+
+input
 ```json
 {}
 ```
-output:
+output
 ```json
 [
   {
@@ -29,36 +28,42 @@ output:
 ]
 ```
 
-## Removed catalogs
+## sql.removed-catalog - Removed SQL Catalog
 
-### sql.removed-catalog — Removed SQL Catalog
-- definition: `src/specs/sql/removed.catalog.ts`
-- fixtures:
-  - removed
+[File](../../packages/ztd-cli/src/specs/sql/usersList.catalog.ts)
 
-### gone — gone
-input:
+### REMOVE: gone - gone
+
+**before**
+
+input
 ```json
 {}
 ```
+output
+```json
+[
+  {
+    "id": 100
+  }
+]
+```
 
-## Updated catalogs
+## sql.users - Users SQL
 
-### sql.users — Users SQL
-- definition: `src/specs/sql/users.catalog.ts`
-- fixtures:
-  - users
+[File](../../packages/ztd-cli/src/specs/sql/usersList.catalog.ts)
 
-#### Added cases
+### ADD: added-case - newly added
 
-### added-case — newly added
-input:
+**after**
+
+input
 ```json
 {
   "active": 2
 }
 ```
-output:
+output
 ```json
 [
   {
@@ -67,32 +72,17 @@ output:
 ]
 ```
 
-#### Removed cases
+### UPDATE: baseline - returns active users
 
-### removed-case — will be removed
-input:
-```json
-{
-  "active": 9
-}
-```
+**before**
 
-#### Updated cases
-
-### baseline — returns active users
-input (before):
+input
 ```json
 {
   "active": 1
 }
 ```
-input (after):
-```json
-{
-  "active": 0
-}
-```
-output (before):
+output
 ```json
 [
   {
@@ -100,7 +90,16 @@ output (before):
   }
 ]
 ```
-output (after):
+
+**after**
+
+input
+```json
+{
+  "active": 0
+}
+```
+output
 ```json
 [
   {
@@ -109,18 +108,39 @@ output (after):
 ]
 ```
 
-## unit.normalize — normalize
+### REMOVE: removed-case - will be removed
 
-#### Added cases
+**before**
 
-### fn-added — function case added
-input:
+input
+```json
+{
+  "active": 9
+}
+```
+output
+```json
+[
+  {
+    "id": 9
+  }
+]
+```
+
+## unit.normalize - normalize
+
+[File](../../packages/ztd-cli/tests/specs/testCaseCatalogs.ts)
+
+### ADD: fn-added - function case added
+
+**after**
+
+input
 ```json
 "B"
 ```
-output:
+output
 ```json
 "b"
 ```
-
 

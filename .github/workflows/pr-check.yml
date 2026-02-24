@@ -29,6 +29,8 @@ jobs:
     - name: Build ZTD CLI dependencies
       run: |
         pnpm --filter rawsql-ts run build
+        pnpm --filter @rawsql-ts/test-evidence-core run build
+        pnpm --filter @rawsql-ts/test-evidence-renderer-md run build
         pnpm --filter @rawsql-ts/testkit-core run build
         pnpm --filter @rawsql-ts/ztd-cli run build
 
@@ -55,6 +57,11 @@ jobs:
       
     - name: TypeScript compilation check
       run: pnpm -r --workspace-concurrency=1 run build
+
+    - name: Validate test-evidence packages and consumers (dist shape)
+      run: |
+        pnpm -r --if-present --filter @rawsql-ts/test-evidence-core --filter @rawsql-ts/test-evidence-renderer-md --filter @rawsql-ts/shared-binder --filter @rawsql-ts/testkit-core --filter @rawsql-ts/testkit-postgres --filter @rawsql-ts/adapter-node-pg --filter @rawsql-ts/ztd-cli --filter @rawsql-ts/sql-contract-zod run build
+        pnpm -r --if-present --filter @rawsql-ts/test-evidence-core --filter @rawsql-ts/test-evidence-renderer-md --filter @rawsql-ts/shared-binder --filter @rawsql-ts/testkit-core --filter @rawsql-ts/testkit-postgres --filter @rawsql-ts/adapter-node-pg --filter @rawsql-ts/ztd-cli --filter @rawsql-ts/sql-contract-zod run test
       
     - name: Run unit tests (core)
       run: pnpm --filter "./packages/core" run test

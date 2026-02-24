@@ -7,7 +7,12 @@
     "declaration": true,
     "sourceMap": true,
     "composite": false,
-    "paths": {},
+    "paths": {
+      "@rawsql-ts/test-evidence-core": ["packages/test-evidence-core/dist/index.d.ts"],
+      "@rawsql-ts/test-evidence-core/*": ["packages/test-evidence-core/dist/*"],
+      "@rawsql-ts/test-evidence-renderer-md": ["packages/test-evidence-renderer-md/dist/index.d.ts"],
+      "@rawsql-ts/test-evidence-renderer-md/*": ["packages/test-evidence-renderer-md/dist/*"]
+    },
     "resolveJsonModule": true,
     "tsBuildInfoFile": "dist/.tsbuildinfo"
   },

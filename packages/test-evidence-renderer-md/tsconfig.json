@@ -1,0 +1,18 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "paths": {
+      "@rawsql-ts/test-evidence-core": ["packages/test-evidence-core/dist/index.d.ts"],
+      "@rawsql-ts/test-evidence-core/*": ["packages/test-evidence-core/dist/*"]
+    },
+    "declaration": true,
+    "declarationMap": false,
+    "sourceMap": true,
+    "composite": false,
+    "tsBuildInfoFile": "dist/.tsbuildinfo"
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["dist", "node_modules"]
+}

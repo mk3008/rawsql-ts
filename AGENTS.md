@@ -118,6 +118,42 @@ When changing schemas or search paths, update `ztd.config.json` accordingly.
 
 ---
 
+## Test Case Concepts Contract
+
+This section defines the current test-case modeling contract used in this repository, including the fixture/catalog/test-code style currently used in `packages/sql-contract-zod`.
+
+### Definitions
+
+1. **Test Case Catalog**
+   - A glue layer that groups scenarios and test cases.
+   - Corresponds to (and should fit within) a single test file.
+   - Because it fits in one test file, it should live close to the test code (same directory).
+   - Contains case IDs, titles, scenario references, and metadata such as `definitionPath`.
+   - Does not contain execution logic.
+
+2. **Test Case Scenario**
+   - A data-first specification extracted from unit tests using only AAA data parts:
+     - Arrange (`input`)
+     - Assert (`expected output`)
+   - Represents test specification, not test execution.
+   - Defined in the same location as the Test Case Catalog.
+   - Functions/builders are allowed only minimally; when they grow, split them out.
+
+3. **Unit Test Code**
+   - The executable test code.
+   - Responsible for Act and Assert execution flow.
+   - Test values should come from Test Case Scenarios, not hardcoded literals.
+   - Property-style tests (for example invalid loops) may remain code-only for now.
+
+### Rules
+
+- One test file = one Test Case Catalog is a guiding principle, not a hard requirement.
+- Scenarios are the single source of truth for test values.
+- Catalogs are for reading and evidence projection, not execution.
+- Do not turn catalogs or scenarios into a DSL that runs tests.
+
+---
+
 ## Formatting and Linting Operations
 
 * Run `pnpm format` to normalize TypeScript, SQL, Markdown, and config files.

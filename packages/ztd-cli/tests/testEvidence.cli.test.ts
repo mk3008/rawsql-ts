@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { Command } from 'commander';
@@ -33,13 +33,14 @@ function writeSpecModule(root: string): void {
     "    id: 'unit.users',",
     "    title: 'users',",
     "    definitionPath: 'tests/specs/users.catalog.ts',",
-    "    cases: [{ id: 'lists-users', title: 'lists users', input: { active: 1 }, output: [{ id: 1 }] }]",
+    "    cases: [{ id: 'lists-users', title: 'lists users', input: { active: 1 }, expected: 'success', output: [{ id: 1 }], tags: ['normalization', 'ep'], focus: 'Ensures user listing behavior remains deterministic.' }]",
     '  }',
     '],',
     'sqlCatalogCases: [',
     '  {',
     "    id: 'sql.active-orders',",
     "    title: 'active orders',",
+    "    definitionPath: 'src/specs/sql/activeOrders.catalog.ts',",
     '    fixtures: [',
     "      { tableName: 'users', rows: [{ id: 1 }], schema: { columns: { id: 'INTEGER' } } }",
     '    ],',
@@ -66,6 +67,18 @@ function createProgram(): Command {
   program.exitOverride();
   registerTestEvidenceCommand(program);
   return program;
+}
+
+function escapeRegex(input: string): string {
+  return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function expectDefinitionLinkPathOrGithub(markdown: string, definitionPath: string): void {
+  const escapedPath = escapeRegex(definitionPath);
+  const pattern = new RegExp(
+    `definition: \\[${escapedPath}\\]\\((?:\\.\\./${escapedPath}|https://github\\.com/[^\\s)]+/blob/[^\\s)]+/${escapedPath})\\)`
+  );
+  expect(markdown).toMatch(pattern);
 }
 
 test('CLI: evidence writes json and markdown artifacts', async () => {
@@ -97,20 +110,54 @@ test('CLI: evidence writes json and markdown artifacts', async () => {
   expect(parsedJson.testCaseCatalogs[0]).toMatchObject({
     id: 'unit.users',
     definitionPath: 'tests/specs/users.catalog.ts',
-    cases: [{ id: 'lists-users', title: 'lists users', input: { active: 1 }, output: [{ id: 1 }] }]
+    cases: [{
+      id: 'lists-users',
+      title: 'lists users',
+      input: { active: 1 },
+      expected: 'success',
+      output: [{ id: 1 }],
+      tags: ['normalization', 'ep'],
+      focus: 'Ensures user listing behavior remains deterministic.'
+    }]
   });
-  const markdown = readFileSync(path.join(outDir, 'test-specification.md'), 'utf8');
-  expect(markdown).toContain('# Test Evidence Preview');
+  const markdownFiles = readdirSync(outDir)
+    .filter((name) => name.startsWith('test-specification.') && name.endsWith('.md'))
+    .sort();
+  expect(markdownFiles).toEqual([
+    'test-specification.catalog.sql-active-orders.md',
+    'test-specification.catalog.unit-users.md',
+    'test-specification.index.md',
+  ]);
+  const markdown = markdownFiles
+    .map((name) => readFileSync(path.join(outDir, name), 'utf8'))
+    .join('\n');
+  const indexMarkdown = readFileSync(path.join(outDir, 'test-specification.index.md'), 'utf8');
+  const usersCatalogMarkdown = readFileSync(path.join(outDir, 'test-specification.catalog.unit-users.md'), 'utf8');
+  const sqlCatalogMarkdown = readFileSync(path.join(outDir, 'test-specification.catalog.sql-active-orders.md'), 'utf8');
+  expect(indexMarkdown).toContain('# Unit Test Index');
+  expect(indexMarkdown).toContain('- catalogs: 2');
+  expect(indexMarkdown).toContain('[unit.users](./test-specification.catalog.unit-users.md)');
+  expect(indexMarkdown).toContain('[sql.active-orders](./test-specification.catalog.sql-active-orders.md)');
+  expect(indexMarkdown).toContain('  - title: users');
+  expect(indexMarkdown).toContain('  - title: active orders');
+  expect(indexMarkdown).not.toContain('## Test Case Files');
+  expect(usersCatalogMarkdown).toContain('- index: [Unit Test Index](./test-specification.index.md)');
+  expect(sqlCatalogMarkdown).toContain('- index: [Unit Test Index](./test-specification.index.md)');
+  expect(markdown).toContain('# unit.users Test Cases');
+  expect(markdown).toContain('# sql.active-orders Test Cases');
+  expect(markdown).toContain('- title: users');
+  expect(markdown).toContain('- title: active orders');
   expect(markdown).toContain('- catalogs: 2');
-  expect(markdown).toContain('- tests: 3');
-  expect(markdown).toContain('## sql.active-orders — active orders');
-  expect(markdown).toContain('## unit.users — users');
-  expect(markdown).toContain("definition: `tests/specs/users.catalog.ts`");
-  expect(markdown).toContain('### baseline — baseline');
-  expect(markdown).toContain('### lists-users — lists users');
-  expect(markdown).toContain('### inactive — inactive');
-  expect(markdown).toContain('\n---\n\n### inactive — inactive');
-  expect(markdown).not.toContain('#### ');
+  expect(markdown).toContain('- tests: 1');
+  expect(markdown).toContain('- tests: 2');
+  expect(markdown).toContain('## lists-users - lists users');
+  expectDefinitionLinkPathOrGithub(markdown, 'tests/specs/users.catalog.ts');
+  expectDefinitionLinkPathOrGithub(markdown, 'src/specs/sql/activeOrders.catalog.ts');
+  expect(markdown).toContain('## baseline - baseline');
+  expect(markdown).toContain('## inactive - inactive');
+  expect(markdown).not.toContain('\n---\n');
+  expect(markdown).toContain('### input');
+  expect(markdown).toContain('### output');
   expect(markdown).not.toContain('## SQL Unit Tests');
   expect(markdown).not.toContain('## Function Unit Tests');
   expect(markdown).toContain('"active": 1');
@@ -140,3 +187,4 @@ test('resolveTestEvidenceExitCode maps success and runtime failures', () => {
   expect(resolveTestEvidenceExitCode({ error: new Error('x') })).toBe(1);
   expect(resolveTestEvidenceExitCode({ error: new TestEvidenceRuntimeError('bad config') })).toBe(2);
 });
+

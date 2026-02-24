@@ -43,7 +43,10 @@ const decimalCoerce: MapperOptions['coerceFn'] = ({ value }) => {
 driverDescribe('reader driver integration (mysql)', () => {
   beforeAll(async () => {
     container = await new MySqlContainer('mysql:8.0').start()
-    connection = await mysql.createConnection(container.getConnectionUri())
+    connection = await mysql.createConnection({
+      uri: container.getConnectionUri(),
+      timezone: 'Z',
+    })
   }, 120000)
 
   afterAll(async () => {
@@ -72,7 +75,7 @@ driverDescribe('reader driver integration (mysql)', () => {
     )
     expect(record.issuedAtDatetime).toBeInstanceOf(Date)
     expect(record.issuedAtDatetime.toISOString()).toBe(
-      '2025-01-15T00:00:00.000Z',
+      '2025-01-15T09:00:00.000Z',
     )
   })
 

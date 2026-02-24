@@ -3,6 +3,21 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { Command } from 'commander';
+import {
+  buildSpecificationModel,
+  buildDiffJson,
+  stableStringify as coreStableStringify,
+  type DiffCase as CorePrDiffCase,
+  type DiffCatalog as CorePrDiffCatalog,
+  type DiffJson as CoreTestSpecificationPrDiff,
+  type PreviewJson as TestEvidencePreviewJson
+} from '@rawsql-ts/test-evidence-core';
+import {
+  renderDiffMarkdown,
+  renderSpecificationMarkdown,
+  type DefinitionLinkOptions,
+  type RemovedDetailLevel
+} from '@rawsql-ts/test-evidence-renderer-md';
 
 /**
  * Supported evidence generation modes for `ztd evidence`.
@@ -13,7 +28,6 @@ export type TestEvidenceMode = 'specification';
  * Output formats accepted by `ztd evidence`.
  */
 export type TestEvidenceFormat = 'json' | 'markdown' | 'both';
-type RemovedDetailLevel = 'none' | 'input' | 'full';
 type TestEvidenceErrorCode = 'NO_SPECS_FOUND';
 
 /**
@@ -64,56 +78,17 @@ export interface TestSpecificationEvidence {
 /**
  * Normalized case payload used for deterministic PR diff calculation.
  */
-export interface PrDiffCase {
-  id: string;
-  title: string;
-  input: unknown;
-  output: unknown;
-}
+export type PrDiffCase = CorePrDiffCase;
 
 /**
  * Normalized catalog payload used for deterministic PR diff calculation.
  */
-export interface PrDiffCatalog {
-  kind: 'sql' | 'function';
-  catalogId: string;
-  title: string;
-  definition?: string;
-  fixtures?: string[];
-  cases: PrDiffCase[];
-}
+export type PrDiffCatalog = CorePrDiffCatalog;
 
 /**
  * Deterministic diff document for PR-focused test evidence output.
  */
-export interface TestSpecificationPrDiff {
-  version: 1;
-  base: { ref: string; sha: string };
-  head: { ref: string; sha: string };
-  baseMode: 'merge-base' | 'ref';
-  totals: {
-    base: { catalogs: number; tests: number };
-    head: { catalogs: number; tests: number };
-  };
-  summary: {
-    catalogs: { added: number; removed: number; updated: number };
-    cases: { added: number; removed: number; updated: number };
-  };
-  catalogs: {
-    added: Array<{ catalogAfter: PrDiffCatalog }>;
-    removed: Array<{ catalogBefore: PrDiffCatalog }>;
-    updated: Array<{
-      catalogId: string;
-      catalogBefore: PrDiffCatalog;
-      catalogAfter: PrDiffCatalog;
-      cases: {
-        added: Array<{ after: PrDiffCase }>;
-        removed: Array<{ before: PrDiffCase }>;
-        updated: Array<{ before: PrDiffCase; after: PrDiffCase }>;
-      };
-    }>;
-  };
-}
+export type TestSpecificationPrDiff = CoreTestSpecificationPrDiff;
 
 /**
  * Deterministic evidence representation of an executable function test catalog.
@@ -123,12 +98,28 @@ export interface TestCaseCatalogEvidence {
   title: string;
   description?: string;
   definitionPath?: string;
+  refs?: Array<{
+    label: string;
+    url: string;
+  }>;
   cases: Array<{
     id: string;
     title: string;
     description?: string;
-    input?: unknown;
+    input: unknown;
+    expected: 'success' | 'throws' | 'errorResult';
     output?: unknown;
+    error?: {
+      name: string;
+      message: string;
+      match: 'equals' | 'contains';
+    };
+    tags?: string[];
+    focus?: string;
+    refs?: Array<{
+      label: string;
+      url: string;
+    }>;
   }>;
 }
 
@@ -267,10 +258,12 @@ export function registerTestEvidenceCommand(program: Command): void {
           testsDir: options.testsDir,
           specModule: options.specModule
         });
+        const sourceRootDir = path.resolve(process.env.ZTD_PROJECT_ROOT ?? process.cwd());
         writeArtifacts({
           report,
           format,
-          outDir: path.resolve(process.cwd(), options.outDir)
+          outDir: path.resolve(process.cwd(), options.outDir),
+          sourceRootDir
         });
         process.exitCode = resolveTestEvidenceExitCode({ result: report });
       } catch (error) {
@@ -411,75 +404,26 @@ export function runTestEvidenceSpecification(options: {
 /**
  * Render deterministic JSON or Markdown output text.
  */
-export function formatTestEvidenceOutput(report: TestSpecificationEvidence, format: Exclude<TestEvidenceFormat, 'both'>): string {
+export function formatTestEvidenceOutput(
+  report: TestSpecificationEvidence,
+  format: Exclude<TestEvidenceFormat, 'both'>,
+  context?: { markdownPath?: string; sourceRootDir?: string }
+): string {
   if (format === 'json') {
     return `${JSON.stringify(report, null, 2)}\n`;
   }
 
-  const sqlTestsCount = report.sqlCaseCatalogs.reduce((total, catalog) => total + catalog.cases.length, 0);
-  const functionTestsCount = report.testCaseCatalogs.reduce((total, catalog) => total + catalog.cases.length, 0);
-  const totalCatalogCount = report.sqlCaseCatalogs.length + report.testCaseCatalogs.length;
-  const lines: string[] = [];
-  lines.push('# Test Evidence Preview');
-  lines.push('');
-  lines.push(`- catalogs: ${totalCatalogCount}`);
-  lines.push(`- tests: ${sqlTestsCount + functionTestsCount}`);
-  lines.push('');
-  for (const catalog of report.sqlCaseCatalogs) {
-    lines.push(`## ${catalog.id} — ${catalog.title}`);
-    lines.push(`- definition: ${catalog.definitionPath ? `\`${catalog.definitionPath}\`` : '(unknown)'}`);
-    lines.push('- fixtures:');
-    for (const fixture of catalog.fixtures) {
-      lines.push(`  - ${fixture.tableName}`);
-    }
-    lines.push('');
-    for (const [index, testCase] of catalog.cases.entries()) {
-      lines.push(`### ${testCase.id} — ${testCase.title}`);
-      lines.push('input:');
-      lines.push('```json');
-      lines.push(JSON.stringify(testCase.params, null, 2));
-      lines.push('```');
-      lines.push('output:');
-      lines.push('```json');
-      lines.push(JSON.stringify(testCase.expected, null, 2));
-      lines.push('```');
-      lines.push('');
-      if (index < catalog.cases.length - 1) {
-        lines.push('---');
-        lines.push('');
-      }
-    }
-  }
-  for (const catalog of report.testCaseCatalogs) {
-    lines.push(`## ${catalog.id} — ${catalog.title}`);
-    lines.push(`- definition: ${catalog.definitionPath ? `\`${catalog.definitionPath}\`` : '(unknown)'}`);
-    lines.push('');
-    for (const [index, testCase] of catalog.cases.entries()) {
-      lines.push(`### ${testCase.id} — ${testCase.title}`);
-      lines.push('input:');
-      lines.push('```json');
-      lines.push(JSON.stringify(testCase.input, null, 2));
-      lines.push('```');
-      lines.push('output:');
-      lines.push('```json');
-      lines.push(JSON.stringify(testCase.output, null, 2));
-      lines.push('```');
-      lines.push('');
-      if (index < catalog.cases.length - 1) {
-        lines.push('---');
-        lines.push('');
-      }
-    }
-  }
-  lines.push('');
-  return lines.join('\n');
+  const model = buildSpecificationModel(report as TestEvidencePreviewJson);
+  return `${renderSpecificationMarkdown(model, {
+    definitionLinks: resolveDefinitionLinkOptions(context)
+  })}\n`;
 }
 
 /**
  * Stable stringify that sorts object keys recursively for deterministic fingerprinting.
  */
 export function stableStringify(value: unknown): string {
-  return JSON.stringify(toStableValue(value));
+  return coreStableStringify(value);
 }
 
 /**
@@ -490,97 +434,19 @@ export function buildTestEvidencePrDiff(args: {
   head: { ref: string; sha: string; report: TestSpecificationEvidence };
   baseMode: 'merge-base' | 'ref';
 }): TestSpecificationPrDiff {
-  const baseCatalogs = normalizeCatalogsForDiff(args.base.report);
-  const headCatalogs = normalizeCatalogsForDiff(args.head.report);
-  const baseMap = new Map(baseCatalogs.map((catalog) => [catalog.catalogId, catalog]));
-  const headMap = new Map(headCatalogs.map((catalog) => [catalog.catalogId, catalog]));
-
-  const addedCatalogs: Array<{ catalogAfter: PrDiffCatalog }> = [];
-  const removedCatalogs: Array<{ catalogBefore: PrDiffCatalog }> = [];
-  const updatedCatalogs: TestSpecificationPrDiff['catalogs']['updated'] = [];
-
-  for (const catalog of headCatalogs) {
-    if (!baseMap.has(catalog.catalogId)) {
-      addedCatalogs.push({ catalogAfter: catalog });
-    }
-  }
-  for (const catalog of baseCatalogs) {
-    if (!headMap.has(catalog.catalogId)) {
-      removedCatalogs.push({ catalogBefore: catalog });
-    }
-  }
-
-  for (const beforeCatalog of baseCatalogs) {
-    const afterCatalog = headMap.get(beforeCatalog.catalogId);
-    if (!afterCatalog) {
-      continue;
-    }
-    const cases = diffCatalogCases(beforeCatalog, afterCatalog);
-    const catalogChanged =
-      stableStringify({
-        kind: beforeCatalog.kind,
-        catalogId: beforeCatalog.catalogId,
-        title: beforeCatalog.title,
-        definition: beforeCatalog.definition,
-        fixtures: beforeCatalog.fixtures ?? []
-      }) !==
-      stableStringify({
-        kind: afterCatalog.kind,
-        catalogId: afterCatalog.catalogId,
-        title: afterCatalog.title,
-        definition: afterCatalog.definition,
-        fixtures: afterCatalog.fixtures ?? []
-      });
-
-    if (catalogChanged || cases.added.length > 0 || cases.removed.length > 0 || cases.updated.length > 0) {
-      updatedCatalogs.push({
-        catalogId: beforeCatalog.catalogId,
-        catalogBefore: beforeCatalog,
-        catalogAfter: afterCatalog,
-        cases
-      });
-    }
-  }
-
-  const addedCaseCountFromCatalogs = addedCatalogs.reduce((count, entry) => count + entry.catalogAfter.cases.length, 0);
-  const removedCaseCountFromCatalogs = removedCatalogs.reduce((count, entry) => count + entry.catalogBefore.cases.length, 0);
-  const addedCaseCountFromUpdates = updatedCatalogs.reduce((count, entry) => count + entry.cases.added.length, 0);
-  const removedCaseCountFromUpdates = updatedCatalogs.reduce((count, entry) => count + entry.cases.removed.length, 0);
-  const updatedCaseCount = updatedCatalogs.reduce((count, entry) => count + entry.cases.updated.length, 0);
-
-  return {
-    version: 1,
-    base: { ref: args.base.ref, sha: args.base.sha },
-    head: { ref: args.head.ref, sha: args.head.sha },
-    baseMode: args.baseMode,
-    totals: {
-      base: {
-        catalogs: baseCatalogs.length,
-        tests: baseCatalogs.reduce((count, catalog) => count + catalog.cases.length, 0)
-      },
-      head: {
-        catalogs: headCatalogs.length,
-        tests: headCatalogs.reduce((count, catalog) => count + catalog.cases.length, 0)
-      }
+  return buildDiffJson({
+    base: {
+      ref: args.base.ref,
+      sha: args.base.sha,
+      previewJson: args.base.report as TestEvidencePreviewJson
     },
-    summary: {
-      catalogs: {
-        added: addedCatalogs.length,
-        removed: removedCatalogs.length,
-        updated: updatedCatalogs.length
-      },
-      cases: {
-        added: addedCaseCountFromCatalogs + addedCaseCountFromUpdates,
-        removed: removedCaseCountFromCatalogs + removedCaseCountFromUpdates,
-        updated: updatedCaseCount
-      }
+    head: {
+      ref: args.head.ref,
+      sha: args.head.sha,
+      previewJson: args.head.report as TestEvidencePreviewJson
     },
-    catalogs: {
-      added: sortCatalogEntriesByKind(addedCatalogs, (entry) => entry.catalogAfter),
-      removed: sortCatalogEntriesByKind(removedCatalogs, (entry) => entry.catalogBefore),
-      updated: sortCatalogEntriesByKind(updatedCatalogs, (entry) => entry.catalogAfter)
-    }
-  };
+    baseMode: args.baseMode
+  }) as TestSpecificationPrDiff;
 }
 
 /**
@@ -588,131 +454,40 @@ export function buildTestEvidencePrDiff(args: {
  */
 export function formatTestEvidencePrMarkdown(
   diff: TestSpecificationPrDiff,
-  options?: { removedDetail?: RemovedDetailLevel }
+  options?: { removedDetail?: RemovedDetailLevel; markdownPath?: string; sourceRootDir?: string }
 ): string {
-  const removedDetail = options?.removedDetail ?? 'input';
-  const lines: string[] = [];
-  lines.push('# Test Evidence (PR Diff)');
-  lines.push('');
-  if (diff.baseMode === 'merge-base') {
-    lines.push(`- base: merge-base(${diff.base.ref}, ${diff.head.ref}) (${diff.base.sha})`);
-  } else {
-    lines.push(`- base: ${diff.base.ref} (${diff.base.sha})`);
-  }
-  lines.push(`- head: ${diff.head.ref} (${diff.head.sha})`);
-  lines.push(`- base-mode: ${diff.baseMode}`);
-  lines.push(`- catalogs: +${diff.summary.catalogs.added} / -${diff.summary.catalogs.removed} / ~${diff.summary.catalogs.updated}`);
-  lines.push(`- tests: +${diff.summary.cases.added} / -${diff.summary.cases.removed} / ~${diff.summary.cases.updated}`);
-  lines.push(`- base totals: catalogs=${diff.totals.base.catalogs} tests=${diff.totals.base.tests}`);
-  lines.push(`- head totals: catalogs=${diff.totals.head.catalogs} tests=${diff.totals.head.tests}`);
-  lines.push('');
+  return renderDiffMarkdown(diff, {
+    definitionLinks: resolveDefinitionLinkOptions({
+      markdownPath: options?.markdownPath,
+      sourceRootDir: options?.sourceRootDir
+    })
+  });
+}
 
-  lines.push('## Added catalogs');
-  lines.push('');
-  if (diff.catalogs.added.length === 0 && diff.catalogs.updated.every((entry) => entry.cases.added.length === 0)) {
-    lines.push('- (none)');
-    lines.push('');
-  } else {
-    for (const entry of diff.catalogs.added) {
-      renderCatalogHeader(lines, entry.catalogAfter);
-      for (const [index, testCase] of entry.catalogAfter.cases.entries()) {
-        renderCase(lines, testCase);
-        if (index < entry.catalogAfter.cases.length - 1) {
-          lines.push('---');
-          lines.push('');
-        }
+function resolveDefinitionLinkOptions(context?: { markdownPath?: string; sourceRootDir?: string }): DefinitionLinkOptions {
+  const serverUrl = process.env.GITHUB_SERVER_URL?.trim();
+  const repository = process.env.GITHUB_REPOSITORY?.trim();
+  const ref = process.env.GITHUB_SHA?.trim();
+  if (serverUrl && repository && ref) {
+    return {
+      mode: 'github',
+      github: {
+        serverUrl,
+        repository,
+        ref
       }
-    }
+    };
   }
-
-  lines.push('## Removed catalogs');
-  lines.push('');
-  if (diff.catalogs.removed.length === 0 && diff.catalogs.updated.every((entry) => entry.cases.removed.length === 0)) {
-    lines.push('- (none)');
-    lines.push('');
-  } else {
-    for (const entry of diff.catalogs.removed) {
-      renderCatalogHeader(lines, entry.catalogBefore);
-      for (const [index, testCase] of entry.catalogBefore.cases.entries()) {
-        renderRemovedCase(lines, testCase, removedDetail);
-        if (index < entry.catalogBefore.cases.length - 1) {
-          lines.push('---');
-          lines.push('');
-        }
+  if (context?.markdownPath && context?.sourceRootDir) {
+    return {
+      mode: 'path',
+      path: {
+        markdownDir: path.dirname(context.markdownPath),
+        sourceRootDir: context.sourceRootDir
       }
-    }
+    };
   }
-
-  lines.push('## Updated catalogs');
-  lines.push('');
-  if (diff.catalogs.updated.length === 0) {
-    lines.push('- (none)');
-    lines.push('');
-  } else {
-    for (const entry of diff.catalogs.updated) {
-      if (
-        entry.cases.added.length === 0 &&
-        entry.cases.removed.length === 0 &&
-        entry.cases.updated.length === 0
-      ) {
-        continue;
-      }
-      renderCatalogHeader(lines, entry.catalogAfter);
-      if (entry.cases.added.length > 0) {
-        lines.push('#### Added cases');
-        lines.push('');
-        for (const [index, testCase] of entry.cases.added.map((item) => item.after).entries()) {
-          renderCase(lines, testCase);
-          if (index < entry.cases.added.length - 1) {
-            lines.push('---');
-            lines.push('');
-          }
-        }
-      }
-      if (entry.cases.removed.length > 0) {
-        lines.push('#### Removed cases');
-        lines.push('');
-        for (const [index, testCase] of entry.cases.removed.map((item) => item.before).entries()) {
-          renderRemovedCase(lines, testCase, removedDetail);
-          if (index < entry.cases.removed.length - 1) {
-            lines.push('---');
-            lines.push('');
-          }
-        }
-      }
-      if (entry.cases.updated.length > 0) {
-        lines.push('#### Updated cases');
-        lines.push('');
-        for (const [index, updated] of entry.cases.updated.entries()) {
-          lines.push(`### ${updated.after.id} — ${updated.after.title}`);
-          lines.push('input (before):');
-          lines.push('```json');
-          lines.push(JSON.stringify(updated.before.input, null, 2));
-          lines.push('```');
-          lines.push('input (after):');
-          lines.push('```json');
-          lines.push(JSON.stringify(updated.after.input, null, 2));
-          lines.push('```');
-          lines.push('output (before):');
-          lines.push('```json');
-          lines.push(JSON.stringify(updated.before.output, null, 2));
-          lines.push('```');
-          lines.push('output (after):');
-          lines.push('```json');
-          lines.push(JSON.stringify(updated.after.output, null, 2));
-          lines.push('```');
-          lines.push('');
-          if (index < entry.cases.updated.length - 1) {
-            lines.push('---');
-            lines.push('');
-          }
-        }
-      }
-    }
-  }
-
-  lines.push('');
-  return lines.join('\n');
+  return { mode: 'path' };
 }
 
 /**
@@ -787,7 +562,15 @@ export function runTestEvidencePr(options: {
     const diffJsonPath = path.join(outDir, 'test-specification.pr.json');
     const diffMdPath = path.join(outDir, 'test-specification.pr.md');
     writeFileSync(diffJsonPath, `${JSON.stringify(diff, null, 2)}\n`, 'utf8');
-    writeFileSync(diffMdPath, formatTestEvidencePrMarkdown(diff, { removedDetail: options.removedDetail }), 'utf8');
+    writeFileSync(
+      diffMdPath,
+      formatTestEvidencePrMarkdown(diff, {
+        removedDetail: options.removedDetail,
+        markdownPath: diffMdPath,
+        sourceRootDir: root
+      }),
+      'utf8'
+    );
     console.log(`wrote: ${diffJsonPath}`);
     console.log(`wrote: ${diffMdPath}`);
 
@@ -805,6 +588,7 @@ function writeArtifacts(args: {
   report: TestSpecificationEvidence;
   format: TestEvidenceFormat;
   outDir: string;
+  sourceRootDir: string;
 }): void {
   mkdirSync(args.outDir, { recursive: true });
   const writtenFiles: string[] = [];
@@ -816,9 +600,8 @@ function writeArtifacts(args: {
   }
 
   if (args.format === 'markdown' || args.format === 'both') {
-    const mdPath = path.join(args.outDir, 'test-specification.md');
-    writeFileSync(mdPath, formatTestEvidenceOutput(args.report, 'markdown'), 'utf8');
-    writtenFiles.push(mdPath);
+    const markdownPaths = writeSpecificationMarkdownArtifacts(args.report, args.outDir, args.sourceRootDir);
+    writtenFiles.push(...markdownPaths);
   }
 
   for (const filePath of writtenFiles.sort((a, b) => a.localeCompare(b))) {
@@ -826,170 +609,167 @@ function writeArtifacts(args: {
   }
 }
 
-function renderCatalogHeader(lines: string[], catalog: PrDiffCatalog): void {
-  lines.push(`### ${catalog.catalogId} — ${catalog.title}`);
-  if (catalog.kind === 'sql') {
-    lines.push(`- definition: ${catalog.definition ? `\`${catalog.definition}\`` : '(unknown)'}`);
-    lines.push('- fixtures:');
-    for (const tableName of catalog.fixtures ?? []) {
-      lines.push(`  - ${tableName}`);
+function writeSpecificationMarkdownArtifacts(
+    report: TestSpecificationEvidence,
+    outDir: string,
+    sourceRootDir: string
+  ): string[] {
+  const indexFileName = 'test-specification.index.md';
+  const model = buildSpecificationModel(report as TestEvidencePreviewJson);
+  const catalogs = [...model.catalogs].sort((a, b) => a.catalogId.localeCompare(b.catalogId));
+  const written: string[] = [];
+  const catalogRows: Array<{
+    fileName: string;
+    catalogId: string;
+    title: string;
+    tests: number;
+  }> = [];
+
+  for (const catalog of catalogs) {
+    const catalogSlug = toSpecificationSlug(catalog.catalogId);
+    const catalogFileName = `test-specification.catalog.${catalogSlug}.md`;
+    const catalogPath = path.join(outDir, catalogFileName);
+      const catalogDefinitionLinks = resolveDefinitionLinkOptions({ markdownPath: catalogPath, sourceRootDir });
+      const catalogLines: string[] = [];
+      catalogLines.push(`# ${catalog.catalogId} Test Cases`);
+      catalogLines.push('');
+      catalogLines.push(`- schemaVersion: ${model.schemaVersion}`);
+      catalogLines.push(`- index: [Unit Test Index](./${indexFileName})`);
+      catalogLines.push(`- title: ${catalog.title}`);
+      const definitionPath =
+        catalog.definition ??
+        findCatalogDefinitionPath(report, catalog.catalogId);
+      catalogLines.push(`- definition: ${formatDefinitionLinkMarkdown(definitionPath, catalogDefinitionLinks)}`);
+    if (catalog.description) {
+      catalogLines.push(`- description: ${catalog.description}`);
     }
-  }
-  lines.push('');
-}
+    if (Array.isArray(catalog.refs) && catalog.refs.length > 0) {
+      catalogLines.push('- refs:');
+      for (const ref of catalog.refs) {
+        catalogLines.push(`  - [${ref.label}](${ref.url})`);
+      }
+    }
+    catalogLines.push(`- tests: ${catalog.cases.length}`);
+    if (catalog.kind === 'sql') {
+      catalogLines.push(`- fixtures: ${(catalog.fixtures ?? []).join(', ') || '(none)'}`);
+    }
+    catalogLines.push('');
 
-function renderCase(lines: string[], testCase: PrDiffCase): void {
-  lines.push(`### ${testCase.id} — ${testCase.title}`);
-  lines.push('input:');
-  lines.push('```json');
-  lines.push(JSON.stringify(testCase.input, null, 2));
-  lines.push('```');
-  lines.push('output:');
-  lines.push('```json');
-  lines.push(JSON.stringify(testCase.output, null, 2));
-  lines.push('```');
-  lines.push('');
-}
+    const sortedCases = [...catalog.cases].sort((a, b) => a.id.localeCompare(b.id));
+    for (const testCase of sortedCases) {
+      catalogLines.push(`## ${testCase.id} - ${testCase.title}`);
+      catalogLines.push(`- expected: ${testCase.expected}`);
+      catalogLines.push(`- tags: ${formatCaseTags(testCase.tags)}`);
+      catalogLines.push(`- focus: ${formatCaseFocus(testCase.focus)}`);
+      if (Array.isArray(testCase.refs) && testCase.refs.length > 0) {
+        catalogLines.push('- refs:');
+        for (const ref of testCase.refs) {
+          catalogLines.push(`  - [${ref.label}](${ref.url})`);
+        }
+      }
+      catalogLines.push('### input');
+      catalogLines.push('```json');
+      catalogLines.push(stringifyStablePretty(testCase.input));
+      catalogLines.push('```');
+      if (testCase.expected === 'throws') {
+        catalogLines.push('### error');
+        catalogLines.push('```json');
+        catalogLines.push(stringifyErrorPretty(testCase.error));
+        catalogLines.push('```');
+      } else {
+        catalogLines.push('### output');
+        catalogLines.push('```json');
+        catalogLines.push(stringifyStablePretty(testCase.output));
+        catalogLines.push('```');
+      }
+      catalogLines.push('');
+    }
 
-function renderRemovedCase(lines: string[], testCase: PrDiffCase, detail: RemovedDetailLevel): void {
-  lines.push(`### ${testCase.id} — ${testCase.title}`);
-  if (detail === 'none') {
-    lines.push('');
-    return;
-  }
-  lines.push('input:');
-  lines.push('```json');
-  lines.push(JSON.stringify(testCase.input, null, 2));
-  lines.push('```');
-  if (detail === 'full') {
-    lines.push('output:');
-    lines.push('```json');
-    lines.push(JSON.stringify(testCase.output, null, 2));
-    lines.push('```');
-  }
-  lines.push('');
-}
-
-function toStableValue(value: unknown): unknown {
-  if (Array.isArray(value)) {
-    return value.map((item) => toStableValue(item));
-  }
-  if (isPlainObject(value)) {
-    return Object.fromEntries(
-      Object.entries(value)
-        .sort((a, b) => a[0].localeCompare(b[0]))
-        .map(([key, nested]) => [key, toStableValue(nested)])
-    );
-  }
-  return value;
-}
-
-function normalizeCatalogsForDiff(report: TestSpecificationEvidence): PrDiffCatalog[] {
-  const sqlCatalogs: PrDiffCatalog[] = report.sqlCaseCatalogs.map((catalog) => ({
-    kind: 'sql',
-    catalogId: catalog.id,
-    title: catalog.title,
-    definition: catalog.definitionPath,
-    fixtures: [...catalog.fixtures.map((item) => item.tableName)].sort((a, b) => a.localeCompare(b)),
-    cases: catalog.cases.map((testCase) => ({
-      id: testCase.id,
-      title: testCase.title,
-      input: testCase.params,
-      output: testCase.expected
-    }))
-  }));
-  const functionCatalogs: PrDiffCatalog[] = report.testCaseCatalogs.map((catalog) => ({
-    kind: 'function',
-    catalogId: catalog.id,
-    title: catalog.title,
-    definition: catalog.definitionPath,
-    cases: catalog.cases.map((testCase) => ({
-      id: testCase.id,
-      title: testCase.title,
-      input: testCase.input,
-      output: testCase.output
-    }))
-  }));
-  return [...sqlCatalogs, ...functionCatalogs].sort((a, b) => a.catalogId.localeCompare(b.catalogId));
-}
-
-function caseFingerprint(args: { catalog: PrDiffCatalog; testCase: PrDiffCase }): string {
-  if (args.catalog.kind === 'sql') {
-    return stableStringify({
-      kind: args.catalog.kind,
-      catalogId: args.catalog.catalogId,
-      caseId: args.testCase.id,
-      input: args.testCase.input,
-      output: args.testCase.output,
-      fixtures: args.catalog.fixtures ?? [],
-      definition: args.catalog.definition ?? ''
+    catalogLines.push('');
+    writeFileSync(catalogPath, `${catalogLines.join('\n')}\n`, 'utf8');
+    written.push(catalogPath);
+    catalogRows.push({
+      fileName: catalogFileName,
+      catalogId: catalog.catalogId,
+      title: catalog.title,
+      tests: catalog.cases.length
     });
   }
-  return stableStringify({
-    kind: args.catalog.kind,
-    catalogId: args.catalog.catalogId,
-    caseId: args.testCase.id,
-    input: args.testCase.input,
-    output: args.testCase.output
-  });
+
+  const indexPath = path.join(outDir, indexFileName);
+  const indexLines: string[] = [];
+  indexLines.push('# Unit Test Index');
+  indexLines.push('');
+  indexLines.push(`- catalogs: ${catalogRows.length}`);
+  indexLines.push('');
+  indexLines.push('## Catalog Files');
+  indexLines.push('');
+  for (const row of catalogRows.sort((a, b) => a.fileName.localeCompare(b.fileName))) {
+    indexLines.push(`- [${row.catalogId}](./${row.fileName})`);
+    indexLines.push(`  - title: ${row.title}`);
+    indexLines.push(`  - tests: ${row.tests}`);
+  }
+  indexLines.push('');
+  writeFileSync(indexPath, `${indexLines.join('\n')}\n`, 'utf8');
+  written.push(indexPath);
+
+  return written;
 }
 
-function diffCatalogCases(
-  beforeCatalog: PrDiffCatalog,
-  afterCatalog: PrDiffCatalog
-): {
-  added: Array<{ after: PrDiffCase }>;
-  removed: Array<{ before: PrDiffCase }>;
-  updated: Array<{ before: PrDiffCase; after: PrDiffCase }>;
-} {
-  const beforeMap = new Map(beforeCatalog.cases.map((testCase) => [testCase.id, testCase]));
-  const afterMap = new Map(afterCatalog.cases.map((testCase) => [testCase.id, testCase]));
-  const added: Array<{ after: PrDiffCase }> = [];
-  const removed: Array<{ before: PrDiffCase }> = [];
-  const updated: Array<{ before: PrDiffCase; after: PrDiffCase }> = [];
-
-  for (const testCase of afterCatalog.cases) {
-    if (!beforeMap.has(testCase.id)) {
-      added.push({ after: testCase });
-    }
+function findCatalogDefinitionPath(report: TestSpecificationEvidence, catalogId: string): string | undefined {
+  const functionCatalog = report.testCaseCatalogs.find((catalog) => catalog.id === catalogId);
+  if (functionCatalog?.definitionPath) {
+    return functionCatalog.definitionPath;
   }
-  for (const testCase of beforeCatalog.cases) {
-    if (!afterMap.has(testCase.id)) {
-      removed.push({ before: testCase });
-    }
+  const sqlCatalog = report.sqlCaseCatalogs.find((catalog) => catalog.id === catalogId);
+  if (sqlCatalog?.definitionPath) {
+    return sqlCatalog.definitionPath;
   }
-  for (const beforeCase of beforeCatalog.cases) {
-    const afterCase = afterMap.get(beforeCase.id);
-    if (!afterCase) {
-      continue;
-    }
-    if (
-      caseFingerprint({ catalog: beforeCatalog, testCase: beforeCase }) !==
-      caseFingerprint({ catalog: afterCatalog, testCase: afterCase })
-    ) {
-      updated.push({ before: beforeCase, after: afterCase });
-    }
-  }
-
-  return {
-    added: [...added].sort((a, b) => a.after.id.localeCompare(b.after.id)),
-    removed: [...removed].sort((a, b) => a.before.id.localeCompare(b.before.id)),
-    updated: [...updated].sort((a, b) => a.after.id.localeCompare(b.after.id))
-  };
+  return undefined;
 }
 
-function sortCatalogEntriesByKind<T>(
-  entries: T[],
-  toCatalog: (entry: T) => PrDiffCatalog
-): T[] {
-  return [...entries].sort((a, b) => {
-    const catalogA = toCatalog(a);
-    const catalogB = toCatalog(b);
-    if (catalogA.kind !== catalogB.kind) {
-      return catalogA.kind === 'sql' ? -1 : 1;
+function toSpecificationSlug(definition: string): string {
+  if (definition === '(unknown)') {
+    return 'unknown';
+  }
+  const normalized = definition
+    .replace(/\\/g, '/')
+    .replace(/^\//, '')
+    .replace(/[^a-zA-Z0-9/_-]+/g, '-')
+    .replace(/\/+/g, '__')
+    .replace(/-+/g, '-')
+    .replace(/^[-_]+|[-_]+$/g, '');
+  return normalized || 'unknown';
+}
+
+function formatDefinitionLinkMarkdown(
+  definitionPath: string | undefined,
+  options?: DefinitionLinkOptions
+): string {
+  if (!definitionPath) {
+    return '(unknown)';
+  }
+  const normalizedPath = definitionPath.replace(/\\/g, '/').replace(/^\/+/, '');
+  if (!normalizedPath) {
+    return '(unknown)';
+  }
+  if (options?.mode === 'github' && options.github) {
+    const serverUrl = options.github.serverUrl.replace(/\/+$/, '');
+    const repository = options.github.repository.trim();
+    const ref = options.github.ref.trim();
+    if (serverUrl && repository && ref) {
+      const encodedPath = normalizedPath.split('/').map((part) => encodeURIComponent(part)).join('/');
+      const url = `${serverUrl}/${repository}/blob/${encodeURIComponent(ref)}/${encodedPath}`;
+      return `[${normalizedPath}](${url})`;
     }
-    return catalogA.catalogId.localeCompare(catalogB.catalogId);
-  });
+  }
+  if (options?.mode === 'path' && options.path) {
+    const absoluteTarget = path.resolve(options.path.sourceRootDir, normalizedPath);
+    const absoluteMarkdownDir = path.resolve(options.path.markdownDir);
+    const relativePath = path.relative(absoluteMarkdownDir, absoluteTarget).replace(/\\/g, '/');
+    return `[${normalizedPath}](${relativePath || normalizedPath})`;
+  }
+  return `[${normalizedPath}](${normalizedPath})`;
 }
 
 function materializeEvidenceForRef(args: {
@@ -1210,12 +990,28 @@ function readTestCaseCatalogsFromModule(moduleValue: EvidenceModuleLike): Array<
   title: string;
   description?: string;
   definitionPath?: string;
+  refs?: Array<{
+    label: string;
+    url: string;
+  }>;
   cases: Array<{
     id: string;
     title: string;
     description?: string;
-    input?: unknown;
+    input: unknown;
+    expected: 'success' | 'throws' | 'errorResult';
     output?: unknown;
+    error?: {
+      name: string;
+      message: string;
+      match: 'equals' | 'contains';
+    };
+    tags?: string[];
+    focus?: string;
+    refs?: Array<{
+      label: string;
+      url: string;
+    }>;
   }>;
 }> {
   if (!Array.isArray(moduleValue.testCaseCatalogs)) {
@@ -1246,10 +1042,15 @@ function readTestCaseCatalogsFromModule(moduleValue: EvidenceModuleLike): Array<
         : undefined;
       const hasDirectInput = Object.prototype.hasOwnProperty.call(item, 'input');
       const hasDirectOutput = Object.prototype.hasOwnProperty.call(item, 'output');
+      const hasDirectExpected = Object.prototype.hasOwnProperty.call(item, 'expected');
+      const hasDirectError = Object.prototype.hasOwnProperty.call(item, 'error');
+      const hasDirectTags = Object.prototype.hasOwnProperty.call(item, 'tags');
+      const hasDirectFocus = Object.prototype.hasOwnProperty.call(item, 'focus');
+      const hasDirectRefs = Object.prototype.hasOwnProperty.call(item, 'refs');
       const evidenceValue = Object.prototype.hasOwnProperty.call(item, 'evidence') ? item.evidence : undefined;
       const hasEvidence = isPlainObject(evidenceValue);
 
-      // Accept both normalized evidence shape (`input`/`output`) and raw test catalog shape (`evidence.input`/`evidence.output`).
+      // Accept both normalized evidence shape and raw test catalog shape (`evidence.*`).
       const input = hasDirectInput
         ? item.input
         : hasEvidence && Object.prototype.hasOwnProperty.call(evidenceValue, 'input')
@@ -1260,9 +1061,79 @@ function readTestCaseCatalogsFromModule(moduleValue: EvidenceModuleLike): Array<
         : hasEvidence && Object.prototype.hasOwnProperty.call(evidenceValue, 'output')
           ? evidenceValue.output
           : undefined;
-      if (input === undefined || output === undefined) {
+      const expectedRaw = hasDirectExpected
+        ? item.expected
+        : hasEvidence && Object.prototype.hasOwnProperty.call(evidenceValue, 'expected')
+          ? evidenceValue.expected
+          : undefined;
+      const expected: 'success' | 'throws' | 'errorResult' | undefined =
+        expectedRaw === 'success' || expectedRaw === 'throws' || expectedRaw === 'errorResult'
+          ? expectedRaw
+          : output === undefined
+            ? undefined
+            : 'success';
+      const errorRaw = hasDirectError
+        ? item.error
+        : hasEvidence && Object.prototype.hasOwnProperty.call(evidenceValue, 'error')
+          ? evidenceValue.error
+          : undefined;
+      const tagsRaw = hasDirectTags
+        ? item.tags
+        : hasEvidence && Object.prototype.hasOwnProperty.call(evidenceValue, 'tags')
+          ? evidenceValue.tags
+          : undefined;
+      const focusRaw = hasDirectFocus
+        ? item.focus
+        : hasEvidence && Object.prototype.hasOwnProperty.call(evidenceValue, 'focus')
+          ? evidenceValue.focus
+          : undefined;
+      const refsRaw = hasDirectRefs
+        ? item.refs
+        : hasEvidence && Object.prototype.hasOwnProperty.call(evidenceValue, 'refs')
+          ? evidenceValue.refs
+          : undefined;
+      if (input === undefined || expected === undefined) {
         throw new TestEvidenceRuntimeError(
-          `testCaseCatalogs[${index}].cases[${caseIndex}] requires input/output evidence fields.`
+          `testCaseCatalogs[${index}].cases[${caseIndex}] requires input/expected evidence fields.`
+        );
+      }
+      if (expected !== 'throws' && output === undefined) {
+        throw new TestEvidenceRuntimeError(
+          `testCaseCatalogs[${index}].cases[${caseIndex}] requires output when expected is not "throws".`
+        );
+      }
+      if (expected === 'throws') {
+        if (!isPlainObject(errorRaw)) {
+          throw new TestEvidenceRuntimeError(
+            `testCaseCatalogs[${index}].cases[${caseIndex}] requires error when expected is "throws".`
+          );
+        }
+        if (
+          typeof errorRaw.name !== 'string' ||
+          typeof errorRaw.message !== 'string' ||
+          (errorRaw.match !== 'equals' && errorRaw.match !== 'contains')
+        ) {
+          throw new TestEvidenceRuntimeError(
+            `testCaseCatalogs[${index}].cases[${caseIndex}].error must define name/message/match.`
+          );
+        }
+      }
+      const normalizedTags =
+        Array.isArray(tagsRaw) && tagsRaw.every((tag) => typeof tag === 'string' && tag.trim().length > 0)
+          ? normalizeCaseTags(tagsRaw.map((tag) => tag.trim()))
+          : undefined;
+      const normalizedFocus = typeof focusRaw === 'string' && focusRaw.trim().length > 0
+        ? focusRaw.trim()
+        : undefined;
+      const normalizedRefs = normalizeCatalogRefs(refsRaw);
+      if (!normalizedTags || normalizedTags.length !== 2) {
+        throw new TestEvidenceRuntimeError(
+          `testCaseCatalogs[${index}].cases[${caseIndex}] requires tags with exactly 2 axes: [intent, technique].`
+        );
+      }
+      if (!normalizedFocus) {
+        throw new TestEvidenceRuntimeError(
+          `testCaseCatalogs[${index}].cases[${caseIndex}] requires focus sentence.`
         );
       }
       return {
@@ -1270,7 +1141,19 @@ function readTestCaseCatalogsFromModule(moduleValue: EvidenceModuleLike): Array<
         title: caseTitle,
         ...(description ? { description } : {}),
         input,
-        output
+        expected,
+        ...(expected === 'throws'
+          ? {
+            error: {
+              name: (errorRaw as { name: string }).name,
+              message: (errorRaw as { message: string }).message,
+              match: (errorRaw as { match: 'equals' | 'contains' }).match
+            }
+          }
+          : { output }),
+        tags: normalizedTags,
+        focus: normalizedFocus,
+        ...(normalizedRefs.length > 0 ? { refs: normalizedRefs } : {})
       };
     });
     const description = typeof catalog.description === 'string' && catalog.description.trim().length > 0
@@ -1279,11 +1162,13 @@ function readTestCaseCatalogsFromModule(moduleValue: EvidenceModuleLike): Array<
     const definitionPath = typeof catalog.definitionPath === 'string' && catalog.definitionPath.trim().length > 0
       ? catalog.definitionPath.trim()
       : undefined;
+    const refs = normalizeCatalogRefs(catalog.refs);
     return {
       id,
       title,
       ...(description ? { description } : {}),
       ...(definitionPath ? { definitionPath } : {}),
+      ...(refs.length > 0 ? { refs } : {}),
       cases: normalizedCases
     };
   });
@@ -1387,16 +1272,20 @@ function normalizeSqlCaseCatalog(catalog: unknown, index: number): SqlCaseCatalo
     })
     .sort((a, b) => a.id.localeCompare(b.id));
 
+  const nestedDefinitionPath = typeof details.definitionPath === 'string' && details.definitionPath.trim().length > 0
+    ? details.definitionPath.trim()
+    : undefined;
   const description = typeof catalog.description === 'string' && catalog.description.trim().length > 0
     ? catalog.description.trim()
     : undefined;
+  const definitionPath = typeof catalog.definitionPath === 'string' && catalog.definitionPath.trim().length > 0
+    ? catalog.definitionPath.trim()
+    : nestedDefinitionPath;
   return {
     id,
     title,
     ...(description ? { description } : {}),
-    ...(typeof catalog.definitionPath === 'string' && catalog.definitionPath.trim().length > 0
-      ? { definitionPath: catalog.definitionPath.trim() }
-      : {}),
+    ...(definitionPath ? { definitionPath } : {}),
     params: {
       shape: 'named',
       example
@@ -1578,4 +1467,93 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 
 function normalizePath(input: string): string {
   return input.split(path.sep).join('/');
+}
+
+function normalizeCatalogRefs(value: unknown): Array<{ label: string; url: string }> {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .filter((item): item is Record<string, unknown> => isPlainObject(item))
+    .map((item) => ({
+      label: typeof item.label === 'string' ? item.label.trim() : '',
+      url: typeof item.url === 'string' ? item.url.trim() : ''
+    }))
+    .filter((item) => item.label.length > 0 && item.url.length > 0)
+    .sort((a, b) => a.label.localeCompare(b.label) || a.url.localeCompare(b.url));
+}
+
+const TAG_NORMALIZATION_MAP: Record<string, string> = {
+  boundary: 'bva'
+};
+
+const INTENT_TAGS = ['normalization', 'validation', 'authorization', 'invariant'] as const;
+const TECHNIQUE_TAGS = ['ep', 'bva', 'idempotence', 'state'] as const;
+const INTENT_TAG_SET = new Set<string>(INTENT_TAGS);
+const TECHNIQUE_TAG_SET = new Set<string>(TECHNIQUE_TAGS);
+
+function normalizeCaseTags(tags: string[]): string[] {
+  const normalized = new Set<string>();
+  for (const rawTag of tags) {
+    const lowered = rawTag.trim().toLowerCase();
+    const mapped = TAG_NORMALIZATION_MAP[lowered] ?? lowered;
+    if (INTENT_TAG_SET.has(mapped) || TECHNIQUE_TAG_SET.has(mapped)) {
+      normalized.add(mapped);
+    }
+  }
+  const intent = INTENT_TAGS.find((tag) => normalized.has(tag));
+  const technique = TECHNIQUE_TAGS.find((tag) => normalized.has(tag));
+  const result: string[] = [];
+  if (intent) {
+    result.push(intent);
+  }
+  if (technique) {
+    result.push(technique);
+  }
+  return result;
+}
+
+function formatCaseTags(tags: string[] | undefined): string {
+  const normalized = Array.isArray(tags) ? normalizeCaseTags(tags) : [];
+  return `[${normalized.join(', ')}]`;
+}
+
+function formatCaseFocus(focus: string | undefined): string {
+  if (typeof focus === 'string' && focus.trim().length > 0) {
+    return focus.trim();
+  }
+  return '(not specified)';
+}
+
+function stringifyStablePretty(value: unknown): string {
+  return JSON.stringify(sortDeep(value), null, 2) ?? 'null';
+}
+
+function stringifyErrorPretty(value: unknown): string {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    return 'null';
+  }
+  const source = value as Record<string, unknown>;
+  return JSON.stringify(
+    {
+      name: source.name,
+      message: source.message,
+      match: source.match
+    },
+    null,
+    2
+  ) ?? 'null';
+}
+
+function sortDeep(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) => sortDeep(item));
+  }
+  if (value !== null && typeof value === 'object') {
+    const entries = Object.entries(value as Record<string, unknown>)
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([key, nested]) => [key, sortDeep(nested)] as const);
+    return Object.fromEntries(entries);
+  }
+  return value;
 }
