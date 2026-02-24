@@ -9,7 +9,8 @@ import { renderReferencesPage } from '../render/referencesPage';
 import { renderTableMarkdown, tableDocPath } from '../render/tableMarkdown';
 import type { TableSuggestionSql } from '../render/tableMarkdown';
 import { writeManifest } from '../state/manifest';
-import type { GenerateDocsOptions, SuggestionItem } from '../types';
+import type { DdlInput, GenerateDocsOptions, SuggestionItem } from '../types';
+import { dedupeDdlInputsByInstanceAndPath } from '../utils/ddlInputDedupe';
 import { collectSqlFiles, ensureDirectory, expandGlobPatterns } from '../utils/fs';
 import { writeTextFileNormalized } from '../utils/io';
 
@@ -19,13 +20,22 @@ const GENERATOR_VERSION = '1.0.0';
  * Generates markdown docs and metadata files from DDL inputs.
  */
 export function runGenerateDocs(options: GenerateDocsOptions): void {
-  if (options.ddlDirectories.length === 0 && options.ddlFiles.length === 0 && options.ddlGlobs.length === 0) {
+  const normalizedDirectories = normalizeDdlInputs(options.ddlDirectories);
+  const normalizedFiles = normalizeDdlInputs(options.ddlFiles);
+  const normalizedGlobs = normalizeDdlInputs(options.ddlGlobs);
+
+  if (normalizedDirectories.length === 0 && normalizedFiles.length === 0 && normalizedGlobs.length === 0) {
     throw new Error('At least one DDL input is required via --ddl-dir, --ddl-file, or --ddl-glob.');
   }
 
-  const globFiles = expandGlobPatterns(options.ddlGlobs);
-  const mergedFiles = Array.from(new Set([...options.ddlFiles, ...globFiles]));
-  const sources = collectSqlFiles(options.ddlDirectories, mergedFiles, options.extensions);
+  const mergedFiles: DdlInput[] = [...normalizedFiles];
+  for (const globInput of normalizedGlobs) {
+    for (const p of expandGlobPatterns([globInput.path])) {
+      mergedFiles.push({ path: p, instance: globInput.instance ?? '' });
+    }
+  }
+  const uniqueFiles = dedupeDdlInputsByInstanceAndPath(mergedFiles);
+  const sources = collectSqlFiles(normalizedDirectories, uniqueFiles, options.extensions);
   if (sources.length === 0) {
     throw new Error('No SQL files were discovered from the provided inputs.');
   }
@@ -56,7 +66,7 @@ export function runGenerateDocs(options: GenerateDocsOptions): void {
       columnCommentSql: [],
       foreignKeySql: [],
     };
-    writeTextFileNormalized(outputPath, renderTableMarkdown(table, tableSuggestions));
+    writeTextFileNormalized(outputPath, renderTableMarkdown(table, tableSuggestions, { labelSeparator: options.labelSeparator }));
     generatedFiles.push(outputPath);
     tableOutputs.push(outputPath);
     nameMap[`${table.schema}.${table.table}`] = `${table.schemaSlug}/${table.tableSlug}.md`;
@@ -124,24 +134,30 @@ export function runGenerateDocs(options: GenerateDocsOptions): void {
       columnOrder: options.columnOrder,
       strict: options.strict,
       extensions: options.extensions,
-      ddlDirectories: options.ddlDirectories,
-      ddlFiles: mergedFiles,
-      ddlGlobs: options.ddlGlobs,
+      ddlDirectories: normalizedDirectories,
+      ddlFiles: uniqueFiles,
+      ddlGlobs: normalizedGlobs,
     },
     nameMap,
     tableOutputs,
     columnOutputs,
   });
 
-  console.log(`Generated ${generatedFiles.length} files under ${options.outDir}`);
-  console.log(`Warnings: ${snapshot.warnings.length} (${warningsJsonPath})`);
-  console.log(`Findings: ${analysis.findings.length} (${findingsJsonPath})`);
-  console.log(`Manifest: ${manifest}`);
-
   const totalIssues = snapshot.warnings.length + analysis.findings.length;
   if (options.strict && totalIssues > 0) {
     throw new Error(`Strict mode failed: ${totalIssues} issues found.`);
   }
+}
+
+function normalizeDdlInputs(inputs: Array<DdlInput | string>): DdlInput[] {
+  return inputs
+    .map((entry) => {
+      if (typeof entry === 'string') {
+        return { path: entry, instance: '' };
+      }
+      return { path: entry.path, instance: entry.instance ?? '' };
+    })
+    .filter((entry) => Boolean(entry.path));
 }
 
 function groupSuggestionsByTable(

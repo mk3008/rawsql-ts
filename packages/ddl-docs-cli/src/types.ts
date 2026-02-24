@@ -1,18 +1,25 @@
 export interface SqlSource {
   path: string;
   sql: string;
+  instance: string;
+}
+
+export interface DdlInput {
+  path: string;
+  instance: string;
 }
 
 export interface GenerateDocsOptions {
-  ddlDirectories: string[];
-  ddlFiles: string[];
-  ddlGlobs: string[];
+  ddlDirectories: DdlInput[];
+  ddlFiles: DdlInput[];
+  ddlGlobs: DdlInput[];
   extensions: string[];
   outDir: string;
   includeIndexes: boolean;
   strict: boolean;
   dialect: 'postgres';
   columnOrder: 'definition' | 'name';
+  labelSeparator?: string;
   locale?: string;
   dictionaryPath?: string;
   configPath?: string;
@@ -46,19 +53,30 @@ export interface ColumnDocModel {
   unknownType: boolean;
 }
 
+export interface TriggerDocModel {
+  name: string;
+  timing: string;
+  events: string[];
+  forEach: string;
+  functionName: string;
+  rawSql: string;
+}
+
 export interface TableDocModel {
   schema: string;
   table: string;
   schemaSlug: string;
   tableSlug: string;
+  instance: string;
   tableComment: string;
   sourceFiles: string[];
   columns: ColumnDocModel[];
   primaryKey: string[];
   constraints: TableConstraintDocModel[];
+  triggers: TriggerDocModel[];
   outgoingReferences: ReferenceDocModel[];
   incomingReferences: ReferenceDocModel[];
-  normalizedSql: string;
+  normalizedSql: NormalizedSql;
 }
 
 export interface DocsManifest {
@@ -95,16 +113,29 @@ export interface SnapshotResult {
 }
 
 export interface TableConstraintDocModel {
-  kind: 'PK' | 'UK' | 'CHECK' | 'FK';
+  kind: 'PK' | 'UK' | 'CHECK' | 'FK' | 'INDEX';
   name: string;
   expression: string;
+  /** true when this constraint originated from CREATE [UNIQUE] INDEX */
+  isIndex?: boolean;
+}
+
+export interface NormalizedSql {
+  /** CREATE TABLE + ALTER TABLE constraints + CREATE [UNIQUE] INDEX */
+  definition: string;
+  /** COMMENT ON TABLE + COMMENT ON COLUMN */
+  comments: string;
+  /** CREATE TRIGGER statements (raw, not normalized) */
+  triggers: string;
 }
 
 export interface ReferenceDocModel {
   direction: 'outgoing' | 'incoming';
   source: 'ddl' | 'suggested';
   fromTableKey: string;
+  fromTableComment: string;
   targetTableKey: string;
+  targetTableComment: string;
   fromColumns: string[];
   targetColumns: string[];
   onDeleteAction: 'cascade' | 'restrict' | 'no action' | 'set null' | 'set default' | null;

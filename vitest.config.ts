@@ -6,6 +6,7 @@ const shouldExcludeBenchmarks = process.env.VITEST_INCLUDE_BENCHMARKS !== '1'
 const integrationTestPatterns = [
     'packages/sql-contract/tests/readme/**/*.test.[jt]s',
     'packages/sql-contract/tests/mapper/driver/pg-mapper.integration.test.ts',
+    'packages/sql-contract/tests/mapper/driver/mssql-mapper.integration.test.ts',
 ]
 
 const baseExcludes = ['**/dist/**', '**/node_modules/**']

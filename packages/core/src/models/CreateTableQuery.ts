@@ -158,6 +158,8 @@ export class CreateTableQuery extends SqlComponent {
     tableName: IdentifierString;
     namespaces: string[] | null;
     isTemporary: boolean;
+    /** True when the table was declared with CREATE UNLOGGED TABLE (PostgreSQL). */
+    isUnlogged: boolean;
     ifNotExists: boolean;
     columns: TableColumnDefinition[];
     tableConstraints: TableConstraintDefinition[];
@@ -169,6 +171,7 @@ export class CreateTableQuery extends SqlComponent {
         tableName: string;
         namespaces?: string[] | null;
         isTemporary?: boolean;
+        isUnlogged?: boolean;
         ifNotExists?: boolean;
         columns?: TableColumnDefinition[];
         tableConstraints?: TableConstraintDefinition[];
@@ -180,6 +183,7 @@ export class CreateTableQuery extends SqlComponent {
         this.tableName = new IdentifierString(params.tableName);
         this.namespaces = params.namespaces ? [...params.namespaces] : null;
         this.isTemporary = params.isTemporary ?? false;
+        this.isUnlogged = params.isUnlogged ?? false;
         this.ifNotExists = params.ifNotExists ?? false;
         this.columns = params.columns ? [...params.columns] : [];
         this.tableConstraints = params.tableConstraints ? [...params.tableConstraints] : [];

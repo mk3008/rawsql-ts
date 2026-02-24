@@ -19,6 +19,15 @@ export interface AnalyzeResult {
   suggestions: SuggestionItem[];
 }
 
+const KNOWN_RAW_TYPES = new Set(['text', 'date']);
+const FLEXIBLE_CANONICAL_TYPES = new Set(['date', 'text']);
+const PG_INT_ALIASES: Record<string, string> = {
+  int: 'integer',
+  int2: 'smallint',
+  int4: 'integer',
+  int8: 'bigint',
+};
+
 export function analyzeColumns(tables: TableDocModel[], options: AnalyzeOptions): AnalyzeResult {
   const conceptMap = new Map<string, ObservedColumnConcept>();
   const findings: FindingItem[] = [];
@@ -53,7 +62,7 @@ export function analyzeColumns(tables: TableDocModel[], options: AnalyzeOptions)
       } satisfies ObservedColumnUsage);
       conceptMap.set(concept, conceptItem);
 
-      if (column.unknownType) {
+      if (column.unknownType && !KNOWN_RAW_TYPES.has(column.typeName.toLowerCase())) {
         findings.push({
           kind: 'UNSUPPORTED_OR_UNKNOWN_TYPE',
           severity: 'info',
@@ -98,7 +107,13 @@ export function analyzeColumns(tables: TableDocModel[], options: AnalyzeOptions)
 
   for (const conceptItem of conceptMap.values()) {
     const divergenceBases = new Set(
-      conceptItem.usages.map((usage) => usage.canonicalType.replace(/\(.*\)/, '').replace(/\{serial\}/, ''))
+      conceptItem.usages
+        .map((usage) => {
+          const base = usage.canonicalType.replace(/\(.*\)/, '').replace(/\{serial\}/, '');
+          const normalizedBase = base.toLowerCase();
+          return PG_INT_ALIASES[normalizedBase] ?? normalizedBase;
+        })
+        .filter((base) => !FLEXIBLE_CANONICAL_TYPES.has(base.toLowerCase()))
     );
     if (divergenceBases.size > 1) {
       findings.push({

@@ -1,6 +1,9 @@
 import {
   AlterTableAddConstraint,
+  AlterTableAlterColumnDefault,
   AlterTableStatement,
+  CommentOnStatement,
+  CreateIndexStatement,
   CreateTableQuery,
   MultiQuerySplitter,
   RawString,
@@ -14,12 +17,14 @@ import {
 } from 'rawsql-ts';
 import type {
   ColumnDocModel,
+  NormalizedSql,
   ReferenceDocModel,
   ResolvedSchemaSettings,
   SnapshotResult,
   SqlSource,
   TableConstraintDocModel,
   TableDocModel,
+  TriggerDocModel,
   WarningItem,
 } from '../types';
 import { normalizePostgresType } from '../analyzer/typeNormalization';
@@ -58,16 +63,22 @@ interface WorkingTable {
   table: string;
   schemaSlug: string;
   tableSlug: string;
+  instance: string;
   tableComment: string;
   sourceFiles: Set<string>;
   columns: Map<string, WorkingColumn>;
   constraints: TableConstraintDocModel[];
+  triggers: TriggerDocModel[];
   outgoingReferences: OutgoingReference[];
 }
 
 interface CommentAccumulator {
   tableComments: Map<string, string>;
   columnComments: Map<string, string>;
+}
+
+interface TriggerAccumulator {
+  items: Array<{ tableKey: string; trigger: TriggerDocModel }>;
 }
 
 const formatter = new SqlFormatter({
@@ -91,10 +102,16 @@ export function snapshotTableDocs(
     tableComments: new Map<string, string>(),
     columnComments: new Map<string, string>(),
   };
+  const triggerAccumulator: TriggerAccumulator = { items: [] };
   const warnings: WarningItem[] = [];
 
   for (const source of sources) {
-    const statements = MultiQuerySplitter.split(source.sql).queries;
+    // Strip psql meta-commands (\connect, \restrict, etc.) that pg_dump emits
+    const cleanedSql = source.sql
+      .split('\n')
+      .map(line => (/^\s*\\/.test(line) ? '' : line))
+      .join('\n');
+    const statements = MultiQuerySplitter.split(cleanedSql).queries;
     for (let statementIndex = 0; statementIndex < statements.length; statementIndex += 1) {
       const statement = statements[statementIndex];
       if (statement.isEmpty) {
@@ -105,17 +122,86 @@ export function snapshotTableDocs(
         continue;
       }
 
+      // Silently skip statements that are intentionally out of scope
+      const sqlLower = sql.toLowerCase().replace(/\/\*[\s\S]*?\*\//g, '').replace(/--[^\n]*/g, '').trim();
+      if (sqlLower.startsWith('grant ') || sqlLower.startsWith('revoke ')) {
+        continue;
+      }
+
+      // Silently skip DDL that is outside table structure scope:
+      // - Ownership (OWNER TO) from pg_dump
+      // - Session settings (SET, SELECT set_config) from pg_dump
+      // - Object types not tracked in table docs (SEQUENCE, FUNCTION, VIEW, SCHEMA, TYPE, DOMAIN, EXTENSION)
+      if (
+        sqlLower.startsWith('set ') ||
+        sqlLower.startsWith('select pg_catalog.set_config(') ||
+        sqlLower.startsWith('create sequence ') ||
+        sqlLower.startsWith('alter sequence ') ||
+        sqlLower.startsWith('create schema ') ||
+        sqlLower.startsWith('create function ') ||
+        sqlLower.startsWith('create or replace function ') ||
+        sqlLower.startsWith('create procedure ') ||
+        sqlLower.startsWith('create or replace procedure ') ||
+        sqlLower.startsWith('create view ') ||
+        sqlLower.startsWith('create or replace view ') ||
+        sqlLower.startsWith('create materialized view ') ||
+        sqlLower.startsWith('create type ') ||
+        sqlLower.startsWith('create or replace type ') ||
+        sqlLower.startsWith('create domain ') ||
+        sqlLower.startsWith('create extension ') ||
+        sqlLower.startsWith('alter function ') ||
+        sqlLower.startsWith('alter procedure ') ||
+        sqlLower.startsWith('alter view ') ||
+        sqlLower.startsWith('alter materialized view ') ||
+        sqlLower.startsWith('alter schema ') ||
+        sqlLower.startsWith('alter type ') ||
+        sqlLower.startsWith('alter default privileges ')
+      ) {
+        continue;
+      }
+      // ALTER TABLE/SEQUENCE ... OWNER TO ... (pg_dump ownership statement)
+      if (sqlLower.includes(' owner to ')) {
+        continue;
+      }
+      // ALTER TABLE ... ATTACH PARTITION (partitioned table child attachment)
+      if (sqlLower.includes(' attach partition ')) {
+        continue;
+      }
+      // ALTER TABLE ... ENABLE [ALWAYS] TRIGGER (trigger state management)
+      if (sqlLower.startsWith('alter table ') && sqlLower.includes(' enable ') && sqlLower.includes(' trigger ')) {
+        continue;
+      }
+
+      // NOTE: CREATE TRIGGER is handled here via regex as an intentional exception.
+      // Ideally, trigger parsing should be implemented in the rawsql-ts core parser
+      // (SqlParser + DDLStatements model), but that work has not been done yet.
+      // Regex parsing is used as a pragmatic workaround until core support is added.
+      if (
+        sqlLower.startsWith('create trigger ') ||
+        sqlLower.startsWith('create or replace trigger ') ||
+        sqlLower.startsWith('create constraint trigger ')
+      ) {
+        collectTrigger(sql, source.instance, schemaSettings, triggerAccumulator);
+        continue;
+      }
+      // Silently skip DROP/ALTER TRIGGER
+      if (sqlLower.startsWith('drop trigger ') || sqlLower.startsWith('alter trigger ')) {
+        continue;
+      }
+
       const commentState = applyCommentStatement(sql, schemaSettings, comments);
       if (commentState === 'handled') {
         continue;
       }
       if (commentState === 'ambiguous') {
-        warnings.push({
-          kind: 'AMBIGUOUS',
+        const w = {
+          kind: 'AMBIGUOUS' as const,
           message: 'COMMENT ON statement could not be fully resolved.',
           statementPreview: previewStatement(sql),
           source: { filePath: source.path, statementIndex: statementIndex + 1 },
-        });
+        };
+        console.warn(`  [WARN] ${w.kind}: ${w.message} (${w.source.filePath}#${w.source.statementIndex})`);
+        warnings.push(w);
         continue;
       }
 
@@ -123,35 +209,51 @@ export function snapshotTableDocs(
       try {
         parsed = SqlParser.parse(sql);
       } catch (error) {
-        warnings.push({
-          kind: 'PARSE_FAILED',
-          message: error instanceof Error ? error.message : String(error),
+        const message = error instanceof Error ? error.message : String(error);
+        const w = {
+          kind: 'PARSE_FAILED' as const,
+          message,
           statementPreview: previewStatement(sql),
           source: { filePath: source.path, statementIndex: statementIndex + 1 },
-        });
+        };
+        console.warn(`  [WARN] ${w.kind}: ${w.message} (${w.source.filePath}#${w.source.statementIndex})\n         ${w.statementPreview}`);
+        warnings.push(w);
         continue;
       }
 
       if (parsed instanceof CreateTableQuery) {
-        applyCreateTable(parsed, source.path, schemaSettings, registry);
+        applyCreateTable(parsed, source, schemaSettings, registry);
         continue;
       }
 
       if (parsed instanceof AlterTableStatement) {
-        applyAlterTable(parsed, source.path, schemaSettings, registry);
+        applyAlterTable(parsed, source, schemaSettings, registry);
         continue;
       }
 
-      warnings.push({
-        kind: 'UNSUPPORTED_DDL',
+      if (parsed instanceof CommentOnStatement) {
+        applyParsedCommentOn(parsed, schemaSettings, comments);
+        continue;
+      }
+
+      if (parsed instanceof CreateIndexStatement) {
+        applyCreateIndex(parsed, source, schemaSettings, registry);
+        continue;
+      }
+
+      const w = {
+        kind: 'UNSUPPORTED_DDL' as const,
         message: `Unsupported statement type: ${resolveConstructorName(parsed)}`,
         statementPreview: previewStatement(sql),
         source: { filePath: source.path, statementIndex: statementIndex + 1 },
-      });
+      };
+      console.warn(`  [WARN] ${w.kind}: ${w.message} (${w.source.filePath}#${w.source.statementIndex})`);
+      warnings.push(w);
     }
   }
 
   applyCommentsToRegistry(registry, comments);
+  applyTriggersToRegistry(registry, triggerAccumulator);
   const tables = finalizeTables(registry, options);
   inferSuggestedReferences(tables);
   resolveIncomingReferences(tables);
@@ -164,13 +266,14 @@ export function snapshotTableDocs(
 
 function applyCreateTable(
   query: CreateTableQuery,
-  sourcePath: string,
+  source: SqlSource,
   schemaSettings: ResolvedSchemaSettings,
   registry: Map<string, WorkingTable>
 ): void {
   const tableKey = buildTableKey(query.namespaces ?? [], query.tableName.name, schemaSettings);
-  const table = registry.get(tableKey) ?? createWorkingTable(tableKey);
-  table.sourceFiles.add(sourcePath);
+  const registryKey = buildRegistryKey(source.instance, tableKey);
+  const table = registry.get(registryKey) ?? createWorkingTable(tableKey, source.instance);
+  table.sourceFiles.add(source.path);
 
   const definition = createTableDefinitionFromCreateTableQuery(query);
   const definitionColumns = new Map(definition.columns.map((column) => [column.name, column]));
@@ -206,20 +309,37 @@ function applyCreateTable(
 
   table.constraints = dedupeConstraints(table.constraints);
   table.outgoingReferences = dedupeReferences(table.outgoingReferences);
-  registry.set(tableKey, table);
+  registry.set(registryKey, table);
 }
 
 function applyAlterTable(
   statement: AlterTableStatement,
-  sourcePath: string,
+  source: SqlSource,
   schemaSettings: ResolvedSchemaSettings,
   registry: Map<string, WorkingTable>
 ): void {
   const tableKey = buildTableKey(statement.table.namespaces ?? [], statement.table.name, schemaSettings);
-  const table = registry.get(tableKey) ?? createWorkingTable(tableKey);
-  table.sourceFiles.add(sourcePath);
+  const registryKey = buildRegistryKey(source.instance, tableKey);
+  const table = registry.get(registryKey) ?? createWorkingTable(tableKey, source.instance);
+  table.sourceFiles.add(source.path);
 
   for (const action of statement.actions) {
+    if (action instanceof AlterTableAlterColumnDefault && action.setDefault !== null) {
+      const columnName = normalizeIdentifier(action.columnName);
+      const column = table.columns.get(columnName);
+      if (column) {
+        column.defaultValue = renderExpression(action.setDefault);
+      }
+      continue;
+    }
+    if (action instanceof AlterTableAlterColumnDefault && action.dropDefault) {
+      const columnName = normalizeIdentifier(action.columnName);
+      const column = table.columns.get(columnName);
+      if (column) {
+        column.defaultValue = '';
+      }
+      continue;
+    }
     if (!(action instanceof AlterTableAddConstraint)) {
       continue;
     }
@@ -228,7 +348,7 @@ function applyAlterTable(
 
   table.constraints = dedupeConstraints(table.constraints);
   table.outgoingReferences = dedupeReferences(table.outgoingReferences);
-  registry.set(tableKey, table);
+  registry.set(registryKey, table);
 }
 
 function applyColumnConstraints(
@@ -358,17 +478,19 @@ function applyTableConstraint(
   }
 }
 
-function createWorkingTable(tableKey: string): WorkingTable {
+function createWorkingTable(tableKey: string, instance = ''): WorkingTable {
   const [schema, table] = tableKey.split('.');
   return {
     schema,
     table,
     schemaSlug: slugifyIdentifier(schema),
     tableSlug: slugifyIdentifier(table),
+    instance,
     tableComment: '',
     sourceFiles: new Set<string>(),
     columns: new Map<string, WorkingColumn>(),
     constraints: [],
+    triggers: [],
     outgoingReferences: [],
   };
 }
@@ -387,6 +509,93 @@ function renderExpression(component: ValueComponent): string {
   return formatter.format(component).formattedSql.trim();
 }
 
+function applyCreateIndex(
+  statement: CreateIndexStatement,
+  source: SqlSource,
+  schemaSettings: ResolvedSchemaSettings,
+  registry: Map<string, WorkingTable>
+): void {
+  const tableKey = buildTableKey(statement.tableName.namespaces ?? [], statement.tableName.name, schemaSettings);
+  const registryKey = buildRegistryKey(source.instance, tableKey);
+  const table = registry.get(registryKey);
+  if (!table) {
+    return;
+  }
+  const kind = statement.unique ? 'UK' : 'INDEX';
+  const name = normalizeIdentifier(statement.indexName.name);
+  const expression = statement.columns.map((col) => renderExpression(col.expression)).join(', ');
+  table.constraints.push({ kind, name, expression, isIndex: true });
+  table.constraints = dedupeConstraints(table.constraints);
+}
+
+/**
+ * Parses a CREATE TRIGGER statement using regex and stores it in the accumulator.
+ *
+ * NOTE: This is an intentional exception to the design philosophy of this package,
+ * which normally delegates all SQL parsing to the rawsql-ts core (SqlParser).
+ * CREATE TRIGGER is not yet supported by the core parser, so regex is used here
+ * as a pragmatic workaround. Once core support is added, this function should be
+ * replaced with a proper SqlParser-based approach.
+ */
+function collectTrigger(
+  sql: string,
+  instance: string,
+  schemaSettings: ResolvedSchemaSettings,
+  accumulator: TriggerAccumulator
+): void {
+  const normalized = sql.replace(/\s+/g, ' ').trim();
+
+  const nameMatch = normalized.match(/\btrigger\s+"?(\w+)"?\s/i);
+  if (!nameMatch) return;
+  const name = nameMatch[1].toLowerCase();
+
+  const timingMatch = normalized.match(/\b(before|after|instead\s+of)\b/i);
+  const timing = timingMatch ? timingMatch[1].toUpperCase().replace(/\s+/g, ' ') : '';
+
+  const onMatch = normalized.match(/\bon\s+([\w."]+(?:\.[\w."]+)*)/i);
+  if (!onMatch) return;
+  const rawTableRef = onMatch[1].replace(/"/g, '').toLowerCase();
+  const parts = rawTableRef.split('.');
+  const tableKey =
+    parts.length >= 2
+      ? `${parts[parts.length - 2]}.${parts[parts.length - 1]}`
+      : `${schemaSettings.defaultSchema}.${parts[0]}`;
+  const registryKey = buildRegistryKey(instance, tableKey);
+
+  const eventsMatch = normalized.match(/\b(?:before|after|instead\s+of)\b\s+(.*?)\s+\bon\b/i);
+  const events: string[] = [];
+  if (eventsMatch) {
+    const eventsStr = eventsMatch[1];
+    if (/\binsert\b/i.test(eventsStr)) events.push('INSERT');
+    if (/\bupdate\b/i.test(eventsStr)) events.push('UPDATE');
+    if (/\bdelete\b/i.test(eventsStr)) events.push('DELETE');
+    if (/\btruncate\b/i.test(eventsStr)) events.push('TRUNCATE');
+  }
+
+  const forEachMatch = normalized.match(/\bfor\s+(?:each\s+)?(row|statement)\b/i);
+  const forEach = forEachMatch ? forEachMatch[1].toUpperCase() : 'ROW';
+
+  const funcMatch = normalized.match(/\bexecute\s+(?:function|procedure)\s+([\w."]+(?:\.[\w."]+)*\s*\([^)]*\))/i);
+  const functionName = funcMatch ? funcMatch[1].replace(/"/g, '').toLowerCase().replace(/\s+/g, '') : '';
+
+  const rawSql = normalized.endsWith(';') ? normalized : `${normalized};`;
+  accumulator.items.push({ tableKey: registryKey, trigger: { name, timing, events, forEach, functionName, rawSql } });
+}
+
+function applyTriggersToRegistry(
+  registry: Map<string, WorkingTable>,
+  accumulator: TriggerAccumulator
+): void {
+  for (const { tableKey, trigger } of accumulator.items) {
+    const table = registry.get(tableKey);
+    if (!table) continue;
+    const already = table.triggers.some((t) => t.name === trigger.name);
+    if (!already) {
+      table.triggers.push(trigger);
+    }
+  }
+}
+
 function buildTableKey(
   namespaces: Array<string | { name: string }>,
   tableName: string | { name: string } | { value: string },
@@ -398,6 +607,10 @@ function buildTableKey(
     return `${schema}.${normalizedTable}`;
   }
   return `${schemaSettings.defaultSchema}.${normalizedTable}`;
+}
+
+function buildRegistryKey(instance: string, tableKey: string): string {
+  return `${instance ?? ''}\u0000${tableKey}`;
 }
 
 function normalizeIdentifier(value: string | { name: string } | { value: string }): string {
@@ -412,6 +625,53 @@ function resolveTargetSchema(namespaces: Array<string | { name: string }>, schem
   return normalizeIdentifier(namespaces[namespaces.length - 1]);
 }
 
+function applyParsedCommentOn(
+  statement: CommentOnStatement,
+  schemaSettings: ResolvedSchemaSettings,
+  comments: CommentAccumulator
+): void {
+  const commentText = statement.comment !== null
+    ? parseCommentLiteral(renderExpression(statement.comment))
+    : null;
+  if (commentText === null) return;
+
+  const namespaces = statement.target.namespaces ?? [];
+  const name = normalizeIdentifier(statement.target.name);
+
+  if (statement.targetKind === 'table') {
+    const schema = namespaces.length > 0
+      ? normalizeIdentifier(namespaces[namespaces.length - 1])
+      : schemaSettings.defaultSchema;
+    comments.tableComments.set(`${schema}.${name}`, commentText);
+  } else {
+    // column: namespaces = [schema, table] or [table]
+    if (namespaces.length >= 2) {
+      const schema = normalizeIdentifier(namespaces[namespaces.length - 2]);
+      const table = normalizeIdentifier(namespaces[namespaces.length - 1]);
+      comments.columnComments.set(`${schema}.${table}.${name}`, commentText);
+    } else if (namespaces.length === 1) {
+      const table = normalizeIdentifier(namespaces[0]);
+      comments.columnComments.set(`${schemaSettings.defaultSchema}.${table}.${name}`, commentText);
+    }
+  }
+}
+
+/** Returns true if the lowercase COMMENT ON statement targets an object type we don't track. */
+function isUnsupportedCommentOnTarget(lower: string): boolean {
+  return (
+    lower.startsWith('comment on constraint ') ||
+    lower.startsWith('comment on view ') ||
+    lower.startsWith('comment on materialized view ') ||
+    lower.startsWith('comment on index ') ||
+    lower.startsWith('comment on sequence ') ||
+    lower.startsWith('comment on function ') ||
+    lower.startsWith('comment on procedure ') ||
+    lower.startsWith('comment on type ') ||
+    lower.startsWith('comment on schema ') ||
+    lower.startsWith('comment on extension ')
+  );
+}
+
 function applyCommentStatement(
   sql: string,
   schemaSettings: ResolvedSchemaSettings,
@@ -419,8 +679,28 @@ function applyCommentStatement(
 ): 'handled' | 'ignored' | 'ambiguous' {
   const normalized = sql.trim();
   const lower = normalized.toLowerCase();
+
   if (!lower.startsWith('comment on ')) {
+    // The SQL may have pg_dump section-header comments (-- -- Name: ...) prepended.
+    // Strip them to detect the actual statement type, but only for classification.
+    // TABLE/COLUMN handling is left to SqlParser (via the 'ignored' return path) so
+    // that multi-line comment values and keyword column names are handled correctly.
+    const strippedLower = normalized.replace(/^(?:--[^\n]*\n)+/g, '').trim().toLowerCase();
+    if (!strippedLower.startsWith('comment on ')) {
+      return 'ignored';
+    }
+    // Silently skip COMMENT ON for object types we don't track in table docs.
+    if (isUnsupportedCommentOnTarget(strippedLower)) {
+      return 'handled';
+    }
+    // TABLE/COLUMN COMMENT with pg_dump headers → let SqlParser handle it.
     return 'ignored';
+  }
+
+  // Direct COMMENT ON (no pg_dump headers).
+  // Silently skip unsupported object types.
+  if (isUnsupportedCommentOnTarget(lower)) {
+    return 'handled';
   }
 
   const tableMatch = normalized.match(/^comment\s+on\s+table\s+(.+?)\s+is\s+(.+?);?$/i);
@@ -510,11 +790,14 @@ function parseQualifiedParts(input: string): string[] {
 
 function applyCommentsToRegistry(registry: Map<string, WorkingTable>, comments: CommentAccumulator): void {
   for (const [tableKey, comment] of comments.tableComments.entries()) {
-    const table = registry.get(tableKey);
-    if (!table) {
+    const [schema, tableName] = tableKey.split('.');
+    if (!schema || !tableName) {
       continue;
     }
-    table.tableComment = comment;
+    const tables = findTablesBySchemaAndName(registry, schema, tableName);
+    for (const table of tables) {
+      table.tableComment = comment;
+    }
   }
 
   for (const [columnKey, comment] of comments.columnComments.entries()) {
@@ -522,15 +805,14 @@ function applyCommentsToRegistry(registry: Map<string, WorkingTable>, comments: 
     if (!schema || !tableName || !columnName) {
       continue;
     }
-    const table = registry.get(`${schema}.${tableName}`);
-    if (!table) {
-      continue;
+    const tables = findTablesBySchemaAndName(registry, schema, tableName);
+    for (const table of tables) {
+      const column = table.columns.get(columnName);
+      if (!column) {
+        continue;
+      }
+      column.comment = comment;
     }
-    const column = table.columns.get(columnName);
-    if (!column) {
-      continue;
-    }
-    column.comment = comment;
   }
 }
 
@@ -563,7 +845,9 @@ function finalizeTables(registry: Map<string, WorkingTable>, options: SnapshotOp
             direction: 'outgoing',
             source: 'ddl',
             fromTableKey: reference.fromTableKey,
+            fromTableComment: entry.tableComment,
             targetTableKey: reference.targetTableKey,
+            targetTableComment: findTableByTableKey(registry, reference.targetTableKey, entry.instance)?.tableComment ?? '',
             fromColumns: [...reference.fromColumns],
             targetColumns: [...reference.targetColumns],
             onDeleteAction: reference.onDeleteAction,
@@ -582,17 +866,45 @@ function finalizeTables(registry: Map<string, WorkingTable>, options: SnapshotOp
         table: entry.table,
         schemaSlug: entry.schemaSlug,
         tableSlug: entry.tableSlug,
+        instance: entry.instance,
         tableComment: entry.tableComment,
         sourceFiles: Array.from(entry.sourceFiles).sort(),
         columns,
         primaryKey,
         constraints: [...entry.constraints].sort(sortConstraints),
+        triggers: [...entry.triggers].sort((a, b) => a.name.localeCompare(b.name)),
         outgoingReferences,
         incomingReferences: [],
         normalizedSql: buildNormalizedSql(entry, columns),
       } satisfies TableDocModel;
     })
     .sort((a, b) => `${a.schema}.${a.table}`.localeCompare(`${b.schema}.${b.table}`));
+}
+
+function findTablesBySchemaAndName(
+  registry: Map<string, WorkingTable>,
+  schema: string,
+  tableName: string
+): WorkingTable[] {
+  return Array.from(registry.values()).filter((table) => table.schema === schema && table.table === tableName);
+}
+
+function findTableByTableKey(
+  registry: Map<string, WorkingTable>,
+  tableKey: string,
+  instance: string
+): WorkingTable | undefined {
+  const [schema, tableName] = tableKey.split('.');
+  if (!schema || !tableName) {
+    return undefined;
+  }
+  const sameInstanceMatch = Array.from(registry.values()).find(
+    (table) => table.schema === schema && table.table === tableName && table.instance === instance
+  );
+  if (sameInstanceMatch) {
+    return sameInstanceMatch;
+  }
+  return Array.from(registry.values()).find((table) => table.schema === schema && table.table === tableName);
 }
 
 function sortColumns(left: WorkingColumn, right: WorkingColumn, mode: 'definition' | 'name'): number {
@@ -613,8 +925,9 @@ function columnIndex(table: WorkingTable, columnName: string): number {
   return table.columns.size;
 }
 
-function buildNormalizedSql(entry: WorkingTable, columns: ColumnDocModel[]): string {
-  const statements: string[] = [];
+function buildNormalizedSql(entry: WorkingTable, columns: ColumnDocModel[]): NormalizedSql {
+  // --- Definition block: CREATE TABLE + ALTER TABLE constraints + CREATE [UNIQUE] INDEX ---
+  const defStatements: string[] = [];
   const columnLines = columns.map((column) => {
     const segments = [`  ${column.name} ${column.typeName || 'text'}`];
     if (!column.nullable) {
@@ -625,51 +938,88 @@ function buildNormalizedSql(entry: WorkingTable, columns: ColumnDocModel[]): str
     }
     return segments.join(' ');
   });
-  statements.push(`CREATE TABLE ${entry.schema}.${entry.table} (\n${columnLines.join(',\n')}\n);`);
+  defStatements.push(`CREATE TABLE ${entry.schema}.${entry.table} (\n${columnLines.join(',\n')}\n);`);
 
   const constraints = [...entry.constraints].sort(sortConstraints);
   for (const constraint of constraints) {
     const prefix = constraint.name ? `CONSTRAINT ${constraint.name} ` : '';
     if (constraint.kind === 'PK') {
-      statements.push(`ALTER TABLE ${entry.schema}.${entry.table} ADD ${prefix}PRIMARY KEY (${constraint.expression});`);
+      defStatements.push(`ALTER TABLE ${entry.schema}.${entry.table} ADD ${prefix}PRIMARY KEY (${constraint.expression});`);
       continue;
     }
-    if (constraint.kind === 'UK') {
-      statements.push(`ALTER TABLE ${entry.schema}.${entry.table} ADD ${prefix}UNIQUE (${constraint.expression});`);
+    if (constraint.kind === 'UK' && !constraint.isIndex) {
+      defStatements.push(`ALTER TABLE ${entry.schema}.${entry.table} ADD ${prefix}UNIQUE (${constraint.expression});`);
+      continue;
+    }
+    if (constraint.kind === 'UK' && constraint.isIndex) {
+      defStatements.push(`CREATE UNIQUE INDEX ${constraint.name} ON ${entry.schema}.${entry.table} (${constraint.expression});`);
       continue;
     }
     if (constraint.kind === 'CHECK') {
-      statements.push(`ALTER TABLE ${entry.schema}.${entry.table} ADD ${prefix}CHECK (${constraint.expression});`);
+      defStatements.push(`ALTER TABLE ${entry.schema}.${entry.table} ADD ${prefix}CHECK (${constraint.expression});`);
       continue;
     }
     if (constraint.kind === 'FK') {
       const [left, right] = constraint.expression.split('->').map((part) => part.trim());
       if (left && right) {
-        statements.push(`ALTER TABLE ${entry.schema}.${entry.table} ADD ${prefix}FOREIGN KEY (${left}) REFERENCES ${right};`);
+        defStatements.push(`ALTER TABLE ${entry.schema}.${entry.table} ADD ${prefix}FOREIGN KEY (${left}) REFERENCES ${right};`);
       }
+      continue;
+    }
+    if (constraint.kind === 'INDEX') {
+      defStatements.push(`CREATE INDEX ${constraint.name} ON ${entry.schema}.${entry.table} (${constraint.expression});`);
+      continue;
     }
   }
 
+  const defLines: string[] = ['-- normalized: v1 dialect=postgres'];
+  for (const statement of defStatements) {
+    const formattedStatement = formatNormalizedStatement(statement);
+    if (formattedStatement) {
+      defLines.push(formattedStatement);
+    }
+  }
+
+  // --- Comments block: COMMENT ON TABLE + COMMENT ON COLUMN ---
+  const commentStatements: string[] = [];
   if (entry.tableComment.trim()) {
-    statements.push(`COMMENT ON TABLE ${entry.schema}.${entry.table} IS '${entry.tableComment.replace(/'/g, "''")}';`);
+    commentStatements.push(`COMMENT ON TABLE ${entry.schema}.${entry.table} IS '${entry.tableComment.replace(/'/g, "''")}';`);
   }
   for (const column of columns) {
     if (!column.comment.trim()) {
       continue;
     }
-    statements.push(
+    commentStatements.push(
       `COMMENT ON COLUMN ${entry.schema}.${entry.table}.${column.name} IS '${column.comment.replace(/'/g, "''")}';`
     );
   }
-
-  const lines: string[] = ['-- normalized: v1 dialect=postgres'];
-  for (const statement of statements) {
-    const formattedStatement = formatNormalizedStatement(statement);
-    if (formattedStatement) {
-      lines.push(formattedStatement);
+  let comments = '';
+  if (commentStatements.length > 0) {
+    const commentLines: string[] = ['-- normalized: v1 dialect=postgres'];
+    for (const statement of commentStatements) {
+      const formattedStatement = formatNormalizedStatement(statement);
+      if (formattedStatement) {
+        commentLines.push(formattedStatement);
+      }
     }
+    comments = commentLines.join('\n');
   }
-  return lines.join('\n');
+
+  // --- Triggers block: raw CREATE TRIGGER statements (not normalized) ---
+  let triggers = '';
+  if (entry.triggers.length > 0) {
+    const triggerLines: string[] = ['-- raw (not normalized)'];
+    for (const trigger of entry.triggers) {
+      triggerLines.push(trigger.rawSql);
+    }
+    triggers = triggerLines.join('\n');
+  }
+
+  return {
+    definition: defLines.join('\n'),
+    comments,
+    triggers,
+  };
 }
 
 function formatNormalizedStatement(statement: string): string {
@@ -695,7 +1045,9 @@ function resolveIncomingReferences(tables: TableDocModel[]): void {
         direction: 'incoming',
         source: outgoing.source,
         fromTableKey: outgoing.fromTableKey,
+        fromTableComment: outgoing.fromTableComment,
         targetTableKey: outgoing.targetTableKey,
+        targetTableComment: outgoing.targetTableComment,
         fromColumns: [...outgoing.fromColumns],
         targetColumns: [...outgoing.targetColumns],
         onDeleteAction: outgoing.onDeleteAction,
@@ -739,6 +1091,7 @@ function inferSuggestedReferences(tables: TableDocModel[]): void {
       pkColumn: table.primaryKey[0],
       schemaSlug: table.schemaSlug,
       tableSlug: table.tableSlug,
+      instance: table.instance,
     }))
     .sort((a, b) => `${a.tableKey}|${a.pkColumn}`.localeCompare(`${b.tableKey}|${b.pkColumn}`));
 
@@ -752,6 +1105,11 @@ function inferSuggestedReferences(tables: TableDocModel[]): void {
         if (column.name !== target.pkColumn) {
           continue;
         }
+        // Skip cross-instance suggestions: tables from different DB instances
+        // should not be suggested as FK candidates.
+        if (table.instance && target.instance && table.instance !== target.instance) {
+          continue;
+        }
         const identity = referenceIdentity(fromTableKey, [column.name], target.tableKey, [target.pkColumn]);
         if (definedKeys.has(identity)) {
           continue;
@@ -763,7 +1121,9 @@ function inferSuggestedReferences(tables: TableDocModel[]): void {
           direction: 'outgoing',
           source: 'suggested',
           fromTableKey,
+          fromTableComment: tableByKey.get(fromTableKey)?.tableComment ?? '',
           targetTableKey: target.tableKey,
+          targetTableComment: tableByKey.get(target.tableKey)?.tableComment ?? '',
           fromColumns: [column.name],
           targetColumns: [target.pkColumn],
           onDeleteAction: null,
@@ -846,9 +1206,9 @@ function sortWarnings(left: WarningItem, right: WarningItem): number {
 }
 
 function sortReferences(left: ReferenceDocModel, right: ReferenceDocModel): number {
-  return `${left.source}|${left.fromTableKey}|${left.targetTableKey}|${left.expression}`.localeCompare(
-    `${right.source}|${right.fromTableKey}|${right.targetTableKey}|${right.expression}`
-  );
+  const leftOther = left.direction === 'outgoing' ? left.targetTableKey : left.fromTableKey;
+  const rightOther = right.direction === 'outgoing' ? right.targetTableKey : right.fromTableKey;
+  return `${left.direction}|${leftOther}`.localeCompare(`${right.direction}|${rightOther}`);
 }
 
 function previewStatement(sql: string): string {

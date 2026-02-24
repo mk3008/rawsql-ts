@@ -118,6 +118,7 @@ const keywordTrie = new KeywordTrie([
     ["create", "table"],
     ["create", "temporary", "table"],
     ["create", "temp", "table"],
+    ["create", "unlogged", "table"],
     ["create", "schema"],
     ["create", "sequence"],
     ["create", "temporary", "sequence"],

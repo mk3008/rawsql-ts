@@ -56,6 +56,13 @@ export class CreateIndexParser {
         }
         idx++;
 
+        // PostgreSQL partition-parent index syntax: CREATE INDEX ... ON ONLY parent_table (...)
+        // The ONLY keyword means the index is defined on the parent table but not propagated to partitions.
+        // We skip ONLY and treat it as a regular index on the parent table.
+        if (lexemes[idx]?.value.toLowerCase() === "only") {
+            idx++;
+        }
+
         const tableResult = FullNameParser.parseFromLexeme(lexemes, idx);
         const tableName = new QualifiedName(tableResult.namespaces, tableResult.name);
         idx = tableResult.newIndex;

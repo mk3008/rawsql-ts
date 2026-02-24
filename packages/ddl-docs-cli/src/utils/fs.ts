@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
-import type { SqlSource } from '../types';
+import type { DdlInput, SqlSource } from '../types';
 
 export function ensureDirectory(directoryPath: string): void {
   if (!existsSync(directoryPath)) {
@@ -12,28 +12,55 @@ export function toWorkspaceRelative(filePath: string): string {
   return path.relative(process.cwd(), filePath).replace(/\\/g, '/');
 }
 
-export function collectSqlFiles(directories: string[], files: string[], extensions: string[]): SqlSource[] {
+/**
+ * Collects SQL sources from directory and file inputs with instance metadata.
+ *
+ * @param directories Directory inputs as `DdlInput` entries. Each entry carries a path and optional instance.
+ * @param files File inputs as `DdlInput` entries. Each entry carries a path and optional instance.
+ * @param extensions Allowed SQL file extensions. Values are normalized before matching.
+ * @returns Sorted `SqlSource[]` entries containing workspace-relative path, SQL text, and instance.
+ */
+export function collectSqlFiles(directories: DdlInput[], files: DdlInput[], extensions: string[]): SqlSource[] {
   const extensionSet = new Set(extensions.map((entry) => normalizeExtension(entry)));
   const sources: SqlSource[] = [];
   const seen = new Set<string>();
 
-  for (const directory of directories) {
+  for (const entry of directories) {
+    const { path: directory, instance } = normalizeDdlInput(entry);
     const resolvedDirectory = path.resolve(directory);
     if (!existsSync(resolvedDirectory)) {
       throw new Error(`DDL directory not found: ${resolvedDirectory}`);
     }
-    scanDirectory(resolvedDirectory, extensionSet, sources, seen);
+    // Recommended layout: ddl/{instance}/{schema}.sql
+    // If no explicit instance is given, auto-detect from first-level subfolder names.
+    // Files placed directly under the root dir get instance = "" (no instance).
+    if (instance) {
+      scanDirectoryRecursive(resolvedDirectory, extensionSet, sources, seen, instance);
+    } else {
+      scanRootDirectory(resolvedDirectory, extensionSet, sources, seen);
+    }
   }
 
-  for (const filePath of files) {
+  for (const entry of files) {
+    const { path: filePath, instance } = normalizeDdlInput(entry);
     const resolvedPath = path.resolve(filePath);
     if (!existsSync(resolvedPath)) {
       throw new Error(`DDL file not found: ${resolvedPath}`);
     }
-    appendSqlFile(resolvedPath, extensionSet, sources, seen);
+    appendSqlFile(resolvedPath, extensionSet, sources, seen, instance);
   }
 
   return sources.sort((a, b) => a.path.localeCompare(b.path));
+}
+
+function normalizeDdlInput(entry: DdlInput | string): { path: string; instance: string } {
+  if (typeof entry === 'string') {
+    return { path: entry, instance: '' };
+  }
+  return {
+    path: entry.path,
+    instance: entry.instance ?? '',
+  };
 }
 
 export function expandGlobPatterns(patterns: string[]): string[] {
@@ -57,43 +84,78 @@ export function expandGlobPatterns(patterns: string[]): string[] {
   return Array.from(matches).sort((a, b) => a.localeCompare(b));
 }
 
-function scanDirectory(
-  directory: string,
+/**
+ * Scans the root DDL directory.
+ * First-level subdirectories become instance names (recommended: ddl/{instance}/{schema}.sql).
+ * Files placed directly in the root get instance = "" (no instance).
+ */
+function scanRootDirectory(
+  rootDirectory: string,
   extensionSet: Set<string>,
   sources: SqlSource[],
   seen: Set<string>
+): void {
+  const entries = readdirSync(rootDirectory, { withFileTypes: true });
+  for (const entry of entries) {
+    const resolved = path.join(rootDirectory, entry.name);
+    if (entry.isDirectory()) {
+      scanDirectoryRecursive(resolved, extensionSet, sources, seen, entry.name);
+      continue;
+    }
+    if (entry.isFile()) {
+      appendSqlFile(resolved, extensionSet, sources, seen, '');
+    }
+  }
+}
+
+/**
+ * Recursively scans a directory with a fixed instance name.
+ */
+function scanDirectoryRecursive(
+  directory: string,
+  extensionSet: Set<string>,
+  sources: SqlSource[],
+  seen: Set<string>,
+  instance: string
 ): void {
   const entries = readdirSync(directory, { withFileTypes: true });
   for (const entry of entries) {
     const resolved = path.join(directory, entry.name);
     if (entry.isDirectory()) {
-      scanDirectory(resolved, extensionSet, sources, seen);
+      scanDirectoryRecursive(resolved, extensionSet, sources, seen, instance);
       continue;
     }
-    if (!entry.isFile()) {
-      continue;
+    if (entry.isFile()) {
+      appendSqlFile(resolved, extensionSet, sources, seen, instance);
     }
-    appendSqlFile(resolved, extensionSet, sources, seen);
   }
 }
 
-function appendSqlFile(filePath: string, extensionSet: Set<string>, sources: SqlSource[], seen: Set<string>): void {
+function appendSqlFile(
+  filePath: string,
+  extensionSet: Set<string>,
+  sources: SqlSource[],
+  seen: Set<string>,
+  instance: string
+): void {
   const extension = normalizeExtension(path.extname(filePath));
   if (!extensionSet.has(extension)) {
     return;
   }
   const normalizedPath = path.normalize(filePath);
-  if (seen.has(normalizedPath)) {
+  const dedupeKey = `${instance}\u0000${normalizedPath}`;
+  if (seen.has(dedupeKey)) {
     return;
   }
   const sql = readFileSync(filePath, 'utf8');
   if (!sql.trim()) {
     return;
   }
-  seen.add(normalizedPath);
+  seen.add(dedupeKey);
   sources.push({
     path: toWorkspaceRelative(filePath),
     sql,
+    instance,
   });
 }
 

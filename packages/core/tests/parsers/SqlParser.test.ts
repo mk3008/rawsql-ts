@@ -63,6 +63,21 @@ describe('SqlParser', () => {
         const result = SqlParser.parse(sql);
 
         expect(result).toBeInstanceOf(CreateTableQuery);
+        if (result instanceof CreateTableQuery) {
+            expect(result.isUnlogged).toBe(false);
+        }
+    });
+
+    test('parse returns a CreateTableQuery with isUnlogged=true for CREATE UNLOGGED TABLE', () => {
+        const sql = 'CREATE UNLOGGED TABLE logs_unlogged AS SELECT id FROM events';
+
+        const result = SqlParser.parse(sql);
+
+        expect(result).toBeInstanceOf(CreateTableQuery);
+        if (result instanceof CreateTableQuery) {
+            expect(result.isUnlogged).toBe(true);
+            expect(result.isTemporary).toBe(false);
+        }
     });
 
     test('parse returns a CreateSchemaStatement for CREATE SCHEMA statements', () => {
@@ -183,6 +198,18 @@ describe('SqlParser', () => {
         expect(result).toBeInstanceOf(CreateIndexStatement);
         if (result instanceof CreateIndexStatement) {
             expect(result.concurrently).toBe(true);
+        }
+    });
+
+    test('parse accepts CREATE INDEX ON ONLY parent table syntax', () => {
+        const sql = 'CREATE INDEX idx_parent_only ON ONLY public.logs (log_id)';
+
+        const result = SqlParser.parse(sql);
+
+        expect(result).toBeInstanceOf(CreateIndexStatement);
+        if (result instanceof CreateIndexStatement) {
+            expect(result.tableName.toString()).toBe('public.logs');
+            expect(result.columns).toHaveLength(1);
         }
     });
 

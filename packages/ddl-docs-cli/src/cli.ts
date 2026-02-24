@@ -2,6 +2,7 @@ import path from 'node:path';
 import { runGenerateDocs } from './commands/generate';
 import { runPruneDocs } from './commands/prune';
 import type { GenerateDocsOptions, PruneDocsOptions } from './types';
+import { dedupeDdlInputsByInstanceAndPath } from './utils/ddlInputDedupe';
 
 const DEFAULT_DDL_DIRECTORY = 'ztd/ddl';
 const DEFAULT_OUT_DIR = path.join('ztd', 'docs', 'tables');
@@ -66,6 +67,7 @@ function parseGenerateOptions(args: string[]): GenerateDocsOptions | null {
     strict: false,
     dialect: 'postgres',
     columnOrder: 'definition',
+    labelSeparator: undefined,
     locale: undefined,
     dictionaryPath: undefined,
     configPath: undefined,
@@ -73,26 +75,33 @@ function parseGenerateOptions(args: string[]): GenerateDocsOptions | null {
     searchPath: undefined,
   };
 
+  let currentInstance = '';
+
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
 
+    if (arg === '--ddl-instance') {
+      currentInstance = readRequiredValue(args, ++index, '--ddl-instance');
+      continue;
+    }
+
     if (arg === '--ddl-dir') {
-      options.ddlDirectories.push(readRequiredValue(args, ++index, '--ddl-dir'));
+      options.ddlDirectories.push({ path: readRequiredValue(args, ++index, '--ddl-dir'), instance: currentInstance });
       continue;
     }
 
     if (arg === '--ddl-file') {
-      options.ddlFiles.push(readRequiredValue(args, ++index, '--ddl-file'));
+      options.ddlFiles.push({ path: readRequiredValue(args, ++index, '--ddl-file'), instance: currentInstance });
       continue;
     }
 
     if (arg === '--ddl') {
-      options.ddlFiles.push(readRequiredValue(args, ++index, '--ddl'));
+      options.ddlFiles.push({ path: readRequiredValue(args, ++index, '--ddl'), instance: currentInstance });
       continue;
     }
 
     if (arg === '--ddl-glob') {
-      options.ddlGlobs.push(readRequiredValue(args, ++index, '--ddl-glob'));
+      options.ddlGlobs.push({ path: readRequiredValue(args, ++index, '--ddl-glob'), instance: currentInstance });
       continue;
     }
 
@@ -147,6 +156,11 @@ function parseGenerateOptions(args: string[]): GenerateDocsOptions | null {
       continue;
     }
 
+    if (arg === '--label-separator') {
+      options.labelSeparator = readRequiredValue(args, ++index, '--label-separator');
+      continue;
+    }
+
     if (arg === '--help' || arg === '-h') {
       printHelp('generate');
       return null;
@@ -155,13 +169,13 @@ function parseGenerateOptions(args: string[]): GenerateDocsOptions | null {
     throw new Error(`Unknown option for generate: ${arg}`);
   }
 
-  if (options.ddlDirectories.length === 0 && options.ddlFiles.length === 0) {
-    options.ddlDirectories = [DEFAULT_DDL_DIRECTORY];
+  if (options.ddlDirectories.length === 0 && options.ddlFiles.length === 0 && options.ddlGlobs.length === 0) {
+    options.ddlDirectories = [{ path: DEFAULT_DDL_DIRECTORY, instance: '' }];
   }
 
-  options.ddlDirectories = dedupe(options.ddlDirectories);
-  options.ddlFiles = dedupe(options.ddlFiles);
-  options.ddlGlobs = dedupe(options.ddlGlobs);
+  options.ddlDirectories = dedupeDdlInputsByInstanceAndPath(options.ddlDirectories);
+  options.ddlFiles = dedupeDdlInputsByInstanceAndPath(options.ddlFiles);
+  options.ddlGlobs = dedupeDdlInputsByInstanceAndPath(options.ddlGlobs);
   options.extensions = dedupe(options.extensions);
   return options;
 }
@@ -237,6 +251,7 @@ function dedupe(values: string[]): string[] {
 
 function printHelp(target: 'all' | 'generate' | 'prune'): void {
   const generateHelp = `ddl-docs generate [options]
+  --ddl-instance <name>   DB instance name for subsequent --ddl-dir/--ddl-file/--ddl-glob (repeatable)
   --ddl-dir <directory>   Recursively scan DDL files under directory (repeatable)
   --ddl-file <file>       Include explicit DDL file (repeatable)
   --ddl <file>            Alias of --ddl-file
@@ -251,6 +266,7 @@ function printHelp(target: 'all' | 'generate' | 'prune'): void {
   --no-index              Skip schema/table index page generation
   --strict                Exit non-zero when warnings exist
   --column-order <mode>   Column order: definition|name (default: definition)
+  --label-separator <pat> Regex to split comment into Label+Comment columns (if omitted, no Label column)
 `;
 
   const pruneHelp = `ddl-docs prune [options]

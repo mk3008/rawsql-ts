@@ -3,6 +3,27 @@ import { IdentifierString } from "../models/ValueComponent";
 import { SqlTokenizer } from "./SqlTokenizer";
 
 /**
+ * PostgreSQL non-reserved keywords that may appear as Command tokens,
+ * but should still be accepted when parsing identifier positions.
+ * This set is intentionally limited to identifier contexts in FullNameParser.
+ */
+const POSTGRESQL_COMMAND_KEYWORDS_ALLOWED_AS_IDENTIFIER = new Set([
+    'groups',       // window frame type: GROUPS BETWEEN ...
+    'rows',         // window frame type: ROWS BETWEEN ...
+    'range',        // window frame type: RANGE BETWEEN ...
+    'window',       // window clause: WINDOW w AS (...)
+    'over',         // window function: func() OVER (...)
+    'following',    // window frame bound: n FOLLOWING
+    'preceding',    // window frame bound: n PRECEDING
+    'within',       // ordered-set aggregate: WITHIN GROUP (...)
+    'ordinality',   // table function: WITH ORDINALITY
+    'lateral',      // lateral join/subquery
+    'recursive',    // CTE: WITH RECURSIVE
+    'materialized', // CTE: AS MATERIALIZED / AS NOT MATERIALIZED
+    'partition',    // partitioning / window PARTITION BY
+]);
+
+/**
  * Utility class for parsing fully qualified names (e.g. db.schema.table or db.schema.table.column_name)
  * This can be used for both table and column references.
  */
@@ -21,9 +42,18 @@ export class FullNameParser {
         if (newIndex > index) {
             const lastLexeme = lexemes[newIndex - 1];
             if (lastLexeme.positionedComments && lastLexeme.positionedComments.length > 0) {
-                identifierString.positionedComments = lastLexeme.positionedComments;
-            } else if (lastLexeme.comments && lastLexeme.comments.length > 0) {
-                identifierString
+                identifierString.positionedComments = [...lastLexeme.positionedComments];
+            }
+
+            // Preserve legacy comments when positioned comments are absent.
+            // This keeps backward-compatible comment transfer behavior for callers
+            // that still read from the `comments` field.
+            if (
+                (!identifierString.positionedComments || identifierString.positionedComments.length === 0) &&
+                lastLexeme.comments &&
+                lastLexeme.comments.length > 0
+            ) {
+                identifierString.comments = [...lastLexeme.comments];
             }
         }
         
@@ -73,6 +103,14 @@ export class FullNameParser {
                 identifiers.push(lexemes[idx].value);
                 idx++;
             } else if (lexemes[idx].type & TokenType.Type) {
+                identifiers.push(lexemes[idx].value);
+                idx++;
+            } else if (
+                (lexemes[idx].type & TokenType.Command) &&
+                POSTGRESQL_COMMAND_KEYWORDS_ALLOWED_AS_IDENTIFIER.has(lexemes[idx].value.toLowerCase())
+            ) {
+                // Accept selected PostgreSQL non-reserved keywords only when this parser
+                // is reading an identifier position (e.g. schema.table or table.column).
                 identifiers.push(lexemes[idx].value);
                 idx++;
             } else if (lexemes[idx].value === "*") {
