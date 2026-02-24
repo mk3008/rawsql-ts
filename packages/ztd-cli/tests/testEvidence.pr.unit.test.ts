@@ -6,6 +6,18 @@ import {
   type TestSpecificationEvidence
 } from '../src/commands/testEvidence';
 
+function escapeRegex(input: string): string {
+  return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function expectFileLinkPathOrGithub(markdown: string, definitionPath: string): void {
+  const escapedPath = escapeRegex(definitionPath);
+  const pattern = new RegExp(
+    `\\[File\\]\\((?:${escapedPath}|https://github\\.com/[^\\s)]+/blob/[^\\s)]+/${escapedPath})\\)`
+  );
+  expect(markdown).toMatch(pattern);
+}
+
 function createReport(args: {
   sqlCatalogs?: Array<{
     id: string;
@@ -234,7 +246,7 @@ test('test-centric markdown groups changed cases under a single catalog heading'
   });
   const markdown = formatTestEvidencePrMarkdown(diff);
   expect(markdown.match(/## sql\.users - users/g)?.length).toBe(1);
-  expect(markdown).toContain('[File](src/specs/sql/users.ts)');
+  expectFileLinkPathOrGithub(markdown, 'src/specs/sql/users.ts');
   expect(markdown).toContain('### ADD: added-case - added');
   expect(markdown).toContain('**after**');
   expect(markdown).toContain('### REMOVE: removed-case - removed');

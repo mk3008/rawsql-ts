@@ -40,6 +40,7 @@ function writeSpecModule(root: string): void {
     '  {',
     "    id: 'sql.active-orders',",
     "    title: 'active orders',",
+    "    definitionPath: 'src/specs/sql/activeOrders.catalog.ts',",
     '    fixtures: [',
     "      { tableName: 'users', rows: [{ id: 1 }], schema: { columns: { id: 'INTEGER' } } }",
     '    ],',
@@ -66,6 +67,18 @@ function createProgram(): Command {
   program.exitOverride();
   registerTestEvidenceCommand(program);
   return program;
+}
+
+function escapeRegex(input: string): string {
+  return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function expectDefinitionLinkPathOrGithub(markdown: string, definitionPath: string): void {
+  const escapedPath = escapeRegex(definitionPath);
+  const pattern = new RegExp(
+    `definition: \\[${escapedPath}\\]\\((?:\\.\\./${escapedPath}|https://github\\.com/[^\\s)]+/blob/[^\\s)]+/${escapedPath})\\)`
+  );
+  expect(markdown).toMatch(pattern);
 }
 
 test('CLI: evidence writes json and markdown artifacts', async () => {
@@ -138,7 +151,8 @@ test('CLI: evidence writes json and markdown artifacts', async () => {
   expect(markdown).toContain('- tests: 1');
   expect(markdown).toContain('- tests: 2');
   expect(markdown).toContain('## lists-users - lists users');
-  expect(markdown).toContain("definition: [tests/specs/users.catalog.ts](../tests/specs/users.catalog.ts)");
+  expectDefinitionLinkPathOrGithub(markdown, 'tests/specs/users.catalog.ts');
+  expectDefinitionLinkPathOrGithub(markdown, 'src/specs/sql/activeOrders.catalog.ts');
   expect(markdown).toContain('## baseline - baseline');
   expect(markdown).toContain('## inactive - inactive');
   expect(markdown).not.toContain('\n---\n');

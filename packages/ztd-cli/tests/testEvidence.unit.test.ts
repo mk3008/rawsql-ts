@@ -22,10 +22,11 @@ function writeSpecModule(root: string, options?: { testCaseIds?: string[]; inclu
     ? 'sqlCatalogCases: [],'
     : [
       'sqlCatalogCases: [',
-      '  {',
-      "    id: 'sql.active-orders',",
-      "    title: 'active orders',",
-      '    fixtures: [',
+    '  {',
+    "    id: 'sql.active-orders',",
+    "    title: 'active orders',",
+    "    definitionPath: 'src/specs/sql/activeOrders.catalog.ts',",
+    '    fixtures: [',
       "      { tableName: 'users', rows: [{ id: 1 }], schema: { columns: { id: 'INTEGER' } } }",
       '    ],',
       '    catalog: {',
@@ -120,6 +121,7 @@ test('runTestEvidenceSpecification extracts SQL catalogs, SQL case catalogs, and
   ]);
   expect(report.sqlCaseCatalogs[0]).toMatchObject({
     id: 'sql.active-orders',
+    definitionPath: 'src/specs/sql/activeOrders.catalog.ts',
     cases: [
       { id: 'baseline', params: { active: 1, limit: 2, minTotal: 20 }, expected: [{ orderId: 10 }] },
       { id: 'inactive', params: { active: 0, limit: 2, minTotal: 20 }, expected: [{ orderId: 12 }] },

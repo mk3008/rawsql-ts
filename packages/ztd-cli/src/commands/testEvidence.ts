@@ -1272,16 +1272,20 @@ function normalizeSqlCaseCatalog(catalog: unknown, index: number): SqlCaseCatalo
     })
     .sort((a, b) => a.id.localeCompare(b.id));
 
+  const nestedDefinitionPath = typeof details.definitionPath === 'string' && details.definitionPath.trim().length > 0
+    ? details.definitionPath.trim()
+    : undefined;
   const description = typeof catalog.description === 'string' && catalog.description.trim().length > 0
     ? catalog.description.trim()
     : undefined;
+  const definitionPath = typeof catalog.definitionPath === 'string' && catalog.definitionPath.trim().length > 0
+    ? catalog.definitionPath.trim()
+    : nestedDefinitionPath;
   return {
     id,
     title,
     ...(description ? { description } : {}),
-    ...(typeof catalog.definitionPath === 'string' && catalog.definitionPath.trim().length > 0
-      ? { definitionPath: catalog.definitionPath.trim() }
-      : {}),
+    ...(definitionPath ? { definitionPath } : {}),
     params: {
       shape: 'named',
       example
