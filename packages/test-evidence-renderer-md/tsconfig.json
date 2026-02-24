@@ -3,7 +3,10 @@
   "compilerOptions": {
     "rootDir": "src",
     "outDir": "dist",
-    "paths": {},
+    "paths": {
+      "@rawsql-ts/test-evidence-core": ["packages/test-evidence-core/dist/index.d.ts"],
+      "@rawsql-ts/test-evidence-core/*": ["packages/test-evidence-core/dist/*"]
+    },
     "declaration": true,
     "declarationMap": false,
     "sourceMap": true,

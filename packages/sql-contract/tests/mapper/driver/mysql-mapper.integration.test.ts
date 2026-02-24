@@ -43,7 +43,10 @@ const decimalCoerce: MapperOptions['coerceFn'] = ({ value }) => {
 driverDescribe('reader driver integration (mysql)', () => {
   beforeAll(async () => {
     container = await new MySqlContainer('mysql:8.0').start()
-    connection = await mysql.createConnection(container.getConnectionUri())
+    connection = await mysql.createConnection({
+      uri: container.getConnectionUri(),
+      timezone: 'Z',
+    })
   }, 120000)
 
   afterAll(async () => {
