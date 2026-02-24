@@ -16,10 +16,15 @@ export interface TableSuggestionSql {
   foreignKeySql: string[];
 }
 
+export interface RenderTableOptions {
+  labelSeparator?: string;
+}
+
 /**
  * Renders a single table definition markdown page.
  */
-export function renderTableMarkdown(table: TableDocModel, suggestedSql: TableSuggestionSql): string {
+export function renderTableMarkdown(table: TableDocModel, suggestedSql: TableSuggestionSql, renderOptions?: RenderTableOptions): string {
+  const labelSeparator = renderOptions?.labelSeparator;
   const lines: string[] = [];
   lines.push('<!-- generated-by: @rawsql-ts/ddl-docs-cli -->');
   lines.push('');
@@ -29,20 +34,26 @@ export function renderTableMarkdown(table: TableDocModel, suggestedSql: TableSug
   lines.push('');
   lines.push('## Overview');
   lines.push('');
+  lines.push(`- Instance: ${formatTableCell(table.instance || '-')}`);
   lines.push(`- Comment: ${formatTableCell(table.tableComment)}`);
   lines.push(`- Source Files: ${formatTableCell(table.sourceFiles.map((entry) => `\`${entry}\``).join('<br>'))}`);
   lines.push('');
   lines.push('## Columns');
   lines.push('');
-  lines.push('| Key | Column | Type | Nullable | Default | Comment | Usages |');
-  lines.push('| --- | --- | --- | --- | --- | --- | --- |');
+  if (labelSeparator) {
+    lines.push('| Key | Label | Column | Type | Nullable | Default | Seq | Comment | Usages |');
+    lines.push('| --- | --- | --- | --- | --- | --- | --- | --- | --- |');
+  } else {
+    lines.push('| Key | Column | Type | Nullable | Default | Seq | Comment | Usages |');
+    lines.push('| --- | --- | --- | --- | --- | --- | --- | --- |');
+  }
 
   for (const column of table.columns) {
-    lines.push(renderColumnRow(column));
+    lines.push(renderColumnRow(column, labelSeparator));
   }
 
   lines.push('');
-  lines.push('## Constraints');
+  lines.push('## Indexes & Constraints');
   lines.push('');
   const nonKeyConstraints = table.constraints.filter((constraint) => constraint.kind !== 'PK' && constraint.kind !== 'FK');
   if (nonKeyConstraints.length === 0) {
@@ -58,39 +69,77 @@ export function renderTableMarkdown(table: TableDocModel, suggestedSql: TableSug
   lines.push('');
   lines.push('## References');
   lines.push('');
-  lines.push('### DDL');
-  lines.push('');
-  const ddlReferences = mergeAndSortReferences(
-    table.outgoingReferences.filter((reference) => reference.source === 'ddl'),
-    table.incomingReferences.filter((reference) => reference.source === 'ddl')
-  );
-  if (ddlReferences.length === 0) {
+  const outgoingAll = sortDirectionalReferences([...table.outgoingReferences]);
+  const incomingAll = sortDirectionalReferences([...table.incomingReferences]);
+  if (outgoingAll.length === 0 && incomingAll.length === 0) {
     lines.push('- None');
   } else {
-    lines.push(...renderReferenceTable(ddlReferences, table, 'ddl'));
+    if (outgoingAll.length > 0) {
+      lines.push(`::: details To (outgoing): ${outgoingAll.length}`);
+      lines.push('');
+      lines.push(...renderUnifiedReferenceTable(outgoingAll, table));
+      lines.push('');
+      lines.push(':::');
+      lines.push('');
+    }
+    if (incomingAll.length > 0) {
+      lines.push(`::: details From (incoming): ${incomingAll.length}`);
+      lines.push('');
+      lines.push(...renderUnifiedReferenceTable(incomingAll, table));
+      lines.push('');
+      lines.push(':::');
+      lines.push('');
+    }
   }
 
   lines.push('');
-  lines.push('### Suggest');
+  lines.push('## Triggers');
   lines.push('');
-  const suggestedReferences = mergeAndSortReferences(
-    table.outgoingReferences.filter((reference) => reference.source === 'suggested'),
-    table.incomingReferences.filter((reference) => reference.source === 'suggested')
-  );
-  if (suggestedReferences.length === 0) {
+  if (table.triggers.length === 0) {
     lines.push('- None');
   } else {
-    lines.push(...renderReferenceTable(suggestedReferences, table, 'suggest'));
+    lines.push('| Name | Timing | Events | For Each | Function |');
+    lines.push('| --- | --- | --- | --- | --- |');
+    for (const trigger of table.triggers) {
+      const nameCell = formatCodeCell(trigger.name);
+      const eventsCell = trigger.events.join(', ');
+      const funcCell = formatCodeCell(trigger.functionName);
+      lines.push(`| ${nameCell} | ${trigger.timing} | ${eventsCell} | ${trigger.forEach} | ${funcCell} |`);
+    }
   }
 
   lines.push('');
   lines.push('## Appendix');
   lines.push('');
-  lines.push('### Normalized SQL');
+  lines.push('::: details Definition');
   lines.push('');
   lines.push('```sql');
-  lines.push(table.normalizedSql);
+  lines.push(table.normalizedSql.definition);
   lines.push('```');
+  lines.push('');
+  lines.push(':::');
+
+  if (table.normalizedSql.comments) {
+    lines.push('');
+    lines.push('::: details Comments');
+    lines.push('');
+    lines.push('```sql');
+    lines.push(table.normalizedSql.comments);
+    lines.push('```');
+    lines.push('');
+    lines.push(':::');
+  }
+
+  if (table.normalizedSql.triggers) {
+    lines.push('');
+    lines.push('::: details Triggers (raw)');
+    lines.push('');
+    lines.push('```sql');
+    lines.push(table.normalizedSql.triggers);
+    lines.push('```');
+    lines.push('');
+    lines.push(':::');
+  }
 
   if (suggestedSql.columnCommentSql.length > 0) {
     lines.push('');
@@ -130,73 +179,79 @@ function linkFromTablePage(current: TableDocModel, targetSchemaSlug: string, tar
   return `../${targetSchemaSlug}/${targetTableSlug}.md`;
 }
 
-function renderColumnRow(column: TableDocModel['columns'][number]): string {
+const SERIAL_TYPES = new Set(['serial', 'bigserial', 'smallserial']);
+
+function isSequenceColumn(column: TableDocModel['columns'][number]): boolean {
+  return SERIAL_TYPES.has(column.typeName.toLowerCase()) || column.defaultValue.toLowerCase().includes('nextval(');
+}
+
+function splitComment(comment: string, separator: string): { label: string; description: string } {
+  const regex = new RegExp(separator);
+  const match = regex.exec(comment);
+  if (match !== null) {
+    return {
+      label: comment.slice(0, match.index).trim(),
+      description: comment.slice(match.index + match[0].length).trim(),
+    };
+  }
+  return { label: comment, description: '' };
+}
+
+function renderColumnRow(column: TableDocModel['columns'][number], labelSeparator: string | undefined): string {
   const keyCell = column.isPrimaryKey ? 'PK' : '';
   const nameCell = formatCodeCell(column.name);
   const typeCell = formatCodeCell(column.typeName);
   const nullableCell = column.nullable ? 'YES' : 'NO';
   const defaultCell = formatCodeCell(column.defaultValue);
+  const seqCell = isSequenceColumn(column) ? 'YES' : '';
+  const usagesCell = `[usages](./columns/${column.conceptSlug}.md)`;
+  if (labelSeparator) {
+    const { label, description } = splitComment(column.comment, labelSeparator);
+    const labelCell = formatTableCell(label);
+    const commentCell = formatTableCell(description);
+    return `| ${keyCell} | ${labelCell} | ${nameCell} | ${typeCell} | ${nullableCell} | ${defaultCell} | ${seqCell} | ${commentCell} | ${usagesCell} |`;
+  }
   const commentCell = formatTableCell(column.comment);
-  const usagesCell = `[See usages](./columns/${column.conceptSlug}.md)`;
-  return `| ${keyCell} | ${nameCell} | ${typeCell} | ${nullableCell} | ${defaultCell} | ${commentCell} | ${usagesCell} |`;
+  return `| ${keyCell} | ${nameCell} | ${typeCell} | ${nullableCell} | ${defaultCell} | ${seqCell} | ${commentCell} | ${usagesCell} |`;
 }
 
-function renderReferenceTable(
-  references: ReferenceDocModel[],
-  table: TableDocModel,
-  mode: 'ddl' | 'suggest'
-): string[] {
+function renderUnifiedReferenceTable(references: ReferenceDocModel[], table: TableDocModel): string[] {
   const lines: string[] = [];
-  if (mode === 'ddl') {
-    lines.push('| From | To | Columns | On Delete | On Update |');
-    lines.push('| --- | --- | --- | --- | --- |');
-  } else {
-    lines.push('| From | To | Columns | Match |');
-    lines.push('| --- | --- | --- | --- |');
-  }
+  lines.push('| Source | Table | Comment | Columns | On Delete | On Update | Match |');
+  lines.push('| --- | --- | --- | --- | --- | --- | --- |');
   for (const reference of references) {
-    const fromCell = renderFromCell(reference, table);
-    const toCell = renderToCell(reference, table);
+    const sourceCell = formatCodeCell(reference.source);
+    const otherTableCell = renderOtherTableCell(reference, table);
+    const otherComment = reference.direction === 'outgoing' ? reference.targetTableComment : reference.fromTableComment;
+    const commentCell = formatTableCell(otherComment);
     const columnsCell = formatCodeCell(
       `${reference.fromColumns.join(', ') || '?'} -> ${reference.targetColumns.join(', ') || '?'}`
     );
-    const matchCell = reference.matchRule ? formatCodeCell(reference.matchRule) : '-';
-    const onDeleteCell = formatCodeCell(reference.onDeleteAction ?? 'none');
-    const onUpdateCell = formatCodeCell(reference.onUpdateAction ?? 'none');
-    if (mode === 'ddl') {
-      lines.push(`| ${fromCell} | ${toCell} | ${columnsCell} | ${onDeleteCell} | ${onUpdateCell} |`);
-    } else {
-      lines.push(`| ${fromCell} | ${toCell} | ${columnsCell} | ${matchCell} |`);
-    }
+    const onDeleteCell = reference.source === 'ddl' ? formatCodeCell(reference.onDeleteAction ?? 'none') : '-';
+    const onUpdateCell = reference.source === 'ddl' ? formatCodeCell(reference.onUpdateAction ?? 'none') : '-';
+    const matchCell = reference.source === 'suggested' && reference.matchRule ? formatCodeCell(reference.matchRule) : '-';
+    lines.push(`| ${sourceCell} | ${otherTableCell} | ${commentCell} | ${columnsCell} | ${onDeleteCell} | ${onUpdateCell} | ${matchCell} |`);
   }
   return lines;
 }
 
-function renderFromCell(reference: ReferenceDocModel, table: TableDocModel): string {
+function renderOtherTableCell(reference: ReferenceDocModel, table: TableDocModel): string {
   if (reference.direction === 'outgoing') {
-    return formatCodeCell(reference.fromTableKey);
+    const linkPath = linkFromTablePage(table, reference.targetSchemaSlug, reference.targetTableSlug);
+    return `[${reference.targetTableKey}](${linkPath})`;
   }
   const linkPath = linkFromTablePage(table, reference.fromSchemaSlug, reference.fromTableSlug);
   return `[${reference.fromTableKey}](${linkPath})`;
 }
 
-function renderToCell(reference: ReferenceDocModel, table: TableDocModel): string {
-  if (reference.direction === 'incoming') {
-    return formatCodeCell(reference.targetTableKey);
-  }
-  const linkPath = linkFromTablePage(table, reference.targetSchemaSlug, reference.targetTableSlug);
-  return `[${reference.targetTableKey}](${linkPath})`;
-}
-
-function mergeAndSortReferences(outgoing: ReferenceDocModel[], incoming: ReferenceDocModel[]): ReferenceDocModel[] {
-  const deduped = new Map<string, ReferenceDocModel>();
-  for (const reference of [...outgoing, ...incoming]) {
-    const key = `${reference.fromTableKey}|${reference.targetTableKey}|${reference.fromColumns.join(',')}|${reference.targetColumns.join(',')}|${reference.matchRule ?? ''}|${reference.onDeleteAction ?? ''}|${reference.onUpdateAction ?? ''}`;
-    if (!deduped.has(key)) {
-      deduped.set(key, reference);
-    }
-  }
-  return Array.from(deduped.entries())
-    .sort(([left], [right]) => left.localeCompare(right))
-    .map(([, reference]) => reference);
+function sortDirectionalReferences(references: ReferenceDocModel[]): ReferenceDocModel[] {
+  return references.sort((left, right) => {
+    const leftOther = left.direction === 'outgoing' ? left.targetTableKey : left.fromTableKey;
+    const rightOther = right.direction === 'outgoing' ? right.targetTableKey : right.fromTableKey;
+    const leftComment = left.direction === 'outgoing' ? left.targetTableComment : left.fromTableComment;
+    const rightComment = right.direction === 'outgoing' ? right.targetTableComment : right.fromTableComment;
+    return `${left.source}|${leftOther}|${leftComment}|${left.expression}`.localeCompare(
+      `${right.source}|${rightOther}|${rightComment}|${right.expression}`
+    );
+  });
 }

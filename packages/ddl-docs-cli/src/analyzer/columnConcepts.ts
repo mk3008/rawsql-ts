@@ -53,7 +53,8 @@ export function analyzeColumns(tables: TableDocModel[], options: AnalyzeOptions)
       } satisfies ObservedColumnUsage);
       conceptMap.set(concept, conceptItem);
 
-      if (column.unknownType) {
+      const KNOWN_RAW_TYPES = new Set(['text', 'date']);
+      if (column.unknownType && !KNOWN_RAW_TYPES.has(column.typeName.toLowerCase())) {
         findings.push({
           kind: 'UNSUPPORTED_OR_UNKNOWN_TYPE',
           severity: 'info',
@@ -96,9 +97,21 @@ export function analyzeColumns(tables: TableDocModel[], options: AnalyzeOptions)
     }
   }
 
+  const FLEXIBLE_CANONICAL_TYPES = new Set(['date', 'text']);
+  const PG_INT_ALIASES: Record<string, string> = {
+    int: 'integer',
+    int2: 'smallint',
+    int4: 'integer',
+    int8: 'bigint',
+  };
   for (const conceptItem of conceptMap.values()) {
     const divergenceBases = new Set(
-      conceptItem.usages.map((usage) => usage.canonicalType.replace(/\(.*\)/, '').replace(/\{serial\}/, ''))
+      conceptItem.usages
+        .map((usage) => {
+          const base = usage.canonicalType.replace(/\(.*\)/, '').replace(/\{serial\}/, '');
+          return PG_INT_ALIASES[base] ?? base;
+        })
+        .filter((base) => !FLEXIBLE_CANONICAL_TYPES.has(base))
     );
     if (divergenceBases.size > 1) {
       findings.push({

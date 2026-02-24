@@ -4,7 +4,7 @@ import { formatTableCell } from '../utils/markdown';
 import type { RenderedPage } from './types';
 
 /**
- * Renders global schema index and per-schema table index pages.
+ * Renders global schema index, per-schema table index pages, and the instance index page.
  */
 export function renderIndexPages(
   outDir: string,
@@ -14,11 +14,17 @@ export function renderIndexPages(
 ): RenderedPage[] {
   const pages: RenderedPage[] = [];
   const grouped = groupBySchema(tables);
+  const groupedByInstance = groupByInstance(tables);
   const tableAlertSet = collectTableAlerts(tables, findings);
 
   pages.push({
     path: path.join(outDir, 'index.md'),
-    content: renderGlobalIndex(grouped),
+    content: renderGlobalIndex(grouped, groupedByInstance),
+  });
+
+  pages.push({
+    path: path.join(outDir, 'instances.md'),
+    content: renderInstanceIndex(groupedByInstance),
   });
 
   for (const [schema, schemaTables] of grouped.entries()) {
@@ -32,7 +38,10 @@ export function renderIndexPages(
   return pages;
 }
 
-function renderGlobalIndex(grouped: Map<string, TableDocModel[]>): string {
+function renderGlobalIndex(
+  grouped: Map<string, TableDocModel[]>,
+  groupedByInstance: Map<string, TableDocModel[]>
+): string {
   const lines: string[] = [];
   lines.push('<!-- generated-by: @rawsql-ts/ddl-docs-cli -->');
   lines.push('');
@@ -40,6 +49,9 @@ function renderGlobalIndex(grouped: Map<string, TableDocModel[]>): string {
   lines.push('');
   lines.push('- [References](./references.md)');
   lines.push('- [Column Index (Alerts)](./columns/index.md)');
+  if (groupedByInstance.size > 1 || (groupedByInstance.size === 1 && !groupedByInstance.has(''))) {
+    lines.push('- [Instance Index](./instances.md)');
+  }
   lines.push('');
   lines.push('## Schemas');
   lines.push('');
@@ -49,6 +61,34 @@ function renderGlobalIndex(grouped: Map<string, TableDocModel[]>): string {
   for (const [schema, tables] of grouped.entries()) {
     const schemaSlug = tables[0]?.schemaSlug ?? schema;
     lines.push(`| [${schema}](./${schemaSlug}/index.md) | ${tables.length} |`);
+  }
+
+  lines.push('');
+  return lines.join('\n');
+}
+
+function renderInstanceIndex(groupedByInstance: Map<string, TableDocModel[]>): string {
+  const lines: string[] = [];
+  lines.push('<!-- generated-by: @rawsql-ts/ddl-docs-cli -->');
+  lines.push('');
+  lines.push('# Instance Index');
+  lines.push('');
+  lines.push('[<- All Schemas](./index.md)');
+  lines.push('');
+  lines.push('| Instance | Schemas | Tables |');
+  lines.push('| --- | --- | --- |');
+
+  for (const [instance, tables] of groupedByInstance.entries()) {
+    const instanceLabel = instance || '*(none)*';
+    const schemaMap = new Map<string, string>();
+    for (const table of tables) {
+      schemaMap.set(table.schema, table.schemaSlug);
+    }
+    const schemaLinks = Array.from(schemaMap.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([schema, schemaSlug]) => `[${schema}](./${schemaSlug}/index.md)`)
+      .join(', ');
+    lines.push(`| ${instanceLabel} | ${schemaLinks} | ${tables.length} |`);
   }
 
   lines.push('');
@@ -81,6 +121,23 @@ function renderSchemaIndex(
   }
   lines.push('');
   return lines.join('\n');
+}
+
+function groupByInstance(tables: TableDocModel[]): Map<string, TableDocModel[]> {
+  const grouped = new Map<string, TableDocModel[]>();
+  for (const table of tables) {
+    const key = table.instance;
+    const bucket = grouped.get(key) ?? [];
+    bucket.push(table);
+    grouped.set(key, bucket);
+  }
+  return new Map(
+    Array.from(grouped.entries()).sort(([a], [b]) => {
+      if (a === '') return 1;
+      if (b === '') return -1;
+      return a.localeCompare(b);
+    })
+  );
 }
 
 function groupBySchema(tables: TableDocModel[]): Map<string, TableDocModel[]> {

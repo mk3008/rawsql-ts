@@ -62,7 +62,7 @@ test('generate writes table pages, index pages, and warnings metadata', () => {
 
   const tableText = normalizeLineEndings(readFileSync(tableDoc, 'utf8'));
   expect(tableText).toContain('## Overview');
-  expect(tableText).toContain('## Constraints');
+  expect(tableText).toContain('## Indexes & Constraints');
   expect(tableText).toContain('## References');
   expect(tableText).toContain('[Table Index](./index.md)');
   expect(tableText.endsWith('\n')).toBe(true);
@@ -71,7 +71,7 @@ test('generate writes table pages, index pages, and warnings metadata', () => {
   expect(globalColumnsText).toContain('# Column Index (Alerts)');
 
   const warningsJson = JSON.parse(readFileSync(warnings, 'utf8')) as Array<{ kind: string }>;
-  expect(warningsJson.some((entry) => entry.kind === 'UNSUPPORTED_DDL' || entry.kind === 'PARSE_FAILED')).toBe(true);
+  expect(warningsJson).toHaveLength(0);
 });
 
 test('strict mode fails when warnings exist', () => {
@@ -84,7 +84,7 @@ test('strict mode fails when warnings exist', () => {
     path.join(ddlDir, 'public.sql'),
     `
       CREATE TABLE public.users (id int PRIMARY KEY);
-      CREATE VIEW public.user_ids AS SELECT id FROM public.users;
+      CREATE POLICY users_policy ON public.users USING (true);
     `,
     'utf8'
   );

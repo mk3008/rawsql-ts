@@ -138,7 +138,7 @@ function renderConceptPage(
     const tableLink = view === 'global' ? `../${usage.schemaSlug}/${usage.tableSlug}.md` : `../${usage.tableSlug}.md`;
     const location = `[${usage.schema}.${usage.table}.${usage.column}](${tableLink})`;
     lines.push(
-      `| ${location} | ${formatCodeCell(usage.typeKey)} | ${usage.nullable ? 'YES' : 'NO'} | ${formatCodeCell(usage.defaultValue)} | ${usage.hasComment ? 'YES' : 'NO'} |`
+      `| ${location} | ${formatCodeCell(usage.typeKey)} | ${usage.nullable ? 'YES' : 'NO'} | ${formatCodeCell(usage.defaultValue)} | ${formatTableCell(usage.comment)} |`
     );
   }
   if (view === 'schema' && schemaSlug) {
