@@ -24,9 +24,13 @@ export async function runCli(argv: string[]): Promise<void> {
   }
 
   if (command === 'help') {
-    if (rest[0] === 'init') {
+    const target = rest[0];
+    if (target === 'init') {
       printInitHelp();
       return;
+    }
+    if (target) {
+      throw new Error(`Unknown command for help: ${target}`);
     }
     printGlobalHelp();
     return;
@@ -290,7 +294,6 @@ function applyTemplate(
     const templateRelativePath = relativePath === TARGET_GITIGNORE ? TEMPLATE_GITIGNORE : relativePath;
     const sourcePath = path.join(templatesDir, templateRelativePath);
     const targetPath = path.join(targetDir, relativePath);
-    fs.mkdirSync(path.dirname(targetPath), { recursive: true });
 
     if (fs.existsSync(targetPath)) {
       overwritten += 1;
