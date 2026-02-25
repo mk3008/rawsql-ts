@@ -1,37 +1,28 @@
-# src/catalog AGENTS
+# Package Scope
+- Applies to `packages/ztd-cli/templates/src/catalog`.
+- Defines runtime catalog contract boundaries between human-owned specs and runtime wiring.
 
-This directory is runtime code.
+# Policy
+## REQUIRED
+- Catalog entrypoints MUST bind SQL assets, parameter contracts, output contracts, and runtime validation/mapping.
+- `src/catalog/specs` MUST be treated as human-owned contracts.
+- `src/catalog/runtime` MUST implement runtime wiring only.
+- Code in `src/catalog` MUST remain independent from `tests`, `tests/generated`, and `ztd` imports.
+- Each spec MUST be covered by tests for rewrite execution, mapping/validation outcomes, and output shape.
 
-## Purpose
+## ALLOWED
+- Runtime catalog code MAY add observability hooks where contract behavior is unchanged.
 
-Catalog defines named query entry points by binding:
-- SQL assets ("src/sql/*.sql")
-- input parameter contracts
-- output DTO contracts
-- validation and mapping behavior
-- observability hooks (if supported)
+## PROHIBITED
+- Changing spec params/DTO contracts without explicit instruction.
+- Runtime dependency on ZTD internals.
 
-## Directory roles (important)
+# Mandatory Workflow
+- Catalog spec or runtime changes MUST run tests that exercise affected specs.
 
-- "src/catalog/specs": human-owned contracts (params + DTO + semantics)
-- "src/catalog/runtime": AI-assisted runtime wiring (executors, helpers, sinks)
+# Hygiene
+- Preserve clear separation between `specs` and `runtime` responsibilities.
 
-## Non-negotiable ownership
-
-- Specs are contracts. Do not infer, guess, widen, or narrow them.
-- Do not change params / DTO shapes in "specs" without explicit instruction.
-
-## Boundaries
-
-- Code under "src/catalog/" MUST NOT import from:
-  - "tests/"
-  - "tests/generated/"
-  - "ztd/"
-- Do not depend on ZTD internals at runtime.
-
-## Testing rule (required)
-
-Every spec MUST have tests that verify:
-- SQL executes under ZTD rewriting
-- mapping/validation behavior is correct (success and failure)
-- output DTO shape matches expectations
+# References
+- Specs contract: [./specs/AGENTS.md](./specs/AGENTS.md)
+- Runtime contract: [./runtime/AGENTS.md](./runtime/AGENTS.md)

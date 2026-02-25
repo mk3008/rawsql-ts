@@ -1,151 +1,45 @@
-# rawsql-ts Core Package
+# Package Scope
+- Provides SQL tokenization, AST construction, query analysis, and formatting for `rawsql-ts`.
+- Maintains DBMS-neutral parser/analyzer behavior while representing dialect-specific syntax in AST nodes.
+- Exposes AST and formatter APIs consumed by upper layers (`testkit-core`, drivers, CLI tools).
+- Owns parser/formatter regression behavior and benchmark baselines for this package.
 
-## Core Philosophy: Dialect-Agnostic AST, Dialect-Aware Formatting
+# Policy
+## REQUIRED
+- Parser and analyzer changes in `packages/core` MUST remain DBMS-neutral.
+- SQL parsing and rewrite implementations in `packages/core` MUST use AST APIs (`SelectQueryParser`, `SelectAnalyzer`, `splitQueries`, formatter APIs).
+- Behavior changes and bug fixes in `packages/core` MUST add or update tests.
+- `pnpm --filter rawsql-ts build` MUST succeed before package tests are run.
+- Added or modified identifiers and code comments MUST be written in English.
+- SQL string assertions in tests under `packages/core` MUST compare normalized output from `SqlFormatter`.
 
-The **core package** is a pure TypeScript SQL engine responsible for
-tokenization, AST construction, query analysis, and formatting.\
-It must remain **DBMS‑neutral in behavior**, but **capable of representing any dialect** in its AST.
+## ALLOWED
+- AST nodes MAY include vendor syntax fields (for example `DISTINCT ON`, `NOT MATERIALIZED`, `WINDOW`, custom operators) when preserving SQL structure.
+- Regex-based rewriting MAY be used only as a fallback when an AST implementation is not viable.
+- Each regex fallback MUST include an inline comment that states the AST limitation.
+- Each regex fallback MUST include a tracking issue reference.
 
-### Principles
+## PROHIBITED
+- Parser and analyzer code in `packages/core` MUST NOT branch by dialect (for example `if postgres`, `if sqlite`, or equivalent flags).
+- Code in `packages/core` MUST NOT implement driver-level, DB-level, or testkit-level semantics.
+- Code in `packages/core` MUST NOT implement query rewrite responsibilities owned by `testkit-core`.
+- Committed files in `packages/core` MUST NOT contain `console.log`, `debugger`, or tracing hooks.
+- Committed temporary artifacts MUST NOT be placed outside `./tmp`.
 
--   The parser should preserve SQL structure from any vendor (Postgres,
-    SQLite, MySQL, etc.).
--   It is acceptable to introduce AST fields that represent
-    vendor-specific constructs\
-    (e.g., `DISTINCT ON`, `NOT MATERIALIZED`, `WINDOW` clauses, custom
-    operators).
--   The AST must *not* enforce database execution semantics.\
-    It describes **what the query looks like**, not how a database would
-    execute it.
--   Dialect decisions belong to the **formatter** or upper layers
-    (testkit-core, drivers).
--   Never hard-wire DB-specific logic or branching in AST pipelines\
-    (no `isPostgres`, `isSQLite`, dialect checks inside parser or
-    analyzer code).
+# Mandatory Workflow
+- Before committing changes under `packages/core`, the following commands MUST pass:
+  - `pnpm --filter rawsql-ts test`
+  - `pnpm --filter rawsql-ts build`
+  - `pnpm --filter rawsql-ts lint`
+- If the commit changes parser or formatter behavior in `packages/core`, the following commands MUST also run:
+  - `pnpm --filter rawsql-ts benchmark`
+  - `pnpm demo:complex-sql`
 
-## Dev Principles
+# Hygiene
+- Local throwaway artifacts MUST be created in `./tmp`.
+- Temporary artifacts in `./tmp` MUST be removed before task completion unless converted into tracked tests.
 
-1.  **KISS** -- prefer simple data structures and flows that directly
-    explain behavior.
-2.  Maintainability comes before micro-optimizations unless a benchmark
-    justifies it.
-3.  Focus on one problem at a time; ship incremental patches instead of
-    mega-commits.
-4.  Keep pull requests scoped to a single conceptual area.
-
-## Critical Rules
-
--   Tests act as specifications---never update expectations without
-    intent and alignment.
--   Add or update tests whenever adding features or fixing bugs.
--   TypeScript errors must stay at zero before running tests.
--   All comments and identifiers remain in **English**.
-
-## SQL Parsing Expectations
-
--   Always prefer AST helpers (`SelectQueryParser`, `SelectAnalyzer`,
-    `splitQueries`, formatter APIs).
--   Regex-based rewrites are allowed **only** as explicit fallbacks
-    with:
-    -   A comment explaining the limitation
-    -   A tracking issue reference
--   When triaging parser/formatter bugs:
-    -   Prefer extending tokens, visitors, or AST nodes
-    -   Avoid layering new regex filters outside AST
-
-## TDD: Red → Compile → Green → Refactor
-
-1.  **Red**: add a failing Vitest or reproduction script---even for bug
-    fixes.\
-2.  **Compile**: fix TypeScript errors *before* running tests.\
-3.  **Green**: implement the minimum logic required to satisfy the
-    test.\
-4.  **Refactor**: clean naming, structure, and control flow.\
-5.  **Verify**: intentionally break the test to ensure it truly protects
-    behavior.
-
-## Debug & Cleanup
-
--   Temporary artifacts belong in `./tmp/`; delete them after use.
--   Remove `console.log`, `debugger`, and tracing hooks before
-    submitting a PR.
-
-## Prohibited (Anti‑Patterns)
-
--   Embedding driver-level, DB-level, or testkit-level semantics inside
-    the core engine.\
-    AST may hold vendor constructs, but **behavior** is decided by
-    formatters or higher layers.
--   Performing or simulating query rewriting inside core (belongs to
-    testkit-core).
--   Introducing dialect branching (`if postgres...`) in parser or
-    analyzer logic.
--   Premature optimization that harms readability or AST clarity.
--   Hand-written SQL comparison without normalizing via `SqlFormatter`.
-
-## Mandatory Pre-commit Steps
-
-Run within `packages/core` or via workspace filters:
-
-    pnpm --filter rawsql-ts test && pnpm --filter rawsql-ts build && pnpm --filter rawsql-ts lint
-
-All must pass before committing.
-
-## Commit Sequence
-
-1.  Refactor for clarity → document public APIs.
-2.  Run the validation pipeline (test/build/lint).
-3.  `git add -p` to review staged changes.
-4.  Commit with a focused, descriptive message.
-
-## Code Not Updating?
-
-1.  Confirm imports: built `rawsql-ts` vs. `../../core/src` (live paths).
-2.  Clear caches:\
-    `rm -rf dist node_modules && pnpm --filter rawsql-ts build`
-3.  Add temporary instrumentation (remember to remove):\
-    `console.log('[trace] SelectAnalyzer', payload)`
-4.  Note: consumers using `file:../core` load from `dist/`, not TS paths.
-
-## Commands
-
-    pnpm --filter rawsql-ts test
-    pnpm --filter rawsql-ts build
-    pnpm --filter rawsql-ts lint
-    pnpm --filter rawsql-ts benchmark
-    pnpm demo:complex-sql        # regression demo (workspace root)
-
-## Library Notes: JSON Mapping Helpers
-
-``` ts
-import { convertModelDrivenMapping } from 'rawsql-ts';
-// Use when mapping.typeInfo && mapping.structure.
-// Legacy mode expects mapping.rootName && mapping.rootEntity.
-```
-
-Common errors: - `Cannot read 'columns'`: ensure wrappers around
-descriptor objects. - `Module not found`: run build to refresh
-`dist/`. - Prefer `import { ... } from 'rawsql-ts'` over deep relative
-paths. - When comparing SQL in tests, normalize using `SqlFormatter`.
-
-## Regression Testing: Complex SQL Demo
-
-    pnpm demo:complex-sql
-
-### Watch for:
-
--   ≥95% comment preservation\
--   No token splits like `table. /* comment */ column`
--   CASE expression comments preserved in evaluation order
--   Performance target: **\<50ms** for the 169-line sample\
--   Output in `packages/core/reports/`; compare before/after on
-    formatter or AST rewrites
-
-## Build & Bundling Notes
-
--   Use esbuild with `--minify-syntax --minify-whitespace`
--   Avoid `--minify-identifiers` (breaks comment bookkeeping & named
-    exports)
--   Browser bundles depend on `tsconfig.browser.json`
--   After formatter export changes, run:\
-    `pnpm --filter rawsql-ts build:browser`
+# References
+- Dialect and boundary rationale: [DESIGN.md#dialect-agnostic-ast-model](./DESIGN.md#dialect-agnostic-ast-model)
+- Testing rationale: [DESIGN.md#testing-philosophy](./DESIGN.md#testing-philosophy)
+- Troubleshooting and operational notes: [DEV_NOTES.md](./DEV_NOTES.md)

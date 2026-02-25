@@ -1,26 +1,24 @@
-# tests/support AGENTS
+# Package Scope
+- Applies to `packages/ztd-cli/templates/tests/support`.
+- Defines shared test infrastructure contracts.
 
-This folder contains shared test infrastructure.
+# Policy
+## REQUIRED
+- Shared support helpers MUST stay minimal and explicit.
+- Shared support code MUST avoid business-rule ownership.
+- Runtime code under `src/` MUST NOT import from this folder.
 
-## Scope
+## ALLOWED
+- Support helpers MAY import from `src/`.
 
-- global setup and teardown
-- test clients and helpers for execution
-- environment/bootstrap logic
+## PROHIBITED
+- Embedding domain business logic into support infrastructure.
 
-## Rules
+# Mandatory Workflow
+- Global setup/support changes MUST run representative subset tests and at least one full test run.
 
-- Keep helpers minimal and explicit.
-- Prefer stable interfaces used across tests.
-- Do not place business rules here.
+# Hygiene
+- Validate resource lifecycle and parallelism behavior after support-layer changes.
 
-## Boundaries
-
-- Support code may import from "src/" as needed.
-- Runtime code under "src/" MUST NOT import from this folder.
-
-## Changes
-
-When modifying global setup or shared clients:
-- Re-run a representative subset of tests and at least one full run when feasible.
-- Watch for parallelism and resource lifecycle issues.
+# References
+- Parent tests policy: [../AGENTS.md](../AGENTS.md)

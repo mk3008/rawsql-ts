@@ -1,25 +1,25 @@
-# src/repositories/views AGENTS
+# Package Scope
+- Applies to `packages/ztd-cli/templates/src/repositories/views`.
+- Defines read-model repository behavior for complex SELECT-only queries.
 
-This folder is for complex read-only queries.
+# Policy
+## REQUIRED
+- Queries in this subtree MUST remain read-only.
+- Read-model DTO validation MUST run at repository/catalog boundaries.
+- Query naming MUST make cardinality assumptions explicit.
 
-## Scope
+## ALLOWED
+- Multi-table joins, aggregations, and purpose-built read DTOs MAY be used.
 
-- Complex SELECT queries (joins, aggregations, window functions).
-- Read models that are not 1:1 with a single table.
+## PROHIBITED
+- INSERT/UPDATE/DELETE behavior in this subtree.
+- Hidden write side effects in read-model query paths.
 
-## Allowed
+# Mandatory Workflow
+- View repository changes MUST run tests for DTO validation and result ordering assumptions.
 
-- Multi-table joins and aggregations.
-- Purpose-built DTOs for read models.
-- Validation at the boundary (catalog validator or repository-level validator).
+# Hygiene
+- Preserve explicit ordering whenever test behavior depends on row order.
 
-## Forbidden
-
-- INSERT/UPDATE/DELETE in this folder by default.
-- Hidden write side-effects.
-
-## Guidance
-
-- Keep query intent clear in naming.
-- Document cardinality assumptions (one, many, optional).
-- Prefer stable ordering if tests rely on order.
+# References
+- Parent repository policy: [../AGENTS.md](../AGENTS.md)

@@ -1,16 +1,23 @@
-# tests/generated AGENTS
+# Package Scope
+- Applies to `packages/ztd-cli/templates/tests/generated`.
+- Governs generated test artifacts.
 
-This directory contains generated files.
+# Policy
+## REQUIRED
+- Missing or stale generated files MUST be regenerated using project generation commands.
 
-## Non-negotiable
+## ALLOWED
+- Generated artifacts MAY be regenerated via `npx ztd ztd-config`.
 
-- Do not edit any file in this directory by hand.
-- Do not commit generated artifacts unless the repository explicitly requires it.
+## PROHIBITED
+- Manual edits to files in this directory.
+- Committing generated artifacts when repository policy does not require them.
 
-## Regeneration
+# Mandatory Workflow
+- Run generation commands before diagnosing generated-module type errors.
 
-If files are missing or stale, regenerate using the project command.
-Example:
-- "npx ztd ztd-config"
+# Hygiene
+- Keep generated output reproducible from project tooling.
 
-If TypeScript reports missing modules referencing generated files, regenerate first.
+# References
+- Parent tests policy: [../AGENTS.md](../AGENTS.md)

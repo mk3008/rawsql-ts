@@ -1,40 +1,31 @@
-# @rawsql-ts/testkit-postgres
+# Package Scope
+- Applies to `packages/testkit-postgres`.
+- Provides Postgres-aware fixture/DDL helpers used by adapters through a driver-agnostic executor boundary.
+- Exposes client-creation and fixture-state helpers without direct `pg` dependency.
 
-This package hosts the Postgres-specific **rewriter and fixture helpers** that remain driver-agnostic.
-They are the pieces of pg-testkit that need Postgres semantics (DDL fixtures, normalized table names, CRUD-to-SELECT rewrites),
-but they do **not** depend on `pg` itself.
+# Policy
+## REQUIRED
+- Public API surface MUST stay independent from `pg` symbols.
+- Adapter integration MUST pass a `QueryExecutor` implementation from adapter packages.
+- Fixture rows MUST be validated against table definitions before executor invocation.
+- Adapter wiring MUST call `createPostgresTestkitClient` using a real driver-backed executor.
 
-## Responsibilities
+## ALLOWED
+- Postgres semantics MAY be represented through DDL fixture/table-name normalization behavior.
 
-- Accept a `QueryExecutor` that can run rewritten SQL, return `Row[]`, and let the core wrap it into the standard `CountableResult`.
-- Validate fixture tables against DDL-derived or explicit table definitions.
-- Provide helpers such as `createPostgresTestkitClient` and `resolveFixtureState`.
-- Surface diagnostics when DDL directories are missing/empty or fixtures refer to unknown schema elements.
+## PROHIBITED
+- Importing or re-exporting `pg` types/symbols from this package.
+- Managing driver connection lifecycles in this package.
+- Duplicating adapter-level pool/wrapper logic.
 
-## Non-responsibilities
+# Mandatory Workflow
+- Before committing changes under `packages/testkit-postgres`, run:
+  - `pnpm --filter @rawsql-ts/testkit-postgres lint`
+  - `pnpm --filter @rawsql-ts/testkit-postgres test`
+  - `pnpm --filter @rawsql-ts/testkit-postgres build`
 
-- Do not import or manage any `pg` types or clients; driver wiring belongs in the adapter packages.
-- Do not execute SQL directly; the executor you provide is responsible for that.
-- Do not duplicate the adapter pool/wrapper logic—use `@rawsql-ts/adapter-node-pg` (or another adapter) when you need a `pg` client/pool.
+# Hygiene
+- Driver-specific tests MUST remain in adapter packages.
 
-## Guardrails
-
-- Public API files in `@rawsql-ts/testkit-postgres` must not import or re-export any symbols from `pg`, even as type-only declarations.
-- Driver connections and any `pg`-specific types belong in adapter packages; this package only exposes the QueryExecutor boundary defined below.
-
-## Executor contract
-
-- `Row = Record<string, unknown>`
-- `QueryExecutor = (sql: string, params: readonly unknown[]) => Promise<Row[]>`
-- Adapter packages must instantiate `QueryExecutor` implementations that manage driver connections; this package only hops the rewritten SQL and params through that function and returns the resulting rows.
-
-## Fixture validation
-
-- Rely on `DefaultFixtureProvider` + `TableNameResolver`.
-- Call `validateFixtureRowsAgainstTableDefinitions` before invoking the executor so typos fail fast.
-- Expose `resolveFixtureState` so adapters can reuse the same DDL metadata snapshots.
-
-## Adapter coordination
-
-- Adapter packages must call `createPostgresTestkitClient` with a `QueryExecutor` that references the actual driver connection.
-- Adapter tests should focus on the driver surface (client/pool/wrapping), while this package keeps unit tests driver-independent.
+# References
+- Parent policy context: [../../AGENTS.md](../../AGENTS.md)

@@ -1,20 +1,31 @@
-# @rawsql-ts/adapter-node-pg
+# Package Scope
+- Applies to `packages/adapters/adapter-node-pg`.
+- Connects `@rawsql-ts/testkit-postgres` rewrite flow to Node `pg` clients and pools.
+- Preserves compatibility helpers for existing adapter consumers.
 
-This package is the Node `pg` driver adapter that connects `@rawsql-ts/testkit-postgres` to PostgreSQL clients and pools.
+# Policy
+## REQUIRED
+- Adapter query interception MUST route through `@rawsql-ts/testkit-postgres` rewrite flow.
+- Adapter behavior MUST preserve fixture and diagnostics options when forwarding to core helpers.
+- Integration tests MUST verify behavior with real PostgreSQL clients/pools.
 
-## Responsibilities
+## ALLOWED
+- Legacy helper APIs MAY remain for backward compatibility.
 
-- Provide the legacy helpers `createPgTestkitClient`, `createPgTestkitPool`, and `wrapPgClient` so existing tooling keeps working.
-- Intercept CRUD queries, hand them to `@rawsql-ts/testkit-postgres`, and execute the rewritten SQL on the underlying `pg` connection.
-- Honor configurable fixture metadata (`ddl`, `tableDefinitions`, `tableRows`, `missingFixtureStrategy`) and forward diagnostics/offExecute hooks to the core.
-- Share the same `withFixtures` semantics by reusing the driver-agnostic client.
+## PROHIBITED
+- Implementing rewrite logic inside the adapter package.
+- Bypassing fixture/DDL validation enforced by core helpers.
+- Duplicating shared executor abstraction behavior.
 
-## Non-responsibilities
+# Mandatory Workflow
+- Before committing changes under `packages/adapters/adapter-node-pg`, run:
+  - `pnpm --filter @rawsql-ts/adapter-node-pg lint`
+  - `pnpm --filter @rawsql-ts/adapter-node-pg test`
+  - `pnpm --filter @rawsql-ts/adapter-node-pg build`
 
-- Do not contain any rewriting logic; every rewrite occurs inside `@rawsql-ts/testkit-postgres`.
-- Do not bypass DDL/fixture validation because the core package already enforces schema safety.
-- Avoid duplicating the executor interface; expose only the `pg`-familiar surface and rely on the shared core for actual transformations.
+# Hygiene
+- Temporary diagnostics and debug logs MUST be removed before commit.
 
-## Testing
-
-- Integration tests run against Testcontainers’ PostgreSQL instance to confirm the adapter can wrap real clients/pools without mutating tables.
+# References
+- Parent policy context: [../../../AGENTS.md](../../../AGENTS.md)
+- Postgres helper contract: [../../testkit-postgres/AGENTS.md](../../testkit-postgres/AGENTS.md)
