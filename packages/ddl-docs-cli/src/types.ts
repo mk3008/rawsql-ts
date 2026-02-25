@@ -25,6 +25,7 @@ export interface GenerateDocsOptions {
   configPath?: string;
   defaultSchema?: string;
   searchPath?: string[];
+  filterPgDump?: boolean;
 }
 
 export interface PruneDocsOptions {

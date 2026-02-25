@@ -12,6 +12,7 @@ import { writeManifest } from '../state/manifest';
 import type { DdlInput, GenerateDocsOptions, SuggestionItem } from '../types';
 import { dedupeDdlInputsByInstanceAndPath } from '../utils/ddlInputDedupe';
 import { collectSqlFiles, ensureDirectory, expandGlobPatterns } from '../utils/fs';
+import { filterPgDump } from '../utils/pgDumpFilter';
 import { writeTextFileNormalized } from '../utils/io';
 
 const GENERATOR_VERSION = '1.0.0';
@@ -35,7 +36,10 @@ export function runGenerateDocs(options: GenerateDocsOptions): void {
     }
   }
   const uniqueFiles = dedupeDdlInputsByInstanceAndPath(mergedFiles);
-  const sources = collectSqlFiles(normalizedDirectories, uniqueFiles, options.extensions);
+  const rawSources = collectSqlFiles(normalizedDirectories, uniqueFiles, options.extensions);
+  const sources = options.filterPgDump
+    ? rawSources.map((s) => ({ ...s, sql: filterPgDump(s.sql) }))
+    : rawSources;
   if (sources.length === 0) {
     throw new Error('No SQL files were discovered from the provided inputs.');
   }

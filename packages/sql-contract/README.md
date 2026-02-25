@@ -200,18 +200,141 @@ Validators run after row mapping, so schema errors surface before application co
 
 ## Catalog Executor
 
-For larger projects, `createCatalogExecutor` executes queries through a `QuerySpec` contract instead of raw SQL. A `QuerySpec` couples an SQL file, parameter shape, and output rules into a stable identity for debugging and observability.
+For larger projects, `createCatalogExecutor` executes queries through a `QuerySpec` contract instead of raw SQL strings. A `QuerySpec` couples an SQL file, parameter shape, and output rules into a stable identity for debugging and observability.
+
+### QuerySpec
+
+A `QuerySpec` is the core contract type:
+
+```ts
+import type { QuerySpec } from '@rawsql-ts/sql-contract'
+import { rowMapping } from '@rawsql-ts/sql-contract'
+
+const activeCustomersSpec: QuerySpec<[], { customerId: number; customerName: string }> = {
+  id: 'customers.active',
+  sqlFile: 'customers/active.sql',
+  params: { shape: 'positional', example: [] },
+  output: {
+    mapping: rowMapping({
+      name: 'Customer',
+      key: 'customerId',
+      columnMap: {
+        customerId: 'customer_id',
+        customerName: 'customer_name',
+      },
+    }),
+    example: { customerId: 1, customerName: 'Alice' },
+  },
+  tags: { domain: 'crm' },
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `id` | Unique identifier for debugging and observability |
+| `sqlFile` | Path passed to the SQL loader |
+| `params.shape` | `'positional'` (array) or `'named'` (record) |
+| `params.example` | Example parameters (for documentation and testing) |
+| `output.mapping` | Optional `rowMapping` applied before validation |
+| `output.validate` | Optional function to validate/transform each row |
+| `output.example` | Example output (for documentation and testing) |
+| `notes` | Optional human-readable description |
+| `tags` | Optional key-value metadata forwarded to observability events |
+
+### Creating a CatalogExecutor
 
 ```ts
 import { createCatalogExecutor } from '@rawsql-ts/sql-contract'
+import { readFile } from 'node:fs/promises'
 
 const catalog = createCatalogExecutor({
-  sqlLoader: (specId) => loadSqlFile(specId),
+  loader: {
+    load: async (sqlFile) => readFile(`sql/${sqlFile}`, 'utf-8'),
+  },
   executor,
 })
 ```
 
-When observability is enabled, execution emits lifecycle events (`query_start`, `query_end`, `query_error`) with spec metadata, allowing queries to be traced by specification rather than raw SQL strings.
+The executor exposes three methods matching the Reader API:
+
+```ts
+const customers = await catalog.list(activeCustomersSpec, [])
+const customer  = await catalog.one(customerByIdSpec, [42])
+const count     = await catalog.scalar(customerCountSpec, [])
+```
+
+### Named parameters
+
+Specs declaring `shape: 'named'` require either a `Binder` or an explicit opt-in:
+
+```ts
+const catalog = createCatalogExecutor({
+  loader,
+  executor,
+  // Option A: provide a binder that converts named → positional
+  binders: [{
+    name: 'pg-named',
+    bind: ({ sql, params }) => {
+      // convert :name placeholders to $1, $2, ...
+      return { sql: boundSql, params: positionalArray }
+    },
+  }],
+  // Option B: pass named params directly to the executor
+  // allowNamedParamsWithoutBinder: true,
+})
+```
+
+### Rewriters
+
+Rewriters apply semantic-preserving SQL transformations before execution:
+
+```ts
+const catalog = createCatalogExecutor({
+  loader,
+  executor,
+  rewriters: [{
+    name: 'add-limit',
+    rewrite: ({ sql, params }) => ({
+      sql: `${sql} LIMIT 1000`,
+      params,
+    }),
+  }],
+})
+```
+
+The execution pipeline order is: **SQL load → rewriters → binders → executor**.
+
+### Observability
+
+When an `observabilitySink` is provided, the executor emits lifecycle events:
+
+```ts
+const catalog = createCatalogExecutor({
+  loader,
+  executor,
+  observabilitySink: {
+    emit(event) {
+      // event.kind: 'query_start' | 'query_end' | 'query_error'
+      // event.specId, event.sqlFile, event.execId, event.durationMs, ...
+      console.log(`[${event.kind}] ${event.specId}`)
+    },
+  },
+})
+```
+
+### Error handling
+
+Catalog errors form a hierarchy rooted at `CatalogError`:
+
+| Error class | Cause |
+|-------------|-------|
+| `SQLLoaderError` | SQL file could not be loaded |
+| `RewriterError` | A rewriter threw during transformation |
+| `BinderError` | A binder failed or returned invalid output |
+| `ContractViolationError` | Parameter shape mismatch, unexpected row count, etc. |
+| `CatalogExecutionError` | The underlying query executor failed |
+
+All error classes expose `specId` and `cause` properties for structured logging.
 
 ## DBMS Differences
 
