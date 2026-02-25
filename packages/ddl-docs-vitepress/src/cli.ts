@@ -279,8 +279,9 @@ function applyTemplate(
 ): { created: number; overwritten: number } {
   let created = 0;
   let overwritten = 0;
+  const sortedDirectories = [...layout.directories].sort((left, right) => left.length - right.length);
 
-  for (const directory of layout.directories.sort((left, right) => left.length - right.length)) {
+  for (const directory of sortedDirectories) {
     const targetDirectory = path.join(targetDir, directory);
     fs.mkdirSync(targetDirectory, { recursive: true });
   }

@@ -24,7 +24,7 @@ features:
 1. Add your DDL files to the `ddl/` directory.
 2. Run `npm run dev` to start the documentation site.
 
-```
+```bash
 npm run dev
 ```
 

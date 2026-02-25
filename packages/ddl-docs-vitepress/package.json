@@ -7,7 +7,7 @@
     "ddl-docs-vitepress": "dist/index.js"
   },
   "scripts": {
-    "prepack": "node -e \"const fs=require('fs');const cp=require('child_process');const npm=process.platform==='win32'?'npm.cmd':'npm';if(!fs.existsSync('dist/index.js')){process.exit(cp.spawnSync(npm,['run','build'],{stdio:'inherit'}).status??1)}\"",
+    "prepack": "node -e \"const fs=require('fs');const cp=require('child_process');const pnpm=process.platform==='win32'?'pnpm.cmd':'pnpm';if(!fs.existsSync('dist/index.js')){process.exit(cp.spawnSync(pnpm,['run','build'],{stdio:'inherit'}).status??1)}\"",
     "build": "tsc -p tsconfig.json",
     "test": "vitest run tests/cli.init.test.ts",
     "generate": "node ./scripts/run-generate.cjs",

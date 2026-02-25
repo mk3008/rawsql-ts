@@ -11,5 +11,8 @@
   "devDependencies": {
     "@rawsql-ts/ddl-docs-cli": "^0.1.0",
     "vitepress": "^1.6.4"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }

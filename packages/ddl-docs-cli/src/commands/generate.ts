@@ -40,6 +40,15 @@ export function runGenerateDocs(options: GenerateDocsOptions): void {
   const sources = options.filterPgDump
     ? rawSources.map((s) => ({ ...s, sql: filterPgDump(s.sql) }))
     : rawSources;
+  if (options.filterPgDump) {
+    for (const source of sources) {
+      if (source.sql.trim().length === 0) {
+        throw new Error(
+          `No schema DDL remained after --filter-pg-dump for input: ${source.path}.`
+        );
+      }
+    }
+  }
   if (sources.length === 0) {
     throw new Error('No SQL files were discovered from the provided inputs.');
   }
