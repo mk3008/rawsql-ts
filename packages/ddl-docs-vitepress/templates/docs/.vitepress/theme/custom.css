@@ -1,0 +1,13 @@
+.VPDoc .container,
+.VPDoc .content-container,
+.VPDoc .content {
+  max-width: none !important;
+  width: 100% !important;
+}
+
+.VPNavBar .wrapper,
+.VPNavBar .container {
+  max-width: none !important;
+  margin-left: 0 !important;
+  padding-left: 16px !important;
+}

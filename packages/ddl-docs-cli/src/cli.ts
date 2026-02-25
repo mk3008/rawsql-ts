@@ -161,6 +161,11 @@ function parseGenerateOptions(args: string[]): GenerateDocsOptions | null {
       continue;
     }
 
+    if (arg === '--filter-pg-dump') {
+      options.filterPgDump = true;
+      continue;
+    }
+
     if (arg === '--help' || arg === '-h') {
       printHelp('generate');
       return null;
@@ -267,6 +272,7 @@ function printHelp(target: 'all' | 'generate' | 'prune'): void {
   --strict                Exit non-zero when warnings exist
   --column-order <mode>   Column order: definition|name (default: definition)
   --label-separator <pat> Regex to split comment into Label+Comment columns (if omitted, no Label column)
+  --filter-pg-dump        Strip GRANT/REVOKE/OWNER TO/SET/\\connect statements from pg_dump output
 `;
 
   const pruneHelp = `ddl-docs prune [options]

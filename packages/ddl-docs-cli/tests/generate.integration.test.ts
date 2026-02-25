@@ -205,6 +205,74 @@ test('column order option supports definition and name sorting', () => {
   expect(nameDoc.indexOf('`m_col`')).toBeLessThan(nameDoc.indexOf('`z_col`'));
 });
 
+test('filter-pg-dump fails when no schema DDL remains after filtering', () => {
+  const work = createTempDir('ddl-docs-filter-empty');
+  const ddlDir = path.join(work, 'ddl');
+  const outDir = path.join(work, 'docs');
+  mkdirSync(ddlDir, { recursive: true });
+
+  writeFileSync(
+    path.join(ddlDir, 'public.sql'),
+    `
+      SET search_path = public, pg_catalog;
+      GRANT SELECT ON ALL TABLES IN SCHEMA public TO app_role;
+    `,
+    'utf8'
+  );
+
+  expect(() =>
+    runGenerateDocs({
+      ddlDirectories: [ddlDir],
+      ddlFiles: [],
+      ddlGlobs: [],
+      extensions: ['.sql'],
+      outDir,
+      includeIndexes: true,
+      strict: false,
+      dialect: 'postgres',
+      columnOrder: 'definition',
+      filterPgDump: true,
+    })
+  ).toThrow(/No schema DDL remained after --filter-pg-dump/);
+});
+
+test('filter-pg-dump succeeds when schema DDL remains after filtering', () => {
+  const work = createTempDir('ddl-docs-filter-success');
+  const ddlDir = path.join(work, 'ddl');
+  const outDir = path.join(work, 'docs');
+  mkdirSync(ddlDir, { recursive: true });
+
+  writeFileSync(
+    path.join(ddlDir, 'public.sql'),
+    `
+      SET search_path = public, pg_catalog;
+      CREATE TABLE public.items (
+        id bigserial PRIMARY KEY,
+        name text NOT NULL
+      );
+      GRANT SELECT ON ALL TABLES IN SCHEMA public TO app_role;
+    `,
+    'utf8'
+  );
+
+  expect(() =>
+    runGenerateDocs({
+      ddlDirectories: [ddlDir],
+      ddlFiles: [],
+      ddlGlobs: [],
+      extensions: ['.sql'],
+      outDir,
+      includeIndexes: false,
+      strict: false,
+      dialect: 'postgres',
+      columnOrder: 'definition',
+      filterPgDump: true,
+    })
+  ).not.toThrow();
+
+  expect(existsSync(path.join(outDir, 'public', 'items.md'))).toBe(true);
+});
+
 function hashDirectory(directoryPath: string): string {
   const hash = createHash('sha256');
   const files = listFiles(directoryPath);

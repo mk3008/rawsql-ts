@@ -34,6 +34,13 @@ Designed to complement — not replace — your SQL expertise.
 | [@rawsql-ts/adapter-node-pg](./packages/adapters/adapter-node-pg) | ![npm](https://img.shields.io/npm/v/@rawsql-ts/adapter-node-pg) | Adapter connecting `pg` (node-postgres) to testkit-postgres. |
 | [@rawsql-ts/sqlite-testkit](./packages/drivers/sqlite-testkit) | ![npm](https://img.shields.io/npm/v/@rawsql-ts/sqlite-testkit) | SQLite-specific CTE rewriting and fixture validation. In-memory testing with `better-sqlite3`. |
 
+### Documentation
+
+| Package | Version | Description |
+|---------|---------|-------------|
+| [@rawsql-ts/ddl-docs-cli](./packages/ddl-docs-cli) | ![npm](https://img.shields.io/npm/v/@rawsql-ts/ddl-docs-cli) | CLI that generates Markdown table definition docs from DDL files. |
+| [@rawsql-ts/ddl-docs-vitepress](./packages/ddl-docs-vitepress) | ![npm](https://img.shields.io/npm/v/@rawsql-ts/ddl-docs-vitepress) | Scaffold generator for VitePress-based database schema documentation sites. |
+
 ### CLI
 
 | Package | Version | Description |
@@ -49,6 +56,8 @@ rawsql-ts (core)
 │   ├── @rawsql-ts/testkit-postgres
 │   │   └── @rawsql-ts/adapter-node-pg
 │   └── @rawsql-ts/sqlite-testkit
+├── @rawsql-ts/ddl-docs-cli
+│   └── @rawsql-ts/ddl-docs-vitepress
 └── @rawsql-ts/ztd-cli
 ```
 

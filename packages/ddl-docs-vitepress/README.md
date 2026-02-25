@@ -1,30 +1,105 @@
 # @rawsql-ts/ddl-docs-vitepress
 
-VitePress-based DB schema documentation site, powered by [`ddl-docs-cli`](../ddl-docs-cli).
+A scaffold generator for VitePress-based database schema documentation sites.
 
-## Usage
+This package provides the `ddl-docs-vitepress init` command, which creates a ready-to-use project template that:
 
-1. Place your `.sql` DDL files in the `ddl/` directory.
-2. Start the dev server:
+- reads SQL files from `ddl/`
+- generates Markdown docs via `@rawsql-ts/ddl-docs-cli`
+- serves/builds a VitePress site from `docs/`
 
-```bash
-pnpm dev
+## Generated project structure
+
+```
+my-db-docs/
+├── .github/workflows/deploy-docs.yml   # GitHub Pages deploy workflow
+├── .gitignore
+├── ddl/.gitkeep                        # Place your .sql files here
+├── docs/
+│   ├── index.md
+│   └── .vitepress/
+│       ├── config.mts
+│       └── theme/
+│           ├── custom.css
+│           └── index.ts
+├── package.json
+└── scripts/run-generate.cjs            # Calls ddl-docs-cli to generate Markdown
 ```
 
-3. Or build a static site:
+## Create a scaffold project
 
 ```bash
-pnpm build
-pnpm preview
+npx @rawsql-ts/ddl-docs-vitepress init my-db-docs
+cd my-db-docs
+npm install
 ```
 
-## How it works
+### Safe-by-default init behavior
 
-- `pnpm generate` — runs `ddl-docs-cli` to convert DDL files in `ddl/` into Markdown under `docs/tables/`.
-- `pnpm dev` / `pnpm build` — runs `generate` first, then starts VitePress.
+- If target directory does not exist: scaffold is created.
+- If target directory exists and is empty: scaffold is created.
+- If target directory exists and is not empty: command fails by default.
+- Use `--force` to overwrite template paths in a non-empty directory.
+- `--force` is overwrite-only. It does not remove non-template files.
+- Use `--force --clean` to remove non-template files before scaffolding.
 
-## Prerequisites
+```bash
+npx @rawsql-ts/ddl-docs-vitepress init existing-dir --force
+npx @rawsql-ts/ddl-docs-vitepress init existing-dir --force --clean
+```
 
-- `ddl-docs-cli` must be built (`packages/ddl-docs-cli/dist/index.js` must exist).
-  Run `pnpm --filter @rawsql-ts/ddl-docs-cli build` from the repo root if needed.
-- At least one `.sql` file must be present in `ddl/`.
+Warning: `--clean` removes non-template files and directories in the target path.
+
+### Help
+
+```bash
+npx @rawsql-ts/ddl-docs-vitepress --help
+npx @rawsql-ts/ddl-docs-vitepress help
+npx @rawsql-ts/ddl-docs-vitepress init --help
+```
+
+## Use the generated scaffold project
+
+In the generated project:
+
+1. Put your `.sql` files under `ddl/`.
+   The build script applies `--filter-pg-dump` automatically, so `pg_dump` output can be used directly — statements such as `SET`, `ALTER ... OWNER TO`, and `SELECT pg_catalog.*` are filtered out before parsing.
+2. Start local development:
+
+```bash
+npm run dev
+```
+
+3. Build static docs:
+
+```bash
+npm run build
+```
+
+4. Preview the built site:
+
+```bash
+npm run preview
+```
+
+### GitHub Pages deployment
+
+The scaffold includes `.github/workflows/deploy-docs.yml` which automatically builds and deploys docs to GitHub Pages on pushes to `main` that touch `ddl/` or `docs/.vitepress/`. The workflow sets `VITEPRESS_BASE` from the repository name.
+
+To enable it, go to your repository's **Settings > Pages** and set the source to **GitHub Actions**.
+
+### `VITEPRESS_BASE` for subpath hosting
+
+The scaffold template uses `process.env.VITEPRESS_BASE ?? '/'` in `docs/.vitepress/config.mts`.
+Set `VITEPRESS_BASE` when deploying under a subpath (for example GitHub Pages):
+
+```bash
+VITEPRESS_BASE=/my-repo/ npm run build
+```
+
+## Scripts in this package (maintainer note)
+
+In `packages/ddl-docs-vitepress` itself:
+
+- `pnpm build` compiles this CLI package with `tsc`.
+- It does **not** build the generated VitePress docs site.
