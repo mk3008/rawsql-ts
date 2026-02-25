@@ -9,7 +9,7 @@
     "preview": "vitepress preview docs"
   },
   "devDependencies": {
-    "@rawsql-ts/ddl-docs-cli": "latest",
+    "@rawsql-ts/ddl-docs-cli": "^0.1.0",
     "vitepress": "^1.6.4"
   }
 }

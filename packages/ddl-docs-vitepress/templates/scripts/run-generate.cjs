@@ -31,6 +31,7 @@ const args = [
   "docs/tables",
   "--label-separator",
   " :",
+  // Accept pg_dump output directly by filtering admin-only statements first.
   "--filter-pg-dump",
 ];
 

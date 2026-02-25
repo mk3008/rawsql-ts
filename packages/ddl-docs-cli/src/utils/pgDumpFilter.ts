@@ -1,3 +1,5 @@
+// pg_dump administrative statements are line-start keyword driven, so a small
+// regex list is a guarded fallback here instead of a full SQL AST parse.
 const SKIP_PATTERNS: RegExp[] = [
   /^GRANT\b/i,
   /^REVOKE\b/i,
@@ -33,10 +35,83 @@ export function filterPgDump(sql: string): string {
       }
     }
 
-    if (skipping && line.includes(';')) {
+    if (skipping && hasStatementTerminator(line)) {
       skipping = false;
     }
   }
 
   return output.join('\n');
+}
+
+function hasStatementTerminator(line: string): boolean {
+  let inSingleQuote = false;
+  let inDoubleQuote = false;
+  let inLineComment = false;
+  let inBlockComment = false;
+
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index];
+    const next = line[index + 1];
+
+    if (inLineComment) {
+      break;
+    }
+
+    if (inBlockComment) {
+      if (char === '*' && next === '/') {
+        inBlockComment = false;
+        index += 1;
+      }
+      continue;
+    }
+
+    if (inSingleQuote) {
+      if (char === "'" && next === "'") {
+        index += 1;
+        continue;
+      }
+      if (char === "'") {
+        inSingleQuote = false;
+      }
+      continue;
+    }
+
+    if (inDoubleQuote) {
+      if (char === '"' && next === '"') {
+        index += 1;
+        continue;
+      }
+      if (char === '"') {
+        inDoubleQuote = false;
+      }
+      continue;
+    }
+
+    if (char === '-' && next === '-') {
+      inLineComment = true;
+      continue;
+    }
+
+    if (char === '/' && next === '*') {
+      inBlockComment = true;
+      index += 1;
+      continue;
+    }
+
+    if (char === "'") {
+      inSingleQuote = true;
+      continue;
+    }
+
+    if (char === '"') {
+      inDoubleQuote = true;
+      continue;
+    }
+
+    if (char === ';') {
+      return true;
+    }
+  }
+
+  return false;
 }

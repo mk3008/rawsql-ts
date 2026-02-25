@@ -48,4 +48,18 @@ describe('filterPgDump', () => {
 
     expect(twice).toBe(once);
   });
+
+  it('does not terminate skip mode on semicolons inside string literals', () => {
+    const input = [
+      'GRANT',
+      "  SELECT ON TABLE public.users TO 'role;name'",
+      '  WITH GRANT OPTION;',
+      'CREATE TABLE public.audit_log (id bigint PRIMARY KEY);',
+    ].join('\n');
+
+    const output = filterPgDump(input);
+    expect(output).toContain('CREATE TABLE public.audit_log');
+    expect(output).not.toContain('GRANT');
+    expect(output).not.toContain('role;name');
+  });
 });
