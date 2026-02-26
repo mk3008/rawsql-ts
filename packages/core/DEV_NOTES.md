@@ -12,10 +12,10 @@ pnpm --filter rawsql-ts build:browser
 
 ## Troubleshooting
 1. Confirm import target (`rawsql-ts` package build output vs `../../core/src` source path).
-2. Clear caches and rebuild:
+2. Clear caches and rebuild (run from `packages/core`):
 
 ```bash
-rm -rf dist node_modules && pnpm --filter rawsql-ts build
+cd packages/core && rm -rf dist node_modules && pnpm --filter rawsql-ts build
 ```
 
 3. If tracing is required, add temporary instrumentation and remove it before commit:

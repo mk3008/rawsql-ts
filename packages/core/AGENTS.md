@@ -9,7 +9,7 @@
 - Parser and analyzer changes in `packages/core` MUST remain DBMS-neutral.
 - SQL parsing and rewrite implementations in `packages/core` MUST use AST APIs (`SelectQueryParser`, `SelectAnalyzer`, `splitQueries`, formatter APIs).
 - Behavior changes and bug fixes in `packages/core` MUST add or update tests.
-- `pnpm --filter rawsql-ts build` MUST succeed before package tests are run.
+- Validation commands for `packages/core` (`pnpm --filter rawsql-ts test`, `pnpm --filter rawsql-ts build`, `pnpm --filter rawsql-ts lint`) MUST succeed before commit.
 - Added or modified identifiers and code comments MUST be written in English.
 - SQL string assertions in tests under `packages/core` MUST compare normalized output from `SqlFormatter`.
 
