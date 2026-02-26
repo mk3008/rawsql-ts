@@ -4,10 +4,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
-  pull-requests: write
-  pages: write
-  id-token: write
+  contents: read
 
 jobs:
   recreate-demo-bundle:
@@ -59,26 +56,14 @@ jobs:
       - name: Build documentation site
         run: pnpm run docs:build
 
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+      - name: Upload demo bundle artifact
+        uses: actions/upload-artifact@v4
         with:
+          name: demo-browser-bundle
+          path: docs/public/demo/vendor/rawsql.browser.js
+
+      - name: Upload docs build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docs-vitepress-dist
           path: docs/.vitepress/dist
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
-
-      - name: Create PR with refreshed bundle
-        uses: peter-evans/create-pull-request@v5
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: 'chore: refresh demo browser bundle'
-          branch: 'refresh-demo-bundle-${{ github.run_id }}'
-          title: Refresh demo browser bundle
-          body: |
-            ## Summary
-            - rebuild the rawsql-ts browser output via `pnpm --filter rawsql-ts build:browser`
-            - regenerate `docs/public/demo/vendor/rawsql.browser.js` via esbuild
-          labels: demo
-          base: main
-          delete-branch: true

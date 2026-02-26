@@ -63,19 +63,21 @@ In the generated project:
 
 1. Put your `.sql` files under `ddl/`.
    The build script applies `--filter-pg-dump` automatically, so `pg_dump` output can be used directly — statements such as `SET`, `ALTER ... OWNER TO`, and `SELECT pg_catalog.*` are filtered out before parsing.
-2. Start local development:
+2. Choose your own deployment method.
+   The scaffold does not include any deploy workflow by default.
+3. Start local development:
 
 ```bash
 npm run dev
 ```
 
-3. Build static docs:
+4. Build static docs:
 
 ```bash
 npm run build
 ```
 
-4. Preview the built site:
+5. Preview the built site:
 
 ```bash
 npm run preview
