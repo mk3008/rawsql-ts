@@ -4,10 +4,10 @@
     "outDir": "dist",
     "rootDir": "src",
     "paths": {
-      "@rawsql-ts/testkit-core": ["../testkit-core/dist/index"],
-      "@rawsql-ts/testkit-core/*": ["../testkit-core/dist/*"],
-      "rawsql-ts": ["../core/dist/src/index"],
-      "rawsql-ts/*": ["../core/dist/src/*"]
+      "@rawsql-ts/testkit-core": ["packages/testkit-core/dist/index"],
+      "@rawsql-ts/testkit-core/*": ["packages/testkit-core/dist/*"],
+      "rawsql-ts": ["packages/core/dist/src/index"],
+      "rawsql-ts/*": ["packages/core/dist/src/*"]
     }
   },
   "include": ["src/**/*.ts"],
