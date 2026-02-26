@@ -1,4 +1,4 @@
-$---
+---
 title: MERGE-to-SELECT Conversion
 outline: deep
 ---
