@@ -44,7 +44,7 @@ const isSelectableQuery = (sql: string): boolean => {
  * @example
  * ```ts
  * import Database from 'better-sqlite3';
- * import { wrapSqliteDriver } from '@rawsql-ts/sqlite-testkit';
+ * import { wrapSqliteDriver } from '@rawsql-ts/testkit-sqlite';
  *
  * const db = wrapSqliteDriver(new Database(':memory:'), {
  *   fixtures: [

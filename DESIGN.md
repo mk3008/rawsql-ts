@@ -14,7 +14,7 @@
 - CRUD statements are rewritten to fixture-backed SELECT execution paths.
 
 ## Architecture
-- Package direction: `core -> testkit-core -> testkit-postgres/sqlite-testkit`.
+- Package direction: `core -> testkit-core -> testkit-postgres/testkit-sqlite`.
 - Reverse dependency direction is an architectural violation.
 
 ## Test Case Modeling

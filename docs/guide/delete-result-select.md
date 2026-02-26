@@ -32,5 +32,5 @@ Fixtures describe the columns and rows of every involved table via `fixtureTable
 
 - [DeleteResultSelectConverter API](../api/classes/DeleteResultSelectConverter.md)
 - [Select-Centered Philosophy](./select-centered-philosophy.md)
-- [SQLite Testkit Guide](./sqlite-testkit-howto.md)
+- [SQLite Testkit Guide](./testkit-sqlite-howto.md)
 

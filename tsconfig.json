@@ -1,4 +1,4 @@
-﻿{
+{
     "compilerOptions": {
         /* Visit https://aka.ms/tsconfig to read more about this file */
         /* Projects */
@@ -54,7 +54,7 @@
         "@rawsql-ts/test-evidence-renderer-md": ["packages/test-evidence-renderer-md/src"],
         "@rawsql-ts/test-evidence-renderer-md/*": ["packages/test-evidence-renderer-md/src/*"],
         "@rawsql-ts/ztd-cli": ["packages/ztd-cli/src"],
-        "@rawsql-ts/sqlite-testkit": ["packages/drivers/sqlite-testkit/src"],
+        "@rawsql-ts/testkit-sqlite": ["packages/testkit-sqlite/src"],
         "@rawsql-ts/adapter-node-pg": ["packages/adapters/adapter-node-pg/src"],
         "@rawsql-ts/shared-binder": ["packages/_shared/binder/src"],
         "@rawsql-ts/shared-binder/*": ["packages/_shared/binder/src/*"]

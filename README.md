@@ -32,7 +32,7 @@ Designed to complement — not replace — your SQL expertise.
 | [@rawsql-ts/testkit-core](./packages/testkit-core) | ![npm](https://img.shields.io/npm/v/@rawsql-ts/testkit-core) | Fixture-backed CTE rewriting and schema validation engine. Driver-agnostic ZTD foundation. |
 | [@rawsql-ts/testkit-postgres](./packages/testkit-postgres) | ![npm](https://img.shields.io/npm/v/@rawsql-ts/testkit-postgres) | Postgres-specific CTE rewriting and fixture validation. Works with any executor. |
 | [@rawsql-ts/adapter-node-pg](./packages/adapters/adapter-node-pg) | ![npm](https://img.shields.io/npm/v/@rawsql-ts/adapter-node-pg) | Adapter connecting `pg` (node-postgres) to testkit-postgres. |
-| [@rawsql-ts/sqlite-testkit](./packages/drivers/sqlite-testkit) | ![npm](https://img.shields.io/npm/v/@rawsql-ts/sqlite-testkit) | SQLite-specific CTE rewriting and fixture validation. In-memory testing with `better-sqlite3`. |
+| [@rawsql-ts/testkit-sqlite](./packages/testkit-sqlite) | ![npm](https://img.shields.io/npm/v/@rawsql-ts/testkit-sqlite) | SQLite-specific CTE rewriting and fixture validation. In-memory testing with `better-sqlite3`. |
 
 ### Documentation
 
@@ -55,7 +55,7 @@ rawsql-ts (core)
 ├── @rawsql-ts/testkit-core
 │   ├── @rawsql-ts/testkit-postgres
 │   │   └── @rawsql-ts/adapter-node-pg
-│   └── @rawsql-ts/sqlite-testkit
+│   └── @rawsql-ts/testkit-sqlite
 ├── @rawsql-ts/ddl-docs-cli
 │   └── @rawsql-ts/ddl-docs-vitepress
 └── @rawsql-ts/ztd-cli

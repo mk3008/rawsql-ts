@@ -1,4 +1,4 @@
-﻿---
+---
 title: Why SQL Unit Testing Is Hard and How `rawsql-ts` Solves It
 outline: deep
 ---
@@ -254,5 +254,5 @@ By elevating fixtures to explicit inputs and treating queries as pure functions,
 
 ## Next Steps
 
-- Apply the testing model in the [SQLite Testkit HowTo](./sqlite-testkit-howto.md).
-- Explore the workspace demos under `packages/drivers/sqlite-testkit/demo` to see the fixture driver in practice.
+- Apply the testing model in the [SQLite Testkit HowTo](./testkit-sqlite-howto.md).
+- Explore the workspace demos under `packages/testkit-sqlite/demo` to see the fixture driver in practice.

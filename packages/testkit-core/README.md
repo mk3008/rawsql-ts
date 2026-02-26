@@ -10,7 +10,7 @@ Pure TypeScript utilities for rewriting SELECT statements with fixture-backed CT
 - Validates fixture rows against declarative schemas (or registry lookups)
 - Injects rewritten `WITH` clauses without touching the original query shape
 - Supports fail-fast, passthrough, or warn-on-missing fixture strategies
-- Supplies building blocks for driver adapters (see `@rawsql-ts/sqlite-testkit`, `@rawsql-ts/testkit-postgres`)
+- Supplies building blocks for driver adapters (see `@rawsql-ts/testkit-sqlite`, `@rawsql-ts/testkit-postgres`)
 
 ## Installation
 

@@ -36,5 +36,5 @@ The default `missingFixtureStrategy` is `error`, which helps you catch uncovered
 
 - [InsertResultSelectConverter API](../api/classes/InsertResultSelectConverter.md)
 - [Select-Centered Philosophy](./select-centered-philosophy.md) explains why the library prefers this read-first approach.
-- [SQLite Testkit Guide](./sqlite-testkit-howto.md) shows how the resulting `SELECT` keeps tests schema-independent.
+- [SQLite Testkit Guide](./testkit-sqlite-howto.md) shows how the resulting `SELECT` keeps tests schema-independent.
 

@@ -3,11 +3,11 @@ title: SQLite Testkit Guide
 outline: deep
 ---
 
-# Testing SQLite Repositories with `@rawsql-ts/sqlite-testkit`
+# Testing SQLite Repositories with `@rawsql-ts/testkit-sqlite`
 
 This guide explains how to apply the `rawsql-ts` testing model using SQLite and `better-sqlite3`.
 
-The `@rawsql-ts/sqlite-testkit` package rewrites `SELECT` statements into fixture-backed Common Table Expressions (CTEs), letting you assert SQL behavior without touching on-disk databases.
+The `@rawsql-ts/testkit-sqlite` package rewrites `SELECT` statements into fixture-backed Common Table Expressions (CTEs), letting you assert SQL behavior without touching on-disk databases.
 
 ---
 
@@ -20,10 +20,10 @@ The `@rawsql-ts/sqlite-testkit` package rewrites `SELECT` statements into fixtur
 Install the driver:
 
 ```bash
-npm install --save-dev @rawsql-ts/sqlite-testkit
+npm install --save-dev @rawsql-ts/testkit-sqlite
 ```
 
-Optional demo dependencies are listed in `packages/drivers/sqlite-testkit/package.json`.
+Optional demo dependencies are listed in `packages/testkit-sqlite/package.json`.
 
 ---
 
@@ -70,9 +70,9 @@ The command loads `better-sqlite3`, reads `sqlite_master`, and derives column af
 Invoke it from the workspace root so `ts-node` resolves the package-specific `tsconfig.json`.
 
 ```bash
-pnpm --filter @rawsql-ts/sqlite-testkit run schema:generate -- \
-  --database packages/drivers/sqlite-testkit/demo/sqlite/customer-demo.sqlite \
-  --output packages/drivers/sqlite-testkit/demo/schema/schema.json
+pnpm --filter @rawsql-ts/testkit-sqlite run schema:generate -- \
+  --database packages/testkit-sqlite/demo/sqlite/customer-demo.sqlite \
+  --output packages/testkit-sqlite/demo/schema/schema.json
 ```
 
 Add `--tables tableA,tableB` to limit the export to a subset of tables (name matching is case-insensitive). The CLI sorts tables alphabetically before writing and warns about any statements it cannot parse.
@@ -91,7 +91,7 @@ For lightweight query assertions:
 
 ```ts
 import Database from 'better-sqlite3';
-import { createSqliteSelectTestDriver } from '@rawsql-ts/sqlite-testkit';
+import { createSqliteSelectTestDriver } from '@rawsql-ts/testkit-sqlite';
 import { schemaRegistry } from './schema';
 
 const driver = createSqliteSelectTestDriver({
@@ -123,7 +123,7 @@ Reuses existing repositories unchanged:
 
 ```ts
 import Database from 'better-sqlite3';
-import { wrapSqliteDriver } from '@rawsql-ts/sqlite-testkit';
+import { wrapSqliteDriver } from '@rawsql-ts/testkit-sqlite';
 import { CustomerRepository } from '../src/CustomerRepository';
 import { schemaRegistry } from './schema';
 
@@ -169,13 +169,13 @@ const driver = wrapSqliteDriver(new Database(':memory:'), {
 ## Running Tests
 
 ```bash
-pnpm vitest --config packages/drivers/sqlite-testkit/vitest.config.ts
+pnpm vitest --config packages/testkit-sqlite/vitest.config.ts
 ```
 
 If `better-sqlite3` fails to compile in CI, prebuild it with:
 
 ```bash
-node packages/drivers/sqlite-testkit/scripts/install-better-sqlite3.cjs
+node packages/testkit-sqlite/scripts/install-better-sqlite3.cjs
 ```
 
 ---
@@ -210,7 +210,7 @@ With these tools, you can reuse production repositories unchanged while gaining 
 
 ## Next Steps
 
-- Run the demo specs under `packages/drivers/sqlite-testkit/tests` to validate your setup end-to-end.
-- Port existing repository tests by wrapping your `better-sqlite3` adapter as shown in `packages/drivers/sqlite-testkit/demo/tests/customer-intercept.test.ts`.
+- Run the demo specs under `packages/testkit-sqlite/tests` to validate your setup end-to-end.
+- Port existing repository tests by wrapping your `better-sqlite3` adapter as shown in `packages/testkit-sqlite/demo/tests/customer-intercept.test.ts`.
 
 

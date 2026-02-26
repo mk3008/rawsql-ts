@@ -31,5 +31,5 @@ By rewriting every select that would normally read from `users`, `products`, or 
 ## Learn more
 
 - [Select-Centered Philosophy](./select-centered-philosophy.md)
-- [SQLite Testkit Guide](./sqlite-testkit-howto.md)
+- [SQLite Testkit Guide](./testkit-sqlite-howto.md)
 

@@ -1,4 +1,4 @@
-﻿---
+---
 title: SELECT-to-CREATE TABLE Conversion
 outline: deep
 ---
@@ -22,5 +22,5 @@ const createTableQuery = QueryBuilder.buildCreateTableQuery(simpleSelectQuery, '
 ## Learn More
 
 - [QueryBuilder API](../api/classes/QueryBuilder.md) for `buildCreateTableQuery` and the flags that mirror native DDL.
-- [SQLite Testkit Guide](./sqlite-testkit-howto.md) to see where temporary tables help compose fixtures.
+- [SQLite Testkit Guide](./testkit-sqlite-howto.md) to see where temporary tables help compose fixtures.
 - [Why SQL Unit Testing Is Hard](./testkit-concept.md) for the philosophy of relying on `SELECT` rewrites and letting conversions manage DML/DDL.

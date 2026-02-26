@@ -1,4 +1,4 @@
-﻿---
+---
 title: SELECT-to-INSERT Conversion
 outline: deep
 ---
@@ -29,12 +29,12 @@ const insertQuery = QueryBuilder.buildInsertQuery(simpleSelectQuery, {
 
 ## When to read this doc
 
-- You are maintaining `sqlite-testkit` fixtures and want to confirm why the runtime only rewrites `SELECT` statements.
+- You are maintaining `testkit-sqlite` fixtures and want to confirm why the runtime only rewrites `SELECT` statements.
 - You are extending `rawsql-ts` to synthesize `INSERT` statements from computed rows or CTEs.
 - You need to surface conversion errors that originate from unnamed select items, missing columns, or mismatched ordering.
 
 ## Learn More
 
 - [QueryBuilder API](../api/classes/QueryBuilder.md) describes `buildInsertQuery` and the supporting helpers that enforce column names.
-- [SQLite Testkit Guide](./sqlite-testkit-howto.md) shows how the same conversion keeps fixtures isolated from the physical database.
+- [SQLite Testkit Guide](./testkit-sqlite-howto.md) shows how the same conversion keeps fixtures isolated from the physical database.
 - [Why SQL Unit Testing Is Hard](./testkit-concept.md) explains why `rawsql-ts` targets `SELECT` statements and relies on conversions for DML coverage.

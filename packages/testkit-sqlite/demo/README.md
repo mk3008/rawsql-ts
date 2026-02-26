@@ -15,7 +15,7 @@ This folder mirrors a realistic repository stack backed by `better-sqlite3` so t
 
 ## Trying The Intercept Test
 1. Ensure `better-sqlite3` can be loaded on your platform (Node.js ≥ 20). During `pnpm install` the `postinstall` hook downloads the matching prebuilt binary from the official release feed, so you no longer need a local compiler toolchain for Windows/macOS runners.
-2. Run `pnpm --filter @rawsql-ts/sqlite-testkit test demo/tests/customer-physical.test.ts` to see the baseline queries, then `pnpm --filter @rawsql-ts/sqlite-testkit test demo/tests/customer-intercept.test.ts` to see the intercepted behavior. Both suites now depend on the same driver, so you can diff their outputs directly.
+2. Run `pnpm --filter @rawsql-ts/testkit-sqlite test demo/tests/customer-physical.test.ts` to see the baseline queries, then `pnpm --filter @rawsql-ts/testkit-sqlite test demo/tests/customer-intercept.test.ts` to see the intercepted behavior. Both suites now depend on the same driver, so you can diff their outputs directly.
 3. Inspect the assertions inside the test to see how `wrapSqliteDriver` forces the repository to return synthetic results without touching disk while the baseline repository keeps reading from the physical table.
 
 Even though fixtures can fully shadow the `customers` table, the physical database remains in the repo so you can manually compare baseline results whenever you want to double-check the interception behavior.

@@ -1,4 +1,4 @@
-﻿---
+---
 title: SELECT-to-DELETE Conversion
 outline: deep
 ---
@@ -34,6 +34,6 @@ const deleteQuery = QueryBuilder.buildDeleteQuery(simpleSelectQuery, {
 ## Learn More
 
 - [QueryBuilder API](../api/classes/QueryBuilder.md) for `buildDeleteQuery` and the supporting predicate builders.
-- [SQLite Testkit Guide](./sqlite-testkit-howto.md) to understand how this conversion stays inside the `SELECT`-rewrite model.
+- [SQLite Testkit Guide](./testkit-sqlite-howto.md) to understand how this conversion stays inside the `SELECT`-rewrite model.
 - [Why SQL Unit Testing Is Hard](./testkit-concept.md) for the decision to keep the fixture surface limited to `SELECT` statements.
 

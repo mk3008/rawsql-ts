@@ -6,6 +6,6 @@ export default defineConfig({
     environment: 'node',
     globals: true,
     testTimeout: 60000,
-    globalSetup: resolve(__dirname, '../../../vitest.global-setup.ts'),
+    globalSetup: resolve(__dirname, '../../vitest.global-setup.ts'),
   },
 });

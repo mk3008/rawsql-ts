@@ -1,4 +1,4 @@
-﻿---
+---
 title: SELECT-to-UPDATE Conversion
 outline: deep
 ---
@@ -35,5 +35,5 @@ These knobs keep the conversion deterministic and preserve the column ordering r
 ## Learn More
 
 - [QueryBuilder API](../api/classes/QueryBuilder.md) for the full `buildUpdateQuery` signature and alias helpers.
-- [SQLite Testkit Guide](./sqlite-testkit-howto.md) to see how repository wrappers rely on this helper for fixture verification.
+- [SQLite Testkit Guide](./testkit-sqlite-howto.md) to see how repository wrappers rely on this helper for fixture verification.
 - [Why SQL Unit Testing Is Hard](./testkit-concept.md) for the guiding philosophy behind focusing on reads and replaying writes via conversions.

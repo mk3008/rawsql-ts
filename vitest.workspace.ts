@@ -1,4 +1,4 @@
-﻿import { defineWorkspace } from 'vitest/config';
+import { defineWorkspace } from 'vitest/config';
 
 export default defineWorkspace([
   {
@@ -8,9 +8,9 @@ export default defineWorkspace([
     },
   },
   {
-    extends: './packages/drivers/sqlite-testkit/vitest.config.ts',
+    extends: './packages/testkit-sqlite/vitest.config.ts',
     test: {
-      root: './packages/drivers/sqlite-testkit',
+      root: './packages/testkit-sqlite',
     },
   },
 ]);

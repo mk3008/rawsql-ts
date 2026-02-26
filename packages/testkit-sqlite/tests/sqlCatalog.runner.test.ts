@@ -1,4 +1,4 @@
-import { describe, expect } from 'vitest';
+import { describe } from 'vitest';
 import type { TableFixture } from '@rawsql-ts/testkit-core';
 import { defineSqlCatalog, runSqlCatalog } from './utils/sqlCatalog';
 import { createSqliteCatalogExecutor } from './helpers/sqlCatalogExecutor';
@@ -87,18 +87,13 @@ describe('SQL catalog verifiability with fixture-only sqlite test driver executi
       {
         id: 'baseline',
         title: 'active users with minimum total',
-        assert: (result) => {
-          expect(result).toEqual(baselineExpected);
-        },
+        expected: baselineExpected,
       },
       {
         id: 'changed',
         title: 'active=0 returns a different result set',
         arrange: () => ({ active: 0, minTotal: 20, limit: 2 }),
-        assert: (result) => {
-          expect(result).toEqual([{ orderId: 12, userEmail: 'bob@example.com', orderTotal: 40 }]);
-          expect(result).not.toEqual(baselineExpected);
-        },
+        expected: [{ orderId: 12, userEmail: 'bob@example.com', orderTotal: 40 }],
       },
     ],
   });
