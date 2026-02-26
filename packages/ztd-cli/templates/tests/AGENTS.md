@@ -1,62 +1,29 @@
-# tests AGENTS
+# Package Scope
+- Applies to `packages/ztd-cli/templates/tests`.
+- Defines verification contract for ZTD template-generated test code.
 
-This directory contains verification code.
+# Policy
+## REQUIRED
+- Tests MUST verify SQL execution under ZTD rewrite, mapping behavior, validation paths, and DTO shape semantics.
+- CUD tests MUST verify UPDATE/DELETE via affected-row signals.
+- CREATE tests for table repositories MUST expect identifier-only returns unless spec explicitly requires DTO return.
+- Test runner configuration MUST exist and support single-command execution.
+- Initial template state MUST include at least one executable test.
 
-## Runtime classification
+## ALLOWED
+- Tests MAY import runtime modules from `src/`.
 
-- This is a non-runtime directory.
-- Code here is never part of application runtime.
+## PROHIBITED
+- Runtime imports from `tests/` or `tests/generated/`.
+- Tests that require repository follow-up SELECT behavior contradicting repository contracts.
+- Manual edits to generated artifacts.
 
-## Core principles
+# Mandatory Workflow
+- Test changes MUST run affected test suites and confirm test-runner configuration remains valid.
 
-- This project uses ZTD (Zero Table Dependency).
-- DDL and fixtures define the test world.
-- Tests must be deterministic and parallel-safe.
+# Hygiene
+- Regenerate `tests/generated` artifacts before diagnosing missing generated module errors.
 
-## What to test (important)
-
-- Catalog specs are first-class test targets.
-- Tests should verify:
-  - SQL executes under ZTD rewriting
-  - mapping behavior
-  - validation success and failure
-  - DTO shape and semantics
-
-- Tests MUST NOT enforce repository behavior that contradicts repository contracts.
-- Tests MUST NOT require follow-up SELECTs after UPDATE or DELETE by default.
-
-## CUD test policy (important)
-
-- UPDATE and DELETE success/failure MUST be verified via affected-row information
-  (e.g. rowCount or equivalent).
-- Tests MUST NOT assume UPDATE/DELETE return DTOs.
-- If the driver cannot report affected rows, CUD verification is unsupported and
-  tests MUST fail fast.
-- CREATE tests for table repositories MUST expect identifier-only returns by default.
-- Tests MUST NOT require repository follow-up SELECT after CREATE unless the catalog spec explicitly requires DTO return.
-
-## Generated artifacts
-
-- "tests/generated/" is auto-generated.
-- Do not edit generated files by hand.
-- Regenerate before debugging type errors.
-
-## Boundaries
-
-- Tests may import from "src/".
-- Runtime code under "src/" MUST NOT import from "tests/" or "tests/generated/".
-
-## Test runner requirements (required)
-
-- A test runner configuration (e.g. vitest.config.ts) MUST exist.
-- Tests MUST be executable with a single command (e.g. `pnpm test`).
-- Missing test runner configuration is considered a setup error.
-
-Do not add tests that assume manual setup steps.
-
-## Initialization invariant
-
-- The initial project state MUST include:
-  - test runner configuration
-  - at least one executable test file
-- The initial test run MUST pass or fail only due to user-written logic, not setup.
+# References
+- Generated tests policy: [./generated/AGENTS.md](./generated/AGENTS.md)
+- Shared support policy: [./support/AGENTS.md](./support/AGENTS.md)

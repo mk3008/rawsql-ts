@@ -1,48 +1,25 @@
-# src/catalog/specs AGENTS
+# Package Scope
+- Applies to `packages/ztd-cli/templates/src/catalog/specs`.
+- Defines human-owned query/command contracts for params, DTOs, and semantics.
 
-This directory defines query and command specifications (contracts).
+# Policy
+## REQUIRED
+- Specs MUST define public input and output validators.
+- Specs MUST preserve declared parameter shape, DTO shape, nullability, cardinality, and semantics.
+- Driver-dependent normalization behavior MUST be specified for runtime handling, not SQL workaround encoding.
 
-## Runtime classification
+## ALLOWED
+- Specs MAY acknowledge driver representation variance when runtime normalization is defined.
 
-- This is a runtime directory.
-- Contents are human-owned contracts, not implementation details.
+## PROHIBITED
+- Inferring or modifying contract shape without explicit instruction.
+- Adding executors, DB connections, or ZTD internal dependencies.
 
-## Ownership (critical)
+# Mandatory Workflow
+- Contract changes MUST run tests that validate success and failure paths.
 
-- Specs are human-owned.
-- Input parameters are part of the domain contract.
-- Output DTO shapes are part of the domain contract.
-- Cardinality and semantics are part of the domain contract.
+# Hygiene
+- Keep contract definitions isolated from runtime wiring and SQL implementation logic.
 
-AI MUST NOT:
-- infer missing parameters
-- widen or narrow DTO shapes
-- change nullability or optionality
-- change CUD return shape implicitly
-
-Changes require explicit human instruction.
-
-## Validator requirement (required)
-
-- A validator library (zod or arktype) is always available.
-- Every spec MUST define validators for its public inputs/outputs.
-- Validators are part of the contract and are human-owned.
-
-## Driver variability policy (important)
-
-Specs MUST NOT require SQL assets to encode driver-specific workarounds.
-
-- Specs may acknowledge that SQL rows can vary in representation by driver
-  (e.g. timestamps as Date or string).
-- Normalization for driver-dependent values is implemented in catalog runtime,
-  then validated against the spec.
-
-Contracts define the final DTO shape.
-Runtime defines normalization steps to reach that shape.
-
-## What does NOT belong here
-
-- No executors
-- No database connections
-- No ZTD internals
-- No SQL camelCase aliasing rules (SQL rules live under src/sql)
+# References
+- Parent catalog policy: [../AGENTS.md](../AGENTS.md)

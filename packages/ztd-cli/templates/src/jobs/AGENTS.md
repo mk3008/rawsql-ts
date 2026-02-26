@@ -1,26 +1,25 @@
-# src/jobs AGENTS
+# Package Scope
+- Applies to `packages/ztd-cli/templates/src/jobs`.
+- Defines contract rules for procedural and batch SQL job code.
 
-This folder contains script-like operations (procedural SQL execution).
+# Policy
+## REQUIRED
+- Jobs MUST declare explicit transaction boundaries.
+- Jobs MUST emit start/end operational events or logs.
+- Job tests MUST validate observable outcomes.
 
-## Scope
+## ALLOWED
+- Jobs MAY execute multiple SQL statements, including temporary-table workflows.
+- Heavy jobs MAY split verification across integration and focused fixture tests.
 
-- Maintenance jobs
-- Data backfills
-- Batch operations
-- Temporary-table driven workflows
+## PROHIBITED
+- Coupling job logic to test-only helpers.
 
-## Safety rules
+# Mandatory Workflow
+- Job changes MUST run integration-style tests for affected job paths.
 
-- Be explicit about transaction boundaries.
-- Prefer idempotent design (safe to rerun).
-- Emit clear logs/events at start and end of the job.
+# Hygiene
+- Job logic MUST remain idempotent for rerun safety.
 
-## SQL usage
-
-- It is acceptable to run multiple statements in a job (including temp tables).
-- Avoid coupling job logic to tests-only helpers.
-
-## Testing
-
-- Prefer integration-style tests that verify observable outcomes.
-- If the job is heavy, test smaller units or use fixtures to limit scope.
+# References
+- Parent runtime policy: [../AGENTS.md](../AGENTS.md)

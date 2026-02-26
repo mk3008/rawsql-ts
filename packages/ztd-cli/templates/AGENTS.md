@@ -1,52 +1,29 @@
-# Workspace AGENTS
+# Package Scope
+- Applies to `packages/ztd-cli/templates`.
+- Defines default contract boundaries for generated ZTD project templates.
+- Provides parent rules for runtime (`src`), test (`tests`), and metadata (`ztd`) subtrees.
 
-This repository uses directory-scoped AGENTS.
-Rules live close to where the work happens.
+# Policy
+## REQUIRED
+- The nearest nested `AGENTS.md` MUST be treated as highest-priority policy for edited files.
+- Unknown facts during template work MUST be reported as `Not observed` with the next check.
+- Generated artifacts MUST remain unedited unless explicit instruction exists.
+- Human-owned contract directories (`ztd/ddl`, `src/catalog/specs`, `src/sql`) MUST NOT be semantically changed without explicit instruction.
+- Template output MUST include runnable test configuration at initialization.
 
-## Rule precedence
+## ALLOWED
+- AI-assisted implementation MAY occur in `src/repositories`, `src/catalog/runtime`, and `tests` excluding `tests/generated`.
 
-- The closest "AGENTS.md" to the file being edited has the highest priority.
-- Parent directories provide shared rules.
-- Child directories should only describe deltas.
+## PROHIBITED
+- Manual edits under `tests/generated`.
+- Changing ownership boundaries without explicit instruction.
 
-## Global non-negotiables
+# Mandatory Workflow
+- Template changes MUST preserve an executable `pnpm test` path for initialized projects.
 
-- Do not guess. If something is unknown, state "Not observed" and propose the next check.
-- Do not edit generated artifacts unless explicitly instructed.
-- Respect ownership boundaries: human-owned contracts must not be changed without explicit instruction.
+# Hygiene
+- Keep directory-local deltas in child `AGENTS.md`; avoid restating parent rules in child files.
 
-## Runtime vs non-runtime
-
-- Runtime assets live under "src/": executed/loaded by the application.
-- Non-runtime assets live under "ztd/" and parts of "tests/": used for verification and generation.
-
-## Human-owned vs AI-assisted (important)
-
-Human-owned (do not change without explicit instruction):
-- "ztd/ddl" (physical schema / DDL)
-- "src/catalog/specs" (query contracts: params + DTO + semantics)
-- "src/sql" (SQL assets; AI may propose patches, but do not rewrite intent)
-
-AI-assisted (implementation and verification):
-- "src/repositories"
-- "src/catalog/runtime"
-- "tests" (except "tests/generated")
-
-Never touch by hand:
-- "tests/generated"
-
-## Where to read next
-
-- "src/catalog/AGENTS.md": catalog layout and contract boundaries
-- "src/repositories/AGENTS.md": repository responsibilities and restrictions
-- "src/sql/AGENTS.md": SQL asset rules
-- "tests/AGENTS.md": ZTD testing rules
-- "ztd/ddl/AGENTS.md": DDL authoring rules
-
-## Test environment guarantee (important)
-
-- This workspace MUST be test-runnable immediately after initialization.
-- `pnpm test` (or equivalent) must not fail due to missing configuration.
-- Test runner configuration (e.g. vitest.config.ts) is considered part of the template contract.
-
-If tests fail due to missing config, this is a template defect, not a user error.
+# References
+- Rationale: [DESIGN.md](./DESIGN.md)
+- Operational notes: [DEV_NOTES.md](./DEV_NOTES.md)

@@ -1,152 +1,34 @@
-# AGENTS: sql-contract Test Guidelines
+# Package Scope
+- Applies to `packages/sql-contract/tests`.
+- Defines contract rules for mapper and writer test behavior.
+- Ensures tests validate explicit behavior, not incidental implementation details.
 
-This document defines **rules and expectations for tests** under `tests/`
-that exercise `@rawsql-ts/sql-contract`.
+# Policy
+## REQUIRED
+- Mapper tests MUST verify deterministic row-to-object mapping and explicit relation behavior.
+- Most mapper tests MUST use explicit `RowMapping`.
+- Complex join tests MUST declare explicit mappings and relations.
+- Error-path tests MUST assert failure behavior explicitly.
+- Writer tests MUST assert SQL visibility, placeholder ordering, and identifier validation behavior.
+- Each test case MUST own its mappings, rows, and assertions.
 
-These rules exist to ensure that tests validate **intentional behavior**
-rather than accidental implementation details.
+## ALLOWED
+- Duck-typed mapping tests MAY be used only for duck-typing, normalization, or duplicate-detection scenarios.
+- Exact error message matching MAY be used when semantically required.
 
----
+## PROHIBITED
+- Testing driver/database connectivity in mapper or writer unit tests.
+- Snapshot-testing mapped entities.
+- Depending on cross-test entity or mapping state.
+- Testing schema inference or ORM-like conveniences.
 
-## Purpose of Mapper Tests
+# Mandatory Workflow
+- Before committing changes under `packages/sql-contract/tests`, run:
+  - `pnpm --filter @rawsql-ts/sql-contract test`
 
-Mapper tests must verify:
+# Hygiene
+- Test fixtures MUST remain explicit and local to each test unless shared helpers are intentional.
 
-- Deterministic row-to-object mapping
-- Explicit relation wiring behavior
-- Strict error handling
-- DBMS-agnostic assumptions
-
-Mapper tests must NOT:
-- Test SQL generation
-- Test database connectivity
-- Test driver-specific behavior
-- Test ORM-like conveniences
-
-Rows are treated as **pure input data** and the mapper never touches SQL generation.
-
----
-
-## Row Construction Rules
-
-Test rows must:
-
-- Be plain objects (`Record<string, unknown>`)
-- Use realistic SQL column names
-- Avoid relying on JS object key order
-- Avoid magical casing assumptions
-
-Bad examples:
-- Using camelCase column names unless explicitly testing normalization
-- Omitting required columns "because the test knows better"
-
-Good examples:
-- Explicit snake_case columns
-- Explicit aliases when ambiguity exists
-
----
-
-## Explicit Mapping Is the Default
-
-Most tests SHOULD use `RowMapping`.
-
-Duck-typed mapping is allowed only when:
-- Explicitly testing duck-typed behavior
-- Testing normalization rules
-- Testing duplicate detection
-
-Complex join scenarios MUST:
-- Use explicit mappings
-- Declare all relations
-- Avoid relying on fallback behavior
-
----
-
-## belongsTo() Usage Rules
-
-Tests must assume:
-
-- `localKey` defaults to `parent.key`
-- No DTO-style inference exists
-- Optional relations still require column presence
-
-When testing DTO-style keys:
-- Always pass `options.localKey`
-- Do not rely on naming coincidence
-
-Tests that expect silent inference are invalid.
-
----
-
-## Error Expectations Are First-Class
-
-Tests SHOULD assert errors explicitly.
-
-Examples:
-- Missing key columns
-- Missing relation columns
-- Missing relation values
-- Duplicate normalized columns
-- Circular entity graphs (including self-references and mutual cycles)
-
-Error assertions must:
-- Assert that an error is thrown
-- Avoid matching exact error strings unless necessary
-- Prefer semantic expectations (e.g. "throws on missing key")
-
----
-
-## No Snapshot Testing of Objects
-
-Avoid snapshot testing mapped entities.
-
-Reasons:
-- Object shape is intentional and small
-- Snapshots hide accidental fields
-- Explicit assertions are clearer
-
-Prefer:
-- Checking specific properties
-- Checking identity reuse across joined rows
-- Checking reference equality for parents
-
----
-
-## No Cross-Test State
-
-Tests must not:
-
-- Reuse mappings across tests unless intentional
-- Share entity instances
-- Depend on cache behavior across test cases
-
-Each test must:
-- Create its own mappings
-- Provide its own rows
-- Assert its own expectations
-
----
-
-## Philosophy Summary
-
-- Tests validate behavior, not convenience
-- Explicitness beats cleverness
-- Errors are expected outcomes
-- Rows are data, not magic
-- If a test relies on guessing, the test is wrong
-
-When in doubt:
-Make the test stricter, not the mapper looser.
-
----
-
-## Writer tests are about SQL visibility
-
-Writer tests must confirm:
-
-- SQL strings remain readable and include exactly the columns supplied (undefined entries drop out).
-- WHERE clauses only contain equality AND lists derived from the provided key object.
-- Identifier validation respects the ASCII restrictions unless `allowUnsafeIdentifiers` is opted into.
-- The returned `params` array preserves primitive values (no coercion) and matches placeholder order.
-
-Avoid testing database interactions, schema inference, or complex builders. The writer surface intentionally refuses to guess joins, create schema-aware helpers, or add convenience methods beyond `insert`, `update`, and `remove`.
+# References
+- Rationale: [../DESIGN.md](../DESIGN.md)
+- Operational notes: [../DEV_NOTES.md](../DEV_NOTES.md)

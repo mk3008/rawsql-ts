@@ -1,18 +1,23 @@
-# ztd AGENTS
+# Package Scope
+- Applies to `packages/ztd-cli/templates/ztd`.
+- Governs ZTD inputs and related metadata used for generation.
 
-This directory contains ZTD inputs and related documentation.
+# Policy
+## REQUIRED
+- `ztd/ddl` MUST remain the human-owned source of truth inside `ztd`.
 
-## Core rule
+## ALLOWED
+- Tests MAY reference ZTD DDL and generated outputs through ZTD tooling.
 
-- "ztd/ddl/" is the only human-owned source of truth inside "ztd/".
-- Do not create new subdirectories under "ztd/" unless explicitly instructed.
+## PROHIBITED
+- Creating new `ztd` subdirectories without explicit instruction.
+- Modifying `ztd/README.md` without explicit instruction.
 
-## Boundaries
+# Mandatory Workflow
+- DDL-related rule updates MUST be made in `ztd/ddl/AGENTS.md`.
 
-- Runtime code must not depend on "ztd/".
-- Tests may reference DDL and generated outputs via ZTD tooling.
+# Hygiene
+- Keep runtime code independent from `ztd` subtree dependencies.
 
-## Editing policy
-
-- Avoid modifying "ztd/README.md" unless explicitly asked.
-- Prefer adding rules to "ztd/ddl/AGENTS.md" for DDL-related guidance.
+# References
+- DDL policy: [./ddl/AGENTS.md](./ddl/AGENTS.md)

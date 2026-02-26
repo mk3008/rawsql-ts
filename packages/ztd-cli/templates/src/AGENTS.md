@@ -1,26 +1,25 @@
-# src AGENTS
+# Package Scope
+- Applies to `packages/ztd-cli/templates/src`.
+- Governs runtime application code emitted by template generation.
 
-This directory is runtime application code.
+# Policy
+## REQUIRED
+- Runtime code under `src/` MUST remain independent from `tests/` and `tests/generated/` imports.
+- Runtime code MUST remain independent from ZTD internals.
+- Runtime modules MUST use explicit contracts and deterministic failure surfaces.
 
-## Boundaries
+## ALLOWED
+- Runtime modules MAY use project typecheck and filtered test commands for validation.
 
-- Code under "src/" MUST NOT import from:
-  - "tests/"
-  - "tests/generated/"
-  - any test-only helpers
-- Runtime code MUST NOT depend on ZTD internals.
-- Generated artifacts are test-only signals, not runtime dependencies.
+## PROHIBITED
+- Importing test-only helpers into runtime code.
+- Treating generated artifacts as runtime dependencies.
 
-## Implementation principles
+# Mandatory Workflow
+- Before committing changes under `src/`, run project typecheck and relevant tests.
 
-- Keep modules small and explicit.
-- Prefer explicit contracts over inference.
-- Favor deterministic behavior and clear error surfaces.
+# Hygiene
+- Keep runtime modules explicit and small enough to preserve contract boundaries.
 
-## Verification (required)
-
-After changes:
-- Run the project typecheck command (example: "pnpm typecheck").
-- Run relevant tests (example: "pnpm test" or a filtered command).
-
-If you touched SQL contracts or catalog specs, run tests that exercise them.
+# References
+- Parent policy: [../AGENTS.md](../AGENTS.md)
