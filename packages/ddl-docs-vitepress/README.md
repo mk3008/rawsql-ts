@@ -12,7 +12,6 @@ This package provides the `ddl-docs-vitepress init` command, which creates a rea
 
 ```
 my-db-docs/
-├── .github/workflows/deploy-docs.yml   # GitHub Pages deploy workflow
 ├── .gitignore
 ├── ddl/.gitkeep                        # Place your .sql files here
 ├── docs/
@@ -82,16 +81,10 @@ npm run build
 npm run preview
 ```
 
-### GitHub Pages deployment
-
-The scaffold includes `.github/workflows/deploy-docs.yml` which automatically builds and deploys docs to GitHub Pages on pushes to `main` that touch `ddl/` or `docs/.vitepress/`. The workflow sets `VITEPRESS_BASE` from the repository name.
-
-To enable it, go to your repository's **Settings > Pages** and set the source to **GitHub Actions**.
-
 ### `VITEPRESS_BASE` for subpath hosting
 
 The scaffold template uses `process.env.VITEPRESS_BASE ?? '/'` in `docs/.vitepress/config.mts`.
-Set `VITEPRESS_BASE` when deploying under a subpath (for example GitHub Pages):
+Set `VITEPRESS_BASE` when deploying under a subpath:
 
 ```bash
 VITEPRESS_BASE=/my-repo/ npm run build

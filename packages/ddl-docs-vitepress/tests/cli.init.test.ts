@@ -29,6 +29,7 @@ describe('ddl-docs-vitepress init', () => {
     expect(fs.existsSync(path.join(target, 'package.json'))).toBe(true);
     expect(fs.existsSync(path.join(target, '.gitignore'))).toBe(true);
     expect(fs.existsSync(path.join(target, 'gitignore'))).toBe(false);
+    expect(fs.existsSync(path.join(target, '.github', 'workflows', 'deploy-docs.yml'))).toBe(false);
   });
 
   it('fails for non-empty target directory without --force', async () => {
