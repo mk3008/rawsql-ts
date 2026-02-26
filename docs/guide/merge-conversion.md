@@ -1,4 +1,4 @@
-﻿---
+---
 title: SELECT-to-MERGE Conversion
 outline: deep
 ---
@@ -40,5 +40,5 @@ The helper rebuilds the select clause to reflect the chosen column order and gua
 ## Learn More
 
 - [QueryBuilder API](../api/classes/QueryBuilder.md) for the `buildMergeQuery` signature and action builders such as `MergeUpdateAction`.
-- [SQLite Testkit Guide](./sqlite-testkit-howto.md) showing how merge scenarios remain compatible with the select-driven pipeline.
+- [SQLite Testkit Guide](./testkit-sqlite-howto.md) showing how merge scenarios remain compatible with the select-driven pipeline.
 - [Why SQL Unit Testing Is Hard](./testkit-concept.md) because it explains why the library locks to reads and rewrites writes instead of running them directly.

@@ -1,4 +1,4 @@
-# @rawsql-ts/sqlite-testkit
+# @rawsql-ts/testkit-sqlite
 
 ## 0.15.1
 

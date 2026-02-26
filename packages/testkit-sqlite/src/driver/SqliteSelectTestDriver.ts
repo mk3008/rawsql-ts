@@ -142,7 +142,7 @@ export class SqliteSelectTestDriverImpl implements SqliteSelectTestDriver {
  * @example
  * ```ts
  * import Database from 'better-sqlite3';
- * import { createSqliteSelectTestDriver } from '@rawsql-ts/sqlite-testkit';
+ * import { createSqliteSelectTestDriver } from '@rawsql-ts/testkit-sqlite';
  *
  * const driver = createSqliteSelectTestDriver({
  *   connectionFactory: () => new Database(':memory:'),

@@ -43,5 +43,5 @@ This approach accelerates fast unit tests and makes them deterministic across en
 - [UPDATE -> SELECT Conversion](./update-result-select.md)
 - [DELETE -> SELECT Conversion](./delete-result-select.md)
 - [MERGE -> SELECT Conversion](./merge-result-select.md)
-- [SQLite Testkit Guide](./sqlite-testkit-howto.md)
+- [SQLite Testkit Guide](./testkit-sqlite-howto.md)
 

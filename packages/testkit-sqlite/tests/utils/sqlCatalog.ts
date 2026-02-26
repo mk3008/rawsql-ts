@@ -1,7 +1,7 @@
-// Temporary shim: keep sqlite-testkit tests decoupled from direct cross-package paths.
+// Temporary shim: keep testkit-sqlite tests decoupled from direct cross-package paths.
 // When a shared test utility package is extracted, swap this re-export target.
 /**
- * Re-export SQL catalog test utilities for sqlite-testkit test suites.
+ * Re-export SQL catalog test utilities for testkit-sqlite test suites.
  */
 export {
   defineSqlCatalog,
@@ -10,4 +10,4 @@ export {
   type SqlCatalog,
   type SqlCatalogExecutor,
   type RunSqlCatalogOptions,
-} from '../../../../ztd-cli/tests/utils/sqlCatalog';
+} from '../../../ztd-cli/tests/utils/sqlCatalog';

@@ -32,5 +32,5 @@ Use the `missingFixtureStrategy` option to control how strict the converter is. 
 
 - [UpdateResultSelectConverter API](../api/classes/UpdateResultSelectConverter.md)
 - [Select-Centered Philosophy](./select-centered-philosophy.md) for the rationale behind read-only assertions.
-- [SQLite Testkit Guide](./sqlite-testkit-howto.md) to see how fixtures feed into the rewritten select.
+- [SQLite Testkit Guide](./testkit-sqlite-howto.md) to see how fixtures feed into the rewritten select.
 

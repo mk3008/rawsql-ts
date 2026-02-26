@@ -247,7 +247,7 @@ function getDeclaredType(dataType?: TypeValue | RawString | null): string {
 function printUsage(): void {
   console.log(`
 Usage:
-  pnpm --filter @rawsql-ts/sqlite-testkit run schema:generate -- --database <path> [--output <path>] [--tables ts]
+  pnpm --filter @rawsql-ts/testkit-sqlite run schema:generate -- --database <path> [--output <path>] [--tables ts]
 
 Options:
   --per-table                Emit per-table JSON files instead of a single schema.json (output path becomes a directory).

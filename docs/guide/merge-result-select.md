@@ -28,5 +28,5 @@ The converter needs fixtures for every base table that the merge touches, otherw
 
 - [MergeResultSelectConverter API](../api/classes/MergeResultSelectConverter.md)
 - [Select-Centered Philosophy](./select-centered-philosophy.md)
-- [SQLite Testkit Guide](./sqlite-testkit-howto.md)
+- [SQLite Testkit Guide](./testkit-sqlite-howto.md)
 

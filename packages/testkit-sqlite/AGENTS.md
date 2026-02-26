@@ -1,5 +1,5 @@
 # Package Scope
-- Applies to `packages/drivers/sqlite-testkit`.
+- Applies to `packages/testkit-sqlite`.
 - Adapts testkit rewrite output to `better-sqlite3` execution surfaces.
 - Provides fixture layering and wrapped driver behavior for SQLite-backed tests.
 
@@ -18,14 +18,14 @@
 ## PROHIBITED
 - Physical schema management through wrapped driver flow.
 - Persisted write semantics as test state.
-- Parser ownership inside sqlite-testkit.
+- Parser ownership inside testkit-sqlite.
 - Bypassing rewrite pipeline with mocked result shapes.
 
 # Mandatory Workflow
-- Before committing changes under `packages/drivers/sqlite-testkit`, these commands MUST pass:
-  - `pnpm --filter @rawsql-ts/sqlite-testkit lint`
-  - `pnpm --filter @rawsql-ts/sqlite-testkit test`
-  - `pnpm --filter @rawsql-ts/sqlite-testkit build`
+- Before committing changes under `packages/testkit-sqlite`, these commands MUST pass:
+  - `pnpm --filter @rawsql-ts/testkit-sqlite lint`
+  - `pnpm --filter @rawsql-ts/testkit-sqlite test`
+  - `pnpm --filter @rawsql-ts/testkit-sqlite build`
 
 # Hygiene
 - Debug instrumentation and temporary artifacts MUST be removed before commit.

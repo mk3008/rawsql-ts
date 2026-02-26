@@ -40,8 +40,8 @@ jobs:
 
     - name: Validate test-evidence boundaries and consumers
       run: |
-        pnpm -r --if-present --filter @rawsql-ts/test-evidence-core --filter @rawsql-ts/test-evidence-renderer-md --filter @rawsql-ts/shared-binder --filter @rawsql-ts/testkit-core --filter @rawsql-ts/testkit-postgres --filter @rawsql-ts/adapter-node-pg --filter @rawsql-ts/ztd-cli --filter @rawsql-ts/sql-contract-zod run build
-        pnpm -r --if-present --filter @rawsql-ts/test-evidence-core --filter @rawsql-ts/test-evidence-renderer-md --filter @rawsql-ts/shared-binder --filter @rawsql-ts/testkit-core --filter @rawsql-ts/testkit-postgres --filter @rawsql-ts/adapter-node-pg --filter @rawsql-ts/ztd-cli --filter @rawsql-ts/sql-contract-zod run test
+        pnpm -r --if-present --filter @rawsql-ts/test-evidence-core --filter @rawsql-ts/test-evidence-renderer-md --filter @rawsql-ts/shared-binder --filter @rawsql-ts/testkit-core --filter @rawsql-ts/testkit-postgres --filter @rawsql-ts/testkit-sqlite --filter @rawsql-ts/adapter-node-pg --filter @rawsql-ts/ztd-cli --filter @rawsql-ts/sql-contract-zod run build
+        pnpm -r --if-present --filter @rawsql-ts/test-evidence-core --filter @rawsql-ts/test-evidence-renderer-md --filter @rawsql-ts/shared-binder --filter @rawsql-ts/testkit-core --filter @rawsql-ts/testkit-postgres --filter @rawsql-ts/testkit-sqlite --filter @rawsql-ts/adapter-node-pg --filter @rawsql-ts/ztd-cli --filter @rawsql-ts/sql-contract-zod run test
       
     - name: Run unit tests (excluding Docker-dependent tests)
       run: pnpm --filter "./packages/core" run test

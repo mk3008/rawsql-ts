@@ -1,7 +1,7 @@
 # SQLite Testkit Design Notes
 
 ## Role and Boundaries
-- Defines design intent for `packages/drivers/sqlite-testkit`.
+- Defines design intent for `packages/testkit-sqlite`.
 - Keeps SQLite-specific execution adaptation separate from rewrite ownership in testkit-core.
 
 ## Non-Goals

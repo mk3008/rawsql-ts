@@ -1,6 +1,6 @@
-# @rawsql-ts/sqlite-testkit
+# @rawsql-ts/testkit-sqlite
 
-![npm version](https://img.shields.io/npm/v/@rawsql-ts/sqlite-testkit)
+![npm version](https://img.shields.io/npm/v/@rawsql-ts/testkit-sqlite)
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 
 SQLite driver adapter for running repository tests entirely in-memory by shadowing tables with fixture-backed CTEs. Built on `@rawsql-ts/testkit-core` for schema validation and SQL rewrites.
@@ -15,14 +15,14 @@ SQLite driver adapter for running repository tests entirely in-memory by shadowi
 ## Installation
 
 ```bash
-npm install @rawsql-ts/sqlite-testkit
+npm install @rawsql-ts/testkit-sqlite
 ```
 
 ## Quick Start
 
 ```ts
 import Database from 'better-sqlite3';
-import { createSqliteSelectTestDriver } from '@rawsql-ts/sqlite-testkit';
+import { createSqliteSelectTestDriver } from '@rawsql-ts/testkit-sqlite';
 
 const driver = createSqliteSelectTestDriver({
   connectionFactory: () => new Database(':memory:'),
@@ -47,7 +47,7 @@ Use `driver.withFixtures([...])` to derive a scoped driver with scenario-specifi
 
 ```ts
 import Database from 'better-sqlite3';
-import { wrapSqliteDriver } from '@rawsql-ts/sqlite-testkit';
+import { wrapSqliteDriver } from '@rawsql-ts/testkit-sqlite';
 
 const raw = new Database(':memory:');
 const intercepted = wrapSqliteDriver(raw, {
