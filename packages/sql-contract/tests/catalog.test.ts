@@ -1,4 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import type {
   Binder,
   ObservabilityEvent,
@@ -16,6 +18,89 @@ import {
 } from '../src'
 
 describe('catalog executor', () => {
+  it('lets validation read the mapped DTO rather than the raw SQL row', async () => {
+    const loader = {
+      load: vi.fn(() =>
+        Promise.resolve('select customer_id, customer_name from demo')
+      ),
+    }
+    const executor = vi.fn(() =>
+      Promise.resolve([{ customer_id: 42, customer_name: 'Alice' }])
+    )
+    const validateSpy = vi.fn((value: unknown) => {
+      const dto = value as { customerId: number; customerName: string }
+      expect(dto.customerId).toBe(42)
+      expect(dto.customerName).toBe('Alice')
+      return dto
+    })
+    const catalog = createCatalogExecutor({ loader, executor })
+
+    const spec: QuerySpec<[], { customerId: number; customerName: string }> = {
+      id: 'demo.validator.mapped-dto',
+      sqlFile: 'mapped.sql',
+      params: { shape: 'positional', example: [] },
+      output: {
+        mapping: rowMapping({
+          name: 'CustomerDto',
+          key: 'customerId',
+          columnMap: {
+            customerId: 'customer_id',
+            customerName: 'customer_name',
+          },
+        }),
+        validate: validateSpy,
+        example: {
+          customerId: 42,
+          customerName: 'Alice',
+        },
+      },
+    }
+
+    await expect(catalog.one(spec, [])).resolves.toEqual({
+      customerId: 42,
+      customerName: 'Alice',
+    })
+    expect(validateSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it('supports reusable file-backed SQL loaders', async () => {
+    const tempDir = resolve(
+      process.cwd(),
+      'tmp',
+      `sql-contract-catalog-loader-${Date.now()}`
+    )
+    mkdirSync(tempDir, { recursive: true })
+    writeFileSync(resolve(tempDir, 'demo.sql'), 'select id from demo')
+
+    const createFileSqlLoader = (baseDir: string) => ({
+      load(sqlFile: string) {
+        return Promise.resolve(readFileSync(resolve(baseDir, sqlFile), 'utf8'))
+      },
+    })
+
+    const executor = vi.fn(() => Promise.resolve([{ id: 7 }]))
+    const catalog = createCatalogExecutor({
+      loader: createFileSqlLoader(tempDir),
+      executor,
+    })
+
+    const spec: QuerySpec<[], { id: number }> = {
+      id: 'demo.file-loader',
+      sqlFile: 'demo.sql',
+      params: { shape: 'positional', example: [] },
+      output: {
+        example: { id: 7 },
+      },
+    }
+
+    try {
+      await expect(catalog.one(spec, [])).resolves.toEqual({ id: 7 })
+      expect(executor).toHaveBeenCalledWith('select id from demo', [])
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true })
+    }
+  })
+
   it('caches SQL loader results while returning mapped rows', async () => {
     const loader = { load: vi.fn(() => Promise.resolve('select id from demo')) }
     const executor = vi.fn(() => Promise.resolve([{ id: 1 }]))

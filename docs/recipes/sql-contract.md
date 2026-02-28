@@ -53,6 +53,76 @@ export async function listUserProfiles() {
 
 The reader above can be used directly in tests or shared helpers so the same SQL, mapping, and fixtures power every suite.
 
+## Catalog executor patterns
+
+If your project keeps SQL in files, it helps to centralize the file-backed loader
+once instead of repeating `readFile(resolve(...))` in every repository:
+
+```ts
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
+import { createCatalogExecutor, rowMapping, type QuerySpec } from '@rawsql-ts/sql-contract';
+
+function createFileSqlLoader(baseDir: string) {
+  return {
+    load(sqlFile: string) {
+      return readFile(resolve(baseDir, sqlFile), 'utf8');
+    },
+  };
+}
+
+const catalog = createCatalogExecutor({
+  loader: createFileSqlLoader(resolve(process.cwd(), 'src/sql')),
+  executor,
+});
+```
+
+When `output.mapping` is present, `output.validate` receives the mapped DTO, not
+the raw SQL row. This keeps validation focused on the application contract:
+
+```ts
+const userProfileSpec: QuerySpec<[string], { userId: string; displayName: string }> = {
+  id: 'user-profile.by-id',
+  sqlFile: 'user-profile/by-id.sql',
+  params: { shape: 'positional', example: ['user-1'] },
+  output: {
+    mapping: rowMapping({
+      name: 'UserProfile',
+      key: 'userId',
+      columnMap: {
+        userId: 'user_id',
+        displayName: 'display_name',
+      },
+    }),
+    validate: (value) => ({
+      userId: String((value as { userId: unknown }).userId),
+      displayName: String((value as { displayName: unknown }).displayName),
+    }),
+    example: {
+      userId: 'user-1',
+      displayName: 'Alice',
+    },
+  },
+};
+```
+
+For `count(*)` or `RETURNING id` queries, prefer `catalog.scalar(...)` with a
+scalar validator instead of introducing a one-field DTO solely for the contract:
+
+```ts
+const touchedThreadSpec: QuerySpec<[string], string> = {
+  id: 'thread.touch',
+  sqlFile: 'thread/touch.sql',
+  params: { shape: 'positional', example: ['thread-1'] },
+  output: {
+    validate: (value) => String(value),
+    example: 'thread-1',
+  },
+};
+
+const threadId = await catalog.scalar(touchedThreadSpec, ['thread-1']);
+```
+
 ## What’s next
 
 - Wire runtime validation by following the [Zod](./validation-zod.md) or [ArkType](./validation-arktype.md) recipe. Validation is required for every ZTD project, so keep your chosen validator aligned with the reader/writer wiring.

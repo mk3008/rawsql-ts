@@ -246,11 +246,18 @@ const activeCustomersSpec: QuerySpec<[], { customerId: number; customerName: str
 ```ts
 import { createCatalogExecutor } from '@rawsql-ts/sql-contract'
 import { readFile } from 'node:fs/promises'
+import { resolve } from 'node:path'
+
+function createFileSqlLoader(baseDir: string) {
+  return {
+    load(sqlFile: string) {
+      return readFile(resolve(baseDir, sqlFile), 'utf-8')
+    },
+  }
+}
 
 const catalog = createCatalogExecutor({
-  loader: {
-    load: async (sqlFile) => readFile(`sql/${sqlFile}`, 'utf-8'),
-  },
+  loader: createFileSqlLoader('sql'),
   executor,
 })
 ```
@@ -261,6 +268,58 @@ The executor exposes three methods matching the Reader API:
 const customers = await catalog.list(activeCustomersSpec, [])
 const customer  = await catalog.one(customerByIdSpec, [42])
 const count     = await catalog.scalar(customerCountSpec, [])
+```
+
+For larger applications, keeping the file-backed loader in one helper avoids
+repeating the same `readFile(resolve(...))` wiring in every repository module.
+
+### Common catalog output patterns
+
+When a spec uses `output.mapping`, validation runs after the row is mapped into
+the DTO shape. Write validators against the DTO, not the raw SQL row:
+
+```ts
+import { z } from 'zod'
+
+const CustomerDto = z.object({
+  customerId: z.number(),
+  customerName: z.string(),
+})
+
+const customerSpec: QuerySpec<[number], z.infer<typeof CustomerDto>> = {
+  id: 'customers.byId',
+  sqlFile: 'customers/by-id.sql',
+  params: { shape: 'positional', example: [42] },
+  output: {
+    mapping: rowMapping({
+      name: 'Customer',
+      key: 'customerId',
+      columnMap: {
+        customerId: 'customer_id',
+        customerName: 'customer_name',
+      },
+    }),
+    validate: (value) => CustomerDto.parse(value),
+    example: { customerId: 42, customerName: 'Alice' },
+  },
+}
+```
+
+Scalar contracts read most clearly when they validate the extracted value
+directly instead of inventing a one-field DTO:
+
+```ts
+const touchThreadSpec: QuerySpec<[string], string> = {
+  id: 'threads.touch',
+  sqlFile: 'threads/touch.sql',
+  params: { shape: 'positional', example: ['thread-1'] },
+  output: {
+    validate: (value) => String(value),
+    example: 'thread-1',
+  },
+}
+
+const threadId = await catalog.scalar(touchThreadSpec, ['thread-1'])
 ```
 
 ### Named parameters
