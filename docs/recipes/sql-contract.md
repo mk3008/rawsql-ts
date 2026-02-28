@@ -60,7 +60,8 @@ once instead of repeating `readFile(resolve(...))` in every repository:
 
 ```ts
 import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { createCatalogExecutor, rowMapping, type QuerySpec } from '@rawsql-ts/sql-contract';
 
 function createFileSqlLoader(baseDir: string) {
@@ -71,8 +72,13 @@ function createFileSqlLoader(baseDir: string) {
   };
 }
 
+const sqlDirectory = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  '../sql'
+);
+
 const catalog = createCatalogExecutor({
-  loader: createFileSqlLoader(resolve(process.cwd(), 'src/sql')),
+  loader: createFileSqlLoader(sqlDirectory),
   executor,
 });
 ```
