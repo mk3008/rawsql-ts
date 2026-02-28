@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import type {
   Binder,
   ObservabilityEvent,
@@ -16,6 +17,8 @@ import {
   createCatalogExecutor,
   rowMapping,
 } from '../src'
+
+const testDirectory = dirname(fileURLToPath(import.meta.url))
 
 describe('catalog executor', () => {
   it('lets validation read the mapped DTO rather than the raw SQL row', async () => {
@@ -65,7 +68,9 @@ describe('catalog executor', () => {
 
   it('supports reusable file-backed SQL loaders', async () => {
     const tempDir = resolve(
-      process.cwd(),
+      testDirectory,
+      '..',
+      '..',
       'tmp',
       `sql-contract-catalog-loader-${Date.now()}`
     )

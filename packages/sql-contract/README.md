@@ -275,52 +275,29 @@ repeating the same `readFile(resolve(...))` wiring in every repository module.
 
 ### Common catalog output patterns
 
-When a spec uses `output.mapping`, validation runs after the row is mapped into
-the DTO shape. Write validators against the DTO, not the raw SQL row:
+The output pipeline for `list()` / `one()` is:
 
-```ts
-import { z } from 'zod'
+1. raw SQL row
+2. `output.mapping` (optional)
+3. `output.validate` (optional)
 
-const CustomerDto = z.object({
-  customerId: z.number(),
-  customerName: z.string(),
-})
+That means validators should read the mapped DTO shape, not the raw SQL row.
 
-const customerSpec: QuerySpec<[number], z.infer<typeof CustomerDto>> = {
-  id: 'customers.byId',
-  sqlFile: 'customers/by-id.sql',
-  params: { shape: 'positional', example: [42] },
-  output: {
-    mapping: rowMapping({
-      name: 'Customer',
-      key: 'customerId',
-      columnMap: {
-        customerId: 'customer_id',
-        customerName: 'customer_name',
-      },
-    }),
-    validate: (value) => CustomerDto.parse(value),
-    example: { customerId: 42, customerName: 'Alice' },
-  },
-}
-```
+For scalar queries, the pipeline is:
 
-Scalar contracts read most clearly when they validate the extracted value
-directly instead of inventing a one-field DTO:
+1. raw SQL row
+2. single-column scalar extraction
+3. `output.validate` (optional)
 
-```ts
-const touchThreadSpec: QuerySpec<[string], string> = {
-  id: 'threads.touch',
-  sqlFile: 'threads/touch.sql',
-  params: { shape: 'positional', example: ['thread-1'] },
-  output: {
-    validate: (value) => String(value),
-    example: 'thread-1',
-  },
-}
+That makes `count(*)` and `RETURNING id` contracts read more clearly when they
+validate the extracted scalar directly instead of inventing a one-field DTO.
 
-const threadId = await catalog.scalar(touchThreadSpec, ['thread-1'])
-```
+See [docs/recipes/sql-contract.md](../../docs/recipes/sql-contract.md) for
+copy-paste-ready catalog examples covering:
+
+- reusable file-backed loaders
+- mapped DTO validation
+- scalar contract patterns
 
 ### Named parameters
 
