@@ -246,11 +246,18 @@ const activeCustomersSpec: QuerySpec<[], { customerId: number; customerName: str
 ```ts
 import { createCatalogExecutor } from '@rawsql-ts/sql-contract'
 import { readFile } from 'node:fs/promises'
+import { resolve } from 'node:path'
+
+function createFileSqlLoader(baseDir: string) {
+  return {
+    load(sqlFile: string) {
+      return readFile(resolve(baseDir, sqlFile), 'utf-8')
+    },
+  }
+}
 
 const catalog = createCatalogExecutor({
-  loader: {
-    load: async (sqlFile) => readFile(`sql/${sqlFile}`, 'utf-8'),
-  },
+  loader: createFileSqlLoader('sql'),
   executor,
 })
 ```
@@ -262,6 +269,35 @@ const customers = await catalog.list(activeCustomersSpec, [])
 const customer  = await catalog.one(customerByIdSpec, [42])
 const count     = await catalog.scalar(customerCountSpec, [])
 ```
+
+For larger applications, keeping the file-backed loader in one helper avoids
+repeating the same `readFile(resolve(...))` wiring in every repository module.
+
+### Common catalog output patterns
+
+The output pipeline for `list()` / `one()` is:
+
+1. raw SQL row
+2. `output.mapping` (optional)
+3. `output.validate` (optional)
+
+That means validators should read the mapped DTO shape, not the raw SQL row.
+
+For scalar queries, the pipeline is:
+
+1. raw SQL row
+2. single-column scalar extraction
+3. `output.validate` (optional)
+
+That makes `count(*)` and `RETURNING id` contracts read more clearly when they
+validate the extracted scalar directly instead of inventing a one-field DTO.
+
+See [docs/recipes/sql-contract.md](../../docs/recipes/sql-contract.md) for
+copy-paste-ready catalog examples covering:
+
+- reusable file-backed loaders
+- mapped DTO validation
+- scalar contract patterns
 
 ### Named parameters
 

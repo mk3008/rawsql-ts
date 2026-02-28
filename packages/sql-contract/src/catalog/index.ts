@@ -15,7 +15,8 @@ export type QuerySpec<P extends QueryParams = QueryParams, R = Row> = {
   output: {
     mapping?: RowMapping<R>
     /**
-     * Receives each mapped DTO for list/one executions, or the extracted scalar value for scalar().
+     * Receives each mapped DTO for list()/one() after `output.mapping` runs,
+     * or the extracted scalar value for scalar().
      */
     validate?: (row: unknown) => R
     example: R
@@ -596,7 +597,8 @@ export function createCatalogExecutor(
       return mappedRows
     }
 
-    // The decoder/validator runs after mapping so it receives the mapped DTO.
+    // The decoder/validator runs after mapping so it receives the DTO shape
+    // declared by the catalog contract instead of the raw SQL row.
     return mappedRows.map((value) => decode(value))
   }
 
@@ -637,7 +639,7 @@ export function createCatalogExecutor(
   ): R {
     const decode = spec.output.validate
     if (decode) {
-      // The decoder/validator runs against the extracted scalar value.
+      // Scalar contracts validate the extracted single-column value directly.
       return decode(value)
     }
     return value as R
