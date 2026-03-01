@@ -372,6 +372,57 @@ Catalog errors form a hierarchy rooted at `CatalogError`:
 
 All error classes expose `specId` and `cause` properties for structured logging.
 
+## Execution Scope and Transaction Boundaries
+
+sql-contract is responsible for **query definition and result mapping**. Transaction control (`BEGIN` / `COMMIT` / `ROLLBACK`) and connection lifecycle management are outside its scope — they remain the caller's execution concern.
+
+### What sql-contract manages
+
+- SQL loading and transformation (rewriters, binders)
+- Parameter binding and placeholder conversion
+- Result row mapping and validation
+- Observability events for query execution
+
+### What the caller manages
+
+- Connection pooling and lifecycle (open, close, release)
+- Transaction boundaries (`BEGIN` / `COMMIT` / `ROLLBACK`)
+- Error recovery and retry policies
+- Connection scoping (ensuring related queries share one connection)
+
+### QueryExecutor and connection scoping
+
+The `QueryExecutor` type assumes it runs within a **single connection scope**. When using a connection pool, each call to the executor may be dispatched to a different connection, which makes multi-statement transactions unsafe.
+
+To execute transactional workflows, the caller should obtain a dedicated connection and build the executor from it:
+
+```ts
+// Acquire a dedicated connection from the pool
+const client = await pool.connect();
+try {
+  await client.query('BEGIN');
+
+  // Build an executor scoped to this connection
+  const executor = async (sql: string, params: readonly unknown[]) => {
+    const result = await client.query(sql, params as unknown[]);
+    return result.rows;
+  };
+
+  const reader = createReader(executor);
+  const user = await reader.one('SELECT ...', [userId]);
+  // ... additional queries on the same connection ...
+
+  await client.query('COMMIT');
+} catch (e) {
+  await client.query('ROLLBACK');
+  throw e;
+} finally {
+  client.release();
+}
+```
+
+This separation keeps sql-contract focused on the mapping layer while leaving execution policy decisions — such as isolation level, retry logic, and savepoints — in the application layer where they belong.
+
 ## DBMS Differences
 
 sql-contract does not normalize SQL dialects or placeholder styles. Use the syntax required by your driver:
