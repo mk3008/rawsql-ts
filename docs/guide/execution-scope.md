@@ -62,7 +62,11 @@ try {
 
   await client.query('COMMIT');
 } catch (e) {
-  await client.query('ROLLBACK');
+  try {
+    await client.query('ROLLBACK');
+  } catch {
+    // ignore secondary rollback failure
+  }
   throw e;
 } finally {
   client.release();
@@ -83,7 +87,7 @@ This mechanism is **not** a model for production transaction management:
 
 A practical production pattern separates three concerns:
 
-```
+```text
 ┌─────────────────────────────────────────┐
 │  Application / Service layer            │
 │  - Acquires connection from pool        │
@@ -105,6 +109,6 @@ The repository layer depends only on `QueryExecutor`. The application layer deci
 
 ## Optional helper package
 
-An optional helper package [`@rawsql-ts/executor`](../../packages/executor/README.md) is available to reduce boilerplate for connection lifecycle and transaction scope, while keeping catalog and repository responsibilities unchanged.
+An optional helper package [`@rawsql-ts/executor`](https://github.com/mk3008/rawsql-ts/blob/main/packages/executor/README.md) is available to reduce boilerplate for connection lifecycle and transaction scope, while keeping catalog and repository responsibilities unchanged.
 
-It provides thin helpers such as `withConnection` and `withTransaction` while remaining driver-agnostic through connection factory injection. See the [`@rawsql-ts/executor` README](../../packages/executor/README.md) for usage details and the [DESIGN notes](../../DESIGN.md) for the broader architecture direction.
+It provides thin helpers such as `withConnection` and `withTransaction` while remaining driver-agnostic through connection factory injection. See the [`@rawsql-ts/executor` README](https://github.com/mk3008/rawsql-ts/blob/main/packages/executor/README.md) for usage details and the [DESIGN notes](https://github.com/mk3008/rawsql-ts/blob/main/DESIGN.md) for the broader architecture direction.

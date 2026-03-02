@@ -36,21 +36,32 @@ export function createConnectionProvider(
   return {
     async withConnection<R>(fn: (connection: any) => Promise<R>): Promise<R> {
       const connection = await options.connectionFactory();
+      let primaryError: unknown;
       try {
         return await fn(connection);
+      } catch (e) {
+        primaryError = e;
+        throw e;
       } finally {
-        await dispose(connection);
+        try {
+          await dispose(connection);
+        } catch (disposeError) {
+          if (!primaryError) throw disposeError;
+          // Primary error takes precedence; dispose failure is suppressed.
+        }
       }
     },
 
     async withTransaction<R>(fn: (connection: any) => Promise<R>): Promise<R> {
       const connection = await options.connectionFactory();
+      let primaryError: unknown;
       try {
         await connection.query('BEGIN');
         const result = await fn(connection);
         await connection.query('COMMIT');
         return result;
       } catch (e) {
+        primaryError = e;
         try {
           await connection.query('ROLLBACK');
         } catch {
@@ -59,7 +70,12 @@ export function createConnectionProvider(
         }
         throw e;
       } finally {
-        await dispose(connection);
+        try {
+          await dispose(connection);
+        } catch (disposeError) {
+          if (!primaryError) throw disposeError;
+          // Primary error takes precedence; dispose failure is suppressed.
+        }
       }
     },
   };

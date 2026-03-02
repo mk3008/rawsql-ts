@@ -23,7 +23,7 @@ const provider = createConnectionProvider({
 
 // Simple query (no transaction)
 const users = await provider.withConnection(async (conn) => {
-  const result = await conn.query<{ rows: { id: number; name: string }[] }>(
+  const result = await conn.query<{ id: number; name: string }>(
     'SELECT * FROM users'
   );
   return result.rows;
@@ -108,7 +108,7 @@ import { createReader } from '@rawsql-ts/sql-contract';
 
 await provider.withTransaction(async (conn) => {
   const executor = async (sql: string, params: unknown[]) => {
-    const result = await conn.query<{ rows: Record<string, unknown>[] }>(sql, params);
+    const result = await conn.query<Record<string, unknown>>(sql, params);
     return result.rows;
   };
 

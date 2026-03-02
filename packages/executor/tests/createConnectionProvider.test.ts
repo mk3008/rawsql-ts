@@ -100,10 +100,8 @@ describe('createConnectionProvider', () => {
     });
 
     it('propagates the original error even when ROLLBACK fails', async () => {
-      let callCount = 0;
       const conn = createMockReleasable({
         query: vi.fn().mockImplementation(async (sql: string) => {
-          callCount++;
           if (sql === 'ROLLBACK') {
             throw new Error('rollback failed');
           }
@@ -119,6 +117,8 @@ describe('createConnectionProvider', () => {
         })
       ).rejects.toThrow('original error');
 
+      expect(conn.query).toHaveBeenNthCalledWith(1, 'BEGIN');
+      expect(conn.query).toHaveBeenNthCalledWith(2, 'ROLLBACK');
       expect(conn.release).toHaveBeenCalledOnce();
     });
 

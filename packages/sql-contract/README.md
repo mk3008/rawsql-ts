@@ -414,7 +414,11 @@ try {
 
   await client.query('COMMIT');
 } catch (e) {
-  await client.query('ROLLBACK');
+  try {
+    await client.query('ROLLBACK');
+  } catch {
+    // ignore secondary rollback failure
+  }
   throw e;
 } finally {
   client.release();

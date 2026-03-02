@@ -41,4 +41,4 @@ console.log(params);
 
 - [Formatting Recipes](./formatting-recipes.md) - Configure whitespace, keyword casing, and placeholder styles so your formatted SQL matches production expectations.
 - [Querybuilding Recipes](./querybuilding-recipes.md) - Master `FilterConditions`, nested logic, and downstream formatting to safely project runtime parameters.
-- [Execution Scope](./execution-scope.md) - Learn what stays caller-owned for connections and transactions, and when to use the optional [`@rawsql-ts/executor`](../../packages/executor/README.md) helper to reduce boilerplate.
+- [Execution Scope](./execution-scope.md) - Learn what stays caller-owned for connections and transactions, and when to use the optional [`@rawsql-ts/executor`](https://github.com/mk3008/rawsql-ts/blob/main/packages/executor/README.md) helper to reduce boilerplate.
