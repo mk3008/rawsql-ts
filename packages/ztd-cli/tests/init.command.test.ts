@@ -412,6 +412,58 @@ test('init wizard rejects when pg_dump is missing', async () => {
   expect(existsSync(path.join(workspace, 'README.md'))).toBe(false);
 });
 
+test('init completes non-interactively with --yes defaults (demo + zod)', async () => {
+  const workspace = createTempDir('cli-init-noninteractive');
+  // Prompter should never be called — pass one with no responses to detect stray prompts.
+  const prompter = new TestPrompter([]);
+
+  const result = await runInitCommand(prompter, {
+    rootDir: workspace,
+    forceOverwrite: true,
+    nonInteractive: true,
+    workflow: 'demo',
+    validator: 'zod'
+  });
+
+  const schemaPath = schemaFilePath(workspace);
+
+  expect(result.summary).toContain('ZTD project initialized');
+  expect(existsSync(schemaPath)).toBe(true);
+  expect(readNormalizedFile(schemaPath)).toContain('create table "user" (');
+  expect(existsSync(path.join(workspace, 'tests', 'smoke.test.ts'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'tests', 'smoke.validation.test.ts'))).toBe(true);
+  expect(existsSync(path.join(workspace, 'ztd.config.json'))).toBe(true);
+
+  const specFile = readNormalizedFile(
+    path.join(workspace, 'src', 'catalog', 'specs', '_smoke.spec.ts'),
+  );
+  expect(specFile).toContain("from 'zod'");
+});
+
+test('init completes non-interactively with explicit --workflow empty --validator arktype', async () => {
+  const workspace = createTempDir('cli-init-noninteractive-empty-arktype');
+  const prompter = new TestPrompter([]);
+
+  const result = await runInitCommand(prompter, {
+    rootDir: workspace,
+    forceOverwrite: true,
+    nonInteractive: true,
+    workflow: 'empty',
+    validator: 'arktype'
+  });
+
+  const schemaPath = schemaFilePath(workspace);
+
+  expect(result.summary).toContain('ZTD project initialized');
+  expect(existsSync(schemaPath)).toBe(true);
+  expect(readNormalizedFile(schemaPath)).toContain('-- DDL for schema');
+
+  const specFile = readNormalizedFile(
+    path.join(workspace, 'src', 'catalog', 'specs', '_smoke.spec.ts'),
+  );
+  expect(specFile).toContain("from 'arktype'");
+});
+
 test('TestPrompter.confirm maps yes and no variants', async () => {
   const prompter = new TestPrompter(['y', 'yes', 'n']);
   expect(await prompter.confirm('still there?')).toBe(true);
