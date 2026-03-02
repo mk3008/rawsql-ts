@@ -103,6 +103,8 @@ A practical production pattern separates three concerns:
 
 The repository layer depends only on `QueryExecutor`. The application layer decides when to start and end transactions. rawsql-ts packages operate exclusively within the repository layer.
 
-## Future direction
+## Optional helper package
 
-A dedicated execution runtime package (`@rawsql-ts/executor` or similar) may be introduced to reduce the boilerplate around connection scoping and transaction control. This would provide thin helpers such as `withConnection` and `withTransaction` while remaining driver-agnostic through connection factory injection. See the [DESIGN notes](../../DESIGN.md) for current architecture direction.
+An optional helper package [`@rawsql-ts/executor`](../../packages/executor/README.md) is available to reduce boilerplate for connection lifecycle and transaction scope, while keeping catalog and repository responsibilities unchanged.
+
+It provides thin helpers such as `withConnection` and `withTransaction` while remaining driver-agnostic through connection factory injection. See the [`@rawsql-ts/executor` README](../../packages/executor/README.md) for usage details and the [DESIGN notes](../../DESIGN.md) for the broader architecture direction.

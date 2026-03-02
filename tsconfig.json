@@ -57,7 +57,9 @@
         "@rawsql-ts/testkit-sqlite": ["packages/testkit-sqlite/src"],
         "@rawsql-ts/adapter-node-pg": ["packages/adapters/adapter-node-pg/src"],
         "@rawsql-ts/shared-binder": ["packages/_shared/binder/src"],
-        "@rawsql-ts/shared-binder/*": ["packages/_shared/binder/src/*"]
+        "@rawsql-ts/shared-binder/*": ["packages/_shared/binder/src/*"],
+        "@rawsql-ts/executor": ["packages/executor/src"],
+        "@rawsql-ts/executor/*": ["packages/executor/src/*"]
         },
         // "rootDir": "./",                                  /* Specify the root folder within your source files. */
         // "moduleResolution": "node10",                     /* Specify how TypeScript looks up a file from a given module specifier. */

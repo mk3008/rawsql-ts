@@ -28,6 +28,12 @@ export default defineConfig({
       '/guide/': [
         { text: 'Overview', link: '/guide/overview' },
         { text: 'Getting Started', link: '/guide/getting-started' },
+        {
+          text: 'Execution',
+          items: [
+            { text: 'Execution Scope', link: '/guide/execution-scope' },
+          ]
+        },
         { text: 'Formatting Recipes', link: '/guide/formatting-recipes' },
         { text: 'Querybuilding Recipes', link: '/guide/querybuilding-recipes' },
         { text: 'Testkit Concept', link: '/guide/testkit-concept' },
