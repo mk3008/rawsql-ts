@@ -52,4 +52,5 @@ Single-statement parsing uses a defensive default: `SqlParser.parse` throws when
 - Follow the Getting Started Guide for local usage and formatting recipes.
 - Try the Formatter Playground to experiment with formatting and AST analysis.
 - Learn why hermetic SQL fixtures matter in the [Testkit Concept](./testkit-concept.md) and apply them via the [SQLite Testkit HowTo](./testkit-sqlite-howto.md).
+- Understand [Execution Scope](./execution-scope.md) — what the library manages vs. what the caller manages (connections, transactions).
 - Browse the API Reference for detailed class and type definitions.

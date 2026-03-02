@@ -25,6 +25,12 @@ Designed to complement — not replace — your SQL expertise.
 |---------|---------|-------------|
 | [@rawsql-ts/sql-contract](./packages/sql-contract) | ![npm](https://img.shields.io/npm/v/@rawsql-ts/sql-contract) | Type-safe result mapping for raw SQL queries. Driver and validator agnostic. |
 
+### Execution
+
+| Package | Version | Description |
+|---------|---------|-------------|
+| [@rawsql-ts/executor](./packages/executor) | ![npm](https://img.shields.io/npm/v/@rawsql-ts/executor) | Optional helper for connection lifecycle and transaction scope when you want less boilerplate while keeping execution ownership in the caller. |
+
 ### Testing
 
 | Package | Version | Description |
@@ -52,6 +58,7 @@ Designed to complement — not replace — your SQL expertise.
 ```
 rawsql-ts (core)
 ├── @rawsql-ts/sql-contract
+├── @rawsql-ts/executor
 ├── @rawsql-ts/testkit-core
 │   ├── @rawsql-ts/testkit-postgres
 │   │   └── @rawsql-ts/adapter-node-pg

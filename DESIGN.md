@@ -17,6 +17,12 @@
 - Package direction: `core -> testkit-core -> testkit-postgres/testkit-sqlite`.
 - Reverse dependency direction is an architectural violation.
 
+## Connection and Transaction Management
+- Connection lifecycle and transaction boundaries are the caller's responsibility.
+- `QueryExecutor` assumes single-connection scope; pool-dispatched executors are not transaction-safe.
+- Testkit packages (`testkit-core`, `testkit-postgres`) provide transaction isolation for testing only — this is not a production execution model.
+- A dedicated execution/runtime package may be introduced in the future to reduce boilerplate around connection scoping and transaction control.
+
 ## Test Case Modeling
 - Test Case Catalog, Scenario, and Unit Test roles define separation of specification and execution concerns.
 

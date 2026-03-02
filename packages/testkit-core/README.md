@@ -66,6 +66,8 @@ await provider.close();
 
 The default configuration uses the `'shared'` strategy with `reset: 'transaction'` — `BEGIN` before each scenario and `ROLLBACK` afterward. For tests requiring persistent schema changes (temporary tables, `SET` commands, etc.), use `provider.perTest()` or pass `{ strategy: 'perTest' }` to create a new connection per run.
 
+> **Note:** `createTestkitProvider` manages connections and transactions exclusively for **test isolation**. It is not intended as a production execution model. In production code, connection lifecycle and transaction boundaries are the caller's responsibility. See the [Execution Scope guide](../../docs/guide/execution-scope.md) for details.
+
 ## License
 
 MIT
