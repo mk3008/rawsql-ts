@@ -122,12 +122,16 @@ npx ztd ztd-config --watch # Or keep types updated while editing DDL
 
 Use `ztd query uses` before renaming or deleting catalog-facing SQL assets. The command is strict by default and never broadens matching unless you opt in with relaxed flags.
 
+- Use `--view impact` for the initial "used or not, and by which queries?" pass.
+- Use `--view detail` when you need edit-ready locations and snippets for refactoring.
+
 ### Strict examples
 
 ```bash
 npx ztd query uses table public.users
 npx ztd query uses column public.users.email
 npx ztd query uses column public.users.email --format json
+npx ztd query uses column public.users.email --view detail
 ```
 
 ### Relaxed examples
@@ -142,8 +146,9 @@ npx ztd query uses column email --any-schema --any-table --format json
 
 ```json
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "mode": "exact",
+  "view": "impact",
   "target": {
     "kind": "column",
     "raw": "public.users.email",
@@ -161,23 +166,36 @@ npx ztd query uses column email --any-schema --any-table --format json
   },
   "matches": [
     {
+      "kind": "impact",
       "catalog_id": "catalog.users",
       "query_id": "catalog.users:1",
       "statement_fingerprint": "6cb80ffe674e",
       "sql_file": "src/sql/users.sql",
-      "usage_kind": "select",
-      "location": {
-        "startLine": 1,
-        "startColumn": 10,
-        "endLine": 1,
-        "endColumn": 17,
-        "fileOffsetStart": 9,
-        "fileOffsetEnd": 16
+      "usageKindCounts": {
+        "select": 1
       },
-      "snippet": "SELECT u.email FROM public.users u",
       "confidence": "high",
       "notes": [],
-      "source": "ast"
+      "source": "ast",
+      "representatives": [
+        {
+          "usage_kind": "select",
+          "location": {
+            "startLine": 1,
+            "startColumn": 10,
+            "endLine": 1,
+            "endColumn": 17,
+            "fileOffsetStart": 9,
+            "fileOffsetEnd": 16
+          },
+          "snippet": "SELECT u.email FROM public.users u",
+          "exprHints": [
+            "projection"
+          ],
+          "confidence": "high",
+          "notes": []
+        }
+      ]
     }
   ],
   "warnings": []
@@ -187,10 +205,12 @@ npx ztd query uses column email --any-schema --any-table --format json
 ### Output fields
 
 - `mode` tells you whether the query ran in `exact`, `any-schema`, or `any-schema-any-table` mode.
+- `view` tells you whether the report is aggregated for impact investigation or expanded for refactor detail.
 - `confidence` exposes how reliable a match is. Relaxed mode and ambiguous static matches intentionally drop to `low`.
 - `notes` lists why confidence dropped, such as `unqualified-column`, `wildcard-select`, or `parser-fallback`.
 - `source` distinguishes AST-derived matches from fallback-derived matches.
 - `statement_fingerprint` is a stable hash of normalized statement text. It is designed to survive comment and whitespace changes under the current normalization contract.
+- `impact` view aggregates by statement fingerprint, while `detail` view emits one row per occurrence with clause-aware locations.
 
 Static column analysis does not guarantee semantic identity.
 

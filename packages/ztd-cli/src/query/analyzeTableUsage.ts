@@ -1,15 +1,24 @@
-import { DeleteQuery, InsertQuery, SimpleSelectQuery, SqlParser, UpdateQuery, SourceExpression } from 'rawsql-ts';
-import type { FromClause, TableSource, JoinClause, ReturningClause, UsingClause } from 'rawsql-ts';
-import { TableSource as TableSourceModel, SubQuerySource, ParenSource } from 'rawsql-ts';
+import { DeleteQuery, InsertQuery, ParenSource, SimpleSelectQuery, SourceExpression, SqlParser, SubQuerySource, UpdateQuery } from 'rawsql-ts';
+import type { FromClause, JoinClause, ReturningClause, TableSource, UsingClause } from 'rawsql-ts';
+import { TableSource as TableSourceModel } from 'rawsql-ts';
 import { locateUsageText } from './location';
 import type { CatalogStatement } from '../utils/sqlCatalogStatements';
-import type { QueryUsageAnalyzerResult, QueryUsageConfidence, QueryUsageMatch, QueryUsageMode, QueryUsageTarget, QueryUsageWarning } from './types';
+import type {
+  QueryUsageAnalyzerResult,
+  QueryUsageClauseAnchor,
+  QueryUsageConfidence,
+  QueryUsageMatchDetail,
+  QueryUsageMode,
+  QueryUsageTarget
+} from './types';
 
 interface TableOccurrence {
   usageKind: string;
   searchTerms: string[];
   confidence: QueryUsageConfidence;
   notes: string[];
+  clauseAnchor: QueryUsageClauseAnchor;
+  strongClauseMatch: boolean;
 }
 
 /**
@@ -152,18 +161,17 @@ function collectReturningOccurrences(
   mode: QueryUsageMode,
   context: { inSubquery?: boolean; inCte?: boolean }
 ): TableOccurrence[] {
-  if (!target.table) {
-    return [];
-  }
-  if (context.inCte || context.inSubquery) {
+  if (!target.table || context.inCte || context.inSubquery) {
     return [];
   }
   return [
     {
       usageKind: 'returning',
-      searchTerms: buildTableSearchTerms(target),
+      searchTerms: buildTableSearchTerms(target, mode),
       confidence: mode === 'exact' ? 'medium' : 'low',
-      notes: mode === 'exact' ? [] : ['relaxed-match-any-schema']
+      notes: mode === 'exact' ? [] : ['relaxed-match-any-schema'],
+      clauseAnchor: resolveClauseAnchor('returning'),
+      strongClauseMatch: false
     }
   ];
 }
@@ -184,9 +192,11 @@ function collectSourceExpressionOccurrences(
           ...target,
           table: qualified.table,
           schema: qualified.schema
-        }),
+        }, mode),
         confidence: mode === 'exact' ? 'high' : 'low',
-        notes: mode === 'exact' ? [] : ['relaxed-match-any-schema']
+        notes: mode === 'exact' ? [] : ['relaxed-match-any-schema'],
+        clauseAnchor: resolveClauseAnchor(usageKind),
+        strongClauseMatch: mode === 'exact' && usageKind !== 'returning'
       }];
     }
     return [];
@@ -195,26 +205,9 @@ function collectSourceExpressionOccurrences(
     return collectTableOccurrences(source.datasource.query, target, mode, { ...context, inSubquery: true });
   }
   if (source.datasource instanceof ParenSource) {
-    return collectNestedSourceOccurrences(source.datasource.source, source.aliasExpression, target, mode, context, usageKind);
+    return collectSourceExpressionOccurrences(new SourceExpression(source.datasource.source, source.aliasExpression), target, mode, context, usageKind);
   }
   return [];
-}
-
-function collectNestedSourceOccurrences(
-  datasource: SourceExpression['datasource'],
-  aliasExpression: SourceExpression['aliasExpression'],
-  target: QueryUsageTarget,
-  mode: QueryUsageMode,
-  context: { inSubquery?: boolean; inCte?: boolean },
-  usageKind: string
-): TableOccurrence[] {
-  return collectSourceExpressionOccurrences(
-    new SourceExpression(datasource, aliasExpression),
-    target,
-    mode,
-    context,
-    usageKind
-  );
 }
 
 function getQualifiedTable(source: TableSource): { schema?: string; table: string; full: string } {
@@ -238,29 +231,36 @@ function matchesTargetTable(
   return target.table !== undefined && table.table.toLowerCase() === target.table.toLowerCase();
 }
 
-function buildTableSearchTerms(target: QueryUsageTarget): string[] {
-  const terms: string[] = [];
-  if (target.schema && target.table) {
-    terms.push(`${target.schema}.${target.table}`);
+function buildTableSearchTerms(target: QueryUsageTarget, mode: QueryUsageMode): string[] {
+  if (mode === 'exact') {
+    return target.schema && target.table ? [`${target.schema}.${target.table}`] : [];
   }
-  if (target.table) {
-    terms.push(target.table);
+  if (mode === 'any-schema') {
+    return target.table ? [target.table] : [];
   }
-  return terms;
+  return target.table ? [target.table] : [];
 }
 
-function toTableMatch(statement: CatalogStatement, occurrence: TableOccurrence): QueryUsageMatch {
+function toTableMatch(statement: CatalogStatement, occurrence: TableOccurrence): QueryUsageMatchDetail {
   const located = locateUsageText({
     statementText: statement.statementText,
     statementStartOffsetInFile: statement.statementStartOffsetInFile,
-    candidates: occurrence.searchTerms
+    candidates: occurrence.searchTerms,
+    clauseAnchor: occurrence.clauseAnchor
   });
   const notes = [...occurrence.notes];
+  let confidence = occurrence.confidence;
+
   if (located.ambiguous && !notes.includes('ambiguous-multiple-occurrences')) {
     notes.push('ambiguous-multiple-occurrences');
+    confidence = 'low';
+  }
+  if (occurrence.strongClauseMatch && !located.ambiguous) {
+    confidence = 'high';
   }
 
   return {
+    kind: 'detail',
     catalog_id: statement.catalogId,
     query_id: statement.queryId,
     statement_fingerprint: statement.statementFingerprint,
@@ -268,8 +268,31 @@ function toTableMatch(statement: CatalogStatement, occurrence: TableOccurrence):
     usage_kind: occurrence.usageKind,
     location: located.location,
     snippet: located.snippet,
-    confidence: located.ambiguous ? 'low' : occurrence.confidence,
+    confidence,
     notes: notes.sort(),
     source: 'ast'
   };
+}
+
+function resolveClauseAnchor(usageKind: string): QueryUsageClauseAnchor {
+  switch (usageKind) {
+    case 'from':
+    case 'subquery-from':
+    case 'cte-body-from':
+      return { kind: usageKind, tokens: ['FROM'] };
+    case 'join':
+      return { kind: usageKind, tokens: ['JOIN'] };
+    case 'insert-target':
+      return { kind: usageKind, tokens: ['INSERT', 'INTO'] };
+    case 'update-target':
+      return { kind: usageKind, tokens: ['UPDATE'] };
+    case 'delete-target':
+      return { kind: usageKind, tokens: ['DELETE', 'FROM'] };
+    case 'using':
+      return { kind: usageKind, tokens: ['USING'] };
+    case 'returning':
+      return { kind: usageKind, tokens: ['RETURNING'] };
+    default:
+      return { kind: usageKind, tokens: ['FROM'] };
+  }
 }

@@ -18,6 +18,7 @@ import {
   JoinUsingClause,
   OrderByItem,
   ParenExpression,
+  ParenSource,
   RawString,
   SelectItem,
   SimpleSelectQuery,
@@ -35,16 +36,15 @@ import {
   type SourceExpression,
   type ValueComponent
 } from 'rawsql-ts';
-import { ParenSource } from 'rawsql-ts';
 import { locateUsageText } from './location';
 import type { CatalogStatement } from '../utils/sqlCatalogStatements';
 import type {
   QueryUsageAnalyzerResult,
+  QueryUsageClauseAnchor,
   QueryUsageConfidence,
-  QueryUsageMatch,
+  QueryUsageMatchDetail,
   QueryUsageMode,
-  QueryUsageTarget,
-  QueryUsageWarning
+  QueryUsageTarget
 } from './types';
 
 interface ScopeState {
@@ -58,6 +58,7 @@ interface ColumnOccurrence {
   confidence: QueryUsageConfidence;
   notes: string[];
   exprHints: string[];
+  clauseAnchor: QueryUsageClauseAnchor;
 }
 
 /**
@@ -106,6 +107,7 @@ function collectColumnOccurrences(
         matches.push(...collectColumnOccurrences(table.query, target, mode, { inCte: true }));
       }
     }
+
     const scope = buildScope(parsed.fromClause ?? undefined, target, mode);
     if (parsed.fromClause) {
       matches.push(...collectNestedSourceQueryMatches(parsed.fromClause.source, target, mode));
@@ -126,11 +128,7 @@ function collectColumnOccurrences(
     }
     if (parsed.orderByClause) {
       for (const order of parsed.orderByClause.order) {
-        if (order instanceof OrderByItem) {
-          matches.push(...collectExpressionMatches(order.value, target, mode, scope, context, 'order-by', []));
-        } else {
-          matches.push(...collectExpressionMatches(order, target, mode, scope, context, 'order-by', []));
-        }
+        matches.push(...collectExpressionMatches(order instanceof OrderByItem ? order.value : order, target, mode, scope, context, 'order-by', []));
       }
     }
     if (parsed.fromClause?.joins) {
@@ -141,6 +139,7 @@ function collectColumnOccurrences(
     }
     return matches;
   }
+
   if (parsed instanceof UpdateQuery) {
     const matches: ColumnOccurrence[] = [];
     if (parsed.withClause) {
@@ -148,10 +147,11 @@ function collectColumnOccurrences(
         matches.push(...collectColumnOccurrences(table.query, target, mode, { inCte: true }));
       }
     }
+
     const scope = buildScope(parsed.fromClause ?? undefined, target, mode, parsed.updateClause.source);
     for (const item of parsed.setClause.items) {
       if (matchesColumnName(item.column.name, target)) {
-        matches.push(buildExplicitOccurrence(item.column.name, target, mode, 'update-set', [], scope, context));
+        matches.push(buildExplicitOccurrence(item.column.name, mode, 'update-set', [], context));
       }
       matches.push(...collectExpressionMatches(item.value, target, mode, scope, context, 'update-set', []));
     }
@@ -170,6 +170,7 @@ function collectColumnOccurrences(
     }
     return matches;
   }
+
   if (parsed instanceof DeleteQuery) {
     const matches: ColumnOccurrence[] = [];
     if (parsed.withClause) {
@@ -177,6 +178,7 @@ function collectColumnOccurrences(
         matches.push(...collectColumnOccurrences(table.query, target, mode, { inCte: true }));
       }
     }
+
     const scope = buildScope(undefined, target, mode, parsed.deleteClause.source);
     if (parsed.whereClause) {
       matches.push(...collectExpressionMatches(parsed.whereClause.condition, target, mode, scope, context, 'where', []));
@@ -188,13 +190,14 @@ function collectColumnOccurrences(
     }
     return matches;
   }
+
   if (parsed instanceof InsertQuery) {
     const scope = buildScope(undefined, target, mode, parsed.insertClause.source);
     const matches: ColumnOccurrence[] = [];
     if (parsed.insertClause.columns) {
       for (const column of parsed.insertClause.columns) {
         if (matchesColumnName(column.name, target)) {
-          matches.push(buildExplicitOccurrence(column.name, target, mode, 'insert-column', [], scope, context));
+          matches.push(buildExplicitOccurrence(column.name, mode, 'insert-column', [], context));
         }
       }
     }
@@ -208,6 +211,7 @@ function collectColumnOccurrences(
     }
     return matches;
   }
+
   return [];
 }
 
@@ -221,6 +225,7 @@ function buildScope(
     targetTablePresent: mode === 'any-schema-any-table',
     aliases: new Set<string>()
   };
+
   if (primarySource) {
     collectScopeFromSource(primarySource, target, mode, scope);
   }
@@ -239,6 +244,7 @@ function collectScopeFromSource(source: SourceExpression, target: QueryUsageTarg
   if (!(source.datasource instanceof TableSource)) {
     return;
   }
+
   const schema = source.datasource.namespaces?.map((value) => value.name).join('.') || undefined;
   const table = source.datasource.table.name;
   const matches =
@@ -299,11 +305,8 @@ function collectNestedSourceQueryMatches(
   if (source.datasource instanceof SubQuerySource) {
     return collectColumnOccurrences(source.datasource.query, target, mode, { inSubquery: true });
   }
-  if (source.datasource instanceof ParenSource) {
-    const nested = source.datasource.source;
-    if (nested instanceof SubQuerySource) {
-      return collectColumnOccurrences(nested.query, target, mode, { inSubquery: true });
-    }
+  if (source.datasource instanceof ParenSource && source.datasource.source instanceof SubQuerySource) {
+    return collectColumnOccurrences(source.datasource.source.query, target, mode, { inSubquery: true });
   }
   return [];
 }
@@ -440,8 +443,7 @@ function collectColumnReferenceMatch(
     if (!scope.targetTablePresent) {
       return [];
     }
-    const qualifier = namespace ? `${namespace}.*` : '*';
-    searchTerms = [qualifier];
+    searchTerms = [namespace ? `${namespace}.*` : '*'];
   } else {
     if (!matchesColumnName(columnName, target)) {
       return [];
@@ -451,6 +453,7 @@ function collectColumnReferenceMatch(
       notes.add('join-using-column');
       confidence = 'low';
     }
+
     if (!namespace) {
       notes.add('unqualified-column');
       confidence = 'low';
@@ -460,15 +463,14 @@ function collectColumnReferenceMatch(
       searchTerms = [columnName];
     } else {
       const matchesNamespace =
-        mode === 'any-schema-any-table'
-          ? true
-          : scope.aliases.has(namespace) ||
-            (target.table ? namespace === target.table.toLowerCase() : false) ||
-            (target.schema && target.table ? namespace === `${target.schema}.${target.table}`.toLowerCase() : false);
+        mode === 'any-schema-any-table' ||
+        scope.aliases.has(namespace) ||
+        (target.table ? namespace === target.table.toLowerCase() : false) ||
+        (target.schema && target.table ? namespace === `${target.schema}.${target.table}`.toLowerCase() : false);
       if (!matchesNamespace) {
         return [];
       }
-      searchTerms = [`${namespace}.${columnName}`];
+      searchTerms = [`${namespace}.${columnName}`, columnName];
     }
   }
 
@@ -491,23 +493,19 @@ function collectColumnReferenceMatch(
     searchTerms,
     confidence,
     notes: Array.from(notes),
-    exprHints: Array.from(hints)
+    exprHints: Array.from(hints),
+    clauseAnchor: resolveClauseAnchor(usageKind)
   }];
 }
 
 function buildExplicitOccurrence(
   columnName: string,
-  target: QueryUsageTarget,
   mode: QueryUsageMode,
   usageKind: string,
   exprHints: string[],
-  scope: ScopeState,
   context: { inSubquery?: boolean; inCte?: boolean }
 ): ColumnOccurrence {
   const notes = new Set<string>();
-  if (!scope.targetTablePresent && mode !== 'any-schema-any-table') {
-    notes.add('unqualified-column');
-  }
   if (mode !== 'exact') {
     notes.add('relaxed-match-any-schema');
     if (mode === 'any-schema-any-table') {
@@ -519,7 +517,8 @@ function buildExplicitOccurrence(
     searchTerms: [columnName],
     confidence: notes.size > 0 ? 'low' : 'high',
     notes: Array.from(notes),
-    exprHints
+    exprHints,
+    clauseAnchor: resolveClauseAnchor(context.inCte ? 'cte' : context.inSubquery ? 'subquery' : usageKind)
   };
 }
 
@@ -527,17 +526,23 @@ function matchesColumnName(columnName: string, target: QueryUsageTarget): boolea
   return target.column !== undefined && columnName.toLowerCase() === target.column.toLowerCase();
 }
 
-function toColumnMatch(statement: CatalogStatement, occurrence: ColumnOccurrence): QueryUsageMatch {
+function toColumnMatch(statement: CatalogStatement, occurrence: ColumnOccurrence): QueryUsageMatchDetail {
   const located = locateUsageText({
     statementText: statement.statementText,
     statementStartOffsetInFile: statement.statementStartOffsetInFile,
-    candidates: occurrence.searchTerms
+    candidates: occurrence.searchTerms,
+    clauseAnchor: occurrence.clauseAnchor
   });
   const notes = [...occurrence.notes];
+  let confidence = occurrence.confidence;
+
   if (located.ambiguous && !notes.includes('ambiguous-multiple-occurrences')) {
     notes.push('ambiguous-multiple-occurrences');
+    confidence = 'low';
   }
+
   return {
+    kind: 'detail',
     catalog_id: statement.catalogId,
     query_id: statement.queryId,
     statement_fingerprint: statement.statementFingerprint,
@@ -546,8 +551,37 @@ function toColumnMatch(statement: CatalogStatement, occurrence: ColumnOccurrence
     exprHints: occurrence.exprHints.length > 0 ? occurrence.exprHints.sort() : undefined,
     location: located.location,
     snippet: located.snippet,
-    confidence: located.ambiguous ? 'low' : occurrence.confidence,
+    confidence,
     notes: notes.sort(),
     source: 'ast'
   };
+}
+
+function resolveClauseAnchor(usageKind: string): QueryUsageClauseAnchor {
+  switch (usageKind) {
+    case 'where':
+      return { kind: usageKind, tokens: ['WHERE'] };
+    case 'order-by':
+      return { kind: usageKind, tokens: ['ORDER', 'BY'] };
+    case 'group-by':
+      return { kind: usageKind, tokens: ['GROUP', 'BY'] };
+    case 'having':
+      return { kind: usageKind, tokens: ['HAVING'] };
+    case 'returning':
+      return { kind: usageKind, tokens: ['RETURNING'] };
+    case 'update-set':
+      return { kind: usageKind, tokens: ['SET'] };
+    case 'join-on':
+      return { kind: usageKind, tokens: ['ON'] };
+    case 'join-using':
+      return { kind: usageKind, tokens: ['USING'] };
+    case 'insert-column':
+      return { kind: usageKind, tokens: ['INSERT', 'INTO'] };
+    case 'select':
+    case 'subquery':
+    case 'cte':
+    case 'unknown':
+    default:
+      return { kind: usageKind, tokens: ['SELECT'] };
+  }
 }

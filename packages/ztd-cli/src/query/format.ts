@@ -1,4 +1,4 @@
-import type { QueryUsageMatch, QueryUsageReport, QueryUsageWarning } from './types';
+import type { QueryUsageMatch, QueryUsageMatchDetail, QueryUsageMatchImpact, QueryUsageReport, QueryUsageWarning } from './types';
 
 /**
  * Sort matches in a deterministic, machine-friendly order.
@@ -7,9 +7,9 @@ export function sortQueryUsageMatches(matches: QueryUsageMatch[]): QueryUsageMat
   return [...matches].sort((a, b) =>
     a.catalog_id.localeCompare(b.catalog_id) ||
     a.sql_file.localeCompare(b.sql_file) ||
-    compareNullableNumber(a.location?.fileOffsetStart, b.location?.fileOffsetStart) ||
+    compareNullableNumber(getLocationStart(a), getLocationStart(b)) ||
     a.query_id.localeCompare(b.query_id) ||
-    a.usage_kind.localeCompare(b.usage_kind)
+    compareUsageKey(a).localeCompare(compareUsageKey(b))
   );
 }
 
@@ -36,6 +36,7 @@ export function formatQueryUsageReport(report: QueryUsageReport, format: 'text' 
 
   const lines: string[] = [
     `mode: ${report.mode}`,
+    `view: ${report.view}`,
     `target: ${report.target.kind} ${report.target.raw}`,
     `catalogs: ${report.summary.catalogsScanned}`,
     `statements: ${report.summary.statementsScanned}`,
@@ -53,16 +54,38 @@ export function formatQueryUsageReport(report: QueryUsageReport, format: 'text' 
     }
   }
 
-  const primary = report.matches.filter((match) => match.source === 'ast');
-  const fallback = report.matches.filter((match) => match.source === 'fallback');
+  if (report.view === 'impact') {
+    lines.push('', 'Affected queries:');
+    appendImpactMatches(lines, report.matches as QueryUsageMatchImpact[]);
+    return `${lines.join('\n')}\n`;
+  }
+
+  const primary = (report.matches as QueryUsageMatchDetail[]).filter((match) => match.source === 'ast');
+  const fallback = (report.matches as QueryUsageMatchDetail[]).filter((match) => match.source === 'fallback');
   lines.push('', 'Primary matches:');
-  appendMatches(lines, primary);
+  appendDetailMatches(lines, primary);
   lines.push('', 'Fallback-derived matches:');
-  appendMatches(lines, fallback);
+  appendDetailMatches(lines, fallback);
   return `${lines.join('\n')}\n`;
 }
 
-function appendMatches(lines: string[], matches: QueryUsageMatch[]): void {
+function appendImpactMatches(lines: string[], matches: QueryUsageMatchImpact[]): void {
+  if (matches.length === 0) {
+    lines.push('(none)');
+    return;
+  }
+
+  for (const match of matches) {
+    lines.push(`- ${match.catalog_id} ${match.query_id} ${match.confidence}`);
+    lines.push(`  sql_file: ${match.sql_file}`);
+    lines.push(`  statement_fingerprint: ${match.statement_fingerprint}`);
+    lines.push(`  source: ${match.source}`);
+    lines.push(`  usageKinds: ${formatUsageKindCounts(match.usageKindCounts)}`);
+    lines.push(`  notes: ${match.notes.length > 0 ? match.notes.join(', ') : '(none)'}`);
+  }
+}
+
+function appendDetailMatches(lines: string[], matches: QueryUsageMatchDetail[]): void {
   if (matches.length === 0) {
     lines.push('(none)');
     return;
@@ -80,11 +103,31 @@ function appendMatches(lines: string[], matches: QueryUsageMatch[]): void {
   }
 }
 
-function formatLocation(match: QueryUsageMatch): string {
+function formatUsageKindCounts(value: Record<string, number>): string {
+  return Object.entries(value)
+    .map(([usageKind, count]) => `${usageKind}=${count}`)
+    .join(', ');
+}
+
+function formatLocation(match: QueryUsageMatchDetail): string {
   if (!match.location) {
     return '(unresolved)';
   }
   return `${match.location.startLine}:${match.location.startColumn}-${match.location.endLine}:${match.location.endColumn} @ ${match.location.fileOffsetStart}-${match.location.fileOffsetEnd}`;
+}
+
+function getLocationStart(match: QueryUsageMatch): number | undefined {
+  if (match.kind === 'impact') {
+    return match.representatives?.[0]?.location?.fileOffsetStart;
+  }
+  return match.location?.fileOffsetStart;
+}
+
+function compareUsageKey(match: QueryUsageMatch): string {
+  if (match.kind === 'impact') {
+    return Object.keys(match.usageKindCounts).join(',');
+  }
+  return match.usage_kind;
 }
 
 function compareNullableNumber(left: number | undefined, right: number | undefined): number {

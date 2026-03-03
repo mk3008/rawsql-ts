@@ -32,8 +32,8 @@ test('parseQueryTarget enforces strict defaults and explicit relaxed modes', () 
   });
 });
 
-test('buildQueryUsageReport finds exact table usage with deterministic ordering and locations', () => {
-  const root = createWorkspace('query-uses-table');
+test('impact view aggregates table usage by statement', () => {
+  const root = createWorkspace('query-uses-table-impact');
   writeFileSync(
     path.join(root, 'src', 'catalog', 'specs', 'users.spec.json'),
     JSON.stringify({ id: 'catalog.users', sqlFile: '../../sql/users.sql', params: { shape: 'named' } }, null, 2),
@@ -59,7 +59,8 @@ test('buildQueryUsageReport finds exact table usage with deterministic ordering 
     rootDir: root
   });
 
-  expect(report.mode).toBe('exact');
+  expect(report.schemaVersion).toBe(2);
+  expect(report.view).toBe('impact');
   expect(report.summary).toMatchObject({
     catalogsScanned: 1,
     statementsScanned: 7,
@@ -67,27 +68,64 @@ test('buildQueryUsageReport finds exact table usage with deterministic ordering 
     fallbackMatches: 0,
     parseWarnings: 0
   });
+  expect(report.matches.every((match) => match.kind === 'impact')).toBe(true);
   expect(report.matches.map((match) => ({
     queryId: match.query_id,
-    usageKind: match.usage_kind,
-    offset: match.location?.fileOffsetStart,
-    snippet: match.snippet
+    usageKinds: match.kind === 'impact' ? match.usageKindCounts : {},
+    confidence: match.confidence,
+    notes: match.notes
   }))).toEqual([
-    { queryId: 'catalog.users:1', usageKind: 'from', offset: 20, snippet: 'SELECT u.email FROM public.users u' },
-    { queryId: 'catalog.users:2', usageKind: 'join', offset: 73, snippet: 'SELECT o.id FROM public.orders o JOIN public.users u ON u.id = o.user_id' },
-    { queryId: 'catalog.users:3', usageKind: 'update-target', offset: 116, snippet: 'UPDATE public.users SET email = $1 WHERE id = $2' },
-    { queryId: 'catalog.users:4', usageKind: 'delete-target', offset: 171, snippet: 'DELETE FROM public.users WHERE id = $1' },
-    { queryId: 'catalog.users:5', usageKind: 'insert-target', offset: 211, snippet: 'INSERT INTO public.users (email) VALUES ($1)' },
-    { queryId: 'catalog.users:6', usageKind: 'subquery-from', offset: 275, snippet: 'SELECT * FROM (SELECT id FROM public.users) nested' },
-    { queryId: 'catalog.users:7', usageKind: 'cte-body-from', offset: 334, snippet: 'WITH active_users AS (SELECT id FROM public.users) SELECT id FROM active_users' }
+    { queryId: 'catalog.users:1', usageKinds: { from: 1 }, confidence: 'high', notes: [] },
+    { queryId: 'catalog.users:2', usageKinds: { join: 1 }, confidence: 'high', notes: [] },
+    { queryId: 'catalog.users:3', usageKinds: { 'update-target': 1 }, confidence: 'high', notes: [] },
+    { queryId: 'catalog.users:4', usageKinds: { 'delete-target': 1 }, confidence: 'high', notes: [] },
+    { queryId: 'catalog.users:5', usageKinds: { 'insert-target': 1 }, confidence: 'high', notes: [] },
+    { queryId: 'catalog.users:6', usageKinds: { 'subquery-from': 1 }, confidence: 'high', notes: [] },
+    { queryId: 'catalog.users:7', usageKinds: { 'cte-body-from': 1 }, confidence: 'high', notes: [] }
   ]);
-
-  expect(formatQueryUsageReport(report, 'json')).toContain('"mode": "exact"');
-  expect(formatQueryUsageReport(report, 'text')).toContain('Primary matches:');
+  expect(formatQueryUsageReport(report, 'json')).toContain('"view": "impact"');
+  expect(formatQueryUsageReport(report, 'text')).toContain('Affected queries:');
 });
 
-test('buildQueryUsageReport finds exact column usage and labels uncertainty explicitly', () => {
-  const root = createWorkspace('query-uses-column');
+test('impact view keeps high confidence for exact table matches with quoted identifiers', () => {
+  const root = createWorkspace('query-uses-table-quoted');
+  writeFileSync(
+    path.join(root, 'src', 'catalog', 'specs', 'users.spec.json'),
+    JSON.stringify({ id: 'catalog.users', sqlFile: '../../sql/users.sql', params: { shape: 'named' } }, null, 2),
+    'utf8'
+  );
+  writeFileSync(
+    path.join(root, 'src', 'sql', 'users.sql'),
+    'SELECT * FROM "public"."users";\nSELECT * FROM public . users;',
+    'utf8'
+  );
+
+  const report = buildQueryUsageReport({
+    kind: 'table',
+    rawTarget: 'public.users',
+    rootDir: root
+  });
+
+  expect(report.matches).toEqual([
+    expect.objectContaining({
+      kind: 'impact',
+      query_id: 'catalog.users:1',
+      confidence: 'high',
+      notes: [],
+      usageKindCounts: { from: 1 }
+    }),
+    expect.objectContaining({
+      kind: 'impact',
+      query_id: 'catalog.users:2',
+      confidence: 'high',
+      notes: [],
+      usageKindCounts: { from: 1 }
+    })
+  ]);
+});
+
+test('detail view keeps per-occurrence rows and fixes clause-aware column locations', () => {
+  const root = createWorkspace('query-uses-column-detail');
   writeFileSync(
     path.join(root, 'src', 'catalog', 'specs', 'users.spec.json'),
     JSON.stringify({ id: 'catalog.users', sqlFile: '../../sql/users.sql', params: { shape: 'named' } }, null, 2),
@@ -98,11 +136,6 @@ test('buildQueryUsageReport finds exact column usage and labels uncertainty expl
     [
       'SELECT u.email FROM public.users u;',
       'SELECT id FROM public.users WHERE email = $1 ORDER BY email;',
-      'SELECT u.id FROM public.users u JOIN public.orders o ON u.email = o.email;',
-      'SELECT u.id FROM public.users u JOIN public.orders o USING (email);',
-      'SELECT * FROM public.users;',
-      'WITH user_cte AS (SELECT email FROM public.users) SELECT email FROM user_cte;',
-      'SELECT email FROM (SELECT email FROM public.users) nested;',
       'UPDATE public.users SET email = $1 RETURNING email;',
       'INSERT INTO public.users (email) VALUES ($1);'
     ].join('\n'),
@@ -112,62 +145,64 @@ test('buildQueryUsageReport finds exact column usage and labels uncertainty expl
   const report = buildQueryUsageReport({
     kind: 'column',
     rawTarget: 'public.users.email',
-    rootDir: root
+    rootDir: root,
+    view: 'detail'
   });
 
-  expect(report.mode).toBe('exact');
-  expect(report.summary).toMatchObject({
-    catalogsScanned: 1,
-    statementsScanned: 9,
-    matches: 11
-  });
-  expect(report.matches.map((match) => ({
-    usageKind: match.usage_kind,
-    confidence: match.confidence,
-    notes: match.notes
-  }))).toEqual(expect.arrayContaining([
-    expect.objectContaining({ usageKind: 'select', confidence: 'high', notes: [] }),
-    expect.objectContaining({ usageKind: 'where', confidence: 'low', notes: expect.arrayContaining(['unqualified-column']) }),
-    expect.objectContaining({ usageKind: 'join-on', confidence: 'high', notes: [] }),
-    expect.objectContaining({ usageKind: 'join-using', confidence: 'low', notes: expect.arrayContaining(['join-using-column', 'unqualified-column']) }),
-    expect.objectContaining({ usageKind: 'select', confidence: 'low', notes: expect.arrayContaining(['wildcard-select']) }),
-    expect.objectContaining({ usageKind: 'cte', confidence: 'low', notes: expect.arrayContaining(['cte-projection', 'unqualified-column']) }),
-    expect.objectContaining({ usageKind: 'subquery', confidence: 'low', notes: expect.arrayContaining(['subquery-projection', 'unqualified-column']) }),
-    expect.objectContaining({ usageKind: 'update-set', confidence: 'low', notes: expect.arrayContaining(['ambiguous-multiple-occurrences']) }),
-    expect.objectContaining({ usageKind: 'returning', confidence: 'low' }),
-    expect.objectContaining({ usageKind: 'insert-column', confidence: 'high', notes: [] })
-  ]));
-  expect(formatQueryUsageReport(report, 'json')).toContain('"statement_fingerprint"');
+  expect(report.view).toBe('detail');
+  expect(report.matches.every((match) => match.kind === 'detail')).toBe(true);
+
+  const orderBy = report.matches.find((match) => match.kind === 'detail' && match.usage_kind === 'order-by');
+  const where = report.matches.find((match) => match.kind === 'detail' && match.usage_kind === 'where');
+  const returning = report.matches.find((match) => match.kind === 'detail' && match.usage_kind === 'returning');
+  const updateSet = report.matches.find((match) => match.kind === 'detail' && match.usage_kind === 'update-set');
+
+  expect(where?.snippet).toBe('WHERE email = $1');
+  expect(orderBy?.snippet).toBe('ORDER BY email');
+  expect(where?.location?.fileOffsetStart).toBeLessThan(orderBy?.location?.fileOffsetStart ?? 0);
+  expect(returning?.snippet).toBe('RETURNING email');
+  expect(updateSet?.snippet).toBe('SET email = $1');
+  expect((returning?.location?.fileOffsetStart ?? 0)).toBeGreaterThan(updateSet?.location?.fileOffsetStart ?? 0);
+  expect(formatQueryUsageReport(report, 'text')).toContain('Primary matches:');
 });
 
-test('buildQueryUsageReport requires explicit relaxed mode and includes relaxed notes', () => {
-  const root = createWorkspace('query-uses-relaxed');
+test('impact view aggregates confidence and notes for relaxed column investigation', () => {
+  const root = createWorkspace('query-uses-relaxed-impact');
   writeFileSync(
     path.join(root, 'src', 'catalog', 'specs', 'users.spec.json'),
     JSON.stringify({ id: 'catalog.users', sqlFile: '../../sql/users.sql', params: { shape: 'named' } }, null, 2),
     'utf8'
   );
-  writeFileSync(path.join(root, 'src', 'sql', 'users.sql'), 'SELECT email FROM public.users;', 'utf8');
+  writeFileSync(path.join(root, 'src', 'sql', 'users.sql'), 'SELECT email FROM public.users ORDER BY email;', 'utf8');
 
   const report = buildQueryUsageReport({
     kind: 'column',
-    rawTarget: 'users.email',
+    rawTarget: 'email',
     rootDir: root,
-    anySchema: true
+    anySchema: true,
+    anyTable: true
   });
 
-  expect(report.mode).toBe('any-schema');
+  expect(report.mode).toBe('any-schema-any-table');
   expect(report.target).toEqual({
     kind: 'column',
-    raw: 'users.email',
-    table: 'users',
+    raw: 'email',
     column: 'email'
   });
-  expect(report.matches[0]?.confidence).toBe('low');
-  expect(report.matches[0]?.notes).toContain('relaxed-match-any-schema');
+  const match = report.matches[0];
+  expect(match?.kind).toBe('impact');
+  if (match?.kind === 'impact') {
+    expect(match.confidence).toBe('low');
+    expect(match.notes).toEqual(expect.arrayContaining([
+      'relaxed-match-any-schema',
+      'relaxed-match-any-table',
+      'statement-has-unqualified-column'
+    ]));
+    expect(match.usageKindCounts).toEqual({ 'order-by': 1, select: 1 });
+  }
 });
 
-test('buildQueryUsageReport emits parse warnings, unresolved sql warnings, and table-only fallback deterministically', () => {
+test('detail view emits parse warnings, fallback rows, and no-catalog guidance deterministically', () => {
   const root = createWorkspace('query-uses-warnings');
   writeFileSync(
     path.join(root, 'src', 'catalog', 'specs', 'a.spec.json'),
@@ -184,7 +219,8 @@ test('buildQueryUsageReport emits parse warnings, unresolved sql warnings, and t
   const tableReport = buildQueryUsageReport({
     kind: 'table',
     rawTarget: 'public.users',
-    rootDir: root
+    rootDir: root,
+    view: 'detail'
   });
 
   expect(tableReport.summary).toMatchObject({
@@ -194,6 +230,7 @@ test('buildQueryUsageReport emits parse warnings, unresolved sql warnings, and t
   });
   expect(tableReport.matches).toEqual(expect.arrayContaining([
     expect.objectContaining({
+      kind: 'detail',
       source: 'fallback',
       usage_kind: 'update-target',
       confidence: 'low',
@@ -217,11 +254,18 @@ test('buildQueryUsageReport emits parse warnings, unresolved sql warnings, and t
   ]);
   expect(formatQueryUsageReport(tableReport, 'text')).toContain('Fallback-derived matches:');
 
-  const columnReport = buildQueryUsageReport({
-    kind: 'column',
-    rawTarget: 'public.users.email',
-    rootDir: root
+  const emptyRoot = createWorkspace('query-uses-empty');
+  const emptyReport = buildQueryUsageReport({
+    kind: 'table',
+    rawTarget: 'public.users',
+    rootDir: emptyRoot
   });
-  expect(columnReport.summary.fallbackMatches).toBe(0);
-  expect(columnReport.matches).toHaveLength(0);
+  expect(emptyReport.summary.matches).toBe(0);
+  expect(emptyReport.warnings).toEqual([
+    {
+      code: 'no-catalog-specs-found',
+      message: expect.stringContaining('Hint: run "ztd init" or pass "--specs-dir".')
+    }
+  ]);
+  expect(formatQueryUsageReport(emptyReport, 'text')).toContain('No catalog specs found under');
 });

@@ -6,6 +6,7 @@ interface QueryUsesOptions {
   format?: string;
   specsDir?: string;
   out?: string;
+  view?: string;
   anySchema?: boolean;
   anyTable?: boolean;
 }
@@ -21,11 +22,13 @@ export function registerQueryCommands(program: Command): void {
 Examples:
   $ ztd query uses table public.users
   $ ztd query uses column public.users.email
+  $ ztd query uses column public.users.email --view detail
   $ ztd query uses column users.email --any-schema --format json
   $ ztd query uses column email --any-schema --any-table --format json
 
 Notes:
   - Strict mode is the default. Relaxed modes are explicit opt-in only.
+  - Use --view impact for initial assessment and --view detail for edit-ready locations/snippets.
   - Static column analysis is inherently uncertain and labels ambiguity via confidence/notes.
   - exprHints: best-effort only. Absence of exprHints does not imply the feature is not present.
   - statement_fingerprint is stable across formatting/comment changes under the current normalization contract.
@@ -38,6 +41,7 @@ Notes:
     .command('table <target>')
     .description('Find statements that use a table target')
     .option('--format <format>', 'Output format (text|json)', 'text')
+    .option('--view <view>', 'Investigation view (impact|detail)', 'impact')
     .option('--specs-dir <path>', 'Override SQL catalog specs directory (default: src/catalog/specs)')
     .option('--out <path>', 'Write output to file')
     .option('--any-schema', 'Allow <table> lookup across schemas')
@@ -50,6 +54,7 @@ Notes:
     .command('column <target>')
     .description('Find statements that use a column target')
     .option('--format <format>', 'Output format (text|json)', 'text')
+    .option('--view <view>', 'Investigation view (impact|detail)', 'impact')
     .option('--specs-dir <path>', 'Override SQL catalog specs directory (default: src/catalog/specs)')
     .option('--out <path>', 'Write output to file')
     .option('--any-schema', 'Allow <table.column> or <column> lookup across schemas')
@@ -58,6 +63,7 @@ Notes:
       'after',
       `
 Notes:
+  - Use --view detail if you need edit-ready locations/snippets.
   - exprHints: best-effort only. Absence of exprHints does not imply the feature is not present.
 `
     )
@@ -68,11 +74,13 @@ Notes:
 
 function runQueryUsesCommand(kind: 'table' | 'column', target: string, options: QueryUsesOptions): void {
   const format = normalizeFormat(options.format ?? 'text');
+  const view = normalizeView(options.view ?? 'impact');
   const report = buildQueryUsageReport({
     kind,
     rawTarget: target,
     rootDir: process.env.ZTD_PROJECT_ROOT,
     specsDir: options.specsDir,
+    view,
     anySchema: Boolean(options.anySchema),
     anyTable: Boolean(options.anyTable)
   });
@@ -90,4 +98,12 @@ function normalizeFormat(format: string): 'text' | 'json' {
     return normalized;
   }
   throw new Error(`Unsupported format: ${format}`);
+}
+
+function normalizeView(view: string): 'impact' | 'detail' {
+  const normalized = view.trim().toLowerCase();
+  if (normalized === 'impact' || normalized === 'detail') {
+    return normalized;
+  }
+  throw new Error(`Unsupported view: ${view}`);
 }
