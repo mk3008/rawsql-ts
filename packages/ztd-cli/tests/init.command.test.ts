@@ -464,6 +464,20 @@ test('init completes non-interactively with explicit --workflow empty --validato
   expect(specFile).toContain("from 'arktype'");
 });
 
+test('init rejects non-interactive pg_dump workflow', async () => {
+  const workspace = createTempDir('cli-init-noninteractive-pgdump');
+  const prompter = new TestPrompter([]);
+
+  await expect(
+    runInitCommand(prompter, {
+      rootDir: workspace,
+      forceOverwrite: true,
+      nonInteractive: true,
+      workflow: 'pg_dump'
+    })
+  ).rejects.toThrow('Non-interactive mode does not support the pg_dump workflow');
+});
+
 test('TestPrompter.confirm maps yes and no variants', async () => {
   const prompter = new TestPrompter(['y', 'yes', 'n']);
   expect(await prompter.confirm('still there?')).toBe(true);

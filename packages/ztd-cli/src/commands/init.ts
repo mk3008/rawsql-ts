@@ -414,6 +414,12 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     workflow = workflowChoice === 0 ? 'pg_dump' : workflowChoice === 1 ? 'empty' : 'demo';
   }
 
+  if (overwritePolicy.nonInteractive && workflow === 'pg_dump') {
+    throw new Error(
+      'Non-interactive mode does not support the pg_dump workflow (requires connection string prompt).'
+    );
+  }
+
   const schemaName = normalizeSchemaName(DEFAULT_ZTD_CONFIG.ddl.defaultSchema);
   const schemaFileName = `${sanitizeSchemaFileName(schemaName)}.sql`;
 
