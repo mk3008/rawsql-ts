@@ -11,6 +11,7 @@ CLI tool for scaffolding **Zero Table Dependency (ZTD)** projects and keeping DD
 
 - Project scaffolding with `ztd init` (DDL folder, config, test stubs)
 - DDL-to-TypeScript type generation (`TestRowMap`)
+- Live QuerySpec scaffold generation from SQL assets (`ztd model-gen`)
 - Schema pull from live Postgres via `pg_dump`
 - DDL diff against a live database
 - SQL linting with fixture-backed validation
@@ -109,6 +110,7 @@ npx ztd ztd-config --watch # Or keep types updated while editing DDL
 | `ztd init --with-app-interface` | Append application interface guidance to `AGENTS.md` only |
 | `ztd ztd-config` | Generate `TestRowMap` and layout from DDL files (prints next-step hints) |
 | `ztd ztd-config --watch` | Regenerate on DDL changes |
+| `ztd model-gen <sql-file>` | Generate QuerySpec DTO types and rowMapping by probing a live database |
 | `ztd ztd-config --quiet` | Suppress next-step hints (useful in scripts) |
 | `ztd ddl pull` | Fetch schema from a live Postgres database via `pg_dump` |
 | `ztd ddl diff` | Diff local DDL snapshot against a live database |
@@ -158,8 +160,8 @@ npx ztd query uses column email --any-schema --any-table --format json
   },
   "summary": {
     "catalogsScanned": 1,
-    "statementsScanned": 3,
-    "matches": 2,
+    "statementsScanned": 1,
+    "matches": 1,
     "fallbackMatches": 0,
     "unresolvedSqlFiles": 0,
     "parseWarnings": 0
@@ -169,31 +171,54 @@ npx ztd query uses column email --any-schema --any-table --format json
       "kind": "impact",
       "catalog_id": "catalog.users",
       "query_id": "catalog.users:1",
-      "statement_fingerprint": "6cb80ffe674e",
+      "statement_fingerprint": "239a3252c4fe",
       "sql_file": "src/sql/users.sql",
       "usageKindCounts": {
-        "select": 1
+        "order-by": 1,
+        "select": 1,
+        "where": 1
       },
-      "confidence": "high",
-      "notes": [],
+      "confidence": "low",
+      "notes": [
+        "statement-has-ambiguous-occurrences",
+        "statement-has-unqualified-column"
+      ],
       "source": "ast",
       "representatives": [
         {
-          "usage_kind": "select",
+          "usage_kind": "order-by",
           "location": {
-            "startLine": 1,
+            "startLine": 4,
             "startColumn": 10,
-            "endLine": 1,
-            "endColumn": 17,
-            "fileOffsetStart": 9,
-            "fileOffsetEnd": 16
+            "endLine": 4,
+            "endColumn": 15,
+            "fileOffsetStart": 57,
+            "fileOffsetEnd": 62
           },
-          "snippet": "SELECT u.email FROM public.users u",
+          "snippet": "ORDER BY email",
+          "confidence": "low",
+          "notes": [
+            "unqualified-column"
+          ]
+        },
+        {
+          "usage_kind": "where",
+          "location": {
+            "startLine": 3,
+            "startColumn": 7,
+            "endLine": 3,
+            "endColumn": 12,
+            "fileOffsetStart": 37,
+            "fileOffsetEnd": 42
+          },
+          "snippet": "WHERE email = $1",
           "exprHints": [
-            "projection"
+            "comparison"
           ],
-          "confidence": "high",
-          "notes": []
+          "confidence": "low",
+          "notes": [
+            "unqualified-column"
+          ]
         }
       ]
     }
@@ -291,6 +316,60 @@ Zero Table Dependency rewrites application CRUD statements into fixture-backed S
 - Tests run deterministically without creating or mutating tables
 
 The typical loop: `ztd ddl pull` -> edit `ztd/ddl/*.sql` -> `ztd ztd-config --watch` -> write tests.
+
+## QuerySpec Workflow
+
+`ztd model-gen` is designed for SQL asset files under `src/sql/` and assumes **named parameters** (`:name`).
+
+Important context:
+- `:name` is an intentional project-level SQL asset convention, not native PostgreSQL syntax.
+- Before probing the live database, `model-gen` binds named parameters to PostgreSQL placeholders such as `$1`, `$2`, and sends a probe query with placeholder values.
+- The probe connection can come from `DATABASE_URL`, `ztd.config.json`, `--url`, or the `--db-*` flags.
+
+```text
+1. Write SQL in src/sql/ using named parameters such as :customerId
+2. Run: ztd model-gen src/sql/my_query.sql --out src/catalog/specs/my-query.spec.ts
+3. Review the generated types, rowMapping key, nullability, and normalization
+4. Run ZTD tests to confirm the contract
+```
+
+Example SQL asset:
+
+```sql
+select
+  p.id as product_id,
+  p.name as product_name,
+  p.price as list_price
+from public.products p
+where p.id = :product_id
+```
+
+Example generated scaffold excerpt:
+
+```ts
+export const getProductSpec: QuerySpec<{ product_id: unknown }, GetProductRow> = {
+  id: 'product.getProduct',
+  sqlFile: 'product/get_product.sql',
+  params: { shape: 'named', example: { product_id: null } },
+  output: {
+    mapping: getProductMapping,
+    example: {
+      productId: 0,
+      productName: '',
+      listPrice: '',
+    },
+  },
+};
+```
+
+Notes:
+- SQL asset files should use named parameters (`:name`) by policy.
+- PostgreSQL does not understand `:name` directly; `model-gen` rewrites the probe query to indexed placeholders before execution.
+- Positional placeholders (`$1`, `$2`, ...) are rejected by default.
+- Use `--allow-positional` only for legacy SQL that you cannot rewrite yet.
+- `--sql-root` defaults to `src/sql` and controls how `sqlFile` plus `spec id` are derived.
+- `--debug-probe` prints the bound probe SQL and ordered parameter names to stderr before the live probe runs.
+- Common failure modes are unsupported placeholder syntax, connection/authentication errors, invalid probe SQL, and queries that do not expose any columns.
 
 ## Further Reading
 

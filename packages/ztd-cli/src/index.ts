@@ -1,13 +1,14 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
+import { CheckContractRuntimeError, registerCheckContractCommand } from './commands/checkContract';
 import { registerDdlCommands } from './commands/ddl';
 import { registerInitCommand } from './commands/init';
 import { registerLintCommand } from './commands/lint';
+import { registerModelGenCommand } from './commands/modelGen';
 import { registerQueryCommands } from './commands/query';
-import { registerZtdConfigCommand } from './commands/ztdConfigCommand';
-import { CheckContractRuntimeError, registerCheckContractCommand } from './commands/checkContract';
 import { TestEvidenceRuntimeError, registerTestEvidenceCommand } from './commands/testEvidence';
+import { registerZtdConfigCommand } from './commands/ztdConfigCommand';
 
 async function main(): Promise<void> {
   const program = new Command();
@@ -15,6 +16,7 @@ async function main(): Promise<void> {
 
   registerInitCommand(program);
   registerLintCommand(program);
+  registerModelGenCommand(program);
   registerQueryCommands(program);
   registerCheckContractCommand(program);
   registerTestEvidenceCommand(program);
