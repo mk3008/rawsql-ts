@@ -340,6 +340,30 @@ const catalog = createCatalogExecutor({
 
 The execution pipeline order is: **SQL load → rewriters → binders → executor**.
 
+For fixture-backed tests, `@rawsql-ts/testkit-core` provides `createCatalogRewriter()` so you can plug `SelectFixtureRewriter` into the catalog pipeline without writing an adapter:
+
+```ts
+import { createCatalogExecutor } from '@rawsql-ts/sql-contract'
+import { createCatalogRewriter } from '@rawsql-ts/testkit-core'
+
+const catalog = createCatalogExecutor({
+  loader,
+  executor,
+  rewriters: [createCatalogRewriter({
+    fixtures: [{
+      tableName: 'users',
+      rows: [{ id: 1, name: 'Alice' }],
+      schema: {
+        columns: {
+          id: 'INTEGER',
+          name: 'TEXT',
+        },
+      },
+    }],
+  })],
+})
+```
+
 ### Observability
 
 When an `observabilitySink` is provided, the executor emits lifecycle events:

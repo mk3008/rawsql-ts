@@ -41,6 +41,42 @@ const rewriter = new SelectFixtureRewriter({
 const { sql } = rewriter.rewrite('SELECT id, name FROM users');
 ```
 
+## CatalogExecutor Adapter
+
+When you want to test a `QuerySpec` end-to-end through `@rawsql-ts/sql-contract`, use `createCatalogRewriter()` to plug fixture injection into the catalog rewriter pipeline without writing a wrapper by hand.
+
+```ts
+import { createCatalogRewriter } from '@rawsql-ts/testkit-core';
+import { createCatalogExecutor } from '@rawsql-ts/sql-contract';
+
+const rewriter = createCatalogRewriter({
+  fixtures: [
+    {
+      tableName: 'users',
+      rows: [{ id: 1, name: 'Alice' }],
+      schema: {
+        columns: {
+          id: 'INTEGER',
+          name: 'TEXT',
+        },
+      },
+    },
+  ],
+  formatterOptions: { preset: 'postgres' },
+});
+
+const catalog = createCatalogExecutor({
+  loader: {
+    load: async () => 'SELECT id, name FROM users WHERE id = $1',
+  },
+  executor: async (sql, params) => {
+    const result = await pool.query(sql, params);
+    return result.rows;
+  },
+  rewriters: [rewriter],
+});
+```
+
 ## Connection Strategy Provider
 
 When your tests need to execute multiple repository calls, `createTestkitProvider` keeps a single backend connection open by default while isolating each scenario. The shared strategy wraps every call in a transaction so session state never leaks between fixtures.
