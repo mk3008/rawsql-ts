@@ -186,7 +186,7 @@ function printProbeDebug(
 ): void {
   const lines = [
     '[model-gen] probe debug',
-    `sqlFile: ${sqlFile}`,
+    `sqlFile: ${normalizeCliPath(sqlFile)}`,
     `placeholderMode: ${mode}`,
     `allowPositional: ${allowPositional}`,
     `orderedParamNames: ${JSON.stringify(orderedParamNames)}`,
@@ -198,20 +198,24 @@ function printProbeDebug(
 }
 
 function buildCommandText(sqlFilePath: string, options: ModelGenCommandOptions): string {
-  const segments = ['ztd model-gen', sqlFilePath];
+  const segments = ['ztd model-gen', normalizeCliPath(sqlFilePath)];
   if (options.out) {
-    segments.push(`--out ${options.out}`);
+    segments.push(`--out ${normalizeCliPath(options.out)}`);
   }
   if (options.format && options.format !== 'spec') {
     segments.push(`--format ${options.format}`);
   }
   if (options.sqlRoot && options.sqlRoot !== path.join('src', 'sql')) {
-    segments.push(`--sql-root ${options.sqlRoot}`);
+    segments.push(`--sql-root ${normalizeCliPath(options.sqlRoot)}`);
   }
   if (options.allowPositional) {
     segments.push('--allow-positional');
   }
   return segments.join(' ');
+}
+
+export function normalizeCliPath(filePath: string): string {
+  return filePath.replace(/\\/g, '/');
 }
 
 function ensureSpecIdAvailable(specsRoot: string, specId: string, sourceSqlFile: string): void {

@@ -1,4 +1,5 @@
 import { expect, test } from 'vitest';
+import { normalizeCliPath } from '../src/commands/modelGen';
 import { bindModelGenNamedSql } from '../src/utils/modelGenBinder';
 import { deriveModelGenNames, normalizeGeneratedSqlFile, renderModelGenFile, toModelPropertyName } from '../src/utils/modelGenRender';
 import { ModelGenSqlScanError, scanModelGenSql } from '../src/utils/modelGenScanner';
@@ -96,4 +97,9 @@ test('renderModelGenFile marks positional scaffolds as legacy when explicitly al
 
   expect(output).toContain('Legacy warning');
   expect(output).toContain("params: { shape: 'positional', example: [null, null] }");
+});
+
+test('normalizeCliPath converts windows-style paths to slash-separated paths', () => {
+  expect(normalizeCliPath('src\\sql\\sales\\get_sales_header.sql')).toBe('src/sql/sales/get_sales_header.sql');
+  expect(normalizeCliPath('src\\catalog\\specs\\get-sales-header.spec.ts')).toBe('src/catalog/specs/get-sales-header.spec.ts');
 });
