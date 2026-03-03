@@ -32,6 +32,7 @@ Created:
  - tests/generated/AGENTS.md
  - tests/smoke.test.ts
  - src/db/sql-client.ts
+ - src/db/sql-client-adapters.ts
  - tests/support/testkit-client.ts
  - tests/support/global-setup.ts
  - vitest.config.ts
@@ -86,6 +87,7 @@ Created:
  - tests/generated/AGENTS.md
  - tests/smoke.test.ts
  - src/db/sql-client.ts
+ - src/db/sql-client-adapters.ts
  - tests/support/testkit-client.ts
  - tests/support/global-setup.ts
  - vitest.config.ts
@@ -140,6 +142,7 @@ Created:
  - tests/generated/AGENTS.md
  - tests/smoke.test.ts
  - src/db/sql-client.ts
+ - src/db/sql-client-adapters.ts
  - tests/support/testkit-client.ts
  - tests/support/global-setup.ts
  - vitest.config.ts

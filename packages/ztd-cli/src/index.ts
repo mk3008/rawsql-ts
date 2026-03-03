@@ -21,6 +21,25 @@ async function main(): Promise<void> {
   registerZtdConfigCommand(program);
   registerDdlCommands(program);
 
+  program.addHelpText('after', `
+Getting started:
+  $ ztd init                   Create a new ZTD project (interactive)
+  $ ztd init --yes             Create a new ZTD project (non-interactive, demo + Zod defaults)
+  $ ztd ztd-config             Generate TestRowMap types from DDL
+  $ ztd lint <path>            Lint SQL files against the schema
+
+Common workflow:
+  1. ztd init                  Scaffold the project
+  2. ztd ztd-config            Generate test types from DDL
+  3. vitest run                Run tests
+
+After schema changes:
+  1. Edit ztd/ddl/*.sql (or run ztd ddl pull)
+  2. ztd ztd-config            Regenerate types
+  3. vitest run                Verify tests still pass
+
+Documentation: https://github.com/mk3008/rawsql-ts`);
+
   await program.parseAsync(process.argv);
 }
 
