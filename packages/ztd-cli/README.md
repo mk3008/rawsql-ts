@@ -117,6 +117,130 @@ npx ztd ztd-config --watch # Or keep types updated while editing DDL
 | `ztd ddl gen-entities` | Generate `entities.ts` for ad-hoc schema inspection |
 | `ztd lint <path>` | Lint SQL files with fixture-backed validation |
 | `ztd evidence --mode specification` | Export executable specification evidence from SQL catalogs and test files |
+| `ztd query uses table <schema.table>` | Find catalog SQL statements that use a table target |
+| `ztd query uses column <schema.table>.<column>` | Find catalog SQL statements that use a column target with explicit uncertainty labels |
+
+## Impact Investigation
+
+Use `ztd query uses` before renaming or deleting catalog-facing SQL assets. The command is strict by default and never broadens matching unless you opt in with relaxed flags.
+
+- Use `--view impact` for the initial "used or not, and by which queries?" pass.
+- Use `--view detail` when you need edit-ready locations and snippets for refactoring.
+
+### Strict examples
+
+```bash
+npx ztd query uses table public.users
+npx ztd query uses column public.users.email
+npx ztd query uses column public.users.email --format json
+npx ztd query uses column public.users.email --view detail
+```
+
+### Relaxed examples
+
+```bash
+npx ztd query uses table users --any-schema
+npx ztd query uses column users.email --any-schema
+npx ztd query uses column email --any-schema --any-table --format json
+```
+
+### JSON example
+
+```json
+{
+  "schemaVersion": 2,
+  "mode": "exact",
+  "view": "impact",
+  "target": {
+    "kind": "column",
+    "raw": "public.users.email",
+    "schema": "public",
+    "table": "users",
+    "column": "email"
+  },
+  "summary": {
+    "catalogsScanned": 1,
+    "statementsScanned": 1,
+    "matches": 1,
+    "fallbackMatches": 0,
+    "unresolvedSqlFiles": 0,
+    "parseWarnings": 0
+  },
+  "matches": [
+    {
+      "kind": "impact",
+      "catalog_id": "catalog.users",
+      "query_id": "catalog.users:1",
+      "statement_fingerprint": "239a3252c4fe",
+      "sql_file": "src/sql/users.sql",
+      "usageKindCounts": {
+        "order-by": 1,
+        "select": 1,
+        "where": 1
+      },
+      "confidence": "low",
+      "notes": [
+        "statement-has-ambiguous-occurrences",
+        "statement-has-unqualified-column"
+      ],
+      "source": "ast",
+      "representatives": [
+        {
+          "usage_kind": "order-by",
+          "location": {
+            "startLine": 4,
+            "startColumn": 10,
+            "endLine": 4,
+            "endColumn": 15,
+            "fileOffsetStart": 57,
+            "fileOffsetEnd": 62
+          },
+          "snippet": "ORDER BY email",
+          "confidence": "low",
+          "notes": [
+            "unqualified-column"
+          ]
+        },
+        {
+          "usage_kind": "where",
+          "location": {
+            "startLine": 3,
+            "startColumn": 7,
+            "endLine": 3,
+            "endColumn": 12,
+            "fileOffsetStart": 37,
+            "fileOffsetEnd": 42
+          },
+          "snippet": "WHERE email = $1",
+          "exprHints": [
+            "comparison"
+          ],
+          "confidence": "low",
+          "notes": [
+            "unqualified-column"
+          ]
+        }
+      ]
+    }
+  ],
+  "warnings": []
+}
+```
+
+### Output fields
+
+- `mode` tells you whether the query ran in `exact`, `any-schema`, or `any-schema-any-table` mode.
+- `view` tells you whether the report is aggregated for impact investigation or expanded for refactor detail.
+- `confidence` exposes how reliable a match is. Relaxed mode and ambiguous static matches intentionally drop to `low`.
+- `notes` lists why confidence dropped, such as `unqualified-column`, `wildcard-select`, or `parser-fallback`.
+- `source` distinguishes AST-derived matches from fallback-derived matches.
+- `statement_fingerprint` is a stable hash of normalized statement text. It is designed to survive comment and whitespace changes under the current normalization contract.
+- `impact` view aggregates by statement fingerprint, while `detail` view emits one row per occurrence with clause-aware locations.
+- `impact` representatives may omit `select` due to high variance and length; use `detail` for edit-ready `SELECT` occurrences.
+
+Static column analysis does not guarantee semantic identity.
+
+The absence of `exprHints` does not imply the absence of expression features. `exprHints` is best-effort only.
 
 ## After DDL/Schema Changes
 
