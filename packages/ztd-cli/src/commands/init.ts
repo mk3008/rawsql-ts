@@ -396,10 +396,12 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     };
   }
 
-  // Determine workflow: use explicit flag, or prompt interactively.
+  // Determine workflow: use explicit flag, non-interactive default, or prompt.
   let workflow: InitWorkflow;
   if (options?.workflow) {
     workflow = options.workflow;
+  } else if (overwritePolicy.nonInteractive) {
+    workflow = 'demo';
   } else {
     const workflowChoice = await prompter.selectChoice(
       'How do you want to start your database workflow?',
@@ -539,7 +541,8 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
   );
   summaries.config = configSummary;
 
-  const optionalFeatures = await gatherOptionalFeatures(prompter, dependencies, options?.validator);
+  const validatorOverride = options?.validator ?? (overwritePolicy.nonInteractive ? 'zod' : undefined);
+  const optionalFeatures = await gatherOptionalFeatures(prompter, dependencies, validatorOverride);
 
   // Emit supporting documentation that describes the workflow for contributors.
   const readmeSummary = await writeTemplateFile(
@@ -826,16 +829,17 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
   );
   if (sqlClientSummary) {
     summaries.sqlClient = sqlClientSummary;
-  }
 
-  const sqlClientAdaptersSummary = writeOptionalTemplateFile(
-    absolutePaths.sqlClientAdapters,
-    relativePath('sqlClientAdapters'),
-    SQL_CLIENT_ADAPTERS_TEMPLATE,
-    dependencies
-  );
-  if (sqlClientAdaptersSummary) {
-    summaries.sqlClientAdapters = sqlClientAdaptersSummary;
+    // Only scaffold the pg adapter alongside the SqlClient interface.
+    const sqlClientAdaptersSummary = writeOptionalTemplateFile(
+      absolutePaths.sqlClientAdapters,
+      relativePath('sqlClientAdapters'),
+      SQL_CLIENT_ADAPTERS_TEMPLATE,
+      dependencies
+    );
+    if (sqlClientAdaptersSummary) {
+      summaries.sqlClientAdapters = sqlClientAdaptersSummary;
+    }
   }
 
   const testsAgentsSummary = await writeTemplateFile(

@@ -412,21 +412,21 @@ test('init wizard rejects when pg_dump is missing', async () => {
   expect(existsSync(path.join(workspace, 'README.md'))).toBe(false);
 });
 
-test('init completes non-interactively with --yes defaults (demo + zod)', async () => {
+test('init resolves defaults non-interactively without explicit workflow/validator', async () => {
   const workspace = createTempDir('cli-init-noninteractive');
   // Prompter should never be called — pass one with no responses to detect stray prompts.
   const prompter = new TestPrompter([]);
 
+  // Omit workflow and validator to verify runInitCommand resolves them internally.
   const result = await runInitCommand(prompter, {
     rootDir: workspace,
     forceOverwrite: true,
-    nonInteractive: true,
-    workflow: 'demo',
-    validator: 'zod'
+    nonInteractive: true
   });
 
   const schemaPath = schemaFilePath(workspace);
 
+  // Default workflow is 'demo', default validator is 'zod'.
   expect(result.summary).toContain('ZTD project initialized');
   expect(existsSync(schemaPath)).toBe(true);
   expect(readNormalizedFile(schemaPath)).toContain('create table "user" (');
