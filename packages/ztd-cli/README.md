@@ -197,6 +197,11 @@ The typical loop: `ztd ddl pull` -> edit `ztd/ddl/*.sql` -> `ztd ztd-config --wa
 
 `ztd model-gen` is designed for SQL asset files under `src/sql/` and assumes **named parameters** (`:name`).
 
+Important context:
+- `:name` is an intentional project-level SQL asset convention, not native PostgreSQL syntax.
+- Before probing the live database, `model-gen` binds named parameters to PostgreSQL placeholders such as `$1`, `$2`, and sends a probe query with placeholder values.
+- The probe connection can come from `DATABASE_URL`, `ztd.config.json`, `--url`, or the `--db-*` flags.
+
 ```text
 1. Write SQL in src/sql/ using named parameters such as :customerId
 2. Run: ztd model-gen src/sql/my_query.sql --out src/catalog/specs/my-query.spec.ts
@@ -204,12 +209,43 @@ The typical loop: `ztd ddl pull` -> edit `ztd/ddl/*.sql` -> `ztd ztd-config --wa
 4. Run ZTD tests to confirm the contract
 ```
 
+Example SQL asset:
+
+```sql
+select
+  p.id as product_id,
+  p.name as product_name,
+  p.price as list_price
+from public.products p
+where p.id = :product_id
+```
+
+Example generated scaffold excerpt:
+
+```ts
+export const getProductSpec: QuerySpec<{ product_id: unknown }, GetProductRow> = {
+  id: 'product.getProduct',
+  sqlFile: 'product/get_product.sql',
+  params: { shape: 'named', example: { product_id: null } },
+  output: {
+    mapping: getProductMapping,
+    example: {
+      productId: 0,
+      productName: '',
+      listPrice: '',
+    },
+  },
+};
+```
+
 Notes:
 - SQL asset files should use named parameters (`:name`) by policy.
+- PostgreSQL does not understand `:name` directly; `model-gen` rewrites the probe query to indexed placeholders before execution.
 - Positional placeholders (`$1`, `$2`, ...) are rejected by default.
 - Use `--allow-positional` only for legacy SQL that you cannot rewrite yet.
 - `--sql-root` defaults to `src/sql` and controls how `sqlFile` plus `spec id` are derived.
 - `--debug-probe` prints the bound probe SQL and ordered parameter names to stderr before the live probe runs.
+- Common failure modes are unsupported placeholder syntax, connection/authentication errors, invalid probe SQL, and queries that do not expose any columns.
 
 ## Further Reading
 

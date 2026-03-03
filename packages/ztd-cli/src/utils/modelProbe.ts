@@ -22,7 +22,7 @@ interface PgTypeRow {
 const directTypeMap = new Map<string, string>([
   ['int2', 'number'],
   ['int4', 'number'],
-  ['int8', 'number'],
+  ['int8', 'string'],
   ['float4', 'number'],
   ['float8', 'number'],
   ['numeric', 'string'],
@@ -69,7 +69,11 @@ export async function probeQueryColumns(
 }
 
 export function buildProbeSql(boundSql: string): string {
-  return `SELECT * FROM (${boundSql}) AS _ztd_type_probe LIMIT 0`;
+  const normalizedSql = boundSql.trim().replace(/(?:;\s*)+$/u, '');
+  if (!normalizedSql) {
+    throw new Error('The SQL probe source is empty.');
+  }
+  return `SELECT * FROM (${normalizedSql}) AS _ztd_type_probe LIMIT 0`;
 }
 
 function normalizeFields(fields: unknown): ProbeField[] {

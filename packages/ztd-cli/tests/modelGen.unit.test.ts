@@ -1,6 +1,7 @@
 import { expect, test } from 'vitest';
-import { normalizeCliPath } from '../src/commands/modelGen';
+import { bindProbeSql, normalizeCliPath } from '../src/commands/modelGen';
 import { bindModelGenNamedSql } from '../src/utils/modelGenBinder';
+import { buildProbeSql, probeQueryColumns } from '../src/utils/modelProbe';
 import { deriveModelGenNames, normalizeGeneratedSqlFile, renderModelGenFile, toModelPropertyName } from '../src/utils/modelGenRender';
 import { ModelGenSqlScanError, scanModelGenSql } from '../src/utils/modelGenScanner';
 
@@ -31,10 +32,31 @@ test('scanModelGenSql rejects mixed named and positional placeholders', () => {
   expect(() => scanModelGenSql('select * from users where id = :id and status = $1')).toThrow(ModelGenSqlScanError);
 });
 
+test('scanModelGenSql ignores PostgreSQL casts for named placeholders', () => {
+  const result = scanModelGenSql('select :status::text as status');
+  expect(result.mode).toBe('named');
+  expect(result.namedTokens.map((token) => token.name)).toEqual(['status']);
+  expect(result.positionalTokens).toEqual([]);
+});
+
+test('scanModelGenSql ignores PostgreSQL casts for positional placeholders', () => {
+  const result = scanModelGenSql('select $1::uuid as user_id');
+  expect(result.mode).toBe('positional');
+  expect(result.namedTokens).toEqual([]);
+  expect(result.positionalTokens.map((token) => token.token)).toEqual(['$1']);
+});
+
 test('bindModelGenNamedSql reuses the same slot for repeated names in SQL order', () => {
   const bound = bindModelGenNamedSql('select * from demo where a = :id or b = :id and c = :name');
   expect(bound.orderedParamNames).toEqual(['id', 'name']);
   expect(bound.boundSql).toContain('a = $1 or b = $1 and c = $2');
+});
+
+test('bindProbeSql derives positional params from scanner tokens and preserves sparse indexes', () => {
+  const sql = "select '$99' as ignored, value from demo where a = $2 or b = $2";
+  const bound = bindProbeSql(sql, scanModelGenSql(sql), true);
+  expect(bound.boundSql).toBe(sql);
+  expect(bound.orderedParamNames).toEqual(['$1', '$2']);
 });
 
 test('toModelPropertyName converts SQL columns to camelCase names', () => {
@@ -80,6 +102,26 @@ test('renderModelGenFile emits names-first spec scaffolds', () => {
   expect(output).toContain("createdAt: 'created_at'");
 });
 
+test('renderModelGenFile escapes single quotes and backslashes in generated string literals', () => {
+  const output = renderModelGenFile({
+    command: 'ztd model-gen src/sql/demo.sql',
+    format: 'spec',
+    sqlFile: "sales\\owner's_report.sql",
+    specId: "sales.owner'sReport",
+    interfaceName: 'OwnerReportRow',
+    mappingName: 'ownerReportMapping',
+    specName: 'ownerReportSpec',
+    placeholderMode: 'named',
+    allowPositional: false,
+    orderedParamNames: ['owner_id'],
+    columns: [{ columnName: "owner's\\name", propertyName: 'ownerName', tsType: 'string' }]
+  });
+
+  expect(output).toContain("id: 'sales.owner\\'sReport'");
+  expect(output).toContain("sqlFile: 'sales\\\\owner\\'s_report.sql'");
+  expect(output).toContain("ownerName: 'owner\\'s\\\\name'");
+});
+
 test('renderModelGenFile marks positional scaffolds as legacy when explicitly allowed', () => {
   const output = renderModelGenFile({
     command: 'ztd model-gen legacy.sql --allow-positional',
@@ -102,4 +144,32 @@ test('renderModelGenFile marks positional scaffolds as legacy when explicitly al
 test('normalizeCliPath converts windows-style paths to slash-separated paths', () => {
   expect(normalizeCliPath('src\\sql\\sales\\get_sales_header.sql')).toBe('src/sql/sales/get_sales_header.sql');
   expect(normalizeCliPath('src\\catalog\\specs\\get-sales-header.spec.ts')).toBe('src/catalog/specs/get-sales-header.spec.ts');
+});
+
+test('buildProbeSql trims trailing semicolons before wrapping the probe query', () => {
+  expect(buildProbeSql('select 1 as value; \n')).toBe('SELECT * FROM (select 1 as value) AS _ztd_type_probe LIMIT 0');
+});
+
+test('probeQueryColumns maps int8 metadata to string to match pg driver defaults', async () => {
+  let queryCall = 0;
+  const client = {
+    async query<T>(sql: string): Promise<{ fields?: unknown; rows?: T[] }> {
+      queryCall += 1;
+      if (queryCall === 1) {
+        expect(sql).toContain('SELECT * FROM (select count(*) as total)');
+        return {
+          fields: [{ name: 'total', dataTypeID: 20 }],
+          rows: []
+        };
+      }
+      expect(sql).toContain('FROM pg_type');
+      return {
+        rows: [{ oid: 20, typname: 'int8', typtype: 'b', typelem: 0, typbasetype: 0 } as T]
+      };
+    }
+  };
+
+  await expect(probeQueryColumns(client, 'select count(*) as total', [])).resolves.toEqual([
+    { columnName: 'total', typeName: 'int8', tsType: 'string' }
+  ]);
 });

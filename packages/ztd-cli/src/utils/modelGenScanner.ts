@@ -79,6 +79,11 @@ export function scanModelGenSql(sql: string): SqlScanResult {
       throw new ModelGenSqlScanError('Detected unsupported placeholder syntax "@name".', consumeUnsupportedToken(sql, index));
     }
     if (current === ':') {
+      // PostgreSQL casts use `::`, which must not be treated as a named placeholder.
+      if (next === ':') {
+        index += 2;
+        continue;
+      }
       if (IDENTIFIER_START_PATTERN.test(next)) {
         const end = consumeIdentifier(sql, index + 1);
         if ((sql[end] ?? '') === '-') {

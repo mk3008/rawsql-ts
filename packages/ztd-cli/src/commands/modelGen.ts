@@ -11,7 +11,7 @@ import {
   toModelPropertyName,
   type ModelGenFormat
 } from '../utils/modelGenRender';
-import { ModelGenSqlScanError, scanModelGenSql, type PlaceholderMode } from '../utils/modelGenScanner';
+import { ModelGenSqlScanError, scanModelGenSql, type PlaceholderMode, type SqlScanResult } from '../utils/modelGenScanner';
 import { resolveCliConnection, type ConnectionCliOptions } from './connectionOptions';
 
 interface ModelGenCommandOptions extends ConnectionCliOptions {
@@ -40,7 +40,7 @@ export async function runModelGen(sqlFilePath: string, options: ModelGenCommandO
   await client.connect();
 
   try {
-    const bound = bindProbeSql(sqlSource, scan.mode, Boolean(options.allowPositional));
+    const bound = bindProbeSql(sqlSource, scan, Boolean(options.allowPositional));
     if (options.debugProbe) {
       printProbeDebug(sqlFile, scan.mode, bound.boundSql, bound.orderedParamNames, Boolean(options.allowPositional));
     }
@@ -156,22 +156,24 @@ function scanOrThrow(sqlSource: string, sqlFile: string, allowPositional: boolea
   }
 }
 
-function bindProbeSql(sqlSource: string, mode: PlaceholderMode, allowPositional: boolean): {
+export function bindProbeSql(sqlSource: string, scan: SqlScanResult, allowPositional: boolean): {
   boundSql: string;
   orderedParamNames: string[];
 } {
-  if (mode === 'named') {
+  if (scan.mode === 'named') {
     return bindModelGenNamedSql(sqlSource);
   }
-  if (mode === 'positional') {
+  if (scan.mode === 'positional') {
     if (!allowPositional) {
       throw new Error('Positional placeholders are not allowed without --allow-positional.');
     }
-    const orderedParamNames = Array.from(sqlSource.matchAll(/\$([0-9]+)/g))
-      .map((match) => Number(match[1]))
-      .filter((value, index, values) => values.indexOf(value) === index)
-      .sort((left, right) => left - right)
-      .map((value) => `$${value}`);
+    // Preserve the highest positional slot so sparse placeholders still receive
+    // a params array that matches PostgreSQL's indexed placeholder contract.
+    const maxPlaceholderIndex = scan.positionalTokens.reduce((max, token) => {
+      const numericIndex = Number(token.token.slice(1));
+      return Number.isFinite(numericIndex) ? Math.max(max, numericIndex) : max;
+    }, 0);
+    const orderedParamNames = Array.from({ length: maxPlaceholderIndex }, (_, index) => `$${index + 1}`);
     return { boundSql: sqlSource, orderedParamNames };
   }
   return { boundSql: sqlSource, orderedParamNames: [] };

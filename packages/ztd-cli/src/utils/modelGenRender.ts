@@ -112,9 +112,9 @@ function renderInterface(interfaceName: string, columns: ModelGenColumn[]): stri
 function renderMapping(mappingName: string, interfaceName: string, columns: ModelGenColumn[]): string {
   const keyName = columns[0]?.propertyName ?? 'id';
   const mapEntries = columns
-    .map((column) => `    ${column.propertyName}: '${column.columnName}',`)
+    .map((column) => `    ${column.propertyName}: ${renderTsStringLiteral(column.columnName)},`)
     .join('\n');
-  return `export const ${mappingName} = rowMapping<${interfaceName}>({\n  name: '${interfaceName.replace(/Row$/u, '')}',\n  key: '${keyName}',\n  columnMap: {\n${mapEntries}\n  },\n});`;
+  return `export const ${mappingName} = rowMapping<${interfaceName}>({\n  name: ${renderTsStringLiteral(interfaceName.replace(/Row$/u, ''))},\n  key: ${renderTsStringLiteral(keyName)},\n  columnMap: {\n${mapEntries}\n  },\n});`;
 }
 
 function renderSpec(input: RenderModelGenInput): string {
@@ -123,7 +123,7 @@ function renderSpec(input: RenderModelGenInput): string {
   const outputExample = input.columns
     .map((column) => `      ${column.propertyName}: ${renderExampleValue(column.tsType)},`)
     .join('\n');
-  return `export const ${input.specName}: QuerySpec<${paramsType}, ${input.interfaceName}> = {\n  id: '${input.specId}',\n  sqlFile: '${input.sqlFile}',\n  params: { shape: '${input.placeholderMode === 'none' ? 'positional' : input.placeholderMode}', example: ${paramsExample} },\n  output: {\n    mapping: ${input.mappingName},\n    example: {\n${outputExample}\n    },\n  },\n};`;
+  return `export const ${input.specName}: QuerySpec<${paramsType}, ${input.interfaceName}> = {\n  id: ${renderTsStringLiteral(input.specId)},\n  sqlFile: ${renderTsStringLiteral(input.sqlFile)},\n  params: { shape: ${renderTsStringLiteral(input.placeholderMode === 'none' ? 'positional' : input.placeholderMode)}, example: ${paramsExample} },\n  output: {\n    mapping: ${input.mappingName},\n    example: {\n${outputExample}\n    },\n  },\n};`;
 }
 
 function renderParamsType(mode: 'named' | 'positional' | 'none', orderedParamNames: string[]): string {
@@ -167,6 +167,10 @@ function renderExampleValue(tsType: string): string {
     return 'null';
   }
   return 'null as unknown';
+}
+
+function renderTsStringLiteral(value: string): string {
+  return `'${value.replace(/\\/g, '\\\\').replace(/'/g, '\\\'')}'`;
 }
 
 function toPascalCase(value: string): string {
