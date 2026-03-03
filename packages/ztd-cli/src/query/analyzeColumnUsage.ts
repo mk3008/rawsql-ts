@@ -302,11 +302,12 @@ function collectNestedSourceQueryMatches(
   target: QueryUsageTarget,
   mode: QueryUsageMode
 ): ColumnOccurrence[] {
-  if (source.datasource instanceof SubQuerySource) {
-    return collectColumnOccurrences(source.datasource.query, target, mode, { inSubquery: true });
+  let current: SourceExpression['datasource'] = source.datasource;
+  while (current instanceof ParenSource) {
+    current = current.source;
   }
-  if (source.datasource instanceof ParenSource && source.datasource.source instanceof SubQuerySource) {
-    return collectColumnOccurrences(source.datasource.source.query, target, mode, { inSubquery: true });
+  if (current instanceof SubQuerySource) {
+    return collectColumnOccurrences(current.query, target, mode, { inSubquery: true });
   }
   return [];
 }

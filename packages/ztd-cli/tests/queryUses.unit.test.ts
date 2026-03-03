@@ -15,6 +15,7 @@ function createWorkspace(prefix: string): string {
 
 test('parseQueryTarget enforces strict defaults and explicit relaxed modes', () => {
   expect(() => parseQueryTarget({ kind: 'table', raw: 'users' })).toThrow(/schema\.table/);
+  expect(() => parseQueryTarget({ kind: 'table', raw: 'public.users', anySchema: true, anyTable: true })).toThrow(/not supported for table usage/);
   expect(() => parseQueryTarget({ kind: 'column', raw: 'users.email' })).toThrow(/schema\.table\.column/);
   expect(() => parseQueryTarget({ kind: 'column', raw: 'email', anyTable: true })).toThrow(/requires --any-schema/);
 
@@ -166,6 +167,34 @@ test('detail view keeps per-occurrence rows and fixes clause-aware column locati
   expect(formatQueryUsageReport(report, 'text')).toContain('Primary matches:');
 });
 
+test('detail view unwraps nested paren sources when collecting subquery column usage', () => {
+  const root = createWorkspace('query-uses-column-nested-paren-source');
+  writeFileSync(
+    path.join(root, 'src', 'catalog', 'specs', 'users.spec.json'),
+    JSON.stringify({ id: 'catalog.users', sqlFile: '../../sql/users.sql', params: { shape: 'named' } }, null, 2),
+    'utf8'
+  );
+  writeFileSync(
+    path.join(root, 'src', 'sql', 'users.sql'),
+    'SELECT nested.email FROM ((SELECT email FROM public.users) ) nested;',
+    'utf8'
+  );
+
+  const report = buildQueryUsageReport({
+    kind: 'column',
+    rawTarget: 'public.users.email',
+    rootDir: root,
+    view: 'detail'
+  });
+
+  expect(report.matches).toEqual(expect.arrayContaining([
+    expect.objectContaining({
+      kind: 'detail',
+      usage_kind: 'subquery'
+    })
+  ]));
+});
+
 test('impact view aggregates confidence and notes for relaxed column investigation', () => {
   const root = createWorkspace('query-uses-relaxed-impact');
   writeFileSync(
@@ -296,4 +325,33 @@ test('detail view emits parse warnings, fallback rows, and no-catalog guidance d
     }
   ]);
   expect(formatQueryUsageReport(emptyReport, 'text')).toContain('No catalog specs found under');
+});
+
+test('query usage report isolates spec load failures per file', () => {
+  const root = createWorkspace('query-uses-spec-load-failure');
+  writeFileSync(
+    path.join(root, 'src', 'catalog', 'specs', 'users.spec.json'),
+    JSON.stringify({ id: 'catalog.users', sqlFile: '../../sql/users.sql', params: { shape: 'named' } }, null, 2),
+    'utf8'
+  );
+  writeFileSync(
+    path.join(root, 'src', 'catalog', 'specs', 'broken.spec.json'),
+    '{',
+    'utf8'
+  );
+  writeFileSync(path.join(root, 'src', 'sql', 'users.sql'), 'SELECT * FROM public.users;', 'utf8');
+
+  const report = buildQueryUsageReport({
+    kind: 'table',
+    rawTarget: 'public.users',
+    rootDir: root
+  });
+
+  expect(report.summary.matches).toBe(1);
+  expect(report.warnings).toEqual(expect.arrayContaining([
+    expect.objectContaining({
+      code: 'spec-load-failed',
+      sql_file: 'src/catalog/specs/broken.spec.json'
+    })
+  ]));
 });

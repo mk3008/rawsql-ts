@@ -8,7 +8,7 @@ import { buildCatalogStatements } from '../utils/sqlCatalogStatements';
 import { analyzeColumnUsage } from './analyzeColumnUsage';
 import { analyzeTableUsage } from './analyzeTableUsage';
 import { sortQueryUsageMatches, sortQueryUsageWarnings } from './format';
-import { locateUsageText } from './location';
+import { clearStatementCache, locateUsageText } from './location';
 import { parseQueryTarget } from './targets';
 import type {
   QueryUsageConfidence,
@@ -44,9 +44,19 @@ export function buildQueryUsageReport(params: {
   });
 
   const specFiles = existsSync(specsDir) ? walkSqlCatalogSpecFiles(specsDir) : [];
-  const loadedSpecs = specFiles.flatMap((filePath) => loadSqlCatalogSpecsFromFile(filePath, (message) => new Error(message)));
-
   const warnings: QueryUsageReport['warnings'] = [];
+  const loadedSpecs = specFiles.flatMap((filePath) => {
+    try {
+      return loadSqlCatalogSpecsFromFile(filePath, (message) => new Error(message));
+    } catch (error) {
+      warnings.push({
+        sql_file: normalizePath(path.relative(rootDir, filePath)),
+        code: 'spec-load-failed',
+        message: error instanceof Error ? error.message : String(error)
+      });
+      return [];
+    }
+  });
   const detailMatches: QueryUsageMatchDetail[] = [];
   let statementsScanned = 0;
   let unresolvedSqlFiles = 0;
@@ -59,6 +69,9 @@ export function buildQueryUsageReport(params: {
       message: `No catalog specs found under ${normalizePath(path.relative(rootDir, specsDir) || '.')}.\nHint: run "ztd init" or pass "--specs-dir".`
     });
   }
+
+  // Bound location cache lifetime to this batch so repeated runs do not accumulate statement entries.
+  clearStatementCache();
 
   for (const loaded of loadedSpecs) {
     const catalogId = typeof loaded.spec.id === 'string' && loaded.spec.id.trim().length > 0

@@ -104,8 +104,9 @@ function appendDetailMatches(lines: string[], matches: QueryUsageMatchDetail[]):
 }
 
 function formatUsageKindCounts(value: Record<string, number>): string {
-  return Object.entries(value)
-    .map(([usageKind, count]) => `${usageKind}=${count}`)
+  return Object.keys(value)
+    .sort()
+    .map((usageKind) => `${usageKind}=${value[usageKind]}`)
     .join(', ');
 }
 
@@ -125,7 +126,7 @@ function getLocationStart(match: QueryUsageMatch): number | undefined {
 
 function compareUsageKey(match: QueryUsageMatch): string {
   if (match.kind === 'impact') {
-    return Object.keys(match.usageKindCounts).join(',');
+    return Object.keys(match.usageKindCounts).sort().join(',');
   }
   return match.usage_kind;
 }

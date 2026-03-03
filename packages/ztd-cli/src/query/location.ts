@@ -1,6 +1,7 @@
 import type { QueryUsageClauseAnchor, QueryUsageLocation } from './types';
 
 const MAX_SNIPPET_LENGTH = 200;
+const MAX_STATEMENT_CACHE_SIZE = 256;
 
 interface LocatedText {
   location: QueryUsageLocation | null;
@@ -24,6 +25,10 @@ interface StatementLocationCache {
 }
 
 const statementCache = new Map<string, StatementLocationCache>();
+
+export function clearStatementCache(): void {
+  statementCache.clear();
+}
 
 /**
  * Locate the best matching occurrence in a statement and project it to file-relative coordinates.
@@ -70,6 +75,9 @@ export function locateUsageText(params: {
 function getStatementCache(statementText: string): StatementLocationCache {
   const cached = statementCache.get(statementText);
   if (cached) {
+    // Refresh cache recency on access so older statements are evicted first.
+    statementCache.delete(statementText);
+    statementCache.set(statementText, cached);
     return cached;
   }
 
@@ -82,8 +90,24 @@ function getStatementCache(statementText: string): StatementLocationCache {
     .sort((left, right) => left.start - right.start || left.end - right.end);
 
   const value = { clauseMarkers };
-  statementCache.set(statementText, value);
+  setStatementCache(statementText, value);
   return value;
+}
+
+function setStatementCache(statementText: string, value: StatementLocationCache): void {
+  if (statementCache.has(statementText)) {
+    statementCache.delete(statementText);
+  }
+  statementCache.set(statementText, value);
+
+  // Keep the cache bounded for long-running CLI processes and large batch scans.
+  while (statementCache.size > MAX_STATEMENT_CACHE_SIZE) {
+    const oldestKey = statementCache.keys().next().value;
+    if (oldestKey === undefined) {
+      break;
+    }
+    statementCache.delete(oldestKey);
+  }
 }
 
 function selectOccurrence(
