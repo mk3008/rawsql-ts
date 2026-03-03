@@ -29,6 +29,7 @@ Examples:
 Notes:
   - Strict mode is the default. Relaxed modes are explicit opt-in only.
   - Use --view impact for initial assessment and --view detail for edit-ready locations/snippets.
+  - Impact representatives may omit select snippets; use --view detail for edit-ready SELECT occurrences.
   - Static column analysis is inherently uncertain and labels ambiguity via confidence/notes.
   - exprHints: best-effort only. Absence of exprHints does not imply the feature is not present.
   - statement_fingerprint is stable across formatting/comment changes under the current normalization contract.
@@ -64,6 +65,7 @@ Notes:
       `
 Notes:
   - Use --view detail if you need edit-ready locations/snippets.
+  - Impact representatives may omit select snippets; use --view detail for edit-ready SELECT occurrences.
   - exprHints: best-effort only. Absence of exprHints does not imply the feature is not present.
 `
     )

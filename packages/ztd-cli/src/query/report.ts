@@ -190,6 +190,7 @@ function aggregateImpactMatches(matches: QueryUsageMatchDetail[]): QueryUsageMat
       notes: Array.from(noteSet).sort(),
       source: group.some((match) => match.source === 'ast') ? 'ast' : 'fallback',
       representatives: Array.from(representatives.values())
+        .filter((match) => match.usage_kind !== 'select')
         .sort((left, right) =>
           left.usage_kind.localeCompare(right.usage_kind) ||
           compareConfidence(left.confidence, right.confidence) ||

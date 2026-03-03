@@ -199,6 +199,34 @@ test('impact view aggregates confidence and notes for relaxed column investigati
       'statement-has-unqualified-column'
     ]));
     expect(match.usageKindCounts).toEqual({ 'order-by': 1, select: 1 });
+    expect(match.representatives?.map((representative) => representative.usage_kind)).toEqual(['order-by']);
+  }
+});
+
+test('impact view keeps select counts but omits select representatives', () => {
+  const root = createWorkspace('query-uses-impact-select-representatives');
+  writeFileSync(
+    path.join(root, 'src', 'catalog', 'specs', 'users.spec.json'),
+    JSON.stringify({ id: 'catalog.users', sqlFile: '../../sql/users.sql', params: { shape: 'named' } }, null, 2),
+    'utf8'
+  );
+  writeFileSync(
+    path.join(root, 'src', 'sql', 'users.sql'),
+    'SELECT email FROM public.users WHERE email = $1 ORDER BY email;',
+    'utf8'
+  );
+
+  const report = buildQueryUsageReport({
+    kind: 'column',
+    rawTarget: 'public.users.email',
+    rootDir: root
+  });
+
+  const match = report.matches[0];
+  expect(match?.kind).toBe('impact');
+  if (match?.kind === 'impact') {
+    expect(match.usageKindCounts).toEqual({ 'order-by': 1, select: 1, where: 1 });
+    expect(match.representatives?.map((representative) => representative.usage_kind)).toEqual(['order-by', 'where']);
   }
 });
 

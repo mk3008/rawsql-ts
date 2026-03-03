@@ -211,6 +211,7 @@ npx ztd query uses column email --any-schema --any-table --format json
 - `source` distinguishes AST-derived matches from fallback-derived matches.
 - `statement_fingerprint` is a stable hash of normalized statement text. It is designed to survive comment and whitespace changes under the current normalization contract.
 - `impact` view aggregates by statement fingerprint, while `detail` view emits one row per occurrence with clause-aware locations.
+- `impact` representatives may omit `select` due to high variance and length; use `detail` for edit-ready `SELECT` occurrences.
 
 Static column analysis does not guarantee semantic identity.
 
