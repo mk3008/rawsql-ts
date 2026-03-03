@@ -42,6 +42,10 @@ export interface AdapterNodePgModule {
 
 export interface PgClientLike {
   connect(): Promise<unknown>;
+  query<T = unknown>(statement: string, values?: unknown[]): Promise<{
+    rows?: T[];
+    fields?: unknown[];
+  }>;
   end(): Promise<unknown>;
 }
 

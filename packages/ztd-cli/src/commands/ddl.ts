@@ -3,9 +3,7 @@ import { Command } from 'commander';
 import { runDiffSchema } from './diff';
 import { runGenerateEntities } from './genEntities';
 import { runPullSchema } from './pull';
-import { loadZtdProjectConfig } from '../utils/ztdProjectConfig';
-import { resolveDatabaseConnection } from '../utils/dbConnection';
-import type { DbConnectionFlags, ResolvedDatabaseConnection } from '../utils/dbConnection';
+import { resolveCliConnection, type ConnectionCliOptions } from './connectionOptions';
 import {
   collectDirectories,
   collectValues,
@@ -16,23 +14,15 @@ import {
   DEFAULT_EXTENSIONS
 } from './options';
 
-interface ConnectionCliOptions {
-  url?: string;
-  pgDumpPath?: string;
-  dbHost?: string;
-  dbPort?: string;
-  dbUser?: string;
-  dbPassword?: string;
-  dbName?: string;
-}
-
 interface PullCommandOptions extends ConnectionCliOptions {
+  pgDumpPath?: string;
   out?: string;
   schema?: string[];
   table?: string[];
 }
 
 interface DiffCommandOptions extends ConnectionCliOptions {
+  pgDumpPath?: string;
   ddlDir?: string[];
   extensions?: string[];
   out?: string;
@@ -112,31 +102,6 @@ export function registerDdlCommands(program: Command): void {
           connectionContext: connection.context
         });
       });
-}
-
-/**
- * Resolves connection metadata for CLI commands using flags, environment, and project config.
- * @param options - CLI options containing optional overrides.
- * @returns The resolved connection and context.
- */
-function resolveCliConnection(options: ConnectionCliOptions): ResolvedDatabaseConnection {
-  // Gather configuration once per command so overrides and defaults stay synchronized.
-  return resolveDatabaseConnection(buildFlagSet(options), loadZtdProjectConfig(), options.url);
-}
-
-/**
- * Normalizes the incoming CLI flag values into the shared DbConnectionFlags shape.
- * @param options - CLI options exposing partial connection pieces.
- * @returns Flag object consumed by the `resolveDatabaseConnection` helper.
- */
-function buildFlagSet(options: ConnectionCliOptions): DbConnectionFlags {
-  return {
-    host: options.dbHost,
-    port: options.dbPort,
-    user: options.dbUser,
-    password: options.dbPassword,
-    database: options.dbName
-  };
 }
 
 export { collectDirectories, parseExtensions, DEFAULT_EXTENSIONS, DEFAULT_DDL_DIRECTORY } from './options';

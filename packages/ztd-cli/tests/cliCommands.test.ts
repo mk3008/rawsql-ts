@@ -38,10 +38,10 @@ function buildCliEnv(overrides: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
   };
 }
 
-function runCli(args: string[], envOverrides: NodeJS.ProcessEnv = {}): SpawnSyncReturns<string> {
+function runCli(args: string[], envOverrides: NodeJS.ProcessEnv = {}, cwd: string = repoRoot): SpawnSyncReturns<string> {
   // Invoke the CLI entry point through ts-node so the test avoids a prior build.
   return spawnSync(nodeExecutable, ['-r', tsNodeRegister, '-r', tsConfigPathsRegister, cliEntry, ...args], {
-    cwd: repoRoot,
+    cwd,
     env: buildCliEnv(envOverrides),
     encoding: 'utf8',
   });
@@ -62,6 +62,24 @@ function assertCliSuccess(result: SpawnSyncReturns<string>, label?: string) {
   expect(result.error).toBeUndefined();
   const context = label ? `${label}: ` : '';
   expect(result.status, `${context}${result.stderr || result.stdout}`).toBe(0);
+}
+
+function assertCliFailure(result: SpawnSyncReturns<string>, label?: string) {
+  expect(result.error).toBeUndefined();
+  const context = label ? `${label}: ` : '';
+  expect(result.status, `${context}${result.stderr || result.stdout}`).not.toBe(0);
+}
+
+function createSqlWorkspace(prefix: string, sqlRelativePath: string = path.join('src', 'sql', 'query.sql')): {
+  rootDir: string;
+  sqlRoot: string;
+  sqlFile: string;
+} {
+  const rootDir = createTempDir(prefix);
+  const sqlFile = path.join(rootDir, sqlRelativePath);
+  const sqlRoot = path.join(rootDir, 'src', 'sql');
+  mkdirSync(path.dirname(sqlFile), { recursive: true });
+  return { rootDir, sqlRoot, sqlFile };
 }
 
 async function resetPublicSchema(client: Client) {
@@ -114,6 +132,48 @@ test(
   60000,
 );
 
+test('top-level help exposes model-gen as a first-class command', () => {
+  const result = runCli(['--help']);
+  assertCliSuccess(result, '--help');
+  expect(result.stdout).toContain('model-gen [options] <sql-file>');
+});
+
+test('model-gen rejects positional placeholders by default and recommends named params', () => {
+  const workspace = createSqlWorkspace('model-gen-positional-error');
+  writeFileSync(workspace.sqlFile, 'select * from users where id = $1', 'utf8');
+
+  const result = runCli(['model-gen', workspace.sqlFile, '--sql-root', workspace.sqlRoot], {}, workspace.rootDir);
+  assertCliFailure(result, 'model-gen positional');
+  expect(result.stderr).toContain('Detected positional placeholders ($1, $2, ...)');
+  expect(result.stderr).toContain('must use named parameters (:name) by policy');
+  expect(result.stderr).toContain('--allow-positional');
+});
+
+test('model-gen rejects sql files outside the configured sql root', () => {
+  const workspace = createSqlWorkspace('model-gen-root-error');
+  const externalSql = path.join(workspace.rootDir, 'outside.sql');
+  writeFileSync(externalSql, 'select 1 as value', 'utf8');
+
+  const result = runCli(['model-gen', externalSql, '--sql-root', workspace.sqlRoot], {}, workspace.rootDir);
+  assertCliFailure(result, 'model-gen root');
+  expect(result.stderr).toContain('outside the configured sql root');
+  expect(result.stderr).toContain('--sql-root');
+});
+
+test('model-gen rejects spec id collisions before probing the database', () => {
+  const workspace = createSqlWorkspace('model-gen-spec-id-collision');
+  writeFileSync(workspace.sqlFile, 'select 1 as value', 'utf8');
+  const specsDir = path.join(workspace.rootDir, 'src', 'catalog', 'specs');
+  mkdirSync(specsDir, { recursive: true });
+  const collisionFile = path.join(specsDir, 'query.spec.ts');
+  writeFileSync(collisionFile, "export const existing = { id: 'query' };\n", 'utf8');
+
+  const result = runCli(['model-gen', workspace.sqlFile, '--sql-root', workspace.sqlRoot], {}, workspace.rootDir);
+  assertCliFailure(result, 'model-gen collision');
+  expect(result.stderr).toContain('conflicts with an existing spec');
+  expect(result.stderr).toContain('does not auto-rename collisions');
+});
+
 const hasPgDump = commandExists(pgDumpCommand);
 const hasConnection = Boolean(process.env.TEST_PG_URI);
 const shouldRunDbTests = hasPgDump && hasConnection;
@@ -152,6 +212,100 @@ pullTest('pull CLI emits schema from Postgres via pg_dump', async () => {
     // Ensure pg_dump SET statements are removed without blocking ALTER ... SET DEFAULT.
     expect(normalizedSchema).not.toMatch(/(^|\n)set\s+/);
     expect(existsSync(path.join(outDir, 'schema.sql'))).toBe(false);
+  } finally {
+    await resetPublicSchema(client);
+    await client.end();
+  }
+}, 60_000);
+
+pullTest('model-gen emits a names-first spec scaffold from live Postgres metadata', async () => {
+  const connectionString = process.env.TEST_PG_URI!;
+  const client = new Client({ connectionString });
+  await client.connect();
+
+  try {
+    await resetPublicSchema(client);
+    await client.query(`
+      CREATE TABLE public.products (
+        id serial PRIMARY KEY,
+        name text NOT NULL,
+        price numeric NOT NULL
+      );
+    `);
+
+    const workspace = createSqlWorkspace('model-gen-named', path.join('src', 'sql', 'sales', 'get_sales_header.sql'));
+    writeFileSync(
+      workspace.sqlFile,
+      `
+        select
+          p.id as product_id,
+          p.name as product_name,
+          p.price as list_price
+        from public.products p
+        where p.id = :product_id
+      `,
+      'utf8'
+    );
+    const outFile = path.join(workspace.rootDir, 'product.spec.ts');
+    const result = runCli(
+      ['model-gen', workspace.sqlFile, '--sql-root', workspace.sqlRoot, '--out', outFile, '--debug-probe'],
+      { DATABASE_URL: connectionString },
+      workspace.rootDir
+    );
+
+    assertCliSuccess(result, 'model-gen named');
+    const content = readNormalizedFile(outFile);
+    expect(content).toContain('export interface GetSalesHeaderRow');
+    expect(content).toContain("productId: 'product_id'");
+    expect(content).toContain("listPrice: 'list_price'");
+    expect(content).toContain("params: { shape: 'named', example: { product_id: null } }");
+    expect(result.stderr).toContain('[model-gen] probe debug');
+    expect(result.stderr).toContain('orderedParamNames: ["product_id"]');
+    expect(result.stderr).toContain('probeSql: SELECT * FROM (');
+    expect(result.stdout).toBe('');
+  } finally {
+    await resetPublicSchema(client);
+    await client.end();
+  }
+}, 60_000);
+
+pullTest('model-gen allows legacy positional placeholders only behind --allow-positional', async () => {
+  const connectionString = process.env.TEST_PG_URI!;
+  const client = new Client({ connectionString });
+  await client.connect();
+
+  try {
+    await resetPublicSchema(client);
+    await client.query(`
+      CREATE TABLE public.products (
+        id serial PRIMARY KEY,
+        name text NOT NULL
+      );
+    `);
+
+    const workspace = createSqlWorkspace('model-gen-positional');
+    writeFileSync(
+      workspace.sqlFile,
+      `
+        select
+          p.id as product_id,
+          p.name as product_name
+        from public.products p
+        where p.id = $1
+      `,
+      'utf8'
+    );
+    const outFile = path.join(workspace.rootDir, 'product-positional.spec.ts');
+    const result = runCli(
+      ['model-gen', workspace.sqlFile, '--sql-root', workspace.sqlRoot, '--allow-positional', '--out', outFile],
+      { DATABASE_URL: connectionString },
+      workspace.rootDir
+    );
+
+    assertCliSuccess(result, 'model-gen positional');
+    const content = readNormalizedFile(outFile);
+    expect(content).toContain('Legacy warning');
+    expect(content).toContain("params: { shape: 'positional', example: [null] }");
   } finally {
     await resetPublicSchema(client);
     await client.end();

@@ -4,6 +4,7 @@ import { Command } from 'commander';
 import { registerDdlCommands } from './commands/ddl';
 import { registerInitCommand } from './commands/init';
 import { registerLintCommand } from './commands/lint';
+import { registerModelGenCommand } from './commands/modelGen';
 import { registerZtdConfigCommand } from './commands/ztdConfigCommand';
 import { CheckContractRuntimeError, registerCheckContractCommand } from './commands/checkContract';
 import { TestEvidenceRuntimeError, registerTestEvidenceCommand } from './commands/testEvidence';
@@ -14,6 +15,7 @@ async function main(): Promise<void> {
 
   registerInitCommand(program);
   registerLintCommand(program);
+  registerModelGenCommand(program);
   registerCheckContractCommand(program);
   registerTestEvidenceCommand(program);
   registerZtdConfigCommand(program);
