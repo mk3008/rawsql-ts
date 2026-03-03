@@ -1,6 +1,16 @@
 import type { QueryParams } from '../query-params'
 import type { QueryExecutor, Row, RowMapping } from '../mapper'
 import { mapRows } from '../mapper'
+import { normalizeExecutionResult } from '../normalizeExecutionResult'
+import {
+  assertDeleteGuard,
+  assertMutationSafeRewriters,
+  preprocessMutationSpec,
+  type MutationAwareRewriter,
+  type MutationCatalogSpec,
+  type MutationSafety,
+  type NormalizedMutationSpec,
+} from './mutation'
 
 /**
  * Describes the contract that couples a SQL file, its parameters, and its output shape.
@@ -27,6 +37,33 @@ export type QuerySpec<P extends QueryParams = QueryParams, R = Row> = {
     allow?: unknown
     optionsExample?: unknown
   }
+  mutation?:
+    | {
+        kind: 'insert'
+      }
+    | {
+        kind: 'update'
+        update?: {
+          subtractUndefinedAssignments?: boolean
+          failOnEmptySet?: boolean
+        }
+        where?: {
+          requireWhereClause?: boolean
+          requireAllNamedParams?: boolean
+        }
+      }
+    | {
+        kind: 'delete'
+        where?: {
+          requireWhereClause?: boolean
+          requireAllNamedParams?: boolean
+        }
+        delete?: {
+          affectedRowsGuard?:
+            | { mode: 'exactly'; count: number }
+            | { mode: 'none' }
+        }
+      }
 }
 
 export type ParamsShape = 'positional' | 'named' | 'unknown'
@@ -101,6 +138,13 @@ type ExecutionSnapshot = {
   startTime: number
 }
 
+type RowExecutionResult = {
+  rows: Row[]
+  rowCount?: number
+  snapshot?: ExecutionSnapshot
+  mutation?: NormalizedMutationSpec
+}
+
 let execIdCounter = 0
 function createExecId(): string {
   execIdCounter += 1
@@ -166,6 +210,8 @@ export interface Rewriter {
     params: QueryParams
   }
 }
+
+export type { MutationAwareRewriter, MutationSafety }
 
 /**
  * Root error class for catalog execution failures.
@@ -494,17 +540,32 @@ export function createCatalogExecutor(
     executionOptions: unknown,
     execId: string,
     attempt: number
-  ): Promise<{ rows: Row[]; snapshot?: ExecutionSnapshot }> {
+  ): Promise<RowExecutionResult> {
     const validatedParams = assertParamsShape(
       spec.id,
       spec.params.shape,
       params
     )
     const sql = await loadSql(spec)
+    if (spec.mutation) {
+      assertMutationSafeRewriters(
+        ContractViolationError,
+        spec as MutationCatalogSpec,
+        rewriters
+      )
+    }
+    const preprocessed = spec.mutation
+      ? preprocessMutationSpec(
+          ContractViolationError,
+          spec as MutationCatalogSpec,
+          sql,
+          validatedParams
+        )
+      : { sql, params: validatedParams, mutation: undefined }
     const rewritten = applyRewriters(
       spec,
-      sql,
-      validatedParams,
+      preprocessed.sql,
+      preprocessed.params,
       executionOptions
     )
     const rewrittenParams = assertParamsShape(
@@ -523,8 +584,15 @@ export function createCatalogExecutor(
     }
     emitQueryStartEvent(spec, execId, attempt, snapshot)
     try {
-      const rows = await options.executor(bound.sql, bound.params)
-      return { rows, snapshot }
+      const execution = normalizeExecutionResult(
+        await options.executor(bound.sql, bound.params)
+      )
+      return {
+        rows: execution.rows,
+        rowCount: execution.rowCount,
+        snapshot,
+        mutation: preprocessed.mutation,
+      }
     } catch (cause) {
       throw new CatalogExecutionError(
         `Query executor failed while processing catalog spec "${spec.id}".`,
@@ -542,7 +610,12 @@ export function createCatalogExecutor(
       const invocationStart = Date.now()
       let snapshot: ExecutionSnapshot | undefined
       try {
-        const { rows, snapshot: rowSnapshot } = await executeRows(
+        const {
+          rows,
+          rowCount,
+          snapshot: rowSnapshot,
+          mutation,
+        } = await executeRows(
           spec,
           input.params,
           input.options,
@@ -550,6 +623,12 @@ export function createCatalogExecutor(
           input.attempt
         )
         snapshot = rowSnapshot
+        assertDeleteGuard(
+          ContractViolationError,
+          spec as MutationCatalogSpec,
+          mutation,
+          rowCount
+        )
         const value = finalize(rows)
         const durationBase = snapshot?.startTime ?? invocationStart
         // durationMs reflects the executor round-trip after loading/rewriting/binding SQL.
@@ -558,9 +637,9 @@ export function createCatalogExecutor(
           input.execId,
           input.attempt,
           durationBase,
-          rows.length
+          rowCount ?? rows.length
         )
-        return { value, rowCount: rows.length }
+        return { value, rowCount: rowCount ?? rows.length }
       } catch (error) {
         const durationBase = snapshot?.startTime ?? invocationStart
         emitQueryErrorEvent(

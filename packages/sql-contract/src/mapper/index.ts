@@ -1,4 +1,8 @@
 import type { QueryParams } from '../query-params'
+import {
+  normalizeExecutionResult,
+  type QueryExecutionResult,
+} from '../normalizeExecutionResult'
 import { normalizeKeyFromRow, normalizeKeyValue } from './internal'
 
 export type { QueryParams } from '../query-params'
@@ -15,7 +19,10 @@ export type Row = Record<string, unknown>
  * The mapper keeps this layer DBMS/driver agnostic; callers inject the concrete
  * executor that speaks to the desired database.
  */
-export type QueryExecutor = (sql: string, params: QueryParams) => Promise<Row[]>
+export type QueryExecutor = (
+  sql: string,
+  params: QueryParams
+) => Promise<QueryExecutionResult>
 
 /**
  * Defines how a column prefix, key, and optional overrides describe a row mapping.
@@ -471,7 +478,7 @@ export class Mapper {
     params: QueryParams = [],
     mappingOrOptions?: RowMapping<T> | MapperOptions
   ): Promise<T[]> {
-    const rows = await this.executor(sql, params)
+    const rows = normalizeExecutionResult(await this.executor(sql, params)).rows
     if (mappingOrOptions instanceof RowMapping) {
       return mapRows(rows, mappingOrOptions)
     }
@@ -600,20 +607,13 @@ export function toRowsExecutor(
     | ((
         sql: string,
         params: QueryParams
-      ) => Promise<{ rows: Row[] } | { rows: Row[]; rowCount?: number } | Row[]>)
+      ) => Promise<QueryExecutionResult>)
     | { [key: string]: (...args: unknown[]) => Promise<unknown> },
   methodName?: string
 ): QueryExecutor {
   if (typeof executorOrTarget === 'function') {
     return async (sql, params) => {
-      const result = await executorOrTarget(sql, params)
-      if (Array.isArray(result)) {
-        return result
-      }
-      if ('rows' in result) {
-        return (result as { rows: Row[] }).rows
-      }
-      return []
+      return normalizeExecutionResult(await executorOrTarget(sql, params)).rows
     }
   }
 
@@ -626,13 +626,7 @@ export function toRowsExecutor(
       throw new Error(`Method "${methodName}" not found on target`)
     }
     const result = await method.call(executorOrTarget, sql, params)
-    if (Array.isArray(result)) {
-      return result
-    }
-    if (result && typeof result === 'object' && 'rows' in result) {
-      return (result as { rows: Row[] }).rows
-    }
-    return []
+    return normalizeExecutionResult(result as QueryExecutionResult).rows
   }
 
   return executor
@@ -684,7 +678,9 @@ function readScalarValue(
   sql: string,
   params: QueryParams
 ): Promise<unknown> {
-  return executor(sql, params).then((rows) => extractScalar(rows))
+  return executor(sql, params).then((result) =>
+    extractScalar(normalizeExecutionResult(result).rows)
+  )
 }
 
 function extractScalar(rows: Row[]): unknown {

@@ -4,6 +4,7 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type {
   Binder,
+  MutationAwareRewriter,
   ObservabilityEvent,
   ObservabilitySink,
   QueryStartEvent,
@@ -682,6 +683,346 @@ describe('catalog executor', () => {
     await expect(attempt).rejects.toBeInstanceOf(ContractViolationError)
     await expect(attempt).rejects.toMatchObject({
       specId: spec.id,
+    })
+  })
+
+  describe('mutation-aware catalog execution', () => {
+    it('rejects update specs without a WHERE clause by default', async () => {
+      const loader = { load: vi.fn(() => Promise.resolve('UPDATE users SET name = :name')) }
+      const executor = vi.fn(() => Promise.resolve([]))
+      const catalog = createCatalogExecutor({
+        loader,
+        executor,
+        allowNamedParamsWithoutBinder: true,
+      })
+
+      const spec: QuerySpec<{ name: string }, never> = {
+        id: 'mutation.update.no-where',
+        sqlFile: 'update.sql',
+        params: { shape: 'named', example: { name: 'Alice' } },
+        mutation: {
+          kind: 'update',
+        },
+        output: {
+          example: undefined as never,
+        },
+      }
+
+      await expect(catalog.list(spec, { name: 'Alice' })).rejects.toThrow(
+        /requires a WHERE clause/i
+      )
+    })
+
+    it('rejects delete specs without a WHERE clause by default', async () => {
+      const loader = { load: vi.fn(() => Promise.resolve('DELETE FROM users')) }
+      const executor = vi.fn(() => Promise.resolve({ rows: [], rowCount: 1 }))
+      const catalog = createCatalogExecutor({
+        loader,
+        executor,
+        allowNamedParamsWithoutBinder: true,
+      })
+
+      const spec: QuerySpec<{ id: number }, never> = {
+        id: 'mutation.delete.no-where',
+        sqlFile: 'delete.sql',
+        params: { shape: 'named', example: { id: 1 } },
+        mutation: {
+          kind: 'delete',
+        },
+        output: {
+          example: undefined as never,
+        },
+      }
+
+      await expect(catalog.list(spec, { id: 1 })).rejects.toThrow(
+        /requires a WHERE clause/i
+      )
+    })
+
+    it('rejects missing WHERE params for updates but allows null', async () => {
+      const loader = {
+        load: vi.fn(
+          () => Promise.resolve('UPDATE users SET name = :name WHERE id = :id')
+        ),
+      }
+      const executor = vi.fn(() => Promise.resolve([]))
+      const catalog = createCatalogExecutor({
+        loader,
+        executor,
+        allowNamedParamsWithoutBinder: true,
+      })
+
+      const spec: QuerySpec<{ name: string; id: number | null }, never> = {
+        id: 'mutation.update.where-param',
+        sqlFile: 'update-where.sql',
+        params: { shape: 'named', example: { name: 'Alice', id: 1 } },
+        mutation: {
+          kind: 'update',
+        },
+        output: {
+          example: undefined as never,
+        },
+      }
+
+      await expect(catalog.list(spec, { name: 'Alice' } as any)).rejects.toThrow(
+        /required WHERE parameter ":id"/
+      )
+      await expect(
+        catalog.list(spec, { name: 'Alice', id: undefined } as any)
+      ).rejects.toThrow(/required WHERE parameter ":id"/)
+
+      await expect(
+        catalog.list(spec, { name: 'Alice', id: null })
+      ).resolves.toEqual([])
+    })
+
+    it('subtracts simple undefined update assignments while keeping fixed assignments', async () => {
+      const loader = {
+        load: vi.fn(
+          () =>
+            Promise.resolve(
+              'UPDATE users SET name = :name, bio = :bio, updated_at = NOW() WHERE id = :id'
+            )
+        ),
+      }
+      const executor = vi.fn(() => Promise.resolve([]))
+      const catalog = createCatalogExecutor({
+        loader,
+        executor,
+        allowNamedParamsWithoutBinder: true,
+      })
+
+      const spec: QuerySpec<Record<string, unknown>, never> = {
+        id: 'mutation.update.subtract',
+        sqlFile: 'update-subtract.sql',
+        params: {
+          shape: 'named',
+          example: { name: 'Alice', bio: 'Hello', id: 1 },
+        },
+        mutation: {
+          kind: 'update',
+        },
+        output: {
+          example: undefined as never,
+        },
+      }
+
+      await catalog.list(spec, { bio: undefined, id: 1 })
+
+      expect(executor).toHaveBeenCalledWith(
+        'UPDATE users SET updated_at = NOW() WHERE id = :id',
+        { id: 1 }
+      )
+    })
+
+    it('does not subtract comment-interleaved assignments', async () => {
+      const loader = {
+        load: vi.fn(
+          () =>
+            Promise.resolve(
+              'UPDATE users SET name = /*c*/ :name, updated_at = NOW() WHERE id = :id'
+            )
+        ),
+      }
+      const executor = vi.fn(() => Promise.resolve([]))
+      const catalog = createCatalogExecutor({
+        loader,
+        executor,
+        allowNamedParamsWithoutBinder: true,
+      })
+
+      const spec: QuerySpec<Record<string, unknown>, never> = {
+        id: 'mutation.update.comment-non-target',
+        sqlFile: 'update-comment.sql',
+        params: { shape: 'named', example: { name: 'Alice', id: 1 } },
+        mutation: {
+          kind: 'update',
+        },
+        output: {
+          example: undefined as never,
+        },
+      }
+
+      await catalog.list(spec, { name: undefined, id: 1 })
+
+      expect(executor).toHaveBeenCalledWith(
+        'UPDATE users SET name = /*c*/ :name, updated_at = NOW() WHERE id = :id',
+        { id: 1 }
+      )
+    })
+
+    it('limits mandatory param checks to WHERE clauses', async () => {
+      const loader = {
+        load: vi.fn(
+          () =>
+            Promise.resolve(
+              'UPDATE users SET name = coalesce(:name, name) WHERE id = :id'
+            )
+        ),
+      }
+      const executor = vi.fn(() => Promise.resolve([]))
+      const catalog = createCatalogExecutor({
+        loader,
+        executor,
+        allowNamedParamsWithoutBinder: true,
+      })
+
+      const spec: QuerySpec<Record<string, unknown>, never> = {
+        id: 'mutation.update.where-scope',
+        sqlFile: 'update-where-scope.sql',
+        params: { shape: 'named', example: { name: 'Alice', id: 1 } },
+        mutation: {
+          kind: 'update',
+        },
+        output: {
+          example: undefined as never,
+        },
+      }
+
+      await expect(catalog.list(spec, { id: 1 })).resolves.toEqual([])
+      expect(executor).toHaveBeenCalledWith(
+        'UPDATE users SET name = coalesce(:name, name) WHERE id = :id',
+        { id: 1 }
+      )
+    })
+
+    it('rejects mutation specs that use non-safe rewriters', async () => {
+      const loader = {
+        load: vi.fn(
+          () => Promise.resolve('UPDATE users SET name = :name WHERE id = :id')
+        ),
+      }
+      const executor = vi.fn(() => Promise.resolve([]))
+      const unsafeRewriter: Rewriter = {
+        name: 'plain-rewriter',
+        rewrite: ({ sql, params }) => ({ sql, params }),
+      }
+      const catalog = createCatalogExecutor({
+        loader,
+        executor,
+        allowNamedParamsWithoutBinder: true,
+        rewriters: [unsafeRewriter],
+      })
+
+      const spec: QuerySpec<Record<string, unknown>, never> = {
+        id: 'mutation.rewriter.unsafe',
+        sqlFile: 'update-rewriter.sql',
+        params: { shape: 'named', example: { name: 'Alice', id: 1 } },
+        mutation: {
+          kind: 'update',
+        },
+        output: {
+          example: undefined as never,
+        },
+      }
+
+      await expect(catalog.list(spec, { name: 'Alice', id: 1 })).rejects.toThrow(
+        /not allowed for mutation preprocessing/i
+      )
+    })
+
+    it('allows mutation specs when every rewriter declares mutation safety', async () => {
+      const loader = {
+        load: vi.fn(
+          () => Promise.resolve('DELETE FROM users WHERE id = :id')
+        ),
+      }
+      const executor = vi.fn(() => Promise.resolve({ rows: [], rowCount: 1 }))
+      const safeRewriter: MutationAwareRewriter & Rewriter = {
+        name: 'safe-rewriter',
+        mutationSafety: 'safe',
+        rewrite: ({ sql, params }) => ({ sql: `${sql} -- audited`, params }),
+      }
+      const catalog = createCatalogExecutor({
+        loader,
+        executor,
+        allowNamedParamsWithoutBinder: true,
+        rewriters: [safeRewriter],
+      })
+
+      const spec: QuerySpec<{ id: number }, never> = {
+        id: 'mutation.rewriter.safe',
+        sqlFile: 'delete-safe.sql',
+        params: { shape: 'named', example: { id: 1 } },
+        mutation: {
+          kind: 'delete',
+        },
+        output: {
+          example: undefined as never,
+        },
+      }
+
+      await expect(catalog.list(spec, { id: 1 })).resolves.toEqual([])
+    })
+
+    it('enforces delete affected-row guards from rowCount', async () => {
+      const loader = {
+        load: vi.fn(() => Promise.resolve('DELETE FROM users WHERE id = :id')),
+      }
+      const spec: QuerySpec<{ id: number }, never> = {
+        id: 'mutation.delete.guard',
+        sqlFile: 'delete-guard.sql',
+        params: { shape: 'named', example: { id: 1 } },
+        mutation: {
+          kind: 'delete',
+        },
+        output: {
+          example: undefined as never,
+        },
+      }
+
+      const createDeleteCatalog = (rowCount?: number) =>
+        createCatalogExecutor({
+          loader,
+          executor: vi.fn(() =>
+            Promise.resolve(
+              rowCount === undefined ? { rows: [] } : { rows: [], rowCount }
+            )
+          ),
+          allowNamedParamsWithoutBinder: true,
+        })
+
+      await expect(createDeleteCatalog(0).list(spec, { id: 1 })).rejects.toThrow(
+        /expected exactly 1 affected row but received 0/i
+      )
+      await expect(createDeleteCatalog(1).list(spec, { id: 1 })).resolves.toEqual(
+        []
+      )
+      await expect(createDeleteCatalog(2).list(spec, { id: 1 })).rejects.toThrow(
+        /expected exactly 1 affected row but received 2/i
+      )
+      await expect(createDeleteCatalog().list(spec, { id: 1 })).rejects.toThrow(
+        /did not expose rowCount/i
+      )
+    })
+
+    it('allows delete specs to disable affected-row guards explicitly', async () => {
+      const loader = {
+        load: vi.fn(() => Promise.resolve('DELETE FROM users WHERE id = :id')),
+      }
+      const executor = vi.fn(() => Promise.resolve({ rows: [] }))
+      const catalog = createCatalogExecutor({
+        loader,
+        executor,
+        allowNamedParamsWithoutBinder: true,
+      })
+
+      const spec: QuerySpec<{ id: number }, never> = {
+        id: 'mutation.delete.guard-none',
+        sqlFile: 'delete-guard-none.sql',
+        params: { shape: 'named', example: { id: 1 } },
+        mutation: {
+          kind: 'delete',
+          delete: {
+            affectedRowsGuard: { mode: 'none' },
+          },
+        },
+        output: {
+          example: undefined as never,
+        },
+      }
+
+      await expect(catalog.list(spec, { id: 1 })).resolves.toEqual([])
     })
   })
 })
