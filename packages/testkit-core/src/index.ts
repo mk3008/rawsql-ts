@@ -28,6 +28,13 @@ export {
   TestkitProvider,
   createTestkitProvider,
 } from './provider/TestkitProvider';
+export {
+  createCatalogRewriter,
+  type CatalogRewriter,
+  type CatalogRewriterInput,
+  type CatalogRewriterOptions,
+  type CatalogRewriterParams,
+} from './catalog/createCatalogRewriter';
 export type {
   CreateTestkitProviderOptions,
   ConnectionResetHook,
