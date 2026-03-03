@@ -11,6 +11,7 @@ CLI tool for scaffolding **Zero Table Dependency (ZTD)** projects and keeping DD
 
 - Project scaffolding with `ztd init` (DDL folder, config, test stubs)
 - DDL-to-TypeScript type generation (`TestRowMap`)
+- Live QuerySpec scaffold generation from SQL assets (`ztd model-gen`)
 - Schema pull from live Postgres via `pg_dump`
 - DDL diff against a live database
 - SQL linting with fixture-backed validation
@@ -55,6 +56,7 @@ The generated artifacts:
 | `ztd init --with-app-interface` | Append application interface guidance to `AGENTS.md` only |
 | `ztd ztd-config` | Generate `TestRowMap` and layout from DDL files |
 | `ztd ztd-config --watch` | Regenerate on DDL changes |
+| `ztd model-gen <sql-file>` | Generate QuerySpec DTO types and rowMapping by probing a live database |
 | `ztd ddl pull` | Fetch schema from a live Postgres database via `pg_dump` |
 | `ztd ddl diff` | Diff local DDL snapshot against a live database |
 | `ztd ddl gen-entities` | Generate `entities.ts` for ad-hoc schema inspection |
@@ -70,6 +72,24 @@ Zero Table Dependency rewrites application CRUD statements into fixture-backed S
 - Tests run deterministically without creating or mutating tables
 
 The typical loop: `ztd ddl pull` -> edit `ztd/ddl/*.sql` -> `ztd ztd-config --watch` -> write tests.
+
+## QuerySpec Workflow
+
+`ztd model-gen` is designed for SQL asset files under `src/sql/` and assumes **named parameters** (`:name`).
+
+```text
+1. Write SQL in src/sql/ using named parameters such as :customerId
+2. Run: ztd model-gen src/sql/my_query.sql --out src/catalog/specs/my-query.spec.ts
+3. Review the generated types, rowMapping key, nullability, and normalization
+4. Run ZTD tests to confirm the contract
+```
+
+Notes:
+- SQL asset files should use named parameters (`:name`) by policy.
+- Positional placeholders (`$1`, `$2`, ...) are rejected by default.
+- Use `--allow-positional` only for legacy SQL that you cannot rewrite yet.
+- `--sql-root` defaults to `src/sql` and controls how `sqlFile` plus `spec id` are derived.
+- `--debug-probe` prints the bound probe SQL and ordered parameter names to stderr before the live probe runs.
 
 ## Glossary
 
