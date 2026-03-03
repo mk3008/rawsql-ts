@@ -134,6 +134,7 @@ type FileKey =
   | 'tablesRepoReadme'
   | 'jobsReadme'
   | 'sqlClient'
+  | 'sqlClientAdapters'
   | 'agents'
   | 'gitignore'
   | 'editorconfig'
@@ -187,6 +188,8 @@ export interface InitCommandOptions {
   withAppInterface?: boolean;
   forceOverwrite?: boolean;
   nonInteractive?: boolean;
+  workflow?: InitWorkflow;
+  validator?: ValidatorBackend;
 }
 
 type ValidatorBackend = 'zod' | 'arktype';
@@ -211,8 +214,12 @@ const ARKTYPE_DEPENDENCY: Record<string, string> = {
 
 async function gatherOptionalFeatures(
   prompter: Prompter,
-  _dependencies: ZtdConfigWriterDependencies
+  _dependencies: ZtdConfigWriterDependencies,
+  validatorOverride?: ValidatorBackend
 ): Promise<OptionalFeatures> {
+  if (validatorOverride) {
+    return { validator: validatorOverride };
+  }
   const validatorChoice = await prompter.selectChoice(
     'Runtime DTO validation is required for ZTD tests. Which validator backend should we install?',
     ['Zod (zod, recommended)', 'ArkType (arktype)']
@@ -238,6 +245,7 @@ const GLOBAL_SETUP_TEMPLATE = 'tests/support/global-setup.ts';
 const VITEST_CONFIG_TEMPLATE = 'vitest.config.ts';
 const TSCONFIG_TEMPLATE = 'tsconfig.json';
 const SQL_CLIENT_TEMPLATE = 'src/db/sql-client.ts';
+const SQL_CLIENT_ADAPTERS_TEMPLATE = 'src/db/sql-client-adapters.ts';
 const SQL_README_TEMPLATE = 'src/sql/README.md';
 const VIEWS_REPO_README_TEMPLATE = 'src/repositories/views/README.md';
 const TABLES_REPO_README_TEMPLATE = 'src/repositories/tables/README.md';
@@ -388,16 +396,29 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     };
   }
 
-  // Ask how the user prefers to populate the initial schema.
-  const workflowChoice = await prompter.selectChoice(
-    'How do you want to start your database workflow?',
-    [
-      'Pull schema from Postgres (pg_dump)',
-      'Create empty scaffold (I will write DDL)',
-      'Create scaffold with demo DDL (no app code)'
-    ]
-  );
-  const workflow: InitWorkflow = workflowChoice === 0 ? 'pg_dump' : workflowChoice === 1 ? 'empty' : 'demo';
+  // Determine workflow: use explicit flag, non-interactive default, or prompt.
+  let workflow: InitWorkflow;
+  if (options?.workflow) {
+    workflow = options.workflow;
+  } else if (overwritePolicy.nonInteractive) {
+    workflow = 'demo';
+  } else {
+    const workflowChoice = await prompter.selectChoice(
+      'How do you want to start your database workflow?',
+      [
+        'Pull schema from Postgres (pg_dump)',
+        'Create empty scaffold (I will write DDL)',
+        'Create scaffold with demo DDL (no app code)'
+      ]
+    );
+    workflow = workflowChoice === 0 ? 'pg_dump' : workflowChoice === 1 ? 'empty' : 'demo';
+  }
+
+  if (overwritePolicy.nonInteractive && workflow === 'pg_dump') {
+    throw new Error(
+      'Non-interactive mode does not support the pg_dump workflow (requires connection string prompt).'
+    );
+  }
 
   const schemaName = normalizeSchemaName(DEFAULT_ZTD_CONFIG.ddl.defaultSchema);
   const schemaFileName = `${sanitizeSchemaFileName(schemaName)}.sql`;
@@ -428,6 +449,7 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     tablesRepoAgents: path.join(rootDir, 'src', 'repositories', 'tables', 'AGENTS.md'),
     jobsAgents: path.join(rootDir, 'src', 'jobs', 'AGENTS.md'),
     sqlClient: path.join(rootDir, 'src', 'db', 'sql-client.ts'),
+    sqlClientAdapters: path.join(rootDir, 'src', 'db', 'sql-client-adapters.ts'),
     testkitClient: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'support', 'testkit-client.ts'),
     globalSetup: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'support', 'global-setup.ts'),
     vitestConfig: path.join(rootDir, 'vitest.config.ts'),
@@ -525,7 +547,8 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
   );
   summaries.config = configSummary;
 
-  const optionalFeatures = await gatherOptionalFeatures(prompter, dependencies);
+  const validatorOverride = options?.validator ?? (overwritePolicy.nonInteractive ? 'zod' : undefined);
+  const optionalFeatures = await gatherOptionalFeatures(prompter, dependencies, validatorOverride);
 
   // Emit supporting documentation that describes the workflow for contributors.
   const readmeSummary = await writeTemplateFile(
@@ -812,6 +835,17 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
   );
   if (sqlClientSummary) {
     summaries.sqlClient = sqlClientSummary;
+
+    // Only scaffold the pg adapter alongside the SqlClient interface.
+    const sqlClientAdaptersSummary = writeOptionalTemplateFile(
+      absolutePaths.sqlClientAdapters,
+      relativePath('sqlClientAdapters'),
+      SQL_CLIENT_ADAPTERS_TEMPLATE,
+      dependencies
+    );
+    if (sqlClientAdaptersSummary) {
+      summaries.sqlClientAdapters = sqlClientAdaptersSummary;
+    }
   }
 
   const testsAgentsSummary = await writeTemplateFile(
@@ -1716,6 +1750,7 @@ function buildSummaryLines(
     'testsGeneratedAgents',
     'testsSmoke',
     'sqlClient',
+    'sqlClientAdapters',
     'testkitClient',
     'globalSetup',
     'vitestConfig',
@@ -1755,21 +1790,56 @@ function buildSummaryLines(
   return lines;
 }
 
+const VALID_WORKFLOWS: readonly InitWorkflow[] = ['pg_dump', 'empty', 'demo'] as const;
+const VALID_VALIDATORS: readonly ValidatorBackend[] = ['zod', 'arktype'] as const;
+
 export function registerInitCommand(program: Command): void {
   program
     .command('init')
     .description('Automate project setup for Zero Table Dependency workflows')
     .option('--with-sqlclient', 'Generate a minimal SqlClient interface for repositories')
     .option('--with-app-interface', 'Append application interface guidance to AGENTS.md only')
-    .option('--yes', 'Overwrite existing scaffold files without prompting')
-    .action(async (options: { withSqlclient?: boolean; withAppInterface?: boolean; yes?: boolean }) => {
+    .option('--yes', 'Accept defaults and overwrite existing files without prompting')
+    .option('--workflow <type>', 'Schema workflow: pg_dump, empty, or demo (default: demo)')
+    .option('--validator <type>', 'Validator backend: zod or arktype (default: zod)')
+    .action(async (options: {
+      withSqlclient?: boolean;
+      withAppInterface?: boolean;
+      yes?: boolean;
+      workflow?: string;
+      validator?: string;
+    }) => {
+      // Validate --workflow value if provided.
+      if (options.workflow && !VALID_WORKFLOWS.includes(options.workflow as InitWorkflow)) {
+        console.error(`Invalid --workflow value: "${options.workflow}". Must be one of: ${VALID_WORKFLOWS.join(', ')}`);
+        process.exit(1);
+      }
+      // Validate --validator value if provided.
+      if (options.validator && !VALID_VALIDATORS.includes(options.validator as ValidatorBackend)) {
+        console.error(`Invalid --validator value: "${options.validator}". Must be one of: ${VALID_VALIDATORS.join(', ')}`);
+        process.exit(1);
+      }
+
+      const isNonInteractive = options.yes === true || !process.stdin.isTTY;
+
+      // When --yes is used, apply defaults for unspecified flags.
+      const workflow = (options.workflow as InitWorkflow | undefined) ?? (isNonInteractive ? 'demo' : undefined);
+      const validator = (options.validator as ValidatorBackend | undefined) ?? (isNonInteractive ? 'zod' : undefined);
+
+      if (isNonInteractive && workflow === 'pg_dump') {
+        console.error('Non-interactive mode does not support the pg_dump workflow (requires connection string prompt).');
+        process.exit(1);
+      }
+
       const prompter = createConsolePrompter();
       try {
         await runInitCommand(prompter, {
           withSqlClient: options.withSqlclient,
           withAppInterface: options.withAppInterface,
           forceOverwrite: options.yes ?? false,
-          nonInteractive: !process.stdin.isTTY
+          nonInteractive: isNonInteractive,
+          workflow,
+          validator
         });
       } finally {
         prompter.close();

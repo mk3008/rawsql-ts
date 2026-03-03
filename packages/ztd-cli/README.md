@@ -24,42 +24,162 @@ CLI tool for scaffolding **Zero Table Dependency (ZTD)** projects and keeping DD
 npm install -D @rawsql-ts/ztd-cli
 ```
 
-## Quick Start
+## Happy Path Quickstart
+
+A complete copy-paste sequence to reach a green test run. Choose the **demo** workflow during `ztd init` to get a working example immediately.
+
+### Prerequisites
+
+- Node.js 20+
+- npm, pnpm, or yarn
+
+### Steps
 
 ```bash
-# 1. Initialize a ZTD layout
+# 1. Create a new project (skip if you already have one)
+mkdir my-ztd-project && cd my-ztd-project
+npm init -y
+
+# 2. Install ztd-cli and the test runner
+npm install -D @rawsql-ts/ztd-cli vitest typescript
+
+# 3. Scaffold a ZTD project
+#    Select: workflow → "demo", validator → "Zod (recommended)"
 npx ztd init
-
-# 2. Put your schema into ztd/ddl/ (edit manually or pull from DB)
-npx ztd ddl pull    # Postgres only; uses pg_dump
-
-# 3. Generate test types from DDL
-npx ztd ztd-config
-# or keep it updated while you edit SQL:
-npx ztd ztd-config --watch
-
-# 4. Write tests using generated types + driver wiring
 ```
 
-The generated artifacts:
-- `tests/generated/ztd-row-map.generated.ts` — authoritative `TestRowMap` (do not edit or commit)
-- `tests/support/testkit-client.ts` — driver wiring helper
-- `ztd.config.json` — CLI defaults and resolver hints
+After `ztd init` you should see:
+
+| Path | Purpose |
+|------|---------|
+| `ztd/ddl/demo.sql` | Sample DDL (3 tables: user, task, task_assignment) |
+| `ztd.config.json` | CLI defaults and resolver hints |
+| `tests/smoke.test.ts` | Minimal smoke test |
+| `tests/smoke.validation.test.ts` | Validator integration smoke test |
+| `tests/support/testkit-client.ts` | Driver wiring placeholder |
+| `src/catalog/specs/` | Spec and runtime files for the smoke contract |
+
+```bash
+# 4. Generate test types from the demo DDL
+npx ztd ztd-config
+```
+
+After `ztd-config` you should see:
+
+| Path | Purpose |
+|------|---------|
+| `tests/generated/ztd-row-map.generated.ts` | Authoritative `TestRowMap` (do not edit) |
+| `tests/generated/ztd-layout.generated.ts` | Layout metadata for the test harness |
+
+```bash
+# 5. Run the smoke tests
+npx vitest run
+```
+
+All smoke tests should pass. You now have a working ZTD project.
+
+### Next steps
+
+- Replace the demo DDL with your own schema, or pull from a live database with `npx ztd ddl pull`
+- Re-run `npx ztd ztd-config` whenever DDL changes (or use `--watch`)
+- Wire a real driver in `tests/support/testkit-client.ts` (see [adapter-node-pg](../adapters/adapter-node-pg) for Postgres)
+- Write domain tests against generated `TestRowMap` types
+
+> **Tip:** For a non-interactive setup (CI, scripts), use `npx ztd init --yes` with explicit flags. See [Commands](#commands) for details.
+
+## Quick Reference
+
+```bash
+# Common workflow loop
+npx ztd ddl pull          # Pull schema from Postgres (optional)
+npx ztd ztd-config        # Regenerate types from DDL
+npx vitest run             # Run tests
+npx ztd ztd-config --watch # Or keep types updated while editing DDL
+```
 
 ## Commands
 
 | Command | Description |
 |---------|-------------|
 | `ztd init` | Create a ZTD-ready project layout (DDL folder, config, test stubs) |
+| `ztd init --yes` | Non-interactive mode: accept defaults (demo workflow, Zod validator) and overwrite existing files |
+| `ztd init --workflow <type>` | Specify schema workflow: `pg_dump`, `empty`, or `demo` |
+| `ztd init --validator <type>` | Specify validator backend: `zod` or `arktype` |
 | `ztd init --with-sqlclient` | Also scaffold a minimal `SqlClient` boundary for repositories |
 | `ztd init --with-app-interface` | Append application interface guidance to `AGENTS.md` only |
-| `ztd ztd-config` | Generate `TestRowMap` and layout from DDL files |
+| `ztd ztd-config` | Generate `TestRowMap` and layout from DDL files (prints next-step hints) |
 | `ztd ztd-config --watch` | Regenerate on DDL changes |
+| `ztd ztd-config --quiet` | Suppress next-step hints (useful in scripts) |
 | `ztd ddl pull` | Fetch schema from a live Postgres database via `pg_dump` |
 | `ztd ddl diff` | Diff local DDL snapshot against a live database |
 | `ztd ddl gen-entities` | Generate `entities.ts` for ad-hoc schema inspection |
 | `ztd lint <path>` | Lint SQL files with fixture-backed validation |
 | `ztd evidence --mode specification` | Export executable specification evidence from SQL catalogs and test files |
+
+## After DDL/Schema Changes
+
+When your database schema evolves, regenerate test types and re-run tests. Here is the standard workflow and common patterns.
+
+### Standard workflow
+
+```bash
+# 1. Update DDL files in ztd/ddl/
+#    Edit manually, or pull from a live database:
+npx ztd ddl pull
+
+# 2. Regenerate test types
+npx ztd ztd-config
+
+# 3. Fix compile errors (if any) in tests and specs
+#    Generated TestRowMap shapes may have changed
+
+# 4. Re-run tests
+npx vitest run
+
+# 5. (Optional) Lint SQL files against the new schema
+npx ztd lint src/sql/
+```
+
+### Common patterns
+
+#### Add a column
+
+1. Add the column to your DDL file (`ztd/ddl/*.sql`)
+2. Run `npx ztd ztd-config` — the new column appears in `TestRowMap`
+3. Update fixtures in tests to include the new column (if required by NOT NULL)
+4. Run `npx vitest run`
+
+#### Rename a column
+
+1. Rename the column in the DDL file
+2. Run `npx ztd ztd-config` — old name disappears, new name appears in `TestRowMap`
+3. Update all references: SQL files, `rowMapping` column maps, fixtures, and specs
+4. Run `npx vitest run` to catch any remaining references via compile errors
+
+#### Add a new table
+
+1. Add the CREATE TABLE to a DDL file (new file or existing)
+2. Run `npx ztd ztd-config` — new table type appears in `TestRowMap`
+3. Write SQL queries and tests for the new table
+4. Run `npx vitest run`
+
+#### Drop a column or table
+
+1. Remove from DDL
+2. Run `npx ztd ztd-config` — the removed type/column disappears
+3. Compile errors guide you to all affected code
+4. Remove or update references, then run `npx vitest run`
+
+### Troubleshooting
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| `TestRowMap` not updated | Forgot to run `ztd-config` | Run `npx ztd ztd-config` |
+| Compile errors after `ztd-config` | Schema shape changed | Update fixtures, specs, and column maps to match new shape |
+| `ztd-config` fails to parse DDL | Unsupported SQL syntax | Simplify the DDL or check for dialect-specific constructs |
+| Tests pass but SQL fails at runtime | DDL and live DB are out of sync | Run `npx ztd ddl diff` to compare, then `npx ztd ddl pull` to re-sync |
+
+> **Tip:** Use `npx ztd ztd-config --watch` during development to regenerate types automatically when DDL files change.
 
 ## What is ZTD?
 
@@ -70,6 +190,13 @@ Zero Table Dependency rewrites application CRUD statements into fixture-backed S
 - Tests run deterministically without creating or mutating tables
 
 The typical loop: `ztd ddl pull` -> edit `ztd/ddl/*.sql` -> `ztd ztd-config --watch` -> write tests.
+
+## Further Reading
+
+- [Feature Index](../../docs/guide/feature-index.md) — at-a-glance list of easy-to-miss capabilities
+- [Postgres Pitfalls](../../docs/guide/postgres-pitfalls.md) — common Postgres-specific surprises
+- [Spec-Change Scenarios](../../docs/guide/spec-change-scenarios.md) — condensed digest of common schema changes
+- [Mapping vs Validation Pipeline](../../docs/recipes/mapping-vs-validation.md) — avoid coerce/validator conflicts
 
 ## Glossary
 

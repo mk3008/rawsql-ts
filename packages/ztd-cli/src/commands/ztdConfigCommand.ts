@@ -59,6 +59,7 @@ export function registerZtdConfigCommand(program: Command): void {
     .option('--default-schema <schema>', 'Override ddl.defaultSchema stored in ztd.config.json')
     .option('--search-path <list>', 'Comma-separated schema search path entries', parseCsvList)
     .option('--watch', 'Watch DDL files and regenerate when schema changes', false)
+    .option('--quiet', 'Suppress next-step hints after generation', false)
     .action(async (options) => {
       const projectConfig = loadZtdProjectConfig();
       const directories = normalizeDirectoryList(options.ddlDir as string[], projectConfig.ddlDir ?? DEFAULT_DDL_DIRECTORY);
@@ -105,6 +106,14 @@ export function registerZtdConfigCommand(program: Command): void {
       if (options.watch) {
         console.log(`[watch] Initial generation complete: ${generationOptions.out}`);
         await watchZtdConfig(generationOptions, layoutOut, layoutConfig);
+      } else if (!options.quiet) {
+        console.log('');
+        console.log('Next steps:');
+        console.log('  1. npx vitest run              Run tests to verify generated types');
+        console.log('  2. npx ztd lint <path>         Lint SQL files against the schema');
+        console.log('  3. npx ztd check-contract      Validate catalog contracts');
+        console.log('');
+        console.log('Tip: use --watch to regenerate automatically when DDL files change.');
       }
     });
 }
