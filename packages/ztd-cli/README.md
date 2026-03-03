@@ -115,6 +115,86 @@ npx ztd ztd-config --watch # Or keep types updated while editing DDL
 | `ztd ddl gen-entities` | Generate `entities.ts` for ad-hoc schema inspection |
 | `ztd lint <path>` | Lint SQL files with fixture-backed validation |
 | `ztd evidence --mode specification` | Export executable specification evidence from SQL catalogs and test files |
+| `ztd query uses table <schema.table>` | Find catalog SQL statements that use a table target |
+| `ztd query uses column <schema.table>.<column>` | Find catalog SQL statements that use a column target with explicit uncertainty labels |
+
+## Impact Investigation
+
+Use `ztd query uses` before renaming or deleting catalog-facing SQL assets. The command is strict by default and never broadens matching unless you opt in with relaxed flags.
+
+### Strict examples
+
+```bash
+npx ztd query uses table public.users
+npx ztd query uses column public.users.email
+npx ztd query uses column public.users.email --format json
+```
+
+### Relaxed examples
+
+```bash
+npx ztd query uses table users --any-schema
+npx ztd query uses column users.email --any-schema
+npx ztd query uses column email --any-schema --any-table --format json
+```
+
+### JSON example
+
+```json
+{
+  "schemaVersion": 1,
+  "mode": "exact",
+  "target": {
+    "kind": "column",
+    "raw": "public.users.email",
+    "schema": "public",
+    "table": "users",
+    "column": "email"
+  },
+  "summary": {
+    "catalogsScanned": 1,
+    "statementsScanned": 3,
+    "matches": 2,
+    "fallbackMatches": 0,
+    "unresolvedSqlFiles": 0,
+    "parseWarnings": 0
+  },
+  "matches": [
+    {
+      "catalog_id": "catalog.users",
+      "query_id": "catalog.users:1",
+      "statement_fingerprint": "6cb80ffe674e",
+      "sql_file": "src/sql/users.sql",
+      "usage_kind": "select",
+      "location": {
+        "startLine": 1,
+        "startColumn": 10,
+        "endLine": 1,
+        "endColumn": 17,
+        "fileOffsetStart": 9,
+        "fileOffsetEnd": 16
+      },
+      "snippet": "SELECT u.email FROM public.users u",
+      "confidence": "high",
+      "notes": [],
+      "source": "ast"
+    }
+  ],
+  "warnings": []
+}
+```
+
+### Output fields
+
+- `mode` tells you whether the query ran in `exact`, `any-schema`, or `any-schema-any-table` mode.
+- `confidence` exposes how reliable a match is. Relaxed mode and ambiguous static matches intentionally drop to `low`.
+- `notes` lists why confidence dropped, such as `unqualified-column`, `wildcard-select`, or `parser-fallback`.
+- `source` distinguishes AST-derived matches from fallback-derived matches.
+- `statement_fingerprint` is a stable hash of normalized statement text. It is designed to survive comment and whitespace changes under the current normalization contract.
+
+Static column analysis does not guarantee semantic identity.
+
+The absence of `exprHints` does not imply the absence of expression features. `exprHints` is best-effort only.
 
 ## After DDL/Schema Changes
 

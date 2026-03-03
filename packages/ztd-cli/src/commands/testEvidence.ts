@@ -18,6 +18,12 @@ import {
   type DefinitionLinkOptions,
   type RemovedDetailLevel
 } from '@rawsql-ts/test-evidence-renderer-md';
+import {
+  isPlainObject,
+  loadSqlCatalogSpecsFromFile,
+  walkSqlCatalogSpecFiles,
+  type LoadedSqlCatalogSpec
+} from '../utils/sqlCatalogDiscovery';
 
 /**
  * Supported evidence generation modes for `ztd evidence`.
@@ -166,17 +172,6 @@ interface TestEvidencePrCommandOptions {
   specsDir?: string;
   testsDir?: string;
   specModule?: string;
-}
-
-interface QuerySpecLike {
-  id?: unknown;
-  sqlFile?: unknown;
-  params?: {
-    shape?: unknown;
-  };
-  output?: {
-    mapping?: unknown;
-  };
 }
 
 interface TestCaseCatalogDocumentLike {
@@ -352,7 +347,7 @@ export function runTestEvidenceSpecification(options: {
   const specsDir = options.specsDir ? path.resolve(root, options.specsDir) : path.resolve(root, 'src', 'catalog', 'specs');
   const testsDir = options.testsDir ? path.resolve(root, options.testsDir) : path.resolve(root, 'tests');
 
-  const sqlSpecFiles = existsSync(specsDir) ? walkFiles(specsDir, isSpecLikeFile) : [];
+  const sqlSpecFiles = existsSync(specsDir) ? walkSqlCatalogSpecFiles(specsDir) : [];
   const evidenceModule = loadEvidenceModule(root, testsDir, options.specModule);
   const testCaseCatalogFiles = existsSync(testsDir) ? walkFiles(testsDir, isTestCaseCatalogFile) : [];
   const legacyTestCases = evidenceModule ? [] : testCaseCatalogFiles.flatMap((filePath) => loadTestCaseCatalogEvidence(root, filePath));
@@ -375,7 +370,9 @@ export function runTestEvidenceSpecification(options: {
   }
 
   const sqlCatalogs = sqlSpecFiles
-    .flatMap((filePath) => loadSpecsFromFile(filePath))
+    .flatMap((filePath) =>
+      loadSqlCatalogSpecsFromFile(filePath, (message) => new TestEvidenceRuntimeError(message))
+    )
     .map((loaded) => toSqlEvidence(root, loaded))
     .sort((a, b) => a.id.localeCompare(b.id) || a.specFile.localeCompare(b.specFile));
 
@@ -882,7 +879,7 @@ function resolveGitMergeBase(repoRoot: string, baseRef: string, headRef: string)
 
 function toSqlEvidence(
   rootDir: string,
-  loaded: { filePath: string; spec: QuerySpecLike }
+  loaded: LoadedSqlCatalogSpec
 ): SqlCatalogSpecEvidence {
   const id =
     typeof loaded.spec.id === 'string' && loaded.spec.id.trim().length > 0
@@ -905,45 +902,6 @@ function toSqlEvidence(
     paramsShape,
     hasOutputMapping: loaded.spec.output?.mapping !== undefined
   };
-}
-
-function loadSpecsFromFile(filePath: string): Array<{ filePath: string; spec: QuerySpecLike }> {
-  const ext = path.extname(filePath).toLowerCase();
-  if (ext === '.json') {
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(readFileSync(filePath, 'utf8'));
-    } catch (error) {
-      throw new TestEvidenceRuntimeError(
-        `Failed to parse spec file ${filePath}: ${error instanceof Error ? error.message : String(error)}`
-      );
-    }
-
-    if (Array.isArray(parsed)) {
-      return parsed.map((spec) => ({ spec: spec as QuerySpecLike, filePath }));
-    }
-    if (isPlainObject(parsed) && Array.isArray((parsed as Record<string, unknown>).specs)) {
-      return ((parsed as { specs: unknown[] }).specs).map((spec) => ({ spec: spec as QuerySpecLike, filePath }));
-    }
-    if (isPlainObject(parsed)) {
-      return [{ spec: parsed as QuerySpecLike, filePath }];
-    }
-    return [];
-  }
-
-  const source = readFileSync(filePath, 'utf8');
-  const blocks = extractTsJsSpecBlocks(source);
-  return blocks.map((block) => ({
-    filePath,
-    spec: {
-      id: block.match(/id\s*:\s*['"`]([^'"`]+)['"`]/)?.[1],
-      sqlFile: block.match(/sqlFile\s*:\s*['"`]([^'"`]+)['"`]/)?.[1],
-      params: {
-        shape: block.match(/shape\s*:\s*['"`](positional|named)['"`]/)?.[1]
-      },
-      output: /mapping\s*:/.test(block) ? { mapping: {} } : undefined
-    }
-  }));
 }
 
 function loadEvidenceModule(rootDir: string, testsDir: string, specModule?: string): EvidenceModuleLike | undefined {
@@ -1383,50 +1341,6 @@ function loadTestCaseCatalogEvidence(rootDir: string, filePath: string): TestCas
   return rows;
 }
 
-function extractTsJsSpecBlocks(source: string): string[] {
-  const blocks: string[] = [];
-  const seen = new Set<string>();
-  const idRegex = /id\s*:\s*['"`][^'"`]+['"`]/g;
-
-  for (const match of Array.from(source.matchAll(idRegex))) {
-    if (typeof match.index !== 'number') {
-      continue;
-    }
-    const start = source.lastIndexOf('{', match.index);
-    if (start < 0) {
-      continue;
-    }
-
-    let depth = 0;
-    let end = -1;
-    for (let i = start; i < source.length; i += 1) {
-      const ch = source[i];
-      if (ch === '{') {
-        depth += 1;
-      } else if (ch === '}') {
-        depth -= 1;
-        if (depth === 0) {
-          end = i;
-          break;
-        }
-      }
-    }
-    if (end < 0) {
-      continue;
-    }
-    const block = source.slice(start, end + 1);
-    if (!/sqlFile\s*:\s*['"`][^'"`]+['"`]/.test(block)) {
-      continue;
-    }
-    if (!seen.has(block)) {
-      seen.add(block);
-      blocks.push(block);
-    }
-  }
-
-  return blocks;
-}
-
 function walkFiles(rootDir: string, predicate: (absolutePath: string) => boolean): string[] {
   const stack = [rootDir];
   const files: string[] = [];
@@ -1447,22 +1361,9 @@ function walkFiles(rootDir: string, predicate: (absolutePath: string) => boolean
   return files.sort((a, b) => a.localeCompare(b));
 }
 
-function isSpecLikeFile(filePath: string): boolean {
-  const lowered = filePath.toLowerCase();
-  return lowered.endsWith('.json') || lowered.endsWith('.ts') || lowered.endsWith('.js') || lowered.endsWith('.mts') || lowered.endsWith('.cts');
-}
-
 function isTestCaseCatalogFile(filePath: string): boolean {
   const lowered = filePath.toLowerCase();
   return lowered.endsWith('.test-case-catalog.json');
-}
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
-    return false;
-  }
-  const proto = Object.getPrototypeOf(value);
-  return proto === Object.prototype || proto === null;
 }
 
 function normalizePath(input: string): string {

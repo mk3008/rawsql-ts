@@ -1,7 +1,13 @@
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { Command } from 'commander';
 import { BinarySelectQuery, ColumnReference, DeleteQuery, MultiQuerySplitter, SimpleSelectQuery, SqlParser, UpdateQuery } from 'rawsql-ts';
+import {
+  isPlainObject,
+  loadSqlCatalogSpecsFromFile,
+  walkSqlCatalogSpecFiles,
+  type LoadedSqlCatalogSpec
+} from '../utils/sqlCatalogDiscovery';
 
 export type CheckFormat = 'human' | 'json';
 export type ViolationSeverity = 'error' | 'warning';
@@ -47,26 +53,6 @@ export function resolveCheckContractExitCode(args: {
     return 2;
   }
   return args.result.ok ? 0 : 1;
-}
-
-interface QuerySpecLike {
-  id?: unknown;
-  sqlFile?: unknown;
-  params?: {
-    shape?: unknown;
-    example?: unknown;
-  };
-  output?: {
-    mapping?: {
-      prefix?: unknown;
-      columnMap?: unknown;
-    };
-  };
-}
-
-interface LoadedSpec {
-  spec: QuerySpecLike;
-  filePath: string;
 }
 
 /** Runtime/configuration error for contract check command (maps to exit code 2). */
@@ -141,11 +127,13 @@ export function runCheckContract(options: { strict: boolean; rootDir?: string; s
     throw new CheckContractRuntimeError(`Spec directory not found: ${specsDir}`);
   }
 
-  const specFiles = walkSpecFiles(specsDir);
-  const loadedSpecs = specFiles.flatMap((filePath) => loadSpecsFromFile(filePath));
+  const specFiles = walkSqlCatalogSpecFiles(specsDir, { excludeTestFiles: true });
+  const loadedSpecs = specFiles.flatMap((filePath) =>
+    loadSqlCatalogSpecsFromFile(filePath, (message) => new CheckContractRuntimeError(message))
+  );
   const violations: ContractViolation[] = [];
 
-  const duplicateMap = new Map<string, LoadedSpec[]>();
+  const duplicateMap = new Map<string, LoadedSqlCatalogSpec[]>();
   for (const loaded of loadedSpecs) {
     const id = typeof loaded.spec.id === 'string' ? loaded.spec.id.trim() : '';
     if (!id) {
@@ -384,154 +372,6 @@ function validateMapping(
     }
     seenColumns.set(normalized, key);
   }
-}
-
-function loadSpecsFromFile(filePath: string): LoadedSpec[] {
-  const ext = path.extname(filePath).toLowerCase();
-  if (ext === '.json') {
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(readFileSync(filePath, 'utf8'));
-    } catch (error) {
-      throw new CheckContractRuntimeError(
-        `Failed to parse spec file ${filePath}: ${error instanceof Error ? error.message : String(error)}`
-      );
-    }
-
-    if (Array.isArray(parsed)) {
-      return parsed.map((spec) => ({ spec: (spec as QuerySpecLike), filePath }));
-    }
-    if (isPlainObject(parsed) && Array.isArray((parsed as Record<string, unknown>).specs)) {
-      const specs = (parsed as { specs: unknown[] }).specs;
-      return specs.map((spec) => ({ spec: (spec as QuerySpecLike), filePath }));
-    }
-    if (isPlainObject(parsed)) {
-      return [{ spec: parsed as QuerySpecLike, filePath }];
-    }
-
-    throw new CheckContractRuntimeError(`Unsupported spec format in ${filePath}`);
-  }
-
-  const source = readFileSync(filePath, 'utf8');
-  // Intentionally lightweight extraction for TS/JS specs (MVP):
-  // - expects object-literal style specs
-  // - does not fully parse TS syntax/semantics
-  // Prefer JSON specs for strict machine-readability.
-  const blocks = extractTsJsSpecBlocks(source);
-  return blocks.map((block) => {
-    const id = block.match(/id\s*:\s*['"`]([^'"`]+)['"`]/)?.[1];
-    const sqlFile = block.match(/sqlFile\s*:\s*['"`]([^'"`]+)['"`]/)?.[1];
-    const shape = block.match(/shape\s*:\s*['"`](positional|named)['"`]/)?.[1];
-    const exampleIsArray = /example\s*:\s*\[/.test(block);
-    const exampleIsObject = /example\s*:\s*\{/.test(block);
-
-    const columnMapBlock = block.match(/columnMap\s*:\s*\{([\s\S]*?)\}/)?.[1] ?? '';
-    const columnMap: Record<string, unknown> = {};
-    for (const match of Array.from(columnMapBlock.matchAll(/([A-Za-z_$][\w$]*)\s*:\s*['"`]([^'"`]+)['"`]/g))) {
-      columnMap[match[1]] = match[2];
-    }
-    const prefix = block.match(/prefix\s*:\s*['"`]([^'"`]*)['"`]/)?.[1];
-    const mapping = {
-      ...(typeof prefix === 'string' ? { prefix } : {}),
-      ...(Object.keys(columnMap).length > 0 ? { columnMap } : {})
-    };
-
-    return {
-      spec: {
-        id,
-        sqlFile,
-        params: {
-          shape,
-          example: exampleIsArray ? [] : exampleIsObject ? {} : undefined
-        },
-        output: Object.keys(mapping).length > 0 ? { mapping } : undefined
-      } as QuerySpecLike,
-      filePath
-    };
-  });
-}
-
-function extractTsJsSpecBlocks(source: string): string[] {
-  const blocks: string[] = [];
-  const seen = new Set<string>();
-  const idRegex = /id\s*:\s*['"`][^'"`]+['"`]/g;
-
-  for (const match of Array.from(source.matchAll(idRegex))) {
-    if (typeof match.index !== 'number') {
-      continue;
-    }
-
-    const start = source.lastIndexOf('{', match.index);
-    if (start < 0) {
-      continue;
-    }
-
-    let depth = 0;
-    let end = -1;
-    for (let i = start; i < source.length; i += 1) {
-      const ch = source[i];
-      if (ch === '{') {
-        depth += 1;
-      } else if (ch === '}') {
-        depth -= 1;
-        if (depth === 0) {
-          end = i;
-          break;
-        }
-      }
-    }
-
-    if (end < 0) {
-      continue;
-    }
-
-    const block = source.slice(start, end + 1);
-    if (!/sqlFile\s*:\s*['"`][^'"`]+['"`]/.test(block)) {
-      continue;
-    }
-
-    if (!seen.has(block)) {
-      seen.add(block);
-      blocks.push(block);
-    }
-  }
-
-  return blocks;
-}
-
-function walkSpecFiles(rootDir: string): string[] {
-  const files: string[] = [];
-  const stack = [rootDir];
-  while (stack.length > 0) {
-    const current = stack.pop()!;
-    const entries = readdirSync(current, { withFileTypes: true })
-      .sort((a, b) => a.name.localeCompare(b.name));
-    for (const entry of entries) {
-      const absolute = path.join(current, entry.name);
-      if (entry.isDirectory()) {
-        stack.push(absolute);
-        continue;
-      }
-      if (entry.isFile()) {
-        const name = entry.name.toLowerCase();
-        if (
-          (name.endsWith('.json') || name.endsWith('.ts') || name.endsWith('.js') || name.endsWith('.mts') || name.endsWith('.cts'))
-          && !name.includes('.test.')
-        ) {
-          files.push(absolute);
-        }
-      }
-    }
-  }
-  return files.sort((a, b) => a.localeCompare(b));
-}
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
-    return false;
-  }
-  const proto = Object.getPrototypeOf(value);
-  return proto === Object.prototype || proto === null;
 }
 
 /** Format check results into human text or deterministic JSON text. */

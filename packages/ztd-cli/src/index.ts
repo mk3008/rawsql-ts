@@ -4,6 +4,7 @@ import { Command } from 'commander';
 import { registerDdlCommands } from './commands/ddl';
 import { registerInitCommand } from './commands/init';
 import { registerLintCommand } from './commands/lint';
+import { registerQueryCommands } from './commands/query';
 import { registerZtdConfigCommand } from './commands/ztdConfigCommand';
 import { CheckContractRuntimeError, registerCheckContractCommand } from './commands/checkContract';
 import { TestEvidenceRuntimeError, registerTestEvidenceCommand } from './commands/testEvidence';
@@ -14,6 +15,7 @@ async function main(): Promise<void> {
 
   registerInitCommand(program);
   registerLintCommand(program);
+  registerQueryCommands(program);
   registerCheckContractCommand(program);
   registerTestEvidenceCommand(program);
   registerZtdConfigCommand(program);
@@ -25,6 +27,8 @@ Getting started:
   $ ztd init --yes             Create a new ZTD project (non-interactive, demo + Zod defaults)
   $ ztd ztd-config             Generate TestRowMap types from DDL
   $ ztd lint <path>            Lint SQL files against the schema
+  $ ztd query uses table public.users
+  $ ztd query uses column public.users.email --format json
 
 Common workflow:
   1. ztd init                  Scaffold the project
