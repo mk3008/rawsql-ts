@@ -5,6 +5,7 @@ import { buildQueryUsageReport, writeQueryUsageOutput } from '../query/report';
 interface QueryUsesOptions {
   format?: string;
   specsDir?: string;
+  sqlRoot?: string;
   out?: string;
   view?: string;
   anySchema?: boolean;
@@ -44,6 +45,7 @@ Notes:
     .option('--format <format>', 'Output format (text|json)', 'text')
     .option('--view <view>', 'Investigation view (impact|detail)', 'impact')
     .option('--specs-dir <path>', 'Override SQL catalog specs directory (default: src/catalog/specs)')
+    .option('--sql-root <path>', 'Resolve sqlFile paths relative to the project SQL root first (default: src/sql)')
     .option('--out <path>', 'Write output to file')
     .option('--any-schema', 'Allow <table> lookup across schemas')
     .option('--any-table', 'Unsupported for table usage')
@@ -57,6 +59,7 @@ Notes:
     .option('--format <format>', 'Output format (text|json)', 'text')
     .option('--view <view>', 'Investigation view (impact|detail)', 'impact')
     .option('--specs-dir <path>', 'Override SQL catalog specs directory (default: src/catalog/specs)')
+    .option('--sql-root <path>', 'Resolve sqlFile paths relative to the project SQL root first (default: src/sql)')
     .option('--out <path>', 'Write output to file')
     .option('--any-schema', 'Allow <table.column> or <column> lookup across schemas')
     .option('--any-table', 'Allow <column> lookup across tables (requires --any-schema)')
@@ -82,6 +85,7 @@ function runQueryUsesCommand(kind: 'table' | 'column', target: string, options: 
     rawTarget: target,
     rootDir: process.env.ZTD_PROJECT_ROOT,
     specsDir: options.specsDir,
+    sqlRoot: options.sqlRoot,
     view,
     anySchema: Boolean(options.anySchema),
     anyTable: Boolean(options.anyTable)

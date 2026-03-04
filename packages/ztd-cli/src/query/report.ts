@@ -29,12 +29,15 @@ export function buildQueryUsageReport(params: {
   rawTarget: string;
   rootDir?: string;
   specsDir?: string;
+  sqlRoot?: string;
   anySchema?: boolean;
   anyTable?: boolean;
   view?: QueryUsageView;
 }): QueryUsageReport {
   const rootDir = path.resolve(params.rootDir ?? process.cwd());
   const specsDir = params.specsDir ? path.resolve(rootDir, params.specsDir) : path.resolve(rootDir, 'src', 'catalog', 'specs');
+  const sqlRoot = params.sqlRoot ? path.resolve(rootDir, params.sqlRoot) : path.resolve(rootDir, 'src', 'sql');
+  const normalizedSqlRoot = normalizePath(path.relative(rootDir, sqlRoot) || '.');
   const view = params.view ?? 'impact';
   const parsedTarget = parseQueryTarget({
     kind: params.kind,
@@ -91,19 +94,30 @@ export function buildQueryUsageReport(params: {
       continue;
     }
 
-    const resolvedSqlFile = path.resolve(path.dirname(loaded.filePath), sqlFile);
-    const normalizedSqlFile = normalizePath(path.relative(rootDir, resolvedSqlFile));
-    if (!existsSync(resolvedSqlFile)) {
+    const resolvedSqlFile = resolveCatalogSqlFile({
+      sqlRoot,
+      specFilePath: loaded.filePath,
+      sqlFile
+    });
+    if (!resolvedSqlFile) {
       unresolvedSqlFiles += 1;
+      const projectRootCandidate = normalizePath(path.relative(rootDir, path.resolve(sqlRoot, sqlFile)));
+      const specRelativeCandidate = normalizePath(path.relative(rootDir, path.resolve(path.dirname(loaded.filePath), sqlFile)));
       warnings.push({
         catalog_id: catalogId,
-        sql_file: normalizedSqlFile,
+        sql_file: projectRootCandidate,
         code: 'unresolved-sql-file',
-        message: `SQL file does not exist: ${sqlFile}`
+        message: [
+          `SQL file does not exist: ${sqlFile}`,
+          `Tried project SQL root (${normalizedSqlRoot}): ${projectRootCandidate}`,
+          `Tried spec-relative fallback: ${specRelativeCandidate}`,
+          `Hint: keep existing sqlFile values unchanged and re-run with --sql-root ${normalizedSqlRoot} if your project stores SQL under a shared root.`
+        ].join('\n')
       });
       continue;
     }
 
+    const normalizedSqlFile = normalizePath(path.relative(rootDir, resolvedSqlFile));
     const sqlText = readFileSync(resolvedSqlFile, 'utf8');
     const statements = buildCatalogStatements({
       catalogId,
@@ -360,6 +374,26 @@ function compareNullableNumber(left: number | undefined, right: number | undefin
 
 function normalizePath(input: string): string {
   return input.split(path.sep).join('/');
+}
+
+function resolveCatalogSqlFile(params: {
+  sqlRoot: string;
+  specFilePath: string;
+  sqlFile: string;
+}): string | null {
+  // Prefer the project-level SQL root because existing QuerySpec sqlFile values are root-relative by convention.
+  const projectRootCandidate = path.resolve(params.sqlRoot, params.sqlFile);
+  if (existsSync(projectRootCandidate)) {
+    return projectRootCandidate;
+  }
+
+  // Preserve backward compatibility for specs that stored sqlFile relative to the spec file itself.
+  const specRelativeCandidate = path.resolve(path.dirname(params.specFilePath), params.sqlFile);
+  if (existsSync(specRelativeCandidate)) {
+    return specRelativeCandidate;
+  }
+
+  return null;
 }
 
 function escapeRegex(value: string): string {

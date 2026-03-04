@@ -88,6 +88,51 @@ test('impact view aggregates table usage by statement', () => {
   expect(formatQueryUsageReport(report, 'text')).toContain('Affected queries:');
 });
 
+test('impact view resolves sql-root-relative sqlFile values before the legacy spec-relative fallback', () => {
+  const root = createWorkspace('query-uses-sql-root-relative');
+  mkdirSync(path.join(root, 'src', 'sql', 'sales'), { recursive: true });
+  writeFileSync(
+    path.join(root, 'src', 'catalog', 'specs', 'sales.spec.ts'),
+    [
+      'export const salesSpec = {',
+      "  id: 'sales.byId',",
+      "  sqlFile: 'sales/get-sale-by-id.sql',",
+      "  params: { shape: 'named', example: { sale_id: 'sale-001' } }",
+      '};'
+    ].join('\n'),
+    'utf8'
+  );
+  writeFileSync(
+    path.join(root, 'src', 'sql', 'sales', 'get-sale-by-id.sql'),
+    'SELECT p.name FROM public.sales s LEFT JOIN public.products p ON p.id = s.sale_id;',
+    'utf8'
+  );
+
+  const report = buildQueryUsageReport({
+    kind: 'table',
+    rawTarget: 'public.products',
+    rootDir: root
+  });
+
+  expect(report.summary).toMatchObject({
+    catalogsScanned: 1,
+    statementsScanned: 1,
+    matches: 1,
+    unresolvedSqlFiles: 0
+  });
+  expect(report.matches).toEqual([
+    expect.objectContaining({
+      kind: 'impact',
+      catalog_id: 'sales.byId',
+      query_id: 'sales.byId:1',
+      sql_file: 'src/sql/sales/get-sale-by-id.sql',
+      usageKindCounts: { join: 1 }
+    })
+  ]);
+  expect(report.warnings).toEqual([]);
+  expect(formatQueryUsageReport(report, 'text')).toContain('unresolved sql files: 0');
+});
+
 test('impact view keeps high confidence for exact table matches with quoted identifiers', () => {
   const root = createWorkspace('query-uses-table-quoted');
   writeFileSync(
@@ -305,10 +350,13 @@ test('detail view emits parse warnings, fallback rows, and no-catalog guidance d
     {
       catalog_id: 'catalog.b',
       code: 'unresolved-sql-file',
-      message: 'SQL file does not exist: ../../sql/missing.sql',
-      sql_file: 'src/sql/missing.sql'
+      message: expect.stringContaining('SQL file does not exist: ../../sql/missing.sql'),
+      sql_file: 'sql/missing.sql'
     }
   ]);
+  expect(tableReport.warnings[1]?.message).toContain('Tried project SQL root (src/sql): sql/missing.sql');
+  expect(tableReport.warnings[1]?.message).toContain('Tried spec-relative fallback: src/sql/missing.sql');
+  expect(tableReport.warnings[1]?.message).toContain('re-run with --sql-root src/sql');
   expect(formatQueryUsageReport(tableReport, 'text')).toContain('Fallback-derived matches:');
 
   const emptyRoot = createWorkspace('query-uses-empty');
@@ -325,6 +373,36 @@ test('detail view emits parse warnings, fallback rows, and no-catalog guidance d
     }
   ]);
   expect(formatQueryUsageReport(emptyReport, 'text')).toContain('No catalog specs found under');
+});
+
+test('impact view still resolves legacy spec-relative sqlFile values for backward compatibility', () => {
+  const root = createWorkspace('query-uses-spec-relative-fallback');
+  mkdirSync(path.join(root, 'spec-assets'), { recursive: true });
+  writeFileSync(
+    path.join(root, 'src', 'catalog', 'specs', 'users.spec.json'),
+    JSON.stringify({ id: 'catalog.users', sqlFile: '../../../spec-assets/users.sql', params: { shape: 'named' } }, null, 2),
+    'utf8'
+  );
+  writeFileSync(path.join(root, 'spec-assets', 'users.sql'), 'SELECT * FROM public.users;', 'utf8');
+
+  const report = buildQueryUsageReport({
+    kind: 'table',
+    rawTarget: 'public.users',
+    rootDir: root
+  });
+
+  expect(report.summary).toMatchObject({
+    matches: 1,
+    unresolvedSqlFiles: 0
+  });
+  expect(report.matches).toEqual([
+    expect.objectContaining({
+      kind: 'impact',
+      catalog_id: 'catalog.users',
+      sql_file: 'spec-assets/users.sql',
+      usageKindCounts: { from: 1 }
+    })
+  ]);
 });
 
 test('query usage report isolates spec load failures per file', () => {
