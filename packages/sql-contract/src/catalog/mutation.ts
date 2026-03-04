@@ -47,6 +47,11 @@ type UpdateMutationConfig = {
   where: WherePolicy
 }
 
+type InsertMutationConfig = {
+  subtractUndefinedColumns: boolean
+  failOnEmptyColumns: boolean
+}
+
 type DeleteMutationConfig = {
   where: WherePolicy
   affectedRowsGuard:
@@ -63,6 +68,7 @@ export type MutationAwareRewriter = {
 export type NormalizedMutationSpec =
   | {
       kind: 'insert'
+      insert: InsertMutationConfig
     }
   | {
       kind: 'update'
@@ -81,6 +87,10 @@ export type MutationCatalogSpec = {
   mutation?:
     | {
         kind: 'insert'
+        insert?: {
+          subtractUndefinedColumns?: boolean
+          failOnEmptyColumns?: boolean
+        }
       }
     | {
         kind: 'update'
@@ -473,6 +483,27 @@ function sanitizeNamedParams(params: ParamRecord): ParamRecord {
   return sanitized
 }
 
+function removeNamedParams(params: ParamRecord, names: Iterable<string>): ParamRecord {
+  const removed = new Set(names)
+  const next: ParamRecord = {}
+
+  for (const [key, value] of Object.entries(params)) {
+    if (!removed.has(key)) {
+      next[key] = value
+    }
+  }
+
+  return next
+}
+
+function normalizeInsertConfig(spec: MutationCatalogSpec): InsertMutationConfig {
+  const insertConfig = spec.mutation?.kind === 'insert' ? spec.mutation.insert : undefined
+  return {
+    subtractUndefinedColumns: insertConfig?.subtractUndefinedColumns ?? true,
+    failOnEmptyColumns: insertConfig?.failOnEmptyColumns ?? true,
+  }
+}
+
 function normalizeUpdateConfig(spec: MutationCatalogSpec): UpdateMutationConfig {
   const updateConfig = spec.mutation?.kind === 'update' ? spec.mutation.update : undefined
   const whereConfig = spec.mutation?.kind === 'update' ? spec.mutation.where : undefined
@@ -578,6 +609,10 @@ function assertWherePolicy(
 }
 
 function splitAssignmentSegments(tokens: SqlToken[], bounds: ClauseBounds): AssignmentSegment[] {
+  return splitTopLevelSegments(tokens, bounds)
+}
+
+function splitTopLevelSegments(tokens: SqlToken[], bounds: ClauseBounds): AssignmentSegment[] {
   const segments: AssignmentSegment[] = []
   let depth = 0
   let segmentStart = bounds.startTokenIndex
@@ -609,6 +644,109 @@ function splitAssignmentSegments(tokens: SqlToken[], bounds: ClauseBounds): Assi
   }
 
   return segments
+}
+
+function findMatchingParen(tokens: SqlToken[], openTokenIndex: number): number {
+  let depth = 0
+
+  for (let index = openTokenIndex; index < tokens.length; index += 1) {
+    const token = tokens[index]
+    if (token.kind === 'openParen') {
+      depth += 1
+      continue
+    }
+    if (token.kind === 'closeParen') {
+      depth -= 1
+      if (depth === 0) {
+        return index
+      }
+    }
+  }
+
+  return -1
+}
+
+function findInsertClauseBounds(statement: SqlStatement): {
+  columns: ClauseBounds
+  values: ClauseBounds
+} | null {
+  let columnsOpenIndex = -1
+
+  for (let index = statement.statementTokenIndex + 1; index < statement.tokens.length; index += 1) {
+    const token = statement.tokens[index]
+    if (token.kind === 'openParen') {
+      columnsOpenIndex = index
+      break
+    }
+  }
+
+  if (columnsOpenIndex < 0) {
+    return null
+  }
+
+  const columnsCloseIndex = findMatchingParen(statement.tokens, columnsOpenIndex)
+  if (columnsCloseIndex < 0) {
+    return null
+  }
+
+  let valuesWordIndex = -1
+  for (let index = columnsCloseIndex + 1; index < statement.tokens.length; index += 1) {
+    const token = statement.tokens[index]
+    if (token.kind !== 'word') {
+      continue
+    }
+
+    const word = lowerWord(token)
+    if (word === 'values') {
+      valuesWordIndex = index
+      break
+    }
+    if (word === 'select') {
+      return null
+    }
+  }
+
+  if (valuesWordIndex < 0) {
+    return null
+  }
+
+  let valuesOpenIndex = -1
+  for (let index = valuesWordIndex + 1; index < statement.tokens.length; index += 1) {
+    if (statement.tokens[index].kind === 'openParen') {
+      valuesOpenIndex = index
+      break
+    }
+  }
+
+  if (valuesOpenIndex < 0) {
+    return null
+  }
+
+  const valuesCloseIndex = findMatchingParen(statement.tokens, valuesOpenIndex)
+  if (valuesCloseIndex < 0) {
+    return null
+  }
+
+  for (let index = valuesCloseIndex + 1; index < statement.tokens.length; index += 1) {
+    const token = statement.tokens[index]
+    if (token.kind === 'word' && lowerWord(token) === 'returning') {
+      break
+    }
+    if (token.kind === 'comma') {
+      return null
+    }
+  }
+
+  return {
+    columns: {
+      startTokenIndex: columnsOpenIndex + 1,
+      endTokenIndex: columnsCloseIndex,
+    },
+    values: {
+      startTokenIndex: valuesOpenIndex + 1,
+      endTokenIndex: valuesCloseIndex,
+    },
+  }
 }
 
 function isSimpleIdentifierChain(tokens: SqlToken[]): boolean {
@@ -658,6 +796,108 @@ function isSubtractableAssignment(
 
   const name = normalizeNamedParameter(rhs.value)
   return name ? { name } : null
+}
+
+function isSubtractableInsertValue(
+  segmentSql: string,
+  segmentTokens: SqlToken[]
+): { name: string } | null {
+  if (segmentSql.includes('/*') || segmentSql.includes('--') || segmentTokens.length !== 1) {
+    return null
+  }
+
+  const token = segmentTokens[0]
+  if (token.kind !== 'parameter') {
+    return null
+  }
+
+  const name = normalizeNamedParameter(token.value)
+  return name ? { name } : null
+}
+
+function rewriteInsertValuesClause(
+  ContractViolationError: ContractViolationLike,
+  spec: MutationCatalogSpec,
+  sql: string,
+  tokens: SqlToken[],
+  statement: SqlStatement,
+  params: ParamRecord,
+  config: InsertMutationConfig
+): { sql: string; params: ParamRecord } {
+  if (!config.subtractUndefinedColumns) {
+    return { sql, params }
+  }
+
+  const bounds = findInsertClauseBounds(statement)
+  if (!bounds) {
+    return { sql, params }
+  }
+
+  const columnSegments = splitTopLevelSegments(tokens, bounds.columns)
+  const valueSegments = splitTopLevelSegments(tokens, bounds.values)
+  if (columnSegments.length === 0 || columnSegments.length !== valueSegments.length) {
+    return { sql, params }
+  }
+
+  const keptColumns: string[] = []
+  const keptValues: string[] = []
+  const droppedNames = new Set<string>()
+
+  for (let index = 0; index < columnSegments.length; index += 1) {
+    const columnTokens = tokens.slice(
+      columnSegments[index].startTokenIndex,
+      columnSegments[index].endTokenIndex
+    )
+    const valueTokens = tokens.slice(
+      valueSegments[index].startTokenIndex,
+      valueSegments[index].endTokenIndex
+    )
+    if (columnTokens.length === 0 || valueTokens.length === 0) {
+      return { sql, params }
+    }
+
+    const columnSql = sql.slice(columnTokens[0].start, columnTokens[columnTokens.length - 1].end).trim()
+    const valueSql = sql.slice(valueTokens[0].start, valueTokens[valueTokens.length - 1].end).trim()
+    const subtractable = isSubtractableInsertValue(valueSql, valueTokens)
+
+    // Phase 1 only subtracts direct named placeholders from single-row VALUES inserts.
+    if (
+      subtractable &&
+      (!Object.prototype.hasOwnProperty.call(params, subtractable.name) ||
+        params[subtractable.name] === undefined)
+    ) {
+      droppedNames.add(subtractable.name)
+      continue
+    }
+
+    keptColumns.push(columnSql)
+    keptValues.push(valueSql)
+  }
+
+  if (config.failOnEmptyColumns && keptColumns.length === 0) {
+    throw createContractViolation(
+      ContractViolationError,
+      spec.id,
+      `Insert spec "${spec.id}" removed every insert column because all values were undefined/missing.`
+    )
+  }
+
+  if (keptColumns.length === 0 || droppedNames.size === 0) {
+    return { sql, params }
+  }
+
+  const columnsStart = tokens[bounds.columns.startTokenIndex].start
+  const columnsEnd = tokens[bounds.columns.endTokenIndex - 1].end
+  const valuesStart = tokens[bounds.values.startTokenIndex].start
+  const valuesEnd = tokens[bounds.values.endTokenIndex - 1].end
+
+  return {
+    sql:
+      `${sql.slice(0, columnsStart)}${keptColumns.join(', ')}` +
+      `${sql.slice(columnsEnd, valuesStart)}${keptValues.join(', ')}` +
+      sql.slice(valuesEnd),
+    params: removeNamedParams(params, droppedNames),
+  }
 }
 
 function rewriteUpdateSetClause(
@@ -719,11 +959,11 @@ export function preprocessMutationSpec(
   sql: string,
   params: QueryParams
 ): MutationPreprocessResult {
-  if (!spec.mutation || spec.mutation.kind === 'insert') {
+  if (!spec.mutation) {
     return {
       sql,
       params,
-      mutation: { kind: 'insert' },
+      mutation: { kind: 'insert', insert: normalizeInsertConfig(spec) },
     }
   }
 
@@ -735,11 +975,38 @@ export function preprocessMutationSpec(
     )
   }
 
-  const namedParams = sanitizeNamedParams(
-    assertNamedMutationParams(ContractViolationError, spec, params)
-  )
+  const rawNamedParams = assertNamedMutationParams(ContractViolationError, spec, params)
   const tokens = tokenizeSql(sql)
   const statement = detectStatement(tokens)
+
+  if (spec.mutation.kind === 'insert') {
+    if (statement.kind !== 'insert') {
+      throw createContractViolation(
+        ContractViolationError,
+        spec.id,
+        `Spec "${spec.id}" declares an insert mutation but the SQL is not an INSERT statement.`
+      )
+    }
+
+    const config = normalizeInsertConfig(spec)
+    const rewritten = rewriteInsertValuesClause(
+      ContractViolationError,
+      spec,
+      sql,
+      tokens,
+      statement,
+      rawNamedParams,
+      config
+    )
+
+    return {
+      sql: rewritten.sql,
+      params: rewritten.params,
+      mutation: { kind: 'insert', insert: config },
+    }
+  }
+
+  const namedParams = sanitizeNamedParams(rawNamedParams)
 
   if (spec.mutation.kind === 'update') {
     if (statement.kind !== 'update') {

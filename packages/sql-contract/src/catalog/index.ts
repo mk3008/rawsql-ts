@@ -40,6 +40,10 @@ export type QuerySpec<P extends QueryParams = QueryParams, R = Row> = {
   mutation?:
     | {
         kind: 'insert'
+        insert?: {
+          subtractUndefinedColumns?: boolean
+          failOnEmptyColumns?: boolean
+        }
       }
     | {
         kind: 'update'
