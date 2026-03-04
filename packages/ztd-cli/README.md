@@ -129,6 +129,7 @@ Use this split to classify repetition:
 | `ztd init --yes` | Non-interactive mode: accept defaults (demo workflow, Zod validator) and overwrite existing files |
 | `ztd init --workflow <type>` | Specify schema workflow: `pg_dump`, `empty`, or `demo` |
 | `ztd init --validator <type>` | Specify validator backend: `zod` or `arktype` |
+| `ztd init --local-source-root <path>` | Scaffold for local-source dogfooding and link `@rawsql-ts/sql-contract` from a monorepo path instead of npm |
 | `ztd init --with-sqlclient` | Also scaffold a minimal `SqlClient` boundary for repositories |
 | `ztd init --with-app-interface` | Append application interface guidance to `AGENTS.md` only |
 | `ztd ztd-config` | Generate `TestRowMap` and layout from DDL files (prints next-step hints) |
@@ -411,6 +412,14 @@ Notes:
 - The generated file is a starting point only. Review imports, nullability, cardinality, rowMapping key, runtime normalization, and example values before typechecking or committing it.
 
 ## Further Reading
+
+- Local-source quick start:
+
+```bash
+npx ztd init --workflow empty --validator zod --local-source-root ../../..
+```
+
+This mode emits `src/local/sql-contract.ts`, links `@rawsql-ts/sql-contract` via `file:`, switches `test` / `typecheck` through a local-source guard, and keeps `model-gen --probe-mode ztd --import-style relative` ready for a nested dogfooding app under `tmp/`.
 
 - [Feature Index](../../docs/guide/feature-index.md) — at-a-glance list of easy-to-miss capabilities
 - [Local-Source Dogfooding](../../docs/guide/ztd-local-source-dogfooding.md) — avoid nested pnpm workspace drift and generated import mismatches

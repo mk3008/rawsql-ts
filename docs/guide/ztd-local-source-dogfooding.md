@@ -5,8 +5,21 @@ Use this guide when you dogfood `ztd-cli` from a throwaway project under `tmp/` 
 ## Recommended shape
 
 1. Create the throwaway app under `tmp/` so it stays outside normal git tracking.
-2. Keep your DDL under `ztd/ddl/*.sql` and prefer `ztd model-gen --probe-mode ztd` during the inner loop.
-3. Point package dependencies at local packages with `file:` entries or a local re-export module.
+2. Scaffold with `ztd init --local-source-root <monorepo-root>` so the first install links `@rawsql-ts/sql-contract` from local source instead of npm.
+3. Keep your DDL under `ztd/ddl/*.sql` and prefer `ztd model-gen --probe-mode ztd` during the inner loop.
+4. For generated QuerySpecs, prefer `--import-style relative` or `--import-from src/local/sql-contract.ts`.
+
+Example:
+
+```bash
+mkdir tmp/my-ztd-dogfood && cd tmp/my-ztd-dogfood
+npx ztd init --workflow empty --validator zod --local-source-root ../../..
+pnpm install --ignore-workspace
+pnpm typecheck
+pnpm test
+```
+
+The local-source profile rewrites `test` and `typecheck` through a guard script. If the scaffold is still resolving tools from a parent workspace, the guard prints the exact recovery commands instead of failing with a generic module-resolution error.
 
 ## pnpm workspace guard
 

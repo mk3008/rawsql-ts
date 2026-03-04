@@ -111,6 +111,8 @@ type FileKey =
   | 'smokeSpec'
   | 'smokeCoercions'
   | 'smokeRuntime'
+  | 'localSqlContractShim'
+  | 'localSourceGuardScript'
   | 'smokeValidationTest'
   | 'testsAgents'
   | 'testsSupportAgents'
@@ -194,12 +196,19 @@ export interface InitCommandOptions {
   nonInteractive?: boolean;
   workflow?: InitWorkflow;
   validator?: ValidatorBackend;
+  localSourceRoot?: string;
 }
 
 type ValidatorBackend = 'zod' | 'arktype';
+type InitDependencyProfile = 'registry' | 'local-source';
 
 interface OptionalFeatures {
   validator: ValidatorBackend;
+}
+
+interface InitScaffoldProfile {
+  dependencyProfile: InitDependencyProfile;
+  localSourceRoot: string | null;
 }
 
 const MANDATORY_TESTKIT_DEPENDENCIES: Record<string, string> = {
@@ -241,7 +250,10 @@ const TESTS_GENERATED_AGENTS_TEMPLATE = 'tests/generated/AGENTS.md';
 const SMOKE_SPEC_ZOD_TEMPLATE = 'src/catalog/specs/_smoke.spec.zod.ts';
 const SMOKE_SPEC_ARKTYPE_TEMPLATE = 'src/catalog/specs/_smoke.spec.arktype.ts';
 const SMOKE_COERCIONS_TEMPLATE = 'src/catalog/runtime/_coercions.ts';
+const SMOKE_COERCIONS_LOCAL_SOURCE_TEMPLATE = 'src/catalog/runtime/_coercions.local-source.ts';
 const SMOKE_RUNTIME_TEMPLATE = 'src/catalog/runtime/_smoke.runtime.ts';
+const LOCAL_SQL_CONTRACT_TEMPLATE = 'src/local/sql-contract.ts';
+const LOCAL_SOURCE_GUARD_TEMPLATE = 'scripts/local-source-guard.mjs';
 const SMOKE_VALIDATION_TEST_TEMPLATE = 'tests/smoke.validation.test.ts';
 const TESTS_SMOKE_TEMPLATE = 'tests/smoke.test.ts';
 const TESTKIT_CLIENT_TEMPLATE = 'tests/support/testkit-client.ts';
@@ -433,6 +445,8 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     smokeSpec: path.join(rootDir, 'src', 'catalog', 'specs', '_smoke.spec.ts'),
     smokeCoercions: path.join(rootDir, 'src', 'catalog', 'runtime', '_coercions.ts'),
     smokeRuntime: path.join(rootDir, 'src', 'catalog', 'runtime', '_smoke.runtime.ts'),
+    localSqlContractShim: path.join(rootDir, 'src', 'local', 'sql-contract.ts'),
+    localSourceGuardScript: path.join(rootDir, 'scripts', 'local-source-guard.mjs'),
     smokeValidationTest: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'smoke.validation.test.ts'),
     testsAgents: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'AGENTS.md'),
     testsSupportAgents: path.join(rootDir, DEFAULT_ZTD_CONFIG.testsDir, 'support', 'AGENTS.md'),
@@ -473,6 +487,7 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     path.relative(rootDir, absolutePaths[key]).replace(/\\/g, '/') || absolutePaths[key];
 
   const summaries: Partial<Record<FileKey, FileSummary>> = {};
+  const scaffoldProfile = resolveInitScaffoldProfile(rootDir, options?.localSourceRoot);
 
   // Ask how the user prefers to populate the initial schema.
   if (workflow === 'pg_dump') {
@@ -796,13 +811,43 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     rootDir,
     absolutePaths.smokeCoercions,
     relativePath('smokeCoercions'),
-    SMOKE_COERCIONS_TEMPLATE,
+    scaffoldProfile.dependencyProfile === 'local-source'
+      ? SMOKE_COERCIONS_LOCAL_SOURCE_TEMPLATE
+      : SMOKE_COERCIONS_TEMPLATE,
     dependencies,
     prompter,
     overwritePolicy
   );
   if (smokeCoercionsSummary) {
     summaries.smokeCoercions = smokeCoercionsSummary;
+  }
+
+  if (scaffoldProfile.dependencyProfile === 'local-source') {
+    const localSqlContractSummary = await writeTemplateFile(
+      rootDir,
+      absolutePaths.localSqlContractShim,
+      relativePath('localSqlContractShim'),
+      LOCAL_SQL_CONTRACT_TEMPLATE,
+      dependencies,
+      prompter,
+      overwritePolicy
+    );
+    if (localSqlContractSummary) {
+      summaries.localSqlContractShim = localSqlContractSummary;
+    }
+
+    const localSourceGuardSummary = await writeTemplateFile(
+      rootDir,
+      absolutePaths.localSourceGuardScript,
+      relativePath('localSourceGuardScript'),
+      LOCAL_SOURCE_GUARD_TEMPLATE,
+      dependencies,
+      prompter,
+      overwritePolicy
+    );
+    if (localSourceGuardSummary) {
+      summaries.localSourceGuardScript = localSourceGuardSummary;
+    }
   }
 
   const smokeRuntimeSummary = await writeTemplateFile(
@@ -1000,7 +1045,8 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
     rootDir,
     relativePath('package'),
     dependencies,
-    optionalFeatures
+    optionalFeatures,
+    scaffoldProfile
   );
   if (packageSummary) {
     summaries.package = packageSummary;
@@ -1014,11 +1060,17 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
 
   await ensureTemplateDependenciesInstalled(rootDir, absolutePaths, summaries, dependencies);
 
-  const nextSteps = buildNextSteps(normalizeRelative(rootDir, absolutePaths.schema), workflow, rootDir);
+  const nextSteps = buildNextSteps(
+    normalizeRelative(rootDir, absolutePaths.schema),
+    workflow,
+    rootDir,
+    scaffoldProfile
+  );
   const summaryLines = buildSummaryLines(
     summaries as Record<FileKey, FileSummary>,
     optionalFeatures,
-    nextSteps
+    nextSteps,
+    scaffoldProfile
   );
   summaryLines.forEach(dependencies.log);
 
@@ -1395,7 +1447,8 @@ function ensurePackageJsonFormatting(
   rootDir: string,
   relative: string,
   dependencies: ZtdConfigWriterDependencies,
-  optionalFeatures: OptionalFeatures
+  optionalFeatures: OptionalFeatures,
+  scaffoldProfile: InitScaffoldProfile
 ): FileSummary | null {
   const packagePath = path.join(rootDir, 'package.json');
   const packageExists = dependencies.fileExists(packagePath);
@@ -1416,6 +1469,11 @@ function ensurePackageJsonFormatting(
     lint: 'eslint .',
     'lint:fix': 'eslint . --fix'
   };
+  if (scaffoldProfile.dependencyProfile === 'local-source') {
+    // Route test and typecheck through the local-source guard so parent workspaces cannot silently hijack execution.
+    requiredScripts.test = 'node ./scripts/local-source-guard.mjs test';
+    requiredScripts.typecheck = 'node ./scripts/local-source-guard.mjs typecheck';
+  }
 
   // Ensure the canonical formatting and lint scripts exist without overwriting custom commands.
   for (const [name, value] of Object.entries(requiredScripts)) {
@@ -1468,10 +1526,13 @@ function ensurePackageJsonFormatting(
     changed = true;
   }
 
-  const stackDependencies: Record<string, string> = {
-    ...MANDATORY_TESTKIT_DEPENDENCIES,
-    ...SQL_CONTRACT_DEPENDENCY
-  };
+  const stackDependencies: Record<string, string> =
+    scaffoldProfile.dependencyProfile === 'local-source'
+      ? buildLocalSourceStackDependencies(rootDir, scaffoldProfile)
+      : {
+          ...MANDATORY_TESTKIT_DEPENDENCIES,
+          ...SQL_CONTRACT_DEPENDENCY
+        };
   if (optionalFeatures.validator === 'zod') {
     Object.assign(stackDependencies, ZOD_DEPENDENCY);
   } else {
@@ -1661,8 +1722,12 @@ function resolveTemplateTarget(
 
 function normalizeRelative(rootDir: string, absolutePath: string): string {
   // Normalize the path relative to the project root so summaries use forward slashes.
-  const relative = path.relative(rootDir, absolutePath).replace(/\\/g, '/');
+  const relative = normalizeCliPath(path.relative(rootDir, absolutePath));
   return relative || absolutePath;
+}
+
+function normalizeCliPath(filePath: string): string {
+  return filePath.replace(/\\/g, '/');
 }
 
 /**
@@ -1752,30 +1817,100 @@ function loadTemplate(templateName: string): string {
   return readFileSync(templatePath, 'utf8');
 }
 
-function buildNextSteps(schemaRelativePath: string, workflow: InitWorkflow, rootDir: string): string[] {
-  const stepOne =
-    workflow === 'pg_dump'
-      ? ` 1. Review the dumped DDL in ${schemaRelativePath}`
-      : ` 1. If the schema file is empty, edit ${schemaRelativePath}`;
+function buildNextSteps(
+  schemaRelativePath: string,
+  workflow: InitWorkflow,
+  rootDir: string,
+  scaffoldProfile: InitScaffoldProfile
+): string[] {
+  const packageManager = detectPackageManager(rootDir);
+  const workspaceGuard = resolvePnpmWorkspaceGuard(rootDir, packageManager);
+  const installCommand =
+    packageManager === 'pnpm' && workspaceGuard.shouldIgnoreWorkspace
+      ? 'pnpm install --ignore-workspace'
+      : `${packageManager} install`;
+
+  if (scaffoldProfile.dependencyProfile === 'local-source') {
+    const localSourceSteps = [
+      workflow === 'pg_dump'
+        ? `Review the dumped DDL in ${schemaRelativePath}`
+        : `If the schema file is empty, edit ${schemaRelativePath}`,
+      `Run ${installCommand}`,
+      'Run pnpm typecheck',
+      'Run pnpm test',
+      'Run npx ztd ztd-config',
+      'For generated QuerySpecs, prefer ztd model-gen --probe-mode ztd --import-style relative',
+      'Provide a SqlClient implementation before adding SQL-backed tests'
+    ];
+    return localSourceSteps.map((step, index) => ` ${index + 1}. ${step}`);
+  }
+
   const nextSteps = [
-    stepOne,
-    ' 2. Run npx ztd ztd-config',
-    ' 3. Provide a SqlClient implementation (adapter or mock)',
-    ' 4. Run tests (pnpm test or npx vitest run)'
+    workflow === 'pg_dump'
+      ? `Review the dumped DDL in ${schemaRelativePath}`
+      : `If the schema file is empty, edit ${schemaRelativePath}`,
+    'Run npx ztd ztd-config'
   ];
-  const workspaceGuard = resolvePnpmWorkspaceGuard(rootDir, detectPackageManager(rootDir));
+  nextSteps.push('Provide a SqlClient implementation (adapter or mock)');
+  nextSteps.push('Run tests (pnpm test or npx vitest run)');
   if (workspaceGuard.shouldIgnoreWorkspace) {
     nextSteps.push(
-      ` 5. This project is nested under pnpm workspace ${workspaceGuard.workspaceRoot}; use pnpm install --ignore-workspace for manual installs.`
+      `This project is nested under pnpm workspace ${workspaceGuard.workspaceRoot}; use pnpm install --ignore-workspace for manual installs.`
     );
   }
-  return nextSteps;
+  return nextSteps.map((step, index) => ` ${index + 1}. ${step}`);
+}
+
+function resolveInitScaffoldProfile(rootDir: string, localSourceRoot?: string): InitScaffoldProfile {
+  if (!localSourceRoot) {
+    return { dependencyProfile: 'registry', localSourceRoot: null };
+  }
+
+  const resolvedRoot = path.resolve(rootDir, localSourceRoot);
+  const sqlContractPackagePath = path.join(resolvedRoot, 'packages', 'sql-contract', 'package.json');
+  if (!existsSync(sqlContractPackagePath)) {
+    throw new Error(
+      `The local-source root does not contain packages/sql-contract/package.json: ${normalizeCliPath(resolvedRoot)}`
+    );
+  }
+
+  return {
+    dependencyProfile: 'local-source',
+    localSourceRoot: resolvedRoot
+  };
+}
+
+function buildLocalSourceStackDependencies(
+  rootDir: string,
+  scaffoldProfile: InitScaffoldProfile
+): Record<string, string> {
+  if (scaffoldProfile.dependencyProfile !== 'local-source' || !scaffoldProfile.localSourceRoot) {
+    return {
+      ...MANDATORY_TESTKIT_DEPENDENCIES,
+      ...SQL_CONTRACT_DEPENDENCY
+    };
+  }
+
+  return {
+    '@rawsql-ts/sql-contract': toFileDependencySpecifier(
+      rootDir,
+      path.join(scaffoldProfile.localSourceRoot, 'packages', 'sql-contract')
+    )
+  };
+}
+
+function toFileDependencySpecifier(rootDir: string, targetDir: string): string {
+  const relativeTarget = normalizeCliPath(path.relative(rootDir, targetDir));
+  const withDotPrefix =
+    relativeTarget.startsWith('.') || relativeTarget.startsWith('/') ? relativeTarget : `./${relativeTarget}`;
+  return `file:${withDotPrefix}`;
 }
 
 function buildSummaryLines(
   summaries: Record<FileKey, FileSummary>,
   optionalFeatures: OptionalFeatures,
-  nextSteps: string[]
+  nextSteps: string[],
+  scaffoldProfile: InitScaffoldProfile
 ): string[] {
   const orderedKeys: FileKey[] = [
     'schema',
@@ -1800,6 +1935,8 @@ function buildSummaryLines(
     'smokeSpec',
     'smokeCoercions',
     'smokeRuntime',
+    'localSqlContractShim',
+    'localSourceGuardScript',
     'smokeValidationTest',
     'testsAgents',
     'testsSupportAgents',
@@ -1834,9 +1971,11 @@ function buildSummaryLines(
   }
 
   lines.push('', 'Validation configuration:');
-  lines.push(
-    ' - SQL catalog/mapping support via @rawsql-ts/sql-contract (see docs/recipes/sql-contract.md)'
-  );
+  const stackLine =
+    scaffoldProfile.dependencyProfile === 'local-source'
+      ? ' - SQL catalog/mapping support via src/local/sql-contract.ts backed by a local file dependency (see docs/recipes/sql-contract.md)'
+      : ' - SQL catalog/mapping support via @rawsql-ts/sql-contract (see docs/recipes/sql-contract.md)';
+  lines.push(stackLine);
   const validatorLabel =
     optionalFeatures.validator === 'zod'
       ? 'Zod (zod, docs/recipes/validation-zod.md)'
@@ -1858,12 +1997,17 @@ export function registerInitCommand(program: Command): void {
     .option('--yes', 'Accept defaults and overwrite existing files without prompting')
     .option('--workflow <type>', 'Schema workflow: pg_dump, empty, or demo (default: demo)')
     .option('--validator <type>', 'Validator backend: zod or arktype (default: zod)')
+    .option(
+      '--local-source-root <path>',
+      'Link @rawsql-ts dependencies to a local monorepo root for dogfooding instead of published npm packages'
+    )
     .action(async (options: {
       withSqlclient?: boolean;
       withAppInterface?: boolean;
       yes?: boolean;
       workflow?: string;
       validator?: string;
+      localSourceRoot?: string;
     }) => {
       // Validate --workflow value if provided.
       if (options.workflow && !VALID_WORKFLOWS.includes(options.workflow as InitWorkflow)) {
@@ -1895,7 +2039,8 @@ export function registerInitCommand(program: Command): void {
           forceOverwrite: options.yes ?? false,
           nonInteractive: isNonInteractive,
           workflow,
-          validator
+          validator,
+          localSourceRoot: options.localSourceRoot
         });
       } finally {
         prompter.close();
