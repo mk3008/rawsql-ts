@@ -1854,9 +1854,7 @@ function buildNextSteps(
   nextSteps.push('Provide a SqlClient implementation (adapter or mock)');
   nextSteps.push('Run tests (pnpm test or npx vitest run)');
   if (workspaceGuard.shouldIgnoreWorkspace) {
-    nextSteps.push(
-      `This project is nested under pnpm workspace ${workspaceGuard.workspaceRoot}; use pnpm install --ignore-workspace for manual installs.`
-    );
+    nextSteps.push('This project is nested under a parent pnpm workspace; use pnpm install --ignore-workspace for manual installs.');
   }
   return nextSteps.map((step, index) => ` ${index + 1}. ${step}`);
 }

@@ -53,7 +53,7 @@ Next steps:
  2. Run npx ztd ztd-config
  3. Provide a SqlClient implementation (adapter or mock)
  4. Run tests (pnpm test or npx vitest run)
- 5. This project is nested under pnpm workspace C:\\Users\\mssgm\\github\\rawsql-ts; use pnpm install --ignore-workspace for manual installs."
+ 5. This project is nested under a parent pnpm workspace; use pnpm install --ignore-workspace for manual installs."
 `;
 
 exports[`init wizard bootstraps an empty scaffold 1`] = `
@@ -109,7 +109,7 @@ Next steps:
  2. Run npx ztd ztd-config
  3. Provide a SqlClient implementation (adapter or mock)
  4. Run tests (pnpm test or npx vitest run)
- 5. This project is nested under pnpm workspace C:\\Users\\mssgm\\github\\rawsql-ts; use pnpm install --ignore-workspace for manual installs."
+ 5. This project is nested under a parent pnpm workspace; use pnpm install --ignore-workspace for manual installs."
 `;
 
 exports[`init wizard pulls schema if pg_dump is available 1`] = `
@@ -165,5 +165,5 @@ Next steps:
  2. Run npx ztd ztd-config
  3. Provide a SqlClient implementation (adapter or mock)
  4. Run tests (pnpm test or npx vitest run)
- 5. This project is nested under pnpm workspace C:\\Users\\mssgm\\github\\rawsql-ts; use pnpm install --ignore-workspace for manual installs."
+ 5. This project is nested under a parent pnpm workspace; use pnpm install --ignore-workspace for manual installs."
 `;
