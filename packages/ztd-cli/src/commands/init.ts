@@ -218,6 +218,11 @@ const MANDATORY_TESTKIT_DEPENDENCIES: Record<string, string> = {
 const SQL_CONTRACT_DEPENDENCY: Record<string, string> = {
   '@rawsql-ts/sql-contract': '^0.1.0'
 };
+const LOCAL_SOURCE_STACK_PACKAGE_DIRS: Record<string, string> = {
+  '@rawsql-ts/sql-contract': path.join('packages', 'sql-contract'),
+  '@rawsql-ts/adapter-node-pg': path.join('packages', 'adapters', 'adapter-node-pg'),
+  '@rawsql-ts/testkit-postgres': path.join('packages', 'testkit-postgres')
+};
 const ZOD_DEPENDENCY: Record<string, string> = {
   zod: '^4.3.6'
 };
@@ -1867,11 +1872,16 @@ function resolveInitScaffoldProfile(rootDir: string, localSourceRoot?: string): 
   }
 
   const resolvedRoot = path.resolve(rootDir, localSourceRoot);
-  const sqlContractPackagePath = path.join(resolvedRoot, 'packages', 'sql-contract', 'package.json');
-  if (!existsSync(sqlContractPackagePath)) {
-    throw new Error(
-      `The local-source root does not contain packages/sql-contract/package.json: ${normalizeCliPath(resolvedRoot)}`
-    );
+
+  // Validate every direct rawsql-ts scaffold dependency up front so local-source installs
+  // cannot silently mix local packages with registry packages.
+  for (const packageDir of Object.values(LOCAL_SOURCE_STACK_PACKAGE_DIRS)) {
+    const packageJsonPath = path.join(resolvedRoot, packageDir, 'package.json');
+    if (!existsSync(packageJsonPath)) {
+      throw new Error(
+        `The local-source root does not contain ${normalizeCliPath(path.join(packageDir, 'package.json'))}: ${normalizeCliPath(resolvedRoot)}`
+      );
+    }
   }
 
   return {
@@ -1891,12 +1901,12 @@ function buildLocalSourceStackDependencies(
     };
   }
 
-  return {
-    '@rawsql-ts/sql-contract': toFileDependencySpecifier(
-      rootDir,
-      path.join(scaffoldProfile.localSourceRoot, 'packages', 'sql-contract')
-    )
-  };
+  return Object.fromEntries(
+    Object.entries(LOCAL_SOURCE_STACK_PACKAGE_DIRS).map(([packageName, packageDir]) => [
+      packageName,
+      toFileDependencySpecifier(rootDir, path.join(scaffoldProfile.localSourceRoot!, packageDir))
+    ])
+  );
 }
 
 function toFileDependencySpecifier(rootDir: string, targetDir: string): string {
