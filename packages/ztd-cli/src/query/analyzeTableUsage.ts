@@ -366,7 +366,8 @@ function toTableMatch(statement: CatalogStatement, occurrence: TableOccurrence):
     statementText: statement.statementText,
     statementStartOffsetInFile: statement.statementStartOffsetInFile,
     candidates: occurrence.searchTerms,
-    clauseAnchor: occurrence.clauseAnchor
+    clauseAnchor: occurrence.clauseAnchor,
+    snippetMode: 'line'
   });
   const notes = [...occurrence.notes];
   let confidence = occurrence.confidence;

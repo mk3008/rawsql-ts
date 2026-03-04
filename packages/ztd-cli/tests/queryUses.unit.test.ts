@@ -550,6 +550,44 @@ test('table impact finds tables referenced from EXISTS subqueries through their 
   ]);
 });
 
+test('table detail anchors EXISTS subquery matches to the nested table token', () => {
+  const root = createWorkspace('query-uses-table-detail-exists-anchor');
+  writeFileSync(
+    path.join(root, 'src', 'catalog', 'specs', 'sales.spec.json'),
+    JSON.stringify({ id: 'catalog.sales', sqlFile: '../../sql/sales.sql', params: { shape: 'named' } }, null, 2),
+    'utf8'
+  );
+  const sql = [
+    'SELECT s.id',
+    'FROM public.sales s',
+    'WHERE EXISTS (',
+    '  SELECT 1',
+    '  FROM public.sale_items si',
+    '  WHERE si.sale_id = s.id',
+    ');'
+  ].join('\n');
+  writeFileSync(path.join(root, 'src', 'sql', 'sales.sql'), sql, 'utf8');
+
+  const report = buildQueryUsageReport({
+    kind: 'table',
+    rawTarget: 'public.sale_items',
+    rootDir: root,
+    view: 'detail'
+  });
+
+  expect(report.matches).toHaveLength(1);
+  const match = report.matches[0];
+  expect(match?.kind).toBe('detail');
+  if (match?.kind === 'detail') {
+    const expectedOffset = sql.indexOf('public.sale_items');
+    expect(expectedOffset).toBeGreaterThanOrEqual(0);
+    expect(match.location?.statementOffsetStart).toBe(expectedOffset);
+    expect(match.location?.statementOffsetEnd).toBe(expectedOffset + 'public.sale_items'.length);
+    expect(match.snippet).toContain('public.sale_items');
+    expect(match.snippet).toBe('FROM public.sale_items si');
+  }
+});
+
 test('impact view still resolves legacy spec-relative sqlFile values for backward compatibility', () => {
   const root = createWorkspace('query-uses-spec-relative-fallback');
   mkdirSync(path.join(root, 'spec-assets'), { recursive: true });
@@ -578,6 +616,52 @@ test('impact view still resolves legacy spec-relative sqlFile values for backwar
       usageKindCounts: { from: 1 }
     })
   ]);
+});
+
+test('table detail anchors join matches to the table token and keeps the table line in the snippet', () => {
+  const root = createWorkspace('query-uses-table-detail-join-anchor');
+  mkdirSync(path.join(root, 'src', 'sql', 'sales'), { recursive: true });
+  writeFileSync(
+    path.join(root, 'src', 'catalog', 'specs', 'sales.spec.ts'),
+    [
+      'export const salesSpec = {',
+      "  id: 'sales.byId',",
+      "  sqlFile: 'sales/get-sale-by-id.sql',",
+      "  params: { shape: 'named', example: { sale_id: 'sale-001' } }",
+      '};'
+    ].join('\n'),
+    'utf8'
+  );
+  const sql = [
+    'select',
+    '  s.id as sale_id,',
+    '  string_agg(p.name, \', \' order by si.line_no) as product_names',
+    'from public.sales as s',
+    'left join public.sale_items as si',
+    '  on si.sale_id = s.id',
+    'left join public.products as p',
+    '  on p.id = si.product_id'
+  ].join('\n');
+  writeFileSync(path.join(root, 'src', 'sql', 'sales', 'get-sale-by-id.sql'), sql, 'utf8');
+
+  const report = buildQueryUsageReport({
+    kind: 'table',
+    rawTarget: 'public.products',
+    rootDir: root,
+    view: 'detail'
+  });
+
+  expect(report.matches).toHaveLength(1);
+  const match = report.matches[0];
+  expect(match?.kind).toBe('detail');
+  if (match?.kind === 'detail') {
+    const expectedOffset = sql.indexOf('public.products');
+    expect(expectedOffset).toBeGreaterThanOrEqual(0);
+    expect(match.location?.statementOffsetStart).toBe(expectedOffset);
+    expect(match.location?.statementOffsetEnd).toBe(expectedOffset + 'public.products'.length);
+    expect(match.snippet).toContain('public.products');
+    expect(match.snippet).toBe('left join public.products as p');
+  }
 });
 
 test('query usage report isolates spec load failures per file', () => {

@@ -38,6 +38,7 @@ export function locateUsageText(params: {
   statementStartOffsetInFile: number;
   candidates: string[];
   clauseAnchor?: QueryUsageClauseAnchor;
+  snippetMode?: 'clause' | 'line';
 }): LocatedText {
   const cache = getStatementCache(params.statementText);
   const occurrences = collectOccurrences(params.statementText, params.candidates);
@@ -62,12 +63,13 @@ export function locateUsageText(params: {
     };
   }
 
-  const snippetStart = clauseWindow ? clauseWindow.anchorStart : selected.start;
-  const snippetEnd = clampSnippetEnd(selected.end, clauseWindow?.end ?? params.statementText.length);
+  const snippet = params.snippetMode === 'line'
+    ? extractLineSnippet(params.statementText, selected.start, selected.end)
+    : extractClauseSnippet(params.statementText, selected.start, selected.end, clauseWindow);
 
   return {
     location: buildLocation(params.statementText, params.statementStartOffsetInFile, selected.start, selected.end),
-    snippet: extractSnippet(params.statementText, snippetStart, snippetEnd),
+    snippet,
     ambiguous: selected.ambiguous
   };
 }
@@ -215,6 +217,25 @@ function dedupeOccurrences(occurrences: OccurrenceRange[]): OccurrenceRange[] {
 
 function clampSnippetEnd(selectedEnd: number, clauseEnd: number): number {
   return Math.min(Math.max(selectedEnd, 0) + MAX_SNIPPET_LENGTH, clauseEnd);
+}
+
+function extractClauseSnippet(
+  statementText: string,
+  selectedStart: number,
+  selectedEnd: number,
+  clauseWindow: { anchorStart: number; start: number; end: number } | null
+): string {
+  const snippetStart = clauseWindow ? clauseWindow.anchorStart : selectedStart;
+  const snippetEnd = clampSnippetEnd(selectedEnd, clauseWindow?.end ?? statementText.length);
+  return extractSnippet(statementText, snippetStart, snippetEnd);
+}
+
+function extractLineSnippet(statementText: string, start: number, end: number): string {
+  // Keep table snippets anchored to the concrete identifier line so the reason for the match is obvious.
+  const lineStart = statementText.lastIndexOf('\n', Math.max(0, start - 1)) + 1;
+  const lineEndIndex = statementText.indexOf('\n', end);
+  const lineEnd = lineEndIndex >= 0 ? lineEndIndex : statementText.length;
+  return extractSnippet(statementText, lineStart, lineEnd);
 }
 
 function buildLocation(
