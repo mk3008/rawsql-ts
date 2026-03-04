@@ -32,7 +32,10 @@ async function loadOptionalModule<T>(
 export type TestkitCoreModule = typeof import('@rawsql-ts/testkit-core');
 
 export interface PgTestkitClientLike {
-  query(statement: string): Promise<unknown>;
+  query<T = unknown>(statement: string, values?: unknown[] | Record<string, unknown>): Promise<{
+    rows?: T[];
+    fields?: unknown[];
+  }>;
   close(): Promise<unknown>;
 }
 

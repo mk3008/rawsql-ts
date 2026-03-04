@@ -10,5 +10,7 @@ Key folders:
 Next steps:
 1. Update `ztd/ddl/<schema>.sql` if needed.
 2. Run `npx ztd ztd-config`.
-3. Provide a SqlClient implementation.
-4. Run tests (`pnpm test` or `npx vitest run`).
+3. Run `npx ztd model-gen --probe-mode ztd <sql-file> --out <spec-file>` when you want a QuerySpec scaffold from the local DDL snapshot.
+4. Provide a SqlClient implementation.
+5. Run tests (`pnpm test` or `npx vitest run`).
+6. Apply the schema to a live database only when you need live-schema helpers such as `ztd model-gen --probe-mode live`, `ztd ddl pull`, or `ztd ddl diff`.

@@ -1,5 +1,13 @@
 import { expect, test } from 'vitest';
-import { bindProbeSql, normalizeCliPath } from '../src/commands/modelGen';
+import {
+  bindProbeSql,
+  loadModelGenZtdFixtureState,
+  normalizeCliPath,
+  resolveModelGenZtdProbeOptions,
+} from '../src/commands/modelGen';
+import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
+import os from 'node:os';
 import { bindModelGenNamedSql } from '../src/utils/modelGenBinder';
 import { buildProbeSql, probeQueryColumns } from '../src/utils/modelProbe';
 import { deriveModelGenNames, normalizeGeneratedSqlFile, renderModelGenFile, toModelPropertyName } from '../src/utils/modelGenRender';
@@ -171,5 +179,102 @@ test('probeQueryColumns maps int8 metadata to string to match pg driver defaults
 
   await expect(probeQueryColumns(client, 'select count(*) as total', [])).resolves.toEqual([
     { columnName: 'total', typeName: 'int8', tsType: 'string' }
+  ]);
+});
+
+test('resolveModelGenZtdProbeOptions preserves defaultSchema and searchPath from ztd.config.json', () => {
+  const workspace = mkdtempSync(path.join(os.tmpdir(), 'model-gen-ztd-config-'));
+  mkdirSync(path.join(workspace, 'schema'), { recursive: true });
+  writeFileSync(
+    path.join(workspace, 'ztd.config.json'),
+    JSON.stringify({
+      dialect: 'postgres',
+      ddlDir: 'schema',
+      testsDir: 'tests',
+      ddl: {
+        defaultSchema: 'app',
+        searchPath: ['app', 'public']
+      },
+      ddlLint: 'strict'
+    }),
+    'utf8'
+  );
+
+  expect(resolveModelGenZtdProbeOptions({ rootDir: workspace })).toEqual({
+    ddlDirectories: [path.join(workspace, 'schema')],
+    defaultSchema: 'app',
+    searchPath: ['app', 'public']
+  });
+});
+
+test('loadModelGenZtdFixtureState creates empty fixtures for DDL-only tables', async () => {
+  const workspace = mkdtempSync(path.join(os.tmpdir(), 'model-gen-ztd-fixtures-'));
+  const ddlDir = path.join(workspace, 'schema');
+  mkdirSync(ddlDir, { recursive: true });
+  writeFileSync(
+    path.join(ddlDir, 'public.sql'),
+    `
+      CREATE TABLE public.users (
+        user_id integer PRIMARY KEY,
+        email text NOT NULL
+      );
+    `,
+    'utf8'
+  );
+
+  const fixtureState = await loadModelGenZtdFixtureState({
+    ddlDirectories: [ddlDir],
+    defaultSchema: 'public',
+    searchPath: ['public'],
+  });
+
+  expect(fixtureState.tableDefinitions).toHaveLength(1);
+  expect(fixtureState.tableRows).toEqual([
+    {
+      tableName: 'public.users',
+      rows: [],
+    },
+  ]);
+});
+
+test('loadModelGenZtdFixtureState keeps searchPath precedence for duplicate unqualified names', async () => {
+  const workspace = mkdtempSync(path.join(os.tmpdir(), 'model-gen-ztd-search-path-'));
+  const ddlDir = path.join(workspace, 'schema');
+  mkdirSync(ddlDir, { recursive: true });
+  writeFileSync(
+    path.join(ddlDir, 'schemas.sql'),
+    `
+      CREATE SCHEMA app;
+
+      CREATE TABLE app.users (
+        account_id integer PRIMARY KEY
+      );
+
+      CREATE TABLE public.users (
+        user_id integer PRIMARY KEY
+      );
+    `,
+    'utf8'
+  );
+
+  const fixtureState = await loadModelGenZtdFixtureState({
+    ddlDirectories: [ddlDir],
+    defaultSchema: 'app',
+    searchPath: ['app', 'public'],
+  });
+
+  expect(fixtureState.tableRows.map((fixture) => fixture.tableName)).toEqual([
+    'app.users',
+    'public.users',
+  ]);
+  expect(fixtureState.tableRows).toEqual([
+    {
+      tableName: 'app.users',
+      rows: [],
+    },
+    {
+      tableName: 'public.users',
+      rows: [],
+    },
   ]);
 });
