@@ -133,6 +133,44 @@ test('impact view resolves sql-root-relative sqlFile values before the legacy sp
   expect(formatQueryUsageReport(report, 'text')).toContain('unresolved sql files: 0');
 });
 
+test('table impact ignores RETURNING-only statements when the target table is never referenced', () => {
+  const root = createWorkspace('query-uses-table-ignore-returning');
+  mkdirSync(path.join(root, 'src', 'sql', 'sales'), { recursive: true });
+  writeFileSync(
+    path.join(root, 'src', 'catalog', 'specs', 'sales.spec.ts'),
+    [
+      'export const salesSpec = {',
+      "  id: 'sales.mutations',",
+      "  sqlFile: 'sales/mutations.sql',",
+      "  params: { shape: 'named', example: { sale_id: 'sale-001' } }",
+      '};'
+    ].join('\n'),
+    'utf8'
+  );
+  writeFileSync(
+    path.join(root, 'src', 'sql', 'sales', 'mutations.sql'),
+    [
+      'insert into public.sales (id) values (:sale_id) returning id;',
+      'update public.sales set id = :sale_id where id = :sale_id returning id;',
+      'delete from public.sales where id = :sale_id returning id;'
+    ].join('\n'),
+    'utf8'
+  );
+
+  const report = buildQueryUsageReport({
+    kind: 'table',
+    rawTarget: 'public.sale_discounts',
+    rootDir: root
+  });
+
+  expect(report.summary).toMatchObject({
+    statementsScanned: 3,
+    matches: 0,
+    unresolvedSqlFiles: 0
+  });
+  expect(report.matches).toEqual([]);
+});
+
 test('impact view keeps high confidence for exact table matches with quoted identifiers', () => {
   const root = createWorkspace('query-uses-table-quoted');
   writeFileSync(
@@ -373,6 +411,48 @@ test('detail view emits parse warnings, fallback rows, and no-catalog guidance d
     }
   ]);
   expect(formatQueryUsageReport(emptyReport, 'text')).toContain('No catalog specs found under');
+});
+
+test('table impact finds tables referenced from EXISTS subqueries through their FROM nodes', () => {
+  const root = createWorkspace('query-uses-table-exists-subquery');
+  writeFileSync(
+    path.join(root, 'src', 'catalog', 'specs', 'sales.spec.json'),
+    JSON.stringify({ id: 'catalog.sales', sqlFile: '../../sql/sales.sql', params: { shape: 'named' } }, null, 2),
+    'utf8'
+  );
+  writeFileSync(
+    path.join(root, 'src', 'sql', 'sales.sql'),
+    [
+      'SELECT s.id',
+      'FROM public.sales s',
+      'WHERE EXISTS (',
+      '  SELECT 1',
+      '  FROM public.sale_items si',
+      '  WHERE si.sale_id = s.id',
+      ');'
+    ].join('\n'),
+    'utf8'
+  );
+
+  const report = buildQueryUsageReport({
+    kind: 'table',
+    rawTarget: 'public.sale_items',
+    rootDir: root,
+    view: 'detail'
+  });
+
+  expect(report.summary).toMatchObject({
+    matches: 1,
+    unresolvedSqlFiles: 0
+  });
+  expect(report.matches).toEqual([
+    expect.objectContaining({
+      kind: 'detail',
+      catalog_id: 'catalog.sales',
+      usage_kind: 'subquery-from',
+      sql_file: 'src/sql/sales.sql'
+    })
+  ]);
 });
 
 test('impact view still resolves legacy spec-relative sqlFile values for backward compatibility', () => {
