@@ -4,6 +4,7 @@ import type {
   MissingFixtureStrategy,
 } from '@rawsql-ts/testkit-core';
 import type { SqlFormatterOptions, TableDefinitionModel } from 'rawsql-ts';
+import type { QueryExecutionResult } from '@rawsql-ts/sql-contract';
 import type { DdlFixtureLoaderOptions } from '@rawsql-ts/testkit-core';
 
 /** Generic record shape returned by testkit query results. */
@@ -13,21 +14,24 @@ export type Row = Record<string, unknown>;
  * Executes raw SQL with normalized arguments and returns the driver rows.
  * @param sql - The SQL string to execute.
  * @param params - Parameter array aligned with the SQL placeholders.
- * @returns A promise resolving to the raw rows produced by the executor.
+ * @returns A promise resolving to normalized query execution output.
  */
-export type QueryExecutor = (sql: string, params: readonly unknown[]) => Promise<Row[]>;
+export type QueryExecutor = (
+  sql: string,
+  params: readonly unknown[]
+) => Promise<QueryExecutionResult>;
 
 /**
  * Typed variant of `QueryExecutor` that preserves the caller-provided row shape.
  * @template RowType - The concrete shape of rows returned by the executor.
  * @param sql - SQL to execute.
  * @param params - Parameters supplied to the SQL statement.
- * @returns Resolved rows typed as `RowType[]`.
+ * @returns Resolved rows typed as `RowType[]`, or `{ rows, rowCount }`.
  */
 export type TypedQueryExecutor<RowType extends Row = Row> = (
   sql: string,
   params: readonly unknown[]
-) => Promise<RowType[]>;
+) => Promise<QueryExecutionResult | RowType[]>;
 
 /**
  * Input shape accepted by the Postgres testkit client when callers supply both SQL text and parameter arrays.
@@ -74,3 +78,5 @@ export type { TableRowsFixture } from '@rawsql-ts/testkit-core';
 
 /** Table definition metadata reused by fixtures and the DDL loader. */
 export type { TableDefinitionModel } from 'rawsql-ts';
+
+

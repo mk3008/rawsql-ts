@@ -383,6 +383,9 @@ importers:
 
   packages/testkit-postgres:
     dependencies:
+      '@rawsql-ts/sql-contract':
+        specifier: workspace:^
+        version: link:../sql-contract
       '@rawsql-ts/testkit-core':
         specifier: workspace:^
         version: link:../testkit-core

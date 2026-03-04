@@ -430,6 +430,17 @@ function findClauseBounds(
       depth = Math.max(depth - 1, 0)
       continue
     }
+    if (depth === 0 && token.kind === 'other' && token.value === ';') {
+      if (startTokenIndex < 0) {
+        return null
+      }
+
+      return {
+        startTokenIndex,
+        endTokenIndex: index,
+      }
+    }
+
     if (depth !== 0 || token.kind !== 'word') {
       continue
     }
@@ -674,6 +685,9 @@ function findInsertClauseBounds(statement: SqlStatement): {
 
   for (let index = statement.statementTokenIndex + 1; index < statement.tokens.length; index += 1) {
     const token = statement.tokens[index]
+    if (token.kind === 'other' && token.value === ';') {
+      return null
+    }
     if (token.kind === 'openParen') {
       columnsOpenIndex = index
       break
@@ -692,6 +706,9 @@ function findInsertClauseBounds(statement: SqlStatement): {
   let valuesWordIndex = -1
   for (let index = columnsCloseIndex + 1; index < statement.tokens.length; index += 1) {
     const token = statement.tokens[index]
+    if (token.kind === 'other' && token.value === ';') {
+      return null
+    }
     if (token.kind !== 'word') {
       continue
     }
@@ -712,7 +729,11 @@ function findInsertClauseBounds(statement: SqlStatement): {
 
   let valuesOpenIndex = -1
   for (let index = valuesWordIndex + 1; index < statement.tokens.length; index += 1) {
-    if (statement.tokens[index].kind === 'openParen') {
+    const token = statement.tokens[index]
+    if (token.kind === 'other' && token.value === ';') {
+      return null
+    }
+    if (token.kind === 'openParen') {
       valuesOpenIndex = index
       break
     }
@@ -727,12 +748,24 @@ function findInsertClauseBounds(statement: SqlStatement): {
     return null
   }
 
+  let parenDepth = 0
   for (let index = valuesCloseIndex + 1; index < statement.tokens.length; index += 1) {
     const token = statement.tokens[index]
-    if (token.kind === 'word' && lowerWord(token) === 'returning') {
+    if (token.kind === 'other' && token.value === ';' && parenDepth === 0) {
       break
     }
-    if (token.kind === 'comma') {
+    if (token.kind === 'openParen') {
+      parenDepth += 1
+      continue
+    }
+    if (token.kind === 'closeParen') {
+      parenDepth = Math.max(parenDepth - 1, 0)
+      continue
+    }
+    if (token.kind === 'word' && lowerWord(token) === 'returning' && parenDepth === 0) {
+      break
+    }
+    if (token.kind === 'comma' && parenDepth === 0) {
       return null
     }
   }

@@ -333,6 +333,44 @@ describe('catalog create execution', () => {
     )
   })
 
+  it('does not reject ON CONFLICT target commas inside parentheses', async () => {
+    const loader = {
+      load: vi.fn(() =>
+        Promise.resolve(
+          'INSERT INTO users (id, name, bio) VALUES (:id, :name, :bio) ON CONFLICT (id, name) DO NOTHING'
+        )
+      ),
+    }
+    const executor = vi.fn(() => Promise.resolve([]))
+    const catalog = createCatalogExecutor({
+      loader,
+      executor,
+      allowNamedParamsWithoutBinder: true,
+    })
+
+    const spec: QuerySpec<Record<string, unknown>, never> = {
+      id: 'mutation.insert.on-conflict-comma',
+      sqlFile: 'insert-on-conflict-comma.sql',
+      params: {
+        shape: 'named',
+        example: { id: 1, name: 'Alice', bio: 'Hello' },
+      },
+      mutation: {
+        kind: 'insert',
+      },
+      output: {
+        example: undefined as never,
+      },
+    }
+
+    await expect(catalog.list(spec, { id: 1, name: 'Alice' })).resolves.toEqual([])
+
+    expect(executor).toHaveBeenCalledTimes(1)
+    expect(executor).toHaveBeenCalledWith(
+      'INSERT INTO users (id, name) VALUES (:id, :name) ON CONFLICT (id, name) DO NOTHING',
+      { id: 1, name: 'Alice' }
+    )
+  })
   it('does not subtract non-target insert values (composite expressions)', async () => {
     const loader = {
       load: vi.fn(() =>

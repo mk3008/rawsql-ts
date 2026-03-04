@@ -1,4 +1,5 @@
 import type { CountableResult } from '@rawsql-ts/testkit-core';
+import { normalizeExecutionResult } from '@rawsql-ts/sql-contract';
 import {
   DefaultFixtureProvider,
   ResultSelectRewriter,
@@ -101,20 +102,22 @@ export class PostgresTestkitClient<RowType extends Row = Row> {
 
     this.options.onExecute?.(payloadSql, payloadParams, rewritten.fixturesApplied);
 
-    const rawRows = await this.context.executor(payloadSql, payloadParams ?? []);
+    const rawResult = await this.context.executor(payloadSql, payloadParams ?? []);
+    const normalizedExecution = normalizeExecutionResult(rawResult);
+    const rows = normalizedExecution.rows as RowType[];
     const fields =
-      rawRows.length > 0
-        ? Object.keys(rawRows[0]).map((name) => ({ name }))
+      rows.length > 0
+        ? Object.keys(rows[0]).map((name) => ({ name }))
         : [];
     let result: CountableResult<RowType> = {
       command: rewritten.sourceCommand ?? 'select',
-      rowCount: rawRows.length,
-      rows: rawRows,
+      rowCount: normalizedExecution.rowCount ?? rows.length,
+      rows,
       fields,
     };
     result = applyCountWrapper(result, rewritten.sourceCommand, rewritten.isCountWrapper);
-    if (rewritten.isCountWrapper && rawRows.length > 0) {
-      const firstRow = rawRows[0];
+    if (rewritten.isCountWrapper && rows.length > 0) {
+      const firstRow = rows[0];
       const countValue = Array.isArray(firstRow)
         ? firstRow[0]
         : (firstRow as Record<string, unknown>)['count'];
@@ -161,3 +164,5 @@ export const createPostgresTestkitClient = <RowType extends Row>(
 ): PostgresTestkitClient<RowType> => {
   return new PostgresTestkitClient<RowType>(options);
 };
+
+

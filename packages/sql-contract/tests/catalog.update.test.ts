@@ -297,6 +297,36 @@ describe('catalog update execution', () => {
     expect(executor).not.toHaveBeenCalled()
   })
 
+  it('does not treat a following statement WHERE as part of the update statement', async () => {
+    const loader = {
+      load: vi.fn(
+        () => Promise.resolve('UPDATE users SET name = :name; SELECT * FROM users WHERE id = :id')
+      ),
+    }
+    const executor = vi.fn(() => Promise.resolve([]))
+    const catalog = createCatalogExecutor({
+      loader,
+      executor,
+      allowNamedParamsWithoutBinder: true,
+    })
+
+    const spec: QuerySpec<Record<string, unknown>, never> = {
+      id: 'mutation.update.statement-boundary.where',
+      sqlFile: 'update-statement-boundary.sql',
+      params: { shape: 'named', example: { name: 'Alice', id: 1 } },
+      mutation: {
+        kind: 'update',
+      },
+      output: {
+        example: undefined as never,
+      },
+    }
+
+    await expect(catalog.list(spec, { name: 'Alice', id: 1 })).rejects.toThrow(
+      /requires a WHERE clause/i
+    )
+    expect(executor).not.toHaveBeenCalled()
+  })
   it('rejects mutation specs that use non-safe rewriters', async () => {
     const loader = {
       load: vi.fn(
@@ -370,3 +400,4 @@ describe('catalog update execution', () => {
     expect(executor).toHaveBeenCalledTimes(1)
   })
 })
+

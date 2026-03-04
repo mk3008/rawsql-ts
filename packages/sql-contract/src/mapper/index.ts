@@ -6,6 +6,7 @@ import {
 import { normalizeKeyFromRow, normalizeKeyValue } from './internal'
 
 export type { QueryParams } from '../query-params'
+export { normalizeExecutionResult, type QueryExecutionResult } from '../normalizeExecutionResult'
 
 /**
  * A single database row returned by a SQL driver.
@@ -706,9 +707,15 @@ function readScalarValue(
   sql: string,
   params: QueryParams
 ): Promise<unknown> {
-  return executor(sql, params).then((result) =>
-    extractScalar(normalizeExecutionResult(result).rows)
-  )
+  return executor(sql, params).then((result) => {
+    try {
+      return extractScalar(normalizeExecutionResult(result).rows)
+    } catch (cause) {
+      throw new Error(
+        `Scalar executor returned an unsupported result shape. sql=${sql} params=${String(params)} cause=${cause instanceof Error ? cause.message : String(cause)}`
+      )
+    }
+  })
 }
 
 function extractScalar(rows: Row[]): unknown {
@@ -1497,4 +1504,6 @@ export const __internal = {
   normalizeKeyFromRow,
 }
                   
+
+
 
