@@ -30,6 +30,7 @@ export function buildQueryUsageReport(params: {
   rootDir?: string;
   specsDir?: string;
   sqlRoot?: string;
+  excludeGenerated?: boolean;
   anySchema?: boolean;
   anyTable?: boolean;
   view?: QueryUsageView;
@@ -46,7 +47,9 @@ export function buildQueryUsageReport(params: {
     anyTable: params.anyTable
   });
 
-  const specFiles = existsSync(specsDir) ? walkSqlCatalogSpecFiles(specsDir) : [];
+  const specFiles = existsSync(specsDir)
+    ? walkSqlCatalogSpecFiles(specsDir, { excludeGenerated: params.excludeGenerated })
+    : [];
   const warnings: QueryUsageReport['warnings'] = [];
   const loadedSpecs = specFiles.flatMap((filePath) => {
     try {

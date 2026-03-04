@@ -36,7 +36,7 @@ interface DiscoveryErrorFactory {
  */
 export function walkSqlCatalogSpecFiles(
   rootDir: string,
-  options?: { excludeTestFiles?: boolean }
+  options?: { excludeTestFiles?: boolean; excludeGenerated?: boolean }
 ): string[] {
   const files: string[] = [];
   const stack = [rootDir];
@@ -66,6 +66,9 @@ export function walkSqlCatalogSpecFiles(
         continue;
       }
       if (options?.excludeTestFiles && lowered.includes('.test.')) {
+        continue;
+      }
+      if (options?.excludeGenerated && isGeneratedSpecPath(absolute)) {
         continue;
       }
       files.push(absolute);
@@ -198,4 +201,8 @@ export function isPlainObject(value: unknown): value is Record<string, unknown> 
   }
   const proto = Object.getPrototypeOf(value);
   return proto === Object.prototype || proto === null;
+}
+
+function isGeneratedSpecPath(filePath: string): boolean {
+  return filePath.split(path.sep).join('/').includes('/src/catalog/specs/generated/');
 }

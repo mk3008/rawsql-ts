@@ -133,6 +133,101 @@ test('impact view resolves sql-root-relative sqlFile values before the legacy sp
   expect(formatQueryUsageReport(report, 'text')).toContain('unresolved sql files: 0');
 });
 
+test('query usage report defaults to impact view unless detail is requested explicitly', () => {
+  const root = createWorkspace('query-uses-default-impact');
+  writeFileSync(
+    path.join(root, 'src', 'catalog', 'specs', 'users.spec.json'),
+    JSON.stringify({ id: 'catalog.users', sqlFile: '../../sql/users.sql', params: { shape: 'named' } }, null, 2),
+    'utf8'
+  );
+  writeFileSync(path.join(root, 'src', 'sql', 'users.sql'), 'SELECT email FROM public.users;', 'utf8');
+
+  const defaultReport = buildQueryUsageReport({
+    kind: 'column',
+    rawTarget: 'public.users.email',
+    rootDir: root
+  });
+  const explicitImpactReport = buildQueryUsageReport({
+    kind: 'column',
+    rawTarget: 'public.users.email',
+    rootDir: root,
+    view: 'impact'
+  });
+  const detailReport = buildQueryUsageReport({
+    kind: 'column',
+    rawTarget: 'public.users.email',
+    rootDir: root,
+    view: 'detail'
+  });
+
+  expect(defaultReport.view).toBe('impact');
+  expect(defaultReport.matches.every((match) => match.kind === 'impact')).toBe(true);
+  expect(explicitImpactReport).toEqual(defaultReport);
+  expect(detailReport.view).toBe('detail');
+  expect(detailReport.matches.every((match) => match.kind === 'detail')).toBe(true);
+});
+
+test('query usage report can exclude generated specs while keeping the default scan set unchanged', () => {
+  const root = createWorkspace('query-uses-exclude-generated');
+  mkdirSync(path.join(root, 'src', 'catalog', 'specs', 'generated'), { recursive: true });
+  mkdirSync(path.join(root, 'src', 'sql', 'sales'), { recursive: true });
+  writeFileSync(
+    path.join(root, 'src', 'catalog', 'specs', 'sales.spec.ts'),
+    [
+      'export const salesSpec = {',
+      "  id: 'sales.byId',",
+      "  sqlFile: 'sales/get-sale-by-id.sql',",
+      "  params: { shape: 'named', example: { sale_id: 'sale-001' } }",
+      '};'
+    ].join('\n'),
+    'utf8'
+  );
+  writeFileSync(
+    path.join(root, 'src', 'catalog', 'specs', 'generated', 'sales.generated.spec.ts'),
+    [
+      'export const generatedSalesSpec = {',
+      "  id: 'sales.generatedById',",
+      "  sqlFile: 'sales/get-sale-by-id.sql',",
+      "  params: { shape: 'named', example: { sale_id: 'sale-001' } }",
+      '};'
+    ].join('\n'),
+    'utf8'
+  );
+  writeFileSync(
+    path.join(root, 'src', 'sql', 'sales', 'get-sale-by-id.sql'),
+    'SELECT p.name FROM public.sales s LEFT JOIN public.products p ON p.id = s.sale_id;',
+    'utf8'
+  );
+
+  const includedReport = buildQueryUsageReport({
+    kind: 'table',
+    rawTarget: 'public.products',
+    rootDir: root
+  });
+  const excludedReport = buildQueryUsageReport({
+    kind: 'table',
+    rawTarget: 'public.products',
+    rootDir: root,
+    excludeGenerated: true
+  });
+
+  expect(includedReport.summary).toMatchObject({
+    catalogsScanned: 2,
+    matches: 2,
+    unresolvedSqlFiles: 0
+  });
+  expect(includedReport.matches.map((match) => match.catalog_id)).toEqual([
+    'sales.byId',
+    'sales.generatedById'
+  ]);
+  expect(excludedReport.summary).toMatchObject({
+    catalogsScanned: 1,
+    matches: 1,
+    unresolvedSqlFiles: 0
+  });
+  expect(excludedReport.matches.map((match) => match.catalog_id)).toEqual(['sales.byId']);
+});
+
 test('table impact ignores RETURNING-only statements when the target table is never referenced', () => {
   const root = createWorkspace('query-uses-table-ignore-returning');
   mkdirSync(path.join(root, 'src', 'sql', 'sales'), { recursive: true });

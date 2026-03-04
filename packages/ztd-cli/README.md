@@ -146,6 +146,7 @@ Use this split to classify repetition:
 | `ztd query uses table <schema.table>` | Find catalog SQL statements that use a table target |
 | `ztd query uses column <schema.table>.<column>` | Find catalog SQL statements that use a column target with explicit uncertainty labels |
 | `ztd query uses --sql-root <dir>` | Resolve existing `spec.sqlFile` values against a project SQL root such as `src/sql` before trying legacy spec-relative paths |
+| `ztd query uses --exclude-generated` | Exclude specs under `src/catalog/specs/generated` when those files are review-only noise during impact scans |
 
 ## Impact Investigation
 
@@ -153,14 +154,16 @@ Use `ztd query uses` before renaming or deleting catalog-facing SQL assets. The 
 
 Existing `spec.sqlFile` strings do not need to change. `query uses` now resolves them against the project SQL root first (`--sql-root`, default `src/sql`) and then falls back to the legacy spec-relative lookup for backward compatibility.
 
-- Use `--view impact` for the initial "used or not, and by which queries?" pass.
+- `impact` is the default view for the initial "used or not, and by which queries?" pass.
 - Use `--view detail` when you need edit-ready locations and snippets for refactoring.
+- Use `--exclude-generated` when `src/catalog/specs/generated` contains review-only scaffolds that would otherwise add noise to the scan.
 
 ### Strict examples
 
 ```bash
 npx ztd query uses table public.users
 npx ztd query uses table public.users --sql-root src/sql
+npx ztd query uses table public.users --exclude-generated
 npx ztd query uses column public.users.email
 npx ztd query uses column public.users.email --format json
 npx ztd query uses column public.users.email --view detail
