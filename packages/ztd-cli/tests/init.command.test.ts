@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { expect, test } from 'vitest';
@@ -5,7 +6,10 @@ import { expect, test } from 'vitest';
 import { DEFAULT_ZTD_CONFIG } from '../src/utils/ztdProjectConfig';
 import {
   runInitCommand,
+  buildPackageManagerArgs,
+  findAncestorPnpmWorkspaceRoot,
   normalizeSchemaName,
+  resolvePnpmWorkspaceGuard,
   sanitizeSchemaFileName,
   type ZtdConfigWriterDependencies,
   type Prompter
@@ -206,10 +210,19 @@ test('init wizard bootstraps an empty scaffold', async () => {
   expect(readNormalizedFile(path.join(workspace, 'tests', 'smoke.validation.test.ts'))).toContain(
     'normalizes valid timestamp strings',
   );
+  expect(readNormalizedFile(path.join(workspace, 'tests', 'smoke.test.ts'))).toContain(
+    'runtime contract wiring is usable before SQL-backed tests exist',
+  );
+  expect(readNormalizedFile(path.join(workspace, 'tests', 'smoke.test.ts'))).toContain(
+    'SqlClient seam is either wired or fails with an actionable message',
+  );
 
   // Ensure the generated testkit client can safely log params with circular references.
   expect(readNormalizedFile(testkitClientPath)).toContain(
     'Provide a SqlClient implementation here',
+  );
+  expect(readNormalizedFile(testkitClientPath)).toContain(
+    '@rawsql-ts/adapter-node-pg',
   );
 });
 
@@ -314,6 +327,26 @@ test('init runs install when package.json is updated', async () => {
   expect(packageJson.devDependencies.vitest).toBeDefined();
   expect(packageJson.devDependencies.typescript).toBeDefined();
   expect(packageJson.devDependencies['@types/node']).toBeDefined();
+});
+
+test('pnpm nested under a parent workspace uses --ignore-workspace for manual installs', () => {
+  const workspace = createTempDir('cli-init-workspace-guard');
+
+  expect(findAncestorPnpmWorkspaceRoot(workspace)).toBe(repoRoot);
+  expect(resolvePnpmWorkspaceGuard(workspace, 'pnpm')).toEqual({
+    workspaceRoot: repoRoot,
+    shouldIgnoreWorkspace: true,
+  });
+  expect(buildPackageManagerArgs('install', 'pnpm', [], workspace)).toEqual([
+    'install',
+    '--ignore-workspace',
+  ]);
+  expect(buildPackageManagerArgs('devDependencies', 'pnpm', ['vitest'], workspace)).toEqual([
+    'add',
+    '-D',
+    'vitest',
+    '--ignore-workspace',
+  ]);
 });
 
 test('init generates ArkType spec when ArkType backend is selected', async () => {
@@ -462,6 +495,118 @@ test('init completes non-interactively with explicit --workflow empty --validato
     path.join(workspace, 'src', 'catalog', 'specs', '_smoke.spec.ts'),
   );
   expect(specFile).toContain("from 'arktype'");
+});
+
+test('init local-source mode links direct rawsql-ts dependencies from the monorepo and emits a local shim', async () => {
+  const workspace = createTempDir('cli-init-local-source');
+  const prompter = new TestPrompter([]);
+
+  const result = await runInitCommand(prompter, {
+    rootDir: workspace,
+    forceOverwrite: true,
+    nonInteractive: true,
+    workflow: 'empty',
+    validator: 'zod',
+    localSourceRoot: repoRoot
+  });
+
+  const packageJson = JSON.parse(readNormalizedFile(path.join(workspace, 'package.json'))) as {
+    devDependencies: Record<string, string>;
+  };
+  const localShimPath = path.join(workspace, 'src', 'local', 'sql-contract.ts');
+  const coercionsPath = path.join(workspace, 'src', 'catalog', 'runtime', '_coercions.ts');
+  const localSourceGuardPath = path.join(workspace, 'scripts', 'local-source-guard.mjs');
+
+  expect(result.summary).toContain('src/local/sql-contract.ts');
+  expect(result.summary).toContain('Run pnpm install --ignore-workspace');
+  expect(result.summary).toContain('Run pnpm typecheck');
+  expect(result.summary).toContain('Run pnpm test');
+  expect(existsSync(localShimPath)).toBe(true);
+  expect(existsSync(localSourceGuardPath)).toBe(true);
+  expect(readNormalizedFile(localShimPath)).toContain("export * from '@rawsql-ts/sql-contract'");
+  expect(readNormalizedFile(coercionsPath)).toContain("../../local/sql-contract.js");
+  expect(packageJson.devDependencies['@rawsql-ts/sql-contract']).toBe(
+    `file:${path.relative(workspace, path.join(repoRoot, 'packages', 'sql-contract')).replace(/\\/g, '/')}`
+  );
+  expect(packageJson.devDependencies['@rawsql-ts/adapter-node-pg']).toBe(
+    `file:${path.relative(workspace, path.join(repoRoot, 'packages', 'adapters', 'adapter-node-pg')).replace(/\\/g, '/')}`
+  );
+  expect(packageJson.devDependencies['@rawsql-ts/testkit-postgres']).toBe(
+    `file:${path.relative(workspace, path.join(repoRoot, 'packages', 'testkit-postgres')).replace(/\\/g, '/')}`
+  );
+  expect(packageJson.scripts.typecheck).toBe('node ./scripts/local-source-guard.mjs typecheck');
+  expect(packageJson.scripts.test).toBe('node ./scripts/local-source-guard.mjs test');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('pnpm install --ignore-workspace');
+  expect(readNormalizedFile(path.join(workspace, 'README.md'))).toContain('--import-style relative');
+
+  const guardResult = spawnSync(process.execPath, [localSourceGuardPath, 'typecheck'], {
+    cwd: workspace,
+    encoding: 'utf8'
+  });
+  expect(guardResult.status).toBe(1);
+  expect(guardResult.stderr).toContain('[local-source guard] pnpm typecheck cannot run against this scaffold yet.');
+  expect(guardResult.stderr).toContain('pnpm install --ignore-workspace');
+  expect(guardResult.stderr).toContain('npx tsc --noEmit');
+});
+
+test('init local-source mode uses npm script commands when package-lock.json selects npm', async () => {
+  const workspace = createTempDir('cli-init-local-source-npm');
+  const prompter = new TestPrompter([]);
+  writeFileSync(path.join(workspace, 'package-lock.json'), '{}', 'utf8');
+
+  const result = await runInitCommand(prompter, {
+    rootDir: workspace,
+    forceOverwrite: true,
+    nonInteractive: true,
+    workflow: 'empty',
+    validator: 'zod',
+    localSourceRoot: repoRoot
+  });
+
+  expect(result.summary).toContain('Run npm install');
+  expect(result.summary).toContain('Run npm run typecheck');
+  expect(result.summary).toContain('Run npm run test');
+  expect(result.summary).toContain('Run npx ztd ztd-config');
+});
+
+test('init local-source mode rejects a root that is not a rawsql-ts monorepo', async () => {
+  const workspace = createTempDir('cli-init-local-source-invalid');
+  const prompter = new TestPrompter([]);
+
+  await expect(
+    runInitCommand(prompter, {
+      rootDir: workspace,
+      forceOverwrite: true,
+      nonInteractive: true,
+      workflow: 'empty',
+      validator: 'zod',
+      localSourceRoot: path.join(workspace, 'not-a-monorepo')
+    })
+  ).rejects.toThrow('The local-source root does not contain packages/sql-contract/package.json');
+});
+
+test('init local-source mode rejects a root that is missing one of the direct rawsql-ts packages', async () => {
+  const workspace = createTempDir('cli-init-local-source-missing-stack');
+  const localSourceRoot = createTempDir('cli-init-local-source-partial-monorepo');
+  const prompter = new TestPrompter([]);
+
+  mkdirSync(path.join(localSourceRoot, 'packages', 'sql-contract'), { recursive: true });
+  writeFileSync(
+    path.join(localSourceRoot, 'packages', 'sql-contract', 'package.json'),
+    JSON.stringify({ name: '@rawsql-ts/sql-contract', version: '0.0.0' }, null, 2),
+    'utf8'
+  );
+
+  await expect(
+    runInitCommand(prompter, {
+      rootDir: workspace,
+      forceOverwrite: true,
+      nonInteractive: true,
+      workflow: 'empty',
+      validator: 'zod',
+      localSourceRoot
+    })
+  ).rejects.toThrow('The local-source root does not contain packages/adapters/adapter-node-pg/package.json');
 });
 
 test('init rejects non-interactive pg_dump workflow', async () => {

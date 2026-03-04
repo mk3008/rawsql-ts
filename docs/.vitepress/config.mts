@@ -36,6 +36,13 @@ export default defineConfig({
         },
         { text: 'Formatting Recipes', link: '/guide/formatting-recipes' },
         { text: 'Querybuilding Recipes', link: '/guide/querybuilding-recipes' },
+        {
+          text: 'Query Uses',
+          items: [
+            { text: 'Overview', link: '/guide/query-uses-overview' },
+            { text: 'Impact Checks', link: '/guide/query-uses-impact-checks' },
+          ]
+        },
         { text: 'Testkit Concept', link: '/guide/testkit-concept' },
         { text: 'ZTD Benchmarking', link: '/guide/ztd-benchmarking' },
         { text: 'SQLite Testkit How-To', link: '/guide/sqlite-testkit-howto' },

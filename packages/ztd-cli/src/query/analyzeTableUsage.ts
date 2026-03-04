@@ -1,5 +1,35 @@
-import { DeleteQuery, InsertQuery, ParenSource, SimpleSelectQuery, SourceExpression, SqlParser, SubQuerySource, UpdateQuery } from 'rawsql-ts';
-import type { FromClause, JoinClause, ReturningClause, TableSource, UsingClause } from 'rawsql-ts';
+import {
+  ArrayExpression,
+  ArrayIndexExpression,
+  ArrayQueryExpression,
+  ArraySliceExpression,
+  BetweenExpression,
+  BinaryExpression,
+  CaseExpression,
+  CaseKeyValuePair,
+  CastExpression,
+  DeleteQuery,
+  FunctionCall,
+  IdentifierString,
+  InlineQuery,
+  InsertQuery,
+  OrderByItem,
+  ParenExpression,
+  ParenSource,
+  RawString,
+  SimpleSelectQuery,
+  SourceExpression,
+  SqlParser,
+  StringSpecifierExpression,
+  SubQuerySource,
+  SwitchCaseArgument,
+  TupleExpression,
+  UnaryExpression,
+  UpdateQuery,
+  ValueList,
+  type ValueComponent
+} from 'rawsql-ts';
+import type { FromClause, JoinClause, TableSource, UsingClause } from 'rawsql-ts';
 import { TableSource as TableSourceModel } from 'rawsql-ts';
 import { locateUsageText } from './location';
 import type { CatalogStatement } from '../utils/sqlCatalogStatements';
@@ -70,6 +100,22 @@ function collectTableOccurrences(
     if (parsed.fromClause) {
       matches.push(...collectFromClauseOccurrences(parsed.fromClause, target, mode, context));
     }
+    if (parsed.whereClause) {
+      matches.push(...collectExpressionQueryOccurrences(parsed.whereClause.condition, target, mode, context));
+    }
+    if (parsed.havingClause) {
+      matches.push(...collectExpressionQueryOccurrences(parsed.havingClause.condition, target, mode, context));
+    }
+    if (parsed.groupByClause) {
+      for (const group of parsed.groupByClause.grouping) {
+        matches.push(...collectExpressionQueryOccurrences(group, target, mode, context));
+      }
+    }
+    if (parsed.orderByClause) {
+      for (const order of parsed.orderByClause.order) {
+        matches.push(...collectExpressionQueryOccurrences(order instanceof OrderByItem ? order.value : order, target, mode, context));
+      }
+    }
     return matches;
   }
   if (parsed instanceof UpdateQuery) {
@@ -83,8 +129,11 @@ function collectTableOccurrences(
     if (parsed.fromClause) {
       matches.push(...collectFromClauseOccurrences(parsed.fromClause, target, mode, context));
     }
-    if (parsed.returningClause) {
-      matches.push(...collectReturningOccurrences(parsed.returningClause, target, mode, context));
+    if (parsed.whereClause) {
+      matches.push(...collectExpressionQueryOccurrences(parsed.whereClause.condition, target, mode, context));
+    }
+    for (const item of parsed.setClause.items) {
+      matches.push(...collectExpressionQueryOccurrences(item.value, target, mode, context));
     }
     return matches;
   }
@@ -99,8 +148,8 @@ function collectTableOccurrences(
     if (parsed.usingClause) {
       matches.push(...collectUsingOccurrences(parsed.usingClause, target, mode, context));
     }
-    if (parsed.returningClause) {
-      matches.push(...collectReturningOccurrences(parsed.returningClause, target, mode, context));
+    if (parsed.whereClause) {
+      matches.push(...collectExpressionQueryOccurrences(parsed.whereClause.condition, target, mode, context));
     }
     return matches;
   }
@@ -109,9 +158,6 @@ function collectTableOccurrences(
     matches.push(...collectSourceExpressionOccurrences(parsed.insertClause.source, target, mode, context, 'insert-target'));
     if (parsed.selectQuery) {
       matches.push(...collectTableOccurrences(parsed.selectQuery, target, mode, { inSubquery: true }));
-    }
-    if (parsed.returningClause) {
-      matches.push(...collectReturningOccurrences(parsed.returningClause, target, mode, context));
     }
     return matches;
   }
@@ -155,25 +201,99 @@ function collectUsingOccurrences(
   );
 }
 
-function collectReturningOccurrences(
-  _returningClause: ReturningClause,
+function collectExpressionQueryOccurrences(
+  value: ValueComponent,
   target: QueryUsageTarget,
   mode: QueryUsageMode,
   context: { inSubquery?: boolean; inCte?: boolean }
 ): TableOccurrence[] {
-  if (!target.table || context.inCte || context.inSubquery) {
+  if (value instanceof InlineQuery) {
+    return collectTableOccurrences(value.selectQuery, target, mode, { ...context, inSubquery: true });
+  }
+  if (value instanceof ArrayQueryExpression) {
+    return collectTableOccurrences(value.query, target, mode, { ...context, inSubquery: true });
+  }
+  if (value instanceof BinaryExpression) {
+    return [
+      ...collectExpressionQueryOccurrences(value.left, target, mode, context),
+      ...collectExpressionQueryOccurrences(value.right, target, mode, context)
+    ];
+  }
+  if (value instanceof UnaryExpression) {
+    return collectExpressionQueryOccurrences(value.expression, target, mode, context);
+  }
+  if (value instanceof FunctionCall) {
+    const matches: TableOccurrence[] = [];
+    if (value.argument) {
+      matches.push(...collectExpressionQueryOccurrences(value.argument, target, mode, context));
+    }
+    if (value.filterCondition) {
+      matches.push(...collectExpressionQueryOccurrences(value.filterCondition, target, mode, context));
+    }
+    if (value.internalOrderBy) {
+      for (const order of value.internalOrderBy.order) {
+        matches.push(...collectExpressionQueryOccurrences(order instanceof OrderByItem ? order.value : order, target, mode, context));
+      }
+    }
+    return matches;
+  }
+  if (value instanceof CastExpression) {
+    return collectExpressionQueryOccurrences(value.input, target, mode, context);
+  }
+  if (value instanceof ParenExpression) {
+    return collectExpressionQueryOccurrences(value.expression, target, mode, context);
+  }
+  if (value instanceof ArrayExpression) {
+    return collectExpressionQueryOccurrences(value.expression, target, mode, context);
+  }
+  if (value instanceof ArraySliceExpression) {
+    return [
+      ...collectExpressionQueryOccurrences(value.array, target, mode, context),
+      ...(value.startIndex ? collectExpressionQueryOccurrences(value.startIndex, target, mode, context) : []),
+      ...(value.endIndex ? collectExpressionQueryOccurrences(value.endIndex, target, mode, context) : [])
+    ];
+  }
+  if (value instanceof ArrayIndexExpression) {
+    return [
+      ...collectExpressionQueryOccurrences(value.array, target, mode, context),
+      ...collectExpressionQueryOccurrences(value.index, target, mode, context)
+    ];
+  }
+  if (value instanceof ValueList) {
+    return value.values.flatMap((entry) => collectExpressionQueryOccurrences(entry, target, mode, context));
+  }
+  if (value instanceof BetweenExpression) {
+    return [
+      ...collectExpressionQueryOccurrences(value.expression, target, mode, context),
+      ...collectExpressionQueryOccurrences(value.lower, target, mode, context),
+      ...collectExpressionQueryOccurrences(value.upper, target, mode, context)
+    ];
+  }
+  if (value instanceof CaseExpression) {
+    return [
+      ...(value.condition ? collectExpressionQueryOccurrences(value.condition, target, mode, context) : []),
+      ...collectExpressionQueryOccurrences(value.switchCase, target, mode, context)
+    ];
+  }
+  if (value instanceof SwitchCaseArgument) {
+    return [
+      ...value.cases.flatMap((item) => collectExpressionQueryOccurrences(item, target, mode, context)),
+      ...(value.elseValue ? collectExpressionQueryOccurrences(value.elseValue, target, mode, context) : [])
+    ];
+  }
+  if (value instanceof CaseKeyValuePair) {
+    return [
+      ...collectExpressionQueryOccurrences(value.key, target, mode, context),
+      ...collectExpressionQueryOccurrences(value.value, target, mode, context)
+    ];
+  }
+  if (value instanceof TupleExpression) {
+    return value.values.flatMap((entry) => collectExpressionQueryOccurrences(entry, target, mode, context));
+  }
+  if (value instanceof StringSpecifierExpression || value instanceof IdentifierString || value instanceof RawString) {
     return [];
   }
-  return [
-    {
-      usageKind: 'returning',
-      searchTerms: buildTableSearchTerms(target, mode),
-      confidence: mode === 'exact' ? 'medium' : 'low',
-      notes: mode === 'exact' ? [] : ['relaxed-match-any-schema'],
-      clauseAnchor: resolveClauseAnchor('returning'),
-      strongClauseMatch: false
-    }
-  ];
+  return [];
 }
 
 function collectSourceExpressionOccurrences(
@@ -196,7 +316,7 @@ function collectSourceExpressionOccurrences(
         confidence: mode === 'exact' ? 'high' : 'low',
         notes: mode === 'exact' ? [] : ['relaxed-match-any-schema'],
         clauseAnchor: resolveClauseAnchor(usageKind),
-        strongClauseMatch: mode === 'exact' && usageKind !== 'returning'
+        strongClauseMatch: mode === 'exact'
       }];
     }
     return [];
@@ -246,7 +366,8 @@ function toTableMatch(statement: CatalogStatement, occurrence: TableOccurrence):
     statementText: statement.statementText,
     statementStartOffsetInFile: statement.statementStartOffsetInFile,
     candidates: occurrence.searchTerms,
-    clauseAnchor: occurrence.clauseAnchor
+    clauseAnchor: occurrence.clauseAnchor,
+    snippetMode: 'line'
   });
   const notes = [...occurrence.notes];
   let confidence = occurrence.confidence;
@@ -290,8 +411,6 @@ function resolveClauseAnchor(usageKind: string): QueryUsageClauseAnchor {
       return { kind: usageKind, tokens: ['DELETE', 'FROM'] };
     case 'using':
       return { kind: usageKind, tokens: ['USING'] };
-    case 'returning':
-      return { kind: usageKind, tokens: ['RETURNING'] };
     default:
       return { kind: usageKind, tokens: ['FROM'] };
   }

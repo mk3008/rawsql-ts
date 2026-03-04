@@ -269,6 +269,221 @@ pullTest('model-gen emits a names-first spec scaffold from live Postgres metadat
   }
 }, 60_000);
 
+pullTest('model-gen emits a spec scaffold from ZTD DDL metadata without physical tables', async () => {
+  const connectionString = process.env.TEST_PG_URI!;
+  const client = new Client({ connectionString });
+  await client.connect();
+
+  try {
+    await resetPublicSchema(client);
+    const existsBefore = await client.query<{ name: string | null }>(
+      "select to_regclass('public.products') as name"
+    );
+    expect(existsBefore.rows[0]?.name).toBeNull();
+
+    const workspace = createSqlWorkspace('model-gen-ztd', path.join('src', 'sql', 'sales', 'get_sales_header.sql'));
+    const ddlDir = path.join(workspace.rootDir, 'ztd', 'ddl');
+    mkdirSync(ddlDir, { recursive: true });
+    writeFileSync(
+      path.join(ddlDir, 'public.sql'),
+      `
+        CREATE TABLE public.products (
+          id serial PRIMARY KEY,
+          name text NOT NULL,
+          price numeric NOT NULL
+        );
+      `,
+      'utf8'
+    );
+    writeFileSync(
+      path.join(workspace.rootDir, 'ztd.config.json'),
+      JSON.stringify({
+        dialect: 'postgres',
+        ddlDir: 'ztd/ddl',
+        testsDir: 'tests',
+        ddl: {
+          defaultSchema: 'public',
+          searchPath: ['public']
+        },
+        ddlLint: 'strict'
+      }, null, 2),
+      'utf8'
+    );
+    writeFileSync(
+      workspace.sqlFile,
+      `
+        select
+          p.id as product_id,
+          p.name as product_name,
+          p.price as list_price
+        from public.products p
+        where p.id = :product_id
+      `,
+      'utf8'
+    );
+    const outFile = path.join(workspace.rootDir, 'product-ztd.spec.ts');
+    const result = runCli(
+      ['model-gen', workspace.sqlFile, '--sql-root', workspace.sqlRoot, '--probe-mode', 'ztd', '--out', outFile, '--debug-probe'],
+      { DATABASE_URL: connectionString },
+      workspace.rootDir
+    );
+
+    assertCliSuccess(result, 'model-gen ztd');
+    const content = readNormalizedFile(outFile);
+    expect(content).toContain('export interface GetSalesHeaderRow');
+    expect(content).toContain("productId: 'product_id'");
+    expect(content).toContain("params: { shape: 'named', example: { product_id: null } }");
+    expect(result.stderr).toContain('probeMode: ztd');
+    expect(result.stderr).toContain('ddlDir: ztd/ddl');
+
+    const existsAfter = await client.query<{ name: string | null }>(
+      "select to_regclass('public.products') as name"
+    );
+    expect(existsAfter.rows[0]?.name).toBeNull();
+  } finally {
+    await resetPublicSchema(client);
+    await client.end();
+  }
+}, 60_000);
+
+pullTest('model-gen ztd resolves unqualified table names through defaultSchema/searchPath', async () => {
+  const connectionString = process.env.TEST_PG_URI!;
+  const client = new Client({ connectionString });
+  await client.connect();
+
+  try {
+    await resetPublicSchema(client);
+
+    const workspace = createSqlWorkspace('model-gen-ztd-unqualified', path.join('src', 'sql', 'users', 'list_users.sql'));
+    const ddlDir = path.join(workspace.rootDir, 'ztd', 'ddl');
+    mkdirSync(ddlDir, { recursive: true });
+    writeFileSync(
+      path.join(ddlDir, 'public.sql'),
+      `
+        CREATE TABLE public.users (
+          user_id integer PRIMARY KEY,
+          email text NOT NULL
+        );
+      `,
+      'utf8'
+    );
+    writeFileSync(
+      path.join(workspace.rootDir, 'ztd.config.json'),
+      JSON.stringify({
+        dialect: 'postgres',
+        ddlDir: 'ztd/ddl',
+        testsDir: 'tests',
+        ddl: {
+          defaultSchema: 'public',
+          searchPath: ['public']
+        },
+        ddlLint: 'strict'
+      }, null, 2),
+      'utf8'
+    );
+    writeFileSync(
+      workspace.sqlFile,
+      `
+        select
+          user_id,
+          email
+        from users
+        where user_id = :user_id
+      `,
+      'utf8'
+    );
+    const outFile = path.join(workspace.rootDir, 'users-ztd.spec.ts');
+    const result = runCli(
+      ['model-gen', workspace.sqlFile, '--sql-root', workspace.sqlRoot, '--probe-mode', 'ztd', '--out', outFile, '--debug-probe'],
+      { DATABASE_URL: connectionString },
+      workspace.rootDir
+    );
+
+    assertCliSuccess(result, 'model-gen ztd unqualified');
+    const content = readNormalizedFile(outFile);
+    expect(content).toContain('export interface ListUsersRow');
+    expect(content).toContain("userId: 'user_id'");
+    expect(content).toContain("email: 'email'");
+    expect(result.stderr).toContain('searchPath: ["public"]');
+  } finally {
+    await resetPublicSchema(client);
+    await client.end();
+  }
+}, 60_000);
+
+pullTest('model-gen ztd honors searchPath precedence for unqualified table names', async () => {
+  const connectionString = process.env.TEST_PG_URI!;
+  const client = new Client({ connectionString });
+  await client.connect();
+
+  try {
+    await resetPublicSchema(client);
+
+    const workspace = createSqlWorkspace('model-gen-ztd-search-path', path.join('src', 'sql', 'users', 'current_users.sql'));
+    const ddlDir = path.join(workspace.rootDir, 'ztd', 'ddl');
+    mkdirSync(ddlDir, { recursive: true });
+    writeFileSync(
+      path.join(ddlDir, 'schemas.sql'),
+      `
+        CREATE SCHEMA app;
+
+        CREATE TABLE app.users (
+          account_id integer PRIMARY KEY,
+          handle text NOT NULL
+        );
+
+        CREATE TABLE public.users (
+          user_id integer PRIMARY KEY,
+          email text NOT NULL
+        );
+      `,
+      'utf8'
+    );
+    writeFileSync(
+      path.join(workspace.rootDir, 'ztd.config.json'),
+      JSON.stringify({
+        dialect: 'postgres',
+        ddlDir: 'ztd/ddl',
+        testsDir: 'tests',
+        ddl: {
+          defaultSchema: 'app',
+          searchPath: ['app', 'public']
+        },
+        ddlLint: 'strict'
+      }, null, 2),
+      'utf8'
+    );
+    writeFileSync(
+      workspace.sqlFile,
+      `
+        select
+          account_id,
+          handle
+        from users
+        where account_id = :account_id
+      `,
+      'utf8'
+    );
+    const outFile = path.join(workspace.rootDir, 'current-users-ztd.spec.ts');
+    const result = runCli(
+      ['model-gen', workspace.sqlFile, '--sql-root', workspace.sqlRoot, '--probe-mode', 'ztd', '--out', outFile, '--debug-probe'],
+      { DATABASE_URL: connectionString },
+      workspace.rootDir
+    );
+
+    assertCliSuccess(result, 'model-gen ztd search-path');
+    const content = readNormalizedFile(outFile);
+    expect(content).toContain("accountId: 'account_id'");
+    expect(content).toContain("handle: 'handle'");
+    expect(content).toContain('export interface CurrentUsersRow');
+    expect(result.stderr).toContain('defaultSchema: app');
+    expect(result.stderr).toContain('searchPath: ["app","public"]');
+  } finally {
+    await resetPublicSchema(client);
+    await client.end();
+  }
+}, 60_000);
+
 pullTest('model-gen allows legacy positional placeholders only behind --allow-positional', async () => {
   const connectionString = process.env.TEST_PG_URI!;
   const client = new Client({ connectionString });

@@ -5,6 +5,8 @@ import { buildQueryUsageReport, writeQueryUsageOutput } from '../query/report';
 interface QueryUsesOptions {
   format?: string;
   specsDir?: string;
+  sqlRoot?: string;
+  excludeGenerated?: boolean;
   out?: string;
   view?: string;
   anySchema?: boolean;
@@ -28,8 +30,9 @@ Examples:
 
 Notes:
   - Strict mode is the default. Relaxed modes are explicit opt-in only.
-  - Use --view impact for initial assessment and --view detail for edit-ready locations/snippets.
+  - Impact is the default view. Use --view detail for edit-ready locations/snippets.
   - Impact representatives may omit select snippets; use --view detail for edit-ready SELECT occurrences.
+  - Use --exclude-generated to skip specs under src/catalog/specs/generated when those files are review-only noise.
   - Static column analysis is inherently uncertain and labels ambiguity via confidence/notes.
   - exprHints: best-effort only. Absence of exprHints does not imply the feature is not present.
   - statement_fingerprint is stable across formatting/comment changes under the current normalization contract.
@@ -44,6 +47,8 @@ Notes:
     .option('--format <format>', 'Output format (text|json)', 'text')
     .option('--view <view>', 'Investigation view (impact|detail)', 'impact')
     .option('--specs-dir <path>', 'Override SQL catalog specs directory (default: src/catalog/specs)')
+    .option('--sql-root <path>', 'Resolve sqlFile paths relative to the project SQL root first (default: src/sql)')
+    .option('--exclude-generated', 'Exclude specs under src/catalog/specs/generated from scan targets')
     .option('--out <path>', 'Write output to file')
     .option('--any-schema', 'Allow <table> lookup across schemas')
     .option('--any-table', 'Unsupported for table usage')
@@ -57,6 +62,8 @@ Notes:
     .option('--format <format>', 'Output format (text|json)', 'text')
     .option('--view <view>', 'Investigation view (impact|detail)', 'impact')
     .option('--specs-dir <path>', 'Override SQL catalog specs directory (default: src/catalog/specs)')
+    .option('--sql-root <path>', 'Resolve sqlFile paths relative to the project SQL root first (default: src/sql)')
+    .option('--exclude-generated', 'Exclude specs under src/catalog/specs/generated from scan targets')
     .option('--out <path>', 'Write output to file')
     .option('--any-schema', 'Allow <table.column> or <column> lookup across schemas')
     .option('--any-table', 'Allow <column> lookup across tables (requires --any-schema)')
@@ -64,7 +71,7 @@ Notes:
       'after',
       `
 Notes:
-  - Use --view detail if you need edit-ready locations/snippets.
+  - Impact is the default view. Use --view detail if you need edit-ready locations/snippets.
   - Impact representatives may omit select snippets; use --view detail for edit-ready SELECT occurrences.
   - exprHints: best-effort only. Absence of exprHints does not imply the feature is not present.
 `
@@ -82,6 +89,8 @@ function runQueryUsesCommand(kind: 'table' | 'column', target: string, options: 
     rawTarget: target,
     rootDir: process.env.ZTD_PROJECT_ROOT,
     specsDir: options.specsDir,
+    sqlRoot: options.sqlRoot,
+    excludeGenerated: Boolean(options.excludeGenerated),
     view,
     anySchema: Boolean(options.anySchema),
     anyTable: Boolean(options.anyTable)

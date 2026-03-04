@@ -88,6 +88,233 @@ test('impact view aggregates table usage by statement', () => {
   expect(formatQueryUsageReport(report, 'text')).toContain('Affected queries:');
 });
 
+test('impact view resolves sql-root-relative sqlFile values before the legacy spec-relative fallback', () => {
+  const root = createWorkspace('query-uses-sql-root-relative');
+  mkdirSync(path.join(root, 'src', 'sql', 'sales'), { recursive: true });
+  writeFileSync(
+    path.join(root, 'src', 'catalog', 'specs', 'sales.spec.ts'),
+    [
+      'export const salesSpec = {',
+      "  id: 'sales.byId',",
+      "  sqlFile: 'sales/get-sale-by-id.sql',",
+      "  params: { shape: 'named', example: { sale_id: 'sale-001' } }",
+      '};'
+    ].join('\n'),
+    'utf8'
+  );
+  writeFileSync(
+    path.join(root, 'src', 'sql', 'sales', 'get-sale-by-id.sql'),
+    'SELECT p.name FROM public.sales s LEFT JOIN public.products p ON p.id = s.sale_id;',
+    'utf8'
+  );
+
+  const report = buildQueryUsageReport({
+    kind: 'table',
+    rawTarget: 'public.products',
+    rootDir: root
+  });
+
+  expect(report.summary).toMatchObject({
+    catalogsScanned: 1,
+    statementsScanned: 1,
+    matches: 1,
+    unresolvedSqlFiles: 0
+  });
+  expect(report.matches).toEqual([
+    expect.objectContaining({
+      kind: 'impact',
+      catalog_id: 'sales.byId',
+      query_id: 'sales.byId:1',
+      sql_file: 'src/sql/sales/get-sale-by-id.sql',
+      usageKindCounts: { join: 1 }
+    })
+  ]);
+  expect(report.warnings).toEqual([]);
+  expect(formatQueryUsageReport(report, 'text')).toContain('unresolved sql files: 0');
+});
+
+test('query usage report defaults to impact view unless detail is requested explicitly', () => {
+  const root = createWorkspace('query-uses-default-impact');
+  writeFileSync(
+    path.join(root, 'src', 'catalog', 'specs', 'users.spec.json'),
+    JSON.stringify({ id: 'catalog.users', sqlFile: '../../sql/users.sql', params: { shape: 'named' } }, null, 2),
+    'utf8'
+  );
+  writeFileSync(path.join(root, 'src', 'sql', 'users.sql'), 'SELECT email FROM public.users;', 'utf8');
+
+  const defaultReport = buildQueryUsageReport({
+    kind: 'column',
+    rawTarget: 'public.users.email',
+    rootDir: root
+  });
+  const explicitImpactReport = buildQueryUsageReport({
+    kind: 'column',
+    rawTarget: 'public.users.email',
+    rootDir: root,
+    view: 'impact'
+  });
+  const detailReport = buildQueryUsageReport({
+    kind: 'column',
+    rawTarget: 'public.users.email',
+    rootDir: root,
+    view: 'detail'
+  });
+
+  expect(defaultReport.view).toBe('impact');
+  expect(defaultReport.matches.every((match) => match.kind === 'impact')).toBe(true);
+  expect(explicitImpactReport).toEqual(defaultReport);
+  expect(detailReport.view).toBe('detail');
+  expect(detailReport.matches.every((match) => match.kind === 'detail')).toBe(true);
+});
+
+test('query usage report can exclude generated specs while keeping the default scan set unchanged', () => {
+  const root = createWorkspace('query-uses-exclude-generated');
+  mkdirSync(path.join(root, 'src', 'catalog', 'specs', 'generated'), { recursive: true });
+  mkdirSync(path.join(root, 'src', 'sql', 'sales'), { recursive: true });
+  writeFileSync(
+    path.join(root, 'src', 'catalog', 'specs', 'sales.spec.ts'),
+    [
+      'export const salesSpec = {',
+      "  id: 'sales.byId',",
+      "  sqlFile: 'sales/get-sale-by-id.sql',",
+      "  params: { shape: 'named', example: { sale_id: 'sale-001' } }",
+      '};'
+    ].join('\n'),
+    'utf8'
+  );
+  writeFileSync(
+    path.join(root, 'src', 'catalog', 'specs', 'generated', 'sales.generated.spec.ts'),
+    [
+      'export const generatedSalesSpec = {',
+      "  id: 'sales.generatedById',",
+      "  sqlFile: 'sales/get-sale-by-id.sql',",
+      "  params: { shape: 'named', example: { sale_id: 'sale-001' } }",
+      '};'
+    ].join('\n'),
+    'utf8'
+  );
+  writeFileSync(
+    path.join(root, 'src', 'sql', 'sales', 'get-sale-by-id.sql'),
+    'SELECT p.name FROM public.sales s LEFT JOIN public.products p ON p.id = s.sale_id;',
+    'utf8'
+  );
+
+  const includedReport = buildQueryUsageReport({
+    kind: 'table',
+    rawTarget: 'public.products',
+    rootDir: root
+  });
+  const excludedReport = buildQueryUsageReport({
+    kind: 'table',
+    rawTarget: 'public.products',
+    rootDir: root,
+    excludeGenerated: true
+  });
+
+  expect(includedReport.summary).toMatchObject({
+    catalogsScanned: 2,
+    matches: 2,
+    unresolvedSqlFiles: 0
+  });
+  expect(includedReport.matches.map((match) => match.catalog_id)).toEqual([
+    'sales.byId',
+    'sales.generatedById'
+  ]);
+  expect(excludedReport.summary).toMatchObject({
+    catalogsScanned: 1,
+    matches: 1,
+    unresolvedSqlFiles: 0
+  });
+  expect(excludedReport.matches.map((match) => match.catalog_id)).toEqual(['sales.byId']);
+});
+
+test('query usage report excludes generated specs under a custom specsDir', () => {
+  const root = createWorkspace('query-uses-exclude-generated-custom-specs');
+  const specsDir = path.join(root, 'custom', 'specs');
+  mkdirSync(path.join(specsDir, 'generated'), { recursive: true });
+  mkdirSync(path.join(root, 'src', 'sql', 'sales'), { recursive: true });
+  writeFileSync(
+    path.join(specsDir, 'sales.spec.ts'),
+    [
+      'export const salesSpec = {',
+      "  id: 'sales.byId',",
+      "  sqlFile: 'sales/get-sale-by-id.sql',",
+      "  params: { shape: 'named', example: { sale_id: 'sale-001' } }",
+      '};'
+    ].join('\n'),
+    'utf8'
+  );
+  writeFileSync(
+    path.join(specsDir, 'generated', 'sales.generated.spec.ts'),
+    [
+      'export const generatedSalesSpec = {',
+      "  id: 'sales.generatedById',",
+      "  sqlFile: 'sales/get-sale-by-id.sql',",
+      "  params: { shape: 'named', example: { sale_id: 'sale-001' } }",
+      '};'
+    ].join('\n'),
+    'utf8'
+  );
+  writeFileSync(
+    path.join(root, 'src', 'sql', 'sales', 'get-sale-by-id.sql'),
+    'SELECT p.name FROM public.sales s LEFT JOIN public.products p ON p.id = s.sale_id;',
+    'utf8'
+  );
+
+  const report = buildQueryUsageReport({
+    kind: 'table',
+    rawTarget: 'public.products',
+    rootDir: root,
+    specsDir: 'custom/specs',
+    excludeGenerated: true
+  });
+
+  expect(report.summary).toMatchObject({
+    catalogsScanned: 1,
+    matches: 1,
+    unresolvedSqlFiles: 0
+  });
+  expect(report.matches.map((match) => match.catalog_id)).toEqual(['sales.byId']);
+});
+
+test('table impact ignores RETURNING-only statements when the target table is never referenced', () => {
+  const root = createWorkspace('query-uses-table-ignore-returning');
+  mkdirSync(path.join(root, 'src', 'sql', 'sales'), { recursive: true });
+  writeFileSync(
+    path.join(root, 'src', 'catalog', 'specs', 'sales.spec.ts'),
+    [
+      'export const salesSpec = {',
+      "  id: 'sales.mutations',",
+      "  sqlFile: 'sales/mutations.sql',",
+      "  params: { shape: 'named', example: { sale_id: 'sale-001' } }",
+      '};'
+    ].join('\n'),
+    'utf8'
+  );
+  writeFileSync(
+    path.join(root, 'src', 'sql', 'sales', 'mutations.sql'),
+    [
+      'insert into public.sales (id) values (:sale_id) returning id;',
+      'update public.sales set id = :sale_id where id = :sale_id returning id;',
+      'delete from public.sales where id = :sale_id returning id;'
+    ].join('\n'),
+    'utf8'
+  );
+
+  const report = buildQueryUsageReport({
+    kind: 'table',
+    rawTarget: 'public.sale_discounts',
+    rootDir: root
+  });
+
+  expect(report.summary).toMatchObject({
+    statementsScanned: 3,
+    matches: 0,
+    unresolvedSqlFiles: 0
+  });
+  expect(report.matches).toEqual([]);
+});
+
 test('impact view keeps high confidence for exact table matches with quoted identifiers', () => {
   const root = createWorkspace('query-uses-table-quoted');
   writeFileSync(
@@ -305,10 +532,13 @@ test('detail view emits parse warnings, fallback rows, and no-catalog guidance d
     {
       catalog_id: 'catalog.b',
       code: 'unresolved-sql-file',
-      message: 'SQL file does not exist: ../../sql/missing.sql',
-      sql_file: 'src/sql/missing.sql'
+      message: expect.stringContaining('SQL file does not exist: ../../sql/missing.sql'),
+      sql_file: 'sql/missing.sql'
     }
   ]);
+  expect(tableReport.warnings[1]?.message).toContain('Tried project SQL root (src/sql): sql/missing.sql');
+  expect(tableReport.warnings[1]?.message).toContain('Tried spec-relative fallback: src/sql/missing.sql');
+  expect(tableReport.warnings[1]?.message).toContain('re-run with --sql-root src/sql');
   expect(formatQueryUsageReport(tableReport, 'text')).toContain('Fallback-derived matches:');
 
   const emptyRoot = createWorkspace('query-uses-empty');
@@ -325,6 +555,162 @@ test('detail view emits parse warnings, fallback rows, and no-catalog guidance d
     }
   ]);
   expect(formatQueryUsageReport(emptyReport, 'text')).toContain('No catalog specs found under');
+});
+
+test('table impact finds tables referenced from EXISTS subqueries through their FROM nodes', () => {
+  const root = createWorkspace('query-uses-table-exists-subquery');
+  writeFileSync(
+    path.join(root, 'src', 'catalog', 'specs', 'sales.spec.json'),
+    JSON.stringify({ id: 'catalog.sales', sqlFile: '../../sql/sales.sql', params: { shape: 'named' } }, null, 2),
+    'utf8'
+  );
+  writeFileSync(
+    path.join(root, 'src', 'sql', 'sales.sql'),
+    [
+      'SELECT s.id',
+      'FROM public.sales s',
+      'WHERE EXISTS (',
+      '  SELECT 1',
+      '  FROM public.sale_items si',
+      '  WHERE si.sale_id = s.id',
+      ');'
+    ].join('\n'),
+    'utf8'
+  );
+
+  const report = buildQueryUsageReport({
+    kind: 'table',
+    rawTarget: 'public.sale_items',
+    rootDir: root,
+    view: 'detail'
+  });
+
+  expect(report.summary).toMatchObject({
+    matches: 1,
+    unresolvedSqlFiles: 0
+  });
+  expect(report.matches).toEqual([
+    expect.objectContaining({
+      kind: 'detail',
+      catalog_id: 'catalog.sales',
+      usage_kind: 'subquery-from',
+      sql_file: 'src/sql/sales.sql'
+    })
+  ]);
+});
+
+test('table detail anchors EXISTS subquery matches to the nested table token', () => {
+  const root = createWorkspace('query-uses-table-detail-exists-anchor');
+  writeFileSync(
+    path.join(root, 'src', 'catalog', 'specs', 'sales.spec.json'),
+    JSON.stringify({ id: 'catalog.sales', sqlFile: '../../sql/sales.sql', params: { shape: 'named' } }, null, 2),
+    'utf8'
+  );
+  const sql = [
+    'SELECT s.id',
+    'FROM public.sales s',
+    'WHERE EXISTS (',
+    '  SELECT 1',
+    '  FROM public.sale_items si',
+    '  WHERE si.sale_id = s.id',
+    ');'
+  ].join('\n');
+  writeFileSync(path.join(root, 'src', 'sql', 'sales.sql'), sql, 'utf8');
+
+  const report = buildQueryUsageReport({
+    kind: 'table',
+    rawTarget: 'public.sale_items',
+    rootDir: root,
+    view: 'detail'
+  });
+
+  expect(report.matches).toHaveLength(1);
+  const match = report.matches[0];
+  expect(match?.kind).toBe('detail');
+  if (match?.kind === 'detail') {
+    const expectedOffset = sql.indexOf('public.sale_items');
+    expect(expectedOffset).toBeGreaterThanOrEqual(0);
+    expect(match.location?.statementOffsetStart).toBe(expectedOffset);
+    expect(match.location?.statementOffsetEnd).toBe(expectedOffset + 'public.sale_items'.length);
+    expect(match.snippet).toContain('public.sale_items');
+    expect(match.snippet).toBe('FROM public.sale_items si');
+  }
+});
+
+test('impact view still resolves legacy spec-relative sqlFile values for backward compatibility', () => {
+  const root = createWorkspace('query-uses-spec-relative-fallback');
+  mkdirSync(path.join(root, 'spec-assets'), { recursive: true });
+  writeFileSync(
+    path.join(root, 'src', 'catalog', 'specs', 'users.spec.json'),
+    JSON.stringify({ id: 'catalog.users', sqlFile: '../../../spec-assets/users.sql', params: { shape: 'named' } }, null, 2),
+    'utf8'
+  );
+  writeFileSync(path.join(root, 'spec-assets', 'users.sql'), 'SELECT * FROM public.users;', 'utf8');
+
+  const report = buildQueryUsageReport({
+    kind: 'table',
+    rawTarget: 'public.users',
+    rootDir: root
+  });
+
+  expect(report.summary).toMatchObject({
+    matches: 1,
+    unresolvedSqlFiles: 0
+  });
+  expect(report.matches).toEqual([
+    expect.objectContaining({
+      kind: 'impact',
+      catalog_id: 'catalog.users',
+      sql_file: 'spec-assets/users.sql',
+      usageKindCounts: { from: 1 }
+    })
+  ]);
+});
+
+test('table detail anchors join matches to the table token and keeps the table line in the snippet', () => {
+  const root = createWorkspace('query-uses-table-detail-join-anchor');
+  mkdirSync(path.join(root, 'src', 'sql', 'sales'), { recursive: true });
+  writeFileSync(
+    path.join(root, 'src', 'catalog', 'specs', 'sales.spec.ts'),
+    [
+      'export const salesSpec = {',
+      "  id: 'sales.byId',",
+      "  sqlFile: 'sales/get-sale-by-id.sql',",
+      "  params: { shape: 'named', example: { sale_id: 'sale-001' } }",
+      '};'
+    ].join('\n'),
+    'utf8'
+  );
+  const sql = [
+    'select',
+    '  s.id as sale_id,',
+    '  string_agg(p.name, \', \' order by si.line_no) as product_names',
+    'from public.sales as s',
+    'left join public.sale_items as si',
+    '  on si.sale_id = s.id',
+    'left join public.products as p',
+    '  on p.id = si.product_id'
+  ].join('\n');
+  writeFileSync(path.join(root, 'src', 'sql', 'sales', 'get-sale-by-id.sql'), sql, 'utf8');
+
+  const report = buildQueryUsageReport({
+    kind: 'table',
+    rawTarget: 'public.products',
+    rootDir: root,
+    view: 'detail'
+  });
+
+  expect(report.matches).toHaveLength(1);
+  const match = report.matches[0];
+  expect(match?.kind).toBe('detail');
+  if (match?.kind === 'detail') {
+    const expectedOffset = sql.indexOf('public.products');
+    expect(expectedOffset).toBeGreaterThanOrEqual(0);
+    expect(match.location?.statementOffsetStart).toBe(expectedOffset);
+    expect(match.location?.statementOffsetEnd).toBe(expectedOffset + 'public.products'.length);
+    expect(match.snippet).toContain('public.products');
+    expect(match.snippet).toBe('left join public.products as p');
+  }
 });
 
 test('query usage report isolates spec load failures per file', () => {

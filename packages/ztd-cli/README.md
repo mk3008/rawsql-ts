@@ -11,7 +11,7 @@ CLI tool for scaffolding **Zero Table Dependency (ZTD)** projects and keeping DD
 
 - Project scaffolding with `ztd init` (DDL folder, config, test stubs)
 - DDL-to-TypeScript type generation (`TestRowMap`)
-- Live QuerySpec scaffold generation from SQL assets (`ztd model-gen`)
+- QuerySpec scaffold generation from SQL assets (`ztd model-gen`) via ZTD or live probes
 - Schema pull from live Postgres via `pg_dump`
 - DDL diff against a live database
 - SQL linting with fixture-backed validation
@@ -98,6 +98,29 @@ npx vitest run             # Run tests
 npx ztd ztd-config --watch # Or keep types updated while editing DDL
 ```
 
+## Recommended Backend Happy Path
+
+For backend work, split the loop into **ZTD-only** work and **Live-schema** work instead of mixing them from the start.
+
+| Step | Primary actor | Phase | Why |
+|------|---------------|-------|-----|
+| Choose the PostgreSQL version and Docker DSN | AI / Human | ZTD-only | Fix the runtime target first so generated files, tests, and docs all refer to the same environment. |
+| Draft the DDL in `ztd/ddl/*.sql` | AI / Human | ZTD-only | Treat DDL as the source of truth. Prefer application-owned identifiers/timestamps in the initial loop so tests do not depend on sequences or DB defaults. |
+| Run `ztd init --workflow empty` | CLI | ZTD-only | Scaffold folders, config, and test placeholders mechanically. |
+| Run `ztd ztd-config` | CLI | ZTD-only | Regenerate `TestRowMap` directly from DDL without applying migrations. |
+| Write SQL assets under `src/sql` using named params | AI / Human | ZTD-only | Keep the handwritten SQL authoritative while matching the default `model-gen` policy. |
+| Implement QuerySpecs, repositories, and ZTD tests | AI / Human | ZTD-only | Contract semantics, DTO shape, and query boundaries still require judgment. |
+| Run `vitest` against an empty Postgres instance | CLI | ZTD-only | ZTD should stay green before any physical app tables exist. |
+| Run `ztd model-gen --probe-mode ztd` against your local DDL snapshot | CLI | ZTD-only | This keeps QuerySpec scaffolding inside the zero-migration inner loop as long as the referenced schema is represented in `ztd/ddl/*.sql`. |
+| Apply DDL to a live database only when you need live-schema tooling | Human / CLI | Live-schema | This is where `ddl pull`, `ddl diff`, E2E setup, deploy-time migration work, and optional live probing begin. |
+| Run `ztd model-gen --probe-mode live` only when local DDL is intentionally not the source of truth | CLI | Live-schema | Use live probing for objects missing from local DDL or when you explicitly want the currently deployed database metadata. |
+
+Use this split to classify repetition:
+
+- Repeated CLI retries caused by missing flags, missing paths, or boilerplate setup usually belong in docs or CLI automation.
+- Repeated AI retries caused by contract shape, nullability, naming, or domain semantics usually indicate design choices that should stay reviewable.
+- Prefer the ZTD-only loop by default. If a task is impossible there because the required metadata is not represented in local DDL, treat it as a Live-schema concern instead of forcing migrations into the inner loop.
+
 ## Commands
 
 | Command | Description |
@@ -106,11 +129,14 @@ npx ztd ztd-config --watch # Or keep types updated while editing DDL
 | `ztd init --yes` | Non-interactive mode: accept defaults (demo workflow, Zod validator) and overwrite existing files |
 | `ztd init --workflow <type>` | Specify schema workflow: `pg_dump`, `empty`, or `demo` |
 | `ztd init --validator <type>` | Specify validator backend: `zod` or `arktype` |
+| `ztd init --local-source-root <path>` | Scaffold for local-source dogfooding and link `@rawsql-ts/sql-contract` from a monorepo path instead of npm |
 | `ztd init --with-sqlclient` | Also scaffold a minimal `SqlClient` boundary for repositories |
 | `ztd init --with-app-interface` | Append application interface guidance to `AGENTS.md` only |
 | `ztd ztd-config` | Generate `TestRowMap` and layout from DDL files (prints next-step hints) |
 | `ztd ztd-config --watch` | Regenerate on DDL changes |
-| `ztd model-gen <sql-file>` | Generate QuerySpec DTO types and rowMapping by probing a live database |
+| `ztd model-gen <sql-file>` | Generate QuerySpec DTO types and rowMapping by probing live PostgreSQL metadata or ZTD-backed DDL metadata |
+| `ztd model-gen --import-style <style>` | Switch generated `sql-contract` imports between package and local relative styles |
+| `ztd model-gen --import-from <specifier>` | Override the generated `sql-contract` import target explicitly |
 | `ztd ztd-config --quiet` | Suppress next-step hints (useful in scripts) |
 | `ztd ddl pull` | Fetch schema from a live Postgres database via `pg_dump` |
 | `ztd ddl diff` | Diff local DDL snapshot against a live database |
@@ -119,21 +145,45 @@ npx ztd ztd-config --watch # Or keep types updated while editing DDL
 | `ztd evidence --mode specification` | Export executable specification evidence from SQL catalogs and test files |
 | `ztd query uses table <schema.table>` | Find catalog SQL statements that use a table target |
 | `ztd query uses column <schema.table>.<column>` | Find catalog SQL statements that use a column target with explicit uncertainty labels |
+| `ztd query uses --sql-root <dir>` | Resolve existing `spec.sqlFile` values against a project SQL root such as `src/sql` before trying legacy spec-relative paths |
+| `ztd query uses --exclude-generated` | Exclude specs under `src/catalog/specs/generated` when those files are review-only noise during impact scans |
 
 ## Impact Investigation
 
 Use `ztd query uses` before renaming or deleting catalog-facing SQL assets. The command is strict by default and never broadens matching unless you opt in with relaxed flags.
 
-- Use `--view impact` for the initial "used or not, and by which queries?" pass.
+Existing `spec.sqlFile` strings do not need to change. `query uses` now resolves them against the project SQL root first (`--sql-root`, default `src/sql`) and then falls back to the legacy spec-relative lookup for backward compatibility.
+
+- `impact` is the default view for the initial "used or not, and by which queries?" pass.
 - Use `--view detail` when you need edit-ready locations and snippets for refactoring.
+- Use `--exclude-generated` when `src/catalog/specs/generated` contains review-only scaffolds that would otherwise add noise to the scan. The flag is optional, and the default scan set is unchanged.
+
+`--exclude-generated` excludes specs under `src/catalog/specs/generated` only. Existing projects do not need to change their catalog layout or `spec.sqlFile` conventions.
+
+Recommended pattern from dogfooding:
+
+- Table add / column add: the default scan is usually enough because the expected answer is often "no matches".
+- Table rename / column rename / column type change: prefer `--exclude-generated` because generated and probe specs are more likely to add noise to the impact list.
+
+Observed dogfooding example for a rename check:
+
+- Without the flag: `catalogs: 9`, `matches: 3`
+- With `--exclude-generated`: `catalogs: 5`, `matches: 1`
 
 ### Strict examples
 
 ```bash
 npx ztd query uses table public.users
+npx ztd query uses table public.users --sql-root src/sql
+npx ztd query uses table public.users --exclude-generated
 npx ztd query uses column public.users.email
 npx ztd query uses column public.users.email --format json
 npx ztd query uses column public.users.email --view detail
+npx ztd query uses table public.sale_items --exclude-generated
+npx ztd query uses table public.sale_lines --exclude-generated
+npx ztd query uses column public.products.title --exclude-generated
+npx ztd query uses column public.sale_items.quantity --exclude-generated
+npx ztd query uses table public.sale_lines --view detail --exclude-generated
 ```
 
 ### Relaxed examples
@@ -323,14 +373,19 @@ The typical loop: `ztd ddl pull` -> edit `ztd/ddl/*.sql` -> `ztd ztd-config --wa
 
 Important context:
 - `:name` is an intentional project-level SQL asset convention, not native PostgreSQL syntax.
-- Before probing the live database, `model-gen` binds named parameters to PostgreSQL placeholders such as `$1`, `$2`, and sends a probe query with placeholder values.
+- Before probing, `model-gen` binds named parameters to PostgreSQL placeholders such as `$1`, `$2` and runs a metadata-only wrapper query.
 - The probe connection can come from `DATABASE_URL`, `ztd.config.json`, `--url`, or the `--db-*` flags.
+- `--probe-mode live` is the default. It requires the referenced tables/views to exist in the target database.
+- `--probe-mode ztd` keeps the same live Postgres connection, but rewrites the probe through your DDL snapshot so physical app tables are not required. It uses `ztd.config.json` (`ddlDir`, `ddl.defaultSchema`, `ddl.searchPath`) unless you override the directory with `--ddl-dir`.
 
 ```text
 1. Write SQL in src/sql/ using named parameters such as :customerId
-2. Run: ztd model-gen src/sql/my_query.sql --out src/catalog/specs/my-query.spec.ts
-3. Review the generated types, rowMapping key, nullability, and normalization
-4. Run ZTD tests to confirm the contract
+2. Prefer the ZTD-first command during the inner loop:
+   - `ztd model-gen src/sql/my_query.sql --probe-mode ztd --out src/catalog/specs/my-query.spec.ts`
+3. Use the live probe only when local DDL is not the source of truth:
+   - `ztd model-gen src/sql/my_query.sql --probe-mode live --out src/catalog/specs/my-query.spec.ts`
+4. Review the generated types, rowMapping key, nullability, and normalization
+5. Run ZTD tests to confirm the contract
 ```
 
 Example SQL asset:
@@ -367,13 +422,50 @@ Notes:
 - PostgreSQL does not understand `:name` directly; `model-gen` rewrites the probe query to indexed placeholders before execution.
 - Positional placeholders (`$1`, `$2`, ...) are rejected by default.
 - Use `--allow-positional` only for legacy SQL that you cannot rewrite yet.
+- `--probe-mode ztd` is the recommended choice for the fast ZTD-only loop when you already have `ztd/ddl/*.sql` but have not applied migrations.
+- In `--probe-mode ztd`, unqualified table references are resolved with the same `defaultSchema` / `searchPath` priority configured in `ztd.config.json`.
+- The default remains `--probe-mode live` for backward compatibility, but documentation and happy-path guidance treat `--probe-mode ztd` as the preferred inner-loop mode.
+- `--probe-mode live` remains the right choice for schema objects that are not yet represented in local DDL, or when you intentionally want the currently deployed database metadata.
+- `--ddl-dir` overrides the DDL directory only for `--probe-mode ztd`.
+- `--import-style package` keeps the generated import on `@rawsql-ts/sql-contract`.
+- `--import-style relative` targets `src/local/sql-contract.ts` by convention and requires `--out`.
+- `--import-from` overrides the generated import target and can point at either a bare package specifier or a filesystem path.
 - `--sql-root` defaults to `src/sql` and controls how `sqlFile` plus `spec id` are derived.
 - `--debug-probe` prints the bound probe SQL and ordered parameter names to stderr before the live probe runs.
-- Common failure modes are unsupported placeholder syntax, connection/authentication errors, invalid probe SQL, and queries that do not expose any columns.
+- Common failure modes are unsupported placeholder syntax, connection/authentication errors, missing live schema objects in `live` mode, missing DDL directories in `ztd` mode, invalid probe SQL, and queries that do not expose any columns.
+- The generated file is a starting point only. Review imports, nullability, cardinality, rowMapping key, runtime normalization, and example values before typechecking or committing it.
+
+### Developer note: unqualified names and CLI test coverage
+
+- The ZTD probe path resolves unqualified table names such as `from users` through the same `ddl.defaultSchema` / `ddl.searchPath` order that runtime rewrites use.
+- The DB-backed CLI regression tests for this path live in `packages/ztd-cli/tests/cliCommands.test.ts`.
+- Those CLI tests are skipped when `pg_dump` is unavailable in `PATH`, because the suite shares the same disposable-Postgres gate as other CLI database tests.
+
+Manual reproduction command (empty Postgres + DDL snapshot + unqualified SQL):
+
+```bash
+ztd model-gen src/sql/users/list_users.sql \
+  --probe-mode ztd \
+  --sql-root src/sql \
+  --out src/catalog/specs/generated/list-users.spec.ts \
+  --debug-probe \
+  --url postgres://postgres:postgres@127.0.0.1:55432/app_db
+```
+
+Use DDL such as `CREATE TABLE public.users (...)` in `ztd/ddl/public.sql`, keep the SQL unqualified (`select user_id from users`), and set `ddl.defaultSchema` / `ddl.searchPath` in `ztd.config.json` to the schema order you expect.
 
 ## Further Reading
 
+- Local-source quick start:
+
+```bash
+npx ztd init --workflow empty --validator zod --local-source-root ../../..
+```
+
+This mode emits `src/local/sql-contract.ts`, links `@rawsql-ts/sql-contract` via `file:`, switches `test` / `typecheck` through a local-source guard, and keeps `model-gen --probe-mode ztd --import-style relative` ready for a nested dogfooding app under `tmp/`.
+
 - [Feature Index](../../docs/guide/feature-index.md) — at-a-glance list of easy-to-miss capabilities
+- [Local-Source Dogfooding](../../docs/guide/ztd-local-source-dogfooding.md) — avoid nested pnpm workspace drift and generated import mismatches
 - [Postgres Pitfalls](../../docs/guide/postgres-pitfalls.md) — common Postgres-specific surprises
 - [Spec-Change Scenarios](../../docs/guide/spec-change-scenarios.md) — condensed digest of common schema changes
 - [Mapping vs Validation Pipeline](../../docs/recipes/mapping-vs-validation.md) — avoid coerce/validator conflicts

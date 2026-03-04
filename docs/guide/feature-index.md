@@ -55,6 +55,8 @@ An at-a-glance index of easy-to-miss but important capabilities across the rawsq
 | Mapping vs Validation pipeline | [recipes/mapping-vs-validation](../recipes/mapping-vs-validation.md) | Avoid coerce/validator conflicts |
 | Postgres Pitfalls | [guide/postgres-pitfalls](./postgres-pitfalls.md) | Postgres-specific quirks |
 | Spec-Change Scenarios | [guide/spec-change-scenarios](./spec-change-scenarios.md) | Quick reference for common changes |
+| Query Uses Overview | [guide/query-uses-overview](./query-uses-overview.md) | Why static analysis beats grep, human vs machine output |
+| Query Uses Impact Checks | [guide/query-uses-impact-checks](./query-uses-impact-checks.md) | Full option reference, scenario playbook, troubleshooting |
 | Validation (Zod) | [recipes/validation-zod](../recipes/validation-zod.md) | Wire Zod schemas |
 | Validation (ArkType) | [recipes/validation-arktype](../recipes/validation-arktype.md) | Wire ArkType schemas |
 | SQL catalog recipe | [recipes/sql-contract](../recipes/sql-contract.md) | Catalog executor patterns |
