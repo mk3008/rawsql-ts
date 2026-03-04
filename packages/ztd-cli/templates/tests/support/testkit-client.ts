@@ -9,6 +9,6 @@ import type { SqlClient } from '../../src/db/sql-client';
  */
 export async function createTestkitClient(): Promise<SqlClient> {
   throw new Error(
-    'Provide a SqlClient implementation here (for example by importing @rawsql-ts/adapter-node-pg or another driver).',
+    'Provide a SqlClient implementation here (for example by adapting pg via src/db/sql-client-adapters.ts, or by importing @rawsql-ts/adapter-node-pg for ZTD-backed tests).',
   );
 }

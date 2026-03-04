@@ -134,6 +134,8 @@ Use this split to classify repetition:
 | `ztd ztd-config` | Generate `TestRowMap` and layout from DDL files (prints next-step hints) |
 | `ztd ztd-config --watch` | Regenerate on DDL changes |
 | `ztd model-gen <sql-file>` | Generate QuerySpec DTO types and rowMapping by probing live PostgreSQL metadata or ZTD-backed DDL metadata |
+| `ztd model-gen --import-style <style>` | Switch generated `sql-contract` imports between package and local relative styles |
+| `ztd model-gen --import-from <specifier>` | Override the generated `sql-contract` import target explicitly |
 | `ztd ztd-config --quiet` | Suppress next-step hints (useful in scripts) |
 | `ztd ddl pull` | Fetch schema from a live Postgres database via `pg_dump` |
 | `ztd ddl diff` | Diff local DDL snapshot against a live database |
@@ -400,6 +402,9 @@ Notes:
 - The default remains `--probe-mode live` for backward compatibility, but documentation and happy-path guidance treat `--probe-mode ztd` as the preferred inner-loop mode.
 - `--probe-mode live` remains the right choice for schema objects that are not yet represented in local DDL, or when you intentionally want the currently deployed database metadata.
 - `--ddl-dir` overrides the DDL directory only for `--probe-mode ztd`.
+- `--import-style package` keeps the generated import on `@rawsql-ts/sql-contract`.
+- `--import-style relative` targets `src/local/sql-contract.ts` by convention and requires `--out`.
+- `--import-from` overrides the generated import target and can point at either a bare package specifier or a filesystem path.
 - `--sql-root` defaults to `src/sql` and controls how `sqlFile` plus `spec id` are derived.
 - `--debug-probe` prints the bound probe SQL and ordered parameter names to stderr before the live probe runs.
 - Common failure modes are unsupported placeholder syntax, connection/authentication errors, missing live schema objects in `live` mode, missing DDL directories in `ztd` mode, invalid probe SQL, and queries that do not expose any columns.
@@ -408,6 +413,7 @@ Notes:
 ## Further Reading
 
 - [Feature Index](../../docs/guide/feature-index.md) — at-a-glance list of easy-to-miss capabilities
+- [Local-Source Dogfooding](../../docs/guide/ztd-local-source-dogfooding.md) — avoid nested pnpm workspace drift and generated import mismatches
 - [Postgres Pitfalls](../../docs/guide/postgres-pitfalls.md) — common Postgres-specific surprises
 - [Spec-Change Scenarios](../../docs/guide/spec-change-scenarios.md) — condensed digest of common schema changes
 - [Mapping vs Validation Pipeline](../../docs/recipes/mapping-vs-validation.md) — avoid coerce/validator conflicts

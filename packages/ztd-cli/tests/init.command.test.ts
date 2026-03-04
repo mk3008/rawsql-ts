@@ -5,7 +5,10 @@ import { expect, test } from 'vitest';
 import { DEFAULT_ZTD_CONFIG } from '../src/utils/ztdProjectConfig';
 import {
   runInitCommand,
+  buildPackageManagerArgs,
+  findAncestorPnpmWorkspaceRoot,
   normalizeSchemaName,
+  resolvePnpmWorkspaceGuard,
   sanitizeSchemaFileName,
   type ZtdConfigWriterDependencies,
   type Prompter
@@ -206,10 +209,19 @@ test('init wizard bootstraps an empty scaffold', async () => {
   expect(readNormalizedFile(path.join(workspace, 'tests', 'smoke.validation.test.ts'))).toContain(
     'normalizes valid timestamp strings',
   );
+  expect(readNormalizedFile(path.join(workspace, 'tests', 'smoke.test.ts'))).toContain(
+    'runtime contract wiring is usable before SQL-backed tests exist',
+  );
+  expect(readNormalizedFile(path.join(workspace, 'tests', 'smoke.test.ts'))).toContain(
+    'SqlClient seam is either wired or fails with an actionable message',
+  );
 
   // Ensure the generated testkit client can safely log params with circular references.
   expect(readNormalizedFile(testkitClientPath)).toContain(
     'Provide a SqlClient implementation here',
+  );
+  expect(readNormalizedFile(testkitClientPath)).toContain(
+    '@rawsql-ts/adapter-node-pg',
   );
 });
 
@@ -314,6 +326,26 @@ test('init runs install when package.json is updated', async () => {
   expect(packageJson.devDependencies.vitest).toBeDefined();
   expect(packageJson.devDependencies.typescript).toBeDefined();
   expect(packageJson.devDependencies['@types/node']).toBeDefined();
+});
+
+test('pnpm nested under a parent workspace uses --ignore-workspace for manual installs', () => {
+  const workspace = createTempDir('cli-init-workspace-guard');
+
+  expect(findAncestorPnpmWorkspaceRoot(workspace)).toBe(repoRoot);
+  expect(resolvePnpmWorkspaceGuard(workspace, 'pnpm')).toEqual({
+    workspaceRoot: repoRoot,
+    shouldIgnoreWorkspace: true,
+  });
+  expect(buildPackageManagerArgs('install', 'pnpm', [], workspace)).toEqual([
+    'install',
+    '--ignore-workspace',
+  ]);
+  expect(buildPackageManagerArgs('devDependencies', 'pnpm', ['vitest'], workspace)).toEqual([
+    'add',
+    '-D',
+    'vitest',
+    '--ignore-workspace',
+  ]);
 });
 
 test('init generates ArkType spec when ArkType backend is selected', async () => {

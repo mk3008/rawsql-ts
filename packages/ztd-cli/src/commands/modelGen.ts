@@ -29,9 +29,12 @@ interface ModelGenCommandOptions extends ConnectionCliOptions {
   debugProbe?: boolean;
   probeMode?: ModelGenProbeMode;
   ddlDir?: string;
+  importStyle?: ModelGenImportStyle;
+  importFrom?: string;
 }
 
 type ModelGenProbeMode = 'live' | 'ztd';
+type ModelGenImportStyle = 'package' | 'relative';
 
 interface ModelGenZtdProbeOptions {
   ddlDirectories: string[];
@@ -93,6 +96,7 @@ export async function runModelGen(sqlFilePath: string, options: ModelGenCommandO
     const rendered = renderModelGenFile({
       command: buildCommandText(sqlFilePath, options),
       format,
+      sqlContractImport: resolveSqlContractImportSpecifier(options),
       sqlFile: relativeSqlFile,
       specId: derivedNames.specId,
       interfaceName: derivedNames.interfaceName,
@@ -126,6 +130,8 @@ export function registerModelGenCommand(program: Command): void {
     .option('--allow-positional', 'Allow legacy positional placeholders ($1, $2, ...) for this run')
     .option('--probe-mode <mode>', 'Probe source: live or ztd (default: live for backward compatibility; prefer ztd for the fast loop)', 'live')
     .option('--ddl-dir <dir>', 'DDL directory override for --probe-mode ztd (default: ztd.config.json ddlDir)')
+    .option('--import-style <style>', 'Generated sql-contract import style: package or relative (default: package)', 'package')
+    .option('--import-from <specifier>', 'Override the module specifier used for sql-contract imports in generated files')
     .option('--debug-probe', 'Print the bound probe SQL and ordered parameter names to stderr before probing')
     .option('--url <databaseUrl>', 'Connection string to use for probing (optional; fallback to env/config)')
     .option('--db-host <host>', 'Database host to use instead of DATABASE_URL')
@@ -155,6 +161,14 @@ function normalizeProbeMode(value?: string): ModelGenProbeMode {
     return normalized;
   }
   throw new Error(`Unsupported probe mode "${value}". Use one of: live, ztd.`);
+}
+
+function normalizeImportStyle(value?: string): ModelGenImportStyle {
+  const normalized = (value ?? 'package').trim().toLowerCase();
+  if (normalized === 'package' || normalized === 'relative') {
+    return normalized;
+  }
+  throw new Error(`Unsupported import style "${value}". Use one of: package, relative.`);
 }
 
 function normalizeRealPath(targetPath: string): string {
@@ -289,6 +303,94 @@ export function resolveModelGenZtdProbeOptions(
   };
 }
 
+export function resolveSqlContractImportSpecifier(
+  options: Pick<ModelGenCommandOptions, 'out' | 'importStyle' | 'importFrom'> & { rootDir?: string }
+): string {
+  const rootDir = options.rootDir ?? process.cwd();
+  if (options.importFrom) {
+    return normalizeImportSpecifier(options.importFrom, options.out, rootDir);
+  }
+
+  const importStyle = normalizeImportStyle(options.importStyle);
+  if (importStyle === 'package') {
+    return '@rawsql-ts/sql-contract';
+  }
+
+  if (!options.out) {
+    throw new Error(
+      'Relative sql-contract imports require --out so model-gen can compute the generated file location. Pass --out or use --import-from explicitly.'
+    );
+  }
+
+  const defaultLocalShim = resolveExistingModulePath(path.resolve(rootDir, 'src', 'local', 'sql-contract'));
+  if (!defaultLocalShim) {
+    throw new Error(
+      'Relative sql-contract imports expect src/local/sql-contract.ts (or .js/.mts/.cts) to exist. Create the shim or pass --import-from explicitly.'
+    );
+  }
+
+  return normalizeImportSpecifier(defaultLocalShim, options.out, rootDir);
+}
+
+function normalizeImportSpecifier(specifier: string, outFile: string | undefined, rootDir: string): string {
+  if (!looksLikeFilesystemPath(specifier)) {
+    const rootedCandidate = resolveExistingModulePath(path.resolve(rootDir, specifier));
+    if (!rootedCandidate) {
+      return specifier;
+    }
+    specifier = rootedCandidate;
+  }
+
+  if (!outFile) {
+    throw new Error(
+      'Filesystem import targets require --out so model-gen can compute a relative module specifier. Pass --out or use a bare package specifier.'
+    );
+  }
+
+  const resolvedTarget = resolveExistingModulePath(path.isAbsolute(specifier) ? specifier : path.resolve(rootDir, specifier));
+  if (!resolvedTarget) {
+    throw new Error(`The sql-contract import target was not found: ${specifier}`);
+  }
+
+  const absoluteOut = path.resolve(rootDir, outFile);
+  const fromDir = path.dirname(absoluteOut);
+  const relativePath = path.relative(fromDir, resolvedTarget).replace(/\\/g, '/');
+  const withoutExtension = relativePath.replace(/\.(?:[cm]?ts|[cm]?js)$/iu, '');
+  return withoutExtension.startsWith('.') ? withoutExtension : `./${withoutExtension}`;
+}
+
+function looksLikeFilesystemPath(specifier: string): boolean {
+  return specifier.startsWith('.') || specifier.startsWith('/') || /^[A-Za-z]:[\\/]/u.test(specifier);
+}
+
+function resolveExistingModulePath(basePath: string): string | null {
+  const candidates = [
+    basePath,
+    `${basePath}.ts`,
+    `${basePath}.tsx`,
+    `${basePath}.mts`,
+    `${basePath}.cts`,
+    `${basePath}.js`,
+    `${basePath}.mjs`,
+    `${basePath}.cjs`,
+    path.join(basePath, 'index.ts'),
+    path.join(basePath, 'index.tsx'),
+    path.join(basePath, 'index.mts'),
+    path.join(basePath, 'index.cts'),
+    path.join(basePath, 'index.js'),
+    path.join(basePath, 'index.mjs'),
+    path.join(basePath, 'index.cjs'),
+  ];
+
+  for (const candidate of candidates) {
+    if (existsSync(candidate)) {
+      return candidate;
+    }
+  }
+
+  return null;
+}
+
 export async function loadModelGenZtdFixtureState(
   options: ModelGenZtdProbeOptions
 ): Promise<ModelGenZtdFixtureState> {
@@ -362,6 +464,12 @@ function buildCommandText(sqlFilePath: string, options: ModelGenCommandOptions):
   }
   if (options.ddlDir) {
     segments.push(`--ddl-dir ${normalizeCliPath(options.ddlDir)}`);
+  }
+  if (options.importStyle && options.importStyle !== 'package') {
+    segments.push(`--import-style ${options.importStyle}`);
+  }
+  if (options.importFrom) {
+    segments.push(`--import-from ${normalizeCliPath(options.importFrom)}`);
   }
   return segments.join(' ');
 }

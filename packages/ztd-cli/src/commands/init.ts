@@ -12,6 +12,10 @@ import { runPullSchema, type PullSchemaOptions } from './pull';
 
 type PackageManager = 'pnpm' | 'npm' | 'yarn';
 type PackageInstallKind = 'devDependencies' | 'install';
+interface PnpmWorkspaceGuard {
+  workspaceRoot: string | null;
+  shouldIgnoreWorkspace: boolean;
+}
 
 /**
  * Prompt interface for interactive input during `ztd init`.
@@ -331,7 +335,7 @@ const DEFAULT_DEPENDENCIES: ZtdConfigWriterDependencies = {
   installPackages: ({ rootDir, kind, packages, packageManager }) => {
     // Use the Windows shim executables so spawnSync finds the package manager in PATH.
     const executable = resolvePackageManagerExecutable(packageManager);
-    const args = buildPackageManagerArgs(kind, packageManager, packages);
+    const args = buildPackageManagerArgs(kind, packageManager, packages, rootDir);
     if (args.length === 0) {
       return;
     }
@@ -1010,7 +1014,7 @@ export async function runInitCommand(prompter: Prompter, options?: InitCommandOp
 
   await ensureTemplateDependenciesInstalled(rootDir, absolutePaths, summaries, dependencies);
 
-  const nextSteps = buildNextSteps(normalizeRelative(rootDir, absolutePaths.schema), workflow);
+  const nextSteps = buildNextSteps(normalizeRelative(rootDir, absolutePaths.schema), workflow, rootDir);
   const summaryLines = buildSummaryLines(
     summaries as Record<FileKey, FileSummary>,
     optionalFeatures,
@@ -1119,13 +1123,50 @@ function resolveExecutableInPath(executable: string): string | null {
   return null;
 }
 
-function buildPackageManagerArgs(
+export function findAncestorPnpmWorkspaceRoot(rootDir: string): string | null {
+  let cursor = path.resolve(rootDir);
+
+  while (true) {
+    const parentDir = path.dirname(cursor);
+    if (parentDir === cursor) {
+      return null;
+    }
+    cursor = parentDir;
+
+    if (existsSync(path.join(cursor, 'pnpm-workspace.yaml'))) {
+      return cursor;
+    }
+  }
+}
+
+export function resolvePnpmWorkspaceGuard(
+  rootDir: string,
+  packageManager: PackageManager
+): PnpmWorkspaceGuard {
+  if (packageManager !== 'pnpm') {
+    return { workspaceRoot: null, shouldIgnoreWorkspace: false };
+  }
+
+  const workspaceRoot = findAncestorPnpmWorkspaceRoot(rootDir);
+  return {
+    workspaceRoot,
+    shouldIgnoreWorkspace: workspaceRoot !== null,
+  };
+}
+
+export function buildPackageManagerArgs(
   kind: PackageInstallKind,
   packageManager: PackageManager,
-  packages: string[]
+  packages: string[],
+  rootDir?: string
 ): string[] {
+  const pnpmWorkspaceGuard =
+    rootDir !== undefined ? resolvePnpmWorkspaceGuard(rootDir, packageManager) : { shouldIgnoreWorkspace: false };
+
   if (kind === 'install') {
-    return ['install'];
+    return packageManager === 'pnpm' && pnpmWorkspaceGuard.shouldIgnoreWorkspace
+      ? ['install', '--ignore-workspace']
+      : ['install'];
   }
 
   if (packages.length === 0) {
@@ -1136,7 +1177,9 @@ function buildPackageManagerArgs(
     return ['install', '-D', ...packages];
   }
 
-  return ['add', '-D', ...packages];
+  return packageManager === 'pnpm' && pnpmWorkspaceGuard.shouldIgnoreWorkspace
+    ? ['add', '-D', ...packages, '--ignore-workspace']
+    : ['add', '-D', ...packages];
 }
 
 function detectPackageManager(rootDir: string): PackageManager {
@@ -1272,6 +1315,12 @@ async function ensureTemplateDependenciesInstalled(
   }
 
   const packageManager = detectPackageManager(rootDir);
+  const workspaceGuard = resolvePnpmWorkspaceGuard(rootDir, packageManager);
+  if (workspaceGuard.shouldIgnoreWorkspace) {
+    dependencies.log(
+      `Detected parent pnpm workspace at ${workspaceGuard.workspaceRoot}. Running pnpm with --ignore-workspace so this initialized project keeps isolated installs.`
+    );
+  }
   const referencedPackages = listTemplateReferencedPackages(absolutePaths, summaries);
   const declaredPackages = listDeclaredPackages(rootDir);
 
@@ -1703,17 +1752,24 @@ function loadTemplate(templateName: string): string {
   return readFileSync(templatePath, 'utf8');
 }
 
-function buildNextSteps(schemaRelativePath: string, workflow: InitWorkflow): string[] {
+function buildNextSteps(schemaRelativePath: string, workflow: InitWorkflow, rootDir: string): string[] {
   const stepOne =
     workflow === 'pg_dump'
       ? ` 1. Review the dumped DDL in ${schemaRelativePath}`
       : ` 1. If the schema file is empty, edit ${schemaRelativePath}`;
-  return [
+  const nextSteps = [
     stepOne,
     ' 2. Run npx ztd ztd-config',
     ' 3. Provide a SqlClient implementation (adapter or mock)',
     ' 4. Run tests (pnpm test or npx vitest run)'
   ];
+  const workspaceGuard = resolvePnpmWorkspaceGuard(rootDir, detectPackageManager(rootDir));
+  if (workspaceGuard.shouldIgnoreWorkspace) {
+    nextSteps.push(
+      ` 5. This project is nested under pnpm workspace ${workspaceGuard.workspaceRoot}; use pnpm install --ignore-workspace for manual installs.`
+    );
+  }
+  return nextSteps;
 }
 
 function buildSummaryLines(
